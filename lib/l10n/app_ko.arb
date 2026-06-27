@@ -354,6 +354,8 @@
   "siteSettingsAlwaysOpenHome": "항상 홈 열기",
   "siteSettingsAlwaysOpenHomeForced": "시크릿 모드에 의해 강제로 켜짐",
   "siteSettingsAlwaysOpenHomeSubtitle": "앱 재시작 및 홈 화면 바로가기 시 URL 초기화(쿠키는 유지됨)",
+  "siteSettingsKioskMode": "키오스크 모드",
+  "siteSettingsKioskModeSubtitle": "바로 가기에서 열면 메뉴와 설정을 숨겨 사이트를 변경할 수 없게 합니다. 편집하려면 앱을 평소대로 여세요.",
   "siteSettingsTrackingProtection": "추적 방지",
   "siteSettingsTrackingProtectionHint": "사이트별 향상된 추적 방지를 한데 묶은 설정입니다. 켜면 이 사이트에서 ClearURLs, DNS 차단 목록, 콘텐츠 차단기를 강제로 활성화하고, Canvas, 오디오, 글꼴 메트릭, 화면 크기, 하드웨어 동시성, 플러그인, 배터리, 음성, 고해상도 타이머, 경계 상자 측정값을 무작위화하는 안티 핑거프린팅 심을 주입합니다. 핑거프린트는 사이트별로 실행 간에 안정적으로 유지되지만 사이트 간, 사용자 간에는 다릅니다. 이 사이트에서 시크릿 모드도 함께 켜져 있으면 앱을 실행할 때마다 핑거프린트가 다시 생성되어 콜드 재시작 간에 사이트가 사용자를 재식별할 수 없습니다. 이 기능이 켜져 있는 동안 WebGL은 완전히 비활성화됩니다. WebGL이 필요한 사이트(지도, 3D 뷰어)에서는 끄세요.",
   "siteSettingsTrackingProtectionSubtitle": "안티 핑거프린팅 + 추적기 차단 강제",

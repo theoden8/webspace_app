@@ -354,6 +354,8 @@
   "siteSettingsAlwaysOpenHome": "Vždy otevřít domovskou stránku",
   "siteSettingsAlwaysOpenHomeForced": "Vynuceno anonymním režimem",
   "siteSettingsAlwaysOpenHomeSubtitle": "Obnovit URL při restartu aplikace a ze zástupce na ploše (cookies přetrvávají)",
+  "siteSettingsKioskMode": "Režim kiosku",
+  "siteSettingsKioskModeSubtitle": "Při otevření ze zástupce skryje nabídky a nastavení, aby web nešlo měnit. Pro úpravy otevřete aplikaci běžným způsobem.",
   "siteSettingsTrackingProtection": "Ochrana proti sledování",
   "siteSettingsTrackingProtectionHint": "Souhrnná rozšířená ochrana proti sledování pro jednotlivé stránky. Když je zapnutá, vynutí pro tuto stránku aktivní ClearURLs, seznam blokovaných DNS a blokování obsahu A vloží shim proti otiskům prohlížeče, který náhodně mění Canvas, audio, metriky písem, rozměry obrazovky, počet hardwarových vláken, pluginy, baterii, hlasy řeči, vysokorozlišovací časovače a měření ohraničujících rámců. Otisk zůstává stabilní pro danou stránku napříč spuštěními, ale liší se mezi stránkami a mezi uživateli. Když je pro tuto stránku zapnut i anonymní režim, otisk se přegeneruje při každém spuštění aplikace, takže vás stránka nemůže znovu identifikovat po studeném restartu. Po dobu zapnutí je WebGL zcela vypnuto; vypněte ji pro stránky, které WebGL potřebují (mapy, 3D prohlížeče).",
   "siteSettingsTrackingProtectionSubtitle": "Ochrana proti otiskům + vynucené blokování sledovačů",

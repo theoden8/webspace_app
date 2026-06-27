@@ -154,12 +154,14 @@ export registry (`kExportedAppPrefs`).
 
 ### Requirement: KIOSK-005 - Archive Neutrality
 
+The system SHALL keep active-state byte-identity (ARCH-001) intact when
+`kioskMode` is added: it MUST NOT introduce any counter, flag, or
+per-`siteId` entry that varies with archive presence or count.
 `kioskMode` is pure in-memory UI state derived at launch; it touches no
 disk outside the per-site JSON (which for archive-tier sites already
 rides the archive master-key keyspace), schedules no background work,
-and creates no OS-level UI or per-`siteId` entries. Per the ARCH-006
-audit it therefore needs NO archive override and does not vary
-active-state byte-identity (ARCH-001).
+and creates no OS-level UI or per-`siteId` entries, so per the ARCH-006
+audit it needs no archive override.
 
 #### Scenario: No archive-tier special handling required
 

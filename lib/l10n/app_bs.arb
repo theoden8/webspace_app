@@ -354,6 +354,8 @@
   "siteSettingsAlwaysOpenHome": "Uvijek otvori početnu",
   "siteSettingsAlwaysOpenHomeForced": "Prisilno uključeno inkognitom",
   "siteSettingsAlwaysOpenHomeSubtitle": "Resetuj URL pri ponovnom pokretanju aplikacije i prečicom na početnom ekranu (kolačići ostaju)",
+  "siteSettingsKioskMode": "Kiosk način rada",
+  "siteSettingsKioskModeSubtitle": "Kada se otvori iz prečice, sakriva izbornike i postavke tako da se stranica ne može mijenjati. Otvorite aplikaciju na uobičajen način za uređivanje.",
   "siteSettingsTrackingProtection": "Zaštita od praćenja",
   "siteSettingsTrackingProtectionHint": "Krovna napredna zaštita od praćenja po stranici. Kada je uključena, prisiljava ClearURLs, DNS listu blokiranja i Bloker sadržaja da budu aktivni za ovu stranicu, I ubacuje sloj protiv otiska prsta koji nasumično mijenja Canvas, zvuk, metrike fontova, dimenzije ekrana, hardversku konkurentnost, dodatke, bateriju, glasove govora, mjerače visoke rezolucije i mjerenja graničnih okvira. Otisak prsta ostaje stabilan po stranici kroz pokretanja, ali se razlikuje između stranica i između korisnika. Kada je inkognito također omogućen za ovu stranicu, otisak prsta se ponovo generiše pri svakom pokretanju aplikacije tako da vas stranica ne može ponovo identifikovati kroz hladna ponovna pokretanja. WebGL je potpuno onemogućen dok je ovo uključeno; isključite ga za stranice kojima treba WebGL (karte, 3D preglednici).",
   "siteSettingsTrackingProtectionSubtitle": "Zaštita od otiska prsta + prisilno blokiranje pratilaca",

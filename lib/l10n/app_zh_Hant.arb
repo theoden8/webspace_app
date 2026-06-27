@@ -354,6 +354,8 @@
   "siteSettingsAlwaysOpenHome": "總是開啟首頁",
   "siteSettingsAlwaysOpenHomeForced": "因無痕而強制開啟",
   "siteSettingsAlwaysOpenHomeSubtitle": "在應用程式重新啟動及主畫面捷徑時重設網址（Cookie 保留）",
+  "siteSettingsKioskMode": "資訊站模式",
+  "siteSettingsKioskModeSubtitle": "從捷徑開啟時，隱藏選單與設定，使網站無法被變更。若要編輯，請正常開啟應用程式。",
   "siteSettingsTrackingProtection": "追蹤保護",
   "siteSettingsTrackingProtectionHint": "傘狀的逐站加強型追蹤保護。開啟時，會強制此網站啟用 ClearURLs、DNS 封鎖清單與內容封鎖器，並注入反指紋辨識的 shim，隨機化 Canvas、音訊、字型度量、螢幕尺寸、硬體並行數、外掛程式、電池、語音聲源、高解析度計時器及定界框測量。指紋在每次啟動間對同一網站保持穩定，但在不同網站與不同使用者間有所差異。當此網站同時啟用無痕時，每次應用程式啟動都會重新產生指紋，使網站無法在冷重啟間重新辨識您。開啟時 WebGL 會完全停用；對於需要 WebGL 的網站（地圖、3D 檢視器）請關閉此項。",
   "siteSettingsTrackingProtectionSubtitle": "反指紋辨識 + 強制封鎖追蹤器",

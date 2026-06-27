@@ -354,6 +354,8 @@
   "siteSettingsAlwaysOpenHome": "सधैं होम खोल्नुहोस्",
   "siteSettingsAlwaysOpenHomeForced": "गुप्त मोडले बाध्यकारी रूपमा चालु गरेको",
   "siteSettingsAlwaysOpenHomeSubtitle": "एप पुनः सुरु हुँदा र होम-स्क्रिन सर्टकटमा URL रिसेट गर्नुहोस् (कुकीहरू रहन्छन्)",
+  "siteSettingsKioskMode": "किओस्क मोड",
+  "siteSettingsKioskModeSubtitle": "सर्टकटबाट खोल्दा, साइट परिवर्तन गर्न नसकिने गरी मेनु र सेटिङहरू लुकाउँछ। सम्पादन गर्न एप सामान्य रूपमा खोल्नुहोस्।",
   "siteSettingsTrackingProtection": "ट्र्याकिङ सुरक्षा",
   "siteSettingsTrackingProtectionHint": "प्रति-साइट अम्ब्रेला Enhanced Tracking Protection। चालु हुँदा, यो साइटका लागि ClearURLs, DNS अवरोधसूची, र सामग्री अवरोधकलाई सक्रिय हुन बाध्य पार्छ, र Canvas, audio, font मेट्रिक्स, स्क्रिन आयाम, hardware concurrency, plugins, battery, speech voices, उच्च-रिजोल्युसन टाइमर, र bounding-box मापनहरूलाई याद्रच्छिक बनाउने anti-fingerprinting shim इन्जेक्ट गर्छ। फिंगरप्रिन्ट प्रति साइट हरेक launch मा स्थिर रहन्छ तर साइट र प्रयोगकर्ताहरू बीच फरक हुन्छ। यो साइटका लागि गुप्त मोड पनि सक्षम हुँदा, फिंगरप्रिन्ट हरेक एप launch मा पुनः-रोल गरिन्छ ताकि साइटले कोल्ड पुनः-सुरुआतहरूमा तपाईंलाई पुनः-पहिचान गर्न नसकोस्। यो चालु हुँदा WebGL पूर्ण रूपमा असक्षम हुन्छ; WebGL चाहिने साइटहरू (नक्सा, 3D भ्युअर) का लागि यसलाई बन्द गर्नुहोस्।",
   "siteSettingsTrackingProtectionSubtitle": "Anti-fingerprinting + ट्र्याकर अवरोध बाध्यकारी",

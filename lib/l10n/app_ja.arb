@@ -354,6 +354,8 @@
   "siteSettingsAlwaysOpenHome": "常にホームを開く",
   "siteSettingsAlwaysOpenHomeForced": "シークレットモードにより強制的にオン",
   "siteSettingsAlwaysOpenHomeSubtitle": "アプリ再起動時とホーム画面ショートカットでURLをリセット（Cookieは保持）",
+  "siteSettingsKioskMode": "キオスクモード",
+  "siteSettingsKioskModeSubtitle": "ショートカットから開いたときにメニューと設定を隠し、サイトを変更できないようにします。編集するにはアプリを通常どおり開いてください。",
   "siteSettingsTrackingProtection": "トラッキング保護",
   "siteSettingsTrackingProtectionHint": "サイトごとの強化型トラッキング保護の総合設定です。オンにすると、このサイトに対して ClearURLs、DNS ブロックリスト、コンテンツブロッカーを強制的に有効化し、さらに Canvas、音声、フォントメトリクス、画面サイズ、ハードウェア並列度、プラグイン、バッテリー、音声合成ボイス、高解像度タイマー、バウンディングボックス計測をランダム化するアンチフィンガープリンティングのシムを注入します。フィンガープリントは起動をまたいでサイトごとに安定しますが、サイト間およびユーザー間では異なります。このサイトでシークレットモードも有効な場合、アプリ起動のたびにフィンガープリントが再生成され、コールド再起動をまたいでサイトがあなたを再識別できないようにします。これがオンの間は WebGL が完全に無効化されます。WebGL を必要とするサイト（地図、3Dビューア）ではオフにしてください。",
   "siteSettingsTrackingProtectionSubtitle": "アンチフィンガープリンティング + トラッカーブロックを強制",

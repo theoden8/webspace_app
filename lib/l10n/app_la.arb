@@ -356,6 +356,8 @@
   "siteSettingsAlwaysOpenHome": "Semper domum aperire",
   "siteSettingsAlwaysOpenHomeForced": "Coactum a modo occulto",
   "siteSettingsAlwaysOpenHomeSubtitle": "URL reponere cum applicatio iterum incipit et a compendio schermatis domus (crustula persistunt)",
+  "siteSettingsKioskMode": "Modus chioski",
+  "siteSettingsKioskModeSubtitle": "Cum ex breviario aperitur, indices et optiones celat ne situs mutari possit. Applicationem more solito aperi ut recensere possis.",
   "siteSettingsTrackingProtection": "Tutela contra investigationem",
   "siteSettingsTrackingProtectionHint": "Tutela aucta contra investigationem per locum, more umbellae. Cum accensa, cogit ClearURLs, Indicem impediendorum DNS, et Impeditorem contenti activos esse pro hoc loco, ATQUE inicit operimentum contra vestigia digitorum quod fortuita facit Canvas, audio, mensuras litterarum, dimensiones schermatis, simultaneitatem ferramenti, plugins, pilam, voces locutionis, horologia summae resolutionis, et mensuras cancellorum circumdantium. Vestigium digiti per locum stabile manet inter immissiones sed differt inter locos et inter usores. Cum modus occultus quoque accensus est pro hoc loco, vestigium digiti in unaquaque immissione applicationis revolvitur ne locus te trans frigidas reinitiationes reagnoscere possit. WebGL prorsus impeditur dum hoc accensum est; exstingue id pro locis qui WebGL requirunt (mappae, inspectores 3D).",
   "siteSettingsTrackingProtectionSubtitle": "Tutela contra vestigia digitorum + impeditio investigatorum coacta",

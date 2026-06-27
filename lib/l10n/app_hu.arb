@@ -354,6 +354,8 @@
   "siteSettingsAlwaysOpenHome": "Mindig a kezdőlap megnyitása",
   "siteSettingsAlwaysOpenHomeForced": "Inkognitó miatt kötelezően bekapcsolva",
   "siteSettingsAlwaysOpenHomeSubtitle": "URL visszaállítása az alkalmazás újraindításakor és a kezdőképernyő-parancsikonnál (a sütik megmaradnak)",
+  "siteSettingsKioskMode": "Kioszk mód",
+  "siteSettingsKioskModeSubtitle": "Parancsikonból megnyitva elrejti a menüket és a beállításokat, hogy a webhely ne legyen módosítható. A szerkesztéshez nyissa meg az alkalmazást a szokásos módon.",
   "siteSettingsTrackingProtection": "Nyomkövetés elleni védelem",
   "siteSettingsTrackingProtectionHint": "Átfogó, webhelyenkénti fokozott nyomkövetés elleni védelem. Bekapcsolva kötelezően aktívvá teszi a ClearURLs, a DNS feketelista és a tartalomblokkoló funkciókat ehhez a webhelyhez, ÉS bejuttat egy ujjlenyomatozás elleni shimet, amely véletlenszerűsíti a Canvas, hang, betűkép-metrikák, képernyőméretek, hardveres párhuzamosság, beépülők, akkumulátor, beszédhangok, nagy felbontású időzítők és határoló doboz mérések adatait. Az ujjlenyomat webhelyenként stabil marad indítások között, de eltér webhelyenként és felhasználónként. Ha az inkognitó mód is engedélyezve van ehhez a webhelyhez, az ujjlenyomat minden alkalmazásindításkor újragenerálódik, így a webhely nem tudja újra azonosítani Önt a hidegindítások között. A WebGL teljesen le van tiltva, amíg ez be van kapcsolva; kapcsolja ki azoknál a webhelyeknél, amelyeknek WebGL-re van szükségük (térképek, 3D-nézegetők).",
   "siteSettingsTrackingProtectionSubtitle": "Ujjlenyomatozás elleni védelem + kötelező nyomkövetőblokkolás",

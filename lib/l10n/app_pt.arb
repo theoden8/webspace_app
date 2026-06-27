@@ -354,6 +354,8 @@
   "siteSettingsAlwaysOpenHome": "Abrir sempre a página inicial",
   "siteSettingsAlwaysOpenHomeForced": "Forçado pela navegação anónima",
   "siteSettingsAlwaysOpenHomeSubtitle": "Repor o URL ao reiniciar a aplicação e no atalho do ecrã inicial (os cookies persistem)",
+  "siteSettingsKioskMode": "Modo quiosque",
+  "siteSettingsKioskModeSubtitle": "Ao abrir a partir de um atalho, oculta os menus e as definições para que o site não possa ser alterado. Abra a aplicação normalmente para o editar.",
   "siteSettingsTrackingProtection": "Proteção contra rastreio",
   "siteSettingsTrackingProtectionHint": "Proteção avançada contra rastreio por site, abrangente. Quando ativada, força ClearURLs, lista de bloqueio DNS e bloqueador de conteúdos a estarem ativos para este site E injeta um shim anti-impressão digital que aleatoriza Canvas, áudio, métricas de tipos de letra, dimensões do ecrã, concorrência de hardware, plug-ins, bateria, vozes de fala, temporizadores de alta resolução e medições de caixas delimitadoras. A impressão digital mantém-se estável por site entre arranques mas difere entre sites e entre utilizadores. Quando a navegação anónima também está ativada para este site, a impressão digital é regerada a cada arranque da aplicação para que o site não consiga voltar a identificá-lo entre reinícios a frio. O WebGL é totalmente desativado enquanto isto está ativo; desligue-o para sites que precisam de WebGL (mapas, visualizadores 3D).",
   "siteSettingsTrackingProtectionSubtitle": "Anti-impressão digital + forçar bloqueio de rastreadores",

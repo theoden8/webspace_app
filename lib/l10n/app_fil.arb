@@ -354,6 +354,8 @@
   "siteSettingsAlwaysOpenHome": "Palaging buksan ang Home",
   "siteSettingsAlwaysOpenHomeForced": "Pinilit na i-on ng Incognito",
   "siteSettingsAlwaysOpenHomeSubtitle": "I-reset ang URL sa pag-restart ng app at home-screen shortcut (natatago ang mga cookie)",
+  "siteSettingsKioskMode": "Mode ng kiosk",
+  "siteSettingsKioskModeSubtitle": "Kapag binuksan mula sa isang shortcut, itinatago ang mga menu at setting upang hindi mabago ang site. Buksan nang normal ang app para mag-edit.",
   "siteSettingsTrackingProtection": "Proteksyon Laban sa Pagsubaybay",
   "siteSettingsTrackingProtectionHint": "Saklaw na per-site na Enhanced Tracking Protection. Kapag naka-on, pinipilit nitong maging aktibo ang ClearURLs, DNS Blocklist, at Content Blocker para sa site na ito, AT nag-iiniksiyon ng anti-fingerprinting shim na nag-rarandom ng Canvas, audio, metrics ng font, mga sukat ng screen, hardware concurrency, mga plugin, baterya, mga boses ng speech, mga high-resolution na timer, at mga sukat ng bounding-box. Mananatiling stable ang fingerprint kada site sa mga paglulunsad ngunit magkakaiba sa mga site at sa mga user. Kapag naka-enable rin ang Incognito para sa site na ito, muling sini-set ang fingerprint sa bawat paglulunsad ng app upang hindi ka muling makilala ng site sa mga cold restart. Ganap na naka-disable ang WebGL habang naka-on ito; i-off ito para sa mga site na nangangailangan ng WebGL (mga mapa, 3D viewer).",
   "siteSettingsTrackingProtectionSubtitle": "Anti-fingerprinting + pilitin ang pag-block ng tracker",

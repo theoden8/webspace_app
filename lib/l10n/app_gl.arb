@@ -354,6 +354,8 @@
   "siteSettingsAlwaysOpenHome": "Abrir sempre o inicio",
   "siteSettingsAlwaysOpenHomeForced": "Forzado polo modo incógnito",
   "siteSettingsAlwaysOpenHomeSubtitle": "Restablecer o URL ao reiniciar a aplicación e ao usar o atallo da pantalla de inicio (as cookies persisten)",
+  "siteSettingsKioskMode": "Modo quiosco",
+  "siteSettingsKioskModeSubtitle": "Ao abrir desde un atallo, oculta os menús e a configuración para que o sitio non se poida cambiar. Abre a aplicación con normalidade para editalo.",
   "siteSettingsTrackingProtection": "Protección contra o seguimento",
   "siteSettingsTrackingProtectionHint": "Protección mellorada contra o seguimento por sitio, como paraugas. Cando está activada, forza a activación de ClearURLs, Lista de bloqueo DNS e Bloqueador de contido para este sitio, E inxecta unha capa antiimpresión dixital que aleatoriza Canvas, audio, métricas de fontes, dimensións da pantalla, concorrencia de hardware, complementos, batería, voces de fala, temporizadores de alta resolución e medicións de caixas delimitadoras. A impresión dixital mantense estable por sitio entre lanzamentos pero difire entre sitios e entre usuarios. Cando o modo incógnito tamén está activado para este sitio, a impresión dixital rexérase en cada lanzamento da aplicación para que o sitio non poida reidentificarte entre reinicios en frío. WebGL desactívase por completo mentres isto está activado; desactívao para os sitios que precisan WebGL (mapas, visores 3D).",
   "siteSettingsTrackingProtectionSubtitle": "Antiimpresión dixital + forzar bloqueo de rastrexadores",

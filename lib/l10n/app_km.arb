@@ -356,6 +356,8 @@
   "siteSettingsAlwaysOpenHome": "បើកទំព័រដើមជានិច្ច",
   "siteSettingsAlwaysOpenHomeForced": "បង្ខំបើកដោយ Incognito",
   "siteSettingsAlwaysOpenHomeSubtitle": "កំណត់ URL ឡើងវិញនៅពេល restart កម្មវិធី និង shortcut home (cookie ត្រូវបានរក្សា)",
+  "siteSettingsKioskMode": "របៀបឃីយ៉ុស្ក",
+  "siteSettingsKioskModeSubtitle": "នៅពេលបើកពីផ្លូវកាត់ វាលាក់ម៉ឺនុយ និងការកំណត់ ដើម្បីកុំឱ្យអាចផ្លាស់ប្ដូរគេហទំព័របាន។ បើកកម្មវិធីតាមធម្មតាដើម្បីកែសម្រួល។",
   "siteSettingsTrackingProtection": "ការការពារការតាមដាន",
   "siteSettingsTrackingProtectionHint": "ការការពារការតាមដានដ៏ប្រសើរក្នុង per-site។ ពេលបើក បង្ខំ ClearURLs, DNS Blocklist, និង Content Blocker ឱ្យសកម្មសម្រាប់គេហទំព័រនេះ ហើយ inject shim ប្រឆាំង fingerprinting ដែល randomize Canvas, audio, font metrics, screen dimensions, hardware concurrency, plugins, battery, speech voices, timers ភាពតឹងរ៉ឹង, និងការវាស់ bounding-box ។ fingerprint នៅតែស្ថិតស្ថេររហូតដល់ site ផ្ទុក ប៉ុន្តែខុសគ្នារវាង sites និងអ្នកប្រើ។ ពេល Incognito ក៏ត្រូវបានបើកសម្រាប់គេហទំព័រនេះ fingerprint ត្រូវបាន reroll នៅ restart ដូច្នេះ site មិនអាចស្គាល់អ្នកឡើងវិញ។ WebGL ត្រូវបានបិទទាំងស្រុងខណៈ​ on ។ បិទសម្រាប់ site ដែលត្រូវការ WebGL (ផែនទី, 3D viewers)។",
   "siteSettingsTrackingProtectionSubtitle": "Anti-fingerprinting + បង្ខំទប់ស្កាត់ tracker",

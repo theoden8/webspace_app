@@ -354,6 +354,8 @@
   "siteSettingsAlwaysOpenHome": "Vienmēr atvērt sākumlapu",
   "siteSettingsAlwaysOpenHomeForced": "Piespiedu kārtā ieslēgts ar Inkognito",
   "siteSettingsAlwaysOpenHomeSubtitle": "Atiestatīt URL pēc lietotnes restartēšanas un sākumekrāna saīsnes (sīkdatnes saglabājas)",
+  "siteSettingsKioskMode": "Kioska režīms",
+  "siteSettingsKioskModeSubtitle": "Atverot no saīsnes, tiek paslēptas izvēlnes un iestatījumi, lai vietni nevarētu mainīt. Lai rediģētu, atveriet lietotni parastajā veidā.",
   "siteSettingsTrackingProtection": "Izsekošanas aizsardzība",
   "siteSettingsTrackingProtectionHint": "Visaptveroša katras vietnes uzlabotā izsekošanas aizsardzība. Kad ieslēgta, piespiež šai vietnei būt aktīviem ClearURLs, DNS bloķēšanas sarakstam un satura bloķētājam, UN ievada pretpirkstnospiedumu shimu, kas nejaušina Canvas, audio, fontu metrikas, ekrāna izmērus, aparatūras paralēlismu, spraudņus, akumulatoru, runas balsis, augstas izšķirtspējas taimerus un robežrāmju mērījumus. Pirkstnospiedums katrā vietnē paliek stabils starp palaišanām, bet atšķiras starp vietnēm un starp lietotājiem. Kad šai vietnei ir iespējots arī Inkognito, pirkstnospiedums tiek atkārtoti ģenerēts katrā lietotnes palaišanā, lai vietne nevarētu jūs atkārtoti identificēt pēc aukstajām restartēšanām. WebGL ir pilnībā atspējots, kamēr šis ir ieslēgts; izslēdziet to vietnēm, kurām nepieciešams WebGL (kartes, 3D skatītāji).",
   "siteSettingsTrackingProtectionSubtitle": "Pretpirkstnospiedumu + piespiedu izsekotāju bloķēšana",

@@ -354,6 +354,8 @@
   "siteSettingsAlwaysOpenHome": "Vždy otvoriť domovskú stránku",
   "siteSettingsAlwaysOpenHomeForced": "Vynútené anonymným režimom",
   "siteSettingsAlwaysOpenHomeSubtitle": "Obnoviť URL pri reštarte aplikácie a skratke na domovskej obrazovke (súbory cookie zostávajú)",
+  "siteSettingsKioskMode": "Režim kiosku",
+  "siteSettingsKioskModeSubtitle": "Pri otvorení zo skratky skryje ponuky a nastavenia, aby sa stránka nedala meniť. Ak chcete upravovať, otvorte aplikáciu bežným spôsobom.",
   "siteSettingsTrackingProtection": "Ochrana pred sledovaním",
   "siteSettingsTrackingProtectionHint": "Zastrešujúca rozšírená ochrana pred sledovaním pre jednotlivé stránky. Keď je zapnutá, vynúti aktiváciu ClearURLs, zoznamu blokovaných DNS a blokovača obsahu pre túto stránku A vloží shim proti odtlačkom prehliadača, ktorý randomizuje Canvas, zvuk, metriky písiem, rozmery obrazovky, súbežnosť hardvéru, doplnky, batériu, hlasy syntézy reči, časovače s vysokým rozlíšením a merania ohraničujúcich rámčekov. Odtlačok zostáva pre danú stránku stabilný naprieč spusteniami, ale líši sa medzi stránkami a medzi používateľmi. Keď je pre túto stránku zapnutý aj anonymný režim, odtlačok sa znova vygeneruje pri každom spustení aplikácie, takže vás stránka nedokáže opätovne identifikovať naprieč studenými reštartmi. WebGL je počas zapnutia úplne vypnutý; vypnite ho pre stránky, ktoré WebGL potrebujú (mapy, 3D prehliadače).",
   "siteSettingsTrackingProtectionSubtitle": "Ochrana proti odtlačkom + vynútené blokovanie sledovačov",

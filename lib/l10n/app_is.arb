@@ -354,6 +354,8 @@
   "siteSettingsAlwaysOpenHome": "Opna alltaf heim",
   "siteSettingsAlwaysOpenHomeForced": "Þvingað á af huliðsstillingu",
   "siteSettingsAlwaysOpenHomeSubtitle": "Endurstilla URL við endurræsingu forrits og heimaskjásflýtileið (vefkökur varðveitast)",
+  "siteSettingsKioskMode": "Söluturnshamur",
+  "siteSettingsKioskModeSubtitle": "Þegar opnað er úr flýtileið eru valmyndir og stillingar faldar svo ekki sé hægt að breyta vefsvæðinu. Opnaðu forritið á venjulegan hátt til að breyta því.",
   "siteSettingsTrackingProtection": "Rakningarvörn",
   "siteSettingsTrackingProtectionHint": "Yfirgripsmikil rakningarvörn fyrir hvert svæði. Þegar kveikt er þvingar hún ClearURLs, DNS-bannlista og Efnisblokkara til að vera virk fyrir þetta svæði OG sprautar inn fingrafaravarnarslimi sem slembar Canvas, hljóð, leturmælingar, skjávíddir, vélbúnaðarsamhliðun, viðbætur, rafhlöðu, talraddir, hárupplausnartímamæla og útlínumælingar. Fingrafarið er stöðugt fyrir hvert svæði milli ræsinga en ólíkt milli svæða og milli notenda. Þegar huliðsstilling er einnig virk fyrir þetta svæði er fingrafarið endurvalið við hverja forritsræsingu svo svæðið geti ekki auðkennt þig á ný eftir kaldræsingar. WebGL er algjörlega óvirkt á meðan kveikt er; slökktu á þessu fyrir svæði sem þurfa WebGL (kort, þrívíddarskoðarar).",
   "siteSettingsTrackingProtectionSubtitle": "Fingrafaravörn + þvinguð rakningarblokkun",

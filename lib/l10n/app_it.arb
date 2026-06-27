@@ -354,6 +354,8 @@
   "siteSettingsAlwaysOpenHome": "Apri sempre la home",
   "siteSettingsAlwaysOpenHomeForced": "Forzato dall'incognito",
   "siteSettingsAlwaysOpenHomeSubtitle": "Reimposta l'URL al riavvio dell'app e dalla scorciatoia nella schermata Home (i cookie vengono conservati)",
+  "siteSettingsKioskMode": "Modalità chiosco",
+  "siteSettingsKioskModeSubtitle": "Quando viene aperto da una scorciatoia, nasconde menu e impostazioni in modo che il sito non possa essere modificato. Apri l'app normalmente per modificarlo.",
   "siteSettingsTrackingProtection": "Protezione dal tracciamento",
   "siteSettingsTrackingProtectionHint": "Protezione antitracciamento avanzata per sito, di tipo ombrello. Quando è attiva, forza ClearURLs, Blocklist DNS e Blocco contenuti a essere attivi per questo sito E inietta uno shim antifingerprinting che randomizza Canvas, audio, metriche dei font, dimensioni dello schermo, concorrenza hardware, plugin, batteria, voci sintetiche, timer ad alta risoluzione e misurazioni dei bounding box. L'impronta resta stabile per ogni sito tra un avvio e l'altro ma differisce tra siti diversi e tra utenti diversi. Quando per questo sito è abilitata anche la modalità incognito, l'impronta viene rigenerata a ogni avvio dell'app così che il sito non possa identificarti di nuovo tra un riavvio a freddo e l'altro. WebGL è completamente disabilitato finché questa è attiva; disattivala per i siti che richiedono WebGL (mappe, visualizzatori 3D).",
   "siteSettingsTrackingProtectionSubtitle": "Antifingerprinting + blocco forzato dei tracker",

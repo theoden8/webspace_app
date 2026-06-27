@@ -354,6 +354,8 @@
   "siteSettingsAlwaysOpenHome": "Obre sempre la pàgina d'inici",
   "siteSettingsAlwaysOpenHomeForced": "Forçat per l'Incògnit",
   "siteSettingsAlwaysOpenHomeSubtitle": "Restableix l'URL en reiniciar l'app i en la drecera de la pantalla d'inici (les galetes es conserven)",
+  "siteSettingsKioskMode": "Mode quiosc",
+  "siteSettingsKioskModeSubtitle": "En obrir-se des d'una drecera, amaga els menús i la configuració perquè el lloc no es pugui modificar. Obriu l'aplicació normalment per editar-lo.",
   "siteSettingsTrackingProtection": "Protecció contra el seguiment",
   "siteSettingsTrackingProtectionHint": "Protecció millorada contra el seguiment per lloc, global. Quan està activada, força que ClearURLs, la llista de bloqueig DNS i el bloquejador de contingut estiguin actius per a aquest lloc, I injecta una capa antiempremtes que aleatoritza Canvas, àudio, mètriques de tipus de lletra, dimensions de pantalla, concurrència de maquinari, connectors, bateria, veus de síntesi, temporitzadors d'alta resolució i mesures de caixa delimitadora. L'empremta es manté estable per lloc entre execucions però difereix entre llocs i entre usuaris. Quan l'Incògnit també està activat per a aquest lloc, l'empremta es regenera a cada inici de l'app perquè el lloc no us pugui tornar a identificar entre reinicis en fred. El WebGL es desactiva del tot mentre això estigui activat; desactiveu-ho per a llocs que necessitin WebGL (mapes, visors 3D).",
   "siteSettingsTrackingProtectionSubtitle": "Antiempremtes + força el bloqueig de rastrejadors",
