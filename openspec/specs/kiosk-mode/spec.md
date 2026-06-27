@@ -193,3 +193,8 @@ active-state byte-identity (ARCH-001).
 
 - `test/web_view_model_test.dart` — `kioskMode` toJson/fromJson
   round-trip and legacy default.
+- `formal/kiosk.tla` (+ `kiosk*.cfg`, wired into `formal/check.sh`) —
+  TLC model of the lock state machine: `Inv_LockedIsSealed` (KIOSK-002 +
+  KIOSK-003) and `Inv_LockMatchesSource` (KIOSK-001), with `exitfs` /
+  `chrome` negative demonstrators and a `Reach_Locked` reachability
+  witness.

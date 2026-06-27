@@ -120,7 +120,8 @@ missing-transition classes, and cross-spec interference — bugs in the gaps *be
   not mix; the trace names the breaking interleaving. Fix the design, not the model.
 - Standalone models (no shared kernel state) live beside the kernel: `archive.tla`
   (ARCH-001 byte-identity, a 2-safety hyperproperty via self-composition), `renderer.tla`
-  (BUG-002 dead-renderer recovery), `proxy.tla` (mismatched-proxy mutual exclusion).
+  (BUG-002 dead-renderer recovery), `proxy.tla` (mismatched-proxy mutual exclusion),
+  `kiosk.tla` (KIOSK-001/002/003 locked-shell sealing).
 - Each model carries **negative** demonstrators (a mutation that MUST be caught) and
   **positive** reachability witnesses (a legal behavior that MUST be reachable) — run by
   `./formal/check.sh`. `trace/` validates real `LogService` traces against the kernel's

@@ -100,6 +100,16 @@ expect containers_alias.cfg containers.tla "Inv_Disjoint is violated" \
 expect containers_reach.cfg containers.tla "Reach_TwoCreated is violated" \
   "two sites are actually created (disjointness not vacuous)"
 
+echo "── KIOSK: locked shortcut session seals the shell (KIOSK-001/002/003) ──"
+expect kiosk.cfg kiosk.tla "No error has been found" \
+  "a kiosk-shortcut launch seals chrome + holds fullscreen"
+expect kiosk_leak_fs.cfg kiosk.tla "Inv_LockedIsSealed is violated" \
+  "exiting fullscreen while locked is caught"
+expect kiosk_leak_chrome.cfg kiosk.tla "Inv_LockedIsSealed is violated" \
+  "building the drawer while locked is caught"
+expect kiosk_reach.cfg kiosk.tla "Reach_Locked is violated" \
+  "a locked state is reachable (sealing not vacuous)"
+
 echo "── TRACE CONFORMANCE: code stayed inside the model ──"
 case "$JAR" in /*) JAR_ABS="$JAR" ;; *) JAR_ABS="$(pwd)/$JAR" ;; esac
 TLA2TOOLS_JAR="$JAR_ABS" ./trace/check_trace.sh | sed 's/^/  /'
