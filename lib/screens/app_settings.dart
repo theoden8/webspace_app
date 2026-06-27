@@ -58,8 +58,8 @@ class AppSettingsScreen extends StatefulWidget {
   final ValueChanged<bool> onTabStripInFullscreenChanged;
   final bool fullscreenOnShortcut;
   final ValueChanged<bool> onFullscreenOnShortcutChanged;
-  final bool tabBarButtonInFullscreen;
-  final ValueChanged<bool> onTabBarButtonInFullscreenChanged;
+  final bool tabBarButton;
+  final ValueChanged<bool> onTabBarButtonChanged;
   final bool tabBarButtonOnRight;
   final ValueChanged<bool> onTabBarButtonOnRightChanged;
   final int tabMaxWidth;
@@ -103,8 +103,8 @@ class AppSettingsScreen extends StatefulWidget {
     required this.onTabStripInFullscreenChanged,
     required this.fullscreenOnShortcut,
     required this.onFullscreenOnShortcutChanged,
-    required this.tabBarButtonInFullscreen,
-    required this.onTabBarButtonInFullscreenChanged,
+    required this.tabBarButton,
+    required this.onTabBarButtonChanged,
     required this.tabBarButtonOnRight,
     required this.onTabBarButtonOnRightChanged,
     required this.tabMaxWidth,
@@ -131,7 +131,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   late bool _showTabStrip;
   late bool _tabStripInFullscreen;
   late bool _fullscreenOnShortcut;
-  late bool _tabBarButtonInFullscreen;
+  late bool _tabBarButton;
   late bool _tabBarButtonOnRight;
   late double _tabMaxWidth;
   late bool _showStatsBanner;
@@ -191,7 +191,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     _showTabStrip = widget.showTabStrip;
     _tabStripInFullscreen = widget.tabStripInFullscreen;
     _fullscreenOnShortcut = widget.fullscreenOnShortcut;
-    _tabBarButtonInFullscreen = widget.tabBarButtonInFullscreen;
+    _tabBarButton = widget.tabBarButton;
     _tabBarButtonOnRight = widget.tabBarButtonOnRight;
     _tabMaxWidth = widget.tabMaxWidth.toDouble();
     _showStatsBanner = widget.showStatsBanner;
@@ -763,28 +763,23 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     widget.onLocaleOverrideChanged(selected);
   }
 
-  /// Full-screen tab-strip behavior as a single mutually-exclusive choice,
-  /// derived from the two persisted bools: 0 = hidden, 1 = always visible,
-  /// 2 = revealed by the tab-bar button.
-  int get _fullscreenTabStripMode {
-    if (_tabStripInFullscreen) return 1;
-    if (_tabBarButtonInFullscreen) return 2;
-    return 0;
-  }
+  /// Full-screen tab-strip visibility as a single choice: 0 = hidden,
+  /// 1 = always visible. On-demand reveal is handled by the standalone
+  /// "tab bar button" option, which works in and out of fullscreen.
+  int get _fullscreenTabStripMode => _tabStripInFullscreen ? 1 : 0;
 
   void _setFullscreenTabStripMode(int mode) {
     setState(() {
       _tabStripInFullscreen = mode == 1;
-      _tabBarButtonInFullscreen = mode == 2;
     });
     widget.onTabStripInFullscreenChanged(_tabStripInFullscreen);
-    widget.onTabBarButtonInFullscreenChanged(_tabBarButtonInFullscreen);
   }
 
-  /// Whether the tab strip can appear at all (out of fullscreen or via either
-  /// fullscreen mode), so the width limit is meaningful.
+  /// Whether the tab strip can appear at all (pinned out of fullscreen, pinned
+  /// in fullscreen, or revealed by the tab-bar button), so the width limit is
+  /// meaningful.
   bool get _tabStripCanShow =>
-      _showTabStrip || _tabStripInFullscreen || _tabBarButtonInFullscreen;
+      _showTabStrip || _tabStripInFullscreen || _tabBarButton;
 
   @override
   Widget build(BuildContext context) {
@@ -866,48 +861,17 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             },
           ),
           SwitchListTile(
-            title: Text(loc.appSettingsFullscreenOnShortcut),
-            subtitle: Text(loc.appSettingsFullscreenOnShortcutSubtitle),
-            value: _fullscreenOnShortcut,
+            title: Text(loc.appSettingsTabBarButton),
+            subtitle: Text(loc.appSettingsTabBarButtonSubtitle),
+            value: _tabBarButton,
             onChanged: (value) {
               setState(() {
-                _fullscreenOnShortcut = value;
+                _tabBarButton = value;
               });
-              widget.onFullscreenOnShortcutChanged(value);
+              widget.onTabBarButtonChanged(value);
             },
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Row(
-              children: [
-                Expanded(child: Text(loc.appSettingsFullscreenTabStrip)),
-                SegmentedButton<int>(
-                  segments: [
-                    ButtonSegment<int>(
-                      value: 0,
-                      icon: const Icon(Icons.visibility_off),
-                      tooltip: loc.appSettingsFullscreenTabStripHidden,
-                    ),
-                    ButtonSegment<int>(
-                      value: 1,
-                      icon: const Icon(Icons.visibility),
-                      tooltip: loc.appSettingsFullscreenTabStripAlways,
-                    ),
-                    ButtonSegment<int>(
-                      value: 2,
-                      icon: const Icon(Icons.smart_button),
-                      tooltip: loc.appSettingsFullscreenTabStripButton,
-                    ),
-                  ],
-                  selected: {_fullscreenTabStripMode},
-                  showSelectedIcon: false,
-                  onSelectionChanged: (selection) =>
-                      _setFullscreenTabStripMode(selection.first),
-                ),
-              ],
-            ),
-          ),
-          if (_tabBarButtonInFullscreen)
+          if (_tabBarButton)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Row(
@@ -937,6 +901,43 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                 ],
               ),
             ),
+          SwitchListTile(
+            title: Text(loc.appSettingsFullscreenOnShortcut),
+            subtitle: Text(loc.appSettingsFullscreenOnShortcutSubtitle),
+            value: _fullscreenOnShortcut,
+            onChanged: (value) {
+              setState(() {
+                _fullscreenOnShortcut = value;
+              });
+              widget.onFullscreenOnShortcutChanged(value);
+            },
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Row(
+              children: [
+                Expanded(child: Text(loc.appSettingsFullscreenTabStrip)),
+                SegmentedButton<int>(
+                  segments: [
+                    ButtonSegment<int>(
+                      value: 0,
+                      icon: const Icon(Icons.visibility_off),
+                      tooltip: loc.appSettingsFullscreenTabStripHidden,
+                    ),
+                    ButtonSegment<int>(
+                      value: 1,
+                      icon: const Icon(Icons.visibility),
+                      tooltip: loc.appSettingsFullscreenTabStripAlways,
+                    ),
+                  ],
+                  selected: {_fullscreenTabStripMode},
+                  showSelectedIcon: false,
+                  onSelectionChanged: (selection) =>
+                      _setFullscreenTabStripMode(selection.first),
+                ),
+              ],
+            ),
+          ),
           Builder(
             builder: (context) {
               final tabWidthLabel = '${_tabMaxWidth.round()} px';

@@ -647,6 +647,8 @@
   "appSettingsLocalCdnHint": "Íoslódálann sé leabharlanna JavaScript coitianta, clófhoirne, agus creataí CSS chun freastal orthu go háitiúil in ionad iad a fháil ó fhreastalaithe CDN tríú páirtí (cosúil le Google, Cloudflare, jsDelivr). Coscann sé seo soláthraithe CDN ó do ghníomhaíocht bhrabhsála a rianú thar shuíomhanna éagsúla.",
   "appSettingsContentBlockerHint": "Blocálann sé fógraí, rianaitheoirí, agus eilimintí leathanaigh nach dteastaíonn le liostaí scagaire cosúil le EasyList. Tacaíonn sé le blocáil ar leibhéal fearainn, scagairí cosmaideacha CSS chun eilimintí leathanaigh a fholú, agus rialacha folaithe téacsbhunaithe. Cumasaigh nó díchumasaigh liostaí scagaire aonair thíos, agus scoránaigh blocáil ábhair de réir suímh i socruithe gach suímh.",
   "appSettingsTabBarButtonCorner": "Suíomh an chnaipe",
+  "appSettingsTabBarButton": "Cnaipe an bharra cluaisíní",
+  "appSettingsTabBarButtonSubtitle": "Cnaipe ar foluain chun an barra cluaisíní agus an roghchlár a oscailt gan an stiall a choinneáil ar an scáileán",
   "appSettingsTabMaxWidth": "Teorainn Leithead Cluaisín",
   "appSettingsTabMaxWidthSubtitle": "Cuir teorainn le leithead gach cluaisín ionas go bhfanfaidh ainmneacha fada dlúth",
   "appSettingsFullscreenOnShortcut": "Lánscáileán nuair a sheoltar ó aicearra",

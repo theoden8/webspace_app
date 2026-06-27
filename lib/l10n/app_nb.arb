@@ -647,6 +647,8 @@
   "appSettingsLocalCdnHint": "Laster ned vanlige JavaScript-biblioteker, fonter og CSS-rammeverk for å serve dem lokalt i stedet for å hente dem fra tredjeparts CDN-servere (som Google, Cloudflare, jsDelivr). Dette forhindrer CDN-leverandører fra å spore nettlesingen din på tvers av ulike nettsteder.",
   "appSettingsContentBlockerHint": "Blokkerer reklame, sporere og uønskede sideelementer ved hjelp av filterlister som EasyList. Støtter blokkering på domenivå, kosmetiske CSS-filtre for å skjule sideelementer, og tekstbaserte skjuleregler. Aktiver eller deaktiver individuelle filterlister nedenfor, og slå innholdsblokkering av eller på per nettsted i hvert nettsteds innstillinger.",
   "appSettingsTabBarButtonCorner": "Knappplassering",
+  "appSettingsTabBarButton": "Fanelinjeknapp",
+  "appSettingsTabBarButtonSubtitle": "En flytende knapp som åpner fanelinjen og menyen uten å holde stripen synlig på skjermen",
   "appSettingsTabMaxWidth": "Grense for fanebredde",
   "appSettingsTabMaxWidthSubtitle": "Begrens hvor bred hver fane kan bli, slik at lange navn forblir kompakte",
   "appSettingsFullscreenOnShortcut": "Fullskjerm ved oppstart fra snarvei",

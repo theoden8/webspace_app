@@ -647,6 +647,8 @@
   "appSettingsLocalCdnHint": "Stáhne běžné JavaScriptové knihovny, písma a CSS frameworky, aby je poskytoval lokálně místo jejich stahování ze serverů CDN třetích stran (jako Google, Cloudflare, jsDelivr). Tím brání poskytovatelům CDN sledovat vaše prohlížení napříč různými webovými stránkami.",
   "appSettingsContentBlockerHint": "Blokuje reklamy, sledovače a nežádoucí prvky stránek pomocí seznamů filtrů jako EasyList. Podporuje blokování na úrovni domén, kosmetické filtry CSS pro skrývání prvků stránky a pravidla skrývání podle textu. Zapněte nebo vypněte jednotlivé seznamy filtrů níže a přepínejte blokování obsahu pro každou stránku v jejím nastavení.",
   "appSettingsTabBarButtonCorner": "Poloha tlačítka",
+  "appSettingsTabBarButton": "Tlačítko panelu karet",
+  "appSettingsTabBarButtonSubtitle": "Plovoucí tlačítko pro otevření panelu karet a nabídky bez ponechání pruhu na obrazovce",
   "appSettingsTabMaxWidth": "Omezení šířky karty",
   "appSettingsTabMaxWidthSubtitle": "Omezte, jak široká může být každá karta, aby dlouhé názvy zůstaly kompaktní",
   "appSettingsFullscreenOnShortcut": "Celá obrazovka při spuštění ze zástupce",

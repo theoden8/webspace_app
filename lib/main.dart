@@ -980,15 +980,18 @@ class _WebSpacePageState extends State<WebSpacePage>
   bool _showUrlBar = false;
   bool _showTabStrip = false;
   bool _tabStripInFullscreen = false;
-  bool _tabBarButtonInFullscreen = false;
+  // Show a floating button that reveals the tab strip (and its overflow menu)
+  // on demand, in and out of fullscreen. Lets the user reach tabs + menu
+  // without keeping the strip pinned. Global pref mirror of `tabBarButton`.
+  bool _tabBarButton = false;
   bool _tabBarButtonOnRight = true;
   // Enter fullscreen when a site is opened via a home-screen shortcut. Global
   // pref mirror of the `fullscreenOnShortcut` SharedPreferences key. On by
   // default. Independent of per-site `WebViewModel.fullscreenMode`.
   bool _fullscreenOnShortcut = true;
   int _tabMaxWidth = 140;
-  // Runtime-only: whether the fullscreen tab-bar button has revealed the
-  // tab strip. Reset on exiting fullscreen; never persisted.
+  // Runtime-only: whether the tab-bar button has revealed the tab strip.
+  // Reset on exiting fullscreen and on site switch; never persisted.
   bool _tabBarOverlayVisible = false;
   bool _linkHandlingEnabled = true;
   bool _linkHandlingClaimDomains = false;
@@ -2954,10 +2957,10 @@ class _WebSpacePageState extends State<WebSpacePage>
     await prefs.setBool('fullscreenOnShortcut', _fullscreenOnShortcut);
   }
 
-  Future<void> _saveTabBarButtonInFullscreen() async {
+  Future<void> _saveTabBarButton() async {
     if (isDemoMode) return;
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('tabBarButtonInFullscreen', _tabBarButtonInFullscreen);
+    await prefs.setBool('tabBarButton', _tabBarButton);
   }
 
   Future<void> _saveTabBarButtonOnRight() async {
@@ -3912,7 +3915,8 @@ class _WebSpacePageState extends State<WebSpacePage>
       _showUrlBar = prefs.getBool('showUrlBar') ?? false;
       _showTabStrip = prefs.getBool('showTabStrip') ?? false;
       _tabStripInFullscreen = prefs.getBool('tabStripInFullscreen') ?? false;
-      _tabBarButtonInFullscreen = prefs.getBool('tabBarButtonInFullscreen') ?? false;
+      _tabBarButton =
+          prefs.getBool('tabBarButton') ?? prefs.getBool('tabBarButtonInFullscreen') ?? false;
       _tabBarButtonOnRight = prefs.getBool('tabBarButtonOnRight') ?? true;
       _fullscreenOnShortcut = prefs.getBool('fullscreenOnShortcut') ?? true;
       _tabMaxWidth = prefs.getInt('tabMaxWidth') ?? 140;
@@ -5096,8 +5100,10 @@ class _WebSpacePageState extends State<WebSpacePage>
           backup.globalPrefs['showTabStrip'] as bool? ?? _showTabStrip;
       _tabStripInFullscreen =
           backup.globalPrefs['tabStripInFullscreen'] as bool? ?? _tabStripInFullscreen;
-      _tabBarButtonInFullscreen =
-          backup.globalPrefs['tabBarButtonInFullscreen'] as bool? ?? _tabBarButtonInFullscreen;
+      _tabBarButton =
+          backup.globalPrefs['tabBarButton'] as bool? ??
+          backup.globalPrefs['tabBarButtonInFullscreen'] as bool? ??
+          _tabBarButton;
       _tabBarButtonOnRight =
           backup.globalPrefs['tabBarButtonOnRight'] as bool? ?? _tabBarButtonOnRight;
       _fullscreenOnShortcut =
@@ -5152,6 +5158,10 @@ class _WebSpacePageState extends State<WebSpacePage>
     // re-log into sites whose secure cookies were stripped.
     final prefsToWrite = await SharedPreferences.getInstance();
     await writeExportedAppPrefs(prefsToWrite, backup.globalPrefs);
+    // Persist the migrated tab-bar-button value: a pre-rename backup carries
+    // only the legacy `tabBarButtonInFullscreen` field, which the registry
+    // writer above ignores (it would otherwise reset the new key to default).
+    await prefsToWrite.setBool('tabBarButton', _tabBarButton);
     // Hydrate the in-memory GlobalOutboundProxy from the (password-less)
     // imported value so subsequent outbound calls pick up the new
     // address/username without an app restart.
@@ -5575,13 +5585,13 @@ class _WebSpacePageState extends State<WebSpacePage>
                       });
                       _saveFullscreenOnShortcut();
                     },
-                    tabBarButtonInFullscreen: _tabBarButtonInFullscreen,
-                    onTabBarButtonInFullscreenChanged: (value) {
+                    tabBarButton: _tabBarButton,
+                    onTabBarButtonChanged: (value) {
                       setState(() {
-                        _tabBarButtonInFullscreen = value;
+                        _tabBarButton = value;
                         if (!value) _tabBarOverlayVisible = false;
                       });
-                      _saveTabBarButtonInFullscreen();
+                      _saveTabBarButton();
                     },
                     tabBarButtonOnRight: _tabBarButtonOnRight,
                     onTabBarButtonOnRightChanged: (value) {
@@ -5842,9 +5852,26 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (_getFilteredSiteIndices().isEmpty) return false;
     if (_isFullscreen) {
       if (_tabStripInFullscreen) return true;
-      return _tabBarButtonInFullscreen && _tabBarOverlayVisible;
+      return _tabBarButton && _tabBarOverlayVisible;
     }
-    return _showTabStrip;
+    return _showTabStrip || (_tabBarButton && _tabBarOverlayVisible);
+  }
+
+  /// Whether the floating tab-bar button is currently shown. It reveals the
+  /// tab strip (and its overflow menu) on demand, in and out of fullscreen.
+  /// Suppressed while the strip is already pinned or revealed — the strip then
+  /// carries its own dismiss control.
+  bool get _tabBarButtonShown {
+    if (!_tabBarButton) return false;
+    // KIOSK-002: a locked session must not expose tab switching.
+    if (_kioskLocked) return false;
+    if (_currentIndex == null || _currentIndex! >= _webViewModels.length) {
+      return false;
+    }
+    if (_getFilteredSiteIndices().isEmpty) return false;
+    if (_tabBarOverlayVisible) return false;
+    if (_isFullscreen) return !_tabStripInFullscreen;
+    return !_showTabStrip;
   }
 
   /// Build the tab strip shown in bottomNavigationBar.
@@ -7363,16 +7390,12 @@ class _WebSpacePageState extends State<WebSpacePage>
                       ),
                     );
                   }),
-                // Fullscreen tab-bar button: a small floating control that
-                // reveals the tab strip on demand while the rest of the chrome
-                // stays hidden. Works on its own (no always-on strip needed).
+                // Tab-bar button: a small floating control that reveals the
+                // tab strip (with its overflow menu) on demand, in and out of
+                // fullscreen. Works on its own (no always-on strip needed).
                 // Hidden once the strip is showing — its dismiss control then
                 // lives inside the bar instead.
-                if (_isFullscreen &&
-                    !_kioskLocked &&
-                    _tabBarButtonInFullscreen &&
-                    !_tabStripInFullscreen &&
-                    !_tabBarOverlayVisible)
+                if (_tabBarButtonShown)
                   Positioned(
                     bottom: 16,
                     left: _tabBarButtonOnRight ? null : 16,

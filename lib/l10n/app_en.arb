@@ -855,9 +855,17 @@
   "@appSettingsFullscreenOnShortcutSubtitle": {
     "description": "Subtitle for the toggle that enters full screen when a site is opened from a pinned home-screen shortcut"
   },
+  "appSettingsTabBarButton": "Tab bar button",
+  "@appSettingsTabBarButton": {
+    "description": "Title for the toggle that shows a floating button which opens the tab bar and its overflow menu on demand, in and out of full screen"
+  },
+  "appSettingsTabBarButtonSubtitle": "A floating button to open the tab bar and menu without keeping the strip on screen",
+  "@appSettingsTabBarButtonSubtitle": {
+    "description": "Subtitle explaining the tab bar button toggle: a floating button reveals the tab strip and its overflow menu so the strip does not need to stay pinned"
+  },
   "appSettingsFullscreenTabStrip": "In full screen, tab strip",
   "@appSettingsFullscreenTabStrip": {
-    "description": "Group label for the choice of how the tab strip behaves in full screen (followed by the Hidden / Always visible / Reveal with button options)"
+    "description": "Group label for the choice of how the tab strip behaves in full screen (followed by the Hidden / Always visible options)"
   },
   "appSettingsFullscreenTabStripHidden": "Hidden",
   "@appSettingsFullscreenTabStripHidden": {
@@ -873,7 +881,7 @@
   },
   "appSettingsTabBarButtonCorner": "Button position",
   "@appSettingsTabBarButtonCorner": {
-    "description": "Label for the control choosing whether the full-screen tab-bar button sits in the bottom-left or bottom-right corner"
+    "description": "Label for the control choosing whether the tab-bar button sits in the bottom-left or bottom-right corner"
   },
   "appSettingsTabMaxWidth": "Tab Width Limit",
   "@appSettingsTabMaxWidth": {

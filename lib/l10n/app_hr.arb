@@ -647,6 +647,8 @@
   "appSettingsLocalCdnHint": "Preuzima uobičajene JavaScript biblioteke, fontove i CSS okvire radi lokalnog posluživanja umjesto njihovog dohvaćanja s CDN poslužitelja trećih strana (poput Google, Cloudflare, jsDelivr). Time se CDN pružatelji sprečavaju u praćenju vašeg pregledavanja na različitim web stranicama.",
   "appSettingsContentBlockerHint": "Blokira oglase, pratitelje i neželjene elemente stranice koristeći popise filtera poput EasyList. Podržava blokiranje na razini domene, CSS kozmetičke filtre za skrivanje elemenata stranice i pravila skrivanja temeljena na tekstu. Omogućite ili onemogućite pojedinačne popise filtera ispod, a blokiranje sadržaja uključite ili isključite per-site u postavkama svake stranice.",
   "appSettingsTabBarButtonCorner": "Položaj gumba",
+  "appSettingsTabBarButton": "Gumb trake kartica",
+  "appSettingsTabBarButtonSubtitle": "Plutajući gumb za otvaranje trake kartica i izbornika bez zadržavanja trake na zaslonu",
   "appSettingsTabMaxWidth": "Ograničenje širine kartice",
   "appSettingsTabMaxWidthSubtitle": "Ograničite koliko svaka kartica može biti široka kako bi dugačka imena ostala kompaktna",
   "appSettingsFullscreenOnShortcut": "Cijeli zaslon pri pokretanju iz prečaca",

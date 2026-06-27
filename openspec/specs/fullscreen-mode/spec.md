@@ -215,6 +215,46 @@ The system SHALL keep the site's content reachable in full screen even when the 
 
 ---
 
+### Requirement: FS-009 - Tab Bar Button
+
+The system SHALL support a global option ("Tab bar button") that shows a small floating button which, when tapped, reveals the tab strip together with its overflow menu on demand. The button works both in and out of full screen, so the user can reach tabs and the menu without keeping the tab strip pinned. The option is independent of "Site Tab Strip" and "Keep Tab Strip in Full Screen". Its corner (bottom-left or bottom-right) is configurable.
+
+The button is suppressed whenever the strip is already on screen for the current mode: out of full screen when "Site Tab Strip" is on, in full screen when "Keep Tab Strip in Full Screen" is on, and in either mode while the strip it revealed is still showing (the revealed strip then carries its own dismiss control).
+
+The legacy `tabBarButtonInFullscreen` preference (full-screen-only button) is migrated to the general `tabBarButton` preference on upgrade and from imported backups.
+
+#### Scenario: Reveal tab bar out of full screen
+
+**Given** "Tab bar button" is enabled
+**And** "Site Tab Strip" is disabled
+**And** the user is not in full screen
+**When** the user taps the floating button
+**Then** the tab strip is shown with its overflow menu and a dismiss control
+**When** the user taps the dismiss control
+**Then** the tab strip is hidden and the floating button reappears
+
+#### Scenario: Reveal tab bar in full screen
+
+**Given** "Tab bar button" is enabled
+**And** "Keep Tab Strip in Full Screen" is disabled
+**And** the user is in full screen
+**When** the user taps the floating button
+**Then** the tab strip is shown with its overflow menu while the app bar and URL bar stay hidden
+
+#### Scenario: Button suppressed when strip already pinned
+
+**Given** "Tab bar button" is enabled
+**And** the tab strip is already pinned for the current mode (out of full screen via "Site Tab Strip", or in full screen via "Keep Tab Strip in Full Screen")
+**Then** the floating button is not shown
+
+#### Scenario: Selecting a site dismisses the revealed strip
+
+**Given** the user revealed the tab strip via the floating button
+**When** the user taps a site in the revealed strip
+**Then** the app switches to that site and the revealed strip is dismissed
+
+---
+
 ## Implementation Details
 
 ### Data Model
@@ -228,12 +268,14 @@ The system SHALL keep the site's content reachable in full screen even when the 
 **_WebSpacePageState** (`lib/main.dart`):
 - `bool _isFullscreen = false` - Current fullscreen state (not persisted; runtime only)
 - `bool _tabStripInFullscreen = false` - Global pref mirror of the `tabStripInFullscreen` SharedPreferences key (registered in `kExportedAppPrefs`, round-trips through settings backup)
+- `bool _tabBarButton = false` - Global pref mirror of the `tabBarButton` SharedPreferences key (registered in `kExportedAppPrefs`). When set, a floating button reveals the tab strip (and its overflow menu) on demand, in and out of full screen (FS-009). Read falls back to the legacy `tabBarButtonInFullscreen` key (and backup field) once on upgrade. `bool _tabBarButtonOnRight` chooses the corner; `bool _tabBarOverlayVisible` is the runtime-only flag for "the button has revealed the strip" (reset on exit-fullscreen and site switch, never persisted).
 - `bool _fullscreenOnShortcut = true` - Global pref mirror of the `fullscreenOnShortcut` SharedPreferences key (registered in `kExportedAppPrefs`, on by default). Both shortcut launch paths — `_openShortcutIndex` (warm) and the cold-launch restore path (`indexToRestore != null`) — route the decision through the pure `StartupRestoreEngine.shouldEnterFullscreen(viaShortcut, fullscreenOnShortcut, perSiteFullscreenMode)` policy and call `_enterFullscreen()` when it returns true. The policy returns `perSiteFullscreenMode || (viaShortcut && fullscreenOnShortcut)`, so a normal in-app switch (`viaShortcut: false`) is never pulled into fullscreen by the global option. Covered by `test/startup_restore_engine_test.dart`.
 
 ### UI Changes
 
 - **App bar**: Hidden when `_isFullscreen` is true (`appBar: _isFullscreen ? null : _buildAppBar()`)
-- **Tab strip**: `_buildTabStrip()` returns null when `_isFullscreen` unless the global `tabStripInFullscreen` pref is set (then it stays in `bottomNavigationBar` and owns the bottom safe-area inset)
+- **Tab strip**: `_buildTabStrip()` returns null when `_isFullscreen` unless the global `tabStripInFullscreen` pref is set (then it stays in `bottomNavigationBar` and owns the bottom safe-area inset). The `_tabStripShown` getter also renders it on demand in either mode when `_tabBarButton && _tabBarOverlayVisible`; the revealed strip carries an inline close button.
+- **Tab bar button**: the `_tabBarButtonShown` getter places a floating circular button in the body `Stack` (bottom corner per `_tabBarButtonOnRight`). Shown when `_tabBarButton` is on, a site is loaded, the overlay is not already revealed, and the strip is not pinned for the current mode (`_showTabStrip` out of fullscreen / `_tabStripInFullscreen` in fullscreen). Tapping sets `_tabBarOverlayVisible = true` (FS-009).
 - **Input bar**: `_buildInputBar()` returns null when `_isFullscreen`
 - **Body insets**: The fullscreen body keeps `SafeArea` active on both edges (`top: _isFullscreen`, `bottom: _isFullscreen || ...`). `immersiveSticky` does not reliably hide the system bars on Android 15 (edge-to-edge enforced); when a bar persists, the inset keeps the site's top/bottom controls clear of it. When the bars are truly hidden the inset is ~0 and the webview still fills the screen.
 - **Exit zone**: top edge when fullscreen (`MediaQuery.padding.top + 20px`, measured inside the body `SafeArea`) with a visible handle just below the notch/status bar. Only a centered 96px-wide `GestureDetector` catches the exit tap; the rest of the strip is transparent to pointers so web-app controls in the top corners stay tappable (github #401)
