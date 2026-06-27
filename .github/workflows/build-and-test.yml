@@ -26,7 +26,7 @@ env:
 
 jobs:
   validate:
-    name: Validate Fastlane + OpenSpec
+    name: Validate Fastlane + OpenSpec + proofs
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -70,6 +70,20 @@ jobs:
           java-version: '21'
       - name: Verify formal kernel
         run: ./formal/check.sh
+      # tlapm (the TLA+ Proof Manager) machine-checks the unbounded proofs in
+      # formal/proofs/ -- formal verification of the same specs, so it sits in
+      # the validate tier next to OpenSpec validation and the TLC kernel. The
+      # installer is heavy (~145 MB, bundles Isabelle) but reuses the Java set
+      # up above, so a separate runner buys nothing.
+      - name: Install TLAPS
+        run: |
+          curl -fsSL -o /tmp/tlaps.bin \
+            https://github.com/tlaplus/tlapm/releases/download/202210041448/tlaps-1.5.0-x86_64-linux-gnu-inst.bin
+          chmod +x /tmp/tlaps.bin
+          /tmp/tlaps.bin -d "$HOME/tlaps"
+          echo "$HOME/tlaps/bin" >> "$GITHUB_PATH"
+      - name: Verify TLAPS proofs
+        run: ./formal/proofs/check_proofs.sh
       # Idempotent: if the cache restored a matching Chromium, this
       # step prints "already installed" and exits in <1s. Otherwise it
       # downloads ~280 MB into ~/.cache/puppeteer. Running it as a
@@ -97,24 +111,6 @@ jobs:
       # requireBrowser() in test/browser/helpers/launch.js.
       - name: Run browser tests (real-Chromium shim tier)
         run: npm run test:browser
-
-  verify-proofs:
-    name: Verify TLAPS proofs
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      # tlapm (the TLA+ Proof Manager) machine-checks the unbounded proofs in
-      # formal/proofs/. It is a heavy, self-contained install (~145 MB, bundles
-      # Isabelle), so it lives in its own job rather than the validate tier.
-      - name: Install TLAPS
-        run: |
-          curl -fsSL -o /tmp/tlaps.bin \
-            https://github.com/tlaplus/tlapm/releases/download/202210041448/tlaps-1.5.0-x86_64-linux-gnu-inst.bin
-          chmod +x /tmp/tlaps.bin
-          /tmp/tlaps.bin -d "$HOME/tlaps"
-          echo "$HOME/tlaps/bin" >> "$GITHUB_PATH"
-      - name: Check proofs
-        run: ./formal/proofs/check_proofs.sh
 
   build-android:
     name: Build Android
