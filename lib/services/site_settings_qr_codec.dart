@@ -35,6 +35,7 @@ class SiteSettingsQrCodec {
     'thirdPartyCookiesEnabled',
     'incognito',
     'alwaysOpenHome',
+    'kioskMode',
     'language',
     'zoomPercent',
     'clearUrlEnabled',

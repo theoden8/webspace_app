@@ -148,11 +148,10 @@ void main() {
     });
 
     test('kioskMode absent in legacy JSON defaults off (KIOSK-004)', () {
-      final back = WebViewModel.fromJson(
-        {'initUrl': 'https://example.org/'},
-        null,
-      );
-      expect(back.kioskMode, isFalse);
+      final legacy = WebViewModel(initUrl: 'https://example.org/').toJson()
+        ..remove('kioskMode');
+      expect(legacy.containsKey('kioskMode'), isFalse);
+      expect(WebViewModel.fromJson(legacy, null).kioskMode, isFalse);
     });
 
     test('externalLinksInBrowser forced off for archive-tier sites (ARCH-006)', () {

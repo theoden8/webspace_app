@@ -188,8 +188,10 @@ audit it needs no archive override.
   (leading + actions), and `_tabStripShown`. Fullscreen is forced on
   both launch paths and held: `_exitFullscreen` early-returns while
   locked, and the exit handle / tab-bar button are not rendered.
-- `lib/l10n/app_en.arb` — `siteSettingsKioskMode` +
+- `lib/l10n/app_en.arb` (+ all locale ARBs) — `siteSettingsKioskMode` +
   `siteSettingsKioskModeSubtitle`.
+- `lib/services/site_settings_qr_codec.dart` — `kioskMode` classified in
+  `includedKeys` (shareable per-site config, like `fullscreenMode`).
 
 #### Tests
 
