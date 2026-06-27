@@ -127,7 +127,7 @@ missing-transition classes, and cross-spec interference — bugs in the gaps *be
   observable projection (the model↔code bridge).
 - `formal/proofs/` holds **unbounded TLAPS proofs** (machine-checked by `tlapm`): every
   kernel safety invariant *and* the surface-repaint liveness `RepaintLiveness` for all N,
-  not just TLC's N = 3. Run via `proofs/check_proofs.sh` (CI job `verify-proofs`).
+  not just TLC's N = 3. Run via `proofs/check_proofs.sh` (in the `validate` CI job).
 - A bug's recurrence is also gated in **code**: structural Node tests under `test/js/`
   (`surface_repaint_funnel`, `renderer_gone_recovery`) fail CI if a new path skips the fix.
 - Don't commit `tla2tools.jar`, `states/`, `.tlacache/`, or generated `mc_*.tla` (derivatives).
