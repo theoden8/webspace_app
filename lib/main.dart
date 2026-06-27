@@ -1087,6 +1087,13 @@ class _WebSpacePageState extends State<WebSpacePage>
   LaunchResolution? _pendingShortcutResolution;
   bool _handlingShortcutPrompt = false;
 
+  // KIOSK-002: set when the current session entered via a home-shortcut tap
+  // targeting a kiosk-mode site. While true the app shell hides all navigation
+  // and configuration affordances (drawer, tab strip, app-bar actions, context
+  // menus). Re-derived on every shortcut launch from the target's kioskMode, so
+  // a normal launch (no shortcut) or a shortcut to a non-kiosk site clears it.
+  bool _kioskLocked = false;
+
   StreamSubscription<TrustedHostEntry>? _untrustSub;
 
   @override
@@ -1694,6 +1701,9 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// (HS-006); cold launch handles the initUrl reset separately.
   Future<void> _openShortcutIndex(int index) async {
     if (index < 0 || index >= _webViewModels.length) return;
+    // KIOSK-001: re-derive the lock from the tapped target. A kiosk site locks
+    // the shell; a non-kiosk site clears a lock left by a prior kiosk launch.
+    _kioskLocked = _webViewModels[index].kioskMode;
     _resetAlwaysOpenHomeOnShortcut(index);
     if (index != _currentIndex) {
       await _setCurrentIndex(index);
@@ -1702,11 +1712,12 @@ class _WebSpacePageState extends State<WebSpacePage>
     // A shortcut tap is the user's app-launcher entry point; enter fullscreen
     // per the FS-008 policy. Runs after _setCurrentIndex (which already exited
     // fullscreen for a non-fullscreen per-site target), so there's no else.
-    if (StartupRestoreEngine.shouldEnterFullscreen(
-      viaShortcut: true,
-      fullscreenOnShortcut: _fullscreenOnShortcut,
-      perSiteFullscreenMode: _webViewModels[index].fullscreenMode,
-    )) {
+    if (_kioskLocked ||
+        StartupRestoreEngine.shouldEnterFullscreen(
+          viaShortcut: true,
+          fullscreenOnShortcut: _fullscreenOnShortcut,
+          perSiteFullscreenMode: _webViewModels[index].fullscreenMode,
+        )) {
       _enterFullscreen();
     }
     setState(() {});
@@ -4041,6 +4052,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     // regardless of where the previous session ended up (issue #298).
     if (indexToRestore != null) {
       final m = _webViewModels[indexToRestore];
+      // KIOSK-001: a cold launch via a kiosk site's shortcut locks the shell.
+      _kioskLocked = m.kioskMode;
       if (m.currentUrl != m.initUrl) {
         m.currentUrl = m.initUrl;
       }
@@ -4123,12 +4136,16 @@ class _WebSpacePageState extends State<WebSpacePage>
     // indexToRestore is non-null only for a shortcut cold launch (see the
     // "only restore index if launched via shortcut" comment above), so apply
     // the FS-008 shortcut-launch fullscreen policy here.
+    // KIOSK-003: a locked kiosk launch always goes fullscreen, overriding the
+    // per-site / fullscreenOnShortcut policy.
     if (indexToRestore != null &&
-        StartupRestoreEngine.shouldEnterFullscreen(
-          viaShortcut: true,
-          fullscreenOnShortcut: _fullscreenOnShortcut,
-          perSiteFullscreenMode: _webViewModels[indexToRestore].fullscreenMode,
-        )) {
+        (_kioskLocked ||
+            StartupRestoreEngine.shouldEnterFullscreen(
+              viaShortcut: true,
+              fullscreenOnShortcut: _fullscreenOnShortcut,
+              perSiteFullscreenMode:
+                  _webViewModels[indexToRestore].fullscreenMode,
+            ))) {
       _enterFullscreen();
     }
     setState(() {}); // Trigger UI update after async operation
@@ -4659,6 +4676,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     // Android the hybrid-composition SurfaceView can come back with a 1px dark
     // seam at the bottom edge until it recomposites. github #421-followup
     _nudgeSurfaceRepaint();
+    // KIOSK-003: the hint promises an exit that a locked session won't honor.
+    if (_kioskLocked) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(AppLocalizations.of(context).homeExitFullscreenHint),
@@ -4669,6 +4688,9 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   void _exitFullscreen() {
+    // KIOSK-003: a locked kiosk session stays fullscreen; the only exit is to
+    // relaunch the app normally (which clears the lock).
+    if (_kioskLocked) return;
     if (!_isFullscreen) return;
     setState(() {
       _isFullscreen = false;
@@ -5445,6 +5467,8 @@ class _WebSpacePageState extends State<WebSpacePage>
   AppBar _buildAppBar() {
     final loc = AppLocalizations.of(context);
     return AppBar(
+      // KIOSK-002: no leading menu button when locked.
+      automaticallyImplyLeading: !_kioskLocked,
       title: _currentIndex != null && _currentIndex! < _webViewModels.length
           ? GestureDetector(
               onDoubleTap: _toggleFullscreen,
@@ -5468,7 +5492,8 @@ class _WebSpacePageState extends State<WebSpacePage>
                   orElse: () => Webspace(name: 'Unknown'),
                 ).name
               : loc.homeNoWebspaceSelected),
-      actions: [
+      // KIOSK-002: no app-bar actions (download, theme, settings) when locked.
+      actions: _kioskLocked ? const <Widget>[] : [
         const DownloadButton(),
         IconButton(
           icon: Icon(_getThemeIcon()),
@@ -5808,6 +5833,9 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// Strip" pref. In fullscreen the behavior is an independent choice: always
   /// visible, revealed on demand by the tab-bar button, or hidden.
   bool get _tabStripShown {
+    // KIOSK-002: never show the tab strip in a locked session, in or out of
+    // fullscreen — no switching away from the kiosk site.
+    if (_kioskLocked) return false;
     if (_currentIndex == null || _currentIndex! >= _webViewModels.length) {
       return false;
     }
@@ -7298,7 +7326,8 @@ class _WebSpacePageState extends State<WebSpacePage>
                 // visible handle just below the status bar / notch area.
                 // The back button/gesture keeps its normal behavior (web
                 // history back, open drawer, etc.) even while in fullscreen.
-                if (_isFullscreen)
+                // KIOSK-003: no exit handle in a locked session.
+                if (_isFullscreen && !_kioskLocked)
                   Builder(builder: (context) {
                     final topPadding = MediaQuery.of(context).padding.top;
                     return Positioned(
@@ -7340,6 +7369,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                 // Hidden once the strip is showing — its dismiss control then
                 // lives inside the bar instead.
                 if (_isFullscreen &&
+                    !_kioskLocked &&
                     _tabBarButtonInFullscreen &&
                     !_tabStripInFullscreen &&
                     !_tabBarOverlayVisible)
@@ -7489,7 +7519,9 @@ class _WebSpacePageState extends State<WebSpacePage>
       // menu button instead.
       drawerEdgeDragWidth: webviewIsVisible ? 0 : null,
       appBar: _isFullscreen ? null : _buildAppBar(),
-      drawer: Drawer(
+      // KIOSK-002: no drawer when locked — removes the site grid, "back to
+      // webspaces", add-site, and the auto app-bar hamburger / edge swipe.
+      drawer: _kioskLocked ? null : Drawer(
         child: Column(
           children: [
             SafeArea(

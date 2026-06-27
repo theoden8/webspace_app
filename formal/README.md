@@ -64,6 +64,11 @@ class.
   `per-site-containers`). `Inv_Disjoint` (the site → container binding is injective, so no two
   sites share storage); the `alias` demonstrator binds two sites to one container and is
   caught. A relational invariant (the Alloy-shaped property), checked bounded in TLC.
+- **`kiosk.tla`** + `kiosk*.cfg` — kiosk-mode shell lock (spec: `kiosk-mode`).
+  `Inv_LockedIsSealed` (a locked kiosk-shortcut session hides the drawer / tab strip / app-bar
+  actions and holds fullscreen) + `Inv_LockMatchesSource` (lock ⇔ kiosk-shortcut launch); the
+  `exitfs` and `chrome` demonstrators leave fullscreen / build the drawer while locked and are
+  caught. Standalone (a pure UI state machine; no shared kernel state).
 - **`trace/`** — the model↔code conformance bridge (below).
 - **`proofs/`** — TLAPS deductive proofs for **unbounded N** (the bounded-TLC backstop). See
   [proofs/README.md](proofs/README.md): `Inv_CurrentLoaded` is proved for all `N >= 1`

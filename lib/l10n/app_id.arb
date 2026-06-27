@@ -354,6 +354,8 @@
   "siteSettingsAlwaysOpenHome": "Selalu buka Beranda",
   "siteSettingsAlwaysOpenHomeForced": "Dipaksa aktif oleh Penyamaran",
   "siteSettingsAlwaysOpenHomeSubtitle": "Setel ulang URL saat aplikasi dimulai ulang dan pintasan layar beranda (cookie bertahan)",
+  "siteSettingsKioskMode": "Mode kios",
+  "siteSettingsKioskModeSubtitle": "Saat dibuka dari pintasan, menu dan pengaturan disembunyikan agar situs tidak dapat diubah. Buka aplikasi seperti biasa untuk mengeditnya.",
   "siteSettingsTrackingProtection": "Perlindungan Pelacakan",
   "siteSettingsTrackingProtectionHint": "Perlindungan Pelacakan yang Ditingkatkan menyeluruh per situs. Saat aktif, memaksa ClearURLs, Daftar Blokir DNS, dan Pemblokir Konten aktif untuk situs ini, DAN menyuntikkan shim anti-sidik-jari yang mengacak Canvas, audio, metrik font, dimensi layar, konkurensi perangkat keras, plugin, baterai, suara ucapan, pengukur waktu resolusi tinggi, dan pengukuran kotak pembatas. Sidik jari tetap stabil per situs di seluruh peluncuran tetapi berbeda antar situs dan antar pengguna. Saat Penyamaran juga diaktifkan untuk situs ini, sidik jari diacak ulang pada setiap peluncuran aplikasi sehingga situs tidak dapat mengidentifikasi Anda kembali di seluruh mulai ulang dingin. WebGL dinonaktifkan sepenuhnya saat ini aktif; matikan untuk situs yang membutuhkan WebGL (peta, penampil 3D).",
   "siteSettingsTrackingProtectionSubtitle": "Anti-sidik-jari + paksa pemblokiran pelacak",

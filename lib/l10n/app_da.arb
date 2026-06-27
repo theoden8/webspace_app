@@ -354,6 +354,8 @@
   "siteSettingsAlwaysOpenHome": "Åbn altid Hjem",
   "siteSettingsAlwaysOpenHomeForced": "Tvunget til af inkognito",
   "siteSettingsAlwaysOpenHomeSubtitle": "Nulstil URL ved appgenstart og hjemmeskærmsgenvej (cookies bevares)",
+  "siteSettingsKioskMode": "Kiosktilstand",
+  "siteSettingsKioskModeSubtitle": "Når webstedet åbnes fra en genvej, skjules menuer og indstillinger, så det ikke kan ændres. Åbn appen normalt for at redigere.",
   "siteSettingsTrackingProtection": "Sporingsbeskyttelse",
   "siteSettingsTrackingProtectionHint": "Overordnet udvidet sporingsbeskyttelse pr. side. Når slået til, tvinger den ClearURLs, DNS-blokeringsliste og indholdsblokering til at være aktive for denne side, OG injicerer en anti-fingeraftryks-shim, der randomiserer Canvas, lyd, fontmål, skærmdimensioner, hardware-parallelisme, plugins, batteri, talstemmer, timere med høj opløsning og bounding box-målinger. Fingeraftrykket forbliver stabilt pr. side på tværs af opstarter, men adskiller sig mellem sider og mellem brugere. Når inkognito også er aktiveret for denne side, gendannes fingeraftrykket ved hver appopstart, så siden ikke kan genidentificere dig på tværs af kolde genstarter. WebGL er helt deaktiveret, mens dette er slået til; slå det fra for sider, der har brug for WebGL (kort, 3D-fremvisere).",
   "siteSettingsTrackingProtectionSubtitle": "Anti-fingeraftryk + tving sporingsblokering",

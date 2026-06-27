@@ -354,6 +354,8 @@
   "siteSettingsAlwaysOpenHome": "Deschide întotdeauna pagina principală",
   "siteSettingsAlwaysOpenHomeForced": "Forțat activ de Incognito",
   "siteSettingsAlwaysOpenHomeSubtitle": "Resetează URL-ul la repornirea aplicației și la scurtătura de pe ecranul principal (cookie-urile persistă)",
+  "siteSettingsKioskMode": "Mod chioșc",
+  "siteSettingsKioskModeSubtitle": "La deschiderea dintr-o comandă rapidă, ascunde meniurile și setările astfel încât site-ul să nu poată fi modificat. Deschide aplicația în mod normal pentru a-l edita.",
   "siteSettingsTrackingProtection": "Protecție împotriva urmăririi",
   "siteSettingsTrackingProtectionHint": "Protecție îmbunătățită împotriva urmăririi, umbrelă per site. Când e activă, forțează ClearURLs, Lista de blocare DNS și Blocatorul de conținut să fie active pentru acest site ȘI injectează un shim anti-amprentare care randomizează Canvas, audio, metricile fonturilor, dimensiunile ecranului, concurența hardware, plugin-urile, bateria, vocile de sinteză, temporizatoarele de înaltă rezoluție și măsurătorile casetei delimitatoare. Amprenta rămâne stabilă pentru site între lansări, dar diferă între site-uri și între utilizatori. Când Incognito este de asemenea activat pentru acest site, amprenta este regenerată la fiecare lansare a aplicației astfel încât site-ul să nu te poată re-identifica între reporniri la rece. WebGL este dezactivat complet cât timp aceasta e activă; dezactiveaz-o pentru site-urile care au nevoie de WebGL (hărți, vizualizatoare 3D).",
   "siteSettingsTrackingProtectionSubtitle": "Anti-amprentare + forțează blocarea urmăritorilor",

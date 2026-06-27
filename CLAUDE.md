@@ -120,7 +120,8 @@ missing-transition classes, and cross-spec interference — bugs in the gaps *be
   not mix; the trace names the breaking interleaving. Fix the design, not the model.
 - Standalone models (no shared kernel state) live beside the kernel: `archive.tla`
   (ARCH-001 byte-identity, a 2-safety hyperproperty via self-composition), `renderer.tla`
-  (BUG-002 dead-renderer recovery), `proxy.tla` (mismatched-proxy mutual exclusion).
+  (BUG-002 dead-renderer recovery), `proxy.tla` (mismatched-proxy mutual exclusion),
+  `kiosk.tla` (KIOSK-001/002/003 locked-shell sealing).
 - Each model carries **negative** demonstrators (a mutation that MUST be caught) and
   **positive** reachability witnesses (a legal behavior that MUST be reachable) — run by
   `./formal/check.sh`. `trace/` validates real `LogService` traces against the kernel's
@@ -156,6 +157,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | ios-universal-link-bypass | cancel+reissue gesture http(s) navs to dodge AASA |
 | ip-leakage | proxy coverage contract; fail-closed on SOCKS5; WebRTC + DNS |
 | js-shim-tests | jsdom + node:test, with Dart drift check |
+| kiosk-mode | per-site toggle; shortcut launch opens chrome-less (no drawer/tab strip/menus/settings), plain app launch restores access; no passphrase |
 | language | Accept-Language + DOCUMENT_START navigator.language/Intl |
 | localization | UI strings via gen_l10n ARB; no-unkeyed-text guard; coverage parity tests |
 | integration-tests | flutter `integration_test/` harness conventions + headless Linux CI setup |

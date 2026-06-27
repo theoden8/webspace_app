@@ -354,6 +354,8 @@
   "siteSettingsAlwaysOpenHome": "नेहमी होम उघडा",
   "siteSettingsAlwaysOpenHomeForced": "इन्कॉग्निटोद्वारे सक्तीने चालू",
   "siteSettingsAlwaysOpenHomeSubtitle": "अॅप रीस्टार्ट आणि होम-स्क्रीन शॉर्टकटवर URL रीसेट करा (कुकीज टिकतात)",
+  "siteSettingsKioskMode": "किऑस्क मोड",
+  "siteSettingsKioskModeSubtitle": "शॉर्टकटवरून उघडल्यावर, साइट बदलता येऊ नये म्हणून मेनू आणि सेटिंग्ज लपवते. संपादित करण्यासाठी अॅप नेहमीप्रमाणे उघडा.",
   "siteSettingsTrackingProtection": "ट्रॅकिंग संरक्षण",
   "siteSettingsTrackingProtectionHint": "प्रत्येक साइटसाठी एकत्रित Enhanced Tracking Protection. चालू असताना, या साइटसाठी ClearURLs, DNS अवरोधसूची आणि सामग्री अवरोधक सक्रिय असण्याची सक्ती करते, आणि Canvas, audio, font मेट्रिक्स, स्क्रीन परिमाणे, hardware concurrency, plugins, battery, speech voices, उच्च-रिझोल्यूशन टायमर आणि bounding-box मापने यादृच्छिक करणारी anti-fingerprinting shim इंजेक्ट करते. फिंगरप्रिंट प्रति साइट लाँचमध्ये स्थिर राहते परंतु साइटमध्ये आणि वापरकर्त्यांमध्ये भिन्न असते. या साइटसाठी इन्कॉग्निटो देखील सक्षम असताना, प्रत्येक अॅप लाँचवर फिंगरप्रिंट पुन्हा तयार होते जेणेकरून साइट कोल्ड रीस्टार्टमध्ये तुम्हाला पुन्हा ओळखू शकत नाही. हे चालू असताना WebGL पूर्णपणे अक्षम केले जाते; WebGL आवश्यक असलेल्या साइटसाठी (नकाशे, 3D व्ह्युअर) ते बंद करा.",
   "siteSettingsTrackingProtectionSubtitle": "Anti-fingerprinting + ट्रॅकर अवरोधन सक्ती",

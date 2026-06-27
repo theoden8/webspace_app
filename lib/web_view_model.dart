@@ -315,6 +315,13 @@ class WebViewModel {
   /// keeps their login session); only the navigation URL resets. Implied
   /// by [incognito], which adds the cookie/storage wipe on top.
   bool alwaysOpenHome;
+  /// When true and the site is launched via a home-screen shortcut, the app
+  /// shell opens chrome-less: no drawer, tab strip, app-bar actions, or
+  /// context menus, so the site can't be reconfigured, deleted, or navigated
+  /// away from. Opening the app normally (launcher icon, no shortcut) restores
+  /// full access. Pure UI state, derived at launch; never gates the webview
+  /// engine, so it is not threaded through WebViewConfig / nested screens.
+  bool kioskMode;
   String? language; // Language code (e.g., 'en', 'es'), null = system default
   /// Browser-style page zoom for this site, as a percent (100 = unscaled).
   /// Scales the whole page (text and images) via CSS `zoom`, independent of
@@ -538,6 +545,7 @@ class WebViewModel {
     this.thirdPartyCookiesEnabled = false,
     this.incognito = false,
     this.alwaysOpenHome = false,
+    this.kioskMode = false,
     this.language,
     this.zoomPercent = kDefaultZoomPercent,
     this.clearUrlEnabled = true,
@@ -1640,6 +1648,7 @@ class WebViewModel {
         'thirdPartyCookiesEnabled': thirdPartyCookiesEnabled,
         'incognito': incognito,
         'alwaysOpenHome': alwaysOpenHome,
+        'kioskMode': kioskMode,
         'language': language,
         if (zoomPercent != kDefaultZoomPercent) 'zoomPercent': zoomPercent,
         'clearUrlEnabled': clearUrlEnabled,
@@ -1708,6 +1717,7 @@ class WebViewModel {
       thirdPartyCookiesEnabled: json['thirdPartyCookiesEnabled'],
       incognito: isIncognito,
       alwaysOpenHome: isAlwaysOpenHome,
+      kioskMode: json['kioskMode'] as bool? ?? false,
       language: json['language'],
       zoomPercent: clampZoomPercent(
           (json['zoomPercent'] as num?)?.toInt() ?? kDefaultZoomPercent),

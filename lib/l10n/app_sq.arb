@@ -356,6 +356,8 @@
   "siteSettingsAlwaysOpenHome": "Hap gjithmonë Home",
   "siteSettingsAlwaysOpenHomeForced": "I detyruar aktiv nga Incognito",
   "siteSettingsAlwaysOpenHomeSubtitle": "Rivendos URL-në në rinisje të aplikacionit dhe në shkurtoren e ekranit bazë (cookie-t ruhen)",
+  "siteSettingsKioskMode": "Modaliteti kiosk",
+  "siteSettingsKioskModeSubtitle": "Kur hapet nga një shkurtore, fsheh menutë dhe cilësimet që faqja të mos mund të ndryshohet. Hape aplikacionin normalisht për ta modifikuar.",
   "siteSettingsTrackingProtection": "Mbrojtja nga gjurmimi",
   "siteSettingsTrackingProtectionHint": "Mbrojtje e zgjeruar nga gjurmimi për çdo faqe, ombrellë. Kur është aktive, detyron ClearURLs, listën e bllokimit DNS dhe bllokuesin e përmbajtjes të jenë aktive për këtë faqe, DHE injekton një shim kundër marrjes së gjurmëve të gishtave që randomizon Canvas, audio, metrikat e fonteve, përmasat e ekranit, paralelizmin e harduerit, plugin-et, baterinë, zërat e të folurit, kohëmatësit me rezolucion të lartë dhe matjet e kutisë kufitare. Gjurma e gishtave qëndron e qëndrueshme për çdo faqe gjatë nisjeve, por ndryshon mes faqeve dhe mes përdoruesve. Kur Incognito është gjithashtu i aktivizuar për këtë faqe, gjurma rigjenerohet në çdo nisje të aplikacionit që faqja të mos mund t'ju identifikojë sërish gjatë rinisjeve të ftohta. WebGL çaktivizohet plotësisht ndërsa kjo është aktive; çaktivizoje për faqet që kanë nevojë për WebGL (hartat, shikuesit 3D).",
   "siteSettingsTrackingProtectionSubtitle": "Kundër gjurmëve të gishtave + detyrim i bllokimit të gjurmuesve",

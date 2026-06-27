@@ -354,6 +354,8 @@
   "siteSettingsAlwaysOpenHome": "Avaa aina Koti",
   "siteSettingsAlwaysOpenHomeForced": "Incognito pakottaa päälle",
   "siteSettingsAlwaysOpenHomeSubtitle": "Nollaa URL sovelluksen uudelleenkäynnistyksessä ja kotinäytön pikakuvakkeessa (evästeet säilyvät)",
+  "siteSettingsKioskMode": "Kioskitila",
+  "siteSettingsKioskModeSubtitle": "Kun sivusto avataan pikakuvakkeesta, valikot ja asetukset piilotetaan, jotta sivustoa ei voi muuttaa. Avaa sovellus tavalliseen tapaan muokataksesi sitä.",
   "siteSettingsTrackingProtection": "Seurannan suojaus",
   "siteSettingsTrackingProtectionHint": "Sivustokohtainen tehostetun seurannan suojauksen kattotermi. Kun päällä, pakottaa ClearURLs-, DNS-estolista- ja sisältöeston aktiivisiksi tälle sivustolle, JA lisää sormenjäljenestopuomin, joka satunnaistaa Canvasin, äänen, fonttimetriikan, näytön mitat, laitteistorinnakkaisuuden, liitännäiset, akun, puheäänet, korkearesoluutioiset ajastimet ja rajauslaatikkomittaukset. Sormenjälki pysyy vakaana sivustokohtaisesti käynnistysten välillä mutta eroaa sivustojen ja käyttäjien välillä. Kun myös incognito on käytössä tälle sivustolle, sormenjälki arvotaan uudelleen jokaisessa sovelluksen käynnistyksessä, jotta sivusto ei voi tunnistaa sinua uudelleen kylmäkäynnistysten välillä. WebGL on kokonaan poissa käytöstä tämän ollessa päällä; poista se käytöstä sivustoille, jotka tarvitsevat WebGL:ää (kartat, 3D-katselimet).",
   "siteSettingsTrackingProtectionSubtitle": "Sormenjäljenesto + seurantaeston pakotus",

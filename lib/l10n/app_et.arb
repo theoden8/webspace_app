@@ -354,6 +354,8 @@
   "siteSettingsAlwaysOpenHome": "Ava alati avaleht",
   "siteSettingsAlwaysOpenHomeForced": "Inkognito sundis sisse",
   "siteSettingsAlwaysOpenHomeSubtitle": "Lähtesta URL rakenduse taaskäivitusel ja avalehe otseteel (küpsised säilivad)",
+  "siteSettingsKioskMode": "Kioskirežiim",
+  "siteSettingsKioskModeSubtitle": "Otseteelt avamisel peidetakse menüüd ja sätted, et saiti ei saaks muuta. Redigeerimiseks ava rakendus tavapärasel viisil.",
   "siteSettingsTrackingProtection": "Jälgimiskaitse",
   "siteSettingsTrackingProtectionHint": "Saidipõhine täiustatud jälgimiskaitse. Sisselülitatuna sunnib selle saidi jaoks aktiivseks ClearURLs, DNS blokeerimisloendi ja sisublokeerija NING süstib sõrmejälje-vastase shimi, mis juhuslikustab Canvase, heli, fontide mõõdud, ekraani mõõtmed, riistvara samaaegsuse, pluginad, aku, kõnehääled, kõrge eraldusvõimega taimerid ja piirkasti mõõtmised. Sõrmejälg jääb saidi kaupa käivituste vahel stabiilseks, kuid erineb saitide ja kasutajate vahel. Kui sellel saidil on lubatud ka inkognito, genereeritakse sõrmejälg igal rakenduse käivitusel uuesti, et sait ei saaks sind külmkäivituste vahel uuesti tuvastada. WebGL on selle ajal täielikult keelatud; lülita see välja saitide jaoks, mis vajavad WebGL-i (kaardid, 3D-vaaturid).",
   "siteSettingsTrackingProtectionSubtitle": "Sõrmejälje-vastasus + jälgijate sundblokeerimine",

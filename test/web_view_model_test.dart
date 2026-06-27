@@ -132,6 +132,28 @@ void main() {
       expect(WebViewModel.fromJson(json, null).externalLinksInBrowser, isTrue);
     });
 
+    test('kioskMode defaults off (KIOSK-004)', () {
+      final m = WebViewModel(initUrl: 'https://example.org/');
+      expect(m.kioskMode, isFalse);
+    });
+
+    test('kioskMode=true round-trips through JSON (KIOSK-004)', () {
+      final m = WebViewModel(
+        initUrl: 'https://example.org/',
+        kioskMode: true,
+      );
+      final json = m.toJson();
+      expect(json['kioskMode'], isTrue);
+      expect(WebViewModel.fromJson(json, null).kioskMode, isTrue);
+    });
+
+    test('kioskMode absent in legacy JSON defaults off (KIOSK-004)', () {
+      final legacy = WebViewModel(initUrl: 'https://example.org/').toJson()
+        ..remove('kioskMode');
+      expect(legacy.containsKey('kioskMode'), isFalse);
+      expect(WebViewModel.fromJson(legacy, null).kioskMode, isFalse);
+    });
+
     test('externalLinksInBrowser forced off for archive-tier sites (ARCH-006)', () {
       final m = WebViewModel(
         initUrl: 'https://example.org/',

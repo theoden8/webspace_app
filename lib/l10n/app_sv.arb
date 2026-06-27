@@ -354,6 +354,8 @@
   "siteSettingsAlwaysOpenHome": "Öppna alltid startsidan",
   "siteSettingsAlwaysOpenHomeForced": "Tvingad på av inkognito",
   "siteSettingsAlwaysOpenHomeSubtitle": "Återställ URL vid omstart av appen och genväg på startskärmen (cookies sparas)",
+  "siteSettingsKioskMode": "Kioskläge",
+  "siteSettingsKioskModeSubtitle": "När webbplatsen öppnas från en genväg döljs menyer och inställningar så att den inte kan ändras. Öppna appen som vanligt för att redigera.",
   "siteSettingsTrackingProtection": "Spårningsskydd",
   "siteSettingsTrackingProtectionHint": "Paraplyinställning för utökat spårningsskydd per webbplats. När den är på tvingas ClearURLs, DNS-blockeringslista och Innehållsblockerare att vara aktiva för denna webbplats, OCH injicerar en anti-fingeravtrycks-shim som randomiserar Canvas, ljud, typsnittsmått, skärmdimensioner, hårdvarusamtidighet, plugins, batteri, talröster, högupplösta tidtagare och mätningar av avgränsningsrutor. Fingeravtrycket förblir stabilt per webbplats mellan starter men skiljer sig mellan webbplatser och mellan användare. När inkognito också är aktiverat för denna webbplats omräknas fingeravtrycket vid varje appstart så att webbplatsen inte kan återidentifiera dig mellan kalla omstarter. WebGL inaktiveras helt medan detta är på; stäng av det för webbplatser som behöver WebGL (kartor, 3D-visare).",
   "siteSettingsTrackingProtectionSubtitle": "Anti-fingeravtryck + tvinga spårningsblockering",

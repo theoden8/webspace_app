@@ -354,6 +354,8 @@
   "siteSettingsAlwaysOpenHome": "Altijd startpagina openen",
   "siteSettingsAlwaysOpenHomeForced": "Geforceerd aan door incognito",
   "siteSettingsAlwaysOpenHomeSubtitle": "URL resetten bij herstart van de app en startschermsnelkoppeling (cookies blijven bewaard)",
+  "siteSettingsKioskMode": "Kioskmodus",
+  "siteSettingsKioskModeSubtitle": "Bij openen via een snelkoppeling worden menu's en instellingen verborgen zodat de site niet kan worden gewijzigd. Open de app normaal om te bewerken.",
   "siteSettingsTrackingProtection": "Trackingbescherming",
   "siteSettingsTrackingProtectionHint": "Overkoepelende verbeterde trackingbescherming per site. Wanneer ingeschakeld, dwingt dit ClearURLs, DNS-blokkeerlijst en contentblokkering af voor deze site, EN injecteert het een anti-fingerprinting-shim die Canvas, audio, lettertypemetrieken, schermafmetingen, hardwareconcurrentie, plug-ins, batterij, spraakstemmen, hoge-resolutietimers en bounding-box-metingen willekeurig maakt. De fingerprint blijft stabiel per site over verschillende starts heen, maar verschilt tussen sites en tussen gebruikers. Wanneer incognito ook is ingeschakeld voor deze site, wordt de fingerprint bij elke app-start opnieuw gegenereerd zodat de site je niet opnieuw kan identificeren over koude herstarts heen. WebGL wordt volledig uitgeschakeld terwijl dit aan staat; schakel het uit voor sites die WebGL nodig hebben (kaarten, 3D-viewers).",
   "siteSettingsTrackingProtectionSubtitle": "Anti-fingerprinting + trackerblokkering afdwingen",

@@ -354,6 +354,8 @@
   "siteSettingsAlwaysOpenHome": "Toujours ouvrir l'accueil",
   "siteSettingsAlwaysOpenHomeForced": "Forcé par le mode incognito",
   "siteSettingsAlwaysOpenHomeSubtitle": "Réinitialiser l'URL au redémarrage de l'application et au raccourci de l'écran d'accueil (les cookies sont conservés)",
+  "siteSettingsKioskMode": "Mode kiosque",
+  "siteSettingsKioskModeSubtitle": "À l'ouverture depuis un raccourci, masque les menus et les paramètres afin que le site ne puisse pas être modifié. Ouvrez l'application normalement pour le modifier.",
   "siteSettingsTrackingProtection": "Protection contre le pistage",
   "siteSettingsTrackingProtectionHint": "Protection renforcée contre le pistage, par site, à effet global. Lorsqu'elle est activée, elle force ClearURLs, la liste de blocage DNS et le bloqueur de contenu à être actifs pour ce site, ET injecte un shim anti-empreinte qui rend aléatoires Canvas, l'audio, les métriques de polices, les dimensions d'écran, la concurrence matérielle, les plugins, la batterie, les voix de synthèse vocale, les minuteurs haute résolution et les mesures de boîte englobante. L'empreinte reste stable par site d'un lancement à l'autre, mais diffère d'un site à l'autre et d'un utilisateur à l'autre. Lorsque le mode incognito est aussi activé pour ce site, l'empreinte est régénérée à chaque lancement de l'application afin que le site ne puisse pas vous réidentifier d'un redémarrage à froid à l'autre. WebGL est entièrement désactivé tant que ceci est activé ; désactivez-le pour les sites qui ont besoin de WebGL (cartes, visionneuses 3D).",
   "siteSettingsTrackingProtectionSubtitle": "Anti-empreinte + blocage forcé des traceurs",

@@ -117,6 +117,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _thirdPartyCookiesEnabled;
   late bool _incognito;
   late bool _alwaysOpenHome;
+  late bool _kioskMode;
   late bool _clearUrlEnabled;
   late bool _dnsBlockEnabled;
   late bool _contentBlockEnabled;
@@ -291,6 +292,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _thirdPartyCookiesEnabled = m.thirdPartyCookiesEnabled;
     _incognito = m.incognito;
     _alwaysOpenHome = m.alwaysOpenHome;
+    _kioskMode = m.kioskMode;
     _clearUrlEnabled = m.clearUrlEnabled;
     _dnsBlockEnabled = m.dnsBlockEnabled;
     _contentBlockEnabled = m.contentBlockEnabled;
@@ -479,6 +481,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.thirdPartyCookiesEnabled = _thirdPartyCookiesEnabled;
       widget.webViewModel.incognito = _incognito;
       widget.webViewModel.alwaysOpenHome = _alwaysOpenHome;
+      widget.webViewModel.kioskMode = _kioskMode;
       widget.webViewModel.clearUrlEnabled = _clearUrlEnabled;
       widget.webViewModel.dnsBlockEnabled = _dnsBlockEnabled;
       widget.webViewModel.contentBlockEnabled = _contentBlockEnabled;
@@ -1280,6 +1283,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       _alwaysOpenHome = value;
                     });
                   },
+          ),
+          SwitchListTile(
+            title: Text(loc.siteSettingsKioskMode),
+            subtitle: Text(loc.siteSettingsKioskModeSubtitle),
+            value: _kioskMode,
+            onChanged: (bool value) {
+              setState(() {
+                _kioskMode = value;
+              });
+            },
           ),
           SwitchListTile(
             title: Row(

@@ -354,6 +354,8 @@
   "siteSettingsAlwaysOpenHome": "Fungua Mwanzo kila wakati",
   "siteSettingsAlwaysOpenHomeForced": "Imelazimishwa kuwashwa na Hali ya faragha",
   "siteSettingsAlwaysOpenHomeSubtitle": "Rekebisha URL programu inapoanzishwa upya na njia ya mkato ya skrini ya mwanzo (vidakuzi vinadumu)",
+  "siteSettingsKioskMode": "Hali ya kioski",
+  "siteSettingsKioskModeSubtitle": "Inapofunguliwa kutoka njia ya mkato, menyu na mipangilio hufichwa ili tovuti isiweze kubadilishwa. Fungua programu kwa njia ya kawaida ili kuihariri.",
   "siteSettingsTrackingProtection": "Ulinzi wa Ufuatiliaji",
   "siteSettingsTrackingProtectionHint": "Ulinzi mahususi wa Ufuatiliaji Ulioimarishwa kwa kila tovuti. Ikiwashwa, hulazimisha ClearURLs, Orodha ya Vizuizi vya DNS, na Kizuizi cha Maudhui kuwa amilifu kwa tovuti hii, NA huingiza shim ya kupinga alama za vidole inayobadilisha bila mpangilio Canvas, sauti, vipimo vya fonti, vipimo vya skrini, ushirikiano wa vifaa, programu-jalizi, betri, sauti za usemi, vipima muda vya azimio la juu, na vipimo vya kisanduku cha mipaka. Alama ya kidole hubaki thabiti kwa kila tovuti katika uzinduzi lakini hutofautiana kati ya tovuti na kati ya watumiaji. Hali ya faragha pia inapowashwa kwa tovuti hii, alama ya kidole hurudishwa upya kila uzinduzi wa programu ili tovuti isiweze kukutambua tena katika kuanzishwa upya baridi. WebGL imezimwa kabisa hili likiwa limewashwa; lizime kwa tovuti zinazohitaji WebGL (ramani, vitazamaji vya 3D).",
   "siteSettingsTrackingProtectionSubtitle": "Kupinga alama za vidole + lazimisha uzuiaji wa wafuatiliaji",

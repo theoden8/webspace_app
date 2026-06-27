@@ -354,6 +354,8 @@
   "siteSettingsAlwaysOpenHome": "Her zaman Ana Sayfayı aç",
   "siteSettingsAlwaysOpenHomeForced": "Gizli mod tarafından açık zorlandı",
   "siteSettingsAlwaysOpenHomeSubtitle": "Uygulama yeniden başlatıldığında ve ana ekran kısayolunda URL'yi sıfırla (çerezler kalır)",
+  "siteSettingsKioskMode": "Kiosk modu",
+  "siteSettingsKioskModeSubtitle": "Bir kısayoldan açıldığında, sitenin değiştirilememesi için menüleri ve ayarları gizler. Düzenlemek için uygulamayı normal şekilde açın.",
   "siteSettingsTrackingProtection": "İzleme Koruması",
   "siteSettingsTrackingProtectionHint": "Şemsiye site bazlı Gelişmiş İzleme Koruması. Açıkken bu site için ClearURLs, DNS Engelleme Listesi ve İçerik Engelleyici'nin etkin olmasını zorlar VE Canvas, ses, yazı tipi ölçümleri, ekran boyutları, donanım eşzamanlılığı, eklentiler, pil, konuşma sesleri, yüksek çözünürlüklü zamanlayıcılar ve sınırlayıcı kutu ölçümlerini rastgeleleştiren bir parmak izi önleme katmanı enjekte eder. Parmak izi başlatmalar arasında site başına sabit kalır ancak siteler arasında ve kullanıcılar arasında farklıdır. Bu site için Gizli mod da etkinleştirildiğinde, sitenin sizi soğuk yeniden başlatmalar arasında yeniden tanımlayamaması için parmak izi her uygulama başlatmasında yeniden oluşturulur. Bu açıkken WebGL tamamen devre dışı bırakılır; WebGL gerektiren siteler (haritalar, 3B görüntüleyiciler) için kapatın.",
   "siteSettingsTrackingProtectionSubtitle": "Parmak izi önleme + izleyici engellemeyi zorla",

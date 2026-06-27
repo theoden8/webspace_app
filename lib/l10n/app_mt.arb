@@ -354,6 +354,8 @@
   "siteSettingsAlwaysOpenHome": "Dejjem iftaħ Home",
   "siteSettingsAlwaysOpenHomeForced": "Imġiegħel mixgħul mill-Inkognitu",
   "siteSettingsAlwaysOpenHomeSubtitle": "Irrisettja l-URL meta tinbeda mill-ġdid l-app u mix-shortcut tal-iskrin prinċipali (il-cookies jibqgħu)",
+  "siteSettingsKioskMode": "Modalità kjosk",
+  "siteSettingsKioskModeSubtitle": "Meta jinfetaħ minn xortcut, jaħbi l-menus u s-settings biex is-sit ma jkunx jista' jinbidel. Iftaħ l-app b'mod normali biex teditjah.",
   "siteSettingsTrackingProtection": "Protezzjoni mit-Traċċar",
   "siteSettingsTrackingProtectionHint": "Protezzjoni Mtejba mit-Traċċar għal kull sit. Meta mixgħula, iġġiegħel lil ClearURLs, lill-Lista mblukkata DNS u lill-Imblokk tal-Kontenut ikunu attivi għal dan is-sit, U tinjetta shim kontra l-fingerprinting li jirrandomizza l-Canvas, l-awdjo, il-metriċi tal-fonts, id-dimensjonijiet tal-iskrin, il-konkorrenza tal-hardware, il-plugins, il-batterija, il-vuċijiet tat-taħdit, it-timers b'riżoluzzjoni għolja, u l-kejl tal-bounding-box. Il-fingerprint jibqa' stabbli għal kull sit bejn it-tnedijiet imma jvarja bejn is-siti u bejn l-utenti. Meta l-Inkognitu jkun ukoll attivat għal dan is-sit, il-fingerprint jerġa' jinġabad ma' kull tnedija tal-app biex is-sit ma jkunx jista' jerġa' jidentifikak bejn restarts kesħin. WebGL jiġi diżattivat kompletament waqt li dan huwa mixgħul; itfih għal siti li jeħtieġu WebGL (mapep, viewers 3D).",
   "siteSettingsTrackingProtectionSubtitle": "Kontra l-fingerprinting + ġiegħel l-imblukkar tat-traċċaturi",

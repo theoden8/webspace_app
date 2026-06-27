@@ -354,6 +354,8 @@
   "siteSettingsAlwaysOpenHome": "Abrir siempre el inicio",
   "siteSettingsAlwaysOpenHomeForced": "Forzado por el modo incógnito",
   "siteSettingsAlwaysOpenHomeSubtitle": "Restablecer la URL al reiniciar la app y desde el acceso directo (las cookies persisten)",
+  "siteSettingsKioskMode": "Modo quiosco",
+  "siteSettingsKioskModeSubtitle": "Al abrirse desde un acceso directo, oculta los menús y la configuración para que no se pueda modificar el sitio. Abre la aplicación con normalidad para editarlo.",
   "siteSettingsTrackingProtection": "Protección de seguimiento",
   "siteSettingsTrackingProtectionHint": "Protección de seguimiento mejorada por sitio. Cuando está activada, fuerza la activación de ClearURLs, la lista de bloqueo DNS y el bloqueador de contenido para este sitio, E inyecta un shim antihuella digital que aleatoriza Canvas, audio, métricas de fuentes, dimensiones de pantalla, concurrencia de hardware, plugins, batería, voces de síntesis, temporizadores de alta resolución y mediciones de cuadro delimitador. La huella permanece estable por sitio entre lanzamientos, pero difiere entre sitios y entre usuarios. Cuando también se activa el modo incógnito para este sitio, la huella se vuelve a generar en cada lanzamiento de la app para que el sitio no pueda reidentificarte tras reinicios en frío. WebGL se desactiva por completo mientras esto está activado; desactívalo para sitios que necesiten WebGL (mapas, visores 3D).",
   "siteSettingsTrackingProtectionSubtitle": "Antihuella digital + forzar bloqueo de rastreadores",

@@ -354,6 +354,8 @@
   "siteSettingsAlwaysOpenHome": "ሁልጊዜ መነሻ ክፈት",
   "siteSettingsAlwaysOpenHomeForced": "በኢንኮግኒቶ ተገድዶ በርቷል",
   "siteSettingsAlwaysOpenHomeSubtitle": "በመተግበሪያ ዳግም ጅማሮ እና በመነሻ-ማያ አቋራጭ ላይ URL ዳግም አስጀምር (ኩኪዎች ይቆያሉ)",
+  "siteSettingsKioskMode": "የኪዮስክ ሁነታ",
+  "siteSettingsKioskModeSubtitle": "ከአቋራጭ ሲከፈት፣ ጣቢያው እንዳይቀየር ምናሌዎችንና ቅንብሮችን ይደብቃል። ለማረም መተግበሪያውን በመደበኛ መንገድ ይክፈቱ።",
   "siteSettingsTrackingProtection": "የክትትል ጥበቃ",
   "siteSettingsTrackingProtectionHint": "በጣቢያ-ደረጃ የተሻሻለ የክትትል ጥበቃ ጃንጥላ። ሲበራ ለዚህ ጣቢያ ClearURLs፣ DNS እገዳ ዝርዝር እና የይዘት ማገጃ ንቁ እንዲሆኑ ያስገድዳል፣ እንዲሁም Canvas፣ audio፣ የፊደል መለኪያዎች፣ የማያ ልኬቶች፣ የሃርድዌር ግብረ-ጊዜ፣ ተሰኪዎች፣ ባትሪ፣ የንግግር ድምጾች፣ ከፍተኛ-ጥራት ሰዓቶች እና የክልል-ሳጥን ልኬቶችን የሚያስተባብር ጸረ-ጣት አሻራ shim ያስገባል። የጣት አሻራው በማስጀመር ጊዜዎች ሁሉ በጣቢያ ይረጋጋል ግን በጣቢያዎች መካከል እና በተጠቃሚዎች መካከል ይለያያል። ለዚህ ጣቢያ ኢንኮግኒቶ ደግሞ ሲነቃ የጣት አሻራው በእያንዳንዱ የመተግበሪያ ማስጀመር ላይ እንደገና ይጣላል ስለዚህ ጣቢያው በቀዝቃዛ ዳግም ጅማሮዎች ላይ እንደገና ሊለይህ አይችልም። ይህ ሲበራ WebGL ሙሉ በሙሉ ይሰናከላል፤ WebGL ለሚፈልጉ ጣቢያዎች (ካርታዎች፣ 3D መመልከቻዎች) አጥፋው።",
   "siteSettingsTrackingProtectionSubtitle": "ጸረ-ጣት አሻራ + የክትትል እገዳ አስገድድ",

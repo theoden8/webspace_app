@@ -354,6 +354,8 @@
   "siteSettingsAlwaysOpenHome": "Visada atidaryti pradžią",
   "siteSettingsAlwaysOpenHomeForced": "Priverstinai įjungta dėl inkognito",
   "siteSettingsAlwaysOpenHomeSubtitle": "Atstatyti URL iš naujo paleidus programą ir naudojant pradžios ekrano nuorodą (slapukai išsaugomi)",
+  "siteSettingsKioskMode": "Kiosko režimas",
+  "siteSettingsKioskModeSubtitle": "Atvėrus iš nuorodos, paslepiami meniu ir nustatymai, kad svetainės nebūtų galima keisti. Norėdami redaguoti, atidarykite programą įprastai.",
   "siteSettingsTrackingProtection": "Sekimo apsauga",
   "siteSettingsTrackingProtectionHint": "Bendra kiekvienai svetainei taikoma sustiprinta sekimo apsauga. Kai įjungta, priverstinai aktyvuoja ClearURLs, DNS blokavimo sąrašą ir turinio blokuoklį šiai svetainei, BEI įterpia apsaugos nuo pirštų atspaudų sluoksnį, kuris atsitiktinai keičia Canvas, garso, šriftų metrikas, ekrano matmenis, aparatinį lygiagretumą, papildinius, bateriją, kalbos balsus, didelio tikslumo laikmačius ir ribojančiojo stačiakampio matavimus. Pirštų atspaudas lieka pastovus kiekvienai svetainei tarp paleidimų, bet skiriasi tarp svetainių ir tarp naudotojų. Kai šiai svetainei taip pat įjungtas inkognito, pirštų atspaudas perkuriamas kiekvieną kartą paleidus programą, kad svetainė negalėtų jūsų atpažinti tarp šaltų paleidimų. WebGL visiškai išjungiamas, kol tai įjungta; išjunkite tai svetainėms, kurioms reikia WebGL (žemėlapiams, 3D peržiūros priemonėms).",
   "siteSettingsTrackingProtectionSubtitle": "Apsauga nuo pirštų atspaudų + priverstinis sekiklių blokavimas",

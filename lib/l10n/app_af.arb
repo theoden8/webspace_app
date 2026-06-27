@@ -354,6 +354,8 @@
   "siteSettingsAlwaysOpenHome": "Maak altyd Tuis oop",
   "siteSettingsAlwaysOpenHomeForced": "Geforseer aan deur Incognito",
   "siteSettingsAlwaysOpenHomeSubtitle": "Stel URL terug by app-herbegin en tuisskerm-kortpad (koekies bly behoue)",
+  "siteSettingsKioskMode": "Kioskmodus",
+  "siteSettingsKioskModeSubtitle": "Wanneer dit vanaf 'n kortpad geopen word, word kieslyste en instellings versteek sodat die werf nie verander kan word nie. Maak die toepassing gewoon oop om te wysig.",
   "siteSettingsTrackingProtection": "Volgbeskerming",
   "siteSettingsTrackingProtectionHint": "Sambreel per-webwerf Verbeterde Volgbeskerming. Wanneer aan, forseer dit ClearURLs, DNS-blokkeerlys en Inhoudblokkeerder om aktief te wees vir hierdie webwerf, EN spuit 'n anti-vingerafdruk-shim in wat Canvas, klank, lettertipe-metrieke, skermafmetings, hardeware-gelyklopendheid, inproppe, battery, spraakstemme, hoëresolusie-tydmeters en begrensingsblok-metings randomiseer. Die vingerafdruk bly stabiel per webwerf oor bekendstellings heen maar verskil tussen webwerwe en tussen gebruikers. Wanneer Incognito ook vir hierdie webwerf geaktiveer is, word die vingerafdruk by elke app-bekendstelling oorgerol sodat die webwerf jou nie oor koue herbegins heen kan heridentifiseer nie. WebGL word heeltemal gedeaktiveer terwyl dit aan is; skakel dit af vir webwerwe wat WebGL benodig (kaarte, 3D-kykers).",
   "siteSettingsTrackingProtectionSubtitle": "Anti-vingerafdruk + forseer volger-blokkering",

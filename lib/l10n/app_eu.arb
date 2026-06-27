@@ -354,6 +354,8 @@
   "siteSettingsAlwaysOpenHome": "Beti ireki hasiera",
   "siteSettingsAlwaysOpenHomeForced": "Isilpeko moduak behartuta piztuta",
   "siteSettingsAlwaysOpenHomeSubtitle": "Berrezarri URLa aplikazioa berrabiaraztean eta hasiera-pantailako lasterbidean (cookieak mantendu egiten dira)",
+  "siteSettingsKioskMode": "Kiosko modua",
+  "siteSettingsKioskModeSubtitle": "Lasterbide batetik irekitzean, menuak eta ezarpenak ezkutatzen ditu gunea aldatu ezin izateko. Editatzeko, ireki aplikazioa ohiko moduan.",
   "siteSettingsTrackingProtection": "Jarraipenaren aurkako babesa",
   "siteSettingsTrackingProtectionHint": "Gune bakoitzeko jarraipen-babes hobetuaren aterkia. Piztuta dagoenean, ClearURLs, DNS bloke-zerrenda eta Eduki-blokeatzailea aktibo egotera behartzen ditu gune honetarako, ETA hatz-marka digitalaren aurkako shim bat injektatzen du, Canvas, audioa, letra-tipoen metrikak, pantaila-neurriak, hardware-konkurrentzia, pluginak, bateria, ahots-aboak, bereizmen handiko tenporizadoreak eta muga-koadroen neurketak ausazkotzen dituena. Hatz-marka egonkor mantentzen da gune bakoitzeko abiarazteen artean, baina ezberdina da guneen artean eta erabiltzaileen artean. Gune honetarako Isilpeko modua ere gaituta dagoenean, hatz-marka aplikazio-abiarazte bakoitzean birsortzen da, guneak abiarazte hotzen artean berriz identifikatu ezin zaitzan. WebGL guztiz desgaituta dago hau piztuta dagoen bitartean; itzali ezazu WebGL behar duten guneetarako (mapak, 3D ikustaileak).",
   "siteSettingsTrackingProtectionSubtitle": "Hatz-markaren aurkakoa + jarraipen-blokeoa behartzea",
