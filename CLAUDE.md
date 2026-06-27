@@ -156,6 +156,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | ios-universal-link-bypass | cancel+reissue gesture http(s) navs to dodge AASA |
 | ip-leakage | proxy coverage contract; fail-closed on SOCKS5; WebRTC + DNS |
 | js-shim-tests | jsdom + node:test, with Dart drift check |
+| kiosk-mode | per-site toggle; shortcut launch opens chrome-less (no drawer/tab strip/menus/settings), plain app launch restores access; no passphrase |
 | language | Accept-Language + DOCUMENT_START navigator.language/Intl |
 | localization | UI strings via gen_l10n ARB; no-unkeyed-text guard; coverage parity tests |
 | integration-tests | flutter `integration_test/` harness conventions + headless Linux CI setup |

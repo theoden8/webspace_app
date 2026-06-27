@@ -1759,6 +1759,14 @@
   "@siteSettingsAlwaysOpenHomeSubtitle": {
     "description": "Subtitle explaining Always open Home behavior."
   },
+  "siteSettingsKioskMode": "Kiosk mode",
+  "@siteSettingsKioskMode": {
+    "description": "Switch label for kiosk mode, which locks down the app shell when the site is opened from a home-screen shortcut."
+  },
+  "siteSettingsKioskModeSubtitle": "When opened from a shortcut, hide menus and settings so the site can't be changed. Open the app normally to edit.",
+  "@siteSettingsKioskModeSubtitle": {
+    "description": "Subtitle explaining that kiosk mode hides navigation and configuration when the site is launched from a home-screen shortcut, and that opening the app the normal way restores access."
+  },
   "siteSettingsTrackingProtection": "Tracking Protection",
   "@siteSettingsTrackingProtection": {
     "description": "Switch label and hint title for the umbrella Tracking Protection setting."
