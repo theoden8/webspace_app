@@ -656,5 +656,11 @@
   "appSettingsFullscreenTabStrip": "Pe ecran complet, bara de file",
   "appSettingsFullscreenTabStripHidden": "Ascunsă",
   "appSettingsFullscreenTabStripAlways": "Întotdeauna vizibilă",
-  "appSettingsFullscreenTabStripButton": "Afișează cu un buton"
+  "appSettingsFullscreenTabStripButton": "Afișează cu un buton",
+  "devToolsSimulateRefresh": "Simulează reîmprospătarea în fundal",
+  "devToolsSimulateRefreshDone": "Site-urile de notificări reîncărcate (vezi jurnalele)",
+  "devToolsTestNotification": "Trimite o notificare de test",
+  "devToolsTestNotificationSent": "Notificarea de test a fost trimisă (vezi jurnalele)",
+  "devToolsTestNotificationTitle": "Notificare de test WebSpace",
+  "devToolsTestNotificationBody": "Dacă vezi acest mesaj, livrarea notificărilor sistemului de operare funcționează."
 }

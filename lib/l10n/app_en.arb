@@ -2453,6 +2453,30 @@
   "@devToolsCopy": {
     "description": "Button label that copies the current tab's entries to the clipboard."
   },
+  "devToolsSimulateRefresh": "Simulate background refresh",
+  "@devToolsSimulateRefresh": {
+    "description": "Developer-tools button. Runs the same notification-site reload that the OS background task would run, so the user can test web push wake-up in the foreground without waiting for the OS scheduler."
+  },
+  "devToolsSimulateRefreshDone": "Reloaded notification sites (see logs)",
+  "@devToolsSimulateRefreshDone": {
+    "description": "Confirmation shown after the simulate-background-refresh developer-tools button runs; points the user to the App Logs tab for the result."
+  },
+  "devToolsTestNotification": "Send test notification",
+  "@devToolsTestNotification": {
+    "description": "Developer-tools button that posts a local test notification for the current site to verify OS notification permission and delivery work."
+  },
+  "devToolsTestNotificationSent": "Test notification sent (see logs)",
+  "@devToolsTestNotificationSent": {
+    "description": "Confirmation shown after the send-test-notification developer-tools button runs; points the user to the App Logs tab for the result."
+  },
+  "devToolsTestNotificationTitle": "WebSpace test notification",
+  "@devToolsTestNotificationTitle": {
+    "description": "Title of the local test notification posted by the send-test-notification developer-tools button."
+  },
+  "devToolsTestNotificationBody": "If you can see this, OS notification delivery works.",
+  "@devToolsTestNotificationBody": {
+    "description": "Body text of the local test notification posted by the send-test-notification developer-tools button."
+  },
   "devToolsEvalHint": "Evaluate JavaScript...",
   "@devToolsEvalHint": {
     "description": "Hint text in the console JavaScript evaluation input."

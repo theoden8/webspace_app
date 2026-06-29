@@ -656,5 +656,11 @@
   "appSettingsFullscreenTabStrip": "සම්පූර්ණ තිරයේ, ටැබ් තීරුව",
   "appSettingsFullscreenTabStripHidden": "සැඟවී ඇත",
   "appSettingsFullscreenTabStripAlways": "සැමවිටම දෘශ්‍යමාන",
-  "appSettingsFullscreenTabStripButton": "බොත්තමෙන් පෙන්වන්න"
+  "appSettingsFullscreenTabStripButton": "බොත්තමෙන් පෙන්වන්න",
+  "devToolsSimulateRefresh": "පසුබිම් නැවුම් කිරීම අනුකරණය කරන්න",
+  "devToolsSimulateRefreshDone": "දැනුම්දීම් අඩවි නැවත පූරණය කරන ලදී (ලඝු-සටහන් බලන්න)",
+  "devToolsTestNotification": "පරීක්ෂණ දැනුම්දීමක් යවන්න",
+  "devToolsTestNotificationSent": "පරීක්ෂණ දැනුම්දීම යවන ලදී (ලඝු-සටහන් බලන්න)",
+  "devToolsTestNotificationTitle": "WebSpace පරීක්ෂණ දැනුම්දීම",
+  "devToolsTestNotificationBody": "ඔබට මෙය දැකිය හැකි නම්, මෙහෙයුම් පද්ධතියේ දැනුම්දීම් බෙදා හැරීම ක්‍රියා කරයි."
 }

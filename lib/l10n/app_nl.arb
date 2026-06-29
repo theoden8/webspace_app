@@ -656,5 +656,11 @@
   "appSettingsFullscreenTabStrip": "In volledig scherm, tabbalk",
   "appSettingsFullscreenTabStripHidden": "Verborgen",
   "appSettingsFullscreenTabStripAlways": "Altijd zichtbaar",
-  "appSettingsFullscreenTabStripButton": "Tonen met knop"
+  "appSettingsFullscreenTabStripButton": "Tonen met knop",
+  "devToolsSimulateRefresh": "Achtergrondvernieuwing simuleren",
+  "devToolsSimulateRefreshDone": "Meldingssites opnieuw geladen (zie logboeken)",
+  "devToolsTestNotification": "Testmelding verzenden",
+  "devToolsTestNotificationSent": "Testmelding verzonden (zie logboeken)",
+  "devToolsTestNotificationTitle": "WebSpace-testmelding",
+  "devToolsTestNotificationBody": "Als je dit kunt zien, werkt de meldingslevering van het besturingssysteem."
 }

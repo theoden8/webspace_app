@@ -656,5 +656,11 @@
   "appSettingsFullscreenTabStrip": "Dalam skrin penuh, bar tab",
   "appSettingsFullscreenTabStripHidden": "Tersembunyi",
   "appSettingsFullscreenTabStripAlways": "Sentiasa kelihatan",
-  "appSettingsFullscreenTabStripButton": "Tunjukkan dengan butang"
+  "appSettingsFullscreenTabStripButton": "Tunjukkan dengan butang",
+  "devToolsSimulateRefresh": "Simulasikan penyegaran latar belakang",
+  "devToolsSimulateRefreshDone": "Tapak pemberitahuan dimuat semula (lihat log)",
+  "devToolsTestNotification": "Hantar pemberitahuan ujian",
+  "devToolsTestNotificationSent": "Pemberitahuan ujian dihantar (lihat log)",
+  "devToolsTestNotificationTitle": "Pemberitahuan ujian WebSpace",
+  "devToolsTestNotificationBody": "Jika anda dapat melihat ini, penghantaran pemberitahuan sistem pengendalian berfungsi."
 }

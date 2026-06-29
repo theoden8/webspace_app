@@ -4433,14 +4433,20 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// pending request for the same identifier / unique-work name.
   Future<void> _updateBackgroundRefreshSchedule() async {
     if (!Platform.isIOS && !Platform.isAndroid) return;
-    bool any = false;
+    int enabled = 0;
+    int loaded = 0;
     for (int i = 0; i < _webViewModels.length; i++) {
       final m = _webViewModels[i];
       if (!m.effectiveNotificationsEnabled) continue;
-      if (!_loadedIndices.contains(i)) continue;
-      any = true;
-      break;
+      enabled++;
+      if (_loadedIndices.contains(i)) loaded++;
     }
+    final any = loaded > 0;
+    LogService.instance.log(
+      'BackgroundTask',
+      '${any ? "schedule" : "cancel"} refresh — '
+          'notif sites: $enabled enabled, $loaded loaded',
+    );
     if (any) {
       await BackgroundTaskService.instance.scheduleNextRefresh();
     } else {
@@ -4455,17 +4461,34 @@ class _WebSpacePageState extends State<WebSpacePage>
   ///   2. The iOS BGAppRefreshTask handler (no active-site exclusion since
   ///      the app is suspended at that point).
   Future<void> _refreshNotificationSites({bool excludeActive = false}) async {
+    int reloaded = 0;
+    int skippedUnloaded = 0;
+    int skippedNoController = 0;
     for (int i = 0; i < _webViewModels.length; i++) {
       final m = _webViewModels[i];
       if (!m.effectiveNotificationsEnabled) continue;
       if (excludeActive && i == _currentIndex) continue;
-      if (!_loadedIndices.contains(i)) continue;
+      if (!_loadedIndices.contains(i)) {
+        skippedUnloaded++;
+        continue;
+      }
+      if (m.controller == null) {
+        skippedNoController++;
+        continue;
+      }
       try {
         await m.controller?.reload();
+        reloaded++;
       } catch (_) {
         // Controller may have been disposed mid-iteration.
       }
     }
+    LogService.instance.log(
+      'BackgroundTask',
+      'refresh notif sites (excludeActive=$excludeActive): '
+          'reloaded=$reloaded, skipped(unloaded)=$skippedUnloaded, '
+          'skipped(no controller)=$skippedNoController',
+    );
   }
 
   void _onNotificationTapped(String siteId) {
@@ -5826,6 +5849,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                           containerCookieManager: _containerCookieManager,
                           onSave: _saveWebViewModels,
                           globalUserScripts: _globalUserScripts,
+                          onSimulateBackgroundRefresh: _refreshNotificationSites,
                         ),
                       ),
                     );

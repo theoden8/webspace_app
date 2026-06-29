@@ -656,5 +656,11 @@
   "appSettingsFullscreenTabStrip": "Katika skrini nzima, upau wa vichupo",
   "appSettingsFullscreenTabStripHidden": "Imefichwa",
   "appSettingsFullscreenTabStripAlways": "Inaonekana kila wakati",
-  "appSettingsFullscreenTabStripButton": "Onyesha kwa kitufe"
+  "appSettingsFullscreenTabStripButton": "Onyesha kwa kitufe",
+  "devToolsSimulateRefresh": "Iga uonyeshaji upya wa chinichini",
+  "devToolsSimulateRefreshDone": "Tovuti za arifa zimepakiwa upya (angalia kumbukumbu)",
+  "devToolsTestNotification": "Tuma arifa ya majaribio",
+  "devToolsTestNotificationSent": "Arifa ya majaribio imetumwa (angalia kumbukumbu)",
+  "devToolsTestNotificationTitle": "Arifa ya majaribio ya WebSpace",
+  "devToolsTestNotificationBody": "Ikiwa unaweza kuona hili, uwasilishaji wa arifa za mfumo wa uendeshaji unafanya kazi."
 }

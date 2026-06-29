@@ -656,5 +656,11 @@
   "appSettingsFullscreenTabStrip": "Im Vollbild, Tableiste",
   "appSettingsFullscreenTabStripHidden": "Ausgeblendet",
   "appSettingsFullscreenTabStripAlways": "Immer sichtbar",
-  "appSettingsFullscreenTabStripButton": "Mit Schaltfläche einblenden"
+  "appSettingsFullscreenTabStripButton": "Mit Schaltfläche einblenden",
+  "devToolsSimulateRefresh": "Hintergrundaktualisierung simulieren",
+  "devToolsSimulateRefreshDone": "Benachrichtigungsseiten neu geladen (siehe Protokolle)",
+  "devToolsTestNotification": "Testbenachrichtigung senden",
+  "devToolsTestNotificationSent": "Testbenachrichtigung gesendet (siehe Protokolle)",
+  "devToolsTestNotificationTitle": "WebSpace-Testbenachrichtigung",
+  "devToolsTestNotificationBody": "Wenn Sie dies sehen können, funktioniert die Benachrichtigungszustellung des Betriebssystems."
 }

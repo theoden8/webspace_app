@@ -656,5 +656,11 @@
   "appSettingsFullscreenTabStrip": "Teljes képernyőn, lapsáv",
   "appSettingsFullscreenTabStripHidden": "Rejtett",
   "appSettingsFullscreenTabStripAlways": "Mindig látható",
-  "appSettingsFullscreenTabStripButton": "Megjelenítés gombbal"
+  "appSettingsFullscreenTabStripButton": "Megjelenítés gombbal",
+  "devToolsSimulateRefresh": "Háttérfrissítés szimulálása",
+  "devToolsSimulateRefreshDone": "Értesítési oldalak újratöltve (lásd a naplókat)",
+  "devToolsTestNotification": "Tesztértesítés küldése",
+  "devToolsTestNotificationSent": "Tesztértesítés elküldve (lásd a naplókat)",
+  "devToolsTestNotificationTitle": "WebSpace tesztértesítés",
+  "devToolsTestNotificationBody": "Ha ezt látja, az operációs rendszer értesítéskézbesítése működik."
 }

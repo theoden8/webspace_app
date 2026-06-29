@@ -656,5 +656,11 @@
   "appSettingsFullscreenTabStrip": "Pantaila osoan, fitxa-barra",
   "appSettingsFullscreenTabStripHidden": "Ezkutatuta",
   "appSettingsFullscreenTabStripAlways": "Beti ikusgai",
-  "appSettingsFullscreenTabStripButton": "Erakutsi botoiarekin"
+  "appSettingsFullscreenTabStripButton": "Erakutsi botoiarekin",
+  "devToolsSimulateRefresh": "Simulatu atzeko planoko freskatzea",
+  "devToolsSimulateRefreshDone": "Jakinarazpen-guneak birkargatu dira (ikus erregistroak)",
+  "devToolsTestNotification": "Bidali probako jakinarazpena",
+  "devToolsTestNotificationSent": "Probako jakinarazpena bidali da (ikus erregistroak)",
+  "devToolsTestNotificationTitle": "WebSpace probako jakinarazpena",
+  "devToolsTestNotificationBody": "Hau ikus badezakezu, sistema eragilearen jakinarazpenen entrega ondo dabil."
 }

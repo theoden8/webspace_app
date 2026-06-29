@@ -656,5 +656,11 @@
   "appSettingsFullscreenTabStrip": "En plein écran, barre d'onglets",
   "appSettingsFullscreenTabStripHidden": "Masquée",
   "appSettingsFullscreenTabStripAlways": "Toujours visible",
-  "appSettingsFullscreenTabStripButton": "Afficher avec un bouton"
+  "appSettingsFullscreenTabStripButton": "Afficher avec un bouton",
+  "devToolsSimulateRefresh": "Simuler l'actualisation en arrière-plan",
+  "devToolsSimulateRefreshDone": "Sites de notification rechargés (voir les journaux)",
+  "devToolsTestNotification": "Envoyer une notification de test",
+  "devToolsTestNotificationSent": "Notification de test envoyée (voir les journaux)",
+  "devToolsTestNotificationTitle": "Notification de test WebSpace",
+  "devToolsTestNotificationBody": "Si vous voyez ceci, la diffusion des notifications du système d'exploitation fonctionne."
 }

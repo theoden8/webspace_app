@@ -656,5 +656,11 @@
   "appSettingsFullscreenTabStrip": "Di layar penuh, bilah tab",
   "appSettingsFullscreenTabStripHidden": "Tersembunyi",
   "appSettingsFullscreenTabStripAlways": "Selalu terlihat",
-  "appSettingsFullscreenTabStripButton": "Tampilkan dengan tombol"
+  "appSettingsFullscreenTabStripButton": "Tampilkan dengan tombol",
+  "devToolsSimulateRefresh": "Simulasikan penyegaran latar belakang",
+  "devToolsSimulateRefreshDone": "Situs notifikasi dimuat ulang (lihat log)",
+  "devToolsTestNotification": "Kirim notifikasi uji",
+  "devToolsTestNotificationSent": "Notifikasi uji terkirim (lihat log)",
+  "devToolsTestNotificationTitle": "Notifikasi uji WebSpace",
+  "devToolsTestNotificationBody": "Jika Anda dapat melihat ini, pengiriman notifikasi sistem operasi berfungsi."
 }

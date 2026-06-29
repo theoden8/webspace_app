@@ -656,5 +656,11 @@
   "appSettingsFullscreenTabStrip": "На весь екран, панель вкладок",
   "appSettingsFullscreenTabStripHidden": "Прихована",
   "appSettingsFullscreenTabStripAlways": "Завжди видима",
-  "appSettingsFullscreenTabStripButton": "Показувати кнопкою"
+  "appSettingsFullscreenTabStripButton": "Показувати кнопкою",
+  "devToolsSimulateRefresh": "Імітувати фонове оновлення",
+  "devToolsSimulateRefreshDone": "Сайти сповіщень перезавантажено (див. журнали)",
+  "devToolsTestNotification": "Надіслати тестове сповіщення",
+  "devToolsTestNotificationSent": "Тестове сповіщення надіслано (див. журнали)",
+  "devToolsTestNotificationTitle": "Тестове сповіщення WebSpace",
+  "devToolsTestNotificationBody": "Якщо ви це бачите, доставлення сповіщень операційної системи працює."
 }

@@ -656,5 +656,11 @@
   "appSettingsFullscreenTabStrip": "I helskärm, flikfält",
   "appSettingsFullscreenTabStripHidden": "Dold",
   "appSettingsFullscreenTabStripAlways": "Alltid synlig",
-  "appSettingsFullscreenTabStripButton": "Visa med knapp"
+  "appSettingsFullscreenTabStripButton": "Visa med knapp",
+  "devToolsSimulateRefresh": "Simulera bakgrundsuppdatering",
+  "devToolsSimulateRefreshDone": "Aviseringswebbplatser har laddats om (se loggarna)",
+  "devToolsTestNotification": "Skicka testavisering",
+  "devToolsTestNotificationSent": "Testavisering skickad (se loggarna)",
+  "devToolsTestNotificationTitle": "WebSpace-testavisering",
+  "devToolsTestNotificationBody": "Om du kan se detta fungerar operativsystemets aviseringsleverans."
 }

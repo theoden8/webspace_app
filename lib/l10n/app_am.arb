@@ -656,5 +656,11 @@
   "appSettingsFullscreenTabStrip": "በሙሉ ማያ ገጽ፣ የትር አሞሌ",
   "appSettingsFullscreenTabStripHidden": "ተደብቋል",
   "appSettingsFullscreenTabStripAlways": "ሁልጊዜ የሚታይ",
-  "appSettingsFullscreenTabStripButton": "በቁልፍ አሳይ"
+  "appSettingsFullscreenTabStripButton": "በቁልፍ አሳይ",
+  "devToolsSimulateRefresh": "የጀርባ ማደስን አስመስል",
+  "devToolsSimulateRefreshDone": "የማስታወቂያ ጣቢያዎች እንደገና ተጫኑ (ምዝግቦችን ይመልከቱ)",
+  "devToolsTestNotification": "የሙከራ ማስታወቂያ ላክ",
+  "devToolsTestNotificationSent": "የሙከራ ማስታወቂያ ተልኳል (ምዝግቦችን ይመልከቱ)",
+  "devToolsTestNotificationTitle": "የWebSpace የሙከራ ማስታወቂያ",
+  "devToolsTestNotificationBody": "ይህን ማየት ከቻሉ የስርዓተ ክወና ማስታወቂያ ማድረስ ይሰራል።"
 }

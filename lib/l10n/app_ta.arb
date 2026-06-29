@@ -656,5 +656,11 @@
   "appSettingsFullscreenTabStrip": "முழுத்திரையில், தாவல் பட்டி",
   "appSettingsFullscreenTabStripHidden": "மறைக்கப்பட்டது",
   "appSettingsFullscreenTabStripAlways": "எப்போதும் தெரியும்",
-  "appSettingsFullscreenTabStripButton": "பொத்தானால் காட்டு"
+  "appSettingsFullscreenTabStripButton": "பொத்தானால் காட்டு",
+  "devToolsSimulateRefresh": "பின்னணி புதுப்பிப்பை உருவகப்படுத்து",
+  "devToolsSimulateRefreshDone": "அறிவிப்பு தளங்கள் மீண்டும் ஏற்றப்பட்டன (பதிவுகளைப் பார்க்கவும்)",
+  "devToolsTestNotification": "சோதனை அறிவிப்பை அனுப்பு",
+  "devToolsTestNotificationSent": "சோதனை அறிவிப்பு அனுப்பப்பட்டது (பதிவுகளைப் பார்க்கவும்)",
+  "devToolsTestNotificationTitle": "WebSpace சோதனை அறிவிப்பு",
+  "devToolsTestNotificationBody": "இதை நீங்கள் பார்க்க முடிந்தால், இயக்க முறைமையின் அறிவிப்பு வழங்கல் வேலை செய்கிறது."
 }

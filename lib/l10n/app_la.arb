@@ -656,5 +656,11 @@
   "appSettingsFullscreenTabStrip": "In pleno schemate, series tabularum",
   "appSettingsFullscreenTabStripHidden": "Occultata",
   "appSettingsFullscreenTabStripAlways": "Semper visibilis",
-  "appSettingsFullscreenTabStripButton": "Bulla ostendere"
+  "appSettingsFullscreenTabStripButton": "Bulla ostendere",
+  "devToolsSimulateRefresh": "Renovationem in fundo simulare",
+  "devToolsSimulateRefreshDone": "Loci nuntiationis iterum onerati sunt (vide acta)",
+  "devToolsTestNotification": "Nuntiationem probatoriam mittere",
+  "devToolsTestNotificationSent": "Nuntiatio probatoria missa est (vide acta)",
+  "devToolsTestNotificationTitle": "Nuntiatio probatoria WebSpace",
+  "devToolsTestNotificationBody": "Si hoc videre potes, traditio nuntiationum systematis operandi operatur."
 }

@@ -656,5 +656,11 @@
   "appSettingsFullscreenTabStrip": "I fuld skærm, fanebjælke",
   "appSettingsFullscreenTabStripHidden": "Skjult",
   "appSettingsFullscreenTabStripAlways": "Altid synlig",
-  "appSettingsFullscreenTabStripButton": "Vis med knap"
+  "appSettingsFullscreenTabStripButton": "Vis med knap",
+  "devToolsSimulateRefresh": "Simuler baggrundsopdatering",
+  "devToolsSimulateRefreshDone": "Notifikationssider genindlæst (se logfiler)",
+  "devToolsTestNotification": "Send testnotifikation",
+  "devToolsTestNotificationSent": "Testnotifikation sendt (se logfiler)",
+  "devToolsTestNotificationTitle": "WebSpace-testnotifikation",
+  "devToolsTestNotificationBody": "Hvis du kan se dette, fungerer operativsystemets notifikationslevering."
 }

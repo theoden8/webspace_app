@@ -656,5 +656,11 @@
   "appSettingsFullscreenTabStrip": "در تمام‌صفحه، نوار زبانه‌ها",
   "appSettingsFullscreenTabStripHidden": "پنهان",
   "appSettingsFullscreenTabStripAlways": "همیشه نمایان",
-  "appSettingsFullscreenTabStripButton": "نمایش با دکمه"
+  "appSettingsFullscreenTabStripButton": "نمایش با دکمه",
+  "devToolsSimulateRefresh": "شبیه‌سازی به‌روزرسانی پس‌زمینه",
+  "devToolsSimulateRefreshDone": "سایت‌های اعلان دوباره بارگذاری شدند (گزارش‌ها را ببینید)",
+  "devToolsTestNotification": "ارسال اعلان آزمایشی",
+  "devToolsTestNotificationSent": "اعلان آزمایشی ارسال شد (گزارش‌ها را ببینید)",
+  "devToolsTestNotificationTitle": "اعلان آزمایشی WebSpace",
+  "devToolsTestNotificationBody": "اگر این را می‌بینید، تحویل اعلان‌های سیستم‌عامل کار می‌کند."
 }

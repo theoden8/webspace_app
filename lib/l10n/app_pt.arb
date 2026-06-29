@@ -656,5 +656,11 @@
   "appSettingsFullscreenTabStrip": "Em ecrã inteiro, barra de separadores",
   "appSettingsFullscreenTabStripHidden": "Oculta",
   "appSettingsFullscreenTabStripAlways": "Sempre visível",
-  "appSettingsFullscreenTabStripButton": "Mostrar com um botão"
+  "appSettingsFullscreenTabStripButton": "Mostrar com um botão",
+  "devToolsSimulateRefresh": "Simular atualização em segundo plano",
+  "devToolsSimulateRefreshDone": "Sites de notificação recarregados (consulte os registos)",
+  "devToolsTestNotification": "Enviar notificação de teste",
+  "devToolsTestNotificationSent": "Notificação de teste enviada (consulte os registos)",
+  "devToolsTestNotificationTitle": "Notificação de teste WebSpace",
+  "devToolsTestNotificationBody": "Se conseguir ver isto, a entrega de notificações do sistema operativo funciona."
 }

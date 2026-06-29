@@ -656,5 +656,11 @@
   "appSettingsFullscreenTabStrip": "Sa scáileán iomlán, barra cluaisíní",
   "appSettingsFullscreenTabStripHidden": "Folaithe",
   "appSettingsFullscreenTabStripAlways": "Le feiceáil i gcónaí",
-  "appSettingsFullscreenTabStripButton": "Taispeáin le cnaipe"
+  "appSettingsFullscreenTabStripButton": "Taispeáin le cnaipe",
+  "devToolsSimulateRefresh": "Insamhail athnuachan sa chúlra",
+  "devToolsSimulateRefreshDone": "Athluchtaíodh suíomhanna fógraí (féach na logaí)",
+  "devToolsTestNotification": "Seol fógra tástála",
+  "devToolsTestNotificationSent": "Seoladh fógra tástála (féach na logaí)",
+  "devToolsTestNotificationTitle": "Fógra tástála WebSpace",
+  "devToolsTestNotificationBody": "Más féidir leat é seo a fheiceáil, tá seachadadh fógraí an chórais oibriúcháin ag obair."
 }

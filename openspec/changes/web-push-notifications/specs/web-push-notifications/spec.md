@@ -53,6 +53,22 @@ The system SHALL inject a JavaScript polyfill at `DOCUMENT_START` (with `forMain
 **When** the site calls `new Notification(...)`
 **Then** the polyfill returns without invoking the JS bridge
 **And** no native notification is shown
+**And** the polyfill emits a `console.warn` breadcrumb (`[WebSpace] Notification(...) suppressed: permission denied`) so the suppression is visible in the dev-tools Console
+
+#### Scenario: Page-context Service Worker notification is bridged
+
+**Given** a site has notification permission granted
+**And** the site calls `registration.showNotification("title", {...})` from page context (e.g. after `navigator.serviceWorker.ready`)
+**When** the override runs
+**Then** the polyfill calls `flutter_inappwebview.callHandler('webNotification', ...)` with the same payload shape as the `Notification` constructor
+**And** a native notification is shown tagged with the originating `siteId`
+
+#### Scenario: True server-driven web push is out of reach by design
+
+**Given** a site delivers notifications from inside its Service Worker's `push` or `message` event handler (the standard Web Push pattern)
+**When** the push event fires
+**Then** WebSpace does NOT deliver the notification, because the handler runs in the worker global scope which a page-injected script cannot patch, and the app has no Web Push subscription endpoint
+**And** this is a known architectural limit: WebSpace approximates notifications by reloading the page so its page-context JS can fire `Notification` / page-context `showNotification`, not by receiving true server push
 
 ### Requirement: NOTIF-003 - Notification Tap Navigation
 
@@ -265,6 +281,31 @@ The system SHALL request OS-level notification permission before displaying the 
 **When** a site attempts to show a notification
 **Then** the system requests the `POST_NOTIFICATIONS` runtime permission
 **And** notifications are displayed only if the permission is granted
+
+### Requirement: NOTIF-008 - Wake-up Diagnostics
+
+Because the wake-up chain (OS scheduler -> webview reload -> page JS -> `webNotification` handler -> `NotificationService.show` -> OS delivery) spans three layers that each fail silently, the system SHALL make the chain observable and foreground-triggerable so a regression can be localized without waiting on the OS background scheduler.
+
+#### Scenario: Every hop logs a trace line
+
+**Given** a background refresh runs (real OS task or simulated)
+**Then** the schedule/cancel decision logs the enabled and loaded notification-site counts
+**And** the reload pass logs how many sites were reloaded versus skipped (unloaded / no controller)
+**And** the native bridge logs task receipt, dispatch reachability, completion, expiration, and timeout (iOS `NSLog`, Android `Log` under tag `WebspaceBgRefresh`)
+
+#### Scenario: Developer can simulate a background refresh in the foreground
+
+**Given** the developer-tools App Logs tab is open for a site
+**When** the developer taps "Simulate background refresh"
+**Then** the same reload pass the OS background task would run executes immediately
+**And** the resulting trace is visible in the App Logs tab
+
+#### Scenario: Developer can verify OS notification delivery directly
+
+**Given** the developer-tools App Logs tab is open for a site
+**When** the developer taps "Send test notification"
+**Then** `NotificationService.show` posts a local notification for that `siteId`
+**And** the OS permission gate and delivery are exercised independently of any page JS
 
 ## Manual Test Procedure
 

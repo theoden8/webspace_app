@@ -656,5 +656,11 @@
   "appSettingsFullscreenTabStrip": "Σε πλήρη οθόνη, γραμμή καρτελών",
   "appSettingsFullscreenTabStripHidden": "Κρυφή",
   "appSettingsFullscreenTabStripAlways": "Πάντα ορατή",
-  "appSettingsFullscreenTabStripButton": "Εμφάνιση με κουμπί"
+  "appSettingsFullscreenTabStripButton": "Εμφάνιση με κουμπί",
+  "devToolsSimulateRefresh": "Προσομοίωση ανανέωσης παρασκηνίου",
+  "devToolsSimulateRefreshDone": "Οι ιστότοποι ειδοποιήσεων επαναφορτώθηκαν (δείτε τα αρχεία καταγραφής)",
+  "devToolsTestNotification": "Αποστολή δοκιμαστικής ειδοποίησης",
+  "devToolsTestNotificationSent": "Η δοκιμαστική ειδοποίηση στάλθηκε (δείτε τα αρχεία καταγραφής)",
+  "devToolsTestNotificationTitle": "Δοκιμαστική ειδοποίηση WebSpace",
+  "devToolsTestNotificationBody": "Αν μπορείτε να το δείτε αυτό, η παράδοση ειδοποιήσεων του λειτουργικού συστήματος λειτουργεί."
 }

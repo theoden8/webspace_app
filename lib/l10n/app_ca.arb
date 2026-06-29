@@ -656,5 +656,11 @@
   "appSettingsFullscreenTabStrip": "En pantalla completa, barra de pestanyes",
   "appSettingsFullscreenTabStripHidden": "Amagada",
   "appSettingsFullscreenTabStripAlways": "Sempre visible",
-  "appSettingsFullscreenTabStripButton": "Mostra amb un botó"
+  "appSettingsFullscreenTabStripButton": "Mostra amb un botó",
+  "devToolsSimulateRefresh": "Simula l'actualització en segon pla",
+  "devToolsSimulateRefreshDone": "Llocs de notificació recarregats (vegeu els registres)",
+  "devToolsTestNotification": "Envia una notificació de prova",
+  "devToolsTestNotificationSent": "Notificació de prova enviada (vegeu els registres)",
+  "devToolsTestNotificationTitle": "Notificació de prova de WebSpace",
+  "devToolsTestNotificationBody": "Si pots veure això, el lliurament de notificacions del sistema operatiu funciona."
 }

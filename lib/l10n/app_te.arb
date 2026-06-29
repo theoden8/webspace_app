@@ -656,5 +656,11 @@
   "appSettingsFullscreenTabStrip": "పూర్తి స్క్రీన్‌లో, ట్యాబ్ బార్",
   "appSettingsFullscreenTabStripHidden": "దాచబడింది",
   "appSettingsFullscreenTabStripAlways": "ఎల్లప్పుడూ కనిపిస్తుంది",
-  "appSettingsFullscreenTabStripButton": "బటన్‌తో చూపించు"
+  "appSettingsFullscreenTabStripButton": "బటన్‌తో చూపించు",
+  "devToolsSimulateRefresh": "నేపథ్య రిఫ్రెష్‌ను అనుకరించండి",
+  "devToolsSimulateRefreshDone": "నోటిఫికేషన్ సైట్‌లు మళ్లీ లోడ్ అయ్యాయి (లాగ్‌లను చూడండి)",
+  "devToolsTestNotification": "పరీక్ష నోటిఫికేషన్ పంపండి",
+  "devToolsTestNotificationSent": "పరీక్ష నోటిఫికేషన్ పంపబడింది (లాగ్‌లను చూడండి)",
+  "devToolsTestNotificationTitle": "WebSpace పరీక్ష నోటిఫికేషన్",
+  "devToolsTestNotificationBody": "ఇది మీకు కనిపిస్తే, ఆపరేటింగ్ సిస్టమ్ నోటిఫికేషన్ డెలివరీ పని చేస్తోంది."
 }

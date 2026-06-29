@@ -656,5 +656,11 @@
   "appSettingsFullscreenTabStrip": "Na pełnym ekranie, pasek kart",
   "appSettingsFullscreenTabStripHidden": "Ukryty",
   "appSettingsFullscreenTabStripAlways": "Zawsze widoczny",
-  "appSettingsFullscreenTabStripButton": "Pokaż przyciskiem"
+  "appSettingsFullscreenTabStripButton": "Pokaż przyciskiem",
+  "devToolsSimulateRefresh": "Symuluj odświeżanie w tle",
+  "devToolsSimulateRefreshDone": "Witryny powiadomień ponownie załadowane (zobacz logi)",
+  "devToolsTestNotification": "Wyślij powiadomienie testowe",
+  "devToolsTestNotificationSent": "Wysłano powiadomienie testowe (zobacz logi)",
+  "devToolsTestNotificationTitle": "Powiadomienie testowe WebSpace",
+  "devToolsTestNotificationBody": "Jeśli to widzisz, dostarczanie powiadomień systemu operacyjnego działa."
 }

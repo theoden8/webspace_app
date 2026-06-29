@@ -656,5 +656,11 @@
   "appSettingsFullscreenTabStrip": "V celozaslonskem načinu, vrstica zavihkov",
   "appSettingsFullscreenTabStripHidden": "Skrito",
   "appSettingsFullscreenTabStripAlways": "Vedno vidno",
-  "appSettingsFullscreenTabStripButton": "Pokaži z gumbom"
+  "appSettingsFullscreenTabStripButton": "Pokaži z gumbom",
+  "devToolsSimulateRefresh": "Simuliraj osvežitev v ozadju",
+  "devToolsSimulateRefreshDone": "Spletna mesta z obvestili znova naložena (glejte dnevnike)",
+  "devToolsTestNotification": "Pošlji preizkusno obvestilo",
+  "devToolsTestNotificationSent": "Preizkusno obvestilo poslano (glejte dnevnike)",
+  "devToolsTestNotificationTitle": "Preizkusno obvestilo WebSpace",
+  "devToolsTestNotificationBody": "Če to vidite, dostava obvestil operacijskega sistema deluje."
 }

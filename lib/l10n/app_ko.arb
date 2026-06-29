@@ -656,5 +656,11 @@
   "appSettingsFullscreenTabStrip": "전체 화면에서 탭 바",
   "appSettingsFullscreenTabStripHidden": "숨김",
   "appSettingsFullscreenTabStripAlways": "항상 표시",
-  "appSettingsFullscreenTabStripButton": "버튼으로 표시"
+  "appSettingsFullscreenTabStripButton": "버튼으로 표시",
+  "devToolsSimulateRefresh": "백그라운드 새로 고침 시뮬레이션",
+  "devToolsSimulateRefreshDone": "알림 사이트를 다시 로드했습니다 (로그 참조)",
+  "devToolsTestNotification": "테스트 알림 보내기",
+  "devToolsTestNotificationSent": "테스트 알림을 보냈습니다 (로그 참조)",
+  "devToolsTestNotificationTitle": "WebSpace 테스트 알림",
+  "devToolsTestNotificationBody": "이것이 보이면 운영 체제의 알림 전송이 작동합니다."
 }

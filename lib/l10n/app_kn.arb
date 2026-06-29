@@ -656,5 +656,11 @@
   "appSettingsFullscreenTabStrip": "ಪೂರ್ಣ ಪರದೆಯಲ್ಲಿ, ಟ್ಯಾಬ್ ಬಾರ್",
   "appSettingsFullscreenTabStripHidden": "ಮರೆಮಾಡಲಾಗಿದೆ",
   "appSettingsFullscreenTabStripAlways": "ಯಾವಾಗಲೂ ಗೋಚರ",
-  "appSettingsFullscreenTabStripButton": "ಬಟನ್‌ನಿಂದ ತೋರಿಸಿ"
+  "appSettingsFullscreenTabStripButton": "ಬಟನ್‌ನಿಂದ ತೋರಿಸಿ",
+  "devToolsSimulateRefresh": "ಹಿನ್ನೆಲೆ ರಿಫ್ರೆಶ್ ಅನ್ನು ಅನುಕರಿಸಿ",
+  "devToolsSimulateRefreshDone": "ಅಧಿಸೂಚನೆ ಸೈಟ್‌ಗಳನ್ನು ಮರುಲೋಡ್ ಮಾಡಲಾಗಿದೆ (ಲಾಗ್‌ಗಳನ್ನು ನೋಡಿ)",
+  "devToolsTestNotification": "ಪರೀಕ್ಷಾ ಅಧಿಸೂಚನೆ ಕಳುಹಿಸಿ",
+  "devToolsTestNotificationSent": "ಪರೀಕ್ಷಾ ಅಧಿಸೂಚನೆ ಕಳುಹಿಸಲಾಗಿದೆ (ಲಾಗ್‌ಗಳನ್ನು ನೋಡಿ)",
+  "devToolsTestNotificationTitle": "WebSpace ಪರೀಕ್ಷಾ ಅಧಿಸೂಚನೆ",
+  "devToolsTestNotificationBody": "ಇದು ನಿಮಗೆ ಕಾಣಿಸಿದರೆ, ಆಪರೇಟಿಂಗ್ ಸಿಸ್ಟಂನ ಅಧಿಸೂಚನೆ ವಿತರಣೆ ಕಾರ್ಯನಿರ್ವಹಿಸುತ್ತಿದೆ."
 }

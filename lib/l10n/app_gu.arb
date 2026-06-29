@@ -656,5 +656,11 @@
   "appSettingsFullscreenTabStrip": "પૂર્ણ સ્ક્રીનમાં, ટૅબ બાર",
   "appSettingsFullscreenTabStripHidden": "છુપાયેલ",
   "appSettingsFullscreenTabStripAlways": "હંમેશા દૃશ્યમાન",
-  "appSettingsFullscreenTabStripButton": "બટન વડે બતાવો"
+  "appSettingsFullscreenTabStripButton": "બટન વડે બતાવો",
+  "devToolsSimulateRefresh": "બેકગ્રાઉન્ડ રિફ્રેશનું અનુકરણ કરો",
+  "devToolsSimulateRefreshDone": "સૂચના સાઇટ્સ ફરી લોડ થઈ (લોગ જુઓ)",
+  "devToolsTestNotification": "પરીક્ષણ સૂચના મોકલો",
+  "devToolsTestNotificationSent": "પરીક્ષણ સૂચના મોકલાઈ (લોગ જુઓ)",
+  "devToolsTestNotificationTitle": "WebSpace પરીક્ષણ સૂચના",
+  "devToolsTestNotificationBody": "જો તમે આ જોઈ શકતા હો, તો ઓપરેટિંગ સિસ્ટમની સૂચના વિતરણ કાર્ય કરે છે."
 }

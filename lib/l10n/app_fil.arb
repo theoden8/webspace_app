@@ -656,5 +656,11 @@
   "appSettingsFullscreenTabStrip": "Sa full screen, tab bar",
   "appSettingsFullscreenTabStripHidden": "Nakatago",
   "appSettingsFullscreenTabStripAlways": "Palaging nakikita",
-  "appSettingsFullscreenTabStripButton": "Ipakita gamit ang button"
+  "appSettingsFullscreenTabStripButton": "Ipakita gamit ang button",
+  "devToolsSimulateRefresh": "I-simulate ang pag-refresh sa background",
+  "devToolsSimulateRefreshDone": "Na-reload ang mga site ng notification (tingnan ang mga log)",
+  "devToolsTestNotification": "Magpadala ng test notification",
+  "devToolsTestNotificationSent": "Naipadala ang test notification (tingnan ang mga log)",
+  "devToolsTestNotificationTitle": "Test notification ng WebSpace",
+  "devToolsTestNotificationBody": "Kung makikita mo ito, gumagana ang paghahatid ng notification ng operating system."
 }
