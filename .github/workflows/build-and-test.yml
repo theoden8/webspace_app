@@ -472,7 +472,10 @@ jobs:
         run: |
           set -x
           pipx install --system-site-packages pass-secret-service
-          SESSION_PY="$HOME/.local/share/pipx/venvs/pass-secret-service/lib/python3.13/site-packages/pass_secret_service/interfaces/session.py"
+          # Resolve the venv's python3.X dir at runtime — pipx picks whatever
+          # interpreter the sid image ships (3.13 -> 3.14 -> ...), so pinning a
+          # version breaks the moment the base image bumps Python.
+          SESSION_PY="$(ls "$HOME"/.local/share/pipx/venvs/pass-secret-service/lib/python3.*/site-packages/pass_secret_service/interfaces/session.py)"
           sed -i 's|from cryptography.utils import int_from_bytes|def int_from_bytes(data, byteorder, signed=False): return int.from_bytes(data, byteorder, signed=signed)|' "$SESSION_PY"
           sed -i 's|password = secret\[2\]|password = bytes(secret[2])|' "$SESSION_PY"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
