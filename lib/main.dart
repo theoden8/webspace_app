@@ -7193,6 +7193,13 @@ class _WebSpacePageState extends State<WebSpacePage>
       // padding is ~0 and the webview still fills the screen. github #385
       top: _isFullscreen,
       bottom: !hasTabStrip && inputBar == null,
+      // Out of fullscreen, inset around a landscape display cutout so chrome
+      // and content avoid the notch. In fullscreen let the webview fill the
+      // cutout strip (with shortEdges cutout mode the window already extends
+      // there); otherwise SafeArea would re-letterbox the space beside the
+      // notch with the app background. github #457
+      left: !_isFullscreen,
+      right: !_isFullscreen,
       // Use Stack + Offstage so the IndexedStack (and its webview States)
       // stay mounted when showing the webspace list. Removing the
       // IndexedStack from the tree destroys webview States, losing

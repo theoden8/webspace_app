@@ -215,6 +215,26 @@ The system SHALL keep the site's content reachable in full screen even when the 
 
 ---
 
+### Requirement: FS-010 - Use Display Cutout Space in Full Screen
+
+The system SHALL render the webview into the display cutout (notch) region on the short edges in full screen, so no black letterbox bar appears beside the notch. Out of full screen the body SHALL inset around the cutout so app chrome and content avoid the notch.
+
+#### Scenario: Landscape notch in full screen
+
+**Given** a device with a display cutout on a short edge (e.g. a landscape left/right notch)
+**And** the user is in full screen mode
+**Then** the window extends into the cutout strip (`LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES`)
+**And** the webview fills the space beside the notch with no black bar
+**And** the top/bottom safe-area insets still keep top/bottom controls clear of any persistent system bar
+
+#### Scenario: Cutout out of full screen
+
+**Given** a device with a landscape display cutout
+**And** the user is NOT in full screen
+**Then** the body insets around the cutout (left/right `SafeArea` active) so the app bar and content avoid the notch
+
+---
+
 ### Requirement: FS-009 - Tab Bar Button
 
 The system SHALL support a global option ("Tab bar button") that shows a small floating button which, when tapped, reveals the tab strip together with its overflow menu on demand. The button works both in and out of full screen, so the user can reach tabs and the menu without keeping the tab strip pinned. The option is independent of "Site Tab Strip" and "Keep Tab Strip in Full Screen". Its corner (bottom-left or bottom-right) is configurable.
@@ -277,7 +297,8 @@ The legacy `tabBarButtonInFullscreen` preference (full-screen-only button) is mi
 - **Tab strip**: `_buildTabStrip()` returns null when `_isFullscreen` unless the global `tabStripInFullscreen` pref is set (then it stays in `bottomNavigationBar` and owns the bottom safe-area inset). The `_tabStripShown` getter also renders it on demand in either mode when `_tabBarButton && _tabBarOverlayVisible`; the revealed strip carries an inline close button.
 - **Tab bar button**: the `_tabBarButtonShown` getter places a floating circular button in the body `Stack` (bottom corner per `_tabBarButtonOnRight`). Shown when `_tabBarButton` is on, a site is loaded, the overlay is not already revealed, and the strip is not pinned for the current mode (`_showTabStrip` out of fullscreen / `_tabStripInFullscreen` in fullscreen). Tapping sets `_tabBarOverlayVisible = true` (FS-009).
 - **Input bar**: `_buildInputBar()` returns null when `_isFullscreen`
-- **Body insets**: The fullscreen body keeps `SafeArea` active on both edges (`top: _isFullscreen`, `bottom: _isFullscreen || ...`). `immersiveSticky` does not reliably hide the system bars on Android 15 (edge-to-edge enforced); when a bar persists, the inset keeps the site's top/bottom controls clear of it. When the bars are truly hidden the inset is ~0 and the webview still fills the screen.
+- **Body insets**: The fullscreen body keeps top/bottom `SafeArea` active (`top: _isFullscreen`, `bottom: _isFullscreen || ...`). `immersiveSticky` does not reliably hide the system bars on Android 15 (edge-to-edge enforced); when a bar persists, the inset keeps the site's top/bottom controls clear of it. When the bars are truly hidden the inset is ~0 and the webview still fills the screen. Left/right insets are dropped in fullscreen (`left: !_isFullscreen`, `right: !_isFullscreen`) so the webview uses the display-cutout strip beside a landscape notch (FS-010); out of fullscreen they stay active so chrome avoids the notch.
+- **Display cutout (FS-010)**: `MainActivity.onCreate` sets `LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES` (API 28+) so the window may extend into the cutout on short edges. Without it, hiding the system bars makes Android letterbox the cutout strip black.
 - **Exit zone**: top edge when fullscreen (`MediaQuery.padding.top + 20px`, measured inside the body `SafeArea`) with a visible handle just below the notch/status bar. Only a centered 96px-wide `GestureDetector` catches the exit tap; the rest of the strip is transparent to pointers so web-app controls in the top corners stay tappable (github #401)
 - **Fullscreen hint**: SnackBar shown on entering fullscreen to explain exit method
 - **Menu items**: "Full Screen" added to both app bar and tab strip popup menus
