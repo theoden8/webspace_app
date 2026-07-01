@@ -240,22 +240,32 @@ class MainActivity: FlutterActivity() {
         }
         if (intent.action != Intent.ACTION_SEND) return
         val mime = intent.type?.lowercase() ?: ""
-        // Prefer HTML when the sharer signals it via mime type OR ships
-        // a text/html stream extra. Sharers that pass HTML as a tiny
-        // EXTRA_TEXT (e.g. a copy-pasted snippet) still hit the URL path
-        // first; only when EXTRA_STREAM is present do we treat the
-        // payload as a file import.
+        // Prefer HTML when EXTRA_STREAM is present. The sharer's declared mime
+        // can't be trusted: file managers hand .html files as text/plain or
+        // application/octet-stream, and content:// URIs don't carry the file
+        // name in their path, so neither the intent mime nor streamUri.path is
+        // enough on its own. Resolve the provider's own type + display name and,
+        // failing that, sniff the bytes. Only EXTRA_STREAM shares are file
+        // imports; a copy-pasted URL rides EXTRA_TEXT and hits the URL path.
         val streamUri: Uri? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
         } else {
             @Suppress("DEPRECATION")
             intent.getParcelableExtra(Intent.EXTRA_STREAM)
         }
-        val isHtmlMime = mime == "text/html" || mime == "application/xhtml+xml"
-        if (streamUri != null && (isHtmlMime || streamUri.path?.lowercase()?.endsWith(".html") == true || streamUri.path?.lowercase()?.endsWith(".htm") == true)) {
+        if (streamUri != null) {
+            val displayName = queryDisplayName(streamUri)
+            val resolvedType = try {
+                contentResolver.getType(streamUri)?.lowercase()
+            } catch (e: Exception) {
+                null
+            }
+            val htmlByMeta = mime == "text/html" || mime == "application/xhtml+xml" ||
+                resolvedType == "text/html" || resolvedType == "application/xhtml+xml" ||
+                isHtmlName(displayName) || isHtmlName(streamUri.path)
             val html = readStreamAsString(streamUri)
-            if (html != null && html.isNotEmpty()) {
-                val title = guessTitleFrom(streamUri, html)
+            if (html != null && html.isNotEmpty() && (htmlByMeta || looksLikeHtml(html))) {
+                val title = guessTitleFrom(displayName ?: streamUri.lastPathSegment, html)
                 pendingShareHtml = HtmlPayload(content = html, title = title, sourceUri = streamUri.toString())
                 pendingShareUrl = null
                 return
@@ -264,6 +274,35 @@ class MainActivity: FlutterActivity() {
         val url = extractShareUrl(intent)
         if (url != null) {
             pendingShareUrl = url
+        }
+    }
+
+    private fun isHtmlName(name: String?): Boolean {
+        val n = name?.lowercase() ?: return false
+        return n.endsWith(".html") || n.endsWith(".htm") || n.endsWith(".xhtml")
+    }
+
+    private fun looksLikeHtml(s: String): Boolean {
+        val head = s.take(1024).lowercase()
+        return head.contains("<!doctype html") || head.contains("<html") ||
+            head.contains("<head") || head.contains("<body")
+    }
+
+    private fun queryDisplayName(uri: Uri): String? {
+        if (uri.scheme?.lowercase() != "content") return uri.lastPathSegment
+        return try {
+            contentResolver.query(
+                uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val idx = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                    if (idx >= 0) cursor.getString(idx) else null
+                } else {
+                    null
+                }
+            }
+        } catch (e: Exception) {
+            null
         }
     }
 
@@ -277,13 +316,13 @@ class MainActivity: FlutterActivity() {
         }
     }
 
-    private fun guessTitleFrom(uri: Uri, html: String): String? {
+    private fun guessTitleFrom(name: String?, html: String): String? {
         // Honour an explicit <title>; fall back to the file name (without
         // extension), which is what the desktop file-import flow does.
         val titleMatch = Regex("(?is)<title[^>]*>(.*?)</title>").find(html)
         val fromTitle = titleMatch?.groupValues?.getOrNull(1)?.trim().orEmpty()
         if (fromTitle.isNotEmpty()) return fromTitle
-        val name = uri.lastPathSegment ?: return null
+        if (name == null) return null
         val dot = name.lastIndexOf('.')
         return if (dot > 0) name.substring(0, dot) else name
     }
