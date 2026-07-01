@@ -13,6 +13,9 @@ import UserNotifications
   private let shareChannelName = "org.codeberg.theoden8.webspace/share_intent"
   private let appGroupId = "group.org.codeberg.theoden8.webspace"
   private let pendingUrlKey = "pending_share_url"
+  private let pendingHtmlFileName = "pending_share.html"
+  private let pendingHtmlTitleKey = "pending_share_html_title"
+  private let pendingHtmlSourceKey = "pending_share_html_source"
 
   override func application(
     _ application: UIApplication,
@@ -70,11 +73,14 @@ import UserNotifications
         #endif
         result(url)
       case "consumeLaunchHtml":
-        // LIR-012: iOS Share Extension HTML delivery isn't wired yet
-        // (depends on the Share Extension target work in tasks 5.1 / 5.5).
-        // Return null so the Dart side falls through to the URL channel
-        // without raising MissingPluginException.
-        result(nil)
+        // LIR-012: the Share Extension writes an HTML document into the
+        // app-group container and wakes us with `webspace://openhtml`. Drain
+        // it here (one read, then delete) and hand the payload to Dart.
+        let payload = self.drainAppGroupPendingHtml()
+        #if DEBUG
+        NSLog("[WebSpace] consumeLaunchHtml returning: \(payload == nil ? "nil" : "payload")")
+        #endif
+        result(payload)
       default:
         result(FlutterMethodNotImplemented)
       }
@@ -115,6 +121,13 @@ import UserNotifications
       #if DEBUG
       NSLog("[WebSpace] captured share inner URL: \(inner)")
       #endif
+    } else if host == "openhtml" {
+      // The HTML document rides the app-group container, not the URL. This
+      // trigger only foregrounds the app; the Dart share poll then calls
+      // consumeLaunchHtml to drain the container.
+      #if DEBUG
+      NSLog("[WebSpace] received openhtml trigger")
+      #endif
     } else if host == "qr" {
       // Pass the original webspace:// URL through; Dart routes it to the
       // QR-apply path by scheme.
@@ -127,6 +140,36 @@ import UserNotifications
       NSLog("[WebSpace] unrecognized webspace host: \(host ?? "nil")")
       #endif
     }
+  }
+
+  private func drainAppGroupPendingHtml() -> [String: Any]? {
+    let fm = FileManager.default
+    guard let container = fm.containerURL(forSecurityApplicationGroupIdentifier: appGroupId) else {
+      NSLog("[WebSpace] app group \(appGroupId) unavailable; cannot drain pending HTML")
+      return nil
+    }
+    let fileURL = container.appendingPathComponent(pendingHtmlFileName)
+    guard let data = try? Data(contentsOf: fileURL),
+          let content = String(data: data, encoding: .utf8),
+          !content.isEmpty else {
+      return nil
+    }
+    var payload: [String: Any] = ["content": content]
+    if let defaults = UserDefaults(suiteName: appGroupId) {
+      if let title = defaults.string(forKey: pendingHtmlTitleKey), !title.isEmpty {
+        payload["title"] = title
+      }
+      if let source = defaults.string(forKey: pendingHtmlSourceKey), !source.isEmpty {
+        payload["sourceUri"] = source
+      }
+      defaults.removeObject(forKey: pendingHtmlTitleKey)
+      defaults.removeObject(forKey: pendingHtmlSourceKey)
+    }
+    try? fm.removeItem(at: fileURL)
+    #if DEBUG
+    NSLog("[WebSpace] drained pending HTML from app group (\(content.count) chars)")
+    #endif
+    return payload
   }
 
   private func drainAppGroupPendingUrl() {

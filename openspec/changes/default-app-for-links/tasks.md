@@ -33,13 +33,13 @@
 
 > Basic URL share already lands via PR #297 (`Register WebSpace as iOS share target`); the channel name and `consumeLaunchUrl` API are reused. The Share Extension target, App Group, and `webspace://` scheme registration are still pending.
 
-- [ ] 5.1 Add new target `WebSpaceShareExtension` in `ios/` with `NSExtensionActivationSupportsWebURLWithMaxCount=1`, `NSExtensionActivationSupportsText=1`, `NSExtensionActivationSupportsFileWithMaxCount=1` (HTML files for LIR-012). **Requires Xcode** — cannot land from headless tooling.
-- [ ] 5.2 Create App Group `group.com.theoden8.webspace`; entitlement on both main app and extension. **Requires Xcode**.
+- [x] 5.1 Share Extension target ships with `NSExtensionActivationSupportsWebURLWithMaxCount=1`, `NSExtensionActivationSupportsText=1`, and `NSExtensionActivationSupportsFileWithMaxCount=1` (HTML files for LIR-012) in `ios/ShareExtension/Info.plist`.
+- [x] 5.2 App Group `group.org.codeberg.theoden8.webspace` entitled on both main app and extension (`ios/ShareExtension/ShareExtension.entitlements`).
 - [x] 5.3 `webspace` scheme registered in `ios/Runner/Info.plist` `CFBundleURLTypes` (already in master before this change).
-- [x] 5.4 `application:openURL:options:` accepts `webspace://open?url=<encoded http(s)>`, `webspace://share?url=...` (legacy), and `webspace://qr/...`; pending URL is exposed to Dart via the existing `share_intent` channel. New no-op `consumeLaunchHtml` channel method returns null until the Share Extension target lands (5.1) — Dart side falls through to URL channel without raising MissingPluginException.
-- [ ] 5.5 Extension `ShareViewController` extracts URL via `NSItemProvider` (or HTML file content), writes `pending_link` / `pending_html` to shared `UserDefaults`, calls `extensionContext?.open(URL(string: "webspace://open?url=<encoded>")!)`, then `completeRequest`. **Requires Xcode**.
-- [ ] 5.6 Main app reads pending URL/HTML from launch URL or App Group, then clears the App Group key. App Group draining for the URL is already wired (`drainAppGroupPendingUrl` in AppDelegate.swift); HTML drain stays pending until 5.1 / 5.5.
-- [ ] 5.7 Manual smoke test: share URL from Safari, share HTML file from Files, tap `webspace://` URL in Notes.
+- [x] 5.4 `application:openURL:options:` accepts `webspace://open?url=<encoded http(s)>`, `webspace://share?url=...` (legacy), `webspace://qr/...`, and `webspace://openhtml` (HTML handoff trigger); pending URL is exposed to Dart via the existing `share_intent` channel. `consumeLaunchHtml` drains the app-group HTML container (see 5.6).
+- [x] 5.5 Extension `ShareViewController` extracts an HTTP(S) URL or an HTML document (`public.html` attachment, `Data`, or a file URL ending `.html`/`.htm`/`.xhtml`). URL → `pending_share_url` in app-group `UserDefaults` + `webspace://share?url=`. HTML → document written to `pending_share.html` in the shared app-group container, title/source in `UserDefaults`, then `webspace://openhtml`. HTML wins over URL.
+- [x] 5.6 Main app `consumeLaunchHtml` (`AppDelegate.swift`) reads `pending_share.html` from the App Group container plus title/source keys, returns them to Dart, then deletes the file + keys so the same file is not imported twice. URL drain via `drainAppGroupPendingUrl` unchanged.
+- [ ] 5.7 Manual smoke test (**requires device/Xcode**): share URL from Safari, share HTML file from Files, tap `webspace://` URL in Notes.
 
 ## 6. macOS integration
 
