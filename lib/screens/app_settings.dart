@@ -879,40 +879,41 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           // one control rather than two independent toggles.
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    Expanded(child: Text(loc.appSettingsSiteTabStrip)),
-                    SegmentedButton<int>(
-                      segments: [
-                        ButtonSegment<int>(
-                          value: 0,
-                          icon: const Icon(Icons.visibility_off),
-                          tooltip: loc.appSettingsFullscreenTabStripHidden,
-                        ),
-                        ButtonSegment<int>(
-                          value: 1,
-                          icon: const Icon(Icons.visibility),
-                          tooltip: loc.appSettingsFullscreenTabStripAlways,
-                        ),
-                        ButtonSegment<int>(
-                          value: 2,
-                          icon: const Icon(Icons.smart_button),
-                          tooltip: loc.appSettingsFullscreenTabStripButton,
-                        ),
-                      ],
-                      selected: {_tabStripMode},
-                      showSelectedIcon: false,
-                      onSelectionChanged: (selection) =>
-                          _setTabStripMode(selection.first),
+                Expanded(
+                  child: Row(
+                    children: [
+                      Flexible(child: Text(loc.appSettingsSiteTabStrip)),
+                      HintButton(
+                        title: loc.appSettingsSiteTabStrip,
+                        description: loc.appSettingsSiteTabStripSubtitle,
+                      ),
+                    ],
+                  ),
+                ),
+                SegmentedButton<int>(
+                  segments: [
+                    ButtonSegment<int>(
+                      value: 0,
+                      icon: const Icon(Icons.visibility_off),
+                      tooltip: loc.appSettingsFullscreenTabStripHidden,
+                    ),
+                    ButtonSegment<int>(
+                      value: 1,
+                      icon: const Icon(Icons.visibility),
+                      tooltip: loc.appSettingsFullscreenTabStripAlways,
+                    ),
+                    ButtonSegment<int>(
+                      value: 2,
+                      icon: const Icon(Icons.smart_button),
+                      tooltip: loc.appSettingsFullscreenTabStripButton,
                     ),
                   ],
-                ),
-                Text(
-                  loc.appSettingsSiteTabStripSubtitle,
-                  style: Theme.of(context).textTheme.bodySmall,
+                  selected: {_tabStripMode},
+                  showSelectedIcon: false,
+                  onSelectionChanged: (selection) =>
+                      _setTabStripMode(selection.first),
                 ),
               ],
             ),
