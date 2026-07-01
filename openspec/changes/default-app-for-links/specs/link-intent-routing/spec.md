@@ -142,7 +142,7 @@ The Android app SHALL declare an `ACTION_SEND` intent-filter with `mimeType="tex
 
 ### Requirement: LIR-006 - iOS Share Extension
 
-The iOS app SHALL ship a Share Extension target that accepts Web URLs (`NSExtensionActivationSupportsWebURLWithMaxCount = 1`). The extension SHALL hand the URL to the main app via `extensionContext.open(URL(string: "webspace://open?url=<encoded>")!)` and then call `completeRequest(returningItems: nil)`. The main app SHALL handle the resulting `webspace://open` URL via LIR-004.
+The iOS app SHALL ship a Share Extension target that accepts Web URLs (`NSExtensionActivationSupportsWebURLWithMaxCount = 1`) and HTML files (`NSExtensionActivationSupportsFileWithMaxCount`, handled per LIR-012). The extension SHALL hand the URL to the main app via `extensionContext.open(URL(string: "webspace://open?url=<encoded>")!)` and then call `completeRequest(returningItems: nil)`. The main app SHALL handle the resulting `webspace://open` URL via LIR-004.
 
 #### Scenario: Share from Safari
 
@@ -249,7 +249,7 @@ The engine SHALL also expose follow-up entry points for the LIR-010 picker: `ope
 
 ### Requirement: LIR-012 - HTML File Share Goes Only To Create-New-Site
 
-When the OS hands the app an HTML file via share (Android `ACTION_SEND` carrying `EXTRA_STREAM`; iOS / macOS Share Extension future-equivalent), the dispatcher SHALL skip the LIR-010 picker entirely and emit `DispatchCreateSiteFromHtml(html, suggestedTitle)`. The Android intent handler SHALL NOT rely solely on the intent's declared MIME type or the stream URI's path to recognise HTML, because file managers frequently share `.html` files as `text/plain` or `application/octet-stream` and `content://` URIs carry no filename in their path. It SHALL treat an `EXTRA_STREAM` payload as HTML when any of the following hold: the intent MIME is `text/html`/`application/xhtml+xml`; the `ContentResolver`-resolved type is `text/html`/`application/xhtml+xml`; the resolver-provided display name (or, absent that, the URI path) ends in `.html`/`.htm`/`.xhtml`; or the leading bytes sniff as HTML (`<!doctype html`, `<html`, `<head`, or `<body`). The suggested title SHALL derive from the document `<title>` first and the resolver-provided display name second. The executor SHALL persist the HTML via `HtmlImportStorage` (same store used by the in-app file-import flow), create a `WebViewModel` with a synthesised `file:///webspace_import_<microseconds>.html` `initUrl`, register the new site, activate it, and apply the current theme. The picker's "open in existing site" and "bind to site" options SHALL NOT be offered for HTML payloads, because an existing site cannot meaningfully claim opaque file content (no host, no domain) — only the create path is sensible.
+When the OS hands the app an HTML file via share (Android `ACTION_SEND` carrying `EXTRA_STREAM`; iOS Share Extension via an app-group handoff), the dispatcher SHALL skip the LIR-010 picker entirely and emit `DispatchCreateSiteFromHtml(html, suggestedTitle)`. On iOS the Share Extension SHALL declare `NSExtensionActivationSupportsFileWithMaxCount` so HTML files surface the extension, read the shared document (from a `public.html` attachment, a `Data` attachment, or a file URL ending in `.html`/`.htm`/`.xhtml`), write the document into the shared app-group container (a URL scheme cannot carry a whole document), and wake the app with a bare `webspace://openhtml` trigger; the main app SHALL drain that container on its next share poll (`consumeLaunchHtml`), returning the content, `<title>`-or-filename title, and source filename, then delete the container copy so the same file is not imported twice. The Android intent handler SHALL NOT rely solely on the intent's declared MIME type or the stream URI's path to recognise HTML, because file managers frequently share `.html` files as `text/plain` or `application/octet-stream` and `content://` URIs carry no filename in their path. It SHALL treat an `EXTRA_STREAM` payload as HTML when any of the following hold: the intent MIME is `text/html`/`application/xhtml+xml`; the `ContentResolver`-resolved type is `text/html`/`application/xhtml+xml`; the resolver-provided display name (or, absent that, the URI path) ends in `.html`/`.htm`/`.xhtml`; or the leading bytes sniff as HTML (`<!doctype html`, `<html`, `<head`, or `<body`). The suggested title SHALL derive from the document `<title>` first and the resolver-provided display name second. The executor SHALL persist the HTML via `HtmlImportStorage` (same store used by the in-app file-import flow), create a `WebViewModel` with a synthesised `file:///webspace_import_<microseconds>.html` `initUrl`, register the new site, activate it, and apply the current theme. The picker's "open in existing site" and "bind to site" options SHALL NOT be offered for HTML payloads, because an existing site cannot meaningfully claim opaque file content (no host, no domain) — only the create path is sensible.
 
 #### Scenario: HTML payload short-circuits picker
 
@@ -277,6 +277,13 @@ When the OS hands the app an HTML file via share (Android `ACTION_SEND` carrying
 - **WHEN** the Android intent handler processes the `EXTRA_STREAM`
 - **THEN** the handler resolves the provider type / display name (or sniffs the bytes) and recognises the payload as HTML
 - **AND** the dispatcher emits `DispatchCreateSiteFromHtml` rather than silently dropping the share
+
+#### Scenario: iOS HTML file share creates a new site
+
+- **GIVEN** the user shares an `.html` file from Files (or another app) to WebSpace on iOS
+- **WHEN** the Share Extension reads the document, writes it to the app-group container, and wakes the app via `webspace://openhtml`
+- **THEN** the app's next `consumeLaunchHtml` poll drains the container and the dispatcher emits `DispatchCreateSiteFromHtml`
+- **AND** the app-group copy is deleted so a later poll does not re-import the same file
 
 #### Scenario: Empty HTML payload is unsupported
 
