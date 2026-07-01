@@ -647,8 +647,6 @@
   "appSettingsLocalCdnHint": "Atsisiunčia įprastas JavaScript bibliotekas, šriftus ir CSS karkasus, kad juos tektų tiekti vietiškai, užuot parsisiuntus iš trečiųjų šalių CDN serverių (pvz., Google, Cloudflare, jsDelivr). Tai neleidžia CDN tiekėjams sekti jūsų naršymo veiklos įvairiose svetainėse.",
   "appSettingsContentBlockerHint": "Blokuoja reklamas, sekiklius ir nepageidaujamus puslapio elementus naudodamas filtrų sąrašus, pvz., EasyList. Palaiko domenų lygmens blokavimą, CSS kosmetinius filtrus, skirtus paslėpti puslapio elementus, ir tekstinius slėpimo taisyklių rinkinius. Žemiau įjunkite arba išjunkite atskirus filtrų sąrašus, o turinio blokavimą kiekvienai svetainei reguliuokite jos nustatymuose.",
   "appSettingsTabBarButtonCorner": "Mygtuko padėtis",
-  "appSettingsTabBarButton": "Kortelių juostos mygtukas",
-  "appSettingsTabBarButtonSubtitle": "Slankusis mygtukas kortelių juostai ir meniu atverti nelaikant juostos ekrane",
   "appSettingsTabMaxWidth": "Kortelės pločio riba",
   "appSettingsTabMaxWidthSubtitle": "Apribokite, kokio pločio gali būti kiekviena kortelė, kad ilgi pavadinimai liktų kompaktiški",
   "appSettingsFullscreenOnShortcut": "Visas ekranas paleidžiant iš nuorodos",

@@ -763,9 +763,33 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     widget.onLocaleOverrideChanged(selected);
   }
 
-  /// Full-screen tab-strip visibility as a single choice: 0 = hidden,
-  /// 1 = always visible. On-demand reveal is handled by the standalone
-  /// "tab bar button" option, which works in and out of fullscreen.
+  /// How the site tab strip is presented, as one mutually-exclusive choice:
+  /// 0 = hidden, 1 = always pinned, 2 = revealed on demand by the floating
+  /// button. The button and the strip are the same feature (the button reveals
+  /// the strip), so they are one control, not two independent toggles.
+  int get _tabStripMode {
+    if (_tabBarButton) return 2;
+    if (_showTabStrip) return 1;
+    return 0;
+  }
+
+  void _setTabStripMode(int mode) {
+    setState(() {
+      _showTabStrip = mode == 1;
+      _tabBarButton = mode == 2;
+      // "Keep in full screen" only applies to a pinned strip. Leaving it set
+      // in button mode would pin the strip in full screen and hide the button
+      // there; clear it whenever we leave the pinned mode.
+      if (mode != 1) _tabStripInFullscreen = false;
+    });
+    widget.onShowTabStripChanged(_showTabStrip);
+    widget.onTabBarButtonChanged(_tabBarButton);
+    if (mode != 1) widget.onTabStripInFullscreenChanged(_tabStripInFullscreen);
+  }
+
+  /// Full-screen behavior of the *pinned* tab strip: 0 = hidden, 1 = always
+  /// visible. Only shown when the strip is pinned; button mode reveals the
+  /// strip in full screen on its own.
   int get _fullscreenTabStripMode => _tabStripInFullscreen ? 1 : 0;
 
   void _setFullscreenTabStripMode(int mode) {
@@ -849,31 +873,54 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               ),
             ),
           ),
-          SwitchListTile(
-            title: Text(loc.appSettingsSiteTabStrip),
-            subtitle: Text(loc.appSettingsSiteTabStripSubtitle),
-            value: _showTabStrip,
-            onChanged: (value) {
-              setState(() {
-                _showTabStrip = value;
-              });
-              widget.onShowTabStripChanged(value);
-            },
+          // Site tab strip: a single choice of how it is reached — hidden,
+          // always pinned, or revealed on demand by a floating button. The
+          // button is just the on-demand presentation of the strip, so it is
+          // one control rather than two independent toggles.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: Text(loc.appSettingsSiteTabStrip)),
+                    SegmentedButton<int>(
+                      segments: [
+                        ButtonSegment<int>(
+                          value: 0,
+                          icon: const Icon(Icons.visibility_off),
+                          tooltip: loc.appSettingsFullscreenTabStripHidden,
+                        ),
+                        ButtonSegment<int>(
+                          value: 1,
+                          icon: const Icon(Icons.visibility),
+                          tooltip: loc.appSettingsFullscreenTabStripAlways,
+                        ),
+                        ButtonSegment<int>(
+                          value: 2,
+                          icon: const Icon(Icons.smart_button),
+                          tooltip: loc.appSettingsFullscreenTabStripButton,
+                        ),
+                      ],
+                      selected: {_tabStripMode},
+                      showSelectedIcon: false,
+                      onSelectionChanged: (selection) =>
+                          _setTabStripMode(selection.first),
+                    ),
+                  ],
+                ),
+                Text(
+                  loc.appSettingsSiteTabStripSubtitle,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
           ),
-          SwitchListTile(
-            title: Text(loc.appSettingsTabBarButton),
-            subtitle: Text(loc.appSettingsTabBarButtonSubtitle),
-            value: _tabBarButton,
-            onChanged: (value) {
-              setState(() {
-                _tabBarButton = value;
-              });
-              widget.onTabBarButtonChanged(value);
-            },
-          ),
-          if (_tabBarButton)
+          // Button mode only: which bottom corner the floating button sits in.
+          if (_tabStripMode == 2)
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
               child: Row(
                 children: [
                   Expanded(child: Text(loc.appSettingsTabBarButtonCorner)),
@@ -901,6 +948,36 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                 ],
               ),
             ),
+          // Pinned mode only: whether the pinned strip stays visible in full
+          // screen. Button mode reveals the strip in full screen on its own;
+          // hidden mode has nothing to keep.
+          if (_tabStripMode == 1)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Row(
+                children: [
+                  Expanded(child: Text(loc.appSettingsFullscreenTabStrip)),
+                  SegmentedButton<int>(
+                    segments: [
+                      ButtonSegment<int>(
+                        value: 0,
+                        icon: const Icon(Icons.visibility_off),
+                        tooltip: loc.appSettingsFullscreenTabStripHidden,
+                      ),
+                      ButtonSegment<int>(
+                        value: 1,
+                        icon: const Icon(Icons.visibility),
+                        tooltip: loc.appSettingsFullscreenTabStripAlways,
+                      ),
+                    ],
+                    selected: {_fullscreenTabStripMode},
+                    showSelectedIcon: false,
+                    onSelectionChanged: (selection) =>
+                        _setFullscreenTabStripMode(selection.first),
+                  ),
+                ],
+              ),
+            ),
           SwitchListTile(
             title: Text(loc.appSettingsFullscreenOnShortcut),
             subtitle: Text(loc.appSettingsFullscreenOnShortcutSubtitle),
@@ -911,32 +988,6 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               });
               widget.onFullscreenOnShortcutChanged(value);
             },
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Row(
-              children: [
-                Expanded(child: Text(loc.appSettingsFullscreenTabStrip)),
-                SegmentedButton<int>(
-                  segments: [
-                    ButtonSegment<int>(
-                      value: 0,
-                      icon: const Icon(Icons.visibility_off),
-                      tooltip: loc.appSettingsFullscreenTabStripHidden,
-                    ),
-                    ButtonSegment<int>(
-                      value: 1,
-                      icon: const Icon(Icons.visibility),
-                      tooltip: loc.appSettingsFullscreenTabStripAlways,
-                    ),
-                  ],
-                  selected: {_fullscreenTabStripMode},
-                  showSelectedIcon: false,
-                  onSelectionChanged: (selection) =>
-                      _setFullscreenTabStripMode(selection.first),
-                ),
-              ],
-            ),
           ),
           Builder(
             builder: (context) {

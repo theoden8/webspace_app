@@ -647,8 +647,6 @@
   "appSettingsLocalCdnHint": "Télécharge les bibliothèques JavaScript courantes, les polices et les frameworks CSS pour les servir localement au lieu de les récupérer depuis des serveurs CDN tiers (comme Google, Cloudflare, jsDelivr). Cela empêche les fournisseurs de CDN de suivre votre navigation entre différents sites web.",
   "appSettingsContentBlockerHint": "Bloque les publicités, les traceurs et les éléments indésirables des pages à l'aide de listes de filtres comme EasyList. Prend en charge le blocage au niveau des domaines, les filtres cosmétiques CSS pour masquer les éléments de page et les règles de masquage basées sur le texte. Activez ou désactivez les listes de filtres individuelles ci-dessous, et basculez le blocage de contenu par site dans les paramètres de chaque site.",
   "appSettingsTabBarButtonCorner": "Position du bouton",
-  "appSettingsTabBarButton": "Bouton de la barre d'onglets",
-  "appSettingsTabBarButtonSubtitle": "Un bouton flottant pour ouvrir la barre d'onglets et le menu sans garder la barre à l'écran",
   "appSettingsTabMaxWidth": "Limite de largeur des onglets",
   "appSettingsTabMaxWidthSubtitle": "Limiter la largeur de chaque onglet pour que les noms longs restent compacts",
   "appSettingsFullscreenOnShortcut": "Plein écran au lancement depuis un raccourci",

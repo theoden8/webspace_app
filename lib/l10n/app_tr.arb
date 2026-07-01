@@ -647,8 +647,6 @@
   "appSettingsLocalCdnHint": "Yaygın JavaScript kütüphanelerini, yazı tiplerini ve CSS çerçevelerini, üçüncü taraf CDN sunucularından (Google, Cloudflare, jsDelivr gibi) getirmek yerine yerel olarak sunmak için indirir. Bu sayede CDN sağlayıcıları, farklı web sitelerindeki tarama davranışınızı takip edemez.",
   "appSettingsContentBlockerHint": "EasyList gibi filtre listeleri kullanarak reklamları, takipçileri ve istenmeyen sayfa öğelerini engeller. Alan adı düzeyinde engellemeyi, sayfa öğelerini gizlemek için CSS kozmetik filtrelerini ve metin tabanlı gizleme kurallarını destekler. Aşağıda bireysel filtre listelerini etkinleştirin veya devre dışı bırakın; her sitenin ayarlarından içerik engellemeyi site başına açıp kapatın.",
   "appSettingsTabBarButtonCorner": "Düğme konumu",
-  "appSettingsTabBarButton": "Sekme çubuğu düğmesi",
-  "appSettingsTabBarButtonSubtitle": "Çubuğu ekranda tutmadan sekme çubuğunu ve menüyü açmak için kayan bir düğme",
   "appSettingsTabMaxWidth": "Sekme Genişliği Sınırı",
   "appSettingsTabMaxWidthSubtitle": "Uzun adların derli toplu kalması için her sekmenin ne kadar genişleyebileceğini sınırlayın",
   "appSettingsFullscreenOnShortcut": "Kısayoldan açılışta tam ekran",

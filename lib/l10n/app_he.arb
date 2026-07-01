@@ -647,8 +647,6 @@
   "appSettingsLocalCdnHint": "מוריד ספריות JavaScript, גופנים ומסגרות CSS נפוצות כדי לגישם מקומית במקום לאחזר אותן משרתי CDN של צד שלישי (כמו Google, Cloudflare, jsDelivr). זה מונע מספקי CDN לעקוב אחר הגלישה שלך בין אתרים שונים.",
   "appSettingsContentBlockerHint": "חוסם מודעות, עוקבים ורכיבי עמוד לא רצויים באמצעות רשימות סינון כמו EasyList. תומך בחסימה ברמת הדומיין, מסנני CSS קוסמטיים להסתרת רכיבי עמוד וכללי הסתרה מבוססי טקסט. הפעל או השבת רשימות סינון בודדות למטה, ושלוט בחסימת תוכן לכל אתר בהגדרות האתר.",
   "appSettingsTabBarButtonCorner": "מיקום הכפתור",
-  "appSettingsTabBarButton": "כפתור סרגל הלשוניות",
-  "appSettingsTabBarButtonSubtitle": "כפתור צף לפתיחת סרגל הלשוניות והתפריט בלי להשאיר את הרצועה על המסך",
   "appSettingsTabMaxWidth": "מגבלת רוחב כרטיסייה",
   "appSettingsTabMaxWidthSubtitle": "הגבל את רוחב כל כרטיסייה כדי ששמות ארוכים יישארו קומפקטיים",
   "appSettingsFullscreenOnShortcut": "מסך מלא בהפעלה מקיצור דרך",

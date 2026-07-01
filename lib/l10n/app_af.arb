@@ -647,8 +647,6 @@
   "appSettingsLocalCdnHint": "Laai algemene JavaScript-biblioteke, lettertipes en CSS-raamwerke af om dit plaaslik te bedien in plaas van om dit van derdeparty-CDN-bedieners (soos Google, Cloudflare, jsDelivr) te haal. Dit verhoed dat CDN-verskaffers jou blaai-aktiwiteit oor verskillende webwerwe heen naspoor.",
   "appSettingsContentBlockerHint": "Blokkeer advertensies, volgers en ongewenste bladsyelemente met filterlyste soos EasyList. Ondersteun domeinvlak-blokkering, CSS-kosmetiese filters om bladsyelemente te versteek, en teksgebaseerde versteekreëls. Aktiveer of deaktiveer individuele filterlyste hieronder, en skakel inhoud-blokkering per-webwerf in elke webwerf se instellings aan of af.",
   "appSettingsTabBarButtonCorner": "Knoppieposisie",
-  "appSettingsTabBarButton": "Oortjiebalk-knoppie",
-  "appSettingsTabBarButtonSubtitle": "'n Swewende knoppie om die oortjiebalk en kieslys oop te maak sonder om die strook op die skerm te hou",
   "appSettingsTabMaxWidth": "Oortjiebreedte-limiet",
   "appSettingsTabMaxWidthSubtitle": "Beperk hoe wyd elke oortjie kan word sodat lang name kompak bly",
   "appSettingsFullscreenOnShortcut": "Volskerm by kortpad-loods",

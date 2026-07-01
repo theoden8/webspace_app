@@ -647,8 +647,6 @@
   "appSettingsLocalCdnHint": "Inapakua maktaba za kawaida za JavaScript, fonti, na mifumo ya CSS ili kuzitoa kutoka mahali hapo badala ya kuzileta kutoka seva za CDN za watu wengine (kama Google, Cloudflare, jsDelivr). Hii huzuia watoaji wa CDN kufuatilia uvinjari wako katika tovuti tofauti.",
   "appSettingsContentBlockerHint": "Huzuia matangazo, wafuatiliaji, na vipengele visivyotakikana vya ukurasa kwa kutumia orodha za vichujio kama EasyList. Husaidia uzuiaji wa kiwango cha kikoa, vichujio vya urembo vya CSS vya kuficha vipengele vya ukurasa, na kanuni za kuficha zinazotegemea maandishi. Washa au zima orodha za vichujio hapa chini, na geuza uzuiaji wa maudhui kwa kila tovuti katika mipangilio ya tovuti husika.",
   "appSettingsTabBarButtonCorner": "Nafasi ya kitufe",
-  "appSettingsTabBarButton": "Kitufe cha upau wa vichupo",
-  "appSettingsTabBarButtonSubtitle": "Kitufe kinachoelea cha kufungua upau wa vichupo na menyu bila kuweka mstari skrini",
   "appSettingsTabMaxWidth": "Kikomo cha Upana wa Kichupo",
   "appSettingsTabMaxWidthSubtitle": "Punguza jinsi kila kichupo kinavyoweza kupanuka ili majina marefu yabaki yamebana",
   "appSettingsFullscreenOnShortcut": "Skrini nzima inapozinduliwa kutoka njia ya mkato",
