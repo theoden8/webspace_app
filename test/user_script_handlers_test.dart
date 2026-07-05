@@ -1,11 +1,11 @@
 // Coverage for the Dart-side JS-bridge handlers and re-injection
-// orchestration in UserScriptService — the paths that were previously
-// untested because they need an InAppWebViewController and the outbound
-// HTTP client.
+// orchestration in UserScriptService — the paths that need an
+// InAppWebViewController and the outbound HTTP client.
 //
-// The controller is faked (extends Fake) to capture the registered handler
-// callbacks and record evaluateJavascript sources. The network layer is
-// swapped via the documented `outboundHttp` seam with a MockClient.
+// The controller is faked via noSuchMethod (intercepting the two methods
+// the service actually calls, by Symbol) rather than typed overrides, so
+// the test does not depend on the fork's exact method signatures. The
+// network layer is swapped through the documented `outboundHttp` seam.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
@@ -33,28 +33,30 @@ class _FakeFactory implements OutboundHttpFactory {
 }
 
 /// Captures the registered handler callbacks and records injected sources.
+/// Intercepts by Symbol so it is immune to the controller's exact method
+/// signatures in the fork.
 class _FakeController extends Fake implements inapp.InAppWebViewController {
-  final Map<String, inapp.JavaScriptHandlerCallback> handlers = {};
+  final Map<String, Function> handlers = {};
   final List<String> evaluated = [];
 
   @override
-  void addJavaScriptHandler({
-    required String handlerName,
-    required inapp.JavaScriptHandlerCallback callback,
-  }) {
-    handlers[handlerName] = callback;
+  dynamic noSuchMethod(Invocation invocation) {
+    if (invocation.memberName == #addJavaScriptHandler) {
+      final name =
+          invocation.namedArguments[const Symbol('handlerName')] as String;
+      handlers[name] =
+          invocation.namedArguments[const Symbol('callback')] as Function;
+      return null;
+    }
+    if (invocation.memberName == #evaluateJavascript) {
+      evaluated
+          .add(invocation.namedArguments[const Symbol('source')] as String);
+      return Future<dynamic>.value(null);
+    }
+    return super.noSuchMethod(invocation);
   }
 
-  @override
-  Future<dynamic> evaluateJavascript({
-    required String source,
-    inapp.ContentWorld? contentWorld,
-  }) async {
-    evaluated.add(source);
-    return null;
-  }
-
-  inapp.JavaScriptHandlerCallback handler(String prefix) =>
+  Function handler(String prefix) =>
       handlers.entries.firstWhere((e) => e.key.startsWith(prefix)).value;
 
   bool evaluatedAny(String needle) => evaluated.any((s) => s.contains(needle));
@@ -66,10 +68,10 @@ UserScriptService _serviceWith(
 }) =>
     UserScriptService(scripts: scripts, onConfirmScriptFetch: confirm);
 
-final _oneScript = [UserScriptConfig(name: 't', source: 'noop;')];
+List<UserScriptConfig> get _oneScript =>
+    [UserScriptConfig(name: 't', source: 'noop;')];
 
 void main() {
-  // Handler names are randomized per instance but keep stable prefixes.
   const scriptPrefix = '__ws_s_';
   const inlinePrefix = '__ws_i_';
   const fetchPrefix = '__ws_f_';
@@ -81,9 +83,8 @@ void main() {
       final ctrl = _FakeController();
       _serviceWith(_oneScript).registerHandlers(ctrl);
 
-      final res = await ctrl.handler(fetchPrefix)(['https://example.com/x.css'])
-          as Map;
-      expect(res['status'], 200);
+      final res = await ctrl.handler(fetchPrefix)(['https://example.com/x.css']);
+      expect((res as Map)['status'], 200);
       expect(res['body'], 'BODY');
       expect(res['contentType'], 'text/css');
     });
@@ -94,9 +95,8 @@ void main() {
       final ctrl = _FakeController();
       _serviceWith(_oneScript).registerHandlers(ctrl);
 
-      final res =
-          await ctrl.handler(fetchPrefix)(['data:text/html,x']) as Map;
-      expect(res['status'], 403);
+      final res = await ctrl.handler(fetchPrefix)(['data:text/html,x']);
+      expect((res as Map)['status'], 403);
       expect(factory.requested, isEmpty);
     });
 
@@ -106,9 +106,8 @@ void main() {
       final ctrl = _FakeController();
       _serviceWith(_oneScript).registerHandlers(ctrl);
 
-      final res =
-          await ctrl.handler(fetchPrefix)(['https://example.com/big']) as Map;
-      expect(res['status'], 413);
+      final res = await ctrl.handler(fetchPrefix)(['https://example.com/big']);
+      expect((res as Map)['status'], 413);
     });
 
     test('non-string argument returns a 400', () async {
@@ -116,8 +115,8 @@ void main() {
       final ctrl = _FakeController();
       _serviceWith(_oneScript).registerHandlers(ctrl);
 
-      final res = await ctrl.handler(fetchPrefix)([42]) as Map;
-      expect(res['status'], 400);
+      final res = await ctrl.handler(fetchPrefix)([42]);
+      expect((res as Map)['status'], 400);
     });
   });
 
