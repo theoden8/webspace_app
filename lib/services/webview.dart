@@ -1384,28 +1384,73 @@ class WebViewFactory {
   else{document.addEventListener('DOMContentLoaded',apply);}
 })();''';
 
-  /// WebKit lays a page that ships no `<meta name="viewport">` out at its
-  /// ~980px default and zooms out to fit, so such sites load small and can
-  /// stay stuck there (Android handles this via useWideViewPort, which
-  /// WebKit ignores). Fill in a device-width viewport, but only when the
-  /// page declares none — checked at DOMContentLoaded so a page's own
-  /// (responsive) viewport, parsed after this DOCUMENT_START script runs,
-  /// is never clobbered. Adding the meta makes WebKit recompute the scale,
-  /// which also un-sticks a page that already loaded zoomed out.
+  /// Pin WebKit's initial scale to 1 on load.
+  ///
+  /// A page that reaches first layout without a `<meta name="viewport">`
+  /// (common on iOS: a `width=device-width` site whose meta has not parsed
+  /// yet on a re-navigation, e.g. Turbo/PJAX SPAs or the Universal-Link
+  /// cancel+reissue) is laid out at WebKit's ~980px default and zoomed out
+  /// to fit. WebKit then does not cleanly reset when the real meta arrives —
+  /// it latches a stuck fractional scale (observed 0.73 on github.com) that
+  /// never recovers. The trigger is a viewport that omits `initial-scale`,
+  /// which lets WebKit pick the scale itself.
+  ///
+  /// So: ensure every viewport meta carries `initial-scale=1`. Add a full
+  /// `width=device-width, initial-scale=1` when the page ships none; append
+  /// `initial-scale=1` to one that declares width but omits it. A page that
+  /// sets its own `initial-scale` is left untouched. Runs at DOCUMENT_START
+  /// and via a MutationObserver so the meta is corrected the instant it is
+  /// inserted — before WebKit locks in the 980-default scale. DOMContentLoaded
+  /// injection (the earlier approach) lands after that lock and does not undo
+  /// it. Android pins the scale natively via useWideViewPort, so this is
+  /// WebKit-only.
   static const String _defaultViewportScript = '''
 (function(){
-  function fill(){
-    if(document.querySelector('meta[name="viewport" i]'))return;
-    var m=document.createElement('meta');
-    m.setAttribute('name','viewport');
-    m.setAttribute('content','width=device-width, initial-scale=1');
-    (document.head||document.documentElement).appendChild(m);
+  function normalize(meta){
+    var c=(meta.getAttribute('content')||'').trim();
+    if(/initial-scale/i.test(c))return;
+    if(c===''){c='width=device-width, initial-scale=1';}
+    else{
+      c=c.replace(/\\s*,?\\s*\$/,'')+', initial-scale=1';
+      if(!/width\\s*=/i.test(c)){c='width=device-width, '+c;}
+    }
+    meta.setAttribute('content',c);
   }
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',fill,{once:true});
-  }else{
-    fill();
+  function ensure(){
+    var metas=document.querySelectorAll('meta[name="viewport" i]');
+    if(!metas.length){
+      var m=document.createElement('meta');
+      m.setAttribute('name','viewport');
+      m.setAttribute('content','width=device-width, initial-scale=1');
+      (document.head||document.documentElement).appendChild(m);
+      return;
+    }
+    for(var i=0;i<metas.length;i++){normalize(metas[i]);}
   }
+  ensure();
+  try{
+    var mo=new MutationObserver(function(muts){
+      for(var i=0;i<muts.length;i++){
+        var mu=muts[i], tgt=mu.target;
+        if(mu.type==='attributes'&&tgt&&tgt.tagName==='META'){
+          var n=tgt.getAttribute&&tgt.getAttribute('name');
+          if(n&&n.toLowerCase()==='viewport'){normalize(tgt);}
+        }
+        var add=mu.addedNodes;
+        if(add){for(var j=0;j<add.length;j++){
+          var el=add[j];
+          if(el&&el.nodeType===1&&el.tagName==='META'){
+            var n2=el.getAttribute&&el.getAttribute('name');
+            if(n2&&n2.toLowerCase()==='viewport'){normalize(el);}
+          }
+        }}
+      }
+    });
+    if(document.documentElement){
+      mo.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['content','name']});
+    }
+  }catch(e){}
+  if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',ensure,{once:true});}
 })();''';
 
   /// Determine if a navigation was triggered by a user gesture.
@@ -1694,9 +1739,10 @@ class WebViewFactory {
       ));
     }
 
-    // WebKit (iOS/macOS) renders viewport-less pages zoomed out to fit a
-    // wide default; supply a device-width viewport when the page ships
-    // none. Desktop mode owns the viewport via its own shim, so skip there.
+    // WebKit (iOS/macOS) zooms out and latches a stuck fractional scale
+    // when a page reaches first layout without an `initial-scale`; force
+    // one onto every viewport meta. Desktop mode owns the viewport via its
+    // own shim, so skip there.
     if ((Platform.isIOS || Platform.isMacOS) && !desktopMode) {
       userScripts.add(inapp.UserScript(
         groupName: 'default_viewport',
