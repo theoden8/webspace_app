@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<!--
+  iOS/WKWebView zoom-on-load probe.
+
+  Purpose: figure out why some sites load zoomed out (small) on iOS and
+  sometimes stay stuck. It records the viewport geometry that WKWebView
+  reports over the life of the load and shows whether the page is being
+  laid out wider than the visible area (which forces a zoom-out to fit).
+
+  Two variants of this file exist so you can A/B whether a declared
+  viewport matters: this one DECLARES width=device-width. The sibling
+  `ios_viewport_probe_noviewport.html` declares NONE.
+
+  What to look for:
+   - visualViewport.scale < 1  => the page is zoomed out. If it stays < 1
+     after load, that is the "stuck" bug.
+   - innerWidth  >> screen.width (in CSS px)  => WKWebView laid the page
+     out at a viewport WIDER than the device, so it zoomed out to fit.
+     This points at a wrong webview width at layout time (offstage /
+     IndexedStack / pre-constraint sizing), NOT a missing viewport meta.
+   - Compare the FIRST row (document-start) with the LAST row: if scale
+     starts <1 and never returns to 1, it never recovered.
+-->
+<meta charset="utf-8">
+<title>iOS viewport probe (NO viewport meta)</title>
+<style>
+  html, body { margin: 0; padding: 0; font: 13px/1.4 -apple-system, system-ui, sans-serif; }
+  #panel {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 2147483647;
+    background: #111; color: #0f0; padding: 8px 10px;
+    font-family: ui-monospace, Menlo, monospace; white-space: pre;
+    box-shadow: 0 2px 6px rgba(0,0,0,.4);
+  }
+  #log { padding: 10px; margin-top: 220px; }
+  #log div { border-bottom: 1px solid #eee; padding: 2px 0; font-family: ui-monospace, Menlo, monospace; }
+  /* A full-viewport-width ruler. Each cell is 100 CSS px. If the page is
+     laid out wider than the screen, you will see more cells than fit and
+     the whole thing will look shrunk (zoomed out). */
+  #ruler { display: flex; width: 100%; margin-top: 6px; }
+  #ruler .tick { flex: 0 0 100px; height: 26px; border-right: 1px solid #c00;
+    background: #fee; color: #900; font: 10px/26px monospace; text-align: right;
+    padding-right: 2px; box-sizing: border-box; }
+  /* A block that is exactly the device width per the media query. If the
+     red ruler overflows past this green edge, layout width > device. */
+  #devwidth { height: 10px; background: #0a0; width: 100vw; }
+  button { font-size: 16px; padding: 8px 14px; margin: 8px; }
+</style>
+
+<div id="panel">measuring...</div>
+<div id="devwidth"></div>
+<div id="ruler"></div>
+<div id="log"></div>
+<button id="copy">Copy log to clipboard</button>
+<button id="mark">Add manual mark</button>
+
+<script>
+(function () {
+  var rows = [];
+  var vv = window.visualViewport || null;
+
+  function metrics() {
+    return {
+      innerW: window.innerWidth,
+      innerH: window.innerHeight,
+      outerW: window.outerWidth,
+      clientW: document.documentElement ? document.documentElement.clientWidth : -1,
+      bodyW: document.body ? document.body.clientWidth : -1,
+      screenW: screen.width,
+      availW: screen.availWidth,
+      dpr: window.devicePixelRatio,
+      vvW: vv ? Math.round(vv.width) : -1,
+      vvH: vv ? Math.round(vv.height) : -1,
+      vvScale: vv ? +vv.scale.toFixed(4) : -1,
+      vvOffL: vv ? Math.round(vv.offsetLeft) : -1,
+      viewportMeta: (function () {
+        var m = document.querySelector('meta[name="viewport" i]');
+        return m ? m.getAttribute('content') : '(none)';
+      })()
+    };
+  }
+
+  function t() { return Math.round(performance.now()); }
+
+  function record(evt) {
+    var m = metrics();
+    m.evt = evt;
+    m.t = t();
+    rows.push(m);
+    render(m);
+    updatePanel(m);
+  }
+
+  function fmt(m) {
+    return (m.t + 'ms').padEnd(8) + ' ' + m.evt.padEnd(16) +
+      ' scale=' + m.vvScale +
+      ' innerW=' + m.innerW +
+      ' vvW=' + m.vvW +
+      ' clientW=' + m.clientW +
+      ' screenW=' + m.screenW +
+      ' dpr=' + m.dpr +
+      ' vp=' + m.viewportMeta;
+  }
+
+  function render(m) {
+    var d = document.createElement('div');
+    var bad = (m.vvScale > 0 && m.vvScale < 0.99) || (m.innerW > m.screenW + 2);
+    d.style.color = bad ? '#b00' : '#060';
+    d.textContent = fmt(m);
+    var log = document.getElementById('log');
+    if (log) log.appendChild(d);
+  }
+
+  function updatePanel(m) {
+    var p = document.getElementById('panel');
+    if (!p) return;
+    var verdict =
+      (m.vvScale > 0 && m.vvScale < 0.99) ? 'ZOOMED OUT (scale ' + m.vvScale + ')' :
+      (m.innerW > m.screenW + 2) ? 'LAYOUT WIDER THAN SCREEN (innerW ' + m.innerW + ' > screenW ' + m.screenW + ')' :
+      'ok (scale ' + m.vvScale + ')';
+    p.textContent =
+      'VERDICT: ' + verdict + '\n' +
+      'visualViewport.scale = ' + m.vvScale + '   (<1 = zoomed out)\n' +
+      'innerWidth  = ' + m.innerW + ' CSS px   (layout viewport width)\n' +
+      'visualVP W  = ' + m.vvW + ' CSS px   (visible width)\n' +
+      'screen.width= ' + m.screenW + ' CSS px   devicePixelRatio=' + m.dpr + '\n' +
+      'viewport meta: ' + m.viewportMeta;
+  }
+
+  function buildRuler() {
+    var r = document.getElementById('ruler');
+    if (!r) return;
+    r.innerHTML = '';
+    var n = Math.ceil((window.innerWidth || 1200) / 100) + 2;
+    for (var i = 0; i < n; i++) {
+      var c = document.createElement('div');
+      c.className = 'tick';
+      c.textContent = (i * 100);
+      r.appendChild(c);
+    }
+  }
+
+  // Record across the whole load timeline.
+  record('document-start');
+  document.addEventListener('DOMContentLoaded', function () { buildRuler(); record('DOMContentLoaded'); });
+  window.addEventListener('load', function () { buildRuler(); record('load'); });
+  window.addEventListener('resize', function () { buildRuler(); record('resize'); });
+  window.addEventListener('orientationchange', function () { record('orientationchange'); });
+  if (vv) {
+    vv.addEventListener('resize', function () { record('vv-resize'); });
+    vv.addEventListener('scroll', function () { record('vv-scroll'); });
+  }
+  [250, 500, 1000, 2000, 4000].forEach(function (ms) {
+    setTimeout(function () { record('t+' + ms + 'ms'); }, ms);
+  });
+
+  document.addEventListener('click', function (e) {
+    if (e.target && e.target.id === 'mark') record('MANUAL-MARK');
+    if (e.target && e.target.id === 'copy') {
+      var text = rows.map(fmt).join('\n');
+      if (navigator.clipboard) navigator.clipboard.writeText(text);
+      var p = document.getElementById('panel');
+      if (p) p.textContent = 'Copied ' + rows.length + ' rows to clipboard.\n\n' + p.textContent;
+    }
+  });
+})();
+</script>
