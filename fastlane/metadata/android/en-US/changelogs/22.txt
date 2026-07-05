@@ -1,0 +1,7 @@
+✨ New Features:
+• Kiosk mode for shortcut launch
+• Customizable tab bar
+• Open external links in system browser
+
+🐛 Bug Fixes:
+• Zoom and viewport on page load
