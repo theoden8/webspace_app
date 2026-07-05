@@ -33,27 +33,28 @@ class _FakeFactory implements OutboundHttpFactory {
 }
 
 /// Captures the registered handler callbacks and records injected sources.
-/// Intercepts by Symbol so it is immune to the controller's exact method
-/// signatures in the fork.
+/// Signatures mirror the fork's InAppWebViewController: the handler callback
+/// is a bare `Function`, and evaluateJavascript takes an optional
+/// `ContentWorld`.
 class _FakeController extends Fake implements inapp.InAppWebViewController {
   final Map<String, Function> handlers = {};
   final List<String> evaluated = [];
 
   @override
-  dynamic noSuchMethod(Invocation invocation) {
-    if (invocation.memberName == #addJavaScriptHandler) {
-      final name =
-          invocation.namedArguments[const Symbol('handlerName')] as String;
-      handlers[name] =
-          invocation.namedArguments[const Symbol('callback')] as Function;
-      return null;
-    }
-    if (invocation.memberName == #evaluateJavascript) {
-      evaluated
-          .add(invocation.namedArguments[const Symbol('source')] as String);
-      return Future<dynamic>.value(null);
-    }
-    return super.noSuchMethod(invocation);
+  void addJavaScriptHandler({
+    required String handlerName,
+    required Function callback,
+  }) {
+    handlers[handlerName] = callback;
+  }
+
+  @override
+  Future<dynamic> evaluateJavascript({
+    required String source,
+    inapp.ContentWorld? contentWorld,
+  }) async {
+    evaluated.add(source);
+    return null;
   }
 
   Function handler(String prefix) =>
