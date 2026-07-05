@@ -146,12 +146,22 @@
   // Only catches TypeError (which browsers throw for CORS and network
   // failures), not application errors like 404. This avoids breaking
   // video/binary fetches that fail for non-CORS reasons.
+  //
+  // Scoped to cross-origin URLs. __wsFetch reissues the request through the
+  // Dart bridge, which carries none of the WebView's cookies, so retrying a
+  // same-origin request there silently drops the user's session — a logged-in
+  // site (github.com) starts demanding login. A same-origin TypeError is a
+  // genuine network error, not CORS, so rethrow it untouched.
+  function isCrossOrigin(u) {
+    try { return new URL(u, location.href).origin !== location.origin; }
+    catch (e) { return false; }
+  }
   var _origFetch = window.fetch.bind(window);
   window.fetch = function(input, init) {
     return _origFetch(input, init).catch(function(err) {
       if (err instanceof TypeError) {
         var url = typeof input === 'string' ? input : (input && input.url ? input.url : '');
-        if (isFetchableUrl(url)) {
+        if (isFetchableUrl(url) && isCrossOrigin(url)) {
           return window.__wsFetch(url);
         }
       }

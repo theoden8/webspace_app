@@ -27,6 +27,7 @@ const { makeDom, readFixture, runInDom } = require('./helpers/load_shim.js');
 const SHIM = readFixture('user_script/shim.js');
 const INLINE_HANDLER = '__ws_i_test';
 const SRC_HANDLER = '__ws_s_test';
+const FETCH_HANDLER = '__ws_f_test';
 
 // Build a jsdom + install a callHandler stub before the shim runs, so
 // the shim's lazy bridge capture finds it. Returns { dom, calls } where
@@ -176,4 +177,130 @@ test('shim is idempotent — running it twice does not double-wrap', () => {
   const inlineCalls = calls.filter(c => c[0] === INLINE_HANDLER);
   assert.strictEqual(inlineCalls.length, 1,
     're-installation must be a no-op, not a double-intercept');
+});
+
+// ── window.fetch CORS-fallback layer ──
+//
+// The shim patches window.fetch to retry TypeError failures through
+// __wsFetch (the Dart bridge). That bridge carries none of the WebView's
+// cookies, so retrying a *same-origin* request there silently drops the
+// user's session (a logged-in github.com starts demanding login). The
+// fallback must be scoped to cross-origin URLs only.
+//
+// The rejection must be a jsdom-realm TypeError: the shim runs via
+// window.eval, so its `err instanceof TypeError` checks the jsdom TypeError,
+// not Node's.
+function setupFetch({ url = 'https://site.example/', rejectWith } = {}) {
+  const dom = makeDom({ url });
+  const calls = [];
+  const err = rejectWith === undefined
+    ? new dom.window.TypeError('Failed to fetch')
+    : rejectWith;
+  dom.window.fetch = function stubFetch() {
+    return Promise.reject(err);
+  };
+  dom.window.flutter_inappwebview = {
+    callHandler(name, ...args) {
+      calls.push([name, ...args]);
+      return Promise.resolve({ status: 200, body: 'ok', contentType: 'text/plain' });
+    },
+  };
+  // __wsFetch builds `new Response(...)`; jsdom may omit it.
+  if (typeof dom.window.Response !== 'function') {
+    dom.window.Response = function Response(body, init) {
+      this.body = body;
+      this.status = (init && init.status) || 200;
+    };
+  }
+  runInDom(dom, SHIM);
+  return { dom, calls, err };
+}
+
+test('same-origin fetch TypeError is NOT retried through the cookie-less bridge', async () => {
+  const { dom, calls, err } = setupFetch({ url: 'https://github.example/' });
+  await assert.rejects(
+    dom.window.fetch('https://github.example/session/check'),
+    (e) => e === err,
+    'same-origin failure must propagate unchanged, not fall back');
+  assert.strictEqual(calls.filter(c => c[0] === FETCH_HANDLER).length, 0,
+    'same-origin request must never hit __wsFetch — it would drop the session cookie');
+});
+
+test('relative-URL fetch TypeError stays same-origin (no bridge fallback)', async () => {
+  const { dom, calls } = setupFetch({ url: 'https://github.example/' });
+  await assert.rejects(dom.window.fetch('/notifications/indicator'));
+  assert.strictEqual(calls.filter(c => c[0] === FETCH_HANDLER).length, 0,
+    'a relative URL resolves same-origin and must not fall back');
+});
+
+test('cross-origin fetch TypeError DOES fall back to __wsFetch', async () => {
+  const { dom, calls } = setupFetch({ url: 'https://github.example/' });
+  try { await dom.window.fetch('https://cdn.other.example/lib.css'); } catch (_) { /* Response shape irrelevant */ }
+  const fetchCalls = calls.filter(c => c[0] === FETCH_HANDLER);
+  assert.strictEqual(fetchCalls.length, 1,
+    'a genuine cross-origin CORS failure should still use the bridge fallback');
+  assert.strictEqual(fetchCalls[0][1], 'https://cdn.other.example/lib.css');
+});
+
+test('non-TypeError fetch rejection is never intercepted', async () => {
+  // Application errors (e.g. an abort) must propagate untouched, even
+  // cross-origin — only a TypeError signals a CORS/network failure.
+  const abort = new Error('aborted');
+  const { dom, calls } = setupFetch({ url: 'https://github.example/', rejectWith: abort });
+  await assert.rejects(dom.window.fetch('https://cdn.other.example/x'), (e) => e === abort);
+  assert.strictEqual(calls.filter(c => c[0] === FETCH_HANDLER).length, 0,
+    'non-TypeError rejections are not CORS failures and must not fall back');
+});
+
+// ── window.__wsFetch direct usage (setFetchMethod pattern) ──
+
+test('__wsFetch rejects non-http(s) URLs', async () => {
+  const { dom } = setup();
+  await assert.rejects(dom.window.__wsFetch('ftp://example/x'), /only http\/https/);
+});
+
+test('__wsFetch rejects when the Dart bridge is unavailable', async () => {
+  const dom = makeDom({ url: 'https://site.example/' });
+  dom.window.fetch = () => Promise.reject(new dom.window.TypeError('x'));
+  // No flutter_inappwebview bridge installed.
+  runInDom(dom, SHIM);
+  await assert.rejects(dom.window.__wsFetch('https://cdn.example/x'), /bridge not available/);
+});
+
+// ── whitelisted <script src> load lifecycle (dedup / onload / onerror) ──
+
+test('whitelisted src is fetched once; a repeat append dedupes and still fires onload', async () => {
+  const { dom, calls } = setup();
+  const { document } = dom.window;
+  const url = 'https://cdn.jsdelivr.net/npm/x/x.js';
+  const s1 = document.createElement('script');
+  s1.src = url;
+  document.head.appendChild(s1);
+  await new Promise(r => setTimeout(r, 0));   // let the handler resolve (ok) and mark _loadedUrls
+
+  const s2 = document.createElement('script');
+  s2.src = url;
+  let onloadFired = false;
+  s2.onload = () => { onloadFired = true; };
+  document.head.appendChild(s2);
+  await new Promise(r => setTimeout(r, 0));
+
+  assert.strictEqual(calls.filter(c => c[0] === SRC_HANDLER).length, 1,
+    'the second append of an already-loaded URL must not re-fetch');
+  assert.ok(onloadFired, 'the dedup path must still fire onload for the caller');
+});
+
+test('whitelisted src whose bridge fetch fails fires onerror', async () => {
+  const dom = makeDom({ url: 'https://linkedin.example/' });
+  dom.window.fetch = () => Promise.reject(new dom.window.TypeError('x'));
+  dom.window.flutter_inappwebview = { callHandler: () => Promise.resolve(false) };
+  runInDom(dom, SHIM);
+  const { document } = dom.window;
+  const s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/x/x.js';
+  let errFired = false;
+  s.onerror = () => { errFired = true; };
+  document.head.appendChild(s);
+  await new Promise(r => setTimeout(r, 0));
+  assert.ok(errFired, 'a failed (ok=false) bridge fetch must fire onerror');
 });
