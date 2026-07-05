@@ -647,8 +647,6 @@
   "appSettingsLocalCdnHint": "Lataa yleisiä JavaScript-kirjastoja, fontteja ja CSS-kehyksiä tarjottavaksi paikallisesti kolmannen osapuolen CDN-palvelimilta (kuten Google, Cloudflare, jsDelivr) hakemisen sijaan. Tämä estää CDN-palveluntarjoajia seuraamasta selailutoimintaasi eri sivustojen välillä.",
   "appSettingsContentBlockerHint": "Estää mainokset, seuraajat ja ei-toivotut sivuelementit suodatuslistojen, kuten EasyList, avulla. Tukee verkkotunnusten estoa, CSS-kosmeettisia suodattimia sivuelementtien piilottamiseen ja tekstipohjaisia piilotussääntöjä. Ota käyttöön tai poista käytöstä yksittäisiä suodatuslistoja alla, ja hallitse sisältöestoa sivustokohtaisesti kunkin sivuston asetuksissa.",
   "appSettingsTabBarButtonCorner": "Painikkeen sijainti",
-  "appSettingsTabBarButton": "Välilehtipalkin painike",
-  "appSettingsTabBarButtonSubtitle": "Kelluva painike välilehtipalkin ja valikon avaamiseen pitämättä palkkia näytöllä",
   "appSettingsTabMaxWidth": "Välilehden leveysraja",
   "appSettingsTabMaxWidthSubtitle": "Rajoita, kuinka leveäksi kukin välilehti voi kasvaa, jotta pitkät nimet pysyvät tiiviinä",
   "appSettingsFullscreenOnShortcut": "Koko näyttö pikakuvakkeesta käynnistettäessä",

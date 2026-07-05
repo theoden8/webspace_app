@@ -235,36 +235,46 @@ The system SHALL render the webview into the display cutout (notch) region on th
 
 ---
 
-### Requirement: FS-009 - Tab Bar Button
+### Requirement: FS-009 - Tab Strip Presentation (Hidden / Pinned / Button)
 
-The system SHALL support a global option ("Tab bar button") that shows a small floating button which, when tapped, reveals the tab strip together with its overflow menu on demand. The button works both in and out of full screen, so the user can reach tabs and the menu without keeping the tab strip pinned. The option is independent of "Site Tab Strip" and "Keep Tab Strip in Full Screen". Its corner (bottom-left or bottom-right) is configurable.
+The site tab strip's presentation SHALL be a single mutually-exclusive choice, not independent toggles, because the floating button is simply the on-demand presentation of the same strip:
 
-The button is suppressed whenever the strip is already on screen for the current mode: out of full screen when "Site Tab Strip" is on, in full screen when "Keep Tab Strip in Full Screen" is on, and in either mode while the strip it revealed is still showing (the revealed strip then carries its own dismiss control).
+- **Hidden** — no tab strip and no button.
+- **Always visible** — the strip is pinned at the bottom. Its full-screen behavior is a sub-choice ("Keep Tab Strip in Full Screen", FS-007).
+- **Button** — the strip is hidden, and a small floating button reveals it (together with its overflow menu) on demand. The button works both in and out of full screen, so the user reaches tabs and the menu without pinning the strip. Its corner (bottom-left or bottom-right) is configurable.
 
-The legacy `tabBarButtonInFullscreen` preference (full-screen-only button) is migrated to the general `tabBarButton` preference on upgrade and from imported backups.
+Selecting Hidden or Button clears the "Keep Tab Strip in Full Screen" sub-choice (it only applies to a pinned strip). The "Keep Tab Strip in Full Screen" and "Button position" controls are shown only for the mode they belong to.
 
-#### Scenario: Reveal tab bar out of full screen
+The button is suppressed while the strip is already on screen: in Always mode, or in either mode while a button-revealed strip is still showing (the revealed strip then carries its own inline dismiss control), or in a locked kiosk session (KIOSK-002).
 
-**Given** "Tab bar button" is enabled
-**And** "Site Tab Strip" is disabled
+The presentation is backed by two booleans, `showTabStrip` (pinned) and `tabBarButton` (on-demand), which the single control keeps mutually exclusive. The legacy `tabBarButtonInFullscreen` preference (full-screen-only button) is migrated to `tabBarButton` on upgrade and from imported backups.
+
+#### Scenario: Reveal tab bar out of full screen (Button mode)
+
+**Given** the tab strip presentation is set to Button
 **And** the user is not in full screen
 **When** the user taps the floating button
 **Then** the tab strip is shown with its overflow menu and a dismiss control
 **When** the user taps the dismiss control
 **Then** the tab strip is hidden and the floating button reappears
 
-#### Scenario: Reveal tab bar in full screen
+#### Scenario: Reveal tab bar in full screen (Button mode)
 
-**Given** "Tab bar button" is enabled
-**And** "Keep Tab Strip in Full Screen" is disabled
+**Given** the tab strip presentation is set to Button
 **And** the user is in full screen
 **When** the user taps the floating button
 **Then** the tab strip is shown with its overflow menu while the app bar and URL bar stay hidden
 
+#### Scenario: Button and pinned strip are mutually exclusive
+
+**Given** the tab strip presentation is set to Always visible
+**When** the user changes it to Button
+**Then** the pinned strip is no longer shown
+**And** the "Keep Tab Strip in Full Screen" sub-choice is cleared
+
 #### Scenario: Button suppressed when strip already pinned
 
-**Given** "Tab bar button" is enabled
-**And** the tab strip is already pinned for the current mode (out of full screen via "Site Tab Strip", or in full screen via "Keep Tab Strip in Full Screen")
+**Given** the tab strip presentation is set to Always visible
 **Then** the floating button is not shown
 
 #### Scenario: Selecting a site dismisses the revealed strip

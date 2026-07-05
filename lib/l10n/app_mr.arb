@@ -647,8 +647,6 @@
   "appSettingsLocalCdnHint": "तृतीय-पक्ष CDN सर्व्हरवरून (जसे Google, Cloudflare, jsDelivr) मिळवण्याऐवजी सामान्य JavaScript लायब्ररी, fonts आणि CSS फ्रेमवर्क स्थानिकरित्या सर्व्ह करण्यासाठी डाउनलोड करतो. हे CDN प्रदात्यांना वेगवेगळ्या वेबसाइटवर तुमची ब्राउझिंग ट्रॅक करण्यापासून रोखते.",
   "appSettingsContentBlockerHint": "EasyList सारख्या फिल्टर सूची वापरून जाहिराती, ट्रॅकर आणि नको असलेले पृष्ठ घटक अवरोधित करतो. डोमेन-स्तरीय अवरोधन, पृष्ठ घटक लपवण्यासाठी CSS cosmetic फिल्टर आणि मजकूर-आधारित लपवण्याचे नियम यांना समर्थन देतो. खाली वैयक्तिक फिल्टर सूची सक्षम किंवा अक्षम करा, आणि प्रत्येक साइटच्या सेटिंग्जमध्ये प्रति-साइट content blocking टॉगल करा.",
   "appSettingsTabBarButtonCorner": "बटणाची स्थिती",
-  "appSettingsTabBarButton": "टॅब बार बटण",
-  "appSettingsTabBarButtonSubtitle": "पट्टी स्क्रीनवर ठेवल्याशिवाय टॅब बार आणि मेनू उघडण्यासाठी तरंगते बटण",
   "appSettingsTabMaxWidth": "टॅब रुंदी मर्यादा",
   "appSettingsTabMaxWidthSubtitle": "लांब नावे संक्षिप्त राहावीत म्हणून प्रत्येक टॅब किती रुंद होऊ शकतो ते मर्यादित करा",
   "appSettingsFullscreenOnShortcut": "शॉर्टकटवरून उघडल्यावर पूर्ण स्क्रीन",

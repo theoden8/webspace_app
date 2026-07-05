@@ -647,8 +647,6 @@
   "appSettingsLocalCdnHint": "Mengunduh pustaka JavaScript, font, dan kerangka CSS umum untuk disajikan secara lokal alih-alih mengambilnya dari server CDN pihak ketiga (seperti Google, Cloudflare, jsDelivr). Ini mencegah penyedia CDN melacak aktivitas penjelajahan Anda di berbagai situs web.",
   "appSettingsContentBlockerHint": "Memblokir iklan, pelacak, dan elemen halaman yang tidak diinginkan menggunakan daftar filter seperti EasyList. Mendukung pemblokiran tingkat domain, filter kosmetik CSS untuk menyembunyikan elemen halaman, dan aturan penyembunyian berbasis teks. Aktifkan atau nonaktifkan daftar filter individual di bawah ini, dan aktifkan pemblokiran konten per situs di pengaturan masing-masing situs.",
   "appSettingsTabBarButtonCorner": "Posisi tombol",
-  "appSettingsTabBarButton": "Tombol bilah tab",
-  "appSettingsTabBarButtonSubtitle": "Tombol mengambang untuk membuka bilah tab dan menu tanpa menahan bilah tetap di layar",
   "appSettingsTabMaxWidth": "Batas Lebar Tab",
   "appSettingsTabMaxWidthSubtitle": "Batasi seberapa lebar setiap tab agar nama yang panjang tetap ringkas",
   "appSettingsFullscreenOnShortcut": "Layar penuh saat dibuka dari pintasan",

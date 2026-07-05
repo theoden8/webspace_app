@@ -647,8 +647,6 @@
   "appSettingsLocalCdnHint": "Downloadt veelgebruikte JavaScript-bibliotheken, lettertypen en CSS-frameworks om ze lokaal te serveren in plaats van ze op te halen van CDN-servers van derden (zoals Google, Cloudflare, jsDelivr). Dit voorkomt dat CDN-aanbieders je browseactiviteit over verschillende websites heen volgen.",
   "appSettingsContentBlockerHint": "Blokkeert advertenties, trackers en ongewenste pagina-elementen met behulp van filterlijsten zoals EasyList. Ondersteunt blokkering op domeinniveau, CSS-cosmetische filters om pagina-elementen te verbergen en op tekst gebaseerde verbergregels. Schakel individuele filterlijsten hieronder in of uit en zet contentblokkering per site aan in de instellingen van elke site.",
   "appSettingsTabBarButtonCorner": "Knoppositie",
-  "appSettingsTabBarButton": "Tabbalkknop",
-  "appSettingsTabBarButtonSubtitle": "Een zwevende knop om de tabbalk en het menu te openen zonder de strip op het scherm te houden",
   "appSettingsTabMaxWidth": "Tabbreedtelimiet",
   "appSettingsTabMaxWidthSubtitle": "Beperk hoe breed elke tab kan worden zodat lange namen compact blijven",
   "appSettingsFullscreenOnShortcut": "Volledig scherm bij starten via snelkoppeling",

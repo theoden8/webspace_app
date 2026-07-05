@@ -647,8 +647,6 @@
   "appSettingsLocalCdnHint": "Baixa biblioteques JavaScript comunes, tipus de lletra i marcs CSS per servir-los localment en lloc d'obtenir-los de servidors CDN de tercers (com Google, Cloudflare, jsDelivr). Això evita que els proveïdors de CDN rastregeu la vostra activitat de navegació entre llocs web.",
   "appSettingsContentBlockerHint": "Bloqueja anuncis, rastrejadors i elements de pàgina no desitjats fent servir llistes de filtres com EasyList. Admet bloqueig a nivell de domini, filtres cosmètics CSS per amagar elements de la pàgina i regles d'ocultació basades en text. Activeu o desactiveu les llistes de filtres individuals a continuació, i activeu o desactiveu el bloqueig de contingut per lloc a la configuració de cada lloc.",
   "appSettingsTabBarButtonCorner": "Posició del botó",
-  "appSettingsTabBarButton": "Botó de la barra de pestanyes",
-  "appSettingsTabBarButtonSubtitle": "Un botó flotant per obrir la barra de pestanyes i el menú sense mantenir la franja a la pantalla",
   "appSettingsTabMaxWidth": "Límit d'amplada de pestanya",
   "appSettingsTabMaxWidthSubtitle": "Limita l'amplada de cada pestanya perquè els noms llargs es mantinguin compactes",
   "appSettingsFullscreenOnShortcut": "Pantalla completa en obrir des d'una drecera",

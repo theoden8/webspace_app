@@ -647,8 +647,6 @@
   "appSettingsLocalCdnHint": "Baixa bibliotecas JavaScript comuns, fontes e frameworks CSS para servi-los localmente em vez de buscá-los em servidores CDN de terceiros (como Google, Cloudflare, jsDelivr). Isso impede que provedores de CDN rastreiem sua navegação entre diferentes sites.",
   "appSettingsContentBlockerHint": "Bloqueia anúncios, rastreadores e elementos indesejados da página usando listas de filtros como EasyList. Suporta bloqueio no nível de domínio, filtros cosméticos CSS para ocultar elementos da página e regras de ocultação baseadas em texto. Ative ou desative listas de filtros individuais abaixo, e alterne o bloqueio de conteúdo por site nas configurações de cada site.",
   "appSettingsTabBarButtonCorner": "Posição do botão",
-  "appSettingsTabBarButton": "Botão da barra de abas",
-  "appSettingsTabBarButtonSubtitle": "Um botão flutuante para abrir a barra de abas e o menu sem manter a faixa na tela",
   "appSettingsTabMaxWidth": "Limite de largura da aba",
   "appSettingsTabMaxWidthSubtitle": "Limite a largura de cada aba para que os nomes longos fiquem compactos",
   "appSettingsFullscreenOnShortcut": "Tela cheia ao abrir por atalho",

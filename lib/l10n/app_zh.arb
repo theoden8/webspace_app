@@ -647,8 +647,6 @@
   "appSettingsLocalCdnHint": "下载常见的 JavaScript 库、字体和 CSS 框架，以便在本地提供服务，而不是从第三方 CDN 服务器（如 Google、Cloudflare、jsDelivr）获取。这可防止 CDN 提供商跨不同网站追踪您的浏览行为。",
   "appSettingsContentBlockerHint": "使用 EasyList 等过滤清单封锁广告、追踪器和不需要的页面元素。支持域名级别封锁、CSS 外观过滤以隐藏页面元素，以及基于文本的隐藏规则。可在下方启用或停用各个过滤清单，并在每个网站的设置中逐站切换内容封锁。",
   "appSettingsTabBarButtonCorner": "按钮位置",
-  "appSettingsTabBarButton": "标签栏按钮",
-  "appSettingsTabBarButtonSubtitle": "一个悬浮按钮，可在不让标签栏常驻屏幕的情况下打开标签栏和菜单",
   "appSettingsTabMaxWidth": "标签宽度上限",
   "appSettingsTabMaxWidthSubtitle": "限制每个标签的最大宽度，使较长的名称保持紧凑",
   "appSettingsFullscreenOnShortcut": "通过快捷方式启动时全屏",

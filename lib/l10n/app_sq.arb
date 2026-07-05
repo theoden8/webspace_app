@@ -647,8 +647,6 @@
   "appSettingsLocalCdnHint": "Shkarkon biblioteka të zakonshme JavaScript, fonte dhe korniza CSS për t'i shërbyer lokalisht në vend që t'i marrë nga serverët CDN të palëve të treta (si Google, Cloudflare, jsDelivr). Kjo parandalon ofruesit e CDN-ve nga gjurmimi i shfletimit tënd nëpër faqe të ndryshme.",
   "appSettingsContentBlockerHint": "Bllokon reklamat, gjurmuesit dhe elementet e padëshiruara të faqes duke përdorur lista filtrash si EasyList. Mbështet bllokimin në nivel domeni, filtrat kozmetikë CSS për fshehjen e elementeve të faqes dhe rregullat e fshehjes me bazë teksti. Aktivizo ose çaktivizo listat individuale të filtrave më poshtë, dhe ndrysho bllokimin e përmbajtjes për çdo faqe te cilësimet e asaj faqeje.",
   "appSettingsTabBarButtonCorner": "Pozicioni i butonit",
-  "appSettingsTabBarButton": "Butoni i shiritit të skedave",
-  "appSettingsTabBarButtonSubtitle": "Një buton pluskues për të hapur shiritin e skedave dhe menynë pa e mbajtur shiritin në ekran",
   "appSettingsTabMaxWidth": "Kufiri i gjerësisë së skedës",
   "appSettingsTabMaxWidthSubtitle": "Kufizo sa e gjerë mund të bëhet çdo skedë që emrat e gjatë të mbeten kompaktë",
   "appSettingsFullscreenOnShortcut": "Ekran i plotë kur nisitet nga shkurtorja",
