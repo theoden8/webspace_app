@@ -5,5 +5,3 @@
 
 🐛 Bug Fixes:
 • Zoom and viewport on page load
-• Back/forward history on Android
-• HTML file sharing
