@@ -111,6 +111,20 @@ This directory contains HTML test files for automated testing of WebSpace featur
 - **Feature**: Comprehensive test page with multiple features
 - **Expected**: Tests title, favicon, theme, and basic HTML structure
 
+## Manual Diagnostic Probes (`diagnostics/`)
+
+Not loaded by any automated test. These are hand-run repro pages a developer
+opens inside the app to observe engine behavior while investigating a bug.
+
+### `diagnostics/ios_viewport_probe*.html`
+- **Feature**: iOS/WKWebView zoom-on-load bug (see PR #461).
+- **Usage**: A/B whether a declared viewport meta affects the stuck zoom-out.
+  `ios_viewport_probe.html` declares `width=device-width, initial-scale=1`,
+  `_noinitscale` drops `initial-scale`, `_noviewport` declares no viewport.
+- **Expected**: `visualViewport.scale` should return to `1` after load; a scale
+  that stays `< 1` reproduces the stuck bug. The panel logs viewport geometry
+  over the life of the load.
+
 ## Usage in Tests
 
 ```dart
