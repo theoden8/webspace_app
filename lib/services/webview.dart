@@ -1453,6 +1453,26 @@ class WebViewFactory {
   if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',ensure,{once:true});}
 })();''';
 
+  /// iOS/macOS load-stop rescue for the intermittent case where WKWebView
+  /// commits a wide/zoomed-out layout before [_defaultViewportScript] wins
+  /// the first-paint race (reproducible by refreshing a few times). Once the
+  /// scale is latched, re-applying the already-normalized meta is a no-op, so
+  /// force a viewport recompute: if the visual scale drifted off 1, pin it to
+  /// 1 via minimum/maximum-scale for one frame, then relax back to the site's
+  /// normalized viewport so the user can still zoom. No-op at scale 1, so a
+  /// correctly-loaded page is never touched.
+  static const String _viewportRescueScript = '''
+(function(){
+  var v=window.visualViewport;
+  if(v && Math.abs(v.scale-1)<0.01) return;
+  var m=document.querySelector('meta[name="viewport" i]');
+  if(!m){m=document.createElement('meta');m.setAttribute('name','viewport');(document.head||document.documentElement).appendChild(m);}
+  var restore=m.getAttribute('content');
+  if(!restore||!/initial-scale/i.test(restore)) restore='width=device-width, initial-scale=1';
+  m.setAttribute('content','width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1');
+  requestAnimationFrame(function(){ m.setAttribute('content', restore); });
+})();''';
+
   /// Determine if a navigation was triggered by a user gesture.
   /// Android: uses hasGesture property.
   /// iOS/macOS: uses navigationType (LINK_ACTIVATED = user tap, FORM_SUBMITTED = user form).
@@ -3379,6 +3399,19 @@ class WebViewFactory {
         // Skip all post-load work in that case; onDownloadStartRequest's
         // revert handles URL bar restoration.
         if (!DownloadUrlRevertEngine.isRenderable(urlStr)) return;
+
+        // iOS/macOS intermittent zoom-out rescue: the DOCUMENT_START
+        // viewport normalizer usually wins, but WKWebView occasionally
+        // latches a wide/zoomed-out layout before it does. Re-check once
+        // the load settles and snap the scale back to 1 if it drifted.
+        // Desktop mode owns its own (wide) viewport, so skip there.
+        if ((Platform.isIOS || Platform.isMacOS) &&
+            !isDesktopUserAgent(config.userAgent)) {
+          try {
+            await controller.evaluateJavascript(
+                source: '$_viewportRescueScript\n;null;');
+          } catch (_) {}
+        }
 
         // Cached-HTML one-shot live refresh. After the cached HTML
         // parse settles, fire a single `controller.reload()` to fetch
