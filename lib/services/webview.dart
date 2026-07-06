@@ -1465,12 +1465,19 @@ class WebViewFactory {
 (function(){
   var v=window.visualViewport;
   if(v && Math.abs(v.scale-1)<0.01) return;
+  var before=v?v.scale:null;
   var m=document.querySelector('meta[name="viewport" i]');
   if(!m){m=document.createElement('meta');m.setAttribute('name','viewport');(document.head||document.documentElement).appendChild(m);}
   var restore=m.getAttribute('content');
   if(!restore||!/initial-scale/i.test(restore)) restore='width=device-width, initial-scale=1';
   m.setAttribute('content','width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1');
-  requestAnimationFrame(function(){ m.setAttribute('content', restore); });
+  requestAnimationFrame(function(){
+    m.setAttribute('content', restore);
+    setTimeout(function(){
+      var after=window.visualViewport?window.visualViewport.scale:null;
+      console.log('[WS] viewport rescue: '+before+' -> '+after);
+    },150);
+  });
 })();''';
 
   /// Determine if a navigation was triggered by a user gesture.
