@@ -416,8 +416,35 @@ The shim closes the gap by catching inline `<script>` insertions in the same wra
 
 - **CSP weakening is scoped to opted-in sites**: the shim is installed only on sites with at least one enabled user script (`hasScripts == true`). Sites with no user scripts retain full native CSP enforcement.
 - **Execution timing is async**: the bridge round-trip adds a microtask + IPC hop (typically <50ms on a warm bridge). DarkReader's proxy installs `Element.prototype` overrides used in later page lifecycle, so async timing does not break it. A user script that depends on a hard-synchronous execution guarantee for an inline script it appends would not be satisfied — there is no `eval`-based fast path because the page CSP also forbids `eval` in the policies that motivate this feature.
-- **All inline scripts on the page are bridged**, not just user-script-created ones. Distinguishing the two reliably from JS is not feasible. The opt-in scope (user has scripts on this site) is the security boundary.
+- **All inline _classic_ scripts on the page are bridged**, not just user-script-created ones. Distinguishing the two reliably from JS is not feasible. The opt-in scope (user has scripts on this site) is the security boundary. Module scripts and non-JS `type` blocks are excluded — see US-DR-003.
 - **DocumentFragment-mediated insertion is not intercepted**: `frag.appendChild(scriptEl); parent.appendChild(frag)` moves the script into the parent in a single DOM op that does not pass through our `appendChild` wrapper a second time. The first `appendChild` (into the fragment) is caught — the bridged evaluation still runs — so user scripts that follow this pattern still execute their JS; the script element just never reaches the live DOM.
+
+#### Classic-Script-Only Bridging (US-DR-003)
+
+The interception wrappers (`appendChild` / `insertBefore` / `Element.append`) SHALL bridge a `<script>` element only when it is a **classic executable script**: its `type` attribute is empty/absent or a JavaScript MIME type (`text/javascript`, `application/javascript`, `application/x-javascript`, `text/ecmascript`, `application/ecmascript`, `text/jscript`). Elements with any other `type` — notably `module`, and data blocks such as `importmap`, `speculationrules`, `application/json`, `application/ld+json`, `text/template` — SHALL fall through to their native DOM path untouched.
+
+The bridge re-runs a script's source through `controller.evaluateJavascript`, which executes in the **classic** parse goal. A `type="module"` script parsed as classic throws `Uncaught SyntaxError: Unexpected token 'export'` (or `import`) and never runs, and a data block is either a syntax error or arbitrary text executed as code. On module-driven sites (e.g. Reddit's shreddit, which dynamically inserts `<script type="module">`), bridging those nodes broke page hydration — the failed module left DOM subtrees unbuilt, surfacing downstream as `Cannot read properties of null (reading 'appendChild')`. Classic scripts are also the only kind gated by the inline-CSP wall the bridge exists to climb (`'unsafe-inline'` does not govern module execution), so restricting to classic scripts loses no coverage.
+
+##### Scenario: Dynamically-inserted module script is not hijacked
+
+**Given** a site with an enabled user script (so the shim is installed)
+**And** the page inserts `<script type="module">…</script>` via `appendChild` / `append` / `insertBefore`
+**When** the shim's DOM wrapper inspects the element
+**Then** the module is NOT sent to the inline-script bridge; it reaches the live DOM and executes natively as a module — no `Unexpected token 'export'` is thrown
+
+##### Scenario: Data-type script blocks are not evaluated as code
+
+**Given** the shim is installed on a site
+**And** the page inserts `<script type="importmap">` or `<script type="application/ld+json">` with a JSON body
+**When** the DOM wrapper inspects the element
+**Then** the block is NOT bridged; it reaches the DOM unchanged and is never run through `evaluateJavascript`
+
+##### Scenario: Classic scripts are still bridged
+
+**Given** the shim is installed on a site whose CSP forbids `'unsafe-inline'`
+**And** the page inserts an inline `<script>` with empty or JavaScript-MIME `type` and non-empty source
+**When** the DOM wrapper inspects the element
+**Then** the source is bridged through the inline-script handler and evaluated via `controller.evaluateJavascript` as before
 
 ### External Dependency Resolution
 

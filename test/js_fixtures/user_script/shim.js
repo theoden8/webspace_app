@@ -85,8 +85,29 @@
     return scriptEl;
   }
 
+  // A <script> executes as classic JS only when its type is empty/absent or
+  // a JavaScript MIME type. `type="module"` runs in a different parse goal
+  // (top-level import/export), and data blocks (importmap, speculationrules,
+  // application/json, application/ld+json, text/template) aren't executable
+  // JS at all. Bridging any of these is wrong: the bridge re-runs the source
+  // through evaluateJavascript as a *classic* script, so a module throws
+  // `Unexpected token 'export'` and never runs, and a data block either
+  // throws or executes text that was never meant to. Only classic scripts
+  // face the CSP wall the bridge exists to climb, so restrict to those.
+  var CLASSIC_JS_TYPES = {
+    'text/javascript': 1, 'application/javascript': 1,
+    'application/x-javascript': 1, 'text/ecmascript': 1,
+    'application/ecmascript': 1, 'text/jscript': 1,
+  };
+  function isClassicScript(scriptEl) {
+    var t = (scriptEl.type || '').trim().toLowerCase();
+    if (t === '') return true;
+    return CLASSIC_JS_TYPES[t] === 1;
+  }
+
   function interceptScript(scriptEl) {
     if (!(scriptEl instanceof HTMLScriptElement)) return null;
+    if (!isClassicScript(scriptEl)) return null;
     if (scriptEl.src) return intercept(scriptEl);
     return interceptInline(scriptEl);
   }
