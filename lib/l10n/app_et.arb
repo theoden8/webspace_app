@@ -646,7 +646,6 @@
   "appSettingsDnsBlocklistHint": "Laadib Hagezi blokeerimisloendi alla, et blokeerida teadaolevad reklaami-, jälgimis- ja pahavaradomeenid. Vali raskusaste Kergest Lõplikuni. Kõrgemad tasemed blokeerivad rohkem domeene, kuid võivad mõned saidid katkestada. Pärast allalaadimist luba või keela saidipõhiselt iga saidi seadetes.",
   "appSettingsLocalCdnHint": "Laadib alla levinud JavaScripti teegid, fondid ja CSS raamistikud, et neid serveerida kohalikult kolmandate osapoolte CDN-serveritest (nagu Google, Cloudflare, jsDelivr) toomise asemel. See takistab CDN-pakkujatel jälgida sinu sirvimistegevust eri veebisaitidel.",
   "appSettingsContentBlockerHint": "Blokeerib reklaame, jälgijaid ja soovimatuid lehtelemente filtriloendite abil (nagu EasyList). Toetab domeenide blokeerimist, CSS kosmeetilisi filtreid leheelementide peitmiseks ja tekstipõhiseid peitmisreegleid. Luba või keela üksikuid filtriloendeid allpool ning lülita sisublokeerija saidipõhiselt iga saidi seadetes sisse või välja.",
-  "appSettingsTabBarButtonCorner": "Nupu asukoht",
   "appSettingsTabMaxWidth": "Vahekaardi laiuse piirang",
   "appSettingsTabMaxWidthSubtitle": "Piira, kui laiaks iga vahekaart võib kasvada, et pikad nimed jääksid kompaktseks",
   "appSettingsFullscreenOnShortcut": "Täisekraan otsetee kaudu avamisel",

@@ -345,6 +345,10 @@ class WebViewModel {
   /// still open in-app. Default false: the legacy nested-webview routing.
   bool externalLinksInBrowser;
   bool fullscreenMode; // Auto-enter fullscreen when this site is selected
+  /// Which bottom corner the floating tab-bar button sits in while this
+  /// site is active (true = right). Set by long-press-dragging the button
+  /// itself; null = never dragged, falls back to the app-wide default.
+  bool? tabBarButtonOnRight;
   /// When true, the cached HTML snapshot is rendered as `initialData` for
   /// instant first paint on construction, then swapped to a live load
   /// once the cached parse settles. When false, the cached snapshot is
@@ -556,6 +560,7 @@ class WebViewModel {
     this.blockAutoRedirects = true,
     this.externalLinksInBrowser = false,
     this.fullscreenMode = false,
+    this.tabBarButtonOnRight,
     this.htmlCachingEnabled = false,
     this.notificationsEnabled = false,
     this.protectedContentAllowed,
@@ -1659,6 +1664,8 @@ class WebViewModel {
         'blockAutoRedirects': blockAutoRedirects,
         if (externalLinksInBrowser) 'externalLinksInBrowser': true,
         'fullscreenMode': fullscreenMode,
+        if (tabBarButtonOnRight != null)
+          'tabBarButtonOnRight': tabBarButtonOnRight,
         'htmlCachingEnabled': htmlCachingEnabled,
         'notificationsEnabled': notificationsEnabled,
         if (protectedContentAllowed != null)
@@ -1729,6 +1736,7 @@ class WebViewModel {
       blockAutoRedirects: json['blockAutoRedirects'] ?? true,
       externalLinksInBrowser: json['externalLinksInBrowser'] as bool? ?? false,
       fullscreenMode: json['fullscreenMode'] ?? false,
+      tabBarButtonOnRight: json['tabBarButtonOnRight'] as bool?,
       htmlCachingEnabled: json['htmlCachingEnabled'] as bool? ?? false,
       notificationsEnabled:
           (json['notificationsEnabled'] as bool?) ??

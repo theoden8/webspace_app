@@ -31,7 +31,11 @@ final Map<String, Object> kExportedAppPrefs = <String, Object>{
   // without pinning the strip. Supersedes the legacy `tabBarButtonInFullscreen`
   // key (still read once on upgrade).
   'tabBarButton': false,
-  // Which bottom corner the tab-bar button sits in (true = right).
+  // Legacy app-wide default corner for the tab-bar button (true = right).
+  // The corner is now remembered per site (WebViewModel.tabBarButtonOnRight,
+  // set by long-press-dragging the button); this key is only the fallback for
+  // sites never dragged. No settings UI writes it anymore — kept registered
+  // so pre-per-site backups keep restoring the user's chosen corner.
   'tabBarButtonOnRight': true,
   // Enter full screen automatically when a site is opened from a home-screen
   // shortcut (Android pinned shortcut / iOS App Intents). On by default: a

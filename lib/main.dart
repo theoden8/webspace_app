@@ -984,10 +984,15 @@ class _WebSpacePageState extends State<WebSpacePage>
   // on demand, in and out of fullscreen. Lets the user reach tabs + menu
   // without keeping the strip pinned. Global pref mirror of `tabBarButton`.
   bool _tabBarButton = false;
+  // App-wide default corner for the tab-bar button (true = right), used for
+  // sites that were never dragged. Kept as the legacy `tabBarButtonOnRight`
+  // pref so pre-per-site users keep their chosen corner; no settings UI
+  // writes it anymore — dragging the button stores the corner per site.
   bool _tabBarButtonOnRight = true;
   // Runtime-only: stack-local left offset of the tab-bar button while the
   // user long-press-drags it between corners; null when not dragging. On
-  // release it snaps to the nearest bottom corner via `_tabBarButtonOnRight`.
+  // release it snaps to the nearest bottom corner and persists it on the
+  // current site's model.
   double? _tabBarButtonDragLeft;
   final GlobalKey _bodyStackKey = GlobalKey();
   // Enter fullscreen when a site is opened via a home-screen shortcut. Global
@@ -2968,14 +2973,18 @@ class _WebSpacePageState extends State<WebSpacePage>
     await prefs.setBool('tabBarButton', _tabBarButton);
   }
 
-  Future<void> _saveTabBarButtonOnRight() async {
-    if (isDemoMode) return;
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('tabBarButtonOnRight', _tabBarButtonOnRight);
-  }
-
   static const double _kTabBarButtonSize = 42;
   static const double _kTabBarButtonMargin = 16;
+
+  /// Corner for the currently active site: its remembered per-site choice,
+  /// falling back to the app-wide legacy default.
+  bool get _tabBarButtonOnRightEffective {
+    final index = _currentIndex;
+    if (index != null && index < _webViewModels.length) {
+      return _webViewModels[index].tabBarButtonOnRight ?? _tabBarButtonOnRight;
+    }
+    return _tabBarButtonOnRight;
+  }
 
   RenderBox? get _bodyStackBox {
     final box = _bodyStackKey.currentContext?.findRenderObject();
@@ -3003,11 +3012,14 @@ class _WebSpacePageState extends State<WebSpacePage>
     final bool? onRight = box == null
         ? null
         : dragLeft + _kTabBarButtonSize / 2 > box.size.width / 2;
+    final index = _currentIndex;
     setState(() {
       _tabBarButtonDragLeft = null;
-      if (onRight != null) _tabBarButtonOnRight = onRight;
+      if (onRight != null && index != null && index < _webViewModels.length) {
+        _webViewModels[index].tabBarButtonOnRight = onRight;
+      }
     });
-    if (onRight != null) _saveTabBarButtonOnRight();
+    _saveWebViewModels();
   }
 
   Future<void> _saveTabMaxWidth() async {
@@ -5634,13 +5646,6 @@ class _WebSpacePageState extends State<WebSpacePage>
                       });
                       _saveTabBarButton();
                     },
-                    tabBarButtonOnRight: _tabBarButtonOnRight,
-                    onTabBarButtonOnRightChanged: (value) {
-                      setState(() {
-                        _tabBarButtonOnRight = value;
-                      });
-                      _saveTabBarButtonOnRight();
-                    },
                     tabMaxWidth: _tabMaxWidth,
                     onTabMaxWidthChanged: (value) {
                       setState(() {
@@ -7448,14 +7453,16 @@ class _WebSpacePageState extends State<WebSpacePage>
                   Positioned(
                     bottom: _kTabBarButtonMargin,
                     left: _tabBarButtonDragLeft ??
-                        (_tabBarButtonOnRight ? null : _kTabBarButtonMargin),
-                    right: _tabBarButtonDragLeft == null && _tabBarButtonOnRight
+                        (_tabBarButtonOnRightEffective
+                            ? null
+                            : _kTabBarButtonMargin),
+                    right: _tabBarButtonDragLeft == null &&
+                            _tabBarButtonOnRightEffective
                         ? _kTabBarButtonMargin
                         : null,
                     // Long-press drag relocates the button between the bottom
-                    // corners; on release it snaps to the nearest one and
-                    // persists via the same pref as the settings corner
-                    // control, so the two stay in sync.
+                    // corners; on release it snaps to the nearest one and the
+                    // corner is remembered on the current site's model.
                     child: GestureDetector(
                       onLongPressStart: (details) {
                         HapticFeedback.mediumImpact();

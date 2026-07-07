@@ -60,8 +60,6 @@ class AppSettingsScreen extends StatefulWidget {
   final ValueChanged<bool> onFullscreenOnShortcutChanged;
   final bool tabBarButton;
   final ValueChanged<bool> onTabBarButtonChanged;
-  final bool tabBarButtonOnRight;
-  final ValueChanged<bool> onTabBarButtonOnRightChanged;
   final int tabMaxWidth;
   final ValueChanged<int> onTabMaxWidthChanged;
   final bool showStatsBanner;
@@ -105,8 +103,6 @@ class AppSettingsScreen extends StatefulWidget {
     required this.onFullscreenOnShortcutChanged,
     required this.tabBarButton,
     required this.onTabBarButtonChanged,
-    required this.tabBarButtonOnRight,
-    required this.onTabBarButtonOnRightChanged,
     required this.tabMaxWidth,
     required this.onTabMaxWidthChanged,
     required this.showStatsBanner,
@@ -132,7 +128,6 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   late bool _tabStripInFullscreen;
   late bool _fullscreenOnShortcut;
   late bool _tabBarButton;
-  late bool _tabBarButtonOnRight;
   late double _tabMaxWidth;
   late bool _showStatsBanner;
   late TextEditingController _osmTileUrlController;
@@ -192,7 +187,6 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     _tabStripInFullscreen = widget.tabStripInFullscreen;
     _fullscreenOnShortcut = widget.fullscreenOnShortcut;
     _tabBarButton = widget.tabBarButton;
-    _tabBarButtonOnRight = widget.tabBarButtonOnRight;
     _tabMaxWidth = widget.tabMaxWidth.toDouble();
     _showStatsBanner = widget.showStatsBanner;
     _osmTileUrlController = TextEditingController();
@@ -918,37 +912,6 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               ],
             ),
           ),
-          // Button mode only: which bottom corner the floating button sits in.
-          if (_tabStripMode == 2)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-              child: Row(
-                children: [
-                  Expanded(child: Text(loc.appSettingsTabBarButtonCorner)),
-                  SegmentedButton<bool>(
-                    segments: const [
-                      ButtonSegment<bool>(
-                        value: false,
-                        icon: Icon(Icons.align_horizontal_left),
-                      ),
-                      ButtonSegment<bool>(
-                        value: true,
-                        icon: Icon(Icons.align_horizontal_right),
-                      ),
-                    ],
-                    selected: {_tabBarButtonOnRight},
-                    showSelectedIcon: false,
-                    onSelectionChanged: (selection) {
-                      final value = selection.first;
-                      setState(() {
-                        _tabBarButtonOnRight = value;
-                      });
-                      widget.onTabBarButtonOnRightChanged(value);
-                    },
-                  ),
-                ],
-              ),
-            ),
           // Pinned mode only: whether the pinned strip stays visible in full
           // screen. Button mode reveals the strip in full screen on its own;
           // hidden mode has nothing to keep.

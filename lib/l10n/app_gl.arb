@@ -646,7 +646,6 @@
   "appSettingsDnsBlocklistHint": "Descarga a lista de bloqueo Hagezi para bloquear dominios coñecidos de publicidade, seguimento e malware. Escolle un nivel de severidade de Lixeiro a Extremo. Os niveis máis altos bloquean máis dominios pero poden romper algúns sitios. Unha vez descargada, actívaa ou desactívaa por sitio nos axustes de cada sitio.",
   "appSettingsLocalCdnHint": "Descarga bibliotecas de JavaScript, fontes e marcos CSS comúns para servilos localmente en vez de obtelos de servidores CDN de terceiros (como Google, Cloudflare, jsDelivr). Isto impide que os provedores de CDN che fagan seguimento da túa navegación entre diferentes sitios web.",
   "appSettingsContentBlockerHint": "Bloquea anuncios, rastrexadores e elementos non desexados das páxinas mediante listas de filtros como EasyList. Admite bloqueo a nivel de dominio, filtros cosméticos CSS para ocultar elementos da páxina e regras de ocultación baseadas en texto. Activa ou desactiva listas de filtros individuais abaixo, e activa ou desactiva o bloqueo de contido por sitio nos axustes de cada sitio.",
-  "appSettingsTabBarButtonCorner": "Posición do botón",
   "appSettingsTabMaxWidth": "Límite de ancho da lapela",
   "appSettingsTabMaxWidthSubtitle": "Limita canto pode medrar cada lapela para que os nomes longos se manteñan compactos",
   "appSettingsFullscreenOnShortcut": "Pantalla completa ao iniciar desde un atallo",
