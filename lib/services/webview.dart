@@ -2361,6 +2361,12 @@ class WebViewFactory {
     // SPA navigations (pushState) from real page loads in onUpdateVisitedHistory.
     String? lastLoadStartUrl;
 
+    // Last URL for which user scripts were SPA re-injected. SPAs that
+    // replaceState repeatedly on the same URL (LinkedIn does this several
+    // times per route) would otherwise re-run user script sources — and
+    // their network side effects — once per history event.
+    String? lastSpaReinjectUrl;
+
     // Track the last URL that actually finished loading as a renderable
     // page. Updated via DownloadUrlRevertEngine.updateStable in
     // onLoadStop; consumed by the onDownloadStartRequest revert so the
@@ -3300,6 +3306,9 @@ class WebViewFactory {
 
         // Track that this URL has a real page load (not SPA navigation)
         lastLoadStartUrl = url?.toString();
+        // New document: any SPA re-inject dedup from the previous
+        // document no longer applies.
+        lastSpaReinjectUrl = null;
         // Record the page navigation for the block stats banner so it
         // appears immediately. Tag the source (DNS or ABP) so the log
         // keeps the attribution even for main-doc loads. Recorded for
@@ -3511,9 +3520,13 @@ class WebViewFactory {
           // corresponding onLoadStart. If not, it's a SPA navigation —
           // re-run user scripts' source code (not the library).
           final urlStr = url.toString();
-          if (urlStr != lastLoadStartUrl) {
+          if (urlStr != lastLoadStartUrl && urlStr != lastSpaReinjectUrl) {
             userScriptService.reinjectOnSpaNavigation(controller);
           }
+          // Either the initial injection (real load) or the re-inject
+          // above has now run user script sources for this URL; further
+          // history events on the same URL are no-ops.
+          lastSpaReinjectUrl = urlStr;
           lastLoadStartUrl = null; // Reset for next navigation
         }
       },

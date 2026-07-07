@@ -290,6 +290,89 @@ test('whitelisted src is fetched once; a repeat append dedupes and still fires o
   assert.ok(onloadFired, 'the dedup path must still fire onload for the caller');
 });
 
+// ── FileReader polyfill (WKWebView missing-constructor mitigation) ──
+//
+// iOS WKWebView has been observed to throw "ReferenceError: Can't find
+// variable: FileReader" from page-context code — DarkReader hits it in
+// readResponseAsDataURL for every image it inlines after fetching it
+// through __wsFetch. The shim installs a minimal FileReader only when
+// the native one is absent.
+
+function setupNoFileReader() {
+  const dom = makeDom({ url: 'https://linkedin.example/' });
+  dom.window.fetch = () => Promise.reject(new dom.window.TypeError('x'));
+  delete dom.window.FileReader;
+  runInDom(dom, SHIM);
+  return dom;
+}
+
+test('native FileReader is left untouched when present', () => {
+  const dom = makeDom({ url: 'https://linkedin.example/' });
+  dom.window.fetch = () => Promise.reject(new dom.window.TypeError('x'));
+  const native = dom.window.FileReader;
+  assert.strictEqual(typeof native, 'function', 'jsdom provides FileReader');
+  runInDom(dom, SHIM);
+  assert.strictEqual(dom.window.FileReader, native,
+    'polyfill must not clobber a working native FileReader');
+});
+
+test('polyfill installs when FileReader is absent; readAsDataURL round-trips', async () => {
+  const dom = setupNoFileReader();
+  assert.strictEqual(typeof dom.window.FileReader, 'function');
+
+  const bytes = Uint8Array.from([0x48, 0x69, 0x21]); // "Hi!"
+  // Only the Blob surface the polyfill consumes: type + arrayBuffer().
+  const blob = { type: 'image/png', arrayBuffer: () => Promise.resolve(bytes.buffer) };
+  const reader = new dom.window.FileReader();
+  const result = await new Promise((resolve) => {
+    // DarkReader's exact usage: onloadend + .result.
+    reader.onloadend = () => resolve(reader.result);
+    reader.readAsDataURL(blob);
+  });
+  assert.strictEqual(result,
+    'data:image/png;base64,' + Buffer.from(bytes).toString('base64'));
+  assert.strictEqual(reader.readyState, 2, 'DONE after read');
+  assert.strictEqual(reader.error, null);
+});
+
+test('polyfill readAsDataURL falls back to octet-stream for untyped blobs', async () => {
+  const dom = setupNoFileReader();
+  const blob = { type: '', arrayBuffer: () => Promise.resolve(new Uint8Array([1]).buffer) };
+  const reader = new dom.window.FileReader();
+  const result = await new Promise((resolve) => {
+    reader.onloadend = () => resolve(reader.result);
+    reader.readAsDataURL(blob);
+  });
+  assert.ok(result.startsWith('data:application/octet-stream;base64,'));
+});
+
+test('polyfill readAsText resolves blob text', async () => {
+  const dom = setupNoFileReader();
+  const blob = { type: 'text/css', text: () => Promise.resolve('body{}') };
+  const reader = new dom.window.FileReader();
+  const result = await new Promise((resolve) => {
+    reader.onload = () => resolve(reader.result);
+    reader.readAsText(blob);
+  });
+  assert.strictEqual(result, 'body{}');
+});
+
+test('polyfill surfaces read failure via onerror and error', async () => {
+  const dom = setupNoFileReader();
+  const boom = new Error('read failed');
+  const blob = { type: 'image/png', arrayBuffer: () => Promise.reject(boom) };
+  const reader = new dom.window.FileReader();
+  let onerrorFired = false;
+  reader.onerror = () => { onerrorFired = true; };
+  await new Promise((resolve) => {
+    reader.onloadend = resolve;
+    reader.readAsDataURL(blob);
+  });
+  assert.ok(onerrorFired, 'onerror must fire on a failed read');
+  assert.strictEqual(reader.error, boom);
+  assert.strictEqual(reader.result, null);
+});
+
 test('whitelisted src whose bridge fetch fails fires onerror', async () => {
   const dom = makeDom({ url: 'https://linkedin.example/' });
   dom.window.fetch = () => Promise.reject(new dom.window.TypeError('x'));

@@ -146,8 +146,15 @@ class UserScriptService {
   /// persists) deliberately bypasses this helper so that scripts can
   /// re-initialize on route changes.
   static String _guarded(String scriptId, String source) {
+    return 'if (!${_runFlag(scriptId)}) { ${_runFlag(scriptId)} = true;\n$source\n}';
+  }
+
+  /// Per-document "script has run" flag set by [_guarded]. Also used as the
+  /// readiness gate for SPA re-injection: until the flag is set the library
+  /// half of the script has not executed in this document.
+  static String _runFlag(String scriptId) {
     final safeId = scriptId.replaceAll(RegExp(r'[^A-Za-z0-9_]'), '_');
-    return 'if (!window.__wsRan_$safeId) { window.__wsRan_$safeId = true;\n$source\n}';
+    return 'window.__wsRan_$safeId';
   }
 
   /// Register JS handlers on the controller for script fetching and
@@ -343,6 +350,13 @@ class UserScriptService {
   /// On SPA navigations the JS context persists, so the library (urlSource)
   /// is still loaded. We only re-run the user's [source] code to re-trigger
   /// initialization (e.g. re-running a library's enable() call).
+  ///
+  /// Gated on the per-document `__wsRan_<id>` flag: onUpdateVisitedHistory
+  /// also fires for history churn (replaceState) DURING a full page load,
+  /// before the initial injection has evaluated the library — running
+  /// [source] then throws (e.g. "Can't find variable: DarkReader"). If the
+  /// flag is unset the initial injection is still pending and will run the
+  /// full script itself, so skipping here loses nothing.
   Future<void> reinjectOnSpaNavigation(inapp.InAppWebViewController controller) async {
     if (!hasScripts) return;
     for (final script in _scripts) {
@@ -353,7 +367,13 @@ class UserScriptService {
         sensitivity: LogSensitivity.sensitive,
       );
       final safeName = script.name.replaceAll('"', '\\"');
-      await _safeEval(controller, 'console.log("__ws: SPA re-inject: $safeName");\n${script.source}');
+      await _safeEval(
+        controller,
+        'if (${_runFlag(script.id)}) {\n'
+        'console.log("__ws: SPA re-inject: $safeName");\n'
+        '${script.source}\n'
+        '} else { console.log("__ws: SPA re-inject skipped (initial injection pending): $safeName"); }',
+      );
     }
   }
 }

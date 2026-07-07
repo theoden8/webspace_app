@@ -576,6 +576,18 @@ void main() {
       expect(service.hasScripts, isFalse);
     });
 
+    test('shim carries the FileReader polyfill for WKWebView', () {
+      // iOS WKWebView has been observed to lack FileReader in the page
+      // context, which breaks DarkReader's readResponseAsDataURL. The
+      // polyfill must stay typeof-guarded so a native FileReader wins.
+      final service = UserScriptService(scripts: [
+        UserScriptConfig(name: 't', source: 'noop;', enabled: true),
+      ]);
+      final shim = service.shimScript!;
+      expect(shim, contains("typeof window.FileReader === 'undefined'"));
+      expect(shim, contains('readAsDataURL'));
+    });
+
     test('inline-script handler placeholder is replaced in the emitted shim', () {
       final service = UserScriptService(scripts: [
         UserScriptConfig(name: 't', source: 'noop;', enabled: true),

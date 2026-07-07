@@ -142,6 +142,68 @@
     });
   };
 
+  // WKWebView (iOS) has been observed to resolve `FileReader` to nothing in
+  // the page context ("ReferenceError: Can't find variable: FileReader"),
+  // breaking libraries that convert fetched blobs to data URLs — DarkReader's
+  // readResponseAsDataURL does `new FileReader()` for every image it inlines.
+  // Minimal async polyfill over Blob.arrayBuffer()/text(); only installed
+  // when the native constructor is absent.
+  if (typeof window.FileReader === 'undefined') {
+    (function() {
+      function WSFileReader() {
+        this.result = null;
+        this.error = null;
+        this.readyState = 0;
+        this.onload = null;
+        this.onloadend = null;
+        this.onerror = null;
+      }
+      WSFileReader.EMPTY = 0;
+      WSFileReader.LOADING = 1;
+      WSFileReader.DONE = 2;
+      function finish(reader, result, error) {
+        reader.readyState = 2;
+        reader.result = result;
+        reader.error = error || null;
+        var evt = { target: reader, type: error ? 'error' : 'load' };
+        try {
+          if (error) { if (reader.onerror) reader.onerror(evt); }
+          else if (reader.onload) reader.onload(evt);
+        } catch (e) {}
+        try { if (reader.onloadend) reader.onloadend({ target: reader, type: 'loadend' }); } catch (e) {}
+      }
+      function toBase64(buf) {
+        var bytes = new Uint8Array(buf);
+        var bin = '';
+        for (var i = 0; i < bytes.length; i += 0x8000) {
+          bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+        }
+        return btoa(bin);
+      }
+      WSFileReader.prototype.readAsArrayBuffer = function(blob) {
+        var self = this;
+        this.readyState = 1;
+        blob.arrayBuffer().then(function(buf) { finish(self, buf); }, function(e) { finish(self, null, e); });
+      };
+      WSFileReader.prototype.readAsText = function(blob) {
+        var self = this;
+        this.readyState = 1;
+        blob.text().then(function(t) { finish(self, t); }, function(e) { finish(self, null, e); });
+      };
+      WSFileReader.prototype.readAsDataURL = function(blob) {
+        var self = this;
+        this.readyState = 1;
+        blob.arrayBuffer().then(function(buf) {
+          finish(self, 'data:' + (blob.type || 'application/octet-stream') + ';base64,' + toBase64(buf));
+        }, function(e) { finish(self, null, e); });
+      };
+      WSFileReader.prototype.abort = function() {};
+      WSFileReader.prototype.addEventListener = function(type, fn) { this['on' + type] = fn; };
+      WSFileReader.prototype.removeEventListener = function(type, fn) { if (this['on' + type] === fn) this['on' + type] = null; };
+      window.FileReader = WSFileReader;
+    })();
+  }
+
   // Patch window.fetch to fall back to __wsFetch on CORS errors.
   // Only catches TypeError (which browsers throw for CORS and network
   // failures), not application errors like 404. This avoids breaking

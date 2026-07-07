@@ -163,7 +163,22 @@ Scripts SHALL be injected at the correct time through multiple mechanisms to han
    ```
    The flag lives on `window`, which is fresh per document, so full page loads reset it automatically. If `initialUserScripts` already ran the script, the re-injection on `onLoadStart` / `onLoadStop` becomes a no-op — preventing duplicate side-effects (double event listeners, double DOM insertions) for scripts that aren't internally idempotent. If `initialUserScripts` did NOT fire (e.g. cached-HTML loads that skip the native injector on some platforms), the re-injection still runs.
 
-3. **`reinjectOnSpaNavigation`**: On SPA navigations (URL changes without full page load, detected via `onUpdateVisitedHistory`), re-runs only the user's `source` code (not the library from `urlSource`). The JS context persists on SPA navigations, so the library is still loaded — only the user's initialization code (e.g. `MyLib.init()`) needs to re-run. This path intentionally **bypasses** the `__wsRan_<id>` guard: the page document hasn't changed, so the flag is still set from the initial load, but the user's init code should fire again on every route change.
+3. **`reinjectOnSpaNavigation`**: On SPA navigations (URL changes without full page load, detected via `onUpdateVisitedHistory`), re-runs only the user's `source` code (not the library from `urlSource`). The JS context persists on SPA navigations, so the library is still loaded — only the user's initialization code (e.g. `MyLib.init()`) needs to re-run. This path intentionally **does not consume** the `__wsRan_<id>` guard (the flag stays set and the source re-runs on every route change), but it DOES require the flag to already be **set**: `onUpdateVisitedHistory` also fires for history churn (`replaceState`) during the initial page load, before the initial injection has evaluated the library, and running `source` at that point throws (`ReferenceError: Can't find variable: DarkReader` — see BUG-003). When the flag is unset the re-run is skipped; the pending initial injection runs the full script itself.
+
+   Two additional dedup rules at the `onUpdateVisitedHistory` call site (`lib/services/webview.dart`): a history event whose URL matches the pending `onLoadStart` URL is a real page load (initial injection covers it), and a history event whose URL matches the last URL already SPA-re-injected for this document is a repeat (`replaceState` churn on the same route) — both are skipped. The dedup URL resets on `onLoadStart` so a fresh document starts clean.
+
+##### Scenario: history churn during initial load does not run source before the library (BUG-003)
+
+**Given** a site script with `urlSource` (e.g. DarkReader) and `source` calling into it
+**And** a page (linkedin.com) that calls `history.replaceState` several times while the document is still loading
+**When** `onUpdateVisitedHistory` fires before the initial injection has evaluated the library
+**Then** the SPA re-inject is skipped (logged as `SPA re-inject skipped (initial injection pending)`) and no `ReferenceError` reaches the console; the initial injection later runs library + source once
+
+##### Scenario: repeated replaceState on the same URL re-runs source once
+
+**Given** a loaded SPA document where user script source already ran
+**When** the page issues several `history.replaceState` calls with the same URL
+**Then** the source is re-run at most once for that URL; subsequent events are deduped until the URL actually changes or a new document loads
 
 #### Execution order within a single injection
 
@@ -391,6 +406,7 @@ A shim is injected at `AT_DOCUMENT_START` before user scripts. It provides:
 2. **`window.__wsFetch(url)`**: CORS-bypassing fetch that returns a standard `Response` object. User scripts can use this for libraries that need custom fetch methods (e.g. `MyLib.setFetchMethod(window.__wsFetch)`).
 3. **`window.fetch` CORS fallback**: Patches `window.fetch` to fall back to `__wsFetch` on TypeError (CORS/network failures).
 4. **Deduplication**: Tracks loaded URLs to avoid double-loading when both `initialUserScripts` and re-injection run.
+5. **`FileReader` polyfill (iOS)**: WKWebView page contexts have been observed to lack the `FileReader` constructor (`ReferenceError: Can't find variable: FileReader`), which breaks libraries that convert fetched blobs to data URLs — DarkReader's `readResponseAsDataURL` does `new FileReader()` for every image it inlines after fetching it through `__wsFetch`. The shim installs a minimal async polyfill (`readAsDataURL` / `readAsText` / `readAsArrayBuffer` over `Blob.arrayBuffer()`/`text()`), guarded by `typeof window.FileReader === 'undefined'` so a native constructor always wins.
 
 Handler names are randomized per webview instance for security.
 
