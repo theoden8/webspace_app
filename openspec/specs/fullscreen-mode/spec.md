@@ -241,7 +241,7 @@ The site tab strip's presentation SHALL be a single mutually-exclusive choice, n
 
 - **Hidden** — no tab strip and no button.
 - **Always visible** — the strip is pinned at the bottom. Its full-screen behavior is a sub-choice ("Keep Tab Strip in Full Screen", FS-007).
-- **Button** — the strip is hidden, and a small floating button reveals it (together with its overflow menu) on demand. The button works both in and out of full screen, so the user reaches tabs and the menu without pinning the strip. Its corner (bottom-left or bottom-right) is configurable.
+- **Button** — the strip is hidden, and a small floating button reveals it (together with its overflow menu) on demand. The button works both in and out of full screen, so the user reaches tabs and the menu without pinning the strip. Its corner (bottom-left or bottom-right) is configurable in settings, and the button itself can be long-press-dragged between the two corners: while dragging it follows the finger horizontally, and on release it snaps to the nearest bottom corner and persists that choice to the same preference the settings control reads, so the two stay in sync.
 
 Selecting Hidden or Button clears the "Keep Tab Strip in Full Screen" sub-choice (it only applies to a pinned strip). The "Keep Tab Strip in Full Screen" and "Button position" controls are shown only for the mode they belong to.
 
@@ -283,6 +283,22 @@ The presentation is backed by two booleans, `showTabStrip` (pinned) and `tabBarB
 **When** the user taps a site in the revealed strip
 **Then** the app switches to that site and the revealed strip is dismissed
 
+#### Scenario: Long-press drag moves the button to the other corner
+
+**Given** the tab strip presentation is set to Button
+**And** the floating button sits in the bottom-right corner
+**When** the user long-presses the button and drags it toward the left edge
+**Then** the button follows the finger horizontally while the drag is active
+**When** the user releases on the left half of the screen
+**Then** the button snaps to the bottom-left corner
+**And** the corner choice is persisted (`tabBarButtonOnRight`), so the settings corner control reflects it
+
+#### Scenario: Drag released on the same half is a no-op
+
+**Given** the floating button sits in the bottom-right corner
+**When** the user long-press-drags it and releases on the right half of the screen
+**Then** the button returns to the bottom-right corner and the preference is unchanged
+
 ---
 
 ## Implementation Details
@@ -305,7 +321,7 @@ The presentation is backed by two booleans, `showTabStrip` (pinned) and `tabBarB
 
 - **App bar**: Hidden when `_isFullscreen` is true (`appBar: _isFullscreen ? null : _buildAppBar()`)
 - **Tab strip**: `_buildTabStrip()` returns null when `_isFullscreen` unless the global `tabStripInFullscreen` pref is set (then it stays in `bottomNavigationBar` and owns the bottom safe-area inset). The `_tabStripShown` getter also renders it on demand in either mode when `_tabBarButton && _tabBarOverlayVisible`; the revealed strip carries an inline close button.
-- **Tab bar button**: the `_tabBarButtonShown` getter places a floating circular button in the body `Stack` (bottom corner per `_tabBarButtonOnRight`). Shown when `_tabBarButton` is on, a site is loaded, the overlay is not already revealed, and the strip is not pinned for the current mode (`_showTabStrip` out of fullscreen / `_tabStripInFullscreen` in fullscreen). Tapping sets `_tabBarOverlayVisible = true` (FS-009).
+- **Tab bar button**: the `_tabBarButtonShown` getter places a floating circular button in the body `Stack` (bottom corner per `_tabBarButtonOnRight`). Shown when `_tabBarButton` is on, a site is loaded, the overlay is not already revealed, and the strip is not pinned for the current mode (`_showTabStrip` out of fullscreen / `_tabStripInFullscreen` in fullscreen). Tapping sets `_tabBarOverlayVisible = true` (FS-009). A long-press drag tracks the finger through the runtime-only `_tabBarButtonDragLeft` (stack-local left offset, clamped to the body `Stack` keyed by `_bodyStackKey`); on release `_endTabBarButtonDrag` snaps to the nearest bottom corner by comparing the button center against the stack midline, updates `_tabBarButtonOnRight`, and persists it.
 - **Input bar**: `_buildInputBar()` returns null when `_isFullscreen`
 - **Body insets**: The fullscreen body keeps top/bottom `SafeArea` active (`top: _isFullscreen`, `bottom: _isFullscreen || ...`). `immersiveSticky` does not reliably hide the system bars on Android 15 (edge-to-edge enforced); when a bar persists, the inset keeps the site's top/bottom controls clear of it. When the bars are truly hidden the inset is ~0 and the webview still fills the screen. Left/right insets are dropped in fullscreen (`left: !_isFullscreen`, `right: !_isFullscreen`) so the webview uses the display-cutout strip beside a landscape notch (FS-010); out of fullscreen they stay active so chrome avoids the notch.
 - **Display cutout (FS-010)**: `MainActivity.onCreate` sets `LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES` (API 28+) so the window may extend into the cutout on short edges. Without it, hiding the system bars makes Android letterbox the cutout strip black.

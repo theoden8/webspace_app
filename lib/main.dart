@@ -985,6 +985,11 @@ class _WebSpacePageState extends State<WebSpacePage>
   // without keeping the strip pinned. Global pref mirror of `tabBarButton`.
   bool _tabBarButton = false;
   bool _tabBarButtonOnRight = true;
+  // Runtime-only: stack-local left offset of the tab-bar button while the
+  // user long-press-drags it between corners; null when not dragging. On
+  // release it snaps to the nearest bottom corner via `_tabBarButtonOnRight`.
+  double? _tabBarButtonDragLeft;
+  final GlobalKey _bodyStackKey = GlobalKey();
   // Enter fullscreen when a site is opened via a home-screen shortcut. Global
   // pref mirror of the `fullscreenOnShortcut` SharedPreferences key. On by
   // default. Independent of per-site `WebViewModel.fullscreenMode`.
@@ -2967,6 +2972,42 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (isDemoMode) return;
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setBool('tabBarButtonOnRight', _tabBarButtonOnRight);
+  }
+
+  static const double _kTabBarButtonSize = 42;
+  static const double _kTabBarButtonMargin = 16;
+
+  RenderBox? get _bodyStackBox {
+    final box = _bodyStackKey.currentContext?.findRenderObject();
+    return box is RenderBox && box.hasSize ? box : null;
+  }
+
+  void _updateTabBarButtonDrag(Offset globalPosition) {
+    final box = _bodyStackBox;
+    if (box == null) return;
+    final local = box.globalToLocal(globalPosition);
+    final maxLeft = max(
+      _kTabBarButtonMargin,
+      box.size.width - _kTabBarButtonSize - _kTabBarButtonMargin,
+    );
+    setState(() {
+      _tabBarButtonDragLeft =
+          (local.dx - _kTabBarButtonSize / 2).clamp(_kTabBarButtonMargin, maxLeft);
+    });
+  }
+
+  void _endTabBarButtonDrag() {
+    final dragLeft = _tabBarButtonDragLeft;
+    if (dragLeft == null) return;
+    final box = _bodyStackBox;
+    final bool? onRight = box == null
+        ? null
+        : dragLeft + _kTabBarButtonSize / 2 > box.size.width / 2;
+    setState(() {
+      _tabBarButtonDragLeft = null;
+      if (onRight != null) _tabBarButtonOnRight = onRight;
+    });
+    if (onRight != null) _saveTabBarButtonOnRight();
   }
 
   Future<void> _saveTabMaxWidth() async {
@@ -7208,6 +7249,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         children: [
           Expanded(
             child: Stack(
+              key: _bodyStackKey,
               children: [
                 Offstage(
                   offstage: _currentIndex != null && _currentIndex! < _webViewModels.length,
@@ -7404,30 +7446,47 @@ class _WebSpacePageState extends State<WebSpacePage>
                 // lives inside the bar instead.
                 if (_tabBarButtonShown)
                   Positioned(
-                    bottom: 16,
-                    left: _tabBarButtonOnRight ? null : 16,
-                    right: _tabBarButtonOnRight ? 16 : null,
-                    child: Material(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withOpacity(0.85),
-                      shape: const CircleBorder(),
-                      elevation: 3,
-                      child: InkWell(
-                        customBorder: const CircleBorder(),
-                        onTap: () {
-                          setState(() {
-                            _tabBarOverlayVisible = true;
-                          });
-                          _nudgeSurfaceRepaint();
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.all(10),
-                          child: Icon(
-                            Icons.tab,
-                            size: 22,
-                            color: Theme.of(context).colorScheme.onPrimary,
+                    bottom: _kTabBarButtonMargin,
+                    left: _tabBarButtonDragLeft ??
+                        (_tabBarButtonOnRight ? null : _kTabBarButtonMargin),
+                    right: _tabBarButtonDragLeft == null && _tabBarButtonOnRight
+                        ? _kTabBarButtonMargin
+                        : null,
+                    // Long-press drag relocates the button between the bottom
+                    // corners; on release it snaps to the nearest one and
+                    // persists via the same pref as the settings corner
+                    // control, so the two stay in sync.
+                    child: GestureDetector(
+                      onLongPressStart: (details) {
+                        HapticFeedback.mediumImpact();
+                        _updateTabBarButtonDrag(details.globalPosition);
+                      },
+                      onLongPressMoveUpdate: (details) =>
+                          _updateTabBarButtonDrag(details.globalPosition),
+                      onLongPressEnd: (_) => _endTabBarButtonDrag(),
+                      onLongPressCancel: _endTabBarButtonDrag,
+                      child: Material(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .primary
+                            .withOpacity(0.85),
+                        shape: const CircleBorder(),
+                        elevation: _tabBarButtonDragLeft != null ? 8 : 3,
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: () {
+                            setState(() {
+                              _tabBarOverlayVisible = true;
+                            });
+                            _nudgeSurfaceRepaint();
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.all(10),
+                            child: Icon(
+                              Icons.tab,
+                              size: 22,
+                              color: Theme.of(context).colorScheme.onPrimary,
+                            ),
                           ),
                         ),
                       ),
