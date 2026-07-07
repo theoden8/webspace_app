@@ -76,8 +76,22 @@
   // Catch inline <script>{textContent} elements and route them through
   // the privileged Dart bridge so they bypass the page's strict CSP.
   // Returns the element (un-appended) on success, null to fall through.
+  //
+  // Classic JavaScript only. Pages insert src-less <script> elements
+  // that are not executable JS at all — <script type="application/json">
+  // data islands (GitHub's React payloads), importmaps, text/template —
+  // and ES modules whose import/export syntax cannot survive
+  // evaluateJavascript. Bridging those evaluates garbage AND withholds
+  // the element from the DOM, so the page's own code can't find its
+  // data island (GitHub: hydration never completes, skeleton rows stay).
+  function isClassicScriptType(t) {
+    if (!t) return true;
+    t = t.trim().toLowerCase();
+    return t === 'text/javascript' || t === 'application/javascript';
+  }
   function interceptInline(scriptEl) {
     if (scriptEl.src) return null;
+    if (!isClassicScriptType(scriptEl.type)) return null;
     var inlineSource = scriptEl.text || scriptEl.textContent || '';
     if (typeof inlineSource !== 'string' || inlineSource.length === 0) return null;
     var result = call(INLINE_SCRIPT_HANDLER, inlineSource);

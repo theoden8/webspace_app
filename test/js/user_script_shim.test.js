@@ -290,6 +290,55 @@ test('whitelisted src is fetched once; a repeat append dedupes and still fires o
   assert.ok(onloadFired, 'the dedup path must still fire onload for the caller');
 });
 
+// ── inline-script type gate ──
+//
+// Only classic JavaScript may be bridged through evaluateJavascript.
+// Pages insert src-less <script> elements that are not executable JS —
+// GitHub's React hydration reads <script type="application/json"> data
+// islands inserted at runtime. Bridging one evaluates garbage AND keeps
+// the element out of the DOM, so hydration never finds its data and the
+// page is left half-rendered (skeleton rows next to real rows).
+
+test('script type="application/json" data island is NOT bridged and reaches the DOM', () => {
+  const { dom, calls } = setup();
+  const { document } = dom.window;
+  const island = document.createElement('script');
+  island.type = 'application/json';
+  island.textContent = '{"payload":{"tree":{"items":[1,2,3]}}}';
+  document.head.appendChild(island);
+
+  assert.strictEqual(calls.filter(c => c[0] === INLINE_HANDLER).length, 0,
+    'JSON is not executable — it must never reach the eval bridge');
+  assert.strictEqual(island.parentNode, document.head,
+    'the data island must enter the live DOM so page JS can read it');
+  assert.strictEqual(island.textContent, '{"payload":{"tree":{"items":[1,2,3]}}}');
+});
+
+test('inline type="module" script is NOT bridged (import syntax cannot survive eval)', () => {
+  const { dom, calls } = setup();
+  const { document } = dom.window;
+  const mod = document.createElement('script');
+  mod.type = 'module';
+  mod.textContent = 'import { x } from "/y.js";';
+  document.head.appendChild(mod);
+
+  assert.strictEqual(calls.filter(c => c[0] === INLINE_HANDLER).length, 0);
+  assert.strictEqual(mod.parentNode, document.head);
+});
+
+test('explicit classic types still go through the bridge', () => {
+  const { dom, calls } = setup();
+  const { document } = dom.window;
+  for (const t of ['text/javascript', 'application/javascript', 'TEXT/JAVASCRIPT']) {
+    const s = document.createElement('script');
+    s.type = t;
+    s.textContent = 'noop_' + t.length + ';';
+    document.head.appendChild(s);
+  }
+  assert.strictEqual(calls.filter(c => c[0] === INLINE_HANDLER).length, 3,
+    'classic JS MIME types (any case) must keep the CSP-bypass path');
+});
+
 test('whitelisted src whose bridge fetch fails fires onerror', async () => {
   const dom = makeDom({ url: 'https://linkedin.example/' });
   dom.window.fetch = () => Promise.reject(new dom.window.TypeError('x'));
