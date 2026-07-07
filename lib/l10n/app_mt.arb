@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "Fl-iskrin sħiħ, bar tat-tabs",
   "appSettingsFullscreenTabStripHidden": "Moħbi",
   "appSettingsFullscreenTabStripAlways": "Dejjem viżibbli",
-  "appSettingsFullscreenTabStripButton": "Uri b'buttuna"
+  "appSettingsFullscreenTabStripButton": "Uri b'buttuna",
+  "lockdownModeNoticeTitle": "Il-Lockdown Mode ta' iOS qed jillimita s-siti web",
+  "lockdownModeNoticeBody": "Il-Lockdown Mode huwa attivat, u iOS japplikah fuq is-siti web ġewwa WebSpace: l-aċċess għall-fajls, id-databases lokali u xi funzjonijiet tal-midja huma diżattivati, għalhekk is-siti jistgħu jinkisru jew joħorġuk mill-kont. WebSpace ma jistax jevita dan. Biex teskludi lil WebSpace, iftaħ Settings > Privatezza u Sigurtà > Lockdown Mode > Ikkonfigura l-Ibbrawżjar tal-Web u itfi lil WebSpace."
 }

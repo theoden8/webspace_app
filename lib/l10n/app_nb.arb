@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "I fullskjerm, fanelinje",
   "appSettingsFullscreenTabStripHidden": "Skjult",
   "appSettingsFullscreenTabStripAlways": "Alltid synlig",
-  "appSettingsFullscreenTabStripButton": "Vis med knapp"
+  "appSettingsFullscreenTabStripButton": "Vis med knapp",
+  "lockdownModeNoticeTitle": "Nedstengningsmodus i iOS begrenser nettsteder",
+  "lockdownModeNoticeBody": "Nedstengningsmodus er på, og iOS bruker den på nettsteder i WebSpace: filtilgang, lokale databaser og enkelte mediefunksjoner er slått av, så nettsteder kan slutte å virke eller logge deg ut. WebSpace kan ikke omgå dette. For å unnta WebSpace, åpne Innstillinger > Personvern og sikkerhet > Nedstengningsmodus > Konfigurer nettlesing og slå av WebSpace."
 }

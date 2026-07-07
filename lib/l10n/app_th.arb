@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "ในโหมดเต็มจอ แถบแท็บ",
   "appSettingsFullscreenTabStripHidden": "ซ่อน",
   "appSettingsFullscreenTabStripAlways": "แสดงตลอดเวลา",
-  "appSettingsFullscreenTabStripButton": "แสดงด้วยปุ่ม"
+  "appSettingsFullscreenTabStripButton": "แสดงด้วยปุ่ม",
+  "lockdownModeNoticeTitle": "โหมดล็อกดาวน์ของ iOS กำลังจำกัดเว็บไซต์",
+  "lockdownModeNoticeBody": "โหมดล็อกดาวน์เปิดอยู่ และ iOS นำไปใช้กับเว็บไซต์ภายใน WebSpace ด้วย: การเข้าถึงไฟล์ ฐานข้อมูลในเครื่อง และฟีเจอร์สื่อบางอย่างถูกปิดใช้งาน เว็บไซต์จึงอาจทำงานผิดพลาดหรือทำให้คุณออกจากระบบ WebSpace ไม่สามารถหลีกเลี่ยงข้อจำกัดนี้ได้ หากต้องการยกเว้น WebSpace ให้เปิด การตั้งค่า > ความเป็นส่วนตัวและความปลอดภัย > โหมดล็อกดาวน์ > กำหนดค่าการท่องเว็บ แล้วปิด WebSpace"
 }

@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "In volledig scherm, tabbalk",
   "appSettingsFullscreenTabStripHidden": "Verborgen",
   "appSettingsFullscreenTabStripAlways": "Altijd zichtbaar",
-  "appSettingsFullscreenTabStripButton": "Tonen met knop"
+  "appSettingsFullscreenTabStripButton": "Tonen met knop",
+  "lockdownModeNoticeTitle": "De isolatiemodus van iOS beperkt websites",
+  "lockdownModeNoticeBody": "De isolatiemodus staat aan en iOS past deze toe op websites binnen WebSpace: bestandstoegang, lokale databases en sommige mediafuncties zijn uitgeschakeld, waardoor sites kapot kunnen gaan of je kunnen uitloggen. WebSpace kan dit niet omzeilen. Om WebSpace uit te sluiten open je Instellingen > Privacy en beveiliging > Isolatiemodus > Configureer webbrowsen en zet je WebSpace uit."
 }

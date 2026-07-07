@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "في وضع ملء الشاشة، شريط التبويبات",
   "appSettingsFullscreenTabStripHidden": "مخفي",
   "appSettingsFullscreenTabStripAlways": "ظاهر دائمًا",
-  "appSettingsFullscreenTabStripButton": "إظهار بزر"
+  "appSettingsFullscreenTabStripButton": "إظهار بزر",
+  "lockdownModeNoticeTitle": "وضع الإغلاق في iOS يقيّد مواقع الويب",
+  "lockdownModeNoticeBody": "وضع الإغلاق مفعّل، ويطبّقه iOS على مواقع الويب داخل WebSpace: الوصول إلى الملفات وقواعد البيانات المحلية وبعض ميزات الوسائط معطّلة، لذا قد تتعطل بعض المواقع أو تسجّل خروجك. لا يمكن لـ WebSpace تجاوز ذلك. لاستثناء WebSpace، افتح الإعدادات > الخصوصية والأمن > وضع الإغلاق > تكوين تصفح الويب ثم أوقف WebSpace."
 }

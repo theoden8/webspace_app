@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "En pantalla completa, barra de pestanyes",
   "appSettingsFullscreenTabStripHidden": "Amagada",
   "appSettingsFullscreenTabStripAlways": "Sempre visible",
-  "appSettingsFullscreenTabStripButton": "Mostra amb un botó"
+  "appSettingsFullscreenTabStripButton": "Mostra amb un botó",
+  "lockdownModeNoticeTitle": "El mode d'aïllament de l'iOS limita els llocs web",
+  "lockdownModeNoticeBody": "El mode d'aïllament està activat i iOS l'aplica als llocs web dins de WebSpace: l'accés a fitxers, les bases de dades locals i algunes funcions multimèdia estan desactivats, per la qual cosa alguns llocs poden fallar o tancar-vos la sessió. WebSpace no ho pot evitar. Per excloure WebSpace, obriu Configuració > Privadesa i seguretat > Mode d'aïllament > Configura la navegació web i desactiveu WebSpace."
 }

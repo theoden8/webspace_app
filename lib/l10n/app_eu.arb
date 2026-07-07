@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "Pantaila osoan, fitxa-barra",
   "appSettingsFullscreenTabStripHidden": "Ezkutatuta",
   "appSettingsFullscreenTabStripAlways": "Beti ikusgai",
-  "appSettingsFullscreenTabStripButton": "Erakutsi botoiarekin"
+  "appSettingsFullscreenTabStripButton": "Erakutsi botoiarekin",
+  "lockdownModeNoticeTitle": "iOS-en blokeo moduak webguneak mugatzen ditu",
+  "lockdownModeNoticeBody": "Blokeo modua aktibatuta dago, eta iOS-ek WebSpace barruko webguneei aplikatzen die: fitxategietarako sarbidea, tokiko datu-baseak eta multimedia-funtzio batzuk desgaituta daude; beraz, webguneak hondatu edo saioa itxi diezazukete. WebSpace-k ezin du hori saihestu. WebSpace kanpoan uzteko, ireki Ezarpenak > Pribatutasuna eta segurtasuna > Blokeo modua > Konfiguratu web-nabigazioa eta desaktibatu WebSpace."
 }

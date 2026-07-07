@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "Na pełnym ekranie, pasek kart",
   "appSettingsFullscreenTabStripHidden": "Ukryty",
   "appSettingsFullscreenTabStripAlways": "Zawsze widoczny",
-  "appSettingsFullscreenTabStripButton": "Pokaż przyciskiem"
+  "appSettingsFullscreenTabStripButton": "Pokaż przyciskiem",
+  "lockdownModeNoticeTitle": "Tryb blokady w iOS ogranicza strony internetowe",
+  "lockdownModeNoticeBody": "Tryb blokady jest włączony, a iOS stosuje go do stron w WebSpace: dostęp do plików, lokalne bazy danych i niektóre funkcje multimedialne są wyłączone, więc strony mogą działać błędnie lub cię wylogowywać. WebSpace nie może tego obejść. Aby wykluczyć WebSpace, otwórz Ustawienia > Prywatność i ochrona > Tryb blokady > Skonfiguruj przeglądanie internetu i wyłącz WebSpace."
 }

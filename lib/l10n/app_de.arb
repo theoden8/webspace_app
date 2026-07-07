@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "Im Vollbild, Tableiste",
   "appSettingsFullscreenTabStripHidden": "Ausgeblendet",
   "appSettingsFullscreenTabStripAlways": "Immer sichtbar",
-  "appSettingsFullscreenTabStripButton": "Mit Schaltfläche einblenden"
+  "appSettingsFullscreenTabStripButton": "Mit Schaltfläche einblenden",
+  "lockdownModeNoticeTitle": "Der iOS-Blockierungsmodus schränkt Websites ein",
+  "lockdownModeNoticeBody": "Der Blockierungsmodus ist aktiviert, und iOS wendet ihn auf Websites in WebSpace an: Dateizugriff, lokale Datenbanken und einige Medienfunktionen sind deaktiviert, daher können Websites fehlerhaft sein oder dich abmelden. WebSpace kann das nicht umgehen. Um WebSpace auszunehmen, öffne Einstellungen > Datenschutz & Sicherheit > Blockierungsmodus > Surfen im Web konfigurieren und schalte WebSpace aus."
 }

@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "Dalam skrin penuh, bar tab",
   "appSettingsFullscreenTabStripHidden": "Tersembunyi",
   "appSettingsFullscreenTabStripAlways": "Sentiasa kelihatan",
-  "appSettingsFullscreenTabStripButton": "Tunjukkan dengan butang"
+  "appSettingsFullscreenTabStripButton": "Tunjukkan dengan butang",
+  "lockdownModeNoticeTitle": "Mod Lockdown iOS mengehadkan laman web",
+  "lockdownModeNoticeBody": "Mod Lockdown dihidupkan, dan iOS menggunakannya pada laman web dalam WebSpace: akses fail, pangkalan data setempat dan sesetengah ciri media dilumpuhkan, jadi laman mungkin rosak atau melog keluar anda. WebSpace tidak dapat memintasnya. Untuk mengecualikan WebSpace, buka Tetapan > Privasi & Keselamatan > Mod Lockdown > Konfigurasikan Pelayaran Web dan matikan WebSpace."
 }

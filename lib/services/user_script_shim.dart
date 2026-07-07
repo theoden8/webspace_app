@@ -176,8 +176,9 @@ const String userScriptShimTemplate = r'''
     });
   };
 
-  // WKWebView (iOS) has been observed to resolve `FileReader` to nothing in
-  // the page context ("ReferenceError: Can't find variable: FileReader"),
+  // iOS Lockdown Mode strips the File API (among others) from every
+  // third-party app's WKWebViews, so `FileReader` resolves to nothing in the
+  // page context ("ReferenceError: Can't find variable: FileReader"),
   // breaking libraries that convert fetched blobs to data URLs — DarkReader's
   // readResponseAsDataURL does `new FileReader()` for every image it inlines.
   // Minimal async polyfill over Blob.arrayBuffer()/text(); only installed

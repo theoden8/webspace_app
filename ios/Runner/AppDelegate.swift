@@ -2,6 +2,7 @@ import BackgroundTasks
 import Flutter
 import UIKit
 import UserNotifications
+import WebKit
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
@@ -11,6 +12,7 @@ import UserNotifications
   private var pendingShareUrl: String?
 
   private let shareChannelName = "org.codeberg.theoden8.webspace/share_intent"
+  private let lockdownChannelName = "org.codeberg.theoden8.webspace/lockdown_mode"
   private let appGroupId = "group.org.codeberg.theoden8.webspace"
   private let pendingUrlKey = "pending_share_url"
   private let pendingHtmlFileName = "pending_share.html"
@@ -38,6 +40,7 @@ import UserNotifications
       backgroundTaskPlugin = BackgroundTaskPlugin(messenger: controller.binaryMessenger)
       shortcutsPlugin = ShortcutsPlugin(messenger: controller.binaryMessenger)
       registerShareChannel(controller.binaryMessenger)
+      registerLockdownModeChannel(controller.binaryMessenger)
     }
     if let url = launchOptions?[.url] as? URL {
       capturePendingShareUrl(from: url)
@@ -81,6 +84,27 @@ import UserNotifications
         NSLog("[WebSpace] consumeLaunchHtml returning: \(payload == nil ? "nil" : "payload")")
         #endif
         result(payload)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+  }
+
+  // Lockdown Mode strips web APIs (FileReader, IndexedDB, WebGL, Web Audio,
+  // WASM, JIT) from every third-party app's WKWebViews and cannot be
+  // disabled without the com.apple.developer.web-browser entitlement. A
+  // fresh WKWebpagePreferences inherits the system-wide setting, so reading
+  // it detects Lockdown Mode without touching any live webview.
+  private func registerLockdownModeChannel(_ messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(name: lockdownChannelName, binaryMessenger: messenger)
+    channel.setMethodCallHandler { call, result in
+      switch call.method {
+      case "isLockdownModeEnabled":
+        if #available(iOS 16.0, *) {
+          result(WKWebpagePreferences().isLockdownModeEnabled)
+        } else {
+          result(false)
+        }
       default:
         result(FlutterMethodNotImplemented)
       }

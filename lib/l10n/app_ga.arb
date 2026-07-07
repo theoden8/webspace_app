@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "Sa scáileán iomlán, barra cluaisíní",
   "appSettingsFullscreenTabStripHidden": "Folaithe",
   "appSettingsFullscreenTabStripAlways": "Le feiceáil i gcónaí",
-  "appSettingsFullscreenTabStripButton": "Taispeáin le cnaipe"
+  "appSettingsFullscreenTabStripButton": "Taispeáin le cnaipe",
+  "lockdownModeNoticeTitle": "Tá Mód Glasála iOS ag cur srian ar shuíomhanna gréasáin",
+  "lockdownModeNoticeBody": "Tá an Mód Glasála ar siúl, agus cuireann iOS i bhfeidhm é ar shuíomhanna gréasáin laistigh de WebSpace: tá rochtain ar chomhaid, bunachair sonraí áitiúla agus roinnt gnéithe meán díchumasaithe, mar sin d'fhéadfadh suíomhanna briseadh nó tú a logáil amach. Ní féidir le WebSpace é seo a sheachaint. Chun WebSpace a eisiamh, oscail Socruithe > Príobháideachas agus Slándáil > Mód Glasála > Cumraigh Brabhsáil Gréasáin agus múch WebSpace."
 }

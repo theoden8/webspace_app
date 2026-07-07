@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "Katika skrini nzima, upau wa vichupo",
   "appSettingsFullscreenTabStripHidden": "Imefichwa",
   "appSettingsFullscreenTabStripAlways": "Inaonekana kila wakati",
-  "appSettingsFullscreenTabStripButton": "Onyesha kwa kitufe"
+  "appSettingsFullscreenTabStripButton": "Onyesha kwa kitufe",
+  "lockdownModeNoticeTitle": "Lockdown Mode ya iOS inazuia tovuti",
+  "lockdownModeNoticeBody": "Lockdown Mode imewashwa, na iOS huitumia kwenye tovuti ndani ya WebSpace: ufikiaji wa faili, hifadhidata za ndani na baadhi ya vipengele vya media vimezimwa, hivyo tovuti zinaweza kuharibika au kukutoa kwenye akaunti. WebSpace haiwezi kukwepa hili. Ili kuiondoa WebSpace, fungua Mipangilio > Faragha na Usalama > Lockdown Mode > Sanidi Uvinjari wa Wavuti kisha uzime WebSpace."
 }

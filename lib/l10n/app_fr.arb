@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "En plein écran, barre d'onglets",
   "appSettingsFullscreenTabStripHidden": "Masquée",
   "appSettingsFullscreenTabStripAlways": "Toujours visible",
-  "appSettingsFullscreenTabStripButton": "Afficher avec un bouton"
+  "appSettingsFullscreenTabStripButton": "Afficher avec un bouton",
+  "lockdownModeNoticeTitle": "Le mode Isolement d'iOS limite les sites web",
+  "lockdownModeNoticeBody": "Le mode Isolement est activé et iOS l'applique aux sites web dans WebSpace : l'accès aux fichiers, les bases de données locales et certaines fonctions multimédias sont désactivés, donc des sites peuvent dysfonctionner ou vous déconnecter. WebSpace ne peut pas contourner cette restriction. Pour exclure WebSpace, ouvrez Réglages > Confidentialité et sécurité > Mode Isolement > Configurer la navigation web et désactivez WebSpace."
 }

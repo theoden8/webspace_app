@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "V celozaslonskem načinu, vrstica zavihkov",
   "appSettingsFullscreenTabStripHidden": "Skrito",
   "appSettingsFullscreenTabStripAlways": "Vedno vidno",
-  "appSettingsFullscreenTabStripButton": "Pokaži z gumbom"
+  "appSettingsFullscreenTabStripButton": "Pokaži z gumbom",
+  "lockdownModeNoticeTitle": "Način zaklepa v iOS omejuje spletna mesta",
+  "lockdownModeNoticeBody": "Način zaklepa je vklopljen in iOS ga uporablja za spletna mesta znotraj WebSpacea: dostop do datotek, lokalne podatkovne baze in nekatere predstavnostne funkcije so onemogočeni, zato se lahko strani pokvarijo ali vas odjavijo. WebSpace tega ne more zaobiti. Če želite WebSpace izvzeti, odprite Nastavitve > Zasebnost in varnost > Način zaklepa > Konfiguriraj brskanje po spletu in izklopite WebSpace."
 }

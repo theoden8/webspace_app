@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "Ամբողջ էկրանին, ներդիրների գոտի",
   "appSettingsFullscreenTabStripHidden": "Թաքնված",
   "appSettingsFullscreenTabStripAlways": "Միշտ տեսանելի",
-  "appSettingsFullscreenTabStripButton": "Ցուցադրել կոճակով"
+  "appSettingsFullscreenTabStripButton": "Ցուցադրել կոճակով",
+  "lockdownModeNoticeTitle": "iOS-ի Lockdown ռեժիմը սահմանափակում է կայքերը",
+  "lockdownModeNoticeBody": "Lockdown ռեժիմը միացված է, և iOS-ը կիրառում է այն WebSpace-ի ներսում գտնվող կայքերի վրա. ֆայլերի հասանելիությունը, տեղային տվյալների բազաները և որոշ մեդիա գործառույթներ անջատված են, ուստի կայքերը կարող են խափանվել կամ դուրս գրել ձեզ։ WebSpace-ը չի կարող շրջանցել դա։ WebSpace-ը բացառելու համար բացեք Կարգավորումներ > Գաղտնիություն և անվտանգություն > Lockdown ռեժիմ > Կարգավորել վեբ դիտարկումը և անջատեք WebSpace-ը։"
 }

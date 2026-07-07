@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "全屏时，标签栏",
   "appSettingsFullscreenTabStripHidden": "隐藏",
   "appSettingsFullscreenTabStripAlways": "始终显示",
-  "appSettingsFullscreenTabStripButton": "用按钮显示"
+  "appSettingsFullscreenTabStripButton": "用按钮显示",
+  "lockdownModeNoticeTitle": "iOS 的锁定模式正在限制网站",
+  "lockdownModeNoticeBody": "锁定模式已开启，iOS 会将其应用于 WebSpace 内的网站：文件访问、本地数据库和部分媒体功能被停用，因此网站可能出错或将你退出登录。WebSpace 无法绕过此限制。要将 WebSpace 排除在外，请打开 设置 > 隐私与安全性 > 锁定模式 > 配置网页浏览，然后关闭 WebSpace。"
 }

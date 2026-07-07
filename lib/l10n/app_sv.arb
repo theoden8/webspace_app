@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "I helskärm, flikfält",
   "appSettingsFullscreenTabStripHidden": "Dold",
   "appSettingsFullscreenTabStripAlways": "Alltid synlig",
-  "appSettingsFullscreenTabStripButton": "Visa med knapp"
+  "appSettingsFullscreenTabStripButton": "Visa med knapp",
+  "lockdownModeNoticeTitle": "Låst läge i iOS begränsar webbplatser",
+  "lockdownModeNoticeBody": "Låst läge är på, och iOS tillämpar det på webbplatser i WebSpace: filåtkomst, lokala databaser och vissa mediefunktioner är avstängda, så webbplatser kan sluta fungera eller logga ut dig. WebSpace kan inte kringgå detta. För att undanta WebSpace, öppna Inställningar > Integritet och säkerhet > Låst läge > Konfigurera webbsurfning och stäng av WebSpace."
 }

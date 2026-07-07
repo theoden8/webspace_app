@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "במסך מלא, סרגל כרטיסיות",
   "appSettingsFullscreenTabStripHidden": "מוסתר",
   "appSettingsFullscreenTabStripAlways": "תמיד גלוי",
-  "appSettingsFullscreenTabStripButton": "הצג בעזרת כפתור"
+  "appSettingsFullscreenTabStripButton": "הצג בעזרת כפתור",
+  "lockdownModeNoticeTitle": "מצב הנעילה של iOS מגביל אתרים",
+  "lockdownModeNoticeBody": "מצב הנעילה פעיל, ו‑iOS מחיל אותו על אתרים בתוך WebSpace: גישה לקבצים, מסדי נתונים מקומיים וחלק מיכולות המדיה מושבתים, ולכן אתרים עלולים להישבר או לנתק אותך. WebSpace אינו יכול לעקוף זאת. כדי להחריג את WebSpace, פתחו הגדרות > פרטיות ואבטחה > מצב נעילה > הגדרת גלישה באינטרנט וכבו את WebSpace."
 }

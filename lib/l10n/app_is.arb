@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "Í fullum skjá, flipastika",
   "appSettingsFullscreenTabStripHidden": "Falin",
   "appSettingsFullscreenTabStripAlways": "Alltaf sýnileg",
-  "appSettingsFullscreenTabStripButton": "Birta með hnappi"
+  "appSettingsFullscreenTabStripButton": "Birta með hnappi",
+  "lockdownModeNoticeTitle": "Lockdown-stilling iOS takmarkar vefsíður",
+  "lockdownModeNoticeBody": "Lockdown-stilling er virk og iOS beitir henni á vefsíður innan WebSpace: skráaraðgangur, staðbundnir gagnagrunnar og sumir margmiðlunareiginleikar eru óvirkir, svo síður geta bilað eða skráð þig út. WebSpace getur ekki komist fram hjá þessu. Til að undanskilja WebSpace skaltu opna Stillingar > Persónuvernd og öryggi > Lockdown-stilling > Stilla vefskoðun og slökkva á WebSpace."
 }

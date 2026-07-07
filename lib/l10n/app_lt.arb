@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "Viso ekrano režime, kortelių juosta",
   "appSettingsFullscreenTabStripHidden": "Paslėpta",
   "appSettingsFullscreenTabStripAlways": "Visada matoma",
-  "appSettingsFullscreenTabStripButton": "Rodyti mygtuku"
+  "appSettingsFullscreenTabStripButton": "Rodyti mygtuku",
+  "lockdownModeNoticeTitle": "iOS užrakinimo režimas riboja svetaines",
+  "lockdownModeNoticeBody": "Užrakinimo režimas įjungtas, ir iOS jį taiko svetainėms WebSpace viduje: failų prieiga, vietinės duomenų bazės ir kai kurios medijos funkcijos išjungtos, todėl svetainės gali sugesti arba jus atjungti. WebSpace negali to apeiti. Norėdami išskirti WebSpace, atidarykite Nustatymai > Privatumas ir saugumas > Užrakinimo režimas > Konfigūruoti naršymą žiniatinklyje ir išjunkite WebSpace."
 }

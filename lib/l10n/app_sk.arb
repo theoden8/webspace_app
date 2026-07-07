@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "Na celej obrazovke, panel kariet",
   "appSettingsFullscreenTabStripHidden": "Skrytý",
   "appSettingsFullscreenTabStripAlways": "Vždy viditeľný",
-  "appSettingsFullscreenTabStripButton": "Zobraziť tlačidlom"
+  "appSettingsFullscreenTabStripButton": "Zobraziť tlačidlom",
+  "lockdownModeNoticeTitle": "Režim blokovania v iOS obmedzuje webové stránky",
+  "lockdownModeNoticeBody": "Režim blokovania je zapnutý a iOS ho uplatňuje na webové stránky vo WebSpace: prístup k súborom, lokálne databázy a niektoré mediálne funkcie sú vypnuté, takže stránky môžu prestať fungovať alebo vás odhlásiť. WebSpace to nemôže obísť. Ak chcete WebSpace vyňať, otvorte Nastavenia > Súkromie a bezpečnosť > Režim blokovania > Nastaviť prehliadanie webu a WebSpace vypnite."
 }

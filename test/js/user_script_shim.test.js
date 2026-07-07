@@ -325,13 +325,13 @@ test('whitelisted src is fetched once; a repeat append dedupes and still fires o
   assert.ok(onloadFired, 'the dedup path must still fire onload for the caller');
 });
 
-// ── FileReader polyfill (WKWebView missing-constructor mitigation) ──
+// ── FileReader polyfill (iOS Lockdown Mode mitigation) ──
 //
-// iOS WKWebView has been observed to throw "ReferenceError: Can't find
-// variable: FileReader" from page-context code — DarkReader hits it in
-// readResponseAsDataURL for every image it inlines after fetching it
-// through __wsFetch. The shim installs a minimal FileReader only when
-// the native one is absent.
+// iOS Lockdown Mode strips the File API from every third-party app's
+// WKWebViews, so page code throws "ReferenceError: Can't find variable:
+// FileReader" — DarkReader hits it in readResponseAsDataURL for every
+// image it inlines after fetching it through __wsFetch. The shim
+// installs a minimal FileReader only when the native one is absent.
 
 function setupNoFileReader() {
   const dom = makeDom({ url: 'https://linkedin.example/' });

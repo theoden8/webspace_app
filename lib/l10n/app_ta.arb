@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "முழுத்திரையில், தாவல் பட்டி",
   "appSettingsFullscreenTabStripHidden": "மறைக்கப்பட்டது",
   "appSettingsFullscreenTabStripAlways": "எப்போதும் தெரியும்",
-  "appSettingsFullscreenTabStripButton": "பொத்தானால் காட்டு"
+  "appSettingsFullscreenTabStripButton": "பொத்தானால் காட்டு",
+  "lockdownModeNoticeTitle": "iOS இன் Lockdown Mode இணையதளங்களை கட்டுப்படுத்துகிறது",
+  "lockdownModeNoticeBody": "Lockdown Mode இயக்கத்தில் உள்ளது, iOS அதை WebSpace உள்ளே உள்ள இணையதளங்களுக்கும் பயன்படுத்துகிறது: கோப்பு அணுகல், உள்ளூர் தரவுத்தளங்கள் மற்றும் சில மீடியா அம்சங்கள் முடக்கப்பட்டுள்ளன, எனவே தளங்கள் செயலிழக்கலாம் அல்லது உங்களை வெளியேற்றலாம். WebSpace இதைத் தவிர்க்க முடியாது. WebSpace-ஐ விலக்க Settings > Privacy & Security > Lockdown Mode > Configure Web Browsing திறந்து WebSpace-ஐ அணைக்கவும்."
 }

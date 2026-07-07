@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "Бүтэн дэлгэцэд, таб самбар",
   "appSettingsFullscreenTabStripHidden": "Нуусан",
   "appSettingsFullscreenTabStripAlways": "Үргэлж харагдана",
-  "appSettingsFullscreenTabStripButton": "Товчоор харуулах"
+  "appSettingsFullscreenTabStripButton": "Товчоор харуулах",
+  "lockdownModeNoticeTitle": "iOS-ийн Lockdown горим вэбсайтуудыг хязгаарлаж байна",
+  "lockdownModeNoticeBody": "Lockdown горим асаалттай бөгөөд iOS үүнийг WebSpace доторх вэбсайтуудад мөн хэрэглэнэ: файлын хандалт, локал өгөгдлийн сан болон зарим медиа боломжууд идэвхгүй тул сайтууд эвдрэх эсвэл таныг гаргаж болно. WebSpace үүнийг тойрч чадахгүй. WebSpace-г хасахын тулд Тохиргоо > Нууцлал ба аюулгүй байдал > Lockdown горим > Вэб хөтөчийг тохируулах хэсгийг нээж WebSpace-г унтраана уу."
 }

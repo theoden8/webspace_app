@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "На цел екран, лента со јазичиња",
   "appSettingsFullscreenTabStripHidden": "Скриено",
   "appSettingsFullscreenTabStripAlways": "Секогаш видливо",
-  "appSettingsFullscreenTabStripButton": "Прикажи со копче"
+  "appSettingsFullscreenTabStripButton": "Прикажи со копче",
+  "lockdownModeNoticeTitle": "Режимот на заклучување на iOS ги ограничува веб-страниците",
+  "lockdownModeNoticeBody": "Режимот на заклучување е вклучен и iOS го применува на веб-страниците во WebSpace: пристапот до датотеки, локалните бази на податоци и некои медиумски функции се оневозможени, па страниците може да се расипат или да ве одјават. WebSpace не може да го заобиколи ова. За да го изземете WebSpace, отворете Поставки > Приватност и безбедност > Режим на заклучување > Конфигурирај прелистување на веб и исклучете го WebSpace."
 }

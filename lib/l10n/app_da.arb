@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "I fuld skærm, fanebjælke",
   "appSettingsFullscreenTabStripHidden": "Skjult",
   "appSettingsFullscreenTabStripAlways": "Altid synlig",
-  "appSettingsFullscreenTabStripButton": "Vis med knap"
+  "appSettingsFullscreenTabStripButton": "Vis med knap",
+  "lockdownModeNoticeTitle": "iOS' Lockdown-tilstand begrænser websteder",
+  "lockdownModeNoticeBody": "Lockdown-tilstand er slået til, og iOS anvender den på websteder i WebSpace: filadgang, lokale databaser og visse mediefunktioner er slået fra, så websteder kan gå i stykker eller logge dig ud. WebSpace kan ikke omgå dette. For at undtage WebSpace skal du åbne Indstillinger > Anonymitet og sikkerhed > Lockdown-tilstand > Konfigurer webbrowsing og slå WebSpace fra."
 }

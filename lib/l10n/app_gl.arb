@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "En pantalla completa, barra de lapelas",
   "appSettingsFullscreenTabStripHidden": "Agochada",
   "appSettingsFullscreenTabStripAlways": "Sempre visible",
-  "appSettingsFullscreenTabStripButton": "Mostrar cun botón"
+  "appSettingsFullscreenTabStripButton": "Mostrar cun botón",
+  "lockdownModeNoticeTitle": "O modo de illamento de iOS está a limitar os sitios web",
+  "lockdownModeNoticeBody": "O modo de illamento está activado e iOS aplícao aos sitios web dentro de WebSpace: o acceso a ficheiros, as bases de datos locais e algunhas funcións multimedia están desactivados, polo que os sitios poden fallar ou pecharche a sesión. WebSpace non pode evitalo. Para excluír WebSpace, abre Axustes > Privacidade e seguranza > Modo de illamento > Configurar a navegación web e desactiva WebSpace."
 }

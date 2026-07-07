@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "In volskerm, oortjiebalk",
   "appSettingsFullscreenTabStripHidden": "Versteek",
   "appSettingsFullscreenTabStripAlways": "Altyd sigbaar",
-  "appSettingsFullscreenTabStripButton": "Wys met knoppie"
+  "appSettingsFullscreenTabStripButton": "Wys met knoppie",
+  "lockdownModeNoticeTitle": "iOS se Lockdown-modus beperk webwerwe",
+  "lockdownModeNoticeBody": "Lockdown-modus is aan, en iOS pas dit toe op webwerwe binne WebSpace: lêertoegang, plaaslike databasisse en sommige mediafunksies is gedeaktiveer, dus kan webwerwe breek of jou afmeld. WebSpace kan dit nie omseil nie. Om WebSpace uit te sluit, maak Instellings > Privaatheid en sekuriteit > Lockdown-modus > Stel webblaaiery op oop en skakel WebSpace af."
 }

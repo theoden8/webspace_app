@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "Täisekraanil, vahekaartide riba",
   "appSettingsFullscreenTabStripHidden": "Peidetud",
   "appSettingsFullscreenTabStripAlways": "Alati nähtav",
-  "appSettingsFullscreenTabStripButton": "Kuva nupuga"
+  "appSettingsFullscreenTabStripButton": "Kuva nupuga",
+  "lockdownModeNoticeTitle": "iOS-i lukustusrežiim piirab veebisaite",
+  "lockdownModeNoticeBody": "Lukustusrežiim on sisse lülitatud ja iOS rakendab seda WebSpace'i veebisaitidele: failijuurdepääs, kohalikud andmebaasid ja mõned meediumifunktsioonid on keelatud, mistõttu saidid võivad katki minna või teid välja logida. WebSpace ei saa sellest mööda minna. WebSpace'i välistamiseks avage Seaded > Privaatsus ja turvalisus > Lukustusrežiim > Seadista veebilehitsemine ja lülitage WebSpace välja."
 }

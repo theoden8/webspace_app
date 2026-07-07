@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "Σε πλήρη οθόνη, γραμμή καρτελών",
   "appSettingsFullscreenTabStripHidden": "Κρυφή",
   "appSettingsFullscreenTabStripAlways": "Πάντα ορατή",
-  "appSettingsFullscreenTabStripButton": "Εμφάνιση με κουμπί"
+  "appSettingsFullscreenTabStripButton": "Εμφάνιση με κουμπί",
+  "lockdownModeNoticeTitle": "Η Λειτουργία κλειδώματος του iOS περιορίζει τους ιστότοπους",
+  "lockdownModeNoticeBody": "Η Λειτουργία κλειδώματος είναι ενεργή και το iOS την εφαρμόζει στους ιστότοπους μέσα στο WebSpace: η πρόσβαση σε αρχεία, οι τοπικές βάσεις δεδομένων και ορισμένες λειτουργίες πολυμέσων είναι απενεργοποιημένες, οπότε οι ιστότοποι μπορεί να χαλάσουν ή να σας αποσυνδέσουν. Το WebSpace δεν μπορεί να το παρακάμψει. Για να εξαιρέσετε το WebSpace, ανοίξτε Ρυθμίσεις > Απόρρητο και ασφάλεια > Λειτουργία κλειδώματος > Διαμόρφωση περιήγησης στον Ιστό και απενεργοποιήστε το WebSpace."
 }

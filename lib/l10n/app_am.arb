@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "በሙሉ ማያ ገጽ፣ የትር አሞሌ",
   "appSettingsFullscreenTabStripHidden": "ተደብቋል",
   "appSettingsFullscreenTabStripAlways": "ሁልጊዜ የሚታይ",
-  "appSettingsFullscreenTabStripButton": "በቁልፍ አሳይ"
+  "appSettingsFullscreenTabStripButton": "በቁልፍ አሳይ",
+  "lockdownModeNoticeTitle": "የ iOS Lockdown Mode ድር ጣቢያዎችን እየገደበ ነው",
+  "lockdownModeNoticeBody": "Lockdown Mode በርቷል፣ iOS ደግሞ በ WebSpace ውስጥ ባሉ ድር ጣቢያዎች ላይ ይተገብረዋል፦ የፋይል መዳረሻ፣ አካባቢያዊ ዳታቤዞች እና አንዳንድ የሚዲያ ባህሪያት ተሰናክለዋል፤ ስለዚህ ጣቢያዎች ሊበላሹ ወይም ሊያስወጡዎት ይችላሉ። WebSpace ይህን ማለፍ አይችልም። WebSpace-ን ለማግለል ቅንብሮች > ግላዊነት እና ደህንነት > Lockdown Mode > Configure Web Browsing ይክፈቱ እና WebSpace-ን ያጥፉ።"
 }

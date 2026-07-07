@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "Teljes képernyőn, lapsáv",
   "appSettingsFullscreenTabStripHidden": "Rejtett",
   "appSettingsFullscreenTabStripAlways": "Mindig látható",
-  "appSettingsFullscreenTabStripButton": "Megjelenítés gombbal"
+  "appSettingsFullscreenTabStripButton": "Megjelenítés gombbal",
+  "lockdownModeNoticeTitle": "Az iOS Lezárási módja korlátozza a weboldalakat",
+  "lockdownModeNoticeBody": "A Lezárási mód be van kapcsolva, és az iOS a WebSpace-en belüli weboldalakra is alkalmazza: a fájlhozzáférés, a helyi adatbázisok és egyes médiafunkciók le vannak tiltva, ezért az oldalak elromolhatnak vagy kijelentkeztethetik. A WebSpace ezt nem tudja megkerülni. A WebSpace kivételéhez nyissa meg a Beállítások > Adatvédelem és biztonság > Lezárási mód > Webböngészés konfigurálása menüt, és kapcsolja ki a WebSpace-t."
 }

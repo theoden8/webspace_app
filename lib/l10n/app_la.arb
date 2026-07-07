@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "In pleno schemate, series tabularum",
   "appSettingsFullscreenTabStripHidden": "Occultata",
   "appSettingsFullscreenTabStripAlways": "Semper visibilis",
-  "appSettingsFullscreenTabStripButton": "Bulla ostendere"
+  "appSettingsFullscreenTabStripButton": "Bulla ostendere",
+  "lockdownModeNoticeTitle": "Modus Obserationis iOS paginas interretiales coercet",
+  "lockdownModeNoticeBody": "Modus Obserationis activus est, et iOS eum paginis intra WebSpace applicat: accessus plicarum, bases datorum locales et nonnullae facultates mediorum inactivae sunt, itaque paginae frangi possunt aut te exire cogere. WebSpace hoc vitare non potest. Ut WebSpace eximas, aperi Praeferentias > Secretum et Securitatem > Modum Obserationis > Navigationem Interretialem Configura et WebSpace exstingue."
 }

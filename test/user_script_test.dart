@@ -577,9 +577,9 @@ void main() {
     });
 
     test('shim carries the FileReader polyfill for WKWebView', () {
-      // iOS WKWebView has been observed to lack FileReader in the page
-      // context, which breaks DarkReader's readResponseAsDataURL. The
-      // polyfill must stay typeof-guarded so a native FileReader wins.
+      // iOS Lockdown Mode strips the File API from the app's webviews,
+      // which breaks DarkReader's readResponseAsDataURL. The polyfill
+      // must stay typeof-guarded so a native FileReader wins.
       final service = UserScriptService(scripts: [
         UserScriptConfig(name: 't', source: 'noop;', enabled: true),
       ]);

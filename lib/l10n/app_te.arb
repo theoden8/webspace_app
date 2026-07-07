@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "పూర్తి స్క్రీన్‌లో, ట్యాబ్ బార్",
   "appSettingsFullscreenTabStripHidden": "దాచబడింది",
   "appSettingsFullscreenTabStripAlways": "ఎల్లప్పుడూ కనిపిస్తుంది",
-  "appSettingsFullscreenTabStripButton": "బటన్‌తో చూపించు"
+  "appSettingsFullscreenTabStripButton": "బటన్‌తో చూపించు",
+  "lockdownModeNoticeTitle": "iOS యొక్క Lockdown Mode వెబ్‌సైట్లను పరిమితం చేస్తోంది",
+  "lockdownModeNoticeBody": "Lockdown Mode ఆన్‌లో ఉంది, iOS దాన్ని WebSpace లోపలి వెబ్‌సైట్లకూ వర్తింపజేస్తుంది: ఫైల్ యాక్సెస్, లోకల్ డేటాబేస్‌లు మరియు కొన్ని మీడియా ఫీచర్లు నిలిపివేయబడ్డాయి, కాబట్టి సైట్లు పాడవవచ్చు లేదా మిమ్మల్ని సైన్ అవుట్ చేయవచ్చు. WebSpace ఈ పరిమితిని దాటలేకపోతుంది. WebSpace‑ను మినహాయించడానికి Settings > Privacy & Security > Lockdown Mode > Configure Web Browsing తెరిచి WebSpace‑ను ఆఫ్ చేయండి."
 }

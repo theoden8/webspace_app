@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "全画面でのタブバー",
   "appSettingsFullscreenTabStripHidden": "非表示",
   "appSettingsFullscreenTabStripAlways": "常に表示",
-  "appSettingsFullscreenTabStripButton": "ボタンで表示"
+  "appSettingsFullscreenTabStripButton": "ボタンで表示",
+  "lockdownModeNoticeTitle": "iOSのロックダウンモードがWebサイトを制限しています",
+  "lockdownModeNoticeBody": "ロックダウンモードが有効なため、iOSはWebSpace内のWebサイトにも適用します。ファイルアクセス、ローカルデータベース、一部のメディア機能が無効になるため、サイトが正常に動作しなかったり、ログアウトされたりすることがあります。WebSpaceはこれを回避できません。WebSpaceを除外するには、設定 > プライバシーとセキュリティ > ロックダウンモード > Webブラウズを設定 を開き、WebSpaceをオフにしてください。"
 }

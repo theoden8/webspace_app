@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "სრულ ეკრანზე, ჩანართების ზოლი",
   "appSettingsFullscreenTabStripHidden": "დამალული",
   "appSettingsFullscreenTabStripAlways": "ყოველთვის ხილული",
-  "appSettingsFullscreenTabStripButton": "ღილაკით გამოჩენა"
+  "appSettingsFullscreenTabStripButton": "ღილაკით გამოჩენა",
+  "lockdownModeNoticeTitle": "iOS-ის Lockdown რეჟიმი ზღუდავს ვებსაიტებს",
+  "lockdownModeNoticeBody": "Lockdown რეჟიმი ჩართულია და iOS მას WebSpace-ის შიგნით არსებულ ვებსაიტებზეც იყენებს: ფაილებზე წვდომა, ლოკალური მონაცემთა ბაზები და ზოგიერთი მედია-ფუნქცია გამორთულია, ამიტომ საიტები შეიძლება გაფუჭდეს ან სისტემიდან გაგიყვანოთ. WebSpace ამას ვერ გვერდს აუვლის. WebSpace-ის გამოსარიცხად გახსენით პარამეტრები > კონფიდენციალურობა და უსაფრთხოება > Lockdown რეჟიმი > ვებ-ბრაუზინგის კონფიგურაცია და გამორთეთ WebSpace."
 }

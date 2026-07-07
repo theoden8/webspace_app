@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "На весь екран, панель вкладок",
   "appSettingsFullscreenTabStripHidden": "Прихована",
   "appSettingsFullscreenTabStripAlways": "Завжди видима",
-  "appSettingsFullscreenTabStripButton": "Показувати кнопкою"
+  "appSettingsFullscreenTabStripButton": "Показувати кнопкою",
+  "lockdownModeNoticeTitle": "Режим блокування iOS обмежує вебсайти",
+  "lockdownModeNoticeBody": "Режим блокування ввімкнено, і iOS застосовує його до вебсайтів у WebSpace: доступ до файлів, локальні бази даних і деякі медіафункції вимкнено, тому сайти можуть ламатися або завершувати ваш сеанс. WebSpace не може це обійти. Щоб виключити WebSpace, відкрийте Параметри > Конфіденційність і безпека > Режим блокування > Налаштувати вебперегляд і вимкніть WebSpace."
 }

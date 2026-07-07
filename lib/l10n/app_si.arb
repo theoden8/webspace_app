@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "සම්පූර්ණ තිරයේ, ටැබ් තීරුව",
   "appSettingsFullscreenTabStripHidden": "සැඟවී ඇත",
   "appSettingsFullscreenTabStripAlways": "සැමවිටම දෘශ්‍යමාන",
-  "appSettingsFullscreenTabStripButton": "බොත්තමෙන් පෙන්වන්න"
+  "appSettingsFullscreenTabStripButton": "බොත්තමෙන් පෙන්වන්න",
+  "lockdownModeNoticeTitle": "iOS හි Lockdown Mode වෙබ් අඩවි සීමා කරමින් පවතී",
+  "lockdownModeNoticeBody": "Lockdown Mode සක්‍රීයයි, iOS එය WebSpace තුළ ඇති වෙබ් අඩවිවලටද යොදයි: ගොනු ප්‍රවේශය, දේශීය දත්ත සමුදායන් සහ සමහර මාධ්‍ය විශේෂාංග අක්‍රීයයි, එබැවින් අඩවි බිඳ වැටිය හැක හෝ ඔබව ඉවත් කළ හැක. WebSpace මෙය මගහැරිය නොහැක. WebSpace බැහැර කිරීමට Settings > Privacy & Security > Lockdown Mode > Configure Web Browsing විවෘත කර WebSpace අක්‍රීය කරන්න."
 }

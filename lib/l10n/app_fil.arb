@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "Sa full screen, tab bar",
   "appSettingsFullscreenTabStripHidden": "Nakatago",
   "appSettingsFullscreenTabStripAlways": "Palaging nakikita",
-  "appSettingsFullscreenTabStripButton": "Ipakita gamit ang button"
+  "appSettingsFullscreenTabStripButton": "Ipakita gamit ang button",
+  "lockdownModeNoticeTitle": "Nililimitahan ng Lockdown Mode ng iOS ang mga website",
+  "lockdownModeNoticeBody": "Naka-on ang Lockdown Mode, at inaaplay ito ng iOS sa mga website sa loob ng WebSpace: naka-disable ang file access, mga lokal na database at ilang feature ng media, kaya maaaring masira ang mga site o ma-sign out ka. Hindi ito malalampasan ng WebSpace. Para i-exempt ang WebSpace, buksan ang Settings > Privacy & Security > Lockdown Mode > Configure Web Browsing at i-off ang WebSpace."
 }

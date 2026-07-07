@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "Pe ecran complet, bara de file",
   "appSettingsFullscreenTabStripHidden": "Ascunsă",
   "appSettingsFullscreenTabStripAlways": "Întotdeauna vizibilă",
-  "appSettingsFullscreenTabStripButton": "Afișează cu un buton"
+  "appSettingsFullscreenTabStripButton": "Afișează cu un buton",
+  "lockdownModeNoticeTitle": "Modul de blocare din iOS limitează site-urile web",
+  "lockdownModeNoticeBody": "Modul de blocare este activat, iar iOS îl aplică site-urilor din WebSpace: accesul la fișiere, bazele de date locale și unele funcții media sunt dezactivate, așa că site-urile se pot strica sau vă pot deconecta. WebSpace nu poate ocoli acest lucru. Pentru a exclude WebSpace, deschideți Configurări > Confidențialitate și securitate > Mod de blocare > Configurați navigarea web și dezactivați WebSpace."
 }

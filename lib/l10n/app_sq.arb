@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "Në ekran të plotë, shiriti i skedave",
   "appSettingsFullscreenTabStripHidden": "I fshehur",
   "appSettingsFullscreenTabStripAlways": "Gjithmonë i dukshëm",
-  "appSettingsFullscreenTabStripButton": "Shfaq me buton"
+  "appSettingsFullscreenTabStripButton": "Shfaq me buton",
+  "lockdownModeNoticeTitle": "Modaliteti Lockdown i iOS po kufizon sajtet",
+  "lockdownModeNoticeBody": "Modaliteti Lockdown është i aktivizuar dhe iOS e zbaton atë te sajtet brenda WebSpace: qasja te skedarët, bazat lokale të të dhënave dhe disa veçori mediatike janë çaktivizuar, prandaj sajtet mund të prishen ose t'ju çkyçin. WebSpace nuk mund ta anashkalojë këtë. Për të përjashtuar WebSpace, hapni Cilësimet > Privatësia dhe siguria > Modaliteti Lockdown > Konfiguro shfletimin e uebit dhe fikeni WebSpace."
 }

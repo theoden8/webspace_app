@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "در تمام‌صفحه، نوار زبانه‌ها",
   "appSettingsFullscreenTabStripHidden": "پنهان",
   "appSettingsFullscreenTabStripAlways": "همیشه نمایان",
-  "appSettingsFullscreenTabStripButton": "نمایش با دکمه"
+  "appSettingsFullscreenTabStripButton": "نمایش با دکمه",
+  "lockdownModeNoticeTitle": "حالت Lockdown در iOS وب‌سایت‌ها را محدود می‌کند",
+  "lockdownModeNoticeBody": "حالت Lockdown روشن است و iOS آن را روی وب‌سایت‌های داخل WebSpace اعمال می‌کند: دسترسی به فایل، پایگاه‌های داده محلی و برخی قابلیت‌های رسانه‌ای غیرفعال‌اند، بنابراین ممکن است سایت‌ها خراب شوند یا شما را خارج کنند. WebSpace نمی‌تواند این محدودیت را دور بزند. برای مستثنا کردن WebSpace، تنظیمات > حریم خصوصی و امنیت > حالت Lockdown > پیکربندی مرور وب را باز کنید و WebSpace را خاموش کنید."
 }

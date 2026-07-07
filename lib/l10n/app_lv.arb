@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "Pilnekrānā, ciļņu josla",
   "appSettingsFullscreenTabStripHidden": "Slēpta",
   "appSettingsFullscreenTabStripAlways": "Vienmēr redzama",
-  "appSettingsFullscreenTabStripButton": "Rādīt ar pogu"
+  "appSettingsFullscreenTabStripButton": "Rādīt ar pogu",
+  "lockdownModeNoticeTitle": "iOS bloķēšanas režīms ierobežo vietnes",
+  "lockdownModeNoticeBody": "Bloķēšanas režīms ir ieslēgts, un iOS to piemēro vietnēm WebSpace iekšienē: piekļuve failiem, lokālās datubāzes un dažas multivides funkcijas ir atspējotas, tāpēc vietnes var nedarboties vai jūs izrakstīt. WebSpace to nevar apiet. Lai izslēgtu WebSpace no ierobežojuma, atveriet Iestatījumi > Privātums un drošība > Bloķēšanas režīms > Konfigurēt tīmekļa pārlūkošanu un izslēdziet WebSpace."
 }

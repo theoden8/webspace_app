@@ -3185,5 +3185,13 @@
   "appSettingsContentBlockerHint": "Blocks ads, trackers, and unwanted page elements using filter lists like EasyList. Supports domain-level blocking, CSS cosmetic filters to hide page elements, and text-based hiding rules. Enable or disable individual filter lists below, and toggle content blocking per-site in each site's settings.",
   "@appSettingsContentBlockerHint": {
     "description": "Info dialog explaining the content blocker: it blocks ads, trackers, and unwanted page elements using filter lists like EasyList, supports domain, CSS cosmetic, and text-hiding rules, and is toggled on per-site."
+  },
+  "lockdownModeNoticeTitle": "iOS Lockdown Mode is limiting websites",
+  "@lockdownModeNoticeTitle": {
+    "description": "Title of the one-time dialog shown on iOS when system Lockdown Mode is enabled, warning that it restricts websites inside the app."
+  },
+  "lockdownModeNoticeBody": "Lockdown Mode is on, and iOS applies it to websites inside WebSpace: file access, local databases and some media features are disabled, so sites may break or sign you out. WebSpace cannot bypass this. To exempt WebSpace, open Settings > Privacy & Security > Lockdown Mode > Configure Web Browsing and turn WebSpace off.",
+  "@lockdownModeNoticeBody": {
+    "description": "Body of the Lockdown Mode dialog: iOS Lockdown Mode disables web features (file access, local databases, media) inside the app's webviews, sites may break or sign the user out, the app cannot bypass it, and the user can exclude WebSpace via Settings > Privacy & Security > Lockdown Mode > Configure Web Browsing. Keep the Settings path recognizable for iOS users of this locale."
   }
 }

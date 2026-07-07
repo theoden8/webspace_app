@@ -77,6 +77,7 @@ import 'package:webspace/services/share_intent_service.dart';
 import 'package:webspace/services/link_routing_service.dart';
 import 'package:webspace/services/link_intent_dispatch_engine.dart';
 import 'package:webspace/screens/link_handling_settings.dart';
+import 'package:webspace/services/lockdown_mode_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/services/notification_service.dart';
@@ -4236,6 +4237,45 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (_anyNotificationSites()) {
       unawaited(BackgroundTaskService.instance.scheduleNextRefresh());
     }
+
+    // iOS Lockdown Mode strips web APIs (FileReader, IndexedDB, WebGL, Web
+    // Audio, WASM) from the app's webviews and the app cannot opt out —
+    // sites break in ways that look like WebSpace bugs (see BUG-004's
+    // LinkedIn logout). Surface it once so the restriction is attributable.
+    unawaited(_maybeShowLockdownModeNotice());
+  }
+
+  static const _kLockdownNoticeShownPrefKey = 'lockdownModeNoticeShown';
+
+  /// One-time (per Lockdown-Mode-enable episode) notice that iOS Lockdown
+  /// Mode is restricting the app's webviews, with the Settings path to
+  /// exclude WebSpace. The marker clears while Lockdown Mode is off so
+  /// re-enabling it later re-surfaces the notice.
+  Future<void> _maybeShowLockdownModeNotice() async {
+    final enabled =
+        await LockdownModeService.instance.isLockdownModeEnabled();
+    final prefs = await SharedPreferences.getInstance();
+    if (!enabled) {
+      await prefs.remove(_kLockdownNoticeShownPrefKey);
+      return;
+    }
+    if (prefs.getBool(_kLockdownNoticeShownPrefKey) == true) return;
+    if (!mounted) return;
+    final loc = AppLocalizations.of(context);
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(loc.lockdownModeNoticeTitle),
+        content: Text(loc.lockdownModeNoticeBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(loc.commonOk),
+          ),
+        ],
+      ),
+    );
+    await prefs.setBool(_kLockdownNoticeShownPrefKey, true);
   }
 
   /// Decrypt the cached/imported HTML for one site into memory before its

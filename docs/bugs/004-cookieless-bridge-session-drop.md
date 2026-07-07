@@ -1,6 +1,6 @@
 # BUG-004: Logged-in site drops the session after a bridge-retried fetch
 
-**Status:** open (fallback now scoped to cross-site GET/HEAD; LinkedIn instance unconfirmed)
+**Status:** open (fallback now scoped to cross-site GET/HEAD; the LinkedIn logout report turned out to be iOS Lockdown Mode, not this bug — see below)
 **Platform:** all (shim behavior; only sites with user scripts enabled)
 **Spec:** [openspec/specs/user-scripts/spec.md](../../openspec/specs/user-scripts/spec.md) — shim bullet 3
 **Tests:** [test/js/user_script_shim.test.js](../../test/js/user_script_shim.test.js) (fetch-fallback scoping group)
@@ -48,18 +48,26 @@ requires method GET/HEAD and `credentials !== 'include'`.
 **Why:** Extends Attempt 1's invariant to every request that can carry session state.
 The shim's legitimate fallback consumer — DarkReader fetching page CSS from CDN
 domains (`static.licdn.com` from `linkedin.com`) — is cross-site and unaffected.
-**Why partial (known gaps):** (a) The LinkedIn logout instance is diagnosed from the
-mechanism, not reproduced; if it persists with user scripts disabled the cause is
-elsewhere. (b) `XMLHttpRequest` and `EventSource` failures are not covered (nothing
-retries them today, but a future "helpful" fallback there would reopen the bug).
-(c) Legit cross-site fallbacks still drop request headers (Accept, Range), which can
-return subtly wrong resources.
+**Why partial (known gaps):** (a) `XMLHttpRequest` and `EventSource` failures are not
+covered (nothing retries them today, but a future "helpful" fallback there would
+reopen the bug). (b) Legit cross-site fallbacks still drop request headers (Accept,
+Range), which can return subtly wrong resources.
+
+### Postscript — the LinkedIn logout report was NOT this bug
+
+The 2026-07-07 report (LinkedIn logging the user out on opening a messages
+conversation, iOS) reproduced with the site's user scripts disabled — i.e. with the
+shim, and therefore this fallback, entirely absent. The actual cause was **iOS
+Lockdown Mode** (user-confirmed enabled): it strips FileReader, IndexedDB, WebGL,
+Web Audio, WASM and JIT from every third-party app's WKWebViews, and LinkedIn's
+messaging client fails hard in that environment. The app cannot opt out (requires
+the `com.apple.developer.web-browser` entitlement); the user-side fix is Settings >
+Privacy & Security > Lockdown Mode > Configure Web Browsing > exclude WebSpace.
+`LockdownModeService` + a one-time startup notice now surface this. The Attempt 2
+scoping stands on its own merits regardless.
 
 ## Known open gaps
 
-- Confirm or rule out the LinkedIn messaging logout with a dev-tools console log at
-  the logout moment and an A/B with the site's user scripts disabled (the shim only
-  installs when a user script is enabled on the site).
 - The last-two-labels heuristic misclassifies `foo.co.uk` vs `bar.co.uk` as
   same-site, disabling the fallback there; correct behavior needs a public-suffix
   list, which is not worth shipping in the shim unless a real site regresses.

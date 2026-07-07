@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "Tam ekranda, sekme çubuğu",
   "appSettingsFullscreenTabStripHidden": "Gizli",
   "appSettingsFullscreenTabStripAlways": "Her zaman görünür",
-  "appSettingsFullscreenTabStripButton": "Düğmeyle göster"
+  "appSettingsFullscreenTabStripButton": "Düğmeyle göster",
+  "lockdownModeNoticeTitle": "iOS Kilitleme Modu web sitelerini kısıtlıyor",
+  "lockdownModeNoticeBody": "Kilitleme Modu açık ve iOS bunu WebSpace içindeki web sitelerine de uyguluyor: dosya erişimi, yerel veritabanları ve bazı medya özellikleri devre dışı; bu yüzden siteler bozulabilir veya oturumunuzu kapatabilir. WebSpace bunu aşamaz. WebSpace'i hariç tutmak için Ayarlar > Gizlilik ve Güvenlik > Kilitleme Modu > Web'de Gezinmeyi Yapılandır bölümünü açın ve WebSpace'i kapatın."
 }

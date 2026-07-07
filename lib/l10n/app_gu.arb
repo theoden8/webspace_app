@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "પૂર્ણ સ્ક્રીનમાં, ટૅબ બાર",
   "appSettingsFullscreenTabStripHidden": "છુપાયેલ",
   "appSettingsFullscreenTabStripAlways": "હંમેશા દૃશ્યમાન",
-  "appSettingsFullscreenTabStripButton": "બટન વડે બતાવો"
+  "appSettingsFullscreenTabStripButton": "બટન વડે બતાવો",
+  "lockdownModeNoticeTitle": "iOS નું Lockdown Mode વેબસાઇટ્સને મર્યાદિત કરી રહ્યું છે",
+  "lockdownModeNoticeBody": "Lockdown Mode ચાલુ છે, અને iOS તેને WebSpace ની અંદરની વેબસાઇટ્સ પર લાગુ કરે છે: ફાઇલ ઍક્સેસ, લોકલ ડેટાબેઝ અને કેટલીક મીડિયા સુવિધાઓ બંધ છે, તેથી સાઇટ્સ બગડી શકે છે અથવા તમને સાઇન આઉટ કરી શકે છે. WebSpace આને ટાળી શકતું નથી. WebSpace ને બાકાત રાખવા માટે Settings > Privacy & Security > Lockdown Mode > Configure Web Browsing ખોલો અને WebSpace બંધ કરો."
 }

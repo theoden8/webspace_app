@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "全螢幕時，分頁列",
   "appSettingsFullscreenTabStripHidden": "隱藏",
   "appSettingsFullscreenTabStripAlways": "永遠顯示",
-  "appSettingsFullscreenTabStripButton": "用按鈕顯示"
+  "appSettingsFullscreenTabStripButton": "用按鈕顯示",
+  "lockdownModeNoticeTitle": "iOS 的鎖定模式正在限制網站",
+  "lockdownModeNoticeBody": "鎖定模式已開啟，iOS 會將其套用於 WebSpace 內的網站：檔案存取、本機資料庫和部分媒體功能已停用，因此網站可能故障或將你登出。WebSpace 無法繞過此限制。若要將 WebSpace 排除，請打開 設定 > 隱私權與安全性 > 鎖定模式 > 設定網頁瀏覽，然後關閉 WebSpace。"
 }

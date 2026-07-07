@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "전체 화면에서 탭 바",
   "appSettingsFullscreenTabStripHidden": "숨김",
   "appSettingsFullscreenTabStripAlways": "항상 표시",
-  "appSettingsFullscreenTabStripButton": "버튼으로 표시"
+  "appSettingsFullscreenTabStripButton": "버튼으로 표시",
+  "lockdownModeNoticeTitle": "iOS 잠금 모드가 웹 사이트를 제한하고 있습니다",
+  "lockdownModeNoticeBody": "잠금 모드가 켜져 있고 iOS는 이를 WebSpace 내의 웹 사이트에도 적용합니다. 파일 접근, 로컬 데이터베이스, 일부 미디어 기능이 비활성화되어 사이트가 오작동하거나 로그아웃될 수 있습니다. WebSpace는 이를 우회할 수 없습니다. WebSpace를 제외하려면 설정 > 개인정보 보호 및 보안 > 잠금 모드 > 웹 브라우징 구성을 열고 WebSpace를 끄십시오."
 }

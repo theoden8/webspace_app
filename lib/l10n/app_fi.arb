@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "Koko näytössä, välilehtipalkki",
   "appSettingsFullscreenTabStripHidden": "Piilotettu",
   "appSettingsFullscreenTabStripAlways": "Aina näkyvissä",
-  "appSettingsFullscreenTabStripButton": "Näytä painikkeella"
+  "appSettingsFullscreenTabStripButton": "Näytä painikkeella",
+  "lockdownModeNoticeTitle": "iOS:n lukitustila rajoittaa verkkosivustoja",
+  "lockdownModeNoticeBody": "Lukitustila on käytössä, ja iOS soveltaa sitä WebSpacen sisällä oleviin verkkosivustoihin: tiedostojen käyttö, paikalliset tietokannat ja jotkin mediaominaisuudet on poistettu käytöstä, joten sivustot voivat rikkoutua tai kirjata sinut ulos. WebSpace ei voi ohittaa tätä. Jos haluat jättää WebSpacen rajoituksen ulkopuolelle, avaa Asetukset > Tietosuoja ja turvallisuus > Lukitustila > Määritä verkon selaus ja poista WebSpace käytöstä."
 }

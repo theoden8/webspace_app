@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "На пуном екрану, трака картица",
   "appSettingsFullscreenTabStripHidden": "Скривено",
   "appSettingsFullscreenTabStripAlways": "Увек видљиво",
-  "appSettingsFullscreenTabStripButton": "Прикажи дугметом"
+  "appSettingsFullscreenTabStripButton": "Прикажи дугметом",
+  "lockdownModeNoticeTitle": "iOS режим закључавања ограничава веб-сајтове",
+  "lockdownModeNoticeBody": "Режим закључавања је укључен, а iOS га примењује на веб-сајтове унутар WebSpace-а: приступ датотекама, локалне базе података и неке медијске функције су онемогућени, па сајтови могу да се покваре или да вас одјаве. WebSpace то не може да заобиђе. Да бисте изузели WebSpace, отворите Подешавања > Приватност и безбедност > Режим закључавања > Конфигуриши прегледање веба и искључите WebSpace."
 }

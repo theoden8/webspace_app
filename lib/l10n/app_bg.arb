@@ -654,5 +654,7 @@
   "appSettingsFullscreenTabStrip": "На цял екран, лента с раздели",
   "appSettingsFullscreenTabStripHidden": "Скрита",
   "appSettingsFullscreenTabStripAlways": "Винаги видима",
-  "appSettingsFullscreenTabStripButton": "Показване с бутон"
+  "appSettingsFullscreenTabStripButton": "Показване с бутон",
+  "lockdownModeNoticeTitle": "Режимът на блокиране на iOS ограничава уебсайтовете",
+  "lockdownModeNoticeBody": "Режимът на блокиране е включен и iOS го прилага към уебсайтовете в WebSpace: достъпът до файлове, локалните бази данни и някои медийни функции са изключени, затова сайтовете може да се повредят или да ви отпишат. WebSpace не може да заобиколи това. За да изключите WebSpace, отворете Настройки > Поверителност и сигурност > Режим на блокиране > Конфигуриране на уеб браузването и изключете WebSpace."
 }
