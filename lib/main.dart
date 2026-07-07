@@ -2299,7 +2299,9 @@ class _WebSpacePageState extends State<WebSpacePage>
       spoofTimezoneFromLocation: model.spoofTimezoneFromLocation,
       liveLocationGranularity: model.liveLocationGranularity,
       webRtcPolicy: model.webRtcPolicy,
-      userScripts: model.userScripts,
+      userAgent: model.userAgent.isNotEmpty ? model.userAgent : null,
+      javascriptEnabled: model.javascriptEnabled,
+      userScripts: model.combineUserScripts(_globalUserScripts),
       proxySettings: model.proxySettings,
       notificationsEnabled: model.effectiveNotificationsEnabled,
       externalLinksInBrowser: model.effectiveExternalLinksInBrowser,
@@ -2553,7 +2555,11 @@ class _WebSpacePageState extends State<WebSpacePage>
       // handle, no extra materialisation needed.
       return handle;
     }
-    _materialiseArchive(handle);
+    // Must complete before returning: callers (e.g. _moveSiteToArchive)
+    // mutate handle.state.sites and _archiveSlices[handle] as soon as this
+    // returns. A fire-and-forget here races the materialisation loop
+    // (ConcurrentModificationError) and leaves the slice unregistered.
+    await _materialiseArchive(handle);
     if (mounted) setState(() {});
     return handle;
   }
@@ -2562,7 +2568,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// empty slice.
   Future<ArchiveHandle> _createArchive(String passphrase) async {
     final handle = await _archive.create(passphrase);
-    _materialiseArchive(handle);
+    await _materialiseArchive(handle);
     if (mounted) setState(() {});
     return handle;
   }
@@ -2635,6 +2641,10 @@ class _WebSpacePageState extends State<WebSpacePage>
       await _proxyPasswordStorage.saveAll(pwPatch);
     }
     final removedSet = slice.siteIds;
+    // Invalidate any in-flight `_setCurrentIndex`: removing archive rows
+    // shifts positions, and a concurrent switch bounds-checks but not by
+    // identity, so it could resume against the wrong site.
+    ++_setCurrentIndexVersion;
     if (_currentIndex != null) {
       final cur = _currentIndex!;
       if (cur < _webViewModels.length &&
@@ -4674,6 +4684,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     bool spoofTimezoneFromLocation = false,
     LocationGranularity liveLocationGranularity = LocationGranularity.gps,
     WebRtcPolicy webRtcPolicy = WebRtcPolicy.defaultPolicy,
+    String? userAgent,
+    bool javascriptEnabled = true,
     required List<UserScriptConfig> userScripts,
     UserProxySettings? proxySettings,
     bool notificationsEnabled = false,
@@ -4708,6 +4720,8 @@ class _WebSpacePageState extends State<WebSpacePage>
           spoofTimezoneFromLocation: spoofTimezoneFromLocation,
           liveLocationGranularity: liveLocationGranularity,
           webRtcPolicy: webRtcPolicy,
+          userAgent: userAgent,
+          javascriptEnabled: javascriptEnabled,
           userScripts: userScripts,
           onConfirmScriptFetch: _confirmScriptFetch,
           onProtectedMediaRequest: _promptProtectedMedia,
@@ -5208,6 +5222,10 @@ class _WebSpacePageState extends State<WebSpacePage>
 
     // Apply the imported settings
     setState(() {
+      // Invalidate any in-flight `_setCurrentIndex`/`_selectWebspace` that
+      // captured the pre-import list: the clear+replace below shifts every
+      // index out from under them.
+      ++_setCurrentIndexVersion;
       // Clear existing data
       _webViewModels.clear();
       _webspaces.clear();
@@ -6184,6 +6202,8 @@ class _WebSpacePageState extends State<WebSpacePage>
                   spoofTimezoneFromLocation: model.spoofTimezoneFromLocation,
                   liveLocationGranularity: model.liveLocationGranularity,
                   webRtcPolicy: model.webRtcPolicy,
+                  userAgent: model.userAgent.isNotEmpty ? model.userAgent : null,
+                  javascriptEnabled: model.javascriptEnabled,
                   userScripts: model.combineUserScripts(_globalUserScripts),
                   proxySettings: model.proxySettings,
                   notificationsEnabled: model.notificationsEnabled,
@@ -6815,6 +6835,12 @@ class _WebSpacePageState extends State<WebSpacePage>
       currentIndex: _currentIndex,
     );
     setState(() {
+      // Invalidate any in-flight `_setCurrentIndex`: it mutates
+      // `_loadedIndices`/`_currentIndex` by positional index and only
+      // bounds-checks after its awaits, so a concurrent switch would
+      // otherwise resume against a shifted list and activate the wrong
+      // site (cross-site cookie exposure in legacy mode).
+      ++_setCurrentIndexVersion;
       _webViewModels.removeAt(currentModelIndex);
       _loadedIndices
         ..clear()

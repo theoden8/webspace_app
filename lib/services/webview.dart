@@ -1183,12 +1183,12 @@ String _notificationPolyfillScript({
       body: String(options.body || ''),
       icon: String(options.icon || ''),
       tag: String(options.tag || ''),
-      siteId: '$siteId'
+      siteId: ${jsonEncode(siteId)}
     });
   }
   Notification.permission = permission;
   Notification.requestPermission = function(cb) {
-    var p = window.flutter_inappwebview.callHandler('webNotificationRequestPermission', {siteId: '$siteId'})
+    var p = window.flutter_inappwebview.callHandler('webNotificationRequestPermission', {siteId: ${jsonEncode(siteId)}})
       .then(function(result) { permission = result; Notification.permission = result; return result; });
     if (typeof cb === 'function') p.then(cb);
     return p;
@@ -1899,6 +1899,9 @@ class WebViewFactory {
         groupName: 'language_override',
         source: '${buildLanguageShim(config.language!)}\n;null;',
         injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+        // Must reach cross-origin iframes; otherwise a subframe reports the
+        // real OS locale, contradicting the spoofed top frame (fingerprint).
+        forMainFrameOnly: false,
       ));
     }
 
@@ -2822,7 +2825,10 @@ class WebViewFactory {
               final title = data['title'] as String? ?? '';
               final body = data['body'] as String? ?? '';
               final tag = data['tag'] as String?;
-              final siteId = data['siteId'] as String? ?? config.siteId!;
+              // Ignore any page-supplied siteId: a hostile script could
+              // otherwise attribute a notification (and its tap-target site
+              // switch) to another site the user never granted permission to.
+              final siteId = config.siteId!;
               await NotificationService.instance.show(
                 siteId: siteId,
                 title: title,

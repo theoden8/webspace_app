@@ -52,6 +52,10 @@ class InAppWebViewScreen extends StatefulWidget {
   /// over from the parent webview so cosmetic/privacy/custom scripts keep
   /// working when the user follows an outbound link into a nested screen.
   final List<UserScriptConfig> userScripts;
+  // Per-site posture that must not silently revert on the untrusted nested
+  // surface: a custom/desktop UA and a JS-disabled hardening choice.
+  final String? userAgent;
+  final bool javascriptEnabled;
   final Future<bool> Function(String url)? onConfirmScriptFetch;
   /// Protected-content (Widevine/EME) permission popup, forwarded from the
   /// parent so a DRM site followed through an outbound link prompts the
@@ -102,6 +106,8 @@ class InAppWebViewScreen extends StatefulWidget {
     this.liveLocationGranularity = LocationGranularity.gps,
     this.webRtcPolicy = WebRtcPolicy.defaultPolicy,
     this.userScripts = const [],
+    this.userAgent,
+    this.javascriptEnabled = true,
     this.onConfirmScriptFetch,
     this.onProtectedMediaRequest,
     this.onShowUrlBarChanged,
@@ -208,6 +214,8 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         // mirroring the main screen's handleRendererGone.
         onRendererGone: (didCrash) => _handleRendererGone(didCrash),
         incognito: widget.incognito,
+        javascriptEnabled: widget.javascriptEnabled,
+        userAgent: widget.userAgent,
         thirdPartyCookiesEnabled: widget.thirdPartyCookiesEnabled,
         // Mirror parent: when umbrella protection is on, force the four
         // tracker-protection subordinates effectively-on regardless of
