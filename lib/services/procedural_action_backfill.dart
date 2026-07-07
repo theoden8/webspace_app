@@ -106,6 +106,25 @@ String rewriteGenericProceduralsForBackfill(String rulesText) {
       : (rulesText.endsWith('\n') ? result : result.substring(0, result.length - 1));
 }
 
+/// Merge the real-URL procedural actions with the synthetic-host
+/// backfill under `$generichide` semantics. The backfilled set is by
+/// construction the GENERIC rules adblock-rust dropped at parse time,
+/// so a page allowlisted with `@@||host^$generichide` must not receive
+/// them — uBO disables all generic cosmetics there, procedural
+/// included. Page-scoped procedurals returned for the real URL are
+/// specific rules and always apply. Regression context: a list carrying
+/// generic `:has-text(...):remove()` rules ran on github.com despite
+/// EasyList's generichide exception and deleted DOM nodes out from
+/// under React (hydration corruption, duplicated skeleton tables).
+List<String> mergeProceduralActions({
+  required List<String> pageActions,
+  required List<String> backfilledActions,
+  required bool genericHide,
+}) =>
+    genericHide
+        ? List<String>.from(pageActions)
+        : [...pageActions, ...backfilledActions];
+
 enum _RewriteKind { none, action, filterOnly }
 
 _RewriteKind _classify(String line) {

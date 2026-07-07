@@ -317,6 +317,8 @@ class ContentBlockerService {
         'engineActive': false,
         'pageHideCount': 0,
         'pageProceduralCount': 0,
+        'genericHide': false,
+        'proceduralActions': const <String>[],
         'canaryHits': const <String>[],
       };
     }
@@ -330,6 +332,12 @@ class ContentBlockerService {
       'engineActive': true,
       'pageHideCount': ctx?.hides.length ?? 0,
       'pageProceduralCount': ctx?.proceduralActions.length ?? 0,
+      // Which procedural rules actually fire on this page, verbatim.
+      // DOM-mutating rules (`:remove()` chains) are the ones that can
+      // corrupt a React page wholesale, so the probe must show them —
+      // counts alone can't tell an innocent :style() from a :remove().
+      'genericHide': ctx?.genericHide ?? false,
+      'proceduralActions': ctx?.proceduralActions ?? const <String>[],
       'canaryHits': hits,
     };
   }
@@ -443,27 +451,38 @@ class ContentBlockerService {
     // first call covers it. Hides + exceptions from the synthetic
     // query are intentionally discarded — the real-URL query already
     // produced them via the misc-generic-selector merge.
-    if (!effectiveUrl.contains('://$kBackfillSyntheticHost')) {
+    //
+    // The backfilled set is exactly the GENERIC procedural rules
+    // adblock-rust dropped at parse time, so it is subject to the
+    // page's `$generichide` exception like every other generic
+    // cosmetic — mergeProceduralActions drops it when genericHide is
+    // set. Real-URL procedurals are hostname-scoped and always apply.
+    var backfilled = const <String>[];
+    if (!genericHide &&
+        !effectiveUrl.contains('://$kBackfillSyntheticHost')) {
       final synth = engine
           .cosmeticResources('https://$kBackfillSyntheticHost/');
       if (synth != null) {
-        final synthProc = (synth['procedural_actions'] as List? ?? const [])
+        backfilled = (synth['procedural_actions'] as List? ?? const [])
             .cast<String>();
-        procedural.addAll(synthProc);
       }
     }
     final entry = _EngineCosmeticCache(
       hides: hides,
       exceptions: exceptions,
       genericHide: genericHide,
-      proceduralActions: procedural,
+      proceduralActions: mergeProceduralActions(
+        pageActions: procedural,
+        backfilledActions: backfilled,
+        genericHide: genericHide,
+      ),
     );
     _engineCosmeticCache[pageUrl] = entry;
     LogService.instance.log('ContentBlocker',
         'engine.cosmeticResources($pageUrl) → '
         '${hides.length} hide(s), ${exceptions.length} exception(s)'
-        '${genericHide ? ", generichide" : ""}'
-        '${procedural.isNotEmpty ? ", ${procedural.length} procedural" : ""}',
+        '${genericHide ? ", generichide (generic procedurals suppressed)" : ""}'
+        '${entry.proceduralActions.isNotEmpty ? ", ${entry.proceduralActions.length} procedural" : ""}',
         level: LogLevel.debug,
         sensitivity: LogSensitivity.sensitive);
     return entry;
