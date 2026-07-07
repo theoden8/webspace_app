@@ -183,9 +183,12 @@ test('shim is idempotent — running it twice does not double-wrap', () => {
 //
 // The shim patches window.fetch to retry TypeError failures through
 // __wsFetch (the Dart bridge). That bridge carries none of the WebView's
-// cookies, so retrying a *same-origin* request there silently drops the
-// user's session (a logged-in github.com starts demanding login). The
-// fallback must be scoped to cross-origin URLs only.
+// cookies or request headers, so retrying a *session-bound* request there
+// silently drops the user's session (a logged-in github.com starts
+// demanding login; LinkedIn's messaging endpoints on same-site subdomains
+// see an unauthenticated client). The fallback must be scoped to
+// cross-SITE (different registrable domain) bodyless, non-credentialed
+// requests only — see BUG-004.
 //
 // The rejection must be a jsdom-realm TypeError: the shim runs via
 // window.eval, so its `err instanceof TypeError` checks the jsdom TypeError,
@@ -233,13 +236,45 @@ test('relative-URL fetch TypeError stays same-origin (no bridge fallback)', asyn
     'a relative URL resolves same-origin and must not fall back');
 });
 
-test('cross-origin fetch TypeError DOES fall back to __wsFetch', async () => {
+test('cross-site fetch TypeError DOES fall back to __wsFetch', async () => {
   const { dom, calls } = setupFetch({ url: 'https://github.example/' });
   try { await dom.window.fetch('https://cdn.other.example/lib.css'); } catch (_) { /* Response shape irrelevant */ }
   const fetchCalls = calls.filter(c => c[0] === FETCH_HANDLER);
   assert.strictEqual(fetchCalls.length, 1,
-    'a genuine cross-origin CORS failure should still use the bridge fallback');
+    'a genuine cross-site CORS failure should still use the bridge fallback');
   assert.strictEqual(fetchCalls[0][1], 'https://cdn.other.example/lib.css');
+});
+
+test('same-site cross-origin subdomain is NOT retried through the cookie-less bridge', async () => {
+  // Cookies scope to the registrable domain, so a subdomain request is as
+  // session-bound as a same-origin one. LinkedIn messaging talks to
+  // realtime.www.linkedin.com from www.linkedin.com — retrying it through
+  // the bridge makes LinkedIn see a logged-out client (BUG-004).
+  const { dom, calls, err } = setupFetch({ url: 'https://www.linkedin.example/' });
+  await assert.rejects(
+    dom.window.fetch('https://realtime.www.linkedin.example/realtime/connect'),
+    (e) => e === err,
+    'same-site failure must propagate unchanged, not fall back');
+  assert.strictEqual(calls.filter(c => c[0] === FETCH_HANDLER).length, 0,
+    'same-site request must never hit __wsFetch — it would look unauthenticated');
+});
+
+test('cross-site POST is NOT retried (bridge would silently convert it to GET)', async () => {
+  const { dom, calls, err } = setupFetch({ url: 'https://github.example/' });
+  await assert.rejects(
+    dom.window.fetch('https://api.other.example/submit', { method: 'POST', body: 'x' }),
+    (e) => e === err);
+  assert.strictEqual(calls.filter(c => c[0] === FETCH_HANDLER).length, 0,
+    'a POST must never be reissued as a cookie-less GET');
+});
+
+test('cross-site credentials:include is NOT retried (explicitly session-bound)', async () => {
+  const { dom, calls, err } = setupFetch({ url: 'https://github.example/' });
+  await assert.rejects(
+    dom.window.fetch('https://sso.other.example/session', { credentials: 'include' }),
+    (e) => e === err);
+  assert.strictEqual(calls.filter(c => c[0] === FETCH_HANDLER).length, 0,
+    'credentialed requests must never be reissued through the cookie-less bridge');
 });
 
 test('non-TypeError fetch rejection is never intercepted', async () => {

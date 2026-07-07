@@ -243,21 +243,42 @@ const String userScriptShimTemplate = r'''
   // failures), not application errors like 404. This avoids breaking
   // video/binary fetches that fail for non-CORS reasons.
   //
-  // Scoped to cross-origin URLs. __wsFetch reissues the request through the
-  // Dart bridge, which carries none of the WebView's cookies, so retrying a
-  // same-origin request there silently drops the user's session — a logged-in
-  // site (github.com) starts demanding login. A same-origin TypeError is a
-  // genuine network error, not CORS, so rethrow it untouched.
-  function isCrossOrigin(u) {
-    try { return new URL(u, location.href).origin !== location.origin; }
-    catch (e) { return false; }
+  // Scoped to cross-SITE URLs (different registrable domain), not merely
+  // cross-origin. __wsFetch reissues the request through the Dart bridge,
+  // which carries none of the WebView's cookies or request headers, so
+  // retrying a session-bound request there makes the site see an
+  // unauthenticated client — a logged-in site starts demanding login.
+  // Cookies scope to the registrable domain, so a same-site subdomain
+  // (www.linkedin.com -> realtime.www.linkedin.com) is just as
+  // session-bound as a same-origin URL; both must rethrow untouched.
+  // The registrable-domain heuristic is last-two-labels: under multi-part
+  // public suffixes (co.uk) it over-approximates "same site", which only
+  // disables the fallback — the safe direction.
+  //
+  // Also restricted to bodyless (GET/HEAD), non-credentialed requests:
+  // __wsFetch always issues a GET without the original init, so retrying a
+  // POST would silently convert it, and credentials:'include' explicitly
+  // marks the request session-bound regardless of site.
+  function baseDomain(host) {
+    var parts = host.toLowerCase().split('.');
+    return parts.length <= 2 ? host.toLowerCase() : parts.slice(-2).join('.');
+  }
+  function isCrossSite(u) {
+    try {
+      return baseDomain(new URL(u, location.href).hostname) !== baseDomain(location.hostname);
+    } catch (e) { return false; }
   }
   var _origFetch = window.fetch.bind(window);
   window.fetch = function(input, init) {
     return _origFetch(input, init).catch(function(err) {
       if (err instanceof TypeError) {
-        var url = typeof input === 'string' ? input : (input && input.url ? input.url : '');
-        if (isFetchableUrl(url) && isCrossOrigin(url)) {
+        var isReq = input && typeof input === 'object';
+        var url = typeof input === 'string' ? input : (isReq && input.url ? input.url : '');
+        var method = ((init && init.method) || (isReq && input.method) || 'GET').toUpperCase();
+        var credentials = (init && init.credentials) || (isReq && input.credentials) || '';
+        if (isFetchableUrl(url) && isCrossSite(url)
+            && (method === 'GET' || method === 'HEAD')
+            && credentials !== 'include') {
           return window.__wsFetch(url);
         }
       }
