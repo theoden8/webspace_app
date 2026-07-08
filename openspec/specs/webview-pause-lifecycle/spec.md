@@ -337,14 +337,15 @@ State bytes survive cold starts (unlike the in-memory `InMemoryWebViewStateStora
 **Then** `_stateStorage.removeOrphans({A, C})` is called
 **And** the file `B.enc` is deleted from disk
 
-### Requirement: PAUSE-009 — State Capture on Go-Home and App-Background
+### Requirement: PAUSE-009 — State Capture on Go-Home, App-Background, and Navigation
 
-The system SHALL capture `controller.saveState()` bytes opportunistically — without disposing the webview — at two additional lifecycle points beyond the dispose paths:
+The system SHALL capture `controller.saveState()` bytes opportunistically — without disposing the webview — at three additional lifecycle points beyond the dispose paths:
 
 1. **Go-home** (`_setCurrentIndex(null)`): when the user navigates to the home screen, the previously-active site's state is captured before its webview is paused. The webview stays loaded for fast resume; state is captured defensively in case the OS later reaps the app or the user comes back after a long delay.
 2. **App-background** (`didChangeAppLifecycleState(paused | inactive)`): the active site's state is captured fire-and-forget alongside the existing `pauseForAppLifecycle` call, so an OS-induced kill while we're backgrounded preserves restorable state.
+3. **Navigation-debounced** (`WebViewModel.onNavigationCommitted` → `NavStateCaptureDebouncer`): each committed navigation in a loaded webview (deduped across the `onLoadStop` / `onUpdateVisitedHistory` double-fire) restarts a per-site trailing debounce window (3s); when a navigation burst settles, that site's state is captured. This covers the kill paths the first two points miss: (a) killing the app from the app switcher delivers only `inactive` — which the lifecycle handler deliberately ignores (issue #308) — so the app-background capture never runs; (b) loaded-but-not-current sites (notification pollers, sites the user switched away from) navigate without ever hitting go-home or a dispose path, leaving their on-disk state stale until an eviction happens to capture them.
 
-Neither path mutates the model's `lifecycleState` — the field stays at `resident` because the webview is not actually disposed. Capture goes through `_captureStateBytes` (bytes-only) rather than `_captureStateForRestore` (bytes + flip-to-savedForRestore).
+None of these paths mutate the model's `lifecycleState` — the field stays at `resident` because the webview is not actually disposed. Capture goes through `_captureStateBytes` (bytes-only) rather than `_captureStateForRestore` (bytes + flip-to-savedForRestore). All three gate on `WebViewModel.persistsNavState` (no capture for incognito or archive-tier sites).
 
 #### Scenario: Go-home captures state for the previously-active site
 
@@ -373,6 +374,28 @@ Neither path mutates the model's `lifecycleState` — the field stays at `reside
 **And** `restoreState` re-populates the back/forward stack
 **And** the user can press the back gesture to return to `page2` and `home`
 
+#### Scenario: App-switcher kill after browsing still restores history
+
+**Given** the user browsed within site A (each navigation restarted the debounce; the last one's window elapsed and captured state)
+**When** the user opens the app switcher (only `inactive` fires — ignored per issue #308) and swipe-kills the app
+**Then** no `paused` capture ever ran for this session
+**And** the navigation-debounced capture already persisted A's stack through the last settled navigation
+**And** the next cold start restores it
+
+#### Scenario: SPA navigation storm coalesces into one capture
+
+**Given** site A fires 8 `onUpdateVisitedHistory` events for one page transition (SPA pseudo-navigations)
+**When** the events arrive within the debounce window
+**Then** each event restarts A's window; `saveState()` runs once, after the storm settles
+**Because** `saveState()` is a cross-IPC into chromium plus an AES encrypt and disk write — per-event capture would generate platform-channel pressure for no additional durability (regression test: `test/nav_state_capture_debouncer_test.dart`)
+
+#### Scenario: Background notification site's navigation is captured
+
+**Given** notification site B is loaded but not current while the user browses site A
+**When** B's poller navigates (its webview fires `onNavigationCommitted`)
+**Then** B's own debounce window runs and captures B's state
+**And** A's window is unaffected (per-site timers)
+
 ### Requirement: PAUSE-010 — State Storage Garbage Collection
 
 State files SHALL be reaped when their owning site is deleted, not when the user merely navigates away. Leaving state for sites that still exist (via go-home, app-background, memory-pressure disposal) is the entire point of save/restore.
@@ -387,12 +410,35 @@ State files SHALL be reaped when their owning site is deleted, not when the user
 **Then** the orphan sweep at the end of `_deleteSite` calls `_stateStorage.removeOrphans(activeSiteIds)`
 **And** A's state file is reaped (siteId no longer in active set)
 
+### Requirement: PAUSE-019 — Cold-Start Restore for Auto-Loaded Sites
+
+Sites that enter `_loadedIndices` without going through `_setCurrentIndex` — notification sites auto-loaded at startup, on both the legacy pre-paint loop in `_restoreAppState` and the container-mode `DeferredStartupEngine.autoLoadNotificationSites` — SHALL have their saved nav-state bytes fetched from `WebViewStateStorage` and queued on the model via `schedulePendingRestoreState` *before* they are marked loaded.
+
+`_setCurrentIndex` fetches restore bytes only when the target is NOT already in `_loadedIndices` (a loaded webview's controller won't be recreated, so a queued restore would go stale). An auto-loaded site is therefore skipped by the activation-path restore on every subsequent tap; without the pre-queue, its first build consumes no bytes and the previous session's back/forward stack is silently dropped on every cold start — precisely for the sites a user keeps notifications on for. The pre-queue goes through the same gates as the activation path (`persistsNavState`, no live controller) and re-checks site liveness after the disk read.
+
+#### Scenario: Notification site restores history on cold start
+
+**Given** site A has `notificationsEnabled` and state bytes on disk from the previous session
+**When** the app cold-starts and the auto-load path processes A
+**Then** A's bytes are queued on the model before `markLoaded`
+**And** A's first webview build applies `restoreState` in `onControllerCreated`
+**And** when the user later taps A, `_setCurrentIndex` skips its restore fetch (A is already loaded) but the stack is already live
+
+#### Scenario: Site deleted during the restore fetch is skipped
+
+**Given** notification sites A and B are being auto-loaded
+**When** A is deleted while its state bytes are being read from disk
+**Then** nothing is queued or marked loaded for A
+**And** B still loads and restores normally
+(regression test: `test/deferred_startup_engine_test.dart`)
+
 ### Requirement: PAUSE-011 — Race Protections for State Capture
 
 Concurrent paths that may capture state for the same site SHALL coexist without corruption:
 
 - Two `_handleMemoryPressure` events firing rapidly: dropped via `_isHandlingMemoryPressure` flag (the first runs to completion, the next event picks up the new state).
 - App-background `unawaited(_captureStateBytes)` racing with `_setCurrentIndex`: each path operates on per-site state independently; storage writes are last-writer-wins per siteId, both produce valid bytes.
+- Navigation-debounced capture firing while a dispose/pause path captures the same site: both go through `_captureStateBytes`; writes are last-writer-wins per siteId and both produce valid bytes. The debounce callback re-checks `mounted` and model identity (`_webViewModels.contains(model)`, not an index) before capturing, so a site deleted or a list reordered during the window is a no-op.
 - Re-activation of a `savedForRestore` site mid-fetch: the in-flight target is in `_activationInFlightIndex` (set sync before any await in `_setCurrentIndex`, cleared in finally); memory pressure includes that index in `protectedIndices`, so the picker excludes it.
 - Storage initialization concurrency: `if (!_initialized) await initialize()` may run twice on a cold race, but each invocation produces the same key from `FlutterSecureStorage` (existing key on read, generated once on first miss); the second call's redundant writes are no-ops.
 
@@ -407,9 +453,9 @@ Concurrent paths that may capture state for the same site SHALL coexist without 
 
 **Given** site A is loaded
 **When** A's `onLoadStop` fires after a navigation
-**Then** `HtmlCacheService.saveHtml` may run (debounced 10s, captures the rendered DOM for offline / fast-paint)
-**And** `WebViewStateStorage.saveState` does NOT run on `onLoadStop` — state capture is scoped to dispose paths + go-home + app-background
-**Because** state bytes can be tens of KB and capturing on every page load would generate platform-channel pressure for marginal benefit; the strategic capture points (going-to-be-evicted-or-killed) cover the realistic loss scenarios
+**Then** `HtmlCacheService.saveHtml` may run (throttled 10s leading-edge, captures the rendered DOM for offline / fast-paint)
+**And** `WebViewStateStorage.saveState` does NOT run per-event — it runs once per navigation burst, after the 3s trailing debounce settles (PAUSE-009 point 3)
+**Because** state bytes can be tens of KB and capturing on every event would generate platform-channel pressure for marginal benefit; the trailing debounce (unlike the HTML cache's leading-edge throttle) still guarantees the *last* navigation before an OS kill is on disk — the original "strategic capture points only" scoping missed the app-switcher-kill and background-navigator scenarios and shipped as BUG-003
 
 The two systems are complementary: HTML cache provides instant first-paint of the last rendered DOM; state storage restores the back/forward stack and (Apple) form data on top.
 
