@@ -31,13 +31,22 @@ TLC model it backs (same definitions — no re-modeling).
 - **`retention_safety.tla`** — proves `[](Inv_CurrentKept /\ Inv_NotifLast)` for all `N` and
   any tier assignment: the visible site is never evicted, and notification sites are evicted
   last (inductive via the eviction guard + monotonicity). **22 obligations, all proved.**
+- **`no_lost_update.tla`** — proves `[]Inv_NoLostUpdate` (every completed read-modify-write's
+  key stays persisted — the secure-storage write serialisation) for all `N`: directly
+  inductive, since the serialised (atomic) RMW makes the store grow monotonically, so a done
+  op's key is never dropped. Backs `store_serial.tla`.
+- **`switch_guarded.tla`** — proves `[]Inv_NoWrongActivation` (a version-guarded site switch
+  never commits against a stale index) for the good orchestration: directly inductive, since
+  every good action leaves `wrong` unchanged while the `noguard` demonstrator latches it.
+  Backs `switchguard.tla` (which has no size parameter, so this is the deductive companion
+  rather than an N-generalisation).
 
 Together these prove every kernel *safety* invariant, the surface-repaint *liveness*
 (`RepaintLiveness` — BUG-001 itself), and every standalone model's safety invariant
-(archive byte-identity, container disjointness, proxy coherence, retention order) for
-unbounded domains — not just at TLC's `N = 3`. The only TLC-bounded model left is
-`renderer.tla`, which has no size parameter (its state space is finite and fully
-enumerated), so an unbounded proof would be vacuous.
+(archive byte-identity, container disjointness, proxy coherence, retention order,
+secure-storage no-lost-update, site-switch version guard) for unbounded domains — not just at
+TLC's `N = 3`. The only TLC-bounded model left is `renderer.tla`, which has no size parameter
+(its state space is finite and fully enumerated), so an unbounded proof would be vacuous.
 
 ## Check
 

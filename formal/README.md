@@ -69,6 +69,17 @@ class.
   actions and holds fullscreen) + `Inv_LockMatchesSource` (lock ⇔ kiosk-shortcut launch); the
   `exitfs` and `chrome` demonstrators leave fullscreen / build the drawer while locked and are
   caught. Standalone (a pure UI state machine; no shared kernel state).
+- **`store_serial.tla`** + `store_serial*.cfg` — secure-storage write serialisation (specs:
+  `cookie-secure-storage`, `proxy-password-secure-storage`, ARCH-001). `Inv_NoLostUpdate`
+  (every completed read-modify-write's key stays persisted, because the static write lock makes
+  each RMW atomic); the `interleave` demonstrator splits the read and the write (the unlocked
+  path) and drops a concurrently-committed key. Standalone (a fixed N-op scenario).
+- **`switchguard.tla`** + `switchguard*.cfg` — site-switch version guard vs a concurrent
+  structural mutation (specs: `navigation`, `lazy-webview-loading`). `Inv_NoWrongActivation`
+  (a superseded switch bails rather than committing against a stale positional index); the
+  `noguard` demonstrator drops the version check and, after a delete/import/archive mutation,
+  activates the wrong site (the legacy-mode cross-site cookie exposure). Standalone (a UI
+  orchestration state machine; no shared kernel state).
 - **`trace/`** — the model↔code conformance bridge (below).
 - **`proofs/`** — TLAPS deductive proofs for **unbounded N** (the bounded-TLC backstop). See
   [proofs/README.md](proofs/README.md): `Inv_CurrentLoaded` is proved for all `N >= 1`
