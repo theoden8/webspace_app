@@ -586,17 +586,17 @@
   "@linkHandlingMasterToggleTitle": {
     "description": "Title of the master switch enabling routing of shared links."
   },
-  "linkHandlingMasterToggleSubtitle": "When off, share intents and webspace:// URLs are dropped silently. Use to keep the app installed without making it the default for other apps.",
-  "@linkHandlingMasterToggleSubtitle": {
-    "description": "Subtitle explaining the 'Handle shared links' switch."
+  "linkHandlingMasterToggleHint": "When off, share intents and webspace:// URLs are dropped silently. Use to keep the app installed without making it the default for other apps.",
+  "@linkHandlingMasterToggleHint": {
+    "description": "Hint dialog body for the 'Handle shared links' switch, opened from its info button."
   },
   "linkHandlingClaimDomainsToggleTitle": "Claim domains from shared links",
   "@linkHandlingClaimDomainsToggleTitle": {
     "description": "Title of the switch that controls whether sending a shared link to a site also adds that domain to the site's routing claims. Off by default; when off the link just opens."
   },
-  "linkHandlingClaimDomainsToggleSubtitle": "When on, sending a shared link to a site also makes that site handle that domain in future. When off, the link just opens in the chosen site.",
-  "@linkHandlingClaimDomainsToggleSubtitle": {
-    "description": "Subtitle explaining the 'Claim domains from shared links' switch."
+  "linkHandlingClaimDomainsToggleHint": "When on, sending a shared link to a site also makes that site handle that domain in future. When off, the link just opens in the chosen site.",
+  "@linkHandlingClaimDomainsToggleHint": {
+    "description": "Hint dialog body for the 'Claim domains from shared links' switch, opened from its info button."
   },
   "linkHandlingTestRoutingTitle": "Test routing",
   "@linkHandlingTestRoutingTitle": {
@@ -1759,9 +1759,9 @@
   "@siteSettingsKioskMode": {
     "description": "Switch label for kiosk mode, which locks down the app shell when the site is opened from a home-screen shortcut."
   },
-  "siteSettingsKioskModeSubtitle": "When opened from a shortcut, hide menus and settings so the site can't be changed. Open the app normally to edit.",
-  "@siteSettingsKioskModeSubtitle": {
-    "description": "Subtitle explaining that kiosk mode hides navigation and configuration when the site is launched from a home-screen shortcut, and that opening the app the normal way restores access."
+  "siteSettingsKioskModeHint": "When opened from a shortcut, hide menus and settings so the site can't be changed. Open the app normally to edit.",
+  "@siteSettingsKioskModeHint": {
+    "description": "Hint dialog body for the kiosk mode switch, opened from its info button: explains that kiosk mode hides navigation and configuration when the site is launched from a home-screen shortcut, and that opening the app the normal way restores access."
   },
   "siteSettingsTrackingProtection": "Tracking Protection",
   "@siteSettingsTrackingProtection": {
@@ -1985,6 +1985,10 @@
   "siteSettingsProtectedContentBlock": "Always block",
   "@siteSettingsProtectedContentBlock": {
     "description": "Protected content dropdown option: always block."
+  },
+  "siteSettingsProtectedContentBlockedByEtp": "Blocked by Tracking Protection",
+  "@siteSettingsProtectedContentBlockedByEtp": {
+    "description": "Subtitle shown under the protected content (DRM) setting when it is forced to block because Tracking Protection is enabled for this site."
   },
   "siteSettingsGeolocation": "Geolocation",
   "@siteSettingsGeolocation": {

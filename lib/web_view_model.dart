@@ -498,10 +498,16 @@ class WebViewModel {
   /// Effective protected-content (Widevine/EME) decision. Archive-tier
   /// sites never grant DRM regardless of stored value: a grant provisions
   /// a per-container Widevine device identifier on disk and the prompt is
-  /// OS-level UI, both of which ARCH-006 forbids for archive sites. They
-  /// deny without prompting (false, never null = never "ask").
+  /// OS-level UI, both of which ARCH-006 forbids for archive sites.
+  /// Tracking Protection also forces deny (ETP-023): the provisioned
+  /// Widevine identifier is a durable device ID that survives the shim's
+  /// fingerprint randomization and data clears. Both deny without
+  /// prompting (false, never null = never "ask"); the stored value is
+  /// preserved for when the umbrella is turned off.
   bool? get effectiveProtectedContentAllowed =>
-      isArchiveTier ? false : protectedContentAllowed;
+      (isArchiveTier || trackingProtectionEnabled)
+          ? false
+          : protectedContentAllowed;
 
   /// Effective "open external links in the system browser" setting.
   /// Archive-tier sites never hand a URL to another app: launching the
@@ -915,9 +921,9 @@ class WebViewModel {
           onProtectedMediaRequest: onProtectedMediaRequest == null
               ? null
               : (origin) async {
-                  // Archive-tier sites deny without prompting; otherwise a
-                  // previously remembered Allow/Block decision short-circuits
-                  // the popup.
+                  // Archive-tier and Tracking Protection sites deny without
+                  // prompting; otherwise a previously remembered Allow/Block
+                  // decision short-circuits the popup.
                   final remembered = effectiveProtectedContentAllowed;
                   if (remembered != null) return remembered;
                   // Coalesce a burst of requests onto one popup.

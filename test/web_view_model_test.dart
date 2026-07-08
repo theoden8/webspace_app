@@ -598,6 +598,7 @@ void main() {
       final allowed = WebViewModel(
         initUrl: 'https://example.com',
         protectedContentAllowed: true,
+        trackingProtectionEnabled: false,
         isArchiveTier: true,
       );
       // Stored value is preserved, but the effective value never grants
@@ -608,8 +609,28 @@ void main() {
       final appTier = WebViewModel(
         initUrl: 'https://example.com',
         protectedContentAllowed: true,
+        trackingProtectionEnabled: false,
       );
       expect(appTier.effectiveProtectedContentAllowed, isTrue);
+    });
+
+    test('effectiveProtectedContentAllowed forces deny under Tracking Protection (ETP-023)',
+        () {
+      // Stored "allow" and stored "ask" (null) both become an unprompted
+      // deny while the umbrella is on; the stored value is preserved.
+      for (final stored in [true, null]) {
+        final model = WebViewModel(
+          initUrl: 'https://example.com',
+          protectedContentAllowed: stored,
+          trackingProtectionEnabled: true,
+        );
+        expect(model.protectedContentAllowed, equals(stored));
+        expect(model.effectiveProtectedContentAllowed, isFalse);
+
+        // Turning the umbrella off restores the stored decision.
+        model.trackingProtectionEnabled = false;
+        expect(model.effectiveProtectedContentAllowed, equals(stored));
+      }
     });
 
     test('legacy backgroundPoll JSON migrates to notificationsEnabled', () {

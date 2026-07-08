@@ -189,7 +189,7 @@ audit it needs no archive override.
   both launch paths and held: `_exitFullscreen` early-returns while
   locked, and the exit handle / tab-bar button are not rendered.
 - `lib/l10n/app_en.arb` (+ all locale ARBs) — `siteSettingsKioskMode` +
-  `siteSettingsKioskModeSubtitle`.
+  `siteSettingsKioskModeHint` (shown in a `HintButton` dialog).
 - `lib/services/site_settings_qr_codec.dart` — `kioskMode` classified in
   `includedKeys` (shareable per-site config, like `fullscreenMode`).
 

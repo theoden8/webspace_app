@@ -718,6 +718,62 @@ and `webViewMediaIntegrityApiStatus` are each `null`
 
 ---
 
+### Requirement: ETP-023 - Protected content (DRM) denied under umbrella
+
+The umbrella SHALL force the protected-content (Widevine/EME,
+`PROTECTED_MEDIA_ID`) permission to deny — without showing the
+Allow/Block popup — whenever `trackingProtectionEnabled` is true,
+regardless of the stored per-site `protectedContentAllowed` value.
+A granted request provisions a Widevine device identifier: a durable,
+origin-readable device ID that survives the shim's fingerprint
+randomization, data clears, and fingerprint rerolls (ETP-022), so
+allowing it would defeat the rest of the umbrella. The stored
+`protectedContentAllowed` value SHALL be preserved so turning the
+umbrella off restores the user's remembered decision (mirroring
+ETP-002's stored-value semantics). Android-only in effect, like the
+permission itself.
+
+#### Scenario: Stored allow, umbrella on
+
+**Given** `protectedContentAllowed` is true and
+`trackingProtectionEnabled` is true
+**When** the site issues a `PROTECTED_MEDIA_ID` permission request
+**Then** the request is denied
+**And** no Allow/Block popup is shown
+**And** the stored `protectedContentAllowed` remains true
+
+#### Scenario: Stored ask, umbrella on
+
+**Given** `protectedContentAllowed` is null (ask) and
+`trackingProtectionEnabled` is true
+**When** the site issues a `PROTECTED_MEDIA_ID` permission request
+**Then** the request is denied without prompting
+**And** the stored value remains null
+
+#### Scenario: Umbrella off restores stored decision
+
+**Given** `protectedContentAllowed` is true and
+`trackingProtectionEnabled` is false
+**When** the site issues a `PROTECTED_MEDIA_ID` permission request
+**Then** the request is granted silently
+
+#### Scenario: Nested webview denies too
+
+**Given** the parent site has `trackingProtectionEnabled: true`
+**When** a nested webview opened via `launchUrl` issues a
+`PROTECTED_MEDIA_ID` permission request
+**Then** the nested handler denies without prompting
+
+#### Scenario: Settings UI reflects forcing
+
+**Given** `trackingProtectionEnabled` is true on the site settings
+screen
+**Then** the Protected content (DRM) dropdown shows "Always block"
+**And** its `onChanged` is `null` (visually disabled)
+**And** the tile subtitle reads "Blocked by Tracking Protection"
+
+---
+
 ## Implementation Details
 
 ### Shim seeding
@@ -796,6 +852,8 @@ in `kExportedAppPrefs` is needed.
   `spoofWindowWidth` / `spoofWindowHeight` (ETP-020/021) and
   `fingerprintResetNonce` (ETP-022) with the same serialisation +
   propagation, plus `rerollFingerprint`.
+  `effectiveProtectedContentAllowed` forces deny under the umbrella
+  (ETP-023).
 - `lib/services/webview.dart` — Added `trackingProtectionEnabled` to
   `WebViewConfig`, shim injection. Added `letterboxEnabled` /
   `spoofWindowWidth` / `spoofWindowHeight` / `fingerprintResetNonce` to
@@ -811,9 +869,11 @@ in `kExportedAppPrefs` is needed.
 - `lib/main.dart` — Added `trackingProtectionEnabled` to `launchUrl`
   signature and the `InAppWebViewScreen` construction.
 - `lib/screens/inappbrowser.dart` — Added `trackingProtectionEnabled`
-  ctor field, mirrored forcing into the nested `WebViewConfig`.
+  ctor field, mirrored forcing into the nested `WebViewConfig`; nested
+  protected-media handler denies under the umbrella (ETP-023).
 - `lib/screens/settings.dart` — Umbrella `SwitchListTile` and grey-out
-  for the three subordinates.
+  for the three subordinates; Protected content (DRM) dropdown pinned to
+  "Always block" and disabled under the umbrella (ETP-023).
 - `tool/dump_shim_js.dart` — Two pinned-seed fixtures.
 - `test/web_view_model_test.dart` — Round-trip + default tests for the
   new field.

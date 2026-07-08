@@ -1285,8 +1285,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   },
           ),
           SwitchListTile(
-            title: Text(loc.siteSettingsKioskMode),
-            subtitle: Text(loc.siteSettingsKioskModeSubtitle),
+            title: Row(
+              children: [
+                Flexible(child: Text(loc.siteSettingsKioskMode)),
+                HintButton(
+                  title: loc.siteSettingsKioskMode,
+                  description: loc.siteSettingsKioskModeHint,
+                ),
+              ],
+            ),
             value: _kioskMode,
             onChanged: (bool value) {
               setState(() {
@@ -1628,10 +1635,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ],
               ),
+              subtitle: _trackingProtectionEnabled
+                  ? Text(loc.siteSettingsProtectedContentBlockedByEtp)
+                  : null,
               trailing: DropdownButton<bool?>(
-                value: _protectedContentAllowed,
-                onChanged: (v) =>
-                    setState(() => _protectedContentAllowed = v),
+                value: _trackingProtectionEnabled
+                    ? false
+                    : _protectedContentAllowed,
+                onChanged: _trackingProtectionEnabled
+                    ? null
+                    : (v) => setState(() => _protectedContentAllowed = v),
                 items: <DropdownMenuItem<bool?>>[
                   DropdownMenuItem<bool?>(
                       value: null, child: Text(loc.siteSettingsProtectedContentAsk)),
