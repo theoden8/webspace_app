@@ -67,14 +67,28 @@ class _LinkHandlingSettingsScreenState
       body: ListView(
         children: [
           SwitchListTile(
-            title: Text(loc.linkHandlingMasterToggleTitle),
-            subtitle: Text(loc.linkHandlingMasterToggleSubtitle),
+            title: Row(
+              children: [
+                Flexible(child: Text(loc.linkHandlingMasterToggleTitle)),
+                HintButton(
+                  title: loc.linkHandlingMasterToggleTitle,
+                  description: loc.linkHandlingMasterToggleHint,
+                ),
+              ],
+            ),
             value: widget.enabled,
             onChanged: widget.onEnabledChanged,
           ),
           SwitchListTile(
-            title: Text(loc.linkHandlingClaimDomainsToggleTitle),
-            subtitle: Text(loc.linkHandlingClaimDomainsToggleSubtitle),
+            title: Row(
+              children: [
+                Flexible(child: Text(loc.linkHandlingClaimDomainsToggleTitle)),
+                HintButton(
+                  title: loc.linkHandlingClaimDomainsToggleTitle,
+                  description: loc.linkHandlingClaimDomainsToggleHint,
+                ),
+              ],
+            ),
             value: widget.claimDomains,
             onChanged: widget.enabled ? widget.onClaimDomainsChanged : null,
           ),

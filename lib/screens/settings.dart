@@ -1285,8 +1285,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   },
           ),
           SwitchListTile(
-            title: Text(loc.siteSettingsKioskMode),
-            subtitle: Text(loc.siteSettingsKioskModeSubtitle),
+            title: Row(
+              children: [
+                Flexible(child: Text(loc.siteSettingsKioskMode)),
+                HintButton(
+                  title: loc.siteSettingsKioskMode,
+                  description: loc.siteSettingsKioskModeHint,
+                ),
+              ],
+            ),
             value: _kioskMode,
             onChanged: (bool value) {
               setState(() {
