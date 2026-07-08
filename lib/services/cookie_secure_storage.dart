@@ -41,6 +41,19 @@ class CookieSecureStorage {
   final FlutterSecureStorage _secureStorage;
   bool _secureStorageAvailable = true;
 
+  /// Serializes every cookie-store mutation. Static so it is shared across
+  /// instances that write the same keys: a whole-map `saveCookies` rebuilt
+  /// from an in-memory snapshot must not interleave with a per-site
+  /// `saveCookiesForSite`, or one clobbers the other (dropped session, or an
+  /// archive-tier cookie re-persisted into app-tier storage — ARCH-001).
+  static Future<void> _writeLock = Future<void>.value();
+
+  Future<T> _synchronized<T>(Future<T> Function() action) {
+    final result = _writeLock.then((_) => action());
+    _writeLock = result.then((_) {}, onError: (_) {});
+    return result;
+  }
+
   CookieSecureStorage({FlutterSecureStorage? secureStorage})
       : _secureStorage = secureStorage ?? const FlutterSecureStorage(
           aOptions: AndroidOptions(encryptedSharedPreferences: true),
@@ -74,7 +87,9 @@ class CookieSecureStorage {
     if (result.isEmpty) {
       final legacyCookies = await _loadLegacyFromSharedPreferences();
       if (legacyCookies.isNotEmpty) {
-        await saveCookies(legacyCookies);
+        // Unlocked: loadCookies runs inside the locked compound mutators
+        // below, so calling the locked saveCookies here would self-deadlock.
+        await _saveCookiesUnlocked(legacyCookies);
         await _markMigrationComplete();
         return legacyCookies;
       }
@@ -86,7 +101,11 @@ class CookieSecureStorage {
   /// Saves cookies with appropriate storage based on isSecure flag:
   /// - isSecure=true cookies → Flutter Secure Storage only
   /// - isSecure=false cookies → SharedPreferences
-  Future<void> saveCookies(Map<String, List<Cookie>> cookiesByUrl) async {
+  Future<void> saveCookies(Map<String, List<Cookie>> cookiesByUrl) {
+    return _synchronized(() => _saveCookiesUnlocked(cookiesByUrl));
+  }
+
+  Future<void> _saveCookiesUnlocked(Map<String, List<Cookie>> cookiesByUrl) async {
     if (isDemoMode) return; // Don't persist in demo mode
 
     // Split cookies by security flag
@@ -137,12 +156,14 @@ class CookieSecureStorage {
 
   /// Saves cookies for a single site URL.
   /// The URL is converted to a domain key before storing.
-  Future<void> saveCookiesForUrl(String url, List<Cookie> cookies) async {
-    if (isDemoMode) return; // Don't persist in demo mode
-    final domain = extractDomainFromUrl(url);
-    final existingCookies = await loadCookies();
-    existingCookies[domain] = cookies;
-    await saveCookies(existingCookies);
+  Future<void> saveCookiesForUrl(String url, List<Cookie> cookies) {
+    if (isDemoMode) return Future.value(); // Don't persist in demo mode
+    return _synchronized(() async {
+      final domain = extractDomainFromUrl(url);
+      final existingCookies = await loadCookies();
+      existingCookies[domain] = cookies;
+      await _saveCookiesUnlocked(existingCookies);
+    });
   }
 
   /// Loads cookies for a specific site by siteId.
@@ -153,35 +174,35 @@ class CookieSecureStorage {
   }
 
   /// Saves cookies for a specific site by siteId.
-  Future<void> saveCookiesForSite(String siteId, List<Cookie> cookies) async {
-    if (isDemoMode) return; // Don't persist in demo mode
-    final existingCookies = await loadCookies();
-    if (cookies.isEmpty) {
-      existingCookies.remove(siteId);
-    } else {
-      existingCookies[siteId] = cookies;
-    }
-    await saveCookies(existingCookies);
+  Future<void> saveCookiesForSite(String siteId, List<Cookie> cookies) {
+    if (isDemoMode) return Future.value(); // Don't persist in demo mode
+    return _synchronized(() async {
+      final existingCookies = await loadCookies();
+      if (cookies.isEmpty) {
+        existingCookies.remove(siteId);
+      } else {
+        existingCookies[siteId] = cookies;
+      }
+      await _saveCookiesUnlocked(existingCookies);
+    });
   }
 
   /// Removes cookies for siteIds not in the provided set of active siteIds.
   /// This cleans up orphaned cookies after sites are deleted or settings are imported.
   Future<void> removeOrphanedCookies(Set<String> activeSiteIds) async {
     if (isDemoMode) return; // Don't persist in demo mode
-    final allCookies = await loadCookies();
-    final siteIdsToRemove = allCookies.keys
-        .where((siteId) => !activeSiteIds.contains(siteId))
-        .toList();
-
-    if (siteIdsToRemove.isEmpty) {
-      return;
-    }
-
-    for (final siteId in siteIdsToRemove) {
-      allCookies.remove(siteId);
-    }
-
-    await saveCookies(allCookies);
+    final siteIdsToRemove = <String>[];
+    await _synchronized(() async {
+      final allCookies = await loadCookies();
+      siteIdsToRemove.addAll(allCookies.keys
+          .where((siteId) => !activeSiteIds.contains(siteId)));
+      if (siteIdsToRemove.isEmpty) return;
+      for (final siteId in siteIdsToRemove) {
+        allCookies.remove(siteId);
+      }
+      await _saveCookiesUnlocked(allCookies);
+    });
+    if (siteIdsToRemove.isEmpty) return;
     LogService.instance.log(
       'CookieStorage',
       'Removed orphaned cookies for siteIds: $siteIdsToRemove',

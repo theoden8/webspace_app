@@ -95,12 +95,11 @@ void main() {
       (result as OutboundClientReady).client.close();
     });
 
-    test('HTTP with empty address returns a Ready client (treated as DEFAULT)', () {
+    test('HTTP with empty address returns Blocked (no direct fallback)', () {
       final result = factory.clientFor(
         UserProxySettings(type: ProxyType.HTTP, address: ''),
       );
-      expect(result, isA<OutboundClientReady>());
-      (result as OutboundClientReady).client.close();
+      expect(result, isA<OutboundClientBlocked>());
     });
 
     test('HTTPS with malformed address returns Blocked (no direct fallback)', () {
@@ -129,12 +128,12 @@ void main() {
       expect((result as OutboundClientBlocked).reason, contains('SOCKS5'));
     });
 
-    test('SOCKS5 with empty address returns a Ready client (no override)', () {
+    test('SOCKS5 with empty address returns Blocked (no direct fallback)', () {
       final result = factory.clientFor(
         UserProxySettings(type: ProxyType.SOCKS5, address: ''),
       );
-      expect(result, isA<OutboundClientReady>());
-      (result as OutboundClientReady).client.close();
+      expect(result, isA<OutboundClientBlocked>());
+      expect((result as OutboundClientBlocked).reason, contains('SOCKS5'));
     });
   });
 

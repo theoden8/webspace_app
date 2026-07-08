@@ -110,6 +110,22 @@ expect kiosk_leak_chrome.cfg kiosk.tla "Inv_LockedIsSealed is violated" \
 expect kiosk_reach.cfg kiosk.tla "Reach_Locked is violated" \
   "a locked state is reachable (sealing not vacuous)"
 
+echo "── STORE: secure-storage write serialisation (no lost update) ──"
+expect store_serial.cfg store_serial.tla "No error has been found" \
+  "every completed read-modify-write's key stays persisted"
+expect store_serial_lost.cfg store_serial.tla "Inv_NoLostUpdate is violated" \
+  "an unlocked read-modify-write drops a concurrently-committed key (caught)"
+expect store_serial_reach.cfg store_serial.tla "Reach_TwoDone is violated" \
+  "two ops can both complete (no-lost-update not vacuous)"
+
+echo "── SWITCHGUARD: site-switch version guard vs structural mutation ──"
+expect switchguard.cfg switchguard.tla "No error has been found" \
+  "a superseded switch bails instead of activating the wrong site"
+expect switchguard_noguard.cfg switchguard.tla "Inv_NoWrongActivation is violated" \
+  "an unguarded commit after a mutation activates the wrong site (caught)"
+expect switchguard_reach.cfg switchguard.tla "Reach_Bailed is violated" \
+  "a mutation-during-switch bail is reachable (guard not vacuous)"
+
 echo "── TRACE CONFORMANCE: code stayed inside the model ──"
 case "$JAR" in /*) JAR_ABS="$JAR" ;; *) JAR_ABS="$(pwd)/$JAR" ;; esac
 TLA2TOOLS_JAR="$JAR_ABS" ./trace/check_trace.sh | sed 's/^/  /'

@@ -101,7 +101,10 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
       case ProxyType.HTTPS:
         final addr = settings.address;
         if (addr == null || addr.isEmpty) {
-          return OutboundClientReady(IOClient(_newHttpClient()));
+          return OutboundClientBlocked(
+            'Proxy type is set but the address is empty. Outbound request '
+            'blocked to avoid leaking the device IP via a direct fallback.',
+          );
         }
         final hostPort = parseHostPort(addr);
         if (hostPort == null) {
@@ -129,7 +132,11 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
       case ProxyType.SOCKS5:
         final addr = settings.address;
         if (addr == null || addr.isEmpty) {
-          return OutboundClientReady(IOClient(_newHttpClient()));
+          return OutboundClientBlocked(
+            'SOCKS5 proxy type is set but the address is empty. Outbound '
+            'request blocked to avoid leaking the device IP via a direct '
+            'fallback.',
+          );
         }
         final hostPort = parseHostPort(addr);
         if (hostPort == null) {

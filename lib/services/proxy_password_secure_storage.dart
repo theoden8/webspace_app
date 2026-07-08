@@ -34,6 +34,20 @@ class ProxyPasswordSecureStorage {
   final FlutterSecureStorage _secureStorage;
   bool _secureStorageAvailable = true;
 
+  /// Serializes every mutation of the single `proxy_passwords` entry.
+  /// Static so it is shared across instances: the app keeps two separate
+  /// stores (per-site via `_WebSpacePageState`, global via
+  /// `GlobalOutboundProxy`) that both write this key, and an unsynchronized
+  /// load-modify-save on one would otherwise clobber a concurrent write from
+  /// the other (silently dropping a just-saved proxy password).
+  static Future<void> _writeLock = Future<void>.value();
+
+  Future<T> _synchronized<T>(Future<T> Function() action) {
+    final result = _writeLock.then((_) => action());
+    _writeLock = result.then((_) {}, onError: (_) {});
+    return result;
+  }
+
   ProxyPasswordSecureStorage({FlutterSecureStorage? secureStorage})
       : _secureStorage = secureStorage ??
             const FlutterSecureStorage(
@@ -73,7 +87,16 @@ class ProxyPasswordSecureStorage {
 
   /// Replace the entire `key -> password` map in secure storage.
   /// Empty values are stripped; an empty resulting map deletes the entry.
-  Future<void> saveAll(Map<String, String?> passwords) async {
+  ///
+  /// Prefer [mutate] when the new map is derived from the current stored
+  /// state: a bare `loadAll` + `saveAll` pair is not atomic and can lose a
+  /// concurrent write. [saveAll] itself is serialized, but the caller's read
+  /// is not part of that critical section.
+  Future<void> saveAll(Map<String, String?> passwords) {
+    return _synchronized(() => _saveAllUnlocked(passwords));
+  }
+
+  Future<void> _saveAllUnlocked(Map<String, String?> passwords) async {
     if (!_secureStorageAvailable) return;
     final filtered = <String, String>{};
     passwords.forEach((k, v) {
@@ -98,15 +121,27 @@ class ProxyPasswordSecureStorage {
     }
   }
 
+  /// Atomically read the current map, apply [update] to a mutable draft, and
+  /// write the result back — all inside the write lock, so the read and the
+  /// write are one critical section and no concurrent writer can interleave.
+  /// Set a key to null in the draft to delete it.
+  Future<void> mutate(void Function(Map<String, String?> draft) update) {
+    return _synchronized(() async {
+      final draft = <String, String?>{...await loadAll()};
+      update(draft);
+      await _saveAllUnlocked(draft);
+    });
+  }
+
   /// Set or clear the password for a single key. Pass null/empty to delete.
-  Future<void> savePassword(String key, String? password) async {
-    final all = await loadAll();
-    if (password == null || password.isEmpty) {
-      all.remove(key);
-    } else {
-      all[key] = password;
-    }
-    await saveAll(all);
+  Future<void> savePassword(String key, String? password) {
+    return mutate((draft) {
+      if (password == null || password.isEmpty) {
+        draft.remove(key);
+      } else {
+        draft[key] = password;
+      }
+    });
   }
 
   /// Drop entries for keys not present in [activeKeys]. Mirrors
@@ -114,18 +149,18 @@ class ProxyPasswordSecureStorage {
   /// or restoring a backup so we don't accumulate stale passwords for sites
   /// that no longer exist.
   Future<void> removeOrphaned(Set<String> activeKeys) async {
-    final all = await loadAll();
     final removed = <String>[];
-    for (final key in all.keys.toList()) {
-      // Always preserve the global key; it's not tied to a site.
-      if (key == globalProxyKey) continue;
-      if (!activeKeys.contains(key)) {
-        all.remove(key);
-        removed.add(key);
+    await mutate((draft) {
+      for (final key in draft.keys.toList()) {
+        // Always preserve the global key; it's not tied to a site.
+        if (key == globalProxyKey) continue;
+        if (!activeKeys.contains(key)) {
+          draft.remove(key);
+          removed.add(key);
+        }
       }
-    }
+    });
     if (removed.isNotEmpty) {
-      await saveAll(all);
       LogService.instance.log(
         'ProxyPwdStore',
         'Removed orphaned proxy passwords for keys: $removed',

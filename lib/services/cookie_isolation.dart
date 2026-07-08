@@ -153,12 +153,17 @@ class CookieIsolationEngine {
 
     // Step 3: nuke.
     await cookieManager.deleteAllCookies();
-    if (versionAtEntry != currentVersion()) return;
+    // No version-guard bail from here on. Once the shared jar is emptied it
+    // MUST be fully repopulated before returning: a bail here leaves the jar
+    // empty, and the next activation captures that emptiness in step 2 and
+    // persists it via saveCookiesForSite(siteId, []), which deletes every
+    // loaded site's stored session. Finishing the restore is cheap (writes
+    // known-good storage data back) and a superseding activation re-runs its
+    // own capture-nuke-restore against the now-consistent jar.
 
     // Step 4a: restore target's cookies.
     final cookies = await storage.loadCookiesForSite(model.siteId);
     model.cookies = cookies;
-    if (versionAtEntry != currentVersion()) return;
 
     LogService.instance.log(
       'CookieIsolation',
@@ -167,12 +172,10 @@ class CookieIsolationEngine {
     );
 
     await _setCookies(model, cookies);
-    if (versionAtEntry != currentVersion()) return;
 
     // Step 4b: restore every other still-loaded site's cookies.
     for (final other in otherLoadedModels) {
       await _setCookies(other, other.cookies);
-      if (versionAtEntry != currentVersion()) return;
     }
   }
 

@@ -304,37 +304,54 @@ void main() {
       );
     });
 
-    test('should require confirmation for http localhost', () {
+    // SSRF guard: __wsFetch is a page-reachable global, so loopback /
+    // private / link-local hosts must be blocked outright, not merely
+    // gated behind a confirmation prompt.
+    test('should block http localhost', () {
       expect(
         classifyScriptFetchUrl('http://localhost:8080/script.js'),
-        ScriptFetchUrlStatus.requiresConfirmation,
+        ScriptFetchUrlStatus.blocked,
       );
     });
 
-    test('should require confirmation for IPv4 address', () {
+    test('should block private IPv4 address', () {
       expect(
         classifyScriptFetchUrl('http://192.168.1.1/scripts/app.js'),
-        ScriptFetchUrlStatus.requiresConfirmation,
+        ScriptFetchUrlStatus.blocked,
       );
     });
 
-    test('should require confirmation for IPv4 with port', () {
+    test('should block private IPv4 with port', () {
       expect(
         classifyScriptFetchUrl('http://192.168.1.1:3000/bundle.js'),
-        ScriptFetchUrlStatus.requiresConfirmation,
+        ScriptFetchUrlStatus.blocked,
       );
     });
 
-    test('should require confirmation for IPv6 address', () {
+    test('should block loopback IPv6 address', () {
       expect(
         classifyScriptFetchUrl('http://[::1]/script.js'),
-        ScriptFetchUrlStatus.requiresConfirmation,
+        ScriptFetchUrlStatus.blocked,
       );
     });
 
-    test('should require confirmation for IPv6 with port', () {
+    test('should block loopback IPv6 with port', () {
       expect(
         classifyScriptFetchUrl('http://[::1]:8080/script.js'),
+        ScriptFetchUrlStatus.blocked,
+      );
+    });
+
+    test('should block cloud-metadata link-local address', () {
+      expect(
+        classifyScriptFetchUrl('http://169.254.169.254/latest/meta-data/'),
+        ScriptFetchUrlStatus.blocked,
+      );
+    });
+
+    test('still requires confirmation for a public IPv4 literal', () {
+      expect(
+        classifyScriptFetchUrl('http://93.184.216.34/script.js'),
         ScriptFetchUrlStatus.requiresConfirmation,
       );
     });
