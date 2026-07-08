@@ -120,6 +120,84 @@ test('script with empty content is NOT bridged (no source to evaluate)', () => {
   assert.strictEqual(inlineCalls.length, 0);
 });
 
+test('inline <script type="module"> is NOT bridged (would break as classic)', () => {
+  // Reddit (shreddit) and other module-driven sites insert
+  // `<script type="module">` nodes dynamically. The bridge re-runs source as
+  // a classic script via evaluateJavascript, so a module's top-level
+  // import/export throws `Unexpected token 'export'` and never runs. Modules
+  // face no inline-CSP wall (they're not `'unsafe-inline'`-gated the way the
+  // bridge targets), so they must keep their native DOM path.
+  const { dom, calls } = setup();
+  const { document } = dom.window;
+  const s = document.createElement('script');
+  s.type = 'module';
+  s.textContent = 'export const x = 1;';
+  document.head.appendChild(s);
+
+  const inlineCalls = calls.filter(c => c[0] === INLINE_HANDLER);
+  assert.strictEqual(inlineCalls.length, 0,
+    'a module script must not be bridged through the classic-eval handler');
+  assert.strictEqual(s.parentNode, document.head,
+    'a module script must reach the live DOM on its native path');
+});
+
+test('module <script src> is NOT diverted to the src handler', () => {
+  const { dom, calls } = setup();
+  const { document } = dom.window;
+  const s = document.createElement('script');
+  s.type = 'module';
+  // Even a whitelisted CDN URL: a module fetched and injected as classic
+  // breaks. Modules stay on the native path.
+  s.src = 'https://cdn.jsdelivr.net/npm/darkreader/darkreader.mjs';
+  document.head.appendChild(s);
+
+  const srcCalls = calls.filter(c => c[0] === SRC_HANDLER);
+  assert.strictEqual(srcCalls.length, 0,
+    'a module src must not be fetched-and-classic-evaluated through the bridge');
+  assert.strictEqual(s.parentNode, document.head);
+});
+
+test('non-JS type blocks (importmap / ld+json) are NOT bridged', () => {
+  // <script type="importmap"> and <script type="application/ld+json"> carry
+  // data, not executable JS. Evaluating them as classic script throws or runs
+  // text that was never code. They must pass through untouched.
+  const { dom, calls } = setup();
+  const { document } = dom.window;
+
+  const importmap = document.createElement('script');
+  importmap.type = 'importmap';
+  importmap.textContent = '{"imports":{"x":"/x.js"}}';
+  document.head.appendChild(importmap);
+
+  const ld = document.createElement('script');
+  ld.type = 'application/ld+json';
+  ld.textContent = '{"@context":"https://schema.org"}';
+  document.head.appendChild(ld);
+
+  const inlineCalls = calls.filter(c => c[0] === INLINE_HANDLER);
+  assert.strictEqual(inlineCalls.length, 0,
+    'data-type script blocks must not be bridged');
+  assert.strictEqual(importmap.parentNode, document.head);
+  assert.strictEqual(ld.parentNode, document.head);
+});
+
+test('explicit classic-JS type is still bridged', () => {
+  // A dynamically-inserted `<script type="text/javascript">` is a classic
+  // script and still faces the inline CSP wall — it must keep going through
+  // the bridge.
+  const { dom, calls } = setup();
+  const { document } = dom.window;
+  const s = document.createElement('script');
+  s.type = 'text/javascript';
+  s.textContent = 'window.__classicTyped = true;';
+  document.head.appendChild(s);
+
+  const inlineCalls = calls.filter(c => c[0] === INLINE_HANDLER);
+  assert.strictEqual(inlineCalls.length, 1,
+    'an explicit classic JS type must still be bridged');
+  assert.strictEqual(s.parentNode, null);
+});
+
 test('whitelisted <script src> still routes through the src handler', () => {
   const { dom, calls } = setup();
   const { document } = dom.window;
