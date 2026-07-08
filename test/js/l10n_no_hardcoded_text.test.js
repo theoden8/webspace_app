@@ -35,6 +35,7 @@ const migrated = new Set([
   'lib/widgets/hint_button.dart',
   'lib/widgets/root_messenger.dart',
   'lib/widgets/stats_banner.dart',
+  'lib/widgets/tab_bar_corner_button.dart',
   'lib/widgets/untrusted_cert_prompt.dart',
   'lib/widgets/url_bar.dart',
 ]);

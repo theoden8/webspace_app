@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/services/domain_claim.dart';
+import 'package:webspace/services/tab_bar_corner.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
 
@@ -86,6 +87,45 @@ void main() {
       expect(json.containsKey('domainClaims'), isFalse);
       final back = WebViewModel.fromJson(json, null);
       expect(back.domainClaims, isNull);
+    });
+
+    test('tabBarButtonCorner null by default; toJson omits it; round-trips',
+        () {
+      final m = WebViewModel(initUrl: 'https://example.org/');
+      expect(m.tabBarButtonCorner, isNull);
+      expect(m.toJson().containsKey('tabBarButtonCorner'), isFalse);
+
+      m.tabBarButtonCorner = TabBarCorner.topLeft;
+      final json = m.toJson();
+      expect(json['tabBarButtonCorner'], 'topLeft');
+      final back = WebViewModel.fromJson(json, null);
+      expect(back.tabBarButtonCorner, TabBarCorner.topLeft);
+    });
+
+    test('legacy per-site tabBarButtonOnRight bool maps to a bottom corner',
+        () {
+      final base = {
+        'initUrl': 'https://example.org/',
+        'cookies': <dynamic>[],
+        'proxySettings': {'type': 0, 'address': null},
+        'javascriptEnabled': true,
+        'userAgent': '',
+        'thirdPartyCookiesEnabled': false,
+      };
+      expect(
+        WebViewModel.fromJson({...base, 'tabBarButtonOnRight': true}, null)
+            .tabBarButtonCorner,
+        TabBarCorner.bottomRight,
+      );
+      expect(
+        WebViewModel.fromJson({...base, 'tabBarButtonOnRight': false}, null)
+            .tabBarButtonCorner,
+        TabBarCorner.bottomLeft,
+      );
+      expect(
+        WebViewModel.fromJson(base, null).tabBarButtonCorner,
+        isNull,
+      );
     });
 
     test(

@@ -30,7 +30,9 @@ import 'package:webspace/services/startup_init_engine.dart';
 import 'package:webspace/screens/inappbrowser.dart';
 import 'package:webspace/screens/webspaces_list.dart';
 import 'package:webspace/screens/webspace_detail.dart';
+import 'package:webspace/services/tab_bar_corner.dart';
 import 'package:webspace/widgets/stats_banner.dart';
+import 'package:webspace/widgets/tab_bar_corner_button.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
 import 'package:webspace/widgets/url_bar.dart';
 import 'package:webspace/demo_data.dart' show seedDemoData, isDemoMode;
@@ -989,11 +991,11 @@ class _WebSpacePageState extends State<WebSpacePage>
   // pref so pre-per-site users keep their chosen corner; no settings UI
   // writes it anymore — dragging the button stores the corner per site.
   bool _tabBarButtonOnRight = true;
-  // Runtime-only: stack-local left offset of the tab-bar button while the
-  // user long-press-drags it between corners; null when not dragging. On
-  // release it snaps to the nearest bottom corner and persists it on the
-  // current site's model.
-  double? _tabBarButtonDragLeft;
+  // Runtime-only: fractional position of the tab-bar button while the user
+  // drags it between corners; null when not dragging. On release the button
+  // glides to the nearest corner, which is persisted on the current site's
+  // model.
+  Alignment? _tabBarButtonDragAlignment;
   final GlobalKey _bodyStackKey = GlobalKey();
   // Enter fullscreen when a site is opened via a home-screen shortcut. Global
   // pref mirror of the `fullscreenOnShortcut` SharedPreferences key. On by
@@ -2977,13 +2979,25 @@ class _WebSpacePageState extends State<WebSpacePage>
   static const double _kTabBarButtonMargin = 16;
 
   /// Corner for the currently active site: its remembered per-site choice,
-  /// falling back to the app-wide legacy default.
-  bool get _tabBarButtonOnRightEffective {
+  /// falling back to the app-wide legacy bottom-corner default.
+  TabBarCorner get _tabBarButtonCornerEffective {
     final index = _currentIndex;
+    TabBarCorner? corner;
     if (index != null && index < _webViewModels.length) {
-      return _webViewModels[index].tabBarButtonOnRight ?? _tabBarButtonOnRight;
+      corner = _webViewModels[index].tabBarButtonCorner;
     }
-    return _tabBarButtonOnRight;
+    return corner ??
+        (_tabBarButtonOnRight
+            ? TabBarCorner.bottomRight
+            : TabBarCorner.bottomLeft);
+  }
+
+  Alignment get _tabBarButtonRestAlignment {
+    final corner = _tabBarButtonCornerEffective;
+    return Alignment(
+      tabBarCornerIsRight(corner) ? 1 : -1,
+      tabBarCornerIsTop(corner) ? -1 : 1,
+    );
   }
 
   RenderBox? get _bodyStackBox {
@@ -2994,29 +3008,26 @@ class _WebSpacePageState extends State<WebSpacePage>
   void _updateTabBarButtonDrag(Offset globalPosition) {
     final box = _bodyStackBox;
     if (box == null) return;
-    final local = box.globalToLocal(globalPosition);
-    final maxLeft = max(
-      _kTabBarButtonMargin,
-      box.size.width - _kTabBarButtonSize - _kTabBarButtonMargin,
+    final fraction = tabBarCornerDragFraction(
+      box.globalToLocal(globalPosition),
+      box.size,
+      buttonSize: _kTabBarButtonSize,
+      margin: _kTabBarButtonMargin,
     );
     setState(() {
-      _tabBarButtonDragLeft =
-          (local.dx - _kTabBarButtonSize / 2).clamp(_kTabBarButtonMargin, maxLeft);
+      _tabBarButtonDragAlignment = Alignment(fraction.dx, fraction.dy);
     });
   }
 
   void _endTabBarButtonDrag() {
-    final dragLeft = _tabBarButtonDragLeft;
-    if (dragLeft == null) return;
-    final box = _bodyStackBox;
-    final bool? onRight = box == null
-        ? null
-        : dragLeft + _kTabBarButtonSize / 2 > box.size.width / 2;
+    final drag = _tabBarButtonDragAlignment;
+    if (drag == null) return;
     final index = _currentIndex;
     setState(() {
-      _tabBarButtonDragLeft = null;
-      if (onRight != null && index != null && index < _webViewModels.length) {
-        _webViewModels[index].tabBarButtonOnRight = onRight;
+      _tabBarButtonDragAlignment = null;
+      if (index != null && index < _webViewModels.length) {
+        _webViewModels[index].tabBarButtonCorner =
+            tabBarCornerNearest(drag.x, drag.y);
       }
     });
     _saveWebViewModels();
@@ -7450,51 +7461,36 @@ class _WebSpacePageState extends State<WebSpacePage>
                 // Hidden once the strip is showing — its dismiss control then
                 // lives inside the bar instead.
                 if (_tabBarButtonShown)
-                  Positioned(
-                    bottom: _kTabBarButtonMargin,
-                    left: _tabBarButtonDragLeft ??
-                        (_tabBarButtonOnRightEffective
-                            ? null
-                            : _kTabBarButtonMargin),
-                    right: _tabBarButtonDragLeft == null &&
-                            _tabBarButtonOnRightEffective
-                        ? _kTabBarButtonMargin
-                        : null,
-                    // Long-press drag relocates the button between the bottom
-                    // corners; on release it snaps to the nearest one and the
-                    // corner is remembered on the current site's model.
-                    child: GestureDetector(
-                      onLongPressStart: (details) {
-                        HapticFeedback.mediumImpact();
-                        _updateTabBarButtonDrag(details.globalPosition);
-                      },
-                      onLongPressMoveUpdate: (details) =>
-                          _updateTabBarButtonDrag(details.globalPosition),
-                      onLongPressEnd: (_) => _endTabBarButtonDrag(),
-                      onLongPressCancel: _endTabBarButtonDrag,
-                      child: Material(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .primary
-                            .withOpacity(0.85),
-                        shape: const CircleBorder(),
-                        elevation: _tabBarButtonDragLeft != null ? 8 : 3,
-                        child: InkWell(
-                          customBorder: const CircleBorder(),
+                  // Dragging (immediately, or after a long press) carries
+                  // the button anywhere in the body; on release it glides to
+                  // the nearest of the four corners, which is remembered on
+                  // the current site's model. Alignment-based so the resting
+                  // spot tracks resizes for free; the fill/Align wrappers are
+                  // hit-test-transparent outside the button itself.
+                  Positioned.fill(
+                    child: Padding(
+                      padding: const EdgeInsets.all(_kTabBarButtonMargin),
+                      child: AnimatedAlign(
+                        alignment: _tabBarButtonDragAlignment ??
+                            _tabBarButtonRestAlignment,
+                        duration: _tabBarButtonDragAlignment != null
+                            ? Duration.zero
+                            : const Duration(milliseconds: 250),
+                        curve: Curves.easeOutCubic,
+                        child: TabBarCornerButton(
+                          dragging: _tabBarButtonDragAlignment != null,
                           onTap: () {
                             setState(() {
                               _tabBarOverlayVisible = true;
                             });
                             _nudgeSurfaceRepaint();
                           },
-                          child: Padding(
-                            padding: const EdgeInsets.all(10),
-                            child: Icon(
-                              Icons.tab,
-                              size: 22,
-                              color: Theme.of(context).colorScheme.onPrimary,
-                            ),
-                          ),
+                          onDragBegin: (globalPosition) {
+                            HapticFeedback.mediumImpact();
+                            _updateTabBarButtonDrag(globalPosition);
+                          },
+                          onDragUpdate: _updateTabBarButtonDrag,
+                          onDragEnd: _endTabBarButtonDrag,
                         ),
                       ),
                     ),
