@@ -53,10 +53,10 @@ Init ==
 
 \* GOOD path: the write lock makes read-modify-write one critical section.
 \* Modelled as an atomic add of this op's key -- the store only ever grows,
-\* so no committed key is dropped.
+\* so no committed key is dropped. Unguarded (a done op may idempotently
+\* re-save), so the action is perpetually enabled and the good model never
+\* deadlocks in a terminal all-done state (cf. proxy.tla's Activate).
 Rmw(o) ==
-    /\ o \notin done
-    /\ o \notin reading
     /\ store' = store \cup {o}
     /\ done' = done \cup {o}
     /\ UNCHANGED << reading, snap >>
