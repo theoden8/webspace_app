@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "اسأل",
   "siteSettingsProtectedContentAllow": "السماح دائمًا",
   "siteSettingsProtectedContentBlock": "الحجب دائمًا",
+  "siteSettingsProtectedContentBlockedByEtp": "محظور بسبب الحماية من التتبّع",
   "siteSettingsGeolocation": "تحديد الموقع الجغرافي",
   "siteSettingsGeolocationHint": "تحديد الموقع الجغرافي",
   "siteSettingsLocationOff": "معطّل",

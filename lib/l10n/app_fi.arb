@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "Kysy",
   "siteSettingsProtectedContentAllow": "Salli aina",
   "siteSettingsProtectedContentBlock": "Estä aina",
+  "siteSettingsProtectedContentBlockedByEtp": "Seurannan suojaus estää",
   "siteSettingsGeolocation": "Sijainti",
   "siteSettingsGeolocationHint": "Sijainti",
   "siteSettingsLocationOff": "Pois",

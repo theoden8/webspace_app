@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "ਪੁੱਛੋ",
   "siteSettingsProtectedContentAllow": "ਹਮੇਸ਼ਾ ਆਗਿਆ ਦਿਓ",
   "siteSettingsProtectedContentBlock": "ਹਮੇਸ਼ਾ ਬਲੌਕ ਕਰੋ",
+  "siteSettingsProtectedContentBlockedByEtp": "ਟਰੈਕਿੰਗ ਸੁਰੱਖਿਆ ਦੁਆਰਾ ਬਲੌਕ ਕੀਤਾ ਗਿਆ",
   "siteSettingsGeolocation": "ਜੀਓਲੋਕੇਸ਼ਨ",
   "siteSettingsGeolocationHint": "ਜੀਓਲੋਕੇਸ਼ਨ",
   "siteSettingsLocationOff": "ਬੰਦ",

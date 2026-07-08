@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "물어보기",
   "siteSettingsProtectedContentAllow": "항상 허용",
   "siteSettingsProtectedContentBlock": "항상 차단",
+  "siteSettingsProtectedContentBlockedByEtp": "추적 방지에 의해 차단됨",
   "siteSettingsGeolocation": "위치 정보",
   "siteSettingsGeolocationHint": "위치 정보",
   "siteSettingsLocationOff": "끄기",

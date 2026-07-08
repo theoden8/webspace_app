@@ -1628,10 +1628,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ],
               ),
+              subtitle: _trackingProtectionEnabled
+                  ? Text(loc.siteSettingsProtectedContentBlockedByEtp)
+                  : null,
               trailing: DropdownButton<bool?>(
-                value: _protectedContentAllowed,
-                onChanged: (v) =>
-                    setState(() => _protectedContentAllowed = v),
+                value: _trackingProtectionEnabled
+                    ? false
+                    : _protectedContentAllowed,
+                onChanged: _trackingProtectionEnabled
+                    ? null
+                    : (v) => setState(() => _protectedContentAllowed = v),
                 items: <DropdownMenuItem<bool?>>[
                   DropdownMenuItem<bool?>(
                       value: null, child: Text(loc.siteSettingsProtectedContentAsk)),

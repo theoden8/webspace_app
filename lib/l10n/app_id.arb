@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "Tanya",
   "siteSettingsProtectedContentAllow": "Selalu izinkan",
   "siteSettingsProtectedContentBlock": "Selalu blokir",
+  "siteSettingsProtectedContentBlockedByEtp": "Diblokir oleh Perlindungan Pelacakan",
   "siteSettingsGeolocation": "Geolokasi",
   "siteSettingsGeolocationHint": "Geolokasi",
   "siteSettingsLocationOff": "Nonaktif",

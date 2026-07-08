@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "Galdetu",
   "siteSettingsProtectedContentAllow": "Beti baimendu",
   "siteSettingsProtectedContentBlock": "Beti blokeatu",
+  "siteSettingsProtectedContentBlockedByEtp": "Jarraipenaren aurkako babesak blokeatuta",
   "siteSettingsGeolocation": "Geokokapena",
   "siteSettingsGeolocationHint": "Geokokapena",
   "siteSettingsLocationOff": "Itzalita",

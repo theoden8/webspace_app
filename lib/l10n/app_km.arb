@@ -401,6 +401,7 @@
   "siteSettingsProtectedContentAsk": "សួរ",
   "siteSettingsProtectedContentAllow": "អនុញ្ញាតជានិច្ច",
   "siteSettingsProtectedContentBlock": "ទប់ស្កាត់ជានិច្ច",
+  "siteSettingsProtectedContentBlockedByEtp": "បានទប់ស្កាត់ដោយការការពារការតាមដាន",
   "siteSettingsGeolocation": "Geolocation",
   "siteSettingsGeolocationHint": "Geolocation",
   "siteSettingsLocationOff": "បិទ",

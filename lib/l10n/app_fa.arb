@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "بپرس",
   "siteSettingsProtectedContentAllow": "همیشه مجاز",
   "siteSettingsProtectedContentBlock": "همیشه مسدود",
+  "siteSettingsProtectedContentBlockedByEtp": "توسط محافظت در برابر ردیابی مسدود شده",
   "siteSettingsGeolocation": "موقعیت‌یابی جغرافیایی",
   "siteSettingsGeolocationHint": "موقعیت‌یابی جغرافیایی",
   "siteSettingsLocationOff": "خاموش",

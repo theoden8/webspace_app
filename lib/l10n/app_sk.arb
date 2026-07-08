@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "Opýtať sa",
   "siteSettingsProtectedContentAllow": "Vždy povoliť",
   "siteSettingsProtectedContentBlock": "Vždy blokovať",
+  "siteSettingsProtectedContentBlockedByEtp": "Blokované ochranou pred sledovaním",
   "siteSettingsGeolocation": "Geolokácia",
   "siteSettingsGeolocationHint": "Geolokácia",
   "siteSettingsLocationOff": "Vypnuté",

@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "Запитувати",
   "siteSettingsProtectedContentAllow": "Завжди дозволяти",
   "siteSettingsProtectedContentBlock": "Завжди блокувати",
+  "siteSettingsProtectedContentBlockedByEtp": "Заблоковано захистом від стеження",
   "siteSettingsGeolocation": "Геолокація",
   "siteSettingsGeolocationHint": "Геолокація",
   "siteSettingsLocationOff": "Вимк.",

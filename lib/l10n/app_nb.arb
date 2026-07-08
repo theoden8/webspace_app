@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "Spør",
   "siteSettingsProtectedContentAllow": "Alltid tillat",
   "siteSettingsProtectedContentBlock": "Alltid blokker",
+  "siteSettingsProtectedContentBlockedByEtp": "Blokkert av sporingsbeskyttelse",
   "siteSettingsGeolocation": "Geolokasjon",
   "siteSettingsGeolocationHint": "Geolokasjon",
   "siteSettingsLocationOff": "Av",

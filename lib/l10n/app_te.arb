@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "అడుగు",
   "siteSettingsProtectedContentAllow": "ఎల్లప్పుడూ అనుమతించు",
   "siteSettingsProtectedContentBlock": "ఎల్లప్పుడూ నిరోధించు",
+  "siteSettingsProtectedContentBlockedByEtp": "ట్రాకింగ్ రక్షణ ద్వారా నిరోధించబడింది",
   "siteSettingsGeolocation": "జియోలొకేషన్",
   "siteSettingsGeolocationHint": "జియోలొకేషన్",
   "siteSettingsLocationOff": "ఆఫ్",

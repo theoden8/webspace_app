@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "கேள்",
   "siteSettingsProtectedContentAllow": "எப்போதும் அனுமதி",
   "siteSettingsProtectedContentBlock": "எப்போதும் தடு",
+  "siteSettingsProtectedContentBlockedByEtp": "கண்காணிப்பு பாதுகாப்பால் தடுக்கப்பட்டது",
   "siteSettingsGeolocation": "புவியிடம்",
   "siteSettingsGeolocationHint": "புவியிடம்",
   "siteSettingsLocationOff": "முடக்கம்",

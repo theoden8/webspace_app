@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "Vra",
   "siteSettingsProtectedContentAllow": "Laat altyd toe",
   "siteSettingsProtectedContentBlock": "Blokkeer altyd",
+  "siteSettingsProtectedContentBlockedByEtp": "Geblokkeer deur Volgbeskerming",
   "siteSettingsGeolocation": "Geoligging",
   "siteSettingsGeolocationHint": "Geoligging",
   "siteSettingsLocationOff": "Af",

@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "Fiafraigh",
   "siteSettingsProtectedContentAllow": "Ceadaigh i gcónaí",
   "siteSettingsProtectedContentBlock": "Bac i gcónaí",
+  "siteSettingsProtectedContentBlockedByEtp": "Bactha ag an gCosaint ar Rianú",
   "siteSettingsGeolocation": "Geoshuíomh",
   "siteSettingsGeolocationHint": "Geoshuíomh",
   "siteSettingsLocationOff": "As",

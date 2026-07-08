@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "Tanya",
   "siteSettingsProtectedContentAllow": "Sentiasa benarkan",
   "siteSettingsProtectedContentBlock": "Sentiasa sekat",
+  "siteSettingsProtectedContentBlockedByEtp": "Disekat oleh Perlindungan Penjejakan",
   "siteSettingsGeolocation": "Geolokasi",
   "siteSettingsGeolocationHint": "Geolokasi",
   "siteSettingsLocationOff": "Mati",

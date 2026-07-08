@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "Հարցնել",
   "siteSettingsProtectedContentAllow": "Միշտ թույլատրել",
   "siteSettingsProtectedContentBlock": "Միշտ արգելափակել",
+  "siteSettingsProtectedContentBlockedByEtp": "Արգելափակված է Հետևման պաշտպանության կողմից",
   "siteSettingsGeolocation": "Աշխարհագրական դիրք",
   "siteSettingsGeolocationHint": "Աշխարհագրական դիրք",
   "siteSettingsLocationOff": "Անջատ",

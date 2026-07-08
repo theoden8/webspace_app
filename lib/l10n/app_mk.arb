@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "Прашај",
   "siteSettingsProtectedContentAllow": "Секогаш дозволи",
   "siteSettingsProtectedContentBlock": "Секогаш блокирај",
+  "siteSettingsProtectedContentBlockedByEtp": "Блокирано од Заштита од следење",
   "siteSettingsGeolocation": "Геолокација",
   "siteSettingsGeolocationHint": "Геолокација",
   "siteSettingsLocationOff": "Исклучено",

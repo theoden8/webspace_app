@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "Асуух",
   "siteSettingsProtectedContentAllow": "Үргэлж зөвшөөрөх",
   "siteSettingsProtectedContentBlock": "Үргэлж хориглох",
+  "siteSettingsProtectedContentBlockedByEtp": "Хяналтаас хамгаалалтаар хориглогдсон",
   "siteSettingsGeolocation": "Геобайршил",
   "siteSettingsGeolocationHint": "Геобайршил",
   "siteSettingsLocationOff": "Унтраалттай",

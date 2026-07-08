@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "ጠይቅ",
   "siteSettingsProtectedContentAllow": "ሁልጊዜ ፍቀድ",
   "siteSettingsProtectedContentBlock": "ሁልጊዜ አግድ",
+  "siteSettingsProtectedContentBlockedByEtp": "በክትትል ጥበቃ ታግዷል",
   "siteSettingsGeolocation": "ጂኦአካባቢ",
   "siteSettingsGeolocationHint": "ጂኦአካባቢ",
   "siteSettingsLocationOff": "ጠፍቷል",

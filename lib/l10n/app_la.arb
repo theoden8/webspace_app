@@ -401,6 +401,7 @@
   "siteSettingsProtectedContentAsk": "Rogare",
   "siteSettingsProtectedContentAllow": "Semper permittere",
   "siteSettingsProtectedContentBlock": "Semper impedire",
+  "siteSettingsProtectedContentBlockedByEtp": "Impeditum a Tutela contra investigationem",
   "siteSettingsGeolocation": "Geolocatio",
   "siteSettingsGeolocationHint": "Geolocatio",
   "siteSettingsLocationOff": "Exstincta",

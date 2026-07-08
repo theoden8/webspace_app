@@ -1986,6 +1986,10 @@
   "@siteSettingsProtectedContentBlock": {
     "description": "Protected content dropdown option: always block."
   },
+  "siteSettingsProtectedContentBlockedByEtp": "Blocked by Tracking Protection",
+  "@siteSettingsProtectedContentBlockedByEtp": {
+    "description": "Subtitle shown under the protected content (DRM) setting when it is forced to block because Tracking Protection is enabled for this site."
+  },
   "siteSettingsGeolocation": "Geolocation",
   "@siteSettingsGeolocation": {
     "description": "Title and hint title for the geolocation section."

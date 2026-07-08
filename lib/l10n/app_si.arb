@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "අසන්න",
   "siteSettingsProtectedContentAllow": "සැමවිට අවසර දෙන්න",
   "siteSettingsProtectedContentBlock": "සැමවිට අවහිර කරන්න",
+  "siteSettingsProtectedContentBlockedByEtp": "ලුහුබැඳීම් ආරක්ෂණය මගින් අවහිර කර ඇත",
   "siteSettingsGeolocation": "භූ-ස්ථානගත කිරීම",
   "siteSettingsGeolocationHint": "භූ-ස්ථානගත කිරීම",
   "siteSettingsLocationOff": "අක්‍රීය",

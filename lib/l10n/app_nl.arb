@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "Vragen",
   "siteSettingsProtectedContentAllow": "Altijd toestaan",
   "siteSettingsProtectedContentBlock": "Altijd blokkeren",
+  "siteSettingsProtectedContentBlockedByEtp": "Geblokkeerd door trackingbescherming",
   "siteSettingsGeolocation": "Geolocatie",
   "siteSettingsGeolocationHint": "Geolocatie",
   "siteSettingsLocationOff": "Uit",

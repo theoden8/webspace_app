@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "Uliza",
   "siteSettingsProtectedContentAllow": "Ruhusu kila wakati",
   "siteSettingsProtectedContentBlock": "Zuia kila wakati",
+  "siteSettingsProtectedContentBlockedByEtp": "Imezuiwa na Ulinzi wa Ufuatiliaji",
   "siteSettingsGeolocation": "Eneo la kijiografia",
   "siteSettingsGeolocationHint": "Eneo la kijiografia",
   "siteSettingsLocationOff": "Imezimwa",

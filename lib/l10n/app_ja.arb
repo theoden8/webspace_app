@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "確認",
   "siteSettingsProtectedContentAllow": "常に許可",
   "siteSettingsProtectedContentBlock": "常にブロック",
+  "siteSettingsProtectedContentBlockedByEtp": "トラッキング保護によりブロック",
   "siteSettingsGeolocation": "位置情報",
   "siteSettingsGeolocationHint": "位置情報",
   "siteSettingsLocationOff": "オフ",

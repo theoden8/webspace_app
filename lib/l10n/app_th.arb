@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "ถาม",
   "siteSettingsProtectedContentAllow": "อนุญาตเสมอ",
   "siteSettingsProtectedContentBlock": "บล็อกเสมอ",
+  "siteSettingsProtectedContentBlockedByEtp": "ถูกบล็อกโดยการป้องกันการติดตาม",
   "siteSettingsGeolocation": "ตำแหน่งทางภูมิศาสตร์",
   "siteSettingsGeolocationHint": "ตำแหน่งทางภูมิศาสตร์",
   "siteSettingsLocationOff": "ปิด",

@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "Sor",
   "siteSettingsProtectedContentAllow": "Her zaman izin ver",
   "siteSettingsProtectedContentBlock": "Her zaman engelle",
+  "siteSettingsProtectedContentBlockedByEtp": "İzleme Koruması tarafından engellendi",
   "siteSettingsGeolocation": "Coğrafi konum",
   "siteSettingsGeolocationHint": "Coğrafi konum",
   "siteSettingsLocationOff": "Kapalı",

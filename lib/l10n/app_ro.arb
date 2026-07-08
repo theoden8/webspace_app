@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "Întreabă",
   "siteSettingsProtectedContentAllow": "Permite întotdeauna",
   "siteSettingsProtectedContentBlock": "Blochează întotdeauna",
+  "siteSettingsProtectedContentBlockedByEtp": "Blocat de Protecția împotriva urmăririi",
   "siteSettingsGeolocation": "Geolocalizare",
   "siteSettingsGeolocationHint": "Geolocalizare",
   "siteSettingsLocationOff": "Dezactivat",

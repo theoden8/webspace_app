@@ -401,6 +401,7 @@
   "siteSettingsProtectedContentAsk": "Pyet",
   "siteSettingsProtectedContentAllow": "Lejo gjithmonë",
   "siteSettingsProtectedContentBlock": "Blloko gjithmonë",
+  "siteSettingsProtectedContentBlockedByEtp": "Bllokuar nga Mbrojtja nga gjurmimi",
   "siteSettingsGeolocation": "Gjeolokimi",
   "siteSettingsGeolocationHint": "Gjeolokimi",
   "siteSettingsLocationOff": "Joaktiv",

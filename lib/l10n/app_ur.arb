@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "پوچھیں",
   "siteSettingsProtectedContentAllow": "ہمیشہ اجازت دیں",
   "siteSettingsProtectedContentBlock": "ہمیشہ بلاک کریں",
+  "siteSettingsProtectedContentBlockedByEtp": "ٹریکنگ تحفظ کی وجہ سے بلاک شدہ",
   "siteSettingsGeolocation": "جیولوکیشن",
   "siteSettingsGeolocationHint": "جیولوکیشن",
   "siteSettingsLocationOff": "آف",

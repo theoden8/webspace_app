@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "ചോദിക്കുക",
   "siteSettingsProtectedContentAllow": "എപ്പോഴും അനുവദിക്കുക",
   "siteSettingsProtectedContentBlock": "എപ്പോഴും തടയുക",
+  "siteSettingsProtectedContentBlockedByEtp": "ട്രാക്കിംഗ് സംരക്ഷണം വഴി തടഞ്ഞിരിക്കുന്നു",
   "siteSettingsGeolocation": "ജിയോലൊക്കേഷൻ",
   "siteSettingsGeolocationHint": "ജിയോലൊക്കേഷൻ",
   "siteSettingsLocationOff": "ഓഫ്",

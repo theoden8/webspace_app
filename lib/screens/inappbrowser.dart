@@ -249,6 +249,11 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         onProtectedMediaRequest: widget.onProtectedMediaRequest == null
             ? null
             : (origin) async {
+                // ETP-023: DRM provisions a durable Widevine device
+                // identifier, so the umbrella denies without prompting.
+                if (widget.trackingProtectionEnabled) {
+                  return false;
+                }
                 if (_protectedContentAllowed != null) {
                   return _protectedContentAllowed!;
                 }

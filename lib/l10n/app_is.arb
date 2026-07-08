@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "Spyrja",
   "siteSettingsProtectedContentAllow": "Leyfa alltaf",
   "siteSettingsProtectedContentBlock": "Loka alltaf",
+  "siteSettingsProtectedContentBlockedByEtp": "Lokað af rakningarvörn",
   "siteSettingsGeolocation": "Staðsetning",
   "siteSettingsGeolocationHint": "Staðsetning",
   "siteSettingsLocationOff": "Af",

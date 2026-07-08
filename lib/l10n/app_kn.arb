@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "ಕೇಳಿ",
   "siteSettingsProtectedContentAllow": "ಯಾವಾಗಲೂ ಅನುಮತಿಸಿ",
   "siteSettingsProtectedContentBlock": "ಯಾವಾಗಲೂ ನಿರ್ಬಂಧಿಸಿ",
+  "siteSettingsProtectedContentBlockedByEtp": "ಟ್ರ್ಯಾಕಿಂಗ್ ರಕ್ಷಣೆಯಿಂದ ನಿರ್ಬಂಧಿಸಲಾಗಿದೆ",
   "siteSettingsGeolocation": "ಭೌಗೋಳಿಕ ಸ್ಥಳ",
   "siteSettingsGeolocationHint": "ಭೌಗೋಳಿಕ ಸ್ಥಳ",
   "siteSettingsLocationOff": "ಆಫ್",

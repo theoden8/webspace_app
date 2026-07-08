@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "Jautāt",
   "siteSettingsProtectedContentAllow": "Vienmēr atļaut",
   "siteSettingsProtectedContentBlock": "Vienmēr bloķēt",
+  "siteSettingsProtectedContentBlockedByEtp": "Bloķēts ar Izsekošanas aizsardzību",
   "siteSettingsGeolocation": "Ģeolokācija",
   "siteSettingsGeolocationHint": "Ģeolokācija",
   "siteSettingsLocationOff": "Izslēgts",

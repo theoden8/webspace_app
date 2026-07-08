@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "Ερώτηση",
   "siteSettingsProtectedContentAllow": "Πάντα να επιτρέπεται",
   "siteSettingsProtectedContentBlock": "Πάντα να αποκλείεται",
+  "siteSettingsProtectedContentBlockedByEtp": "Αποκλείστηκε από την Προστασία από παρακολούθηση",
   "siteSettingsGeolocation": "Γεωγραφική τοποθεσία",
   "siteSettingsGeolocationHint": "Γεωγραφική τοποθεσία",
   "siteSettingsLocationOff": "Ανενεργό",

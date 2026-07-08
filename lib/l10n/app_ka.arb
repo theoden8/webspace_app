@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "კითხვა",
   "siteSettingsProtectedContentAllow": "ყოველთვის დაშვება",
   "siteSettingsProtectedContentBlock": "ყოველთვის დაბლოკვა",
+  "siteSettingsProtectedContentBlockedByEtp": "დაბლოკილია თვალთვალისგან დაცვის მიერ",
   "siteSettingsGeolocation": "გეომდებარეობა",
   "siteSettingsGeolocationHint": "გეომდებარეობა",
   "siteSettingsLocationOff": "გამორთული",

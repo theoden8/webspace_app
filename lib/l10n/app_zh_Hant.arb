@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "詢問",
   "siteSettingsProtectedContentAllow": "總是允許",
   "siteSettingsProtectedContentBlock": "總是封鎖",
+  "siteSettingsProtectedContentBlockedByEtp": "已被追蹤保護封鎖",
   "siteSettingsGeolocation": "地理位置",
   "siteSettingsGeolocationHint": "地理位置",
   "siteSettingsLocationOff": "關閉",

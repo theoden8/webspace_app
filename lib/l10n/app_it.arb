@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "Chiedi",
   "siteSettingsProtectedContentAllow": "Consenti sempre",
   "siteSettingsProtectedContentBlock": "Blocca sempre",
+  "siteSettingsProtectedContentBlockedByEtp": "Bloccato dalla Protezione dal tracciamento",
   "siteSettingsGeolocation": "Geolocalizzazione",
   "siteSettingsGeolocationHint": "Geolocalizzazione",
   "siteSettingsLocationOff": "Off",

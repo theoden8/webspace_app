@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "પૂછો",
   "siteSettingsProtectedContentAllow": "હંમેશા મંજૂરી આપો",
   "siteSettingsProtectedContentBlock": "હંમેશા અવરોધો",
+  "siteSettingsProtectedContentBlockedByEtp": "ટ્રેકિંગ સંરક્ષણ દ્વારા અવરોધિત",
   "siteSettingsGeolocation": "જિયોલોકેશન",
   "siteSettingsGeolocationHint": "જિયોલોકેશન",
   "siteSettingsLocationOff": "બંધ",

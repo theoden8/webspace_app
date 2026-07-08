@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "Staqsi",
   "siteSettingsProtectedContentAllow": "Dejjem ippermetti",
   "siteSettingsProtectedContentBlock": "Dejjem imblokka",
+  "siteSettingsProtectedContentBlockedByEtp": "Imblukkat mill-Protezzjoni mit-Traċċar",
   "siteSettingsGeolocation": "Ġeolokalizzazzjoni",
   "siteSettingsGeolocationHint": "Ġeolokalizzazzjoni",
   "siteSettingsLocationOff": "Mitfi",

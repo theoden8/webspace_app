@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "Küsi",
   "siteSettingsProtectedContentAllow": "Alati luba",
   "siteSettingsProtectedContentBlock": "Alati blokeeri",
+  "siteSettingsProtectedContentBlockedByEtp": "Blokeeritud jälgimiskaitse poolt",
   "siteSettingsGeolocation": "Asukoht",
   "siteSettingsGeolocationHint": "Asukoht",
   "siteSettingsLocationOff": "Väljas",

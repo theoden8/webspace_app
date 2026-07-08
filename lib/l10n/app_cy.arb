@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "Gofyn",
   "siteSettingsProtectedContentAllow": "Caniatáu bob amser",
   "siteSettingsProtectedContentBlock": "Rhwystro bob amser",
+  "siteSettingsProtectedContentBlockedByEtp": "Wedi'i rwystro gan Amddiffyn rhag Tracio",
   "siteSettingsGeolocation": "Daearleoliad",
   "siteSettingsGeolocationHint": "Daearleoliad",
   "siteSettingsLocationOff": "I ffwrdd",

@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "Magtanong",
   "siteSettingsProtectedContentAllow": "Palaging payagan",
   "siteSettingsProtectedContentBlock": "Palaging i-block",
+  "siteSettingsProtectedContentBlockedByEtp": "Na-block ng Proteksyon Laban sa Pagsubaybay",
   "siteSettingsGeolocation": "Geolocation",
   "siteSettingsGeolocationHint": "Geolocation",
   "siteSettingsLocationOff": "Off",

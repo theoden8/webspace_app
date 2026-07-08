@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "Klausti",
   "siteSettingsProtectedContentAllow": "Visada leisti",
   "siteSettingsProtectedContentBlock": "Visada blokuoti",
+  "siteSettingsProtectedContentBlockedByEtp": "Užblokuota dėl sekimo apsaugos",
   "siteSettingsGeolocation": "Geografinė vieta",
   "siteSettingsGeolocationHint": "Geografinė vieta",
   "siteSettingsLocationOff": "Išjungta",

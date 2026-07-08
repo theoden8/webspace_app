@@ -399,6 +399,7 @@
   "siteSettingsProtectedContentAsk": "Kérdezzen",
   "siteSettingsProtectedContentAllow": "Mindig engedélyezze",
   "siteSettingsProtectedContentBlock": "Mindig blokkolja",
+  "siteSettingsProtectedContentBlockedByEtp": "A nyomkövetés elleni védelem blokkolja",
   "siteSettingsGeolocation": "Helymeghatározás",
   "siteSettingsGeolocationHint": "Helymeghatározás",
   "siteSettingsLocationOff": "Ki",
