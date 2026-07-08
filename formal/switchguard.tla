@@ -90,7 +90,7 @@ CommitNoGuard ==
     /\ phase = "running"
     /\ phase' = "committed"
     /\ dirty' = dirty
-    /\ wrong' = wrong \/ dirty
+    /\ wrong' = (wrong \/ dirty)
 
 GoodNext ==
     \/ StartSwitch
