@@ -871,10 +871,6 @@
   "@appSettingsFullscreenTabStripButton": {
     "description": "Option: keep the tab strip hidden but show a small floating button that reveals it (and its menu) on demand, in and out of full screen"
   },
-  "appSettingsTabBarButtonCorner": "Button position",
-  "@appSettingsTabBarButtonCorner": {
-    "description": "Label for the control choosing whether the tab-bar button sits in the bottom-left or bottom-right corner"
-  },
   "appSettingsTabMaxWidth": "Tab Width Limit",
   "@appSettingsTabMaxWidth": {
     "description": "Title for the slider that caps the maximum width of each tab in the tab bar"

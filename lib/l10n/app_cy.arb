@@ -646,7 +646,6 @@
   "appSettingsDnsBlocklistHint": "Yn llwytho rhestr rwystro Hagezi i rwystro parthau hysbysebu, tracio, a maleiswedd hysbys. Dewiswch lefel difrifoldeb o Ysgafn i Eithaf. Mae lefelau uwch yn rhwystro mwy o barthau ond gallant dorri rhai safleoedd. Unwaith y'i llwythir, galluogwch neu analluogwch fesul safle yng ngosodiadau pob safle.",
   "appSettingsLocalCdnHint": "Yn llwytho llyfrgelloedd JavaScript cyffredin, ffontiau, a fframweithiau CSS i'w gweini'n lleol yn lle eu nôl o weinyddion CDN trydydd parti (fel Google, Cloudflare, jsDelivr). Mae hyn yn atal darparwyr CDN rhag tracio'ch pori ar draws gwahanol wefannau.",
   "appSettingsContentBlockerHint": "Yn rhwystro hysbysebion, tracwyr, ac elfennau tudalen digroeso gan ddefnyddio rhestrau hidlo fel EasyList. Yn cefnogi rhwystro ar lefel parth, hidlwyr cosmetig CSS i guddio elfennau tudalen, a rheolau cuddio testun. Galluogwch neu analluogwch restrau hidlo unigol isod, a throwch y rhwystrwr cynnwys ymlaen ac i ffwrdd fesul safle yng ngosodiadau pob safle.",
-  "appSettingsTabBarButtonCorner": "Safle'r botwm",
   "appSettingsTabMaxWidth": "Terfyn Lled Tab",
   "appSettingsTabMaxWidthSubtitle": "Cyfyngu pa mor llydan y gall pob tab dyfu fel bod enwau hir yn aros yn gryno",
   "appSettingsFullscreenOnShortcut": "Sgrin lawn wrth lansio o lwybr byr",

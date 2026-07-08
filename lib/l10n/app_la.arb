@@ -646,7 +646,6 @@
   "appSettingsDnsBlocklistHint": "Indicem Hagezi exonerat ad nota dominia reclamationum, investigationis, et malware impedienda. Gradum gravitatis a Levi ad Summum elige. Gradus superiores plura dominia impediunt sed nonnullos locos frangere possunt. Semel exoneratus, per locum accende vel exstingue in institutionibus cuiusque loci.",
   "appSettingsLocalCdnHint": "Communes bibliothecas JavaScript, litteras, et compagines CSS exonerat ut eas localiter praeberet potius quam ex servatoribus CDN tertiae partis (ut Google, Cloudflare, jsDelivr) peteret. Hoc impedit praebitores CDN ne tuam navigationem trans paginas diversas investigent.",
   "appSettingsContentBlockerHint": "Reclamationes, investigatores, et elementa paginarum non desiderata impedit indicibus cribri utens ut EasyList. Sustinet impeditionem gradus dominii, cribra cosmetica CSS ad elementa paginarum celanda, et regulas celandi textu fundatas. Indices cribri singulos infra accende vel exstingue, et impeditionem contenti per locum in institutionibus cuiusque loci commuta.",
-  "appSettingsTabBarButtonCorner": "Positio bullae",
   "appSettingsTabMaxWidth": "Limes latitudinis tabulae",
   "appSettingsTabMaxWidthSubtitle": "Limita quantum quaeque tabula latescere possit ut nomina longa compacta maneant",
   "appSettingsFullscreenOnShortcut": "Plena pictura cum e compendio aperitur",

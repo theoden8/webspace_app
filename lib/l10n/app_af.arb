@@ -646,7 +646,6 @@
   "appSettingsDnsBlocklistHint": "Laai die Hagezi-blokkeerlys af om bekende advertensie-, volg- en wanware-domeine te blokkeer. Kies 'n ernstig heidsvlak van Lig tot Uiterste. Hoër vlakke blokkeer meer domeine maar kan sommige webwerwe breek. Eers afgelaai, aktiveer of deaktiveer per-webwerf in elke webwerf se instellings.",
   "appSettingsLocalCdnHint": "Laai algemene JavaScript-biblioteke, lettertipes en CSS-raamwerke af om dit plaaslik te bedien in plaas van om dit van derdeparty-CDN-bedieners (soos Google, Cloudflare, jsDelivr) te haal. Dit verhoed dat CDN-verskaffers jou blaai-aktiwiteit oor verskillende webwerwe heen naspoor.",
   "appSettingsContentBlockerHint": "Blokkeer advertensies, volgers en ongewenste bladsyelemente met filterlyste soos EasyList. Ondersteun domeinvlak-blokkering, CSS-kosmetiese filters om bladsyelemente te versteek, en teksgebaseerde versteekreëls. Aktiveer of deaktiveer individuele filterlyste hieronder, en skakel inhoud-blokkering per-webwerf in elke webwerf se instellings aan of af.",
-  "appSettingsTabBarButtonCorner": "Knoppieposisie",
   "appSettingsTabMaxWidth": "Oortjiebreedte-limiet",
   "appSettingsTabMaxWidthSubtitle": "Beperk hoe wyd elke oortjie kan word sodat lang name kompak bly",
   "appSettingsFullscreenOnShortcut": "Volskerm by kortpad-loods",

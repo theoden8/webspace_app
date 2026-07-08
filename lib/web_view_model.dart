@@ -16,6 +16,7 @@ import 'package:webspace/services/link_routing_service.dart' show LinkRoutingSer
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
+import 'package:webspace/services/tab_bar_corner.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -345,6 +346,10 @@ class WebViewModel {
   /// still open in-app. Default false: the legacy nested-webview routing.
   bool externalLinksInBrowser;
   bool fullscreenMode; // Auto-enter fullscreen when this site is selected
+  /// Corner the floating tab-bar button rests in while this site is
+  /// active. Set by dragging the button itself; null = never dragged,
+  /// falls back to the app-wide default.
+  TabBarCorner? tabBarButtonCorner;
   /// When true, the cached HTML snapshot is rendered as `initialData` for
   /// instant first paint on construction, then swapped to a live load
   /// once the cached parse settles. When false, the cached snapshot is
@@ -556,6 +561,7 @@ class WebViewModel {
     this.blockAutoRedirects = true,
     this.externalLinksInBrowser = false,
     this.fullscreenMode = false,
+    this.tabBarButtonCorner,
     this.htmlCachingEnabled = false,
     this.notificationsEnabled = false,
     this.protectedContentAllowed,
@@ -1659,6 +1665,8 @@ class WebViewModel {
         'blockAutoRedirects': blockAutoRedirects,
         if (externalLinksInBrowser) 'externalLinksInBrowser': true,
         'fullscreenMode': fullscreenMode,
+        if (tabBarButtonCorner != null)
+          'tabBarButtonCorner': tabBarButtonCorner!.name,
         'htmlCachingEnabled': htmlCachingEnabled,
         'notificationsEnabled': notificationsEnabled,
         if (protectedContentAllowed != null)
@@ -1729,6 +1737,15 @@ class WebViewModel {
       blockAutoRedirects: json['blockAutoRedirects'] ?? true,
       externalLinksInBrowser: json['externalLinksInBrowser'] as bool? ?? false,
       fullscreenMode: json['fullscreenMode'] ?? false,
+      // `tabBarButtonOnRight` is the short-lived bool predecessor of the
+      // four-corner field; map it so early builds rehydrate cleanly.
+      tabBarButtonCorner:
+          tabBarCornerFromName(json['tabBarButtonCorner'] as String?) ??
+              switch (json['tabBarButtonOnRight'] as bool?) {
+                null => null,
+                true => TabBarCorner.bottomRight,
+                false => TabBarCorner.bottomLeft,
+              },
       htmlCachingEnabled: json['htmlCachingEnabled'] as bool? ?? false,
       notificationsEnabled:
           (json['notificationsEnabled'] as bool?) ??

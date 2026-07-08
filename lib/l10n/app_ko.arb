@@ -646,7 +646,6 @@
   "appSettingsDnsBlocklistHint": "알려진 광고, 추적, 멀웨어 도메인을 차단하기 위해 Hagezi 차단 목록을 다운로드합니다. Light부터 Ultimate까지 심각도 수준을 선택할 수 있습니다. 수준이 높을수록 더 많은 도메인을 차단하지만 일부 사이트가 제대로 작동하지 않을 수 있습니다. 다운로드 후 각 사이트의 설정에서 사이트별로 활성화하거나 비활성화할 수 있습니다.",
   "appSettingsLocalCdnHint": "일반적인 JavaScript 라이브러리, 글꼴, CSS 프레임워크를 서드파티 CDN 서버(Google, Cloudflare, jsDelivr 등)에서 가져오는 대신 로컬에서 제공할 수 있도록 다운로드합니다. 이를 통해 CDN 제공자가 여러 웹사이트에 걸친 사용자의 검색 활동을 추적하지 못하게 합니다.",
   "appSettingsContentBlockerHint": "EasyList 등의 필터 목록을 사용하여 광고, 추적기, 원치 않는 페이지 요소를 차단합니다. 도메인 수준 차단, 페이지 요소를 숨기는 CSS 외형 필터, 텍스트 기반 숨김 규칙을 지원합니다. 아래에서 개별 필터 목록을 활성화하거나 비활성화하고, 각 사이트의 설정에서 사이트별로 콘텐츠 차단을 켜고 끌 수 있습니다.",
-  "appSettingsTabBarButtonCorner": "버튼 위치",
   "appSettingsTabMaxWidth": "탭 너비 제한",
   "appSettingsTabMaxWidthSubtitle": "긴 이름이 간결하게 유지되도록 각 탭이 넓어질 수 있는 정도를 제한합니다",
   "appSettingsFullscreenOnShortcut": "바로가기로 실행 시 전체 화면",

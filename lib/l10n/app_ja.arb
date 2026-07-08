@@ -646,7 +646,6 @@
   "appSettingsDnsBlocklistHint": "既知の広告、トラッキング、マルウェアのドメインをブロックするために Hagezi ブロックリストをダウンロードします。「ライト」から「アルティメット」まで深刻度レベルを選択できます。レベルが高いほど多くのドメインをブロックしますが、一部のサイトが壊れる場合があります。ダウンロード後、各サイトの設定でサイトごとに有効・無効を切り替えられます。",
   "appSettingsLocalCdnHint": "一般的な JavaScript ライブラリ、フォント、CSS フレームワークをダウンロードし、Google、Cloudflare、jsDelivr などのサードパーティ CDN サーバーから取得する代わりにローカルで提供します。これにより、CDN プロバイダが異なるウェブサイトをまたいであなたの閲覧活動を追跡するのを防ぎます。",
   "appSettingsContentBlockerHint": "EasyList などのフィルターリストを使用して、広告、トラッカー、不要なページ要素をブロックします。ドメインレベルのブロック、ページ要素を隠す CSS コスメティックフィルター、テキストベースの非表示ルールに対応します。以下で個々のフィルターリストの有効・無効を切り替え、各サイトの設定でサイトごとにコンテンツブロックを切り替えられます。",
-  "appSettingsTabBarButtonCorner": "ボタンの位置",
   "appSettingsTabMaxWidth": "タブ幅の上限",
   "appSettingsTabMaxWidthSubtitle": "長い名前がコンパクトに収まるよう、各タブの幅を制限します",
   "appSettingsFullscreenOnShortcut": "ショートカットからの起動時に全画面",

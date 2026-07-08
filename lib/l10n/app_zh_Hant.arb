@@ -646,7 +646,6 @@
   "appSettingsDnsBlocklistHint": "下載 Hagezi 封鎖清單，以封鎖已知的廣告、追蹤及惡意軟體網域。可選擇從輕度到終極的嚴重程度等級。等級越高封鎖的網域越多，但可能造成部分網站無法正常運作。下載後，可在每個網站的設定中逐站啟用或停用。",
   "appSettingsLocalCdnHint": "下載常見的 JavaScript 函式庫、字型及 CSS 框架，改由本地提供，而非從第三方 CDN 伺服器（如 Google、Cloudflare、jsDelivr）擷取。這可防止 CDN 供應者跨不同網站追蹤您的瀏覽活動。",
   "appSettingsContentBlockerHint": "使用 EasyList 等過濾清單封鎖廣告、追蹤器及不需要的頁面元素。支援網域層級封鎖、CSS 外觀過濾以隱藏頁面元素，以及以文字為基礎的隱藏規則。可在下方啟用或停用個別過濾清單，並在每個網站的設定中逐站切換內容封鎖。",
-  "appSettingsTabBarButtonCorner": "按鈕位置",
   "appSettingsTabMaxWidth": "分頁寬度上限",
   "appSettingsTabMaxWidthSubtitle": "限制每個分頁的最大寬度，讓較長的名稱保持精簡",
   "appSettingsFullscreenOnShortcut": "透過捷徑啟動時全螢幕",

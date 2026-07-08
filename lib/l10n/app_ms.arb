@@ -646,7 +646,6 @@
   "appSettingsDnsBlocklistHint": "Memuat turun senarai sekat Hagezi untuk menyekat domain pengiklanan, penjejakan, dan perisian hasad yang diketahui. Pilih tahap keterukan dari Ringan hingga Mutlak. Tahap lebih tinggi menyekat lebih banyak domain tetapi mungkin merosakkan sesetengah tapak. Setelah dimuat turun, dayakan atau lumpuhkan sesawang dalam tetapan setiap tapak.",
   "appSettingsLocalCdnHint": "Memuat turun pustaka JavaScript biasa, fon, dan rangka kerja CSS untuk dihidangkan secara setempat dan bukannya mengambilnya daripada pelayan CDN pihak ketiga (seperti Google, Cloudflare, jsDelivr). Ini menghalang pembekal CDN daripada menjejaki penyemakan imbas anda merentas laman web yang berbeza.",
   "appSettingsContentBlockerHint": "Menyekat iklan, penjejak, dan elemen halaman yang tidak diingini menggunakan senarai penapis seperti EasyList. Menyokong sekatan peringkat domain, penapis kosmetik CSS untuk menyembunyikan elemen halaman, dan peraturan penyembunyian berasaskan teks. Dayakan atau lumpuhkan senarai penapis individu di bawah, dan togol penyekatan kandungan sesawang dalam tetapan setiap tapak.",
-  "appSettingsTabBarButtonCorner": "Kedudukan butang",
   "appSettingsTabMaxWidth": "Had Lebar Tab",
   "appSettingsTabMaxWidthSubtitle": "Hadkan sejauh mana setiap tab boleh melebar supaya nama panjang kekal padat",
   "appSettingsFullscreenOnShortcut": "Skrin penuh apabila dilancarkan dari pintasan",
