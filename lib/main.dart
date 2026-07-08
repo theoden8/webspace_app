@@ -58,6 +58,7 @@ import 'package:webspace/services/site_lifecycle_engine.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
 import 'package:webspace/services/site_retention_priority.dart';
 import 'package:webspace/services/site_unload_engine.dart';
+import 'package:webspace/services/nav_state_capture_debouncer.dart';
 import 'package:webspace/services/webview_state_secure_storage.dart';
 import 'package:webspace/services/webview_state_storage.dart';
 import 'package:webspace/services/startup_restore_engine.dart';
@@ -1036,6 +1037,15 @@ class _WebSpacePageState extends State<WebSpacePage>
   final WebViewStateStorage _stateStorage =
       debugWebViewStateStorageOverride ?? SecureWebViewStateStorage();
 
+  // Trailing-edge debounce for navigation-driven state captures
+  // (PAUSE-009): one saveState() IPC per navigation burst, fired after
+  // the burst settles, so the on-disk back/forward stack stays fresh
+  // for kill paths that never deliver `paused` (app-switcher
+  // swipe-kill) and for background sites navigating while another site
+  // is current.
+  final NavStateCaptureDebouncer _navStateDebouncer =
+      NavStateCaptureDebouncer();
+
   // Track which webview indices have been loaded (for lazy loading)
   // Only webviews in this set will be created - others remain as placeholders
   final Set<int> _loadedIndices = {};
@@ -1357,6 +1367,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   @override
   void dispose() {
     _foregroundPollTimer?.cancel();
+    _navStateDebouncer.dispose();
     _untrustSub?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -4079,6 +4090,10 @@ class _WebSpacePageState extends State<WebSpacePage>
       for (int i = 0; i < _webViewModels.length; i++) {
         if (_webViewModels[i].effectiveNotificationsEnabled) {
           await _ensureSiteHtml(i);
+          // PAUSE-019: same pre-queue as the container-mode deferred
+          // path — once in _loadedIndices the activation restore is
+          // skipped, so the back/forward stack must be queued now.
+          await queueNavStateRestore(_webViewModels[i].siteId);
           _loadedIndices.add(i);
         }
       }
@@ -4322,6 +4337,31 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (m != null) {
       await m.setTheme(_themeModeToWebViewTheme(_themeSettings.themeMode));
     }
+  }
+
+  /// PAUSE-019: pre-queue the saved back/forward stack for a site that
+  /// is about to enter `_loadedIndices` without going through
+  /// `_setCurrentIndex` (auto-loaded notification sites). Once it's in
+  /// the set, the activation path skips its restore fetch, so a queue
+  /// here is the only chance the bytes get applied on this run.
+  @override
+  Future<void> queueNavStateRestore(String siteId) async {
+    final model = _modelForSiteId(siteId);
+    if (model == null) return;
+    // A live controller can't consume queued bytes — restoreState only
+    // applies to a freshly-created one.
+    if (!model.persistsNavState || model.controller != null) return;
+    final bytes = await _stateStorage.loadState(siteId);
+    if (bytes == null) return;
+    // Re-resolve after the disk read: the site may have been deleted.
+    if (_modelForSiteId(siteId) == null) return;
+    model.schedulePendingRestoreState(bytes);
+    LogService.instance.log(
+      'WebViewState',
+      'Queued ${bytes.length} restore bytes for auto-loaded site '
+          '"${model.name}" (siteId: $siteId)',
+      sensitivity: LogSensitivity.sensitive,
+    );
   }
 
   @override
@@ -7251,6 +7291,22 @@ class _WebSpacePageState extends State<WebSpacePage>
                         // _currentIndex live at fire time; no-op off Android.
                         webViewModel.onControllerReady = () {
                           if (index == _currentIndex) _nudgeSurfaceRepaint();
+                        };
+
+                        // Keep the on-disk back/forward stack tracking
+                        // browsing (PAUSE-009): pause/dispose captures
+                        // alone go stale for background sites and are
+                        // skipped entirely when the app is killed from
+                        // the switcher (only `inactive` fires, which is
+                        // deliberately ignored — issue #308). Identity
+                        // check, not index: the list may have mutated
+                        // by the time the debounce fires.
+                        webViewModel.onNavigationCommitted = () {
+                          _navStateDebouncer.schedule(webViewModel.siteId, () {
+                            if (!mounted) return;
+                            if (!_webViewModels.contains(webViewModel)) return;
+                            unawaited(_captureStateBytes(webViewModel));
+                          });
                         };
 
                         // Single source of truth for which HTML store backs

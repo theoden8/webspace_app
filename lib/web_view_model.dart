@@ -525,6 +525,14 @@ class WebViewModel {
   /// webview does NOT recreate the controller, so it does not fire here —
   /// that path is nudged explicitly by `_setCurrentIndex`.
   Function? onControllerReady;
+  /// Host hook fired once per committed navigation (deduped across the
+  /// `onLoadStop` / `onUpdateVisitedHistory` double-fire). The host
+  /// debounces `controller.saveState()` captures off this so the
+  /// persisted back/forward stack tracks browsing instead of only
+  /// pause/dispose events (PAUSE-009) — the app-switcher swipe-kill
+  /// never delivers `paused`, and background notification sites
+  /// navigate while another site is current.
+  VoidCallback? onNavigationCommitted;
   FindMatchesResult findMatches = FindMatchesResult();
   WebViewTheme _currentTheme = WebViewTheme.light;
 
@@ -1092,6 +1100,7 @@ class WebViewModel {
             final currentNotifyUrl = urlChangedState.currentUrl;
             if (currentNotifyUrl != lastNotifiedUrl) {
               lastNotifiedUrl = currentNotifyUrl;
+              onNavigationCommitted?.call();
               // Each await below is a yield point where disposeWebView() can
               // null `controller`, so we re-check before every native call —
               // calling into a torn-down WebView peer can trip Chromium's

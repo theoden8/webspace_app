@@ -48,9 +48,12 @@ class _FakeHost implements DeferredStartupHost {
   final List<({Set<String> active, Set<String> nonIncognito})> sweeps = [];
   final List<String> opLog = []; // 'persist' / 'sweep' — to assert ordering
 
+  final List<String> restoreQueued = [];
+
   // Await-point hooks: run *inside* the awaited call, i.e. "during the await".
   void Function(String siteId)? onPreloadHtml;
   void Function(String siteId)? onApplyTheme;
+  void Function(String siteId)? onQueueNavStateRestore;
   void Function()? onLoadDataset;
 
   _FakeSite? _find(String id) {
@@ -105,6 +108,17 @@ class _FakeHost implements DeferredStartupHost {
         reason: 'INVARIANT: applyTheme on dead site $siteId');
     themed.add(siteId);
     onApplyTheme?.call(siteId);
+  }
+
+  @override
+  Future<void> queueNavStateRestore(String siteId) async {
+    expect(isLive(siteId), isTrue,
+        reason: 'INVARIANT: queueNavStateRestore on dead site $siteId');
+    expect(isLoaded(siteId), isFalse,
+        reason: 'INVARIANT: restore queued after markLoaded for $siteId — '
+            'the first build may already have consumed (no) bytes');
+    restoreQueued.add(siteId);
+    onQueueNavStateRestore?.call(siteId);
   }
 
   @override
@@ -167,6 +181,32 @@ void main() {
       expect(host.markedLoaded.toSet(), {'a', 'b'});
       expect(host.isLoaded('plain'), isFalse);
       expect(host.rebuilds, 1);
+    });
+
+    test('queues nav-state restore before marking loaded (PAUSE-019)',
+        () async {
+      final host = _FakeHost([
+        _FakeSite('a', notif: true),
+        _FakeSite('b', notif: true),
+      ]);
+      await DeferredStartupEngine.autoLoadNotificationSites(host);
+      // The fake host's queueNavStateRestore asserts !isLoaded at call
+      // time, so this also proves the ordering, not just the coverage.
+      expect(host.restoreQueued, ['a', 'b']);
+    });
+
+    test('site deleted during its restore queue is not loaded (no throw)',
+        () async {
+      final host = _FakeHost([
+        _FakeSite('a', notif: true),
+        _FakeSite('b', notif: true),
+      ]);
+      host.onQueueNavStateRestore = (siteId) {
+        if (siteId == 'a') host.delete('a');
+      };
+      await DeferredStartupEngine.autoLoadNotificationSites(host);
+      expect(host.isLoaded('a'), isFalse, reason: 'deleted mid-flight');
+      expect(host.isLoaded('b'), isTrue);
     });
 
     test('site deleted during its own HTML preload is not loaded (no throw)',
