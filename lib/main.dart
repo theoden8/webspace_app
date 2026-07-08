@@ -2459,12 +2459,11 @@ class _WebSpacePageState extends State<WebSpacePage>
     // Mirror per-site proxy passwords into secure storage. The non-secret
     // proxy fields ride along in the SharedPreferences JSON via
     // `model.toJson()` (which omits password by default).
-    final existingPasswords = await _proxyPasswordStorage.loadAll();
-    final updatedPasswords = <String, String?>{...existingPasswords};
-    for (final m in appTierModels) {
-      updatedPasswords[m.siteId] = m.proxySettings.password;
-    }
-    await _proxyPasswordStorage.saveAll(updatedPasswords);
+    await _proxyPasswordStorage.mutate((draft) {
+      for (final m in appTierModels) {
+        draft[m.siteId] = m.proxySettings.password;
+      }
+    });
 
     // Save models to SharedPreferences (cookies will be empty in
     // SharedPreferences; proxy password is omitted by `toJson()` default —
@@ -2630,16 +2629,11 @@ class _WebSpacePageState extends State<WebSpacePage>
       await _cookieSecureStorage.saveCookiesForSite(sid, const []);
       await HtmlCacheService.instance.deleteCache(sid);
     }
-    final pwAll = await _proxyPasswordStorage.loadAll();
-    final pwPatch = <String, String?>{
-      ...pwAll,
-      for (final sid in slice.siteIds)
-        if (pwAll.containsKey(sid)) sid: null,
-    };
-    if (pwPatch.length != pwAll.length ||
-        slice.siteIds.any((sid) => pwAll.containsKey(sid))) {
-      await _proxyPasswordStorage.saveAll(pwPatch);
-    }
+    await _proxyPasswordStorage.mutate((draft) {
+      for (final sid in slice.siteIds) {
+        draft[sid] = null;
+      }
+    });
     final removedSet = slice.siteIds;
     // Invalidate any in-flight `_setCurrentIndex`: removing archive rows
     // shifts positions, and a concurrent switch bounds-checks but not by
@@ -2749,27 +2743,37 @@ class _WebSpacePageState extends State<WebSpacePage>
     // onCookiesChanged) when the webview hasn't been loaded.
     final capturedCookies = await _captureCookiesForTransfer(model);
 
+    // Derive the opaque archive container id up front so the tier flip below
+    // is atomic: never leave the model archive-tier with a null
+    // archiveContainerId (a webview rebuilt in that window would fall back to
+    // the cleartext `ws-<siteId>` container name).
+    final archiveContainerId =
+        await _deriveArchiveContainerId(target.key, model.siteId);
+
+    // Flip the tier (and bind the archive container) BEFORE dropping app-tier
+    // persistence (ARCH-001). A concurrent `_saveWebViewModels` filters on
+    // `!isArchiveTier` when it rebuilds the whole app-tier cookie/password
+    // maps; if the flip came after the clears, a save that snapshotted the
+    // site pre-flip could land after the clear and re-persist the
+    // archive-tier session into app-tier storage. Flipping first means any
+    // later snapshot excludes the site.
+    model.disposeWebView();
+    model.isArchiveTier = true;
+    model.archiveContainerId = archiveContainerId;
+    model.setPendingArchiveCookies(capturedCookies);
+
     // Drop app-tier persistence for this site so the next
     // _saveWebViewModels doesn't see it. The site's runtime row stays
     // in _webViewModels; only its tier and routing change.
     await _cookieSecureStorage.saveCookiesForSite(model.siteId, const []);
-    final passwords = await _proxyPasswordStorage.loadAll();
-    if (passwords.containsKey(model.siteId)) {
-      final next = <String, String?>{...passwords, model.siteId: null};
-      await _proxyPasswordStorage.saveAll(next);
-    }
+    await _proxyPasswordStorage.mutate((draft) {
+      draft[model.siteId] = null;
+    });
 
     // Drop the app-tier container (cleartext `ws-<siteId>`).
     if (_useContainers) {
       await _containerIsolation.onSiteDeleted(model.siteId);
     }
-
-    // Force a fresh webview that binds to the new opaque container.
-    model.disposeWebView();
-    model.isArchiveTier = true;
-    model.archiveContainerId =
-        await _deriveArchiveContainerId(target.key, model.siteId);
-    model.setPendingArchiveCookies(capturedCookies);
 
     // Track ownership for the close-archive flow.
     target.state.sites.add(model.toJson());
@@ -3427,7 +3431,11 @@ class _WebSpacePageState extends State<WebSpacePage>
       targetIndex: index,
       models: _webViewModels,
       loadedIndices: _loadedIndices,
-      proxyIsGlobal: Platform.isAndroid,
+      // Both Android and Linux drive a process-global, last-write-wins
+      // proxy (ProxyController fanned across sessions); a mismatched-proxy
+      // sibling left loaded would route its next request through the wrong
+      // proxy. iOS/macOS bind per-session, so no unload needed there.
+      proxyIsGlobal: Platform.isAndroid || Platform.isLinux,
     );
     for (final i in proxyMismatch) {
       LogService.instance.log(
@@ -3897,11 +3905,11 @@ class _WebSpacePageState extends State<WebSpacePage>
         }
       }
       if (legacyMigrations.isNotEmpty) {
-        final merged = <String, String?>{
-          ...secureProxyPasswords,
-          ...legacyMigrations,
-        };
-        await _proxyPasswordStorage.saveAll(merged);
+        await _proxyPasswordStorage.mutate((draft) {
+          // Don't overwrite an existing secure entry — the migration guard
+          // above only staged keys that were absent, so add-if-absent here.
+          legacyMigrations.forEach((k, v) => draft.putIfAbsent(k, () => v));
+        });
         await prefs.setStringList('webViewModels', cleanedJsonStrings);
         secureProxyPasswords.addAll(legacyMigrations);
         LogService.instance.log(

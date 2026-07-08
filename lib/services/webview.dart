@@ -2425,10 +2425,21 @@ class WebViewFactory {
     // through to the app-global outbound proxy, so a site the user
     // hasn't customized still inherits a global Tor / corporate proxy.
     // Explicit per-site values win.
-    final inappProxy = (Platform.isIOS || Platform.isMacOS) &&
+    final effectiveProxy = (Platform.isIOS || Platform.isMacOS) &&
             config.proxySettings != null
-        ? _userProxyToInappProxy(resolveEffectiveProxy(config.proxySettings!))
+        ? resolveEffectiveProxy(config.proxySettings!)
         : null;
+    final inappProxy =
+        effectiveProxy != null ? _userProxyToInappProxy(effectiveProxy) : null;
+    // Fail closed: on iOS/macOS the per-site proxy is bound here via
+    // `proxySettings`. If the site expects a non-DEFAULT proxy but the
+    // address is malformed (e.g. a hand-edited backup that bypassed UI
+    // validation), `_userProxyToInappProxy` returns null and the webview
+    // would otherwise load over the device IP. Blank the initial load
+    // instead of leaking.
+    final proxyUnavailable = effectiveProxy != null &&
+        effectiveProxy.type != ProxyType.DEFAULT &&
+        inappProxy == null;
 
     LogService.instance.log(
       'DnsBlock',
@@ -2517,8 +2528,8 @@ class WebViewFactory {
     final inapp.InAppWebView webViewWidget = inapp.InAppWebView(
       key: config.key,
       initialUrlRequest: (renderInitialData || suppressInitialLoad) ? null : inapp.URLRequest(
-        url: inapp.WebUri(config.initialUrl),
-        headers: headers.isNotEmpty ? headers : null,
+        url: inapp.WebUri(proxyUnavailable ? 'about:blank' : config.initialUrl),
+        headers: proxyUnavailable || headers.isEmpty ? null : headers,
       ),
       initialData: renderInitialData ? inapp.InAppWebViewInitialData(
         data: config.initialHtml ?? buildFileImportFallbackHtml(config.initialUrl),
