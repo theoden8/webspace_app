@@ -1468,6 +1468,26 @@ class _WebSpacePageState extends State<WebSpacePage>
       }
       if (!mounted) return;
       setState(() {});
+
+      // The pressure event itself — not our eviction — can blank the VISIBLE
+      // site: iOS may jettison its frontmost WKWebView's content process, and
+      // the Android hybrid-composition SurfaceView can drop its buffer under a
+      // low-memory GL reclaim. The active site is hard-protected from eviction,
+      // so neither the promotion above nor `_setCurrentIndex` runs against it —
+      // it would otherwise stay blank until the next navigation. Probe + nudge
+      // it here, covering both outcomes: a dead renderer (recreate) and a
+      // live-but-unpainted surface (nudge). See PAUSE-019.
+      final activeIdx = AppLifecycleEngine.activeLoadedIndex(
+        currentIndex: _currentIndex,
+        siteCount: _webViewModels.length,
+        loadedIndices: _loadedIndices,
+      );
+      if (activeIdx != null) {
+        await _probeRendererAndRecover(_webViewModels[activeIdx],
+            trigger: 'memory-pressure');
+        if (!mounted) return;
+        _nudgeSurfaceRepaint();
+      }
     } finally {
       _isHandlingMemoryPressure = false;
     }
@@ -1601,7 +1621,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       loadedIndices: _loadedIndices,
     );
     if (probeIdx != null) {
-      unawaited(_probeRendererAndRecover(_webViewModels[probeIdx]));
+      unawaited(_probeRendererAndRecover(_webViewModels[probeIdx], trigger: 'resume'));
     }
     // Re-apply fullscreen system UI mode after resume
     if (_isFullscreen) {
@@ -1630,19 +1650,31 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// A live renderer returns a number (0 / -1 / positive); only null means
   /// gone. Fire-and-forget; no-op when the model has no controller (a fresh
   /// first-load whose controller hasn't been created yet).
-  Future<void> _probeRendererAndRecover(WebViewModel model) async {
+  Future<void> _probeRendererAndRecover(WebViewModel model,
+      {String trigger = 'unspecified'}) async {
     final controller = model.controller;
     if (controller == null) return;
     final result = await controller
         .evaluateJavascriptReturning('document.body ? document.body.offsetHeight : -1');
     if (!mounted) return;
+    final gone = rendererProbeIndicatesGone(result);
+    // Non-sensitive one-liner (no site name / URL) so it is safe to share when
+    // diagnosing the recurring Android blank-screen class: the probe value
+    // separates a dead renderer (null → BUG-002, recreate) from a live but
+    // unpainted surface (a number → BUG-001, nudge). See PAUSE-019.
+    LogService.instance.log(
+      'SurfaceDiag',
+      'trigger=$trigger probe=${result ?? 'null'} → '
+          '${gone ? 'renderer-gone (recreate)' : 'renderer-alive (nudge)'}',
+    );
     // identical() guard: a concurrent recreate may have already swapped the
     // controller out from under us — don't null a fresh one.
-    if (rendererProbeIndicatesGone(result) && identical(model.controller, controller)) {
+    if (gone && identical(model.controller, controller)) {
       LogService.instance.log(
         'WebView',
         'Renderer probe failed for "${model.name}" (siteId: ${model.siteId}) — recreating',
         level: LogLevel.warning,
+        sensitivity: LogSensitivity.sensitive,
       );
       model.handleRendererGone(didCrash: false);
     }
@@ -3509,7 +3541,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     // delegate never fired) or a blank surface (Android hybrid-composition).
     // Probe and recover so a shortcut tap or tab switch doesn't land on a
     // black/blank page. See PAUSE-013.
-    unawaited(_probeRendererAndRecover(target));
+    unawaited(_probeRendererAndRecover(target, trigger: 'site-switch'));
 
     // Defensive sweep: pause every other loaded webview so background
     // sites don't run animations / GPS listeners / non-throttled

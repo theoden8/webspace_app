@@ -115,6 +115,28 @@ nested screen re-attaches a blank SurfaceView exactly like the main page — gap
 **Why partial:** Forward navigation (gap #2) is still unnudged in both screens; the
 class is still closed only path-by-path (gap #3).
 
+### Attempt 7 — Recover the visible surface on memory pressure + shareable probe diagnostic (`PAUSE-019`)
+**Date:** 2026-07-08 · **Files:** lib/main.dart, openspec/specs/webview-pause-lifecycle/spec.md
+**What it did:** (a) `_handleMemoryPressure` now, after evicting its victim, resolves the
+active loaded index and runs `_probeRendererAndRecover` (dead renderer → recreate) then
+`_nudgeSurfaceRepaint` (blank surface → recomposite) against the **visible** site. (b) Gave
+`_probeRendererAndRecover` a `trigger` label and made it emit a non-sensitive `SurfaceDiag`
+line (`trigger=… probe=… → renderer-alive|renderer-gone`, no site name/URL) on every path
+(resume, site-switch, memory-pressure).
+**Why:** Reported as an any-site Android blank. The log showed the blank landing inside
+memory-pressure churn (sites evicted, app backgrounded/foregrounded). The active site is
+hard-protected from eviction, so it passed through none of the already-nudged chokepoints
+(`_setCurrentIndex`, `onControllerReady`, back path, resume) as a *result* of the pressure —
+yet the pressure itself can jettison its renderer (iOS) or drop its `SurfaceView` buffer
+(Android). This is exactly the open-gap #3 shape: a new path reaching a blank surface without
+passing a nudge. The diagnostic exists because the surface-vs-renderer distinction can't be
+read from a log without the `offsetHeight` probe value, and prior logs were too sensitive to share.
+**Why partial:** Still per-path — it adds the memory-pressure path rather than closing the
+class. It also does not *prove* the memory-pressure event was this user's trigger (the
+`SurfaceDiag` line is what confirms which path + which color). And it inherits Attempt 2/4's
+assumption that the nudge physically recomposites on the device (see the TLAPS refinement gap
+in gap #4 below).
+
 ## Known open gaps (candidates for the next recurrence)
 
 1. ~~Nested `InAppWebViewScreen`~~ — **closed by Attempt 6** (now funneled + gated).
@@ -125,6 +147,17 @@ class is still closed only path-by-path (gap #3).
    chokepoint** that nudges on *every* surface (re)attach — ideally a native
    surface-changed/-redrawn callback from the fork driving the repaint — instead of
    enumerating Dart-side navigation paths forever.
+4. **The TLAPS proof doesn't cover the recurrence — by construction.**
+   `RepaintLiveness` is proved over `GoodSpec`/`GoodNext`, a *fixed* set of attach actions
+   (`Activate`, `Resume`, `ControllerAttach`, `Back`, `Forward`, `LoadSite`, `Evict`), each of
+   which sets `owed`. A real code path that (re)attaches a surface without emitting one of those
+   modeled actions is simply not a transition in `Next`, so the proof can't fail on it — that
+   is gap #3 restated in model terms. Two further refinement holes: the proof *assumes* `Nudge`
+   physically repaints (it can't reach SurfaceFlinger), and it says nothing about a dead
+   renderer (that is [BUG-002](002-black-screen.md) / `renderer.tla`, a different property). The
+   code↔model bridge that is meant to catch gap #3 — `formal/trace/` plus the
+   `surface_repaint_funnel` structural gate — is scoped to `lib/main.dart` back paths, not the
+   memory-pressure/lifecycle path Attempt 7 covers, so that path is not yet gated.
 
 ## Guardrails now in place
 

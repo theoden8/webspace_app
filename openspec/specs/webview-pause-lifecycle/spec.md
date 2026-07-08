@@ -621,6 +621,28 @@ Every back-navigation call site on the visible webview SHALL route through `_goB
 
 ---
 
+### Requirement: PAUSE-019 — Recover The Visible Site On Memory Pressure
+
+On a memory-pressure event the system SHALL probe-and-recover the **visible** site's surface, covering both blank outcomes the pressure itself can cause. The `didHaveMemoryPressure` handler evicts a background victim (the active site is hard-protected), but the underlying low-memory condition — not the eviction — can blank the frontmost webview: iOS may jettison the visible `WKWebView`'s content process, and Android's hybrid-composition `SurfaceView` can lose its buffer under a GL reclaim. Because the active site never goes through `_setCurrentIndex` (PAUSE-015), `onControllerReady` (PAUSE-017), the back path (PAUSE-018), or a resume (PAUSE-014/015) as a result of memory pressure, it was uncovered and could stay blank until the next navigation.
+
+After applying the eviction, the handler SHALL resolve the active loaded index and, when present, run `_probeRendererAndRecover` (dead renderer → recreate, per PAUSE-013/014) followed by `_nudgeSurfaceRepaint` (live-but-unpainted surface → recomposite, per PAUSE-015). Running both is safe: the probe recreates only on a null result, and the nudge is a no-op off Android and harmless when the surface was already painted.
+
+Every `_probeRendererAndRecover` call SHALL carry a `trigger` label and emit one non-sensitive `SurfaceDiag` log line (`trigger=<path> probe=<value> → renderer-alive|renderer-gone`) that carries no site name or URL, so a user can share exactly that line when reporting a blank screen — the probe value distinguishes a dead renderer (`null`) from a live but unpainted surface (a number).
+
+#### Scenario: Visible site blanks under memory pressure
+
+**Given** a site is visible on Android and the OS signals memory pressure
+**When** `_handleMemoryPressure` promotes a background victim
+**Then** it resolves the active loaded index and runs `_probeRendererAndRecover` then `_nudgeSurfaceRepaint` against the visible site, so a dead renderer is rebuilt and a blank surface recomposites instead of persisting until the next navigation
+
+#### Scenario: Diagnostic line is shareable
+
+**Given** any renderer probe runs (resume, site-switch, or memory-pressure)
+**When** it completes
+**Then** a `SurfaceDiag` line records the trigger, probe value, and decision with no site name or URL, so it is safe to share for diagnosis
+
+---
+
 ### Requirement: PAUSE-016 — Android Per-Instance Pause Is a No-Op
 
 On Android the per-instance `pause()` / `resume()` (`WebView.onPause()` / `onResume()`) SHALL be no-ops. Android exposes no per-instance JavaScript pause — `onPause()` halts only animations and geolocation and explicitly does not pause JS, while the only JS-timer pause (`pauseTimers()`) is process-global. So per-instance pause contributes nothing to the lifecycle freeze, yet cycling the foreground hybrid-composition `SurfaceView` through onPause/onResume re-attaches it blank on the next paint — the white screen the user hits after a transient background or a navigation that follows a resume.
