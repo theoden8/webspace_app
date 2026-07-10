@@ -1454,10 +1454,17 @@ class WebViewFactory {
 })();''';
 
   /// Determine if a navigation was triggered by a user gesture.
-  /// Android: uses hasGesture property.
-  /// iOS/macOS: uses navigationType (LINK_ACTIVATED = user tap, FORM_SUBMITTED = user form).
+  /// Android / Linux: uses hasGesture property. WebKit's user-gesture indicator
+  /// captures user clicks even when JS intercepts them (DDG, Google, Reddit
+  /// search results all preventDefault and navigate via location.href, so
+  /// `navigationType` reads OTHER and would block every external click).
+  /// Tradeoff: the indicator also propagates into iframes auto-loaded by a
+  /// page the user just navigated to (Google One Tap, Stripe.js), which can
+  /// open a nested webview for those iframes — disable `blockAutoRedirects`
+  /// per-site if a site triggers this often.
+  /// iOS / macOS: uses navigationType.
   static bool _hasUserGesture(inapp.NavigationAction action) {
-    if (Platform.isAndroid) {
+    if (Platform.isAndroid || Platform.isLinux) {
       return action.hasGesture ?? true;
     }
     if (Platform.isIOS || Platform.isMacOS) {
