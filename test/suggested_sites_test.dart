@@ -50,7 +50,9 @@ void main() {
       expect(isFdroidFlavor, isFalse);
     });
 
-    test('flavorDefaultSuggestions returns full list when not fdroid', () {
+    test('flavorDefaultSuggestions returns the full curated list', () {
+      // Defaults are flavor-independent now: the suggestions list renders
+      // icons offline, so fdroid ships the same curated list as fmain.
       expect(flavorDefaultSuggestions, equals(kDefaultSuggestions));
       expect(flavorDefaultSuggestions, isNotEmpty);
     });

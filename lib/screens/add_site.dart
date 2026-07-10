@@ -9,6 +9,7 @@ import 'package:material_design_icons_flutter/material_design_icons_flutter.dart
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import '../main.dart' show extractDomain;
+import '../services/bundled_icons.dart';
 import '../services/icon_service.dart' show getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, faviconInvalidations, IconUpdate;
 import '../settings/proxy.dart';
 import '../utils/url_utils.dart';
@@ -82,12 +83,21 @@ class UnifiedFaviconImage extends StatefulWidget {
   /// app-global outbound proxy applies. When set, [resolveEffectiveProxy]
   /// chooses per-site if explicit, or global if the per-site type is DEFAULT.
   final UserProxySettings? proxy;
+  /// When true, the icon is resolved only from local sources (committed
+  /// bundled asset, else a monogram) and NO network request is ever made.
+  /// Used by the suggested-sites list so opening it contacts no third party.
+  final bool offline;
+  /// Optional label (e.g. site name) used for the monogram letter when
+  /// [offline] and no bundled asset exists.
+  final String? label;
 
   const UnifiedFaviconImage({
     required this.url,
     required this.size,
     this.domain,
     this.proxy,
+    this.offline = false,
+    this.label,
   });
 
   @override
@@ -109,6 +119,12 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
   @override
   void initState() {
     super.initState();
+    if (widget.offline) {
+      // Offline mode resolves from local sources only; no fetch, no
+      // invalidation listener, no stream.
+      _isLoading = false;
+      return;
+    }
     // A TLS pin granted after this widget mounted can rescue a favicon
     // fetch that originally died on CERTIFICATE_VERIFY_FAILED — listen
     // for invalidations targeting our URL and reset.
@@ -119,6 +135,43 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
       }
     });
     _loadIcon();
+  }
+
+  String get _host => widget.domain ?? (Uri.tryParse(widget.url)?.host ?? '');
+
+  Widget _buildOffline(BuildContext context) {
+    final asset = bundledIconAssetFor(_host);
+    if (asset != null) {
+      return Image.asset(
+        asset,
+        width: widget.size,
+        height: widget.size,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stack) => _monogram(context),
+      );
+    }
+    return _monogram(context);
+  }
+
+  Widget _monogram(BuildContext context) {
+    final letter = monogramLetter(label: widget.label, host: _host);
+    return Container(
+      width: widget.size,
+      height: widget.size,
+      decoration: BoxDecoration(
+        color: monogramColor(normalizeIconHost(_host)),
+        shape: BoxShape.circle,
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        letter,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: widget.size * 0.5,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
   }
 
   @override
@@ -222,6 +275,9 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.offline) {
+      return _buildOffline(context);
+    }
     // Show current best icon, or loading indicator if nothing yet
     if (_currentIconUrl == null) {
       if (_isLoading) {
@@ -291,10 +347,14 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
 class FaviconImage extends StatelessWidget {
   final String domain;
   final double size;
+  final bool offline;
+  final String? label;
 
   const FaviconImage({
     required this.domain,
     required this.size,
+    this.offline = false,
+    this.label,
   });
 
   @override
@@ -303,6 +363,8 @@ class FaviconImage extends StatelessWidget {
       url: 'https://$domain',
       size: size,
       domain: domain,
+      offline: offline,
+      label: label,
     );
   }
 }
@@ -799,6 +861,8 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                                       child: FaviconImage(
                                         domain: suggestion.domain,
                                         size: iconSize,
+                                        offline: true,
+                                        label: suggestion.name,
                                       ),
                                     ),
                                   ),
