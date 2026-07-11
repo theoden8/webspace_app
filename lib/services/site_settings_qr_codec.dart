@@ -67,6 +67,9 @@ class SiteSettingsQrCodec {
     'userScripts',
     'enabledGlobalScriptIds',
     'blockedCookies',
+    // Base64 PNG bytes: would blow QR capacity, and an icon is
+    // device-local cosmetics, not shareable configuration.
+    'customIconPng',
   };
 
   /// Strip a full `WebViewModel.toJson()` to the QR-shareable subset.

@@ -588,6 +588,8 @@
   "homeSiteNameHint": "ป้อนชื่อที่กำหนดเอง",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "เคล็ดลับ: ใส่ http:// สำหรับเว็บไซต์ HTTP หรือเว้นไว้สำหรับ HTTPS",
+  "homeSiteIconPick": "เปลี่ยนไอคอน",
+  "homeSiteIconReset": "ใช้ไอคอนอัตโนมัติ",
   "homeRefreshTitleAndIcon": "รีเฟรชชื่อและไอคอน",
   "homeMoveUp": "เลื่อนขึ้น",
   "homeMoveDown": "เลื่อนลง",

@@ -588,6 +588,8 @@
   "homeSiteNameHint": "Внеси прилагодено име",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "Совет: вклучете http:// за HTTP страници, или изоставете го за HTTPS",
+  "homeSiteIconPick": "Промени икона",
+  "homeSiteIconReset": "Користи автоматска икона",
   "homeRefreshTitleAndIcon": "Освежи наслов и икона",
   "homeMoveUp": "Премести нагоре",
   "homeMoveDown": "Премести надолу",

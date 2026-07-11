@@ -588,6 +588,8 @@
   "homeSiteNameHint": "Sisesta kohandatud nimi",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "Näpunäide: lisa HTTP-saitide jaoks http:// või jäta see HTTPS-i jaoks välja",
+  "homeSiteIconPick": "Muuda ikooni",
+  "homeSiteIconReset": "Kasuta automaatset ikooni",
   "homeRefreshTitleAndIcon": "Värskenda pealkirja ja ikooni",
   "homeMoveUp": "Liiguta üles",
   "homeMoveDown": "Liiguta alla",

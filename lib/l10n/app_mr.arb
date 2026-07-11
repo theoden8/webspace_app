@@ -588,6 +588,8 @@
   "homeSiteNameHint": "सानुकूल नाव प्रविष्ट करा",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "टीप: HTTP साइटसाठी http:// समाविष्ट करा, किंवा HTTPS साठी ते वगळा",
+  "homeSiteIconPick": "चिन्ह बदला",
+  "homeSiteIconReset": "स्वयंचलित चिन्ह वापरा",
   "homeRefreshTitleAndIcon": "शीर्षक आणि चिन्ह रिफ्रेश करा",
   "homeMoveUp": "वर हलवा",
   "homeMoveDown": "खाली हलवा",

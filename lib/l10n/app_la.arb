@@ -590,6 +590,8 @@
   "homeSiteNameHint": "Nomen proprium inscribere",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "Consilium: Include http:// pro locis HTTP, vel omitte pro HTTPS",
+  "homeSiteIconPick": "Signum mutare",
+  "homeSiteIconReset": "Signum automatum adhibere",
   "homeRefreshTitleAndIcon": "Titulum et signum renovare",
   "homeMoveUp": "Sursum movere",
   "homeMoveDown": "Deorsum movere",

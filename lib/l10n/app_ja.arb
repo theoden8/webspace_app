@@ -588,6 +588,8 @@
   "homeSiteNameHint": "カスタム名を入力",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "ヒント: HTTPサイトには http:// を含め、HTTPSの場合は省略してください",
+  "homeSiteIconPick": "アイコンを変更",
+  "homeSiteIconReset": "自動アイコンを使用",
   "homeRefreshTitleAndIcon": "タイトルとアイコンを更新",
   "homeMoveUp": "上に移動",
   "homeMoveDown": "下に移動",

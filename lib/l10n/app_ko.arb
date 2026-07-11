@@ -588,6 +588,8 @@
   "homeSiteNameHint": "사용자 지정 이름 입력",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "팁: HTTP 사이트는 http://를 포함하고, HTTPS는 생략하세요",
+  "homeSiteIconPick": "아이콘 변경",
+  "homeSiteIconReset": "자동 아이콘 사용",
   "homeRefreshTitleAndIcon": "제목 및 아이콘 새로고침",
   "homeMoveUp": "위로 이동",
   "homeMoveDown": "아래로 이동",

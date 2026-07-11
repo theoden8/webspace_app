@@ -13,6 +13,7 @@ import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp
     show InAppWebViewController, ServiceWorkerController, SslCertificate;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:html/parser.dart' as html_parser;
@@ -26,6 +27,7 @@ import 'package:webspace/screens/settings.dart';
 import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/services/icon_service.dart';
 import 'package:webspace/services/icon_png_export.dart';
+import 'package:webspace/services/custom_icon.dart';
 import 'package:webspace/services/startup_init_engine.dart';
 import 'package:webspace/screens/inappbrowser.dart';
 import 'package:webspace/screens/webspaces_list.dart';
@@ -1306,11 +1308,13 @@ class _WebSpacePageState extends State<WebSpacePage>
       // can't decode SVG, so an SVG favicon would otherwise fall back to the
       // WebSpace app icon. exportIconAsPng also normalizes ICO/PNG and applies
       // the site's proxy. iconUrl stays as a native-side fallback if it fails.
-      final iconBytes = await exportIconAsPng(
-        model.initUrl,
-        resolvedIconUrl: faviconUrl,
-        proxy: model.proxySettings,
-      );
+      // A user-chosen icon is already normalized PNG and wins outright.
+      final iconBytes = model.customIconPng ??
+          await exportIconAsPng(
+            model.initUrl,
+            resolvedIconUrl: faviconUrl,
+            proxy: model.proxySettings,
+          );
       if (!mounted) return;
       await ShortcutService.pinShortcut(
         siteId: model.siteId,
@@ -6115,6 +6119,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                             url: siteModel.initUrl,
                             size: 16,
                             proxy: siteModel.proxySettings,
+                            customIcon: siteModel.customIconPng,
                           ),
                           SizedBox(width: 6),
                           Flexible(
@@ -6547,72 +6552,167 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   void _editSite(int index) async {
-    final nameController = TextEditingController(text: _webViewModels[index].name);
-    final urlController = TextEditingController(text: _webViewModels[index].initUrl);
+    final model = _webViewModels[index];
+    final nameController = TextEditingController(text: model.name);
+    final urlController = TextEditingController(text: model.initUrl);
 
     final loc = AppLocalizations.of(context);
     final urlHint = 'http://example.com:8080';
-    final result = await showDialog<Map<String, String>>(
+    Uint8List? pendingIcon = model.customIconPng;
+    var iconChanged = false;
+    var isPickingIcon = false;
+    final result = await showDialog<Map<String, Object?>>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(loc.homeEditSiteTitle),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              autofocus: true,
-              autocorrect: false,
-              enableSuggestions: false,
-              decoration: InputDecoration(
-                labelText: loc.homeSiteNameLabel,
-                hintText: loc.homeSiteNameHint,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(loc.homeEditSiteTitle),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                autofocus: true,
+                autocorrect: false,
+                enableSuggestions: false,
+                decoration: InputDecoration(
+                  labelText: loc.homeSiteNameLabel,
+                  hintText: loc.homeSiteNameHint,
+                ),
               ),
-            ),
-            SizedBox(height: 16),
-            TextField(
-              controller: urlController,
-              autocorrect: false,
-              enableSuggestions: false,
-              keyboardType: TextInputType.url,
-              decoration: InputDecoration(
-                labelText: loc.homeUrlLabel,
-                hintText: urlHint,
+              SizedBox(height: 16),
+              TextField(
+                controller: urlController,
+                autocorrect: false,
+                enableSuggestions: false,
+                keyboardType: TextInputType.url,
+                decoration: InputDecoration(
+                  labelText: loc.homeUrlLabel,
+                  hintText: urlHint,
+                ),
               ),
+              SizedBox(height: 8),
+              Text(
+                loc.homeUrlSchemeTip,
+                style: TextStyle(fontSize: 11, color: Colors.grey),
+              ),
+              SizedBox(height: 16),
+              Row(
+                children: [
+                  SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: pendingIcon != null
+                        ? Image.memory(
+                            pendingIcon!,
+                            width: 32,
+                            height: 32,
+                            fit: BoxFit.contain,
+                            gaplessPlayback: true,
+                          )
+                        : UnifiedFaviconImage(
+                            url: model.initUrl,
+                            size: 32,
+                            proxy: model.proxySettings,
+                          ),
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: TextButton.icon(
+                        icon: Icon(Icons.image_outlined),
+                        label: Text(loc.homeSiteIconPick),
+                        onPressed: () async {
+                          if (isPickingIcon) return;
+                          isPickingIcon = true;
+                          final messenger = ScaffoldMessenger.of(context);
+                          try {
+                            final picked = await FilePicker.pickFiles(
+                              type: FileType.custom,
+                              allowedExtensions: [
+                                'png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'ico',
+                              ],
+                              allowMultiple: false,
+                            );
+                            if (picked == null || picked.files.isEmpty) return;
+                            final file = picked.files.first;
+                            Uint8List? raw = file.bytes;
+                            if (raw == null && file.path != null) {
+                              raw = await File(file.path!).readAsBytes();
+                            }
+                            final processed = raw == null
+                                ? null
+                                : await processCustomIconImageAsync(raw);
+                            if (processed == null) {
+                              messenger.showSnackBar(
+                                SnackBar(content: Text(loc.addSiteFileReadError)),
+                              );
+                              return;
+                            }
+                            setDialogState(() {
+                              pendingIcon = processed;
+                              iconChanged = true;
+                            });
+                          } finally {
+                            isPickingIcon = false;
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                  if (pendingIcon != null)
+                    IconButton(
+                      icon: Icon(Icons.restart_alt),
+                      tooltip: loc.homeSiteIconReset,
+                      onPressed: () {
+                        setDialogState(() {
+                          pendingIcon = null;
+                          iconChanged = true;
+                        });
+                      },
+                    ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(loc.commonCancel),
             ),
-            SizedBox(height: 8),
-            Text(
-              loc.homeUrlSchemeTip,
-              style: TextStyle(fontSize: 11, color: Colors.grey),
+            TextButton(
+              onPressed: () {
+                final name = nameController.text.trim();
+                var url = urlController.text.trim();
+
+                // Infer protocol if not specified
+                url = ensureUrlScheme(url);
+
+                Navigator.pop(context, <String, Object?>{
+                  'name': name,
+                  'url': url,
+                  'iconChanged': iconChanged,
+                  'icon': pendingIcon,
+                });
+              },
+              child: Text(loc.commonSave),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(loc.commonCancel),
-          ),
-          TextButton(
-            onPressed: () {
-              final name = nameController.text.trim();
-              var url = urlController.text.trim();
-
-              // Infer protocol if not specified
-              url = ensureUrlScheme(url);
-
-              Navigator.pop(context, {'name': name, 'url': url});
-            },
-            child: Text(loc.commonSave),
-          ),
-        ],
       ),
     );
 
     if (result == null || !mounted) return;
     if (index >= _webViewModels.length) return;
 
-    final newName = result['name'];
-    final newUrl = result['url'];
+    final newName = result['name'] as String?;
+    final newUrl = result['url'] as String?;
+
+    if (result['iconChanged'] == true) {
+      setState(() {
+        _webViewModels[index].customIconPng = result['icon'] as Uint8List?;
+      });
+    }
 
     if (newName != null && newName.isNotEmpty) {
       setState(() {
@@ -6991,6 +7091,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                     url: m.initUrl,
                     size: 32,
                     proxy: m.proxySettings,
+                    customIcon: m.customIconPng,
                   ),
                 ),
                 title: Text(
@@ -7179,6 +7280,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                                 url: _webViewModels[index].initUrl,
                                 size: 28,
                                 proxy: _webViewModels[index].proxySettings,
+                                customIcon: _webViewModels[index].customIconPng,
                               ),
                             ),
                           ),
@@ -7221,6 +7323,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                                 url: _webViewModels[index].initUrl,
                                 size: 36,
                                 proxy: _webViewModels[index].proxySettings,
+                                customIcon: _webViewModels[index].customIconPng,
                               ),
                             ),
                           ),
@@ -7273,6 +7376,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                           url: _webViewModels[index].initUrl,
                           size: 28,
                           proxy: _webViewModels[index].proxySettings,
+                          customIcon: _webViewModels[index].customIconPng,
                         ),
                       ),
                     ),
@@ -7315,6 +7419,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                           url: _webViewModels[index].initUrl,
                           size: 36,
                           proxy: _webViewModels[index].proxySettings,
+                          customIcon: _webViewModels[index].customIconPng,
                         ),
                       ),
                     ),
@@ -8015,6 +8120,7 @@ class _DispatchPickerSheetState extends State<_DispatchPickerSheet> {
           url: site.initUrl,
           size: 32,
           proxy: site.proxySettings,
+          customIcon: site.customIconPng,
         ),
       );
 

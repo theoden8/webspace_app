@@ -588,6 +588,8 @@
   "homeSiteNameHint": "Rhowch enw personol",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "Awgrym: Cynhwyswch http:// ar gyfer safleoedd HTTP, neu gadewch ef allan ar gyfer HTTPS",
+  "homeSiteIconPick": "Newid eicon",
+  "homeSiteIconReset": "Defnyddio'r eicon awtomatig",
   "homeRefreshTitleAndIcon": "Adnewyddu Teitl ac Eicon",
   "homeMoveUp": "Symud i Fyny",
   "homeMoveDown": "Symud i Lawr",

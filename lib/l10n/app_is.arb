@@ -588,6 +588,8 @@
   "homeSiteNameHint": "Sláðu inn sérsniðið heiti",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "Ábending: Hafðu http:// með fyrir HTTP-svæði eða slepptu því fyrir HTTPS",
+  "homeSiteIconPick": "Breyta táknmynd",
+  "homeSiteIconReset": "Nota sjálfvirka táknmynd",
   "homeRefreshTitleAndIcon": "Endurnýja titil og táknmynd",
   "homeMoveUp": "Færa upp",
   "homeMoveDown": "Færa niður",

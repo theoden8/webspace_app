@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -82,12 +83,16 @@ class UnifiedFaviconImage extends StatefulWidget {
   /// app-global outbound proxy applies. When set, [resolveEffectiveProxy]
   /// chooses per-site if explicit, or global if the per-site type is DEFAULT.
   final UserProxySettings? proxy;
+  /// User-chosen icon bytes (`WebViewModel.customIconPng`). When set, they
+  /// render directly and no favicon is fetched for this widget.
+  final Uint8List? customIcon;
 
   const UnifiedFaviconImage({
     required this.url,
     required this.size,
     this.domain,
     this.proxy,
+    this.customIcon,
   });
 
   @override
@@ -113,12 +118,16 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
     // fetch that originally died on CERTIFICATE_VERIFY_FAILED — listen
     // for invalidations targeting our URL and reset.
     _invalidationSub = faviconInvalidations.listen((invalidatedUrl) {
-      if (invalidatedUrl == widget.url && mounted) {
+      if (invalidatedUrl == widget.url && mounted && widget.customIcon == null) {
         FaviconUrlCache.invalidate(widget.url);
         _resetAndLoad();
       }
     });
-    _loadIcon();
+    if (widget.customIcon == null) {
+      _loadIcon();
+    } else {
+      _isLoading = false;
+    }
   }
 
   @override
@@ -130,7 +139,8 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
   @override
   void didUpdateWidget(UnifiedFaviconImage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.url != widget.url) {
+    if (widget.customIcon != null) return; // build() renders the bytes directly
+    if (oldWidget.url != widget.url || oldWidget.customIcon != null) {
       _resetAndLoad();
     } else if (_currentIconUrl != null && FaviconUrlCache.get(widget.url) == null) {
       // Cache was invalidated (e.g. by refresh) — re-fetch
@@ -222,6 +232,23 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
 
   @override
   Widget build(BuildContext context) {
+    final customIcon = widget.customIcon;
+    if (customIcon != null) {
+      return Image.memory(
+        customIcon,
+        width: widget.size,
+        height: widget.size,
+        fit: BoxFit.contain,
+        filterQuality: FilterQuality.high,
+        gaplessPlayback: true,
+        errorBuilder: (context, error, stackTrace) => Icon(
+          Icons.language,
+          size: widget.size,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+      );
+    }
+
     // Show current best icon, or loading indicator if nothing yet
     if (_currentIconUrl == null) {
       if (_isLoading) {

@@ -590,6 +590,8 @@
   "homeSiteNameHint": "Fut një emër të personalizuar",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "Këshillë: Përfshi http:// për faqet HTTP, ose lëre jashtë për HTTPS",
+  "homeSiteIconPick": "Ndrysho ikonën",
+  "homeSiteIconReset": "Përdor ikonën automatike",
   "homeRefreshTitleAndIcon": "Rifresko titullin dhe ikonën",
   "homeMoveUp": "Lëviz lart",
   "homeMoveDown": "Lëviz poshtë",

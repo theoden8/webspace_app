@@ -588,6 +588,8 @@
   "homeSiteNameHint": "Iontráil ainm saincheaptha",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "Leid: Cuir http:// san áireamh do shuíomhanna HTTP, nó fág ar lár é le haghaidh HTTPS",
+  "homeSiteIconPick": "Athraigh an deilbhín",
+  "homeSiteIconReset": "Úsáid an deilbhín uathoibríoch",
   "homeRefreshTitleAndIcon": "Athnuaigh Teideal & Deilbhín",
   "homeMoveUp": "Bog Suas",
   "homeMoveDown": "Bog Síos",

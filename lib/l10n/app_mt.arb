@@ -588,6 +588,8 @@
   "homeSiteNameHint": "Daħħal isem personalizzat",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "Tip: Inkludi http:// għal siti HTTP, jew ħalliha barra għal HTTPS",
+  "homeSiteIconPick": "Ibdel l-ikona",
+  "homeSiteIconReset": "Uża l-ikona awtomatika",
   "homeRefreshTitleAndIcon": "Aġġorna t-Titlu u l-Ikona",
   "homeMoveUp": "Mexxi 'l Fuq",
   "homeMoveDown": "Mexxi 'l Isfel",

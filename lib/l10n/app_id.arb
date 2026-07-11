@@ -588,6 +588,8 @@
   "homeSiteNameHint": "Masukkan nama kustom",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "Tip: Sertakan http:// untuk situs HTTP, atau biarkan kosong untuk HTTPS",
+  "homeSiteIconPick": "Ubah ikon",
+  "homeSiteIconReset": "Gunakan ikon otomatis",
   "homeRefreshTitleAndIcon": "Segarkan Judul & Ikon",
   "homeMoveUp": "Pindah ke Atas",
   "homeMoveDown": "Pindah ke Bawah",

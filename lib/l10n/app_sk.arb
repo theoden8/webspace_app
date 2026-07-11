@@ -588,6 +588,8 @@
   "homeSiteNameHint": "Zadajte vlastný názov",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "Tip: Pre HTTP stránky uveďte http://, alebo ho vynechajte pre HTTPS",
+  "homeSiteIconPick": "Zmeniť ikonu",
+  "homeSiteIconReset": "Použiť automatickú ikonu",
   "homeRefreshTitleAndIcon": "Obnoviť názov a ikonu",
   "homeMoveUp": "Posunúť nahor",
   "homeMoveDown": "Posunúť nadol",

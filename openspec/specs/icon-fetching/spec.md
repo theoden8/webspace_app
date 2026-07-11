@@ -4,6 +4,11 @@
 
 Comprehensive icon fetching system for the Webspace app that provides high-quality favicons through multiple sources, progressive loading, and intelligent selection.
 
+A user-set custom icon (`WebViewModel.customIconPng`, see EDIT-008 in
+[site-editing](../site-editing/spec.md)) takes precedence over every fetched
+source: when present, `UnifiedFaviconImage` renders it directly and skips
+fetching entirely.
+
 ## Status
 
 - **Date**: 2026-01-25

@@ -588,6 +588,8 @@
   "homeSiteNameHint": "Weka jina maalum",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "Kidokezo: Jumuisha http:// kwa tovuti za HTTP, au liache kwa HTTPS",
+  "homeSiteIconPick": "Badilisha aikoni",
+  "homeSiteIconReset": "Tumia aikoni ya kiotomatiki",
   "homeRefreshTitleAndIcon": "Onyesha upya Kichwa na Aikoni",
   "homeMoveUp": "Sogeza Juu",
   "homeMoveDown": "Sogeza Chini",

@@ -588,6 +588,8 @@
   "homeSiteNameHint": "අභිරුචි නමක් ඇතුළත් කරන්න",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "ඉඟිය: HTTP අඩවි සඳහා http:// ඇතුළත් කරන්න, හෝ HTTPS සඳහා එය හැර දමන්න",
+  "homeSiteIconPick": "අයිකනය වෙනස් කරන්න",
+  "homeSiteIconReset": "ස්වයංක්‍රීය අයිකනය භාවිතා කරන්න",
   "homeRefreshTitleAndIcon": "මාතෘකාව සහ අයිකනය නැවුම් කරන්න",
   "homeMoveUp": "ඉහළට ගෙන යන්න",
   "homeMoveDown": "පහළට ගෙන යන්න",

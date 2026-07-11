@@ -588,6 +588,8 @@
   "homeSiteNameHint": "Voer 'n pasgemaakte naam in",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "Wenk: Sluit http:// in vir HTTP-webwerwe, of laat dit uit vir HTTPS",
+  "homeSiteIconPick": "Verander ikoon",
+  "homeSiteIconReset": "Gebruik outomatiese ikoon",
   "homeRefreshTitleAndIcon": "Verfris titel en ikoon",
   "homeMoveUp": "Skuif op",
   "homeMoveDown": "Skuif af",

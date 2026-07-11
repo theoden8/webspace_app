@@ -588,6 +588,8 @@
   "homeSiteNameHint": "Voer een aangepaste naam in",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "Tip: voeg http:// toe voor HTTP-sites, of laat het weg voor HTTPS",
+  "homeSiteIconPick": "Pictogram wijzigen",
+  "homeSiteIconReset": "Automatisch pictogram gebruiken",
   "homeRefreshTitleAndIcon": "Titel en pictogram vernieuwen",
   "homeMoveUp": "Omhoog verplaatsen",
   "homeMoveDown": "Omlaag verplaatsen",

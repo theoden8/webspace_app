@@ -588,6 +588,8 @@
   "homeSiteNameHint": "Ange ett anpassat namn",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "Tips: Inkludera http:// för HTTP-webbplatser, eller utelämna det för HTTPS",
+  "homeSiteIconPick": "Byt ikon",
+  "homeSiteIconReset": "Använd automatisk ikon",
   "homeRefreshTitleAndIcon": "Uppdatera titel och ikon",
   "homeMoveUp": "Flytta upp",
   "homeMoveDown": "Flytta ner",

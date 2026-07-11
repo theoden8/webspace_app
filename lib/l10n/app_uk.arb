@@ -588,6 +588,8 @@
   "homeSiteNameHint": "Введіть власну назву",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "Підказка: додайте http:// для HTTP-сайтів або не вказуйте для HTTPS",
+  "homeSiteIconPick": "Змінити значок",
+  "homeSiteIconReset": "Використовувати автоматичний значок",
   "homeRefreshTitleAndIcon": "Оновити назву та значок",
   "homeMoveUp": "Перемістити вгору",
   "homeMoveDown": "Перемістити вниз",

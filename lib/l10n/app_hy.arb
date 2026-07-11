@@ -588,6 +588,8 @@
   "homeSiteNameHint": "Մուտքագրեք հատուկ անուն",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "Հուշում՝ ներառեք http:// HTTP կայքերի համար, կամ բաց թողեք HTTPS-ի համար",
+  "homeSiteIconPick": "Փոխել պատկերակը",
+  "homeSiteIconReset": "Օգտագործել ավտոմատ պատկերակը",
   "homeRefreshTitleAndIcon": "Թարմացնել վերնագիրն ու պատկերակը",
   "homeMoveUp": "Տեղափոխել վեր",
   "homeMoveDown": "Տեղափոխել ներքև",

@@ -588,6 +588,8 @@
   "homeSiteNameHint": "Adjon meg egyéni nevet",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "Tipp: HTTP-webhelyeknél írja be a http:// előtagot, HTTPS esetén hagyja el",
+  "homeSiteIconPick": "Ikon módosítása",
+  "homeSiteIconReset": "Automatikus ikon használata",
   "homeRefreshTitleAndIcon": "Cím és ikon frissítése",
   "homeMoveUp": "Mozgatás felfelé",
   "homeMoveDown": "Mozgatás lefelé",

@@ -588,6 +588,8 @@
   "homeSiteNameHint": "ਇੱਕ ਕਸਟਮ ਨਾਮ ਦਰਜ ਕਰੋ",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "ਸੁਝਾਅ: HTTP ਸਾਈਟਾਂ ਲਈ http:// ਸ਼ਾਮਲ ਕਰੋ, ਜਾਂ HTTPS ਲਈ ਇਸਨੂੰ ਛੱਡ ਦਿਓ",
+  "homeSiteIconPick": "ਆਈਕਨ ਬਦਲੋ",
+  "homeSiteIconReset": "ਸਵੈਚਲਿਤ ਆਈਕਨ ਵਰਤੋ",
   "homeRefreshTitleAndIcon": "ਸਿਰਲੇਖ ਅਤੇ ਆਈਕਨ ਤਾਜ਼ਾ ਕਰੋ",
   "homeMoveUp": "ਉੱਪਰ ਲਿਜਾਓ",
   "homeMoveDown": "ਹੇਠਾਂ ਲਿਜਾਓ",

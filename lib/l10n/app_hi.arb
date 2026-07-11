@@ -588,6 +588,8 @@
   "homeSiteNameHint": "एक कस्टम नाम दर्ज करें",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "सुझाव: HTTP साइटों के लिए http:// शामिल करें, या HTTPS के लिए इसे छोड़ दें",
+  "homeSiteIconPick": "आइकन बदलें",
+  "homeSiteIconReset": "स्वचालित आइकन उपयोग करें",
   "homeRefreshTitleAndIcon": "शीर्षक और आइकन रीफ़्रेश करें",
   "homeMoveUp": "ऊपर ले जाएँ",
   "homeMoveDown": "नीचे ले जाएँ",

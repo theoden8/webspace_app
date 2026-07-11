@@ -588,6 +588,8 @@
   "homeSiteNameHint": "أدخل اسمًا مخصّصًا",
   "homeUrlLabel": "عنوان URL",
   "homeUrlSchemeTip": "تلميح: أدرج http:// لمواقع HTTP، أو احذفه لـ HTTPS",
+  "homeSiteIconPick": "تغيير الأيقونة",
+  "homeSiteIconReset": "استخدام الأيقونة التلقائية",
   "homeRefreshTitleAndIcon": "تحديث العنوان والأيقونة",
   "homeMoveUp": "تحريك لأعلى",
   "homeMoveDown": "تحريك لأسفل",

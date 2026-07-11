@@ -588,6 +588,8 @@
   "homeSiteNameHint": "Wpisz niestandardową nazwę",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "Wskazówka: dodaj http:// dla stron HTTP lub pomiń dla HTTPS",
+  "homeSiteIconPick": "Zmień ikonę",
+  "homeSiteIconReset": "Użyj automatycznej ikony",
   "homeRefreshTitleAndIcon": "Odśwież tytuł i ikonę",
   "homeMoveUp": "Przesuń w górę",
   "homeMoveDown": "Przesuń w dół",

@@ -588,6 +588,8 @@
   "homeSiteNameHint": "輸入自訂名稱",
   "homeUrlLabel": "網址",
   "homeUrlSchemeTip": "提示：HTTP 網站請包含 http://，HTTPS 則可省略",
+  "homeSiteIconPick": "變更圖示",
+  "homeSiteIconReset": "使用自動圖示",
   "homeRefreshTitleAndIcon": "重新整理標題與圖示",
   "homeMoveUp": "上移",
   "homeMoveDown": "下移",

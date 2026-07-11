@@ -146,6 +146,7 @@ class _WebspaceDetailScreenState extends State<WebspaceDetailScreen> {
                             url: site.initUrl,
                             size: 32,
                             proxy: site.proxySettings,
+                            customIcon: site.customIconPng,
                           ),
                           title: Text(site.getDisplayName()),
                           subtitle: Text(extractDomain(site.initUrl)),

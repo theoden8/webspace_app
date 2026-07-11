@@ -588,6 +588,8 @@
   "homeSiteNameHint": "ಕಸ್ಟಮ್ ಹೆಸರು ನಮೂದಿಸಿ",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "ಸಲಹೆ: HTTP ಸೈಟ್‌ಗಳಿಗೆ http:// ಸೇರಿಸಿ, ಅಥವಾ HTTPS ಗಾಗಿ ಅದನ್ನು ಬಿಟ್ಟುಬಿಡಿ",
+  "homeSiteIconPick": "ಐಕಾನ್ ಬದಲಾಯಿಸಿ",
+  "homeSiteIconReset": "ಸ್ವಯಂಚಾಲಿತ ಐಕಾನ್ ಬಳಸಿ",
   "homeRefreshTitleAndIcon": "ಶೀರ್ಷಿಕೆ ಮತ್ತು ಐಕಾನ್ ರಿಫ್ರೆಶ್ ಮಾಡಿ",
   "homeMoveUp": "ಮೇಲಕ್ಕೆ ಸರಿಸಿ",
   "homeMoveDown": "ಕೆಳಕ್ಕೆ ಸರಿಸಿ",
