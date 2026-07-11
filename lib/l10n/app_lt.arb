@@ -588,6 +588,8 @@
   "homeSiteNameHint": "Įveskite pasirinktinį pavadinimą",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "Patarimas: įtraukite http:// HTTP svetainėms arba palikite be jo HTTPS atveju",
+  "homeSiteIconPick": "Keisti piktogramą",
+  "homeSiteIconReset": "Naudoti automatinę piktogramą",
   "homeRefreshTitleAndIcon": "Atnaujinti pavadinimą ir piktogramą",
   "homeMoveUp": "Perkelti aukštyn",
   "homeMoveDown": "Perkelti žemyn",

@@ -588,6 +588,8 @@
   "homeSiteNameHint": "Indtast et brugerdefineret navn",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "Tip: Inkludér http:// for HTTP-sider, eller udelad det for HTTPS",
+  "homeSiteIconPick": "Skift ikon",
+  "homeSiteIconReset": "Brug automatisk ikon",
   "homeRefreshTitleAndIcon": "Genopfrisk titel og ikon",
   "homeMoveUp": "Flyt op",
   "homeMoveDown": "Flyt ned",

@@ -588,6 +588,8 @@
   "homeSiteNameHint": "தனிப்பயன் பெயரை உள்ளிடவும்",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "குறிப்பு: HTTP தளங்களுக்கு http:// ஐ சேர்க்கவும், அல்லது HTTPS க்கு அதை விட்டுவிடவும்",
+  "homeSiteIconPick": "ஐகானை மாற்று",
+  "homeSiteIconReset": "தானியங்கி ஐகானைப் பயன்படுத்து",
   "homeRefreshTitleAndIcon": "தலைப்பு & ஐகானைப் புதுப்பி",
   "homeMoveUp": "மேலே நகர்த்து",
   "homeMoveDown": "கீழே நகர்த்து",

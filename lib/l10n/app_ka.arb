@@ -588,6 +588,8 @@
   "homeSiteNameHint": "შეიყვანეთ მორგებული სახელი",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "რჩევა: ჩართეთ http:// HTTP საიტებისთვის, ან გამოტოვეთ HTTPS-ისთვის",
+  "homeSiteIconPick": "ხატულის შეცვლა",
+  "homeSiteIconReset": "ავტომატური ხატულის გამოყენება",
   "homeRefreshTitleAndIcon": "სათაურისა და ხატულის განახლება",
   "homeMoveUp": "მაღლა გადატანა",
   "homeMoveDown": "დაბლა გადატანა",

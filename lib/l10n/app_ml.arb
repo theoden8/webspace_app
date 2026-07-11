@@ -588,6 +588,8 @@
   "homeSiteNameHint": "ഒരു ഇഷ്ടാനുസൃത പേര് നൽകുക",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "സൂചന: HTTP സൈറ്റുകൾക്ക് http:// ഉൾപ്പെടുത്തുക, അല്ലെങ്കിൽ HTTPS-നായി അത് ഒഴിവാക്കുക",
+  "homeSiteIconPick": "ഐക്കൺ മാറ്റുക",
+  "homeSiteIconReset": "സ്വയമേവയുള്ള ഐക്കൺ ഉപയോഗിക്കുക",
   "homeRefreshTitleAndIcon": "ശീർഷകവും ഐക്കണും പുതുക്കുക",
   "homeMoveUp": "മുകളിലേക്ക് നീക്കുക",
   "homeMoveDown": "താഴേക്ക് നീക്കുക",

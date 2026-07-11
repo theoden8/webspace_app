@@ -117,6 +117,55 @@ Page titles SHALL persist across app restarts.
 
 ---
 
+### Requirement: EDIT-008 - Custom Site Icon
+
+Users SHALL be able to override a site's automatically fetched favicon with an
+image of their own from the edit dialog, and revert to the automatic icon later.
+
+The chosen image is normalized to PNG with a longest side of at most 256px and
+stored inline on the site model (`WebViewModel.customIconPng`, base64 in JSON).
+Because it lives in the model JSON it automatically rides settings backups, and
+for archive-tier sites it is persisted only inside the encrypted archive slice —
+no per-`siteId` plaintext file is written (ARCH-006 audit: no disk, background
+scheduling, or OS-UI surface beyond the existing home-shortcut path). The field
+is excluded from the QR share payload (`SiteSettingsQrCodec.excludedKeys`):
+image bytes would blow QR capacity and an icon is device-local cosmetics.
+
+#### Scenario: Set a custom icon
+
+**Given** a site whose URL yields no favicon (or an unwanted one)
+**When** the user opens the edit dialog, taps "Change icon", and picks a raster
+image (PNG/JPEG/WebP/GIF/BMP/ICO)
+**And** saves
+**Then** the chosen image is shown for that site everywhere the site icon
+renders (drawer list/grid, tab strip, webspace detail, site dispatch)
+**And** no favicon fetch is performed for those renders
+**And** the icon persists across app restarts
+
+#### Scenario: Custom icon feeds home shortcuts
+
+**Given** a site with a custom icon
+**When** the user pins the site to the Android home screen
+**Then** the pinned shortcut uses the custom icon bytes instead of the fetched
+favicon
+
+#### Scenario: Revert to the automatic icon
+
+**Given** a site with a custom icon
+**When** the user opens the edit dialog and taps the reset button
+**And** saves
+**Then** the custom icon is removed
+**And** the automatically fetched favicon (icon-fetching spec) is displayed again
+
+#### Scenario: Undecodable image is rejected
+
+**Given** the user picks a file that is not a decodable raster image
+**When** processing runs
+**Then** the site's icon is left unchanged
+**And** a snackbar explains the file could not be read
+
+---
+
 ## Data Model
 
 ```dart

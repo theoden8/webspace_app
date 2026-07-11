@@ -588,6 +588,8 @@
   "homeSiteNameHint": "Εισαγάγετε προσαρμοσμένο όνομα",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "Συμβουλή: Συμπεριλάβετε το http:// για ιστότοπους HTTP, ή παραλείψτε το για HTTPS",
+  "homeSiteIconPick": "Αλλαγή εικονιδίου",
+  "homeSiteIconReset": "Χρήση αυτόματου εικονιδίου",
   "homeRefreshTitleAndIcon": "Ανανέωση τίτλου & εικονιδίου",
   "homeMoveUp": "Μετακίνηση πάνω",
   "homeMoveDown": "Μετακίνηση κάτω",

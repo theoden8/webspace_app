@@ -588,6 +588,8 @@
   "homeSiteNameHint": "అనుకూల పేరును నమోదు చేయండి",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "చిట్కా: HTTP సైట్‌ల కోసం http:// చేర్చండి, లేదా HTTPS కోసం దాన్ని వదిలివేయండి",
+  "homeSiteIconPick": "ఐకాన్ మార్చు",
+  "homeSiteIconReset": "స్వయంచాలక ఐకాన్ ఉపయోగించు",
   "homeRefreshTitleAndIcon": "శీర్షిక & ఐకాన్ రిఫ్రెష్ చేయి",
   "homeMoveUp": "పైకి జరుపు",
   "homeMoveDown": "కిందకు జరుపు",

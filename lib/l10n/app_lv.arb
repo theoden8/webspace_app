@@ -588,6 +588,8 @@
   "homeSiteNameHint": "Ievadiet pielāgotu nosaukumu",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "Padoms: iekļaujiet http:// HTTP vietnēm vai izlaidiet to HTTPS gadījumā",
+  "homeSiteIconPick": "Mainīt ikonu",
+  "homeSiteIconReset": "Izmantot automātisko ikonu",
   "homeRefreshTitleAndIcon": "Atsvaidzināt nosaukumu un ikonu",
   "homeMoveUp": "Pārvietot augšup",
   "homeMoveDown": "Pārvietot lejup",

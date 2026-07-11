@@ -588,6 +588,8 @@
   "homeSiteNameHint": "કસ્ટમ નામ દાખલ કરો",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "ટિપ: HTTP સાઇટ્સ માટે http:// શામેલ કરો, અથવા HTTPS માટે તેને છોડી દો",
+  "homeSiteIconPick": "આયકન બદલો",
+  "homeSiteIconReset": "સ્વચાલિત આયકન વાપરો",
   "homeRefreshTitleAndIcon": "શીર્ષક અને આયકન તાજું કરો",
   "homeMoveUp": "ઉપર ખસેડો",
   "homeMoveDown": "નીચે ખસેડો",

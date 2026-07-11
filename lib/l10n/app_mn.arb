@@ -588,6 +588,8 @@
   "homeSiteNameHint": "Захиалгат нэр оруулна уу",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "Зөвлөмж: HTTP сайтад http:// оруулна, эсвэл HTTPS-д орхино уу",
+  "homeSiteIconPick": "Дүрс тэмдэг өөрчлөх",
+  "homeSiteIconReset": "Автомат дүрс тэмдэг ашиглах",
   "homeRefreshTitleAndIcon": "Гарчиг ба дүрс тэмдэг сэргээх",
   "homeMoveUp": "Дээш зөөх",
   "homeMoveDown": "Доош зөөх",

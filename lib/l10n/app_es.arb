@@ -588,6 +588,8 @@
   "homeSiteNameHint": "Introduce un nombre personalizado",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "Consejo: incluye http:// para sitios HTTP, o déjalo fuera para HTTPS",
+  "homeSiteIconPick": "Cambiar icono",
+  "homeSiteIconReset": "Usar icono automático",
   "homeRefreshTitleAndIcon": "Actualizar título e icono",
   "homeMoveUp": "Subir",
   "homeMoveDown": "Bajar",

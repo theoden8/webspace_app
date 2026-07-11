@@ -588,6 +588,8 @@
   "homeSiteNameHint": "Unesite prilagođeni naziv",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "Savjet: Uključite http:// za HTTP stranice ili izostavite za HTTPS",
+  "homeSiteIconPick": "Promijeni ikonu",
+  "homeSiteIconReset": "Koristi automatsku ikonu",
   "homeRefreshTitleAndIcon": "Osvježi naslov i ikonu",
   "homeMoveUp": "Pomakni gore",
   "homeMoveDown": "Pomakni dolje",

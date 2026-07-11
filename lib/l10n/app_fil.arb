@@ -588,6 +588,8 @@
   "homeSiteNameHint": "Maglagay ng custom na pangalan",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "Tip: Isama ang http:// para sa mga HTTP na site, o huwag ito isama para sa HTTPS",
+  "homeSiteIconPick": "Palitan ang icon",
+  "homeSiteIconReset": "Gamitin ang awtomatikong icon",
   "homeRefreshTitleAndIcon": "I-refresh ang Pamagat at Icon",
   "homeMoveUp": "Ilipat Pataas",
   "homeMoveDown": "Ilipat Pababa",

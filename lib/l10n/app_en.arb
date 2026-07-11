@@ -2891,6 +2891,14 @@
   "@homeUrlSchemeTip": {
     "description": "Tip below the URL field explaining scheme inference"
   },
+  "homeSiteIconPick": "Change icon",
+  "@homeSiteIconPick": {
+    "description": "Button in the edit-site dialog, next to a preview of the site's current icon, that opens a file picker so the user can select their own image to use as the site's icon instead of the fetched favicon"
+  },
+  "homeSiteIconReset": "Use automatic icon",
+  "@homeSiteIconReset": {
+    "description": "Tooltip of the button in the edit-site dialog that removes the user's custom site icon and reverts to the automatically fetched website favicon"
+  },
   "homeRefreshTitleAndIcon": "Refresh Title & Icon",
   "@homeRefreshTitleAndIcon": {
     "description": "Context menu item to refresh a site's title and favicon"

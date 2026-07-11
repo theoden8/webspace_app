@@ -588,6 +588,8 @@
   "homeSiteNameHint": "הזן שם מותאם אישית",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "טיפ: כלול http:// לאתרי HTTP, או השמט אותו עבור HTTPS",
+  "homeSiteIconPick": "שינוי סמל",
+  "homeSiteIconReset": "שימוש בסמל אוטומטי",
   "homeRefreshTitleAndIcon": "רענן כותרת וסמל",
   "homeMoveUp": "הזז למעלה",
   "homeMoveDown": "הזז למטה",

@@ -588,6 +588,8 @@
   "homeSiteNameHint": "Özel bir ad girin",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "İpucu: HTTP siteleri için http:// ekleyin veya HTTPS için boş bırakın",
+  "homeSiteIconPick": "Simgeyi Değiştir",
+  "homeSiteIconReset": "Otomatik Simgeyi Kullan",
   "homeRefreshTitleAndIcon": "Başlık ve Simgeyi Yenile",
   "homeMoveUp": "Yukarı Taşı",
   "homeMoveDown": "Aşağı Taşı",

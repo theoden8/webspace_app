@@ -588,6 +588,8 @@
   "homeSiteNameHint": "یک نام سفارشی وارد کنید",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "نکته: برای سایت‌های HTTP عبارت http:// را بگنجانید، یا برای HTTPS آن را حذف کنید",
+  "homeSiteIconPick": "تغییر آیکن",
+  "homeSiteIconReset": "استفاده از آیکن خودکار",
   "homeRefreshTitleAndIcon": "تازه‌سازی عنوان و آیکن",
   "homeMoveUp": "انتقال به بالا",
   "homeMoveDown": "انتقال به پایین",

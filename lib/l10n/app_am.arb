@@ -588,6 +588,8 @@
   "homeSiteNameHint": "ብጁ ስም አስገባ",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "ጠቃሚ ምክር: ለ HTTP ጣቢያዎች http:// አካትት፣ ወይም ለ HTTPS ተወው",
+  "homeSiteIconPick": "አዶ ቀይር",
+  "homeSiteIconReset": "ራስ-ሰር አዶ ተጠቀም",
   "homeRefreshTitleAndIcon": "ርዕስ እና አዶ አድስ",
   "homeMoveUp": "ወደ ላይ አንቀሳቅስ",
   "homeMoveDown": "ወደ ታች አንቀሳቅስ",

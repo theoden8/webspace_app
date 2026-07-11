@@ -588,6 +588,8 @@
   "homeSiteNameHint": "Introdu un nume personalizat",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "Sfat: include http:// pentru site-uri HTTP, sau omite-l pentru HTTPS",
+  "homeSiteIconPick": "Schimbă pictograma",
+  "homeSiteIconReset": "Folosește pictograma automată",
   "homeRefreshTitleAndIcon": "Reîmprospătează titlul și pictograma",
   "homeMoveUp": "Mută în sus",
   "homeMoveDown": "Mută în jos",

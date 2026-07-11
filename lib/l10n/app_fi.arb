@@ -588,6 +588,8 @@
   "homeSiteNameHint": "Syötä mukautettu nimi",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "Vinkki: Sisällytä http:// HTTP-sivustoille tai jätä se pois HTTPS:lle",
+  "homeSiteIconPick": "Vaihda kuvake",
+  "homeSiteIconReset": "Käytä automaattista kuvaketta",
   "homeRefreshTitleAndIcon": "Päivitä otsikko ja kuvake",
   "homeMoveUp": "Siirrä ylös",
   "homeMoveDown": "Siirrä alas",

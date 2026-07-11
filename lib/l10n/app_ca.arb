@@ -588,6 +588,8 @@
   "homeSiteNameHint": "Introduïu un nom personalitzat",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "Consell: incloeu http:// per a llocs HTTP, o ometeu-ho per a HTTPS",
+  "homeSiteIconPick": "Canvia la icona",
+  "homeSiteIconReset": "Fes servir la icona automàtica",
   "homeRefreshTitleAndIcon": "Actualitza el títol i la icona",
   "homeMoveUp": "Mou amunt",
   "homeMoveDown": "Mou avall",

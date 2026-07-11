@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert' show base64Decode, base64Encode;
 import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
@@ -423,6 +424,15 @@ class WebViewModel {
   /// fingerprint on upgrade. Regenerate via [rerollFingerprint].
   String? fingerprintResetNonce;
 
+  /// User-chosen icon for this site, normalized to PNG (longest side
+  /// <= 256px) by `processCustomIconImage`. When set, it overrides the
+  /// fetched favicon everywhere the site's icon renders and in pinned
+  /// home shortcuts; null means the automatic favicon. Stored inline in
+  /// the model JSON (base64) so it rides settings backups and, for
+  /// archive-tier sites, lives only inside the encrypted archive slice —
+  /// no per-siteId plaintext file appears on disk (ARCH-006).
+  Uint8List? customIconPng;
+
   /// User-defined domain-claim list used by `LinkRoutingService` to route
   /// inbound share/open-intent URLs to a site (LIR-001..LIR-010). When
   /// null, the resolver behaves as if the site claimed
@@ -594,6 +604,7 @@ class WebViewModel {
     this.spoofWindowWidth,
     this.spoofWindowHeight,
     this.fingerprintResetNonce,
+    this.customIconPng,
     this.domainClaims,
     this.stateSetterF,
     this.isArchiveTier = false,
@@ -1716,6 +1727,8 @@ class WebViewModel {
         if (spoofWindowHeight != null) 'spoofWindowHeight': spoofWindowHeight,
         if (fingerprintResetNonce != null)
           'fingerprintResetNonce': fingerprintResetNonce,
+        if (customIconPng != null)
+          'customIconPng': base64Encode(customIconPng!),
         if (domainClaims != null && domainClaims!.isNotEmpty)
           'domainClaims': domainClaims!.map((c) => c.toJson()).toList(),
       };
@@ -1807,12 +1820,22 @@ class WebViewModel {
       spoofWindowWidth: (json['spoofWindowWidth'] as num?)?.toInt(),
       spoofWindowHeight: (json['spoofWindowHeight'] as num?)?.toInt(),
       fingerprintResetNonce: json['fingerprintResetNonce'] as String?,
+      customIconPng: _decodeCustomIconPng(json['customIconPng']),
       domainClaims: (json['domainClaims'] as List<dynamic>?)
           ?.map((e) => DomainClaim.fromJson(e as Map<String, dynamic>))
           .toList(),
       stateSetterF: stateSetterF,
       isArchiveTier: isArchiveTier,
     )..pageTitle = dropUrl ? null : json['pageTitle'];
+  }
+}
+
+Uint8List? _decodeCustomIconPng(Object? raw) {
+  if (raw is! String || raw.isEmpty) return null;
+  try {
+    return base64Decode(raw);
+  } catch (_) {
+    return null;
   }
 }
 

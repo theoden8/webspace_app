@@ -588,6 +588,8 @@
   "homeSiteNameHint": "Sartu izen pertsonalizatu bat",
   "homeUrlLabel": "URLa",
   "homeUrlSchemeTip": "Aholkua: sartu http:// HTTP guneetarako, edo utzi kanpoan HTTPSrako",
+  "homeSiteIconPick": "Aldatu ikonoa",
+  "homeSiteIconReset": "Erabili ikono automatikoa",
   "homeRefreshTitleAndIcon": "Berritu izenburua eta ikonoa",
   "homeMoveUp": "Eraman gora",
   "homeMoveDown": "Eraman behera",

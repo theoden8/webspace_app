@@ -590,6 +590,8 @@
   "homeSiteNameHint": "បញ្ចូលឈ្មោះផ្ទាល់ខ្លួន",
   "homeUrlLabel": "URL",
   "homeUrlSchemeTip": "គន្លឹះ: ដាក់ http:// សម្រាប់ HTTP sites ឬទុកចោលសម្រាប់ HTTPS",
+  "homeSiteIconPick": "ប្ដូររូបតំណាង",
+  "homeSiteIconReset": "ប្រើរូបតំណាងស្វ័យប្រវត្តិ",
   "homeRefreshTitleAndIcon": "ធ្វើឱ្យ Title & Icon ស្រស់",
   "homeMoveUp": "ឡើងលើ",
   "homeMoveDown": "ចុះក្រោម",
