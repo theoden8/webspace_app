@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "DNS blokeerimisloend",
   "siteSettingsDnsBlocklistHint": "Blokeerib teadaolevad reklaami-, jälgimis- ja pahavaradomeenid DNS-tasandil enne nende laadimist. Kasutab Hagezi blokeerimisloendit seadistatavate raskusastmetega. Seadista blokeerimisloendi tase rakenduse seadetes.",
   "siteSettingsNotConfigured": "Pole seadistatud",
+  "siteSettingsBlockerNotConfiguredWarning": "{feature} jaoks pole veel andmeid alla laaditud ja see jääb passiivseks. Laadi need rakenduse seadetes alla.",
   "siteSettingsContentBlocker": "Sisublokeerija",
   "siteSettingsContentBlockerHint": "Blokeerib reklaame, jälgijaid ja soovimatut sisu filtriloendite abil (nagu EasyList). Toetab domeenide blokeerimist, CSS kosmeetilisi filtreid ja tekstipõhiseid peitmisreegleid. Halda filtriloendeid rakenduse seadetes.",
   "siteSettingsContentBlockerRuleCount": "{count} reeglit",

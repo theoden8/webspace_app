@@ -333,11 +333,20 @@ Each site SHALL have a `contentBlockEnabled` setting (default: `true`) that cont
 **When** the app is restarted
 **Then** the setting remains disabled
 
-#### Scenario: Toggle disabled when no rules loaded
+#### Scenario: Enabling the toggle with no rules loaded warns
 
 **Given** no filter lists have been downloaded (engine has no rules)
-**When** the user opens site settings
-**Then** the Content Blocker toggle is greyed out
+**When** the user enables the Content Blocker toggle in site settings
+**Then** the toggle flips (the setting persists and takes effect once lists are downloaded)
+**And** a SnackBar warns that the feature has no downloaded data and points at App Settings
+**And** the subtitle reads "Not configured"
+
+#### Scenario: Enabling Tracking Protection with unconfigured blockers warns
+
+**Given** Tracking Protection forces the DNS blocklist and Content Blocker on
+**And** at least one of them has no downloaded data
+**When** the user enables the Tracking Protection toggle
+**Then** the same SnackBar warning fires, naming each unconfigured feature
 
 #### Scenario: Propagates to nested webviews
 

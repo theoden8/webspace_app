@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "Senarai Sekat DNS",
   "siteSettingsDnsBlocklistHint": "Menyekat domain pengiklanan, penjejakan, dan perisian hasad yang diketahui pada peringkat DNS sebelum ia boleh dimuatkan. Menggunakan senarai sekat Hagezi dengan tahap keterukan boleh konfigurasi. Konfigurasikan tahap senarai sekat dalam Tetapan Aplikasi.",
   "siteSettingsNotConfigured": "Tidak dikonfigurasi",
+  "siteSettingsBlockerNotConfiguredWarning": "{feature} belum mempunyai data yang dimuat turun dan kekal tidak aktif. Muat turun dalam tetapan aplikasi.",
   "siteSettingsContentBlocker": "Penyekat Kandungan",
   "siteSettingsContentBlockerHint": "Menyekat iklan, penjejak, dan kandungan tidak diingini menggunakan senarai penapis (seperti EasyList). Menyokong sekatan domain, penapis kosmetik CSS, dan peraturan penyembunyian berasaskan teks. Urus senarai penapis dalam Tetapan Aplikasi.",
   "siteSettingsContentBlockerRuleCount": "{count} peraturan",

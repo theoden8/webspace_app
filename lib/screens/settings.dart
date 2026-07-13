@@ -273,6 +273,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (mounted) setState(() {});
   }
 
+  /// Shown when the user enables a blocker whose backing data (DNS
+  /// blocklist, filter lists) hasn't been downloaded: the toggle still
+  /// flips and takes effect once the data arrives, but silently doing
+  /// nothing until then would read as the feature being broken.
+  void _warnBlockerNotConfigured(String feature) {
+    final loc = AppLocalizations.of(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(loc.siteSettingsBlockerNotConfiguredWarning(feature)),
+      ),
+    );
+  }
+
   /// Mirror [widget.webViewModel] into the form state. Called from
   /// [initState] and from the apply-from-QR handler after the decoded
   /// payload has been written back into the model.
@@ -1320,6 +1333,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: Text(loc.siteSettingsTrackingProtectionSubtitle),
             value: _trackingProtectionEnabled,
             onChanged: (bool value) {
+              if (value) {
+                final missing = <String>[
+                  if (!DnsBlockService.instance.hasBlocklist)
+                    loc.siteSettingsDnsBlocklist,
+                  if (!ContentBlockerService.instance.hasRules)
+                    loc.siteSettingsContentBlocker,
+                ];
+                if (missing.isNotEmpty) {
+                  _warnBlockerNotConfigured(missing.join(', '));
+                }
+              }
               setState(() {
                 _trackingProtectionEnabled = value;
               });
@@ -1388,13 +1412,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             value: _dnsBlockEnabled || _trackingProtectionEnabled,
             onChanged: _trackingProtectionEnabled
                 ? null
-                : (DnsBlockService.instance.hasBlocklist
-                    ? (bool value) {
-                        setState(() {
-                          _dnsBlockEnabled = value;
-                        });
-                      }
-                    : null),
+                : (bool value) {
+                    if (value && !DnsBlockService.instance.hasBlocklist) {
+                      _warnBlockerNotConfigured(loc.siteSettingsDnsBlocklist);
+                    }
+                    setState(() {
+                      _dnsBlockEnabled = value;
+                    });
+                  },
           ),
           if (DnsBlockService.instance.hasBlocklist) _buildDnsStatsCard(),
           SwitchListTile(
@@ -1418,13 +1443,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             value: _contentBlockEnabled || _trackingProtectionEnabled,
             onChanged: _trackingProtectionEnabled
                 ? null
-                : (ContentBlockerService.instance.hasRules
-                    ? (bool value) {
-                        setState(() {
-                          _contentBlockEnabled = value;
-                        });
-                      }
-                    : null),
+                : (bool value) {
+                    if (value && !ContentBlockerService.instance.hasRules) {
+                      _warnBlockerNotConfigured(
+                          loc.siteSettingsContentBlocker);
+                    }
+                    setState(() {
+                      _contentBlockEnabled = value;
+                    });
+                  },
           ),
           if (Platform.isAndroid)
             SwitchListTile(

@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "DNS-Sperrliste",
   "siteSettingsDnsBlocklistHint": "Blockiert bekannte Werbe-, Tracking- und Malware-Domains auf DNS-Ebene, bevor sie laden können. Verwendet die Hagezi-Sperrliste mit konfigurierbaren Schweregraden. Konfigurieren Sie die Sperrlisten-Stufe in den App-Einstellungen.",
   "siteSettingsNotConfigured": "Nicht konfiguriert",
+  "siteSettingsBlockerNotConfiguredWarning": "{feature} hat noch keine heruntergeladenen Daten und bleibt inaktiv. Laden Sie sie in den App-Einstellungen herunter.",
   "siteSettingsContentBlocker": "Inhaltsblocker",
   "siteSettingsContentBlockerHint": "Blockiert Werbung, Tracker und unerwünschte Inhalte mithilfe von Filterlisten (wie EasyList). Unterstützt Domainsperren, kosmetische CSS-Filter und textbasierte Ausblendungsregeln. Verwalten Sie Filterlisten in den App-Einstellungen.",
   "siteSettingsContentBlockerRuleCount": "{count} Regeln",

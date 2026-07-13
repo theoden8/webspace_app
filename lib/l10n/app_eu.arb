@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "DNS bloke-zerrenda",
   "siteSettingsDnsBlocklistHint": "Iragarki, jarraipen eta malware domeinu ezagunak blokeatzen ditu DNS mailan kargatu aurretik. Hagezi bloke-zerrenda erabiltzen du larritasun-maila konfiguragarriekin. Konfiguratu bloke-zerrendaren maila Aplikazioaren ezarpenetan.",
   "siteSettingsNotConfigured": "Konfiguratu gabe",
+  "siteSettingsBlockerNotConfiguredWarning": "{feature} funtzioak ez du oraindik daturik deskargatu eta inaktibo dago. Deskargatu aplikazioaren ezarpenetan.",
   "siteSettingsContentBlocker": "Eduki-blokeatzailea",
   "siteSettingsContentBlockerHint": "Iragarkiak, jarraitzaileak eta nahi ez diren edukiak blokeatzen ditu iragazki-zerrendak erabiliz (EasyList bezalakoak). Domeinu-blokeoa, CSS iragazki kosmetikoak eta testuan oinarritutako ezkutatze-arauak onartzen ditu. Kudeatu iragazki-zerrendak Aplikazioaren ezarpenetan.",
   "siteSettingsContentBlockerRuleCount": "{count} arau",

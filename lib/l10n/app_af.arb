@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "DNS-blokkeerlys",
   "siteSettingsDnsBlocklistHint": "Blokkeer bekende advertensie-, volg- en wanware-domeine op DNS-vlak voordat hulle kan laai. Gebruik die Hagezi-blokkeerlys met opstelbare erns-vlakke. Stel die blokkeerlys-vlak in App-instellings op.",
   "siteSettingsNotConfigured": "Nie opgestel nie",
+  "siteSettingsBlockerNotConfiguredWarning": "{feature} het nog geen data afgelaai nie en bly onaktief. Laai dit in app-instellings af.",
   "siteSettingsContentBlocker": "Inhoudblokkeerder",
   "siteSettingsContentBlockerHint": "Blokkeer advertensies, volgers en ongewenste inhoud met filterlyste (soos EasyList). Ondersteun domeinblokkering, CSS-kosmetiese filters en teksgebaseerde versteekreëls. Bestuur filterlyste in App-instellings.",
   "siteSettingsContentBlockerRuleCount": "{count} reëls",

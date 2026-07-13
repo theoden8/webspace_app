@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "DNS ਬਲੌਕਲਿਸਟ",
   "siteSettingsDnsBlocklistHint": "ਜਾਣੇ-ਪਛਾਣੇ ਵਿਗਿਆਪਨ, ਟਰੈਕਿੰਗ ਅਤੇ ਮਾਲਵੇਅਰ ਡੋਮੇਨਾਂ ਨੂੰ ਲੋਡ ਹੋਣ ਤੋਂ ਪਹਿਲਾਂ DNS ਪੱਧਰ 'ਤੇ ਬਲੌਕ ਕਰਦਾ ਹੈ। ਸੰਰਚਨਾਯੋਗ ਗੰਭੀਰਤਾ ਪੱਧਰਾਂ ਨਾਲ Hagezi ਬਲੌਕਲਿਸਟ ਵਰਤਦਾ ਹੈ। ਐਪ ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਬਲੌਕਲਿਸਟ ਪੱਧਰ ਸੰਰਚਿਤ ਕਰੋ।",
   "siteSettingsNotConfigured": "ਸੰਰਚਿਤ ਨਹੀਂ",
+  "siteSettingsBlockerNotConfiguredWarning": "{feature} ਲਈ ਹਾਲੇ ਕੋਈ ਡਾਟਾ ਡਾਊਨਲੋਡ ਨਹੀਂ ਹੋਇਆ ਅਤੇ ਇਹ ਅਕਿਰਿਆਸ਼ੀਲ ਰਹਿੰਦਾ ਹੈ। ਇਸਨੂੰ ਐਪ ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਡਾਊਨਲੋਡ ਕਰੋ।",
   "siteSettingsContentBlocker": "ਸਮੱਗਰੀ ਬਲੌਕਰ",
   "siteSettingsContentBlockerHint": "ਫਿਲਟਰ ਸੂਚੀਆਂ (ਜਿਵੇਂ EasyList) ਵਰਤ ਕੇ ਵਿਗਿਆਪਨ, ਟਰੈਕਰ ਅਤੇ ਅਣਚਾਹੀ ਸਮੱਗਰੀ ਬਲੌਕ ਕਰਦਾ ਹੈ। ਡੋਮੇਨ ਬਲੌਕਿੰਗ, CSS ਕੌਸਮੈਟਿਕ ਫਿਲਟਰ ਅਤੇ ਟੈਕਸਟ-ਅਧਾਰਿਤ ਲੁਕਾਉਣ ਦੇ ਨਿਯਮਾਂ ਦਾ ਸਮਰਥਨ ਕਰਦਾ ਹੈ। ਐਪ ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਫਿਲਟਰ ਸੂਚੀਆਂ ਦਾ ਪ੍ਰਬੰਧ ਕਰੋ।",
   "siteSettingsContentBlockerRuleCount": "{count} ਨਿਯਮ",

@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "DNS feketelista",
   "siteSettingsDnsBlocklistHint": "Blokkolja az ismert reklám-, nyomkövető- és kártevődomaineket DNS-szinten, mielőtt betöltődhetnének. A Hagezi feketelistát használja állítható súlyossági szintekkel. A feketelista szintjét az Alkalmazás beállításaiban állíthatja be.",
   "siteSettingsNotConfigured": "Nincs beállítva",
+  "siteSettingsBlockerNotConfiguredWarning": "A(z) {feature} még nem rendelkezik letöltött adatokkal, és inaktív marad. Töltse le őket az alkalmazás beállításaiban.",
   "siteSettingsContentBlocker": "Tartalomblokkoló",
   "siteSettingsContentBlockerHint": "Reklámokat, nyomkövetőket és nemkívánatos tartalmat blokkol szűrőlisták (mint az EasyList) segítségével. Támogatja a domainblokkolást, a CSS kozmetikai szűrőket és a szövegalapú elrejtési szabályokat. A szűrőlistákat az Alkalmazás beállításaiban kezelheti.",
   "siteSettingsContentBlockerRuleCount": "{count} szabály",

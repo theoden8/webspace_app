@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "Lista mblukkata DNS",
   "siteSettingsDnsBlocklistHint": "Timblokka dominji magħrufa ta' reklamar, traċċar u malware fil-livell tad-DNS qabel ma jkunu jistgħu jinkargaw. Tuża l-lista mblukkata Hagezi b'livelli ta' severità konfigurabbli. Ikkonfigura l-livell tal-lista mblukkata f'Settings tal-App.",
   "siteSettingsNotConfigured": "Mhux ikkonfigurat",
+  "siteSettingsBlockerNotConfiguredWarning": "{feature} għad m'għandux data mniżżla u jibqa' inattiv. Niżżilha fis-settings tal-app.",
   "siteSettingsContentBlocker": "Imblokk tal-Kontenut",
   "siteSettingsContentBlockerHint": "Timblokka reklami, traċċaturi u kontenut mhux mixtieq billi tuża listi tal-filtri (bħal EasyList). Tappoġġja l-imblukkar ta' dominji, filtri kożmetiċi CSS u regoli ta' ħabi bbażati fuq it-test. Immaniġġja l-listi tal-filtri f'Settings tal-App.",
   "siteSettingsContentBlockerRuleCount": "{count} regoli",

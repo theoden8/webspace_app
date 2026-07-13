@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "DNS-blokkeringsliste",
   "siteSettingsDnsBlocklistHint": "Blokkerer kjente reklame-, sporings- og skadevaredomener på DNS-nivå før de kan lastes inn. Bruker Hagezi-blokkeringslisten med konfigurerbare alvorlighetsnivåer. Konfigurer blokkeringslistenivået i App-innstillinger.",
   "siteSettingsNotConfigured": "Ikke konfigurert",
+  "siteSettingsBlockerNotConfiguredWarning": "{feature} har ingen nedlastede data ennå og forblir inaktiv. Last dem ned i app-innstillingene.",
   "siteSettingsContentBlocker": "Innholdsblokkering",
   "siteSettingsContentBlockerHint": "Blokkerer reklame, sporere og uønsket innhold ved hjelp av filterlister (som EasyList). Støtter domeneblokkering, kosmetiske CSS-filtre og tekstbaserte skjuleregler. Administrer filterlister i App-innstillinger.",
   "siteSettingsContentBlockerRuleCount": "{count} regler",

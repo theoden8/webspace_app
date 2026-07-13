@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "Orodha ya Vizuizi vya DNS",
   "siteSettingsDnsBlocklistHint": "Huzuia vikoa vinavyojulikana vya matangazo, ufuatiliaji, na programu hasidi katika kiwango cha DNS kabla havijapakia. Hutumia orodha ya vizuizi ya Hagezi yenye viwango vya ukali vinavyoweza kusanidiwa. Sanidi kiwango cha orodha ya vizuizi katika Mipangilio ya Programu.",
   "siteSettingsNotConfigured": "Haijasanidiwa",
+  "siteSettingsBlockerNotConfiguredWarning": "{feature} bado haina data iliyopakuliwa na inabaki bila kutumika. Ipakue katika mipangilio ya programu.",
   "siteSettingsContentBlocker": "Kizuizi cha Maudhui",
   "siteSettingsContentBlockerHint": "Huzuia matangazo, wafuatiliaji, na maudhui yasiyotakikana kwa kutumia orodha za vichujio (kama EasyList). Husaidia uzuiaji wa kikoa, vichujio vya urembo vya CSS, na kanuni za kuficha zinazotegemea maandishi. Dhibiti orodha za vichujio katika Mipangilio ya Programu.",
   "siteSettingsContentBlockerRuleCount": "kanuni {count}",

@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "DNS 차단 목록",
   "siteSettingsDnsBlocklistHint": "알려진 광고, 추적, 멀웨어 도메인이 로드되기 전에 DNS 수준에서 차단합니다. 심각도 수준을 구성할 수 있는 Hagezi 차단 목록을 사용합니다. 앱 설정에서 차단 목록 수준을 구성하세요.",
   "siteSettingsNotConfigured": "구성되지 않음",
+  "siteSettingsBlockerNotConfiguredWarning": "{feature}은(는) 아직 다운로드된 데이터가 없어 비활성 상태로 유지됩니다. 앱 설정에서 다운로드하세요.",
   "siteSettingsContentBlocker": "콘텐츠 차단기",
   "siteSettingsContentBlockerHint": "필터 목록(예: EasyList)을 사용하여 광고, 추적기, 원치 않는 콘텐츠를 차단합니다. 도메인 차단, CSS 외형 필터, 텍스트 기반 숨김 규칙을 지원합니다. 앱 설정에서 필터 목록을 관리하세요.",
   "siteSettingsContentBlockerRuleCount": "규칙 {count}개",

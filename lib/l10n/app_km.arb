@@ -368,6 +368,7 @@
   "siteSettingsDnsBlocklist": "បញ្ជីទប់ស្កាត់ DNS",
   "siteSettingsDnsBlocklistHint": "ទប់ស្កាត់ដែនផ្សាយពាណិជ្ជកម្ម ការតាមដាន និង malware ដែលគេស្គាល់នៅ DNS level មុននឹងអាចផ្ទុក។ ប្រើ Hagezi blocklist ជាមួយ severity levels ដែលអាចកំណត់បាន។ កំណត់ blocklist level ក្នុងការកំណត់កម្មវិធី។",
   "siteSettingsNotConfigured": "មិនទាន់កំណត់",
+  "siteSettingsBlockerNotConfiguredWarning": "{feature} មិនទាន់មានទិន្នន័យបានទាញយកនៅឡើយទេ ហើយនៅតែអសកម្ម។ ទាញយកវានៅក្នុងការកំណត់កម្មវិធី។",
   "siteSettingsContentBlocker": "ការទប់ស្កាត់មាតិកា",
   "siteSettingsContentBlockerHint": "ទប់ស្កាត់ ads, trackers, និងមាតិកាមិនចង់បានដោយប្រើ filter lists (ដូចជា EasyList)។ គាំទ្រ domain blocking, CSS cosmetic filters, និង text-based hiding rules។ គ្រប់គ្រងបញ្ជី filter ក្នុងការកំណត់កម្មវិធី។",
   "siteSettingsContentBlockerRuleCount": "{count} ច្បាប់",

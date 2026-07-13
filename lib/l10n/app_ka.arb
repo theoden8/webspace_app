@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "DNS ბლოკ-სია",
   "siteSettingsDnsBlocklistHint": "ბლოკავს ცნობილ სარეკლამო, თვალთვალისა და მავნე დომენებს DNS დონეზე მათ ჩატვირთვამდე. იყენებს Hagezi-ის ბლოკ-სიას კონფიგურირებადი სიმძიმის დონეებით. დააკონფიგურირეთ ბლოკ-სიის დონე აპის პარამეტრებში.",
   "siteSettingsNotConfigured": "არ არის კონფიგურირებული",
+  "siteSettingsBlockerNotConfiguredWarning": "{feature}-ს ჯერ არ აქვს ჩამოტვირთული მონაცემები და უმოქმედო რჩება. ჩამოტვირთეთ ისინი აპის პარამეტრებში.",
   "siteSettingsContentBlocker": "კონტენტის ბლოკერი",
   "siteSettingsContentBlockerHint": "ბლოკავს რეკლამებს, თვალთვალსა და არასასურველ კონტენტს ფილტრის სიების გამოყენებით (როგორიცაა EasyList). მხარს უჭერს დომენების ბლოკირებას, CSS კოსმეტიკურ ფილტრებსა და ტექსტზე დაფუძნებულ დამალვის წესებს. მართეთ ფილტრის სიები აპის პარამეტრებში.",
   "siteSettingsContentBlockerRuleCount": "{count} წესი",

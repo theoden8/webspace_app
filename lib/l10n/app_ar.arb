@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "قائمة حجب DNS",
   "siteSettingsDnsBlocklistHint": "يحجب نطاقات الإعلانات والتتبّع والبرمجيات الخبيثة المعروفة على مستوى DNS قبل أن تتمكن من التحميل. يستخدم قائمة حجب Hagezi بمستويات شدّة قابلة للضبط. اضبط مستوى قائمة الحجب في إعدادات التطبيق.",
   "siteSettingsNotConfigured": "غير مهيّأة",
+  "siteSettingsBlockerNotConfiguredWarning": "{feature} لا يحتوي على بيانات منزّلة بعد ويظل غير نشط. نزّلها من إعدادات التطبيق.",
   "siteSettingsContentBlocker": "حاجب المحتوى",
   "siteSettingsContentBlockerHint": "يحجب الإعلانات والمتتبّعين والمحتوى غير المرغوب باستخدام قوائم التصفية (مثل EasyList). يدعم حجب النطاقات ومرشّحات CSS التجميلية وقواعد الإخفاء النصية. أدر قوائم التصفية في إعدادات التطبيق.",
   "siteSettingsContentBlockerRuleCount": "{count} قاعدة",

@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "DNS lista blokiranja",
   "siteSettingsDnsBlocklistHint": "Blokira poznate domene oglašavanja, praćenja i zlonamjernog softvera na DNS nivou prije nego što se mogu učitati. Koristi Hagezi listu blokiranja s podesivim nivoima ozbiljnosti. Konfigurišite nivo liste blokiranja u Postavkama aplikacije.",
   "siteSettingsNotConfigured": "Nije konfigurisano",
+  "siteSettingsBlockerNotConfiguredWarning": "{feature} još nema preuzetih podataka i ostaje neaktivan. Preuzmite ih u postavkama aplikacije.",
   "siteSettingsContentBlocker": "Bloker sadržaja",
   "siteSettingsContentBlockerHint": "Blokira oglase, pratilace i neželjeni sadržaj koristeći liste filtera (poput EasyList). Podržava blokiranje domena, CSS kozmetičke filtere i pravila skrivanja zasnovana na tekstu. Upravljajte listama filtera u Postavkama aplikacije.",
   "siteSettingsContentBlockerRuleCount": "{count} pravila",

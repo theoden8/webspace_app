@@ -368,6 +368,7 @@
   "siteSettingsDnsBlocklist": "Index impediendorum DNS",
   "siteSettingsDnsBlocklistHint": "Impedit nota dominia reclamationum, investigationis, et malware ad gradum DNS antequam onerari possint. Utitur indice Hagezi cum gradibus gravitatis configurabilibus. Gradum indicis in Institutionibus applicationis configura.",
   "siteSettingsNotConfigured": "Non configuratum",
+  "siteSettingsBlockerNotConfiguredWarning": "{feature} nulla data adhuc detracta habet et iners manet. Ea in institutionibus applicationis exonera.",
   "siteSettingsContentBlocker": "Impeditor contenti",
   "siteSettingsContentBlockerHint": "Impedit reclamationes, investigatores, et contentum non desideratum indicibus cribri utens (ut EasyList). Sustinet impeditionem dominii, cribra cosmetica CSS, et regulas celandi textu fundatas. Indices cribri in Institutionibus applicationis administra.",
   "siteSettingsContentBlockerRuleCount": "{count} regulae",

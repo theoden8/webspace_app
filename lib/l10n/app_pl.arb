@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "Lista blokowania DNS",
   "siteSettingsDnsBlocklistHint": "Blokuje znane domeny reklamowe, śledzące i ze złośliwym oprogramowaniem na poziomie DNS, zanim zdążą się wczytać. Używa listy blokowania Hagezi z konfigurowalnymi poziomami surowości. Skonfiguruj poziom listy blokowania w Ustawieniach aplikacji.",
   "siteSettingsNotConfigured": "Nie skonfigurowano",
+  "siteSettingsBlockerNotConfiguredWarning": "{feature} nie ma jeszcze pobranych danych i pozostaje nieaktywny. Pobierz je w ustawieniach aplikacji.",
   "siteSettingsContentBlocker": "Bloker treści",
   "siteSettingsContentBlockerHint": "Blokuje reklamy, trackery i niechcianą treść przy użyciu list filtrów (takich jak EasyList). Obsługuje blokowanie domen, kosmetyczne filtry CSS i reguły ukrywania oparte na tekście. Zarządzaj listami filtrów w Ustawieniach aplikacji.",
   "siteSettingsContentBlockerRuleCount": "{count} reguł",

@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "DNS બ્લોકલિસ્ટ",
   "siteSettingsDnsBlocklistHint": "જાણીતા જાહેરાત, ટ્રેકિંગ અને માલવેર ડોમેન્સને લોડ થઈ શકે તે પહેલાં DNS સ્તરે અવરોધે છે. ગોઠવી શકાય તેવા તીવ્રતા સ્તરો સાથે Hagezi બ્લોકલિસ્ટ વાપરે છે. એપ્લિકેશન સેટિંગ્સમાં બ્લોકલિસ્ટ સ્તર ગોઠવો.",
   "siteSettingsNotConfigured": "ગોઠવેલ નથી",
+  "siteSettingsBlockerNotConfiguredWarning": "{feature} માટે હજી કોઈ ડેટા ડાઉનલોડ થયો નથી અને તે નિષ્ક્રિય રહે છે. તેને એપ્લિકેશન સેટિંગ્સમાં ડાઉનલોડ કરો.",
   "siteSettingsContentBlocker": "કન્ટેન્ટ બ્લોકર",
   "siteSettingsContentBlockerHint": "ફિલ્ટર સૂચિઓ (જેમ કે EasyList) વાપરીને જાહેરાતો, ટ્રેકર્સ અને અનિચ્છનીય સામગ્રીને અવરોધે છે. ડોમેન બ્લોકિંગ, CSS કૉસ્મેટિક ફિલ્ટર્સ અને ટેક્સ્ટ-આધારિત છુપાવવાના નિયમોને સમર્થન આપે છે. એપ્લિકેશન સેટિંગ્સમાં ફિલ્ટર સૂચિઓ મેનેજ કરો.",
   "siteSettingsContentBlockerRuleCount": "{count} નિયમો",

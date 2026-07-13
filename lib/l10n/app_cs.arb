@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "Seznam blokovaných DNS",
   "siteSettingsDnsBlocklistHint": "Blokuje známé reklamní, sledovací a škodlivé domény na úrovni DNS dříve, než se mohou načíst. Používá seznam blokovaných Hagezi s nastavitelnými úrovněmi závažnosti. Úroveň seznamu blokovaných nakonfigurujte v Nastavení aplikace.",
   "siteSettingsNotConfigured": "Nenakonfigurováno",
+  "siteSettingsBlockerNotConfiguredWarning": "{feature} zatím nemá stažená data a zůstává neaktivní. Stáhněte je v nastavení aplikace.",
   "siteSettingsContentBlocker": "Blokování obsahu",
   "siteSettingsContentBlockerHint": "Blokuje reklamy, sledovače a nežádoucí obsah pomocí seznamů filtrů (jako EasyList). Podporuje blokování domén, kosmetické filtry CSS a pravidla skrývání podle textu. Seznamy filtrů spravujte v Nastavení aplikace.",
   "siteSettingsContentBlockerRuleCount": "{count} pravidel",

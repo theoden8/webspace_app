@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "DNS ブロックリスト",
   "siteSettingsDnsBlocklistHint": "既知の広告、トラッキング、マルウェアのドメインを、読み込まれる前にDNSレベルでブロックします。Hagezi ブロックリストを使用し、深刻度レベルを設定できます。ブロックリストのレベルはアプリ設定で構成します。",
   "siteSettingsNotConfigured": "未設定",
+  "siteSettingsBlockerNotConfiguredWarning": "{feature} はまだデータがダウンロードされておらず、無効のままです。アプリ設定でダウンロードしてください。",
   "siteSettingsContentBlocker": "コンテンツブロッカー",
   "siteSettingsContentBlockerHint": "フィルターリスト（EasyList など）を使って広告、トラッカー、不要なコンテンツをブロックします。ドメインブロック、CSSの装飾フィルター、テキストベースの非表示ルールに対応します。フィルターリストはアプリ設定で管理します。",
   "siteSettingsContentBlockerRuleCount": "{count} ルール",

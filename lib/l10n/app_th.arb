@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "บัญชีบล็อก DNS",
   "siteSettingsDnsBlocklistHint": "บล็อกโดเมนโฆษณา ติดตาม และมัลแวร์ที่รู้จักในระดับ DNS ก่อนที่จะโหลด ใช้บัญชีบล็อก Hagezi พร้อมระดับความรุนแรงที่กำหนดค่าได้ กำหนดค่าระดับบัญชีบล็อกในการตั้งค่าแอป",
   "siteSettingsNotConfigured": "ยังไม่ได้กำหนดค่า",
+  "siteSettingsBlockerNotConfiguredWarning": "{feature} ยังไม่มีข้อมูลที่ดาวน์โหลดและจะยังไม่ทำงาน ดาวน์โหลดได้ในการตั้งค่าแอป",
   "siteSettingsContentBlocker": "ตัวบล็อกเนื้อหา",
   "siteSettingsContentBlockerHint": "บล็อกโฆษณา ตัวติดตาม และเนื้อหาที่ไม่ต้องการโดยใช้รายการตัวกรอง (เช่น EasyList) รองรับการบล็อกโดเมน, ตัวกรองภาพ CSS และกฎซ่อนตามข้อความ จัดการรายการตัวกรองในการตั้งค่าแอป",
   "siteSettingsContentBlockerRuleCount": "{count} กฎ",

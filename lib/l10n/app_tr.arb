@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "DNS Engelleme Listesi",
   "siteSettingsDnsBlocklistHint": "Bilinen reklam, izleme ve kötü amaçlı yazılım alan adlarını yüklenmeden önce DNS düzeyinde engeller. Yapılandırılabilir önem düzeyleriyle Hagezi engelleme listesini kullanır. Engelleme listesi düzeyini Uygulama Ayarları'nda yapılandırın.",
   "siteSettingsNotConfigured": "Yapılandırılmadı",
+  "siteSettingsBlockerNotConfiguredWarning": "{feature} için henüz indirilmiş veri yok ve devre dışı kalıyor. Uygulama ayarlarından indirin.",
   "siteSettingsContentBlocker": "İçerik Engelleyici",
   "siteSettingsContentBlockerHint": "Filtre listeleri (EasyList gibi) kullanarak reklamları, izleyicileri ve istenmeyen içeriği engeller. Alan adı engellemeyi, CSS kozmetik filtrelerini ve metin tabanlı gizleme kurallarını destekler. Filtre listelerini Uygulama Ayarları'nda yönetin.",
   "siteSettingsContentBlockerRuleCount": "{count} kural",

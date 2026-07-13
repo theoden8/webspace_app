@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "Rhestr Rwystro DNS",
   "siteSettingsDnsBlocklistHint": "Yn rhwystro parthau hysbysebu, tracio, a maleiswedd hysbys ar lefel DNS cyn iddynt allu llwytho. Yn defnyddio rhestr rwystro Hagezi gyda lefelau difrifoldeb ffurfweddadwy. Ffurfweddwch lefel y rhestr rwystro yn Gosodiadau'r Ap.",
   "siteSettingsNotConfigured": "Heb ei ffurfweddu",
+  "siteSettingsBlockerNotConfiguredWarning": "Nid oes gan {feature} ddata wedi'i lawrlwytho eto ac mae'n aros yn anweithredol. Lawrlwythwch ef yng ngosodiadau'r ap.",
   "siteSettingsContentBlocker": "Rhwystrwr Cynnwys",
   "siteSettingsContentBlockerHint": "Yn rhwystro hysbysebion, tracwyr, a chynnwys digroeso gan ddefnyddio rhestrau hidlo (fel EasyList). Yn cefnogi rhwystro parth, hidlwyr cosmetig CSS, a rheolau cuddio testun. Rheolwch restrau hidlo yn Gosodiadau'r Ap.",
   "siteSettingsContentBlockerRuleCount": "{count} rheol",
