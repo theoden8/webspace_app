@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/services.dart';
+import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/log_service.dart';
@@ -76,6 +77,13 @@ class WebInterceptNative {
           final count = (entry['count'] as int?) ?? 1;
           DnsBlockService.instance
               .recordHostRequest(siteId, host, blocked, source: source, count: count);
+          // Engine blocks decided natively never pass through
+          // ContentBlockerService.isBlocked, so fold them into the
+          // DevTools ABP counters here or the ABP tab undercounts.
+          if (blocked && source == BlockSource.abp) {
+            ContentBlockerService.instance
+                .recordNativeEngineBlock(host, count: count);
+          }
         }
       }
     } catch (_) {}

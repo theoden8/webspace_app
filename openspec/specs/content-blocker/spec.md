@@ -501,6 +501,45 @@ fresh device, so the user re-downloads to activate blocking)
 
 ---
 
+### Requirement: CB-012 - DevTools Engine Decision Accounting
+
+Every network-block decision the engine makes SHALL be folded into the
+DevTools ABP tab's counters, regardless of which consult path produced
+it: `isBlocked` (main-doc navigations, JS-bridge `blockCheck`,
+legacy single-URL reports), `isHostBlocked` (PerformanceObserver
+per-host attribution), and blocks decided by the Android native JNI
+engine (drained `abp`-sourced block events). The blocked/allowed
+tallies SHALL be cumulative since timing was enabled — they MUST NOT
+decay when the recent-decisions ring buffer rolls over.
+
+#### Scenario: Cumulative counts survive ring rollover
+
+**Given** timing recording is on and the ring buffer holds 200 samples
+**When** the engine makes 250 blocking decisions
+**Then** `engineBlockedSinceTimingOn` reports all 250
+**And** `recentEngineDecisions` holds only the newest 200 samples
+
+#### Scenario: Host-attribution decisions are recorded
+
+**Given** the PerformanceObserver batch path calls `isHostBlocked(host)`
+**Then** the decision is recorded with requestType `host` and its timing
+**And** the consulted/blocked/allowed counters advance
+
+#### Scenario: Android native engine blocks reach the counters
+
+**Given** the native interceptor drains an `abp`-sourced block event for a host with `count: k`
+**Then** `recordNativeEngineBlock` advances consulted and blocked by `k`
+**And** one sample row is added with requestType `native` and no timing (`micros == null`)
+**And** the ABP tab's avg/max timing chips ignore untimed samples
+
+#### Scenario: Timing off pauses accounting
+
+**Given** the user turns timing recording off in the ABP tab
+**Then** no decisions (Dart or native) are recorded
+**And** re-enabling resets the consulted/blocked/allowed counters to zero
+
+---
+
 ## Implementation Details
 
 ### Architecture: Why Not flutter_inappwebview ContentBlocker
