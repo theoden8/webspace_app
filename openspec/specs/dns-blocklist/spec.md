@@ -151,7 +151,7 @@ Each site SHALL have a `dnsBlockEnabled` setting (default: `true`) that controls
 **When** the user enables the DNS Blocklist toggle in site settings
 **Then** the toggle flips (the setting persists and takes effect once the blocklist is downloaded)
 **And** a SnackBar warns that the feature has no downloaded data and points at App Settings
-**And** the subtitle reads "Not configured"
+**And** while the toggle is on without data, a warning icon renders next to the title and the "Not configured" subtitle is amber
 
 ---
 

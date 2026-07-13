@@ -339,7 +339,7 @@ Each site SHALL have a `contentBlockEnabled` setting (default: `true`) that cont
 **When** the user enables the Content Blocker toggle in site settings
 **Then** the toggle flips (the setting persists and takes effect once lists are downloaded)
 **And** a SnackBar warns that the feature has no downloaded data and points at App Settings
-**And** the subtitle reads "Not configured"
+**And** while the toggle is on without data, a warning icon renders next to the title and the "Not configured" subtitle is amber
 
 #### Scenario: Enabling Tracking Protection with unconfigured blockers warns
 
@@ -347,6 +347,8 @@ Each site SHALL have a `contentBlockEnabled` setting (default: `true`) that cont
 **And** at least one of them has no downloaded data
 **When** the user enables the Tracking Protection toggle
 **Then** the same SnackBar warning fires, naming each unconfigured feature
+**And** the Tracking Protection tile carries the warning icon while a forced blocker is unconfigured
+**And** the forced blocker's subtitle joins the forced text with "Not configured"
 
 #### Scenario: Propagates to nested webviews
 
