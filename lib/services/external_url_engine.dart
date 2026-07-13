@@ -122,6 +122,33 @@ class ExternalUrlParser {
     );
   }
 
+  /// Schemes iOS registers to Safari for "force open in Safari" links.
+  /// Sites use them to escape embedded webviews (x.com redirects every
+  /// in-app-browser visit to `x-safari-https://redirect.x.com/...`).
+  /// The wrapped URL is the original with the scheme prefixed, so
+  /// stripping the prefix recovers a loadable http(s) URL.
+  static const _safariSchemePrefix = 'x-safari-';
+  static const _safariSchemes = {'x-safari-http', 'x-safari-https'};
+
+  /// Resolves any external-scheme URL to an equivalent http(s) URL the
+  /// webview can load, or null when none exists and the confirmation
+  /// dialog should be shown instead. Covers `intent://` (via
+  /// [intentToWebUrl]) and the Safari force-open `x-safari-http(s)`
+  /// family.
+  static String? toWebUrl(ExternalUrlInfo info) {
+    if (info.scheme == 'intent') return intentToWebUrl(info);
+    if (_safariSchemes.contains(info.scheme)) {
+      final sep = info.url.indexOf('://');
+      if (sep < 0) return null;
+      final target = info.scheme.substring(_safariSchemePrefix.length);
+      final candidate = '$target${info.url.substring(sep)}';
+      final parsed = Uri.tryParse(candidate);
+      if (parsed == null || parsed.host.isEmpty) return null;
+      return candidate;
+    }
+    return null;
+  }
+
   /// Resolves an [ExternalUrlInfo] for an intent:// URL to an equivalent
   /// http(s) URL the webview can load: prefers the explicit
   /// `S.browser_fallback_url` extra; otherwise reconstructs from

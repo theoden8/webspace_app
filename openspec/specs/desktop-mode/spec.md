@@ -242,8 +242,10 @@ The scrape routes through the app-global outbound proxy and fails closed
 version at startup performs no network I/O.
 
 Sources, tried in order:
-1. `hg.mozilla.org/releases/mozilla-release/.../browser/config/version_display.txt`
-   — the canonical source file (user-facing release version).
+1. `raw.githubusercontent.com/mozilla-firefox/firefox/release/browser/config/version_display.txt`
+   — the canonical source file (user-facing release version). Firefox
+   development moved from hg.mozilla.org to GitHub in 2025; the old
+   hg raw-file URL is dead.
 2. `product-details.mozilla.org/1.0/firefox_versions.json`
    (`LATEST_FIREFOX_VERSION`) — Mozilla's machine-readable fallback.
 
@@ -251,11 +253,18 @@ Only the major version is used; Firefox freezes the UA minor at `.0`
 regardless of point release.
 
 The randomize set the version feeds renders realistic per-platform Firefox
-shapes: desktop (`X11; Linux x86_64` / `Macintosh; Intel Mac OS X 10_15_7` /
+shapes: desktop (`X11; Linux x86_64` / `Macintosh; Intel Mac OS X 10.15` /
 `Windows NT 10.0; Win64; x64`, Gecko trail frozen at `20100101`),
-Firefox-for-Android (frozen `Android 10; Mobile`, Gecko trail equal to the
-version), and Firefox-for-iOS (WebKit/Safari-shaped with an `FxiOS/<version>`
-marker, since iOS mandates WebKit).
+Firefox-for-Android (pinned current `Android <major>; Mobile`, Gecko trail
+equal to the version), and Firefox-for-iOS (WebKit/Safari-shaped with an
+`FxiOS/<version>` marker ending in `Mobile/15E148 Safari/604.1`, since iOS
+mandates WebKit). Every token mirrors the upstream construction in gecko's
+`nsHttpHandler.cpp` and firefox-ios's `UserAgent.swift`; the Node test
+`test/js/firefox_ua_upstream.test.js` scrapes both sources and fails when
+our constants drift from what real Firefox sends. No generated UA may ever
+combine an Apple-mobile platform token with the Gecko desktop grammar —
+that combination exists in no real browser and marks the app as an
+embedded webview (x.com bounces it to `x-safari-https://`).
 
 #### Scenario: No network request without an explicit user gesture
 
@@ -287,6 +296,57 @@ marker, since iOS mandates WebKit).
 floor, or return a non-numeric / out-of-range body
 **When** the version is refreshed
 **Then** generated UAs keep rendering the bundled `kDefaultFirefoxMajorVersion`
+
+---
+
+### Requirement: DM-005 — Generated UAs persist as presets, not strings
+
+A per-site UA that came from the generator SHALL be persisted as a
+`uaPreset` (`WebViewModel.uaPreset`, one of
+`firefoxLinux|firefoxWindows|firefoxMacos|firefoxAndroid|firefoxIos`) and
+re-rendered at webview-creation time (`effectiveUserAgent`) from the
+current builders and Firefox version, so builder fixes and version
+refreshes apply retroactively to every site. A persisted string is a
+derivative of the builders + version; freezing it is how UAs rot until
+sites break on them. Free-text custom UAs (`uaPreset == null`) SHALL pass
+through verbatim and never be rewritten.
+
+On load (`fromJson`) and on save from site settings, a stored string that
+exactly matches a shape any historical generator emitted — including the
+pre-#410 iPhone-token-in-Gecko-grammar hybrid, the `10_15_7` macOS token,
+the `Safari/605.1.15` FxiOS tail, and the desktop-trail Android shape —
+SHALL be assigned its preset (idempotent migration). Exact-shape matches
+only: `rv:`/`Firefox/` version mismatches and real-browser strings (Mobile
+Safari, Chrome, Mozilla's Gecko-on-iOS whose trail equals the version)
+MUST stay custom.
+
+#### Scenario: Legacy broken UA heals on load
+
+**Given** a site persisted `Mozilla/5.0 (iPhone; CPU iPhone OS 15_7_3 like
+Mac OS X; rv:147.0) Gecko/20100101 Firefox/147.0` by an old build
+**When** the site is rehydrated from JSON
+**Then** `uaPreset` becomes `firefoxIos`
+**And** the webview is created with the current FxiOS UA, not the stored string
+
+#### Scenario: Version-stale generated UA re-renders current
+
+**Given** a site persisted a Linux Firefox UA rendered at version 120
+**When** the site is rehydrated and its webview created
+**Then** the UA sent carries the current Firefox version, not 120
+
+#### Scenario: Custom UA is never rewritten
+
+**Given** a site whose UA the user typed by hand (matches no generated shape)
+**When** the site is rehydrated
+**Then** `uaPreset` is null and the exact string is sent unchanged
+
+#### Scenario: Randomize round-trips through the preset
+
+**Given** the user taps randomize and saves site settings
+**When** the generated text is stored
+**Then** `setUserAgent` recognizes the shape and re-attaches the preset
+**And** a later version refresh changes what the webview sends without
+re-visiting site settings
 
 ---
 

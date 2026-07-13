@@ -135,4 +135,64 @@ void main() {
       expect(ExternalUrlParser.intentToWebUrl(info), isNull);
     });
   });
+
+  group('ExternalUrlParser.toWebUrl', () {
+    test('x-safari-https strips to https (x.com Safari bounce)', () {
+      final info =
+          ExternalUrlParser.parse('x-safari-https://redirect.x.com/?ct=rw-null')!;
+      expect(info.scheme, 'x-safari-https');
+      expect(
+        ExternalUrlParser.toWebUrl(info),
+        'https://redirect.x.com/?ct=rw-null',
+      );
+    });
+
+    test('x-safari-http strips to http', () {
+      final info = ExternalUrlParser.parse('x-safari-http://example.com/a?b=1')!;
+      expect(ExternalUrlParser.toWebUrl(info), 'http://example.com/a?b=1');
+    });
+
+    test('uppercase scheme resolves (Uri lowercases, raw prefix preserved)', () {
+      final info =
+          ExternalUrlParser.parse('X-Safari-HTTPS://Example.com/Path')!;
+      expect(ExternalUrlParser.toWebUrl(info), 'https://Example.com/Path');
+    });
+
+    test('x-safari without :// returns null', () {
+      final info = ExternalUrlInfo(
+        url: 'x-safari-https:opaque',
+        scheme: 'x-safari-https',
+      );
+      expect(ExternalUrlParser.toWebUrl(info), isNull);
+    });
+
+    test('x-safari with empty host returns null', () {
+      final info = ExternalUrlParser.parse('x-safari-https:///path-only');
+      expect(info, isNotNull);
+      expect(ExternalUrlParser.toWebUrl(info!), isNull);
+    });
+
+    test('other x-safari-* schemes are not resolved', () {
+      final info = ExternalUrlParser.parse('x-safari-file://etc/passwd')!;
+      expect(ExternalUrlParser.toWebUrl(info), isNull);
+    });
+
+    test('delegates intent:// to intentToWebUrl', () {
+      const url =
+          'intent://www.google.com/maps?entry=ml#Intent;scheme=https;package=x;end';
+      final info = ExternalUrlParser.parse(url)!;
+      expect(
+        ExternalUrlParser.toWebUrl(info),
+        ExternalUrlParser.intentToWebUrl(info),
+      );
+      expect(ExternalUrlParser.toWebUrl(info), 'https://www.google.com/maps?entry=ml');
+    });
+
+    test('returns null for schemes with no web equivalent', () {
+      final tel = ExternalUrlParser.parse('tel:+14155551234')!;
+      expect(ExternalUrlParser.toWebUrl(tel), isNull);
+      final fb = ExternalUrlParser.parse('fb://profile/123')!;
+      expect(ExternalUrlParser.toWebUrl(fb), isNull);
+    });
+  });
 }

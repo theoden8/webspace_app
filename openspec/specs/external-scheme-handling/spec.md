@@ -220,20 +220,62 @@ Tracking parameters SHALL be stripped from intent fallback URLs before they leav
 
 ### Requirement: EXT-007 - Suppression Loop Guard
 
-After a navigation resolves through the silent intent path or the user makes a choice in the dialog, the system SHALL mark `ExternalUrlSuppressor` so a script-driven re-fire of the same intent does not re-trigger work or re-prompt the user.
+After a navigation resolves through the silent route path or the user makes a choice in the dialog, the system SHALL mark `ExternalUrlSuppressor` so a script-driven re-fire of the same URL does not re-trigger work or re-prompt the user. A user-gesture navigation SHALL bypass the suppression check (the user deliberately clicked; dropping the click would break real links), but still re-marks it.
 
-#### Scenario: onReceivedError marks suppression on silent route
+#### Scenario: Silent route marks suppression at every intercept point
 
-**Given** `onReceivedError` resolved an intent silently
-**When** the page's JS re-fires the same intent moments later
-**Then** the suppression cache returns true for the same intent key
-**And** the second fire short-circuits to about:blank rather than re-loading the fallback
+**Given** `shouldOverrideUrlLoading`, `onCreateWindow`, or `onReceivedError` resolved an external scheme silently
+**When** the page's JS re-fires the same URL (no gesture) moments later
+**Then** the suppression cache returns true for the same key
+**And** the re-fire is `CANCEL`led without re-loading the resolved URL (x.com re-fires its Safari bounce on every page render; re-resolving would reload forever)
+
+#### Scenario: User-gesture navigation bypasses suppression
+
+**Given** a suppression entry exists for an intent the user just routed
+**When** the user taps a link firing the same intent (hasGesture=true)
+**Then** the silent route resolves and loads it anyway
+
+#### Scenario: Suppressed onReceivedError clears the error paint on Android only
+
+**Given** a suppressed external-scheme URL surfaces in `onReceivedError`
+**When** the platform is Android (chromium painted `chrome-error://chromewebdata` over the page)
+**Then** about:blank is loaded to clear the error commit
+**When** the platform is iOS/macOS (WebKit error 102 leaves the committed page painted)
+**Then** the handler no-ops — loading about:blank would wipe the visible page and clobber a just-issued silent-route load
 
 #### Scenario: Dialog choices mark suppression
 
 **Given** the user picks Cancel / Open in browser / Open in app in the dialog
 **Then** `ExternalUrlSuppressor.mark(info)` is called for that info
 **And** a re-fire within the suppression window is silenced
+
+---
+
+### Requirement: EXT-008 - Safari Force-Open Scheme Resolution
+
+The system SHALL resolve `x-safari-https://` and `x-safari-http://` URLs (iOS registers these schemes to Safari; sites use them to escape embedded webviews) to the underlying http(s) URL by stripping the `x-safari-` prefix, and route them through the same silent path as resolvable intents. `ExternalUrlParser.toWebUrl(info)` is the single resolution entry point covering both families.
+
+#### Scenario: x.com Safari bounce stays in the webview
+
+**Given** the current site is `https://x.com`
+**And** x.com detects an embedded webview and navigates to `x-safari-https://redirect.x.com/?ct=rw-null`
+**When** `shouldOverrideUrlLoading` intercepts the navigation
+**Then** `toWebUrl` resolves it to `https://redirect.x.com/?ct=rw-null`
+**And** the same-base-domain path loads it in the current webview
+**And** no confirmation dialog is shown
+**And** suppression is marked so the next bounce re-fire is dropped (EXT-007)
+
+#### Scenario: Only http(s) Safari schemes resolve
+
+**Given** a URL with scheme `x-safari-file` or a malformed `x-safari-https:opaque` (no `://`) or an empty host
+**When** `toWebUrl` is called
+**Then** it returns `null` and the prompt path applies
+
+#### Scenario: External-scheme URLs are never persisted as the current URL
+
+**Given** an external-scheme navigation lands a history entry before the cancel takes effect (`onUpdateVisitedHistory` fires with `x-safari-https://…`)
+**When** the URL parses as an external scheme
+**Then** `onUrlChanged` is NOT invoked, so the site's persisted current URL keeps its last web URL and the next launch does not start on a dead URL that re-fires the escape redirect
 
 ---
 
@@ -266,14 +308,14 @@ Extras live in the URL fragment, `;`-separated. `S.` prefix marks string extras 
 
 ### Modified
 
-- `lib/services/external_url_engine.dart` — added `ExternalUrlParser.intentToWebUrl`.
-- `lib/services/webview.dart` — intent-resolve branch in `shouldOverrideUrlLoading`, `onCreateWindow`, `onReceivedError`.
+- `lib/services/external_url_engine.dart` — added `ExternalUrlParser.intentToWebUrl` and the general `ExternalUrlParser.toWebUrl` (intent + `x-safari-http(s)`).
+- `lib/services/webview.dart` — resolve branch (`toWebUrl`) in `shouldOverrideUrlLoading`, `onCreateWindow`, `onReceivedError`; suppression loop guard on the silent path; Android-only about:blank clear; external-scheme guard in `onUpdateVisitedHistory`.
 - `lib/widgets/external_url_prompt.dart` — `confirmAndLaunchExternalUrl` accepts `loadInWebView`; "Open in browser" loads inside the webview.
 - `lib/main.dart` and `lib/screens/inappbrowser.dart` — pass the active controller as `loadInWebView` when invoking the prompt.
 
 ### Test coverage
 
-- `test/external_url_engine_test.dart` — unit tests for `ExternalUrlParser.intentToWebUrl` covering: non-intent input, explicit fallback, scheme+host+path+query reconstruction, non-http target scheme, non-http fallback.
+- `test/external_url_engine_test.dart` — unit tests for `ExternalUrlParser.intentToWebUrl` covering: non-intent input, explicit fallback, scheme+host+path+query reconstruction, non-http target scheme, non-http fallback; and for `ExternalUrlParser.toWebUrl` covering: `x-safari-https`/`x-safari-http` stripping, uppercase raw prefix, missing `://`, empty host, non-http `x-safari-*` schemes, intent delegation, no-web-equivalent schemes.
 
 ---
 

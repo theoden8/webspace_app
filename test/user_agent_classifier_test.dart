@@ -46,7 +46,7 @@ void main() {
     });
 
     test('macOS Firefox desktop is desktop', () {
-      const ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7; rv:151.0) '
+      const ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:151.0) '
           'Gecko/20100101 Firefox/151.0';
       expect(isDesktopUserAgent(ua), isTrue);
     });
@@ -72,8 +72,10 @@ void main() {
 
   group('inferDesktopUaPlatform', () {
     test('detects macOS via "Macintosh"', () {
-      const ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7; rv:151.0) '
-          'Gecko/20100101 Firefox/151.0';
+      // Chrome's underscore grammar — the classifier must handle both.
+      const ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
+          'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 '
+          'Safari/537.36';
       expect(inferDesktopUaPlatform(ua), DesktopUaPlatform.macos);
     });
 

@@ -30,7 +30,7 @@ class _BlockedFactory implements OutboundHttpFactory {
       const OutboundClientBlocked('blocked by test fake');
 }
 
-const _sourceUrl = 'hg.mozilla.org';
+const _sourceUrl = 'raw.githubusercontent.com';
 const _detailsUrl = 'product-details.mozilla.org';
 
 void main() {
@@ -109,8 +109,8 @@ void main() {
 
     test('mobile UAs are realistic Firefox shapes and classify as mobile', () {
       final android = buildFirefoxAndroidUserAgent(svc.versionString);
-      // Frozen OS token, version-matched Gecko trail (not desktop 20100101).
-      expect(android, contains('Android 10; Mobile'));
+      // Pinned OS major, version-matched Gecko trail (not desktop 20100101).
+      expect(android, contains('$kFirefoxAndroidOsToken; Mobile'));
       expect(android, contains('Gecko/${svc.versionString}'));
       expect(android, contains('Firefox/${svc.versionString}'));
       expect(isDesktopUserAgent(android), isFalse);
@@ -125,6 +125,51 @@ void main() {
 
     test('random pool covers all five platforms', () {
       expect(svc.randomUserAgents, hasLength(5));
+    });
+
+    test('desktop UAs match the exact Firefox desktop grammar', () {
+      final grammar = RegExp(
+          r'^Mozilla/5\.0 \((X11; Linux x86_64|Windows NT 10\.0; Win64; x64|'
+          r'Macintosh; Intel Mac OS X 10\.15); rv:(\d+\.\d+)\) '
+          r'Gecko/20100101 Firefox/(\d+\.\d+)$');
+      for (final ua in [
+        svc.linuxDesktopUserAgent,
+        svc.macosDesktopUserAgent,
+        svc.windowsDesktopUserAgent,
+      ]) {
+        final m = grammar.firstMatch(ua);
+        expect(m, isNotNull, reason: 'not real Firefox desktop grammar: $ua');
+        expect(m!.group(2), m.group(3), reason: 'rv: must equal version: $ua');
+      }
+      // Firefox freezes macOS at "10.15" with dots; the underscore form is
+      // Chrome/WebKit grammar and outs the string as fabricated.
+      expect(svc.macosDesktopUserAgent, isNot(contains('10_15')));
+    });
+
+    test('FxiOS UA matches upstream firefox-ios shape exactly', () {
+      final ios = buildFirefoxIosUserAgent(svc.versionString);
+      expect(
+        ios,
+        matches(RegExp(
+            r'^Mozilla/5\.0 \(iPhone; CPU iPhone OS \d+_\d+ like Mac OS X\) '
+            r'AppleWebKit/605\.1\.15 \(KHTML, like Gecko\) '
+            r'FxiOS/\d+\.\d+ Mobile/15E148 Safari/604\.1$')),
+      );
+    });
+
+    test('no pool UA claims Apple hardware with the Gecko grammar', () {
+      // x.com (and anything sniffing for in-app browsers) treats an
+      // iPhone/iPad token without WebKit+Safari tokens as fake and bounces
+      // it to x-safari-https://. No real browser sends that combination —
+      // iOS mandates WebKit — so no generated UA may either.
+      for (final ua in svc.randomUserAgents) {
+        if (ua.contains('iPhone') || ua.contains('iPad')) {
+          expect(ua, isNot(contains('rv:')), reason: ua);
+          expect(ua, isNot(contains('Gecko/')), reason: ua);
+          expect(ua, contains('AppleWebKit'), reason: ua);
+          expect(ua, contains('Safari/'), reason: ua);
+        }
+      }
     });
   });
 

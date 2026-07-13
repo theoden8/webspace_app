@@ -3031,33 +3031,47 @@ class WebViewFactory {
                 'package=${externalInfo.package} fallback=${externalInfo.fallbackUrl} url=$url',
             sensitivity: LogSensitivity.sensitive,
           );
-          // intent:// with a resolvable web URL: route the fallback
-          // through the standard same-domain / cross-domain path, no
-          // confirmation prompt. We are the browser; handing the user
-          // off to a different app for a URL they clicked inside us is
-          // hostile behavior (and Google Maps fires these constantly).
-          // Same base domain → load in this webview; cross-domain →
-          // nested via shouldOverrideUrlLoading. Intents *without* a
-          // web fallback (zxing scanner, custom-app deep links) still
-          // hit the confirmation dialog so the user can choose.
-          if (externalInfo.scheme == 'intent') {
-            final resolved = ExternalUrlParser.intentToWebUrl(externalInfo);
-            if (resolved != null) {
+          // External scheme with a resolvable web URL (intent:// fallback,
+          // x-safari-http(s) force-open): route it through the standard
+          // same-domain / cross-domain path, no confirmation prompt. We
+          // are the browser; handing the user off to a different app for
+          // a URL they clicked inside us is hostile behavior (Google Maps
+          // fires intents constantly, x.com bounces every in-app-browser
+          // visit to Safari). Same base domain → load in this webview;
+          // cross-domain → nested via shouldOverrideUrlLoading. Schemes
+          // *without* a web equivalent (zxing scanner, custom-app deep
+          // links, tel:) still hit the confirmation dialog.
+          final resolved = ExternalUrlParser.toWebUrl(externalInfo);
+          if (resolved != null) {
+            final hasGesture = _hasUserGesture(navigationAction);
+            // Loop guard (EXT-007): x.com re-fires its Safari bounce on
+            // every page render — resolving it again would reload the
+            // fallback forever. A script-driven re-fire inside the
+            // suppression window is dropped; a user-gesture nav is the
+            // user deliberately clicking, so it always routes.
+            if (!hasGesture &&
+                ExternalUrlSuppressor.isSuppressedInfo(externalInfo)) {
               LogService.instance.log(
                 'WebView',
-                'intent fallback resolved → $resolved (from $url)',
+                'silent route suppressed (recently routed): $url',
                 sensitivity: LogSensitivity.sensitive,
               );
-              bool allow = true;
-              if (config.shouldOverrideUrlLoading != null) {
-                final hasGesture = _hasUserGesture(navigationAction);
-                allow = config.shouldOverrideUrlLoading!(resolved, hasGesture);
-              }
-              if (allow) {
-                controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(resolved)));
-              }
               return inapp.NavigationActionPolicy.CANCEL;
             }
+            ExternalUrlSuppressor.mark(externalInfo);
+            LogService.instance.log(
+              'WebView',
+              'external scheme resolved → $resolved (from $url)',
+              sensitivity: LogSensitivity.sensitive,
+            );
+            bool allow = true;
+            if (config.shouldOverrideUrlLoading != null) {
+              allow = config.shouldOverrideUrlLoading!(resolved, hasGesture);
+            }
+            if (allow) {
+              controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(resolved)));
+            }
+            return inapp.NavigationActionPolicy.CANCEL;
           }
           if (config.onExternalSchemeUrl != null) {
             config.onExternalSchemeUrl!(url, externalInfo);
@@ -3251,24 +3265,33 @@ class WebViewFactory {
                 'scheme=${externalInfo.scheme} package=${externalInfo.package} url=$url',
             sensitivity: LogSensitivity.sensitive,
           );
-          if (externalInfo.scheme == 'intent') {
-            final resolved = ExternalUrlParser.intentToWebUrl(externalInfo);
-            if (resolved != null) {
+          final resolved = ExternalUrlParser.toWebUrl(externalInfo);
+          if (resolved != null) {
+            final hasGesture = _hasUserGesture(createWindowAction);
+            // Same loop guard as shouldOverrideUrlLoading (EXT-007).
+            if (!hasGesture &&
+                ExternalUrlSuppressor.isSuppressedInfo(externalInfo)) {
               LogService.instance.log(
                 'WebView',
-                'intent fallback resolved (onCreateWindow) → $resolved (from $url)',
+                'silent route suppressed (onCreateWindow, recently routed): $url',
                 sensitivity: LogSensitivity.sensitive,
               );
-              bool allow = true;
-              if (config.shouldOverrideUrlLoading != null) {
-                final hasGesture = _hasUserGesture(createWindowAction);
-                allow = config.shouldOverrideUrlLoading!(resolved, hasGesture);
-              }
-              if (allow) {
-                controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(resolved)));
-              }
               return false;
             }
+            ExternalUrlSuppressor.mark(externalInfo);
+            LogService.instance.log(
+              'WebView',
+              'external scheme resolved (onCreateWindow) → $resolved (from $url)',
+              sensitivity: LogSensitivity.sensitive,
+            );
+            bool allow = true;
+            if (config.shouldOverrideUrlLoading != null) {
+              allow = config.shouldOverrideUrlLoading!(resolved, hasGesture);
+            }
+            if (allow) {
+              controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(resolved)));
+            }
+            return false;
           }
           if (config.onExternalSchemeUrl != null) {
             config.onExternalSchemeUrl!(url, externalInfo);
@@ -3522,6 +3545,11 @@ class WebViewFactory {
         // onLoadStop may not fire for BFCache restorations (iOS Safari back
         // gesture), so this ensures the URL bar stays in sync.
         if (url != null) {
+          // External-scheme navs (x-safari-https://, intent://) can land a
+          // history entry before the cancel takes effect. Persisting one as
+          // the site's current URL makes the next launch start on a dead
+          // URL that just re-fires the escape redirect.
+          if (ExternalUrlParser.parse(url.toString()) != null) return;
           config.onUrlChanged?.call(url.toString());
           // SPA navigations (pushState/replaceState) don't trigger
           // onLoadStart/onLoadStop. Detect by checking if this URL had a
@@ -3585,6 +3613,20 @@ class WebViewFactory {
         final externalInfo = ExternalUrlParser.parse(reqUrl);
         if (externalInfo == null) return;
         if (ExternalUrlSuppressor.isSuppressedInfo(externalInfo)) {
+          if (!Platform.isAndroid) {
+            // WebKit reports a policy-cancelled external-scheme nav as
+            // error 102 (frame load interrupted) but keeps the committed
+            // page painted — loading about:blank here would wipe the page
+            // the user is looking at (and clobber a silent-route load the
+            // shouldOverrideUrlLoading path just issued). Only Android
+            // paints chrome-error:// over the page and needs the clear.
+            LogService.instance.log(
+              'WebView',
+              'onReceivedError: suppressed — committed page intact, no-op (url=$reqUrl)',
+              sensitivity: LogSensitivity.sensitive,
+            );
+            return;
+          }
           LogService.instance.log(
             'WebView',
             'onReceivedError: suppressed — loading about:blank to clear error commit (url=$reqUrl)',
@@ -3607,37 +3649,35 @@ class WebViewFactory {
           });
           return;
         }
-        if (externalInfo.scheme == 'intent') {
-          final resolved = ExternalUrlParser.intentToWebUrl(externalInfo);
-          if (resolved != null) {
-            ExternalUrlSuppressor.mark(externalInfo);
-            LogService.instance.log(
-              'WebView',
-              'onReceivedError: intent fallback resolved → $resolved (from $reqUrl)',
-              sensitivity: LogSensitivity.sensitive,
-            );
-            Future.microtask(() async {
-              try {
-                bool allow = true;
-                if (config.shouldOverrideUrlLoading != null) {
-                  allow = config.shouldOverrideUrlLoading!(resolved, false);
-                }
-                if (allow) {
-                  await controller.loadUrl(
-                    urlRequest: inapp.URLRequest(url: inapp.WebUri(resolved)),
-                  );
-                } else {
-                  await controller.loadUrl(
-                    urlRequest: inapp.URLRequest(url: inapp.WebUri('about:blank')),
-                  );
-                }
-              } catch (_) {}
-            });
-            return;
-          }
-          // No web fallback — fall through to the dialog path so the
-          // user can still choose to launch the target app.
+        final resolved = ExternalUrlParser.toWebUrl(externalInfo);
+        if (resolved != null) {
+          ExternalUrlSuppressor.mark(externalInfo);
+          LogService.instance.log(
+            'WebView',
+            'onReceivedError: external scheme resolved → $resolved (from $reqUrl)',
+            sensitivity: LogSensitivity.sensitive,
+          );
+          Future.microtask(() async {
+            try {
+              bool allow = true;
+              if (config.shouldOverrideUrlLoading != null) {
+                allow = config.shouldOverrideUrlLoading!(resolved, false);
+              }
+              if (allow) {
+                await controller.loadUrl(
+                  urlRequest: inapp.URLRequest(url: inapp.WebUri(resolved)),
+                );
+              } else {
+                await controller.loadUrl(
+                  urlRequest: inapp.URLRequest(url: inapp.WebUri('about:blank')),
+                );
+              }
+            } catch (_) {}
+          });
+          return;
         }
+        // No web equivalent — fall through to the dialog path so the
+        // user can still choose to launch the target app.
         if (config.onExternalSchemeUrl != null) {
           LogService.instance.log(
             'WebView',
