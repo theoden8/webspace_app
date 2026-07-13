@@ -66,9 +66,12 @@ class FirefoxUserAgentService {
   static const String _lastCheckedKey = 'firefox_ua_last_checked';
 
   /// Canonical "source code" location: the release branch's user-facing
-  /// version file in mozilla-release.
+  /// version file. Firefox development moved from hg.mozilla.org to GitHub
+  /// (mozilla-firefox/firefox) in 2025; the old
+  /// `hg.mozilla.org/releases/mozilla-release/raw-file/tip/...` URL now
+  /// returns "not found in manifest".
   static const String _sourceVersionUrl =
-      'https://hg.mozilla.org/releases/mozilla-release/raw-file/tip/'
+      'https://raw.githubusercontent.com/mozilla-firefox/firefox/release/'
       'browser/config/version_display.txt';
 
   /// Official machine-readable fallback maintained by Mozilla.

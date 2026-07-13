@@ -242,8 +242,10 @@ The scrape routes through the app-global outbound proxy and fails closed
 version at startup performs no network I/O.
 
 Sources, tried in order:
-1. `hg.mozilla.org/releases/mozilla-release/.../browser/config/version_display.txt`
-   — the canonical source file (user-facing release version).
+1. `raw.githubusercontent.com/mozilla-firefox/firefox/release/browser/config/version_display.txt`
+   — the canonical source file (user-facing release version). Firefox
+   development moved from hg.mozilla.org to GitHub in 2025; the old
+   hg raw-file URL is dead.
 2. `product-details.mozilla.org/1.0/firefox_versions.json`
    (`LATEST_FIREFOX_VERSION`) — Mozilla's machine-readable fallback.
 
@@ -251,11 +253,18 @@ Only the major version is used; Firefox freezes the UA minor at `.0`
 regardless of point release.
 
 The randomize set the version feeds renders realistic per-platform Firefox
-shapes: desktop (`X11; Linux x86_64` / `Macintosh; Intel Mac OS X 10_15_7` /
+shapes: desktop (`X11; Linux x86_64` / `Macintosh; Intel Mac OS X 10.15` /
 `Windows NT 10.0; Win64; x64`, Gecko trail frozen at `20100101`),
-Firefox-for-Android (frozen `Android 10; Mobile`, Gecko trail equal to the
-version), and Firefox-for-iOS (WebKit/Safari-shaped with an `FxiOS/<version>`
-marker, since iOS mandates WebKit).
+Firefox-for-Android (pinned current `Android <major>; Mobile`, Gecko trail
+equal to the version), and Firefox-for-iOS (WebKit/Safari-shaped with an
+`FxiOS/<version>` marker ending in `Mobile/15E148 Safari/604.1`, since iOS
+mandates WebKit). Every token mirrors the upstream construction in gecko's
+`nsHttpHandler.cpp` and firefox-ios's `UserAgent.swift`; the Node test
+`test/js/firefox_ua_upstream.test.js` scrapes both sources and fails when
+our constants drift from what real Firefox sends. No generated UA may ever
+combine an Apple-mobile platform token with the Gecko desktop grammar —
+that combination exists in no real browser and marks the app as an
+embedded webview (x.com bounces it to `x-safari-https://`).
 
 #### Scenario: No network request without an explicit user gesture
 

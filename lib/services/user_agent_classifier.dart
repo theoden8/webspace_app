@@ -81,11 +81,18 @@ String navigatorPlatformFor(DesktopUaPlatform p) {
 /// the scrape fails or the network is unreachable — UA strings render with
 /// this version. It also acts as a floor: a scraped version older than this
 /// is ignored, so app upgrades never regress the UA.
-const int kDefaultFirefoxMajorVersion = 151;
+const int kDefaultFirefoxMajorVersion = 152;
 
 /// The OS descriptor (parenthetical token) for each Firefox desktop UA.
+/// Values mirror gecko's `nsHttpHandler::InitUserAgentComponents`
+/// (netwerk/protocol/http/nsHttpHandler.cpp): Windows is hardcoded to
+/// "NT 10.0; Win64; x64", macOS is frozen at "10.15" (dot-separated —
+/// the underscore form `10_15_7` is Chrome/WebKit grammar and marks the
+/// string as fake in a Firefox UA), Linux always reports "X11".
+/// `test/js/firefox_ua_upstream.test.js` scrapes that source to catch
+/// drift.
 const String kFirefoxLinuxPlatformToken = 'X11; Linux x86_64';
-const String kFirefoxMacosPlatformToken = 'Macintosh; Intel Mac OS X 10_15_7';
+const String kFirefoxMacosPlatformToken = 'Macintosh; Intel Mac OS X 10.15';
 const String kFirefoxWindowsPlatformToken = 'Windows NT 10.0; Win64; x64';
 
 /// Render a Firefox version number (e.g. `"151.0"`) from a [major] version.
@@ -100,14 +107,17 @@ String firefoxVersionString(int major) => '$major.0';
 String buildFirefoxUserAgent(String platformToken, String version) =>
     'Mozilla/5.0 ($platformToken; rv:$version) Gecko/20100101 Firefox/$version';
 
-/// OS version Firefox for Android emits in its UA. Mozilla freezes it (like
-/// the desktop macOS 10.15 freeze) to cut fingerprinting entropy, so the real
-/// device version never appears regardless of the handset's actual Android.
-const String kFirefoxAndroidOsToken = 'Android 10';
+/// OS token Firefox for Android emits in its UA. Gecko reports the real
+/// Android major version for OS >= 10 and only spoofs older devices up to
+/// "Android 10" (nsHttpHandler.cpp, bug 1876742), so a static UA should
+/// carry a current major, not 10. Pin the newest stable Android release —
+/// consistent with rendering the newest Firefox version — and bump it
+/// alongside [kDefaultFirefoxMajorVersion].
+const String kFirefoxAndroidOsToken = 'Android 16';
 
 /// Firefox-for-Android UA. Differs from desktop in two ways that matter to
 /// servers sniffing the string: the Gecko trail equals the version (desktop
-/// freezes it at `20100101`), and the OS token is frozen
+/// freezes it at `20100101`), and the OS token carries the Android major
 /// ([kFirefoxAndroidOsToken]).
 String buildFirefoxAndroidUserAgent(String version) =>
     'Mozilla/5.0 ($kFirefoxAndroidOsToken; Mobile; rv:$version) '
@@ -115,12 +125,18 @@ String buildFirefoxAndroidUserAgent(String version) =>
 
 /// Fixed tokens for the Firefox-for-iOS (FxiOS) UA. iOS mandates WebKit, so
 /// Firefox there is a Safari-shaped UA carrying an `FxiOS/<version>` marker
-/// rather than a Gecko build. WebKit/Safari/build numbers track the OS, not
-/// the Firefox version, so they stay fixed at a recent plausible value.
-const String _kFxiosOsToken = 'iPhone; CPU iPhone OS 18_5 like Mac OS X';
+/// rather than a Gecko build. Values mirror firefox-ios's
+/// `UserAgentBuilder.defaultMobileUserAgent`
+/// (BrowserKit/Sources/Shared/UserAgent.swift): the OS version is frozen
+/// upstream (`OS 18_7`), and the trailing Safari bit is `Safari/604.1` —
+/// the same token Mobile Safari ends with — NOT the `605.1.15` WebKit
+/// build number, which upstream only uses in its desktop-mode UA.
+/// `test/js/firefox_ua_upstream.test.js` scrapes that source to catch
+/// drift.
+const String _kFxiosOsToken = 'iPhone; CPU iPhone OS 18_7 like Mac OS X';
 const String _kFxiosWebKit = 'AppleWebKit/605.1.15 (KHTML, like Gecko)';
 const String _kFxiosMobileBuild = 'Mobile/15E148';
-const String _kFxiosSafari = 'Safari/605.1.15';
+const String _kFxiosSafari = 'Safari/604.1';
 
 /// Firefox-for-iOS (FxiOS) UA at the given [version] (e.g. `"151.0"`).
 String buildFirefoxIosUserAgent(String version) =>
