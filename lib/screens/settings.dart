@@ -162,7 +162,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late Map<String, Object?> _initialSnapshot;
 
   String getResetUserAgent() {
-    return (widget.webViewModel.userAgent == '') ? (widget.webViewModel.defaultUserAgent ?? '') : widget.webViewModel.userAgent;
+    // effectiveUserAgent so a preset site's field shows the string the
+    // webview actually sends (current version), not the stored snapshot.
+    final ua = widget.webViewModel.effectiveUserAgent;
+    return ua == '' ? (widget.webViewModel.defaultUserAgent ?? '') : ua;
   }
 
   @override
@@ -475,7 +478,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       // Update other settings
       if (_userAgentController.text != '') {
-        widget.webViewModel.userAgent = _userAgentController.text;
+        // setUserAgent re-attaches a preset when the text matches a
+        // generated shape, so randomized UAs keep re-rendering at the
+        // current Firefox version instead of freezing as strings.
+        widget.webViewModel.setUserAgent(_userAgentController.text);
       }
       widget.webViewModel.javascriptEnabled = _javascriptEnabled;
       widget.webViewModel.thirdPartyCookiesEnabled = _thirdPartyCookiesEnabled;

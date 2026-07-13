@@ -16,8 +16,10 @@ import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/link_routing_service.dart' show LinkRoutingService;
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
+import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
 import 'package:webspace/services/tab_bar_corner.dart';
+import 'package:webspace/services/user_agent_preset.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -309,6 +311,12 @@ class WebViewModel {
   UserProxySettings proxySettings;
   bool javascriptEnabled;
   String userAgent;
+  /// Which generated UA shape [userAgent] was rendered from, or null for
+  /// a free-text custom string (or no override). When set, webviews are
+  /// built from [effectiveUserAgent] — a fresh render at the current
+  /// Firefox version — so builder fixes and version refreshes reach
+  /// every site without a stored-string migration.
+  UserAgentPreset? uaPreset;
   bool thirdPartyCookiesEnabled;
   bool incognito; // Private browsing mode - no cookies/cache persist
   /// When true, the site's currentUrl/pageTitle are not persisted: every
@@ -562,6 +570,29 @@ class WebViewModel {
   /// matches the current theme before scripts and stylesheets load.
   WebViewTheme get currentTheme => _currentTheme;
 
+  /// The UA string webviews are actually built with: presets render fresh
+  /// at the current Firefox version; custom strings pass through verbatim.
+  String get effectiveUserAgent => uaPreset == null
+      ? userAgent
+      : renderUserAgentPreset(
+          uaPreset!, FirefoxUserAgentService.instance.versionString);
+
+  /// [effectiveUserAgent] in the null-for-unset form `WebViewConfig` and
+  /// `launchUrlFunc` expect.
+  String? get effectiveUserAgentOrNull {
+    final ua = effectiveUserAgent;
+    return ua.isEmpty ? null : ua;
+  }
+
+  /// Store a user-entered UA. Strings that exactly match a generated
+  /// shape (any version, including shapes only older builds emitted) get
+  /// their preset back, so they keep re-rendering fresh; anything else is
+  /// custom and preserved verbatim.
+  void setUserAgent(String value) {
+    userAgent = value;
+    uaPreset = value.isEmpty ? null : recognizeGeneratedUserAgent(value);
+  }
+
   WebViewModel({
     String? siteId,
     required this.initUrl,
@@ -571,6 +602,7 @@ class WebViewModel {
     UserProxySettings? proxySettings,
     this.javascriptEnabled = true,
     this.userAgent = '',
+    this.uaPreset,
     this.thirdPartyCookiesEnabled = false,
     this.incognito = false,
     this.alwaysOpenHome = false,
@@ -682,7 +714,7 @@ class WebViewModel {
     try {
       await c.setOptions(
         javascriptEnabled: javascriptEnabled,
-        userAgent: userAgent.isNotEmpty ? userAgent : null,
+        userAgent: effectiveUserAgentOrNull,
         thirdPartyCookiesEnabled: thirdPartyCookiesEnabled,
         incognito: incognito,
       );
@@ -882,7 +914,7 @@ class WebViewModel {
           archiveContainerId: archiveContainerId,
           initialUrl: currentUrl,
           javascriptEnabled: javascriptEnabled,
-          userAgent: userAgent.isNotEmpty ? userAgent : null,
+          userAgent: effectiveUserAgentOrNull,
           thirdPartyCookiesEnabled: thirdPartyCookiesEnabled,
           incognito: incognito,
           // Root site webview sits at the MaterialApp root route: on iOS/macOS
@@ -1007,7 +1039,7 @@ class WebViewModel {
                   '  -> CANCEL (opening nested webview)',
                   sensitivity: LogSensitivity.sensitive,
                 );
-                launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: localCdnEnabled, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: userAgent.isNotEmpty ? userAgent : null, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: notificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser);
+                launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: localCdnEnabled, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: notificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser);
                 return false;
               case NavigationDecision.blockOpenExternal:
                 LogService.instance.log(
@@ -1099,7 +1131,7 @@ class WebViewModel {
                     sensitivity: LogSensitivity.sensitive,
                   );
                   if (handled.launchNestedUrl != null) {
-                    launchUrlFunc(handled.launchNestedUrl!, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: localCdnEnabled, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: userAgent.isNotEmpty ? userAgent : null, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: notificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser);
+                    launchUrlFunc(handled.launchNestedUrl!, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: localCdnEnabled, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: notificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser);
                   }
                   return;
                 case NavigationDecision.blockOpenExternal:
@@ -1688,6 +1720,7 @@ class WebViewModel {
         'proxySettings': proxySettings.toJson(),
         'javascriptEnabled': javascriptEnabled,
         'userAgent': userAgent,
+        if (uaPreset != null) 'uaPreset': uaPreset!.name,
         'thirdPartyCookiesEnabled': thirdPartyCookiesEnabled,
         'incognito': incognito,
         'alwaysOpenHome': alwaysOpenHome,
@@ -1761,6 +1794,12 @@ class WebViewModel {
       proxySettings: UserProxySettings.fromJson(json['proxySettings']),
       javascriptEnabled: json['javascriptEnabled'],
       userAgent: json['userAgent'],
+      // Migration: legacy data carries only the rendered string. A string
+      // matching a generated shape (including shapes old buggy builds
+      // emitted) gets its preset back here, so stale persisted UAs heal on
+      // load instead of rotting until a site breaks on them.
+      uaPreset: userAgentPresetFromName(json['uaPreset'] as String?) ??
+          recognizeGeneratedUserAgent((json['userAgent'] as String?) ?? ''),
       thirdPartyCookiesEnabled: json['thirdPartyCookiesEnabled'],
       incognito: isIncognito,
       alwaysOpenHome: isAlwaysOpenHome,

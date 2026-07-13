@@ -299,6 +299,57 @@ floor, or return a non-numeric / out-of-range body
 
 ---
 
+### Requirement: DM-005 — Generated UAs persist as presets, not strings
+
+A per-site UA that came from the generator SHALL be persisted as a
+`uaPreset` (`WebViewModel.uaPreset`, one of
+`firefoxLinux|firefoxWindows|firefoxMacos|firefoxAndroid|firefoxIos`) and
+re-rendered at webview-creation time (`effectiveUserAgent`) from the
+current builders and Firefox version, so builder fixes and version
+refreshes apply retroactively to every site. A persisted string is a
+derivative of the builders + version; freezing it is how UAs rot until
+sites break on them. Free-text custom UAs (`uaPreset == null`) SHALL pass
+through verbatim and never be rewritten.
+
+On load (`fromJson`) and on save from site settings, a stored string that
+exactly matches a shape any historical generator emitted — including the
+pre-#410 iPhone-token-in-Gecko-grammar hybrid, the `10_15_7` macOS token,
+the `Safari/605.1.15` FxiOS tail, and the desktop-trail Android shape —
+SHALL be assigned its preset (idempotent migration). Exact-shape matches
+only: `rv:`/`Firefox/` version mismatches and real-browser strings (Mobile
+Safari, Chrome, Mozilla's Gecko-on-iOS whose trail equals the version)
+MUST stay custom.
+
+#### Scenario: Legacy broken UA heals on load
+
+**Given** a site persisted `Mozilla/5.0 (iPhone; CPU iPhone OS 15_7_3 like
+Mac OS X; rv:147.0) Gecko/20100101 Firefox/147.0` by an old build
+**When** the site is rehydrated from JSON
+**Then** `uaPreset` becomes `firefoxIos`
+**And** the webview is created with the current FxiOS UA, not the stored string
+
+#### Scenario: Version-stale generated UA re-renders current
+
+**Given** a site persisted a Linux Firefox UA rendered at version 120
+**When** the site is rehydrated and its webview created
+**Then** the UA sent carries the current Firefox version, not 120
+
+#### Scenario: Custom UA is never rewritten
+
+**Given** a site whose UA the user typed by hand (matches no generated shape)
+**When** the site is rehydrated
+**Then** `uaPreset` is null and the exact string is sent unchanged
+
+#### Scenario: Randomize round-trips through the preset
+
+**Given** the user taps randomize and saves site settings
+**When** the generated text is stored
+**Then** `setUserAgent` recognizes the shape and re-attaches the preset
+**And** a later version refresh changes what the webview sends without
+re-visiting site settings
+
+---
+
 ## Files
 
 | File | Role |
