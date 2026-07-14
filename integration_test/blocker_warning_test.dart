@@ -45,6 +45,10 @@ void main() {
     await tester.pumpWidget(MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
+      // The harness asserts against English strings; a headless CI
+      // container has no LANG, and locale resolution would otherwise
+      // fall back to the first supported locale (alphabetical, not en).
+      locale: const Locale('en'),
       home: home,
     ));
     await tester.pumpAndSettle();
@@ -65,8 +69,13 @@ void main() {
 
   Future<Finder> revealTile(WidgetTester tester, String title) async {
     final tile = find.widgetWithText(SwitchListTile, title);
-    await tester.scrollUntilVisible(tile, 200,
-        scrollable: find.byType(Scrollable).first);
+    // Target the settings ListView's own Scrollable — a bare
+    // find.byType(Scrollable).first can land on a nested horizontal
+    // scrollable and scroll the wrong axis forever.
+    final listScrollable = find
+        .descendant(of: find.byType(ListView), matching: find.byType(Scrollable))
+        .first;
+    await tester.scrollUntilVisible(tile, 200, scrollable: listScrollable);
     await tester.pumpAndSettle();
     return tile;
   }
