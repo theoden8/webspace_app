@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "DNS بلاک لسٹ",
   "siteSettingsDnsBlocklistHint": "معروف اشتہارات، ٹریکنگ، اور مالویئر ڈومینز کو DNS کی سطح پر لوڈ ہونے سے پہلے بلاک کرتا ہے۔ ترتیب پذیر شدت کی سطحوں کے ساتھ Hagezi بلاک لسٹ استعمال کرتا ہے۔ بلاک لسٹ کی سطح ایپ سیٹنگز میں ترتیب دیں۔",
   "siteSettingsNotConfigured": "ترتیب نہیں دیا گیا",
+  "siteSettingsBlockerNotConfiguredWarning": "{feature} کے لیے ابھی تک کوئی ڈیٹا ڈاؤن لوڈ نہیں ہوا اور یہ غیر فعال رہتا ہے۔ اسے ایپ سیٹنگز میں ڈاؤن لوڈ کریں۔",
   "siteSettingsContentBlocker": "کنٹینٹ بلاکر",
   "siteSettingsContentBlockerHint": "فلٹر فہرستوں (جیسے EasyList) کا استعمال کرتے ہوئے اشتہارات، ٹریکرز، اور ناپسندیدہ مواد کو بلاک کرتا ہے۔ ڈومین بلاکنگ، CSS کاسمیٹک فلٹرز، اور متن پر مبنی چھپانے کے قواعد کی حمایت کرتا ہے۔ فلٹر فہرستیں ایپ سیٹنگز میں منظم کریں۔",
   "siteSettingsContentBlockerRuleCount": "{count} قواعد",

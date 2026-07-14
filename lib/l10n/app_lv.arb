@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "DNS bloķēšanas saraksts",
   "siteSettingsDnsBlocklistHint": "Bloķē zināmus reklāmas, izsekošanas un ļaunprogrammatūras domēnus DNS līmenī, pirms tie var ielādēties. Izmanto Hagezi bloķēšanas sarakstu ar konfigurējamiem smaguma līmeņiem. Konfigurējiet bloķēšanas saraksta līmeni lietotnes iestatījumos.",
   "siteSettingsNotConfigured": "Nav konfigurēts",
+  "siteSettingsBlockerNotConfiguredWarning": "{feature} vēl nav lejupielādētu datu, un tas paliek neaktīvs. Lejupielādējiet tos lietotnes iestatījumos.",
   "siteSettingsContentBlocker": "Satura bloķētājs",
   "siteSettingsContentBlockerHint": "Bloķē reklāmas, izsekotājus un nevēlamu saturu, izmantojot filtru sarakstus (piemēram, EasyList). Atbalsta domēnu bloķēšanu, CSS kosmētiskos filtrus un uz tekstu balstītus slēpšanas noteikumus. Pārvaldiet filtru sarakstus lietotnes iestatījumos.",
   "siteSettingsContentBlockerRuleCount": "{count} noteikumi",

@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "DNS අවහිර ලැයිස්තුව",
   "siteSettingsDnsBlocklistHint": "දන්නා දැන්වීම්, ලුහුබැඳීම් සහ malware වසම් පූරණයට පෙර DNS මට්ටමින් අවහිර කරයි. වින්‍යාසගත කළ හැකි බරපතලකම් මට්ටම් සහිත Hagezi අවහිර ලැයිස්තුව භාවිතා කරයි. යෙදුම් සැකසුම්වල අවහිර ලැයිස්තු මට්ටම වින්‍යාස කරන්න.",
   "siteSettingsNotConfigured": "වින්‍යාස කර නැත",
+  "siteSettingsBlockerNotConfiguredWarning": "{feature} සඳහා තවම දත්ත බාගත කර නොමැති අතර එය අක්‍රියව පවතී. යෙදුම් සැකසුම්වල එය බාගන්න.",
   "siteSettingsContentBlocker": "අන්තර්ගත අවහිරකය",
   "siteSettingsContentBlockerHint": "පෙරහන් ලැයිස්තු (EasyList වැනි) භාවිතයෙන් දැන්වීම්, ලුහුබැඳීම් සහ අනවශ්‍ය අන්තර්ගත අවහිර කරයි. වසම් අවහිරය, CSS රූපාලංකාර පෙරහන් සහ පෙළ-පාදක සැඟවීම් නීති සඳහා සහාය දක්වයි. යෙදුම් සැකසුම්වල පෙරහන් ලැයිස්තු කළමනාකරණය කරන්න.",
   "siteSettingsContentBlockerRuleCount": "නීති {count}ක්",

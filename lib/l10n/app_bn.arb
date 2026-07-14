@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "DNS ব্লকলিস্ট",
   "siteSettingsDnsBlocklistHint": "পরিচিত বিজ্ঞাপন, ট্র্যাকিং এবং ম্যালওয়্যার ডোমেন লোড হওয়ার আগেই DNS স্তরে ব্লক করে। কনফিগারযোগ্য তীব্রতা স্তরসহ Hagezi ব্লকলিস্ট ব্যবহার করে। অ্যাপ সেটিংসে ব্লকলিস্ট স্তর কনফিগার করুন।",
   "siteSettingsNotConfigured": "কনফিগার করা হয়নি",
+  "siteSettingsBlockerNotConfiguredWarning": "{feature}-এর জন্য এখনো কোনো ডেটা ডাউনলোড হয়নি এবং এটি নিষ্ক্রিয় থাকবে। অ্যাপ সেটিংসে এটি ডাউনলোড করুন।",
   "siteSettingsContentBlocker": "কনটেন্ট ব্লকার",
   "siteSettingsContentBlockerHint": "ফিল্টার তালিকা (যেমন EasyList) ব্যবহার করে বিজ্ঞাপন, ট্র্যাকার এবং অবাঞ্ছিত কনটেন্ট ব্লক করে। ডোমেন ব্লকিং, CSS কসমেটিক ফিল্টার এবং টেক্সট-ভিত্তিক লুকানো নিয়ম সমর্থন করে। অ্যাপ সেটিংসে ফিল্টার তালিকা পরিচালনা করুন।",
   "siteSettingsContentBlockerRuleCount": "{count}টি নিয়ম",

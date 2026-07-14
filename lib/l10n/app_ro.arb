@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "Listă de blocare DNS",
   "siteSettingsDnsBlocklistHint": "Blochează domeniile cunoscute de publicitate, urmărire și malware la nivel DNS înainte ca acestea să se poată încărca. Folosește lista de blocare Hagezi cu niveluri de severitate configurabile. Configurează nivelul listei de blocare în Setări aplicație.",
   "siteSettingsNotConfigured": "Neconfigurat",
+  "siteSettingsBlockerNotConfiguredWarning": "{feature} nu are încă date descărcate și rămâne inactiv. Descarcă-le în setările aplicației.",
   "siteSettingsContentBlocker": "Blocator de conținut",
   "siteSettingsContentBlockerHint": "Blochează reclame, urmăritori și conținut nedorit folosind liste de filtre (precum EasyList). Acceptă blocarea de domenii, filtre cosmetice CSS și reguli de ascundere bazate pe text. Gestionează listele de filtre în Setări aplicație.",
   "siteSettingsContentBlockerRuleCount": "{count} reguli",

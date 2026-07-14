@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "DNS-bannlisti",
   "siteSettingsDnsBlocklistHint": "Útilokar þekkt auglýsinga-, rakningar- og spilliforritalén á DNS-stigi áður en þau geta hlaðist. Notar Hagezi bannlistann með stillanlegum alvarleikastigum. Stilltu bannlistastigið í Forritsstillingum.",
   "siteSettingsNotConfigured": "Ekki stillt",
+  "siteSettingsBlockerNotConfiguredWarning": "{feature} hefur engin niðurhöluð gögn enn og helst óvirkt. Sæktu þau í forritsstillingum.",
   "siteSettingsContentBlocker": "Efnisblokkari",
   "siteSettingsContentBlockerHint": "Útilokar auglýsingar, rakara og óæskilegt efni með síulistum (eins og EasyList). Styður lénblokkun, CSS-snyrtisíur og textatengdar feluvarsreglur. Sýslaðu með síulista í Forritsstillingum.",
   "siteSettingsContentBlockerRuleCount": "{count} reglur",

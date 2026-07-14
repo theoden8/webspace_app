@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/adblock_engine.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 
 void main() {
@@ -200,4 +202,118 @@ void main() {
       expect(diag['canaryHits'], isEmpty);
     });
   });
+
+  group('DevTools engine decision accounting (CB-012)', () {
+    final service = ContentBlockerService.instance;
+
+    setUp(service.reset);
+
+    test('native block events advance counters and add one untimed sample',
+        () {
+      service.recordNativeEngineBlock('ads.example.com', count: 5);
+
+      expect(service.engineConsultedSinceTimingOn, 5);
+      expect(service.engineBlockedSinceTimingOn, 5);
+      expect(service.engineAllowedSinceTimingOn, 0);
+      final samples = service.recentEngineDecisions;
+      expect(samples, hasLength(1));
+      expect(samples.single.url, 'ads.example.com');
+      expect(samples.single.requestType, 'native');
+      expect(samples.single.micros, isNull);
+      expect(samples.single.blocked, isTrue);
+    });
+
+    test('cumulative blocked count survives sample ring rollover', () {
+      for (var i = 0; i < 250; i++) {
+        service.recordNativeEngineBlock('host$i.example.com');
+      }
+      expect(service.engineBlockedSinceTimingOn, 250);
+      expect(service.recentEngineDecisions, hasLength(200));
+    });
+
+    test('timing off gates recording; re-enable resets counters', () {
+      service.recordNativeEngineBlock('a.example.com');
+      service.engineTimingEnabled = false;
+      service.recordNativeEngineBlock('b.example.com');
+      expect(service.recentEngineDecisions, isEmpty);
+      expect(service.engineBlockedSinceTimingOn, 1);
+
+      service.engineTimingEnabled = true;
+      expect(service.engineConsultedSinceTimingOn, 0);
+      expect(service.engineBlockedSinceTimingOn, 0);
+      expect(service.engineAllowedSinceTimingOn, 0);
+    });
+  });
+
+  group('DevTools accounting with live engine (CB-012)', () {
+    final libExists = _libraryExists();
+    final service = ContentBlockerService.instance;
+
+    test('isHostBlocked and isBlocked decisions are both recorded', () {
+      service.reset();
+      final engine = AdblockEngine.load('||tracker.com^\n');
+      expect(engine, isNotNull);
+      service.setRustEngineForTest(engine);
+
+      expect(service.isHostBlocked('tracker.com'), isTrue);
+      expect(service.isHostBlocked('example.com'), isFalse);
+      expect(service.isBlocked('https://tracker.com/pixel.gif'), isTrue);
+
+      expect(service.engineConsultedSinceTimingOn, 3);
+      expect(service.engineBlockedSinceTimingOn, 2);
+      expect(service.engineAllowedSinceTimingOn, 1);
+      final types =
+          service.recentEngineDecisions.map((s) => s.requestType).toList();
+      expect(types, ['host', 'host', 'other']);
+      expect(service.recentEngineDecisions.every((s) => s.micros != null),
+          isTrue);
+      service.setRustEngineForTest(null);
+    }, skip: libExists ? false : 'library not built');
+
+    test('accounting over the curated EasyList sample across all paths', () {
+      service.reset();
+      final text =
+          File('test/fixtures/easylist_sample.txt').readAsStringSync();
+      final engine = AdblockEngine.load(text);
+      expect(engine, isNotNull);
+      service.setRustEngineForTest(engine);
+
+      expect(
+          service.isBlocked('https://doubleclick.net/ads.js',
+              sourceUrl: 'https://news.example/', requestType: 'script'),
+          isTrue);
+      expect(
+          service.isBlocked('https://cdn.googlesyndication.com/lib.js',
+              sourceUrl: 'https://news.example/', requestType: 'script'),
+          isFalse,
+          reason: '@@ exception rule must not count as a block');
+      expect(service.isHostBlocked('google-analytics.com'), isTrue);
+      expect(service.isHostBlocked('example.org'), isFalse);
+      service.recordNativeEngineBlock('tracker.example', count: 2);
+
+      expect(service.engineConsultedSinceTimingOn, 6);
+      expect(service.engineBlockedSinceTimingOn, 4);
+      expect(service.engineAllowedSinceTimingOn, 2);
+      expect(
+          service.engineBlockedSinceTimingOn +
+              service.engineAllowedSinceTimingOn,
+          service.engineConsultedSinceTimingOn);
+
+      final samples = service.recentEngineDecisions;
+      expect(samples, hasLength(5),
+          reason: 'native dedup folds count=2 into one sample row');
+      expect(samples.last.requestType, 'native');
+      expect(samples.last.micros, isNull);
+      expect(samples.take(4).every((s) => s.micros != null), isTrue);
+      service.setRustEngineForTest(null);
+    }, skip: libExists ? false : 'library not built');
+  });
+}
+
+bool _libraryExists() {
+  final cwd = Directory.current.path;
+  final ext = Platform.isMacOS ? 'dylib' : 'so';
+  return File(
+          '$cwd/rust/webspace_adblock/target/release/libwebspace_adblock.$ext')
+      .existsSync();
 }

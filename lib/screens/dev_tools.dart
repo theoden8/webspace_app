@@ -1467,21 +1467,22 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     final svc = ContentBlockerService.instance;
     final samples = svc.recentEngineDecisions;
     final reversed = samples.reversed.toList();
-    // Compute summary stats over the window.
-    int blockedCount = 0;
-    int allowedCount = 0;
+    // Timing stats come from the sample window; blocked/allowed use the
+    // cumulative counters so they don't decay when the ring rolls over
+    // and include natively-decided blocks that carry no timing.
+    final blockedCount = svc.engineBlockedSinceTimingOn;
+    final allowedCount = svc.engineAllowedSinceTimingOn;
     int totalMicros = 0;
     int maxMicros = 0;
+    int timedCount = 0;
     for (final s in samples) {
-      if (s.blocked) {
-        blockedCount++;
-      } else {
-        allowedCount++;
-      }
-      totalMicros += s.micros;
-      if (s.micros > maxMicros) maxMicros = s.micros;
+      final micros = s.micros;
+      if (micros == null) continue;
+      timedCount++;
+      totalMicros += micros;
+      if (micros > maxMicros) maxMicros = micros;
     }
-    final avgMicros = samples.isEmpty ? 0 : totalMicros ~/ samples.length;
+    final avgMicros = timedCount == 0 ? 0 : totalMicros ~/ timedCount;
 
     final timingOn = svc.engineTimingEnabled;
     final consulted = svc.engineConsultedSinceTimingOn;
@@ -1587,7 +1588,9 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
 
   Widget _buildAbpRow(EngineDecisionSample s) {
     final color = s.blocked ? Colors.red.shade400 : Colors.green.shade600;
-    final subtitle = '${s.requestType} · ${s.micros} µs';
+    final micros = s.micros;
+    final subtitle =
+        micros == null ? s.requestType : '${s.requestType} · $micros µs';
     return ListTile(
       dense: true,
       leading: Icon(

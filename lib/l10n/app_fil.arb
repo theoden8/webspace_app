@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "DNS Blocklist",
   "siteSettingsDnsBlocklistHint": "Hinaharang ang mga kilalang domain ng advertising, pagsubaybay, at malware sa antas ng DNS bago ang mga ito makapag-load. Gumagamit ng Hagezi blocklist na may nako-configure na antas ng severity. I-configure ang antas ng blocklist sa App Settings.",
   "siteSettingsNotConfigured": "Hindi naka-configure",
+  "siteSettingsBlockerNotConfiguredWarning": "Wala pang na-download na data ang {feature} at mananatiling hindi aktibo. I-download ito sa app settings.",
   "siteSettingsContentBlocker": "Content Blocker",
   "siteSettingsContentBlockerHint": "Hinaharang ang mga ad, tracker, at hindi gustong nilalaman gamit ang mga listahan ng filter (gaya ng EasyList). Sinusuportahan ang pag-block ng domain, mga cosmetic CSS filter, at mga panuntunan sa pagtatago batay sa teksto. Pamahalaan ang mga listahan ng filter sa App Settings.",
   "siteSettingsContentBlockerRuleCount": "{count} na panuntunan",

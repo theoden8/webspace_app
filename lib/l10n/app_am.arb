@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "የ DNS እገዳ ዝርዝር",
   "siteSettingsDnsBlocklistHint": "የታወቁ የማስታወቂያ፣ የክትትል እና የተንኮል አዘል ጎራዎችን ከመጫናቸው በፊት በ DNS ደረጃ ያግዳል። ሊዋቀር በሚችል የክብደት ደረጃዎች የ Hagezi እገዳ ዝርዝርን ይጠቀማል። የእገዳ ዝርዝሩን ደረጃ በመተግበሪያ ቅንብሮች ውስጥ አዋቅር።",
   "siteSettingsNotConfigured": "አልተዋቀረም",
+  "siteSettingsBlockerNotConfiguredWarning": "{feature} ገና ምንም የወረደ ውሂብ የለውም እና እንቅስቃሴ-አልባ ሆኖ ይቆያል። በመተግበሪያ ቅንብሮች ውስጥ ያውርዱት።",
   "siteSettingsContentBlocker": "የይዘት ማገጃ",
   "siteSettingsContentBlockerHint": "የማጣሪያ ዝርዝሮችን (እንደ EasyList ያሉ) በመጠቀም ማስታወቂያዎችን፣ ተከታታዮችን እና የማይፈለግ ይዘትን ያግዳል። የጎራ እገዳ፣ የ CSS ውበት ማጣሪያዎችን እና በጽሑፍ ላይ የተመሰረቱ የመደበቂያ ህጎችን ይደግፋል። የማጣሪያ ዝርዝሮችን በመተግበሪያ ቅንብሮች ውስጥ አስተዳድር።",
   "siteSettingsContentBlockerRuleCount": "{count} ህጎች",

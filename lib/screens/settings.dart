@@ -273,6 +273,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (mounted) setState(() {});
   }
 
+  /// Shown when the user enables a blocker whose backing data (DNS
+  /// blocklist, filter lists) hasn't been downloaded: the toggle still
+  /// flips and takes effect once the data arrives, but silently doing
+  /// nothing until then would read as the feature being broken.
+  void _warnBlockerNotConfigured(String feature) {
+    final loc = AppLocalizations.of(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(loc.siteSettingsBlockerNotConfiguredWarning(feature)),
+      ),
+    );
+  }
+
+  /// Persistent counterpart of [_warnBlockerNotConfigured]: rendered next
+  /// to a blocker tile whose toggle is effectively on while its data is
+  /// still missing, so the gap stays visible after the SnackBar is gone.
+  Widget _notConfiguredWarnIcon() {
+    return const Padding(
+      padding: EdgeInsets.only(left: 4),
+      child: Icon(Icons.warning_amber_rounded, size: 18, color: Colors.orange),
+    );
+  }
+
+  /// Subtitle for the DNS blocklist / content blocker tiles. When forced
+  /// by Tracking Protection AND unconfigured, both facts matter, so they
+  /// are joined rather than the forced text masking the missing data.
+  String _blockerSubtitle({required bool ready, required String readyText}) {
+    final loc = AppLocalizations.of(context);
+    if (_trackingProtectionEnabled) {
+      final forced = loc.siteSettingsForcedByTrackingProtection;
+      return ready ? forced : '$forced · ${loc.siteSettingsNotConfigured}';
+    }
+    return ready ? readyText : loc.siteSettingsNotConfigured;
+  }
+
   /// Mirror [widget.webViewModel] into the form state. Called from
   /// [initState] and from the apply-from-QR handler after the decoded
   /// payload has been written back into the model.
@@ -1315,11 +1350,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: loc.siteSettingsTrackingProtection,
                   description: loc.siteSettingsTrackingProtectionHint,
                 ),
+                if (_trackingProtectionEnabled &&
+                    (!DnsBlockService.instance.hasBlocklist ||
+                        !ContentBlockerService.instance.hasRules))
+                  _notConfiguredWarnIcon(),
               ],
             ),
             subtitle: Text(loc.siteSettingsTrackingProtectionSubtitle),
             value: _trackingProtectionEnabled,
             onChanged: (bool value) {
+              if (value) {
+                final missing = <String>[
+                  if (!DnsBlockService.instance.hasBlocklist)
+                    loc.siteSettingsDnsBlocklist,
+                  if (!ContentBlockerService.instance.hasRules)
+                    loc.siteSettingsContentBlocker,
+                ];
+                if (missing.isNotEmpty) {
+                  _warnBlockerNotConfigured(missing.join(', '));
+                }
+              }
               setState(() {
                 _trackingProtectionEnabled = value;
               });
@@ -1376,25 +1426,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: loc.siteSettingsDnsBlocklist,
                   description: loc.siteSettingsDnsBlocklistHint,
                 ),
+                if ((_dnsBlockEnabled || _trackingProtectionEnabled) &&
+                    !DnsBlockService.instance.hasBlocklist)
+                  _notConfiguredWarnIcon(),
               ],
             ),
             subtitle: Text(
-              _trackingProtectionEnabled
-                  ? loc.siteSettingsForcedByTrackingProtection
-                  : (DnsBlockService.instance.hasBlocklist
-                      ? dnsBlockLevelNames[DnsBlockService.instance.level]
-                      : loc.siteSettingsNotConfigured),
+              _blockerSubtitle(
+                ready: DnsBlockService.instance.hasBlocklist,
+                readyText: dnsBlockLevelNames[DnsBlockService.instance.level],
+              ),
+              style: (_dnsBlockEnabled || _trackingProtectionEnabled) &&
+                      !DnsBlockService.instance.hasBlocklist
+                  ? const TextStyle(color: Colors.orange)
+                  : null,
             ),
             value: _dnsBlockEnabled || _trackingProtectionEnabled,
             onChanged: _trackingProtectionEnabled
                 ? null
-                : (DnsBlockService.instance.hasBlocklist
-                    ? (bool value) {
-                        setState(() {
-                          _dnsBlockEnabled = value;
-                        });
-                      }
-                    : null),
+                : (bool value) {
+                    if (value && !DnsBlockService.instance.hasBlocklist) {
+                      _warnBlockerNotConfigured(loc.siteSettingsDnsBlocklist);
+                    }
+                    setState(() {
+                      _dnsBlockEnabled = value;
+                    });
+                  },
           ),
           if (DnsBlockService.instance.hasBlocklist) _buildDnsStatsCard(),
           SwitchListTile(
@@ -1405,26 +1462,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: loc.siteSettingsContentBlocker,
                   description: loc.siteSettingsContentBlockerHint,
                 ),
+                if ((_contentBlockEnabled || _trackingProtectionEnabled) &&
+                    !ContentBlockerService.instance.hasRules)
+                  _notConfiguredWarnIcon(),
               ],
             ),
             subtitle: Text(
-              _trackingProtectionEnabled
-                  ? loc.siteSettingsForcedByTrackingProtection
-                  : (ContentBlockerService.instance.hasRules
-                      ? loc.siteSettingsContentBlockerRuleCount(
-                          ContentBlockerService.instance.totalRuleCount)
-                      : loc.siteSettingsNotConfigured),
+              _blockerSubtitle(
+                ready: ContentBlockerService.instance.hasRules,
+                readyText: loc.siteSettingsContentBlockerRuleCount(
+                    ContentBlockerService.instance.totalRuleCount),
+              ),
+              style: (_contentBlockEnabled || _trackingProtectionEnabled) &&
+                      !ContentBlockerService.instance.hasRules
+                  ? const TextStyle(color: Colors.orange)
+                  : null,
             ),
             value: _contentBlockEnabled || _trackingProtectionEnabled,
             onChanged: _trackingProtectionEnabled
                 ? null
-                : (ContentBlockerService.instance.hasRules
-                    ? (bool value) {
-                        setState(() {
-                          _contentBlockEnabled = value;
-                        });
-                      }
-                    : null),
+                : (bool value) {
+                    if (value && !ContentBlockerService.instance.hasRules) {
+                      _warnBlockerNotConfigured(
+                          loc.siteSettingsContentBlocker);
+                    }
+                    setState(() {
+                      _contentBlockEnabled = value;
+                    });
+                  },
           ),
           if (Platform.isAndroid)
             SwitchListTile(

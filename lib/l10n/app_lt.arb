@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "DNS blokavimo sąrašas",
   "siteSettingsDnsBlocklistHint": "Blokuoja žinomus reklamos, sekimo ir kenkėjiškų programų domenus DNS lygmenyje prieš jiems įsikeliant. Naudoja Hagezi blokavimo sąrašą su konfigūruojamais griežtumo lygiais. Blokavimo sąrašo lygį konfigūruokite programos nustatymuose.",
   "siteSettingsNotConfigured": "Nesukonfigūruota",
+  "siteSettingsBlockerNotConfiguredWarning": "{feature} dar neturi atsisiųstų duomenų ir lieka neaktyvus. Atsisiųskite juos programos nustatymuose.",
   "siteSettingsContentBlocker": "Turinio blokuoklis",
   "siteSettingsContentBlockerHint": "Blokuoja reklamas, sekiklius ir nepageidaujamą turinį naudodamas filtrų sąrašus (pvz., EasyList). Palaiko domenų blokavimą, CSS kosmetinius filtrus ir tekstinio slėpimo taisykles. Filtrų sąrašus tvarkykite programos nustatymuose.",
   "siteSettingsContentBlockerRuleCount": "{count} taisyklių",

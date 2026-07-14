@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "Daftar Blokir DNS",
   "siteSettingsDnsBlocklistHint": "Memblokir domain iklan, pelacakan, dan malware yang dikenal di tingkat DNS sebelum dapat dimuat. Menggunakan daftar blokir Hagezi dengan tingkat keparahan yang dapat dikonfigurasi. Konfigurasikan tingkat daftar blokir di Pengaturan Aplikasi.",
   "siteSettingsNotConfigured": "Belum dikonfigurasi",
+  "siteSettingsBlockerNotConfiguredWarning": "{feature} belum memiliki data yang diunduh dan tetap tidak aktif. Unduh di pengaturan aplikasi.",
   "siteSettingsContentBlocker": "Pemblokir Konten",
   "siteSettingsContentBlockerHint": "Memblokir iklan, pelacak, dan konten yang tidak diinginkan menggunakan daftar filter (seperti EasyList). Mendukung pemblokiran domain, filter kosmetik CSS, dan aturan penyembunyian berbasis teks. Kelola daftar filter di Pengaturan Aplikasi.",
   "siteSettingsContentBlockerRuleCount": "{count} aturan",

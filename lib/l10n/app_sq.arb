@@ -368,6 +368,7 @@
   "siteSettingsDnsBlocklist": "Lista e bllokimit DNS",
   "siteSettingsDnsBlocklistHint": "Bllokon domene të njohura reklamash, gjurmimi dhe malware-i në nivel DNS para se të mund të ngarkohen. Përdor listën e bllokimit Hagezi me nivele ashpërsie të konfigurueshme. Konfiguro nivelin e listës së bllokimit te Cilësimet e aplikacionit.",
   "siteSettingsNotConfigured": "I pakonfiguruar",
+  "siteSettingsBlockerNotConfiguredWarning": "{feature} ende nuk ka të dhëna të shkarkuara dhe mbetet joaktiv. Shkarkoji te cilësimet e aplikacionit.",
   "siteSettingsContentBlocker": "Bllokuesi i përmbajtjes",
   "siteSettingsContentBlockerHint": "Bllokon reklamat, gjurmuesit dhe përmbajtjen e padëshiruar duke përdorur lista filtrash (si EasyList). Mbështet bllokimin e domeneve, filtrat kozmetikë CSS dhe rregullat e fshehjes me bazë teksti. Menaxho listat e filtrave te Cilësimet e aplikacionit.",
   "siteSettingsContentBlockerRuleCount": "{count} rregulla",

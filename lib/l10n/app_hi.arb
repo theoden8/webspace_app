@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "DNS अवरोधसूची",
   "siteSettingsDnsBlocklistHint": "ज्ञात विज्ञापन, ट्रैकिंग और मैलवेयर डोमेन को लोड होने से पहले DNS स्तर पर अवरुद्ध करता है। कॉन्फ़िगर करने योग्य गंभीरता स्तरों के साथ Hagezi अवरोधसूची का उपयोग करता है। ऐप सेटिंग में अवरोधसूची स्तर कॉन्फ़िगर करें।",
   "siteSettingsNotConfigured": "कॉन्फ़िगर नहीं किया गया",
+  "siteSettingsBlockerNotConfiguredWarning": "{feature} के लिए अभी तक कोई डेटा डाउनलोड नहीं हुआ है और यह निष्क्रिय रहेगा। इसे ऐप सेटिंग में डाउनलोड करें।",
   "siteSettingsContentBlocker": "कंटेंट ब्लॉकर",
   "siteSettingsContentBlockerHint": "फ़िल्टर सूचियों (जैसे EasyList) का उपयोग करके विज्ञापन, ट्रैकर और अवांछित सामग्री अवरुद्ध करता है। डोमेन अवरोधन, CSS कॉस्मेटिक फ़िल्टर और टेक्स्ट-आधारित छिपाने वाले नियमों का समर्थन करता है। ऐप सेटिंग में फ़िल्टर सूचियाँ प्रबंधित करें।",
   "siteSettingsContentBlockerRuleCount": "{count} नियम",

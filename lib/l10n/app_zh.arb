@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "DNS 封鎖清單",
   "siteSettingsDnsBlocklistHint": "在已知的廣告、追蹤及惡意軟體網域載入前於 DNS 層級封鎖它們。使用 Hagezi 封鎖清單，嚴重程度層級可設定。請在應用程式設定中設定封鎖清單層級。",
   "siteSettingsNotConfigured": "未設定",
+  "siteSettingsBlockerNotConfiguredWarning": "{feature}尚未下载数据，将保持不生效。请在应用设置中下载。",
   "siteSettingsContentBlocker": "內容封鎖器",
   "siteSettingsContentBlockerHint": "使用過濾清單（如 EasyList）封鎖廣告、追蹤器及不需要的內容。支援網域封鎖、CSS 外觀過濾及以文字為基礎的隱藏規則。請在應用程式設定中管理過濾清單。",
   "siteSettingsContentBlockerRuleCount": "{count} 條規則",

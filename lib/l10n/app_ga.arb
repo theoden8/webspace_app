@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "Liosta Bactha DNS",
   "siteSettingsDnsBlocklistHint": "Bacann sé fearainn aitheanta fógraíochta, rianaithe, agus mailíseacha ar leibhéal an DNS sula bhféadann siad lódáil. Úsáideann sé liosta bactha Hagezi le leibhéil déine inchumraithe. Cumraigh leibhéal an liosta bactha i Socruithe na hAipe.",
   "siteSettingsNotConfigured": "Gan chumrú",
+  "siteSettingsBlockerNotConfiguredWarning": "Níl aon sonraí íoslódáilte ag {feature} go fóill agus fanann sé neamhghníomhach. Íoslódáil iad i socruithe na hAipe.",
   "siteSettingsContentBlocker": "Bacóir Ábhair",
   "siteSettingsContentBlockerHint": "Bacann sé fógraí, rianaitheoirí, agus ábhar gan iarraidh le liostaí scagaire (cosúil le EasyList). Tacaíonn sé le bacadh fearainn, scagairí cosmaideacha CSS, agus rialacha folaithe téacsbhunaithe. Bainistigh liostaí scagaire i Socruithe na hAipe.",
   "siteSettingsContentBlockerRuleCount": "{count} riail",

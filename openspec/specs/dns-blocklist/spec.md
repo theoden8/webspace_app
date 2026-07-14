@@ -145,11 +145,13 @@ Each site SHALL have a `dnsBlockEnabled` setting (default: `true`) that controls
 **When** the app is restarted
 **Then** the setting remains disabled
 
-#### Scenario: Toggle disabled when no blocklist
+#### Scenario: Enabling the toggle with no blocklist warns
 
 **Given** no blocklist has been downloaded
-**When** the user opens site settings
-**Then** the DNS Blocklist toggle is greyed out (disabled)
+**When** the user enables the DNS Blocklist toggle in site settings
+**Then** the toggle flips (the setting persists and takes effect once the blocklist is downloaded)
+**And** a SnackBar warns that the feature has no downloaded data and points at App Settings
+**And** while the toggle is on without data, a warning icon renders next to the title and the "Not configured" subtitle is amber
 
 ---
 

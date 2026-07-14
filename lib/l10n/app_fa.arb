@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "فهرست مسدودی DNS",
   "siteSettingsDnsBlocklistHint": "دامنه‌های شناخته‌شدهٔ تبلیغاتی، ردیابی و بدافزار را در سطح DNS پیش از بارگذاری مسدود می‌کند. از فهرست مسدودی Hagezi با سطوح شدت قابل‌پیکربندی استفاده می‌کند. سطح فهرست مسدودی را در تنظیمات برنامه پیکربندی کنید.",
   "siteSettingsNotConfigured": "پیکربندی نشده",
+  "siteSettingsBlockerNotConfiguredWarning": "{feature} هنوز داده‌ای دانلود نکرده است و غیرفعال می‌ماند. آن را در تنظیمات برنامه دانلود کنید.",
   "siteSettingsContentBlocker": "مسدودکنندهٔ محتوا",
   "siteSettingsContentBlockerHint": "تبلیغات، ردیاب‌ها و محتوای ناخواسته را با استفاده از فهرست‌های فیلتر (مانند EasyList) مسدود می‌کند. از مسدودسازی دامنه، فیلترهای ظاهری CSS و قواعد پنهان‌سازی مبتنی بر متن پشتیبانی می‌کند. فهرست‌های فیلتر را در تنظیمات برنامه مدیریت کنید.",
   "siteSettingsContentBlockerRuleCount": "{count} قاعده",

@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "רשימת חסימה של DNS",
   "siteSettingsDnsBlocklistHint": "חוסם דומיינים ידועים של פרסום, מעקב ותוכנות זדוניות ברמת ה-DNS לפני שהם יכולים להיטען. משתמש ברשימת החסימה של Hagezi עם רמות חומרה הניתנות להגדרה. הגדר את רמת רשימת החסימה בהגדרות האפליקציה.",
   "siteSettingsNotConfigured": "לא מוגדר",
+  "siteSettingsBlockerNotConfiguredWarning": "ל{feature} עדיין אין נתונים שהורדו והוא נשאר לא פעיל. הורידו אותם בהגדרות האפליקציה.",
   "siteSettingsContentBlocker": "חוסם תוכן",
   "siteSettingsContentBlockerHint": "חוסם מודעות, עוקבים ותוכן לא רצוי באמצעות רשימות סינון (כמו EasyList). תומך בחסימת דומיינים, מסנני CSS קוסמטיים וכללי הסתרה מבוססי טקסט. נהל רשימות סינון בהגדרות האפליקציה.",
   "siteSettingsContentBlockerRuleCount": "{count} כללים",

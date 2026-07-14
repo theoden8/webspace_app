@@ -366,6 +366,7 @@
   "siteSettingsDnsBlocklist": "DNS-estolista",
   "siteSettingsDnsBlocklistHint": "Estää tunnetut mainos-, seuranta- ja haittaohjelmaverkkotunnukset DNS-tasolla ennen kuin ne ehtivät latautua. Käyttää Hagezi-estolistaa muokattavilla vakavuustasoilla. Määritä estolistan taso sovellusasetuksissa.",
   "siteSettingsNotConfigured": "Ei määritetty",
+  "siteSettingsBlockerNotConfiguredWarning": "Kohteelle {feature} ei ole vielä ladattu tietoja, joten se pysyy passiivisena. Lataa tiedot sovellusasetuksista.",
   "siteSettingsContentBlocker": "Sisältöesto",
   "siteSettingsContentBlockerHint": "Estää mainokset, seuraajat ja ei-toivotun sisällön suodatuslistojen avulla (kuten EasyList). Tukee verkkotunnusten estoa, CSS-kosmeettisia suodattimia ja tekstipohjaisia piilotussääntöjä. Hallinnoi suodatuslistoja sovellusasetuksissa.",
   "siteSettingsContentBlockerRuleCount": "{count} sääntöä",

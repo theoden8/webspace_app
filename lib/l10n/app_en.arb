@@ -1803,6 +1803,16 @@
   "@siteSettingsNotConfigured": {
     "description": "Subtitle shown when a downloaded-data feature (DNS blocklist, content blocker) has no data yet."
   },
+  "siteSettingsBlockerNotConfiguredWarning": "{feature} has no data downloaded yet and stays inactive. Download it in App Settings.",
+  "@siteSettingsBlockerNotConfiguredWarning": {
+    "description": "SnackBar warning shown when the user enables a blocking feature whose backing data has not been downloaded yet. {feature} is the localized feature name (e.g. DNS Blocklist, Content Blocker) or a comma-separated list of names.",
+    "placeholders": {
+      "feature": {
+        "type": "String",
+        "example": "Content Blocker"
+      }
+    }
+  },
   "siteSettingsContentBlocker": "Content Blocker",
   "@siteSettingsContentBlocker": {
     "description": "Switch label and hint title for the Content Blocker feature."
