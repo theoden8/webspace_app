@@ -269,6 +269,44 @@ void main() {
           isTrue);
       service.setRustEngineForTest(null);
     }, skip: libExists ? false : 'library not built');
+
+    test('accounting over the curated EasyList sample across all paths', () {
+      service.reset();
+      final text =
+          File('test/fixtures/easylist_sample.txt').readAsStringSync();
+      final engine = AdblockEngine.load(text);
+      expect(engine, isNotNull);
+      service.setRustEngineForTest(engine);
+
+      expect(
+          service.isBlocked('https://doubleclick.net/ads.js',
+              sourceUrl: 'https://news.example/', requestType: 'script'),
+          isTrue);
+      expect(
+          service.isBlocked('https://cdn.googlesyndication.com/lib.js',
+              sourceUrl: 'https://news.example/', requestType: 'script'),
+          isFalse,
+          reason: '@@ exception rule must not count as a block');
+      expect(service.isHostBlocked('google-analytics.com'), isTrue);
+      expect(service.isHostBlocked('example.org'), isFalse);
+      service.recordNativeEngineBlock('tracker.example', count: 2);
+
+      expect(service.engineConsultedSinceTimingOn, 6);
+      expect(service.engineBlockedSinceTimingOn, 4);
+      expect(service.engineAllowedSinceTimingOn, 2);
+      expect(
+          service.engineBlockedSinceTimingOn +
+              service.engineAllowedSinceTimingOn,
+          service.engineConsultedSinceTimingOn);
+
+      final samples = service.recentEngineDecisions;
+      expect(samples, hasLength(5),
+          reason: 'native dedup folds count=2 into one sample row');
+      expect(samples.last.requestType, 'native');
+      expect(samples.last.micros, isNull);
+      expect(samples.take(4).every((s) => s.micros != null), isTrue);
+      service.setRustEngineForTest(null);
+    }, skip: libExists ? false : 'library not built');
   });
 }
 
