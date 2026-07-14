@@ -48,6 +48,12 @@ void main() {
       home: home,
     ));
     await tester.pumpAndSettle();
+    // Live-binding diagnosis when a later finder misses: what attached.
+    // ignore: avoid_print
+    print('[blocker-test] widgets=${tester.allWidgets.length} '
+        'scrollables=${find.byType(Scrollable).evaluate().length} '
+        'switches=${find.byType(SwitchListTile).evaluate().length} '
+        'richTexts=${find.byType(RichText).evaluate().length}');
   }
 
   WebViewModel freshModel() => WebViewModel(
