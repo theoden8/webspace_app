@@ -19,6 +19,25 @@ String _slotKeyName(int index) {
   return 'archive_slot_$s';
 }
 
+final Random _fillRng = Random.secure();
+
+/// Draws 32 bits per `Random.secure()` call instead of 8: each call is a
+/// native entropy fetch (~2us), and per-byte draws made first-run slot-pool
+/// init plus every slot persist cost whole seconds of startup/CI time.
+void fillSecureRandom(Uint8List buffer, [int from = 0]) {
+  var i = from;
+  for (; i + 4 <= buffer.length; i += 4) {
+    final v = _fillRng.nextInt(0x100000000);
+    buffer[i] = v;
+    buffer[i + 1] = v >> 8;
+    buffer[i + 2] = v >> 16;
+    buffer[i + 3] = v >> 24;
+  }
+  for (; i < buffer.length; i++) {
+    buffer[i] = _fillRng.nextInt(256);
+  }
+}
+
 class ArchiveStorage {
   ArchiveStorage({FlutterSecureStorage? secureStorage})
       : _storage = secureStorage ??
@@ -100,14 +119,8 @@ class ArchiveStorage {
 
   Uint8List _randomBytes(int length) {
     final out = Uint8List(length);
-    _fillRandom(out, 0);
+    fillSecureRandom(out);
     return out;
-  }
-
-  void _fillRandom(Uint8List buffer, int from) {
-    for (var i = from; i < buffer.length; i++) {
-      buffer[i] = _random.nextInt(256);
-    }
   }
 
   String _randomBase64(int length) {

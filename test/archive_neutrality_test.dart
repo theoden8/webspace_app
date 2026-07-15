@@ -1,3 +1,8 @@
+// Slot-pool lifecycles seal/scan 16 x 128 KiB AEAD slots per test; loaded CI
+// runners have blown the default 30s.
+@Timeout(Duration(minutes: 2))
+library;
+
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
