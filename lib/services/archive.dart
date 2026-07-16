@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:math';
 import 'dart:typed_data';
 
 import 'archive_crypto.dart';
@@ -314,21 +313,13 @@ class Archive {
       kArchiveSlotPayloadHeader + payload.length,
       payload,
     );
-    _fillRandom(padded, kArchiveSlotPayloadHeader + payload.length);
+    fillSecureRandom(padded, kArchiveSlotPayloadHeader + payload.length);
     final wire = await ArchiveCrypto.seal(
       handle.key,
       padded,
       aad: ArchiveStorage.aadForSlot(handle.slotIndex),
     );
     await _storage.writeSlot(handle.slotIndex, wire);
-  }
-
-  static final _random = Random.secure();
-
-  void _fillRandom(Uint8List buffer, int from) {
-    for (var i = from; i < buffer.length; i++) {
-      buffer[i] = _random.nextInt(256);
-    }
   }
 }
 
