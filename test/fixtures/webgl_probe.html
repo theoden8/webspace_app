@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WebGL diagnostic (WebSpace issue #391)</title>
+<style>
+  body { font: 16px/1.5 system-ui, sans-serif; margin: 16px; }
+  #verdict { font-size: 19px; font-weight: bold; margin: 12px 0; }
+  .ok { color: #0a7d33; }
+  .blocked { color: #b57d00; }
+  .unsupported { color: #c22222; }
+  pre { background: #f2f2f2; color: #111; padding: 12px; white-space: pre-wrap;
+        word-break: break-all; border-radius: 6px; }
+  canvas { border: 1px solid #999; width: 96px; height: 96px; }
+  @media (prefers-color-scheme: dark) {
+    body { background: #111; color: #eee; }
+    pre { background: #222; color: #eee; }
+  }
+</style>
+</head>
+<body>
+<h1>WebGL diagnostic</h1>
+<p>Screenshot this whole page and attach it to the issue.</p>
+<div id="verdict">running&hellip;</div>
+<canvas id="cv" width="96" height="96"></canvas>
+<pre id="report"></pre>
+<script>
+(function () {
+  var lines = [];
+  function add(k, v) { lines.push(k + ': ' + v); }
+
+  var creationError = '';
+  var probeCanvas = document.createElement('canvas');
+  probeCanvas.addEventListener('webglcontextcreationerror', function (e) {
+    creationError = e.statusMessage || '(no message)';
+  });
+
+  add('userAgent', navigator.userAgent);
+  add('typeof WebGLRenderingContext', typeof WebGLRenderingContext);
+  add('typeof WebGL2RenderingContext', typeof WebGL2RenderingContext);
+
+  // WebSpace's anti-fingerprinting shim sets this marker; it is injected
+  // exactly when Tracking Protection is ON for the site entry showing
+  // this page.
+  var shimActive = !!window.__ws_anti_fp_shim__;
+  add('WebSpace Tracking Protection scripts detected', String(shimActive));
+
+  var gcSrc = '';
+  try { gcSrc = String(HTMLCanvasElement.prototype.getContext); }
+  catch (e) { gcSrc = 'unreadable: ' + e; }
+  var gcNative = /\[native code\]/.test(gcSrc);
+  add('canvas.getContext is native', gcNative ? 'yes' : 'NO - patched by a script');
+
+  var gl2 = null, gl1 = null;
+  try { gl2 = probeCanvas.getContext('webgl2'); }
+  catch (e) { add('getContext("webgl2") threw', String(e)); }
+  add('getContext("webgl2")', gl2 ? 'OK' : 'null');
+  try { gl1 = document.createElement('canvas').getContext('webgl'); }
+  catch (e) { add('getContext("webgl") threw', String(e)); }
+  add('getContext("webgl")', gl1 ? 'OK' : 'null');
+  if (creationError) add('context creation error', creationError);
+
+  var gl = gl2 || gl1;
+  if (gl) {
+    try {
+      add('VERSION', gl.getParameter(gl.VERSION));
+      add('SHADING_LANGUAGE_VERSION', gl.getParameter(gl.SHADING_LANGUAGE_VERSION));
+      add('VENDOR', gl.getParameter(gl.VENDOR));
+      add('RENDERER', gl.getParameter(gl.RENDERER));
+      var dbg = gl.getExtension('WEBGL_debug_renderer_info');
+      if (dbg) {
+        add('UNMASKED_VENDOR', gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL));
+        add('UNMASKED_RENDERER', gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL));
+      }
+      add('MAX_TEXTURE_SIZE', gl.getParameter(gl.MAX_TEXTURE_SIZE));
+      var exts = gl.getSupportedExtensions() || [];
+      add('supported extensions', exts.length);
+    } catch (e) { add('parameter read failed', String(e)); }
+    var strict = null;
+    try {
+      strict = document.createElement('canvas').getContext(
+        gl2 ? 'webgl2' : 'webgl', { failIfMajorPerformanceCaveat: true });
+    } catch (e) {}
+    add('hardware accelerated', strict ? 'yes' : 'NO (software rasterizer or caveat)');
+    // Visible proof: clear the on-page canvas to teal via GL.
+    try {
+      var vis = document.getElementById('cv').getContext(gl2 ? 'webgl2' : 'webgl');
+      if (vis) {
+        vis.clearColor(0.0, 0.6, 0.6, 1.0);
+        vis.clear(vis.COLOR_BUFFER_BIT);
+        add('teal square rendered via WebGL', 'yes (see canvas above)');
+      }
+    } catch (e) { add('visible render failed', String(e)); }
+  }
+
+  var v = document.getElementById('verdict');
+  if (gl2) {
+    v.className = 'ok';
+    v.textContent = 'WebGL 2 works here.' +
+      (shimActive ? ' (Tracking Protection is on: fingerprint values are masked.)' : '');
+  } else if (shimActive || !gcNative) {
+    v.className = 'blocked';
+    v.textContent = 'WebGL 2 is blocked by an injected script. In WebSpace this ' +
+      'means Tracking Protection is ON for the site entry showing this page: ' +
+      'open that site’s settings, turn off the Tracking Protection switch ' +
+      '(the topmost umbrella toggle, not the ones under it), save, and reload.';
+  } else {
+    v.className = 'unsupported';
+    v.textContent = 'WebGL 2 is not available from this browser engine itself. ' +
+      'The same failure will appear in any WebView-based browser on this device.';
+  }
+  document.getElementById('report').textContent = lines.join('\n');
+})();
+</script>
+</body>
+</html>
