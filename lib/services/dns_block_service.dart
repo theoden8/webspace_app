@@ -164,6 +164,19 @@ class DnsBlockService {
   Set<String> _blockedDomains = {};
   int _level = 0;
 
+  // Serialize blocklist mutations: downloadList and applyImportedLevel both
+  // rewrite the cache file, `_blockedDomains`, `_level`, and prefs across many
+  // awaits. Overlapping calls (two downloads, or a download racing an import)
+  // could otherwise leave the file, level, and in-memory set from different
+  // calls — the wrong list loading under the wrong label after restart.
+  Future<void> _mutationChain = Future<void>.value();
+
+  Future<T> _serializeMutation<T>(Future<T> Function() action) {
+    final result = _mutationChain.then((_) => action());
+    _mutationChain = result.then((_) {}, onError: (_) {});
+    return result;
+  }
+
   /// Per-site DNS statistics, keyed by siteId.
   final Map<String, DnsStats> _siteStats = {};
 
@@ -474,7 +487,10 @@ class DnsBlockService {
   /// Download the domain list for the given level (0-5).
   /// Tries each mirror URL in order. Level 0 clears the blocklist.
   /// Returns true on success, false on failure.
-  Future<bool> downloadList(int level) async {
+  Future<bool> downloadList(int level) =>
+      _serializeMutation(() => _downloadListInner(level));
+
+  Future<bool> _downloadListInner(int level) async {
     if (level < 0 || level > 5) return false;
 
     if (level == 0) {
@@ -604,7 +620,10 @@ class DnsBlockService {
   /// dropped: `dns_blocklist.txt` is not level-tagged, so keeping a stale
   /// blob under a new level number would make [level] lie about what
   /// [blockedDomains] actually contains. Out-of-range levels are ignored.
-  Future<void> applyImportedLevel(int level) async {
+  Future<void> applyImportedLevel(int level) =>
+      _serializeMutation(() => _applyImportedLevelInner(level));
+
+  Future<void> _applyImportedLevelInner(int level) async {
     if (level < 0 || level > 5) return;
     if (level == _level) return;
     _blockedDomains = {};

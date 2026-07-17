@@ -122,4 +122,43 @@ void main() {
       }
     });
   });
+
+  // ARCH-002: the Argon2id cost is the only barrier to an offline dictionary
+  // attack (the salt derives from the passphrase, adding no entropy), so a
+  // silent parameter downgrade must fail CI. Pins the named constants that
+  // feed the Argon2id constructor.
+  group('Argon2id cost parameters (ARCH-002)', () {
+    test('are pinned at the documented values', () {
+      expect(kArchiveArgon2Parallelism, equals(4));
+      expect(kArchiveArgon2MemoryKiB, equals(64 * 1024));
+      expect(kArchiveArgon2Iterations, equals(3));
+    });
+
+    test('meet minimum hardening floors (guards against downgrade)', () {
+      expect(kArchiveArgon2MemoryKiB, greaterThanOrEqualTo(64 * 1024));
+      expect(kArchiveArgon2Iterations, greaterThanOrEqualTo(3));
+      expect(kArchiveArgon2Parallelism, greaterThanOrEqualTo(1));
+      expect(kArchiveKeyLength, equals(32));
+    });
+  });
+
+  // AES-GCM security collapses under nonce reuse (key-stream reuse + auth-key
+  // recovery), and every archive save re-seals under the same MK_arch. `seal`
+  // relies on AesGcm generating a fresh random nonce per call; pin that so a
+  // regression to a fixed/deterministic nonce is caught.
+  group('ArchiveCrypto.seal nonce uniqueness', () {
+    test('two seals of identical plaintext use different nonces + ciphertext',
+        () async {
+      final key = Uint8List.fromList(List<int>.generate(32, (i) => i));
+      final pt = Uint8List.fromList(utf8.encode('same plaintext, same key'));
+      final a = await ArchiveCrypto.seal(key, pt);
+      final b = await ArchiveCrypto.seal(key, pt);
+      final nonceA = a.sublist(0, kArchiveNonceLength);
+      final nonceB = b.sublist(0, kArchiveNonceLength);
+      expect(nonceA, isNot(equals(nonceB)),
+          reason: 'GCM nonce must be fresh per seal');
+      expect(a, isNot(equals(b)),
+          reason: 'identical plaintext must not produce identical wire bytes');
+    });
+  });
 }

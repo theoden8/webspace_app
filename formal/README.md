@@ -80,6 +80,16 @@ class.
   `noguard` demonstrator drops the version check and, after a delete/import/archive mutation,
   activates the wrong site (the legacy-mode cross-site cookie exposure). Standalone (a UI
   orchestration state machine; no shared kernel state).
+- **`jar_nonempty.tla`** + `jar_nonempty*.cfg` — legacy cookie engine: the shared jar is never
+  left empty across a superseded restore (spec: `per-site-cookie-isolation`).
+  `Inv_JarRepopulated` (once nuked, the jar is always repopulated before the engine returns to
+  rest); the `bail` demonstrator restores-with-bail and leaves the jar empty for the next
+  activation to capture and persist as `[]` (the session-wipe). Standalone.
+- **`proxy_failclosed.tla`** + `proxy_failclosed*.cfg` — proxy fail-closed (specs: `proxy`,
+  `ip-leakage`). `Inv_NoDirectWhenProxied` (a non-DEFAULT-proxy site blanks the load rather
+  than falling back to a direct connection when the proxy can't be built); the `failopen`
+  demonstrator falls back to direct (the empty-address / swallowed-throw / null→direct leak).
+  Standalone. (Complements `proxy.tla`'s coherence invariant with the no-leak-egress one.)
 - **`trace/`** — the model↔code conformance bridge (below).
 - **`proofs/`** — TLAPS deductive proofs for **unbounded N** (the bounded-TLC backstop). See
   [proofs/README.md](proofs/README.md): `Inv_CurrentLoaded` is proved for all `N >= 1`
