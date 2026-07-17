@@ -40,6 +40,12 @@ TLC model it backs (same definitions — no re-modeling).
   every good action leaves `wrong` unchanged while the `noguard` demonstrator latches it.
   Backs `switchguard.tla` (which has no size parameter, so this is the deductive companion
   rather than an N-generalisation).
+- **`jar_repopulated.tla`** — proves `[]Inv_JarRepopulated` (the legacy shared cookie jar is
+  never left empty when the engine returns to rest): directly inductive, since only the good
+  restore reaches the rest state and it repopulates the jar. Backs `jar_nonempty.tla`.
+- **`proxy_failclosed_safe.tla`** — proves `[]Inv_NoDirectWhenProxied` (a proxied site never
+  egresses directly): directly inductive, since a config change clears egress and a good load
+  never sets `direct` while the type is proxied. Backs `proxy_failclosed.tla`.
 
 Together these prove every kernel *safety* invariant, the surface-repaint *liveness*
 (`RepaintLiveness` — BUG-001 itself), and every standalone model's safety invariant

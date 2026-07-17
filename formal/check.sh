@@ -126,6 +126,22 @@ expect switchguard_noguard.cfg switchguard.tla "Inv_NoWrongActivation is violate
 expect switchguard_reach.cfg switchguard.tla "Reach_Bailed is violated" \
   "a mutation-during-switch bail is reachable (guard not vacuous)"
 
+echo "── JAR: legacy cookie jar never left empty on a superseded restore ──"
+expect jar_nonempty.cfg jar_nonempty.tla "No error has been found" \
+  "a nuked jar is always repopulated before returning to rest"
+expect jar_nonempty_bail.cfg jar_nonempty.tla "Inv_JarRepopulated is violated" \
+  "the post-nuke bail leaves the jar empty when superseded (caught)"
+expect jar_nonempty_reach.cfg jar_nonempty.tla "Reach_Nuked is violated" \
+  "the nuked jar-empty state is reachable (repopulation not vacuous)"
+
+echo "── PROXY FAIL-CLOSED: a proxied site never egresses directly ──"
+expect proxy_failclosed.cfg proxy_failclosed.tla "No error has been found" \
+  "a proxied site blanks the load rather than falling back to direct"
+expect proxy_failclosed_leak.cfg proxy_failclosed.tla "Inv_NoDirectWhenProxied is violated" \
+  "a proxied-but-unbuildable config falling back to direct is caught"
+expect proxy_failclosed_reach.cfg proxy_failclosed.tla "Reach_Proxied is violated" \
+  "a proxied egress is reachable (fail-closed not vacuous)"
+
 echo "── TRACE CONFORMANCE: code stayed inside the model ──"
 case "$JAR" in /*) JAR_ABS="$JAR" ;; *) JAR_ABS="$(pwd)/$JAR" ;; esac
 TLA2TOOLS_JAR="$JAR_ABS" ./trace/check_trace.sh | sed 's/^/  /'
