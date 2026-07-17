@@ -2408,8 +2408,19 @@ class WebViewFactory {
     // expose neither the cleartext archive siteId nor a count delta
     // that correlates 1:1 with archive contents.
     final containerSiteIdentifier = config.archiveContainerId ?? config.siteId;
+    // Never bind a persistent container for an incognito site. iOS/macOS/Linux
+    // ignore containerId under incognito (the fork short-circuits to an
+    // ephemeral store), but Android's androidx.webkit Profile is always
+    // on-disk and has no incognito guard, so passing containerId there binds a
+    // persistent profile whose localStorage/IDB/ServiceWorkers survive restart
+    // — defeating the ephemeral promise. Dropping it sends the incognito site
+    // to the default (non-persistent-semantics) store on Android; two
+    // same-base incognito sites then share it for the session, the correct
+    // tradeoff for honoring ephemerality (the fork exposes no per-site
+    // ephemeral profile).
     final containerId = (ContainerNative.instance.cachedSupported &&
-            containerSiteIdentifier != null)
+            containerSiteIdentifier != null &&
+            !config.incognito)
         ? 'ws-$containerSiteIdentifier'
         : null;
 
