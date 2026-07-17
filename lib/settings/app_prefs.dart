@@ -85,6 +85,11 @@ final Map<String, Object> kExportedAppPrefs = <String, Object>{
   // User-chosen UI language as a locale tag (e.g. 'de', 'pt_BR', 'zh_Hant').
   // Empty string means follow the system locale. Applied to MaterialApp.locale.
   'appLocaleOverride': '',
+  // Opt-in automatic refresh of the scraped Firefox release version used by
+  // generated per-site User-Agents: when true, the app checks Mozilla's
+  // published version at startup, at most once a week. Default off — the
+  // explicit opt-in keeps the no-unrequested-network contract (DM-004).
+  kFirefoxUaAutoRefreshKey: false,
   // Back/forward cache (Android, androidx.webkit BACK_FORWARD_CACHE). A
   // per-WebView WebSettings flag, but the intent is global: instant restore
   // on back/forward navigation. Mirrored into WebViewFactory and applied to
@@ -93,6 +98,8 @@ final Map<String, Object> kExportedAppPrefs = <String, Object>{
 };
 
 const String kBackForwardCacheEnabledKey = 'backForwardCacheEnabled';
+
+const String kFirefoxUaAutoRefreshKey = 'firefoxUaAutoRefresh';
 
 const String kLinkHandlingEnabledKey = 'linkHandlingEnabled';
 const String kLinkHandlingClaimDomainsKey = 'linkHandlingClaimDomains';

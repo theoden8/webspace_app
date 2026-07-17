@@ -653,6 +653,11 @@ void main() async {
         'Startup', 'parallel service init: ${swServices.elapsedMilliseconds}ms');
   }
 
+  // Opt-in weekly Firefox-version auto-refresh (DM-004). Fire-and-forget:
+  // a network scrape must never sit on the startup path, and preset UAs
+  // re-render from the cached version on the next webview build anyway.
+  unawaited(FirefoxUserAgentService.instance.maybeAutoRefresh());
+
   if (DnsBlockService.instance.hasBlocklist) {
     await _runTimed(
         'dnsSend(${DnsBlockService.instance.blockedDomains.length})',

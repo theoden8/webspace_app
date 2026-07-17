@@ -230,12 +230,15 @@ canonical desktop UA getters) at the Firefox version baked into the build
 (`kDefaultFirefoxMajorVersion`), and SHALL allow the user to refresh that
 version on demand by scraping the current release version from Firefox
 source. The scrape is performed **only** in response to an explicit user
-gesture (an "Update Firefox version" control in app settings) — never
-automatically, on startup or otherwise — so the app issues no network
-request the user did not initiate (an F-Droid inclusion requirement). The
-result is cached and persisted; the cached version only moves forward — a
-scraped value below the bundled floor is ignored, so an app upgrade never
-regresses the UA.
+gesture (an "Update Firefox version" control in app settings), or at
+startup when the user has explicitly enabled the "Update automatically"
+switch (`firefoxUaAutoRefresh`, default **off**, throttled to at most one
+check per week, fired-and-forgotten off the startup critical path) — so
+the app issues no network request the user did not opt into (an F-Droid
+inclusion requirement). Enabling the switch triggers an immediate first
+check (the toggle itself is the gesture). The result is cached and
+persisted; the cached version only moves forward — a scraped value below
+the bundled floor is ignored, so an app upgrade never regresses the UA.
 
 The scrape routes through the app-global outbound proxy and fails closed
 (no direct fallback) when the proxy cannot be honored. Loading the cached
@@ -269,10 +272,23 @@ embedded webview (x.com bounces it to `x-safari-https://`).
 #### Scenario: No network request without an explicit user gesture
 
 **Given** the app starts up
+**And** the user has never enabled the "Update automatically" switch
 **When** initialization runs
 **Then** the cached Firefox version loads from disk with no network I/O
 **And** no scrape of Firefox source is performed until the user taps the
 "Update Firefox version" control in app settings
+
+#### Scenario: Opt-in auto-update refreshes at startup, weekly at most
+
+**Given** the user has enabled the "Update automatically" switch
+**And** the last successful check is more than a week old (or absent)
+**When** the app starts up
+**Then** the version is refreshed in the background without blocking startup
+
+**Given** the user has enabled the switch
+**And** the last successful check is less than a week old
+**When** the app starts up
+**Then** no network request is made
 
 #### Scenario: Newer version scraped → adopted and persisted
 
@@ -320,6 +336,21 @@ only: `rv:`/`Firefox/` version mismatches and real-browser strings (Mobile
 Safari, Chrome, Mozilla's Gecko-on-iOS whose trail equals the version)
 MUST stay custom.
 
+"No override" SHALL be representable and stable: an empty UA field means
+the webview sends its own platform default, which tracks OS/WebView
+updates by itself. The site-settings screen MUST NOT pre-fill the field
+with the platform default string (the default renders as a hint only),
+MUST persist an empty field as a cleared override, and the reset control
+MUST clear the field rather than paste the default. On load (`fromJson`)
+and on save, a stored string that exactly matches a **stock platform
+webview default shape** (`isStockWebViewDefaultUserAgent`: WKWebView's
+tail-less `... (KHTML, like Gecko) Mobile/<build>`, macOS WKWebView's bare
+`... (KHTML, like Gecko)`, Android System WebView's `; wv)` +
+`Version/4.0` grammar, WPE/GTK's Safari-on-X11 shape — at any OS version)
+SHALL be treated as a frozen snapshot of some device default and cleared
+back to "no override" (BUG-005). On save, a string equal to the live
+`defaultUserAgent` is cleared the same way.
+
 #### Scenario: Legacy broken UA heals on load
 
 **Given** a site persisted `Mozilla/5.0 (iPhone; CPU iPhone OS 15_7_3 like
@@ -348,6 +379,68 @@ Mac OS X; rv:147.0) Gecko/20100101 Firefox/147.0` by an old build
 **And** a later version refresh changes what the webview sends without
 re-visiting site settings
 
+#### Scenario: Frozen webview-default snapshot heals to "no override" (BUG-005)
+
+**Given** a site persisted `Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like
+Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148` because
+an old settings-screen build pre-filled the default and saved it
+**When** the site is rehydrated from JSON
+**Then** `userAgent` is empty and `uaPreset` is null
+**And** the webview is created with no UA override, sending its own live
+default that upgrades with the OS
+
+#### Scenario: Override can be cleared from site settings
+
+**Given** a site with a custom or preset UA
+**When** the user empties the UA field (or taps reset) and saves
+**Then** the stored override is cleared
+**And** the field afterwards shows the platform default as a hint, not as text
+
+---
+
+### Requirement: DM-006 — UA identity readout and validity check
+
+The site-settings UA field SHALL render a live identity readout beneath
+it: a browser icon + name + major version and an OS icon + name + version,
+parsed from the field text (or from the platform default UA when the field
+is empty, labeled as the system default). Parsing
+(`describeUserAgent`, pure Dart) recognizes at minimum Firefox (including
+FxiOS), Chrome (including CriOS), Safari, Edge, Opera, Samsung Internet,
+and stock webview strings, and Windows/macOS/Linux/Android/iOS platform
+tokens.
+
+For an explicit override, the readout SHALL flag validity issues:
+
+- **malformed** — does not follow the `Mozilla/5.0 (<platform>) ...`
+  grammar;
+- **gecko version mismatch** — `rv:` and `Firefox/` tokens disagree;
+- **embedded-webview tell** — stock default shape or Android `; wv)`
+  token, which sites sniff to degrade or block sign-in;
+- **impossible hybrid** — Apple-mobile platform token inside the Gecko
+  desktop grammar (the pre-#410 shape);
+- **stale Firefox version** — Firefox-shaped UA older than the current
+  known release.
+
+When the field is empty (no override), issues are suppressed — the stock
+default trivially carries webview tells and there is no user action to
+take. A custom string with no findings shows a positive "looks valid"
+affirmation.
+
+#### Scenario: Frozen default surfaces as embedded webview
+
+**Given** the UA field contains a stock WKWebView default string
+**When** the readout renders
+**Then** the browser reads "Embedded WebView" with an iOS OS chip
+**And** the embedded-webview warning is shown
+
+#### Scenario: Healthy generated UA reads clean
+
+**Given** the UA field contains a generated Firefox Linux UA at the
+current version
+**When** the readout renders
+**Then** it shows Firefox with its major version and Linux
+**And** no warnings are shown
+
 ---
 
 ## Files
@@ -355,7 +448,11 @@ re-visiting site settings
 | File | Role |
 |------|------|
 | `lib/services/user_agent_classifier.dart` | `isDesktopUserAgent`, `inferDesktopUaPlatform`, `navigatorPlatformFor`, `buildFirefoxUserAgent` / `buildFirefoxAndroidUserAgent` / `buildFirefoxIosUserAgent`, canonical Firefox desktop UA constants + `kDefaultFirefoxMajorVersion` |
-| `lib/services/firefox_user_agent_service.dart` | Scrapes (user-initiated only) + caches the current Firefox release version; renders generated UAs at that version |
+| `lib/services/firefox_user_agent_service.dart` | Scrapes (user-initiated, or weekly under the auto-update opt-in) + caches the current Firefox release version; renders generated UAs at that version |
+| `lib/services/user_agent_preset.dart` | Preset enum + render/recognize for generated shapes; `isStockWebViewDefaultUserAgent` frozen-default recognizer |
+| `lib/services/user_agent_identity.dart` | `describeUserAgent` — browser/OS identity + validity issues for the settings readout |
+| `test/user_agent_preset_test.dart` | Preset round-trip, legacy-shape healing, frozen-default clearing (BUG-005) |
+| `test/user_agent_identity_test.dart` | Identity parsing + validity-issue coverage |
 | `lib/screens/app_settings.dart` | "Update Firefox version" control — the sole, explicit trigger for the scrape, with a hint explaining it is the only network access |
 | `test/firefox_user_agent_service_test.dart` | Coverage for version parsing, UA rendering, and the scrape/cache/floor behavior |
 | `lib/services/desktop_mode_shim.dart` | `buildDesktopModeShim(userAgent)` — JS source for AT_DOCUMENT_START injection |

@@ -1127,6 +1127,14 @@
   "@appSettingsFirefoxVersionHint": {
     "description": "Hint dialog explaining the Firefox version control and that the update button is the only time the app accesses the network for this"
   },
+  "appSettingsFirefoxAutoUpdate": "Update automatically",
+  "@appSettingsFirefoxAutoUpdate": {
+    "description": "Switch label under the Firefox version control: when on, the app refreshes the Firefox release version on its own at startup (at most once a week) instead of only when the user taps update. Keep the meaning of automatic background updating."
+  },
+  "appSettingsFirefoxAutoUpdateHint": "Checks Mozilla's published version at startup, at most once a week. Off by default: the app never contacts the network unless you opt in.",
+  "@appSettingsFirefoxAutoUpdateHint": {
+    "description": "Subtitle for the automatic Firefox version update switch, explaining that enabling it makes the app check Mozilla's published Firefox version over the network at app startup no more than weekly, and that the switch is off by default so no network contact happens without opting in."
+  },
   "appSettingsFirefoxVersionCurrent": "Firefox {version}",
   "@appSettingsFirefoxVersionCurrent": {
     "description": "Subtitle showing the current Firefox major version used for generated User-Agents",
@@ -1706,6 +1714,63 @@
   "siteSettingsUserAgent": "User-Agent",
   "@siteSettingsUserAgent": {
     "description": "Label for the user-agent text field."
+  },
+  "siteSettingsUserAgentSystemDefault": "System default",
+  "@siteSettingsUserAgentSystemDefault": {
+    "description": "Shown for the user-agent field when no override is set: the site uses the platform WebView's own default user agent, which updates together with the system."
+  },
+  "siteSettingsUserAgentEmptyHelper": "Empty uses the WebView default and stays current with system updates",
+  "@siteSettingsUserAgentEmptyHelper": {
+    "description": "Helper text under the user-agent field explaining that leaving it empty makes the site use the platform default user agent, which keeps itself up to date."
+  },
+  "siteSettingsUserAgentResetTooltip": "Reset to system default",
+  "@siteSettingsUserAgentResetTooltip": {
+    "description": "Tooltip of the button that clears the user-agent field, returning the site to the platform default user agent."
+  },
+  "siteSettingsUserAgentRandomTooltip": "Generate a random Firefox user agent",
+  "@siteSettingsUserAgentRandomTooltip": {
+    "description": "Tooltip of the button that fills the user-agent field with a randomly picked Firefox user agent at the current Firefox version. Keep the browser name Firefox verbatim."
+  },
+  "siteSettingsUaBrowserWebView": "Embedded WebView",
+  "@siteSettingsUaBrowserWebView": {
+    "description": "Browser name shown in the user-agent identity readout when the string identifies as a platform webview component rather than a standalone browser. WebView is a technical term; keep it verbatim."
+  },
+  "siteSettingsUaBrowserUnknown": "Unknown browser",
+  "@siteSettingsUaBrowserUnknown": {
+    "description": "Browser name shown in the user-agent identity readout when no known browser could be recognized in the string."
+  },
+  "siteSettingsUaOsUnknown": "Unknown OS",
+  "@siteSettingsUaOsUnknown": {
+    "description": "Operating-system name shown in the user-agent identity readout when no known operating system could be recognized in the string. OS abbreviates operating system."
+  },
+  "siteSettingsUaLooksValid": "Looks valid",
+  "@siteSettingsUaLooksValid": {
+    "description": "Short confirmation shown next to a green check when a custom user-agent string passed all validity checks."
+  },
+  "siteSettingsUaIssueMalformed": "Does not look like a real browser user agent",
+  "@siteSettingsUaIssueMalformed": {
+    "description": "Validity warning under the user-agent field: the string does not follow the grammar real browsers use, so websites may reject it."
+  },
+  "siteSettingsUaIssueGeckoVersionMismatch": "rv: and Firefox versions disagree; real Firefox never sends this",
+  "@siteSettingsUaIssueGeckoVersionMismatch": {
+    "description": "Validity warning under the user-agent field: the string carries a Firefox-style rv: token and a Firefox/ version token with different values, a combination the real Firefox browser never produces. Keep the tokens rv: and Firefox verbatim."
+  },
+  "siteSettingsUaIssueWebViewTell": "Identifies as an embedded web view; sites may degrade or block sign-in",
+  "@siteSettingsUaIssueWebViewTell": {
+    "description": "Validity warning under the user-agent field: the string reveals the app is an embedded webview rather than a full browser, which some websites punish by serving degraded pages or refusing logins."
+  },
+  "siteSettingsUaIssueImpossibleHybrid": "Mixes tokens no real browser sends together",
+  "@siteSettingsUaIssueImpossibleHybrid": {
+    "description": "Validity warning under the user-agent field: the string combines platform or engine tokens that never co-occur in any real browser's user agent, which marks it as fake."
+  },
+  "siteSettingsUaIssueStaleFirefox": "Firefox version is older than the current release ({current})",
+  "@siteSettingsUaIssueStaleFirefox": {
+    "description": "Validity warning under the user-agent field: the Firefox version in the string is older than the newest known Firefox release. The placeholder is the newest known Firefox major version number. Keep the browser name Firefox verbatim.",
+    "placeholders": {
+      "current": {
+        "type": "int"
+      }
+    }
   },
   "siteSettingsLanguage": "Language",
   "@siteSettingsLanguage": {

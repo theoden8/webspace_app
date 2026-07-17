@@ -86,6 +86,39 @@ final RegExp _iosLegacyShape = RegExp(
     r'^Mozilla/5\.0 \(iPhone; CPU iPhone OS [\d_]+ like Mac OS X; '
     r'rv:(\d+\.\d+)\) Gecko/20100101 Firefox/\1$');
 
+// Stock platform-webview default UA shapes. Each carries a webview tell no
+// real browser sends, so an exact match means the string is a frozen
+// snapshot of some device's default — not a deliberate spoof:
+// - WKWebView (iPhone/iPad) ends at `Mobile/<build>` with no `Version/`,
+//   `Safari/`, or browser marker (Safari itself appends `Version/x ...
+//   Safari/604.1`).
+// - macOS WKWebView ends right after `(KHTML, like Gecko)`.
+// - Android WebView carries the `; wv)` token plus the frozen `Version/4.0`.
+// - WPE/GTK WebKit claims Safari on X11/Linux, where Safari does not exist.
+final List<RegExp> _stockWebViewDefaultShapes = [
+  RegExp(r'^Mozilla/5\.0 \((?:iPhone|iPad|iPod touch); CPU (?:iPhone )?OS '
+      r'\d+(?:_\d+)* like Mac OS X\) AppleWebKit/\d+(?:\.\d+)* '
+      r'\(KHTML, like Gecko\) Mobile/\w+$'),
+  RegExp(r'^Mozilla/5\.0 \(Macintosh; Intel Mac OS X \d+(?:[._]\d+)*\) '
+      r'AppleWebKit/\d+(?:\.\d+)* \(KHTML, like Gecko\)$'),
+  RegExp(r'^Mozilla/5\.0 \(Linux; Android [^)]*; wv\) '
+      r'AppleWebKit/\d+(?:\.\d+)* \(KHTML, like Gecko\) Version/4\.0 '
+      r'Chrome/[\d.]+ (?:Mobile )?Safari/[\d.]+$'),
+  RegExp(r'^Mozilla/5\.0 \(X11; Linux [^)]*\) AppleWebKit/\d+(?:\.\d+)* '
+      r'\(KHTML, like Gecko\) Version/[\d.]+ Safari/[\d.]+$'),
+];
+
+/// Returns true when [ua] is the stock default UA of a platform webview
+/// (WKWebView, Android System WebView, WPE/GTK WebKit) at any OS version.
+///
+/// A stored per-site UA matching one of these shapes is a frozen snapshot
+/// of the device default (older builds of the settings screen pre-filled
+/// the UA field with the default and persisted it on save). The override
+/// is dropped so the site tracks the live default again, which moves with
+/// OS/WebView updates instead of rotting at capture time.
+bool isStockWebViewDefaultUserAgent(String ua) =>
+    _stockWebViewDefaultShapes.any((re) => re.hasMatch(ua));
+
 /// Returns the preset that (some version of) the WebSpace generator would
 /// have rendered [ua] from, or null for anything a user could plausibly
 /// have typed or pasted themselves. Exact-shape matching only: a string

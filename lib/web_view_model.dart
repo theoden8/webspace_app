@@ -588,9 +588,22 @@ class WebViewModel {
   /// shape (any version, including shapes only older builds emitted) get
   /// their preset back, so they keep re-rendering fresh; anything else is
   /// custom and preserved verbatim.
+  ///
+  /// An empty string, the platform's current default UA, or a stock
+  /// webview-default shape all clear the override entirely: the webview
+  /// then sends its own live default, which stays current with OS/WebView
+  /// updates instead of freezing at capture time.
   void setUserAgent(String value) {
-    userAgent = value;
-    uaPreset = value.isEmpty ? null : recognizeGeneratedUserAgent(value);
+    final trimmed = value.trim();
+    if (trimmed.isEmpty ||
+        trimmed == defaultUserAgent ||
+        isStockWebViewDefaultUserAgent(trimmed)) {
+      userAgent = '';
+      uaPreset = null;
+      return;
+    }
+    userAgent = trimmed;
+    uaPreset = recognizeGeneratedUserAgent(trimmed);
   }
 
   WebViewModel({
@@ -1793,7 +1806,14 @@ class WebViewModel {
               const <Cookie>[],
       proxySettings: UserProxySettings.fromJson(json['proxySettings']),
       javascriptEnabled: json['javascriptEnabled'],
-      userAgent: json['userAgent'],
+      // Migration: a stored string that is a stock webview-default shape is
+      // a frozen snapshot of the device default (old settings-screen builds
+      // pre-filled the field with the default and persisted it on save).
+      // Drop the override so the site tracks the live default again.
+      userAgent: isStockWebViewDefaultUserAgent(
+              (json['userAgent'] as String?) ?? '')
+          ? ''
+          : json['userAgent'],
       // Migration: legacy data carries only the rendered string. A string
       // matching a generated shape (including shapes old buggy builds
       // emitted) gets its preset back here, so stale persisted UAs heal on

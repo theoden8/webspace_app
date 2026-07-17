@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 
@@ -222,6 +223,56 @@ void main() {
       outboundHttp = _BlockedFactory();
       expect(await svc.refresh(), FirefoxVersionRefreshResult.failed);
       expect(svc.majorVersion, kDefaultFirefoxMajorVersion);
+    });
+  });
+
+  group('maybeAutoRefresh', () {
+    test('no network when the opt-in pref is off (default)', () async {
+      var hits = 0;
+      outboundHttp = _FakeFactory((_) {
+        hits++;
+        return http.Response('160.0', 200);
+      });
+      await svc.maybeAutoRefresh();
+      expect(hits, 0);
+      expect(svc.majorVersion, kDefaultFirefoxMajorVersion);
+    });
+
+    test('refreshes when opted in and never checked', () async {
+      SharedPreferences.setMockInitialValues(
+          {kFirefoxUaAutoRefreshKey: true});
+      outboundHttp = _FakeFactory((_) => http.Response('160.0', 200));
+      await svc.maybeAutoRefresh();
+      expect(svc.majorVersion, 160);
+    });
+
+    test('throttles when checked within the interval', () async {
+      SharedPreferences.setMockInitialValues({
+        kFirefoxUaAutoRefreshKey: true,
+        'firefox_ua_last_checked':
+            DateTime.now().subtract(const Duration(days: 1)).toIso8601String(),
+      });
+      await svc.initialize();
+      var hits = 0;
+      outboundHttp = _FakeFactory((_) {
+        hits++;
+        return http.Response('160.0', 200);
+      });
+      await svc.maybeAutoRefresh();
+      expect(hits, 0);
+    });
+
+    test('refreshes again once the interval has passed', () async {
+      SharedPreferences.setMockInitialValues({
+        kFirefoxUaAutoRefreshKey: true,
+        'firefox_ua_last_checked': DateTime.now()
+            .subtract(const Duration(days: 8))
+            .toIso8601String(),
+      });
+      await svc.initialize();
+      outboundHttp = _FakeFactory((_) => http.Response('160.0', 200));
+      await svc.maybeAutoRefresh();
+      expect(svc.majorVersion, 160);
     });
   });
 }
