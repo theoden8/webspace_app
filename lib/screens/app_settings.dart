@@ -19,6 +19,7 @@ import 'package:webspace/widgets/root_messenger.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/webview.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
@@ -135,6 +136,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   DateTime? _rulesLastUpdated;
 
   bool _isUpdatingFirefoxVersion = false;
+  bool _firefoxAutoRefresh = false;
 
   // Timezone polygon dataset state (per-site "From picked location" timezone option)
   bool _isDownloadingTimezones = false;
@@ -191,6 +193,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     _showStatsBanner = widget.showStatsBanner;
     _osmTileUrlController = TextEditingController();
     _loadOsmTileUrl();
+    _loadFirefoxAutoRefresh();
     _outboundProxy = UserProxySettings(
       type: GlobalOutboundProxy.current.type,
       address: GlobalOutboundProxy.current.address,
@@ -618,6 +621,27 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           SnackBar(content: Text(loc.appSettingsClearUrlsDownloadFailed)),
         );
       }
+    }
+  }
+
+  Future<void> _loadFirefoxAutoRefresh() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _firefoxAutoRefresh = prefs.getBool(kFirefoxUaAutoRefreshKey) ?? false;
+    });
+  }
+
+  Future<void> _setFirefoxAutoRefresh(bool value) async {
+    setState(() {
+      _firefoxAutoRefresh = value;
+    });
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(kFirefoxUaAutoRefreshKey, value);
+    // Enabling is itself the user gesture: run the first check right away
+    // instead of waiting for the next startup.
+    if (value && !_isUpdatingFirefoxVersion) {
+      await _updateFirefoxVersion();
     }
   }
 
@@ -1437,6 +1461,14 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                     tooltip: loc.appSettingsUpdateFirefoxVersion,
                     onPressed: _updateFirefoxVersion,
                   ),
+          ),
+          SwitchListTile(
+            title: Text(loc.appSettingsFirefoxAutoUpdate),
+            subtitle: Text(loc.appSettingsFirefoxAutoUpdateHint),
+            value: _firefoxAutoRefresh,
+            onChanged: (bool value) {
+              _setFirefoxAutoRefresh(value);
+            },
           ),
 
           // DNS Blocklist

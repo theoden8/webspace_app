@@ -97,6 +97,87 @@ void main() {
     });
   });
 
+  group('isStockWebViewDefaultUserAgent', () {
+    // The exact string observed in the wild (BUG-005): a WKWebView default
+    // frozen into storage by the old settings-screen prefill+save path.
+    const wkWebViewDefault =
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) '
+        'AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148';
+
+    test('recognizes stock defaults at any OS version', () {
+      const defaults = [
+        wkWebViewDefault,
+        // Older iOS.
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 16_2 like Mac OS X) '
+            'AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148',
+        // iPad.
+        'Mozilla/5.0 (iPad; CPU OS 17_4 like Mac OS X) '
+            'AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148',
+        // macOS WKWebView: bare, no Version/ or Safari/ tail.
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
+            'AppleWebKit/605.1.15 (KHTML, like Gecko)',
+        // Android System WebView: `; wv` token + frozen Version/4.0.
+        'Mozilla/5.0 (Linux; Android 14; Pixel 7 Build/UQ1A.240105.004; wv) '
+            'AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 '
+            'Chrome/137.0.7151.61 Mobile Safari/537.36',
+        // WPE/GTK WebKit: Safari-shaped on X11/Linux.
+        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15 '
+            '(KHTML, like Gecko) Version/17.0 Safari/605.1.15',
+      ];
+      for (final ua in defaults) {
+        expect(isStockWebViewDefaultUserAgent(ua), isTrue, reason: ua);
+      }
+    });
+
+    test('does not claim real browsers or generated shapes', () {
+      final notDefaults = [
+        // Mobile Safari (Version/ + Safari/ tail).
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) '
+            'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 '
+            'Mobile/15E148 Safari/604.1',
+        // Desktop Chrome on Linux (no Version/ token).
+        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 '
+            '(KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',
+        // Chrome on Android (no wv token).
+        'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 '
+            '(KHTML, like Gecko) Chrome/137.0.7151.61 Mobile Safari/537.36',
+        // Generated FxiOS.
+        buildFirefoxIosUserAgent('152.0'),
+        // Generated desktop.
+        firefoxLinuxDesktopUserAgent,
+        '',
+        'MyBrowser/1.0',
+      ];
+      for (final ua in notDefaults) {
+        expect(isStockWebViewDefaultUserAgent(ua), isFalse, reason: ua);
+      }
+    });
+
+    test('frozen default clears to no-override on load (BUG-005)', () {
+      final json = WebViewModel(initUrl: 'https://example.com').toJson()
+        ..['userAgent'] = wkWebViewDefault;
+      json.remove('uaPreset');
+      final model = WebViewModel.fromJson(json, null);
+      expect(model.userAgent, '');
+      expect(model.uaPreset, isNull);
+      expect(model.effectiveUserAgentOrNull, isNull);
+    });
+
+    test('setUserAgent drops stock defaults and the live default', () {
+      final model = WebViewModel(initUrl: 'https://example.com');
+      model.setUserAgent(wkWebViewDefault);
+      expect(model.userAgent, '');
+      expect(model.uaPreset, isNull);
+
+      model.defaultUserAgent = 'SomeEngine/9.9 CustomDefault';
+      model.setUserAgent('SomeEngine/9.9 CustomDefault');
+      expect(model.userAgent, '');
+
+      model.setUserAgent('MyBrowser/1.0');
+      expect(model.userAgent, 'MyBrowser/1.0');
+    });
+  });
+
   group('WebViewModel preset integration', () {
     Map<String, dynamic> baseJson() =>
         WebViewModel(initUrl: 'https://example.com').toJson();

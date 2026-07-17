@@ -11,6 +11,7 @@ import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
+import 'package:webspace/services/user_agent_identity.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/notification_service.dart';
@@ -161,12 +162,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   /// re-evaluated.
   late Map<String, Object?> _initialSnapshot;
 
-  String getResetUserAgent() {
-    // effectiveUserAgent so a preset site's field shows the string the
-    // webview actually sends (current version), not the stored snapshot.
-    final ua = widget.webViewModel.effectiveUserAgent;
-    return ua == '' ? (widget.webViewModel.defaultUserAgent ?? '') : ua;
-  }
 
   @override
   void initState() {
@@ -296,6 +291,137 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  /// Live browser/OS identity + validity readout for the UA field. Follows
+  /// the field text as the user types (the controller listener already pokes
+  /// setState); an empty field describes the platform default instead.
+  /// Validity issues are only surfaced for explicit overrides — the stock
+  /// default trivially carries webview tells and there is nothing the user
+  /// should do about it.
+  Widget _buildUserAgentIdentity(AppLocalizations loc) {
+    final text = _userAgentController.text.trim();
+    final isOverride = text.isNotEmpty;
+    final ua =
+        isOverride ? text : (widget.webViewModel.defaultUserAgent ?? '');
+    if (ua.isEmpty) return const SizedBox.shrink();
+
+    final identity = describeUserAgent(
+      ua,
+      currentFirefoxMajor: FirefoxUserAgentService.instance.majorVersion,
+    );
+    final browserLabel = switch (identity.browser) {
+      UaBrowser.firefox => 'Firefox',
+      UaBrowser.chrome => 'Chrome',
+      UaBrowser.safari => 'Safari',
+      UaBrowser.edge => 'Edge',
+      UaBrowser.opera => 'Opera',
+      UaBrowser.samsungInternet => 'Samsung Internet',
+      UaBrowser.webview => loc.siteSettingsUaBrowserWebView,
+      UaBrowser.unknown => loc.siteSettingsUaBrowserUnknown,
+    };
+    final browserIcon = switch (identity.browser) {
+      UaBrowser.webview => Icons.web_asset,
+      UaBrowser.unknown => Icons.help_outline,
+      _ => Icons.language,
+    };
+    final osLabel = switch (identity.os) {
+      UaOs.windows => 'Windows',
+      UaOs.macos => 'macOS',
+      UaOs.linux => 'Linux',
+      UaOs.android => 'Android',
+      UaOs.ios => 'iOS',
+      UaOs.unknown => loc.siteSettingsUaOsUnknown,
+    };
+    final osIcon = switch (identity.os) {
+      UaOs.windows => Icons.desktop_windows,
+      UaOs.macos => Icons.laptop_mac,
+      UaOs.linux => Icons.computer,
+      UaOs.android => Icons.android,
+      UaOs.ios => Icons.phone_iphone,
+      UaOs.unknown => Icons.device_unknown,
+    };
+    final browserText = identity.browserVersion != null
+        ? '$browserLabel ${identity.browserVersion}'
+        : browserLabel;
+    final osText =
+        identity.osVersion != null ? '$osLabel ${identity.osVersion}' : osLabel;
+
+    final issues = isOverride ? identity.issues : const <UaIssue>[];
+    String issueText(UaIssue issue) => switch (issue) {
+          UaIssue.malformed => loc.siteSettingsUaIssueMalformed,
+          UaIssue.geckoVersionMismatch =>
+            loc.siteSettingsUaIssueGeckoVersionMismatch,
+          UaIssue.embeddedWebViewTell => loc.siteSettingsUaIssueWebViewTell,
+          UaIssue.impossibleHybrid => loc.siteSettingsUaIssueImpossibleHybrid,
+          UaIssue.staleFirefoxVersion => loc.siteSettingsUaIssueStaleFirefox(
+              FirefoxUserAgentService.instance.majorVersion),
+        };
+
+    final theme = Theme.of(context);
+    final subtleStyle = theme.textTheme.bodySmall;
+    return Padding(
+      padding: const EdgeInsets.only(left: 16, right: 16, bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 16,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(browserIcon, size: 16, color: subtleStyle?.color),
+                  const SizedBox(width: 4),
+                  Text(browserText, style: subtleStyle),
+                ],
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(osIcon, size: 16, color: subtleStyle?.color),
+                  const SizedBox(width: 4),
+                  Text(osText, style: subtleStyle),
+                ],
+              ),
+              if (!isOverride)
+                Text(loc.siteSettingsUserAgentSystemDefault,
+                    style: subtleStyle),
+              if (isOverride && issues.isEmpty)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.check_circle_outline,
+                        size: 16, color: Colors.green),
+                    const SizedBox(width: 4),
+                    Text(loc.siteSettingsUaLooksValid, style: subtleStyle),
+                  ],
+                ),
+            ],
+          ),
+          for (final issue in issues)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.warning_amber_rounded,
+                      size: 16, color: Colors.orange),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      issueText(issue),
+                      style: subtleStyle?.copyWith(color: Colors.orange),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   /// Subtitle for the DNS blocklist / content blocker tiles. When forced
   /// by Tracking Protection AND unconfigured, both facts matter, so they
   /// are joined rather than the forced text masking the missing data.
@@ -322,7 +448,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       username: PlatformInfo.isProxySupported ? m.proxySettings.username : null,
       password: PlatformInfo.isProxySupported ? m.proxySettings.password : null,
     );
-    _userAgentController.text = getResetUserAgent();
+    // effectiveUserAgent so a preset site's field shows the string the
+    // webview actually sends (current version), not the stored snapshot.
+    // Empty means "no override": the webview default shows as a hint, never
+    // as field text — pre-filling it froze the default into storage on save.
+    _userAgentController.text = widget.webViewModel.effectiveUserAgent;
     _proxyAddressController.text = _proxySettings.address ?? '';
     _proxyUsernameController.text = _proxySettings.username ?? '';
     _proxyPasswordController.text = _proxySettings.password ?? '';
@@ -511,13 +641,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         await widget.webViewModel.updateProxySettings(defaultProxy);
       }
 
-      // Update other settings
-      if (_userAgentController.text != '') {
-        // setUserAgent re-attaches a preset when the text matches a
-        // generated shape, so randomized UAs keep re-rendering at the
-        // current Firefox version instead of freezing as strings.
-        widget.webViewModel.setUserAgent(_userAgentController.text);
-      }
+      // Update other settings.
+      // Unconditional: an empty field clears the override (previously it
+      // was skipped, making an override impossible to remove). setUserAgent
+      // re-attaches a preset for generated shapes and drops stock
+      // webview-default strings back to "no override".
+      widget.webViewModel.setUserAgent(_userAgentController.text);
       widget.webViewModel.javascriptEnabled = _javascriptEnabled;
       widget.webViewModel.thirdPartyCookiesEnabled = _thirdPartyCookiesEnabled;
       widget.webViewModel.incognito = _incognito;
@@ -1179,20 +1308,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
               IconButton(
                 onPressed: () {
                   setState(() {
-                    _userAgentController.text = widget.webViewModel.defaultUserAgent ?? widget.webViewModel.userAgent;
+                    _userAgentController.text = '';
                   });
                 },
-                icon: Icon(Icons.home), // Use an appropriate icon for generating user-agent
+                icon: Icon(Icons.home),
+                tooltip: loc.siteSettingsUserAgentResetTooltip,
                 color: Theme.of(context).colorScheme.primary,
-                iconSize: 24, // Adjust the icon size as needed
+                iconSize: 24,
               ),
               Expanded(
                 child: TextFormField(
-                  decoration: InputDecoration(labelText: loc.siteSettingsUserAgent),
+                  decoration: InputDecoration(
+                    labelText: loc.siteSettingsUserAgent,
+                    hintText: (widget.webViewModel.defaultUserAgent
+                                ?.isNotEmpty ??
+                            false)
+                        ? widget.webViewModel.defaultUserAgent
+                        : loc.siteSettingsUserAgentSystemDefault,
+                    helperText: loc.siteSettingsUserAgentEmptyHelper,
+                  ),
                   controller: _userAgentController,
                 ),
               ),
-              SizedBox(width: 8), // Add some spacing between the text field and the button
+              SizedBox(width: 8),
               IconButton(
                 onPressed: () {
                   String newUserAgent = generateRandomUserAgent();
@@ -1200,12 +1338,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _userAgentController.text = newUserAgent;
                   });
                 },
-                icon: Icon(Icons.autorenew), // Use an appropriate icon for generating user-agent
+                icon: Icon(Icons.autorenew),
+                tooltip: loc.siteSettingsUserAgentRandomTooltip,
                 color: Theme.of(context).colorScheme.primary,
-                iconSize: 24, // Adjust the icon size as needed
+                iconSize: 24,
               ),
             ],
           ),
+          _buildUserAgentIdentity(loc),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: DropdownButtonFormField<String?>(

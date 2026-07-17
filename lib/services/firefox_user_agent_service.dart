@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 
 /// Upper bound on a plausible scraped Firefox major version. An HTML error
@@ -55,12 +56,14 @@ enum FirefoxVersionRefreshResult {
 }
 
 /// Tracks the current Firefox release version by scraping it from Firefox
-/// source. The scrape is **only** performed on explicit user action (a button
-/// in app settings) — never automatically — so the app makes no network
-/// request the user did not ask for (an F-Droid inclusion requirement).
-/// Until the user updates, generated per-site User-Agents render at
-/// [kDefaultFirefoxMajorVersion] baked into the build. The cached version only
-/// ever moves forward (never below the bundled floor).
+/// source. The scrape is performed on explicit user action (a button in app
+/// settings), or at startup when the user has opted in to automatic updates
+/// ([kFirefoxUaAutoRefreshKey], default off, throttled to weekly) — so the
+/// app makes no network request the user did not ask for (an F-Droid
+/// inclusion requirement). Until an update runs, generated per-site
+/// User-Agents render at [kDefaultFirefoxMajorVersion] baked into the build.
+/// The cached version only ever moves forward (never below the bundled
+/// floor).
 class FirefoxUserAgentService {
   static const String _versionKey = 'firefox_ua_major_version';
   static const String _lastCheckedKey = 'firefox_ua_last_checked';
@@ -138,12 +141,36 @@ class FirefoxUserAgentService {
   }
 
   /// Scrape the current Firefox version now and persist it. MUST be called
-  /// only from an explicit user gesture — this is the single network seam of
-  /// this service. Concurrent calls share one in-flight request.
+  /// only from an explicit user gesture or from [maybeAutoRefresh] under the
+  /// user's opt-in — this is the single network seam of this service.
+  /// Concurrent calls share one in-flight request.
   Future<FirefoxVersionRefreshResult> refresh() =>
       _inFlight ??= _refresh().whenComplete(() {
         _inFlight = null;
       });
+
+  /// Minimum spacing between automatic refreshes. Manual refreshes are
+  /// never throttled.
+  static const Duration kAutoRefreshInterval = Duration(days: 7);
+
+  /// Startup hook for the opt-in automatic update: refreshes only when the
+  /// user has enabled [kFirefoxUaAutoRefreshKey] and the last successful
+  /// check is older than [kAutoRefreshInterval] (or has never happened).
+  /// No-ops otherwise, so the default behavior stays "no network unless
+  /// asked". Call after [initialize]; never awaited on the startup path.
+  Future<void> maybeAutoRefresh() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (!(prefs.getBool(kFirefoxUaAutoRefreshKey) ?? false)) return;
+    } catch (_) {
+      return;
+    }
+    final last = _lastChecked;
+    if (last != null && DateTime.now().difference(last) < kAutoRefreshInterval) {
+      return;
+    }
+    await refresh();
+  }
 
   Future<FirefoxVersionRefreshResult> _refresh() async {
     final scraped = await _scrapeMajorVersion();
