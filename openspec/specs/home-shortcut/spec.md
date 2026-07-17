@@ -230,20 +230,33 @@ The system SHALL keep the App Intents site picker in sync with the user's actual
 
 ### Requirement: HS-010 - "Add to Home Screen" Dialog (iOS/macOS)
 
-On iOS and macOS, tapping the "Home Shortcut" menu item SHALL show an instructional dialog explaining that the OS surfaces WebSpace sites through the Shortcuts app, with a primary button that deep-links to Shortcuts.app. The dialog copy SHALL match the platform (iOS: "Add to Home Screen" from the share menu; macOS: add to the Dock / run from the menu bar). The system SHALL NOT attempt to pin a shortcut programmatically (neither OS has such a public API).
+On iOS and macOS, tapping the "Home Shortcut" menu item SHALL show an instructional dialog explaining that the OS surfaces WebSpace sites through the Shortcuts app. The dialog copy SHALL match the platform (iOS: "Add to Home Screen" from the share menu; macOS: add to the Dock / run from the menu bar). The system SHALL NOT attempt to pin a shortcut programmatically (neither OS has such a public API).
+
+The dialog's primary affordance differs per platform:
+
+- **iOS 16+** — the dialog embeds the AppIntents `ShortcutsUIButton` (via a platform view, `ShortcutsLinkNativeView`), the only public API that opens **WebSpace's own App Shortcuts page** rather than the Shortcuts app's main view. The bare `shortcuts://` scheme cannot reach that page, and the per-app deep links (`shortcuts://app-shortcut-*?bundleID=`) are undocumented, so they MUST NOT be used.
+- **macOS 13+** — `ShortcutsUIButton`/`ShortcutsLink` do not exist on macOS, so the dialog keeps a plain "Open Shortcuts" button that opens `shortcuts://` (the Shortcuts app's main view) via `NSWorkspace.shared.open`.
 
 #### Scenario: Dialog content
 
 **Given** the user is on iOS 16+ or macOS 13+
 **When** the user taps "Home Shortcut" in the overflow menu
 **Then** an `AlertDialog` is shown explaining the flow ("find the Open Site action under WebSpace, pick this site, then add it")
-**And** the dialog has an "Open Shortcuts" primary button and a "Cancel" button
+**And** on iOS the dialog shows the native Shortcuts button and a "Cancel" button
+**And** on macOS the dialog has an "Open Shortcuts" primary button and a "Cancel" button
 
-#### Scenario: User confirms
+#### Scenario: iOS — user taps the Shortcuts button
 
-**Given** the instructional dialog is shown
+**Given** the iOS instructional dialog is shown
+**When** the user taps the embedded `ShortcutsUIButton`
+**Then** Shortcuts.app opens on WebSpace's App Shortcuts page (listing the per-site "Open ... in WebSpace" entries)
+**And** the dialog dismisses (the button's tap is mirrored to Dart over the `org.codeberg.theoden8.webspace/shortcuts-link_<viewId>` channel)
+
+#### Scenario: macOS — user confirms
+
+**Given** the macOS instructional dialog is shown
 **When** the user taps "Open Shortcuts"
-**Then** the system opens the URL `shortcuts://` (`UIApplication.shared.open` on iOS, `NSWorkspace.shared.open` on macOS)
+**Then** the system opens the URL `shortcuts://` via `NSWorkspace.shared.open`
 **And** the Shortcuts.app launches
 
 #### Scenario: User cancels
@@ -496,7 +509,7 @@ This requirement applies only to **process-startup** launches (cold or post-kill
 Both Android and iOS share the channel `MethodChannel('org.codeberg.theoden8.webspace/shortcuts')`.
 
 Methods:
-- `pinShortcut({siteId, label, iconUrl})` — **Android**: requests a pinned shortcut via `ShortcutManagerCompat.requestPinShortcut()`. **iOS 16+**: opens `shortcuts://` (the Dart UI shows the HS-010 instructional dialog first).
+- `pinShortcut({siteId, label, iconUrl})` — **Android**: requests a pinned shortcut via `ShortcutManagerCompat.requestPinShortcut()`. **macOS 13+**: opens `shortcuts://` (the Dart UI shows the HS-010 instructional dialog first). **iOS**: retained fallback that opens `shortcuts://`; the HS-010 dialog no longer calls it — its embedded `ShortcutsUIButton` opens WebSpace's App Shortcuts page directly.
 - `removeShortcut(siteId)` — Android: removes any dynamic shortcut copy but leaves the pinned launcher tile ENABLED, so an HS-011 tap on the now-orphaned shortcut still launches the app and re-routes via the ledger. (It MUST NOT call `disableShortcuts`, which makes the launcher reject the tap with "shortcut isn't available".) iOS: no-op (the App Intents site list is recomputed from `_webViewModels` on every save via HS-009).
 - `getLaunchSiteId()` — **Android**: returns the bare `siteId` string from the launch intent extra, then drains it (`intent.removeExtra("siteId")`) so it fires once per tap. **iOS**: drains `pending_shortcut_site_id` + `pending_shortcut_url` from App Group UserDefaults (written by `OpenSiteIntent.perform()`) and returns a `{siteId, url}` map. Both platforms MUST consume-on-read: `_handleShortcutIntent` re-polls on every `AppLifecycleState.resumed`, so a non-draining read would re-navigate to the pinned site on a plain background/return with no new tap. The Dart `ShortcutService.getLaunch()` tolerates both shapes (`ShortcutLaunch`); for HS-011 the caller uses `launch.url ?? shortcutUrlLedger[siteId]` (iOS carries the url, Android supplies it from the ledger).
 - `getPinnedSiteIds()` — Android: returns the set of `siteId`s currently pinned, derived from `ShortcutManagerCompat.getShortcuts(FLAG_MATCH_PINNED)` by stripping the `site_` prefix. iOS: always returns an empty list (no public API for pin-state introspection).
@@ -560,7 +573,7 @@ no widget tree required.
 - `lib/services/shortcut_service.dart` — Flutter wrapper around the platform channel (Android pin + iOS sync/launch)
 - `lib/services/startup_restore_engine.dart` — `resolveLaunchTarget` shortcut→index resolution
 - `ios/Runner/WebSpaceAppIntents.swift` — `SiteEntity`, `SiteEntityQuery`, `OpenSiteIntent`, `WebSpaceShortcuts` (iOS 16+)
-- `ios/Runner/ShortcutsPlugin.swift` — iOS method-channel handler
+- `ios/Runner/ShortcutsPlugin.swift` — iOS method-channel handler + `ShortcutsLinkViewFactory`/`ShortcutsLinkNativeView` platform view hosting the HS-010 `ShortcutsUIButton`
 - `test/startup_restore_engine_test.dart` — unit tests for the resolution rule
 - `test/shortcut_service_test.dart` — unit tests for the Dart service surface
 - `openspec/specs/home-shortcut/spec.md` — this specification

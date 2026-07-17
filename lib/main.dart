@@ -1334,18 +1334,40 @@ class _WebSpacePageState extends State<WebSpacePage>
     }
     if ((Platform.isIOS || Platform.isMacOS) && _appIntentsSupported) {
       final loc = AppLocalizations.of(context);
-      final isMac = Platform.isMacOS;
+      // iOS embeds the AppIntents ShortcutsUIButton, which lands on
+      // WebSpace's own App Shortcuts page; the bare shortcuts:// scheme
+      // (still used on macOS, where that button doesn't exist) can only
+      // open the Shortcuts app's main view.
+      if (Platform.isIOS) {
+        await showDialog<void>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text(loc.homeAddToHomeScreenTitle),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(loc.homeAddToHomeScreenIosBody(model.name)),
+                const SizedBox(height: 16),
+                _ShortcutsLinkButton(onOpened: () {
+                  if (Navigator.of(ctx).canPop()) Navigator.of(ctx).pop();
+                }),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: Text(loc.commonCancel),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: Text(isMac
-              ? loc.homeAddShortcutTitleMacos
-              : loc.homeAddToHomeScreenTitle),
-          content: Text(
-            isMac
-                ? loc.homeAddShortcutMacosBody(model.name)
-                : loc.homeAddToHomeScreenIosBody(model.name),
-          ),
+          title: Text(loc.homeAddShortcutTitleMacos),
+          content: Text(loc.homeAddShortcutMacosBody(model.name)),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),
@@ -7983,6 +8005,35 @@ class _WebSpacePageState extends State<WebSpacePage>
               child: Icon(Icons.add),
             ),
     ),
+    );
+  }
+}
+
+/// HS-010: native AppIntents `ShortcutsUIButton` (iOS 16+) that opens
+/// WebSpace's App Shortcuts page in Shortcuts.app. The button renders and
+/// opens Shortcuts natively; [onOpened] fires on the same tap so the caller
+/// can dismiss the hosting dialog.
+class _ShortcutsLinkButton extends StatelessWidget {
+  static const _viewType = 'org.codeberg.theoden8.webspace/shortcuts-link';
+
+  final VoidCallback onOpened;
+
+  const _ShortcutsLinkButton({required this.onOpened});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 56,
+      width: double.maxFinite,
+      child: UiKitView(
+        viewType: _viewType,
+        onPlatformViewCreated: (id) {
+          MethodChannel('${_viewType}_$id').setMethodCallHandler((call) async {
+            if (call.method == 'tapped') onOpened();
+            return null;
+          });
+        },
+      ),
     );
   }
 }
