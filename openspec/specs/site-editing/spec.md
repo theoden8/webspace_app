@@ -166,6 +166,50 @@ favicon
 
 ---
 
+### Requirement: EDIT-009 - Unsaved Site Settings Warn Before Discard
+
+The per-site settings screen SHALL NOT silently discard unsaved edits. It
+SHALL compare the live form against a snapshot captured when the screen
+opened (and re-captured after each successful save), and when any field
+differs it SHALL intercept every route-leaving affordance (system back,
+app-bar back, iOS edge swipe) with a confirmation dialog offering "Keep
+editing" and "Discard".
+
+Every form field assigned in `_loadFromModel` MUST be registered in the
+`_currentSnapshot` map, except fields fully derived from an
+already-registered field. This registration is enforced structurally by
+`test/js/site_settings_dirty_snapshot.test.js` (runs in CI via
+`npm run test:js`); a derived-field exemption lives in that test's
+allowlist with a written justification.
+
+History: [docs/bugs/006-settings-silent-discard.md](../../../docs/bugs/006-settings-silent-discard.md).
+
+#### Scenario: Leaving with an unsaved change prompts
+
+**Given** the site settings screen is open
+**When** the user changes any setting (e.g. flips the Kiosk Mode toggle)
+**And** triggers back without saving
+**Then** a "Discard changes?" dialog appears
+**And** "Keep editing" returns to the form with the edit intact
+**And** "Discard" leaves the screen without applying the edit
+
+#### Scenario: Leaving with no changes does not prompt
+
+**Given** the site settings screen is open
+**When** the user triggers back without editing anything (or after a save)
+**Then** the screen pops immediately with no dialog
+
+#### Scenario: New form field is dirty-tracked (regression BUG-006)
+
+**Given** a developer adds a new per-site setting to the settings form,
+loading it in `_loadFromModel`
+**When** the field is not registered in `_currentSnapshot` (and not
+allowlisted as derived)
+**Then** `test/js/site_settings_dirty_snapshot.test.js` fails CI naming the
+field
+
+---
+
 ## Data Model
 
 ```dart

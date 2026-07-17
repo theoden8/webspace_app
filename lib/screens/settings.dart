@@ -207,6 +207,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         'thirdPartyCookiesEnabled': _thirdPartyCookiesEnabled,
         'incognito': _incognito,
         'alwaysOpenHome': _alwaysOpenHome,
+        'kioskMode': _kioskMode,
         'clearUrlEnabled': _clearUrlEnabled,
         'dnsBlockEnabled': _dnsBlockEnabled,
         'contentBlockEnabled': _contentBlockEnabled,
