@@ -37,6 +37,12 @@ import UserNotifications
       locationPlugin = LocationPlugin(messenger: controller.binaryMessenger)
       backgroundTaskPlugin = BackgroundTaskPlugin(messenger: controller.binaryMessenger)
       shortcutsPlugin = ShortcutsPlugin(messenger: controller.binaryMessenger)
+      if let registrar = self.registrar(forPlugin: "WebSpaceShortcutsLink") {
+        registrar.register(
+          ShortcutsLinkViewFactory(messenger: controller.binaryMessenger),
+          withId: ShortcutsLinkViewFactory.viewType
+        )
+      }
       registerShareChannel(controller.binaryMessenger)
     }
     if let url = launchOptions?[.url] as? URL {

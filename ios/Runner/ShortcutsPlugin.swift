@@ -12,8 +12,10 @@ import AppIntents
 /// iOS has no equivalent public API, so on iOS the menu defers to the
 /// Shortcuts app: this plugin keeps an App Group-backed site list in sync so
 /// `WebSpaceShortcuts` / `SiteEntityQuery` (iOS 16+) can surface the user's
-/// real sites in the action picker, and deep-links to `shortcuts://` when
-/// the user taps "Add to Home Screen" on iOS.
+/// real sites in the action picker. The HS-010 dialog embeds a
+/// `ShortcutsUIButton` (see `ShortcutsLinkNativeView` below) that lands on
+/// WebSpace's own App Shortcuts page; the `shortcuts://` deep link is kept
+/// as the `pinShortcut` fallback.
 ///
 /// When an `OpenSiteIntent` runs, it stashes the chosen siteId in App Group
 /// UserDefaults; `getLaunchSiteId` drains that key the next time Flutter
@@ -127,5 +129,65 @@ class ShortcutsPlugin: NSObject {
         result(success)
       }
     }
+  }
+}
+
+/// Platform-view factory for the HS-010 dialog's "open this app's
+/// shortcuts" button. `ShortcutsUIButton` (AppIntents, iOS 16+) is the only
+/// public API that opens WebSpace's own App Shortcuts page — the
+/// `shortcuts://` scheme can only reach the app's main view, and the
+/// per-app deep links are undocumented.
+class ShortcutsLinkViewFactory: NSObject, FlutterPlatformViewFactory {
+  static let viewType = "org.codeberg.theoden8.webspace/shortcuts-link"
+  private let messenger: FlutterBinaryMessenger
+
+  init(messenger: FlutterBinaryMessenger) {
+    self.messenger = messenger
+    super.init()
+  }
+
+  func create(
+    withFrame frame: CGRect,
+    viewIdentifier viewId: Int64,
+    arguments args: Any?
+  ) -> FlutterPlatformView {
+    return ShortcutsLinkNativeView(frame: frame, viewId: viewId, messenger: messenger)
+  }
+}
+
+class ShortcutsLinkNativeView: NSObject, FlutterPlatformView {
+  private let container: UIView
+  private let channel: FlutterMethodChannel
+
+  init(frame: CGRect, viewId: Int64, messenger: FlutterBinaryMessenger) {
+    container = UIView(frame: frame)
+    container.backgroundColor = .clear
+    channel = FlutterMethodChannel(
+      name: "\(ShortcutsLinkViewFactory.viewType)_\(viewId)",
+      binaryMessenger: messenger
+    )
+    super.init()
+    // The Dart side only builds this view when _appIntentsSupported, which
+    // matches this gate; below iOS 16 the view stays empty.
+    #if canImport(AppIntents)
+    if #available(iOS 16.0, *) {
+      let button = ShortcutsUIButton(style: .automatic)
+      button.translatesAutoresizingMaskIntoConstraints = false
+      button.addTarget(self, action: #selector(didTap), for: .touchUpInside)
+      container.addSubview(button)
+      NSLayoutConstraint.activate([
+        button.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+        button.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+        button.widthAnchor.constraint(lessThanOrEqualTo: container.widthAnchor),
+        button.heightAnchor.constraint(lessThanOrEqualTo: container.heightAnchor),
+      ])
+    }
+    #endif
+  }
+
+  func view() -> UIView { container }
+
+  @objc private func didTap() {
+    channel.invokeMethod("tapped", arguments: nil)
   }
 }
