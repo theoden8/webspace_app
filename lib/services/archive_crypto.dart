@@ -8,12 +8,20 @@ const int kArchiveKeyLength = 32;
 const int kArchiveNonceLength = 12;
 const int kArchiveMacLength = 16;
 
+// Argon2id cost parameters (ARCH-002). These are the sole barrier to an
+// offline dictionary attack on the archive passphrase (the salt is derived
+// from the passphrase, so it adds no anti-precomputation entropy). Pinned by
+// test/archive_crypto_test.dart so a silent downgrade fails CI.
+const int kArchiveArgon2Parallelism = 4;
+const int kArchiveArgon2MemoryKiB = 64 * 1024; // 64 MiB
+const int kArchiveArgon2Iterations = 3;
+
 const String _saltDomain = 'archive-salt-v1';
 
 final Argon2id _argon2id = Argon2id(
-  parallelism: 4,
-  memory: 64 * 1024,
-  iterations: 3,
+  parallelism: kArchiveArgon2Parallelism,
+  memory: kArchiveArgon2MemoryKiB,
+  iterations: kArchiveArgon2Iterations,
   hashLength: kArchiveKeyLength,
 );
 
