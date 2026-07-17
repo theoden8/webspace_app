@@ -11,6 +11,7 @@ class NotificationService {
 
   final _plugin = FlutterLocalNotificationsPlugin();
   bool _initialized = false;
+  Future<void>? _initInFlight;
   void Function(String siteId)? onNotificationTapped;
 
   /// Listeners are invoked whenever [permissionGranted] changes (e.g.
@@ -43,10 +44,16 @@ class NotificationService {
     }
   }
 
-  Future<void> init() async {
-    if (_initialized) return;
-    _initialized = true;
+  Future<void> init() {
+    if (_initialized) return Future.value();
+    // Memoize the in-flight future so a concurrent caller (e.g. a page's
+    // webNotification handler racing startup) awaits real completion instead
+    // of seeing _initialized flip early and calling _plugin.show() before
+    // _plugin.initialize() has run.
+    return _initInFlight ??= _doInit();
+  }
 
+  Future<void> _doInit() async {
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
     const iosSettings = DarwinInitializationSettings(
       requestAlertPermission: false,
@@ -87,6 +94,8 @@ class NotificationService {
       );
     }
 
+    _initialized = true;
+    _initInFlight = null;
     LogService.instance.log('Notification', 'NotificationService initialized');
   }
 

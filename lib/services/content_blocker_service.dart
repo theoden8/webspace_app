@@ -729,7 +729,21 @@ class ContentBlockerService {
   /// incremental update API, so each rebuild tears down + parses fresh
   /// (or deserializes from the on-disk cache when the rule hash
   /// matches).
-  Future<void> _rebuildEngine() async {
+  // Serialize rebuilds: toggleList / removeList / downloadList /
+  // importListSelection / initialize all trigger a rebuild, and overlapping
+  // runs would each dispose+null the engine, read files across awaits, and
+  // race the final `_rustEngine = engine` assignment — leaking the loser's
+  // native (Rust FFI) engine and leaving `_abpNetworkHosts` / token bloom out
+  // of sync with the live engine. Chaining makes the freshest `_lists` win.
+  Future<void> _rebuildChain = Future<void>.value();
+
+  Future<void> _rebuildEngine() {
+    final result = _rebuildChain.then((_) => _rebuildEngineInner());
+    _rebuildChain = result.then((_) {}, onError: (_) {});
+    return result;
+  }
+
+  Future<void> _rebuildEngineInner() async {
     _rustEngine?.dispose();
     _rustEngine = null;
     _engineCosmeticCache.clear();
