@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -170,10 +171,38 @@ void main() {
       expect(loaded, bytes);
     });
 
+    test('AES-GCM: identical plaintext yields different on-disk ciphertext', () async {
+      final storage = newStorage();
+      final bytes = Uint8List.fromList(List.filled(64, 7));
+      await storage.saveState('a', bytes);
+      await storage.saveState('b', bytes);
+      final files =
+          tempDir.listSync(recursive: true).whereType<File>().toList();
+      expect(files.length, greaterThanOrEqualTo(2));
+      final c0 = await files[0].readAsString();
+      final c1 = await files[1].readAsString();
+      expect(c0, isNot(equals(c1)),
+          reason: 'a fresh per-save GCM nonce must make identical plaintext '
+              'encrypt to different ciphertext (no deterministic fixed IV)');
+    });
+
+    test('AES-GCM: a tampered blob is rejected on load (authenticated)',
+        () async {
+      final storage = newStorage();
+      await storage.saveState(
+          't', Uint8List.fromList(List.generate(64, (i) => i)));
+      final file = tempDir.listSync(recursive: true).whereType<File>().first;
+      final wire = base64.decode(await file.readAsString());
+      wire[wire.length - 1] ^= 0xFF; // flip a byte of the GCM tag
+      await file.writeAsString(base64.encode(wire));
+      expect(await storage.loadState('t'), isNull,
+          reason: 'GCM authentication must reject a tampered ciphertext');
+    });
+
     test('round-trip preserves exact byte content for binary blob', () async {
       final storage = newStorage();
-      // Pseudo-random binary, not just incrementing — covers padding /
-      // alignment / null-byte edges in the AES-CBC path.
+      // Pseudo-random binary, not just incrementing — covers null-byte and
+      // alignment edges in the AES-GCM path.
       final raw = List<int>.generate(
         1234,
         (i) => (i * 31 + 7) & 0xFF,

@@ -51,7 +51,6 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
 
   Directory? _cacheDirectory;
   encrypt.Encrypter? _encrypter;
-  encrypt.IV? _iv;
   bool _initialized = false;
 
   SecureWebViewStateStorage({
@@ -91,9 +90,12 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
       }
       final keyBytes = base64.decode(keyBase64);
       final key = encrypt.Key(Uint8List.fromList(keyBytes));
-      _iv = encrypt.IV(Uint8List.fromList(keyBytes.sublist(0, 16)));
+      // AES-GCM (authenticated) with a fresh random nonce per save (prepended
+      // to the ciphertext). Replaces AES-CBC with a fixed key-derived IV,
+      // which was deterministic and unauthenticated; legacy blobs fail GCM
+      // auth on load and are discarded.
       _encrypter = encrypt.Encrypter(
-        encrypt.AES(key, mode: encrypt.AESMode.cbc),
+        encrypt.AES(key, mode: encrypt.AESMode.gcm),
       );
     } catch (e) {
       LogService.instance.log(
@@ -164,11 +166,15 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
   Future<void> saveState(String siteId, Uint8List state) async {
     if (state.isEmpty) return;
     if (!_initialized) await initialize();
-    if (_cacheDirectory == null || _encrypter == null || _iv == null) return;
+    if (_cacheDirectory == null || _encrypter == null) return;
     try {
       final encoded = base64.encode(state);
-      final cipher = _encrypter!.encrypt(encoded, iv: _iv).base64;
-      await _fileFor(siteId).writeAsString(cipher);
+      final iv = encrypt.IV.fromSecureRandom(12);
+      final enc = _encrypter!.encrypt(encoded, iv: iv);
+      final wire = Uint8List(iv.bytes.length + enc.bytes.length)
+        ..setRange(0, iv.bytes.length, iv.bytes)
+        ..setRange(iv.bytes.length, iv.bytes.length + enc.bytes.length, enc.bytes);
+      await _fileFor(siteId).writeAsString(base64.encode(wire));
       LogService.instance.log(
         'WebViewState',
         'Saved ${state.length} bytes for site $siteId (encrypted)',
@@ -187,14 +193,19 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
   @override
   Future<Uint8List?> loadState(String siteId) async {
     if (!_initialized) await initialize();
-    if (_cacheDirectory == null || _encrypter == null || _iv == null) {
+    if (_cacheDirectory == null || _encrypter == null) {
       return null;
     }
     try {
       final f = _fileFor(siteId);
       if (!await f.exists()) return null;
-      final cipher = await f.readAsString();
-      final decoded = _encrypter!.decrypt64(cipher, iv: _iv);
+      final wire = base64.decode(await f.readAsString());
+      // 12-byte nonce + 16-byte minimum GCM tag; legacy fixed-IV CBC blobs
+      // are shorter-prefixed and fail auth, handled by the catch below.
+      if (wire.length < 12 + 16) throw const FormatException('short blob');
+      final iv = encrypt.IV(Uint8List.fromList(wire.sublist(0, 12)));
+      final body = encrypt.Encrypted(Uint8List.fromList(wire.sublist(12)));
+      final decoded = _encrypter!.decrypt(body, iv: iv);
       final bytes = base64.decode(decoded);
       return Uint8List.fromList(bytes);
     } catch (e) {
