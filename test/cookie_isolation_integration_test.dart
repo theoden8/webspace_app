@@ -141,6 +141,64 @@ class MockCookieManager implements CookieManager {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+/// Cookie manager that models ANDROID's URL-scoped native cookie API, unlike
+/// the permissive [MockCookieManager] whose `getAllCookies` returns the whole
+/// jar. On Android the wrapper aggregates `getCookies(url)` over a fixed set
+/// of candidate URLs (there is no "dump every cookie" primitive), so a cookie
+/// on a host that isn't reachable from any candidate URL is invisible to a
+/// capture — and `setCookie` drops a cookie whose Domain isn't a suffix of the
+/// request URL host. This makes the legacy engine's sibling-subdomain
+/// host-only-cookie loss observable in tests instead of hidden.
+///
+/// Legacy engine only: the container engine (the default for Android SW 110+,
+/// iOS 17+, macOS 14+, Linux WPE 2.40+ — i.e. most users) owns each site's
+/// cookies in a native per-site store and never runs this URL-scoped
+/// capture-nuke-restore, so it is not subject to this limitation.
+class AndroidScopedCookieManager extends MockCookieManager {
+  @override
+  Future<List<Cookie>> getAllCookies({List<Uri>? candidateUrls}) async {
+    if (candidateUrls == null || candidateUrls.isEmpty) {
+      return super.getAllCookies();
+    }
+    final seen = <String>{};
+    final result = <Cookie>[];
+    for (final url in candidateUrls) {
+      for (final c in await getCookies(url: url)) {
+        if (seen.add('${c.name}|${c.domain}|${c.path}')) result.add(c);
+      }
+    }
+    return result;
+  }
+
+  @override
+  Future<void> setCookie({
+    required Uri url,
+    required String name,
+    required String value,
+    String? domain,
+    String? path,
+    int? expiresDate,
+    bool? isSecure,
+    bool? isHttpOnly,
+  }) async {
+    // Android's CookieManager.setCookie stores against the URL and drops a
+    // cookie whose Domain attribute isn't the URL host or a parent of it.
+    if (domain != null && !MockCookieManager._domainMatches(domain, url.host.toLowerCase())) {
+      return;
+    }
+    await super.setCookie(
+      url: url,
+      name: name,
+      value: value,
+      domain: domain,
+      path: path,
+      expiresDate: expiresDate,
+      isSecure: isSecure,
+      isHttpOnly: isHttpOnly,
+    );
+  }
+}
+
 /// In-memory per-siteId cookie store implementing the real
 /// `CookieSecureStorage` interface. Only the methods the engine touches
 /// are meaningful; everything else routes through `noSuchMethod`.
@@ -176,12 +234,15 @@ class MockCookieSecureStorage implements CookieSecureStorage {
 /// the REAL [CookieIsolationEngine] — the tests exercise production code,
 /// not duplicated harness code.
 class CookieIsolationTestHarness {
-  final MockCookieManager cookieManager = MockCookieManager();
+  final MockCookieManager cookieManager;
   final MockCookieSecureStorage storage = MockCookieSecureStorage();
   late final CookieIsolationEngine engine = CookieIsolationEngine(
     cookieManager: cookieManager,
     storage: storage,
   );
+
+  CookieIsolationTestHarness({MockCookieManager? cookieManager})
+      : cookieManager = cookieManager ?? MockCookieManager();
   final List<WebViewModel> sites = [];
   final Set<int> loadedIndices = {};
   int? currentIndex;
@@ -1243,6 +1304,83 @@ void main() {
       gmailStored = await harness.storage.loadCookiesForSite(gmailSiteId);
       expect(gmailStored.any((c) => c.name == 'SSID' && c.value == 'google_sso'), isTrue,
           reason: 'deleting github.com must not evict google.com sibling-subdomain cookies');
+    });
+  });
+
+  // ==========================================================================
+  // Characterization of the LEGACY engine's Android URL-scoped capture limit.
+  // The permissive MockCookieManager above returns the whole jar from
+  // getAllCookies, so the sibling-subdomain tests pass. Android's native API
+  // has no such primitive: getAllCookies aggregates getCookies(url) over a
+  // fixed candidate-URL set, so a host-only cookie on a sibling subdomain the
+  // site never navigated to (currentUrl stays on the base host) is NOT
+  // captured on switch-away, and is lost. This documents that real-platform
+  // behavior so a future "capture is complete" assumption is caught.
+  //
+  // This is a legacy-engine (fallback) limitation ONLY. The container engine
+  // — the default for Android SW 110+, iOS 17+, macOS 14+, Linux WPE 2.40+,
+  // i.e. most users — keeps each site's cookies in its own native store and
+  // never runs this capture-nuke-restore, so it does not lose them.
+  // ==========================================================================
+  group('Sibling-subdomain cookies (legacy Android URL-scoped, characterization)', () {
+    late CookieIsolationTestHarness harness;
+
+    setUp(() {
+      harness = CookieIsolationTestHarness(
+        cookieManager: AndroidScopedCookieManager());
+    });
+
+    test('host-only sibling cookie is LOST on switch-away under Android scoping',
+        () async {
+      harness.addSite('https://mail.google.com', name: 'Gmail');
+      harness.addSite('https://example.com', name: 'Example');
+
+      // Gmail is active; a background request sets a host-only cookie for the
+      // sibling accounts.google.com while currentUrl stays on mail.google.com.
+      await harness.switchToSite(0);
+      await harness.plantCookie(
+        url: 'https://accounts.google.com/signin',
+        name: 'SSID',
+        value: 'google_sso_token',
+        domain: 'accounts.google.com',
+      );
+
+      // Switch away: the engine captures Gmail's cookies via the URL-scoped
+      // getAllCookies. accounts.google.com is reachable from neither
+      // mail.google.com nor the google.com base URL, so it is not captured.
+      await harness.switchToSite(1);
+
+      final gmailSiteId = harness.sites[0].siteId;
+      final stored = await harness.storage.loadCookiesForSite(gmailSiteId);
+      expect(
+        stored.any((c) => c.name == 'SSID'),
+        isFalse,
+        reason: 'characterizes the Android URL-scoped capture gap: a host-only '
+            'sibling-subdomain cookie is not captured and is lost. If capture '
+            'is broadened to cover this, flip this assertion and update the doc.',
+      );
+    });
+
+    test('same site under the permissive iOS-style mock DOES capture it',
+        () async {
+      // Contrast: the default mock models the iOS/macOS getAllCookies() that
+      // returns the whole store, so the same cookie survives. Confirms the
+      // loss above is specific to the Android URL-scoped model, not the engine.
+      final iosHarness = CookieIsolationTestHarness();
+      iosHarness.addSite('https://mail.google.com', name: 'Gmail');
+      iosHarness.addSite('https://example.com', name: 'Example');
+      await iosHarness.switchToSite(0);
+      await iosHarness.plantCookie(
+        url: 'https://accounts.google.com/signin',
+        name: 'SSID',
+        value: 'google_sso_token',
+        domain: 'accounts.google.com',
+      );
+      await iosHarness.switchToSite(1);
+      final stored = await iosHarness.storage
+          .loadCookiesForSite(iosHarness.sites[0].siteId);
+      expect(stored.any((c) => c.name == 'SSID'), isTrue,
+          reason: 'iOS/macOS whole-store getAllCookies captures it');
     });
   });
 
