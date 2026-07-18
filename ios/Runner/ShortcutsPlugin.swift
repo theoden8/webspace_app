@@ -181,7 +181,9 @@ class ShortcutsLinkNativeView: NSObject, FlutterPlatformView {
     // matches this gate; below iOS 16 the view stays empty.
     #if canImport(AppIntents)
     if #available(iOS 16.0, *) {
-      let button = ShortcutsUIButton(style: .automatic)
+      // Outline variant: the filled styles drop a solid slab into the
+      // Material dialog; the outline takes the dialog background.
+      let button = ShortcutsUIButton(style: .automaticOutline)
       button.translatesAutoresizingMaskIntoConstraints = false
       button.addTarget(self, action: #selector(didTap), for: .touchUpInside)
       container.addSubview(button)
