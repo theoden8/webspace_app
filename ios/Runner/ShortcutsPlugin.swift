@@ -146,12 +146,18 @@ class ShortcutsLinkViewFactory: NSObject, FlutterPlatformViewFactory {
     super.init()
   }
 
+  func createArgsCodec() -> FlutterMessageCodec & NSObjectProtocol {
+    return FlutterStandardMessageCodec.sharedInstance()
+  }
+
   func create(
     withFrame frame: CGRect,
     viewIdentifier viewId: Int64,
     arguments args: Any?
   ) -> FlutterPlatformView {
-    return ShortcutsLinkNativeView(frame: frame, viewId: viewId, messenger: messenger)
+    let dark = (args as? [AnyHashable: Any])?["dark"] as? Bool ?? false
+    return ShortcutsLinkNativeView(
+      frame: frame, viewId: viewId, messenger: messenger, dark: dark)
   }
 }
 
@@ -159,9 +165,13 @@ class ShortcutsLinkNativeView: NSObject, FlutterPlatformView {
   private let container: UIView
   private let channel: FlutterMethodChannel
 
-  init(frame: CGRect, viewId: Int64, messenger: FlutterBinaryMessenger) {
+  init(frame: CGRect, viewId: Int64, messenger: FlutterBinaryMessenger, dark: Bool) {
     container = UIView(frame: frame)
     container.backgroundColor = .clear
+    // The app's theme setting can diverge from the system appearance; the
+    // button's .automatic style reads the trait collection, so pin it to
+    // the theme the dialog is actually rendered in.
+    container.overrideUserInterfaceStyle = dark ? .dark : .light
     channel = FlutterMethodChannel(
       name: "\(ShortcutsLinkViewFactory.viewType)_\(viewId)",
       binaryMessenger: messenger
@@ -175,11 +185,14 @@ class ShortcutsLinkNativeView: NSObject, FlutterPlatformView {
       button.translatesAutoresizingMaskIntoConstraints = false
       button.addTarget(self, action: #selector(didTap), for: .touchUpInside)
       container.addSubview(button)
+      // Center-only constraints leave the button ambiguously sized and it
+      // degrades to an icon-only tile; pinning it to the platform view's
+      // bounds makes it lay out as the labeled capsule.
       NSLayoutConstraint.activate([
-        button.centerXAnchor.constraint(equalTo: container.centerXAnchor),
-        button.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-        button.widthAnchor.constraint(lessThanOrEqualTo: container.widthAnchor),
-        button.heightAnchor.constraint(lessThanOrEqualTo: container.heightAnchor),
+        button.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+        button.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+        button.topAnchor.constraint(equalTo: container.topAnchor),
+        button.bottomAnchor.constraint(equalTo: container.bottomAnchor),
       ])
     }
     #endif

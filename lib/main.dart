@@ -8023,10 +8023,14 @@ class _ShortcutsLinkButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 56,
+      height: 52,
       width: double.maxFinite,
       child: UiKitView(
         viewType: _viewType,
+        creationParams: {
+          'dark': Theme.of(context).brightness == Brightness.dark,
+        },
+        creationParamsCodec: const StandardMessageCodec(),
         onPlatformViewCreated: (id) {
           MethodChannel('${_viewType}_$id').setMethodCallHandler((call) async {
             if (call.method == 'tapped') onOpened();
