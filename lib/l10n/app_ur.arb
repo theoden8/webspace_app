@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "برآمد کیا گیا: {date}",
   "homeImportSettingsSessionsNote": "آپ کے لاگ اِن سیشنز مماثل ڈومینز کے لیے محفوظ رکھے جائیں گے۔ ہٹائی گئی سائٹس کے لاگ اِنز صاف کر دیے جائیں گے۔",
   "homeImportAction": "درآمد کریں",
+  "homeImportInvalidBackup": "درآمد ناکام: بیک اپ فائل غلط یا خراب ہے۔ آپ کی موجودہ سائٹس کو بغیر تبدیلی کے چھوڑ دیا گیا ہے۔",
   "homeImportProxyPasswordsHint": "پراکسی پاس ورڈز بیک اپ میں شامل نہیں ہیں — انہیں سائٹ / ایپ سیٹنگز میں دوبارہ درج کریں۔",
   "homeImportBlocklistRedownloadHint": "بلاکنگ فعال کرنے کے لیے ایپ سیٹنگز میں DNS / کنٹینٹ بلاکر فہرستیں دوبارہ ڈاؤن لوڈ کریں۔",
   "homeSettingsImportedSuccess": "سیٹنگز کامیابی سے درآمد ہو گئیں",

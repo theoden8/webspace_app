@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "Eksportēts: {date}",
   "homeImportSettingsSessionsNote": "Jūsu pieteikšanās sesijas tiks saglabātas atbilstošajiem domēniem. Noņemto vietņu pieteikšanās tiks notīrītas.",
   "homeImportAction": "Importēt",
+  "homeImportInvalidBackup": "Importēšana neizdevās: dublējuma fails ir nederīgs vai bojāts. Jūsu esošās vietnes netika mainītas.",
   "homeImportProxyPasswordsHint": "Starpniekservera paroles netiek iekļautas dublējumkopijās — ievadiet tās atkārtoti vietnes / lietotnes iestatījumos.",
   "homeImportBlocklistRedownloadHint": "Lejupielādējiet atkārtoti DNS / satura bloķētāja sarakstus lietotnes iestatījumos, lai aktivizētu bloķēšanu.",
   "homeSettingsImportedSuccess": "Iestatījumi veiksmīgi importēti",

@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "નિકાસ થયું: {date}",
   "homeImportSettingsSessionsNote": "મેળ ખાતા ડોમેન્સ માટે તમારા લૉગિન સત્રો સાચવાશે. દૂર કરેલી સાઇટ્સ માટેના લૉગિન સાફ થઈ જશે.",
   "homeImportAction": "આયાત કરો",
+  "homeImportInvalidBackup": "આયાત નિષ્ફળ: બેકઅપ ફાઇલ અમાન્ય અથવા બગડેલી છે. તમારી હાલની સાઇટ્સ યથાવત રાખવામાં આવી છે.",
   "homeImportProxyPasswordsHint": "પ્રોક્સી પાસવર્ડ્સ બેકઅપમાં સામેલ નથી — તેમને સાઇટ / એપ્લિકેશન સેટિંગ્સમાં ફરી દાખલ કરો.",
   "homeImportBlocklistRedownloadHint": "બ્લોકિંગ સક્રિય કરવા એપ્લિકેશન સેટિંગ્સમાં DNS / કન્ટેન્ટ બ્લોકર સૂચિઓ ફરી ડાઉનલોડ કરો.",
   "homeSettingsImportedSuccess": "સેટિંગ્સ સફળતાપૂર્વક આયાત થયા",

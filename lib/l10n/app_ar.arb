@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "تم التصدير: {date}",
   "homeImportSettingsSessionsNote": "ستُحفظ جلسات تسجيل الدخول للنطاقات المطابقة. ستُمسح جلسات الدخول للمواقع المحذوفة.",
   "homeImportAction": "استيراد",
+  "homeImportInvalidBackup": "فشل الاستيراد: ملف النسخة الاحتياطية غير صالح أو تالف. لم يتم تغيير مواقعك الحالية.",
   "homeImportProxyPasswordsHint": "كلمات مرور الوكيل غير مضمّنة في النسخ الاحتياطية — أعد إدخالها في إعدادات الموقع / التطبيق.",
   "homeImportBlocklistRedownloadHint": "أعد تنزيل قوائم DNS / حاجب المحتوى في إعدادات التطبيق لتفعيل الحجب.",
   "homeSettingsImportedSuccess": "تم استيراد الإعدادات بنجاح",

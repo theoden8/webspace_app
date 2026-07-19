@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "Eksporditud: {date}",
   "homeImportSettingsSessionsNote": "Sinu sisselogimisseansid säilitatakse sobivate domeenide jaoks. Eemaldatud saitide sisselogimised tühjendatakse.",
   "homeImportAction": "Impordi",
+  "homeImportInvalidBackup": "Importimine ebaõnnestus: varukoopia fail on vigane või rikutud. Sinu olemasolevad saidid jäid muutmata.",
   "homeImportProxyPasswordsHint": "Proksi paroole varundustesse ei kaasata — sisesta need uuesti saidi/rakenduse seadetes.",
   "homeImportBlocklistRedownloadHint": "Laadi DNS / sisublokeerija loendid rakenduse seadetes uuesti alla, et blokeerimine aktiveerida.",
   "homeSettingsImportedSuccess": "Seaded edukalt imporditud",

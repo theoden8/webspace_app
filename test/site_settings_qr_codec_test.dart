@@ -249,6 +249,50 @@ void main() {
               'SiteSettingsQrCodec.includedKeys or excludedKeys.');
     });
 
+    test('decode rejects non-http(s) initUrl schemes', () {
+      String wire(String initUrl) {
+        final compressed =
+            gzip.encode(utf8.encode(jsonEncode({'initUrl': initUrl})));
+        final body = base64Url.encode(compressed).replaceAll('=', '');
+        return 'webspace://qr/site/v1/$body';
+      }
+
+      for (final hostile in [
+        'javascript:alert(1)',
+        'data:text/html,<script>alert(1)</script>',
+        'file:///etc/passwd',
+        'about:blank',
+        'chrome://settings',
+      ]) {
+        expect(SiteSettingsQrCodec.decode(wire(hostile)), isNull,
+            reason: '$hostile must be rejected');
+      }
+
+      expect(SiteSettingsQrCodec.decode(wire('https://example.com')), isNotNull);
+      expect(SiteSettingsQrCodec.decode(wire('http://example.com')), isNotNull);
+    });
+
+    test('decode rejects a gzip decompression bomb', () {
+      // A tiny compressed payload that inflates to many megabytes: 8 MB of
+      // zeros gzips to a few KB. The paste path has no physical QR-capacity
+      // bound, so the decoder must cap decompressed output and bail.
+      final bomb = List<int>.filled(8 * 1024 * 1024, 0);
+      final compressed = gzip.encode(bomb);
+      expect(compressed.length, lessThan(64 * 1024),
+          reason: 'the compressed bomb must fit under the input cap');
+      final payload = base64Url.encode(compressed).replaceAll('=', '');
+      expect(
+          SiteSettingsQrCodec.decode('webspace://qr/site/v1/$payload'), isNull);
+    });
+
+    test('decode rejects a compressed payload over the input cap', () {
+      // Incompressible random-ish bytes over 64 KB: rejected before inflate.
+      final big = List<int>.generate(80 * 1024, (i) => (i * 131 + 7) & 0xff);
+      final payload = base64Url.encode(big).replaceAll('=', '');
+      expect(
+          SiteSettingsQrCodec.decode('webspace://qr/site/v1/$payload'), isNull);
+    });
+
     test('encoded payload stays within QR Version 40 binary capacity', () {
       // Real-world worst case: every toggle flipped, long URL, long name,
       // long user-agent, full proxy with credentials, custom location.

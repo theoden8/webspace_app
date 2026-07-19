@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "Exporterad: {date}",
   "homeImportSettingsSessionsNote": "Dina inloggningssessioner bevaras för matchande domäner. Inloggningar för borttagna webbplatser rensas.",
   "homeImportAction": "Importera",
+  "homeImportInvalidBackup": "Importen misslyckades: säkerhetskopian är ogiltig eller skadad. Dina befintliga webbplatser lämnades oförändrade.",
   "homeImportProxyPasswordsHint": "Proxylösenord ingår inte i säkerhetskopior — ange dem på nytt i webbplats-/appinställningar.",
   "homeImportBlocklistRedownloadHint": "Ladda ner DNS-/innehållsblockerarlistor på nytt i Appinställningar för att aktivera blockering.",
   "homeSettingsImportedSuccess": "Inställningar importerade",

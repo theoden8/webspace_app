@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "Flutt út: {date}",
   "homeImportSettingsSessionsNote": "Innskráningarlotur þínar varðveitast fyrir samsvarandi lén. Innskráningum fyrir fjarlægð svæði verður hreinsað.",
   "homeImportAction": "Flytja inn",
+  "homeImportInvalidBackup": "Innflutningur mistókst: afritsskráin er ógild eða skemmd. Núverandi vefsvæðum þínum var haldið óbreyttum.",
   "homeImportProxyPasswordsHint": "Milliþjónslykilorð eru ekki innifalin í afritum — sláðu þau aftur inn í svæðis- / forritsstillingum.",
   "homeImportBlocklistRedownloadHint": "Sæktu DNS- / efnisblokkaralista aftur í Forritsstillingum til að virkja blokkun.",
   "homeSettingsImportedSuccess": "Stillingar fluttar inn með góðum árangri",

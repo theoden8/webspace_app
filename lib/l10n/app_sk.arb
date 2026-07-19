@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "Exportované: {date}",
   "homeImportSettingsSessionsNote": "Vaše prihlasovacie relácie sa zachovajú pre zodpovedajúce domény. Prihlásenia pre odstránené stránky sa vymažú.",
   "homeImportAction": "Importovať",
+  "homeImportInvalidBackup": "Import zlyhal: záložný súbor je neplatný alebo poškodený. Vaše existujúce stránky zostali nezmenené.",
   "homeImportProxyPasswordsHint": "Heslá proxy nie sú zahrnuté v zálohách — znova ich zadajte v nastaveniach stránky / aplikácie.",
   "homeImportBlocklistRedownloadHint": "Na aktiváciu blokovania znova stiahnite zoznamy blokovaných DNS / blokovača obsahu v Nastaveniach aplikácie.",
   "homeSettingsImportedSuccess": "Nastavenia úspešne importované",

@@ -39,11 +39,24 @@ class DownloadException implements Exception {
 /// malformed, [fetch] throws [DownloadException] rather than fall back to
 /// direct, which would leak the device IP.
 class DownloadEngine {
+  /// Hard ceiling on both the wire bytes buffered in memory and the
+  /// decompressed body. The whole download is held in RAM before it is
+  /// written to disk, so without a bound a hostile server can OOM the app
+  /// two ways: an endless stream, or a tiny `Content-Encoding: gzip` body
+  /// that inflates to gigabytes (a decompression bomb). This is a crash
+  /// guard, not a product policy — it sits far above any realistic file.
+  static const int defaultMaxBytes = 2 * 1024 * 1024 * 1024;
+
   final http.Client _client;
   final OutboundClient? _outboundResult;
+  final int _maxBytes;
 
-  DownloadEngine({http.Client? client, UserProxySettings? proxy})
-      : _client = client ?? _defaultClient(proxy),
+  DownloadEngine({
+    http.Client? client,
+    UserProxySettings? proxy,
+    int maxBytes = defaultMaxBytes,
+  })  : _client = client ?? _defaultClient(proxy),
+        _maxBytes = maxBytes,
         _outboundResult = client == null && proxy != null
             ? outboundHttp.clientFor(resolveEffectiveProxy(proxy))
             : null;
@@ -171,16 +184,27 @@ class DownloadEngine {
     }
 
     final total = response.contentLength;
+    if (total != null && total > _maxBytes) {
+      try {
+        await response.stream.drain<void>();
+      } catch (_) {}
+      throw DownloadException('Download exceeds size limit');
+    }
     onProgress?.call(0, total);
 
     final chunks = <List<int>>[];
     var done = 0;
     try {
       await for (final chunk in response.stream) {
-        chunks.add(chunk);
         done += chunk.length;
+        if (done > _maxBytes) {
+          throw DownloadException('Download exceeds size limit');
+        }
+        chunks.add(chunk);
         onProgress?.call(done, total);
       }
+    } on DownloadException {
+      rethrow;
     } catch (e) {
       throw DownloadException('Network error: $e');
     }
@@ -202,10 +226,8 @@ class DownloadEngine {
     final Uint8List bytes;
     try {
       bytes = switch (encoding) {
-        'gzip' || 'x-gzip' =>
-          Uint8List.fromList(gzip.decode(bytesReceived)),
-        'deflate' =>
-          Uint8List.fromList(zlib.decode(bytesReceived)),
+        'gzip' || 'x-gzip' => _inflateBounded(gzip.decoder, bytesReceived),
+        'deflate' => _inflateBounded(zlib.decoder, bytesReceived),
         _ => bytesReceived,
       };
     } on FormatException catch (e) {
@@ -224,6 +246,36 @@ class DownloadEngine {
       ),
       mimeType: mime,
     );
+  }
+
+  /// Inflate [compressed] through [codec] in chunks, aborting the moment the
+  /// running output exceeds [_maxBytes] so a decompression bomb never fully
+  /// materializes. Throws [DownloadException] on overflow.
+  Uint8List _inflateBounded(Converter<List<int>, List<int>> codec,
+      Uint8List compressed) {
+    final out = BytesBuilder(copy: false);
+    var total = 0;
+    var overflow = false;
+    final sink = _CountingByteSink((chunk) {
+      total += chunk.length;
+      if (total > _maxBytes) {
+        overflow = true;
+      } else {
+        out.add(chunk);
+      }
+    });
+    final conv = codec.startChunkedConversion(sink);
+    const step = 64 * 1024;
+    for (var i = 0; i < compressed.length && !overflow; i += step) {
+      final end =
+          (i + step < compressed.length) ? i + step : compressed.length;
+      conv.add(compressed.sublist(i, end));
+    }
+    conv.close();
+    if (overflow) {
+      throw DownloadException('Download exceeds size limit');
+    }
+    return out.takeBytes();
   }
 
   static String _sanitize(String name) {
@@ -322,6 +374,24 @@ class DownloadEngine {
     }
     return null;
   }
+}
+
+/// Byte sink that forwards each inflated chunk to [onData] so the caller
+/// can tally the running output and abort a decompression bomb early.
+class _CountingByteSink extends ByteConversionSink {
+  final void Function(List<int>) onData;
+  _CountingByteSink(this.onData);
+
+  @override
+  void add(List<int> chunk) => onData(chunk);
+
+  @override
+  void addSlice(List<int> chunk, int start, int end, bool isLast) {
+    onData(chunk.sublist(start, end));
+  }
+
+  @override
+  void close() {}
 }
 
 /// Sentinel client returned by [DownloadEngine._defaultClient] when the

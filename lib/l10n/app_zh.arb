@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "已匯出：{date}",
   "homeImportSettingsSessionsNote": "符合網域的登入工作階段會被保留。已移除網站的登入會被清除。",
   "homeImportAction": "匯入",
+  "homeImportInvalidBackup": "导入失败：备份文件无效或已损坏。您现有的站点未做任何更改。",
   "homeImportProxyPasswordsHint": "備份中不含代理密碼——請在網站／應用程式設定中重新輸入。",
   "homeImportBlocklistRedownloadHint": "請在應用程式設定中重新下載 DNS／內容封鎖器清單以啟用封鎖。",
   "homeSettingsImportedSuccess": "設定已成功匯入",

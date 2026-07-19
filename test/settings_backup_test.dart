@@ -384,6 +384,35 @@ void main() {
       expect(sites[0].cookies, isEmpty);
     });
 
+    test('throws on a site entry missing a required field', () {
+      // Contract the `_importSettings` guard relies on: restoreSites must
+      // fail loudly (not silently drop or half-build) so the caller can
+      // abort BEFORE clearing live state. A backup whose site is missing
+      // `initUrl` is malformed/hostile.
+      final backup = SettingsBackup(
+        version: 1,
+        sites: [
+          {
+            'name': 'No initUrl',
+            'cookies': [],
+            'proxySettings': {'type': 0, 'address': null},
+            'javascriptEnabled': true,
+            'userAgent': '',
+            'thirdPartyCookiesEnabled': false,
+          }
+        ],
+        webspaces: [],
+        themeMode: 0,
+        showUrlBar: false,
+        exportedAt: DateTime.now(),
+      );
+
+      expect(
+        () => SettingsBackupService.restoreSites(backup, null),
+        throwsA(anything),
+      );
+    });
+
     test('should restore non-secure cookies from backup', () {
       final backup = SettingsBackup(
         version: 1,

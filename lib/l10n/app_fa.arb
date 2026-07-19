@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "خروجی‌گرفته: {date}",
   "homeImportSettingsSessionsNote": "نشست‌های ورود شما برای دامنه‌های متناظر حفظ می‌شود. ورود برای سایت‌های حذف‌شده پاک خواهد شد.",
   "homeImportAction": "وارد کردن",
+  "homeImportInvalidBackup": "درون‌ریزی ناموفق بود: فایل پشتیبان نامعتبر یا خراب است. سایت‌های موجود شما بدون تغییر باقی ماندند.",
   "homeImportProxyPasswordsHint": "رمزهای پراکسی در پشتیبان‌ها گنجانده نمی‌شوند — آن‌ها را در تنظیمات سایت / برنامه دوباره وارد کنید.",
   "homeImportBlocklistRedownloadHint": "برای فعال‌سازی مسدودسازی، فهرست‌های DNS / مسدودکنندهٔ محتوا را در تنظیمات برنامه دوباره دانلود کنید.",
   "homeSettingsImportedSuccess": "تنظیمات با موفقیت وارد شد",

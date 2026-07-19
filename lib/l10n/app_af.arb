@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "Uitgevoer: {date}",
   "homeImportSettingsSessionsNote": "Jou aanmeldsessies sal vir passende domeine behoue bly. Aanmeldings vir verwyderde webwerwe sal skoongemaak word.",
   "homeImportAction": "Voer in",
+  "homeImportInvalidBackup": "Invoer het misluk: die rugsteunlêer is ongeldig of korrup. Jou bestaande webwerwe is onveranderd gelaat.",
   "homeImportProxyPasswordsHint": "Proxy-wagwoorde word nie in rugsteune ingesluit nie — voer hulle weer in webwerf- / app-instellings in.",
   "homeImportBlocklistRedownloadHint": "Laai DNS- / inhoudblokkeerder-lyste weer in App-instellings af om blokkering te aktiveer.",
   "homeSettingsImportedSuccess": "Instellings suksesvol ingevoer",

@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "내보낸 날짜: {date}",
   "homeImportSettingsSessionsNote": "일치하는 도메인에 대한 로그인 세션은 유지됩니다. 제거된 사이트의 로그인은 지워집니다.",
   "homeImportAction": "가져오기",
+  "homeImportInvalidBackup": "가져오기 실패: 백업 파일이 잘못되었거나 손상되었습니다. 기존 사이트는 변경되지 않았습니다.",
   "homeImportProxyPasswordsHint": "프록시 비밀번호는 백업에 포함되지 않습니다 — 사이트/앱 설정에서 다시 입력하세요.",
   "homeImportBlocklistRedownloadHint": "차단을 활성화하려면 앱 설정에서 DNS/콘텐츠 차단기 목록을 다시 다운로드하세요.",
   "homeSettingsImportedSuccess": "설정을 성공적으로 가져왔습니다",

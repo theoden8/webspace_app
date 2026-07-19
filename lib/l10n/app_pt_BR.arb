@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "Exportado: {date}",
   "homeImportSettingsSessionsNote": "Suas sessões de login serão preservadas para domínios correspondentes. Logins de sites removidos serão limpos.",
   "homeImportAction": "Importar",
+  "homeImportInvalidBackup": "Falha na importação: o arquivo de backup é inválido ou está corrompido. Seus sites existentes não foram alterados.",
   "homeImportProxyPasswordsHint": "Senhas de proxy não são incluídas nos backups — digite-as novamente nas configurações do site / do app.",
   "homeImportBlocklistRedownloadHint": "Baixe novamente as listas de DNS / bloqueador de conteúdo nas Configurações do app para ativar o bloqueio.",
   "homeSettingsImportedSuccess": "Configurações importadas com sucesso",

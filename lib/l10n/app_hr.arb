@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "Izvezeno: {date}",
   "homeImportSettingsSessionsNote": "Vaše sesije prijave bit će sačuvane za odgovarajuće domene. Prijave za uklonjene stranice bit će očišćene.",
   "homeImportAction": "Uvezi",
+  "homeImportInvalidBackup": "Uvoz nije uspio: sigurnosna kopija je nevažeća ili oštećena. Vaše postojeće stranice ostale su nepromijenjene.",
   "homeImportProxyPasswordsHint": "Lozinke proxyja nisu uključene u sigurnosne kopije — ponovno ih unesite u postavkama stranice / aplikacije.",
   "homeImportBlocklistRedownloadHint": "Ponovno preuzmite DNS / popise blokatora sadržaja u Postavkama aplikacije za aktiviranje blokiranja.",
   "homeSettingsImportedSuccess": "Postavke uspješno uvezene",

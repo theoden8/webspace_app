@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "エクスポート日時: {date}",
   "homeImportSettingsSessionsNote": "一致するドメインのログインセッションは保持されます。削除されたサイトのログインはクリアされます。",
   "homeImportAction": "インポート",
+  "homeImportInvalidBackup": "インポートに失敗しました。バックアップファイルが無効か破損しています。既存のサイトは変更されていません。",
   "homeImportProxyPasswordsHint": "プロキシのパスワードはバックアップに含まれません — サイト/アプリ設定で再入力してください。",
   "homeImportBlocklistRedownloadHint": "ブロックを有効にするには、アプリ設定で DNS / コンテンツブロッカーのリストを再ダウンロードしてください。",
   "homeSettingsImportedSuccess": "設定を正常にインポートしました",

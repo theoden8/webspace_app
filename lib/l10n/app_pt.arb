@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "Exportado: {date}",
   "homeImportSettingsSessionsNote": "As suas sessões de início de sessão serão preservadas para os domínios correspondentes. Os inícios de sessão de sites removidos serão limpos.",
   "homeImportAction": "Importar",
+  "homeImportInvalidBackup": "A importação falhou: o ficheiro de cópia de segurança é inválido ou está danificado. Os seus sites existentes não foram alterados.",
   "homeImportProxyPasswordsHint": "As palavras-passe de proxy não são incluídas nas cópias de segurança — reintroduza-as nas definições do site / da aplicação.",
   "homeImportBlocklistRedownloadHint": "Volte a transferir as listas de DNS / bloqueador de conteúdos nas Definições da aplicação para ativar o bloqueio.",
   "homeSettingsImportedSuccess": "Definições importadas com sucesso",

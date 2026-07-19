@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "Wyeksportowano: {date}",
   "homeImportSettingsSessionsNote": "Twoje sesje logowania zostaną zachowane dla pasujących domen. Loginy dla usuniętych stron zostaną wyczyszczone.",
   "homeImportAction": "Importuj",
+  "homeImportInvalidBackup": "Importowanie nie powiodło się: plik kopii zapasowej jest nieprawidłowy lub uszkodzony. Twoje istniejące witryny pozostały bez zmian.",
   "homeImportProxyPasswordsHint": "Hasła proxy nie są dołączane do kopii zapasowych — wprowadź je ponownie w ustawieniach strony / aplikacji.",
   "homeImportBlocklistRedownloadHint": "Pobierz ponownie listy DNS / blokera treści w Ustawieniach aplikacji, aby aktywować blokowanie.",
   "homeSettingsImportedSuccess": "Pomyślnie zaimportowano ustawienia",

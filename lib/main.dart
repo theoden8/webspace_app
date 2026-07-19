@@ -5283,6 +5283,32 @@ class _WebSpacePageState extends State<WebSpacePage>
       return;
     }
 
+    // Parse the whole backup into concrete models BEFORE touching live
+    // state: `WebViewModel.fromJson` throws on a site entry missing a
+    // required field, and a malformed/hostile backup would otherwise leave
+    // the user with their sites already cleared and the restore half-done.
+    final List<WebViewModel> restoredSites;
+    final List<Webspace> restoredWebspaces;
+    try {
+      restoredSites = SettingsBackupService.restoreSites(backup, () {
+        setState(() {});
+      });
+      restoredWebspaces = SettingsBackupService.restoreWebspaces(backup);
+    } catch (e) {
+      LogService.instance.log(
+        'Import',
+        'Aborted import; live state left intact: $e',
+        level: LogLevel.error,
+      );
+      if (mounted) {
+        final loc = AppLocalizations.of(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(loc.homeImportInvalidBackup)),
+        );
+      }
+      return;
+    }
+
     // Apply the imported settings
     setState(() {
       // Invalidate any in-flight `_setCurrentIndex`/`_selectWebspace` that
@@ -5294,17 +5320,13 @@ class _WebSpacePageState extends State<WebSpacePage>
       _webspaces.clear();
       _loadedIndices.clear(); // Clear lazy loading state
 
-      // Restore sites
-      _webViewModels.addAll(
-        SettingsBackupService.restoreSites(backup, () {
-          setState(() {});
-        }),
-      );
+      // Restore sites (already parsed above).
+      _webViewModels.addAll(restoredSites);
 
       // Restore webspaces. Legacy backups carry `siteIndices`-shaped
       // webspaces; promote those to siteIds against the just-restored
       // models and seed the runtime projection.
-      _webspaces.addAll(SettingsBackupService.restoreWebspaces(backup));
+      _webspaces.addAll(restoredWebspaces);
 
       // Restore other settings - handle both new and legacy formats.
       // Every boolean/int/string global toggle is routed through the

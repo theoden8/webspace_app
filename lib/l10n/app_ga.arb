@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "Easpórtáilte: {date}",
   "homeImportSettingsSessionsNote": "Caomhnófar do sheisiúin logála isteach do na fearainn a mheaitseálann. Glanfar logálacha isteach do shuíomhanna a baineadh.",
   "homeImportAction": "Iompórtáil",
+  "homeImportInvalidBackup": "Theip ar an iompórtáil: tá an comhad cúltaca neamhbhailí nó truaillithe. Fágadh do láithreáin reatha gan athrú.",
   "homeImportProxyPasswordsHint": "Níl pasfhocail seachfhreastalaí san áireamh i gcúltacaí — iontráil arís iad i socruithe an suímh / na hAipe.",
   "homeImportBlocklistRedownloadHint": "Athíoslódáil liostaí bactha DNS / ábhair i Socruithe na hAipe chun an bacadh a ghníomhachtú.",
   "homeSettingsImportedSuccess": "Iompórtáladh na socruithe go rathúil",

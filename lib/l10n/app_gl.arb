@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "Exportado: {date}",
   "homeImportSettingsSessionsNote": "As túas sesións de inicio conservaranse para os dominios coincidentes. Borraranse os inicios de sesión dos sitios eliminados.",
   "homeImportAction": "Importar",
+  "homeImportInvalidBackup": "Produciuse un erro na importación: o ficheiro de copia de seguranza non é válido ou está danado. Os teus sitios actuais non se modificaron.",
   "homeImportProxyPasswordsHint": "Os contrasinais de proxy non se inclúen nas copias de seguranza — volve introducilos nos axustes do sitio ou da aplicación.",
   "homeImportBlocklistRedownloadHint": "Volve descargar as listas de bloqueo DNS / do bloqueador de contido nos Axustes da aplicación para activar o bloqueo.",
   "homeSettingsImportedSuccess": "Axustes importados correctamente",

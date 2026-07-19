@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "Esportatua: {date}",
   "homeImportSettingsSessionsNote": "Zure saio-hasierak mantenduko dira bat datozen domeinuetarako. Kendutako guneen saio-hasierak garbituko dira.",
   "homeImportAction": "Inportatu",
+  "homeImportInvalidBackup": "Inportazioak huts egin du: babeskopiaren fitxategia baliogabea edo hondatuta dago. Zure lehendik zeuden guneak aldatu gabe geratu dira.",
   "homeImportProxyPasswordsHint": "Proxy-pasahitzak ez dira babeskopietan sartzen — sartu berriz gune / aplikazio ezarpenetan.",
   "homeImportBlocklistRedownloadHint": "Berriz deskargatu DNS / eduki-blokeatzaile zerrendak Aplikazioaren ezarpenetan blokeoa aktibatzeko.",
   "homeSettingsImportedSuccess": "Ezarpenak ondo inportatu dira",
