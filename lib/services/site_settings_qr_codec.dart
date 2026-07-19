@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io' show gzip;
+import 'dart:typed_data';
 
 /// Encode/decode the QR-shareable subset of a [WebViewModel] JSON dict.
 ///
@@ -106,6 +107,40 @@ class SiteSettingsQrCodec {
   /// missing. Any keys outside [includedKeys] in a successfully decoded
   /// payload are dropped — a hostile sender cannot smuggle, e.g.,
   /// `cookies` past the receiver's strip filter.
+  // A per-site settings payload is a few hundred bytes; these ceilings leave
+  // generous headroom while bounding a decompression bomb.
+  static const int _kMaxCompressedBytes = 64 * 1024;
+  static const int _kMaxDecodedBytes = 256 * 1024;
+
+  /// Gzip-inflate [compressed], feeding it in small chunks and aborting the
+  /// moment the running output exceeds [maxOut]. Returns null on overflow or
+  /// malformed input, so a bomb never fully materializes in memory.
+  static List<int>? _gunzipBounded(List<int> compressed, int maxOut) {
+    final out = BytesBuilder(copy: false);
+    var total = 0;
+    var overflow = false;
+    final counting = _CountingByteSink((chunk) {
+      total += chunk.length;
+      if (total > maxOut) {
+        overflow = true;
+      } else {
+        out.add(chunk);
+      }
+    });
+    try {
+      final conv = gzip.decoder.startChunkedConversion(counting);
+      const step = 4096;
+      for (var i = 0; i < compressed.length && !overflow; i += step) {
+        final end = (i + step < compressed.length) ? i + step : compressed.length;
+        conv.add(compressed.sublist(i, end));
+      }
+      conv.close();
+    } catch (_) {
+      return null;
+    }
+    return overflow ? null : out.takeBytes();
+  }
+
   static Map<String, dynamic>? decode(String input) {
     final parsed = _parse(input.trim());
     if (parsed == null) return null;
@@ -113,7 +148,12 @@ class SiteSettingsQrCodec {
       final padding = (4 - parsed.payload.length % 4) % 4;
       final padded = parsed.payload + ('=' * padding);
       final compressed = base64Url.decode(padded);
-      final bytes = gzip.decode(compressed);
+      // The paste path accepts arbitrary-length clipboard text (the physical
+      // QR capacity bound does not apply), so cap both the compressed input
+      // and the decompressed output to defeat a gzip decompression bomb.
+      if (compressed.length > _kMaxCompressedBytes) return null;
+      final bytes = _gunzipBounded(compressed, _kMaxDecodedBytes);
+      if (bytes == null) return null;
       final decoded = jsonDecode(utf8.decode(bytes));
       if (decoded is! Map) return null;
       final out = <String, dynamic>{};
@@ -125,6 +165,15 @@ class SiteSettingsQrCodec {
       }
       if (out['initUrl'] is! String ||
           (out['initUrl'] as String).isEmpty) {
+        return null;
+      }
+      // A shared QR must only ever open a web page. Reject `javascript:`,
+      // `data:`, `file:`, `about:`, etc. — the receiver would otherwise
+      // navigate a fresh isolated site to attacker-chosen script/local
+      // content the moment it hydrates. File-import sites are device-local
+      // and never ride a QR, so http(s)-only loses nothing shareable.
+      final uri = Uri.tryParse((out['initUrl'] as String).trim());
+      if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) {
         return null;
       }
       return out;
@@ -158,4 +207,23 @@ class _ParsedQr {
   final int version;
   final String payload;
   _ParsedQr({required this.version, required this.payload});
+}
+
+/// Byte sink that forwards each inflated chunk to [onData], letting the
+/// caller tally the running output and abort a decompression bomb before
+/// it fully materializes.
+class _CountingByteSink extends ByteConversionSink {
+  final void Function(List<int>) onData;
+  _CountingByteSink(this.onData);
+
+  @override
+  void add(List<int> chunk) => onData(chunk);
+
+  @override
+  void addSlice(List<int> chunk, int start, int end, bool isLast) {
+    onData(chunk.sublist(start, end));
+  }
+
+  @override
+  void close() {}
 }
