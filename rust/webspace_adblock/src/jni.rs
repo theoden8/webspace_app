@@ -21,7 +21,11 @@
 //
 // Memory: ws_engine_free in lib.rs OR the Java-side `engineFree`
 // release the Box — call exactly one. Callers must not deref
-// after free.
+// after free. nativeCheckUrl / nativeRedirectFor deref the handle
+// with no internal synchronization, so the Kotlin facade serialises
+// free (write) against deref (read) via a ReentrantReadWriteLock —
+// see AdblockEngineNative.kt. Do not call these directly off a raw
+// handle that another thread can free.
 
 #![cfg(target_os = "android")]
 

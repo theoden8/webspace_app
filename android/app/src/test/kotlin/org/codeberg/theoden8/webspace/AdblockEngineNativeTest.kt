@@ -70,4 +70,30 @@ class AdblockEngineNativeTest {
         AdblockEngineNative.dispose()
         assertFalse(AdblockEngineNative.active)
     }
+
+    @Test
+    fun concurrentReadersAndWritersDoNotDeadlockOrThrow() {
+        // The read/write lock added to guard free-vs-deref must not
+        // deadlock when many threads pound the facade at once (the
+        // production shape: chromium IO threads call checkUrl while the
+        // toggle handler calls setRules/dispose). With the .so absent
+        // every call short-circuits, but the write-lock methods still
+        // acquire the lock, so this pins "no deadlock, no exception".
+        val threads = (0 until 16).map { i ->
+            Thread {
+                repeat(200) {
+                    when (i % 3) {
+                        0 -> AdblockEngineNative.checkUrl(
+                            "https://t.com/x", "https://s.com/a", "script")
+                        1 -> AdblockEngineNative.setRules("||t.com^\n")
+                        else -> AdblockEngineNative.dispose()
+                    }
+                }
+            }
+        }
+        threads.forEach { it.start() }
+        threads.forEach { it.join(5_000) }
+        threads.forEach { assertFalse("thread stuck / deadlocked", it.isAlive) }
+        assertFalse(AdblockEngineNative.active)
+    }
 }
