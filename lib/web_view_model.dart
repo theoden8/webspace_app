@@ -73,6 +73,20 @@ String? sanitizedSiteId(Object? raw) {
   return _kSiteIdPattern.hasMatch(raw) ? raw : null;
 }
 
+/// The per-site `language` is a constrained dropdown in the UI, but an
+/// imported backup or scanned QR can carry an arbitrary string. It is
+/// interpolated raw into the `Accept-Language` request header, so a value
+/// with CRLF could smuggle extra headers into the site's requests. Accept
+/// only a BCP-47-shaped tag (`en`, `zh-CN`, …); anything else returns null
+/// (system default), matching the siteId hardening.
+final RegExp _kLanguageTagPattern =
+    RegExp(r'^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$');
+
+String? sanitizedLanguageTag(Object? raw) {
+  if (raw is! String || raw.isEmpty) return null;
+  return _kLanguageTagPattern.hasMatch(raw) ? raw : null;
+}
+
 /// Generates a fresh per-site fingerprint reset nonce. Uses [Random.secure]
 /// so a site can't predict the post-reset fingerprint.
 String generateFingerprintResetNonce() {
@@ -1839,7 +1853,7 @@ class WebViewModel {
       incognito: isIncognito,
       alwaysOpenHome: isAlwaysOpenHome,
       kioskMode: json['kioskMode'] as bool? ?? false,
-      language: json['language'],
+      language: sanitizedLanguageTag(json['language']),
       zoomPercent: clampZoomPercent(
           (json['zoomPercent'] as num?)?.toInt() ?? kDefaultZoomPercent),
       clearUrlEnabled: json['clearUrlEnabled'] ?? true,

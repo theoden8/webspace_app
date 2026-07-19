@@ -1049,4 +1049,39 @@ void main() {
       expect(sanitizedSiteId(null), isNull);
     });
   });
+
+  group('fromJson language header-injection hardening', () {
+    Map<String, dynamic> baseJson(String? language) => {
+          'initUrl': 'https://example.com',
+          'cookies': <dynamic>[],
+          'proxySettings': {'type': 0, 'address': null},
+          'javascriptEnabled': true,
+          'userAgent': '',
+          'thirdPartyCookiesEnabled': false,
+          if (language != null) 'language': language,
+        };
+
+    test('a valid BCP-47 language tag is preserved', () {
+      for (final ok in ['en', 'fr', 'zh-CN', 'zh-TW', 'pt-BR']) {
+        final m = WebViewModel.fromJson(baseJson(ok), null);
+        expect(m.language, equals(ok));
+      }
+    });
+
+    test('a CRLF-bearing language is dropped to system default', () {
+      final m = WebViewModel.fromJson(
+          baseJson('en\r\nX-Injected: 1'), null);
+      expect(m.language, isNull);
+    });
+
+    test('sanitizedLanguageTag helper', () {
+      expect(sanitizedLanguageTag('en'), equals('en'));
+      expect(sanitizedLanguageTag('zh-CN'), equals('zh-CN'));
+      expect(sanitizedLanguageTag('en\r\nEvil: 1'), isNull);
+      expect(sanitizedLanguageTag('en, *;q=0.5'), isNull);
+      expect(sanitizedLanguageTag(''), isNull);
+      expect(sanitizedLanguageTag(42), isNull);
+      expect(sanitizedLanguageTag(null), isNull);
+    });
+  });
 }
