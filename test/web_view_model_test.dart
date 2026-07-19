@@ -1009,4 +1009,44 @@ void main() {
       expect(extractDomain('file:///path/to/file'), equals('file:///path/to/file'));
     });
   });
+
+  group('fromJson siteId path-traversal hardening', () {
+    Map<String, dynamic> baseJson(String? siteId) => {
+          'initUrl': 'https://example.com',
+          'cookies': <dynamic>[],
+          'proxySettings': {'type': 0, 'address': null},
+          'javascriptEnabled': true,
+          'userAgent': '',
+          'thirdPartyCookiesEnabled': false,
+          if (siteId != null) 'siteId': siteId,
+        };
+
+    test('a valid minted-format siteId is preserved', () {
+      final m = WebViewModel.fromJson(baseJson('abc123-x9y'), null);
+      expect(m.siteId, equals('abc123-x9y'));
+    });
+
+    test('a path-traversal siteId is replaced with a fresh safe id', () {
+      final m = WebViewModel.fromJson(baseJson('../../../../shared_prefs/evil'), null);
+      expect(m.siteId, isNot(contains('/')));
+      expect(m.siteId, isNot(contains('..')));
+      expect(RegExp(r'^[A-Za-z0-9_-]+$').hasMatch(m.siteId), isTrue);
+    });
+
+    test('siteId with a dot or separator is rejected and regenerated', () {
+      for (final bad in ['a.b', 'a/b', r'a\b', 'a b', '', 'x' * 200]) {
+        final m = WebViewModel.fromJson(baseJson(bad), null);
+        expect(m.siteId, isNot(equals(bad)));
+        expect(RegExp(r'^[A-Za-z0-9_-]{1,128}$').hasMatch(m.siteId), isTrue);
+      }
+    });
+
+    test('sanitizedSiteId helper', () {
+      expect(sanitizedSiteId('good-id_1'), equals('good-id_1'));
+      expect(sanitizedSiteId('../x'), isNull);
+      expect(sanitizedSiteId('a.b'), isNull);
+      expect(sanitizedSiteId(42), isNull);
+      expect(sanitizedSiteId(null), isNull);
+    });
+  });
 }

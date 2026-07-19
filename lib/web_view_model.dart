@@ -61,6 +61,18 @@ String _generateSiteId() {
   return '${now.toRadixString(36)}-${random.toRadixString(36)}';
 }
 
+/// A siteId is concatenated into filesystem paths (HTML/import/nav-state cache
+/// filenames, native container names) and secure-storage keys, so an imported
+/// backup must not smuggle path metacharacters. Accept only a path-safe token;
+/// anything else (including `../…` traversal) returns null so the caller mints
+/// a fresh id. Minted ids (`<base36>-<base36>`) always match.
+final RegExp _kSiteIdPattern = RegExp(r'^[A-Za-z0-9_-]{1,128}$');
+
+String? sanitizedSiteId(Object? raw) {
+  if (raw is! String) return null;
+  return _kSiteIdPattern.hasMatch(raw) ? raw : null;
+}
+
 /// Generates a fresh per-site fingerprint reset nonce. Uses [Random.secure]
 /// so a site can't predict the post-reset fingerprint.
 String generateFingerprintResetNonce() {
@@ -1792,7 +1804,10 @@ class WebViewModel {
     // written by older builds that didn't strip on toJson.
     final dropUrl = isIncognito || isAlwaysOpenHome;
     return WebViewModel(
-      siteId: json['siteId'], // May be null for legacy data, will auto-generate
+      // Validate against path-safe format: a crafted backup could otherwise
+      // set siteId to `../…` and escape the cache/import/storage keyspace.
+      // null (missing or unsafe) auto-generates a fresh id.
+      siteId: sanitizedSiteId(json['siteId']),
       initUrl: migrateLegacyFileImportUrl(json['initUrl'] as String),
       currentUrl: dropUrl || json['currentUrl'] == null
           ? null
