@@ -23,9 +23,21 @@
 // having the feature flag off. Logs surface the gap in CI.
 //
 // To bump uBO:
-//   1. Tag a release at github.com/gorhill/uBlock, get the tag name.
-//   2. Replace UBO_TAG below.
-//   3. Commit. Next `cargo build` re-fetches + reparses.
+//   1. Pick a release tag at github.com/gorhill/uBlock.
+//   2. Resolve it to its immutable commit SHA:
+//        git ls-remote https://github.com/gorhill/uBlock refs/tags/<tag>
+//      (a lightweight tag prints the commit directly; an annotated tag
+//      prints a second `<sha> refs/tags/<tag>^{}` line — use that one).
+//   3. Replace UBO_TAG (display only) and UBO_COMMIT below.
+//   4. Commit. Next `cargo build` re-fetches + reparses.
+//
+// Why pin the commit SHA and not the tag: a git tag is a mutable
+// pointer — upstream (or a compromised account) can move `1.59.0` to
+// different content, and the fetched files become $redirect= resource
+// bodies baked into the .so and served as data: URLs into pages. The
+// 40-char commit SHA names an immutable tree, so a moved tag can't
+// change what we build. TLS authenticates the transport to GitHub; the
+// SHA authenticates the content.
 //
 // brave/adblock-resources was tempting (npm package, dist/
 // resources.json pre-built) but it ships Brave's custom overrides
@@ -41,9 +53,14 @@ use std::process::Command;
 use adblock::resources::resource_assembler::assemble_web_accessible_resources;
 use serde_json::{json, Value};
 
+// Display-only: the release these files came from. Keep in sync with
+// UBO_COMMIT (the SHA `1.59.0` points at). Not used to fetch.
 const UBO_TAG: &str = "1.59.0";
+// Immutable commit the fetch is pinned to (uBO tag 1.59.0). Bumping the
+// tag REQUIRES updating this — see the "To bump uBO" note above.
+const UBO_COMMIT: &str = "a0de43aba933bc7bd79a32a2f2b6b87bf2ca5f18";
 const UBO_TARBALL_URL: &str =
-    "https://github.com/gorhill/uBlock/archive/refs/tags/1.59.0.tar.gz";
+    "https://github.com/gorhill/uBlock/archive/a0de43aba933bc7bd79a32a2f2b6b87bf2ca5f18.tar.gz";
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
@@ -66,7 +83,7 @@ fn main() {
     }
 
     // Step 1: download tarball.
-    let tarball_path = out_dir.join(format!("ubo-{}.tar.gz", UBO_TAG));
+    let tarball_path = out_dir.join(format!("ubo-{}.tar.gz", UBO_COMMIT));
     if !tarball_path.exists() {
         if let Err(e) = fetch(&tarball_path, UBO_TARBALL_URL) {
             println!("cargo:warning=uBO fetch failed: {} — $redirect= rules will silently miss", e);
@@ -79,7 +96,17 @@ fn main() {
     let extract_dir = out_dir.join("ubo-extract");
     let _ = fs::remove_dir_all(&extract_dir);
     fs::create_dir_all(&extract_dir).expect("mkdir extract");
-    let prefix = format!("uBlock-{}/src", UBO_TAG);
+    // GitHub names the archive's top dir `uBlock-<full-sha>`, but derive
+    // it from the tarball rather than hardcode it, so a naming change
+    // can't silently drop us to the empty-resources fallback.
+    let prefix = match tarball_top_dir(&tarball_path) {
+        Some(top) => format!("{}/src", top),
+        None => {
+            println!("cargo:warning=uBO: could not read tarball top dir — $redirect= rules will silently miss");
+            fs::write(&output_json, b"[]").expect("write fallback");
+            return;
+        }
+    };
     let extract_result = Command::new("tar")
         .args(["-xzf"])
         .arg(&tarball_path)
@@ -273,6 +300,28 @@ fn write_dep_licenses(out_dir: &Path) {
         out.len(),
         json_blob.len()
     );
+}
+
+/// First path component of the first entry in a gzip tarball, e.g.
+/// `uBlock-<sha>` for a GitHub source archive. Returns None if `tar`
+/// fails or the listing is empty.
+fn tarball_top_dir(tarball: &Path) -> Option<String> {
+    let out = Command::new("tar")
+        .args(["-tzf"])
+        .arg(tarball)
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let listing = String::from_utf8_lossy(&out.stdout);
+    let first = listing.lines().next()?.trim();
+    let top = first.split('/').next()?.trim();
+    if top.is_empty() {
+        None
+    } else {
+        Some(top.to_string())
+    }
 }
 
 fn fetch(out_path: &Path, url: &str) -> std::io::Result<()> {
