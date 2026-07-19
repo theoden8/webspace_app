@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "Allforiwyd: {date}",
   "homeImportSettingsSessionsNote": "Caiff eich sesiynau mewngofnodi eu cadw ar gyfer parthau sy'n cyfateb. Caiff mewngofnodiadau ar gyfer safleoedd a dynnwyd eu clirio.",
   "homeImportAction": "Mewnforio",
+  "homeImportInvalidBackup": "Methodd y mewnforio: mae'r ffeil wrth gefn yn annilys neu wedi'i llygru. Gadawyd eich safleoedd presennol yn ddigyfnewid.",
   "homeImportProxyPasswordsHint": "Nid yw cyfrineiriau dirprwy wedi'u cynnwys mewn copïau wrth gefn — ail-roddwch nhw yng ngosodiadau'r safle / ap.",
   "homeImportBlocklistRedownloadHint": "Ail-lawrlwythwch restrau rhwystro DNS / cynnwys yn Gosodiadau'r Ap i actifadu rhwystro.",
   "homeSettingsImportedSuccess": "Mewnforiwyd y gosodiadau'n llwyddiannus",

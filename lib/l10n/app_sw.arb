@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "Imehamishwa: {date}",
   "homeImportSettingsSessionsNote": "Vipindi vyako vya kuingia vitahifadhiwa kwa vikoa vinavyolingana. Kuingia kwa tovuti zilizoondolewa kutafutwa.",
   "homeImportAction": "Leta",
+  "homeImportInvalidBackup": "Kuleta kumeshindwa: faili ya nakala rudufu si sahihi au imeharibika. Tovuti zako zilizopo zimeachwa bila kubadilishwa.",
   "homeImportProxyPasswordsHint": "Nywila za proksi hazijumuishwi katika nakala rudufu — ziweke tena katika mipangilio ya tovuti / programu.",
   "homeImportBlocklistRedownloadHint": "Pakua tena orodha za DNS / kizuizi cha maudhui katika Mipangilio ya Programu ili kuwasha uzuiaji.",
   "homeSettingsImportedSuccess": "Mipangilio imeletwa kwa mafanikio",

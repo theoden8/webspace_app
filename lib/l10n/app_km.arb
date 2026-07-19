@@ -570,6 +570,7 @@
   "homeImportExportedLabel": "បាន export: {date}",
   "homeImportSettingsSessionsNote": "Login sessions របស់អ្នកនឹងត្រូវបានរក្សាសម្រាប់ domain ដែលត្រូវគ្នា។ Logins សម្រាប់ sites ដែលដកចេញនឹងត្រូវបានលុប។",
   "homeImportAction": "Import",
+  "homeImportInvalidBackup": "ការនាំចូលបានបរាជ័យ៖ ឯកសារបម្រុងទុកមិនត្រឹមត្រូវ ឬខូច។ គេហទំព័រដែលមានស្រាប់របស់អ្នកមិនត្រូវបានផ្លាស់ប្ដូរទេ។",
   "homeImportProxyPasswordsHint": "ពាក្យសម្ងាត់ proxy មិនត្រូវបានរួមបញ្ចូលក្នុង backups — បញ្ចូលម្ដងទៀតក្នុងការកំណត់ site / app ។",
   "homeImportBlocklistRedownloadHint": "ទាញយក DNS / content blocker lists ម្ដងទៀតក្នុងការកំណត់កម្មវិធីដើម្បីធ្វើ blocking ។",
   "homeSettingsImportedSuccess": "បានImport ការកំណត់ដោយជោគជ័យ",

@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "יוצא: {date}",
   "homeImportSettingsSessionsNote": "הפעלות ההתחברות שלך יישמרו עבור דומיינים תואמים. התחברויות לאתרים שהוסרו ינוקו.",
   "homeImportAction": "ייבא",
+  "homeImportInvalidBackup": "הייבוא נכשל: קובץ הגיבוי אינו תקין או פגום. האתרים הקיימים שלך נותרו ללא שינוי.",
   "homeImportProxyPasswordsHint": "סיסמאות פרוקסי אינן נכללות בגיבויים — הזן אותן מחדש בהגדרות האתר / האפליקציה.",
   "homeImportBlocklistRedownloadHint": "הורד מחדש רשימות DNS / חוסם תוכן בהגדרות האפליקציה כדי להפעיל חסימה.",
   "homeSettingsImportedSuccess": "ההגדרות יובאו בהצלחה",

@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "ਐਕਸਪੋਰਟ ਕੀਤਾ: {date}",
   "homeImportSettingsSessionsNote": "ਤੁਹਾਡੇ ਲੌਗਇਨ ਸੈਸ਼ਨ ਮੇਲ ਖਾਂਦੇ ਡੋਮੇਨਾਂ ਲਈ ਸੁਰੱਖਿਅਤ ਰੱਖੇ ਜਾਣਗੇ। ਹਟਾਈਆਂ ਸਾਈਟਾਂ ਲਈ ਲੌਗਇਨ ਸਾਫ਼ ਕੀਤੇ ਜਾਣਗੇ।",
   "homeImportAction": "ਇੰਪੋਰਟ ਕਰੋ",
+  "homeImportInvalidBackup": "ਇੰਪੋਰਟ ਅਸਫਲ: ਬੈਕਅੱਪ ਫਾਈਲ ਅਵੈਧ ਜਾਂ ਖਰਾਬ ਹੈ। ਤੁਹਾਡੀਆਂ ਮੌਜੂਦਾ ਸਾਈਟਾਂ ਬਿਨਾਂ ਬਦਲੇ ਰੱਖੀਆਂ ਗਈਆਂ ਹਨ।",
   "homeImportProxyPasswordsHint": "ਪ੍ਰੌਕਸੀ ਪਾਸਵਰਡ ਬੈਕਅੱਪਾਂ ਵਿੱਚ ਸ਼ਾਮਲ ਨਹੀਂ ਹਨ — ਉਹਨਾਂ ਨੂੰ ਸਾਈਟ / ਐਪ ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਮੁੜ ਦਰਜ ਕਰੋ।",
   "homeImportBlocklistRedownloadHint": "ਬਲੌਕਿੰਗ ਸਰਗਰਮ ਕਰਨ ਲਈ ਐਪ ਸੈਟਿੰਗਾਂ ਵਿੱਚ DNS / ਸਮੱਗਰੀ ਬਲੌਕਰ ਸੂਚੀਆਂ ਮੁੜ-ਡਾਊਨਲੋਡ ਕਰੋ।",
   "homeSettingsImportedSuccess": "ਸੈਟਿੰਗਾਂ ਸਫਲਤਾਪੂਰਵਕ ਇੰਪੋਰਟ ਹੋਈਆਂ",

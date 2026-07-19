@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "এক্সপোর্ট করা হয়েছে: {date}",
   "homeImportSettingsSessionsNote": "মিলযুক্ত ডোমেনের জন্য আপনার লগইন সেশন সংরক্ষিত থাকবে। সরানো সাইটের লগইন সাফ করা হবে।",
   "homeImportAction": "ইম্পোর্ট",
+  "homeImportInvalidBackup": "আমদানি ব্যর্থ হয়েছে: ব্যাকআপ ফাইলটি অবৈধ বা ক্ষতিগ্রস্ত। আপনার বিদ্যমান সাইটগুলো অপরিবর্তিত রাখা হয়েছে।",
   "homeImportProxyPasswordsHint": "প্রক্সি পাসওয়ার্ড ব্যাকআপে অন্তর্ভুক্ত নয় — সাইট / অ্যাপ সেটিংসে সেগুলো পুনরায় লিখুন।",
   "homeImportBlocklistRedownloadHint": "ব্লকিং সক্রিয় করতে অ্যাপ সেটিংসে DNS / কনটেন্ট ব্লকার তালিকা পুনরায় ডাউনলোড করুন।",
   "homeSettingsImportedSuccess": "সেটিংস সফলভাবে ইম্পোর্ট হয়েছে",

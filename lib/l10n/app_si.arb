@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "නිර්යාත කළේ: {date}",
   "homeImportSettingsSessionsNote": "ගැලපෙන වසම් සඳහා ඔබේ පිවිසුම් සැසි ආරක්ෂා වේ. ඉවත් කළ අඩවි සඳහා පිවිසුම් ඉවත් කෙරේ.",
   "homeImportAction": "ආයාත කරන්න",
+  "homeImportInvalidBackup": "ආයාත කිරීම අසාර්ථකයි: උපස්ථ ගොනුව වලංගු නොවේ හෝ දූෂිතයි. ඔබගේ පවතින අඩවි වෙනස් නොකර තබා ඇත.",
   "homeImportProxyPasswordsHint": "ප්‍රොක්සි මුරපද උපස්ථවල ඇතුළත් නොවේ — ඒවා අඩවි / යෙදුම් සැකසුම්වල යළි ඇතුළත් කරන්න.",
   "homeImportBlocklistRedownloadHint": "අවහිරය සක්‍රීය කිරීමට යෙදුම් සැකසුම්වල DNS / අන්තර්ගත අවහිරක ලැයිස්තු යළි බාගන්න.",
   "homeSettingsImportedSuccess": "සැකසුම් සාර්ථකව ආයාත විය",

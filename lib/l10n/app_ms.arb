@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "Dieksport: {date}",
   "homeImportSettingsSessionsNote": "Sesi log masuk anda akan dikekalkan untuk domain yang sepadan. Log masuk untuk tapak yang dibuang akan dikosongkan.",
   "homeImportAction": "Import",
+  "homeImportInvalidBackup": "Import gagal: fail sandaran tidak sah atau rosak. Tapak sedia ada anda dibiarkan tidak berubah.",
   "homeImportProxyPasswordsHint": "Kata laluan proksi tidak disertakan dalam sandaran — masukkan semula dalam tetapan tapak / aplikasi.",
   "homeImportBlocklistRedownloadHint": "Muat turun semula senarai DNS / penyekat kandungan dalam Tetapan Aplikasi untuk mengaktifkan sekatan.",
   "homeSettingsImportedSuccess": "Tetapan berjaya diimport",

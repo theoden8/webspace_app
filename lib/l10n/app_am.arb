@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "ተልኳል: {date}",
   "homeImportSettingsSessionsNote": "የመግቢያ ክፍለ-ጊዜዎችህ ለተዛማጅ ጎራዎች ይጠበቃሉ። ለተወገዱ ጣቢያዎች መግቢያዎች ይጸዳሉ።",
   "homeImportAction": "አስመጣ",
+  "homeImportInvalidBackup": "ማስመጣት አልተሳካም፦ የመጠባበቂያ ፋይሉ ልክ ያልሆነ ወይም የተበላሸ ነው። ነባር ጣቢያዎችዎ ሳይለወጡ ቀርተዋል።",
   "homeImportProxyPasswordsHint": "የ Proxy የይለፍ ቃላት በመጠባበቂያዎች ውስጥ አይካተቱም — በጣቢያ / መተግበሪያ ቅንብሮች ውስጥ እንደገና አስገባቸው።",
   "homeImportBlocklistRedownloadHint": "እገዳ ለማንቃት የ DNS / የይዘት ማገጃ ዝርዝሮችን በመተግበሪያ ቅንብሮች ውስጥ እንደገና አውርድ።",
   "homeSettingsImportedSuccess": "ቅንብሮች በተሳካ ሁኔታ ተስምተዋል",

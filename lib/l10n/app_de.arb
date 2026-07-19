@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "Exportiert: {date}",
   "homeImportSettingsSessionsNote": "Ihre Anmeldesitzungen bleiben für übereinstimmende Domains erhalten. Anmeldungen für entfernte Seiten werden gelöscht.",
   "homeImportAction": "Importieren",
+  "homeImportInvalidBackup": "Import fehlgeschlagen: Die Sicherungsdatei ist ungültig oder beschädigt. Deine vorhandenen Websites wurden nicht verändert.",
   "homeImportProxyPasswordsHint": "Proxy-Passwörter sind nicht in Sicherungen enthalten – geben Sie sie in den Seiten-/App-Einstellungen erneut ein.",
   "homeImportBlocklistRedownloadHint": "Laden Sie DNS-/Inhaltsblocker-Listen in den App-Einstellungen erneut herunter, um die Sperrung zu aktivieren.",
   "homeSettingsImportedSuccess": "Einstellungen erfolgreich importiert",

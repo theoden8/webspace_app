@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "Eksportert: {date}",
   "homeImportSettingsSessionsNote": "Innloggingsøktene dine bevares for samsvarende domener. Innlogginger for fjernede nettsteder tømmes.",
   "homeImportAction": "Importer",
+  "homeImportInvalidBackup": "Importen mislyktes: sikkerhetskopifilen er ugyldig eller skadet. De eksisterende nettstedene dine ble ikke endret.",
   "homeImportProxyPasswordsHint": "Proxy-passord er ikke inkludert i sikkerhetskopier — skriv dem inn på nytt i nettsted- / app-innstillinger.",
   "homeImportBlocklistRedownloadHint": "Last ned DNS- / innholdsblokkeringslister på nytt i App-innstillinger for å aktivere blokkering.",
   "homeSettingsImportedSuccess": "Innstillinger importert",

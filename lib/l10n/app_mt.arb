@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "Esportat: {date}",
   "homeImportSettingsSessionsNote": "Is-sessjonijiet tal-login tiegħek se jinżammu għad-dominji li jaqblu. Il-logins għas-siti mneħħija jitneħħew.",
   "homeImportAction": "Importa",
+  "homeImportInvalidBackup": "L-importazzjoni falliet: il-fajl tal-backup mhuwiex validu jew huwa korrott. Is-siti eżistenti tiegħek tħallew mingħajr bidla.",
   "homeImportProxyPasswordsHint": "Il-passwords tal-proxy mhumiex inklużi fil-backups — erġa' daħħalhom fis-settings tas-sit / tal-app.",
   "homeImportBlocklistRedownloadHint": "Erġa' niżżel il-listi tal-imblukkar DNS / kontenut f'Settings tal-App biex tattiva l-imblukkar.",
   "homeSettingsImportedSuccess": "Is-settings ġew importati b'suċċess",

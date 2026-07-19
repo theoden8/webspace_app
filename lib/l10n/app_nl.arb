@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "Geëxporteerd: {date}",
   "homeImportSettingsSessionsNote": "Je inlogsessies blijven behouden voor overeenkomende domeinen. Inloggegevens voor verwijderde sites worden gewist.",
   "homeImportAction": "Importeren",
+  "homeImportInvalidBackup": "Importeren mislukt: het back-upbestand is ongeldig of beschadigd. Je bestaande sites zijn ongewijzigd gebleven.",
   "homeImportProxyPasswordsHint": "Proxywachtwoorden zijn niet opgenomen in back-ups — voer ze opnieuw in bij site- / app-instellingen.",
   "homeImportBlocklistRedownloadHint": "Download DNS- / contentblokkeringslijsten opnieuw in App-instellingen om blokkering te activeren.",
   "homeSettingsImportedSuccess": "Instellingen succesvol geïmporteerd",

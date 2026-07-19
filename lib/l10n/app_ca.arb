@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "Exportat: {date}",
   "homeImportSettingsSessionsNote": "Les vostres sessions d'inici es conservaran per als dominis coincidents. Els inicis de sessió dels llocs eliminats s'esborraran.",
   "homeImportAction": "Importa",
+  "homeImportInvalidBackup": "Ha fallat la importació: el fitxer de còpia de seguretat no és vàlid o està malmès. Els teus llocs actuals no s'han modificat.",
   "homeImportProxyPasswordsHint": "Les contrasenyes de servidor intermediari no s'inclouen a les còpies de seguretat: torneu a introduir-les a la configuració del lloc o de l'app.",
   "homeImportBlocklistRedownloadHint": "Torneu a baixar les llistes de DNS / bloquejador de contingut a Configuració de l'app per activar el bloqueig.",
   "homeSettingsImportedSuccess": "S'ha importat la configuració correctament",

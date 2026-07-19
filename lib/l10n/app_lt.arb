@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "Eksportuota: {date}",
   "homeImportSettingsSessionsNote": "Jūsų prisijungimo seansai bus išsaugoti atitinkamiems domenams. Pašalintų svetainių prisijungimai bus išvalyti.",
   "homeImportAction": "Importuoti",
+  "homeImportInvalidBackup": "Importuoti nepavyko: atsarginės kopijos failas netinkamas arba sugadintas. Jūsų esamos svetainės liko nepakeistos.",
   "homeImportProxyPasswordsHint": "Tarpinio serverio slaptažodžiai neįtraukiami į atsargines kopijas – įveskite juos iš naujo svetainės / programos nustatymuose.",
   "homeImportBlocklistRedownloadHint": "Iš naujo atsisiųskite DNS / turinio blokuoklio sąrašus programos nustatymuose, kad aktyvuotumėte blokavimą.",
   "homeSettingsImportedSuccess": "Nustatymai sėkmingai importuoti",

@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "Na-export: {date}",
   "homeImportSettingsSessionsNote": "Pananatilihin ang iyong mga session ng pag-login para sa mga tumutugmang domain. Bubura ang mga login para sa mga inalis na site.",
   "homeImportAction": "Mag-import",
+  "homeImportInvalidBackup": "Nabigo ang pag-import: hindi wasto o sira ang backup file. Hindi binago ang iyong kasalukuyang mga site.",
   "homeImportProxyPasswordsHint": "Hindi kasama ang mga password ng proxy sa mga backup — muling ilagay ang mga ito sa mga setting ng site / app.",
   "homeImportBlocklistRedownloadHint": "Muling i-download ang mga listahan ng DNS / content blocker sa App Settings para ma-activate ang pag-block.",
   "homeSettingsImportedSuccess": "Matagumpay na na-import ang mga setting",

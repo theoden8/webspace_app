@@ -570,6 +570,7 @@
   "homeImportExportedLabel": "Eksportuar: {date}",
   "homeImportSettingsSessionsNote": "Sesionet e tua të hyrjes do të ruhen për domenet përputhëse. Hyrjet për faqet e hequra do të pastrohen.",
   "homeImportAction": "Importo",
+  "homeImportInvalidBackup": "Importimi dështoi: skedari i rezervës është i pavlefshëm ose i dëmtuar. Faqet tuaja ekzistuese u lanë të pandryshuara.",
   "homeImportProxyPasswordsHint": "Fjalëkalimet e proxy-t nuk përfshihen në rezervat — rifutini te cilësimet e faqes / aplikacionit.",
   "homeImportBlocklistRedownloadHint": "Rishkarko listat DNS / bllokuesit e përmbajtjes te Cilësimet e aplikacionit për të aktivizuar bllokimin.",
   "homeSettingsImportedSuccess": "Cilësimet u importuan me sukses",

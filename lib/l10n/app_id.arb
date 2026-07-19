@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "Diekspor: {date}",
   "homeImportSettingsSessionsNote": "Sesi login Anda akan dipertahankan untuk domain yang cocok. Login untuk situs yang dihapus akan dibersihkan.",
   "homeImportAction": "Impor",
+  "homeImportInvalidBackup": "Impor gagal: file cadangan tidak valid atau rusak. Situs Anda yang ada tidak diubah.",
   "homeImportProxyPasswordsHint": "Kata sandi proxy tidak disertakan dalam cadangan — masukkan kembali di pengaturan situs / aplikasi.",
   "homeImportBlocklistRedownloadHint": "Unduh ulang daftar DNS / pemblokir konten di Pengaturan Aplikasi untuk mengaktifkan pemblokiran.",
   "homeSettingsImportedSuccess": "Pengaturan berhasil diimpor",

@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "Exportat: {date}",
   "homeImportSettingsSessionsNote": "Sesiunile tale de autentificare vor fi păstrate pentru domeniile potrivite. Autentificările pentru site-urile eliminate vor fi șterse.",
   "homeImportAction": "Importă",
+  "homeImportInvalidBackup": "Importul a eșuat: fișierul de rezervă este nevalid sau corupt. Site-urile tale existente au rămas neschimbate.",
   "homeImportProxyPasswordsHint": "Parolele de proxy nu sunt incluse în backup-uri — reintroduce-le în setările site-ului / aplicației.",
   "homeImportBlocklistRedownloadHint": "Redescarcă listele DNS / blocator de conținut în Setări aplicație pentru a activa blocarea.",
   "homeSettingsImportedSuccess": "Setări importate cu succes",

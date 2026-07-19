@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "Viety: {date}",
   "homeImportSettingsSessionsNote": "Kirjautumisistuntosi säilytetään vastaaville verkkotunnuksille. Poistettujen sivustojen kirjautumiset tyhjennetään.",
   "homeImportAction": "Tuo",
+  "homeImportInvalidBackup": "Tuonti epäonnistui: varmuuskopiotiedosto on virheellinen tai vioittunut. Nykyisiä sivustojasi ei muutettu.",
   "homeImportProxyPasswordsHint": "Välityspalvelimen salasanoja ei sisällytetä varmuuskopioihin — syötä ne uudelleen sivusto- tai sovellusasetuksissa.",
   "homeImportBlocklistRedownloadHint": "Lataa DNS- / sisältöestolistat uudelleen sovellusasetuksissa aktivoidaksesi eston.",
   "homeSettingsImportedSuccess": "Asetukset tuotu onnistuneesti",

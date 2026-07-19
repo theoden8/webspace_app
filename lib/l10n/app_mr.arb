@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "निर्यात केले: {date}",
   "homeImportSettingsSessionsNote": "जुळणाऱ्या डोमेनसाठी तुमची लॉगिन सत्रे जतन केली जातील. काढून टाकलेल्या साइटसाठी लॉगिन साफ केले जातील.",
   "homeImportAction": "आयात करा",
+  "homeImportInvalidBackup": "आयात अयशस्वी: बॅकअप फाइल अवैध किंवा खराब आहे. तुमच्या विद्यमान साइट्स जशाच्या तशा ठेवल्या आहेत.",
   "homeImportProxyPasswordsHint": "प्रॉक्सी पासवर्ड बॅकअपमध्ये समाविष्ट नाहीत — ते साइट / अॅप सेटिंग्जमध्ये पुन्हा प्रविष्ट करा.",
   "homeImportBlocklistRedownloadHint": "अवरोधन सक्रिय करण्यासाठी अॅप सेटिंग्जमध्ये DNS / सामग्री अवरोधक सूची पुन्हा डाउनलोड करा.",
   "homeSettingsImportedSuccess": "सेटिंग्ज यशस्वीरित्या आयात केल्या",

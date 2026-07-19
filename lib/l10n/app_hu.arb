@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "Exportálva: {date}",
   "homeImportSettingsSessionsNote": "A bejelentkezési munkamenetei megmaradnak az egyező domaineknél. Az eltávolított webhelyek bejelentkezései törlődnek.",
   "homeImportAction": "Importálás",
+  "homeImportInvalidBackup": "Az importálás nem sikerült: a biztonsági mentés fájlja érvénytelen vagy sérült. A meglévő webhelyei változatlanok maradtak.",
   "homeImportProxyPasswordsHint": "A proxyjelszavak nem szerepelnek a biztonsági mentésekben — adja meg őket újra a webhely / alkalmazás beállításaiban.",
   "homeImportBlocklistRedownloadHint": "Töltse le újra a DNS / tartalomblokkoló listákat az Alkalmazás beállításaiban a blokkolás aktiválásához.",
   "homeSettingsImportedSuccess": "A beállítások sikeresen importálva",

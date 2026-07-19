@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "Exporté : {date}",
   "homeImportSettingsSessionsNote": "Vos sessions de connexion seront conservées pour les domaines correspondants. Les connexions des sites supprimés seront effacées.",
   "homeImportAction": "Importer",
+  "homeImportInvalidBackup": "Échec de l'importation : le fichier de sauvegarde est invalide ou corrompu. Vos sites actuels n'ont pas été modifiés.",
   "homeImportProxyPasswordsHint": "Les mots de passe de proxy ne sont pas inclus dans les sauvegardes — ressaisissez-les dans les paramètres du site / de l'application.",
   "homeImportBlocklistRedownloadHint": "Retéléchargez les listes DNS / du bloqueur de contenu dans les Paramètres de l'application pour activer le blocage.",
   "homeSettingsImportedSuccess": "Paramètres importés avec succès",

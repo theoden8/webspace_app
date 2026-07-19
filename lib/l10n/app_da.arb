@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "Eksporteret: {date}",
   "homeImportSettingsSessionsNote": "Dine login-sessioner bevares for matchende domæner. Logins for fjernede sider ryddes.",
   "homeImportAction": "Importér",
+  "homeImportInvalidBackup": "Import mislykkedes: sikkerhedskopifilen er ugyldig eller beskadiget. Dine eksisterende websteder blev ikke ændret.",
   "homeImportProxyPasswordsHint": "Proxy-adgangskoder er ikke inkluderet i sikkerhedskopier — indtast dem igen i side- / appindstillinger.",
   "homeImportBlocklistRedownloadHint": "Download DNS- / indholdsblokeringslister igen i Appindstillinger for at aktivere blokering.",
   "homeSettingsImportedSuccess": "Indstillinger importeret",

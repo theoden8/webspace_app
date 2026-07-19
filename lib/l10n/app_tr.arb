@@ -568,6 +568,7 @@
   "homeImportExportedLabel": "Dışa aktarıldı: {date}",
   "homeImportSettingsSessionsNote": "Oturum açma oturumlarınız eşleşen alan adları için korunur. Kaldırılan sitelerin oturumları temizlenir.",
   "homeImportAction": "İçe aktar",
+  "homeImportInvalidBackup": "İçe aktarma başarısız: yedek dosyası geçersiz veya bozuk. Mevcut siteleriniz değiştirilmeden bırakıldı.",
   "homeImportProxyPasswordsHint": "Proxy parolaları yedeklere dahil edilmez — bunları site / uygulama ayarlarında yeniden girin.",
   "homeImportBlocklistRedownloadHint": "Engellemeyi etkinleştirmek için DNS / içerik engelleyici listelerini Uygulama Ayarları'nda yeniden indirin.",
   "homeSettingsImportedSuccess": "Ayarlar başarıyla içe aktarıldı",

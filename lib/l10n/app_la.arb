@@ -570,6 +570,7 @@
   "homeImportExportedLabel": "Exportatum: {date}",
   "homeImportSettingsSessionsNote": "Sessiones tuae aditus pro dominiis congruentibus servabuntur. Aditus pro locis remotis purgabuntur.",
   "homeImportAction": "Importare",
+  "homeImportInvalidBackup": "Importatio defecit: plica subsidiaria irrita aut corrupta est. Loca tua exstantia immutata relicta sunt.",
   "homeImportProxyPasswordsHint": "Tesserae procuratoris in subsidiis non includuntur — eas iterum in institutionibus loci / applicationis inscribe.",
   "homeImportBlocklistRedownloadHint": "Indices impediendorum DNS / impeditoris contenti in Institutionibus applicationis iterum exonera ad impeditionem activandam.",
   "homeSettingsImportedSuccess": "Institutiones feliciter importatae",
