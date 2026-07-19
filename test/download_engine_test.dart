@@ -300,6 +300,67 @@ void main() {
       expect(result.bytes, body);
     });
 
+    test('rejects up front when Content-Length exceeds maxBytes', () async {
+      var streamed = false;
+      final client = MockClient.streaming((request, bodyStream) async {
+        streamed = true;
+        return http.StreamedResponse(
+          Stream<List<int>>.value(List<int>.filled(10, 0)),
+          200,
+          contentLength: 1000000,
+        );
+      });
+      await expectLater(
+        DownloadEngine(client: client, maxBytes: 1024)
+            .fetch(url: 'https://x/big.bin'),
+        throwsA(isA<DownloadException>().having(
+            (e) => e.message, 'message', contains('size limit'))),
+      );
+      // Body was never consumed into memory.
+      expect(streamed, isTrue);
+    });
+
+    test('aborts a chunked stream once it grows past maxBytes', () async {
+      final client = MockClient.streaming((request, bodyStream) async {
+        Stream<List<int>> chunks() async* {
+          for (var i = 0; i < 100; i++) {
+            yield List<int>.filled(512, 7);
+          }
+        }
+        // No Content-Length: the up-front guard can't fire, so the
+        // streaming accumulator must be what stops it.
+        return http.StreamedResponse(chunks(), 200);
+      });
+      await expectLater(
+        DownloadEngine(client: client, maxBytes: 1024)
+            .fetch(url: 'https://x/stream'),
+        throwsA(isA<DownloadException>().having(
+            (e) => e.message, 'message', contains('size limit'))),
+      );
+    });
+
+    test('rejects a gzip decompression bomb over maxBytes', () async {
+      // ~1 MB of zeros gzips to a couple KB; with a 64 KB ceiling the
+      // decoder must bail before the inflated body materializes.
+      final bomb = Uint8List.fromList(List<int>.filled(1024 * 1024, 0));
+      final compressed = Uint8List.fromList(gzip.encode(bomb));
+      final client = MockClient((request) async => http.Response.bytes(
+            compressed,
+            200,
+            headers: {
+              'content-type': 'application/octet-stream',
+              'content-encoding': 'gzip',
+              'content-length': '${compressed.length}',
+            },
+          ));
+      await expectLater(
+        DownloadEngine(client: client, maxBytes: 64 * 1024)
+            .fetch(url: 'https://x/bomb'),
+        throwsA(isA<DownloadException>().having(
+            (e) => e.message, 'message', contains('size limit'))),
+      );
+    });
+
     test('streams progress with unknown total (no Content-Length)', () async {
       final client = MockClient.streaming((request, bodyStream) async {
         Stream<List<int>> chunks() async* {
