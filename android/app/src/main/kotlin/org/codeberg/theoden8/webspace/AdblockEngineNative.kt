@@ -13,11 +13,21 @@
 package org.codeberg.theoden8.webspace
 
 import android.util.Log
+import java.util.concurrent.locks.ReentrantReadWriteLock
 
 /**
  * Singleton wrapper around the JNI bridge to adblock-rust. Thread-safe
- * for concurrent reads (`checkUrl`); writes (`setRules`, `dispose`)
- * are serialised via `synchronized`.
+ * for concurrent reads (`checkUrl`, `redirectFor`); writes (`setRules`,
+ * `dispose`) are exclusive.
+ *
+ * Concurrency: readers and the freeing writer are serialised through a
+ * [ReentrantReadWriteLock]. `checkUrl`/`redirectFor` hand the raw
+ * `enginePtr` to Rust, which dereferences it (`&(*(handle as *mut
+ * Engine))`). Without the lock a concurrent `dispose()`/`setRules()`
+ * could `Box::from_raw` the same pointer mid-deref — a use-after-free
+ * on the chromium IO thread. The read lock lets many `checkUrl` calls
+ * run at once (the design goal) while the write lock guarantees no free
+ * happens while any read is in flight.
  *
  * Lifecycle: Dart pushes rules text via the `setAdblockEngineRules`
  * method channel call when the user flips the toggle. We parse them
@@ -33,9 +43,16 @@ object AdblockEngineNative {
     @Volatile
     private var loaded: Boolean = false
 
-    /** Opaque pointer the Rust side hands back from `engineNew`. */
+    /**
+     * Opaque pointer the Rust side hands back from `engineNew`. Mutated
+     * only under [rwLock]'s write lock; read under the read lock on the
+     * hot path (and lock-free in the [active] getter, hence @Volatile).
+     */
     @Volatile
     private var enginePtr: Long = 0L
+
+    /** Guards free (write) against deref (read). See the class doc. */
+    private val rwLock = ReentrantReadWriteLock()
 
     init {
         try {
@@ -70,23 +87,28 @@ object AdblockEngineNative {
      * engine if any. Pass an empty string to tear down (same effect
      * as [dispose]).
      */
-    @Synchronized
     fun setRules(rulesText: String, enableUboResources: Boolean = true) {
         if (!loaded) return
-        if (enginePtr != 0L) {
-            nativeEngineFree(enginePtr)
-            enginePtr = 0L
+        val writeLock = rwLock.writeLock()
+        writeLock.lock()
+        try {
+            if (enginePtr != 0L) {
+                nativeEngineFree(enginePtr)
+                enginePtr = 0L
+            }
+            if (rulesText.isEmpty()) {
+                Log.i(TAG, "engine torn down")
+                return
+            }
+            val ptr = nativeEngineNew(rulesText, enableUboResources)
+            enginePtr = ptr
+            Log.i(TAG, if (ptr != 0L)
+                "engine built (${rulesText.length} bytes, handle=0x${java.lang.Long.toHexString(ptr)}, ubo=$enableUboResources)"
+            else
+                "engine build failed")
+        } finally {
+            writeLock.unlock()
         }
-        if (rulesText.isEmpty()) {
-            Log.i(TAG, "engine torn down")
-            return
-        }
-        val ptr = nativeEngineNew(rulesText, enableUboResources)
-        enginePtr = ptr
-        Log.i(TAG, if (ptr != 0L)
-            "engine built (${rulesText.length} bytes, handle=0x${java.lang.Long.toHexString(ptr)}, ubo=$enableUboResources)"
-        else
-            "engine build failed")
     }
 
     /**
@@ -95,9 +117,16 @@ object AdblockEngineNative {
      * [active] before calling — short-circuit happens here.
      */
     fun checkUrl(url: String, sourceUrl: String, requestType: String): Boolean {
-        val handle = enginePtr
-        if (!loaded || handle == 0L) return false
-        return nativeCheckUrl(handle, url, sourceUrl, requestType)
+        if (!loaded) return false
+        val readLock = rwLock.readLock()
+        readLock.lock()
+        try {
+            val handle = enginePtr
+            if (handle == 0L) return false
+            return nativeCheckUrl(handle, url, sourceUrl, requestType)
+        } finally {
+            readLock.unlock()
+        }
     }
 
     /**
@@ -114,18 +143,30 @@ object AdblockEngineNative {
      * resource keep working) or just an empty 200.
      */
     fun redirectFor(url: String, sourceUrl: String, requestType: String): String? {
-        val handle = enginePtr
-        if (!loaded || handle == 0L) return null
-        return nativeRedirectFor(handle, url, sourceUrl, requestType)
+        if (!loaded) return null
+        val readLock = rwLock.readLock()
+        readLock.lock()
+        try {
+            val handle = enginePtr
+            if (handle == 0L) return null
+            return nativeRedirectFor(handle, url, sourceUrl, requestType)
+        } finally {
+            readLock.unlock()
+        }
     }
 
     /** Tear down the engine; idempotent. */
-    @Synchronized
     fun dispose() {
-        if (enginePtr != 0L) {
-            nativeEngineFree(enginePtr)
-            enginePtr = 0L
-            Log.i(TAG, "engine disposed")
+        val writeLock = rwLock.writeLock()
+        writeLock.lock()
+        try {
+            if (enginePtr != 0L) {
+                nativeEngineFree(enginePtr)
+                enginePtr = 0L
+                Log.i(TAG, "engine disposed")
+            }
+        } finally {
+            writeLock.unlock()
         }
     }
 
