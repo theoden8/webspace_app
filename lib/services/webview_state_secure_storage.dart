@@ -53,6 +53,7 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
   encrypt.Encrypter? _encrypter;
   encrypt.IV? _iv;
   bool _initialized = false;
+  Future<void>? _initInFlight;
 
   SecureWebViewStateStorage({
     FlutterSecureStorage? secureStorage,
@@ -65,8 +66,17 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
   /// Initialize the storage. Idempotent. Must complete before any
   /// save/load — the AES key is provisioned here (or rotated on app
   /// upgrade) and the cache directory is created if missing.
-  Future<void> initialize() async {
-    if (_initialized) return;
+  Future<void> initialize() {
+    if (_initialized) return Future.value();
+    // Memoize the in-flight future so two concurrent first-touch callers
+    // (e.g. a first loadState racing a first saveState) share one run instead
+    // of both entering _initEncryption and generating/persisting different
+    // keys — which would leave _encrypter using a key that isn't the stored
+    // one, making the next launch's reads fail.
+    return _initInFlight ??= _doInitialize();
+  }
+
+  Future<void> _doInitialize() async {
     final appDir = _overrideAppDir ?? await getApplicationDocumentsDirectory();
     _cacheDirectory = Directory('${appDir.path}/$_cacheDir');
     await _initEncryption();
@@ -75,6 +85,7 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
       await _cacheDirectory!.create(recursive: true);
     }
     _initialized = true;
+    _initInFlight = null;
   }
 
   Future<void> _initEncryption() async {
