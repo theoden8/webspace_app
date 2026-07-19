@@ -29,7 +29,6 @@ class HtmlCacheService {
 
   Directory? _cacheDirectory;
   encrypt.Encrypter? _encrypter;
-  encrypt.IV? _iv;
 
   /// In-memory cache for sync access during build
   final Map<String, String> _memoryCache = {};
@@ -134,9 +133,13 @@ class HtmlCacheService {
 
       final keyBytes = base64.decode(keyBase64);
       final key = encrypt.Key(Uint8List.fromList(keyBytes));
-      // Use a fixed IV derived from key (first 16 bytes) for deterministic encryption
-      _iv = encrypt.IV(Uint8List.fromList(keyBytes.sublist(0, 16)));
-      _encrypter = encrypt.Encrypter(encrypt.AES(key, mode: encrypt.AESMode.cbc));
+      // AES-GCM (authenticated): a fresh random nonce per blob is generated in
+      // [_encrypt] and prepended to the ciphertext. The previous AES-CBC with
+      // a fixed key-derived IV was deterministic (leaked plaintext equality)
+      // and unauthenticated (malleable); legacy CBC blobs fail GCM auth in
+      // [_decrypt] and are dropped as a cache miss (the cache is also cleared
+      // on upgrade).
+      _encrypter = encrypt.Encrypter(encrypt.AES(key, mode: encrypt.AESMode.gcm));
 
       LogService.instance.log('HtmlCache', 'Encryption initialized');
     } catch (e) {
@@ -145,21 +148,34 @@ class HtmlCacheService {
   }
 
   String? _encrypt(String plaintext) {
-    if (_encrypter == null || _iv == null) return null;
+    if (_encrypter == null) return null;
     try {
-      return _encrypter!.encrypt(plaintext, iv: _iv).base64;
+      final iv = encrypt.IV.fromSecureRandom(12);
+      final enc = _encrypter!.encrypt(plaintext, iv: iv);
+      // Wire: nonce(12) || ciphertext || GCM tag(16).
+      final wire = Uint8List(iv.bytes.length + enc.bytes.length)
+        ..setRange(0, iv.bytes.length, iv.bytes)
+        ..setRange(iv.bytes.length, iv.bytes.length + enc.bytes.length, enc.bytes);
+      return base64.encode(wire);
     } catch (e) {
       LogService.instance.log('HtmlCache', 'Encryption error: $e', level: LogLevel.error);
       return null;
     }
   }
 
-  String? _decrypt(String ciphertext) {
-    if (_encrypter == null || _iv == null) return null;
+  String? _decrypt(String wireBase64) {
+    if (_encrypter == null) return null;
     try {
-      return _encrypter!.decrypt64(ciphertext, iv: _iv);
+      final wire = base64.decode(wireBase64);
+      // 12-byte nonce + 16-byte minimum GCM tag. Shorter blobs, and legacy
+      // fixed-IV CBC blobs, fail authentication below and are dropped.
+      if (wire.length < 12 + 16) return null;
+      final iv = encrypt.IV(Uint8List.fromList(wire.sublist(0, 12)));
+      final body = encrypt.Encrypted(Uint8List.fromList(wire.sublist(12)));
+      return _encrypter!.decrypt(body, iv: iv);
     } catch (e) {
-      LogService.instance.log('HtmlCache', 'Decryption error: $e', level: LogLevel.error);
+      // Legacy CBC blob or tampered ciphertext: treat as a cache miss so it
+      // is re-cached fresh under GCM. Not logged (expected during migration).
       return null;
     }
   }

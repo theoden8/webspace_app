@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/foundation.dart';
 
 enum DownloadState { downloading, completed, failed, cancelled }
@@ -46,6 +48,13 @@ class DownloadsService extends ChangeNotifier {
 
   final List<DownloadTask> _tasks = [];
   int _counter = 0;
+  static final Random _rng = Random.secure();
+
+  static String _randomToken() {
+    final a = _rng.nextInt(1 << 32).toRadixString(16).padLeft(8, '0');
+    final b = _rng.nextInt(1 << 32).toRadixString(16).padLeft(8, '0');
+    return '$a$b';
+  }
 
   List<DownloadTask> get tasks => List.unmodifiable(_tasks);
   bool get hasActive => _tasks.any((t) => t.isActive);
@@ -60,7 +69,12 @@ class DownloadsService extends ChangeNotifier {
     int? bytesTotal,
   }) {
     final task = DownloadTask(
-      id: 'dl-${++_counter}',
+      // Unguessable id: the blob-download JS handlers
+      // (_webspaceBlobProgress / _webspaceBlobDownload / *Error) are
+      // page-reachable and take a taskId, so a sequential `dl-N` would let a
+      // hostile page enumerate and interfere with another site's in-flight
+      // download. A 64-bit secure-random suffix defeats guessing.
+      id: 'dl-${++_counter}-${_randomToken()}',
       filename: filename,
       url: url,
       bytesTotal: bytesTotal,

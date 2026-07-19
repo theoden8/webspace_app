@@ -6754,34 +6754,38 @@ class _WebSpacePageState extends State<WebSpacePage>
     );
 
     if (result == null || !mounted) return;
-    if (index >= _webViewModels.length) return;
+    // Apply by the captured model identity, not the index: a concurrent
+    // delete of a lower-indexed site while the dialog was open shifts
+    // positions, so `index` could now target a different site. Bail if this
+    // model was deleted meanwhile.
+    if (!_webViewModels.contains(model)) return;
 
     final newName = result['name'] as String?;
     final newUrl = result['url'] as String?;
 
     if (result['iconChanged'] == true) {
       setState(() {
-        _webViewModels[index].customIconPng = result['icon'] as Uint8List?;
+        model.customIconPng = result['icon'] as Uint8List?;
       });
     }
 
     if (newName != null && newName.isNotEmpty) {
       setState(() {
-        _webViewModels[index].name = newName;
+        model.name = newName;
       });
     }
 
-    if (newUrl != null && newUrl != _webViewModels[index].initUrl) {
+    if (newUrl != null && newUrl != model.initUrl) {
       // Snapshot belongs to the old URL; deleteCache must run before the
       // rebuild's getHtmlSync, which is why the sync in-memory eviction
       // (inside deleteCache) is fired before setState rather than awaited.
-      final siteId = _webViewModels[index].siteId;
+      final siteId = model.siteId;
       final deleteCache = HtmlCacheService.instance.deleteCache(siteId);
       setState(() {
-        _webViewModels[index].initUrl = newUrl;
-        _webViewModels[index].currentUrl = newUrl;
-        _webViewModels[index].webview = null; // Force recreation with new URL
-        _webViewModels[index].controller = null;
+        model.initUrl = newUrl;
+        model.currentUrl = newUrl;
+        model.webview = null; // Force recreation with new URL
+        model.controller = null;
       });
       await deleteCache;
     }
@@ -6847,16 +6851,20 @@ class _WebSpacePageState extends State<WebSpacePage>
           );
           break;
         case 'refresh':
-          final url = _webViewModels[index].initUrl;
+          final model = _webViewModels[index];
+          final url = model.initUrl;
           await FaviconUrlCache.invalidate(url);
           if (!mounted) return;
           final title = await getPageTitle(url);
           if (!mounted) return;
-          if (index >= _webViewModels.length) return;
+          // Re-resolve by identity, not by the captured index: a concurrent
+          // delete of a lower-indexed site shifts positions, so `index` could
+          // now point at a different site. Bail if this model was deleted.
+          if (!_webViewModels.contains(model)) return;
           if (title != null && title.isNotEmpty) {
             setState(() {
-              _webViewModels[index].name = title;
-              _webViewModels[index].pageTitle = title;
+              model.name = title;
+              model.pageTitle = title;
             });
             await _saveWebViewModels();
             if (!mounted) return;
