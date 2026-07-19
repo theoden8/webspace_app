@@ -2804,6 +2804,10 @@
   "@homeImportAction": {
     "description": "Button label confirming a settings import"
   },
+  "homeImportInvalidBackup": "Import failed: the backup file is invalid or corrupt. Your existing sites were left unchanged.",
+  "@homeImportInvalidBackup": {
+    "description": "Snackbar shown when a settings backup could not be parsed; the import was aborted and the user's current sites are untouched"
+  },
   "homeImportProxyPasswordsHint": "Proxy passwords aren't included in backups — re-enter them in site / app settings.",
   "@homeImportProxyPasswordsHint": {
     "description": "Hint appended to the import-success snackbar when proxy passwords were stripped"
