@@ -105,6 +105,19 @@ class CookieSecureStorage {
     return _synchronized(() => _saveCookiesUnlocked(cookiesByUrl));
   }
 
+  /// Build the full app-tier cookie map INSIDE the write lock, then persist
+  /// it. Use this (instead of building the map before `saveCookies`) when the
+  /// map is derived from live model state that a concurrent mutation can
+  /// change — specifically an archive move flipping `isArchiveTier` then
+  /// clearing the site's app-tier entry. Building before the lock lets a save
+  /// whose snapshot predates the flip land its whole-map write after the
+  /// clear, re-persisting the archive-tier session into app-tier storage
+  /// (ARCH-001). `build` runs synchronously at lock-acquisition time, after
+  /// any already-committed flip+clear, so the snapshot is always consistent.
+  Future<void> saveCookiesBuilt(Map<String, List<Cookie>> Function() build) {
+    return _synchronized(() => _saveCookiesUnlocked(build()));
+  }
+
   Future<void> _saveCookiesUnlocked(Map<String, List<Cookie>> cookiesByUrl) async {
     if (isDemoMode) return; // Don't persist in demo mode
 

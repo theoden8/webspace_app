@@ -2478,14 +2478,23 @@ class _WebSpacePageState extends State<WebSpacePage>
     // model list all filter on `!m.isArchiveTier`.
     final appTierModels = _webViewModels.where((m) => !m.isArchiveTier);
 
-    // Save cookies to secure storage, keyed by siteId for per-site isolation
-    final Map<String, List<Cookie>> cookiesBySiteId = {};
-    for (final webViewModel in appTierModels) {
-      if (webViewModel.cookies.isNotEmpty && !webViewModel.incognito) {
-        cookiesBySiteId[webViewModel.siteId] = List.from(webViewModel.cookies);
+    // Save cookies to secure storage, keyed by siteId for per-site isolation.
+    // Build the map INSIDE the store lock (ARCH-001): a concurrent archive
+    // move flips isArchiveTier then clears the site's app-tier entry, and a
+    // map snapshotted before that flip would otherwise re-persist the
+    // archive-tier session here. `saveCookiesBuilt` re-reads the models at
+    // lock time, after any committed flip+clear, so the archived site is
+    // excluded. Re-filter `!isArchiveTier` inside the builder for the same
+    // reason (appTierModels is a lazy view but is captured lexically above).
+    await _cookieSecureStorage.saveCookiesBuilt(() {
+      final map = <String, List<Cookie>>{};
+      for (final webViewModel in _webViewModels.where((m) => !m.isArchiveTier)) {
+        if (webViewModel.cookies.isNotEmpty && !webViewModel.incognito) {
+          map[webViewModel.siteId] = List.from(webViewModel.cookies);
+        }
       }
-    }
-    await _cookieSecureStorage.saveCookies(cookiesBySiteId);
+      return map;
+    });
 
     // Mirror per-site proxy passwords into secure storage. The non-secret
     // proxy fields ride along in the SharedPreferences JSON via
