@@ -2256,10 +2256,15 @@ class _WebSpacePageState extends State<WebSpacePage>
     }
     final model = _webViewModels[index];
     await _maybeSwitchToAllForSite(model, index);
+    if (!mounted) return;
     if (a.disposeBeforeLoad) {
       _evictCacheIfOnline(model.siteId);
       model.disposeWebView();
-      _loadedIndices.remove(index);
+      // Re-resolve by identity: `_loadedIndices` is positional and the site
+      // list may have shifted (a lower-indexed delete) across the await, so
+      // the captured `index` could now name a different site.
+      final idx = _webViewModels.indexOf(model);
+      if (idx >= 0) _loadedIndices.remove(idx);
       model.currentUrl = model.initUrl;
     }
     if (a.wipeContainer) {
@@ -2268,8 +2273,11 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (a.clearInMemoryCookies) {
       model.cookies = const [];
     }
-    if (index != _currentIndex) {
-      await _setCurrentIndex(index);
+    if (!mounted) return;
+    final activateIndex = _webViewModels.indexOf(model);
+    if (activateIndex < 0) return; // deleted during the awaits above
+    if (activateIndex != _currentIndex) {
+      await _setCurrentIndex(activateIndex);
     }
     if (!mounted) return;
     final controller = model.getController(
@@ -5083,20 +5091,27 @@ class _WebSpacePageState extends State<WebSpacePage>
         );
 
         for (final index in indicesToUnload) {
-          if (index >= 0 && index < _webViewModels.length) {
-            // Capture state before dispose so re-activation can
-            // restore the back/forward stack and (Apple) form data.
-            // Skipped for incognito sites inside the helper.
-            await _captureStateForRestore(_webViewModels[index]);
-            if (!mounted || version != _selectWebspaceVersion) return;
-            _webViewModels[index].disposeWebView();
-            _loadedIndices.remove(index);
-            LogService.instance.log(
-              'WebspaceSwitch',
-              'Unloaded site $index: "${_webViewModels[index].name}"',
-              sensitivity: LogSensitivity.sensitive,
-            );
-          }
+          if (index < 0 || index >= _webViewModels.length) continue;
+          // Capture the model by identity before the await: this loop's guard
+          // tracks `_selectWebspaceVersion`, which a concurrent `_deleteSite`
+          // does NOT bump (it bumps `_setCurrentIndexVersion`), so a delete
+          // could shift positions under us and make `_webViewModels[index]`
+          // a different site after the capture await.
+          final model = _webViewModels[index];
+          // Capture state before dispose so re-activation can
+          // restore the back/forward stack and (Apple) form data.
+          // Skipped for incognito sites inside the helper.
+          await _captureStateForRestore(model);
+          if (!mounted || version != _selectWebspaceVersion) return;
+          final curIndex = _webViewModels.indexOf(model);
+          if (curIndex < 0) continue; // deleted during the capture await
+          model.disposeWebView();
+          _loadedIndices.remove(curIndex);
+          LogService.instance.log(
+            'WebspaceSwitch',
+            'Unloaded site $curIndex: "${model.name}"',
+            sensitivity: LogSensitivity.sensitive,
+          );
         }
       } else {
         LogService.instance.log('WebspaceSwitch', 'Offline - preserving loaded webviews');
@@ -7222,7 +7237,10 @@ class _WebSpacePageState extends State<WebSpacePage>
                       final distance = (event.position - pointerDownPos!).distance;
                       final duration = event.timeStamp - pointerDownTime!;
                       if (distance < 20 && duration < const Duration(milliseconds: 300)) {
-                        Navigator.pop(context);
+                        // closeDrawer() (not Navigator.pop) is idempotent: a
+                        // rapid second tap won't pop the underlying page route
+                        // once the drawer is already closing.
+                        _scaffoldKey.currentState?.closeDrawer();
                         () async {
                           await _webspaceSwitchCompleter?.future;
                           await _setCurrentIndex(index);
@@ -7280,7 +7298,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       child: InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: () async {
-            Navigator.pop(context);
+            _scaffoldKey.currentState?.closeDrawer();
             await _webspaceSwitchCompleter?.future;
             await _setCurrentIndex(index);
             if (!mounted) return;
@@ -7894,7 +7912,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                         await _saveSelectedWebspaceId();
                         await _saveCurrentIndex();
                         if (!mounted) return;
-                        Navigator.pop(context);
+                        _scaffoldKey.currentState?.closeDrawer();
                       },
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
@@ -7933,7 +7951,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                           await _saveSelectedWebspaceId();
                           await _saveCurrentIndex();
                           if (!mounted) return;
-                          Navigator.pop(context);
+                          _scaffoldKey.currentState?.closeDrawer();
                         },
                         icon: Icon(Icons.arrow_back, size: 16),
                         label: Text(loc.homeBackToWebspaces, style: TextStyle(fontSize: 12)),
