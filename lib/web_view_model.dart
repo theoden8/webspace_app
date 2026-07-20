@@ -499,6 +499,12 @@ class WebViewModel {
   /// while a load is in flight.
   bool isLoading = false;
 
+  /// Main-frame load progress in 0-100. Driven by the
+  /// `WebViewConfig.onProgressChanged` callback wired in [getWebView];
+  /// reset to 0 when a navigation starts. Consumed by the app-bar
+  /// loading bar, which only renders it while [isLoading] is true.
+  int loadingProgress = 0;
+
   /// Runtime-only marker set when this model was materialised from an
   /// open [Archive] handle rather than restored from app-tier
   /// SharedPreferences. Never serialised. Per the archive feature audit
@@ -1104,10 +1110,19 @@ class WebViewModel {
           onLoadingChanged: (loading) {
             if (isLoading == loading) return;
             isLoading = loading;
+            // Reset on start so the bar doesn't flash the previous
+            // navigation's near-complete value.
+            if (loading) loadingProgress = 0;
             // Trigger a UI rebuild so the URL-bar action button can
             // swap between Refresh and Stop. saveFunc is intentionally
             // NOT called here — the loading bool is transient runtime
             // state, not part of the persisted site model.
+            stateSetterF?.call();
+          },
+          onProgressChanged: (progress) {
+            if (loadingProgress == progress) return;
+            loadingProgress = progress;
+            // Transient runtime state, same contract as onLoadingChanged.
             stateSetterF?.call();
           },
           onUrlChanged: (url) async {

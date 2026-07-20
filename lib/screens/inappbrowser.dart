@@ -157,6 +157,12 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   late bool _showUrlBar;
   FindMatchesResult findMatches = FindMatchesResult();
 
+  /// Transient load state for the AppBar progress bar, mirroring the main
+  /// screen's `WebViewModel.isLoading` / `loadingProgress`.
+  bool _isLoading = false;
+  int _loadingProgress = 0;
+  static const double _loadingBarHeight = 3.0;
+
   /// Race guard for the PopScope handler. Async swipe gestures (iOS edge
   /// swipe) can re-enter `onPopInvokedWithResult` while the previous
   /// invocation is still awaiting `goBack()` / URL diff, which would
@@ -286,6 +292,19 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
               _currentUrl = url;
             });
           }
+        },
+        onLoadingChanged: (loading) {
+          if (!mounted || _isLoading == loading) return;
+          setState(() {
+            _isLoading = loading;
+            if (loading) _loadingProgress = 0;
+          });
+        },
+        onProgressChanged: (progress) {
+          if (!mounted || _loadingProgress == progress) return;
+          setState(() {
+            _loadingProgress = progress;
+          });
         },
         onConsoleMessage: (message, level) {
           _devToolsHost.appendConsole(message, level);
@@ -587,6 +606,16 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
       },
       child: Scaffold(
       appBar: AppBar(
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(_loadingBarHeight),
+          child: _isLoading
+              ? LinearProgressIndicator(
+                  value: _loadingProgress > 0 ? _loadingProgress / 100 : null,
+                  minHeight: _loadingBarHeight,
+                  backgroundColor: Colors.transparent,
+                )
+              : const SizedBox(height: _loadingBarHeight),
+        ),
         // Custom back button that bypasses PopScope by calling
         // Navigator.pop directly (vs maybePop), so the AppBar back
         // arrow always closes the nested screen. Only the system back
