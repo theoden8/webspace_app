@@ -406,21 +406,23 @@ jobs:
   build-linux:
     name: Build Linux
     runs-on: ubuntu-latest
-    # Run inside Debian Sid because libwpewebkit-2.0-dev needs to be at
-    # least 2.50: flutter_inappwebview_linux 0.1.0-beta.1 calls
-    # webkit_navigation_action_is_for_main_frame (added in 2.50) and
-    # webkit_web_view_get_theme_color (also 2.50). Trixie ships 2.48
-    # which is too old; Ubuntu Noble has no WPE packages at all; Jammy
-    # is 2.36. Sid has 2.52.3. Sid is technically "unstable" but the
-    # WPE WebKit toolchain there has been the most stable path; if
-    # anything else in the apt set breaks we'll surface the package
-    # name and pin if needed. The Android job stays untouched on the
-    # ubuntu-latest host runner — only Linux is in this container.
+    # Run inside Debian forky (testing) because libwpewebkit-2.0-dev
+    # needs to be at least 2.50: flutter_inappwebview_linux
+    # 0.1.0-beta.1 calls webkit_navigation_action_is_for_main_frame
+    # (added in 2.50) and webkit_web_view_get_theme_color (also 2.50).
+    # Trixie ships 2.48 which is too old; Ubuntu Noble has no WPE
+    # packages at all; Jammy is 2.36. Forky ships the same wpewebkit
+    # as sid (2.52.5) but packages only migrate into testing after
+    # passing installability checks, so it avoids the mid-transition
+    # states where sid's archive refuses to resolve anything (which
+    # broke this job on 2026-07-19). The Android job stays untouched
+    # on the ubuntu-latest host runner — only Linux is in this
+    # container.
     container:
-      image: debian:sid-slim
+      image: debian:forky-slim
     steps:
       - name: Install container base + Flutter Linux + WPE WebKit deps
-        # debian:sid-slim ships nothing — Actions need git/curl/unzip
+        # debian:forky-slim ships nothing — Actions need git/curl/unzip
         # just to function. Flutter desktop linux needs gtk/lzma/secret/
         # epoxy. The plugin needs libwpewebkit-2.0-dev plus libwpe-1.0-dev
         # and libwpebackend-fdo-1.0-dev (legacy fallback path; harmless
@@ -431,7 +433,7 @@ jobs:
         # pass + gpg + pipx + python3-gi/dbus/secretstorage are the
         # support stack for pass-secret-service (a Secret Service dbus
         # provider backed by pass+gpg). Replaces gnome-keyring for CI:
-        # gnome-keyring 50.0 in sid auto-activates a fresh daemon on
+        # gnome-keyring 50.0 in forky auto-activates a fresh daemon on
         # libsecret first-call that prompts via gcr-prompter, and
         # headless Xvfb has no way to dismiss the prompt — main() hangs
         # forever before runApp. pass-secret-service answers the same
@@ -473,7 +475,7 @@ jobs:
           set -x
           pipx install --system-site-packages pass-secret-service
           # Resolve the venv's python3.X dir at runtime — pipx picks whatever
-          # interpreter the sid image ships (3.13 -> 3.14 -> ...), so pinning a
+          # interpreter the base image ships (3.13 -> 3.14 -> ...), so pinning a
           # version breaks the moment the base image bumps Python.
           SESSION_PY="$(ls "$HOME"/.local/share/pipx/venvs/pass-secret-service/lib/python3.*/site-packages/pass_secret_service/interfaces/session.py)"
           sed -i 's|from cryptography.utils import int_from_bytes|def int_from_bytes(data, byteorder, signed=False): return int.from_bytes(data, byteorder, signed=signed)|' "$SESSION_PY"
@@ -490,9 +492,9 @@ jobs:
           # (not /root, even though the container runs as root). fvm
           # install script v2.0.0+ caches Flutter SDKs under $HOME/fvm/versions.
           path: ~/fvm/versions
-          key: fvm-debian-sid-${{ hashFiles('**/.fvmrc') }}
+          key: fvm-debian-forky-${{ hashFiles('**/.fvmrc') }}
           restore-keys: |
-            fvm-debian-sid-
+            fvm-debian-forky-
 
       - name: Install fvm (standalone binary)
         # fvm.app/install.sh v2 installs the binary to $HOME/fvm/bin/fvm.
@@ -518,9 +520,9 @@ jobs:
           path: |
             /root/.pub-cache
             .dart_tool
-          key: pub-debian-sid-${{ hashFiles('**/pubspec.lock') }}
+          key: pub-debian-forky-${{ hashFiles('**/pubspec.lock') }}
           restore-keys: |
-            pub-debian-sid-
+            pub-debian-forky-
 
       - name: Get dependencies
         run: fvm flutter pub get --enforce-lockfile
@@ -591,7 +593,7 @@ jobs:
           # calls `xdg-user-dir DOCUMENTS` (provided by the xdg-user-dirs
           # package, installed in the deps step above). xdg-user-dir
           # reads $XDG_CONFIG_HOME/user-dirs.dirs; if absent it falls
-          # back to $HOME/Documents. The Sid container ships with
+          # back to $HOME/Documents. The forky container ships with
           # neither — populate ~/.config/user-dirs.dirs and create the
           # target directory so the lookup returns a real path instead
           # of throwing MissingPlatformDirectoryException at boot.
