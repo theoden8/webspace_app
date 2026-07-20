@@ -539,6 +539,11 @@ class WebViewConfig {
   /// use this to swap a Refresh button with a Stop button while a
   /// navigation is in flight.
   final Function(bool isLoading)? onLoadingChanged;
+  /// Fires as the main-frame load advances, with progress in 0-100.
+  /// Driven by the platform's `onProgressChanged`. The call site can
+  /// use this to render a determinate loading bar while a navigation
+  /// is in flight ([onLoadingChanged] gates visibility).
+  final Function(int progress)? onProgressChanged;
   /// Callback for when a popup window is requested (e.g., Cloudflare challenges).
   /// Returns a widget (typically a WebView) to display in the popup.
   /// The callback receives the windowId for the popup and the requested URL.
@@ -691,6 +696,7 @@ class WebViewConfig {
     this.localCdnEnabled = true,
     this.onUrlChanged,
     this.onLoadingChanged,
+    this.onProgressChanged,
     this.onCookiesChanged,
     this.cookieManager,
     this.containerCookieManager,
@@ -3331,6 +3337,11 @@ class WebViewFactory {
       // useShouldInterceptRequest comment above. Sub-resource DNS blocking
       // and LocalCDN replacement are both handled by the native
       // FastSubresourceInterceptor attached via WebInterceptNative.
+      onProgressChanged: config.onProgressChanged == null
+          ? null
+          : (controller, progress) {
+              config.onProgressChanged!(progress);
+            },
       onLoadStart: (controller, url) async {
         LogService.instance.log(
           'WebViewLifecycle',
