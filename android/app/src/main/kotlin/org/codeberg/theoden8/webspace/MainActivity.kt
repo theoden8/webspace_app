@@ -307,6 +307,12 @@ class MainActivity: FlutterActivity() {
     }
 
     private fun readStreamAsString(uri: Uri): String? {
+        // Only read content:// shares. MainActivity is exported, so a hostile
+        // app can hand us an EXTRA_STREAM pointing at file:///data/data/<pkg>/…;
+        // openInputStream would then read our OWN private files with our UID
+        // and import them as a site (CWE-926). Legitimate shares always arrive
+        // as content:// via the sender's FileProvider.
+        if (uri.scheme?.lowercase() != "content") return null
         return try {
             contentResolver.openInputStream(uri)?.use { input ->
                 input.bufferedReader(Charsets.UTF_8).readText()
