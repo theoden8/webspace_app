@@ -154,6 +154,39 @@ When a site is deleted, all webspace indices SHALL be automatically updated.
 
 ---
 
+### Requirement: WEBSPACE-011 - Reorder Sites by Dragging
+
+Users SHALL be able to change the display order of sites by dragging, in
+both the bottom tab strip and the drawer grid. The new order SHALL persist
+across app restarts. This reorders the sites *within* the selected view; it
+does not move the webspace cards themselves (WEBSPACE-009 still holds — the
+"All" webspace card cannot be moved in the webspaces list).
+
+#### Scenario: Reorder sites within a named webspace
+
+**Given** the "Work" webspace is selected with sites [A, B, C] in that order
+**When** the user long-presses site C in the tab strip or drawer grid and drops it onto site A's position
+**Then** "Work"'s membership order becomes [C, A, B]
+**And** the change is written to the webspace's persisted `siteIds`
+**And** the global order of other webspaces is unaffected
+
+#### Scenario: Reorder sites within the "All" webspace
+
+**Given** the "All" webspace is selected showing every site in `_webViewModels` order
+**When** the user drags a site to a new position in the tab strip or drawer grid
+**Then** `_webViewModels` is reordered to match
+**And** the active site stays active (its `_currentIndex` follows it to its new position)
+**And** any loaded webviews keep their in-memory state (IndexedStack children are keyed by `siteId`, not position)
+**And** the new order is persisted
+
+#### Scenario: Single site is not draggable
+
+**Given** the selected view contains only one site
+**When** the user long-presses that site
+**Then** no drag begins (there is nothing to reorder)
+
+---
+
 ## Data Model
 
 ### Webspace
@@ -230,6 +263,15 @@ production):
   when a site is removed from `_webViewModels`, implementing
   WEBSPACE-010. The rewrite drops the deleted index and shifts every
   `i > deletedIndex` down by one.
+- [`SiteLifecycleEngine.computeReorderPatch`](../../../lib/services/site_lifecycle_engine.dart)
+  — implements the "All" branch of WEBSPACE-011. Given a move of the
+  model at `oldIndex` to `newIndex` (`removeAt` + `insert`), it remaps
+  `_loadedIndices` and `_currentIndex` to the positions their elements
+  occupy after the move, so the active site and every loaded webview
+  keep pointing at the same `siteId`. Reordering within a named
+  webspace needs no engine: it rewrites the webspace's siteId-keyed
+  `siteIds` list directly (`_reorderSiteInWebspace`), and
+  `_resolveWebspaceIndices` rebuilds the positional view.
 
 Tests live in [test/webspace_selection_engine_test.dart](../../../test/webspace_selection_engine_test.dart),
 [test/site_unload_engine_test.dart](../../../test/site_unload_engine_test.dart),

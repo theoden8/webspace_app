@@ -37,7 +37,55 @@ class SiteDeletionPatch {
   });
 }
 
+/// Pure state transform describing how `_loadedIndices` and the current-index
+/// pointer must be updated after a site is moved within `_webViewModels` via
+/// `removeAt(oldIndex); insert(newIndex, moved)`. Webspace `siteIndices` are
+/// siteId-keyed and rebuilt by `_resolveWebspaceIndices`, so they are not part
+/// of the patch.
+class SiteReorderPatch {
+  /// Loaded indices after the move, each remapped to the position its element
+  /// occupies once the moved element lands at `newIndex`.
+  final Set<int> newLoadedIndices;
+
+  /// Updated value for `_currentIndex`: `null` stays `null`, otherwise remapped
+  /// to the active site's new position.
+  final int? newCurrentIndex;
+
+  const SiteReorderPatch({
+    required this.newLoadedIndices,
+    required this.newCurrentIndex,
+  });
+}
+
 class SiteLifecycleEngine {
+  /// Computes the index-rewrite after moving the model at [oldIndex] to
+  /// [newIndex] in `_webViewModels` (`removeAt(oldIndex); insert(newIndex, moved)`).
+  /// Every tracked positional index is remapped to where its element ends up:
+  ///
+  ///   * the moved element               → `newIndex`
+  ///   * an element after `oldIndex`      → shifts down by one, then up by one
+  ///     if it now sits at/after `newIndex` (net: follows the moved element)
+  ///
+  /// Both indices must be valid positions in the pre-move list; `oldIndex ==
+  /// newIndex` is a no-op mapping (identity).
+  static SiteReorderPatch computeReorderPatch({
+    required int oldIndex,
+    required int newIndex,
+    required Set<int> loadedIndices,
+    required int? currentIndex,
+  }) {
+    int mapIndex(int i) {
+      if (i == oldIndex) return newIndex;
+      final afterRemoval = i > oldIndex ? i - 1 : i;
+      return afterRemoval >= newIndex ? afterRemoval + 1 : afterRemoval;
+    }
+
+    return SiteReorderPatch(
+      newLoadedIndices: {for (final i in loadedIndices) mapIndex(i)},
+      newCurrentIndex: currentIndex == null ? null : mapIndex(currentIndex),
+    );
+  }
+
   /// Computes the index-rewrite that must happen after `_webViewModels.removeAt(deletedIndex)`:
   ///
   ///   * `loadedIndices`: drop `deletedIndex`, shift `i > deletedIndex` to `i - 1`,

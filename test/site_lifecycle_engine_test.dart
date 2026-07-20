@@ -164,4 +164,123 @@ void main() {
       expect(patch.newCurrentIndex, isNull);
     });
   });
+
+  group('SiteLifecycleEngine.computeReorderPatch', () {
+    // Ground truth: apply removeAt(old)+insert(new) to a labelled list and
+    // read back where each original index landed.
+    Map<int, int> groundTruthMapping(int oldIndex, int newIndex, int count) {
+      final list = List<int>.generate(count, (i) => i);
+      final moved = list.removeAt(oldIndex);
+      list.insert(newIndex, moved);
+      return {for (var pos = 0; pos < list.length; pos++) list[pos]: pos};
+    }
+
+    test('remaps loadedIndices to match removeAt+insert (move forward)', () {
+      // [0,1,2,3,4] move 1 -> 3 => [0,2,3,1,4]
+      final truth = groundTruthMapping(1, 3, 5);
+      final patch = SiteLifecycleEngine.computeReorderPatch(
+        oldIndex: 1,
+        newIndex: 3,
+        loadedIndices: {0, 1, 2, 3, 4},
+        currentIndex: null,
+      );
+      expect(patch.newLoadedIndices, truth.values.toSet());
+      expect(patch.newLoadedIndices, {truth[0], truth[1], truth[2], truth[3], truth[4]});
+    });
+
+    test('remaps loadedIndices to match removeAt+insert (move backward)', () {
+      // [0,1,2,3,4] move 4 -> 0 => [4,0,1,2,3]
+      final truth = groundTruthMapping(4, 0, 5);
+      final patch = SiteLifecycleEngine.computeReorderPatch(
+        oldIndex: 4,
+        newIndex: 0,
+        loadedIndices: {1, 4},
+        currentIndex: null,
+      );
+      expect(patch.newLoadedIndices, {truth[1], truth[4]});
+    });
+
+    test('moved element lands exactly at newIndex', () {
+      final patch = SiteLifecycleEngine.computeReorderPatch(
+        oldIndex: 2,
+        newIndex: 4,
+        loadedIndices: {2},
+        currentIndex: 2,
+      );
+      expect(patch.newLoadedIndices, {4});
+      expect(patch.newCurrentIndex, 4);
+    });
+
+    test('active site pointer follows the move when it is the moved site', () {
+      final patch = SiteLifecycleEngine.computeReorderPatch(
+        oldIndex: 0,
+        newIndex: 3,
+        loadedIndices: {0},
+        currentIndex: 0,
+      );
+      expect(patch.newCurrentIndex, 3);
+    });
+
+    test('active site pointer shifts when another site moves over it', () {
+      // active at 3, move 0 -> 4 => [1,2,3,4,0]; index 3 (site "3") -> pos 2
+      final truth = groundTruthMapping(0, 4, 5);
+      final patch = SiteLifecycleEngine.computeReorderPatch(
+        oldIndex: 0,
+        newIndex: 4,
+        loadedIndices: const {},
+        currentIndex: 3,
+      );
+      expect(patch.newCurrentIndex, truth[3]);
+      expect(patch.newCurrentIndex, 2);
+    });
+
+    test('active site pointer unchanged when the move is entirely after it', () {
+      final patch = SiteLifecycleEngine.computeReorderPatch(
+        oldIndex: 3,
+        newIndex: 4,
+        loadedIndices: const {},
+        currentIndex: 1,
+      );
+      expect(patch.newCurrentIndex, 1);
+    });
+
+    test('null currentIndex stays null', () {
+      final patch = SiteLifecycleEngine.computeReorderPatch(
+        oldIndex: 1,
+        newIndex: 2,
+        loadedIndices: const {},
+        currentIndex: null,
+      );
+      expect(patch.newCurrentIndex, isNull);
+    });
+
+    test('exhaustive: every index remap matches removeAt+insert ground truth', () {
+      const count = 6;
+      for (var oldIndex = 0; oldIndex < count; oldIndex++) {
+        for (var newIndex = 0; newIndex < count; newIndex++) {
+          final truth = groundTruthMapping(oldIndex, newIndex, count);
+          final patch = SiteLifecycleEngine.computeReorderPatch(
+            oldIndex: oldIndex,
+            newIndex: newIndex,
+            loadedIndices: {for (var i = 0; i < count; i++) i},
+            currentIndex: null,
+          );
+          for (var i = 0; i < count; i++) {
+            final single = SiteLifecycleEngine.computeReorderPatch(
+              oldIndex: oldIndex,
+              newIndex: newIndex,
+              loadedIndices: {i},
+              currentIndex: i,
+            );
+            expect(single.newLoadedIndices, {truth[i]},
+                reason: 'move $oldIndex->$newIndex, index $i');
+            expect(single.newCurrentIndex, truth[i],
+                reason: 'move $oldIndex->$newIndex, currentIndex $i');
+          }
+          // The full set is a permutation of 0..count-1.
+          expect(patch.newLoadedIndices, {for (var i = 0; i < count; i++) i});
+        }
+      }
+    });
+  });
 }
