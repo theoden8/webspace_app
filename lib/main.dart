@@ -78,6 +78,7 @@ import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/shortcut_service.dart';
 import 'package:webspace/services/background_task_service.dart';
+import 'package:webspace/services/media_session_service.dart';
 import 'package:webspace/services/share_intent_service.dart';
 import 'package:webspace/services/link_routing_service.dart';
 import 'package:webspace/services/link_intent_dispatch_engine.dart';
@@ -4440,6 +4441,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     BackgroundTaskService.instance.onBackgroundRefresh =
         _refreshNotificationSites;
     BackgroundTaskService.instance.initialize();
+    // BGAUDIO-006: wire the Android media-notification transport channel.
+    MediaSessionService.instance.initialize();
     if (_anyNotificationSites()) {
       unawaited(BackgroundTaskService.instance.scheduleNextRefresh());
     }
@@ -4695,6 +4698,12 @@ class _WebSpacePageState extends State<WebSpacePage>
       break;
     }
     await BackgroundTaskService.instance.setBackgroundAudioActive(any);
+    // BGAUDIO-006: with no background-audio site loaded there is nothing to
+    // drive the Android media notification — tear it down. While one is
+    // loaded the notification is raised/updated by its page-JS reports.
+    if (!any) {
+      await MediaSessionService.instance.stopAll();
+    }
   }
 
   /// Reload every notification site so its page JS gets a chance to fire

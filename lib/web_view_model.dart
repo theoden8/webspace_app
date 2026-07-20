@@ -1031,6 +1031,7 @@ class WebViewModel {
           // through the global `ProxyController` in `_applyProxySettings`.
           proxySettings: proxySettings,
           notificationsEnabled: notificationsEnabled,
+          backgroundAudioEnabled: effectiveBackgroundAudioEnabled,
           userScripts: combineUserScripts(globalUserScripts),
           onConfirmScriptFetch: onConfirmScriptFetch,
           onUntrustedCertificate: onUntrustedCertificate,

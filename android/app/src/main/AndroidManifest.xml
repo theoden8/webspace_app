@@ -1,6 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- BGAUDIO-006: media foreground service so a site with "Background audio"
+         enabled keeps playing (and shows a media notification with transport
+         controls) after the app leaves the foreground. Media playback is a
+         Play-accepted foreground-service type, unlike SPECIAL_USE. The service
+         only runs while such a site is actively playing. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <!-- Optional, requested at runtime only when the user taps "Use current location"
          in the per-site location picker. Not used for any background/tracking. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
@@ -52,6 +59,12 @@
                 <data android:scheme="webspace"/>
             </intent-filter>
         </activity>
+        <!-- BGAUDIO-006: foreground media-playback service. Not exported; only
+             started from within the app when a background-audio site plays. -->
+        <service
+            android:name=".MediaPlaybackService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
