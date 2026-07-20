@@ -292,6 +292,42 @@ Orchestration (which sites unload on switch, how indices shift after delete, wha
 - Race protection: pass `(versionAtEntry, int Function() currentVersion)` so the engine can bail without knowing about widget state.
 - Tests import the engine directly with in-memory fakes that **model the interface** (e.g. `MockCookieManager` modeling RFC 6265 domain-match), not trivial stubs. See [test/cookie_isolation_integration_test.dart](test/cookie_isolation_integration_test.dart).
 
+## Adding native code that mutates shared state (BUG-007)
+
+A recurring class: native state touched by a callback / IO thread AND another path,
+with only *partial* synchronization (which looks safe and isn't). It has recurred across
+Rust/JNI (adblock UAF), Swift (BGTask double-complete), and Kotlin (intercept cache). Full
+lineage + the invariant: [docs/bugs/007-native-shared-state-races.md](docs/bugs/007-native-shared-state-races.md).
+
+When you add native state (a Kotlin plugin field, a Swift property, a Rust handle) that any
+callback, `expirationHandler`, WorkManager/coroutine, or chromium sub-resource IO thread can
+observe:
+
+- **Total synchronization or none-shared.** Either single-owner / immutable-snapshot /
+  message-passed, or *every* read, write, and eviction under one monitor / serial queue /
+  RW-lock. A lock on the writer but not the reader is BUG-007 — don't.
+- **One-shot resources are idempotent + identity-guarded.** A freed pointer or a completed
+  task: guard the second call to a no-op (`guard pendingRefreshTask === task`). Never
+  free/complete by re-reading shared state.
+- **Read-heavy hot path → RW-lock** (readers concurrent, writer exclusive); don't hold a lock
+  across a blocking call (read under lock, compute outside, write under lock).
+- **Encode a class-level guard** (practice, not optional): a JVM concurrency/stress test or a
+  structural CI gate so the *next* instance fails, not just this one. Templates:
+  `AdblockEngineNativeTest.kt`, `test/js/native_bgtask_completion_funnel.test.js`.
+- **Record recurrence in BUG-007**, not a new file — append a dated fix attempt with *why it
+  was partial* (which path it covered, which it missed). Cross-link the spec that owns the
+  state.
+
+## Logic engine vs rendering engine
+
+Orchestration (which sites unload on switch, how indices shift after delete, what cookies move during activation) → pure-Dart engine in `lib/services/*_engine.dart`. Template: [cookie_isolation.dart](lib/services/cookie_isolation.dart). Native webview / platform channels / `setState` stays at the call site.
+
+- Mutating `_webViewModels`/`_loadedIndices`/`_webspaces` with >1 line of index arithmetic? Engine.
+- `await native_call` then mutate shared state with scenario-dependent logic? Engine.
+- Engines never `import 'package:flutter/material.dart'`, never call `setState`, never touch `context`. Add interfaces on existing services (e.g. `CookieManager`) instead of reaching into concrete types.
+- Race protection: pass `(versionAtEntry, int Function() currentVersion)` so the engine can bail without knowing about widget state.
+- Tests import the engine directly with in-memory fakes that **model the interface** (e.g. `MockCookieManager` modeling RFC 6265 domain-match), not trivial stubs. See [test/cookie_isolation_integration_test.dart](test/cookie_isolation_integration_test.dart).
+
 ## DRY: tests delegate, don't reimplement
 
 Test harness re-implementing `switchToSite`/`deleteSite` = un-extracted engine. Wrap the real engine; never re-write the flow in a test. See [test/cookie_isolation_integration_test.dart:174-238](test/cookie_isolation_integration_test.dart).
