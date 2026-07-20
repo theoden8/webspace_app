@@ -2610,11 +2610,23 @@ class WebViewFactory {
                 accuracy: requestAccuracy,
               );
               if (res.status == CurrentLocationStatus.ok && res.fix != null) {
+                // Apply the granularity grid-snap HERE, not only in the JS
+                // shim: the shim is injected forMainFrameOnly:false, so a page
+                // or cross-origin iframe can call this handler directly and
+                // bypass snapFix. Snapping natively makes the per-site
+                // granularity authoritative (the shim still snaps too, which
+                // is now a no-op on the already-coarsened value).
+                final (lat, lng, acc) = snapLiveFix(
+                  latitude: res.fix!.latitude,
+                  longitude: res.fix!.longitude,
+                  accuracy: res.fix!.accuracy,
+                  granularity: config.liveLocationGranularity,
+                );
                 return {
                   'status': 'ok',
-                  'latitude': res.fix!.latitude,
-                  'longitude': res.fix!.longitude,
-                  'accuracy': res.fix!.accuracy,
+                  'latitude': lat,
+                  'longitude': lng,
+                  'accuracy': acc,
                 };
               }
               return {
