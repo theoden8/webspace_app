@@ -149,6 +149,19 @@ class ExternalUrlParser {
     return null;
   }
 
+  /// Whether [url] is a plain http(s) URL safe to hand to `loadUrl` or an
+  /// external "open in browser" launch. The intent `browser_fallback_url`
+  /// is attacker-influenced (a page hands us the whole `intent://…` string),
+  /// so before *loading* a fallback we must re-check its scheme — a
+  /// `file://` / `javascript:` / `data:` fallback would otherwise disclose
+  /// app-private files or run script in the current document. [toWebUrl]
+  /// already enforces this on the silent route; call sites that load a
+  /// fallback from the confirmation dialog MUST gate on this too.
+  static bool isLoadableWebUrl(String url) {
+    final scheme = Uri.tryParse(url)?.scheme.toLowerCase();
+    return scheme == 'http' || scheme == 'https';
+  }
+
   /// Resolves an [ExternalUrlInfo] for an intent:// URL to an equivalent
   /// http(s) URL the webview can load: prefers the explicit
   /// `S.browser_fallback_url` extra; otherwise reconstructs from

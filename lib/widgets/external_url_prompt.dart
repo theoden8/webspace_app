@@ -150,7 +150,12 @@ Future<void> confirmAndLaunchExternalUrl(
       }
     }
 
-    final hasFallback = cleanedFallback.isNotEmpty;
+    // Only offer "Open in browser" for an http(s) fallback. The fallback is
+    // attacker-influenced (extracted from the page's `intent://…` string), so
+    // a `file://` / `javascript:` / `data:` value must never reach loadUrl —
+    // it would disclose app-private files or run script in the document.
+    final hasFallback = cleanedFallback.isNotEmpty &&
+        ExternalUrlParser.isLoadableWebUrl(cleanedFallback);
     final loc = AppLocalizations.of(context);
     final packageName = info.package;
     final choice = await showDialog<_ExternalUrlChoice>(
@@ -217,7 +222,19 @@ Future<void> confirmAndLaunchExternalUrl(
         // same-domain vs cross-domain (nested webview). When no
         // controller is available — e.g. tel:/mailto: with no fallback —
         // fall back to handing the URL to the OS.
-        if (loadInWebView != null && cleanedFallback.isNotEmpty) {
+        // Defense in depth: hasFallback already required an http(s)
+        // fallback for this branch to be reachable, but re-check before
+        // loading / launching so a future refactor can't reintroduce a
+        // file:/javascript:/data: load here.
+        if (!ExternalUrlParser.isLoadableWebUrl(cleanedFallback)) {
+          LogService.instance.log(
+            'ExternalUrl',
+            'refused non-http(s) fallback',
+            sensitivity: LogSensitivity.sensitive,
+          );
+          return;
+        }
+        if (loadInWebView != null) {
           try {
             await loadInWebView.loadUrl(cleanedFallback);
           } catch (e) {
