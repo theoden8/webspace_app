@@ -7749,6 +7749,31 @@ class _WebSpacePageState extends State<WebSpacePage>
                       ),
                     ),
                   ),
+                // Fullscreen sessions (including kiosk-locked, where
+                // fullscreen is forced and held — KIOSK-003) have no AppBar
+                // to host the load progress bar, so overlay it along the top
+                // edge instead. IgnorePointer keeps it transparent to
+                // pointers: it adds no tappable affordance, so the locked
+                // shell stays sealed (KIOSK-002) and web-app controls in the
+                // top corners keep receiving taps.
+                if (_isFullscreen &&
+                    _currentIndex != null &&
+                    _currentIndex! < _webViewModels.length &&
+                    _webViewModels[_currentIndex!].isLoading)
+                  Positioned(
+                    top: MediaQuery.of(context).padding.top,
+                    left: 0,
+                    right: 0,
+                    child: IgnorePointer(
+                      child: LinearProgressIndicator(
+                        value: _webViewModels[_currentIndex!].loadingProgress > 0
+                            ? _webViewModels[_currentIndex!].loadingProgress / 100
+                            : null,
+                        minHeight: _loadingBarHeight,
+                        backgroundColor: Colors.transparent,
+                      ),
+                    ),
+                  ),
                 // Fullscreen exit zone: touch target at the top edge with a
                 // visible handle just below the status bar / notch area.
                 // The back button/gesture keeps its normal behavior (web
