@@ -410,6 +410,8 @@
   "siteSettingsHtmlCachingSubtitle": "បង្ហាញទំព័រ cached នៅ cold start (offline fallback បើកជានិច្ច)",
   "siteSettingsNotifications": "ការជូនដំណឹង",
   "siteSettingsNotificationsHint": "អនុញ្ញាតឱ្យ site នេះបង្ហាញការជូនដំណឹងប្រព័ន្ធ។ រក្សា site ដំណើរការក្នុង background ដូច្នេះការជូនដំណឹងដំណើរការទោះបីអ្នកនៅ tab ផ្សេង។",
+  "siteSettingsBackgroundAudio": "សំឡេងផ្ទៃខាងក្រោយ",
+  "siteSettingsBackgroundAudioHint": "សំឡេងរបស់គេហទំព័រនេះនៅតែបន្តចាក់ នៅពេលអ្នកប្ដូរទៅគេហទំព័រផ្សេង ឬចាកចេញពីកម្មវិធី។ ទំព័រមិនដែលត្រូវបានផ្អាកនៅផ្ទៃខាងក្រោយទេ។ សម្រាប់គេហទំព័រតន្ត្រី វិទ្យុ និងផតខាស។",
   "siteSettingsNotificationsBlockedByProxy": "មិនអាចបើក: \"{site}\" កំពុង poll ក្នុង background ជាមួយ proxy ខុស។ Android អនុញ្ញាតតែ proxy មួយក្នុងពេលតែមួយ។",
   "siteSettingsNotificationsDenied": "ការជូនដំណឹងត្រូវបានបដិសេធ។ បើកក្នុងការកំណត់ → {path}។",
   "siteSettingsProtectedContent": "មាតិកាការពារ (DRM)",

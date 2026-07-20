@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "콜드 스타트 시 캐시된 페이지 표시(오프라인 대체는 항상 켜짐)",
   "siteSettingsNotifications": "알림",
   "siteSettingsNotificationsHint": "이 사이트가 시스템 알림을 표시하도록 허용합니다. 다른 탭에 있을 때도 알림이 발생하도록 사이트를 백그라운드에서 계속 폴링합니다.",
+  "siteSettingsBackgroundAudio": "백그라운드 오디오",
+  "siteSettingsBackgroundAudioHint": "다른 사이트로 전환하거나 앱을 나가도 이 사이트의 오디오가 계속 재생됩니다. 페이지는 백그라운드에서 일시정지되지 않습니다. 음악, 라디오, 팟캐스트 사이트용입니다.",
   "siteSettingsNotificationsBlockedByProxy": "활성화할 수 없음: \"{site}\"이(가) 이미 다른 프록시로 백그라운드에서 폴링 중입니다. Android는 한 번에 하나의 프록시만 허용합니다.",
   "siteSettingsNotificationsDenied": "알림이 거부되었습니다. 설정 → {path}에서 활성화하세요.",
   "siteSettingsProtectedContent": "보호된 콘텐츠(DRM)",

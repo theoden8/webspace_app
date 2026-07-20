@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "Pokaż buforowaną stronę przy zimnym starcie (awaryjny tryb offline zawsze włączony)",
   "siteSettingsNotifications": "Powiadomienia",
   "siteSettingsNotificationsHint": "Zezwól tej stronie na wyświetlanie powiadomień systemowych. Utrzymuje stronę odpytującą w tle, aby powiadomienia odpalały się nawet, gdy jesteś na innej karcie.",
+  "siteSettingsBackgroundAudio": "Dźwięk w tle",
+  "siteSettingsBackgroundAudioHint": "Dźwięk tej strony gra dalej, gdy przełączysz się na inną stronę lub opuścisz aplikację. Strona nigdy nie jest wstrzymywana w tle. Przeznaczone dla stron z muzyką, radiem i podcastami.",
   "siteSettingsNotificationsBlockedByProxy": "Nie można włączyć: „{site}” już odpytuje w tle z innym proxy. Android zezwala tylko na jedno proxy naraz.",
   "siteSettingsNotificationsDenied": "Powiadomienia odrzucone. Włącz w Ustawienia → {path}.",
   "siteSettingsProtectedContent": "Treść chroniona (DRM)",

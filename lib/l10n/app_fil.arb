@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "Ipakita ang naka-cache na pahina sa cold start (laging naka-on ang offline fallback)",
   "siteSettingsNotifications": "Mga Notification",
   "siteSettingsNotificationsHint": "Payagan ang site na ito na magpakita ng mga system notification. Pinapanatili ang site na nagpa-poll sa background upang magpaputok ang mga notification kahit nasa ibang tab ka.",
+  "siteSettingsBackgroundAudio": "Audio sa background",
+  "siteSettingsBackgroundAudioHint": "Patuloy na tumutugtog ang audio ng site na ito kapag lumipat ka sa ibang site o umalis sa app. Hindi kailanman ipinapause ang pahina sa background. Para sa mga site ng musika, radyo at podcast.",
   "siteSettingsNotificationsBlockedByProxy": "Hindi ma-enable: ang \"{site}\" ay nagpa-poll na sa background gamit ang ibang proxy. Pinapayagan lang ng Android ang isang proxy sa bawat pagkakataon.",
   "siteSettingsNotificationsDenied": "Tinanggihan ang mga notification. I-enable sa Settings → {path}.",
   "siteSettingsProtectedContent": "Protektadong nilalaman (DRM)",

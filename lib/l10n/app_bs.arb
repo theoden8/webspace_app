@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "Prikaži predmemorisanu stranicu pri hladnom pokretanju (rezervno rješenje van mreže uvijek uključeno)",
   "siteSettingsNotifications": "Obavještenja",
   "siteSettingsNotificationsHint": "Dozvoli ovoj stranici da prikazuje sistemska obavještenja. Održava anketiranje stranice u pozadini tako da obavještenja stižu čak i kada ste na drugoj kartici.",
+  "siteSettingsBackgroundAudio": "Pozadinski zvuk",
+  "siteSettingsBackgroundAudioHint": "Zvuk ove stranice nastavlja svirati kada pređete na drugu stranicu ili napustite aplikaciju. Stranica se nikada ne pauzira u pozadini. Namijenjeno za muzičke, radijske i podcast stranice.",
   "siteSettingsNotificationsBlockedByProxy": "Nije moguće omogućiti: \"{site}\" već anketira u pozadini s drugim proxyjem. Android dozvoljava samo jedan proxy u isto vrijeme.",
   "siteSettingsNotificationsDenied": "Obavještenja odbijena. Omogućite u Postavke → {path}.",
   "siteSettingsProtectedContent": "Zaštićeni sadržaj (DRM)",

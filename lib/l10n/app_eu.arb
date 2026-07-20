@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "Erakutsi cacheko orria abiarazte hotzean (lineaz kanpoko ordezkoa beti piztuta)",
   "siteSettingsNotifications": "Jakinarazpenak",
   "siteSettingsNotificationsHint": "Baimendu gune honi sistemaren jakinarazpenak erakustea. Gunea atzeko planoan kontsultatzen mantentzen du jakinarazpenak abiarazi daitezen beste fitxa batean zaudenean ere.",
+  "siteSettingsBackgroundAudio": "Atzeko planoko audioa",
+  "siteSettingsBackgroundAudioHint": "Gune honen audioak erreproduzitzen jarraitzen du beste gune batera aldatzean edo aplikaziotik irtetean. Orria ez da inoiz pausatzen atzeko planoan. Musika, irrati eta podcast guneetarako pentsatua.",
   "siteSettingsNotificationsBlockedByProxy": "Ezin gaitu: \"{site}\" jada atzeko planoan kontsultatzen ari da beste proxy batekin. Android-ek proxy bakarra onartzen du aldi berean.",
   "siteSettingsNotificationsDenied": "Jakinarazpenak ukatuta. Gaitu Ezarpenetan → {path}.",
   "siteSettingsProtectedContent": "Eduki babestua (DRM)",

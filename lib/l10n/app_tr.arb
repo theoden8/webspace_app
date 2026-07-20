@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "Soğuk başlangıçta önbelleğe alınmış sayfayı göster (çevrimdışı yedek her zaman açık)",
   "siteSettingsNotifications": "Bildirimler",
   "siteSettingsNotificationsHint": "Bu sitenin sistem bildirimleri göstermesine izin ver. Farklı bir sekmedeyken bile bildirimlerin tetiklenmesi için siteyi arka planda yoklamaya devam eder.",
+  "siteSettingsBackgroundAudio": "Arka planda ses",
+  "siteSettingsBackgroundAudioHint": "Başka bir siteye geçtiğinizde veya uygulamadan çıktığınızda bu sitenin sesi çalmaya devam eder. Sayfa arka planda asla duraklatılmaz. Müzik, radyo ve podcast siteleri için tasarlanmıştır.",
   "siteSettingsNotificationsBlockedByProxy": "Etkinleştirilemiyor: \"{site}\" zaten farklı bir proxy ile arka planda yoklama yapıyor. Android aynı anda yalnızca bir proxy'ye izin verir.",
   "siteSettingsNotificationsDenied": "Bildirimler reddedildi. Ayarlar → {path} bölümünden etkinleştirin.",
   "siteSettingsProtectedContent": "Korumalı içerik (DRM)",

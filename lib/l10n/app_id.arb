@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "Tampilkan halaman tertembolok saat mulai dingin (cadangan luring selalu aktif)",
   "siteSettingsNotifications": "Notifikasi",
   "siteSettingsNotificationsHint": "Izinkan situs ini menampilkan notifikasi sistem. Menjaga situs tetap memeriksa di latar belakang agar notifikasi muncul bahkan saat Anda berada di tab berbeda.",
+  "siteSettingsBackgroundAudio": "Audio latar belakang",
+  "siteSettingsBackgroundAudioHint": "Audio situs ini terus diputar saat Anda beralih ke situs lain atau meninggalkan aplikasi. Halaman tidak pernah dijeda di latar belakang. Ditujukan untuk situs musik, radio, dan podcast.",
   "siteSettingsNotificationsBlockedByProxy": "Tidak dapat mengaktifkan: \"{site}\" sudah memeriksa di latar belakang dengan proxy berbeda. Android hanya mengizinkan satu proxy pada satu waktu.",
   "siteSettingsNotificationsDenied": "Notifikasi ditolak. Aktifkan di Pengaturan → {path}.",
   "siteSettingsProtectedContent": "Konten terlindungi (DRM)",

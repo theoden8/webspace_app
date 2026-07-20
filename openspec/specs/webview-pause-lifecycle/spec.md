@@ -45,7 +45,7 @@ The only way to truly silence a site is `disposeWebView()` — which tears down 
 
 ### Requirement: PAUSE-001 — Per-Instance Pause for Site Switches
 
-The system SHALL pause the previously active webview on site switch using the per-instance API only, with no process-global side effects.
+The system SHALL pause the previously active webview on site switch using the per-instance API only, with no process-global side effects. Exempt: notification sites (`notificationsEnabled`) and background-audio sites (`effectiveBackgroundAudioEnabled`, BGAUDIO-001 in [background-audio](../background-audio/spec.md)) — `pauseWebView()` early-returns for both, since the iOS per-instance pause freezes the page's JS thread.
 
 #### Scenario: Site switch from A to B
 
@@ -80,6 +80,8 @@ calls, so the active site is never left paused.
 ### Requirement: PAUSE-002 — Process-Global Pause Only at App Lifecycle
 
 The system SHALL pause both the active webview and process-global JS timers when the app goes to background, so every loaded webview's JS halts. The per-instance and process-global calls SHALL be bound to a single captured controller so a concurrent `disposeWebView()` cannot strand the global half.
+
+Exempt: the JS pause is skipped entirely when the active site is a notification site, or when ANY loaded site has background audio enabled (BGAUDIO-002 in [background-audio](../background-audio/spec.md) — the pause is process-global on Android, so a backgrounded audio site would be starved by pausing the active one). The decision is made by `AppLifecycleEngine.backgroundPlan` and logged as a non-sensitive `App background: jsPause=<bool> capture=<bool>` line; state capture is never gated on the exemption.
 
 #### Scenario: App goes to background
 
@@ -801,6 +803,7 @@ class _WebViewController implements WebViewController {
 
 ## Related Specs
 
+- [`background-audio`](../background-audio/spec.md) — per-site exemption from PAUSE-001/PAUSE-002 so audio keeps playing on site switch and app background.
 - [`per-site-cookie-isolation`](../per-site-cookie-isolation/spec.md) — relies on `disposeWebView()` (not pause) to safely mutate the cookie jar across domain conflicts. The "pause is not a security boundary" caveat above is why.
 - [`lazy-webview-loading`](../lazy-webview-loading/spec.md) — defines `_loadedIndices`, the set across which the app-lifecycle global pause takes effect.
 - [`navigation`](../navigation/spec.md) — defines the `_setCurrentIndexVersion` race guard referenced by PAUSE-005.

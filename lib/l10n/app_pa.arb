@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "ਕੋਲਡ ਸਟਾਰਟ 'ਤੇ ਕੈਸ਼ ਕੀਤਾ ਪੰਨਾ ਵਿਖਾਓ (ਆਫਲਾਈਨ ਫਾਲਬੈਕ ਹਮੇਸ਼ਾ ਚਾਲੂ)",
   "siteSettingsNotifications": "ਸੂਚਨਾਵਾਂ",
   "siteSettingsNotificationsHint": "ਇਸ ਸਾਈਟ ਨੂੰ ਸਿਸਟਮ ਸੂਚਨਾਵਾਂ ਵਿਖਾਉਣ ਦੀ ਆਗਿਆ ਦਿਓ। ਸਾਈਟ ਨੂੰ ਬੈਕਗ੍ਰਾਊਂਡ ਵਿੱਚ ਪੋਲਿੰਗ ਕਰਦਾ ਰੱਖਦਾ ਹੈ ਤਾਂ ਜੋ ਸੂਚਨਾਵਾਂ ਉਦੋਂ ਵੀ ਆਉਣ ਜਦੋਂ ਤੁਸੀਂ ਕਿਸੇ ਵੱਖਰੀ ਟੈਬ 'ਤੇ ਹੋਵੋ।",
+  "siteSettingsBackgroundAudio": "ਬੈਕਗ੍ਰਾਊਂਡ ਆਡੀਓ",
+  "siteSettingsBackgroundAudioHint": "ਕਿਸੇ ਹੋਰ ਸਾਈਟ 'ਤੇ ਜਾਣ ਜਾਂ ਐਪ ਛੱਡਣ 'ਤੇ ਵੀ ਇਸ ਸਾਈਟ ਦਾ ਆਡੀਓ ਚੱਲਦਾ ਰਹਿੰਦਾ ਹੈ। ਪੰਨਾ ਬੈਕਗ੍ਰਾਊਂਡ ਵਿੱਚ ਕਦੇ ਨਹੀਂ ਰੋਕਿਆ ਜਾਂਦਾ। ਸੰਗੀਤ, ਰੇਡੀਓ ਅਤੇ ਪੋਡਕਾਸਟ ਸਾਈਟਾਂ ਲਈ।",
   "siteSettingsNotificationsBlockedByProxy": "ਯੋਗ ਨਹੀਂ ਕਰ ਸਕਦੇ: \"{site}\" ਪਹਿਲਾਂ ਹੀ ਇੱਕ ਵੱਖਰੇ ਪ੍ਰੌਕਸੀ ਨਾਲ ਬੈਕਗ੍ਰਾਊਂਡ ਵਿੱਚ ਪੋਲਿੰਗ ਕਰ ਰਹੀ ਹੈ। Android ਇੱਕ ਸਮੇਂ ਸਿਰਫ਼ ਇੱਕ ਪ੍ਰੌਕਸੀ ਦੀ ਆਗਿਆ ਦਿੰਦਾ ਹੈ।",
   "siteSettingsNotificationsDenied": "ਸੂਚਨਾਵਾਂ ਮਨ੍ਹਾ ਹਨ। ਸੈਟਿੰਗਾਂ → {path} ਵਿੱਚ ਯੋਗ ਕਰੋ।",
   "siteSettingsProtectedContent": "ਸੁਰੱਖਿਅਤ ਸਮੱਗਰੀ (DRM)",

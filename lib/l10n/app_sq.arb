@@ -410,6 +410,8 @@
   "siteSettingsHtmlCachingSubtitle": "Shfaq faqen nga cache në nisje të ftohtë (rezerva jashtë linje gjithmonë aktive)",
   "siteSettingsNotifications": "Njoftimet",
   "siteSettingsNotificationsHint": "Lejo këtë faqe të shfaqë njoftime sistemi. Mban faqen duke kërkuar në sfond që njoftimet të nisen edhe kur je në një skedë tjetër.",
+  "siteSettingsBackgroundAudio": "Audio në sfond",
+  "siteSettingsBackgroundAudioHint": "Audioja e këtij sajti vazhdon të luhet kur kaloni në një sajt tjetër ose dilni nga aplikacioni. Faqja nuk vendoset kurrë në pauzë në sfond. E menduar për sajte muzike, radioje dhe podkastesh.",
   "siteSettingsNotificationsBlockedByProxy": "Nuk aktivizohet dot: \"{site}\" po kërkon tashmë në sfond me një proxy tjetër. Android lejon vetëm një proxy në të njëjtën kohë.",
   "siteSettingsNotificationsDenied": "Njoftimet u mohuan. Aktivizoji te Cilësimet → {path}.",
   "siteSettingsProtectedContent": "Përmbajtje e mbrojtur (DRM)",

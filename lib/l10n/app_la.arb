@@ -410,6 +410,8 @@
   "siteSettingsHtmlCachingSubtitle": "Paginam in cella servatam in frigido initio ostendere (subsidium sine reti semper accensum)",
   "siteSettingsNotifications": "Renuntiationes",
   "siteSettingsNotificationsHint": "Sine hunc locum renuntiationes systematis ostendere. Locum in fundo interrogantem servat ut renuntiationes oriantur etiam cum in alia lamina es.",
+  "siteSettingsBackgroundAudio": "Sonitus in fundo",
+  "siteSettingsBackgroundAudioHint": "Sonitus huius situs cani pergit cum ad alium situm transis aut applicationem relinquis. Pagina in fundo numquam intermittitur. Ad situs musicae, radiophoniae et podcast destinatum.",
   "siteSettingsNotificationsBlockedByProxy": "Accendi non potest: \"{site}\" iam in fundo cum alio procuratore interrogat. Android unum procuratorem semel tantum permittit.",
   "siteSettingsNotificationsDenied": "Renuntiationes negatae. Accende in Institutionibus → {path}.",
   "siteSettingsProtectedContent": "Contentum protectum (DRM)",

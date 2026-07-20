@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "কোল্ড স্টার্টে ক্যাশড পৃষ্ঠা দেখান (অফলাইন ফলব্যাক সবসময় চালু)",
   "siteSettingsNotifications": "বিজ্ঞপ্তি",
   "siteSettingsNotificationsHint": "এই সাইটটিকে সিস্টেম বিজ্ঞপ্তি দেখানোর অনুমতি দিন। সাইটটিকে পটভূমিতে পোল করতে রাখে যাতে আপনি অন্য ট্যাবে থাকলেও বিজ্ঞপ্তি চালু হয়।",
+  "siteSettingsBackgroundAudio": "পটভূমিতে অডিও",
+  "siteSettingsBackgroundAudioHint": "অন্য সাইটে গেলে বা অ্যাপ ছেড়ে গেলে এই সাইটের অডিও চলতে থাকবে। পৃষ্ঠাটি পটভূমিতে কখনও বিরতি দেওয়া হয় না। সংগীত, রেডিও ও পডকাস্ট সাইটের জন্য।",
   "siteSettingsNotificationsBlockedByProxy": "সক্ষম করা যায়নি: \"{site}\" ইতিমধ্যে একটি ভিন্ন প্রক্সি দিয়ে পটভূমিতে পোল করছে। Android একসাথে শুধু একটি প্রক্সির অনুমতি দেয়।",
   "siteSettingsNotificationsDenied": "বিজ্ঞপ্তি অস্বীকার করা হয়েছে। সেটিংস → {path}-এ সক্ষম করুন।",
   "siteSettingsProtectedContent": "সুরক্ষিত কনটেন্ট (DRM)",

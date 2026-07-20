@@ -35,11 +35,15 @@ class _RecordingController extends Fake implements WebViewController {
 WebViewModel _modelWith(
   WebViewController? controller, {
   bool notificationsEnabled = false,
+  bool backgroundAudioEnabled = false,
+  bool isArchiveTier = false,
 }) {
   final m = WebViewModel(
     initUrl: 'https://example.com',
     name: 'Example',
     notificationsEnabled: notificationsEnabled,
+    backgroundAudioEnabled: backgroundAudioEnabled,
+    isArchiveTier: isArchiveTier,
   );
   m.controller = controller;
   return m;
@@ -119,6 +123,34 @@ void main() {
       final c = _RecordingController();
       await _modelWith(c, notificationsEnabled: true).resumeWebView();
       expect(c.calls, ['resume']);
+    });
+  });
+
+  group('BGAUDIO-001 pause skips background-audio sites', () {
+    test('pauseWebView() with backgroundAudioEnabled is a no-op', () async {
+      final c = _RecordingController();
+      await _modelWith(c, backgroundAudioEnabled: true).pauseWebView();
+      expect(c.calls, isEmpty,
+          reason: 'On iOS, per-instance pause uses pauseTimers() (alert-deadlock '
+              'hack) which freezes the JS thread — cutting the audio the '
+              'background-audio toggle exists to keep playing across a site '
+              'switch.');
+    });
+
+    test('resumeWebView() still resumes a background-audio site', () async {
+      final c = _RecordingController();
+      await _modelWith(c, backgroundAudioEnabled: true).resumeWebView();
+      expect(c.calls, ['resume']);
+    });
+
+    test('archive-tier site is paused despite backgroundAudioEnabled', () async {
+      // ARCH-006: an archive-tier site audibly playing while the app looks
+      // idle would reveal an open archive; the effective getter forces the
+      // exemption off.
+      final c = _RecordingController();
+      await _modelWith(c, backgroundAudioEnabled: true, isArchiveTier: true)
+          .pauseWebView();
+      expect(c.calls, ['pause']);
     });
   });
 

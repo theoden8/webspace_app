@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "コールドスタート時にキャッシュページを表示（オフラインフォールバックは常時オン）",
   "siteSettingsNotifications": "通知",
   "siteSettingsNotificationsHint": "このサイトがシステム通知を表示することを許可します。別のタブにいるときでも通知が届くよう、サイトをバックグラウンドでポーリングし続けます。",
+  "siteSettingsBackgroundAudio": "バックグラウンド音声",
+  "siteSettingsBackgroundAudioHint": "別のサイトに切り替えたりアプリを離れたりしても、このサイトの音声を再生し続けます。ページはバックグラウンドで一時停止されません。音楽・ラジオ・ポッドキャストのサイト向けです。",
   "siteSettingsNotificationsBlockedByProxy": "有効にできません: 「{site}」がすでに別のプロキシでバックグラウンドポーリング中です。Android では一度に1つのプロキシしか使えません。",
   "siteSettingsNotificationsDenied": "通知が拒否されています。設定 → {path} で有効にしてください。",
   "siteSettingsProtectedContent": "保護されたコンテンツ（DRM）",

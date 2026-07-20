@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "Visa cachad sida vid kall start (offline-reserv alltid på)",
   "siteSettingsNotifications": "Aviseringar",
   "siteSettingsNotificationsHint": "Tillåt denna webbplats att visa systemaviseringar. Håller webbplatsen pollande i bakgrunden så att aviseringar utlöses även när du är på en annan flik.",
+  "siteSettingsBackgroundAudio": "Bakgrundsljud",
+  "siteSettingsBackgroundAudioHint": "Ljudet från den här webbplatsen fortsätter att spelas när du byter till en annan webbplats eller lämnar appen. Sidan pausas aldrig i bakgrunden. Avsedd för musik-, radio- och poddwebbplatser.",
   "siteSettingsNotificationsBlockedByProxy": "Kan inte aktivera: \"{site}\" pollar redan i bakgrunden med en annan proxy. Android tillåter endast en proxy i taget.",
   "siteSettingsNotificationsDenied": "Aviseringar nekade. Aktivera i Inställningar → {path}.",
   "siteSettingsProtectedContent": "Skyddat innehåll (DRM)",

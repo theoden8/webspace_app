@@ -130,6 +130,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _fullscreenMode;
   late bool _htmlCachingEnabled;
   late bool _notificationsEnabled;
+  late bool _backgroundAudioEnabled;
   bool? _protectedContentAllowed;
   String? _selectedLanguage;
   late int _zoomPercent;
@@ -219,6 +220,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         'fullscreenMode': _fullscreenMode,
         'htmlCachingEnabled': _htmlCachingEnabled,
         'notificationsEnabled': _notificationsEnabled,
+        'backgroundAudioEnabled': _backgroundAudioEnabled,
         'protectedContentAllowed': _protectedContentAllowed,
         'selectedLanguage': _selectedLanguage,
         'zoomPercent': _zoomPercent,
@@ -473,6 +475,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _fullscreenMode = m.fullscreenMode;
     _htmlCachingEnabled = m.htmlCachingEnabled;
     _notificationsEnabled = m.notificationsEnabled;
+    _backgroundAudioEnabled = m.backgroundAudioEnabled;
     _protectedContentAllowed = m.protectedContentAllowed;
     _selectedLanguage = m.language;
     _zoomPercent = m.zoomPercent;
@@ -664,6 +667,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.fullscreenMode = _fullscreenMode;
       widget.webViewModel.htmlCachingEnabled = _htmlCachingEnabled;
       widget.webViewModel.notificationsEnabled = _notificationsEnabled;
+      widget.webViewModel.backgroundAudioEnabled = _backgroundAudioEnabled;
       widget.webViewModel.protectedContentAllowed = _protectedContentAllowed;
       widget.webViewModel.language = _selectedLanguage;
       widget.webViewModel.zoomPercent = _zoomPercent;
@@ -1836,6 +1840,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       },
               );
             }),
+          SwitchListTile(
+            title: Row(
+              children: [
+                Flexible(child: Text(loc.siteSettingsBackgroundAudio)),
+                HintButton(
+                  title: loc.siteSettingsBackgroundAudio,
+                  description: loc.siteSettingsBackgroundAudioHint,
+                ),
+              ],
+            ),
+            value: _backgroundAudioEnabled,
+            onChanged: (bool value) {
+              setState(() {
+                _backgroundAudioEnabled = value;
+              });
+            },
+          ),
           if (Platform.isAndroid)
             ListTile(
               title: Row(

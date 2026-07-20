@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "Tunjukkan halaman dicache pada mula sejuk (sandaran luar talian sentiasa hidup)",
   "siteSettingsNotifications": "Pemberitahuan",
   "siteSettingsNotificationsHint": "Benarkan tapak ini menunjukkan pemberitahuan sistem. Mengekalkan tapak terus mengundi di latar belakang supaya pemberitahuan dicetuskan walaupun anda berada di tab berbeza.",
+  "siteSettingsBackgroundAudio": "Audio latar belakang",
+  "siteSettingsBackgroundAudioHint": "Audio tapak ini terus dimainkan apabila anda beralih ke tapak lain atau meninggalkan aplikasi. Halaman tidak pernah dijeda di latar belakang. Ditujukan untuk tapak muzik, radio dan podcast.",
   "siteSettingsNotificationsBlockedByProxy": "Tidak dapat dayakan: \"{site}\" sudah mengundi di latar belakang dengan proksi berbeza. Android hanya membenarkan satu proksi pada satu masa.",
   "siteSettingsNotificationsDenied": "Pemberitahuan ditolak. Dayakan dalam Tetapan → {path}.",
   "siteSettingsProtectedContent": "Kandungan dilindungi (DRM)",

@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "Vis bufret side ved kald start (frakoblet reserve alltid på)",
   "siteSettingsNotifications": "Varsler",
   "siteSettingsNotificationsHint": "Tillat dette nettstedet å vise systemvarsler. Holder nettstedet i bakgrunnen slik at varsler utløses selv når du er på en annen fane.",
+  "siteSettingsBackgroundAudio": "Bakgrunnslyd",
+  "siteSettingsBackgroundAudioHint": "Lyden fra dette nettstedet fortsetter å spille når du bytter til et annet nettsted eller forlater appen. Siden settes aldri på pause i bakgrunnen. Beregnet på nettsteder for musikk, radio og podkaster.",
   "siteSettingsNotificationsBlockedByProxy": "Kan ikke aktivere: \"{site}\" kjører allerede i bakgrunnen med en annen proxy. Android tillater bare én proxy om gangen.",
   "siteSettingsNotificationsDenied": "Varsler avslått. Aktiver i Innstillinger → {path}.",
   "siteSettingsProtectedContent": "Beskyttet innhold (DRM)",

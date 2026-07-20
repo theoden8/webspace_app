@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "በቀዝቃዛ ጅማሮ ላይ የተሸጎጠ ገጽ አሳይ (ከመስመር ውጭ መጠባበቂያ ሁልጊዜ በርቷል)",
   "siteSettingsNotifications": "ማሳወቂያዎች",
   "siteSettingsNotificationsHint": "ይህ ጣቢያ የስርዓት ማሳወቂያዎችን እንዲያሳይ ፍቀድ። በተለየ ትር ላይ ብትሆንም ማሳወቂያዎች እንዲነሱ ጣቢያው በጀርባ እንዲጠይቅ ያደርጋል።",
+  "siteSettingsBackgroundAudio": "የበስተጀርባ ድምፅ",
+  "siteSettingsBackgroundAudioHint": "ወደ ሌላ ጣቢያ ሲቀይሩ ወይም መተግበሪያውን ሲለቁ የዚህ ጣቢያ ድምፅ መጫወቱን ይቀጥላል። ገጹ በበስተጀርባ በጭራሽ አይቆምም። ለሙዚቃ፣ ለሬዲዮ እና ለፖድካስት ጣቢያዎች የታሰበ ነው።",
   "siteSettingsNotificationsBlockedByProxy": "ማንቃት አይቻልም: \"{site}\" አስቀድሞ በተለየ proxy በጀርባ እየጠየቀ ነው። Android በአንድ ጊዜ አንድ proxy ብቻ ይፈቅዳል።",
   "siteSettingsNotificationsDenied": "ማሳወቂያዎች ተከልክለዋል። በቅንብሮች → {path} ውስጥ አንቃ።",
   "siteSettingsProtectedContent": "የተጠበቀ ይዘት (DRM)",

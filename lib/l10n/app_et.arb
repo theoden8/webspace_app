@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "Näita vahemällu salvestatud lehte külmkäivitusel (võrguühenduseta varuvariant alati sees)",
   "siteSettingsNotifications": "Teavitused",
   "siteSettingsNotificationsHint": "Luba sellel saidil näidata süsteemiteavitusi. Hoiab saiti taustal pärimas, et teavitused käivituksid ka siis, kui oled teisel vahelehel.",
+  "siteSettingsBackgroundAudio": "Taustaheli",
+  "siteSettingsBackgroundAudioHint": "Selle saidi heli mängib edasi, kui lülitute teisele saidile või lahkute rakendusest. Lehte ei panda taustal kunagi pausile. Mõeldud muusika-, raadio- ja taskuhäälingusaitidele.",
   "siteSettingsNotificationsBlockedByProxy": "Ei saa lubada: „{site}“ pärib juba taustal teise proksiga. Android lubab korraga ainult ühte proksit.",
   "siteSettingsNotificationsDenied": "Teavitused keelatud. Luba seadetes → {path}.",
   "siteSettingsProtectedContent": "Kaitstud sisu (DRM)",

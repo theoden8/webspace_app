@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "Gyorsítótárazott oldal megjelenítése hidegindításkor (az offline tartalék mindig bekapcsolva)",
   "siteSettingsNotifications": "Értesítések",
   "siteSettingsNotificationsHint": "Engedélyezi, hogy ez a webhely rendszerértesítéseket jelenítsen meg. A webhelyet a háttérben lekérdezve tartja, hogy az értesítések akkor is megérkezzenek, amikor másik lapon van.",
+  "siteSettingsBackgroundAudio": "Háttérhang",
+  "siteSettingsBackgroundAudioHint": "Az oldal hangja tovább szól, amikor másik oldalra vált vagy elhagyja az alkalmazást. Az oldal a háttérben soha nem áll le. Zenei, rádiós és podcast-oldalakhoz készült.",
   "siteSettingsNotificationsBlockedByProxy": "Nem engedélyezhető: a(z) „{site}” már a háttérben fut lekérdezve egy másik proxyval. Az Android egyszerre csak egy proxyt engedélyez.",
   "siteSettingsNotificationsDenied": "Az értesítések megtagadva. Engedélyezze itt: Beállítások → {path}.",
   "siteSettingsProtectedContent": "Védett tartalom (DRM)",

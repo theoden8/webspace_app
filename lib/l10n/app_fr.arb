@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "Afficher la page en cache au démarrage à froid (repli hors ligne toujours actif)",
   "siteSettingsNotifications": "Notifications",
   "siteSettingsNotificationsHint": "Autoriser ce site à afficher des notifications système. Garde le site actif en arrière-plan afin que les notifications se déclenchent même lorsque vous êtes sur un autre onglet.",
+  "siteSettingsBackgroundAudio": "Audio en arrière-plan",
+  "siteSettingsBackgroundAudioHint": "L'audio de ce site continue de jouer lorsque vous passez à un autre site ou quittez l'application. La page n'est jamais mise en pause en arrière-plan. Conçu pour les sites de musique, de radio et de podcasts.",
   "siteSettingsNotificationsBlockedByProxy": "Activation impossible : « {site} » est déjà actif en arrière-plan avec un proxy différent. Android n'autorise qu'un seul proxy à la fois.",
   "siteSettingsNotificationsDenied": "Notifications refusées. Activez-les dans Réglages → {path}.",
   "siteSettingsProtectedContent": "Contenu protégé (DRM)",

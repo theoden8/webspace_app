@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "Pokaži predpomnjeno stran ob hladnem zagonu (nadomestilo brez povezave je vedno vključeno)",
   "siteSettingsNotifications": "Obvestila",
   "siteSettingsNotificationsHint": "Dovoli tej strani prikaz sistemskih obvestil. Ohranja stran v poizvedovanju v ozadju, tako da se obvestila sprožijo tudi, ko ste na drugem zavihku.",
+  "siteSettingsBackgroundAudio": "Zvok v ozadju",
+  "siteSettingsBackgroundAudioHint": "Zvok tega spletnega mesta se predvaja naprej, ko preklopite na drugo spletno mesto ali zapustite aplikacijo. Stran se v ozadju nikoli ne zaustavi. Namenjeno spletnim mestom z glasbo, radiem in podkasti.",
   "siteSettingsNotificationsBlockedByProxy": "Ni mogoče omogočiti: \"{site}\" že poizveduje v ozadju z drugim posredniškim strežnikom. Android dovoljuje le en posredniški strežnik naenkrat.",
   "siteSettingsNotificationsDenied": "Obvestila zavrnjena. Omogočite v Nastavitve → {path}.",
   "siteSettingsProtectedContent": "Zaščitena vsebina (DRM)",
