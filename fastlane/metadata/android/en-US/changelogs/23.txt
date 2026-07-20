@@ -1,0 +1,9 @@
+✨ New Features:
+• Custom per-site icons
+• Page-load progress bar
+• Draggable tab bar button
+
+🐛 Bug Fixes:
+• User agents no longer go stale
+• White screen measures
+• Security and stability hardening
