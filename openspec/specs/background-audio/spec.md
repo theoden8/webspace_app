@@ -161,7 +161,11 @@ without OS-level backgrounding:
   ([integration_test/fixtures/background_audio.html](../../../integration_test/fixtures/background_audio.html))
   beacons `GET /beacon?ticks=N&audio=<playState>` to the test's loopback
   server every 250 ms from a JS interval, so page-JS liveness is observed
-  server-side with no bridge into the app's widget tree.
+  server-side with no bridge into the app's widget tree. The server serves
+  the embedded mirror `background_audio_fixture.dart` — the sandboxed test
+  app cannot read repo files at runtime (macOS CI denies with EPERM) — and
+  `test/background_audio_fixture_drift_test.dart` pins mirror and .html
+  byte-identical.
 - The BGAUDIO-002 decision line is asserted from `LogService`.
 
 The "JS actually freezes for a non-exempt site" direction is NOT asserted:

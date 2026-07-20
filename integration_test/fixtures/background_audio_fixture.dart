@@ -1,0 +1,52 @@
+/// In-memory mirror of [background_audio.html] for the loopback server in
+/// `background_audio_lifecycle_test.dart`. The integration test app cannot
+/// read repo files at runtime (macOS CI: sandbox/entitlements deny with
+/// EPERM), so the served bytes live here; the .html stays the authoritative,
+/// browser-openable fixture. Byte-equality is enforced by
+/// `test/background_audio_fixture_drift_test.dart`, which runs host-side in
+/// plain `flutter test` where disk access works.
+const String backgroundAudioFixtureHtml = '''
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>background-audio fixture</title>
+</head>
+<body>
+<p>background-audio fixture</p>
+<audio id="player" loop
+  src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA="></audio>
+<script>
+// Liveness beacon: while this page's JS timers run, the loopback test
+// server receives a /beacon request every 250 ms carrying a monotonously
+// increasing tick count and the audio element's currentTime. The
+// integration test observes liveness purely from the server side, so it
+// needs no bridge into the app's widget tree. When the engine freezes JS
+// timers (app-lifecycle pause), the beacons stop — that silence is the
+// observable.
+window.__ticks = 0;
+var audio = document.getElementById('player');
+window.__audioPlayState = 'unattempted';
+// Autoplay may be blocked (policy) or unavailable (headless CI without an
+// audio sink); the beacon carries the outcome so the test can decide which
+// assertions are meaningful on this engine.
+try {
+  audio.play().then(function () {
+    window.__audioPlayState = 'playing';
+  }).catch(function (e) {
+    window.__audioPlayState = 'blocked:' + (e && e.name ? e.name : 'unknown');
+  });
+} catch (e) {
+  window.__audioPlayState = 'threw:' + (e && e.name ? e.name : 'unknown');
+}
+setInterval(function () {
+  window.__ticks++;
+  var q = '/beacon?ticks=' + window.__ticks +
+      '&audio=' + encodeURIComponent(window.__audioPlayState) +
+      '&t=' + (audio.currentTime || 0);
+  try { fetch(q, { cache: 'no-store' }); } catch (e) {}
+}, 250);
+</script>
+</body>
+</html>
+''';
