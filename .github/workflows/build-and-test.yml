@@ -462,6 +462,14 @@ jobs:
           rm -f /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list 2>/dev/null || true
           printf 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/%s/ sid main\n' \
             "$SNAPSHOT" > /etc/apt/sources.list
+          # The sid-slim base image is newer than the pinned snapshot, so its
+          # preinstalled packages outrank the snapshot's and apt can't form a
+          # consistent set (a dependency of an older snapshot package "is not
+          # going to be installed"). Pin every package to the snapshot at
+          # priority 1001 (> 1000) so apt downgrades the base to the snapshot
+          # versions, making the whole graph resolvable against one date.
+          printf 'Package: *\nPin: origin snapshot.debian.org\nPin-Priority: 1001\n' \
+            > /etc/apt/preferences.d/00snapshot
           # snapshot.debian.org can be slow / rate-limit; retry transient fetch
           # failures (a genuinely broken graph fails fast on the resolver, not
           # the network, so it won't spin the full five attempts).
