@@ -39,25 +39,13 @@ import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'dart:convert';
 
+import 'fixtures/background_audio_fixture.dart';
+
 class _Beacon {
   _Beacon(this.at, this.ticks, this.audioState);
   final DateTime at;
   final int ticks;
   final String audioState;
-}
-
-String _fixtureHtml() {
-  const rel = 'integration_test/fixtures/background_audio.html';
-  final candidates = <String>[
-    rel,
-    '${Platform.environment['PWD'] ?? ''}/$rel',
-  ];
-  for (final p in candidates) {
-    final f = File(p);
-    if (f.existsSync()) return f.readAsStringSync();
-  }
-  throw StateError(
-      'background_audio.html fixture not found; cwd=${Directory.current.path}');
 }
 
 void main() {
@@ -66,7 +54,11 @@ void main() {
   late HttpServer server;
   late int port;
   final beacons = <_Beacon>[];
-  late String fixtureHtml;
+  // Served from the embedded mirror, not from disk: the test app cannot read
+  // repo files at runtime (macOS CI denies with EPERM under the ad-hoc
+  // entitlements). Drift vs the authoritative .html is enforced by
+  // test/background_audio_fixture_drift_test.dart.
+  const fixtureHtml = backgroundAudioFixtureHtml;
 
   void log(String m) {
     // ignore: avoid_print
@@ -74,7 +66,6 @@ void main() {
   }
 
   setUpAll(() async {
-    fixtureHtml = _fixtureHtml();
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     port = server.port;
     server.listen((req) {
