@@ -50,6 +50,13 @@ The system SHALL navigate to the correct site when launched via a home screen sh
 **Then** the app is brought to the foreground
 **And** the correct site is selected
 
+#### Scenario: Shortcut tap dismisses overlaying routes
+
+**Given** WebSpace is running with a route pushed over the main page (a nested webview opened by a cross-domain link, or a settings screen)
+**When** the user taps a home screen shortcut
+**Then** the pushed routes are popped down to the main page
+**And** the launched site is visible, not covered by the previous overlay
+
 #### Scenario: Resume after shortcut launch does not re-navigate
 
 **Given** the user launched WebSpace via a home shortcut for site A
