@@ -144,6 +144,11 @@ const POSTURE = new Set([
 const PLUMBING = new Set([
   'key', 'initialUrl', 'initialHtml', 'deferInitialLoad',
   'backForwardGestures', // deliberate root-only: nested uses route-pop (NAV-008)
+  // deliberate root-only (BGAUDIO-006): drives the Android media notification
+  // for the root site's playback. Not a privacy posture, so a nested
+  // cross-domain webview not raising the notification is acceptable, not a
+  // bypass — Android-only behavioral wiring, like backForwardGestures.
+  'backgroundAudioEnabled',
   'onUrlChanged', 'onCookiesChanged', 'cookieManager', 'containerCookieManager',
   'cookieSiteId', 'onFindResult', 'shouldOverrideUrlLoading', 'onLoadingChanged',
   'onProgressChanged',
