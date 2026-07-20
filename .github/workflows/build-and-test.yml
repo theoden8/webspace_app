@@ -441,8 +441,38 @@ jobs:
         # for the pygobject wheel pipx pulls in.
         run: |
           set -x
-          apt-get update
-          apt-get install -y --no-install-recommends \
+          # Pin apt to a debian snapshot instead of live sid. Live sid
+          # periodically has an unsatisfiable graph mid-transition; the
+          # recurring one is a re2/abseil bump that leaves onnxruntime (pulled
+          # in by weston -> pipewire -> libspa) depending on a
+          # libre2-11-absl<date> virtual that no package provides yet, so the
+          # whole `apt-get install` aborts. A snapshot is an atomic, internally
+          # consistent archive state, so the graph always resolves. This date
+          # has libwpewebkit-2.0-dev 2.52.3 (the plugin needs >= 2.50) and
+          # predates the broken transition. Bump it when you need newer WPE;
+          # verify at https://snapshot.debian.org that the target date carries
+          # WPE >= 2.50 and a provider for onnxruntime's libre2-11-absl* dep.
+          SNAPSHOT=20260601T000000Z
+          rm -f /etc/apt/sources.list
+          rm -f /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list 2>/dev/null || true
+          printf 'deb [check-valid-until=no] https://snapshot.debian.org/archive/debian/%s/ sid main\n' \
+            "$SNAPSHOT" > /etc/apt/sources.list
+          # snapshot.debian.org can be slow / rate-limit; retry transient fetch
+          # failures (a genuinely broken graph fails fast on the resolver, not
+          # the network, so it won't spin the full five attempts).
+          apt_retry() {
+            for i in 1 2 3 4 5; do
+              "$@" && return 0
+              echo "apt attempt $i failed; retrying"
+              sleep $((i * 15))
+            done
+            return 1
+          }
+          apt_retry apt-get -o Acquire::Check-Valid-Until=false update
+          # --allow-downgrades: the sid-slim base image is newer than the
+          # pinned snapshot, so a few preinstalled packages roll back to the
+          # snapshot's version for a consistent set.
+          apt_retry apt-get install -y --no-install-recommends --allow-downgrades \
             ca-certificates curl wget git unzip xz-utils sudo \
             build-essential clang lld llvm cmake ninja-build pkg-config \
             libgtk-3-dev liblzma-dev libsecret-1-dev libepoxy-dev \
