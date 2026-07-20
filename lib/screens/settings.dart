@@ -1851,10 +1851,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
             value: _backgroundAudioEnabled,
-            onChanged: (bool value) {
+            onChanged: (bool value) async {
               setState(() {
                 _backgroundAudioEnabled = value;
               });
+              // Android shows a media notification with transport controls for
+              // background audio; on Android 13+ that needs POST_NOTIFICATIONS.
+              // Request it on enable so the controls actually appear. Repeat
+              // calls after a decision are harmless (OS returns the cached one).
+              if (value && Platform.isAndroid) {
+                await NotificationService.instance.requestPermission();
+              }
             },
           ),
           if (Platform.isAndroid)

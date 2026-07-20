@@ -180,16 +180,74 @@ on Android/iOS hardware. The decision matrix is covered by
 **Then** the decision line reads `jsPause=false capture=true`
 **And** beacons keep arriving throughout the window with monotonically increasing ticks (same live page, never reloaded)
 
+### Requirement: BGAUDIO-006 — Android Media Notification and Foreground Service
+
+On Android the system SHALL run a `mediaPlayback` foreground service with a
+`MediaStyle` notification (title/artist/artwork + a play/pause control) while
+a background-audio site is actively playing, so playback survives the OS
+suspending the app and the user gets lockscreen/notification transport
+controls. Media playback is a Play-accepted foreground-service type (unlike
+`FOREGROUND_SERVICE_SPECIAL_USE`, which the notifications feature found
+intractable), so this does not carry the notification feature's review
+constraints.
+
+- A page-JS shim on background-audio sites
+  ([media_session_shim.dart](../../../lib/services/media_session_shim.dart),
+  Android + `backgroundAudioEnabled` only) observes every `<audio>`/`<video>`
+  element plus `navigator.mediaSession.metadata` and reports
+  `{playing, title, artist, album, artwork}` to Dart through the
+  `wsMediaSession` handler.
+- [`MediaSessionService`](../../../lib/services/media_session_service.dart)
+  raises (`start`) / refreshes (`update`) / tears down (`stop`) the
+  notification via the `org.codeberg.theoden8.webspace/media_session` channel.
+  The native service ([`MediaPlaybackService.kt`](../../../android/app/src/main/kotlin/org/codeberg/theoden8/webspace/MediaPlaybackService.kt))
+  owns a `MediaSession` and calls `startForeground(..., FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)`.
+- Transport controls (notification button, lockscreen, Bluetooth/headset
+  media keys) travel back as `onTransport` and are applied by running
+  `window.__wsMediaControl(action)` on the owning webview, which drives its
+  primary media element (so the site's own MediaSession stays in sync).
+- The notification exposes **play/pause/stop only** — next/previous have no
+  universal web mechanism, so dead buttons are deliberately omitted.
+- The service runs only while a background-audio site is loaded and playing;
+  when the last such site unloads, `_updateBackgroundAudioSession` calls
+  `stopAll`. Enabling the toggle requests `POST_NOTIFICATIONS` so the media
+  controls are visible on Android 13+.
+- Scope: the media notification is driven by the **root** site webview. A
+  cross-domain nested `InAppWebViewScreen` does not raise it (acceptable
+  degradation — background audio is not a privacy posture, so the
+  nested-webview threading rule does not apply).
+
+#### Scenario: Background-audio site playing shows a media notification
+
+**Given** a site has Background audio enabled and is playing audio on Android
+**When** the page reports `playing: true` through `wsMediaSession`
+**Then** a `mediaPlayback` foreground service starts with a `MediaStyle`
+notification carrying the title/artist and a pause control
+**And** backgrounding the app keeps the audio playing
+
+#### Scenario: Notification pause drives the page
+
+**Given** the media notification is showing for a playing site
+**When** the user taps pause (or uses a Bluetooth media key)
+**Then** `onTransport('pause')` runs `window.__wsMediaControl('pause')`, which
+pauses the page's media element
+**And** the page reports `playing: false`, flipping the notification to a
+resumable paused state
+
+#### Scenario: Last background-audio site unloads tears the notification down
+
+**Given** the media notification is showing
+**When** the only background-audio site is unloaded or its toggle is turned off
+**Then** `_updateBackgroundAudioSession` finds no loaded background-audio site
+and calls `MediaSessionService.stopAll`, stopping the foreground service
+
 ## Limitations (documented, accepted)
 
-- **Android process death**: no foreground media service is used (Play
-  review posture matches the notifications feature). Audio keeps playing
-  while the process lives; if the OS kills the app under pressure the
-  audio stops. The retention tier and the OS's own reluctance to kill
-  audio-playing processes mitigate this.
 - **iOS without playback**: the audio session keeps the app alive only
   while audio is actually playing; a paused player suspends with the app
-  as usual.
+  as usual. iOS surfaces its own Now Playing controls from the page's
+  MediaSession — the Android media service (BGAUDIO-006) is not mirrored
+  there.
 - The exemption trades battery for playback: an enabled site's JS runs
   whenever it is loaded. The toggle is per-site and off by default.
 
@@ -206,8 +264,15 @@ on Android/iOS hardware. The decision matrix is covered by
 - `lib/services/background_task_service.dart` — `setBackgroundAudioActive`.
 - `ios/Runner/BackgroundTaskPlugin.swift`, `ios/Runner/Info.plist` —
   AVAudioSession category switch, `audio` background mode.
-- `lib/screens/settings.dart` — per-site toggle.
+- `lib/screens/settings.dart` — per-site toggle (+ POST_NOTIFICATIONS request).
 - `lib/services/site_settings_qr_codec.dart` — QR-shareable key.
+- `lib/services/webview.dart` — `WebViewConfig.backgroundAudioEnabled`, media
+  shim injection, `wsMediaSession` handler.
+- `lib/services/media_session_shim.dart`, `lib/services/media_session_service.dart`
+  — BGAUDIO-006 page-JS bridge + Dart channel bridge.
+- `android/app/src/main/kotlin/.../MediaPlaybackService.kt`,
+  `.../MediaSessionPlugin.kt`, `MainActivity.kt`, `AndroidManifest.xml` —
+  BGAUDIO-006 foreground media service + permissions.
 
 ### Added
 
