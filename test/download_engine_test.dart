@@ -463,6 +463,24 @@ void main() {
       final result = DownloadEngine.fromBase64(base64Data: payload);
       expect(utf8.decode(result.bytes), 'ok');
     });
+
+    test('rejects a payload over maxBytes before decoding', () {
+      // The blob-download bridge handler is page-reachable; a hostile page
+      // could hand it a huge base64 string to OOM the app. Cap it.
+      final big = base64.encode(List<int>.filled(64 * 1024, 0));
+      expect(
+        () => DownloadEngine.fromBase64(base64Data: big, maxBytes: 1024),
+        throwsA(isA<DownloadException>().having(
+            (e) => e.message, 'message', contains('size limit'))),
+      );
+    });
+
+    test('accepts a payload within maxBytes', () {
+      final ok = base64.encode(utf8.encode('small'));
+      final result =
+          DownloadEngine.fromBase64(base64Data: ok, maxBytes: 1024);
+      expect(utf8.decode(result.bytes), 'small');
+    });
   });
 }
 

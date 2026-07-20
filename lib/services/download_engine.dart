@@ -321,12 +321,24 @@ class DownloadEngine {
     String? suggestedFilename,
     String? mimeType,
     String? sourceUrl,
+    int maxBytes = defaultMaxBytes,
   }) {
+    final trimmed = base64Data.trim();
+    // The blob-download bridge handler is page-reachable, so a hostile page
+    // could hand us an arbitrarily large base64 string. Unlike fetch(), this
+    // decodes straight into RAM, so bound it. Estimate the decoded size from
+    // the base64 length (4 chars -> 3 bytes) and reject before materializing.
+    if (trimmed.length ~/ 4 * 3 > maxBytes) {
+      throw DownloadException('Download exceeds size limit');
+    }
     final Uint8List bytes;
     try {
-      bytes = base64.decode(base64Data.trim());
+      bytes = base64.decode(trimmed);
     } on FormatException catch (e) {
       throw DownloadException('Malformed base64: ${e.message}');
+    }
+    if (bytes.length > maxBytes) {
+      throw DownloadException('Download exceeds size limit');
     }
     return DownloadResult(
       bytes: bytes,
