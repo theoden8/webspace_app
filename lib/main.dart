@@ -1750,6 +1750,9 @@ class _WebSpacePageState extends State<WebSpacePage>
   Future<void> _handleShortcutIntent() async {
     final launch = await ShortcutService.getLaunch();
     if (!mounted || launch == null) return;
+    // A shortcut tap is an app entry point: any route pushed over the main
+    // page (nested webview, settings) would overlay the launched site.
+    Navigator.of(context).popUntil((route) => route.isFirst);
     final url = launch.url ??
         _shortcutUrlLedger[launch.siteId] ??
         _tombstoneUrlFor(launch.siteId);
