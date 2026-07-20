@@ -147,6 +147,7 @@ void main() {
         siteCount: 3,
         loadedIndices: {0, 1},
         notificationsEnabled: (_) => false,
+        backgroundAudioEnabled: (_) => false,
         cookieFlushSupported: true,
       );
       expect(plan.flushCookies, isTrue);
@@ -161,6 +162,7 @@ void main() {
         siteCount: 3,
         loadedIndices: {0, 1},
         notificationsEnabled: (_) => false,
+        backgroundAudioEnabled: (_) => false,
         cookieFlushSupported: false,
       );
       expect(plan.flushCookies, isFalse);
@@ -174,6 +176,7 @@ void main() {
         siteCount: 3,
         loadedIndices: const {},
         notificationsEnabled: (_) => false,
+        backgroundAudioEnabled: (_) => false,
         cookieFlushSupported: true,
       );
       expect(plan.flushCookies, isFalse);
@@ -188,6 +191,7 @@ void main() {
         siteCount: 3,
         loadedIndices: {0, 1},
         notificationsEnabled: (i) => i == 1,
+        backgroundAudioEnabled: (_) => false,
         cookieFlushSupported: true,
       );
       expect(plan.jsPauseIndex, isNull);
@@ -203,6 +207,7 @@ void main() {
         siteCount: 3,
         loadedIndices: {0, 2},
         notificationsEnabled: (_) => false,
+        backgroundAudioEnabled: (_) => false,
         cookieFlushSupported: true,
       );
       expect(plan.jsPauseIndex, isNull);
