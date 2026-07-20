@@ -62,14 +62,21 @@ void main() {
         initUrl: 'https://example.com',
         notificationsEnabled: true,
         localCdnEnabled: true,
+        incognito: false,
         isArchiveTier: true,
       );
       expect(m.effectiveNotificationsEnabled, isFalse);
       expect(m.effectiveLocalCdnEnabled, isFalse);
+      // ARCH-006: an archive-tier site is always incognito so its container
+      // never writes localStorage/IDB/SW/HTTP-cache to disk in cleartext.
+      // The webview config sites (setOptions, WebViewConfig, both nested
+      // launchUrlFunc calls) all read effectiveIncognito, not the raw field.
+      expect(m.effectiveIncognito, isTrue);
       // Stored values are preserved so the user's preferences round-trip
       // through any future eject flow.
       expect(m.notificationsEnabled, isTrue);
       expect(m.localCdnEnabled, isTrue);
+      expect(m.incognito, isFalse);
     });
 
     test('effective getters pass through for app-tier sites', () {
@@ -77,9 +84,17 @@ void main() {
         initUrl: 'https://example.com',
         notificationsEnabled: true,
         localCdnEnabled: false,
+        incognito: false,
       );
       expect(m.effectiveNotificationsEnabled, isTrue);
       expect(m.effectiveLocalCdnEnabled, isFalse);
+      // App-tier respects the stored incognito value both ways.
+      expect(m.effectiveIncognito, isFalse);
+      expect(
+        WebViewModel(initUrl: 'https://e.com', incognito: true)
+            .effectiveIncognito,
+        isTrue,
+      );
     });
 
     // persistsNavState is the single gate all three production call sites

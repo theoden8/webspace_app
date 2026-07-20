@@ -195,4 +195,78 @@ void main() {
       expect(ExternalUrlParser.toWebUrl(fb), isNull);
     });
   });
+
+  group('intent browser_fallback_url scheme allowlist', () {
+    // A page hands us the whole intent:// string, so browser_fallback_url is
+    // attacker-influenced. A non-http(s) fallback must never resolve to a
+    // loadable URL (silent route) and must never pass isLoadableWebUrl (the
+    // gate the confirmation-dialog "Open in browser" button relies on).
+    String intentWithFallback(String fallback) {
+      final enc = Uri.encodeComponent(fallback);
+      return 'intent://scan/#Intent;scheme=zxing;'
+          'S.browser_fallback_url=$enc;end';
+    }
+
+    for (final hostile in const [
+      'javascript:alert(document.cookie)',
+      'file:///data/data/org.codeberg.theoden8.webspace/shared_prefs/x.xml',
+      'data:text/html,<script>alert(1)</script>',
+      'intent://evil/#Intent;scheme=zxing;end',
+      'content://com.evil/secret',
+    ]) {
+      test('rejects $hostile fallback', () {
+        final info = ExternalUrlParser.parse(intentWithFallback(hostile))!;
+        expect(ExternalUrlParser.intentToWebUrl(info), isNull);
+        expect(ExternalUrlParser.toWebUrl(info), isNull);
+        expect(ExternalUrlParser.isLoadableWebUrl(hostile), isFalse);
+      });
+    }
+
+    test('accepts an http(s) fallback', () {
+      final info =
+          ExternalUrlParser.parse(intentWithFallback('https://example.com/x'))!;
+      expect(ExternalUrlParser.toWebUrl(info), 'https://example.com/x');
+      expect(ExternalUrlParser.isLoadableWebUrl('https://example.com/x'), isTrue);
+      expect(ExternalUrlParser.isLoadableWebUrl('http://example.com'), isTrue);
+    });
+
+    test('toWebUrl never yields a non-http(s) string for hostile intents', () {
+      for (final hostile in const [
+        'javascript:alert(1)',
+        'file:///etc/passwd',
+        'data:text/html,x',
+        'intent://x/#Intent;scheme=zxing;end',
+      ]) {
+        final info = ExternalUrlParser.parse(
+            'intent://x/#Intent;scheme=zxing;'
+            'S.browser_fallback_url=${Uri.encodeComponent(hostile)};end')!;
+        final resolved = ExternalUrlParser.toWebUrl(info);
+        if (resolved != null) {
+          expect(ExternalUrlParser.isLoadableWebUrl(resolved), isTrue);
+        }
+      }
+    });
+  });
+
+  group('isLoadableWebUrl', () {
+    test('only http and https are loadable', () {
+      expect(ExternalUrlParser.isLoadableWebUrl('https://x'), isTrue);
+      expect(ExternalUrlParser.isLoadableWebUrl('http://x'), isTrue);
+      expect(ExternalUrlParser.isLoadableWebUrl('HTTPS://X'), isTrue);
+      for (final bad in const [
+        'file:///etc/passwd',
+        'javascript:alert(1)',
+        'data:text/html,x',
+        'intent://x',
+        'tel:+1',
+        'x-safari-https://x',
+        'about:blank',
+        '',
+        'not a url with spaces',
+      ]) {
+        expect(ExternalUrlParser.isLoadableWebUrl(bad), isFalse,
+            reason: '$bad must not be loadable');
+      }
+    });
+  });
 }

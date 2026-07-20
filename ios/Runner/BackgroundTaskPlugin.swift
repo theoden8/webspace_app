@@ -66,25 +66,44 @@ class BackgroundTaskPlugin: NSObject {
 
   /// Called by AppDelegate when iOS hands us a refresh task. Forwards to
   /// Dart and re-schedules the next refresh.
+  ///
+  /// `pendingRefreshTask` is touched from three threads: this handler (the
+  /// `BGTaskScheduler` launch queue, off-main), the `expirationHandler`
+  /// (iOS's own thread), and `bgRefreshDidComplete` (the Flutter platform /
+  /// main thread). `BGTask.setTaskCompleted` must fire exactly once per
+  /// task; an unsynchronised double-call crashes the process and a lost
+  /// write leaks the completion (iOS then throttles future scheduling). So
+  /// every access to the pending slot is funnelled onto the main queue and
+  /// completion is made idempotent per task via [completeTask].
   func handleRefreshTask(_ task: BGAppRefreshTask) {
-    pendingRefreshTask?.setTaskCompleted(success: false)
-    pendingRefreshTask = task
-
-    task.expirationHandler = { [weak self] in
-      guard let self = self, let pending = self.pendingRefreshTask else { return }
-      self.pendingRefreshTask = nil
-      pending.setTaskCompleted(success: false)
+    task.expirationHandler = { [weak self, weak task] in
+      guard let self = self, let task = task else { return }
+      DispatchQueue.main.async { self.completeTask(task, success: false) }
     }
 
-    channel.invokeMethod("onBackgroundRefresh", arguments: nil) { [weak self] _ in
-      // Dart will call back via `bgRefreshDidComplete`; the success result
-      // here just confirms the channel delivered the message. Don't mark
-      // the task complete from here, otherwise rapid-completion races
-      // setTaskCompleted with the Dart-side reload.
-      _ = self
+    DispatchQueue.main.async { [weak self] in
+      guard let self = self else { return }
+      // A previous task that never reported completion loses its slot to
+      // this one — complete it (once) before taking over.
+      if let previous = self.pendingRefreshTask {
+        self.completeTask(previous, success: false)
+      }
+      self.pendingRefreshTask = task
+      // Dart calls back via `bgRefreshDidComplete`; don't mark the task
+      // complete from the channel result or it races the Dart-side reload.
+      self.channel.invokeMethod("onBackgroundRefresh", arguments: nil, result: nil)
+      self.scheduleNextRefresh()
     }
+  }
 
-    scheduleNextRefresh()
+  /// Complete [task] exactly once. Must run on the main queue. The identity
+  /// guard makes a second call (e.g. expiration firing after Dart already
+  /// reported completion, or vice versa) a no-op, and prevents a stale
+  /// expiration handler from completing a newer task.
+  private func completeTask(_ task: BGAppRefreshTask, success: Bool) {
+    guard pendingRefreshTask === task else { return }
+    pendingRefreshTask = nil
+    task.setTaskCompleted(success: success)
   }
 
   /// Submits a new BGAppRefreshTaskRequest. Idempotent: BGTaskScheduler
@@ -121,8 +140,12 @@ class BackgroundTaskPlugin: NSObject {
       } else {
         success = true
       }
-      pendingRefreshTask?.setTaskCompleted(success: success)
-      pendingRefreshTask = nil
+      // Runs on the Flutter platform (main) thread, the same queue the
+      // pending slot is confined to. Complete via the funnel so a racing
+      // expiration handler can't also complete the task.
+      if let task = pendingRefreshTask {
+        completeTask(task, success: success)
+      }
       result(nil)
     default:
       result(FlutterMethodNotImplemented)
