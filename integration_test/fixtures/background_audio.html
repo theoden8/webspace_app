@@ -6,8 +6,6 @@
 </head>
 <body>
 <p>background-audio fixture</p>
-<audio id="player" loop
-  src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA="></audio>
 <script>
 // Liveness beacon: while this page's JS timers run, the loopback test
 // server receives a /beacon request every 250 ms carrying a monotonously
@@ -17,25 +15,41 @@
 // timers (app-lifecycle pause), the beacons stop — that silence is the
 // observable.
 window.__ticks = 0;
-var audio = document.getElementById('player');
 window.__audioPlayState = 'unattempted';
-// Autoplay may be blocked (policy) or unavailable (headless CI without an
-// audio sink); the beacon carries the outcome so the test can decide which
-// assertions are meaningful on this engine.
-try {
-  audio.play().then(function () {
-    window.__audioPlayState = 'playing';
-  }).catch(function (e) {
-    window.__audioPlayState = 'blocked:' + (e && e.name ? e.name : 'unknown');
-  });
-} catch (e) {
-  window.__audioPlayState = 'threw:' + (e && e.name ? e.name : 'unknown');
+// Media is opt-out via ?noMedia=1, and the element is built in JS so a
+// static <audio> tag can't touch the media stack at parse time: WPE WebKit
+// in the headless CI container (GStreamer base only, no plugin sets, no
+// audio sink) crashes its web process initializing the media pipeline,
+// which crash-loops the renderer before the first beacon. The CI lifecycle
+// test loads ?noMedia=1 and asserts JS-timer liveness — the thing the
+// pause machinery actually freezes; open the fixture without the param to
+// exercise real audio playback on a capable engine.
+var audio = null;
+if (new URLSearchParams(location.search).get('noMedia') === null) {
+  try {
+    audio = document.createElement('audio');
+    audio.loop = true;
+    audio.src =
+      'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=';
+    document.body.appendChild(audio);
+    // Autoplay may be blocked (policy) or unavailable; the beacon carries
+    // the outcome so observers know which assertions are meaningful.
+    audio.play().then(function () {
+      window.__audioPlayState = 'playing';
+    }).catch(function (e) {
+      window.__audioPlayState = 'blocked:' + (e && e.name ? e.name : 'unknown');
+    });
+  } catch (e) {
+    window.__audioPlayState = 'threw:' + (e && e.name ? e.name : 'unknown');
+  }
+} else {
+  window.__audioPlayState = 'skipped';
 }
 setInterval(function () {
   window.__ticks++;
   var q = '/beacon?ticks=' + window.__ticks +
       '&audio=' + encodeURIComponent(window.__audioPlayState) +
-      '&t=' + (audio.currentTime || 0);
+      '&t=' + ((audio && audio.currentTime) || 0);
   try { fetch(q, { cache: 'no-store' }); } catch (e) {}
 }, 250);
 </script>

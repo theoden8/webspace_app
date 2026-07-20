@@ -88,7 +88,12 @@ void main() {
     isDemoMode = true;
     final audioSite = WebViewModel(
       siteId: 'bg-audio',
-      initUrl: 'http://127.0.0.1:$port/',
+      // ?noMedia=1: the fixture skips creating its <audio> element. WPE in
+      // the headless CI container (GStreamer base only, no plugin sets or
+      // audio sink) crash-loops the web process on media-pipeline init, and
+      // this test's claim is JS-timer liveness — the thing the pause
+      // machinery actually freezes — not audio decoding.
+      initUrl: 'http://127.0.0.1:$port/?noMedia=1',
       name: 'BG Audio',
       backgroundAudioEnabled: true,
     );
