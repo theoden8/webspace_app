@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "Mostra la pàgina de la memòria cau en inici en fred (la reserva fora de línia sempre activa)",
   "siteSettingsNotifications": "Notificacions",
   "siteSettingsNotificationsHint": "Permet que aquest lloc mostri notificacions del sistema. Manté el lloc fent sondeig en segon pla perquè les notificacions s'activin fins i tot quan sigueu en una altra pestanya.",
+  "siteSettingsBackgroundAudio": "Àudio en segon pla",
+  "siteSettingsBackgroundAudioHint": "L'àudio d'aquest lloc continua sonant quan canvieu a un altre lloc o sortiu de l'aplicació. La pàgina no es posa mai en pausa en segon pla. Pensat per a llocs de música, ràdio i pòdcasts.",
   "siteSettingsNotificationsBlockedByProxy": "No es pot activar: \"{site}\" ja fa sondeig en segon pla amb un servidor intermediari diferent. Android només permet un servidor intermediari alhora.",
   "siteSettingsNotificationsDenied": "Notificacions denegades. Activeu-les a Configuració → {path}.",
   "siteSettingsProtectedContent": "Contingut protegit (DRM)",

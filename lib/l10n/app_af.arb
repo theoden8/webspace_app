@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "Wys gekaste bladsy by koue begin (vanlyn-terugval altyd aan)",
   "siteSettingsNotifications": "Kennisgewings",
   "siteSettingsNotificationsHint": "Laat hierdie webwerf toe om stelselkennisgewings te wys. Hou die webwerf in die agtergrond aan die gang sodat kennisgewings vuur selfs wanneer jy op 'n ander oortjie is.",
+  "siteSettingsBackgroundAudio": "Agtergrondklank",
+  "siteSettingsBackgroundAudioHint": "Hou hierdie werf se klank aan die speel wanneer jy na 'n ander werf oorskakel of die app verlaat. Die bladsy word in die agtergrond nooit onderbreek nie. Bedoel vir musiek-, radio- en potgooiwerwe.",
   "siteSettingsNotificationsBlockedByProxy": "Kan nie aktiveer nie: \"{site}\" loop reeds in die agtergrond met 'n ander proxy. Android laat slegs een proxy op 'n slag toe.",
   "siteSettingsNotificationsDenied": "Kennisgewings geweier. Aktiveer in Instellings → {path}.",
   "siteSettingsProtectedContent": "Beskermde inhoud (DRM)",
