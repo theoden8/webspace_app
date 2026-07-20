@@ -172,6 +172,53 @@ void main() {
       expect(WebViewModel.fromJson(json, null).externalLinksInBrowser, isTrue);
     });
 
+    test('backgroundAudioEnabled defaults off; toJson omits the default '
+        '(BGAUDIO-001)', () {
+      final m = WebViewModel(initUrl: 'https://example.org/');
+      expect(m.backgroundAudioEnabled, isFalse);
+      expect(m.toJson().containsKey('backgroundAudioEnabled'), isFalse,
+          reason: 'omitting the default keeps on-disk JSON byte-stable');
+      final back = WebViewModel.fromJson(m.toJson(), null);
+      expect(back.backgroundAudioEnabled, isFalse);
+    });
+
+    test('backgroundAudioEnabled=true survives the settings-save round-trip '
+        '(BGAUDIO-001)', () {
+      // Mirrors what SettingsScreen._saveSettings does: flip the field on the
+      // model, persist via toJson, rehydrate. If this regressed, a user who
+      // enabled the toggle would still see App-lifecycle pause the site
+      // (jsPause=true) after a restart.
+      final m = WebViewModel(initUrl: 'https://example.org/');
+      m.backgroundAudioEnabled = true;
+      final json = m.toJson();
+      expect(json['backgroundAudioEnabled'], isTrue);
+      final back = WebViewModel.fromJson(json, null);
+      expect(back.backgroundAudioEnabled, isTrue);
+      expect(back.effectiveBackgroundAudioEnabled, isTrue,
+          reason: 'the lifecycle engine reads effectiveBackgroundAudioEnabled');
+    });
+
+    test('backgroundAudioEnabled absent in legacy JSON defaults off', () {
+      final legacy = WebViewModel(initUrl: 'https://example.org/').toJson()
+        ..remove('backgroundAudioEnabled');
+      expect(legacy.containsKey('backgroundAudioEnabled'), isFalse);
+      expect(
+          WebViewModel.fromJson(legacy, null).backgroundAudioEnabled, isFalse);
+    });
+
+    test('backgroundAudioEnabled forced off for archive-tier sites '
+        '(ARCH-006)', () {
+      final m = WebViewModel(
+        initUrl: 'https://example.org/',
+        backgroundAudioEnabled: true,
+        isArchiveTier: true,
+      );
+      expect(m.backgroundAudioEnabled, isTrue,
+          reason: 'the stored value is preserved');
+      expect(m.effectiveBackgroundAudioEnabled, isFalse,
+          reason: 'archive-tier sites never opt out of lifecycle pausing');
+    });
+
     test('kioskMode defaults off (KIOSK-004)', () {
       final m = WebViewModel(initUrl: 'https://example.org/');
       expect(m.kioskMode, isFalse);
