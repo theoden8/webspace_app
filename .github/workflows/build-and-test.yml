@@ -452,10 +452,15 @@ jobs:
           # predates the broken transition. Bump it when you need newer WPE;
           # verify at https://snapshot.debian.org that the target date carries
           # WPE >= 2.50 and a provider for onnxruntime's libre2-11-absl* dep.
+          # Plain http, not https: sid-slim ships no ca-certificates yet, so
+          # apt can't verify a TLS cert to fetch the index (that's the very
+          # package we're installing). Debian repos are GPG-signed, so http is
+          # safe — integrity comes from the signed Release, not the transport.
+          # This mirrors the original deb.debian.org (http) source.
           SNAPSHOT=20260601T000000Z
           rm -f /etc/apt/sources.list
           rm -f /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list 2>/dev/null || true
-          printf 'deb [check-valid-until=no] https://snapshot.debian.org/archive/debian/%s/ sid main\n' \
+          printf 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/%s/ sid main\n' \
             "$SNAPSHOT" > /etc/apt/sources.list
           # snapshot.debian.org can be slow / rate-limit; retry transient fetch
           # failures (a genuinely broken graph fails fast on the resolver, not
