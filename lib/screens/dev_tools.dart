@@ -1687,12 +1687,17 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
             onPressed: filtered.isEmpty
                 ? null
                 : () {
-                    final text = filtered
-                        .map((e) => '[${_formatTime(e.timestamp)}] [${e.tag}/${e.level.name}] ${e.message}')
-                        .join('\n');
+                    // Strip sensitive entries from the clipboard even when the
+                    // tab shows them: the clipboard syncs off-device, same
+                    // contract as export(). See LogService.formatForClipboard.
+                    final text = LogService.formatForClipboard(filtered);
+                    final copied = filtered
+                        .where((e) =>
+                            e.sensitivity != LogSensitivity.sensitive)
+                        .length;
                     Clipboard.setData(ClipboardData(text: text));
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(loc.devToolsLogsCopied(filtered.length))),
+                      SnackBar(content: Text(loc.devToolsLogsCopied(copied))),
                     );
                   },
             icon: const Icon(Icons.copy, size: 18),

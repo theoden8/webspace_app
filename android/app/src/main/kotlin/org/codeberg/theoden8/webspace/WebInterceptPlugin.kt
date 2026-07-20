@@ -18,6 +18,7 @@ import java.io.FileInputStream
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterEngine) {
     private val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
@@ -483,13 +484,23 @@ class FastSubresourceInterceptor(
     private val hostDecision = LinkedHashMap<String, Decision>(256, 0.75f, false)
     private val hostDecisionCap = 1024
 
+    /// Guards every access to [hostDecision]. `checkUrl` runs on chromium's
+    /// background sub-resource IO threads (several concurrently per page), so
+    /// the read, the FIFO-eviction write, and [clearHostDecisionCache] must
+    /// serialise on one monitor. The old `@Synchronized` on clear only locked
+    /// `this` while the reads/writes were lock-free — concurrent structural
+    /// mutation of a LinkedHashMap can throw ConcurrentModificationException
+    /// or, on resize, spin the IO thread. Same bug class as the adblock UAF.
+    private val hostDecisionLock = Any()
+
     /// Drop every cached host classification. Called by
     /// [WebInterceptPlugin.clearAllHostDecisionCaches] when the
     /// blocked-domains set is replaced — see comment there for the
     /// race this avoids.
-    @Synchronized
     fun clearHostDecisionCache() {
-        hostDecision.clear()
+        synchronized(hostDecisionLock) {
+            hostDecision.clear()
+        }
     }
 
     init {
@@ -520,7 +531,7 @@ class FastSubresourceInterceptor(
         // saves is the suffix walk — `tracker.example.com` resolved
         // once doesn't need to look up `tracker.example.com`,
         // `example.com`, then fail again on every subsequent fetch.
-        var decision = hostDecision[host]
+        var decision = synchronized(hostDecisionLock) { hostDecision[host] }
         val cached = decision != null
         if (decision == null) {
             // Fail-closed: if the blocklist build is still in flight, wait for
@@ -653,14 +664,16 @@ class FastSubresourceInterceptor(
     }
 
     private fun putHostDecision(host: String, decision: Decision) {
-        if (hostDecision.size >= hostDecisionCap) {
-            val it = hostDecision.entries.iterator()
-            if (it.hasNext()) {
-                it.next()
-                it.remove()
+        synchronized(hostDecisionLock) {
+            if (hostDecision.size >= hostDecisionCap) {
+                val it = hostDecision.entries.iterator()
+                if (it.hasNext()) {
+                    it.next()
+                    it.remove()
+                }
             }
+            hostDecision[host] = decision
         }
-        hostDecision[host] = decision
     }
 
     private fun tryServeCdn(url: String): WebResourceResponse? {

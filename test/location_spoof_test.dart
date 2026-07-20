@@ -234,4 +234,65 @@ void main() {
       expect(script, contains('__wsLocShimInstalled'));
     });
   });
+
+  group('snapLiveFix (authoritative live-location granularity)', () {
+    // The getRealLocation bridge handler applies this natively, so a page
+    // calling callHandler('getRealLocation') directly can't bypass the
+    // per-site granularity by skipping the JS shim's snapFix.
+    const lat = 37.422131;
+    const lng = -122.084801;
+
+    test('gps tier does not alter the fix', () {
+      final (a, b, c) = snapLiveFix(
+        latitude: lat,
+        longitude: lng,
+        accuracy: 5.0,
+        granularity: LocationGranularity.gps,
+      );
+      expect(a, lat);
+      expect(b, lng);
+      expect(c, 5.0);
+    });
+
+    test('approximate tier snaps to ~110 m grid and inflates accuracy', () {
+      final (a, b, c) = snapLiveFix(
+        latitude: lat,
+        longitude: lng,
+        accuracy: 5.0,
+        granularity: LocationGranularity.approximate,
+      );
+      // Coordinates are coarsened (no longer full precision).
+      expect(a, isNot(lat));
+      expect(b, isNot(lng));
+      // Snapped latitude lands on the 0.001-degree grid.
+      expect((a / 0.001 - (a / 0.001).roundToDouble()).abs(), lessThan(1e-9));
+      // Reported accuracy floored to the tier minimum.
+      expect(c, greaterThanOrEqualTo(110.0));
+      // The coarsening is real: within ~1 grid cell of the true point.
+      expect((a - lat).abs(), lessThan(0.001));
+    });
+
+    test('gsm tier snaps to ~1.1 km grid and inflates accuracy', () {
+      final (a, b, c) = snapLiveFix(
+        latitude: lat,
+        longitude: lng,
+        accuracy: 5.0,
+        granularity: LocationGranularity.gsm,
+      );
+      expect(c, greaterThanOrEqualTo(1100.0));
+      expect((a / 0.01 - (a / 0.01).roundToDouble()).abs(), lessThan(1e-9));
+    });
+
+    test('a high-accuracy fix cannot leak through a coarse tier', () {
+      // Even a 1 m accuracy device fix is reported no better than the tier
+      // floor after snapping.
+      final (_, __, acc) = snapLiveFix(
+        latitude: lat,
+        longitude: lng,
+        accuracy: 1.0,
+        granularity: LocationGranularity.gsm,
+      );
+      expect(acc, greaterThanOrEqualTo(1100.0));
+    });
+  });
 }

@@ -1,6 +1,50 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:webspace/settings/location.dart';
+
+/// `(grid step in degrees, minimum reported accuracy in metres)` for a live
+/// granularity tier. A zero step means no snapping (the `gps` tier). Single
+/// source of truth for both the injected JS shim (`snapFix`) and the native
+/// `getRealLocation` handler, so the two can't drift.
+(double, double) liveSnapParams(LocationGranularity granularity) {
+  switch (granularity) {
+    case LocationGranularity.gps:
+      return (0.0, 0.0);
+    case LocationGranularity.approximate:
+      return (0.001, 110.0);
+    case LocationGranularity.gsm:
+      return (0.01, 1100.0);
+  }
+}
+
+/// Snap a live device fix to the tier's grid and inflate its reported
+/// accuracy, mirroring the JS shim's `snapFix`. This MUST also be applied
+/// natively before the fix leaves Dart: the geolocation shim is injected
+/// `forMainFrameOnly: false`, so a page (or cross-origin iframe) can call
+/// `callHandler('getRealLocation')` directly and skip the JS snapping. Doing
+/// the reduction here makes the per-site granularity authoritative regardless
+/// of how the page reaches the bridge. Returns `(latitude, longitude,
+/// accuracy)`.
+(double, double, double) snapLiveFix({
+  required double latitude,
+  required double longitude,
+  required double accuracy,
+  required LocationGranularity granularity,
+}) {
+  final (stepDeg, minAccM) = liveSnapParams(granularity);
+  if (!(stepDeg > 0)) {
+    return (latitude, longitude, accuracy);
+  }
+  final snappedLat = (latitude / stepDeg).roundToDouble() * stepDeg;
+  // Longitude step derived from the snapped latitude so cells stay roughly
+  // square toward the poles; guard the polar cos->0 singularity.
+  final cosLat = math.cos(snappedLat * math.pi / 180);
+  final lngStep = stepDeg / math.max(cosLat.abs(), 1e-6);
+  final snappedLng = (longitude / lngStep).roundToDouble() * lngStep;
+  final inflated = math.max(accuracy, minAccM);
+  return (snappedLat, snappedLng, inflated);
+}
 
 /// Builds a JavaScript shim injected at DOCUMENT_START that:
 /// - spoofs [navigator.geolocation] with user-supplied coordinates,
@@ -56,13 +100,8 @@ class LocationSpoofService {
     // 0.001° ≈ 110 m at the equator; 0.01° ≈ 1100 m. GPS=no snap. The
     // longitude step is derived from cos(snappedLat) at runtime so cells
     // stay roughly square at higher latitudes (see snapFix below).
-    final (snapStepDeg, snapMinAccM) = !liveLocation
-        ? (0.0, 0.0)
-        : switch (liveLocationGranularity) {
-            LocationGranularity.gps => (0.0, 0.0),
-            LocationGranularity.approximate => (0.001, 110.0),
-            LocationGranularity.gsm => (0.01, 1100.0),
-          };
+    final (snapStepDeg, snapMinAccM) =
+        !liveLocation ? (0.0, 0.0) : liveSnapParams(liveLocationGranularity);
 
     return _template
         .replaceAll('__STATIC_LOC__', spoofLocation ? 'true' : 'false')
