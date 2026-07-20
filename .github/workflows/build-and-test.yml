@@ -841,6 +841,45 @@ jobs:
           fvm flutter build macos --release
           bash scripts/verify_adblock_shipped.sh macos
 
+      # Reclaim disk before the macOS integration loop. The macos-latest
+      # runner has a tight disk budget, and by this point three build trees
+      # coexist: the iOS release archive (build/ios), the macOS *release*
+      # tree (build/macos, Release config), and — about to be created — the
+      # macOS *debug* tree the loop rebuilds 12 times. That coexistence is
+      # what filled the disk mid-loop: the run failed on the 4th test file
+      # with cascading write errors (rsync "Input/output error" copying
+      # App.framework, "unable to write manifest", a truncated
+      # Flutter-Generated.xcconfig, then `git mmap failed` once the Flutter
+      # SDK itself got corrupted).
+      #
+      # The Debug builds never reuse the Release intermediates (Xcode keys
+      # object files by configuration), and they never touch build/ios, so
+      # dropping both is free — no extra rebuild cost, the first Debug build
+      # was always going to compile the Debug pods from scratch. We keep
+      # only the two deliverables the post-loop steps still need: the IPA
+      # (build/ios/ipa) and the Release .app (build/macos/Build/Products/
+      # Release, zipped after the loop). rust/webspace_adblock/target is
+      # deliberately left intact — the pod's always-out-of-date script phase
+      # re-runs `build_rust.sh apple` on every Debug build, and an intact
+      # target/ keeps cargo a fast no-op instead of a 4-minute recompile ×12.
+      - name: Reclaim disk before macOS integration tests
+        run: |
+          set -x
+          # Report the volume the build actually writes to; on macOS APFS
+          # `df -h /` shows the sealed read-only system volume, not the
+          # writable Data volume the checkout lives on.
+          df -h .
+          # iOS: keep the IPA, drop the .xcarchive + iphoneos intermediates.
+          if [ -d build/ios ]; then
+            find build/ios -mindepth 1 -maxdepth 1 ! -name ipa \
+              -exec rm -rf {} +
+          fi
+          # macOS: keep the Release .app products, drop the Release
+          # intermediates (the bulk: every Pod + Runner .o for a config the
+          # Debug loop won't reuse).
+          rm -rf build/macos/Build/Intermediates.noindex
+          df -h .
+
       # Integration tests on macOS desktop — the same cross-platform
       # integration_test/*.dart harness the Linux job runs, driven against
       # the native macOS (WKWebView + AppKit) runtime via `-d macos`. None

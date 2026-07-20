@@ -411,6 +411,32 @@ either target.
   checks out fresh and release builds keep the committed entitlements
   plus a real signing identity
 
+#### Scenario: Disk is reclaimed before the macOS integration loop
+
+- **Given** the `build-apple` job has built the iOS IPA and the macOS
+  release app, so the iOS archive tree (`build/ios`) and the macOS
+  release build tree (`build/macos`, Release config) both sit on the
+  runner's tight disk
+- **And** the `Run macOS integration tests` step is about to rebuild the
+  macOS app once per file in the *debug* configuration, which Xcode keys
+  separately from the release objects and never reuses
+- **When** a `Reclaim disk before macOS integration tests` step runs
+  before the loop
+- **Then** it removes `build/macos/Build/Intermediates.noindex` (the
+  release object files) and everything under `build/ios` except
+  `build/ios/ipa`, leaving the two post-loop deliverables intact — the
+  IPA (`Upload IPA`) and the Release `.app` under
+  `build/macos/Build/Products/Release` (`Create macOS ZIP archive`)
+- **And** it does not touch `rust/webspace_adblock/target`, because the
+  webspace_adblock pod's always-out-of-date script phase re-invokes
+  `scripts/build_rust.sh apple` on every debug build and an intact
+  `target/` keeps cargo an incremental no-op instead of a full
+  five-slice recompile per file
+- **And** without this reclamation the loop exhausts the disk mid-run
+  (observed: the 4th file failing on rsync `Input/output error` copying
+  `App.framework`, then a truncated `Flutter-Generated.xcconfig` and a
+  corrupted Flutter SDK for every file after)
+
 ---
 
 ## Known Limitations
