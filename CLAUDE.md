@@ -175,6 +175,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | settings-backup | JSON import/export |
 | site-editing | URL + custom name |
 | tracking-protection | umbrella per-site ETP: forces ClearURLs/DNS/content blocker/LocalCDN + injects anti-fingerprinting shim (Canvas/WebGL/audio/fonts/screen/hardware/timing/clientrects) seeded by siteId |
+| user-agent-identity | engine-consistent navigator identity for the per-site UA (vendor/productSub/oscpu/buildID/platform/userAgentData); complements desktop-mode |
 | user-scripts | per-site JS injection w/ timing control |
 | web-push-notifications | per-site `notificationsEnabled` toggle: JS Notification polyfill → flutter_local_notifications, auto-loads + skips per-instance pause for notif sites, iOS `beginBackgroundTask` grace + `BGAppRefreshTask` reload, Android mirrors via `WorkManager` periodic refresh (no foreground service) |
 | archive | passphrase-gated archived webspaces in a fixed slot pool; active state stays byte-identical when no archive is open |

@@ -40,6 +40,44 @@ bool isDesktopUserAgent(String? ua) {
   return true;
 }
 
+/// The rendering/JS engine a UA string claims. Drives the engine-consistent
+/// navigator-identity shim (`user_agent_identity_shim.dart`): `navigator`
+/// fields like `vendor`, `productSub`, `oscpu`, and `buildID` are set by the
+/// engine, not the OS, so a spoofed UA whose engine disagrees with the
+/// underlying WebView (e.g. a Gecko UA on iOS WebKit) leaks unless these
+/// are made to match the *claimed* engine.
+enum UaEngine { gecko, webkit, blink, unknown }
+
+final RegExp _geckoBuildToken = RegExp(r'gecko/\d');
+
+/// Infer the JS engine a [ua] claims. iOS mandates WebKit, so any Apple
+/// mobile-browser brand token (FxiOS/CriOS/EdgiOS/OPiOS) classifies as
+/// [UaEngine.webkit] regardless of brand. Real Gecko carries a `Gecko/<digits>`
+/// build token plus `Firefox/`; every WebKit/Blink UA only carries the
+/// `(KHTML, like Gecko)` marker (no `Gecko/<digits>`). Returns
+/// [UaEngine.unknown] for empty or unrecognized strings (the shim then
+/// injects nothing).
+UaEngine inferUaEngine(String? ua) {
+  if (ua == null || ua.isEmpty) return UaEngine.unknown;
+  final lower = ua.toLowerCase();
+  final hasAppleWebKit = lower.contains('applewebkit/');
+  if (!hasAppleWebKit &&
+      _geckoBuildToken.hasMatch(lower) &&
+      lower.contains('firefox/')) {
+    return UaEngine.gecko;
+  }
+  if (hasAppleWebKit) {
+    final iosBrand = lower.contains('crios/') ||
+        lower.contains('fxios/') ||
+        lower.contains('edgios/') ||
+        lower.contains('opios/');
+    final isBlink = !iosBrand &&
+        (lower.contains('chrome/') || lower.contains('chromium/'));
+    return isBlink ? UaEngine.blink : UaEngine.webkit;
+  }
+  return UaEngine.unknown;
+}
+
 /// Which desktop-platform substring a UA carries. Used by the JS shim to
 /// emit the matching `navigator.platform` value.
 enum DesktopUaPlatform { linux, macos, windows }
