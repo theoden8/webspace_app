@@ -79,7 +79,7 @@ void main() {
     await tester.tap(tileMenuButton);
     await tester.pumpAndSettle(const Duration(seconds: 3));
 
-    // The popup menu has rows for Refresh / Edit / Delete; tap Edit.
+    // The popup menu has rows for Edit / Delete; tap Edit.
     final editMenuItem = find.text('Edit');
     if (editMenuItem.evaluate().isEmpty) {
       dumpTexts('context menu open');
