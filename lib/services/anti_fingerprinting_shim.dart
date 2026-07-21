@@ -11,7 +11,10 @@
 //   * Text metrics   — Canvas/Offscreen measureText jitter, document.fonts.check
 //                      restricted to a small common-fonts allowlist
 //   * Screen         — width/height/availWidth/availHeight/colorDepth/pixelDepth;
-//                      in letterbox mode screen.* mirrors the real window.inner*
+//                      in letterbox mode screen.* mirrors the real window.inner*;
+//                      matchMedia (min-|max-)device-width/height answers against
+//                      the same dimensions so CSS media queries can't recover
+//                      the real screen size
 //   * Hardware       — navigator.hardwareConcurrency, navigator.deviceMemory
 //   * Plugins/MIME   — navigator.plugins / navigator.mimeTypes -> empty
 //   * Battery        — navigator.getBattery() -> fixed values
@@ -231,6 +234,64 @@ String buildAntiFingerprintingShim(
       }
       defineGetterOnProto(Screen.prototype, 'colorDepth', COLOR_DEPTH);
       defineGetterOnProto(Screen.prototype, 'pixelDepth', COLOR_DEPTH);
+    }
+  } catch (e) {}
+
+  // --- matchMedia device-dimension agreement ---
+  // screen.* is spoofed above, but CSS `(min-|max-)device-width/height`
+  // media queries resolve against the REAL screen. A fingerprinter
+  // binary-searching `(max-device-width: Npx)` recovers the true device
+  // size and contradicts screen.width (CreepJS's "CSS Media Queries" leak).
+  // Intercept single-feature device-width/height queries and answer against
+  // the SAME dimensions screen.* reports: window.inner* in letterbox mode
+  // (the box is physically real), the pinned SCREEN_W/H otherwise.
+  try {
+    if (typeof window.matchMedia === 'function') {
+      var _origMatchMedia = window.matchMedia.bind(window);
+      var DEVICE_DIM_RE =
+        /^\\(\\s*(min-|max-)?device-(width|height)\\s*:\\s*([\\d.]+)px\\s*\\)\$/i;
+      function _targetDim(which) {
+        if (LETTERBOX) {
+          return which === 'width' ? window.innerWidth : window.innerHeight;
+        }
+        return which === 'width' ? SCREEN_W : SCREEN_H;
+      }
+      function _syntheticMql(query, matches) {
+        var listeners = [];
+        return {
+          matches: matches,
+          media: query,
+          onchange: null,
+          addListener: function(l) { if (l) listeners.push(l); },
+          removeListener: function(l) {
+            var i = listeners.indexOf(l); if (i >= 0) listeners.splice(i, 1);
+          },
+          addEventListener: function(_t, l) { if (l) listeners.push(l); },
+          removeEventListener: function(_t, l) {
+            var i = listeners.indexOf(l); if (i >= 0) listeners.splice(i, 1);
+          },
+          dispatchEvent: function() { return false; },
+        };
+      }
+      var _patchedMatchMedia = function matchMedia(query) {
+        try {
+          if (typeof query === 'string') {
+            var m = DEVICE_DIM_RE.exec(query.trim());
+            if (m) {
+              var actual = _targetDim(m[2].toLowerCase());
+              var val = parseFloat(m[3]);
+              var prefix = (m[1] || '').toLowerCase();
+              var matches = prefix === 'min-'
+                ? actual >= val
+                : (prefix === 'max-' ? actual <= val : actual === val);
+              return _syntheticMql(query, matches);
+            }
+          }
+        } catch (e) {}
+        return _origMatchMedia(query);
+      };
+      asNative(_patchedMatchMedia, 'matchMedia');
+      window.matchMedia = _patchedMatchMedia;
     }
   } catch (e) {}
 

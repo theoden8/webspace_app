@@ -147,6 +147,21 @@ function installFpStubs(window) {
       ready: Promise.resolve(),
     },
   });
+
+  // jsdom omits window.matchMedia. Provide an always-false stub so the shim's
+  // device-dimension wrapper installs over it and any non-device query the
+  // wrapper delegates lands here (matches:false).
+  if (typeof window.matchMedia !== 'function') {
+    window.matchMedia = function matchMedia(query) {
+      record('matchMedia', [query]);
+      return {
+        matches: false, media: query, onchange: null,
+        addListener() {}, removeListener() {},
+        addEventListener() {}, removeEventListener() {},
+        dispatchEvent() { return false; },
+      };
+    };
+  }
 }
 
 function makeDom({ url = 'https://example.com/' } = {}) {
@@ -222,6 +237,54 @@ test('non-letterbox leaves window.inner* untouched (real values)', () => {
   // is pinned (asserted above), and the real viewport stands.
   const dom = loadShim(ALPHA);
   assert.equal(dom.window.innerWidth, 1024); // jsdom default, unmodified
+});
+
+// --- matchMedia device-dimension agreement ---
+
+test('non-letterbox: (max/min-device-width) resolve against the pinned 1920', () => {
+  const mm = loadShim(ALPHA).window.matchMedia;
+  assert.equal(mm('(max-device-width: 1920px)').matches, true);
+  assert.equal(mm('(max-device-width: 1919px)').matches, false);
+  assert.equal(mm('(min-device-width: 1920px)').matches, true);
+  assert.equal(mm('(min-device-width: 1921px)').matches, false);
+  assert.equal(mm('(device-width: 1920px)').matches, true);
+});
+
+test('non-letterbox: device-height resolves against the pinned 1080', () => {
+  const mm = loadShim(ALPHA).window.matchMedia;
+  assert.equal(mm('(max-device-height: 1080px)').matches, true);
+  assert.equal(mm('(min-device-height: 1081px)').matches, false);
+  assert.equal(mm('(device-height: 1080px)').matches, true);
+});
+
+test('letterbox: device dims track window.inner* (agree with screen.*)', () => {
+  const dom = loadShim(ALPHA_LETTERBOX);
+  const w = dom.window;
+  // screen.* mirrors window.inner* in letterbox mode; device-* media queries
+  // must agree, or a binary search recovers the real screen.
+  assert.equal(w.matchMedia(`(device-width: ${w.innerWidth}px)`).matches, true);
+  assert.equal(w.matchMedia(`(device-height: ${w.innerHeight}px)`).matches, true);
+  // A re-snap (rotation) changes window.inner*; the wrapper follows it.
+  Object.defineProperty(w, 'innerWidth', { configurable: true, value: 800 });
+  assert.equal(w.matchMedia('(device-width: 800px)').matches, true);
+  assert.equal(w.matchMedia('(device-width: 1024px)').matches, false);
+});
+
+test('matchMedia delegates non-device queries to the real implementation', () => {
+  const dom = loadShim(ALPHA);
+  // A width (viewport, not device) query is not intercepted — it reaches the
+  // stub, which reports matches:false.
+  const r = dom.window.matchMedia('(min-width: 100px)');
+  assert.equal(r.matches, false);
+  assert.equal(r.media, '(min-width: 100px)');
+  const delegated = dom.window.__calls.filter(c => c.name === 'matchMedia');
+  assert.ok(delegated.length >= 1, 'non-device query was not delegated');
+});
+
+test('patched matchMedia stringifies as [native code]', () => {
+  const dom = loadShim(ALPHA);
+  const s = dom.window.Function.prototype.toString.call(dom.window.matchMedia);
+  assert.match(s, /\[native code\]/);
 });
 
 // --- navigator.* ---

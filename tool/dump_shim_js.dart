@@ -30,6 +30,7 @@ import 'package:webspace/services/target_blank_rewrite.dart';
 import 'package:webspace/services/location_spoof_service.dart';
 import 'package:webspace/services/theme_color_scheme_shim.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
+import 'package:webspace/services/user_agent_identity_shim.dart';
 import 'package:webspace/services/user_script_shim.dart';
 import 'package:webspace/settings/location.dart';
 
@@ -171,6 +172,22 @@ Map<String, String> buildAllFixtures() {
   fixtures['language/en.js'] = buildLanguageShim('en');
   fixtures['language/fr_FR.js'] = buildLanguageShim('fr-FR');
   fixtures['language/ja.js'] = buildLanguageShim('ja');
+
+  // Engine-consistent navigator identity, one fixture per engine × form
+  // factor: Gecko mobile (Firefox-Android — vendor "", oscpu/buildID set,
+  // platform "Linux armv8l"), Gecko desktop (no platform override), WebKit
+  // mobile (FxiOS — Apple vendor, no oscpu/buildID, userAgentData removed),
+  // Blink mobile (Chrome-Android — Google vendor, userAgentData kept).
+  fixtures['ua_identity/firefox_android.js'] =
+      buildUserAgentIdentityShim(buildFirefoxAndroidUserAgent('152.0'))!;
+  fixtures['ua_identity/firefox_linux_desktop.js'] =
+      buildUserAgentIdentityShim(firefoxLinuxDesktopUserAgent)!;
+  fixtures['ua_identity/fxios.js'] =
+      buildUserAgentIdentityShim(buildFirefoxIosUserAgent('152.0'))!;
+  fixtures['ua_identity/chrome_android.js'] = buildUserAgentIdentityShim(
+    'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 '
+    '(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+  )!;
 
   fixtures['theme_color_scheme/light.js'] = buildThemeColorSchemeShim('light');
   fixtures['theme_color_scheme/dark.js'] = buildThemeColorSchemeShim('dark');

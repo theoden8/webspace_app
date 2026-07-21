@@ -5,6 +5,7 @@ import 'package:webspace/services/anti_fingerprinting_shim.dart';
 import 'package:webspace/services/desktop_mode_shim.dart';
 import 'package:webspace/services/language_shim.dart';
 import 'package:webspace/services/location_spoof_service.dart';
+import 'package:webspace/services/user_agent_identity_shim.dart';
 import 'package:webspace/settings/location.dart';
 
 /// Regression guard for the per-site JS-shim injection surface.
@@ -76,5 +77,17 @@ void main() {
         'Mozilla/5.0 (X11; Linux x86_64; $payload) Firefox/151.0');
     expect(shim.contains(marker), isFalse,
         reason: 'raw user-agent text must not reach desktop-mode shim JS');
+  });
+
+  test('ua-identity shim never emits the raw user-agent string', () {
+    // Only the engine-derived constants (vendor/oscpu/...) reach the JS; the
+    // UA text is classified, never interpolated. A Gecko-shaped UA carrying
+    // the payload must yield a shim with no trace of it.
+    final shim = buildUserAgentIdentityShim(
+        'Mozilla/5.0 (Android 16; Mobile; rv:151.0; $payload) '
+        'Gecko/151.0 Firefox/151.0');
+    expect(shim, isNotNull);
+    expect(shim!.contains(marker), isFalse,
+        reason: 'raw user-agent text must not reach ua-identity shim JS');
   });
 }

@@ -23,6 +23,7 @@ import 'package:webspace/services/procedural_cosmetic_shim.dart';
 import 'package:webspace/services/current_location_service.dart';
 import 'package:webspace/services/desktop_mode_shim.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
+import 'package:webspace/services/user_agent_identity_shim.dart';
 import 'package:webspace/services/user_agent_metadata_builder.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
@@ -1743,6 +1744,27 @@ class WebViewFactory {
         // (iOS WKUserScript defaults to main-frame-only).
         forMainFrameOnly: false,
       ));
+    }
+
+    // Engine-consistent navigator identity: a per-site UA changes the UA
+    // string but not the navigator fields the host engine populates
+    // (vendor / productSub / oscpu / buildID / platform / userAgentData).
+    // A Gecko UA on an iOS WebKit host, or a Firefox UA on Android Blink,
+    // otherwise leaks the real engine. Run for every classifiable per-site
+    // UA (desktop and mobile); complements desktop_mode_shim, no overlap.
+    final uaValue = config.userAgent;
+    if (uaValue != null && uaValue.isNotEmpty) {
+      final identityShim = buildUserAgentIdentityShim(uaValue);
+      if (identityShim != null) {
+        userScripts.add(inapp.UserScript(
+          groupName: 'ua_identity_shim',
+          source: '$identityShim\n;null;',
+          injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+          // Reach cross-origin iframes so a subframe can't report the real
+          // engine's identity and contradict the top frame.
+          forMainFrameOnly: false,
+        ));
+      }
     }
 
     // WebKit (iOS/macOS) zooms out and latches a stuck fractional scale

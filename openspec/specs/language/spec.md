@@ -73,13 +73,31 @@ page and all its inline scripts:
 1. `Navigator.prototype.language` — returns the per-site tag
 2. `Navigator.prototype.languages` — returns a frozen single-element array
    containing the per-site tag
-3. `Intl.DateTimeFormat.prototype.resolvedOptions` — returns the original
-   result with `locale` rewritten to the per-site tag
+3. The **actual formatting locale** of the whole `Intl` subsystem — the
+   `Intl.DateTimeFormat`, `NumberFormat`, `RelativeTimeFormat`, `DisplayNames`,
+   `ListFormat`, `PluralRules`, `Collator`, and `Segmenter` constructors, plus
+   `Date.prototype.toLocaleString` / `toLocaleDateString` / `toLocaleTimeString`
+   and `Number.prototype.toLocaleString` — MUST default to the per-site tag
+   when the caller omits the `locales` argument, so both
+   `resolvedOptions().locale` AND the formatted output reflect the per-site
+   language.
+
+Relabelling only (rewriting `resolvedOptions().locale` while leaving the
+formatted output in the OS locale) is INSUFFICIENT and detectable: a
+fingerprinter that reads `navigator.language` then formats a locale-less date
+or number sees the OS locale in the output ("julio", "21 millones") — a
+contradiction. The override therefore injects the tag as the default `locales`
+argument of the real constructors, not a post-hoc label rewrite.
+
+A caller that passes an **explicit** `locales` argument MUST be honoured
+unchanged (real browsers do; forcing the per-site tag there would be a new,
+detectable lie). Only the omitted/`undefined`/empty-list case is overridden.
 
 The override MUST run before any of the page's own JavaScript so SPAs picking
-a locale at boot observe the override, not the OS value. The script is
-omitted entirely when no per-site language is set — the OS values remain
-visible.
+a locale at boot observe the override, not the OS value. It composes with the
+per-site timezone override (which wraps `Intl.DateTimeFormat` to inject a
+`timeZone`) regardless of injection order. The script is omitted entirely when
+no per-site language is set — the OS values remain visible.
 
 The tag is interpolated into the script via JSON encoding so that a tag
 containing quotes, backslashes, or Unicode characters cannot break out of the
@@ -93,6 +111,21 @@ JS string literal.
 **Then** `navigator.language` is `"es"`
 **And** `navigator.languages` is `["es"]`
 **And** `new Intl.DateTimeFormat().resolvedOptions().locale` is `"es"`
+
+#### Scenario: Locale-less formatters produce output in the per-site language
+
+**Given** the user selects French (`fr-FR`) for a site
+**When** the page calls `new Intl.NumberFormat().format(0.5)`
+**Then** the result is `"0,5"` (French comma decimal), not `"0.5"`
+**And** `new Intl.DateTimeFormat(undefined, {month: 'long'}).format(...)` for a
+  July date is `"juillet"`
+**And** `(0.5).toLocaleString()` is `"0,5"`
+
+#### Scenario: Explicit locale argument is honoured
+
+**Given** the user selects French (`fr-FR`) for a site
+**When** the page calls `new Intl.NumberFormat('de-DE')`
+**Then** `resolvedOptions().locale` is `"de-DE"` (not forced to `fr-FR`)
 
 #### Scenario: No override when unset
 
@@ -190,47 +223,37 @@ Format: `'{language}, *;q=0.5'`, e.g. `Accept-Language: es, *;q=0.5`.
 
 ### Client-Side Override Script
 
-`_languageOverrideScript(tag)` builds a small IIFE injected at
-`UserScriptInjectionTime.AT_DOCUMENT_START` via `inapp.UserScript` with
-group name `language_override`. The script:
+`buildLanguageShim(tag)` ([lib/services/language_shim.dart](../../../lib/services/language_shim.dart))
+builds an IIFE injected at `UserScriptInjectionTime.AT_DOCUMENT_START` via
+`inapp.UserScript` with group name `language_override`
+(`forMainFrameOnly: false` so it reaches cross-origin iframes). The script:
 
-```dart
-String _languageOverrideScript(String language) {
-  final encoded = jsonEncode(language);
-  return '''
-(function() {
-  try {
-    var lang = $encoded;
-    var langs = Object.freeze([lang]);
-    Object.defineProperty(Navigator.prototype, 'language', {
-      configurable: true, get: function() { return lang; }
-    });
-    Object.defineProperty(Navigator.prototype, 'languages', {
-      configurable: true, get: function() { return langs; }
-    });
-    if (typeof Intl !== 'undefined' && Intl.DateTimeFormat) {
-      var proto = Intl.DateTimeFormat.prototype;
-      var orig = proto.resolvedOptions;
-      proto.resolvedOptions = function() {
-        var r = orig.apply(this, arguments);
-        r.locale = lang;
-        return r;
-      };
-    }
-  } catch (e) {}
-})();
-''';
-}
-```
+- Defines `language` / `languages` getters on `Navigator.prototype`.
+- Wraps each `Intl` constructor (`DateTimeFormat`, `NumberFormat`,
+  `RelativeTimeFormat`, `DisplayNames`, `ListFormat`, `PluralRules`,
+  `Collator`, `Segmenter`) so an omitted `locales` argument defaults to the
+  per-site tag. It mirrors native call semantics (constructors callable
+  without `new` still work; the others throw as usual) and delegates to
+  whatever `Intl[name]` currently is, so it composes with the location shim's
+  `Intl.DateTimeFormat` timezone wrapper in either injection order.
+- Wraps `Date.prototype.toLocale{,Date,Time}String` and
+  `Number.prototype.toLocaleString` to inject the tag when the locale is
+  omitted.
 
 Design notes:
 
-- The properties are defined on `Navigator.prototype`, not on the `navigator`
-  instance, because some WebView builds (notably older WebKit) treat the
-  instance accessors as non-configurable.
-- The `languages` array is frozen so callers that try to push/splice into it
-  don't silently mutate shared state.
-- The function is wrapped in `try {}` so a failure in one override (for
+- Overrides are defined on `Navigator.prototype` (and the `Intl` /
+  `Date` / `Number` prototypes), not on instances, because some WebView builds
+  (notably older WebKit) treat instance accessors as non-configurable, and an
+  own-property leak would self-incriminate.
+- The `languages` array is frozen so callers that push/splice into it don't
+  silently mutate shared state.
+- A re-entrance guard (`window.__ws_language_shim__`) makes re-injection on
+  every frame idempotent (WebKit/Android WebView re-run initial user scripts
+  per frame), and every wrapper funnels through the shared
+  `Function.prototype.toString` stub (`window.__wsFnStubs`) so it stringifies
+  as `[native code]`.
+- Each section is wrapped in `try {}` so a failure in one override (for
   example if `Intl` is absent on a stripped-down engine) does not block the
   others.
 - The JS source is followed by `\n;null;` when attached to `UserScript` to

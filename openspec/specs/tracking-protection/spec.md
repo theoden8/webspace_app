@@ -329,10 +329,29 @@ self-incriminate) so:
   PluginArray-shaped objects (with `length`, `item`, `namedItem`, and
   for plugins `refresh`).
 
+The shim SHALL ALSO wrap `window.matchMedia` so single-feature
+`(min-|max-)?device-width` / `device-height` media queries resolve against
+the SAME dimensions `screen.*` reports — the pinned `SCREEN_W`/`SCREEN_H`
+(1920x1080) normally, or the live `window.inner*` in letterbox mode
+(ETP-020). Without this, a fingerprinter binary-searching
+`(max-device-width: Npx)` recovers the real screen size and contradicts
+`screen.width` (CreepJS's "CSS Media Queries" leak). Non-device queries fall
+through to the real implementation, and the wrapper stringifies as
+`[native code]`.
+
 #### Scenario: screen dimensions pinned
 
 **Given** the shim is loaded under jsdom
 **Then** `window.screen.width === 1920` and `window.screen.height === 1080`
+
+#### Scenario: device-dimension media queries agree with screen.*
+
+**Given** the shim is loaded (non-letterbox)
+**Then** `matchMedia('(max-device-width: 1920px)').matches` is `true`
+**And** `matchMedia('(max-device-width: 1919px)').matches` is `false`
+**And** `matchMedia('(device-height: 1080px)').matches` is `true`
+**And** a non-device query such as `(min-width: 100px)` is delegated to the
+real `matchMedia`
 
 #### Scenario: Overrides do NOT leak as own-properties
 
