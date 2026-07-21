@@ -1,9 +1,12 @@
 // Site-editing integration test.
 //
-// Drives the long-press → context-menu → Edit Site dialog flow on the
-// drawer's site tile. Touches no WebView path — the dialog opens
-// without activating the site, so the test runs cleanly under headless
-// Xvfb (where WebView mount hangs on EGL surface init).
+// Drives the overflow-menu → Edit Site dialog flow on the drawer's site
+// tile. Drawer tiles are reorderable (long-press starts a drag), so the
+// context menu opens from the per-tile overflow (⋮) button — the drawer
+// edit access point in the site-editing spec (EDIT-006). Touches no
+// WebView path — the dialog opens without activating the site, so the
+// test runs cleanly under headless Xvfb (where WebView mount hangs on
+// EGL surface init).
 //
 // Closes the test gap on the `site-editing` spec, which previously had
 // no automated coverage of any kind.
@@ -34,7 +37,7 @@ void main() {
     });
   });
 
-  testWidgets('long-press → Edit renames the site through the dialog',
+  testWidgets('overflow menu → Edit renames the site through the dialog',
       (tester) async {
     app.main();
     await tester.pumpAndSettle(const Duration(seconds: 30));
@@ -63,8 +66,17 @@ void main() {
     expect(siteTile, findsOneWidget,
         reason: 'seeded site should appear in the drawer with its initial name');
 
-    // Long-press → context menu (lib/main.dart `_showSiteContextMenu`).
-    await tester.longPress(siteTile);
+    // Open the context menu from the tile's overflow (⋮) button
+    // (lib/main.dart `_showSiteContextMenu`). Long-press is reserved for
+    // drag-to-reorder, so it no longer opens the menu. Scope the icon lookup
+    // to this tile — the app bar and bottom bar also render more_vert.
+    final tileMenuButton = find.descendant(
+      of: find.byKey(const Key('site_0')),
+      matching: find.byIcon(Icons.more_vert),
+    );
+    expect(tileMenuButton, findsOneWidget,
+        reason: 'reorderable drawer tile should expose an overflow menu button');
+    await tester.tap(tileMenuButton);
     await tester.pumpAndSettle(const Duration(seconds: 3));
 
     // The popup menu has rows for Refresh / Edit / Delete; tap Edit.
@@ -73,7 +85,7 @@ void main() {
       dumpTexts('context menu open');
     }
     expect(editMenuItem, findsOneWidget,
-        reason: 'Edit option should be available in the long-press context menu');
+        reason: 'Edit option should be available in the tile overflow menu');
     await tester.tap(editMenuItem);
     await tester.pumpAndSettle(const Duration(seconds: 3));
 

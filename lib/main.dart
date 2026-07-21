@@ -6183,69 +6183,149 @@ class _WebSpacePageState extends State<WebSpacePage>
                 itemCount: filteredIndices.length,
                 padding: EdgeInsets.symmetric(horizontal: 4),
                 itemBuilder: (context, listIndex) {
-                  final siteIndex = filteredIndices[listIndex];
-                  final siteModel = _webViewModels[siteIndex];
-                  final isActive = siteIndex == _currentIndex;
-
-                  return GestureDetector(
-                    onTap: () async {
-                      await _setCurrentIndex(siteIndex);
-                      if (!mounted) return;
-                      setState(() {
-                        _tabBarOverlayVisible = false;
-                      });
-                      _saveCurrentIndex();
-                    },
-                    child: Container(
-                      constraints: BoxConstraints(maxWidth: _tabMaxWidth.toDouble()),
-                      margin: EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-                      padding: EdgeInsets.symmetric(horizontal: 8),
-                      decoration: BoxDecoration(
-                        color: isActive
-                            ? theme.colorScheme.primaryContainer
-                            : (isDark ? Color(0xFF2A2A2A) : Colors.white),
-                        borderRadius: BorderRadius.circular(8),
-                        border: isActive
-                            ? Border.all(color: theme.colorScheme.primary, width: 1.5)
-                            : Border.all(
-                                color: isDark ? Color(0xFF3E3E3E) : Color(0xFFE0E0E0),
-                                width: 0.5,
-                              ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          UnifiedFaviconImage(
-                            url: siteModel.initUrl,
-                            size: 16,
-                            proxy: siteModel.proxySettings,
-                            customIcon: siteModel.customIconPng,
-                          ),
-                          SizedBox(width: 6),
-                          Flexible(
-                            child: Text(
-                              siteModel.getDisplayName(),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                                color: isActive
-                                    ? theme.colorScheme.onPrimaryContainer
-                                    : theme.colorScheme.onSurface.withOpacity(0.8),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
+                  return _buildTabStripItem(
+                    context, listIndex, filteredIndices, theme, isDark);
                 },
               ),
             ),
             _buildBottomPopupMenu(),
           ],
         ),
+      ),
+    );
+  }
+
+  /// One tab in the bottom strip. Draggable-to-reorder when the current view
+  /// supports reordering (a named webspace or "All") and there is more than
+  /// one tab; a plain tappable chip otherwise. Uses a raw [Listener] for tap
+  /// detection rather than [GestureDetector] so the tap doesn't lose the
+  /// gesture-arena fight with [LongPressDraggable] (same pattern as the
+  /// drawer grid tiles).
+  Widget _buildTabStripItem(
+    BuildContext context,
+    int listIndex,
+    List<int> filteredIndices,
+    ThemeData theme,
+    bool isDark,
+  ) {
+    final siteIndex = filteredIndices[listIndex];
+    final siteModel = _webViewModels[siteIndex];
+    final isActive = siteIndex == _currentIndex;
+    final content = _buildTabStripItemContent(siteModel, isActive, theme, isDark);
+
+    void handleTap() {
+      () async {
+        await _setCurrentIndex(siteIndex);
+        if (!mounted) return;
+        setState(() {
+          _tabBarOverlayVisible = false;
+        });
+        _saveCurrentIndex();
+      }();
+    }
+
+    if (!_canReorderCurrentView || filteredIndices.length < 2) {
+      return GestureDetector(onTap: handleTap, child: content);
+    }
+
+    Offset? pointerDownPos;
+    Duration? pointerDownTime;
+    return DragTarget<int>(
+      onWillAcceptWithDetails: (details) => details.data != listIndex,
+      onAcceptWithDetails: (details) => _reorderSite(details.data, listIndex),
+      builder: (context, candidateData, rejectedData) {
+        final isHovered = candidateData.isNotEmpty;
+        return LongPressDraggable<int>(
+          data: listIndex,
+          feedback: Material(
+            color: Colors.transparent,
+            child: Opacity(opacity: 0.85, child: content),
+          ),
+          childWhenDragging: Opacity(opacity: 0.3, child: content),
+          child: Container(
+            decoration: isHovered
+                ? BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: theme.colorScheme.primary, width: 2),
+                  )
+                : null,
+            child: Listener(
+              behavior: HitTestBehavior.opaque,
+              onPointerDown: (event) {
+                pointerDownPos = event.position;
+                pointerDownTime = event.timeStamp;
+              },
+              onPointerUp: (event) {
+                if (pointerDownPos != null) {
+                  final distance = (event.position - pointerDownPos!).distance;
+                  final duration = event.timeStamp - pointerDownTime!;
+                  if (distance < 20 &&
+                      duration < const Duration(milliseconds: 300)) {
+                    handleTap();
+                  }
+                }
+                pointerDownPos = null;
+                pointerDownTime = null;
+              },
+              onPointerCancel: (_) {
+                pointerDownPos = null;
+                pointerDownTime = null;
+              },
+              child: content,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildTabStripItemContent(
+    WebViewModel siteModel,
+    bool isActive,
+    ThemeData theme,
+    bool isDark,
+  ) {
+    return Container(
+      constraints: BoxConstraints(maxWidth: _tabMaxWidth.toDouble()),
+      margin: EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+      padding: EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: isActive
+            ? theme.colorScheme.primaryContainer
+            : (isDark ? Color(0xFF2A2A2A) : Colors.white),
+        borderRadius: BorderRadius.circular(8),
+        border: isActive
+            ? Border.all(color: theme.colorScheme.primary, width: 1.5)
+            : Border.all(
+                color: isDark ? Color(0xFF3E3E3E) : Color(0xFFE0E0E0),
+                width: 0.5,
+              ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          UnifiedFaviconImage(
+            url: siteModel.initUrl,
+            size: 16,
+            proxy: siteModel.proxySettings,
+            customIcon: siteModel.customIconPng,
+          ),
+          SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              siteModel.getDisplayName(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                color: isActive
+                    ? theme.colorScheme.onPrimaryContainer
+                    : theme.colorScheme.onSurface.withOpacity(0.8),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -6843,7 +6923,6 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   void _showSiteContextMenu(BuildContext context, int index, Offset position) {
-    final isCustomWebspace = _selectedWebspaceId != null && _selectedWebspaceId != kAllWebspaceId;
     final filteredIndices = _getFilteredSiteIndices();
     final listIndex = filteredIndices.indexOf(index);
     final isArchiveSite =
@@ -6863,9 +6942,9 @@ class _WebSpacePageState extends State<WebSpacePage>
         PopupMenuItem(value: 'refresh', child: ListTile(leading: Icon(Icons.refresh), title: Text(loc.homeRefreshTitleAndIcon), dense: true, visualDensity: VisualDensity.compact)),
         PopupMenuItem(value: 'edit', child: ListTile(leading: Icon(Icons.edit), title: Text(loc.commonEdit), dense: true, visualDensity: VisualDensity.compact)),
         PopupMenuItem(value: 'delete', child: ListTile(leading: Icon(Icons.delete, color: Colors.red), title: Text(loc.commonDelete, style: TextStyle(color: Colors.red)), dense: true, visualDensity: VisualDensity.compact)),
-        if (isCustomWebspace && listIndex > 0)
+        if (_canReorderCurrentView && listIndex > 0)
           PopupMenuItem(value: 'move_up', child: ListTile(leading: Icon(Icons.arrow_upward), title: Text(loc.homeMoveUp), dense: true, visualDensity: VisualDensity.compact)),
-        if (isCustomWebspace && listIndex >= 0 && listIndex < filteredIndices.length - 1)
+        if (_canReorderCurrentView && listIndex >= 0 && listIndex < filteredIndices.length - 1)
           PopupMenuItem(value: 'move_down', child: ListTile(leading: Icon(Icons.arrow_downward), title: Text(loc.homeMoveDown), dense: true, visualDensity: VisualDensity.compact)),
         if (canMoveToArchive)
           PopupMenuItem(value: 'move_to_archive', child: ListTile(leading: Icon(Icons.archive_outlined), title: Text(loc.homeMoveToArchive), dense: true, visualDensity: VisualDensity.compact)),
@@ -6931,13 +7010,35 @@ class _WebSpacePageState extends State<WebSpacePage>
           await _deleteSite(context, index);
           break;
         case 'move_up':
-          _reorderSiteInWebspace(listIndex, listIndex - 1);
+          _reorderSite(listIndex, listIndex - 1);
           break;
         case 'move_down':
-          _reorderSiteInWebspace(listIndex, listIndex + 1);
+          _reorderSite(listIndex, listIndex + 1);
           break;
       }
     });
+  }
+
+  /// Whether the currently-selected view supports drag/menu reordering.
+  /// Both a named webspace (reorders its `siteIds`) and the synthetic "All"
+  /// view (reorders `_webViewModels` globally) qualify; the null/home state
+  /// does not.
+  bool get _canReorderCurrentView => _selectedWebspaceId != null;
+
+  /// Reorder the site shown at [oldListIndex] to [newListIndex] within the
+  /// current view. Dispatches to the per-webspace `siteIds` reorder for a
+  /// named webspace, or the global `_webViewModels` reorder for "All".
+  /// [oldListIndex]/[newListIndex] are positions in `_getFilteredSiteIndices()`.
+  void _reorderSite(int oldListIndex, int newListIndex) {
+    final filtered = _getFilteredSiteIndices();
+    if (oldListIndex < 0 || oldListIndex >= filtered.length) return;
+    if (newListIndex < 0 || newListIndex >= filtered.length) return;
+    if (oldListIndex == newListIndex) return;
+    if (_selectedWebspaceId == kAllWebspaceId) {
+      _reorderAllSites(filtered[oldListIndex], filtered[newListIndex]);
+    } else {
+      _reorderSiteInWebspace(oldListIndex, newListIndex);
+    }
   }
 
   void _reorderSiteInWebspace(int oldListIndex, int newListIndex) {
@@ -6954,6 +7055,41 @@ class _WebSpacePageState extends State<WebSpacePage>
       _resolveWebspaceIndices();
     });
     _saveWebspaces();
+  }
+
+  /// Reorder the global `_webViewModels` list (the "All" view's order) by
+  /// moving the model at [oldModelIndex] to [newModelIndex]. The IndexedStack
+  /// children are keyed by `siteId`, so reordering the list preserves each
+  /// webview's State — only the positional trackers (`_loadedIndices`,
+  /// `_currentIndex`) need remapping, computed by `computeReorderPatch`.
+  void _reorderAllSites(int oldModelIndex, int newModelIndex) {
+    if (oldModelIndex < 0 || oldModelIndex >= _webViewModels.length) return;
+    if (newModelIndex < 0 || newModelIndex >= _webViewModels.length) return;
+    if (oldModelIndex == newModelIndex) return;
+    final patch = SiteLifecycleEngine.computeReorderPatch(
+      oldIndex: oldModelIndex,
+      newIndex: newModelIndex,
+      loadedIndices: _loadedIndices,
+      currentIndex: _currentIndex,
+    );
+    setState(() {
+      // Invalidate any in-flight `_setCurrentIndex`: it mutates
+      // `_loadedIndices`/`_currentIndex` by positional index across awaits,
+      // so a concurrent switch resuming against the reordered list would
+      // activate the wrong site (cross-site cookie exposure in legacy mode).
+      ++_setCurrentIndexVersion;
+      final moved = _webViewModels.removeAt(oldModelIndex);
+      _webViewModels.insert(newModelIndex, moved);
+      _loadedIndices
+        ..clear()
+        ..addAll(patch.newLoadedIndices);
+      _currentIndex = patch.newCurrentIndex;
+      // Webspace membership is siteId-keyed; rebuild the positional view.
+      _resolveWebspaceIndices();
+    });
+    _saveWebViewModels();
+    _saveWebspaces();
+    _saveCurrentIndex();
   }
 
   Future<void> _deleteSite(BuildContext context, int index) async {
@@ -7230,13 +7366,12 @@ class _WebSpacePageState extends State<WebSpacePage>
   Widget _buildSiteGridTile(BuildContext context, int index, int listIndex) {
     final isSelected = _currentIndex == index;
     final theme = Theme.of(context);
-    final isCustomWebspace = _selectedWebspaceId != null && _selectedWebspaceId != kAllWebspaceId;
     return Semantics(
       key: Key('site_$index'),
       label: _webViewModels[index].getDisplayName(),
       button: true,
       enabled: true,
-      child: isCustomWebspace
+      child: _canReorderCurrentView
         ? _buildDraggableSiteGridTile(context, index, listIndex, isSelected, theme)
         : _buildStaticSiteGridTile(context, index, isSelected, theme),
     );
@@ -7251,7 +7386,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     return DragTarget<int>(
       onWillAcceptWithDetails: (details) => details.data != listIndex,
       onAcceptWithDetails: (details) {
-        _reorderSiteInWebspace(details.data, listIndex);
+        _reorderSite(details.data, listIndex);
       },
       builder: (context, candidateData, rejectedData) {
         final isHovered = candidateData.isNotEmpty;
