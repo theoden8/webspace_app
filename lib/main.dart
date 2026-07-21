@@ -6661,6 +6661,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     Uint8List? pendingIcon = model.customIconPng;
     var iconChanged = false;
     var isPickingIcon = false;
+    var isRefreshing = false;
     final result = await showDialog<Map<String, Object?>>(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -6773,6 +6774,45 @@ class _WebSpacePageState extends State<WebSpacePage>
                     ),
                 ],
               ),
+              SizedBox(height: 8),
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: TextButton.icon(
+                  icon: isRefreshing
+                      ? SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(Icons.refresh),
+                  label: Text(loc.homeRefreshTitleAndIcon),
+                  onPressed: isRefreshing
+                      ? null
+                      : () async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          setDialogState(() => isRefreshing = true);
+                          final url = model.initUrl;
+                          // Invalidating the favicon cache re-fetches the
+                          // preview (UnifiedFaviconImage listens for it); the
+                          // fetched title lands in the name field, applied on
+                          // Save like any other edit.
+                          await FaviconUrlCache.invalidate(url);
+                          final title = await getPageTitle(url);
+                          if (!context.mounted) return;
+                          setDialogState(() {
+                            if (title != null && title.isNotEmpty) {
+                              nameController.text = title;
+                            }
+                            isRefreshing = false;
+                          });
+                          if (title != null && title.isNotEmpty) {
+                            messenger.showSnackBar(
+                              SnackBar(content: Text(loc.homeTitleUpdatedTo(title))),
+                            );
+                          }
+                        },
+                ),
+              ),
             ],
           ),
           actions: [
@@ -6860,7 +6900,6 @@ class _WebSpacePageState extends State<WebSpacePage>
       context: context,
       position: RelativeRect.fromLTRB(position.dx, position.dy, position.dx + 1, position.dy + 1),
       items: [
-        PopupMenuItem(value: 'refresh', child: ListTile(leading: Icon(Icons.refresh), title: Text(loc.homeRefreshTitleAndIcon), dense: true, visualDensity: VisualDensity.compact)),
         PopupMenuItem(value: 'edit', child: ListTile(leading: Icon(Icons.edit), title: Text(loc.commonEdit), dense: true, visualDensity: VisualDensity.compact)),
         PopupMenuItem(value: 'delete', child: ListTile(leading: Icon(Icons.delete, color: Colors.red), title: Text(loc.commonDelete, style: TextStyle(color: Colors.red)), dense: true, visualDensity: VisualDensity.compact)),
         if (isCustomWebspace && listIndex > 0)
@@ -6898,31 +6937,6 @@ class _WebSpacePageState extends State<WebSpacePage>
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(loc.homeArchiveClosed)),
           );
-          break;
-        case 'refresh':
-          final model = _webViewModels[index];
-          final url = model.initUrl;
-          await FaviconUrlCache.invalidate(url);
-          if (!mounted) return;
-          final title = await getPageTitle(url);
-          if (!mounted) return;
-          // Re-resolve by identity, not by the captured index: a concurrent
-          // delete of a lower-indexed site shifts positions, so `index` could
-          // now point at a different site. Bail if this model was deleted.
-          if (!_webViewModels.contains(model)) return;
-          if (title != null && title.isNotEmpty) {
-            setState(() {
-              model.name = title;
-              model.pageTitle = title;
-            });
-            await _saveWebViewModels();
-            if (!mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(loc.homeTitleUpdatedTo(title))),
-            );
-          } else {
-            setState(() {});
-          }
           break;
         case 'edit':
           _editSite(index);
