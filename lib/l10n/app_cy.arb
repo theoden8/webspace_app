@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "Dangos tudalen wedi'i storio ar gychwyn oer (cwymp wrth gefn all-lein bob amser ymlaen)",
   "siteSettingsNotifications": "Hysbysiadau",
   "siteSettingsNotificationsHint": "Caniatáu i'r safle hwn ddangos hysbysiadau system. Yn cadw'r safle'n pôlio yn y cefndir fel bod hysbysiadau'n tanio hyd yn oed pan fyddwch ar dab gwahanol.",
+  "siteSettingsBackgroundAudio": "Sain yn y cefndir",
+  "siteSettingsBackgroundAudioHint": "Mae sain y wefan hon yn parhau i chwarae pan fyddwch yn newid i wefan arall neu'n gadael yr ap. Ni chaiff y dudalen byth ei hoedi yn y cefndir. Wedi'i fwriadu ar gyfer gwefannau cerddoriaeth, radio a phodlediadau.",
   "siteSettingsNotificationsBlockedByProxy": "Methu galluogi: mae \"{site}\" eisoes yn pôlio yn y cefndir gyda dirprwy gwahanol. Mae Android yn caniatáu un dirprwy yn unig ar y tro.",
   "siteSettingsNotificationsDenied": "Gwrthodwyd hysbysiadau. Galluogwch yn Gosodiadau → {path}.",
   "siteSettingsProtectedContent": "Cynnwys gwarchodedig (DRM)",

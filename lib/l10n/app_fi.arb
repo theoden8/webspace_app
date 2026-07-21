@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "Näytä välimuistissa oleva sivu kylmäkäynnistyksessä (offline-varatoiminto aina päällä)",
   "siteSettingsNotifications": "Ilmoitukset",
   "siteSettingsNotificationsHint": "Salli tämän sivuston näyttää järjestelmäilmoituksia. Pitää sivuston pollaamassa taustalla, jotta ilmoitukset käynnistyvät, vaikka olisit eri välilehdellä.",
+  "siteSettingsBackgroundAudio": "Taustaääni",
+  "siteSettingsBackgroundAudioHint": "Tämän sivuston ääni jatkaa soimista, kun vaihdat toiselle sivustolle tai poistut sovelluksesta. Sivua ei koskaan keskeytetä taustalla. Tarkoitettu musiikki-, radio- ja podcast-sivustoille.",
   "siteSettingsNotificationsBlockedByProxy": "Ei voi ottaa käyttöön: \"{site}\" pollaa jo taustalla eri välityspalvelimella. Android sallii vain yhden välityspalvelimen kerrallaan.",
   "siteSettingsNotificationsDenied": "Ilmoitukset evätty. Ota käyttöön kohdasta Asetukset → {path}.",
   "siteSettingsProtectedContent": "Suojattu sisältö (DRM)",

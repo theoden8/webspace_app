@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "Mostrar la página en caché en el arranque en frío (el respaldo sin conexión siempre activo)",
   "siteSettingsNotifications": "Notificaciones",
   "siteSettingsNotificationsHint": "Permitir que este sitio muestre notificaciones del sistema. Mantiene el sitio sondeando en segundo plano para que las notificaciones se disparen incluso cuando estás en otra pestaña.",
+  "siteSettingsBackgroundAudio": "Audio en segundo plano",
+  "siteSettingsBackgroundAudioHint": "El audio de este sitio sigue sonando al cambiar a otro sitio o salir de la aplicación. La página nunca se pausa en segundo plano. Pensado para sitios de música, radio y pódcast.",
   "siteSettingsNotificationsBlockedByProxy": "No se puede activar: \"{site}\" ya está sondeando en segundo plano con un proxy diferente. Android solo permite un proxy a la vez.",
   "siteSettingsNotificationsDenied": "Notificaciones denegadas. Actívalas en Ajustes → {path}.",
   "siteSettingsProtectedContent": "Contenido protegido (DRM)",

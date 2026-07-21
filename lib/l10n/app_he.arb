@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "הצג עמוד שמור בהפעלה קרה (חלופה לא מקוונת תמיד פעילה)",
   "siteSettingsNotifications": "התראות",
   "siteSettingsNotificationsHint": "אפשר לאתר זה להציג התראות מערכת. שומר על האתר בתשאול ברקע כך שהתראות מופעלות גם כשאתה בלשונית אחרת.",
+  "siteSettingsBackgroundAudio": "שמע ברקע",
+  "siteSettingsBackgroundAudioHint": "השמע של אתר זה ממשיך להתנגן כשעוברים לאתר אחר או יוצאים מהאפליקציה. הדף לעולם אינו מושהה ברקע. מיועד לאתרי מוזיקה, רדיו ופודקאסטים.",
   "siteSettingsNotificationsBlockedByProxy": "לא ניתן להפעיל: \"{site}\" כבר מתשאל ברקע עם פרוקסי שונה. Android מאפשר רק פרוקסי אחד בכל פעם.",
   "siteSettingsNotificationsDenied": "ההתראות נדחו. הפעל בהגדרות ← {path}.",
   "siteSettingsProtectedContent": "תוכן מוגן (DRM)",

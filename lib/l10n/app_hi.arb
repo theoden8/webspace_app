@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "कोल्ड स्टार्ट पर कैश किया गया पृष्ठ दिखाएँ (ऑफ़लाइन फ़ॉलबैक हमेशा चालू)",
   "siteSettingsNotifications": "सूचनाएँ",
   "siteSettingsNotificationsHint": "इस साइट को सिस्टम सूचनाएँ दिखाने की अनुमति दें। साइट को पृष्ठभूमि में पोलिंग करते रहता है ताकि सूचनाएँ तब भी आएँ जब आप किसी भिन्न टैब पर हों।",
+  "siteSettingsBackgroundAudio": "बैकग्राउंड ऑडियो",
+  "siteSettingsBackgroundAudioHint": "दूसरी साइट पर जाने या ऐप छोड़ने पर भी इस साइट का ऑडियो चलता रहता है। पेज को बैकग्राउंड में कभी रोका नहीं जाता। संगीत, रेडियो और पॉडकास्ट साइटों के लिए।",
   "siteSettingsNotificationsBlockedByProxy": "सक्षम नहीं किया जा सकता: \"{site}\" पहले से ही एक भिन्न प्रॉक्सी के साथ पृष्ठभूमि में पोलिंग कर रहा है। Android एक समय में केवल एक प्रॉक्सी की अनुमति देता है।",
   "siteSettingsNotificationsDenied": "सूचनाएँ अस्वीकृत। सेटिंग → {path} में सक्षम करें।",
   "siteSettingsProtectedContent": "संरक्षित सामग्री (DRM)",

@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "Zobraziť uloženú stránku pri studenom štarte (offline núdzové riešenie je vždy zapnuté)",
   "siteSettingsNotifications": "Upozornenia",
   "siteSettingsNotificationsHint": "Povoliť tejto stránke zobrazovať systémové upozornenia. Udržiava stránku v dotazovaní na pozadí, takže upozornenia prídu, aj keď ste na inej karte.",
+  "siteSettingsBackgroundAudio": "Zvuk na pozadí",
+  "siteSettingsBackgroundAudioHint": "Zvuk tohto webu hrá ďalej, keď prepnete na iný web alebo opustíte aplikáciu. Stránka sa na pozadí nikdy nepozastaví. Určené pre weby s hudbou, rádiom a podcastmi.",
   "siteSettingsNotificationsBlockedByProxy": "Nemožno zapnúť: „{site}“ sa už dotazuje na pozadí s inou proxy. Android povoľuje len jednu proxy naraz.",
   "siteSettingsNotificationsDenied": "Upozornenia zamietnuté. Povoľte ich v Nastaveniach → {path}.",
   "siteSettingsProtectedContent": "Chránený obsah (DRM)",

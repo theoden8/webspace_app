@@ -143,4 +143,34 @@ class BackgroundTaskService {
       );
     }
   }
+
+  bool? _backgroundAudioActive;
+
+  /// BGAUDIO-003: iOS-only. Switches the shared `AVAudioSession` to the
+  /// `.playback` category while any loaded site has background audio
+  /// enabled (and back to `.ambient` when none does). `.playback` plus the
+  /// `audio` UIBackgroundModes entry is what lets WKWebView media keep
+  /// running after the app leaves the foreground; `.ambient` restores the
+  /// respect-the-silent-switch default so ordinary sites don't blast
+  /// through a muted phone. Android needs no equivalent — WebView audio
+  /// keeps playing as long as the process (and its JS) stays alive.
+  Future<void> setBackgroundAudioActive(bool active) async {
+    if (!Platform.isIOS) return;
+    if (_backgroundAudioActive == active) return;
+    _backgroundAudioActive = active;
+    try {
+      await _channel
+          .invokeMethod('setBackgroundAudioActive', {'active': active});
+      LogService.instance.log(
+          'BackgroundTask', 'Background audio session active=$active');
+    } on PlatformException catch (e) {
+      LogService.instance.log(
+        'BackgroundTask',
+        'setBackgroundAudioActive failed: ${e.message}',
+        level: LogLevel.warning,
+      );
+    } on MissingPluginException {
+      // Older native side without the handler; harmless.
+    }
+  }
 }

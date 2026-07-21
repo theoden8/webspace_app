@@ -398,6 +398,16 @@ class WebViewModel {
   /// the foreground poll timer so it can detect new content and fire
   /// notifications even when the user isn't looking at it.
   bool notificationsEnabled;
+  /// Keep this site's audio playing when it is not the visible site or the
+  /// app is backgrounded. Exempts the site from the per-instance pause on
+  /// site switch (iOS's alert-hack pause would freeze the page's JS thread
+  /// and stall any streaming player) and, while any such site is loaded,
+  /// from the process-global JS-timer pause on app background (Android's
+  /// `pauseTimers()` is global and would starve MSE/streaming players).
+  /// On iOS this additionally activates the `.playback` AVAudioSession so
+  /// playback survives backgrounding (paired with the `audio`
+  /// UIBackgroundModes entry).
+  bool backgroundAudioEnabled;
   /// Remembered per-site decision for protected (DRM/Widevine EME) content,
   /// e.g. the Spotify web player. null = not yet decided (the webview shows
   /// an Allow/Block popup on the first `PROTECTED_MEDIA_ID` permission
@@ -522,6 +532,13 @@ class WebViewModel {
   /// stored value.
   bool get effectiveNotificationsEnabled =>
       isArchiveTier ? false : notificationsEnabled;
+
+  /// Effective background-audio enable. Archive-tier sites never opt out
+  /// of lifecycle pausing: audibly playing while the app looks idle (and
+  /// surfacing in the OS now-playing UI) would reveal an open archive
+  /// (ARCH-006).
+  bool get effectiveBackgroundAudioEnabled =>
+      isArchiveTier ? false : backgroundAudioEnabled;
 
   /// Effective LocalCDN cache write enable. Archive-tier sites never
   /// write the per-site CDN cache to disk regardless of stored value.
@@ -676,6 +693,7 @@ class WebViewModel {
     this.tabBarButtonCorner,
     this.htmlCachingEnabled = false,
     this.notificationsEnabled = false,
+    this.backgroundAudioEnabled = false,
     this.protectedContentAllowed,
     List<UserScriptConfig>? userScripts,
     Set<String>? enabledGlobalScriptIds,
@@ -1013,6 +1031,7 @@ class WebViewModel {
           // through the global `ProxyController` in `_applyProxySettings`.
           proxySettings: proxySettings,
           notificationsEnabled: notificationsEnabled,
+          backgroundAudioEnabled: effectiveBackgroundAudioEnabled,
           userScripts: combineUserScripts(globalUserScripts),
           onConfirmScriptFetch: onConfirmScriptFetch,
           onUntrustedCertificate: onUntrustedCertificate,
@@ -1489,9 +1508,15 @@ class WebViewModel {
   /// setInterval / setTimeout / WebSocket-driven notification poller until
   /// the user switches back, at which point all queued notifications fire
   /// at once. Sites the user enabled notifications on must keep running.
+  ///
+  /// Also skipped for sites with [backgroundAudioEnabled] (BGAUDIO-001): the
+  /// same iOS alert-hack freeze would stall a streaming player's JS the
+  /// moment the user switches to another site, cutting the audio the toggle
+  /// exists to keep playing.
   Future<void> pauseWebView() async {
     if (controller == null) return;
     if (notificationsEnabled) return;
+    if (effectiveBackgroundAudioEnabled) return;
     try {
       await controller!.pause();
       LogService.instance.log(
@@ -1804,6 +1829,7 @@ class WebViewModel {
           'tabBarButtonCorner': tabBarButtonCorner!.name,
         'htmlCachingEnabled': htmlCachingEnabled,
         'notificationsEnabled': notificationsEnabled,
+        if (backgroundAudioEnabled) 'backgroundAudioEnabled': true,
         if (protectedContentAllowed != null)
           'protectedContentAllowed': protectedContentAllowed,
         'userScripts': userScripts.map((s) => s.toJson()).toList(),
@@ -1904,6 +1930,7 @@ class WebViewModel {
           (json['notificationsEnabled'] as bool?) ??
               (json['backgroundPoll'] as bool?) ??
               false,
+      backgroundAudioEnabled: json['backgroundAudioEnabled'] as bool? ?? false,
       protectedContentAllowed: json['protectedContentAllowed'] as bool?,
       userScripts: (json['userScripts'] as List<dynamic>?)
           ?.map((e) => UserScriptConfig.fromJson(e as Map<String, dynamic>))

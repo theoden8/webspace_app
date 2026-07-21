@@ -37,6 +37,8 @@ import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/location_spoof_service.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/media_session_shim.dart';
+import 'package:webspace/services/media_session_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/user_script_service.dart';
@@ -665,6 +667,10 @@ class WebViewConfig {
   ///   the app-global outbound proxy.
   final UserProxySettings? proxySettings;
   final bool notificationsEnabled;
+  /// BGAUDIO-006: inject the media-session bridge shim + register the
+  /// `wsMediaSession` handler so this site's playback drives the Android
+  /// foreground media notification. Android-only effect.
+  final bool backgroundAudioEnabled;
   /// Prompt fired when the page requests protected-media (Widevine/EME)
   /// permission (`PROTECTED_MEDIA_ID`). Returns true to grant, false to
   /// deny. When null, the handler is not installed and the platform's
@@ -724,6 +730,7 @@ class WebViewConfig {
     this.webRtcPolicy = WebRtcPolicy.defaultPolicy,
     this.proxySettings,
     this.notificationsEnabled = false,
+    this.backgroundAudioEnabled = false,
     this.onProtectedMediaRequest,
   });
 }
@@ -1786,6 +1793,16 @@ class WebViewFactory {
           siteId: config.siteId!,
           notificationsEnabled: config.notificationsEnabled,
         ),
+        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+        forMainFrameOnly: false,
+      ));
+    }
+
+    // BGAUDIO-006: media-session bridge shim on background-audio sites only.
+    if (config.siteId != null && config.backgroundAudioEnabled && Platform.isAndroid) {
+      userScripts.add(inapp.UserScript(
+        groupName: 'media_session_shim',
+        source: '${buildMediaSessionShim()}\n;null;',
         injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
         forMainFrameOnly: false,
       ));
@@ -2875,6 +2892,27 @@ class WebViewFactory {
                 body: body,
                 tag: tag,
                 siteUrl: config.initialUrl,
+              );
+              return null;
+            },
+          );
+        }
+        if (config.siteId != null &&
+            config.backgroundAudioEnabled &&
+            Platform.isAndroid) {
+          controller.addJavaScriptHandler(
+            handlerName: 'wsMediaSession',
+            callback: (args) async {
+              if (args.isEmpty || args[0] is! Map) return null;
+              final data = Map<String, dynamic>.from(args[0] as Map);
+              await MediaSessionService.instance.report(
+                siteId: config.siteId!,
+                runJs: (js) => controller.evaluateJavascript(source: js),
+                playing: data['playing'] as bool? ?? false,
+                title: data['title'] as String? ?? '',
+                artist: data['artist'] as String? ?? '',
+                album: data['album'] as String? ?? '',
+                artworkUrl: data['artwork'] as String? ?? '',
               );
               return null;
             },

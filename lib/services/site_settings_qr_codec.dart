@@ -48,6 +48,7 @@ class SiteSettingsQrCodec {
     'fullscreenMode',
     'htmlCachingEnabled',
     'notificationsEnabled',
+    'backgroundAudioEnabled',
     'locationMode',
     'spoofLatitude',
     'spoofLongitude',

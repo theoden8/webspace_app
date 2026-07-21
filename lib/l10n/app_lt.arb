@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "Rodyti podėlyje saugomą puslapį per šaltą paleidimą (atsarginis neprisijungus visada įjungtas)",
   "siteSettingsNotifications": "Pranešimai",
   "siteSettingsNotificationsHint": "Leisti šiai svetainei rodyti sistemos pranešimus. Svetainė toliau apklausiama fone, kad pranešimai būtų siunčiami net kai esate kitoje kortelėje.",
+  "siteSettingsBackgroundAudio": "Garsas fone",
+  "siteSettingsBackgroundAudioHint": "Šios svetainės garsas toliau grojamas, kai perjungiate į kitą svetainę ar išeinate iš programos. Puslapis fone niekada nepristabdomas. Skirta muzikos, radijo ir tinklalaidžių svetainėms.",
   "siteSettingsNotificationsBlockedByProxy": "Negalima įjungti: „{site}“ jau apklausiama fone su kitu tarpiniu serveriu. Android leidžia tik vieną tarpinį serverį vienu metu.",
   "siteSettingsNotificationsDenied": "Pranešimai atmesti. Įjunkite skiltyje Nustatymai → {path}.",
   "siteSettingsProtectedContent": "Apsaugotas turinys (DRM)",

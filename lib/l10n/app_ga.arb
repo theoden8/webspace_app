@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "Taispeáin an leathanach i dtaisce ar atosú fuar (cúltaca as líne i gcónaí ar siúl)",
   "siteSettingsNotifications": "Fógraí",
   "siteSettingsNotificationsHint": "Lig don suíomh seo fógraí córais a thaispeáint. Coinníonn sé an suíomh ag rith sa chúlra ionas go scaoiltear fógraí fiú nuair atá tú ar chluaisín difriúil.",
+  "siteSettingsBackgroundAudio": "Fuaim sa chúlra",
+  "siteSettingsBackgroundAudioHint": "Leanann fuaim an tsuímh seo ag seinm nuair a athraíonn tú go suíomh eile nó nuair a fhágann tú an aip. Ní chuirtear an leathanach ar sos sa chúlra riamh. Beartaithe do shuíomhanna ceoil, raidió agus podchraoltaí.",
   "siteSettingsNotificationsBlockedByProxy": "Ní féidir é a chumasú: tá \"{site}\" ag rith cheana sa chúlra le seachfhreastalaí difriúil. Ní cheadaíonn Android ach seachfhreastalaí amháin ag an am.",
   "siteSettingsNotificationsDenied": "Diúltaíodh fógraí. Cumasaigh i Socruithe → {path}.",
   "siteSettingsProtectedContent": "Ábhar cosanta (DRM)",

@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "نمایش صفحهٔ نهان‌شده هنگام راه‌اندازی سرد (جایگزین آفلاین همیشه روشن)",
   "siteSettingsNotifications": "اعلان‌ها",
   "siteSettingsNotificationsHint": "به این سایت اجازه می‌دهد اعلان‌های سیستمی نشان دهد. سایت را در پس‌زمینه در حال نظرسنجی نگه می‌دارد تا اعلان‌ها حتی وقتی روی زبانهٔ دیگری هستید فعال شوند.",
+  "siteSettingsBackgroundAudio": "پخش صدا در پس‌زمینه",
+  "siteSettingsBackgroundAudioHint": "با رفتن به سایت دیگر یا خروج از برنامه، صدای این سایت همچنان پخش می‌شود. صفحه هرگز در پس‌زمینه متوقف نمی‌شود. برای سایت‌های موسیقی، رادیو و پادکست.",
   "siteSettingsNotificationsBlockedByProxy": "نمی‌توان فعال کرد: «{site}» از پیش در پس‌زمینه با پراکسی متفاوتی نظرسنجی می‌کند. Android تنها یک پراکسی در هر زمان مجاز می‌داند.",
   "siteSettingsNotificationsDenied": "مجوز اعلان‌ها رد شد. در تنظیمات ← {path} فعال کنید.",
   "siteSettingsProtectedContent": "محتوای محافظت‌شده (DRM)",

@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "Gecachte pagina tonen bij koude start (offline terugval altijd aan)",
   "siteSettingsNotifications": "Meldingen",
   "siteSettingsNotificationsHint": "Sta deze site toe systeemmeldingen te tonen. Houdt de site op de achtergrond aan het pollen zodat meldingen worden afgevuurd, zelfs wanneer je op een ander tabblad bent.",
+  "siteSettingsBackgroundAudio": "Achtergrondaudio",
+  "siteSettingsBackgroundAudioHint": "Het geluid van deze site blijft spelen wanneer u naar een andere site wisselt of de app verlaat. De pagina wordt op de achtergrond nooit gepauzeerd. Bedoeld voor muziek-, radio- en podcastsites.",
   "siteSettingsNotificationsBlockedByProxy": "Kan niet inschakelen: \"{site}\" pollt al op de achtergrond met een andere proxy. Android staat slechts één proxy tegelijk toe.",
   "siteSettingsNotificationsDenied": "Meldingen geweigerd. Inschakelen bij Instellingen → {path}.",
   "siteSettingsProtectedContent": "Beschermde inhoud (DRM)",

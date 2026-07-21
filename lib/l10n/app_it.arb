@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "Mostra la pagina in cache all'avvio a freddo (fallback offline sempre attivo)",
   "siteSettingsNotifications": "Notifiche",
   "siteSettingsNotificationsHint": "Consente a questo sito di mostrare notifiche di sistema. Mantiene il polling del sito in background così le notifiche scattano anche quando sei su una scheda diversa.",
+  "siteSettingsBackgroundAudio": "Audio in background",
+  "siteSettingsBackgroundAudioHint": "L'audio di questo sito continua a essere riprodotto quando passi a un altro sito o esci dall'app. La pagina non viene mai messa in pausa in background. Pensato per siti di musica, radio e podcast.",
   "siteSettingsNotificationsBlockedByProxy": "Impossibile abilitare: \"{site}\" sta già eseguendo il polling in background con un proxy diverso. Android consente un solo proxy alla volta.",
   "siteSettingsNotificationsDenied": "Notifiche negate. Abilitale in Impostazioni → {path}.",
   "siteSettingsProtectedContent": "Contenuto protetto (DRM)",

@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "Rādīt kešotu lapu aukstajā palaišanā (bezsaistes rezerve vienmēr ieslēgta)",
   "siteSettingsNotifications": "Paziņojumi",
   "siteSettingsNotificationsHint": "Atļaut šai vietnei rādīt sistēmas paziņojumus. Vietne tiek aptaujāta fonā, lai paziņojumi tiktu izsaukti pat tad, kad atrodaties citā cilnē.",
+  "siteSettingsBackgroundAudio": "Skaņa fonā",
+  "siteSettingsBackgroundAudioHint": "Šīs vietnes skaņa turpina atskaņoties, kad pārslēdzaties uz citu vietni vai izejat no lietotnes. Lapa fonā nekad netiek apturēta. Paredzēts mūzikas, radio un aplāžu vietnēm.",
   "siteSettingsNotificationsBlockedByProxy": "Nevar iespējot: \"{site}\" jau tiek aptaujāta fonā ar citu starpniekserveri. Android atļauj tikai vienu starpniekserveri vienlaikus.",
   "siteSettingsNotificationsDenied": "Paziņojumi liegti. Iespējojiet sadaļā Iestatījumi → {path}.",
   "siteSettingsProtectedContent": "Aizsargāts saturs (DRM)",
