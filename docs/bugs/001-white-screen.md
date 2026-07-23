@@ -137,6 +137,32 @@ class. It also does not *prove* the memory-pressure event was this user's trigge
 assumption that the nudge physically recomposites on the device (see the TLAPS refinement gap
 in gap #4 below).
 
+### Attempt 8 — Repaint on the surface-attach signal for a warm start (`PAUSE-020`)
+**Date:** 2026-07-23 · **Files:** lib/main.dart, openspec/specs/webview-pause-lifecycle/spec.md
+**What it did:** On `resumed`, `_openResumeRepaintWindow` opens a bounded (~3s)
+window; while open, the new `didChangeMetrics` override fires `_nudgeSurfaceRepaint`.
+Additive to Attempt 2's tail nudge in `_onResumed`, which still fires once.
+**Why:** Reported as a **white** screen on **warm-starting** a site (app backgrounded,
+then foregrounded — no activity recreation, so neither `onControllerReady` (Attempt 4)
+nor a back path (Attempts 5–6) runs; only the resume path (Attempt 2) does). On a warm
+start the hybrid-composition `SurfaceView`'s surface is destroyed on background and
+**re-created on foreground**, and that re-attach can land a frame or more *after*
+`_onResumed`'s single tail nudge has already drained its ~0.7s budget — so the inset
+flips before the surface exists and the freshly-attached surface stays blank. A surface
+re-attach re-lays-out the window, which Flutter delivers as `didChangeMetrics`: the
+closest Dart-side signal to the *actual attach*, versus every prior attempt's reliance on
+a lifecycle *event* whose timing only approximates the attach. Nudging on the metrics
+signal lands a size-flip on the surface whenever it comes back, not at a fixed guessed
+delay. Bounded to the post-resume window so steady-state keyboard/rotation metric changes
+don't nudge; `_nudgeSurfaceRepaint` coalescing keeps a metrics burst on one loop.
+**Why partial:** Still not the durable single chokepoint (gap #3). `didChangeMetrics` is a
+*proxy* for the attach — it fires for the main FlutterView's metrics, which correlate with
+but are not identical to the webview platform-view's `SurfaceView` re-attach, and it is not
+*guaranteed* to fire on every device's warm resume (hence the tail nudge is kept as a
+fallback). The real fix is still a native surface-changed/-redrawn callback from the fork
+driving the repaint. This attempt narrows gap #3 (keys on an attach signal, not a lifecycle
+event) rather than closing it.
+
 ## Known open gaps (candidates for the next recurrence)
 
 1. ~~Nested `InAppWebViewScreen`~~ — **closed by Attempt 6** (now funneled + gated).
@@ -146,7 +172,10 @@ in gap #4 below).
 3. **The class isn't closed.** Every fix is per-path. The durable fix is a **single
    chokepoint** that nudges on *every* surface (re)attach — ideally a native
    surface-changed/-redrawn callback from the fork driving the repaint — instead of
-   enumerating Dart-side navigation paths forever.
+   enumerating Dart-side navigation paths forever. **Attempt 8 narrows this**: it keys the
+   warm-start repaint on `didChangeMetrics` (a Dart-side *proxy* for the surface attach)
+   rather than a lifecycle event, but a proxy is not the native callback and is not
+   guaranteed to fire on every device, so the gap stands.
 4. **The TLAPS proof doesn't cover the recurrence — by construction.**
    `RepaintLiveness` is proved over `GoodSpec`/`GoodNext`, a *fixed* set of attach actions
    (`Activate`, `Resume`, `ControllerAttach`, `Back`, `Forward`, `LoadSite`, `Evict`), each of
