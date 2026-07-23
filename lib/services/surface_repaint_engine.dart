@@ -39,12 +39,28 @@ class SurfaceRepaintEngine {
   int _ticksRemaining = 0;
   bool _looping = false;
   bool _inset = false;
+  bool _owed = false;
 
   /// Current 1px-inset state to render.
   bool get inset => _inset;
 
   /// Whether a tick loop is currently running.
   bool get isLooping => _looping;
+
+  /// Whether a blank-surface (re)attach is still owed a repaint. Mirrors
+  /// `owed` in formal/kernel.tla and formal/warmstart.tla: [attach] sets it,
+  /// a nudge [tick] clears it. The warm-start bug (BUG-001 Attempt 8 /
+  /// PAUSE-020) is precisely an [attach] that lands after the triggering
+  /// event's one-shot loop has drained, so no tick runs against it and this
+  /// stays true; see test/surface_repaint_engine_test.dart.
+  bool get owed => _owed;
+
+  /// A blank hybrid-composition SurfaceView (re)attached: a repaint is owed
+  /// until a nudge tick runs against it. The visible-surface counterpart of
+  /// `Attach` in the formal models. Idempotent.
+  void attach() {
+    _owed = true;
+  }
 
   /// True iff [t] re-attaches the visible surface and so must be followed by a
   /// repaint. The complete set is the contract; mirrors `Attach` in kernel.tla.
@@ -73,6 +89,10 @@ class SurfaceRepaintEngine {
     }
     _ticksRemaining--;
     _inset = !_inset;
+    // A relayout tick recomposites whatever surface is currently attached, so
+    // it clears any owed repaint. A late attach with no subsequent tick is the
+    // warm-start defect: `owed` stays true (formal/warmstart.tla, Fix="none").
+    _owed = false;
     return RepaintTick(inset: _inset, done: false);
   }
 

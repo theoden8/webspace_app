@@ -651,6 +651,8 @@ A surface (re)attach re-lays-out the window, which Flutter delivers to the host 
 
 This narrows BUG-001 open gap #3 (the fix should key on the attach, not the lifecycle event) without closing it: `didChangeMetrics` is a proxy for the attach, not a native surface-changed callback from the fork, which remains the durable single-chokepoint fix.
 
+The ordering is model-checked in [formal/warmstart.tla](../../../formal/warmstart.tla): with only the resume one-shot nudge (`Fix="none"`) an async `SurfaceReattach` landing after it drains leaves the surface blank forever and `RepaintLiveness` is violated (the reproduction); an attach-triggered re-nudge (`Fix="attach"`) makes it hold. This is the ordering the kernel's atomic `Resume == Attach` plus `WF_vars(Nudge)` cannot express (BUG-001 gap #4). The runnable counterpart is `test/surface_repaint_engine_test.dart` (the `SurfaceRepaintEngine` `owed`/`attach` characterization), and the wiring is held by the `surface_repaint_funnel` structural gate. The device premise (that `didChangeMetrics` fires on the webview surface reattach) is confirmed by the `SurfaceDiag` `trigger=metrics-resume` log line, not by these models.
+
 #### Scenario: SurfaceView re-attaches after the resume nudge drained
 
 **Given** a site is visible on Android and the user backgrounded the app, then returns (warm start, no activity recreation)

@@ -1432,7 +1432,15 @@ class _WebSpacePageState extends State<WebSpacePage>
     // steady-state metric changes (keyboard, rotation) don't nudge.
     // `_nudgeSurfaceRepaint` coalesces, so a burst of metric changes keeps a
     // single loop alive rather than spawning competing ones. PAUSE-020 / BUG-001.
-    if (_resumeRepaintWindowOpen) _nudgeSurfaceRepaint();
+    if (!_resumeRepaintWindowOpen) return;
+    // Non-sensitive one-liner (no site name / URL), safe to share: confirms
+    // on-device that a warm-start surface reattach actually surfaces here as a
+    // metrics change, the premise Attempt 8 depends on. Bounded to the window,
+    // so it is not emitted for steady-state metric changes. See PAUSE-020.
+    if (Platform.isAndroid) {
+      LogService.instance.log('SurfaceDiag', 'trigger=metrics-resume -> nudge');
+    }
+    _nudgeSurfaceRepaint();
   }
 
   @override
@@ -1627,7 +1635,7 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   // Warm-start blank-surface repaint window (PAUSE-020 / BUG-001 Attempt 8).
   // On Android the hybrid-composition webview SurfaceView can re-attach a frame
-  // or more AFTER `resumed` fires — later than the single tail nudge in
+  // or more AFTER `resumed` fires, later than the single tail nudge in
   // `_onResumed`, so that nudge flips the 1px inset before the surface exists
   // and the page comes back blank-white. A surface (re)attach re-lays-out the
   // window, which Flutter delivers as `didChangeMetrics`. That is the closest
@@ -1639,7 +1647,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   Timer? _resumeRepaintWindowTimer;
 
   /// Open the post-resume repaint window (see [_resumeRepaintWindowOpen]).
-  /// While open, a `didChangeMetrics` — the surface (re)attach signal — fires
+  /// While open, a `didChangeMetrics` (the surface (re)attach signal) fires
   /// `_nudgeSurfaceRepaint`, catching a SurfaceView that comes back after the
   /// `_onResumed` tail nudge has already drained.
   void _openResumeRepaintWindow() {
