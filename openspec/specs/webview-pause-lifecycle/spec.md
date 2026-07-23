@@ -643,6 +643,31 @@ Every `_probeRendererAndRecover` call SHALL carry a `trigger` label and emit one
 
 ---
 
+### Requirement: PAUSE-020 — Warm-Start Repaint On The Surface-Attach Signal
+
+On Android, the system SHALL re-fire the surface repaint when the visible webview's `SurfaceView` re-attaches after a warm resume, not only once at the tail of `_onResumed`. On a warm start (the process stayed alive; the user backgrounded the app and returned) the hybrid-composition `SurfaceView`'s surface is destroyed on background and re-created on foreground. That re-attach can land a frame or more **after** `AppLifecycleState.resumed` fires — later than `_onResumed`'s single tail nudge (PAUSE-015), so the 1px inset toggles before the surface exists and the freshly-attached-but-unpainted surface stays blank (rendering **white**, the fresh surface's default fill). This is the same class as PAUSE-015/017/018 reached through a new trigger: every prior fix nudged on a Dart-side *lifecycle event*, but the defect is tied to the *surface (re)attach*, which those events only approximate in time.
+
+A surface (re)attach re-lays-out the window, which Flutter delivers to the host as `didChangeMetrics` — the closest Dart-side signal to the actual attach. The host SHALL, on `resumed`, open a bounded repaint window (`_openResumeRepaintWindow`, ~3s) and, while it is open, fire `_nudgeSurfaceRepaint` from `didChangeMetrics`. The window bound keeps steady-state metric changes (keyboard show/hide, rotation) from nudging; `_nudgeSurfaceRepaint` coalesces, so a burst of metric changes keeps a single tick loop alive rather than spawning competing loops. This is additive to PAUSE-015's tail nudge (which still covers the surface that was already attached by the time the sequence settled) and is a no-op off Android.
+
+This narrows BUG-001 open gap #3 (the fix should key on the attach, not the lifecycle event) without closing it: `didChangeMetrics` is a proxy for the attach, not a native surface-changed callback from the fork, which remains the durable single-chokepoint fix.
+
+The ordering is model-checked in [formal/warmstart.tla](../../../formal/warmstart.tla): with only the resume one-shot nudge (`Fix="none"`) an async `SurfaceReattach` landing after it drains leaves the surface blank forever and `RepaintLiveness` is violated (the reproduction); an attach-triggered re-nudge (`Fix="attach"`) makes it hold. This is the ordering the kernel's atomic `Resume == Attach` plus `WF_vars(Nudge)` cannot express (BUG-001 gap #4). The runnable counterpart is `test/surface_repaint_engine_test.dart` (the `SurfaceRepaintEngine` `owed`/`attach` characterization), and the wiring is held by the `surface_repaint_funnel` structural gate. The device premise (that `didChangeMetrics` fires on the webview surface reattach) is confirmed by the `SurfaceDiag` `trigger=metrics-resume` log line, not by these models.
+
+#### Scenario: SurfaceView re-attaches after the resume nudge drained
+
+**Given** a site is visible on Android and the user backgrounded the app, then returns (warm start, no activity recreation)
+**And** the webview `SurfaceView` re-attaches blank after `_onResumed`'s tail `_nudgeSurfaceRepaint` has already settled
+**When** the re-attach re-lays-out the window and `didChangeMetrics` fires within the post-resume window
+**Then** `_nudgeSurfaceRepaint` runs again and recomposites the surface, so the page paints without the user rotating, locking, or switching tabs
+
+#### Scenario: Steady-state metric changes do not nudge
+
+**Given** the app has been foreground on Android longer than the post-resume window
+**When** `didChangeMetrics` fires for a keyboard show/hide or rotation
+**Then** the window is closed, so no repaint nudge runs and the visible site does not jitter
+
+---
+
 ### Requirement: PAUSE-016 — Android Per-Instance Pause Is a No-Op
 
 On Android the per-instance `pause()` / `resume()` (`WebView.onPause()` / `onResume()`) SHALL be no-ops. Android exposes no per-instance JavaScript pause — `onPause()` halts only animations and geolocation and explicitly does not pause JS, while the only JS-timer pause (`pauseTimers()`) is process-global. So per-instance pause contributes nothing to the lifecycle freeze, yet cycling the foreground hybrid-composition `SurfaceView` through onPause/onResume re-attaches it blank on the next paint — the white screen the user hits after a transient background or a navigation that follows a resume.

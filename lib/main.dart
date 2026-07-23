@@ -1416,10 +1416,31 @@ class _WebSpacePageState extends State<WebSpacePage>
   @override
   void dispose() {
     _foregroundPollTimer?.cancel();
+    _resumeRepaintWindowTimer?.cancel();
     _navStateDebouncer.dispose();
     _untrustSub?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  @override
+  void didChangeMetrics() {
+    super.didChangeMetrics();
+    // A warm-start SurfaceView re-attach re-lays-out the window and lands here,
+    // typically after `_onResumed`'s one-shot tail nudge has already drained.
+    // Re-nudge on this real attach signal, bounded to the post-resume window so
+    // steady-state metric changes (keyboard, rotation) don't nudge.
+    // `_nudgeSurfaceRepaint` coalesces, so a burst of metric changes keeps a
+    // single loop alive rather than spawning competing ones. PAUSE-020 / BUG-001.
+    if (!_resumeRepaintWindowOpen) return;
+    // Non-sensitive one-liner (no site name / URL), safe to share: confirms
+    // on-device that a warm-start surface reattach actually surfaces here as a
+    // metrics change, the premise Attempt 8 depends on. Bounded to the window,
+    // so it is not emitted for steady-state metric changes. See PAUSE-020.
+    if (Platform.isAndroid) {
+      LogService.instance.log('SurfaceDiag', 'trigger=metrics-resume -> nudge');
+    }
+    _nudgeSurfaceRepaint();
   }
 
   @override
@@ -1589,6 +1610,10 @@ class _WebSpacePageState extends State<WebSpacePage>
       if (_maskBackground) {
         setState(() => _maskBackground = false);
       }
+      // Open the warm-start repaint window before the async resume sequence, so
+      // a late SurfaceView re-attach (which surfaces as a metrics change) is
+      // caught even though `_onResumed`'s tail nudge fires only once. PAUSE-020.
+      _openResumeRepaintWindow();
       _startForegroundPollTimer();
       // Resume + shortcut + share are sequenced in _onResumed: the
       // app-lifecycle resume must finish before a shortcut intent switches
@@ -1607,6 +1632,33 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   bool _isResuming = false;
+
+  // Warm-start blank-surface repaint window (PAUSE-020 / BUG-001 Attempt 8).
+  // On Android the hybrid-composition webview SurfaceView can re-attach a frame
+  // or more AFTER `resumed` fires, later than the single tail nudge in
+  // `_onResumed`, so that nudge flips the 1px inset before the surface exists
+  // and the page comes back blank-white. A surface (re)attach re-lays-out the
+  // window, which Flutter delivers as `didChangeMetrics`. That is the closest
+  // Dart-side signal to the actual attach (every prior attempt nudged on a
+  // lifecycle event instead), so we re-nudge on it — but only inside a short
+  // window after resume, so steady-state metric changes (keyboard, rotation)
+  // don't nudge. Android-only; the timer is never armed off Android.
+  bool _resumeRepaintWindowOpen = false;
+  Timer? _resumeRepaintWindowTimer;
+
+  /// Open the post-resume repaint window (see [_resumeRepaintWindowOpen]).
+  /// While open, a `didChangeMetrics` (the surface (re)attach signal) fires
+  /// `_nudgeSurfaceRepaint`, catching a SurfaceView that comes back after the
+  /// `_onResumed` tail nudge has already drained.
+  void _openResumeRepaintWindow() {
+    if (!Platform.isAndroid) return;
+    _resumeRepaintWindowOpen = true;
+    _resumeRepaintWindowTimer?.cancel();
+    _resumeRepaintWindowTimer = Timer(const Duration(seconds: 3), () {
+      _resumeRepaintWindowOpen = false;
+      _resumeRepaintWindowTimer = null;
+    });
+  }
 
   /// Run the resume sequence in a fixed order. The app-lifecycle resume
   /// (drains the in-flight `pauseForAppLifecycle`, resumes process-global JS
