@@ -26,17 +26,42 @@ KERNEL_DIR="$(cd .. && pwd)"
 # that a workstation proves. --stretch multiplies every timeout instead.
 STRETCH="${TLAPM_STRETCH:-5}"
 
+# Obligation count each module is known to discharge (the numbers in README.md).
+# Matching "all obligations proved" alone is NOT a gate: "All 0 obligations
+# proved." also matches, so a tlapm that silently checks nothing reads as green.
+# Assert the count instead. Bump a number only when you add or remove proof steps.
+min_obligations() {
+  case "$1" in
+    archive_identity.tla)      echo 25 ;;
+    containers_disjoint.tla)   echo 23 ;;
+    current_loaded.tla)        echo 51 ;;
+    jar_matches.tla)           echo 51 ;;
+    proxy_coherent.tla)        echo 29 ;;
+    repaint_liveness.tla)      echo 71 ;;
+    retention_safety.tla)      echo 22 ;;
+    # Directly-inductive companions; count not pinned in README, so just require
+    # that tlapm discharged something.
+    *)                         echo 1  ;;
+  esac
+}
+
 ok=1
 for f in *.tla; do
   echo "── $f ──"
   # Capture, then match: piping straight into `grep -q` lets grep exit on the
   # first hit and SIGPIPE tlapm, which `pipefail` then reports as a failure.
   out="$(tlapm -I "$KERNEL_DIR" --stretch "$STRETCH" "$f" 2>&1 || true)"
-  if grep -qE "All [0-9]+ obligations? proved" <<<"$out"; then
-    echo "  OK: all obligations proved"
+  proved="$(sed -nE 's/.*All ([0-9]+) obligations? proved.*/\1/p' <<<"$out" | tail -1)"
+  want="$(min_obligations "$f")"
+  if [ -n "$proved" ] && [ "$proved" -ge "$want" ]; then
+    echo "  OK: $proved obligations proved (>= $want)"
   else
-    echo "$out" | tail -40
-    echo "  FAIL: unproved obligations in $f" >&2
+    echo "$out"
+    if [ -n "$proved" ]; then
+      echo "  FAIL: $f proved only $proved obligations, expected >= $want" >&2
+    else
+      echo "  FAIL: $f produced no 'all obligations proved' summary" >&2
+    fi
     ok=0
   fi
 done
