@@ -11,3 +11,4 @@ mc_*.tla
 mc_*.cfg
 # TLAPS proof-manager fingerprint cache.
 .tlacache/
+*.tlaps/

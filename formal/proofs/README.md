@@ -34,18 +34,20 @@ TLC model it backs (same definitions — no re-modeling).
 - **`no_lost_update.tla`** — proves `[]Inv_NoLostUpdate` (every completed read-modify-write's
   key stays persisted — the secure-storage write serialisation) for all `N`: directly
   inductive, since the serialised (atomic) RMW makes the store grow monotonically, so a done
-  op's key is never dropped. Backs `store_serial.tla`.
+  op's key is never dropped. Backs `store_serial.tla`. **23 obligations, all proved.**
 - **`switch_guarded.tla`** — proves `[]Inv_NoWrongActivation` (a version-guarded site switch
   never commits against a stale index) for the good orchestration: directly inductive, since
   every good action leaves `wrong` unchanged while the `noguard` demonstrator latches it.
   Backs `switchguard.tla` (which has no size parameter, so this is the deductive companion
-  rather than an N-generalisation).
+  rather than an N-generalisation). **34 obligations, all proved.**
 - **`jar_repopulated.tla`** — proves `[]Inv_JarRepopulated` (the legacy shared cookie jar is
   never left empty when the engine returns to rest): directly inductive, since only the good
   restore reaches the rest state and it repopulates the jar. Backs `jar_nonempty.tla`.
+  **28 obligations, all proved.**
 - **`proxy_failclosed_safe.tla`** — proves `[]Inv_NoDirectWhenProxied` (a proxied site never
   egresses directly): directly inductive, since a config change clears egress and a good load
   never sets `direct` while the type is proxied. Backs `proxy_failclosed.tla`.
+  **28 obligations, all proved.**
 
 Together these prove every kernel *safety* invariant, the surface-repaint *liveness*
 (`RepaintLiveness` — BUG-001 itself), and every standalone model's safety invariant
@@ -60,12 +62,34 @@ TLC's `N = 3`. The only TLC-bounded model left is `renderer.tla`, which has no s
 ./check_proofs.sh            # runs tlapm over every *.tla here
 ```
 
-Requires **tlapm** (the TLA+ Proof Manager). It is heavy (~145 MB, bundles Isabelle), so
-it is deliberately **not** in the default CI gate — the TLC suite is the fast gate; these
-proofs are the high-assurance backstop run on demand. Install: download
-`tlaps-1.5.0-x86_64-linux-gnu-inst.bin` from
-[github.com/tlaplus/tlapm/releases](https://github.com/tlaplus/tlapm/releases), run it
-with `-d <prefix>`, and add `<prefix>/bin` to `PATH`.
+Requires **tlapm** (the TLA+ Proof Manager), installed from the prebuilt tarball:
+
+```bash
+curl -fsSL -o /tmp/tlapm.tar.gz \
+  https://github.com/tlaplus/tlapm/releases/download/1.6.0-pre/tlapm-1.6.0-pre-x86_64-linux-gnu.tar.gz
+tar -xzf /tmp/tlapm.tar.gz -C "$HOME"     # -> $HOME/tlapm/bin/tlapm
+export PATH="$HOME/tlapm/bin:$PATH"
+```
+
+Use the tarball, **not** the 1.5.0 `-inst.bin` installer: that installer compiles
+Isabelle/Pure with its bundled Poly/ML 5.4.0, which aborts on current Linux
+(`scanaddrs.cpp:107: Assertion 'val.IsDataPtr()' failed`,
+[tlaplus/tlapm#88](https://github.com/tlaplus/tlapm/issues/88)). The tarball ships
+prebuilt Isabelle heaps, so nothing is compiled on install. `1.6.0-pre` is a rolling tag
+reattached on every upstream `main` commit; it is the only prebuilt release upstream
+publishes, and it is what `tlaplus/Examples`' own CI installs. On macOS swap in
+`tlapm-1.6.0-pre-arm64-darwin.tar.gz`.
+
+The obligation count listed per module above is **asserted** by `check_proofs.sh`, not just
+documentation: matching "all obligations proved" alone is not a gate, because
+`All 0 obligations proved.` matches it too, so a tlapm that silently checks nothing would
+read as green. If you add or remove proof steps, update the count here *and* in
+`min_obligations()`.
+
+`check_proofs.sh` skips (exit 0) when `tlapm` is not on `PATH`, so a workstation without
+it still runs the rest of the suite. CI installs it in the `validate` job, where the
+proofs are a hard gate alongside the TLC suite. Backend timeouts are wall-clock, so the
+script passes `--stretch 5` to survive a loaded runner; override with `TLAPM_STRETCH`.
 
 ## Why both TLC and TLAPS
 

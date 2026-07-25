@@ -72,16 +72,25 @@ jobs:
         run: ./formal/check.sh
       # tlapm (the TLA+ Proof Manager) machine-checks the unbounded proofs in
       # formal/proofs/ -- formal verification of the same specs, so it sits in
-      # the validate tier next to OpenSpec validation and the TLC kernel. The
-      # installer is heavy (~145 MB, bundles Isabelle) but reuses the Java set
-      # up above, so a separate runner buys nothing.
+      # the validate tier next to OpenSpec validation and the TLC kernel. It
+      # reuses the Java set up above, so a separate runner buys nothing.
+      #
+      # Install the prebuilt 1.6.0-pre tarball, NOT the 1.5.0 .bin installer:
+      # that installer compiles Isabelle/Pure with its bundled Poly/ML 5.4.0,
+      # which aborts on the runner image ("scanaddrs.cpp:107: Assertion
+      # `val.IsDataPtr()' failed", tlaplus/tlapm#88). The tarball ships prebuilt
+      # Isabelle heaps, so nothing is compiled at install time. This is the same
+      # artifact tlaplus/Examples' own CI installs. 1.6.0-pre is a rolling tag
+      # (reattached on every main commit) and is the only prebuilt release
+      # upstream publishes, so this dependency is unpinned by necessity.
       - name: Install TLAPS
         run: |
-          curl -fsSL -o /tmp/tlaps.bin \
-            https://github.com/tlaplus/tlapm/releases/download/202210041448/tlaps-1.5.0-x86_64-linux-gnu-inst.bin
-          chmod +x /tmp/tlaps.bin
-          /tmp/tlaps.bin -d "$HOME/tlaps"
-          echo "$HOME/tlaps/bin" >> "$GITHUB_PATH"
+          curl -fsSL --retry 4 --retry-delay 2 -o /tmp/tlapm.tar.gz \
+            https://github.com/tlaplus/tlapm/releases/download/1.6.0-pre/tlapm-1.6.0-pre-x86_64-linux-gnu.tar.gz
+          tar -xzf /tmp/tlapm.tar.gz -C "$HOME"
+          rm -f /tmp/tlapm.tar.gz
+          echo "$HOME/tlapm/bin" >> "$GITHUB_PATH"
+          "$HOME/tlapm/bin/tlapm" --version
       - name: Verify TLAPS proofs
         run: ./formal/proofs/check_proofs.sh
       # Idempotent: if the cache restored a matching Chromium, this
