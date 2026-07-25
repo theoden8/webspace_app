@@ -36,11 +36,14 @@ min_obligations() {
     containers_disjoint.tla)   echo 23 ;;
     current_loaded.tla)        echo 51 ;;
     jar_matches.tla)           echo 51 ;;
+    jar_repopulated.tla)       echo 28 ;;
+    no_lost_update.tla)        echo 23 ;;
     proxy_coherent.tla)        echo 29 ;;
+    proxy_failclosed_safe.tla) echo 28 ;;
     repaint_liveness.tla)      echo 71 ;;
     retention_safety.tla)      echo 22 ;;
-    # Directly-inductive companions; count not pinned in README, so just require
-    # that tlapm discharged something.
+    switch_guarded.tla)        echo 34 ;;
+    # A new proof module is unpinned until someone records its count above.
     *)                         echo 1  ;;
   esac
 }
