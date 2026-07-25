@@ -60,12 +60,28 @@ TLC's `N = 3`. The only TLC-bounded model left is `renderer.tla`, which has no s
 ./check_proofs.sh            # runs tlapm over every *.tla here
 ```
 
-Requires **tlapm** (the TLA+ Proof Manager). It is heavy (~145 MB, bundles Isabelle), so
-it is deliberately **not** in the default CI gate — the TLC suite is the fast gate; these
-proofs are the high-assurance backstop run on demand. Install: download
-`tlaps-1.5.0-x86_64-linux-gnu-inst.bin` from
-[github.com/tlaplus/tlapm/releases](https://github.com/tlaplus/tlapm/releases), run it
-with `-d <prefix>`, and add `<prefix>/bin` to `PATH`.
+Requires **tlapm** (the TLA+ Proof Manager), installed from the prebuilt tarball:
+
+```bash
+curl -fsSL -o /tmp/tlapm.tar.gz \
+  https://github.com/tlaplus/tlapm/releases/download/1.6.0-pre/tlapm-1.6.0-pre-x86_64-linux-gnu.tar.gz
+tar -xzf /tmp/tlapm.tar.gz -C "$HOME"     # -> $HOME/tlapm/bin/tlapm
+export PATH="$HOME/tlapm/bin:$PATH"
+```
+
+Use the tarball, **not** the 1.5.0 `-inst.bin` installer: that installer compiles
+Isabelle/Pure with its bundled Poly/ML 5.4.0, which aborts on current Linux
+(`scanaddrs.cpp:107: Assertion 'val.IsDataPtr()' failed`,
+[tlaplus/tlapm#88](https://github.com/tlaplus/tlapm/issues/88)). The tarball ships
+prebuilt Isabelle heaps, so nothing is compiled on install. `1.6.0-pre` is a rolling tag
+reattached on every upstream `main` commit; it is the only prebuilt release upstream
+publishes, and it is what `tlaplus/Examples`' own CI installs. On macOS swap in
+`tlapm-1.6.0-pre-arm64-darwin.tar.gz`.
+
+`check_proofs.sh` skips (exit 0) when `tlapm` is not on `PATH`, so a workstation without
+it still runs the rest of the suite. CI installs it in the `validate` job, where the
+proofs are a hard gate alongside the TLC suite. Backend timeouts are wall-clock, so the
+script passes `--stretch 5` to survive a loaded runner; override with `TLAPM_STRETCH`.
 
 ## Why both TLC and TLAPS
 
