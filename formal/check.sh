@@ -76,6 +76,14 @@ expect renderer_noprobe.cfg renderer.tla "Temporal properties were violated" \
 expect renderer_reach.cfg renderer.tla "Reach_VisibleDead is violated" \
   "a visible dead renderer is reachable (Recovered not vacuous)"
 
+echo "── WARMSTART: BUG-001 warm-start white screen (PAUSE-020, Attempt 8) ──"
+expect warmstart.cfg warmstart.tla "No error has been found" \
+  "an attach-triggered nudge repaints every warm-start SurfaceView reattach"
+expect warmstart_bug.cfg warmstart.tla "Temporal propert(y|ies).*violated" \
+  "a reattach after the resume one-shot nudge drains is left blank (reproduced + caught)"
+expect warmstart_reach.cfg warmstart.tla "Reach_LateReattach is violated" \
+  "the late-reattach ordering is reachable (RepaintLiveness not vacuous)"
+
 echo "── PROXY: mutual exclusion (Android serialises mismatched-proxy sites) ──"
 expect proxy.cfg proxy.tla "No error has been found" \
   "every loaded site shares the active proxy"

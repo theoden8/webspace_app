@@ -109,4 +109,87 @@ void main() {
       });
     });
   });
+
+  group('warm-start ordering (BUG-001 Attempt 8 / PAUSE-020)', () {
+    // Code-layer mirror of formal/warmstart.tla. The warm-start white screen is
+    // an ORDERING defect: on Android the SurfaceView is destroyed on background
+    // and re-created on foreground, and that reattach is asynchronous; it can
+    // land AFTER _onResumed's one-shot tail nudge has already drained, leaving a
+    // blank surface with no tick left to repaint it. Modeled here as: attach()
+    // sets `owed`; a nudge tick clears it; a late attach() with no subsequent
+    // nudge stays owed. Fix (Attempt 8): the attach signal (didChangeMetrics
+    // within the post-resume window) fires another nudge.
+
+    void drain(SurfaceRepaintEngine e) {
+      RepaintTick t;
+      do {
+        t = e.tick();
+      } while (!t.done);
+    }
+
+    test('reproduce: a reattach after the resume nudge drains is left owed', () {
+      final e = SurfaceRepaintEngine();
+      // _onResumed: the resume path (re)attaches and fires its single tail nudge.
+      e.attach();
+      e.request();
+      drain(e);
+      expect(e.owed, isFalse, reason: 'the resume nudge repainted the surface it saw');
+
+      // Warm start: the SurfaceView re-attaches blank AFTER the nudge drained,
+      // with no further trigger, the pre-Attempt-8 behavior.
+      e.attach();
+      expect(e.owed, isTrue,
+          reason: 'BUG-001: a late reattach with no re-nudge stays blank-white');
+    });
+
+    test('fix: an attach-signal re-nudge repaints the late reattach', () {
+      final e = SurfaceRepaintEngine();
+      e.attach();
+      e.request();
+      drain(e);
+
+      e.attach(); // late warm-start reattach
+      // Attempt 8: didChangeMetrics inside the post-resume window re-nudges.
+      e.request();
+      drain(e);
+      expect(e.owed, isFalse, reason: 'the attach-triggered re-nudge repainted it');
+    });
+
+    test('timing-faithful: late reattach at 800ms is caught only with the metrics re-nudge',
+        () {
+      // Host harness mirroring main.dart: _onResumed fires one nudge at resume;
+      // didChangeMetrics re-fires the nudge while the post-resume window is open.
+      // The resume nudge (6 ticks * 100ms = ~600ms) has drained by 800ms, when
+      // the SurfaceView actually re-attaches on this device.
+      for (final withMetricsRenudge in [false, true]) {
+        fakeAsync((async) {
+          final e = SurfaceRepaintEngine();
+          void nudge() {
+            if (!e.request()) return;
+            void tick() {
+              final t = e.tick();
+              if (t.done) return;
+              Future.delayed(const Duration(milliseconds: 100), tick);
+            }
+
+            tick();
+          }
+
+          // resume: tail nudge fires now.
+          nudge();
+          // warm-start SurfaceView reattaches blank at 800ms (after the nudge drained).
+          Future.delayed(const Duration(milliseconds: 800), () {
+            e.attach();
+            if (withMetricsRenudge) nudge(); // didChangeMetrics within the window
+          });
+          async.elapse(const Duration(seconds: 3));
+
+          expect(e.owed, withMetricsRenudge ? isFalse : isTrue,
+              reason: withMetricsRenudge
+                  ? 'metrics re-nudge repainted the late reattach'
+                  : 'reproduction: late reattach left blank without the re-nudge');
+        });
+      }
+    });
+  });
 }

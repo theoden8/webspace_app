@@ -137,6 +137,45 @@ class. It also does not *prove* the memory-pressure event was this user's trigge
 assumption that the nudge physically recomposites on the device (see the TLAPS refinement gap
 in gap #4 below).
 
+### Attempt 8 — Repaint on the surface-attach signal for a warm start (`PAUSE-020`)
+**Date:** 2026-07-23 · **Files:** lib/main.dart, lib/services/surface_repaint_engine.dart,
+formal/warmstart.tla (+ cfgs, check.sh), test/surface_repaint_engine_test.dart,
+test/js/surface_repaint_funnel.test.js, openspec/specs/webview-pause-lifecycle/spec.md
+**What it did:** On `resumed`, `_openResumeRepaintWindow` opens a bounded (~3s)
+window; while open, the new `didChangeMetrics` override fires `_nudgeSurfaceRepaint`.
+Additive to Attempt 2's tail nudge in `_onResumed`, which still fires once.
+**Reproduced + proved (mechanism, not device):** the warm-start ordering the kernel
+could not express (gap #4) is reproduced as a model-checked counterexample in
+`formal/warmstart.tla` (`warmstart_bug.cfg`, Fix="none"): `Resume` schedules the one-shot
+nudge, it drains to `nudging=0` while still painted, then `SurfaceReattach` sets the
+surface blank and it stutters blank forever → `RepaintLiveness` violated. The fix
+(`warmstart.cfg`, Fix="attach": the reattach itself schedules a nudge) makes the property
+hold. Mirrored, runnable without TLC, in `test/surface_repaint_engine_test.dart`
+(`SurfaceRepaintEngine` gained `owed`/`attach()`; a late `attach()` with no re-nudge stays
+`owed`; the metrics re-nudge clears it), and gated in `surface_repaint_funnel.test.js`.
+These prove the *ordering* is real and that an attach-triggered re-nudge closes it; they do
+**not** prove the device link below.
+**Why:** Reported as a **white** screen on **warm-starting** a site (app backgrounded,
+then foregrounded — no activity recreation, so neither `onControllerReady` (Attempt 4)
+nor a back path (Attempts 5–6) runs; only the resume path (Attempt 2) does). On a warm
+start the hybrid-composition `SurfaceView`'s surface is destroyed on background and
+**re-created on foreground**, and that re-attach can land a frame or more *after*
+`_onResumed`'s single tail nudge has already drained its ~0.7s budget — so the inset
+flips before the surface exists and the freshly-attached surface stays blank. A surface
+re-attach re-lays-out the window, which Flutter delivers as `didChangeMetrics`: the
+closest Dart-side signal to the *actual attach*, versus every prior attempt's reliance on
+a lifecycle *event* whose timing only approximates the attach. Nudging on the metrics
+signal lands a size-flip on the surface whenever it comes back, not at a fixed guessed
+delay. Bounded to the post-resume window so steady-state keyboard/rotation metric changes
+don't nudge; `_nudgeSurfaceRepaint` coalescing keeps a metrics burst on one loop.
+**Why partial:** Still not the durable single chokepoint (gap #3). `didChangeMetrics` is a
+*proxy* for the attach — it fires for the main FlutterView's metrics, which correlate with
+but are not identical to the webview platform-view's `SurfaceView` re-attach, and it is not
+*guaranteed* to fire on every device's warm resume (hence the tail nudge is kept as a
+fallback). The real fix is still a native surface-changed/-redrawn callback from the fork
+driving the repaint. This attempt narrows gap #3 (keys on an attach signal, not a lifecycle
+event) rather than closing it.
+
 ## Known open gaps (candidates for the next recurrence)
 
 1. ~~Nested `InAppWebViewScreen`~~ — **closed by Attempt 6** (now funneled + gated).
@@ -146,7 +185,10 @@ in gap #4 below).
 3. **The class isn't closed.** Every fix is per-path. The durable fix is a **single
    chokepoint** that nudges on *every* surface (re)attach — ideally a native
    surface-changed/-redrawn callback from the fork driving the repaint — instead of
-   enumerating Dart-side navigation paths forever.
+   enumerating Dart-side navigation paths forever. **Attempt 8 narrows this**: it keys the
+   warm-start repaint on `didChangeMetrics` (a Dart-side *proxy* for the surface attach)
+   rather than a lifecycle event, but a proxy is not the native callback and is not
+   guaranteed to fire on every device, so the gap stands.
 4. **The TLAPS proof doesn't cover the recurrence — by construction.**
    `RepaintLiveness` is proved over `GoodSpec`/`GoodNext`, a *fixed* set of attach actions
    (`Activate`, `Resume`, `ControllerAttach`, `Back`, `Forward`, `LoadSite`, `Evict`), each of
@@ -158,6 +200,20 @@ in gap #4 below).
    code↔model bridge that is meant to catch gap #3 — `formal/trace/` plus the
    `surface_repaint_funnel` structural gate — is scoped to `lib/main.dart` back paths, not the
    memory-pressure/lifecycle path Attempt 7 covers, so that path is not yet gated.
+   **Attempt 8 partly addresses this for the warm-start ordering**: `formal/warmstart.tla`
+   drops the kernel's magic `WF_vars(Nudge)` and models the nudge as an event-triggered
+   one-shot with a *separate* async `SurfaceReattach`, so the bad interleaving (reattach after
+   the resume nudge drains) is now a reachable, model-checked counterexample instead of an
+   unmodeled path; the `surface_repaint_funnel` gate now also covers the `didChangeMetrics`
+   resume path. The kernel's TLAPS proof is still over the atomic-attach `GoodNext`, so the
+   two models disagree by design — `warmstart.tla` is the faithful one for this ordering.
+5. **The device link is unproven.** The whole fix rests on `didChangeMetrics` actually firing
+   when the webview `SurfaceView` re-attaches on a real warm resume. Flutter can dedupe
+   identical window metrics, and the callback tracks the main FlutterView, not the webview
+   platform view. If it does not fire on the affected device, Attempt 8 is a no-op there. The
+   new `SurfaceDiag` line `trigger=metrics-resume -> nudge` exists to confirm this from a
+   device log; until such a trace exists, the causal claim (this fixes the reported warm-start
+   white screen) is unverified.
 
 ## Guardrails now in place
 
@@ -165,11 +221,23 @@ in gap #4 below).
   (every blank-surface attach is eventually repainted); the `bypass` demonstrator *is*
   this bug and TLC rejects it. Liveness backbone proved for unbounded N in
   [formal/proofs/repaint_liveness.tla](../../formal/proofs/repaint_liveness.tla).
+- **Warm-start model** ([formal/warmstart.tla](../../formal/warmstart.tla), run by
+  `formal/check.sh`): models the nudge as an event-triggered one-shot with a *separate*
+  async `SurfaceReattach` (no magic `WF(Nudge)`), so the warm-start ordering the kernel
+  can't see (gap #4) is a reachable counterexample. `warmstart_bug.cfg` (Fix="none")
+  reproduces BUG-001 (`RepaintLiveness` violated); `warmstart.cfg` (Fix="attach")
+  proves the attach-triggered re-nudge closes it; `warmstart_reach.cfg` proves the
+  ordering is reachable (non-vacuous).
+- **Engine characterization** ([test/surface_repaint_engine_test.dart](../../test/surface_repaint_engine_test.dart),
+  runs under `fvm flutter test`): the same ordering in runnable Dart. `SurfaceRepaintEngine`
+  tracks `owed`; a late `attach()` with no re-nudge stays `owed` (reproduction), the metrics
+  re-nudge clears it (fix), including a timing-faithful 800ms-reattach case.
 - **Structural gate** ([test/js/surface_repaint_funnel.test.js](../../test/js/surface_repaint_funnel.test.js),
   runs under `npm run test:js` in CI): on the main page, every Android `controller.goBack()`
   must route through `_goBackAndRepaint`. A new raw back path (the recurrence shape of
-  Attempts 2–5) fails CI. Partial: scoped to `lib/main.dart`; the nested screen (gap #1)
-  is not yet gated.
+  Attempts 2–5) fails CI. Now also asserts the warm-start wiring: `didChangeMetrics` re-nudges
+  within the post-resume window, and a resume opens that window. Partial: scoped to
+  `lib/main.dart`; the nested screen (gap #1) is not yet gated.
 
 ## Diagnostic checklist (when this recurs)
 

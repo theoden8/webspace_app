@@ -5,6 +5,7 @@ WebSpace: Flutter app managing multiple websites with per-site cookie isolation 
 ## Style (output, code, commits)
 
 - No preamble, no closing fluff, no em-dashes, no emoji.
+- Don't use the phrase "load-bearing".
 - Code first; explain only the non-obvious.
 - Default to **no code comments**. Only add when the *why* is non-obvious (hidden constraint, workaround for a specific bug, surprising behavior). Never restate what the code does. Never reference the current task or PR.
 - Commit messages: short subject (<70 chars, imperative), 1-2 line body for the *why* if needed. No marketing prose, no bullet lists of every changed file, no "this commit also...".

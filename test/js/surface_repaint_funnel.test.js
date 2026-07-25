@@ -66,3 +66,32 @@ for (const rel of GUARDED) {
     );
   });
 }
+
+// Warm-start repaint gate (PAUSE-020 / BUG-001 Attempt 8). The kernel's magic
+// WF(Nudge) hid the warm-start ordering (bug doc gap #4): the resume nudge is a
+// one-shot that can fire before the async SurfaceView reattach. The fix re-fires
+// the nudge on didChangeMetrics — the attach signal — inside a bounded
+// post-resume window. This gate keeps that wiring from being silently dropped;
+// its ordering is proved in formal/warmstart.tla and test/surface_repaint_engine_test.dart.
+{
+  const lines = linesOf('lib/main.dart');
+  const src = lines.join('\n');
+
+  test('lib/main.dart: didChangeMetrics re-nudges within the post-resume window', () => {
+    const defIdx = lines.findIndex((l) => /void\s+didChangeMetrics\s*\(/.test(l));
+    assert.ok(defIdx >= 0, 'didChangeMetrics override must exist');
+    const body = lines.slice(defIdx, defIdx + 20).join('\n');
+    assert.match(body, /_resumeRepaintWindowOpen/,
+      'didChangeMetrics must gate on the post-resume window');
+    assert.match(body, /_nudgeSurfaceRepaint\(\)/,
+      'didChangeMetrics must nudge the surface on the attach signal');
+  });
+
+  test('lib/main.dart: the post-resume repaint window is opened on resume', () => {
+    assert.match(src, /_openResumeRepaintWindow\(\)/,
+      'a resume must open the post-resume repaint window');
+    // >= 2: the definition plus at least one call site on the resume path.
+    const refs = (src.match(/_openResumeRepaintWindow\(/g) || []).length;
+    assert.ok(refs >= 2, `expected window-open definition + >=1 call site, found ${refs}`);
+  });
+}
