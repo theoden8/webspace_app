@@ -2,7 +2,7 @@
 
 **Status:** open (recurring — each fix has closed one entry path; new paths keep surfacing)
 **Platform:** Android only (hybrid-composition `SurfaceView`)
-**Spec:** [openspec/specs/webview-pause-lifecycle/spec.md](../../openspec/specs/webview-pause-lifecycle/spec.md) — requirements `PAUSE-013`…`PAUSE-018`
+**Spec:** [openspec/specs/webview-pause-lifecycle/spec.md](../../openspec/specs/webview-pause-lifecycle/spec.md) — requirements `PAUSE-013`…`PAUSE-021`
 **Formal model:** [formal/kernel.tla](../../formal/kernel.tla) — `RepaintLiveness` ("every blank-surface attach is eventually repainted"). The `kernel_conflict.cfg` demonstrator is a back path that bypasses the chokepoint — i.e. this exact bug — and TLC rejects it with a counterexample.
 
 ## Symptom
@@ -176,6 +176,40 @@ fallback). The real fix is still a native surface-changed/-redrawn callback from
 driving the repaint. This attempt narrows gap #3 (keys on an attach signal, not a lifecycle
 event) rather than closing it.
 
+### Attempt 9 — Repaint after a reload, latched to the document recommit (`PAUSE-021`)
+**Date:** 2026-07-29 · **Files:** lib/services/surface_repaint_engine.dart, lib/web_view_model.dart,
+lib/main.dart, lib/screens/inappbrowser.dart, lib/services/webview.dart,
+test/surface_repaint_engine_test.dart, test/js/surface_repaint_funnel.test.js,
+openspec/specs/webview-pause-lifecycle/spec.md
+**What it did:** Routed every reload through a funnel that latches on the engine
+(`SurfaceRepaintEngine.reloadIssued`) and nudges, then nudges *again* when the next
+main-frame load settles (`consumeLoadSettled`, driven by `onLoadingChanged(false)`).
+Funnels: `WebViewModel.reloadAndRepaint` on the main page (Refresh button and
+Clear-cookies via `userDrivenReload`, pull-to-refresh, the `restoreState` materialize
+reload, the notification background refresh) and `_reloadAndRepaint` in
+`InAppWebViewScreen` (menu Refresh, pull-to-refresh). The factory's own cached-HTML
+one-shot live refresh reports through the new `WebViewConfig.onReloadIssued` so it
+latches identically. Both host hooks are gated on the model being the visible site.
+**Why:** Reported as a **white** screen after a plain in-app **refresh**. A reload keeps
+the same site and the same controller, so it passes through none of the existing
+chokepoints — not `_setCurrentIndex` (Attempt 3), not `onControllerReady` (Attempt 4),
+not a back path (Attempts 5–6), not a resume (Attempts 2/8): gap #3's shape again.
+The reload also has the Attempt-8 *ordering* on top of that: `reload()` throws away the
+painted frame immediately but commits the replacement an unbounded time later, so a
+nudge fired at issue time drains its ~0.6s budget against the old surface and the
+recommitted one is left blank. The load-settled signal is the closest Dart-side proxy for
+that recommit, which is why the repaint is latched across the gap rather than fired once.
+**Why partial:** Still per-path (gap #3): it enumerates reload call sites instead of
+keying on a native surface callback. `onLoadingChanged(false)` is a *proxy* for the
+commit, one step removed like `didChangeMetrics` — it maps to `onLoadStop`, which fires
+after the document is parsed rather than at the compositor's first frame, so a page that
+paints materially later than load-stop can still outrun the second nudge. The latch is
+also single-slot on a per-screen engine shared by all sites: a site switch between a
+reload and its load-stop lets the incoming site's settle consume it (a harmless extra
+nudge, not a missed one). And the device link is unproven for the same reason as
+Attempt 8 — no `SurfaceDiag` trace from an affected device confirms the reload was this
+user's trigger or that the second nudge lands after the recommit.
+
 ## Known open gaps (candidates for the next recurrence)
 
 1. ~~Nested `InAppWebViewScreen`~~ — **closed by Attempt 6** (now funneled + gated).
@@ -188,7 +222,17 @@ event) rather than closing it.
    enumerating Dart-side navigation paths forever. **Attempt 8 narrows this**: it keys the
    warm-start repaint on `didChangeMetrics` (a Dart-side *proxy* for the surface attach)
    rather than a lifecycle event, but a proxy is not the native callback and is not
-   guaranteed to fire on every device, so the gap stands.
+   guaranteed to fire on every device, so the gap stands. **Attempt 9 is the same shape
+   once more** — a reload, keyed on the load-settled proxy — and is the second recurrence
+   in a row whose fix was an *ordering* one (nudge at the trigger, re-nudge at the attach
+   proxy). Two data points that the durable fix is the native callback, not a longer list
+   of triggers.
+6. **Proxies fire before the compositor.** Both attach proxies now in use are upstream of
+   the actual first paint: `didChangeMetrics` (Attempt 8) tracks the main FlutterView's
+   metrics, and `onLoadingChanged(false)` (Attempt 9) maps to `onLoadStop`, i.e. document
+   parse rather than frame commit. A surface that receives its first frame materially
+   later than either signal still outruns the nudge budget. This is gap #3 seen from the
+   timing side: the native callback is the only signal that *is* the attach.
 4. **The TLAPS proof doesn't cover the recurrence — by construction.**
    `RepaintLiveness` is proved over `GoodSpec`/`GoodNext`, a *fixed* set of attach actions
    (`Activate`, `Resume`, `ControllerAttach`, `Back`, `Forward`, `LoadSite`, `Evict`), each of
@@ -238,6 +282,10 @@ event) rather than closing it.
   Attempts 2–5) fails CI. Now also asserts the warm-start wiring: `didChangeMetrics` re-nudges
   within the post-resume window, and a resume opens that window. Partial: scoped to
   `lib/main.dart`; the nested screen (gap #1) is not yet gated.
+  Attempt 9 adds the reload half: every `controller.reload()` in `web_view_model.dart` and
+  `inappbrowser.dart` must sit inside a `reloadAndRepaint` funnel that latches the reload,
+  `main.dart` must wire both host hooks to the engine, and each file must drive the repaint
+  off the load-settled signal. A new raw reload fails CI.
 
 ## Diagnostic checklist (when this recurs)
 

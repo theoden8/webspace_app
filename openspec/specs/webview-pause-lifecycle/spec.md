@@ -668,6 +668,39 @@ The ordering is model-checked in [formal/warmstart.tla](../../../formal/warmstar
 
 ---
 
+### Requirement: PAUSE-021 — Repaint After A Reload
+
+On Android, the system SHALL recomposite the surface after the visible webview reloads, and SHALL do so again when the reloaded document commits. A reload discards the currently painted compositor frame at the moment `reload()` is called and commits the replacement an unbounded time later (network, parse, script). In between, the hybrid-composition `SurfaceView` holds no frame and nothing re-lays it out, so the page renders **white** — the same blank-surface class as PAUSE-015/017/018/020, reached through the reload trigger. A reload keeps the same site and the same controller, so it passes through none of the existing chokepoints: not `_setCurrentIndex` (PAUSE-015), not `onControllerReady` (PAUSE-017), not the back path (PAUSE-018), not a resume (PAUSE-020).
+
+Repainting only when `reload()` is issued is insufficient, and for the same ordering reason as PAUSE-020: the nudge's tick budget (~0.6s) drains against the *old* surface while the new document is still in flight, so a reload slower than the budget leaves the recommitted surface unpainted. The host SHALL therefore latch the reload (`SurfaceRepaintEngine.reloadIssued`) and repaint **twice**: once at issue time, and again when the next main-frame load settles (`SurfaceRepaintEngine.consumeLoadSettled`, driven by `onLoadingChanged(false)`) — the closest Dart-side signal to the reloaded document committing onto the surface. The latch is one-shot, so an ordinary navigation's load-stop does not nudge.
+
+Every reload of a webview SHALL go through a funnel that fires the latch: `WebViewModel.reloadAndRepaint` for the main page (covering the Refresh button and Clear-cookies via `userDrivenReload`, pull-to-refresh, the `restoreState` materialize reload, and the notification background refresh) and `_reloadAndRepaint` in `InAppWebViewScreen` for the nested screen (menu Refresh and pull-to-refresh). Reloads the webview factory issues on its own — the cached-HTML one-shot live refresh — SHALL report through `WebViewConfig.onReloadIssued` so they latch identically. The funnels are held by the `surface_repaint_funnel` structural gate; a new raw `controller.reload()` fails CI. All of it is a no-op off Android.
+
+This is per-path like every prior attempt and does not close BUG-001 open gap #3; a native surface-changed callback from the fork remains the durable fix.
+
+The ordering is the one already model-checked in [formal/warmstart.tla](../../../formal/warmstart.tla) (a one-shot nudge draining before an async attach violates `RepaintLiveness`; an attach-triggered re-nudge restores it), with the reload's commit playing the part of `SurfaceReattach`. The runnable counterpart is the reload group in `test/surface_repaint_engine_test.dart`, including the timing-faithful case where a 2s reload is recovered only by the settled re-nudge.
+
+#### Scenario: A slow reload does not leave a white screen
+
+**Given** a site is visible on Android
+**When** the user taps Refresh (or pulls to refresh) and the page takes longer to commit than the repaint nudge's tick budget
+**Then** the reload is latched at issue time and, when the load settles, `_nudgeSurfaceRepaint` runs again against the recommitted surface
+**And** the page paints without the user rotating, locking, or switching tabs
+
+#### Scenario: Ordinary navigation does not nudge
+
+**Given** a site is visible on Android with no reload in flight
+**When** the user follows a link and that load settles
+**Then** the reload latch is empty, so no repaint nudge runs and the visible site does not jitter
+
+#### Scenario: A background site's reload does not repaint the visible one
+
+**Given** the notification background refresh reloads a loaded site that is not the current one
+**When** that site's load settles
+**Then** neither the latch nor the nudge fires, because both host hooks are gated on the model being the visible site
+
+---
+
 ### Requirement: PAUSE-016 — Android Per-Instance Pause Is a No-Op
 
 On Android the per-instance `pause()` / `resume()` (`WebView.onPause()` / `onResume()`) SHALL be no-ops. Android exposes no per-instance JavaScript pause — `onPause()` halts only animations and geolocation and explicitly does not pause JS, while the only JS-timer pause (`pauseTimers()`) is process-global. So per-instance pause contributes nothing to the lifecycle freeze, yet cycling the foreground hybrid-composition `SurfaceView` through onPause/onResume re-attaches it blank on the next paint — the white screen the user hits after a transient background or a navigation that follows a resume.

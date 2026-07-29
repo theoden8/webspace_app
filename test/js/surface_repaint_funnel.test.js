@@ -24,6 +24,11 @@ function linesOf(rel) {
   return fs.readFileSync(path.join(repoRoot, rel), 'utf8').split('\n');
 }
 
+// The `before` lines above and `after` lines below line `i`, joined.
+function context(lines, i, before, after) {
+  return lines.slice(Math.max(0, i - before), i + after + 1).join('\n');
+}
+
 for (const rel of GUARDED) {
   const lines = linesOf(rel);
   const src = lines.join('\n');
@@ -64,6 +69,86 @@ for (const rel of GUARDED) {
         'On Android, route back navigation through _goBackAndRepaint ' +
         '(PAUSE-018 / BUG-001); the iOS/macOS path is exempt.',
     );
+  });
+}
+
+// Reload repaint gate (PAUSE-021 / BUG-001 Attempt 9). A reload discards the
+// painted frame and recommits it an unbounded time later, so the Android
+// SurfaceView sits blank in between with nothing to relayout it. Every reload
+// of a webview MUST go through a funnel that latches the reload and nudges,
+// and the paired load-settled signal MUST re-nudge — the issue-time nudge
+// alone drains before a slow page recommits (proved in
+// test/surface_repaint_engine_test.dart).
+{
+  // Reload funnels, per file: name -> the raw call it must wrap.
+  const RELOAD_FUNNELS = [
+    {
+      file: 'lib/web_view_model.dart',
+      funnel: /Future<void>\s+reloadAndRepaint\s*\(/,
+      latch: /onReloadIssued\?\.call\(\)/,
+      settled: /onLoadSettled\?\.call\(\)/,
+    },
+    {
+      file: 'lib/screens/inappbrowser.dart',
+      funnel: /Future<void>\s+_reloadAndRepaint\s*\(/,
+      latch: /_surfaceRepaint\.reloadIssued\(\)/,
+      settled: /_surfaceRepaint\.consumeLoadSettled\(\)/,
+    },
+  ];
+
+  for (const { file, funnel, latch, settled } of RELOAD_FUNNELS) {
+    const lines = linesOf(file);
+    const src = lines.join('\n');
+
+    test(`${file}: the reload funnel latches the reload and repaints`, () => {
+      const defIdx = lines.findIndex((l) => funnel.test(l));
+      assert.ok(defIdx >= 0, 'a reload funnel must be defined');
+      const body = lines.slice(defIdx, defIdx + 14).join('\n');
+      assert.match(body, /\.reload\(\)/, 'funnel must issue the reload');
+      assert.match(body, latch, 'funnel must latch the reload for the settled re-nudge');
+    });
+
+    test(`${file}: a settled load repaints the recommitted surface`, () => {
+      assert.match(src, settled,
+        'the load-settled signal must drive the reload repaint (PAUSE-021)');
+    });
+
+    test(`${file}: no raw reload() outside the funnel (PAUSE-021 gate)`, () => {
+      const offenders = [];
+      lines.forEach((l, i) => {
+        if (/^\s*(\/\/|\*)/.test(l)) return; // prose, not a call site
+        if (!/(?:controller|ctrl|_controller)[!?]?\.reload\(\)/.test(l)) return;
+        // Exempt the funnel definition itself (reload sits a few lines under
+        // the signature, past the null check and the latch call).
+        if (funnel.test(context(lines, i, 14, 0))) return;
+        offenders.push(i + 1);
+      });
+      assert.deepEqual(
+        offenders,
+        [],
+        `raw reload() outside the funnel at line(s) ${offenders.join(', ')}. ` +
+          'Route reloads through the reloadAndRepaint funnel (PAUSE-021 / BUG-001).',
+      );
+    });
+  }
+
+  // main.dart holds no controller of its own — it reloads through the model —
+  // so its obligation is to wire the two host hooks to the engine.
+  test('lib/main.dart: reload hooks drive the surface repaint engine', () => {
+    const src = linesOf('lib/main.dart').join('\n');
+    assert.match(src, /onReloadIssued\s*=\s*\(\)\s*\{/,
+      'main.dart must handle onReloadIssued for the visible site');
+    assert.match(src, /_surfaceRepaint\.reloadIssued\(\)/,
+      'the reload must be latched on the engine');
+    assert.match(src, /_surfaceRepaint\.consumeLoadSettled\(\)/,
+      'the settled load must re-nudge (PAUSE-021)');
+    const offenders = [];
+    linesOf('lib/main.dart').forEach((l, i) => {
+      if (/\.controller\?\.reload\(\)/.test(l)) offenders.push(i + 1);
+    });
+    assert.deepEqual(offenders, [],
+      `raw controller reload in main.dart at line(s) ${offenders.join(', ')}; ` +
+        'call WebViewModel.reloadAndRepaint instead.');
   });
 }
 

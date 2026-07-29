@@ -18,6 +18,7 @@ enum SurfaceTransition {
   controllerAttach, // fresh controller mounts a new SurfaceView (PAUSE-017)
   back, // bfcache restore reuses the controller (PAUSE-018)
   forward, // bfcache restore reuses the controller (PAUSE-018)
+  reload, // reload discards the painted frame, recommits later (PAUSE-021)
   goHome, // dispose + rebuild at initUrl (PAUSE-017)
   rendererRebuilt, // renderer-gone recovery rebuild (PAUSE-017)
   appBackground, // app going to background: no attach, no repaint owed
@@ -66,6 +67,33 @@ class SurfaceRepaintEngine {
   /// repaint. The complete set is the contract; mirrors `Attach` in kernel.tla.
   static bool mustRepaint(SurfaceTransition t) =>
       t != SurfaceTransition.appBackground;
+
+  bool _reloadPending = false;
+
+  /// Whether a reload has been issued whose new document has not yet settled.
+  bool get reloadPending => _reloadPending;
+
+  /// A reload was issued on the visible webview (PAUSE-021). Unlike every
+  /// other transition here, the surface does not go blank when the *call* is
+  /// made: the reload discards the painted frame and the new document commits
+  /// onto the surface some unbounded time later, so the one-shot nudge fired
+  /// at issue time can drain before the recommit lands — the same ordering
+  /// `formal/warmstart.tla` model-checks for the warm-start resume. This latch
+  /// carries the debt across that gap; [consumeLoadSettled] pays it.
+  void reloadIssued() {
+    _reloadPending = true;
+  }
+
+  /// A main-frame load settled on the visible webview. Returns true iff it
+  /// completes a pending reload, in which case the host MUST nudge: the
+  /// recommit is the reload's real surface attach. Consumes the latch, so a
+  /// later unrelated navigation does not nudge.
+  bool consumeLoadSettled() {
+    if (!_reloadPending) return false;
+    _reloadPending = false;
+    attach();
+    return true;
+  }
 
   /// Request a nudge. Refills the tick budget and returns whether the host
   /// should START the tick loop (true), or an already-running loop absorbed

@@ -18,6 +18,10 @@ void main() {
       expect(SurfaceRepaintEngine.mustRepaint(SurfaceTransition.back), isTrue);
       expect(SurfaceRepaintEngine.mustRepaint(SurfaceTransition.forward), isTrue);
     });
+
+    test('reload owes a repaint (PAUSE-021 / BUG-001)', () {
+      expect(SurfaceRepaintEngine.mustRepaint(SurfaceTransition.reload), isTrue);
+    });
   });
 
   group('coalescing tick machine', () {
@@ -188,6 +192,97 @@ void main() {
               reason: withMetricsRenudge
                   ? 'metrics re-nudge repainted the late reattach'
                   : 'reproduction: late reattach left blank without the re-nudge');
+        });
+      }
+    });
+  });
+
+  group('reload ordering (BUG-001 Attempt 9 / PAUSE-021)', () {
+    // Same ordering as the warm start above, reached through a different
+    // trigger: a reload discards the painted frame at issue time and commits
+    // the new one an unbounded time later. The nudge fired when reload() is
+    // called drains against the OLD surface; the recommit lands afterwards and
+    // nothing relayouts it. The latch carries the debt to the load-settled
+    // signal, which is the reload's real attach.
+
+    void drain(SurfaceRepaintEngine e) {
+      RepaintTick t;
+      do {
+        t = e.tick();
+      } while (!t.done);
+    }
+
+    test('reproduce: the issue-time nudge drains before the recommit', () {
+      final e = SurfaceRepaintEngine();
+      e.reloadIssued();
+      e.request();
+      drain(e);
+      expect(e.owed, isFalse, reason: 'nothing has re-attached yet');
+
+      // The new document commits onto the surface only now. Pre-Attempt-9
+      // there was no signal here, so no nudge ran against it.
+      expect(e.consumeLoadSettled(), isTrue);
+      expect(e.owed, isTrue,
+          reason: 'BUG-001: the recommitted surface is left unpainted');
+    });
+
+    test('fix: the load-settled re-nudge repaints the recommit', () {
+      final e = SurfaceRepaintEngine();
+      e.reloadIssued();
+      e.request();
+      drain(e);
+
+      expect(e.consumeLoadSettled(), isTrue);
+      e.request();
+      drain(e);
+      expect(e.owed, isFalse);
+    });
+
+    test('the latch is one-shot: a later unrelated load does not nudge', () {
+      final e = SurfaceRepaintEngine();
+      e.reloadIssued();
+      expect(e.consumeLoadSettled(), isTrue);
+      expect(e.reloadPending, isFalse);
+      expect(e.consumeLoadSettled(), isFalse,
+          reason: 'an ordinary navigation must not trigger a repaint');
+    });
+
+    test('a load settling with no reload in flight owes nothing', () {
+      final e = SurfaceRepaintEngine();
+      expect(e.consumeLoadSettled(), isFalse);
+      expect(e.owed, isFalse);
+    });
+
+    test('timing-faithful: a 2s reload is caught only with the settled re-nudge',
+        () {
+      // Host harness mirroring main.dart: onReloadIssued nudges immediately
+      // (~600ms of ticks), the page recommits at 2s. Only the settled re-nudge
+      // still has a tick left for it.
+      for (final withSettledRenudge in [false, true]) {
+        fakeAsync((async) {
+          final e = SurfaceRepaintEngine();
+          void nudge() {
+            if (!e.request()) return;
+            void tick() {
+              final t = e.tick();
+              if (t.done) return;
+              Future.delayed(const Duration(milliseconds: 100), tick);
+            }
+
+            tick();
+          }
+
+          e.reloadIssued();
+          nudge();
+          Future.delayed(const Duration(seconds: 2), () {
+            if (e.consumeLoadSettled() && withSettledRenudge) nudge();
+          });
+          async.elapse(const Duration(seconds: 5));
+
+          expect(e.owed, withSettledRenudge ? isFalse : isTrue,
+              reason: withSettledRenudge
+                  ? 'settled re-nudge repainted the recommitted surface'
+                  : 'reproduction: slow reload left blank-white');
         });
       }
     });
