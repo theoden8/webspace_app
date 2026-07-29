@@ -680,6 +680,8 @@ This is per-path like every prior attempt and does not close BUG-001 open gap #3
 
 The ordering is the one already model-checked in [formal/warmstart.tla](../../../formal/warmstart.tla) (a one-shot nudge draining before an async attach violates `RepaintLiveness`; an attach-triggered re-nudge restores it), with the reload's commit playing the part of `SurfaceReattach`. The runnable counterpart is the reload group in `test/surface_repaint_engine_test.dart`, including the timing-faithful case where a 2s reload is recovered only by the settled re-nudge.
 
+Both nudges SHALL emit a non-sensitive `SurfaceDiag` line (`trigger=reload -> nudge`, `trigger=reload-settled -> nudge`; no site name or URL, Android only) so a shareable device log can show whether the settled re-nudge in fact follows the recommit — the premise the fix depends on and which no model can establish. Same contract as the PAUSE-019/020 diagnostics.
+
 #### Scenario: A slow reload does not leave a white screen
 
 **Given** a site is visible on Android

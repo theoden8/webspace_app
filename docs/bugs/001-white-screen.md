@@ -190,7 +190,9 @@ reload, the notification background refresh) and `_reloadAndRepaint` in
 `InAppWebViewScreen` (menu Refresh, pull-to-refresh). The factory's own cached-HTML
 one-shot live refresh reports through the new `WebViewConfig.onReloadIssued` so it
 latches identically. Both host hooks are gated on the model being the visible site.
-**Why:** Reported as a **white** screen after a plain in-app **refresh**. A reload keeps
+**Why:** Reported as a **white** screen after a plain in-app **refresh**, and the reporter
+**confirmed the refresh was the trigger** — unlike Attempts 7 and 8, the entry path here is
+not inferred from a log, it is stated. A reload keeps
 the same site and the same controller, so it passes through none of the existing
 chokepoints — not `_setCurrentIndex` (Attempt 3), not `onControllerReady` (Attempt 4),
 not a back path (Attempts 5–6), not a resume (Attempts 2/8): gap #3's shape again.
@@ -206,9 +208,11 @@ after the document is parsed rather than at the compositor's first frame, so a p
 paints materially later than load-stop can still outrun the second nudge. The latch is
 also single-slot on a per-screen engine shared by all sites: a site switch between a
 reload and its load-stop lets the incoming site's settle consume it (a harmless extra
-nudge, not a missed one). And the device link is unproven for the same reason as
-Attempt 8 — no `SurfaceDiag` trace from an affected device confirms the reload was this
-user's trigger or that the second nudge lands after the recommit.
+nudge, not a missed one). The **trigger** is confirmed, but the **remedy** is not: no
+`SurfaceDiag` trace from an affected device yet shows the settled re-nudge landing after the
+recommit, which is what the fix rests on. The `trigger=reload -> nudge` /
+`trigger=reload-settled -> nudge` pair exists to close that; until such a trace exists the
+causal claim is unverified, exactly as in Attempt 8.
 
 ## Known open gaps (candidates for the next recurrence)
 

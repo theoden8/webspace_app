@@ -7839,14 +7839,27 @@ class _WebSpacePageState extends State<WebSpacePage>
                         // (PAUSE-021). Nudge now for a fast recommit, and
                         // latch so the settled load nudges again — the
                         // recommit can land long after this loop drains.
+                        // Non-sensitive one-liners (no site name / URL), safe
+                        // to share: the pair confirms on-device that the
+                        // settled re-nudge actually follows the recommit, and
+                        // how long after the issue-time nudge it lands — the
+                        // premise this fix rests on. See PAUSE-021.
                         webViewModel.onReloadIssued = () {
                           if (index != _currentIndex) return;
                           _surfaceRepaint.reloadIssued();
+                          if (Platform.isAndroid) {
+                            LogService.instance
+                                .log('SurfaceDiag', 'trigger=reload -> nudge');
+                          }
                           _nudgeSurfaceRepaint();
                         };
                         webViewModel.onLoadSettled = () {
                           if (index != _currentIndex) return;
                           if (!_surfaceRepaint.consumeLoadSettled()) return;
+                          if (Platform.isAndroid) {
+                            LogService.instance.log(
+                                'SurfaceDiag', 'trigger=reload-settled -> nudge');
+                          }
                           _nudgeSurfaceRepaint();
                         };
 
