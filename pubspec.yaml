@@ -146,3 +146,4 @@ flutter_launcher_icons:
   image_path_ios_dark_transparent: "assets/webspace_icon_dark.png"
   adaptive_icon_background: "#FFFFFF"  # Optional Android background
   adaptive_icon_foreground: "assets/webspace_icon.png"
+  adaptive_icon_monochrome: "assets/webspace_icon_monochrome.png"
