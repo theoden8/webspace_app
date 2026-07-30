@@ -4723,11 +4723,10 @@ class _WebSpacePageState extends State<WebSpacePage>
       if (!m.effectiveNotificationsEnabled) continue;
       if (excludeActive && i == _currentIndex) continue;
       if (!_loadedIndices.contains(i)) continue;
-      try {
-        await m.controller?.reload();
-      } catch (_) {
-        // Controller may have been disposed mid-iteration.
-      }
+      // Funnelled: the BGAppRefreshTask path does not exclude the active
+      // site, so this can reload the visible webview and blank its surface
+      // exactly like a user refresh (PAUSE-021).
+      await m.reloadAndRepaint();
     }
   }
 
@@ -7832,6 +7831,36 @@ class _WebSpacePageState extends State<WebSpacePage>
                         // _currentIndex live at fire time; no-op off Android.
                         webViewModel.onControllerReady = () {
                           if (index == _currentIndex) _nudgeSurfaceRepaint();
+                        };
+
+                        // A reload of the visible site blanks the surface
+                        // between discarding the old frame and committing
+                        // the new one, and nothing relayouts it in between
+                        // (PAUSE-021). Nudge now for a fast recommit, and
+                        // latch so the settled load nudges again — the
+                        // recommit can land long after this loop drains.
+                        // Non-sensitive one-liners (no site name / URL), safe
+                        // to share: the pair confirms on-device that the
+                        // settled re-nudge actually follows the recommit, and
+                        // how long after the issue-time nudge it lands — the
+                        // premise this fix rests on. See PAUSE-021.
+                        webViewModel.onReloadIssued = () {
+                          if (index != _currentIndex) return;
+                          _surfaceRepaint.reloadIssued();
+                          if (Platform.isAndroid) {
+                            LogService.instance
+                                .log('SurfaceDiag', 'trigger=reload -> nudge');
+                          }
+                          _nudgeSurfaceRepaint();
+                        };
+                        webViewModel.onLoadSettled = () {
+                          if (index != _currentIndex) return;
+                          if (!_surfaceRepaint.consumeLoadSettled()) return;
+                          if (Platform.isAndroid) {
+                            LogService.instance.log(
+                                'SurfaceDiag', 'trigger=reload-settled -> nudge');
+                          }
+                          _nudgeSurfaceRepaint();
                         };
 
                         // Keep the on-disk back/forward stack tracking

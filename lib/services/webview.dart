@@ -540,6 +540,13 @@ class WebViewConfig {
   /// use this to swap a Refresh button with a Stop button while a
   /// navigation is in flight.
   final Function(bool isLoading)? onLoadingChanged;
+  /// Fires when this webview reloads itself (the cached-HTML one-shot live
+  /// refresh below). A reload discards the painted frame and recommits it
+  /// later, so on Android the hybrid-composition surface sits blank in
+  /// between with nothing to relayout it (BUG-001 / PAUSE-021). Host-driven
+  /// reloads funnel through `WebViewModel.reloadAndRepaint`; this is the
+  /// same signal for the ones the factory issues on its own.
+  final VoidCallback? onReloadIssued;
   /// Fires as the main-frame load advances, with progress in 0-100.
   /// Driven by the platform's `onProgressChanged`. The call site can
   /// use this to render a determinate loading bar while a navigation
@@ -697,6 +704,7 @@ class WebViewConfig {
     this.localCdnEnabled = true,
     this.onUrlChanged,
     this.onLoadingChanged,
+    this.onReloadIssued,
     this.onProgressChanged,
     this.onCookiesChanged,
     this.cookieManager,
@@ -3504,6 +3512,7 @@ class WebViewFactory {
             if (!online) return;
             if (navigationGen != genAtSchedule) return;
             try {
+              config.onReloadIssued?.call();
               controller.reload();
             } catch (_) {}
           });

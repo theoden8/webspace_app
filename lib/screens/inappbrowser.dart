@@ -207,7 +207,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     _pullToRefreshController = isMobile ? inapp.PullToRefreshController(
       settings: inapp.PullToRefreshSettings(enabled: true),
       onRefresh: () async {
-        _controller?.reload();
+        await _reloadAndRepaint();
       },
     ) : null;
     _webView = WebViewFactory.createWebView(
@@ -293,12 +293,21 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
             });
           }
         },
+        onReloadIssued: () {
+          _surfaceRepaint.reloadIssued();
+          _nudgeSurfaceRepaint();
+        },
         onLoadingChanged: (loading) {
           if (!mounted || _isLoading == loading) return;
           setState(() {
             _isLoading = loading;
             if (loading) _loadingProgress = 0;
           });
+          // The reloaded document commits onto the surface here, which is
+          // where the repaint has to land (PAUSE-021).
+          if (!loading && _surfaceRepaint.consumeLoadSettled()) {
+            _nudgeSurfaceRepaint();
+          }
         },
         onProgressChanged: (progress) {
           if (!mounted || _loadingProgress == progress) return;
@@ -417,6 +426,19 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   Future<void> _goBackAndRepaint(WebViewController controller) async {
     await controller.goBack();
     _nudgeSurfaceRepaint();
+  }
+
+  /// Reload funnel for the nested webview, mirroring
+  /// `WebViewModel.reloadAndRepaint`. A reload drops the painted frame and
+  /// recommits it later, leaving the Android surface blank in between with no
+  /// relayout to clear it (BUG-001 / PAUSE-021). Nudge now for a fast
+  /// recommit; the latch makes the settled load nudge again for a slow one.
+  Future<void> _reloadAndRepaint() async {
+    final controller = _controller;
+    if (controller == null) return;
+    _surfaceRepaint.reloadIssued();
+    _nudgeSurfaceRepaint();
+    await controller.reload();
   }
 
   /// Destroy-and-rebuild this nested webview after its renderer process is gone
@@ -725,7 +747,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                   await widget.onShowUrlBarChanged?.call(_showUrlBar);
                   break;
                 case 'refresh':
-                  _controller?.reload();
+                  await _reloadAndRepaint();
                   break;
                 case 'devTools':
                   Navigator.push(

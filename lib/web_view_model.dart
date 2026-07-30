@@ -597,6 +597,18 @@ class WebViewModel {
   /// webview does NOT recreate the controller, so it does not fire here —
   /// that path is nudged explicitly by `_setCurrentIndex`.
   Function? onControllerReady;
+  /// Host hook fired when a reload is issued for this model's webview
+  /// ([reloadAndRepaint], the funnel every reload goes through). A reload
+  /// discards the document's painted frame and recommits it later, so on
+  /// Android the hybrid-composition surface can sit blank in between
+  /// (BUG-001 / PAUSE-021). The host latches the reload here and nudges;
+  /// [onLoadSettled] closes the pair when the new document commits.
+  VoidCallback? onReloadIssued;
+  /// Host hook fired when a main-frame load settles (`onLoadingChanged`
+  /// false). Only meaningful paired with [onReloadIssued]: it is the
+  /// closest Dart-side signal to the reloaded document committing onto
+  /// the surface, which is the moment the repaint has to land (PAUSE-021).
+  VoidCallback? onLoadSettled;
   /// Host hook fired once per committed navigation (deduped across the
   /// `onLoadStop` / `onUpdateVisitedHistory` double-fire). The host
   /// debounces `controller.saveState()` captures off this so the
@@ -1107,12 +1119,17 @@ class WebViewModel {
                 return false;
             }
           },
+          onReloadIssued: () => onReloadIssued?.call(),
           onLoadingChanged: (loading) {
             if (isLoading == loading) return;
             isLoading = loading;
             // Reset on start so the bar doesn't flash the previous
             // navigation's near-complete value.
             if (loading) loadingProgress = 0;
+            // A settled load is the reloaded document committing onto the
+            // surface; the host repaints there rather than at reload-issue
+            // time, when there is nothing yet to paint (PAUSE-021).
+            if (!loading) onLoadSettled?.call();
             // Trigger a UI rebuild so the URL-bar action button can
             // swap between Refresh and Stop. saveFunc is intentionally
             // NOT called here — the loading bool is transient runtime
@@ -1372,7 +1389,7 @@ class WebViewModel {
                   // !ok: nothing was restored, so just load the saved URL or
                   // the suppressed-initial-load webview would stay blank.
                   if (ok) {
-                    await ctrl.reload();
+                    await reloadAndRepaint(ctrl);
                   } else {
                     await ctrl.loadUrl(restoreUrl);
                   }
@@ -1623,8 +1640,27 @@ class WebViewModel {
       HtmlCacheService.instance.evictInMemory(siteId);
     }
     await clearWebViewCache();
+    await reloadAndRepaint();
+  }
+
+  /// The single funnel every reload of this site's webview goes through.
+  ///
+  /// A reload throws away the currently painted compositor frame and commits
+  /// a new one an unbounded time later. On Android the hybrid-composition
+  /// `SurfaceView` in between is blank, and nothing re-lays it out on its
+  /// own, so a reload that recommits slowly leaves a white screen until some
+  /// unrelated relayout happens (BUG-001 / PAUSE-021). [onReloadIssued] lets
+  /// the host latch the reload and nudge now; the paired [onLoadSettled]
+  /// nudges again when the new document actually lands.
+  ///
+  /// [target] overrides the controller for callers that hold a fresh one
+  /// before [controller] is published (the `restoreState` materialize path).
+  Future<void> reloadAndRepaint([WebViewController? target]) async {
+    final ctrl = target ?? controller;
+    if (ctrl == null) return;
+    onReloadIssued?.call();
     try {
-      await controller!.reload();
+      await ctrl.reload();
     } catch (_) {
       // Controller may have been disposed between the cache clear and the reload.
     }

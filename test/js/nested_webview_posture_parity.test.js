@@ -146,7 +146,7 @@ const PLUMBING = new Set([
   'backForwardGestures', // deliberate root-only: nested uses route-pop (NAV-008)
   'onUrlChanged', 'onCookiesChanged', 'cookieManager', 'containerCookieManager',
   'cookieSiteId', 'onFindResult', 'shouldOverrideUrlLoading', 'onLoadingChanged',
-  'onProgressChanged',
+  'onProgressChanged', 'onReloadIssued',
   'onWindowRequested', 'onHtmlLoaded', 'shouldFetchHtml', 'onConsoleMessage',
   'onConfirmScriptFetch', 'onExternalSchemeUrl', 'pullToRefreshController',
   'onRendererGone', 'onProtectedMediaRequest',
