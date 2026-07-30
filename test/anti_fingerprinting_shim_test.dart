@@ -102,8 +102,12 @@ void main() {
       expect(js, contains("'pixelDepth'"));
     });
 
-    test('overrides hardware identifiers on Navigator.prototype', () {
-      expect(js, contains('Navigator.prototype'));
+    test('overrides hardware identifiers on the navigator prototype', () {
+      // Resolved from the live `navigator` rather than naming `Navigator`, so
+      // the same source also applies in a worker (WorkerNavigator). Still the
+      // prototype, never the instance — an own-property would self-incriminate.
+      expect(js, contains('Object.getPrototypeOf(navigator)'));
+      expect(js, isNot(contains('Navigator.prototype')));
       expect(js, contains("'hardwareConcurrency'"));
       expect(js, contains("'deviceMemory'"));
       expect(js, contains("'plugins'"));
@@ -148,8 +152,10 @@ void main() {
       // already truthful; screen.* mirrors it rather than faking 1920x1080.
       final lb = buildAntiFingerprintingShim('alpha-fixture-seed', letterbox: true);
       expect(lb, contains('var LETTERBOX = true'));
-      expect(lb, contains('window.innerWidth'));
-      expect(lb, contains('window.innerHeight'));
+      // `globalThis.inner*`, not `window.inner*`: this source is also injected
+      // into worker scopes, where `window` is a ReferenceError.
+      expect(lb, contains('globalThis.innerWidth'));
+      expect(lb, contains('globalThis.innerHeight'));
       expect(lb, isNot(equals(js)));
     });
 

@@ -42,16 +42,23 @@ test('Firefox-Android: platform is the frozen "Linux armv8l", not the host', () 
 
 // --- Gecko desktop (platform owned by desktop_mode_shim, so NOT set here) ---
 
-test('Firefox-desktop: Gecko identity with desktop oscpu, no platform override', () => {
+test('Firefox-desktop: Gecko identity with desktop oscpu and platform', () => {
   const dom = loadShim(FX_LINUX_DESKTOP);
   const nav = dom.window.navigator;
   assert.equal(nav.vendor, '');
   assert.equal(nav.productSub, '20100101');
   assert.equal(nav.oscpu, 'Linux x86_64');
   assert.equal(nav.buildID, '20181001000000');
-  // No `def('platform', ...)` on the desktop path — desktop_mode_shim owns it.
-  const src = require('./helpers/load_shim').readFixture(FX_LINUX_DESKTOP);
-  assert.equal(/def\('platform'/.test(src), false);
+  // Desktop platform is set here too: worker scopes get this shim but never
+  // desktop_mode_shim (window-only), so a desktop-UA worker would otherwise
+  // report the host's real platform. Same value desktop_mode_shim uses.
+  assert.equal(nav.platform, 'Linux x86_64');
+});
+
+test('desktop platform agrees with the desktop-mode shim (no contradiction)', () => {
+  const identity = loadShim(FX_LINUX_DESKTOP).window.navigator.platform;
+  const desktop = loadShim('desktop_mode/linux.js').window.navigator.platform;
+  assert.equal(identity, desktop);
 });
 
 // --- WebKit mobile (Firefox for iOS — Safari-shaped) ---

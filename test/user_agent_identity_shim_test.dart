@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:webspace/services/user_agent_classifier.dart';
@@ -65,12 +67,25 @@ void main() {
       expect(s.trimRight().endsWith('})();'), isTrue);
     });
 
-    test('Gecko desktop: desktop oscpu, and NO platform override '
-        '(desktop_mode_shim owns platform)', () {
+    test('Gecko desktop: desktop oscpu + platform (workers never get '
+        'desktop_mode_shim, so identity must carry platform)', () {
       final s = buildUserAgentIdentityShim(firefoxLinuxDesktopUserAgent)!;
       expect(s, contains("def('oscpu', \"Linux x86_64\");"));
       expect(s, contains("def('buildID', '20181001000000');"));
-      expect(s, isNot(contains("def('platform'")));
+      expect(s, contains("def('platform', \"Linux x86_64\");"));
+    });
+
+    test('desktop platform matches what desktop_mode_shim emits', () {
+      for (final ua in [
+        firefoxLinuxDesktopUserAgent,
+        firefoxMacosDesktopUserAgent,
+        firefoxWindowsDesktopUserAgent,
+      ]) {
+        final expected =
+            navigatorPlatformFor(inferDesktopUaPlatform(ua));
+        expect(buildUserAgentIdentityShim(ua)!,
+            contains("def('platform', ${jsonEncode(expected)});"));
+      }
     });
 
     test('Gecko desktop windows/macos oscpu tokens', () {

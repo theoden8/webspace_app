@@ -1,7 +1,7 @@
 (function() {
   'use strict';
-  if (window.__ws_anti_fp_shim__) return;
-  window.__ws_anti_fp_shim__ = true;
+  if (globalThis.__ws_anti_fp_shim__) return;
+  globalThis.__ws_anti_fp_shim__ = true;
 
   var SEED = "alpha-fixture-seed:nonce-launch-two";
   var LETTERBOX = false;
@@ -10,14 +10,14 @@
   // desktop_mode_shim.dart and location_spoof_service.dart so all three
   // shims funnel through one patched toString.
   var _origFnToString = Function.prototype.toString;
-  var _stubs = window.__wsFnStubs || new WeakMap();
-  window.__wsFnStubs = _stubs;
+  var _stubs = globalThis.__wsFnStubs || new WeakMap();
+  globalThis.__wsFnStubs = _stubs;
   function asNative(fn, name) {
     try { _stubs.set(fn, 'function ' + name + '() { [native code] }'); } catch (e) {}
     return fn;
   }
-  if (!window.__wsFnToStringPatched) {
-    window.__wsFnToStringPatched = true;
+  if (!globalThis.__wsFnToStringPatched) {
+    globalThis.__wsFnToStringPatched = true;
     var patched = function toString() {
       var stub = _stubs.get(this);
       return stub !== undefined ? stub : _origFnToString.call(this);
@@ -51,6 +51,17 @@
   function seededRng(salt) { return makeRng(hashStr(SEED + ':' + salt)); }
 
   var _baseRng = seededRng('init');
+
+  // This same source is injected into Worker/SharedWorker global scopes so the
+  // page and its workers report identical values (a page/worker disagreement
+  // is itself a fingerprint). A worker has no Screen/document/Element and its
+  // navigator legitimately carries a smaller surface, so scope-only sections
+  // are guarded and we never ADD a navigator property a real WorkerNavigator
+  // lacks — only correct the value of one already present.
+  var IS_WORKER = typeof WorkerGlobalScope !== 'undefined' &&
+    globalThis instanceof WorkerGlobalScope;
+  var NavProto = (typeof navigator !== 'undefined' && navigator)
+    ? Object.getPrototypeOf(navigator) : null;
 
   // Constants baked once per session. Realistic, plausible values — not
   // the ones the underlying device would report, so two sites isolated
@@ -94,13 +105,13 @@
     if (typeof Screen !== 'undefined' && Screen.prototype) {
       if (LETTERBOX) {
         defineGetterFnOnProto(Screen.prototype, 'width',
-            function() { return window.innerWidth; });
+            function() { return globalThis.innerWidth; });
         defineGetterFnOnProto(Screen.prototype, 'height',
-            function() { return window.innerHeight; });
+            function() { return globalThis.innerHeight; });
         defineGetterFnOnProto(Screen.prototype, 'availWidth',
-            function() { return window.innerWidth; });
+            function() { return globalThis.innerWidth; });
         defineGetterFnOnProto(Screen.prototype, 'availHeight',
-            function() { return window.innerHeight; });
+            function() { return globalThis.innerHeight; });
       } else {
         defineGetterOnProto(Screen.prototype, 'width', SCREEN_W);
         defineGetterOnProto(Screen.prototype, 'height', SCREEN_H);
@@ -121,13 +132,13 @@
   // the SAME dimensions screen.* reports: window.inner* in letterbox mode
   // (the box is physically real), the pinned SCREEN_W/H otherwise.
   try {
-    if (typeof window.matchMedia === 'function') {
-      var _origMatchMedia = window.matchMedia.bind(window);
+    if (typeof globalThis.matchMedia === 'function') {
+      var _origMatchMedia = globalThis.matchMedia.bind(globalThis);
       var DEVICE_DIM_RE =
         /^\(\s*(min-|max-)?device-(width|height)\s*:\s*([\d.]+)px\s*\)$/i;
       function _targetDim(which) {
         if (LETTERBOX) {
-          return which === 'width' ? window.innerWidth : window.innerHeight;
+          return which === 'width' ? globalThis.innerWidth : globalThis.innerHeight;
         }
         return which === 'width' ? SCREEN_W : SCREEN_H;
       }
@@ -166,12 +177,13 @@
         return _origMatchMedia(query);
       };
       asNative(_patchedMatchMedia, 'matchMedia');
-      window.matchMedia = _patchedMatchMedia;
+      globalThis.matchMedia = _patchedMatchMedia;
     }
   } catch (e) {}
 
   // --- navigator.hardwareConcurrency / deviceMemory ---
-  var NavProto = (typeof Navigator !== 'undefined') ? Navigator.prototype : null;
+  // hardwareConcurrency / deviceMemory exist on WorkerNavigator too, so these
+  // are spoofed in worker scope as well — the page and its workers MUST agree.
   try {
     defineGetterOnProto(NavProto, 'hardwareConcurrency', HW_CONCURRENCY);
     defineGetterOnProto(NavProto, 'deviceMemory', DEVICE_MEMORY);
@@ -200,15 +212,18 @@
       }
       return arr;
     }
-    var emptyPlugins = makeEmptyArrayLike('plugins');
-    var emptyMimeTypes = makeEmptyArrayLike('mimeTypes');
-    defineGetterOnProto(NavProto, 'plugins', emptyPlugins);
-    defineGetterOnProto(NavProto, 'mimeTypes', emptyMimeTypes);
+    // Skipped in worker scope: a real WorkerNavigator has no plugins /
+    // mimeTypes, so defining them there would ADD a property the engine lacks.
+    if (!IS_WORKER) {
+      defineGetterOnProto(NavProto, 'plugins', makeEmptyArrayLike('plugins'));
+      defineGetterOnProto(NavProto, 'mimeTypes', makeEmptyArrayLike('mimeTypes'));
+    }
   } catch (e) {}
 
   // --- navigator.getBattery -> fixed values ---
+  // Window-only: the Battery API is not exposed to workers (see plugins above).
   try {
-    if (NavProto) {
+    if (NavProto && !IS_WORKER) {
       var fixedBattery = {
         charging: true,
         chargingTime: 0,

@@ -1,0 +1,202 @@
+# Worker Shim Propagation Specification
+
+## Status
+**Implemented**
+
+## Purpose
+
+Install the per-site JS shims into `Worker` and `SharedWorker` global scopes, so
+a page cannot read the real OS/engine values simply by reading them off the main
+thread.
+
+Every per-site shim (language, UA identity, timezone, anti-fingerprinting) is
+delivered as a `UserScript` injected into the *document*. A worker runs in a
+separate global scope that no `UserScript` reaches. Without propagation the
+worker is not a partial leak but a **total bypass** of every JS-side spoof, and a
+well-known one: CreepJS re-reads locale, timezone, User-Agent, core count and GPU
+inside a worker specifically to defeat main-thread-only spoofing, and treats the
+page/worker disagreement as its strongest signal. Observed before this feature: a
+site configured for English/UTC reported `es-ES` and `Europe/London (-60)` from
+its worker.
+
+---
+
+## Requirements
+
+### Requirement: WORK-001 - Shims installed before worker code runs
+
+When at least one per-site shim is active, the app SHALL patch the `Worker` and
+`SharedWorker` constructors so the requested script is replaced by a generated
+`blob:` script that loads the shim payload FIRST and the original script SECOND:
+
+```
+self.__wsShimUrl = "<shim blob>";
+importScripts("<shim blob>");
+importScripts("<absolute original url>");
+```
+
+Both loads are synchronous and ordered, making this the worker-scope equivalent
+of `AT_DOCUMENT_START`. The original specifier SHALL be resolved to an absolute
+URL (a relative one would resolve against the `blob:` base and fail). Module
+workers (`{type: 'module'}`) SHALL instead receive two ordered static `import`s,
+because `importScripts` does not exist in a module worker and dynamic `import()`
+would resolve in a later task, after messages may already have been delivered.
+
+#### Scenario: Classic worker loads the shim before the site script
+
+**Given** a site with an active per-site shim
+**When** the page calls `new Worker('w.js')`
+**Then** the real constructor receives a `blob:` URL
+**And** that blob imports the shim payload before
+`https://<origin>/w.js`
+
+#### Scenario: Module worker uses ordered static imports
+
+**Given** the page calls `new Worker('m.js', {type: 'module'})`
+**Then** the wrapper contains no `importScripts`
+**And** it statically imports the shim before the original module
+
+---
+
+### Requirement: WORK-002 - Page and worker report identical values
+
+The payload SHALL be the SAME shim source injected into the document, not a
+worker-specific variant. A worker reporting a different seeded value (for example
+`navigator.hardwareConcurrency`) than its own page is itself a fingerprint, so
+the shims are scope-agnostic — `globalThis` rather than `window`, the navigator
+prototype resolved from the live `navigator` (which is `WorkerNavigator` in a
+worker) rather than named as `Navigator` — and one source serves both scopes.
+
+#### Scenario: Seeded hardware values agree across scopes
+
+**Given** the anti-fingerprinting shim is active for a site
+**When** the page and its worker both read `navigator.hardwareConcurrency`
+**Then** the two values are equal
+**And** neither is the host device's real value
+
+#### Scenario: Locale, timezone and identity are spoofed in the worker
+
+**Given** a site set to English/UTC with a Firefox-Android UA
+**When** its worker reads locale, timezone and navigator identity
+**Then** `navigator.language` is `"en"` and `Intl.NumberFormat().format(0.5)`
+is `"0.5"`
+**And** `new Date().getTimezoneOffset()` is `0`
+**And** `navigator.vendor` is `""` and `navigator.productSub` is `"20100101"`
+
+---
+
+### Requirement: WORK-003 - Never add a property a real worker scope lacks
+
+In worker scope the shims SHALL only correct the value of a property that is
+already present, and SHALL NOT add one. A worker's `navigator` legitimately
+exposes a smaller surface than a window's, and workers have no
+`RTCPeerConnection`, `matchMedia`, `Screen`, or `document` — defining any of those
+in worker scope would be a fresh leak, worse than the one being closed:
+
+* `navigator.plugins`, `navigator.mimeTypes`, `navigator.getBattery` — window
+  only, skipped in a worker.
+* `navigator.oscpu`, `navigator.buildID` — not exposed on `WorkerNavigator`, so
+  not added there even for a Gecko UA.
+* The WebRTC policy and the `matchMedia` device-dimension wrapper — window only.
+* `navigator.userAgentData` — removal still applies (it removes an existing
+  property on a Blink host).
+
+`navigator.platform` is therefore set by the UA-identity shim for desktop UAs as
+well as mobile ones (see `user-agent-identity`), because a worker never receives
+the window-only `desktop-mode` shim that would otherwise set it.
+
+#### Scenario: Window-only navigator properties stay absent in a worker
+
+**Given** the shims are installed in a worker scope
+**Then** `'plugins' in navigator`, `'mimeTypes' in navigator`,
+`'getBattery' in navigator`, `'oscpu' in navigator` and
+`'buildID' in navigator` are all `false`
+
+#### Scenario: Window-only globals stay absent in a worker
+
+**Given** the shims are installed in a worker scope
+**Then** `typeof globalThis.RTCPeerConnection` is `"undefined"`
+**And** `typeof globalThis.matchMedia` is `"undefined"`
+
+---
+
+### Requirement: WORK-004 - SharedWorker identity preserved
+
+The wrapped `blob:` URL SHALL be cached per (script, module-ness) and reused,
+because `SharedWorker` identity is keyed on the script URL. Handing out a fresh
+blob per call would silently turn one shared worker into N unshared ones and
+break the page.
+
+#### Scenario: Repeated SharedWorker construction shares one wrapper
+
+**Given** the page calls `new SharedWorker('s.js')` twice
+**Then** the real constructor receives the same `blob:` URL both times
+
+---
+
+### Requirement: WORK-005 - Nested workers stay covered
+
+The payload SHALL re-install the same constructor patch inside the worker, so a
+worker that spawns a worker is also covered (otherwise it is a one-line bypass).
+The payload learns its own blob URL from `self.__wsShimUrl`, which the wrapper
+assigns before importing it, and SHALL delete that handle after reading it so it
+does not linger as an inspectable own-property.
+
+#### Scenario: A worker spawning a worker propagates the shim
+
+**Given** the shim payload is running in a worker
+**When** that worker calls `new Worker('inner.js')`
+**Then** the nested worker receives a wrapper importing the same shim before
+`inner.js`
+**And** `'__wsShimUrl' in globalThis` is `false`
+
+---
+
+### Requirement: WORK-006 - Fail open, and only where it helps
+
+The patch SHALL be installed only when at least one shim is active, so a site
+with no spoofing keeps the stock constructors and cannot be broken by the blob
+indirection. When wrapping throws, the original script SHALL be passed to the
+real constructor verbatim: a broken worker is worse than an unspoofed one.
+
+#### Scenario: No shims, no patch
+
+**Given** a site with no active per-site shim
+**Then** no worker installer script is injected
+
+#### Scenario: Wrapping failure still yields a working worker
+
+**Given** `URL.createObjectURL` throws (for example under a restrictive CSP)
+**When** the page calls `new Worker('w.js')`
+**Then** the real constructor receives `'w.js'` unchanged
+**And** a worker is still created
+
+---
+
+## Limitations
+
+- **CSP forbidding `blob:` workers.** Worker creation then fails. The failure
+  surfaces as an asynchronous `error` event, not a synchronous throw, so it
+  cannot be detected and retried; such sites keep unspoofed workers.
+- **Nested module workers.** Module workers receive the shim, but not the
+  nested-propagation tail — `import.meta` cannot appear in the classic payload,
+  so a module worker cannot learn its own URL.
+- **Service workers.** Out of reach: `ServiceWorkerContainer.register()` rejects
+  `blob:` script URLs.
+- **Non-JS-observable axes.** Engine math ULPs, API-shape key counts, and
+  system-font tells identify the real engine in a worker exactly as they do on
+  the page; no shim addresses those (see `tracking-protection`).
+
+---
+
+## Files
+
+- `lib/services/worker_shim.dart` — `buildWorkerShimScript`, the installer JS
+- `lib/services/webview.dart` — collects `workerScopeShims` in injection order
+  and registers the `worker_shim` `UserScript`
+- `lib/services/{language_shim,user_agent_identity_shim,anti_fingerprinting_shim,location_spoof_service}.dart`
+  — scope-agnostic shim sources
+- `test/worker_shim_test.dart` — builder tests plus the structural gate that
+  fails if a payload shim dereferences `window`
+- `test/js/worker_shim.test.js` — installer tests under jsdom, and the payload
+  executed in a simulated `WorkerGlobalScope` via `node:vm`

@@ -32,6 +32,7 @@ import 'package:webspace/services/theme_color_scheme_shim.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
 import 'package:webspace/services/user_agent_identity_shim.dart';
 import 'package:webspace/services/user_script_shim.dart';
+import 'package:webspace/services/worker_shim.dart';
 import 'package:webspace/settings/location.dart';
 
 /// Build every fixture this script knows about. Map keys are paths relative
@@ -188,6 +189,26 @@ Map<String, String> buildAllFixtures() {
     'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 '
     '(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
   )!;
+
+  // Worker-scope propagation. The single-shim fixture keeps the installer's own
+  // JS readable in review; the combined one is the realistic payload (identity
+  // + timezone + language + anti-fingerprinting) a spoofed site actually gets,
+  // and is what the Node tier executes in a simulated worker global.
+  fixtures['worker_shim/installer_language_only.js'] =
+      buildWorkerShimScript([buildLanguageShim('en')])!;
+  fixtures['worker_shim/installer_combined.js'] = buildWorkerShimScript([
+    buildAntiFingerprintingShim('alpha-fixture-seed'),
+    buildUserAgentIdentityShim(buildFirefoxAndroidUserAgent('152.0'))!,
+    LocationSpoofService.buildScript(
+      locationMode: LocationMode.off,
+      spoofLatitude: null,
+      spoofLongitude: null,
+      spoofAccuracy: 50.0,
+      spoofTimezone: 'UTC',
+      webRtcPolicy: WebRtcPolicy.disabled,
+    )!,
+    buildLanguageShim('en'),
+  ])!;
 
   fixtures['theme_color_scheme/light.js'] = buildThemeColorSchemeShim('light');
   fixtures['theme_color_scheme/dark.js'] = buildThemeColorSchemeShim('dark');

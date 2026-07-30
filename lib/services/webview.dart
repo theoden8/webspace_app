@@ -24,6 +24,7 @@ import 'package:webspace/services/current_location_service.dart';
 import 'package:webspace/services/desktop_mode_shim.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
 import 'package:webspace/services/user_agent_identity_shim.dart';
+import 'package:webspace/services/worker_shim.dart';
 import 'package:webspace/services/user_agent_metadata_builder.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
@@ -1695,6 +1696,13 @@ class WebViewFactory {
     // across cold restarts. Within one process the nonce is constant, so
     // every iframe / nested webview / tab switch in the same launch sees
     // the same fingerprint.
+    // Shim bodies that must ALSO be installed into Worker/SharedWorker global
+    // scopes, in page-injection order. A UserScript never reaches a worker, so
+    // without this a page re-reading these values in a worker sees the real
+    // ones (see worker_shim.dart). Window-only shims (desktop mode, viewport,
+    // zoom, notifications) are deliberately absent.
+    final workerScopeShims = <String>[];
+
     final antiFpSource = buildAntiFingerprintingScriptSource(
       siteId: config.siteId,
       trackingProtectionEnabled: config.trackingProtectionEnabled,
@@ -1710,6 +1718,7 @@ class WebViewFactory {
         injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
         forMainFrameOnly: false,
       ));
+      workerScopeShims.add(antiFpSource);
     }
 
     // Blob URL capture: bridge sites whose CSP `connect-src` rejects
@@ -1772,6 +1781,7 @@ class WebViewFactory {
           // engine's identity and contradict the top frame.
           forMainFrameOnly: false,
         ));
+        workerScopeShims.add(identityShim);
       }
     }
 
@@ -1849,6 +1859,9 @@ class WebViewFactory {
         // iframe and bypass the spoof.
         forMainFrameOnly: false,
       ));
+      // Carries the timezone override, which workers re-read. The geolocation
+      // and WebRTC halves self-disable outside window scope.
+      workerScopeShims.add(locationShim);
     }
 
     // Inject content blocker CSS at DOCUMENT_START so elements are hidden
@@ -1937,6 +1950,23 @@ class WebViewFactory {
         injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
         // Must reach cross-origin iframes; otherwise a subframe reports the
         // real OS locale, contradicting the spoofed top frame (fingerprint).
+        forMainFrameOnly: false,
+      ));
+      workerScopeShims.add(buildLanguageShim(config.language!));
+    }
+
+    // Propagate the shims above into Worker / SharedWorker global scopes by
+    // patching those constructors. Null (and so skipped entirely) when the site
+    // has no active spoofing, which keeps the blob indirection off pages that
+    // gain nothing from it.
+    final workerShim = buildWorkerShimScript(workerScopeShims);
+    if (workerShim != null) {
+      userScripts.add(inapp.UserScript(
+        groupName: 'worker_shim',
+        source: '$workerShim\n;null;',
+        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+        // An iframe can create its own workers, so the patch must reach every
+        // frame the shims themselves reach.
         forMainFrameOnly: false,
       ));
     }

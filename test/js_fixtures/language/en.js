@@ -1,7 +1,7 @@
 (function() {
   'use strict';
-  if (window.__ws_language_shim__) return;
-  window.__ws_language_shim__ = true;
+  if (globalThis.__ws_language_shim__) return;
+  globalThis.__ws_language_shim__ = true;
 
   var lang = "en";
   var langs = Object.freeze([lang]);
@@ -9,14 +9,14 @@
   // Shared Function.prototype.toString funnel (same WeakMap as the other
   // shims) so every wrapper stringifies as `[native code]`.
   var _origFnToString = Function.prototype.toString;
-  var _stubs = window.__wsFnStubs || new WeakMap();
-  window.__wsFnStubs = _stubs;
+  var _stubs = globalThis.__wsFnStubs || new WeakMap();
+  globalThis.__wsFnStubs = _stubs;
   function asNative(fn, name) {
     try { _stubs.set(fn, 'function ' + name + '() { [native code] }'); } catch (e) {}
     return fn;
   }
-  if (!window.__wsFnToStringPatched) {
-    window.__wsFnToStringPatched = true;
+  if (!globalThis.__wsFnToStringPatched) {
+    globalThis.__wsFnToStringPatched = true;
     var patched = function toString() {
       var stub = _stubs.get(this);
       return stub !== undefined ? stub : _origFnToString.call(this);
@@ -25,15 +25,22 @@
     try { Function.prototype.toString = patched; } catch (e) {}
   }
 
+  // Resolved from the live `navigator` so this works unchanged in a worker,
+  // where the class is WorkerNavigator and `Navigator` does not exist.
+  var NavProto = (typeof navigator !== 'undefined' && navigator)
+    ? Object.getPrototypeOf(navigator) : null;
+
   try {
-    Object.defineProperty(Navigator.prototype, 'language', {
-      configurable: true, enumerable: true,
-      get: asNative(function language() { return lang; }, 'language'),
-    });
-    Object.defineProperty(Navigator.prototype, 'languages', {
-      configurable: true, enumerable: true,
-      get: asNative(function languages() { return langs; }, 'languages'),
-    });
+    if (NavProto) {
+      Object.defineProperty(NavProto, 'language', {
+        configurable: true, enumerable: true,
+        get: asNative(function language() { return lang; }, 'language'),
+      });
+      Object.defineProperty(NavProto, 'languages', {
+        configurable: true, enumerable: true,
+        get: asNative(function languages() { return langs; }, 'languages'),
+      });
+    }
   } catch (e) {}
 
   // True when the caller omitted the `locales` argument (or passed an empty
