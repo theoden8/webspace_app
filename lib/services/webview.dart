@@ -14,6 +14,7 @@ import 'package:webspace/services/language_shim.dart';
 import 'package:webspace/services/launch_nonce.dart';
 import 'package:webspace/services/letterbox.dart';
 import 'package:webspace/services/proxy_relay.dart';
+import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/target_blank_rewrite.dart';
 import 'package:webspace/services/theme_color_scheme_shim.dart';
 import 'package:webspace/services/connectivity_service.dart';
@@ -548,6 +549,12 @@ class WebViewConfig {
   /// reloads funnel through `WebViewModel.reloadAndRepaint`; this is the
   /// same signal for the ones the factory issues on its own.
   final VoidCallback? onReloadIssued;
+  /// Fires on every main-frame load lifecycle transition (start / settle /
+  /// failure). Feeds `ResumeReloadEngine`, which decides whether a load the
+  /// OS stranded while the app was backgrounded has to be re-issued on the
+  /// next resume (PAUSE-022). Distinct from [onLoadingChanged], which is
+  /// UI state and carries neither the URL nor the failure.
+  final void Function(MainFrameLoadSignal signal)? onMainFrameLoad;
   /// Fires as the main-frame load advances, with progress in 0-100.
   /// Driven by the platform's `onProgressChanged`. The call site can
   /// use this to render a determinate loading bar while a navigation
@@ -706,6 +713,7 @@ class WebViewConfig {
     this.onUrlChanged,
     this.onLoadingChanged,
     this.onReloadIssued,
+    this.onMainFrameLoad,
     this.onProgressChanged,
     this.onCookiesChanged,
     this.cookieManager,
@@ -3453,6 +3461,10 @@ class WebViewFactory {
         // Notify the call site that a navigation just started so the
         // Refresh button can swap to a Stop button while loading.
         config.onLoadingChanged?.call(true);
+        if (url != null) {
+          config.onMainFrameLoad
+              ?.call(MainFrameLoadSignal.started(url.toString()));
+        }
 
         // Track that this URL has a real page load (not SPA navigation)
         lastLoadStartUrl = url?.toString();
@@ -3522,6 +3534,7 @@ class WebViewFactory {
         // the loading-state UI is independent of the cache/snapshot
         // logic gated below.
         config.onLoadingChanged?.call(false);
+        config.onMainFrameLoad?.call(const MainFrameLoadSignal.settled());
         if (url == null) return;
         final urlStr = url.toString();
 
@@ -3728,7 +3741,15 @@ class WebViewFactory {
           if (handled) return;
         }
         final externalInfo = ExternalUrlParser.parse(reqUrl);
-        if (externalInfo == null) return;
+        if (externalInfo == null) {
+          // Ordinary load failure (no external scheme, TLS already handled
+          // above). Report it so the host can re-issue the load on the next
+          // resume when the cause was the OS cutting the network out from
+          // under a backgrounded process — PAUSE-022.
+          config.onMainFrameLoad?.call(
+              MainFrameLoadSignal.failed(reqUrl, error.type.toValue()));
+          return;
+        }
         if (ExternalUrlSuppressor.isSuppressedInfo(externalInfo)) {
           if (!Platform.isAndroid) {
             // WebKit reports a policy-cancelled external-scheme nav as

@@ -46,6 +46,7 @@ import 'package:webspace/services/timezone_spoof_policy.dart';
 import 'package:webspace/services/html_import_storage.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/cookie_isolation.dart';
+import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/surface_repaint_engine.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
@@ -1593,7 +1594,13 @@ class _WebSpacePageState extends State<WebSpacePage>
             _webViewModels[pausePlan.jsPauseIndex!].pauseForAppLifecycle();
       }
       if (pausePlan.captureStateIndex != null) {
-        unawaited(_captureStateBytes(_webViewModels[pausePlan.captureStateIndex!]));
+        final model = _webViewModels[pausePlan.captureStateIndex!];
+        unawaited(_captureStateBytes(model));
+        // Remember whether a navigation was caught mid-flight: a background
+        // process can lose the network under it (Android background limits,
+        // a per-app firewall) and come back to an error page or to a page
+        // that never arrives. See PAUSE-022.
+        model.resumeReload.noteAppBackgrounded();
       }
       // iOS: open a ~30s background-task window so notification webviews
       // can flush in-flight setTimeouts before iOS suspends the process.
@@ -1685,9 +1692,71 @@ class _WebSpacePageState extends State<WebSpacePage>
       // was recreated and the platform-view surface came back blank. See
       // PAUSE-015.
       _nudgeSurfaceRepaint();
+      // A repaint cannot recover a page that never loaded. Re-issue a load
+      // the OS stranded while we were backgrounded, against the same
+      // now-final visible site. Runs long (bounded retries with a backoff),
+      // so it is not awaited inside the resume sequence. See PAUSE-022.
+      final retryIdx = AppLifecycleEngine.activeLoadedIndex(
+        currentIndex: _currentIndex,
+        siteCount: _webViewModels.length,
+        loadedIndices: _loadedIndices,
+      );
+      if (retryIdx != null) {
+        unawaited(_retryIncompleteLoadOnResume(_webViewModels[retryIdx]));
+      }
     } finally {
       _isResuming = false;
     }
+  }
+
+  /// Re-entry guard for [_retryIncompleteLoadOnResume]: `resumed` can fire
+  /// again (or a shortcut can re-enter the resume sequence) while a retry is
+  /// still awaiting its backoff, and two loops would fight over the same
+  /// webview's navigation.
+  bool _isRetryingIncompleteLoad = false;
+
+  /// Drive [ResumeReloadEngine]'s recovery for the visible site after a
+  /// resume (PAUSE-022). The engine decides *whether* and *what* to re-issue;
+  /// this owns the clock, the connectivity gate and the controller call.
+  ///
+  /// Bails on every await boundary if the user switched sites, the webview
+  /// went away, or the app went back to the background — the retry only ever
+  /// touches the site the user is currently looking at.
+  Future<void> _retryIncompleteLoadOnResume(WebViewModel model) async {
+    if (_isRetryingIncompleteLoad) return;
+    _isRetryingIncompleteLoad = true;
+    try {
+      for (var i = 0; i < ResumeReloadEngine.maxAttempts; i++) {
+        var plan = model.resumeReload.planRetry();
+        if (plan.action == ResumeRetryAction.waitAndReplan) {
+          await Future.delayed(plan.delay);
+          if (!_retryTargetStillVisible(model)) return;
+          model.resumeReload.noteStallGraceElapsed();
+          plan = model.resumeReload.planRetry();
+        }
+        if (plan.action != ResumeRetryAction.retryNow) return;
+        // Offline is an honest error page — re-issuing just reprints it.
+        if (!await ConnectivityService.instance.isOnline()) return;
+        if (!_retryTargetStillVisible(model)) return;
+        model.resumeReload.noteRetryIssued();
+        LogService.instance.log(
+          'ResumeReload',
+          'attempt=${model.resumeReload.attempts} -> reissuing stranded load',
+        );
+        await model.reissueLoadAndRepaint(plan.url!);
+        await Future.delayed(ResumeReloadEngine.retryBackoff);
+        if (!_retryTargetStillVisible(model)) return;
+      }
+    } finally {
+      _isRetryingIncompleteLoad = false;
+    }
+  }
+
+  bool _retryTargetStillVisible(WebViewModel model) {
+    if (!mounted) return false;
+    if (model.controller == null) return false;
+    final idx = _webViewModels.indexOf(model);
+    return idx >= 0 && idx == _currentIndex;
   }
 
   Future<void> _resumeAfterLifecyclePause() async {

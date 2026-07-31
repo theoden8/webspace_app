@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -8,7 +9,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/dev_tools.dart';
+import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/surface_repaint_engine.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/location.dart';
@@ -177,6 +180,12 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   final SurfaceRepaintEngine _surfaceRepaint = SurfaceRepaintEngine();
   bool _repaintNudge = false;
 
+  /// Recovery state for a load the OS stranded while the app was backgrounded
+  /// (PAUSE-022). The nested screen is as exposed as the main page: it is the
+  /// visible webview when the user switches away mid-navigation.
+  final ResumeReloadEngine _resumeReload = ResumeReloadEngine();
+  bool _isRetryingIncompleteLoad = false;
+
   /// Bumped on renderer-gone recovery (BUG-002 gap #1). Wraps the webview in a
   /// `KeyedSubtree` whose changing key remounts a fresh `InAppWebView` — the
   /// nested analog of the main screen's destroy-and-rebuild. Recovery reloads
@@ -297,6 +306,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
           _surfaceRepaint.reloadIssued();
           _nudgeSurfaceRepaint();
         },
+        onMainFrameLoad: _resumeReload.noteLoad,
         onLoadingChanged: (loading) {
           if (!mounted || _isLoading == loading) return;
           setState(() {
@@ -441,6 +451,43 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     await controller.reload();
   }
 
+  /// Nested counterpart of `_WebSpacePageState._retryIncompleteLoadOnResume`
+  /// (PAUSE-022): re-issue a load the OS stranded while the app was in the
+  /// background. Loads the URL explicitly rather than reloading — the webview
+  /// may be sitting on an error page or on the previous document — and reports
+  /// through the same repaint latch as a real reload.
+  Future<void> _retryIncompleteLoadOnResume() async {
+    if (_isRetryingIncompleteLoad) return;
+    _isRetryingIncompleteLoad = true;
+    try {
+      for (var i = 0; i < ResumeReloadEngine.maxAttempts; i++) {
+        var plan = _resumeReload.planRetry();
+        if (plan.action == ResumeRetryAction.waitAndReplan) {
+          await Future.delayed(plan.delay);
+          if (!mounted || _controller == null) return;
+          _resumeReload.noteStallGraceElapsed();
+          plan = _resumeReload.planRetry();
+        }
+        if (plan.action != ResumeRetryAction.retryNow) return;
+        if (!await ConnectivityService.instance.isOnline()) return;
+        final controller = _controller;
+        if (!mounted || controller == null) return;
+        _resumeReload.noteRetryIssued();
+        _surfaceRepaint.reloadIssued();
+        _nudgeSurfaceRepaint();
+        try {
+          await controller.loadUrl(plan.url!, language: widget.language);
+        } catch (_) {
+          // Controller may have been disposed while the retry was in flight.
+        }
+        await Future.delayed(ResumeReloadEngine.retryBackoff);
+        if (!mounted || _controller == null) return;
+      }
+    } finally {
+      _isRetryingIncompleteLoad = false;
+    }
+  }
+
   /// Destroy-and-rebuild this nested webview after its renderer process is gone
   /// (BUG-002 gap #1). Bumping `_rendererGen` remounts a fresh `InAppWebView`;
   /// the dead controller is dropped (a fresh one arrives via onControllerCreated).
@@ -473,8 +520,11 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.paused) {
+      _resumeReload.noteAppBackgrounded();
+    } else if (state == AppLifecycleState.resumed) {
       _probeNestedRenderer();
+      unawaited(_retryIncompleteLoadOnResume());
     }
   }
 
