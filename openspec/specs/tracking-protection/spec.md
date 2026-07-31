@@ -137,6 +137,13 @@ screen
 
 The system SHALL inject the JS shim from `lib/services/anti_fingerprinting_shim.dart` at `DOCUMENT_START` with `forMainFrameOnly: false` whenever `trackingProtectionEnabled` is true and the site has a `siteId`, so iframes are also covered.
 
+The same shim SHALL additionally be installed into `Worker` / `SharedWorker`
+global scopes per `worker-shim-propagation`, since a worker re-reading these
+surfaces would otherwise bypass the shim entirely. The seeded values MUST be
+identical in page and worker (WORK-002), and the window-only sections (`screen.*`,
+the `matchMedia` wrapper, `plugins` / `mimeTypes` / `getBattery`) MUST NOT be
+applied in worker scope (WORK-003).
+
 #### Scenario: Shim injected on construction
 
 **Given** a webview is constructed for a site with the umbrella on

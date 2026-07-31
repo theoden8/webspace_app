@@ -74,8 +74,12 @@ String? buildUserAgentIdentityShim(String userAgent) {
         }
       : null;
 
-  // Desktop platform is owned by desktop_mode_shim; only fix mobile, where the
-  // host engine's platform ("iPhone" / "Linux armv8l") may contradict the UA.
+  // Set for every UA we can place, not just mobile: worker scopes get this
+  // shim but never `desktop_mode_shim` (which is window-only — viewport meta,
+  // touch, pointer/hover matchMedia), so a desktop-UA worker would otherwise
+  // report the host's real platform. On the page this re-asserts the value
+  // `desktop_mode_shim` already set; both derive it from the same UA mapping,
+  // so they cannot disagree.
   final String? platform = isMobile
       ? switch ((engine, os)) {
           (UaEngine.gecko, UaOs.android) => 'Linux armv8l',
@@ -83,7 +87,7 @@ String? buildUserAgentIdentityShim(String userAgent) {
           (UaEngine.webkit, UaOs.ios) => 'iPhone',
           _ => null,
         }
-      : null;
+      : navigatorPlatformFor(inferDesktopUaPlatform(userAgent));
 
   // userAgentData exists only on Blink. Remove it for Gecko/WebKit UAs
   // (desktop_mode_shim already removes it for desktop UAs, so only mobile
@@ -120,20 +124,20 @@ String? buildUserAgentIdentityShim(String userAgent) {
   return '''
 (function() {
   'use strict';
-  if (window.__ws_ua_identity_shim__) return;
-  window.__ws_ua_identity_shim__ = true;
+  if (globalThis.__ws_ua_identity_shim__) return;
+  globalThis.__ws_ua_identity_shim__ = true;
 
   // Shared Function.prototype.toString funnel (same WeakMap as the other
   // shims) so every getter stringifies as `[native code]`.
   var _origFnToString = Function.prototype.toString;
-  var _stubs = window.__wsFnStubs || new WeakMap();
-  window.__wsFnStubs = _stubs;
+  var _stubs = globalThis.__wsFnStubs || new WeakMap();
+  globalThis.__wsFnStubs = _stubs;
   function asNative(fn, name) {
     try { _stubs.set(fn, 'function ' + name + '() { [native code] }'); } catch (e) {}
     return fn;
   }
-  if (!window.__wsFnToStringPatched) {
-    window.__wsFnToStringPatched = true;
+  if (!globalThis.__wsFnToStringPatched) {
+    globalThis.__wsFnToStringPatched = true;
     var patched = function toString() {
       var stub = _stubs.get(this);
       return stub !== undefined ? stub : _origFnToString.call(this);
@@ -142,13 +146,30 @@ String? buildUserAgentIdentityShim(String userAgent) {
     try { Function.prototype.toString = patched; } catch (e) {}
   }
 
-  var NavProto = (typeof Navigator !== 'undefined') ? Navigator.prototype : null;
+  // Resolved from the live `navigator` so this works unchanged in a worker,
+  // where the class is WorkerNavigator and `Navigator` does not exist.
+  var NavProto = (typeof navigator !== 'undefined' && navigator)
+    ? Object.getPrototypeOf(navigator) : null;
+  var IS_WORKER = typeof WorkerGlobalScope !== 'undefined' &&
+    globalThis instanceof WorkerGlobalScope;
 
-  // Define on Navigator.prototype (never the instance — an own-property on
+  // A worker's navigator legitimately carries a SMALLER surface than a
+  // window's (no oscpu/buildID/plugins/...). Adding a property the real
+  // WorkerNavigator lacks would be a fresh leak, so in worker scope we only
+  // ever correct the VALUE of a property that is already there — never add.
+  function present(name) {
+    try {
+      if (NavProto && (name in NavProto)) return true;
+      return typeof navigator !== 'undefined' && navigator && (name in navigator);
+    } catch (e) { return false; }
+  }
+
+  // Define on the navigator PROTOTYPE (never the instance — an own-property on
   // `navigator` would self-incriminate), matching how real engines carry
   // these accessors.
   function def(name, value) {
     if (!NavProto) return;
+    if (IS_WORKER && !present(name)) return;
     try {
       Object.defineProperty(NavProto, name, {
         configurable: true, enumerable: true,

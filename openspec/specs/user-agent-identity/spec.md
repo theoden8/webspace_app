@@ -70,8 +70,13 @@ emits:
   frozen to `"Linux armv8l"` (FF123+)
 * `buildID` (Gecko only) — frozen `"20181001000000"` (Firefox 64+ default for
   web content)
-* `platform` (mobile only) — Firefox/Chrome-Android `"Linux armv8l"`, iOS
-  WebKit `"iPhone"`
+* `platform` — Firefox/Chrome-Android `"Linux armv8l"`, iOS WebKit `"iPhone"`,
+  and for desktop UAs the same value `desktop-mode` derives (`"Linux x86_64"` /
+  `"MacIntel"` / `"Win32"`). Set for desktop too because worker scopes receive
+  this shim but never the window-only `desktop-mode` shim
+  (see `worker-shim-propagation`), so a desktop-UA worker would otherwise report
+  the host's real platform. Both derive it from the same UA mapping and so
+  cannot disagree.
 
 Getters are defined on the prototype (never the instance — an own-property on
 `navigator` would self-incriminate) and stringify as `[native code]`.
@@ -120,21 +125,32 @@ defined as `undefined` — because consistency checks do `'oscpu' in navigator`.
 
 ---
 
-### Requirement: UAID-004 - Scope and non-overlap
+### Requirement: UAID-004 - Scope
 
-The shim SHALL run for every classifiable per-site UA (desktop and mobile) and
-SHALL propagate to nested webviews opened via `launchUrl` (it is built inside
+The shim SHALL run for every classifiable per-site UA (desktop and mobile), SHALL
+propagate to nested webviews opened via `launchUrl` (it is built inside
 `WebViewFactory.createWebView`, which every nested `InAppWebViewScreen` uses,
-from the per-site `userAgent`). `navigator.platform` and `userAgentData` are
-set here ONLY for mobile UAs; for desktop UAs those remain owned by
-`desktop-mode` so the two shims never both define the same property.
+from the per-site `userAgent`), and SHALL be installed into worker global scopes
+per `worker-shim-propagation`. It is therefore scope-agnostic: no `window`
+dereference, and the navigator prototype is resolved from the live `navigator`
+(`WorkerNavigator` in a worker) rather than named as `Navigator`.
 
-#### Scenario: Desktop UA does not double-set platform
+In worker scope it SHALL NOT add a property the real `WorkerNavigator` lacks
+(`oscpu`, `buildID`), only correct the value of one already present — see
+WORK-003.
+
+#### Scenario: Desktop platform agrees with the desktop-mode shim
 
 **Given** a Firefox desktop UA
 **When** the identity shim runs
-**Then** it sets `vendor` / `productSub` / `oscpu` / `buildID`
-**And** it does NOT define `navigator.platform` (owned by `desktop-mode`)
+**Then** it sets `vendor` / `productSub` / `oscpu` / `buildID` / `platform`
+**And** its `navigator.platform` equals the value `desktop-mode` sets for the
+same UA
+
+#### Scenario: Gecko-only fields are not added to a worker
+
+**Given** a Firefox UA and a worker global scope
+**Then** `'oscpu' in navigator` and `'buildID' in navigator` are `false`
 
 ---
 

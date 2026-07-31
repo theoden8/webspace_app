@@ -99,6 +99,12 @@ per-site timezone override (which wraps `Intl.DateTimeFormat` to inject a
 `timeZone`) regardless of injection order. The script is omitted entirely when
 no per-site language is set — the OS values remain visible.
 
+The override SHALL also be installed into `Worker` / `SharedWorker` global scopes
+per `worker-shim-propagation`; a page that reads `navigator.language` or formats a
+date inside a worker would otherwise see the OS locale. The shim is therefore
+scope-agnostic (no `window` dereference; the navigator prototype resolved from
+the live `navigator`).
+
 The tag is interpolated into the script via JSON encoding so that a tag
 containing quotes, backslashes, or Unicode characters cannot break out of the
 JS string literal.

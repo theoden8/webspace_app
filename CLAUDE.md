@@ -183,6 +183,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | webspaces | named site collections |
 | webview-hints | color-scheme, matchMedia, theme prelude cache |
 | webview-pause-lifecycle | per-instance vs process-global pause; "paused != frozen" |
+| worker-shim-propagation | installs the per-site shims into Worker/SharedWorker scopes (blob wrapper); page and worker must report identical values |
 
 ## JS shim tests (jsdom + node:test)
 
@@ -194,6 +195,8 @@ Two layers, shared fixtures in `test/js_fixtures/` (see [README](test/js_fixture
 Workflow: edit shim in `lib/services/` → `fvm dart run tool/dump_shim_js.dart` → `fvm flutter test test/js_fixtures_drift_test.dart` (drift) → `npm run test:js` (behavior). Both run in CI (`build-and-test.yml`).
 
 New shim: register in `buildAllFixtures()` in [tool/dump_shim_js.dart](tool/dump_shim_js.dart). Builders importing Flutter widgets (lib/main.dart, lib/screens/*) can't be reached — extract the JS string to a pure-Dart helper first.
+
+**Shims that also run in workers** (anything in `workerScopeShims` in [webview.dart](lib/services/webview.dart) — see [worker-shim-propagation](openspec/specs/worker-shim-propagation/spec.md)) must be scope-agnostic: `globalThis` never `window`, navigator prototype via `Object.getPrototypeOf(navigator)` never `Navigator.prototype`, window-only sections (`Screen`, `document`, `matchMedia`, `RTCPeerConnection`, `plugins`/`getBattery`) guarded, and never *add* a property a real `WorkerNavigator` lacks. The payload is one script of concatenated IIFEs, so an uncaught `ReferenceError` in one silences every shim after it; `test/worker_shim_test.dart` gates this structurally.
 
 jsdom has no canvas/WebGL/audio fingerprinting. Tests assert override **shape**, not engine behavior. Real-engine proofing (CreepJS, fingerprintjs) wants a Playwright tier — not built.
 

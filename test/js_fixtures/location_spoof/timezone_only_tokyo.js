@@ -1,6 +1,6 @@
 (function() {
-  if (window.__wsLocShimInstalled) return;
-  window.__wsLocShimInstalled = true;
+  if (globalThis.__wsLocShimInstalled) return;
+  globalThis.__wsLocShimInstalled = true;
 
   var STATIC_LOC = false;
   var LIVE_LOC = false;
@@ -40,14 +40,14 @@
   // Keyed by WeakMap so overridden functions stringify as native. Patched
   // exactly once — subsequent reloads via evaluateJavascript are no-ops.
   var _origFnToString = Function.prototype.toString;
-  var _stubs = window.__wsFnStubs || new WeakMap();
-  window.__wsFnStubs = _stubs;
+  var _stubs = globalThis.__wsFnStubs || new WeakMap();
+  globalThis.__wsFnStubs = _stubs;
   function asNative(fn, name) {
     _stubs.set(fn, 'function ' + name + '() { [native code] }');
     return fn;
   }
-  if (!window.__wsFnToStringPatched) {
-    window.__wsFnToStringPatched = true;
+  if (!globalThis.__wsFnToStringPatched) {
+    globalThis.__wsFnToStringPatched = true;
     var patched = function toString() {
       var stub = _stubs.get(this);
       return stub !== undefined ? stub : _origFnToString.call(this);
@@ -123,8 +123,8 @@
     // few metres within the same cell, but watchPosition still doesn't
     // return byte-identical frames.
     function getLiveFix() {
-      if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
-        return window.flutter_inappwebview.callHandler('getRealLocation').then(function(res) {
+      if (globalThis.flutter_inappwebview && globalThis.flutter_inappwebview.callHandler) {
+        return globalThis.flutter_inappwebview.callHandler('getRealLocation').then(function(res) {
           if (res && res.status === 'ok') {
             var c = snapFix(res.latitude, res.longitude, res.accuracy);
             return { ok: true, lat: c.lat, lng: c.lng, acc: c.acc };
@@ -324,15 +324,20 @@
   }
 
   // --- WebRTC policy ---
-  if (WRTC === 'off') {
+  // Window-only. This shim is also injected into worker scopes for the
+  // timezone override above, and RTCPeerConnection is not exposed to workers —
+  // assigning it there would ADD a global the real engine doesn't have.
+  var IS_WORKER = typeof WorkerGlobalScope !== 'undefined' &&
+    globalThis instanceof WorkerGlobalScope;
+  if (!IS_WORKER && WRTC === 'off') {
     var _blocked = function RTCPeerConnection() {
       throw new Error('WebRTC disabled');
     };
     asNative(_blocked, 'RTCPeerConnection');
-    try { window.RTCPeerConnection = _blocked; } catch (e) {}
-    try { window.webkitRTCPeerConnection = _blocked; } catch (e) {}
-  } else if (WRTC === 'relay') {
-    var _RealRTC = window.RTCPeerConnection || window.webkitRTCPeerConnection;
+    try { globalThis.RTCPeerConnection = _blocked; } catch (e) {}
+    try { globalThis.webkitRTCPeerConnection = _blocked; } catch (e) {}
+  } else if (!IS_WORKER && WRTC === 'relay') {
+    var _RealRTC = globalThis.RTCPeerConnection || globalThis.webkitRTCPeerConnection;
     if (_RealRTC) {
       var _Patched = function RTCPeerConnection(config) {
         config = config || {};
@@ -352,8 +357,8 @@
       };
       _Patched.prototype = _RealRTC.prototype;
       asNative(_Patched, 'RTCPeerConnection');
-      try { window.RTCPeerConnection = _Patched; } catch (e) {}
-      try { window.webkitRTCPeerConnection = _Patched; } catch (e) {}
+      try { globalThis.RTCPeerConnection = _Patched; } catch (e) {}
+      try { globalThis.webkitRTCPeerConnection = _Patched; } catch (e) {}
     }
   }
 })();
