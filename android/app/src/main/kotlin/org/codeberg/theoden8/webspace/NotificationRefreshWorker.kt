@@ -1,6 +1,7 @@
 package org.codeberg.theoden8.webspace
 
 import android.content.Context
+import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import kotlinx.coroutines.CompletableDeferred
@@ -22,15 +23,24 @@ class NotificationRefreshWorker(
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.Main) {
+        Log.i(TAG, "NotificationRefreshWorker fired")
         val deferred = CompletableDeferred<Boolean>()
         val dispatched = NotificationRefreshDispatcher.dispatch { success ->
             if (!deferred.isCompleted) deferred.complete(success)
         }
-        if (!dispatched) return@withContext Result.success()
+        if (!dispatched) {
+            Log.w(TAG, "Flutter engine unreachable — refresh is a no-op this slot")
+            return@withContext Result.success()
+        }
         // 60s ceiling — Dart's reload-all-notif-sites flow finishes in
         // a few seconds in practice; the cap stops a stuck channel from
         // pinning the worker until WorkManager's own ~10min ANR timeout.
-        withTimeoutOrNull(REFRESH_TIMEOUT_MS) { deferred.await() }
+        val result = withTimeoutOrNull(REFRESH_TIMEOUT_MS) { deferred.await() }
+        if (result == null) {
+            Log.w(TAG, "Dart did not report completion within ${REFRESH_TIMEOUT_MS}ms")
+        } else {
+            Log.i(TAG, "Dart reported refresh complete (success=$result)")
+        }
         // Either branch returns success — retrying a stale wakeup adds
         // no value, the next periodic slot does the same job fresh.
         Result.success()
@@ -38,5 +48,6 @@ class NotificationRefreshWorker(
 
     companion object {
         private const val REFRESH_TIMEOUT_MS = 60_000L
+        private const val TAG = "WebspaceBgRefresh"
     }
 }

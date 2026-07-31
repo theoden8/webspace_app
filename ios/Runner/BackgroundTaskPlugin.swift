@@ -76,8 +76,10 @@ class BackgroundTaskPlugin: NSObject {
   /// every access to the pending slot is funnelled onto the main queue and
   /// completion is made idempotent per task via [completeTask].
   func handleRefreshTask(_ task: BGAppRefreshTask) {
+    NSLog("BackgroundTaskPlugin: BGAppRefreshTask received — forwarding to Dart")
     task.expirationHandler = { [weak self, weak task] in
       guard let self = self, let task = task else { return }
+      NSLog("BackgroundTaskPlugin: refresh task expired before Dart completed")
       DispatchQueue.main.async { self.completeTask(task, success: false) }
     }
 
@@ -114,6 +116,7 @@ class BackgroundTaskPlugin: NSObject {
       timeIntervalSinceNow: BackgroundTaskPlugin.refreshMinDelaySeconds)
     do {
       try BGTaskScheduler.shared.submit(request)
+      NSLog("BackgroundTaskPlugin: scheduled next refresh in >= \(Int(BackgroundTaskPlugin.refreshMinDelaySeconds))s")
     } catch {
       NSLog("BackgroundTaskPlugin: failed to schedule refresh: \(error)")
     }
@@ -131,6 +134,7 @@ class BackgroundTaskPlugin: NSObject {
       scheduleNextRefresh()
       result(nil)
     case "cancelScheduledRefreshes":
+      NSLog("BackgroundTaskPlugin: cancelling scheduled refreshes")
       BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: BackgroundTaskPlugin.refreshIdentifier)
       result(nil)
     case "bgRefreshDidComplete":
@@ -140,6 +144,7 @@ class BackgroundTaskPlugin: NSObject {
       } else {
         success = true
       }
+      NSLog("BackgroundTaskPlugin: Dart reported refresh complete (success: \(success))")
       // Runs on the Flutter platform (main) thread, the same queue the
       // pending slot is confined to. Complete via the funnel so a racing
       // expiration handler can't also complete the task.
