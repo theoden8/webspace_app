@@ -16,6 +16,7 @@ import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/link_routing_service.dart' show LinkRoutingService;
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
+import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
 import 'package:webspace/services/tab_bar_corner.dart';
@@ -498,6 +499,11 @@ class WebViewModel {
   /// Consumed by the URL-bar action button to swap Refresh ↔ Stop
   /// while a load is in flight.
   bool isLoading = false;
+
+  /// Recovery state for a main-frame load the OS stranded while the app was
+  /// backgrounded (PAUSE-022). Fed by the `WebViewConfig.onMainFrameLoad`
+  /// signals wired in [getWebView]; consulted by the host on resume.
+  final ResumeReloadEngine resumeReload = ResumeReloadEngine();
 
   /// Main-frame load progress in 0-100. Driven by the
   /// `WebViewConfig.onProgressChanged` callback wired in [getWebView];
@@ -1120,6 +1126,7 @@ class WebViewModel {
             }
           },
           onReloadIssued: () => onReloadIssued?.call(),
+          onMainFrameLoad: resumeReload.noteLoad,
           onLoadingChanged: (loading) {
             if (isLoading == loading) return;
             isLoading = loading;
@@ -1486,6 +1493,7 @@ class WebViewModel {
     );
     webview = null;
     controller = null;
+    resumeReload.reset();
     stateSetterF?.call();
   }
 
@@ -1592,6 +1600,7 @@ class WebViewModel {
     );
     webview = null;
     controller = null;
+    resumeReload.reset();
   }
 
   /// Drop the in-memory cache (decoded image cache + HTTP response
@@ -1663,6 +1672,24 @@ class WebViewModel {
       await ctrl.reload();
     } catch (_) {
       // Controller may have been disposed between the cache clear and the reload.
+    }
+  }
+
+  /// Re-issue a main-frame load that never finished because the app was
+  /// backgrounded (PAUSE-022). Loads [url] explicitly rather than calling
+  /// `reload()`: the webview may be sitting on a committed error page or on
+  /// the *previous* document with the failed navigation already discarded, so
+  /// there is nothing reliable to reload. Reports through [onReloadIssued] so
+  /// the surface repaint latches exactly as it does for a real reload
+  /// (PAUSE-021) — the incoming document lands on the same blank surface.
+  Future<void> reissueLoadAndRepaint(String url) async {
+    final ctrl = controller;
+    if (ctrl == null) return;
+    onReloadIssued?.call();
+    try {
+      await ctrl.loadUrl(url, language: language);
+    } catch (_) {
+      // Controller may have been disposed while the retry was in flight.
     }
   }
 

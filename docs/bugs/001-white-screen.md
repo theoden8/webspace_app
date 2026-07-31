@@ -293,6 +293,14 @@ causal claim is unverified, exactly as in Attempt 8.
 
 ## Diagnostic checklist (when this recurs)
 
+- Confirm there is a **document to paint** at all. A load the OS stranded while the app
+  was backgrounded (background network restrictions, a per-app firewall such as
+  CalyxOS/Datura) leaves either the engine's "connection failed" page or a page that
+  never commits — the latter is white and looks exactly like this bug with a different
+  cause. Tell them apart by the report: a blank that a rotate/tab-switch instantly clears
+  is this bug; a blank that survives a relayout, or a visible "connection failed", is
+  `PAUSE-022` (`ResumeReloadEngine`), which re-issues the load on resume. No nudge can
+  fix that one.
 - Confirm it's the **surface**, not a dead renderer: does the page respond to taps /
   does a rotate or tab-switch instantly fix it? If yes → surface, use the nudge. If a
   rotate doesn't fix it and JS is dead → renderer death, a different bug:

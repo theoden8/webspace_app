@@ -703,6 +703,60 @@ Both nudges SHALL emit a non-sensitive `SurfaceDiag` line (`trigger=reload -> nu
 
 ---
 
+### Requirement: PAUSE-022 — Resume Re-Issues A Load Stranded By The Background
+
+The system SHALL re-issue, on `AppLifecycleState.resumed`, a main-frame load of the visible webview that never completed because the app was in the background.
+
+This is **not** the blank-surface class of PAUSE-015/017/018/020/021 and no repaint can fix it. A backgrounded process can lose the network under an in-flight navigation: Android's own background restrictions, a per-app firewall (CalyxOS/Datura and equivalents), or a doze transition drop the connection mid-load. Two outcomes reach the user, and both look like the app is broken:
+
+- the navigation **fails** and the engine commits its own error page, so returning to the app shows "connection failed";
+- the navigation is **stranded in flight** with no error and no commit, so returning to the app shows a blank page that never resolves — visually identical to BUG-001's white screen, with a different cause.
+
+Decisions live in the pure-Dart `ResumeReloadEngine` ([lib/services/resume_reload_engine.dart](../../../lib/services/resume_reload_engine.dart)); the host owns the clock, the connectivity probe, and the controller call.
+
+1. **Signals.** The webview factory SHALL report every main-frame load transition through `WebViewConfig.onMainFrameLoad`: `started(url)` from `onLoadStart`, `settled()` from `onLoadStop`, and `failed(url, errorType)` from `onReceivedError` for main-frame errors that the TLS path (`_handleSslLoadError`) and the external-scheme path have not already claimed. `onLoadingChanged` is UI state and is not a substitute: it carries neither the URL nor the failure.
+2. **Retryable failures.** Only failures whose cause can plausibly be "no network from a backgrounded process" are re-issued (`ResumeReloadEngine.retryableErrorTypes`: `HOST_LOOKUP`, `CANNOT_CONNECT_TO_HOST`, `IO`, `TIMEOUT`, `NOT_CONNECTED_TO_INTERNET`, `NETWORK_CONNECTION_LOST`, `UNKNOWN`, and siblings). Failures a retry cannot fix (`BAD_URL`, `FILE_NOT_FOUND`, `UNSUPPORTED_SCHEME`), failures a retry makes worse (`TOO_MANY_REDIRECTS`, `TOO_MANY_REQUESTS`), and every certificate/handshake error SHALL NOT be re-issued — silently reloading the last would paper over a prompt the user must see.
+3. **Stranded loads get a grace period.** A load that was in flight when `paused` fired and is still in flight after the resume SHALL first be given `stallGrace` (2s) to finish on its own; only if it is still stuck after that is it re-issued. A merely slow load is never interrupted.
+4. **Re-issue, not reload.** The recovery SHALL `loadUrl` the recorded URL rather than calling `reload()`: the webview may be sitting on a committed error page or still on the *previous* document with the failed navigation already discarded, so there is nothing reliable to reload. It SHALL report through `onReloadIssued` so the PAUSE-021 repaint latch covers the incoming document exactly as it covers a real reload.
+5. **Bounded and gated.** At most `maxAttempts` (2) re-issues per foreground session, separated by `retryBackoff` (3s). The budget refills when a load settles without error and when the app is next backgrounded (a return to the app is a fresh chance — the user may have just fixed connectivity). Each attempt is gated on `ConnectivityService.isOnline()`: while genuinely offline the error page is honest and re-issuing only reprints it. The loop bails at every await boundary if the user switched sites, the controller went away, or the widget unmounted, and is re-entrancy guarded.
+6. **Both screens.** The main page (`_WebSpacePageState._retryIncompleteLoadOnResume`, run at the tail of `_onResumed` against the now-final visible site) and the nested `InAppWebViewScreen` (`_retryIncompleteLoadOnResume`, run from its own lifecycle observer) SHALL each carry the recovery — the nested screen is the visible webview when the user switches away mid-navigation.
+
+The recovery is platform-neutral by construction (nothing in the engine is Android-specific), but the stranding it recovers from is what Android's background network policy produces; on platforms that do not strand loads the engine simply never plans a retry.
+
+#### Scenario: Load killed by the background firewall is re-issued
+
+**Given** a site is loading when the user switches away from the app, and the OS drops the connection so the load fails with `HOST_LOOKUP`
+**When** the user switches back to the app
+**Then** the engine plans a retry of the failed URL, the host confirms connectivity, and the load is re-issued through the repaint funnel
+**And** the user sees the site load instead of the engine's "connection failed" page
+
+#### Scenario: Stranded in-flight load is given a grace period first
+
+**Given** a navigation was still in flight when the app was backgrounded
+**When** the user returns and the navigation is still in flight
+**Then** the host waits `stallGrace` and re-plans
+**And** if the load settled during the grace nothing is re-issued; if it is still stuck the pending URL is re-issued
+
+#### Scenario: A certificate failure is never silently re-issued
+
+**Given** a load failed with `SERVER_CERTIFICATE_UNTRUSTED` while the app was backgrounded
+**When** the user returns to the app
+**Then** the engine plans nothing, because the TLS prompt path owns that failure
+
+#### Scenario: A permanently broken page does not loop
+
+**Given** a load fails with a retryable error and both re-issues fail the same way
+**When** the resume retry loop re-plans
+**Then** the attempt budget is spent and no further load is issued until the app is backgrounded again or a load settles cleanly
+
+#### Scenario: Retry never touches a site the user is no longer looking at
+
+**Given** a retry is awaiting its backoff after the first re-issue
+**When** the user switches to a different site
+**Then** the loop bails without issuing another load
+
+---
+
 ### Requirement: PAUSE-016 — Android Per-Instance Pause Is a No-Op
 
 On Android the per-instance `pause()` / `resume()` (`WebView.onPause()` / `onResume()`) SHALL be no-ops. Android exposes no per-instance JavaScript pause — `onPause()` halts only animations and geolocation and explicitly does not pause JS, while the only JS-timer pause (`pauseTimers()`) is process-global. So per-instance pause contributes nothing to the lifecycle freeze, yet cycling the foreground hybrid-composition `SurfaceView` through onPause/onResume re-attaches it blank on the next paint — the white screen the user hits after a transient background or a navigation that follows a resume.
@@ -857,6 +911,8 @@ class _WebViewController implements WebViewController {
 ### Added
 
 - `test/webview_pause_lifecycle_test.dart` — contract tests for the API split.
+- `lib/services/resume_reload_engine.dart` — PAUSE-022 decision engine.
+- `test/resume_reload_engine_test.dart` — PAUSE-022 characterization tests.
 - `openspec/specs/webview-pause-lifecycle/spec.md` — this document.
 
 ## Related Specs
