@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "Vis cachelagret side ved kold start (offline-reserve altid til)",
   "siteSettingsNotifications": "Notifikationer",
   "siteSettingsNotificationsHint": "Tillad denne side at vise systemnotifikationer. Holder siden i gang med at polle i baggrunden, så notifikationer udløses, selv når du er på en anden fane.",
+  "siteSettingsBackgroundAudio": "Baggrundslyd",
+  "siteSettingsBackgroundAudioHint": "Lyden fra dette websted bliver ved med at spille, når du skifter til et andet websted eller forlader appen. Siden sættes aldrig på pause i baggrunden. Beregnet til musik-, radio- og podcastwebsteder.",
   "siteSettingsNotificationsBlockedByProxy": "Kan ikke aktivere: \"{site}\" poller allerede i baggrunden med en anden proxy. Android tillader kun én proxy ad gangen.",
   "siteSettingsNotificationsDenied": "Notifikationer nægtet. Aktiver i Indstillinger → {path}.",
   "siteSettingsProtectedContent": "Beskyttet indhold (DRM)",

@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "Onyesha ukurasa wa akiba kwenye kuanzishwa baridi (akiba ya nje ya mtandao imewashwa kila wakati)",
   "siteSettingsNotifications": "Arifa",
   "siteSettingsNotificationsHint": "Ruhusu tovuti hii kuonyesha arifa za mfumo. Huweka tovuti ikipiga kura nyuma ili arifa zitoke hata ukiwa kwenye kichupo tofauti.",
+  "siteSettingsBackgroundAudio": "Sauti ya chinichini",
+  "siteSettingsBackgroundAudioHint": "Sauti ya tovuti hii inaendelea kucheza unapobadilisha hadi tovuti nyingine au unapoondoka kwenye programu. Ukurasa hausitishwi kamwe chinichini. Imekusudiwa tovuti za muziki, redio na podikasti.",
   "siteSettingsNotificationsBlockedByProxy": "Haiwezi kuwashwa: \"{site}\" tayari inapiga kura nyuma kwa proksi tofauti. Android huruhusu proksi moja tu kwa wakati mmoja.",
   "siteSettingsNotificationsDenied": "Arifa zimekataliwa. Iwashe katika Mipangilio → {path}.",
   "siteSettingsProtectedContent": "Maudhui yaliyolindwa (DRM)",

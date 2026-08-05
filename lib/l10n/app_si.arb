@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "සීතල ආරම්භයේ හැඹිලිගත පිටුව පෙන්වන්න (නොබැඳි පසුබෑම සැමවිට ක්‍රියාත්මක)",
   "siteSettingsNotifications": "දැනුම්දීම්",
   "siteSettingsNotificationsHint": "මෙම අඩවියට පද්ධති දැනුම්දීම් පෙන්වීමට ඉඩ දෙන්න. ඔබ වෙනත් ටැබයක සිටියදී වුවද දැනුම්දීම් ක්‍රියාත්මක වන පරිදි අඩවිය පසුබිමින් සමීක්ෂණය කරයි.",
+  "siteSettingsBackgroundAudio": "පසුබිම් ශ්‍රව්‍ය",
+  "siteSettingsBackgroundAudioHint": "වෙනත් අඩවියකට මාරු වූ විට හෝ යෙදුමෙන් ඉවත් වූ විටත් මෙම අඩවියේ ශ්‍රව්‍යය වාදනය වෙමින් පවතී. පිටුව පසුබිමේදී කිසි විටෙක නතර නොකෙරේ. සංගීත, ගුවන්විදුලි සහ පොඩ්කාස්ට් අඩවි සඳහා.",
   "siteSettingsNotificationsBlockedByProxy": "සක්‍රීය කළ නොහැක: \"{site}\" දැනටමත් වෙනස් ප්‍රොක්සියකින් පසුබිමින් සමීක්ෂණය කරයි. Android වරකට එක් ප්‍රොක්සියකට පමණක් ඉඩ දෙයි.",
   "siteSettingsNotificationsDenied": "දැනුම්දීම් ප්‍රතික්ෂේප විය. සැකසුම් → {path} වල සක්‍රීය කරන්න.",
   "siteSettingsProtectedContent": "ආරක්ෂිත අන්තර්ගතය (DRM)",

@@ -1,3 +1,4 @@
+import AVFoundation
 import BackgroundTasks
 import Flutter
 import UIKit
@@ -137,6 +138,10 @@ class BackgroundTaskPlugin: NSObject {
       NSLog("BackgroundTaskPlugin: cancelling scheduled refreshes")
       BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: BackgroundTaskPlugin.refreshIdentifier)
       result(nil)
+    case "setBackgroundAudioActive":
+      let active = (call.arguments as? [String: Any])?["active"] as? Bool ?? false
+      setBackgroundAudioActive(active)
+      result(nil)
     case "bgRefreshDidComplete":
       let success: Bool
       if let args = call.arguments as? [String: Any], let s = args["success"] as? Bool {
@@ -171,6 +176,26 @@ class BackgroundTaskPlugin: NSObject {
       // Expiration handler — iOS warns we're about to be suspended.
       guard let self = self else { return }
       self.endGracePeriod()
+    }
+  }
+
+  /// BGAUDIO-003: `.playback` (with the `audio` UIBackgroundModes entry)
+  /// lets WKWebView media keep running after the app is backgrounded;
+  /// `.ambient` restores the respect-the-silent-switch default when no
+  /// background-audio site is loaded. Category selection alone is enough —
+  /// the media stack activates the session when playback actually starts,
+  /// so we don't call setActive(true) here and steal audio focus from
+  /// other apps while nothing is playing.
+  private func setBackgroundAudioActive(_ active: Bool) {
+    let session = AVAudioSession.sharedInstance()
+    do {
+      if active {
+        try session.setCategory(.playback, mode: .default)
+      } else {
+        try session.setCategory(.ambient, mode: .default)
+      }
+    } catch {
+      NSLog("BackgroundTaskPlugin: audio session category change failed: \(error)")
     }
   }
 

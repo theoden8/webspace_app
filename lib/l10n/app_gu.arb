@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "કોલ્ડ સ્ટાર્ટ પર કૅશ કરેલ પૃષ્ઠ બતાવો (ઑફલાઇન ફૉલબેક હંમેશા ચાલુ)",
   "siteSettingsNotifications": "સૂચનાઓ",
   "siteSettingsNotificationsHint": "આ સાઇટને સિસ્ટમ સૂચનાઓ બતાવવાની મંજૂરી આપો. સાઇટને પૃષ્ઠભૂમિમાં પોલિંગ રાખે છે જેથી તમે અલગ ટૅબ પર હો ત્યારે પણ સૂચનાઓ ફાયર થાય.",
+  "siteSettingsBackgroundAudio": "બૅકગ્રાઉન્ડ ઑડિયો",
+  "siteSettingsBackgroundAudioHint": "બીજી સાઇટ પર જાઓ કે ઍપ છોડો ત્યારે પણ આ સાઇટનો ઑડિયો વાગતો રહે છે. પેજ બૅકગ્રાઉન્ડમાં ક્યારેય થોભાવવામાં આવતું નથી. સંગીત, રેડિયો અને પોડકાસ્ટ સાઇટ્સ માટે.",
   "siteSettingsNotificationsBlockedByProxy": "સક્ષમ કરી શકાતું નથી: \"{site}\" પહેલેથી જ અલગ પ્રોક્સી સાથે પૃષ્ઠભૂમિમાં પોલિંગ કરી રહ્યું છે. Android એક સમયે ફક્ત એક પ્રોક્સીને મંજૂરી આપે છે.",
   "siteSettingsNotificationsDenied": "સૂચનાઓ નકારવામાં આવી. સેટિંગ્સ → {path} માં સક્ષમ કરો.",
   "siteSettingsProtectedContent": "સંરક્ષિત સામગ્રી (DRM)",

@@ -2023,6 +2023,14 @@
   "@siteSettingsNotificationsHint": {
     "description": "Hint body describing per-site notifications."
   },
+  "siteSettingsBackgroundAudio": "Background audio",
+  "@siteSettingsBackgroundAudio": {
+    "description": "Switch label and hint title for keeping a site's audio playing when the site is not visible or the app is in the background."
+  },
+  "siteSettingsBackgroundAudioHint": "Keep this site's audio playing when you switch to another site or leave the app. The page is never paused in the background. Intended for music, radio and podcast sites.",
+  "@siteSettingsBackgroundAudioHint": {
+    "description": "Hint body describing the per-site background audio switch."
+  },
   "siteSettingsNotificationsBlockedByProxy": "Cannot enable: \"{site}\" is already polling in background with a different proxy. Android allows only one proxy at a time.",
   "@siteSettingsNotificationsBlockedByProxy": {
     "description": "Subtitle shown when notifications cannot be enabled due to a conflicting proxy on another site.",

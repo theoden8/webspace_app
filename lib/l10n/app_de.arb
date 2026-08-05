@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "Zwischengespeicherte Seite beim Kaltstart anzeigen (Offline-Fallback immer aktiv)",
   "siteSettingsNotifications": "Benachrichtigungen",
   "siteSettingsNotificationsHint": "Erlaubt dieser Seite, Systembenachrichtigungen anzuzeigen. Hält die Seite im Hintergrund am Abfragen, damit Benachrichtigungen auch dann ausgelöst werden, wenn Sie auf einem anderen Tab sind.",
+  "siteSettingsBackgroundAudio": "Hintergrundaudio",
+  "siteSettingsBackgroundAudioHint": "Der Ton dieser Seite läuft weiter, wenn Sie zu einer anderen Seite wechseln oder die App verlassen. Die Seite wird im Hintergrund nie pausiert. Gedacht für Musik-, Radio- und Podcast-Seiten.",
   "siteSettingsNotificationsBlockedByProxy": "Kann nicht aktiviert werden: \"{site}\" fragt bereits im Hintergrund mit einem anderen Proxy ab. Android erlaubt nur einen Proxy gleichzeitig.",
   "siteSettingsNotificationsDenied": "Benachrichtigungen verweigert. Aktivieren Sie sie unter Einstellungen → {path}.",
   "siteSettingsProtectedContent": "Geschützte Inhalte (DRM)",

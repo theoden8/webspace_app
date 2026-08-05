@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "Afișează pagina din cache la pornirea la rece (rezerva offline mereu activă)",
   "siteSettingsNotifications": "Notificări",
   "siteSettingsNotificationsHint": "Permite acestui site să afișeze notificări de sistem. Menține site-ul interogând în fundal astfel încât notificările să apară chiar și când ești pe altă filă.",
+  "siteSettingsBackgroundAudio": "Audio în fundal",
+  "siteSettingsBackgroundAudioHint": "Sunetul acestui site continuă să fie redat când treceți la alt site sau părăsiți aplicația. Pagina nu este niciodată pusă pe pauză în fundal. Destinat site-urilor de muzică, radio și podcasturi.",
   "siteSettingsNotificationsBlockedByProxy": "Nu se poate activa: \"{site}\" interoghează deja în fundal cu un proxy diferit. Android permite doar un proxy la un moment dat.",
   "siteSettingsNotificationsDenied": "Notificări refuzate. Activează în Setări → {path}.",
   "siteSettingsProtectedContent": "Conținut protejat (DRM)",

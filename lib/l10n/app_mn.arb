@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "Хүйтэн эхлэлд кэшэлсэн хуудсыг харуулах (офлайн нөөц үргэлж асаалттай)",
   "siteSettingsNotifications": "Мэдэгдэл",
   "siteSettingsNotificationsHint": "Энэ сайтад системийн мэдэгдэл харуулахыг зөвшөөрнө. Та өөр таб дээр байсан ч мэдэгдэл ажиллахын тулд сайтыг далд горимд асууж байдаг.",
+  "siteSettingsBackgroundAudio": "Дэвсгэр аудио",
+  "siteSettingsBackgroundAudioHint": "Өөр сайт руу шилжих эсвэл аппаас гарахад энэ сайтын аудио үргэлжлэн тоглоно. Хуудас дэвсгэрт хэзээ ч түр зогсдоггүй. Хөгжим, радио, подкаст сайтад зориулав.",
   "siteSettingsNotificationsBlockedByProxy": "Идэвхжүүлж чадахгүй: \"{site}\" өөр проксиор далд горимд аль хэдийн асууж байна. Android нэг удаад ганц проксиг л зөвшөөрдөг.",
   "siteSettingsNotificationsDenied": "Мэдэгдэл татгалзсан. Тохиргоо → {path}-аас идэвхжүүлнэ үү.",
   "siteSettingsProtectedContent": "Хамгаалагдсан контент (DRM)",
