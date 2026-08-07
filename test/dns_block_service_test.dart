@@ -213,4 +213,57 @@ void main() {
       expect(bloom.contains('dnsonly.example'), isTrue);
     });
   });
+
+  group('mirror URLs (DNS-001, DNS-002)', () {
+    test('every level resolves to a bare-domain list on 3 mirrors', () {
+      for (var level = 1; level <= 5; level++) {
+        final urls = dnsMirrorUrlsForLevel(level);
+        expect(urls, hasLength(3), reason: 'level $level');
+        for (final url in urls) {
+          expect(url, endsWith('-onlydomains.txt'), reason: url);
+          // The retired flat tree. Every mirror 404s these paths, which is
+          // what made the download fail at every severity level.
+          expect(url, isNot(contains('/domains/')), reason: url);
+        }
+      }
+    });
+
+    test('level 0 and out-of-range levels have no mirror URLs', () {
+      expect(dnsMirrorUrlsForLevel(0), isEmpty);
+      expect(dnsMirrorUrlsForLevel(-1), isEmpty);
+      expect(dnsMirrorUrlsForLevel(6), isEmpty);
+    });
+
+    test('each level maps to a distinct file', () {
+      final firsts = [for (var l = 1; l <= 5; l++) dnsMirrorUrlsForLevel(l).first];
+      expect(firsts.toSet(), hasLength(5));
+    });
+  });
+
+  group('downloaded body validation', () {
+    Set<String> domainsOf(int n) =>
+        {for (var i = 0; i < n; i++) 'blocked$i.example.com'};
+
+    test('a plausible list is accepted', () {
+      expect(DnsBlockService.looksLikeDomainList(domainsOf(2000)), isTrue);
+    });
+
+    test('an error page body is rejected', () {
+      expect(
+        DnsBlockService.looksLikeDomainList({'<!DOCTYPE html>', '<html>'}),
+        isFalse,
+      );
+    });
+
+    test('a truncated body is rejected', () {
+      expect(DnsBlockService.looksLikeDomainList(domainsOf(50)), isFalse);
+    });
+
+    test('a large body of non-domain lines is rejected', () {
+      final prose = {
+        for (var i = 0; i < 2000; i++) 'Not Found: request $i failed.',
+      };
+      expect(DnsBlockService.looksLikeDomainList(prose), isFalse);
+    });
+  });
 }

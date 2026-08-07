@@ -133,14 +133,24 @@ const List<String> dnsBlockLevelNames = [
 ];
 
 /// Domain list file names for each level (index 0 is unused since level 0 = Off).
+///
+/// Upstream retired the flat `domains/` tree. The bare-domain-per-line
+/// equivalent now lives under `wildcard/` with an `-onlydomains` suffix.
+/// Not the plain `wildcard/*.txt` files: those prefix every entry with
+/// `*.`, which the parser would take literally.
 const List<String?> _levelFiles = [
   null, // 0: Off
-  'domains/light.txt', // 1: Light
-  'domains/multi.txt', // 2: Normal
-  'domains/pro.txt', // 3: Pro
-  'domains/pro.plus.txt', // 4: Pro++
-  'domains/ultimate.txt', // 5: Ultimate
+  'wildcard/light-onlydomains.txt', // 1: Light
+  'wildcard/multi-onlydomains.txt', // 2: Normal
+  'wildcard/pro-onlydomains.txt', // 3: Pro
+  'wildcard/pro.plus-onlydomains.txt', // 4: Pro++
+  'wildcard/ultimate-onlydomains.txt', // 5: Ultimate
 ];
+
+/// Smallest plausible entry count for a real Hagezi list. The smallest one
+/// ("Light") carries ~40K domains, so a body parsing to fewer than this is a
+/// mirror serving an error page or a truncated transfer, not a blocklist.
+const int _minPlausibleDomains = 1000;
 
 /// Mirror base URLs tried in order on failure.
 const List<String> _mirrorBaseUrls = [
@@ -148,6 +158,16 @@ const List<String> _mirrorBaseUrls = [
   'https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/',
   'https://codeberg.org/hagezi/mirror2/raw/branch/main/dns-blocklists/',
 ];
+
+/// Full mirror URLs tried, in order, for [level]. Empty for level 0 (Off)
+/// and for out-of-range levels.
+@visibleForTesting
+List<String> dnsMirrorUrlsForLevel(int level) {
+  if (level < 1 || level >= _levelFiles.length) return const <String>[];
+  final path = _levelFiles[level];
+  if (path == null) return const <String>[];
+  return [for (final base in _mirrorBaseUrls) '$base$path'];
+}
 
 /// Singleton service for downloading, caching, and querying Hagezi DNS blocklists.
 /// Blocks navigation to ad/malware/tracker domains at the webview level.
@@ -545,12 +565,21 @@ class DnsBlockService {
           continue;
         }
 
+        final domains = _extractDomains(response.body);
+        if (!looksLikeDomainList(domains)) {
+          LogService.instance.log(
+              'DnsBlock',
+              'Mirror returned ${response.body.length} bytes yielding '
+              '${domains.length} usable entries, not a domain list. Skipping.',
+              level: LogLevel.error);
+          continue;
+        }
+
         // Save to disk
         final file = await _getCacheFile();
         await file.writeAsString(response.body);
 
-        // Parse domains
-        _parseDomains(response.body);
+        _applyDomains(domains);
         _level = level;
 
         // Save level and timestamp
@@ -659,13 +688,35 @@ class DnsBlockService {
     _parseDomains(data);
   }
 
-  void _parseDomains(String data) {
+  void _parseDomains(String data) => _applyDomains(_extractDomains(data));
+
+  static Set<String> _extractDomains(String data) {
     final domains = <String>{};
     for (final line in data.split('\n')) {
       final trimmed = line.trim();
       if (trimmed.isEmpty || trimmed.startsWith('#')) continue;
       domains.add(trimmed);
     }
+    return domains;
+  }
+
+  /// Whether a freshly downloaded body is a domain list at all. Guards the
+  /// download path only: a mirror that answers 200 with an HTML error page
+  /// or a truncated body must not overwrite a working cached blocklist.
+  /// Samples the head rather than the whole set — a real list is uniform,
+  /// and a bad one goes wrong from the first entry.
+  @visibleForTesting
+  static bool looksLikeDomainList(Set<String> domains) {
+    if (domains.length < _minPlausibleDomains) return false;
+    var checked = 0;
+    for (final d in domains) {
+      if (!d.contains('.') || d.contains(' ') || d.contains('<')) return false;
+      if (++checked >= 50) break;
+    }
+    return true;
+  }
+
+  void _applyDomains(Set<String> domains) {
     _blockedDomains = domains;
     // Rebuild bloom filter eagerly so the first webview page load doesn't
     // pay the ~500ms build cost synchronously.
