@@ -47,6 +47,18 @@ Users SHALL be able to download a DNS blocklist at their chosen severity level. 
 **Then** a failure SnackBar is shown
 **And** any previously cached blocklist remains available
 
+#### Scenario: A mirror answers 200 with something that is not a blocklist
+
+**Given** a mirror returns HTTP 200 whose body parses to fewer than 1000
+entries, or whose entries are not bare domains (an error page, a truncated
+transfer)
+**When** the download is attempted
+**Then** the body is discarded without touching the on-disk cache or the
+in-memory domain set
+**And** the next mirror is tried
+**And** if no mirror yields a valid body, the previously cached blocklist
+remains available
+
 ---
 
 ### Requirement: DNS-002 - Severity Levels
@@ -56,11 +68,23 @@ The system SHALL support 6 levels (0–5), each corresponding to a specific Hage
 | Level | Name | File |
 |-------|------|------|
 | 0 | Off | — (clears blocklist) |
-| 1 | Light | `domains/light.txt` |
-| 2 | Normal | `domains/multi.txt` |
-| 3 | Pro | `domains/pro.txt` |
-| 4 | Pro++ | `domains/pro.plus.txt` |
-| 5 | Ultimate | `domains/ultimate.txt` |
+| 1 | Light | `wildcard/light-onlydomains.txt` |
+| 2 | Normal | `wildcard/multi-onlydomains.txt` |
+| 3 | Pro | `wildcard/pro-onlydomains.txt` |
+| 4 | Pro++ | `wildcard/pro.plus-onlydomains.txt` |
+| 5 | Ultimate | `wildcard/ultimate-onlydomains.txt` |
+
+Upstream publishes the same list in several syntaxes. Only the
+`-onlydomains` variant is one bare domain per line, which is what the
+parser expects; `wildcard/<level>.txt` prefixes every entry with `*.`
+and `adblock/<level>.txt` wraps them as `||domain^`. Upstream retired
+the flat `domains/` tree these levels used to point at.
+
+#### Scenario: Level paths track the upstream layout
+
+**Given** the app resolves the file path for any level 1-5
+**Then** the path names an `-onlydomains.txt` file
+**And** no path refers to the retired `domains/` tree
 
 #### Scenario: Set level to Off
 
@@ -776,6 +800,16 @@ Three mirrors are tried in order with 15-second timeouts:
 1. `https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/`
 2. `https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/`
 3. `https://codeberg.org/hagezi/mirror2/raw/branch/main/dns-blocklists/`
+
+Mirror bases and level paths are joined by `dnsMirrorUrlsForLevel`, which
+the regression test in `test/dns_block_service_test.dart` asserts against
+so a path that drifts from the upstream layout fails CI instead of
+surfacing as a download error at every severity level.
+
+A 200 response is not trusted on status alone. The body is parsed into a
+candidate set first and only committed (disk + memory + level + timestamp)
+once `DnsBlockService.looksLikeDomainList` accepts it, so a mirror serving
+an HTML error page cannot replace a working cached list with garbage.
 
 ### Per-Site DNS Statistics
 
