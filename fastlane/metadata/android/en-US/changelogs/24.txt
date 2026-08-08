@@ -1,0 +1,9 @@
+✨ New Features:
+• Drag to reorder tabs
+
+🔧 Improvements:
+• Monochrome app icon
+
+🐛 Bug Fixes:
+• DNS blocklist downloads work again
+• Blank page after resume or reload
