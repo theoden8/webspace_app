@@ -211,6 +211,30 @@ class CookieManager {
   Future<void> deleteAllCookies() async {
     await _manager.deleteAllCookies();
   }
+
+  /// Commit pending cookie writes to persistent storage.
+  ///
+  /// Android only: the fork implements `flush` there (fanning out across every
+  /// container's jar, not just the default one), and the platform interface's
+  /// default throws `UnimplementedError` everywhere else. Callers gate on
+  /// [flushSupported] rather than calling and catching, so an unsupported
+  /// platform costs no channel round-trip. Failures are swallowed: a flush is
+  /// an optimization over the platform's own lazy commit, never a correctness
+  /// requirement.
+  static bool get flushSupported => Platform.isAndroid;
+
+  Future<void> flush() async {
+    if (!flushSupported) return;
+    try {
+      await _manager.flush();
+    } catch (e) {
+      LogService.instance.log(
+        'CookieManager',
+        'flush() failed: $e',
+        level: LogLevel.warning,
+      );
+    }
+  }
 }
 
 /// Find matches result

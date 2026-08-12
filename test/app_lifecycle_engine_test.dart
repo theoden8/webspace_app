@@ -63,6 +63,7 @@ void main() {
         siteCount: 2,
         loadedIndices: {0, 1},
         notificationsEnabled: (_) => false,
+        cookieFlushSupported: true,
       );
       expect(plan.jsPauseIndex, isNull);
       expect(plan.captureStateIndex, isNull);
@@ -74,6 +75,7 @@ void main() {
         siteCount: 3,
         loadedIndices: {0, 1},
         notificationsEnabled: (_) => false,
+        cookieFlushSupported: true,
       );
       expect(plan.jsPauseIndex, isNull);
       expect(plan.captureStateIndex, isNull);
@@ -85,6 +87,7 @@ void main() {
         siteCount: 3,
         loadedIndices: {0, 1},
         notificationsEnabled: (_) => false,
+        cookieFlushSupported: true,
       );
       expect(plan.jsPauseIndex, 1);
       expect(plan.captureStateIndex, 1);
@@ -96,6 +99,7 @@ void main() {
         siteCount: 3,
         loadedIndices: {0, 1},
         notificationsEnabled: (i) => i == 1,
+        cookieFlushSupported: true,
       );
       expect(plan.jsPauseIndex, isNull);
       expect(plan.captureStateIndex, 1);
@@ -116,6 +120,7 @@ void main() {
         siteCount: 3,
         loadedIndices: {0, 1, 2},
         notificationsEnabled: (_) => false,
+        cookieFlushSupported: true,
       );
       expect(plan.jsPauseIndex, flaggedIndex);
       expect(plan.captureStateIndex, flaggedIndex);
@@ -123,6 +128,81 @@ void main() {
       // site; the only signals are pause + capture, identical to a plain site.
       expect(urlEphemeral(flaggedIndex), isTrue,
           reason: 'sanity: the index under test is the flagged one');
+    });
+  });
+
+  // Chromium commits cookies to disk lazily, so a session cookie written
+  // moments before the OS kills a backgrounded app is never persisted and the
+  // user comes back logged out (issues #524, #525). Backgrounding is the last
+  // point we control, so the plan asks for a flush there.
+  group('AppLifecycleEngine.backgroundPlan cookie flush', () {
+    test('loaded site on a flush-capable platform: flush', () {
+      final plan = AppLifecycleEngine.backgroundPlan(
+        currentIndex: 1,
+        siteCount: 3,
+        loadedIndices: {0, 1},
+        notificationsEnabled: (_) => false,
+        cookieFlushSupported: true,
+      );
+      expect(plan.flushCookies, isTrue);
+    });
+
+    // `CookieManager.flush` is implemented on Android only; the platform
+    // interface's default throws UnimplementedError, so asking for a flush
+    // anywhere else turns a durability hook into a crash on every background.
+    test('platform without flush support: never flush', () {
+      final plan = AppLifecycleEngine.backgroundPlan(
+        currentIndex: 1,
+        siteCount: 3,
+        loadedIndices: {0, 1},
+        notificationsEnabled: (_) => false,
+        cookieFlushSupported: false,
+      );
+      expect(plan.flushCookies, isFalse);
+    });
+
+    test('nothing loaded: no flush', () {
+      // No webview loaded this session means no page could have written a
+      // cookie, so there is nothing pending to commit.
+      final plan = AppLifecycleEngine.backgroundPlan(
+        currentIndex: null,
+        siteCount: 3,
+        loadedIndices: const {},
+        notificationsEnabled: (_) => false,
+        cookieFlushSupported: true,
+      );
+      expect(plan.flushCookies, isFalse);
+    });
+
+    // Notification sites are exempt from the per-instance JS pause, and the
+    // flush must not inherit that exemption: they are the sites most likely to
+    // be alive and writing cookies when the app is backgrounded.
+    test('notification active site: no JS pause, but still flush', () {
+      final plan = AppLifecycleEngine.backgroundPlan(
+        currentIndex: 1,
+        siteCount: 3,
+        loadedIndices: {0, 1},
+        notificationsEnabled: (i) => i == 1,
+        cookieFlushSupported: true,
+      );
+      expect(plan.jsPauseIndex, isNull);
+      expect(plan.flushCookies, isTrue);
+    });
+
+    // A site can be loaded without being the active one (background tab, or
+    // the user backgrounded the app from the home screen). Its cookie writes
+    // are just as unflushed.
+    test('loaded but no active site: still flush', () {
+      final plan = AppLifecycleEngine.backgroundPlan(
+        currentIndex: null,
+        siteCount: 3,
+        loadedIndices: {0, 2},
+        notificationsEnabled: (_) => false,
+        cookieFlushSupported: true,
+      );
+      expect(plan.jsPauseIndex, isNull);
+      expect(plan.captureStateIndex, isNull);
+      expect(plan.flushCookies, isTrue);
     });
   });
 

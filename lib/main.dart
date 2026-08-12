@@ -62,6 +62,7 @@ import 'package:webspace/services/site_data_clear_engine.dart';
 import 'package:webspace/services/site_lifecycle_engine.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
 import 'package:webspace/services/site_retention_priority.dart';
+import 'package:webspace/services/orphan_sweep_engine.dart';
 import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/nav_state_capture_debouncer.dart';
 import 'package:webspace/services/webview_state_secure_storage.dart';
@@ -1588,7 +1589,14 @@ class _WebSpacePageState extends State<WebSpacePage>
         siteCount: _webViewModels.length,
         loadedIndices: _loadedIndices,
         notificationsEnabled: (i) => _webViewModels[i].effectiveNotificationsEnabled,
+        cookieFlushSupported: CookieManager.flushSupported,
       );
+      // Backgrounding is the last moment we control before the OS may kill
+      // the process, and Chromium commits cookies to disk lazily. Unawaited:
+      // durability is best-effort and nothing downstream depends on it.
+      if (pausePlan.flushCookies) {
+        unawaited(_cookieManager.flush());
+      }
       if (pausePlan.jsPauseIndex != null) {
         _lifecyclePauseFuture =
             _webViewModels[pausePlan.jsPauseIndex!].pauseForAppLifecycle();
@@ -4702,16 +4710,12 @@ class _WebSpacePageState extends State<WebSpacePage>
     Set<String> nonIncognitoSiteIds,
   ) async {
     try {
-      await _cookieSecureStorage.removeOrphanedCookies(nonIncognitoSiteIds);
-      await _proxyPasswordStorage.removeOrphaned(activeSiteIds);
-      await HtmlCacheService.instance.removeOrphanedCaches(nonIncognitoSiteIds);
-      await HtmlImportStorage.instance.removeOrphanedImports(activeSiteIds);
-      await _stateStorage.removeOrphans(nonIncognitoSiteIds);
-      // Clears residual cookies of deleted/legacy sites from the global
-      // (legacy) jar. Container-mode sites read their own jar; legacy-mode
-      // re-nukes + restores on each activation, so this only matters for the
-      // never-activated home-screen launch.
-      await _cookieManager.deleteAllCookies();
+      await OrphanSweepEngine.sweep(
+        targets: _OrphanSweepTargets(this),
+        activeSiteIds: activeSiteIds,
+        nonIncognitoSiteIds: nonIncognitoSiteIds,
+        useContainers: _useContainers,
+      );
     } catch (e) {
       LogService.instance.log(
         'Startup',
@@ -5536,7 +5540,10 @@ class _WebSpacePageState extends State<WebSpacePage>
     // If no site is activated, _setCurrentIndex returns without routing
     // through _restoreCookiesForSite — which means pre-import cookies from
     // the previously-active site remain in the native jar. Nuke explicitly.
-    if (indexToRestore == null) {
+    // Legacy engine only: container-mode sites never shared that jar, so the
+    // clear reclaims nothing there, and an unscoped clear issued while live
+    // containers exist is the shape BUG-007 turned into a wiped session.
+    if (indexToRestore == null && !_useContainers) {
       await _cookieManager.deleteAllCookies();
     }
     await _setCurrentIndex(indexToRestore);
@@ -8499,6 +8506,38 @@ class _SiteRouteAdapter implements DispatchableSite {
 
   @override
   String get navigationDomain => getNormalizedDomain(model.initUrl);
+}
+
+/// Binds [OrphanSweepEngine]'s targets to the concrete storage services.
+/// Kept out of `_WebSpacePageState` so the sweep's ordering and its
+/// container-mode carve-out stay unit-testable against fakes.
+class _OrphanSweepTargets implements OrphanSweepTargets {
+  final _WebSpacePageState state;
+  const _OrphanSweepTargets(this.state);
+
+  @override
+  Future<void> removeOrphanedCookies(Set<String> nonIncognitoSiteIds) =>
+      state._cookieSecureStorage.removeOrphanedCookies(nonIncognitoSiteIds);
+
+  @override
+  Future<void> removeOrphanedProxyPasswords(Set<String> activeSiteIds) =>
+      state._proxyPasswordStorage.removeOrphaned(activeSiteIds);
+
+  @override
+  Future<void> removeOrphanedHtmlCaches(Set<String> nonIncognitoSiteIds) =>
+      HtmlCacheService.instance.removeOrphanedCaches(nonIncognitoSiteIds);
+
+  @override
+  Future<void> removeOrphanedHtmlImports(Set<String> activeSiteIds) =>
+      HtmlImportStorage.instance.removeOrphanedImports(activeSiteIds);
+
+  @override
+  Future<void> removeOrphanedWebViewState(Set<String> nonIncognitoSiteIds) =>
+      state._stateStorage.removeOrphans(nonIncognitoSiteIds);
+
+  @override
+  Future<void> clearLegacyGlobalCookieJar() =>
+      state._cookieManager.deleteAllCookies();
 }
 
 sealed class _DispatchChoice {

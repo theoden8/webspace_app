@@ -830,6 +830,68 @@ The site-switch pause SHALL respect the `_setCurrentIndexVersion` race guard so 
 
 ---
 
+### Requirement: PAUSE-023 — Commit Pending Cookie Writes On Background
+
+On `AppLifecycleState.paused` the app SHALL ask the plugin to commit
+pending cookie writes to persistent storage, whenever at least one
+webview is loaded and the platform implements `CookieManager.flush`
+(Android only — the plugin's platform interface throws
+`UnimplementedError` elsewhere).
+
+Chromium's cookie store commits to disk lazily, so a session cookie set
+shortly before the app is backgrounded is not durable. When the OS then
+kills the process (a swipe from recents, or a background-memory reclaim)
+those writes are lost and the user returns to a logged-out site even
+though nothing in the app deleted anything (issues #524, #525). Sites
+that rotate a session cookie on a short interval lose the session on the
+last few minutes of writes alone.
+
+Backgrounding is the last point the app controls, so the flush belongs
+in [`AppLifecycleEngine.backgroundPlan`](../../../lib/services/app_lifecycle_engine.dart)
+as `flushCookies`. The flush is independent of the active site: any
+loaded webview may hold uncommitted writes. Notification sites are
+exempt from the per-instance JS pause (NOTIF-004) and MUST NOT inherit
+that exemption here — they are the most likely to be alive and writing
+when the app backgrounds.
+
+From fork tag `v6.2.0-beta.3-privacy-v6` the Android `flush` fans out
+across every container's `CookieManager` via `ProfileStore`, not just
+the default jar; before that tag a flush would silently skip every
+per-site container (CONT-002). The call is best-effort: it is unawaited
+at the call site and failures are logged, never surfaced.
+
+#### Scenario: Backgrounding after a login
+
+**Given** Android, a loaded site whose page has just set a session cookie
+**When** the app is backgrounded (`AppLifecycleState.paused`)
+**Then** `backgroundPlan.flushCookies` is true
+**And** `CookieManager.flush()` is called
+**And** the cookie survives the OS killing the process
+
+#### Scenario: Notification site is active
+
+**Given** Android and the active loaded site has notifications enabled
+**When** the app is backgrounded
+**Then** `backgroundPlan.jsPauseIndex` is null (the site keeps ticking)
+**And** `backgroundPlan.flushCookies` is still true
+
+#### Scenario: Platform without flush support
+
+**Given** iOS, macOS, or Linux, where the plugin does not implement flush
+**When** the app is backgrounded
+**Then** `backgroundPlan.flushCookies` is false
+**And** no flush call is made, so no `UnimplementedError` is raised
+
+#### Scenario: Nothing loaded
+
+**Given** the app is backgrounded from the home screen with no webview
+  loaded this session
+**When** `AppLifecycleState.paused` fires
+**Then** `backgroundPlan.flushCookies` is false — no page could have
+  written a cookie, so there is nothing pending to commit
+
+---
+
 ## Implementation
 
 ### API Surface

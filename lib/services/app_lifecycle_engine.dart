@@ -21,9 +21,16 @@ class LifecycleBackgroundPlan {
   /// is not gated on notifications — any loaded active site is captured.
   final int? captureStateIndex;
 
+  /// Commit pending cookie writes to disk before the OS can kill the process.
+  /// Chromium's cookie store commits lazily, so a session cookie set moments
+  /// before backgrounding is otherwise lost on a swipe-kill and the user
+  /// returns logged out (issues #524, #525).
+  final bool flushCookies;
+
   const LifecycleBackgroundPlan({
     required this.jsPauseIndex,
     required this.captureStateIndex,
+    required this.flushCookies,
   });
 }
 
@@ -45,26 +52,36 @@ class AppLifecycleEngine {
   /// Plan for `AppLifecycleState.paused`. The active site's JS timers pause
   /// only when it is loaded and NOT a notification site; restore-state is
   /// captured for any loaded active site.
+  ///
+  /// [cookieFlushSupported] is the caller's platform answer for
+  /// `CookieManager.flush` (Android only — everywhere else the platform
+  /// interface's default throws). The flush is independent of the active
+  /// site: any loaded webview may have written a cookie the platform has not
+  /// committed to disk yet, notification sites very much included.
   static LifecycleBackgroundPlan backgroundPlan({
     required int? currentIndex,
     required int siteCount,
     required Set<int> loadedIndices,
     required bool Function(int index) notificationsEnabled,
+    required bool cookieFlushSupported,
   }) {
+    final flushCookies = cookieFlushSupported && loadedIndices.isNotEmpty;
     final active = activeLoadedIndex(
       currentIndex: currentIndex,
       siteCount: siteCount,
       loadedIndices: loadedIndices,
     );
     if (active == null) {
-      return const LifecycleBackgroundPlan(
+      return LifecycleBackgroundPlan(
         jsPauseIndex: null,
         captureStateIndex: null,
+        flushCookies: flushCookies,
       );
     }
     return LifecycleBackgroundPlan(
       jsPauseIndex: notificationsEnabled(active) ? null : active,
       captureStateIndex: active,
+      flushCookies: flushCookies,
     );
   }
 

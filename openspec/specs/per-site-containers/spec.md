@@ -509,6 +509,57 @@ deletable because the operation happens in the native cookie store.
   the existing `CookieManager` path, byte-identical to
   pre-Profile-API behaviour
 
+### Requirement: CONT-008 — No Unscoped Global Cookie Ops in Profile Mode
+
+In profile mode the app SHALL NOT issue a cookie operation that carries
+no site with it. Concretely, `CookieManager.deleteAllCookies()` (the
+global-jar clear, which the plugin resolves against its own internal
+state rather than an argument) SHALL only run when
+`_useContainers == false`.
+
+The clear reclaims nothing in profile mode — each site owns its jar and
+the default jar is unused (CONT-006) — so the op is pure risk. It is the
+shape that made [BUG-007](../../../docs/bugs/007-native-shared-state-races.md)
+attempt 4 destructive: a container-scoped read had poisoned the fork's
+static `CookieManager` memo, so an unscoped clear emptied a live
+container's jar and flushed the wipe to disk, surfacing a launch later
+as a logged-out site (issues #524, #525). The fork's memo is fixed as of
+`v6.2.0-beta.3-privacy-v6`; this requirement keeps the app from
+depending on that fix being correct.
+
+Enforcement is two-layer: [`OrphanSweepEngine`](../../../lib/services/orphan_sweep_engine.dart)
+owns the branch (`clearLegacyGlobalCookieJar` runs only under
+`!useContainers`), and a structural CI gate
+([test/js/global_cookie_clear_funnel.test.js](../../../test/js/global_cookie_clear_funnel.test.js))
+fails on a new ungated call site.
+
+#### Scenario: Post-paint orphan sweep in profile mode
+
+**Given** profile mode is active and the app has just painted after a
+  home-shortcut cold launch, with Site A loaded
+**When** the deferred startup GC runs `sweepOrphanStorage`
+**Then** every per-site storage sweep runs (cookies, proxy passwords,
+  HTML caches, HTML imports, webview state)
+**And** `CookieManager.deleteAllCookies()` is NOT called
+**And** Site A's profile cookie jar still holds its session
+
+#### Scenario: Post-paint orphan sweep in legacy mode
+
+**Given** legacy mode (`_useContainers == false`)
+**When** the deferred startup GC runs `sweepOrphanStorage`
+**Then** the per-site sweeps run first
+**And** `CookieManager.deleteAllCookies()` runs last, clearing residue
+  of deleted sites from the single shared jar — byte-identical to
+  pre-container behaviour
+
+#### Scenario: Settings import with no site to activate
+
+**Given** a settings backup is imported and the restored
+  `currentIndex` is null, so no site is activated
+**When** the import completes
+**Then** the pre-import global-jar clear runs only in legacy mode
+**And** in profile mode each site's jar is left to its own container
+
 ### Requirement: CONT-007 — No GMS in Shipped Artifacts
 
 The Profile API plugin SHALL NOT introduce any
