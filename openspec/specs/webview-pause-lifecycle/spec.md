@@ -857,8 +857,11 @@ when the app backgrounds.
 From fork tag `v6.2.0-beta.3-privacy-v6` the Android `flush` fans out
 across every container's `CookieManager` via `ProfileStore`, not just
 the default jar; before that tag a flush would silently skip every
-per-site container (CONT-002). The call is best-effort: it is unawaited
-at the call site and failures are logged, never surfaced.
+per-site container (CONT-002). That fan-out is a dependency of this
+requirement, not an implementation detail of the fork, so
+[test/fork_cookie_manager_invariant_test.dart](../../../test/fork_cookie_manager_invariant_test.dart)
+asserts it survives a fork bump. The call is best-effort: it is
+unawaited at the call site and failures are logged, never surfaced.
 
 #### Scenario: Backgrounding after a login
 

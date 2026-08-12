@@ -527,11 +527,14 @@ as a logged-out site (issues #524, #525). The fork's memo is fixed as of
 `v6.2.0-beta.3-privacy-v6`; this requirement keeps the app from
 depending on that fix being correct.
 
-Enforcement is two-layer: [`OrphanSweepEngine`](../../../lib/services/orphan_sweep_engine.dart)
+Enforcement is three-layer: [`OrphanSweepEngine`](../../../lib/services/orphan_sweep_engine.dart)
 owns the branch (`clearLegacyGlobalCookieJar` runs only under
-`!useContainers`), and a structural CI gate
+`!useContainers`), a structural CI gate
 ([test/js/global_cookie_clear_funnel.test.js](../../../test/js/global_cookie_clear_funnel.test.js))
-fails on a new ungated call site.
+fails on a new ungated call site, and
+[test/fork_cookie_manager_invariant_test.dart](../../../test/fork_cookie_manager_invariant_test.dart)
+reads the fork source this checkout actually resolved and fails if a bump
+reintroduces the memo mislabel underneath the app-side gate.
 
 #### Scenario: Post-paint orphan sweep in profile mode
 

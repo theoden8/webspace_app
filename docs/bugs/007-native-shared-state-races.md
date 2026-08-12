@@ -129,6 +129,35 @@ funnel only covers `deleteAllCookies`; the other unscoped ops (`setCookie`,
 unguarded, and gap 2 below (the fork's Swift registry lost-update) is the same class in the
 same fork, still open.
 
+### Attempt 5 — Structural gate on the pinned fork source
+**Date:** 2026-08-12 · **PR:** #526 ·
+**Files:** `test/fork_cookie_manager_invariant_test.dart`
+**What it did:** attempt 4 left the fork side guarded by a comment on the field, on the
+reasoning that a JVM test belongs in the fork's tree. That skipped a third option: the fork
+is consumed here at a *git ref*, so `pub get` puts its real source on disk and this repo can
+read what it actually resolved. The test resolves `flutter_inappwebview_android` through
+`.dart_tool/package_config.json` (never a globbed pub-cache path, so it always inspects the
+ref this checkout pinned) and asserts, on `MyCookieManager.java`: the scoped lookup is never
+assigned into the static memo; every `cookieManagerForContainerOf` call site captures its
+result in a local or returns it; no method that calls the scoped lookup also references the
+bare static; and `flush` still fans out via `ProfileStore.getAllProfileNames` (PAUSE-023
+depends on that, and before the tag a flush skipped every container). Comments and string
+literals are blanked before matching, so prose about the invariant cannot satisfy it. Three
+anchor assertions fail loudly if the fork renames the field, the lookup, or the fan-out,
+rather than passing vacuously. Verified by mutation: six pre-fix shapes (memo poisoned from
+the scoped path, scoped method reading the static, fan-out call dropped, and each of the
+three anchors renamed) each turn it red, naming the offending line.
+**Why:** the fork is pinned to a mutable branch that gets tagged per release, so "fixed in
+v6" is a statement about a ref that can move. A gate that reads the resolved source turns
+the next reintroduction into a red build at `flutter test` time instead of sporadic logouts
+in the field.
+**Why it was partial:** it is a *shape* check on one file, not a behavioral one. It cannot
+see a poisoning that happens through a helper it does not know about, and it says nothing
+about whether the runtime actually routes to the right jar (that still needs a device with
+`MULTI_PROFILE` and two live profiles, untested at any tier). It covers only Android's
+`MyCookieManager`: gap 2 below, the same class in the same fork's Swift tree, remains
+unguarded and is the obvious next file to point this technique at.
+
 ## Known open gaps
 
 1. **No universal structural guard.** Each instance got its own guard (or none, for the
