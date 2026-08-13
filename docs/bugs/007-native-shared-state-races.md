@@ -95,6 +95,69 @@ dropped `BLOCKED` entry is a transient filter-bypass.
 native component that shares mutable state can reintroduce it, and the fork + a few
 same-class reads remain (open gaps).
 
+### Attempt 4 — Fork `MyCookieManager` static memo poisoned by container-scoped reads
+**Date:** 2026-08-12 · **PR:** #526 (app side) + fork tag `v6.2.0-beta.3-privacy-v6` ·
+**Files:** fork `flutter_inappwebview_android/.../MyCookieManager.java`,
+`lib/services/orphan_sweep_engine.dart`, `lib/main.dart`,
+`test/js/global_cookie_clear_funnel.test.js`
+**What it did:** `MyCookieManager` memoizes the Android `CookieManager` in a `public static`
+field, lazily via `getCookieManager()` (a null-only check, so the first value written is
+sticky until process death). The container patch added two `webViewId`-scoped entry points,
+`getCookies` and `deleteCookie`, and both assigned the profile-scoped manager *into that
+static* — matching the file's house style, where every method opens with
+`cookieManager = getCookieManager();`. From the first container-scoped read onward the memo
+held some site's `Profile.getCookieManager()`, and every unscoped op in the class
+(`setCookie`, `deleteCookies`, `deleteAllCookies`, `removeSessionCookies`, `flush`,
+`getAllCookies`) silently addressed that container's jar instead of the default one. The fork
+moved both scoped lookups into method locals and documented the invariant on the field. The
+app side stopped issuing the unscoped op that made it reachable: `OrphanSweepEngine` only
+clears the legacy global jar when `useContainers` is false, the post-import clear is gated the
+same way, and a structural gate fails CI on a new ungated `deleteAllCookies()` call site.
+**Why:** the app's post-paint orphan sweep ends in `deleteAllCookies()`, which under
+containers is meant to reclaim the unused default jar. With the memo poisoned it wiped a live
+container instead — and `removeAllCookies` is followed by `flush()`, so the wipe was durable.
+Users saw a site logged out one launch later. It reproduced only via home-shortcut launches,
+because that is the sole cold start where a site loads (and its load-stop cookie read poisons
+the memo) *before* the deferred sweep runs; an icon launch opens the home screen, leaves the
+memo null, and the clear correctly hits the default jar. Reported as issues #524 and #525.
+**Why it was partial:** the same file still writes the memo from unscoped methods, so the
+field remains process-global mutable state one careless scoped assignment away from
+recurrence — the fork's guard is a comment plus code review, not a test (the JVM-side gate
+that would catch it belongs in the fork's tree, which this repo cannot gate). The app-side
+funnel only covers `deleteAllCookies`; the other unscoped ops (`setCookie`,
+`removeSessionCookies`, `getAllCookies`) are still reachable from legacy paths and are
+unguarded, and gap 2 below (the fork's Swift registry lost-update) is the same class in the
+same fork, still open.
+
+### Attempt 5 — Structural gate on the pinned fork source
+**Date:** 2026-08-12 · **PR:** #526 ·
+**Files:** `test/fork_cookie_manager_invariant_test.dart`
+**What it did:** attempt 4 left the fork side guarded by a comment on the field, on the
+reasoning that a JVM test belongs in the fork's tree. That skipped a third option: the fork
+is consumed here at a *git ref*, so `pub get` puts its real source on disk and this repo can
+read what it actually resolved. The test resolves `flutter_inappwebview_android` through
+`.dart_tool/package_config.json` (never a globbed pub-cache path, so it always inspects the
+ref this checkout pinned) and asserts, on `MyCookieManager.java`: the scoped lookup is never
+assigned into the static memo; every `cookieManagerForContainerOf` call site captures its
+result in a local or returns it; no method that calls the scoped lookup also references the
+bare static; and `flush` still fans out via `ProfileStore.getAllProfileNames` (PAUSE-023
+depends on that, and before the tag a flush skipped every container). Comments and string
+literals are blanked before matching, so prose about the invariant cannot satisfy it. Three
+anchor assertions fail loudly if the fork renames the field, the lookup, or the fan-out,
+rather than passing vacuously. Verified by mutation: six pre-fix shapes (memo poisoned from
+the scoped path, scoped method reading the static, fan-out call dropped, and each of the
+three anchors renamed) each turn it red, naming the offending line.
+**Why:** the fork is pinned to a mutable branch that gets tagged per release, so "fixed in
+v6" is a statement about a ref that can move. A gate that reads the resolved source turns
+the next reintroduction into a red build at `flutter test` time instead of sporadic logouts
+in the field.
+**Why it was partial:** it is a *shape* check on one file, not a behavioral one. It cannot
+see a poisoning that happens through a helper it does not know about, and it says nothing
+about whether the runtime actually routes to the right jar (that still needs a device with
+`MULTI_PROFILE` and two live profiles, untested at any tier). It covers only Android's
+`MyCookieManager`: gap 2 below, the same class in the same fork's Swift tree, remains
+unguarded and is the obvious next file to point this technique at.
+
 ## Known open gaps
 
 1. **No universal structural guard.** Each instance got its own guard (or none, for the
