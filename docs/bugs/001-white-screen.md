@@ -262,6 +262,18 @@ causal claim is unverified, exactly as in Attempt 8.
    new `SurfaceDiag` line `trigger=metrics-resume -> nudge` exists to confirm this from a
    device log; until such a trace exists, the causal claim (this fixes the reported warm-start
    white screen) is unverified.
+7. **First activation of a fresh site is diagnostically dark and has no commit-side nudge.**
+   Reported 2026-08-13 (sanitized log export): user cold-started to the site picker, tapped a
+   not-yet-loaded site three minutes later, webview created from scratch, main-frame load
+   started, white screen. The log cannot classify it because this path emits *no* SurfaceDiag:
+   the `site-switch` probe early-returns silently when `model.controller == null`
+   (lib/main.dart, `_probeRendererAndRecover`), which is always true for a fresh creation.
+   Both nudges that do run — activation (`_setCurrentIndex`) and controller-ready
+   (Attempt 4) — fire and drain *before* the initial document commits, and the settled-side
+   re-nudge is latched only by `reloadIssued()` (Attempt 9), never by a first load. So if the
+   commit lands late, nothing repaints after it: the Attempt 8/9 ordering shape on one more
+   path. Undetermined whether that report was this bug or a load that never committed; the
+   window-pixel sampler below exists to make the next occurrence classifiable.
 
 ## Guardrails now in place
 
@@ -290,6 +302,20 @@ causal claim is unverified, exactly as in Attempt 8.
   `inappbrowser.dart` must sit inside a `reloadAndRepaint` funnel that latches the reload,
   `main.dart` must wire both host hooks to the engine, and each file must drive the repaint
   off the load-settled signal. A new raw reload fails CI.
+- **Window-pixel detector + scenario suite**
+  ([android/.../SurfaceDiagPlugin.kt](../../android/app/src/main/kotlin/org/codeberg/theoden8/webspace/SurfaceDiagPlugin.kt),
+  [lib/services/surface_diag_native.dart](../../lib/services/surface_diag_native.dart),
+  [integration_test/white_screen_test.dart](../../integration_test/white_screen_test.dart)):
+  the first guardrail that measures the *symptom* instead of inferring it from a trigger
+  path. Window-level `PixelCopy` reads the composited pixels the user actually sees —
+  the plane no JS probe (renderer) or Flutter capture (raster tree, no platform views)
+  can reach — and classifies uniform white/black over the webview rect. The integration
+  suite (Android emulator, screenshots CI tier) drives the in-process-drivable entry
+  paths (fresh first activation incl. gap #7, loaded-site switch, reload funnel, memory
+  pressure, fresh activation among live sites) and fails on a blank window, with a white
+  control page proving the detector is not vacuous. Warm start / activity recreation /
+  bfcache back-nav still need an adb-driven tier. Not yet wired into production
+  diagnostics; doing so would give `SurfaceDiag` log lines a `window=` classification.
 
 ## Diagnostic checklist (when this recurs)
 

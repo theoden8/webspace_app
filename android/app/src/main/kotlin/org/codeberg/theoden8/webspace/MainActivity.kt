@@ -21,6 +21,7 @@ class MainActivity: FlutterActivity() {
     private var webInterceptPlugin: WebInterceptPlugin? = null
     private var locationPlugin: LocationPlugin? = null
     private var webSpaceContainerPlugin: WebSpaceContainerPlugin? = null
+    private var surfaceDiagPlugin: SurfaceDiagPlugin? = null
     private var backgroundTaskPlugin: BackgroundTaskAndroidPlugin? = null
     private var proxyRelayPlugin: ProxyRelayPlugin? = null
     private var pendingShareUrl: String? = null
@@ -63,6 +64,7 @@ class MainActivity: FlutterActivity() {
         webInterceptPlugin = WebInterceptPlugin(this, flutterEngine)
         locationPlugin = LocationPlugin(this, flutterEngine)
         webSpaceContainerPlugin = WebSpaceContainerPlugin(flutterEngine)
+        surfaceDiagPlugin = SurfaceDiagPlugin(this, flutterEngine)
         backgroundTaskPlugin = BackgroundTaskAndroidPlugin(applicationContext, flutterEngine)
         proxyRelayPlugin = ProxyRelayPlugin(flutterEngine)
         captureSharePayload(intent)

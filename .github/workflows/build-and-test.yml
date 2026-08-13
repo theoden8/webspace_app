@@ -394,6 +394,14 @@ jobs:
             # Run fastlane android screenshots using bundle
             bundle exec fastlane android screenshots
 
+            # White-screen pixel scenarios (BUG-001): drive the historical
+            # blank-screen entry paths and assert on composited window
+            # pixels over the webview via SurfaceDiagPlugin's PixelCopy.
+            DEVICE_ID=$(adb devices | grep -w 'device' | head -1 | awk '{print $1}')
+            timeout -k 30s 20m fvm flutter test \
+              integration_test/white_screen_test.dart \
+              -d "$DEVICE_ID" --flavor fdebug
+
       - name: Cache Fastlane frameit assets
         uses: actions/cache@v4
         with:
@@ -711,8 +719,10 @@ jobs:
               status=0
               for t in integration_test/*_test.dart; do
                 # Screenshot generator is an iOS/Android fastlane helper,
-                # not a Linux-runnable test.
+                # not a Linux-runnable test. The white-screen pixel suite is
+                # Android-only (window PixelCopy); skip its no-op build here.
                 [ "$(basename "$t")" = "screenshot_test.dart" ] && continue
+                [ "$(basename "$t")" = "white_screen_test.dart" ] && continue
                 echo "::group::$t"
                 # Hard per-test wall-clock cap: a WebView mount can deadlock
                 # the platform thread below Dart timeout layer, which would
@@ -972,6 +982,8 @@ jobs:
           status=0
           for t in integration_test/*_test.dart; do
             [ "$(basename "$t")" = "screenshot_test.dart" ] && continue
+            # Android-only window-PixelCopy suite; skip its no-op build here.
+            [ "$(basename "$t")" = "white_screen_test.dart" ] && continue
             echo "::group::$t"
             if [ -n "$TIMEOUT" ]; then
               "$TIMEOUT" -k 30s 12m fvm flutter test "$t" -d macos --ci || status=$?

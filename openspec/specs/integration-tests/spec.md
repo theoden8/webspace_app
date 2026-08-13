@@ -24,16 +24,18 @@ supplies both natively.
 The **mobile** targets — Android (`-d emulator-*`) and the iOS
 Simulator (`-d <udid>`) — are a separate harness: each needs a booted
 emulator/simulator before `flutter test` can attach, not just a window
-server. They are not wired into the integration_test tier yet. The
-device-boot plumbing already exists in this workflow for the
+server. The device-boot plumbing exists in this workflow for the
 fastlane-driven Android/iOS screenshot pipeline (see
 [`screenshots`](../screenshots/spec.md) — `build-android`'s
 `reactivecircus/android-emulator-runner` and `build-apple`'s
-`simctl boot`), so a future mobile integration_test tier would extend
-that boot setup rather than the desktop `-d` path. Screenshots are a
-different harness with a different goal (screenshot generation vs.
-assertion-driven UI testing), but they share the same emulator/
-simulator prerequisite.
+`simctl boot`). One Android-emulator scenario now rides that boot:
+`white_screen_test.dart` (INTEG-010) runs inside the same
+emulator session as the screenshots lane (`workflow_dispatch` tier),
+after `bundle exec fastlane android screenshots`. It is Android-only
+(window-level `PixelCopy`), so both desktop loops skip it by basename
+exactly as they skip `screenshot_test.dart`. A broader mobile tier
+(iOS Simulator, per-PR Android) remains future scope and would extend
+the same boot setup rather than the desktop `-d` path.
 
 ## Status
 
@@ -439,6 +441,70 @@ either target.
 
 ---
 
+### Requirement: INTEG-010 — Android white-screen pixel scenarios
+
+`integration_test/white_screen_test.dart` SHALL drive the
+in-process-drivable BUG-001 entry paths
+([docs/bugs/001-white-screen.md](../../../docs/bugs/001-white-screen.md))
+on an Android emulator/device and assert on the **composited window
+pixels** over the webview slot, sampled by
+`SurfaceDiagPlugin.sampleWindowRegion` (window-level `PixelCopy`).
+This is the only capture plane that shows what the user sees:
+Flutter's `convertFlutterSurfaceToImage` misses hybrid-composition
+platform views, and a JS probe reports the renderer plane, which is
+healthy in every confirmed BUG-001 instance. Pages come from an
+in-process loopback HTTP server so a network failure can never
+masquerade as a white screen, and each content page is a solid color
+Flutter never draws so a matching dominant color proves the sample
+came from the webview.
+
+The suite SHALL cover at least: fresh first activation (BUG-001 gap
+#7), loaded-site switch (`_setCurrentIndex` reuse), the reload funnel
+(`PAUSE-021`), memory pressure against the visible site
+(`PAUSE-019`), and fresh activation with other sites live
+(`PAUSE-017`). Warm start, activity recreation, and bfcache back
+navigation need real activity lifecycle transitions an in-process
+test cannot produce; they are future adb-driven scope.
+
+#### Scenario: White control page proves the detector is not vacuous
+
+- **Given** a seeded site whose page is genuinely all-white
+- **When** the suite activates it and samples the webview rect
+- **Then** `SurfaceDiagNative.classify` reports `uniformBlank`
+- **And** a sampler regression that stops seeing webview pixels
+  therefore fails this scenario instead of silently passing the rest
+
+#### Scenario: A blank window fails the run with the sample as diagnostic
+
+- **Given** any covered entry path leaves the composited webview
+  region uniform white/black after its settle window
+- **When** the polling assertion times out
+- **Then** the test fails and prints the last `WindowRegionSample`
+  (status, dominant color, uniform fraction) plus the in-memory
+  `LogService` tail, which is safe to surface because the test data
+  is synthetic (loopback URLs, seeded names)
+
+#### Scenario: Runs inside the screenshots emulator session
+
+- **Given** the `build-android` job's `workflow_dispatch` emulator
+  session has finished `bundle exec fastlane android screenshots`
+- **When** the same script step runs
+  `fvm flutter test integration_test/white_screen_test.dart -d <device> --flavor fdebug`
+- **Then** the suite executes against the booted emulator with a
+  20-minute wall-clock cap, and a failure fails the job
+
+#### Scenario: Desktop loops skip the Android-only suite
+
+- **Given** the Linux and macOS integration loops iterate
+  `integration_test/*_test.dart`
+- **When** they reach `white_screen_test.dart`
+- **Then** both skip it by basename (like `screenshot_test.dart`),
+  because the `PixelCopy` channel exists only on Android and the
+  `skip: !Platform.isAndroid` guard would still cost a desktop debug
+  build per run
+
+---
+
 ## Known Limitations
 
 - **Build time per test**: each `flutter test integration_test/<file>.dart`
@@ -454,11 +520,19 @@ either target.
   `cryptography>=46` and pydbus's `list[int]` buffer convention natively,
   drop the patches. No version pin in the workflow today; track
   https://github.com/mkhon/pass-secret-service for the fix.
-- **Webview rendering not exercised**: the smoke test reaches App Settings
-  without ever loading a webview; `settings_backup_roundtrip_test.dart`
+- **Webview rendering not exercised on desktop**: the smoke test reaches
+  App Settings without ever loading a webview; `settings_backup_roundtrip_test.dart`
   is the same. Webview-loading scenarios (Tier C of the integration
   test backlog) may surface a new class of headless rendering issues
-  that this spec doesn't cover.
+  that this spec doesn't cover. On Android, `white_screen_test.dart`
+  (INTEG-010) does exercise real webview rendering down to composited
+  pixels, but only in the `workflow_dispatch` emulator tier.
+- **Emulator compositing is not device compositing**: the emulator runs
+  `-gpu swiftshader_indirect`, so INTEG-010's scenarios exercise the
+  funnels and detector plumbing deterministically but may never
+  reproduce a device-specific SurfaceFlinger race (Mali/Adreno). A
+  green run means "no blank window on this compositor", not "BUG-001
+  cannot happen"; a red run is a real, labeled reproduction.
 - **proot is for local dev only**: locally on a non-sid host (eg. a
   Debian bookworm dev container) the harness can run inside a sid
   chroot via `proot -r /var/lib/sid-chroot`, but proot 5.1.0 (bookworm)
@@ -478,6 +552,13 @@ either target.
   `build-apple` job's `Run macOS integration tests` step (`-d macos`).
 
 ### Existing
+- [`integration_test/white_screen_test.dart`](../../../integration_test/white_screen_test.dart)
+  — INTEG-010: BUG-001 entry paths against composited window pixels
+  (Android emulator tier). Sampler:
+  [`android/.../SurfaceDiagPlugin.kt`](../../../android/app/src/main/kotlin/org/codeberg/theoden8/webspace/SurfaceDiagPlugin.kt)
+  + [`lib/services/surface_diag_native.dart`](../../../lib/services/surface_diag_native.dart)
+  (classification unit-tested in
+  [`test/surface_diag_classification_test.dart`](../../../test/surface_diag_classification_test.dart))
 - [`integration_test/settings_smoke_test.dart`](../../../integration_test/settings_smoke_test.dart)
   — harness pin
 - [`integration_test/settings_backup_roundtrip_test.dart`](../../../integration_test/settings_backup_roundtrip_test.dart)
