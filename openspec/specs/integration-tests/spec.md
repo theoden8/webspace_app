@@ -28,14 +28,14 @@ server. The device-boot plumbing exists in this workflow for the
 fastlane-driven Android/iOS screenshot pipeline (see
 [`screenshots`](../screenshots/spec.md) — `build-android`'s
 `reactivecircus/android-emulator-runner` and `build-apple`'s
-`simctl boot`). One Android-emulator scenario now rides that boot:
-`white_screen_test.dart` (INTEG-010) runs inside the same
-emulator session as the screenshots lane (`workflow_dispatch` tier),
-after `bundle exec fastlane android screenshots`. It is Android-only
-(window-level `PixelCopy`), so both desktop loops skip it by basename
-exactly as they skip `screenshot_test.dart`. A broader mobile tier
-(iOS Simulator, per-PR Android) remains future scope and would extend
-the same boot setup rather than the desktop `-d` path.
+`simctl boot`). The first Android-emulator scenario is wired in:
+`white_screen_test.dart` (INTEG-010) runs in the dedicated
+`android-integration-tests` job on every push/PR, which boots the
+same AVD profile (and shares its snapshot cache) as the screenshots
+tier. It is Android-only (window-level `PixelCopy`), so both desktop
+loops skip it by basename exactly as they skip `screenshot_test.dart`.
+A broader mobile tier (iOS Simulator) remains future scope and would
+extend the same boot setup rather than the desktop `-d` path.
 
 ## Status
 
@@ -484,14 +484,18 @@ test cannot produce; they are future adb-driven scope.
   `LogService` tail, which is safe to surface because the test data
   is synthetic (loopback URLs, seeded names)
 
-#### Scenario: Runs inside the screenshots emulator session
+#### Scenario: Dedicated emulator job on every push/PR
 
-- **Given** the `build-android` job's `workflow_dispatch` emulator
-  session has finished `bundle exec fastlane android screenshots`
-- **When** the same script step runs
+- **Given** the `android-integration-tests` job (ubuntu runner, KVM,
+  API 34 google_apis x86_64 `pixel_5` AVD, snapshot cache shared with
+  the screenshots tier)
+- **When** it runs
   `fvm flutter test integration_test/white_screen_test.dart -d <device> --flavor fdebug`
-- **Then** the suite executes against the booted emulator with a
-  20-minute wall-clock cap, and a failure fails the job
+  inside the booted emulator with a 25-minute wall-clock cap
+- **Then** the suite executes on every push to master, every PR, and
+  every manual dispatch, and a failure fails the job
+- **And** the job is separate from `build-android` so emulator flake
+  never blocks release artifact builds
 
 #### Scenario: Desktop loops skip the Android-only suite
 
@@ -526,7 +530,7 @@ test cannot produce; they are future adb-driven scope.
   test backlog) may surface a new class of headless rendering issues
   that this spec doesn't cover. On Android, `white_screen_test.dart`
   (INTEG-010) does exercise real webview rendering down to composited
-  pixels, but only in the `workflow_dispatch` emulator tier.
+  pixels on every push/PR via the `android-integration-tests` job.
 - **Emulator compositing is not device compositing**: the emulator runs
   `-gpu swiftshader_indirect`, so INTEG-010's scenarios exercise the
   funnels and detector plumbing deterministically but may never
