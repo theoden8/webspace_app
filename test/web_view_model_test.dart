@@ -680,6 +680,60 @@ void main() {
       }
     });
 
+    test('cameraAllowed defaults to null (ask) and toJson omits it', () {
+      final model = WebViewModel(initUrl: 'https://example.com');
+      expect(model.cameraAllowed, isNull);
+      expect(model.toJson().containsKey('cameraAllowed'), isFalse);
+
+      final restored = WebViewModel.fromJson(model.toJson(), null);
+      expect(restored.cameraAllowed, isNull);
+    });
+
+    test('cameraAllowed allow/block round-trips through JSON', () {
+      for (final decision in [true, false]) {
+        final model = WebViewModel(
+          initUrl: 'https://example.com',
+          cameraAllowed: decision,
+        );
+        final json = model.toJson();
+        expect(json['cameraAllowed'], equals(decision));
+        final restored = WebViewModel.fromJson(json, null);
+        expect(restored.cameraAllowed, equals(decision));
+      }
+    });
+
+    test('effectiveCameraAllowed forces deny for archive-tier (CAM-006)', () {
+      final allowed = WebViewModel(
+        initUrl: 'https://example.com',
+        cameraAllowed: true,
+        isArchiveTier: true,
+      );
+      // Stored value is preserved, but the effective value never grants
+      // the camera for archive sites.
+      expect(allowed.cameraAllowed, isTrue);
+      expect(allowed.effectiveCameraAllowed, isFalse);
+
+      final appTier = WebViewModel(
+        initUrl: 'https://example.com',
+        cameraAllowed: true,
+      );
+      expect(appTier.effectiveCameraAllowed, isTrue);
+    });
+
+    test('effectiveCameraAllowed is not forced by Tracking Protection', () {
+      // Unlike protected content (ETP-023), camera capture starts only
+      // after an explicit per-site Allow, so the umbrella leaves the
+      // stored decision in effect.
+      for (final stored in [true, false, null]) {
+        final model = WebViewModel(
+          initUrl: 'https://example.com',
+          cameraAllowed: stored,
+          trackingProtectionEnabled: true,
+        );
+        expect(model.effectiveCameraAllowed, equals(stored));
+      }
+    });
+
     test('legacy backgroundPoll JSON migrates to notificationsEnabled', () {
       // Sites stored under the previous schema (separate backgroundPoll
       // toggle, notifications off) should still be polled and able to

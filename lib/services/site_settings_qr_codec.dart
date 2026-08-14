@@ -69,6 +69,10 @@ class SiteSettingsQrCodec {
     'userScripts',
     'enabledGlobalScriptIds',
     'blockedCookies',
+    // Remembered permission decisions are trust the user gave one device's
+    // popup, not shareable configuration.
+    'protectedContentAllowed',
+    'cameraAllowed',
     // Base64 PNG bytes: would blow QR capacity, and an icon is
     // device-local cosmetics, not shareable configuration.
     'customIconPng',

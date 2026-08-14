@@ -154,7 +154,7 @@ const PLUMBING = new Set([
   'onProgressChanged', 'onReloadIssued', 'onMainFrameLoad',
   'onWindowRequested', 'onHtmlLoaded', 'shouldFetchHtml', 'onConsoleMessage',
   'onConfirmScriptFetch', 'onExternalSchemeUrl', 'pullToRefreshController',
-  'onRendererGone', 'onProtectedMediaRequest',
+  'onRendererGone', 'onProtectedMediaRequest', 'onCameraRequest',
 ]);
 
 // Posture-ish but not yet threaded to nested webviews. An archive-tier site

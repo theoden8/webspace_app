@@ -21,6 +21,7 @@ import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/generic_cosmetic_shim.dart';
 import 'package:webspace/services/procedural_cosmetic_shim.dart';
+import 'package:webspace/services/camera_permission_service.dart';
 import 'package:webspace/services/current_location_service.dart';
 import 'package:webspace/services/desktop_mode_shim.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
@@ -717,6 +718,13 @@ class WebViewConfig {
   /// default applies (Android denies). Only meaningful on Android — iOS/
   /// macOS WKWebView has no EME/Widevine and never issues the request.
   final Future<bool> Function(String origin)? onProtectedMediaRequest;
+  /// Prompt fired when the page requests camera-only capture (getUserMedia
+  /// video, e.g. a banking site's QR scanner). Returns true to grant, false
+  /// to deny. When null, camera requests keep the platform default (deny).
+  /// A grant additionally requires the app-level CAMERA runtime permission
+  /// on Android, ensured at grant time by [CameraPermissionService].
+  /// Requests that bundle the microphone never route here.
+  final Future<bool> Function(String origin)? onCameraRequest;
 
   WebViewConfig({
     this.key,
@@ -774,6 +782,7 @@ class WebViewConfig {
     this.notificationsEnabled = false,
     this.backgroundAudioEnabled = false,
     this.onProtectedMediaRequest,
+    this.onCameraRequest,
   });
 }
 
@@ -2780,36 +2789,65 @@ class WebViewFactory {
       pullToRefreshController: config.pullToRefreshController,
       initialUserScripts: UnmodifiableListView(userScripts),
       initialSettings: settings,
-      // Protected-media (Widevine/EME) permission. Only installed on
-      // Android, where `PROTECTED_MEDIA_ID` exists and the no-handler
-      // default is deny; granting it lets the origin run EME license
-      // requests (e.g. the Spotify web player). The handler grants ONLY
-      // the protected-media resource and returns PROMPT for anything else
-      // (camera/mic) so it never widens permissions beyond DRM. Left null
-      // off-Android so iOS/macOS keep their native PROMPT default.
-      onPermissionRequest:
-          (Platform.isAndroid && config.onProtectedMediaRequest != null)
-              ? (controller, request) async {
-                  final wantsProtectedMedia = request.resources.contains(
+      // Web permission requests. Two per-site flows route through here:
+      //
+      // - Protected media (Android only): granting `PROTECTED_MEDIA_ID`
+      //   lets the origin run EME license requests (e.g. the Spotify web
+      //   player).
+      // - Camera: a camera-only request (getUserMedia video, e.g. a banking
+      //   site's QR scanner) consults the per-site decision via
+      //   `onCameraRequest`; a grant additionally requires the app-level
+      //   CAMERA runtime permission on Android. Requests that bundle the
+      //   microphone (iOS/macOS report them as the single resource
+      //   CAMERA_AND_MICROPHONE, Android as CAMERA+MICROPHONE) fall through
+      //   to the default so the grant never widens beyond video capture.
+      //
+      // The fallback returns PROMPT for everything else: Android and Linux
+      // WPE map any non-GRANT action to deny (their no-handler default),
+      // iOS 15+/macOS 12+ show WebKit's own per-site prompt.
+      onPermissionRequest: ((Platform.isAndroid &&
+                  config.onProtectedMediaRequest != null) ||
+              config.onCameraRequest != null)
+          ? (controller, request) async {
+              final wantsProtectedMedia = Platform.isAndroid &&
+                  config.onProtectedMediaRequest != null &&
+                  request.resources.contains(
                       inapp.PermissionResourceType.PROTECTED_MEDIA_ID);
-                  if (wantsProtectedMedia) {
-                    final granted = await config.onProtectedMediaRequest!(
-                        request.origin.toString());
-                    return inapp.PermissionResponse(
-                      resources: [
-                        inapp.PermissionResourceType.PROTECTED_MEDIA_ID
-                      ],
-                      action: granted
-                          ? inapp.PermissionResponseAction.GRANT
-                          : inapp.PermissionResponseAction.DENY,
-                    );
-                  }
-                  return inapp.PermissionResponse(
-                    resources: request.resources,
-                    action: inapp.PermissionResponseAction.PROMPT,
-                  );
+              if (wantsProtectedMedia) {
+                final granted = await config.onProtectedMediaRequest!(
+                    request.origin.toString());
+                return inapp.PermissionResponse(
+                  resources: [
+                    inapp.PermissionResourceType.PROTECTED_MEDIA_ID
+                  ],
+                  action: granted
+                      ? inapp.PermissionResponseAction.GRANT
+                      : inapp.PermissionResponseAction.DENY,
+                );
+              }
+              final wantsCameraOnly = config.onCameraRequest != null &&
+                  request.resources.length == 1 &&
+                  request.resources
+                      .contains(inapp.PermissionResourceType.CAMERA);
+              if (wantsCameraOnly) {
+                bool granted = await config.onCameraRequest!(
+                    request.origin.toString());
+                if (granted) {
+                  granted = await CameraPermissionService.ensurePermission();
                 }
-              : null,
+                return inapp.PermissionResponse(
+                  resources: [inapp.PermissionResourceType.CAMERA],
+                  action: granted
+                      ? inapp.PermissionResponseAction.GRANT
+                      : inapp.PermissionResponseAction.DENY,
+                );
+              }
+              return inapp.PermissionResponse(
+                resources: request.resources,
+                action: inapp.PermissionResponseAction.PROMPT,
+              );
+            }
+          : null,
       onWebViewCreated: (controller) async {
         final wrappedController = _WebViewController(controller);
         onControllerCreated(wrappedController);

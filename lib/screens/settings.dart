@@ -132,6 +132,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _notificationsEnabled;
   late bool _backgroundAudioEnabled;
   bool? _protectedContentAllowed;
+  bool? _cameraAllowed;
   String? _selectedLanguage;
   late int _zoomPercent;
   bool _obscureProxyPassword = true;
@@ -222,6 +223,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         'notificationsEnabled': _notificationsEnabled,
         'backgroundAudioEnabled': _backgroundAudioEnabled,
         'protectedContentAllowed': _protectedContentAllowed,
+        'cameraAllowed': _cameraAllowed,
         'selectedLanguage': _selectedLanguage,
         'zoomPercent': _zoomPercent,
         'latitude': _latitudeController.text,
@@ -477,6 +479,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _notificationsEnabled = m.notificationsEnabled;
     _backgroundAudioEnabled = m.backgroundAudioEnabled;
     _protectedContentAllowed = m.protectedContentAllowed;
+    _cameraAllowed = m.cameraAllowed;
     _selectedLanguage = m.language;
     _zoomPercent = m.zoomPercent;
     _latitudeController.text = m.spoofLatitude?.toString() ?? '';
@@ -669,6 +672,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.notificationsEnabled = _notificationsEnabled;
       widget.webViewModel.backgroundAudioEnabled = _backgroundAudioEnabled;
       widget.webViewModel.protectedContentAllowed = _protectedContentAllowed;
+      widget.webViewModel.cameraAllowed = _cameraAllowed;
       widget.webViewModel.language = _selectedLanguage;
       widget.webViewModel.zoomPercent = _zoomPercent;
       // locationMode is derived from the UI state:
@@ -1895,6 +1899,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
             ),
+          ListTile(
+            title: Row(
+              children: [
+                Flexible(child: Text(loc.siteSettingsCameraAccess)),
+                HintButton(
+                  title: loc.siteSettingsCameraAccess,
+                  description: loc.siteSettingsCameraAccessHint,
+                ),
+              ],
+            ),
+            trailing: DropdownButton<bool?>(
+              value: _cameraAllowed,
+              onChanged: (v) => setState(() => _cameraAllowed = v),
+              items: <DropdownMenuItem<bool?>>[
+                DropdownMenuItem<bool?>(
+                    value: null, child: Text(loc.siteSettingsCameraAccessAsk)),
+                DropdownMenuItem<bool?>(
+                    value: true, child: Text(loc.siteSettingsCameraAccessAllow)),
+                DropdownMenuItem<bool?>(
+                    value: false, child: Text(loc.siteSettingsCameraAccessBlock)),
+              ],
+            ),
+          ),
           ..._buildLocationSection(),
           DomainClaimsEditor(
             model: widget.webViewModel,

@@ -65,6 +65,11 @@ class InAppWebViewScreen extends StatefulWidget {
   /// same way. The decision is remembered in-memory for this screen only
   /// (nested screens have no persisted `WebViewModel`).
   final Future<bool> Function(String origin)? onProtectedMediaRequest;
+  /// Web camera-access popup, forwarded from the parent so a site followed
+  /// through an outbound link (e.g. a bank's QR-scan verification page)
+  /// prompts the same way. The decision is remembered in-memory for this
+  /// screen only (nested screens have no persisted `WebViewModel`).
+  final Future<bool> Function(String origin)? onCameraRequest;
   /// Invoked when the user toggles the URL bar from this nested screen's
   /// popup menu. Threaded back to `_WebSpacePageState` so the change
   /// updates the same global preference shown in the parent menu.
@@ -113,6 +118,7 @@ class InAppWebViewScreen extends StatefulWidget {
     this.javascriptEnabled = true,
     this.onConfirmScriptFetch,
     this.onProtectedMediaRequest,
+    this.onCameraRequest,
     this.onShowUrlBarChanged,
     UserProxySettings? proxySettings,
     this.notificationsEnabled = false,
@@ -138,6 +144,11 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   /// burst of `PROTECTED_MEDIA_ID` requests onto one popup.
   bool? _protectedContentAllowed;
   Future<bool>? _protectedMediaInFlight;
+
+  /// In-memory camera-access decision for this nested screen, same
+  /// lifetime and coalescing rules as [_protectedContentAllowed].
+  bool? _cameraAllowed;
+  Future<bool>? _cameraInFlight;
 
   /// Cached InAppWebView widget. Built once in initState and reused on
   /// every build() so setState calls (URL bar updates, find results,
@@ -290,6 +301,23 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                   return await _protectedMediaInFlight!;
                 } finally {
                   _protectedMediaInFlight = null;
+                }
+              },
+        onCameraRequest: widget.onCameraRequest == null
+            ? null
+            : (origin) async {
+                if (_cameraAllowed != null) {
+                  return _cameraAllowed!;
+                }
+                _cameraInFlight ??= () async {
+                  final granted = await widget.onCameraRequest!(origin);
+                  _cameraAllowed = granted;
+                  return granted;
+                }();
+                try {
+                  return await _cameraInFlight!;
+                } finally {
+                  _cameraInFlight = null;
                 }
               },
         notificationsEnabled: widget.notificationsEnabled,

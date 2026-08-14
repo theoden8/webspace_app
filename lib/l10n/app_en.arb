@@ -2073,6 +2073,26 @@
   "@siteSettingsProtectedContentBlockedByEtp": {
     "description": "Subtitle shown under the protected content (DRM) setting when it is forced to block because Tracking Protection is enabled for this site."
   },
+  "siteSettingsCameraAccess": "Camera access",
+  "@siteSettingsCameraAccess": {
+    "description": "List tile label and hint title for the per-site web camera access setting."
+  },
+  "siteSettingsCameraAccessHint": "Controls whether this site may use your camera, for example to scan a QR code in a banking web app.\n\nAsk (default): a popup asks the first time the site requests it, then remembers your choice.\nAlways allow / Always block: skip the popup.",
+  "@siteSettingsCameraAccessHint": {
+    "description": "Hint body describing the per-site web camera access setting (getUserMedia video, e.g. scanning a QR code in a banking web app)."
+  },
+  "siteSettingsCameraAccessAsk": "Ask",
+  "@siteSettingsCameraAccessAsk": {
+    "description": "Camera access dropdown option: ask each time."
+  },
+  "siteSettingsCameraAccessAllow": "Always allow",
+  "@siteSettingsCameraAccessAllow": {
+    "description": "Camera access dropdown option: always allow."
+  },
+  "siteSettingsCameraAccessBlock": "Always block",
+  "@siteSettingsCameraAccessBlock": {
+    "description": "Camera access dropdown option: always block."
+  },
   "siteSettingsGeolocation": "Geolocation",
   "@siteSettingsGeolocation": {
     "description": "Title and hint title for the geolocation section."
@@ -2760,6 +2780,19 @@
   "homeBlockAction": "Block",
   "@homeBlockAction": {
     "description": "Button label to block protected content playback"
+  },
+  "homeCameraAccessTitle": "Allow camera access?",
+  "@homeCameraAccessTitle": {
+    "description": "Title of the web camera access permission dialog"
+  },
+  "homeCameraAccessBody": "{origin} wants to use your camera.\n\nThis lets the site capture video, for example to scan a QR code. Your choice is remembered for this site.",
+  "@homeCameraAccessBody": {
+    "description": "Body of the web camera access permission dialog",
+    "placeholders": {
+      "origin": {
+        "type": "String"
+      }
+    }
   },
   "homeExitFullscreenHint": "Tap the top of the screen to exit full screen",
   "@homeExitFullscreenHint": {

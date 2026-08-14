@@ -5000,6 +5000,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           userScripts: userScripts,
           onConfirmScriptFetch: _confirmScriptFetch,
           onProtectedMediaRequest: _promptProtectedMedia,
+          onCameraRequest: _promptCameraAccess,
           onShowUrlBarChanged: (show) async {
             if (!mounted) return;
             setState(() {
@@ -5074,6 +5075,36 @@ class _WebSpacePageState extends State<WebSpacePage>
       builder: (ctx) => AlertDialog(
         title: Text(loc.homePlayProtectedContentTitle),
         content: Text(loc.homePlayProtectedContentBody(origin)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(loc.homeBlockAction),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(loc.homeAllowAction),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
+  /// Stable callback for the web camera-access popup. Shown the first time
+  /// a site issues a camera-only permission request (getUserMedia video,
+  /// e.g. a banking site's QR scanner). The per-site decision is remembered
+  /// by the caller (the parent webview persists it on the `WebViewModel`;
+  /// nested webviews remember it in-memory), so this only collects user
+  /// intent. The Android app-level permission is handled separately at
+  /// grant time by `CameraPermissionService`.
+  Future<bool> _promptCameraAccess(String origin) async {
+    if (!mounted) return false;
+    final loc = AppLocalizations.of(context);
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(loc.homeCameraAccessTitle),
+        content: Text(loc.homeCameraAccessBody(origin)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -8133,6 +8164,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                                   isActive: () => _currentIndex == index,
                                   onConfirmScriptFetch: _confirmScriptFetch,
                                   onProtectedMediaRequest: _promptProtectedMedia,
+                                  onCameraRequest: _promptCameraAccess,
                                   onUntrustedCertificate: _promptUntrustedCertificate,
                                   onExternalSchemeUrl: (url, info) async {
                                     if (!mounted) return;

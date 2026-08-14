@@ -11,7 +11,7 @@
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Used only when you tap "Use current location" in the per-site location picker, to fill in your coordinates for the site's spoofed location.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Used only when you tap "Apply QR" in per-site settings, to scan a shared site-settings QR code. The camera feed is not stored or transmitted.</string>
+	<string>Used when you tap "Apply QR" in per-site settings to scan a shared site-settings QR code, or when you allow a website to use the camera (for example to scan a QR code in a banking web app). The camera feed is not stored or transmitted by the app.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
