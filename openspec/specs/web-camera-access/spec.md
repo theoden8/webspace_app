@@ -65,15 +65,26 @@ the answer. The stored decision is migrated from the legacy boolean
 
 Per-site settings SHALL expose the decision as a four-way control (Ask /
 Allow / Image or video / Block). Selecting Image or video SHALL prompt
-for the source file. `cameraMode` and any `virtualCameraSource` SHALL
-ride `WebViewModel.toJson`/`fromJson` (`cameraMode` serialized only when
-not `ask` so untouched sites keep byte-identical JSON).
+for the source file and, once one is picked, SHALL preview it at the same
+4:3 cover-fit framing the site receives (a still image drawn cover-fit; a
+video muted, looped, and autoplaying) so the user can confirm the clip
+and see any crop before relying on it. `cameraMode` and any
+`virtualCameraSource` SHALL ride `WebViewModel.toJson`/`fromJson`
+(`cameraMode` serialized only when not `ask` so untouched sites keep
+byte-identical JSON).
 
 #### Scenario: Reset to Ask
 
 **Given** a site whose stored mode is Block
 **When** the user sets the Camera access dropdown to Ask and saves
 **Then** the next camera request shows the popup again
+
+#### Scenario: Picked source is previewed
+
+**Given** a site set to Image or video with a picked source
+**When** the per-site settings screen shows the camera row
+**Then** the source is previewed at 4:3 cover-fit
+**And** a video preview loops muted without a tap
 
 ### Requirement: CAM-003 — Android app-level permission at grant time
 

@@ -79,6 +79,22 @@ void main() {
       expect(VirtualCameraSource.fromJson(null), isNull);
       expect(VirtualCameraSource.fromJson('nope'), isNull);
     });
+
+    test('bytes decodes the base64 payload (drives the preview)', () {
+      const s = VirtualCameraSource(
+        kind: 'image',
+        // base64 of the four bytes DE AD BE EF
+        dataUrl: 'data:image/png;base64,3q2+7w==',
+        fileName: 'x.png',
+      );
+      expect(s.bytes, [0xDE, 0xAD, 0xBE, 0xEF]);
+    });
+
+    test('bytes returns null for a payload with no base64 marker', () {
+      const s = VirtualCameraSource(
+        kind: 'image', dataUrl: 'data:image/png,notbase64', fileName: 'x');
+      expect(s.bytes, isNull);
+    });
   });
 
   group('CameraDecision.toBridgeJson', () {

@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 /// Per-site web camera access mode.
 ///
 /// - [ask]: no decision recorded yet. The first camera-only `getUserMedia`
@@ -54,6 +57,20 @@ class VirtualCameraSource {
   });
 
   bool get isVideo => kind == 'video';
+
+  /// Decoded bytes of the `data:` payload (after `;base64,`), or null when
+  /// the URL is malformed. Used by the settings preview to render an image
+  /// without a WebView.
+  Uint8List? get bytes {
+    const marker = ';base64,';
+    final at = dataUrl.indexOf(marker);
+    if (at < 0) return null;
+    try {
+      return base64Decode(dataUrl.substring(at + marker.length));
+    } catch (_) {
+      return null;
+    }
+  }
 
   Map<String, dynamic> toJson() => {
         'kind': kind,

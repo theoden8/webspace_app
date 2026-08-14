@@ -9,6 +9,7 @@ import 'package:webspace/settings/camera.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/virtual_camera_service.dart';
+import 'package:webspace/widgets/virtual_camera_preview.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
@@ -1988,6 +1989,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ],
               ),
+            ),
+          // Preview the picked source at the same 4:3 cover-fit framing the
+          // site receives, so the user can confirm the clip loops and see any
+          // crop before relying on it.
+          if (_cameraMode == CameraAccessMode.virtual &&
+              _virtualCameraSource != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 16, right: 16, bottom: 12),
+              child: VirtualCameraPreview(source: _virtualCameraSource!),
             ),
           ..._buildLocationSection(),
           DomainClaimsEditor(
