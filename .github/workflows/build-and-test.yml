@@ -386,15 +386,12 @@ jobs:
           force-avd-creation: false
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           disable-animations: true
+          # The action runs each script line as a separate `sh -c`, so the
+          # test invocation lives in a single-command wrapper script.
           script: |
             adb wait-for-device
             adb shell input keyevent 82
-            DEVICE_ID=$(adb devices | grep -w 'device' | head -1 | awk '{print $1}')
-            # Hard wall-clock cap: a webview mount can deadlock below the
-            # Dart timeout layer (same rationale as the desktop loops).
-            timeout -k 30s 25m fvm flutter test \
-              integration_test/white_screen_test.dart \
-              -d "$DEVICE_ID" --flavor fdebug
+            bash scripts/run_android_integration_tests.sh
 
       - name: Create AVD and generate screenshots
         if: github.event_name == 'workflow_dispatch'
