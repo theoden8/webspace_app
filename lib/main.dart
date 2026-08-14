@@ -587,11 +587,12 @@ void main() async {
   // console). Compiled out of release builds via kDebugMode.
   final swMain = kDebugMode ? (Stopwatch()..start()) : null;
 
-  // Adb white-screen tier (INTEG-011): a debug launch may carry a seeded
-  // site list in the intent extra; it must land in prefs before the page
-  // state reads them.
-  if (kDebugMode && Platform.isAndroid) {
-    await DiagSeed.applyFromLaunchIntent();
+  // Externally-driven test tiers (INTEG-011/012): a debug launch may
+  // carry a seeded site list (Android intent extra, or WS_DIAG_SEED env
+  // for a simctl driver); it must land in prefs before the page state
+  // reads them.
+  if (kDebugMode) {
+    await DiagSeed.applyFromLaunch();
   }
 
   // Imported HTML files are the only copy of user-supplied content, so they

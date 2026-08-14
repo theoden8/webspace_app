@@ -46,6 +46,7 @@ server_pid=""
 cleanup() {
   if [ -n "$server_pid" ]; then kill "$server_pid" 2>/dev/null || true; fi
   adb shell settings put global always_finish_activities 0 >/dev/null 2>&1 || true
+  adb shell settings put global hide_error_dialogs 0 >/dev/null 2>&1 || true
   adb shell svc power stayon false >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
@@ -57,6 +58,28 @@ page() { # $1 = css background, $2 = optional link target (full-page anchor)
 page '#123524' 'magenta.html' > "$www/dark.html"
 page '#8c1d5a' > "$www/magenta.html"
 page '#ffffff' > "$www/white.html"
+
+# Same dark fill, plus a JS Notification on every load: a forced
+# background refresh reloads the page, so a new OS notification is the
+# outside-observable proof the whole NOTIF-005-A pipeline ran (worker ->
+# engine -> site reload -> polyfill -> flutter_local_notifications).
+cat > "$www/notif.html" <<'EOF'
+<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">
+<style>html,body{margin:0;height:100%;background:#123524;}</style></head><body><script>
+(function () {
+  function fire() {
+    try { new Notification('ws-diag-bg', {body: String(Date.now())}); } catch (e) {}
+  }
+  if (typeof Notification === 'undefined') return;
+  if (Notification.permission === 'granted') { fire(); return; }
+  try {
+    Notification.requestPermission().then(function (p) {
+      if (p === 'granted') fire();
+    });
+  } catch (e) {}
+})();
+</script></body></html>
+EOF
 
 python3 - "$www" > "$server_log" 2>&1 <<'EOF' &
 import http.server, os, sys
@@ -90,10 +113,11 @@ echo "Serving diag pages from $base (host pid $server_pid)"
 run_tag="adb-$(date +%s)"
 dark_site_id="ws-$run_tag-dark"
 white_site_id="ws-$run_tag-white"
+notif_site_id="ws-$run_tag-notif"
 
-seed_b64() { # $1 = page basename, $2 = siteId
-  printf '{"sites":[{"name":"Diag","url":"%s/%s","siteId":"%s"}]}' \
-    "$base" "$1" "$2" | base64 | tr -d '\n'
+seed_b64() { # $1 = page basename, $2 = siteId, $3 = extra site fields (optional)
+  printf '{"sites":[{"name":"Diag","url":"%s/%s","siteId":"%s"%s}]}' \
+    "$base" "$1" "$2" "${3:-}" | base64 | tr -d '\n'
 }
 
 echo "== Building default-entrypoint fdebug APK"
@@ -106,7 +130,11 @@ fi
 adb install -r "$apk"
 # Pristine state: the in-process suite ran this package earlier in the
 # same emulator session and may have left containers/secure storage.
+# pm clear also resets runtime permission grants, so the notification
+# grant must come after it (pre-granted = no permission dialog steals
+# the screen when the notif scenario's page requests permission).
 adb shell pm clear "$pkg" >/dev/null
+adb shell pm grant "$pkg" android.permission.POST_NOTIFICATIONS
 
 sample="$www/frame.raw"
 wait_for_pixels() { # $1 = slug, $2 = deadline secs, rest = classifier expectation
@@ -136,6 +164,12 @@ adb shell input keyevent KEYCODE_WAKEUP
 adb shell input keyevent 82
 adb shell svc power stayon true
 adb shell settings put global always_finish_activities 0
+# A system ANR/crash dialog (e.g. a launcher ANR on the loaded CI host)
+# parks a scrim over the whole screen and corrupts every pixel sample.
+# Hide future dialogs and dismiss any that is already showing.
+adb shell settings put global hide_error_dialogs 1
+adb shell input keyevent 4
+sleep 1
 
 echo "== Scenario A: pinned-shortcut cold start onto the seeded dark site"
 adb shell am force-stop "$pkg"
@@ -175,5 +209,83 @@ adb shell am start -W -n "$component" \
   --es ws_diag_seed "$(seed_b64 white.html "$white_site_id")" \
   --es siteId "$white_site_id"
 wait_for_pixels white-control 180 --expect-blank-white
+
+# ---- Background refresh (NOTIF-005-A / INTEG-012) ----
+
+notif_count() {
+  adb shell dumpsys notification 2>/dev/null \
+    | grep -c "NotificationRecord.*$pkg" || true
+}
+
+dump_bg_diagnostics() { # $1 = slug
+  adb shell dumpsys jobscheduler 2>/dev/null | grep -B2 -A12 "$pkg" \
+    > "$artifacts/fail-$1.jobscheduler.txt" || true
+  adb shell dumpsys notification 2>/dev/null \
+    > "$artifacts/fail-$1.notifications.txt" || true
+  adb logcat -d -t 500 > "$artifacts/fail-$1.logcat.txt" 2>/dev/null || true
+}
+
+echo "== Scenario F: forced periodic refresh reloads the notif site in background"
+adb shell am force-stop "$pkg"
+adb shell am start -W -n "$component" \
+  --es ws_diag_seed "$(seed_b64 notif.html "$notif_site_id" ',"notificationsEnabled":true')" \
+  --es siteId "$notif_site_id"
+wait_for_pixels notif-cold-start 180 --expect-dominant "$dark"
+
+# The foreground load must itself post one notification first: pins the
+# polyfill -> flutter_local_notifications pipeline before any background
+# step, and makes the baseline deterministic (the foreground post can
+# land a beat after the pixels settle).
+deadline=$(( $(date +%s) + 60 ))
+while :; do
+  baseline="$(notif_count)"
+  [ "$baseline" -ge 1 ] && break
+  if [ "$(date +%s)" -ge "$deadline" ]; then
+    echo "FAIL: foreground load posted no notification within 60s" >&2
+    dump_bg_diagnostics notif-foreground-post
+    exit 1
+  fi
+  sleep 2
+done
+echo "  notifications posted after foreground load: $baseline"
+adb shell input keyevent 3
+sleep 3
+
+# NOTIF-005-A schedules unique periodic work (webspace-notification-refresh)
+# whenever a notification site exists; WorkManager backs it with a
+# JobScheduler job. No job = the scheduling contract itself broke.
+job_ids="$(adb shell dumpsys jobscheduler 2>/dev/null \
+  | grep "$pkg/androidx.work" \
+  | sed -n 's/.*#u[0-9a]*\/\([0-9]\{1,\}\):.*/\1/p' | sort -u)"
+if [ -z "$job_ids" ]; then
+  echo "FAIL: no WorkManager job scheduled for $pkg (NOTIF-005-A)" >&2
+  dump_bg_diagnostics no-workmanager-job
+  exit 1
+fi
+echo "  forcing WorkManager job(s): $(echo "$job_ids" | tr '\n' ' ')"
+for id in $job_ids; do
+  adb shell cmd jobscheduler run -f "$pkg" "$id" || true
+done
+
+deadline=$(( $(date +%s) + 90 ))
+while :; do
+  count="$(notif_count)"
+  if [ "$count" -gt "$baseline" ]; then
+    echo "  background refresh posted a notification ($baseline -> $count)"
+    break
+  fi
+  if [ "$(date +%s)" -ge "$deadline" ]; then
+    echo "FAIL: no new notification within 90s of forcing the refresh job" >&2
+    echo "  count stayed at $count (baseline $baseline)" >&2
+    dump_bg_diagnostics notif-refresh
+    exit 1
+  fi
+  sleep 2
+done
+
+# Ties back into BUG-001: the site that just reloaded offscreen must
+# still paint when brought back onstage.
+adb shell am start -W -n "$component"
+wait_for_pixels notif-foreground-dark 90 --expect-dominant "$dark"
 
 echo "White-screen lifecycle tier passed."

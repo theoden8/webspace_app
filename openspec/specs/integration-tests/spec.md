@@ -607,6 +607,74 @@ sample (observed as exact per-channel halving of the page colors).
   call is additionally compiled out of release via `kDebugMode`, so
   production behavior is unchanged
 
+#### Scenario: System error dialogs cannot corrupt samples
+
+- **Given** the CI emulator host is loaded enough that a foreign app
+  (e.g. the launcher) can ANR, parking a scrimmed system dialog over
+  the whole screen
+- **When** the harness starts
+- **Then** it sets `hide_error_dialogs`, dismisses any dialog already
+  showing, and restores the setting in its exit trap
+
+---
+
+### Requirement: INTEG-012 — Background refresh drives an observable notification
+
+The lifecycle harness SHALL verify the Android background-refresh
+contract (`NOTIF-005-A`, [web-push-notifications](../web-push-notifications/spec.md))
+end to end from outside the process: a site seeded with
+`notificationsEnabled` whose page posts a JS `Notification` on every
+load, the app backgrounded, and the WorkManager periodic job
+(`webspace-notification-refresh`) forced via
+`adb shell cmd jobscheduler run -f` — the OS notification that
+appears (read via `dumpsys notification`) is proof the full pipeline
+ran with no foreground activity: worker → engine dispatch →
+`onBackgroundRefresh` site reload → `Notification` polyfill →
+`flutter_local_notifications`.
+
+Cross-platform posture: the seed transport is platform-agnostic
+(`ws_diag_seed` intent extra on Android; `WS_DIAG_SEED` process
+environment elsewhere, which `simctl launch` forwards via its
+`SIMCTL_CHILD_` prefix), and the pixel classifier is already
+device-neutral, so a future `simctl` driver reuses both. The iOS
+background contract (`NOTIF-005-I`, `BGAppRefreshTask`) is NOT
+CI-drivable: `BGTaskScheduler` tasks can only be simulated with a
+debugger attached (the private
+`_simulateLaunchForTaskWithIdentifier:` LLDB call), which headless
+`simctl` cannot do — iOS keeps its structural coverage
+(`test/js/native_bgtask_completion_funnel.test.js`) and an iOS pixel
+tier for the non-background scenarios remains future scope.
+
+#### Scenario: Scheduling contract is asserted, not assumed
+
+- **Given** the seeded notification site is active
+- **When** the harness lists JobScheduler jobs for the app package
+- **Then** at least one `androidx.work` job exists, else the run
+  fails naming NOTIF-005-A (the periodic work was never scheduled)
+
+#### Scenario: Foreground pipeline is pinned before the background step
+
+- **Given** the notification site's page just painted
+- **When** the harness polls `dumpsys notification`
+- **Then** the foreground load itself must have posted a notification
+  (polyfill → local-notifications proven working), and that count is
+  the baseline the background assertion increments from
+
+#### Scenario: Forced periodic refresh posts a new notification while backgrounded
+
+- **Given** the app is backgrounded (HOME) with the process alive
+- **When** the harness forces the WorkManager job(s)
+- **Then** a new OS notification from the app appears within the
+  polling deadline, and on failure the harness saves the jobscheduler
+  dump, the notification dump, and a logcat tail as artifacts
+
+#### Scenario: The refreshed site still paints on return
+
+- **Given** the background refresh reloaded the site offscreen
+- **When** the app is foregrounded again
+- **Then** the composited frame reaches the page color (the BUG-001
+  assertion applied to the post-refresh surface)
+
 ---
 
 ## Known Limitations
@@ -665,7 +733,8 @@ sample (observed as exact per-channel halving of the page colors).
   [`test/surface_diag_classification_test.dart`](../../../test/surface_diag_classification_test.dart))
 - [`scripts/run_android_lifecycle_tests.sh`](../../../scripts/run_android_lifecycle_tests.sh)
   — INTEG-011: adb-driven lifecycle tier (warm start, bfcache back,
-  activity recreation, white control). Frame classifier:
+  activity recreation, white control); INTEG-012: background-refresh
+  scenario (NOTIF-005-A). Frame classifier:
   [`scripts/classify_window_pixels.py`](../../../scripts/classify_window_pixels.py);
   launch seeding: [`lib/services/diag_seed.dart`](../../../lib/services/diag_seed.dart)
   (`getDiagSeed` in MainActivity, debuggable builds only; parsing

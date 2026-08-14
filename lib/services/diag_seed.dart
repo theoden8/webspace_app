@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -14,12 +15,13 @@ class DiagSeedData {
   const DiagSeedData({required this.sites});
 }
 
-/// Launch-time site seeding for the adb-driven white-screen tier
-/// (INTEG-011). The lifecycle scenarios (warm start, activity recreation,
-/// bfcache back navigation) drive the real APK from outside the process,
-/// where the in-process test's SharedPreferences mocking does not exist,
-/// so the harness passes a base64 JSON site list as an intent extra and
-/// the app seeds itself before the first prefs read.
+/// Launch-time site seeding for the externally-driven test tiers
+/// (INTEG-011/012). The lifecycle scenarios (warm start, activity
+/// recreation, bfcache back navigation, background refresh) drive the
+/// real app from outside the process, where the in-process test's
+/// SharedPreferences mocking does not exist, so the harness passes a
+/// base64 JSON site list (Android intent extra / `WS_DIAG_SEED` env)
+/// and the app seeds itself before the first prefs read.
 ///
 /// Debug builds only: the call is gated on [kDebugMode] and the Kotlin
 /// side refuses the extra on non-debuggable builds, so a release build
@@ -47,6 +49,7 @@ class DiagSeed {
           siteId: (raw as Map<String, dynamic>)['siteId'] as String?,
           initUrl: raw['url'] as String,
           name: raw['name'] as String? ?? 'Diag',
+          notificationsEnabled: raw['notificationsEnabled'] as bool? ?? false,
         ),
     ];
     if (sites.isEmpty) {
@@ -55,20 +58,24 @@ class DiagSeed {
     return DiagSeedData(sites: sites);
   }
 
-  /// Reads the `ws_diag_seed` launch-intent extra and, when present,
-  /// replaces the persisted site list with the seeded one and enables
-  /// demo mode. Returns whether a seed was applied. Must complete before
-  /// the page state loads models from prefs.
-  static Future<bool> applyFromLaunchIntent() async {
+  /// Reads the seed from the `ws_diag_seed` launch-intent extra (Android)
+  /// or the `WS_DIAG_SEED` process environment (iOS/macOS: `simctl launch`
+  /// forwards `SIMCTL_CHILD_`-prefixed host variables, so a future simctl
+  /// driver reuses this transport unchanged) and, when present, replaces
+  /// the persisted site list with the seeded one and enables demo mode.
+  /// Returns whether a seed was applied. Must complete before the page
+  /// state loads models from prefs.
+  static Future<bool> applyFromLaunch() async {
     if (!kDebugMode) return false;
     String? encoded;
     try {
       encoded = await _channel.invokeMethod<String>('getDiagSeed');
     } on MissingPluginException {
-      return false;
+      encoded = null;
     } on PlatformException {
-      return false;
+      encoded = null;
     }
+    encoded ??= Platform.environment['WS_DIAG_SEED'];
     if (encoded == null || encoded.isEmpty) return false;
     final DiagSeedData seed;
     try {

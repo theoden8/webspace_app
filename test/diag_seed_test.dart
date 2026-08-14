@@ -40,6 +40,17 @@ void main() {
     expect(first, isNot(second));
   });
 
+  test('passes notificationsEnabled through, defaulting off', () {
+    final seed = DiagSeed.parse(encodeSeed({
+      'sites': [
+        {'name': 'N', 'url': 'http://h/n', 'notificationsEnabled': true},
+        {'name': 'P', 'url': 'http://h/p'},
+      ],
+    }));
+    expect(seed.sites[0].notificationsEnabled, isTrue);
+    expect(seed.sites[1].notificationsEnabled, isFalse);
+  });
+
   test('rejects an empty site list', () {
     expect(() => DiagSeed.parse(encodeSeed({'sites': []})),
         throwsFormatException);
