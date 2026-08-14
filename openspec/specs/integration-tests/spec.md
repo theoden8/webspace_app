@@ -544,7 +544,11 @@ is never read back), so every seeded launch also carries the
 production pinned-shortcut `siteId` extra: activation goes through
 `StartupRestoreEngine.resolveLaunch`'s direct match — the same path
 a launcher shortcut tap takes, making the cold-start scenario itself
-a pixel check on the shortcut launch path (Attempt 2's trigger).
+a pixel check on the shortcut launch path (Attempt 2's trigger). The
+seed also disables `fullscreenOnShortcut`: the first immersive entry
+pops Android's "viewing full screen" education bubble, whose
+screen-wide 50% dim reaches the composited frame and corrupts every
+sample (observed as exact per-channel halving of the page colors).
 
 #### Scenario: Warm start repaints the re-attached surface
 

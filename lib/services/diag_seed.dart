@@ -84,6 +84,11 @@ class DiagSeed {
     await prefs.remove('webspaces');
     await prefs.setString('selectedWebspaceId', kAllWebspaceId);
     await prefs.setBool('showUrlBar', false);
+    // The harness activates sites through the shortcut path, which enters
+    // fullscreen by default; the first immersive entry pops Android's
+    // "viewing full screen" education bubble, whose screen-wide 50% dim
+    // corrupts every pixel sample.
+    await prefs.setBool('fullscreenOnShortcut', false);
     isDemoMode = true;
     LogService.instance.log('DiagSeed',
         'seeded ${seed.sites.length} sites: '
