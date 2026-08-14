@@ -39,6 +39,23 @@ dark=123524
 magenta=8c1d5a
 mkdir -p "$artifacts"
 
+# System error dialogs: a launcher ANR on the loaded CI host parks a
+# scrimmed, non-cancelable dialog over everything and corrupts every
+# pixel sample (two runs failed on exactly this, uniform=0.578 both
+# times). hide_error_dialogs only gates future dialogs — the CI step
+# also sets it before the in-process suite so the whole emulator
+# session is covered — and the only reliable dismissal of one already
+# parked is force-stopping the ANR'd process; the launcher restarts on
+# the next HOME press.
+adb shell settings put global hide_error_dialogs 1
+home_pkg="$(adb shell cmd package resolve-activity --brief \
+  -a android.intent.action.MAIN -c android.intent.category.HOME 2>/dev/null \
+  | tail -1 | cut -d/ -f1 | tr -d '[:space:]')"
+if [ -n "$home_pkg" ] && [ "$home_pkg" != "$pkg" ]; then
+  adb shell am force-stop "$home_pkg" 2>/dev/null || true
+fi
+adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS >/dev/null 2>&1 || true
+
 www="$(mktemp -d)"
 server_log="$www/server.log"
 server_pid=""
@@ -164,12 +181,6 @@ adb shell input keyevent KEYCODE_WAKEUP
 adb shell input keyevent 82
 adb shell svc power stayon true
 adb shell settings put global always_finish_activities 0
-# A system ANR/crash dialog (e.g. a launcher ANR on the loaded CI host)
-# parks a scrim over the whole screen and corrupts every pixel sample.
-# Hide future dialogs and dismiss any that is already showing.
-adb shell settings put global hide_error_dialogs 1
-adb shell input keyevent 4
-sleep 1
 
 echo "== Scenario A: pinned-shortcut cold start onto the seeded dark site"
 adb shell am force-stop "$pkg"

@@ -610,11 +610,16 @@ sample (observed as exact per-channel halving of the page colors).
 #### Scenario: System error dialogs cannot corrupt samples
 
 - **Given** the CI emulator host is loaded enough that a foreign app
-  (e.g. the launcher) can ANR, parking a scrimmed system dialog over
-  the whole screen
-- **When** the harness starts
-- **Then** it sets `hide_error_dialogs`, dismisses any dialog already
-  showing, and restores the setting in its exit trap
+  (in practice: the launcher, deterministically) ANRs, parking a
+  scrimmed, non-cancelable dialog over the whole screen
+- **When** the emulator session starts
+- **Then** the CI step sets `hide_error_dialogs` before the
+  in-process suite (the flag only gates future dialogs), the harness
+  sets it again first-thing for standalone runs, force-stops the
+  resolved HOME package to dismiss any dialog already parked (an ANR
+  dialog ignores BACK; killing its process is the only reliable
+  dismissal, and the launcher restarts on the next HOME press), and
+  restores the setting in its exit trap
 
 ---
 
