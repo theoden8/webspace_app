@@ -64,9 +64,12 @@ class SurfaceDiagNative {
         'height': physicalRect.height.round(),
       });
       if (res == null) return WindowRegionSample.unsupported;
+      // Kotlin sends a signed 32-bit ARGB int; normalize to unsigned so
+      // 0xFF123524 stays 0xFF123524 on the Dart side.
+      final rawColor = res['dominantColor'] as int?;
       return WindowRegionSample(
         status: res['status'] as String? ?? 'unsupported',
-        dominantColor: res['dominantColor'] as int?,
+        dominantColor: rawColor == null ? null : rawColor & 0xFFFFFFFF,
         uniformFraction: (res['uniformFraction'] as num?)?.toDouble(),
       );
     } on MissingPluginException {

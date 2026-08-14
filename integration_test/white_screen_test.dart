@@ -139,25 +139,10 @@ void main() {
   }
 
   // pumpAndSettle deadlocks on a live webview (see lazy_webview_loading_test),
-  // so poll in fixed slices until the predicate matches.
-  Future<void> pumpUntil(
-    WidgetTester tester,
-    String description,
-    bool Function() predicate, {
-    Duration timeout = const Duration(seconds: 45),
-  }) async {
-    final deadline = DateTime.now().add(timeout);
-    while (DateTime.now().isBefore(deadline)) {
-      await tester.pump(const Duration(milliseconds: 250));
-      if (predicate()) return;
-    }
-    dumpDiagnostics(tester, description);
-    fail('Timed out after ${timeout.inSeconds}s waiting for: $description');
-  }
-
-  // Same slicing, re-sampling the composited window each pass until the
-  // sample is accepted or the deadline passes. On timeout the last sample is
-  // the diagnostic: uniform white with an ok status IS a white screen.
+  // so poll in fixed slices, re-sampling the composited window each pass
+  // until the sample is accepted or the deadline passes. On timeout the last
+  // sample is the diagnostic: uniform white with an ok status IS a white
+  // screen.
   Future<WindowRegionSample> pollSite(
     WidgetTester tester,
     String siteId,
@@ -247,13 +232,20 @@ void main() {
       // Scenario 2: detector sensitivity control. A genuinely white page is
       // pixel-identical to the BUG-001 blank, so the sampler MUST classify it
       // uniformBlank; if this fails, every other scenario is vacuous.
+      // Require actual near-white pixels, not just the blank verdict: the
+      // first emulator run showed the pre-composite platform-view hole
+      // samples as uniform 0x00000000 (alpha 0), which also classifies
+      // blank; waiting for white proves the white *content* composited.
       await openSiteDrawer(tester);
       await tapSite(tester, 'White');
       await pollSite(
           tester,
           'ws-white',
           'scenario 2: white control page classifies as uniformBlank',
-          (s) => SurfaceDiagNative.classify(s) == WindowSampleVerdict.uniformBlank);
+          (s) =>
+              s.ok &&
+              colorNear(s.dominantColor, 0xFFFFFFFF) &&
+              SurfaceDiagNative.classify(s) == WindowSampleVerdict.uniformBlank);
 
       // Scenario 3: switch back to an already-loaded site (_setCurrentIndex
       // reuse path, Attempt 3's chokepoint).
@@ -262,13 +254,42 @@ void main() {
       await pollSite(tester, 'ws-dark',
           'scenario 3: loaded-site switch repaints dark content', darkVisible);
 
-      // Scenario 4: reload funnel (Attempt 9). The refresh button swaps to a
-      // stop icon while loading; wait for it to settle back, then reload and
-      // require the recommitted document on the window.
-      await pumpUntil(tester, 'scenario 4: refresh button settled',
-          () => find.byIcon(Icons.refresh).evaluate().isNotEmpty);
-      await tester.tap(find.byIcon(Icons.refresh).first);
-      await tester.pump();
+      // Scenario 4: reload funnel (Attempt 9). The Refresh action lives
+      // inside the AppBar's overflow popup menu (it swaps to Stop while
+      // loading), so the icon only exists in the tree while the menu is
+      // open: open the menu, tap Refresh, then require the recommitted
+      // document on the window. Menu contents are built at open time, so a
+      // menu showing Stop is dismissed and reopened until the load settles.
+      final refreshDeadline = DateTime.now().add(const Duration(seconds: 45));
+      var refreshTapped = false;
+      while (!refreshTapped) {
+        if (DateTime.now().isAfter(refreshDeadline)) {
+          dumpDiagnostics(tester, 'scenario 4: Refresh menu action not reachable');
+          fail('Timed out opening the overflow menu / finding Refresh');
+        }
+        final refresh = find.byIcon(Icons.refresh);
+        if (refresh.evaluate().isNotEmpty) {
+          await tester.tap(refresh.first);
+          await tester.pump();
+          refreshTapped = true;
+          break;
+        }
+        final menuOpen =
+            find.byType(PopupMenuItem<String>).evaluate().isNotEmpty;
+        if (menuOpen) {
+          // Menu is open but shows Stop: dismiss and reopen next pass.
+          await tester.tapAt(const Offset(5, 5));
+        } else {
+          final menuButton = find.descendant(
+              of: find.byType(AppBar),
+              matching: find.byType(PopupMenuButton<String>));
+          if (menuButton.evaluate().isNotEmpty) {
+            await tester.tap(menuButton.first);
+          }
+        }
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+      }
       await pollSite(tester, 'ws-dark',
           'scenario 4: reload recommits dark content', darkVisible);
 

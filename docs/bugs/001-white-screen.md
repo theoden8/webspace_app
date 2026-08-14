@@ -316,6 +316,10 @@ causal claim is unverified, exactly as in Attempt 8.
   on a blank window, with a white control page proving the detector is not vacuous. Warm start / activity recreation /
   bfcache back-nav still need an adb-driven tier. Not yet wired into production
   diagnostics; doing so would give `SurfaceDiag` log lines a `window=` classification.
+  First emulator run confirmed the sampler reads real webview pixels on SwiftShader and
+  surfaced a third signature: a platform view that has not composited at all samples as
+  uniform 0x00000000 (alpha 0) — distinct from the white (fresh fill) and black
+  (re-attach) blanks.
 
 ## Diagnostic checklist (when this recurs)
 
