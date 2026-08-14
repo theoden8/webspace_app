@@ -81,6 +81,29 @@ function setupCameraDom({ decision, noBridge = false } = {}) {
 
   // Canvas: jsdom returns a real element but getContext('2d') is null and
   // captureStream is absent. Stub both so streamFromMedia() completes.
+  // Video source: jsdom won't decode a data: URL, so hand back a fake
+  // <video> that fires oncanplay and records the flags the shim sets. Real
+  // <canvas> creation is delegated to jsdom so the captureStream stub below
+  // still applies.
+  calls.videos = [];
+  const origCreate = window.document.createElement.bind(window.document);
+  window.document.createElement = function createElement(tag) {
+    if (String(tag).toLowerCase() === 'video') {
+      const v = {
+        muted: false, defaultMuted: false, loop: false, playsInline: false,
+        videoWidth: 320, videoHeight: 240, oncanplay: null, onerror: null,
+        setAttribute() {},
+        play() { calls.videoPlayed = true; return { catch() {} }; },
+        pause() { calls.videoPaused = true; },
+        load() {},
+        set src(_v) { setTimeout(() => this.oncanplay && this.oncanplay(), 0); },
+      };
+      calls.videos.push(v);
+      return v;
+    }
+    return origCreate(tag);
+  };
+
   const proto = window.HTMLCanvasElement.prototype;
   proto.getContext = function getContext() {
     return { drawImage() {} };
@@ -133,6 +156,25 @@ test('virtual decision resolves a synthetic stream and never opens the real came
   assert.ok(track, 'expected a synthetic video track');
   assert.equal(track.label, 'Integrated Camera');
   assert.equal(calls.realGum, 0, 'real camera must not be opened in virtual mode');
+});
+
+test('virtual decision with a video source loops a muted clip as the camera', async () => {
+  const { window, calls } = setupCameraDom({
+    decision: {
+      mode: 'virtual',
+      source: { kind: 'video', dataUrl: 'data:video/mp4;base64,AAAA' },
+    },
+  });
+  const stream = await window.navigator.mediaDevices.getUserMedia({ video: true });
+  const track = stream.getVideoTracks()[0];
+  assert.ok(track, 'expected a synthetic video track');
+  assert.equal(calls.realGum, 0, 'real camera must not be opened');
+  assert.equal(calls.videos.length, 1, 'exactly one <video> element built');
+  // The headline behaviour: the source clip is muted and looped so a scanner
+  // sampling frames over time keeps seeing it.
+  assert.equal(calls.videos[0].loop, true, 'source video must loop');
+  assert.equal(calls.videos[0].muted, true, 'source video must be muted');
+  assert.equal(calls.videoPlayed, true, 'source video must start playing');
 });
 
 test('virtual mode with no source rejects rather than opening the real camera', async () => {
