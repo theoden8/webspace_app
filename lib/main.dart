@@ -48,6 +48,7 @@ import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/cookie_isolation.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/surface_repaint_engine.dart';
+import 'package:webspace/services/diag_seed.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
 import 'package:webspace/services/archive.dart';
@@ -585,6 +586,13 @@ void main() async {
   // Debug-only startup phase timing (see 'Startup' tag in the log screen /
   // console). Compiled out of release builds via kDebugMode.
   final swMain = kDebugMode ? (Stopwatch()..start()) : null;
+
+  // Adb white-screen tier (INTEG-011): a debug launch may carry a seeded
+  // site list in the intent extra; it must land in prefs before the page
+  // state reads them.
+  if (kDebugMode && Platform.isAndroid) {
+    await DiagSeed.applyFromLaunchIntent();
+  }
 
   // Imported HTML files are the only copy of user-supplied content, so they
   // live in their own persistent store and survive upgrades. The HTML cache

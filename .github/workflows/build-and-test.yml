@@ -387,11 +387,22 @@ jobs:
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           disable-animations: true
           # The action runs each script line as a separate `sh -c`, so the
-          # test invocation lives in a single-command wrapper script.
+          # test invocations live in single-command wrapper scripts. The
+          # lifecycle tier (INTEG-011) must run after the in-process suite:
+          # it replaces the test-entrypoint APK the suite installed.
           script: |
             adb wait-for-device
             adb shell input keyevent 82
             bash scripts/run_android_integration_tests.sh
+            bash scripts/run_android_lifecycle_tests.sh
+
+      - name: Upload white-screen lifecycle diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: white-screen-adb-diagnostics
+          path: build/white_screen_adb/
+          if-no-files-found: ignore
 
       - name: Create AVD and generate screenshots
         if: github.event_name == 'workflow_dispatch'

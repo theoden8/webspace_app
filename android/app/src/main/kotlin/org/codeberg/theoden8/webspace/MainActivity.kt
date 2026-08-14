@@ -1,6 +1,7 @@
 package org.codeberg.theoden8.webspace
 
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
@@ -134,6 +135,15 @@ class MainActivity: FlutterActivity() {
                         )
                     }
                     result.success(true)
+                }
+                "getDiagSeed" -> {
+                    // Adb white-screen tier (INTEG-011). Debuggable builds
+                    // only: MainActivity is exported, so on a release build
+                    // a hostile launch intent must not be able to swap the
+                    // user's site list.
+                    val debuggable =
+                        (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+                    result.success(if (debuggable) intent?.getStringExtra("ws_diag_seed") else null)
                 }
                 "getLaunchSiteId" -> {
                     val siteId = intent?.getStringExtra("siteId")

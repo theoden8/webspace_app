@@ -28,15 +28,20 @@ server. The device-boot plumbing exists in this workflow for the
 fastlane-driven Android/iOS screenshot pipeline (see
 [`screenshots`](../screenshots/spec.md) — `build-android`'s
 `reactivecircus/android-emulator-runner` and `build-apple`'s
-`simctl boot`). The first Android-emulator scenario is wired in:
+`simctl boot`). The Android-emulator scenarios are wired in:
 `white_screen_test.dart` (INTEG-010) runs inside the `build-android`
 job on every push/PR, on the same AVD profile and snapshot cache the
 screenshots lane uses (the emulator prerequisite steps are ungated;
-only the screenshot generation itself stays `workflow_dispatch`). It
-is Android-only (window-level `PixelCopy`), so both desktop loops
-skip it by basename exactly as they skip `screenshot_test.dart`. A
-broader mobile tier (iOS Simulator) remains future scope and would
-extend the same boot setup rather than the desktop `-d` path.
+only the screenshot generation itself stays `workflow_dispatch`),
+followed in the same emulator step by the adb-driven lifecycle tier
+(INTEG-011), which drives warm start, bfcache back navigation, and
+activity recreation from outside the app process. INTEG-010 is
+Android-only (window-level `PixelCopy`), so both desktop loops skip
+it by basename exactly as they skip `screenshot_test.dart`; the
+lifecycle tier is a shell harness, not an `integration_test` target,
+so the desktop loops never see it. A broader mobile tier (iOS
+Simulator) remains future scope and would extend the same boot setup
+rather than the desktop `-d` path.
 
 ## Status
 
@@ -465,7 +470,8 @@ The suite SHALL cover at least: fresh first activation (BUG-001 gap
 (`PAUSE-019`), and fresh activation with other sites live
 (`PAUSE-017`). Warm start, activity recreation, and bfcache back
 navigation need real activity lifecycle transitions an in-process
-test cannot produce; they are future adb-driven scope.
+test cannot produce; those belong to the adb-driven lifecycle tier
+(INTEG-011).
 
 #### Scenario: White control page proves the detector is not vacuous
 
@@ -508,6 +514,88 @@ test cannot produce; they are future adb-driven scope.
   because the `PixelCopy` channel exists only on Android and the
   `skip: !Platform.isAndroid` guard would still cost a desktop debug
   build per run
+
+---
+
+### Requirement: INTEG-011 — Adb-driven white-screen lifecycle tier
+
+`scripts/run_android_lifecycle_tests.sh` SHALL drive the BUG-001
+entry paths that require real activity lifecycle transitions — warm
+start (`PAUSE-020`), back navigation into a back/forward-cached entry
+(`PAUSE-018`), and activity recreation — from **outside** the app
+process via adb, because an in-process integration test dies with the
+activity it rides in. The symptom SHALL be read from the composited
+frame (`adb exec-out screencap`, i.e. SurfaceFlinger output, the same
+plane the in-app window sampler measures) and classified by
+`scripts/classify_window_pixels.py` with the same thresholds as
+`SurfaceDiagNative.classify` (>= 98% one quantized color at luma >=
+243 or <= 12 is the blank).
+
+Determinism contract: pages are served from the host (reachable as
+`10.0.2.2` from the emulator) so a network failure cannot masquerade
+as a white screen; each page is a solid color Flutter never draws so
+a matching dominant color proves the webview composited; and the app
+is launched with a `ws_diag_seed` intent extra (base64 JSON site
+list) that `DiagSeed.applyFromLaunchIntent` applies before the first
+prefs read, seeding fresh siteIds per launch and enabling demo mode
+so nothing persists across scenarios.
+
+#### Scenario: Warm start repaints the re-attached surface
+
+- **Given** the seeded dark site is visible
+- **When** the harness sends HOME, waits ~5s (surface destroyed), and
+  relaunches the singleTop activity via `am start`
+- **Then** the composited frame returns to the dark page color within
+  the polling deadline, else the run fails
+
+#### Scenario: Back into a bfcached entry repaints
+
+- **Given** the dark page carries a full-page link to the magenta page
+- **When** the harness taps the webview center, confirms magenta
+  composited, then sends the system BACK key (the production
+  `_goBackAndRepaint` path)
+- **Then** the composited frame returns to the dark page color within
+  the polling deadline
+
+#### Scenario: Activity recreation ends painted
+
+- **Given** `always_finish_activities` is enabled and the app is
+  backgrounded (activity destroyed, process kept)
+- **When** the harness relaunches with the seed extra and the engine
+  restarts
+- **Then** the composited frame reaches the dark page color, and the
+  harness restores `always_finish_activities` afterward (also on
+  failure, via its exit trap)
+
+#### Scenario: White control page proves the external detector is not vacuous
+
+- **Given** a cold start seeded onto the genuinely all-white page
+- **When** the harness polls the classifier
+- **Then** the verdict is the white blank (`blank-white`), proving the
+  screencap plane reads webview pixels and the dark-page assertions
+  cannot pass vacuously
+
+#### Scenario: Runs in build-android after the in-process suite
+
+- **Given** the `Run white-screen pixel scenarios` emulator step ran
+  `run_android_integration_tests.sh`, whose `flutter test` installs an
+  APK with the *test* Dart entrypoint
+- **When** `run_android_lifecycle_tests.sh` runs next in the same step,
+  rebuilds the default-entrypoint fdebug debug APK, reinstalls it, and
+  clears package data for a pristine cold start
+- **Then** the tier executes on every push/PR under a 25-minute
+  wall-clock cap, and on failure the step uploads
+  `build/white_screen_adb/` (failing screencap PNG, logcat tail, last
+  classification) as the `white-screen-adb-diagnostics` artifact
+
+#### Scenario: Seeding is inert outside the harness
+
+- **Given** a release (non-debuggable) build
+- **When** any launch intent carries `ws_diag_seed`
+- **Then** the Kotlin channel returns null (MainActivity is exported,
+  so a hostile intent must not swap the user's site list) and the Dart
+  call is additionally compiled out of release via `kDebugMode`, so
+  production behavior is unchanged
 
 ---
 
@@ -565,6 +653,13 @@ test cannot produce; they are future adb-driven scope.
   + [`lib/services/surface_diag_native.dart`](../../../lib/services/surface_diag_native.dart)
   (classification unit-tested in
   [`test/surface_diag_classification_test.dart`](../../../test/surface_diag_classification_test.dart))
+- [`scripts/run_android_lifecycle_tests.sh`](../../../scripts/run_android_lifecycle_tests.sh)
+  — INTEG-011: adb-driven lifecycle tier (warm start, bfcache back,
+  activity recreation, white control). Frame classifier:
+  [`scripts/classify_window_pixels.py`](../../../scripts/classify_window_pixels.py);
+  launch seeding: [`lib/services/diag_seed.dart`](../../../lib/services/diag_seed.dart)
+  (`getDiagSeed` in MainActivity, debuggable builds only; parsing
+  unit-tested in [`test/diag_seed_test.dart`](../../../test/diag_seed_test.dart))
 - [`integration_test/settings_smoke_test.dart`](../../../integration_test/settings_smoke_test.dart)
   — harness pin
 - [`integration_test/settings_backup_roundtrip_test.dart`](../../../integration_test/settings_backup_roundtrip_test.dart)
