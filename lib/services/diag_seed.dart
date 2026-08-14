@@ -10,9 +10,8 @@ import 'package:webspace/webspace_model.dart';
 
 class DiagSeedData {
   final List<WebViewModel> sites;
-  final int currentIndex;
 
-  const DiagSeedData({required this.sites, required this.currentIndex});
+  const DiagSeedData({required this.sites});
 }
 
 /// Launch-time site seeding for the adb-driven white-screen tier
@@ -30,10 +29,14 @@ class DiagSeed {
   static const _channel =
       MethodChannel('org.codeberg.theoden8.webspace/shortcuts');
 
-  /// Decode a base64 `{"sites":[{"name":...,"url":...}],"currentIndex":N}`
-  /// seed. siteIds are freshly generated each launch so state keyed by
-  /// siteId (cookies, nav-state capture, containers) from a previous
-  /// harness run can never bleed into this one.
+  /// Decode a base64 `{"sites":[{"name":...,"url":...,"siteId":...}]}`
+  /// seed. A site entry may carry an explicit siteId: the harness needs a
+  /// known id to activate the site through the production pinned-shortcut
+  /// `siteId` extra (a plain cold start lands on the webspace picker with
+  /// no site selected — the persisted currentIndex is never read back).
+  /// The harness keeps ids unique per run so state keyed by siteId
+  /// (cookies, nav-state capture, containers) cannot bleed across runs;
+  /// entries without one get a fresh generated id.
   static DiagSeedData parse(String encoded) {
     final obj =
         jsonDecode(utf8.decode(base64.decode(encoded))) as Map<String, dynamic>;
@@ -41,19 +44,15 @@ class DiagSeed {
     final sites = <WebViewModel>[
       for (final raw in rawSites)
         WebViewModel(
-          initUrl: (raw as Map<String, dynamic>)['url'] as String,
+          siteId: (raw as Map<String, dynamic>)['siteId'] as String?,
+          initUrl: raw['url'] as String,
           name: raw['name'] as String? ?? 'Diag',
         ),
     ];
     if (sites.isEmpty) {
       throw const FormatException('diag seed has no sites');
     }
-    final currentIndex = obj['currentIndex'] as int? ?? 0;
-    if (currentIndex < 0 || currentIndex >= sites.length) {
-      throw RangeError('currentIndex $currentIndex out of range '
-          '(${sites.length} sites)');
-    }
-    return DiagSeedData(sites: sites, currentIndex: currentIndex);
+    return DiagSeedData(sites: sites);
   }
 
   /// Reads the `ws_diag_seed` launch-intent extra and, when present,
@@ -84,11 +83,11 @@ class DiagSeed {
         seed.sites.map((s) => jsonEncode(s.toJson())).toList());
     await prefs.remove('webspaces');
     await prefs.setString('selectedWebspaceId', kAllWebspaceId);
-    await prefs.setInt('currentIndex', seed.currentIndex);
     await prefs.setBool('showUrlBar', false);
     isDemoMode = true;
     LogService.instance.log('DiagSeed',
-        'seeded ${seed.sites.length} sites, currentIndex=${seed.currentIndex}');
+        'seeded ${seed.sites.length} sites: '
+        '${seed.sites.map((s) => s.siteId).join(', ')}');
     return true;
   }
 }

@@ -330,7 +330,10 @@ causal claim is unverified, exactly as in Attempt 8.
   [scripts/classify_window_pixels.py](../../scripts/classify_window_pixels.py) with the
   in-app sampler's thresholds; a white control cold start proves this plane is not
   vacuous either. Site list is injected at launch by a debug-only `ws_diag_seed`
-  intent extra ([lib/services/diag_seed.dart](../../lib/services/diag_seed.dart)).
+  intent extra ([lib/services/diag_seed.dart](../../lib/services/diag_seed.dart)) and
+  activated through the production pinned-shortcut `siteId` extra (a plain cold start
+  shows the webspace picker with no site selected), so the cold-start scenario also
+  pixel-checks the shortcut launch path (Attempt 2's trigger).
   With this tier, every documented entry path (Attempts 3–9 plus gap #7) has
   symptom-level pixel coverage in CI; still emulator compositing, so a
   device-specific SurfaceFlinger race can outrun it (see INTEG-010's limitation note).

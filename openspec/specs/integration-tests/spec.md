@@ -537,8 +537,14 @@ as a white screen; each page is a solid color Flutter never draws so
 a matching dominant color proves the webview composited; and the app
 is launched with a `ws_diag_seed` intent extra (base64 JSON site
 list) that `DiagSeed.applyFromLaunchIntent` applies before the first
-prefs read, seeding fresh siteIds per launch and enabling demo mode
-so nothing persists across scenarios.
+prefs read, with per-run-unique explicit siteIds and demo mode on so
+nothing persists across runs. A plain cold start lands on the
+webspace picker with no site selected (the persisted `currentIndex`
+is never read back), so every seeded launch also carries the
+production pinned-shortcut `siteId` extra: activation goes through
+`StartupRestoreEngine.resolveLaunch`'s direct match — the same path
+a launcher shortcut tap takes, making the cold-start scenario itself
+a pixel check on the shortcut launch path (Attempt 2's trigger).
 
 #### Scenario: Warm start repaints the re-attached surface
 

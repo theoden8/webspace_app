@@ -81,9 +81,19 @@ fi
 base="http://10.0.2.2:$port"
 echo "Serving diag pages from $base (host pid $server_pid)"
 
-seed_b64() { # $1 = page basename
-  printf '{"sites":[{"name":"Diag","url":"%s/%s"}],"currentIndex":0}' \
-    "$base" "$1" | base64 | tr -d '\n'
+# Per-run unique siteIds: no keyed state (cookies, containers, nav-state)
+# can bleed across runs, and the harness knows the id to activate. A plain
+# cold start lands on the webspace picker with no site selected, so every
+# seeded launch also passes the production pinned-shortcut `siteId` extra,
+# which StartupRestoreEngine.resolveLaunch matches directly — the same
+# path a launcher shortcut tap takes.
+run_tag="adb-$(date +%s)"
+dark_site_id="ws-$run_tag-dark"
+white_site_id="ws-$run_tag-white"
+
+seed_b64() { # $1 = page basename, $2 = siteId
+  printf '{"sites":[{"name":"Diag","url":"%s/%s","siteId":"%s"}]}' \
+    "$base" "$1" "$2" | base64 | tr -d '\n'
 }
 
 echo "== Building default-entrypoint fdebug APK"
@@ -127,9 +137,11 @@ adb shell input keyevent 82
 adb shell svc power stayon true
 adb shell settings put global always_finish_activities 0
 
-echo "== Scenario A: cold start onto the seeded dark site"
+echo "== Scenario A: pinned-shortcut cold start onto the seeded dark site"
 adb shell am force-stop "$pkg"
-adb shell am start -W -n "$component" --es ws_diag_seed "$(seed_b64 dark.html)"
+adb shell am start -W -n "$component" \
+  --es ws_diag_seed "$(seed_b64 dark.html "$dark_site_id")" \
+  --es siteId "$dark_site_id"
 wait_for_pixels cold-start-dark 180 --expect-dominant "$dark"
 
 echo "== Scenario B: warm start repaints the re-attached surface (PAUSE-020)"
@@ -151,13 +163,17 @@ echo "== Scenario D: activity recreation ends painted"
 adb shell settings put global always_finish_activities 1
 adb shell input keyevent 3
 sleep 5
-adb shell am start -W -n "$component" --es ws_diag_seed "$(seed_b64 dark.html)"
+adb shell am start -W -n "$component" \
+  --es ws_diag_seed "$(seed_b64 dark.html "$dark_site_id")" \
+  --es siteId "$dark_site_id"
 wait_for_pixels recreation-dark 180 --expect-dominant "$dark"
 adb shell settings put global always_finish_activities 0
 
 echo "== Scenario E: white control page must classify as the white blank"
 adb shell am force-stop "$pkg"
-adb shell am start -W -n "$component" --es ws_diag_seed "$(seed_b64 white.html)"
+adb shell am start -W -n "$component" \
+  --es ws_diag_seed "$(seed_b64 white.html "$white_site_id")" \
+  --es siteId "$white_site_id"
 wait_for_pixels white-control 180 --expect-blank-white
 
 echo "White-screen lifecycle tier passed."
