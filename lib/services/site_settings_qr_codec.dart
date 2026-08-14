@@ -70,9 +70,11 @@ class SiteSettingsQrCodec {
     'enabledGlobalScriptIds',
     'blockedCookies',
     // Remembered permission decisions are trust the user gave one device's
-    // popup, not shareable configuration.
+    // popup, not shareable configuration; the virtual-camera source is
+    // user-picked local media that would also blow QR capacity.
     'protectedContentAllowed',
-    'cameraAllowed',
+    'cameraMode',
+    'virtualCameraSource',
     // Base64 PNG bytes: would blow QR capacity, and an icon is
     // device-local cosmetics, not shareable configuration.
     'customIconPng',

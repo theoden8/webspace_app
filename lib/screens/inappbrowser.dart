@@ -14,6 +14,7 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/surface_repaint_engine.dart';
 import 'package:webspace/services/webview.dart';
+import 'package:webspace/settings/camera.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
@@ -65,11 +66,14 @@ class InAppWebViewScreen extends StatefulWidget {
   /// same way. The decision is remembered in-memory for this screen only
   /// (nested screens have no persisted `WebViewModel`).
   final Future<bool> Function(String origin)? onProtectedMediaRequest;
-  /// Web camera-access popup, forwarded from the parent so a site followed
-  /// through an outbound link (e.g. a bank's QR-scan verification page)
-  /// prompts the same way. The decision is remembered in-memory for this
+  /// Web camera-access resolver, forwarded from the parent so a site
+  /// followed through an outbound link (e.g. a bank's QR-scan verification
+  /// page) prompts the same way — including the "use image or video"
+  /// virtual-camera path. Called with the origin and this screen's
+  /// in-memory current mode; the decision is remembered in-memory for this
   /// screen only (nested screens have no persisted `WebViewModel`).
-  final Future<bool> Function(String origin)? onCameraRequest;
+  final Future<CameraDecision> Function(String origin, CameraAccessMode current)?
+      onCameraDecision;
   /// Invoked when the user toggles the URL bar from this nested screen's
   /// popup menu. Threaded back to `_WebSpacePageState` so the change
   /// updates the same global preference shown in the parent menu.
@@ -118,7 +122,7 @@ class InAppWebViewScreen extends StatefulWidget {
     this.javascriptEnabled = true,
     this.onConfirmScriptFetch,
     this.onProtectedMediaRequest,
-    this.onCameraRequest,
+    this.onCameraDecision,
     this.onShowUrlBarChanged,
     UserProxySettings? proxySettings,
     this.notificationsEnabled = false,
@@ -145,10 +149,13 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   bool? _protectedContentAllowed;
   Future<bool>? _protectedMediaInFlight;
 
-  /// In-memory camera-access decision for this nested screen, same
-  /// lifetime and coalescing rules as [_protectedContentAllowed].
-  bool? _cameraAllowed;
-  Future<bool>? _cameraInFlight;
+  /// In-memory camera-access decision for this nested screen, same lifetime
+  /// and coalescing rules as [_protectedContentAllowed]. Starts unresolved
+  /// (`ask`); once the popup / file-pick settles it holds the chosen mode
+  /// and, for virtual, the picked source for the life of this screen.
+  CameraAccessMode _cameraMode = CameraAccessMode.ask;
+  VirtualCameraSource? _cameraSource;
+  Future<CameraDecision>? _cameraInFlight;
 
   /// Cached InAppWebView widget. Built once in initState and reused on
   /// every build() so setState calls (URL bar updates, find results,
@@ -303,16 +310,29 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                   _protectedMediaInFlight = null;
                 }
               },
-        onCameraRequest: widget.onCameraRequest == null
+        onCameraDecision: widget.onCameraDecision == null
             ? null
             : (origin) async {
-                if (_cameraAllowed != null) {
-                  return _cameraAllowed!;
+                // A settled real/block decision, or a virtual one with a
+                // source already picked, short-circuits. `ask`, or virtual
+                // without a source, goes through the popup / file-pick once.
+                if (_cameraMode == CameraAccessMode.real ||
+                    _cameraMode == CameraAccessMode.block) {
+                  return CameraDecision(_cameraMode);
+                }
+                if (_cameraMode == CameraAccessMode.virtual &&
+                    _cameraSource != null) {
+                  return CameraDecision(_cameraMode, _cameraSource);
                 }
                 _cameraInFlight ??= () async {
-                  final granted = await widget.onCameraRequest!(origin);
-                  _cameraAllowed = granted;
-                  return granted;
+                  final decision =
+                      await widget.onCameraDecision!(origin, _cameraMode);
+                  _cameraMode = decision.mode;
+                  if (decision.source != null) {
+                    _cameraSource = decision.source;
+                  }
+                  return CameraDecision(
+                      decision.mode, decision.source ?? _cameraSource);
                 }();
                 try {
                   return await _cameraInFlight!;

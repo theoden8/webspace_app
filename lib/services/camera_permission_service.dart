@@ -18,7 +18,7 @@ class CameraPermissionService {
   /// Returns true when the app may capture camera frames. On Android this
   /// shows the OS permission prompt when the permission is not yet granted.
   /// The result is deliberately not persisted anywhere: per-site intent
-  /// lives on `WebViewModel.cameraAllowed`, while the OS-level state is
+  /// lives on `WebViewModel.cameraMode`, while the OS-level state is
   /// re-checked on every page request so a grant made later in system
   /// settings starts working without the user touching the site setting.
   static Future<bool> ensurePermission() async {

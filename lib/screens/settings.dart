@@ -5,8 +5,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/settings/camera.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/services/virtual_camera_service.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
@@ -132,7 +134,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _notificationsEnabled;
   late bool _backgroundAudioEnabled;
   bool? _protectedContentAllowed;
-  bool? _cameraAllowed;
+  CameraAccessMode _cameraMode = CameraAccessMode.ask;
+  VirtualCameraSource? _virtualCameraSource;
   String? _selectedLanguage;
   late int _zoomPercent;
   bool _obscureProxyPassword = true;
@@ -198,6 +201,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (mounted) setState(() {});
   }
 
+  /// Pick the image / looped video served in [CameraAccessMode.virtual].
+  /// On error shows a SnackBar and leaves the current source untouched.
+  Future<void> _pickVirtualCameraSource() async {
+    final result = await VirtualCameraService.pickSource();
+    if (!mounted) return;
+    if (result.source != null) {
+      setState(() => _virtualCameraSource = result.source);
+      return;
+    }
+    if (result.error == null) return; // user cancelled
+    final loc = AppLocalizations.of(context);
+    final String message;
+    switch (result.error!) {
+      case VirtualCameraPickError.tooLarge:
+        message = loc.homeCameraSourceTooLarge;
+        break;
+      case VirtualCameraPickError.type:
+      case VirtualCameraPickError.read:
+        message = loc.homeCameraSourceError;
+        break;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   Map<String, Object?> _currentSnapshot() => {
         'proxyType': _proxySettings.type,
         'proxyAddress': _proxyAddressController.text,
@@ -223,7 +250,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         'notificationsEnabled': _notificationsEnabled,
         'backgroundAudioEnabled': _backgroundAudioEnabled,
         'protectedContentAllowed': _protectedContentAllowed,
-        'cameraAllowed': _cameraAllowed,
+        'cameraMode': _cameraMode,
+        'virtualCameraSource': _virtualCameraSource?.dataUrl,
         'selectedLanguage': _selectedLanguage,
         'zoomPercent': _zoomPercent,
         'latitude': _latitudeController.text,
@@ -479,7 +507,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _notificationsEnabled = m.notificationsEnabled;
     _backgroundAudioEnabled = m.backgroundAudioEnabled;
     _protectedContentAllowed = m.protectedContentAllowed;
-    _cameraAllowed = m.cameraAllowed;
+    _cameraMode = m.cameraMode;
+    _virtualCameraSource = m.virtualCameraSource;
     _selectedLanguage = m.language;
     _zoomPercent = m.zoomPercent;
     _latitudeController.text = m.spoofLatitude?.toString() ?? '';
@@ -672,7 +701,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.notificationsEnabled = _notificationsEnabled;
       widget.webViewModel.backgroundAudioEnabled = _backgroundAudioEnabled;
       widget.webViewModel.protectedContentAllowed = _protectedContentAllowed;
-      widget.webViewModel.cameraAllowed = _cameraAllowed;
+      widget.webViewModel.cameraMode = _cameraMode;
+      widget.webViewModel.virtualCameraSource = _virtualCameraSource;
       widget.webViewModel.language = _selectedLanguage;
       widget.webViewModel.zoomPercent = _zoomPercent;
       // locationMode is derived from the UI state:
@@ -1909,19 +1939,56 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ],
             ),
-            trailing: DropdownButton<bool?>(
-              value: _cameraAllowed,
-              onChanged: (v) => setState(() => _cameraAllowed = v),
-              items: <DropdownMenuItem<bool?>>[
-                DropdownMenuItem<bool?>(
-                    value: null, child: Text(loc.siteSettingsCameraAccessAsk)),
-                DropdownMenuItem<bool?>(
-                    value: true, child: Text(loc.siteSettingsCameraAccessAllow)),
-                DropdownMenuItem<bool?>(
-                    value: false, child: Text(loc.siteSettingsCameraAccessBlock)),
+            trailing: DropdownButton<CameraAccessMode>(
+              value: _cameraMode,
+              onChanged: (v) async {
+                if (v == null) return;
+                setState(() => _cameraMode = v);
+                // Selecting the virtual mode with no clip yet: prompt for one
+                // straight away so the setting is usable when the user leaves.
+                if (v == CameraAccessMode.virtual &&
+                    _virtualCameraSource == null) {
+                  await _pickVirtualCameraSource();
+                }
+              },
+              items: <DropdownMenuItem<CameraAccessMode>>[
+                DropdownMenuItem<CameraAccessMode>(
+                    value: CameraAccessMode.ask,
+                    child: Text(loc.siteSettingsCameraAccessAsk)),
+                DropdownMenuItem<CameraAccessMode>(
+                    value: CameraAccessMode.real,
+                    child: Text(loc.siteSettingsCameraAccessAllow)),
+                DropdownMenuItem<CameraAccessMode>(
+                    value: CameraAccessMode.virtual,
+                    child: Text(loc.siteSettingsCameraAccessVirtual)),
+                DropdownMenuItem<CameraAccessMode>(
+                    value: CameraAccessMode.block,
+                    child: Text(loc.siteSettingsCameraAccessBlock)),
               ],
             ),
           ),
+          if (_cameraMode == CameraAccessMode.virtual)
+            Padding(
+              padding: const EdgeInsets.only(left: 16, right: 16, bottom: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _virtualCameraSource == null
+                          ? loc.siteSettingsCameraAccessNoSource
+                          : _virtualCameraSource!.fileName,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    icon: const Icon(Icons.photo_library_outlined),
+                    label: Text(loc.siteSettingsCameraAccessChooseSource),
+                    onPressed: _pickVirtualCameraSource,
+                  ),
+                ],
+              ),
+            ),
           ..._buildLocationSection(),
           DomainClaimsEditor(
             model: widget.webViewModel,

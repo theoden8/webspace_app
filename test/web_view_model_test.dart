@@ -3,6 +3,7 @@ import 'package:webspace/web_view_model.dart';
 import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/tab_bar_corner.dart';
 import 'package:webspace/services/webview.dart';
+import 'package:webspace/settings/camera.dart';
 import 'package:webspace/settings/proxy.dart';
 
 void main() {
@@ -680,57 +681,96 @@ void main() {
       }
     });
 
-    test('cameraAllowed defaults to null (ask) and toJson omits it', () {
+    test('cameraMode defaults to ask and toJson omits it', () {
       final model = WebViewModel(initUrl: 'https://example.com');
-      expect(model.cameraAllowed, isNull);
-      expect(model.toJson().containsKey('cameraAllowed'), isFalse);
+      expect(model.cameraMode, CameraAccessMode.ask);
+      expect(model.toJson().containsKey('cameraMode'), isFalse);
+      expect(model.toJson().containsKey('virtualCameraSource'), isFalse);
 
       final restored = WebViewModel.fromJson(model.toJson(), null);
-      expect(restored.cameraAllowed, isNull);
+      expect(restored.cameraMode, CameraAccessMode.ask);
     });
 
-    test('cameraAllowed allow/block round-trips through JSON', () {
-      for (final decision in [true, false]) {
+    test('cameraMode round-trips through JSON', () {
+      for (final mode in CameraAccessMode.values) {
         final model = WebViewModel(
           initUrl: 'https://example.com',
-          cameraAllowed: decision,
+          cameraMode: mode,
         );
         final json = model.toJson();
-        expect(json['cameraAllowed'], equals(decision));
+        expect(json.containsKey('cameraMode'), mode != CameraAccessMode.ask);
         final restored = WebViewModel.fromJson(json, null);
-        expect(restored.cameraAllowed, equals(decision));
+        expect(restored.cameraMode, mode);
       }
     });
 
-    test('effectiveCameraAllowed forces deny for archive-tier (CAM-006)', () {
+    test('virtualCameraSource round-trips through JSON', () {
+      final model = WebViewModel(
+        initUrl: 'https://example.com',
+        cameraMode: CameraAccessMode.virtual,
+        virtualCameraSource: const VirtualCameraSource(
+          kind: 'image',
+          dataUrl: 'data:image/png;base64,AAAA',
+          fileName: 'qr.png',
+        ),
+      );
+      final restored = WebViewModel.fromJson(model.toJson(), null);
+      expect(restored.cameraMode, CameraAccessMode.virtual);
+      expect(restored.virtualCameraSource?.kind, 'image');
+      expect(restored.virtualCameraSource?.dataUrl,
+          'data:image/png;base64,AAAA');
+      expect(restored.virtualCameraSource?.fileName, 'qr.png');
+    });
+
+    test('legacy bool cameraAllowed migrates to a mode', () {
+      // true -> real, false -> block, absent -> ask. Start from a real
+      // model's JSON so every other required field is present, then splice
+      // in the legacy boolean the way an older build would have written it.
+      Map<String, dynamic> legacyJson(bool? legacy) {
+        final json = WebViewModel(initUrl: 'https://e.com').toJson();
+        json.remove('cameraMode');
+        json.remove('virtualCameraSource');
+        if (legacy != null) json['cameraAllowed'] = legacy;
+        return json;
+      }
+
+      expect(WebViewModel.fromJson(legacyJson(true), null).cameraMode,
+          CameraAccessMode.real);
+      expect(WebViewModel.fromJson(legacyJson(false), null).cameraMode,
+          CameraAccessMode.block);
+      expect(WebViewModel.fromJson(legacyJson(null), null).cameraMode,
+          CameraAccessMode.ask);
+    });
+
+    test('effectiveCameraMode forces block for archive-tier (CAM-006)', () {
       final allowed = WebViewModel(
         initUrl: 'https://example.com',
-        cameraAllowed: true,
+        cameraMode: CameraAccessMode.real,
         isArchiveTier: true,
       );
       // Stored value is preserved, but the effective value never grants
       // the camera for archive sites.
-      expect(allowed.cameraAllowed, isTrue);
-      expect(allowed.effectiveCameraAllowed, isFalse);
+      expect(allowed.cameraMode, CameraAccessMode.real);
+      expect(allowed.effectiveCameraMode, CameraAccessMode.block);
 
       final appTier = WebViewModel(
         initUrl: 'https://example.com',
-        cameraAllowed: true,
+        cameraMode: CameraAccessMode.virtual,
       );
-      expect(appTier.effectiveCameraAllowed, isTrue);
+      expect(appTier.effectiveCameraMode, CameraAccessMode.virtual);
     });
 
-    test('effectiveCameraAllowed is not forced by Tracking Protection', () {
+    test('effectiveCameraMode is not forced by Tracking Protection', () {
       // Unlike protected content (ETP-023), camera capture starts only
-      // after an explicit per-site Allow, so the umbrella leaves the
-      // stored decision in effect.
-      for (final stored in [true, false, null]) {
+      // after an explicit per-site Allow / picked file, so the umbrella
+      // leaves the stored mode in effect.
+      for (final mode in CameraAccessMode.values) {
         final model = WebViewModel(
           initUrl: 'https://example.com',
-          cameraAllowed: stored,
+          cameraMode: mode,
           trackingProtectionEnabled: true,
         );
-        expect(model.effectiveCameraAllowed, equals(stored));
+        expect(model.effectiveCameraMode, mode);
       }
     });
 
