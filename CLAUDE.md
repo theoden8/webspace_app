@@ -200,7 +200,7 @@ New shim: register in `buildAllFixtures()` in [tool/dump_shim_js.dart](tool/dump
 
 **Shims that also run in workers** (anything in `workerScopeShims` in [webview.dart](lib/services/webview.dart) — see [worker-shim-propagation](openspec/specs/worker-shim-propagation/spec.md)) must be scope-agnostic: `globalThis` never `window`, navigator prototype via `Object.getPrototypeOf(navigator)` never `Navigator.prototype`, window-only sections (`Screen`, `document`, `matchMedia`, `RTCPeerConnection`, `plugins`/`getBattery`) guarded, and never *add* a property a real `WorkerNavigator` lacks. The payload is one script of concatenated IIFEs, so an uncaught `ReferenceError` in one silences every shim after it; `test/worker_shim_test.dart` gates this structurally.
 
-jsdom has no canvas/WebGL/audio fingerprinting. Tests assert override **shape**, not engine behavior. Real-engine proofing (CreepJS, fingerprintjs) wants a Playwright tier — not built.
+jsdom has no canvas/WebGL/audio fingerprinting. Tests assert override **shape**, not engine behavior. Effects that need a real engine (canvas `captureStream`, Intl timezone math, real CSP, RTCPeerConnection semantics) go in the **browser tier** under `test/browser/` (Puppeteer + headless Chromium, `npm run test:browser`, run in CI's `validate` job). Use the `setupBrowser`/`requireBrowser`/`readFixture` helpers in [test/browser/helpers/launch.js](test/browser/helpers/launch.js) — the tier hard-fails when `CI=true` and no Chromium is found, and skips locally. Example: `camera_stream_real_engine.test.js` serves a page from `127.0.0.1` (getUserMedia needs a secure context), feeds the dumped camera shim a QR image, and asserts jsQR decodes it off the synthetic stream.
 
 ## Fastlane changelogs
 

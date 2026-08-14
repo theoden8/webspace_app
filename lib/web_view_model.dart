@@ -16,6 +16,7 @@ import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/link_routing_service.dart' show LinkRoutingService;
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
+import 'package:webspace/services/camera_decision_engine.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
@@ -637,10 +638,10 @@ class WebViewModel {
   /// coalesces them onto a single Allow/Block popup instead of stacking
   /// dialogs. Cleared once [protectedContentAllowed] is recorded.
   Future<bool>? _protectedMediaDecisionInFlight;
-  /// In-flight camera decision, same coalescing as
-  /// [_protectedMediaDecisionInFlight]: a page can re-request the camera in
-  /// a burst (getUserMedia retries) and must share one popup / file-pick.
-  Future<CameraDecision>? _cameraDecisionInFlight;
+  /// Orchestrates camera-request resolution (decide → coalesce → persist).
+  /// The engine holds the in-flight future that shares one popup / file-pick
+  /// across a burst of `getUserMedia` retries.
+  final CameraDecisionEngine _cameraEngine = CameraDecisionEngine();
   Function? stateSetterF;
   /// Host hook fired once each time a fresh native controller attaches for
   /// this model (cold start, `_goHome` recreate, renderer-gone recovery,
@@ -1111,40 +1112,18 @@ class WebViewModel {
                 },
           onCameraDecision: onCameraDecision == null
               ? null
-              : (origin) async {
-                  // Archive-tier forces block. A settled decision
-                  // short-circuits the popup: `real`/`block` resolve
-                  // immediately, and `virtual` does too once a source file
-                  // has been picked. Only an unresolved `ask`, or a
-                  // `virtual` site that has no source yet, needs the host UI.
-                  final mode = effectiveCameraMode;
-                  if (mode == CameraAccessMode.real ||
-                      mode == CameraAccessMode.block) {
-                    return CameraDecision(mode);
-                  }
-                  if (mode == CameraAccessMode.virtual &&
-                      virtualCameraSource != null) {
-                    return CameraDecision(mode, virtualCameraSource);
-                  }
-                  // Coalesce a burst of requests onto one popup / file-pick.
-                  _cameraDecisionInFlight ??= () async {
-                    final decision = await onCameraDecision(origin, mode);
-                    cameraMode = decision.mode;
-                    if (decision.source != null) {
-                      virtualCameraSource = decision.source;
-                    }
-                    await saveFunc();
-                    return CameraDecision(
-                      decision.mode,
-                      decision.source ?? virtualCameraSource,
-                    );
-                  }();
-                  try {
-                    return await _cameraDecisionInFlight!;
-                  } finally {
-                    _cameraDecisionInFlight = null;
-                  }
-                },
+              : (origin) => _cameraEngine.decide(
+                    origin: origin,
+                    // Archive-tier is folded into effectiveCameraMode.
+                    effectiveMode: effectiveCameraMode,
+                    currentSource: () => virtualCameraSource,
+                    resolve: onCameraDecision,
+                    persist: (mode, source) {
+                      cameraMode = mode;
+                      if (source != null) virtualCameraSource = source;
+                    },
+                    save: () async => saveFunc(),
+                  ),
           pullToRefreshController: pullToRefreshController,
           onWindowRequested: onWindowRequested,
           shouldOverrideUrlLoading: (url, hasGesture) {

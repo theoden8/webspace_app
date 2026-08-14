@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/dev_tools.dart';
+import 'package:webspace/services/camera_decision_engine.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
@@ -149,13 +150,14 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   bool? _protectedContentAllowed;
   Future<bool>? _protectedMediaInFlight;
 
-  /// In-memory camera-access decision for this nested screen, same lifetime
-  /// and coalescing rules as [_protectedContentAllowed]. Starts unresolved
-  /// (`ask`); once the popup / file-pick settles it holds the chosen mode
-  /// and, for virtual, the picked source for the life of this screen.
+  /// In-memory camera-access decision for this nested screen. Starts
+  /// unresolved (`ask`); once the popup / file-pick settles it holds the
+  /// chosen mode and, for virtual, the picked source for the life of this
+  /// screen. Resolution runs through the same [CameraDecisionEngine] as the
+  /// parent — only the storage differs (in-memory, no persistence).
   CameraAccessMode _cameraMode = CameraAccessMode.ask;
   VirtualCameraSource? _cameraSource;
-  Future<CameraDecision>? _cameraInFlight;
+  final CameraDecisionEngine _cameraEngine = CameraDecisionEngine();
 
   /// Cached InAppWebView widget. Built once in initState and reused on
   /// every build() so setState calls (URL bar updates, find results,
@@ -312,34 +314,18 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
               },
         onCameraDecision: widget.onCameraDecision == null
             ? null
-            : (origin) async {
-                // A settled real/block decision, or a virtual one with a
-                // source already picked, short-circuits. `ask`, or virtual
-                // without a source, goes through the popup / file-pick once.
-                if (_cameraMode == CameraAccessMode.real ||
-                    _cameraMode == CameraAccessMode.block) {
-                  return CameraDecision(_cameraMode);
-                }
-                if (_cameraMode == CameraAccessMode.virtual &&
-                    _cameraSource != null) {
-                  return CameraDecision(_cameraMode, _cameraSource);
-                }
-                _cameraInFlight ??= () async {
-                  final decision =
-                      await widget.onCameraDecision!(origin, _cameraMode);
-                  _cameraMode = decision.mode;
-                  if (decision.source != null) {
-                    _cameraSource = decision.source;
-                  }
-                  return CameraDecision(
-                      decision.mode, decision.source ?? _cameraSource);
-                }();
-                try {
-                  return await _cameraInFlight!;
-                } finally {
-                  _cameraInFlight = null;
-                }
-              },
+            : (origin) => _cameraEngine.decide(
+                  origin: origin,
+                  effectiveMode: _cameraMode,
+                  currentSource: () => _cameraSource,
+                  resolve: widget.onCameraDecision!,
+                  persist: (mode, source) {
+                    _cameraMode = mode;
+                    if (source != null) _cameraSource = source;
+                  },
+                  // Nested screens have no persisted model.
+                  save: () async {},
+                ),
         notificationsEnabled: widget.notificationsEnabled,
         pullToRefreshController: _pullToRefreshController,
         onUrlChanged: (url) {

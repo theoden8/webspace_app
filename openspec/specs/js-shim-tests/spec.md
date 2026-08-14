@@ -173,7 +173,7 @@ logic, or the npm script.
 
 ### Requirement: SHIM-TEST-005 — Real-engine validation for engine-dependent surfaces
 
-Shims that wrap APIs whose behaviour jsdom cannot honestly simulate (real CSS `matchMedia`, `Intl.DateTimeFormat` arbitrary IANA timezones, `Date.prototype.getTimezoneOffset` DST arithmetic, `Date.prototype.toString` zone formatting, `Geolocation` callback path, `RTCPeerConnection` constructor and SDP semantics, real Content-Security-Policy `connect-src` enforcement) MUST also have a Tier 2 test under `test/browser/<shim>_real.test.js` that loads the **same committed fixture** and asserts post-injection state under headless Chromium. Tier 2 covers behaviours, not just shapes; if jsdom can produce the same answer, the assertion belongs in Tier 1.
+Shims that wrap APIs whose behaviour jsdom cannot honestly simulate (real CSS `matchMedia`, `Intl.DateTimeFormat` arbitrary IANA timezones, `Date.prototype.getTimezoneOffset` DST arithmetic, `Date.prototype.toString` zone formatting, `Geolocation` callback path, `RTCPeerConnection` constructor and SDP semantics, real Content-Security-Policy `connect-src` enforcement, `getUserMedia` + canvas `captureStream` producing a decodable video frame) MUST also have a Tier 2 test under `test/browser/<shim>_real.test.js` that loads the **same committed fixture** and asserts post-injection state under headless Chromium. Tier 2 covers behaviours, not just shapes; if jsdom can produce the same answer, the assertion belongs in Tier 1.
 
 #### Scenario: matchMedia overrides asserted under the real CSS engine
 
