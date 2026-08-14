@@ -2769,6 +2769,15 @@ class WebViewFactory {
       ..cacheMode = usesCachedHtml ? inapp.CacheMode.LOAD_CACHE_ELSE_NETWORK : null
       // iOS: play videos inline instead of auto-fullscreen
       ..allowsInlineMediaPlayback = true
+      // Allow media to start without a direct tap. Android WebView defaults
+      // this to true, which blocks ALL autoplay — including a getUserMedia
+      // MediaStream assigned to a `<video autoplay>` (real OR the virtual
+      // camera), so a QR-scan page just shows a grey frame. Every real
+      // browser plays a camera stream without a gesture; match that. This is
+      // Android-WebView-specific: the setting doesn't exist in the Chromium
+      // that the desktop test tier drives, which is why the browser test
+      // couldn't catch it.
+      ..mediaPlaybackRequiresUserGesture = false
       // iOS/macOS: native Safari-style horizontal swipe for back/forward.
       // Only the root site webview opts in (see WebViewConfig.backForwardGestures).
       ..allowsBackForwardNavigationGestures = config.backForwardGestures
