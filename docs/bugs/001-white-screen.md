@@ -310,10 +310,10 @@ causal claim is unverified, exactly as in Attempt 8.
   path. Window-level `PixelCopy` reads the composited pixels the user actually sees —
   the plane no JS probe (renderer) or Flutter capture (raster tree, no platform views)
   can reach — and classifies uniform white/black over the webview rect. The integration
-  suite (`android-integration-tests` CI job, every push/PR) drives the in-process-drivable
-  entry paths (fresh first activation incl. gap #7, loaded-site switch, reload funnel,
-  memory pressure, fresh activation among live sites) and fails on a blank window, with a
-  white control page proving the detector is not vacuous. Warm start / activity recreation /
+  suite (emulator step in the `build-android` CI job, every push/PR) drives the
+  in-process-drivable entry paths (fresh first activation incl. gap #7, loaded-site
+  switch, reload funnel, memory pressure, fresh activation among live sites) and fails
+  on a blank window, with a white control page proving the detector is not vacuous. Warm start / activity recreation /
   bfcache back-nav still need an adb-driven tier. Not yet wired into production
   diagnostics; doing so would give `SurfaceDiag` log lines a `window=` classification.
 
