@@ -10,6 +10,8 @@
 	<true/>
 	<key>com.apple.security.network.server</key>
 	<true/>
+	<key>com.apple.security.device.camera</key>
+	<true/>
 	<key>com.apple.security.application-groups</key>
 	<array>
 		<string>$(AppIdentifierPrefix)group.org.codeberg.theoden8.webspace</string>

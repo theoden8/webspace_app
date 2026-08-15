@@ -94,6 +94,8 @@ import 'package:webspace/services/suggested_sites_service.dart' as suggested_sit
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/app_locale.dart';
+import 'package:webspace/settings/camera.dart';
+import 'package:webspace/services/virtual_camera_service.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
@@ -5000,6 +5002,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           userScripts: userScripts,
           onConfirmScriptFetch: _confirmScriptFetch,
           onProtectedMediaRequest: _promptProtectedMedia,
+          onCameraDecision: _resolveCameraDecision,
           onShowUrlBarChanged: (show) async {
             if (!mounted) return;
             setState(() {
@@ -5087,6 +5090,91 @@ class _WebSpacePageState extends State<WebSpacePage>
       ),
     );
     return result ?? false;
+  }
+
+  /// Stable resolver for a camera-only permission request (getUserMedia
+  /// video, e.g. a banking site's QR scanner). On the first request it shows
+  /// a Block / Use-image-or-video / Allow popup; picking "Use image or
+  /// video" opens a file picker and the chosen media becomes the site's
+  /// virtual camera. The per-site decision is remembered by the caller (the
+  /// parent webview persists it on the `WebViewModel`; nested webviews
+  /// remember it in-memory), so this only collects user intent. The Android
+  /// app-level permission is handled separately at real-grant time by
+  /// `CameraPermissionService`.
+  ///
+  /// [current] is the site's stored mode: a site already set to `virtual`
+  /// but missing a source skips the popup and goes straight to the picker.
+  /// A dismissed popup returns [CameraAccessMode.ask] so the request is
+  /// denied once and the popup returns next time; a cancelled picker leaves
+  /// the prior mode intact for the same reason.
+  Future<CameraDecision> _resolveCameraDecision(
+      String origin, CameraAccessMode current) async {
+    if (!mounted) return const CameraDecision.block();
+    if (current == CameraAccessMode.virtual) {
+      return _pickVirtualCameraOrKeep(current);
+    }
+    final loc = AppLocalizations.of(context);
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(loc.homeCameraAccessTitle),
+        content: Text(loc.homeCameraAccessBody(origin)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'block'),
+            child: Text(loc.homeBlockAction),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'file'),
+            child: Text(loc.homeCameraUseFileAction),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'real'),
+            child: Text(loc.homeAllowAction),
+          ),
+        ],
+      ),
+    );
+    switch (choice) {
+      case 'real':
+        return const CameraDecision(CameraAccessMode.real);
+      case 'file':
+        return _pickVirtualCameraOrKeep(CameraAccessMode.ask);
+      case 'block':
+        return const CameraDecision.block();
+      default:
+        // Dismissed: unresolved, deny this once and ask again next time.
+        return const CameraDecision(CameraAccessMode.ask);
+    }
+  }
+
+  /// Runs the image/video picker. On success returns a `virtual` decision
+  /// carrying the source; on cancel or error returns [fallback] with no
+  /// source, so the caller's stored mode is preserved and the request is
+  /// denied this once.
+  Future<CameraDecision> _pickVirtualCameraOrKeep(
+      CameraAccessMode fallback) async {
+    final result = await VirtualCameraService.pickSource();
+    if (result.source != null) {
+      return CameraDecision(CameraAccessMode.virtual, result.source);
+    }
+    if (result.error != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_virtualCameraErrorText(result.error!))),
+      );
+    }
+    return CameraDecision(fallback);
+  }
+
+  String _virtualCameraErrorText(VirtualCameraPickError error) {
+    final loc = AppLocalizations.of(context);
+    switch (error) {
+      case VirtualCameraPickError.tooLarge:
+        return loc.homeCameraSourceTooLarge;
+      case VirtualCameraPickError.type:
+      case VirtualCameraPickError.read:
+        return loc.homeCameraSourceError;
+    }
   }
 
   void _toggleFind() {
@@ -8133,6 +8221,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                                   isActive: () => _currentIndex == index,
                                   onConfirmScriptFetch: _confirmScriptFetch,
                                   onProtectedMediaRequest: _promptProtectedMedia,
+                                  onCameraDecision: _resolveCameraDecision,
                                   onUntrustedCertificate: _promptUntrustedCertificate,
                                   onExternalSchemeUrl: (url, info) async {
                                     if (!mounted) return;

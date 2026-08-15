@@ -21,6 +21,8 @@ import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/generic_cosmetic_shim.dart';
 import 'package:webspace/services/procedural_cosmetic_shim.dart';
+import 'package:webspace/services/camera_permission_service.dart';
+import 'package:webspace/services/camera_stream_shim.dart';
 import 'package:webspace/services/current_location_service.dart';
 import 'package:webspace/services/desktop_mode_shim.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
@@ -45,6 +47,7 @@ import 'package:webspace/services/media_session_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/user_script_service.dart';
+import 'package:webspace/settings/camera.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/widgets/root_messenger.dart';
@@ -717,6 +720,25 @@ class WebViewConfig {
   /// default applies (Android denies). Only meaningful on Android — iOS/
   /// macOS WKWebView has no EME/Widevine and never issues the request.
   final Future<bool> Function(String origin)? onProtectedMediaRequest;
+  /// Resolves the site's decision when the page requests camera-only capture
+  /// (getUserMedia video, e.g. a banking site's QR scanner). Called with the
+  /// origin and the site's current [CameraAccessMode]; returns a settled
+  /// [CameraDecision] (real / virtual / block, plus a [VirtualCameraSource]
+  /// for virtual) after any Allow/Use-file/Block popup or file-pick. When
+  /// null, camera requests keep the platform default (deny). The
+  /// `webCameraRequest` JS handler drives the virtual path; the native
+  /// permission request grants the real camera only when this resolves to
+  /// `real` (and, on Android, after [CameraPermissionService] ensures the
+  /// app-level CAMERA runtime permission). Requests that bundle the
+  /// microphone never route here. The model computes the current mode
+  /// internally, so this takes only the origin.
+  final Future<CameraDecision> Function(String origin)? onCameraDecision;
+  /// Reads the site's current camera mode WITHOUT prompting. Backs the
+  /// `webCameraMode` JS handler, which the shim uses to decide whether
+  /// `enumerateDevices` should mask real cameras (virtual mode) — enumeration
+  /// must never pop a permission dialog, so it cannot go through
+  /// [onCameraDecision].
+  final CameraAccessMode Function()? currentCameraMode;
 
   WebViewConfig({
     this.key,
@@ -774,6 +796,8 @@ class WebViewConfig {
     this.notificationsEnabled = false,
     this.backgroundAudioEnabled = false,
     this.onProtectedMediaRequest,
+    this.onCameraDecision,
+    this.currentCameraMode,
   });
 }
 
@@ -1807,6 +1831,22 @@ class WebViewFactory {
       forMainFrameOnly: false,
     ));
 
+    // Virtual camera shim. Intercepts video-only getUserMedia and, per the
+    // site's decision (fetched via the webCameraRequest handler), serves a
+    // user-picked image / looped video as the camera instead of the device
+    // lens. Injected whenever the host wired a camera resolver — the shim
+    // itself asks Dart for the mode, so gating here on the callback keeps
+    // the "no handler -> not injected" invariant. forMainFrameOnly:false so
+    // a QR scanner embedded in a cross-origin iframe is covered too.
+    if (config.onCameraDecision != null) {
+      userScripts.add(inapp.UserScript(
+        groupName: 'camera_stream',
+        source: '${buildCameraStreamShim()}\n;null;',
+        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+        forMainFrameOnly: false,
+      ));
+    }
+
     // Always-on: rewrite `target="_blank"` anchors to `_self` so cross-domain
     // link taps route through shouldOverrideUrlLoading (reliable gesture)
     // instead of onCreateWindow (unreliable gesture / empty URL on Android),
@@ -2736,6 +2776,15 @@ class WebViewFactory {
       ..cacheMode = usesCachedHtml ? inapp.CacheMode.LOAD_CACHE_ELSE_NETWORK : null
       // iOS: play videos inline instead of auto-fullscreen
       ..allowsInlineMediaPlayback = true
+      // Allow media to start without a direct tap. Android WebView defaults
+      // this to true, which blocks ALL autoplay — including a getUserMedia
+      // MediaStream assigned to a `<video autoplay>` (real OR the virtual
+      // camera), so a QR-scan page just shows a grey frame. Every real
+      // browser plays a camera stream without a gesture; match that. This is
+      // Android-WebView-specific: the setting doesn't exist in the Chromium
+      // that the desktop test tier drives, which is why the browser test
+      // couldn't catch it.
+      ..mediaPlaybackRequiresUserGesture = false
       // iOS/macOS: native Safari-style horizontal swipe for back/forward.
       // Only the root site webview opts in (see WebViewConfig.backForwardGestures).
       ..allowsBackForwardNavigationGestures = config.backForwardGestures
@@ -2780,36 +2829,69 @@ class WebViewFactory {
       pullToRefreshController: config.pullToRefreshController,
       initialUserScripts: UnmodifiableListView(userScripts),
       initialSettings: settings,
-      // Protected-media (Widevine/EME) permission. Only installed on
-      // Android, where `PROTECTED_MEDIA_ID` exists and the no-handler
-      // default is deny; granting it lets the origin run EME license
-      // requests (e.g. the Spotify web player). The handler grants ONLY
-      // the protected-media resource and returns PROMPT for anything else
-      // (camera/mic) so it never widens permissions beyond DRM. Left null
-      // off-Android so iOS/macOS keep their native PROMPT default.
-      onPermissionRequest:
-          (Platform.isAndroid && config.onProtectedMediaRequest != null)
-              ? (controller, request) async {
-                  final wantsProtectedMedia = request.resources.contains(
+      // Web permission requests. Two per-site flows route through here:
+      //
+      // - Protected media (Android only): granting `PROTECTED_MEDIA_ID`
+      //   lets the origin run EME license requests (e.g. the Spotify web
+      //   player).
+      // - Camera: a camera-only request (getUserMedia video, e.g. a banking
+      //   site's QR scanner). In `virtual` mode the camera-stream shim
+      //   intercepts getUserMedia in JS and this native request never fires,
+      //   so reaching here means the shim decided `real` (or is absent) and
+      //   called through to the platform. We resolve the decision and grant
+      //   only for `real`, additionally ensuring the app-level CAMERA
+      //   runtime permission on Android. Requests that bundle the microphone
+      //   (iOS/macOS report the single resource CAMERA_AND_MICROPHONE,
+      //   Android CAMERA+MICROPHONE) fall through to the default so the grant
+      //   never widens beyond video capture.
+      //
+      // The fallback returns PROMPT for everything else: Android and Linux
+      // WPE map any non-GRANT action to deny (their no-handler default),
+      // iOS 15+/macOS 12+ show WebKit's own per-site prompt.
+      onPermissionRequest: ((Platform.isAndroid &&
+                  config.onProtectedMediaRequest != null) ||
+              config.onCameraDecision != null)
+          ? (controller, request) async {
+              final wantsProtectedMedia = Platform.isAndroid &&
+                  config.onProtectedMediaRequest != null &&
+                  request.resources.contains(
                       inapp.PermissionResourceType.PROTECTED_MEDIA_ID);
-                  if (wantsProtectedMedia) {
-                    final granted = await config.onProtectedMediaRequest!(
-                        request.origin.toString());
-                    return inapp.PermissionResponse(
-                      resources: [
-                        inapp.PermissionResourceType.PROTECTED_MEDIA_ID
-                      ],
-                      action: granted
-                          ? inapp.PermissionResponseAction.GRANT
-                          : inapp.PermissionResponseAction.DENY,
-                    );
-                  }
-                  return inapp.PermissionResponse(
-                    resources: request.resources,
-                    action: inapp.PermissionResponseAction.PROMPT,
-                  );
+              if (wantsProtectedMedia) {
+                final granted = await config.onProtectedMediaRequest!(
+                    request.origin.toString());
+                return inapp.PermissionResponse(
+                  resources: [
+                    inapp.PermissionResourceType.PROTECTED_MEDIA_ID
+                  ],
+                  action: granted
+                      ? inapp.PermissionResponseAction.GRANT
+                      : inapp.PermissionResponseAction.DENY,
+                );
+              }
+              final wantsCameraOnly = config.onCameraDecision != null &&
+                  request.resources.length == 1 &&
+                  request.resources
+                      .contains(inapp.PermissionResourceType.CAMERA);
+              if (wantsCameraOnly) {
+                final decision = await config.onCameraDecision!(
+                    request.origin.toString());
+                bool granted = decision.mode == CameraAccessMode.real;
+                if (granted) {
+                  granted = await CameraPermissionService.ensurePermission();
                 }
-              : null,
+                return inapp.PermissionResponse(
+                  resources: [inapp.PermissionResourceType.CAMERA],
+                  action: granted
+                      ? inapp.PermissionResponseAction.GRANT
+                      : inapp.PermissionResponseAction.DENY,
+                );
+              }
+              return inapp.PermissionResponse(
+                resources: request.resources,
+                action: inapp.PermissionResponseAction.PROMPT,
+              );
+            }
+          : null,
       onWebViewCreated: (controller) async {
         final wrappedController = _WebViewController(controller);
         onControllerCreated(wrappedController);
@@ -2863,6 +2945,32 @@ class WebViewFactory {
                 'message': res.message ?? 'unknown',
               };
             },
+          );
+        }
+        // Virtual camera bridge: the camera-stream shim calls this on the
+        // first video-only getUserMedia to learn the site's decision. The
+        // model wrapper resolves it (short-circuiting a settled mode,
+        // coalescing a burst, showing the Allow/Use-file/Block popup or the
+        // file-pick only when unresolved) and returns {mode, source?}. Null
+        // callback -> the shim isn't injected either, so this is never hit.
+        if (config.onCameraDecision != null) {
+          controller.addJavaScriptHandler(
+            handlerName: 'webCameraRequest',
+            callback: (args) async {
+              final origin = (args.isNotEmpty &&
+                      args[0] is String &&
+                      (args[0] as String).isNotEmpty)
+                  ? args[0] as String
+                  : config.initialUrl;
+              final decision = await config.onCameraDecision!(origin);
+              return decision.toBridgeJson();
+            },
+          );
+          // Non-prompting mode read for the shim's enumerateDevices branch.
+          controller.addJavaScriptHandler(
+            handlerName: 'webCameraMode',
+            callback: (args) =>
+                (config.currentCameraMode?.call() ?? CameraAccessMode.ask).name,
           );
         }
         // Register ClearURLs handler for clipboard/share URL cleaning

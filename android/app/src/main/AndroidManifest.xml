@@ -13,8 +13,10 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <!-- Optional, requested at runtime only when the user taps "Apply QR" in
-         per-site settings to scan a shared site-settings QR. Not used for
-         any background capture or media collection. -->
+         per-site settings to scan a shared site-settings QR, or grants a
+         site's camera request (e.g. a banking web app's QR scanner) after
+         the per-site Allow popup. Not used for any background capture or
+         media collection. -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <application

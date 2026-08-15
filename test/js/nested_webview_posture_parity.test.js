@@ -154,7 +154,11 @@ const PLUMBING = new Set([
   'onProgressChanged', 'onReloadIssued', 'onMainFrameLoad',
   'onWindowRequested', 'onHtmlLoaded', 'shouldFetchHtml', 'onConsoleMessage',
   'onConfirmScriptFetch', 'onExternalSchemeUrl', 'pullToRefreshController',
-  'onRendererGone', 'onProtectedMediaRequest',
+  'onRendererGone', 'onProtectedMediaRequest', 'onCameraDecision',
+  // Accessor for the host's live camera mode (backs the non-prompting
+  // webCameraMode handler), not a posture value to copy: the nested screen
+  // supplies its own in-memory mode.
+  'currentCameraMode',
 ]);
 
 // Posture-ish but not yet threaded to nested webviews. An archive-tier site

@@ -16,12 +16,14 @@ import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/link_routing_service.dart' show LinkRoutingService;
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
+import 'package:webspace/services/camera_decision_engine.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
 import 'package:webspace/services/tab_bar_corner.dart';
 import 'package:webspace/services/user_agent_preset.dart';
 import 'package:webspace/services/webview.dart';
+import 'package:webspace/settings/camera.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
@@ -417,6 +419,19 @@ class WebViewModel {
   /// "ask" rather than always-on. Android-only: WKWebView (iOS/macOS) has no
   /// EME/Widevine support and never issues this request.
   bool? protectedContentAllowed;
+  /// Remembered per-site decision for web camera access (camera-only
+  /// getUserMedia, e.g. a banking site's QR scanner). [CameraAccessMode.ask]
+  /// (default) shows the Block/Use-file/Allow popup on the first request;
+  /// `real` hands over the device camera; `virtual` serves
+  /// [virtualCameraSource] as a synthetic stream; `block` denies silently.
+  /// Only user intent is stored: the app-level CAMERA runtime permission on
+  /// Android is re-checked at every real grant (CameraPermissionService), so
+  /// an OS-level denial never gets frozen into a per-site Block.
+  CameraAccessMode cameraMode;
+  /// Image or looped video served to the page in [CameraAccessMode.virtual].
+  /// Bytes live inline as a `data:` URL so the shim can hand them to an
+  /// `<img>`/`<video>` element. Null until the user picks a file.
+  VirtualCameraSource? virtualCameraSource;
   List<UserScriptConfig> userScripts; // Per-site user scripts
   /// IDs of global user scripts opted into for this site. Global scripts
   /// are stored once in app state (shared source/URL) and each site
@@ -593,6 +608,18 @@ class WebViewModel {
           ? false
           : protectedContentAllowed;
 
+  /// Effective camera-access mode. Archive-tier sites are forced to
+  /// [CameraAccessMode.block] regardless of stored value: the permission
+  /// popup and Android's OS permission dialog are OS-level UI, which
+  /// ARCH-006 forbids for archive sites. Blocked without prompting; the
+  /// stored value is preserved for when the site leaves the archive.
+  /// Unlike protected content, Tracking Protection does not force block:
+  /// capture only starts after an explicit per-site Allow (real) or a
+  /// user-picked file (virtual), so it is not a silent tracking vector the
+  /// umbrella needs to close.
+  CameraAccessMode get effectiveCameraMode =>
+      isArchiveTier ? CameraAccessMode.block : cameraMode;
+
   /// Effective "open external links in the system browser" setting.
   /// Archive-tier sites never hand a URL to another app: launching the
   /// system browser is OS-level UI that crosses the archive's isolation
@@ -611,6 +638,10 @@ class WebViewModel {
   /// coalesces them onto a single Allow/Block popup instead of stacking
   /// dialogs. Cleared once [protectedContentAllowed] is recorded.
   Future<bool>? _protectedMediaDecisionInFlight;
+  /// Orchestrates camera-request resolution (decide → coalesce → persist).
+  /// The engine holds the in-flight future that shares one popup / file-pick
+  /// across a burst of `getUserMedia` retries.
+  final CameraDecisionEngine _cameraEngine = CameraDecisionEngine();
   Function? stateSetterF;
   /// Host hook fired once each time a fresh native controller attaches for
   /// this model (cold start, `_goHome` recreate, renderer-gone recovery,
@@ -713,6 +744,8 @@ class WebViewModel {
     this.notificationsEnabled = false,
     this.backgroundAudioEnabled = false,
     this.protectedContentAllowed,
+    this.cameraMode = CameraAccessMode.ask,
+    this.virtualCameraSource,
     List<UserScriptConfig>? userScripts,
     Set<String>? enabledGlobalScriptIds,
     Set<BlockedCookie>? blockedCookies,
@@ -938,6 +971,8 @@ class WebViewModel {
     )? onUntrustedCertificate,
     Future<void> Function(String url, ExternalUrlInfo info)? onExternalSchemeUrl,
     Future<bool> Function(String origin)? onProtectedMediaRequest,
+    Future<CameraDecision> Function(String origin, CameraAccessMode current)?
+        onCameraDecision,
     List<UserScriptConfig> globalUserScripts = const [],
   }) {
     if (webview == null) {
@@ -1075,6 +1110,21 @@ class WebViewModel {
                     _protectedMediaDecisionInFlight = null;
                   }
                 },
+          onCameraDecision: onCameraDecision == null
+              ? null
+              : (origin) => _cameraEngine.decide(
+                    origin: origin,
+                    // Archive-tier is folded into effectiveCameraMode.
+                    effectiveMode: effectiveCameraMode,
+                    currentSource: () => virtualCameraSource,
+                    resolve: onCameraDecision,
+                    persist: (mode, source) {
+                      cameraMode = mode;
+                      if (source != null) virtualCameraSource = source;
+                    },
+                    save: () async => saveFunc(),
+                  ),
+          currentCameraMode: () => effectiveCameraMode,
           pullToRefreshController: pullToRefreshController,
           onWindowRequested: onWindowRequested,
           shouldOverrideUrlLoading: (url, hasGesture) {
@@ -1895,6 +1945,13 @@ class WebViewModel {
         if (backgroundAudioEnabled) 'backgroundAudioEnabled': true,
         if (protectedContentAllowed != null)
           'protectedContentAllowed': protectedContentAllowed,
+        // Serialized only when the site has been touched, so untouched
+        // sites keep byte-identical JSON. Virtual-source bytes ride the
+        // model like `customIconPng` (backups keep them; archive-tier
+        // sites live only inside the encrypted slice).
+        if (cameraMode != CameraAccessMode.ask) 'cameraMode': cameraMode.name,
+        if (virtualCameraSource != null)
+          'virtualCameraSource': virtualCameraSource!.toJson(),
         'userScripts': userScripts.map((s) => s.toJson()).toList(),
         if (enabledGlobalScriptIds.isNotEmpty)
           'enabledGlobalScriptIds': enabledGlobalScriptIds.toList(),
@@ -1995,6 +2052,11 @@ class WebViewModel {
               false,
       backgroundAudioEnabled: json['backgroundAudioEnabled'] as bool? ?? false,
       protectedContentAllowed: json['protectedContentAllowed'] as bool?,
+      // `cameraAllowed` is the legacy boolean this field replaced; migrate it.
+      cameraMode:
+          cameraAccessModeFromJson(json['cameraMode'], json['cameraAllowed']),
+      virtualCameraSource:
+          VirtualCameraSource.fromJson(json['virtualCameraSource']),
       userScripts: (json['userScripts'] as List<dynamic>?)
           ?.map((e) => UserScriptConfig.fromJson(e as Map<String, dynamic>))
           .toList(),

@@ -21,6 +21,7 @@ class MainActivity: FlutterActivity() {
     private val SHARE_CHANNEL = "org.codeberg.theoden8.webspace/share_intent"
     private var webInterceptPlugin: WebInterceptPlugin? = null
     private var locationPlugin: LocationPlugin? = null
+    private var cameraPermissionPlugin: CameraPermissionPlugin? = null
     private var webSpaceContainerPlugin: WebSpaceContainerPlugin? = null
     private var surfaceDiagPlugin: SurfaceDiagPlugin? = null
     private var backgroundTaskPlugin: BackgroundTaskAndroidPlugin? = null
@@ -65,6 +66,7 @@ class MainActivity: FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         webInterceptPlugin = WebInterceptPlugin(this, flutterEngine)
         locationPlugin = LocationPlugin(this, flutterEngine)
+        cameraPermissionPlugin = CameraPermissionPlugin(this, flutterEngine)
         webSpaceContainerPlugin = WebSpaceContainerPlugin(flutterEngine)
         surfaceDiagPlugin = SurfaceDiagPlugin(this, flutterEngine)
         backgroundTaskPlugin = BackgroundTaskAndroidPlugin(applicationContext, flutterEngine)
@@ -376,6 +378,9 @@ class MainActivity: FlutterActivity() {
         grantResults: IntArray
     ) {
         if (locationPlugin?.onRequestPermissionsResult(requestCode, permissions, grantResults) == true) {
+            return
+        }
+        if (cameraPermissionPlugin?.onRequestPermissionsResult(requestCode, permissions, grantResults) == true) {
             return
         }
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)

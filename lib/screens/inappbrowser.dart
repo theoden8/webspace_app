@@ -9,11 +9,13 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/dev_tools.dart';
+import 'package:webspace/services/camera_decision_engine.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/surface_repaint_engine.dart';
 import 'package:webspace/services/webview.dart';
+import 'package:webspace/settings/camera.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
@@ -65,6 +67,14 @@ class InAppWebViewScreen extends StatefulWidget {
   /// same way. The decision is remembered in-memory for this screen only
   /// (nested screens have no persisted `WebViewModel`).
   final Future<bool> Function(String origin)? onProtectedMediaRequest;
+  /// Web camera-access resolver, forwarded from the parent so a site
+  /// followed through an outbound link (e.g. a bank's QR-scan verification
+  /// page) prompts the same way — including the "use image or video"
+  /// virtual-camera path. Called with the origin and this screen's
+  /// in-memory current mode; the decision is remembered in-memory for this
+  /// screen only (nested screens have no persisted `WebViewModel`).
+  final Future<CameraDecision> Function(String origin, CameraAccessMode current)?
+      onCameraDecision;
   /// Invoked when the user toggles the URL bar from this nested screen's
   /// popup menu. Threaded back to `_WebSpacePageState` so the change
   /// updates the same global preference shown in the parent menu.
@@ -113,6 +123,7 @@ class InAppWebViewScreen extends StatefulWidget {
     this.javascriptEnabled = true,
     this.onConfirmScriptFetch,
     this.onProtectedMediaRequest,
+    this.onCameraDecision,
     this.onShowUrlBarChanged,
     UserProxySettings? proxySettings,
     this.notificationsEnabled = false,
@@ -138,6 +149,15 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   /// burst of `PROTECTED_MEDIA_ID` requests onto one popup.
   bool? _protectedContentAllowed;
   Future<bool>? _protectedMediaInFlight;
+
+  /// In-memory camera-access decision for this nested screen. Starts
+  /// unresolved (`ask`); once the popup / file-pick settles it holds the
+  /// chosen mode and, for virtual, the picked source for the life of this
+  /// screen. Resolution runs through the same [CameraDecisionEngine] as the
+  /// parent — only the storage differs (in-memory, no persistence).
+  CameraAccessMode _cameraMode = CameraAccessMode.ask;
+  VirtualCameraSource? _cameraSource;
+  final CameraDecisionEngine _cameraEngine = CameraDecisionEngine();
 
   /// Cached InAppWebView widget. Built once in initState and reused on
   /// every build() so setState calls (URL bar updates, find results,
@@ -292,6 +312,21 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                   _protectedMediaInFlight = null;
                 }
               },
+        onCameraDecision: widget.onCameraDecision == null
+            ? null
+            : (origin) => _cameraEngine.decide(
+                  origin: origin,
+                  effectiveMode: _cameraMode,
+                  currentSource: () => _cameraSource,
+                  resolve: widget.onCameraDecision!,
+                  persist: (mode, source) {
+                    _cameraMode = mode;
+                    if (source != null) _cameraSource = source;
+                  },
+                  // Nested screens have no persisted model.
+                  save: () async {},
+                ),
+        currentCameraMode: () => _cameraMode,
         notificationsEnabled: widget.notificationsEnabled,
         pullToRefreshController: _pullToRefreshController,
         onUrlChanged: (url) {

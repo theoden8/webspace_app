@@ -20,6 +20,7 @@ import 'dart:io';
 
 import 'package:webspace/services/anti_fingerprinting_shim.dart';
 import 'package:webspace/services/blob_url_capture.dart';
+import 'package:webspace/services/camera_stream_shim.dart';
 import 'package:webspace/services/content_blocker_shim.dart';
 import 'package:webspace/services/procedural_cosmetic_shim.dart';
 import 'package:webspace/services/generic_cosmetic_shim.dart';
@@ -173,6 +174,8 @@ Map<String, String> buildAllFixtures() {
   fixtures['language/en.js'] = buildLanguageShim('en');
   fixtures['language/fr_FR.js'] = buildLanguageShim('fr-FR');
   fixtures['language/ja.js'] = buildLanguageShim('ja');
+
+  fixtures['camera_stream/shim.js'] = buildCameraStreamShim();
 
   // Engine-consistent navigator identity, one fixture per engine × form
   // factor: Gecko mobile (Firefox-Android — vendor "", oscpu/buildID set,
