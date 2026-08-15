@@ -390,10 +390,14 @@ jobs:
           profile: pixel_5
           disk-size: 4096M
           force-avd-creation: false
-          # `-camera-back emulated` gives the AVD a synthetic camera so the
-          # camera tier's real-camera scenario is exercised rather than
-          # skipped (CAM-010); it is inert for every other tier.
-          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back emulated
+          # No `-camera-back emulated`: the AVD's emulated camera never
+          # settles a getUserMedia call under `-no-window -gpu
+          # swiftshader_indirect` (observed hanging past the 90s probe
+          # deadline), and adding the flag also invalidated the cached
+          # snapshot, forcing a cold boot. The camera tier's real-camera
+          # scenario therefore skips here by design and stays a manual /
+          # on-device check; its virtual scenarios are the CI gate (CAM-010).
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           disable-animations: true
           # The action runs each script line as a separate `sh -c`, so the
           # test invocations live in wrapper scripts. The lifecycle tier
@@ -759,11 +763,15 @@ jobs:
                 # Screenshot generator is an iOS/Android fastlane helper,
                 # not a Linux-runnable test. The white-screen pixel suite is
                 # Android-only (window PixelCopy); skip its no-op build here.
+                # The camera suite (CAM-010) exists to exercise the Android
+                # WebView's own media gates, which the desktop WPE/WKWebView
+                # targets do not have; it runs in the emulator job instead.
                 [ "$(basename "$t")" = "screenshot_test.dart" ] && continue
                 [ "$(basename "$t")" = "white_screen_test.dart" ] && continue
                 # Home-shortcut scenarios are Android-only (the menu, pin
                 # state and delete prompt are Platform.isAndroid-gated).
                 [ "$(basename "$t")" = "shortcut_behavior_test.dart" ] && continue
+                [ "$(basename "$t")" = "camera_test.dart" ] && continue
                 echo "::group::$t"
                 # Hard per-test wall-clock cap: a WebView mount can deadlock
                 # the platform thread below Dart timeout layer, which would
@@ -1027,6 +1035,9 @@ jobs:
             [ "$(basename "$t")" = "white_screen_test.dart" ] && continue
             # Android-only home-shortcut scenarios; same reason.
             [ "$(basename "$t")" = "shortcut_behavior_test.dart" ] && continue
+            # Android-only WebView media-gate suite (CAM-010); runs in the
+            # emulator job.
+            [ "$(basename "$t")" = "camera_test.dart" ] && continue
             echo "::group::$t"
             if [ -n "$TIMEOUT" ]; then
               "$TIMEOUT" -k 30s 12m fvm flutter test "$t" -d macos --ci || status=$?

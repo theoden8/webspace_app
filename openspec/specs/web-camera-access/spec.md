@@ -264,11 +264,17 @@ rather than freezing on the first decoded frame
 
 #### Scenario: Real mode is asserted where a camera exists
 
-**Given** a site in `real` mode on a runner whose AVD has an emulated camera
+**Given** a site in `real` mode on a device with a working camera
 **When** the page requests the camera
 **Then** frames arrive and are not the virtual source's colour
-**And** on a runner with no camera or no CAMERA permission the scenario is
-skipped rather than failed
+**And** on a runner with no camera, no CAMERA permission, or a camera whose
+open call never settles, the scenario is skipped rather than failed
+
+CI is the skipped case by design: the AVD's emulated camera does not settle
+a `getUserMedia` call under headless swiftshader, so the workflow does not
+enable it and the real-camera path stays a manual / on-device check. The
+probe therefore caps `getUserMedia` itself, so a hung open reports a
+classifiable `TimeoutError` instead of stalling the run.
 
 ### Requirement: CAM-009 — Fail closed without the bridge
 
