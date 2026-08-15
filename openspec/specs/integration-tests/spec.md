@@ -637,6 +637,19 @@ ran with no foreground activity: worker → engine dispatch →
 `onBackgroundRefresh` site reload → `Notification` polyfill →
 `flutter_local_notifications`.
 
+Observation contract: "a new notification" SHALL be read as a set
+difference over notification **identities** (the `user|pkg|id|tag|uid`
+key from `StatusBarNotification.getKey`), never as a record count. A
+count cannot see a repost — the OS collapses on the `(tag, id)` pair,
+so a second post with the same pair updates the existing record and the
+count stays put (`NOTIF-009` is what makes successive untagged posts
+distinct identities in the first place) — and the same record
+transiently appears in more than one `dumpsys` section while it is
+being enqueued, which made a count-based assertion pass or fail on
+whether the poll landed inside that window. The page SHALL also fire a
+`/beacon` request at the host server on every load, so a failure can
+name which leg broke instead of only that no notification arrived.
+
 Cross-platform posture: the seed transport is platform-agnostic
 (`ws_diag_seed` intent extra on Android; `WS_DIAG_SEED` process
 environment elsewhere, which `simctl launch` forwards via its
@@ -662,16 +675,29 @@ tier for the non-background scenarios remains future scope.
 - **Given** the notification site's page just painted
 - **When** the harness polls `dumpsys notification`
 - **Then** the foreground load itself must have posted a notification
-  (polyfill → local-notifications proven working), and that count is
-  the baseline the background assertion increments from
+  (polyfill → local-notifications proven working), and the identity
+  set it produced is the baseline the background assertion diffs
+  against
 
 #### Scenario: Forced periodic refresh posts a new notification while backgrounded
 
 - **Given** the app is backgrounded (HOME) with the process alive
 - **When** the harness forces the WorkManager job(s)
-- **Then** a new OS notification from the app appears within the
-  polling deadline, and on failure the harness saves the jobscheduler
-  dump, the notification dump, and a logcat tail as artifacts
+- **Then** a notification identity absent from the baseline appears
+  within the polling deadline, and on failure the harness saves the
+  jobscheduler dump, the notification dump, and a logcat tail as
+  artifacts
+
+#### Scenario: A failure names the leg that broke
+
+- **Given** the background assertion timed out
+- **When** the harness compares the host server's `/beacon` hit count
+  against the count taken when the app was backgrounded
+- **Then** a risen count reports the break as downstream (the site
+  reloaded, the polyfill → `NotificationService` →
+  `flutter_local_notifications` leg dropped it) and an unchanged count
+  reports it as upstream (worker → engine dispatch →
+  `onBackgroundRefresh` never reloaded the site)
 
 #### Scenario: The refreshed site still paints on return
 

@@ -307,6 +307,32 @@ Because the wake-up chain (OS scheduler -> webview reload -> page JS -> `webNoti
 **Then** `NotificationService.show` posts a local notification for that `siteId`
 **And** the OS permission gate and delivery are exercised independently of any page JS
 
+### Requirement: NOTIF-009 - Notification Replacement Semantics
+
+The system SHALL follow Web Notifications replacement semantics when mapping a
+page post onto the OS notification identity (`NotificationTarget.resolve`):
+a post carrying a `tag` replaces the same site's earlier post with that tag; a
+post without one is always a new notification. Android collapses on the
+`(tag, id)` pair and iOS/macOS on the identifier, so an untagged post SHALL
+draw a per-post-unique id — deriving the id from the title (or any other
+value constant across posts) silently swallows every repeat of a site's
+"New message". The id sequence SHALL be seeded so a fresh process cannot reuse
+an id still held by a notification the previous process posted, and the OS tag
+SHALL stay the `siteId` so a tap still routes to the originating site.
+
+#### Scenario: Untagged posts accumulate
+
+**Given** a site with notification permission granted
+**When** the page calls `new Notification("New message")` three times without a `tag`
+**Then** three separate OS notifications are posted, none replacing another
+
+#### Scenario: A page tag replaces the site's earlier post with that tag
+
+**Given** a site posted `new Notification("2 unread", {tag: "inbox"})`
+**When** it posts `new Notification("3 unread", {tag: "inbox"})`
+**Then** the second post lands on the same `(tag, id)` pair and replaces the first
+**And** a different page tag, or the same page tag on another site, lands beside it
+
 ## Manual Test Procedure
 
 Use the HTML test fixture at `test/fixtures/notification_test.html`. Import it via "Import HTML file" on the Add Site screen. **Requires container mode support** (iOS 17+ or Android with System WebView 110+).

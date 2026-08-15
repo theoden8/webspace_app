@@ -5,9 +5,45 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:webspace/services/log_service.dart';
 
+/// The OS-side identity of one posted notification. Android collapses on the
+/// `(tag, id)` pair and iOS/macOS on the identifier, so this pair decides
+/// whether a post replaces an earlier one or lands beside it.
+@immutable
+class NotificationTarget {
+  final String tag;
+  final int id;
+
+  const NotificationTarget({required this.tag, required this.id});
+
+  /// Web Notifications semantics: a post carrying a `tag` replaces the site's
+  /// earlier post with that tag; a post without one is always a new
+  /// notification. The tag stays namespaced to the site so two sites can use
+  /// the same page-level tag without clobbering each other.
+  ///
+  /// [sequence] is only read for untagged posts and must differ per post.
+  static NotificationTarget resolve({
+    required String siteId,
+    required String? tag,
+    required int sequence,
+  }) {
+    final pageTag = (tag == null || tag.isEmpty) ? null : tag;
+    return NotificationTarget(
+      tag: siteId,
+      id: pageTag == null
+          ? sequence & 0x7fffffff
+          : Object.hash(siteId, pageTag) & 0x7fffffff,
+    );
+  }
+}
+
 class NotificationService {
   static final instance = NotificationService._();
   NotificationService._();
+
+  /// Seeded from the clock so ids stay distinct across process restarts —
+  /// a fresh process must not reuse an id still held by a notification the
+  /// previous process posted.
+  int _sequence = DateTime.now().microsecondsSinceEpoch;
 
   final _plugin = FlutterLocalNotificationsPlugin();
   bool _initialized = false;
@@ -141,13 +177,19 @@ class NotificationService {
       return;
     }
 
+    final target = NotificationTarget.resolve(
+      siteId: siteId,
+      tag: tag,
+      sequence: _sequence++,
+    );
+
     final androidDetails = AndroidNotificationDetails(
       'webspace_web_notifications',
       'Web Notifications',
       channelDescription: 'Notifications from websites loaded in WebSpace',
       importance: Importance.high,
       priority: Priority.high,
-      tag: tag ?? siteId,
+      tag: target.tag,
     );
 
     const iosDetails = DarwinNotificationDetails(
@@ -163,9 +205,8 @@ class NotificationService {
     );
 
     final payload = jsonEncode({'siteId': siteId});
-    final id = siteId.hashCode ^ title.hashCode;
 
-    await _plugin.show(id: id, title: title, body: body.isNotEmpty ? body : null, notificationDetails: details, payload: payload);
+    await _plugin.show(id: target.id, title: title, body: body.isNotEmpty ? body : null, notificationDetails: details, payload: payload);
     LogService.instance.log(
       'Notification',
       'Showed notification: "$title" for siteId: $siteId',
