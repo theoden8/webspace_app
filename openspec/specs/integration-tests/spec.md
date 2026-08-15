@@ -29,15 +29,17 @@ fastlane-driven Android/iOS screenshot pipeline (see
 [`screenshots`](../screenshots/spec.md) — `build-android`'s
 `reactivecircus/android-emulator-runner` and `build-apple`'s
 `simctl boot`). The Android-emulator scenarios are wired in:
-`white_screen_test.dart` (INTEG-010) runs inside the `build-android`
-job on every push/PR, on the same AVD profile and snapshot cache the
-screenshots lane uses (the emulator prerequisite steps are ungated;
-only the screenshot generation itself stays `workflow_dispatch`),
-followed in the same emulator step by the adb-driven lifecycle tier
-(INTEG-011), which drives warm start, bfcache back navigation, and
-activity recreation from outside the app process. INTEG-010 is
-Android-only (window-level `PixelCopy`), so both desktop loops skip
-it by basename exactly as they skip `screenshot_test.dart`; the
+`white_screen_test.dart` (INTEG-010) and `shortcut_behavior_test.dart`
+(INTEG-013) run inside the `build-android` job on every push/PR, on the
+same AVD profile and snapshot cache the screenshots lane uses (the
+emulator prerequisite steps are ungated; only the screenshot generation
+itself stays `workflow_dispatch`), followed in the same emulator step by
+the adb-driven lifecycle tier (INTEG-011), which drives warm start,
+bfcache back navigation, activity recreation, and the warm
+home-shortcut taps from outside the app process. Both in-process
+Android suites are Android-only (window-level `PixelCopy`;
+`Platform.isAndroid`-gated shortcut paths), so both desktop loops skip
+them by basename exactly as they skip `screenshot_test.dart`; the
 lifecycle tier is a shell harness, not an `integration_test` target,
 so the desktop loops never see it. A broader mobile tier (iOS
 Simulator) remains future scope and would extend the same boot setup
@@ -496,7 +498,7 @@ test cannot produce; those belong to the adb-driven lifecycle tier
 - **Given** the `build-android` job has built the APKs and its
   emulator prerequisites (KVM, Android SDK, API 34 google_apis x86_64
   `pixel_5` AVD snapshot cache) are ungated
-- **When** the `Run white-screen pixel scenarios` step runs
+- **When** the `Run emulator integration scenarios` step runs
   `fvm flutter test integration_test/white_screen_test.dart -d <device> --flavor fdebug`
   inside the booted emulator with a 25-minute wall-clock cap
 - **Then** the suite executes on every push to master, every PR, and
@@ -587,9 +589,10 @@ sample (observed as exact per-channel halving of the page colors).
 
 #### Scenario: Runs in build-android after the in-process suite
 
-- **Given** the `Run white-screen pixel scenarios` emulator step ran
-  `run_android_integration_tests.sh`, whose `flutter test` installs an
-  APK with the *test* Dart entrypoint
+- **Given** the `Run emulator integration scenarios` emulator step ran
+  the in-process wrapper scripts (`run_android_integration_tests.sh`,
+  `run_android_shortcut_tests.sh`, `run_android_background_audio_tests.sh`),
+  whose `flutter test` installs an APK with the *test* Dart entrypoint
 - **When** `run_android_lifecycle_tests.sh` runs next in the same step,
   rebuilds the default-entrypoint fdebug debug APK, reinstalls it, and
   clears package data for a pristine cold start
@@ -708,6 +711,125 @@ tier for the non-background scenarios remains future scope.
 
 ---
 
+### Requirement: INTEG-013 — Home-shortcut behavior scenarios
+
+`integration_test/shortcut_behavior_test.dart` SHALL drive the Android
+home-shortcut flows of [home-shortcut](../home-shortcut/spec.md)
+through the real widget tree on an Android emulator/device, covering
+the *wiring* in `lib/main.dart` that the engine unit tests in
+`test/startup_restore_engine_test.dart` cannot reach: which prompt a
+`LaunchResolution` raises, what the user's answer persists, whether the
+"Home Shortcut" menu item is offered, and what deleting a site does to
+the launcher tiles that still reach it. The suite SHALL cover at least
+HS-002/HS-006 (cold launch), HS-004/HS-005 (menu gating, including the
+rebound-site case), HS-001/HS-012 (pin + ledger record), HS-011
+(orphan confirm / reroute / create, and the remembered rebind), and
+HS-013 (delete-time Keep/Reassign/Disable prompt).
+
+The platform channel SHALL be mocked, because a launcher pin dialog and
+a real pinned set are not reachable from in-process; the mock SHALL
+drain `getLaunchSiteId` on read, mirroring MainActivity's
+`intent.removeExtra`, so a resume-cadence re-poll cannot re-navigate.
+Pages come from an in-process loopback server, and each test seeds its
+own `SharedPreferences` (site list, ledger, rebind map) before calling
+`app.main()`, so the runs share no state.
+
+A warm tap is delivered by driving the lifecycle round trip through
+`inactive` only — never `paused` or `hidden`. `SchedulerBinding` sets
+`framesEnabled = false` for those two states, which makes
+`scheduleFrame()` a no-op, so the next `tester.pump()` waits forever for
+a frame nobody schedules (observed as a full-cap CI hang). Any future
+integration test that drives app lifecycle SHALL follow the same rule.
+Each test SHALL also carry its own `timeout:` so a hang fails that test
+with its widget-tree and log dump rather than expiring the suite's
+wall-clock cap with no output.
+
+Warm taps SHALL stay in the adb tier: a tap on a pinned tile while the
+app runs is delivered as `onNewIntent` against the running activity,
+which an in-process test cannot produce. Those two scenarios live in
+`scripts/run_android_lifecycle_tests.sh` alongside the INTEG-011
+lifecycle scenarios, which already own the emulator, the page server,
+and the frame classifier.
+
+#### Scenario: Cold launch opens the pinned site at its home URL
+
+- **Given** a seeded site whose persisted `currentUrl` drifted away
+  from its `initUrl`, and a pending launch carrying its `siteId`
+- **When** the app cold-starts
+- **Then** that site is the activated one, no other site is mounted,
+  and its `currentUrl` is back at `initUrl` (HS-006)
+- **And** the startup reconcile has recorded the pinned site's url in
+  `shortcutUrlLedger` (HS-012)
+
+#### Scenario: Menu gating is asserted in both directions
+
+- **Given** sites in three pin states — pinned, unpinned, and rebound
+  to by an orphaned pinned tile
+- **When** the overflow menu is opened for each
+- **Then** "Home Shortcut" is absent for the pinned and the rebound
+  site and present for the unpinned one (HS-005), and tapping it
+  reaches `pinShortcut` on the channel with that site's id and label
+  and records its url in the ledger (HS-001 / HS-012)
+
+#### Scenario: An orphaned tile's prompt outcome is what gets persisted
+
+- **Given** a pinned tile whose site is gone but whose ledger url
+  matches a live site's base domain
+- **When** the tile is tapped and the user declines
+- **Then** no site is opened and no rebind is remembered, and the next
+  tap prompts again
+- **When** the user confirms instead
+- **Then** the matched site is activated, `shortcutSiteRemap` binds the
+  tile to it, and a subsequent tap opens it with no prompt (HS-011)
+
+#### Scenario: A tile with no domain match can be rerouted or given a new site
+
+- **Given** a pinned tile whose ledger url matches no live site
+- **When** the tile is tapped
+- **Then** the missing-site chooser offers reroute and create; choosing
+  reroute binds the tile to the picked site, and choosing create builds
+  a site rooted at the ledger url and binds the tile to it (HS-011)
+
+#### Scenario: Deleting a site prompts for every tile that reaches it
+
+- **Given** a site reachable by two pinned tiles — its own, and an
+  orphaned tile rebound to it
+- **When** the site is deleted and the user picks Disable
+- **Then** `disableShortcut` is called for both tiles and their ledger
+  and rebind entries are dropped (HS-013)
+- **And** deleting a site no pinned tile reaches raises no prompt
+
+#### Scenario: Warm taps are covered out of process
+
+- **Given** the app is running with the shortcut-seeded sites
+- **When** the adb harness issues `am start ... --es siteId <other>`
+- **Then** the other site composites (HS-002 "app already running")
+- **And** after driving a site off its `initUrl` and re-tapping its own
+  shortcut, the frame still shows the navigated page — a warm tap
+  preserves the live session (HS-006), and a reset to `initUrl` would
+  repaint the home page instead
+
+#### Scenario: Runs as its own wrapper script in build-android
+
+- **Given** the emulator step runs one wrapper script per in-process
+  suite (the runner executes each `script:` line as a separate `sh -c`,
+  so the device id has to stay in scope with `flutter test`)
+- **When** `run_android_shortcut_tests.sh` runs after
+  `run_android_integration_tests.sh` and before the lifecycle tier
+- **Then** the suite executes on every push/PR under its own 20-minute
+  wall-clock backstop, and a failure fails `build-android`
+
+#### Scenario: Desktop loops skip the Android-only suite
+
+- **Given** the Linux and macOS integration loops iterate
+  `integration_test/*_test.dart`
+- **When** they reach `shortcut_behavior_test.dart`
+- **Then** both skip it by basename (like `white_screen_test.dart`),
+  because every path it drives is `Platform.isAndroid`-gated and the
+  file's own `skip:` guard would still cost a desktop debug build
+
+---
+
 ## Known Limitations
 
 - **Build time per test**: each `flutter test integration_test/<file>.dart`
@@ -762,10 +884,18 @@ tier for the non-background scenarios remains future scope.
   + [`lib/services/surface_diag_native.dart`](../../../lib/services/surface_diag_native.dart)
   (classification unit-tested in
   [`test/surface_diag_classification_test.dart`](../../../test/surface_diag_classification_test.dart))
+- [`integration_test/shortcut_behavior_test.dart`](../../../integration_test/shortcut_behavior_test.dart)
+  — INTEG-013: [home-shortcut](../home-shortcut/spec.md) launch, menu
+  gating, orphan routing and delete-time tile prompt through the widget
+  tree (Android emulator tier), run by
+  [`scripts/run_android_shortcut_tests.sh`](../../../scripts/run_android_shortcut_tests.sh);
+  the resolution rules themselves stay in
+  [`test/startup_restore_engine_test.dart`](../../../test/startup_restore_engine_test.dart)
 - [`scripts/run_android_lifecycle_tests.sh`](../../../scripts/run_android_lifecycle_tests.sh)
   — INTEG-011: adb-driven lifecycle tier (warm start, bfcache back,
   activity recreation, white control); INTEG-012: background-refresh
-  scenario (NOTIF-005-A). Frame classifier:
+  scenario (NOTIF-005-A); INTEG-013: warm home-shortcut taps. Frame
+  classifier:
   [`scripts/classify_window_pixels.py`](../../../scripts/classify_window_pixels.py);
   launch seeding: [`lib/services/diag_seed.dart`](../../../lib/services/diag_seed.dart)
   (`getDiagSeed` in MainActivity, debuggable builds only; parsing

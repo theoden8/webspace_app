@@ -7469,7 +7469,11 @@ class _WebSpacePageState extends State<WebSpacePage>
     }
 
     if (!mounted) return;
-    Navigator.pop(context);
+    // closeDrawer() (not Navigator.pop): `context` belongs to the drawer tile
+    // of the site just removed, so by now its element can be defunct and
+    // Navigator.of would fail its null check — deterministically so when the
+    // deleted site was the last tile. Idempotent, like the other drawer taps.
+    _scaffoldKey.currentState?.closeDrawer();
   }
 
   /// Shared Keep/Reassign/Disable chooser for the delete-time shortcut prompt
