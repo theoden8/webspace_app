@@ -49,9 +49,21 @@ function decodeBase64(b64) {
   return Buffer.from(b64, 'base64').toString('utf8');
 }
 
-// FileReader resolves on a microtask + timer in jsdom; give it a tick.
-function flushAsync() {
-  return new Promise((r) => setTimeout(r, 30));
+// FileReader resolves on a microtask + timer in jsdom; the delay is
+// unbounded on a loaded CI runner, so poll for the expected bridge call
+// instead of sleeping a fixed tick. Resolves quietly on timeout — the
+// assertions that follow produce the real failure message.
+function waitForCall(calls, name, timeoutMs = 2000) {
+  const start = Date.now();
+  return new Promise((resolve) => {
+    (function check() {
+      if (findCall(calls, name) || Date.now() - start > timeoutMs) {
+        resolve();
+      } else {
+        setTimeout(check, 10);
+      }
+    })();
+  });
 }
 
 test('fast path: reads captured Blob via FileReader, reports base64', async () => {
@@ -70,7 +82,7 @@ test('fast path: reads captured Blob via FileReader, reports base64', async () =
     'polyfill must mint the URL the dumped IIFE references');
 
   runInDom(dom, IIFE);
-  await flushAsync();
+  await waitForCall(calls, '_webspaceBlobDownload');
 
   const dl = findCall(calls, '_webspaceBlobDownload');
   assert.ok(dl, 'expected _webspaceBlobDownload to fire');
@@ -107,7 +119,7 @@ test('fallback: when URL is not captured, IIFE calls fetch and reads result', as
   };
 
   runInDom(dom, IIFE);
-  await flushAsync();
+  await waitForCall(calls, '_webspaceBlobDownload');
 
   assert.deepEqual(fetched, [FIXTURE_URL],
     'fallback must call fetch with the original blob URL');
@@ -134,7 +146,7 @@ test('fallback: fetch rejection routes through _webspaceBlobDownloadError', asyn
   };
 
   runInDom(dom, IIFE);
-  await flushAsync();
+  await waitForCall(calls, '_webspaceBlobDownloadError');
 
   const dl = findCall(calls, '_webspaceBlobDownload');
   assert.equal(dl, undefined,
@@ -162,7 +174,7 @@ test('fast path: synchronous throw routes through _webspaceBlobDownloadError', a
   };
 
   runInDom(dom, IIFE);
-  await flushAsync();
+  await waitForCall(calls, '_webspaceBlobDownloadError');
 
   const err = findCall(calls, '_webspaceBlobDownloadError');
   assert.ok(err, 'expected error handler to fire on synchronous throw');
