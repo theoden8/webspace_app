@@ -159,13 +159,19 @@ without OS-level backgrounding:
   legal intermediate states).
 - The HTML fixture
   ([integration_test/fixtures/background_audio.html](../../../integration_test/fixtures/background_audio.html))
-  beacons `GET /beacon?ticks=N&audio=<playState>` to the test's loopback
-  server every 250 ms from a JS interval, so page-JS liveness is observed
-  server-side with no bridge into the app's widget tree. The server serves
-  the embedded mirror `background_audio_fixture.dart` — the sandboxed test
-  app cannot read repo files at runtime (macOS CI denies with EPERM) — and
-  `test/background_audio_fixture_drift_test.dart` pins mirror and .html
-  byte-identical.
+  beacons `GET /beacon?ticks=N&audio=<playState>&t=<currentTime>&paused=<bool>`
+  to the test's loopback server every 250 ms from a JS interval, so page-JS
+  liveness is observed server-side with no bridge into the app's widget tree.
+  The server serves the embedded mirror `background_audio_fixture.dart` — the
+  sandboxed test app cannot read repo files at runtime (macOS CI denies with
+  EPERM) — and `test/background_audio_fixture_drift_test.dart` pins mirror and
+  .html byte-identical.
+- `?media=` selects what the fixture plays: `none` (default; WPE in the
+  headless CI container crash-loops its web process on media-pipeline init),
+  `audio` (looping silent WAV), `stream` (muted `<video>` off a canvas
+  `captureStream`, which needs no audio device — the CI emulator boots
+  `-noaudio`). The liveness tests use `none`; BGAUDIO-007's notification tier
+  uses `stream`.
 - The BGAUDIO-002 decision line is asserted from `LogService`.
 
 Both directions are covered, on the platforms where each is observable:
@@ -215,7 +221,10 @@ constraints.
   Android + `backgroundAudioEnabled` only) observes every `<audio>`/`<video>`
   element plus `navigator.mediaSession.metadata` and reports
   `{playing, title, artist, album, artwork}` to Dart through the
-  `wsMediaSession` handler.
+  `wsMediaSession` handler. "Every element" includes ones that never enter the
+  document: `new Audio(src).play()` is a common playback idiom and
+  `querySelectorAll` cannot see it, so the `HTMLMediaElement.prototype.play`
+  patch registers detached elements in a bounded list that the scan unions in.
 - [`MediaSessionService`](../../../lib/services/media_session_service.dart)
   raises (`start`) / refreshes (`update`) / tears down (`stop`) the
   notification via the `org.codeberg.theoden8.webspace/media_session` channel.
@@ -260,6 +269,68 @@ resumable paused state
 **Then** `_updateBackgroundAudioSession` finds no loaded background-audio site
 and calls `MediaSessionService.stopAll`, stopping the foreground service
 
+#### Scenario: A player that never enters the DOM still raises the notification
+
+**Given** a background-audio site plays through `new Audio(src).play()` without
+appending the element
+**When** the shim's scan runs
+**Then** the element is included via the detached registry and reported
+`playing: true`
+(regression test: `test/browser/media_session_real_engine.test.js`)
+
+---
+
+### Requirement: BGAUDIO-007 — The Media Notification Is Observable End to End
+
+Every link between the page's playback and the notification on screen SHALL be
+assertable, and the terminal observable SHALL be the OS's own notification
+list — not a Dart-side flag. A foreground service that started while the OS
+suppressed its notification (a denied `POST_NOTIFICATIONS`) is
+indistinguishable from success at every layer above the platform channel, and
+that is the failure mode this requirement exists to make visible.
+
+- `MediaSessionService` SHALL log one non-sensitive line on raise and on
+  teardown (no site name, URL or track metadata), so a user's App Logs export
+  says whether the bridge fired.
+- The `media_session` channel SHALL expose `isNotificationActive`, answered
+  from `NotificationManager.getActiveNotifications()`, and
+  `MediaSessionService.notificationPosted()` SHALL surface it.
+- On raising the notification the service SHALL check visibility once and log a
+  warning when the OS did not post it.
+- Coverage SHALL exist at three tiers, because no single one spans the chain:
+  the shim's behaviour under a real engine
+  (`test/browser/media_session_real_engine.test.js`, Puppeteer + headless
+  Chromium — jsdom has no media pipeline, so `paused`/`currentTime` never move
+  there); the channel contract and its guards
+  (`test/media_session_service_test.dart`); and the notification itself on a
+  real Android WebView
+  (`integration_test/background_audio_media_notification_test.dart`, run by
+  `scripts/run_android_background_audio_tests.sh`, which pre-grants
+  `POST_NOTIFICATIONS` so the tier measures the feature and not the dialog).
+
+#### Scenario: The notification reaches the OS notification list
+
+**Given** a background-audio site is playing in the Android emulator tier
+**When** the shim reports `playing: true`
+**Then** `MediaSessionService` logs `Notification raised`
+**And** `notificationPosted()` returns true — the notification is in
+`getActiveNotifications()`
+**And** it is still posted after an injected `AppLifecycleState.paused`
+
+#### Scenario: A suppressed notification is not silent
+
+**Given** the foreground service started but the OS did not post its
+notification
+**When** the post-raise visibility check runs
+**Then** a warning naming the likely denied notification permission is logged
+(regression test: `test/media_session_service_test.dart`)
+
+#### Scenario: Teardown removes it from the OS, not just from Dart
+
+**Given** the media notification is posted
+**When** `stopAll` runs
+**Then** `notificationPosted()` returns false
+
 ## Limitations (documented, accepted)
 
 - **iOS without playback**: the audio session keeps the app alive only
@@ -288,17 +359,26 @@ and calls `MediaSessionService.stopAll`, stopping the foreground service
 - `lib/services/webview.dart` — `WebViewConfig.backgroundAudioEnabled`, media
   shim injection, `wsMediaSession` handler.
 - `lib/services/media_session_shim.dart`, `lib/services/media_session_service.dart`
-  — BGAUDIO-006 page-JS bridge + Dart channel bridge.
+  — BGAUDIO-006 page-JS bridge + Dart channel bridge; BGAUDIO-007 detached-
+  element registry, raise/teardown logging and the visibility check.
 - `android/app/src/main/kotlin/.../MediaPlaybackService.kt`,
   `.../MediaSessionPlugin.kt`, `MainActivity.kt`, `AndroidManifest.xml` —
-  BGAUDIO-006 foreground media service + permissions.
+  BGAUDIO-006 foreground media service + permissions; BGAUDIO-007
+  `isNotificationActive`.
+- `tool/dump_shim_js.dart` + `test/js_fixtures/media_session/shim.js` — the
+  media-session shim joins the dumped-fixture pipeline so the browser tier
+  runs the exact injected string.
 
 ### Added
 
 - `openspec/specs/background-audio/spec.md` — this document.
 - `integration_test/background_audio_lifecycle_test.dart` (exempt direction),
-  `integration_test/background_audio_freeze_test.dart` (negative control) +
-  `integration_test/fixtures/background_audio.html`.
+  `integration_test/background_audio_freeze_test.dart` (negative control),
+  `integration_test/background_audio_media_notification_test.dart` (BGAUDIO-007
+  notification tier) + `integration_test/fixtures/background_audio.html`.
+- `test/media_session_service_test.dart`,
+  `test/browser/media_session_real_engine.test.js` — BGAUDIO-007 channel and
+  real-engine tiers.
 - `scripts/run_android_background_audio_tests.sh` + the Android emulator CI
   wiring in `.github/workflows/build-and-test.yml`.
 

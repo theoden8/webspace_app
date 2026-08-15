@@ -31,4 +31,12 @@ void main() {
   test('is idempotent (guards against double injection across frames)', () {
     expect(shim, contains('__wsMediaShim'));
   });
+
+  test('tracks elements that play without entering the DOM', () {
+    // `new Audio(src).play()` never lands in the document, so a scan built
+    // only on querySelectorAll misses it entirely. Behaviour is proven in
+    // test/browser/media_session_real_engine.test.js; this pins the structure.
+    expect(shim, contains('detached'));
+    expect(shim, contains('isConnected'));
+  });
 }

@@ -66,12 +66,12 @@ void main() {
     });
 
     isDemoMode = true;
-    // A PLAIN site: backgroundAudioEnabled defaults false. ?noMedia=1 keeps the
-    // fixture off the media stack (WPE CI has no audio sink) — the claim here
-    // is purely JS-timer freeze.
+    // A PLAIN site: backgroundAudioEnabled defaults false. ?media=none keeps
+    // the fixture off the media stack (WPE CI has no audio sink) — the claim
+    // here is purely JS-timer freeze.
     final plainSite = WebViewModel(
       siteId: 'plain',
-      initUrl: 'http://127.0.0.1:$port/?noMedia=1',
+      initUrl: 'http://127.0.0.1:$port/?media=none',
       name: 'Plain Site',
     );
     SharedPreferences.setMockInitialValues({
