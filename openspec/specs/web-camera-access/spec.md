@@ -276,6 +276,45 @@ enable it and the real-camera path stays a manual / on-device check. The
 probe therefore caps `getUserMedia` itself, so a hung open reports a
 classifiable `TimeoutError` instead of stalling the run.
 
+### Requirement: CAM-011 — Backgrounded sites deny silently
+
+A camera request from a site that is not the active one SHALL be denied
+without prompting, whatever its stored `cameraMode`, and SHALL leave the
+stored mode and picked source untouched. Loaded-but-inactive sites keep
+running JS (pause is not a security boundary, see
+[webview-pause-lifecycle](../webview-pause-lifecycle/spec.md)), so without
+this a background site can pop a permission dialog the user reads as
+belonging to the site on screen, or — with a remembered `real`/`virtual`
+grant — start capture with nothing on screen to attribute it to. The gate
+lives in `CameraDecisionEngine.decide` as a required `isSiteActive`
+predicate, so a new call site cannot be wired up without answering it.
+
+Only the grant is gated. The non-prompting `webCameraMode` read behind
+`enumerateDevices` is not: the shim caches it for the document's lifetime,
+so denying it once would leave a site enumerating no camera long after it
+came back to the foreground, and enumeration grants nothing on its own.
+
+An answer given to a popup that was raised while the site was active still
+applies when it settles after the switch — the user answered it — but the
+next request from the now-backgrounded site is denied like any other.
+
+#### Scenario: Background site with a remembered grant
+
+**Given** a loaded site with `cameraMode == real` (or `virtual` with a source)
+**And** the user is looking at a different site
+**When** a page in the background site calls `getUserMedia({video: true})`
+**Then** the bridge answers `block` and the request is rejected
+**And** no camera is opened and the site's stored mode is unchanged
+
+#### Scenario: Background site cannot raise the popup
+
+**Given** a loaded site with `cameraMode == ask`
+**And** the user is looking at a different site
+**When** a page in the background site requests the camera
+**Then** no popup and no file picker are shown
+**And** the request is denied
+**And** the site prompts as usual once the user switches back to it
+
 ### Requirement: CAM-009 — Fail closed without the bridge
 
 If the `webCameraRequest` Dart bridge is unreachable, the shim SHALL deny

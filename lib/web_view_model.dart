@@ -1114,6 +1114,7 @@ class WebViewModel {
               ? null
               : (origin) => _cameraEngine.decide(
                     origin: origin,
+                    isSiteActive: () => isActive?.call() ?? true,
                     // Archive-tier is folded into effectiveCameraMode.
                     effectiveMode: effectiveCameraMode,
                     currentSource: () => virtualCameraSource,
