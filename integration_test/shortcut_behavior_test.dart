@@ -48,15 +48,17 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 
-const _kShortcutChannel =
-    MethodChannel('org.codeberg.theoden8.webspace/shortcuts');
+const _kShortcutChannel = MethodChannel(
+  'org.codeberg.theoden8.webspace/shortcuts',
+);
 
 // Unreachable RFC 5737 test addresses: used only as ledger urls, so their base
 // domain differs from the loopback sites and no connection is ever needed.
 const _kOffDomainUrl = 'http://192.0.2.9/gone.html';
 const _kCreateUrl = 'http://192.0.2.10/fresh.html';
 
-String _solidPage(String cssColor) => '<!doctype html><html><head>'
+String _solidPage(String cssColor) =>
+    '<!doctype html><html><head>'
     '<meta name="viewport" content="width=device-width, initial-scale=1">'
     '<style>html,body{margin:0;height:100%;background:$cssColor;}</style>'
     '</head><body></body></html>';
@@ -100,25 +102,25 @@ void main() {
 
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(_kShortcutChannel, (call) async {
-      calls.add(call);
-      switch (call.method) {
-        case 'getLaunchSiteId':
-          final launch = pendingLaunch;
-          pendingLaunch = null;
-          return launch;
-        case 'getPinnedSiteIds':
-          return pinned.toList();
-        case 'pinShortcut':
-          pinned.add((call.arguments as Map)['siteId'] as String);
-          return true;
-        case 'disableShortcut':
-          pinned.remove((call.arguments as Map)['siteId'] as String);
-          return null;
-        default:
-          // removeShortcut, syncSites, getDiagSeed, isAppIntentsSupported.
-          return call.method == 'isAppIntentsSupported' ? false : null;
-      }
-    });
+          calls.add(call);
+          switch (call.method) {
+            case 'getLaunchSiteId':
+              final launch = pendingLaunch;
+              pendingLaunch = null;
+              return launch;
+            case 'getPinnedSiteIds':
+              return pinned.toList();
+            case 'pinShortcut':
+              pinned.add((call.arguments as Map)['siteId'] as String);
+              return true;
+            case 'disableShortcut':
+              pinned.remove((call.arguments as Map)['siteId'] as String);
+              return null;
+            default:
+              // removeShortcut, syncSites, getDiagSeed, isAppIntentsSupported.
+              return call.method == 'isAppIntentsSupported' ? false : null;
+          }
+        });
   });
 
   tearDownAll(() async {
@@ -128,16 +130,13 @@ void main() {
   });
 
   WebViewModel siteA({String? currentUrl}) => WebViewModel(
-        siteId: 'ws-hs-a',
-        initUrl: '$hostA/a.html',
-        currentUrl: currentUrl,
-        name: 'Site A',
-      );
-  WebViewModel siteB() => WebViewModel(
-        siteId: 'ws-hs-b',
-        initUrl: '$hostB/b.html',
-        name: 'Site B',
-      );
+    siteId: 'ws-hs-a',
+    initUrl: '$hostA/a.html',
+    currentUrl: currentUrl,
+    name: 'Site A',
+  );
+  WebViewModel siteB() =>
+      WebViewModel(siteId: 'ws-hs-b', initUrl: '$hostB/b.html', name: 'Site B');
 
   /// Seed the app's persisted state plus the mock launcher's pin set. Called
   /// before every `app.main()`; `setMockInitialValues` nullifies the
@@ -168,13 +167,16 @@ void main() {
     // ignore: avoid_print
     print('=== shortcut_behavior_test: $context');
     // ignore: avoid_print
-    print('Texts: ${find.byType(Text).evaluate().map((e) {
-      final w = e.widget;
-      return w is Text ? (w.data ?? '?') : '?';
-    }).take(40).toList()}');
+    print(
+      'Texts: ${find.byType(Text).evaluate().map((e) {
+        final w = e.widget;
+        return w is Text ? (w.data ?? '?') : '?';
+      }).take(40).toList()}',
+    );
     final entries = LogService.instance.allEntriesMerged;
-    for (final e
-        in entries.skip(entries.length < 40 ? 0 : entries.length - 40)) {
+    for (final e in entries.skip(
+      entries.length < 40 ? 0 : entries.length - 40,
+    )) {
       // ignore: avoid_print
       print('  [${e.tag}/${e.level.name}] ${e.message}');
     }
@@ -209,15 +211,42 @@ void main() {
     bool Function() predicate, {
     required String description,
     Duration timeout = const Duration(seconds: 45),
-  }) =>
-      pumpUntilAsync(tester, () async => predicate(),
-          description: description, timeout: timeout);
+  }) => pumpUntilAsync(
+    tester,
+    () async => predicate(),
+    description: description,
+    timeout: timeout,
+  );
 
-  Future<void> startApp(WidgetTester tester) async {
+  /// Boot a fresh app instance, run [body] against it, then unmount the tree
+  /// before the next test's `app.main()` can see it.
+  ///
+  /// The teardown is the point: leaving the outgoing tree mounted made the
+  /// incoming `MaterialApp` collide with it over the `ScaffoldMessenger`
+  /// GlobalKey, which truncates the widget tree, and unmounting a tree that
+  /// owns a live `InAppWebView` throws from the plugin's own dispose path
+  /// (`AndroidPullToRefreshController` disposing its channel twice). Both are
+  /// artifacts of restarting the app inside one test process — neither is a
+  /// path production can take — so errors are swallowed for the teardown
+  /// window only, and the next test starts from an empty root.
+  Future<void> withApp(
+    WidgetTester tester,
+    Future<void> Function() body,
+  ) async {
     app.main();
     // Settles the home screen (no webview is mounted until a site activates,
     // and a shortcut cold launch mounts one — hence the slice-pump fallback).
     await pumpFor(tester, const Duration(seconds: 5));
+    try {
+      await body();
+    } finally {
+      final previousOnError = FlutterError.onError;
+      FlutterError.onError = (_) {};
+      await tester.pumpWidget(const SizedBox.shrink());
+      await pumpFor(tester, const Duration(milliseconds: 500));
+      FlutterError.onError = previousOnError;
+      tester.takeException();
+    }
   }
 
   List<WebViewModel> models() => app.debugWebViewModels ?? const [];
@@ -256,12 +285,18 @@ void main() {
 
   Future<void> openOverflowMenu(WidgetTester tester) async {
     final button = find.byType(PopupMenuButton<String>);
-    expect(button, findsWidgets,
-        reason: 'the site view should expose an overflow menu');
+    expect(
+      button,
+      findsWidgets,
+      reason: 'the site view should expose an overflow menu',
+    );
     await tester.tap(button.last);
     await pumpFor(tester, const Duration(seconds: 1));
-    expect(find.text('Settings'), findsWidgets,
-        reason: 'the overflow menu should be open');
+    expect(
+      find.text('Settings'),
+      findsWidgets,
+      reason: 'the overflow menu should be open',
+    );
   }
 
   Future<void> openSiteDrawer(WidgetTester tester) async {
@@ -269,8 +304,11 @@ void main() {
     // same-id branch of _selectWebspace).
     await tester.tap(find.byKey(const ValueKey(kAllWebspaceId)));
     await pumpFor(tester, const Duration(seconds: 2));
-    expect(find.byType(Drawer), findsOneWidget,
-        reason: 'the site drawer should open');
+    expect(
+      find.byType(Drawer),
+      findsOneWidget,
+      reason: 'the site drawer should open',
+    );
   }
 
   Future<void> tapDialogButton(WidgetTester tester, String label) async {
@@ -292,32 +330,46 @@ void main() {
     'cold launch opens the pinned site at its initUrl (HS-002 / HS-006)',
     (tester) async {
       seed(
-        sites: [siteA(currentUrl: '$hostA/deep.html'), siteB()],
+        sites: [
+          siteA(currentUrl: '$hostA/deep.html'),
+          siteB(),
+        ],
         pinnedTiles: {'ws-hs-a'},
         launch: 'ws-hs-a',
       );
-      await startApp(tester);
+      await withApp(tester, () async {
+        await pumpUntil(
+          tester,
+          () => siteIsMounted('ws-hs-a'),
+          description: 'the launched site to activate',
+        );
+        final launched = models().firstWhere((m) => m.siteId == 'ws-hs-a');
+        expect(
+          launched.currentUrl,
+          launched.initUrl,
+          reason:
+              'a shortcut launch is the pinned entry point, so last '
+              'session\'s drift must be dropped (HS-006)',
+        );
+        expect(
+          siteIsMounted('ws-hs-b'),
+          isFalse,
+          reason: 'only the launched site should be activated',
+        );
 
-      await pumpUntil(tester, () => siteIsMounted('ws-hs-a'),
-          description: 'the launched site to activate');
-      final launched = models().firstWhere((m) => m.siteId == 'ws-hs-a');
-      expect(launched.currentUrl, launched.initUrl,
-          reason: 'a shortcut launch is the pinned entry point, so last '
-              'session\'s drift must be dropped (HS-006)');
-      expect(siteIsMounted('ws-hs-b'), isFalse,
-          reason: 'only the launched site should be activated');
-
-      // HS-012: on the initState/resume cadence the ledger records the url of
-      // every pinned site that still exists, so a later deletion leaves a
-      // routable trail. Asserted after a resume because the initState pass
-      // races `_restoreAppState` for the loaded model list.
-      await resumeApp(tester);
-      await pumpUntilAsync(
-        tester,
-        () async =>
-            (await prefsMap('shortcutUrlLedger'))['ws-hs-a'] == '$hostA/a.html',
-        description: 'the startup ledger reconcile to record the pinned url',
-      );
+        // HS-012: on the initState/resume cadence the ledger records the url of
+        // every pinned site that still exists, so a later deletion leaves a
+        // routable trail. Asserted after a resume because the initState pass
+        // races `_restoreAppState` for the loaded model list.
+        await resumeApp(tester);
+        await pumpUntilAsync(
+          tester,
+          () async =>
+              (await prefsMap('shortcutUrlLedger'))['ws-hs-a'] ==
+              '$hostA/a.html',
+          description: 'the startup ledger reconcile to record the pinned url',
+        );
+      });
     },
     skip: skipOffAndroid,
     timeout: const Timeout(Duration(minutes: 3)),
@@ -331,14 +383,22 @@ void main() {
         pinnedTiles: {'ws-hs-a'},
         launch: 'ws-hs-a',
       );
-      await startApp(tester);
-      await pumpUntil(tester, () => siteIsMounted('ws-hs-a'),
-          description: 'the pinned site to activate');
+      await withApp(tester, () async {
+        await pumpUntil(
+          tester,
+          () => siteIsMounted('ws-hs-a'),
+          description: 'the pinned site to activate',
+        );
 
-      await openOverflowMenu(tester);
-      expect(find.text('Home Shortcut'), findsNothing,
-          reason: 'the site already has a pinned tile, so pinning a second '
-              'one must not be offered');
+        await openOverflowMenu(tester);
+        expect(
+          find.text('Home Shortcut'),
+          findsNothing,
+          reason:
+              'the site already has a pinned tile, so pinning a second '
+              'one must not be offered',
+        );
+      });
     },
     skip: skipOffAndroid,
     timeout: const Timeout(Duration(minutes: 3)),
@@ -356,13 +416,20 @@ void main() {
         pinnedTiles: {'ws-hs-ghost'},
         launch: 'ws-hs-b',
       );
-      await startApp(tester);
-      await pumpUntil(tester, () => siteIsMounted('ws-hs-b'),
-          description: 'the rebound site to activate');
+      await withApp(tester, () async {
+        await pumpUntil(
+          tester,
+          () => siteIsMounted('ws-hs-b'),
+          description: 'the rebound site to activate',
+        );
 
-      await openOverflowMenu(tester);
-      expect(find.text('Home Shortcut'), findsNothing,
-          reason: 'an existing tile already reaches this site');
+        await openOverflowMenu(tester);
+        expect(
+          find.text('Home Shortcut'),
+          findsNothing,
+          reason: 'an existing tile already reaches this site',
+        );
+      });
     },
     skip: skipOffAndroid,
     timeout: const Timeout(Duration(minutes: 3)),
@@ -373,35 +440,43 @@ void main() {
     '(HS-004 / HS-001 / HS-012)',
     (tester) async {
       seed(sites: [siteA(), siteB()], launch: 'ws-hs-a');
-      await startApp(tester);
-      await pumpUntil(tester, () => siteIsMounted('ws-hs-a'),
-          description: 'the launched site to activate');
+      await withApp(tester, () async {
+        await pumpUntil(
+          tester,
+          () => siteIsMounted('ws-hs-a'),
+          description: 'the launched site to activate',
+        );
 
-      await openOverflowMenu(tester);
-      expect(find.text('Home Shortcut'), findsOneWidget,
-          reason: 'an unpinned site should offer the menu item on Android');
-      await tester.tap(find.text('Home Shortcut'));
+        await openOverflowMenu(tester);
+        expect(
+          find.text('Home Shortcut'),
+          findsOneWidget,
+          reason: 'an unpinned site should offer the menu item on Android',
+        );
+        await tester.tap(find.text('Home Shortcut'));
 
-      // The favicon is rasterized before the pin (HS-003), which reaches the
-      // loopback server first — poll rather than assume a settled frame.
-      await pumpUntil(
-        tester,
-        () => calls.any((c) => c.method == 'pinShortcut'),
-        description: 'the pin request to reach the platform channel',
-      );
-      final pin = calls.lastWhere((c) => c.method == 'pinShortcut');
-      final args = (pin.arguments as Map).cast<String, dynamic>();
-      expect(args['siteId'], 'ws-hs-a');
-      expect(args['label'], 'Site A');
+        // The favicon is rasterized before the pin (HS-003), which reaches the
+        // loopback server first — poll rather than assume a settled frame.
+        await pumpUntil(
+          tester,
+          () => calls.any((c) => c.method == 'pinShortcut'),
+          description: 'the pin request to reach the platform channel',
+        );
+        final pin = calls.lastWhere((c) => c.method == 'pinShortcut');
+        final args = (pin.arguments as Map).cast<String, dynamic>();
+        expect(args['siteId'], 'ws-hs-a');
+        expect(args['label'], 'Site A');
 
-      // HS-012: pinning records the url so a later delete+recreate can be
-      // routed by domain.
-      await pumpUntilAsync(
-        tester,
-        () async =>
-            (await prefsMap('shortcutUrlLedger'))['ws-hs-a'] == '$hostA/a.html',
-        description: 'the pin to record the site url in the ledger',
-      );
+        // HS-012: pinning records the url so a later delete+recreate can be
+        // routed by domain.
+        await pumpUntilAsync(
+          tester,
+          () async =>
+              (await prefsMap('shortcutUrlLedger'))['ws-hs-a'] ==
+              '$hostA/a.html',
+          description: 'the pin to record the site url in the ledger',
+        );
+      });
     },
     skip: skipOffAndroid,
     timeout: const Timeout(Duration(minutes: 3)),
@@ -419,39 +494,61 @@ void main() {
         ledger: {'ws-hs-ghost': '$hostA/gone.html'},
         pinnedTiles: {'ws-hs-ghost'},
       );
-      await startApp(tester);
-      expect(siteIsMounted('ws-hs-a'), isFalse,
-          reason: 'a plain launch activates no site');
+      await withApp(tester, () async {
+        expect(
+          siteIsMounted('ws-hs-a'),
+          isFalse,
+          reason: 'a plain launch activates no site',
+        );
 
-      // Declining leaves no trace, and a later tap asks again.
-      await resumeApp(tester, withLaunch: 'ws-hs-ghost');
-      await pumpUntil(tester, () => find.text('Open site?').evaluate().isNotEmpty,
-          description: 'the domain-match confirmation');
-      await tapDialogButton(tester, 'Cancel');
-      expect(siteIsMounted('ws-hs-a'), isFalse,
-          reason: 'declining must not open the matched site');
-      expect(await prefsMap('shortcutSiteRemap'), isEmpty,
-          reason: 'declining must not remember a rebind');
+        // Declining leaves no trace, and a later tap asks again.
+        await resumeApp(tester, withLaunch: 'ws-hs-ghost');
+        await pumpUntil(
+          tester,
+          () => find.text('Open site?').evaluate().isNotEmpty,
+          description: 'the domain-match confirmation',
+        );
+        await tapDialogButton(tester, 'Cancel');
+        expect(
+          siteIsMounted('ws-hs-a'),
+          isFalse,
+          reason: 'declining must not open the matched site',
+        );
+        expect(
+          await prefsMap('shortcutSiteRemap'),
+          isEmpty,
+          reason: 'declining must not remember a rebind',
+        );
 
-      // Confirming opens the match and remembers it.
-      await resumeApp(tester, withLaunch: 'ws-hs-ghost');
-      await pumpUntil(tester, () => find.text('Open site?').evaluate().isNotEmpty,
-          description: 'the confirmation to be offered again');
-      await tapDialogButton(tester, 'Open');
-      await pumpUntil(tester, () => siteIsMounted('ws-hs-a'),
-          description: 'the matched site to activate');
-      await pumpUntilAsync(
-        tester,
-        () async =>
-            (await prefsMap('shortcutSiteRemap'))['ws-hs-ghost'] == 'ws-hs-a',
-        description: 'the confirmed rebind to persist',
-      );
+        // Confirming opens the match and remembers it.
+        await resumeApp(tester, withLaunch: 'ws-hs-ghost');
+        await pumpUntil(
+          tester,
+          () => find.text('Open site?').evaluate().isNotEmpty,
+          description: 'the confirmation to be offered again',
+        );
+        await tapDialogButton(tester, 'Open');
+        await pumpUntil(
+          tester,
+          () => siteIsMounted('ws-hs-a'),
+          description: 'the matched site to activate',
+        );
+        await pumpUntilAsync(
+          tester,
+          () async =>
+              (await prefsMap('shortcutSiteRemap'))['ws-hs-ghost'] == 'ws-hs-a',
+          description: 'the confirmed rebind to persist',
+        );
 
-      // The remembered rebind resolves the next tap directly.
-      await resumeApp(tester, withLaunch: 'ws-hs-ghost');
-      await pumpFor(tester, const Duration(seconds: 3));
-      expect(find.text('Open site?'), findsNothing,
-          reason: 'a remembered rebind must resolve without prompting');
+        // The remembered rebind resolves the next tap directly.
+        await resumeApp(tester, withLaunch: 'ws-hs-ghost');
+        await pumpFor(tester, const Duration(seconds: 3));
+        expect(
+          find.text('Open site?'),
+          findsNothing,
+          reason: 'a remembered rebind must resolve without prompting',
+        );
+      });
     },
     skip: skipOffAndroid,
     timeout: const Timeout(Duration(minutes: 3)),
@@ -462,62 +559,66 @@ void main() {
     (tester) async {
       seed(
         sites: [siteB()],
-        ledger: {
-          'ws-hs-ghost1': _kOffDomainUrl,
-          'ws-hs-ghost2': _kCreateUrl,
-        },
+        ledger: {'ws-hs-ghost1': _kOffDomainUrl, 'ws-hs-ghost2': _kCreateUrl},
         pinnedTiles: {'ws-hs-ghost1', 'ws-hs-ghost2'},
       );
-      await startApp(tester);
+      await withApp(tester, () async {
+        await resumeApp(tester, withLaunch: 'ws-hs-ghost1');
+        await pumpUntil(
+          tester,
+          () => find.text('Shortcut site missing').evaluate().isNotEmpty,
+          description: 'the missing-site chooser',
+        );
+        await tapDialogButton(tester, 'Open another');
+        await pumpUntil(
+          tester,
+          () => find.text('Point shortcut at').evaluate().isNotEmpty,
+          description: 'the site picker',
+        );
+        await tester.tap(
+          find.descendant(
+            of: find.byType(AlertDialog),
+            matching: find.text('Site B'),
+          ),
+        );
+        await pumpUntil(
+          tester,
+          () => siteIsMounted('ws-hs-b'),
+          description: 'the rerouted site to activate',
+        );
+        await pumpUntilAsync(
+          tester,
+          () async =>
+              (await prefsMap('shortcutSiteRemap'))['ws-hs-ghost1'] ==
+              'ws-hs-b',
+          description: 'the reroute to be remembered',
+        );
 
-      await resumeApp(tester, withLaunch: 'ws-hs-ghost1');
-      await pumpUntil(
-        tester,
-        () => find.text('Shortcut site missing').evaluate().isNotEmpty,
-        description: 'the missing-site chooser',
-      );
-      await tapDialogButton(tester, 'Open another');
-      await pumpUntil(
-        tester,
-        () => find.text('Point shortcut at').evaluate().isNotEmpty,
-        description: 'the site picker',
-      );
-      await tester.tap(find.descendant(
-        of: find.byType(AlertDialog),
-        matching: find.text('Site B'),
-      ));
-      await pumpUntil(tester, () => siteIsMounted('ws-hs-b'),
-          description: 'the rerouted site to activate');
-      await pumpUntilAsync(
-        tester,
-        () async =>
-            (await prefsMap('shortcutSiteRemap'))['ws-hs-ghost1'] == 'ws-hs-b',
-        description: 'the reroute to be remembered',
-      );
-
-      // The create branch builds a site rooted at the ledger url and binds the
-      // tile to it. The url is unreachable, so the title probe times out first.
-      await resumeApp(tester, withLaunch: 'ws-hs-ghost2');
-      await pumpUntil(
-        tester,
-        () => find.text('Shortcut site missing').evaluate().isNotEmpty,
-        description: 'the missing-site chooser for the second tile',
-      );
-      await tapDialogButton(tester, 'Create');
-      await pumpUntil(
-        tester,
-        () => models().any((m) => m.initUrl == _kCreateUrl),
-        description: 'the site created for the ledger url',
-        timeout: const Duration(seconds: 60),
-      );
-      final created = models().firstWhere((m) => m.initUrl == _kCreateUrl);
-      await pumpUntilAsync(
-        tester,
-        () async =>
-            (await prefsMap('shortcutSiteRemap'))['ws-hs-ghost2'] ==
-            created.siteId,
-        description: 'the created site to be bound to the tile',
-      );
+        // The create branch builds a site rooted at the ledger url and
+        // binds the tile to it. The url is unreachable, so the title probe
+        // times out first.
+        await resumeApp(tester, withLaunch: 'ws-hs-ghost2');
+        await pumpUntil(
+          tester,
+          () => find.text('Shortcut site missing').evaluate().isNotEmpty,
+          description: 'the missing-site chooser for the second tile',
+        );
+        await tapDialogButton(tester, 'Create');
+        await pumpUntil(
+          tester,
+          () => models().any((m) => m.initUrl == _kCreateUrl),
+          description: 'the site created for the ledger url',
+          timeout: const Duration(seconds: 60),
+        );
+        final created = models().firstWhere((m) => m.initUrl == _kCreateUrl);
+        await pumpUntilAsync(
+          tester,
+          () async =>
+              (await prefsMap('shortcutSiteRemap'))['ws-hs-ghost2'] ==
+              created.siteId,
+          description: 'the created site to be bound to the tile',
+        );
+      });
     },
     skip: skipOffAndroid,
     timeout: const Timeout(Duration(minutes: 3)),
@@ -534,62 +635,74 @@ void main() {
         remap: {'ws-hs-tile': 'ws-hs-a'},
         pinnedTiles: {'ws-hs-a', 'ws-hs-tile'},
       );
-      await startApp(tester);
+      await withApp(tester, () async {
+        Future<void> deleteFirstSite() async {
+          await openSiteDrawer(tester);
+          await tester.tap(
+            find.descendant(
+              of: find.byKey(const Key('site_0')),
+              matching: find.byIcon(Icons.more_vert),
+            ),
+          );
+          await pumpFor(tester, const Duration(seconds: 1));
+          await tester.tap(find.text('Delete').last);
+          await pumpUntil(
+            tester,
+            () => find.text('Delete Site').evaluate().isNotEmpty,
+            description: 'the delete confirmation',
+          );
+          await tapDialogButton(tester, 'Delete');
+        }
 
-      Future<void> deleteFirstSite() async {
-        await openSiteDrawer(tester);
-        await tester.tap(find.descendant(
-          of: find.byKey(const Key('site_0')),
-          matching: find.byIcon(Icons.more_vert),
-        ));
-        await pumpFor(tester, const Duration(seconds: 1));
-        await tester.tap(find.text('Delete').last);
+        await deleteFirstSite();
         await pumpUntil(
           tester,
-          () => find.text('Delete Site').evaluate().isNotEmpty,
-          description: 'the delete confirmation',
+          () => find.text('Home screen shortcut').evaluate().isNotEmpty,
+          description: 'the HS-013 fate prompt',
         );
-        await tapDialogButton(tester, 'Delete');
-      }
+        expect(find.text('Keep'), findsOneWidget);
+        expect(find.text('Reassign'), findsOneWidget);
+        await tapDialogButton(tester, 'Disable');
 
-      await deleteFirstSite();
-      await pumpUntil(
-        tester,
-        () => find.text('Home screen shortcut').evaluate().isNotEmpty,
-        description: 'the HS-013 fate prompt',
-      );
-      expect(find.text('Keep'), findsOneWidget);
-      expect(find.text('Reassign'), findsOneWidget);
-      await tapDialogButton(tester, 'Disable');
+        await pumpUntil(
+          tester,
+          () => calls.where((c) => c.method == 'disableShortcut').length == 2,
+          description: 'both reaching tiles to be disabled',
+        );
+        final disabled = {
+          for (final c in calls.where((c) => c.method == 'disableShortcut'))
+            (c.arguments as Map)['siteId'] as String,
+        };
+        expect(
+          disabled,
+          {'ws-hs-a', 'ws-hs-tile'},
+          reason:
+              'the deleted site\'s own tile and the tile rebound to it '
+              'both reach it',
+        );
+        await pumpUntilAsync(
+          tester,
+          () async =>
+              (await prefsMap('shortcutSiteRemap')).isEmpty &&
+              (await prefsMap('shortcutUrlLedger')).isEmpty,
+          description: 'the disabled tiles\' rebind and ledger entries to drop',
+        );
 
-      await pumpUntil(
-        tester,
-        () => calls.where((c) => c.method == 'disableShortcut').length == 2,
-        description: 'both reaching tiles to be disabled',
-      );
-      final disabled = {
-        for (final c in calls.where((c) => c.method == 'disableShortcut'))
-          (c.arguments as Map)['siteId'] as String,
-      };
-      expect(disabled, {'ws-hs-a', 'ws-hs-tile'},
-          reason: 'the deleted site\'s own tile and the tile rebound to it '
-              'both reach it');
-      await pumpUntilAsync(
-        tester,
-        () async =>
-            (await prefsMap('shortcutSiteRemap')).isEmpty &&
-            (await prefsMap('shortcutUrlLedger')).isEmpty,
-        description: 'the disabled tiles\' rebind and ledger entries to drop',
-      );
-
-      // Site B has no tile pointing at it: deleting it must prompt nothing.
-      calls.clear();
-      await deleteFirstSite();
-      await pumpFor(tester, const Duration(seconds: 4));
-      expect(find.text('Home screen shortcut'), findsNothing,
-          reason: 'no pinned tile reaches this site');
-      expect(models().where((m) => m.siteId == 'ws-hs-b'), isEmpty,
-          reason: 'the site should still have been deleted');
+        // Site B has no tile pointing at it: deleting it must prompt nothing.
+        calls.clear();
+        await deleteFirstSite();
+        await pumpFor(tester, const Duration(seconds: 4));
+        expect(
+          find.text('Home screen shortcut'),
+          findsNothing,
+          reason: 'no pinned tile reaches this site',
+        );
+        expect(
+          models().where((m) => m.siteId == 'ws-hs-b'),
+          isEmpty,
+          reason: 'the site should still have been deleted',
+        );
+      });
     },
     skip: skipOffAndroid,
     timeout: const Timeout(Duration(minutes: 3)),
