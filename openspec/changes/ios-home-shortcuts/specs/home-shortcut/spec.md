@@ -4,7 +4,7 @@
 
 ### Requirement: HS-004 - Platform Availability
 
-The "Home Shortcut" menu item SHALL be shown on Android and on iOS 16+. On macOS, Linux, web, and iOS 13/14/15 the menu item SHALL be hidden.
+The "Home Shortcut" menu item SHALL be shown on Android, on iOS 16+, and on macOS 13+ (the App Intents path is shared between iOS and macOS). On Linux, web, iOS 13/14/15, and macOS 12 or earlier the menu item SHALL be hidden.
 
 #### Scenario: Menu item shown on Android
 
@@ -12,21 +12,21 @@ The "Home Shortcut" menu item SHALL be shown on Android and on iOS 16+. On macOS
 **When** the user opens the overflow menu for a site that is not already pinned
 **Then** the "Home Shortcut" option is shown
 
-#### Scenario: Menu item shown on iOS 16 or later
+#### Scenario: Menu item shown on iOS 16+ or macOS 13+
 
-**Given** the app is running on iOS 16.0 or later
+**Given** the app is running on iOS 16.0+ or macOS 13.0+
 **When** the user opens the overflow menu for any site
 **Then** the "Home Shortcut" option is shown
 
-#### Scenario: Menu item hidden on iOS 15 or earlier
+#### Scenario: Menu item hidden on older iOS/macOS
 
-**Given** the app is running on iOS 13, 14, or 15
+**Given** the app is running on iOS 13/14/15 or macOS 12 or earlier
 **When** the user opens the overflow menu
 **Then** the "Home Shortcut" option is not shown
 
-#### Scenario: Menu item hidden on macOS and Linux
+#### Scenario: Menu item hidden on Linux
 
-**Given** the app is running on macOS or Linux
+**Given** the app is running on Linux
 **When** the user opens the overflow menu
 **Then** the "Home Shortcut" option is not shown
 
@@ -44,8 +44,8 @@ On Android, the "Home Shortcut" menu item SHALL be hidden when the current site 
 
 #### Scenario: Android — shortcut removed from launcher
 
-**Given** the user removed a previously pinned shortcut from their Android home screen
-**When** the user backgrounds and re-foregrounds the app, then opens the overflow menu
+**Given** the user removed a previously pinned shortcut from their home screen
+**When** the user backgrounds and re-foregrounds the app, then opens the overflow menu for that site
 **Then** the "Home Shortcut" option is shown again
 
 #### Scenario: iOS — pin state is not detected
@@ -53,6 +53,16 @@ On Android, the "Home Shortcut" menu item SHALL be hidden when the current site 
 **Given** the user has already added a shortcut for the current site to the iOS home screen
 **When** the user opens the overflow menu
 **Then** the "Home Shortcut" option is still shown (iOS cannot detect prior pinning)
+
+The Android pinned-shortcut set is queried via `ShortcutManagerCompat.getShortcuts(FLAG_MATCH_PINNED)` exposed through the platform channel as `getPinnedSiteIds`. The cached set is refreshed on `initState` and on `AppLifecycleState.resumed`, which covers both the in-app pin flow (the launcher's pin dialog backgrounds the app) and out-of-app removal. On iOS the same channel method returns an empty list.
+
+For the menu-visibility check the pinned set is widened to its **effective** form (`ShortcutPinState.effectivePinnedSiteIds`): the pinned ids plus any site a pinned tile has been rebound to via the HS-011 remap. A site an orphaned tile now routes to is already reachable, so the "Home Shortcut" item is hidden for it too — otherwise the user could pin a second, redundant tile to the same site.
+
+#### Scenario: Android — rebound site hides the menu
+
+**Given** an orphaned pinned tile was rebound to (or created) a site via HS-011
+**When** the user opens the overflow menu for that site
+**Then** the "Home Shortcut" option is not shown (the existing tile already reaches it)
 
 ---
 
