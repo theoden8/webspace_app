@@ -371,11 +371,14 @@ jobs:
           disable-animations: true
           script: echo "Generated AVD snapshot for caching."
 
-      # White-screen pixel scenarios (BUG-001 / INTEG-010): drive the known
-      # blank-screen entry paths on the booted emulator and assert on
-      # composited window pixels over the webview via SurfaceDiagPlugin's
-      # PixelCopy. Runs on every push/PR.
-      - name: Run white-screen pixel scenarios
+      # Emulator scenarios, run on every push/PR:
+      #   INTEG-010 white-screen pixels — drive the known blank-screen entry
+      #     paths and assert on composited window pixels over the webview via
+      #     SurfaceDiagPlugin's PixelCopy;
+      #   INTEG-013 home shortcuts — launch, menu gating, orphan routing and
+      #     the delete-time tile prompt through the real widget tree;
+      #   INTEG-011/012 lifecycle + background refresh, adb-driven.
+      - name: Run emulator integration scenarios
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
@@ -387,9 +390,9 @@ jobs:
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           disable-animations: true
           # The action runs each script line as a separate `sh -c`, so the
-          # test invocations live in single-command wrapper scripts. The
-          # lifecycle tier (INTEG-011) must run after the in-process suite:
-          # it replaces the test-entrypoint APK the suite installed.
+          # test invocations live in wrapper scripts. The lifecycle tier
+          # (INTEG-011) must run after the in-process suites: it replaces the
+          # test-entrypoint APK they installed.
           script: |
             adb wait-for-device
             adb shell input keyevent 82
@@ -750,6 +753,9 @@ jobs:
                 # Android-only (window PixelCopy); skip its no-op build here.
                 [ "$(basename "$t")" = "screenshot_test.dart" ] && continue
                 [ "$(basename "$t")" = "white_screen_test.dart" ] && continue
+                # Home-shortcut scenarios are Android-only (the menu, pin
+                # state and delete prompt are Platform.isAndroid-gated).
+                [ "$(basename "$t")" = "shortcut_behavior_test.dart" ] && continue
                 echo "::group::$t"
                 # Hard per-test wall-clock cap: a WebView mount can deadlock
                 # the platform thread below Dart timeout layer, which would
@@ -1011,6 +1017,8 @@ jobs:
             [ "$(basename "$t")" = "screenshot_test.dart" ] && continue
             # Android-only window-PixelCopy suite; skip its no-op build here.
             [ "$(basename "$t")" = "white_screen_test.dart" ] && continue
+            # Android-only home-shortcut scenarios; same reason.
+            [ "$(basename "$t")" = "shortcut_behavior_test.dart" ] && continue
             echo "::group::$t"
             if [ -n "$TIMEOUT" ]; then
               "$TIMEOUT" -k 30s 12m fvm flutter test "$t" -d macos --ci || status=$?
