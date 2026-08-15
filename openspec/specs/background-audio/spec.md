@@ -168,10 +168,21 @@ without OS-level backgrounding:
   byte-identical.
 - The BGAUDIO-002 decision line is asserted from `LogService`.
 
-The "JS actually freezes for a non-exempt site" direction is NOT asserted:
-the Linux and macOS plugins implement no `pauseTimers()`, so it only holds
-on Android/iOS hardware. The decision matrix is covered by
-`test/app_lifecycle_engine_test.dart`.
+Both directions are covered, on the platforms where each is observable:
+
+- **Exempt direction** (`background_audio_lifecycle_test.dart`): runs on the
+  Linux/WPE + macOS per-file loops and on the Android emulator. Asserts
+  `jsPause=false` and that beacons keep arriving through the backgrounded
+  window with monotonically increasing ticks.
+- **Negative control** (`background_audio_freeze_test.dart`): a plain site
+  with no exemption. The universal assertion `jsPause=true` holds everywhere;
+  the observable freeze (beacons stop) is asserted **only on Android/iOS**,
+  because Linux/WPE and macOS implement no `pauseTimers()` and the JS keeps
+  ticking there. The Android emulator tier
+  (`scripts/run_android_background_audio_tests.sh`, wired into the
+  ungated emulator job) is what makes the freeze provable against a real
+  WebView — the direction the pure-Dart `test/app_lifecycle_engine_test.dart`
+  decision tests cannot exercise.
 
 #### Scenario: Exempt site stays live through an injected background window
 
@@ -179,6 +190,14 @@ on Android/iOS hardware. The decision matrix is covered by
 **When** the test injects `AppLifecycleState.paused`, waits 3 s of wall-clock, then injects `resumed`
 **Then** the decision line reads `jsPause=false capture=true`
 **And** beacons keep arriving throughout the window with monotonically increasing ticks (same live page, never reloaded)
+
+#### Scenario: Plain site's JS freezes on Android background
+
+**Given** a plain site (no background audio) is active and beaconing on the Android emulator
+**When** the test injects `AppLifecycleState.paused`
+**Then** the decision line reads `jsPause=true`
+**And** after a 1 s drain the beacons stop for a 2 s window (real `pauseTimers()` froze the JS timers)
+**And** injecting `resumed` thaws the timers and beacons flow again
 
 ### Requirement: BGAUDIO-006 — Android Media Notification and Foreground Service
 
@@ -277,8 +296,11 @@ and calls `MediaSessionService.stopAll`, stopping the foreground service
 ### Added
 
 - `openspec/specs/background-audio/spec.md` — this document.
-- `integration_test/background_audio_lifecycle_test.dart` +
+- `integration_test/background_audio_lifecycle_test.dart` (exempt direction),
+  `integration_test/background_audio_freeze_test.dart` (negative control) +
   `integration_test/fixtures/background_audio.html`.
+- `scripts/run_android_background_audio_tests.sh` + the Android emulator CI
+  wiring in `.github/workflows/build-and-test.yml`.
 
 ## Related Specs
 
