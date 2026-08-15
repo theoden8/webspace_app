@@ -19,6 +19,9 @@ fi
 
 # Hard wall-clock cap per suite: a webview mount can deadlock below the
 # Dart timeout layer (same rationale as the desktop integration loops).
+# It is the backstop, not the first line: each suite's tests carry their
+# own `timeout:` so a hung test fails with its diagnostics instead of
+# silently eating the cap and killing the step with exit 124.
 for target in white_screen_test shortcut_behavior_test; do
   echo "::group::integration_test/$target.dart"
   timeout -k 30s 25m fvm flutter test \

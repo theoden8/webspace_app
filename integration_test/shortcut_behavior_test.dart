@@ -231,19 +231,27 @@ void main() {
     return (jsonDecode(raw) as Map).cast<String, dynamic>();
   }
 
-  /// Background and re-foreground the running app, optionally parking a
-  /// pending launch first — the lifecycle transition a launcher tap produces,
-  /// and the one `_onResumed` -> `_handleShortcutIntent` hangs off.
+  /// Re-foreground the running app, optionally parking a pending launch first
+  /// — the `didChangeAppLifecycleState(resumed)` a launcher tap produces, and
+  /// the event `_onResumed` -> `_handleShortcutIntent` hangs off.
+  ///
+  /// The round trip goes through `inactive`, never `paused`/`hidden`:
+  /// `SchedulerBinding` sets `framesEnabled = false` for those two, which makes
+  /// `scheduleFrame()` a no-op, so the next `tester.pump()` waits forever for a
+  /// frame nobody will schedule (observed as a 25-minute CI hang). The real
+  /// background/foreground cycle, with the pause work in between, is driven
+  /// out of process by the adb tier.
   Future<void> resumeApp(WidgetTester tester, {String? withLaunch}) async {
     pendingLaunch = withLaunch;
-    for (final state in const ['paused', 'resumed']) {
-      await tester.binding.defaultBinaryMessenger.handlePlatformMessage(
-        'flutter/lifecycle',
-        const StringCodec().encodeMessage('AppLifecycleState.$state'),
-        (_) {},
-      );
-      await tester.pump();
-    }
+    Future<void> send(String state) =>
+        tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+          'flutter/lifecycle',
+          const StringCodec().encodeMessage('AppLifecycleState.$state'),
+          (_) {},
+        );
+    await send('inactive');
+    await send('resumed');
+    await tester.pump();
   }
 
   Future<void> openOverflowMenu(WidgetTester tester) async {
@@ -312,6 +320,7 @@ void main() {
       );
     },
     skip: skipOffAndroid,
+    timeout: const Timeout(Duration(minutes: 3)),
   );
 
   testWidgets(
@@ -332,6 +341,7 @@ void main() {
               'one must not be offered');
     },
     skip: skipOffAndroid,
+    timeout: const Timeout(Duration(minutes: 3)),
   );
 
   testWidgets(
@@ -355,6 +365,7 @@ void main() {
           reason: 'an existing tile already reaches this site');
     },
     skip: skipOffAndroid,
+    timeout: const Timeout(Duration(minutes: 3)),
   );
 
   testWidgets(
@@ -393,6 +404,7 @@ void main() {
       );
     },
     skip: skipOffAndroid,
+    timeout: const Timeout(Duration(minutes: 3)),
   );
 
   testWidgets(
@@ -442,6 +454,7 @@ void main() {
           reason: 'a remembered rebind must resolve without prompting');
     },
     skip: skipOffAndroid,
+    timeout: const Timeout(Duration(minutes: 3)),
   );
 
   testWidgets(
@@ -507,6 +520,7 @@ void main() {
       );
     },
     skip: skipOffAndroid,
+    timeout: const Timeout(Duration(minutes: 3)),
   );
 
   testWidgets(
@@ -578,5 +592,6 @@ void main() {
           reason: 'the site should still have been deleted');
     },
     skip: skipOffAndroid,
+    timeout: const Timeout(Duration(minutes: 3)),
   );
 }

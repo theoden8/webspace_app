@@ -733,6 +733,16 @@ Pages come from an in-process loopback server, and each test seeds its
 own `SharedPreferences` (site list, ledger, rebind map) before calling
 `app.main()`, so the runs share no state.
 
+A warm tap is delivered by driving the lifecycle round trip through
+`inactive` only — never `paused` or `hidden`. `SchedulerBinding` sets
+`framesEnabled = false` for those two states, which makes
+`scheduleFrame()` a no-op, so the next `tester.pump()` waits forever for
+a frame nobody schedules (observed as a full-cap CI hang). Any future
+integration test that drives app lifecycle SHALL follow the same rule.
+Each test SHALL also carry its own `timeout:` so a hang fails that test
+with its widget-tree and log dump rather than expiring the suite's
+wall-clock cap with no output.
+
 Warm taps SHALL stay in the adb tier: a tap on a pinned tile while the
 app runs is delivered as `onNewIntent` against the running activity,
 which an in-process test cannot produce. Those two scenarios live in
