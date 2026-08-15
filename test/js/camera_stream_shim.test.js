@@ -39,20 +39,37 @@ function setupCameraDom({ decision, mode, noBridge = false, realCameras = [] } =
   const window = dom.window;
   const calls = { realGum: 0, lastConstraints: null };
 
-  // Original platform getUserMedia + enumerateDevices (what the shim wraps).
-  const mediaDevices = {
+  // Model the real interface, not a convenience stub: browsers expose these
+  // as MediaDevices.prototype methods, and the shim deliberately patches the
+  // prototype (patching the instance would leak own-properties a
+  // fingerprinter reads). A plain object literal would exercise a code path
+  // production never takes.
+  class MediaDevices {
     getUserMedia(constraints) {
       calls.realGum += 1;
       calls.lastConstraints = constraints;
       return Promise.resolve({ __realStream: true, getVideoTracks: () => [] });
-    },
+    }
     enumerateDevices() {
       return Promise.resolve([
         ...realCameras,
         { deviceId: 'mic', kind: 'audioinput', label: '', groupId: 'g' },
       ]);
-    },
-  };
+    }
+  }
+  window.MediaDevices = MediaDevices;
+  const mediaDevices = new MediaDevices();
+
+  // Likewise for tracks: label/getSettings/stop live on the prototype.
+  class MediaStreamTrack {
+    constructor() { this.kind = 'video'; this._ended = null; }
+    get label() { return ''; }
+    getSettings() { return {}; }
+    stop() {}
+    addEventListener(type, cb) { if (type === 'ended') this._ended = cb; }
+  }
+  window.MediaStreamTrack = MediaStreamTrack;
+  calls.MediaStreamTrack = MediaStreamTrack;
   Object.defineProperty(window.navigator, 'mediaDevices', {
     value: mediaDevices,
     configurable: true,
@@ -114,17 +131,7 @@ function setupCameraDom({ decision, mode, noBridge = false, realCameras = [] } =
     return { drawImage() {} };
   };
   proto.captureStream = function captureStream() {
-    const track = {
-      kind: 'video',
-      _ended: null,
-      addEventListener(type, cb) {
-        if (type === 'ended') this._ended = cb;
-      },
-      stop() {},
-      getSettings() {
-        return {};
-      },
-    };
+    const track = new window.MediaStreamTrack();
     return { getVideoTracks: () => [track] };
   };
 

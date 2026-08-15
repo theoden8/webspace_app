@@ -175,7 +175,18 @@ The shim presents the synthetic track as an ordinary camera (a plausible
 track label; one `videoinput` published by `enumerateDevices` whose label
 is revealed only after a stream has been served) so that ordinary QR /
 photo capture flows accept it and cannot fingerprint the browser by the
-stream's shape. When `virtual` is selected but no source has been picked,
+stream's shape. That presentation MUST hold at the surfaces a
+fingerprinter inspects: the overrides live on `MediaDevices.prototype` and
+`MediaStreamTrack.prototype` rather than on the instances (no own-property
+leak), every override stringifies as `[native code]` including the `label`
+accessor, the track reports as `MediaStreamTrack` rather than
+`CanvasCaptureMediaStreamTrack`, and a track the shim did not create keeps
+its real label and settings. Probes live in
+`test/browser/lie_detection.test.js`; two gaps remain open there as `todo`
+because they are shared by every shim in the repo rather than specific to
+the camera (the `__ws*` install markers are enumerable on `window`, and a
+parent realm's `Function.prototype.toString` reveals an override defined in
+a child realm). When `virtual` is selected but no source has been picked,
 the request MUST be denied and the picker re-offered.
 
 #### Scenario: Virtual stream replaces the camera
@@ -236,6 +247,14 @@ to `false` (guarded structurally by
 **When** a page on the emulator calls `getUserMedia({video: true})` and samples
 a frame onto a canvas
 **Then** the sampled pixel matches the picked image's colour
+
+#### Scenario: A video source plays and loops on-device
+
+**Given** a site in `virtual` mode whose source is a short two-colour clip
+**When** a page on the emulator samples the stream for several seconds
+**Then** both of the clip's colours are observed
+**And** the colour keeps changing past the clip's duration, proving it loops
+rather than freezing on the first decoded frame
 
 #### Scenario: Blocked site is denied on-device
 

@@ -202,32 +202,31 @@
 
     var track = stream.getVideoTracks()[0];
     if (track) {
-      // Present as an ordinary camera: the synthetic track's own label is
-      // empty and its facingMode absent, both of which break capture UIs
-      // and mark the browser.
+      // Register the track; the prototype-level overrides installed once
+      // below read this map. Assigning label/getSettings/stop onto the track
+      // instance instead would leave them enumerable in
+      // Object.getOwnPropertyNames(track), where a real MediaStreamTrack has
+      // none — a giveaway a fingerprinter checks for.
+      _syntheticTracks.set(track, {
+        timer: timer,
+        media: media,
+        isVideo: isVideo,
+        width: canvas.width,
+        height: canvas.height,
+        fps: fps,
+      });
+      // A canvas track is a CanvasCaptureMediaStreamTrack; a camera track is
+      // a plain MediaStreamTrack, and the constructor name is readable via
+      // the prototype chain. Re-point the prototype so the class matches an
+      // ordinary camera track. Internal slots live on the instance, so the
+      // track keeps working; if any engine disagrees, the try/catch leaves
+      // the honest prototype in place.
       try {
-        Object.defineProperty(track, 'label', { get: function() { return DEVICE_LABEL; }, configurable: true });
+        if (globalThis.MediaStreamTrack &&
+            Object.getPrototypeOf(track) !== globalThis.MediaStreamTrack.prototype) {
+          Object.setPrototypeOf(track, globalThis.MediaStreamTrack.prototype);
+        }
       } catch (e) {}
-      var _origGetSettings = track.getSettings ? track.getSettings.bind(track) : null;
-      var getSettings = function getSettings() {
-        var s = _origGetSettings ? _origGetSettings() : {};
-        s.deviceId = DEVICE_ID;
-        s.groupId = GROUP_ID;
-        s.facingMode = 'environment';
-        if (typeof s.width !== 'number') s.width = canvas.width;
-        if (typeof s.height !== 'number') s.height = canvas.height;
-        if (typeof s.frameRate !== 'number') s.frameRate = fps;
-        return s;
-      };
-      try { track.getSettings = asNative(getSettings, 'getSettings'); } catch (e) {}
-
-      var _origStop = track.stop ? track.stop.bind(track) : null;
-      var stop = function stop() {
-        clearInterval(timer);
-        if (isVideo) { try { media.pause(); } catch (e) {} }
-        if (_origStop) _origStop();
-      };
-      try { track.stop = asNative(stop, 'stop'); } catch (e) {}
       // A track that ends must also drop the paint loop, else a page that
       // discards the stream without calling stop() leaks a timer for the
       // lifetime of the document.
@@ -237,6 +236,70 @@
     }
     return stream;
   }
+
+  // --- prototype-level track overrides (installed once) -------------------
+
+  // Synthetic track -> its paint loop + reported settings. A WeakMap so a
+  // dropped stream is collectable.
+  var _syntheticTracks = new WeakMap();
+
+  // Per spec a device label is only exposed once the page holds a capture
+  // permission; flipped the first time this shim serves any stream.
+  var _servedStream = false;
+
+  (function patchTrackPrototype() {
+    var MST = globalThis.MediaStreamTrack;
+    if (!MST || !MST.prototype) return;
+    var proto = MST.prototype;
+
+    var labelDesc = Object.getOwnPropertyDescriptor(proto, 'label');
+    if (labelDesc && labelDesc.get) {
+      var origLabelGet = labelDesc.get;
+      // Named 'get label' so Function.prototype.toString reports
+      // `function get label() { [native code] }`, matching a real accessor.
+      var labelGet = asNative(function label() {
+        return _syntheticTracks.has(this) ? DEVICE_LABEL : origLabelGet.call(this);
+      }, 'get label');
+      try {
+        Object.defineProperty(proto, 'label', {
+          get: labelGet,
+          set: labelDesc.set,
+          enumerable: labelDesc.enumerable,
+          configurable: true,
+        });
+      } catch (e) {}
+    }
+
+    if (typeof proto.getSettings === 'function') {
+      var origGetSettings = proto.getSettings;
+      var getSettings = asNative(function getSettings() {
+        var s = origGetSettings.call(this) || {};
+        var meta = _syntheticTracks.get(this);
+        if (!meta) return s;
+        s.deviceId = DEVICE_ID;
+        s.groupId = GROUP_ID;
+        s.facingMode = 'environment';
+        if (typeof s.width !== 'number') s.width = meta.width;
+        if (typeof s.height !== 'number') s.height = meta.height;
+        if (typeof s.frameRate !== 'number') s.frameRate = meta.fps;
+        return s;
+      }, 'getSettings');
+      try { proto.getSettings = getSettings; } catch (e) {}
+    }
+
+    if (typeof proto.stop === 'function') {
+      var origStop = proto.stop;
+      var stop = asNative(function stop() {
+        var meta = _syntheticTracks.get(this);
+        if (meta) {
+          clearInterval(meta.timer);
+          if (meta.isVideo) { try { meta.media.pause(); } catch (e) {} }
+        }
+        return origStop.call(this);
+      }, 'stop');
+      try { proto.stop = stop; } catch (e) {}
+    }
+  })();
 
   function virtualStream(source, constraints) {
     if (!source || !source.dataUrl) {
@@ -277,28 +340,69 @@
     return out;
   }
 
-  var _origGum = md.getUserMedia ? md.getUserMedia.bind(md) : null;
+  // Patch the PROTOTYPE, not the `navigator.mediaDevices` instance. Assigning
+  // to the instance leaves getUserMedia/enumerateDevices visible in
+  // Object.getOwnPropertyNames(navigator.mediaDevices), where a real browser
+  // defines them only on MediaDevices.prototype — an own-property leak the
+  // repo's lie-detection tier probes for on every shim.
+  // Never fall back to Object.prototype: on a platform with no MediaDevices
+  // class (or a stubbed mediaDevices that owns its methods) that would
+  // install the override globally. Patch the instance there instead.
+  var MDCtor = globalThis.MediaDevices;
+  var mdProto = (MDCtor && MDCtor.prototype && md instanceof MDCtor)
+    ? MDCtor.prototype
+    : null;
+  var patchTarget = mdProto || md;
+  function defineOnProto(name, fn) {
+    try {
+      var prev = Object.getOwnPropertyDescriptor(patchTarget, name);
+      Object.defineProperty(patchTarget, name, {
+        value: fn,
+        writable: prev ? prev.writable !== false : true,
+        enumerable: prev ? prev.enumerable : false,
+        configurable: true,
+      });
+    } catch (e) {}
+  }
+
+  var _origGumFn = typeof patchTarget.getUserMedia === 'function'
+    ? patchTarget.getUserMedia
+    : (md.getUserMedia || null);
+  // `this` is the live MediaDevices when called through the prototype; fall
+  // back to the captured instance for a detached call.
+  function callOrigGum(self, constraints) {
+    if (!_origGumFn) return null;
+    return _origGumFn.call(self || md, constraints);
+  }
 
   var getUserMedia = function getUserMedia(constraints) {
+    var self = this && this.getUserMedia ? this : md;
     // Audio requests (alone or with video) are none of this shim's business:
     // hand them to the platform untouched so the grant can never widen into
     // the microphone.
     if (!wantsVideo(constraints) || wantsAudio(constraints)) {
-      if (_origGum) return _origGum(constraints);
-      return Promise.reject(notAllowed('getUserMedia is unavailable'));
+      var passthrough = callOrigGum(self, constraints);
+      return passthrough || Promise.reject(notAllowed('getUserMedia is unavailable'));
     }
     return fetchDecision().then(function(decision) {
       if (decision.mode === 'virtual') {
-        return virtualStream(decision.source, constraints);
+        return virtualStream(decision.source, constraints).then(function(s) {
+          _servedStream = true;
+          return s;
+        });
       }
       if (decision.mode === 'real') {
-        if (_origGum) return _origGum(withoutSyntheticDeviceId(constraints));
-        return Promise.reject(notAllowed('getUserMedia is unavailable'));
+        var real = callOrigGum(self, withoutSyntheticDeviceId(constraints));
+        if (!real) return Promise.reject(notAllowed('getUserMedia is unavailable'));
+        return Promise.resolve(real).then(function(s) {
+          _servedStream = true;
+          return s;
+        });
       }
       throw notAllowed('Permission denied');
     });
   };
-  try { md.getUserMedia = asNative(getUserMedia, 'getUserMedia'); } catch (e) {}
+  defineOnProto('getUserMedia', asNative(getUserMedia, 'getUserMedia'));
 
   // Legacy callback API. Some older scanner bundles still feature-detect it,
   // and leaving it unpatched would route them to the real camera.
@@ -333,10 +437,14 @@
   //
   // Per spec, labels are only exposed once the page holds a capture
   // permission, so the label is blank until this shim has served a stream.
-  var _servedStream = false;
-  var _origEnumerate = md.enumerateDevices ? md.enumerateDevices.bind(md) : null;
+  var _origEnumerateFn = typeof patchTarget.enumerateDevices === 'function'
+    ? patchTarget.enumerateDevices
+    : (md.enumerateDevices || null);
   var enumerateDevices = function enumerateDevices() {
-    var base = _origEnumerate ? _origEnumerate() : Promise.resolve([]);
+    var self = this && this.enumerateDevices ? this : md;
+    var base = _origEnumerateFn
+      ? _origEnumerateFn.call(self)
+      : Promise.resolve([]);
     return Promise.all([Promise.resolve(base), fetchMode()]).then(function(r) {
       var list = r[0] || [];
       var mode = r[1];
@@ -370,14 +478,5 @@
       return out;
     });
   };
-  try { md.enumerateDevices = asNative(enumerateDevices, 'enumerateDevices'); } catch (e) {}
-
-  var _gumForFlag = md.getUserMedia;
-  var flaggingGum = function getUserMedia(constraints) {
-    return Promise.resolve(_gumForFlag.call(md, constraints)).then(function(s) {
-      _servedStream = true;
-      return s;
-    });
-  };
-  try { md.getUserMedia = asNative(flaggingGum, 'getUserMedia'); } catch (e) {}
+  defineOnProto('enumerateDevices', asNative(enumerateDevices, 'enumerateDevices'));
 })();

@@ -8,13 +8,16 @@
 // while both lower tiers stayed green. This tier closes it by driving the
 // production app end to end:
 //
-//   1. Virtual mode: the page's getUserMedia must resolve with a stream whose
-//      pixels ARE the user-picked image. Proves picker -> model -> bridge ->
-//      shim -> canvas captureStream -> <video> -> page, and fails on the
-//      autoplay regression because no frame ever arrives.
-//   2. Block mode: the same page must be denied (NotAllowedError), proving
-//      scenario 1 is not vacuously green.
-//   3. Real mode: the device camera is handed over when one exists. Skipped
+//   1. Virtual mode, IMAGE source: the page's getUserMedia must resolve with a
+//      stream whose pixels ARE the user-picked image. Proves picker -> model
+//      -> bridge -> shim -> canvas captureStream -> <video> -> page, and fails
+//      on the autoplay regression because no frame ever arrives.
+//   2. Virtual mode, VIDEO source: the clip must play AND keep looping. The
+//      fixture alternates two colours every ~500ms, so a stream frozen on its
+//      first decoded frame reports zero transitions and fails.
+//   3. Block mode: the same page must be denied (NotAllowedError), proving
+//      scenarios 1-2 are not vacuously green.
+//   4. Real mode: the device camera is handed over when one exists. Skipped
 //      (not failed) on a runner with no camera, since the emulated camera is
 //      an AVD option rather than a guarantee — see
 //      scripts/run_android_camera_tests.sh, which pre-grants the CAMERA
@@ -22,13 +25,8 @@
 //
 // The probe page reports its result back to the in-process loopback server
 // rather than through pixels: the exact error name is what makes a remote
-// failure diagnosable (INTEG-006), and a solid-color source makes the pixel
-// assertion exact.
-//
-// NOTE: virtual mode is exercised with an IMAGE source. The looped-video
-// source path is covered at the jsdom tier (test/js/camera_stream_shim.test.js
-// asserts loop/muted/play on the <video> branch) and by the preview HTML
-// builder test; encoding a video fixture needs a tool the CI image lacks.
+// failure diagnosable (INTEG-006), and solid-colour sources make the pixel
+// assertions exact.
 
 import 'dart:convert';
 import 'dart:io';
@@ -44,6 +42,8 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/settings/camera.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
+
+import 'fixtures/virtual_camera_video.dart';
 
 // A colour Flutter never draws and no real camera would produce, so a match
 // proves the sampled pixel came from the picked image.
@@ -66,7 +66,11 @@ String _probePage() => '''
 <style>html,body{margin:0;height:100%;background:#202020}</style>
 </head><body><script>
 function report(o) {
-  return fetch('/report?data=' + encodeURIComponent(JSON.stringify(o)));
+  // Forward the site tag from our own URL so the server can file the report
+  // against the right scenario.
+  var site = new URLSearchParams(location.search).get('site') || 'unknown';
+  return fetch('/report?site=' + encodeURIComponent(site) +
+    '&data=' + encodeURIComponent(JSON.stringify(o)));
 }
 (async function() {
   var result = { ok: false };
@@ -82,7 +86,13 @@ function report(o) {
     video.srcObject = stream;
     await video.play();
     var canvas = document.createElement('canvas');
+    // Sample a series rather than a single frame: a looping video source must
+    // be shown to keep CHANGING (frozen-on-first-frame would pass a
+    // single-sample check), so the test needs the observed colours and the
+    // number of transitions.
+    var samples = [];
     var deadline = Date.now() + 20000;
+    var observeUntil = null;
     while (Date.now() < deadline) {
       if (video.readyState >= 2 && video.videoWidth > 0) {
         var w = video.videoWidth, h = video.videoHeight;
@@ -90,20 +100,43 @@ function report(o) {
         var ctx = canvas.getContext('2d');
         ctx.drawImage(video, 0, 0, w, h);
         var d = ctx.getImageData(Math.floor(w / 2), Math.floor(h / 2), 1, 1).data;
-        // A camera warming up can emit black frames first; keep sampling
-        // until a non-black one arrives (or the deadline passes).
+        // A camera (or a decoder) warming up emits black frames first; the
+        // observation window opens at the first real frame.
         if (d[0] + d[1] + d[2] > 12) {
-          result.ok = true;
-          result.w = w; result.h = h;
-          result.px = [d[0], d[1], d[2]];
-          document.body.style.background =
-            'rgb(' + d[0] + ',' + d[1] + ',' + d[2] + ')';
-          break;
+          if (!result.ok) {
+            result.ok = true;
+            result.w = w; result.h = h;
+            result.px = [d[0], d[1], d[2]];
+            document.body.style.background =
+              'rgb(' + d[0] + ',' + d[1] + ',' + d[2] + ')';
+            // Watch ~4s: the fixture clip is ~0.5s, so a looping source
+            // transitions several times inside the window.
+            observeUntil = Date.now() + 4000;
+          }
+          samples.push([d[0], d[1], d[2]]);
         }
       }
+      if (observeUntil !== null && Date.now() > observeUntil) break;
       await new Promise(function(r) { setTimeout(r, 100); });
     }
-    if (!result.ok) result.error = 'no frame before deadline';
+    if (!result.ok) {
+      result.error = 'no frame before deadline';
+    } else {
+      var changes = 0;
+      for (var i = 1; i < samples.length; i++) {
+        var p = samples[i - 1], q = samples[i];
+        if (Math.abs(p[0] - q[0]) + Math.abs(p[1] - q[1]) + Math.abs(p[2] - q[2]) > 40) {
+          changes++;
+        }
+      }
+      result.changes = changes;
+      result.samples = samples.length;
+      result.distinct = samples.filter(function(p, i) {
+        return i === 0 || Math.abs(samples[i - 1][0] - p[0]) +
+          Math.abs(samples[i - 1][1] - p[1]) +
+          Math.abs(samples[i - 1][2] - p[2]) > 40;
+      });
+    }
     try { track.stop(); } catch (e) {}
   } catch (e) {
     result.ok = false;
@@ -160,6 +193,17 @@ void main() {
       cameraMode: CameraAccessMode.virtual,
       virtualCameraSource: source,
     );
+    final video = WebViewModel(
+      siteId: 'ws-cam-video',
+      initUrl: '$base/probe.html?site=video',
+      name: 'CamVideo',
+      cameraMode: CameraAccessMode.virtual,
+      virtualCameraSource: const VirtualCameraSource(
+        kind: 'video',
+        dataUrl: kVirtualCameraVideoDataUrl,
+        fileName: 'clip.webm',
+      ),
+    );
     final blocked = WebViewModel(
       siteId: 'ws-cam-block',
       initUrl: '$base/probe.html?site=block',
@@ -176,6 +220,7 @@ void main() {
     SharedPreferences.setMockInitialValues({
       'webViewModels': [
         jsonEncode(virtual.toJson()),
+        jsonEncode(video.toJson()),
         jsonEncode(blocked.toJson()),
         jsonEncode(real.toJson()),
       ],
@@ -281,7 +326,37 @@ void main() {
     expect(virtualReport['label'], 'Integrated Camera');
     expect(virtualReport['cams'], 1);
 
-    // --- Scenario 2: block mode denies (control for scenario 1) ------------
+    // --- Scenario 2: a video source plays AND loops ------------------------
+    // The clip alternates two colours every ~500ms, so a stream that is
+    // merely frozen on the first decoded frame reports zero transitions.
+    await openSiteDrawer(tester);
+    await tapSite(tester, 'CamVideo');
+    final videoReport = await awaitReport(tester, 'video');
+    if (videoReport['ok'] != true) {
+      dumpDiagnostics('video source produced no frame: $videoReport');
+    }
+    expect(videoReport['ok'], isTrue,
+        reason: 'a video virtual source must produce frames; got '
+            '${videoReport['error']}');
+    final distinct = (videoReport['distinct'] as List)
+        .map((p) => (p as List).cast<num>())
+        .toList();
+    bool sawColour(List<int> want) => distinct.any((p) =>
+        near(p[0].toInt(), want[0]) &&
+        near(p[1].toInt(), want[1]) &&
+        near(p[2].toInt(), want[2]));
+    expect(sawColour(kVirtualCameraVideoColorA), isTrue,
+        reason: 'first colour of the clip should appear; saw $distinct');
+    expect(sawColour(kVirtualCameraVideoColorB), isTrue,
+        reason: 'second colour of the clip should appear; saw $distinct');
+    // ~0.5s clip observed for ~4s: a looping source transitions repeatedly.
+    // Two transitions already require playback past the clip's end.
+    expect((videoReport['changes'] as num) >= 2, isTrue,
+        reason: 'the clip must keep looping, not freeze on one frame; '
+            'changes=${videoReport['changes']} over '
+            '${videoReport['samples']} samples');
+
+    // --- Scenario 3: block mode denies (control for scenario 1) ------------
     await openSiteDrawer(tester);
     await tapSite(tester, 'CamBlock');
     final blockReport = await awaitReport(tester, 'block');
@@ -291,7 +366,7 @@ void main() {
         reason: 'block should surface as a NotAllowedError, got '
             '${blockReport['error']}');
 
-    // --- Scenario 3: real mode hands over the device camera ----------------
+    // --- Scenario 4: real mode hands over the device camera ----------------
     // Emulated cameras are an AVD option, not a guarantee: treat "no camera
     // on this runner" as a skip and everything else as a failure.
     await openSiteDrawer(tester);

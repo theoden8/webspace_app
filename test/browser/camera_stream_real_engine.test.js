@@ -135,3 +135,75 @@ test('virtual camera stream carries a decodable QR under real Chromium', async (
     server.close();
   }
 });
+
+test('a video virtual source plays and loops under real Chromium', async (t) => {
+  if (!requireBrowser(browser, t)) return;
+
+  // Single source of truth: the same committed clip the emulator tier feeds
+  // the device (integration_test/fixtures/virtual_camera_video.dart).
+  const fixtureSrc = fs.readFileSync(
+    path.resolve(__dirname, '..', '..', 'integration_test', 'fixtures',
+      'virtual_camera_video.dart'), 'utf8');
+  const b64 = /'data:video\/webm;base64,'\s*'([^']+)'/.exec(fixtureSrc)[1];
+  const colours = [...fixtureSrc.matchAll(/kVirtualCameraVideoColor[AB] = \[([^\]]+)\]/g)]
+    .map((m) => m[1].split(',').map((n) => parseInt(n.trim(), 10)));
+  assert.equal(colours.length, 2, 'fixture should declare both colours');
+
+  const server = await startServer();
+  const { port } = server.address();
+  const page = await browser.browser.newPage();
+  try {
+    await page.evaluateOnNewDocument((dataUrl) => {
+      window.flutter_inappwebview = {
+        callHandler: (name) => Promise.resolve(
+          name === 'webCameraMode'
+            ? 'virtual'
+            : { mode: 'virtual', source: { kind: 'video', dataUrl } }),
+      };
+    }, `data:video/webm;base64,${b64}`);
+    await page.evaluateOnNewDocument(SHIM);
+    await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'load' });
+
+    const r = await page.evaluate(async () => {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      const video = document.createElement('video');
+      video.muted = true;
+      video.playsInline = true;
+      video.srcObject = stream;
+      await video.play();
+      const canvas = document.createElement('canvas');
+      const samples = [];
+      const start = performance.now();
+      while (performance.now() - start < 4000) {
+        if (video.readyState >= 2 && video.videoWidth > 0) {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(video, 0, 0);
+          const d = ctx.getImageData(
+            Math.floor(canvas.width / 2), Math.floor(canvas.height / 2), 1, 1).data;
+          if (d[0] + d[1] + d[2] > 12) samples.push([d[0], d[1], d[2]]);
+        }
+        await new Promise((res) => setTimeout(res, 100));
+      }
+      let changes = 0;
+      for (let i = 1; i < samples.length; i++) {
+        const p = samples[i - 1], q = samples[i];
+        if (Math.abs(p[0] - q[0]) + Math.abs(p[1] - q[1]) + Math.abs(p[2] - q[2]) > 40) changes++;
+      }
+      return { samples, changes };
+    });
+
+    const near = (a, b) => Math.abs(a - b) <= 24;
+    const saw = (want) => r.samples.some(
+      (p) => near(p[0], want[0]) && near(p[1], want[1]) && near(p[2], want[2]));
+    assert.ok(saw(colours[0]), `clip's first colour never appeared: ${JSON.stringify(r.samples.slice(0, 6))}`);
+    assert.ok(saw(colours[1]), `clip's second colour never appeared: ${JSON.stringify(r.samples.slice(0, 6))}`);
+    // ~0.5s clip watched for 4s: a frozen first frame yields 0 transitions.
+    assert.ok(r.changes >= 2,
+      `the clip must keep looping, got ${r.changes} transitions over ${r.samples.length} samples`);
+  } finally {
+    await page.close();
+    server.close();
+  }
+});
