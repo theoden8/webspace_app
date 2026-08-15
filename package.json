@@ -9,7 +9,7 @@
   },
   "devDependencies": {
     "@fingerprintjs/fingerprintjs": "^5.2.0",
-    "@fission-ai/openspec": "latest",
+    "@fission-ai/openspec": "^1.9.0",
     "cld3-asm": "^4.0.0",
     "jsdom": "^25.0.1",
     "puppeteer": "^24.43.0"

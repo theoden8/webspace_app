@@ -395,6 +395,7 @@ jobs:
             adb shell input keyevent 82
             adb shell settings put global hide_error_dialogs 1
             bash scripts/run_android_integration_tests.sh
+            bash scripts/run_android_background_audio_tests.sh
             bash scripts/run_android_lifecycle_tests.sh
 
       - name: Upload white-screen lifecycle diagnostics

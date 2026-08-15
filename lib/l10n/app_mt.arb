@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "Uri l-paġna fil-cache mat-tnedija kiesħa (l-alternattiva offline dejjem mixgħula)",
   "siteSettingsNotifications": "Notifiki",
   "siteSettingsNotificationsHint": "Ippermetti lil dan is-sit juri notifiki tas-sistema. Iżomm is-sit jistħarreġ fl-isfond biex in-notifiki jisparaw anke meta tkun fuq tab differenti.",
+  "siteSettingsBackgroundAudio": "Awdjo fl-isfond",
+  "siteSettingsBackgroundAudioHint": "L-awdjo ta' dan is-sit jibqa' jindaqq meta taqleb għal sit ieħor jew titlaq mill-app. Il-paġna qatt ma titwaqqaf fl-isfond. Maħsub għal siti tal-mużika, tar-radju u tal-podcasts.",
   "siteSettingsNotificationsBlockedByProxy": "Ma jistax jiġi attivat: \"{site}\" diġà qed jistħarreġ fl-isfond bi proxy differenti. Android jippermetti proxy wieħed biss kull darba.",
   "siteSettingsNotificationsDenied": "Notifiki miċħuda. Attiva f'Settings → {path}.",
   "siteSettingsProtectedContent": "Kontenut protett (DRM)",

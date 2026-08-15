@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "Sýna skyndiminni-síðu við kaldræsingu (varadæmi án nettengingar alltaf á)",
   "siteSettingsNotifications": "Tilkynningar",
   "siteSettingsNotificationsHint": "Leyfa þessu svæði að sýna kerfistilkynningar. Heldur svæðinu virku í bakgrunni svo tilkynningar berist jafnvel þegar þú ert á öðrum flipa.",
+  "siteSettingsBackgroundAudio": "Hljóð í bakgrunni",
+  "siteSettingsBackgroundAudioHint": "Hljóð þessa vefsvæðis heldur áfram að spilast þegar þú skiptir yfir á annað vefsvæði eða ferð úr forritinu. Síðan er aldrei sett í bið í bakgrunni. Ætlað fyrir tónlistar-, útvarps- og hlaðvarpsvefi.",
   "siteSettingsNotificationsBlockedByProxy": "Ekki hægt að virkja: „{site}“ er þegar virkt í bakgrunni með öðrum milliþjóni. Android leyfir aðeins einn milliþjón í einu.",
   "siteSettingsNotificationsDenied": "Tilkynningum hafnað. Virkjaðu í Stillingar → {path}.",
   "siteSettingsProtectedContent": "Varið efni (DRM)",

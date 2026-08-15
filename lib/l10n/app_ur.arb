@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "کولڈ اسٹارٹ پر کیش شدہ صفحہ دکھائیں (آف لائن متبادل ہمیشہ آن)",
   "siteSettingsNotifications": "اطلاعات",
   "siteSettingsNotificationsHint": "اس سائٹ کو سسٹم اطلاعات دکھانے کی اجازت دیں۔ سائٹ کو پس منظر میں پولنگ کرتا رہتا ہے تاکہ اطلاعات اس وقت بھی آئیں جب آپ کسی مختلف ٹیب پر ہوں۔",
+  "siteSettingsBackgroundAudio": "پس منظر آڈیو",
+  "siteSettingsBackgroundAudioHint": "کسی دوسری سائٹ پر جانے یا ایپ چھوڑنے پر بھی اس سائٹ کی آڈیو چلتی رہتی ہے۔ صفحہ پس منظر میں کبھی موقوف نہیں کیا جاتا۔ موسیقی، ریڈیو اور پوڈکاسٹ سائٹس کے لیے۔",
   "siteSettingsNotificationsBlockedByProxy": "فعال نہیں کیا جا سکتا: \"{site}\" پہلے ہی ایک مختلف پراکسی کے ساتھ پس منظر میں پولنگ کر رہی ہے۔ Android ایک وقت میں صرف ایک پراکسی کی اجازت دیتا ہے۔",
   "siteSettingsNotificationsDenied": "اطلاعات مسترد۔ سیٹنگز ← {path} میں فعال کریں۔",
   "siteSettingsProtectedContent": "محفوظ مواد (DRM)",

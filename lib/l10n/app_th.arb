@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "แสดงหน้าที่แคชไว้เมื่อเริ่มแบบเย็น (สำรองออฟไลน์เปิดเสมอ)",
   "siteSettingsNotifications": "การแจ้งเตือน",
   "siteSettingsNotificationsHint": "อนุญาตให้เว็บไซต์นี้แสดงการแจ้งเตือนของระบบ จะให้เว็บไซต์ตรวจสอบในเบื้องหลังต่อไปเพื่อให้การแจ้งเตือนทำงานแม้คุณอยู่ในแท็บอื่น",
+  "siteSettingsBackgroundAudio": "เสียงพื้นหลัง",
+  "siteSettingsBackgroundAudioHint": "เสียงของไซต์นี้จะเล่นต่อไปเมื่อคุณสลับไปยังไซต์อื่นหรือออกจากแอป หน้าเว็บจะไม่ถูกหยุดชั่วคราวในพื้นหลัง เหมาะสำหรับไซต์เพลง วิทยุ และพอดแคสต์",
   "siteSettingsNotificationsBlockedByProxy": "ไม่สามารถเปิดใช้งาน: \"{site}\" กำลังตรวจสอบในเบื้องหลังด้วยพร็อกซีอื่นอยู่แล้ว Android อนุญาตเพียงหนึ่งพร็อกซีในแต่ละครั้ง",
   "siteSettingsNotificationsDenied": "การแจ้งเตือนถูกปฏิเสธ เปิดใช้งานในการตั้งค่า → {path}",
   "siteSettingsProtectedContent": "เนื้อหาที่มีการป้องกัน (DRM)",

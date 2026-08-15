@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "Прикажи кеширану страницу при хладном покретању (резерва ван мреже увек укључена)",
   "siteSettingsNotifications": "Обавештења",
   "siteSettingsNotificationsHint": "Дозволи овом сајту да приказује системска обавештења. Одржава сајт активним у позадини тако да обавештења стижу чак и када сте на другој картици.",
+  "siteSettingsBackgroundAudio": "Звук у позадини",
+  "siteSettingsBackgroundAudioHint": "Звук овог сајта наставља да свира када пређете на други сајт или напустите апликацију. Страница се никада не паузира у позадини. Намењено сајтовима са музиком, радиом и подкастима.",
   "siteSettingsNotificationsBlockedByProxy": "Није могуће омогућити: „{site}“ већ ради у позадини са другим проксијем. Android дозвољава само један прокси истовремено.",
   "siteSettingsNotificationsDenied": "Обавештења одбијена. Омогућите у Подешавања → {path}.",
   "siteSettingsProtectedContent": "Заштићени садржај (DRM)",

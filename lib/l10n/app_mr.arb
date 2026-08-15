@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "कोल्ड स्टार्टवर कॅश केलेले पृष्ठ दाखवा (ऑफलाइन फॉलबॅक नेहमी चालू)",
   "siteSettingsNotifications": "सूचना",
   "siteSettingsNotificationsHint": "या साइटला सिस्टम सूचना दाखवण्याची परवानगी द्या. तुम्ही वेगळ्या टॅबवर असतानाही सूचना सुरू होतात म्हणून साइट पार्श्वभूमीत पोलिंग ठेवते.",
+  "siteSettingsBackgroundAudio": "पार्श्वभूमी ऑडिओ",
+  "siteSettingsBackgroundAudioHint": "दुसऱ्या साइटवर गेल्यावर किंवा अ‍ॅप सोडल्यावरही या साइटचा ऑडिओ वाजत राहतो. पृष्ठ पार्श्वभूमीत कधीही थांबवले जात नाही. संगीत, रेडिओ आणि पॉडकास्ट साइटसाठी.",
   "siteSettingsNotificationsBlockedByProxy": "सक्षम करता येत नाही: \"{site}\" आधीच वेगळ्या प्रॉक्सीसह पार्श्वभूमीत पोलिंग करत आहे. Android एका वेळी फक्त एक प्रॉक्सी अनुमती देते.",
   "siteSettingsNotificationsDenied": "सूचना नाकारल्या. सेटिंग्ज → {path} मध्ये सक्षम करा.",
   "siteSettingsProtectedContent": "संरक्षित सामग्री (DRM)",

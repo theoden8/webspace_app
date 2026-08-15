@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "عرض الصفحة المخزّنة عند بدء التشغيل البارد (البديل دون اتصال مفعّل دائمًا)",
   "siteSettingsNotifications": "الإشعارات",
   "siteSettingsNotificationsHint": "السماح لهذا الموقع بعرض إشعارات النظام. يبقي الموقع يستطلع في الخلفية بحيث تُطلق الإشعارات حتى عندما تكون في علامة تبويب أخرى.",
+  "siteSettingsBackgroundAudio": "الصوت في الخلفية",
+  "siteSettingsBackgroundAudioHint": "يُبقي صوت هذا الموقع قيد التشغيل عند التبديل إلى موقع آخر أو مغادرة التطبيق. لا يتم إيقاف الصفحة مؤقتًا في الخلفية أبدًا. مخصص لمواقع الموسيقى والراديو والبودكاست.",
   "siteSettingsNotificationsBlockedByProxy": "لا يمكن التفعيل: \"{site}\" يستطلع بالفعل في الخلفية بوكيل مختلف. يسمح Android بوكيل واحد فقط في كل مرة.",
   "siteSettingsNotificationsDenied": "تم رفض الإشعارات. فعّلها في الإعدادات ← {path}.",
   "siteSettingsProtectedContent": "المحتوى المحمي (DRM)",

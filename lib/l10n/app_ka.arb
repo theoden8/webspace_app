@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "აჩვენე ქეშირებული გვერდი ცივ გაშვებაზე (ოფლაინ სარეზერვო ვარიანტი ყოველთვის ჩართულია)",
   "siteSettingsNotifications": "შეტყობინებები",
   "siteSettingsNotificationsHint": "მიეცი ამ საიტს უფლება აჩვენოს სისტემური შეტყობინებები. ინარჩუნებს საიტს ფონურად, რომ შეტყობინებები გამოვიდეს მაშინაც კი, როცა სხვა ჩანართზე ხართ.",
+  "siteSettingsBackgroundAudio": "ფონური აუდიო",
+  "siteSettingsBackgroundAudioHint": "ამ საიტის აუდიო აგრძელებს დაკვრას, როცა სხვა საიტზე გადადიხართ ან ტოვებთ აპლიკაციას. გვერდი ფონურ რეჟიმში არასდროს ჩერდება. განკუთვნილია მუსიკის, რადიოსა და პოდკასტების საიტებისთვის.",
   "siteSettingsNotificationsBlockedByProxy": "ჩართვა ვერ ხერხდება: „{site}“ უკვე ფონურად მუშაობს სხვა პროქსით. Android ერთ დროს მხოლოდ ერთ პროქსს უშვებს.",
   "siteSettingsNotificationsDenied": "შეტყობინებები უარყოფილია. ჩართეთ პარამეტრებში → {path}.",
   "siteSettingsProtectedContent": "დაცული კონტენტი (DRM)",

@@ -81,6 +81,7 @@ import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/shortcut_service.dart';
 import 'package:webspace/services/background_task_service.dart';
+import 'package:webspace/services/media_session_service.dart';
 import 'package:webspace/services/share_intent_service.dart';
 import 'package:webspace/services/link_routing_service.dart';
 import 'package:webspace/services/link_intent_dispatch_engine.dart';
@@ -1598,7 +1599,17 @@ class _WebSpacePageState extends State<WebSpacePage>
         siteCount: _webViewModels.length,
         loadedIndices: _loadedIndices,
         notificationsEnabled: (i) => _webViewModels[i].effectiveNotificationsEnabled,
+        backgroundAudioEnabled: (i) =>
+            _webViewModels[i].effectiveBackgroundAudioEnabled,
         cookieFlushSupported: CookieManager.flushSupported,
+      );
+      // Non-sensitive decision line (no site name/URL): lets a user report
+      // — and the CI lifecycle test assert — whether the background froze
+      // JS or a notification/background-audio exemption kept it running.
+      LogService.instance.log(
+        'Lifecycle',
+        'App background: jsPause=${pausePlan.jsPauseIndex != null} '
+            'capture=${pausePlan.captureStateIndex != null}',
       );
       // Backgrounding is the last moment we control before the OS may kill
       // the process, and Chromium commits cookies to disk lazily. Unawaited:
@@ -1630,6 +1641,9 @@ class _WebSpacePageState extends State<WebSpacePage>
       // Both iOS and Android: ensure the periodic refresh is scheduled
       // before the process gets backgrounded.
       unawaited(_updateBackgroundRefreshSchedule());
+      // iOS: make sure the `.playback` audio session is live before the
+      // process is backgrounded, or active webview audio gets cut.
+      unawaited(_updateBackgroundAudioSession());
     } else if (state == AppLifecycleState.resumed) {
       if (_maskBackground) {
         setState(() => _maskBackground = false);
@@ -1786,6 +1800,8 @@ class _WebSpacePageState extends State<WebSpacePage>
       siteCount: _webViewModels.length,
       loadedIndices: _loadedIndices,
       notificationsEnabled: (i) => _webViewModels[i].effectiveNotificationsEnabled,
+      backgroundAudioEnabled: (i) =>
+          _webViewModels[i].effectiveBackgroundAudioEnabled,
     );
     if (resumeIdx != null) {
       await _webViewModels[resumeIdx].resumeFromAppLifecycle();
@@ -3473,6 +3489,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     // re-evaluate the background refresh schedule (iOS BGAppRefreshTask
     // / Android WorkManager). No-op on other platforms.
     unawaited(_updateBackgroundRefreshSchedule());
+    // Same for `backgroundAudioEnabled` and the iOS audio session.
+    unawaited(_updateBackgroundAudioSession());
   }
 
   /// Dispose every loaded webview. Used after global user script edits,
@@ -3804,6 +3822,10 @@ class _WebSpacePageState extends State<WebSpacePage>
     // first-load of target), so re-evaluate the background refresh
     // schedule. No-op on non-iOS / non-Android.
     unawaited(_updateBackgroundRefreshSchedule());
+    // Same trigger for the iOS audio session: the first load of a
+    // background-audio site must activate `.playback` before the user
+    // starts playback in it.
+    unawaited(_updateBackgroundAudioSession());
     } finally {
       // Clear the in-flight marker only if we still own it; a newer
       // _setCurrentIndex caller will have already overwritten it with
@@ -4557,6 +4579,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     BackgroundTaskService.instance.onBackgroundRefresh =
         _refreshNotificationSites;
     BackgroundTaskService.instance.initialize();
+    // BGAUDIO-006: wire the Android media-notification transport channel.
+    MediaSessionService.instance.initialize();
     if (_anyNotificationSites()) {
       unawaited(BackgroundTaskService.instance.scheduleNextRefresh());
     }
@@ -4799,6 +4823,29 @@ class _WebSpacePageState extends State<WebSpacePage>
     }
   }
 
+  /// BGAUDIO-003: keep the iOS `.playback` audio session in sync with
+  /// whether any loaded site has background audio enabled. Active playback
+  /// under that category (plus the `audio` UIBackgroundModes entry) is what
+  /// keeps iOS from suspending the app when it leaves the foreground.
+  /// No-op off iOS. Idempotent — safe to fire from settings-save, site
+  /// load/unload, and the lifecycle-pause path.
+  Future<void> _updateBackgroundAudioSession() async {
+    bool any = false;
+    for (int i = 0; i < _webViewModels.length; i++) {
+      if (!_webViewModels[i].effectiveBackgroundAudioEnabled) continue;
+      if (!_loadedIndices.contains(i)) continue;
+      any = true;
+      break;
+    }
+    await BackgroundTaskService.instance.setBackgroundAudioActive(any);
+    // BGAUDIO-006: with no background-audio site loaded there is nothing to
+    // drive the Android media notification — tear it down. While one is
+    // loaded the notification is raised/updated by its page-JS reports.
+    if (!any) {
+      await MediaSessionService.instance.stopAll();
+    }
+  }
+
   /// Reload every notification site so its page JS gets a chance to fire
   /// pending notifications. Called by:
   ///   1. The 5-minute foreground poll tick (skips the active site so the
@@ -4872,7 +4919,10 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (index == _activationInFlightIndex) return SiteRetentionPriority.activating;
     if (index >= 0 && index < _webViewModels.length) {
       final m = _webViewModels[index];
-      if (m.effectiveNotificationsEnabled) {
+      // Background-audio sites share the notification retention tier: both
+      // exist to keep running while other sites take the screen, so both
+      // are evicted only after every ordinary site is gone.
+      if (m.effectiveNotificationsEnabled || m.effectiveBackgroundAudioEnabled) {
         return SiteRetentionPriority.notification;
       }
     }
@@ -7403,6 +7453,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     // down the background refresh schedule if so. No-op on other
     // platforms.
     unawaited(_updateBackgroundRefreshSchedule());
+    // May also have removed the last background-audio site.
+    unawaited(_updateBackgroundAudioSession());
 
     if (hadPinnedShortcut) {
       await _handleDeletedSiteShortcut(reachingTiles);

@@ -408,6 +408,8 @@
   "siteSettingsHtmlCachingSubtitle": "冷啟動時顯示快取頁面（離線後備一律開啟）",
   "siteSettingsNotifications": "通知",
   "siteSettingsNotificationsHint": "允許此網站顯示系統通知。讓網站在背景持續輪詢，因此即使您在其他分頁，通知仍會觸發。",
+  "siteSettingsBackgroundAudio": "后台音频",
+  "siteSettingsBackgroundAudioHint": "切换到其他站点或离开应用时，此站点的音频会继续播放。页面在后台永远不会被暂停。适用于音乐、电台和播客站点。",
   "siteSettingsNotificationsBlockedByProxy": "無法啟用：「{site}」已在背景以不同的代理輪詢。Android 一次僅允許一個代理。",
   "siteSettingsNotificationsDenied": "通知遭拒。請在「設定 → {path}」中啟用。",
   "siteSettingsProtectedContent": "受保護內容（DRM）",

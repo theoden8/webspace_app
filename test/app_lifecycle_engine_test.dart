@@ -63,6 +63,7 @@ void main() {
         siteCount: 2,
         loadedIndices: {0, 1},
         notificationsEnabled: (_) => false,
+        backgroundAudioEnabled: (_) => false,
         cookieFlushSupported: true,
       );
       expect(plan.jsPauseIndex, isNull);
@@ -75,6 +76,7 @@ void main() {
         siteCount: 3,
         loadedIndices: {0, 1},
         notificationsEnabled: (_) => false,
+        backgroundAudioEnabled: (_) => false,
         cookieFlushSupported: true,
       );
       expect(plan.jsPauseIndex, isNull);
@@ -87,6 +89,7 @@ void main() {
         siteCount: 3,
         loadedIndices: {0, 1},
         notificationsEnabled: (_) => false,
+        backgroundAudioEnabled: (_) => false,
         cookieFlushSupported: true,
       );
       expect(plan.jsPauseIndex, 1);
@@ -99,6 +102,7 @@ void main() {
         siteCount: 3,
         loadedIndices: {0, 1},
         notificationsEnabled: (i) => i == 1,
+        backgroundAudioEnabled: (_) => false,
         cookieFlushSupported: true,
       );
       expect(plan.jsPauseIndex, isNull);
@@ -120,6 +124,7 @@ void main() {
         siteCount: 3,
         loadedIndices: {0, 1, 2},
         notificationsEnabled: (_) => false,
+        backgroundAudioEnabled: (_) => false,
         cookieFlushSupported: true,
       );
       expect(plan.jsPauseIndex, flaggedIndex);
@@ -142,6 +147,7 @@ void main() {
         siteCount: 3,
         loadedIndices: {0, 1},
         notificationsEnabled: (_) => false,
+        backgroundAudioEnabled: (_) => false,
         cookieFlushSupported: true,
       );
       expect(plan.flushCookies, isTrue);
@@ -156,6 +162,7 @@ void main() {
         siteCount: 3,
         loadedIndices: {0, 1},
         notificationsEnabled: (_) => false,
+        backgroundAudioEnabled: (_) => false,
         cookieFlushSupported: false,
       );
       expect(plan.flushCookies, isFalse);
@@ -169,6 +176,7 @@ void main() {
         siteCount: 3,
         loadedIndices: const {},
         notificationsEnabled: (_) => false,
+        backgroundAudioEnabled: (_) => false,
         cookieFlushSupported: true,
       );
       expect(plan.flushCookies, isFalse);
@@ -183,6 +191,7 @@ void main() {
         siteCount: 3,
         loadedIndices: {0, 1},
         notificationsEnabled: (i) => i == 1,
+        backgroundAudioEnabled: (_) => false,
         cookieFlushSupported: true,
       );
       expect(plan.jsPauseIndex, isNull);
@@ -198,6 +207,7 @@ void main() {
         siteCount: 3,
         loadedIndices: {0, 2},
         notificationsEnabled: (_) => false,
+        backgroundAudioEnabled: (_) => false,
         cookieFlushSupported: true,
       );
       expect(plan.jsPauseIndex, isNull);
@@ -214,6 +224,7 @@ void main() {
           siteCount: 2,
           loadedIndices: {0, 1},
           notificationsEnabled: (_) => false,
+          backgroundAudioEnabled: (_) => false,
         ),
         isNull,
       );
@@ -226,6 +237,7 @@ void main() {
           siteCount: 2,
           loadedIndices: {0, 1},
           notificationsEnabled: (_) => false,
+          backgroundAudioEnabled: (_) => false,
         ),
         0,
       );
@@ -238,6 +250,7 @@ void main() {
           siteCount: 2,
           loadedIndices: {0, 1},
           notificationsEnabled: (i) => i == 0,
+          backgroundAudioEnabled: (_) => false,
         ),
         isNull,
       );
@@ -252,6 +265,7 @@ void main() {
           siteCount: 2,
           loadedIndices: {0},
           notificationsEnabled: (_) => true,
+          backgroundAudioEnabled: (_) => false,
         ),
         isNull,
       );
@@ -262,6 +276,77 @@ void main() {
           loadedIndices: {0},
         ),
         0,
+      );
+    });
+  });
+
+  group('BGAUDIO-002 background-audio pause exemption', () {
+    test('active background-audio site: capture but do NOT pause', () {
+      final plan = AppLifecycleEngine.backgroundPlan(
+        currentIndex: 1,
+        siteCount: 3,
+        loadedIndices: {0, 1},
+        notificationsEnabled: (_) => false,
+        backgroundAudioEnabled: (i) => i == 1,
+        cookieFlushSupported: true,
+      );
+      expect(plan.jsPauseIndex, isNull);
+      expect(plan.captureStateIndex, 1);
+    });
+
+    test('LOADED background-audio site vetoes the pause of a plain active site',
+        () {
+      // The app-lifecycle JS pause is process-global on Android: pausing the
+      // active site would also freeze the backgrounded audio site's player.
+      final plan = AppLifecycleEngine.backgroundPlan(
+        currentIndex: 0,
+        siteCount: 3,
+        loadedIndices: {0, 2},
+        notificationsEnabled: (_) => false,
+        backgroundAudioEnabled: (i) => i == 2,
+        cookieFlushSupported: true,
+      );
+      expect(plan.jsPauseIndex, isNull);
+      expect(plan.captureStateIndex, 0);
+    });
+
+    test('unloaded background-audio site does not veto the pause', () {
+      final plan = AppLifecycleEngine.backgroundPlan(
+        currentIndex: 0,
+        siteCount: 3,
+        loadedIndices: {0},
+        notificationsEnabled: (_) => false,
+        backgroundAudioEnabled: (i) => i == 2,
+        cookieFlushSupported: true,
+      );
+      expect(plan.jsPauseIndex, 0);
+      expect(plan.captureStateIndex, 0);
+    });
+
+    test('resume mirrors the skipped pause (nothing to resume)', () {
+      expect(
+        AppLifecycleEngine.resumeJsIndex(
+          currentIndex: 0,
+          siteCount: 3,
+          loadedIndices: {0, 2},
+          notificationsEnabled: (_) => false,
+          backgroundAudioEnabled: (i) => i == 2,
+        ),
+        isNull,
+      );
+    });
+
+    test('out-of-bounds loaded index never reaches the flag callback', () {
+      expect(
+        AppLifecycleEngine.anyLoadedBackgroundAudio(
+          siteCount: 2,
+          loadedIndices: {0, 5},
+          backgroundAudioEnabled: (i) {
+            expect(i, lessThan(2));
+            return false;
+          },
+        ),
+        isFalse,
       );
     });
   });
