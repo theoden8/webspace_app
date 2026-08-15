@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# Android-emulator in-process integration tier: the white-screen pixel
-# scenarios (INTEG-010) and the home-shortcut behavior scenarios
-# (INTEG-013), against the first connected device/emulator.
+# Android-emulator integration tier (INTEG-010): white-screen pixel
+# scenarios against the first connected device/emulator.
 #
 # Single entry point because reactivecircus/android-emulator-runner
 # executes each script line as a separate `sh -c` invocation: a variable
@@ -17,15 +16,8 @@ if [ -z "$device_id" ]; then
   exit 1
 fi
 
-# Hard wall-clock cap per suite: a webview mount can deadlock below the
-# Dart timeout layer (same rationale as the desktop integration loops).
-# It is the backstop, not the first line: each suite's tests carry their
-# own `timeout:` so a hung test fails with its diagnostics instead of
-# silently eating the cap and killing the step with exit 124.
-for target in white_screen_test shortcut_behavior_test; do
-  echo "::group::integration_test/$target.dart"
-  timeout -k 30s 25m fvm flutter test \
-    "integration_test/$target.dart" \
-    -d "$device_id" --flavor fdebug
-  echo "::endgroup::"
-done
+# Hard wall-clock cap: a webview mount can deadlock below the Dart timeout
+# layer (same rationale as the desktop integration loops).
+exec timeout -k 30s 25m fvm flutter test \
+  integration_test/white_screen_test.dart \
+  -d "$device_id" --flavor fdebug

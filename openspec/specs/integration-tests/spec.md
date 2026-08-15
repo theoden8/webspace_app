@@ -590,8 +590,9 @@ sample (observed as exact per-channel halving of the page colors).
 #### Scenario: Runs in build-android after the in-process suite
 
 - **Given** the `Run emulator integration scenarios` emulator step ran
-  `run_android_integration_tests.sh`, whose `flutter test` installs an
-  APK with the *test* Dart entrypoint
+  the in-process wrapper scripts (`run_android_integration_tests.sh`,
+  `run_android_shortcut_tests.sh`, `run_android_background_audio_tests.sh`),
+  whose `flutter test` installs an APK with the *test* Dart entrypoint
 - **When** `run_android_lifecycle_tests.sh` runs next in the same step,
   rebuilds the default-entrypoint fdebug debug APK, reinstalls it, and
   clears package data for a pristine cold start
@@ -808,6 +809,16 @@ and the frame classifier.
   preserves the live session (HS-006), and a reset to `initUrl` would
   repaint the home page instead
 
+#### Scenario: Runs as its own wrapper script in build-android
+
+- **Given** the emulator step runs one wrapper script per in-process
+  suite (the runner executes each `script:` line as a separate `sh -c`,
+  so the device id has to stay in scope with `flutter test`)
+- **When** `run_android_shortcut_tests.sh` runs after
+  `run_android_integration_tests.sh` and before the lifecycle tier
+- **Then** the suite executes on every push/PR under its own 20-minute
+  wall-clock backstop, and a failure fails `build-android`
+
 #### Scenario: Desktop loops skip the Android-only suite
 
 - **Given** the Linux and macOS integration loops iterate
@@ -876,7 +887,9 @@ and the frame classifier.
 - [`integration_test/shortcut_behavior_test.dart`](../../../integration_test/shortcut_behavior_test.dart)
   — INTEG-013: [home-shortcut](../home-shortcut/spec.md) launch, menu
   gating, orphan routing and delete-time tile prompt through the widget
-  tree (Android emulator tier); the resolution rules themselves stay in
+  tree (Android emulator tier), run by
+  [`scripts/run_android_shortcut_tests.sh`](../../../scripts/run_android_shortcut_tests.sh);
+  the resolution rules themselves stay in
   [`test/startup_restore_engine_test.dart`](../../../test/startup_restore_engine_test.dart)
 - [`scripts/run_android_lifecycle_tests.sh`](../../../scripts/run_android_lifecycle_tests.sh)
   — INTEG-011: adb-driven lifecycle tier (warm start, bfcache back,

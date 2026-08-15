@@ -601,7 +601,7 @@ no widget tree required.
 |---|---|
 | [test/startup_restore_engine_test.dart](../../../test/startup_restore_engine_test.dart) | the resolution rules themselves: `resolveLaunch` (HS-002/HS-011), ledger reconcile (HS-012), `effectivePinnedSiteIds` / `tilesReaching` (HS-005/HS-013), tombstone add + prune (HS-014) |
 | [test/shortcut_service_test.dart](../../../test/shortcut_service_test.dart) | the Dart channel surface: argument shapes, per-platform no-ops, degradation on `PlatformException` |
-| [integration_test/shortcut_behavior_test.dart](../../../integration_test/shortcut_behavior_test.dart) | the wiring in `lib/main.dart` on an Android emulator (INTEG-013): cold launch + initUrl reset (HS-002/HS-006), menu gating incl. the rebound site (HS-004/HS-005), pin + ledger record (HS-001/HS-012), orphan confirm / reroute / create and the remembered rebind (HS-011), delete-time Keep/Reassign/Disable (HS-013) |
+| [integration_test/shortcut_behavior_test.dart](../../../integration_test/shortcut_behavior_test.dart) (run by [scripts/run_android_shortcut_tests.sh](../../../scripts/run_android_shortcut_tests.sh)) | the wiring in `lib/main.dart` on an Android emulator (INTEG-013): cold launch + initUrl reset (HS-002/HS-006), menu gating incl. the rebound site (HS-004/HS-005), pin + ledger record (HS-001/HS-012), orphan confirm / reroute / create and the remembered rebind (HS-011), delete-time Keep/Reassign/Disable (HS-013) |
 | [scripts/run_android_lifecycle_tests.sh](../../../scripts/run_android_lifecycle_tests.sh) | what needs a real intent: cold launch through the launcher `siteId` extra, warm tap switching sites (HS-002), warm tap preserving the live session (HS-006) |
 
 iOS/macOS App Intents (HS-008/HS-009/HS-010/HS-014) stay manual plus
