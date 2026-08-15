@@ -763,9 +763,12 @@ jobs:
                 # Screenshot generator is an iOS/Android fastlane helper,
                 # not a Linux-runnable test. The white-screen pixel suite is
                 # Android-only (window PixelCopy); skip its no-op build here.
-                # The camera suite (CAM-010) exists to exercise the Android
-                # WebView's own media gates, which the desktop WPE/WKWebView
-                # targets do not have; it runs in the emulator job instead.
+                # The camera suite (CAM-010) exercises media gates specific to
+                # the Android WebView, which the desktop WPE/WKWebView targets
+                # do not have; it runs in the emulator job instead.
+                # NOTE: this whole block is a single-quoted `bash -c` string,
+                # so an apostrophe in a comment terminates it and the loop
+                # dies with "syntax error: unexpected end of file".
                 [ "$(basename "$t")" = "screenshot_test.dart" ] && continue
                 [ "$(basename "$t")" = "white_screen_test.dart" ] && continue
                 # Home-shortcut scenarios are Android-only (the menu, pin
