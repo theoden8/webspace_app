@@ -80,12 +80,18 @@ page '#ffffff' > "$www/white.html"
 # background refresh reloads the page, so a new OS notification is the
 # outside-observable proof the whole NOTIF-005-A pipeline ran (worker ->
 # engine -> site reload -> polyfill -> flutter_local_notifications).
+# The beacon request is the second, independent signal: it says the page
+# was re-fetched even when no notification follows, which is what splits
+# "the worker never reached the engine" from "the reload ran but the
+# notification pipeline dropped it" in the failure message.
 cat > "$www/notif.html" <<'EOF'
 <!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">
 <style>html,body{margin:0;height:100%;background:#123524;}</style></head><body><script>
 (function () {
+  var stamp = String(Date.now()) + '-' + Math.floor(Math.random() * 1e6);
+  try { fetch('/beacon?load=' + stamp, {cache: 'no-store'}); } catch (e) {}
   function fire() {
-    try { new Notification('ws-diag-bg', {body: String(Date.now())}); } catch (e) {}
+    try { new Notification('ws-diag-bg', {body: stamp}); } catch (e) {}
   }
   if (typeof Notification === 'undefined') return;
   if (Notification.permission === 'granted') { fire(); return; }
@@ -223,9 +229,28 @@ wait_for_pixels white-control 180 --expect-blank-white
 
 # ---- Background refresh (NOTIF-005-A / INTEG-012) ----
 
-notif_count() {
+# Notification *identities*, not a record count. A record count cannot see a
+# repost: Android collapses on the (tag, id) pair, so a second post with the
+# same pair updates the existing record and the count never moves — while the
+# same record does transiently appear in more than one dumpsys section
+# (enqueued + posted), which made a count-based assertion pass or fail on
+# whether the poll landed inside that window. `key` is `user|pkg|id|tag|uid`
+# (StatusBarNotification.getKey), stable across versions and printed in every
+# section, so a set difference over keys is the honest "a new notification was
+# posted" signal.
+notif_keys() {
+  adb shell dumpsys notification 2>/dev/null \
+    | grep -o "[0-9]*|$pkg|[^|]*|[^|]*|[0-9]*" | sort -u || true
+}
+
+notif_records() {
   adb shell dumpsys notification 2>/dev/null \
     | grep -c "NotificationRecord.*$pkg" || true
+}
+
+# Each notif.html load fires one /beacon request at the host server.
+beacon_hits() {
+  grep -c 'GET /beacon' "$server_log" || true
 }
 
 dump_bg_diagnostics() { # $1 = slug
@@ -249,16 +274,18 @@ wait_for_pixels notif-cold-start 180 --expect-dominant "$dark"
 # land a beat after the pixels settle).
 deadline=$(( $(date +%s) + 60 ))
 while :; do
-  baseline="$(notif_count)"
-  [ "$baseline" -ge 1 ] && break
+  baseline_keys="$(notif_keys)"
+  [ -n "$baseline_keys" ] && break
   if [ "$(date +%s)" -ge "$deadline" ]; then
     echo "FAIL: foreground load posted no notification within 60s" >&2
+    echo "  notification records for $pkg: $(notif_records) (0 keys parsed)" >&2
     dump_bg_diagnostics notif-foreground-post
     exit 1
   fi
   sleep 2
 done
-echo "  notifications posted after foreground load: $baseline"
+echo "  notification identities after foreground load: $(printf '%s\n' "$baseline_keys" | wc -l | tr -d ' ')"
+baseline_beacons="$(beacon_hits)"
 adb shell input keyevent 3
 sleep 3
 
@@ -280,14 +307,22 @@ done
 
 deadline=$(( $(date +%s) + 90 ))
 while :; do
-  count="$(notif_count)"
-  if [ "$count" -gt "$baseline" ]; then
-    echo "  background refresh posted a notification ($baseline -> $count)"
+  fresh="$(comm -13 <(printf '%s\n' "$baseline_keys") <(notif_keys))"
+  if [ -n "$fresh" ]; then
+    echo "  background refresh posted a notification: $(printf '%s\n' "$fresh" | head -1)"
     break
   fi
   if [ "$(date +%s)" -ge "$deadline" ]; then
+    now_beacons="$(beacon_hits)"
     echo "FAIL: no new notification within 90s of forcing the refresh job" >&2
-    echo "  count stayed at $count (baseline $baseline)" >&2
+    echo "  notification identities unchanged (page loads: $baseline_beacons -> $now_beacons)" >&2
+    if [ "$now_beacons" -gt "$baseline_beacons" ]; then
+      echo "  the site DID reload in the background — the break is downstream," \
+           "in the polyfill -> NotificationService -> flutter_local_notifications leg" >&2
+    else
+      echo "  the site did NOT reload — the break is upstream," \
+           "in the worker -> engine dispatch -> onBackgroundRefresh leg" >&2
+    fi
     dump_bg_diagnostics notif-refresh
     exit 1
   fi
