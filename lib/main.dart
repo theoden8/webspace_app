@@ -95,7 +95,10 @@ import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/app_locale.dart';
 import 'package:webspace/settings/camera.dart';
+import 'package:webspace/settings/microphone.dart';
 import 'package:webspace/services/virtual_camera_service.dart';
+import 'package:webspace/services/virtual_media_picker.dart';
+import 'package:webspace/services/virtual_microphone_service.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
@@ -5003,6 +5006,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           onConfirmScriptFetch: _confirmScriptFetch,
           onProtectedMediaRequest: _promptProtectedMedia,
           onCameraDecision: _resolveCameraDecision,
+          onMicrophoneDecision: _resolveMicrophoneDecision,
           onShowUrlBarChanged: (show) async {
             if (!mounted) return;
             setState(() {
@@ -5174,6 +5178,83 @@ class _WebSpacePageState extends State<WebSpacePage>
       case VirtualCameraPickError.type:
       case VirtualCameraPickError.read:
         return loc.homeCameraSourceError;
+    }
+  }
+
+  /// Stable resolver for a microphone request (any `getUserMedia` asking for
+  /// audio). On the first request it shows a Block / Use-audio-file popup;
+  /// picking the file opens a picker and the chosen clip becomes the site's
+  /// virtual microphone, looped forever. There is deliberately no "allow the
+  /// real microphone" answer: the app never asks the OS for a recording
+  /// permission. The per-site decision is remembered by the caller (the
+  /// parent webview persists it on the `WebViewModel`; nested webviews
+  /// remember it in-memory), so this only collects user intent.
+  ///
+  /// [current] is the site's stored mode: a site already set to `virtual` but
+  /// missing a clip skips the popup and goes straight to the picker. A
+  /// dismissed popup returns [MicrophoneAccessMode.ask] so the request is
+  /// denied once and the popup returns next time; a cancelled picker leaves
+  /// the prior mode intact for the same reason.
+  Future<MicrophoneDecision> _resolveMicrophoneDecision(
+      String origin, MicrophoneAccessMode current) async {
+    if (!mounted) return const MicrophoneDecision.block();
+    if (current == MicrophoneAccessMode.virtual) {
+      return _pickVirtualMicrophoneOrKeep(current);
+    }
+    final loc = AppLocalizations.of(context);
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(loc.homeMicrophoneAccessTitle),
+        content: Text(loc.homeMicrophoneAccessBody(origin)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'block'),
+            child: Text(loc.homeBlockAction),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'file'),
+            child: Text(loc.homeMicrophoneUseFileAction),
+          ),
+        ],
+      ),
+    );
+    switch (choice) {
+      case 'file':
+        return _pickVirtualMicrophoneOrKeep(MicrophoneAccessMode.ask);
+      case 'block':
+        return const MicrophoneDecision.block();
+      default:
+        // Dismissed: unresolved, deny this once and ask again next time.
+        return const MicrophoneDecision(MicrophoneAccessMode.ask);
+    }
+  }
+
+  /// Runs the audio picker. On success returns a `virtual` decision carrying
+  /// the clip; on cancel or error returns [fallback] with no source, so the
+  /// caller's stored mode is preserved and the request is denied this once.
+  Future<MicrophoneDecision> _pickVirtualMicrophoneOrKeep(
+      MicrophoneAccessMode fallback) async {
+    final result = await VirtualMicrophoneService.pickSource();
+    if (result.source != null) {
+      return MicrophoneDecision(MicrophoneAccessMode.virtual, result.source);
+    }
+    if (result.error != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_virtualMicrophoneErrorText(result.error!))),
+      );
+    }
+    return MicrophoneDecision(fallback);
+  }
+
+  String _virtualMicrophoneErrorText(VirtualMediaPickError error) {
+    final loc = AppLocalizations.of(context);
+    switch (error) {
+      case VirtualMediaPickError.tooLarge:
+        return loc.homeMicrophoneSourceTooLarge;
+      case VirtualMediaPickError.type:
+      case VirtualMediaPickError.read:
+        return loc.homeMicrophoneSourceError;
     }
   }
 
@@ -8222,6 +8303,8 @@ class _WebSpacePageState extends State<WebSpacePage>
                                   onConfirmScriptFetch: _confirmScriptFetch,
                                   onProtectedMediaRequest: _promptProtectedMedia,
                                   onCameraDecision: _resolveCameraDecision,
+                                  onMicrophoneDecision:
+                                      _resolveMicrophoneDecision,
                                   onUntrustedCertificate: _promptUntrustedCertificate,
                                   onExternalSchemeUrl: (url, info) async {
                                     if (!mounted) return;

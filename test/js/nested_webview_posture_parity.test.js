@@ -159,6 +159,10 @@ const PLUMBING = new Set([
   // webCameraMode handler), not a posture value to copy: the nested screen
   // supplies its own in-memory mode.
   'currentCameraMode',
+  'onMicrophoneDecision',
+  // Same shape as currentCameraMode: an accessor for the host's live
+  // microphone mode (backs the non-prompting webMicrophoneMode handler).
+  'currentMicrophoneMode',
 ]);
 
 // Posture-ish but not yet threaded to nested webviews. An archive-tier site

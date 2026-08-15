@@ -2105,6 +2105,34 @@
   "@siteSettingsCameraAccessNoSource": {
     "description": "Placeholder shown in per-site settings when no virtual-camera file has been chosen yet"
   },
+  "siteSettingsMicrophoneAccess": "Microphone access",
+  "@siteSettingsMicrophoneAccess": {
+    "description": "List tile label and hint title for the per-site web microphone access setting."
+  },
+  "siteSettingsMicrophoneAccessHint": "Controls whether this site may capture audio.\n\nWebSpace never opens your real microphone and never asks the system for a recording permission. Instead, the site can be fed an audio file that it hears on repeat.\n\nAsk (default): a popup asks the first time, then remembers your choice.\nAudio file: loop the chosen file to the site.\nAlways block: reject every request.",
+  "@siteSettingsMicrophoneAccessHint": {
+    "description": "Hint body describing the per-site web microphone access setting: no real microphone is ever used; the site can instead be fed a looped audio file."
+  },
+  "siteSettingsMicrophoneAccessAsk": "Ask",
+  "@siteSettingsMicrophoneAccessAsk": {
+    "description": "Microphone access dropdown option: ask each time."
+  },
+  "siteSettingsMicrophoneAccessVirtual": "Audio file",
+  "@siteSettingsMicrophoneAccessVirtual": {
+    "description": "Microphone access dropdown option: play a picked audio file to the site on a loop instead of using a real microphone"
+  },
+  "siteSettingsMicrophoneAccessBlock": "Always block",
+  "@siteSettingsMicrophoneAccessBlock": {
+    "description": "Microphone access dropdown option: always block."
+  },
+  "siteSettingsMicrophoneAccessChooseSource": "Choose audio file",
+  "@siteSettingsMicrophoneAccessChooseSource": {
+    "description": "Button in per-site settings to pick the audio file looped as the virtual microphone"
+  },
+  "siteSettingsMicrophoneAccessNoSource": "No file chosen",
+  "@siteSettingsMicrophoneAccessNoSource": {
+    "description": "Placeholder shown in per-site settings when no virtual-microphone file has been chosen yet"
+  },
   "siteSettingsGeolocation": "Geolocation",
   "@siteSettingsGeolocation": {
     "description": "Title and hint title for the geolocation section."
@@ -2817,6 +2845,31 @@
   "homeCameraSourceTooLarge": "That file is too large. Choose one under 24 MB.",
   "@homeCameraSourceTooLarge": {
     "description": "Error shown when the picked virtual-camera file exceeds the size limit (24 MB)"
+  },
+  "homeMicrophoneAccessTitle": "Allow microphone access?",
+  "@homeMicrophoneAccessTitle": {
+    "description": "Title of the web microphone access permission dialog"
+  },
+  "homeMicrophoneAccessBody": "{origin} wants to use your microphone.\n\nWebSpace will not open your real microphone. You can instead pick an audio file that the site hears on repeat. Your choice is remembered for this site.",
+  "@homeMicrophoneAccessBody": {
+    "description": "Body of the web microphone access permission dialog, explaining that only a looped audio file can be offered",
+    "placeholders": {
+      "origin": {
+        "type": "String"
+      }
+    }
+  },
+  "homeMicrophoneUseFileAction": "Use audio file",
+  "@homeMicrophoneUseFileAction": {
+    "description": "Button in the microphone permission dialog to play a picked audio file to the site instead of a real microphone"
+  },
+  "homeMicrophoneSourceError": "Could not use that file. Choose an audio file.",
+  "@homeMicrophoneSourceError": {
+    "description": "Error shown when the picked virtual-microphone file can't be used (wrong type or unreadable)"
+  },
+  "homeMicrophoneSourceTooLarge": "That file is too large. Choose one under 8 MB.",
+  "@homeMicrophoneSourceTooLarge": {
+    "description": "Error shown when the picked virtual-microphone file exceeds the size limit (8 MB)"
   },
   "homeExitFullscreenHint": "Tap the top of the screen to exit full screen",
   "@homeExitFullscreenHint": {

@@ -23,6 +23,7 @@ import 'package:webspace/services/generic_cosmetic_shim.dart';
 import 'package:webspace/services/procedural_cosmetic_shim.dart';
 import 'package:webspace/services/camera_permission_service.dart';
 import 'package:webspace/services/camera_stream_shim.dart';
+import 'package:webspace/services/microphone_stream_shim.dart';
 import 'package:webspace/services/current_location_service.dart';
 import 'package:webspace/services/desktop_mode_shim.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
@@ -48,6 +49,7 @@ import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/user_script_service.dart';
 import 'package:webspace/settings/camera.dart';
+import 'package:webspace/settings/microphone.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/widgets/root_messenger.dart';
@@ -739,6 +741,22 @@ class WebViewConfig {
   /// must never pop a permission dialog, so it cannot go through
   /// [onCameraDecision].
   final CameraAccessMode Function()? currentCameraMode;
+  /// Resolves the site's decision when the page asks for audio capture.
+  /// Called with the origin and the site's current [MicrophoneAccessMode];
+  /// returns a settled [MicrophoneDecision] (virtual / block, plus a
+  /// [VirtualMicrophoneSource] for virtual) after any Block/Use-audio-file
+  /// popup or file-pick. When null, audio capture keeps the platform default
+  /// (deny on Android/Linux, WebKit's own prompt on iOS/macOS). When
+  /// non-null, the `webMicrophoneRequest` JS handler serves the whole flow in
+  /// JS and the native layer denies every MICROPHONE request outright, so no
+  /// OS recording permission is ever requested.
+  final Future<MicrophoneDecision> Function(String origin)? onMicrophoneDecision;
+  /// Reads the site's current microphone mode WITHOUT prompting. Backs the
+  /// `webMicrophoneMode` JS handler, which the shim uses to decide whether
+  /// `enumerateDevices` should mask real microphones (virtual mode) —
+  /// enumeration must never pop a permission dialog, so it cannot go through
+  /// [onMicrophoneDecision].
+  final MicrophoneAccessMode Function()? currentMicrophoneMode;
 
   WebViewConfig({
     this.key,
@@ -798,6 +816,8 @@ class WebViewConfig {
     this.onProtectedMediaRequest,
     this.onCameraDecision,
     this.currentCameraMode,
+    this.onMicrophoneDecision,
+    this.currentMicrophoneMode,
   });
 }
 
@@ -1847,6 +1867,23 @@ class WebViewFactory {
       ));
     }
 
+    // Virtual microphone shim. Intercepts any getUserMedia that asks for
+    // audio and, per the site's decision (fetched via the
+    // webMicrophoneRequest handler), serves a user-picked clip on loop
+    // instead of the device microphone — which is never opened, on any
+    // platform. Gated on the resolver for the same reason as the camera shim.
+    // A combined audio+video request is split here and its video half
+    // re-issued through the live navigator.mediaDevices.getUserMedia, so the
+    // two shims compose whichever order they were injected in.
+    if (config.onMicrophoneDecision != null) {
+      userScripts.add(inapp.UserScript(
+        groupName: 'microphone_stream',
+        source: '${buildMicrophoneStreamShim()}\n;null;',
+        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+        forMainFrameOnly: false,
+      ));
+    }
+
     // Always-on: rewrite `target="_blank"` anchors to `_self` so cross-domain
     // link taps route through shouldOverrideUrlLoading (reliable gesture)
     // instead of onCreateWindow (unreliable gesture / empty URL on Android),
@@ -2842,15 +2879,23 @@ class WebViewFactory {
       //   only for `real`, additionally ensuring the app-level CAMERA
       //   runtime permission on Android. Requests that bundle the microphone
       //   (iOS/macOS report the single resource CAMERA_AND_MICROPHONE,
-      //   Android CAMERA+MICROPHONE) fall through to the default so the grant
-      //   never widens beyond video capture.
+      //   Android CAMERA+MICROPHONE) never reach the camera flow.
+      // - Microphone: denied outright whenever the microphone resolver is
+      //   wired. Audio capture is served entirely in JS from a user-picked
+      //   clip, so nothing downstream needs an OS recording permission, and
+      //   an explicit DENY keeps WebKit from raising its own prompt on
+      //   iOS/macOS (Android/Linux would deny anyway). This covers the
+      //   combined camera+microphone request too: the shim splits it and
+      //   re-issues the video half on its own, so what arrives here is
+      //   either camera-only or a request the page must not get.
       //
       // The fallback returns PROMPT for everything else: Android and Linux
       // WPE map any non-GRANT action to deny (their no-handler default),
       // iOS 15+/macOS 12+ show WebKit's own per-site prompt.
       onPermissionRequest: ((Platform.isAndroid &&
                   config.onProtectedMediaRequest != null) ||
-              config.onCameraDecision != null)
+              config.onCameraDecision != null ||
+              config.onMicrophoneDecision != null)
           ? (controller, request) async {
               final wantsProtectedMedia = Platform.isAndroid &&
                   config.onProtectedMediaRequest != null &&
@@ -2866,6 +2911,20 @@ class WebViewFactory {
                   action: granted
                       ? inapp.PermissionResponseAction.GRANT
                       : inapp.PermissionResponseAction.DENY,
+                );
+              }
+              // No native path ever grants audio capture: with the resolver
+              // wired, a microphone request reaching this point means the JS
+              // shim did not serve it, and falling through to PROMPT would
+              // let WebKit ask for the real device.
+              if (config.onMicrophoneDecision != null &&
+                  (request.resources.contains(
+                          inapp.PermissionResourceType.MICROPHONE) ||
+                      request.resources.contains(inapp.PermissionResourceType
+                          .CAMERA_AND_MICROPHONE))) {
+                return inapp.PermissionResponse(
+                  resources: request.resources,
+                  action: inapp.PermissionResponseAction.DENY,
                 );
               }
               final wantsCameraOnly = config.onCameraDecision != null &&
@@ -2971,6 +3030,34 @@ class WebViewFactory {
             handlerName: 'webCameraMode',
             callback: (args) =>
                 (config.currentCameraMode?.call() ?? CameraAccessMode.ask).name,
+          );
+        }
+        // Virtual microphone bridge: the microphone-stream shim calls this on
+        // the first getUserMedia that asks for audio, to learn the site's
+        // decision. The model wrapper resolves it (short-circuiting a settled
+        // mode, coalescing a burst, showing the Block/Use-audio-file popup or
+        // the file-pick only when unresolved) and returns {mode, source?}.
+        // Null callback -> the shim isn't injected either, so this is never
+        // hit.
+        if (config.onMicrophoneDecision != null) {
+          controller.addJavaScriptHandler(
+            handlerName: 'webMicrophoneRequest',
+            callback: (args) async {
+              final origin = (args.isNotEmpty &&
+                      args[0] is String &&
+                      (args[0] as String).isNotEmpty)
+                  ? args[0] as String
+                  : config.initialUrl;
+              final decision = await config.onMicrophoneDecision!(origin);
+              return decision.toBridgeJson();
+            },
+          );
+          // Non-prompting mode read for the shim's enumerateDevices branch.
+          controller.addJavaScriptHandler(
+            handlerName: 'webMicrophoneMode',
+            callback: (args) => (config.currentMicrophoneMode?.call() ??
+                    MicrophoneAccessMode.ask)
+                .name,
           );
         }
         // Register ClearURLs handler for clipboard/share URL cleaning

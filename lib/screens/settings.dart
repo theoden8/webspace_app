@@ -6,9 +6,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/settings/camera.dart';
+import 'package:webspace/settings/microphone.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/virtual_camera_service.dart';
+import 'package:webspace/services/virtual_media_picker.dart';
+import 'package:webspace/services/virtual_microphone_service.dart';
 import 'package:webspace/widgets/virtual_camera_preview.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/content_blocker_service.dart';
@@ -137,6 +140,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool? _protectedContentAllowed;
   CameraAccessMode _cameraMode = CameraAccessMode.ask;
   VirtualCameraSource? _virtualCameraSource;
+  MicrophoneAccessMode _microphoneMode = MicrophoneAccessMode.ask;
+  VirtualMicrophoneSource? _virtualMicrophoneSource;
   String? _selectedLanguage;
   late int _zoomPercent;
   bool _obscureProxyPassword = true;
@@ -226,6 +231,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  /// Pick the clip looped in [MicrophoneAccessMode.virtual]. On error shows a
+  /// SnackBar and leaves the current source untouched.
+  Future<void> _pickVirtualMicrophoneSource() async {
+    final result = await VirtualMicrophoneService.pickSource();
+    if (!mounted) return;
+    if (result.source != null) {
+      setState(() => _virtualMicrophoneSource = result.source);
+      return;
+    }
+    if (result.error == null) return; // user cancelled
+    final loc = AppLocalizations.of(context);
+    final String message;
+    switch (result.error!) {
+      case VirtualMediaPickError.tooLarge:
+        message = loc.homeMicrophoneSourceTooLarge;
+        break;
+      case VirtualMediaPickError.type:
+      case VirtualMediaPickError.read:
+        message = loc.homeMicrophoneSourceError;
+        break;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   Map<String, Object?> _currentSnapshot() => {
         'proxyType': _proxySettings.type,
         'proxyAddress': _proxyAddressController.text,
@@ -253,6 +282,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         'protectedContentAllowed': _protectedContentAllowed,
         'cameraMode': _cameraMode,
         'virtualCameraSource': _virtualCameraSource?.dataUrl,
+        'microphoneMode': _microphoneMode,
+        'virtualMicrophoneSource': _virtualMicrophoneSource?.dataUrl,
         'selectedLanguage': _selectedLanguage,
         'zoomPercent': _zoomPercent,
         'latitude': _latitudeController.text,
@@ -510,6 +541,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _protectedContentAllowed = m.protectedContentAllowed;
     _cameraMode = m.cameraMode;
     _virtualCameraSource = m.virtualCameraSource;
+    _microphoneMode = m.microphoneMode;
+    _virtualMicrophoneSource = m.virtualMicrophoneSource;
     _selectedLanguage = m.language;
     _zoomPercent = m.zoomPercent;
     _latitudeController.text = m.spoofLatitude?.toString() ?? '';
@@ -704,6 +737,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.protectedContentAllowed = _protectedContentAllowed;
       widget.webViewModel.cameraMode = _cameraMode;
       widget.webViewModel.virtualCameraSource = _virtualCameraSource;
+      widget.webViewModel.microphoneMode = _microphoneMode;
+      widget.webViewModel.virtualMicrophoneSource = _virtualMicrophoneSource;
       widget.webViewModel.language = _selectedLanguage;
       widget.webViewModel.zoomPercent = _zoomPercent;
       // locationMode is derived from the UI state:
@@ -1998,6 +2033,63 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Padding(
               padding: const EdgeInsets.only(left: 16, right: 16, bottom: 12),
               child: VirtualCameraPreview(source: _virtualCameraSource!),
+            ),
+          ListTile(
+            title: Row(
+              children: [
+                Flexible(child: Text(loc.siteSettingsMicrophoneAccess)),
+                HintButton(
+                  title: loc.siteSettingsMicrophoneAccess,
+                  description: loc.siteSettingsMicrophoneAccessHint,
+                ),
+              ],
+            ),
+            trailing: DropdownButton<MicrophoneAccessMode>(
+              value: _microphoneMode,
+              onChanged: (v) async {
+                if (v == null) return;
+                setState(() => _microphoneMode = v);
+                // Selecting the virtual mode with no clip yet: prompt for one
+                // straight away so the setting is usable when the user leaves.
+                if (v == MicrophoneAccessMode.virtual &&
+                    _virtualMicrophoneSource == null) {
+                  await _pickVirtualMicrophoneSource();
+                }
+              },
+              items: <DropdownMenuItem<MicrophoneAccessMode>>[
+                DropdownMenuItem<MicrophoneAccessMode>(
+                    value: MicrophoneAccessMode.ask,
+                    child: Text(loc.siteSettingsMicrophoneAccessAsk)),
+                DropdownMenuItem<MicrophoneAccessMode>(
+                    value: MicrophoneAccessMode.virtual,
+                    child: Text(loc.siteSettingsMicrophoneAccessVirtual)),
+                DropdownMenuItem<MicrophoneAccessMode>(
+                    value: MicrophoneAccessMode.block,
+                    child: Text(loc.siteSettingsMicrophoneAccessBlock)),
+              ],
+            ),
+          ),
+          if (_microphoneMode == MicrophoneAccessMode.virtual)
+            Padding(
+              padding: const EdgeInsets.only(left: 16, right: 16, bottom: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _virtualMicrophoneSource == null
+                          ? loc.siteSettingsMicrophoneAccessNoSource
+                          : _virtualMicrophoneSource!.fileName,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    icon: const Icon(Icons.audiotrack_outlined),
+                    label: Text(loc.siteSettingsMicrophoneAccessChooseSource),
+                    onPressed: _pickVirtualMicrophoneSource,
+                  ),
+                ],
+              ),
             ),
           ..._buildLocationSection(),
           DomainClaimsEditor(
