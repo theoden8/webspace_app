@@ -239,6 +239,12 @@ void main() {
     await pumpFor(tester, const Duration(seconds: 5));
     try {
       await body();
+      // Let anything the last action left in flight drain before the tree goes
+      // away: an app handler that resumes after its widget is gone throws on
+      // the first `context` it touches (observed as `Navigator.pop` inside
+      // `_deleteSite` failing its null check). Tests that can name their own
+      // completion signal should still wait on it; this is the backstop.
+      await pumpFor(tester, const Duration(seconds: 2));
     } finally {
       final previousOnError = FlutterError.onError;
       FlutterError.onError = (_) {};
@@ -299,7 +305,10 @@ void main() {
     );
   }
 
+  bool drawerIsOpen() => find.byType(Drawer).evaluate().isNotEmpty;
+
   Future<void> openSiteDrawer(WidgetTester tester) async {
+    if (drawerIsOpen()) return;
     // Tapping the already-selected webspace tile opens the drawer (the
     // same-id branch of _selectWebspace).
     await tester.tap(find.byKey(const ValueKey(kAllWebspaceId)));
@@ -310,6 +319,18 @@ void main() {
       reason: 'the site drawer should open',
     );
   }
+
+  /// Wait out a deletion: `_deleteSite` closes the drawer as its very last
+  /// statement, so a closed drawer is the signal that its whole async tail
+  /// (storage sweeps, cache deletes, the HS-013 prompt) has drained. Without
+  /// this the test can finish while the tail is still running, and tearing the
+  /// tree down under it throws from that final `Navigator.pop`.
+  Future<void> waitForDeleteToSettle(WidgetTester tester) => pumpUntil(
+    tester,
+    () => !drawerIsOpen(),
+    description: 'the deletion to finish and close the drawer',
+    timeout: const Duration(seconds: 60),
+  );
 
   Future<void> tapDialogButton(WidgetTester tester, String label) async {
     final button = find.descendant(
@@ -687,11 +708,14 @@ void main() {
               (await prefsMap('shortcutUrlLedger')).isEmpty,
           description: 'the disabled tiles\' rebind and ledger entries to drop',
         );
+        await waitForDeleteToSettle(tester);
 
         // Site B has no tile pointing at it: deleting it must prompt nothing.
+        // The drawer closing is itself the proof — the prompt would hold the
+        // deletion open until answered.
         calls.clear();
         await deleteFirstSite();
-        await pumpFor(tester, const Duration(seconds: 4));
+        await waitForDeleteToSettle(tester);
         expect(
           find.text('Home screen shortcut'),
           findsNothing,
