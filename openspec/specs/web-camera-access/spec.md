@@ -252,10 +252,17 @@ a frame onto a canvas
 #### Scenario: A video source plays and loops on-device
 
 **Given** a site in `virtual` mode whose source is a short two-colour clip
-**When** a page on the emulator samples the stream for several seconds
+**When** a page on the emulator samples the stream until the colour changes
 **Then** both of the clip's colours are observed
 **And** the colour keeps changing past the clip's duration, proving it loops
 rather than freezing on the first decoded frame
+
+The probe waits for that change rather than sampling a fixed window: the
+emulator's software decoder runs the clip several times slower than real time
+and at a rate that varies per runner, so a fixed window turns a correctly
+playing stream into a red build (the same 4s window produced 8, 2 and 0
+transitions across runs). It samples until the first transition or 30s, so a
+stalled decoder still fails and a healthy one exits in about a second.
 
 #### Scenario: Blocked site is denied on-device
 

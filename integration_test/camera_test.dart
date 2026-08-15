@@ -68,12 +68,25 @@ String _probePage() => '''
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>html,body{margin:0;height:100%;background:#202020}</style>
 </head><body><script>
+var SITE = new URLSearchParams(location.search).get('site') || 'unknown';
+// Only the video scenario has a source that is supposed to change; every
+// other site serves a still image (or nothing), so only this one waits for a
+// transition.
+var WANTS_LOOP = SITE === 'video';
 function report(o) {
   // Forward the site tag from our own URL so the server can file the report
   // against the right scenario.
-  var site = new URLSearchParams(location.search).get('site') || 'unknown';
-  return fetch('/report?site=' + encodeURIComponent(site) +
+  return fetch('/report?site=' + encodeURIComponent(SITE) +
     '&data=' + encodeURIComponent(JSON.stringify(o)));
+}
+// Adjacent samples that differ by more than sensor-ish noise.
+function transitions(list) {
+  var n = 0;
+  for (var i = 1; i < list.length; i++) {
+    var p = list[i - 1], q = list[i];
+    if (Math.abs(p[0] - q[0]) + Math.abs(p[1] - q[1]) + Math.abs(p[2] - q[2]) > 40) n++;
+  }
+  return n;
 }
 (async function() {
   var result = { ok: false };
@@ -107,7 +120,16 @@ function report(o) {
     // single-sample check), so the test needs the observed colours and the
     // number of transitions.
     var samples = [];
-    var deadline = Date.now() + 20000;
+    // The emulator's software decoder runs the clip several times slower than
+    // real time, and how much slower varies per runner: the same 4s window has
+    // produced 8, 2 and 0 transitions across CI runs, the last of which is a
+    // red build for a stream that is playing correctly. So watch the video
+    // source until it has actually flipped, capped well above the slowest
+    // observed decode; a healthy engine proves the loop in about a second and
+    // breaks out immediately. Sources that are supposed to hold one colour
+    // keep the short window.
+    var observeMs = WANTS_LOOP ? 30000 : 4000;
+    var deadline = Date.now() + (WANTS_LOOP ? 45000 : 20000);
     var observeUntil = null;
     while (Date.now() < deadline) {
       if (video.readyState >= 2 && video.videoWidth > 0) {
@@ -125,11 +147,12 @@ function report(o) {
             result.px = [d[0], d[1], d[2]];
             document.body.style.background =
               'rgb(' + d[0] + ',' + d[1] + ',' + d[2] + ')';
-            // Watch ~4s: the fixture clip is ~0.5s, so a looping source
-            // transitions several times inside the window.
-            observeUntil = Date.now() + 4000;
+            observeUntil = Date.now() + observeMs;
           }
           samples.push([d[0], d[1], d[2]]);
+          // One transition is the whole claim for a looping source; keeping
+          // the window open past it only lengthens the run.
+          if (WANTS_LOOP && transitions(samples) >= 1) break;
         }
       }
       if (observeUntil !== null && Date.now() > observeUntil) break;
@@ -138,15 +161,11 @@ function report(o) {
     if (!result.ok) {
       result.error = 'no frame before deadline';
     } else {
-      var changes = 0;
-      for (var i = 1; i < samples.length; i++) {
-        var p = samples[i - 1], q = samples[i];
-        if (Math.abs(p[0] - q[0]) + Math.abs(p[1] - q[1]) + Math.abs(p[2] - q[2]) > 40) {
-          changes++;
-        }
-      }
-      result.changes = changes;
+      result.changes = transitions(samples);
       result.samples = samples.length;
+      result.observedMs = observeUntil === null
+        ? 0
+        : Math.max(0, observeMs - (observeUntil - Date.now()));
       result.distinct = samples.filter(function(p, i) {
         return i === 0 || Math.abs(samples[i - 1][0] - p[0]) +
           Math.abs(samples[i - 1][1] - p[1]) +
@@ -362,20 +381,26 @@ void main() {
         near(p[1].toInt(), want[1]) &&
         near(p[2].toInt(), want[2]));
     expect(sawColour(kVirtualCameraVideoColorA), isTrue,
-        reason: 'first colour of the clip should appear; saw $distinct');
+        reason: 'first colour of the clip should appear; saw $distinct after '
+            '${videoReport['observedMs']}ms');
     expect(sawColour(kVirtualCameraVideoColorB), isTrue,
-        reason: 'second colour of the clip should appear; saw $distinct');
+        reason: 'second colour of the clip should appear; saw $distinct after '
+            '${videoReport['observedMs']}ms. The probe watches until the clip '
+            'flips or 30s elapse, so one colour here means the decoder is '
+            'stalled, not merely slow.');
     // At least one transition proves the stream is live rather than frozen on
     // the first decoded frame. Deliberately not a tighter bound: the emulator
-    // decodes the VP8 clip far slower than real time (the first CI run saw
-    // exactly 2 transitions in 4s where desktop Chromium sees ~8), so a
-    // higher threshold would be a flake waiting to happen. The strict
-    // looping proof — several transitions per clip length — is asserted in
-    // test/browser/camera_stream_real_engine.test.js against a real engine.
+    // decodes the VP8 clip far slower than real time and at a rate that varies
+    // per runner (CI has seen 8, 2 and 0 transitions inside the same 4s
+    // window), so the probe waits for the flip instead and the count stays at
+    // one. The strict looping proof — several transitions per clip length — is
+    // asserted in test/browser/camera_stream_real_engine.test.js against a
+    // real engine.
     expect((videoReport['changes'] as num) >= 1, isTrue,
         reason: 'the clip must keep playing, not freeze on one frame; '
             'changes=${videoReport['changes']} over '
-            '${videoReport['samples']} samples');
+            '${videoReport['samples']} samples in '
+            '${videoReport['observedMs']}ms');
 
     // --- Scenario 3: block mode denies (control for scenario 1) ------------
     await openSiteDrawer(tester);
