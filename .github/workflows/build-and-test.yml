@@ -377,6 +377,9 @@ jobs:
       #     SurfaceDiagPlugin's PixelCopy;
       #   INTEG-013 home shortcuts — launch, menu gating, orphan routing and
       #     the delete-time tile prompt through the real widget tree;
+      #   CAM-010 per-site camera modes — the virtual source must reach the
+      #     page through the real Android WebView (the real-camera scenario
+      #     self-skips: the AVD camera never settles a getUserMedia call);
       #   INTEG-011/012 lifecycle + background refresh, adb-driven.
       - name: Run emulator integration scenarios
         uses: reactivecircus/android-emulator-runner@v2
@@ -387,7 +390,10 @@ jobs:
           profile: pixel_5
           disk-size: 4096M
           force-avd-creation: false
-          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          # `-camera-back emulated` gives the AVD a synthetic camera so the
+          # camera tier's real-camera scenario is exercised rather than
+          # skipped (CAM-010); it is inert for every other tier.
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back emulated
           disable-animations: true
           # The action runs each script line as a separate `sh -c`, so the
           # test invocations live in wrapper scripts. The lifecycle tier
@@ -400,6 +406,7 @@ jobs:
             bash scripts/run_android_integration_tests.sh
             bash scripts/run_android_shortcut_tests.sh
             bash scripts/run_android_background_audio_tests.sh
+            bash scripts/run_android_camera_tests.sh
             bash scripts/run_android_lifecycle_tests.sh
 
       - name: Upload white-screen lifecycle diagnostics

@@ -900,6 +900,13 @@ and the frame classifier.
   launch seeding: [`lib/services/diag_seed.dart`](../../../lib/services/diag_seed.dart)
   (`getDiagSeed` in MainActivity, debuggable builds only; parsing
   unit-tested in [`test/diag_seed_test.dart`](../../../test/diag_seed_test.dart))
+- [`integration_test/camera_test.dart`](../../../integration_test/camera_test.dart)
+  — CAM-010: per-site camera modes against a real Android WebView
+  (virtual serves the picked image, block denies, real hands over the
+  device camera). Runner:
+  [`scripts/run_android_camera_tests.sh`](../../../scripts/run_android_camera_tests.sh)
+  (pre-grants the CAMERA runtime permission so the OS dialog cannot
+  block the run). See [web-camera-access](../web-camera-access/spec.md)
 - [`integration_test/settings_smoke_test.dart`](../../../integration_test/settings_smoke_test.dart)
   — harness pin
 - [`integration_test/settings_backup_roundtrip_test.dart`](../../../integration_test/settings_backup_roundtrip_test.dart)

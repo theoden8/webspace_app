@@ -1124,6 +1124,7 @@ class WebViewModel {
                     },
                     save: () async => saveFunc(),
                   ),
+          currentCameraMode: () => effectiveCameraMode,
           pullToRefreshController: pullToRefreshController,
           onWindowRequested: onWindowRequested,
           shouldOverrideUrlLoading: (url, hasGesture) {

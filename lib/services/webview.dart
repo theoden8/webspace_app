@@ -733,6 +733,12 @@ class WebViewConfig {
   /// microphone never route here. The model computes the current mode
   /// internally, so this takes only the origin.
   final Future<CameraDecision> Function(String origin)? onCameraDecision;
+  /// Reads the site's current camera mode WITHOUT prompting. Backs the
+  /// `webCameraMode` JS handler, which the shim uses to decide whether
+  /// `enumerateDevices` should mask real cameras (virtual mode) — enumeration
+  /// must never pop a permission dialog, so it cannot go through
+  /// [onCameraDecision].
+  final CameraAccessMode Function()? currentCameraMode;
 
   WebViewConfig({
     this.key,
@@ -791,6 +797,7 @@ class WebViewConfig {
     this.backgroundAudioEnabled = false,
     this.onProtectedMediaRequest,
     this.onCameraDecision,
+    this.currentCameraMode,
   });
 }
 
@@ -2958,6 +2965,12 @@ class WebViewFactory {
               final decision = await config.onCameraDecision!(origin);
               return decision.toBridgeJson();
             },
+          );
+          // Non-prompting mode read for the shim's enumerateDevices branch.
+          controller.addJavaScriptHandler(
+            handlerName: 'webCameraMode',
+            callback: (args) =>
+                (config.currentCameraMode?.call() ?? CameraAccessMode.ask).name,
           );
         }
         // Register ClearURLs handler for clipboard/share URL cleaning

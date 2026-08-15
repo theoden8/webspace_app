@@ -326,6 +326,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                   // Nested screens have no persisted model.
                   save: () async {},
                 ),
+        currentCameraMode: () => _cameraMode,
         notificationsEnabled: widget.notificationsEnabled,
         pullToRefreshController: _pullToRefreshController,
         onUrlChanged: (url) {

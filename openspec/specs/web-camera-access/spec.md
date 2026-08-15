@@ -192,11 +192,64 @@ the request MUST be denied and the picker re-offered.
 **Then** exactly one `videoinput` is reported
 **And** its label is empty until a stream has been served, then the camera label
 
+#### Scenario: Real mode leaves the device list alone
+
+**Given** a site in `real` (or `block`) mode
+**When** the page calls `enumerateDevices()`
+**Then** the platform's own device list is returned unmodified
+**And** a page that selects a real camera by `deviceId` still opens it
+
+#### Scenario: Ask mode on a camera-less device stays discoverable
+
+**Given** a site in `ask` mode on a device with no real camera
+**When** the page calls `enumerateDevices()`
+**Then** one synthetic `videoinput` is reported so the page still calls
+`getUserMedia` and the user is offered the "use image or video" popup
+**And** if the user then answers Allow, the synthetic `deviceId` is stripped
+from the constraints before the real camera is opened
+
 #### Scenario: Virtual selected with no source yet
 
 **Given** a site with `cameraMode == virtual` and no `virtualCameraSource`
 **When** the page calls `getUserMedia({video: true})`
 **Then** the request is denied (NotAllowedError) rather than opening the real camera
+
+### Requirement: CAM-010 — Real-Android-WebView coverage
+
+The camera modes SHALL be exercised on a real Android WebView by
+`integration_test/camera_test.dart` (runner:
+`scripts/run_android_camera_tests.sh`), because neither lower tier runs
+the engine the app ships: the jsdom tier stubs `captureStream`, and the
+desktop-Chromium tier lacks Android WebView's own gates. That gap shipped
+a real defect — Android WebView defaults
+`mediaPlaybackRequiresUserGesture` to `true`, which blocks a
+`getUserMedia` stream from ever playing, so every mode rendered a grey
+frame while both lower tiers stayed green.
+
+The main webview SHALL therefore set `mediaPlaybackRequiresUserGesture`
+to `false` (guarded structurally by
+`test/js/camera_autoplay_setting.test.js`).
+
+#### Scenario: Virtual mode serves the picked image on-device
+
+**Given** a site in `virtual` mode whose source is a solid-colour image
+**When** a page on the emulator calls `getUserMedia({video: true})` and samples
+a frame onto a canvas
+**Then** the sampled pixel matches the picked image's colour
+
+#### Scenario: Blocked site is denied on-device
+
+**Given** a site in `block` mode
+**When** the same page requests the camera
+**Then** it is rejected with `NotAllowedError`
+
+#### Scenario: Real mode is asserted where a camera exists
+
+**Given** a site in `real` mode on a runner whose AVD has an emulated camera
+**When** the page requests the camera
+**Then** frames arrive and are not the virtual source's colour
+**And** on a runner with no camera or no CAMERA permission the scenario is
+skipped rather than failed
 
 ### Requirement: CAM-009 — Fail closed without the bridge
 

@@ -97,6 +97,23 @@
   // common in scanner libraries) must not stack popups. The Dart side also
   // coalesces, but doing it here too keeps the extra round trips off the
   // bridge entirely.
+  // Reads the site's CURRENT mode without ever prompting. enumerateDevices
+  // must not pop a permission dialog (no browser does), but it does need to
+  // know whether this site is on the virtual camera. Cached for the document:
+  // the mode only changes from per-site settings, which rebuilds the webview.
+  var _modePromise = null;
+  function fetchMode() {
+    if (_modePromise) return _modePromise;
+    var iaw = globalThis.flutter_inappwebview;
+    if (!iaw || !iaw.callHandler) return Promise.resolve('block');
+    _modePromise = iaw.callHandler('webCameraMode').then(function(m) {
+      return typeof m === 'string' ? m : 'block';
+    }, function() {
+      return 'block';
+    });
+    return _modePromise;
+  }
+
   var _decisionInFlight = null;
   function fetchDecision() {
     if (_decisionInFlight) return _decisionInFlight;
@@ -236,6 +253,30 @@
 
   // --- getUserMedia patch -------------------------------------------------
 
+  // A page that enumerated while this site was on the virtual camera may hold
+  // our synthetic deviceId. If the site is now on the real camera, passing
+  // that id through would make the platform reject the request as
+  // overconstrained, so drop just that constraint and let the OS pick.
+  function withoutSyntheticDeviceId(constraints) {
+    var v = constraints && constraints.video;
+    if (!v || v === true || !v.deviceId) return constraints;
+    var d = v.deviceId;
+    var wanted = typeof d === 'string' ? d : (d.exact || d.ideal);
+    if (wanted !== DEVICE_ID) return constraints;
+    var video = {};
+    for (var k in v) {
+      if (k !== 'deviceId' && Object.prototype.hasOwnProperty.call(v, k)) {
+        video[k] = v[k];
+      }
+    }
+    var out = {};
+    for (var c in constraints) {
+      if (Object.prototype.hasOwnProperty.call(constraints, c)) out[c] = constraints[c];
+    }
+    out.video = video;
+    return out;
+  }
+
   var _origGum = md.getUserMedia ? md.getUserMedia.bind(md) : null;
 
   var getUserMedia = function getUserMedia(constraints) {
@@ -251,7 +292,7 @@
         return virtualStream(decision.source, constraints);
       }
       if (decision.mode === 'real') {
-        if (_origGum) return _origGum(constraints);
+        if (_origGum) return _origGum(withoutSyntheticDeviceId(constraints));
         return Promise.reject(notAllowed('getUserMedia is unavailable'));
       }
       throw notAllowed('Permission denied');
@@ -276,9 +317,19 @@
 
   // --- enumerateDevices patch --------------------------------------------
 
-  // Publish exactly one videoinput. Without this, a page that enumerates
-  // before requesting concludes the device has no camera and never calls
-  // getUserMedia at all — the scanner UI just never starts.
+  // In VIRTUAL mode: hide the real cameras (getUserMedia will not open them,
+  // so listing them is a lie the page could catch by selecting one by
+  // deviceId) and publish exactly one synthetic videoinput.
+  //
+  // In ASK mode on a device with NO real camera, publish the synthetic one
+  // too: otherwise a scanner page that enumerates first concludes there is no
+  // camera and never calls getUserMedia, so the user is never offered the
+  // "use image or video" popup at all.
+  //
+  // In REAL / BLOCK mode (and ASK where a real camera exists): pass the
+  // platform list through untouched. Masking there would break the common
+  // "pick a camera" UI — the page would request our synthetic deviceId and
+  // the real getUserMedia would reject it as overconstrained.
   //
   // Per spec, labels are only exposed once the page holds a capture
   // permission, so the label is blank until this shim has served a stream.
@@ -286,13 +337,20 @@
   var _origEnumerate = md.enumerateDevices ? md.enumerateDevices.bind(md) : null;
   var enumerateDevices = function enumerateDevices() {
     var base = _origEnumerate ? _origEnumerate() : Promise.resolve([]);
-    return Promise.resolve(base).then(function(list) {
-      var out = [];
-      // Drop real videoinputs: in virtual mode they are not what a
-      // getUserMedia call would open, so reporting them would be a lie the
-      // page could catch by selecting one by deviceId.
+    return Promise.all([Promise.resolve(base), fetchMode()]).then(function(r) {
+      var list = r[0] || [];
+      var mode = r[1];
+      var hasRealCamera = false;
       for (var i = 0; i < list.length; i++) {
-        if (list[i] && list[i].kind !== 'videoinput') out.push(list[i]);
+        if (list[i] && list[i].kind === 'videoinput') hasRealCamera = true;
+      }
+      var publishSynthetic =
+        mode === 'virtual' || (mode === 'ask' && !hasRealCamera);
+      if (!publishSynthetic) return list;
+
+      var out = [];
+      for (var j = 0; j < list.length; j++) {
+        if (list[j] && list[j].kind !== 'videoinput') out.push(list[j]);
       }
       var info = {
         deviceId: DEVICE_ID,

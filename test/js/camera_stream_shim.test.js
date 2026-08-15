@@ -34,7 +34,7 @@ afterEach(() => {
 // webCameraRequest bridge returns; pass `noBridge: true` to omit the bridge
 // entirely. Returns { dom, window, calls } where calls.realGum counts
 // pass-throughs to the platform getUserMedia.
-function setupCameraDom({ decision, noBridge = false } = {}) {
+function setupCameraDom({ decision, mode, noBridge = false, realCameras = [] } = {}) {
   const dom = makeDom();
   const window = dom.window;
   const calls = { realGum: 0, lastConstraints: null };
@@ -48,7 +48,7 @@ function setupCameraDom({ decision, noBridge = false } = {}) {
     },
     enumerateDevices() {
       return Promise.resolve([
-        { deviceId: 'real-cam', kind: 'videoinput', label: '', groupId: 'g' },
+        ...realCameras,
         { deviceId: 'mic', kind: 'audioinput', label: '', groupId: 'g' },
       ]);
     },
@@ -60,7 +60,12 @@ function setupCameraDom({ decision, noBridge = false } = {}) {
 
   if (!noBridge) {
     window.flutter_inappwebview = {
-      callHandler(_name, _origin) {
+      callHandler(name, _arg) {
+        // Non-prompting mode read used by enumerateDevices; the decision
+        // handler is the prompting one.
+        if (name === 'webCameraMode') {
+          return Promise.resolve(mode ?? (decision && decision.mode) ?? 'block');
+        }
         return Promise.resolve(decision);
       },
     };
@@ -202,12 +207,77 @@ test('a request bundling audio bypasses the shim entirely', async () => {
   assert.deepEqual(calls.lastConstraints, { video: true, audio: true });
 });
 
+test('real mode leaves the platform device list untouched', async () => {
+  // Masking here would break a "pick a camera" UI: the page would request our
+  // synthetic deviceId and the real getUserMedia would reject it.
+  const realCam = { deviceId: 'real-cam', kind: 'videoinput', label: '', groupId: 'g' };
+  const { window } = setupCameraDom({ decision: { mode: 'real' }, realCameras: [realCam] });
+  const list = await window.navigator.mediaDevices.enumerateDevices();
+  const cams = list.filter((d) => d.kind === 'videoinput');
+  assert.equal(cams.length, 1);
+  assert.equal(cams[0].deviceId, 'real-cam', 'the real camera must survive');
+});
+
+test('ask mode with a real camera leaves the list untouched', async () => {
+  const realCam = { deviceId: 'real-cam', kind: 'videoinput', label: '', groupId: 'g' };
+  const { window } = setupCameraDom({ mode: 'ask', decision: { mode: 'block' }, realCameras: [realCam] });
+  const list = await window.navigator.mediaDevices.enumerateDevices();
+  const cams = list.filter((d) => d.kind === 'videoinput');
+  assert.equal(cams.length, 1);
+  assert.equal(cams[0].deviceId, 'real-cam');
+});
+
+test('ask mode with NO real camera publishes one so the popup is reachable', async () => {
+  // Otherwise a scanner page that enumerates first sees no camera, never
+  // calls getUserMedia, and the user is never offered "use image or video".
+  const { window } = setupCameraDom({ mode: 'ask', decision: { mode: 'block' }, realCameras: [] });
+  const list = await window.navigator.mediaDevices.enumerateDevices();
+  const cams = list.filter((d) => d.kind === 'videoinput');
+  assert.equal(cams.length, 1);
+  assert.equal(cams[0].label, '', 'label stays blank until a stream is served');
+});
+
+test('a synthetic deviceId is stripped when the user then picks the real camera', async () => {
+  // Reachable path: on a camera-less device in `ask` mode the shim publishes
+  // the synthetic videoinput (so the popup is reachable), the page selects it
+  // by deviceId, and the user answers "Allow" — routing to the real camera
+  // with an id it would reject as overconstrained.
+  const { window, calls } = setupCameraDom({
+    mode: 'ask',
+    decision: { mode: 'real' },
+    realCameras: [],
+  });
+  const list = await window.navigator.mediaDevices.enumerateDevices();
+  const syntheticId = list.find((d) => d.kind === 'videoinput').deviceId;
+
+  await window.navigator.mediaDevices.getUserMedia({
+    video: { deviceId: { exact: syntheticId }, width: 640 },
+  });
+  assert.equal(calls.realGum, 1);
+  assert.equal(calls.lastConstraints.video.deviceId, undefined,
+    'the synthetic id must be stripped before hitting the real camera');
+  assert.equal(calls.lastConstraints.video.width, 640, 'other constraints survive');
+});
+
+test('a real deviceId is passed through untouched', async () => {
+  const realCam = { deviceId: 'real-cam', kind: 'videoinput', label: '', groupId: 'g' };
+  const { window, calls } = setupCameraDom({
+    decision: { mode: 'real' }, realCameras: [realCam] });
+  await window.navigator.mediaDevices.getUserMedia({
+    video: { deviceId: { exact: 'real-cam' } },
+  });
+  assert.deepEqual(calls.lastConstraints.video.deviceId, { exact: 'real-cam' });
+});
+
 test('enumerateDevices publishes one videoinput, label gated on a served grant', async () => {
   const { window } = setupCameraDom({
     decision: {
       mode: 'virtual',
       source: { kind: 'image', dataUrl: 'data:image/png;base64,AAAA' },
     },
+    realCameras: [
+      { deviceId: 'real-cam', kind: 'videoinput', label: '', groupId: 'g' },
+    ],
   });
   const before = await window.navigator.mediaDevices.enumerateDevices();
   const camsBefore = before.filter((d) => d.kind === 'videoinput');
