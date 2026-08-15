@@ -13,8 +13,9 @@ already lives on the device (a screenshot, a saved photo) or the user
 does not want to expose their surroundings:
 
 - **Real** — the device camera is handed to the page.
-- **Virtual** — the page is served a `MediaStream` rendered from a
-  user-picked image or looped video instead of the device camera. The
+- **Virtual** (**Simulated camera** in the UI; `virtual` on the model) —
+  the page is served a `MediaStream` rendered from a user-picked media
+  file, a still image or a looped video, instead of the device camera. The
   real camera is never opened and no OS camera permission is involved.
   This is the in-browser equivalent of a virtual-camera utility (OBS
   Virtual Camera / ManyCam) scoped to one site: the browser provides the
@@ -25,7 +26,7 @@ does not want to expose their surroundings:
 
 Camera access is user intent, not configuration: the decision is
 `WebViewModel.cameraMode` (`ask` / `real` / `virtual` / `block`),
-collected by a Block / Use-image-or-video / Allow popup on first request
+collected by a Block / Use-a-media-file / Allow popup on first request
 and adjustable later from per-site settings.
 
 ## Status
@@ -42,7 +43,7 @@ The webview SHALL resolve a camera-only web permission request (the
 platform reports exactly one resource, `CAMERA`) from the site's
 `cameraMode`: `real` opens the device camera, `virtual` serves the
 picked source (CAM-008), `block` denies, and `ask` shows a Block /
-Use-image-or-video / Allow popup naming the requesting origin and records
+Use-a-media-file / Allow popup naming the requesting origin and records
 the answer. The stored decision is migrated from the legacy boolean
 `cameraAllowed` (`true` -> `real`, `false` -> `block`, absent -> `ask`).
 
@@ -50,7 +51,7 @@ the answer. The stored decision is migrated from the legacy boolean
 
 **Given** a site with `cameraMode == ask`
 **When** the page calls `getUserMedia({video: true})`
-**Then** a Block / Use-image-or-video / Allow popup names the requesting origin
+**Then** a Block / Use-a-media-file / Allow popup names the requesting origin
 **And** the chosen mode is stored on the model and persisted via the host's save function
 **And** subsequent requests resolve silently from the stored mode
 
@@ -64,7 +65,7 @@ the answer. The stored decision is migrated from the legacy boolean
 ### Requirement: CAM-002 — Settings control
 
 Per-site settings SHALL expose the decision as a four-way control (Ask /
-Allow / Image or video / Block). Selecting Image or video SHALL prompt
+Allow / Simulated camera / Block). Selecting Simulated camera SHALL prompt
 for the source file and, once one is picked, SHALL preview it at the same
 4:3 cover-fit framing the site receives (a still image drawn cover-fit; a
 video muted, looped, and autoplaying) so the user can confirm the clip
@@ -81,7 +82,7 @@ byte-identical JSON).
 
 #### Scenario: Picked source is previewed
 
-**Given** a site set to Image or video with a picked source
+**Given** a site set to Simulated camera with a picked source
 **When** the per-site settings screen shows the camera row
 **Then** the source is previewed at 4:3 cover-fit
 **And** a video preview loops muted without a tap
@@ -162,7 +163,7 @@ configuration.
 **When** the user shares the site's settings QR
 **Then** the payload contains neither `cameraMode` nor `virtualCameraSource`
 
-### Requirement: CAM-008 — Virtual camera from a picked image or video
+### Requirement: CAM-008 — Simulated camera from a picked media file
 
 In `virtual` mode the webview SHALL serve a synthetic camera. A
 DOCUMENT_START JavaScript shim (injected with `forMainFrameOnly: false`)
@@ -215,7 +216,7 @@ the request MUST be denied and the picker re-offered.
 **Given** a site in `ask` mode on a device with no real camera
 **When** the page calls `enumerateDevices()`
 **Then** one synthetic `videoinput` is reported so the page still calls
-`getUserMedia` and the user is offered the "use image or video" popup
+`getUserMedia` and the user is offered the "use a media file" popup
 **And** if the user then answers Allow, the synthetic `deviceId` is stripped
 from the constraints before the real camera is opened
 

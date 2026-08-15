@@ -5094,9 +5094,9 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   /// Stable resolver for a camera-only permission request (getUserMedia
   /// video, e.g. a banking site's QR scanner). On the first request it shows
-  /// a Block / Use-image-or-video / Allow popup; picking "Use image or
-  /// video" opens a file picker and the chosen media becomes the site's
-  /// virtual camera. The per-site decision is remembered by the caller (the
+  /// a Block / Use-a-media-file / Allow popup; picking "Use a media file"
+  /// opens a file picker and the chosen media becomes the site's simulated
+  /// camera. The per-site decision is remembered by the caller (the
   /// parent webview persists it on the `WebViewModel`; nested webviews
   /// remember it in-memory), so this only collects user intent. The Android
   /// app-level permission is handled separately at real-grant time by

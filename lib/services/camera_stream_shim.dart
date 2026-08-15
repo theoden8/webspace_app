@@ -471,7 +471,7 @@ String buildCameraStreamShim({String deviceLabel = 'Integrated Camera'}) {
   // In ASK mode on a device with NO real camera, publish the synthetic one
   // too: otherwise a scanner page that enumerates first concludes there is no
   // camera and never calls getUserMedia, so the user is never offered the
-  // "use image or video" popup at all.
+  // "use a media file" popup at all.
   //
   // In REAL / BLOCK mode (and ASK where a real camera exists): pass the
   // platform list through untouched. Masking there would break the common

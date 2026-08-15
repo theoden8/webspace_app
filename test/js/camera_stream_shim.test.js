@@ -236,7 +236,7 @@ test('ask mode with a real camera leaves the list untouched', async () => {
 
 test('ask mode with NO real camera publishes one so the popup is reachable', async () => {
   // Otherwise a scanner page that enumerates first sees no camera, never
-  // calls getUserMedia, and the user is never offered "use image or video".
+  // calls getUserMedia, and the user is never offered "use a media file".
   const { window } = setupCameraDom({ mode: 'ask', decision: { mode: 'block' }, realCameras: [] });
   const list = await window.navigator.mediaDevices.enumerateDevices();
   const cams = list.filter((d) => d.kind === 'videoinput');
