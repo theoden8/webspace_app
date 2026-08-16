@@ -300,6 +300,16 @@ As with CAM-011, only the grant is gated; the non-prompting `webMicrophoneMode`
 read behind `enumerateDevices` is not, because the shim caches it for the
 document's lifetime.
 
+`required` forces a call site to pass a predicate, not a correct one:
+`isSiteActive: () => true` compiles and keeps every engine test green. Two
+further gates close that. `test/capture_request_wiring_test.dart` drives the
+model's own `resolveMicrophoneRequest` / `resolveCameraRequest` — the wiring
+`getWebView` installs — so a model that mistranslates the host predicate or
+drops the archive-tier fold fails. `test/js/capture_active_gate.test.js`
+structurally rejects a constant at every `isSiteActive` call site, which is
+the only reach available for `InAppWebViewScreen`'s `mounted` predicate: no
+unit test can get at it without mounting a platform view.
+
 #### Scenario: Background site cannot raise the popup
 
 **Given** a loaded site with `microphoneMode == ask`

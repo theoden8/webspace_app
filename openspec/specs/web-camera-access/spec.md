@@ -318,6 +318,13 @@ Only the grant is gated. The non-prompting `webCameraMode` read behind
 so denying it once would leave a site enumerating no camera long after it
 came back to the foreground, and enumeration grants nothing on its own.
 
+`required` forces a call site to pass a predicate, not a correct one — a
+hard-coded `() => true` compiles and keeps the engine tests green. The model's
+own wiring is therefore driven directly by
+`test/capture_request_wiring_test.dart`, and `test/js/capture_active_gate.test.js`
+structurally rejects a constant at every `isSiteActive` call site (the only
+reach available for `InAppWebViewScreen`'s `mounted` predicate).
+
 An answer given to a popup that was raised while the site was active still
 applies when it settles after the switch — the user answered it — but the
 next request from the now-backgrounded site is denied like any other.

@@ -1141,34 +1141,20 @@ class WebViewModel {
                 },
           onCameraDecision: onCameraDecision == null
               ? null
-              : (origin) => _cameraEngine.decide(
-                    origin: origin,
-                    isSiteActive: () => isActive?.call() ?? true,
-                    // Archive-tier is folded into effectiveCameraMode.
-                    effectiveMode: effectiveCameraMode,
-                    currentSource: () => virtualCameraSource,
-                    resolve: onCameraDecision,
-                    persist: (mode, source) {
-                      cameraMode = mode;
-                      if (source != null) virtualCameraSource = source;
-                    },
-                    save: () async => saveFunc(),
+              : (origin) => resolveCameraRequest(
+                    origin,
+                    resolver: onCameraDecision,
+                    isActive: isActive,
+                    saveFunc: saveFunc,
                   ),
           currentCameraMode: () => effectiveCameraMode,
           onMicrophoneDecision: onMicrophoneDecision == null
               ? null
-              : (origin) => _microphoneEngine.decide(
-                    origin: origin,
-                    isSiteActive: () => isActive?.call() ?? true,
-                    // Archive-tier is folded into effectiveMicrophoneMode.
-                    effectiveMode: effectiveMicrophoneMode,
-                    currentSource: () => virtualMicrophoneSource,
-                    resolve: onMicrophoneDecision,
-                    persist: (mode, source) {
-                      microphoneMode = mode;
-                      if (source != null) virtualMicrophoneSource = source;
-                    },
-                    save: () async => saveFunc(),
+              : (origin) => resolveMicrophoneRequest(
+                    origin,
+                    resolver: onMicrophoneDecision,
+                    isActive: isActive,
+                    saveFunc: saveFunc,
                   ),
           currentMicrophoneMode: () => effectiveMicrophoneMode,
           pullToRefreshController: pullToRefreshController,
@@ -1649,6 +1635,57 @@ class WebViewModel {
       // Controller may have been disposed
     }
   }
+
+  /// Resolve a per-site camera request for [origin] against this model
+  /// (CAM-001, CAM-006, CAM-011).
+  ///
+  /// Named rather than inline in [getWebView] so the wiring is reachable from
+  /// a test: the engine's own tests drive a fake host, which cannot catch this
+  /// model translating [isActive] — or the archive-tier fold — wrongly. A site
+  /// with no activity predicate at all counts as active, which is what the
+  /// nested/standalone callers that never pass one rely on.
+  Future<CameraDecision> resolveCameraRequest(
+    String origin, {
+    required Future<CameraDecision> Function(String, CameraAccessMode) resolver,
+    required bool Function()? isActive,
+    required Function saveFunc,
+  }) =>
+      _cameraEngine.decide(
+        origin: origin,
+        isSiteActive: () => isActive?.call() ?? true,
+        // Archive-tier is folded into effectiveCameraMode.
+        effectiveMode: effectiveCameraMode,
+        currentSource: () => virtualCameraSource,
+        resolve: resolver,
+        persist: (mode, source) {
+          cameraMode = mode;
+          if (source != null) virtualCameraSource = source;
+        },
+        save: () async => saveFunc(),
+      );
+
+  /// Resolve a per-site microphone request for [origin] against this model
+  /// (MIC-001, MIC-006, MIC-011). Same contract as [resolveCameraRequest].
+  Future<MicrophoneDecision> resolveMicrophoneRequest(
+    String origin, {
+    required Future<MicrophoneDecision> Function(String, MicrophoneAccessMode)
+        resolver,
+    required bool Function()? isActive,
+    required Function saveFunc,
+  }) =>
+      _microphoneEngine.decide(
+        origin: origin,
+        isSiteActive: () => isActive?.call() ?? true,
+        // Archive-tier is folded into effectiveMicrophoneMode.
+        effectiveMode: effectiveMicrophoneMode,
+        currentSource: () => virtualMicrophoneSource,
+        resolve: resolver,
+        persist: (mode, source) {
+          microphoneMode = mode;
+          if (source != null) virtualMicrophoneSource = source;
+        },
+        save: () async => saveFunc(),
+      );
 
   /// End any device-camera capture this site is running (CAM-012).
   ///
