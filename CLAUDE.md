@@ -175,6 +175,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | screenshots | integration-test driven |
 | settings-backup | JSON import/export |
 | site-editing | URL + custom name |
+| site-permission-badges | drawer badges for location/camera/mic/background-audio grants; real device access vs simulated |
 | tracking-protection | umbrella per-site ETP: forces ClearURLs/DNS/content blocker/LocalCDN + injects anti-fingerprinting shim (Canvas/WebGL/audio/fonts/screen/hardware/timing/clientrects) seeded by siteId |
 | user-agent-identity | engine-consistent navigator identity for the per-site UA (vendor/productSub/oscpu/buildID/platform/userAgentData); complements desktop-mode |
 | user-scripts | per-site JS injection w/ timing control |
