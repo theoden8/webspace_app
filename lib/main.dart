@@ -107,6 +107,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:webspace/widgets/download_button.dart';
 import 'package:webspace/widgets/external_url_prompt.dart';
 import 'package:webspace/widgets/root_messenger.dart';
+import 'package:webspace/widgets/site_permission_badges.dart';
 import 'package:webspace/widgets/untrusted_cert_prompt.dart';
 
 // Accent color enum
@@ -7925,97 +7926,7 @@ class _WebSpacePageState extends State<WebSpacePage>
             setState(() {});
             await _saveCurrentIndex();
           },
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final isWide = constraints.maxWidth > constraints.maxHeight * 1.5;
-              return Container(
-                decoration: isSelected
-                    ? BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        color: theme.colorScheme.primaryContainer.withAlpha(80),
-                      )
-                    : null,
-                padding: isWide
-                    ? const EdgeInsets.symmetric(vertical: 4, horizontal: 12)
-                    : const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
-                child: isWide
-                    ? Row(
-                        children: [
-                          Container(
-                            width: 36,
-                            height: 36,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8),
-                              color: theme.colorScheme.surfaceContainerHighest,
-                            ),
-                            clipBehavior: Clip.antiAlias,
-                            child: Center(
-                              child: UnifiedFaviconImage(
-                                url: _webViewModels[index].initUrl,
-                                size: 28,
-                                proxy: _webViewModels[index].proxySettings,
-                                customIcon: _webViewModels[index].customIconPng,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _webViewModels[index].getDisplayName(),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(fontSize: 13),
-                                ),
-                                Text(
-                                  extractDomain(_webViewModels[index].initUrl),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(fontSize: 11, color: Colors.grey),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      )
-                    : Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              color: theme.colorScheme.surfaceContainerHighest,
-                            ),
-                            clipBehavior: Clip.antiAlias,
-                            child: Center(
-                              child: UnifiedFaviconImage(
-                                url: _webViewModels[index].initUrl,
-                                size: 36,
-                                proxy: _webViewModels[index].proxySettings,
-                                customIcon: _webViewModels[index].customIconPng,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Flexible(
-                            child: Text(
-                              _webViewModels[index].getDisplayName(),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 11),
-                            ),
-                          ),
-                        ],
-                      ),
-              );
-            },
-          ),
+          child: _buildSiteGridTileContent(context, index, isSelected, theme),
         ),
     );
   }
@@ -8075,27 +7986,51 @@ class _WebSpacePageState extends State<WebSpacePage>
                         ],
                       ),
                     ),
+                    SitePermissionBadges(
+                      model: _webViewModels[index],
+                      iconSize: 12,
+                    ),
                   ],
                 )
               : Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        color: theme.colorScheme.surfaceContainerHighest,
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: Center(
-                        child: UnifiedFaviconImage(
-                          url: _webViewModels[index].initUrl,
-                          size: 36,
-                          proxy: _webViewModels[index].proxySettings,
-                          customIcon: _webViewModels[index].customIconPng,
+                    Stack(
+                      // The badge strip is anchored to the favicon's bottom
+                      // edge and can be wider than it; the tile has no spare
+                      // vertical room to stack it below the name.
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            color: theme.colorScheme.surfaceContainerHighest,
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: Center(
+                            child: UnifiedFaviconImage(
+                              url: _webViewModels[index].initUrl,
+                              size: 36,
+                              proxy: _webViewModels[index].proxySettings,
+                              customIcon: _webViewModels[index].customIconPng,
+                            ),
+                          ),
                         ),
-                      ),
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: -2,
+                          child: Center(
+                            child: SitePermissionBadges(
+                              model: _webViewModels[index],
+                              iconSize: 9,
+                              overlay: true,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Flexible(
