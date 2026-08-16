@@ -2,9 +2,13 @@
 ///
 /// Injected at DOCUMENT_START (all frames) on sites with `backgroundAudioEnabled`.
 /// It watches every `<audio>`/`<video>` element plus `navigator.mediaSession`
-/// metadata and reports `{playing, title, artist, album, artwork}` to Dart
-/// via the `wsMediaSession` handler, coalesced on a short debounce. Dart uses
-/// that to raise / refresh / tear down the foreground media notification.
+/// metadata and reports `{frame, playing, title, artist, album, artwork}` to
+/// Dart via the `wsMediaSession` handler, coalesced on a short debounce. Dart
+/// uses that to raise / refresh / tear down the foreground media notification.
+///
+/// Every frame of the site runs its own copy and they all share one handler,
+/// so a report carries the frame token that produced it and a frame with no
+/// media of its own stays silent (BGAUDIO-008).
 ///
 /// The reverse direction — a transport control tapped in the notification or
 /// on the lockscreen — arrives as `window.__wsMediaControl(action)` from Dart
@@ -59,8 +63,20 @@ String buildMediaSessionShim() => r'''
     return els[0] || null;
   }
 
+  // Identifies this frame's reports to Dart. Every frame of the site shares
+  // one `wsMediaSession` handler, so without it Dart cannot tell the frame
+  // that is playing from any of the others.
+  var frameId = 'f' + Math.random().toString(36).slice(2) +
+                Date.now().toString(36);
+  var everHadMedia = false;
+
   var lastKey = '';
   function report() {
+    if (mediaEls().length) everHadMedia = true;
+    // An ad / analytics / comments iframe has nothing to say about playback.
+    // Letting it report `playing:false` would flip the site's notification to
+    // paused moments after the main frame raised it.
+    if (!everHadMedia) return;
     var playing = anyPlaying();
     var md = (navigator.mediaSession && navigator.mediaSession.metadata) || null;
     var title = (md && md.title) || document.title || '';
@@ -77,6 +93,7 @@ String buildMediaSessionShim() => r'''
     lastKey = key;
     try {
       window.flutter_inappwebview.callHandler('wsMediaSession', {
+        frame: frameId,
         playing: playing, title: title, artist: artist,
         album: album, artwork: artwork,
       });

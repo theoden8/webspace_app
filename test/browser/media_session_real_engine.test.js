@@ -57,7 +57,15 @@ async function newShimPage() {
     window.__reports = [];
     window.flutter_inappwebview = {
       callHandler: (name, payload) => {
-        window.__reports.push({ name, payload });
+        // Every frame of the site shares ONE native handler, so a subframe's
+        // report must land in the same log Dart would see it in.
+        let sink = window;
+        try {
+          if (window.top && window.top.__reports) sink = window.top;
+        } catch (e) {
+          /* cross-origin top: keep the local sink */
+        }
+        sink.__reports.push({ name, payload });
         return Promise.resolve();
       },
     };
@@ -103,8 +111,11 @@ test('reports playing:true with page metadata once audio actually plays', async 
     const got = await reports(page);
     assert.ok(got.length >= 1, 'shim reported nothing while audio was playing');
     assert.equal(got[0].name, 'wsMediaSession');
-    // Every key MediaSessionService.report destructures.
-    assert.deepEqual(got[0].payload, {
+    // Opaque per-frame token; its value is checked in the iframe test below.
+    const { frame, ...payload } = got[0].payload;
+    assert.match(frame, /^f[a-z0-9]+$/);
+    // Every remaining key MediaSessionService.report destructures.
+    assert.deepEqual(payload, {
       playing: true,
       title: 'Track One',
       artist: 'The Artist',
@@ -232,6 +243,64 @@ test('does not re-report unchanged state', async (t) => {
       first,
       'the 3s reconcile tick must not spam Dart while state is unchanged',
     );
+  } finally {
+    await page.close();
+  }
+});
+
+test('a frame with no media of its own never reports', async (t) => {
+  if (!requireBrowser(browser, t)) return;
+  const page = await newShimPage();
+  try {
+    // BGAUDIO-008. The shim is injected with forMainFrameOnly:false, so every
+    // iframe of the site runs a copy against the same wsMediaSession handler.
+    // A media-less frame reporting `playing:false` used to flip the site's
+    // notification to paused right after the main frame raised it. The frame
+    // here stands in for a YouTube ad/comments iframe: DOM churn, no media.
+    await page.evaluate(async () => {
+      document.title = 'Host Page';
+      const f = document.createElement('iframe');
+      f.srcdoc = '<html><body><div id="x"></div></body></html>';
+      document.body.appendChild(f);
+      await new Promise((r) => f.addEventListener('load', r, { once: true }));
+      const d = f.contentDocument;
+      for (let i = 0; i < 5; i++) {
+        d.getElementById('x').appendChild(d.createElement('span'));
+      }
+    });
+    await settle(RECONCILE_MS);
+    assert.deepEqual(
+      await reports(page),
+      [],
+      'a frame with no media element must stay silent',
+    );
+
+    // ...and once the main frame plays, the iframe's continued churn must not
+    // undo it.
+    const frames = await page.evaluate(async () => {
+      const a = document.createElement('audio');
+      a.loop = true;
+      a.src = wsMakeSilentWav(2);
+      document.body.appendChild(a);
+      await a.play();
+      const d = document.querySelector('iframe').contentDocument;
+      for (let i = 0; i < 5; i++) {
+        d.getElementById('x').appendChild(d.createElement('b'));
+      }
+      return null;
+    });
+    assert.equal(frames, null);
+    await settle(RECONCILE_MS);
+
+    const got = await reports(page);
+    assert.ok(got.length >= 1, 'the main frame must still report');
+    assert.ok(
+      got.every((r) => r.payload.playing === true),
+      'the media-less iframe must not report playing:false',
+    );
+    const tokens = new Set(got.map((r) => r.payload.frame));
+    assert.equal(tokens.size, 1, 'only the playing frame may report');
+    assert.match(got[0].payload.frame, /^f[a-z0-9]+$/);
   } finally {
     await page.close();
   }

@@ -164,6 +164,11 @@ void main() {
     );
     log('media live: play=${beacons.lastWhere((b) => b.mediaLive).playState}');
 
+    // The chain's first link (BGAUDIO-007): without it every downstream
+    // silence means "the toggle is off", not "the bridge is broken".
+    expect(mediaLines().any((m) => m.contains('Bridge armed')), isTrue,
+        reason: 'the media shim must be injected for a background-audio site');
+
     // Page JS -> wsMediaSession -> MediaSessionService -> method channel.
     await pumpUntil(
       () => mediaLines().any((m) => m.contains('Notification raised')),

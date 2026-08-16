@@ -44,8 +44,20 @@
     return els[0] || null;
   }
 
+  // Identifies this frame's reports to Dart. Every frame of the site shares
+  // one `wsMediaSession` handler, so without it Dart cannot tell the frame
+  // that is playing from any of the others.
+  var frameId = 'f' + Math.random().toString(36).slice(2) +
+                Date.now().toString(36);
+  var everHadMedia = false;
+
   var lastKey = '';
   function report() {
+    if (mediaEls().length) everHadMedia = true;
+    // An ad / analytics / comments iframe has nothing to say about playback.
+    // Letting it report `playing:false` would flip the site's notification to
+    // paused moments after the main frame raised it.
+    if (!everHadMedia) return;
     var playing = anyPlaying();
     var md = (navigator.mediaSession && navigator.mediaSession.metadata) || null;
     var title = (md && md.title) || document.title || '';
@@ -62,6 +74,7 @@
     lastKey = key;
     try {
       window.flutter_inappwebview.callHandler('wsMediaSession', {
+        frame: frameId,
         playing: playing, title: title, artist: artist,
         album: album, artwork: artwork,
       });

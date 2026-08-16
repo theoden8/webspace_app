@@ -32,6 +32,11 @@ class MediaSessionService {
   String? _ownerSiteId;
   Future<void> Function(String js)? _ownerRunJs;
 
+  /// Frame token (from the shim) that last reported playback. The shim runs in
+  /// every frame of the site and they all share one handler, so the site id
+  /// alone cannot tell the playing frame from a sibling iframe (BGAUDIO-008).
+  String? _ownerFrame;
+
   /// Set once per activation so the "raised but nothing on screen" warning
   /// (usually a denied `POST_NOTIFICATIONS`) is logged once, not per report.
   bool _visibilityChecked = false;
@@ -61,6 +66,7 @@ class MediaSessionService {
     _active = false;
     _ownerSiteId = null;
     _ownerRunJs = null;
+    _ownerFrame = null;
     _visibilityChecked = false;
   }
 
@@ -84,8 +90,12 @@ class MediaSessionService {
   }
 
   /// Called from the `wsMediaSession` JS handler for a background-audio site.
+  ///
+  /// [frame] is the reporting frame's token; the shim mints one per frame so a
+  /// sibling iframe cannot speak for the frame that is actually playing.
   Future<void> report({
     required String siteId,
+    required String frame,
     required Future<void> Function(String js) runJs,
     required bool playing,
     required String title,
@@ -96,6 +106,7 @@ class MediaSessionService {
     if (!_enabled) return;
     if (playing) {
       _ownerSiteId = siteId;
+      _ownerFrame = frame;
       _ownerRunJs = runJs;
       final artwork = await _fetchArtwork(artworkUrl);
       final raising = !_active;
@@ -115,10 +126,11 @@ class MediaSessionService {
         unawaited(_verifyVisible());
       }
     } else {
-      // Only the owner may drive the notification to a paused state; a
-      // background site reporting "not playing" must not clobber the site
-      // the user is actually listening to.
-      if (!_active || _ownerSiteId != siteId) return;
+      // Only the owning frame of the owning site may drive the notification to
+      // a paused state. A background site going quiet must not clobber the one
+      // the user is listening to, and neither must an ad iframe of the very
+      // site that is playing (BGAUDIO-008).
+      if (!_active || _ownerSiteId != siteId || _ownerFrame != frame) return;
       _ownerRunJs = runJs;
       await _invoke('update', {
         'title': title,
@@ -127,6 +139,7 @@ class MediaSessionService {
         'playing': false,
         'artwork': null,
       });
+      LogService.instance.log('MediaSession', 'Playback paused by the page');
     }
   }
 
@@ -174,6 +187,7 @@ class MediaSessionService {
     _active = false;
     _ownerSiteId = null;
     _ownerRunJs = null;
+    _ownerFrame = null;
     _visibilityChecked = false;
     await _invoke('stop', null);
     LogService.instance.log('MediaSession', 'Notification torn down');

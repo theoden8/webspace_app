@@ -37,10 +37,12 @@ void main() {
     bool playing = true,
     String title = 'Track',
     String artworkUrl = '',
+    String frame = 'main',
     List<String>? js,
   }) {
     return service.report(
       siteId: siteId,
+      frame: frame,
       runJs: (source) async => js?.add(source),
       playing: playing,
       title: title,
@@ -107,6 +109,28 @@ void main() {
     expect(controlCalls().map((c) => c.method), ['start'],
         reason: 'a background site going quiet must not touch the '
             'notification the user is listening to');
+  });
+
+  test('a sibling iframe of the playing site cannot pause the notification',
+      () async {
+    // BGAUDIO-008. The shim runs in every frame and they share one handler, so
+    // an ad / comments iframe reports `playing:false` for the same siteId
+    // moments after the main frame raised the notification. Without the frame
+    // guard that flips it to a paused, dismissible state while audio plays.
+    await reportPlaying('a', frame: 'main');
+    await reportPlaying('a', frame: 'ad-iframe', playing: false);
+
+    expect(controlCalls().map((c) => c.method), ['start']);
+    expect(service.isActive, isTrue);
+  });
+
+  test('playback moving to another frame transfers ownership', () async {
+    await reportPlaying('a', frame: 'main');
+    await reportPlaying('a', frame: 'player-iframe');
+    await reportPlaying('a', frame: 'player-iframe', playing: false);
+
+    expect(controlCalls().map((c) => c.method), ['start', 'update', 'update']);
+    expect((controlCalls().last.arguments as Map)['playing'], isFalse);
   });
 
   test('not-playing before anything was raised is a no-op', () async {
