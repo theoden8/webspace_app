@@ -9,79 +9,28 @@
 // tier plays a real <audio> in headless Chromium and asserts the exact payload
 // sequence Dart's `wsMediaSession` handler consumes, in both directions.
 //
-// Autoplay is forced on because the app sets
-// `mediaPlaybackRequiresUserGesture = false` (lib/services/webview.dart).
+// Multi-frame reporting (BGAUDIO-008) lives in media_session_frames.test.js:
+// node:test's per-file timeout covers the file-level test too, and real
+// playback costs seconds per case.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { setupBrowser, requireBrowser, readFixture } = require('./helpers/launch');
+const { setupBrowser, requireBrowser } = require('./helpers/launch');
+const {
+  LAUNCH_ARGS,
+  RECONCILE_MS,
+  newShimPage,
+  reports,
+  settle,
+} = require('./helpers/media_session_page');
 
-const SHIM = readFixture('media_session/shim.js');
+const browser = setupBrowser(LAUNCH_ARGS);
 
-const browser = setupBrowser({
-  args: [
-    '--no-sandbox',
-    '--disable-setuid-sandbox',
-    '--autoplay-policy=no-user-gesture-required',
-  ],
-});
-
-// 2s of silence as a WAV blob. A data: URI would work too, but building the
-// buffer in-page keeps the fixture readable and the duration explicit.
-const MAKE_AUDIO = `
-  function wsMakeSilentWav(seconds) {
-    var sr = 8000, n = sr * seconds;
-    var buf = new ArrayBuffer(44 + n * 2), dv = new DataView(buf);
-    function str(o, s) {
-      for (var i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i));
-    }
-    str(0, 'RIFF'); dv.setUint32(4, 36 + n * 2, true); str(8, 'WAVEfmt ');
-    dv.setUint32(16, 16, true); dv.setUint16(20, 1, true);
-    dv.setUint16(22, 1, true); dv.setUint32(24, sr, true);
-    dv.setUint32(28, sr * 2, true); dv.setUint16(32, 2, true);
-    dv.setUint16(34, 16, true); str(36, 'data'); dv.setUint32(40, n * 2, true);
-    return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
-  }
-`;
-
-// Event-driven reports clear a 300ms debounce; anything that has to wait for
-// the shim's own 3s reconcile tick uses RECONCILE_MS.
-const FIRST_REPORT_MS = 1500;
-const RECONCILE_MS = 4000;
-
-async function newShimPage() {
-  const page = await browser.browser.newPage();
-  // Stand in for flutter_inappwebview's bridge, recording every call the way
-  // the Dart `wsMediaSession` handler would receive it.
-  await page.evaluateOnNewDocument(() => {
-    window.__reports = [];
-    window.flutter_inappwebview = {
-      callHandler: (name, payload) => {
-        // Every frame of the site shares ONE native handler, so a subframe's
-        // report must land in the same log Dart would see it in.
-        let sink = window;
-        try {
-          if (window.top && window.top.__reports) sink = window.top;
-        } catch (e) {
-          /* cross-origin top: keep the local sink */
-        }
-        sink.__reports.push({ name, payload });
-        return Promise.resolve();
-      },
-    };
-  });
-  await page.evaluateOnNewDocument(MAKE_AUDIO);
-  await page.evaluateOnNewDocument(SHIM);
-  await page.goto('about:blank', { waitUntil: 'load' });
-  return page;
-}
-
-const reports = (page) => page.evaluate(() => window.__reports);
-const settle = (ms = FIRST_REPORT_MS) => new Promise((r) => setTimeout(r, ms));
+const newPage = () => newShimPage(browser);
 
 test('reports playing:true with page metadata once audio actually plays', async (t) => {
   if (!requireBrowser(browser, t)) return;
-  const page = await newShimPage();
+  const page = await newPage();
   try {
     const played = await page.evaluate(async () => {
       document.title = 'Fallback Title';
@@ -111,7 +60,7 @@ test('reports playing:true with page metadata once audio actually plays', async 
     const got = await reports(page);
     assert.ok(got.length >= 1, 'shim reported nothing while audio was playing');
     assert.equal(got[0].name, 'wsMediaSession');
-    // Opaque per-frame token; its value is checked in the iframe test below.
+    // Opaque per-frame token; media_session_frames.test.js owns its semantics.
     const { frame, ...payload } = got[0].payload;
     assert.match(frame, /^f[a-z0-9]+$/);
     // Every remaining key MediaSessionService.report destructures.
@@ -130,7 +79,7 @@ test('reports playing:true with page metadata once audio actually plays', async 
 
 test('falls back to document.title when the page declares no metadata', async (t) => {
   if (!requireBrowser(browser, t)) return;
-  const page = await newShimPage();
+  const page = await newPage();
   try {
     await page.evaluate(async () => {
       document.title = 'Radio Station';
@@ -154,7 +103,7 @@ test('falls back to document.title when the page declares no metadata', async (t
 
 test('picks up an element created and played before it enters the DOM', async (t) => {
   if (!requireBrowser(browser, t)) return;
-  const page = await newShimPage();
+  const page = await newPage();
   try {
     // No appendChild: the MutationObserver never fires, so the only path that
     // can catch this is the HTMLMediaElement.prototype.play patch.
@@ -179,7 +128,7 @@ test('picks up an element created and played before it enters the DOM', async (t
 
 test('transport control round-trip drives the element and re-reports', async (t) => {
   if (!requireBrowser(browser, t)) return;
-  const page = await newShimPage();
+  const page = await newPage();
   try {
     await page.evaluate(async () => {
       document.title = 'Transport';
@@ -223,7 +172,7 @@ test('transport control round-trip drives the element and re-reports', async (t)
 
 test('does not re-report unchanged state', async (t) => {
   if (!requireBrowser(browser, t)) return;
-  const page = await newShimPage();
+  const page = await newPage();
   try {
     await page.evaluate(async () => {
       document.title = 'Steady';
@@ -248,67 +197,9 @@ test('does not re-report unchanged state', async (t) => {
   }
 });
 
-test('a frame with no media of its own never reports', async (t) => {
-  if (!requireBrowser(browser, t)) return;
-  const page = await newShimPage();
-  try {
-    // BGAUDIO-008. The shim is injected with forMainFrameOnly:false, so every
-    // iframe of the site runs a copy against the same wsMediaSession handler.
-    // A media-less frame reporting `playing:false` used to flip the site's
-    // notification to paused right after the main frame raised it. The frame
-    // here stands in for a YouTube ad/comments iframe: DOM churn, no media.
-    await page.evaluate(async () => {
-      document.title = 'Host Page';
-      const f = document.createElement('iframe');
-      f.srcdoc = '<html><body><div id="x"></div></body></html>';
-      document.body.appendChild(f);
-      await new Promise((r) => f.addEventListener('load', r, { once: true }));
-      const d = f.contentDocument;
-      for (let i = 0; i < 5; i++) {
-        d.getElementById('x').appendChild(d.createElement('span'));
-      }
-    });
-    await settle(RECONCILE_MS);
-    assert.deepEqual(
-      await reports(page),
-      [],
-      'a frame with no media element must stay silent',
-    );
-
-    // ...and once the main frame plays, the iframe's continued churn must not
-    // undo it.
-    const frames = await page.evaluate(async () => {
-      const a = document.createElement('audio');
-      a.loop = true;
-      a.src = wsMakeSilentWav(2);
-      document.body.appendChild(a);
-      await a.play();
-      const d = document.querySelector('iframe').contentDocument;
-      for (let i = 0; i < 5; i++) {
-        d.getElementById('x').appendChild(d.createElement('b'));
-      }
-      return null;
-    });
-    assert.equal(frames, null);
-    await settle(RECONCILE_MS);
-
-    const got = await reports(page);
-    assert.ok(got.length >= 1, 'the main frame must still report');
-    assert.ok(
-      got.every((r) => r.payload.playing === true),
-      'the media-less iframe must not report playing:false',
-    );
-    const tokens = new Set(got.map((r) => r.payload.frame));
-    assert.equal(tokens.size, 1, 'only the playing frame may report');
-    assert.match(got[0].payload.frame, /^f[a-z0-9]+$/);
-  } finally {
-    await page.close();
-  }
-});
-
 test('reports metadata that arrives after playback started', async (t) => {
   if (!requireBrowser(browser, t)) return;
-  const page = await newShimPage();
+  const page = await newPage();
   try {
     await page.evaluate(async () => {
       document.title = 'Before Metadata';

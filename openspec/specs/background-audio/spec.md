@@ -381,7 +381,7 @@ play/pause buttons do not reach the element. Accepted degradation.
 notification is up
 **When** a media-less iframe of the same site reports
 **Then** nothing is sent — the frame is silent because it never held media
-(regression test: `test/browser/media_session_real_engine.test.js`)
+(regression test: `test/browser/media_session_frames.test.js`)
 **And** even if it did report `playing: false`, the frame guard would drop it
 (regression test: `test/media_session_service_test.dart`)
 
@@ -440,7 +440,10 @@ honored
   notification tier) + `integration_test/fixtures/background_audio.html`.
 - `test/media_session_service_test.dart`,
   `test/browser/media_session_real_engine.test.js` — BGAUDIO-007 channel and
-  real-engine tiers.
+  real-engine tiers; `test/browser/media_session_frames.test.js` +
+  `test/browser/helpers/media_session_page.js` — BGAUDIO-008 multi-frame tier.
+  Split by file because node:test applies `--test-timeout` to the file-level
+  test as well as each subtest, and a case that plays real media costs seconds.
 - `scripts/run_android_background_audio_tests.sh` + the Android emulator CI
   wiring in `.github/workflows/build-and-test.yml`.
 
