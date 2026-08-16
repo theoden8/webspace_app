@@ -17,6 +17,7 @@ import 'package:webspace/services/link_routing_service.dart' show LinkRoutingSer
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/camera_decision_engine.dart';
+import 'package:webspace/services/microphone_decision_engine.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
@@ -24,6 +25,7 @@ import 'package:webspace/services/tab_bar_corner.dart';
 import 'package:webspace/services/user_agent_preset.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/camera.dart';
+import 'package:webspace/settings/microphone.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
@@ -432,6 +434,17 @@ class WebViewModel {
   /// Bytes live inline as a `data:` URL so the shim can hand them to an
   /// `<img>`/`<video>` element. Null until the user picks a file.
   VirtualCameraSource? virtualCameraSource;
+  /// Remembered per-site decision for web microphone access (any
+  /// `getUserMedia` asking for audio). [MicrophoneAccessMode.ask] (default)
+  /// shows the Block/Use-audio-file popup on the first request; `virtual`
+  /// loops [virtualMicrophoneSource] as the microphone; `block` denies
+  /// silently. There is no mode that opens the real device — the app never
+  /// asks the OS for a recording permission.
+  MicrophoneAccessMode microphoneMode;
+  /// Audio clip looped as the microphone in [MicrophoneAccessMode.virtual].
+  /// Bytes live inline as a `data:` URL so the shim can decode them with
+  /// WebAudio. Null until the user picks a file.
+  VirtualMicrophoneSource? virtualMicrophoneSource;
   List<UserScriptConfig> userScripts; // Per-site user scripts
   /// IDs of global user scripts opted into for this site. Global scripts
   /// are stored once in app state (shared source/URL) and each site
@@ -620,6 +633,14 @@ class WebViewModel {
   CameraAccessMode get effectiveCameraMode =>
       isArchiveTier ? CameraAccessMode.block : cameraMode;
 
+  /// Effective microphone-access mode. Archive-tier sites are forced to
+  /// [MicrophoneAccessMode.block] regardless of stored value: the permission
+  /// popup and the file picker are OS-level UI, which ARCH-006 forbids for
+  /// archive sites. Blocked without prompting; the stored value and any
+  /// picked clip are preserved for when the site leaves the archive.
+  MicrophoneAccessMode get effectiveMicrophoneMode =>
+      isArchiveTier ? MicrophoneAccessMode.block : microphoneMode;
+
   /// Effective "open external links in the system browser" setting.
   /// Archive-tier sites never hand a URL to another app: launching the
   /// system browser is OS-level UI that crosses the archive's isolation
@@ -642,6 +663,9 @@ class WebViewModel {
   /// The engine holds the in-flight future that shares one popup / file-pick
   /// across a burst of `getUserMedia` retries.
   final CameraDecisionEngine _cameraEngine = CameraDecisionEngine();
+  /// Orchestrates microphone-request resolution (decide → coalesce →
+  /// persist), same contract as [_cameraEngine].
+  final MicrophoneDecisionEngine _microphoneEngine = MicrophoneDecisionEngine();
   Function? stateSetterF;
   /// Host hook fired once each time a fresh native controller attaches for
   /// this model (cold start, `_goHome` recreate, renderer-gone recovery,
@@ -746,6 +770,8 @@ class WebViewModel {
     this.protectedContentAllowed,
     this.cameraMode = CameraAccessMode.ask,
     this.virtualCameraSource,
+    this.microphoneMode = MicrophoneAccessMode.ask,
+    this.virtualMicrophoneSource,
     List<UserScriptConfig>? userScripts,
     Set<String>? enabledGlobalScriptIds,
     Set<BlockedCookie>? blockedCookies,
@@ -973,6 +999,9 @@ class WebViewModel {
     Future<bool> Function(String origin)? onProtectedMediaRequest,
     Future<CameraDecision> Function(String origin, CameraAccessMode current)?
         onCameraDecision,
+    Future<MicrophoneDecision> Function(
+            String origin, MicrophoneAccessMode current)?
+        onMicrophoneDecision,
     List<UserScriptConfig> globalUserScripts = const [],
   }) {
     if (webview == null) {
@@ -1112,20 +1141,22 @@ class WebViewModel {
                 },
           onCameraDecision: onCameraDecision == null
               ? null
-              : (origin) => _cameraEngine.decide(
-                    origin: origin,
-                    isSiteActive: () => isActive?.call() ?? true,
-                    // Archive-tier is folded into effectiveCameraMode.
-                    effectiveMode: effectiveCameraMode,
-                    currentSource: () => virtualCameraSource,
-                    resolve: onCameraDecision,
-                    persist: (mode, source) {
-                      cameraMode = mode;
-                      if (source != null) virtualCameraSource = source;
-                    },
-                    save: () async => saveFunc(),
+              : (origin) => resolveCameraRequest(
+                    origin,
+                    resolver: onCameraDecision,
+                    isActive: isActive,
+                    saveFunc: saveFunc,
                   ),
           currentCameraMode: () => effectiveCameraMode,
+          onMicrophoneDecision: onMicrophoneDecision == null
+              ? null
+              : (origin) => resolveMicrophoneRequest(
+                    origin,
+                    resolver: onMicrophoneDecision,
+                    isActive: isActive,
+                    saveFunc: saveFunc,
+                  ),
+          currentMicrophoneMode: () => effectiveMicrophoneMode,
           pullToRefreshController: pullToRefreshController,
           onWindowRequested: onWindowRequested,
           shouldOverrideUrlLoading: (url, hasGesture) {
@@ -1605,6 +1636,57 @@ class WebViewModel {
     }
   }
 
+  /// Resolve a per-site camera request for [origin] against this model
+  /// (CAM-001, CAM-006, CAM-011).
+  ///
+  /// Named rather than inline in [getWebView] so the wiring is reachable from
+  /// a test: the engine's own tests drive a fake host, which cannot catch this
+  /// model translating [isActive] — or the archive-tier fold — wrongly. A site
+  /// with no activity predicate at all counts as active, which is what the
+  /// nested/standalone callers that never pass one rely on.
+  Future<CameraDecision> resolveCameraRequest(
+    String origin, {
+    required Future<CameraDecision> Function(String, CameraAccessMode) resolver,
+    required bool Function()? isActive,
+    required Function saveFunc,
+  }) =>
+      _cameraEngine.decide(
+        origin: origin,
+        isSiteActive: () => isActive?.call() ?? true,
+        // Archive-tier is folded into effectiveCameraMode.
+        effectiveMode: effectiveCameraMode,
+        currentSource: () => virtualCameraSource,
+        resolve: resolver,
+        persist: (mode, source) {
+          cameraMode = mode;
+          if (source != null) virtualCameraSource = source;
+        },
+        save: () async => saveFunc(),
+      );
+
+  /// Resolve a per-site microphone request for [origin] against this model
+  /// (MIC-001, MIC-006, MIC-011). Same contract as [resolveCameraRequest].
+  Future<MicrophoneDecision> resolveMicrophoneRequest(
+    String origin, {
+    required Future<MicrophoneDecision> Function(String, MicrophoneAccessMode)
+        resolver,
+    required bool Function()? isActive,
+    required Function saveFunc,
+  }) =>
+      _microphoneEngine.decide(
+        origin: origin,
+        isSiteActive: () => isActive?.call() ?? true,
+        // Archive-tier is folded into effectiveMicrophoneMode.
+        effectiveMode: effectiveMicrophoneMode,
+        currentSource: () => virtualMicrophoneSource,
+        resolve: resolver,
+        persist: (mode, source) {
+          microphoneMode = mode;
+          if (source != null) virtualMicrophoneSource = source;
+        },
+        save: () async => saveFunc(),
+      );
+
   /// End any device-camera capture this site is running (CAM-012).
   ///
   /// Called when the site stops being the one on screen. The simulated camera
@@ -1979,6 +2061,10 @@ class WebViewModel {
         if (cameraMode != CameraAccessMode.ask) 'cameraMode': cameraMode.name,
         if (virtualCameraSource != null)
           'virtualCameraSource': virtualCameraSource!.toJson(),
+        if (microphoneMode != MicrophoneAccessMode.ask)
+          'microphoneMode': microphoneMode.name,
+        if (virtualMicrophoneSource != null)
+          'virtualMicrophoneSource': virtualMicrophoneSource!.toJson(),
         'userScripts': userScripts.map((s) => s.toJson()).toList(),
         if (enabledGlobalScriptIds.isNotEmpty)
           'enabledGlobalScriptIds': enabledGlobalScriptIds.toList(),
@@ -2084,6 +2170,9 @@ class WebViewModel {
           cameraAccessModeFromJson(json['cameraMode'], json['cameraAllowed']),
       virtualCameraSource:
           VirtualCameraSource.fromJson(json['virtualCameraSource']),
+      microphoneMode: microphoneAccessModeFromJson(json['microphoneMode']),
+      virtualMicrophoneSource:
+          VirtualMicrophoneSource.fromJson(json['virtualMicrophoneSource']),
       userScripts: (json['userScripts'] as List<dynamic>?)
           ?.map((e) => UserScriptConfig.fromJson(e as Map<String, dynamic>))
           .toList(),

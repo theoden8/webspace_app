@@ -107,18 +107,34 @@ user touching the site setting.
 
 The camera flow SHALL handle only camera-only requests. A request that
 bundles the microphone (iOS/macOS report the single resource
-`CAMERA_AND_MICROPHONE`; Android reports `CAMERA` plus `MICROPHONE`)
-SHALL fall through to the pre-existing default: PROMPT, which Android
-and Linux WPE map to deny and iOS 15+/macOS 12+ render as WebKit's own
-per-site prompt. The grant response itself SHALL name only the `CAMERA`
-resource.
+`CAMERA_AND_MICROPHONE`; Android reports `CAMERA` plus `MICROPHONE`) is
+not the camera flow's to answer, and the grant response itself SHALL name
+only the `CAMERA` resource.
+
+What happens to such a request depends on whether the microphone feature
+is wired:
+
+- **Microphone resolver wired** (the shipping configuration): the
+  microphone shim splits the request, synthesises the audio half from the
+  user's clip, and re-issues a video-only request that lands back in this
+  flow — so what the camera flow ever sees is camera-only. The native
+  layer denies every `MICROPHONE` / `CAMERA_AND_MICROPHONE` request
+  outright. See MIC-003 and MIC-004 in
+  [web-microphone-access](../web-microphone-access/spec.md).
+- **Microphone resolver absent**: the request falls through to the
+  pre-existing default, PROMPT, which Android and Linux WPE map to deny
+  and iOS 15+/macOS 12+ render as WebKit's own per-site prompt.
+
+Under either configuration nothing in the camera flow grants audio
+capture.
 
 #### Scenario: Camera-plus-microphone is not granted by the camera flow
 
 **Given** a site with `cameraMode == real` or `cameraMode == virtual`
 **When** the page calls `getUserMedia({video: true, audio: true})`
-**Then** the per-site camera flow does not handle the request
-**And** the virtual-camera shim passes it through to the platform untouched
+**Then** the per-site camera flow never grants the `MICROPHONE` resource
+**And** with no microphone resolver wired, the virtual-camera shim passes
+the request through to the platform untouched
 
 ### Requirement: CAM-005 — Nested webviews prompt independently
 
@@ -301,6 +317,13 @@ Only the grant is gated. The non-prompting `webCameraMode` read behind
 `enumerateDevices` is not: the shim caches it for the document's lifetime,
 so denying it once would leave a site enumerating no camera long after it
 came back to the foreground, and enumeration grants nothing on its own.
+
+`required` forces a call site to pass a predicate, not a correct one — a
+hard-coded `() => true` compiles and keeps the engine tests green. The model's
+own wiring is therefore driven directly by
+`test/capture_request_wiring_test.dart`, and `test/js/capture_active_gate.test.js`
+structurally rejects a constant at every `isSiteActive` call site (the only
+reach available for `InAppWebViewScreen`'s `mounted` predicate).
 
 An answer given to a popup that was raised while the site was active still
 applies when it settles after the switch — the user answered it — but the

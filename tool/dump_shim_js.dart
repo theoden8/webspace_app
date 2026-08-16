@@ -21,6 +21,7 @@ import 'dart:io';
 import 'package:webspace/services/anti_fingerprinting_shim.dart';
 import 'package:webspace/services/blob_url_capture.dart';
 import 'package:webspace/services/camera_stream_shim.dart';
+import 'package:webspace/services/microphone_stream_shim.dart';
 import 'package:webspace/services/content_blocker_shim.dart';
 import 'package:webspace/services/procedural_cosmetic_shim.dart';
 import 'package:webspace/services/generic_cosmetic_shim.dart';
@@ -177,6 +178,7 @@ Map<String, String> buildAllFixtures() {
   fixtures['language/ja.js'] = buildLanguageShim('ja');
 
   fixtures['camera_stream/shim.js'] = buildCameraStreamShim();
+  fixtures['microphone_stream/shim.js'] = buildMicrophoneStreamShim();
 
   fixtures['media_session/shim.js'] = buildMediaSessionShim();
 

@@ -215,6 +215,9 @@
         height: canvas.height,
         fps: fps,
       });
+      // Also into the cross-shim set the capture stop consults (both are
+      // assigned by the time any stream is served — the IIFE has finished).
+      try { _wsSynthetic.add(track); } catch (e) {}
       // A canvas track is a CanvasCaptureMediaStreamTrack; a camera track is
       // a plain MediaStreamTrack, and the constructor name is readable via
       // the prototype chain. Re-point the prototype so the class matches an
@@ -242,6 +245,15 @@
   // Synthetic track -> its paint loop + reported settings. A WeakMap so a
   // dropped stream is collectable.
   var _syntheticTracks = new WeakMap();
+
+  // Every track ANY WebSpace capture shim substituted, shared across shims.
+  // The microphone shim writes to the same set: a combined audio+video
+  // request is served by both, and whichever shim wraps the other sees the
+  // other's track in the stream it returns. Without this, CAM-012 would end
+  // the simulated microphone the moment the user switched sites — the exact
+  // thing the simulated camera is exempted from.
+  var _wsSynthetic = globalThis.__wsSyntheticTracks || new WeakSet();
+  globalThis.__wsSyntheticTracks = _wsSynthetic;
 
   // Device tracks this shim has handed to the page, so a later deactivation
   // can end them (CAM-012). WeakRef where available, so a page that churns
@@ -276,7 +288,7 @@
         for (var i = 0; i < _realTracks.length; i++) {
           var t = _realTracks[i].deref();
           if (!t) continue;
-          if (_syntheticTracks.has(t)) { live.push(_realTracks[i]); continue; }
+          if (_syntheticTracks.has(t) || _wsSynthetic.has(t)) { live.push(_realTracks[i]); continue; }
           try {
             if (t.readyState !== 'ended') { t.stop(); stopped++; }
           } catch (e) {}

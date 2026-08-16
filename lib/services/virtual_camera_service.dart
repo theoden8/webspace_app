@@ -1,17 +1,12 @@
 import 'dart:convert';
-import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
-
+import 'package:webspace/services/virtual_media_picker.dart';
 import 'package:webspace/settings/camera.dart';
 
+typedef VirtualCameraPickError = VirtualMediaPickError;
+typedef VirtualCameraPickResult = VirtualMediaPickResult<VirtualCameraSource>;
+
 /// Picks the image or video a site is served in [CameraAccessMode.virtual].
-///
-/// The bytes are inlined into the model as a `data:` URL so the shim can hand
-/// them straight to an `<img>`/`<video>` — a file:// path would not be
-/// readable from the page's origin, and keeping the media on the model means
-/// it rides settings backups and lives inside the encrypted archive slice for
-/// archive-tier sites (same treatment as `customIconPng`).
 class VirtualCameraService {
   /// Hard cap on the inlined source. A camera substitute is a small clip or a
   /// screenshot; anything larger both bloats the persisted model JSON (base64
@@ -25,44 +20,22 @@ class VirtualCameraService {
   /// Result of a pick attempt so callers can tell "user cancelled" (null)
   /// apart from "picked but rejected" (a [VirtualCameraPickError]).
   static Future<VirtualCameraPickResult> pickSource() async {
-    final result = await FilePicker.pickFiles(
-      type: FileType.custom,
+    final outcome = await VirtualMediaPicker.pick(
       allowedExtensions: [..._imageExts, ..._videoExts],
-      allowMultiple: false,
-      withData: true,
+      maxBytes: maxBytes,
     );
-    if (result == null || result.files.isEmpty) {
-      return const VirtualCameraPickResult.cancelled();
-    }
-    final file = result.files.first;
-    final ext = (file.extension ?? '').toLowerCase();
-    final isVideo = _videoExts.contains(ext);
-    final isImage = _imageExts.contains(ext);
-    if (!isVideo && !isImage) {
-      return const VirtualCameraPickResult.error(VirtualCameraPickError.type);
+    if (outcome.cancelled) return const VirtualCameraPickResult.cancelled();
+    if (outcome.error != null) {
+      return VirtualCameraPickResult.error(outcome.error!);
     }
 
-    var bytes = file.bytes;
-    if (bytes == null && file.path != null) {
-      try {
-        bytes = await File(file.path!).readAsBytes();
-      } catch (_) {
-        return const VirtualCameraPickResult.error(VirtualCameraPickError.read);
-      }
-    }
-    if (bytes == null || bytes.isEmpty) {
-      return const VirtualCameraPickResult.error(VirtualCameraPickError.read);
-    }
-    if (bytes.length > maxBytes) {
-      return const VirtualCameraPickResult.error(VirtualCameraPickError.tooLarge);
-    }
-
-    final mime = _mimeFor(ext, isVideo);
-    final dataUrl = 'data:$mime;base64,${base64Encode(bytes)}';
+    final isVideo = _videoExts.contains(outcome.extension);
+    final mime = _mimeFor(outcome.extension, isVideo);
+    final dataUrl = 'data:$mime;base64,${base64Encode(outcome.bytes!)}';
     return VirtualCameraPickResult.picked(VirtualCameraSource(
       kind: isVideo ? 'video' : 'image',
       dataUrl: dataUrl,
-      fileName: file.name,
+      fileName: outcome.fileName,
     ));
   }
 
@@ -92,25 +65,4 @@ class VirtualCameraService {
         return isVideo ? 'video/mp4' : 'image/png';
     }
   }
-}
-
-enum VirtualCameraPickError { type, read, tooLarge }
-
-class VirtualCameraPickResult {
-  final VirtualCameraSource? source;
-  final VirtualCameraPickError? error;
-
-  /// True when the user dismissed the picker without choosing a file.
-  final bool cancelled;
-
-  const VirtualCameraPickResult.picked(VirtualCameraSource this.source)
-      : error = null,
-        cancelled = false;
-  const VirtualCameraPickResult.error(VirtualCameraPickError this.error)
-      : source = null,
-        cancelled = false;
-  const VirtualCameraPickResult.cancelled()
-      : source = null,
-        error = null,
-        cancelled = true;
 }

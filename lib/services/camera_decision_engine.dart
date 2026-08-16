@@ -1,18 +1,12 @@
+import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/settings/camera.dart';
 
-/// Pure orchestration for resolving a per-site camera request.
-///
-/// Both the parent webview (`WebViewModel.getWebView`) and the transient
-/// nested screen (`InAppWebViewScreen`) route camera requests through one
-/// instance of this so the decide → coalesce → persist flow lives in exactly
-/// one place (the parent persists onto the model; the nested screen keeps its
-/// answer in memory — only the collaborators differ). No Flutter imports, no
-/// `setState`, no `BuildContext`: the host passes the model/state accessors as
-/// closures, matching the engine convention in `cookie_isolation.dart`.
+/// Per-site camera-request resolution, on top of the shared
+/// [MediaGrantEngine] funnel (decide → coalesce → persist), which also
+/// carries the backgrounded-site gate (CAM-011).
 class CameraDecisionEngine {
-  /// Coalesces a burst of requests (scanner libraries retry `getUserMedia`)
-  /// onto a single popup / file-pick. Cleared once the decision settles.
-  Future<CameraDecision>? _inFlight;
+  final MediaGrantEngine<CameraAccessMode, VirtualCameraSource, CameraDecision>
+      _engine = MediaGrantEngine();
 
   /// Resolve a request for [origin].
   ///
@@ -40,30 +34,32 @@ class CameraDecisionEngine {
     required bool Function() isSiteActive,
     required CameraAccessMode effectiveMode,
     required VirtualCameraSource? Function() currentSource,
-    required Future<CameraDecision> Function(String origin, CameraAccessMode current)
+    required Future<CameraDecision> Function(
+            String origin, CameraAccessMode current)
         resolve,
     required void Function(CameraAccessMode mode, VirtualCameraSource? source)
         persist,
     required Future<void> Function() save,
-  }) async {
-    if (!isSiteActive()) return const CameraDecision.block();
-    if (effectiveMode == CameraAccessMode.real ||
-        effectiveMode == CameraAccessMode.block) {
-      return CameraDecision(effectiveMode);
-    }
-    if (effectiveMode == CameraAccessMode.virtual && currentSource() != null) {
-      return CameraDecision(effectiveMode, currentSource());
-    }
-    _inFlight ??= () async {
-      final decision = await resolve(origin, effectiveMode);
-      persist(decision.mode, decision.source);
-      await save();
-      return CameraDecision(decision.mode, decision.source ?? currentSource());
-    }();
-    try {
-      return await _inFlight!;
-    } finally {
-      _inFlight = null;
-    }
-  }
+  }) =>
+      _engine.decide(
+        origin: origin,
+        isSiteActive: isSiteActive,
+        denied: () => const CameraDecision.block(),
+        effectiveMode: effectiveMode,
+        settled: (mode, source) {
+          if (mode == CameraAccessMode.real ||
+              mode == CameraAccessMode.block) {
+            return CameraDecision(mode);
+          }
+          if (mode == CameraAccessMode.virtual && source != null) {
+            return CameraDecision(mode, source);
+          }
+          return null;
+        },
+        currentSource: currentSource,
+        resolve: resolve,
+        persist: (d) => persist(d.mode, d.source),
+        finalize: (d, fallback) => CameraDecision(d.mode, d.source ?? fallback),
+        save: save,
+      );
 }

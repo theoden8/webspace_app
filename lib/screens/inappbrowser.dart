@@ -10,12 +10,14 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/services/camera_decision_engine.dart';
+import 'package:webspace/services/microphone_decision_engine.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/surface_repaint_engine.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/camera.dart';
+import 'package:webspace/settings/microphone.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
@@ -75,6 +77,14 @@ class InAppWebViewScreen extends StatefulWidget {
   /// screen only (nested screens have no persisted `WebViewModel`).
   final Future<CameraDecision> Function(String origin, CameraAccessMode current)?
       onCameraDecision;
+  /// Web microphone-access resolver, forwarded from the parent so a site
+  /// followed through an outbound link prompts the same way — including the
+  /// "use audio file" virtual-microphone path. Called with the origin and
+  /// this screen's in-memory current mode; the decision is remembered
+  /// in-memory for this screen only (nested screens have no persisted
+  /// `WebViewModel`).
+  final Future<MicrophoneDecision> Function(
+      String origin, MicrophoneAccessMode current)? onMicrophoneDecision;
   /// Invoked when the user toggles the URL bar from this nested screen's
   /// popup menu. Threaded back to `_WebSpacePageState` so the change
   /// updates the same global preference shown in the parent menu.
@@ -124,6 +134,7 @@ class InAppWebViewScreen extends StatefulWidget {
     this.onConfirmScriptFetch,
     this.onProtectedMediaRequest,
     this.onCameraDecision,
+    this.onMicrophoneDecision,
     this.onShowUrlBarChanged,
     UserProxySettings? proxySettings,
     this.notificationsEnabled = false,
@@ -158,6 +169,12 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   CameraAccessMode _cameraMode = CameraAccessMode.ask;
   VirtualCameraSource? _cameraSource;
   final CameraDecisionEngine _cameraEngine = CameraDecisionEngine();
+
+  /// In-memory microphone-access decision for this nested screen, same
+  /// contract as the camera one above.
+  MicrophoneAccessMode _microphoneMode = MicrophoneAccessMode.ask;
+  VirtualMicrophoneSource? _microphoneSource;
+  final MicrophoneDecisionEngine _microphoneEngine = MicrophoneDecisionEngine();
 
   /// Cached InAppWebView widget. Built once in initState and reused on
   /// every build() so setState calls (URL bar updates, find results,
@@ -332,6 +349,25 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                   save: () async {},
                 ),
         currentCameraMode: () => _cameraMode,
+        onMicrophoneDecision: widget.onMicrophoneDecision == null
+            ? null
+            : (origin) => _microphoneEngine.decide(
+                  origin: origin,
+                  // Mounted is the nested screen's "on screen": a route pushed
+                  // above it (the popup itself included) must not read as
+                  // backgrounded, or a burst would stop coalescing onto it.
+                  isSiteActive: () => mounted,
+                  effectiveMode: _microphoneMode,
+                  currentSource: () => _microphoneSource,
+                  resolve: widget.onMicrophoneDecision!,
+                  persist: (mode, source) {
+                    _microphoneMode = mode;
+                    if (source != null) _microphoneSource = source;
+                  },
+                  // Nested screens have no persisted model.
+                  save: () async {},
+                ),
+        currentMicrophoneMode: () => _microphoneMode,
         notificationsEnabled: widget.notificationsEnabled,
         pullToRefreshController: _pullToRefreshController,
         onUrlChanged: (url) {
