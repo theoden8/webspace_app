@@ -323,6 +323,52 @@ next request from the now-backgrounded site is denied like any other.
 **And** the request is denied
 **And** the site prompts as usual once the user switches back to it
 
+### Requirement: CAM-012 — Deactivation ends device capture
+
+When a site stops being the one on screen, any capture it holds from the
+**device** camera SHALL end. The **simulated** camera SHALL keep streaming:
+it is a user-picked local file drawn onto a canvas, so nothing is being
+observed, and ending it would drop a half-finished scan the user comes back
+to. CAM-011 already denies a backgrounded site a fresh grant, so together the
+two mean a site that is not on screen cannot be capturing from the camera.
+
+Pausing is not what achieves this — a paused webview keeps media pipelines
+alive by design ([webview-pause-lifecycle](../webview-pause-lifecycle/spec.md)).
+The stop is an explicit `__wsStopRealCapture()` call into the page, which ends
+every track the shim handed over from a `real` grant or passed through from a
+platform-granted `getUserMedia` (the camera+microphone case of CAM-004), and
+skips tracks it created itself.
+
+Two ordering properties hold at every call site, both gated structurally by
+`test/js/camera_capture_stop_funnel.test.js`:
+
+- the stop is posted **before** `pauseWebView()`, because the iOS
+  per-instance pause blocks the page's JS thread, so JS posted after it would
+  not run until the site is resumed;
+- it is **not** folded into `pauseWebView()`, which early-returns for
+  notification and background-audio sites — exactly the sites whose JS keeps
+  running while backgrounded.
+
+#### Scenario: Switching away ends the camera
+
+**Given** a site in `real` mode holding a live camera track
+**When** the user switches to another site
+**Then** the track ends (`readyState == 'ended'`, an `ended` event fires)
+**And** the site cannot re-acquire one while it is off screen (CAM-011)
+
+#### Scenario: The simulated camera survives a switch
+
+**Given** a site in `virtual` mode serving its picked media file
+**When** the user switches away and back
+**Then** the synthetic track is still live
+**And** its frames still carry the picked source
+
+#### Scenario: Exempt-from-pause sites are not exempt from this
+
+**Given** a backgrounded site with `notificationsEnabled` or background audio
+**When** it stops being the site on screen
+**Then** its device capture ends even though `pauseWebView()` skips it
+
 ### Requirement: CAM-009 — Fail closed without the bridge
 
 If the `webCameraRequest` Dart bridge is unreachable, the shim SHALL deny

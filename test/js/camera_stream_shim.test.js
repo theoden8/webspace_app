@@ -37,7 +37,7 @@ afterEach(() => {
 function setupCameraDom({ decision, mode, noBridge = false, realCameras = [] } = {}) {
   const dom = makeDom();
   const window = dom.window;
-  const calls = { realGum: 0, lastConstraints: null };
+  const calls = { realGum: 0, lastConstraints: null, stopped: [] };
 
   // Model the real interface, not a convenience stub: browsers expose these
   // as MediaDevices.prototype methods, and the shim deliberately patches the
@@ -48,7 +48,14 @@ function setupCameraDom({ decision, mode, noBridge = false, realCameras = [] } =
     getUserMedia(constraints) {
       calls.realGum += 1;
       calls.lastConstraints = constraints;
-      return Promise.resolve({ __realStream: true, getVideoTracks: () => [] });
+      // A device track, not an empty list: the shim records what it hands
+      // over so a deactivation can end it, which an empty stream can't show.
+      const track = new MediaStreamTrack();
+      return Promise.resolve({
+        __realStream: true,
+        getVideoTracks: () => [track],
+        getTracks: () => [track],
+      });
     }
     enumerateDevices() {
       return Promise.resolve([
@@ -62,10 +69,10 @@ function setupCameraDom({ decision, mode, noBridge = false, realCameras = [] } =
 
   // Likewise for tracks: label/getSettings/stop live on the prototype.
   class MediaStreamTrack {
-    constructor() { this.kind = 'video'; this._ended = null; }
+    constructor() { this.kind = 'video'; this._ended = null; this.readyState = 'live'; }
     get label() { return ''; }
     getSettings() { return {}; }
-    stop() {}
+    stop() { this.readyState = 'ended'; calls.stopped.push(this); }
     addEventListener(type, cb) { if (type === 'ended') this._ended = cb; }
   }
   window.MediaStreamTrack = MediaStreamTrack;
@@ -212,6 +219,59 @@ test('a request bundling audio bypasses the shim entirely', async () => {
   await window.navigator.mediaDevices.getUserMedia({ video: true, audio: true });
   assert.equal(calls.realGum, 1);
   assert.deepEqual(calls.lastConstraints, { video: true, audio: true });
+});
+
+// --- CAM-012: deactivation ends device capture, not the simulated one ------
+
+test('deactivation ends the real camera track', async () => {
+  const { window, calls } = setupCameraDom({ decision: { mode: 'real' } });
+  const stream = await window.navigator.mediaDevices.getUserMedia({ video: true });
+  const track = stream.getVideoTracks()[0];
+  assert.equal(track.readyState, 'live');
+  assert.equal(window.__wsStopRealCapture(), 1, 'one device track ended');
+  assert.equal(track.readyState, 'ended');
+  assert.deepEqual(calls.stopped, [track]);
+  // Idempotent: switching away twice must not throw or double-count.
+  assert.equal(window.__wsStopRealCapture(), 0);
+});
+
+test('deactivation leaves the simulated camera streaming', async () => {
+  // The whole point of the exemption: the synthetic stream is a local file on
+  // a canvas, so there is nothing to observe and a half-finished scan should
+  // survive a look at another site.
+  const { window, calls } = setupCameraDom({
+    decision: {
+      mode: 'virtual',
+      source: { kind: 'image', dataUrl: 'data:image/png;base64,AAAA' },
+    },
+  });
+  const stream = await window.navigator.mediaDevices.getUserMedia({ video: true });
+  const track = stream.getVideoTracks()[0];
+  assert.equal(window.__wsStopRealCapture(), 0, 'nothing device-backed to end');
+  assert.equal(track.readyState, 'live', 'synthetic track must keep running');
+  assert.deepEqual(calls.stopped, []);
+});
+
+test('deactivation ends an audio+video grant the platform made itself', async () => {
+  // That request bypasses the per-site flow (CAM-004), but it is still a
+  // device capture, so the shim records its tracks to end them here.
+  const { window, calls } = setupCameraDom({ decision: { mode: 'block' } });
+  const stream = await window.navigator.mediaDevices.getUserMedia({
+    video: true,
+    audio: true,
+  });
+  assert.equal(calls.realGum, 1, 'still passed straight to the platform');
+  assert.equal(stream.__realStream, true, 'and still resolves the real stream');
+  assert.equal(window.__wsStopRealCapture(), 1);
+});
+
+test('the stop hook is not enumerable on the global', () => {
+  const { window } = setupCameraDom({ decision: { mode: 'block' } });
+  assert.equal(typeof window.__wsStopRealCapture, 'function');
+  assert.ok(
+    !Object.keys(window).includes('__wsStopRealCapture'),
+    'a page enumerating window must not find the hook',
+  );
 });
 
 test('real mode leaves the platform device list untouched', async () => {

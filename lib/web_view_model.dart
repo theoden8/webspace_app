@@ -1605,6 +1605,32 @@ class WebViewModel {
     }
   }
 
+  /// End any device-camera capture this site is running (CAM-012).
+  ///
+  /// Called when the site stops being the one on screen. The simulated camera
+  /// keeps streaming: it is a local file drawn onto a canvas, so nothing is
+  /// being observed, and ending it would drop a half-finished scan.
+  ///
+  /// Two properties this must keep, both easy to lose:
+  ///   * it runs BEFORE [pauseWebView] at every call site — the iOS
+  ///     per-instance pause blocks the page's JS thread, so JS posted after it
+  ///     would not run until the site is resumed;
+  ///   * it is NOT folded into [pauseWebView], which early-returns for
+  ///     notification and background-audio sites. Those sites may keep running
+  ///     JS and audio in the background. The camera is not covered by either.
+  Future<void> stopRealCameraCapture() async {
+    final c = controller;
+    if (c == null) return;
+    try {
+      await c.evaluateJavascript(
+        "if (typeof globalThis.__wsStopRealCapture === 'function') "
+        'globalThis.__wsStopRealCapture();',
+      );
+    } catch (_) {
+      // Controller may have been disposed
+    }
+  }
+
   /// Resume a previously paused webview when it becomes active again.
   Future<void> resumeWebView() async {
     if (controller == null) return;
