@@ -1611,10 +1611,20 @@ class _WebSpacePageState extends State<WebSpacePage>
       // Non-sensitive decision line (no site name/URL): lets a user report
       // — and the CI lifecycle test assert — whether the background froze
       // JS or a notification/background-audio exemption kept it running.
+      // `bgAudio` is the input to that decision (BGAUDIO-002): without it a
+      // jsPause=true line reads as a bug when it is really the site's
+      // Background audio toggle being off.
+      final loadedBgAudio = _loadedIndices
+          .where((i) =>
+              i >= 0 &&
+              i < _webViewModels.length &&
+              _webViewModels[i].effectiveBackgroundAudioEnabled)
+          .length;
       LogService.instance.log(
         'Lifecycle',
         'App background: jsPause=${pausePlan.jsPauseIndex != null} '
-            'capture=${pausePlan.captureStateIndex != null}',
+            'capture=${pausePlan.captureStateIndex != null} '
+            'bgAudio=$loadedBgAudio loaded',
       );
       // Backgrounding is the last moment we control before the OS may kill
       // the process, and Chromium commits cookies to disk lazily. Unawaited:
@@ -3556,6 +3566,10 @@ class _WebSpacePageState extends State<WebSpacePage>
       if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
         await _captureStateBytes(_webViewModels[_currentIndex!]);
         if (version != _setCurrentIndexVersion) return;
+        // Before the pause: on iOS the per-instance pause blocks the page's
+        // JS thread, so the stop would sit queued behind it (CAM-012).
+        await _webViewModels[_currentIndex!].stopRealCameraCapture();
+        if (version != _setCurrentIndexVersion) return;
         await _webViewModels[_currentIndex!].pauseWebView();
         if (version != _setCurrentIndexVersion) return;
       }
@@ -3737,6 +3751,10 @@ class _WebSpacePageState extends State<WebSpacePage>
 
     // Pause the previously active webview to save resources
     if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
+      // Before the pause: on iOS the per-instance pause blocks the page's JS
+      // thread, so the stop would sit queued behind it (CAM-012).
+      await _webViewModels[_currentIndex!].stopRealCameraCapture();
+      if (version != _setCurrentIndexVersion) return;
       await _webViewModels[_currentIndex!].pauseWebView();
       if (version != _setCurrentIndexVersion) return;
     }
@@ -3789,10 +3807,10 @@ class _WebSpacePageState extends State<WebSpacePage>
     //
     // unawaited: subsequent activation logic (fullscreen, logging)
     // doesn't depend on these completing. Race-wise this is safe in
-    // Dart's single-threaded model: each pauseWebView dispatches on
-    // the platform channel synchronously up to its first await, and
-    // the channel preserves FIFO order — so the resumeWebView above
-    // is dispatched before any of these pauses. A subsequent
+    // Dart's single-threaded model: the resumeWebView above has
+    // already been dispatched on the platform channel by the time
+    // this loop runs, and the channel preserves FIFO order — so the
+    // active site is never left paused by these. A subsequent
     // _setCurrentIndex would also do its own resume after these
     // pauses, so the latest target always ends up resumed.
     //
@@ -3804,7 +3822,14 @@ class _WebSpacePageState extends State<WebSpacePage>
     for (final i in loadedSnapshot) {
       if (i == index) continue;
       if (i < 0 || i >= _webViewModels.length) continue;
-      unawaited(_webViewModels[i].pauseWebView());
+      // Camera stop is dispatched before the pause (CAM-012) and covers the
+      // sites pauseWebView() exempts — a notification or background-audio
+      // site keeps its JS running, which is exactly where a forgotten capture
+      // would survive. Bound to a local model: the pause runs a microtask
+      // later, by which point _webViewModels may have been reindexed.
+      final model = _webViewModels[i];
+      unawaited(
+          model.stopRealCameraCapture().then((_) => model.pauseWebView()));
     }
 
     // Auto-enter fullscreen if the site has fullscreenMode enabled
@@ -5098,9 +5123,9 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   /// Stable resolver for a camera-only permission request (getUserMedia
   /// video, e.g. a banking site's QR scanner). On the first request it shows
-  /// a Block / Use-image-or-video / Allow popup; picking "Use image or
-  /// video" opens a file picker and the chosen media becomes the site's
-  /// virtual camera. The per-site decision is remembered by the caller (the
+  /// a Block / Use-a-media-file / Allow popup; picking "Use a media file"
+  /// opens a file picker and the chosen media becomes the site's simulated
+  /// camera. The per-site decision is remembered by the caller (the
   /// parent webview persists it on the `WebViewModel`; nested webviews
   /// remember it in-memory), so this only collects user intent. The Android
   /// app-level permission is handled separately at real-grant time by

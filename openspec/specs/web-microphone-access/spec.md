@@ -277,6 +277,76 @@ the repo rather than specific to this one.
 and `Object.getOwnPropertyNames(track)`
 **Then** it sees `MediaStreamTrack`, `audio`, `live`, and no own properties
 
+### Requirement: MIC-011 — Backgrounded sites deny silently
+
+A microphone request from a site that is not the active one SHALL be denied
+without prompting, whatever its stored `microphoneMode`, and SHALL leave the
+stored mode and picked clip untouched. This is CAM-011 applied to audio, and
+it is carried by the same code: the gate is a required `isSiteActive`
+predicate on the shared `MediaGrantEngine`, so neither feature — nor a future
+one — can add a call site without answering it.
+
+Only one of CAM-011's two reasons transfers, and it is enough. The camera's
+"a remembered grant would start capture with nothing on screen" does not
+apply: there is no device here, so a backgrounded site that got its clip
+would be observing nothing. But "a background site's popup reads as belonging
+to the site on screen" applies exactly — a Block / Use-audio-file dialog
+naming an origin the user is not looking at is the same trap regardless of
+which sensor it claims. The deny therefore covers `virtual` as well as `ask`,
+matching the camera rather than carving out an exemption for the mode whose
+grant is harmless.
+
+As with CAM-011, only the grant is gated; the non-prompting `webMicrophoneMode`
+read behind `enumerateDevices` is not, because the shim caches it for the
+document's lifetime.
+
+#### Scenario: Background site cannot raise the popup
+
+**Given** a loaded site with `microphoneMode == ask`
+**And** the user is looking at a different site
+**When** a page in the background site requests audio
+**Then** no popup and no file picker are shown
+**And** the request is denied
+**And** the site prompts as usual once the user switches back to it
+
+#### Scenario: Background site with a remembered clip
+
+**Given** a loaded site with `microphoneMode == virtual` and a picked clip
+**And** the user is looking at a different site
+**When** a page in the background site calls `getUserMedia({audio: true})`
+**Then** the bridge answers `block` and the request is rejected
+**And** the site's stored mode and clip are unchanged
+
+### Requirement: MIC-012 — No deactivation stop, and the clip survives one
+
+CAM-012 ends any **device** camera capture when a site leaves the screen and
+exempts the simulated camera. The microphone has no device half at all, so
+there is nothing to end: every audio track this feature serves is the exempt
+case, and the audio equivalent of `__wsStopRealCapture()` would have an empty
+job. No such hook is installed, and no call site pretends otherwise.
+
+What this does require is that the camera's stop not reach the substituted
+audio track. Both shims register what they substituted in one cross-shim
+`globalThis.__wsSyntheticTracks` set, and the camera's stop skips anything in
+it. A combined audio+video request is served by both shims and returns a
+single stream carrying both tracks, so whichever shim wraps the other sees
+the other's track and must be able to recognise it — without the shared set
+the simulated microphone would be killed on every site switch, and only by
+accident of injection order is it not.
+
+#### Scenario: Switching away leaves the simulated microphone alone
+
+**Given** a site serving its picked clip, alone or alongside a simulated camera
+**When** the user switches to another site and back
+**Then** the audio track is still live and still carries the clip
+
+#### Scenario: The stop hook recognises an audio track it did not create
+
+**Given** a stream carrying a simulated video track and a simulated audio track
+**When** `__wsStopRealCapture()` runs
+**Then** neither track is stopped
+**And** the call reports having stopped nothing
+
 ### Requirement: MIC-010 — Fail closed without the bridge
 
 If the `webMicrophoneRequest` Dart bridge is unreachable, the shim SHALL deny

@@ -72,9 +72,11 @@ decision (nothing was paused, nothing to resume); state capture
 
 The `paused` branch of `didChangeAppLifecycleState` SHALL log one
 non-sensitive decision line (`App background: jsPause=<bool>
-capture=<bool>`, no site name or URL) so a user report — and the CI
-lifecycle test — can tell whether the background froze JS or an exemption
-kept it running.
+capture=<bool> bgAudio=<count> loaded`, no site name or URL) so a user
+report — and the CI lifecycle test — can tell whether the background froze
+JS or an exemption kept it running. The count is the decision's input: a
+`jsPause=true` line reads as a broken exemption until it says that zero
+background-audio sites were loaded.
 
 #### Scenario: Active audio site backgrounds unpaused
 
@@ -95,6 +97,7 @@ kept it running.
 **Given** plain site A is active and audio site B is NOT loaded
 **When** the app goes to background
 **Then** the plan pauses A as usual (`jsPause=true`)
+**And** the decision line reads `bgAudio=0 loaded`, naming the reason
 
 ---
 
@@ -159,13 +162,19 @@ without OS-level backgrounding:
   legal intermediate states).
 - The HTML fixture
   ([integration_test/fixtures/background_audio.html](../../../integration_test/fixtures/background_audio.html))
-  beacons `GET /beacon?ticks=N&audio=<playState>` to the test's loopback
-  server every 250 ms from a JS interval, so page-JS liveness is observed
-  server-side with no bridge into the app's widget tree. The server serves
-  the embedded mirror `background_audio_fixture.dart` — the sandboxed test
-  app cannot read repo files at runtime (macOS CI denies with EPERM) — and
-  `test/background_audio_fixture_drift_test.dart` pins mirror and .html
-  byte-identical.
+  beacons `GET /beacon?ticks=N&audio=<playState>&t=<currentTime>&paused=<bool>`
+  to the test's loopback server every 250 ms from a JS interval, so page-JS
+  liveness is observed server-side with no bridge into the app's widget tree.
+  The server serves the embedded mirror `background_audio_fixture.dart` — the
+  sandboxed test app cannot read repo files at runtime (macOS CI denies with
+  EPERM) — and `test/background_audio_fixture_drift_test.dart` pins mirror and
+  .html byte-identical.
+- `?media=` selects what the fixture plays: `none` (default; WPE in the
+  headless CI container crash-loops its web process on media-pipeline init),
+  `audio` (looping silent WAV), `stream` (muted `<video>` off a canvas
+  `captureStream`, which needs no audio device — the CI emulator boots
+  `-noaudio`). The liveness tests use `none`; BGAUDIO-007's notification tier
+  uses `stream`.
 - The BGAUDIO-002 decision line is asserted from `LogService`.
 
 Both directions are covered, on the platforms where each is observable:
@@ -215,7 +224,10 @@ constraints.
   Android + `backgroundAudioEnabled` only) observes every `<audio>`/`<video>`
   element plus `navigator.mediaSession.metadata` and reports
   `{playing, title, artist, album, artwork}` to Dart through the
-  `wsMediaSession` handler.
+  `wsMediaSession` handler. "Every element" includes ones that never enter the
+  document: `new Audio(src).play()` is a common playback idiom and
+  `querySelectorAll` cannot see it, so the `HTMLMediaElement.prototype.play`
+  patch registers detached elements in a bounded list that the scan unions in.
 - [`MediaSessionService`](../../../lib/services/media_session_service.dart)
   raises (`start`) / refreshes (`update`) / tears down (`stop`) the
   notification via the `org.codeberg.theoden8.webspace/media_session` channel.
@@ -260,6 +272,126 @@ resumable paused state
 **Then** `_updateBackgroundAudioSession` finds no loaded background-audio site
 and calls `MediaSessionService.stopAll`, stopping the foreground service
 
+#### Scenario: A player that never enters the DOM still raises the notification
+
+**Given** a background-audio site plays through `new Audio(src).play()` without
+appending the element
+**When** the shim's scan runs
+**Then** the element is included via the detached registry and reported
+`playing: true`
+(regression test: `test/browser/media_session_real_engine.test.js`)
+
+---
+
+### Requirement: BGAUDIO-007 — The Media Notification Is Observable End to End
+
+Every link between the page's playback and the notification on screen SHALL be
+assertable, and the terminal observable SHALL be the OS's own notification
+list — not a Dart-side flag. A foreground service that started while the OS
+suppressed its notification (a denied `POST_NOTIFICATIONS`) is
+indistinguishable from success at every layer above the platform channel, and
+that is the failure mode this requirement exists to make visible.
+
+- `MediaSessionService` SHALL log one non-sensitive line on raise and on
+  teardown (no site name, URL or track metadata), so a user's App Logs export
+  says whether the bridge fired.
+- Injecting the shim SHALL log one non-sensitive line (`Bridge armed for this
+  site`). The chain's first link is the site's own toggle, and no downstream
+  line can distinguish "Background audio is off for this site" from "the
+  bridge is broken" — both are silence. The armed line makes that the one
+  question an App Logs export always answers.
+- The `media_session` channel SHALL expose `isNotificationActive`, answered
+  from `NotificationManager.getActiveNotifications()`, and
+  `MediaSessionService.notificationPosted()` SHALL surface it.
+- On raising the notification the service SHALL check visibility once and log a
+  warning when the OS did not post it.
+- Coverage SHALL exist at three tiers, because no single one spans the chain:
+  the shim's behaviour under a real engine
+  (`test/browser/media_session_real_engine.test.js`, Puppeteer + headless
+  Chromium — jsdom has no media pipeline, so `paused`/`currentTime` never move
+  there); the channel contract and its guards
+  (`test/media_session_service_test.dart`); and the notification itself on a
+  real Android WebView
+  (`integration_test/background_audio_media_notification_test.dart`, run by
+  `scripts/run_android_background_audio_tests.sh`, which pre-grants
+  `POST_NOTIFICATIONS` so the tier measures the feature and not the dialog).
+
+#### Scenario: The notification reaches the OS notification list
+
+**Given** a background-audio site is playing in the Android emulator tier
+**When** the shim reports `playing: true`
+**Then** `MediaSessionService` logs `Notification raised`
+**And** `notificationPosted()` returns true — the notification is in
+`getActiveNotifications()`
+**And** it is still posted after an injected `AppLifecycleState.paused`
+
+#### Scenario: A suppressed notification is not silent
+
+**Given** the foreground service started but the OS did not post its
+notification
+**When** the post-raise visibility check runs
+**Then** a warning naming the likely denied notification permission is logged
+(regression test: `test/media_session_service_test.dart`)
+
+#### Scenario: Teardown removes it from the OS, not just from Dart
+
+**Given** the media notification is posted
+**When** `stopAll` runs
+**Then** `notificationPosted()` returns false
+
+#### Scenario: A site with the toggle off is diagnosable from the log alone
+
+**Given** a user reports no media notification after playing a video
+**When** their App Logs export carries no `MediaSession`/`Bridge armed` line
+**Then** the site's Background audio toggle was off — the shim was never
+injected, so no report could ever arrive
+**And** the `Lifecycle`/`App background: ... bgAudio=0 loaded` line agrees
+
+---
+
+### Requirement: BGAUDIO-008 — Only the Playing Frame Speaks for the Site
+
+The shim is injected with `forMainFrameOnly: false`, so every frame of the
+site runs a copy against the single `wsMediaSession` handler. Reports SHALL
+therefore be frame-scoped:
+
+- The shim SHALL mint one opaque token per frame and send it as `frame` in
+  every report.
+- A frame that has never held an `<audio>`/`<video>` element (its own or a
+  detached one) SHALL NOT report at all. An ad / analytics / comments iframe
+  has nothing to say about playback.
+- `MediaSessionService` SHALL record the reporting frame on every
+  `playing: true` and SHALL accept `playing: false` only from that same
+  frame of that same site. Ownership moves with playback: a report of
+  `playing: true` from another frame makes that frame the owner.
+
+Without this, a site whose player sits in the main frame is silenced by its
+own subframes: the ad iframe reports `playing: false` for the same `siteId`
+within one debounce of the notification going up, flipping it to a paused,
+`setOngoing(false)` — dismissible — state while audio is still playing, and
+the main frame's report deduplication keeps it from correcting the record.
+
+The transport controls remain main-frame-only: `evaluateJavascript` targets
+the main frame, so a player inside a subframe raises the notification but its
+play/pause buttons do not reach the element. Accepted degradation.
+
+#### Scenario: An ad iframe cannot pause the notification
+
+**Given** a background-audio site is playing in its main frame and the
+notification is up
+**When** a media-less iframe of the same site reports
+**Then** nothing is sent — the frame is silent because it never held media
+(regression test: `test/browser/media_session_frames.test.js`)
+**And** even if it did report `playing: false`, the frame guard would drop it
+(regression test: `test/media_session_service_test.dart`)
+
+#### Scenario: Playback moving between frames transfers ownership
+
+**Given** the main frame raised the notification
+**When** a subframe reports `playing: true`
+**Then** the subframe becomes the owner and its later `playing: false` is
+honored
+
 ## Limitations (documented, accepted)
 
 - **iOS without playback**: the audio session keeps the app alive only
@@ -286,19 +418,32 @@ and calls `MediaSessionService.stopAll`, stopping the foreground service
 - `lib/screens/settings.dart` — per-site toggle (+ POST_NOTIFICATIONS request).
 - `lib/services/site_settings_qr_codec.dart` — QR-shareable key.
 - `lib/services/webview.dart` — `WebViewConfig.backgroundAudioEnabled`, media
-  shim injection, `wsMediaSession` handler.
+  shim injection (+ the BGAUDIO-007 armed line), `wsMediaSession` handler.
 - `lib/services/media_session_shim.dart`, `lib/services/media_session_service.dart`
-  — BGAUDIO-006 page-JS bridge + Dart channel bridge.
+  — BGAUDIO-006 page-JS bridge + Dart channel bridge; BGAUDIO-007 detached-
+  element registry, raise/teardown logging and the visibility check;
+  BGAUDIO-008 per-frame token and media-less-frame silence.
 - `android/app/src/main/kotlin/.../MediaPlaybackService.kt`,
   `.../MediaSessionPlugin.kt`, `MainActivity.kt`, `AndroidManifest.xml` —
-  BGAUDIO-006 foreground media service + permissions.
+  BGAUDIO-006 foreground media service + permissions; BGAUDIO-007
+  `isNotificationActive`.
+- `tool/dump_shim_js.dart` + `test/js_fixtures/media_session/shim.js` — the
+  media-session shim joins the dumped-fixture pipeline so the browser tier
+  runs the exact injected string.
 
 ### Added
 
 - `openspec/specs/background-audio/spec.md` — this document.
 - `integration_test/background_audio_lifecycle_test.dart` (exempt direction),
-  `integration_test/background_audio_freeze_test.dart` (negative control) +
-  `integration_test/fixtures/background_audio.html`.
+  `integration_test/background_audio_freeze_test.dart` (negative control),
+  `integration_test/background_audio_media_notification_test.dart` (BGAUDIO-007
+  notification tier) + `integration_test/fixtures/background_audio.html`.
+- `test/media_session_service_test.dart`,
+  `test/browser/media_session_real_engine.test.js` — BGAUDIO-007 channel and
+  real-engine tiers; `test/browser/media_session_frames.test.js` +
+  `test/browser/helpers/media_session_page.js` — BGAUDIO-008 multi-frame tier.
+  Split by file because node:test applies `--test-timeout` to the file-level
+  test as well as each subtest, and a case that plays real media costs seconds.
 - `scripts/run_android_background_audio_tests.sh` + the Android emulator CI
   wiring in `.github/workflows/build-and-test.yml`.
 

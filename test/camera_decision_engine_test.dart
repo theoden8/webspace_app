@@ -10,6 +10,9 @@ class _Host {
   CameraAccessMode mode;
   VirtualCameraSource? source;
 
+  /// Whether the site is the one on screen (main.dart: `_currentIndex == i`).
+  bool active;
+
   /// What the host UI (`resolve`) will return next.
   CameraDecision Function(String origin, CameraAccessMode current)? onResolve;
 
@@ -20,10 +23,11 @@ class _Host {
   // Lets a test hold the resolve() promise open to exercise coalescing.
   Completer<CameraDecision>? gate;
 
-  _Host({this.mode = CameraAccessMode.ask, this.source});
+  _Host({this.mode = CameraAccessMode.ask, this.source, this.active = true});
 
   Future<CameraDecision> decide(String origin) => engine.decide(
         origin: origin,
+        isSiteActive: () => active,
         effectiveMode: mode,
         currentSource: () => source,
         resolve: (o, current) async {
@@ -130,6 +134,50 @@ void main() {
       expect(host.resolveCalls, 1,
           reason: 'exactly one prompt for the whole burst');
       expect(host.saveCalls, 1);
+    });
+
+    test('a backgrounded site is denied in every mode (CAM-011)', () async {
+      for (final mode in CameraAccessMode.values) {
+        final host = _Host(
+          mode: mode,
+          source: mode == CameraAccessMode.virtual ? _src : null,
+          active: false,
+        );
+        host.onResolve = (_, __) => fail('a background site must not prompt');
+        final d = await host.decide('https://bank.example');
+        expect(d.mode, CameraAccessMode.block, reason: 'stored mode $mode');
+        expect(d.source, isNull);
+        expect(d.toBridgeJson(), {'mode': 'block'});
+        expect(host.resolveCalls, 0);
+        expect(host.saveCalls, 0);
+        expect(host.mode, mode, reason: 'the stored decision is left intact');
+      }
+    });
+
+    test('the site decides normally once it is active again', () async {
+      final host = _Host(mode: CameraAccessMode.ask, active: false);
+      expect((await host.decide('https://bank.example')).mode,
+          CameraAccessMode.block);
+      expect(host.resolveCalls, 0);
+      host.active = true;
+      host.onResolve = (_, __) => const CameraDecision(CameraAccessMode.real);
+      expect((await host.decide('https://bank.example')).mode,
+          CameraAccessMode.real);
+      expect(host.resolveCalls, 1);
+    });
+
+    test('switching away mid-prompt does not retract the answer', () async {
+      final host = _Host(mode: CameraAccessMode.ask);
+      host.gate = Completer<CameraDecision>();
+      final pending = host.decide('https://bank.example');
+      // User answers the popup after the site lost focus.
+      host.active = false;
+      host.gate!.complete(const CameraDecision(CameraAccessMode.real));
+      expect((await pending).mode, CameraAccessMode.real);
+      expect(host.mode, CameraAccessMode.real);
+      // The next request from the now-backgrounded site is still denied.
+      expect((await host.decide('https://bank.example')).mode,
+          CameraAccessMode.block);
     });
 
     test('after a burst settles, the engine can decide again', () async {

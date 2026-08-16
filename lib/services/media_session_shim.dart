@@ -2,9 +2,13 @@
 ///
 /// Injected at DOCUMENT_START (all frames) on sites with `backgroundAudioEnabled`.
 /// It watches every `<audio>`/`<video>` element plus `navigator.mediaSession`
-/// metadata and reports `{playing, title, artist, album, artwork}` to Dart
-/// via the `wsMediaSession` handler, coalesced on a short debounce. Dart uses
-/// that to raise / refresh / tear down the foreground media notification.
+/// metadata and reports `{frame, playing, title, artist, album, artwork}` to
+/// Dart via the `wsMediaSession` handler, coalesced on a short debounce. Dart
+/// uses that to raise / refresh / tear down the foreground media notification.
+///
+/// Every frame of the site runs its own copy and they all share one handler,
+/// so a report carries the frame token that produced it and a frame with no
+/// media of its own stays silent (BGAUDIO-008).
 ///
 /// The reverse direction — a transport control tapped in the notification or
 /// on the lockscreen — arrives as `window.__wsMediaControl(action)` from Dart
@@ -17,8 +21,31 @@ String buildMediaSessionShim() => r'''
   if (window.__wsMediaShim) return;
   window.__wsMediaShim = true;
 
+  // `new Audio(src).play()` never enters the DOM, so querySelectorAll cannot
+  // see it. The play() patch below registers those here; entries are dropped
+  // once they finish (or get attached), and the list is capped so a page that
+  // churns through one-shot elements cannot grow it without bound.
+  var detached = [];
+  var kMaxDetached = 8;
+  function isInDoc(el) {
+    return 'isConnected' in el ? el.isConnected : document.contains(el);
+  }
+  function trackDetached(el) {
+    detached = detached.filter(function(e) {
+      return e !== el && !isInDoc(e) && !e.ended;
+    });
+    if (!isInDoc(el)) detached.push(el);
+    if (detached.length > kMaxDetached) {
+      detached = detached.slice(detached.length - kMaxDetached);
+    }
+  }
   function mediaEls() {
-    return Array.prototype.slice.call(document.querySelectorAll('audio,video'));
+    var els = Array.prototype.slice.call(
+      document.querySelectorAll('audio,video'));
+    for (var i = 0; i < detached.length; i++) {
+      if (els.indexOf(detached[i]) === -1) els.push(detached[i]);
+    }
+    return els;
   }
   function anyPlaying() {
     var els = mediaEls();
@@ -36,8 +63,20 @@ String buildMediaSessionShim() => r'''
     return els[0] || null;
   }
 
+  // Identifies this frame's reports to Dart. Every frame of the site shares
+  // one `wsMediaSession` handler, so without it Dart cannot tell the frame
+  // that is playing from any of the others.
+  var frameId = 'f' + Math.random().toString(36).slice(2) +
+                Date.now().toString(36);
+  var everHadMedia = false;
+
   var lastKey = '';
   function report() {
+    if (mediaEls().length) everHadMedia = true;
+    // An ad / analytics / comments iframe has nothing to say about playback.
+    // Letting it report `playing:false` would flip the site's notification to
+    // paused moments after the main frame raised it.
+    if (!everHadMedia) return;
     var playing = anyPlaying();
     var md = (navigator.mediaSession && navigator.mediaSession.metadata) || null;
     var title = (md && md.title) || document.title || '';
@@ -54,6 +93,7 @@ String buildMediaSessionShim() => r'''
     lastKey = key;
     try {
       window.flutter_inappwebview.callHandler('wsMediaSession', {
+        frame: frameId,
         playing: playing, title: title, artist: artist,
         album: album, artwork: artwork,
       });
@@ -67,7 +107,9 @@ String buildMediaSessionShim() => r'''
   }
 
   function attach(el) {
-    if (!el || el.__wsMediaAttached) return;
+    if (!el) return;
+    trackDetached(el);
+    if (el.__wsMediaAttached) return;
     el.__wsMediaAttached = true;
     ['play', 'playing', 'pause', 'ended', 'loadedmetadata', 'emptied']
       .forEach(function(ev) { el.addEventListener(ev, schedule, true); });

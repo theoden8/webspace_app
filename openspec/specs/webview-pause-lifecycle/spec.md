@@ -81,7 +81,7 @@ calls, so the active site is never left paused.
 
 The system SHALL pause both the active webview and process-global JS timers when the app goes to background, so every loaded webview's JS halts. The per-instance and process-global calls SHALL be bound to a single captured controller so a concurrent `disposeWebView()` cannot strand the global half.
 
-Exempt: the JS pause is skipped entirely when the active site is a notification site, or when ANY loaded site has background audio enabled (BGAUDIO-002 in [background-audio](../background-audio/spec.md) — the pause is process-global on Android, so a backgrounded audio site would be starved by pausing the active one). The decision is made by `AppLifecycleEngine.backgroundPlan` and logged as a non-sensitive `App background: jsPause=<bool> capture=<bool>` line; state capture is never gated on the exemption.
+Exempt: the JS pause is skipped entirely when the active site is a notification site, or when ANY loaded site has background audio enabled (BGAUDIO-002 in [background-audio](../background-audio/spec.md) — the pause is process-global on Android, so a backgrounded audio site would be starved by pausing the active one). The decision is made by `AppLifecycleEngine.backgroundPlan` and logged as a non-sensitive `App background: jsPause=<bool> capture=<bool> bgAudio=<count> loaded` line; state capture is never gated on the exemption.
 
 #### Scenario: App goes to background
 

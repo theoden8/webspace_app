@@ -11,9 +11,24 @@ void main() {
   test('reports playback state to the wsMediaSession handler', () {
     expect(shim, contains("callHandler('wsMediaSession'"));
     // The payload the Dart handler destructures.
-    for (final key in ['playing', 'title', 'artist', 'album', 'artwork']) {
+    for (final key in [
+      'frame',
+      'playing',
+      'title',
+      'artist',
+      'album',
+      'artwork'
+    ]) {
       expect(shim, contains(key), reason: 'payload key "$key" missing');
     }
+  });
+
+  test('mints a per-frame token and silences media-less frames', () {
+    // BGAUDIO-008: injected with forMainFrameOnly:false, so every ad /
+    // analytics iframe of the site runs a copy against the same handler.
+    expect(shim, contains('frameId'));
+    expect(shim, contains('everHadMedia'));
+    expect(shim, contains('if (!everHadMedia) return;'));
   });
 
   test('exposes the Dart->page transport entry point', () {
@@ -30,5 +45,13 @@ void main() {
 
   test('is idempotent (guards against double injection across frames)', () {
     expect(shim, contains('__wsMediaShim'));
+  });
+
+  test('tracks elements that play without entering the DOM', () {
+    // `new Audio(src).play()` never lands in the document, so a scan built
+    // only on querySelectorAll misses it entirely. Behaviour is proven in
+    // test/browser/media_session_real_engine.test.js; this pins the structure.
+    expect(shim, contains('detached'));
+    expect(shim, contains('isConnected'));
   });
 }

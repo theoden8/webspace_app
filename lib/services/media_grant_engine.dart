@@ -17,6 +17,17 @@ class MediaGrantEngine<M, S, D> {
 
   /// Resolve a request for [origin].
   ///
+  /// - [isSiteActive]: whether the requesting site is the one on screen. A
+  ///   backgrounded site is denied outright (CAM-011 / MIC-011): its popup
+  ///   would be read as coming from the site the user is looking at, and a
+  ///   remembered grant would start capture with nothing on screen to
+  ///   attribute it to. Required rather than optional so a new capture
+  ///   feature — or a new call site for an existing one — cannot be wired up
+  ///   without answering it. Only the grant is gated: the non-prompting mode
+  ///   read behind `enumerateDevices` does not come through here, since the
+  ///   shims cache it per document and gating it would strand a site that
+  ///   enumerated while backgrounded.
+  /// - [denied]: the decision handed back for a backgrounded site.
   /// - [effectiveMode]: the site's current mode with archive-tier already
   ///   applied by the caller.
   /// - [settled]: maps a (mode, source) pair to the decision that needs no
@@ -32,6 +43,8 @@ class MediaGrantEngine<M, S, D> {
   /// - [save]: flushes the host's storage (no-op for nested screens).
   Future<D> decide({
     required String origin,
+    required bool Function() isSiteActive,
+    required D Function() denied,
     required M effectiveMode,
     required D? Function(M mode, S? source) settled,
     required S? Function() currentSource,
@@ -40,6 +53,7 @@ class MediaGrantEngine<M, S, D> {
     required D Function(D resolved, S? fallbackSource) finalize,
     required Future<void> Function() save,
   }) async {
+    if (!isSiteActive()) return denied();
     final immediate = settled(effectiveMode, currentSource());
     if (immediate != null) return immediate;
     _inFlight ??= () async {

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:webspace/services/log_service.dart';
 
@@ -31,7 +32,43 @@ class MediaSessionService {
   String? _ownerSiteId;
   Future<void> Function(String js)? _ownerRunJs;
 
-  bool get _enabled => Platform.isAndroid;
+  /// Frame token (from the shim) that last reported playback. The shim runs in
+  /// every frame of the site and they all share one handler, so the site id
+  /// alone cannot tell the playing frame from a sibling iframe (BGAUDIO-008).
+  String? _ownerFrame;
+
+  /// Set once per activation so the "raised but nothing on screen" warning
+  /// (usually a denied `POST_NOTIFICATIONS`) is logged once, not per report.
+  bool _visibilityChecked = false;
+
+  /// Test seam: the Android gate is a compile-time platform check, which a
+  /// host-run unit test cannot satisfy.
+  @visibleForTesting
+  static bool? debugEnabledOverride;
+
+  bool get _enabled => debugEnabledOverride ?? Platform.isAndroid;
+
+  /// Whether the notification is currently raised as far as Dart knows.
+  /// [notificationPosted] is the authority on whether the OS actually shows it.
+  bool get isActive => _active;
+
+  /// How long after raising the notification to ask the OS whether it is
+  /// actually on screen. One second covers `startForegroundService` plus the
+  /// service's first `startForeground`.
+  @visibleForTesting
+  static Duration debugVisibilityCheckDelay = const Duration(seconds: 1);
+
+  /// Return the singleton to its cold state between tests, including the
+  /// `initialize()` latch so the transport handler can be re-bound.
+  @visibleForTesting
+  void debugReset() {
+    _initialized = false;
+    _active = false;
+    _ownerSiteId = null;
+    _ownerRunJs = null;
+    _ownerFrame = null;
+    _visibilityChecked = false;
+  }
 
   void initialize() {
     if (_initialized) return;
@@ -53,8 +90,12 @@ class MediaSessionService {
   }
 
   /// Called from the `wsMediaSession` JS handler for a background-audio site.
+  ///
+  /// [frame] is the reporting frame's token; the shim mints one per frame so a
+  /// sibling iframe cannot speak for the frame that is actually playing.
   Future<void> report({
     required String siteId,
+    required String frame,
     required Future<void> Function(String js) runJs,
     required bool playing,
     required String title,
@@ -65,9 +106,11 @@ class MediaSessionService {
     if (!_enabled) return;
     if (playing) {
       _ownerSiteId = siteId;
+      _ownerFrame = frame;
       _ownerRunJs = runJs;
       final artwork = await _fetchArtwork(artworkUrl);
-      await _invoke(_active ? 'update' : 'start', {
+      final raising = !_active;
+      await _invoke(raising ? 'start' : 'update', {
         'title': title,
         'artist': artist,
         'album': album,
@@ -75,11 +118,19 @@ class MediaSessionService {
         'artwork': artwork,
       });
       _active = true;
+      if (raising) {
+        // Non-sensitive: no site name, URL or track metadata. BGAUDIO-006's
+        // observable — the line the integration test and a user bug report
+        // both read to tell "the service was asked" from "nothing happened".
+        LogService.instance.log('MediaSession', 'Notification raised');
+        unawaited(_verifyVisible());
+      }
     } else {
-      // Only the owner may drive the notification to a paused state; a
-      // background site reporting "not playing" must not clobber the site
-      // the user is actually listening to.
-      if (!_active || _ownerSiteId != siteId) return;
+      // Only the owning frame of the owning site may drive the notification to
+      // a paused state. A background site going quiet must not clobber the one
+      // the user is listening to, and neither must an ad iframe of the very
+      // site that is playing (BGAUDIO-008).
+      if (!_active || _ownerSiteId != siteId || _ownerFrame != frame) return;
       _ownerRunJs = runJs;
       await _invoke('update', {
         'title': title,
@@ -88,6 +139,7 @@ class MediaSessionService {
         'playing': false,
         'artwork': null,
       });
+      LogService.instance.log('MediaSession', 'Playback paused by the page');
     }
   }
 
@@ -105,16 +157,45 @@ class MediaSessionService {
     await _stop();
   }
 
+  /// Whether the OS currently shows the media notification. Distinct from
+  /// [isActive]: the foreground service can be running while the notification
+  /// is suppressed, which is what a denied `POST_NOTIFICATIONS` looks like.
+  Future<bool> notificationPosted() async {
+    if (!_enabled) return false;
+    final result = await _invoke('isNotificationActive', null);
+    return result == true;
+  }
+
+  /// A raised notification the OS never posted is invisible to the user and
+  /// silent in the logs — the exact shape of a denied notification permission.
+  /// Give it a line so a bug report says which of the two happened.
+  Future<void> _verifyVisible() async {
+    if (_visibilityChecked) return;
+    _visibilityChecked = true;
+    await Future<void>.delayed(debugVisibilityCheckDelay);
+    if (!_active) return;
+    if (await notificationPosted()) return;
+    LogService.instance.log(
+      'MediaSession',
+      'Notification raised but not posted by the OS — notification permission '
+          'is likely denied; media controls will not be visible',
+      level: LogLevel.warning,
+    );
+  }
+
   Future<void> _stop() async {
     _active = false;
     _ownerSiteId = null;
     _ownerRunJs = null;
+    _ownerFrame = null;
+    _visibilityChecked = false;
     await _invoke('stop', null);
+    LogService.instance.log('MediaSession', 'Notification torn down');
   }
 
-  Future<void> _invoke(String method, Map<String, Object?>? args) async {
+  Future<Object?> _invoke(String method, Map<String, Object?>? args) async {
     try {
-      await _channel.invokeMethod(method, args);
+      return await _channel.invokeMethod<Object?>(method, args);
     } on PlatformException catch (e) {
       LogService.instance.log(
         'MediaSession',
@@ -124,6 +205,7 @@ class MediaSessionService {
     } on MissingPluginException {
       // Native side not present (older build); harmless.
     }
+    return null;
   }
 
   /// Best-effort artwork fetch: the page's own declared artwork URL, capped and

@@ -2059,6 +2059,11 @@ class WebViewFactory {
         injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
         forMainFrameOnly: false,
       ));
+      // BGAUDIO-007: the first link in the chain. Its absence in an App Logs
+      // export says the site's Background audio toggle is off — the one
+      // failure the downstream MediaSession lines cannot distinguish from a
+      // broken bridge. Non-sensitive: no site name or URL.
+      LogService.instance.log('MediaSession', 'Bridge armed for this site');
     }
 
     // The effective IANA timezone (including the "From picked location"
@@ -3308,6 +3313,7 @@ class WebViewFactory {
               final data = Map<String, dynamic>.from(args[0] as Map);
               await MediaSessionService.instance.report(
                 siteId: config.siteId!,
+                frame: data['frame'] as String? ?? '',
                 runJs: (js) => controller.evaluateJavascript(source: js),
                 playing: data['playing'] as bool? ?? false,
                 title: data['title'] as String? ?? '',

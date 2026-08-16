@@ -205,6 +205,15 @@ String buildMicrophoneStreamShim({String deviceLabel = 'Microphone Array'}) {
   // dropped stream is collectable.
   var _syntheticTracks = new WeakMap();
 
+  // Every track ANY WebSpace capture shim substituted, shared across shims.
+  // The camera shim ends the device tracks it handed out when the site leaves
+  // the screen (CAM-012) and skips substituted ones; a combined audio+video
+  // request returns a stream carrying this shim's audio track through that
+  // shim, so the exemption has to be readable from there. MIC-012 is why the
+  // audio side has no stop of its own: there is no device to release.
+  var _wsSynthetic = globalThis.__wsSyntheticTracks || new WeakSet();
+  globalThis.__wsSyntheticTracks = _wsSynthetic;
+
   // Per spec a device label is only exposed once the page holds a capture
   // permission; flipped the first time this shim serves any stream.
   var _servedStream = false;
@@ -318,6 +327,7 @@ String buildMicrophoneStreamShim({String deviceLabel = 'Microphone Array'}) {
             constraints: (constraints && constraints.audio === true)
               ? {} : ((constraints && constraints.audio) || {}),
           });
+          try { _wsSynthetic.add(track); } catch (e) {}
           // A track that ends must also tear down the graph, else a page that
           // discards the stream without calling stop() leaks an AudioContext
           // (engines cap how many a document may hold) for the document's

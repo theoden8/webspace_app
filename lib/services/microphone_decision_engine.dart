@@ -2,13 +2,19 @@ import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/settings/microphone.dart';
 
 /// Per-site microphone-request resolution, on top of the shared
-/// [MediaGrantEngine] funnel (decide → coalesce → persist).
+/// [MediaGrantEngine] funnel (decide → coalesce → persist), which also
+/// carries the backgrounded-site gate (MIC-011).
 class MicrophoneDecisionEngine {
   final MediaGrantEngine<MicrophoneAccessMode, VirtualMicrophoneSource,
       MicrophoneDecision> _engine = MediaGrantEngine();
 
   /// Resolve a request for [origin].
   ///
+  /// - [isSiteActive]: whether the requesting site is the one on screen. A
+  ///   backgrounded site is denied outright (MIC-011): its popup would be read
+  ///   as coming from the site the user is looking at. There is no device to
+  ///   protect here — the clip is a local file — but the popup's attribution
+  ///   problem is the camera's exactly, so the answer is the camera's too.
   /// - [effectiveMode]: the site's current mode with archive-tier already
   ///   applied by the caller. `block` resolves immediately; `virtual`
   ///   resolves immediately once [currentSource] is non-null.
@@ -23,6 +29,7 @@ class MicrophoneDecisionEngine {
   /// - [save]: flushes the host's storage (no-op for nested screens).
   Future<MicrophoneDecision> decide({
     required String origin,
+    required bool Function() isSiteActive,
     required MicrophoneAccessMode effectiveMode,
     required VirtualMicrophoneSource? Function() currentSource,
     required Future<MicrophoneDecision> Function(
@@ -35,6 +42,8 @@ class MicrophoneDecisionEngine {
   }) =>
       _engine.decide(
         origin: origin,
+        isSiteActive: isSiteActive,
+        denied: () => const MicrophoneDecision.block(),
         effectiveMode: effectiveMode,
         settled: (mode, source) {
           if (mode == MicrophoneAccessMode.block) {

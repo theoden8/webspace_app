@@ -22,10 +22,14 @@ class _Host {
   // Lets a test hold the resolve() promise open to exercise coalescing.
   Completer<MicrophoneDecision>? gate;
 
-  _Host({this.mode = MicrophoneAccessMode.ask, this.source});
+  /// Whether this site is the one on screen (MIC-011).
+  bool active;
+
+  _Host({this.mode = MicrophoneAccessMode.ask, this.source, this.active = true});
 
   Future<MicrophoneDecision> decide(String origin) => engine.decide(
         origin: origin,
+        isSiteActive: () => active,
         effectiveMode: mode,
         currentSource: () => source,
         resolve: (o, current) async {
@@ -123,6 +127,54 @@ void main() {
 
       await host.decide('https://meet.example');
       expect(host.resolveCalls, 2, reason: 'still unresolved, ask again');
+    });
+
+    test('a backgrounded site is denied in every mode (MIC-011)', () async {
+      for (final mode in MicrophoneAccessMode.values) {
+        final host = _Host(
+          mode: mode,
+          source: mode == MicrophoneAccessMode.virtual ? _src : null,
+          active: false,
+        );
+        host.onResolve = (_, _) => fail('a background site must not prompt');
+        final d = await host.decide('https://meet.example');
+        expect(d.mode, MicrophoneAccessMode.block, reason: 'stored mode $mode');
+        expect(d.source, isNull);
+        expect(d.toBridgeJson(), {'mode': 'block'});
+        expect(host.resolveCalls, 0);
+        expect(host.saveCalls, 0);
+        expect(host.mode, mode, reason: 'the stored decision is left intact');
+        expect(host.source, mode == MicrophoneAccessMode.virtual ? _src : isNull,
+            reason: 'the picked clip is left intact');
+      }
+    });
+
+    test('the site decides normally once it is active again', () async {
+      final host = _Host(active: false);
+      expect((await host.decide('https://meet.example')).mode,
+          MicrophoneAccessMode.block);
+      expect(host.resolveCalls, 0);
+      host.active = true;
+      host.onResolve = (_, _) =>
+          const MicrophoneDecision(MicrophoneAccessMode.virtual, _src);
+      expect((await host.decide('https://meet.example')).mode,
+          MicrophoneAccessMode.virtual);
+      expect(host.resolveCalls, 1);
+    });
+
+    test('switching away mid-prompt does not retract the answer', () async {
+      final host = _Host();
+      host.gate = Completer<MicrophoneDecision>();
+      final pending = host.decide('https://meet.example');
+      // User answers the popup after the site lost focus.
+      host.active = false;
+      host.gate!.complete(
+          const MicrophoneDecision(MicrophoneAccessMode.virtual, _src));
+      expect((await pending).mode, MicrophoneAccessMode.virtual);
+      expect(host.mode, MicrophoneAccessMode.virtual);
+      // The next request from the now-backgrounded site is still denied.
+      expect((await host.decide('https://meet.example')).mode,
+          MicrophoneAccessMode.block);
     });
 
     test('a dismissed popup stays ask so the next request prompts again',
