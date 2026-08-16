@@ -2077,7 +2077,7 @@
   "@siteSettingsCameraAccess": {
     "description": "List tile label and hint title for the per-site web camera access setting."
   },
-  "siteSettingsCameraAccessHint": "Controls whether this site may use your camera, for example to scan a QR code in a banking web app.\n\nAsk (default): a popup asks the first time the site requests it, then remembers your choice.\nAlways allow / Always block: skip the popup.",
+  "siteSettingsCameraAccessHint": "Controls whether this site may use your camera, for example to scan a QR code in a banking web app.\n\nAsk (default): a popup asks the first time the site requests it, then remembers your choice.\nAlways allow / Always block: skip the popup.\nSimulated camera: the site is served a media file you pick, and the real camera is never opened.",
   "@siteSettingsCameraAccessHint": {
     "description": "Hint body describing the per-site web camera access setting (getUserMedia video, e.g. scanning a QR code in a banking web app)."
   },
@@ -2093,17 +2093,17 @@
   "@siteSettingsCameraAccessBlock": {
     "description": "Camera access dropdown option: always block."
   },
-  "siteSettingsCameraAccessVirtual": "Image or video",
+  "siteSettingsCameraAccessVirtual": "Simulated camera",
   "@siteSettingsCameraAccessVirtual": {
-    "description": "Camera access dropdown option: serve a picked image or video as the camera instead of the real one"
+    "description": "Camera access dropdown option: serve a picked media file as a simulated camera instead of the real one"
   },
-  "siteSettingsCameraAccessChooseSource": "Choose image or video",
+  "siteSettingsCameraAccessChooseSource": "Choose media file",
   "@siteSettingsCameraAccessChooseSource": {
-    "description": "Button in per-site settings to pick the image or video used as the virtual camera"
+    "description": "Button in per-site settings to pick the media file the simulated camera plays"
   },
   "siteSettingsCameraAccessNoSource": "No file chosen",
   "@siteSettingsCameraAccessNoSource": {
-    "description": "Placeholder shown in per-site settings when no virtual-camera file has been chosen yet"
+    "description": "Placeholder shown in per-site settings when no simulated-camera media file has been chosen yet"
   },
   "siteSettingsGeolocation": "Geolocation",
   "@siteSettingsGeolocation": {
@@ -2806,17 +2806,17 @@
       }
     }
   },
-  "homeCameraUseFileAction": "Use image or video",
+  "homeCameraUseFileAction": "Use a media file",
   "@homeCameraUseFileAction": {
-    "description": "Button in the camera permission dialog to serve a picked image or video to the site instead of the real camera"
+    "description": "Button in the camera permission dialog to serve a picked media file to the site as a simulated camera instead of the real one"
   },
   "homeCameraSourceError": "Could not use that file. Choose an image or video.",
   "@homeCameraSourceError": {
-    "description": "Error shown when the picked virtual-camera file can't be used (wrong type or unreadable)"
+    "description": "Error shown when the picked simulated-camera media file can't be used (wrong type or unreadable)"
   },
   "homeCameraSourceTooLarge": "That file is too large. Choose one under 24 MB.",
   "@homeCameraSourceTooLarge": {
-    "description": "Error shown when the picked virtual-camera file exceeds the size limit (24 MB)"
+    "description": "Error shown when the picked simulated-camera media file exceeds the size limit (24 MB)"
   },
   "homeExitFullscreenHint": "Tap the top of the screen to exit full screen",
   "@homeExitFullscreenHint": {

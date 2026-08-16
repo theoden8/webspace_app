@@ -316,6 +316,11 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
             ? null
             : (origin) => _cameraEngine.decide(
                   origin: origin,
+                  // A nested screen is the visible webview for as long as it
+                  // is mounted; a route pushed above it (including the camera
+                  // popup itself) must not read as backgrounded, or a burst
+                  // would stop coalescing onto that one popup.
+                  isSiteActive: () => mounted,
                   effectiveMode: _cameraMode,
                   currentSource: () => _cameraSource,
                   resolve: widget.onCameraDecision!,

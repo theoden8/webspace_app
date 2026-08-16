@@ -243,6 +243,53 @@
   // dropped stream is collectable.
   var _syntheticTracks = new WeakMap();
 
+  // Device tracks this shim has handed to the page, so a later deactivation
+  // can end them (CAM-012). WeakRef where available, so a page that churns
+  // streams doesn't pin dead tracks for the document's lifetime.
+  var _realTracks = [];
+  function trackRef(t) {
+    return typeof WeakRef === 'function'
+      ? new WeakRef(t)
+      : { deref: function() { return t; } };
+  }
+  function rememberRealTracks(stream) {
+    try {
+      var tracks = (stream && stream.getTracks) ? stream.getTracks() : [];
+      for (var i = 0; i < tracks.length; i++) _realTracks.push(trackRef(tracks[i]));
+    } catch (e) {}
+    return stream;
+  }
+
+  // Ends every device track this shim handed out. Dart calls it when the site
+  // stops being the one on screen: a camera must not keep capturing behind
+  // another site's page, and the page cannot silently re-acquire one because
+  // the bridge denies a backgrounded request (CAM-011).
+  //
+  // Synthetic tracks are deliberately left running. They are a local file
+  // drawn onto a canvas — nothing is being observed — and killing them would
+  // drop a half-finished scan the user comes back to.
+  try {
+    Object.defineProperty(globalThis, '__wsStopRealCapture', {
+      value: function stopRealCapture() {
+        var stopped = 0;
+        var live = [];
+        for (var i = 0; i < _realTracks.length; i++) {
+          var t = _realTracks[i].deref();
+          if (!t) continue;
+          if (_syntheticTracks.has(t)) { live.push(_realTracks[i]); continue; }
+          try {
+            if (t.readyState !== 'ended') { t.stop(); stopped++; }
+          } catch (e) {}
+        }
+        _realTracks = live;
+        return stopped;
+      },
+      writable: true,
+      enumerable: false,
+      configurable: true,
+    });
+  } catch (e) {}
+
   // Per spec a device label is only exposed once the page holds a capture
   // permission; flipped the first time this shim serves any stream.
   var _servedStream = false;
@@ -382,7 +429,11 @@
     // the microphone.
     if (!wantsVideo(constraints) || wantsAudio(constraints)) {
       var passthrough = callOrigGum(self, constraints);
-      return passthrough || Promise.reject(notAllowed('getUserMedia is unavailable'));
+      if (!passthrough) return Promise.reject(notAllowed('getUserMedia is unavailable'));
+      // Same call, same constraints, same stream — the tracks are only
+      // recorded, so a deactivation can end a capture the platform granted
+      // on its own prompt (CAM-012).
+      return Promise.resolve(passthrough).then(rememberRealTracks);
     }
     return fetchDecision().then(function(decision) {
       if (decision.mode === 'virtual') {
@@ -396,7 +447,7 @@
         if (!real) return Promise.reject(notAllowed('getUserMedia is unavailable'));
         return Promise.resolve(real).then(function(s) {
           _servedStream = true;
-          return s;
+          return rememberRealTracks(s);
         });
       }
       throw notAllowed('Permission denied');
@@ -428,7 +479,7 @@
   // In ASK mode on a device with NO real camera, publish the synthetic one
   // too: otherwise a scanner page that enumerates first concludes there is no
   // camera and never calls getUserMedia, so the user is never offered the
-  // "use image or video" popup at all.
+  // "use a media file" popup at all.
   //
   // In REAL / BLOCK mode (and ASK where a real camera exists): pass the
   // platform list through untouched. Masking there would break the common

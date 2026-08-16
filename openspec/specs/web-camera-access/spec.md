@@ -13,8 +13,9 @@ already lives on the device (a screenshot, a saved photo) or the user
 does not want to expose their surroundings:
 
 - **Real** — the device camera is handed to the page.
-- **Virtual** — the page is served a `MediaStream` rendered from a
-  user-picked image or looped video instead of the device camera. The
+- **Virtual** (**Simulated camera** in the UI; `virtual` on the model) —
+  the page is served a `MediaStream` rendered from a user-picked media
+  file, a still image or a looped video, instead of the device camera. The
   real camera is never opened and no OS camera permission is involved.
   This is the in-browser equivalent of a virtual-camera utility (OBS
   Virtual Camera / ManyCam) scoped to one site: the browser provides the
@@ -25,7 +26,7 @@ does not want to expose their surroundings:
 
 Camera access is user intent, not configuration: the decision is
 `WebViewModel.cameraMode` (`ask` / `real` / `virtual` / `block`),
-collected by a Block / Use-image-or-video / Allow popup on first request
+collected by a Block / Use-a-media-file / Allow popup on first request
 and adjustable later from per-site settings.
 
 ## Status
@@ -42,7 +43,7 @@ The webview SHALL resolve a camera-only web permission request (the
 platform reports exactly one resource, `CAMERA`) from the site's
 `cameraMode`: `real` opens the device camera, `virtual` serves the
 picked source (CAM-008), `block` denies, and `ask` shows a Block /
-Use-image-or-video / Allow popup naming the requesting origin and records
+Use-a-media-file / Allow popup naming the requesting origin and records
 the answer. The stored decision is migrated from the legacy boolean
 `cameraAllowed` (`true` -> `real`, `false` -> `block`, absent -> `ask`).
 
@@ -50,7 +51,7 @@ the answer. The stored decision is migrated from the legacy boolean
 
 **Given** a site with `cameraMode == ask`
 **When** the page calls `getUserMedia({video: true})`
-**Then** a Block / Use-image-or-video / Allow popup names the requesting origin
+**Then** a Block / Use-a-media-file / Allow popup names the requesting origin
 **And** the chosen mode is stored on the model and persisted via the host's save function
 **And** subsequent requests resolve silently from the stored mode
 
@@ -64,7 +65,7 @@ the answer. The stored decision is migrated from the legacy boolean
 ### Requirement: CAM-002 — Settings control
 
 Per-site settings SHALL expose the decision as a four-way control (Ask /
-Allow / Image or video / Block). Selecting Image or video SHALL prompt
+Allow / Simulated camera / Block). Selecting Simulated camera SHALL prompt
 for the source file and, once one is picked, SHALL preview it at the same
 4:3 cover-fit framing the site receives (a still image drawn cover-fit; a
 video muted, looped, and autoplaying) so the user can confirm the clip
@@ -81,7 +82,7 @@ byte-identical JSON).
 
 #### Scenario: Picked source is previewed
 
-**Given** a site set to Image or video with a picked source
+**Given** a site set to Simulated camera with a picked source
 **When** the per-site settings screen shows the camera row
 **Then** the source is previewed at 4:3 cover-fit
 **And** a video preview loops muted without a tap
@@ -162,7 +163,7 @@ configuration.
 **When** the user shares the site's settings QR
 **Then** the payload contains neither `cameraMode` nor `virtualCameraSource`
 
-### Requirement: CAM-008 — Virtual camera from a picked image or video
+### Requirement: CAM-008 — Simulated camera from a picked media file
 
 In `virtual` mode the webview SHALL serve a synthetic camera. A
 DOCUMENT_START JavaScript shim (injected with `forMainFrameOnly: false`)
@@ -215,7 +216,7 @@ the request MUST be denied and the picker re-offered.
 **Given** a site in `ask` mode on a device with no real camera
 **When** the page calls `enumerateDevices()`
 **Then** one synthetic `videoinput` is reported so the page still calls
-`getUserMedia` and the user is offered the "use image or video" popup
+`getUserMedia` and the user is offered the "use a media file" popup
 **And** if the user then answers Allow, the synthetic `deviceId` is stripped
 from the constraints before the real camera is opened
 
@@ -251,10 +252,17 @@ a frame onto a canvas
 #### Scenario: A video source plays and loops on-device
 
 **Given** a site in `virtual` mode whose source is a short two-colour clip
-**When** a page on the emulator samples the stream for several seconds
+**When** a page on the emulator samples the stream until the colour changes
 **Then** both of the clip's colours are observed
 **And** the colour keeps changing past the clip's duration, proving it loops
 rather than freezing on the first decoded frame
+
+The probe waits for that change rather than sampling a fixed window: the
+emulator's software decoder runs the clip several times slower than real time
+and at a rate that varies per runner, so a fixed window turns a correctly
+playing stream into a red build (the same 4s window produced 8, 2 and 0
+transitions across runs). It samples until the first transition or 30s, so a
+stalled decoder still fails and a healthy one exits in about a second.
 
 #### Scenario: Blocked site is denied on-device
 
@@ -275,6 +283,91 @@ a `getUserMedia` call under headless swiftshader, so the workflow does not
 enable it and the real-camera path stays a manual / on-device check. The
 probe therefore caps `getUserMedia` itself, so a hung open reports a
 classifiable `TimeoutError` instead of stalling the run.
+
+### Requirement: CAM-011 — Backgrounded sites deny silently
+
+A camera request from a site that is not the active one SHALL be denied
+without prompting, whatever its stored `cameraMode`, and SHALL leave the
+stored mode and picked source untouched. Loaded-but-inactive sites keep
+running JS (pause is not a security boundary, see
+[webview-pause-lifecycle](../webview-pause-lifecycle/spec.md)), so without
+this a background site can pop a permission dialog the user reads as
+belonging to the site on screen, or — with a remembered `real`/`virtual`
+grant — start capture with nothing on screen to attribute it to. The gate
+lives in `CameraDecisionEngine.decide` as a required `isSiteActive`
+predicate, so a new call site cannot be wired up without answering it.
+
+Only the grant is gated. The non-prompting `webCameraMode` read behind
+`enumerateDevices` is not: the shim caches it for the document's lifetime,
+so denying it once would leave a site enumerating no camera long after it
+came back to the foreground, and enumeration grants nothing on its own.
+
+An answer given to a popup that was raised while the site was active still
+applies when it settles after the switch — the user answered it — but the
+next request from the now-backgrounded site is denied like any other.
+
+#### Scenario: Background site with a remembered grant
+
+**Given** a loaded site with `cameraMode == real` (or `virtual` with a source)
+**And** the user is looking at a different site
+**When** a page in the background site calls `getUserMedia({video: true})`
+**Then** the bridge answers `block` and the request is rejected
+**And** no camera is opened and the site's stored mode is unchanged
+
+#### Scenario: Background site cannot raise the popup
+
+**Given** a loaded site with `cameraMode == ask`
+**And** the user is looking at a different site
+**When** a page in the background site requests the camera
+**Then** no popup and no file picker are shown
+**And** the request is denied
+**And** the site prompts as usual once the user switches back to it
+
+### Requirement: CAM-012 — Deactivation ends device capture
+
+When a site stops being the one on screen, any capture it holds from the
+**device** camera SHALL end. The **simulated** camera SHALL keep streaming:
+it is a user-picked local file drawn onto a canvas, so nothing is being
+observed, and ending it would drop a half-finished scan the user comes back
+to. CAM-011 already denies a backgrounded site a fresh grant, so together the
+two mean a site that is not on screen cannot be capturing from the camera.
+
+Pausing is not what achieves this — a paused webview keeps media pipelines
+alive by design ([webview-pause-lifecycle](../webview-pause-lifecycle/spec.md)).
+The stop is an explicit `__wsStopRealCapture()` call into the page, which ends
+every track the shim handed over from a `real` grant or passed through from a
+platform-granted `getUserMedia` (the camera+microphone case of CAM-004), and
+skips tracks it created itself.
+
+Two ordering properties hold at every call site, both gated structurally by
+`test/js/camera_capture_stop_funnel.test.js`:
+
+- the stop is posted **before** `pauseWebView()`, because the iOS
+  per-instance pause blocks the page's JS thread, so JS posted after it would
+  not run until the site is resumed;
+- it is **not** folded into `pauseWebView()`, which early-returns for
+  notification and background-audio sites — exactly the sites whose JS keeps
+  running while backgrounded.
+
+#### Scenario: Switching away ends the camera
+
+**Given** a site in `real` mode holding a live camera track
+**When** the user switches to another site
+**Then** the track ends (`readyState == 'ended'`, an `ended` event fires)
+**And** the site cannot re-acquire one while it is off screen (CAM-011)
+
+#### Scenario: The simulated camera survives a switch
+
+**Given** a site in `virtual` mode serving its picked media file
+**When** the user switches away and back
+**Then** the synthetic track is still live
+**And** its frames still carry the picked source
+
+#### Scenario: Exempt-from-pause sites are not exempt from this
+
+**Given** a backgrounded site with `notificationsEnabled` or background audio
+**When** it stops being the site on screen
+**Then** its device capture ends even though `pauseWebView()` skips it
 
 ### Requirement: CAM-009 — Fail closed without the bridge
 
