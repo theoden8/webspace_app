@@ -34,6 +34,9 @@ class MediaSessionPlugin(
                     MediaPlaybackService.stop(context)
                     result.success(null)
                 }
+                "isNotificationActive" -> {
+                    result.success(MediaPlaybackService.isNotificationActive(context))
+                }
                 else -> result.notImplemented()
             }
         }

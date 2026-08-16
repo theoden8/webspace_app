@@ -1,5 +1,5 @@
 /// In-memory mirror of [background_audio.html] for the loopback server in
-/// `background_audio_lifecycle_test.dart`. The integration test app cannot
+/// the background-audio integration tests. The integration test app cannot
 /// read repo files at runtime (macOS CI: sandbox/entitlements deny with
 /// EPERM), so the served bytes live here; the .html stays the authoritative,
 /// browser-openable fixture. Byte-equality is enforced by
@@ -17,47 +17,95 @@ const String backgroundAudioFixtureHtml = '''
 <script>
 // Liveness beacon: while this page's JS timers run, the loopback test
 // server receives a /beacon request every 250 ms carrying a monotonously
-// increasing tick count and the audio element's currentTime. The
+// increasing tick count and the media element's currentTime. The
 // integration test observes liveness purely from the server side, so it
 // needs no bridge into the app's widget tree. When the engine freezes JS
 // timers (app-lifecycle pause), the beacons stop — that silence is the
 // observable.
+//
+// ?media= picks what, if anything, the page plays. The element is always
+// built in JS so a static tag can't touch the media stack at parse time.
+//
+//   none   (default) no media at all. WPE WebKit in the headless CI
+//          container (GStreamer base only, no plugin sets, no audio sink)
+//          crashes its web process initializing the media pipeline, which
+//          crash-loops the renderer before the first beacon. The lifecycle
+//          and freeze tests assert JS-timer liveness — the thing the pause
+//          machinery actually freezes — so they need no media.
+//   audio  a looping silent WAV. The honest background-audio case; needs a
+//          working audio output path.
+//   stream a muted <video> fed by a canvas captureStream. Same media
+//          element surface the BGAUDIO-006 shim watches
+//          (querySelectorAll('audio,video')) and the same playing/currentTime
+//          predicate, but no audio device is involved — which is what the CI
+//          emulator has (it boots with -noaudio).
 window.__ticks = 0;
+window.__mediaMode = new URLSearchParams(location.search).get('media') || 'none';
 window.__audioPlayState = 'unattempted';
-// Media is opt-out via ?noMedia=1, and the element is built in JS so a
-// static <audio> tag can't touch the media stack at parse time: WPE WebKit
-// in the headless CI container (GStreamer base only, no plugin sets, no
-// audio sink) crashes its web process initializing the media pipeline,
-// which crash-loops the renderer before the first beacon. The CI lifecycle
-// test loads ?noMedia=1 and asserts JS-timer liveness — the thing the
-// pause machinery actually freezes; open the fixture without the param to
-// exercise real audio playback on a capable engine.
-var audio = null;
-if (new URLSearchParams(location.search).get('noMedia') === null) {
+var media = null;
+if (window.__mediaMode === 'audio') {
   try {
-    audio = document.createElement('audio');
-    audio.loop = true;
-    audio.src =
+    media = document.createElement('audio');
+    media.loop = true;
+    media.src =
       'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=';
-    document.body.appendChild(audio);
-    // Autoplay may be blocked (policy) or unavailable; the beacon carries
-    // the outcome so observers know which assertions are meaningful.
-    audio.play().then(function () {
-      window.__audioPlayState = 'playing';
-    }).catch(function (e) {
-      window.__audioPlayState = 'blocked:' + (e && e.name ? e.name : 'unknown');
-    });
+    document.body.appendChild(media);
+    startPlayback();
+  } catch (e) {
+    window.__audioPlayState = 'threw:' + (e && e.name ? e.name : 'unknown');
+  }
+} else if (window.__mediaMode === 'stream') {
+  try {
+    var canvas = document.createElement('canvas');
+    canvas.width = 64;
+    canvas.height = 64;
+    var ctx = canvas.getContext('2d');
+    var frame = 0;
+    // Keep painting so the captured track stays live; this rides the same
+    // JS timers the beacon does.
+    setInterval(function () {
+      frame = (frame + 8) % 256;
+      ctx.fillStyle = 'rgb(' + frame + ',80,160)';
+      ctx.fillRect(0, 0, 64, 64);
+    }, 100);
+    media = document.createElement('video');
+    media.muted = true;
+    media.playsInline = true;
+    media.srcObject = canvas.captureStream(10);
+    document.body.appendChild(media);
+    startPlayback();
   } catch (e) {
     window.__audioPlayState = 'threw:' + (e && e.name ? e.name : 'unknown');
   }
 } else {
   window.__audioPlayState = 'skipped';
 }
+function startPlayback() {
+  // Autoplay may be blocked (policy) or unavailable; the beacon carries the
+  // outcome so observers know which assertions are meaningful.
+  media.play().then(function () {
+    window.__audioPlayState = 'playing';
+  }).catch(function (e) {
+    window.__audioPlayState = 'blocked:' + (e && e.name ? e.name : 'unknown');
+  });
+}
+// BGAUDIO-006: the media notification carries whatever the page declares, so
+// declare something recognisable for the emulator tier to assert on.
+if (media && navigator.mediaSession && window.MediaMetadata) {
+  try {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: 'Fixture Track',
+      artist: 'Fixture Artist',
+      album: 'Fixture Album',
+    });
+  } catch (e) {}
+}
 setInterval(function () {
   window.__ticks++;
   var q = '/beacon?ticks=' + window.__ticks +
       '&audio=' + encodeURIComponent(window.__audioPlayState) +
-      '&t=' + ((audio && audio.currentTime) || 0);
+      '&t=' + ((media && media.currentTime) || 0) +
+      '&paused=' + (media ? media.paused : 'na');
   try { fetch(q, { cache: 'no-store' }); } catch (e) {}
 }, 250);
 </script>

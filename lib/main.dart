@@ -1608,10 +1608,20 @@ class _WebSpacePageState extends State<WebSpacePage>
       // Non-sensitive decision line (no site name/URL): lets a user report
       // — and the CI lifecycle test assert — whether the background froze
       // JS or a notification/background-audio exemption kept it running.
+      // `bgAudio` is the input to that decision (BGAUDIO-002): without it a
+      // jsPause=true line reads as a bug when it is really the site's
+      // Background audio toggle being off.
+      final loadedBgAudio = _loadedIndices
+          .where((i) =>
+              i >= 0 &&
+              i < _webViewModels.length &&
+              _webViewModels[i].effectiveBackgroundAudioEnabled)
+          .length;
       LogService.instance.log(
         'Lifecycle',
         'App background: jsPause=${pausePlan.jsPauseIndex != null} '
-            'capture=${pausePlan.captureStateIndex != null}',
+            'capture=${pausePlan.captureStateIndex != null} '
+            'bgAudio=$loadedBgAudio loaded',
       );
       // Backgrounding is the last moment we control before the OS may kill
       // the process, and Chromium commits cookies to disk lazily. Unawaited:

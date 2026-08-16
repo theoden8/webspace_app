@@ -1,22 +1,3 @@
-/// Media-session bridge shim (BGAUDIO-006, Android only).
-///
-/// Injected at DOCUMENT_START (all frames) on sites with `backgroundAudioEnabled`.
-/// It watches every `<audio>`/`<video>` element plus `navigator.mediaSession`
-/// metadata and reports `{frame, playing, title, artist, album, artwork}` to
-/// Dart via the `wsMediaSession` handler, coalesced on a short debounce. Dart
-/// uses that to raise / refresh / tear down the foreground media notification.
-///
-/// Every frame of the site runs its own copy and they all share one handler,
-/// so a report carries the frame token that produced it and a frame with no
-/// media of its own stays silent (BGAUDIO-008).
-///
-/// The reverse direction — a transport control tapped in the notification or
-/// on the lockscreen — arrives as `window.__wsMediaControl(action)` from Dart
-/// and is applied to the primary media element (which fires the same
-/// play/pause events the site itself listens to).
-///
-/// Pure Dart (no Flutter imports) so the string is reachable from tests.
-String buildMediaSessionShim() => r'''
 (function() {
   if (window.__wsMediaShim) return;
   window.__wsMediaShim = true;
@@ -157,4 +138,3 @@ String buildMediaSessionShim() => r'''
   // and metadata set after the first report.
   setInterval(schedule, 3000);
 })();
-''';

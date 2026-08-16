@@ -88,12 +88,13 @@ void main() {
     isDemoMode = true;
     final audioSite = WebViewModel(
       siteId: 'bg-audio',
-      // ?noMedia=1: the fixture skips creating its <audio> element. WPE in
-      // the headless CI container (GStreamer base only, no plugin sets or
-      // audio sink) crash-loops the web process on media-pipeline init, and
-      // this test's claim is JS-timer liveness — the thing the pause
-      // machinery actually freezes — not audio decoding.
-      initUrl: 'http://127.0.0.1:$port/?noMedia=1',
+      // ?media=none: the fixture creates no media element. WPE in the
+      // headless CI container (GStreamer base only, no plugin sets or audio
+      // sink) crash-loops the web process on media-pipeline init, and this
+      // test's claim is JS-timer liveness — the thing the pause machinery
+      // actually freezes — not audio decoding. The media notification is
+      // covered by background_audio_media_notification_test.dart.
+      initUrl: 'http://127.0.0.1:$port/?media=none',
       name: 'BG Audio',
       backgroundAudioEnabled: true,
     );

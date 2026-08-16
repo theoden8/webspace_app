@@ -269,6 +269,13 @@ beacon_hits() {
   grep -c 'GET /beacon' "$server_log" || true
 }
 
+# The worker only dispatches `onBackgroundRefresh` when the Flutter engine is
+# reachable, so an OS eviction of the backgrounded process looks exactly like a
+# broken dispatch leg from the outside. The pid separates them.
+app_pid() {
+  adb shell pidof "$pkg" 2>/dev/null | tr -d '\r\n' || true
+}
+
 dump_bg_diagnostics() { # $1 = slug
   adb shell dumpsys jobscheduler 2>/dev/null | grep -B2 -A12 "$pkg" \
     > "$artifacts/fail-$1.jobscheduler.txt" || true
@@ -304,6 +311,8 @@ echo "  notification identities after foreground load: $(printf '%s\n' "$baselin
 baseline_beacons="$(beacon_hits)"
 adb shell input keyevent 3
 sleep 3
+baseline_pid="$(app_pid)"
+echo "  app pid while backgrounded: ${baseline_pid:-none}"
 
 # NOTIF-005-A schedules unique periodic work (webspace-notification-refresh)
 # whenever a notification site exists; WorkManager backs it with a
@@ -330,11 +339,17 @@ while :; do
   fi
   if [ "$(date +%s)" -ge "$deadline" ]; then
     now_beacons="$(beacon_hits)"
+    now_pid="$(app_pid)"
     echo "FAIL: no new notification within 90s of forcing the refresh job" >&2
     echo "  notification identities unchanged (page loads: $baseline_beacons -> $now_beacons)" >&2
     if [ "$now_beacons" -gt "$baseline_beacons" ]; then
       echo "  the site DID reload in the background — the break is downstream," \
            "in the polyfill -> NotificationService -> flutter_local_notifications leg" >&2
+    elif [ -z "$now_pid" ] || [ "$now_pid" != "$baseline_pid" ]; then
+      echo "  the app process is GONE (pid ${baseline_pid:-none} -> ${now_pid:-none}) —" \
+           "the OS reclaimed it while backgrounded, so the worker had no engine to" \
+           "dispatch to. NOTIF-005-A accepts that; this is emulator memory pressure," \
+           "not the dispatch leg." >&2
     else
       echo "  the site did NOT reload — the break is upstream," \
            "in the worker -> engine dispatch -> onBackgroundRefresh leg" >&2

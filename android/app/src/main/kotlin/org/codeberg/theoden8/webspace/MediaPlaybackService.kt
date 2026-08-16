@@ -248,6 +248,24 @@ class MediaPlaybackService : Service() {
             mainHandler.post { instance?.stopPlayback() }
         }
 
+        /**
+         * Whether the OS currently shows our media notification. Asks the
+         * NotificationManager rather than trusting [startedForeground]: a
+         * denied POST_NOTIFICATIONS leaves the foreground service running with
+         * nothing on screen, which is indistinguishable from success on the
+         * Dart side. BGAUDIO-006's end-to-end observable.
+         */
+        fun isNotificationActive(context: Context): Boolean {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return false
+            val mgr = context.getSystemService(NotificationManager::class.java)
+                ?: return false
+            return try {
+                mgr.activeNotifications.any { it.id == NOTIFICATION_ID }
+            } catch (e: Exception) {
+                false
+            }
+        }
+
         private fun ensureChannel(context: Context) {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
             val mgr = context.getSystemService(NotificationManager::class.java)

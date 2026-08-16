@@ -29,6 +29,7 @@ import 'package:webspace/services/do_not_track_shim.dart';
 import 'package:webspace/services/language_shim.dart';
 import 'package:webspace/services/target_blank_rewrite.dart';
 import 'package:webspace/services/location_spoof_service.dart';
+import 'package:webspace/services/media_session_shim.dart';
 import 'package:webspace/services/theme_color_scheme_shim.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
 import 'package:webspace/services/user_agent_identity_shim.dart';
@@ -176,6 +177,8 @@ Map<String, String> buildAllFixtures() {
   fixtures['language/ja.js'] = buildLanguageShim('ja');
 
   fixtures['camera_stream/shim.js'] = buildCameraStreamShim();
+
+  fixtures['media_session/shim.js'] = buildMediaSessionShim();
 
   // Engine-consistent navigator identity, one fixture per engine × form
   // factor: Gecko mobile (Firefox-Android — vendor "", oscpu/buildID set,
