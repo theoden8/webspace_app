@@ -80,6 +80,14 @@ Android flavors: `fdroid` (CI), `fmain` (Play), `fdebug`.
 
 Dart in `test/`, integration in `integration_test/` (screenshots).
 
+## Design gallery (`tool/design_gallery/`)
+
+`web/` exists only so real widgets can be rendered in a browser and
+screenshotted for design review; the app is not shipped for web and the
+WebView does not run there. Entrypoint: [lib/design_gallery/main.dart](lib/design_gallery/main.dart),
+driver: `npm run design:cards`. Full workflow and constraints (canvas output,
+local fonts, which widgets are web-clean): [tool/design_gallery/README.md](tool/design_gallery/README.md).
+
 ## Recurring bugs (`docs/bugs/`)
 
 A **recurring bug** is one whose symptom was fixed before and resurfaced through a

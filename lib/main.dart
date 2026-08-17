@@ -21,6 +21,7 @@ import 'package:html/dom.dart' as html_dom;
 
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
+import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/screens/add_site.dart' show AddSiteScreen, UnifiedFaviconImage, FaviconUrlCache, SiteSuggestion;
 import 'package:webspace/screens/settings.dart';
@@ -237,66 +238,25 @@ AppThemeSettings _legacyAppThemeToSettings(AppTheme appTheme) {
   }
 }
 
-// Accent colors
-const Color _accentBlue = Color(0xFF6B8DD6);
-const Color _accentGreen = Color(0xFF7be592);
-const Color _accentPurple = Color(0xFF9B7BD6);
-const Color _accentOrange = Color(0xFFE59B5B);
-const Color _accentRed = Color(0xFFD66B6B);
-const Color _accentPink = Color(0xFFD66BA8);
-const Color _accentTeal = Color(0xFF5BC4C4);
-const Color _accentYellow = Color(0xFFD6C86B);
-
 // Get accent color from AccentColor enum
-/// Build a ColorScheme that preserves the full saturation of [accent].
-/// Uses fromSeed only for neutral surface/background colors, then overrides
-/// all accent-derived roles so nothing gets desaturated by Material 3's HCT.
-ColorScheme _buildAccentColorScheme(Color accent, Brightness brightness) {
-  final bool isLight = brightness == Brightness.light;
-  final hsl = HSLColor.fromColor(accent);
-
-  // Container: a tinted but lighter/darker version of the accent
-  final primaryContainer = isLight
-      ? hsl.withLightness((hsl.lightness * 0.3 + 0.7).clamp(0.80, 0.92)).withSaturation((hsl.saturation * 0.8).clamp(0.0, 1.0)).toColor()
-      : hsl.withLightness((hsl.lightness * 0.35).clamp(0.12, 0.25)).withSaturation((hsl.saturation * 0.8).clamp(0.0, 1.0)).toColor();
-
-  final onPrimaryContainer = isLight
-      ? hsl.withLightness(0.15).toColor()
-      : hsl.withLightness(0.90).toColor();
-
-  // Use fromSeed as base for surface/neutral colors only
-  final base = ColorScheme.fromSeed(seedColor: accent, brightness: brightness);
-
-  return base.copyWith(
-    primary: accent,
-    onPrimary: isLight ? Colors.white : Colors.black,
-    primaryContainer: primaryContainer,
-    onPrimaryContainer: onPrimaryContainer,
-    secondary: accent,
-    onSecondary: isLight ? Colors.white : Colors.black,
-    secondaryContainer: primaryContainer,
-    onSecondaryContainer: onPrimaryContainer,
-  );
-}
-
 Color _accentColorToColor(AccentColor accentColor) {
   switch (accentColor) {
     case AccentColor.blue:
-      return _accentBlue;
+      return accentBlue;
     case AccentColor.green:
-      return _accentGreen;
+      return accentGreen;
     case AccentColor.purple:
-      return _accentPurple;
+      return accentPurple;
     case AccentColor.orange:
-      return _accentOrange;
+      return accentOrange;
     case AccentColor.red:
-      return _accentRed;
+      return accentRed;
     case AccentColor.pink:
-      return _accentPink;
+      return accentPink;
     case AccentColor.teal:
-      return _accentTeal;
+      return accentTeal;
     case AccentColor.yellow:
-      return _accentYellow;
+      return accentYellow;
   }
 }
 
@@ -895,11 +855,11 @@ class _WebSpaceAppState extends State<WebSpaceApp> {
       localeListResolutionCallback: resolveSupportedLocale,
       scaffoldMessengerKey: rootScaffoldMessengerKey,
       theme: ThemeData(
-        colorScheme: _buildAccentColorScheme(accentColor, Brightness.light),
+        colorScheme: buildAccentColorScheme(accentColor, Brightness.light),
         scaffoldBackgroundColor: Color(0xFFFFFFFF),
       ),
       darkTheme: ThemeData(
-        colorScheme: _buildAccentColorScheme(accentColor, Brightness.dark),
+        colorScheme: buildAccentColorScheme(accentColor, Brightness.dark),
         scaffoldBackgroundColor: Color(0xFF000000),
       ),
       themeMode: _themeSettings.themeMode,

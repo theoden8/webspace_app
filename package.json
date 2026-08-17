@@ -5,9 +5,12 @@
   "scripts": {
     "test:js": "node --test --test-reporter=spec 'test/js/**/*.test.js'",
     "test:browser": "node --test --test-reporter=spec --test-timeout=90000 'test/browser/**/*.test.js'",
-    "bench:js": "node test/js/perf/blocking.bench.js"
+    "bench:js": "node test/js/perf/blocking.bench.js",
+    "design:fonts": "node tool/design_gallery/sync_fonts.js",
+    "design:cards": "node tool/design_gallery/shoot.js"
   },
   "devDependencies": {
+    "@expo-google-fonts/roboto": "^0.4.3",
     "@fingerprintjs/fingerprintjs": "^5.2.0",
     "@fission-ai/openspec": "^1.9.0",
     "cld3-asm": "^4.0.0",
