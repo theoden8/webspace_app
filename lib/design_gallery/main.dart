@@ -14,6 +14,7 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/theme/accent_theme.dart';
+import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/hint_button.dart';
 import 'package:webspace/widgets/tab_bar_corner_button.dart';
 import 'package:webspace/screens/trusted_certificates.dart';
@@ -267,7 +268,7 @@ class _RadiusScaleCard extends StatelessWidget {
       spacing: 12,
       runSpacing: 12,
       children: [
-        for (final r in [2.0, 4.0, 6.0, 8.0, 12.0])
+        for (final r in Radii.scale)
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [

@@ -128,6 +128,22 @@ Adding another screen is gated on that screen compiling for web
 widgets inside `main.dart`, so they need that file to compile before they can
 appear here at all.
 
+## Shared design values
+
+Values that are design decisions live in two files a designer can edit
+directly, and both the app and the gallery read them:
+
+- [lib/theme/design_tokens.dart](../../lib/theme/design_tokens.dart) — fixed
+  chrome colours, spacing, radii, icon sizes, motion, elevation.
+- [lib/theme/accent_theme.dart](../../lib/theme/accent_theme.dart) — everything
+  derived from the user's accent.
+
+Migrated widgets must not reintroduce raw literals; the gate is
+[test/js/design_tokens_no_literals.test.js](../../test/js/design_tokens_no_literals.test.js),
+which also forces every new file under `lib/widgets` or `lib/screens` to be
+classified as migrated or pending. The corner-radii card renders `Radii.scale`
+rather than a copy of it, so it cannot drift from the app.
+
 ## Adding a card
 
 1. Add a `GalleryCard` to `galleryCards` in `lib/design_gallery/main.dart`.

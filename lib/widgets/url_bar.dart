@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import '../utils/url_utils.dart';
 
@@ -73,13 +74,13 @@ class _UrlBarState extends State<UrlBar> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
       decoration: BoxDecoration(
-        color: isDark ? Color(0xFF1E1E1E) : Color(0xFFF5F5F5),
+        color: Chrome.bar(isDark),
         border: Border(
           top: BorderSide(
-            color: isDark ? Color(0xFF3E3E3E) : Color(0xFFE0E0E0),
-            width: 0.5,
+            color: Chrome.hairline(isDark),
+            width: Chrome.hairlineWidth,
           ),
         ),
       ),
@@ -87,12 +88,12 @@ class _UrlBarState extends State<UrlBar> {
         children: [
           Icon(
             Icons.lock,
-            size: 16,
+            size: IconSizes.inline,
             color: widget.currentUrl.startsWith('https://')
-                ? Colors.green
-                : Colors.grey,
+                ? SecurityIndicator.secure
+                : SecurityIndicator.insecure,
           ),
-          SizedBox(width: 8),
+          SizedBox(width: Spacing.sm),
           Expanded(
             child: TextField(
               controller: _urlController,
@@ -111,10 +112,10 @@ class _UrlBarState extends State<UrlBar> {
                 hintText: loc.urlBarHint,
                 border: InputBorder.none,
                 isDense: true,
-                contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                contentPadding: EdgeInsets.symmetric(vertical: Spacing.sm, horizontal: Spacing.sm),
               ),
               style: TextStyle(
-                fontSize: 14,
+                fontSize: TextSizes.url,
                 color: _isEditing
                     ? theme.colorScheme.onSurface
                     : theme.colorScheme.onSurface.withOpacity(0.7),
@@ -125,9 +126,9 @@ class _UrlBarState extends State<UrlBar> {
           ),
           if (_isEditing)
             IconButton(
-              icon: Icon(Icons.check, size: 20),
+              icon: Icon(Icons.check, size: IconSizes.action),
               onPressed: _handleSubmit,
-              padding: EdgeInsets.all(4),
+              padding: EdgeInsets.all(Spacing.xs),
               constraints: BoxConstraints(),
               tooltip: loc.urlBarGoTooltip,
             ),
