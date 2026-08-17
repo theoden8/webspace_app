@@ -10,6 +10,16 @@ const Color accentPink = Color(0xFFD66BA8);
 const Color accentTeal = Color(0xFF5BC4C4);
 const Color accentYellow = Color(0xFFD6C86B);
 
+/// Black or white, whichever contrasts more with [background].
+///
+/// The accents span a wide luminance range (green 0xFF7be592 against white is
+/// 1.56:1), so tying this to the theme's brightness instead of the colour
+/// itself makes label text on light accents unreadable.
+Color _onAccent(Color background) {
+  final l = background.computeLuminance();
+  return (l + 0.05) / 0.05 >= 1.05 / (l + 0.05) ? Colors.black : Colors.white;
+}
+
 /// Build a ColorScheme that preserves the full saturation of [accent].
 /// Uses fromSeed only for neutral surface/background colors, then overrides
 /// all accent-derived roles so nothing gets desaturated by Material 3's HCT.
@@ -31,11 +41,11 @@ ColorScheme buildAccentColorScheme(Color accent, Brightness brightness) {
 
   return base.copyWith(
     primary: accent,
-    onPrimary: isLight ? Colors.white : Colors.black,
+    onPrimary: _onAccent(accent),
     primaryContainer: primaryContainer,
     onPrimaryContainer: onPrimaryContainer,
     secondary: accent,
-    onSecondary: isLight ? Colors.white : Colors.black,
+    onSecondary: _onAccent(accent),
     secondaryContainer: primaryContainer,
     onSecondaryContainer: onPrimaryContainer,
   );
