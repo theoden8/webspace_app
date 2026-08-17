@@ -10,6 +10,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const http = require('node:http');
 const puppeteer = require('puppeteer');
+const { PNG } = require('pngjs');
 
 const CHROMIUM = process.env.PUPPETEER_EXECUTABLE_PATH || '/opt/pw-browsers/chromium';
 
@@ -53,6 +54,25 @@ async function serve(root, port) {
   return server;
 }
 
+// A card that drew nothing is the failure mode Dart tests cannot see: the
+// widget tree can be perfectly correct while CanvasKit renders an empty frame
+// (missing engine, missing font). Text-only cards like type-scale go to ~0%
+// ink when font loading breaks, which is how that regression surfaces here.
+// Measured floor across the current cards is 2.1% ink / 38 colors.
+const MIN_INK = 0.01;
+const MIN_COLORS = 12;
+
+function inkStats(buffer) {
+  const png = PNG.sync.read(buffer);
+  const counts = new Map();
+  for (let i = 0; i < png.data.length; i += 4) {
+    const key = `${png.data[i] >> 3},${png.data[i + 1] >> 3},${png.data[i + 2] >> 3}`;
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  const dominant = Math.max(...counts.values());
+  return { ink: 1 - dominant / (png.width * png.height), colors: counts.size };
+}
+
 async function shoot(page, base, out, { id, width, height }, theme, accent) {
   const suffix = accent === 'blue' ? '' : `__${accent}`;
   const file = path.join(out, `${id}__${theme}${suffix}.png`);
@@ -61,7 +81,16 @@ async function shoot(page, base, out, { id, width, height }, theme, accent) {
   await page.waitForSelector('flt-glass-pane', { timeout: 30000 });
   await new Promise((r) => setTimeout(r, 900));
   await page.screenshot({ path: file });
-  return file;
+
+  let { ink, colors } = inkStats(await fs.readFile(file));
+  // One retry: a first frame can land before the engine has settled, and a
+  // false BLANK in CI is worse than three seconds.
+  if (ink < MIN_INK || colors < MIN_COLORS) {
+    await new Promise((r) => setTimeout(r, 2000));
+    await page.screenshot({ path: file });
+    ({ ink, colors } = inkStats(await fs.readFile(file)));
+  }
+  return { file, ink, colors, blank: ink < MIN_INK || colors < MIN_COLORS };
 }
 
 (async () => {
@@ -79,6 +108,7 @@ async function shoot(page, base, out, { id, width, height }, theme, accent) {
   });
 
   const errors = [];
+  const blank = [];
   try {
     const page = await browser.newPage();
     const note = (text) => BENIGN.test(text) || errors.push(text);
@@ -97,11 +127,25 @@ async function shoot(page, base, out, { id, width, height }, theme, accent) {
     for (const accent of ACCENT_SWEEP.accents) {
       written.push(await shoot(page, base, out, sweepCard, 'light', accent));
     }
-    for (const f of written) console.log(path.relative(process.cwd(), f));
+    for (const c of written) {
+      const stats = `${(c.ink * 100).toFixed(1)}% ink, ${c.colors} colors`;
+      console.log(`${c.blank ? 'BLANK ' : '      '}${path.relative(process.cwd(), c.file)}  (${stats})`);
+    }
     console.log(`\n${written.length} cards -> ${path.relative(process.cwd(), out)}`);
+
+    blank.push(...written.filter((c) => c.blank));
   } finally {
     await browser.close();
     server.close();
+  }
+
+  if (blank.length) {
+    console.error(`\n${blank.length} cards drew (almost) nothing:`);
+    for (const c of blank) {
+      console.error(`  ${path.basename(c.file)}  ${(c.ink * 100).toFixed(2)}% ink, ${c.colors} colors`);
+    }
+    console.error('  a blank card usually means the engine or the font never loaded');
+    process.exitCode = 1;
   }
 
   if (errors.length) {

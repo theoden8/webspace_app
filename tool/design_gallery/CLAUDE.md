@@ -35,8 +35,26 @@ npm run design:cards        # -> build/design_cards/<id>__<theme>[__<accent>].pn
 ```
 
 Cards, themes and the accent sweep are the three lists at the top of
-`shoot.js`. Exit code is non-zero on unexpected page errors, so this is
-CI-safe.
+`shoot.js`. Exit code is non-zero on unexpected page errors or on a card that
+drew (almost) nothing, so this is CI-safe.
+
+## What is gated
+
+- **Blank cards** (`shoot.js`): every card must clear 1% ink and 12 distinct
+  colours, against a measured floor of 2.1% / 38. This is the only check that
+  can see a correct widget tree rendering an empty frame; drop `web/fonts/` and
+  `type-scale` falls to 0% ink. A card that trips it retries once before
+  failing.
+- **Registry drift** ([test/js/design_gallery_registry.test.js](../../test/js/design_gallery_registry.test.js)):
+  card ids in Dart and viewport ids in `shoot.js` must agree, or a card is
+  silently never shot. Runs in `npm run test:js`.
+- **Accent contrast** ([test/accent_theme_contrast_test.dart](../../test/accent_theme_contrast_test.dart)):
+  every role pair in `buildAccentColorScheme` holds 4.5:1 across all 8 accents
+  and both brightnesses. Plain `flutter test`, no browser.
+
+Structural questions ("does the button still exist") belong in widget tests and
+`integration_test/`, not here. Pixel diffing the cards is deliberately not
+done: cross-version rasterisation noise buries the real changes.
 
 ## Four things that break it silently
 
