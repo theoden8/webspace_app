@@ -81,6 +81,14 @@ const PAGES = [
     shots: [['Light', 'browser-chrome__light.png'], ['Dark', 'browser-chrome__dark.png']],
   },
   {
+    path: 'screens/trusted-certificates.html',
+    group: 'Screens',
+    title: 'Trusted certificates',
+    blurb: 'The real TrustedCertificatesScreen with two pinned hosts seeded: per-entry copy and delete affordances, fingerprints wrapped as the app wraps them.',
+    source: 'lib/screens/trusted_certificates.dart',
+    shots: [['Light', 'trusted-certificates__light.png'], ['Dark', 'trusted-certificates__dark.png']],
+  },
+  {
     path: 'screens/user-scripts.html',
     group: 'Screens',
     title: 'User scripts',

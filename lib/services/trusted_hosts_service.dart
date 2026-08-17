@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
@@ -211,12 +210,6 @@ class TrustedHostsService {
     final der = cert?.x509Certificate?.encoded;
     if (der == null || der.isEmpty) return null;
     return sha256.convert(der).toString();
-  }
-
-  /// SHA-256 fingerprint of a dart:io X509Certificate (used by
-  /// `HttpClient.badCertificateCallback`).
-  static String fingerprintFromX509(X509Certificate cert) {
-    return sha256.convert(cert.der).toString();
   }
 
   String _key(String host, int port) => '${host.toLowerCase()}:$port';

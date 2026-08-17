@@ -6,6 +6,7 @@ import 'package:http/io_client.dart';
 import 'package:socks5_proxy/socks_client.dart' as socks5;
 
 import 'package:webspace/services/trusted_hosts_service.dart';
+import 'package:webspace/services/trusted_hosts_x509.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 
@@ -171,7 +172,7 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
     return TrustedHostsService.instance.isTrusted(
       host: host,
       port: port,
-      fingerprint: TrustedHostsService.fingerprintFromX509(cert),
+      fingerprint: fingerprintFromX509(cert),
     );
   }
 
@@ -222,7 +223,7 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
           onBadCertificate: (cert) => TrustedHostsService.instance.isTrusted(
             host: uri.host,
             port: uri.port,
-            fingerprint: TrustedHostsService.fingerprintFromX509(cert),
+            fingerprint: fingerprintFromX509(cert),
           ),
         );
         return ConnectionTask.fromSocket(

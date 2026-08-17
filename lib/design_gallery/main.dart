@@ -16,7 +16,9 @@ import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/widgets/hint_button.dart';
 import 'package:webspace/widgets/tab_bar_corner_button.dart';
+import 'package:webspace/screens/trusted_certificates.dart';
 import 'package:webspace/screens/user_scripts.dart';
+import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/widgets/url_bar.dart';
 
@@ -57,6 +59,7 @@ final List<GalleryCard> galleryCards = [
   GalleryCard(id: 'tab-corner-button', label: 'Tab corner button', builder: (c) => const _TabCornerCard()),
   GalleryCard(id: 'browser-chrome', label: 'Browser chrome', builder: (c) => const _BrowserChromeCard()),
   GalleryCard(id: 'user-scripts', label: 'User scripts screen', fullBleed: true, builder: (c) => const _UserScriptsCard()),
+  GalleryCard(id: 'trusted-certificates', label: 'Trusted certificates screen', fullBleed: true, builder: (c) => const _TrustedCertificatesCard()),
 ];
 
 /// CanvasKit pulls Roboto from fonts.gstatic.com; where that is unreachable it
@@ -379,6 +382,42 @@ class _UserScriptsCardState extends State<_UserScriptsCard> {
       userScripts: _scripts,
       isGlobalLibrary: true,
       onSave: (scripts) => setState(() => _scripts = scripts),
+    );
+  }
+}
+
+/// The real TrustedCertificatesScreen, seeded with pinned hosts so the list,
+/// its delete affordance and the empty state are all reachable.
+class _TrustedCertificatesCard extends StatefulWidget {
+  const _TrustedCertificatesCard();
+
+  @override
+  State<_TrustedCertificatesCard> createState() => _TrustedCertificatesCardState();
+}
+
+class _TrustedCertificatesCardState extends State<_TrustedCertificatesCard> {
+  late final Future<void> _seeded = _seed();
+
+  Future<void> _seed() async {
+    await TrustedHostsService.instance.trust(
+      host: 'intranet.example.org',
+      port: 443,
+      fingerprint: '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08',
+    );
+    await TrustedHostsService.instance.trust(
+      host: 'router.local',
+      port: 8443,
+      fingerprint: '2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae',
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<void>(
+      future: _seeded,
+      builder: (context, snapshot) => snapshot.connectionState == ConnectionState.done
+          ? const TrustedCertificatesScreen()
+          : const Scaffold(body: Center(child: CircularProgressIndicator())),
     );
   }
 }
