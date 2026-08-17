@@ -8,7 +8,8 @@
     "bench:js": "node test/js/perf/blocking.bench.js",
     "design:fonts": "node tool/design_gallery/sync_fonts.js",
     "design:cards": "node tool/design_gallery/shoot.js",
-    "design:check": "node tool/design_gallery/web_clean.js"
+    "design:check": "node tool/design_gallery/web_clean.js",
+    "design:bundle": "node tool/design_gallery/bundle.js"
   },
   "devDependencies": {
     "@expo-google-fonts/roboto": "^0.4.3",

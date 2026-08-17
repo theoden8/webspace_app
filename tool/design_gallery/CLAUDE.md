@@ -56,6 +56,25 @@ Structural questions ("does the button still exist") belong in widget tests and
 `integration_test/`, not here. Pixel diffing the cards is deliberately not
 done: cross-version rasterisation noise buries the real changes.
 
+## Publishing to Claude Design
+
+```bash
+node tool/design_gallery/bundle.js     # build/design_bundle/**.html, cards embedded as data URIs
+```
+
+Then upload with the `DesignSync` tool: `finalize_plan` over the eight paths
+with `localDir` set to `build/design_bundle`, then `write_files`. The project
+is **WebSpace**, `130d2902-baca-4e8a-8d7d-237974bd429d`; pass that projectId or
+the upload creates a second project instead of updating this one. Only the
+maintainer's account can write to it.
+
+Pages carry a first-line `<!-- @dsCard group="..." -->` marker, which is what
+the Design System pane indexes; groups are Foundations and Components. The
+bundle is a derivative of `build/design_cards` and is regenerated, never
+edited by hand.
+
+Publishing is one-way. Nothing in the design project feeds back into `lib/`.
+
 ## Four things that break it silently
 
 1. **`--no-web-resources-cdn` is required.** Without it CanvasKit is fetched
