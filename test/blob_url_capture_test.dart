@@ -258,14 +258,15 @@ void main() {
       final block = webviewSrc.substring(blockStart, blockEnd);
       expect(block, contains('AT_DOCUMENT_START'));
       expect(block, contains(r'$blobDownloadClickInterceptScript'));
-      // Android gate: the registration sits inside a Platform.isAndroid
-      // block so iOS/macOS keep using onDownloadStartRequest natively.
+      // Android gate: the registration sits inside a hostIsAndroid block
+      // (the web-safe Platform.isAndroid) so iOS/macOS keep using
+      // onDownloadStartRequest natively.
       final preamble = webviewSrc.substring(
           // Anchor the search far enough back that the Platform check
           // for the script registration falls inside the slice.
           (blockStart - 200).clamp(0, blockStart),
           blockStart);
-      expect(preamble, contains('Platform.isAndroid'));
+      expect(preamble, contains('hostIsAndroid'));
     });
 
     test('Dart handler for _webspaceBlobDownloadStart is registered', () {
