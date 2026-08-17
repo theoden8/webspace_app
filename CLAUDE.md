@@ -86,7 +86,7 @@ Dart in `test/`, integration in `integration_test/` (screenshots).
 screenshotted for design review; the app is not shipped for web and the
 WebView does not run there. Entrypoint: [lib/design_gallery/main.dart](lib/design_gallery/main.dart),
 driver: `npm run design:cards`. Full workflow and constraints (canvas output,
-local fonts, which widgets are web-clean): [tool/design_gallery/README.md](tool/design_gallery/README.md).
+local fonts, which widgets are web-clean): [tool/design_gallery/CLAUDE.md](tool/design_gallery/CLAUDE.md).
 
 ## Recurring bugs (`docs/bugs/`)
 

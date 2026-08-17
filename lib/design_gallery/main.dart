@@ -7,6 +7,7 @@
 //   ?card=<id>&theme=light|dark&accent=<name>&locale=<code>
 //
 // Without ?card the page shows every card at once for human browsing.
+// Workflow and constraints: tool/design_gallery/CLAUDE.md
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
