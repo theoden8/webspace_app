@@ -5,6 +5,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/services/file_store_io.dart';
 import 'package:webspace/services/html_cache_service.dart';
 
 import 'helpers/mock_secure_storage.dart' show MockFlutterSecureStorage;
@@ -51,7 +52,7 @@ void main() {
     fakeSecureStorage = MockFlutterSecureStorage();
     HtmlCacheService.resetForTesting();
     await HtmlCacheService.instance.initialize(
-      overrideAppDir: tempDir,
+      store: IoFileStore('html_cache', overrideRoot: tempDir),
       secureStorage: fakeSecureStorage,
     );
   });

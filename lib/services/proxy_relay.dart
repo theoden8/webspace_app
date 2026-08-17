@@ -1,4 +1,4 @@
-import 'dart:io' show Platform;
+import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter/services.dart';
 
@@ -41,7 +41,7 @@ class ProxyRelay {
   /// port to hand to `ProxyController`, or `null` if it could not bind (the
   /// caller MUST then fail closed, never clearing the override).
   Future<int?> start(UserProxySettings upstream) async {
-    if (!Platform.isAndroid) return null;
+    if (!hostIsAndroid) return null;
     final address = upstream.address;
     if (address == null) return null;
     final parts = address.split(':');
@@ -68,7 +68,7 @@ class ProxyRelay {
 
   /// Stop the relay if running. Safe to call when not running.
   Future<void> stop() async {
-    if (!Platform.isAndroid) return;
+    if (!hostIsAndroid) return;
     try {
       await _channel.invokeMethod('stop');
     } on PlatformException {

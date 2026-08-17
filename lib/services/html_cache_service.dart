@@ -1,7 +1,6 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -27,7 +26,7 @@ class HtmlCacheService {
 
   HtmlCacheService._();
 
-  Directory? _cacheDirectory;
+  FileStore? _store;
   encrypt.Encrypter? _encrypter;
 
   /// In-memory cache for sync access during build
@@ -45,14 +44,13 @@ class HtmlCacheService {
   /// HTML into [HtmlImportStorage] before the cache is nuked.
   Future<void> initialize({
     Future<void> Function()? beforeUpgradeWipe,
-    @visibleForTesting Directory? overrideAppDir,
+    @visibleForTesting FileStore? store,
     @visibleForTesting FlutterSecureStorage? secureStorage,
   }) async {
     if (secureStorage != null) {
       _secureStorage = secureStorage;
     }
-    final appDir = overrideAppDir ?? await getApplicationDocumentsDirectory();
-    _cacheDirectory = Directory('${appDir.path}/$_cacheDir');
+    _store = store ?? defaultFileStore(_cacheDir);
 
     // Initialize encryption
     await _initEncryption();
@@ -65,9 +63,7 @@ class HtmlCacheService {
     await _clearCacheOnUpgrade();
 
     // Ensure cache directory exists
-    if (!await _cacheDirectory!.exists()) {
-      await _cacheDirectory!.create(recursive: true);
-    }
+    await _store!.ensure();
 
     // No eager preload here — main() calls [preloadCache] explicitly
     // before runApp so the heap pressure of decrypted HTML is gated on
@@ -101,12 +97,12 @@ class HtmlCacheService {
   /// the pages for sites that actually build, instead of every cached page.
   Future<void> preloadOne(String siteId) async {
     if (_memoryCache.containsKey(siteId)) return;
-    final dir = _cacheDirectory;
-    if (dir == null) return;
+    final store = _store;
+    if (store == null) return;
     try {
-      final file = File('${dir.path}/$siteId.enc');
-      if (!await file.exists()) return;
-      final decrypted = _decrypt(await file.readAsString());
+      final encrypted = await store.readText('$siteId.enc');
+      if (encrypted == null) return;
+      final decrypted = _decrypt(encrypted);
       if (decrypted == null) return;
       final nl = decrypted.indexOf('\n');
       if (nl == -1) return;
@@ -183,47 +179,48 @@ class HtmlCacheService {
   /// Pre-load all cached HTML files into memory
   /// Files that fail to decrypt are discarded (deleted)
   Future<void> _preloadCache() async {
-    if (_cacheDirectory == null || !await _cacheDirectory!.exists()) return;
+    final store = _store;
+    if (store == null) return;
 
     try {
-      final files = await _cacheDirectory!.list().toList();
-      for (final entity in files) {
-        if (entity is File && entity.path.endsWith('.enc')) {
+      final files = await store.list();
+      for (final name in files) {
+        if (name.endsWith('.enc')) {
           try {
-            final encrypted = await entity.readAsString();
-            final decrypted = _decrypt(encrypted);
+            final encrypted = await store.readText(name);
+            final decrypted = encrypted == null ? null : _decrypt(encrypted);
             if (decrypted != null) {
               final newlineIndex = decrypted.indexOf('\n');
               if (newlineIndex != -1) {
-                final siteId = entity.path.split('/').last.replaceAll('.enc', '');
+                final siteId = name.replaceAll('.enc', '');
                 final html = decrypted.substring(newlineIndex + 1);
                 _memoryCache[siteId] = html;
               } else {
                 // Invalid format - discard
-                await entity.delete();
+                await store.delete(name);
                 LogService.instance.log(
                   'HtmlCache',
-                  'Discarded invalid cache file: ${entity.path}',
+                  'Discarded invalid cache file: $name',
                   level: LogLevel.warning,
                   sensitivity: LogSensitivity.sensitive,
                 );
               }
             } else {
               // Decryption failed - discard (key may have changed)
-              await entity.delete();
+              await store.delete(name);
               LogService.instance.log(
                 'HtmlCache',
-                'Discarded undecryptable cache file: ${entity.path}',
+                'Discarded undecryptable cache file: $name',
                 level: LogLevel.warning,
                 sensitivity: LogSensitivity.sensitive,
               );
             }
           } catch (e) {
             // File read/decrypt error - discard
-            await entity.delete();
+            await store.delete(name);
             LogService.instance.log(
               'HtmlCache',
-              'Discarded corrupted cache file: ${entity.path} ($e)',
+              'Discarded corrupted cache file: $name ($e)',
               level: LogLevel.warning,
               sensitivity: LogSensitivity.sensitive,
             );
@@ -250,8 +247,8 @@ class HtmlCacheService {
 
     if (lastVersion != null && lastVersion != currentVersion) {
       // Version changed - clear the HTML cache and generate new key
-      if (_cacheDirectory != null && await _cacheDirectory!.exists()) {
-        await _cacheDirectory!.delete(recursive: true);
+      if (_store != null) {
+        await _store!.deleteAll();
         LogService.instance.log('HtmlCache', 'Cleared cache on upgrade from $lastVersion to $currentVersion', level: LogLevel.info);
       }
       _memoryCache.clear();
@@ -264,10 +261,8 @@ class HtmlCacheService {
     await prefs.setString(_versionKey, currentVersion);
   }
 
-  /// Get the cache file path for a site
-  File _getCacheFile(String siteId) {
-    return File('${_cacheDirectory!.path}/$siteId.enc');
-  }
+  /// Cache file name for a site.
+  String _cacheFileName(String siteId) => '$siteId.enc';
 
   /// Max HTML size to cache (10MB)
   static const int _maxHtmlSize = 10 * 1024 * 1024;
@@ -361,7 +356,8 @@ class HtmlCacheService {
 
   /// Save HTML content for a site (encrypted)
   Future<void> saveHtml(String siteId, String html, String url) async {
-    if (_cacheDirectory == null || _encrypter == null) return;
+    final store = _store;
+    if (store == null || _encrypter == null) return;
 
     // Skip if HTML is too large
     if (html.length > _maxHtmlSize) {
@@ -377,7 +373,7 @@ class HtmlCacheService {
     final genAtEntry = _evictionGen[siteId] ?? 0;
 
     try {
-      final file = _getCacheFile(siteId);
+      final name = _cacheFileName(siteId);
 
       // Store URL as first line, then HTML
       final plaintext = '$url\n$html';
@@ -397,14 +393,14 @@ class HtmlCacheService {
         return;
       }
 
-      await file.writeAsString(encrypted);
+      await store.writeText(name, encrypted);
 
       // Eviction can also race the file write itself. Roll back on disk
       // so a cold restart's `preloadCache` doesn't pick up content the
       // call site told us to drop.
       if ((_evictionGen[siteId] ?? 0) != genAtEntry) {
         try {
-          if (await file.exists()) await file.delete();
+          await store.delete(name);
         } catch (_) {}
         LogService.instance.log(
           'HtmlCache',
@@ -436,13 +432,13 @@ class HtmlCacheService {
   /// Load cached HTML for a site (decrypted)
   /// Returns (url, html) tuple or null if not cached
   Future<(String, String)?> loadHtml(String siteId) async {
-    if (_cacheDirectory == null || _encrypter == null) return null;
+    final store = _store;
+    if (store == null || _encrypter == null) return null;
 
     try {
-      final file = _getCacheFile(siteId);
-      if (!await file.exists()) return null;
+      final encrypted = await store.readText(_cacheFileName(siteId));
+      if (encrypted == null) return null;
 
-      final encrypted = await file.readAsString();
       final decrypted = _decrypt(encrypted);
       if (decrypted == null) return null;
 
@@ -472,9 +468,9 @@ class HtmlCacheService {
 
   /// Check if cached HTML exists for a site
   Future<bool> hasCache(String siteId) async {
-    if (_cacheDirectory == null) return false;
-    final file = _getCacheFile(siteId);
-    return file.exists();
+    final store = _store;
+    if (store == null) return false;
+    return store.exists(_cacheFileName(siteId));
   }
 
   /// Delete cached HTML for a site (memory + disk).
@@ -485,25 +481,23 @@ class HtmlCacheService {
   /// delete is in progress.
   Future<void> deleteCache(String siteId) async {
     evictInMemory(siteId);
-    if (_cacheDirectory == null) return;
-    final file = _getCacheFile(siteId);
-    if (await file.exists()) {
-      await file.delete();
-    }
+    final store = _store;
+    if (store == null) return;
+    await store.delete(_cacheFileName(siteId));
   }
 
   /// Delete cached HTML for sites not in the provided set
   Future<void> removeOrphanedCaches(Set<String> activeSiteIds) async {
-    if (_cacheDirectory == null || !await _cacheDirectory!.exists()) return;
+    final store = _store;
+    if (store == null) return;
 
-    final files = await _cacheDirectory!.list().toList();
-    for (final entity in files) {
-      if (entity is File && entity.path.endsWith('.enc')) {
-        final filename = entity.path.split('/').last;
-        final siteId = filename.replaceAll('.enc', '');
+    final files = await store.list();
+    for (final name in files) {
+      if (name.endsWith('.enc')) {
+        final siteId = name.replaceAll('.enc', '');
         if (!activeSiteIds.contains(siteId)) {
           evictInMemory(siteId);
-          await entity.delete();
+          await store.delete(name);
           LogService.instance.log(
             'HtmlCache',
             'Removed orphaned cache for $siteId',
