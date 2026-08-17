@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:webspace/platform/host_platform.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
@@ -70,7 +70,7 @@ class CurrentLocationService {
   static bool? debugIsSupportedOverride;
 
   static bool get isSupported =>
-      debugIsSupportedOverride ?? (Platform.isAndroid || Platform.isIOS);
+      debugIsSupportedOverride ?? (hostIsAndroid || hostIsIOS);
 
   static Future<CurrentLocationResult> getCurrentLocation({
     Duration timeout = const Duration(seconds: 30),

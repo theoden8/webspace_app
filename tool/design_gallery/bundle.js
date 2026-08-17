@@ -15,7 +15,32 @@ const { execSync } = require('node:child_process');
 const cardsDir = path.resolve('build/design_cards');
 const outDir = path.resolve(process.argv.includes('--out') ? process.argv[process.argv.indexOf('--out') + 1] : 'build/design_bundle');
 
+// Screens first: they are the point, the element cards support them.
 const PAGES = [
+  {
+    path: 'screens/user-scripts.html',
+    group: 'Screens',
+    title: 'User scripts',
+    blurb: 'The real UserScriptsScreen. Interactive in the gallery itself, where the add button pushes the real editor.',
+    source: 'lib/screens/user_scripts.dart',
+    shots: [['Light', 'user-scripts__light.png'], ['Dark', 'user-scripts__dark.png']],
+  },
+  {
+    path: 'screens/trusted-certificates.html',
+    group: 'Screens',
+    title: 'Trusted certificates',
+    blurb: 'The real TrustedCertificatesScreen with two pinned hosts seeded: per-entry copy and delete affordances, fingerprints wrapped as the app wraps them.',
+    source: 'lib/screens/trusted_certificates.dart',
+    shots: [['Light', 'trusted-certificates__light.png'], ['Dark', 'trusted-certificates__dark.png']],
+  },
+  {
+    path: 'screens/location-picker.html',
+    group: 'Screens',
+    title: 'Location picker',
+    blurb: 'The real LocationPickerScreen, showing its privacy gate: tiles are only fetched after the user asks, because loading the map reveals the viewed area to the tile server.',
+    source: 'lib/screens/location_picker.dart',
+    shots: [['Light', 'location-picker__light.png'], ['Dark', 'location-picker__dark.png']],
+  },
   {
     path: 'foundations/color-roles.html',
     group: 'Foundations',
@@ -79,22 +104,6 @@ const PAGES = [
     blurb: 'The frame around a site. UrlBar and TabBarCornerButton are the real widgets; the app bar is an approximation, and site content is a placeholder because the native WebView does not run in a browser.',
     source: 'lib/design_gallery/main.dart',
     shots: [['Light', 'browser-chrome__light.png'], ['Dark', 'browser-chrome__dark.png']],
-  },
-  {
-    path: 'screens/trusted-certificates.html',
-    group: 'Screens',
-    title: 'Trusted certificates',
-    blurb: 'The real TrustedCertificatesScreen with two pinned hosts seeded: per-entry copy and delete affordances, fingerprints wrapped as the app wraps them.',
-    source: 'lib/screens/trusted_certificates.dart',
-    shots: [['Light', 'trusted-certificates__light.png'], ['Dark', 'trusted-certificates__dark.png']],
-  },
-  {
-    path: 'screens/user-scripts.html',
-    group: 'Screens',
-    title: 'User scripts',
-    blurb: 'A whole screen, not an element: the real UserScriptsScreen. Interactive in the gallery itself, where the add button pushes the real editor. The only screen that compiles for web today; the drawer, site grid and settings still reach dart:io.',
-    source: 'lib/screens/user_scripts.dart',
-    shots: [['Light', 'user-scripts__light.png'], ['Dark', 'user-scripts__dark.png']],
   },
 ];
 
@@ -198,7 +207,8 @@ function writeManifest(pages) {
     namespace: MANIFEST_NAMESPACE,
     components: [],
     startingPoints: [],
-    cards: pages.map((p) => ({ path: p.path, group: p.group })).sort((a, b) => a.path.localeCompare(b.path)),
+    // Insertion order, not alphabetical: the pane shows Screens first.
+    cards: pages.map((p) => ({ path: p.path, group: p.group })),
     templates: [],
     hasThumbnailHtml: false,
     globalCssPaths: [],

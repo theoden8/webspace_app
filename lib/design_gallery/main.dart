@@ -17,6 +17,7 @@ import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/hint_button.dart';
 import 'package:webspace/widgets/tab_bar_corner_button.dart';
+import 'package:webspace/screens/location_picker.dart';
 import 'package:webspace/screens/trusted_certificates.dart';
 import 'package:webspace/screens/user_scripts.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
@@ -51,7 +52,12 @@ class GalleryCard {
   final bool fullBleed;
 }
 
+// Screens first: the app's own surfaces are what design review is about, and
+// the element cards below exist to explain them.
 final List<GalleryCard> galleryCards = [
+  GalleryCard(id: 'user-scripts', label: 'User scripts screen', fullBleed: true, builder: (c) => const _UserScriptsCard()),
+  GalleryCard(id: 'trusted-certificates', label: 'Trusted certificates screen', fullBleed: true, builder: (c) => const _TrustedCertificatesCard()),
+  GalleryCard(id: 'location-picker', label: 'Location picker screen', fullBleed: true, builder: (c) => const _LocationPickerCard()),
   GalleryCard(id: 'color-roles', label: 'Color roles', builder: (c) => const _ColorRolesCard()),
   GalleryCard(id: 'type-scale', label: 'Type scale', builder: (c) => const _TypeScaleCard()),
   GalleryCard(id: 'radius-scale', label: 'Corner radii', builder: (c) => const _RadiusScaleCard()),
@@ -59,8 +65,6 @@ final List<GalleryCard> galleryCards = [
   GalleryCard(id: 'hint-button', label: 'Hint button', builder: (c) => const _HintButtonCard()),
   GalleryCard(id: 'tab-corner-button', label: 'Tab corner button', builder: (c) => const _TabCornerCard()),
   GalleryCard(id: 'browser-chrome', label: 'Browser chrome', builder: (c) => const _BrowserChromeCard()),
-  GalleryCard(id: 'user-scripts', label: 'User scripts screen', fullBleed: true, builder: (c) => const _UserScriptsCard()),
-  GalleryCard(id: 'trusted-certificates', label: 'Trusted certificates screen', fullBleed: true, builder: (c) => const _TrustedCertificatesCard()),
 ];
 
 /// CanvasKit pulls Roboto from fonts.gstatic.com; where that is unreachable it
@@ -385,6 +389,20 @@ class _UserScriptsCardState extends State<_UserScriptsCard> {
       onSave: (scripts) => setState(() => _scripts = scripts),
     );
   }
+}
+
+/// The real LocationPickerScreen, opened on a seeded coordinate. The map tiles
+/// come from the network, so an offline gallery shows the grid and the pin
+/// without imagery.
+class _LocationPickerCard extends StatelessWidget {
+  const _LocationPickerCard();
+
+  @override
+  Widget build(BuildContext context) => const LocationPickerScreen(
+        initialLatitude: 52.3676,
+        initialLongitude: 4.9041,
+        initialAccuracy: 120,
+      );
 }
 
 /// The real TrustedCertificatesScreen, seeded with pinned hosts so the list,
