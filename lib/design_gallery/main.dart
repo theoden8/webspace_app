@@ -16,6 +16,8 @@ import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/widgets/hint_button.dart';
 import 'package:webspace/widgets/tab_bar_corner_button.dart';
+import 'package:webspace/screens/user_scripts.dart';
+import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/widgets/url_bar.dart';
 
 const Map<String, Color> galleryAccents = {
@@ -30,11 +32,20 @@ const Map<String, Color> galleryAccents = {
 };
 
 class GalleryCard {
-  const GalleryCard({required this.id, required this.label, required this.builder});
+  const GalleryCard({
+    required this.id,
+    required this.label,
+    required this.builder,
+    this.fullBleed = false,
+  });
 
   final String id;
   final String label;
   final WidgetBuilder builder;
+
+  /// Whole screens bring their own Scaffold: no card padding, and a phone-sized
+  /// frame on the index page.
+  final bool fullBleed;
 }
 
 final List<GalleryCard> galleryCards = [
@@ -45,6 +56,7 @@ final List<GalleryCard> galleryCards = [
   GalleryCard(id: 'hint-button', label: 'Hint button', builder: (c) => const _HintButtonCard()),
   GalleryCard(id: 'tab-corner-button', label: 'Tab corner button', builder: (c) => const _TabCornerCard()),
   GalleryCard(id: 'browser-chrome', label: 'Browser chrome', builder: (c) => const _BrowserChromeCard()),
+  GalleryCard(id: 'user-scripts', label: 'User scripts screen', fullBleed: true, builder: (c) => const _UserScriptsCard()),
 ];
 
 /// CanvasKit pulls Roboto from fonts.gstatic.com; where that is unreachable it
@@ -107,9 +119,11 @@ class GalleryApp extends StatelessWidget {
         scaffoldBackgroundColor:
             brightness == Brightness.light ? const Color(0xFFFFFFFF) : const Color(0xFF000000),
       ),
-      home: single != null
-          ? Scaffold(body: SafeArea(child: Padding(padding: const EdgeInsets.all(16), child: single.builder(context))))
-          : const _GalleryIndex(),
+      home: single == null
+          ? const _GalleryIndex()
+          : single.fullBleed
+              ? single.builder(context)
+              : Scaffold(body: SafeArea(child: Padding(padding: const EdgeInsets.all(16), child: single.builder(context)))),
     );
   }
 }
@@ -148,8 +162,11 @@ class _GalleryIndex extends StatelessWidget {
                         border: Border.all(color: theme.colorScheme.outlineVariant),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      padding: const EdgeInsets.all(12),
-                      child: card.builder(context),
+                      clipBehavior: card.fullBleed ? Clip.antiAlias : Clip.none,
+                      padding: card.fullBleed ? EdgeInsets.zero : const EdgeInsets.all(12),
+                      child: card.fullBleed
+                          ? SizedBox(height: 620, child: card.builder(context))
+                          : card.builder(context),
                     ),
                   ],
                 ),
@@ -327,6 +344,41 @@ class _TabCornerCard extends StatelessWidget {
           onDragEnd: () {},
         ),
       ],
+    );
+  }
+}
+
+/// The real UserScriptsScreen, live: add, edit, toggle, delete and the push to
+/// the editor all work against local state.
+class _UserScriptsCard extends StatefulWidget {
+  const _UserScriptsCard();
+
+  @override
+  State<_UserScriptsCard> createState() => _UserScriptsCardState();
+}
+
+class _UserScriptsCardState extends State<_UserScriptsCard> {
+  late List<UserScriptConfig> _scripts = [
+    UserScriptConfig(
+      name: 'Dark reader',
+      source: "document.documentElement.style.filter = 'invert(1) hue-rotate(180deg)';",
+      injectionTime: UserScriptInjectionTime.atDocumentEnd,
+    ),
+    UserScriptConfig(
+      name: 'Hide cookie banners',
+      source: "document.querySelectorAll('[id*=cookie],[class*=consent]').forEach(n => n.remove());",
+      injectionTime: UserScriptInjectionTime.atDocumentStart,
+      enabled: false,
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return UserScriptsScreen(
+      title: 'User scripts',
+      userScripts: _scripts,
+      isGlobalLibrary: true,
+      onSave: (scripts) => setState(() => _scripts = scripts),
     );
   }
 }

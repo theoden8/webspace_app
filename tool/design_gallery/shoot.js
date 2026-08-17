@@ -22,6 +22,7 @@ const CARDS = [
   { id: 'hint-button', width: 360, height: 80 },
   { id: 'tab-corner-button', width: 260, height: 100 },
   { id: 'browser-chrome', width: 560, height: 380 },
+  { id: 'user-scripts', width: 400, height: 740 },
 ];
 
 // CanvasKit asks fonts.gstatic.com for Roboto regardless of the copy the

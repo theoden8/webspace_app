@@ -114,6 +114,20 @@ Splitting the pure-data surface of those hubs from their platform surface is
 what unlocks the real screens. That is the same engine/rendering separation the
 root CLAUDE.md asks for, so it is worth doing on its own merits.
 
+## Screen cards
+
+A card with `fullBleed: true` is a whole screen: it brings its own `Scaffold`,
+renders unpadded in single-card mode, and gets a phone-sized frame on the index
+page. `user-scripts` is the working example, hosting the real
+`UserScriptsScreen` against local state. At the dev-server URL it is genuinely
+interactive: the FAB pushes the real `UserScriptEditScreen`, tiles toggle,
+delete confirms.
+
+Adding another screen is gated on that screen compiling for web
+(`npm run design:check`), not on the gallery. The drawer and site grid are
+widgets inside `main.dart`, so they need that file to compile before they can
+appear here at all.
+
 ## Adding a card
 
 1. Add a `GalleryCard` to `galleryCards` in `lib/design_gallery/main.dart`.
