@@ -178,6 +178,32 @@ ${shots}
 `;
 }
 
+// The Design System pane indexes _ds_manifest.json, which is compiled on the
+// receiving side only when the whole bundle is uploaded together; a page added
+// in a later single-file write stays invisible. Ship the manifest with the
+// bundle so the card list always matches the files. The namespace belongs to
+// the WebSpace project and must be preserved across uploads.
+const MANIFEST_NAMESPACE = 'WebSpace_130d29';
+
+function writeManifest(pages) {
+  const manifest = {
+    namespace: MANIFEST_NAMESPACE,
+    components: [],
+    startingPoints: [],
+    cards: pages.map((p) => ({ path: p.path, group: p.group })).sort((a, b) => a.path.localeCompare(b.path)),
+    templates: [],
+    hasThumbnailHtml: false,
+    globalCssPaths: [],
+    tokens: [],
+    themes: [],
+    fonts: [],
+    brandFonts: [],
+    source: 'spa',
+  };
+  fs.writeFileSync(path.join(outDir, '_ds_manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+  console.log(`_ds_manifest.json  ${manifest.cards.length} cards`);
+}
+
 fs.rmSync(outDir, { recursive: true, force: true });
 const pages = [...PAGES, ...screenPages()];
 for (const page of pages) {
@@ -187,4 +213,5 @@ for (const page of pages) {
   fs.writeFileSync(dest, html);
   console.log(`${page.path}  ${(Buffer.byteLength(html) / 1024).toFixed(0)} KiB`);
 }
+writeManifest(pages);
 console.log(`\n${pages.length} pages -> ${path.relative(process.cwd(), outDir)}`);
