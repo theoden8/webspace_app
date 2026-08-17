@@ -82,16 +82,45 @@ const PAGES = [
   },
 ];
 
+// Whole-screen captures, if any. The gallery cannot render the real screens
+// (they live behind main.dart and do not compile for web), so these come from
+// integration_test/screenshot_test.dart run against a device: it writes
+// <name>-light.png / <name>-dark.png. Drop them in build/design_screens and
+// they join the bundle as a Screens group; absent, the bundle is just the
+// element cards.
+const screensDir = path.resolve('build/design_screens');
+
+function screenPages() {
+  if (!fs.existsSync(screensDir)) return [];
+  const files = fs.readdirSync(screensDir).filter((f) => f.endsWith('.png'));
+  const screens = new Map();
+  for (const file of files.sort()) {
+    const base = file.replace(/-(light|dark)\.png$/, '').replace(/\.png$/, '');
+    const theme = /-dark\.png$/.test(file) ? 'Dark' : 'Light';
+    if (!screens.has(base)) screens.set(base, []);
+    screens.get(base).push([theme, file]);
+  }
+  return [...screens.entries()].map(([base, shots]) => ({
+    path: `screens/${base}.html`,
+    group: 'Screens',
+    title: base.replace(/^\d+[-_]/, '').replace(/[-_]/g, ' ').replace(/^./, (c) => c.toUpperCase()),
+    blurb: 'Whole screen from the running app, captured on a device.',
+    source: 'integration_test/screenshot_test.dart',
+    shots: shots.sort((a, b) => a[0].localeCompare(b[0])),
+    dir: screensDir,
+  }));
+}
+
 const commit = execSync('git rev-parse --short HEAD').toString().trim();
 
-const dataUri = (file) => `data:image/png;base64,${fs.readFileSync(path.join(cardsDir, file)).toString('base64')}`;
+const dataUri = (dir, file) => `data:image/png;base64,${fs.readFileSync(path.join(dir, file)).toString('base64')}`;
 
 const escape = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 function render(page) {
   const shots = page.shots
     .map(([label, file]) => `      <figure>
-        <img src="${dataUri(file)}" alt="${escape(page.title)}, ${escape(label.toLowerCase())}">
+        <img src="${dataUri(page.dir || cardsDir, file)}" alt="${escape(page.title)}, ${escape(label.toLowerCase())}">
         <figcaption>${escape(label)}</figcaption>
       </figure>`)
     .join('\n');
@@ -142,11 +171,12 @@ ${shots}
 }
 
 fs.rmSync(outDir, { recursive: true, force: true });
-for (const page of PAGES) {
+const pages = [...PAGES, ...screenPages()];
+for (const page of pages) {
   const dest = path.join(outDir, page.path);
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   const html = render(page);
   fs.writeFileSync(dest, html);
   console.log(`${page.path}  ${(Buffer.byteLength(html) / 1024).toFixed(0)} KiB`);
 }
-console.log(`\n${PAGES.length} pages -> ${path.relative(process.cwd(), outDir)}`);
+console.log(`\n${pages.length} pages -> ${path.relative(process.cwd(), outDir)}`);
