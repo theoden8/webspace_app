@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -123,10 +123,10 @@ abstract class ContainerNative {
   /// Default singleton routed to the platform-appropriate impl. Tests
   /// inject a mock directly into the engine instead.
   static final ContainerNative instance =
-      (Platform.isAndroid ||
-              Platform.isIOS ||
-              Platform.isMacOS ||
-              Platform.isLinux)
+      (hostIsAndroid ||
+              hostIsIOS ||
+              hostIsMacOS ||
+              hostIsLinux)
           ? _ContainerNative()
           : _StubContainerNative();
 }
@@ -149,11 +149,11 @@ class _ContainerNative implements ContainerNative {
   Future<bool> isSupported() async {
     if (_supportedCache != null) return _supportedCache!;
     try {
-      if (Platform.isAndroid) {
+      if (hostIsAndroid) {
         final supported =
             await _androidProbe.invokeMethod<bool>('isSupported');
         _supportedCache = supported ?? false;
-      } else if (Platform.isIOS || Platform.isMacOS || Platform.isLinux) {
+      } else if (hostIsIOS || hostIsMacOS || hostIsLinux) {
         // The fork's `isClassSupported` answers based on the build-time
         // platform; for iOS / macOS the underlying `WKWebsiteDataStore
         // (forIdentifier:)` API is `@available(iOS 17.0, macOS 14.0, *)`,

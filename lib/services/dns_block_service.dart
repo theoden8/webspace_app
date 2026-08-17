@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:webspace/services/outbound_http.dart';
@@ -9,8 +8,8 @@ import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/services/bloom_filter.dart';
 import 'package:webspace/services/host_lookup.dart';
+import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/log_service.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Which blocklist attributed a block decision. Allowed requests have no
@@ -505,9 +504,8 @@ class DnsBlockService {
       _level = prefs.getInt(_levelKey) ?? 0;
 
       if (_level > 0) {
-        final file = await _getCacheFile();
-        if (await file.exists()) {
-          final contents = await file.readAsString();
+        final contents = await _store.readText(_cacheFileName);
+        if (contents != null) {
           _parseDomains(contents);
           LogService.instance.log('DnsBlock', 'Loaded ${_blockedDomains.length} domains from cache (level $_level)', level: LogLevel.info);
         }
@@ -532,10 +530,7 @@ class DnsBlockService {
       _level = 0;
       _bloomFilter = null;
       try {
-        final file = await _getCacheFile();
-        if (await file.exists()) {
-          await file.delete();
-        }
+        await _store.delete(_cacheFileName);
         final prefs = await SharedPreferences.getInstance();
         await prefs.setInt(_levelKey, 0);
         await prefs.remove(_lastUpdatedKey);
@@ -590,8 +585,7 @@ class DnsBlockService {
         }
 
         // Save to disk
-        final file = await _getCacheFile();
-        await file.writeAsString(response.body);
+        await _store.writeText(_cacheFileName, response.body);
 
         _applyDomains(domains);
         _level = level;
@@ -672,10 +666,7 @@ class DnsBlockService {
     _blockedDomains = {};
     _bloomFilter = null;
     try {
-      final file = await _getCacheFile();
-      if (await file.exists()) {
-        await file.delete();
-      }
+      await _store.delete(_cacheFileName);
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(_levelKey, level);
       await prefs.remove(_lastUpdatedKey);
@@ -741,8 +732,12 @@ class DnsBlockService {
     _notifyBlocklistChanged();
   }
 
-  Future<File> _getCacheFile() async {
-    final appDir = await getApplicationDocumentsDirectory();
-    return File('${appDir.path}/$_cacheFileName');
-  }
+  FileStore? _storeOverride;
+
+  /// Cache directory for the downloaded blocklist. Swappable for tests and
+  /// the design gallery.
+  @visibleForTesting
+  set store(FileStore store) => _storeOverride = store;
+
+  FileStore get _store => _storeOverride ??= defaultFileStore('dns_blocklist');
 }

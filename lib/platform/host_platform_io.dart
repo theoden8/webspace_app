@@ -1,5 +1,7 @@
 import 'dart:io' as io;
 
+import 'dart:typed_data';
+
 import 'package:path_provider/path_provider.dart' as pp;
 
 bool get hostIsAndroid => io.Platform.isAndroid;
@@ -8,6 +10,7 @@ bool get hostIsMacOS => io.Platform.isMacOS;
 bool get hostIsLinux => io.Platform.isLinux;
 bool get hostIsWindows => io.Platform.isWindows;
 bool get hostIsFuchsia => io.Platform.isFuchsia;
+Map<String, String> get hostEnvironment => io.Platform.environment;
 String get hostOperatingSystem => io.Platform.operatingSystem;
 String get hostOperatingSystemVersion => io.Platform.operatingSystemVersion;
 
@@ -39,3 +42,6 @@ Future<void> hostWriteDocumentText(String name, String contents) async {
   final dir = await pp.getApplicationDocumentsDirectory();
   await io.File('${dir.path}/$name').writeAsString(contents);
 }
+
+/// Read an absolute path chosen by the OS file picker.
+Future<Uint8List> hostReadFileBytes(String path) => io.File(path).readAsBytes();

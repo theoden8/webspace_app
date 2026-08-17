@@ -12,6 +12,9 @@
 // so a cache-backed screen renders in its empty state instead of failing to
 // compile. Tests can pass either.
 
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'file_store_web.dart' if (dart.library.io) 'file_store_io.dart' as impl;
 
 abstract class FileStore {
@@ -24,6 +27,11 @@ abstract class FileStore {
   Future<String?> readText(String name);
 
   Future<void> writeText(String name, String contents);
+
+  /// Binary contents, or null when absent or unreadable.
+  Future<Uint8List?> readBytes(String name);
+
+  Future<void> writeBytes(String name, List<int> bytes);
 
   Future<void> delete(String name);
 
@@ -42,12 +50,14 @@ FileStore defaultFileStore(String directoryName) =>
 /// same semantics, no disk.
 class MemoryFileStore implements FileStore {
   final Map<String, String> _files = {};
+  final Map<String, Uint8List> _bytes = {};
 
   @override
   Future<void> ensure() async {}
 
   @override
-  Future<bool> exists(String name) async => _files.containsKey(name);
+  Future<bool> exists(String name) async =>
+      _files.containsKey(name) || _bytes.containsKey(name);
 
   @override
   Future<String?> readText(String name) async => _files[name];
@@ -58,15 +68,30 @@ class MemoryFileStore implements FileStore {
   }
 
   @override
-  Future<void> delete(String name) async {
-    _files.remove(name);
+  Future<Uint8List?> readBytes(String name) async {
+    final bytes = _bytes[name];
+    if (bytes != null) return bytes;
+    final text = _files[name];
+    return text == null ? null : Uint8List.fromList(utf8.encode(text));
   }
 
   @override
-  Future<List<String>> list() async => _files.keys.toList();
+  Future<void> writeBytes(String name, List<int> bytes) async {
+    _bytes[name] = Uint8List.fromList(bytes);
+  }
+
+  @override
+  Future<void> delete(String name) async {
+    _files.remove(name);
+    _bytes.remove(name);
+  }
+
+  @override
+  Future<List<String>> list() async => {..._files.keys, ..._bytes.keys}.toList();
 
   @override
   Future<void> deleteAll() async {
     _files.clear();
+    _bytes.clear();
   }
 }

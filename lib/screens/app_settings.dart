@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -1374,7 +1374,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           // still apply via HttpClient.badCertificateCallback even on
           // Apple platforms, but the rare "inspect-imported-pins-on-
           // iOS" case doesn't justify an always-empty settings tile.
-          if (Platform.isAndroid || Platform.isLinux)
+          if (hostIsAndroid || hostIsLinux)
             ListTile(
               leading: const Icon(Icons.lock_outline),
               title: Row(
@@ -1540,7 +1540,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           ),
 
           // LocalCDN (Android only)
-          if (Platform.isAndroid)
+          if (hostIsAndroid)
             ListTile(
               leading: const Icon(Icons.storage),
               title: Row(

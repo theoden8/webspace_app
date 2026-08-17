@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:path_provider/path_provider.dart';
 
@@ -47,6 +48,20 @@ class IoFileStore implements FileStore {
     final dir = await _directory();
     if (!await dir.exists()) await dir.create(recursive: true);
     await _file(dir, name).writeAsString(contents);
+  }
+
+  @override
+  Future<Uint8List?> readBytes(String name) async {
+    final file = _file(await _directory(), name);
+    if (!await file.exists()) return null;
+    return file.readAsBytes();
+  }
+
+  @override
+  Future<void> writeBytes(String name, List<int> bytes) async {
+    final dir = await _directory();
+    if (!await dir.exists()) await dir.create(recursive: true);
+    await _file(dir, name).writeAsBytes(bytes);
   }
 
   @override

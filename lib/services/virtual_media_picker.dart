@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:webspace/platform/host_platform.dart';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -90,7 +90,7 @@ class VirtualMediaPicker {
     var bytes = file.bytes;
     if (bytes == null && file.path != null) {
       try {
-        bytes = await File(file.path!).readAsBytes();
+        bytes = await hostReadFileBytes(file.path!);
       } catch (_) {
         return const VirtualMediaPickOutcome.error(VirtualMediaPickError.read);
       }

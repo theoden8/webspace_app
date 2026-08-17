@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -22,7 +22,7 @@ class WebInterceptNative {
   static const _channel =
       MethodChannel('org.codeberg.theoden8.webspace/web_intercept');
 
-  static bool get isSupported => Platform.isAndroid;
+  static bool get isSupported => hostIsAndroid;
 
   static void initialize() {
     if (!isSupported) return;

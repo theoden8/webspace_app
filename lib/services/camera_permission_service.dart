@@ -1,4 +1,4 @@
-import 'dart:io' show Platform;
+import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter/services.dart';
 
@@ -22,7 +22,7 @@ class CameraPermissionService {
   /// re-checked on every page request so a grant made later in system
   /// settings starts working without the user touching the site setting.
   static Future<bool> ensurePermission() async {
-    if (!Platform.isAndroid) return true;
+    if (!hostIsAndroid) return true;
     try {
       final status =
           await _channel.invokeMethod<String>('ensureCameraPermission');

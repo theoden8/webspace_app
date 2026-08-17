@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -820,7 +820,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           loc.siteSettingsNotifications,
           Icons.notifications_none
         ),
-      if (Platform.isAndroid)
+      if (hostIsAndroid)
         (
           _trackingProtectionEnabled
               ? SitePermissionState.blocked
@@ -974,7 +974,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         if (v.clearUrlEnabled) loc.siteSettingsClearUrls,
         if (v.dnsBlockEnabled) loc.siteSettingsDnsBlocklist,
         if (v.contentBlockEnabled) loc.siteSettingsContentBlocker,
-        if (Platform.isAndroid && v.localCdnEnabled) loc.siteSettingsLocalCdn,
+        if (hostIsAndroid && v.localCdnEnabled) loc.siteSettingsLocalCdn,
         if (v.incognito) loc.siteSettingsIncognito,
       ];
       if (on.isEmpty) {
@@ -1559,12 +1559,12 @@ const _kBgNotifInfoShownPrefKey = 'bgNotificationLimitsInfoShown';
 Future<void> maybeShowBackgroundNotificationLimitsDialog(
   BuildContext context,
 ) async {
-  if (!Platform.isIOS && !Platform.isAndroid) return;
+  if (!hostIsIOS && !hostIsAndroid) return;
   final prefs = await SharedPreferences.getInstance();
   if (prefs.getBool(_kBgNotifInfoShownPrefKey) == true) return;
   if (!context.mounted) return;
   final loc = AppLocalizations.of(context);
-  final isIOS = Platform.isIOS;
+  final isIOS = hostIsIOS;
   final title = isIOS
       ? loc.siteSettingsBgNotifTitleIos
       : loc.siteSettingsBgNotifTitleAndroid;

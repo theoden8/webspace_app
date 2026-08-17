@@ -1,4 +1,4 @@
-import 'dart:io' show Platform;
+import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -16,7 +16,7 @@ import 'package:webspace/web_view_model.dart';
 /// has a working camera path. On desktop (Linux, macOS, Windows) and web
 /// the apply dialog skips straight to paste.
 bool _hasCameraScanner() =>
-    !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+    !kIsWeb && (hostIsAndroid || hostIsIOS);
 
 /// Show a dialog rendering [model]'s shareable subset as a QR code.
 /// Cookies, user scripts, secure cookies, and proxy passwords are stripped
