@@ -80,6 +80,14 @@ const PAGES = [
     source: 'lib/design_gallery/main.dart',
     shots: [['Light', 'browser-chrome__light.png'], ['Dark', 'browser-chrome__dark.png']],
   },
+  {
+    path: 'screens/user-scripts.html',
+    group: 'Screens',
+    title: 'User scripts',
+    blurb: 'A whole screen, not an element: the real UserScriptsScreen. Interactive in the gallery itself, where the add button pushes the real editor. The only screen that compiles for web today; the drawer, site grid and settings still reach dart:io.',
+    source: 'lib/screens/user_scripts.dart',
+    shots: [['Light', 'user-scripts__light.png'], ['Dark', 'user-scripts__dark.png']],
+  },
 ];
 
 // Whole-screen captures, if any. The gallery cannot render the real screens
