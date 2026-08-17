@@ -1,12 +1,10 @@
 import 'dart:convert';
-import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/services/log_service.dart';
@@ -360,10 +358,7 @@ class LocalCdnService {
     int total = 0;
     for (final path in _cache.values) {
       try {
-        final file = File(path);
-        if (await file.exists()) {
-          total += await file.length();
-        }
+        total += await hostFileLength(path);
       } catch (_) {}
     }
     return total;
@@ -372,9 +367,8 @@ class LocalCdnService {
   /// Initialize the service - load cache index from disk.
   Future<void> initialize() async {
     if (_initialized) return;
-    final dir = await getApplicationDocumentsDirectory();
-    _cacheDir = '${dir.path}/localcdn_cache';
-    await Directory(_cacheDir!).create(recursive: true);
+    _cacheDir = '${await hostDocumentsPath()}/localcdn_cache';
+    await hostEnsureDirectory(_cacheDir!);
     await _loadCacheIndex();
     _initialized = true;
   }
@@ -417,9 +411,8 @@ class LocalCdnService {
     if (filePath == null) return null;
 
     try {
-      final file = File(filePath);
-      if (await file.exists()) {
-        return await file.readAsBytes();
+      if (await hostFileExists(filePath)) {
+        return hostReadFileBytes(filePath);
       }
       // File missing - remove from index
       _cache.remove(key);
@@ -494,7 +487,7 @@ class LocalCdnService {
         .replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
     final filePath = '$_cacheDir/$safeFilename';
     try {
-      await File(filePath).writeAsBytes(bytes);
+      await hostWriteFileBytes(filePath, bytes);
       _cache[key] = filePath;
       await _saveCacheIndex();
       return bytes;
@@ -569,11 +562,8 @@ class LocalCdnService {
     if (!_initialized) return;
 
     try {
-      final dir = Directory(_cacheDir!);
-      if (await dir.exists()) {
-        await dir.delete(recursive: true);
-        await dir.create(recursive: true);
-      }
+      await hostDeleteDirectory(_cacheDir!);
+      await hostEnsureDirectory(_cacheDir!);
     } catch (_) {}
 
     _cache.clear();
@@ -594,7 +584,7 @@ class LocalCdnService {
         _cache.clear();
         for (final entry in index.entries) {
           // Verify file exists before adding to index
-          if (await File(entry.value as String).exists()) {
+          if (await hostFileExists(entry.value as String)) {
             _cache[entry.key] = entry.value as String;
           }
         }

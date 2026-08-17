@@ -19,6 +19,7 @@ const CARDS = [
   { id: 'user-scripts', width: 400, height: 740 },
   { id: 'trusted-certificates', width: 400, height: 560 },
   { id: 'location-picker', width: 400, height: 740 },
+  { id: 'site-settings', width: 400, height: 900 },
   { id: 'color-roles', width: 900, height: 180 },
   { id: 'type-scale', width: 520, height: 260 },
   { id: 'radius-scale', width: 520, height: 130 },

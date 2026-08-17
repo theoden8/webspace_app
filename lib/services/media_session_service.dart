@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/log_service.dart';
 
 /// BGAUDIO-006 Dart bridge to the native media session. A background-audio
@@ -50,7 +50,7 @@ class MediaSessionService {
   static bool? debugEnabledOverride;
 
   bool get _enabled =>
-      debugEnabledOverride ?? (Platform.isAndroid || Platform.isIOS);
+      debugEnabledOverride ?? (hostIsAndroid || hostIsIOS);
 
   /// Whether this platform has a native media session behind the channel.
   /// Read by `webview.dart` to gate the shim + handler injection, so the
@@ -288,23 +288,7 @@ class MediaSessionService {
     if (uri == null || !(uri.isScheme('http') || uri.isScheme('https'))) {
       return null;
     }
-    HttpClient? client;
-    try {
-      client = HttpClient()..connectionTimeout = const Duration(seconds: 5);
-      final req = await client.getUrl(uri).timeout(const Duration(seconds: 5));
-      final resp = await req.close().timeout(const Duration(seconds: 5));
-      if (resp.statusCode != 200) return null;
-      const cap = 1536 * 1024; // 1.5 MB
-      final builder = BytesBuilder(copy: false);
-      await for (final chunk in resp.timeout(const Duration(seconds: 5))) {
-        builder.add(chunk);
-        if (builder.length > cap) return null;
-      }
-      return builder.takeBytes();
-    } catch (_) {
-      return null;
-    } finally {
-      client?.close(force: true);
-    }
+    const cap = 1536 * 1024; // 1.5 MB
+    return hostFetchBounded(uri, cap);
   }
 }

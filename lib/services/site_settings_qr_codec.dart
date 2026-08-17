@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io' show gzip;
+import 'package:webspace/platform/host_platform.dart';
 import 'dart:typed_data';
 
 /// Encode/decode the QR-shareable subset of a [WebViewModel] JSON dict.
@@ -105,7 +105,7 @@ class SiteSettingsQrCodec {
   /// Encode a shareable subset to a `webspace://qr/site/vN/<payload>` URI.
   static String encode(Map<String, dynamic> shareable) {
     final jsonStr = jsonEncode(shareable);
-    final compressed = gzip.encode(utf8.encode(jsonStr));
+    final compressed = hostGzipEncoder.convert(utf8.encode(jsonStr));
     final payload = base64Url.encode(compressed).replaceAll('=', '');
     return '$_scheme://$_path/v$currentVersion/$payload';
   }
@@ -137,7 +137,7 @@ class SiteSettingsQrCodec {
       }
     });
     try {
-      final conv = gzip.decoder.startChunkedConversion(counting);
+      final conv = hostGzipDecoder.startChunkedConversion(counting);
       const step = 4096;
       for (var i = 0; i < compressed.length && !overflow; i += step) {
         final end = (i + step < compressed.length) ? i + step : compressed.length;

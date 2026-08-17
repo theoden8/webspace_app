@@ -18,10 +18,12 @@ import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/hint_button.dart';
 import 'package:webspace/widgets/tab_bar_corner_button.dart';
 import 'package:webspace/screens/location_picker.dart';
+import 'package:webspace/screens/settings.dart';
 import 'package:webspace/screens/trusted_certificates.dart';
 import 'package:webspace/screens/user_scripts.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/settings/user_script.dart';
+import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/url_bar.dart';
 
 const Map<String, Color> galleryAccents = {
@@ -58,6 +60,7 @@ final List<GalleryCard> galleryCards = [
   GalleryCard(id: 'user-scripts', label: 'User scripts screen', fullBleed: true, builder: (c) => const _UserScriptsCard()),
   GalleryCard(id: 'trusted-certificates', label: 'Trusted certificates screen', fullBleed: true, builder: (c) => const _TrustedCertificatesCard()),
   GalleryCard(id: 'location-picker', label: 'Location picker screen', fullBleed: true, builder: (c) => const _LocationPickerCard()),
+  GalleryCard(id: 'site-settings', label: 'Site settings screen', fullBleed: true, builder: (c) => const _SiteSettingsCard()),
   GalleryCard(id: 'color-roles', label: 'Color roles', builder: (c) => const _ColorRolesCard()),
   GalleryCard(id: 'type-scale', label: 'Type scale', builder: (c) => const _TypeScaleCard()),
   GalleryCard(id: 'radius-scale', label: 'Corner radii', builder: (c) => const _RadiusScaleCard()),
@@ -388,6 +391,21 @@ class _UserScriptsCardState extends State<_UserScriptsCard> {
       isGlobalLibrary: true,
       onSave: (scripts) => setState(() => _scripts = scripts),
     );
+  }
+}
+
+/// The real per-site SettingsScreen, driven by a seeded WebViewModel. Every
+/// section is the app's own: privacy, proxy, capture permissions, scripts.
+class _SiteSettingsCard extends StatelessWidget {
+  const _SiteSettingsCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final model = WebViewModel(
+      initUrl: 'https://codeberg.org/theoden8/webspace',
+      name: 'Codeberg',
+    );
+    return SettingsScreen(webViewModel: model, useContainers: true);
   }
 }
 

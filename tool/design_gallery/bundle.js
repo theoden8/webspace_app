@@ -34,6 +34,14 @@ const PAGES = [
     shots: [['Light', 'trusted-certificates__light.png'], ['Dark', 'trusted-certificates__dark.png']],
   },
   {
+    path: 'screens/site-settings.html',
+    group: 'Screens',
+    title: 'Site settings',
+    blurb: 'The real per-site SettingsScreen against a seeded site. Tracking Protection is on, so the features it forces (ClearURLs, DNS blocklist) render disabled with their explanatory subtitles, and DNS blocklist additionally shows the amber not-configured warning for missing downloaded data.',
+    source: 'lib/screens/settings.dart',
+    shots: [['Light', 'site-settings__light.png'], ['Dark', 'site-settings__dark.png']],
+  },
+  {
     path: 'screens/location-picker.html',
     group: 'Screens',
     title: 'Location picker',
