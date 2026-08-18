@@ -320,6 +320,13 @@ function writeManifest(pages) {
   console.log(`_ds_manifest.json  ${manifest.cards.length} cards`);
 }
 
+// The project's README is an input, not a derivative: it describes the project
+// to whoever works in it, and ships with every bundle so it cannot drift from
+// the pages it describes. It is a README and not a CLAUDE.md because the
+// design API refuses to write CLAUDE.md or .claude/ into a project, on the
+// grounds that they would be instructions to the design agent.
+const PROJECT_DOC = path.join(__dirname, 'project', 'README.md');
+
 fs.rmSync(outDir, { recursive: true, force: true });
 const pages = [LIVE, ...PAGES, ...screenPages()];
 for (const page of pages) {
@@ -329,5 +336,7 @@ for (const page of pages) {
   fs.writeFileSync(dest, html);
   console.log(`${page.path}  ${(Buffer.byteLength(html) / 1024).toFixed(0)} KiB`);
 }
+fs.copyFileSync(PROJECT_DOC, path.join(outDir, 'README.md'));
+console.log('README.md');
 writeManifest(pages);
 console.log(`\n${pages.length} pages -> ${path.relative(process.cwd(), outDir)}`);
