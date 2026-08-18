@@ -433,7 +433,18 @@ whose play button reaches a site the app is no longer keeping alive. When no
 loaded site has the toggle, `_updateBackgroundAudioSession` SHALL therefore
 call `MediaSessionService.clearOsMediaSurface()`, which clears the surface
 even when the app never raised it (`stopAll` alone cannot: it early-returns
-because nothing of ours is active).
+because nothing of ours is active). Three things that clearing needs to
+survive contact with WebKit:
+
+- it SHALL run AFTER the media pauses complete, since WebKit republishes its
+  entry while processing a pause;
+- it SHALL clear twice, a short delay apart, for the republish that lands
+  after the first clear anyway;
+- it SHALL release the audio session (`setActive(false,
+  .notifyOthersOnDeactivation)`). Clearing the metadata alone leaves an entry
+  the engine repopulates; the app drops out of the OS media surface only when
+  it stops holding the session. This is the ONE place that releases it — every
+  other teardown keeps it, because another loaded site may still be sounding.
 
 The snippet ([`buildMediaPauseJs`](../../../lib/services/media_session_shim.dart))
 walks same-origin subframes itself, since `evaluateJavascript` reaches only

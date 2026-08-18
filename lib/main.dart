@@ -1650,6 +1650,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         if (i < 0 || i >= _webViewModels.length) continue;
         mediaStops[i] = _webViewModels[i].pauseMediaPlayback();
       }
+      final allMediaStopped = Future.wait(mediaStops.values);
       if (pausePlan.jsPauseIndex != null) {
         final idx = pausePlan.jsPauseIndex!;
         final stopped = mediaStops.remove(idx) ?? Future<void>.value();
@@ -1680,8 +1681,11 @@ class _WebSpacePageState extends State<WebSpacePage>
       // before the process gets backgrounded.
       unawaited(_updateBackgroundRefreshSchedule());
       // iOS: make sure the `.playback` audio session is live before the
-      // process is backgrounded, or active webview audio gets cut.
-      unawaited(_updateBackgroundAudioSession());
+      // process is backgrounded, or active webview audio gets cut. Sequenced
+      // after the media stops above: WebKit republishes its Now Playing entry
+      // when it processes a pause, so clearing before that lands leaves the
+      // controls on screen (BGAUDIO-009).
+      unawaited(allMediaStopped.then((_) => _updateBackgroundAudioSession()));
     } else if (state == AppLifecycleState.resumed) {
       if (_maskBackground) {
         setState(() => _maskBackground = false);

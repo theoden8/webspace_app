@@ -58,6 +58,7 @@ void main() {
     LogService.instance.clear();
     MediaSessionService.debugEnabledOverride = true;
     MediaSessionService.debugVisibilityCheckDelay = Duration.zero;
+    MediaSessionService.debugSurfaceReclearDelay = Duration.zero;
     service.debugReset();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
@@ -332,14 +333,22 @@ void main() {
       // so `isActive` is false and `stopAll` would do nothing.
       expect(service.isActive, isFalse);
       await service.clearOsMediaSurface();
-      expect(controlCalls().map((c) => c.method), ['stop']);
+      // Twice: WebKit republishes its Now Playing entry when it finishes
+      // processing the pause that preceded this.
+      expect(controlCalls().map((c) => c.method), ['stop', 'stop']);
+      expect(
+          controlCalls().every((c) =>
+              (c.arguments as Map)['deactivate'] == true),
+          isTrue,
+          reason: 'clearing the metadata alone leaves an entry the engine '
+              'repopulates; the session has to go with it');
     });
 
     test('tears our own surface down when we do own it', () async {
       await reportPlaying('a');
       calls.clear();
       await service.clearOsMediaSurface();
-      expect(controlCalls().map((c) => c.method), ['stop']);
+      expect(controlCalls().map((c) => c.method), ['stop', 'stop']);
       expect(service.isActive, isFalse);
     });
 

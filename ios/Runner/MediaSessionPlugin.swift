@@ -118,7 +118,8 @@ class MediaSessionPlugin: NSObject {
       )
       result(nil)
     case "stop":
-      stop()
+      let args = call.arguments as? [String: Any] ?? [:]
+      stop(deactivate: args["deactivate"] as? Bool ?? false)
       result(nil)
     case "isNotificationActive":
       // Read back from the OS rather than from a local flag: the point of
@@ -159,17 +160,27 @@ class MediaSessionPlugin: NSObject {
     registerCommands()
   }
 
-  private func stop() {
+  /// [deactivate] is passed when no background-audio site is loaded at all and
+  /// the pages that were sounding have just been paused (BGAUDIO-009). Only
+  /// then is giving the session up safe — and only then does it work: clearing
+  /// the metadata alone leaves an entry WebKit repopulates for whatever it was
+  /// playing, which is the transport control with a dead play button. Ordinary
+  /// teardown keeps the session, since another loaded site may still be
+  /// sounding in the foreground.
+  private func stop(deactivate: Bool = false) {
     publishing = false
     unregisterCommands()
     let center = MPNowPlayingInfoCenter.default()
     center.nowPlayingInfo = nil
     center.playbackState = .stopped
-    // The session is deliberately NOT deactivated here: another loaded site
-    // may still be sounding in the foreground, and `setActive(false)` would
-    // cut it. `BackgroundTaskService.setBackgroundAudioActive(false)` puts the
-    // category back to `.ambient` (BGAUDIO-003), which is the posture that
-    // matters once no background-audio site is loaded.
+    guard deactivate else { return }
+    let session = AVAudioSession.sharedInstance()
+    do {
+      try session.setActive(false, options: .notifyOthersOnDeactivation)
+    } catch {
+      // Busy means something is still playing — leave it be, and say so.
+      reportSessionState("session release declined", error: error)
+    }
   }
 
   /// An ACTIVE `.playback` session is what keeps iOS from suspending the

@@ -192,11 +192,28 @@ class MediaSessionService {
   Future<void> clearOsMediaSurface() async {
     if (!_enabled) return;
     if (_active) {
-      await _stop();
-      return;
+      _active = false;
+      _ownerSiteId = null;
+      _ownerRunJs = null;
+      _ownerFrame = null;
+      _visibilityChecked = false;
+      LogService.instance.log('MediaSession', 'Notification torn down');
     }
-    await _invoke('stop', null);
+    // `deactivate`: with nothing of ours left playing, giving the audio
+    // session up is what actually drops the app out of the OS media surface —
+    // clearing the metadata alone leaves an entry the engine can repopulate.
+    // Ignored by the Android side, which owns its notification outright.
+    await _invoke('stop', {'deactivate': true});
+    // WebKit republishes its own Now Playing info when it finishes processing
+    // the pause that preceded this, which can land after the first clear.
+    await Future<void>.delayed(debugSurfaceReclearDelay);
+    await _invoke('stop', {'deactivate': true});
   }
+
+  /// How long to wait before the second clear. Short enough to run inside the
+  /// window a backgrounding app still gets.
+  @visibleForTesting
+  static Duration debugSurfaceReclearDelay = const Duration(milliseconds: 400);
 
   /// Tear the notification down when [siteId] owns it. Called when the site is
   /// unloaded/disposed or its background-audio toggle goes off.

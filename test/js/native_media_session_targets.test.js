@@ -97,10 +97,17 @@ test('an interruption is observed and recovered from (BGAUDIO-011)', () => {
 });
 
 test('teardown clears the now-playing info, not just the targets', () => {
-  const stop = src.slice(src.indexOf('private func stop()'));
+  const stop = src.slice(src.indexOf('private func stop(deactivate'));
   assert.match(stop, /unregisterCommands\(\)/);
   assert.match(stop, /center\.nowPlayingInfo = nil/,
     'stale Now Playing controls whose buttons reach nothing are the bug');
-  assert.ok(!/setActive\(false/.test(code),
-    'deactivating the shared session would cut another site still sounding');
+  // Ordinary teardown keeps the session: another loaded site may still be
+  // sounding in the foreground. Giving it up is reserved for the explicit
+  // `deactivate` call, which only arrives once every page has been paused.
+  assert.match(stop, /guard deactivate else \{ return \}/,
+    'the session release must sit behind the deactivate flag');
+  const releases = (code.match(/setActive\(false/g) || []).length;
+  assert.equal(releases, 1, 'exactly one place may release the session');
+  assert.match(stop, /options: \.notifyOthersOnDeactivation/,
+    'let whatever we interrupted resume');
 });
