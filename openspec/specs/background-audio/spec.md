@@ -576,6 +576,54 @@ targets
 registered, because `MediaSessionService.isSupported` is true
 (regression test: `test/media_session_service_test.dart`)
 
+---
+
+### Requirement: BGAUDIO-011 — Interruptions Are Recovered, and the Session State Is in the Log
+
+An interruption (an incoming call, Siri, another app taking the session)
+deactivates the app's AVAudioSession. iOS does not restore it: audio stays
+dead, and every later transport tap reaches a page whose engine has no session
+to play into. `MediaSessionPlugin` SHALL therefore observe
+`AVAudioSession.interruptionNotification` and, while it publishes Now Playing
+info for a background-audio site, re-activate the session when an interruption
+ends — issuing a `play` transport when the system's `shouldResume` option says
+the user expects playback back. It SHALL also re-establish the session on
+`mediaServicesWereResetNotification`, since a media-server restart takes every
+session and Now Playing entry with it. Recovery SHALL NOT run when the app
+publishes nothing: activating a session (or asking a page to play) on behalf of
+a site that is not playing steals audio focus from whatever interrupted us.
+
+The plugin SHALL report its audio-session state to Dart (`onSessionState`),
+which logs one non-sensitive line per event (no site name, URL or track
+metadata) carrying the session's category and whether other audio is playing.
+Every candidate cause of "the audio stopped in the background" looks identical
+from Dart; the session's category and active state at that moment is what
+separates them, and a device console the user cannot export does not.
+
+All notification handling hops onto the main queue before touching plugin
+state, which is confined there (BUG-007).
+
+#### Scenario: Playback returns after a phone call
+
+**Given** a background-audio site is playing and the app publishes Now Playing
+**When** an interruption ends with `shouldResume`
+**Then** the session is re-activated and a `play` transport reaches the page
+**And** the App Logs carry the interruption and the re-activation
+
+#### Scenario: An interruption while nothing of ours plays changes nothing
+
+**Given** the app publishes no Now Playing info
+**When** an interruption ends
+**Then** no session is activated and no page is asked to play
+(regression test: `test/js/native_media_session_targets.test.js`)
+
+#### Scenario: The session state reaches an App Logs export
+
+**Given** the native side reports its session state
+**When** `MediaSessionService` receives `onSessionState`
+**Then** one `MediaSession` line carries the category and other-audio flag
+(regression test: `test/media_session_service_test.dart`)
+
 ## Limitations (documented, accepted)
 
 - **iOS without playback**: the audio session keeps the app alive only
@@ -629,7 +677,8 @@ registered, because `MediaSessionService.isSupported` is true
 
 - `openspec/specs/background-audio/spec.md` — this document.
 - `ios/Runner/MediaSessionPlugin.swift` — BGAUDIO-010 Now Playing info +
-  remote command centre behind the `media_session` channel.
+  remote command centre behind the `media_session` channel; BGAUDIO-011
+  interruption recovery and session-state reporting.
 - `integration_test/background_audio_lifecycle_test.dart` (exempt direction),
   `integration_test/background_audio_freeze_test.dart` (negative control),
   `integration_test/background_audio_media_notification_test.dart` (BGAUDIO-007

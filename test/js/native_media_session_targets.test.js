@@ -78,6 +78,24 @@ test('only play / pause / stop are registered', () => {
     'togglePlayPause is deliberately left to WebKit');
 });
 
+test('an interruption is observed and recovered from (BGAUDIO-011)', () => {
+  // Nothing re-activates a session iOS deactivated for a call / Siri / another
+  // app. Without this the audio never returns and every later transport tap
+  // reaches an engine with no session to play into.
+  assert.match(code, /AVAudioSession\.interruptionNotification/,
+    'the plugin must observe interruptions');
+  assert.match(code, /AVAudioSession\.mediaServicesWereResetNotification/,
+    'a media-server restart takes the session and the Now Playing entry with it');
+  const handler = code.slice(code.indexOf('func handleInterruption'));
+  const body = handler.slice(0, handler.indexOf('func handleMediaServicesReset'));
+  assert.match(body, /DispatchQueue\.main\.async/,
+    'AVAudioSession posts on an arbitrary queue; plugin state lives on main');
+  assert.match(body, /guard self\.publishing else/,
+    'recovery must not activate a session or ask a page to play when we own nothing');
+  assert.match(body, /options\.contains\(\.shouldResume\)/,
+    'resume only when the system says the user expects playback back');
+});
+
 test('teardown clears the now-playing info, not just the targets', () => {
   const stop = src.slice(src.indexOf('private func stop()'));
   assert.match(stop, /unregisterCommands\(\)/);

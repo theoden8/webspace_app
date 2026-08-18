@@ -84,6 +84,19 @@ class MediaSessionService {
     _initialized = true;
     if (!_enabled) return;
     _channel.setMethodCallHandler((call) async {
+      if (call.method == 'onSessionState') {
+        // Non-sensitive audio-session state from the native side (BGAUDIO-011).
+        // "The audio stopped in the background" has several candidate causes
+        // that look identical from Dart; the session's category and active
+        // state at that moment separate them, and this puts them in the App
+        // Logs export the user can actually send.
+        final args = call.arguments;
+        final message = (args is Map ? args['message'] : null) as String? ?? '';
+        if (message.isNotEmpty) {
+          LogService.instance.log('MediaSession', 'Audio session: $message');
+        }
+        return null;
+      }
       if (call.method == 'onTransport') {
         final args = call.arguments;
         final action = (args is Map ? args['action'] : null) as String? ?? '';

@@ -259,6 +259,40 @@ void main() {
     ]);
   });
 
+  test('native audio-session state lands in the app log (BGAUDIO-011)',
+      () async {
+    service.initialize();
+    await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .handlePlatformMessage(
+      channel.name,
+      codec.encodeMethodCall(const MethodCall('onSessionState', {
+        'message': 'interruption ended, session re-activated '
+            '[category=AVAudioSessionCategoryPlayback otherAudio=false]',
+      })),
+      (_) {},
+    );
+    final lines = LogService.instance.allEntriesMerged
+        .where((e) => e.tag == 'MediaSession')
+        .map((e) => e.message)
+        .toList();
+    expect(lines.any((m) => m.contains('interruption ended')), isTrue);
+    expect(lines.any((m) => m.contains('Playback')), isTrue);
+  });
+
+  test('an empty session-state message is ignored', () async {
+    service.initialize();
+    await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .handlePlatformMessage(
+      channel.name,
+      codec.encodeMethodCall(
+          const MethodCall('onSessionState', {'message': ''})),
+      (_) {},
+    );
+    expect(LogService.instance.allEntriesMerged.where((e) =>
+        e.tag == 'MediaSession' && e.message.startsWith('Audio session')),
+        isEmpty);
+  });
+
   test('an empty transport action is ignored', () async {
     service.initialize();
     final js = <String>[];

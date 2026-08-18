@@ -27,6 +27,11 @@ class MediaSessionPlugin: NSObject {
   /// second `start` cannot stack a duplicate handler per command.
   private var commandTargets: [(MPRemoteCommand, Any)] = []
 
+  /// Whether we currently publish Now Playing info for a background-audio
+  /// site. Gates the interruption recovery: an interruption that ends while
+  /// the app owns nothing must not activate a session or ask a page to play.
+  private var publishing = false
+
   init(messenger: FlutterBinaryMessenger) {
     self.channel = FlutterMethodChannel(
       name: "org.codeberg.theoden8.webspace/media_session",
@@ -35,6 +40,68 @@ class MediaSessionPlugin: NSObject {
     super.init()
     self.channel.setMethodCallHandler { [weak self] call, result in
       self?.handle(call: call, result: result)
+    }
+    // An interruption (a call, Siri, another app taking the session) leaves
+    // OUR session deactivated. Nothing re-activates it on its own, so without
+    // this the audio never comes back and the transport controls keep reaching
+    // a page whose engine has no session to play into — "I hit play and
+    // nothing happens" (BGAUDIO-011).
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(handleInterruption(_:)),
+      name: AVAudioSession.interruptionNotification,
+      object: nil
+    )
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(handleMediaServicesReset(_:)),
+      name: AVAudioSession.mediaServicesWereResetNotification,
+      object: nil
+    )
+  }
+
+  deinit {
+    NotificationCenter.default.removeObserver(self)
+  }
+
+  /// AVAudioSession posts on an arbitrary queue; everything this plugin owns
+  /// lives on main (BUG-007), so hop before reading or writing any of it.
+  @objc private func handleInterruption(_ note: Notification) {
+    guard let info = note.userInfo,
+          let raw = info[AVAudioSessionInterruptionTypeKey] as? UInt,
+          let type = AVAudioSession.InterruptionType(rawValue: raw) else { return }
+    let options = AVAudioSession.InterruptionOptions(
+      rawValue: info[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0)
+    DispatchQueue.main.async { [weak self] in
+      guard let self = self else { return }
+      switch type {
+      case .began:
+        self.reportSessionState("audio session interrupted")
+      case .ended:
+        guard self.publishing else {
+          self.reportSessionState("interruption ended, nothing of ours playing")
+          return
+        }
+        self.activateSession()
+        self.reportSessionState("interruption ended, session re-activated")
+        // `shouldResume` is the system saying the user expects playback back.
+        if options.contains(.shouldResume) {
+          self.channel.invokeMethod("onTransport", arguments: ["action": "play"])
+        }
+      @unknown default:
+        break
+      }
+    }
+  }
+
+  /// The media server can die and restart; every session and Now Playing entry
+  /// dies with it. Re-establish ours rather than looking alive with nothing
+  /// behind it.
+  @objc private func handleMediaServicesReset(_ note: Notification) {
+    DispatchQueue.main.async { [weak self] in
+      guard let self = self, self.publishing else { return }
+      self.activateSession()
+      self.reportSessionState("media services reset, session re-established")
     }
   }
 
@@ -87,11 +154,13 @@ class MediaSessionPlugin: NSObject {
     let center = MPNowPlayingInfoCenter.default()
     center.nowPlayingInfo = info
     center.playbackState = playing ? .playing : .paused
+    publishing = true
 
     registerCommands()
   }
 
   private func stop() {
+    publishing = false
     unregisterCommands()
     let center = MPNowPlayingInfoCenter.default()
     center.nowPlayingInfo = nil
@@ -116,8 +185,22 @@ class MediaSessionPlugin: NSObject {
       try session.setCategory(.playback, mode: .default)
       try session.setActive(true)
     } catch {
-      NSLog("MediaSessionPlugin: audio session activation failed: \(error)")
+      reportSessionState("activation failed", error: error)
     }
+  }
+
+  /// Send one non-sensitive line (no site name, URL or track metadata) into the
+  /// app's own log. Whether the session is `.playback` and active at the moment
+  /// audio dies is the fact that separates every candidate cause here, and it
+  /// is invisible in a device console the user cannot easily export.
+  private func reportSessionState(_ what: String, error: Error? = nil) {
+    let session = AVAudioSession.sharedInstance()
+    var message = "\(what) [category=\(session.category.rawValue) "
+      + "otherAudio=\(session.isOtherAudioPlaying)]"
+    if let error = error {
+      message += " error=\(error.localizedDescription)"
+    }
+    channel.invokeMethod("onSessionState", arguments: ["message": message])
   }
 
   /// Play / pause / stop only, mirroring the Android notification's controls:
