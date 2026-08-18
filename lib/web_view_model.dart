@@ -1715,6 +1715,26 @@ class WebViewModel {
     }
   }
 
+  /// Tell a background-audio site's page whether the app is backgrounded
+  /// (BGAUDIO-012), so its media-session shim can mask the page-visibility
+  /// APIs and re-issue `play()` if the page stopped itself anyway.
+  ///
+  /// A no-op for every other site: masking visibility for a page the user did
+  /// not opt in for would keep timers and players running that should stop.
+  /// Main frame only — the shim relays the state to its own subframes.
+  Future<void> setBackgroundPlayback(bool active) async {
+    if (!effectiveBackgroundAudioEnabled) return;
+    final c = controller;
+    if (c == null) return;
+    try {
+      await c.evaluateJavascript(
+        'if(window.__wsMediaBackground)window.__wsMediaBackground($active);',
+      );
+    } catch (_) {
+      // Controller may have been disposed
+    }
+  }
+
   /// Pause every playing media element in the page's main frame (BGAUDIO-009).
   ///
   /// A no-op for sites with [effectiveBackgroundAudioEnabled] — that toggle

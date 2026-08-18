@@ -133,6 +133,45 @@ void main() {
     });
   });
 
+  group('BGAUDIO-012 background playback signal', () {
+    test('a background-audio site is told the app went to background',
+        () async {
+      final c = _RecordingController();
+      await _modelWith(c, backgroundAudioEnabled: true)
+          .setBackgroundPlayback(true);
+      expect(c.js.single, contains('__wsMediaBackground(true)'));
+    });
+
+    test('and told when it comes back', () async {
+      final c = _RecordingController();
+      await _modelWith(c, backgroundAudioEnabled: true)
+          .setBackgroundPlayback(false);
+      expect(c.js.single, contains('__wsMediaBackground(false)'));
+    });
+
+    test('a site without the toggle is never told', () async {
+      final c = _RecordingController();
+      await _modelWith(c).setBackgroundPlayback(true);
+      expect(c.calls, isEmpty,
+          reason: 'masking page visibility for a site the user did not opt in '
+              'for would keep players running that should stop');
+    });
+
+    test('an archive-tier site is never told', () async {
+      final c = _RecordingController();
+      await _modelWith(c, backgroundAudioEnabled: true, isArchiveTier: true)
+          .setBackgroundPlayback(true);
+      expect(c.calls, isEmpty);
+    });
+
+    test('the call is guarded against a missing hook', () async {
+      final c = _RecordingController();
+      await _modelWith(c, backgroundAudioEnabled: true)
+          .setBackgroundPlayback(true);
+      expect(c.js.single, startsWith('if(window.__wsMediaBackground)'));
+    });
+  });
+
   group('BGAUDIO-009 media pause when a site loses the screen', () {
     test('pauseMediaPlayback() pauses the page media of an ordinary site',
         () async {

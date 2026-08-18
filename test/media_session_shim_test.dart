@@ -33,6 +33,10 @@ void main() {
 
   test('exposes the Dart->page transport entry point', () {
     expect(shim, contains('window.__wsMediaControl'));
+    // BGAUDIO-012: the app-background signal and the visibility mask it drives.
+    expect(shim, contains('window.__wsMediaBackground'));
+    expect(shim, contains('visibilitychange'));
+    expect(shim, contains('stopImmediatePropagation'));
     expect(shim, contains(".play()"));
     expect(shim, contains(".pause()"));
   });

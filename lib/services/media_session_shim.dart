@@ -116,6 +116,10 @@ String buildMediaSessionShim() => r'''
     el.__wsMediaAttached = true;
     ['play', 'playing', 'pause', 'ended', 'loadedmetadata', 'emptied']
       .forEach(function(ev) { el.addEventListener(ev, schedule, true); });
+    // Remembered so the background watchdog can tell "the page stopped this
+    // while we were not looking" from "this never played".
+    el.addEventListener('playing', function() { el.__wsWasPlaying = true; }, true);
+    el.addEventListener('ended', function() { el.__wsWasPlaying = false; }, true);
   }
   function scan() { mediaEls().forEach(attach); }
 
@@ -175,6 +179,9 @@ String buildMediaSessionShim() => r'''
           });
         }
       } else if (action === 'pause' || action === 'stop') {
+        // The user asked for silence: the watchdog must not fight it.
+        var all = mediaEls();
+        for (var i = 0; i < all.length; i++) all[i].__wsWasPlaying = false;
         el.pause();
       }
     } catch (e) {
@@ -182,6 +189,113 @@ String buildMediaSessionShim() => r'''
     }
     schedule();
   };
+
+  // BGAUDIO-012: keeping the app alive is not enough for a site that stops
+  // itself. A backgrounded app's page is told it is hidden, and players built
+  // for a tab (YouTube among them) pause on `visibilitychange` / `pagehide` by
+  // their own choice. While the app is backgrounded with this site's toggle on,
+  // report the page as visible, swallow those events before the page's own
+  // handlers see them, and re-issue play() if something paused anyway.
+  var bgActive = false;
+  var resumeTries = 0;
+  var watchTimer = null;
+
+  function realGetter(name) {
+    var d = Object.getOwnPropertyDescriptor(Document.prototype, name);
+    return d && d.get ? d.get : null;
+  }
+  function maskVisibility() {
+    ['hidden', 'webkitHidden'].forEach(function(name) {
+      var real = realGetter(name);
+      try {
+        Object.defineProperty(document, name, {
+          configurable: true,
+          get: function() {
+            if (bgActive) return false;
+            return real ? real.call(document) : false;
+          },
+        });
+      } catch (e) {}
+    });
+    ['visibilityState', 'webkitVisibilityState'].forEach(function(name) {
+      var real = realGetter(name);
+      try {
+        Object.defineProperty(document, name, {
+          configurable: true,
+          get: function() {
+            if (bgActive) return 'visible';
+            return real ? real.call(document) : 'visible';
+          },
+        });
+      } catch (e) {}
+    });
+  }
+  maskVisibility();
+
+  // Capture phase on window runs before anything the page registers on
+  // document or window, so its own pause-on-hide handler never runs.
+  ['visibilitychange', 'webkitvisibilitychange', 'pagehide', 'freeze', 'blur']
+    .forEach(function(type) {
+      var swallow = function(e) {
+        if (!bgActive) return;
+        e.stopImmediatePropagation();
+      };
+      try { window.addEventListener(type, swallow, true); } catch (e) {}
+      try { document.addEventListener(type, swallow, true); } catch (e) {}
+    });
+
+  function watchdog() {
+    if (!bgActive) return;
+    var els = mediaEls();
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      if (!el.__wsWasPlaying || !el.paused || el.ended) continue;
+      if (resumeTries >= 8) continue;
+      resumeTries++;
+      try {
+        var p = el.play();
+        if (p && p.catch) {
+          p.catch(function(e) {
+            reportControl('background-resume', (e && e.name) || 'unknown');
+          });
+        }
+      } catch (e) {
+        reportControl('background-resume', (e && e.name) || 'unknown');
+      }
+    }
+  }
+
+  function setBackground(on) {
+    on = !!on;
+    if (on === bgActive) { relayBackground(on); return; }
+    bgActive = on;
+    resumeTries = 0;
+    if (watchTimer) { clearInterval(watchTimer); watchTimer = null; }
+    if (on) watchTimer = setInterval(watchdog, 1000);
+    relayBackground(on);
+    schedule();
+  }
+
+  // `evaluateJavascript` reaches the main frame only, so the state has to be
+  // handed down. A frame that fakes this message can only make its own page
+  // report itself visible, on a site the user opted into background audio for.
+  function relayBackground(on) {
+    try {
+      for (var i = 0; i < window.frames.length; i++) {
+        try {
+          window.frames[i].postMessage({ __wsMediaBackground: !!on }, '*');
+        } catch (e) {}
+      }
+    } catch (e) {}
+  }
+  window.addEventListener('message', function(ev) {
+    var d = ev && ev.data;
+    if (d && typeof d === 'object' && '__wsMediaBackground' in d) {
+      setBackground(d.__wsMediaBackground);
+    }
+  }, true);
+
+  window.__wsMediaBackground = setBackground;
 
   // Reconcile periodically: covers `ended` via currentTime, SPA route swaps,
   // and metadata set after the first report.

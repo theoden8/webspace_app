@@ -624,6 +624,70 @@ state, which is confined there (BUG-007).
 **Then** one `MediaSession` line carries the category and other-audio flag
 (regression test: `test/media_session_service_test.dart`)
 
+---
+
+### Requirement: BGAUDIO-012 — A Site That Stops Itself When Hidden Keeps Playing
+
+Keeping the process alive (BGAUDIO-003/010/011) only settles what the OS does.
+A player built for a browser tab stops on its own: when the app is
+backgrounded the page is told it is hidden, and YouTube and its like pause on
+`visibilitychange` / `pagehide` by their own choice. The audio then dies with
+every OS-level lever correctly set, and the lockscreen play button starts a
+playback the page pauses again a frame later.
+
+While the app is backgrounded and the site's toggle is on, the media-session
+shim SHALL:
+
+- report the page as visible — `document.hidden` false and
+  `document.visibilityState` `'visible'` (plus the `webkit`-prefixed pair) —
+  deferring to the real values at every other time;
+- swallow `visibilitychange`, `pagehide`, `freeze` and `blur` in the capture
+  phase on `window` and `document`, so the page's own pause-on-hide handler
+  never runs (the shim is injected at DOCUMENT_START, so its capture listener
+  is registered before the page's);
+- re-issue `play()` on any element that was playing and is now paused, at most
+  8 times per background window, reporting a refusal through the same
+  `{control, error}` path as BGAUDIO-010;
+- stop fighting a pause the user asked for: a `pause`/`stop` transport clears
+  the watchdog's intent for every element.
+
+The state is handed to the page by `WebViewModel.setBackgroundPlayback`, called
+for every loaded background-audio site on the lifecycle `paused` and `resumed`
+branches, and is a no-op for every other site — masking visibility for a page
+the user did not opt in for would keep players and timers running that should
+stop. `evaluateJavascript` reaches the main frame only, so the shim relays the
+state to its subframes by `postMessage`; a frame that fakes that message can
+only make its own page report itself visible, on a site already opted in.
+
+#### Scenario: A pause-on-hide player survives the background window
+
+**Given** a background-audio site whose page pauses its player on
+`visibilitychange`
+**When** the app goes to background and the page receives the event
+**Then** the page's handler never runs, `document.hidden` reads false, and the
+element is still playing
+(regression test: `test/browser/media_background_playback.test.js`)
+
+#### Scenario: A player that stops itself anyway is resumed
+
+**Given** the app is backgrounded with the mask in place
+**When** the element pauses for its own reasons
+**Then** the watchdog re-issues `play()` within a second, and a refusal is
+reported as `{control: 'background-resume', error}`
+
+#### Scenario: The user's own pause is respected
+
+**Given** the app is backgrounded and playing
+**When** the user taps pause on the lockscreen controls
+**Then** the element stays paused — the watchdog does not resume it
+
+#### Scenario: Foregrounding restores the page's own visibility
+
+**Given** the app comes back to the foreground
+**When** `setBackgroundPlayback(false)` runs
+**Then** `document.hidden` / `visibilityState` report the real values again and
+the events reach the page as they always have
+
 ## Limitations (documented, accepted)
 
 - **iOS without playback**: the audio session keeps the app alive only
@@ -659,7 +723,8 @@ state, which is confined there (BUG-007).
 - `lib/services/webview.dart` — `WebViewConfig.backgroundAudioEnabled`, media
   shim injection (+ the BGAUDIO-007 armed line), `wsMediaSession` handler.
 - `lib/services/media_session_shim.dart` — BGAUDIO-009 `buildMediaPauseJs`
-  (dumped to `test/js_fixtures/media_session/pause_media.js`).
+  (dumped to `test/js_fixtures/media_session/pause_media.js`); BGAUDIO-012
+  visibility mask, background watchdog and `__wsMediaBackground`.
 - `lib/services/media_session_shim.dart`, `lib/services/media_session_service.dart`
   — BGAUDIO-006 page-JS bridge + Dart channel bridge; BGAUDIO-007 detached-
   element registry, raise/teardown logging and the visibility check;
@@ -694,6 +759,10 @@ state, which is confined there (BUG-007).
 - `integration_test/background_audio_media_stop_test.dart` (BGAUDIO-009
   emulator tier) and `test/browser/media_pause_real_engine.test.js` (the same
   snippet under real Chromium).
+- `test/browser/media_background_playback.test.js` — BGAUDIO-012 against a
+  page that pauses itself on hide.
+- `test/js/native_media_session_targets.test.js` — BGAUDIO-010/011 structural
+  gate on the iOS plugin.
 
 ## Related Specs
 

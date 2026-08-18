@@ -1633,6 +1633,14 @@ class _WebSpacePageState extends State<WebSpacePage>
       if (pausePlan.flushCookies) {
         unawaited(_cookieManager.flush());
       }
+      // BGAUDIO-012: a site that stops itself when the page reports hidden
+      // (YouTube and every other player built for a tab) needs to be told the
+      // app is backgrounded before the OS tells the page it is hidden.
+      for (final i in _loadedIndices) {
+        if (i < 0 || i >= _webViewModels.length) continue;
+        if (!_webViewModels[i].effectiveBackgroundAudioEnabled) continue;
+        unawaited(_webViewModels[i].setBackgroundPlayback(true));
+      }
       // BGAUDIO-009: a site the user never opted in for must not keep sounding
       // through a backgrounded app (and keep the system transport controls up
       // with it). Dispatched before the JS pause below — on iOS that pause
@@ -1677,6 +1685,13 @@ class _WebSpacePageState extends State<WebSpacePage>
     } else if (state == AppLifecycleState.resumed) {
       if (_maskBackground) {
         setState(() => _maskBackground = false);
+      }
+      // BGAUDIO-012: hand the page's own visibility back. On screen again, a
+      // player that pauses when hidden should behave exactly as it always has.
+      for (final i in _loadedIndices) {
+        if (i < 0 || i >= _webViewModels.length) continue;
+        if (!_webViewModels[i].effectiveBackgroundAudioEnabled) continue;
+        unawaited(_webViewModels[i].setBackgroundPlayback(false));
       }
       // Open the warm-start repaint window before the async resume sequence, so
       // a late SurfaceView re-attach (which surfaces as a metrics change) is
