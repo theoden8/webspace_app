@@ -17,10 +17,16 @@ import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/hint_button.dart';
 import 'package:webspace/widgets/tab_bar_corner_button.dart';
+import 'package:webspace/main.dart' show AppThemeSettings, AccentColor;
+import 'package:webspace/screens/add_site.dart';
+import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/screens/location_picker.dart';
 import 'package:webspace/screens/settings.dart';
 import 'package:webspace/screens/trusted_certificates.dart';
 import 'package:webspace/screens/user_scripts.dart';
+import 'package:webspace/screens/webspace_detail.dart';
+import 'package:webspace/screens/webspaces_list.dart';
+import 'package:webspace/webspace_model.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/web_view_model.dart';
@@ -60,7 +66,11 @@ final List<GalleryCard> galleryCards = [
   GalleryCard(id: 'user-scripts', label: 'User scripts screen', fullBleed: true, builder: (c) => const _UserScriptsCard()),
   GalleryCard(id: 'trusted-certificates', label: 'Trusted certificates screen', fullBleed: true, builder: (c) => const _TrustedCertificatesCard()),
   GalleryCard(id: 'location-picker', label: 'Location picker screen', fullBleed: true, builder: (c) => const _LocationPickerCard()),
+  GalleryCard(id: 'webspaces', label: 'Webspaces screen', fullBleed: true, builder: (c) => const _WebspacesCard()),
+  GalleryCard(id: 'webspace-detail', label: 'Webspace detail screen', fullBleed: true, builder: (c) => const _WebspaceDetailCard()),
   GalleryCard(id: 'site-settings', label: 'Site settings screen', fullBleed: true, builder: (c) => const _SiteSettingsCard()),
+  GalleryCard(id: 'app-settings', label: 'App settings screen', fullBleed: true, builder: (c) => const _AppSettingsCard()),
+  GalleryCard(id: 'add-site', label: 'Add site screen', fullBleed: true, builder: (c) => const _AddSiteCard()),
   GalleryCard(id: 'color-roles', label: 'Color roles', builder: (c) => const _ColorRolesCard()),
   GalleryCard(id: 'type-scale', label: 'Type scale', builder: (c) => const _TypeScaleCard()),
   GalleryCard(id: 'radius-scale', label: 'Corner radii', builder: (c) => const _RadiusScaleCard()),
@@ -392,6 +402,101 @@ class _UserScriptsCardState extends State<_UserScriptsCard> {
       onSave: (scripts) => setState(() => _scripts = scripts),
     );
   }
+}
+
+List<Webspace> _demoWebspaces() => [
+      Webspace(name: 'Work', siteIds: ['a', 'b', 'c'], siteIndices: [0, 1, 2]),
+      Webspace(name: 'Reading', siteIds: ['d', 'e'], siteIndices: [3, 4]),
+      Webspace(name: 'Banking', siteIds: ['f'], siteIndices: [5]),
+    ];
+
+/// The real WebspacesListScreen: the collections a user switches between,
+/// with per-collection site counts and reordering.
+class _WebspacesCard extends StatefulWidget {
+  const _WebspacesCard();
+
+  @override
+  State<_WebspacesCard> createState() => _WebspacesCardState();
+}
+
+class _WebspacesCardState extends State<_WebspacesCard> {
+  final List<Webspace> _webspaces = _demoWebspaces();
+  String? _selected;
+
+  @override
+  Widget build(BuildContext context) => WebspacesListScreen(
+        webspaces: _webspaces,
+        selectedWebspaceId: _selected,
+        totalSitesCount: 6,
+        accentColor: AccentColor.blue,
+        onSelectWebspace: (w) => setState(() => _selected = w.id),
+        onAddWebspace: () {},
+        onEditWebspace: (_) {},
+        onDeleteWebspace: (w) => setState(() => _webspaces.remove(w)),
+        onReorder: (from, to) => setState(() {
+          final moved = _webspaces.removeAt(from);
+          _webspaces.insert(to > from ? to - 1 : to, moved);
+        }),
+      );
+}
+
+/// The real WebspaceDetailScreen: which sites belong to one collection.
+class _WebspaceDetailCard extends StatelessWidget {
+  const _WebspaceDetailCard();
+
+  @override
+  Widget build(BuildContext context) => WebspaceDetailScreen(
+        webspace: _demoWebspaces().first,
+        allSites: [
+          WebViewModel(initUrl: 'https://codeberg.org', name: 'Codeberg'),
+          WebViewModel(initUrl: 'https://news.ycombinator.com', name: 'HN'),
+          WebViewModel(initUrl: 'https://wikipedia.org', name: 'Wikipedia'),
+        ],
+        onSave: (_) {},
+      );
+}
+
+/// The real AppSettingsScreen: the global preferences surface.
+class _AppSettingsCard extends StatelessWidget {
+  const _AppSettingsCard();
+
+  @override
+  Widget build(BuildContext context) => AppSettingsScreen(
+        currentSettings: const AppThemeSettings(),
+        onSettingsChanged: (_) {},
+        onExportSettings: () {},
+        onImportSettings: () {},
+        showTabStrip: true,
+        onShowTabStripChanged: (_) {},
+        tabStripInFullscreen: false,
+        onTabStripInFullscreenChanged: (_) {},
+        fullscreenOnShortcut: false,
+        onFullscreenOnShortcutChanged: (_) {},
+        tabBarButton: true,
+        onTabBarButtonChanged: (_) {},
+        tabMaxWidth: 180,
+        onTabMaxWidthChanged: (_) {},
+        showStatsBanner: false,
+        onShowStatsBannerChanged: (_) {},
+        localeOverride: '',
+        onLocaleOverrideChanged: (_) {},
+        linkHandlingEnabled: false,
+        onLinkHandlingEnabledChanged: (_) {},
+        onOpenLinkHandlingSettings: () {},
+      );
+}
+
+/// The real AddSiteScreen: the URL entry and suggestion surface.
+class _AddSiteCard extends StatelessWidget {
+  const _AddSiteCard();
+
+  @override
+  Widget build(BuildContext context) => AddSiteScreen(
+        themeMode: ThemeMode.light,
+        onThemeModeChanged: (_) {},
+        suggestions: const [],
+        onSuggestionsChanged: (_) {},
+      );
 }
 
 /// The real per-site SettingsScreen, driven by a seeded WebViewModel. Every
