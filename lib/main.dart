@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:async';
-import 'dart:io';
 import 'dart:math' show min, max;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -21,6 +20,7 @@ import 'package:html/dom.dart' as html_dom;
 
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
+import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/screens/add_site.dart' show AddSiteScreen, UnifiedFaviconImage, FaviconUrlCache, SiteSuggestion;
@@ -625,7 +625,7 @@ void main() async {
       () => _runTimed('adblock', ContentBlockerService.instance.initialize),
       () => _runTimed('localCdn', LocalCdnService.instance.initialize),
       () => _runTimed('blockStats', BlockStatsService.instance.initialize),
-      if (Platform.isAndroid)
+      if (hostIsAndroid)
         () => _runTimed('swBlock', blockServiceWorkerNetwork),
     ],
     bridgeSetup: WebInterceptNative.initialize,
@@ -1280,7 +1280,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     // ARCH-006: archive-tier sites must not get OS-level pinned
     // shortcuts (visible in the launcher / Shortcuts.app indefinitely).
     if (_webViewModels[index].isArchiveTier) return false;
-    if (Platform.isAndroid) {
+    if (hostIsAndroid) {
       // Treat a site an orphaned tile was rebound to (HS-011) as already
       // pinned — it's reachable via that tile, so don't offer a second one.
       final effective = ShortcutPinState.effectivePinnedSiteIds(
@@ -1289,7 +1289,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       );
       return !effective.contains(_webViewModels[index].siteId);
     }
-    if (Platform.isIOS || Platform.isMacOS) {
+    if (hostIsIOS || hostIsMacOS) {
       return _appIntentsSupported;
     }
     return false;
@@ -1298,7 +1298,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// Routes the "Home Shortcut" menu tap. Android pins directly; iOS shows
   /// the HS-008 instructional dialog then deep-links to Shortcuts.app.
   Future<void> _handleAddToHome(WebViewModel model) async {
-    if (Platform.isAndroid) {
+    if (hostIsAndroid) {
       final faviconUrl = FaviconUrlCache.get(model.initUrl);
       // Rasterize the favicon to PNG here (HS-003): Android's BitmapFactory
       // can't decode SVG, so an SVG favicon would otherwise fall back to the
@@ -1323,13 +1323,13 @@ class _WebSpacePageState extends State<WebSpacePage>
       await _recordShortcutLedger(model.siteId, model.initUrl);
       return;
     }
-    if ((Platform.isIOS || Platform.isMacOS) && _appIntentsSupported) {
+    if ((hostIsIOS || hostIsMacOS) && _appIntentsSupported) {
       final loc = AppLocalizations.of(context);
       // iOS embeds the AppIntents ShortcutsUIButton, which lands on
       // WebSpace's own App Shortcuts page; the bare shortcuts:// scheme
       // (still used on macOS, where that button doesn't exist) can only
       // open the Shortcuts app's main view.
-      if (Platform.isIOS) {
+      if (hostIsIOS) {
         await showDialog<void>(
           context: context,
           builder: (ctx) => AlertDialog(
@@ -1445,7 +1445,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     // on-device that a warm-start surface reattach actually surfaces here as a
     // metrics change, the premise Attempt 8 depends on. Bounded to the window,
     // so it is not emitted for steady-state metric changes. See PAUSE-020.
-    if (Platform.isAndroid) {
+    if (hostIsAndroid) {
       LogService.instance.log('SurfaceDiag', 'trigger=metrics-resume -> nudge');
     }
     _nudgeSurfaceRepaint();
@@ -1732,7 +1732,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// `_nudgeSurfaceRepaint`, catching a SurfaceView that comes back after the
   /// `_onResumed` tail nudge has already drained.
   void _openResumeRepaintWindow() {
-    if (!Platform.isAndroid) return;
+    if (!hostIsAndroid) return;
     _resumeRepaintWindowOpen = true;
     _resumeRepaintWindowTimer?.cancel();
     _resumeRepaintWindowTimer = Timer(const Duration(seconds: 3), () {
@@ -1930,7 +1930,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// resume, which is why a single rebuild (e.g. the one in _setCurrentIndex)
   /// is not enough on its own.
   void _nudgeSurfaceRepaint() {
-    if (!Platform.isAndroid) return;
+    if (!hostIsAndroid) return;
     // Coalesce concurrent callers (e.g. _setCurrentIndex from a warm-shortcut
     // _openShortcutIndex, then _onResumed's tail call) onto a single loop: the
     // engine refills the tick budget and reports whether a loop is already
@@ -3221,7 +3221,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// renames / additions / deletions show up in Shortcuts.app the next time
   /// the user touches it. No-op on non-iOS platforms.
   void _syncShortcutSites() {
-    if (!Platform.isIOS && !Platform.isMacOS) return;
+    if (!hostIsIOS && !hostIsMacOS) return;
     final sites = [
       for (final m in _webViewModels)
         if (!m.isArchiveTier)
@@ -3700,7 +3700,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       // proxy (ProxyController fanned across sessions); a mismatched-proxy
       // sibling left loaded would route its next request through the wrong
       // proxy. iOS/macOS bind per-session, so no unload needed there.
-      proxyIsGlobal: Platform.isAndroid || Platform.isLinux,
+      proxyIsGlobal: hostIsAndroid || hostIsLinux,
     );
     for (final i in proxyMismatch) {
       LogService.instance.log(
@@ -4848,7 +4848,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// No-op (returns null) on non-Android — iOS uses `BGAppRefreshTask`
   /// which doesn't share a process-wide proxy controller.
   String? _notificationsBlockedBySite(WebViewModel target) {
-    if (!Platform.isAndroid) return null;
+    if (!hostIsAndroid) return null;
     final others = <WebViewModel>[];
     for (final m in _webViewModels) {
       if (identical(m, target)) continue;
@@ -4875,7 +4875,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// Both submissions are idempotent — the platform replaces any existing
   /// pending request for the same identifier / unique-work name.
   Future<void> _updateBackgroundRefreshSchedule() async {
-    if (!Platform.isIOS && !Platform.isAndroid) return;
+    if (!hostIsIOS && !hostIsAndroid) return;
     int enabled = 0;
     int loaded = 0;
     for (int i = 0; i < _webViewModels.length; i++) {
@@ -7281,7 +7281,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                             final file = picked.files.first;
                             Uint8List? raw = file.bytes;
                             if (raw == null && file.path != null) {
-                              raw = await File(file.path!).readAsBytes();
+                              raw = await hostReadFileBytes(file.path!);
                             }
                             final processed = raw == null
                                 ? null
@@ -7604,7 +7604,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     // (remap[tile] == siteId) — so deleting a site an orphaned tile was
     // rebound to still prompts about that tile.
     Set<String> reachingTiles = const {};
-    if (Platform.isAndroid) {
+    if (hostIsAndroid) {
       final pinnedNow = await ShortcutService.getPinnedSiteIds();
       if (!mounted) return;
       reachingTiles = ShortcutPinState.tilesReaching(
@@ -7711,7 +7711,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     // delete would fire blindly on every deletion. Instead, tombstone silently:
     // if a tile was bound here it stays resolvable and routes (or offers to
     // reroute) when actually tapped (HS-011/HS-014). The list is capped.
-    if ((Platform.isIOS || Platform.isMacOS) && !deletedModel.isArchiveTier) {
+    if ((hostIsIOS || hostIsMacOS) && !deletedModel.isArchiveTier) {
       await _recordShortcutTombstone(
           deletedSiteId, deletedModel.name, deletedModel.initUrl);
     }
@@ -8234,7 +8234,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                         webViewModel.onReloadIssued = () {
                           if (index != _currentIndex) return;
                           _surfaceRepaint.reloadIssued();
-                          if (Platform.isAndroid) {
+                          if (hostIsAndroid) {
                             LogService.instance
                                 .log('SurfaceDiag', 'trigger=reload -> nudge');
                           }
@@ -8243,7 +8243,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                         webViewModel.onLoadSettled = () {
                           if (index != _currentIndex) return;
                           if (!_surfaceRepaint.consumeLoadSettled()) return;
-                          if (Platform.isAndroid) {
+                          if (hostIsAndroid) {
                             LogService.instance.log(
                                 'SurfaceDiag', 'trigger=commit-settled -> nudge');
                           }
@@ -8528,7 +8528,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       // On Android, always intercept back so the gesture only ever navigates
       // webview history (never exits the app). On other platforms, allow pop
       // only when no webview is visible.
-      canPop: Platform.isAndroid ? false : !webviewIsVisible,
+      canPop: hostIsAndroid ? false : !webviewIsVisible,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop || _isBackHandling) return;
         _isBackHandling = true;
@@ -8552,7 +8552,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           // entries on Chromium). Trust it directly: URL-comparison can
           // false-positive when goBack() succeeds but the navigation
           // hasn't propagated within the timeout.
-          if (Platform.isAndroid) {
+          if (hostIsAndroid) {
             if (await controller.canGoBack()) {
               await _goBackAndRepaint(controller);
               LogService.instance.log('Navigation', 'Back gesture: navigated back (canGoBack)');

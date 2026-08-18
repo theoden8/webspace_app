@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/file_store_io.dart';
 import 'package:webspace/services/webview_state_secure_storage.dart';
 
 /// In-memory FlutterSecureStorage for unit tests. The real one binds
@@ -157,7 +158,7 @@ void main() {
   SecureWebViewStateStorage newStorage({String version = 'v1'}) {
     return SecureWebViewStateStorage(
       secureStorage: fakeStorage,
-      overrideAppDir: tempDir,
+      store: IoFileStore('webview_state', overrideRoot: tempDir),
       versionProvider: () => version,
     );
   }

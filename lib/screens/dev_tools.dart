@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
+import 'package:webspace/platform/host_platform.dart';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
@@ -1203,7 +1203,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       final fileName = '${domain}_$timestamp.html';
       final bytes = utf8.encode(html);
 
-      final bool isMobile = !kIsWeb && (Platform.isIOS || Platform.isAndroid);
+      final bool isMobile = !kIsWeb && (hostIsIOS || hostIsAndroid);
       final outputPath = await FilePicker.saveFile(
         dialogTitle: AppLocalizations.of(context).devToolsSaveHtmlDialogTitle,
         fileName: fileName,
@@ -1212,7 +1212,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
 
       if (outputPath != null && !isMobile) {
         final filePath = outputPath.endsWith('.html') ? outputPath : '$outputPath.html';
-        await File(filePath).writeAsString(html);
+        await hostWriteFileText(filePath, html);
       }
 
       if (mounted && outputPath != null) {
@@ -1267,7 +1267,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
 
       final domain = extractDomain(host.currentUrl);
       final fileName = '${domain}_icon.png';
-      final bool isMobile = !kIsWeb && (Platform.isIOS || Platform.isAndroid);
+      final bool isMobile = !kIsWeb && (hostIsIOS || hostIsAndroid);
       final outputPath = await FilePicker.saveFile(
         dialogTitle: loc.devToolsSaveIconDialogTitle,
         fileName: fileName,
@@ -1276,7 +1276,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
 
       if (outputPath != null && !isMobile) {
         final filePath = outputPath.endsWith('.png') ? outputPath : '$outputPath.png';
-        await File(filePath).writeAsBytes(png);
+        await hostWriteFileBytes(filePath, png);
       }
 
       if (mounted && outputPath != null) {
@@ -1848,7 +1848,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
     final fileName = 'webspace_logs_$timestamp.txt';
 
-    final bool isMobile = !kIsWeb && (Platform.isIOS || Platform.isAndroid);
+    final bool isMobile = !kIsWeb && (hostIsIOS || hostIsAndroid);
     if (!mounted) return;
     final outputPath = await FilePicker.saveFile(
       dialogTitle: AppLocalizations.of(context).devToolsExportLogsDialogTitle,
@@ -1858,7 +1858,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
 
     if (outputPath != null && !isMobile) {
       final filePath = outputPath.endsWith('.txt') ? outputPath : '$outputPath.txt';
-      await File(filePath).writeAsString(text);
+      await hostWriteFileText(filePath, text);
     }
 
     if (mounted && outputPath != null) {

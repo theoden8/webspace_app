@@ -9,6 +9,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/services/file_store_io.dart';
 import 'package:webspace/services/archive.dart';
 import 'package:webspace/services/archive_storage.dart';
 import 'package:webspace/services/webview_state_secure_storage.dart';
@@ -209,7 +210,7 @@ void main() {
         // store rooted at our temp docs dir.
         final stateStore = SecureWebViewStateStorage(
           secureStorage: MockFlutterSecureStorage(),
-          overrideAppDir: docs,
+          store: IoFileStore('webview_state', overrideRoot: docs),
           versionProvider: () => 'test-v1',
         );
         await stateStore.saveState(

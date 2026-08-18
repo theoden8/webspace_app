@@ -72,3 +72,6 @@ Future<void> hostWriteFileText(String path, String contents) async {}
 Future<Uint8List?> hostFetchBounded(Uri uri, int maxBytes,
         {Duration timeout = const Duration(seconds: 5)}) async =>
     null;
+
+Future<String> hostReadFileText(String path) =>
+    throw UnsupportedError('hostReadFileText is not available on web');

@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
+import 'package:webspace/platform/host_platform.dart';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
@@ -266,7 +266,7 @@ class SettingsBackupService {
       // Use FilePicker save dialog
       // On mobile (iOS/Android): bytes parameter is required
       // On desktop (macOS/Linux/Windows): bytes not supported, write manually
-      final bool isMobile = !kIsWeb && (Platform.isIOS || Platform.isAndroid);
+      final bool isMobile = !kIsWeb && (hostIsIOS || hostIsAndroid);
 
       final outputPath = await FilePicker.saveFile(
         dialogTitle: 'Save Settings Backup',
@@ -282,8 +282,7 @@ class SettingsBackupService {
       // On desktop, write file manually since bytes param not supported
       if (!isMobile) {
         final filePath = outputPath.endsWith('.json') ? outputPath : '$outputPath.json';
-        final file = File(filePath);
-        await file.writeAsString(jsonString);
+        await hostWriteFileText(filePath, jsonString);
       }
 
       if (context.mounted) {
@@ -338,7 +337,7 @@ class SettingsBackupService {
         jsonString = utf8.decode(file.bytes!);
       } else if (file.path != null) {
         // Platforms that provide file path
-        jsonString = await File(file.path!).readAsString();
+        jsonString = await hostReadFileText(file.path!);
       } else {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

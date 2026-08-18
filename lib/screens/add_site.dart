@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io';
+import 'package:webspace/platform/host_platform.dart';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -414,9 +414,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
 
     // Skip DNS check for IP addresses and localhost
     if (!_isDirectHost(uri.host)) {
-      try {
-        await InternetAddress.lookup(uri.host);
-      } catch (_) {
+      if (!await hostCanResolve(uri.host)) {
         // DNS lookup failed — domain doesn't exist
         if (mounted && _previewUrl != null) {
           setState(() => _previewUrl = null);
@@ -454,7 +452,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
       if (file.bytes != null) {
         htmlContent = String.fromCharCodes(file.bytes!);
       } else if (file.path != null) {
-        htmlContent = await File(file.path!).readAsString();
+        htmlContent = await hostReadFileText(file.path!);
       } else {
         if (mounted) {
           final loc = AppLocalizations.of(context);

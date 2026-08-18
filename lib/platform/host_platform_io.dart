@@ -112,3 +112,5 @@ Future<Uint8List?> hostFetchBounded(Uri uri, int maxBytes,
     client?.close(force: true);
   }
 }
+
+Future<String> hostReadFileText(String path) => io.File(path).readAsString();
