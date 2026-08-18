@@ -18,6 +18,38 @@ const outDir = path.resolve(process.argv.includes('--out') ? process.argv[proces
 // Screens first: they are the point, the element cards support them.
 const PAGES = [
   {
+    path: 'screens/webspaces.html',
+    group: 'Screens',
+    title: 'Webspaces',
+    blurb: 'The real WebspacesListScreen: the named collections a user switches between, each with its site count, plus edit, delete and drag-reorder affordances.',
+    source: 'lib/screens/webspaces_list.dart',
+    shots: [['Light', 'webspaces__light.png'], ['Dark', 'webspaces__dark.png']],
+  },
+  {
+    path: 'screens/webspace-detail.html',
+    group: 'Screens',
+    title: 'Webspace detail',
+    blurb: 'The real WebspaceDetailScreen: which sites belong to one collection.',
+    source: 'lib/screens/webspace_detail.dart',
+    shots: [['Light', 'webspace-detail__light.png'], ['Dark', 'webspace-detail__dark.png']],
+  },
+  {
+    path: 'screens/app-settings.html',
+    group: 'Screens',
+    title: 'App settings',
+    blurb: 'The real AppSettingsScreen: theme mode, all eight accent swatches, tab-strip and interface preferences. The accent row is the same palette the Foundations cards render.',
+    source: 'lib/screens/app_settings.dart',
+    shots: [['Light', 'app-settings__light.png'], ['Dark', 'app-settings__dark.png']],
+  },
+  {
+    path: 'screens/add-site.html',
+    group: 'Screens',
+    title: 'Add site',
+    blurb: 'The real AddSiteScreen: URL entry with live preview and suggestions.',
+    source: 'lib/screens/add_site.dart',
+    shots: [['Light', 'add-site__light.png'], ['Dark', 'add-site__dark.png']],
+  },
+  {
     path: 'screens/user-scripts.html',
     group: 'Screens',
     title: 'User scripts',
