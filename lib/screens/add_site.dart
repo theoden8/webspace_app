@@ -4,12 +4,12 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import '../main.dart' show extractDomain;
+import 'favicon_image.dart';
 import '../services/icon_service.dart' show getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, faviconInvalidations, IconUpdate;
 import '../settings/proxy.dart';
 import '../utils/url_utils.dart';
@@ -293,18 +293,15 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
         ),
       );
     } else {
-      return CachedNetworkImage(
-        imageUrl: iconUrl,
-        width: widget.size,
-        height: widget.size,
-        fit: BoxFit.contain,
-        filterQuality: FilterQuality.high,
-        placeholder: (context, url) => SizedBox(
+      return faviconNetworkImage(
+        url: iconUrl,
+        size: widget.size,
+        placeholder: (context) => SizedBox(
           width: widget.size,
           height: widget.size,
           child: CircularProgressIndicator(strokeWidth: 2),
         ),
-        errorWidget: (context, url, error) => Icon(
+        error: (context) => Icon(
           Icons.language,
           size: widget.size,
           color: Theme.of(context).colorScheme.primary,

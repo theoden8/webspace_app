@@ -75,3 +75,7 @@ Future<Uint8List?> hostFetchBounded(Uri uri, int maxBytes,
 
 Future<String> hostReadFileText(String path) =>
     throw UnsupportedError('hostReadFileText is not available on web');
+
+/// See the io half: cross-origin favicon responses are unreadable from a page,
+/// so the candidate is used optimistically and the <img> decides.
+const bool hostCanVerifyIconUrls = false;

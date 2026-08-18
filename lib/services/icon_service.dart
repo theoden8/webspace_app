@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
+import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
@@ -241,6 +242,9 @@ Future<bool> _verifyIconUrl(String iconUrl, UserProxySettings proxy) async {
   if (_verifiedUrls.contains(iconUrl)) {
     return true;
   }
+  // Where a HEAD response cannot be read (a browser, cross-origin), accept the
+  // candidate and let the image element succeed or fall back.
+  if (!hostCanVerifyIconUrls) return true;
 
   final client = _proxiedClient(proxy);
   if (client == null) return false;

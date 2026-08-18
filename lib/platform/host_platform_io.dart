@@ -114,3 +114,8 @@ Future<Uint8List?> hostFetchBounded(Uri uri, int maxBytes,
 }
 
 Future<String> hostReadFileText(String path) => io.File(path).readAsString();
+
+/// Whether a candidate icon URL can be checked with a HEAD request before use.
+/// True natively; on web the response is unreadable across origins, so the
+/// check would reject every icon it is meant to validate.
+const bool hostCanVerifyIconUrls = true;
