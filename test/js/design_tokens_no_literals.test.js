@@ -16,6 +16,11 @@ const path = require('node:path');
 const repoRoot = path.resolve(__dirname, '..', '..');
 
 const MIGRATED = [
+  // Platform-split favicon rendering: geometry comes from the caller, so
+  // there is nothing here to tokenise.
+  'lib/screens/favicon_image.dart',
+  'lib/screens/favicon_image_io.dart',
+  'lib/screens/favicon_image_web.dart',
   'lib/widgets/url_bar.dart',
   'lib/widgets/hint_button.dart',
   'lib/widgets/tab_bar_corner_button.dart',
