@@ -3,14 +3,14 @@
 // component: each card is rendered alone at a viewport sized for it, and the
 // viewport is the screenshot.
 //
-//   flutter build web -t lib/design_gallery/main.dart
+//   scripts/design_web.sh gallery
 //   node tool/design_gallery/shoot.js [--out build/design_cards] [--port 8099]
 
 const fs = require('node:fs/promises');
 const path = require('node:path');
-const http = require('node:http');
 const puppeteer = require('puppeteer');
 const { PNG } = require('pngjs');
+const { serve, requireBuild } = require('./static_server');
 
 const CHROMIUM = process.env.PUPPETEER_EXECUTABLE_PATH || '/opt/pw-browsers/chromium';
 
@@ -44,23 +44,6 @@ const ACCENT_SWEEP = { card: 'color-roles', accents: ['green', 'purple', 'teal']
 function arg(name, fallback) {
   const i = process.argv.indexOf(`--${name}`);
   return i === -1 ? fallback : process.argv[i + 1];
-}
-
-async function serve(root, port) {
-  const types = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.wasm': 'application/wasm', '.png': 'image/png', '.ttf': 'font/ttf', '.otf': 'font/otf', '.symbols': 'text/plain', '.map': 'application/json' };
-  const server = http.createServer(async (req, res) => {
-    const rel = decodeURIComponent(new URL(req.url, 'http://x').pathname);
-    const file = path.join(root, rel === '/' ? '/index.html' : rel);
-    try {
-      const body = await fs.readFile(file);
-      res.writeHead(200, { 'content-type': types[path.extname(file)] || 'application/octet-stream' });
-      res.end(body);
-    } catch {
-      res.writeHead(404).end('not found');
-    }
-  });
-  await new Promise((r) => server.listen(port, '127.0.0.1', r));
-  return server;
 }
 
 // A card that drew nothing is the failure mode Dart tests cannot see: the
@@ -103,9 +86,10 @@ async function shoot(page, base, out, { id, width, height }, theme, accent) {
 }
 
 (async () => {
-  const root = path.resolve(arg('root', 'build/web'));
+  const root = path.resolve(arg('root', 'build/design_gallery'));
   const out = path.resolve(arg('out', 'build/design_cards'));
   const port = Number(arg('port', 8099));
+  await requireBuild(root, 'scripts/design_web.sh gallery');
   await fs.mkdir(out, { recursive: true });
 
   const server = await serve(root, port);

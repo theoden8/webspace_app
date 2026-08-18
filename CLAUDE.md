@@ -80,13 +80,19 @@ Android flavors: `fdroid` (CI), `fmain` (Play), `fdebug`.
 
 Dart in `test/`, integration in `integration_test/` (screenshots).
 
-## Design gallery (`tool/design_gallery/`)
+## Design (`tool/design_gallery/`)
 
-`web/` exists only so real widgets can be rendered in a browser and
-screenshotted for design review; the app is not shipped for web and the
-WebView does not run there. Entrypoint: [lib/design_gallery/main.dart](lib/design_gallery/main.dart),
-driver: `npm run design:cards`. Full workflow and constraints (canvas output,
-local fonts, which widgets are web-clean): [tool/design_gallery/CLAUDE.md](tool/design_gallery/CLAUDE.md).
+`web/` exists only so a designer can drive the real UI in a browser and so it
+can be screenshotted for review; the app is not shipped for web and the WebView
+does not run there. Two targets, both via `scripts/design_web.sh`:
+`app` ([lib/design_app/main.dart](lib/design_app/main.dart), the real
+`WebSpaceApp` on demo data) into `build/web`, and `gallery`
+([lib/design_gallery/main.dart](lib/design_gallery/main.dart), one card per
+widget) into `build/design_gallery`. `npm run design:serve` serves either.
+The Claude Design project cannot build Flutter, so it asks for a rebuild
+through the `_requests/refresh.md` mailbox. Full workflow and constraints
+(canvas output, local fonts, web-clean check, refresh protocol):
+[tool/design_gallery/CLAUDE.md](tool/design_gallery/CLAUDE.md).
 
 ## Recurring bugs (`docs/bugs/`)
 

@@ -15,6 +15,19 @@ const { execSync } = require('node:child_process');
 const cardsDir = path.resolve('build/design_cards');
 const outDir = path.resolve(process.argv.includes('--out') ? process.argv[process.argv.indexOf('--out') + 1] : 'build/design_bundle');
 
+// The one card that is not a screenshot: an iframe of the real app, uploaded
+// to the project separately by pack_app.js because the design project cannot
+// build Flutter. Nothing in this bundle contains it; the page just points at
+// ../app/index.html, which is either there or it is not.
+const LIVE = {
+  path: 'screens/live-app.html',
+  group: 'Screens',
+  title: 'Live app',
+  blurb: 'The real WebSpaceApp running in this project, on seeded demo data: drawer, webspace switch, site settings, animations. Everything else in Screens is a screenshot of the same widgets.',
+  source: 'lib/design_app/main.dart',
+  live: true,
+};
+
 // Screens first: they are the point, the element cards support them.
 const PAGES = [
   {
@@ -182,7 +195,52 @@ const dataUri = (dir, file) => `data:image/png;base64,${fs.readFileSync(path.joi
 
 const escape = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+function renderLive(page) {
+  return `<!-- @dsCard group="${page.group}" -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${escape(page.title)}</title>
+  <style>
+    :root { color-scheme: light dark; --bg: #ffffff; --fg: #16181d; --muted: #5c6169; --line: #e2e5ea; --frame: #f4f5f7; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #121318; --fg: #e8eaee; --muted: #9aa0a8; --line: #2c2f36; --frame: #1b1d23; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 28px; background: var(--bg); color: var(--fg);
+           font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    h1 { margin: 0 0 6px; font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+    p.blurb { margin: 0 0 4px; max-width: 62ch; }
+    p.source { margin: 0 0 22px; font-size: 12.5px; color: var(--muted); }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+    .device { width: 420px; max-width: 100%; height: 780px; border: 1px solid var(--line);
+              border-radius: 14px; overflow: hidden; background: var(--frame); }
+    iframe { width: 100%; height: 100%; border: 0; display: block; }
+    footer { margin-top: 26px; padding-top: 14px; border-top: 1px solid var(--line);
+             font-size: 12px; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <h1>${escape(page.title)}</h1>
+  <p class="blurb">${escape(page.blurb)}</p>
+  <p class="source">Rendered from <code>${escape(page.source)}</code></p>
+  <div class="device"><iframe src="../app/index.html" title="WebSpace" loading="lazy"></iframe></div>
+  <footer>
+    Built from commit <code>${commit}</code>. The app takes a few seconds to boot:
+    it loads a 12 MB engine before the first frame. State persists in this
+    browser, so a stale layout usually means a stale profile, not a stale build.
+    Edits belong in the Dart source; a rebuild has to be asked for through
+    <code>_requests/refresh.md</code>.
+  </footer>
+</body>
+</html>
+`;
+}
+
 function render(page) {
+  if (page.live) return renderLive(page);
   const shots = page.shots
     .map(([label, file]) => `      <figure>
         <img src="${dataUri(page.dir || cardsDir, file)}" alt="${escape(page.title)}, ${escape(label.toLowerCase())}">
@@ -263,7 +321,7 @@ function writeManifest(pages) {
 }
 
 fs.rmSync(outDir, { recursive: true, force: true });
-const pages = [...PAGES, ...screenPages()];
+const pages = [LIVE, ...PAGES, ...screenPages()];
 for (const page of pages) {
   const dest = path.join(outDir, page.path);
   fs.mkdirSync(path.dirname(dest), { recursive: true });
