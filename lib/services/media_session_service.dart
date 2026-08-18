@@ -7,15 +7,18 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:webspace/services/log_service.dart';
 
-/// BGAUDIO-006 Dart bridge to the Android foreground media service
-/// (`MediaSessionPlugin.kt` / `MediaPlaybackService.kt`). A background-audio
+/// BGAUDIO-006 Dart bridge to the native media session. A background-audio
 /// site's page-JS reports its playback state here (via the `wsMediaSession`
 /// handler wired in `webview.dart`); this service raises/refreshes/tears down
-/// the media notification and routes transport controls back to the owning
+/// the OS media surface and routes transport controls back to the owning
 /// webview's JS.
 ///
-/// Android-only. iOS relies on its `.playback` AVAudioSession + the system
-/// Now Playing UI, which the page's own MediaSession populates.
+/// Two native implementations behind one channel: Android's `mediaPlayback`
+/// foreground service + `MediaStyle` notification (`MediaSessionPlugin.kt` /
+/// `MediaPlaybackService.kt`), and iOS's Now Playing info + remote command
+/// centre (`MediaSessionPlugin.swift`, BGAUDIO-010). Leaving iOS to WebKit's
+/// own Now Playing handling meant nothing in the app knew the controls were
+/// up, and a transport tap had no route back into the page.
 class MediaSessionService {
   static final MediaSessionService instance = MediaSessionService._();
   MediaSessionService._();
@@ -46,7 +49,13 @@ class MediaSessionService {
   @visibleForTesting
   static bool? debugEnabledOverride;
 
-  bool get _enabled => debugEnabledOverride ?? Platform.isAndroid;
+  bool get _enabled =>
+      debugEnabledOverride ?? (Platform.isAndroid || Platform.isIOS);
+
+  /// Whether this platform has a native media session behind the channel.
+  /// Read by `webview.dart` to gate the shim + handler injection, so the
+  /// bridge is armed exactly where something consumes its reports.
+  bool get isSupported => _enabled;
 
   /// Whether the notification is currently raised as far as Dart knows.
   /// [notificationPosted] is the authority on whether the OS actually shows it.

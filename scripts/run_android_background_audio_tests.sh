@@ -8,7 +8,9 @@
 #   - the negative control (a plain site's JS timers genuinely freeze), and
 #   - BGAUDIO-006, the media notification: the foreground service and its
 #     MediaStyle notification only exist on Android, so this is the only tier
-#     that can assert the user-visible half of the feature.
+#     that can assert the user-visible half of the feature,
+#   - BGAUDIO-009, the media stop: a site WITHOUT the toggle must go quiet when
+#     it loses the screen, which needs a real media pipeline to observe.
 #
 # Single flat invocations, one per file: reactivecircus/android-emulator-runner
 # runs each CI `script:` line as a separate `sh -c`, and this script keeps the
@@ -45,7 +47,8 @@ status=0
 for t in \
   integration_test/background_audio_lifecycle_test.dart \
   integration_test/background_audio_freeze_test.dart \
-  integration_test/background_audio_media_notification_test.dart; do
+  integration_test/background_audio_media_notification_test.dart \
+  integration_test/background_audio_media_stop_test.dart; do
   echo "::group::$t"
   # Hard per-test wall-clock cap: a webview mount can deadlock below the Dart
   # timeout layer (same rationale as the white-screen tier).

@@ -24,6 +24,14 @@ class LifecycleBackgroundPlan {
   /// site is captured.
   final int? captureStateIndex;
 
+  /// Loaded sites whose page media must be paused before the app leaves the
+  /// foreground (BGAUDIO-009), ascending. Every loaded site WITHOUT
+  /// `effectiveBackgroundAudioEnabled` is listed: the JS pause freezes timers
+  /// but never the media pipeline, so without this a site the user never
+  /// opted in for keeps sounding through a backgrounded app and holds the
+  /// system transport controls up.
+  final List<int> mediaPauseIndices;
+
   /// Commit pending cookie writes to disk before the OS can kill the process.
   /// Chromium's cookie store commits lazily, so a session cookie set moments
   /// before backgrounding is otherwise lost on a swipe-kill and the user
@@ -34,6 +42,7 @@ class LifecycleBackgroundPlan {
     required this.jsPauseIndex,
     required this.captureStateIndex,
     required this.flushCookies,
+    this.mediaPauseIndices = const [],
   });
 }
 
@@ -71,10 +80,30 @@ class AppLifecycleEngine {
     return false;
   }
 
+  /// Loaded, in-bounds sites without background audio, ascending
+  /// (BGAUDIO-009). The exemption is per-site, unlike the JS-pause veto: one
+  /// opted-in site keeps its own audio, it does not license every other
+  /// loaded site to keep playing too.
+  static List<int> mediaPauseIndices({
+    required int siteCount,
+    required Set<int> loadedIndices,
+    required bool Function(int index) backgroundAudioEnabled,
+  }) {
+    final out = <int>[];
+    for (final i in loadedIndices) {
+      if (i < 0 || i >= siteCount) continue;
+      if (backgroundAudioEnabled(i)) continue;
+      out.add(i);
+    }
+    out.sort();
+    return out;
+  }
+
   /// Plan for `AppLifecycleState.paused`. The active site's JS timers pause
   /// only when it is loaded, NOT a notification site, and no loaded site has
   /// background audio enabled; restore-state is captured for any loaded
-  /// active site.
+  /// active site. Every loaded site without background audio has its media
+  /// paused (BGAUDIO-009), the active one included.
   ///
   /// [cookieFlushSupported] is the caller's platform answer for
   /// `CookieManager.flush` (Android only — everywhere else the platform
@@ -90,6 +119,11 @@ class AppLifecycleEngine {
     required bool cookieFlushSupported,
   }) {
     final flushCookies = cookieFlushSupported && loadedIndices.isNotEmpty;
+    final mediaPause = mediaPauseIndices(
+      siteCount: siteCount,
+      loadedIndices: loadedIndices,
+      backgroundAudioEnabled: backgroundAudioEnabled,
+    );
     final active = activeLoadedIndex(
       currentIndex: currentIndex,
       siteCount: siteCount,
@@ -100,6 +134,7 @@ class AppLifecycleEngine {
         jsPauseIndex: null,
         captureStateIndex: null,
         flushCookies: flushCookies,
+        mediaPauseIndices: mediaPause,
       );
     }
     final skipJsPause = notificationsEnabled(active) ||
@@ -112,6 +147,7 @@ class AppLifecycleEngine {
       jsPauseIndex: skipJsPause ? null : active,
       captureStateIndex: active,
       flushCookies: flushCookies,
+      mediaPauseIndices: mediaPause,
     );
   }
 

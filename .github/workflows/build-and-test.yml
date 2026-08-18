@@ -781,6 +781,9 @@ jobs:
                 # BGAUDIO-006 media notification is an Android foreground
                 # service; the emulator job owns it.
                 [ "$(basename "$t")" = "background_audio_media_notification_test.dart" ] && continue
+                # BGAUDIO-009 needs a real media pipeline (WPE crash-loops on
+                # one here) and a real pauseTimers(); emulator job owns it.
+                [ "$(basename "$t")" = "background_audio_media_stop_test.dart" ] && continue
                 echo "::group::$t"
                 # Hard per-test wall-clock cap: a WebView mount can deadlock
                 # the platform thread below Dart timeout layer, which would
@@ -1049,6 +1052,8 @@ jobs:
             [ "$(basename "$t")" = "camera_test.dart" ] && continue
             # Android-only BGAUDIO-006 media foreground service; emulator job.
             [ "$(basename "$t")" = "background_audio_media_notification_test.dart" ] && continue
+            # Android-only BGAUDIO-009 media-stop tier; emulator job.
+            [ "$(basename "$t")" = "background_audio_media_stop_test.dart" ] && continue
             echo "::group::$t"
             if [ -n "$TIMEOUT" ]; then
               "$TIMEOUT" -k 30s 12m fvm flutter test "$t" -d macos --ci || status=$?

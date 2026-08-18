@@ -11,8 +11,9 @@ import io.flutter.plugin.common.MethodChannel
  * other way as `onTransport` invocations (see [MediaTransportDispatcher]),
  * which the Dart side turns into JS `play()`/`pause()` on the owning webview.
  *
- * iOS has no analogue: there the `.playback` AVAudioSession + the system's
- * own Now Playing UI cover this, driven by the page's own MediaSession.
+ * iOS answers the same channel from `ios/Runner/MediaSessionPlugin.swift`,
+ * which maps start/update/stop onto MPNowPlayingInfoCenter + the remote
+ * command centre (BGAUDIO-010).
  */
 class MediaSessionPlugin(
     private val context: Context,

@@ -181,6 +181,7 @@ Map<String, String> buildAllFixtures() {
   fixtures['microphone_stream/shim.js'] = buildMicrophoneStreamShim();
 
   fixtures['media_session/shim.js'] = buildMediaSessionShim();
+  fixtures['media_session/pause_media.js'] = buildMediaPauseJs();
 
   // Engine-consistent navigator identity, one fixture per engine × form
   // factor: Gecko mobile (Firefox-Android — vendor "", oscpu/buildID set,

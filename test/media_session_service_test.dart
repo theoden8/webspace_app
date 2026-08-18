@@ -280,7 +280,8 @@ void main() {
     await expectLater(reportPlaying('a'), completes);
   });
 
-  test('everything is inert off Android', () async {
+  test('everything is inert on a platform with no native media session',
+      () async {
     MediaSessionService.debugEnabledOverride = false;
     service.debugReset();
 
@@ -288,5 +289,13 @@ void main() {
     await service.stopAll();
     expect(calls, isEmpty);
     expect(await service.notificationPosted(), isFalse);
+    // The same answer gates the shim + handler injection in webview.dart, so
+    // no report can arrive on a platform that would drop it.
+    expect(service.isSupported, isFalse);
+  });
+
+  test('isSupported is what arms the bridge', () async {
+    MediaSessionService.debugEnabledOverride = true;
+    expect(service.isSupported, isTrue);
   });
 }

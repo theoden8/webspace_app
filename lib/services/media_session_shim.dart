@@ -1,6 +1,9 @@
-/// Media-session bridge shim (BGAUDIO-006, Android only).
+/// Media-session bridge shim (BGAUDIO-006).
 ///
-/// Injected at DOCUMENT_START (all frames) on sites with `backgroundAudioEnabled`.
+/// Injected at DOCUMENT_START (all frames) on sites with
+/// `backgroundAudioEnabled`, on every platform with a native media session
+/// behind the channel (Android's foreground service, iOS's Now Playing info —
+/// see `MediaSessionService.isSupported`).
 /// It watches every `<audio>`/`<video>` element plus `navigator.mediaSession`
 /// metadata and reports `{frame, playing, title, artist, album, artwork}` to
 /// Dart via the `wsMediaSession` handler, coalesced on a short debounce. Dart
@@ -158,3 +161,39 @@ String buildMediaSessionShim() => r'''
   setInterval(schedule, 3000);
 })();
 ''';
+
+/// BGAUDIO-009: pause every playing media element in a page.
+///
+/// Evaluated on a site WITHOUT the background-audio toggle when it loses the
+/// screen. Neither pause stops the media pipeline (it runs independently of
+/// the JS thread), so without this the site keeps sounding — and keeps the OS
+/// transport surface up — after the user moved on.
+///
+/// Same-origin iframes are walked too: a player in one is common and
+/// `evaluateJavascript` reaches only the main frame. Cross-origin frames and
+/// elements that never entered the DOM (`new Audio(src).play()`) are out of
+/// reach without a shim injected on every site; that gap is documented in the
+/// background-audio spec.
+String buildMediaPauseJs() => r"""
+(function() {
+  var docs = [document];
+  try {
+    for (var f = 0; f < window.frames.length; f++) {
+      try {
+        var d = window.frames[f].document;
+        if (d) docs.push(d);
+      } catch (e) {}
+    }
+  } catch (e) {}
+  for (var i = 0; i < docs.length; i++) {
+    try {
+      var els = docs[i].querySelectorAll('audio,video');
+      for (var j = 0; j < els.length; j++) {
+        try {
+          if (!els[j].paused) els[j].pause();
+        } catch (e) {}
+      }
+    } catch (e) {}
+  }
+})();
+""";

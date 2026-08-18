@@ -392,13 +392,160 @@ notification is up
 **Then** the subframe becomes the owner and its later `playing: false` is
 honored
 
+---
+
+### Requirement: BGAUDIO-009 — A Site Without the Toggle Stops Sounding When It Loses the Screen
+
+Neither pause stops media: `pauseWebView()` and `pauseForAppLifecycle()` freeze
+JS timers, while the media pipeline runs independently of the JS thread (see
+"Pause Is Not a Security Boundary" in the pause spec). Left alone, a site the
+user never opted in for keeps playing after it loses the screen — and holds the
+OS transport surface up with it, which on iOS is the app-wide Now Playing
+control that the `audio` `UIBackgroundModes` entry (BGAUDIO-003) keeps alive
+for every site, not just the opted-in one. That is the toggle promising the
+opposite of what it does.
+
+`WebViewModel.pauseMediaPlayback()` SHALL pause every playing media element in
+the page's main frame, and SHALL early-return for a site whose
+`effectiveBackgroundAudioEnabled` is true. It SHALL be dispatched wherever a
+site loses the screen, always BEFORE the pause (the iOS per-instance pause
+blocks the page's JS thread, so it would otherwise sit queued behind it —
+the ordering constraint CAM-012 already carries):
+
+- the previously-active site on a site switch, and on going home;
+- the defensive sweep over other loaded sites at the tail of a switch;
+- every index in `LifecycleBackgroundPlan.mediaPauseIndices` on app background.
+
+`AppLifecycleEngine.backgroundPlan` SHALL populate `mediaPauseIndices` with
+every loaded, in-bounds site WITHOUT background audio, ascending. Unlike the
+JS-pause veto (BGAUDIO-002), the exemption here is per-site: one opted-in site
+keeps its own audio, it does not license every other loaded site to keep
+playing. Nothing is resumed on foreground — restarting audio the user did not
+ask for is worse than leaving it paused where they can hit play.
+
+The snippet ([`buildMediaPauseJs`](../../../lib/services/media_session_shim.dart))
+walks same-origin subframes itself, since `evaluateJavascript` reaches only
+the main frame. Out of reach, and accepted: cross-origin subframes (the same
+degradation as BGAUDIO-008's transport controls), and elements that never
+entered the DOM (`new Audio(src).play()`) — the detached registry that catches
+those lives in the media-session shim, which is injected only on sites that
+have the toggle ON. It SHALL NOT re-pause an element that is already paused:
+the page's own player listens for `pause` events.
+
+#### Scenario: Ordinary site stops when the app goes to background
+
+**Given** a site with Background audio OFF is playing audio
+**When** the app goes to background
+**Then** its index is in `mediaPauseIndices` and its media elements are paused
+**And** no Now Playing / media notification survives it
+
+#### Scenario: The opted-in site is untouched, its neighbours are not
+
+**Given** audio site B (`backgroundAudioEnabled`) and plain site A are both loaded
+**When** the app goes to background
+**Then** `mediaPauseIndices` names A only
+**And** B keeps playing (regression test: `test/app_lifecycle_engine_test.dart`)
+
+#### Scenario: The stop works against a real media pipeline
+
+**Given** an `<audio>` element playing in headless Chromium, plus one in a
+same-origin iframe
+**When** the dumped snippet is evaluated in the top frame
+**Then** both report `paused === true` and their `currentTime` stops advancing
+**And** evaluating it again fires no further `pause` events
+(regression test: `test/browser/media_pause_real_engine.test.js`)
+
+#### Scenario: A site without the toggle goes quiet across an app background
+
+**Given** the fixture site with Background audio OFF is playing `?media=stream`
+on the Android emulator
+**When** the test injects `AppLifecycleState.paused`, waits, then `resumed`
+**Then** the beacons that follow the resume report `paused=true` with an
+unchanged `currentTime`
+**And** `notificationPosted()` is false — no media surface for a site that
+never opted in
+(regression test: `integration_test/background_audio_media_stop_test.dart`)
+
+#### Scenario: Switching away from an ordinary site stops its audio
+
+**Given** plain site A is playing and the user switches to site B
+**Then** `pauseMediaPlayback()` runs on A before `pauseWebView()`
+**And** for a background-audio site the same call is a no-op
+(regression test: `test/webview_pause_lifecycle_test.dart`)
+
+---
+
+### Requirement: BGAUDIO-010 — iOS Owns Its Now Playing Info and Transport Controls
+
+On iOS the app SHALL answer the `media_session` channel from
+[`MediaSessionPlugin.swift`](../../../ios/Runner/MediaSessionPlugin.swift),
+mapping `start`/`update` onto `MPNowPlayingInfoCenter` (title/artist/album,
+artwork, `playbackState`) and `stop` onto clearing it, and SHALL route the
+`MPRemoteCommandCenter` play/pause/stop commands back as `onTransport` —
+the same path the Android notification's buttons take, ending in
+`window.__wsMediaControl(action)` on the owning webview.
+
+`MediaSessionService` SHALL therefore be enabled on iOS as well as Android,
+and `webview.dart` SHALL gate the shim injection and the `wsMediaSession`
+handler on `MediaSessionService.isSupported` rather than on Android
+specifically, so the bridge is armed exactly where something consumes its
+reports.
+
+Leaving this to WebKit — which publishes its own Now Playing info for
+whatever a page plays — left the app blind to a surface it could not clear
+and gave a transport tap no route into the page. Consequences of owning it:
+
+- `start`/`update` set the `.playback` category and activate the session.
+  Only a page that is already playing reaches them, so no audio focus is
+  taken that WebKit had not taken already.
+- `stop` does NOT deactivate the session: another loaded site may still be
+  sounding in the foreground, and `setActive(false)` would cut it. Reverting
+  the category is BGAUDIO-003's job.
+- Play / pause / stop only, as on Android. `togglePlayPause` is deliberately
+  left to WebKit's own targets: a toggle handled twice cancels itself out,
+  while a play or a pause handled twice is idempotent.
+- All plugin state is confined to the main queue — the channel handler and
+  the remote-command targets both run there (BUG-007).
+- `isNotificationActive` is answered from `MPNowPlayingInfoCenter.default()
+  .nowPlayingInfo != nil` (an OS read, not a local flag), keeping
+  BGAUDIO-007's `notificationPosted()` meaningful on iOS.
+- `disposeWebView()` SHALL call `stopForSite`: the player the session spoke
+  for is gone with the webview, and stale controls whose buttons reach
+  nothing are exactly the symptom this requirement exists to remove.
+
+#### Scenario: Lock-screen play resumes the page
+
+**Given** a background-audio site is paused with the iOS Now Playing controls up
+**When** the user taps play there
+**Then** `onTransport('play')` runs `window.__wsMediaControl('play')` on the
+owning webview, which plays its primary media element
+**And** the page's next report flips `playbackState` back to `.playing`
+
+#### Scenario: Unloading the owning site clears the controls
+
+**Given** the Now Playing controls are up for a background-audio site
+**When** that site's webview is disposed
+**Then** `stopForSite` clears `nowPlayingInfo` and removes the remote command
+targets
+
+#### Scenario: The bridge is armed on iOS
+
+**Given** a site with Background audio enabled on iOS
+**When** its webview is built
+**Then** the media-session shim is injected and the `wsMediaSession` handler is
+registered, because `MediaSessionService.isSupported` is true
+(regression test: `test/media_session_service_test.dart`)
+
 ## Limitations (documented, accepted)
 
 - **iOS without playback**: the audio session keeps the app alive only
   while audio is actually playing; a paused player suspends with the app
-  as usual. iOS surfaces its own Now Playing controls from the page's
-  MediaSession — the Android media service (BGAUDIO-006) is not mirrored
-  there.
+  as usual. The Now Playing controls stay up in that state (resumable, as
+  the Android notification does), and the tap that resumes them wakes the
+  app to deliver it.
+- **Subframe players**: the shim reports from any frame (BGAUDIO-008), but
+  the transport controls and BGAUDIO-009's media stop both run through
+  `evaluateJavascript`, which targets the main frame only.
 - The exemption trades battery for playback: an enabled site's JS runs
   whenever it is loaded. The toggle is per-site and off by default.
 
@@ -407,22 +554,29 @@ honored
 ### Modified
 
 - `lib/web_view_model.dart` — `backgroundAudioEnabled` field (+`effective*`
-  getter, toJson/fromJson), `pauseWebView()` early-return.
+  getter, toJson/fromJson), `pauseWebView()` early-return; BGAUDIO-009
+  `pauseMediaPlayback()`, BGAUDIO-010 `stopForSite` on dispose.
 - `lib/services/app_lifecycle_engine.dart` — `anyLoadedBackgroundAudio`,
-  plan/resume gating.
+  plan/resume gating; BGAUDIO-009 `mediaPauseIndices`.
 - `lib/main.dart` — engine callbacks, decision log line, retention tier,
-  `_updateBackgroundAudioSession` sync points.
+  `_updateBackgroundAudioSession` sync points; BGAUDIO-009 media stop at the
+  site-switch, going-home, sweep and app-background call sites.
 - `lib/services/background_task_service.dart` — `setBackgroundAudioActive`.
 - `ios/Runner/BackgroundTaskPlugin.swift`, `ios/Runner/Info.plist` —
   AVAudioSession category switch, `audio` background mode.
+- `ios/Runner/AppDelegate.swift`, `ios/Runner.xcodeproj/project.pbxproj` —
+  BGAUDIO-010 plugin registration.
 - `lib/screens/settings.dart` — per-site toggle (+ POST_NOTIFICATIONS request).
 - `lib/services/site_settings_qr_codec.dart` — QR-shareable key.
 - `lib/services/webview.dart` — `WebViewConfig.backgroundAudioEnabled`, media
   shim injection (+ the BGAUDIO-007 armed line), `wsMediaSession` handler.
+- `lib/services/media_session_shim.dart` — BGAUDIO-009 `buildMediaPauseJs`
+  (dumped to `test/js_fixtures/media_session/pause_media.js`).
 - `lib/services/media_session_shim.dart`, `lib/services/media_session_service.dart`
   — BGAUDIO-006 page-JS bridge + Dart channel bridge; BGAUDIO-007 detached-
   element registry, raise/teardown logging and the visibility check;
-  BGAUDIO-008 per-frame token and media-less-frame silence.
+  BGAUDIO-008 per-frame token and media-less-frame silence; BGAUDIO-010
+  `isSupported` (iOS enablement).
 - `android/app/src/main/kotlin/.../MediaPlaybackService.kt`,
   `.../MediaSessionPlugin.kt`, `MainActivity.kt`, `AndroidManifest.xml` —
   BGAUDIO-006 foreground media service + permissions; BGAUDIO-007
@@ -434,6 +588,8 @@ honored
 ### Added
 
 - `openspec/specs/background-audio/spec.md` — this document.
+- `ios/Runner/MediaSessionPlugin.swift` — BGAUDIO-010 Now Playing info +
+  remote command centre behind the `media_session` channel.
 - `integration_test/background_audio_lifecycle_test.dart` (exempt direction),
   `integration_test/background_audio_freeze_test.dart` (negative control),
   `integration_test/background_audio_media_notification_test.dart` (BGAUDIO-007
@@ -446,6 +602,9 @@ honored
   test as well as each subtest, and a case that plays real media costs seconds.
 - `scripts/run_android_background_audio_tests.sh` + the Android emulator CI
   wiring in `.github/workflows/build-and-test.yml`.
+- `integration_test/background_audio_media_stop_test.dart` (BGAUDIO-009
+  emulator tier) and `test/browser/media_pause_real_engine.test.js` (the same
+  snippet under real Chromium).
 
 ## Related Specs
 

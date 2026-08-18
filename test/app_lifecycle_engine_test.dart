@@ -280,6 +280,86 @@ void main() {
     });
   });
 
+  group('BGAUDIO-009 media pause for sites without the toggle', () {
+    test('every loaded site without background audio is listed, ascending', () {
+      final plan = AppLifecycleEngine.backgroundPlan(
+        currentIndex: 0,
+        siteCount: 4,
+        loadedIndices: {2, 0, 3},
+        notificationsEnabled: (_) => false,
+        backgroundAudioEnabled: (_) => false,
+        cookieFlushSupported: false,
+      );
+      expect(plan.mediaPauseIndices, [0, 2, 3]);
+    });
+
+    test('the opted-in site keeps its audio, the others do not', () {
+      // The exemption is per-site, unlike the JS-pause veto: one background
+      // audio site must not license every other loaded site to keep sounding
+      // through a backgrounded app.
+      final plan = AppLifecycleEngine.backgroundPlan(
+        currentIndex: 0,
+        siteCount: 3,
+        loadedIndices: {0, 1, 2},
+        notificationsEnabled: (_) => false,
+        backgroundAudioEnabled: (i) => i == 1,
+        cookieFlushSupported: false,
+      );
+      expect(plan.mediaPauseIndices, [0, 2]);
+      expect(plan.jsPauseIndex, isNull);
+    });
+
+    test('the active site is included — it is the one usually playing', () {
+      final plan = AppLifecycleEngine.backgroundPlan(
+        currentIndex: 1,
+        siteCount: 2,
+        loadedIndices: {1},
+        notificationsEnabled: (_) => false,
+        backgroundAudioEnabled: (_) => false,
+        cookieFlushSupported: false,
+      );
+      expect(plan.mediaPauseIndices, [1]);
+      expect(plan.jsPauseIndex, 1);
+    });
+
+    test('a notification site is not exempt — only background audio is', () {
+      final plan = AppLifecycleEngine.backgroundPlan(
+        currentIndex: 0,
+        siteCount: 2,
+        loadedIndices: {0, 1},
+        notificationsEnabled: (i) => i == 0,
+        backgroundAudioEnabled: (_) => false,
+        cookieFlushSupported: false,
+      );
+      expect(plan.mediaPauseIndices, [0, 1]);
+      expect(plan.jsPauseIndex, isNull);
+    });
+
+    test('out-of-bounds loaded indices are dropped', () {
+      final plan = AppLifecycleEngine.backgroundPlan(
+        currentIndex: null,
+        siteCount: 2,
+        loadedIndices: {-1, 0, 7},
+        notificationsEnabled: (_) => false,
+        backgroundAudioEnabled: (_) => false,
+        cookieFlushSupported: false,
+      );
+      expect(plan.mediaPauseIndices, [0]);
+    });
+
+    test('nothing loaded, nothing to pause', () {
+      final plan = AppLifecycleEngine.backgroundPlan(
+        currentIndex: null,
+        siteCount: 2,
+        loadedIndices: const {},
+        notificationsEnabled: (_) => false,
+        backgroundAudioEnabled: (_) => false,
+        cookieFlushSupported: true,
+      );
+      expect(plan.mediaPauseIndices, isEmpty);
+    });
+  });
+
   group('BGAUDIO-002 background-audio pause exemption', () {
     test('active background-audio site: capture but do NOT pause', () {
       final plan = AppLifecycleEngine.backgroundPlan(

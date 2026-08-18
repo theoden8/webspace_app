@@ -1633,9 +1633,23 @@ class _WebSpacePageState extends State<WebSpacePage>
       if (pausePlan.flushCookies) {
         unawaited(_cookieManager.flush());
       }
+      // BGAUDIO-009: a site the user never opted in for must not keep sounding
+      // through a backgrounded app (and keep the system transport controls up
+      // with it). Dispatched before the JS pause below — on iOS that pause
+      // blocks the page's JS thread, so this would sit queued behind it.
+      final mediaStops = <int, Future<void>>{};
+      for (final i in pausePlan.mediaPauseIndices) {
+        if (i < 0 || i >= _webViewModels.length) continue;
+        mediaStops[i] = _webViewModels[i].pauseMediaPlayback();
+      }
       if (pausePlan.jsPauseIndex != null) {
-        _lifecyclePauseFuture =
-            _webViewModels[pausePlan.jsPauseIndex!].pauseForAppLifecycle();
+        final idx = pausePlan.jsPauseIndex!;
+        final stopped = mediaStops.remove(idx) ?? Future<void>.value();
+        _lifecyclePauseFuture = stopped
+            .then((_) => _webViewModels[idx].pauseForAppLifecycle());
+      }
+      for (final stop in mediaStops.values) {
+        unawaited(stop);
       }
       if (pausePlan.captureStateIndex != null) {
         final model = _webViewModels[pausePlan.captureStateIndex!];
@@ -3568,8 +3582,12 @@ class _WebSpacePageState extends State<WebSpacePage>
         await _captureStateBytes(_webViewModels[_currentIndex!]);
         if (version != _setCurrentIndexVersion) return;
         // Before the pause: on iOS the per-instance pause blocks the page's
-        // JS thread, so the stop would sit queued behind it (CAM-012).
+        // JS thread, so the stop would sit queued behind it (CAM-012), and so
+        // would the media pause (BGAUDIO-009, no-op for background-audio
+        // sites).
         await _webViewModels[_currentIndex!].stopRealCameraCapture();
+        if (version != _setCurrentIndexVersion) return;
+        await _webViewModels[_currentIndex!].pauseMediaPlayback();
         if (version != _setCurrentIndexVersion) return;
         await _webViewModels[_currentIndex!].pauseWebView();
         if (version != _setCurrentIndexVersion) return;
@@ -3753,8 +3771,11 @@ class _WebSpacePageState extends State<WebSpacePage>
     // Pause the previously active webview to save resources
     if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
       // Before the pause: on iOS the per-instance pause blocks the page's JS
-      // thread, so the stop would sit queued behind it (CAM-012).
+      // thread, so the stop would sit queued behind it (CAM-012), and so would
+      // the media pause (BGAUDIO-009, no-op for background-audio sites).
       await _webViewModels[_currentIndex!].stopRealCameraCapture();
+      if (version != _setCurrentIndexVersion) return;
+      await _webViewModels[_currentIndex!].pauseMediaPlayback();
       if (version != _setCurrentIndexVersion) return;
       await _webViewModels[_currentIndex!].pauseWebView();
       if (version != _setCurrentIndexVersion) return;
@@ -3829,8 +3850,10 @@ class _WebSpacePageState extends State<WebSpacePage>
       // would survive. Bound to a local model: the pause runs a microtask
       // later, by which point _webViewModels may have been reindexed.
       final model = _webViewModels[i];
-      unawaited(
-          model.stopRealCameraCapture().then((_) => model.pauseWebView()));
+      unawaited(model
+          .stopRealCameraCapture()
+          .then((_) => model.pauseMediaPlayback())
+          .then((_) => model.pauseWebView()));
     }
 
     // Auto-enter fullscreen if the site has fullscreenMode enabled
