@@ -92,8 +92,9 @@ edited by hand.
 
 Publishing is one-way. Nothing in the design project feeds back into `lib/`,
 except artwork: design artifacts produced through this pipeline are committed
-under `assets/design/`, which carries its own licence file separate from the
-app artwork and from the code. Artwork from any other source is case by case.
+under `assets/design/`, covered by the `assets/` artwork licence for as long as
+the designer is the author it names. Artwork by anyone else needs its own
+directory and licence file.
 
 ## The live card
 

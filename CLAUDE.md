@@ -92,7 +92,8 @@ widget) into `build/design_gallery`. `npm run design:serve` serves either.
 The Claude Design project cannot build Flutter, so it asks for a rebuild
 through the dated `_requests/refresh.md` mailbox (design-side state, gitignored
 here). Design artifacts that come out of that pipeline live in `assets/design/`
-under their own licence; artwork from anywhere else is case by case. Full workflow and constraints
+under the `assets/` artwork licence, which names the designer; artwork by
+anyone else is case by case and gets its own licence file. Full workflow and constraints
 (canvas output, local fonts, web-clean check, refresh protocol):
 [tool/design_gallery/CLAUDE.md](tool/design_gallery/CLAUDE.md).
 
