@@ -106,12 +106,13 @@ background-audio sites were loaded.
 On iOS the app SHALL declare the `audio` `UIBackgroundModes` entry, and
 SHALL hold the shared `AVAudioSession` in the `.playback` category while
 any loaded site has `effectiveBackgroundAudioEnabled` (reverting to
-`.ambient` when none does). `.playback` plus the background mode is what
-lets WKWebView media keep running after the app leaves the foreground;
-`.ambient` restores the respect-the-silent-switch default so ordinary
-sites don't sound through a muted phone. Only the category is set — the
-session is not force-activated, so the app never steals audio focus while
-nothing is playing.
+`.ambient` when none does). `.ambient` restores the respect-the-silent-switch default so ordinary
+sites don't sound through a muted phone. The category is not force-activated
+here, so the app never steals audio focus while nothing is playing — but the
+category alone does NOT keep playback alive: iOS suspends the process unless
+the app holds an ACTIVE `.playback` session, and a suspended process is one
+whose audio has stopped and whose transport controls reach nothing. Activation
+is driven by actual playback, in BGAUDIO-010.
 
 Sync points (all idempotent, routed through
 `BackgroundTaskService.setBackgroundAudioActive`): per-site settings save,
@@ -305,6 +306,9 @@ that is the failure mode this requirement exists to make visible.
   `MediaSessionService.notificationPosted()` SHALL surface it.
 - On raising the notification the service SHALL check visibility once and log a
   warning when the OS did not post it.
+- A transport control the page could not act on SHALL be logged as a warning
+  carrying the engine's own reason (`reportControlFailure`). Without it, "the
+  play button does nothing" is silent at every layer above the page.
 - Coverage SHALL exist at three tiers, because no single one spans the chain:
   the shim's behaviour under a real engine
   (`test/browser/media_session_real_engine.test.js`, Puppeteer + headless
@@ -423,6 +427,14 @@ keeps its own audio, it does not license every other loaded site to keep
 playing. Nothing is resumed on foreground — restarting audio the user did not
 ask for is worse than leaving it paused where they can hit play.
 
+Pausing the media is not enough on iOS: WebKit publishes its own Now Playing
+info for any page that plays, and that entry outlives the audio as a control
+whose play button reaches a site the app is no longer keeping alive. When no
+loaded site has the toggle, `_updateBackgroundAudioSession` SHALL therefore
+call `MediaSessionService.clearOsMediaSurface()`, which clears the surface
+even when the app never raised it (`stopAll` alone cannot: it early-returns
+because nothing of ours is active).
+
 The snippet ([`buildMediaPauseJs`](../../../lib/services/media_session_shim.dart))
 walks same-origin subframes itself, since `evaluateJavascript` reaches only
 the main frame. Out of reach, and accepted: cross-origin subframes (the same
@@ -437,7 +449,9 @@ the page's own player listens for `pause` events.
 **Given** a site with Background audio OFF is playing audio
 **When** the app goes to background
 **Then** its index is in `mediaPauseIndices` and its media elements are paused
-**And** no Now Playing / media notification survives it
+**And** `clearOsMediaSurface()` removes the Now Playing entry WebKit published,
+so no transport control with a dead play button survives it
+(regression test: `test/media_session_service_test.dart`)
 
 #### Scenario: The opted-in site is untouched, its neighbours are not
 
@@ -495,9 +509,15 @@ Leaving this to WebKit — which publishes its own Now Playing info for
 whatever a page plays — left the app blind to a surface it could not clear
 and gave a transport tap no route into the page. Consequences of owning it:
 
-- `start`/`update` set the `.playback` category and activate the session.
+- `start`/`update` set the `.playback` category and **activate** the session.
   Only a page that is already playing reaches them, so no audio focus is
-  taken that WebKit had not taken already.
+  taken that WebKit had not taken already. This is what keeps iOS from
+  suspending the process when the app leaves the foreground.
+- A `play` remote command SHALL activate the session BEFORE the command is
+  handed to the page. The tap that arrives there is typically the one meant to
+  bring the app back from suspension, and WebKit cannot start playback against
+  an inactive session — activating after the fact resumes nothing, which is
+  the "I hit play and nothing plays" report.
 - `stop` does NOT deactivate the session: another loaded site may still be
   sounding in the foreground, and `setActive(false)` would cut it. Reverting
   the category is BGAUDIO-003's job.
@@ -513,6 +533,14 @@ and gave a transport tap no route into the page. Consequences of owning it:
   for is gone with the webview, and stale controls whose buttons reach
   nothing are exactly the symptom this requirement exists to remove.
 
+#### Scenario: Playback survives the app leaving the foreground
+
+**Given** a background-audio site is playing on iOS
+**When** the app goes to background
+**Then** the session the page's playback report activated keeps the process
+alive and the audio continues
+**And** the Now Playing controls are the app's own, not a leftover WebKit entry
+
 #### Scenario: Lock-screen play resumes the page
 
 **Given** a background-audio site is paused with the iOS Now Playing controls up
@@ -520,6 +548,18 @@ and gave a transport tap no route into the page. Consequences of owning it:
 **Then** `onTransport('play')` runs `window.__wsMediaControl('play')` on the
 owning webview, which plays its primary media element
 **And** the page's next report flips `playbackState` back to `.playing`
+
+#### Scenario: A transport that reaches nothing says so
+
+**Given** the page's primary media element is gone, or WebKit refuses the
+`play()` (a rejected promise, e.g. `NotAllowedError`)
+**When** the transport control runs `window.__wsMediaControl('play')`
+**Then** the shim reports `{control, error}` and `MediaSessionService` logs one
+non-sensitive warning naming the engine's own reason
+**And** the ordinary playing/paused report sequence is unchanged — only
+failures are reported
+(regression test: `test/browser/media_session_real_engine.test.js`,
+`test/media_session_service_test.dart`)
 
 #### Scenario: Unloading the owning site clears the controls
 

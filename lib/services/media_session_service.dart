@@ -152,6 +152,39 @@ class MediaSessionService {
     }
   }
 
+  /// A transport control the page could not act on (BGAUDIO-007). Reported by
+  /// the shim only on failure, and logged non-sensitively (no site name, URL or
+  /// track metadata): "I hit play and nothing happened" is otherwise silent at
+  /// every layer, and the engine's own reason — a rejected `play()` promise, or
+  /// no element left to drive — is the one fact that separates a dead bridge
+  /// from a refusal.
+  Future<void> reportControlFailure({
+    required String action,
+    required String error,
+  }) async {
+    if (!_enabled) return;
+    LogService.instance.log(
+      'MediaSession',
+      'Transport "$action" did not reach playback: $error',
+      level: LogLevel.warning,
+    );
+  }
+
+  /// Clear whatever media surface the OS shows for this app, including one we
+  /// never raised. On iOS WebKit publishes its own Now Playing info for any
+  /// page that plays audio, so a site WITHOUT the background-audio toggle can
+  /// leave transport controls behind after its media is stopped — controls
+  /// whose buttons reach a site the app is no longer keeping alive. Called
+  /// when no background-audio site is loaded (BGAUDIO-009/010).
+  Future<void> clearOsMediaSurface() async {
+    if (!_enabled) return;
+    if (_active) {
+      await _stop();
+      return;
+    }
+    await _invoke('stop', null);
+  }
+
   /// Tear the notification down when [siteId] owns it. Called when the site is
   /// unloaded/disposed or its background-audio toggle goes off.
   Future<void> stopForSite(String siteId) async {

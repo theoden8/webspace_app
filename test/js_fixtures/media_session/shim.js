@@ -122,15 +122,42 @@
   }
   scan();
 
+  // A transport control that reaches nothing is silent otherwise: the page
+  // looks idle, the OS controls stay up, and no log says whether the element
+  // was missing or the engine refused to start playback (WebKit rejects
+  // play() with NotAllowedError in cases the user experiences as "I hit play
+  // and nothing happened"). Reported only on failure, so the ordinary
+  // playing/paused report sequence is unchanged.
+  function reportControl(action, error) {
+    try {
+      window.flutter_inappwebview.callHandler('wsMediaSession', {
+        frame: frameId, control: action, error: error,
+      });
+    } catch (e) {}
+  }
+
   // Dart -> page. Driving the media element directly fires the same
   // play/pause the site listens to, so its own MediaSession stays in sync.
   window.__wsMediaControl = function(action) {
     try {
       var el = primaryMedia();
-      if (!el) return;
-      if (action === 'play') el.play();
-      else if (action === 'pause' || action === 'stop') el.pause();
-    } catch (e) {}
+      if (!el) {
+        reportControl(action, 'no-media-element');
+        return;
+      }
+      if (action === 'play') {
+        var p = el.play();
+        if (p && p.catch) {
+          p.catch(function(e) {
+            reportControl('play', (e && e.name) || 'unknown');
+          });
+        }
+      } else if (action === 'pause' || action === 'stop') {
+        el.pause();
+      }
+    } catch (e) {
+      reportControl(action, (e && e.name) || 'unknown');
+    }
     schedule();
   };
 

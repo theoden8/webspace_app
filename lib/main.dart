@@ -4892,11 +4892,13 @@ class _WebSpacePageState extends State<WebSpacePage>
       break;
     }
     await BackgroundTaskService.instance.setBackgroundAudioActive(any);
-    // BGAUDIO-006: with no background-audio site loaded there is nothing to
-    // drive the Android media notification — tear it down. While one is
-    // loaded the notification is raised/updated by its page-JS reports.
+    // With no background-audio site loaded there is nothing to drive the media
+    // surface — tear it down. On iOS that also removes the Now Playing entry
+    // WebKit publishes for any page that plays, which otherwise outlives the
+    // audio as a control that reaches nothing (BGAUDIO-009/010). While a site
+    // is loaded the surface is raised/updated by its page-JS reports.
     if (!any) {
-      await MediaSessionService.instance.stopAll();
+      await MediaSessionService.instance.clearOsMediaSurface();
     }
   }
 

@@ -3313,6 +3313,14 @@ class WebViewFactory {
             callback: (args) async {
               if (args.isEmpty || args[0] is! Map) return null;
               final data = Map<String, dynamic>.from(args[0] as Map);
+              final control = data['control'] as String?;
+              if (control != null) {
+                await MediaSessionService.instance.reportControlFailure(
+                  action: control,
+                  error: data['error'] as String? ?? 'unknown',
+                );
+                return null;
+              }
               await MediaSessionService.instance.report(
                 siteId: config.siteId!,
                 frame: data['frame'] as String? ?? '',

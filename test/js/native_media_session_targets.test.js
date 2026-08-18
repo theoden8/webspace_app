@@ -52,6 +52,21 @@ test('the transport callback hops onto the main queue', () => {
   );
 });
 
+test('the play command activates the session before the page is asked', () => {
+  // WebKit cannot start playback against an inactive session, and the tap that
+  // gets here is usually the one meant to bring the app back from suspension.
+  const hop = code.slice(code.indexOf('DispatchQueue.main.async'));
+  const body = hop.slice(0, hop.indexOf('return .success'));
+  assert.match(body, /if action == "play" \{\s*self\.activateSession\(\)/,
+    'a play command must activate the audio session');
+  assert.ok(
+    body.indexOf('activateSession()') < body.indexOf('invokeMethod'),
+    'activation must precede handing the command to the page',
+  );
+  assert.match(code, /try session\.setActive\(true\)/,
+    'setting only the category leaves the process suspendable');
+});
+
 test('only play / pause / stop are registered', () => {
   // Dead buttons are worse than absent ones: next/previous have no universal
   // web mechanism, and togglePlayPause handled twice (ours + WebKit's own

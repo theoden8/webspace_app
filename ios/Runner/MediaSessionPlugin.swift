@@ -69,17 +69,7 @@ class MediaSessionPlugin: NSObject {
     playing: Bool,
     artwork: Data?
   ) {
-    // Only reached for a site whose page is (or just was) playing, so WebKit
-    // has already taken audio focus — activating here does not interrupt
-    // anyone who was not going to be interrupted anyway. It is what makes the
-    // system attribute the Now Playing controls to us.
-    let session = AVAudioSession.sharedInstance()
-    do {
-      try session.setCategory(.playback, mode: .default)
-      try session.setActive(true)
-    } catch {
-      NSLog("MediaSessionPlugin: audio session activation failed: \(error)")
-    }
+    activateSession()
 
     var info: [String: Any] = [
       MPMediaItemPropertyTitle: title,
@@ -113,6 +103,23 @@ class MediaSessionPlugin: NSObject {
     // matters once no background-audio site is loaded.
   }
 
+  /// An ACTIVE `.playback` session is what keeps iOS from suspending the
+  /// process once the app leaves the foreground, and what lets playback begin
+  /// again from the background. Setting only the category (BGAUDIO-003) is not
+  /// enough for either: the page stops when the app is suspended, and a play
+  /// tap then resumes nothing. Called when the page reports playback, and
+  /// before a play command is handed to the page — at that moment the session
+  /// may have been torn down by the very suspension we are recovering from.
+  private func activateSession() {
+    let session = AVAudioSession.sharedInstance()
+    do {
+      try session.setCategory(.playback, mode: .default)
+      try session.setActive(true)
+    } catch {
+      NSLog("MediaSessionPlugin: audio session activation failed: \(error)")
+    }
+  }
+
   /// Play / pause / stop only, mirroring the Android notification's controls:
   /// next/previous have no universal web mechanism. `togglePlayPause` is
   /// deliberately left to WebKit — it registers its own targets for the media
@@ -132,7 +139,14 @@ class MediaSessionPlugin: NSObject {
         // The command centre does not promise a queue, and a Flutter channel
         // must be spoken to from the platform (main) thread.
         DispatchQueue.main.async {
-          self?.channel.invokeMethod("onTransport", arguments: ["action": action])
+          guard let self = self else { return }
+          // Before the page is asked to play, not after: WebKit cannot start
+          // playback against an inactive session, and the tap that gets here
+          // is usually the one meant to bring the app back from suspension.
+          if action == "play" {
+            self.activateSession()
+          }
+          self.channel.invokeMethod("onTransport", arguments: ["action": action])
         }
         return .success
       }

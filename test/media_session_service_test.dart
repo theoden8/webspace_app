@@ -274,6 +274,49 @@ void main() {
     expect(js, isEmpty);
   });
 
+  group('control failures are diagnosable (BGAUDIO-007)', () {
+    test('a refused transport is logged as a warning, no metadata', () async {
+      await service.reportControlFailure(
+          action: 'play', error: 'NotAllowedError');
+      final warnings = LogService.instance.allEntriesMerged
+          .where((e) => e.tag == 'MediaSession' && e.level == LogLevel.warning)
+          .map((e) => e.message)
+          .toList();
+      expect(warnings.single, contains('play'));
+      expect(warnings.single, contains('NotAllowedError'));
+    });
+
+    test('the failure path invokes nothing on the channel', () async {
+      await service.reportControlFailure(action: 'play', error: 'unknown');
+      expect(calls, isEmpty);
+    });
+  });
+
+  group('clearOsMediaSurface (BGAUDIO-009/010)', () {
+    test('clears even when we never raised anything', () async {
+      // The iOS case this exists for: the Now Playing entry belongs to WebKit,
+      // so `isActive` is false and `stopAll` would do nothing.
+      expect(service.isActive, isFalse);
+      await service.clearOsMediaSurface();
+      expect(controlCalls().map((c) => c.method), ['stop']);
+    });
+
+    test('tears our own surface down when we do own it', () async {
+      await reportPlaying('a');
+      calls.clear();
+      await service.clearOsMediaSurface();
+      expect(controlCalls().map((c) => c.method), ['stop']);
+      expect(service.isActive, isFalse);
+    });
+
+    test('is inert where there is no native media session', () async {
+      MediaSessionService.debugEnabledOverride = false;
+      service.debugReset();
+      await service.clearOsMediaSurface();
+      expect(calls, isEmpty);
+    });
+  });
+
   test('a missing native side does not throw', () async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, null);
