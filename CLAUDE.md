@@ -90,7 +90,9 @@ does not run there. Two targets, both via `scripts/design_web.sh`:
 ([lib/design_gallery/main.dart](lib/design_gallery/main.dart), one card per
 widget) into `build/design_gallery`. `npm run design:serve` serves either.
 The Claude Design project cannot build Flutter, so it asks for a rebuild
-through the `_requests/refresh.md` mailbox. Full workflow and constraints
+through the dated `_requests/refresh.md` mailbox (design-side state, gitignored
+here). Design artifacts that come out of that pipeline live in `assets/design/`
+under their own licence; artwork from anywhere else is case by case. Full workflow and constraints
 (canvas output, local fonts, web-clean check, refresh protocol):
 [tool/design_gallery/CLAUDE.md](tool/design_gallery/CLAUDE.md).
 

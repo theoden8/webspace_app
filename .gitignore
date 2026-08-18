@@ -88,3 +88,7 @@ rust/webspace_adblock/cocoapods/keep_alive.c
 
 # Design gallery (see tool/design_gallery/): fetched from npm, regenerate with sync_fonts.js
 /web/fonts/
+
+# Design mailbox pulled out of the Claude Design project for servicing.
+# The request is the design side's state, not the repo's.
+/_requests/

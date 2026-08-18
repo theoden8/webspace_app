@@ -62,10 +62,11 @@ the page is overwritten on the next publish. The cards are output.
 
 This project has no shell, no Node, and no Flutter, so it cannot rebuild
 `app/` or re-shoot a card. `_requests/refresh.md` is how to ask. Overwrite it
-with a unique `id:` line and a plain-English description of what to refresh; a
-session with the toolchain compares that id against `_requests/status.md`,
-rebuilds, re-uploads, and writes back what it did. Full protocol is in the
-file itself.
+with a `date:` line in UTC and a plain-English description of what to refresh.
+That date is the request id: later than the `serviced:` date in
+`_requests/status.md` means pending. A session with the toolchain rebuilds,
+re-uploads, and writes back what it did and what it did not. Full protocol is
+in the file itself.
 
 ## What holds the app to the design
 
