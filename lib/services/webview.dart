@@ -2052,7 +2052,9 @@ class WebViewFactory {
     }
 
     // BGAUDIO-006: media-session bridge shim on background-audio sites only.
-    if (config.siteId != null && config.backgroundAudioEnabled && Platform.isAndroid) {
+    if (config.siteId != null &&
+        config.backgroundAudioEnabled &&
+        MediaSessionService.instance.isSupported) {
       userScripts.add(inapp.UserScript(
         groupName: 'media_session_shim',
         source: '${buildMediaSessionShim()}\n;null;',
@@ -3305,12 +3307,20 @@ class WebViewFactory {
         }
         if (config.siteId != null &&
             config.backgroundAudioEnabled &&
-            Platform.isAndroid) {
+            MediaSessionService.instance.isSupported) {
           controller.addJavaScriptHandler(
             handlerName: 'wsMediaSession',
             callback: (args) async {
               if (args.isEmpty || args[0] is! Map) return null;
               final data = Map<String, dynamic>.from(args[0] as Map);
+              final control = data['control'] as String?;
+              if (control != null) {
+                await MediaSessionService.instance.reportControlFailure(
+                  action: control,
+                  error: data['error'] as String? ?? 'unknown',
+                );
+                return null;
+              }
               await MediaSessionService.instance.report(
                 siteId: config.siteId!,
                 frame: data['frame'] as String? ?? '',

@@ -15,6 +15,8 @@ import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/link_routing_service.dart' show LinkRoutingService;
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/media_session_service.dart';
+import 'package:webspace/services/media_session_shim.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/camera_decision_engine.dart';
 import 'package:webspace/services/microphone_decision_engine.dart';
@@ -1713,6 +1715,52 @@ class WebViewModel {
     }
   }
 
+  /// Tell a background-audio site's page whether the app is backgrounded
+  /// (BGAUDIO-012), so its media-session shim can mask the page-visibility
+  /// APIs and re-issue `play()` if the page stopped itself anyway.
+  ///
+  /// A no-op for every other site: masking visibility for a page the user did
+  /// not opt in for would keep timers and players running that should stop.
+  /// Main frame only — the shim relays the state to its own subframes.
+  Future<void> setBackgroundPlayback(bool active) async {
+    if (!effectiveBackgroundAudioEnabled) return;
+    final c = controller;
+    if (c == null) return;
+    try {
+      await c.evaluateJavascript(
+        'if(window.__wsMediaBackground)window.__wsMediaBackground($active);',
+      );
+    } catch (_) {
+      // Controller may have been disposed
+    }
+  }
+
+  /// Pause every playing media element in the page's main frame (BGAUDIO-009).
+  ///
+  /// A no-op for sites with [effectiveBackgroundAudioEnabled] — that toggle
+  /// exists precisely to keep them sounding. For every other site this is what
+  /// makes "Background audio: off" mean anything: neither [pauseWebView] nor
+  /// [pauseForAppLifecycle] stops the media pipeline (they freeze JS timers,
+  /// see the pause spec), so without it a site the user never opted in for
+  /// keeps playing after it loses the screen and holds the OS transport
+  /// controls up with it.
+  ///
+  /// Same ordering constraint as [stopRealCameraCapture]: it must be
+  /// dispatched BEFORE the pause, since the iOS per-instance pause blocks the
+  /// page's JS thread and this would sit queued behind it. Main frame only
+  /// (`evaluateJavascript` targets it) — a player inside a cross-origin
+  /// subframe is accepted degradation, as in BGAUDIO-008.
+  Future<void> pauseMediaPlayback() async {
+    if (effectiveBackgroundAudioEnabled) return;
+    final c = controller;
+    if (c == null) return;
+    try {
+      await c.evaluateJavascript(buildMediaPauseJs());
+    } catch (_) {
+      // Controller may have been disposed
+    }
+  }
+
   /// Resume a previously paused webview when it becomes active again.
   Future<void> resumeWebView() async {
     if (controller == null) return;
@@ -1785,6 +1833,10 @@ class WebViewModel {
     webview = null;
     controller = null;
     resumeReload.reset();
+    // The player this site's media session was speaking for is gone with the
+    // webview. Without this the OS transport controls outlive it and their
+    // buttons reach nothing — a no-op unless this site owns them.
+    unawaited(MediaSessionService.instance.stopForSite(siteId));
   }
 
   /// Drop the in-memory cache (decoded image cache + HTTP response

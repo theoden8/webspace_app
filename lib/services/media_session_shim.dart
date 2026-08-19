@@ -1,6 +1,9 @@
-/// Media-session bridge shim (BGAUDIO-006, Android only).
+/// Media-session bridge shim (BGAUDIO-006).
 ///
-/// Injected at DOCUMENT_START (all frames) on sites with `backgroundAudioEnabled`.
+/// Injected at DOCUMENT_START (all frames) on sites with
+/// `backgroundAudioEnabled`, on every platform with a native media session
+/// behind the channel (Android's foreground service, iOS's Now Playing info —
+/// see `MediaSessionService.isSupported`).
 /// It watches every `<audio>`/`<video>` element plus `navigator.mediaSession`
 /// metadata and reports `{frame, playing, title, artist, album, artwork}` to
 /// Dart via the `wsMediaSession` handler, coalesced on a short debounce. Dart
@@ -113,6 +116,10 @@ String buildMediaSessionShim() => r'''
     el.__wsMediaAttached = true;
     ['play', 'playing', 'pause', 'ended', 'loadedmetadata', 'emptied']
       .forEach(function(ev) { el.addEventListener(ev, schedule, true); });
+    // Remembered so the background watchdog can tell "the page stopped this
+    // while we were not looking" from "this never played".
+    el.addEventListener('playing', function() { el.__wsWasPlaying = true; }, true);
+    el.addEventListener('ended', function() { el.__wsWasPlaying = false; }, true);
   }
   function scan() { mediaEls().forEach(attach); }
 
@@ -141,20 +148,193 @@ String buildMediaSessionShim() => r'''
   }
   scan();
 
+  // A transport control that reaches nothing is silent otherwise: the page
+  // looks idle, the OS controls stay up, and no log says whether the element
+  // was missing or the engine refused to start playback (WebKit rejects
+  // play() with NotAllowedError in cases the user experiences as "I hit play
+  // and nothing happened"). Reported only on failure, so the ordinary
+  // playing/paused report sequence is unchanged.
+  function reportControl(action, error) {
+    try {
+      window.flutter_inappwebview.callHandler('wsMediaSession', {
+        frame: frameId, control: action, error: error,
+      });
+    } catch (e) {}
+  }
+
   // Dart -> page. Driving the media element directly fires the same
   // play/pause the site listens to, so its own MediaSession stays in sync.
   window.__wsMediaControl = function(action) {
     try {
       var el = primaryMedia();
-      if (!el) return;
-      if (action === 'play') el.play();
-      else if (action === 'pause' || action === 'stop') el.pause();
-    } catch (e) {}
+      if (!el) {
+        reportControl(action, 'no-media-element');
+        return;
+      }
+      if (action === 'play') {
+        var p = el.play();
+        if (p && p.catch) {
+          p.catch(function(e) {
+            reportControl('play', (e && e.name) || 'unknown');
+          });
+        }
+      } else if (action === 'pause' || action === 'stop') {
+        // The user asked for silence: the watchdog must not fight it.
+        var all = mediaEls();
+        for (var i = 0; i < all.length; i++) all[i].__wsWasPlaying = false;
+        el.pause();
+      }
+    } catch (e) {
+      reportControl(action, (e && e.name) || 'unknown');
+    }
     schedule();
   };
+
+  // BGAUDIO-012: keeping the app alive is not enough for a site that stops
+  // itself. A backgrounded app's page is told it is hidden, and players built
+  // for a tab (YouTube among them) pause on `visibilitychange` / `pagehide` by
+  // their own choice. While the app is backgrounded with this site's toggle on,
+  // report the page as visible, swallow those events before the page's own
+  // handlers see them, and re-issue play() if something paused anyway.
+  var bgActive = false;
+  var resumeTries = 0;
+  var watchTimer = null;
+
+  function realGetter(name) {
+    var d = Object.getOwnPropertyDescriptor(Document.prototype, name);
+    return d && d.get ? d.get : null;
+  }
+  function maskVisibility() {
+    ['hidden', 'webkitHidden'].forEach(function(name) {
+      var real = realGetter(name);
+      try {
+        Object.defineProperty(document, name, {
+          configurable: true,
+          get: function() {
+            if (bgActive) return false;
+            return real ? real.call(document) : false;
+          },
+        });
+      } catch (e) {}
+    });
+    ['visibilityState', 'webkitVisibilityState'].forEach(function(name) {
+      var real = realGetter(name);
+      try {
+        Object.defineProperty(document, name, {
+          configurable: true,
+          get: function() {
+            if (bgActive) return 'visible';
+            return real ? real.call(document) : 'visible';
+          },
+        });
+      } catch (e) {}
+    });
+  }
+  maskVisibility();
+
+  // Capture phase on window runs before anything the page registers on
+  // document or window, so its own pause-on-hide handler never runs.
+  ['visibilitychange', 'webkitvisibilitychange', 'pagehide', 'freeze', 'blur']
+    .forEach(function(type) {
+      var swallow = function(e) {
+        if (!bgActive) return;
+        e.stopImmediatePropagation();
+      };
+      try { window.addEventListener(type, swallow, true); } catch (e) {}
+      try { document.addEventListener(type, swallow, true); } catch (e) {}
+    });
+
+  function watchdog() {
+    if (!bgActive) return;
+    var els = mediaEls();
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      if (!el.__wsWasPlaying || !el.paused || el.ended) continue;
+      if (resumeTries >= 8) continue;
+      resumeTries++;
+      try {
+        var p = el.play();
+        if (p && p.catch) {
+          p.catch(function(e) {
+            reportControl('background-resume', (e && e.name) || 'unknown');
+          });
+        }
+      } catch (e) {
+        reportControl('background-resume', (e && e.name) || 'unknown');
+      }
+    }
+  }
+
+  function setBackground(on) {
+    on = !!on;
+    if (on === bgActive) { relayBackground(on); return; }
+    bgActive = on;
+    resumeTries = 0;
+    if (watchTimer) { clearInterval(watchTimer); watchTimer = null; }
+    if (on) watchTimer = setInterval(watchdog, 1000);
+    relayBackground(on);
+    schedule();
+  }
+
+  // `evaluateJavascript` reaches the main frame only, so the state has to be
+  // handed down. A frame that fakes this message can only make its own page
+  // report itself visible, on a site the user opted into background audio for.
+  function relayBackground(on) {
+    try {
+      for (var i = 0; i < window.frames.length; i++) {
+        try {
+          window.frames[i].postMessage({ __wsMediaBackground: !!on }, '*');
+        } catch (e) {}
+      }
+    } catch (e) {}
+  }
+  window.addEventListener('message', function(ev) {
+    var d = ev && ev.data;
+    if (d && typeof d === 'object' && '__wsMediaBackground' in d) {
+      setBackground(d.__wsMediaBackground);
+    }
+  }, true);
+
+  window.__wsMediaBackground = setBackground;
 
   // Reconcile periodically: covers `ended` via currentTime, SPA route swaps,
   // and metadata set after the first report.
   setInterval(schedule, 3000);
 })();
 ''';
+
+/// BGAUDIO-009: pause every playing media element in a page.
+///
+/// Evaluated on a site WITHOUT the background-audio toggle when it loses the
+/// screen. Neither pause stops the media pipeline (it runs independently of
+/// the JS thread), so without this the site keeps sounding — and keeps the OS
+/// transport surface up — after the user moved on.
+///
+/// Same-origin iframes are walked too: a player in one is common and
+/// `evaluateJavascript` reaches only the main frame. Cross-origin frames and
+/// elements that never entered the DOM (`new Audio(src).play()`) are out of
+/// reach without a shim injected on every site; that gap is documented in the
+/// background-audio spec.
+String buildMediaPauseJs() => r"""
+(function() {
+  var docs = [document];
+  try {
+    for (var f = 0; f < window.frames.length; f++) {
+      try {
+        var d = window.frames[f].document;
+        if (d) docs.push(d);
+      } catch (e) {}
+    }
+  } catch (e) {}
+  for (var i = 0; i < docs.length; i++) {
+    try {
+      var els = docs[i].querySelectorAll('audio,video');
+      for (var j = 0; j < els.length; j++) {
+        try {
+          if (!els[j].paused) els[j].pause();
+        } catch (e) {}
+      }
+    } catch (e) {}
+  }
+})();
+""";

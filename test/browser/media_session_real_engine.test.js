@@ -170,6 +170,45 @@ test('transport control round-trip drives the element and re-reports', async (t)
   }
 });
 
+test('a transport that reaches nothing is reported, not swallowed', async (t) => {
+  if (!requireBrowser(browser, t)) return;
+  const page = await newPage();
+  try {
+    // "I hit play and nothing happened" is silent at every layer above the
+    // page: no element, or an engine that refuses to start playback, look
+    // identical to a dead bridge. Only the failure is reported, so the
+    // ordinary playing/paused sequence above is unaffected.
+    await page.evaluate(() => window.__wsMediaControl('play'));
+    await settle();
+    let got = await reports(page);
+    assert.equal(got.length, 1, 'a control with no media must say so');
+    assert.equal(got[0].payload.control, 'play');
+    assert.equal(got[0].payload.error, 'no-media-element');
+
+    const refused = await page.evaluate(async () => {
+      const a = document.createElement('audio');
+      a.src = wsMakeSilentWav(2);
+      document.body.appendChild(a);
+      // Reject the way a suspended/blocked engine does, which is the state
+      // the iOS lockscreen play lands in.
+      a.play = () =>
+        Promise.reject(Object.assign(new Error('blocked'), {
+          name: 'NotAllowedError',
+        }));
+      window.__wsMediaControl('play');
+      await new Promise((r) => setTimeout(r, 200));
+      return true;
+    });
+    assert.equal(refused, true);
+    await settle();
+    got = await reports(page);
+    const failure = got.filter((r) => r.payload.control === 'play').pop();
+    assert.equal(failure.payload.error, 'NotAllowedError');
+  } finally {
+    await page.close();
+  }
+});
+
 test('does not re-report unchanged state', async (t) => {
   if (!requireBrowser(browser, t)) return;
   const page = await newPage();

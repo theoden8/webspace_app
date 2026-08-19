@@ -10,6 +10,7 @@ import 'package:webspace/web_view_model.dart';
 /// touches only the pause-related controller methods, nothing else".
 class _RecordingController extends Fake implements WebViewController {
   final List<String> calls = [];
+  final List<String> js = [];
 
   @override
   Future<void> pause() async {
@@ -29,6 +30,12 @@ class _RecordingController extends Fake implements WebViewController {
   @override
   Future<void> resumeAllJsTimers() async {
     calls.add('resumeAllJsTimers');
+  }
+
+  @override
+  Future<void> evaluateJavascript(String source) async {
+    calls.add('evaluateJavascript');
+    js.add(source);
   }
 }
 
@@ -123,6 +130,85 @@ void main() {
       final c = _RecordingController();
       await _modelWith(c, notificationsEnabled: true).resumeWebView();
       expect(c.calls, ['resume']);
+    });
+  });
+
+  group('BGAUDIO-012 background playback signal', () {
+    test('a background-audio site is told the app went to background',
+        () async {
+      final c = _RecordingController();
+      await _modelWith(c, backgroundAudioEnabled: true)
+          .setBackgroundPlayback(true);
+      expect(c.js.single, contains('__wsMediaBackground(true)'));
+    });
+
+    test('and told when it comes back', () async {
+      final c = _RecordingController();
+      await _modelWith(c, backgroundAudioEnabled: true)
+          .setBackgroundPlayback(false);
+      expect(c.js.single, contains('__wsMediaBackground(false)'));
+    });
+
+    test('a site without the toggle is never told', () async {
+      final c = _RecordingController();
+      await _modelWith(c).setBackgroundPlayback(true);
+      expect(c.calls, isEmpty,
+          reason: 'masking page visibility for a site the user did not opt in '
+              'for would keep players running that should stop');
+    });
+
+    test('an archive-tier site is never told', () async {
+      final c = _RecordingController();
+      await _modelWith(c, backgroundAudioEnabled: true, isArchiveTier: true)
+          .setBackgroundPlayback(true);
+      expect(c.calls, isEmpty);
+    });
+
+    test('the call is guarded against a missing hook', () async {
+      final c = _RecordingController();
+      await _modelWith(c, backgroundAudioEnabled: true)
+          .setBackgroundPlayback(true);
+      expect(c.js.single, startsWith('if(window.__wsMediaBackground)'));
+    });
+  });
+
+  group('BGAUDIO-009 media pause when a site loses the screen', () {
+    test('pauseMediaPlayback() pauses the page media of an ordinary site',
+        () async {
+      final c = _RecordingController();
+      await _modelWith(c).pauseMediaPlayback();
+      expect(c.calls, ['evaluateJavascript']);
+      expect(c.js.single, contains("querySelectorAll('audio,video')"));
+      expect(c.js.single, contains('.pause()'));
+    });
+
+    test('pauseMediaPlayback() with backgroundAudioEnabled is a no-op',
+        () async {
+      final c = _RecordingController();
+      await _modelWith(c, backgroundAudioEnabled: true).pauseMediaPlayback();
+      expect(c.calls, isEmpty,
+          reason: 'That toggle exists to keep this site sounding after it '
+              'loses the screen.');
+    });
+
+    test('an archive-tier site is not exempt', () async {
+      // ARCH-006: the effective getter folds archive tier to false, so the
+      // media stop applies as it does to any ordinary site.
+      final c = _RecordingController();
+      await _modelWith(c, backgroundAudioEnabled: true, isArchiveTier: true)
+          .pauseMediaPlayback();
+      expect(c.calls, ['evaluateJavascript']);
+    });
+
+    test('pauseMediaPlayback() does not touch the pause API', () async {
+      final c = _RecordingController();
+      await _modelWith(c).pauseMediaPlayback();
+      expect(c.calls, isNot(contains('pause')));
+      expect(c.calls, isNot(contains('pauseAllJsTimers')));
+    });
+
+    test('no controller, no call', () async {
+      await expectLater(_modelWith(null).pauseMediaPlayback(), completes);
     });
   });
 

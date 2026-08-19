@@ -58,6 +58,7 @@ void main() {
     LogService.instance.clear();
     MediaSessionService.debugEnabledOverride = true;
     MediaSessionService.debugVisibilityCheckDelay = Duration.zero;
+    MediaSessionService.debugSurfaceReclearDelay = Duration.zero;
     service.debugReset();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
@@ -259,6 +260,40 @@ void main() {
     ]);
   });
 
+  test('native audio-session state lands in the app log (BGAUDIO-011)',
+      () async {
+    service.initialize();
+    await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .handlePlatformMessage(
+      channel.name,
+      codec.encodeMethodCall(const MethodCall('onSessionState', {
+        'message': 'interruption ended, session re-activated '
+            '[category=AVAudioSessionCategoryPlayback otherAudio=false]',
+      })),
+      (_) {},
+    );
+    final lines = LogService.instance.allEntriesMerged
+        .where((e) => e.tag == 'MediaSession')
+        .map((e) => e.message)
+        .toList();
+    expect(lines.any((m) => m.contains('interruption ended')), isTrue);
+    expect(lines.any((m) => m.contains('Playback')), isTrue);
+  });
+
+  test('an empty session-state message is ignored', () async {
+    service.initialize();
+    await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .handlePlatformMessage(
+      channel.name,
+      codec.encodeMethodCall(
+          const MethodCall('onSessionState', {'message': ''})),
+      (_) {},
+    );
+    expect(LogService.instance.allEntriesMerged.where((e) =>
+        e.tag == 'MediaSession' && e.message.startsWith('Audio session')),
+        isEmpty);
+  });
+
   test('an empty transport action is ignored', () async {
     service.initialize();
     final js = <String>[];
@@ -274,13 +309,65 @@ void main() {
     expect(js, isEmpty);
   });
 
+  group('control failures are diagnosable (BGAUDIO-007)', () {
+    test('a refused transport is logged as a warning, no metadata', () async {
+      await service.reportControlFailure(
+          action: 'play', error: 'NotAllowedError');
+      final warnings = LogService.instance.allEntriesMerged
+          .where((e) => e.tag == 'MediaSession' && e.level == LogLevel.warning)
+          .map((e) => e.message)
+          .toList();
+      expect(warnings.single, contains('play'));
+      expect(warnings.single, contains('NotAllowedError'));
+    });
+
+    test('the failure path invokes nothing on the channel', () async {
+      await service.reportControlFailure(action: 'play', error: 'unknown');
+      expect(calls, isEmpty);
+    });
+  });
+
+  group('clearOsMediaSurface (BGAUDIO-009/010)', () {
+    test('clears even when we never raised anything', () async {
+      // The iOS case this exists for: the Now Playing entry belongs to WebKit,
+      // so `isActive` is false and `stopAll` would do nothing.
+      expect(service.isActive, isFalse);
+      await service.clearOsMediaSurface();
+      // Twice: WebKit republishes its Now Playing entry when it finishes
+      // processing the pause that preceded this.
+      expect(controlCalls().map((c) => c.method), ['stop', 'stop']);
+      expect(
+          controlCalls().every((c) =>
+              (c.arguments as Map)['deactivate'] == true),
+          isTrue,
+          reason: 'clearing the metadata alone leaves an entry the engine '
+              'repopulates; the session has to go with it');
+    });
+
+    test('tears our own surface down when we do own it', () async {
+      await reportPlaying('a');
+      calls.clear();
+      await service.clearOsMediaSurface();
+      expect(controlCalls().map((c) => c.method), ['stop', 'stop']);
+      expect(service.isActive, isFalse);
+    });
+
+    test('is inert where there is no native media session', () async {
+      MediaSessionService.debugEnabledOverride = false;
+      service.debugReset();
+      await service.clearOsMediaSurface();
+      expect(calls, isEmpty);
+    });
+  });
+
   test('a missing native side does not throw', () async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, null);
     await expectLater(reportPlaying('a'), completes);
   });
 
-  test('everything is inert off Android', () async {
+  test('everything is inert on a platform with no native media session',
+      () async {
     MediaSessionService.debugEnabledOverride = false;
     service.debugReset();
 
@@ -288,5 +375,13 @@ void main() {
     await service.stopAll();
     expect(calls, isEmpty);
     expect(await service.notificationPosted(), isFalse);
+    // The same answer gates the shim + handler injection in webview.dart, so
+    // no report can arrive on a platform that would drop it.
+    expect(service.isSupported, isFalse);
+  });
+
+  test('isSupported is what arms the bridge', () async {
+    MediaSessionService.debugEnabledOverride = true;
+    expect(service.isSupported, isTrue);
   });
 }

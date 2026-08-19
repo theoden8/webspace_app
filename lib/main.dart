@@ -1633,9 +1633,32 @@ class _WebSpacePageState extends State<WebSpacePage>
       if (pausePlan.flushCookies) {
         unawaited(_cookieManager.flush());
       }
+      // BGAUDIO-012: a site that stops itself when the page reports hidden
+      // (YouTube and every other player built for a tab) needs to be told the
+      // app is backgrounded before the OS tells the page it is hidden.
+      for (final i in _loadedIndices) {
+        if (i < 0 || i >= _webViewModels.length) continue;
+        if (!_webViewModels[i].effectiveBackgroundAudioEnabled) continue;
+        unawaited(_webViewModels[i].setBackgroundPlayback(true));
+      }
+      // BGAUDIO-009: a site the user never opted in for must not keep sounding
+      // through a backgrounded app (and keep the system transport controls up
+      // with it). Dispatched before the JS pause below — on iOS that pause
+      // blocks the page's JS thread, so this would sit queued behind it.
+      final mediaStops = <int, Future<void>>{};
+      for (final i in pausePlan.mediaPauseIndices) {
+        if (i < 0 || i >= _webViewModels.length) continue;
+        mediaStops[i] = _webViewModels[i].pauseMediaPlayback();
+      }
+      final allMediaStopped = Future.wait(mediaStops.values);
       if (pausePlan.jsPauseIndex != null) {
-        _lifecyclePauseFuture =
-            _webViewModels[pausePlan.jsPauseIndex!].pauseForAppLifecycle();
+        final idx = pausePlan.jsPauseIndex!;
+        final stopped = mediaStops.remove(idx) ?? Future<void>.value();
+        _lifecyclePauseFuture = stopped
+            .then((_) => _webViewModels[idx].pauseForAppLifecycle());
+      }
+      for (final stop in mediaStops.values) {
+        unawaited(stop);
       }
       if (pausePlan.captureStateIndex != null) {
         final model = _webViewModels[pausePlan.captureStateIndex!];
@@ -1658,11 +1681,21 @@ class _WebSpacePageState extends State<WebSpacePage>
       // before the process gets backgrounded.
       unawaited(_updateBackgroundRefreshSchedule());
       // iOS: make sure the `.playback` audio session is live before the
-      // process is backgrounded, or active webview audio gets cut.
-      unawaited(_updateBackgroundAudioSession());
+      // process is backgrounded, or active webview audio gets cut. Sequenced
+      // after the media stops above: WebKit republishes its Now Playing entry
+      // when it processes a pause, so clearing before that lands leaves the
+      // controls on screen (BGAUDIO-009).
+      unawaited(allMediaStopped.then((_) => _updateBackgroundAudioSession()));
     } else if (state == AppLifecycleState.resumed) {
       if (_maskBackground) {
         setState(() => _maskBackground = false);
+      }
+      // BGAUDIO-012: hand the page's own visibility back. On screen again, a
+      // player that pauses when hidden should behave exactly as it always has.
+      for (final i in _loadedIndices) {
+        if (i < 0 || i >= _webViewModels.length) continue;
+        if (!_webViewModels[i].effectiveBackgroundAudioEnabled) continue;
+        unawaited(_webViewModels[i].setBackgroundPlayback(false));
       }
       // Open the warm-start repaint window before the async resume sequence, so
       // a late SurfaceView re-attach (which surfaces as a metrics change) is
@@ -3568,8 +3601,12 @@ class _WebSpacePageState extends State<WebSpacePage>
         await _captureStateBytes(_webViewModels[_currentIndex!]);
         if (version != _setCurrentIndexVersion) return;
         // Before the pause: on iOS the per-instance pause blocks the page's
-        // JS thread, so the stop would sit queued behind it (CAM-012).
+        // JS thread, so the stop would sit queued behind it (CAM-012), and so
+        // would the media pause (BGAUDIO-009, no-op for background-audio
+        // sites).
         await _webViewModels[_currentIndex!].stopRealCameraCapture();
+        if (version != _setCurrentIndexVersion) return;
+        await _webViewModels[_currentIndex!].pauseMediaPlayback();
         if (version != _setCurrentIndexVersion) return;
         await _webViewModels[_currentIndex!].pauseWebView();
         if (version != _setCurrentIndexVersion) return;
@@ -3753,8 +3790,11 @@ class _WebSpacePageState extends State<WebSpacePage>
     // Pause the previously active webview to save resources
     if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
       // Before the pause: on iOS the per-instance pause blocks the page's JS
-      // thread, so the stop would sit queued behind it (CAM-012).
+      // thread, so the stop would sit queued behind it (CAM-012), and so would
+      // the media pause (BGAUDIO-009, no-op for background-audio sites).
       await _webViewModels[_currentIndex!].stopRealCameraCapture();
+      if (version != _setCurrentIndexVersion) return;
+      await _webViewModels[_currentIndex!].pauseMediaPlayback();
       if (version != _setCurrentIndexVersion) return;
       await _webViewModels[_currentIndex!].pauseWebView();
       if (version != _setCurrentIndexVersion) return;
@@ -3829,8 +3869,10 @@ class _WebSpacePageState extends State<WebSpacePage>
       // would survive. Bound to a local model: the pause runs a microtask
       // later, by which point _webViewModels may have been reindexed.
       final model = _webViewModels[i];
-      unawaited(
-          model.stopRealCameraCapture().then((_) => model.pauseWebView()));
+      unawaited(model
+          .stopRealCameraCapture()
+          .then((_) => model.pauseMediaPlayback())
+          .then((_) => model.pauseWebView()));
     }
 
     // Auto-enter fullscreen if the site has fullscreenMode enabled
@@ -4869,11 +4911,13 @@ class _WebSpacePageState extends State<WebSpacePage>
       break;
     }
     await BackgroundTaskService.instance.setBackgroundAudioActive(any);
-    // BGAUDIO-006: with no background-audio site loaded there is nothing to
-    // drive the Android media notification — tear it down. While one is
-    // loaded the notification is raised/updated by its page-JS reports.
+    // With no background-audio site loaded there is nothing to drive the media
+    // surface — tear it down. On iOS that also removes the Now Playing entry
+    // WebKit publishes for any page that plays, which otherwise outlives the
+    // audio as a control that reaches nothing (BGAUDIO-009/010). While a site
+    // is loaded the surface is raised/updated by its page-JS reports.
     if (!any) {
-      await MediaSessionService.instance.stopAll();
+      await MediaSessionService.instance.clearOsMediaSurface();
     }
   }
 

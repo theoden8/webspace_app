@@ -8,6 +8,7 @@ import UserNotifications
   private var locationPlugin: LocationPlugin?
   private var backgroundTaskPlugin: BackgroundTaskPlugin?
   private var shortcutsPlugin: ShortcutsPlugin?
+  private var mediaSessionPlugin: MediaSessionPlugin?
   private var pendingShareUrl: String?
 
   private let shareChannelName = "org.codeberg.theoden8.webspace/share_intent"
@@ -37,6 +38,7 @@ import UserNotifications
       locationPlugin = LocationPlugin(messenger: controller.binaryMessenger)
       backgroundTaskPlugin = BackgroundTaskPlugin(messenger: controller.binaryMessenger)
       shortcutsPlugin = ShortcutsPlugin(messenger: controller.binaryMessenger)
+      mediaSessionPlugin = MediaSessionPlugin(messenger: controller.binaryMessenger)
       if let registrar = self.registrar(forPlugin: "WebSpaceShortcutsLink") {
         registrar.register(
           ShortcutsLinkViewFactory(messenger: controller.binaryMessenger),

@@ -7,15 +7,18 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:webspace/services/log_service.dart';
 
-/// BGAUDIO-006 Dart bridge to the Android foreground media service
-/// (`MediaSessionPlugin.kt` / `MediaPlaybackService.kt`). A background-audio
+/// BGAUDIO-006 Dart bridge to the native media session. A background-audio
 /// site's page-JS reports its playback state here (via the `wsMediaSession`
 /// handler wired in `webview.dart`); this service raises/refreshes/tears down
-/// the media notification and routes transport controls back to the owning
+/// the OS media surface and routes transport controls back to the owning
 /// webview's JS.
 ///
-/// Android-only. iOS relies on its `.playback` AVAudioSession + the system
-/// Now Playing UI, which the page's own MediaSession populates.
+/// Two native implementations behind one channel: Android's `mediaPlayback`
+/// foreground service + `MediaStyle` notification (`MediaSessionPlugin.kt` /
+/// `MediaPlaybackService.kt`), and iOS's Now Playing info + remote command
+/// centre (`MediaSessionPlugin.swift`, BGAUDIO-010). Leaving iOS to WebKit's
+/// own Now Playing handling meant nothing in the app knew the controls were
+/// up, and a transport tap had no route back into the page.
 class MediaSessionService {
   static final MediaSessionService instance = MediaSessionService._();
   MediaSessionService._();
@@ -46,7 +49,13 @@ class MediaSessionService {
   @visibleForTesting
   static bool? debugEnabledOverride;
 
-  bool get _enabled => debugEnabledOverride ?? Platform.isAndroid;
+  bool get _enabled =>
+      debugEnabledOverride ?? (Platform.isAndroid || Platform.isIOS);
+
+  /// Whether this platform has a native media session behind the channel.
+  /// Read by `webview.dart` to gate the shim + handler injection, so the
+  /// bridge is armed exactly where something consumes its reports.
+  bool get isSupported => _enabled;
 
   /// Whether the notification is currently raised as far as Dart knows.
   /// [notificationPosted] is the authority on whether the OS actually shows it.
@@ -75,6 +84,19 @@ class MediaSessionService {
     _initialized = true;
     if (!_enabled) return;
     _channel.setMethodCallHandler((call) async {
+      if (call.method == 'onSessionState') {
+        // Non-sensitive audio-session state from the native side (BGAUDIO-011).
+        // "The audio stopped in the background" has several candidate causes
+        // that look identical from Dart; the session's category and active
+        // state at that moment separate them, and this puts them in the App
+        // Logs export the user can actually send.
+        final args = call.arguments;
+        final message = (args is Map ? args['message'] : null) as String? ?? '';
+        if (message.isNotEmpty) {
+          LogService.instance.log('MediaSession', 'Audio session: $message');
+        }
+        return null;
+      }
       if (call.method == 'onTransport') {
         final args = call.arguments;
         final action = (args is Map ? args['action'] : null) as String? ?? '';
@@ -142,6 +164,56 @@ class MediaSessionService {
       LogService.instance.log('MediaSession', 'Playback paused by the page');
     }
   }
+
+  /// A transport control the page could not act on (BGAUDIO-007). Reported by
+  /// the shim only on failure, and logged non-sensitively (no site name, URL or
+  /// track metadata): "I hit play and nothing happened" is otherwise silent at
+  /// every layer, and the engine's own reason — a rejected `play()` promise, or
+  /// no element left to drive — is the one fact that separates a dead bridge
+  /// from a refusal.
+  Future<void> reportControlFailure({
+    required String action,
+    required String error,
+  }) async {
+    if (!_enabled) return;
+    LogService.instance.log(
+      'MediaSession',
+      'Transport "$action" did not reach playback: $error',
+      level: LogLevel.warning,
+    );
+  }
+
+  /// Clear whatever media surface the OS shows for this app, including one we
+  /// never raised. On iOS WebKit publishes its own Now Playing info for any
+  /// page that plays audio, so a site WITHOUT the background-audio toggle can
+  /// leave transport controls behind after its media is stopped — controls
+  /// whose buttons reach a site the app is no longer keeping alive. Called
+  /// when no background-audio site is loaded (BGAUDIO-009/010).
+  Future<void> clearOsMediaSurface() async {
+    if (!_enabled) return;
+    if (_active) {
+      _active = false;
+      _ownerSiteId = null;
+      _ownerRunJs = null;
+      _ownerFrame = null;
+      _visibilityChecked = false;
+      LogService.instance.log('MediaSession', 'Notification torn down');
+    }
+    // `deactivate`: with nothing of ours left playing, giving the audio
+    // session up is what actually drops the app out of the OS media surface —
+    // clearing the metadata alone leaves an entry the engine can repopulate.
+    // Ignored by the Android side, which owns its notification outright.
+    await _invoke('stop', {'deactivate': true});
+    // WebKit republishes its own Now Playing info when it finishes processing
+    // the pause that preceded this, which can land after the first clear.
+    await Future<void>.delayed(debugSurfaceReclearDelay);
+    await _invoke('stop', {'deactivate': true});
+  }
+
+  /// How long to wait before the second clear. Short enough to run inside the
+  /// window a backgrounding app still gets.
+  @visibleForTesting
+  static Duration debugSurfaceReclearDelay = const Duration(milliseconds: 400);
 
   /// Tear the notification down when [siteId] owns it. Called when the site is
   /// unloaded/disposed or its background-audio toggle goes off.
