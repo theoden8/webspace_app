@@ -1,0 +1,9 @@
+✨ New Features:
+• Per-site camera and microphone access
+• Background audio playback
+• Permission badges in the site drawer
+
+🐛 Bug Fixes:
+• Page zoom and viewport reflow
+• Media controls on iOS
+• Separate notifications per site
