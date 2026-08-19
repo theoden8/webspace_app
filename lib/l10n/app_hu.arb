@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Tesztértesítés küldése",
   "devToolsTestNotificationSent": "Tesztértesítés elküldve (lásd a naplókat)",
   "devToolsTestNotificationTitle": "WebSpace tesztértesítés",
-  "devToolsTestNotificationBody": "Ha ezt látja, az operációs rendszer értesítéskézbesítése működik."
+  "devToolsTestNotificationBody": "Ha ezt látja, az operációs rendszer értesítéskézbesítése működik.",
+  "blockStatsTitle": "Védelmi jelentés",
+  "blockStatsSubtitleWeek": "A héten blokkolt nyomkövetők",
+  "blockStatsSubtitleMonth": "Az elmúlt 30 napban blokkolt nyomkövetők",
+  "blockStatsRange7": "7 nap",
+  "blockStatsRange30": "30 nap",
+  "blockStatsCategoryFilterList": "Hirdetés- és nyomkövetőkérések",
+  "blockStatsCategoryDns": "Ismert nyomkövető tartományok",
+  "blockStatsCategoryParam": "Eltávolított követési paraméterek",
+  "blockStatsCategoryCdn": "Helyileg kiszolgált CDN-kérések",
+  "blockStatsSince": "{count} blokkolva {date} óta",
+  "blockStatsEmpty": "Még semmi sem lett blokkolva",
+  "blockStatsEmptyHint": "Kapcsold be egy webhelynél a nyomkövetés elleni védelmet, és az általa blokkolt kérések itt jelennek meg.",
+  "blockStatsReset": "Statisztika visszaállítása",
+  "blockStatsResetConfirm": "Minden számláló nullázódik, és a számlálás a mai naptól újraindul.",
+  "appSettingsProtectionReportSubtitle": "Mit állítottak meg a blokkolók az idő során"
 }

@@ -706,5 +706,20 @@
   "devToolsTestNotification": "পরীক্ষামূলক বিজ্ঞপ্তি পাঠান",
   "devToolsTestNotificationSent": "পরীক্ষামূলক বিজ্ঞপ্তি পাঠানো হয়েছে (লগ দেখুন)",
   "devToolsTestNotificationTitle": "WebSpace পরীক্ষামূলক বিজ্ঞপ্তি",
-  "devToolsTestNotificationBody": "আপনি যদি এটি দেখতে পান, তাহলে অপারেটিং সিস্টেমের বিজ্ঞপ্তি প্রদান কাজ করছে।"
+  "devToolsTestNotificationBody": "আপনি যদি এটি দেখতে পান, তাহলে অপারেটিং সিস্টেমের বিজ্ঞপ্তি প্রদান কাজ করছে।",
+  "blockStatsTitle": "সুরক্ষা প্রতিবেদন",
+  "blockStatsSubtitleWeek": "এই সপ্তাহে অবরুদ্ধ ট্র্যাকার",
+  "blockStatsSubtitleMonth": "গত ৩০ দিনে অবরুদ্ধ ট্র্যাকার",
+  "blockStatsRange7": "৭ দিন",
+  "blockStatsRange30": "৩০ দিন",
+  "blockStatsCategoryFilterList": "বিজ্ঞাপন ও ট্র্যাকারের অনুরোধ",
+  "blockStatsCategoryDns": "পরিচিত ট্র্যাকার ডোমেইন",
+  "blockStatsCategoryParam": "ট্র্যাকিং প্যারামিটার সরানো হয়েছে",
+  "blockStatsCategoryCdn": "স্থানীয়ভাবে পরিবেশিত CDN অনুরোধ",
+  "blockStatsSince": "{date} থেকে {count}টি অবরুদ্ধ",
+  "blockStatsEmpty": "এখনও কিছু অবরুদ্ধ হয়নি",
+  "blockStatsEmptyHint": "কোনো সাইটের জন্য ট্র্যাকিং সুরক্ষা চালু করুন, তাহলে অবরুদ্ধ অনুরোধগুলো এখানে দেখা যাবে।",
+  "blockStatsReset": "পরিসংখ্যান রিসেট করুন",
+  "blockStatsResetConfirm": "প্রতিটি গণনা শূন্যে ফিরে যাবে এবং আজ থেকে নতুন করে গণনা শুরু হবে।",
+  "appSettingsProtectionReportSubtitle": "ব্লকারগুলো সময়ের সাথে যা আটকেছে"
 }

@@ -706,5 +706,20 @@
   "devToolsTestNotification": "ٹیسٹ اطلاع بھیجیں",
   "devToolsTestNotificationSent": "ٹیسٹ اطلاع بھیج دی گئی (لاگز دیکھیں)",
   "devToolsTestNotificationTitle": "WebSpace ٹیسٹ اطلاع",
-  "devToolsTestNotificationBody": "اگر آپ یہ دیکھ سکتے ہیں، تو آپریٹنگ سسٹم کی اطلاع کی ترسیل کام کر رہی ہے۔"
+  "devToolsTestNotificationBody": "اگر آپ یہ دیکھ سکتے ہیں، تو آپریٹنگ سسٹم کی اطلاع کی ترسیل کام کر رہی ہے۔",
+  "blockStatsTitle": "تحفظ کی رپورٹ",
+  "blockStatsSubtitleWeek": "اس ہفتے مسدود کیے گئے ٹریکرز",
+  "blockStatsSubtitleMonth": "پچھلے 30 دنوں میں مسدود کیے گئے ٹریکرز",
+  "blockStatsRange7": "7 دن",
+  "blockStatsRange30": "30 دن",
+  "blockStatsCategoryFilterList": "اشتہارات اور ٹریکرز کی درخواستیں",
+  "blockStatsCategoryDns": "معروف ٹریکنگ ڈومینز",
+  "blockStatsCategoryParam": "ہٹائے گئے ٹریکنگ پیرامیٹرز",
+  "blockStatsCategoryCdn": "مقامی طور پر فراہم کردہ CDN درخواستیں",
+  "blockStatsSince": "{date} سے {count} مسدود",
+  "blockStatsEmpty": "ابھی تک کچھ مسدود نہیں ہوا",
+  "blockStatsEmptyHint": "کسی سائٹ کے لیے ٹریکنگ تحفظ آن کریں، پھر جو درخواستیں یہ روکے گی وہ یہاں دکھائی دیں گی۔",
+  "blockStatsReset": "اعدادوشمار دوبارہ ترتیب دیں",
+  "blockStatsResetConfirm": "ہر شمار کنندہ صفر پر واپس آ جاتا ہے اور گنتی آج سے دوبارہ شروع ہوتی ہے۔",
+  "appSettingsProtectionReportSubtitle": "بلاک کرنے والوں نے وقت کے ساتھ کیا روکا"
 }

@@ -30,6 +30,8 @@ import 'package:webspace/services/user_agent_classifier.dart';
 import 'package:webspace/services/user_agent_identity_shim.dart';
 import 'package:webspace/services/worker_shim.dart';
 import 'package:webspace/services/user_agent_metadata_builder.dart';
+import 'package:webspace/services/block_stats_engine.dart';
+import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/services/download_engine.dart';
@@ -641,6 +643,13 @@ class WebViewConfig {
   final String? fingerprintResetNonce;
   /// Whether to serve CDN resources from local cache (Android only).
   final bool localCdnEnabled;
+  /// Whether this site's block events roll into the app-wide protection
+  /// report (STATS-001). False for archive-tier sites, whose activity must
+  /// not move a counter persisted in plaintext SharedPreferences
+  /// (ARCH-001/ARCH-006). Declared to `BlockStatsService` when the webview
+  /// is built, keyed by [siteId], so nested webviews for the same site
+  /// inherit the same answer.
+  final bool contributesBlockStats;
   /// Callback for JS console messages.
   final Function(String message, inapp.ConsoleMessageLevel level)? onConsoleMessage;
   /// Per-site user scripts to inject into the webview.
@@ -771,6 +780,7 @@ class WebViewConfig {
     this.deferInitialLoad = false,
     this.language,
     this.zoomPercent = 100,
+    this.contributesBlockStats = true,
     this.clearUrlEnabled = true,
     this.dnsBlockEnabled = true,
     this.contentBlockEnabled = true,
@@ -1758,6 +1768,14 @@ class WebViewFactory {
       'DNT': '1',
       'Sec-GPC': '1',
     };
+
+    // Declare this site's protection-report scope before any block event can
+    // be recorded for it. Keyed by siteId, so a nested webview built for the
+    // same site re-asserts the same answer rather than flipping it.
+    if (config.siteId != null) {
+      BlockStatsService.instance
+          .setSiteContributes(config.siteId!, config.contributesBlockStats);
+    }
     if (config.language != null) {
       headers['Accept-Language'] = '${config.language}, *;q=0.5';
     }
@@ -3071,7 +3089,13 @@ class WebViewFactory {
         if (config.clearUrlEnabled) {
           controller.addJavaScriptHandler(handlerName: 'clearUrl', callback: (args) {
             if (args.isNotEmpty && args[0] is String) {
-              return ClearUrlService.instance.cleanUrl(args[0] as String);
+              final original = args[0] as String;
+              final cleaned = ClearUrlService.instance.cleanUrl(original);
+              if (cleaned != original && config.siteId != null) {
+                BlockStatsService.instance
+                    .record(config.siteId!, BlockCategory.trackingParam);
+              }
+              return cleaned;
             }
             return args.isNotEmpty ? args[0] : '';
           });
@@ -3600,6 +3624,10 @@ class WebViewFactory {
           final cleanedUrl = ClearUrlService.instance.cleanUrl(url);
           if (cleanedUrl.isEmpty) return inapp.NavigationActionPolicy.CANCEL;
           if (cleanedUrl != url) {
+            if (config.siteId != null) {
+              BlockStatsService.instance
+                  .record(config.siteId!, BlockCategory.trackingParam);
+            }
             controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(cleanedUrl)));
             return inapp.NavigationActionPolicy.CANCEL;
           }

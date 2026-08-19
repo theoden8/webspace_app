@@ -706,5 +706,20 @@
   "devToolsTestNotification": "ارسال اعلان آزمایشی",
   "devToolsTestNotificationSent": "اعلان آزمایشی ارسال شد (گزارش‌ها را ببینید)",
   "devToolsTestNotificationTitle": "اعلان آزمایشی WebSpace",
-  "devToolsTestNotificationBody": "اگر این را می‌بینید، تحویل اعلان‌های سیستم‌عامل کار می‌کند."
+  "devToolsTestNotificationBody": "اگر این را می‌بینید، تحویل اعلان‌های سیستم‌عامل کار می‌کند.",
+  "blockStatsTitle": "گزارش محافظت",
+  "blockStatsSubtitleWeek": "ردیاب‌های مسدودشده در این هفته",
+  "blockStatsSubtitleMonth": "ردیاب‌های مسدودشده در ۳۰ روز گذشته",
+  "blockStatsRange7": "۷ روز",
+  "blockStatsRange30": "۳۰ روز",
+  "blockStatsCategoryFilterList": "درخواست‌های تبلیغات و ردیاب‌ها",
+  "blockStatsCategoryDns": "دامنه‌های ردیابی شناخته‌شده",
+  "blockStatsCategoryParam": "پارامترهای ردیابی حذف‌شده",
+  "blockStatsCategoryCdn": "درخواست‌های CDN که به‌صورت محلی پاسخ داده شدند",
+  "blockStatsSince": "{count} مسدودشده از {date}",
+  "blockStatsEmpty": "هنوز چیزی مسدود نشده است",
+  "blockStatsEmptyHint": "محافظت در برابر ردیابی را برای یک وب‌گاه روشن کنید تا درخواست‌هایی که مسدود می‌کند اینجا نمایش داده شود.",
+  "blockStatsReset": "بازنشانی آمار",
+  "blockStatsResetConfirm": "هر شمارنده به صفر بازمی‌گردد و شمارش از امروز دوباره آغاز می‌شود.",
+  "appSettingsProtectionReportSubtitle": "آنچه مسدودکننده‌ها در طول زمان متوقف کرده‌اند"
 }

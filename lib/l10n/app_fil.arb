@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Magpadala ng test notification",
   "devToolsTestNotificationSent": "Naipadala ang test notification (tingnan ang mga log)",
   "devToolsTestNotificationTitle": "Test notification ng WebSpace",
-  "devToolsTestNotificationBody": "Kung makikita mo ito, gumagana ang paghahatid ng notification ng operating system."
+  "devToolsTestNotificationBody": "Kung makikita mo ito, gumagana ang paghahatid ng notification ng operating system.",
+  "blockStatsTitle": "Ulat ng proteksiyon",
+  "blockStatsSubtitleWeek": "Mga tracker na hinarang ngayong linggo",
+  "blockStatsSubtitleMonth": "Mga tracker na hinarang sa nakalipas na 30 araw",
+  "blockStatsRange7": "7 araw",
+  "blockStatsRange30": "30 araw",
+  "blockStatsCategoryFilterList": "Mga kahilingan ng ad at tracker",
+  "blockStatsCategoryDns": "Mga kilalang domain ng pagsubaybay",
+  "blockStatsCategoryParam": "Mga inalis na parameter ng pagsubaybay",
+  "blockStatsCategoryCdn": "Mga kahilingan sa CDN na inihain nang lokal",
+  "blockStatsSince": "{count} ang hinarang mula {date}",
+  "blockStatsEmpty": "Wala pang hinaharang",
+  "blockStatsEmptyHint": "Buksan ang proteksiyon laban sa pagsubaybay para sa isang site at lilitaw dito ang mga kahilingang hinaharang nito.",
+  "blockStatsReset": "I-reset ang estadistika",
+  "blockStatsResetConfirm": "Babalik sa zero ang bawat counter at magsisimula muli ang pagbibilang ngayong araw.",
+  "appSettingsProtectionReportSubtitle": "Kung ano ang napigilan ng mga blocker sa paglipas ng panahon"
 }

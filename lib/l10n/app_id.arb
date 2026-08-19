@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Kirim notifikasi uji",
   "devToolsTestNotificationSent": "Notifikasi uji terkirim (lihat log)",
   "devToolsTestNotificationTitle": "Notifikasi uji WebSpace",
-  "devToolsTestNotificationBody": "Jika Anda dapat melihat ini, pengiriman notifikasi sistem operasi berfungsi."
+  "devToolsTestNotificationBody": "Jika Anda dapat melihat ini, pengiriman notifikasi sistem operasi berfungsi.",
+  "blockStatsTitle": "Laporan perlindungan",
+  "blockStatsSubtitleWeek": "Pelacak yang diblokir minggu ini",
+  "blockStatsSubtitleMonth": "Pelacak yang diblokir dalam 30 hari terakhir",
+  "blockStatsRange7": "7 hari",
+  "blockStatsRange30": "30 hari",
+  "blockStatsCategoryFilterList": "Permintaan iklan dan pelacak",
+  "blockStatsCategoryDns": "Domain pelacak yang dikenal",
+  "blockStatsCategoryParam": "Parameter pelacakan yang dihapus",
+  "blockStatsCategoryCdn": "Permintaan CDN yang dilayani secara lokal",
+  "blockStatsSince": "{count} diblokir sejak {date}",
+  "blockStatsEmpty": "Belum ada yang diblokir",
+  "blockStatsEmptyHint": "Aktifkan perlindungan pelacakan untuk sebuah situs, lalu permintaan yang diblokirnya akan muncul di sini.",
+  "blockStatsReset": "Setel ulang statistik",
+  "blockStatsResetConfirm": "Setiap penghitung kembali ke nol dan penghitungan dimulai lagi hari ini.",
+  "appSettingsProtectionReportSubtitle": "Apa yang dihentikan pemblokir, dari waktu ke waktu"
 }

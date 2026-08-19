@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Пошаљи пробно обавештење",
   "devToolsTestNotificationSent": "Пробно обавештење послато (погледајте записе)",
   "devToolsTestNotificationTitle": "WebSpace пробно обавештење",
-  "devToolsTestNotificationBody": "Ако ово видите, испорука обавештења оперативног система ради."
+  "devToolsTestNotificationBody": "Ако ово видите, испорука обавештења оперативног система ради.",
+  "blockStatsTitle": "Извештај о заштити",
+  "blockStatsSubtitleWeek": "Пратиоци блокирани ове недеље",
+  "blockStatsSubtitleMonth": "Пратиоци блокирани у последњих 30 дана",
+  "blockStatsRange7": "7 дана",
+  "blockStatsRange30": "30 дана",
+  "blockStatsCategoryFilterList": "Захтеви реклама и пратилаца",
+  "blockStatsCategoryDns": "Познати домени за праћење",
+  "blockStatsCategoryParam": "Уклоњени параметри праћења",
+  "blockStatsCategoryCdn": "CDN захтеви услужени локално",
+  "blockStatsSince": "{count} блокирано од {date}",
+  "blockStatsEmpty": "Ништа још није блокирано",
+  "blockStatsEmptyHint": "Укључите заштиту од праћења за неки сајт и захтеви које блокира појавиће се овде.",
+  "blockStatsReset": "Поништи статистику",
+  "blockStatsResetConfirm": "Сваки бројач се враћа на нулу и бројање почиње изнова од данас.",
+  "appSettingsProtectionReportSubtitle": "Шта су блокатори зауставили током времена"
 }

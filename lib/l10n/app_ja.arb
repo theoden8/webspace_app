@@ -706,5 +706,20 @@
   "devToolsTestNotification": "テスト通知を送信",
   "devToolsTestNotificationSent": "テスト通知を送信しました（ログを参照）",
   "devToolsTestNotificationTitle": "WebSpace テスト通知",
-  "devToolsTestNotificationBody": "これが表示されている場合、OSの通知配信は正常に機能しています。"
+  "devToolsTestNotificationBody": "これが表示されている場合、OSの通知配信は正常に機能しています。",
+  "blockStatsTitle": "保護レポート",
+  "blockStatsSubtitleWeek": "今週ブロックしたトラッカー",
+  "blockStatsSubtitleMonth": "過去30日間にブロックしたトラッカー",
+  "blockStatsRange7": "7日間",
+  "blockStatsRange30": "30日間",
+  "blockStatsCategoryFilterList": "広告とトラッカーのリクエスト",
+  "blockStatsCategoryDns": "既知のトラッキングドメイン",
+  "blockStatsCategoryParam": "削除したトラッキングパラメーター",
+  "blockStatsCategoryCdn": "ローカルで提供したCDNリクエスト",
+  "blockStatsSince": "{date}以降に{count}件をブロック",
+  "blockStatsEmpty": "まだ何もブロックしていません",
+  "blockStatsEmptyHint": "サイトのトラッキング保護を有効にすると、ブロックされたリクエストがここに表示されます。",
+  "blockStatsReset": "統計をリセット",
+  "blockStatsResetConfirm": "すべてのカウンターがゼロに戻り、本日から集計をやり直します。",
+  "appSettingsProtectionReportSubtitle": "ブロック機能がこれまでに止めたもの"
 }

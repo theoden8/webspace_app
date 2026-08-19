@@ -706,5 +706,20 @@
   "devToolsTestNotification": "પરીક્ષણ સૂચના મોકલો",
   "devToolsTestNotificationSent": "પરીક્ષણ સૂચના મોકલાઈ (લોગ જુઓ)",
   "devToolsTestNotificationTitle": "WebSpace પરીક્ષણ સૂચના",
-  "devToolsTestNotificationBody": "જો તમે આ જોઈ શકતા હો, તો ઓપરેટિંગ સિસ્ટમની સૂચના વિતરણ કાર્ય કરે છે."
+  "devToolsTestNotificationBody": "જો તમે આ જોઈ શકતા હો, તો ઓપરેટિંગ સિસ્ટમની સૂચના વિતરણ કાર્ય કરે છે.",
+  "blockStatsTitle": "સુરક્ષા અહેવાલ",
+  "blockStatsSubtitleWeek": "આ અઠવાડિયે અવરોધિત ટ્રેકર",
+  "blockStatsSubtitleMonth": "છેલ્લા 30 દિવસમાં અવરોધિત ટ્રેકર",
+  "blockStatsRange7": "7 દિવસ",
+  "blockStatsRange30": "30 દિવસ",
+  "blockStatsCategoryFilterList": "જાહેરાત અને ટ્રેકરની વિનંતીઓ",
+  "blockStatsCategoryDns": "જાણીતા ટ્રેકિંગ ડોમેન",
+  "blockStatsCategoryParam": "દૂર કરેલા ટ્રેકિંગ પરિમાણો",
+  "blockStatsCategoryCdn": "સ્થાનિક રીતે પીરસાયેલી CDN વિનંતીઓ",
+  "blockStatsSince": "{date} થી {count} અવરોધિત",
+  "blockStatsEmpty": "હજી સુધી કશું અવરોધિત થયું નથી",
+  "blockStatsEmptyHint": "કોઈ સાઇટ માટે ટ્રેકિંગ સુરક્ષા ચાલુ કરો, પછી તે અવરોધે તે વિનંતીઓ અહીં દેખાશે.",
+  "blockStatsReset": "આંકડા રીસેટ કરો",
+  "blockStatsResetConfirm": "દરેક કાઉન્ટર શૂન્ય પર પાછું આવે છે અને ગણતરી આજથી ફરી શરૂ થાય છે.",
+  "appSettingsProtectionReportSubtitle": "સમય જતાં અવરોધકોએ શું રોક્યું"
 }

@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Invia notifica di prova",
   "devToolsTestNotificationSent": "Notifica di prova inviata (vedi i registri)",
   "devToolsTestNotificationTitle": "Notifica di prova WebSpace",
-  "devToolsTestNotificationBody": "Se riesci a vedere questo, la consegna delle notifiche del sistema operativo funziona."
+  "devToolsTestNotificationBody": "Se riesci a vedere questo, la consegna delle notifiche del sistema operativo funziona.",
+  "blockStatsTitle": "Rapporto sulla protezione",
+  "blockStatsSubtitleWeek": "Tracciatori bloccati questa settimana",
+  "blockStatsSubtitleMonth": "Tracciatori bloccati negli ultimi 30 giorni",
+  "blockStatsRange7": "7 giorni",
+  "blockStatsRange30": "30 giorni",
+  "blockStatsCategoryFilterList": "Richieste di pubblicità e tracciatori",
+  "blockStatsCategoryDns": "Domini di tracciamento noti",
+  "blockStatsCategoryParam": "Parametri di tracciamento rimossi",
+  "blockStatsCategoryCdn": "Richieste CDN servite localmente",
+  "blockStatsSince": "{count} bloccate dal {date}",
+  "blockStatsEmpty": "Non è stato ancora bloccato nulla",
+  "blockStatsEmptyHint": "Attiva la protezione dal tracciamento per un sito e le richieste che blocca compariranno qui.",
+  "blockStatsReset": "Azzera le statistiche",
+  "blockStatsResetConfirm": "Ogni contatore torna a zero e il conteggio riparte da oggi.",
+  "appSettingsProtectionReportSubtitle": "Che cosa hanno fermato i blocchi, nel tempo"
 }

@@ -706,5 +706,20 @@
   "devToolsTestNotification": "ਟੈਸਟ ਸੂਚਨਾ ਭੇਜੋ",
   "devToolsTestNotificationSent": "ਟੈਸਟ ਸੂਚਨਾ ਭੇਜੀ ਗਈ (ਲੌਗ ਵੇਖੋ)",
   "devToolsTestNotificationTitle": "WebSpace ਟੈਸਟ ਸੂਚਨਾ",
-  "devToolsTestNotificationBody": "ਜੇ ਤੁਸੀਂ ਇਹ ਵੇਖ ਸਕਦੇ ਹੋ, ਤਾਂ ਓਪਰੇਟਿੰਗ ਸਿਸਟਮ ਦੀ ਸੂਚਨਾ ਡਿਲਿਵਰੀ ਕੰਮ ਕਰ ਰਹੀ ਹੈ।"
+  "devToolsTestNotificationBody": "ਜੇ ਤੁਸੀਂ ਇਹ ਵੇਖ ਸਕਦੇ ਹੋ, ਤਾਂ ਓਪਰੇਟਿੰਗ ਸਿਸਟਮ ਦੀ ਸੂਚਨਾ ਡਿਲਿਵਰੀ ਕੰਮ ਕਰ ਰਹੀ ਹੈ।",
+  "blockStatsTitle": "ਸੁਰੱਖਿਆ ਰਿਪੋਰਟ",
+  "blockStatsSubtitleWeek": "ਇਸ ਹਫ਼ਤੇ ਰੋਕੇ ਗਏ ਟ੍ਰੈਕਰ",
+  "blockStatsSubtitleMonth": "ਪਿਛਲੇ 30 ਦਿਨਾਂ ਵਿੱਚ ਰੋਕੇ ਗਏ ਟ੍ਰੈਕਰ",
+  "blockStatsRange7": "7 ਦਿਨ",
+  "blockStatsRange30": "30 ਦਿਨ",
+  "blockStatsCategoryFilterList": "ਇਸ਼ਤਿਹਾਰ ਅਤੇ ਟ੍ਰੈਕਰ ਬੇਨਤੀਆਂ",
+  "blockStatsCategoryDns": "ਜਾਣੇ-ਪਛਾਣੇ ਟ੍ਰੈਕਿੰਗ ਡੋਮੇਨ",
+  "blockStatsCategoryParam": "ਹਟਾਏ ਗਏ ਟ੍ਰੈਕਿੰਗ ਪੈਰਾਮੀਟਰ",
+  "blockStatsCategoryCdn": "ਸਥਾਨਕ ਤੌਰ 'ਤੇ ਦਿੱਤੀਆਂ CDN ਬੇਨਤੀਆਂ",
+  "blockStatsSince": "{date} ਤੋਂ {count} ਰੋਕੀਆਂ ਗਈਆਂ",
+  "blockStatsEmpty": "ਹਾਲੇ ਤੱਕ ਕੁਝ ਵੀ ਨਹੀਂ ਰੋਕਿਆ ਗਿਆ",
+  "blockStatsEmptyHint": "ਕਿਸੇ ਸਾਈਟ ਲਈ ਟ੍ਰੈਕਿੰਗ ਸੁਰੱਖਿਆ ਚਾਲੂ ਕਰੋ, ਫਿਰ ਇਸ ਵੱਲੋਂ ਰੋਕੀਆਂ ਬੇਨਤੀਆਂ ਇੱਥੇ ਦਿਖਣਗੀਆਂ।",
+  "blockStatsReset": "ਅੰਕੜੇ ਰੀਸੈੱਟ ਕਰੋ",
+  "blockStatsResetConfirm": "ਹਰ ਗਿਣਤੀ ਸਿਫ਼ਰ 'ਤੇ ਆ ਜਾਂਦੀ ਹੈ ਅਤੇ ਗਿਣਤੀ ਅੱਜ ਤੋਂ ਮੁੜ ਸ਼ੁਰੂ ਹੁੰਦੀ ਹੈ।",
+  "appSettingsProtectionReportSubtitle": "ਸਮੇਂ ਦੇ ਨਾਲ ਬਲਾਕਰਾਂ ਨੇ ਕੀ ਰੋਕਿਆ"
 }

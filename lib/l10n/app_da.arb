@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Send testnotifikation",
   "devToolsTestNotificationSent": "Testnotifikation sendt (se logfiler)",
   "devToolsTestNotificationTitle": "WebSpace-testnotifikation",
-  "devToolsTestNotificationBody": "Hvis du kan se dette, fungerer operativsystemets notifikationslevering."
+  "devToolsTestNotificationBody": "Hvis du kan se dette, fungerer operativsystemets notifikationslevering.",
+  "blockStatsTitle": "Beskyttelsesrapport",
+  "blockStatsSubtitleWeek": "Sporere blokeret i denne uge",
+  "blockStatsSubtitleMonth": "Sporere blokeret de seneste 30 dage",
+  "blockStatsRange7": "7 dage",
+  "blockStatsRange30": "30 dage",
+  "blockStatsCategoryFilterList": "Anmodninger fra reklamer og sporere",
+  "blockStatsCategoryDns": "Kendte sporingsdomæner",
+  "blockStatsCategoryParam": "Fjernede sporingsparametre",
+  "blockStatsCategoryCdn": "CDN-anmodninger leveret lokalt",
+  "blockStatsSince": "{count} blokeret siden {date}",
+  "blockStatsEmpty": "Intet blokeret endnu",
+  "blockStatsEmptyHint": "Slå sporingsbeskyttelse til for et websted, så vises de anmodninger, det blokerer, her.",
+  "blockStatsReset": "Nulstil statistik",
+  "blockStatsResetConfirm": "Alle tællere sættes til nul, og optællingen starter forfra i dag.",
+  "appSettingsProtectionReportSubtitle": "Hvad blokeringerne har stoppet over tid"
 }

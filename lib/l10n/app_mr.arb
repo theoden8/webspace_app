@@ -706,5 +706,20 @@
   "devToolsTestNotification": "चाचणी सूचना पाठवा",
   "devToolsTestNotificationSent": "चाचणी सूचना पाठवली (लॉग पाहा)",
   "devToolsTestNotificationTitle": "WebSpace चाचणी सूचना",
-  "devToolsTestNotificationBody": "तुम्हाला हे दिसत असल्यास, ऑपरेटिंग सिस्टमचे सूचना वितरण कार्य करत आहे."
+  "devToolsTestNotificationBody": "तुम्हाला हे दिसत असल्यास, ऑपरेटिंग सिस्टमचे सूचना वितरण कार्य करत आहे.",
+  "blockStatsTitle": "संरक्षण अहवाल",
+  "blockStatsSubtitleWeek": "या आठवड्यात अवरोधित ट्रॅकर",
+  "blockStatsSubtitleMonth": "गेल्या 30 दिवसांत अवरोधित ट्रॅकर",
+  "blockStatsRange7": "7 दिवस",
+  "blockStatsRange30": "30 दिवस",
+  "blockStatsCategoryFilterList": "जाहिरात आणि ट्रॅकर विनंत्या",
+  "blockStatsCategoryDns": "ज्ञात ट्रॅकिंग डोमेन",
+  "blockStatsCategoryParam": "काढून टाकलेले ट्रॅकिंग घटक",
+  "blockStatsCategoryCdn": "स्थानिक पातळीवर पुरवलेल्या CDN विनंत्या",
+  "blockStatsSince": "{date} पासून {count} अवरोधित",
+  "blockStatsEmpty": "अद्याप काहीही अवरोधित झालेले नाही",
+  "blockStatsEmptyHint": "एखाद्या साइटसाठी ट्रॅकिंग संरक्षण चालू करा, मग ती अवरोधित करत असलेल्या विनंत्या इथे दिसतील.",
+  "blockStatsReset": "आकडेवारी रीसेट करा",
+  "blockStatsResetConfirm": "प्रत्येक मोजणी शून्यावर येते आणि मोजणी आजपासून पुन्हा सुरू होते.",
+  "appSettingsProtectionReportSubtitle": "काळानुसार अवरोधकांनी काय थांबवले"
 }

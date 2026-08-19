@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Seol fógra tástála",
   "devToolsTestNotificationSent": "Seoladh fógra tástála (féach na logaí)",
   "devToolsTestNotificationTitle": "Fógra tástála WebSpace",
-  "devToolsTestNotificationBody": "Más féidir leat é seo a fheiceáil, tá seachadadh fógraí an chórais oibriúcháin ag obair."
+  "devToolsTestNotificationBody": "Más féidir leat é seo a fheiceáil, tá seachadadh fógraí an chórais oibriúcháin ag obair.",
+  "blockStatsTitle": "Tuairisc chosanta",
+  "blockStatsSubtitleWeek": "Rianaitheoirí ar cuireadh bac orthu an tseachtain seo",
+  "blockStatsSubtitleMonth": "Rianaitheoirí ar cuireadh bac orthu le 30 lá anuas",
+  "blockStatsRange7": "7 lá",
+  "blockStatsRange30": "30 lá",
+  "blockStatsCategoryFilterList": "Iarratais fógraí agus rianaitheoirí",
+  "blockStatsCategoryDns": "Fearainn rianaithe aitheanta",
+  "blockStatsCategoryParam": "Paraiméadair rianaithe a baineadh",
+  "blockStatsCategoryCdn": "Iarratais CDN a freastalaíodh go háitiúil",
+  "blockStatsSince": "{count} bactha ó {date}",
+  "blockStatsEmpty": "Níor cuireadh bac ar aon rud fós",
+  "blockStatsEmptyHint": "Cuir cosaint ar rianú ar siúl do shuíomh agus taispeánfar anseo na hiarratais a chuireann sé bac orthu.",
+  "blockStatsReset": "Athshocraigh na staitisticí",
+  "blockStatsResetConfirm": "Fillfidh gach áiritheoir ar nialas agus tosóidh an comhaireamh as an nua inniu.",
+  "appSettingsProtectionReportSubtitle": "Ar stop na bacóirí, thar am"
 }

@@ -5,6 +5,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/services/block_stats_engine.dart';
+import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/services/bloom_filter.dart';
 import 'package:webspace/services/host_lookup.dart';
 import 'package:webspace/services/log_service.dart';
@@ -441,6 +443,18 @@ class DnsBlockService {
       {BlockSource? source, int count = 1}) {
     if (host.isEmpty) return;
     statsForSite(siteId).record(host, wasBlocked, source: source, count: count);
+    // Single funnel for the persisted app-wide report (STATS-002): every
+    // DNS/ABP block on every platform passes through here, so the aggregate
+    // cannot drift from the per-site counters.
+    if (wasBlocked && source != null) {
+      BlockStatsService.instance.record(
+        siteId,
+        source == BlockSource.dns
+            ? BlockCategory.dnsBlocklist
+            : BlockCategory.filterList,
+        count: count,
+      );
+    }
     recordDomainDecision(host, wasBlocked);
     _scheduleNotifyDnsLogListeners();
   }

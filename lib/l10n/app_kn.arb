@@ -706,5 +706,20 @@
   "devToolsTestNotification": "ಪರೀಕ್ಷಾ ಅಧಿಸೂಚನೆ ಕಳುಹಿಸಿ",
   "devToolsTestNotificationSent": "ಪರೀಕ್ಷಾ ಅಧಿಸೂಚನೆ ಕಳುಹಿಸಲಾಗಿದೆ (ಲಾಗ್‌ಗಳನ್ನು ನೋಡಿ)",
   "devToolsTestNotificationTitle": "WebSpace ಪರೀಕ್ಷಾ ಅಧಿಸೂಚನೆ",
-  "devToolsTestNotificationBody": "ಇದು ನಿಮಗೆ ಕಾಣಿಸಿದರೆ, ಆಪರೇಟಿಂಗ್ ಸಿಸ್ಟಂನ ಅಧಿಸೂಚನೆ ವಿತರಣೆ ಕಾರ್ಯನಿರ್ವಹಿಸುತ್ತಿದೆ."
+  "devToolsTestNotificationBody": "ಇದು ನಿಮಗೆ ಕಾಣಿಸಿದರೆ, ಆಪರೇಟಿಂಗ್ ಸಿಸ್ಟಂನ ಅಧಿಸೂಚನೆ ವಿತರಣೆ ಕಾರ್ಯನಿರ್ವಹಿಸುತ್ತಿದೆ.",
+  "blockStatsTitle": "ರಕ್ಷಣಾ ವರದಿ",
+  "blockStatsSubtitleWeek": "ಈ ವಾರ ನಿರ್ಬಂಧಿಸಿದ ಟ್ರ್ಯಾಕರ್‌ಗಳು",
+  "blockStatsSubtitleMonth": "ಕಳೆದ 30 ದಿನಗಳಲ್ಲಿ ನಿರ್ಬಂಧಿಸಿದ ಟ್ರ್ಯಾಕರ್‌ಗಳು",
+  "blockStatsRange7": "7 ದಿನಗಳು",
+  "blockStatsRange30": "30 ದಿನಗಳು",
+  "blockStatsCategoryFilterList": "ಜಾಹೀರಾತು ಮತ್ತು ಟ್ರ್ಯಾಕರ್ ವಿನಂತಿಗಳು",
+  "blockStatsCategoryDns": "ತಿಳಿದಿರುವ ಟ್ರ್ಯಾಕಿಂಗ್ ಡೊಮೇನ್‌ಗಳು",
+  "blockStatsCategoryParam": "ತೆಗೆದುಹಾಕಿದ ಟ್ರ್ಯಾಕಿಂಗ್ ನಿಯತಾಂಕಗಳು",
+  "blockStatsCategoryCdn": "ಸ್ಥಳೀಯವಾಗಿ ಪೂರೈಸಿದ CDN ವಿನಂತಿಗಳು",
+  "blockStatsSince": "{date} ರಿಂದ {count} ನಿರ್ಬಂಧಿಸಲಾಗಿದೆ",
+  "blockStatsEmpty": "ಇನ್ನೂ ಏನನ್ನೂ ನಿರ್ಬಂಧಿಸಿಲ್ಲ",
+  "blockStatsEmptyHint": "ಯಾವುದೇ ಸೈಟ್‌ಗೆ ಟ್ರ್ಯಾಕಿಂಗ್ ರಕ್ಷಣೆಯನ್ನು ಆನ್ ಮಾಡಿ, ಅದು ನಿರ್ಬಂಧಿಸುವ ವಿನಂತಿಗಳು ಇಲ್ಲಿ ಕಾಣಿಸುತ್ತವೆ.",
+  "blockStatsReset": "ಅಂಕಿಅಂಶಗಳನ್ನು ಮರುಹೊಂದಿಸಿ",
+  "blockStatsResetConfirm": "ಪ್ರತಿ ಎಣಿಕೆ ಶೂನ್ಯಕ್ಕೆ ಮರಳುತ್ತದೆ ಮತ್ತು ಎಣಿಕೆ ಇಂದಿನಿಂದ ಮತ್ತೆ ಆರಂಭವಾಗುತ್ತದೆ.",
+  "appSettingsProtectionReportSubtitle": "ಕಾಲಾನಂತರದಲ್ಲಿ ನಿರ್ಬಂಧಕಗಳು ತಡೆದದ್ದು"
 }

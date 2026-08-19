@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Odoslať testovacie upozornenie",
   "devToolsTestNotificationSent": "Testovacie upozornenie odoslané (pozri protokoly)",
   "devToolsTestNotificationTitle": "Testovacie upozornenie WebSpace",
-  "devToolsTestNotificationBody": "Ak toto vidíte, doručovanie upozornení operačného systému funguje."
+  "devToolsTestNotificationBody": "Ak toto vidíte, doručovanie upozornení operačného systému funguje.",
+  "blockStatsTitle": "Správa o ochrane",
+  "blockStatsSubtitleWeek": "Sledovače zablokované tento týždeň",
+  "blockStatsSubtitleMonth": "Sledovače zablokované za posledných 30 dní",
+  "blockStatsRange7": "7 dní",
+  "blockStatsRange30": "30 dní",
+  "blockStatsCategoryFilterList": "Požiadavky reklám a sledovačov",
+  "blockStatsCategoryDns": "Známe sledovacie domény",
+  "blockStatsCategoryParam": "Odstránené sledovacie parametre",
+  "blockStatsCategoryCdn": "Požiadavky na CDN obslúžené lokálne",
+  "blockStatsSince": "{count} zablokovaných od {date}",
+  "blockStatsEmpty": "Zatiaľ nebolo nič zablokované",
+  "blockStatsEmptyHint": "Zapnite pre stránku ochranu pred sledovaním a blokované požiadavky sa zobrazia tu.",
+  "blockStatsReset": "Vynulovať štatistiky",
+  "blockStatsResetConfirm": "Každé počítadlo sa vráti na nulu a počítanie sa začne odznova od dnes.",
+  "appSettingsProtectionReportSubtitle": "Čo blokovače časom zastavili"
 }

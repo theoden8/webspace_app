@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Nuntiationem probatoriam mittere",
   "devToolsTestNotificationSent": "Nuntiatio probatoria missa est (vide acta)",
   "devToolsTestNotificationTitle": "Nuntiatio probatoria WebSpace",
-  "devToolsTestNotificationBody": "Si hoc videre potes, traditio nuntiationum systematis operandi operatur."
+  "devToolsTestNotificationBody": "Si hoc videre potes, traditio nuntiationum systematis operandi operatur.",
+  "blockStatsTitle": "Relatio tutelae",
+  "blockStatsSubtitleWeek": "Vestigatores hac hebdomade impediti",
+  "blockStatsSubtitleMonth": "Vestigatores per ultimos 30 dies impediti",
+  "blockStatsRange7": "7 dies",
+  "blockStatsRange30": "30 dies",
+  "blockStatsCategoryFilterList": "Petitiones nuntiorum et vestigatorum",
+  "blockStatsCategoryDns": "Dominia vestigationis nota",
+  "blockStatsCategoryParam": "Parametri vestigationis remoti",
+  "blockStatsCategoryCdn": "Petitiones CDN localiter ministratae",
+  "blockStatsSince": "{count} impediti ab {date}",
+  "blockStatsEmpty": "Nihil adhuc impeditum est",
+  "blockStatsEmptyHint": "Tutelam contra vestigationem pro sede accende, et petitiones quas impedit hic apparebunt.",
+  "blockStatsReset": "Statisticam restituere",
+  "blockStatsResetConfirm": "Omnis numerator ad nihilum redit et numeratio hodie iterum incipit.",
+  "appSettingsProtectionReportSubtitle": "Quid impeditores per tempus prohibuerint"
 }

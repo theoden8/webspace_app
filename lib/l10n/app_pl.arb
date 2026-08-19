@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Wyślij powiadomienie testowe",
   "devToolsTestNotificationSent": "Wysłano powiadomienie testowe (zobacz logi)",
   "devToolsTestNotificationTitle": "Powiadomienie testowe WebSpace",
-  "devToolsTestNotificationBody": "Jeśli to widzisz, dostarczanie powiadomień systemu operacyjnego działa."
+  "devToolsTestNotificationBody": "Jeśli to widzisz, dostarczanie powiadomień systemu operacyjnego działa.",
+  "blockStatsTitle": "Raport ochrony",
+  "blockStatsSubtitleWeek": "Trackery zablokowane w tym tygodniu",
+  "blockStatsSubtitleMonth": "Trackery zablokowane w ciągu ostatnich 30 dni",
+  "blockStatsRange7": "7 dni",
+  "blockStatsRange30": "30 dni",
+  "blockStatsCategoryFilterList": "Żądania reklam i trackerów",
+  "blockStatsCategoryDns": "Znane domeny śledzące",
+  "blockStatsCategoryParam": "Usunięte parametry śledzące",
+  "blockStatsCategoryCdn": "Żądania CDN obsłużone lokalnie",
+  "blockStatsSince": "{count} zablokowanych od {date}",
+  "blockStatsEmpty": "Nic jeszcze nie zostało zablokowane",
+  "blockStatsEmptyHint": "Włącz ochronę przed śledzeniem dla witryny, a blokowane żądania pojawią się tutaj.",
+  "blockStatsReset": "Wyzeruj statystyki",
+  "blockStatsResetConfirm": "Każdy licznik wraca do zera, a liczenie zaczyna się od dzisiaj.",
+  "appSettingsProtectionReportSubtitle": "Co blokery zatrzymały na przestrzeni czasu"
 }

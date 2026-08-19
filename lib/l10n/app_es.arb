@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Enviar notificación de prueba",
   "devToolsTestNotificationSent": "Notificación de prueba enviada (consulta los registros)",
   "devToolsTestNotificationTitle": "Notificación de prueba de WebSpace",
-  "devToolsTestNotificationBody": "Si puedes ver esto, la entrega de notificaciones del sistema operativo funciona."
+  "devToolsTestNotificationBody": "Si puedes ver esto, la entrega de notificaciones del sistema operativo funciona.",
+  "blockStatsTitle": "Informe de protección",
+  "blockStatsSubtitleWeek": "Rastreadores bloqueados esta semana",
+  "blockStatsSubtitleMonth": "Rastreadores bloqueados en los últimos 30 días",
+  "blockStatsRange7": "7 días",
+  "blockStatsRange30": "30 días",
+  "blockStatsCategoryFilterList": "Solicitudes de anuncios y rastreadores",
+  "blockStatsCategoryDns": "Dominios de rastreo conocidos",
+  "blockStatsCategoryParam": "Parámetros de seguimiento eliminados",
+  "blockStatsCategoryCdn": "Solicitudes de CDN servidas localmente",
+  "blockStatsSince": "{count} bloqueadas desde el {date}",
+  "blockStatsEmpty": "Todavía no se ha bloqueado nada",
+  "blockStatsEmptyHint": "Activa la protección contra el rastreo de un sitio y las solicitudes que bloquee aparecerán aquí.",
+  "blockStatsReset": "Restablecer estadísticas",
+  "blockStatsResetConfirm": "Todos los contadores vuelven a cero y el recuento se reinicia hoy.",
+  "appSettingsProtectionReportSubtitle": "Lo que han detenido los bloqueadores a lo largo del tiempo"
 }

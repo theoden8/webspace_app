@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Trimite o notificare de test",
   "devToolsTestNotificationSent": "Notificarea de test a fost trimisă (vezi jurnalele)",
   "devToolsTestNotificationTitle": "Notificare de test WebSpace",
-  "devToolsTestNotificationBody": "Dacă vezi acest mesaj, livrarea notificărilor sistemului de operare funcționează."
+  "devToolsTestNotificationBody": "Dacă vezi acest mesaj, livrarea notificărilor sistemului de operare funcționează.",
+  "blockStatsTitle": "Raport de protecție",
+  "blockStatsSubtitleWeek": "Urmăritori blocați săptămâna aceasta",
+  "blockStatsSubtitleMonth": "Urmăritori blocați în ultimele 30 de zile",
+  "blockStatsRange7": "7 zile",
+  "blockStatsRange30": "30 de zile",
+  "blockStatsCategoryFilterList": "Cereri de reclame și urmăritori",
+  "blockStatsCategoryDns": "Domenii de urmărire cunoscute",
+  "blockStatsCategoryParam": "Parametri de urmărire eliminați",
+  "blockStatsCategoryCdn": "Cereri CDN servite local",
+  "blockStatsSince": "{count} blocate din {date}",
+  "blockStatsEmpty": "Nu a fost blocat nimic încă",
+  "blockStatsEmptyHint": "Activează protecția împotriva urmăririi pentru un site, iar cererile blocate vor apărea aici.",
+  "blockStatsReset": "Resetează statisticile",
+  "blockStatsResetConfirm": "Fiecare contor revine la zero, iar numărătoarea începe din nou de astăzi.",
+  "appSettingsProtectionReportSubtitle": "Ce au oprit blocantele, de-a lungul timpului"
 }

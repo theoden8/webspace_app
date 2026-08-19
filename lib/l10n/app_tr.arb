@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Test bildirimi gönder",
   "devToolsTestNotificationSent": "Test bildirimi gönderildi (günlüklere bakın)",
   "devToolsTestNotificationTitle": "WebSpace test bildirimi",
-  "devToolsTestNotificationBody": "Bunu görebiliyorsanız, işletim sisteminin bildirim teslimatı çalışıyor."
+  "devToolsTestNotificationBody": "Bunu görebiliyorsanız, işletim sisteminin bildirim teslimatı çalışıyor.",
+  "blockStatsTitle": "Koruma raporu",
+  "blockStatsSubtitleWeek": "Bu hafta engellenen izleyiciler",
+  "blockStatsSubtitleMonth": "Son 30 günde engellenen izleyiciler",
+  "blockStatsRange7": "7 gün",
+  "blockStatsRange30": "30 gün",
+  "blockStatsCategoryFilterList": "Reklam ve izleyici istekleri",
+  "blockStatsCategoryDns": "Bilinen izleme alan adları",
+  "blockStatsCategoryParam": "Kaldırılan izleme parametreleri",
+  "blockStatsCategoryCdn": "Yerel olarak sunulan CDN istekleri",
+  "blockStatsSince": "{date} tarihinden bu yana {count} engellendi",
+  "blockStatsEmpty": "Henüz hiçbir şey engellenmedi",
+  "blockStatsEmptyHint": "Bir site için izleme korumasını açın; engellediği istekler burada görünür.",
+  "blockStatsReset": "İstatistikleri sıfırla",
+  "blockStatsResetConfirm": "Her sayaç sıfıra döner ve sayım bugünden yeniden başlar.",
+  "appSettingsProtectionReportSubtitle": "Engelleyicilerin zaman içinde durdurdukları"
 }

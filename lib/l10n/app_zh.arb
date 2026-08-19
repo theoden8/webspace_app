@@ -706,5 +706,20 @@
   "devToolsTestNotification": "发送测试通知",
   "devToolsTestNotificationSent": "已发送测试通知（查看日志）",
   "devToolsTestNotificationTitle": "WebSpace 测试通知",
-  "devToolsTestNotificationBody": "如果您能看到这条消息，说明操作系统的通知投递功能正常。"
+  "devToolsTestNotificationBody": "如果您能看到这条消息，说明操作系统的通知投递功能正常。",
+  "blockStatsTitle": "防护报告",
+  "blockStatsSubtitleWeek": "本周拦截的跟踪器",
+  "blockStatsSubtitleMonth": "过去 30 天拦截的跟踪器",
+  "blockStatsRange7": "7 天",
+  "blockStatsRange30": "30 天",
+  "blockStatsCategoryFilterList": "广告与跟踪器请求",
+  "blockStatsCategoryDns": "已知跟踪域名",
+  "blockStatsCategoryParam": "已移除的跟踪参数",
+  "blockStatsCategoryCdn": "本地提供的 CDN 请求",
+  "blockStatsSince": "自 {date} 起已拦截 {count} 个",
+  "blockStatsEmpty": "尚未拦截任何内容",
+  "blockStatsEmptyHint": "为某个站点开启跟踪保护后，它拦截的请求会显示在这里。",
+  "blockStatsReset": "重置统计",
+  "blockStatsResetConfirm": "所有计数器归零，并从今天重新开始统计。",
+  "appSettingsProtectionReportSubtitle": "拦截器长期以来阻止的内容"
 }

@@ -706,5 +706,20 @@
   "devToolsTestNotification": "परीक्षण सूचना भेजें",
   "devToolsTestNotificationSent": "परीक्षण सूचना भेजी गई (लॉग देखें)",
   "devToolsTestNotificationTitle": "WebSpace परीक्षण सूचना",
-  "devToolsTestNotificationBody": "यदि आप इसे देख सकते हैं, तो ऑपरेटिंग सिस्टम की सूचना वितरण कार्य कर रहा है।"
+  "devToolsTestNotificationBody": "यदि आप इसे देख सकते हैं, तो ऑपरेटिंग सिस्टम की सूचना वितरण कार्य कर रहा है।",
+  "blockStatsTitle": "सुरक्षा रिपोर्ट",
+  "blockStatsSubtitleWeek": "इस सप्ताह अवरोधित ट्रैकर",
+  "blockStatsSubtitleMonth": "पिछले 30 दिनों में अवरोधित ट्रैकर",
+  "blockStatsRange7": "7 दिन",
+  "blockStatsRange30": "30 दिन",
+  "blockStatsCategoryFilterList": "विज्ञापन और ट्रैकर अनुरोध",
+  "blockStatsCategoryDns": "ज्ञात ट्रैकिंग डोमेन",
+  "blockStatsCategoryParam": "हटाए गए ट्रैकिंग पैरामीटर",
+  "blockStatsCategoryCdn": "स्थानीय रूप से पूरे किए गए CDN अनुरोध",
+  "blockStatsSince": "{date} से {count} अवरोधित",
+  "blockStatsEmpty": "अभी तक कुछ भी अवरोधित नहीं हुआ",
+  "blockStatsEmptyHint": "किसी साइट के लिए ट्रैकिंग सुरक्षा चालू करें, फिर वह जिन अनुरोधों को रोकेगी वे यहाँ दिखेंगे।",
+  "blockStatsReset": "आँकड़े रीसेट करें",
+  "blockStatsResetConfirm": "हर काउंटर शून्य पर लौट आता है और गिनती आज से फिर शुरू होती है।",
+  "appSettingsProtectionReportSubtitle": "समय के साथ अवरोधकों ने क्या रोका"
 }

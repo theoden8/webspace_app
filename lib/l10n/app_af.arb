@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Stuur toetskennisgewing",
   "devToolsTestNotificationSent": "Toetskennisgewing gestuur (sien logboeke)",
   "devToolsTestNotificationTitle": "WebSpace-toetskennisgewing",
-  "devToolsTestNotificationBody": "As jy dit kan sien, werk die bedryfstelsel se kennisgewingaflewering."
+  "devToolsTestNotificationBody": "As jy dit kan sien, werk die bedryfstelsel se kennisgewingaflewering.",
+  "blockStatsTitle": "Beskermingsverslag",
+  "blockStatsSubtitleWeek": "Volgers hierdie week geblokkeer",
+  "blockStatsSubtitleMonth": "Volgers in die afgelope 30 dae geblokkeer",
+  "blockStatsRange7": "7 dae",
+  "blockStatsRange30": "30 dae",
+  "blockStatsCategoryFilterList": "Advertensie- en volgerversoeke",
+  "blockStatsCategoryDns": "Bekende volgerdomeine",
+  "blockStatsCategoryParam": "Volgparameters verwyder",
+  "blockStatsCategoryCdn": "CDN-versoeke plaaslik bedien",
+  "blockStatsSince": "{count} geblokkeer sedert {date}",
+  "blockStatsEmpty": "Nog niks geblokkeer nie",
+  "blockStatsEmptyHint": "Skakel volgbeskerming vir 'n webwerf aan en die versoeke wat dit blokkeer verskyn hier.",
+  "blockStatsReset": "Statistieke terugstel",
+  "blockStatsResetConfirm": "Elke teller keer terug na nul en die telling begin vandag oor.",
+  "appSettingsProtectionReportSubtitle": "Wat die blokkeerders gekeer het, oor tyd"
 }

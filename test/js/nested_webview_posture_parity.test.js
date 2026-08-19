@@ -138,7 +138,7 @@ const POSTURE = new Set([
   'localCdnEnabled', 'userScripts', 'locationMode', 'spoofLatitude',
   'spoofLongitude', 'spoofAccuracy', 'spoofTimezone', 'spoofTimezoneFromLocation',
   'liveLocationGranularity', 'webRtcPolicy', 'proxySettings',
-  'notificationsEnabled',
+  'notificationsEnabled', 'contributesBlockStats',
 ]);
 
 const PLUMBING = new Set([

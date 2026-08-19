@@ -39,6 +39,10 @@ class InAppWebViewScreen extends StatefulWidget {
   final bool dnsBlockEnabled;
   final bool contentBlockEnabled;
   final bool localCdnEnabled;
+  /// Mirrors the parent site's `contributesBlockStats` so a nested webview
+  /// for an archive-tier site never rolls its blocks into the app-wide
+  /// protection report (ARCH-006).
+  final bool contributesBlockStats;
   final bool trackingProtectionEnabled;
   final bool letterboxEnabled;
   final int? spoofWindowWidth;
@@ -112,6 +116,7 @@ class InAppWebViewScreen extends StatefulWidget {
     required this.dnsBlockEnabled,
     required this.contentBlockEnabled,
     required this.localCdnEnabled,
+    this.contributesBlockStats = true,
     required this.trackingProtectionEnabled,
     this.letterboxEnabled = false,
     this.spoofWindowWidth,
@@ -276,6 +281,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         dnsBlockEnabled: widget.dnsBlockEnabled || widget.trackingProtectionEnabled,
         contentBlockEnabled: widget.contentBlockEnabled || widget.trackingProtectionEnabled,
         localCdnEnabled: widget.localCdnEnabled || widget.trackingProtectionEnabled,
+        contributesBlockStats: widget.contributesBlockStats,
         trackingProtectionEnabled: widget.trackingProtectionEnabled,
         letterboxEnabled: widget.letterboxEnabled,
         spoofWindowWidth: widget.spoofWindowWidth,

@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Αποστολή δοκιμαστικής ειδοποίησης",
   "devToolsTestNotificationSent": "Η δοκιμαστική ειδοποίηση στάλθηκε (δείτε τα αρχεία καταγραφής)",
   "devToolsTestNotificationTitle": "Δοκιμαστική ειδοποίηση WebSpace",
-  "devToolsTestNotificationBody": "Αν μπορείτε να το δείτε αυτό, η παράδοση ειδοποιήσεων του λειτουργικού συστήματος λειτουργεί."
+  "devToolsTestNotificationBody": "Αν μπορείτε να το δείτε αυτό, η παράδοση ειδοποιήσεων του λειτουργικού συστήματος λειτουργεί.",
+  "blockStatsTitle": "Αναφορά προστασίας",
+  "blockStatsSubtitleWeek": "Ιχνηλάτες που αποκλείστηκαν αυτή την εβδομάδα",
+  "blockStatsSubtitleMonth": "Ιχνηλάτες που αποκλείστηκαν τις τελευταίες 30 ημέρες",
+  "blockStatsRange7": "7 ημέρες",
+  "blockStatsRange30": "30 ημέρες",
+  "blockStatsCategoryFilterList": "Αιτήματα διαφημίσεων και ιχνηλατών",
+  "blockStatsCategoryDns": "Γνωστοί τομείς ιχνηλάτησης",
+  "blockStatsCategoryParam": "Παράμετροι παρακολούθησης που αφαιρέθηκαν",
+  "blockStatsCategoryCdn": "Αιτήματα CDN που εξυπηρετήθηκαν τοπικά",
+  "blockStatsSince": "{count} αποκλείστηκαν από τις {date}",
+  "blockStatsEmpty": "Δεν έχει αποκλειστεί τίποτα ακόμη",
+  "blockStatsEmptyHint": "Ενεργοποιήστε την προστασία από ιχνηλάτηση σε έναν ιστότοπο και τα αιτήματα που αποκλείει θα εμφανιστούν εδώ.",
+  "blockStatsReset": "Επαναφορά στατιστικών",
+  "blockStatsResetConfirm": "Κάθε μετρητής μηδενίζεται και η καταμέτρηση ξεκινά ξανά από σήμερα.",
+  "appSettingsProtectionReportSubtitle": "Τι σταμάτησαν οι αποκλειστές με την πάροδο του χρόνου"
 }

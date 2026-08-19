@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Ibgħat notifika ta' prova",
   "devToolsTestNotificationSent": "In-notifika ta' prova ntbagħtet (ara r-reġistri)",
   "devToolsTestNotificationTitle": "Notifika ta' prova WebSpace",
-  "devToolsTestNotificationBody": "Jekk tista' tara dan, il-konsenja tan-notifiki tas-sistema operattiva taħdem."
+  "devToolsTestNotificationBody": "Jekk tista' tara dan, il-konsenja tan-notifiki tas-sistema operattiva taħdem.",
+  "blockStatsTitle": "Rapport ta' protezzjoni",
+  "blockStatsSubtitleWeek": "Tracers imblukkati din il-ġimgħa",
+  "blockStatsSubtitleMonth": "Tracers imblukkati fl-aħħar 30 jum",
+  "blockStatsRange7": "7 ijiem",
+  "blockStatsRange30": "30 jum",
+  "blockStatsCategoryFilterList": "Talbiet ta' reklami u tracers",
+  "blockStatsCategoryDns": "Dominji ta' traċċar magħrufa",
+  "blockStatsCategoryParam": "Parametri ta' traċċar imneħħija",
+  "blockStatsCategoryCdn": "Talbiet CDN moqdija lokalment",
+  "blockStatsSince": "{count} imblukkati mill-{date}",
+  "blockStatsEmpty": "Xejn għadu ma ġie mblukkat",
+  "blockStatsEmptyHint": "Ixgħel il-protezzjoni mit-traċċar għal sit u t-talbiet li jimblokka jidhru hawn.",
+  "blockStatsReset": "Irrisettja l-istatistika",
+  "blockStatsResetConfirm": "Kull kontatur jerġa' lura għal żero u l-għadd jerġa' jibda mil-lum.",
+  "appSettingsProtectionReportSubtitle": "X'waqqfu l-imblukkaturi, maż-żmien"
 }

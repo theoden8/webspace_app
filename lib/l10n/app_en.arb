@@ -3414,5 +3414,69 @@
   "appSettingsContentBlockerHint": "Blocks ads, trackers, and unwanted page elements using filter lists like EasyList. Supports domain-level blocking, CSS cosmetic filters to hide page elements, and text-based hiding rules. Enable or disable individual filter lists below, and toggle content blocking per-site in each site's settings.",
   "@appSettingsContentBlockerHint": {
     "description": "Info dialog explaining the content blocker: it blocks ads, trackers, and unwanted page elements using filter lists like EasyList, supports domain, CSS cosmetic, and text-hiding rules, and is toggled on per-site."
+  },
+  "blockStatsTitle": "Protection report",
+  "@blockStatsTitle": {
+    "description": "Title of the screen (and of the App Settings entry that opens it) summarising how many tracking requests the app's blockers stopped over time."
+  },
+  "blockStatsSubtitleWeek": "Trackers blocked this week",
+  "@blockStatsSubtitleWeek": {
+    "description": "Caption under the large headline number on the protection report when the 7-day range is selected. The number itself is rendered separately above this text."
+  },
+  "blockStatsSubtitleMonth": "Trackers blocked in the last 30 days",
+  "@blockStatsSubtitleMonth": {
+    "description": "Caption under the large headline number on the protection report when the 30-day range is selected. The number itself is rendered separately above this text."
+  },
+  "blockStatsRange7": "7 days",
+  "@blockStatsRange7": {
+    "description": "Label of the button that switches the protection report to the last 7 days. Keep it short: it sits in a two-segment toggle."
+  },
+  "blockStatsRange30": "30 days",
+  "@blockStatsRange30": {
+    "description": "Label of the button that switches the protection report to the last 30 days. Keep it short: it sits in a two-segment toggle."
+  },
+  "blockStatsCategoryFilterList": "Ad and tracker requests",
+  "@blockStatsCategoryFilterList": {
+    "description": "Protection report row for requests blocked by an ABP filter list (EasyList, EasyPrivacy, Fanboy's). Preceded on screen by the count of such requests."
+  },
+  "blockStatsCategoryDns": "Known tracker domains",
+  "@blockStatsCategoryDns": {
+    "description": "Protection report row for requests blocked because the domain is on the downloaded DNS blocklist. Preceded on screen by the count of such requests."
+  },
+  "blockStatsCategoryParam": "Tracking parameters removed",
+  "@blockStatsCategoryParam": {
+    "description": "Protection report row counting URLs whose tracking query parameters (utm_source and similar) were stripped before the page loaded. Preceded on screen by the count."
+  },
+  "blockStatsCategoryCdn": "CDN requests served locally",
+  "@blockStatsCategoryCdn": {
+    "description": "Protection report row counting third-party CDN resources (JavaScript libraries, fonts) that were served from the local cache instead of being fetched from the CDN. Preceded on screen by the count."
+  },
+  "blockStatsSince": "{count} blocked since {date}",
+  "@blockStatsSince": {
+    "description": "Footer line of the protection report giving the all-time total and the day counting started, e.g. \"115 blocked since 22 June 2026\".",
+    "placeholders": {
+      "count": { "type": "int" },
+      "date": { "type": "String" }
+    }
+  },
+  "blockStatsEmpty": "Nothing blocked yet",
+  "@blockStatsEmpty": {
+    "description": "Headline of the protection report's empty state, shown when no request has been blocked since counting started."
+  },
+  "blockStatsEmptyHint": "Turn on tracking protection for a site and the requests it blocks show up here.",
+  "@blockStatsEmptyHint": {
+    "description": "Explanation under the protection report's empty state, telling the user that per-site tracking protection has to be switched on before anything is counted."
+  },
+  "blockStatsReset": "Reset statistics",
+  "@blockStatsReset": {
+    "description": "Action that clears every counter on the protection report. Used as the AppBar button tooltip, the confirmation dialog title, and its confirm button."
+  },
+  "blockStatsResetConfirm": "Every counter returns to zero and counting restarts from today.",
+  "@blockStatsResetConfirm": {
+    "description": "Body of the confirmation dialog shown before clearing the protection report counters."
+  },
+  "appSettingsProtectionReportSubtitle": "What the blockers stopped, over time",
+  "@appSettingsProtectionReportSubtitle": {
+    "description": "Subtitle of the App Settings row that opens the protection report screen."
   }
 }

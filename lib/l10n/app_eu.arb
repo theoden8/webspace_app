@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Bidali probako jakinarazpena",
   "devToolsTestNotificationSent": "Probako jakinarazpena bidali da (ikus erregistroak)",
   "devToolsTestNotificationTitle": "WebSpace probako jakinarazpena",
-  "devToolsTestNotificationBody": "Hau ikus badezakezu, sistema eragilearen jakinarazpenen entrega ondo dabil."
+  "devToolsTestNotificationBody": "Hau ikus badezakezu, sistema eragilearen jakinarazpenen entrega ondo dabil.",
+  "blockStatsTitle": "Babes-txostena",
+  "blockStatsSubtitleWeek": "Aste honetan blokeatutako jarraitzaileak",
+  "blockStatsSubtitleMonth": "Azken 30 egunetan blokeatutako jarraitzaileak",
+  "blockStatsRange7": "7 egun",
+  "blockStatsRange30": "30 egun",
+  "blockStatsCategoryFilterList": "Iragarkien eta jarraitzaileen eskaerak",
+  "blockStatsCategoryDns": "Jarraipen-domeinu ezagunak",
+  "blockStatsCategoryParam": "Kendutako jarraipen-parametroak",
+  "blockStatsCategoryCdn": "Bertan zerbitzatutako CDN eskaerak",
+  "blockStatsSince": "{count} blokeatuta {date} geroztik",
+  "blockStatsEmpty": "Oraindik ez da ezer blokeatu",
+  "blockStatsEmptyHint": "Aktibatu gune baten jarraipenaren aurkako babesa eta blokeatzen dituen eskaerak hemen agertuko dira.",
+  "blockStatsReset": "Berrezarri estatistikak",
+  "blockStatsResetConfirm": "Kontagailu guztiak zerora itzuliko dira eta zenbaketa gaur hasiko da berriro.",
+  "appSettingsProtectionReportSubtitle": "Blokeatzaileek denboran zehar geldiarazi dutena"
 }
