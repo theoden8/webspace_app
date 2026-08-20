@@ -98,7 +98,7 @@ anyone else is case by case and gets its own licence file. Full workflow and con
 [tool/design_gallery/CLAUDE.md](tool/design_gallery/CLAUDE.md). Spec:
 [openspec/specs/design-gallery/spec.md](openspec/specs/design-gallery/spec.md);
 DESIGN-001 (every UI file compiles for web) is enforced by `npm run design:check`
-in CI's `validate` job, and the two web builds by the `design-web` job.
+in CI's `validate` job, and the two web builds by the `build-web` job.
 
 ## Recurring bugs (`docs/bugs/`)
 

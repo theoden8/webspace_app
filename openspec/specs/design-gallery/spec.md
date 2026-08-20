@@ -21,7 +21,7 @@ them. This spec is the contract that keeps them true.
 - **Platforms**: Design-time only. The app is not shipped for web; the WebView
   does not run there.
 - **CI Integration**: GitHub Actions (`build-and-test.yml` → `validate` job for
-  the static and value gates, `design-web` job for the compile and render
+  the static and value gates, `build-web` job for the compile and render
   gates)
 
 ---
@@ -89,7 +89,7 @@ is what a designer interacts with.
 #### Scenario: A change breaks the web compile
 
 - **GIVEN** a change to any file either entrypoint reaches
-- **WHEN** the `design-web` CI job runs `scripts/design_web.sh gallery` and
+- **WHEN** the `build-web` CI job runs `scripts/design_web.sh gallery` and
   `scripts/design_web.sh app`
 - **THEN** a compile failure fails the job, before any card is shot
 

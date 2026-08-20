@@ -57,7 +57,7 @@ drew (almost) nothing, so this is CI-safe.
 Normative requirements and their regression scenarios:
 [openspec/specs/design-gallery/spec.md](../../openspec/specs/design-gallery/spec.md).
 DESIGN-001 and the token gates run in CI's `validate` job; DESIGN-002/003/008,
-the two web builds and the cards, run in the `design-web` job.
+the two web builds and the cards, run in the `build-web` job.
 
 - **Blank cards** (`shoot.js`): every card must clear 1% ink and 12 distinct
   colours, against a measured floor of 2.1% / 38. This is the only check that

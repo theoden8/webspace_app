@@ -127,8 +127,8 @@ jobs:
       - name: Run browser tests (real-Chromium shim tier)
         run: npm run test:browser
 
-  design-web:
-    name: Design gallery + designer app
+  build-web:
+    name: Build Web
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
