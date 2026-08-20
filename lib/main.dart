@@ -25,6 +25,7 @@ import 'package:webspace/services/webview.dart';
 import 'package:webspace/screens/add_site.dart' show AddSiteScreen, UnifiedFaviconImage, FaviconUrlCache, SiteSuggestion;
 import 'package:webspace/screens/settings.dart';
 import 'package:webspace/screens/app_settings.dart';
+import 'package:webspace/screens/block_stats.dart';
 import 'package:webspace/services/icon_service.dart';
 import 'package:webspace/services/icon_png_export.dart';
 import 'package:webspace/services/custom_icon.dart';
@@ -6254,6 +6255,11 @@ class _WebSpacePageState extends State<WebSpacePage>
             }
           },
         ),
+        // Protection report shield, badged with the week's block count.
+        // Same visibility rule as the settings gear: the webspaces list is
+        // the app's "home", which is where a protection summary belongs.
+        if (_currentIndex == null || _currentIndex! >= _webViewModels.length)
+          _buildProtectionShield(context, loc),
         // Settings icon button (only visible on webspaces list screen)
         if (_currentIndex == null || _currentIndex! >= _webViewModels.length)
           IconButton(
@@ -7842,6 +7848,30 @@ class _WebSpacePageState extends State<WebSpacePage>
             child: Text(loc.commonCancel),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Shield + week's block count in the app bar of the webspaces list,
+  /// opening the protection report. Reads the counters at build time rather
+  /// than subscribing: this bar only renders on the list screen, where no
+  /// page is loading, and returning from a site rebuilds it anyway.
+  Widget _buildProtectionShield(BuildContext context, AppLocalizations loc) {
+    final weekTotal = BlockStatsService.instance.engine.totalForLastDays(7);
+    return Badge.count(
+      count: weekTotal,
+      isLabelVisible: weekTotal > 0,
+      child: IconButton(
+        icon: const Icon(Icons.shield_outlined),
+        tooltip: loc.blockStatsTitle,
+        onPressed: () async {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const BlockStatsScreen()),
+          );
+          if (!mounted) return;
+          setState(() {});
+        },
       ),
     );
   }
