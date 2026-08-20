@@ -830,6 +830,95 @@ and the frame classifier.
 
 ---
 
+### Requirement: INTEG-014 — Offline and degraded-network scenarios
+
+`integration_test/offline_connection_test.dart` SHALL drive the offline,
+slow and shaky network postures against a real engine and an in-process
+loopback fixture server. Each posture is a negotiation between a Dart
+decision and the engine's load lifecycle, which is what puts it out of
+reach of the unit tier: `test/connectivity_service_test.dart` and
+`test/resume_reload_engine_test.dart` cover the decisions in isolation,
+but neither sees the signals a live WebView actually emits.
+
+"Offline" SHALL be simulated at the layer the app decides on
+(`ConnectivityService.onlineOverride`), not by cutting the runner's
+network — the assertion is about the gate, and a runner without network
+cannot serve the fixture that proves the online half. "Shaky" SHALL be
+produced by the fixture server refusing the connection or truncating a
+promised body, so the failure is deterministic rather than waited for.
+
+Assertions SHALL be split by who owns the behavior:
+
+- **Dart-owned** — whether the cached-then-live reload was issued,
+  whether a load failure was reported, whether a cache save was
+  attempted. Asserted strictly on every platform.
+- **Engine-owned** — whether the engine reloads an
+  `InAppWebViewInitialData` page back to its `baseUrl`, and whether it
+  reports a network failure to the Dart layer at all. Asserted only once
+  observed; otherwise the test SHALL log a `SKIP` line naming what the
+  engine did not do, rather than assert a vacuous truth (the
+  `privacy_settings_test.dart` posture).
+
+The engine-owned split is not hypothetical: Linux WPE maps
+`WEBKIT_NETWORK_ERROR_FAILED` (299) to no `WebResourceErrorType`, and
+`WebResourceError.fromMap` force-unwraps that lookup, so a plain
+connection failure never reaches `onReceivedError` on that target. The
+macOS runner exercises the failure assertions for real.
+
+#### Scenario: Offline construction renders the snapshot and touches no network
+
+- **Given** a site with a cached snapshot and `ConnectivityService`
+  reporting offline
+- **When** the webview is constructed
+- **Then** the snapshot is painted, `onReloadIssued` never fires, the
+  fixture server records zero requests for the site's path, and no
+  main-frame failure is reported
+
+#### Scenario: Online construction swaps the snapshot for the live page once
+
+- **Given** the same construction with `ConnectivityService` reporting
+  online
+- **When** the cached parse settles
+- **Then** exactly one live reload is issued — not a loop — and the live
+  bytes replace the snapshot in the DOM
+
+#### Scenario: A slow response is never reported as a failure
+
+- **Given** a route that sits on the request for several seconds
+- **When** the load is in flight
+- **Then** no main-frame failure is reported mid-flight, the load
+  eventually settles, and the live bytes commit — a slow link must not
+  reach `ResumeReloadEngine` as a stranded load and get re-issued out
+  from under a response that was about to arrive
+
+#### Scenario: A dropped connection is a retryable failure type
+
+- **Given** a refused connection, and separately a response truncated
+  mid-body
+- **When** the engine reports the main-frame failure
+- **Then** every reported error type is in
+  `ResumeReloadEngine.retryableErrorTypes` — a type outside that set
+  means PAUSE-022 recovery silently never fires for the exact case it
+  exists for, which no unit test can catch because the unit tier feeds
+  the engine the strings this test discovers
+
+#### Scenario: A failed load never overwrites the offline snapshot
+
+- **Given** a site whose main-frame navigation fails for a network
+  reason
+- **When** the engine commits its own error page and fires `onLoadStop`
+  for it
+- **Then** `onHtmlLoaded` is not invoked, so the site's last-good
+  snapshot survives the flake that makes the snapshot matter — caching
+  the error page is what the next offline cold start would render
+- **And** because neither desktop target can positively verify this
+  (Linux never delivers the failure, WKWebView never settles it), the
+  guard SHALL additionally be pinned structurally by
+  `test/js/offline_cache_failure_gate.test.js`, which fails if the
+  `onLoadStop` cache save stops being gated on the failure record
+
+---
+
 ## Known Limitations
 
 - **Build time per test**: each `flutter test integration_test/<file>.dart`
@@ -907,6 +996,13 @@ and the frame classifier.
   [`scripts/run_android_camera_tests.sh`](../../../scripts/run_android_camera_tests.sh)
   (pre-grants the CAMERA runtime permission so the OS dialog cannot
   block the run). See [web-camera-access](../web-camera-access/spec.md)
+- [`integration_test/offline_connection_test.dart`](../../../integration_test/offline_connection_test.dart)
+  — INTEG-014: offline / slow / shaky network postures against a
+  loopback fixture server (both desktop targets). The decisions it
+  drives are unit-tested in
+  [`test/connectivity_service_test.dart`](../../../test/connectivity_service_test.dart)
+  and [`test/resume_reload_engine_test.dart`](../../../test/resume_reload_engine_test.dart);
+  this suite supplies the live-engine signals those tests stub
 - [`integration_test/settings_smoke_test.dart`](../../../integration_test/settings_smoke_test.dart)
   — harness pin
 - [`integration_test/settings_backup_roundtrip_test.dart`](../../../integration_test/settings_backup_roundtrip_test.dart)
