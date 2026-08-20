@@ -112,6 +112,15 @@ Forward ==
     /\ Attach
     /\ UNCHANGED << currentIndex, loaded, frozen, jarOwner >>
 
+\* An opaque route pushed over the webview screen pops: the platform view was
+\* not composited while covered, so the SurfaceView re-attaches blank. Same
+\* site, same controller, no navigation, no lifecycle event -- it passes
+\* through no other action here, which is why PAUSE-024 gives it its own
+\* chokepoint (didPopNext -> Nudge).
+RouteReturn ==
+    /\ Attach
+    /\ UNCHANGED << currentIndex, loaded, frozen, jarOwner >>
+
 (***************************************************************************)
 (* Module: lazy-webview-loading   (owns: loaded)                          *)
 (***************************************************************************)
@@ -182,6 +191,7 @@ GoodNext ==
     \/ ControllerAttach
     \/ Back
     \/ Forward
+    \/ RouteReturn
     \/ Nudge
     \/ \E s \in Sites : LoadSite(s)
     \/ \E s \in Sites : Evict(s)

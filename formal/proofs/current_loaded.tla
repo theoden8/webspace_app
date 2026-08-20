@@ -57,12 +57,14 @@ LEMMA InductiveStep == IndInv /\ [GoodNext]_vars => IndInv'
       BY <2>5 DEF Back, Attach
     <2>6. CASE Forward
       BY <2>6 DEF Forward, Attach
+    <2>9. CASE RouteReturn
+      BY <2>9 DEF RouteReturn, Attach
     <2>7. CASE \E s \in Sites : LoadSite(s)
       BY <2>7 DEF LoadSite
     <2>8. CASE \E s \in Sites : Evict(s)
       BY <2>8 DEF Evict
     <2> QED
-      BY <1>1, <2>1, <2>2, <2>3, <2>4, <2>5, <2>6, <2>7, <2>8 DEF GoodNext
+      BY <1>1, <2>1, <2>2, <2>3, <2>4, <2>5, <2>6, <2>7, <2>8, <2>9 DEF GoodNext
   <1>2. CASE UNCHANGED vars
     BY <1>2 DEF vars
   <1> QED

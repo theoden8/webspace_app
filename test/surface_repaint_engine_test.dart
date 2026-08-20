@@ -242,7 +242,7 @@ void main() {
       final e = SurfaceRepaintEngine();
       e.reloadIssued();
       expect(e.consumeLoadSettled(), isTrue);
-      expect(e.reloadPending, isFalse);
+      expect(e.commitPending, isFalse);
       expect(e.consumeLoadSettled(), isFalse,
           reason: 'an ordinary navigation must not trigger a repaint');
     });
@@ -285,6 +285,78 @@ void main() {
                   : 'reproduction: slow reload left blank-white');
         });
       }
+    });
+  });
+
+  group('first-commit ordering (BUG-001 Attempt 10 / PAUSE-025)', () {
+    // The reload ordering above, reached on a surface that has never painted:
+    // a fresh controller attaches, the activation and controller-attach nudges
+    // drain, and the site's FIRST document commits after them. Before the
+    // latch was armed by the attach, no signal existed on this path at all —
+    // bug doc gap #7.
+
+    test('reproduce: a first commit after the attach nudges is left unpainted',
+        () {
+      fakeAsync((async) {
+        final e = SurfaceRepaintEngine();
+        void nudge() {
+          if (!e.request()) return;
+          void tick() {
+            final t = e.tick();
+            if (t.done) return;
+            Future.delayed(const Duration(milliseconds: 100), tick);
+          }
+
+          tick();
+        }
+
+        e.attach(); // fresh SurfaceView mounts, blank
+        nudge(); // controller-attach nudge, ~600ms of ticks
+        Future.delayed(const Duration(seconds: 3), () {
+          // The initial document commits here, onto a surface the drained
+          // loop never sees again.
+          e.attach();
+        });
+        async.elapse(const Duration(seconds: 6));
+
+        expect(e.owed, isTrue,
+            reason: 'BUG-001 gap #7: the committed document is never painted');
+      });
+    });
+
+    test('fix: the attach arms the latch, the settled commit repaints', () {
+      fakeAsync((async) {
+        final e = SurfaceRepaintEngine();
+        void nudge() {
+          if (!e.request()) return;
+          void tick() {
+            final t = e.tick();
+            if (t.done) return;
+            Future.delayed(const Duration(milliseconds: 100), tick);
+          }
+
+          tick();
+        }
+
+        e.noteCommitPending(); // controller attach, first load in flight
+        e.attach();
+        nudge();
+        Future.delayed(const Duration(seconds: 3), () {
+          if (e.consumeLoadSettled()) nudge();
+        });
+        async.elapse(const Duration(seconds: 6));
+
+        expect(e.owed, isFalse);
+      });
+    });
+
+    test('a reload latch and a first-commit latch are the same one-shot', () {
+      final e = SurfaceRepaintEngine();
+      e.noteCommitPending();
+      e.reloadIssued();
+      expect(e.consumeLoadSettled(), isTrue);
+      expect(e.consumeLoadSettled(), isFalse,
+          reason: 'one pending commit, one repaint');
     });
   });
 }

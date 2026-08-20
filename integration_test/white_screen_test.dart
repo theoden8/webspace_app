@@ -19,6 +19,19 @@
 //   5. OS memory pressure against the visible site (Attempt 7).
 //   6. Fresh activation with other sites live (controller-attach nudge,
 //      Attempt 4).
+//   7. Fresh activation of a site whose document commits LATE (PAUSE-025).
+//   8. Return from a pushed opaque route (PAUSE-024).
+//   9. Nested InAppWebViewScreen: fresh surface on a late-committing
+//      document, then the return to the main page (PAUSE-024/025).
+//
+// Scenarios 1–6 all serve documents that commit in a millisecond, so every
+// repaint they exercise lands while the issue-time nudge loop is still
+// running. That makes them blind to the ordering every recurrence since
+// Attempt 8 has actually been about: a surface that attaches or commits
+// AFTER the ~0.6s nudge budget drains. Scenarios 7 and 9 hold the response
+// for _kSlowCommit before the first byte, which puts the commit outside that
+// budget and leaves the settled-side re-nudge as the only thing that can
+// paint it.
 //
 // Warm start, activity recreation, and back/forward-cache restores need
 // real activity lifecycle transitions that an in-process integration test
@@ -28,7 +41,10 @@
 // Pages are served from an in-process loopback HTTP server so a network
 // failure can never masquerade as a white screen. Each content page is a
 // solid color Flutter never draws, so a matching dominant color proves the
-// sampled pixels came from the webview, not the app chrome.
+// sampled pixels came from the webview, not the app chrome. The server binds
+// every IPv4 interface so the same pages are reachable as both 127.0.0.1 and
+// 127.0.0.2 — two hosts, one server: a cross-domain navigation (which opens
+// the nested screen) that still cannot fail on the network.
 
 import 'dart:convert';
 import 'dart:io';
@@ -40,6 +56,8 @@ import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/main.dart' as app;
 import 'package:webspace/demo_data.dart';
+import 'package:webspace/screens/inappbrowser.dart';
+import 'package:webspace/screens/settings.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/surface_diag_native.dart';
 import 'package:webspace/web_view_model.dart';
@@ -47,11 +65,19 @@ import 'package:webspace/webspace_model.dart';
 
 const int _kDarkColor = 0xFF123524;
 const int _kMagentaColor = 0xFF8C1D5A;
+const int _kBlueColor = 0xFF1D3F8C;
 
-String _solidPage(String cssColor) => '<!doctype html><html><head>'
+/// How long the slow pages withhold their first byte. Must exceed the nudge
+/// loop's budget (`SurfaceRepaintEngine.ticksPerRequest` × 100ms ≈ 0.6s) by
+/// enough that every issue-time nudge has drained before the document
+/// commits — that is the ordering BUG-001 Attempts 8/9/10 are about.
+const Duration _kSlowCommit = Duration(seconds: 3);
+
+String _solidPage(String cssColor, {String body = ''}) =>
+    '<!doctype html><html><head>'
     '<meta name="viewport" content="width=device-width, initial-scale=1">'
     '<style>html,body{margin:0;height:100%;background:$cssColor;}</style>'
-    '</head><body></body></html>';
+    '</head><body>$body</body></html>';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -61,20 +87,40 @@ void main() {
   setUpAll(() async {
     isDemoMode = true;
 
-    server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-    server!.listen((request) {
+    // anyIPv4, not loopbackIPv4: the nested-screen scenario needs a second
+    // host name for the same pages (127.0.0.2), because the nested screen
+    // opens on a *cross-domain* navigation and getBaseDomain compares IPs
+    // literally. Both addresses are loopback, so nothing leaves the device.
+    server = await HttpServer.bind(InternetAddress.anyIPv4, 0);
+    final port = server!.port;
+    final altBase = 'http://127.0.0.2:$port';
+    server!.listen((request) async {
       final page = switch (request.uri.path) {
         '/dark.html' => _solidPage('#123524'),
         '/white.html' => _solidPage('#ffffff'),
         '/magenta.html' => _solidPage('#8c1d5a'),
+        '/slow-blue.html' => _solidPage('#1d3f8c'),
+        // Cross-domain hop into the nested screen, script-initiated so the
+        // test never depends on a synthetic touch reaching the platform view.
+        // The site that serves it has blockAutoRedirects off, so the
+        // navigation decision engine resolves it to blockOpenNested.
+        '/opener.html' => _solidPage('#123524',
+            body: '<script>setTimeout(function(){'
+                "location.href='$altBase/slow-blue.html';"
+                '},500);</script>'),
         _ => '<!doctype html><html><body>404</body></html>',
       };
+      // Withhold the first byte so the document commits well after every
+      // issue-time nudge has drained (see _kSlowCommit).
+      if (request.uri.path.startsWith('/slow-')) {
+        await Future.delayed(_kSlowCommit);
+      }
       request.response
         ..headers.contentType = ContentType.html
         ..write(page);
       request.response.close();
     });
-    final base = 'http://127.0.0.1:${server!.port}';
+    final base = 'http://127.0.0.1:$port';
 
     final dark = WebViewModel(
       siteId: 'ws-dark',
@@ -91,11 +137,27 @@ void main() {
       initUrl: '$base/magenta.html',
       name: 'Magenta',
     );
+    final slow = WebViewModel(
+      siteId: 'ws-slow',
+      initUrl: '$base/slow-blue.html',
+      name: 'Slow',
+    );
+    final opener = WebViewModel(
+      siteId: 'ws-opener',
+      initUrl: '$base/opener.html',
+      name: 'Opener',
+      // The hop to 127.0.0.2 is script-initiated and therefore gestureless;
+      // the default (block) would classify it blockSilent and never open the
+      // nested screen.
+      blockAutoRedirects: false,
+    );
     SharedPreferences.setMockInitialValues({
       'webViewModels': [
         jsonEncode(dark.toJson()),
         jsonEncode(white.toJson()),
         jsonEncode(magenta.toJson()),
+        jsonEncode(slow.toJson()),
+        jsonEncode(opener.toJson()),
       ],
     });
   });
@@ -129,8 +191,8 @@ void main() {
     }
   }
 
-  Future<WindowRegionSample> sampleSite(WidgetTester tester, String siteId) {
-    final logical = tester.getRect(find.byKey(ValueKey(siteId)).first);
+  Future<WindowRegionSample> sampleSlot(WidgetTester tester, Finder slot) {
+    final logical = tester.getRect(slot.first);
     return SurfaceDiagNative.sampleWindowRegion(SurfaceDiagNative.physicalRect(
       logicalRect: logical,
       devicePixelRatio: tester.view.devicePixelRatio,
@@ -143,9 +205,9 @@ void main() {
   // until the sample is accepted or the deadline passes. On timeout the last
   // sample is the diagnostic: uniform white with an ok status IS a white
   // screen.
-  Future<WindowRegionSample> pollSite(
+  Future<WindowRegionSample> pollSlot(
     WidgetTester tester,
-    String siteId,
+    Finder slot,
     String description,
     bool Function(WindowRegionSample) accept, {
     Duration timeout = const Duration(seconds: 90),
@@ -154,8 +216,8 @@ void main() {
     WindowRegionSample? last;
     while (DateTime.now().isBefore(deadline)) {
       await tester.pump(const Duration(milliseconds: 250));
-      if (find.byKey(ValueKey(siteId)).evaluate().isEmpty) continue;
-      last = await sampleSite(tester, siteId);
+      if (slot.evaluate().isEmpty) continue;
+      last = await sampleSlot(tester, slot);
       if (accept(last)) {
         print('white_screen_test: $description -> $last');
         return last;
@@ -165,6 +227,16 @@ void main() {
     fail('Timed out after ${timeout.inSeconds}s waiting for: $description '
         '(last sample: $last)');
   }
+
+  Future<WindowRegionSample> pollSite(
+    WidgetTester tester,
+    String siteId,
+    String description,
+    bool Function(WindowRegionSample) accept, {
+    Duration timeout = const Duration(seconds: 90),
+  }) =>
+      pollSlot(tester, find.byKey(ValueKey(siteId)), description, accept,
+          timeout: timeout);
 
   Future<void> openSiteDrawer(WidgetTester tester) async {
     for (var attempt = 0; attempt < 3; attempt++) {
@@ -205,6 +277,46 @@ void main() {
     await tester.tap(tile.first);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
+  }
+
+  // Tap an action in the AppBar's overflow popup menu. Menu contents are
+  // built at open time and some entries are conditional (Refresh swaps to
+  // Stop while a load is in flight), so an absent action means dismiss and
+  // reopen until it appears. The action's icon is unique to the open menu:
+  // the AppBar renders its own gear only on the webspaces list, where no
+  // site is active.
+  Future<void> openOverflowMenuAction(
+    WidgetTester tester,
+    IconData action,
+    String label, {
+    Duration timeout = const Duration(seconds: 45),
+  }) async {
+    final deadline = DateTime.now().add(timeout);
+    while (true) {
+      if (DateTime.now().isAfter(deadline)) {
+        dumpDiagnostics(tester, '$label: overflow menu action not reachable');
+        fail('$label: timed out opening the overflow menu / finding the action');
+      }
+      final item = find.byIcon(action);
+      if (item.evaluate().isNotEmpty) {
+        await tester.tap(item.first);
+        await tester.pump();
+        return;
+      }
+      if (find.byType(PopupMenuItem<String>).evaluate().isNotEmpty) {
+        // Menu is open without the action: dismiss and reopen next pass.
+        await tester.tapAt(const Offset(5, 5));
+      } else {
+        final menuButton = find.descendant(
+            of: find.byType(AppBar),
+            matching: find.byType(PopupMenuButton<String>));
+        if (menuButton.evaluate().isNotEmpty) {
+          await tester.tap(menuButton.first);
+        }
+      }
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+    }
   }
 
   testWidgets(
@@ -260,36 +372,7 @@ void main() {
       // open: open the menu, tap Refresh, then require the recommitted
       // document on the window. Menu contents are built at open time, so a
       // menu showing Stop is dismissed and reopened until the load settles.
-      final refreshDeadline = DateTime.now().add(const Duration(seconds: 45));
-      var refreshTapped = false;
-      while (!refreshTapped) {
-        if (DateTime.now().isAfter(refreshDeadline)) {
-          dumpDiagnostics(tester, 'scenario 4: Refresh menu action not reachable');
-          fail('Timed out opening the overflow menu / finding Refresh');
-        }
-        final refresh = find.byIcon(Icons.refresh);
-        if (refresh.evaluate().isNotEmpty) {
-          await tester.tap(refresh.first);
-          await tester.pump();
-          refreshTapped = true;
-          break;
-        }
-        final menuOpen =
-            find.byType(PopupMenuItem<String>).evaluate().isNotEmpty;
-        if (menuOpen) {
-          // Menu is open but shows Stop: dismiss and reopen next pass.
-          await tester.tapAt(const Offset(5, 5));
-        } else {
-          final menuButton = find.descendant(
-              of: find.byType(AppBar),
-              matching: find.byType(PopupMenuButton<String>));
-          if (menuButton.evaluate().isNotEmpty) {
-            await tester.tap(menuButton.first);
-          }
-        }
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 300));
-      }
+      await openOverflowMenuAction(tester, Icons.refresh, 'scenario 4');
       await pollSite(tester, 'ws-dark',
           'scenario 4: reload recommits dark content', darkVisible);
 
@@ -320,8 +403,102 @@ void main() {
               s.ok &&
               colorNear(s.dominantColor, _kMagentaColor) &&
               (s.uniformFraction ?? 0) > 0.5);
+
+      bool blueVisible(WindowRegionSample s) =>
+          s.ok &&
+          colorNear(s.dominantColor, _kBlueColor) &&
+          (s.uniformFraction ?? 0) > 0.5;
+
+      // Scenario 7: fresh activation of a site whose document commits LATE
+      // (PAUSE-025, bug doc gap #7). Every scenario above serves instantly, so
+      // its commit lands inside the activation/controller-attach nudge loops
+      // and any of them would repaint it. Here the surface attaches, both
+      // nudges drain against a surface with nothing on it, and only then does
+      // the document commit — so the settled-side re-nudge is the only thing
+      // that can paint it. The deadline is deliberately tight: a blank that
+      // clears minutes later, on some unrelated relayout, is still the bug.
+      await openSiteDrawer(tester);
+      await tapSite(tester, 'Slow');
+      await pollSlot(
+          tester,
+          find.byKey(const ValueKey('ws-slow')),
+          'scenario 7: late-committing first document paints blue',
+          blueVisible,
+          timeout: const Duration(seconds: 45));
+
+      // Scenario 8: return from a pushed opaque route (PAUSE-024). While the
+      // settings page covers the webview its platform view is not composited,
+      // so Android detaches the SurfaceView and re-attaches it on the pop —
+      // through no other chokepoint: same site, same controller, no
+      // navigation, no lifecycle event.
+      await openOverflowMenuAction(tester, Icons.settings, 'scenario 8');
+      final settlesSettings = DateTime.now().add(const Duration(seconds: 20));
+      while (find.byType(SettingsScreen).evaluate().isEmpty &&
+          DateTime.now().isBefore(settlesSettings)) {
+        await tester.pump(const Duration(milliseconds: 200));
+      }
+      expect(find.byType(SettingsScreen), findsOneWidget,
+          reason: 'the site settings route should cover the webview');
+      // Nothing was edited, so PopScope lets the back button pop directly.
+      await tester.tap(find
+          .descendant(
+              of: find.byType(SettingsScreen), matching: find.byType(BackButton))
+          .first);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      await pollSlot(
+          tester,
+          find.byKey(const ValueKey('ws-slow')),
+          'scenario 8: returning from a pushed route repaints the surface',
+          blueVisible,
+          timeout: const Duration(seconds: 45));
+
+      // Scenario 9: the nested InAppWebViewScreen. Its cross-domain entry
+      // mounts a brand-new SurfaceView on a late-committing document — the
+      // PAUSE-017 + PAUSE-025 pair, neither of which the nested screen had
+      // before, and which the main page's nudge cannot reach (that one
+      // toggles an inset around an IndexedStack sitting under this route).
+      await openSiteDrawer(tester);
+      await tapSite(tester, 'Opener');
+      final nestedDeadline = DateTime.now().add(const Duration(seconds: 60));
+      while (find.byType(InAppWebViewScreen).evaluate().isEmpty &&
+          DateTime.now().isBefore(nestedDeadline)) {
+        await tester.pump(const Duration(milliseconds: 250));
+      }
+      if (find.byType(InAppWebViewScreen).evaluate().isEmpty) {
+        dumpDiagnostics(tester, 'scenario 9: nested screen never opened');
+      }
+      expect(find.byType(InAppWebViewScreen), findsOneWidget,
+          reason: 'the cross-domain hop should open the nested webview screen');
+      await pollSlot(
+          tester,
+          find.byKey(const ValueKey(kNestedWebViewSlotKey)),
+          'scenario 9: nested fresh surface paints its late document',
+          blueVisible,
+          timeout: const Duration(seconds: 45));
+
+      // ...and popping back to the main page re-attaches the opener's
+      // surface, the nested half of PAUSE-024. The nested AppBar's leading is
+      // a custom IconButton (it pops directly, bypassing PopScope), not a
+      // BackButton, so match its icon.
+      await tester.tap(find
+          .descendant(
+              of: find.byType(InAppWebViewScreen),
+              matching: find.byType(BackButtonIcon))
+          .first);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      await pollSlot(
+          tester,
+          find.byKey(const ValueKey('ws-opener')),
+          'scenario 9: returning from the nested screen repaints the site',
+          darkVisible,
+          timeout: const Duration(seconds: 45));
     },
     skip: !Platform.isAndroid,
+    // Stays under the wrapper script's 25m wall-clock cap, which also has to
+    // cover the debug build and install: a Dart-level timeout names the
+    // scenario that hung, a killed process does not.
     timeout: const Timeout(Duration(minutes: 15)),
   );
 }

@@ -469,11 +469,45 @@ came from the webview.
 The suite SHALL cover at least: fresh first activation (BUG-001 gap
 #7), loaded-site switch (`_setCurrentIndex` reuse), the reload funnel
 (`PAUSE-021`), memory pressure against the visible site
-(`PAUSE-019`), and fresh activation with other sites live
-(`PAUSE-017`). Warm start, activity recreation, and bfcache back
-navigation need real activity lifecycle transitions an in-process
-test cannot produce; those belong to the adb-driven lifecycle tier
-(INTEG-011).
+(`PAUSE-019`), fresh activation with other sites live
+(`PAUSE-017`), the return from a pushed opaque route (`PAUSE-024`),
+and the nested `InAppWebViewScreen` — both its own fresh surface and
+the return to the main page behind it (`PAUSE-026`). Warm start,
+activity recreation, and bfcache back navigation need real activity
+lifecycle transitions an in-process test cannot produce; those belong
+to the adb-driven lifecycle tier (INTEG-011).
+
+At least one scenario per commit-side repaint (`PAUSE-021`,
+`PAUSE-025`) SHALL be driven by a page that **withholds its first byte
+longer than the nudge's tick budget** (~0.6s). A page that commits
+instantly is repainted by the issue-time nudge whether or not the
+settled-side re-nudge exists, so an all-instant suite cannot fail on
+the ordering defect that every BUG-001 recurrence since Attempt 8 has
+actually been — it asserts only that the app renders at all. The
+delay SHALL come from the in-process server holding the response, not
+from a slow network, so the scenario stays deterministic.
+
+The nested-screen scenario SHALL reach the nested route through a
+**script-initiated cross-domain navigation** from a seeded site with
+`blockAutoRedirects` off, and the cross-domain target SHALL be the
+same in-process server reached under a second loopback address
+(`127.0.0.2` alongside `127.0.0.1`, hence a server bound to
+`anyIPv4`). Two hosts on one server keep the navigation genuinely
+cross-domain — `getBaseDomain` compares IP literals — while keeping a
+network failure impossible, and a scripted navigation keeps the
+scenario off any synthetic touch reaching the platform view.
+
+#### Scenario: A late-committing document is repainted promptly
+
+- **Given** a seeded site whose page withholds its first byte for
+  longer than the repaint nudge's tick budget
+- **When** the suite activates it, so the surface attaches and every
+  issue-time nudge drains before the document commits
+- **Then** the composited webview region shows the page's color within
+  a bounded settle window, which only the settled-side re-nudge
+  (`PAUSE-025`) can produce
+- **And** the deadline is tight on purpose: a blank that clears much
+  later, on some unrelated relayout, is still the bug
 
 #### Scenario: White control page proves the detector is not vacuous
 

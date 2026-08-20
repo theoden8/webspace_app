@@ -49,6 +49,7 @@ import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/cookie_isolation.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/surface_repaint_engine.dart';
+import 'package:webspace/services/surface_route_observer.dart';
 import 'package:webspace/services/diag_seed.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
@@ -883,6 +884,9 @@ class _WebSpaceAppState extends State<WebSpaceApp> {
     final Color accentColor = _accentColorToColor(_themeSettings.accentColor);
     return MaterialApp(
       onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
+      // Lets every webview-hosting screen learn when an opaque route above it
+      // pops, which re-attaches its platform view blank (PAUSE-024/BUG-001).
+      navigatorObservers: [surfaceRouteObserver],
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       locale: _localeOverride,
@@ -939,7 +943,7 @@ class _ArchiveSlice {
 }
 
 class _WebSpacePageState extends State<WebSpacePage>
-    with WidgetsBindingObserver
+    with WidgetsBindingObserver, RouteAware
     implements DeferredStartupHost {
   int? _currentIndex;
   final List<WebViewModel> _webViewModels = [];
@@ -1435,11 +1439,34 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) surfaceRouteObserver.subscribe(this, route);
+  }
+
+  /// An opaque route pushed over this page has popped and the webview is
+  /// visible again. While it was covered the platform view was not composited,
+  /// so Android detached its SurfaceView and re-attaches it here — blank, and
+  /// through none of the other chokepoints: the site did not change
+  /// (`_setCurrentIndex`), the controller was not recreated
+  /// (`onControllerReady`), nothing navigated, and the app never left the
+  /// foreground. See PAUSE-024 / BUG-001.
+  @override
+  void didPopNext() {
+    if (Platform.isAndroid) {
+      LogService.instance.log('SurfaceDiag', 'trigger=route-return -> nudge');
+    }
+    _nudgeSurfaceRepaint();
+  }
+
+  @override
   void dispose() {
     _foregroundPollTimer?.cancel();
     _resumeRepaintWindowTimer?.cancel();
     _navStateDebouncer.dispose();
     _untrustSub?.cancel();
+    surfaceRouteObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -3898,6 +3925,12 @@ class _WebSpacePageState extends State<WebSpacePage>
     // gesture is dead, so pull-to-refresh can't recover it — only this relayout
     // can. _probeRendererAndRecover above only relayouts web content, not the
     // surface (see its doc), so it does not cover this. No-op off Android.
+    //
+    // Activating a site whose document is still in flight has the PAUSE-021
+    // ordering on top of that: this nudge drains against a surface that has
+    // nothing to show yet, and the commit lands afterwards. Latch it so
+    // onLoadSettled repaints the committed document (PAUSE-025).
+    if (target.isLoading) _surfaceRepaint.noteCommitPending();
     _nudgeSurfaceRepaint();
     // _loadedIndices may have changed (LRU eviction, conflict unload,
     // first-load of target), so re-evaluate the background refresh
@@ -8212,7 +8245,19 @@ class _WebSpacePageState extends State<WebSpacePage>
                         // SurfaceView can come back blank-white. Reads
                         // _currentIndex live at fire time; no-op off Android.
                         webViewModel.onControllerReady = () {
-                          if (index == _currentIndex) _nudgeSurfaceRepaint();
+                          if (index != _currentIndex) return;
+                          // The nudge alone covers only a surface whose first
+                          // document has already committed. A fresh webview's
+                          // initial load commits an unbounded time after the
+                          // controller attaches — later than this loop's ~0.6s
+                          // budget on a slow page — so latch the commit too and
+                          // let onLoadSettled repaint it (PAUSE-025).
+                          _surfaceRepaint.noteCommitPending();
+                          if (Platform.isAndroid) {
+                            LogService.instance.log(
+                                'SurfaceDiag', 'trigger=controller-attach -> nudge');
+                          }
+                          _nudgeSurfaceRepaint();
                         };
 
                         // A reload of the visible site blanks the surface
@@ -8240,7 +8285,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                           if (!_surfaceRepaint.consumeLoadSettled()) return;
                           if (Platform.isAndroid) {
                             LogService.instance.log(
-                                'SurfaceDiag', 'trigger=reload-settled -> nudge');
+                                'SurfaceDiag', 'trigger=commit-settled -> nudge');
                           }
                           _nudgeSurfaceRepaint();
                         };

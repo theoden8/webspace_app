@@ -19,6 +19,7 @@ enum SurfaceTransition {
   back, // bfcache restore reuses the controller (PAUSE-018)
   forward, // bfcache restore reuses the controller (PAUSE-018)
   reload, // reload discards the painted frame, recommits later (PAUSE-021)
+  routeReturn, // an opaque route above popped, re-attaching the view (PAUSE-024)
   goHome, // dispose + rebuild at initUrl (PAUSE-017)
   rendererRebuilt, // renderer-gone recovery rebuild (PAUSE-017)
   appBackground, // app going to background: no attach, no repaint owed
@@ -68,29 +69,38 @@ class SurfaceRepaintEngine {
   static bool mustRepaint(SurfaceTransition t) =>
       t != SurfaceTransition.appBackground;
 
-  bool _reloadPending = false;
+  bool _commitPending = false;
 
-  /// Whether a reload has been issued whose new document has not yet settled.
-  bool get reloadPending => _reloadPending;
+  /// Whether a document has been issued whose commit onto the visible surface
+  /// has not yet settled.
+  bool get commitPending => _commitPending;
 
-  /// A reload was issued on the visible webview (PAUSE-021). Unlike every
-  /// other transition here, the surface does not go blank when the *call* is
-  /// made: the reload discards the painted frame and the new document commits
-  /// onto the surface some unbounded time later, so the one-shot nudge fired
-  /// at issue time can drain before the recommit lands — the same ordering
-  /// `formal/warmstart.tla` model-checks for the warm-start resume. This latch
-  /// carries the debt across that gap; [consumeLoadSettled] pays it.
-  void reloadIssued() {
-    _reloadPending = true;
+  /// A document was issued for the visible webview whose commit will land an
+  /// unbounded time later. Unlike every other transition here, the surface
+  /// does not go blank when the *call* is made: the old frame is discarded now
+  /// and the replacement commits later (network, parse, script), so the
+  /// one-shot nudge fired at issue time can drain before the commit lands —
+  /// the same ordering `formal/warmstart.tla` model-checks for the warm-start
+  /// resume. This latch carries the debt across that gap; [consumeLoadSettled]
+  /// pays it.
+  ///
+  /// Two callers arm it: a reload ([reloadIssued], PAUSE-021) and a
+  /// freshly-attached surface whose *first* document has not committed yet
+  /// (PAUSE-025).
+  void noteCommitPending() {
+    _commitPending = true;
   }
 
+  /// A reload was issued on the visible webview (PAUSE-021).
+  void reloadIssued() => noteCommitPending();
+
   /// A main-frame load settled on the visible webview. Returns true iff it
-  /// completes a pending reload, in which case the host MUST nudge: the
-  /// recommit is the reload's real surface attach. Consumes the latch, so a
+  /// completes a pending commit, in which case the host MUST nudge: the
+  /// commit is the document's real surface attach. Consumes the latch, so a
   /// later unrelated navigation does not nudge.
   bool consumeLoadSettled() {
-    if (!_reloadPending) return false;
-    _reloadPending = false;
+    if (!_commitPending) return false;
+    _commitPending = false;
     attach();
     return true;
   }

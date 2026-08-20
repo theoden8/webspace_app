@@ -34,13 +34,13 @@ min_obligations() {
   case "$1" in
     archive_identity.tla)      echo 25 ;;
     containers_disjoint.tla)   echo 23 ;;
-    current_loaded.tla)        echo 51 ;;
-    jar_matches.tla)           echo 51 ;;
+    current_loaded.tla)        echo 52 ;;
+    jar_matches.tla)           echo 52 ;;
     jar_repopulated.tla)       echo 28 ;;
     no_lost_update.tla)        echo 23 ;;
     proxy_coherent.tla)        echo 29 ;;
     proxy_failclosed_safe.tla) echo 28 ;;
-    repaint_liveness.tla)      echo 71 ;;
+    repaint_liveness.tla)      echo 72 ;;
     retention_safety.tla)      echo 22 ;;
     switch_guarded.tla)        echo 34 ;;
     # A new proof module is unpinned until someone records its count above.

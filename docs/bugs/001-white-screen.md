@@ -214,12 +214,60 @@ recommit, which is what the fix rests on. The `trigger=reload -> nudge` /
 `trigger=reload-settled -> nudge` pair exists to close that; until such a trace exists the
 causal claim is unverified, exactly as in Attempt 8.
 
+### Attempt 10 — Route-return chokepoint, first-commit latch, nested-screen parity (`PAUSE-024`/`025`/`026`)
+**Date:** 2026-08-20 · **Files:** lib/services/surface_route_observer.dart (new),
+lib/services/surface_repaint_engine.dart, lib/main.dart, lib/screens/inappbrowser.dart,
+formal/kernel.tla (+ proofs), test/surface_repaint_engine_test.dart,
+test/js/surface_repaint_funnel.test.js, integration_test/white_screen_test.dart,
+openspec/specs/webview-pause-lifecycle/spec.md
+**What it did:** Three paths, one shape each.
+(a) **Route return** (`PAUSE-024`): both webview-hosting screens are now `RouteAware` on a
+shared `surfaceRouteObserver` registered on `MaterialApp.navigatorObservers`, and nudge from
+`didPopNext`. The observer is typed to `PageRoute`, so only an *opaque* route — the kind that
+stops the platform view being composited — triggers it; dialogs and other popup routes, which
+leave the webview composited under the barrier, do not.
+(b) **First commit** (`PAUSE-025`): the `reloadIssued` latch generalised to
+`noteCommitPending`, and armed by a fresh controller attach and by activating a site whose load
+is still in flight. `consumeLoadSettled` then repaints the committed document exactly as it
+does for a reload. Diagnostics: `trigger=controller-attach -> nudge` and
+`trigger=commit-settled -> nudge` (the latter subsumes `reload-settled`).
+(c) **Nested-screen parity** (`PAUSE-026`): `InAppWebViewScreen` gained the controller-attach
+nudge, the post-resume window + `didChangeMetrics` re-nudge, and the route-return nudge. It
+already had the back path and the reload funnel.
+**Why:** These are the *reachable* paths a user hits that no prior attempt covers, found by
+auditing every surface (re)attach against the nudge chokepoints rather than waiting for
+another report. (a) is the most common of them: every full-screen route in the app — site
+settings, app settings, developer tools, downloads, the nested browser — detaches the visible
+site's `SurfaceView` while it covers the screen, and popping back re-attaches it through no
+chokepoint at all (same site, same controller, no navigation, no lifecycle event). (b) is
+open gap #7 from the 2026-08-13 report, where a first load commits after both fresh-webview
+nudges drain — the Attempt 8/9 ordering, on a surface that has never painted; the latch
+already existed and simply was not armed on that path. (c) matters because the main page's
+nudge physically cannot repaint the nested screen: it toggles an inset around the
+`IndexedStack`, which sits *under* the nested route, so a warm start with the nested browser
+on top had no repaint at all.
+**Why partial:** Still per-path (gap #3), and (b) still keys on `onLoadingChanged(false)`, the
+same parse-time proxy for the commit that gap #6 describes. Every trigger here is *reasoned
+from the mechanism*, not confirmed from a device report: unlike Attempt 9's reload, no user
+has yet stated "I returned from settings and it was white", so the `trigger=route-return`
+diagnostic exists to establish that from a log. The route-return nudge also assumes the
+embedder actually detaches the platform view under an opaque route; if a Flutter version keeps
+it attached, the nudge is a harmless no-op rather than a fix.
+
 ## Known open gaps (candidates for the next recurrence)
 
 1. ~~Nested `InAppWebViewScreen`~~ — **closed by Attempt 6** (now funneled + gated).
 2. **Forward navigation** (`goForward`) into a bfcached entry is the symmetric case of
    Attempts 5–6 and is currently unnudged. (There is no `goForward` call site today,
    but adding one on Android would need the same funnel.)
+8. ~~Return from a pushed route~~ — **closed by Attempt 10** for both screens
+   (`PAUSE-024`), gated structurally and covered by pixel scenarios 8 and 9.
+9. **Every attach path is still enumerated by hand.** Attempt 10 found its three paths by
+   auditing the code against the chokepoint list, not from a report — which is an improvement
+   on waiting for users, but the audit is only as good as the reviewer, and it must be redone
+   whenever a new screen hosts a webview or a new lifecycle signal appears. That is gap #3
+   from the process side: a native attach callback would make the audit unnecessary rather
+   than merely up to date.
 3. **The class isn't closed.** Every fix is per-path. The durable fix is a **single
    chokepoint** that nudges on *every* surface (re)attach — ideally a native
    surface-changed/-redrawn callback from the fork driving the repaint — instead of
@@ -262,7 +310,11 @@ causal claim is unverified, exactly as in Attempt 8.
    new `SurfaceDiag` line `trigger=metrics-resume -> nudge` exists to confirm this from a
    device log; until such a trace exists, the causal claim (this fixes the reported warm-start
    white screen) is unverified.
-7. **First activation of a fresh site is diagnostically dark and has no commit-side nudge.**
+7. ~~**First activation of a fresh site is diagnostically dark and has no commit-side nudge.**~~
+   **Closed by Attempt 10** (`PAUSE-025`): the controller attach now arms the commit latch and
+   emits `trigger=controller-attach -> nudge`, so the settled load repaints the first document
+   and the path is no longer dark. It inherits gap #6 — load-stop is not the frame commit.
+   Original report, kept for the lineage:
    Reported 2026-08-13 (sanitized log export): user cold-started to the site picker, tapped a
    not-yet-loaded site three minutes later, webview created from scratch, main-frame load
    started, white screen. The log cannot classify it because this path emits *no* SurfaceDiag:
@@ -302,6 +354,11 @@ causal claim is unverified, exactly as in Attempt 8.
   `inappbrowser.dart` must sit inside a `reloadAndRepaint` funnel that latches the reload,
   `main.dart` must wire both host hooks to the engine, and each file must drive the repaint
   off the load-settled signal. A new raw reload fails CI.
+  Attempt 10 adds three more: both webview screens must be `RouteAware`, subscribe and
+  unsubscribe from `surfaceRouteObserver`, and nudge in `didPopNext` (with the observer
+  registered on `MaterialApp`); each controller-attach handler must arm the commit latch as
+  well as nudge; and the nested screen must carry the resume window + `didChangeMetrics`
+  re-nudge. Dropping any of that wiring — the way a refactor quietly would — fails CI.
 - **Window-pixel detector + scenario suite**
   ([android/.../SurfaceDiagPlugin.kt](../../android/app/src/main/kotlin/org/codeberg/theoden8/webspace/SurfaceDiagPlugin.kt),
   [lib/services/surface_diag_native.dart](../../lib/services/surface_diag_native.dart),
@@ -312,8 +369,15 @@ causal claim is unverified, exactly as in Attempt 8.
   can reach — and classifies uniform white/black over the webview rect. The integration
   suite (emulator step in the `build-android` CI job, every push/PR) drives the
   in-process-drivable entry paths (fresh first activation incl. gap #7, loaded-site
-  switch, reload funnel, memory pressure, fresh activation among live sites) and fails
-  on a blank window, with a white control page proving the detector is not vacuous.
+  switch, reload funnel, memory pressure, fresh activation among live sites, plus
+  Attempt 10's route return and nested screen) and fails on a blank window, with a white
+  control page proving the detector is not vacuous.
+  Until Attempt 10 it was nonetheless **blind to the ordering every recurrence since
+  Attempt 8 is about**: every page it served committed in a millisecond, so the repaint
+  always landed while the issue-time nudge loop was still running, and no scenario could
+  tell "the fix works" from "the fix was never needed here". Scenarios 7 and 9 now
+  withhold the first byte for 3s, which puts the commit outside the ~0.6s nudge budget and
+  leaves the settled-side re-nudge as the only thing that can paint it.
   Not yet wired into production
   diagnostics; doing so would give `SurfaceDiag` log lines a `window=` classification.
   First emulator run confirmed the sampler reads real webview pixels on SwiftShader and

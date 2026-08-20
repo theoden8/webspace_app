@@ -180,3 +180,101 @@ for (const rel of GUARDED) {
     assert.ok(refs >= 2, `expected window-open definition + >=1 call site, found ${refs}`);
   });
 }
+
+// Route-return repaint gate (PAUSE-024 / BUG-001 Attempt 10). An opaque route
+// pushed over a webview screen stops its platform view from being composited,
+// so Android detaches the SurfaceView and re-attaches it blank on the pop.
+// That pop passes through no other chokepoint — same site, same controller, no
+// navigation, no lifecycle event — so every webview-hosting screen must be
+// RouteAware and nudge in didPopNext.
+{
+  test('lib/main.dart: the app registers the surface route observer', () => {
+    const src = linesOf('lib/main.dart').join('\n');
+    assert.match(src, /navigatorObservers:\s*\[[^\]]*surfaceRouteObserver/,
+      'MaterialApp must register surfaceRouteObserver, or no screen is notified');
+  });
+
+  for (const rel of GUARDED) {
+    const lines = linesOf(rel);
+    const src = lines.join('\n');
+
+    test(`${rel}: the webview screen subscribes to the route observer`, () => {
+      assert.match(src, /with\s+[^{]*RouteAware/,
+        'the state class must mix in RouteAware');
+      assert.match(src, /surfaceRouteObserver\.subscribe\(this,\s*route\)/,
+        'didChangeDependencies must subscribe the screen to its PageRoute');
+      assert.match(src, /surfaceRouteObserver\.unsubscribe\(this\)/,
+        'dispose must unsubscribe, or the observer retains a dead State');
+    });
+
+    test(`${rel}: didPopNext repaints the re-attached surface (PAUSE-024)`, () => {
+      const defIdx = lines.findIndex((l) => /void\s+didPopNext\s*\(/.test(l));
+      assert.ok(defIdx >= 0, 'didPopNext override must exist');
+      const body = lines.slice(defIdx, defIdx + 8).join('\n');
+      assert.match(body, /_nudgeSurfaceRepaint\(\)/,
+        'returning from a pushed route must nudge the surface');
+    });
+  }
+}
+
+// First-commit repaint gate (PAUSE-025 / BUG-001 Attempt 10, bug doc gap #7).
+// A freshly-attached SurfaceView shows its white default fill until the first
+// document commits, which on a slow page lands after the attach nudge's ~0.6s
+// budget has drained. The attach must therefore arm the same latch a reload
+// does, so the load-settled signal repaints the committed document.
+{
+  const COMMIT_LATCH = [
+    // file, the attach handler that must arm the latch
+    { file: 'lib/main.dart', handler: /onControllerReady\s*=\s*\(\)\s*\{/ },
+    { file: 'lib/screens/inappbrowser.dart', handler: /onControllerCreated:\s*\(controller\)\s*\{/ },
+  ];
+
+  for (const { file, handler } of COMMIT_LATCH) {
+    test(`${file}: a fresh controller attach latches the first commit`, () => {
+      const lines = linesOf(file);
+      const defIdx = lines.findIndex((l) => handler.test(l));
+      assert.ok(defIdx >= 0, 'the controller-attach handler must exist');
+      const body = lines.slice(defIdx, defIdx + 20).join('\n');
+      assert.match(body, /_surfaceRepaint\.noteCommitPending\(\)/,
+        'the attach must arm the commit latch (PAUSE-025)');
+      assert.match(body, /_nudgeSurfaceRepaint\(\)/,
+        'the attach must also nudge now (PAUSE-017)');
+    });
+  }
+}
+
+// Nested-screen lifecycle parity (PAUSE-020 in InAppWebViewScreen, BUG-001
+// Attempt 10). A warm start re-attaches the nested SurfaceView exactly as it
+// does the main page's, and the main page's nudge cannot reach it: that one
+// toggles an inset around an IndexedStack sitting under this route.
+{
+  const lines = linesOf('lib/screens/inappbrowser.dart');
+  const src = lines.join('\n');
+
+  test('lib/screens/inappbrowser.dart: a resume repaints the nested surface', () => {
+    const defIdx = lines.findIndex((l) =>
+      /void\s+didChangeAppLifecycleState\s*\(/.test(l),
+    );
+    assert.ok(defIdx >= 0, 'the nested screen must observe app lifecycle');
+    const body = lines.slice(defIdx, defIdx + 24).join('\n');
+    assert.match(body, /_openResumeRepaintWindow\(\)/,
+      'a resume must open the post-resume repaint window');
+    assert.match(body, /_nudgeSurfaceRepaint\(\)/,
+      'a resume must nudge the nested surface');
+  });
+
+  test('lib/screens/inappbrowser.dart: didChangeMetrics re-nudges in the window', () => {
+    const defIdx = lines.findIndex((l) => /void\s+didChangeMetrics\s*\(/.test(l));
+    assert.ok(defIdx >= 0, 'didChangeMetrics override must exist');
+    const body = lines.slice(defIdx, defIdx + 12).join('\n');
+    assert.match(body, /_resumeRepaintWindowOpen/,
+      'the re-nudge must be bounded to the post-resume window');
+    assert.match(body, /_nudgeSurfaceRepaint\(\)/,
+      'the attach signal must nudge the nested surface');
+  });
+
+  test('lib/screens/inappbrowser.dart: the resume window timer is cancelled', () => {
+    assert.match(src, /_resumeRepaintWindowTimer\?\.cancel\(\)/,
+      'dispose must cancel the window timer');
+  });
+}
