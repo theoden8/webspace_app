@@ -80,6 +80,20 @@ path — page/worker agreement in one flavour is not evidence for another.**
   the same page with `Worker` left unpatched gets a worker that starts and reads
   the real hardware, so "fall back to the original script" would convert this
   into a live escape. Both in `test/browser/worker_realm_escape.test.js`.
+- **The fail-open path (`WORK-006`) is itself an escape where it fires.** When
+  wrapping fails synchronously — `URL.createObjectURL` throwing, or an engine
+  refusing a `blob:` worker at construction — the original script is handed to
+  the real constructor and the resulting worker runs unshimmed, reporting the
+  real hardware against a spoofed document. The spec accepts that trade
+  explicitly ("a broken worker is worse than an unspoofed one"), so this is a
+  design decision to revisit rather than a bug to patch; it is listed here
+  because it is the widest remaining hole and its reach depends on a native
+  behavior nobody has measured. Chromium takes the async branch under CSP, so
+  the fallback does not fire there. **Unknown: which branch WKWebView and
+  Android System WebView take.** Both branches are pinned in
+  `test/browser/worker_realm_escape.test.js`; settling the native mode needs a
+  device.
+
 - **The `__ws*` install markers remain enumerable** on `globalThis` in worker
   scope as well as on `window`, so a fingerprinter can detect that *a* shim is
   present even when it cannot read past it. Repo-wide convention issue, tracked

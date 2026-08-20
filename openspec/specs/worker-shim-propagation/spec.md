@@ -182,12 +182,23 @@ real constructor verbatim: a broken worker is worse than an unspoofed one.
 **Given** a site with no active per-site shim
 **Then** no worker installer script is injected
 
-#### Scenario: Wrapping failure still yields a working worker
+#### Scenario: Wrapping failure still yields a working but unshimmed worker
 
-**Given** `URL.createObjectURL` throws
+**Given** `URL.createObjectURL` throws, or the engine refuses a `blob:` worker at
+construction time
 **When** the page calls `new Worker('w.js')`
 **Then** the real constructor receives `'w.js'` unchanged
 **And** a worker is still created
+**And** that worker is NOT shimmed — it reports the machine's real values while
+the document reports the spoofed ones
+
+This is the trade the requirement makes, not an implementation defect, but the
+cost is a live `WORK-002` disagreement and MUST be read as such: on any engine
+that refuses synchronously, every fail-open path is a fingerprinting escape.
+Which mode an engine picks is native — Chromium refuses a CSP-blocked `blob:`
+worker asynchronously, so the fallback never runs there. Both branches are
+pinned by `test/browser/worker_realm_escape.test.js`; the mode WKWebView and
+Android System WebView take is not yet established.
 
 #### Known gap: a CSP that forbids `blob:` workers breaks them outright
 

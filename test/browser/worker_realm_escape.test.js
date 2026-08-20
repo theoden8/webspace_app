@@ -242,6 +242,72 @@ test('the installer markers are enumerable in worker scope too', async (t) => {
 
 // ---------- documented gap ----------
 
+// Models an engine that refuses a blob: worker at construction time
+// rather than asynchronously. Installed before the installer so it is
+// what the installer captures as the real constructor.
+const SYNC_REFUSING_ENGINE = `
+(function () {
+  var Real = globalThis.Worker;
+  function Refusing(script, options) {
+    if (String(script).indexOf('blob:') === 0) {
+      throw new DOMException('Refused to create a worker from blob:', 'SecurityError');
+    }
+    return new Real(script, options);
+  }
+  Refusing.prototype = Real.prototype;
+  globalThis.Worker = Refusing;
+})();`;
+
+const CREATE_OBJECT_URL_THROWS = `
+URL.createObjectURL = function () { throw new Error('refused'); };`;
+
+test('WORK-006 fail-open yields a working but UNSHIMMED worker', async (t) => {
+  // Which failure mode an engine picks is native and outside this tier:
+  // Chromium refuses a CSP-blocked blob worker asynchronously (above), so
+  // the fallback never runs. An engine that refuses at construction, or
+  // any failure inside wrap(), takes the other branch — and that branch
+  // is testable here, whichever engine ends up on it.
+  //
+  // It resolves to an escape. WORK-006 says a broken worker is worse than
+  // an unspoofed one, so this is the documented trade being made, not a
+  // defect in the implementation. It is pinned because the cost is
+  // invisible in the spec text: the worker that "still works" reports the
+  // real hardware while the document reports the spoof, which is exactly
+  // the WORK-002 disagreement a fingerprinter looks for.
+  const triggers = {
+    'engine refuses blob: at construction': SYNC_REFUSING_ENGINE,
+    'URL.createObjectURL throws': CREATE_OBJECT_URL_THROWS,
+  };
+
+  for (const [name, inject] of Object.entries(triggers)) {
+    if (!requireBrowser(browser, t)) return;
+    const victim = await startVictim({ csp: CSP, assets: ASSETS });
+    const page = await browser.browser.newPage();
+    try {
+      await page.evaluateOnNewDocument(PAYLOAD);
+      // The engine stub has to precede the installer; the
+      // createObjectURL stub has to follow it, since wrap() reads
+      // URL.createObjectURL at call time.
+      if (inject === SYNC_REFUSING_ENGINE) await page.evaluateOnNewDocument(inject);
+      await page.evaluateOnNewDocument(INSTALLER);
+      if (inject === CREATE_OBJECT_URL_THROWS) await page.evaluateOnNewDocument(inject);
+      await page.goto(victim.url, { waitUntil: 'load' });
+
+      const doc = await pageVals(page);
+      const { mine } = await page.evaluate(runWorker, null, NO_NEST);
+
+      assert.ok(mine, `${name}: no worker was created — fail-open did not fire`);
+      assert.equal(mine.shimInstalled, false, `${name}: expected the unshimmed fallback`);
+      assert.notEqual(mine.hardwareConcurrency, doc.hardwareConcurrency,
+        `${name}: the fallback worker must be the one leaking real values`);
+      assert.notEqual(mine.deviceMemory, doc.deviceMemory, name);
+    } finally {
+      await page.close();
+      await victim.close();
+    }
+  }
+});
+
 const NO_BLOB_CSP = "default-src 'self'; script-src 'self'; worker-src 'self'";
 
 test('KNOWN GAP: the wrapper blob is what a blob-less CSP refuses', async (t) => {
