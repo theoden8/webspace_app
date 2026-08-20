@@ -91,6 +91,34 @@ void main() {
       );
     });
 
+    test('strips bidi overrides that fake an extension', () {
+      // U+202E reverses the rendered tail: the raw name ends in .exe but a
+      // save dialog draws "invoiceexe.png". Path separators and C0 controls
+      // were already stripped; these reorder without introducing either.
+      expect(
+        DownloadEngine.deriveFilename(
+          suggested: 'invoice\u202Egnp.exe',
+          url: 'https://example.com/',
+        ),
+        'invoicegnp.exe',
+      );
+      // Isolates (U+2066..U+2069) and the LRM/RLM marks do the same job.
+      expect(
+        DownloadEngine.deriveFilename(
+          suggested: 'photo\u2067\u202Egpj.apk\u2069',
+          url: 'https://example.com/',
+        ),
+        'photogpj.apk',
+      );
+      expect(
+        DownloadEngine.deriveFilename(
+          suggested: 'a\u200eb\u200fc.pdf',
+          url: 'https://example.com/',
+        ),
+        'abc.pdf',
+      );
+    });
+
     test('strips control characters', () {
       final name = DownloadEngine.deriveFilename(
         suggested: 'file\x00\x01.pdf',
