@@ -72,9 +72,16 @@ void main() {
       );
 
   /// Walks the settings row into the Privacy screen, where every switch
-  /// under test lives.
+  /// under test lives. The row sits in the Site section at the foot of
+  /// settings, so it has to be scrolled to before it exists to tap.
   Future<void> openPrivacy(WidgetTester tester) async {
-    await tester.tap(find.widgetWithText(ListTile, 'Privacy'));
+    final row = find.widgetWithText(ListTile, 'Privacy');
+    final settingsList = find
+        .descendant(of: find.byType(ListView), matching: find.byType(Scrollable))
+        .first;
+    await tester.scrollUntilVisible(row, 200, scrollable: settingsList);
+    await tester.pumpAndSettle();
+    await tester.tap(row);
     await tester.pumpAndSettle();
     expect(find.byType(SitePrivacyScreen), findsOneWidget,
         reason: 'the Privacy row must open the Privacy screen');
