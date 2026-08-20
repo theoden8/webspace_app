@@ -31,6 +31,7 @@ import 'package:webspace/services/language_shim.dart';
 import 'package:webspace/services/target_blank_rewrite.dart';
 import 'package:webspace/services/location_spoof_service.dart';
 import 'package:webspace/services/media_session_shim.dart';
+import 'package:webspace/services/page_zoom_shim.dart';
 import 'package:webspace/services/theme_color_scheme_shim.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
 import 'package:webspace/services/user_agent_identity_shim.dart';
@@ -195,6 +196,30 @@ Map<String, String> buildAllFixtures() {
   fixtures['language/en.js'] = buildLanguageShim('en');
   fixtures['language/fr_FR.js'] = buildLanguageShim('fr-FR');
   fixtures['language/ja.js'] = buildLanguageShim('ja');
+
+  // Mobile page zoom, one fixture per layout-width regime: Android pins an
+  // explicit width (dodging Chromium's 980px wide-viewport quirk), WebKit
+  // leaves the engine to resolve extend-to-zoom. Pixel-5-shaped view
+  // extents, the emulator profile the integration tier runs on.
+  fixtures['page_zoom/android_80.js'] = buildPageZoomViewportShim(
+      zoomPercent: 80,
+      pinLayoutWidth: true,
+      portraitWidth: 393,
+      landscapeWidth: 851);
+  fixtures['page_zoom/android_150.js'] = buildPageZoomViewportShim(
+      zoomPercent: 150,
+      pinLayoutWidth: true,
+      portraitWidth: 393,
+      landscapeWidth: 851);
+  // No view extents: the fallback path where only the one-shot innerWidth
+  // sample is available.
+  fixtures['page_zoom/android_80_no_extents.js'] =
+      buildPageZoomViewportShim(zoomPercent: 80, pinLayoutWidth: true);
+  fixtures['page_zoom/webkit_80.js'] = buildPageZoomViewportShim(
+      zoomPercent: 80,
+      pinLayoutWidth: false,
+      portraitWidth: 393,
+      landscapeWidth: 851);
 
   fixtures['camera_stream/shim.js'] = buildCameraStreamShim();
   fixtures['microphone_stream/shim.js'] = buildMicrophoneStreamShim();

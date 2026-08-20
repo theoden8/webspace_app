@@ -29,17 +29,21 @@ fastlane-driven Android/iOS screenshot pipeline (see
 [`screenshots`](../screenshots/spec.md) — `build-android`'s
 `reactivecircus/android-emulator-runner` and `build-apple`'s
 `simctl boot`). The Android-emulator scenarios are wired in:
-`white_screen_test.dart` (INTEG-010) and `shortcut_behavior_test.dart`
-(INTEG-013) run inside the `build-android` job on every push/PR, on the
+`white_screen_test.dart` (INTEG-010), `shortcut_behavior_test.dart`
+(INTEG-013) and `page_zoom_test.dart` (ZOOM-006 — the wide-viewport quirk
+behind BUG-008 exists in no other engine, and the same file also runs on
+both desktop loops) run inside the `build-android` job on every push/PR, on the
 same AVD profile and snapshot cache the screenshots lane uses (the
 emulator prerequisite steps are ungated; only the screenshot generation
 itself stays `workflow_dispatch`), followed in the same emulator step by
 the adb-driven lifecycle tier (INTEG-011), which drives warm start,
 bfcache back navigation, activity recreation, and the warm
-home-shortcut taps from outside the app process. Both in-process
-Android suites are Android-only (window-level `PixelCopy`;
+home-shortcut taps from outside the app process. The white-screen and
+shortcut suites are Android-only (window-level `PixelCopy`;
 `Platform.isAndroid`-gated shortcut paths), so both desktop loops skip
 them by basename exactly as they skip `screenshot_test.dart`; the
+page-zoom suite is the exception that stays in the desktop loops, because
+its whole point is that three engines must agree; the
 lifecycle tier is a shell harness, not an `integration_test` target,
 so the desktop loops never see it. A broader mobile tier (iOS
 Simulator) remains future scope and would extend the same boot setup

@@ -1,5 +1,6 @@
 import 'dart:collection';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:webspace/platform/host_platform.dart';
 
 import 'package:file_picker/file_picker.dart';
@@ -13,6 +14,7 @@ import 'package:webspace/services/do_not_track_shim.dart';
 import 'package:webspace/services/language_shim.dart';
 import 'package:webspace/services/launch_nonce.dart';
 import 'package:webspace/services/letterbox.dart';
+import 'package:webspace/services/page_zoom_shim.dart';
 import 'package:webspace/services/proxy_relay.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/target_blank_rewrite.dart';
@@ -1494,20 +1496,12 @@ class WebViewFactory {
   /// and modern WebKit (Safari 17+/WPE 2.40+), reflowing the layout to fill
   /// the window. Used on desktop engines (which ignore the viewport meta)
   /// and on mobile under desktop-mode (which owns the viewport). Mobile
-  /// non-desktop sites take the [_pageZoomViewportScript] path instead, so
+  /// non-desktop sites take the [buildPageZoomViewportShim] path instead, so
   /// the *layout* viewport reflows rather than the page shrinking into a
   /// gutter. Injected at DOCUMENT_START via a re-applied style element so it
   /// survives same-document navigations and reaches iframes.
   static String _pageZoomCss(int zoomPercent) =>
       'html{zoom:$zoomPercent% !important;}';
-
-  static String _trimZoomNum(double v) {
-    var s = v.toStringAsFixed(4);
-    if (s.contains('.')) {
-      s = s.replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
-    }
-    return s;
-  }
 
   static String _pageZoomScript(int zoomPercent) => '''
 (function(){
@@ -1606,55 +1600,21 @@ class WebViewFactory {
   if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',ensure,{once:true});}
 })();''';
 
-  /// Per-site page zoom — mobile path. Drives the *layout* viewport through
-  /// the viewport meta instead of CSS `zoom`. With `initial-scale=z` and no
-  /// `width` directive, Blink/WebKit derive the layout width as
-  /// `deviceWidth / z`, so the page reflows to fill the screen at scale `z`
-  /// (like a desktop browser's zoom) rather than being scaled down into a
-  /// gutter (z<1) or overflowing horizontally. Omitting `width` is required:
-  /// an explicit width pins the layout viewport and defeats the reflow, so
-  /// any width the page ships is stripped. Rewrites every
-  /// existing viewport meta and watches for late-inserted ones (SPAs,
-  /// frameworks) the same way [buildDesktopModeShim] does. Android also
-  /// needs `useWideViewPort=true` for the meta to be honoured (set in the
-  /// native settings); iOS WKWebView honours it natively.
-  static String _pageZoomViewportScript(int zoomPercent) {
-    final scale = _trimZoomNum(zoomPercent / 100);
-    return '''
-(function(){
-  var CONTENT='initial-scale=$scale';
-  function applyTo(m){ try{ m.setAttribute('content',CONTENT); }catch(e){} }
-  function ensure(){
-    try{
-      var metas=document.querySelectorAll('meta[name="viewport" i]');
-      if(metas.length===0){
-        var m=document.createElement('meta');
-        m.setAttribute('name','viewport');
-        m.setAttribute('content',CONTENT);
-        (document.head||document.documentElement).appendChild(m);
-      } else {
-        for(var i=0;i<metas.length;i++){ applyTo(metas[i]); }
-      }
-    }catch(e){}
-  }
-  ensure();
-  try{
-    var mo=new MutationObserver(function(muts){
-      for(var i=0;i<muts.length;i++){
-        var added=muts[i].addedNodes; if(!added) continue;
-        for(var j=0;j<added.length;j++){
-          var n=added[j];
-          if(n&&n.nodeType===1&&n.tagName==='META'){
-            var nm=n.getAttribute&&n.getAttribute('name');
-            if(nm&&nm.toLowerCase()==='viewport'){ applyTo(n); }
-          }
-        }
-      }
-    });
-    if(document.documentElement){ mo.observe(document.documentElement,{childList:true,subtree:true}); }
-    else { document.addEventListener('DOMContentLoaded',function(){ ensure(); mo.observe(document.documentElement,{childList:true,subtree:true}); }); }
-  }catch(e){}
-})();''';
+  /// The view's CSS-pixel width in each orientation, `(portrait,
+  /// landscape)`. The page-zoom shim pins the layout viewport against
+  /// these because everything reachable from the page is either spoofed
+  /// (`screen.*`, by the anti-fingerprinting shim) or already moved by the
+  /// zoom itself (`innerWidth`). Zero when no view is attached.
+  static (double, double) _viewExtents() {
+    final view = WidgetsBinding.instance.platformDispatcher.implicitView ??
+        (WidgetsBinding.instance.platformDispatcher.views.isEmpty
+            ? null
+            : WidgetsBinding.instance.platformDispatcher.views.first);
+    if (view == null || view.devicePixelRatio <= 0) return (0, 0);
+    final w = view.physicalSize.width / view.devicePixelRatio;
+    final h = view.physicalSize.height / view.devicePixelRatio;
+    if (w <= 0 || h <= 0) return (0, 0);
+    return (math.min(w, h), math.max(w, h));
   }
 
   /// Determine if a navigation was triggered by a user gesture.
@@ -2042,15 +2002,25 @@ class WebViewFactory {
     // the viewport meta) drive the layout viewport via `initial-scale` so
     // the page reflows to fill the screen instead of shrinking into a gutter
     // or overflowing horizontally; desktop engines ignore the viewport meta
-    // and keep the CSS `zoom` path. See [_pageZoomViewportScript].
-    final useViewportZoom = config.zoomPercent != 100 &&
-        (hostIsAndroid || hostIsIOS) &&
-        !desktopMode;
-    if (config.zoomPercent != 100) {
+    // and keep the CSS `zoom` path. Android additionally needs the layout
+    // width spelled out — see [buildPageZoomViewportShim].
+    final zoomPlan = planPageZoom(
+      zoomPercent: config.zoomPercent,
+      isAndroid: hostIsAndroid,
+      isIOS: hostIsIOS,
+      desktopMode: desktopMode,
+    );
+    if (zoomPlan.channel != PageZoomChannel.none) {
+      final viewExtents = _viewExtents();
       userScripts.add(inapp.UserScript(
         groupName: 'page_zoom',
-        source: useViewportZoom
-            ? '${_pageZoomViewportScript(config.zoomPercent)}\n;null;'
+        source: zoomPlan.channel == PageZoomChannel.viewportMeta
+            ? '${buildPageZoomViewportShim(
+                zoomPercent: config.zoomPercent,
+                pinLayoutWidth: zoomPlan.pinLayoutWidth,
+                portraitWidth: viewExtents.$1,
+                landscapeWidth: viewExtents.$2,
+              )}\n;null;'
             : '${_pageZoomScript(config.zoomPercent)}\n;null;',
         injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
         forMainFrameOnly: false,
@@ -2879,12 +2849,16 @@ class WebViewFactory {
       // Enable DevTools inspection in debug mode (chrome://inspect on Android)
       ..isInspectable = kDebugMode;
 
-    // Android honours the viewport meta (and thus the `initial-scale` page
-    // zoom) only when useWideViewPort is on; leave the default untouched
-    // otherwise. loadWithOverviewMode must stay off so the WebView respects
-    // our `initial-scale` rather than fitting the page to width. Desktop-mode
-    // already flips these via preferredContentMode = DESKTOP.
-    if (hostIsAndroid && useViewportZoom) {
+    // Android honours the viewport meta's layout width (and thus the page
+    // zoom) only when useWideViewPort is on: with it off, Chromium's
+    // AdjustForAndroidWebViewQuirks clamps the layout back to device width
+    // and resets the scale to 1 below 100%. The shim pairs with this by
+    // spelling the width out, which keeps the same quirk's wide-viewport
+    // branch (the 980px UA fallback, i.e. every site's desktop layout) out
+    // of the path. loadWithOverviewMode must stay off so the WebView
+    // respects our `initial-scale` rather than fitting the page to width.
+    // Desktop-mode already flips these via preferredContentMode = DESKTOP.
+    if (zoomPlan.needsWideViewPort) {
       settings.useWideViewPort = true;
       settings.loadWithOverviewMode = false;
     }
