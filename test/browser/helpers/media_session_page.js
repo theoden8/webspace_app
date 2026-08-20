@@ -73,6 +73,25 @@ async function newShimPage(browser) {
 const reports = (page) => page.evaluate(() => window.__reports);
 const settle = (ms = FIRST_REPORT_MS) => new Promise((r) => setTimeout(r, ms));
 
+// Wait until the reports satisfy `predicate`, then return them. For positive
+// assertions ("the frame reported") this beats sleeping a fixed interval: it
+// returns as soon as the report lands, and tolerates a loaded machine taking
+// longer, instead of encoding one guess that is both slow and flaky. On
+// timeout it returns whatever it has so the assertion prints a real diff
+// rather than a timeout.
+//
+// Negative assertions ("nothing reported") cannot use this - there is no
+// event to wait for, so they still have to sleep past the shim's reconcile.
+async function waitForReports(page, predicate, { timeout = 10000, interval = 100 } = {}) {
+  const deadline = Date.now() + timeout;
+  for (;;) {
+    const got = await reports(page);
+    if (predicate(got)) return got;
+    if (Date.now() >= deadline) return got;
+    await settle(interval);
+  }
+}
+
 module.exports = {
   FIRST_REPORT_MS,
   LAUNCH_ARGS,
@@ -80,4 +99,5 @@ module.exports = {
   newShimPage,
   reports,
   settle,
+  waitForReports,
 };

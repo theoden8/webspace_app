@@ -273,10 +273,11 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         incognito: widget.incognito,
         javascriptEnabled: widget.javascriptEnabled,
         userAgent: widget.userAgent,
-        thirdPartyCookiesEnabled: widget.thirdPartyCookiesEnabled,
-        // Mirror parent: when umbrella protection is on, force the four
-        // tracker-protection subordinates effectively-on regardless of
-        // their stored value.
+        // Mirror parent: when umbrella protection is on, the five
+        // tracker-protection subordinates behave as forced regardless of
+        // their stored value. Third-party cookies is the one forced *off*.
+        thirdPartyCookiesEnabled: widget.thirdPartyCookiesEnabled &&
+            !widget.trackingProtectionEnabled,
         clearUrlEnabled: widget.clearUrlEnabled || widget.trackingProtectionEnabled,
         dnsBlockEnabled: widget.dnsBlockEnabled || widget.trackingProtectionEnabled,
         contentBlockEnabled: widget.contentBlockEnabled || widget.trackingProtectionEnabled,

@@ -78,6 +78,31 @@ function installBrowserPolyfills(window) {
     window.GeolocationPosition = GeolocationPosition;
   }
 
+  // jsdom omits the Permissions API. The location shim patches
+  // Permissions.prototype.query so a page that asks for the geolocation
+  // permission state sees what a real browser would show for the site's
+  // grant; without a stand-in that branch never installs and goes untested.
+  if (typeof window.Permissions !== 'function') {
+    class Permissions {
+      query(descriptor) {
+        return Promise.resolve({
+          state: 'prompt',
+          status: 'prompt',
+          name: descriptor && descriptor.name,
+          onchange: null,
+          addEventListener() {},
+          removeEventListener() {},
+          dispatchEvent() { return true; },
+        });
+      }
+    }
+    window.Permissions = Permissions;
+    Object.defineProperty(window.navigator, 'permissions', {
+      value: new Permissions(),
+      configurable: true,
+    });
+  }
+
   // jsdom omits WebRTC. The shim's "off" branch replaces the constructor
   // with a thrower; the "relay" branch wraps the real constructor. We
   // need at least a stand-in class so the wrap branch has something to

@@ -4,6 +4,10 @@
 
   var STATIC_LOC = false;
   var LIVE_LOC = false;
+  // Refuse every request instead of letting the platform's own geolocation
+  // answer behind the webview's permission prompt. True whenever the site
+  // holds no explicit grant.
+  var BLOCK_LOC = true;
   // Grid step in degrees applied to the live fix before the page sees it.
   // 0 = no snap (GPS tier), ~0.001 = approximate (~110 m), ~0.01 = GSM
   // (~1.1 km). The longitude step is divided by cos(snappedLat) so cells
@@ -58,8 +62,9 @@
     } catch (e) {}
   }
 
-  // --- Geolocation: spoof (static) or live (real device GPS via Dart) ---
-  if ((STATIC_LOC || LIVE_LOC) && navigator.geolocation) {
+  // --- Geolocation: spoof (static), live (real device GPS via Dart), or
+  // blocked (refused outright) ---
+  if ((STATIC_LOC || LIVE_LOC || BLOCK_LOC) && navigator.geolocation) {
     var _coordsProto = (typeof GeolocationCoordinates !== 'undefined')
       ? GeolocationCoordinates.prototype : Object.prototype;
     var _posProto = (typeof GeolocationPosition !== 'undefined')
@@ -110,6 +115,21 @@
       };
     }
 
+    // A refusal the page cannot tell apart from the user denying the
+    // platform's own permission prompt: same code, same shape, delivered
+    // asynchronously through the error callback. `navigator.geolocation`
+    // itself stays in place — removing it would be trivially detectable and
+    // is not what a denied browser looks like.
+    function deniedError() {
+      return {
+        code: 1,
+        message: 'User denied Geolocation',
+        PERMISSION_DENIED: 1,
+        POSITION_UNAVAILABLE: 2,
+        TIMEOUT: 3,
+      };
+    }
+
     // Single source of truth for fetching a fresh real fix in live mode.
     // Returns a Promise that resolves with either {ok, lat, lng, acc} or
     // {error, payload}. The handler is registered Dart-side only when the
@@ -139,7 +159,11 @@
 
     var _latency = 150 + Math.random() * 250;
     var _getCurrent = function getCurrentPosition(success, error, options) {
-      if (LIVE_LOC) {
+      if (BLOCK_LOC) {
+        setTimeout(function() {
+          if (error) { try { error(deniedError()); } catch (e) {} }
+        }, _latency);
+      } else if (LIVE_LOC) {
         getLiveFix().then(function(r) {
           if (r.ok) {
             if (success) { try { success(makePositionFrom(r.lat, r.lng, r.acc)); } catch (e) {} }
@@ -159,7 +183,14 @@
     var _watchTimers = {};
     var _watch = function watchPosition(success, error, options) {
       var id = ++_watchId;
-      if (LIVE_LOC) {
+      if (BLOCK_LOC) {
+        // A denied watch still hands back an id, as a real browser does, and
+        // reports the refusal once. There is nothing to poll for, so no
+        // interval is registered and clearWatch(id) is a no-op.
+        setTimeout(function() {
+          if (error) { try { error(deniedError()); } catch (e) {} }
+        }, _latency);
+      } else if (LIVE_LOC) {
         var tick = function() {
           getLiveFix().then(function(r) {
             if (r.ok) {
@@ -206,8 +237,11 @@
       } catch (e) {}
     }
 
-    // Permissions API: geolocation should report 'granted' since
-    // getCurrentPosition resolves without prompting. Patch on
+    // Permissions API: report the state the page would observe from a real
+    // browser in the same situation — 'granted' when a grant resolves without
+    // prompting, 'denied' when every request is refused. A blocked site that
+    // saw 'granted' here and then a PERMISSION_DENIED error would be
+    // reporting an impossible combination. Patch on
     // Permissions.prototype rather than navigator.permissions so the
     // override does not leak as an own-property of navigator.permissions
     // (clean Chromium has Object.getOwnPropertyNames(navigator.permissions)
@@ -217,10 +251,11 @@
       var _origQuery = Permissions.prototype.query;
       var _query = function query(p) {
         if (p && p.name === 'geolocation') {
+          var _state = BLOCK_LOC ? 'denied' : 'granted';
           var status = {};
           Object.defineProperties(status, {
-            state: { value: 'granted', enumerable: true },
-            status: { value: 'granted', enumerable: true },
+            state: { value: _state, enumerable: true },
+            status: { value: _state, enumerable: true },
             onchange: { value: null, writable: true, enumerable: true },
           });
           status.addEventListener = function() {};

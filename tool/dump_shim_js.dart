@@ -70,7 +70,7 @@ Map<String, String> buildAllFixtures() {
     spoofAccuracy: 25.0,
     spoofTimezone: null,
     webRtcPolicy: WebRtcPolicy.defaultPolicy,
-  )!;
+  );
   fixtures['location_spoof/live_gps.js'] =
       LocationSpoofService.buildScript(
     locationMode: LocationMode.live,
@@ -79,7 +79,7 @@ Map<String, String> buildAllFixtures() {
     spoofAccuracy: 50.0,
     spoofTimezone: null,
     webRtcPolicy: WebRtcPolicy.defaultPolicy,
-  )!;
+  );
   fixtures['location_spoof/live_approximate.js'] =
       LocationSpoofService.buildScript(
     locationMode: LocationMode.live,
@@ -89,7 +89,7 @@ Map<String, String> buildAllFixtures() {
     spoofTimezone: null,
     liveLocationGranularity: LocationGranularity.approximate,
     webRtcPolicy: WebRtcPolicy.defaultPolicy,
-  )!;
+  );
   fixtures['location_spoof/live_gsm.js'] =
       LocationSpoofService.buildScript(
     locationMode: LocationMode.live,
@@ -99,7 +99,26 @@ Map<String, String> buildAllFixtures() {
     spoofTimezone: null,
     liveLocationGranularity: LocationGranularity.gsm,
     webRtcPolicy: WebRtcPolicy.defaultPolicy,
-  )!;
+  );
+  fixtures['location_spoof/blocked.js'] = LocationSpoofService.buildScript(
+    locationMode: LocationMode.off,
+    spoofLatitude: null,
+    spoofLongitude: null,
+    spoofAccuracy: 50.0,
+    spoofTimezone: null,
+    webRtcPolicy: WebRtcPolicy.defaultPolicy,
+  );
+  // A spoof site whose coordinates went missing must fail closed, not fall
+  // back to the platform fix.
+  fixtures['location_spoof/spoof_without_coords.js'] =
+      LocationSpoofService.buildScript(
+    locationMode: LocationMode.spoof,
+    spoofLatitude: null,
+    spoofLongitude: null,
+    spoofAccuracy: 50.0,
+    spoofTimezone: null,
+    webRtcPolicy: WebRtcPolicy.defaultPolicy,
+  );
   fixtures['location_spoof/timezone_only_tokyo.js'] =
       LocationSpoofService.buildScript(
     locationMode: LocationMode.off,
@@ -108,7 +127,7 @@ Map<String, String> buildAllFixtures() {
     spoofAccuracy: 50.0,
     spoofTimezone: 'Asia/Tokyo',
     webRtcPolicy: WebRtcPolicy.defaultPolicy,
-  )!;
+  );
   fixtures['location_spoof/webrtc_relay.js'] =
       LocationSpoofService.buildScript(
     locationMode: LocationMode.off,
@@ -117,7 +136,7 @@ Map<String, String> buildAllFixtures() {
     spoofAccuracy: 50.0,
     spoofTimezone: null,
     webRtcPolicy: WebRtcPolicy.relayOnly,
-  )!;
+  );
   fixtures['location_spoof/webrtc_disabled.js'] =
       LocationSpoofService.buildScript(
     locationMode: LocationMode.off,
@@ -126,7 +145,7 @@ Map<String, String> buildAllFixtures() {
     spoofAccuracy: 50.0,
     spoofTimezone: null,
     webRtcPolicy: WebRtcPolicy.disabled,
-  )!;
+  );
   fixtures['location_spoof/full_combo.js'] = LocationSpoofService.buildScript(
     locationMode: LocationMode.spoof,
     spoofLatitude: 48.8566,
@@ -134,7 +153,7 @@ Map<String, String> buildAllFixtures() {
     spoofAccuracy: 30.0,
     spoofTimezone: 'Europe/Paris',
     webRtcPolicy: WebRtcPolicy.relayOnly,
-  )!;
+  );
 
   fixtures['do_not_track/shim.js'] = buildDoNotTrackShim();
 
@@ -215,7 +234,7 @@ Map<String, String> buildAllFixtures() {
       spoofAccuracy: 50.0,
       spoofTimezone: 'UTC',
       webRtcPolicy: WebRtcPolicy.disabled,
-    )!,
+    ),
     buildLanguageShim('en'),
   ])!;
 

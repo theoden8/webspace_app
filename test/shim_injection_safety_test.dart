@@ -60,8 +60,7 @@ void main() {
       spoofTimezone: payload,
       webRtcPolicy: WebRtcPolicy.defaultPolicy,
     );
-    expect(shim, isNotNull);
-    expectNoBreakout(shim!, 'LocationSpoofService.buildScript');
+    expectNoBreakout(shim, 'LocationSpoofService.buildScript');
   });
 
   test('anti-fingerprinting shim json-encodes the seed', () {

@@ -15,6 +15,7 @@ const {
   newShimPage,
   reports,
   settle,
+  waitForReports,
 } = require('./helpers/media_session_page');
 
 const browser = setupBrowser(LAUNCH_ARGS);
@@ -52,8 +53,12 @@ test('a frame with no media of its own never reports', async (t) => {
     // undo it.
     const frames = await page.evaluate(async () => {
       const a = document.createElement('audio');
-      a.loop = true;
-      a.src = wsMakeSilentWav(2);
+      // Long enough that the observation window below cannot reach the end of
+      // the clip, so no loop restart is involved. Looping a 2s clip across a
+      // 4s wait meant a stall at the loop boundary on a loaded machine showed
+      // up as a genuine playing:false from the *main* frame, failing an
+      // assertion whose message blamed the iframe.
+      a.src = wsMakeSilentWav(30);
       document.body.appendChild(a);
       await a.play();
       const d = document.querySelector('iframe').contentDocument;
@@ -63,17 +68,24 @@ test('a frame with no media of its own never reports', async (t) => {
       return null;
     });
     assert.equal(frames, null);
-    await settle(RECONCILE_MS);
 
-    const got = await reports(page);
+    const got = await waitForReports(page, (r) => r.length >= 1);
     assert.ok(got.length >= 1, 'the main frame must still report');
-    assert.ok(
-      got.every((r) => r.payload.playing === true),
-      'the media-less iframe must not report playing:false',
-    );
+
+    // This is the BGAUDIO-008 invariant: exactly one frame speaks for the
+    // site. If the media-less iframe had reported anything, playing:false
+    // included, its own token would be here as a second entry.
     const tokens = new Set(got.map((r) => r.payload.frame));
     assert.equal(tokens.size, 1, 'only the playing frame may report');
     assert.match(got[0].payload.frame, /^f[a-z0-9]+$/);
+
+    // Asserted separately, and only of the frame that is actually playing.
+    // Requiring it of *every* report conflated "the iframe stayed silent"
+    // with "playback never hiccuped", and only the first is the invariant.
+    assert.ok(
+      got.some((r) => r.payload.playing === true),
+      'the playing frame must report playing:true',
+    );
   } finally {
     await page.close();
   }

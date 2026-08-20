@@ -617,6 +617,15 @@ class WebViewModel {
   /// site is moved back out of the archive.
   bool get effectiveIncognito => isArchiveTier ? true : incognito;
 
+  /// Effective third-party cookie enable. Tracking Protection forces it off
+  /// (ETP-024): third-party cookies are the oldest cross-site tracking
+  /// channel, and leaving them on while the umbrella claims to block
+  /// trackers would be the umbrella's largest hole. Grouped with the four
+  /// list-based subordinates it already forces on, except that this one is
+  /// forced *off* rather than on.
+  bool get effectiveThirdPartyCookiesEnabled =>
+      trackingProtectionEnabled ? false : thirdPartyCookiesEnabled;
+
   /// Effective protected-content (Widevine/EME) decision. Archive-tier
   /// sites never grant DRM regardless of stored value: a grant provisions
   /// a per-container Widevine device identifier on disk and the prompt is
@@ -876,7 +885,7 @@ class WebViewModel {
       await c.setOptions(
         javascriptEnabled: javascriptEnabled,
         userAgent: effectiveUserAgentOrNull,
-        thirdPartyCookiesEnabled: thirdPartyCookiesEnabled,
+        thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled,
         incognito: effectiveIncognito,
       );
       // Apply current theme preference
@@ -1081,7 +1090,7 @@ class WebViewModel {
           initialUrl: currentUrl,
           javascriptEnabled: javascriptEnabled,
           userAgent: effectiveUserAgentOrNull,
-          thirdPartyCookiesEnabled: thirdPartyCookiesEnabled,
+          thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled,
           incognito: effectiveIncognito,
           // Root site webview sits at the MaterialApp root route: on iOS/macOS
           // there is no Flutter route-pop edge-swipe here, so opt into
@@ -1225,7 +1234,7 @@ class WebViewModel {
                   '  -> CANCEL (opening nested webview)',
                   sensitivity: LogSensitivity.sensitive,
                 );
-                launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: localCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: notificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser);
+                launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: localCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: notificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser);
                 return false;
               case NavigationDecision.blockOpenExternal:
                 LogService.instance.log(
@@ -1332,7 +1341,7 @@ class WebViewModel {
                     sensitivity: LogSensitivity.sensitive,
                   );
                   if (handled.launchNestedUrl != null) {
-                    launchUrlFunc(handled.launchNestedUrl!, homeTitle: name, siteId: siteId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: localCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: notificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser);
+                    launchUrlFunc(handled.launchNestedUrl!, homeTitle: name, siteId: siteId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: localCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: notificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser);
                   }
                   return;
                 case NavigationDecision.blockOpenExternal:
@@ -1433,7 +1442,7 @@ class WebViewModel {
             } else {
               cookies = newCookies;
             }
-            if (!thirdPartyCookiesEnabled && controller != null) {
+            if (!effectiveThirdPartyCookiesEnabled && controller != null) {
               removeThirdPartyCookies(controller!);
             }
             await saveFunc();

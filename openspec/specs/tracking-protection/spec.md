@@ -122,14 +122,15 @@ false
 **When** the webview is constructed
 **Then** the `WebViewConfig` has `clearUrlEnabled: false`
 
-#### Scenario: Settings UI reflects forcing
+#### Scenario: Privacy UI reflects forcing
 
-**Given** `trackingProtectionEnabled` is true on the site settings
-screen
+**Given** `trackingProtectionEnabled` is true on the site Privacy screen
+(ETP-017)
 **Then** the ClearURLs / DNS / Content Blocker / LocalCDN
 `SwitchListTile`s show `value: true`
 **And** their `onChanged: null` (visually disabled)
-**And** their subtitle reads "Forced on by Tracking Protection"
+**And** their subtitle keeps describing the setting rather than repeating
+the forcing, which the disabled switch already shows
 
 ---
 
@@ -683,24 +684,65 @@ is `true`
 
 ---
 
-### Requirement: ETP-017 - Settings UI
+### Requirement: ETP-017 - Privacy screen
 
-The site Settings screen SHALL expose the umbrella as a `SwitchListTile`
-labeled "Tracking Protection" with a subtitle of "Anti-fingerprinting +
-force tracker blocking", placed above the four subordinate switches.
-The subordinate switches SHALL render with `onChanged: null` and value
-`true` whenever the umbrella is on, with subtitle "Forced on by Tracking
-Protection". The LocalCDN subordinate is gated additionally by
-`LocalCdnService.instance.hasCache` — its effective value is
-`(stored || umbrella) && hasCache`, since it has no effect without a
-populated cache.
+Everything that decides what a site can learn SHALL live on one per-site
+Privacy screen (`SitePrivacyScreen`), reached from a single row in site
+settings. The screen SHALL present, in order: Incognito mode as a
+prominent card; the umbrella as a second prominent card labeled "Tracking
+Protection" with subtitle "Anti-fingerprinting + force tracker blocking";
+a "Trackers and ads" group holding ClearURLs, DNS Blocklist, Content
+Blocker, LocalCDN (Android only) and Third-party cookies; and a
+"Fingerprinting" group holding the letterbox switch.
 
-#### Scenario: Umbrella switch placed above subordinates
+Subordinates SHALL render `onChanged: null` while the umbrella is on,
+with `value: true` for ETP-002's four and `value: false` for third-party
+cookies (ETP-024). Only the third-party cookies row SHALL caption the
+forcing ("Forced off by Tracking Protection"): a locked switch already
+reads as locked, and repeating the reason on all five rows displaced the
+one fact those subtitles carry, which is whether a blocker's data has
+been downloaded. Forcing something *off* is the direction a reader does
+not predict, so that row keeps its note. The LocalCDN subordinate is
+gated additionally by `LocalCdnService.instance.hasCache` — its effective
+value is `(stored || umbrella) && hasCache`, since it has no effect
+without a populated cache.
 
-**Given** the user opens the per-site Settings screen
-**Then** a `SwitchListTile` titled "Tracking Protection" is shown
-**And** it is rendered above the ClearURLs / DNS Blocklist / Content
-Blocker / LocalCDN switches
+Incognito mode leads the screen and SHALL NOT be forced by the umbrella:
+a block-list turning itself on costs the user nothing, whereas incognito
+discards their session on every restart. Grouping is by topic; forcing is
+reserved for settings whose worst case is a missing page element or a
+closed tracking channel.
+
+HTML caching SHALL NOT appear here. It decides whether a page is redrawn
+from disk on a cold start, which is a behaviour of the app rather than
+something a site learns; it lives with the other behaviour switches on
+the settings screen.
+
+The anti-fingerprinting note under the letterbox group SHALL render only
+while the umbrella is on, since with it off nothing is being randomised.
+
+The screen SHALL own no persistent state. `SiteSettingsScreen` keeps the
+fields, the dirty-snapshot diff and the save path (BUG-006 / EDIT-009);
+the screen reads a `SitePrivacyValues` and reports whole values back
+through `onChanged`.
+
+The Privacy and Permissions rows SHALL sit at the foot of site settings
+under a "Site" heading, below the leaf switches, Privacy first. They are
+the two rows a reader visits deliberately; the switches above are what
+they scroll past on the way to something else.
+
+The Privacy row SHALL summarise the current posture without being opened:
+"Tracking Protection on" while the umbrella is on, otherwise the names of
+the enabled protections (at most two, then a "{count} more" overflow), or
+"No protection enabled" when none is.
+
+#### Scenario: Incognito leads, umbrella follows
+
+**Given** the user opens the per-site Privacy screen
+**Then** an Incognito mode switch is shown above the "Tracking
+Protection" switch
+**And** both are rendered above the ClearURLs / DNS Blocklist / Content
+Blocker / LocalCDN / Third-party cookies switches
 
 #### Scenario: Subordinates disabled while umbrella is on
 
@@ -710,14 +752,35 @@ Blocker / LocalCDN switches
 **And** the LocalCDN switch shows `value: true` when
 `LocalCdnService.instance.hasCache` is true (otherwise `false`, since
 the cache is empty)
+**And** the Third-party cookies switch shows `value: false`
 **And** their `onChanged` is `null` (Material renders the switch grey)
-**And** their subtitle reads "Forced on by Tracking Protection"
+
+#### Scenario: The forcing is captioned once, not five times
+
+**Given** the umbrella is on
+**Then** no "Forced on by Tracking Protection" subtitle is rendered
+**And** the Third-party cookies row reads "Forced off by Tracking
+Protection"
+**And** the ClearURLs row keeps its own description
 
 #### Scenario: Subordinates editable while umbrella is off
 
 **Given** the umbrella is off
-**Then** the four subordinate switches are tappable
+**Then** the five subordinate switches are tappable
 **And** their values reflect the per-site stored booleans
+
+#### Scenario: Incognito stays the user's own decision
+
+**Given** the umbrella is on
+**Then** the Incognito mode switch is still tappable
+**And** its value reflects the per-site stored boolean
+
+#### Scenario: Settings row summarises without opening
+
+**Given** a site with the umbrella off and only ClearURLs enabled
+**Then** the Privacy row in site settings reads "ClearURLs"
+**And** with the umbrella on it reads "Tracking Protection on"
+**And** with nothing enabled it reads "No protection enabled"
 
 ---
 
@@ -792,11 +855,67 @@ permission itself.
 
 #### Scenario: Settings UI reflects forcing
 
-**Given** `trackingProtectionEnabled` is true on the site settings
+**Given** `trackingProtectionEnabled` is true on the site Permissions
 screen
-**Then** the Protected content (DRM) dropdown shows "Always block"
-**And** its `onChanged` is `null` (visually disabled)
-**And** the tile subtitle reads "Blocked by Tracking Protection"
+**Then** the Protected content row reads "Blocked"
+**And** the row is inert, not tappable
+**And** its subtitle names Tracking Protection as the reason
+
+---
+
+### Requirement: ETP-024 - Third-party cookies forced off under umbrella
+
+The umbrella SHALL force `thirdPartyCookiesEnabled` to behave as false
+whenever `trackingProtectionEnabled` is true, regardless of the stored
+per-site value. Third-party cookies are the oldest cross-site tracking
+channel, and leaving them reachable while the umbrella blocks tracker
+requests, strips tracking parameters and randomises fingerprints would
+be the umbrella's largest remaining hole.
+
+This is the one subordinate the umbrella forces *off* rather than on.
+ETP-002's four subordinates are block-lists whose failure mode is a
+missing page element; third-party cookies additionally carry sign-in
+redirects and embedded checkouts, so the stored value SHALL be preserved
+and restored when the umbrella goes off (mirroring ETP-002 and ETP-023).
+
+The forcing SHALL be derived on `WebViewModel` as
+`effectiveThirdPartyCookiesEnabled`, and every path that hands the value
+to a webview SHALL read that getter rather than the stored field:
+`WebViewConfig` construction, `WebViewController.setOptions`, the
+third-party cookie sweep in `onCookiesChanged`, and both `launchUrl`
+call sites. The nested `InAppWebViewScreen` SHALL apply the same forcing
+to the config it builds, as it already does for ETP-002's four.
+
+#### Scenario: Stored enabled, umbrella on
+
+**Given** `thirdPartyCookiesEnabled` is true and
+`trackingProtectionEnabled` is true
+**When** the webview is constructed
+**Then** the `WebViewConfig` has `thirdPartyCookiesEnabled: false`
+**And** the stored `thirdPartyCookiesEnabled` remains true
+**And** a settings export still records the stored true
+
+#### Scenario: Umbrella off restores the stored value
+
+**Given** `thirdPartyCookiesEnabled` is true and
+`trackingProtectionEnabled` is false
+**When** the webview is constructed
+**Then** the `WebViewConfig` has `thirdPartyCookiesEnabled: true`
+
+#### Scenario: Nested webview forces too
+
+**Given** the parent site has `trackingProtectionEnabled: true` and
+`thirdPartyCookiesEnabled: true`
+**When** a cross-domain link opens a nested `InAppWebViewScreen`
+**Then** the nested `WebViewConfig` has `thirdPartyCookiesEnabled: false`
+
+#### Scenario: Privacy UI reflects forcing
+
+**Given** `trackingProtectionEnabled` is true on the site Privacy screen
+**Then** the Third-party cookies `SwitchListTile` shows `value: false`
+**And** its `onChanged` is `null`
+**And** its subtitle reads "Forced off by Tracking Protection", the one
+forced row that captions itself (ETP-017)
 
 ---
 
@@ -829,7 +948,15 @@ clearUrlEnabled: clearUrlEnabled || trackingProtectionEnabled,
 dnsBlockEnabled: dnsBlockEnabled || trackingProtectionEnabled,
 contentBlockEnabled: contentBlockEnabled || trackingProtectionEnabled,
 localCdnEnabled: localCdnEnabled || trackingProtectionEnabled,
+thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled,
 trackingProtectionEnabled: trackingProtectionEnabled,
+```
+
+`effectiveThirdPartyCookiesEnabled` inverts (ETP-024):
+
+```dart
+bool get effectiveThirdPartyCookiesEnabled =>
+    trackingProtectionEnabled ? false : thirdPartyCookiesEnabled;
 ```
 
 The stored `WebViewModel` field is unchanged; only the `WebViewConfig`
@@ -870,6 +997,11 @@ in `kExportedAppPrefs` is needed.
 - `test/js_fixtures/anti_fingerprinting/shim_seed_alpha.js`
 - `test/js_fixtures/anti_fingerprinting/shim_seed_beta.js`
 - `openspec/specs/tracking-protection/spec.md` — This spec.
+- `lib/screens/site_privacy.dart` — The Privacy screen (ETP-017):
+  `SitePrivacyValues` plus the umbrella card and its three groups.
+- `test/site_privacy_screen_test.dart` — Forcing and grouping tests.
+- `test/js/tracking_protection_umbrella_funnel.test.js` — Structural gate:
+  no path may hand a webview the stored value of a forced setting.
 
 ### Modified
 - `lib/web_view_model.dart` — Added `trackingProtectionEnabled` field,
@@ -879,7 +1011,8 @@ in `kExportedAppPrefs` is needed.
   `fingerprintResetNonce` (ETP-022) with the same serialisation +
   propagation, plus `rerollFingerprint`.
   `effectiveProtectedContentAllowed` forces deny under the umbrella
-  (ETP-023).
+  (ETP-023); `effectiveThirdPartyCookiesEnabled` forces third-party
+  cookies off under it (ETP-024).
 - `lib/services/webview.dart` — Added `trackingProtectionEnabled` to
   `WebViewConfig`, shim injection. Added `letterboxEnabled` /
   `spoofWindowWidth` / `spoofWindowHeight` / `fingerprintResetNonce` to
@@ -890,16 +1023,18 @@ in `kExportedAppPrefs` is needed.
 - `lib/services/anti_fingerprinting_shim.dart` — Letterbox-mode
   `screen.*`-mirrors-`window.inner*` (ETP-020); `resetNonce` folded into
   the seed (ETP-022).
-- `lib/screens/settings.dart` — "Letterbox window" switch + box
-  width/height fields under Tracking Protection, gated on the umbrella.
+- `lib/screens/site_privacy.dart` — "Letterbox window" switch under
+  Tracking Protection, gated on the umbrella.
 - `lib/main.dart` — Added `trackingProtectionEnabled` to `launchUrl`
   signature and the `InAppWebViewScreen` construction.
 - `lib/screens/inappbrowser.dart` — Added `trackingProtectionEnabled`
   ctor field, mirrored forcing into the nested `WebViewConfig`; nested
   protected-media handler denies under the umbrella (ETP-023).
-- `lib/screens/settings.dart` — Umbrella `SwitchListTile` and grey-out
-  for the three subordinates; Protected content (DRM) dropdown pinned to
-  "Always block" and disabled under the umbrella (ETP-023).
+- `lib/screens/settings.dart` — The privacy tiles moved out to
+  `site_privacy.dart` (ETP-017), leaving a summary row that opens it;
+  what remains on the screen is grouped under Content / Behaviour /
+  Network headings. Protected content moved earlier to the permissions
+  screen (ETP-023).
 - `tool/dump_shim_js.dart` — Two pinned-seed fixtures.
 - `test/web_view_model_test.dart` — Round-trip + default tests for the
   new field.
@@ -913,6 +1048,7 @@ in `kExportedAppPrefs` is needed.
 ```bash
 fvm flutter test test/anti_fingerprinting_shim_test.dart
 fvm flutter test test/web_view_model_test.dart
+fvm flutter test test/site_privacy_screen_test.dart
 fvm flutter test test/js_fixtures_drift_test.dart
 ```
 

@@ -629,7 +629,9 @@ sample (observed as exact per-channel halving of the page colors).
 ### Requirement: INTEG-012 — Background refresh drives an observable notification
 
 The lifecycle harness SHALL verify the Android background-refresh
-contract (`NOTIF-005-A`, [web-push-notifications](../web-push-notifications/spec.md))
+contract (`NOTIF-005-A`,
+[web-push-notifications](../../changes/web-push-notifications/specs/web-push-notifications/spec.md)
+— still an unarchived change, so its requirements live under `openspec/changes/`)
 end to end from outside the process: a site seeded with
 `notificationsEnabled` whose page posts a JS `Notification` on every
 load, the app backgrounded, and the WorkManager periodic job

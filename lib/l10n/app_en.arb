@@ -1840,10 +1840,6 @@
   "@siteSettingsTrackingProtectionSubtitle": {
     "description": "Subtitle for the Tracking Protection switch."
   },
-  "siteSettingsForcedByTrackingProtection": "Forced on by Tracking Protection",
-  "@siteSettingsForcedByTrackingProtection": {
-    "description": "Subtitle shown for a per-site toggle that is forced on because Tracking Protection is enabled."
-  },
   "siteSettingsClearUrls": "ClearURLs",
   "@siteSettingsClearUrls": {
     "description": "Switch label and hint title for the ClearURLs feature."
@@ -2137,9 +2133,9 @@
   "@siteSettingsGeolocation": {
     "description": "Title and hint title for the geolocation section."
   },
-  "siteSettingsGeolocationHint": "Geolocation",
+  "siteSettingsGeolocationHint": "Controls what this site learns about where you are.\n\nLive: the device's real position, snapped to the precision tier you choose.\nStatic: a fixed point you pick on a map. The real position is never read.\nOff: every request is refused, exactly as a denied browser prompt would be.",
   "@siteSettingsGeolocationHint": {
-    "description": "Hint description for the geolocation section."
+    "description": "Explanatory body shown on the geolocation permission sheet: what each of the three modes hands to the site. Follows the same shape as the camera and microphone hints."
   },
   "siteSettingsLocationOff": "Off",
   "@siteSettingsLocationOff": {
@@ -2153,9 +2149,9 @@
   "@siteSettingsLocationLive": {
     "description": "Geolocation mode segment: live device GPS."
   },
-  "siteSettingsLocationOffDetail": "Pages get your real location (or are blocked by the OS).",
+  "siteSettingsLocationOffDetail": "This site is refused access to your location.",
   "@siteSettingsLocationOffDetail": {
-    "description": "Detail text shown when geolocation override is off."
+    "description": "Detail text shown when the site is refused geolocation entirely."
   },
   "siteSettingsLocationLiveDetail": "Forwarding live device location to pages.",
   "@siteSettingsLocationLiveDetail": {
@@ -2204,10 +2200,6 @@
   "siteSettingsLocationPick": "Pick",
   "@siteSettingsLocationPick": {
     "description": "Button to open the location picker."
-  },
-  "siteSettingsLocationSectionTitle": "Location & timezone",
-  "@siteSettingsLocationSectionTitle": {
-    "description": "Section header for the location and timezone settings."
   },
   "siteSettingsTimezoneLabel": "Timezone",
   "@siteSettingsTimezoneLabel": {
@@ -3455,8 +3447,12 @@
   "@blockStatsSince": {
     "description": "Footer line of the protection report giving the all-time total and the day counting started, e.g. \"115 blocked since 22 June 2026\".",
     "placeholders": {
-      "count": { "type": "int" },
-      "date": { "type": "String" }
+      "count": {
+        "type": "int"
+      },
+      "date": {
+        "type": "String"
+      }
     }
   },
   "blockStatsEmpty": "Nothing blocked yet",
@@ -3478,5 +3474,118 @@
   "appSettingsProtectionReportSubtitle": "What the blockers stopped, over time",
   "@appSettingsProtectionReportSubtitle": {
     "description": "Subtitle of the App Settings row that opens the protection report screen."
+  },
+  "permissionsTitle": "Permissions",
+  "@permissionsTitle": {
+    "description": "Title of the per-site permission screen, and of the row in site settings that opens it."
+  },
+  "permissionsGroupDeviceAccess": "Device access",
+  "@permissionsGroupDeviceAccess": {
+    "description": "Heading for the permission group covering camera, microphone and location."
+  },
+  "permissionsGroupBackground": "Background activity",
+  "@permissionsGroupBackground": {
+    "description": "Heading for the permission group covering notifications and background audio playback."
+  },
+  "permissionsGroupMedia": "Media",
+  "@permissionsGroupMedia": {
+    "description": "Heading for the permission group covering protected (DRM) media playback."
+  },
+  "permissionsRealDeviceNote": "Only Allowed opens real hardware. Simulated serves a file you picked and never touches the device.",
+  "@permissionsRealDeviceNote": {
+    "description": "Explanatory line under the device access group, distinguishing a real device grant from a served file."
+  },
+  "permissionsBackgroundAudioNotAGrant": "Exempt from pausing. Grants nothing.",
+  "@permissionsBackgroundAudioNotAGrant": {
+    "description": "Subtitle for the background audio switch, clarifying it is a playback exemption rather than a permission."
+  },
+  "permissionMicrophoneNeverReal": "Not available. WebSpace never opens a real microphone and never asks the system for a recording permission.",
+  "@permissionMicrophoneNeverReal": {
+    "description": "Shown on the greyed-out Allowed option for microphone, stating that a real microphone is never used."
+  },
+  "permissionStateAsk": "Ask",
+  "@permissionStateAsk": {
+    "description": "One-word permission state: no decision recorded yet, the first request will prompt."
+  },
+  "permissionStateAllowed": "Allowed",
+  "@permissionStateAllowed": {
+    "description": "One-word permission state: the real device or capability is handed to the site."
+  },
+  "permissionStateSimulated": "Simulated",
+  "@permissionStateSimulated": {
+    "description": "One-word permission state: the site is served a file the user picked instead of a real device."
+  },
+  "permissionStateBlocked": "Blocked",
+  "@permissionStateBlocked": {
+    "description": "One-word permission state: requests are rejected without prompting."
+  },
+  "permissionsSummaryNothingGranted": "Nothing granted",
+  "@permissionsSummaryNothingGranted": {
+    "description": "Summary on the permissions row in site settings when the site holds no permission."
+  },
+  "permissionsSummaryMore": "{count} more",
+  "@permissionsSummaryMore": {
+    "description": "Appended to the permissions or privacy summary in site settings when more entries are on than fit on the row.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "privacyTitle": "Privacy",
+  "@privacyTitle": {
+    "description": "Title of the per-site privacy screen, and of the row in site settings that opens it. Covers tracking protection, its subordinate blockers, and what the site is allowed to keep on disk."
+  },
+  "privacyGroupTrackers": "Trackers and ads",
+  "@privacyGroupTrackers": {
+    "description": "Heading for the privacy group covering URL parameter stripping, DNS blocking, the content blocker, LocalCDN and third-party cookies."
+  },
+  "privacyGroupFingerprinting": "Fingerprinting",
+  "@privacyGroupFingerprinting": {
+    "description": "Heading for the privacy group covering measures that make the browser harder to identify by its characteristics rather than by stored data."
+  },
+  "privacyFingerprintingNote": "Tracking Protection also randomises canvas, audio, font and hardware readings for this site.",
+  "@privacyFingerprintingNote": {
+    "description": "Explanatory line under the fingerprinting group, noting that the umbrella switch brings anti-fingerprinting measures beyond the one switch shown."
+  },
+  "privacySummaryProtectionOn": "Tracking Protection on",
+  "@privacySummaryProtectionOn": {
+    "description": "Summary on the privacy row in site settings when the umbrella tracking protection switch is on."
+  },
+  "privacySummaryNothingOn": "No protection enabled",
+  "@privacySummaryNothingOn": {
+    "description": "Summary on the privacy row in site settings when the site has no privacy protection turned on at all."
+  },
+  "siteSettingsForcedOffByTrackingProtection": "Forced off by Tracking Protection",
+  "@siteSettingsForcedOffByTrackingProtection": {
+    "description": "Subtitle on a setting that Tracking Protection turns off and locks while it is on. The inverse of the 'Forced on by Tracking Protection' subtitle."
+  },
+  "siteSettingsNeedsTrackingProtection": "Requires Tracking Protection",
+  "@siteSettingsNeedsTrackingProtection": {
+    "description": "Subtitle on a setting that can only be turned on while Tracking Protection is on."
+  },
+  "siteSettingsThirdPartyCookiesSubtitle": "Let embedded content set cookies across sites",
+  "@siteSettingsThirdPartyCookiesSubtitle": {
+    "description": "Subtitle for the third-party cookies switch, describing what turning it on permits."
+  },
+  "siteSettingsThirdPartyCookiesHint": "Cookies set by content embedded from another site, such as ads, share buttons and analytics widgets. They are the oldest way a tracker follows you from one site to the next, which is why Tracking Protection turns them off. Some sign-in redirects and embedded checkouts need them, so turn them back on for a site that breaks without them.",
+  "@siteSettingsThirdPartyCookiesHint": {
+    "description": "Explanatory popup for the third-party cookies switch: what such cookies are, why tracking protection blocks them, and when a user might legitimately want them."
+  },
+  "siteSettingsSectionContent": "Content",
+  "@siteSettingsSectionContent": {
+    "description": "Heading in site settings for the group covering what the page is served and how it renders: scripts, user agent, language, zoom."
+  },
+  "siteSettingsSectionBehaviour": "Behaviour",
+  "@siteSettingsSectionBehaviour": {
+    "description": "Heading in site settings for the group covering how the app treats the site: where it opens, how links leave it, and how much of the screen it uses."
+  },
+  "siteSettingsSectionNetwork": "Network",
+  "@siteSettingsSectionNetwork": {
+    "description": "Heading in site settings for the group covering how the site's traffic reaches the internet: proxy and WebRTC."
+  },
+  "siteSettingsSectionSite": "Site",
+  "@siteSettingsSectionSite": {
+    "description": "Heading in site settings for the group holding the Permissions and Privacy rows, which open screens of their own."
   }
 }

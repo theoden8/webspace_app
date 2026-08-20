@@ -66,8 +66,10 @@ import 'package:webspace/settings/location.dart';
 /// - Coordinates are jittered per-call (~2m) so [watchPosition] does not
 ///   return byte-identical frames.
 class LocationSpoofService {
-  /// Build the shim. Returns null when the site has every spoof feature off.
-  static String? buildScript({
+  /// Build the shim. Always returns a script: geolocation is mediated in
+  /// every mode, including [LocationMode.off], which refuses the page rather
+  /// than deferring to the platform.
+  static String buildScript({
     required LocationMode locationMode,
     required double? spoofLatitude,
     required double? spoofLongitude,
@@ -80,12 +82,14 @@ class LocationSpoofService {
         spoofLatitude != null &&
         spoofLongitude != null;
     final liveLocation = locationMode == LocationMode.live;
+    // Anything that is not an explicit grant refuses the page. Without a shim
+    // the platform's own `navigator.geolocation` stays live behind the
+    // webview's permission prompt, so [LocationMode.off] used to be the only
+    // pass-through option while reading as the least permissive one. A
+    // [LocationMode.spoof] site whose coordinates went missing (hand-edited
+    // backup, failed import) fails closed for the same reason.
+    final blockLocation = !spoofLocation && !liveLocation;
     final hasTimezone = spoofTimezone != null && spoofTimezone.isNotEmpty;
-    final hasWebRtc = webRtcPolicy != WebRtcPolicy.defaultPolicy;
-
-    if (!spoofLocation && !liveLocation && !hasTimezone && !hasWebRtc) {
-      return null;
-    }
 
     final lat = spoofLatitude ?? 0.0;
     final lng = spoofLongitude ?? 0.0;
@@ -106,6 +110,7 @@ class LocationSpoofService {
     return _template
         .replaceAll('__STATIC_LOC__', spoofLocation ? 'true' : 'false')
         .replaceAll('__LIVE_LOC__', liveLocation ? 'true' : 'false')
+        .replaceAll('__BLOCK_LOC__', blockLocation ? 'true' : 'false')
         .replaceAll('__SNAP_STEP_DEG__', snapStepDeg.toString())
         .replaceAll('__SNAP_MIN_ACC_M__', snapMinAccM.toString())
         .replaceAll('__LAT__', lat.toString())
@@ -123,6 +128,10 @@ const String _template = r'''
 
   var STATIC_LOC = __STATIC_LOC__;
   var LIVE_LOC = __LIVE_LOC__;
+  // Refuse every request instead of letting the platform's own geolocation
+  // answer behind the webview's permission prompt. True whenever the site
+  // holds no explicit grant.
+  var BLOCK_LOC = __BLOCK_LOC__;
   // Grid step in degrees applied to the live fix before the page sees it.
   // 0 = no snap (GPS tier), ~0.001 = approximate (~110 m), ~0.01 = GSM
   // (~1.1 km). The longitude step is divided by cos(snappedLat) so cells
@@ -177,8 +186,9 @@ const String _template = r'''
     } catch (e) {}
   }
 
-  // --- Geolocation: spoof (static) or live (real device GPS via Dart) ---
-  if ((STATIC_LOC || LIVE_LOC) && navigator.geolocation) {
+  // --- Geolocation: spoof (static), live (real device GPS via Dart), or
+  // blocked (refused outright) ---
+  if ((STATIC_LOC || LIVE_LOC || BLOCK_LOC) && navigator.geolocation) {
     var _coordsProto = (typeof GeolocationCoordinates !== 'undefined')
       ? GeolocationCoordinates.prototype : Object.prototype;
     var _posProto = (typeof GeolocationPosition !== 'undefined')
@@ -229,6 +239,21 @@ const String _template = r'''
       };
     }
 
+    // A refusal the page cannot tell apart from the user denying the
+    // platform's own permission prompt: same code, same shape, delivered
+    // asynchronously through the error callback. `navigator.geolocation`
+    // itself stays in place — removing it would be trivially detectable and
+    // is not what a denied browser looks like.
+    function deniedError() {
+      return {
+        code: 1,
+        message: 'User denied Geolocation',
+        PERMISSION_DENIED: 1,
+        POSITION_UNAVAILABLE: 2,
+        TIMEOUT: 3,
+      };
+    }
+
     // Single source of truth for fetching a fresh real fix in live mode.
     // Returns a Promise that resolves with either {ok, lat, lng, acc} or
     // {error, payload}. The handler is registered Dart-side only when the
@@ -258,7 +283,11 @@ const String _template = r'''
 
     var _latency = 150 + Math.random() * 250;
     var _getCurrent = function getCurrentPosition(success, error, options) {
-      if (LIVE_LOC) {
+      if (BLOCK_LOC) {
+        setTimeout(function() {
+          if (error) { try { error(deniedError()); } catch (e) {} }
+        }, _latency);
+      } else if (LIVE_LOC) {
         getLiveFix().then(function(r) {
           if (r.ok) {
             if (success) { try { success(makePositionFrom(r.lat, r.lng, r.acc)); } catch (e) {} }
@@ -278,7 +307,14 @@ const String _template = r'''
     var _watchTimers = {};
     var _watch = function watchPosition(success, error, options) {
       var id = ++_watchId;
-      if (LIVE_LOC) {
+      if (BLOCK_LOC) {
+        // A denied watch still hands back an id, as a real browser does, and
+        // reports the refusal once. There is nothing to poll for, so no
+        // interval is registered and clearWatch(id) is a no-op.
+        setTimeout(function() {
+          if (error) { try { error(deniedError()); } catch (e) {} }
+        }, _latency);
+      } else if (LIVE_LOC) {
         var tick = function() {
           getLiveFix().then(function(r) {
             if (r.ok) {
@@ -325,8 +361,11 @@ const String _template = r'''
       } catch (e) {}
     }
 
-    // Permissions API: geolocation should report 'granted' since
-    // getCurrentPosition resolves without prompting. Patch on
+    // Permissions API: report the state the page would observe from a real
+    // browser in the same situation — 'granted' when a grant resolves without
+    // prompting, 'denied' when every request is refused. A blocked site that
+    // saw 'granted' here and then a PERMISSION_DENIED error would be
+    // reporting an impossible combination. Patch on
     // Permissions.prototype rather than navigator.permissions so the
     // override does not leak as an own-property of navigator.permissions
     // (clean Chromium has Object.getOwnPropertyNames(navigator.permissions)
@@ -336,10 +375,11 @@ const String _template = r'''
       var _origQuery = Permissions.prototype.query;
       var _query = function query(p) {
         if (p && p.name === 'geolocation') {
+          var _state = BLOCK_LOC ? 'denied' : 'granted';
           var status = {};
           Object.defineProperties(status, {
-            state: { value: 'granted', enumerable: true },
-            status: { value: 'granted', enumerable: true },
+            state: { value: _state, enumerable: true },
+            status: { value: _state, enumerable: true },
             onchange: { value: null, writable: true, enumerable: true },
           });
           status.addEventListener = function() {};

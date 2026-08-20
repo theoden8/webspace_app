@@ -6,24 +6,21 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/settings/camera.dart';
+import 'package:webspace/settings/site_permission_state.dart';
+import 'package:webspace/widgets/site_permission_chip.dart';
 import 'package:webspace/settings/microphone.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/services/virtual_camera_service.dart';
-import 'package:webspace/services/virtual_media_picker.dart';
-import 'package:webspace/services/virtual_microphone_service.dart';
-import 'package:webspace/widgets/virtual_camera_preview.dart';
 import 'package:webspace/services/webview.dart';
-import 'package:webspace/services/content_blocker_service.dart';
-import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/user_agent_identity.dart';
-import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/timezone_location_service.dart';
 import 'package:webspace/services/timezone_spoof_policy.dart';
 import 'package:webspace/screens/location_picker.dart';
+import 'package:webspace/screens/site_permissions.dart';
+import 'package:webspace/screens/site_privacy.dart';
 import 'package:webspace/screens/link_handling_settings.dart';
 import 'package:webspace/screens/site_settings_qr.dart';
 import 'package:webspace/screens/user_scripts.dart';
@@ -159,11 +156,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // across switches between segments so the user's preference isn't lost
   // when they toggle Off → Live again.
   LocationGranularity _liveLocationGranularity = LocationGranularity.gps;
-  // Sticky preference for the "Approximate" sub-switch under the GPS
-  // segment. Derived from the granularity on load (true iff approximate)
-  // and remembered across GPS↔GSM segment toggles so flipping to GSM
-  // and back doesn't silently drop the user's snap preference.
-  bool _liveGpsApproximate = false;
   late WebRtcPolicy _webRtcPolicy;
 
   /// Snapshot of every form field captured after [_loadFromModel] (and again
@@ -209,51 +201,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   /// Pick the image / looped video served in [CameraAccessMode.virtual].
   /// On error shows a SnackBar and leaves the current source untouched.
-  Future<void> _pickVirtualCameraSource() async {
-    final result = await VirtualCameraService.pickSource();
-    if (!mounted) return;
-    if (result.source != null) {
-      setState(() => _virtualCameraSource = result.source);
-      return;
-    }
-    if (result.error == null) return; // user cancelled
-    final loc = AppLocalizations.of(context);
-    final String message;
-    switch (result.error!) {
-      case VirtualCameraPickError.tooLarge:
-        message = loc.homeCameraSourceTooLarge;
-        break;
-      case VirtualCameraPickError.type:
-      case VirtualCameraPickError.read:
-        message = loc.homeCameraSourceError;
-        break;
-    }
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-  }
 
   /// Pick the clip looped in [MicrophoneAccessMode.virtual]. On error shows a
   /// SnackBar and leaves the current source untouched.
-  Future<void> _pickVirtualMicrophoneSource() async {
-    final result = await VirtualMicrophoneService.pickSource();
-    if (!mounted) return;
-    if (result.source != null) {
-      setState(() => _virtualMicrophoneSource = result.source);
-      return;
-    }
-    if (result.error == null) return; // user cancelled
-    final loc = AppLocalizations.of(context);
-    final String message;
-    switch (result.error!) {
-      case VirtualMediaPickError.tooLarge:
-        message = loc.homeMicrophoneSourceTooLarge;
-        break;
-      case VirtualMediaPickError.type:
-      case VirtualMediaPickError.read:
-        message = loc.homeMicrophoneSourceError;
-        break;
-    }
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-  }
 
   Map<String, Object?> _currentSnapshot() => {
         'proxyType': _proxySettings.type,
@@ -331,29 +281,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _onPermissionChanged() {
     if (mounted) setState(() {});
-  }
-
-  /// Shown when the user enables a blocker whose backing data (DNS
-  /// blocklist, filter lists) hasn't been downloaded: the toggle still
-  /// flips and takes effect once the data arrives, but silently doing
-  /// nothing until then would read as the feature being broken.
-  void _warnBlockerNotConfigured(String feature) {
-    final loc = AppLocalizations.of(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(loc.siteSettingsBlockerNotConfiguredWarning(feature)),
-      ),
-    );
-  }
-
-  /// Persistent counterpart of [_warnBlockerNotConfigured]: rendered next
-  /// to a blocker tile whose toggle is effectively on while its data is
-  /// still missing, so the gap stays visible after the SnackBar is gone.
-  Widget _notConfiguredWarnIcon() {
-    return const Padding(
-      padding: EdgeInsets.only(left: 4),
-      child: Icon(Icons.warning_amber_rounded, size: 18, color: Colors.orange),
-    );
   }
 
   /// Live browser/OS identity + validity readout for the UA field. Follows
@@ -487,18 +414,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  /// Subtitle for the DNS blocklist / content blocker tiles. When forced
-  /// by Tracking Protection AND unconfigured, both facts matter, so they
-  /// are joined rather than the forced text masking the missing data.
-  String _blockerSubtitle({required bool ready, required String readyText}) {
-    final loc = AppLocalizations.of(context);
-    if (_trackingProtectionEnabled) {
-      final forced = loc.siteSettingsForcedByTrackingProtection;
-      return ready ? forced : '$forced · ${loc.siteSettingsNotConfigured}';
-    }
-    return ready ? readyText : loc.siteSettingsNotConfigured;
-  }
-
   /// Mirror [widget.webViewModel] into the form state. Called from
   /// [initState] and from the apply-from-QR handler after the decoded
   /// payload has been written back into the model.
@@ -552,8 +467,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _spoofTimezoneFromLocation = m.spoofTimezoneFromLocation;
     _isLiveLocation = m.locationMode == LocationMode.live;
     _liveLocationGranularity = m.liveLocationGranularity;
-    _liveGpsApproximate =
-        m.liveLocationGranularity == LocationGranularity.approximate;
     _webRtcPolicy = m.webRtcPolicy;
     _showProxyCredentials = _proxySettings.hasCredentials;
   }
@@ -607,51 +520,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return parts.isEmpty
         ? loc.siteSettingsUserScriptsNone
         : loc.siteSettingsUserScriptsActive(parts.join(', '));
-  }
-
-  Widget _buildDnsStatsCard() {
-    final loc = AppLocalizations.of(context);
-    final stats = DnsBlockService.instance.statsForSite(widget.webViewModel.siteId);
-    if (stats.total == 0) {
-      return const SizedBox.shrink();
-    }
-    final totalValue = '${stats.total}';
-    final allowedValue = '${stats.allowed}';
-    final blockedValue = '${stats.blocked}';
-    final blockRateValue = '${stats.blockRate.toStringAsFixed(1)}%';
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Row(
-        children: [
-          _buildDnsStatChip(totalValue, loc.siteSettingsDnsStatTotal, Colors.blue),
-          const SizedBox(width: 6),
-          _buildDnsStatChip(allowedValue, loc.siteSettingsDnsStatAllowed, Colors.green),
-          const SizedBox(width: 6),
-          _buildDnsStatChip(blockedValue, loc.siteSettingsDnsStatBlocked, Colors.red),
-          const SizedBox(width: 6),
-          _buildDnsStatChip(blockRateValue, loc.siteSettingsDnsStatBlocked, Colors.orange),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDnsStatChip(String value, String label, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-        decoration: BoxDecoration(
-          color: color.withAlpha(20),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: color.withAlpha(50)),
-        ),
-        child: Column(
-          children: [
-            Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color)),
-            Text(label, style: TextStyle(fontSize: 9, color: color.withAlpha(180))),
-          ],
-        ),
-      ),
-    );
   }
 
   Future<void> _saveSettings() async {
@@ -832,7 +700,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _openLocationPicker() async {
+  Future<bool> _openLocationPicker() async {
     final result = await Navigator.push<LocationPickerResult>(
       context,
       MaterialPageRoute(
@@ -843,12 +711,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
     );
-    if (result == null || !mounted) return;
+    if (result == null || !mounted) return false;
     setState(() {
       _latitudeController.text = result.latitude.toStringAsFixed(6);
       _longitudeController.text = result.longitude.toStringAsFixed(6);
       _accuracyController.text = result.accuracy.toString();
     });
+    return true;
   }
 
   /// Build the geolocation section. A SegmentedButton at the top (Off /
@@ -863,366 +732,300 @@ class _SettingsScreenState extends State<SettingsScreen> {
   ///
   /// `locationMode` is derived from this state at save time, not stored
   /// explicitly here. See [_saveSettings].
-  Widget _buildLocationTile() {
-    final loc = AppLocalizations.of(context);
-    final lat = double.tryParse(_latitudeController.text.trim());
-    final lng = double.tryParse(_longitudeController.text.trim());
-    final hasCoords = lat != null && lng != null;
-    final acc = double.tryParse(_accuracyController.text.trim()) ?? 50.0;
 
-    final hint = HintButton(
-      title: loc.siteSettingsGeolocation,
-      description: loc.siteSettingsGeolocationHint,
-    );
-
-    // Derive the active segment from current state. `Static` is selected
-    // when there are coords AND we're not in live mode; `Live` is selected
-    // when the live flag is on (regardless of whether stale coords linger
-    // — they're ignored on save in that branch).
-    final _LocationSegment selected = _isLiveLocation
-        ? _LocationSegment.live
-        : (hasCoords ? _LocationSegment.staticCoords : _LocationSegment.off);
-
-    void onSegmentChanged(Set<_LocationSegment> values) {
-      final v = values.first;
-      setState(() {
-        switch (v) {
-          case _LocationSegment.off:
-            _isLiveLocation = false;
-            _latitudeController.clear();
-            _longitudeController.clear();
-            _accuracyController.text = '50';
-            break;
-          case _LocationSegment.staticCoords:
-            _isLiveLocation = false;
-            // If switching from off → static with no coords yet, open the
-            // picker so the user lands on something useful instead of
-            // an empty selection. From live → static we keep whatever
-            // coords were last saved (probably none) and the picker is
-            // one tap away on the detail row.
-            if (!hasCoords) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) _openLocationPicker();
-              });
-            }
-            break;
-          case _LocationSegment.live:
-            _isLiveLocation = true;
-            break;
-        }
-      });
-    }
-
-    final selector = SegmentedButton<_LocationSegment>(
-      segments: [
-        ButtonSegment(
-            value: _LocationSegment.off,
-            icon: const Icon(Icons.location_disabled),
-            label: Text(loc.siteSettingsLocationOff)),
-        ButtonSegment(
-            value: _LocationSegment.staticCoords,
-            icon: const Icon(Icons.map_outlined),
-            label: Text(loc.siteSettingsLocationStatic)),
-        ButtonSegment(
-            value: _LocationSegment.live,
-            icon: const Icon(Icons.my_location),
-            label: Text(loc.siteSettingsLocationLive)),
-      ],
-      selected: {selected},
-      onSelectionChanged: onSegmentChanged,
-      showSelectedIcon: false,
-    );
-
-    Widget detail;
-    switch (selected) {
-      case _LocationSegment.off:
-        detail = Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: Text(
-            loc.siteSettingsLocationOffDetail,
-            style: const TextStyle(fontSize: 12),
-          ),
-        );
-        break;
-      case _LocationSegment.live:
-        detail = Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                loc.siteSettingsLocationLiveDetail,
-                style: const TextStyle(fontSize: 12),
-              ),
-              const SizedBox(height: 8),
-              // Two-tier picker: GPS vs GSM at the top (provider), with an
-              // "Approximate" sub-switch that only applies under GPS — both
-              // share the same OS-level provider, the switch just toggles
-              // whether the JS shim snaps the result. GSM is a different
-              // provider entirely (NETWORK only) and has no sub-toggle.
-              SizedBox(
-                width: double.infinity,
-                child: SegmentedButton<_LiveProvider>(
-                  segments: [
-                    ButtonSegment(
-                      value: _LiveProvider.gps,
-                      icon: const Icon(Icons.gps_fixed),
-                      label: Text(loc.siteSettingsLocationProviderGps),
-                    ),
-                    ButtonSegment(
-                      value: _LiveProvider.gsm,
-                      icon: const Icon(Icons.cell_tower),
-                      label: Text(loc.siteSettingsLocationProviderGsm),
-                    ),
-                  ],
-                  selected: {
-                    _liveLocationGranularity == LocationGranularity.gsm
-                        ? _LiveProvider.gsm
-                        : _LiveProvider.gps,
-                  },
-                  onSelectionChanged: (vs) => setState(() {
-                    // Preserve the user's approximate preference across
-                    // GPS↔GSM segment toggles: when they leave GPS the
-                    // saved-approximate hint lives in the local switch
-                    // below; coming back to GPS we read its state.
-                    if (vs.first == _LiveProvider.gsm) {
-                      _liveLocationGranularity = LocationGranularity.gsm;
-                    } else {
-                      _liveLocationGranularity = _liveGpsApproximate
-                          ? LocationGranularity.approximate
-                          : LocationGranularity.gps;
-                    }
-                  }),
-                  showSelectedIcon: false,
-                ),
-              ),
-              const SizedBox(height: 4),
-              if (_liveLocationGranularity != LocationGranularity.gsm)
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                  title: Text(loc.siteSettingsLocationApproximate),
-                  subtitle: Text(
-                    loc.siteSettingsLocationApproximateSubtitle,
-                    style: const TextStyle(fontSize: 11),
-                  ),
-                  value: _liveGpsApproximate,
-                  onChanged: (v) => setState(() {
-                    _liveGpsApproximate = v;
-                    _liveLocationGranularity = v
-                        ? LocationGranularity.approximate
-                        : LocationGranularity.gps;
-                  }),
-                ),
-              Text(
-                switch (_liveLocationGranularity) {
-                  LocationGranularity.gps =>
-                    loc.siteSettingsLocationGranularityGps,
-                  LocationGranularity.approximate =>
-                    loc.siteSettingsLocationGranularityApproximate,
-                  LocationGranularity.gsm =>
-                    loc.siteSettingsLocationGranularityGsm,
-                },
-                style: const TextStyle(fontSize: 11),
-              ),
-            ],
-          ),
-        );
-        break;
-      case _LocationSegment.staticCoords:
-        if (hasCoords) {
-          final coordsText =
-              '${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}  '
-              '±${acc.toStringAsFixed(0)}m';
-          detail = ListTile(
-            dense: true,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-            title: Text(coordsText),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  tooltip: loc.siteSettingsLocationEditTooltip,
-                  icon: const Icon(Icons.edit_location_alt_outlined),
-                  onPressed: _openLocationPicker,
-                ),
-                IconButton(
-                  tooltip: loc.siteSettingsLocationClearTooltip,
-                  icon: const Icon(Icons.close),
-                  onPressed: () => setState(() {
-                    _latitudeController.clear();
-                    _longitudeController.clear();
-                    _accuracyController.text = '50';
-                  }),
-                ),
-              ],
-            ),
-          );
-        } else {
-          detail = Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Row(
-              children: [
-                Expanded(child: Text(
-                  loc.siteSettingsLocationNoneSet,
-                  style: const TextStyle(fontSize: 12),
-                )),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.map_outlined, size: 18),
-                  label: Text(loc.siteSettingsLocationPick),
-                  onPressed: _openLocationPicker,
-                ),
-              ],
-            ),
-          );
-        }
-        break;
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: Row(
-            children: [
-              Text(loc.siteSettingsGeolocation,
-                  style: const TextStyle(fontWeight: FontWeight.w500)),
-              hint,
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: SizedBox(
-            // SegmentedButton wants a constrained width; give it the full
-            // row so the three pills don't crowd into a corner on tablets.
-            width: double.infinity,
-            child: selector,
-          ),
-        ),
-        detail,
-      ],
-    );
-  }
-
-  /// Sentinel value used in the timezone dropdown for the "From picked
-  /// location" entry. Not a real IANA name — translated to/from the
-  /// `spoofTimezoneFromLocation` bool when reading and writing.
-  static const String _kFromLocationSentinel = '__from_location__';
-
-  Widget _buildTimezoneDropdown() {
-    final loc = AppLocalizations.of(context);
-    final tzReady = TimezoneLocationService.instance.isReady;
-    final lat = double.tryParse(_latitudeController.text.trim());
-    final lng = double.tryParse(_longitudeController.text.trim());
-    final hasCoords = lat != null && lng != null;
-    // Preview what the dataset would resolve to right now, so the user can
-    // see whether the lookup will succeed for their picked coords. Falls
-    // back to a hint if either prerequisite is missing.
-    final preview = (tzReady && hasCoords)
-        ? (TimezoneLocationService.instance.lookup(lat, lng) ??
-            loc.siteSettingsTimezonePreviewNoMatch)
-        : (!tzReady
-            ? loc.siteSettingsTimezonePreviewNeedsDataset
-            : loc.siteSettingsTimezonePreviewNeedsLocation);
-
-    // Tracking Protection forces the timezone to "From picked location"
-    // when coords are set so the spoofed Date/Intl values match the
-    // spoofed geo. With no coords picked the umbrella does NOT touch
-    // the timezone — the user's stored choice (or system default) stands.
-    final bool forceFromLocation = _trackingProtectionEnabled && hasCoords;
-    final String? value = forceFromLocation
-        ? _kFromLocationSentinel
-        : (_spoofTimezoneFromLocation
-            ? _kFromLocationSentinel
-            : (commonTimezones.any((e) => e.key == _spoofTimezone)
-                ? _spoofTimezone
-                : null));
-
-    // The "From picked location" entry is conceptually a sibling of
-    // "System default" (both auto-derive the timezone instead of taking
-    // an explicit value), so insert it right after the System default
-    // entry rather than at the bottom of the list.
-    final items = <DropdownMenuItem<String?>>[];
-    var insertedFromLocation = false;
-    for (final e in commonTimezones) {
-      items.add(DropdownMenuItem<String?>(
-        value: e.key,
-        child: Text(_timezoneLabel(e)),
-      ));
-      if (!insertedFromLocation && e.key == null) {
-        items.add(DropdownMenuItem<String?>(
-          value: _kFromLocationSentinel,
-          child: Text(loc.siteSettingsTimezoneFromLocation(preview)),
-        ));
-        insertedFromLocation = true;
-      }
-    }
-    // Defensive fallback: if commonTimezones ever loses the System
-    // default entry, still expose the option somewhere.
-    if (!insertedFromLocation) {
-      items.insert(0, DropdownMenuItem<String?>(
-        value: _kFromLocationSentinel,
-        child: Text(loc.siteSettingsTimezoneFromLocation(preview)),
-      ));
-    }
-
-    return DropdownButtonFormField<String?>(
-      value: value,
-      decoration: InputDecoration(
-        labelText: loc.siteSettingsTimezoneLabel,
-        helperText: forceFromLocation
-            ? loc.siteSettingsTimezoneForcedHelper
-            : loc.siteSettingsTimezoneHelper,
-        border: const OutlineInputBorder(),
-      ),
-      items: items,
-      isExpanded: true,
-      onChanged: forceFromLocation
-          ? null
-          : (v) => setState(() {
-                if (v == _kFromLocationSentinel) {
-                  _spoofTimezoneFromLocation = true;
-                  _spoofTimezone = null;
-                } else {
-                  _spoofTimezoneFromLocation = false;
-                  _spoofTimezone = v;
-                }
-              }),
-    );
-  }
 
   /// Render a timezone dropdown entry. The `null` (System default) entry is
   /// enriched with the device's current timezone abbreviation/offset and the
   /// current local time, so the user can see what "default" actually entails.
-  String _timezoneLabel(MapEntry<String?, String> entry) {
-    if (entry.key != null) return entry.value;
-    final now = DateTime.now();
-    final tzName = now.timeZoneName;
-    final offset = now.timeZoneOffset;
-    final sign = offset.isNegative ? '-' : '+';
-    final hours = offset.inHours.abs().toString().padLeft(2, '0');
-    final mins = (offset.inMinutes.abs() % 60).toString().padLeft(2, '0');
-    final hh = now.hour.toString().padLeft(2, '0');
-    final mm = now.minute.toString().padLeft(2, '0');
-    return '${entry.value} ($tzName, UTC$sign$hours:$mins, $hh:$mm)';
+
+  /// Location mode as the permission screen sees it. The settings screen
+  /// stores the live flag and the coordinates separately, exactly as
+  /// [_saveSettings] derives `locationMode` from them, so this derivation and
+  /// the save path stay in agreement.
+  LocationMode get _effectiveLocationMode {
+    if (_isLiveLocation) return LocationMode.live;
+    return _hasStaticCoordinates ? LocationMode.spoof : LocationMode.off;
   }
 
-  List<Widget> _buildLocationSection() {
+  /// What the timezone dataset resolves the current coordinates to, or a hint
+  /// naming the missing prerequisite. Lives here because the coordinates do.
+  String _timezonePreview() {
     final loc = AppLocalizations.of(context);
-    return [
-      Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-        child: Text(loc.siteSettingsLocationSectionTitle,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+    if (!TimezoneLocationService.instance.isReady) {
+      return loc.siteSettingsTimezonePreviewNeedsDataset;
+    }
+    final lat = double.tryParse(_latitudeController.text.trim());
+    final lng = double.tryParse(_longitudeController.text.trim());
+    if (lat == null || lng == null) {
+      return loc.siteSettingsTimezonePreviewNeedsLocation;
+    }
+    return TimezoneLocationService.instance.lookup(lat, lng) ??
+        loc.siteSettingsTimezonePreviewNoMatch;
+  }
+
+  /// The picked coordinates as the permission row shows them, or null when
+  /// none are set. Built as data before it reaches `Text(` (LOC-002): a
+  /// latitude and a longitude are numbers, not translatable copy.
+  String? _coordinatesPreview() {
+    final lat = double.tryParse(_latitudeController.text.trim());
+    final lng = double.tryParse(_longitudeController.text.trim());
+    if (lat == null || lng == null) return null;
+    return '${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}';
+  }
+
+  bool get _hasStaticCoordinates =>
+      double.tryParse(_latitudeController.text.trim()) != null &&
+      double.tryParse(_longitudeController.text.trim()) != null;
+
+  /// Label above a group of leaf settings. The two screens above (permissions,
+  /// privacy) carry their own structure; what is left on this screen is flat
+  /// switches, and a header is all they need to stop reading as one list of
+  /// twenty unrelated things.
+  Widget _sectionHeader(String title) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 6),
+        child: Text(
+          title,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
+      );
+
+  /// One row where seven controls used to be scattered down the screen. The
+  /// subtitle names what the site actually holds, so the common question is
+  /// answered without opening it.
+  Widget _buildPermissionsRow() {
+    final loc = AppLocalizations.of(context);
+    final entries = <(SitePermissionState, String, IconData)>[
+      (
+        locationPermissionState(_effectiveLocationMode),
+        loc.siteSettingsGeolocation,
+        Icons.location_on_outlined
       ),
-      _buildLocationTile(),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-        child: _buildTimezoneDropdown(),
+      (
+        cameraPermissionState(_cameraMode),
+        loc.siteSettingsCameraAccess,
+        Icons.videocam_outlined
       ),
+      (
+        microphonePermissionState(_microphoneMode),
+        loc.siteSettingsMicrophoneAccess,
+        Icons.mic_none
+      ),
+      if (widget.useContainers)
+        (
+          notificationPermissionState(_notificationsEnabled),
+          loc.siteSettingsNotifications,
+          Icons.notifications_none
+        ),
+      if (Platform.isAndroid)
+        (
+          _trackingProtectionEnabled
+              ? SitePermissionState.blocked
+              : protectedContentPermissionState(_protectedContentAllowed),
+          loc.siteSettingsProtectedContent,
+          Icons.shield_outlined
+        ),
     ];
+
+    final held = entries
+        .where((e) =>
+            e.$1 == SitePermissionState.allowed ||
+            e.$1 == SitePermissionState.simulated)
+        .toList();
+
+    // Built as data before it reaches Text(): the separator and the overflow
+    // count are punctuation and numbers, not translatable copy (LOC-002).
+    final String summary;
+    if (held.isEmpty) {
+      summary = loc.permissionsSummaryNothingGranted;
+    } else {
+      const separator = ' · ';
+      final shown = held
+          .take(2)
+          .map((e) => '${e.$2}: ${sitePermissionStateLabel(loc, e.$1)}')
+          .join(separator);
+      final overflow = held.length - 2;
+      summary = overflow > 0
+          ? '$shown$separator${loc.permissionsSummaryMore(overflow)}'
+          : shown;
+    }
+
+    return ListTile(
+      // A key, not a shield: the Privacy row directly above leads with a
+      // shield, and two shields side by side read as one thing.
+      leading: const Icon(Icons.key_outlined),
+      title: Text(loc.permissionsTitle),
+      subtitle: Text(summary, style: const TextStyle(fontSize: 12.5)),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final entry in held)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 1),
+              child: Icon(
+                entry.$3,
+                size: 16,
+                color: opensRealDevice(entry.$1)
+                    ? Theme.of(context).colorScheme.error
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          const Icon(Icons.chevron_right, size: 18),
+        ],
+      ),
+      onTap: _openPermissions,
+    );
+  }
+
+  Future<void> _openPermissions() async {
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SitePermissionsScreen(
+          host: widget.webViewModel.currentUrl,
+          trackingProtectionEnabled: _trackingProtectionEnabled,
+          notificationsBlockedBySite: widget.notificationsBlockedBySite,
+          showNotifications: widget.useContainers,
+          values: SitePermissionValues(
+            cameraMode: _cameraMode,
+            virtualCameraSource: _virtualCameraSource,
+            microphoneMode: _microphoneMode,
+            virtualMicrophoneSource: _virtualMicrophoneSource,
+            notificationsEnabled: _notificationsEnabled,
+            backgroundAudioEnabled: _backgroundAudioEnabled,
+            protectedContentAllowed: _protectedContentAllowed,
+            locationMode: _effectiveLocationMode,
+            liveLocationGranularity: _liveLocationGranularity,
+            hasStaticCoordinates: _hasStaticCoordinates,
+            spoofTimezone: _spoofTimezone,
+            spoofTimezoneFromLocation: _spoofTimezoneFromLocation,
+          ),
+          timezonePreview: _timezonePreview,
+          coordinatesPreview: _coordinatesPreview,
+          onOpenLocationPicker: _openLocationPicker,
+          onEnableNotifications: () async {
+            // First-time background-limits info dialog (NOTIF-005-{I,A});
+            // idempotent via a SharedPreferences flag. Shown before the OS
+            // permission request so the user knows what to expect before
+            // tapping Allow.
+            await maybeShowBackgroundNotificationLimitsDialog(context);
+            // NOTIF-007: request the OS permission at toggle time rather than
+            // lazily on the first notification. Repeat calls after a denial
+            // are harmless (the OS returns the cached decision).
+            await NotificationService.instance.requestPermission();
+          },
+          onChanged: (values) {
+            setState(() {
+              _cameraMode = values.cameraMode;
+              _virtualCameraSource = values.virtualCameraSource;
+              _microphoneMode = values.microphoneMode;
+              _virtualMicrophoneSource = values.virtualMicrophoneSource;
+              _notificationsEnabled = values.notificationsEnabled;
+              _backgroundAudioEnabled = values.backgroundAudioEnabled;
+              _protectedContentAllowed = values.protectedContentAllowed;
+              _liveLocationGranularity = values.liveLocationGranularity;
+              _spoofTimezone = values.spoofTimezone;
+              _spoofTimezoneFromLocation = values.spoofTimezoneFromLocation;
+              _isLiveLocation = values.locationMode == LocationMode.live;
+              if (values.locationMode == LocationMode.off) {
+                // Off is a refusal now, so stale coordinates must not linger
+                // and silently turn it back into a static grant on next open.
+                _latitudeController.clear();
+                _longitudeController.clear();
+                _accuracyController.text = '50';
+              }
+            });
+          },
+        ),
+      ),
+    );
+    if (mounted) setState(() {});
+  }
+
+
+  SitePrivacyValues get _privacyValues => SitePrivacyValues(
+        trackingProtectionEnabled: _trackingProtectionEnabled,
+        clearUrlEnabled: _clearUrlEnabled,
+        dnsBlockEnabled: _dnsBlockEnabled,
+        contentBlockEnabled: _contentBlockEnabled,
+        localCdnEnabled: _localCdnEnabled,
+        thirdPartyCookiesEnabled: _thirdPartyCookiesEnabled,
+        letterboxEnabled: _letterboxEnabled,
+        incognito: _incognito,
+      );
+
+  /// Counterpart of [_buildPermissionsRow] for everything that decides what a
+  /// site can learn or keep. The subtitle answers the same question without
+  /// opening the screen: what is actually on.
+  Widget _buildPrivacyRow() {
+    final loc = AppLocalizations.of(context);
+    final v = _privacyValues;
+
+    // Built as data before it reaches Text(): the separator and the count are
+    // punctuation and numbers, not translatable copy (LOC-002).
+    final String summary;
+    if (v.trackingProtectionEnabled) {
+      summary = loc.privacySummaryProtectionOn;
+    } else {
+      final on = <String>[
+        if (v.clearUrlEnabled) loc.siteSettingsClearUrls,
+        if (v.dnsBlockEnabled) loc.siteSettingsDnsBlocklist,
+        if (v.contentBlockEnabled) loc.siteSettingsContentBlocker,
+        if (Platform.isAndroid && v.localCdnEnabled) loc.siteSettingsLocalCdn,
+        if (v.incognito) loc.siteSettingsIncognito,
+      ];
+      if (on.isEmpty) {
+        summary = loc.privacySummaryNothingOn;
+      } else {
+        const separator = ' \u00b7 ';
+        final shown = on.take(2).join(separator);
+        final overflow = on.length - 2;
+        summary = overflow > 0
+            ? '$shown$separator${loc.permissionsSummaryMore(overflow)}'
+            : shown;
+      }
+    }
+
+    return ListTile(
+      leading: Icon(
+        v.trackingProtectionEnabled
+            ? Icons.verified_user
+            : Icons.verified_user_outlined,
+      ),
+      title: Text(loc.privacyTitle),
+      subtitle: Text(summary, style: const TextStyle(fontSize: 12.5)),
+      trailing: const Icon(Icons.chevron_right, size: 18),
+      onTap: _openPrivacy,
+    );
+  }
+
+  Future<void> _openPrivacy() async {
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SitePrivacyScreen(
+          host: widget.webViewModel.currentUrl,
+          siteId: widget.webViewModel.siteId,
+          values: _privacyValues,
+          onChanged: (values) {
+            setState(() {
+              _trackingProtectionEnabled = values.trackingProtectionEnabled;
+              _clearUrlEnabled = values.clearUrlEnabled;
+              _dnsBlockEnabled = values.dnsBlockEnabled;
+              _contentBlockEnabled = values.contentBlockEnabled;
+              _localCdnEnabled = values.localCdnEnabled;
+              _thirdPartyCookiesEnabled = values.thirdPartyCookiesEnabled;
+              _letterboxEnabled = values.letterboxEnabled;
+              _incognito = values.incognito;
+            });
+          },
+        ),
+      ),
+    );
+    if (mounted) setState(() {});
   }
 
   Widget _buildWebRtcTile() {
@@ -1278,96 +1081,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       appBar: AppBar(title: Text(loc.siteSettingsTitle)),
       body: ListView(
         children: [
-          // Only show proxy settings on supported platforms
-          if (PlatformInfo.isProxySupported) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              child: Text(
-                loc.siteSettingsProxyShared,
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-            ),
-            ListTile(
-              title: Text(loc.siteSettingsProxyType),
-              trailing: DropdownButton<ProxyType>(
-                value: _proxySettings.type,
-                onChanged: (ProxyType? newValue) {
-                  if (newValue != null) {
-                    setState(() {
-                      _proxySettings.type = newValue;
-                    });
-                  }
-                },
-                items: ProxyType.values.map<DropdownMenuItem<ProxyType>>(
-                  (ProxyType value) {
-                    return DropdownMenuItem<ProxyType>(
-                      value: value,
-                      child: Text(value.toString().split('.').last),
-                    );
-                  },
-                ).toList(),
-              ),
-            ),
-            if (_proxySettings.type != ProxyType.DEFAULT) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: TextFormField(
-                  controller: _proxyAddressController,
-                  decoration: InputDecoration(
-                    labelText: loc.siteSettingsProxyAddress,
-                    hintText: loc.siteSettingsProxyAddressHint,
-                    helperText: loc.siteSettingsProxyAddressHelper,
-                    border: const OutlineInputBorder(),
-                  ),
-                  validator: _validateProxyAddress,
-                ),
-              ),
-              CheckboxListTile(
-                title: Text(loc.siteSettingsProxyRequiresAuth),
-                value: _showProxyCredentials,
-                onChanged: (bool? value) {
-                  setState(() {
-                    _showProxyCredentials = value ?? false;
-                  });
-                },
-                controlAffinity: ListTileControlAffinity.leading,
-              ),
-              if (_showProxyCredentials) ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                  child: TextFormField(
-                    controller: _proxyUsernameController,
-                    decoration: InputDecoration(
-                      labelText: loc.siteSettingsProxyUsername,
-                      border: const OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                  child: TextFormField(
-                    controller: _proxyPasswordController,
-                    obscureText: _obscureProxyPassword,
-                    decoration: InputDecoration(
-                      labelText: loc.siteSettingsProxyPassword,
-                      border: const OutlineInputBorder(),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscureProxyPassword ? Icons.visibility : Icons.visibility_off,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _obscureProxyPassword = !_obscureProxyPassword;
-                          });
-                        },
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ],
-          _buildWebRtcTile(),
+          _sectionHeader(loc.siteSettingsSectionContent),
           SwitchListTile(
             title: Text(loc.siteSettingsJavascriptEnabled),
             value: _javascriptEnabled,
@@ -1505,238 +1219,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               },
             ),
           ),
-          SwitchListTile(
-            title: Text(loc.siteSettingsThirdPartyCookies),
-            value: _thirdPartyCookiesEnabled,
-            onChanged: (bool value) {
-              setState(() {
-                _thirdPartyCookiesEnabled = value;
-              });
-            },
-          ),
-          SwitchListTile(
-            title: Text(loc.siteSettingsIncognito),
-            subtitle: Text(loc.siteSettingsIncognitoSubtitle),
-            value: _incognito,
-            onChanged: (bool value) {
-              setState(() {
-                _incognito = value;
-              });
-            },
-          ),
-          SwitchListTile(
-            title: Text(loc.siteSettingsAlwaysOpenHome),
-            subtitle: Text(
-              _incognito
-                  ? loc.siteSettingsAlwaysOpenHomeForced
-                  : loc.siteSettingsAlwaysOpenHomeSubtitle,
-            ),
-            value: _incognito || _alwaysOpenHome,
-            onChanged: _incognito
-                ? null
-                : (bool value) {
-                    setState(() {
-                      _alwaysOpenHome = value;
-                    });
-                  },
-          ),
-          SwitchListTile(
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.siteSettingsKioskMode)),
-                HintButton(
-                  title: loc.siteSettingsKioskMode,
-                  description: loc.siteSettingsKioskModeHint,
-                ),
-              ],
-            ),
-            value: _kioskMode,
-            onChanged: (bool value) {
-              setState(() {
-                _kioskMode = value;
-              });
-            },
-          ),
-          SwitchListTile(
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.siteSettingsTrackingProtection)),
-                HintButton(
-                  title: loc.siteSettingsTrackingProtection,
-                  description: loc.siteSettingsTrackingProtectionHint,
-                ),
-                if (_trackingProtectionEnabled &&
-                    (!DnsBlockService.instance.hasBlocklist ||
-                        !ContentBlockerService.instance.hasRules))
-                  _notConfiguredWarnIcon(),
-              ],
-            ),
-            subtitle: Text(loc.siteSettingsTrackingProtectionSubtitle),
-            value: _trackingProtectionEnabled,
-            onChanged: (bool value) {
-              if (value) {
-                final missing = <String>[
-                  if (!DnsBlockService.instance.hasBlocklist)
-                    loc.siteSettingsDnsBlocklist,
-                  if (!ContentBlockerService.instance.hasRules)
-                    loc.siteSettingsContentBlocker,
-                ];
-                if (missing.isNotEmpty) {
-                  _warnBlockerNotConfigured(missing.join(', '));
-                }
-              }
-              setState(() {
-                _trackingProtectionEnabled = value;
-              });
-            },
-          ),
-          SwitchListTile(
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.siteSettingsLetterboxTitle)),
-                HintButton(
-                  title: loc.siteSettingsLetterboxTitle,
-                  description: loc.siteSettingsWindowSizeHelper,
-                ),
-              ],
-            ),
-            value: _letterboxEnabled && _trackingProtectionEnabled,
-            onChanged: _trackingProtectionEnabled
-                ? (bool value) {
-                    setState(() {
-                      _letterboxEnabled = value;
-                    });
-                  }
-                : null,
-          ),
-          SwitchListTile(
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.siteSettingsClearUrls)),
-                HintButton(
-                  title: loc.siteSettingsClearUrls,
-                  description: loc.siteSettingsClearUrlsHint,
-                ),
-              ],
-            ),
-            subtitle: Text(
-              _trackingProtectionEnabled
-                  ? loc.siteSettingsForcedByTrackingProtection
-                  : loc.siteSettingsClearUrlsSubtitle,
-            ),
-            value: _clearUrlEnabled || _trackingProtectionEnabled,
-            onChanged: _trackingProtectionEnabled
-                ? null
-                : (bool value) {
-                    setState(() {
-                      _clearUrlEnabled = value;
-                    });
-                  },
-          ),
-          SwitchListTile(
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.siteSettingsDnsBlocklist)),
-                HintButton(
-                  title: loc.siteSettingsDnsBlocklist,
-                  description: loc.siteSettingsDnsBlocklistHint,
-                ),
-                if ((_dnsBlockEnabled || _trackingProtectionEnabled) &&
-                    !DnsBlockService.instance.hasBlocklist)
-                  _notConfiguredWarnIcon(),
-              ],
-            ),
-            subtitle: Text(
-              _blockerSubtitle(
-                ready: DnsBlockService.instance.hasBlocklist,
-                readyText: dnsBlockLevelNames[DnsBlockService.instance.level],
-              ),
-              style: (_dnsBlockEnabled || _trackingProtectionEnabled) &&
-                      !DnsBlockService.instance.hasBlocklist
-                  ? const TextStyle(color: Colors.orange)
-                  : null,
-            ),
-            value: _dnsBlockEnabled || _trackingProtectionEnabled,
-            onChanged: _trackingProtectionEnabled
-                ? null
-                : (bool value) {
-                    if (value && !DnsBlockService.instance.hasBlocklist) {
-                      _warnBlockerNotConfigured(loc.siteSettingsDnsBlocklist);
-                    }
-                    setState(() {
-                      _dnsBlockEnabled = value;
-                    });
-                  },
-          ),
-          if (DnsBlockService.instance.hasBlocklist) _buildDnsStatsCard(),
-          SwitchListTile(
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.siteSettingsContentBlocker)),
-                HintButton(
-                  title: loc.siteSettingsContentBlocker,
-                  description: loc.siteSettingsContentBlockerHint,
-                ),
-                if ((_contentBlockEnabled || _trackingProtectionEnabled) &&
-                    !ContentBlockerService.instance.hasRules)
-                  _notConfiguredWarnIcon(),
-              ],
-            ),
-            subtitle: Text(
-              _blockerSubtitle(
-                ready: ContentBlockerService.instance.hasRules,
-                readyText: loc.siteSettingsContentBlockerRuleCount(
-                    ContentBlockerService.instance.totalRuleCount),
-              ),
-              style: (_contentBlockEnabled || _trackingProtectionEnabled) &&
-                      !ContentBlockerService.instance.hasRules
-                  ? const TextStyle(color: Colors.orange)
-                  : null,
-            ),
-            value: _contentBlockEnabled || _trackingProtectionEnabled,
-            onChanged: _trackingProtectionEnabled
-                ? null
-                : (bool value) {
-                    if (value && !ContentBlockerService.instance.hasRules) {
-                      _warnBlockerNotConfigured(
-                          loc.siteSettingsContentBlocker);
-                    }
-                    setState(() {
-                      _contentBlockEnabled = value;
-                    });
-                  },
-          ),
-          if (Platform.isAndroid)
-            SwitchListTile(
-              title: Row(
-                children: [
-                  Flexible(child: Text(loc.siteSettingsLocalCdn)),
-                  HintButton(
-                    title: loc.siteSettingsLocalCdn,
-                    description: loc.siteSettingsLocalCdnHint,
-                  ),
-                ],
-              ),
-              subtitle: Text(
-                _trackingProtectionEnabled
-                    ? loc.siteSettingsForcedByTrackingProtection
-                    : (LocalCdnService.instance.hasCache
-                        ? loc.siteSettingsLocalCdnResourceCount(
-                            LocalCdnService.instance.resourceCount)
-                        : loc.siteSettingsLocalCdnNeedsCache),
-              ),
-              value: (_localCdnEnabled || _trackingProtectionEnabled) &&
-                  LocalCdnService.instance.hasCache,
-              onChanged: _trackingProtectionEnabled
-                  ? null
-                  : (LocalCdnService.instance.hasCache
-                      ? (bool value) {
-                          setState(() {
-                            _localCdnEnabled = value;
-                          });
-                        }
-                      : null),
-            ),
           ListTile(
             title: Text(loc.siteSettingsUserScripts),
             subtitle: Text(
@@ -1781,6 +1263,58 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             },
           ),
+          _sectionHeader(loc.siteSettingsSectionBehaviour),
+          SwitchListTile(
+            title: Text(loc.siteSettingsAlwaysOpenHome),
+            subtitle: Text(
+              _incognito
+                  ? loc.siteSettingsAlwaysOpenHomeForced
+                  : loc.siteSettingsAlwaysOpenHomeSubtitle,
+            ),
+            value: _incognito || _alwaysOpenHome,
+            onChanged: _incognito
+                ? null
+                : (bool value) {
+                    setState(() {
+                      _alwaysOpenHome = value;
+                    });
+                  },
+          ),
+          SwitchListTile(
+            title: Row(
+              children: [
+                Flexible(child: Text(loc.siteSettingsKioskMode)),
+                HintButton(
+                  title: loc.siteSettingsKioskMode,
+                  description: loc.siteSettingsKioskModeHint,
+                ),
+              ],
+            ),
+            value: _kioskMode,
+            onChanged: (bool value) {
+              setState(() {
+                _kioskMode = value;
+              });
+            },
+          ),
+          SwitchListTile(
+            title: Row(
+              children: [
+                Flexible(child: Text(loc.siteSettingsFullscreen)),
+                HintButton(
+                  title: loc.siteSettingsFullscreenHintTitle,
+                  description: loc.siteSettingsFullscreenHint,
+                ),
+              ],
+            ),
+            subtitle: Text(loc.siteSettingsFullscreenSubtitle),
+            value: _fullscreenMode,
+            onChanged: (bool value) {
+              setState(() {
+                _fullscreenMode = value;
+              });
+            },
+          ),
           SwitchListTile(
             title: Row(
               children: [
@@ -1820,24 +1354,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           SwitchListTile(
             title: Row(
               children: [
-                Flexible(child: Text(loc.siteSettingsFullscreen)),
-                HintButton(
-                  title: loc.siteSettingsFullscreenHintTitle,
-                  description: loc.siteSettingsFullscreenHint,
-                ),
-              ],
-            ),
-            subtitle: Text(loc.siteSettingsFullscreenSubtitle),
-            value: _fullscreenMode,
-            onChanged: (bool value) {
-              setState(() {
-                _fullscreenMode = value;
-              });
-            },
-          ),
-          SwitchListTile(
-            title: Row(
-              children: [
                 Flexible(child: Text(loc.siteSettingsHtmlCaching)),
                 HintButton(
                   title: loc.siteSettingsHtmlCachingHintTitle,
@@ -1853,245 +1369,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               });
             },
           ),
-          if (widget.useContainers)
-            Builder(builder: (context) {
-              final blockedBy = widget.notificationsBlockedBySite;
-              // The conflict gate only forbids ENABLING. If the toggle
-              // is already on (state predates a proxy edit on another
-              // site), the user can still turn it off — we just don't
-              // let them flip it back on while the conflict stands.
-              final blocked = blockedBy != null && !_notificationsEnabled;
-              final permissionDenied = _notificationsEnabled &&
-                  NotificationService.instance.permissionGranted == false;
-              final Widget? subtitle;
-              if (blocked) {
-                subtitle = Text(
-                  loc.siteSettingsNotificationsBlockedByProxy(blockedBy),
-                );
-              } else if (permissionDenied) {
-                final settingsPath = Platform.isIOS
-                    ? 'Notifications → WebSpace'
-                    : 'WebSpace → Notifications';
-                subtitle = Text(
-                  loc.siteSettingsNotificationsDenied(settingsPath),
-                );
-              } else {
-                subtitle = null;
-              }
-              return SwitchListTile(
-                title: Row(
-                  children: [
-                    Flexible(child: Text(loc.siteSettingsNotifications)),
-                    HintButton(
-                      title: loc.siteSettingsNotifications,
-                      description: loc.siteSettingsNotificationsHint,
-                    ),
-                  ],
-                ),
-                subtitle: subtitle,
-                value: _notificationsEnabled,
-                onChanged: blocked
-                    ? null
-                    : (bool value) async {
-                        setState(() {
-                          _notificationsEnabled = value;
-                        });
-                        if (!value) return;
-                        // First-time background-limits info dialog
-                        // (NOTIF-005-{I,A}); idempotent via a SharedPreferences
-                        // flag. Show before requesting OS permission so the
-                        // user understands what to expect before tapping Allow.
-                        await maybeShowBackgroundNotificationLimitsDialog(context);
-                        // NOTIF-007 / 16.1: request OS permission proactively
-                        // at toggle time, not lazily on first notification.
-                        // Repeat calls after a denial are harmless (the OS
-                        // returns the cached decision).
-                        await NotificationService.instance.requestPermission();
-                      },
-              );
-            }),
-          SwitchListTile(
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.siteSettingsBackgroundAudio)),
-                HintButton(
-                  title: loc.siteSettingsBackgroundAudio,
-                  description: loc.siteSettingsBackgroundAudioHint,
-                ),
-              ],
-            ),
-            value: _backgroundAudioEnabled,
-            onChanged: (bool value) async {
-              setState(() {
-                _backgroundAudioEnabled = value;
-              });
-              // Android shows a media notification with transport controls for
-              // background audio; on Android 13+ that needs POST_NOTIFICATIONS.
-              // Request it on enable so the controls actually appear. Repeat
-              // calls after a decision are harmless (OS returns the cached one).
-              if (value && Platform.isAndroid) {
-                await NotificationService.instance.requestPermission();
-              }
-            },
-          ),
-          if (Platform.isAndroid)
-            ListTile(
-              title: Row(
-                children: [
-                  Flexible(child: Text(loc.siteSettingsProtectedContent)),
-                  HintButton(
-                    title: loc.siteSettingsProtectedContent,
-                    description: loc.siteSettingsProtectedContentHint,
-                  ),
-                ],
-              ),
-              subtitle: _trackingProtectionEnabled
-                  ? Text(loc.siteSettingsProtectedContentBlockedByEtp)
-                  : null,
-              trailing: DropdownButton<bool?>(
-                value: _trackingProtectionEnabled
-                    ? false
-                    : _protectedContentAllowed,
-                onChanged: _trackingProtectionEnabled
-                    ? null
-                    : (v) => setState(() => _protectedContentAllowed = v),
-                items: <DropdownMenuItem<bool?>>[
-                  DropdownMenuItem<bool?>(
-                      value: null, child: Text(loc.siteSettingsProtectedContentAsk)),
-                  DropdownMenuItem<bool?>(
-                      value: true, child: Text(loc.siteSettingsProtectedContentAllow)),
-                  DropdownMenuItem<bool?>(
-                      value: false, child: Text(loc.siteSettingsProtectedContentBlock)),
-                ],
-              ),
-            ),
-          ListTile(
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.siteSettingsCameraAccess)),
-                HintButton(
-                  title: loc.siteSettingsCameraAccess,
-                  description: loc.siteSettingsCameraAccessHint,
-                ),
-              ],
-            ),
-            trailing: DropdownButton<CameraAccessMode>(
-              value: _cameraMode,
-              onChanged: (v) async {
-                if (v == null) return;
-                setState(() => _cameraMode = v);
-                // Selecting the virtual mode with no clip yet: prompt for one
-                // straight away so the setting is usable when the user leaves.
-                if (v == CameraAccessMode.virtual &&
-                    _virtualCameraSource == null) {
-                  await _pickVirtualCameraSource();
-                }
-              },
-              items: <DropdownMenuItem<CameraAccessMode>>[
-                DropdownMenuItem<CameraAccessMode>(
-                    value: CameraAccessMode.ask,
-                    child: Text(loc.siteSettingsCameraAccessAsk)),
-                DropdownMenuItem<CameraAccessMode>(
-                    value: CameraAccessMode.real,
-                    child: Text(loc.siteSettingsCameraAccessAllow)),
-                DropdownMenuItem<CameraAccessMode>(
-                    value: CameraAccessMode.virtual,
-                    child: Text(loc.siteSettingsCameraAccessVirtual)),
-                DropdownMenuItem<CameraAccessMode>(
-                    value: CameraAccessMode.block,
-                    child: Text(loc.siteSettingsCameraAccessBlock)),
-              ],
-            ),
-          ),
-          if (_cameraMode == CameraAccessMode.virtual)
-            Padding(
-              padding: const EdgeInsets.only(left: 16, right: 16, bottom: 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _virtualCameraSource == null
-                          ? loc.siteSettingsCameraAccessNoSource
-                          : _virtualCameraSource!.fileName,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  TextButton.icon(
-                    icon: const Icon(Icons.photo_library_outlined),
-                    label: Text(loc.siteSettingsCameraAccessChooseSource),
-                    onPressed: _pickVirtualCameraSource,
-                  ),
-                ],
-              ),
-            ),
-          // Preview the picked source at the same 4:3 cover-fit framing the
-          // site receives, so the user can confirm the clip loops and see any
-          // crop before relying on it.
-          if (_cameraMode == CameraAccessMode.virtual &&
-              _virtualCameraSource != null)
-            Padding(
-              padding: const EdgeInsets.only(left: 16, right: 16, bottom: 12),
-              child: VirtualCameraPreview(source: _virtualCameraSource!),
-            ),
-          ListTile(
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.siteSettingsMicrophoneAccess)),
-                HintButton(
-                  title: loc.siteSettingsMicrophoneAccess,
-                  description: loc.siteSettingsMicrophoneAccessHint,
-                ),
-              ],
-            ),
-            trailing: DropdownButton<MicrophoneAccessMode>(
-              value: _microphoneMode,
-              onChanged: (v) async {
-                if (v == null) return;
-                setState(() => _microphoneMode = v);
-                // Selecting the virtual mode with no clip yet: prompt for one
-                // straight away so the setting is usable when the user leaves.
-                if (v == MicrophoneAccessMode.virtual &&
-                    _virtualMicrophoneSource == null) {
-                  await _pickVirtualMicrophoneSource();
-                }
-              },
-              items: <DropdownMenuItem<MicrophoneAccessMode>>[
-                DropdownMenuItem<MicrophoneAccessMode>(
-                    value: MicrophoneAccessMode.ask,
-                    child: Text(loc.siteSettingsMicrophoneAccessAsk)),
-                DropdownMenuItem<MicrophoneAccessMode>(
-                    value: MicrophoneAccessMode.virtual,
-                    child: Text(loc.siteSettingsMicrophoneAccessVirtual)),
-                DropdownMenuItem<MicrophoneAccessMode>(
-                    value: MicrophoneAccessMode.block,
-                    child: Text(loc.siteSettingsMicrophoneAccessBlock)),
-              ],
-            ),
-          ),
-          if (_microphoneMode == MicrophoneAccessMode.virtual)
-            Padding(
-              padding: const EdgeInsets.only(left: 16, right: 16, bottom: 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _virtualMicrophoneSource == null
-                          ? loc.siteSettingsMicrophoneAccessNoSource
-                          : _virtualMicrophoneSource!.fileName,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  TextButton.icon(
-                    icon: const Icon(Icons.audiotrack_outlined),
-                    label: Text(loc.siteSettingsMicrophoneAccessChooseSource),
-                    onPressed: _pickVirtualMicrophoneSource,
-                  ),
-                ],
-              ),
-            ),
-          ..._buildLocationSection(),
           DomainClaimsEditor(
             model: widget.webViewModel,
             otherSites: widget.otherSites,
@@ -2099,6 +1376,100 @@ class _SettingsScreenState extends State<SettingsScreen> {
               widget.webViewModel.domainClaims = next;
             },
           ),
+          _sectionHeader(loc.siteSettingsSectionNetwork),
+          // Only show proxy settings on supported platforms
+          if (PlatformInfo.isProxySupported) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Text(
+                loc.siteSettingsProxyShared,
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ),
+            ListTile(
+              title: Text(loc.siteSettingsProxyType),
+              trailing: DropdownButton<ProxyType>(
+                value: _proxySettings.type,
+                onChanged: (ProxyType? newValue) {
+                  if (newValue != null) {
+                    setState(() {
+                      _proxySettings.type = newValue;
+                    });
+                  }
+                },
+                items: ProxyType.values.map<DropdownMenuItem<ProxyType>>(
+                  (ProxyType value) {
+                    return DropdownMenuItem<ProxyType>(
+                      value: value,
+                      child: Text(value.toString().split('.').last),
+                    );
+                  },
+                ).toList(),
+              ),
+            ),
+            if (_proxySettings.type != ProxyType.DEFAULT) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: TextFormField(
+                  controller: _proxyAddressController,
+                  decoration: InputDecoration(
+                    labelText: loc.siteSettingsProxyAddress,
+                    hintText: loc.siteSettingsProxyAddressHint,
+                    helperText: loc.siteSettingsProxyAddressHelper,
+                    border: const OutlineInputBorder(),
+                  ),
+                  validator: _validateProxyAddress,
+                ),
+              ),
+              CheckboxListTile(
+                title: Text(loc.siteSettingsProxyRequiresAuth),
+                value: _showProxyCredentials,
+                onChanged: (bool? value) {
+                  setState(() {
+                    _showProxyCredentials = value ?? false;
+                  });
+                },
+                controlAffinity: ListTileControlAffinity.leading,
+              ),
+              if (_showProxyCredentials) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  child: TextFormField(
+                    controller: _proxyUsernameController,
+                    decoration: InputDecoration(
+                      labelText: loc.siteSettingsProxyUsername,
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  child: TextFormField(
+                    controller: _proxyPasswordController,
+                    obscureText: _obscureProxyPassword,
+                    decoration: InputDecoration(
+                      labelText: loc.siteSettingsProxyPassword,
+                      border: const OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscureProxyPassword ? Icons.visibility : Icons.visibility_off,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _obscureProxyPassword = !_obscureProxyPassword;
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ],
+          _buildWebRtcTile(),
+          _sectionHeader(loc.siteSettingsSectionSite),
+          _buildPrivacyRow(),
+          _buildPermissionsRow(),
           const SizedBox(height: 8),
           if (widget.onClearCookies != null)
             Padding(
@@ -2216,17 +1587,9 @@ Future<void> maybeShowBackgroundNotificationLimitsDialog(
   await prefs.setBool(_kBgNotifInfoShownPrefKey, true);
 }
 
-/// Three-way segmented control state for the per-site geolocation row.
-/// Maps to LocationMode at save time:
-///   off    -> LocationMode.off     (no shim)
-///   custom -> LocationMode.spoof   (static user-supplied coords)
-///   live   -> LocationMode.live    (real device GPS via the shim's
-///                                   getRealLocation handler)
-enum _LocationSegment { off, staticCoords, live }
 
 /// Provider tier shown by the live-mode segment picker. GPS and GSM are
 /// the two OS-level provider strategies; the "Approximate" switch
 /// rendered under GPS modulates whether the JS shim snaps the result,
 /// so it is not a separate provider — see [LocationGranularity].
-enum _LiveProvider { gps, gsm }
 

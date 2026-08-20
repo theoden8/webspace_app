@@ -259,3 +259,122 @@ test('full_combo: all four overrides install in the same realm', () => {
     }, reject);
   });
 });
+
+// --- Blocked mode (LOC-OFF-001/002) ----------------------------------------
+//
+// `off` is the default for every new site, so these cover the common case.
+// Before the fix `off` emitted no shim at all and the platform's own
+// geolocation answered: on iOS/macOS/Linux a page could still reach the real
+// device fix through the webview's permission prompt. (Android already denied
+// by default — the plugin's WebChromeClient calls back with allow=false when
+// no Dart handler is registered — so the bug was platform-dependent, which is
+// worse than uniformly wrong.)
+
+const BLOCKING_FIXTURES = [
+  ['blocked', 'location_spoof/blocked.js'],
+  ['spoof_without_coords', 'location_spoof/spoof_without_coords.js'],
+];
+
+// Resolve to what the page actually observed, so a shim that never calls
+// either callback fails the assertion instead of hanging the test: leaving a
+// request unanswered is its own bug, not a pass.
+function observeGetCurrentPosition(dom, timeoutMs = 2000) {
+  return new Promise((resolve) => {
+    const timer = setTimeout(
+      () => resolve({ outcome: 'no callback within ' + timeoutMs + 'ms' }),
+      timeoutMs,
+    );
+    dom.window.navigator.geolocation.getCurrentPosition(
+      (position) => { clearTimeout(timer); resolve({ outcome: 'success', position }); },
+      (error) => { clearTimeout(timer); resolve({ outcome: 'error', error }); },
+    );
+  });
+}
+
+for (const [name, fixture] of BLOCKING_FIXTURES) {
+  test(`${name}: getCurrentPosition invokes the error callback, never success`, async () => {
+    const dom = loadShim(fixture);
+    const seen = await observeGetCurrentPosition(dom);
+    assert.equal(seen.outcome, 'error');
+    assert.equal(seen.error.code, 1);
+    assert.equal(seen.error.code, seen.error.PERMISSION_DENIED);
+  });
+
+  test(`${name}: the error is indistinguishable from a denied browser prompt`, async () => {
+    // Detection hardening: a site that can tell "WebSpace refused" apart from
+    // "the user tapped Block" learns the app is mediating.
+    const dom = loadShim(fixture);
+    const seen = await observeGetCurrentPosition(dom);
+    assert.equal(seen.outcome, 'error');
+    const err = seen.error;
+    assert.deepEqual(Object.keys(err).sort(), [
+      'PERMISSION_DENIED', 'POSITION_UNAVAILABLE', 'TIMEOUT', 'code', 'message',
+    ].sort());
+    assert.equal(err.POSITION_UNAVAILABLE, 2);
+    assert.equal(err.TIMEOUT, 3);
+    assert.match(err.message, /denied/i);
+  });
+
+  test(`${name}: navigator.geolocation still exists`, () => {
+    // Deleting the API would be trivially detectable and is not what a denied
+    // browser looks like.
+    const dom = loadShim(fixture);
+    const geo = dom.window.navigator.geolocation;
+    assert.ok(geo);
+    assert.equal(typeof geo.getCurrentPosition, 'function');
+    assert.equal(typeof geo.watchPosition, 'function');
+    assert.equal(typeof geo.clearWatch, 'function');
+  });
+
+  test(`${name}: watchPosition returns an id, errors once, and never polls`, async () => {
+    const dom = loadShim(fixture);
+    let errors = 0;
+    let successes = 0;
+    const id = dom.window.navigator.geolocation.watchPosition(
+      () => { successes += 1; },
+      () => { errors += 1; },
+    );
+    assert.equal(typeof id, 'number');
+    // Longer than the shim's 150-400ms simulated latency and its 1s/5s poll
+    // intervals, so a stray interval would show up as a second error.
+    await new Promise((r) => setTimeout(r, 1400));
+    assert.equal(successes, 0);
+    assert.equal(errors, 1, 'exactly one refusal, and no silent no-op');
+    dom.window.navigator.geolocation.clearWatch(id);
+  });
+
+  test(`${name}: the prototype methods are patched, not just the instance`, () => {
+    // A site can reach past navigator.geolocation via Geolocation.prototype.
+    const dom = loadShim(fixture);
+    assert.equal(
+      dom.window.Geolocation.prototype.getCurrentPosition,
+      dom.window.navigator.geolocation.getCurrentPosition,
+    );
+  });
+
+  test(`${name}: permissions.query reports 'denied'`, async () => {
+    // Reporting 'granted' here and then failing every call is a combination
+    // no real browser produces.
+    const dom = loadShim(fixture);
+    const status = await dom.window.navigator.permissions.query({ name: 'geolocation' });
+    assert.equal(status.state, 'denied');
+  });
+
+  test(`${name}: patched geolocation methods still stringify as native`, () => {
+    const dom = loadShim(fixture);
+    const src = dom.window.navigator.geolocation.getCurrentPosition.toString();
+    assert.equal(src, 'function getCurrentPosition() { [native code] }');
+  });
+}
+
+test('a grant is unaffected: static_tokyo still reports permissions granted', async () => {
+  const dom = loadShim('location_spoof/static_tokyo.js');
+  const status = await dom.window.navigator.permissions.query({ name: 'geolocation' });
+  assert.equal(status.state, 'granted');
+});
+
+test('permissions.query passes non-geolocation descriptors through untouched', async () => {
+  const dom = loadShim('location_spoof/blocked.js');
+  const status = await dom.window.navigator.permissions.query({ name: 'camera' });
+  assert.equal(status.state, 'prompt');
+});

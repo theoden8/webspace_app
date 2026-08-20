@@ -6,7 +6,9 @@
 //   * CB-006 / DNS-005 warn-on-enable: flipping the DNS blocklist or
 //     Content Blocker switch with no downloaded data flips the setting,
 //     fires the not-configured SnackBar, and renders the persistent
-//     amber warning icon next to the tile.
+//     amber warning icon next to the tile. The switches live on the
+//     per-site Privacy screen (ETP-017), reached from the settings row,
+//     so the walk also covers that the row opens it with live values.
 //   * Tracking Protection enable warns for each unconfigured forced dep
 //     and carries the warning icon itself.
 //   * CB-012: the adblock engine ships and loads inside the desktop app
@@ -17,7 +19,8 @@
 // Screens are pumped directly (SettingsScreen / DevToolsScreen) rather
 // than navigated to through the drawer: the warning surfaces live
 // entirely inside these screens, and skipping app boot keeps the test
-// independent of seeded-site state.
+// independent of seeded-site state. The one hop taken for real is
+// settings -> Privacy, since that route carries the values under test.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -26,6 +29,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/screens/settings.dart';
+import 'package:webspace/screens/site_privacy.dart';
 import 'package:webspace/services/adblock_engine.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/webview.dart';
@@ -67,17 +71,48 @@ void main() {
         trackingProtectionEnabled: false,
       );
 
+  /// Walks the settings row into the Privacy screen, where every switch
+  /// under test lives. The row sits in the Site section at the foot of
+  /// settings, so it has to be scrolled to before it exists to tap.
+  Future<void> openPrivacy(WidgetTester tester) async {
+    final row = find.widgetWithText(ListTile, 'Privacy');
+    final settingsList = find
+        .descendant(of: find.byType(ListView), matching: find.byType(Scrollable))
+        .first;
+    await tester.scrollUntilVisible(row, 200, scrollable: settingsList);
+    await tester.pumpAndSettle();
+    await tester.tap(row);
+    await tester.pumpAndSettle();
+    expect(find.byType(SitePrivacyScreen), findsOneWidget,
+        reason: 'the Privacy row must open the Privacy screen');
+  }
+
   Future<Finder> revealTile(WidgetTester tester, String title) async {
-    final tile = find.widgetWithText(SwitchListTile, title);
-    // Target the settings ListView's own Scrollable — a bare
-    // find.byType(Scrollable).first can land on a nested horizontal
+    final tile = find.descendant(
+      of: find.byType(SitePrivacyScreen),
+      matching: find.widgetWithText(SwitchListTile, title),
+    );
+    // Scope to the Privacy screen's own ListView: the pushed route leaves
+    // the settings ListView in the tree underneath, and a bare
+    // find.byType(Scrollable).first can also land on a nested horizontal
     // scrollable and scroll the wrong axis forever.
     final listScrollable = find
-        .descendant(of: find.byType(ListView), matching: find.byType(Scrollable))
+        .descendant(
+            of: find.byType(SitePrivacyScreen), matching: find.byType(Scrollable))
         .first;
     await tester.scrollUntilVisible(tile, 200, scrollable: listScrollable);
     await tester.pumpAndSettle();
     return tile;
+  }
+
+  /// Taps the row's title text rather than the tile's centre. Both toggle
+  /// the switch (the text has no gesture of its own, so the tap falls
+  /// through to the ListTile), but the centre is not always the tile: the
+  /// title carries a hint button, and how far along the row it sits depends
+  /// on the rendered width of the title.
+  Future<void> tapTile(WidgetTester tester, Finder tile, String title) async {
+    await tester.tap(find.descendant(of: tile, matching: find.text(title)));
+    await tester.pump();
   }
 
   final warnIcon = find.byIcon(Icons.warning_amber_rounded);
@@ -86,14 +121,14 @@ void main() {
   testWidgets('enabling unconfigured Content Blocker warns and flips',
       (tester) async {
     await pump(tester, SettingsScreen(webViewModel: freshModel()));
+    await openPrivacy(tester);
     expect(warnIcon, findsNothing);
 
     final tile = await revealTile(tester, 'Content Blocker');
     expect(find.descendant(of: tile, matching: find.text('Not configured')),
         findsOneWidget);
 
-    await tester.tap(tile);
-    await tester.pump();
+    await tapTile(tester, tile, 'Content Blocker');
 
     expect(tester.widget<SwitchListTile>(tile).value, isTrue);
     expect(warnSnack, findsOneWidget);
@@ -103,10 +138,10 @@ void main() {
   testWidgets('enabling unconfigured DNS blocklist warns and flips',
       (tester) async {
     await pump(tester, SettingsScreen(webViewModel: freshModel()));
+    await openPrivacy(tester);
 
     final tile = await revealTile(tester, 'DNS Blocklist');
-    await tester.tap(tile);
-    await tester.pump();
+    await tapTile(tester, tile, 'DNS Blocklist');
 
     expect(tester.widget<SwitchListTile>(tile).value, isTrue);
     expect(warnSnack, findsOneWidget);
@@ -116,10 +151,10 @@ void main() {
   testWidgets('enabling Tracking Protection warns for both forced deps',
       (tester) async {
     await pump(tester, SettingsScreen(webViewModel: freshModel()));
+    await openPrivacy(tester);
 
     final tile = await revealTile(tester, 'Tracking Protection');
-    await tester.tap(tile);
-    await tester.pump();
+    await tapTile(tester, tile, 'Tracking Protection');
 
     expect(warnSnack, findsOneWidget);
     expect(find.textContaining('DNS Blocklist, Content Blocker'),

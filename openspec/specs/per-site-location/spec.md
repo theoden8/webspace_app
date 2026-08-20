@@ -29,32 +29,88 @@ A single site-level toggle set is therefore required: spoof coordinates, overrid
 
 The system SHALL expose a per-site `locationMode` with three values:
 
-- `off` (default): the JS shim does not touch `navigator.geolocation`. The webview's platform default applies.
+- `off` (default): the shim replaces `navigator.geolocation` with a path that refuses every request, invoking the error callback with `PERMISSION_DENIED` (code 1). `off` means off: it does NOT defer to the webview's platform default.
 - `spoof`: the shim replaces `navigator.geolocation` with a static-coordinates path that returns the user-supplied `spoofLatitude` / `spoofLongitude` / `spoofAccuracy` (with sub-meter jitter so `watchPosition` doesn't return byte-identical frames).
 - `live`: the shim replaces `navigator.geolocation` with a callback path that, on every `getCurrentPosition` / `watchPosition` tick, asks the Dart side for a fresh fix from the platform's native location service (Android `LocationManager`, iOS `CLLocationManager`) and returns those real coordinates. `watchPosition` polls every 5 s.
 
+Because `off` now blocks rather than abstains, the shim is injected for every
+site regardless of settings. Before this, `off` emitted no shim at all and the
+refusal was left entirely to whatever each engine happened to do:
+
+- **Android**: the plugin's `WebChromeClient.onGeolocationPermissionsShowPrompt`
+  calls back with `allow = false` when no Dart handler is registered, so the
+  request was denied by the plugin's default.
+- **Linux (WPE)**: `InAppWebView::OnPermissionRequest` denies on any non-`GRANT`
+  action and on an empty resource-type list, and the app's `onPermissionRequest`
+  only ever grants camera and protected media, so geolocation was denied.
+- **macOS**: the plugin wires no geolocation path, and the app holds no
+  location capability at all - no `NSLocationWhenInUseUsageDescription`, no
+  `com.apple.security.personal-information.location` entitlement under App
+  Sandbox, and `CurrentLocationService.isSupported` excludes it. CoreLocation
+  refuses before any app code runs, so location on macOS is impossible by
+  construction rather than gated. Guarded by
+  `test/js/os_capability_declarations.test.js`.
+- **iOS**: same WebKit as macOS, but a different posture in the app layer: iOS
+  declares `NSLocationWhenInUseUsageDescription` and supports live mode and the
+  picker, so it is the one platform that can hold location authorization
+  app-wide. The plugin still wires no geolocation path, and WKWebView requires
+  the embedder to implement private `_WKUIDelegate` geolocation methods, so web
+  geolocation is expected to be denied by absence. **This is the one platform
+  where the pre-change behaviour has not been confirmed on a device.**
+
+So `off` most likely did refuse everywhere, but only as the sum of three
+unrelated engine defaults and one plugin implementation detail, none of them
+owned or tested here, while this spec and the UI string both told the user the
+opposite ("Pages get your real location"). Two things were defective in the
+app's own logic regardless of engine behaviour: a `spoof` site whose
+coordinates went missing emitted no shim at all, and nothing in the test suite
+would have caught a regression either way.
+
+The shim now refuses explicitly and uniformly, so the guarantee is the app's
+rather than the engine's, and `onGeolocationPermissionsShowPrompt` is wired
+explicitly rather than relying on the plugin default.
+
 In all three modes, `spoofTimezone` and `webRtcPolicy` apply independently — `live` does NOT bypass the timezone override or WebRTC policy. The on-disk values are `off` / `spoof` / `live`; existing settings backups round-trip without migration (older backups without a value default to `off`).
 
-The UI SHALL NOT expose the mode as a separate dropdown. Instead, the per-site settings screen SHALL render a state-aware geolocation row with three states:
+The UI SHALL NOT expose the mode as a separate dropdown. Location is one row
+in the per-site permission screen, carrying a state chip from the shared
+vocabulary (`Blocked` / `Simulated` / `Allowed`, see `site-permission-badges`)
+and, when the state alone is ambiguous, one qualifier line naming the live
+precision or the missing coordinates. Tapping the row opens a sheet whose
+options are the states:
 
-- **Off** (no custom coords, live disabled): subtitle "No custom location set" with two buttons — "Pick" (opens the picker → flips to spoof) and "Live" (flips to live).
-- **Spoof** (custom coords): subtitle shows the coordinates and accuracy, with an edit-icon button (re-opens the picker) and a clear-icon button (flips to off).
-- **Live** (live tracking): subtitle "Live: tracks device GPS via the platform location service", with a clear button that flips back to off.
+- **Off** → `LocationMode.off`. Every request is refused (LOC-OFF-001).
+- **Static** → `LocationMode.spoof`, with the coordinate picker indented under
+  it. Choosing it with no coordinates set opens the picker immediately.
+- **Live** → `LocationMode.live`, with the three granularity tiers as one
+  indented list. They are a single enum and SHALL be a single control: the
+  earlier GPS/GSM segmented button plus a separate "Approximate" switch let two
+  controls write the same value.
 
 `locationMode` is derived at save time:
 - if the user is in the live state → `live`,
 - else if both `spoofLatitude` and `spoofLongitude` are non-null → `spoof`,
 - else → `off`.
 
-The user-facing concept of "mode" is removed — the user thinks in terms of "I have a custom location", "I'm tracking my real one", or "I don't have anything set".
+The user-facing concept of "mode" is removed — the user thinks in terms of "I
+have a custom location", "I'm tracking my real one", or "this site gets
+nothing".
+
+The timezone control SHALL sit at the foot of that same sheet, below every
+option rather than under one of them: it applies whichever location state is
+chosen, and a site refused location can still be handed a spoofed zone. It is
+placed with location because it is the same disclosure — a zone pins a site's
+guess at the user's region — and because its "From picked location" entry is
+derived from the coordinates chosen one control above. It is NOT a capability:
+it gets no row of its own in the permission list and no state chip.
 
 #### Scenario: No location set shows Pick affordance
 
 **Given** site "Acme" has `locationMode = off` and no `spoofLatitude` / `spoofLongitude`
-**When** the user opens per-site settings for Acme
-**Then** the Geolocation row shows the subtitle "No custom location set"
-**And** a single "Pick location" button is visible
-**And** no latitude/longitude/accuracy fields are shown
+**When** the user opens the permission screen for Acme and taps the Geolocation row
+**Then** the row's chip reads `Blocked` and the sheet's selected option is Off
+**And** choosing Static opens the coordinate picker straight away
+**And** no latitude/longitude/accuracy fields are shown anywhere in the sheet
 
 #### Scenario: Picking a location flips mode to spoof
 
@@ -66,15 +122,62 @@ The user-facing concept of "mode" is removed — the user thinks in terms of "I 
 #### Scenario: Clearing a location flips mode to off
 
 **Given** site "Acme" has `locationMode = spoof`, `spoofLatitude = 35.6762`, `spoofLongitude = 139.6503`
-**When** the user opens per-site settings, taps the clear (✕) icon next to the coordinates, and saves
+**When** the user opens the Geolocation sheet, chooses Off, and saves
 **Then** the persisted state is `locationMode = off` and the latitude/longitude are null
-**And** subsequent `navigator.geolocation.getCurrentPosition` calls from Acme return whatever the platform's webview default does (no shim)
+**And** subsequent `navigator.geolocation.getCurrentPosition` calls from Acme are refused
 
-#### Scenario: Off mode passes through
+#### Scenario: LOC-TZ-001 - Timezone travels with location
+
+**Given** site "Acme" is in any `locationMode`
+**When** the user opens the Geolocation sheet
+**Then** the timezone control is shown once, at the foot of the sheet, whichever option is selected
+**And** it does not appear as its own row in the permission list, and carries no state chip
+**And** its "From picked location" entry names the zone the current coordinates resolve to, recomputed as those coordinates change
+
+#### Scenario: LOC-TZ-002 - Tracking Protection forces the derived zone
+
+**Given** site "Acme" has Tracking Protection on and static coordinates set
+**When** the user opens the Geolocation sheet
+**Then** the timezone control is inert and reads as following the picked location, so the spoofed `Date`/`Intl` values cannot disagree with the spoofed geo
+**And** with no coordinates set the umbrella does NOT touch the timezone: the stored choice, or the system default, stands
+
+#### Scenario: LOC-OFF-001 - Off mode refuses the page on every platform
 
 **Given** site "Acme" has `locationMode = off`
-**When** the site calls `navigator.geolocation.getCurrentPosition(cb)`
-**Then** the webview returns the platform's real geolocation (or prompts for permission)
+**When** the site calls `navigator.geolocation.getCurrentPosition(success, error)`
+**Then** `error` is invoked with `code = 1` (`PERMISSION_DENIED`) and `success` is never invoked
+**And** `navigator.permissions.query({name: 'geolocation'})` resolves with `state = 'denied'`
+**And** `navigator.geolocation` and its three methods still exist, and still stringify as native code
+
+#### Scenario: LOC-OFF-002 - A grant with no coordinates fails closed
+
+**Given** site "Acme" has `locationMode = spoof` but `spoofLatitude` / `spoofLongitude` are null (hand-edited or partially-restored backup)
+**When** the site calls `navigator.geolocation.getCurrentPosition(success, error)`
+**Then** the request is refused exactly as in LOC-OFF-001, rather than falling back to the platform fix
+
+#### Scenario: LOC-REACH-001 - Only a live site can reach the device
+
+**Given** site "Acme" has `locationMode` set to anything other than `live`
+**When** the site's WebView is built
+**Then** the `getRealLocation` JavaScript bridge handler is not registered for it
+**And** `CurrentLocationService.getCurrentLocation` has no other call site than that handler and the location picker's explicit "use current location" button
+
+#### Scenario: LOC-REACH-003 - The Android geolocation prompt is never granted
+
+**Given** any site, in any `locationMode`, on Android
+**When** the WebView raises `WebChromeClient.onGeolocationPermissionsShowPrompt`
+**Then** the app responds with `allow = false`
+
+Even `live` is denied here: live fixes are served through the `getRealLocation`
+bridge, which applies the site's `liveLocationGranularity` snapping before the
+fix leaves Dart. Granting the native prompt would hand the page the raw
+platform fix and silently bypass the `approximate` and `gsm` tiers.
+
+#### Scenario: LOC-OFF-003 - Watch requests are answered, not left hanging
+
+**Given** site "Acme" has `locationMode = off`
+**When** the site calls `navigator.geolocation.watchPosition(success, error)`
+**Then** a watch id is returned, `error` is invoked exactly once, and no polling interval is registered
 
 #### Scenario: Spoof mode returns fake coords
 
