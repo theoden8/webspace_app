@@ -282,6 +282,10 @@ class DownloadEngine {
     return name
         .replaceAll(RegExp(r'[/\\]'), '_')
         .replaceAll(RegExp(r'[\x00-\x1f]'), '')
+        // Bidi controls reorder the rendered name without changing the bytes,
+        // so a page can suggest "invoice\u202Egnp.exe" and have the save
+        // dialog and file manager both show "invoiceexe.png".
+        .replaceAll(RegExp(r'[\u200e\u200f\u202a-\u202e\u2066-\u2069]'), '')
         .trim();
   }
 

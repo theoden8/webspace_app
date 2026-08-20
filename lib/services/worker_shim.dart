@@ -132,7 +132,17 @@ const String _installerDefinition = r'''
         // Static imports evaluate in source order, so the shim is fully applied
         // before the original module body runs. Dynamic import() would resolve
         // in a later task and could lose messages posted meanwhile.
-        body = 'import ' + JSON.stringify(shimUrl) + ';\n' +
+        //
+        // `__wsShimUrl` has to arrive via its own imported module: an
+        // assignment in this body would run *after* both imports (module
+        // evaluation is hoisted), so the shim's tail would find nothing and
+        // skip re-installing the Worker patch — leaving anything this module
+        // worker spawns unshimmed.
+        var setter = URL.createObjectURL(new Blob(
+          ['globalThis.__wsShimUrl = ' + JSON.stringify(shimUrl) + ';\n'],
+          { type: 'text/javascript' }));
+        body = 'import ' + JSON.stringify(setter) + ';\n' +
+               'import ' + JSON.stringify(shimUrl) + ';\n' +
                'import ' + JSON.stringify(abs) + ';\n';
       } else {
         body = 'self.__wsShimUrl = ' + JSON.stringify(shimUrl) + ';\n' +
