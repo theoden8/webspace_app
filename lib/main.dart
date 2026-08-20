@@ -1414,7 +1414,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// foreground. See PAUSE-024 / BUG-001.
   @override
   void didPopNext() {
-    if (Platform.isAndroid) {
+    if (hostIsAndroid) {
       LogService.instance.log('SurfaceDiag', 'trigger=route-return -> nudge');
     }
     _nudgeSurfaceRepaint();
@@ -8213,7 +8213,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                           // budget on a slow page — so latch the commit too and
                           // let onLoadSettled repaint it (PAUSE-025).
                           _surfaceRepaint.noteCommitPending();
-                          if (Platform.isAndroid) {
+                          if (hostIsAndroid) {
                             LogService.instance.log(
                                 'SurfaceDiag', 'trigger=controller-attach -> nudge');
                           }

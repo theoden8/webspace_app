@@ -663,7 +663,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   /// Bounded so steady-state metric changes (keyboard, rotation) don't nudge.
   /// Mirrors `_WebSpacePageState._openResumeRepaintWindow` (PAUSE-020).
   void _openResumeRepaintWindow() {
-    if (!Platform.isAndroid) return;
+    if (!hostIsAndroid) return;
     _resumeRepaintWindowOpen = true;
     _resumeRepaintWindowTimer?.cancel();
     _resumeRepaintWindowTimer = Timer(const Duration(seconds: 3), () {

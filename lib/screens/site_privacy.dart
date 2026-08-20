@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter/material.dart';
 
@@ -431,7 +431,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
           _dnsBlocklist(loc),
           if (DnsBlockService.instance.hasBlocklist) _dnsStats(),
           _contentBlocker(loc),
-          if (Platform.isAndroid) _localCdn(loc),
+          if (hostIsAndroid) _localCdn(loc),
           _thirdPartyCookies(loc),
           _groupHeader(loc.privacyGroupFingerprinting),
           _letterbox(loc),

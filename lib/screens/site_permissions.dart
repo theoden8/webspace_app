@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter/material.dart';
 
@@ -665,7 +665,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
     final permissionDenied = _values.notificationsEnabled &&
         NotificationService.instance.permissionGranted == false;
     final settingsPath =
-        Platform.isIOS ? 'Notifications → WebSpace' : 'WebSpace → Notifications';
+        hostIsIOS ? 'Notifications → WebSpace' : 'WebSpace → Notifications';
     return _Capability(
       icon: Icons.notifications_none,
       title: loc.siteSettingsNotifications,
@@ -902,12 +902,12 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
               _update(_values.copyWith(backgroundAudioEnabled: value));
               // Android shows a media notification with transport controls for
               // background audio; on Android 13+ that needs POST_NOTIFICATIONS.
-              if (value && Platform.isAndroid) {
+              if (value && hostIsAndroid) {
                 await NotificationService.instance.requestPermission();
               }
             },
           ),
-          if (Platform.isAndroid) ...[
+          if (hostIsAndroid) ...[
             _groupHeader(loc.permissionsGroupMedia),
             _row(_protectedContent(loc)),
           ],
