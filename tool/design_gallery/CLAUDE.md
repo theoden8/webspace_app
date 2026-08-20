@@ -65,6 +65,20 @@ drew (almost) nothing, so this is CI-safe.
 - **Accent contrast** ([test/accent_theme_contrast_test.dart](../../test/accent_theme_contrast_test.dart)):
   every role pair in `buildAccentColorScheme` holds 4.5:1 across all 8 accents
   and both brightnesses. Plain `flutter test`, no browser.
+- **Token values** ([test/design_tokens_validity_test.dart](../../test/design_tokens_validity_test.dart)):
+  the tokens are checked against each other, never against a fixed number, so
+  retuning is free and inverting the design is not. Scales stay ascending,
+  spacing stays on the 4pt grid, the light chrome bar stays lighter than the
+  dark one, each hairline separates from its bar without becoming a border, a
+  tap target stays at least as large as the icon in it, and the padlock holds
+  3:1 on both bars while staying a different colour from its other state
+  (measured as CIE76 ΔE, since the two differ in hue and not in lightness).
+- **Token layout** ([test/design_render_matrix_test.dart](../../test/design_render_matrix_test.dart)):
+  every widget that reads the tokens is rendered at 320/411/800pt, at 1.0/1.3/2.0
+  text scale, in both brightnesses. A `RenderFlex` overflow fails a widget test
+  on its own, so the matrix costs one `pumpWidget` per cell and catches the
+  damage a value change does only once it is laid out. Tap targets are asserted
+  separately: a control that shrinks below the floor overflows nothing.
 
 Structural questions ("does the button still exist") belong in widget tests and
 `integration_test/`, not here. Pixel diffing the cards is deliberately not

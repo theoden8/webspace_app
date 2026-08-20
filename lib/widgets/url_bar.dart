@@ -72,6 +72,7 @@ class _UrlBarState extends State<UrlBar> {
     final loc = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isSecure = widget.currentUrl.startsWith('https://');
 
     return Container(
       padding: EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
@@ -87,9 +88,12 @@ class _UrlBarState extends State<UrlBar> {
       child: Row(
         children: [
           Icon(
-            Icons.lock,
+            // Shape as well as colour: a closed padlock in a different green
+            // is not a signal anyone can read at 16px, and reads as secure to
+            // a colour-blind user on a plain http page.
+            isSecure ? Icons.lock : Icons.lock_open,
             size: IconSizes.inline,
-            color: widget.currentUrl.startsWith('https://')
+            color: isSecure
                 ? SecurityIndicator.secure
                 : SecurityIndicator.insecure,
           ),

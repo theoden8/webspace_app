@@ -73,6 +73,9 @@ in the file itself.
 The app repository runs the checks, not this project: every card must clear an
 ink floor (a blank card means the engine or the font failed to load), every
 accent must hold 4.5:1 contrast across both brightnesses, every design value in
-a migrated widget must come from the token file rather than a literal, and the
-packed `app/` must boot in an iframe. A design change that breaks one of those
+a migrated widget must come from the token file rather than a literal, the
+token values must stay consistent with each other (scales ascending, spacing on
+the grid, indicators legible on the surface they sit on), every widget reading
+them must still lay out at 320pt and 200% text in both themes, and the packed
+`app/` must boot in an iframe. A design change that breaks one of those
 fails there, before it reaches here.

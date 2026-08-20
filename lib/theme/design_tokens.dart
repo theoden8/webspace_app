@@ -48,9 +48,14 @@ abstract final class Chrome {
 
 /// The padlock in the URL bar. Green only for https; anything else reads as
 /// not-secure rather than as an error.
+///
+/// Shade 700/600 rather than the plain Material colours: the same padlock is
+/// drawn on both chrome bars, and `Colors.green`/`Colors.grey` sit at 2.55:1
+/// and 2.46:1 on the light one, under the 3:1 that a meaningful non-text
+/// indicator needs. These clear it on both.
 abstract final class SecurityIndicator {
-  static const Color secure = Colors.green;
-  static const Color insecure = Colors.grey;
+  static const Color secure = Color(0xFF388E3C);
+  static const Color insecure = Color(0xFF757575);
 }
 
 abstract final class IconSizes {
