@@ -11,8 +11,7 @@ const path = require('node:path');
 const puppeteer = require('puppeteer');
 const { PNG } = require('pngjs');
 const { serve, requireBuild } = require('./static_server');
-
-const CHROMIUM = process.env.PUPPETEER_EXECUTABLE_PATH || '/opt/pw-browsers/chromium';
+const { chromiumLaunchOptions } = require('./chromium');
 
 // Screens first, same order as the Dart registry.
 const CARDS = [
@@ -95,7 +94,7 @@ async function shoot(page, base, out, { id, width, height }, theme, accent) {
   const server = await serve(root, port);
   const base = `http://127.0.0.1:${port}`;
   const browser = await puppeteer.launch({
-    executablePath: CHROMIUM,
+    ...chromiumLaunchOptions(),
     headless: true,
     args: ['--no-sandbox', '--disable-gpu', '--force-device-scale-factor=1'],
   });

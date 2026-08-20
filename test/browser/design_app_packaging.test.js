@@ -14,15 +14,12 @@ const os = require('node:os');
 const path = require('node:path');
 const { setupBrowser, requireBrowser } = require('./helpers/launch');
 const { serve } = require('../../tool/design_gallery/static_server');
+const { chromiumLaunchOptions } = require('../../tool/design_gallery/chromium');
 
 const PACKED = path.resolve(__dirname, '..', '..', 'build', 'design_app_upload');
-// Same resolution as tool/design_gallery/shoot.js: this sandbox ships Chromium
-// at a fixed path rather than through puppeteer's own download.
-const CHROMIUM = process.env.PUPPETEER_EXECUTABLE_PATH ||
-  (fs.existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined);
 const state = setupBrowser({
   args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
-  ...(CHROMIUM ? { executablePath: CHROMIUM } : {}),
+  ...chromiumLaunchOptions(),
 });
 
 function requirePacked(t) {
