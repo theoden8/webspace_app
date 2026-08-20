@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
@@ -57,36 +58,47 @@ class WebInterceptNative {
       final list =
           await _channel.invokeMethod('fetchBlockEvents', {'siteId': siteId});
       if (list is! List) return;
-      for (final entry in list) {
-        if (entry is Map) {
-          final host = entry['host'] as String?;
-          final blocked = entry['blocked'] as bool?;
-          if (host == null || blocked == null) continue;
-          final sourceStr = entry['source'] as String?;
-          final source = switch (sourceStr) {
-            'dns' => BlockSource.dns,
-            'abp' => BlockSource.abp,
-            _ => null,
-          };
-          // Native dedupes by host across the drain window. `count` is
-          // the number of repeat requests since the last drain; default
-          // 1 if absent (older codec / no dedup). Pass it straight to
-          // the host-level recorder so the per-site Total/Allowed/
-          // Blocked counts stay accurate while the log keeps a single
-          // entry per host.
-          final count = (entry['count'] as int?) ?? 1;
-          DnsBlockService.instance
-              .recordHostRequest(siteId, host, blocked, source: source, count: count);
-          // Engine blocks decided natively never pass through
-          // ContentBlockerService.isBlocked, so fold them into the
-          // DevTools ABP counters here or the ABP tab undercounts.
-          if (blocked && source == BlockSource.abp) {
-            ContentBlockerService.instance
-                .recordNativeEngineBlock(host, count: count);
-          }
+      applyBlockEvents(siteId, list);
+    } catch (_) {}
+  }
+
+  /// Decode one drained batch and apply it to the stats funnels.
+  ///
+  /// Split out of [_drainBlockEvents] so the payload contract with
+  /// `WebInterceptPlugin.drainBlockEvents` (`{host, blocked, source, count}`,
+  /// with `source` absent for allowed requests) is testable without an
+  /// Android device: the fetch is platform-gated, the accounting is not.
+  @visibleForTesting
+  static void applyBlockEvents(String siteId, List<dynamic> list) {
+    for (final entry in list) {
+      if (entry is Map) {
+        final host = entry['host'] as String?;
+        final blocked = entry['blocked'] as bool?;
+        if (host == null || blocked == null) continue;
+        final sourceStr = entry['source'] as String?;
+        final source = switch (sourceStr) {
+          'dns' => BlockSource.dns,
+          'abp' => BlockSource.abp,
+          _ => null,
+        };
+        // Native dedupes by host across the drain window. `count` is
+        // the number of repeat requests since the last drain; default
+        // 1 if absent (older codec / no dedup). Pass it straight to
+        // the host-level recorder so the per-site Total/Allowed/
+        // Blocked counts stay accurate while the log keeps a single
+        // entry per host.
+        final count = (entry['count'] as int?) ?? 1;
+        DnsBlockService.instance
+            .recordHostRequest(siteId, host, blocked, source: source, count: count);
+        // Engine blocks decided natively never pass through
+        // ContentBlockerService.isBlocked, so fold them into the
+        // DevTools ABP counters here or the ABP tab undercounts.
+        if (blocked && source == BlockSource.abp) {
+          ContentBlockerService.instance
+              .recordNativeEngineBlock(host, count: count);
         }
       }
-    } catch (_) {}
+    }
   }
 
   static Future<void> _drainCdnEvents(String? siteId) async {
