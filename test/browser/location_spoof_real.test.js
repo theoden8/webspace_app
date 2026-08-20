@@ -512,12 +512,14 @@ test('BLOCKED: watchPosition never delivers a real fix', async (t) => {
         (position) => events.push({ kind: 'success', lat: position.coords.latitude }),
         (error) => events.push({ kind: 'error', code: error.code }),
       );
-      // Longer than the shim's simulated latency and its 5s live-poll period,
-      // so a leaking implementation has time to emit.
+      // Comfortably past the shim's 150-400ms simulated latency and two
+      // ticks of the 1s interval the static branch registers, which is the
+      // only interval a regression here could reach: the 5s live-poll branch
+      // needs LIVE_LOC, and this fixture has it false.
       setTimeout(() => {
         navigator.geolocation.clearWatch(id);
         resolve(events);
-      }, 6000);
+      }, 2500);
     }));
     assert.deepEqual(seen, [{ kind: 'error', code: 1 }]);
   });
