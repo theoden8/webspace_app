@@ -74,9 +74,12 @@ path — page/worker agreement in one flavour is not evidence for another.**
   `worker-src` omits `blob:` blocks the wrapper script, and because CSP surfaces
   that as an async `error` event rather than a constructor throw, the fail-open
   fallback in `WORK-006` never runs and no worker starts. No unshimmed realm
-  appears, so the spoof holds, but the site's workers stop working — and any fix
-  that keeps them running must keep them shimmed, or it converts this into a
-  real escape. Pinned by `test/browser/worker_realm_escape.test.js`.
+  appears, so the spoof holds, but the site's workers stop working. The mechanism
+  is pinned by the violation report itself (`worker-src`, blocked URI `blob`, on
+  a page whose own worker script is allowed), and the trap is pinned beside it:
+  the same page with `Worker` left unpatched gets a worker that starts and reads
+  the real hardware, so "fall back to the original script" would convert this
+  into a live escape. Both in `test/browser/worker_realm_escape.test.js`.
 - **The `__ws*` install markers remain enumerable** on `globalThis` in worker
   scope as well as on `window`, so a fingerprinter can detect that *a* shim is
   present even when it cannot read past it. Repo-wide convention issue, tracked

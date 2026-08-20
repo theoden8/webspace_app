@@ -242,32 +242,67 @@ test('the installer markers are enumerable in worker scope too', async (t) => {
 
 // ---------- documented gap ----------
 
-test('KNOWN GAP: a site whose CSP forbids blob: workers gets no worker at all',
-  async (t) => {
-    // The wrapper can only preload the shim by handing the constructor a
-    // blob: URL. A site that omits blob: from worker-src blocks that
-    // script, and because CSP surfaces the refusal as an async error
-    // event rather than a constructor throw, the installer's fail-open
-    // fallback never runs — the worker simply never starts.
-    //
-    // So the shim holds (no unspoofed realm appears) but the site's
-    // workers break. Pinned as current behavior; a fix that keeps such
-    // workers running has to keep them shimmed, and should flip this.
-    await withPage(t, { csp: "default-src 'self'; script-src 'self'; worker-src 'self'" },
-      async (page) => {
-        const outcome = await page.evaluate(async () => {
-          try {
-            const w = new Worker('/probe.js');
-            return await new Promise((resolve) => {
-              w.onmessage = () => resolve('started');
-              w.onerror = () => resolve('blocked');
-              w.postMessage({ leaf: null });
-              setTimeout(() => resolve('timeout'), 5000);
-            });
-          } catch (e) {
-            return `threw:${e.name}`;
-          }
+const NO_BLOB_CSP = "default-src 'self'; script-src 'self'; worker-src 'self'";
+
+test('KNOWN GAP: the wrapper blob is what a blob-less CSP refuses', async (t) => {
+  // The wrapper can only preload the shim by handing the constructor a
+  // blob: URL. A site that omits blob: from worker-src blocks that
+  // script, and because CSP surfaces the refusal as an async error event
+  // rather than a constructor throw, the fail-open fallback in WORK-006
+  // never runs — no worker starts.
+  //
+  // The violation report is what makes this a mechanism and not an
+  // inference: the refused URI is the wrapper's blob, under worker-src,
+  // on a page whose own worker script is same-origin and allowed.
+  await withPage(t, { csp: NO_BLOB_CSP }, async (page) => {
+    const r = await page.evaluate(async () => {
+      const violations = [];
+      document.addEventListener('securitypolicyviolation', (e) => violations.push(
+        { directive: e.violatedDirective, blocked: e.blockedURI }));
+      let outcome;
+      try {
+        const w = new Worker('/probe.js');
+        outcome = await new Promise((resolve) => {
+          w.onmessage = () => resolve('started');
+          w.onerror = () => resolve('blocked');
+          w.postMessage({ leaf: null });
+          setTimeout(() => resolve('timeout'), 5000);
         });
-        assert.equal(outcome, 'blocked');
-      });
+      } catch (e) {
+        outcome = `threw:${e.name}`;
+      }
+      return { outcome, violations };
+    });
+
+    assert.equal(r.outcome, 'blocked');
+    assert.deepEqual(r.violations, [{ directive: 'worker-src', blocked: 'blob' }],
+      'CSP must name the wrapper blob, not the site\'s own worker script');
+  });
+});
+
+test('PREMISE: the same page under the same CSP gets a working worker '
+  + 'without the wrapper — so falling back would be an escape, not a fix',
+  async (t) => {
+    // Shim the document but leave Worker unpatched, which is what a
+    // "just fall back to the original script" fix would amount to here.
+    // The worker starts, and reports the real hardware while the document
+    // reports the spoof — exactly the page/worker disagreement WORK-002
+    // exists to prevent. Whatever fixes the breakage above has to keep
+    // these workers shimmed rather than merely running.
+    if (!requireBrowser(browser, t)) return;
+    const victim = await startVictim({ csp: NO_BLOB_CSP, assets: ASSETS });
+    const page = await browser.browser.newPage();
+    try {
+      await page.evaluateOnNewDocument(PAYLOAD);
+      await page.goto(victim.url, { waitUntil: 'load' });
+      const doc = await pageVals(page);
+      const { mine } = await page.evaluate(runWorker, null, NO_NEST);
+
+      assert.equal(mine.shimInstalled, false, 'the worker must be unshimmed here');
+      assert.notEqual(mine.hardwareConcurrency, doc.hardwareConcurrency,
+        'an unwrapped worker leaking the same value would make this test vacuous');
+    } finally {
+      await page.close();
+      await victim.close();
+    }
   });

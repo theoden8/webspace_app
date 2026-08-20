@@ -192,11 +192,18 @@ real constructor verbatim: a broken worker is worse than an unspoofed one.
 #### Known gap: a CSP that forbids `blob:` workers breaks them outright
 
 A site whose `worker-src` (or `default-src`) omits `blob:` blocks the wrapper
-script. CSP reports that refusal as an asynchronous `error` event on the worker
-rather than a constructor throw, so the fail-open fallback above never runs and
-no worker starts at all. The spoof holds — no unshimmed scope appears — but the
-site's workers stop working. Pinned by `test/browser/worker_realm_escape.test.js`;
-any fix that keeps such workers running MUST keep them shimmed.
+script — the document records a violation naming `worker-src` and a `blob`
+blocked URI, on a page whose own worker script is same-origin and allowed. CSP
+reports that refusal as an asynchronous `error` event on the worker rather than a
+constructor throw, so the fail-open fallback above never runs and no worker
+starts at all. The spoof holds — no unshimmed scope appears — but the site's
+workers stop working.
+
+Any fix MUST keep such workers shimmed, not merely running: the same page with
+`Worker` left unpatched gets a worker that starts and reports the real hardware
+while the document reports the spoof, which is the `WORK-002` disagreement this
+spec exists to prevent. Both halves are pinned by
+`test/browser/worker_realm_escape.test.js`.
 
 ---
 
