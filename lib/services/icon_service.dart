@@ -244,7 +244,7 @@ Future<bool> _verifyIconUrl(String iconUrl, UserProxySettings proxy) async {
   }
   // Where a HEAD response cannot be read (a browser, cross-origin), accept the
   // candidate and let the image element succeed or fall back.
-  if (!hostCanVerifyIconUrls) return true;
+  if (!hostCanReadCrossOriginResponses) return true;
 
   final client = _proxiedClient(proxy);
   if (client == null) return false;
@@ -744,6 +744,11 @@ Future<_IconCandidate?> _tryFaviconPackage(String url, UserProxySettings proxy) 
   if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) {
     return null;
   }
+  // Scraping the page for <link rel=icon> means reading a cross-origin
+  // response, which a browser refuses however the request is made. On web the
+  // other candidates (public icon services, rendered through an <img>) still
+  // work, so this returns nothing rather than raising a CORS error per site.
+  if (!hostCanReadCrossOriginResponses) return null;
   try {
     final favicons = await FaviconFinder.getAll(url, proxy: proxy).timeout(Duration(seconds: 15));
     if (favicons.isEmpty) return null;

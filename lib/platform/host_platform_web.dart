@@ -78,4 +78,4 @@ Future<String> hostReadFileText(String path) =>
 
 /// See the io half: cross-origin favicon responses are unreadable from a page,
 /// so the candidate is used optimistically and the <img> decides.
-const bool hostCanVerifyIconUrls = false;
+const bool hostCanReadCrossOriginResponses = false;

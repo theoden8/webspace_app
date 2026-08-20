@@ -101,6 +101,31 @@ is what a designer interacts with.
   page that loads, boots nothing, and reports no error, and a missing Roboto
   draws no text at all rather than a fallback face
 
+### Requirement: DESIGN-002a — The web build attempts no read a browser forbids
+
+Code reached by either entrypoint MUST NOT issue a cross-origin request whose
+*response body* it needs. A browser refuses those however they are made, so the
+attempt is dead weight that surfaces as a CORS error on the console of a page
+that otherwise works. `hostCanReadCrossOriginResponses`
+(`lib/platform/host_platform.dart`) is the seam: false on web, true natively,
+and the native path is unchanged.
+
+#### Scenario: Favicon discovery on web
+
+- **GIVEN** a site whose icon is being resolved
+- **WHEN** the code runs on web
+- **THEN** the page-scrape candidate (fetching the site's HTML to read
+  `<link rel=icon>`) and the icon HEAD verification are skipped, and the icon
+  comes from a public icon service rendered through an `<img>` platform view,
+  which is a legal cross-origin load
+
+#### Scenario: A new cross-origin read is introduced
+
+- **WHEN** any card triggers a `fetch`/`XHR` a browser blocks
+- **THEN** `tool/design_gallery/shoot.js` reports the CORS message as a page
+  error and exits non-zero, because only gstatic font requests and plain
+  resource-load failures are treated as benign
+
 ### Requirement: DESIGN-003 — Every card renders something
 
 A card that draws nothing is the failure a widget test cannot see: the tree can
