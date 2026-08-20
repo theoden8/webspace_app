@@ -376,7 +376,6 @@
   "siteSettingsTrackingProtection": "Mbrojtja nga gjurmimi",
   "siteSettingsTrackingProtectionHint": "Mbrojtje e zgjeruar nga gjurmimi për çdo faqe, ombrellë. Kur është aktive, detyron ClearURLs, listën e bllokimit DNS dhe bllokuesin e përmbajtjes të jenë aktive për këtë faqe, DHE injekton një shim kundër marrjes së gjurmëve të gishtave që randomizon Canvas, audio, metrikat e fonteve, përmasat e ekranit, paralelizmin e harduerit, plugin-et, baterinë, zërat e të folurit, kohëmatësit me rezolucion të lartë dhe matjet e kutisë kufitare. Gjurma e gishtave qëndron e qëndrueshme për çdo faqe gjatë nisjeve, por ndryshon mes faqeve dhe mes përdoruesve. Kur Incognito është gjithashtu i aktivizuar për këtë faqe, gjurma rigjenerohet në çdo nisje të aplikacionit që faqja të mos mund t'ju identifikojë sërish gjatë rinisjeve të ftohta. WebGL çaktivizohet plotësisht ndërsa kjo është aktive; çaktivizoje për faqet që kanë nevojë për WebGL (hartat, shikuesit 3D).",
   "siteSettingsTrackingProtectionSubtitle": "Kundër gjurmëve të gishtave + detyrim i bllokimit të gjurmuesve",
-  "siteSettingsForcedByTrackingProtection": "I detyruar aktiv nga Mbrojtja nga gjurmimi",
   "siteSettingsClearUrls": "ClearURLs",
   "siteSettingsClearUrlsHint": "Heq parametrat e gjurmimit (si utm_source, fbclid) nga URL-të para ngarkimit të tyre. Kjo ndihmon në mbrojtjen e privatësisë tënde duke parandaluar faqet të gjurmojnë se nga ke ardhur.",
   "siteSettingsClearUrlsSubtitle": "Hiq parametrat e gjurmimit nga URL-të",
@@ -436,7 +435,7 @@
   "siteSettingsMicrophoneAccessChooseSource": "Zgjidh skedar zanor",
   "siteSettingsMicrophoneAccessNoSource": "Asnjë skedar i zgjedhur",
   "siteSettingsGeolocation": "Gjeolokimi",
-  "siteSettingsGeolocationHint": "Gjeolokimi",
+  "siteSettingsGeolocationHint": "Kontrollon çfarë mëson ky sajt për vendndodhjen tuaj.\n\nDrejtpërdrejt: pozicioni i vërtetë i pajisjes, i rrumbullakosur në nivelin e saktësisë që zgjidhni.\nStatik: një pikë fikse që zgjidhni në hartë. Pozicioni i vërtetë nuk lexohet kurrë.\nJoaktiv: çdo kërkesë refuzohet, saktësisht si një leje e refuzuar e shfletuesit.",
   "siteSettingsLocationOff": "Joaktiv",
   "siteSettingsLocationStatic": "Statik",
   "siteSettingsLocationLive": "I drejtpërdrejtë",
@@ -737,7 +736,6 @@
   "privacyTitle": "Privatësia",
   "privacyGroupTrackers": "Gjurmuesit dhe reklamat",
   "privacyGroupFingerprinting": "Gjurmë gishtash",
-  "privacyGroupStorage": "Ruajtja",
   "privacyFingerprintingNote": "Mbrojtja nga gjurmimi gjithashtu rastëson leximet e kanavacës, audios, shkronjave dhe harduerit për këtë sajt.",
   "privacySummaryProtectionOn": "Mbrojtja nga gjurmimi aktive",
   "privacySummaryNothingOn": "Asnjë mbrojtje e aktivizuar",
@@ -747,5 +745,6 @@
   "siteSettingsThirdPartyCookiesHint": "Cookie të vendosura nga përmbajtje e ngulitur nga një sajt tjetër, si reklama, butona ndarjeje dhe widget analitikash. Janë mënyra më e vjetër me të cilën një gjurmues të ndjek nga një sajt te tjetri, prandaj Mbrojtja nga gjurmimi i çaktivizon. Disa ridrejtime hyrjeje dhe pagesa të ngulitura kanë nevojë për to, prandaj aktivizoji sërish për një sajt që nuk punon pa to.",
   "siteSettingsSectionContent": "Përmbajtja",
   "siteSettingsSectionBehaviour": "Sjellja",
-  "siteSettingsSectionNetwork": "Rrjeti"
+  "siteSettingsSectionNetwork": "Rrjeti",
+  "siteSettingsSectionSite": "Sajti"
 }

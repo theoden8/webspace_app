@@ -374,7 +374,6 @@
   "siteSettingsTrackingProtection": "Protección de seguimiento",
   "siteSettingsTrackingProtectionHint": "Protección de seguimiento mejorada por sitio. Cuando está activada, fuerza la activación de ClearURLs, la lista de bloqueo DNS y el bloqueador de contenido para este sitio, E inyecta un shim antihuella digital que aleatoriza Canvas, audio, métricas de fuentes, dimensiones de pantalla, concurrencia de hardware, plugins, batería, voces de síntesis, temporizadores de alta resolución y mediciones de cuadro delimitador. La huella permanece estable por sitio entre lanzamientos, pero difiere entre sitios y entre usuarios. Cuando también se activa el modo incógnito para este sitio, la huella se vuelve a generar en cada lanzamiento de la app para que el sitio no pueda reidentificarte tras reinicios en frío. WebGL se desactiva por completo mientras esto está activado; desactívalo para sitios que necesiten WebGL (mapas, visores 3D).",
   "siteSettingsTrackingProtectionSubtitle": "Antihuella digital + forzar bloqueo de rastreadores",
-  "siteSettingsForcedByTrackingProtection": "Forzado por la protección de seguimiento",
   "siteSettingsClearUrls": "ClearURLs",
   "siteSettingsClearUrlsHint": "Elimina los parámetros de seguimiento (como utm_source, fbclid) de las URL antes de cargarlas. Esto ayuda a proteger tu privacidad evitando que los sitios rastreen de dónde vienes.",
   "siteSettingsClearUrlsSubtitle": "Eliminar parámetros de seguimiento de las URL",
@@ -434,7 +433,7 @@
   "siteSettingsMicrophoneAccessChooseSource": "Elegir archivo de audio",
   "siteSettingsMicrophoneAccessNoSource": "Ningún archivo elegido",
   "siteSettingsGeolocation": "Geolocalización",
-  "siteSettingsGeolocationHint": "Geolocalización",
+  "siteSettingsGeolocationHint": "Controla qué averigua este sitio sobre dónde estás.\n\nEn vivo: la posición real del dispositivo, redondeada al nivel de precisión que elijas.\nEstática: un punto fijo que eliges en un mapa. La posición real nunca se lee.\nDesactivado: cada solicitud se rechaza, exactamente como un permiso denegado del navegador.",
   "siteSettingsLocationOff": "Desactivada",
   "siteSettingsLocationStatic": "Estática",
   "siteSettingsLocationLive": "En vivo",
@@ -737,7 +736,6 @@
   "privacyTitle": "Privacidad",
   "privacyGroupTrackers": "Rastreadores y anuncios",
   "privacyGroupFingerprinting": "Huella digital",
-  "privacyGroupStorage": "Almacenamiento",
   "privacyFingerprintingNote": "La protección de seguimiento también aleatoriza las lecturas de canvas, audio, fuentes y hardware para este sitio.",
   "privacySummaryProtectionOn": "Protección de seguimiento activada",
   "privacySummaryNothingOn": "Ninguna protección activada",
@@ -747,5 +745,6 @@
   "siteSettingsThirdPartyCookiesHint": "Cookies establecidas por contenido incrustado desde otro sitio, como anuncios, botones para compartir y widgets de analítica. Son la forma más antigua en que un rastreador te sigue de un sitio a otro, por eso la protección de seguimiento las desactiva. Algunas redirecciones de inicio de sesión y pagos incrustados las necesitan, así que vuelve a activarlas para un sitio que falle sin ellas.",
   "siteSettingsSectionContent": "Contenido",
   "siteSettingsSectionBehaviour": "Comportamiento",
-  "siteSettingsSectionNetwork": "Red"
+  "siteSettingsSectionNetwork": "Red",
+  "siteSettingsSectionSite": "Sitio"
 }

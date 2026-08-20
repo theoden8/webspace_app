@@ -374,7 +374,6 @@
   "siteSettingsTrackingProtection": "Protecție împotriva urmăririi",
   "siteSettingsTrackingProtectionHint": "Protecție îmbunătățită împotriva urmăririi, umbrelă per site. Când e activă, forțează ClearURLs, Lista de blocare DNS și Blocatorul de conținut să fie active pentru acest site ȘI injectează un shim anti-amprentare care randomizează Canvas, audio, metricile fonturilor, dimensiunile ecranului, concurența hardware, plugin-urile, bateria, vocile de sinteză, temporizatoarele de înaltă rezoluție și măsurătorile casetei delimitatoare. Amprenta rămâne stabilă pentru site între lansări, dar diferă între site-uri și între utilizatori. Când Incognito este de asemenea activat pentru acest site, amprenta este regenerată la fiecare lansare a aplicației astfel încât site-ul să nu te poată re-identifica între reporniri la rece. WebGL este dezactivat complet cât timp aceasta e activă; dezactiveaz-o pentru site-urile care au nevoie de WebGL (hărți, vizualizatoare 3D).",
   "siteSettingsTrackingProtectionSubtitle": "Anti-amprentare + forțează blocarea urmăritorilor",
-  "siteSettingsForcedByTrackingProtection": "Forțat activ de Protecția împotriva urmăririi",
   "siteSettingsClearUrls": "ClearURLs",
   "siteSettingsClearUrlsHint": "Elimină parametrii de urmărire (precum utm_source, fbclid) din URL-uri înainte de a le încărca. Acest lucru îți protejează confidențialitatea împiedicând site-urile să urmărească de unde ai venit.",
   "siteSettingsClearUrlsSubtitle": "Elimină parametrii de urmărire din URL-uri",
@@ -434,7 +433,7 @@
   "siteSettingsMicrophoneAccessChooseSource": "Alege fișier audio",
   "siteSettingsMicrophoneAccessNoSource": "Niciun fișier ales",
   "siteSettingsGeolocation": "Geolocalizare",
-  "siteSettingsGeolocationHint": "Geolocalizare",
+  "siteSettingsGeolocationHint": "Controlează ce află acest site despre unde te afli.\n\nÎn direct: poziția reală a dispozitivului, rotunjită la nivelul de precizie ales de tine.\nStatică: un punct fix pe care îl alegi pe hartă. Poziția reală nu este citită niciodată.\nDezactivat: fiecare cerere este refuzată, exact ca o permisiune refuzată din browser.",
   "siteSettingsLocationOff": "Dezactivat",
   "siteSettingsLocationStatic": "Statică",
   "siteSettingsLocationLive": "Live",
@@ -737,7 +736,6 @@
   "privacyTitle": "Confidențialitate",
   "privacyGroupTrackers": "Urmăritori și reclame",
   "privacyGroupFingerprinting": "Amprentare",
-  "privacyGroupStorage": "Stocare",
   "privacyFingerprintingNote": "Protecția împotriva urmăririi randomizează pentru acest site și citirile de canvas, audio, fonturi și hardware.",
   "privacySummaryProtectionOn": "Protecție împotriva urmăririi activă",
   "privacySummaryNothingOn": "Nicio protecție activată",
@@ -747,5 +745,6 @@
   "siteSettingsThirdPartyCookiesHint": "Cookie-uri setate de conținut încorporat de pe alt site, precum reclame, butoane de partajare și widget-uri de analiză. Sunt cea mai veche cale prin care un urmăritor te urmărește de la un site la altul, motiv pentru care Protecția împotriva urmăririi le dezactivează. Unele redirecționări de autentificare și plăți încorporate au nevoie de ele, așa că reactivează-le pentru un site care nu funcționează fără ele.",
   "siteSettingsSectionContent": "Conținut",
   "siteSettingsSectionBehaviour": "Comportament",
-  "siteSettingsSectionNetwork": "Rețea"
+  "siteSettingsSectionNetwork": "Rețea",
+  "siteSettingsSectionSite": "Site"
 }

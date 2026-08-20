@@ -25,7 +25,6 @@ class SitePrivacyValues {
     required this.thirdPartyCookiesEnabled,
     required this.letterboxEnabled,
     required this.incognito,
-    required this.htmlCachingEnabled,
   });
 
   final bool trackingProtectionEnabled;
@@ -36,7 +35,6 @@ class SitePrivacyValues {
   final bool thirdPartyCookiesEnabled;
   final bool letterboxEnabled;
   final bool incognito;
-  final bool htmlCachingEnabled;
 
   SitePrivacyValues copyWith({
     bool? trackingProtectionEnabled,
@@ -47,7 +45,6 @@ class SitePrivacyValues {
     bool? thirdPartyCookiesEnabled,
     bool? letterboxEnabled,
     bool? incognito,
-    bool? htmlCachingEnabled,
   }) =>
       SitePrivacyValues(
         trackingProtectionEnabled:
@@ -60,7 +57,6 @@ class SitePrivacyValues {
             thirdPartyCookiesEnabled ?? this.thirdPartyCookiesEnabled,
         letterboxEnabled: letterboxEnabled ?? this.letterboxEnabled,
         incognito: incognito ?? this.incognito,
-        htmlCachingEnabled: htmlCachingEnabled ?? this.htmlCachingEnabled,
       );
 
   /// What each subordinate is doing once the umbrella is applied. Mirrors the
@@ -131,15 +127,12 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
         child: Icon(Icons.warning_amber_rounded, size: 18, color: Colors.orange),
       );
 
-  /// Subtitle for the DNS blocklist / content blocker rows. When forced by
-  /// tracking protection AND unconfigured, both facts matter, so they are
-  /// joined rather than the forced text masking the missing data.
+  /// Subtitle for the DNS blocklist / content blocker rows. The umbrella
+  /// forcing them on is not repeated here: the row is already greyed and
+  /// unresponsive, and saying so on every row buried the one fact the
+  /// subtitle carries, which is whether the data has been downloaded.
   String _blockerSubtitle({required bool ready, required String readyText}) {
     final loc = AppLocalizations.of(context);
-    if (_values.trackingProtectionEnabled) {
-      final forced = loc.siteSettingsForcedByTrackingProtection;
-      return ready ? forced : '$forced · ${loc.siteSettingsNotConfigured}';
-    }
     return ready ? readyText : loc.siteSettingsNotConfigured;
   }
 
@@ -234,9 +227,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
   Widget _clearUrls(AppLocalizations loc) => _tile(
         title: loc.siteSettingsClearUrls,
         hint: loc.siteSettingsClearUrlsHint,
-        subtitle: _values.trackingProtectionEnabled
-            ? loc.siteSettingsForcedByTrackingProtection
-            : loc.siteSettingsClearUrlsSubtitle,
+        subtitle: loc.siteSettingsClearUrlsSubtitle,
         value: _values.effectiveClearUrl,
         onChanged: _values.trackingProtectionEnabled
             ? null
@@ -297,12 +288,10 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
     return _tile(
       title: loc.siteSettingsLocalCdn,
       hint: loc.siteSettingsLocalCdnHint,
-      subtitle: _values.trackingProtectionEnabled
-          ? loc.siteSettingsForcedByTrackingProtection
-          : (hasCache
-              ? loc.siteSettingsLocalCdnResourceCount(
-                  LocalCdnService.instance.resourceCount)
-              : loc.siteSettingsLocalCdnNeedsCache),
+      subtitle: hasCache
+          ? loc.siteSettingsLocalCdnResourceCount(
+              LocalCdnService.instance.resourceCount)
+          : loc.siteSettingsLocalCdnNeedsCache,
       value: _values.effectiveLocalCdn && hasCache,
       onChanged: _values.trackingProtectionEnabled
           ? null
@@ -315,6 +304,9 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
   Widget _thirdPartyCookies(AppLocalizations loc) => _tile(
         title: loc.siteSettingsThirdPartyCookies,
         hint: loc.siteSettingsThirdPartyCookiesHint,
+        // The one forced row that keeps its note. Everything else the
+        // umbrella touches it turns on, which a greyed-on switch shows by
+        // itself; taking something away is the direction that needs saying.
         subtitle: _values.trackingProtectionEnabled
             ? loc.siteSettingsForcedOffByTrackingProtection
             : loc.siteSettingsThirdPartyCookiesSubtitle,
@@ -341,21 +333,31 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
 
   // --- Storage -------------------------------------------------------------
 
-  Widget _incognito(AppLocalizations loc) => SwitchListTile(
-        title: Text(loc.siteSettingsIncognito),
-        subtitle: Text(loc.siteSettingsIncognitoSubtitle),
-        value: _values.incognito,
+  /// Sits above the umbrella, not under it. Incognito is the bluntest thing
+  /// on the screen (nothing survives the session at all), and unlike the
+  /// blockers it costs the user their own logins, so it stays their call.
+  Widget _incognitoCard(AppLocalizations loc) {
+    final scheme = Theme.of(context).colorScheme;
+    final on = _values.incognito;
+    return Card(
+      margin: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+      color: on ? scheme.secondaryContainer : null,
+      child: SwitchListTile(
+        secondary: Icon(
+          on ? Icons.visibility_off : Icons.visibility_off_outlined,
+          color: on ? scheme.onSecondaryContainer : null,
+        ),
+        title: Text(
+          loc.siteSettingsIncognito,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+        ),
+        subtitle: Text(loc.siteSettingsIncognitoSubtitle,
+            style: const TextStyle(fontSize: 12.5)),
+        value: on,
         onChanged: (value) => _update(_values.copyWith(incognito: value)),
-      );
-
-  Widget _htmlCaching(AppLocalizations loc) => _tile(
-        title: loc.siteSettingsHtmlCaching,
-        hint: loc.siteSettingsHtmlCachingHint,
-        subtitle: loc.siteSettingsHtmlCachingSubtitle,
-        value: _values.htmlCachingEnabled,
-        onChanged: (value) =>
-            _update(_values.copyWith(htmlCachingEnabled: value)),
-      );
+      ),
+    );
+  }
 
   // --- DNS counters --------------------------------------------------------
 
@@ -422,6 +424,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
               ),
             ),
           ),
+          _incognitoCard(loc),
           _trackingProtectionCard(loc),
           _groupHeader(loc.privacyGroupTrackers),
           _clearUrls(loc),
@@ -432,19 +435,20 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
           _thirdPartyCookies(loc),
           _groupHeader(loc.privacyGroupFingerprinting),
           _letterbox(loc),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-            child: Text(
-              loc.privacyFingerprintingNote,
-              style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+          // Only while the umbrella is on: with it off nothing is being
+          // randomised, and the note would be describing something that is
+          // not happening.
+          if (_values.trackingProtectionEnabled)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: Text(
+                loc.privacyFingerprintingNote,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
-          ),
-          _groupHeader(loc.privacyGroupStorage),
-          _incognito(loc),
-          _htmlCaching(loc),
           const SizedBox(height: 24),
         ],
       ),

@@ -374,7 +374,6 @@
   "siteSettingsTrackingProtection": "Zaštita od praćenja",
   "siteSettingsTrackingProtectionHint": "Krovna napredna zaštita od praćenja po stranici. Kada je uključena, prisiljava ClearURLs, DNS listu blokiranja i Bloker sadržaja da budu aktivni za ovu stranicu, I ubacuje sloj protiv otiska prsta koji nasumično mijenja Canvas, zvuk, metrike fontova, dimenzije ekrana, hardversku konkurentnost, dodatke, bateriju, glasove govora, mjerače visoke rezolucije i mjerenja graničnih okvira. Otisak prsta ostaje stabilan po stranici kroz pokretanja, ali se razlikuje između stranica i između korisnika. Kada je inkognito također omogućen za ovu stranicu, otisak prsta se ponovo generiše pri svakom pokretanju aplikacije tako da vas stranica ne može ponovo identifikovati kroz hladna ponovna pokretanja. WebGL je potpuno onemogućen dok je ovo uključeno; isključite ga za stranice kojima treba WebGL (karte, 3D preglednici).",
   "siteSettingsTrackingProtectionSubtitle": "Zaštita od otiska prsta + prisilno blokiranje pratilaca",
-  "siteSettingsForcedByTrackingProtection": "Prisilno uključeno zaštitom od praćenja",
   "siteSettingsClearUrls": "ClearURLs",
   "siteSettingsClearUrlsHint": "Uklanja parametre praćenja (poput utm_source, fbclid) iz URL-ova prije njihovog učitavanja. Ovo pomaže zaštititi vašu privatnost sprječavajući stranice da prate odakle ste došli.",
   "siteSettingsClearUrlsSubtitle": "Ukloni parametre praćenja iz URL-ova",
@@ -434,7 +433,7 @@
   "siteSettingsMicrophoneAccessChooseSource": "Odaberi zvučnu datoteku",
   "siteSettingsMicrophoneAccessNoSource": "Nijedna datoteka nije odabrana",
   "siteSettingsGeolocation": "Geolokacija",
-  "siteSettingsGeolocationHint": "Geolokacija",
+  "siteSettingsGeolocationHint": "Kontroliše šta ova stranica saznaje o tome gdje se nalazite.\n\nUživo: stvarni položaj uređaja, zaokružen na nivo preciznosti koji odaberete.\nStatično: fiksna tačka koju odaberete na karti. Stvarni položaj se nikada ne čita.\nIsključeno: svaki zahtjev se odbija, isto kao odbijeni upit preglednika.",
   "siteSettingsLocationOff": "Isključeno",
   "siteSettingsLocationStatic": "Statična",
   "siteSettingsLocationLive": "Uživo",
@@ -737,7 +736,6 @@
   "privacyTitle": "Privatnost",
   "privacyGroupTrackers": "Pratioci i oglasi",
   "privacyGroupFingerprinting": "Otisak preglednika",
-  "privacyGroupStorage": "Pohrana",
   "privacyFingerprintingNote": "Zaštita od praćenja također nasumično mijenja očitanja platna, zvuka, fontova i hardvera za ovu stranicu.",
   "privacySummaryProtectionOn": "Zaštita od praćenja uključena",
   "privacySummaryNothingOn": "Nijedna zaštita nije uključena",
@@ -747,5 +745,6 @@
   "siteSettingsThirdPartyCookiesHint": "Kolačići koje postavlja sadržaj ugrađen s druge stranice, poput oglasa, dugmadi za dijeljenje i analitičkih widgeta. Oni su najstariji način na koji vas pratilac slijedi s jedne stranice na drugu, zbog čega ih zaštita od praćenja isključuje. Neka preusmjeravanja pri prijavi i ugrađene naplate ih trebaju, pa ih ponovo uključite za stranicu koja bez njih ne radi.",
   "siteSettingsSectionContent": "Sadržaj",
   "siteSettingsSectionBehaviour": "Ponašanje",
-  "siteSettingsSectionNetwork": "Mreža"
+  "siteSettingsSectionNetwork": "Mreža",
+  "siteSettingsSectionSite": "Stranica"
 }

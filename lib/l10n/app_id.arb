@@ -374,7 +374,6 @@
   "siteSettingsTrackingProtection": "Perlindungan Pelacakan",
   "siteSettingsTrackingProtectionHint": "Perlindungan Pelacakan yang Ditingkatkan menyeluruh per situs. Saat aktif, memaksa ClearURLs, Daftar Blokir DNS, dan Pemblokir Konten aktif untuk situs ini, DAN menyuntikkan shim anti-sidik-jari yang mengacak Canvas, audio, metrik font, dimensi layar, konkurensi perangkat keras, plugin, baterai, suara ucapan, pengukur waktu resolusi tinggi, dan pengukuran kotak pembatas. Sidik jari tetap stabil per situs di seluruh peluncuran tetapi berbeda antar situs dan antar pengguna. Saat Penyamaran juga diaktifkan untuk situs ini, sidik jari diacak ulang pada setiap peluncuran aplikasi sehingga situs tidak dapat mengidentifikasi Anda kembali di seluruh mulai ulang dingin. WebGL dinonaktifkan sepenuhnya saat ini aktif; matikan untuk situs yang membutuhkan WebGL (peta, penampil 3D).",
   "siteSettingsTrackingProtectionSubtitle": "Anti-sidik-jari + paksa pemblokiran pelacak",
-  "siteSettingsForcedByTrackingProtection": "Dipaksa aktif oleh Perlindungan Pelacakan",
   "siteSettingsClearUrls": "ClearURLs",
   "siteSettingsClearUrlsHint": "Menghapus parameter pelacakan (seperti utm_source, fbclid) dari URL sebelum memuatnya. Ini membantu melindungi privasi Anda dengan mencegah situs melacak dari mana Anda berasal.",
   "siteSettingsClearUrlsSubtitle": "Hapus parameter pelacakan dari URL",
@@ -434,7 +433,7 @@
   "siteSettingsMicrophoneAccessChooseSource": "Pilih berkas audio",
   "siteSettingsMicrophoneAccessNoSource": "Tidak ada berkas dipilih",
   "siteSettingsGeolocation": "Geolokasi",
-  "siteSettingsGeolocationHint": "Geolokasi",
+  "siteSettingsGeolocationHint": "Mengontrol apa yang diketahui situs ini tentang lokasi Anda.\n\nLangsung: posisi sebenarnya perangkat, dibulatkan ke tingkat presisi yang Anda pilih.\nStatis: titik tetap yang Anda pilih di peta. Posisi sebenarnya tidak pernah dibaca.\nMati: setiap permintaan ditolak, persis seperti permintaan izin peramban yang ditolak.",
   "siteSettingsLocationOff": "Nonaktif",
   "siteSettingsLocationStatic": "Statis",
   "siteSettingsLocationLive": "Langsung",
@@ -737,7 +736,6 @@
   "privacyTitle": "Privasi",
   "privacyGroupTrackers": "Pelacak dan iklan",
   "privacyGroupFingerprinting": "Sidik jari",
-  "privacyGroupStorage": "Penyimpanan",
   "privacyFingerprintingNote": "Perlindungan Pelacakan juga mengacak pembacaan kanvas, audio, fon, dan perangkat keras untuk situs ini.",
   "privacySummaryProtectionOn": "Perlindungan Pelacakan aktif",
   "privacySummaryNothingOn": "Tidak ada perlindungan yang aktif",
@@ -747,5 +745,6 @@
   "siteSettingsThirdPartyCookiesHint": "Cookie yang disetel oleh konten yang disematkan dari situs lain, seperti iklan, tombol berbagi, dan widget analitik. Inilah cara tertua sebuah pelacak mengikuti Anda dari satu situs ke situs berikutnya, karena itu Perlindungan Pelacakan menonaktifkannya. Beberapa pengalihan masuk dan pembayaran tersemat membutuhkannya, jadi aktifkan kembali untuk situs yang rusak tanpanya.",
   "siteSettingsSectionContent": "Konten",
   "siteSettingsSectionBehaviour": "Perilaku",
-  "siteSettingsSectionNetwork": "Jaringan"
+  "siteSettingsSectionNetwork": "Jaringan",
+  "siteSettingsSectionSite": "Situs"
 }

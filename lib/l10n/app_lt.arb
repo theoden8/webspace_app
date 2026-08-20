@@ -374,7 +374,6 @@
   "siteSettingsTrackingProtection": "Sekimo apsauga",
   "siteSettingsTrackingProtectionHint": "Bendra kiekvienai svetainei taikoma sustiprinta sekimo apsauga. Kai įjungta, priverstinai aktyvuoja ClearURLs, DNS blokavimo sąrašą ir turinio blokuoklį šiai svetainei, BEI įterpia apsaugos nuo pirštų atspaudų sluoksnį, kuris atsitiktinai keičia Canvas, garso, šriftų metrikas, ekrano matmenis, aparatinį lygiagretumą, papildinius, bateriją, kalbos balsus, didelio tikslumo laikmačius ir ribojančiojo stačiakampio matavimus. Pirštų atspaudas lieka pastovus kiekvienai svetainei tarp paleidimų, bet skiriasi tarp svetainių ir tarp naudotojų. Kai šiai svetainei taip pat įjungtas inkognito, pirštų atspaudas perkuriamas kiekvieną kartą paleidus programą, kad svetainė negalėtų jūsų atpažinti tarp šaltų paleidimų. WebGL visiškai išjungiamas, kol tai įjungta; išjunkite tai svetainėms, kurioms reikia WebGL (žemėlapiams, 3D peržiūros priemonėms).",
   "siteSettingsTrackingProtectionSubtitle": "Apsauga nuo pirštų atspaudų + priverstinis sekiklių blokavimas",
-  "siteSettingsForcedByTrackingProtection": "Priverstinai įjungta dėl sekimo apsaugos",
   "siteSettingsClearUrls": "ClearURLs",
   "siteSettingsClearUrlsHint": "Pašalina sekimo parametrus (pvz., utm_source, fbclid) iš URL prieš juos įkeliant. Tai padeda apsaugoti jūsų privatumą neleidžiant svetainėms sekti, iš kur atėjote.",
   "siteSettingsClearUrlsSubtitle": "Šalinti sekimo parametrus iš URL",
@@ -434,7 +433,7 @@
   "siteSettingsMicrophoneAccessChooseSource": "Pasirinkti garso failą",
   "siteSettingsMicrophoneAccessNoSource": "Failas nepasirinktas",
   "siteSettingsGeolocation": "Geografinė vieta",
-  "siteSettingsGeolocationHint": "Geografinė vieta",
+  "siteSettingsGeolocationHint": "Valdo, ką ši svetainė sužino apie tai, kur esate.\n\nTiesioginė: tikroji įrenginio padėtis, suapvalinta iki jūsų pasirinkto tikslumo lygio.\nStatinė: fiksuotas taškas, kurį pasirenkate žemėlapyje. Tikroji padėtis niekada neskaitoma.\nIšjungta: kiekvienas užklausimas atmetamas, lygiai kaip atmestas naršyklės leidimas.",
   "siteSettingsLocationOff": "Išjungta",
   "siteSettingsLocationStatic": "Statinė",
   "siteSettingsLocationLive": "Tiesioginė",
@@ -737,7 +736,6 @@
   "privacyTitle": "Privatumas",
   "privacyGroupTrackers": "Sekikliai ir reklamos",
   "privacyGroupFingerprinting": "Pirštų atspaudai",
-  "privacyGroupStorage": "Saugykla",
   "privacyFingerprintingNote": "Sekimo apsauga taip pat atsitiktinai keičia drobės, garso, šriftų ir aparatinės įrangos rodmenis šiai svetainei.",
   "privacySummaryProtectionOn": "Sekimo apsauga įjungta",
   "privacySummaryNothingOn": "Neįjungta jokia apsauga",
@@ -747,5 +745,6 @@
   "siteSettingsThirdPartyCookiesHint": "Slapukai, kuriuos nustato iš kitos svetainės įterptas turinys, pavyzdžiui, reklamos, bendrinimo mygtukai ir analitikos valdikliai. Tai seniausias būdas, kuriuo sekiklis seka jus iš vienos svetainės į kitą, todėl sekimo apsauga juos išjungia. Kai kurioms prisijungimo peradresavimams ir įterptiesiems atsiskaitymams jų reikia, todėl vėl juos įjunkite svetainei, kuri be jų neveikia.",
   "siteSettingsSectionContent": "Turinys",
   "siteSettingsSectionBehaviour": "Elgsena",
-  "siteSettingsSectionNetwork": "Tinklas"
+  "siteSettingsSectionNetwork": "Tinklas",
+  "siteSettingsSectionSite": "Svetainė"
 }

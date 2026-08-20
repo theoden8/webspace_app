@@ -374,7 +374,6 @@
   "siteSettingsTrackingProtection": "Protezione dal tracciamento",
   "siteSettingsTrackingProtectionHint": "Protezione antitracciamento avanzata per sito, di tipo ombrello. Quando è attiva, forza ClearURLs, Blocklist DNS e Blocco contenuti a essere attivi per questo sito E inietta uno shim antifingerprinting che randomizza Canvas, audio, metriche dei font, dimensioni dello schermo, concorrenza hardware, plugin, batteria, voci sintetiche, timer ad alta risoluzione e misurazioni dei bounding box. L'impronta resta stabile per ogni sito tra un avvio e l'altro ma differisce tra siti diversi e tra utenti diversi. Quando per questo sito è abilitata anche la modalità incognito, l'impronta viene rigenerata a ogni avvio dell'app così che il sito non possa identificarti di nuovo tra un riavvio a freddo e l'altro. WebGL è completamente disabilitato finché questa è attiva; disattivala per i siti che richiedono WebGL (mappe, visualizzatori 3D).",
   "siteSettingsTrackingProtectionSubtitle": "Antifingerprinting + blocco forzato dei tracker",
-  "siteSettingsForcedByTrackingProtection": "Forzato dalla Protezione dal tracciamento",
   "siteSettingsClearUrls": "ClearURLs",
   "siteSettingsClearUrlsHint": "Rimuove i parametri di tracciamento (come utm_source, fbclid) dagli URL prima di caricarli. Aiuta a proteggere la tua privacy impedendo ai siti di tracciare la tua provenienza.",
   "siteSettingsClearUrlsSubtitle": "Rimuovi i parametri di tracciamento dagli URL",
@@ -434,7 +433,7 @@
   "siteSettingsMicrophoneAccessChooseSource": "Scegli file audio",
   "siteSettingsMicrophoneAccessNoSource": "Nessun file scelto",
   "siteSettingsGeolocation": "Geolocalizzazione",
-  "siteSettingsGeolocationHint": "Geolocalizzazione",
+  "siteSettingsGeolocationHint": "Controlla cosa apprende questo sito su dove ti trovi.\n\nLive: la posizione reale del dispositivo, arrotondata al livello di precisione che scegli.\nStatica: un punto fisso che scegli sulla mappa. La posizione reale non viene mai letta.\nDisattivato: ogni richiesta viene rifiutata, esattamente come un permesso negato dal browser.",
   "siteSettingsLocationOff": "Off",
   "siteSettingsLocationStatic": "Statica",
   "siteSettingsLocationLive": "Live",
@@ -737,7 +736,6 @@
   "privacyTitle": "Privacy",
   "privacyGroupTrackers": "Tracker e pubblicità",
   "privacyGroupFingerprinting": "Impronta digitale",
-  "privacyGroupStorage": "Archiviazione",
   "privacyFingerprintingNote": "La Protezione dal tracciamento randomizza anche le letture di canvas, audio, caratteri e hardware per questo sito.",
   "privacySummaryProtectionOn": "Protezione dal tracciamento attiva",
   "privacySummaryNothingOn": "Nessuna protezione attiva",
@@ -747,5 +745,6 @@
   "siteSettingsThirdPartyCookiesHint": "Cookie impostati da contenuti incorporati da un altro sito, come pubblicità, pulsanti di condivisione e widget di analisi. Sono il modo più antico con cui un tracker ti segue da un sito all'altro, ed è per questo che la Protezione dal tracciamento li disattiva. Alcuni reindirizzamenti di accesso e pagamenti incorporati ne hanno bisogno, quindi riattivali per un sito che senza di essi non funziona.",
   "siteSettingsSectionContent": "Contenuti",
   "siteSettingsSectionBehaviour": "Comportamento",
-  "siteSettingsSectionNetwork": "Rete"
+  "siteSettingsSectionNetwork": "Rete",
+  "siteSettingsSectionSite": "Sito"
 }

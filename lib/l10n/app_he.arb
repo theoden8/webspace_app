@@ -374,7 +374,6 @@
   "siteSettingsTrackingProtection": "הגנה מפני מעקב",
   "siteSettingsTrackingProtectionHint": "הגנת מעקב מורחבת מטרייה לכל אתר. כשמופעל, מאלץ את ClearURLs, רשימת החסימה של DNS וחוסם התוכן להיות פעילים עבור אתר זה, וגם מזריק מעטפת נגד טביעת אצבע שמערבלת Canvas, אודיו, מדדי גופנים, ממדי מסך, מקביליות חומרה, תוספים, סוללה, קולות דיבור, טיימרים ברזולוציה גבוהה ומדידות תיבה תוחמת. טביעת האצבע נשארת יציבה לכל אתר בין הפעלות אך שונה בין אתרים ובין משתמשים. כאשר גלישה פרטית מופעלת גם עבור אתר זה, טביעת האצבע מתגלגלת מחדש בכל הפעלה של האפליקציה כך שהאתר לא יוכל לזהות אותך מחדש בין הפעלות קרות. WebGL מושבת לחלוטין כשזה מופעל; כבה אותו עבור אתרים שזקוקים ל-WebGL (מפות, מציגי תלת-ממד).",
   "siteSettingsTrackingProtectionSubtitle": "מניעת טביעת אצבע + אילוץ חסימת מעקב",
-  "siteSettingsForcedByTrackingProtection": "מאולץ על ידי הגנה מפני מעקב",
   "siteSettingsClearUrls": "ClearURLs",
   "siteSettingsClearUrlsHint": "מסיר פרמטרי מעקב (כמו utm_source, fbclid) מכתובות URL לפני טעינתן. זה עוזר להגן על פרטיותך על ידי מניעת אתרים מלעקוב אחר מקור הגעתך.",
   "siteSettingsClearUrlsSubtitle": "הסר פרמטרי מעקב מכתובות URL",
@@ -434,7 +433,7 @@
   "siteSettingsMicrophoneAccessChooseSource": "בחירת קובץ שמע",
   "siteSettingsMicrophoneAccessNoSource": "לא נבחר קובץ",
   "siteSettingsGeolocation": "מיקום גאוגרפי",
-  "siteSettingsGeolocationHint": "מיקום גאוגרפי",
+  "siteSettingsGeolocationHint": "קובע מה האתר הזה לומד על המיקום שלך.\n\nחי: המיקום האמיתי של המכשיר, מעוגל לרמת הדיוק שתבחר.\nסטטי: נקודה קבועה שתבחר על המפה. המיקום האמיתי לעולם אינו נקרא.\nכבוי: כל בקשה נדחית, בדיוק כמו בקשת הרשאה שנדחתה בדפדפן.",
   "siteSettingsLocationOff": "כבוי",
   "siteSettingsLocationStatic": "סטטי",
   "siteSettingsLocationLive": "בזמן אמת",
@@ -737,7 +736,6 @@
   "privacyTitle": "פרטיות",
   "privacyGroupTrackers": "עוקבים ופרסומות",
   "privacyGroupFingerprinting": "טביעת אצבע",
-  "privacyGroupStorage": "אחסון",
   "privacyFingerprintingNote": "הגנה מפני מעקב גם מגרילה קריאות של קנבס, שמע, גופנים וחומרה עבור אתר זה.",
   "privacySummaryProtectionOn": "הגנה מפני מעקב פעילה",
   "privacySummaryNothingOn": "לא הופעלה שום הגנה",
@@ -747,5 +745,6 @@
   "siteSettingsThirdPartyCookiesHint": "עוגיות שמגדיר תוכן המשובץ מאתר אחר, כגון פרסומות, כפתורי שיתוף ווידג'טים של ניתוח נתונים. זו הדרך הוותיקה ביותר שבה עוקב עוקב אחריך מאתר אחד לאחר, ולכן ההגנה מפני מעקב מכבה אותן. חלק מהפניות ההתחברות ותשלומים משובצים זקוקים להן, לכן הפעל אותן מחדש עבור אתר שנשבר בלעדיהן.",
   "siteSettingsSectionContent": "תוכן",
   "siteSettingsSectionBehaviour": "התנהגות",
-  "siteSettingsSectionNetwork": "רשת"
+  "siteSettingsSectionNetwork": "רשת",
+  "siteSettingsSectionSite": "אתר"
 }

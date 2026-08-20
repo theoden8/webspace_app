@@ -374,7 +374,6 @@
   "siteSettingsTrackingProtection": "የክትትል ጥበቃ",
   "siteSettingsTrackingProtectionHint": "በጣቢያ-ደረጃ የተሻሻለ የክትትል ጥበቃ ጃንጥላ። ሲበራ ለዚህ ጣቢያ ClearURLs፣ DNS እገዳ ዝርዝር እና የይዘት ማገጃ ንቁ እንዲሆኑ ያስገድዳል፣ እንዲሁም Canvas፣ audio፣ የፊደል መለኪያዎች፣ የማያ ልኬቶች፣ የሃርድዌር ግብረ-ጊዜ፣ ተሰኪዎች፣ ባትሪ፣ የንግግር ድምጾች፣ ከፍተኛ-ጥራት ሰዓቶች እና የክልል-ሳጥን ልኬቶችን የሚያስተባብር ጸረ-ጣት አሻራ shim ያስገባል። የጣት አሻራው በማስጀመር ጊዜዎች ሁሉ በጣቢያ ይረጋጋል ግን በጣቢያዎች መካከል እና በተጠቃሚዎች መካከል ይለያያል። ለዚህ ጣቢያ ኢንኮግኒቶ ደግሞ ሲነቃ የጣት አሻራው በእያንዳንዱ የመተግበሪያ ማስጀመር ላይ እንደገና ይጣላል ስለዚህ ጣቢያው በቀዝቃዛ ዳግም ጅማሮዎች ላይ እንደገና ሊለይህ አይችልም። ይህ ሲበራ WebGL ሙሉ በሙሉ ይሰናከላል፤ WebGL ለሚፈልጉ ጣቢያዎች (ካርታዎች፣ 3D መመልከቻዎች) አጥፋው።",
   "siteSettingsTrackingProtectionSubtitle": "ጸረ-ጣት አሻራ + የክትትል እገዳ አስገድድ",
-  "siteSettingsForcedByTrackingProtection": "በክትትል ጥበቃ ተገድዶ በርቷል",
   "siteSettingsClearUrls": "ClearURLs",
   "siteSettingsClearUrlsHint": "ከመጫናቸው በፊት የክትትል መለኪያዎችን (እንደ utm_source, fbclid ያሉ) ከ URLs ያስወግዳል። ይህ ጣቢያዎች ከየት እንደመጣህ እንዳይከታተሉ በመከላከል ግላዊነትህን ለመጠበቅ ይረዳል።",
   "siteSettingsClearUrlsSubtitle": "የክትትል መለኪያዎችን ከ URLs አስወግድ",
@@ -434,7 +433,7 @@
   "siteSettingsMicrophoneAccessChooseSource": "የድምፅ ፋይል ይምረጡ",
   "siteSettingsMicrophoneAccessNoSource": "ምንም ፋይል አልተመረጠም",
   "siteSettingsGeolocation": "ጂኦአካባቢ",
-  "siteSettingsGeolocationHint": "ጂኦአካባቢ",
+  "siteSettingsGeolocationHint": "ይህ ጣቢያ ስለ የት እንዳሉ ምን እንደሚያውቅ ይቆጣጠራል።\n\nቀጥታ፦ የመሣሪያው ትክክለኛ አቀማመጥ፣ እርስዎ በሚመርጡት የትክክለኛነት ደረጃ የተጠጋጋ።\nቋሚ፦ በካርታ ላይ የሚመርጡት ቋሚ ነጥብ። ትክክለኛው አቀማመጥ በጭራሽ አይነበብም።\nጠፍቷል፦ እያንዳንዱ ጥያቄ ውድቅ ይደረጋል፣ ልክ የተከለከለ የአሳሽ ጥያቄ እንደሚሆነው።",
   "siteSettingsLocationOff": "ጠፍቷል",
   "siteSettingsLocationStatic": "ቋሚ",
   "siteSettingsLocationLive": "ቀጥታ",
@@ -737,7 +736,6 @@
   "privacyTitle": "ግላዊነት",
   "privacyGroupTrackers": "ተከታታዮች እና ማስታወቂያዎች",
   "privacyGroupFingerprinting": "የጣት አሻራ መውሰድ",
-  "privacyGroupStorage": "ማከማቻ",
   "privacyFingerprintingNote": "የክትትል ጥበቃ ለዚህ ጣቢያ የሸራ፣ የድምጽ፣ የቅርጸ-ቁምፊ እና የሃርድዌር ንባቦችንም በዘፈቀደ ይለውጣል።",
   "privacySummaryProtectionOn": "የክትትል ጥበቃ በርቷል",
   "privacySummaryNothingOn": "ምንም ጥበቃ አልነቃም",
@@ -747,5 +745,6 @@
   "siteSettingsThirdPartyCookiesHint": "ከሌላ ጣቢያ በተካተተ ይዘት የተቀመጡ ኩኪዎች፣ እንደ ማስታወቂያዎች፣ የማጋሪያ አዝራሮች እና የትንተና መግብሮች። አንድ ተከታታይ ከአንድ ጣቢያ ወደ ሌላው እንዲከተልህ የሚያደርግ በጣም የቆየ መንገድ ናቸው፣ ለዚህም ነው የክትትል ጥበቃ የሚያጠፋቸው። አንዳንድ የመግቢያ ማዘዋወሪያዎች እና የተካተቱ የክፍያ ሂደቶች ያስፈልጋቸዋል፣ ስለዚህ ያለ እነሱ ለሚበላሽ ጣቢያ እንደገና አብራቸው።",
   "siteSettingsSectionContent": "ይዘት",
   "siteSettingsSectionBehaviour": "ባህሪ",
-  "siteSettingsSectionNetwork": "አውታረ መረብ"
+  "siteSettingsSectionNetwork": "አውታረ መረብ",
+  "siteSettingsSectionSite": "ጣቢያ"
 }

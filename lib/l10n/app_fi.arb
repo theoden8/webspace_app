@@ -374,7 +374,6 @@
   "siteSettingsTrackingProtection": "Seurannan suojaus",
   "siteSettingsTrackingProtectionHint": "Sivustokohtainen tehostetun seurannan suojauksen kattotermi. Kun päällä, pakottaa ClearURLs-, DNS-estolista- ja sisältöeston aktiivisiksi tälle sivustolle, JA lisää sormenjäljenestopuomin, joka satunnaistaa Canvasin, äänen, fonttimetriikan, näytön mitat, laitteistorinnakkaisuuden, liitännäiset, akun, puheäänet, korkearesoluutioiset ajastimet ja rajauslaatikkomittaukset. Sormenjälki pysyy vakaana sivustokohtaisesti käynnistysten välillä mutta eroaa sivustojen ja käyttäjien välillä. Kun myös incognito on käytössä tälle sivustolle, sormenjälki arvotaan uudelleen jokaisessa sovelluksen käynnistyksessä, jotta sivusto ei voi tunnistaa sinua uudelleen kylmäkäynnistysten välillä. WebGL on kokonaan poissa käytöstä tämän ollessa päällä; poista se käytöstä sivustoille, jotka tarvitsevat WebGL:ää (kartat, 3D-katselimet).",
   "siteSettingsTrackingProtectionSubtitle": "Sormenjäljenesto + seurantaeston pakotus",
-  "siteSettingsForcedByTrackingProtection": "Seurannan suojaus pakottaa päälle",
   "siteSettingsClearUrls": "ClearURLs",
   "siteSettingsClearUrlsHint": "Poistaa seurantaparametrit (kuten utm_source, fbclid) URL-osoitteista ennen niiden lataamista. Tämä suojaa yksityisyyttäsi estämällä sivustoja seuraamasta, mistä tulit.",
   "siteSettingsClearUrlsSubtitle": "Poista seurantaparametrit URL-osoitteista",
@@ -434,7 +433,7 @@
   "siteSettingsMicrophoneAccessChooseSource": "Valitse äänitiedosto",
   "siteSettingsMicrophoneAccessNoSource": "Ei valittua tiedostoa",
   "siteSettingsGeolocation": "Sijainti",
-  "siteSettingsGeolocationHint": "Sijainti",
+  "siteSettingsGeolocationHint": "Määrittää, mitä tämä sivusto saa tietää sijainnistasi.\n\nLive: laitteen todellinen sijainti, pyöristettynä valitsemaasi tarkkuustasoon.\nStaattinen: kartalta valitsemasi kiinteä piste. Todellista sijaintia ei lueta koskaan.\nPois: jokainen pyyntö hylätään, aivan kuten hylätty selaimen kysely.",
   "siteSettingsLocationOff": "Pois",
   "siteSettingsLocationStatic": "Staattinen",
   "siteSettingsLocationLive": "Reaaliaikainen",
@@ -737,7 +736,6 @@
   "privacyTitle": "Yksityisyys",
   "privacyGroupTrackers": "Seuraimet ja mainokset",
   "privacyGroupFingerprinting": "Sormenjälki",
-  "privacyGroupStorage": "Tallennus",
   "privacyFingerprintingNote": "Seurannan suojaus satunnaistaa tälle sivustolle myös canvas-, ääni-, fontti- ja laitteistolukemat.",
   "privacySummaryProtectionOn": "Seurannan suojaus päällä",
   "privacySummaryNothingOn": "Suojauksia ei ole käytössä",
@@ -747,5 +745,6 @@
   "siteSettingsThirdPartyCookiesHint": "Evästeet, jotka asettaa toiselta sivustolta upotettu sisältö, kuten mainokset, jakopainikkeet ja analytiikkawidgetit. Ne ovat vanhin tapa, jolla seurain seuraa sinua sivustolta toiselle, ja siksi seurannan suojaus poistaa ne käytöstä. Jotkin kirjautumisen uudelleenohjaukset ja upotetut maksut tarvitsevat niitä, joten kytke ne takaisin päälle sivustolle, joka ei toimi ilman niitä.",
   "siteSettingsSectionContent": "Sisältö",
   "siteSettingsSectionBehaviour": "Toiminta",
-  "siteSettingsSectionNetwork": "Verkko"
+  "siteSettingsSectionNetwork": "Verkko",
+  "siteSettingsSectionSite": "Sivusto"
 }

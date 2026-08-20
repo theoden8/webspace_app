@@ -374,7 +374,6 @@
   "siteSettingsTrackingProtection": "Ochrana proti sledování",
   "siteSettingsTrackingProtectionHint": "Souhrnná rozšířená ochrana proti sledování pro jednotlivé stránky. Když je zapnutá, vynutí pro tuto stránku aktivní ClearURLs, seznam blokovaných DNS a blokování obsahu A vloží shim proti otiskům prohlížeče, který náhodně mění Canvas, audio, metriky písem, rozměry obrazovky, počet hardwarových vláken, pluginy, baterii, hlasy řeči, vysokorozlišovací časovače a měření ohraničujících rámců. Otisk zůstává stabilní pro danou stránku napříč spuštěními, ale liší se mezi stránkami a mezi uživateli. Když je pro tuto stránku zapnut i anonymní režim, otisk se přegeneruje při každém spuštění aplikace, takže vás stránka nemůže znovu identifikovat po studeném restartu. Po dobu zapnutí je WebGL zcela vypnuto; vypněte ji pro stránky, které WebGL potřebují (mapy, 3D prohlížeče).",
   "siteSettingsTrackingProtectionSubtitle": "Ochrana proti otiskům + vynucené blokování sledovačů",
-  "siteSettingsForcedByTrackingProtection": "Vynuceno ochranou proti sledování",
   "siteSettingsClearUrls": "ClearURLs",
   "siteSettingsClearUrlsHint": "Odstraňuje sledovací parametry (jako utm_source, fbclid) z URL před jejich načtením. Pomáhá chránit vaše soukromí tím, že brání stránkám sledovat, odkud jste přišli.",
   "siteSettingsClearUrlsSubtitle": "Odstranit sledovací parametry z URL",
@@ -434,7 +433,7 @@
   "siteSettingsMicrophoneAccessChooseSource": "Vybrat zvukový soubor",
   "siteSettingsMicrophoneAccessNoSource": "Není vybrán žádný soubor",
   "siteSettingsGeolocation": "Geolokace",
-  "siteSettingsGeolocationHint": "Geolokace",
+  "siteSettingsGeolocationHint": "Určuje, co se tento web dozví o tom, kde jste.\n\nŽivě: skutečná poloha zařízení, zaokrouhlená na úroveň přesnosti, kterou zvolíte.\nStatická: pevný bod, který vyberete na mapě. Skutečná poloha se nikdy nečte.\nVypnuto: každý požadavek je odmítnut, přesně jako zamítnutá výzva prohlížeče.",
   "siteSettingsLocationOff": "Vypnuto",
   "siteSettingsLocationStatic": "Statická",
   "siteSettingsLocationLive": "Živá",
@@ -737,7 +736,6 @@
   "privacyTitle": "Soukromí",
   "privacyGroupTrackers": "Sledovače a reklamy",
   "privacyGroupFingerprinting": "Otisk prohlížeče",
-  "privacyGroupStorage": "Úložiště",
   "privacyFingerprintingNote": "Ochrana proti sledování také náhodně mění hodnoty canvasu, zvuku, písem a hardwaru pro tento web.",
   "privacySummaryProtectionOn": "Ochrana proti sledování zapnuta",
   "privacySummaryNothingOn": "Žádná ochrana není zapnuta",
@@ -747,5 +745,6 @@
   "siteSettingsThirdPartyCookiesHint": "Cookies nastavené obsahem vloženým z jiného webu, například reklamami, tlačítky pro sdílení a analytickými widgety. Jsou nejstarším způsobem, jak vás sledovač sleduje z jednoho webu na druhý, a proto je ochrana proti sledování vypíná. Některá přesměrování při přihlášení a vložené platby je potřebují, takže je pro web, který bez nich nefunguje, znovu zapněte.",
   "siteSettingsSectionContent": "Obsah",
   "siteSettingsSectionBehaviour": "Chování",
-  "siteSettingsSectionNetwork": "Síť"
+  "siteSettingsSectionNetwork": "Síť",
+  "siteSettingsSectionSite": "Web"
 }

@@ -374,7 +374,6 @@
   "siteSettingsTrackingProtection": "Rakningarvörn",
   "siteSettingsTrackingProtectionHint": "Yfirgripsmikil rakningarvörn fyrir hvert svæði. Þegar kveikt er þvingar hún ClearURLs, DNS-bannlista og Efnisblokkara til að vera virk fyrir þetta svæði OG sprautar inn fingrafaravarnarslimi sem slembar Canvas, hljóð, leturmælingar, skjávíddir, vélbúnaðarsamhliðun, viðbætur, rafhlöðu, talraddir, hárupplausnartímamæla og útlínumælingar. Fingrafarið er stöðugt fyrir hvert svæði milli ræsinga en ólíkt milli svæða og milli notenda. Þegar huliðsstilling er einnig virk fyrir þetta svæði er fingrafarið endurvalið við hverja forritsræsingu svo svæðið geti ekki auðkennt þig á ný eftir kaldræsingar. WebGL er algjörlega óvirkt á meðan kveikt er; slökktu á þessu fyrir svæði sem þurfa WebGL (kort, þrívíddarskoðarar).",
   "siteSettingsTrackingProtectionSubtitle": "Fingrafaravörn + þvinguð rakningarblokkun",
-  "siteSettingsForcedByTrackingProtection": "Þvingað á af rakningarvörn",
   "siteSettingsClearUrls": "ClearURLs",
   "siteSettingsClearUrlsHint": "Fjarlægir rakningarbreytur (eins og utm_source, fbclid) úr URL-um áður en þau eru hlaðin. Þetta hjálpar til við að vernda persónuvernd þína með því að koma í veg fyrir að svæði raki hvaðan þú komst.",
   "siteSettingsClearUrlsSubtitle": "Fjarlægja rakningarbreytur úr URL-um",
@@ -434,7 +433,7 @@
   "siteSettingsMicrophoneAccessChooseSource": "Velja hljóðskrá",
   "siteSettingsMicrophoneAccessNoSource": "Engin skrá valin",
   "siteSettingsGeolocation": "Staðsetning",
-  "siteSettingsGeolocationHint": "Staðsetning",
+  "siteSettingsGeolocationHint": "Stýrir því hvað þetta vefsvæði kemst að um hvar þú ert.\n\nBeint: raunveruleg staðsetning tækisins, námunduð að þeirri nákvæmni sem þú velur.\nFast: fastur punktur sem þú velur á korti. Raunveruleg staðsetning er aldrei lesin.\nAf: hverri beiðni er hafnað, nákvæmlega eins og hafnaðri heimildarbeiðni vafra.",
   "siteSettingsLocationOff": "Af",
   "siteSettingsLocationStatic": "Föst",
   "siteSettingsLocationLive": "Lifandi",
@@ -737,7 +736,6 @@
   "privacyTitle": "Persónuvernd",
   "privacyGroupTrackers": "Rekjarar og auglýsingar",
   "privacyGroupFingerprinting": "Fingrafar",
-  "privacyGroupStorage": "Geymsla",
   "privacyFingerprintingNote": "Rakningarvörn slembar einnig lestur af striga, hljóði, letri og vélbúnaði fyrir þetta vefsvæði.",
   "privacySummaryProtectionOn": "Rakningarvörn kveikt",
   "privacySummaryNothingOn": "Engin vörn virk",
@@ -747,5 +745,6 @@
   "siteSettingsThirdPartyCookiesHint": "Vefkökur sem efni ígrætt frá öðru vefsvæði setur, svo sem auglýsingar, deilihnappar og greiningargræjur. Þær eru elsta leiðin sem rekjari fylgir þér frá einu vefsvæði til annars, og þess vegna slekkur rakningarvörn á þeim. Sumar innskráningarumbeiningar og ígrædd greiðsluferli þurfa þær, svo kveiktu aftur á þeim fyrir vefsvæði sem virkar ekki án þeirra.",
   "siteSettingsSectionContent": "Efni",
   "siteSettingsSectionBehaviour": "Hegðun",
-  "siteSettingsSectionNetwork": "Netkerfi"
+  "siteSettingsSectionNetwork": "Netkerfi",
+  "siteSettingsSectionSite": "Vefsvæði"
 }

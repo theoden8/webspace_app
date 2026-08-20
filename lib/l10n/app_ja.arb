@@ -374,7 +374,6 @@
   "siteSettingsTrackingProtection": "トラッキング保護",
   "siteSettingsTrackingProtectionHint": "サイトごとの強化型トラッキング保護の総合設定です。オンにすると、このサイトに対して ClearURLs、DNS ブロックリスト、コンテンツブロッカーを強制的に有効化し、さらに Canvas、音声、フォントメトリクス、画面サイズ、ハードウェア並列度、プラグイン、バッテリー、音声合成ボイス、高解像度タイマー、バウンディングボックス計測をランダム化するアンチフィンガープリンティングのシムを注入します。フィンガープリントは起動をまたいでサイトごとに安定しますが、サイト間およびユーザー間では異なります。このサイトでシークレットモードも有効な場合、アプリ起動のたびにフィンガープリントが再生成され、コールド再起動をまたいでサイトがあなたを再識別できないようにします。これがオンの間は WebGL が完全に無効化されます。WebGL を必要とするサイト（地図、3Dビューア）ではオフにしてください。",
   "siteSettingsTrackingProtectionSubtitle": "アンチフィンガープリンティング + トラッカーブロックを強制",
-  "siteSettingsForcedByTrackingProtection": "トラッキング保護により強制的にオン",
   "siteSettingsClearUrls": "ClearURLs",
   "siteSettingsClearUrlsHint": "読み込み前にURLからトラッキングパラメータ（utm_source、fbclid など）を削除します。サイトがあなたの参照元を追跡するのを防ぎ、プライバシーの保護に役立ちます。",
   "siteSettingsClearUrlsSubtitle": "URLからトラッキングパラメータを除去",
@@ -434,7 +433,7 @@
   "siteSettingsMicrophoneAccessChooseSource": "音声ファイルを選択",
   "siteSettingsMicrophoneAccessNoSource": "ファイルが選択されていません",
   "siteSettingsGeolocation": "位置情報",
-  "siteSettingsGeolocationHint": "位置情報",
+  "siteSettingsGeolocationHint": "このサイトがあなたの居場所について何を知るかを制御します。\n\nライブ: 端末の実際の位置を、選択した精度の段階に丸めて渡します。\n静的: 地図上で選んだ固定地点。実際の位置は一切読み取りません。\nオフ: すべての要求を拒否します。ブラウザの許可を拒否した場合とまったく同じです。",
   "siteSettingsLocationOff": "オフ",
   "siteSettingsLocationStatic": "固定",
   "siteSettingsLocationLive": "ライブ",
@@ -737,7 +736,6 @@
   "privacyTitle": "プライバシー",
   "privacyGroupTrackers": "トラッカーと広告",
   "privacyGroupFingerprinting": "フィンガープリント",
-  "privacyGroupStorage": "ストレージ",
   "privacyFingerprintingNote": "トラッキング保護は、このサイトに対してキャンバス、音声、フォント、ハードウェアの読み取り値もランダム化します。",
   "privacySummaryProtectionOn": "トラッキング保護オン",
   "privacySummaryNothingOn": "保護は有効になっていません",
@@ -747,5 +745,6 @@
   "siteSettingsThirdPartyCookiesHint": "広告、共有ボタン、アナリティクスウィジェットなど、別のサイトから埋め込まれたコンテンツが設定する Cookie です。トラッカーがあなたをサイトからサイトへ追跡する最も古い手段であり、そのためトラッキング保護はこれをオフにします。一部のサインインのリダイレクトや埋め込み決済には必要なので、これがないと壊れるサイトでは再度オンにしてください。",
   "siteSettingsSectionContent": "コンテンツ",
   "siteSettingsSectionBehaviour": "動作",
-  "siteSettingsSectionNetwork": "ネットワーク"
+  "siteSettingsSectionNetwork": "ネットワーク",
+  "siteSettingsSectionSite": "サイト"
 }

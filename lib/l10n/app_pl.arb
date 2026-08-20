@@ -374,7 +374,6 @@
   "siteSettingsTrackingProtection": "Ochrona przed śledzeniem",
   "siteSettingsTrackingProtectionHint": "Zbiorcza rozszerzona ochrona przed śledzeniem dla danej strony. Gdy włączona, wymusza aktywność ClearURLs, listy blokowania DNS i blokera treści dla tej strony ORAZ wstrzykuje warstwę chroniącą przed odciskiem palca, która losuje Canvas, dźwięk, metryki czcionek, wymiary ekranu, liczbę wątków sprzętowych, wtyczki, baterię, głosy mowy, zegary o wysokiej rozdzielczości i pomiary obwiedni. Odcisk palca pozostaje stabilny dla danej strony między uruchomieniami, ale różni się między stronami i między użytkownikami. Gdy dla tej strony włączony jest też tryb incognito, odcisk palca jest losowany od nowa przy każdym uruchomieniu aplikacji, dzięki czemu strona nie może ponownie zidentyfikować Cię po zimnym restarcie. WebGL jest całkowicie wyłączony, gdy ta opcja jest aktywna; wyłącz ją dla stron wymagających WebGL (mapy, przeglądarki 3D).",
   "siteSettingsTrackingProtectionSubtitle": "Ochrona przed odciskiem palca + wymuszone blokowanie trackerów",
-  "siteSettingsForcedByTrackingProtection": "Wymuszone przez Ochronę przed śledzeniem",
   "siteSettingsClearUrls": "ClearURLs",
   "siteSettingsClearUrlsHint": "Usuwa parametry śledzące (takie jak utm_source, fbclid) z adresów URL przed ich wczytaniem. Pomaga to chronić Twoją prywatność, uniemożliwiając stronom śledzenie, skąd przybyłeś.",
   "siteSettingsClearUrlsSubtitle": "Usuwaj parametry śledzące z adresów URL",
@@ -434,7 +433,7 @@
   "siteSettingsMicrophoneAccessChooseSource": "Wybierz plik dźwiękowy",
   "siteSettingsMicrophoneAccessNoSource": "Nie wybrano pliku",
   "siteSettingsGeolocation": "Geolokalizacja",
-  "siteSettingsGeolocationHint": "Geolokalizacja",
+  "siteSettingsGeolocationHint": "Decyduje, czego ta witryna dowiaduje się o tym, gdzie jesteś.\n\nNa żywo: rzeczywista pozycja urządzenia, zaokrąglona do wybranego przez Ciebie poziomu dokładności.\nStatyczna: stały punkt wybrany przez Ciebie na mapie. Rzeczywista pozycja nigdy nie jest odczytywana.\nWyłączone: każde żądanie jest odrzucane, dokładnie tak jak odrzucona zgoda w przeglądarce.",
   "siteSettingsLocationOff": "Wył.",
   "siteSettingsLocationStatic": "Statyczna",
   "siteSettingsLocationLive": "Na żywo",
@@ -737,7 +736,6 @@
   "privacyTitle": "Prywatność",
   "privacyGroupTrackers": "Elementy śledzące i reklamy",
   "privacyGroupFingerprinting": "Odcisk przeglądarki",
-  "privacyGroupStorage": "Pamięć",
   "privacyFingerprintingNote": "Ochrona przed śledzeniem losuje dla tej witryny również odczyty płótna, dźwięku, czcionek i sprzętu.",
   "privacySummaryProtectionOn": "Ochrona przed śledzeniem włączona",
   "privacySummaryNothingOn": "Żadna ochrona nie jest włączona",
@@ -747,5 +745,6 @@
   "siteSettingsThirdPartyCookiesHint": "Pliki cookie ustawiane przez treść osadzoną z innej witryny, na przykład reklamy, przyciski udostępniania i widżety analityczne. To najstarszy sposób, w jaki element śledzący podąża za tobą z jednej witryny do drugiej, dlatego Ochrona przed śledzeniem je wyłącza. Niektóre przekierowania logowania i osadzone płatności ich potrzebują, więc włącz je z powrotem dla witryny, która bez nich nie działa.",
   "siteSettingsSectionContent": "Treść",
   "siteSettingsSectionBehaviour": "Zachowanie",
-  "siteSettingsSectionNetwork": "Sieć"
+  "siteSettingsSectionNetwork": "Sieć",
+  "siteSettingsSectionSite": "Witryna"
 }

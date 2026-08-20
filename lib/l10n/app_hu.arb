@@ -374,7 +374,6 @@
   "siteSettingsTrackingProtection": "Nyomkövetés elleni védelem",
   "siteSettingsTrackingProtectionHint": "Átfogó, webhelyenkénti fokozott nyomkövetés elleni védelem. Bekapcsolva kötelezően aktívvá teszi a ClearURLs, a DNS feketelista és a tartalomblokkoló funkciókat ehhez a webhelyhez, ÉS bejuttat egy ujjlenyomatozás elleni shimet, amely véletlenszerűsíti a Canvas, hang, betűkép-metrikák, képernyőméretek, hardveres párhuzamosság, beépülők, akkumulátor, beszédhangok, nagy felbontású időzítők és határoló doboz mérések adatait. Az ujjlenyomat webhelyenként stabil marad indítások között, de eltér webhelyenként és felhasználónként. Ha az inkognitó mód is engedélyezve van ehhez a webhelyhez, az ujjlenyomat minden alkalmazásindításkor újragenerálódik, így a webhely nem tudja újra azonosítani Önt a hidegindítások között. A WebGL teljesen le van tiltva, amíg ez be van kapcsolva; kapcsolja ki azoknál a webhelyeknél, amelyeknek WebGL-re van szükségük (térképek, 3D-nézegetők).",
   "siteSettingsTrackingProtectionSubtitle": "Ujjlenyomatozás elleni védelem + kötelező nyomkövetőblokkolás",
-  "siteSettingsForcedByTrackingProtection": "A nyomkövetés elleni védelem miatt kötelezően bekapcsolva",
   "siteSettingsClearUrls": "ClearURLs",
   "siteSettingsClearUrlsHint": "Eltávolítja a nyomkövető paramétereket (mint az utm_source, fbclid) az URL-ekből betöltés előtt. Ez segít megvédeni az adatvédelmét, mivel megakadályozza, hogy a webhelyek nyomon kövessék, honnan érkezett.",
   "siteSettingsClearUrlsSubtitle": "Nyomkövető paraméterek eltávolítása az URL-ekből",
@@ -434,7 +433,7 @@
   "siteSettingsMicrophoneAccessChooseSource": "Hangfájl kiválasztása",
   "siteSettingsMicrophoneAccessNoSource": "Nincs kiválasztott fájl",
   "siteSettingsGeolocation": "Helymeghatározás",
-  "siteSettingsGeolocationHint": "Helymeghatározás",
+  "siteSettingsGeolocationHint": "Szabályozza, mit tud meg ez az oldal arról, hogy hol tartózkodik.\n\nÉlő: az eszköz valódi helyzete, az Ön által választott pontossági szintre kerekítve.\nStatikus: egy rögzített pont, amelyet a térképen választ ki. A valódi helyzetet soha nem olvassa ki.\nKi: minden kérést elutasít, pontosan úgy, mint egy elutasított böngészőkérdés.",
   "siteSettingsLocationOff": "Ki",
   "siteSettingsLocationStatic": "Statikus",
   "siteSettingsLocationLive": "Élő",
@@ -737,7 +736,6 @@
   "privacyTitle": "Adatvédelem",
   "privacyGroupTrackers": "Nyomkövetők és hirdetések",
   "privacyGroupFingerprinting": "Ujjlenyomatvétel",
-  "privacyGroupStorage": "Tárolás",
   "privacyFingerprintingNote": "A nyomkövetés elleni védelem ehhez az oldalhoz a vászon-, hang-, betűtípus- és hardverleolvasásokat is véletlenszerűsíti.",
   "privacySummaryProtectionOn": "Nyomkövetés elleni védelem bekapcsolva",
   "privacySummaryNothingOn": "Nincs bekapcsolt védelem",
@@ -747,5 +745,6 @@
   "siteSettingsThirdPartyCookiesHint": "Egy másik oldalról beágyazott tartalom, például hirdetések, megosztógombok és analitikai widgetek által beállított sütik. Ez a legrégebbi módja annak, hogy egy nyomkövető egyik oldalról a másikra kövesse Önt, ezért kapcsolja ki őket a nyomkövetés elleni védelem. Néhány bejelentkezési átirányításnak és beágyazott fizetésnek szüksége van rájuk, ezért kapcsolja vissza őket olyan oldalnál, amely nélkülük nem működik.",
   "siteSettingsSectionContent": "Tartalom",
   "siteSettingsSectionBehaviour": "Viselkedés",
-  "siteSettingsSectionNetwork": "Hálózat"
+  "siteSettingsSectionNetwork": "Hálózat",
+  "siteSettingsSectionSite": "Oldal"
 }

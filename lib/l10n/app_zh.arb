@@ -374,7 +374,6 @@
   "siteSettingsTrackingProtection": "追蹤保護",
   "siteSettingsTrackingProtectionHint": "傘狀的逐站加強型追蹤保護。開啟時，會強制此網站啟用 ClearURLs、DNS 封鎖清單與內容封鎖器，並注入反指紋辨識的 shim，隨機化 Canvas、音訊、字型度量、螢幕尺寸、硬體並行數、外掛程式、電池、語音聲源、高解析度計時器及定界框測量。指紋在每次啟動間對同一網站保持穩定，但在不同網站與不同使用者間有所差異。當此網站同時啟用無痕時，每次應用程式啟動都會重新產生指紋，使網站無法在冷重啟間重新辨識您。開啟時 WebGL 會完全停用；對於需要 WebGL 的網站（地圖、3D 檢視器）請關閉此項。",
   "siteSettingsTrackingProtectionSubtitle": "反指紋辨識 + 強制封鎖追蹤器",
-  "siteSettingsForcedByTrackingProtection": "因追蹤保護而強制開啟",
   "siteSettingsClearUrls": "ClearURLs",
   "siteSettingsClearUrlsHint": "在載入網址前移除其中的追蹤參數（如 utm_source、fbclid）。這可防止網站追蹤您的來源，協助保護您的隱私。",
   "siteSettingsClearUrlsSubtitle": "從網址中移除追蹤參數",
@@ -434,7 +433,7 @@
   "siteSettingsMicrophoneAccessChooseSource": "选择音频文件",
   "siteSettingsMicrophoneAccessNoSource": "未選擇檔案",
   "siteSettingsGeolocation": "地理位置",
-  "siteSettingsGeolocationHint": "地理位置",
+  "siteSettingsGeolocationHint": "控制此站点能得知你所在位置的哪些信息。\n\n实时：设备的真实位置，按你选择的精度等级取整后提供。\n静态：你在地图上选定的固定地点。绝不读取真实位置。\n关闭：拒绝每一次请求，与在浏览器中拒绝授权完全一致。",
   "siteSettingsLocationOff": "關閉",
   "siteSettingsLocationStatic": "靜態",
   "siteSettingsLocationLive": "即時",
@@ -737,7 +736,6 @@
   "privacyTitle": "隐私",
   "privacyGroupTrackers": "跟踪器与广告",
   "privacyGroupFingerprinting": "指纹识别",
-  "privacyGroupStorage": "存储",
   "privacyFingerprintingNote": "跟踪保护还会为此站点随机化画布、音频、字体和硬件读数。",
   "privacySummaryProtectionOn": "跟踪保护已开启",
   "privacySummaryNothingOn": "未启用任何保护",
@@ -747,5 +745,6 @@
   "siteSettingsThirdPartyCookiesHint": "由来自其他站点的嵌入内容设置的 Cookie，例如广告、分享按钮和分析组件。它们是跟踪器从一个站点跟到下一个站点的最古老手段，因此跟踪保护会将其关闭。某些登录跳转和嵌入式结账需要它们，所以对于缺少它们就无法使用的站点，请重新开启。",
   "siteSettingsSectionContent": "内容",
   "siteSettingsSectionBehaviour": "行为",
-  "siteSettingsSectionNetwork": "网络"
+  "siteSettingsSectionNetwork": "网络",
+  "siteSettingsSectionSite": "站点"
 }

@@ -374,7 +374,6 @@
   "siteSettingsTrackingProtection": "Jälgimiskaitse",
   "siteSettingsTrackingProtectionHint": "Saidipõhine täiustatud jälgimiskaitse. Sisselülitatuna sunnib selle saidi jaoks aktiivseks ClearURLs, DNS blokeerimisloendi ja sisublokeerija NING süstib sõrmejälje-vastase shimi, mis juhuslikustab Canvase, heli, fontide mõõdud, ekraani mõõtmed, riistvara samaaegsuse, pluginad, aku, kõnehääled, kõrge eraldusvõimega taimerid ja piirkasti mõõtmised. Sõrmejälg jääb saidi kaupa käivituste vahel stabiilseks, kuid erineb saitide ja kasutajate vahel. Kui sellel saidil on lubatud ka inkognito, genereeritakse sõrmejälg igal rakenduse käivitusel uuesti, et sait ei saaks sind külmkäivituste vahel uuesti tuvastada. WebGL on selle ajal täielikult keelatud; lülita see välja saitide jaoks, mis vajavad WebGL-i (kaardid, 3D-vaaturid).",
   "siteSettingsTrackingProtectionSubtitle": "Sõrmejälje-vastasus + jälgijate sundblokeerimine",
-  "siteSettingsForcedByTrackingProtection": "Jälgimiskaitse sundis sisse",
   "siteSettingsClearUrls": "ClearURLs",
   "siteSettingsClearUrlsHint": "Eemaldab enne laadimist URL-idest jälgimisparameetrid (nagu utm_source, fbclid). See aitab kaitsta sinu privaatsust, takistades saitidel jälgida, kust sa tulid.",
   "siteSettingsClearUrlsSubtitle": "Eemalda URL-idest jälgimisparameetrid",
@@ -434,7 +433,7 @@
   "siteSettingsMicrophoneAccessChooseSource": "Vali helifail",
   "siteSettingsMicrophoneAccessNoSource": "Faili pole valitud",
   "siteSettingsGeolocation": "Asukoht",
-  "siteSettingsGeolocationHint": "Asukoht",
+  "siteSettingsGeolocationHint": "Määrab, mida see sait sinu asukoha kohta teada saab.\n\nOtse: seadme tegelik asukoht, ümardatud sinu valitud täpsusastmeni.\nStaatiline: kaardil valitud kindel punkt. Tegelikku asukohta ei loeta kunagi.\nVäljas: iga päring lükatakse tagasi, täpselt nagu keeldutud brauseriküsimuse puhul.",
   "siteSettingsLocationOff": "Väljas",
   "siteSettingsLocationStatic": "Staatiline",
   "siteSettingsLocationLive": "Reaalajas",
@@ -737,7 +736,6 @@
   "privacyTitle": "Privaatsus",
   "privacyGroupTrackers": "Jälgijad ja reklaamid",
   "privacyGroupFingerprinting": "Sõrmejälg",
-  "privacyGroupStorage": "Salvestusruum",
   "privacyFingerprintingNote": "Jälgimiskaitse juhuslikustab selle saidi puhul ka lõuendi, heli, fontide ja riistvara näidud.",
   "privacySummaryProtectionOn": "Jälgimiskaitse sees",
   "privacySummaryNothingOn": "Ühtegi kaitset pole sisse lülitatud",
@@ -747,5 +745,6 @@
   "siteSettingsThirdPartyCookiesHint": "Küpsised, mille seab teiselt saidilt manustatud sisu, näiteks reklaamid, jagamisnupud ja analüütikavidinad. Need on vanim viis, kuidas jälgija sind ühelt saidilt teisele järgib, ja seetõttu lülitab jälgimiskaitse need välja. Mõned sisselogimise ümbersuunamised ja manustatud maksed vajavad neid, seega lülita need saidi puhul, mis ilma nendeta ei tööta, uuesti sisse.",
   "siteSettingsSectionContent": "Sisu",
   "siteSettingsSectionBehaviour": "Käitumine",
-  "siteSettingsSectionNetwork": "Võrk"
+  "siteSettingsSectionNetwork": "Võrk",
+  "siteSettingsSectionSite": "Sait"
 }

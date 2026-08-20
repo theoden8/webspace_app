@@ -374,7 +374,6 @@
   "siteSettingsTrackingProtection": "ٹریکنگ تحفظ",
   "siteSettingsTrackingProtectionHint": "فی سائٹ امبریلا اضافی ٹریکنگ تحفظ۔ آن ہونے پر، اس سائٹ کے لیے ClearURLs، DNS بلاک لسٹ، اور کنٹینٹ بلاکر کو فعال ہونے پر مجبور کرتا ہے، اور ایک اینٹی فنگر پرنٹنگ شِم انجیکٹ کرتا ہے جو Canvas، آڈیو، فونٹ میٹرکس، اسکرین کے ابعاد، ہارڈ ویئر کنکرنسی، پلگ انز، بیٹری، اسپیچ آوازوں، ہائی ریزولوشن ٹائمرز، اور باؤنڈنگ باکس پیمائشوں کو بے ترتیب کرتا ہے۔ فنگر پرنٹ ہر سائٹ کے لیے لانچز کے درمیان مستحکم رہتا ہے لیکن سائٹس کے درمیان اور صارفین کے درمیان مختلف ہوتا ہے۔ جب اس سائٹ کے لیے اِنکوگنیٹو بھی فعال ہو، تو فنگر پرنٹ ہر ایپ لانچ پر دوبارہ بنایا جاتا ہے تاکہ سائٹ کولڈ ری اسٹارٹ کے درمیان آپ کی دوبارہ شناخت نہ کر سکے۔ یہ آن ہونے کے دوران WebGL مکمل طور پر غیر فعال رہتا ہے؛ ان سائٹس کے لیے اسے بند کریں جنہیں WebGL درکار ہو (نقشے، 3D ویورز)۔",
   "siteSettingsTrackingProtectionSubtitle": "اینٹی فنگر پرنٹنگ + زبردستی ٹریکر بلاکنگ",
-  "siteSettingsForcedByTrackingProtection": "ٹریکنگ تحفظ کی وجہ سے زبردستی آن",
   "siteSettingsClearUrls": "ClearURLs",
   "siteSettingsClearUrlsHint": "URLs لوڈ کرنے سے پہلے ان سے ٹریکنگ پیرامیٹرز (جیسے utm_source، fbclid) ہٹاتا ہے۔ یہ سائٹس کو یہ ٹریک کرنے سے روکتا ہے کہ آپ کہاں سے آئے ہیں اور یوں آپ کی رازداری کی حفاظت میں مدد کرتا ہے۔",
   "siteSettingsClearUrlsSubtitle": "URLs سے ٹریکنگ پیرامیٹرز ہٹائیں",
@@ -434,7 +433,7 @@
   "siteSettingsMicrophoneAccessChooseSource": "آڈیو فائل منتخب کریں",
   "siteSettingsMicrophoneAccessNoSource": "کوئی فائل منتخب نہیں",
   "siteSettingsGeolocation": "جیولوکیشن",
-  "siteSettingsGeolocationHint": "جیولوکیشن",
+  "siteSettingsGeolocationHint": "یہ کنٹرول کرتا ہے کہ یہ سائٹ آپ کے مقام کے بارے میں کیا جانتی ہے۔\n\nلائیو: آلے کی اصل پوزیشن، آپ کے منتخب کردہ درستگی کے درجے تک محدود۔\nساکن: نقشے پر آپ کا منتخب کردہ ایک مقررہ نقطہ۔ اصل پوزیشن کبھی نہیں پڑھی جاتی۔\nبند: ہر درخواست مسترد کر دی جاتی ہے، بالکل ویسے ہی جیسے مسترد شدہ براؤزر اجازت۔",
   "siteSettingsLocationOff": "آف",
   "siteSettingsLocationStatic": "جامد",
   "siteSettingsLocationLive": "لائیو",
@@ -737,7 +736,6 @@
   "privacyTitle": "رازداری",
   "privacyGroupTrackers": "ٹریکرز اور اشتہارات",
   "privacyGroupFingerprinting": "فنگر پرنٹنگ",
-  "privacyGroupStorage": "ذخیرہ",
   "privacyFingerprintingNote": "ٹریکنگ تحفظ اس سائٹ کے لیے کینوس، آڈیو، فونٹ اور ہارڈویئر ریڈنگز کو بھی بے ترتیب کر دیتا ہے۔",
   "privacySummaryProtectionOn": "ٹریکنگ تحفظ آن ہے",
   "privacySummaryNothingOn": "کوئی تحفظ فعال نہیں",
@@ -747,5 +745,6 @@
   "siteSettingsThirdPartyCookiesHint": "کسی دوسری سائٹ سے شامل کیے گئے مواد، جیسے اشتہارات، شیئر بٹن اور تجزیاتی ویجٹس کی سیٹ کردہ کوکیز۔ یہ سب سے پرانا طریقہ ہیں جس سے کوئی ٹریکر آپ کا ایک سائٹ سے دوسری سائٹ تک پیچھا کرتا ہے، اسی لیے ٹریکنگ تحفظ انہیں بند کر دیتا ہے۔ کچھ سائن اِن ری ڈائریکٹس اور شامل شدہ چیک آؤٹ کو ان کی ضرورت ہوتی ہے، لہٰذا ایسی سائٹ کے لیے انہیں دوبارہ آن کریں جو ان کے بغیر کام نہ کرے۔",
   "siteSettingsSectionContent": "مواد",
   "siteSettingsSectionBehaviour": "رویہ",
-  "siteSettingsSectionNetwork": "نیٹ ورک"
+  "siteSettingsSectionNetwork": "نیٹ ورک",
+  "siteSettingsSectionSite": "سائٹ"
 }

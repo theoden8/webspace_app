@@ -374,7 +374,6 @@
   "siteSettingsTrackingProtection": "Zaščita pred sledenjem",
   "siteSettingsTrackingProtectionHint": "Krovna izboljšana zaščita pred sledenjem za posamezno stran. Ko je vključena, prisili ClearURLs, seznam blokiranih DNS in blokator vsebine, da so aktivni za to stran, IN vbrizga obrambno plast proti prstnemu odtisu, ki naključno spreminja Canvas, zvok, mere pisav, dimenzije zaslona, sočasnost strojne opreme, vtičnike, baterijo, govorne glasove, časovnike visoke ločljivosti in meritve mejnih okvirjev. Prstni odtis ostane stabilen za vsako stran med zagoni, vendar se razlikuje med stranmi in med uporabniki. Ko je za to stran omogočen tudi način brez beleženja zgodovine, se prstni odtis ob vsakem zagonu aplikacije ponovno ustvari, tako da vas stran ne more ponovno prepoznati med hladnimi ponovnimi zagoni. Ko je ta možnost vključena, je WebGL popolnoma onemogočen; izključite jo za strani, ki potrebujejo WebGL (zemljevidi, 3D pregledovalniki).",
   "siteSettingsTrackingProtectionSubtitle": "Obramba proti prstnemu odtisu + prisilno blokiranje sledilcev",
-  "siteSettingsForcedByTrackingProtection": "Prisilno vključeno zaradi zaščite pred sledenjem",
   "siteSettingsClearUrls": "ClearURLs",
   "siteSettingsClearUrlsHint": "Odstrani parametre za sledenje (kot sta utm_source, fbclid) iz URL-jev pred njihovim nalaganjem. To pomaga zaščititi vašo zasebnost, saj stranem preprečuje, da bi sledile, od kod ste prišli.",
   "siteSettingsClearUrlsSubtitle": "Odstrani parametre za sledenje iz URL-jev",
@@ -434,7 +433,7 @@
   "siteSettingsMicrophoneAccessChooseSource": "Izberi zvočno datoteko",
   "siteSettingsMicrophoneAccessNoSource": "Nobena datoteka ni izbrana",
   "siteSettingsGeolocation": "Geolokacija",
-  "siteSettingsGeolocationHint": "Geolokacija",
+  "siteSettingsGeolocationHint": "Nadzoruje, kaj ta stran izve o tem, kje ste.\n\nV živo: dejanski položaj naprave, zaokrožen na stopnjo natančnosti, ki jo izberete.\nStatično: fiksna točka, ki jo izberete na zemljevidu. Dejanski položaj se nikoli ne prebere.\nIzklopljeno: vsaka zahteva je zavrnjena, natanko kot zavrnjeno dovoljenje brskalnika.",
   "siteSettingsLocationOff": "Izklopljeno",
   "siteSettingsLocationStatic": "Statična",
   "siteSettingsLocationLive": "V živo",
@@ -737,7 +736,6 @@
   "privacyTitle": "Zasebnost",
   "privacyGroupTrackers": "Sledilniki in oglasi",
   "privacyGroupFingerprinting": "Prstni odtis",
-  "privacyGroupStorage": "Shramba",
   "privacyFingerprintingNote": "Zaščita pred sledenjem za to stran naključno spreminja tudi odčitke platna, zvoka, pisav in strojne opreme.",
   "privacySummaryProtectionOn": "Zaščita pred sledenjem vklopljena",
   "privacySummaryNothingOn": "Nobena zaščita ni vklopljena",
@@ -747,5 +745,6 @@
   "siteSettingsThirdPartyCookiesHint": "Piškotki, ki jih nastavi vsebina, vdelana z druge strani, na primer oglasi, gumbi za deljenje in analitični gradniki. So najstarejši način, kako vam sledilnik sledi z ene strani na drugo, zato jih zaščita pred sledenjem izklopi. Nekatera preusmeritve ob prijavi in vdelana plačila jih potrebujejo, zato jih za stran, ki brez njih ne deluje, znova vklopite.",
   "siteSettingsSectionContent": "Vsebina",
   "siteSettingsSectionBehaviour": "Vedenje",
-  "siteSettingsSectionNetwork": "Omrežje"
+  "siteSettingsSectionNetwork": "Omrežje",
+  "siteSettingsSectionSite": "Stran"
 }

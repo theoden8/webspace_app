@@ -374,7 +374,6 @@
   "siteSettingsTrackingProtection": "Cosaint ar Rianú",
   "siteSettingsTrackingProtectionHint": "Cosaint Fheabhsaithe ar Rianú scáthach de réir suímh. Nuair atá sé ar siúl, cuireann sé iallach ar ClearURLs, Liosta Bactha DNS, agus Bacóir Ábhair a bheith gníomhach don suíomh seo, AGUS instealann sé sciath frith-mhéarlorgaireachta a randamaíonn Canbhás, fuaim, méadracht clófhoirne, toisí scáileáin, comhuaineacht crua-earraí, breiseáin, ceallraí, guthanna cainte, amadóirí ardtaifigh, agus tomhais bhosca theorantaigh. Fanann an méarlorg cobhsaí in aghaidh an tsuímh thar sheoltaí ach bíonn sé difriúil idir suíomhanna agus idir úsáideoirí. Nuair atá Incognito cumasaithe don suíomh seo freisin, athchaitear an méarlorg ar gach seoladh den Aip ionas nach féidir leis an suíomh tú a athaithint thar atosú fuar. Tá WebGL díchumasaithe go hiomlán fad atá sé seo ar siúl; cuir as é do shuíomhanna a theastaíonn WebGL uathu (léarscáileanna, amharcóirí 3D).",
   "siteSettingsTrackingProtectionSubtitle": "Frith-mhéarlorgaireacht + bacadh éigeantach rianaitheoirí",
-  "siteSettingsForcedByTrackingProtection": "Curtha ar siúl go héigeantach ag an gCosaint ar Rianú",
   "siteSettingsClearUrls": "ClearURLs",
   "siteSettingsClearUrlsHint": "Baineann sé paraiméadair rianaithe (cosúil le utm_source, fbclid) ó URLanna sula lódálann sé iad. Cabhraíonn sé seo do phríobháideacht a chosaint trí chosc a chur ar shuíomhanna an áit ónar tháinig tú a rianú.",
   "siteSettingsClearUrlsSubtitle": "Bain paraiméadair rianaithe ó URLanna",
@@ -434,7 +433,7 @@
   "siteSettingsMicrophoneAccessChooseSource": "Roghnaigh comhad fuaime",
   "siteSettingsMicrophoneAccessNoSource": "Níor roghnaíodh aon chomhad",
   "siteSettingsGeolocation": "Geoshuíomh",
-  "siteSettingsGeolocationHint": "Geoshuíomh",
+  "siteSettingsGeolocationHint": "Rialaíonn sé cad a fhoghlaimíonn an suíomh seo faoin áit a bhfuil tú.\n\nBeo: fíorshuíomh an ghléis, slánaithe go dtí an leibhéal cruinnis a roghnaíonn tú.\nStatach: pointe seasta a roghnaíonn tú ar léarscáil. Ní léitear an fíorshuíomh riamh.\nAs: diúltaítear do gach iarratas, díreach mar a dhéanfaí le leid brabhsálaí diúltaithe.",
   "siteSettingsLocationOff": "As",
   "siteSettingsLocationStatic": "Statach",
   "siteSettingsLocationLive": "Beo",
@@ -737,7 +736,6 @@
   "privacyTitle": "Príobháideachas",
   "privacyGroupTrackers": "Rianairí agus fógraí",
   "privacyGroupFingerprinting": "Méarloirg",
-  "privacyGroupStorage": "Stóráil",
   "privacyFingerprintingNote": "Randamaíonn an Chosaint ar Rianú léamha canbháis, fuaime, cló agus crua-earraí don suíomh seo freisin.",
   "privacySummaryProtectionOn": "Cosaint ar Rianú ar siúl",
   "privacySummaryNothingOn": "Níl aon chosaint cumasaithe",
@@ -747,5 +745,6 @@
   "siteSettingsThirdPartyCookiesHint": "Fianáin a shocraíonn ábhar atá leabaithe ó shuíomh eile, ar nós fógraí, cnaipí comhroinnte agus giuirléidí anailísíochta. Is é an bealach is sine iad chun go leanfadh rianaire thú ó shuíomh amháin go dtí an chéad cheann eile, agus is sin an fáth a mhúchann an Chosaint ar Rianú iad. Teastaíonn siad ó roinnt atreoruithe sínithe isteach agus ó sheiceálacha amach leabaithe, mar sin cuir ar siúl arís iad do shuíomh a bhriseann gan iad.",
   "siteSettingsSectionContent": "Ábhar",
   "siteSettingsSectionBehaviour": "Iompar",
-  "siteSettingsSectionNetwork": "Líonra"
+  "siteSettingsSectionNetwork": "Líonra",
+  "siteSettingsSectionSite": "Suíomh"
 }

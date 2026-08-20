@@ -374,7 +374,6 @@
   "siteSettingsTrackingProtection": "Sporingsbeskyttelse",
   "siteSettingsTrackingProtectionHint": "Overordnet udvidet sporingsbeskyttelse pr. side. Når slået til, tvinger den ClearURLs, DNS-blokeringsliste og indholdsblokering til at være aktive for denne side, OG injicerer en anti-fingeraftryks-shim, der randomiserer Canvas, lyd, fontmål, skærmdimensioner, hardware-parallelisme, plugins, batteri, talstemmer, timere med høj opløsning og bounding box-målinger. Fingeraftrykket forbliver stabilt pr. side på tværs af opstarter, men adskiller sig mellem sider og mellem brugere. Når inkognito også er aktiveret for denne side, gendannes fingeraftrykket ved hver appopstart, så siden ikke kan genidentificere dig på tværs af kolde genstarter. WebGL er helt deaktiveret, mens dette er slået til; slå det fra for sider, der har brug for WebGL (kort, 3D-fremvisere).",
   "siteSettingsTrackingProtectionSubtitle": "Anti-fingeraftryk + tving sporingsblokering",
-  "siteSettingsForcedByTrackingProtection": "Tvunget til af sporingsbeskyttelse",
   "siteSettingsClearUrls": "ClearURLs",
   "siteSettingsClearUrlsHint": "Fjerner sporingsparametre (som utm_source, fbclid) fra URL'er, før de indlæses. Dette hjælper med at beskytte dit privatliv ved at forhindre sider i at spore, hvor du kom fra.",
   "siteSettingsClearUrlsSubtitle": "Fjern sporingsparametre fra URL'er",
@@ -434,7 +433,7 @@
   "siteSettingsMicrophoneAccessChooseSource": "Vælg lydfil",
   "siteSettingsMicrophoneAccessNoSource": "Ingen fil valgt",
   "siteSettingsGeolocation": "Geoplacering",
-  "siteSettingsGeolocationHint": "Geoplacering",
+  "siteSettingsGeolocationHint": "Styrer, hvad dette websted får at vide om, hvor du er.\n\nLive: enhedens rigtige position, afrundet til det præcisionsniveau, du vælger.\nStatisk: et fast punkt, du vælger på et kort. Den rigtige position læses aldrig.\nFra: hver forespørgsel afvises, præcis som en afvist browserprompt ville blive.",
   "siteSettingsLocationOff": "Fra",
   "siteSettingsLocationStatic": "Statisk",
   "siteSettingsLocationLive": "Live",
@@ -737,7 +736,6 @@
   "privacyTitle": "Privatliv",
   "privacyGroupTrackers": "Sporere og annoncer",
   "privacyGroupFingerprinting": "Fingeraftryk",
-  "privacyGroupStorage": "Lagring",
   "privacyFingerprintingNote": "Sporingsbeskyttelse randomiserer også canvas-, lyd-, skrifttype- og hardwareaflæsninger for dette websted.",
   "privacySummaryProtectionOn": "Sporingsbeskyttelse til",
   "privacySummaryNothingOn": "Ingen beskyttelse aktiveret",
@@ -747,5 +745,6 @@
   "siteSettingsThirdPartyCookiesHint": "Cookies sat af indhold indlejret fra et andet websted, såsom annoncer, deleknapper og analyse-widgets. De er den ældste måde, en sporer følger dig fra ét websted til det næste, og derfor slår sporingsbeskyttelse dem fra. Nogle login-omdirigeringer og indlejrede betalinger har brug for dem, så slå dem til igen for et websted, der ikke virker uden.",
   "siteSettingsSectionContent": "Indhold",
   "siteSettingsSectionBehaviour": "Adfærd",
-  "siteSettingsSectionNetwork": "Netværk"
+  "siteSettingsSectionNetwork": "Netværk",
+  "siteSettingsSectionSite": "Websted"
 }

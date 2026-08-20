@@ -374,7 +374,6 @@
   "siteSettingsTrackingProtection": "Protección contra o seguimento",
   "siteSettingsTrackingProtectionHint": "Protección mellorada contra o seguimento por sitio, como paraugas. Cando está activada, forza a activación de ClearURLs, Lista de bloqueo DNS e Bloqueador de contido para este sitio, E inxecta unha capa antiimpresión dixital que aleatoriza Canvas, audio, métricas de fontes, dimensións da pantalla, concorrencia de hardware, complementos, batería, voces de fala, temporizadores de alta resolución e medicións de caixas delimitadoras. A impresión dixital mantense estable por sitio entre lanzamentos pero difire entre sitios e entre usuarios. Cando o modo incógnito tamén está activado para este sitio, a impresión dixital rexérase en cada lanzamento da aplicación para que o sitio non poida reidentificarte entre reinicios en frío. WebGL desactívase por completo mentres isto está activado; desactívao para os sitios que precisan WebGL (mapas, visores 3D).",
   "siteSettingsTrackingProtectionSubtitle": "Antiimpresión dixital + forzar bloqueo de rastrexadores",
-  "siteSettingsForcedByTrackingProtection": "Forzado pola Protección contra o seguimento",
   "siteSettingsClearUrls": "ClearURLs",
   "siteSettingsClearUrlsHint": "Elimina os parámetros de seguimento (como utm_source, fbclid) dos URL antes de cargalos. Isto axuda a protexer a túa privacidade evitando que os sitios saiban de onde viñeches.",
   "siteSettingsClearUrlsSubtitle": "Quitar os parámetros de seguimento dos URL",
@@ -434,7 +433,7 @@
   "siteSettingsMicrophoneAccessChooseSource": "Escoller ficheiro de son",
   "siteSettingsMicrophoneAccessNoSource": "Ningún ficheiro escollido",
   "siteSettingsGeolocation": "Xeolocalización",
-  "siteSettingsGeolocationHint": "Xeolocalización",
+  "siteSettingsGeolocationHint": "Controla o que aprende este sitio sobre onde estás.\n\nEn directo: a posición real do dispositivo, redondeada ao nivel de precisión que escollas.\nEstática: un punto fixo que escolles nun mapa. A posición real nunca se le.\nDesactivado: cada solicitude é rexeitada, igual que un permiso denegado do navegador.",
   "siteSettingsLocationOff": "Desactivada",
   "siteSettingsLocationStatic": "Estática",
   "siteSettingsLocationLive": "En vivo",
@@ -737,7 +736,6 @@
   "privacyTitle": "Privacidade",
   "privacyGroupTrackers": "Rastrexadores e anuncios",
   "privacyGroupFingerprinting": "Pegada dixital",
-  "privacyGroupStorage": "Almacenamento",
   "privacyFingerprintingNote": "A Protección contra o seguimento tamén aleatoriza as lecturas de canvas, audio, tipos de letra e hardware para este sitio.",
   "privacySummaryProtectionOn": "Protección contra o seguimento activada",
   "privacySummaryNothingOn": "Ningunha protección activada",
@@ -747,5 +745,6 @@
   "siteSettingsThirdPartyCookiesHint": "Cookies establecidas por contido incorporado desde outro sitio, como anuncios, botóns de compartir e widgets de analítica. Son o xeito máis antigo no que un rastrexador te segue dun sitio a outro, e por iso a Protección contra o seguimento as desactiva. Algunhas redireccións de inicio de sesión e pagamentos incorporados necesítanas, así que actívaas de novo para un sitio que falle sen elas.",
   "siteSettingsSectionContent": "Contido",
   "siteSettingsSectionBehaviour": "Comportamento",
-  "siteSettingsSectionNetwork": "Rede"
+  "siteSettingsSectionNetwork": "Rede",
+  "siteSettingsSectionSite": "Sitio"
 }

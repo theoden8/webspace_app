@@ -376,7 +376,6 @@
   "siteSettingsTrackingProtection": "Tutela contra investigationem",
   "siteSettingsTrackingProtectionHint": "Tutela aucta contra investigationem per locum, more umbellae. Cum accensa, cogit ClearURLs, Indicem impediendorum DNS, et Impeditorem contenti activos esse pro hoc loco, ATQUE inicit operimentum contra vestigia digitorum quod fortuita facit Canvas, audio, mensuras litterarum, dimensiones schermatis, simultaneitatem ferramenti, plugins, pilam, voces locutionis, horologia summae resolutionis, et mensuras cancellorum circumdantium. Vestigium digiti per locum stabile manet inter immissiones sed differt inter locos et inter usores. Cum modus occultus quoque accensus est pro hoc loco, vestigium digiti in unaquaque immissione applicationis revolvitur ne locus te trans frigidas reinitiationes reagnoscere possit. WebGL prorsus impeditur dum hoc accensum est; exstingue id pro locis qui WebGL requirunt (mappae, inspectores 3D).",
   "siteSettingsTrackingProtectionSubtitle": "Tutela contra vestigia digitorum + impeditio investigatorum coacta",
-  "siteSettingsForcedByTrackingProtection": "Coactum a Tutela contra investigationem",
   "siteSettingsClearUrls": "ClearURLs",
   "siteSettingsClearUrlsHint": "Removet parametros investigationis (ut utm_source, fbclid) ex URL antequam onerentur. Hoc secretum tuum tutatur impediens locos ne sciant unde veneris.",
   "siteSettingsClearUrlsSubtitle": "Parametros investigationis ex URL detrahere",
@@ -436,7 +435,7 @@
   "siteSettingsMicrophoneAccessChooseSource": "Fasciculum sonorum eligere",
   "siteSettingsMicrophoneAccessNoSource": "Nulla plica electa",
   "siteSettingsGeolocation": "Geolocatio",
-  "siteSettingsGeolocationHint": "Geolocatio",
+  "siteSettingsGeolocationHint": "Moderatur quid hic locus de loco tuo discat.\n\nVivum: vera positio instrumenti, ad gradum subtilitatis quem eligis rotundata.\nStabile: punctum fixum quod in mappa eligis. Vera positio numquam legitur.\nExstinctum: omnis petitio recusatur, prorsus ut petitio navigatri recusata.",
   "siteSettingsLocationOff": "Exstincta",
   "siteSettingsLocationStatic": "Statica",
   "siteSettingsLocationLive": "Viva",
@@ -737,7 +736,6 @@
   "privacyTitle": "Privatas",
   "privacyGroupTrackers": "Investigatores et praeconia",
   "privacyGroupFingerprinting": "Impressio digitalis",
-  "privacyGroupStorage": "Repositorium",
   "privacyFingerprintingNote": "Tutela contra investigationem etiam lectiones telae, soni, litterarum formarum et ferramentorum huic loco fortuito variat.",
   "privacySummaryProtectionOn": "Tutela contra investigationem activa",
   "privacySummaryNothingOn": "Nulla tutela activa",
@@ -747,5 +745,6 @@
   "siteSettingsThirdPartyCookiesHint": "Crustula ab contento ex alio loco inserto posita, ut praeconia, bullae communicandi et instrumenta analytica. Modus antiquissimus sunt quo investigator te ab uno loco ad alterum sequitur, quapropter Tutela contra investigationem ea exstinguit. Quaedam redirectiones initus et solutiones insertae ea requirunt, itaque ea rursus accende pro loco qui sine eis frangitur.",
   "siteSettingsSectionContent": "Contentum",
   "siteSettingsSectionBehaviour": "Mores",
-  "siteSettingsSectionNetwork": "Rete"
+  "siteSettingsSectionNetwork": "Rete",
+  "siteSettingsSectionSite": "Locus"
 }

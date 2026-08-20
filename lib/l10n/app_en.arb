@@ -1840,10 +1840,6 @@
   "@siteSettingsTrackingProtectionSubtitle": {
     "description": "Subtitle for the Tracking Protection switch."
   },
-  "siteSettingsForcedByTrackingProtection": "Forced on by Tracking Protection",
-  "@siteSettingsForcedByTrackingProtection": {
-    "description": "Subtitle shown for a per-site toggle that is forced on because Tracking Protection is enabled."
-  },
   "siteSettingsClearUrls": "ClearURLs",
   "@siteSettingsClearUrls": {
     "description": "Switch label and hint title for the ClearURLs feature."
@@ -2137,9 +2133,9 @@
   "@siteSettingsGeolocation": {
     "description": "Title and hint title for the geolocation section."
   },
-  "siteSettingsGeolocationHint": "Geolocation",
+  "siteSettingsGeolocationHint": "Controls what this site learns about where you are.\n\nLive: the device's real position, snapped to the precision tier you choose.\nStatic: a fixed point you pick on a map. The real position is never read.\nOff: every request is refused, exactly as a denied browser prompt would be.",
   "@siteSettingsGeolocationHint": {
-    "description": "Hint description for the geolocation section."
+    "description": "Explanatory body shown on the geolocation permission sheet: what each of the three modes hands to the site. Follows the same shape as the camera and microphone hints."
   },
   "siteSettingsLocationOff": "Off",
   "@siteSettingsLocationOff": {
@@ -3548,10 +3544,6 @@
   "@privacyGroupFingerprinting": {
     "description": "Heading for the privacy group covering measures that make the browser harder to identify by its characteristics rather than by stored data."
   },
-  "privacyGroupStorage": "Storage",
-  "@privacyGroupStorage": {
-    "description": "Heading for the privacy group covering what the site is allowed to keep on the device between sessions."
-  },
   "privacyFingerprintingNote": "Tracking Protection also randomises canvas, audio, font and hardware readings for this site.",
   "@privacyFingerprintingNote": {
     "description": "Explanatory line under the fingerprinting group, noting that the umbrella switch brings anti-fingerprinting measures beyond the one switch shown."
@@ -3591,5 +3583,9 @@
   "siteSettingsSectionNetwork": "Network",
   "@siteSettingsSectionNetwork": {
     "description": "Heading in site settings for the group covering how the site's traffic reaches the internet: proxy and WebRTC."
+  },
+  "siteSettingsSectionSite": "Site",
+  "@siteSettingsSectionSite": {
+    "description": "Heading in site settings for the group holding the Permissions and Privacy rows, which open screens of their own."
   }
 }

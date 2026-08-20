@@ -181,6 +181,7 @@ class SitePermissionsScreen extends StatefulWidget {
     required this.onOpenLocationPicker,
     required this.onEnableNotifications,
     required this.timezonePreview,
+    required this.coordinatesPreview,
     this.trackingProtectionEnabled = false,
     this.notificationsBlockedBySite,
     this.showNotifications = true,
@@ -205,6 +206,13 @@ class SitePermissionsScreen extends StatefulWidget {
   /// picked from inside this screen, and a snapshot taken at push time would
   /// go stale the moment they are.
   final String Function() timezonePreview;
+
+  /// The picked static coordinates, formatted for display, or null when none
+  /// are set. Read on every rebuild for the same reason as [timezonePreview]:
+  /// they can be picked from inside this screen. Naming them is what makes a
+  /// Simulated location row as informative as a Simulated camera row, which
+  /// names the file it serves.
+  final String? Function() coordinatesPreview;
 
   /// Tracking protection forces protected content off while it is on, and
   /// forces the timezone to follow picked coordinates so the spoofed
@@ -414,7 +422,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
       qualifier: switch (_values.locationMode) {
         LocationMode.live => granularityText,
         LocationMode.spoof => _values.hasStaticCoordinates
-            ? null
+            ? widget.coordinatesPreview()
             : loc.siteSettingsLocationNoneSet,
         LocationMode.off => null,
       },
@@ -497,9 +505,10 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    _values.hasStaticCoordinates
-                        ? loc.siteSettingsLocationStatic
-                        : loc.siteSettingsLocationNoneSet,
+                    (_values.hasStaticCoordinates
+                            ? widget.coordinatesPreview()
+                            : null) ??
+                        loc.siteSettingsLocationNoneSet,
                     style: const TextStyle(fontSize: 12),
                   ),
                 ),

@@ -374,7 +374,6 @@
   "siteSettingsTrackingProtection": "ලුහුබැඳීම් ආරක්ෂණය",
   "siteSettingsTrackingProtectionHint": "ඡත්‍රික අඩවියකට ආවේණික වැඩිදියුණු කළ ලුහුබැඳීම් ආරක්ෂණය. ක්‍රියාත්මක විට, මෙම අඩවිය සඳහා ClearURLs, DNS අවහිර ලැයිස්තුව සහ අන්තර්ගත අවහිරකය බලෙන් ක්‍රියාත්මක කරයි, තවද Canvas, ශ්‍රව්‍ය, අකුරු මිතික, තිර මාන, දෘඪාංග සමගාමීත්වය, ප්ලගීන, බැටරිය, කථන හඬ, අධි-විභේදන ටයිමර සහ සීමා-පෙට්ටි මැනීම් අහඹු කරන ප්‍රති-ඇඟිලිසලකුණු shim එකක් එන්නත් කරයි. ඇඟිලිසලකුණ අඩවියකට අනුව දියත්කිරීම් හරහා ස්ථාවරව පවතින නමුත් අඩවි අතර සහ පරිශීලකයන් අතර වෙනස් වේ. මෙම අඩවිය සඳහා Incognito ද සක්‍රීය විට, සීතල යළි ආරම්භ හරහා අඩවියට ඔබව යළි හඳුනාගත නොහැකි වන පරිදි සෑම යෙදුම් දියත්කිරීමකදීම ඇඟිලිසලකුණ යළි ජනනය වේ. මෙය ක්‍රියාත්මක විට WebGL සම්පූර්ණයෙන් අක්‍රීයයි; WebGL අවශ්‍ය අඩවි (සිතියම්, 3D දර්ශක) සඳහා එය අක්‍රීය කරන්න.",
   "siteSettingsTrackingProtectionSubtitle": "ප්‍රති-ඇඟිලිසලකුණු + ලුහුබැඳීම් අවහිරය බලෙන්",
-  "siteSettingsForcedByTrackingProtection": "ලුහුබැඳීම් ආරක්ෂණය මගින් බලෙන් ක්‍රියාත්මකයි",
   "siteSettingsClearUrls": "ClearURLs",
   "siteSettingsClearUrlsHint": "URL පූරණයට පෙර ඒවායින් ලුහුබැඳීම් පරාමිති (utm_source, fbclid වැනි) ඉවත් කරයි. ඔබ පැමිණි ස්ථානය අඩවි ලුහුබැඳීම වැළැක්වීමෙන් මෙය ඔබේ පෞද්ගලිකත්වය ආරක්ෂා කිරීමට උපකාරී වේ.",
   "siteSettingsClearUrlsSubtitle": "URL වලින් ලුහුබැඳීම් පරාමිති ඉවත් කරන්න",
@@ -434,7 +433,7 @@
   "siteSettingsMicrophoneAccessChooseSource": "ශ්‍රව්‍ය ගොනුව තෝරන්න",
   "siteSettingsMicrophoneAccessNoSource": "ගොනුවක් තෝරා නැත",
   "siteSettingsGeolocation": "භූ-ස්ථානගත කිරීම",
-  "siteSettingsGeolocationHint": "භූ-ස්ථානගත කිරීම",
+  "siteSettingsGeolocationHint": "ඔබ කොහේද යන්න ගැන මෙම අඩවිය දැනගන්නේ කුමක්ද යන්න පාලනය කරයි.\n\nසජීවී: උපාංගයේ සැබෑ පිහිටීම, ඔබ තෝරන නිරවද්‍යතා මට්ටමට වට කර.\nස්ථිතික: සිතියමේ ඔබ තෝරන ස්ථාවර ලක්ෂ්‍යයක්. සැබෑ පිහිටීම කිසිවිටෙක කියවන්නේ නැත.\nක්‍රියාවිරහිත: සෑම ඉල්ලීමක්ම ප්‍රතික්ෂේප වේ, ප්‍රතික්ෂේප කළ බ්‍රව්සර අවසරයක් මෙනි.",
   "siteSettingsLocationOff": "අක්‍රීය",
   "siteSettingsLocationStatic": "ස්ථිතික",
   "siteSettingsLocationLive": "සජීවී",
@@ -737,7 +736,6 @@
   "privacyTitle": "පෞද්ගලිකත්වය",
   "privacyGroupTrackers": "ලුහුබැඳීම් සහ දැන්වීම්",
   "privacyGroupFingerprinting": "ඇඟිලි සලකුණු ගැනීම",
-  "privacyGroupStorage": "ගබඩාව",
   "privacyFingerprintingNote": "ලුහුබැඳීම් ආරක්ෂණය මෙම අඩවිය සඳහා කැන්වස්, ශ්‍රව්‍ය, අකුරු සහ දෘඪාංග කියවීම් ද අහඹු කරයි.",
   "privacySummaryProtectionOn": "ලුහුබැඳීම් ආරක්ෂණය ක්‍රියාත්මකයි",
   "privacySummaryNothingOn": "කිසිදු ආරක්ෂණයක් සක්‍රීය නැත",
@@ -747,5 +745,6 @@
   "siteSettingsThirdPartyCookiesHint": "දැන්වීම්, බෙදාගැනීමේ බොත්තම් සහ විශ්ලේෂණ විජට් වැනි වෙනත් අඩවියකින් කාවැද්දූ අන්තර්ගතය මගින් සකසන කුකීස්. ලුහුබඳින්නෙකු ඔබව එක් අඩවියක සිට තවත් අඩවියකට ලුහුබැඳීමේ පැරණිතම ක්‍රමය මෙයයි, ලුහුබැඳීම් ආරක්ෂණය ඒවා අක්‍රිය කරන්නේ එබැවිනි. සමහර පිවිසුම් යළි-යොමුවීම් සහ කාවැද්දූ ගෙවීම් සඳහා ඒවා අවශ්‍යයි, එබැවින් ඒවා නොමැතිව බිඳ වැටෙන අඩවියක් සඳහා ඒවා යළි ක්‍රියාත්මක කරන්න.",
   "siteSettingsSectionContent": "අන්තර්ගතය",
   "siteSettingsSectionBehaviour": "හැසිරීම",
-  "siteSettingsSectionNetwork": "ජාලය"
+  "siteSettingsSectionNetwork": "ජාලය",
+  "siteSettingsSectionSite": "අඩවිය"
 }

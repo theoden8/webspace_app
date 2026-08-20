@@ -46,6 +46,7 @@ Future<void> _pump(
       onOpenLocationPicker: () async => false,
       onEnableNotifications: () async {},
       timezonePreview: () => 'Europe/Paris',
+      coordinatesPreview: () => '48.8566, 2.3522',
     ),
   ));
   await tester.pumpAndSettle();
@@ -106,6 +107,7 @@ void main() {
         onOpenLocationPicker: () async => false,
         onEnableNotifications: () async {},
         timezonePreview: () => 'Europe/Paris',
+        coordinatesPreview: () => '48.8566, 2.3522',
       ),
     ));
     await tester.pumpAndSettle();
@@ -179,6 +181,7 @@ void main() {
         onOpenLocationPicker: () async => true,
         onEnableNotifications: () async {},
         timezonePreview: () => 'Europe/Paris',
+        coordinatesPreview: () => '48.8566, 2.3522',
       ),
     ));
     await tester.pumpAndSettle();

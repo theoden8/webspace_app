@@ -374,7 +374,6 @@
   "siteSettingsTrackingProtection": "Заштита од праћења",
   "siteSettingsTrackingProtectionHint": "Кровна напредна заштита од праћења по сајту. Када је укључена, принудно активира ClearURLs, DNS листу блокирања и Блокатор садржаја за овај сајт, И убацује anti-fingerprinting шим који насумично мења Canvas, аудио, метрику фонтова, димензије екрана, конкурентност хардвера, додатке, батерију, гласове говора, тајмере високе резолуције и мерења граничних оквира. Отисак остаје стабилан по сајту кроз покретања али се разликује између сајтова и између корисника. Када је и инкогнито омогућен за овај сајт, отисак се поново генерише при сваком покретању апликације тако да вас сајт не може поново идентификовати кроз хладна покретања. WebGL је потпуно онемогућен док је ово укључено; искључите га за сајтове којима је потребан WebGL (мапе, 3D прегледачи).",
   "siteSettingsTrackingProtectionSubtitle": "Anti-fingerprinting + принудно блокирање трагача",
-  "siteSettingsForcedByTrackingProtection": "Принудно укључено заштитом од праћења",
   "siteSettingsClearUrls": "ClearURLs",
   "siteSettingsClearUrlsHint": "Уклања параметре за праћење (попут utm_source, fbclid) из URL-ова пре њиховог учитавања. Ово помаже у заштити приватности спречавајући сајтове да прате одакле сте дошли.",
   "siteSettingsClearUrlsSubtitle": "Уклони параметре за праћење из URL-ова",
@@ -434,7 +433,7 @@
   "siteSettingsMicrophoneAccessChooseSource": "Изабери звучну датотеку",
   "siteSettingsMicrophoneAccessNoSource": "Ниједна датотека није изабрана",
   "siteSettingsGeolocation": "Геолокација",
-  "siteSettingsGeolocationHint": "Геолокација",
+  "siteSettingsGeolocationHint": "Контролише шта ова страница сазнаје о томе где се налазите.\n\nУживо: стварни положај уређаја, заокружен на ниво прецизности који одаберете.\nСтатично: фиксна тачка коју одаберете на мапи. Стварни положај се никада не чита.\nИскључено: сваки захтев се одбија, исто као одбијена дозвола прегледача.",
   "siteSettingsLocationOff": "Искључено",
   "siteSettingsLocationStatic": "Статичка",
   "siteSettingsLocationLive": "Уживо",
@@ -737,7 +736,6 @@
   "privacyTitle": "Приватност",
   "privacyGroupTrackers": "Пратиоци и огласи",
   "privacyGroupFingerprinting": "Отисак прегледача",
-  "privacyGroupStorage": "Складиштење",
   "privacyFingerprintingNote": "Заштита од праћења такође насумично мења очитавања платна, звука, фонтова и хардвера за ову страницу.",
   "privacySummaryProtectionOn": "Заштита од праћења укључена",
   "privacySummaryNothingOn": "Ниједна заштита није укључена",
@@ -747,5 +745,6 @@
   "siteSettingsThirdPartyCookiesHint": "Колачићи које поставља садржај уграђен са друге странице, попут огласа, дугмади за дељење и аналитичких виџета. Они су најстарији начин на који вас пратилац прати са једне странице на другу, због чега их заштита од праћења искључује. Некима преусмеравањима при пријави и уграђеним наплатама су потребни, па их поново укључите за страницу која без њих не ради.",
   "siteSettingsSectionContent": "Садржај",
   "siteSettingsSectionBehaviour": "Понашање",
-  "siteSettingsSectionNetwork": "Мрежа"
+  "siteSettingsSectionNetwork": "Мрежа",
+  "siteSettingsSectionSite": "Страница"
 }

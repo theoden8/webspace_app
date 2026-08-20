@@ -374,7 +374,6 @@
   "siteSettingsTrackingProtection": "Tracking-Schutz",
   "siteSettingsTrackingProtectionHint": "Übergreifender Erweiterter Tracking-Schutz pro Seite. Wenn aktiviert, erzwingt er, dass ClearURLs, DNS-Sperrliste und Inhaltsblocker für diese Seite aktiv sind, UND injiziert einen Anti-Fingerprinting-Shim, der Canvas, Audio, Schriftmetriken, Bildschirmabmessungen, Hardware-Parallelität, Plugins, Akku, Sprachstimmen, hochauflösende Timer und Bounding-Box-Messungen randomisiert. Der Fingerabdruck bleibt pro Seite über Starts hinweg stabil, unterscheidet sich aber zwischen Seiten und zwischen Benutzern. Wenn für diese Seite zusätzlich Inkognito aktiviert ist, wird der Fingerabdruck bei jedem App-Start neu erzeugt, sodass die Seite Sie über Kaltstarts hinweg nicht wiedererkennen kann. WebGL ist vollständig deaktiviert, solange dies aktiv ist; schalten Sie es für Seiten aus, die WebGL benötigen (Karten, 3D-Viewer).",
   "siteSettingsTrackingProtectionSubtitle": "Anti-Fingerprinting + erzwungene Tracker-Sperre",
-  "siteSettingsForcedByTrackingProtection": "Durch Tracking-Schutz erzwungen aktiviert",
   "siteSettingsClearUrls": "ClearURLs",
   "siteSettingsClearUrlsHint": "Entfernt Tracking-Parameter (wie utm_source, fbclid) aus URLs, bevor sie geladen werden. Das schützt Ihre Privatsphäre, indem es Seiten daran hindert nachzuverfolgen, woher Sie kamen.",
   "siteSettingsClearUrlsSubtitle": "Tracking-Parameter aus URLs entfernen",
@@ -434,7 +433,7 @@
   "siteSettingsMicrophoneAccessChooseSource": "Audiodatei wählen",
   "siteSettingsMicrophoneAccessNoSource": "Keine Datei ausgewählt",
   "siteSettingsGeolocation": "Standortbestimmung",
-  "siteSettingsGeolocationHint": "Standortbestimmung",
+  "siteSettingsGeolocationHint": "Steuert, was diese Website über Ihren Aufenthaltsort erfährt.\n\nLive: die echte Position des Geräts, auf die von Ihnen gewählte Genauigkeitsstufe gerundet.\nStatisch: ein fester Punkt, den Sie auf einer Karte wählen. Die echte Position wird nie gelesen.\nAus: jede Anfrage wird abgelehnt, genau wie eine abgelehnte Browser-Abfrage.",
   "siteSettingsLocationOff": "Aus",
   "siteSettingsLocationStatic": "Statisch",
   "siteSettingsLocationLive": "Live",
@@ -737,7 +736,6 @@
   "privacyTitle": "Privatsphäre",
   "privacyGroupTrackers": "Tracker und Werbung",
   "privacyGroupFingerprinting": "Fingerabdruck",
-  "privacyGroupStorage": "Speicher",
   "privacyFingerprintingNote": "Der Tracking-Schutz randomisiert für diese Website außerdem Canvas-, Audio-, Schriftart- und Hardware-Auslesungen.",
   "privacySummaryProtectionOn": "Tracking-Schutz aktiv",
   "privacySummaryNothingOn": "Kein Schutz aktiviert",
@@ -747,5 +745,6 @@
   "siteSettingsThirdPartyCookiesHint": "Cookies, die von Inhalten gesetzt werden, die aus einer anderen Website eingebettet sind, etwa Werbung, Teilen-Schaltflächen und Analyse-Widgets. Sie sind der älteste Weg, auf dem ein Tracker Sie von einer Website zur nächsten verfolgt, weshalb der Tracking-Schutz sie deaktiviert. Manche Anmelde-Weiterleitungen und eingebettete Bezahlvorgänge brauchen sie, schalten Sie sie also für eine Website, die ohne sie nicht funktioniert, wieder ein.",
   "siteSettingsSectionContent": "Inhalt",
   "siteSettingsSectionBehaviour": "Verhalten",
-  "siteSettingsSectionNetwork": "Netzwerk"
+  "siteSettingsSectionNetwork": "Netzwerk",
+  "siteSettingsSectionSite": "Website"
 }

@@ -374,7 +374,6 @@
   "siteSettingsTrackingProtection": "Jarraipenaren aurkako babesa",
   "siteSettingsTrackingProtectionHint": "Gune bakoitzeko jarraipen-babes hobetuaren aterkia. Piztuta dagoenean, ClearURLs, DNS bloke-zerrenda eta Eduki-blokeatzailea aktibo egotera behartzen ditu gune honetarako, ETA hatz-marka digitalaren aurkako shim bat injektatzen du, Canvas, audioa, letra-tipoen metrikak, pantaila-neurriak, hardware-konkurrentzia, pluginak, bateria, ahots-aboak, bereizmen handiko tenporizadoreak eta muga-koadroen neurketak ausazkotzen dituena. Hatz-marka egonkor mantentzen da gune bakoitzeko abiarazteen artean, baina ezberdina da guneen artean eta erabiltzaileen artean. Gune honetarako Isilpeko modua ere gaituta dagoenean, hatz-marka aplikazio-abiarazte bakoitzean birsortzen da, guneak abiarazte hotzen artean berriz identifikatu ezin zaitzan. WebGL guztiz desgaituta dago hau piztuta dagoen bitartean; itzali ezazu WebGL behar duten guneetarako (mapak, 3D ikustaileak).",
   "siteSettingsTrackingProtectionSubtitle": "Hatz-markaren aurkakoa + jarraipen-blokeoa behartzea",
-  "siteSettingsForcedByTrackingProtection": "Jarraipenaren aurkako babesak behartuta piztuta",
   "siteSettingsClearUrls": "ClearURLs",
   "siteSettingsClearUrlsHint": "Jarraipen-parametroak (utm_source, fbclid bezalakoak) kentzen ditu URLetatik kargatu aurretik. Honek zure pribatutasuna babesten laguntzen du, guneek nondik etorri zaren jarraitzea eragotziz.",
   "siteSettingsClearUrlsSubtitle": "Kendu jarraipen-parametroak URLetatik",
@@ -434,7 +433,7 @@
   "siteSettingsMicrophoneAccessChooseSource": "Hautatu audio-fitxategia",
   "siteSettingsMicrophoneAccessNoSource": "Ez da fitxategirik aukeratu",
   "siteSettingsGeolocation": "Geokokapena",
-  "siteSettingsGeolocationHint": "Geokokapena",
+  "siteSettingsGeolocationHint": "Gune honek non zauden buruz zer ikasten duen kontrolatzen du.\n\nZuzenean: gailuaren benetako kokapena, aukeratzen duzun zehaztasun mailara biribilduta.\nEstatikoa: mapan aukeratzen duzun puntu finko bat. Benetako kokapena ez da inoiz irakurtzen.\nItzalita: eskaera guztiak ukatzen dira, nabigatzailearen baimen ukatu bat bezalaxe.",
   "siteSettingsLocationOff": "Itzalita",
   "siteSettingsLocationStatic": "Estatikoa",
   "siteSettingsLocationLive": "Zuzenekoa",
@@ -737,7 +736,6 @@
   "privacyTitle": "Pribatutasuna",
   "privacyGroupTrackers": "Jarraitzaileak eta iragarkiak",
   "privacyGroupFingerprinting": "Hatz-marka digitala",
-  "privacyGroupStorage": "Biltegiratzea",
   "privacyFingerprintingNote": "Jarraipenaren aurkako babesak canvas, audio, letra-tipo eta hardware irakurketak ere ausazkotzen ditu gune honetarako.",
   "privacySummaryProtectionOn": "Jarraipenaren aurkako babesa piztuta",
   "privacySummaryNothingOn": "Ez dago babesik gaituta",
@@ -747,5 +745,6 @@
   "siteSettingsThirdPartyCookiesHint": "Beste gune batetik kapsulatutako edukiak ezarritako cookieak, hala nola iragarkiak, partekatzeko botoiak eta analitika-widgetak. Jarraitzaile batek gune batetik bestera jarraitzeko duen modurik zaharrena dira, eta horregatik itzaltzen ditu jarraipenaren aurkako babesak. Saioa hasteko birbideratze batzuek eta kapsulatutako ordainketek behar dituzte, beraz, piztu berriro haiek gabe hausten den gune baterako.",
   "siteSettingsSectionContent": "Edukia",
   "siteSettingsSectionBehaviour": "Portaera",
-  "siteSettingsSectionNetwork": "Sarea"
+  "siteSettingsSectionNetwork": "Sarea",
+  "siteSettingsSectionSite": "Gunea"
 }

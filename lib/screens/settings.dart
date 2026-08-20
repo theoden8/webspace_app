@@ -763,6 +763,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
         loc.siteSettingsTimezonePreviewNoMatch;
   }
 
+  /// The picked coordinates as the permission row shows them, or null when
+  /// none are set. Built as data before it reaches `Text(` (LOC-002): a
+  /// latitude and a longitude are numbers, not translatable copy.
+  String? _coordinatesPreview() {
+    final lat = double.tryParse(_latitudeController.text.trim());
+    final lng = double.tryParse(_longitudeController.text.trim());
+    if (lat == null || lng == null) return null;
+    return '${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}';
+  }
+
   bool get _hasStaticCoordinates =>
       double.tryParse(_latitudeController.text.trim()) != null &&
       double.tryParse(_longitudeController.text.trim()) != null;
@@ -844,7 +854,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
 
     return ListTile(
-      leading: const Icon(Icons.shield_outlined),
+      // A key, not a shield: the Privacy row directly below leads with a
+      // shield, and two shields side by side read as one thing.
+      leading: const Icon(Icons.key_outlined),
       title: Text(loc.permissionsTitle),
       subtitle: Text(summary, style: const TextStyle(fontSize: 12.5)),
       trailing: Row(
@@ -892,6 +904,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             spoofTimezoneFromLocation: _spoofTimezoneFromLocation,
           ),
           timezonePreview: _timezonePreview,
+          coordinatesPreview: _coordinatesPreview,
           onOpenLocationPicker: _openLocationPicker,
           onEnableNotifications: () async {
             // First-time background-limits info dialog (NOTIF-005-{I,A});
@@ -942,7 +955,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         thirdPartyCookiesEnabled: _thirdPartyCookiesEnabled,
         letterboxEnabled: _letterboxEnabled,
         incognito: _incognito,
-        htmlCachingEnabled: _htmlCachingEnabled,
       );
 
   /// Counterpart of [_buildPermissionsRow] for everything that decides what a
@@ -1008,7 +1020,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _thirdPartyCookiesEnabled = values.thirdPartyCookiesEnabled;
               _letterboxEnabled = values.letterboxEnabled;
               _incognito = values.incognito;
-              _htmlCachingEnabled = values.htmlCachingEnabled;
             });
           },
         ),
@@ -1070,8 +1081,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       appBar: AppBar(title: Text(loc.siteSettingsTitle)),
       body: ListView(
         children: [
-          _buildPermissionsRow(),
-          _buildPrivacyRow(),
           _sectionHeader(loc.siteSettingsSectionContent),
           SwitchListTile(
             title: Text(loc.siteSettingsJavascriptEnabled),
@@ -1342,6 +1351,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
               });
             },
           ),
+          SwitchListTile(
+            title: Row(
+              children: [
+                Flexible(child: Text(loc.siteSettingsHtmlCaching)),
+                HintButton(
+                  title: loc.siteSettingsHtmlCachingHintTitle,
+                  description: loc.siteSettingsHtmlCachingHint,
+                ),
+              ],
+            ),
+            subtitle: Text(loc.siteSettingsHtmlCachingSubtitle),
+            value: _htmlCachingEnabled,
+            onChanged: (bool value) {
+              setState(() {
+                _htmlCachingEnabled = value;
+              });
+            },
+          ),
           DomainClaimsEditor(
             model: widget.webViewModel,
             otherSites: widget.otherSites,
@@ -1440,6 +1467,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ],
           ],
           _buildWebRtcTile(),
+          _sectionHeader(loc.siteSettingsSectionSite),
+          _buildPermissionsRow(),
+          _buildPrivacyRow(),
           const SizedBox(height: 8),
           if (widget.onClearCookies != null)
             Padding(

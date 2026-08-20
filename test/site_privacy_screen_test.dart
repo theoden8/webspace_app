@@ -12,7 +12,6 @@ SitePrivacyValues _values({
   bool thirdPartyCookies = false,
   bool letterbox = false,
   bool incognito = false,
-  bool htmlCaching = false,
 }) =>
     SitePrivacyValues(
       trackingProtectionEnabled: trackingProtection,
@@ -23,7 +22,6 @@ SitePrivacyValues _values({
       thirdPartyCookiesEnabled: thirdPartyCookies,
       letterboxEnabled: letterbox,
       incognito: incognito,
-      htmlCachingEnabled: htmlCaching,
     );
 
 Future<void> _pump(
@@ -71,7 +69,6 @@ void main() {
         thirdPartyCookiesEnabled: false,
         letterboxEnabled: false,
         incognito: false,
-        htmlCachingEnabled: false,
       );
       expect(v.effectiveClearUrl, isTrue);
       expect(v.effectiveDnsBlock, isTrue);
@@ -89,7 +86,6 @@ void main() {
         thirdPartyCookiesEnabled: true,
         letterboxEnabled: false,
         incognito: false,
-        htmlCachingEnabled: false,
       );
       expect(stored.effectiveThirdPartyCookies, isTrue);
       expect(
@@ -146,7 +142,7 @@ void main() {
   testWidgets('letterbox needs the umbrella; incognito does not',
       (tester) async {
     // Incognito destroys the user's own session on every restart, so unlike
-    // the blockers it is grouped here without being forced.
+    // the blockers it leads the screen without being forced.
     await _pump(tester, values: _values(incognito: true));
     expect(_switchTitled(tester, 'Letterbox window').onChanged, isNull);
     expect(find.text('Requires Tracking Protection'), findsOneWidget);
@@ -156,17 +152,32 @@ void main() {
     expect(incognito.onChanged, isNotNull);
   });
 
+  testWidgets('the umbrella states its forcing once, not on every row',
+      (tester) async {
+    // Four greyed-on switches each captioned "Forced on by Tracking
+    // Protection" buried the one thing those subtitles carry, which is
+    // whether the blocker has data. Taking third-party cookies away is the
+    // counterintuitive direction, so that row keeps its note.
+    await _pump(
+      tester,
+      values: _values(trackingProtection: true, thirdPartyCookies: true),
+    );
+    expect(find.textContaining('Forced on by'), findsNothing);
+    expect(find.text('Forced off by Tracking Protection'), findsOneWidget);
+    expect(find.text('Strip tracking parameters from URLs'), findsOneWidget);
+  });
+
   testWidgets('toggling a row reports the whole value back', (tester) async {
     SitePrivacyValues? seen;
     await _pump(
       tester,
-      values: _values(incognito: true),
+      values: _values(incognito: true, clearUrl: true),
       onChanged: (v) => seen = v,
     );
-    await tester.tap(find.text('HTML caching'));
+    await tester.tap(find.text('ClearURLs'));
     await tester.pumpAndSettle();
     expect(seen, isNotNull);
-    expect(seen!.htmlCachingEnabled, isTrue);
+    expect(seen!.clearUrlEnabled, isFalse);
     // Unrelated fields ride along untouched: the caller applies one value.
     expect(seen!.incognito, isTrue);
   });

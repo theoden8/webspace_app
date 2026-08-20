@@ -374,7 +374,6 @@
   "siteSettingsTrackingProtection": "ਟਰੈਕਿੰਗ ਸੁਰੱਖਿਆ",
   "siteSettingsTrackingProtectionHint": "ਪ੍ਰਤੀ-ਸਾਈਟ ਛਤਰੀ ਵਧੀ ਹੋਈ ਟਰੈਕਿੰਗ ਸੁਰੱਖਿਆ। ਚਾਲੂ ਹੋਣ 'ਤੇ, ਇਹ ਇਸ ਸਾਈਟ ਲਈ ClearURLs, DNS ਬਲੌਕਲਿਸਟ ਅਤੇ ਸਮੱਗਰੀ ਬਲੌਕਰ ਨੂੰ ਸਰਗਰਮ ਹੋਣ ਲਈ ਮਜਬੂਰ ਕਰਦਾ ਹੈ, ਅਤੇ ਇੱਕ ਐਂਟੀ-ਫਿੰਗਰਪ੍ਰਿੰਟਿੰਗ ਸ਼ਿਮ ਇੰਜੈਕਟ ਕਰਦਾ ਹੈ ਜੋ Canvas, ਆਡੀਓ, ਫੌਂਟ ਮੈਟ੍ਰਿਕਸ, ਸਕ੍ਰੀਨ ਮਾਪ, ਹਾਰਡਵੇਅਰ ਸਮਾਨਾਂਤਰਤਾ, ਪਲੱਗਇਨ, ਬੈਟਰੀ, ਸਪੀਚ ਆਵਾਜ਼ਾਂ, ਉੱਚ-ਰੈਜ਼ੋਲਿਊਸ਼ਨ ਟਾਈਮਰ ਅਤੇ ਬਾਊਂਡਿੰਗ-ਬਾਕਸ ਮਾਪਾਂ ਨੂੰ ਬੇਤਰਤੀਬ ਬਣਾਉਂਦਾ ਹੈ। ਫਿੰਗਰਪ੍ਰਿੰਟ ਹਰ ਸਾਈਟ ਲਈ ਲਾਂਚਾਂ ਦੌਰਾਨ ਸਥਿਰ ਰਹਿੰਦਾ ਹੈ ਪਰ ਸਾਈਟਾਂ ਅਤੇ ਯੂਜ਼ਰਾਂ ਵਿਚਕਾਰ ਵੱਖਰਾ ਹੁੰਦਾ ਹੈ। ਜਦੋਂ ਇਸ ਸਾਈਟ ਲਈ ਇਨਕੋਗਨੀਟੋ ਵੀ ਯੋਗ ਹੁੰਦਾ ਹੈ, ਤਾਂ ਫਿੰਗਰਪ੍ਰਿੰਟ ਹਰ ਐਪ ਲਾਂਚ 'ਤੇ ਮੁੜ-ਰੋਲ ਹੁੰਦਾ ਹੈ ਤਾਂ ਜੋ ਸਾਈਟ ਕੋਲਡ ਰੀਸਟਾਰਟਾਂ ਦੌਰਾਨ ਤੁਹਾਨੂੰ ਮੁੜ-ਪਛਾਣ ਨਾ ਸਕੇ। ਇਹ ਚਾਲੂ ਹੋਣ ਦੌਰਾਨ WebGL ਪੂਰੀ ਤਰ੍ਹਾਂ ਅਯੋਗ ਹੋ ਜਾਂਦਾ ਹੈ; ਉਹਨਾਂ ਸਾਈਟਾਂ ਲਈ ਇਸਨੂੰ ਬੰਦ ਕਰੋ ਜਿਨ੍ਹਾਂ ਨੂੰ WebGL ਚਾਹੀਦਾ ਹੈ (ਨਕਸ਼ੇ, 3D ਵਿਊਅਰ)।",
   "siteSettingsTrackingProtectionSubtitle": "ਐਂਟੀ-ਫਿੰਗਰਪ੍ਰਿੰਟਿੰਗ + ਟਰੈਕਰ ਬਲੌਕਿੰਗ ਮਜਬੂਰ ਕਰੋ",
-  "siteSettingsForcedByTrackingProtection": "ਟਰੈਕਿੰਗ ਸੁਰੱਖਿਆ ਦੁਆਰਾ ਚਾਲੂ ਕੀਤਾ",
   "siteSettingsClearUrls": "ClearURLs",
   "siteSettingsClearUrlsHint": "ਲੋਡ ਕਰਨ ਤੋਂ ਪਹਿਲਾਂ URL ਤੋਂ ਟਰੈਕਿੰਗ ਪੈਰਾਮੀਟਰ (ਜਿਵੇਂ utm_source, fbclid) ਹਟਾਉਂਦਾ ਹੈ। ਇਹ ਸਾਈਟਾਂ ਨੂੰ ਇਹ ਟਰੈਕ ਕਰਨ ਤੋਂ ਰੋਕ ਕੇ ਤੁਹਾਡੀ ਗੋਪਨੀਯਤਾ ਦੀ ਰੱਖਿਆ ਵਿੱਚ ਮਦਦ ਕਰਦਾ ਹੈ ਕਿ ਤੁਸੀਂ ਕਿੱਥੋਂ ਆਏ ਹੋ।",
   "siteSettingsClearUrlsSubtitle": "URL ਤੋਂ ਟਰੈਕਿੰਗ ਪੈਰਾਮੀਟਰ ਹਟਾਓ",
@@ -434,7 +433,7 @@
   "siteSettingsMicrophoneAccessChooseSource": "ਆਡੀਓ ਫ਼ਾਈਲ ਚੁਣੋ",
   "siteSettingsMicrophoneAccessNoSource": "ਕੋਈ ਫਾਈਲ ਨਹੀਂ ਚੁਣੀ",
   "siteSettingsGeolocation": "ਜੀਓਲੋਕੇਸ਼ਨ",
-  "siteSettingsGeolocationHint": "ਜੀਓਲੋਕੇਸ਼ਨ",
+  "siteSettingsGeolocationHint": "ਇਹ ਸਾਈਟ ਤੁਹਾਡੇ ਟਿਕਾਣੇ ਬਾਰੇ ਕੀ ਜਾਣਦੀ ਹੈ, ਇਸ ਨੂੰ ਕੰਟਰੋਲ ਕਰਦਾ ਹੈ।\n\nਲਾਈਵ: ਡਿਵਾਈਸ ਦੀ ਅਸਲ ਸਥਿਤੀ, ਤੁਹਾਡੇ ਚੁਣੇ ਹੋਏ ਸ਼ੁੱਧਤਾ ਪੱਧਰ ਤੱਕ ਸੀਮਿਤ।\nਸਥਿਰ: ਨਕਸ਼ੇ ਉੱਤੇ ਤੁਹਾਡਾ ਚੁਣਿਆ ਹੋਇਆ ਇੱਕ ਪੱਕਾ ਬਿੰਦੂ। ਅਸਲ ਸਥਿਤੀ ਕਦੇ ਨਹੀਂ ਪੜ੍ਹੀ ਜਾਂਦੀ।\nਬੰਦ: ਹਰ ਬੇਨਤੀ ਰੱਦ ਕੀਤੀ ਜਾਂਦੀ ਹੈ, ਬਿਲਕੁਲ ਜਿਵੇਂ ਰੱਦ ਕੀਤੀ ਬ੍ਰਾਊਜ਼ਰ ਇਜਾਜ਼ਤ।",
   "siteSettingsLocationOff": "ਬੰਦ",
   "siteSettingsLocationStatic": "ਸਥਿਰ",
   "siteSettingsLocationLive": "ਲਾਈਵ",
@@ -737,7 +736,6 @@
   "privacyTitle": "ਨਿੱਜਤਾ",
   "privacyGroupTrackers": "ਟਰੈਕਰ ਅਤੇ ਇਸ਼ਤਿਹਾਰ",
   "privacyGroupFingerprinting": "ਫਿੰਗਰਪ੍ਰਿੰਟਿੰਗ",
-  "privacyGroupStorage": "ਸਟੋਰੇਜ",
   "privacyFingerprintingNote": "ਟਰੈਕਿੰਗ ਸੁਰੱਖਿਆ ਇਸ ਸਾਈਟ ਲਈ ਕੈਨਵਸ, ਆਡੀਓ, ਫੌਂਟ ਅਤੇ ਹਾਰਡਵੇਅਰ ਰੀਡਿੰਗਾਂ ਨੂੰ ਵੀ ਬੇਤਰਤੀਬ ਕਰਦੀ ਹੈ।",
   "privacySummaryProtectionOn": "ਟਰੈਕਿੰਗ ਸੁਰੱਖਿਆ ਚਾਲੂ",
   "privacySummaryNothingOn": "ਕੋਈ ਸੁਰੱਖਿਆ ਸਮਰੱਥ ਨਹੀਂ",
@@ -747,5 +745,6 @@
   "siteSettingsThirdPartyCookiesHint": "ਕਿਸੇ ਹੋਰ ਸਾਈਟ ਤੋਂ ਏਮਬੈੱਡ ਕੀਤੀ ਸਮੱਗਰੀ ਦੁਆਰਾ ਸੈੱਟ ਕੀਤੀਆਂ ਕੂਕੀਜ਼, ਜਿਵੇਂ ਇਸ਼ਤਿਹਾਰ, ਸਾਂਝਾ ਕਰਨ ਵਾਲੇ ਬਟਨ ਅਤੇ ਵਿਸ਼ਲੇਸ਼ਣ ਵਿਜੇਟ। ਇਹ ਸਭ ਤੋਂ ਪੁਰਾਣਾ ਤਰੀਕਾ ਹੈ ਜਿਸ ਨਾਲ ਕੋਈ ਟਰੈਕਰ ਤੁਹਾਨੂੰ ਇੱਕ ਸਾਈਟ ਤੋਂ ਦੂਜੀ ਤੱਕ ਪਿੱਛਾ ਕਰਦਾ ਹੈ, ਇਸੇ ਲਈ ਟਰੈਕਿੰਗ ਸੁਰੱਖਿਆ ਇਨ੍ਹਾਂ ਨੂੰ ਬੰਦ ਕਰ ਦਿੰਦੀ ਹੈ। ਕੁਝ ਸਾਈਨ-ਇਨ ਰੀਡਾਇਰੈਕਟ ਅਤੇ ਏਮਬੈੱਡ ਕੀਤੇ ਚੈੱਕਆਊਟ ਨੂੰ ਇਨ੍ਹਾਂ ਦੀ ਲੋੜ ਹੁੰਦੀ ਹੈ, ਇਸ ਲਈ ਜੋ ਸਾਈਟ ਇਨ੍ਹਾਂ ਬਿਨਾਂ ਕੰਮ ਨਹੀਂ ਕਰਦੀ ਉਸ ਲਈ ਇਨ੍ਹਾਂ ਨੂੰ ਮੁੜ ਚਾਲੂ ਕਰੋ।",
   "siteSettingsSectionContent": "ਸਮੱਗਰੀ",
   "siteSettingsSectionBehaviour": "ਵਿਹਾਰ",
-  "siteSettingsSectionNetwork": "ਨੈੱਟਵਰਕ"
+  "siteSettingsSectionNetwork": "ਨੈੱਟਵਰਕ",
+  "siteSettingsSectionSite": "ਸਾਈਟ"
 }

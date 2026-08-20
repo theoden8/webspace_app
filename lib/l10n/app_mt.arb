@@ -374,7 +374,6 @@
   "siteSettingsTrackingProtection": "Protezzjoni mit-Traċċar",
   "siteSettingsTrackingProtectionHint": "Protezzjoni Mtejba mit-Traċċar għal kull sit. Meta mixgħula, iġġiegħel lil ClearURLs, lill-Lista mblukkata DNS u lill-Imblokk tal-Kontenut ikunu attivi għal dan is-sit, U tinjetta shim kontra l-fingerprinting li jirrandomizza l-Canvas, l-awdjo, il-metriċi tal-fonts, id-dimensjonijiet tal-iskrin, il-konkorrenza tal-hardware, il-plugins, il-batterija, il-vuċijiet tat-taħdit, it-timers b'riżoluzzjoni għolja, u l-kejl tal-bounding-box. Il-fingerprint jibqa' stabbli għal kull sit bejn it-tnedijiet imma jvarja bejn is-siti u bejn l-utenti. Meta l-Inkognitu jkun ukoll attivat għal dan is-sit, il-fingerprint jerġa' jinġabad ma' kull tnedija tal-app biex is-sit ma jkunx jista' jerġa' jidentifikak bejn restarts kesħin. WebGL jiġi diżattivat kompletament waqt li dan huwa mixgħul; itfih għal siti li jeħtieġu WebGL (mapep, viewers 3D).",
   "siteSettingsTrackingProtectionSubtitle": "Kontra l-fingerprinting + ġiegħel l-imblukkar tat-traċċaturi",
-  "siteSettingsForcedByTrackingProtection": "Imġiegħel mixgħul mill-Protezzjoni mit-Traċċar",
   "siteSettingsClearUrls": "ClearURLs",
   "siteSettingsClearUrlsHint": "Ineħħi l-parametri tat-traċċar (bħal utm_source, fbclid) mill-URLs qabel ma jinkargahom. Dan jgħin biex tipproteġi l-privatezza tiegħek billi jwaqqaf lis-siti milli jittraċċaw minn fejn ġejt.",
   "siteSettingsClearUrlsSubtitle": "Neħħi l-parametri tat-traċċar mill-URLs",
@@ -434,7 +433,7 @@
   "siteSettingsMicrophoneAccessChooseSource": "Agħżel fajl awdjo",
   "siteSettingsMicrophoneAccessNoSource": "L-ebda fajl magħżul",
   "siteSettingsGeolocation": "Ġeolokalizzazzjoni",
-  "siteSettingsGeolocationHint": "Ġeolokalizzazzjoni",
+  "siteSettingsGeolocationHint": "Jikkontrolla x'jitgħallem dan is-sit dwar fejn qiegħed.\n\nDirett: il-pożizzjoni vera tal-apparat, imqarrba għal-livell ta' preċiżjoni li tagħżel.\nStatiku: punt fiss li tagħżel fuq mappa. Il-pożizzjoni vera qatt ma tinqara.\nMitfi: kull talba tiġi rifjutata, eżattament bħal permess tal-brawżer irrifjutat.",
   "siteSettingsLocationOff": "Mitfi",
   "siteSettingsLocationStatic": "Statiku",
   "siteSettingsLocationLive": "Ħaj",
@@ -737,7 +736,6 @@
   "privacyTitle": "Privatezza",
   "privacyGroupTrackers": "Traċċaturi u reklami",
   "privacyGroupFingerprinting": "Marka tas-swaba'",
-  "privacyGroupStorage": "Ħażna",
   "privacyFingerprintingNote": "Il-Protezzjoni mit-Traċċar tirrandomizza wkoll il-qari tal-canvas, l-awdjo, il-fonts u l-ħardwer għal dan is-sit.",
   "privacySummaryProtectionOn": "Protezzjoni mit-Traċċar mixgħula",
   "privacySummaryNothingOn": "L-ebda protezzjoni mhi attivata",
@@ -747,5 +745,6 @@
   "siteSettingsThirdPartyCookiesHint": "Cookies issettjati minn kontenut inkorporat minn sit ieħor, bħal reklami, buttuni tal-qsim u widgets tal-analitika. Huma l-eqdem mod kif traċċatur isegwik minn sit għall-ieħor, u għalhekk il-Protezzjoni mit-Traċċar titfihom. Xi redirects tal-illoggjar u ħlasijiet inkorporati jeħtieġuhom, mela erġa' ixgħelhom għal sit li jitkisser mingħajrhom.",
   "siteSettingsSectionContent": "Kontenut",
   "siteSettingsSectionBehaviour": "Imġiba",
-  "siteSettingsSectionNetwork": "Netwerk"
+  "siteSettingsSectionNetwork": "Netwerk",
+  "siteSettingsSectionSite": "Sit"
 }
