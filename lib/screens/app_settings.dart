@@ -25,6 +25,7 @@ import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/screens/user_scripts.dart';
+import 'package:webspace/widgets/firefox_version_tile.dart';
 import 'package:webspace/widgets/hint_button.dart';
 
 // Accent color definitions for display
@@ -1065,11 +1066,13 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: Row(
               children: [
-                Text(
-                  loc.appSettingsOutboundProxy,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                Flexible(
+                  child: Text(
+                    loc.appSettingsOutboundProxy,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
                 ),
                 HintButton(
                   title: loc.appSettingsOutboundProxy,
@@ -1170,9 +1173,11 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: Row(
               children: [
-                Text(
-                  loc.appSettingsLocationPicker,
-                  style: Theme.of(context).textTheme.labelLarge,
+                Flexible(
+                  child: Text(
+                    loc.appSettingsLocationPicker,
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
                 ),
                 HintButton(
                   title: loc.appSettingsLocationPicker,
@@ -1207,7 +1212,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             leading: const Icon(Icons.public),
             title: Row(
               children: [
-                Text(loc.appSettingsTimezonePolygons),
+                Flexible(child: Text(loc.appSettingsTimezonePolygons)),
                 HintButton(
                   title: loc.appSettingsTimezonePolygons,
                   description: loc.appSettingsTimezonePolygonsHint,
@@ -1374,7 +1379,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               leading: const Icon(Icons.lock_outline),
               title: Row(
                 children: [
-                  Text(loc.appSettingsTrustedCertificates),
+                  Flexible(child: Text(loc.appSettingsTrustedCertificates)),
                   HintButton(
                     title: loc.appSettingsTrustedCertificates,
                     description: loc.appSettingsTrustedCertificatesHint,
@@ -1396,7 +1401,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             leading: const Icon(Icons.cleaning_services),
             title: Row(
               children: [
-                Text(loc.appSettingsClearUrlsRules),
+                Flexible(child: Text(loc.appSettingsClearUrlsRules)),
                 HintButton(
                   title: loc.appSettingsClearUrlsRules,
                   description: loc.appSettingsClearUrlsHint,
@@ -1433,53 +1438,13 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                   ),
           ),
 
-          ListTile(
-            leading: const Icon(Icons.travel_explore),
-            title: Row(
-              children: [
-                Text(loc.appSettingsFirefoxVersion),
-                HintButton(
-                  title: loc.appSettingsFirefoxVersion,
-                  description: loc.appSettingsFirefoxVersionHint,
-                ),
-              ],
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(loc.appSettingsFirefoxVersionCurrent(
-                    FirefoxUserAgentService.instance.majorVersion)),
-                if (FirefoxUserAgentService.instance.lastChecked != null)
-                  Text(
-                    loc.appSettingsFirefoxVersionChecked(
-                      FirefoxUserAgentService.instance.lastChecked!
-                          .toLocal()
-                          .toString()
-                          .split('.')[0],
-                    ),
-                    style: const TextStyle(fontSize: 12),
-                  ),
-              ],
-            ),
-            trailing: _isUpdatingFirefoxVersion
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : IconButton(
-                    icon: const Icon(Icons.sync),
-                    tooltip: loc.appSettingsUpdateFirefoxVersion,
-                    onPressed: _updateFirefoxVersion,
-                  ),
-          ),
-          SwitchListTile(
-            title: Text(loc.appSettingsFirefoxAutoUpdate),
-            subtitle: Text(loc.appSettingsFirefoxAutoUpdateHint),
-            value: _firefoxAutoRefresh,
-            onChanged: (bool value) {
-              _setFirefoxAutoRefresh(value);
-            },
+          FirefoxVersionTile(
+            majorVersion: FirefoxUserAgentService.instance.majorVersion,
+            lastChecked: FirefoxUserAgentService.instance.lastChecked,
+            isUpdating: _isUpdatingFirefoxVersion,
+            autoUpdate: _firefoxAutoRefresh,
+            onUpdate: _updateFirefoxVersion,
+            onAutoUpdateChanged: _setFirefoxAutoRefresh,
           ),
 
           // DNS Blocklist
@@ -1487,7 +1452,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             leading: const Icon(Icons.shield),
             title: Row(
               children: [
-                Text(loc.appSettingsDnsBlocklist),
+                Flexible(child: Text(loc.appSettingsDnsBlocklist)),
                 HintButton(
                   title: loc.appSettingsDnsBlocklist,
                   description: loc.appSettingsDnsBlocklistHint,
@@ -1580,7 +1545,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               leading: const Icon(Icons.storage),
               title: Row(
                 children: [
-                  Text(loc.appSettingsLocalCdn),
+                  Flexible(child: Text(loc.appSettingsLocalCdn)),
                   HintButton(
                     title: loc.appSettingsLocalCdn,
                     description: loc.appSettingsLocalCdnHint,
@@ -1653,11 +1618,14 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                 Expanded(
                   child: Row(
                     children: [
-                      Text(
-                        loc.appSettingsContentBlocker,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                      Flexible(
+                        child: Text(
+                          loc.appSettingsContentBlocker,
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
                       ),
                       HintButton(
                         title: loc.appSettingsContentBlocker,

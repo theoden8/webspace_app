@@ -1612,7 +1612,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           SwitchListTile(
             title: Row(
               children: [
-                Text(loc.siteSettingsClearUrls),
+                Flexible(child: Text(loc.siteSettingsClearUrls)),
                 HintButton(
                   title: loc.siteSettingsClearUrls,
                   description: loc.siteSettingsClearUrlsHint,
@@ -1636,7 +1636,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           SwitchListTile(
             title: Row(
               children: [
-                Text(loc.siteSettingsDnsBlocklist),
+                Flexible(child: Text(loc.siteSettingsDnsBlocklist)),
                 HintButton(
                   title: loc.siteSettingsDnsBlocklist,
                   description: loc.siteSettingsDnsBlocklistHint,
@@ -1710,7 +1710,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             SwitchListTile(
               title: Row(
                 children: [
-                  Text(loc.siteSettingsLocalCdn),
+                  Flexible(child: Text(loc.siteSettingsLocalCdn)),
                   HintButton(
                     title: loc.siteSettingsLocalCdn,
                     description: loc.siteSettingsLocalCdnHint,
