@@ -705,6 +705,90 @@ Both nudges SHALL emit a non-sensitive `SurfaceDiag` line (`trigger=reload -> nu
 
 ---
 
+### Requirement: PAUSE-024 — Surface Repaint On Return From A Pushed Route
+
+On Android, the system SHALL recomposite the surface when an opaque route pushed over a webview screen is popped and the webview becomes visible again. While an opaque `PageRoute` covers the screen its platform view is not composited, and the embedder detaches the hybrid-composition `SurfaceView` from the view hierarchy; the pop re-attaches it, blank, exactly as PAUSE-017's fresh controller does. The pop passes through **none** of the existing chokepoints: the site did not change (`_setCurrentIndex`, PAUSE-015), no controller was created (`onControllerReady`, PAUSE-017), nothing navigated (PAUSE-018/021), and the app never left the foreground (PAUSE-020). Every full-screen route in the app reaches this: site settings, app settings, developer tools, downloads, add-site, the QR scanner, and the nested webview screen.
+
+Each webview-hosting screen SHALL be `RouteAware`, subscribe its own `ModalRoute` to the shared `surfaceRouteObserver` in `didChangeDependencies`, unsubscribe in `dispose`, and fire `_nudgeSurfaceRepaint` from `didPopNext`. The observer SHALL be registered on the app's `MaterialApp.navigatorObservers` and SHALL be typed to `PageRoute`, so a dialog or any other `PopupRoute` — which leaves the webview composited underneath and therefore needs no repaint — cannot trigger a nudge. The main page SHALL emit the non-sensitive `SurfaceDiag` line `trigger=route-return -> nudge` (Android only, no site name or URL), the same diagnostic contract as PAUSE-019/020/021. The nudge is a no-op off Android.
+
+#### Scenario: Returning from site settings
+
+**Given** a site is visible on Android
+**When** the user opens site settings from the overflow menu and then pops back
+**Then** `didPopNext` fires `_nudgeSurfaceRepaint` against the re-attached surface
+**And** the page is visible again without the user rotating, locking, or switching tabs
+
+#### Scenario: Returning from the nested webview screen
+
+**Given** a cross-domain link opened the nested `InAppWebViewScreen` over the main page
+**When** the user pops it
+**Then** the main page repaints through its own `didPopNext`, and the nested screen — which is itself route-aware — would repaint the same way if a route were popped over *it*
+
+#### Scenario: A dialog does not nudge
+
+**Given** a site is visible on Android
+**When** a confirmation dialog or any other popup route opens and closes over it
+**Then** no repaint runs, because the observer is typed to `PageRoute` and the webview stayed composited under the barrier
+
+---
+
+### Requirement: PAUSE-025 — Repaint When The First Document Commits
+
+On Android, the system SHALL repaint the surface when a webview's **first** document commits, not only when a reload's does. PAUSE-021 established that a repaint fired at issue time drains against a surface the new document has not reached yet; the identical ordering applies to a webview that has never painted at all. A freshly created webview attaches a brand-new `SurfaceView` showing its white default fill, both the activation nudge (PAUSE-015) and the controller-attach nudge (PAUSE-017) run and drain within ~0.6s, and the initial load commits an unbounded time later — so on a slow first load nothing repaints after the commit. This is BUG-001 open gap #7, reported 2026-08-13: cold start to the site picker, tap a not-yet-loaded site, white screen.
+
+The commit latch SHALL therefore be armed by more than a reload. `SurfaceRepaintEngine.noteCommitPending` (which `reloadIssued` now delegates to) SHALL be called when a fresh controller attaches for the visible site, and when a site is activated while its main-frame load is still in flight; `consumeLoadSettled` then repaints once the document settles, exactly as it does for a reload. The latch stays one-shot, so an ordinary in-page navigation still does not nudge. The settled nudge SHALL emit the non-sensitive `SurfaceDiag` line `trigger=commit-settled -> nudge` (which subsumes the PAUSE-021 `reload-settled` line), and the attach SHALL emit `trigger=controller-attach -> nudge` — the path was previously diagnostically dark, because `_probeRendererAndRecover` early-returns without logging when a fresh model has no controller yet.
+
+This narrows, but does not close, BUG-001 gap #3: `onLoadingChanged(false)` remains a *proxy* for the commit (it maps to `onLoadStop`, i.e. document parse rather than the compositor's first frame), so a page that paints materially later than load-stop can still outrun it. The durable fix remains a native surface-changed callback.
+
+#### Scenario: First activation of a site whose page commits slowly
+
+**Given** a site that has never been loaded is activated on Android
+**And** its first document takes longer to commit than the nudge's tick budget
+**When** the controller attaches, the nudges drain, and the document finally commits
+**Then** the attach-armed latch is consumed by the settled load and `_nudgeSurfaceRepaint` runs against the committed document
+**And** the page paints instead of staying blank-white
+
+#### Scenario: Activating a site mid-load
+
+**Given** a site is loading in the background and the user switches to it
+**When** `_setCurrentIndex` nudges and its load settles afterwards
+**Then** the activation armed the latch, so the settled commit repaints
+
+#### Scenario: A background site's fresh controller does not repaint the visible one
+
+**Given** a webview is created off-screen while another site is visible
+**When** its controller attaches and its first load settles
+**Then** neither the latch nor the nudge fires, because both host hooks are gated on the model being the visible site
+
+---
+
+### Requirement: PAUSE-026 — The Nested Screen Mirrors The Repaint Lifecycle
+
+`InAppWebViewScreen` SHALL carry the same Android repaint coverage as the main page, because it owns a separate hybrid-composition `SurfaceView` that the main page's nudge cannot reach: that nudge toggles a 1px inset around the `IndexedStack`, which sits *under* the nested route. Whenever the nested screen is the visible webview, a repaint that only runs on the main page is a no-op the user sees as a white screen.
+
+Beyond the back path (PAUSE-018) and the reload funnel (PAUSE-021), which the nested screen already had, it SHALL:
+
+1. Nudge on **controller attach** and arm the commit latch (PAUSE-017 + PAUSE-025). Every mount of this screen is a fresh `SurfaceView` loading a remote entry URL, so it is the most exposed instance of both.
+2. On `AppLifecycleState.resumed`, open a bounded post-resume repaint window and nudge (PAUSE-020), and re-nudge from `didChangeMetrics` while that window is open — the warm-start attach signal. The window timer is cancelled in `dispose`.
+3. Be `RouteAware` and nudge on `didPopNext` (PAUSE-024), for routes pushed over it (developer tools, per-site settings, a further nested webview).
+
+Its webview slot SHALL carry `ValueKey(kNestedWebViewSlotKey)` so the pixel suite can sample the composited window over exactly that rect, the nested counterpart of the main page's `ValueKey(siteId)` slot.
+
+#### Scenario: Warm start with the nested screen on top
+
+**Given** the nested webview screen is the visible webview on Android
+**When** the user backgrounds the app and returns, and the nested `SurfaceView` re-attaches after the resume event
+**Then** the nested screen's own resume nudge and its `didChangeMetrics` re-nudge repaint it
+**And** it does not depend on the main page's nudge, which cannot reach a platform view under this route
+
+#### Scenario: A fresh nested webview on a slow page
+
+**Given** a cross-domain link opens the nested screen on Android
+**When** the entry document commits after the attach nudge has drained
+**Then** the latch armed at controller attach is consumed by the settled load and the surface repaints
+
+---
+
 ### Requirement: PAUSE-022 — Resume Re-Issues A Load Stranded By The Background
 
 The system SHALL re-issue, on `AppLifecycleState.resumed`, a main-frame load of the visible webview that never completed because the app was in the background.

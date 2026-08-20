@@ -15,6 +15,7 @@ import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/surface_repaint_engine.dart';
+import 'package:webspace/services/surface_route_observer.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/camera.dart';
 import 'package:webspace/settings/microphone.dart';
@@ -28,6 +29,11 @@ import 'package:webspace/widgets/external_url_prompt.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
 import 'package:webspace/widgets/untrusted_cert_prompt.dart';
 import 'package:webspace/widgets/url_bar.dart';
+
+/// Identifies the nested webview's slot, the counterpart of the main page's
+/// per-site `ValueKey(siteId)` slot. The BUG-001 pixel suite samples the
+/// composited window over this rect (integration_test/white_screen_test.dart).
+const String kNestedWebViewSlotKey = 'nested-webview-slot';
 
 class InAppWebViewScreen extends StatefulWidget {
   final String url;
@@ -152,7 +158,7 @@ class InAppWebViewScreen extends StatefulWidget {
 }
 
 class _InAppWebViewScreenState extends State<InAppWebViewScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, RouteAware {
   WebViewController? _controller;
   String? title;
   late String _currentUrl;
@@ -221,6 +227,8 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   /// 1px-inset toggle rendered below; no-op off Android.
   final SurfaceRepaintEngine _surfaceRepaint = SurfaceRepaintEngine();
   bool _repaintNudge = false;
+  bool _resumeRepaintWindowOpen = false;
+  Timer? _resumeRepaintWindowTimer;
 
   /// Recovery state for a load the OS stranded while the app was backgrounded
   /// (PAUSE-022). The nested screen is as exposed as the main page: it is the
@@ -458,6 +466,13 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
       onControllerCreated: (controller) {
         _controller = controller;
         _devToolsHost.controller = controller;
+        // This screen always mounts a brand-new hybrid-composition
+        // SurfaceView, which shows its white default fill until something
+        // paints it — the main page's PAUSE-017 case, which the nested screen
+        // never had. Latch the first commit too: the entry URL is remote, so
+        // it routinely settles after this nudge drains (PAUSE-025).
+        _surfaceRepaint.noteCommitPending();
+        _nudgeSurfaceRepaint();
         // Remove all cookies on load
         controller.evaluateJavascript('''
           (function() {
@@ -474,7 +489,25 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) surfaceRouteObserver.subscribe(this, route);
+  }
+
+  /// An opaque route pushed over this screen (Developer Tools, site settings,
+  /// a further nested webview) has popped. The platform view was not
+  /// composited while it was covered, so it re-attaches blank here — the
+  /// nested counterpart of the main page's route return (PAUSE-024).
+  @override
+  void didPopNext() {
+    _nudgeSurfaceRepaint();
+  }
+
+  @override
   void dispose() {
+    _resumeRepaintWindowTimer?.cancel();
+    surfaceRouteObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -607,8 +640,36 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
       _resumeReload.noteAppBackgrounded();
     } else if (state == AppLifecycleState.resumed) {
       _probeNestedRenderer();
+      // A warm start destroys and re-creates this screen's SurfaceView exactly
+      // as it does the main page's, and the main page's nudge cannot reach it:
+      // that one toggles the inset around an IndexedStack sitting under this
+      // route. Same two-part fix as PAUSE-020 — a tail nudge now, plus a
+      // re-nudge on the attach signal for a surface that comes back later.
+      _openResumeRepaintWindow();
+      _nudgeSurfaceRepaint();
       unawaited(_retryIncompleteLoadOnResume());
     }
+  }
+
+  @override
+  void didChangeMetrics() {
+    super.didChangeMetrics();
+    if (!_resumeRepaintWindowOpen) return;
+    _nudgeSurfaceRepaint();
+  }
+
+  /// Post-resume window during which a `didChangeMetrics` — the closest
+  /// Dart-side signal to the SurfaceView re-attaching — re-fires the nudge.
+  /// Bounded so steady-state metric changes (keyboard, rotation) don't nudge.
+  /// Mirrors `_WebSpacePageState._openResumeRepaintWindow` (PAUSE-020).
+  void _openResumeRepaintWindow() {
+    if (!Platform.isAndroid) return;
+    _resumeRepaintWindowOpen = true;
+    _resumeRepaintWindowTimer?.cancel();
+    _resumeRepaintWindowTimer = Timer(const Duration(seconds: 3), () {
+      _resumeRepaintWindowOpen = false;
+      _resumeRepaintWindowTimer = null;
+    });
   }
 
   Future<void> launchExternalUrl(String url) async {
@@ -913,6 +974,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
           // navigation (BUG-001 gap #1). Zero inset in steady state.
           Expanded(
             child: Padding(
+              key: const ValueKey(kNestedWebViewSlotKey),
               padding: EdgeInsets.only(bottom: _repaintNudge ? 1.0 : 0.0),
               // KeyedSubtree key bumped by _handleRendererGone remounts a fresh
               // InAppWebView after a renderer death (BUG-002 gap #1).
