@@ -43,11 +43,20 @@ refusal was left entirely to whatever each engine happened to do:
 - **Linux (WPE)**: `InAppWebView::OnPermissionRequest` denies on any non-`GRANT`
   action and on an empty resource-type list, and the app's `onPermissionRequest`
   only ever grants camera and protected media, so geolocation was denied.
-- **iOS / macOS**: the plugin wires no geolocation path at all. WKWebView
-  requires the embedder to implement private `_WKUIDelegate` geolocation
-  methods, so web geolocation is expected to be denied by absence. **This is
-  the one platform where the pre-change behaviour has not been confirmed on a
-  device.**
+- **macOS**: the plugin wires no geolocation path, and the app holds no
+  location capability at all - no `NSLocationWhenInUseUsageDescription`, no
+  `com.apple.security.personal-information.location` entitlement under App
+  Sandbox, and `CurrentLocationService.isSupported` excludes it. CoreLocation
+  refuses before any app code runs, so location on macOS is impossible by
+  construction rather than gated. Guarded by
+  `test/js/os_capability_declarations.test.js`.
+- **iOS**: same WebKit as macOS, but a different posture in the app layer: iOS
+  declares `NSLocationWhenInUseUsageDescription` and supports live mode and the
+  picker, so it is the one platform that can hold location authorization
+  app-wide. The plugin still wires no geolocation path, and WKWebView requires
+  the embedder to implement private `_WKUIDelegate` geolocation methods, so web
+  geolocation is expected to be denied by absence. **This is the one platform
+  where the pre-change behaviour has not been confirmed on a device.**
 
 So `off` most likely did refuse everywhere, but only as the sum of three
 unrelated engine defaults and one plugin implementation detail, none of them
