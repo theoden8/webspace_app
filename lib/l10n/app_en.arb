@@ -3455,8 +3455,12 @@
   "@blockStatsSince": {
     "description": "Footer line of the protection report giving the all-time total and the day counting started, e.g. \"115 blocked since 22 June 2026\".",
     "placeholders": {
-      "count": { "type": "int" },
-      "date": { "type": "String" }
+      "count": {
+        "type": "int"
+      },
+      "date": {
+        "type": "String"
+      }
     }
   },
   "blockStatsEmpty": "Nothing blocked yet",
@@ -3478,5 +3482,62 @@
   "appSettingsProtectionReportSubtitle": "What the blockers stopped, over time",
   "@appSettingsProtectionReportSubtitle": {
     "description": "Subtitle of the App Settings row that opens the protection report screen."
+  },
+  "permissionsTitle": "Permissions",
+  "@permissionsTitle": {
+    "description": "Title of the per-site permission screen, and of the row in site settings that opens it."
+  },
+  "permissionsGroupDeviceAccess": "Device access",
+  "@permissionsGroupDeviceAccess": {
+    "description": "Heading for the permission group covering camera, microphone and location."
+  },
+  "permissionsGroupBackground": "Background activity",
+  "@permissionsGroupBackground": {
+    "description": "Heading for the permission group covering notifications and background audio playback."
+  },
+  "permissionsGroupMedia": "Media",
+  "@permissionsGroupMedia": {
+    "description": "Heading for the permission group covering protected (DRM) media playback."
+  },
+  "permissionsRealDeviceNote": "Only Allowed opens real hardware. Simulated serves a file you picked and never touches the device.",
+  "@permissionsRealDeviceNote": {
+    "description": "Explanatory line under the device access group, distinguishing a real device grant from a served file."
+  },
+  "permissionsBackgroundAudioNotAGrant": "Exempt from pausing. Grants nothing.",
+  "@permissionsBackgroundAudioNotAGrant": {
+    "description": "Subtitle for the background audio switch, clarifying it is a playback exemption rather than a permission."
+  },
+  "permissionMicrophoneNeverReal": "Not available. WebSpace never opens a real microphone and never asks the system for a recording permission.",
+  "@permissionMicrophoneNeverReal": {
+    "description": "Shown on the greyed-out Allowed option for microphone, stating that a real microphone is never used."
+  },
+  "permissionStateAsk": "Ask",
+  "@permissionStateAsk": {
+    "description": "One-word permission state: no decision recorded yet, the first request will prompt."
+  },
+  "permissionStateAllowed": "Allowed",
+  "@permissionStateAllowed": {
+    "description": "One-word permission state: the real device or capability is handed to the site."
+  },
+  "permissionStateSimulated": "Simulated",
+  "@permissionStateSimulated": {
+    "description": "One-word permission state: the site is served a file the user picked instead of a real device."
+  },
+  "permissionStateBlocked": "Blocked",
+  "@permissionStateBlocked": {
+    "description": "One-word permission state: requests are rejected without prompting."
+  },
+  "permissionsSummaryNothingGranted": "Nothing granted",
+  "@permissionsSummaryNothingGranted": {
+    "description": "Summary on the permissions row in site settings when the site holds no permission."
+  },
+  "permissionsSummaryMore": "{count} more",
+  "@permissionsSummaryMore": {
+    "description": "Appended to the permissions summary when more granted permissions exist than fit on the row.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

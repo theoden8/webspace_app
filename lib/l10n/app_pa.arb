@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "ਕਿਸੇ ਸਾਈਟ ਲਈ ਟ੍ਰੈਕਿੰਗ ਸੁਰੱਖਿਆ ਚਾਲੂ ਕਰੋ, ਫਿਰ ਇਸ ਵੱਲੋਂ ਰੋਕੀਆਂ ਬੇਨਤੀਆਂ ਇੱਥੇ ਦਿਖਣਗੀਆਂ।",
   "blockStatsReset": "ਅੰਕੜੇ ਰੀਸੈੱਟ ਕਰੋ",
   "blockStatsResetConfirm": "ਹਰ ਗਿਣਤੀ ਸਿਫ਼ਰ 'ਤੇ ਆ ਜਾਂਦੀ ਹੈ ਅਤੇ ਗਿਣਤੀ ਅੱਜ ਤੋਂ ਮੁੜ ਸ਼ੁਰੂ ਹੁੰਦੀ ਹੈ।",
-  "appSettingsProtectionReportSubtitle": "ਸਮੇਂ ਦੇ ਨਾਲ ਬਲਾਕਰਾਂ ਨੇ ਕੀ ਰੋਕਿਆ"
+  "appSettingsProtectionReportSubtitle": "ਸਮੇਂ ਦੇ ਨਾਲ ਬਲਾਕਰਾਂ ਨੇ ਕੀ ਰੋਕਿਆ",
+  "permissionsTitle": "ਅਧਿਕਾਰ",
+  "permissionsGroupDeviceAccess": "ਡਿਵਾਈਸ ਪਹੁੰਚ",
+  "permissionsGroupBackground": "ਬੈਕਗਰਾਊਂਡ ਸਰਗਰਮੀ",
+  "permissionsGroupMedia": "ਮੀਡੀਆ",
+  "permissionsRealDeviceNote": "ਸਿਰਫ਼ \"ਮਨਜ਼ੂਰ\" ਹੀ ਅਸਲੀ ਹਾਰਡਵੇਅਰ ਖੋਲ੍ਹਦਾ ਹੈ। \"ਨਕਲੀ\" ਤੁਹਾਡੀ ਚੁਣੀ ਹੋਈ ਫ਼ਾਈਲ ਦਿੰਦਾ ਹੈ ਅਤੇ ਡਿਵਾਈਸ ਨੂੰ ਕਦੇ ਨਹੀਂ ਛੂੰਹਦਾ।",
+  "permissionsBackgroundAudioNotAGrant": "ਰੋਕਣ ਤੋਂ ਛੋਟ। ਕੁਝ ਨਹੀਂ ਦਿੰਦਾ।",
+  "permissionMicrophoneNeverReal": "ਉਪਲਬਧ ਨਹੀਂ। WebSpace ਕਦੇ ਵੀ ਅਸਲੀ ਮਾਈਕ੍ਰੋਫ਼ੋਨ ਨਹੀਂ ਖੋਲ੍ਹਦਾ ਅਤੇ ਸਿਸਟਮ ਤੋਂ ਰਿਕਾਰਡਿੰਗ ਦੀ ਇਜਾਜ਼ਤ ਨਹੀਂ ਮੰਗਦਾ।",
+  "permissionStateAsk": "ਪੁੱਛੋ",
+  "permissionStateAllowed": "ਮਨਜ਼ੂਰ",
+  "permissionStateSimulated": "ਨਕਲੀ",
+  "permissionStateBlocked": "ਬਲਾਕ ਕੀਤਾ",
+  "permissionsSummaryNothingGranted": "ਕੁਝ ਨਹੀਂ ਦਿੱਤਾ ਗਿਆ",
+  "permissionsSummaryMore": "{count} ਹੋਰ"
 }

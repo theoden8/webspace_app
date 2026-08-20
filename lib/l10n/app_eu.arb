@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "Aktibatu gune baten jarraipenaren aurkako babesa eta blokeatzen dituen eskaerak hemen agertuko dira.",
   "blockStatsReset": "Berrezarri estatistikak",
   "blockStatsResetConfirm": "Kontagailu guztiak zerora itzuliko dira eta zenbaketa gaur hasiko da berriro.",
-  "appSettingsProtectionReportSubtitle": "Blokeatzaileek denboran zehar geldiarazi dutena"
+  "appSettingsProtectionReportSubtitle": "Blokeatzaileek denboran zehar geldiarazi dutena",
+  "permissionsTitle": "Baimenak",
+  "permissionsGroupDeviceAccess": "Gailurako sarbidea",
+  "permissionsGroupBackground": "Atzeko planoko jarduera",
+  "permissionsGroupMedia": "Multimedia",
+  "permissionsRealDeviceNote": "\"Baimenduta\" aukerak soilik irekitzen du benetako hardwarea. \"Simulatua\" aukerak zuk hautatutako fitxategi bat ematen du eta ez du inoiz gailua ukitzen.",
+  "permissionsBackgroundAudioNotAGrant": "Pausatzetik salbuetsita. Ez du ezer ematen.",
+  "permissionMicrophoneNeverReal": "Ez dago erabilgarri. WebSpace-k ez du inoiz benetako mikrofonorik irekitzen, ezta sistemari grabatzeko baimenik eskatzen ere.",
+  "permissionStateAsk": "Galdetu",
+  "permissionStateAllowed": "Baimenduta",
+  "permissionStateSimulated": "Simulatua",
+  "permissionStateBlocked": "Blokeatuta",
+  "permissionsSummaryNothingGranted": "Ez da ezer baimendu",
+  "permissionsSummaryMore": "Beste {count}"
 }

@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "ჩართეთ საიტისთვის თვალთვალისგან დაცვა და მის მიერ დაბლოკილი მოთხოვნები აქ გამოჩნდება.",
   "blockStatsReset": "სტატისტიკის განულება",
   "blockStatsResetConfirm": "ყველა მრიცხველი ნულდება და დათვლა დღიდან იწყება თავიდან.",
-  "appSettingsProtectionReportSubtitle": "რა შეაჩერეს ბლოკერებმა დროთა განმავლობაში"
+  "appSettingsProtectionReportSubtitle": "რა შეაჩერეს ბლოკერებმა დროთა განმავლობაში",
+  "permissionsTitle": "ნებართვები",
+  "permissionsGroupDeviceAccess": "მოწყობილობაზე წვდომა",
+  "permissionsGroupBackground": "ფონური აქტივობა",
+  "permissionsGroupMedia": "მედია",
+  "permissionsRealDeviceNote": "მხოლოდ „დაშვებული“ ხსნის ნამდვილ აპარატურას. „სიმულირებული“ აწვდის თქვენ მიერ არჩეულ ფაილს და არასოდეს ეხება მოწყობილობას.",
+  "permissionsBackgroundAudioNotAGrant": "გათავისუფლებულია პაუზისგან. არაფერს ანიჭებს.",
+  "permissionMicrophoneNeverReal": "მიუწვდომელია. WebSpace არასოდეს ხსნის ნამდვილ მიკროფონს და არასოდეს ითხოვს სისტემისგან ჩაწერის ნებართვას.",
+  "permissionStateAsk": "კითხვა",
+  "permissionStateAllowed": "დაშვებული",
+  "permissionStateSimulated": "სიმულირებული",
+  "permissionStateBlocked": "დაბლოკილი",
+  "permissionsSummaryNothingGranted": "არაფერია მინიჭებული",
+  "permissionsSummaryMore": "კიდევ {count}"
 }

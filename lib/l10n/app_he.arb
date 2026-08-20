@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "הפעילו הגנה מפני מעקב עבור אתר, והבקשות שהוא חוסם יופיעו כאן.",
   "blockStatsReset": "איפוס הסטטיסטיקה",
   "blockStatsResetConfirm": "כל מונה חוזר לאפס והספירה מתחילה מחדש מהיום.",
-  "appSettingsProtectionReportSubtitle": "מה החוסמים עצרו, לאורך זמן"
+  "appSettingsProtectionReportSubtitle": "מה החוסמים עצרו, לאורך זמן",
+  "permissionsTitle": "הרשאות",
+  "permissionsGroupDeviceAccess": "גישה למכשיר",
+  "permissionsGroupBackground": "פעילות ברקע",
+  "permissionsGroupMedia": "מדיה",
+  "permissionsRealDeviceNote": "רק \"מותר\" פותח חומרה אמיתית. \"מדומה\" מגיש קובץ שבחרת ולעולם אינו נוגע במכשיר.",
+  "permissionsBackgroundAudioNotAGrant": "פטור מהשהיה. אינו מעניק דבר.",
+  "permissionMicrophoneNeverReal": "לא זמין. WebSpace לעולם אינו פותח מיקרופון אמיתי ולעולם אינו מבקש מהמערכת הרשאת הקלטה.",
+  "permissionStateAsk": "שאל",
+  "permissionStateAllowed": "מותר",
+  "permissionStateSimulated": "מדומה",
+  "permissionStateBlocked": "חסום",
+  "permissionsSummaryNothingGranted": "לא הוענקו הרשאות",
+  "permissionsSummaryMore": "עוד {count}"
 }

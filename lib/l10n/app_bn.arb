@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "কোনো সাইটের জন্য ট্র্যাকিং সুরক্ষা চালু করুন, তাহলে অবরুদ্ধ অনুরোধগুলো এখানে দেখা যাবে।",
   "blockStatsReset": "পরিসংখ্যান রিসেট করুন",
   "blockStatsResetConfirm": "প্রতিটি গণনা শূন্যে ফিরে যাবে এবং আজ থেকে নতুন করে গণনা শুরু হবে।",
-  "appSettingsProtectionReportSubtitle": "ব্লকারগুলো সময়ের সাথে যা আটকেছে"
+  "appSettingsProtectionReportSubtitle": "ব্লকারগুলো সময়ের সাথে যা আটকেছে",
+  "permissionsTitle": "অনুমতি",
+  "permissionsGroupDeviceAccess": "ডিভাইস অ্যাক্সেস",
+  "permissionsGroupBackground": "পটভূমির কার্যকলাপ",
+  "permissionsGroupMedia": "মিডিয়া",
+  "permissionsRealDeviceNote": "শুধু \"অনুমোদিত\" প্রকৃত হার্ডওয়্যার খোলে। \"সিমুলেটেড\" আপনার বেছে নেওয়া ফাইল সরবরাহ করে এবং ডিভাইস কখনও স্পর্শ করে না।",
+  "permissionsBackgroundAudioNotAGrant": "বিরতি থেকে অব্যাহতিপ্রাপ্ত। কোনো অনুমতি দেয় না।",
+  "permissionMicrophoneNeverReal": "উপলব্ধ নয়। WebSpace কখনও প্রকৃত মাইক্রোফোন খোলে না এবং সিস্টেমের কাছে রেকর্ডিং অনুমতি চায় না।",
+  "permissionStateAsk": "জিজ্ঞাসা করুন",
+  "permissionStateAllowed": "অনুমোদিত",
+  "permissionStateSimulated": "সিমুলেটেড",
+  "permissionStateBlocked": "অবরুদ্ধ",
+  "permissionsSummaryNothingGranted": "কিছুই অনুমোদিত নয়",
+  "permissionsSummaryMore": "আরও {count}"
 }

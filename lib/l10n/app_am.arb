@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "ለአንድ ድረ-ገጽ የመከታተያ ጥበቃን ያብሩ፤ የሚያግዳቸው ጥያቄዎች እዚህ ይታያሉ።",
   "blockStatsReset": "ስታቲስቲክስን ዳግም አስጀምር",
   "blockStatsResetConfirm": "እያንዳንዱ ቆጣሪ ወደ ዜሮ ይመለሳል፤ ቆጠራውም ከዛሬ ጀምሮ እንደገና ይጀምራል።",
-  "appSettingsProtectionReportSubtitle": "አጋጆቹ ያገዱት፣ በጊዜ ሂደት"
+  "appSettingsProtectionReportSubtitle": "አጋጆቹ ያገዱት፣ በጊዜ ሂደት",
+  "permissionsTitle": "ፈቃዶች",
+  "permissionsGroupDeviceAccess": "የመሣሪያ መዳረሻ",
+  "permissionsGroupBackground": "የበስተጀርባ እንቅስቃሴ",
+  "permissionsGroupMedia": "ሚዲያ",
+  "permissionsRealDeviceNote": "የተፈቀደ ብቻ ትክክለኛውን ሃርድዌር ይከፍታል። ማስመሰል የመረጡትን ፋይል ያቀርባል እና መሣሪያውን በጭራሽ አይነካም።",
+  "permissionsBackgroundAudioNotAGrant": "ከማቆም ነፃ ነው። ምንም አይፈቅድም።",
+  "permissionMicrophoneNeverReal": "አይገኝም። WebSpace በጭራሽ ትክክለኛ ማይክሮፎን አይከፍትም እና ከስርዓቱ የቀረጻ ፈቃድ አይጠይቅም።",
+  "permissionStateAsk": "ጠይቅ",
+  "permissionStateAllowed": "ተፈቅዷል",
+  "permissionStateSimulated": "የተመሰለ",
+  "permissionStateBlocked": "ታግዷል",
+  "permissionsSummaryNothingGranted": "ምንም አልተፈቀደም",
+  "permissionsSummaryMore": "ሌላ {count}"
 }

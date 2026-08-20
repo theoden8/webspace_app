@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "Ενεργοποιήστε την προστασία από ιχνηλάτηση σε έναν ιστότοπο και τα αιτήματα που αποκλείει θα εμφανιστούν εδώ.",
   "blockStatsReset": "Επαναφορά στατιστικών",
   "blockStatsResetConfirm": "Κάθε μετρητής μηδενίζεται και η καταμέτρηση ξεκινά ξανά από σήμερα.",
-  "appSettingsProtectionReportSubtitle": "Τι σταμάτησαν οι αποκλειστές με την πάροδο του χρόνου"
+  "appSettingsProtectionReportSubtitle": "Τι σταμάτησαν οι αποκλειστές με την πάροδο του χρόνου",
+  "permissionsTitle": "Άδειες",
+  "permissionsGroupDeviceAccess": "Πρόσβαση συσκευής",
+  "permissionsGroupBackground": "Δραστηριότητα παρασκηνίου",
+  "permissionsGroupMedia": "Πολυμέσα",
+  "permissionsRealDeviceNote": "Μόνο η επιλογή «Επιτρέπεται» ανοίγει πραγματικό υλικό. Η «Προσομοίωση» παρέχει ένα αρχείο που επιλέξατε και δεν αγγίζει ποτέ τη συσκευή.",
+  "permissionsBackgroundAudioNotAGrant": "Εξαιρείται από την παύση. Δεν παραχωρεί τίποτα.",
+  "permissionMicrophoneNeverReal": "Μη διαθέσιμο. Το WebSpace δεν ανοίγει ποτέ πραγματικό μικρόφωνο και δεν ζητά ποτέ από το σύστημα άδεια εγγραφής.",
+  "permissionStateAsk": "Ερώτηση",
+  "permissionStateAllowed": "Επιτρέπεται",
+  "permissionStateSimulated": "Προσομοίωση",
+  "permissionStateBlocked": "Αποκλεισμένο",
+  "permissionsSummaryNothingGranted": "Δεν έχει παραχωρηθεί τίποτα",
+  "permissionsSummaryMore": "{count} ακόμη"
 }

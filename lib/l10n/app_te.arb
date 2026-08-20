@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "ఒక సైట్‌కు ట్రాకింగ్ రక్షణను ఆన్ చేయండి, అది నిరోధించే అభ్యర్థనలు ఇక్కడ కనిపిస్తాయి.",
   "blockStatsReset": "గణాంకాలను రీసెట్ చేయండి",
   "blockStatsResetConfirm": "ప్రతి కౌంటర్ సున్నాకు తిరిగి వస్తుంది, లెక్కింపు ఈరోజు నుండి మళ్లీ మొదలవుతుంది.",
-  "appSettingsProtectionReportSubtitle": "కాలక్రమేణా బ్లాకర్లు ఆపినవి"
+  "appSettingsProtectionReportSubtitle": "కాలక్రమేణా బ్లాకర్లు ఆపినవి",
+  "permissionsTitle": "అనుమతులు",
+  "permissionsGroupDeviceAccess": "పరికర ప్రాప్యత",
+  "permissionsGroupBackground": "నేపథ్య కార్యకలాపం",
+  "permissionsGroupMedia": "మీడియా",
+  "permissionsRealDeviceNote": "\"అనుమతించబడింది\" మాత్రమే నిజమైన హార్డ్‌వేర్‌ను తెరుస్తుంది. \"అనుకరించబడింది\" మీరు ఎంచుకున్న ఫైల్‌ను అందిస్తుంది, పరికరాన్ని ఎప్పుడూ తాకదు.",
+  "permissionsBackgroundAudioNotAGrant": "విరామం నుండి మినహాయింపు. ఏమీ మంజూరు చేయదు.",
+  "permissionMicrophoneNeverReal": "అందుబాటులో లేదు. WebSpace ఎప్పుడూ నిజమైన మైక్రోఫోన్‌ను తెరవదు, సిస్టమ్‌ను రికార్డింగ్ అనుమతి అడగదు.",
+  "permissionStateAsk": "అడగండి",
+  "permissionStateAllowed": "అనుమతించబడింది",
+  "permissionStateSimulated": "అనుకరించబడింది",
+  "permissionStateBlocked": "నిరోధించబడింది",
+  "permissionsSummaryNothingGranted": "ఏమీ మంజూరు కాలేదు",
+  "permissionsSummaryMore": "మరో {count}"
 }

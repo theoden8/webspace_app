@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "为某个站点开启跟踪保护后，它拦截的请求会显示在这里。",
   "blockStatsReset": "重置统计",
   "blockStatsResetConfirm": "所有计数器归零，并从今天重新开始统计。",
-  "appSettingsProtectionReportSubtitle": "拦截器长期以来阻止的内容"
+  "appSettingsProtectionReportSubtitle": "拦截器长期以来阻止的内容",
+  "permissionsTitle": "权限",
+  "permissionsGroupDeviceAccess": "设备访问",
+  "permissionsGroupBackground": "后台活动",
+  "permissionsGroupMedia": "媒体",
+  "permissionsRealDeviceNote": "只有“允许”才会开启真实硬件。“模拟”会提供你选择的文件，绝不会触碰设备。",
+  "permissionsBackgroundAudioNotAGrant": "免于暂停。不授予任何权限。",
+  "permissionMicrophoneNeverReal": "不可用。WebSpace 从不开启真实麦克风，也从不向系统申请录音权限。",
+  "permissionStateAsk": "询问",
+  "permissionStateAllowed": "允许",
+  "permissionStateSimulated": "模拟",
+  "permissionStateBlocked": "已阻止",
+  "permissionsSummaryNothingGranted": "未授予任何权限",
+  "permissionsSummaryMore": "另外 {count} 项"
 }

@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "Ieslēdziet vietnei aizsardzību pret izsekošanu, un tās bloķētie pieprasījumi parādīsies šeit.",
   "blockStatsReset": "Atiestatīt statistiku",
   "blockStatsResetConfirm": "Katrs skaitītājs atgriežas nullē, un skaitīšana no šodienas sākas no jauna.",
-  "appSettingsProtectionReportSubtitle": "Ko bloķētāji laika gaitā ir apturējuši"
+  "appSettingsProtectionReportSubtitle": "Ko bloķētāji laika gaitā ir apturējuši",
+  "permissionsTitle": "Atļaujas",
+  "permissionsGroupDeviceAccess": "Piekļuve ierīcei",
+  "permissionsGroupBackground": "Fona darbība",
+  "permissionsGroupMedia": "Multivide",
+  "permissionsRealDeviceNote": "Tikai “Atļauts” atver īstu aparatūru. “Simulēts” piegādā jūsu izvēlēto failu un nekad neskar ierīci.",
+  "permissionsBackgroundAudioNotAGrant": "Atbrīvots no pauzēšanas. Nepiešķir neko.",
+  "permissionMicrophoneNeverReal": "Nav pieejams. WebSpace nekad neatver īstu mikrofonu un nekad neprasa sistēmai ierakstīšanas atļauju.",
+  "permissionStateAsk": "Jautāt",
+  "permissionStateAllowed": "Atļauts",
+  "permissionStateSimulated": "Simulēts",
+  "permissionStateBlocked": "Bloķēts",
+  "permissionsSummaryNothingGranted": "Nekas nav piešķirts",
+  "permissionsSummaryMore": "Vēl {count}"
 }

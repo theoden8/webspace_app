@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "Slå sporingsbeskyttelse til for et websted, så vises de anmodninger, det blokerer, her.",
   "blockStatsReset": "Nulstil statistik",
   "blockStatsResetConfirm": "Alle tællere sættes til nul, og optællingen starter forfra i dag.",
-  "appSettingsProtectionReportSubtitle": "Hvad blokeringerne har stoppet over tid"
+  "appSettingsProtectionReportSubtitle": "Hvad blokeringerne har stoppet over tid",
+  "permissionsTitle": "Tilladelser",
+  "permissionsGroupDeviceAccess": "Enhedsadgang",
+  "permissionsGroupBackground": "Baggrundsaktivitet",
+  "permissionsGroupMedia": "Medier",
+  "permissionsRealDeviceNote": "Kun Tilladt åbner rigtig hardware. Simuleret leverer en fil, du har valgt, og rører aldrig enheden.",
+  "permissionsBackgroundAudioNotAGrant": "Fritaget for at blive sat på pause. Giver ingen adgang.",
+  "permissionMicrophoneNeverReal": "Ikke tilgængelig. WebSpace åbner aldrig en rigtig mikrofon og beder aldrig systemet om optagetilladelse.",
+  "permissionStateAsk": "Spørg",
+  "permissionStateAllowed": "Tilladt",
+  "permissionStateSimulated": "Simuleret",
+  "permissionStateBlocked": "Blokeret",
+  "permissionsSummaryNothingGranted": "Intet er tilladt",
+  "permissionsSummaryMore": "{count} mere"
 }

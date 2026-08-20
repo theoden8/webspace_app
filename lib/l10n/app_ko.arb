@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "사이트의 추적 보호를 켜면 차단된 요청이 여기에 표시됩니다.",
   "blockStatsReset": "통계 초기화",
   "blockStatsResetConfirm": "모든 카운터가 0으로 돌아가고 오늘부터 다시 집계합니다.",
-  "appSettingsProtectionReportSubtitle": "차단 기능이 그동안 막아낸 것"
+  "appSettingsProtectionReportSubtitle": "차단 기능이 그동안 막아낸 것",
+  "permissionsTitle": "권한",
+  "permissionsGroupDeviceAccess": "기기 접근",
+  "permissionsGroupBackground": "백그라운드 활동",
+  "permissionsGroupMedia": "미디어",
+  "permissionsRealDeviceNote": "실제 하드웨어를 여는 것은 \"허용\"뿐입니다. \"시뮬레이션\"은 선택한 파일을 제공하며 기기를 전혀 건드리지 않습니다.",
+  "permissionsBackgroundAudioNotAGrant": "일시 중지에서 제외됩니다. 아무것도 허용하지 않습니다.",
+  "permissionMicrophoneNeverReal": "사용할 수 없습니다. WebSpace는 실제 마이크를 열지 않으며 시스템에 녹음 권한을 요청하지 않습니다.",
+  "permissionStateAsk": "확인",
+  "permissionStateAllowed": "허용",
+  "permissionStateSimulated": "시뮬레이션",
+  "permissionStateBlocked": "차단됨",
+  "permissionsSummaryNothingGranted": "부여된 권한 없음",
+  "permissionsSummaryMore": "{count}개 더"
 }

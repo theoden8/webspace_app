@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "کسی سائٹ کے لیے ٹریکنگ تحفظ آن کریں، پھر جو درخواستیں یہ روکے گی وہ یہاں دکھائی دیں گی۔",
   "blockStatsReset": "اعدادوشمار دوبارہ ترتیب دیں",
   "blockStatsResetConfirm": "ہر شمار کنندہ صفر پر واپس آ جاتا ہے اور گنتی آج سے دوبارہ شروع ہوتی ہے۔",
-  "appSettingsProtectionReportSubtitle": "بلاک کرنے والوں نے وقت کے ساتھ کیا روکا"
+  "appSettingsProtectionReportSubtitle": "بلاک کرنے والوں نے وقت کے ساتھ کیا روکا",
+  "permissionsTitle": "اجازتیں",
+  "permissionsGroupDeviceAccess": "آلے تک رسائی",
+  "permissionsGroupBackground": "پس منظر کی سرگرمی",
+  "permissionsGroupMedia": "میڈیا",
+  "permissionsRealDeviceNote": "صرف \"اجازت ہے\" ہی حقیقی ہارڈ ویئر کھولتا ہے۔ \"مصنوعی\" آپ کی منتخب کردہ فائل پیش کرتا ہے اور آلے کو کبھی نہیں چھوتا۔",
+  "permissionsBackgroundAudioNotAGrant": "روکے جانے سے مستثنیٰ۔ کچھ نہیں دیتا۔",
+  "permissionMicrophoneNeverReal": "دستیاب نہیں۔ WebSpace کبھی حقیقی مائیکروفون نہیں کھولتا اور نہ ہی نظام سے ریکارڈنگ کی اجازت مانگتا ہے۔",
+  "permissionStateAsk": "پوچھیں",
+  "permissionStateAllowed": "اجازت ہے",
+  "permissionStateSimulated": "مصنوعی",
+  "permissionStateBlocked": "مسدود",
+  "permissionsSummaryNothingGranted": "کوئی اجازت نہیں دی گئی",
+  "permissionsSummaryMore": "مزید {count}"
 }

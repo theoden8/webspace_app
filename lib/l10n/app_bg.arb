@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "Включете защитата от проследяване за даден сайт и блокираните заявки ще се появят тук.",
   "blockStatsReset": "Нулиране на статистиката",
   "blockStatsResetConfirm": "Всеки брояч се връща на нула и броенето започва отново от днес.",
-  "appSettingsProtectionReportSubtitle": "Какво са спрели блокиращите модули с течение на времето"
+  "appSettingsProtectionReportSubtitle": "Какво са спрели блокиращите модули с течение на времето",
+  "permissionsTitle": "Разрешения",
+  "permissionsGroupDeviceAccess": "Достъп до устройството",
+  "permissionsGroupBackground": "Фонова активност",
+  "permissionsGroupMedia": "Мултимедия",
+  "permissionsRealDeviceNote": "Само „Разрешено“ отваря истински хардуер. „Симулирано“ подава избран от вас файл и никога не докосва устройството.",
+  "permissionsBackgroundAudioNotAGrant": "Освободен от поставяне на пауза. Не дава нищо.",
+  "permissionMicrophoneNeverReal": "Не е налично. WebSpace никога не отваря истински микрофон и никога не иска от системата разрешение за запис.",
+  "permissionStateAsk": "Питай",
+  "permissionStateAllowed": "Разрешено",
+  "permissionStateSimulated": "Симулирано",
+  "permissionStateBlocked": "Блокирано",
+  "permissionsSummaryNothingGranted": "Няма дадени разрешения",
+  "permissionsSummaryMore": "Още {count}"
 }

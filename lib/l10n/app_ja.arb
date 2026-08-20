@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "サイトのトラッキング保護を有効にすると、ブロックされたリクエストがここに表示されます。",
   "blockStatsReset": "統計をリセット",
   "blockStatsResetConfirm": "すべてのカウンターがゼロに戻り、本日から集計をやり直します。",
-  "appSettingsProtectionReportSubtitle": "ブロック機能がこれまでに止めたもの"
+  "appSettingsProtectionReportSubtitle": "ブロック機能がこれまでに止めたもの",
+  "permissionsTitle": "権限",
+  "permissionsGroupDeviceAccess": "デバイスへのアクセス",
+  "permissionsGroupBackground": "バックグラウンド動作",
+  "permissionsGroupMedia": "メディア",
+  "permissionsRealDeviceNote": "実際のハードウェアを開くのは「許可」だけです。「シミュレート」は選択したファイルを渡すだけで、デバイスには一切触れません。",
+  "permissionsBackgroundAudioNotAGrant": "一時停止の対象外です。何も許可しません。",
+  "permissionMicrophoneNeverReal": "利用できません。WebSpace は実際のマイクを開くことも、システムに録音許可を求めることもありません。",
+  "permissionStateAsk": "確認する",
+  "permissionStateAllowed": "許可",
+  "permissionStateSimulated": "シミュレート",
+  "permissionStateBlocked": "ブロック",
+  "permissionsSummaryNothingGranted": "権限は付与されていません",
+  "permissionsSummaryMore": "他 {count} 件"
 }

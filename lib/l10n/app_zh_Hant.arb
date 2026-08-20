@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "為某個網站開啟追蹤保護後，它攔截的要求會顯示在這裡。",
   "blockStatsReset": "重設統計",
   "blockStatsResetConfirm": "所有計數器歸零，並從今天重新開始統計。",
-  "appSettingsProtectionReportSubtitle": "攔截器長期以來阻擋的內容"
+  "appSettingsProtectionReportSubtitle": "攔截器長期以來阻擋的內容",
+  "permissionsTitle": "權限",
+  "permissionsGroupDeviceAccess": "裝置存取",
+  "permissionsGroupBackground": "背景活動",
+  "permissionsGroupMedia": "媒體",
+  "permissionsRealDeviceNote": "只有「允許」才會開啟真實硬體。「模擬」會提供你選擇的檔案，絕不會觸碰裝置。",
+  "permissionsBackgroundAudioNotAGrant": "免於暫停。不授予任何權限。",
+  "permissionMicrophoneNeverReal": "無法使用。WebSpace 從不開啟真實麥克風，也從不向系統要求錄音權限。",
+  "permissionStateAsk": "詢問",
+  "permissionStateAllowed": "允許",
+  "permissionStateSimulated": "模擬",
+  "permissionStateBlocked": "已封鎖",
+  "permissionsSummaryNothingGranted": "未授予任何權限",
+  "permissionsSummaryMore": "另外 {count} 項"
 }

@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "Ota sivustolle seurannan esto käyttöön, niin sen estämät pyynnöt näkyvät täällä.",
   "blockStatsReset": "Nollaa tilastot",
   "blockStatsResetConfirm": "Jokainen laskuri palautuu nollaan ja laskenta alkaa uudelleen tästä päivästä.",
-  "appSettingsProtectionReportSubtitle": "Mitä estot ovat pysäyttäneet ajan mittaan"
+  "appSettingsProtectionReportSubtitle": "Mitä estot ovat pysäyttäneet ajan mittaan",
+  "permissionsTitle": "Käyttöoikeudet",
+  "permissionsGroupDeviceAccess": "Laitteen käyttö",
+  "permissionsGroupBackground": "Taustatoiminta",
+  "permissionsGroupMedia": "Media",
+  "permissionsRealDeviceNote": "Vain Sallittu avaa oikean laitteiston. Simuloitu tarjoaa valitsemasi tiedoston eikä koske laitteeseen koskaan.",
+  "permissionsBackgroundAudioNotAGrant": "Vapautettu keskeytyksestä. Ei myönnä mitään.",
+  "permissionMicrophoneNeverReal": "Ei käytettävissä. WebSpace ei avaa koskaan oikeaa mikrofonia eikä pyydä järjestelmältä tallennuslupaa.",
+  "permissionStateAsk": "Kysy",
+  "permissionStateAllowed": "Sallittu",
+  "permissionStateSimulated": "Simuloitu",
+  "permissionStateBlocked": "Estetty",
+  "permissionsSummaryNothingGranted": "Mitään ei ole myönnetty",
+  "permissionsSummaryMore": "{count} lisää"
 }

@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "Włącz ochronę przed śledzeniem dla witryny, a blokowane żądania pojawią się tutaj.",
   "blockStatsReset": "Wyzeruj statystyki",
   "blockStatsResetConfirm": "Każdy licznik wraca do zera, a liczenie zaczyna się od dzisiaj.",
-  "appSettingsProtectionReportSubtitle": "Co blokery zatrzymały na przestrzeni czasu"
+  "appSettingsProtectionReportSubtitle": "Co blokery zatrzymały na przestrzeni czasu",
+  "permissionsTitle": "Uprawnienia",
+  "permissionsGroupDeviceAccess": "Dostęp do urządzenia",
+  "permissionsGroupBackground": "Aktywność w tle",
+  "permissionsGroupMedia": "Multimedia",
+  "permissionsRealDeviceNote": "Tylko „Dozwolone” otwiera prawdziwy sprzęt. „Symulowane” podaje wybrany przez Ciebie plik i nigdy nie dotyka urządzenia.",
+  "permissionsBackgroundAudioNotAGrant": "Zwolnione z wstrzymywania. Niczego nie przyznaje.",
+  "permissionMicrophoneNeverReal": "Niedostępne. WebSpace nigdy nie otwiera prawdziwego mikrofonu i nigdy nie prosi systemu o uprawnienie do nagrywania.",
+  "permissionStateAsk": "Pytaj",
+  "permissionStateAllowed": "Dozwolone",
+  "permissionStateSimulated": "Symulowane",
+  "permissionStateBlocked": "Zablokowane",
+  "permissionsSummaryNothingGranted": "Nic nie przyznano",
+  "permissionsSummaryMore": "Jeszcze {count}"
 }

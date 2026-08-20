@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "ಯಾವುದೇ ಸೈಟ್‌ಗೆ ಟ್ರ್ಯಾಕಿಂಗ್ ರಕ್ಷಣೆಯನ್ನು ಆನ್ ಮಾಡಿ, ಅದು ನಿರ್ಬಂಧಿಸುವ ವಿನಂತಿಗಳು ಇಲ್ಲಿ ಕಾಣಿಸುತ್ತವೆ.",
   "blockStatsReset": "ಅಂಕಿಅಂಶಗಳನ್ನು ಮರುಹೊಂದಿಸಿ",
   "blockStatsResetConfirm": "ಪ್ರತಿ ಎಣಿಕೆ ಶೂನ್ಯಕ್ಕೆ ಮರಳುತ್ತದೆ ಮತ್ತು ಎಣಿಕೆ ಇಂದಿನಿಂದ ಮತ್ತೆ ಆರಂಭವಾಗುತ್ತದೆ.",
-  "appSettingsProtectionReportSubtitle": "ಕಾಲಾನಂತರದಲ್ಲಿ ನಿರ್ಬಂಧಕಗಳು ತಡೆದದ್ದು"
+  "appSettingsProtectionReportSubtitle": "ಕಾಲಾನಂತರದಲ್ಲಿ ನಿರ್ಬಂಧಕಗಳು ತಡೆದದ್ದು",
+  "permissionsTitle": "ಅನುಮತಿಗಳು",
+  "permissionsGroupDeviceAccess": "ಸಾಧನ ಪ್ರವೇಶ",
+  "permissionsGroupBackground": "ಹಿನ್ನೆಲೆ ಚಟುವಟಿಕೆ",
+  "permissionsGroupMedia": "ಮಾಧ್ಯಮ",
+  "permissionsRealDeviceNote": "\"ಅನುಮತಿಸಲಾಗಿದೆ\" ಮಾತ್ರ ನಿಜವಾದ ಯಂತ್ರಾಂಶವನ್ನು ತೆರೆಯುತ್ತದೆ. \"ಅನುಕರಿಸಲಾಗಿದೆ\" ನೀವು ಆಯ್ಕೆ ಮಾಡಿದ ಫೈಲ್ ಒದಗಿಸುತ್ತದೆ ಮತ್ತು ಸಾಧನವನ್ನು ಎಂದಿಗೂ ಮುಟ್ಟುವುದಿಲ್ಲ.",
+  "permissionsBackgroundAudioNotAGrant": "ವಿರಾಮದಿಂದ ವಿನಾಯಿತಿ. ಏನನ್ನೂ ನೀಡುವುದಿಲ್ಲ.",
+  "permissionMicrophoneNeverReal": "ಲಭ್ಯವಿಲ್ಲ. WebSpace ಎಂದಿಗೂ ನಿಜವಾದ ಮೈಕ್ರೊಫೋನ್ ತೆರೆಯುವುದಿಲ್ಲ ಮತ್ತು ಸಿಸ್ಟಂನಿಂದ ರೆಕಾರ್ಡಿಂಗ್ ಅನುಮತಿ ಕೇಳುವುದಿಲ್ಲ.",
+  "permissionStateAsk": "ಕೇಳಿ",
+  "permissionStateAllowed": "ಅನುಮತಿಸಲಾಗಿದೆ",
+  "permissionStateSimulated": "ಅನುಕರಿಸಲಾಗಿದೆ",
+  "permissionStateBlocked": "ನಿರ್ಬಂಧಿಸಲಾಗಿದೆ",
+  "permissionsSummaryNothingGranted": "ಏನನ್ನೂ ನೀಡಲಾಗಿಲ್ಲ",
+  "permissionsSummaryMore": "ಇನ್ನೂ {count}"
 }

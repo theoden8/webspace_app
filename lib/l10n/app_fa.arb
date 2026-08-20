@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "محافظت در برابر ردیابی را برای یک وب‌گاه روشن کنید تا درخواست‌هایی که مسدود می‌کند اینجا نمایش داده شود.",
   "blockStatsReset": "بازنشانی آمار",
   "blockStatsResetConfirm": "هر شمارنده به صفر بازمی‌گردد و شمارش از امروز دوباره آغاز می‌شود.",
-  "appSettingsProtectionReportSubtitle": "آنچه مسدودکننده‌ها در طول زمان متوقف کرده‌اند"
+  "appSettingsProtectionReportSubtitle": "آنچه مسدودکننده‌ها در طول زمان متوقف کرده‌اند",
+  "permissionsTitle": "مجوزها",
+  "permissionsGroupDeviceAccess": "دسترسی به دستگاه",
+  "permissionsGroupBackground": "فعالیت پس‌زمینه",
+  "permissionsGroupMedia": "رسانه",
+  "permissionsRealDeviceNote": "فقط «مجاز» سخت‌افزار واقعی را باز می‌کند. «شبیه‌سازی‌شده» پرونده‌ای را که انتخاب کرده‌اید ارائه می‌دهد و هرگز به دستگاه دست نمی‌زند.",
+  "permissionsBackgroundAudioNotAGrant": "از توقف معاف است. هیچ دسترسی‌ای نمی‌دهد.",
+  "permissionMicrophoneNeverReal": "در دسترس نیست. WebSpace هرگز میکروفون واقعی را باز نمی‌کند و هرگز از سیستم اجازهٔ ضبط نمی‌خواهد.",
+  "permissionStateAsk": "پرسیدن",
+  "permissionStateAllowed": "مجاز",
+  "permissionStateSimulated": "شبیه‌سازی‌شده",
+  "permissionStateBlocked": "مسدود",
+  "permissionsSummaryNothingGranted": "هیچ مجوزی داده نشده",
+  "permissionsSummaryMore": "{count} مورد دیگر"
 }

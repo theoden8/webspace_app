@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "Aktifkan perlindungan pelacakan untuk sebuah situs, lalu permintaan yang diblokirnya akan muncul di sini.",
   "blockStatsReset": "Setel ulang statistik",
   "blockStatsResetConfirm": "Setiap penghitung kembali ke nol dan penghitungan dimulai lagi hari ini.",
-  "appSettingsProtectionReportSubtitle": "Apa yang dihentikan pemblokir, dari waktu ke waktu"
+  "appSettingsProtectionReportSubtitle": "Apa yang dihentikan pemblokir, dari waktu ke waktu",
+  "permissionsTitle": "Izin",
+  "permissionsGroupDeviceAccess": "Akses perangkat",
+  "permissionsGroupBackground": "Aktivitas latar belakang",
+  "permissionsGroupMedia": "Media",
+  "permissionsRealDeviceNote": "Hanya \"Diizinkan\" yang membuka perangkat keras sungguhan. \"Disimulasikan\" menyajikan berkas yang Anda pilih dan tidak pernah menyentuh perangkat.",
+  "permissionsBackgroundAudioNotAGrant": "Dikecualikan dari penjedaan. Tidak memberikan apa pun.",
+  "permissionMicrophoneNeverReal": "Tidak tersedia. WebSpace tidak pernah membuka mikrofon sungguhan dan tidak pernah meminta izin perekaman kepada sistem.",
+  "permissionStateAsk": "Tanya",
+  "permissionStateAllowed": "Diizinkan",
+  "permissionStateSimulated": "Disimulasikan",
+  "permissionStateBlocked": "Diblokir",
+  "permissionsSummaryNothingGranted": "Tidak ada yang diberikan",
+  "permissionsSummaryMore": "{count} lagi"
 }

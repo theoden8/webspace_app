@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "કોઈ સાઇટ માટે ટ્રેકિંગ સુરક્ષા ચાલુ કરો, પછી તે અવરોધે તે વિનંતીઓ અહીં દેખાશે.",
   "blockStatsReset": "આંકડા રીસેટ કરો",
   "blockStatsResetConfirm": "દરેક કાઉન્ટર શૂન્ય પર પાછું આવે છે અને ગણતરી આજથી ફરી શરૂ થાય છે.",
-  "appSettingsProtectionReportSubtitle": "સમય જતાં અવરોધકોએ શું રોક્યું"
+  "appSettingsProtectionReportSubtitle": "સમય જતાં અવરોધકોએ શું રોક્યું",
+  "permissionsTitle": "પરવાનગીઓ",
+  "permissionsGroupDeviceAccess": "ઉપકરણ ઍક્સેસ",
+  "permissionsGroupBackground": "પૃષ્ઠભૂમિ પ્રવૃત્તિ",
+  "permissionsGroupMedia": "મીડિયા",
+  "permissionsRealDeviceNote": "ફક્ત \"મંજૂર\" જ વાસ્તવિક હાર્ડવેર ખોલે છે. \"અનુકરણ\" તમે પસંદ કરેલી ફાઇલ પીરસે છે અને ઉપકરણને ક્યારેય સ્પર્શતું નથી.",
+  "permissionsBackgroundAudioNotAGrant": "થોભાવવામાંથી મુક્ત. કંઈ આપતું નથી.",
+  "permissionMicrophoneNeverReal": "ઉપલબ્ધ નથી. WebSpace ક્યારેય વાસ્તવિક માઇક્રોફોન ખોલતું નથી અને સિસ્ટમ પાસેથી રેકોર્ડિંગ પરવાનગી માગતું નથી.",
+  "permissionStateAsk": "પૂછો",
+  "permissionStateAllowed": "મંજૂર",
+  "permissionStateSimulated": "અનુકરણ",
+  "permissionStateBlocked": "અવરોધિત",
+  "permissionsSummaryNothingGranted": "કંઈ મંજૂર નથી",
+  "permissionsSummaryMore": "વધુ {count}"
 }

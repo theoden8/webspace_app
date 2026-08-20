@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "Trowch amddiffyniad rhag tracio ymlaen ar gyfer gwefan a bydd y ceisiadau mae'n eu rhwystro yn ymddangos yma.",
   "blockStatsReset": "Ailosod yr ystadegau",
   "blockStatsResetConfirm": "Mae pob cyfrifydd yn dychwelyd i sero ac mae'r cyfrif yn ailddechrau heddiw.",
-  "appSettingsProtectionReportSubtitle": "Yr hyn mae'r rhwystrwyr wedi'i atal, dros amser"
+  "appSettingsProtectionReportSubtitle": "Yr hyn mae'r rhwystrwyr wedi'i atal, dros amser",
+  "permissionsTitle": "Caniatâdau",
+  "permissionsGroupDeviceAccess": "Mynediad at y ddyfais",
+  "permissionsGroupBackground": "Gweithgaredd cefndir",
+  "permissionsGroupMedia": "Cyfryngau",
+  "permissionsRealDeviceNote": "Dim ond \"Caniateir\" sy’n agor caledwedd go iawn. Mae \"Efelychiedig\" yn cyflwyno ffeil a ddewiswyd gennych ac nid yw byth yn cyffwrdd â’r ddyfais.",
+  "permissionsBackgroundAudioNotAGrant": "Wedi’i eithrio rhag oedi. Nid yw’n caniatáu dim.",
+  "permissionMicrophoneNeverReal": "Ddim ar gael. Nid yw WebSpace byth yn agor meicroffon go iawn ac nid yw byth yn gofyn i’r system am ganiatâd recordio.",
+  "permissionStateAsk": "Gofyn",
+  "permissionStateAllowed": "Caniateir",
+  "permissionStateSimulated": "Efelychiedig",
+  "permissionStateBlocked": "Rhwystrwyd",
+  "permissionsSummaryNothingGranted": "Dim caniatâd wedi’i roi",
+  "permissionsSummaryMore": "{count} arall"
 }

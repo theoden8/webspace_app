@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "เปิดการป้องกันการติดตามให้กับเว็บไซต์ แล้วคำขอที่ถูกบล็อกจะแสดงที่นี่",
   "blockStatsReset": "ล้างสถิติ",
   "blockStatsResetConfirm": "ตัวนับทุกตัวจะกลับเป็นศูนย์และเริ่มนับใหม่ตั้งแต่วันนี้",
-  "appSettingsProtectionReportSubtitle": "สิ่งที่ตัวบล็อกหยุดไว้ ตลอดช่วงเวลา"
+  "appSettingsProtectionReportSubtitle": "สิ่งที่ตัวบล็อกหยุดไว้ ตลอดช่วงเวลา",
+  "permissionsTitle": "สิทธิ์",
+  "permissionsGroupDeviceAccess": "การเข้าถึงอุปกรณ์",
+  "permissionsGroupBackground": "กิจกรรมเบื้องหลัง",
+  "permissionsGroupMedia": "สื่อ",
+  "permissionsRealDeviceNote": "มีเพียง \"อนุญาต\" เท่านั้นที่เปิดฮาร์ดแวร์จริง \"จำลอง\" จะส่งไฟล์ที่คุณเลือกและไม่แตะต้องอุปกรณ์เลย",
+  "permissionsBackgroundAudioNotAGrant": "ได้รับการยกเว้นจากการหยุดชั่วคราว ไม่ได้ให้สิทธิ์ใด ๆ",
+  "permissionMicrophoneNeverReal": "ไม่พร้อมใช้งาน WebSpace ไม่เคยเปิดไมโครโฟนจริงและไม่เคยขอสิทธิ์บันทึกเสียงจากระบบ",
+  "permissionStateAsk": "ถาม",
+  "permissionStateAllowed": "อนุญาต",
+  "permissionStateSimulated": "จำลอง",
+  "permissionStateBlocked": "ถูกบล็อก",
+  "permissionsSummaryNothingGranted": "ไม่ได้ให้สิทธิ์ใด ๆ",
+  "permissionsSummaryMore": "อีก {count} รายการ"
 }

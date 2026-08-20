@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "एखाद्या साइटसाठी ट्रॅकिंग संरक्षण चालू करा, मग ती अवरोधित करत असलेल्या विनंत्या इथे दिसतील.",
   "blockStatsReset": "आकडेवारी रीसेट करा",
   "blockStatsResetConfirm": "प्रत्येक मोजणी शून्यावर येते आणि मोजणी आजपासून पुन्हा सुरू होते.",
-  "appSettingsProtectionReportSubtitle": "काळानुसार अवरोधकांनी काय थांबवले"
+  "appSettingsProtectionReportSubtitle": "काळानुसार अवरोधकांनी काय थांबवले",
+  "permissionsTitle": "परवानग्या",
+  "permissionsGroupDeviceAccess": "उपकरण प्रवेश",
+  "permissionsGroupBackground": "पार्श्वभूमी क्रियाकलाप",
+  "permissionsGroupMedia": "मीडिया",
+  "permissionsRealDeviceNote": "फक्त \"अनुमत\" खरे हार्डवेअर उघडते. \"अनुकरण\" तुम्ही निवडलेली फाइल पुरवते आणि उपकरणाला कधीही स्पर्श करत नाही.",
+  "permissionsBackgroundAudioNotAGrant": "थांबवण्यापासून सूट. काहीही देत नाही.",
+  "permissionMicrophoneNeverReal": "उपलब्ध नाही. WebSpace कधीही खरा मायक्रोफोन उघडत नाही आणि प्रणालीकडे रेकॉर्डिंग परवानगी मागत नाही.",
+  "permissionStateAsk": "विचारा",
+  "permissionStateAllowed": "अनुमत",
+  "permissionStateSimulated": "अनुकरण",
+  "permissionStateBlocked": "अवरोधित",
+  "permissionsSummaryNothingGranted": "काहीही दिलेले नाही",
+  "permissionsSummaryMore": "आणखी {count}"
 }

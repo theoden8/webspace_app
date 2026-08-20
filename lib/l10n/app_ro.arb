@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "Activează protecția împotriva urmăririi pentru un site, iar cererile blocate vor apărea aici.",
   "blockStatsReset": "Resetează statisticile",
   "blockStatsResetConfirm": "Fiecare contor revine la zero, iar numărătoarea începe din nou de astăzi.",
-  "appSettingsProtectionReportSubtitle": "Ce au oprit blocantele, de-a lungul timpului"
+  "appSettingsProtectionReportSubtitle": "Ce au oprit blocantele, de-a lungul timpului",
+  "permissionsTitle": "Permisiuni",
+  "permissionsGroupDeviceAccess": "Acces la dispozitiv",
+  "permissionsGroupBackground": "Activitate în fundal",
+  "permissionsGroupMedia": "Media",
+  "permissionsRealDeviceNote": "Doar „Permis” deschide hardware real. „Simulat” furnizează un fișier ales de tine și nu atinge niciodată dispozitivul.",
+  "permissionsBackgroundAudioNotAGrant": "Scutit de la punerea pe pauză. Nu acordă nimic.",
+  "permissionMicrophoneNeverReal": "Indisponibil. WebSpace nu deschide niciodată un microfon real și nu cere niciodată sistemului o permisiune de înregistrare.",
+  "permissionStateAsk": "Întreabă",
+  "permissionStateAllowed": "Permis",
+  "permissionStateSimulated": "Simulat",
+  "permissionStateBlocked": "Blocat",
+  "permissionsSummaryNothingGranted": "Nu s-a acordat nimic",
+  "permissionsSummaryMore": "Încă {count}"
 }

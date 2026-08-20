@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "Buksan ang proteksiyon laban sa pagsubaybay para sa isang site at lilitaw dito ang mga kahilingang hinaharang nito.",
   "blockStatsReset": "I-reset ang estadistika",
   "blockStatsResetConfirm": "Babalik sa zero ang bawat counter at magsisimula muli ang pagbibilang ngayong araw.",
-  "appSettingsProtectionReportSubtitle": "Kung ano ang napigilan ng mga blocker sa paglipas ng panahon"
+  "appSettingsProtectionReportSubtitle": "Kung ano ang napigilan ng mga blocker sa paglipas ng panahon",
+  "permissionsTitle": "Mga Pahintulot",
+  "permissionsGroupDeviceAccess": "Access sa device",
+  "permissionsGroupBackground": "Aktibidad sa background",
+  "permissionsGroupMedia": "Media",
+  "permissionsRealDeviceNote": "Ang \"Pinapayagan\" lang ang bumubukas ng totoong hardware. Ang \"Ginagaya\" ay naghahain ng file na pinili mo at hindi kailanman humihipo sa device.",
+  "permissionsBackgroundAudioNotAGrant": "Hindi kasama sa pag-pause. Walang ipinagkakaloob.",
+  "permissionMicrophoneNeverReal": "Hindi available. Hindi kailanman binubuksan ng WebSpace ang totoong mikropono at hindi humihingi ng pahintulot sa pag-record sa sistema.",
+  "permissionStateAsk": "Magtanong",
+  "permissionStateAllowed": "Pinapayagan",
+  "permissionStateSimulated": "Ginagaya",
+  "permissionStateBlocked": "Naka-block",
+  "permissionsSummaryNothingGranted": "Walang ipinagkaloob",
+  "permissionsSummaryMore": "{count} pa"
 }

@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "Activa a protección contra o rastrexo dun sitio e as solicitudes que bloquee aparecerán aquí.",
   "blockStatsReset": "Restablecer as estatísticas",
   "blockStatsResetConfirm": "Todos os contadores volven a cero e a conta reiníciase hoxe.",
-  "appSettingsProtectionReportSubtitle": "O que detiveron os bloqueadores ao longo do tempo"
+  "appSettingsProtectionReportSubtitle": "O que detiveron os bloqueadores ao longo do tempo",
+  "permissionsTitle": "Permisos",
+  "permissionsGroupDeviceAccess": "Acceso ao dispositivo",
+  "permissionsGroupBackground": "Actividade en segundo plano",
+  "permissionsGroupMedia": "Multimedia",
+  "permissionsRealDeviceNote": "Só \"Permitido\" abre hardware real. \"Simulado\" serve un ficheiro que escolliches e nunca toca o dispositivo.",
+  "permissionsBackgroundAudioNotAGrant": "Exento de pausarse. Non concede nada.",
+  "permissionMicrophoneNeverReal": "Non dispoñible. WebSpace nunca abre un micrófono real nin lle pide ao sistema permiso de gravación.",
+  "permissionStateAsk": "Preguntar",
+  "permissionStateAllowed": "Permitido",
+  "permissionStateSimulated": "Simulado",
+  "permissionStateBlocked": "Bloqueado",
+  "permissionsSummaryNothingGranted": "Nada concedido",
+  "permissionsSummaryMore": "{count} máis"
 }

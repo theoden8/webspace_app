@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "අඩවියක් සඳහා ලුහුබැඳීම් ආරක්ෂණය සක්‍රීය කරන්න, එවිට එය අවහිර කරන ඉල්ලීම් මෙහි පෙනෙනු ඇත.",
   "blockStatsReset": "සංඛ්‍යාලේඛන යළි සකසන්න",
   "blockStatsResetConfirm": "සෑම ගණකයක්ම බිංදුවට පැමිණේ, ගණන් කිරීම අදින් නැවත ආරම්භ වේ.",
-  "appSettingsProtectionReportSubtitle": "කාලයාගේ ඇවෑමෙන් අවහිර කරන්නන් නැවැත්වූ දේ"
+  "appSettingsProtectionReportSubtitle": "කාලයාගේ ඇවෑමෙන් අවහිර කරන්නන් නැවැත්වූ දේ",
+  "permissionsTitle": "අවසර",
+  "permissionsGroupDeviceAccess": "උපාංග ප්‍රවේශය",
+  "permissionsGroupBackground": "පසුබිම් ක්‍රියාකාරකම්",
+  "permissionsGroupMedia": "මාධ්‍ය",
+  "permissionsRealDeviceNote": "සැබෑ දෘඪාංග විවෘත කරන්නේ \"අවසර දී ඇත\" පමණි. \"අනුකරණය\" ඔබ තෝරාගත් ගොනුව සපයන අතර උපාංගය කිසිවිටෙක ස්පර්ශ නොකරයි.",
+  "permissionsBackgroundAudioNotAGrant": "විරාමයෙන් නිදහස්. කිසිවක් ලබා නොදේ.",
+  "permissionMicrophoneNeverReal": "ලබා ගත නොහැක. WebSpace කිසිවිටෙක සැබෑ මයික්‍රොෆෝනයක් විවෘත නොකරන අතර පද්ධතියෙන් පටිගත කිරීමේ අවසරයක් ඉල්ලා නොසිටියි.",
+  "permissionStateAsk": "අසන්න",
+  "permissionStateAllowed": "අවසර දී ඇත",
+  "permissionStateSimulated": "අනුකරණය",
+  "permissionStateBlocked": "අවහිර කර ඇත",
+  "permissionsSummaryNothingGranted": "කිසිවක් ලබා දී නැත",
+  "permissionsSummaryMore": "තවත් {count}"
 }

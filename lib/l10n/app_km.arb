@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "បើកការការពារពីការតាមដានសម្រាប់គេហទំព័រណាមួយ រួចសំណើដែលវាទប់ស្កាត់នឹងបង្ហាញនៅទីនេះ។",
   "blockStatsReset": "កំណត់ស្ថិតិឡើងវិញ",
   "blockStatsResetConfirm": "ការរាប់នីមួយៗត្រឡប់ទៅសូន្យវិញ ហើយការរាប់ចាប់ផ្តើមឡើងវិញពីថ្ងៃនេះ។",
-  "appSettingsProtectionReportSubtitle": "អ្វីដែលកម្មវិធីទប់ស្កាត់បានបញ្ឈប់ តាមពេលវេលា"
+  "appSettingsProtectionReportSubtitle": "អ្វីដែលកម្មវិធីទប់ស្កាត់បានបញ្ឈប់ តាមពេលវេលា",
+  "permissionsTitle": "ការអនុញ្ញាត",
+  "permissionsGroupDeviceAccess": "ការចូលប្រើឧបករណ៍",
+  "permissionsGroupBackground": "សកម្មភាពផ្ទៃខាងក្រោយ",
+  "permissionsGroupMedia": "មេឌៀ",
+  "permissionsRealDeviceNote": "មានតែ \"អនុញ្ញាត\" ប៉ុណ្ណោះដែលបើកផ្នែករឹងពិត។ \"ក្លែងធ្វើ\" ផ្តល់ឯកសារដែលអ្នកបានជ្រើសរើស ហើយមិនប៉ះឧបករណ៍ឡើយ។",
+  "permissionsBackgroundAudioNotAGrant": "លើកលែងពីការផ្អាក។ មិនផ្តល់អ្វីទាំងអស់។",
+  "permissionMicrophoneNeverReal": "មិនមាន។ WebSpace មិនដែលបើកមីក្រូហ្វូនពិត និងមិនដែលស្នើសុំការអនុញ្ញាតថតសំឡេងពីប្រព័ន្ធឡើយ។",
+  "permissionStateAsk": "សួរ",
+  "permissionStateAllowed": "អនុញ្ញាត",
+  "permissionStateSimulated": "ក្លែងធ្វើ",
+  "permissionStateBlocked": "បានទប់ស្កាត់",
+  "permissionsSummaryNothingGranted": "មិនបានផ្តល់អ្វីទេ",
+  "permissionsSummaryMore": "{count} ទៀត"
 }

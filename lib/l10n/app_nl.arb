@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "Zet trackingbescherming aan voor een site en de verzoeken die worden geblokkeerd verschijnen hier.",
   "blockStatsReset": "Statistieken wissen",
   "blockStatsResetConfirm": "Elke teller gaat terug naar nul en het tellen begint vandaag opnieuw.",
-  "appSettingsProtectionReportSubtitle": "Wat de blokkers in de loop van de tijd hebben tegengehouden"
+  "appSettingsProtectionReportSubtitle": "Wat de blokkers in de loop van de tijd hebben tegengehouden",
+  "permissionsTitle": "Machtigingen",
+  "permissionsGroupDeviceAccess": "Apparaattoegang",
+  "permissionsGroupBackground": "Achtergrondactiviteit",
+  "permissionsGroupMedia": "Media",
+  "permissionsRealDeviceNote": "Alleen Toegestaan opent echte hardware. Gesimuleerd levert een bestand dat je hebt gekozen en raakt het apparaat nooit aan.",
+  "permissionsBackgroundAudioNotAGrant": "Vrijgesteld van pauzeren. Verleent niets.",
+  "permissionMicrophoneNeverReal": "Niet beschikbaar. WebSpace opent nooit een echte microfoon en vraagt het systeem nooit om opnametoestemming.",
+  "permissionStateAsk": "Vragen",
+  "permissionStateAllowed": "Toegestaan",
+  "permissionStateSimulated": "Gesimuleerd",
+  "permissionStateBlocked": "Geblokkeerd",
+  "permissionsSummaryNothingGranted": "Niets verleend",
+  "permissionsSummaryMore": "Nog {count}"
 }

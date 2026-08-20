@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "Skakel volgbeskerming vir 'n webwerf aan en die versoeke wat dit blokkeer verskyn hier.",
   "blockStatsReset": "Statistieke terugstel",
   "blockStatsResetConfirm": "Elke teller keer terug na nul en die telling begin vandag oor.",
-  "appSettingsProtectionReportSubtitle": "Wat die blokkeerders gekeer het, oor tyd"
+  "appSettingsProtectionReportSubtitle": "Wat die blokkeerders gekeer het, oor tyd",
+  "permissionsTitle": "Toestemmings",
+  "permissionsGroupDeviceAccess": "Toesteltoegang",
+  "permissionsGroupBackground": "Agtergrondaktiwiteit",
+  "permissionsGroupMedia": "Media",
+  "permissionsRealDeviceNote": "Slegs Toegelaat open werklike hardeware. Gesimuleer bedien ’n lêer wat jy gekies het en raak nooit die toestel nie.",
+  "permissionsBackgroundAudioNotAGrant": "Vrygestel van onderbreking. Verleen niks.",
+  "permissionMicrophoneNeverReal": "Nie beskikbaar nie. WebSpace open nooit ’n werklike mikrofoon nie en vra nooit die stelsel om ’n opnametoestemming nie.",
+  "permissionStateAsk": "Vra",
+  "permissionStateAllowed": "Toegelaat",
+  "permissionStateSimulated": "Gesimuleer",
+  "permissionStateBlocked": "Geblokkeer",
+  "permissionsSummaryNothingGranted": "Niks toegestaan nie",
+  "permissionsSummaryMore": "Nog {count}"
 }

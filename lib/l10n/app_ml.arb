@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "ഒരു സൈറ്റിനായി ട്രാക്കിംഗ് സംരക്ഷണം ഓണാക്കുക, അത് തടയുന്ന അഭ്യർത്ഥനകൾ ഇവിടെ കാണാം.",
   "blockStatsReset": "സ്ഥിതിവിവരം പുനഃസജ്ജമാക്കുക",
   "blockStatsResetConfirm": "ഓരോ കൗണ്ടറും പൂജ്യത്തിലേക്ക് മടങ്ങുകയും എണ്ണം ഇന്ന് മുതൽ വീണ്ടും തുടങ്ങുകയും ചെയ്യും.",
-  "appSettingsProtectionReportSubtitle": "കാലക്രമേണ ബ്ലോക്കറുകൾ തടഞ്ഞത്"
+  "appSettingsProtectionReportSubtitle": "കാലക്രമേണ ബ്ലോക്കറുകൾ തടഞ്ഞത്",
+  "permissionsTitle": "അനുമതികൾ",
+  "permissionsGroupDeviceAccess": "ഉപകരണ ആക്‌സസ്",
+  "permissionsGroupBackground": "പശ്ചാത്തല പ്രവർത്തനം",
+  "permissionsGroupMedia": "മീഡിയ",
+  "permissionsRealDeviceNote": "\"അനുവദിച്ചു\" മാത്രമേ യഥാർത്ഥ ഹാർഡ്‌വെയർ തുറക്കൂ. \"അനുകരിച്ചത്\" നിങ്ങൾ തിരഞ്ഞെടുത്ത ഫയൽ നൽകുന്നു, ഉപകരണത്തെ ഒരിക്കലും സ്പർശിക്കുന്നില്ല.",
+  "permissionsBackgroundAudioNotAGrant": "താൽക്കാലികമായി നിർത്തുന്നതിൽ നിന്ന് ഒഴിവാക്കി. ഒന്നും അനുവദിക്കുന്നില്ല.",
+  "permissionMicrophoneNeverReal": "ലഭ്യമല്ല. WebSpace ഒരിക്കലും യഥാർത്ഥ മൈക്രോഫോൺ തുറക്കുന്നില്ല, സിസ്റ്റത്തോട് റെക്കോർഡിംഗ് അനുമതി ചോദിക്കുന്നുമില്ല.",
+  "permissionStateAsk": "ചോദിക്കുക",
+  "permissionStateAllowed": "അനുവദിച്ചു",
+  "permissionStateSimulated": "അനുകരിച്ചത്",
+  "permissionStateBlocked": "തടഞ്ഞു",
+  "permissionsSummaryNothingGranted": "ഒന്നും അനുവദിച്ചിട്ടില്ല",
+  "permissionsSummaryMore": "{count} എണ്ണം കൂടി"
 }

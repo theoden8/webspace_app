@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "Zapnite pre stránku ochranu pred sledovaním a blokované požiadavky sa zobrazia tu.",
   "blockStatsReset": "Vynulovať štatistiky",
   "blockStatsResetConfirm": "Každé počítadlo sa vráti na nulu a počítanie sa začne odznova od dnes.",
-  "appSettingsProtectionReportSubtitle": "Čo blokovače časom zastavili"
+  "appSettingsProtectionReportSubtitle": "Čo blokovače časom zastavili",
+  "permissionsTitle": "Povolenia",
+  "permissionsGroupDeviceAccess": "Prístup k zariadeniu",
+  "permissionsGroupBackground": "Aktivita na pozadí",
+  "permissionsGroupMedia": "Médiá",
+  "permissionsRealDeviceNote": "Skutočný hardvér otvorí iba „Povolené“. „Simulované“ podáva súbor, ktorý ste vybrali, a zariadenia sa nikdy nedotkne.",
+  "permissionsBackgroundAudioNotAGrant": "Oslobodené od pozastavenia. Nič neudeľuje.",
+  "permissionMicrophoneNeverReal": "Nie je k dispozícii. WebSpace nikdy neotvorí skutočný mikrofón a nikdy si od systému nevyžiada povolenie na nahrávanie.",
+  "permissionStateAsk": "Opýtať sa",
+  "permissionStateAllowed": "Povolené",
+  "permissionStateSimulated": "Simulované",
+  "permissionStateBlocked": "Blokované",
+  "permissionsSummaryNothingGranted": "Nič nie je povolené",
+  "permissionsSummaryMore": "Ďalších {count}"
 }

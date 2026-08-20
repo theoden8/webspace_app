@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "Lülita saidil jälgimiskaitse sisse ja siin ilmuvad päringud, mille see blokeerib.",
   "blockStatsReset": "Lähtesta statistika",
   "blockStatsResetConfirm": "Iga loendur läheb nulli ja lugemine algab tänasest uuesti.",
-  "appSettingsProtectionReportSubtitle": "Mida blokeerijad on aja jooksul peatanud"
+  "appSettingsProtectionReportSubtitle": "Mida blokeerijad on aja jooksul peatanud",
+  "permissionsTitle": "Load",
+  "permissionsGroupDeviceAccess": "Seadme juurdepääs",
+  "permissionsGroupBackground": "Taustategevus",
+  "permissionsGroupMedia": "Meedia",
+  "permissionsRealDeviceNote": "Ainult „Lubatud“ avab tegeliku riistvara. „Simuleeritud“ edastab teie valitud faili ega puuduta kunagi seadet.",
+  "permissionsBackgroundAudioNotAGrant": "Vabastatud peatamisest. Ei anna midagi.",
+  "permissionMicrophoneNeverReal": "Pole saadaval. WebSpace ei ava kunagi tegelikku mikrofoni ega küsi süsteemilt salvestusluba.",
+  "permissionStateAsk": "Küsi",
+  "permissionStateAllowed": "Lubatud",
+  "permissionStateSimulated": "Simuleeritud",
+  "permissionStateBlocked": "Blokeeritud",
+  "permissionsSummaryNothingGranted": "Midagi pole lubatud",
+  "permissionsSummaryMore": "Veel {count}"
 }

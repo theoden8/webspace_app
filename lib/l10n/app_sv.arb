@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "Slå på spårningsskydd för en webbplats, så visas förfrågningarna den blockerar här.",
   "blockStatsReset": "Nollställ statistiken",
   "blockStatsResetConfirm": "Alla räknare återgår till noll och räkningen börjar om i dag.",
-  "appSettingsProtectionReportSubtitle": "Vad blockerarna har stoppat över tid"
+  "appSettingsProtectionReportSubtitle": "Vad blockerarna har stoppat över tid",
+  "permissionsTitle": "Behörigheter",
+  "permissionsGroupDeviceAccess": "Enhetsåtkomst",
+  "permissionsGroupBackground": "Bakgrundsaktivitet",
+  "permissionsGroupMedia": "Media",
+  "permissionsRealDeviceNote": "Endast Tillåten öppnar riktig hårdvara. Simulerad levererar en fil du har valt och rör aldrig enheten.",
+  "permissionsBackgroundAudioNotAGrant": "Undantagen från pausning. Ger ingen åtkomst.",
+  "permissionMicrophoneNeverReal": "Inte tillgänglig. WebSpace öppnar aldrig en riktig mikrofon och ber aldrig systemet om inspelningsbehörighet.",
+  "permissionStateAsk": "Fråga",
+  "permissionStateAllowed": "Tillåten",
+  "permissionStateSimulated": "Simulerad",
+  "permissionStateBlocked": "Blockerad",
+  "permissionsSummaryNothingGranted": "Inget har beviljats",
+  "permissionsSummaryMore": "{count} till"
 }

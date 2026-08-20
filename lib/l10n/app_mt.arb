@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "Ixgħel il-protezzjoni mit-traċċar għal sit u t-talbiet li jimblokka jidhru hawn.",
   "blockStatsReset": "Irrisettja l-istatistika",
   "blockStatsResetConfirm": "Kull kontatur jerġa' lura għal żero u l-għadd jerġa' jibda mil-lum.",
-  "appSettingsProtectionReportSubtitle": "X'waqqfu l-imblukkaturi, maż-żmien"
+  "appSettingsProtectionReportSubtitle": "X'waqqfu l-imblukkaturi, maż-żmien",
+  "permissionsTitle": "Permessi",
+  "permissionsGroupDeviceAccess": "Aċċess għall-apparat",
+  "permissionsGroupBackground": "Attività fl-isfond",
+  "permissionsGroupMedia": "Midja",
+  "permissionsRealDeviceNote": "Biss \"Permess\" jiftaħ ħardwer reali. \"Simulat\" iservi fajl li għażilt u qatt ma jmiss l-apparat.",
+  "permissionsBackgroundAudioNotAGrant": "Eżentat mill-pawża. Ma jagħti xejn.",
+  "permissionMicrophoneNeverReal": "Mhux disponibbli. WebSpace qatt ma jiftaħ mikrofonu reali u qatt ma jitlob lis-sistema permess ta’ reġistrazzjoni.",
+  "permissionStateAsk": "Staqsi",
+  "permissionStateAllowed": "Permess",
+  "permissionStateSimulated": "Simulat",
+  "permissionStateBlocked": "Imblukkat",
+  "permissionsSummaryNothingGranted": "Xejn mhu mogħti",
+  "permissionsSummaryMore": "{count} oħra"
 }

@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "فعّل الحماية من التتبع لموقع ما وستظهر هنا الطلبات التي يحظرها.",
   "blockStatsReset": "إعادة تعيين الإحصائيات",
   "blockStatsResetConfirm": "يعود كل عدّاد إلى الصفر ويبدأ العد من جديد اليوم.",
-  "appSettingsProtectionReportSubtitle": "ما أوقفته أدوات الحظر، عبر الزمن"
+  "appSettingsProtectionReportSubtitle": "ما أوقفته أدوات الحظر، عبر الزمن",
+  "permissionsTitle": "الأذونات",
+  "permissionsGroupDeviceAccess": "الوصول إلى الجهاز",
+  "permissionsGroupBackground": "نشاط الخلفية",
+  "permissionsGroupMedia": "الوسائط",
+  "permissionsRealDeviceNote": "خيار \"مسموح\" وحده يفتح العتاد الحقيقي. أما \"محاكاة\" فيقدّم ملفًا اخترته ولا يمسّ الجهاز إطلاقًا.",
+  "permissionsBackgroundAudioNotAGrant": "مُعفى من الإيقاف المؤقت. لا يمنح أي صلاحية.",
+  "permissionMicrophoneNeverReal": "غير متاح. لا يفتح WebSpace ميكروفونًا حقيقيًا أبدًا ولا يطلب من النظام إذن تسجيل.",
+  "permissionStateAsk": "اسأل",
+  "permissionStateAllowed": "مسموح",
+  "permissionStateSimulated": "محاكاة",
+  "permissionStateBlocked": "محظور",
+  "permissionsSummaryNothingGranted": "لم تُمنح أي أذونات",
+  "permissionsSummaryMore": "و{count} أخرى"
 }

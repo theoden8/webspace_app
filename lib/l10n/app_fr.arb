@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "Activez la protection contre le pistage pour un site et les requêtes qu'il bloque apparaîtront ici.",
   "blockStatsReset": "Réinitialiser les statistiques",
   "blockStatsResetConfirm": "Tous les compteurs reviennent à zéro et le décompte reprend aujourd'hui.",
-  "appSettingsProtectionReportSubtitle": "Ce que les bloqueurs ont arrêté, au fil du temps"
+  "appSettingsProtectionReportSubtitle": "Ce que les bloqueurs ont arrêté, au fil du temps",
+  "permissionsTitle": "Autorisations",
+  "permissionsGroupDeviceAccess": "Accès à l’appareil",
+  "permissionsGroupBackground": "Activité en arrière-plan",
+  "permissionsGroupMedia": "Médias",
+  "permissionsRealDeviceNote": "Seul « Autorisé » ouvre le matériel réel. « Simulé » fournit un fichier que vous avez choisi et ne touche jamais à l’appareil.",
+  "permissionsBackgroundAudioNotAGrant": "Exempté de mise en pause. N’accorde rien.",
+  "permissionMicrophoneNeverReal": "Indisponible. WebSpace n’ouvre jamais de véritable microphone et ne demande jamais d’autorisation d’enregistrement au système.",
+  "permissionStateAsk": "Demander",
+  "permissionStateAllowed": "Autorisé",
+  "permissionStateSimulated": "Simulé",
+  "permissionStateBlocked": "Bloqué",
+  "permissionsSummaryNothingGranted": "Aucune autorisation accordée",
+  "permissionsSummaryMore": "{count} de plus"
 }

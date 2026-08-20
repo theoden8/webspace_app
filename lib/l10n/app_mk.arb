@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "Вклучете заштита од следење за некој сајт и барањата што ги блокира ќе се појават овде.",
   "blockStatsReset": "Ресетирај ја статистиката",
   "blockStatsResetConfirm": "Секој бројач се враќа на нула и броењето почнува одново од денес.",
-  "appSettingsProtectionReportSubtitle": "Што запреле блокаторите со текот на времето"
+  "appSettingsProtectionReportSubtitle": "Што запреле блокаторите со текот на времето",
+  "permissionsTitle": "Дозволи",
+  "permissionsGroupDeviceAccess": "Пристап до уредот",
+  "permissionsGroupBackground": "Активност во заднина",
+  "permissionsGroupMedia": "Медиуми",
+  "permissionsRealDeviceNote": "Само „Дозволено“ отвора вистински хардвер. „Симулирано“ подава датотека што сте ја избрале и никогаш не го допира уредот.",
+  "permissionsBackgroundAudioNotAGrant": "Изземено од паузирање. Не доделува ништо.",
+  "permissionMicrophoneNeverReal": "Недостапно. WebSpace никогаш не отвора вистински микрофон и никогаш не бара од системот дозвола за снимање.",
+  "permissionStateAsk": "Прашај",
+  "permissionStateAllowed": "Дозволено",
+  "permissionStateSimulated": "Симулирано",
+  "permissionStateBlocked": "Блокирано",
+  "permissionsSummaryNothingGranted": "Ништо не е доделено",
+  "permissionsSummaryMore": "Уште {count}"
 }

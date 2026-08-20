@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "ஒரு தளத்திற்கு கண்காணிப்புப் பாதுகாப்பை இயக்கினால், அது தடுக்கும் கோரிக்கைகள் இங்கே காட்டப்படும்.",
   "blockStatsReset": "புள்ளிவிவரங்களை மீட்டமை",
   "blockStatsResetConfirm": "ஒவ்வொரு எண்ணிக்கையும் பூஜ்ஜியத்திற்குத் திரும்பும், எண்ணிக்கை இன்று முதல் மீண்டும் தொடங்கும்.",
-  "appSettingsProtectionReportSubtitle": "காலப்போக்கில் தடுப்பான்கள் நிறுத்தியவை"
+  "appSettingsProtectionReportSubtitle": "காலப்போக்கில் தடுப்பான்கள் நிறுத்தியவை",
+  "permissionsTitle": "அனுமதிகள்",
+  "permissionsGroupDeviceAccess": "சாதன அணுகல்",
+  "permissionsGroupBackground": "பின்னணிச் செயல்பாடு",
+  "permissionsGroupMedia": "ஊடகம்",
+  "permissionsRealDeviceNote": "\"அனுமதிக்கப்பட்டது\" மட்டுமே உண்மையான வன்பொருளைத் திறக்கும். \"உருவகப்படுத்தப்பட்டது\" நீங்கள் தேர்ந்தெடுத்த கோப்பை வழங்கும், சாதனத்தை ஒருபோதும் தொடாது.",
+  "permissionsBackgroundAudioNotAGrant": "இடைநிறுத்தத்திலிருந்து விலக்கு. எதையும் வழங்காது.",
+  "permissionMicrophoneNeverReal": "கிடைக்கவில்லை. WebSpace ஒருபோதும் உண்மையான மைக்ரோஃபோனைத் திறப்பதில்லை, கணினியிடம் பதிவு அனுமதியும் கேட்பதில்லை.",
+  "permissionStateAsk": "கேள்",
+  "permissionStateAllowed": "அனுமதிக்கப்பட்டது",
+  "permissionStateSimulated": "உருவகப்படுத்தப்பட்டது",
+  "permissionStateBlocked": "தடுக்கப்பட்டது",
+  "permissionsSummaryNothingGranted": "எதுவும் வழங்கப்படவில்லை",
+  "permissionsSummaryMore": "மேலும் {count}"
 }

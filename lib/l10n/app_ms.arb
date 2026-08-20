@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "Hidupkan perlindungan penjejakan bagi sesuatu tapak dan permintaan yang disekatnya akan muncul di sini.",
   "blockStatsReset": "Tetapkan semula statistik",
   "blockStatsResetConfirm": "Setiap pembilang kembali kepada sifar dan pengiraan bermula semula hari ini.",
-  "appSettingsProtectionReportSubtitle": "Apa yang dihalang oleh penyekat, dari masa ke masa"
+  "appSettingsProtectionReportSubtitle": "Apa yang dihalang oleh penyekat, dari masa ke masa",
+  "permissionsTitle": "Kebenaran",
+  "permissionsGroupDeviceAccess": "Akses peranti",
+  "permissionsGroupBackground": "Aktiviti latar belakang",
+  "permissionsGroupMedia": "Media",
+  "permissionsRealDeviceNote": "Hanya \"Dibenarkan\" membuka perkakasan sebenar. \"Disimulasi\" menyajikan fail yang anda pilih dan tidak pernah menyentuh peranti.",
+  "permissionsBackgroundAudioNotAGrant": "Dikecualikan daripada dijeda. Tidak memberikan apa-apa.",
+  "permissionMicrophoneNeverReal": "Tidak tersedia. WebSpace tidak pernah membuka mikrofon sebenar dan tidak pernah meminta kebenaran rakaman daripada sistem.",
+  "permissionStateAsk": "Tanya",
+  "permissionStateAllowed": "Dibenarkan",
+  "permissionStateSimulated": "Disimulasi",
+  "permissionStateBlocked": "Disekat",
+  "permissionsSummaryNothingGranted": "Tiada yang diberikan",
+  "permissionsSummaryMore": "{count} lagi"
 }

@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "Միացրեք կայքի հետագծման պաշտպանությունը, և նրա արգելափակած հարցումները կհայտնվեն այստեղ։",
   "blockStatsReset": "Զրոյացնել վիճակագրությունը",
   "blockStatsResetConfirm": "Բոլոր հաշվիչները զրոյանում են, և հաշվարկը սկսվում է այսօրվանից։",
-  "appSettingsProtectionReportSubtitle": "Ինչ են կանգնեցրել արգելափակիչները ժամանակի ընթացքում"
+  "appSettingsProtectionReportSubtitle": "Ինչ են կանգնեցրել արգելափակիչները ժամանակի ընթացքում",
+  "permissionsTitle": "Թույլտվություններ",
+  "permissionsGroupDeviceAccess": "Սարքի հասանելիություն",
+  "permissionsGroupBackground": "Ֆոնային գործունեություն",
+  "permissionsGroupMedia": "Մեդիա",
+  "permissionsRealDeviceNote": "Միայն «Թույլատրված»-ն է բացում իրական սարքավորումը։ «Նմանակված»-ը մատուցում է ձեր ընտրած ֆայլը և երբեք չի դիպչում սարքին։",
+  "permissionsBackgroundAudioNotAGrant": "Ազատված է դադարեցումից։ Ոչինչ չի տրամադրում։",
+  "permissionMicrophoneNeverReal": "Հասանելի չէ։ WebSpace-ը երբեք չի բացում իրական խոսափող և երբեք համակարգից ձայնագրման թույլտվություն չի խնդրում։",
+  "permissionStateAsk": "Հարցնել",
+  "permissionStateAllowed": "Թույլատրված",
+  "permissionStateSimulated": "Նմանակված",
+  "permissionStateBlocked": "Արգելափակված",
+  "permissionsSummaryNothingGranted": "Ոչինչ չի տրամադրվել",
+  "permissionsSummaryMore": "ԵՒս {count}"
 }

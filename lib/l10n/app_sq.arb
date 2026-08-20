@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "Aktivizo mbrojtjen nga gjurmimi për një sajt dhe kërkesat që bllokon do të shfaqen këtu.",
   "blockStatsReset": "Rivendos statistikat",
   "blockStatsResetConfirm": "Çdo numërues kthehet në zero dhe numërimi rinis që sot.",
-  "appSettingsProtectionReportSubtitle": "Çfarë kanë ndalur bllokuesit, me kalimin e kohës"
+  "appSettingsProtectionReportSubtitle": "Çfarë kanë ndalur bllokuesit, me kalimin e kohës",
+  "permissionsTitle": "Lejet",
+  "permissionsGroupDeviceAccess": "Qasja në pajisje",
+  "permissionsGroupBackground": "Aktiviteti në sfond",
+  "permissionsGroupMedia": "Media",
+  "permissionsRealDeviceNote": "Vetëm \"Lejohet\" hap harduer të vërtetë. \"I simuluar\" shërben një skedar që ke zgjedhur dhe nuk e prek kurrë pajisjen.",
+  "permissionsBackgroundAudioNotAGrant": "I përjashtuar nga ndalimi. Nuk jep asgjë.",
+  "permissionMicrophoneNeverReal": "Nuk ofrohet. WebSpace nuk hap kurrë një mikrofon të vërtetë dhe nuk i kërkon kurrë sistemit leje regjistrimi.",
+  "permissionStateAsk": "Pyet",
+  "permissionStateAllowed": "Lejohet",
+  "permissionStateSimulated": "I simuluar",
+  "permissionStateBlocked": "I bllokuar",
+  "permissionsSummaryNothingGranted": "Asgjë nuk është dhënë",
+  "permissionsSummaryMore": "{count} të tjera"
 }

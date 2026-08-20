@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "Увімкніть захист від стеження для сайту, і заблоковані запити з'являться тут.",
   "blockStatsReset": "Скинути статистику",
   "blockStatsResetConfirm": "Кожен лічильник повертається до нуля, а підрахунок починається знову від сьогодні.",
-  "appSettingsProtectionReportSubtitle": "Що блокувальники зупинили з часом"
+  "appSettingsProtectionReportSubtitle": "Що блокувальники зупинили з часом",
+  "permissionsTitle": "Дозволи",
+  "permissionsGroupDeviceAccess": "Доступ до пристрою",
+  "permissionsGroupBackground": "Фонова активність",
+  "permissionsGroupMedia": "Медіа",
+  "permissionsRealDeviceNote": "Лише «Дозволено» відкриває справжнє обладнання. «Симульовано» подає вибраний вами файл і ніколи не торкається пристрою.",
+  "permissionsBackgroundAudioNotAGrant": "Звільнено від призупинення. Нічого не надає.",
+  "permissionMicrophoneNeverReal": "Недоступно. WebSpace ніколи не відкриває справжній мікрофон і ніколи не просить у системи дозвіл на запис.",
+  "permissionStateAsk": "Запитати",
+  "permissionStateAllowed": "Дозволено",
+  "permissionStateSimulated": "Симульовано",
+  "permissionStateBlocked": "Заблоковано",
+  "permissionsSummaryNothingGranted": "Нічого не надано",
+  "permissionsSummaryMore": "Ще {count}"
 }

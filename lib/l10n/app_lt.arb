@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "Įjunkite svetainės apsaugą nuo sekimo ir čia matysite jos blokuojamas užklausas.",
   "blockStatsReset": "Atstatyti statistiką",
   "blockStatsResetConfirm": "Visi skaitikliai grąžinami į nulį, o skaičiavimas pradedamas iš naujo nuo šiandien.",
-  "appSettingsProtectionReportSubtitle": "Ką blokavimo priemonės sustabdė laikui bėgant"
+  "appSettingsProtectionReportSubtitle": "Ką blokavimo priemonės sustabdė laikui bėgant",
+  "permissionsTitle": "Leidimai",
+  "permissionsGroupDeviceAccess": "Prieiga prie įrenginio",
+  "permissionsGroupBackground": "Veikla fone",
+  "permissionsGroupMedia": "Medija",
+  "permissionsRealDeviceNote": "Tikrąją aparatinę įrangą atveria tik „Leidžiama“. „Imituojama“ pateikia jūsų pasirinktą failą ir niekada neliečia įrenginio.",
+  "permissionsBackgroundAudioNotAGrant": "Atleista nuo pristabdymo. Nieko nesuteikia.",
+  "permissionMicrophoneNeverReal": "Nepasiekiama. „WebSpace“ niekada neatveria tikro mikrofono ir niekada neprašo sistemos leidimo įrašyti.",
+  "permissionStateAsk": "Klausti",
+  "permissionStateAllowed": "Leidžiama",
+  "permissionStateSimulated": "Imituojama",
+  "permissionStateBlocked": "Blokuojama",
+  "permissionsSummaryNothingGranted": "Niekas nesuteikta",
+  "permissionsSummaryMore": "Dar {count}"
 }

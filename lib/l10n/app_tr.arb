@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "Bir site için izleme korumasını açın; engellediği istekler burada görünür.",
   "blockStatsReset": "İstatistikleri sıfırla",
   "blockStatsResetConfirm": "Her sayaç sıfıra döner ve sayım bugünden yeniden başlar.",
-  "appSettingsProtectionReportSubtitle": "Engelleyicilerin zaman içinde durdurdukları"
+  "appSettingsProtectionReportSubtitle": "Engelleyicilerin zaman içinde durdurdukları",
+  "permissionsTitle": "İzinler",
+  "permissionsGroupDeviceAccess": "Cihaz erişimi",
+  "permissionsGroupBackground": "Arka plan etkinliği",
+  "permissionsGroupMedia": "Medya",
+  "permissionsRealDeviceNote": "Gerçek donanımı yalnızca \"İzin verildi\" açar. \"Benzetilmiş\" seçtiğiniz dosyayı sunar ve cihaza asla dokunmaz.",
+  "permissionsBackgroundAudioNotAGrant": "Duraklatmadan muaf. Hiçbir izin vermez.",
+  "permissionMicrophoneNeverReal": "Kullanılamıyor. WebSpace asla gerçek bir mikrofon açmaz ve sistemden kayıt izni istemez.",
+  "permissionStateAsk": "Sor",
+  "permissionStateAllowed": "İzin verildi",
+  "permissionStateSimulated": "Benzetilmiş",
+  "permissionStateBlocked": "Engellendi",
+  "permissionsSummaryNothingGranted": "Hiçbir izin verilmedi",
+  "permissionsSummaryMore": "{count} tane daha"
 }

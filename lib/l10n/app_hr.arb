@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "Uključite zaštitu od praćenja za web-mjesto i ovdje će se pojaviti zahtjevi koje blokira.",
   "blockStatsReset": "Poništi statistiku",
   "blockStatsResetConfirm": "Svaki brojač vraća se na nulu, a brojanje počinje ponovno od danas.",
-  "appSettingsProtectionReportSubtitle": "Što su blokatori zaustavili tijekom vremena"
+  "appSettingsProtectionReportSubtitle": "Što su blokatori zaustavili tijekom vremena",
+  "permissionsTitle": "Dopuštenja",
+  "permissionsGroupDeviceAccess": "Pristup uređaju",
+  "permissionsGroupBackground": "Pozadinska aktivnost",
+  "permissionsGroupMedia": "Mediji",
+  "permissionsRealDeviceNote": "Samo \"Dopušteno\" otvara stvarni hardver. \"Simulirano\" poslužuje datoteku koju ste odabrali i nikada ne dodiruje uređaj.",
+  "permissionsBackgroundAudioNotAGrant": "Izuzeto od pauziranja. Ne dodjeljuje ništa.",
+  "permissionMicrophoneNeverReal": "Nije dostupno. WebSpace nikada ne otvara stvarni mikrofon niti od sustava traži dopuštenje za snimanje.",
+  "permissionStateAsk": "Pitaj",
+  "permissionStateAllowed": "Dopušteno",
+  "permissionStateSimulated": "Simulirano",
+  "permissionStateBlocked": "Blokirano",
+  "permissionsSummaryNothingGranted": "Ništa nije dopušteno",
+  "permissionsSummaryMore": "Još {count}"
 }

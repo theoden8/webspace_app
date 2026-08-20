@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "Cuir cosaint ar rianú ar siúl do shuíomh agus taispeánfar anseo na hiarratais a chuireann sé bac orthu.",
   "blockStatsReset": "Athshocraigh na staitisticí",
   "blockStatsResetConfirm": "Fillfidh gach áiritheoir ar nialas agus tosóidh an comhaireamh as an nua inniu.",
-  "appSettingsProtectionReportSubtitle": "Ar stop na bacóirí, thar am"
+  "appSettingsProtectionReportSubtitle": "Ar stop na bacóirí, thar am",
+  "permissionsTitle": "Ceadanna",
+  "permissionsGroupDeviceAccess": "Rochtain ar an ngléas",
+  "permissionsGroupBackground": "Gníomhaíocht chúlra",
+  "permissionsGroupMedia": "Meáin",
+  "permissionsRealDeviceNote": "Ní osclaíonn ach \"Ceadaithe\" crua-earraí fíora. Seachadann \"Insamhalta\" comhad a roghnaigh tú agus ní bhaineann sé leis an ngléas riamh.",
+  "permissionsBackgroundAudioNotAGrant": "Díolmhaithe ó chur ar sos. Ní thugann sé cead ar bith.",
+  "permissionMicrophoneNeverReal": "Níl sé ar fáil. Ní osclaíonn WebSpace micreafón fíor riamh agus ní iarrann sé cead taifeadta ar an gcóras riamh.",
+  "permissionStateAsk": "Fiafraigh",
+  "permissionStateAllowed": "Ceadaithe",
+  "permissionStateSimulated": "Insamhalta",
+  "permissionStateBlocked": "Bactha",
+  "permissionsSummaryNothingGranted": "Níor tugadh cead ar bith",
+  "permissionsSummaryMore": "{count} eile"
 }

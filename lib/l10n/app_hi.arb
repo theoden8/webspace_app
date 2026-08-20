@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "किसी साइट के लिए ट्रैकिंग सुरक्षा चालू करें, फिर वह जिन अनुरोधों को रोकेगी वे यहाँ दिखेंगे।",
   "blockStatsReset": "आँकड़े रीसेट करें",
   "blockStatsResetConfirm": "हर काउंटर शून्य पर लौट आता है और गिनती आज से फिर शुरू होती है।",
-  "appSettingsProtectionReportSubtitle": "समय के साथ अवरोधकों ने क्या रोका"
+  "appSettingsProtectionReportSubtitle": "समय के साथ अवरोधकों ने क्या रोका",
+  "permissionsTitle": "अनुमतियाँ",
+  "permissionsGroupDeviceAccess": "डिवाइस पहुँच",
+  "permissionsGroupBackground": "पृष्ठभूमि गतिविधि",
+  "permissionsGroupMedia": "मीडिया",
+  "permissionsRealDeviceNote": "केवल \"अनुमत\" ही वास्तविक हार्डवेयर खोलता है। \"अनुरूपित\" आपके चुने हुए फ़ाइल को परोसता है और डिवाइस को कभी नहीं छूता।",
+  "permissionsBackgroundAudioNotAGrant": "रोके जाने से मुक्त। कुछ भी प्रदान नहीं करता।",
+  "permissionMicrophoneNeverReal": "उपलब्ध नहीं। WebSpace कभी भी वास्तविक माइक्रोफ़ोन नहीं खोलता और सिस्टम से रिकॉर्डिंग अनुमति नहीं माँगता।",
+  "permissionStateAsk": "पूछें",
+  "permissionStateAllowed": "अनुमत",
+  "permissionStateSimulated": "अनुरूपित",
+  "permissionStateBlocked": "अवरुद्ध",
+  "permissionsSummaryNothingGranted": "कुछ भी प्रदान नहीं किया गया",
+  "permissionsSummaryMore": "{count} और"
 }

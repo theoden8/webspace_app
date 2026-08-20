@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "Activa la protecció contra el rastreig d'un lloc i les sol·licituds que bloquegi apareixeran aquí.",
   "blockStatsReset": "Restableix les estadístiques",
   "blockStatsResetConfirm": "Tots els comptadors tornen a zero i el recompte es reinicia avui.",
-  "appSettingsProtectionReportSubtitle": "Què han aturat els bloquejadors al llarg del temps"
+  "appSettingsProtectionReportSubtitle": "Què han aturat els bloquejadors al llarg del temps",
+  "permissionsTitle": "Permisos",
+  "permissionsGroupDeviceAccess": "Accés al dispositiu",
+  "permissionsGroupBackground": "Activitat en segon pla",
+  "permissionsGroupMedia": "Multimèdia",
+  "permissionsRealDeviceNote": "Només \"Permès\" obre maquinari real. \"Simulat\" serveix un fitxer que has triat i no toca mai el dispositiu.",
+  "permissionsBackgroundAudioNotAGrant": "Exempt de pausar-se. No concedeix res.",
+  "permissionMicrophoneNeverReal": "No disponible. WebSpace no obre mai un micròfon real ni demana al sistema cap permís de gravació.",
+  "permissionStateAsk": "Pregunta",
+  "permissionStateAllowed": "Permès",
+  "permissionStateSimulated": "Simulat",
+  "permissionStateBlocked": "Bloquejat",
+  "permissionsSummaryNothingGranted": "Cap permís concedit",
+  "permissionsSummaryMore": "{count} més"
 }

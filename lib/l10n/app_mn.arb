@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "Сайтын хянахаас хамгаалахыг асаавал түүний хаасан хүсэлтүүд энд харагдана.",
   "blockStatsReset": "Статистикийг шинэчлэх",
   "blockStatsResetConfirm": "Тоолуур бүр тэг рүү буцаж, тооллого өнөөдрөөс дахин эхэлнэ.",
-  "appSettingsProtectionReportSubtitle": "Хаагчид цаг хугацааны туршид юуг зогсоосон нь"
+  "appSettingsProtectionReportSubtitle": "Хаагчид цаг хугацааны туршид юуг зогсоосон нь",
+  "permissionsTitle": "Зөвшөөрлүүд",
+  "permissionsGroupDeviceAccess": "Төхөөрөмжийн хандалт",
+  "permissionsGroupBackground": "Арын идэвх",
+  "permissionsGroupMedia": "Медиа",
+  "permissionsRealDeviceNote": "Зөвхөн \"Зөвшөөрсөн\" л жинхэнэ техник хангамжийг нээнэ. \"Дуурайлгасан\" нь таны сонгосон файлыг өгөх бөгөөд төхөөрөмжид хэзээ ч хүрэхгүй.",
+  "permissionsBackgroundAudioNotAGrant": "Түр зогсоохоос чөлөөлөгдсөн. Юу ч олгодоггүй.",
+  "permissionMicrophoneNeverReal": "Боломжгүй. WebSpace хэзээ ч жинхэнэ микрофон нээдэггүй бөгөөд системээс бичлэгийн зөвшөөрөл хүсдэггүй.",
+  "permissionStateAsk": "Асуух",
+  "permissionStateAllowed": "Зөвшөөрсөн",
+  "permissionStateSimulated": "Дуурайлгасан",
+  "permissionStateBlocked": "Хориглосон",
+  "permissionsSummaryNothingGranted": "Юу ч олгоогүй",
+  "permissionsSummaryMore": "Бас {count}"
 }

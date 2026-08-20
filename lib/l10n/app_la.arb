@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "Tutelam contra vestigationem pro sede accende, et petitiones quas impedit hic apparebunt.",
   "blockStatsReset": "Statisticam restituere",
   "blockStatsResetConfirm": "Omnis numerator ad nihilum redit et numeratio hodie iterum incipit.",
-  "appSettingsProtectionReportSubtitle": "Quid impeditores per tempus prohibuerint"
+  "appSettingsProtectionReportSubtitle": "Quid impeditores per tempus prohibuerint",
+  "permissionsTitle": "Permissiones",
+  "permissionsGroupDeviceAccess": "Aditus ad instrumentum",
+  "permissionsGroupBackground": "Actio in fundo",
+  "permissionsGroupMedia": "Instrumenta communicationis",
+  "permissionsRealDeviceNote": "Sola \"Permissum\" ferramenta vera aperit. \"Simulatum\" fasciculum a te electum praebet nec umquam instrumentum tangit.",
+  "permissionsBackgroundAudioNotAGrant": "Ab intermissione immunis. Nihil concedit.",
+  "permissionMicrophoneNeverReal": "Non praesto. WebSpace numquam microphonum verum aperit nec umquam a systemate licentiam recordandi petit.",
+  "permissionStateAsk": "Roga",
+  "permissionStateAllowed": "Permissum",
+  "permissionStateSimulated": "Simulatum",
+  "permissionStateBlocked": "Impeditum",
+  "permissionsSummaryNothingGranted": "Nihil concessum",
+  "permissionsSummaryMore": "Alia {count}"
 }

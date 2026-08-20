@@ -721,5 +721,18 @@
   "blockStatsEmptyHint": "Washa ulinzi dhidi ya ufuatiliaji kwa tovuti fulani, kisha maombi inayozuia yataonekana hapa.",
   "blockStatsReset": "Weka upya takwimu",
   "blockStatsResetConfirm": "Kila kihesabu kinarudi sifuri na kuhesabu kunaanza upya leo.",
-  "appSettingsProtectionReportSubtitle": "Kile vizuizi vimezuia, kadri muda unavyopita"
+  "appSettingsProtectionReportSubtitle": "Kile vizuizi vimezuia, kadri muda unavyopita",
+  "permissionsTitle": "Ruhusa",
+  "permissionsGroupDeviceAccess": "Ufikiaji wa kifaa",
+  "permissionsGroupBackground": "Shughuli ya chinichini",
+  "permissionsGroupMedia": "Midia",
+  "permissionsRealDeviceNote": "\"Imeruhusiwa\" pekee ndiyo hufungua maunzi halisi. \"Imeigwa\" hutoa faili uliyochagua na haigusi kifaa kamwe.",
+  "permissionsBackgroundAudioNotAGrant": "Imeondolewa kusimamishwa. Hairuhusu chochote.",
+  "permissionMicrophoneNeverReal": "Haipatikani. WebSpace haifungui kamwe maikrofoni halisi wala haiombi mfumo ruhusa ya kurekodi.",
+  "permissionStateAsk": "Uliza",
+  "permissionStateAllowed": "Imeruhusiwa",
+  "permissionStateSimulated": "Imeigwa",
+  "permissionStateBlocked": "Imezuiwa",
+  "permissionsSummaryNothingGranted": "Hakuna kilichoruhusiwa",
+  "permissionsSummaryMore": "Nyingine {count}"
 }
