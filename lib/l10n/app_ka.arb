@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "გამორთული",
   "siteSettingsLocationStatic": "სტატიკური",
   "siteSettingsLocationLive": "ცოცხალი",
-  "siteSettingsLocationOffDetail": "გვერდები იღებენ თქვენს ნამდვილ მდებარეობას (ან ბლოკავს OS).",
+  "siteSettingsLocationOffDetail": "ამ საიტს უარი ეთქვა თქვენს მდებარეობაზე წვდომაზე.",
   "siteSettingsLocationLiveDetail": "ცოცხალი მოწყობილობის მდებარეობის გადაცემა გვერდებზე.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

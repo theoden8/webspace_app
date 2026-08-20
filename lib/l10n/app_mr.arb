@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "बंद",
   "siteSettingsLocationStatic": "स्थिर",
   "siteSettingsLocationLive": "थेट",
-  "siteSettingsLocationOffDetail": "पृष्ठांना तुमचे खरे स्थान मिळते (किंवा OS द्वारे अवरोधित).",
+  "siteSettingsLocationOffDetail": "या साइटला तुमच्या स्थानाचा प्रवेश नाकारला आहे.",
   "siteSettingsLocationLiveDetail": "पृष्ठांना थेट डिव्हाइस स्थान फॉरवर्ड करत आहे.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

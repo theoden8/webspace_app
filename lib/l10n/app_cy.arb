@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "I ffwrdd",
   "siteSettingsLocationStatic": "Statig",
   "siteSettingsLocationLive": "Byw",
-  "siteSettingsLocationOffDetail": "Mae tudalennau'n cael eich gwir leoliad (neu'n cael eu rhwystro gan yr OS).",
+  "siteSettingsLocationOffDetail": "Gwrthodwyd mynediad i’ch lleoliad i’r wefan hon.",
   "siteSettingsLocationLiveDetail": "Yn anfon lleoliad byw'r ddyfais i dudalennau.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

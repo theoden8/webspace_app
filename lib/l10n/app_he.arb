@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "כבוי",
   "siteSettingsLocationStatic": "סטטי",
   "siteSettingsLocationLive": "בזמן אמת",
-  "siteSettingsLocationOffDetail": "עמודים מקבלים את מיקומך האמיתי (או נחסמים על ידי מערכת ההפעלה).",
+  "siteSettingsLocationOffDetail": "הגישה למיקום שלך נחסמה עבור אתר זה.",
   "siteSettingsLocationLiveDetail": "מעביר את מיקום המכשיר בזמן אמת לעמודים.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

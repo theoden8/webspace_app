@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "Izslēgts",
   "siteSettingsLocationStatic": "Statisks",
   "siteSettingsLocationLive": "Reāllaika",
-  "siteSettingsLocationOffDetail": "Lapas saņem jūsu īsto atrašanās vietu (vai OS tās bloķē).",
+  "siteSettingsLocationOffDetail": "Šai vietnei ir liegta piekļuve jūsu atrašanās vietai.",
   "siteSettingsLocationLiveDetail": "Pārsūta reāllaika ierīces atrašanās vietu lapām.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

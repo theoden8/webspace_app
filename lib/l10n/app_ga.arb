@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "As",
   "siteSettingsLocationStatic": "Statach",
   "siteSettingsLocationLive": "Beo",
-  "siteSettingsLocationOffDetail": "Faigheann leathanaigh do shuíomh fíor (nó bacann an córas iad).",
+  "siteSettingsLocationOffDetail": "Diúltaítear rochtain ar do shuíomh don láithreán seo.",
   "siteSettingsLocationLiveDetail": "Suíomh beo an ghléis á chur ar aghaidh chuig leathanaigh.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

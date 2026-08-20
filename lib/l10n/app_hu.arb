@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "Ki",
   "siteSettingsLocationStatic": "Statikus",
   "siteSettingsLocationLive": "Élő",
-  "siteSettingsLocationOffDetail": "Az oldalak a valós helyét kapják (vagy az operációs rendszer blokkolja).",
+  "siteSettingsLocationOffDetail": "Ez a webhely nem férhet hozzá a tartózkodási helyéhez.",
   "siteSettingsLocationLiveDetail": "Élő eszközhely továbbítása az oldalaknak.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

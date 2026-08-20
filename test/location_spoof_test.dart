@@ -4,7 +4,13 @@ import 'package:webspace/settings/location.dart';
 
 void main() {
   group('LocationSpoofService', () {
-    test('returns null when everything is default', () {
+    test('off mode blocks instead of passing through to the platform', () {
+      // LOC-OFF-001. `off` used to emit no shim at all, which left the
+      // platform's own navigator.geolocation in place: on iOS/macOS/Linux a
+      // page could still obtain the real fix through the webview's own
+      // permission prompt, so the least-permissive-looking option was the
+      // only pass-through one. It now refuses every request on every
+      // platform.
       final script = LocationSpoofService.buildScript(
         locationMode: LocationMode.off,
         spoofLatitude: null,
@@ -13,10 +19,16 @@ void main() {
         spoofTimezone: null,
         webRtcPolicy: WebRtcPolicy.defaultPolicy,
       );
-      expect(script, isNull);
+      expect(script, contains('var BLOCK_LOC = true'));
+      expect(script, contains('var STATIC_LOC = false'));
+      expect(script, contains('var LIVE_LOC = false'));
+      expect(script, contains('function deniedError()'));
     });
 
-    test('returns null when spoof mode is on but coordinates are missing', () {
+    test('spoof mode without coordinates fails closed', () {
+      // LOC-OFF-002. Reachable from a hand-edited or partially-restored
+      // backup. Emitting no shim would hand the page the real device fix,
+      // which is the opposite of what the site is configured for.
       final script = LocationSpoofService.buildScript(
         locationMode: LocationMode.spoof,
         spoofLatitude: null,
@@ -25,7 +37,26 @@ void main() {
         spoofTimezone: null,
         webRtcPolicy: WebRtcPolicy.defaultPolicy,
       );
-      expect(script, isNull);
+      expect(script, contains('var BLOCK_LOC = true'));
+      expect(script, contains('var STATIC_LOC = false'));
+    });
+
+    test('an explicit grant never sets BLOCK_LOC', () {
+      for (final grant in [
+        (LocationMode.live, null, null),
+        (LocationMode.spoof, 35.6762, 139.6503),
+      ]) {
+        final script = LocationSpoofService.buildScript(
+          locationMode: grant.$1,
+          spoofLatitude: grant.$2,
+          spoofLongitude: grant.$3,
+          spoofAccuracy: 50.0,
+          spoofTimezone: null,
+          webRtcPolicy: WebRtcPolicy.defaultPolicy,
+        );
+        expect(script, contains('var BLOCK_LOC = false'),
+            reason: '${grant.$1} is a grant and must not block');
+      }
     });
 
     test('live mode emits a shim that flips LIVE_LOC and not STATIC_LOC', () {

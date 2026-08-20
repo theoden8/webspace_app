@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "Väljas",
   "siteSettingsLocationStatic": "Staatiline",
   "siteSettingsLocationLive": "Reaalajas",
-  "siteSettingsLocationOffDetail": "Lehed saavad sinu tegeliku asukoha (või OS blokeerib need).",
+  "siteSettingsLocationOffDetail": "Sellele saidile on juurdepääs teie asukohale keelatud.",
   "siteSettingsLocationLiveDetail": "Edastatakse lehtedele seadme reaalajas asukohta.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

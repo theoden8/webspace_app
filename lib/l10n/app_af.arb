@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "Af",
   "siteSettingsLocationStatic": "Staties",
   "siteSettingsLocationLive": "Lewendig",
-  "siteSettingsLocationOffDetail": "Bladsye kry jou werklike ligging (of word deur die OS geblokkeer).",
+  "siteSettingsLocationOffDetail": "Hierdie werf word toegang tot jou ligging geweier.",
   "siteSettingsLocationLiveDetail": "Stuur lewendige toestelligging na bladsye aan.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

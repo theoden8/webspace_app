@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "ഓഫ്",
   "siteSettingsLocationStatic": "സ്റ്റാറ്റിക്",
   "siteSettingsLocationLive": "തത്സമയം",
-  "siteSettingsLocationOffDetail": "പേജുകൾക്ക് നിങ്ങളുടെ യഥാർത്ഥ സ്ഥാനം ലഭിക്കും (അല്ലെങ്കിൽ OS തടയും).",
+  "siteSettingsLocationOffDetail": "ഈ സൈറ്റിന് നിങ്ങളുടെ ലൊക്കേഷൻ ആക്‌സസ് ചെയ്യാൻ അനുമതിയില്ല.",
   "siteSettingsLocationLiveDetail": "തത്സമയ ഉപകരണ സ്ഥാനം പേജുകളിലേക്ക് കൈമാറുന്നു.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

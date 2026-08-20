@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "Off",
   "siteSettingsLocationStatic": "Statica",
   "siteSettingsLocationLive": "Live",
-  "siteSettingsLocationOffDetail": "Le pagine ottengono la tua posizione reale (o vengono bloccate dal sistema operativo).",
+  "siteSettingsLocationOffDetail": "A questo sito è negato l’accesso alla tua posizione.",
   "siteSettingsLocationLiveDetail": "Inoltro della posizione live del dispositivo alle pagine.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

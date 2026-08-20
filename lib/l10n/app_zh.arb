@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "關閉",
   "siteSettingsLocationStatic": "靜態",
   "siteSettingsLocationLive": "即時",
-  "siteSettingsLocationOffDetail": "頁面會取得您的真實位置（或被作業系統封鎖）。",
+  "siteSettingsLocationOffDetail": "已拒绝此网站访问您的位置信息。",
   "siteSettingsLocationLiveDetail": "正在將即時裝置位置轉送給頁面。",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

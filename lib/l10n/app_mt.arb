@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "Mitfi",
   "siteSettingsLocationStatic": "Statiku",
   "siteSettingsLocationLive": "Ħaj",
-  "siteSettingsLocationOffDetail": "Il-paġni jġibu l-post veru tiegħek (jew jiġu mblukkati mis-sistema operattiva).",
+  "siteSettingsLocationOffDetail": "Dan is-sit huwa miċħud l-aċċess għall-post tiegħek.",
   "siteSettingsLocationLiveDetail": "Qed jintbagħat il-post ħaj tat-tagħmir lill-paġni.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

@@ -440,7 +440,7 @@
   "siteSettingsLocationOff": "បិទ",
   "siteSettingsLocationStatic": "Static",
   "siteSettingsLocationLive": "Live",
-  "siteSettingsLocationOffDetail": "ទំព័រទទួលទីតាំងពិតរបស់អ្នក (ឬត្រូវបានទប់ស្កាត់ដោយ OS)។",
+  "siteSettingsLocationOffDetail": "គេហទំព័រនេះត្រូវបានបដិសេធការចូលប្រើទីតាំងរបស់អ្នក។",
   "siteSettingsLocationLiveDetail": "ផ្ញើទំព័រទីតាំង live ។",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

@@ -35,7 +35,7 @@ void main() {
         spoofAccuracy: 50.0,
         spoofTimezone: 'UTC',
         webRtcPolicy: WebRtcPolicy.disabled,
-      )!,
+      ),
     };
 
     for (final entry in workerScopeShims.entries) {

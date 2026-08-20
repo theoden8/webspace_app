@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "Pois",
   "siteSettingsLocationStatic": "Staattinen",
   "siteSettingsLocationLive": "Reaaliaikainen",
-  "siteSettingsLocationOffDetail": "Sivut saavat todellisen sijaintisi (tai käyttöjärjestelmä estää ne).",
+  "siteSettingsLocationOffDetail": "Tältä sivustolta on estetty pääsy sijaintiisi.",
   "siteSettingsLocationLiveDetail": "Välitetään reaaliaikaista laitteen sijaintia sivuille.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

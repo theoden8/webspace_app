@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "خاموش",
   "siteSettingsLocationStatic": "ثابت",
   "siteSettingsLocationLive": "زنده",
-  "siteSettingsLocationOffDetail": "صفحات مکان واقعی شما را دریافت می‌کنند (یا توسط سیستم‌عامل مسدود می‌شوند).",
+  "siteSettingsLocationOffDetail": "دسترسی این سایت به موقعیت مکانی شما رد شده است.",
   "siteSettingsLocationLiveDetail": "ارسال مکان زندهٔ دستگاه به صفحات.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

@@ -2153,9 +2153,9 @@
   "@siteSettingsLocationLive": {
     "description": "Geolocation mode segment: live device GPS."
   },
-  "siteSettingsLocationOffDetail": "Pages get your real location (or are blocked by the OS).",
+  "siteSettingsLocationOffDetail": "This site is refused access to your location.",
   "@siteSettingsLocationOffDetail": {
-    "description": "Detail text shown when geolocation override is off."
+    "description": "Detail text shown when the site is refused geolocation entirely."
   },
   "siteSettingsLocationLiveDetail": "Forwarding live device location to pages.",
   "@siteSettingsLocationLiveDetail": {

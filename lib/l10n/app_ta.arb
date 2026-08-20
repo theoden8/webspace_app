@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "முடக்கம்",
   "siteSettingsLocationStatic": "நிலையான",
   "siteSettingsLocationLive": "நேரலை",
-  "siteSettingsLocationOffDetail": "பக்கங்கள் உங்கள் உண்மையான இடத்தைப் பெறுகின்றன (அல்லது OS ஆல் தடுக்கப்படுகின்றன).",
+  "siteSettingsLocationOffDetail": "இந்தத் தளத்திற்கு உங்கள் இருப்பிடத்தை அணுக அனுமதி மறுக்கப்பட்டது.",
   "siteSettingsLocationLiveDetail": "நேரலை சாதன இடத்தைப் பக்கங்களுக்கு அனுப்புகிறது.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

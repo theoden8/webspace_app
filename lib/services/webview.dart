@@ -2104,20 +2104,18 @@ class WebViewFactory {
       liveLocationGranularity: config.liveLocationGranularity,
       webRtcPolicy: config.webRtcPolicy,
     );
-    if (locationShim != null) {
-      userScripts.add(inapp.UserScript(
-        groupName: 'location_spoof',
-        source: '$locationShim\n;null;',
-        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-        // Inject into every frame (iOS WKUserScript defaults to main-frame
-        // only). Without this a site could embed browserleaks.com in an
-        // iframe and bypass the spoof.
-        forMainFrameOnly: false,
-      ));
-      // Carries the timezone override, which workers re-read. The geolocation
-      // and WebRTC halves self-disable outside window scope.
-      workerScopeShims.add(locationShim);
-    }
+    userScripts.add(inapp.UserScript(
+      groupName: 'location_spoof',
+      source: '$locationShim\n;null;',
+      injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+      // Inject into every frame (iOS WKUserScript defaults to main-frame
+      // only). Without this a site could embed browserleaks.com in an
+      // iframe and bypass the spoof.
+      forMainFrameOnly: false,
+    ));
+    // Carries the timezone override, which workers re-read. The geolocation
+    // and WebRTC halves self-disable outside window scope.
+    workerScopeShims.add(locationShim);
 
     // Inject content blocker CSS at DOCUMENT_START so elements are hidden
     // before they ever render, eliminating the flash of unstyled content.

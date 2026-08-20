@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "Исклучено",
   "siteSettingsLocationStatic": "Статична",
   "siteSettingsLocationLive": "Во живо",
-  "siteSettingsLocationOffDetail": "Страниците ја добиваат вашата вистинска локација (или се блокирани од оперативниот систем).",
+  "siteSettingsLocationOffDetail": "На оваа страница ѝ е одбиен пристапот до вашата локација.",
   "siteSettingsLocationLiveDetail": "Се проследува локацијата на уредот во живо до страниците.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

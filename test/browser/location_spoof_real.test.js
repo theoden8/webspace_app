@@ -19,6 +19,10 @@
 //     within sub-meter jitter of the configured lat/lng.
 //   - navigator.permissions.query({name:'geolocation'}) reports
 //     granted (real Chromium would otherwise prompt).
+//   - In blocked mode (`locationMode = off`), the page is refused even
+//     when Chromium itself has been handed the permission and a fix —
+//     the assertion jsdom cannot make, since it has no geolocation
+//     stack of its own to out-vote.
 //   - new RTCPeerConnection() throws when WRTC=off.
 //   - When WRTC=relay, the wrapper forces config.iceTransportPolicy
 //     to 'relay' and filters non-relay a=candidate: lines from any
@@ -35,6 +39,7 @@ const STATIC_TOKYO = readFixture('location_spoof/static_tokyo.js');
 const TZ_ONLY_TOKYO = readFixture('location_spoof/timezone_only_tokyo.js');
 const WRTC_DISABLED = readFixture('location_spoof/webrtc_disabled.js');
 const WRTC_RELAY = readFixture('location_spoof/webrtc_relay.js');
+const BLOCKED = readFixture('location_spoof/blocked.js');
 
 const browser = setupBrowser();
 
@@ -441,3 +446,103 @@ test('FIX: WITH WRTC=off shim, RTCPeerConnection construction throws',
         'WRTC=off must prevent any RTCPeerConnection from being constructed');
     });
   });
+
+// --- Blocked mode (LOC-OFF-001) --------------------------------------------
+//
+// These grant Chromium the geolocation permission and set a real fix first,
+// so the engine underneath the shim is fully willing to answer. Anything the
+// page receives other than a refusal means the shim was bypassed.
+
+async function withGrantedGeolocation(t, shim, fn) {
+  if (!requireBrowser(browser, t)) return;
+  const context = browser.browser.defaultBrowserContext();
+  // Geolocation needs a secure context; 127.0.0.1 counts as one over plain
+  // HTTP, so no certificate is involved.
+  const http = require('node:http');
+  const server = http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    res.end('<!doctype html><title>geo</title>');
+  });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  const page = await context.newPage();
+  try {
+    await context.overridePermissions(origin, ['geolocation']);
+    await page.setGeolocation({ latitude: 48.8566, longitude: 2.3522, accuracy: 5 });
+    await page.evaluateOnNewDocument(shim);
+    await page.goto(`${origin}/`, { waitUntil: 'load' });
+    await fn(page);
+  } finally {
+    await page.close();
+    await context.clearPermissionOverrides();
+    await new Promise((r) => server.close(r));
+  }
+}
+
+test('BLOCKED: getCurrentPosition is refused even when Chromium granted the permission', async (t) => {
+  await withGrantedGeolocation(t, BLOCKED, async (page) => {
+    const seen = await page.evaluate(() => new Promise((resolve) => {
+      const timer = setTimeout(() => resolve({ outcome: 'no callback' }), 4000);
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          clearTimeout(timer);
+          resolve({
+            outcome: 'success',
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
+        },
+        (error) => {
+          clearTimeout(timer);
+          resolve({ outcome: 'error', code: error.code, message: error.message });
+        },
+      );
+    }));
+    assert.equal(seen.outcome, 'error',
+      `page observed ${JSON.stringify(seen)} — the real fix leaked past the shim`);
+    assert.equal(seen.code, 1);
+  });
+});
+
+test('BLOCKED: watchPosition never delivers a real fix', async (t) => {
+  await withGrantedGeolocation(t, BLOCKED, async (page) => {
+    const seen = await page.evaluate(() => new Promise((resolve) => {
+      const events = [];
+      const id = navigator.geolocation.watchPosition(
+        (position) => events.push({ kind: 'success', lat: position.coords.latitude }),
+        (error) => events.push({ kind: 'error', code: error.code }),
+      );
+      // Longer than the shim's simulated latency and its 5s live-poll period,
+      // so a leaking implementation has time to emit.
+      setTimeout(() => {
+        navigator.geolocation.clearWatch(id);
+        resolve(events);
+      }, 6000);
+    }));
+    assert.deepEqual(seen, [{ kind: 'error', code: 1 }]);
+  });
+});
+
+test("BLOCKED: permissions.query reports denied against Chromium's own granted state", async (t) => {
+  await withGrantedGeolocation(t, BLOCKED, async (page) => {
+    // Without the shim this returns 'granted' (overridePermissions set it),
+    // so this asserts the override wins over the engine's real answer.
+    const state = await page.evaluate(
+      () => navigator.permissions.query({ name: 'geolocation' }).then((s) => s.state));
+    assert.equal(state, 'denied');
+  });
+});
+
+test('BLOCKED: the real Geolocation.prototype methods are the patched ones', async (t) => {
+  await withGrantedGeolocation(t, BLOCKED, async (page) => {
+    const probe = await page.evaluate(() => ({
+      sameRef: Geolocation.prototype.getCurrentPosition
+        === navigator.geolocation.getCurrentPosition,
+      source: Geolocation.prototype.getCurrentPosition.toString(),
+      stillPresent: typeof navigator.geolocation.watchPosition === 'function',
+    }));
+    assert.equal(probe.sameRef, true);
+    assert.equal(probe.source, 'function getCurrentPosition() { [native code] }');
+    assert.equal(probe.stillPresent, true);
+  });
+});

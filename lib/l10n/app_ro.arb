@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "Dezactivat",
   "siteSettingsLocationStatic": "Statică",
   "siteSettingsLocationLive": "Live",
-  "siteSettingsLocationOffDetail": "Paginile primesc locația ta reală (sau sunt blocate de sistemul de operare).",
+  "siteSettingsLocationOffDetail": "Acestui site i se refuză accesul la locația dumneavoastră.",
   "siteSettingsLocationLiveDetail": "Se transmite locația live a dispozitivului către pagini.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

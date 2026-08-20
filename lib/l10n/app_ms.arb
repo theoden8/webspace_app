@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "Mati",
   "siteSettingsLocationStatic": "Statik",
   "siteSettingsLocationLive": "Langsung",
-  "siteSettingsLocationOffDetail": "Halaman mendapat lokasi sebenar anda (atau disekat oleh OS).",
+  "siteSettingsLocationOffDetail": "Tapak ini dinafikan akses kepada lokasi anda.",
   "siteSettingsLocationLiveDetail": "Memajukan lokasi peranti langsung ke halaman.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

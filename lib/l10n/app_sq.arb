@@ -440,7 +440,7 @@
   "siteSettingsLocationOff": "Joaktiv",
   "siteSettingsLocationStatic": "Statik",
   "siteSettingsLocationLive": "I drejtpërdrejtë",
-  "siteSettingsLocationOffDetail": "Faqet marrin vendndodhjen tuaj reale (ose bllokohen nga OS-i).",
+  "siteSettingsLocationOffDetail": "Këtij sajti i mohohet qasja te vendndodhja juaj.",
   "siteSettingsLocationLiveDetail": "Po përcillet vendndodhja e drejtpërdrejtë e pajisjes te faqet.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

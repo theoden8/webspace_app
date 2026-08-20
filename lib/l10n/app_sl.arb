@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "Izklopljeno",
   "siteSettingsLocationStatic": "Statična",
   "siteSettingsLocationLive": "V živo",
-  "siteSettingsLocationOffDetail": "Strani dobijo vašo pravo lokacijo (ali jih blokira OS).",
+  "siteSettingsLocationOffDetail": "Tej strani je zavrnjen dostop do vaše lokacije.",
   "siteSettingsLocationLiveDetail": "Posredovanje lokacije naprave v živo stranem.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

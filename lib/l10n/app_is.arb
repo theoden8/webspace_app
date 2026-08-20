@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "Af",
   "siteSettingsLocationStatic": "Föst",
   "siteSettingsLocationLive": "Lifandi",
-  "siteSettingsLocationOffDetail": "Síður fá raunverulega staðsetningu þína (eða eru útilokaðar af stýrikerfinu).",
+  "siteSettingsLocationOffDetail": "Þessu vefsvæði er neitað um aðgang að staðsetningu þinni.",
   "siteSettingsLocationLiveDetail": "Áframsendi lifandi tækisstaðsetningu til síðna.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

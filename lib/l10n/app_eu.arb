@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "Itzalita",
   "siteSettingsLocationStatic": "Estatikoa",
   "siteSettingsLocationLive": "Zuzenekoa",
-  "siteSettingsLocationOffDetail": "Orriek zure benetako kokapena lortzen dute (edo sistemak blokeatzen ditu).",
+  "siteSettingsLocationOffDetail": "Gune honi zure kokapenerako sarbidea ukatu zaio.",
   "siteSettingsLocationLiveDetail": "Gailuaren zuzeneko kokapena orriei birbidaltzen.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

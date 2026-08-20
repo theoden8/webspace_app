@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "끄기",
   "siteSettingsLocationStatic": "고정",
   "siteSettingsLocationLive": "실시간",
-  "siteSettingsLocationOffDetail": "페이지가 실제 위치를 가져오거나 OS에 의해 차단됩니다.",
+  "siteSettingsLocationOffDetail": "이 사이트의 위치 정보 접근이 거부됩니다.",
   "siteSettingsLocationLiveDetail": "실시간 기기 위치를 페이지에 전달 중입니다.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "Išjungta",
   "siteSettingsLocationStatic": "Statinė",
   "siteSettingsLocationLive": "Tiesioginė",
-  "siteSettingsLocationOffDetail": "Puslapiai gauna jūsų tikrąją vietą (arba ją blokuoja OS).",
+  "siteSettingsLocationOffDetail": "Šiai svetainei neleidžiama pasiekti jūsų vietos.",
   "siteSettingsLocationLiveDetail": "Tiesioginė įrenginio vieta perduodama puslapiams.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

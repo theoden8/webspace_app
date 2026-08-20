@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "Անջատ",
   "siteSettingsLocationStatic": "Ստատիկ",
   "siteSettingsLocationLive": "Կենդանի",
-  "siteSettingsLocationOffDetail": "Էջերը ստանում են ձեր իրական դիրքը (կամ արգելափակվում են ՕՀ-ի կողմից)։",
+  "siteSettingsLocationOffDetail": "Այս կայքին մերժվել է ձեր տեղադրության հասանելիությունը։",
   "siteSettingsLocationLiveDetail": "Կենդանի սարքի դիրքը փոխանցվում է էջերին։",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

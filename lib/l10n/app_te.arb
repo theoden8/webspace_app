@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "ఆఫ్",
   "siteSettingsLocationStatic": "స్థిర",
   "siteSettingsLocationLive": "లైవ్",
-  "siteSettingsLocationOffDetail": "పేజీలకు మీ నిజమైన స్థానం లభిస్తుంది (లేదా OS ద్వారా నిరోధించబడతాయి).",
+  "siteSettingsLocationOffDetail": "ఈ సైట్‌కు మీ స్థానానికి ప్రాప్యత నిరాకరించబడింది.",
   "siteSettingsLocationLiveDetail": "లైవ్ పరికర స్థానాన్ని పేజీలకు ఫార్వార్డ్ చేస్తోంది.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

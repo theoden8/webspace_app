@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "Off",
   "siteSettingsLocationStatic": "Static",
   "siteSettingsLocationLive": "Live",
-  "siteSettingsLocationOffDetail": "Nakukuha ng mga pahina ang iyong tunay na lokasyon (o hinaharang ng OS).",
+  "siteSettingsLocationOffDetail": "Tinanggihan ang site na ito na ma-access ang iyong lokasyon.",
   "siteSettingsLocationLiveDetail": "Ipinapasa ang live na lokasyon ng device sa mga pahina.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

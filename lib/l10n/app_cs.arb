@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "Vypnuto",
   "siteSettingsLocationStatic": "Statická",
   "siteSettingsLocationLive": "Živá",
-  "siteSettingsLocationOffDetail": "Stránky získají vaši skutečnou polohu (nebo je blokuje OS).",
+  "siteSettingsLocationOffDetail": "Tomuto webu byl odepřen přístup k vaší poloze.",
   "siteSettingsLocationLiveDetail": "Předávání živé polohy zařízení stránkám.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

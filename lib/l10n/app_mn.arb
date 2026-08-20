@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "Унтраалттай",
   "siteSettingsLocationStatic": "Статик",
   "siteSettingsLocationLive": "Шууд",
-  "siteSettingsLocationOffDetail": "Хуудсууд таны жинхэнэ байршлыг авна (эсвэл ҮС хориглоно).",
+  "siteSettingsLocationOffDetail": "Энэ сайтад таны байршилд хандахыг хориглосон.",
   "siteSettingsLocationLiveDetail": "Төхөөрөмжийн шууд байршлыг хуудсуудад дамжуулж байна.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

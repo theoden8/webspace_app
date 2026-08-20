@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "آف",
   "siteSettingsLocationStatic": "جامد",
   "siteSettingsLocationLive": "لائیو",
-  "siteSettingsLocationOffDetail": "صفحات کو آپ کا حقیقی مقام ملتا ہے (یا OS کی جانب سے بلاک ہوتے ہیں)۔",
+  "siteSettingsLocationOffDetail": "اس سائٹ کو آپ کے مقام تک رسائی سے انکار کر دیا گیا ہے۔",
   "siteSettingsLocationLiveDetail": "لائیو ڈیوائس کا مقام صفحات کو فارورڈ کیا جا رہا ہے۔",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

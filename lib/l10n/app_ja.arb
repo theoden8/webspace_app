@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "オフ",
   "siteSettingsLocationStatic": "固定",
   "siteSettingsLocationLive": "ライブ",
-  "siteSettingsLocationOffDetail": "ページはあなたの実際の位置を取得します（またはOSによってブロックされます）。",
+  "siteSettingsLocationOffDetail": "このサイトには位置情報へのアクセスを拒否します。",
   "siteSettingsLocationLiveDetail": "ライブのデバイス位置をページに転送しています。",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

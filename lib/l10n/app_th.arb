@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "ปิด",
   "siteSettingsLocationStatic": "คงที่",
   "siteSettingsLocationLive": "สด",
-  "siteSettingsLocationOffDetail": "หน้าเว็บจะได้รับตำแหน่งจริงของคุณ (หรือถูกบล็อกโดยระบบ)",
+  "siteSettingsLocationOffDetail": "เว็บไซต์นี้ถูกปฏิเสธการเข้าถึงตำแหน่งของคุณ",
   "siteSettingsLocationLiveDetail": "กำลังส่งต่อตำแหน่งสดของอุปกรณ์ไปยังหน้าเว็บ",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

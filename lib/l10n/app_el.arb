@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "Ανενεργό",
   "siteSettingsLocationStatic": "Στατική",
   "siteSettingsLocationLive": "Ζωντανή",
-  "siteSettingsLocationOffDetail": "Οι σελίδες λαμβάνουν την πραγματική σας τοποθεσία (ή αποκλείονται από το λειτουργικό σύστημα).",
+  "siteSettingsLocationOffDetail": "Σε αυτόν τον ιστότοπο απαγορεύεται η πρόσβαση στην τοποθεσία σας.",
   "siteSettingsLocationLiveDetail": "Προώθηση ζωντανής τοποθεσίας συσκευής στις σελίδες.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

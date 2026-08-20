@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "ਬੰਦ",
   "siteSettingsLocationStatic": "ਸਥਿਰ",
   "siteSettingsLocationLive": "ਲਾਈਵ",
-  "siteSettingsLocationOffDetail": "ਪੰਨਿਆਂ ਨੂੰ ਤੁਹਾਡਾ ਅਸਲ ਟਿਕਾਣਾ ਮਿਲਦਾ ਹੈ (ਜਾਂ OS ਦੁਆਰਾ ਬਲੌਕ ਕੀਤੇ ਜਾਂਦੇ ਹਨ)।",
+  "siteSettingsLocationOffDetail": "ਇਸ ਸਾਈਟ ਨੂੰ ਤੁਹਾਡੇ ਟਿਕਾਣੇ ਤੱਕ ਪਹੁੰਚ ਤੋਂ ਇਨਕਾਰ ਕੀਤਾ ਗਿਆ ਹੈ।",
   "siteSettingsLocationLiveDetail": "ਪੰਨਿਆਂ ਨੂੰ ਲਾਈਵ ਡਿਵਾਈਸ ਟਿਕਾਣਾ ਅੱਗੇ ਭੇਜ ਰਹੇ ਹਾਂ।",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

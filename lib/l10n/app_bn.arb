@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "বন্ধ",
   "siteSettingsLocationStatic": "স্থির",
   "siteSettingsLocationLive": "লাইভ",
-  "siteSettingsLocationOffDetail": "পৃষ্ঠাগুলো আপনার প্রকৃত অবস্থান পায় (অথবা OS দ্বারা ব্লক করা হয়)।",
+  "siteSettingsLocationOffDetail": "এই সাইটটিকে আপনার অবস্থানে প্রবেশ করতে দেওয়া হয়নি।",
   "siteSettingsLocationLiveDetail": "পৃষ্ঠাগুলোতে লাইভ ডিভাইস অবস্থান ফরোয়ার্ড করা হচ্ছে।",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

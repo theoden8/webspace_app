@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "Kapalı",
   "siteSettingsLocationStatic": "Sabit",
   "siteSettingsLocationLive": "Canlı",
-  "siteSettingsLocationOffDetail": "Sayfalar gerçek konumunuzu alır (veya işletim sistemi tarafından engellenir).",
+  "siteSettingsLocationOffDetail": "Bu sitenin konumunuza erişimi reddedildi.",
   "siteSettingsLocationLiveDetail": "Canlı cihaz konumu sayfalara iletiliyor.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

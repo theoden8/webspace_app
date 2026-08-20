@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "ಆಫ್",
   "siteSettingsLocationStatic": "ಸ್ಥಿರ",
   "siteSettingsLocationLive": "ಲೈವ್",
-  "siteSettingsLocationOffDetail": "ಪುಟಗಳು ನಿಮ್ಮ ನಿಜವಾದ ಸ್ಥಳವನ್ನು ಪಡೆಯುತ್ತವೆ (ಅಥವಾ OS ನಿಂದ ನಿರ್ಬಂಧಿಸಲ್ಪಡುತ್ತವೆ).",
+  "siteSettingsLocationOffDetail": "ಈ ಸೈಟ್‌ಗೆ ನಿಮ್ಮ ಸ್ಥಳದ ಪ್ರವೇಶವನ್ನು ನಿರಾಕರಿಸಲಾಗಿದೆ.",
   "siteSettingsLocationLiveDetail": "ಪುಟಗಳಿಗೆ ಲೈವ್ ಸಾಧನ ಸ್ಥಳವನ್ನು ರವಾನಿಸಲಾಗುತ್ತಿದೆ.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

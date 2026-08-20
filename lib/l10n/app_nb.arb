@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "Av",
   "siteSettingsLocationStatic": "Statisk",
   "siteSettingsLocationLive": "Live",
-  "siteSettingsLocationOffDetail": "Sider får din virkelige plassering (eller blokkeres av operativsystemet).",
+  "siteSettingsLocationOffDetail": "Dette nettstedet nektes tilgang til posisjonen din.",
   "siteSettingsLocationLiveDetail": "Videresender live enhetsplassering til sider.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

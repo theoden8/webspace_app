@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "Uit",
   "siteSettingsLocationStatic": "Statisch",
   "siteSettingsLocationLive": "Live",
-  "siteSettingsLocationOffDetail": "Pagina's krijgen je echte locatie (of worden geblokkeerd door het besturingssysteem).",
+  "siteSettingsLocationOffDetail": "Deze site krijgt geen toegang tot je locatie.",
   "siteSettingsLocationLiveDetail": "Live apparaatlocatie wordt doorgestuurd naar pagina's.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

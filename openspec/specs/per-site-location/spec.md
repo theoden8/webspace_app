@@ -29,9 +29,18 @@ A single site-level toggle set is therefore required: spoof coordinates, overrid
 
 The system SHALL expose a per-site `locationMode` with three values:
 
-- `off` (default): the JS shim does not touch `navigator.geolocation`. The webview's platform default applies.
+- `off` (default): the shim replaces `navigator.geolocation` with a path that refuses every request, invoking the error callback with `PERMISSION_DENIED` (code 1). `off` means off: it does NOT defer to the webview's platform default.
 - `spoof`: the shim replaces `navigator.geolocation` with a static-coordinates path that returns the user-supplied `spoofLatitude` / `spoofLongitude` / `spoofAccuracy` (with sub-meter jitter so `watchPosition` doesn't return byte-identical frames).
 - `live`: the shim replaces `navigator.geolocation` with a callback path that, on every `getCurrentPosition` / `watchPosition` tick, asks the Dart side for a fresh fix from the platform's native location service (Android `LocationManager`, iOS `CLLocationManager`) and returns those real coordinates. `watchPosition` polls every 5 s.
+
+Because `off` now blocks rather than abstains, the shim is injected for every
+site regardless of settings. Before this, `off` emitted no shim at all, which
+left the platform's own `navigator.geolocation` reachable: Android denied by
+default (the plugin's `WebChromeClient.onGeolocationPermissionsShowPrompt`
+calls back with `allow = false` when no Dart handler is registered), but
+iOS/macOS/Linux showed the engine's own permission prompt and could hand the
+page the real device fix. The option that read as least permissive was the only
+pass-through one, and it behaved differently per platform.
 
 In all three modes, `spoofTimezone` and `webRtcPolicy` apply independently — `live` does NOT bypass the timezone override or WebRTC policy. The on-disk values are `off` / `spoof` / `live`; existing settings backups round-trip without migration (older backups without a value default to `off`).
 
@@ -68,13 +77,27 @@ The user-facing concept of "mode" is removed — the user thinks in terms of "I 
 **Given** site "Acme" has `locationMode = spoof`, `spoofLatitude = 35.6762`, `spoofLongitude = 139.6503`
 **When** the user opens per-site settings, taps the clear (✕) icon next to the coordinates, and saves
 **Then** the persisted state is `locationMode = off` and the latitude/longitude are null
-**And** subsequent `navigator.geolocation.getCurrentPosition` calls from Acme return whatever the platform's webview default does (no shim)
+**And** subsequent `navigator.geolocation.getCurrentPosition` calls from Acme are refused
 
-#### Scenario: Off mode passes through
+#### Scenario: LOC-OFF-001 - Off mode refuses the page on every platform
 
 **Given** site "Acme" has `locationMode = off`
-**When** the site calls `navigator.geolocation.getCurrentPosition(cb)`
-**Then** the webview returns the platform's real geolocation (or prompts for permission)
+**When** the site calls `navigator.geolocation.getCurrentPosition(success, error)`
+**Then** `error` is invoked with `code = 1` (`PERMISSION_DENIED`) and `success` is never invoked
+**And** `navigator.permissions.query({name: 'geolocation'})` resolves with `state = 'denied'`
+**And** `navigator.geolocation` and its three methods still exist, and still stringify as native code
+
+#### Scenario: LOC-OFF-002 - A grant with no coordinates fails closed
+
+**Given** site "Acme" has `locationMode = spoof` but `spoofLatitude` / `spoofLongitude` are null (hand-edited or partially-restored backup)
+**When** the site calls `navigator.geolocation.getCurrentPosition(success, error)`
+**Then** the request is refused exactly as in LOC-OFF-001, rather than falling back to the platform fix
+
+#### Scenario: LOC-OFF-003 - Watch requests are answered, not left hanging
+
+**Given** site "Acme" has `locationMode = off`
+**When** the site calls `navigator.geolocation.watchPosition(success, error)`
+**Then** a watch id is returned, `error` is invoked exactly once, and no polling interval is registered
 
 #### Scenario: Spoof mode returns fake coords
 

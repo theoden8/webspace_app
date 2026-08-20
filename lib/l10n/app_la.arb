@@ -440,7 +440,7 @@
   "siteSettingsLocationOff": "Exstincta",
   "siteSettingsLocationStatic": "Statica",
   "siteSettingsLocationLive": "Viva",
-  "siteSettingsLocationOffDetail": "Paginae verum locum tuum accipiunt (vel ab systemate impediuntur).",
+  "siteSettingsLocationOffDetail": "Huic loco aditus ad locum tuum negatur.",
   "siteSettingsLocationLiveDetail": "Locum vivum instrumenti ad paginas transmittens.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

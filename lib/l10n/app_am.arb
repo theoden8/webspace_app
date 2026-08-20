@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "ጠፍቷል",
   "siteSettingsLocationStatic": "ቋሚ",
   "siteSettingsLocationLive": "ቀጥታ",
-  "siteSettingsLocationOffDetail": "ገጾች እውነተኛ ቦታህን ያገኛሉ (ወይም በ OS ይታገዳሉ)።",
+  "siteSettingsLocationOffDetail": "ይህ ጣቢያ ወደ አካባቢዎ መድረስ ተከልክሏል።",
   "siteSettingsLocationLiveDetail": "የቀጥታ መሣሪያ ቦታን ወደ ገጾች በማስተላለፍ ላይ።",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

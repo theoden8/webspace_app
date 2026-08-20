@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "Nonaktif",
   "siteSettingsLocationStatic": "Statis",
   "siteSettingsLocationLive": "Langsung",
-  "siteSettingsLocationOffDetail": "Halaman mendapatkan lokasi asli Anda (atau diblokir oleh OS).",
+  "siteSettingsLocationOffDetail": "Situs ini ditolak aksesnya ke lokasi Anda.",
   "siteSettingsLocationLiveDetail": "Meneruskan lokasi perangkat langsung ke halaman.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

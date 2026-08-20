@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "Imezimwa",
   "siteSettingsLocationStatic": "Tuli",
   "siteSettingsLocationLive": "Hai",
-  "siteSettingsLocationOffDetail": "Kurasa hupata eneo lako halisi (au huzuiwa na OS).",
+  "siteSettingsLocationOffDetail": "Tovuti hii imenyimwa ufikiaji wa mahali ulipo.",
   "siteSettingsLocationLiveDetail": "Inapeleka eneo hai la kifaa kwenye kurasa.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",

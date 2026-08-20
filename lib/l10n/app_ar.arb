@@ -438,7 +438,7 @@
   "siteSettingsLocationOff": "معطّل",
   "siteSettingsLocationStatic": "ثابت",
   "siteSettingsLocationLive": "مباشر",
-  "siteSettingsLocationOffDetail": "تحصل الصفحات على موقعك الحقيقي (أو يحجبها نظام التشغيل).",
+  "siteSettingsLocationOffDetail": "تم رفض وصول هذا الموقع إلى موقعك الجغرافي.",
   "siteSettingsLocationLiveDetail": "يتم إعادة توجيه موقع الجهاز المباشر إلى الصفحات.",
   "siteSettingsLocationProviderGps": "GPS",
   "siteSettingsLocationProviderGsm": "GSM",
