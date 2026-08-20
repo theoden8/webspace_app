@@ -77,6 +77,11 @@ void main() {
   late HttpServer server;
   late String base;
 
+  // Mounting a webview costs tens of seconds on an emulator, and the box
+  // is identical across cases, so a zoom level is measured once per run.
+  final measured = <int, Map<String, dynamic>>{};
+  var mountSeq = 0;
+
   setUpAll(() async {
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     server.listen((request) {
@@ -107,15 +112,26 @@ void main() {
     WidgetTester tester,
     int zoomPercent,
   ) async {
+    mountSeq += 1;
+    final mountKey = ValueKey('page-zoom-$zoomPercent-$mountSeq');
+    // Tear the previous webview down first, and key the next one: a zoom
+    // is baked into the webview at creation, but an unkeyed replacement
+    // updates the existing element in place, so the platform view (and
+    // its zoom) is reused and onControllerCreated never fires again.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 250));
+
     WebViewController? controller;
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(
         body: Center(
           child: SizedBox(
+            key: mountKey,
             width: _kBoxWidth,
             height: _kBoxHeight,
             child: WebViewFactory.createWebView(
               config: WebViewConfig(
+                key: mountKey,
                 initialUrl: '$base$_kRulerPath',
                 zoomPercent: zoomPercent,
                 // Keep the surface to the zoom path: no blocker lists, no
@@ -163,20 +179,32 @@ void main() {
       }
     });
     log('zoom $zoomPercent% -> $result');
+    if (result != null) measured[zoomPercent] = result!;
     return result;
   }
 
-  // The contract, one zoom level per case. Each case re-derives its own
-  // 100% baseline: the webview's CSS width is the platform's business
-  // (device pixel ratio, insets, letterboxing), and only the *ratio*
-  // between zoom levels is a promise the app makes.
+  Future<Map<String, dynamic>?> measureOnce(
+    WidgetTester tester,
+    int zoomPercent,
+  ) async =>
+      measured[zoomPercent] ?? await measure(tester, zoomPercent);
+
+  // The contract, one zoom level per case, against the 100% baseline: the
+  // webview's CSS width is the platform's business (device pixel ratio,
+  // insets, letterboxing), and only the *ratio* between zoom levels is a
+  // promise the app makes.
+  //
+  // Each case measures at most one zoom level, so every mount is the first
+  // in its test and gets the framework's own teardown between them; a
+  // second live webview inside one test is a mount the desktop engines do
+  // not reliably bring up.
   Future<void> checkZoom(WidgetTester tester, int zoomPercent) async {
-    final baseline = await measure(tester, 100);
+    final baseline = measured[100];
     if (baseline == null) {
-      log('SKIP: the engine never rendered the 100% baseline');
+      log('SKIP: no 100% baseline was measured');
       return;
     }
-    final zoomed = await measure(tester, zoomPercent);
+    final zoomed = await measureOnce(tester, zoomPercent);
     if (zoomed == null) {
       fail('the 100% baseline rendered but $zoomPercent% did not: '
           'baseline=$baseline');
@@ -205,12 +233,34 @@ void main() {
               'baseline=$baseline zoomed=$zoomed');
     }
 
-    final client = (zoomed['client'] as num?)?.toInt() ?? 0;
-    final scroll = (zoomed['scroll'] as num?)?.toInt() ?? 0;
-    expect(scroll, lessThanOrEqualTo(client + 2),
-        reason: 'zoom must not push content off-screen horizontally. '
-            'zoomed=$zoomed');
+    // Horizontal overflow. The two CSSOM numbers are not always in the
+    // same coordinate space: on the CSS channel WebKit reports
+    // `clientWidth` unzoomed while `scrollWidth` is in the zoomed space
+    // (observed 320 vs 400 at 80% on WPE), so the visible width is
+    // recovered by dividing out whatever root zoom is actually applied.
+    final client = (zoomed['client'] as num?)?.toDouble() ?? 0;
+    final scroll = (zoomed['scroll'] as num?)?.toDouble() ?? 0;
+    final rootZoom = double.tryParse((zoomed['zoom'] as String?) ?? '') ?? 1;
+    final visible = rootZoom > 0 ? client / rootZoom : client;
+    expect(scroll, lessThanOrEqualTo(visible + 2),
+        reason: 'zoom must not push content off-screen horizontally: '
+            '${scroll.toStringAsFixed(0)}px of content in a '
+            '${visible.toStringAsFixed(0)}px viewport. zoomed=$zoomed');
   }
+
+  testWidgets('100%: the unzoomed baseline renders', (tester) async {
+    // The reference every other case is measured against. A skip here (an
+    // engine that cannot bring a webview up at all) skips the rest rather
+    // than failing them.
+    final baseline = await measureOnce(tester, 100);
+    if (baseline == null) {
+      log('SKIP: the engine never rendered a webview');
+      return;
+    }
+    expect((baseline['perRow'] as num).toInt(), greaterThan(1),
+        reason: 'the ruler must fit at least two cells to be a ruler. '
+            'baseline=$baseline');
+  }, timeout: const Timeout(Duration(minutes: 4)));
 
   testWidgets('80%: one fifth more content fits, on every engine',
       (tester) async {
@@ -225,7 +275,7 @@ void main() {
       (tester) async {
     // Same outcome, two mechanisms. Mixing them is what BUG-008 is about,
     // so each platform must be on its own channel and off the other's.
-    final zoomed = await measure(tester, 80);
+    final zoomed = await measureOnce(tester, 80);
     if (zoomed == null) {
       log('SKIP: the engine never rendered the zoomed page');
       return;
