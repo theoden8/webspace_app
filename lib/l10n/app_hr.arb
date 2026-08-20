@@ -733,5 +733,19 @@
   "permissionStateSimulated": "Simulirano",
   "permissionStateBlocked": "Blokirano",
   "permissionsSummaryNothingGranted": "Ništa nije dopušteno",
-  "permissionsSummaryMore": "Još {count}"
+  "permissionsSummaryMore": "Još {count}",
+  "privacyTitle": "Privatnost",
+  "privacyGroupTrackers": "Pratitelji i oglasi",
+  "privacyGroupFingerprinting": "Otisak preglednika",
+  "privacyGroupStorage": "Pohrana",
+  "privacyFingerprintingNote": "Zaštita od praćenja također nasumično mijenja očitanja platna, zvuka, fontova i hardvera za ovu stranicu.",
+  "privacySummaryProtectionOn": "Zaštita od praćenja uključena",
+  "privacySummaryNothingOn": "Nijedna zaštita nije uključena",
+  "siteSettingsForcedOffByTrackingProtection": "Prisilno isključeno zaštitom od praćenja",
+  "siteSettingsNeedsTrackingProtection": "Zahtijeva zaštitu od praćenja",
+  "siteSettingsThirdPartyCookiesSubtitle": "Dopusti ugrađenom sadržaju postavljanje kolačića između stranica",
+  "siteSettingsThirdPartyCookiesHint": "Kolačići koje postavlja sadržaj ugrađen s druge stranice, poput oglasa, gumba za dijeljenje i analitičkih widgeta. Oni su najstariji način na koji vas pratitelj slijedi s jedne stranice na drugu, zbog čega ih zaštita od praćenja isključuje. Neka preusmjeravanja pri prijavi i ugrađena plaćanja trebaju ih, pa ih ponovno uključite za stranicu koja bez njih ne radi.",
+  "siteSettingsSectionContent": "Sadržaj",
+  "siteSettingsSectionBehaviour": "Ponašanje",
+  "siteSettingsSectionNetwork": "Mreža"
 }

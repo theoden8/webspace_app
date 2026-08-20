@@ -733,5 +733,19 @@
   "permissionStateSimulated": "Simulato",
   "permissionStateBlocked": "Bloccato",
   "permissionsSummaryNothingGranted": "Nessuna autorizzazione concessa",
-  "permissionsSummaryMore": "Altre {count}"
+  "permissionsSummaryMore": "Altre {count}",
+  "privacyTitle": "Privacy",
+  "privacyGroupTrackers": "Tracker e pubblicità",
+  "privacyGroupFingerprinting": "Impronta digitale",
+  "privacyGroupStorage": "Archiviazione",
+  "privacyFingerprintingNote": "La Protezione dal tracciamento randomizza anche le letture di canvas, audio, caratteri e hardware per questo sito.",
+  "privacySummaryProtectionOn": "Protezione dal tracciamento attiva",
+  "privacySummaryNothingOn": "Nessuna protezione attiva",
+  "siteSettingsForcedOffByTrackingProtection": "Disattivato dalla Protezione dal tracciamento",
+  "siteSettingsNeedsTrackingProtection": "Richiede la Protezione dal tracciamento",
+  "siteSettingsThirdPartyCookiesSubtitle": "Consenti ai contenuti incorporati di impostare cookie tra i siti",
+  "siteSettingsThirdPartyCookiesHint": "Cookie impostati da contenuti incorporati da un altro sito, come pubblicità, pulsanti di condivisione e widget di analisi. Sono il modo più antico con cui un tracker ti segue da un sito all'altro, ed è per questo che la Protezione dal tracciamento li disattiva. Alcuni reindirizzamenti di accesso e pagamenti incorporati ne hanno bisogno, quindi riattivali per un sito che senza di essi non funziona.",
+  "siteSettingsSectionContent": "Contenuti",
+  "siteSettingsSectionBehaviour": "Comportamento",
+  "siteSettingsSectionNetwork": "Rete"
 }

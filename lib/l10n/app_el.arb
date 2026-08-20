@@ -733,5 +733,19 @@
   "permissionStateSimulated": "Προσομοίωση",
   "permissionStateBlocked": "Αποκλεισμένο",
   "permissionsSummaryNothingGranted": "Δεν έχει παραχωρηθεί τίποτα",
-  "permissionsSummaryMore": "{count} ακόμη"
+  "permissionsSummaryMore": "{count} ακόμη",
+  "privacyTitle": "Απόρρητο",
+  "privacyGroupTrackers": "Ιχνηλάτες και διαφημίσεις",
+  "privacyGroupFingerprinting": "Δακτυλικό αποτύπωμα",
+  "privacyGroupStorage": "Αποθήκευση",
+  "privacyFingerprintingNote": "Η Προστασία από παρακολούθηση τυχαιοποιεί επίσης τις ενδείξεις canvas, ήχου, γραμματοσειρών και υλικού για αυτόν τον ιστότοπο.",
+  "privacySummaryProtectionOn": "Προστασία από παρακολούθηση ενεργή",
+  "privacySummaryNothingOn": "Καμία προστασία ενεργή",
+  "siteSettingsForcedOffByTrackingProtection": "Εξαναγκασμένο ανενεργό από την Προστασία από παρακολούθηση",
+  "siteSettingsNeedsTrackingProtection": "Απαιτεί Προστασία από παρακολούθηση",
+  "siteSettingsThirdPartyCookiesSubtitle": "Να επιτρέπεται σε ενσωματωμένο περιεχόμενο να ορίζει cookies μεταξύ ιστοτόπων",
+  "siteSettingsThirdPartyCookiesHint": "Cookies που ορίζονται από περιεχόμενο ενσωματωμένο από άλλον ιστότοπο, όπως διαφημίσεις, κουμπιά κοινοποίησης και widget αναλυτικών. Είναι ο παλαιότερος τρόπος με τον οποίο ένας ιχνηλάτης σας ακολουθεί από τον έναν ιστότοπο στον άλλο, γι' αυτό η Προστασία από παρακολούθηση τα απενεργοποιεί. Ορισμένες ανακατευθύνσεις σύνδεσης και ενσωματωμένες πληρωμές τα χρειάζονται, οπότε ενεργοποιήστε τα ξανά για έναν ιστότοπο που δεν λειτουργεί χωρίς αυτά.",
+  "siteSettingsSectionContent": "Περιεχόμενο",
+  "siteSettingsSectionBehaviour": "Συμπεριφορά",
+  "siteSettingsSectionNetwork": "Δίκτυο"
 }

@@ -733,5 +733,19 @@
   "permissionStateSimulated": "محاكاة",
   "permissionStateBlocked": "محظور",
   "permissionsSummaryNothingGranted": "لم تُمنح أي أذونات",
-  "permissionsSummaryMore": "و{count} أخرى"
+  "permissionsSummaryMore": "و{count} أخرى",
+  "privacyTitle": "الخصوصية",
+  "privacyGroupTrackers": "المتعقّبات والإعلانات",
+  "privacyGroupFingerprinting": "البصمة الرقمية",
+  "privacyGroupStorage": "التخزين",
+  "privacyFingerprintingNote": "تعمل الحماية من التتبّع أيضًا على عشوَنة قراءات اللوحة والصوت والخطوط والعتاد لهذا الموقع.",
+  "privacySummaryProtectionOn": "الحماية من التتبّع مفعّلة",
+  "privacySummaryNothingOn": "لا حماية مفعّلة",
+  "siteSettingsForcedOffByTrackingProtection": "معطّل قسرًا بسبب الحماية من التتبّع",
+  "siteSettingsNeedsTrackingProtection": "يتطلّب الحماية من التتبّع",
+  "siteSettingsThirdPartyCookiesSubtitle": "السماح للمحتوى المضمّن بتعيين ملفات تعريف ارتباط عبر المواقع",
+  "siteSettingsThirdPartyCookiesHint": "ملفات تعريف ارتباط يعيّنها محتوى مضمّن من موقع آخر، مثل الإعلانات وأزرار المشاركة وأدوات التحليلات. وهي أقدم وسيلة يتتبّعك بها المتعقّب من موقع إلى آخر، ولهذا تعطّلها الحماية من التتبّع. بعض عمليات إعادة توجيه تسجيل الدخول وصفحات الدفع المضمّنة تحتاج إليها، لذا أعِد تفعيلها لموقع يتعطّل بدونها.",
+  "siteSettingsSectionContent": "المحتوى",
+  "siteSettingsSectionBehaviour": "السلوك",
+  "siteSettingsSectionNetwork": "الشبكة"
 }

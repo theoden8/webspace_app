@@ -733,5 +733,19 @@
   "permissionStateSimulated": "Նմանակված",
   "permissionStateBlocked": "Արգելափակված",
   "permissionsSummaryNothingGranted": "Ոչինչ չի տրամադրվել",
-  "permissionsSummaryMore": "ԵՒս {count}"
+  "permissionsSummaryMore": "ԵՒս {count}",
+  "privacyTitle": "Գաղտնիություն",
+  "privacyGroupTrackers": "Հետագծիչներ և գովազդ",
+  "privacyGroupFingerprinting": "Մատնահետք",
+  "privacyGroupStorage": "Պահոց",
+  "privacyFingerprintingNote": "Հետևման պաշտպանությունը նաև պատահականացնում է կտավի, ձայնի, տառատեսակների և սարքավորումների ցուցումները այս կայքի համար։",
+  "privacySummaryProtectionOn": "Հետևման պաշտպանությունը միացված է",
+  "privacySummaryNothingOn": "Ոչ մի պաշտպանություն միացված չէ",
+  "siteSettingsForcedOffByTrackingProtection": "Անջատված է Հետևման պաշտպանության կողմից",
+  "siteSettingsNeedsTrackingProtection": "Պահանջում է Հետևման պաշտպանություն",
+  "siteSettingsThirdPartyCookiesSubtitle": "Թույլ տալ ներդրված բովանդակությանը կայքերի միջև cookie-ներ սահմանել",
+  "siteSettingsThirdPartyCookiesHint": "Այլ կայքից ներդրված բովանդակության սահմանած cookie-ներ՝ գովազդ, կիսվելու կոճակներ և վերլուծական վիջեթներ։ Դրանք ամենահին ձևն են, որով հետագծիչը հետևում է ձեզ մի կայքից մյուսը, և հենց դրա համար է Հետևման պաշտպանությունը դրանք անջատում։ Որոշ մուտքի վերահղումներ և ներդրված վճարումներ դրանց կարիքն ունեն, ուստի նորից միացրեք դրանք այն կայքի համար, որն առանց դրանց չի աշխատում։",
+  "siteSettingsSectionContent": "Բովանդակություն",
+  "siteSettingsSectionBehaviour": "Վարքագիծ",
+  "siteSettingsSectionNetwork": "Ցանց"
 }

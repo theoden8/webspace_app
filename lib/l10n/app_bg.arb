@@ -733,5 +733,19 @@
   "permissionStateSimulated": "Симулирано",
   "permissionStateBlocked": "Блокирано",
   "permissionsSummaryNothingGranted": "Няма дадени разрешения",
-  "permissionsSummaryMore": "Още {count}"
+  "permissionsSummaryMore": "Още {count}",
+  "privacyTitle": "Поверителност",
+  "privacyGroupTrackers": "Проследяващи и реклами",
+  "privacyGroupFingerprinting": "Дигитален отпечатък",
+  "privacyGroupStorage": "Съхранение",
+  "privacyFingerprintingNote": "Защитата от проследяване също така разбърква показанията на canvas, звука, шрифтовете и хардуера за този сайт.",
+  "privacySummaryProtectionOn": "Защитата от проследяване е включена",
+  "privacySummaryNothingOn": "Няма включена защита",
+  "siteSettingsForcedOffByTrackingProtection": "Принудително изключено от Защита от проследяване",
+  "siteSettingsNeedsTrackingProtection": "Изисква Защита от проследяване",
+  "siteSettingsThirdPartyCookiesSubtitle": "Позволява на вграденото съдържание да задава бисквитки между сайтове",
+  "siteSettingsThirdPartyCookiesHint": "Бисквитки, зададени от съдържание, вградено от друг сайт, например реклами, бутони за споделяне и аналитични джаджи. Те са най-старият начин, по който проследяващ ви следва от един сайт към друг, затова Защитата от проследяване ги изключва. Някои пренасочвания при вход и вградени плащания се нуждаят от тях, затова ги включете отново за сайт, който не работи без тях.",
+  "siteSettingsSectionContent": "Съдържание",
+  "siteSettingsSectionBehaviour": "Поведение",
+  "siteSettingsSectionNetwork": "Мрежа"
 }

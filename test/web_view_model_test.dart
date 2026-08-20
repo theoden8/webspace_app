@@ -444,6 +444,25 @@ void main() {
       expect(restored.trackingProtectionEnabled, isFalse);
     });
 
+    test('tracking protection forces third-party cookies off (ETP-024)', () {
+      final model = WebViewModel(
+        initUrl: 'https://example.com',
+        thirdPartyCookiesEnabled: true,
+        trackingProtectionEnabled: false,
+      );
+      expect(model.effectiveThirdPartyCookiesEnabled, isTrue);
+
+      model.trackingProtectionEnabled = true;
+      expect(model.effectiveThirdPartyCookiesEnabled, isFalse);
+      // Stored, not erased: the user's own choice comes back when the
+      // umbrella goes off again, and survives a backup round-trip.
+      expect(model.thirdPartyCookiesEnabled, isTrue);
+      expect(model.toJson()['thirdPartyCookiesEnabled'], isTrue);
+
+      model.trackingProtectionEnabled = false;
+      expect(model.effectiveThirdPartyCookiesEnabled, isTrue);
+    });
+
     test('letterboxEnabled defaults to false; omitted from JSON; round-trips',
         () {
       final m = WebViewModel(initUrl: 'https://example.com');

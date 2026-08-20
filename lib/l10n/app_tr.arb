@@ -733,5 +733,19 @@
   "permissionStateSimulated": "Benzetilmiş",
   "permissionStateBlocked": "Engellendi",
   "permissionsSummaryNothingGranted": "Hiçbir izin verilmedi",
-  "permissionsSummaryMore": "{count} tane daha"
+  "permissionsSummaryMore": "{count} tane daha",
+  "privacyTitle": "Gizlilik",
+  "privacyGroupTrackers": "İzleyiciler ve reklamlar",
+  "privacyGroupFingerprinting": "Parmak izi",
+  "privacyGroupStorage": "Depolama",
+  "privacyFingerprintingNote": "İzleme Koruması bu site için tuval, ses, yazı tipi ve donanım okumalarını da rastgeleleştirir.",
+  "privacySummaryProtectionOn": "İzleme Koruması açık",
+  "privacySummaryNothingOn": "Etkin koruma yok",
+  "siteSettingsForcedOffByTrackingProtection": "İzleme Koruması tarafından kapalı zorlandı",
+  "siteSettingsNeedsTrackingProtection": "İzleme Koruması gerektirir",
+  "siteSettingsThirdPartyCookiesSubtitle": "Gömülü içeriğin siteler arası çerez ayarlamasına izin ver",
+  "siteSettingsThirdPartyCookiesHint": "Reklamlar, paylaşım düğmeleri ve analiz araçları gibi başka bir siteden gömülen içeriğin ayarladığı çerezler. Bir izleyicinin sizi bir siteden diğerine takip etmesinin en eski yoludur, bu yüzden İzleme Koruması bunları kapatır. Bazı oturum açma yönlendirmeleri ve gömülü ödeme sayfaları bunlara ihtiyaç duyar, bu nedenle bunlar olmadan çalışmayan bir site için tekrar açın.",
+  "siteSettingsSectionContent": "İçerik",
+  "siteSettingsSectionBehaviour": "Davranış",
+  "siteSettingsSectionNetwork": "Ağ"
 }

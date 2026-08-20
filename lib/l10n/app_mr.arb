@@ -733,5 +733,19 @@
   "permissionStateSimulated": "अनुकरण",
   "permissionStateBlocked": "अवरोधित",
   "permissionsSummaryNothingGranted": "काहीही दिलेले नाही",
-  "permissionsSummaryMore": "आणखी {count}"
+  "permissionsSummaryMore": "आणखी {count}",
+  "privacyTitle": "गोपनीयता",
+  "privacyGroupTrackers": "ट्रॅकर आणि जाहिराती",
+  "privacyGroupFingerprinting": "फिंगरप्रिंटिंग",
+  "privacyGroupStorage": "संचयन",
+  "privacyFingerprintingNote": "ट्रॅकिंग संरक्षण या साइटसाठी कॅनव्हास, ऑडिओ, फॉन्ट आणि हार्डवेअर वाचनेही यादृच्छिक करते.",
+  "privacySummaryProtectionOn": "ट्रॅकिंग संरक्षण चालू",
+  "privacySummaryNothingOn": "कोणतेही संरक्षण सक्षम नाही",
+  "siteSettingsForcedOffByTrackingProtection": "ट्रॅकिंग संरक्षणाद्वारे सक्तीने बंद",
+  "siteSettingsNeedsTrackingProtection": "ट्रॅकिंग संरक्षण आवश्यक आहे",
+  "siteSettingsThirdPartyCookiesSubtitle": "एम्बेड केलेल्या मजकुराला साइट्सदरम्यान कुकीज सेट करू द्या",
+  "siteSettingsThirdPartyCookiesHint": "जाहिराती, शेअर बटणे आणि विश्लेषण विजेट्ससारख्या दुसऱ्या साइटवरून एम्बेड केलेल्या मजकुराने सेट केलेल्या कुकीज. ट्रॅकर तुम्हाला एका साइटवरून दुसऱ्या साइटवर अनुसरण्याचा हा सर्वात जुना मार्ग आहे, म्हणूनच ट्रॅकिंग संरक्षण त्या बंद करते. काही साइन-इन रीडायरेक्ट आणि एम्बेड केलेल्या चेकआउटला त्यांची गरज असते, म्हणून त्यांच्याशिवाय न चालणाऱ्या साइटसाठी त्या पुन्हा चालू करा.",
+  "siteSettingsSectionContent": "मजकूर",
+  "siteSettingsSectionBehaviour": "वर्तन",
+  "siteSettingsSectionNetwork": "नेटवर्क"
 }

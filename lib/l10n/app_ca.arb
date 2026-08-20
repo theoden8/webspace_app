@@ -733,5 +733,19 @@
   "permissionStateSimulated": "Simulat",
   "permissionStateBlocked": "Bloquejat",
   "permissionsSummaryNothingGranted": "Cap permís concedit",
-  "permissionsSummaryMore": "{count} més"
+  "permissionsSummaryMore": "{count} més",
+  "privacyTitle": "Privadesa",
+  "privacyGroupTrackers": "Rastrejadors i anuncis",
+  "privacyGroupFingerprinting": "Empremta digital",
+  "privacyGroupStorage": "Emmagatzematge",
+  "privacyFingerprintingNote": "La Protecció contra el seguiment també aleatoritza les lectures de canvas, àudio, tipus de lletra i maquinari per a aquest lloc.",
+  "privacySummaryProtectionOn": "Protecció contra el seguiment activada",
+  "privacySummaryNothingOn": "Cap protecció activada",
+  "siteSettingsForcedOffByTrackingProtection": "Desactivat per la Protecció contra el seguiment",
+  "siteSettingsNeedsTrackingProtection": "Requereix la Protecció contra el seguiment",
+  "siteSettingsThirdPartyCookiesSubtitle": "Permet que el contingut incrustat defineixi galetes entre llocs",
+  "siteSettingsThirdPartyCookiesHint": "Galetes definides per contingut incrustat des d'un altre lloc, com ara anuncis, botons de compartir i ginys d'analítica. Són la manera més antiga que té un rastrejador de seguir-te d'un lloc a un altre, i per això la Protecció contra el seguiment les desactiva. Algunes redireccions d'inici de sessió i pagaments incrustats les necessiten, així que torna-les a activar per a un lloc que no funcioni sense elles.",
+  "siteSettingsSectionContent": "Contingut",
+  "siteSettingsSectionBehaviour": "Comportament",
+  "siteSettingsSectionNetwork": "Xarxa"
 }

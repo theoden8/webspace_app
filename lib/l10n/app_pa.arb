@@ -733,5 +733,19 @@
   "permissionStateSimulated": "ਨਕਲੀ",
   "permissionStateBlocked": "ਬਲਾਕ ਕੀਤਾ",
   "permissionsSummaryNothingGranted": "ਕੁਝ ਨਹੀਂ ਦਿੱਤਾ ਗਿਆ",
-  "permissionsSummaryMore": "{count} ਹੋਰ"
+  "permissionsSummaryMore": "{count} ਹੋਰ",
+  "privacyTitle": "ਨਿੱਜਤਾ",
+  "privacyGroupTrackers": "ਟਰੈਕਰ ਅਤੇ ਇਸ਼ਤਿਹਾਰ",
+  "privacyGroupFingerprinting": "ਫਿੰਗਰਪ੍ਰਿੰਟਿੰਗ",
+  "privacyGroupStorage": "ਸਟੋਰੇਜ",
+  "privacyFingerprintingNote": "ਟਰੈਕਿੰਗ ਸੁਰੱਖਿਆ ਇਸ ਸਾਈਟ ਲਈ ਕੈਨਵਸ, ਆਡੀਓ, ਫੌਂਟ ਅਤੇ ਹਾਰਡਵੇਅਰ ਰੀਡਿੰਗਾਂ ਨੂੰ ਵੀ ਬੇਤਰਤੀਬ ਕਰਦੀ ਹੈ।",
+  "privacySummaryProtectionOn": "ਟਰੈਕਿੰਗ ਸੁਰੱਖਿਆ ਚਾਲੂ",
+  "privacySummaryNothingOn": "ਕੋਈ ਸੁਰੱਖਿਆ ਸਮਰੱਥ ਨਹੀਂ",
+  "siteSettingsForcedOffByTrackingProtection": "ਟਰੈਕਿੰਗ ਸੁਰੱਖਿਆ ਦੁਆਰਾ ਬੰਦ ਕੀਤਾ",
+  "siteSettingsNeedsTrackingProtection": "ਟਰੈਕਿੰਗ ਸੁਰੱਖਿਆ ਲੋੜੀਂਦੀ ਹੈ",
+  "siteSettingsThirdPartyCookiesSubtitle": "ਏਮਬੈੱਡ ਕੀਤੀ ਸਮੱਗਰੀ ਨੂੰ ਸਾਈਟਾਂ ਵਿਚਕਾਰ ਕੂਕੀਜ਼ ਸੈੱਟ ਕਰਨ ਦਿਓ",
+  "siteSettingsThirdPartyCookiesHint": "ਕਿਸੇ ਹੋਰ ਸਾਈਟ ਤੋਂ ਏਮਬੈੱਡ ਕੀਤੀ ਸਮੱਗਰੀ ਦੁਆਰਾ ਸੈੱਟ ਕੀਤੀਆਂ ਕੂਕੀਜ਼, ਜਿਵੇਂ ਇਸ਼ਤਿਹਾਰ, ਸਾਂਝਾ ਕਰਨ ਵਾਲੇ ਬਟਨ ਅਤੇ ਵਿਸ਼ਲੇਸ਼ਣ ਵਿਜੇਟ। ਇਹ ਸਭ ਤੋਂ ਪੁਰਾਣਾ ਤਰੀਕਾ ਹੈ ਜਿਸ ਨਾਲ ਕੋਈ ਟਰੈਕਰ ਤੁਹਾਨੂੰ ਇੱਕ ਸਾਈਟ ਤੋਂ ਦੂਜੀ ਤੱਕ ਪਿੱਛਾ ਕਰਦਾ ਹੈ, ਇਸੇ ਲਈ ਟਰੈਕਿੰਗ ਸੁਰੱਖਿਆ ਇਨ੍ਹਾਂ ਨੂੰ ਬੰਦ ਕਰ ਦਿੰਦੀ ਹੈ। ਕੁਝ ਸਾਈਨ-ਇਨ ਰੀਡਾਇਰੈਕਟ ਅਤੇ ਏਮਬੈੱਡ ਕੀਤੇ ਚੈੱਕਆਊਟ ਨੂੰ ਇਨ੍ਹਾਂ ਦੀ ਲੋੜ ਹੁੰਦੀ ਹੈ, ਇਸ ਲਈ ਜੋ ਸਾਈਟ ਇਨ੍ਹਾਂ ਬਿਨਾਂ ਕੰਮ ਨਹੀਂ ਕਰਦੀ ਉਸ ਲਈ ਇਨ੍ਹਾਂ ਨੂੰ ਮੁੜ ਚਾਲੂ ਕਰੋ।",
+  "siteSettingsSectionContent": "ਸਮੱਗਰੀ",
+  "siteSettingsSectionBehaviour": "ਵਿਹਾਰ",
+  "siteSettingsSectionNetwork": "ਨੈੱਟਵਰਕ"
 }

@@ -733,5 +733,19 @@
   "permissionStateSimulated": "Simulované",
   "permissionStateBlocked": "Blokované",
   "permissionsSummaryNothingGranted": "Nič nie je povolené",
-  "permissionsSummaryMore": "Ďalších {count}"
+  "permissionsSummaryMore": "Ďalších {count}",
+  "privacyTitle": "Súkromie",
+  "privacyGroupTrackers": "Sledovače a reklamy",
+  "privacyGroupFingerprinting": "Odtlačok prehliadača",
+  "privacyGroupStorage": "Úložisko",
+  "privacyFingerprintingNote": "Ochrana pred sledovaním pre túto stránku náhodne mení aj hodnoty plátna, zvuku, písiem a hardvéru.",
+  "privacySummaryProtectionOn": "Ochrana pred sledovaním zapnutá",
+  "privacySummaryNothingOn": "Nie je zapnutá žiadna ochrana",
+  "siteSettingsForcedOffByTrackingProtection": "Vypnuté ochranou pred sledovaním",
+  "siteSettingsNeedsTrackingProtection": "Vyžaduje ochranu pred sledovaním",
+  "siteSettingsThirdPartyCookiesSubtitle": "Povoliť vloženému obsahu nastavovať súbory cookie medzi stránkami",
+  "siteSettingsThirdPartyCookiesHint": "Súbory cookie nastavené obsahom vloženým z inej stránky, napríklad reklamami, tlačidlami zdieľania a analytickými widgetmi. Sú najstarším spôsobom, akým vás sledovač sleduje z jednej stránky na druhú, a preto ich ochrana pred sledovaním vypína. Niektoré presmerovania pri prihlásení a vložené platby ich potrebujú, takže ich pre stránku, ktorá bez nich nefunguje, znova zapnite.",
+  "siteSettingsSectionContent": "Obsah",
+  "siteSettingsSectionBehaviour": "Správanie",
+  "siteSettingsSectionNetwork": "Sieť"
 }

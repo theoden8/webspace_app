@@ -733,5 +733,19 @@
   "permissionStateSimulated": "مصنوعی",
   "permissionStateBlocked": "مسدود",
   "permissionsSummaryNothingGranted": "کوئی اجازت نہیں دی گئی",
-  "permissionsSummaryMore": "مزید {count}"
+  "permissionsSummaryMore": "مزید {count}",
+  "privacyTitle": "رازداری",
+  "privacyGroupTrackers": "ٹریکرز اور اشتہارات",
+  "privacyGroupFingerprinting": "فنگر پرنٹنگ",
+  "privacyGroupStorage": "ذخیرہ",
+  "privacyFingerprintingNote": "ٹریکنگ تحفظ اس سائٹ کے لیے کینوس، آڈیو، فونٹ اور ہارڈویئر ریڈنگز کو بھی بے ترتیب کر دیتا ہے۔",
+  "privacySummaryProtectionOn": "ٹریکنگ تحفظ آن ہے",
+  "privacySummaryNothingOn": "کوئی تحفظ فعال نہیں",
+  "siteSettingsForcedOffByTrackingProtection": "ٹریکنگ تحفظ کی وجہ سے زبردستی آف",
+  "siteSettingsNeedsTrackingProtection": "ٹریکنگ تحفظ درکار ہے",
+  "siteSettingsThirdPartyCookiesSubtitle": "شامل شدہ مواد کو سائٹوں کے درمیان کوکیز سیٹ کرنے دیں",
+  "siteSettingsThirdPartyCookiesHint": "کسی دوسری سائٹ سے شامل کیے گئے مواد، جیسے اشتہارات، شیئر بٹن اور تجزیاتی ویجٹس کی سیٹ کردہ کوکیز۔ یہ سب سے پرانا طریقہ ہیں جس سے کوئی ٹریکر آپ کا ایک سائٹ سے دوسری سائٹ تک پیچھا کرتا ہے، اسی لیے ٹریکنگ تحفظ انہیں بند کر دیتا ہے۔ کچھ سائن اِن ری ڈائریکٹس اور شامل شدہ چیک آؤٹ کو ان کی ضرورت ہوتی ہے، لہٰذا ایسی سائٹ کے لیے انہیں دوبارہ آن کریں جو ان کے بغیر کام نہ کرے۔",
+  "siteSettingsSectionContent": "مواد",
+  "siteSettingsSectionBehaviour": "رویہ",
+  "siteSettingsSectionNetwork": "نیٹ ورک"
 }

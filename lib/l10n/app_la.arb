@@ -733,5 +733,19 @@
   "permissionStateSimulated": "Simulatum",
   "permissionStateBlocked": "Impeditum",
   "permissionsSummaryNothingGranted": "Nihil concessum",
-  "permissionsSummaryMore": "Alia {count}"
+  "permissionsSummaryMore": "Alia {count}",
+  "privacyTitle": "Privatas",
+  "privacyGroupTrackers": "Investigatores et praeconia",
+  "privacyGroupFingerprinting": "Impressio digitalis",
+  "privacyGroupStorage": "Repositorium",
+  "privacyFingerprintingNote": "Tutela contra investigationem etiam lectiones telae, soni, litterarum formarum et ferramentorum huic loco fortuito variat.",
+  "privacySummaryProtectionOn": "Tutela contra investigationem activa",
+  "privacySummaryNothingOn": "Nulla tutela activa",
+  "siteSettingsForcedOffByTrackingProtection": "Coacte exstinctum a Tutela contra investigationem",
+  "siteSettingsNeedsTrackingProtection": "Tutelam contra investigationem requirit",
+  "siteSettingsThirdPartyCookiesSubtitle": "Sine contentum insertum crustula inter loca ponere",
+  "siteSettingsThirdPartyCookiesHint": "Crustula ab contento ex alio loco inserto posita, ut praeconia, bullae communicandi et instrumenta analytica. Modus antiquissimus sunt quo investigator te ab uno loco ad alterum sequitur, quapropter Tutela contra investigationem ea exstinguit. Quaedam redirectiones initus et solutiones insertae ea requirunt, itaque ea rursus accende pro loco qui sine eis frangitur.",
+  "siteSettingsSectionContent": "Contentum",
+  "siteSettingsSectionBehaviour": "Mores",
+  "siteSettingsSectionNetwork": "Rete"
 }

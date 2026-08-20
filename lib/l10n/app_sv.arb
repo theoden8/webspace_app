@@ -733,5 +733,19 @@
   "permissionStateSimulated": "Simulerad",
   "permissionStateBlocked": "Blockerad",
   "permissionsSummaryNothingGranted": "Inget har beviljats",
-  "permissionsSummaryMore": "{count} till"
+  "permissionsSummaryMore": "{count} till",
+  "privacyTitle": "Integritet",
+  "privacyGroupTrackers": "Spårare och annonser",
+  "privacyGroupFingerprinting": "Fingeravtryck",
+  "privacyGroupStorage": "Lagring",
+  "privacyFingerprintingNote": "Spårningsskydd slumpar även avläsningar av canvas, ljud, teckensnitt och maskinvara för den här webbplatsen.",
+  "privacySummaryProtectionOn": "Spårningsskydd på",
+  "privacySummaryNothingOn": "Inget skydd aktiverat",
+  "siteSettingsForcedOffByTrackingProtection": "Tvingad av av Spårningsskydd",
+  "siteSettingsNeedsTrackingProtection": "Kräver Spårningsskydd",
+  "siteSettingsThirdPartyCookiesSubtitle": "Låt inbäddat innehåll sätta kakor över webbplatser",
+  "siteSettingsThirdPartyCookiesHint": "Kakor som sätts av innehåll inbäddat från en annan webbplats, till exempel annonser, delningsknappar och analyswidgetar. De är det äldsta sättet för en spårare att följa dig från en webbplats till nästa, och därför stänger Spårningsskydd av dem. Vissa inloggningsomdirigeringar och inbäddade kassor behöver dem, så slå på dem igen för en webbplats som inte fungerar utan.",
+  "siteSettingsSectionContent": "Innehåll",
+  "siteSettingsSectionBehaviour": "Beteende",
+  "siteSettingsSectionNetwork": "Nätverk"
 }

@@ -733,5 +733,19 @@
   "permissionStateSimulated": "Disimulasi",
   "permissionStateBlocked": "Disekat",
   "permissionsSummaryNothingGranted": "Tiada yang diberikan",
-  "permissionsSummaryMore": "{count} lagi"
+  "permissionsSummaryMore": "{count} lagi",
+  "privacyTitle": "Privasi",
+  "privacyGroupTrackers": "Penjejak dan iklan",
+  "privacyGroupFingerprinting": "Cap jari",
+  "privacyGroupStorage": "Storan",
+  "privacyFingerprintingNote": "Perlindungan Penjejakan turut merawakkan bacaan kanvas, audio, fon dan perkakasan untuk tapak ini.",
+  "privacySummaryProtectionOn": "Perlindungan Penjejakan hidup",
+  "privacySummaryNothingOn": "Tiada perlindungan didayakan",
+  "siteSettingsForcedOffByTrackingProtection": "Dipaksa mati oleh Perlindungan Penjejakan",
+  "siteSettingsNeedsTrackingProtection": "Memerlukan Perlindungan Penjejakan",
+  "siteSettingsThirdPartyCookiesSubtitle": "Benarkan kandungan terbenam menetapkan kuki merentas tapak",
+  "siteSettingsThirdPartyCookiesHint": "Kuki yang ditetapkan oleh kandungan terbenam daripada tapak lain, seperti iklan, butang kongsi dan widget analitik. Ia cara tertua seorang penjejak mengikuti anda dari satu tapak ke tapak seterusnya, sebab itulah Perlindungan Penjejakan mematikannya. Sesetengah ubah hala log masuk dan pembayaran terbenam memerlukannya, jadi hidupkannya semula untuk tapak yang rosak tanpanya.",
+  "siteSettingsSectionContent": "Kandungan",
+  "siteSettingsSectionBehaviour": "Kelakuan",
+  "siteSettingsSectionNetwork": "Rangkaian"
 }

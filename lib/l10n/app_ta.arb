@@ -733,5 +733,19 @@
   "permissionStateSimulated": "உருவகப்படுத்தப்பட்டது",
   "permissionStateBlocked": "தடுக்கப்பட்டது",
   "permissionsSummaryNothingGranted": "எதுவும் வழங்கப்படவில்லை",
-  "permissionsSummaryMore": "மேலும் {count}"
+  "permissionsSummaryMore": "மேலும் {count}",
+  "privacyTitle": "தனியுரிமை",
+  "privacyGroupTrackers": "கண்காணிப்பான்கள் மற்றும் விளம்பரங்கள்",
+  "privacyGroupFingerprinting": "கைரேகை எடுத்தல்",
+  "privacyGroupStorage": "சேமிப்பு",
+  "privacyFingerprintingNote": "கண்காணிப்பு பாதுகாப்பு இந்த தளத்திற்கான கேன்வாஸ், ஒலி, எழுத்துரு மற்றும் வன்பொருள் அளவீடுகளையும் சீரற்றதாக்குகிறது.",
+  "privacySummaryProtectionOn": "கண்காணிப்பு பாதுகாப்பு இயக்கத்தில்",
+  "privacySummaryNothingOn": "எந்த பாதுகாப்பும் இயக்கப்படவில்லை",
+  "siteSettingsForcedOffByTrackingProtection": "கண்காணிப்பு பாதுகாப்பால் கட்டாயமாக அணைக்கப்பட்டது",
+  "siteSettingsNeedsTrackingProtection": "கண்காணிப்பு பாதுகாப்பு தேவை",
+  "siteSettingsThirdPartyCookiesSubtitle": "உட்பொதிக்கப்பட்ட உள்ளடக்கம் தளங்களுக்கு இடையே குக்கீகளை அமைக்க அனுமதி",
+  "siteSettingsThirdPartyCookiesHint": "விளம்பரங்கள், பகிர்வு பொத்தான்கள் மற்றும் பகுப்பாய்வு விட்ஜெட்கள் போன்ற மற்றொரு தளத்திலிருந்து உட்பொதிக்கப்பட்ட உள்ளடக்கம் அமைக்கும் குக்கீகள். ஒரு கண்காணிப்பான் உங்களை ஒரு தளத்திலிருந்து அடுத்த தளத்திற்கு பின்தொடரும் மிகப் பழமையான வழி இதுவே, அதனால்தான் கண்காணிப்பு பாதுகாப்பு அவற்றை அணைக்கிறது. சில உள்நுழைவு திருப்பிவிடல்கள் மற்றும் உட்பொதிக்கப்பட்ட கட்டண பக்கங்களுக்கு அவை தேவை, எனவே அவை இல்லாமல் வேலை செய்யாத தளத்திற்கு அவற்றை மீண்டும் இயக்கவும்.",
+  "siteSettingsSectionContent": "உள்ளடக்கம்",
+  "siteSettingsSectionBehaviour": "நடத்தை",
+  "siteSettingsSectionNetwork": "வலையமைப்பு"
 }

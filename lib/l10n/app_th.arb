@@ -733,5 +733,19 @@
   "permissionStateSimulated": "จำลอง",
   "permissionStateBlocked": "ถูกบล็อก",
   "permissionsSummaryNothingGranted": "ไม่ได้ให้สิทธิ์ใด ๆ",
-  "permissionsSummaryMore": "อีก {count} รายการ"
+  "permissionsSummaryMore": "อีก {count} รายการ",
+  "privacyTitle": "ความเป็นส่วนตัว",
+  "privacyGroupTrackers": "ตัวติดตามและโฆษณา",
+  "privacyGroupFingerprinting": "การเก็บลายนิ้วมือ",
+  "privacyGroupStorage": "พื้นที่จัดเก็บ",
+  "privacyFingerprintingNote": "การป้องกันการติดตามยังสุ่มค่าการอ่านของ canvas เสียง ฟอนต์ และฮาร์ดแวร์สำหรับไซต์นี้ด้วย",
+  "privacySummaryProtectionOn": "การป้องกันการติดตามเปิดอยู่",
+  "privacySummaryNothingOn": "ไม่ได้เปิดการป้องกันใด",
+  "siteSettingsForcedOffByTrackingProtection": "ถูกบังคับปิดโดยการป้องกันการติดตาม",
+  "siteSettingsNeedsTrackingProtection": "ต้องใช้การป้องกันการติดตาม",
+  "siteSettingsThirdPartyCookiesSubtitle": "อนุญาตให้เนื้อหาที่ฝังไว้ตั้งคุกกี้ข้ามไซต์",
+  "siteSettingsThirdPartyCookiesHint": "คุกกี้ที่ตั้งโดยเนื้อหาซึ่งฝังมาจากไซต์อื่น เช่น โฆษณา ปุ่มแชร์ และวิดเจ็ตวิเคราะห์ข้อมูล เป็นวิธีที่เก่าแก่ที่สุดที่ตัวติดตามใช้ตามคุณจากไซต์หนึ่งไปอีกไซต์หนึ่ง จึงเป็นเหตุให้การป้องกันการติดตามปิดมัน การเปลี่ยนเส้นทางเข้าสู่ระบบและหน้าชำระเงินแบบฝังบางอย่างจำเป็นต้องใช้ ดังนั้นให้เปิดกลับมาสำหรับไซต์ที่ใช้งานไม่ได้หากไม่มี",
+  "siteSettingsSectionContent": "เนื้อหา",
+  "siteSettingsSectionBehaviour": "พฤติกรรม",
+  "siteSettingsSectionNetwork": "เครือข่าย"
 }

@@ -733,5 +733,19 @@
   "permissionStateSimulated": "अनुरूपित",
   "permissionStateBlocked": "अवरुद्ध",
   "permissionsSummaryNothingGranted": "कुछ भी प्रदान नहीं किया गया",
-  "permissionsSummaryMore": "{count} और"
+  "permissionsSummaryMore": "{count} और",
+  "privacyTitle": "गोपनीयता",
+  "privacyGroupTrackers": "ट्रैकर और विज्ञापन",
+  "privacyGroupFingerprinting": "फ़िंगरप्रिंटिंग",
+  "privacyGroupStorage": "संग्रहण",
+  "privacyFingerprintingNote": "ट्रैकिंग सुरक्षा इस साइट के लिए कैनवास, ऑडियो, फ़ॉन्ट और हार्डवेयर रीडिंग को भी यादृच्छिक बनाती है।",
+  "privacySummaryProtectionOn": "ट्रैकिंग सुरक्षा चालू",
+  "privacySummaryNothingOn": "कोई सुरक्षा सक्षम नहीं",
+  "siteSettingsForcedOffByTrackingProtection": "ट्रैकिंग सुरक्षा द्वारा बलपूर्वक बंद",
+  "siteSettingsNeedsTrackingProtection": "ट्रैकिंग सुरक्षा आवश्यक है",
+  "siteSettingsThirdPartyCookiesSubtitle": "एम्बेडेड सामग्री को साइटों के बीच कुकीज़ सेट करने दें",
+  "siteSettingsThirdPartyCookiesHint": "किसी दूसरी साइट से एम्बेड की गई सामग्री द्वारा सेट की गई कुकीज़, जैसे विज्ञापन, साझा करने के बटन और एनालिटिक्स विजेट। यह सबसे पुराना तरीका है जिससे कोई ट्रैकर आपको एक साइट से दूसरी साइट तक फ़ॉलो करता है, इसीलिए ट्रैकिंग सुरक्षा इन्हें बंद कर देती है। कुछ साइन-इन रीडायरेक्ट और एम्बेडेड चेकआउट को इनकी ज़रूरत होती है, इसलिए जो साइट इनके बिना काम न करे उसके लिए इन्हें फिर चालू करें।",
+  "siteSettingsSectionContent": "सामग्री",
+  "siteSettingsSectionBehaviour": "व्यवहार",
+  "siteSettingsSectionNetwork": "नेटवर्क"
 }

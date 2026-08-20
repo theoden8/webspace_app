@@ -733,5 +733,19 @@
   "permissionStateSimulated": "Simulat",
   "permissionStateBlocked": "Blocat",
   "permissionsSummaryNothingGranted": "Nu s-a acordat nimic",
-  "permissionsSummaryMore": "Încă {count}"
+  "permissionsSummaryMore": "Încă {count}",
+  "privacyTitle": "Confidențialitate",
+  "privacyGroupTrackers": "Urmăritori și reclame",
+  "privacyGroupFingerprinting": "Amprentare",
+  "privacyGroupStorage": "Stocare",
+  "privacyFingerprintingNote": "Protecția împotriva urmăririi randomizează pentru acest site și citirile de canvas, audio, fonturi și hardware.",
+  "privacySummaryProtectionOn": "Protecție împotriva urmăririi activă",
+  "privacySummaryNothingOn": "Nicio protecție activată",
+  "siteSettingsForcedOffByTrackingProtection": "Forțat dezactivat de Protecția împotriva urmăririi",
+  "siteSettingsNeedsTrackingProtection": "Necesită Protecția împotriva urmăririi",
+  "siteSettingsThirdPartyCookiesSubtitle": "Permite conținutului încorporat să seteze cookie-uri între site-uri",
+  "siteSettingsThirdPartyCookiesHint": "Cookie-uri setate de conținut încorporat de pe alt site, precum reclame, butoane de partajare și widget-uri de analiză. Sunt cea mai veche cale prin care un urmăritor te urmărește de la un site la altul, motiv pentru care Protecția împotriva urmăririi le dezactivează. Unele redirecționări de autentificare și plăți încorporate au nevoie de ele, așa că reactivează-le pentru un site care nu funcționează fără ele.",
+  "siteSettingsSectionContent": "Conținut",
+  "siteSettingsSectionBehaviour": "Comportament",
+  "siteSettingsSectionNetwork": "Rețea"
 }

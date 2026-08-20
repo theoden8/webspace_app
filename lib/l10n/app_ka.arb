@@ -733,5 +733,19 @@
   "permissionStateSimulated": "სიმულირებული",
   "permissionStateBlocked": "დაბლოკილი",
   "permissionsSummaryNothingGranted": "არაფერია მინიჭებული",
-  "permissionsSummaryMore": "კიდევ {count}"
+  "permissionsSummaryMore": "კიდევ {count}",
+  "privacyTitle": "კონფიდენციალურობა",
+  "privacyGroupTrackers": "მეთვალყურეები და რეკლამები",
+  "privacyGroupFingerprinting": "ციფრული ანაბეჭდი",
+  "privacyGroupStorage": "საცავი",
+  "privacyFingerprintingNote": "თვალთვალისგან დაცვა ასევე შემთხვევითობით ცვლის ტილოს, ხმის, შრიფტებისა და აპარატურის მაჩვენებლებს ამ საიტისთვის.",
+  "privacySummaryProtectionOn": "თვალთვალისგან დაცვა ჩართულია",
+  "privacySummaryNothingOn": "დაცვა ჩართული არ არის",
+  "siteSettingsForcedOffByTrackingProtection": "იძულებით გამორთულია თვალთვალისგან დაცვის გამო",
+  "siteSettingsNeedsTrackingProtection": "საჭიროებს თვალთვალისგან დაცვას",
+  "siteSettingsThirdPartyCookiesSubtitle": "ჩაშენებულ შიგთავსს მიეცეს საიტებს შორის ქუქიების დაყენების უფლება",
+  "siteSettingsThirdPartyCookiesHint": "ქუქიები, რომლებსაც აყენებს სხვა საიტიდან ჩაშენებული შიგთავსი, მაგალითად რეკლამები, გაზიარების ღილაკები და ანალიტიკის ვიჯეტები. ეს არის უძველესი გზა, რომლითაც მეთვალყურე მიგყვებათ ერთი საიტიდან მეორეზე, და სწორედ ამიტომ თიშავს მათ თვალთვალისგან დაცვა. ზოგიერთ შესვლის გადამისამართებას და ჩაშენებულ გადახდას ისინი სჭირდება, ამიტომ ისევ ჩართეთ ისინი იმ საიტისთვის, რომელიც მათ გარეშე ვერ მუშაობს.",
+  "siteSettingsSectionContent": "შიგთავსი",
+  "siteSettingsSectionBehaviour": "ქცევა",
+  "siteSettingsSectionNetwork": "ქსელი"
 }

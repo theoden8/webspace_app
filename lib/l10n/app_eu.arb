@@ -733,5 +733,19 @@
   "permissionStateSimulated": "Simulatua",
   "permissionStateBlocked": "Blokeatuta",
   "permissionsSummaryNothingGranted": "Ez da ezer baimendu",
-  "permissionsSummaryMore": "Beste {count}"
+  "permissionsSummaryMore": "Beste {count}",
+  "privacyTitle": "Pribatutasuna",
+  "privacyGroupTrackers": "Jarraitzaileak eta iragarkiak",
+  "privacyGroupFingerprinting": "Hatz-marka digitala",
+  "privacyGroupStorage": "Biltegiratzea",
+  "privacyFingerprintingNote": "Jarraipenaren aurkako babesak canvas, audio, letra-tipo eta hardware irakurketak ere ausazkotzen ditu gune honetarako.",
+  "privacySummaryProtectionOn": "Jarraipenaren aurkako babesa piztuta",
+  "privacySummaryNothingOn": "Ez dago babesik gaituta",
+  "siteSettingsForcedOffByTrackingProtection": "Jarraipenaren aurkako babesak behartuta itzalita",
+  "siteSettingsNeedsTrackingProtection": "Jarraipenaren aurkako babesa behar du",
+  "siteSettingsThirdPartyCookiesSubtitle": "Utzi kapsulatutako edukiari guneen arteko cookieak ezartzen",
+  "siteSettingsThirdPartyCookiesHint": "Beste gune batetik kapsulatutako edukiak ezarritako cookieak, hala nola iragarkiak, partekatzeko botoiak eta analitika-widgetak. Jarraitzaile batek gune batetik bestera jarraitzeko duen modurik zaharrena dira, eta horregatik itzaltzen ditu jarraipenaren aurkako babesak. Saioa hasteko birbideratze batzuek eta kapsulatutako ordainketek behar dituzte, beraz, piztu berriro haiek gabe hausten den gune baterako.",
+  "siteSettingsSectionContent": "Edukia",
+  "siteSettingsSectionBehaviour": "Portaera",
+  "siteSettingsSectionNetwork": "Sarea"
 }

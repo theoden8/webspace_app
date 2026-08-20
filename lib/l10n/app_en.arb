@@ -3529,11 +3529,67 @@
   },
   "permissionsSummaryMore": "{count} more",
   "@permissionsSummaryMore": {
-    "description": "Appended to the permissions summary when more granted permissions exist than fit on the row.",
+    "description": "Appended to the permissions or privacy summary in site settings when more entries are on than fit on the row.",
     "placeholders": {
       "count": {
         "type": "int"
       }
     }
+  },
+  "privacyTitle": "Privacy",
+  "@privacyTitle": {
+    "description": "Title of the per-site privacy screen, and of the row in site settings that opens it. Covers tracking protection, its subordinate blockers, and what the site is allowed to keep on disk."
+  },
+  "privacyGroupTrackers": "Trackers and ads",
+  "@privacyGroupTrackers": {
+    "description": "Heading for the privacy group covering URL parameter stripping, DNS blocking, the content blocker, LocalCDN and third-party cookies."
+  },
+  "privacyGroupFingerprinting": "Fingerprinting",
+  "@privacyGroupFingerprinting": {
+    "description": "Heading for the privacy group covering measures that make the browser harder to identify by its characteristics rather than by stored data."
+  },
+  "privacyGroupStorage": "Storage",
+  "@privacyGroupStorage": {
+    "description": "Heading for the privacy group covering what the site is allowed to keep on the device between sessions."
+  },
+  "privacyFingerprintingNote": "Tracking Protection also randomises canvas, audio, font and hardware readings for this site.",
+  "@privacyFingerprintingNote": {
+    "description": "Explanatory line under the fingerprinting group, noting that the umbrella switch brings anti-fingerprinting measures beyond the one switch shown."
+  },
+  "privacySummaryProtectionOn": "Tracking Protection on",
+  "@privacySummaryProtectionOn": {
+    "description": "Summary on the privacy row in site settings when the umbrella tracking protection switch is on."
+  },
+  "privacySummaryNothingOn": "No protection enabled",
+  "@privacySummaryNothingOn": {
+    "description": "Summary on the privacy row in site settings when the site has no privacy protection turned on at all."
+  },
+  "siteSettingsForcedOffByTrackingProtection": "Forced off by Tracking Protection",
+  "@siteSettingsForcedOffByTrackingProtection": {
+    "description": "Subtitle on a setting that Tracking Protection turns off and locks while it is on. The inverse of the 'Forced on by Tracking Protection' subtitle."
+  },
+  "siteSettingsNeedsTrackingProtection": "Requires Tracking Protection",
+  "@siteSettingsNeedsTrackingProtection": {
+    "description": "Subtitle on a setting that can only be turned on while Tracking Protection is on."
+  },
+  "siteSettingsThirdPartyCookiesSubtitle": "Let embedded content set cookies across sites",
+  "@siteSettingsThirdPartyCookiesSubtitle": {
+    "description": "Subtitle for the third-party cookies switch, describing what turning it on permits."
+  },
+  "siteSettingsThirdPartyCookiesHint": "Cookies set by content embedded from another site, such as ads, share buttons and analytics widgets. They are the oldest way a tracker follows you from one site to the next, which is why Tracking Protection turns them off. Some sign-in redirects and embedded checkouts need them, so turn them back on for a site that breaks without them.",
+  "@siteSettingsThirdPartyCookiesHint": {
+    "description": "Explanatory popup for the third-party cookies switch: what such cookies are, why tracking protection blocks them, and when a user might legitimately want them."
+  },
+  "siteSettingsSectionContent": "Content",
+  "@siteSettingsSectionContent": {
+    "description": "Heading in site settings for the group covering what the page is served and how it renders: scripts, user agent, language, zoom."
+  },
+  "siteSettingsSectionBehaviour": "Behaviour",
+  "@siteSettingsSectionBehaviour": {
+    "description": "Heading in site settings for the group covering how the app treats the site: where it opens, how links leave it, and how much of the screen it uses."
+  },
+  "siteSettingsSectionNetwork": "Network",
+  "@siteSettingsSectionNetwork": {
+    "description": "Heading in site settings for the group covering how the site's traffic reaches the internet: proxy and WebRTC."
   }
 }

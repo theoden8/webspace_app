@@ -733,5 +733,19 @@
   "permissionStateSimulated": "Дуурайлгасан",
   "permissionStateBlocked": "Хориглосон",
   "permissionsSummaryNothingGranted": "Юу ч олгоогүй",
-  "permissionsSummaryMore": "Бас {count}"
+  "permissionsSummaryMore": "Бас {count}",
+  "privacyTitle": "Нууцлал",
+  "privacyGroupTrackers": "Хянагч ба сурталчилгаа",
+  "privacyGroupFingerprinting": "Хурууны хээ авалт",
+  "privacyGroupStorage": "Хадгалалт",
+  "privacyFingerprintingNote": "Хяналтаас хамгаалалт нь энэ сайтын хувьд зураас, дуу, фонт, техник хангамжийн заалтуудыг мөн санамсаргүй болгодог.",
+  "privacySummaryProtectionOn": "Хяналтаас хамгаалалт асаалттай",
+  "privacySummaryNothingOn": "Ямар ч хамгаалалт идэвхгүй",
+  "siteSettingsForcedOffByTrackingProtection": "Хяналтаас хамгаалалтаар албадан унтраасан",
+  "siteSettingsNeedsTrackingProtection": "Хяналтаас хамгаалалт шаардлагатай",
+  "siteSettingsThirdPartyCookiesSubtitle": "Суулгасан агуулгад сайт хооронд cookie тохируулахыг зөвшөөрөх",
+  "siteSettingsThirdPartyCookiesHint": "Сурталчилгаа, хуваалцах товч, аналитик виджет зэрэг өөр сайтаас суулгасан агуулгын тохируулдаг cookie. Эдгээр нь хянагч таныг нэг сайтаас нөгөөд дагах хамгийн эртний арга бөгөөд тийм ч учраас Хяналтаас хамгаалалт тэдгээрийг унтраадаг. Зарим нэвтрэлтийн чиглүүлэлт болон суулгасан төлбөрийн хуудсанд эдгээр шаардлагатай тул тэдгээргүйгээр ажиллахгүй сайтын хувьд дахин асаана уу.",
+  "siteSettingsSectionContent": "Агуулга",
+  "siteSettingsSectionBehaviour": "Үйлдэл",
+  "siteSettingsSectionNetwork": "Сүлжээ"
 }

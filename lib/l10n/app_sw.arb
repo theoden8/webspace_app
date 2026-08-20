@@ -733,5 +733,19 @@
   "permissionStateSimulated": "Imeigwa",
   "permissionStateBlocked": "Imezuiwa",
   "permissionsSummaryNothingGranted": "Hakuna kilichoruhusiwa",
-  "permissionsSummaryMore": "Nyingine {count}"
+  "permissionsSummaryMore": "Nyingine {count}",
+  "privacyTitle": "Faragha",
+  "privacyGroupTrackers": "Vifuatiliaji na matangazo",
+  "privacyGroupFingerprinting": "Uchukuaji alama za vidole",
+  "privacyGroupStorage": "Hifadhi",
+  "privacyFingerprintingNote": "Ulinzi wa Ufuatiliaji pia hubadilisha kwa nasibu visomo vya turubai, sauti, fonti na maunzi kwa tovuti hii.",
+  "privacySummaryProtectionOn": "Ulinzi wa Ufuatiliaji umewashwa",
+  "privacySummaryNothingOn": "Hakuna ulinzi uliowashwa",
+  "siteSettingsForcedOffByTrackingProtection": "Imelazimishwa kuzimwa na Ulinzi wa Ufuatiliaji",
+  "siteSettingsNeedsTrackingProtection": "Inahitaji Ulinzi wa Ufuatiliaji",
+  "siteSettingsThirdPartyCookiesSubtitle": "Ruhusu maudhui yaliyopachikwa kuweka vidakuzi kati ya tovuti",
+  "siteSettingsThirdPartyCookiesHint": "Vidakuzi vinavyowekwa na maudhui yaliyopachikwa kutoka tovuti nyingine, kama matangazo, vitufe vya kushiriki na vidirisha vya uchanganuzi. Ni njia kongwe zaidi ambayo kifuatiliaji hukufuata kutoka tovuti moja hadi nyingine, ndiyo maana Ulinzi wa Ufuatiliaji huvizima. Baadhi ya uelekezaji wa kuingia na malipo yaliyopachikwa huvihitaji, hivyo viwashe tena kwa tovuti isiyofanya kazi bila vyo.",
+  "siteSettingsSectionContent": "Maudhui",
+  "siteSettingsSectionBehaviour": "Tabia",
+  "siteSettingsSectionNetwork": "Mtandao"
 }

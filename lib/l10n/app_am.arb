@@ -733,5 +733,19 @@
   "permissionStateSimulated": "የተመሰለ",
   "permissionStateBlocked": "ታግዷል",
   "permissionsSummaryNothingGranted": "ምንም አልተፈቀደም",
-  "permissionsSummaryMore": "ሌላ {count}"
+  "permissionsSummaryMore": "ሌላ {count}",
+  "privacyTitle": "ግላዊነት",
+  "privacyGroupTrackers": "ተከታታዮች እና ማስታወቂያዎች",
+  "privacyGroupFingerprinting": "የጣት አሻራ መውሰድ",
+  "privacyGroupStorage": "ማከማቻ",
+  "privacyFingerprintingNote": "የክትትል ጥበቃ ለዚህ ጣቢያ የሸራ፣ የድምጽ፣ የቅርጸ-ቁምፊ እና የሃርድዌር ንባቦችንም በዘፈቀደ ይለውጣል።",
+  "privacySummaryProtectionOn": "የክትትል ጥበቃ በርቷል",
+  "privacySummaryNothingOn": "ምንም ጥበቃ አልነቃም",
+  "siteSettingsForcedOffByTrackingProtection": "በክትትል ጥበቃ ተገድዶ ጠፍቷል",
+  "siteSettingsNeedsTrackingProtection": "የክትትል ጥበቃ ያስፈልጋል",
+  "siteSettingsThirdPartyCookiesSubtitle": "የተካተተ ይዘት በጣቢያዎች መካከል ኩኪዎችን እንዲያዘጋጅ ፍቀድ",
+  "siteSettingsThirdPartyCookiesHint": "ከሌላ ጣቢያ በተካተተ ይዘት የተቀመጡ ኩኪዎች፣ እንደ ማስታወቂያዎች፣ የማጋሪያ አዝራሮች እና የትንተና መግብሮች። አንድ ተከታታይ ከአንድ ጣቢያ ወደ ሌላው እንዲከተልህ የሚያደርግ በጣም የቆየ መንገድ ናቸው፣ ለዚህም ነው የክትትል ጥበቃ የሚያጠፋቸው። አንዳንድ የመግቢያ ማዘዋወሪያዎች እና የተካተቱ የክፍያ ሂደቶች ያስፈልጋቸዋል፣ ስለዚህ ያለ እነሱ ለሚበላሽ ጣቢያ እንደገና አብራቸው።",
+  "siteSettingsSectionContent": "ይዘት",
+  "siteSettingsSectionBehaviour": "ባህሪ",
+  "siteSettingsSectionNetwork": "አውታረ መረብ"
 }

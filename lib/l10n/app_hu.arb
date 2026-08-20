@@ -733,5 +733,19 @@
   "permissionStateSimulated": "Szimulált",
   "permissionStateBlocked": "Letiltva",
   "permissionsSummaryNothingGranted": "Semmi nincs engedélyezve",
-  "permissionsSummaryMore": "Még {count}"
+  "permissionsSummaryMore": "Még {count}",
+  "privacyTitle": "Adatvédelem",
+  "privacyGroupTrackers": "Nyomkövetők és hirdetések",
+  "privacyGroupFingerprinting": "Ujjlenyomatvétel",
+  "privacyGroupStorage": "Tárolás",
+  "privacyFingerprintingNote": "A nyomkövetés elleni védelem ehhez az oldalhoz a vászon-, hang-, betűtípus- és hardverleolvasásokat is véletlenszerűsíti.",
+  "privacySummaryProtectionOn": "Nyomkövetés elleni védelem bekapcsolva",
+  "privacySummaryNothingOn": "Nincs bekapcsolt védelem",
+  "siteSettingsForcedOffByTrackingProtection": "A nyomkövetés elleni védelem miatt kikapcsolva",
+  "siteSettingsNeedsTrackingProtection": "Nyomkövetés elleni védelmet igényel",
+  "siteSettingsThirdPartyCookiesSubtitle": "A beágyazott tartalom oldalak közötti sütiket állíthasson be",
+  "siteSettingsThirdPartyCookiesHint": "Egy másik oldalról beágyazott tartalom, például hirdetések, megosztógombok és analitikai widgetek által beállított sütik. Ez a legrégebbi módja annak, hogy egy nyomkövető egyik oldalról a másikra kövesse Önt, ezért kapcsolja ki őket a nyomkövetés elleni védelem. Néhány bejelentkezési átirányításnak és beágyazott fizetésnek szüksége van rájuk, ezért kapcsolja vissza őket olyan oldalnál, amely nélkülük nem működik.",
+  "siteSettingsSectionContent": "Tartalom",
+  "siteSettingsSectionBehaviour": "Viselkedés",
+  "siteSettingsSectionNetwork": "Hálózat"
 }

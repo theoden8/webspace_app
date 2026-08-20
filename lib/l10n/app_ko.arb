@@ -733,5 +733,19 @@
   "permissionStateSimulated": "시뮬레이션",
   "permissionStateBlocked": "차단됨",
   "permissionsSummaryNothingGranted": "부여된 권한 없음",
-  "permissionsSummaryMore": "{count}개 더"
+  "permissionsSummaryMore": "{count}개 더",
+  "privacyTitle": "개인정보",
+  "privacyGroupTrackers": "추적기 및 광고",
+  "privacyGroupFingerprinting": "핑거프린팅",
+  "privacyGroupStorage": "저장소",
+  "privacyFingerprintingNote": "추적 방지는 이 사이트에 대해 캔버스, 오디오, 글꼴, 하드웨어 판독값도 무작위화합니다.",
+  "privacySummaryProtectionOn": "추적 방지 켜짐",
+  "privacySummaryNothingOn": "활성화된 보호 없음",
+  "siteSettingsForcedOffByTrackingProtection": "추적 방지에 의해 강제로 꺼짐",
+  "siteSettingsNeedsTrackingProtection": "추적 방지가 필요합니다",
+  "siteSettingsThirdPartyCookiesSubtitle": "포함된 콘텐츠가 사이트 간에 쿠키를 설정하도록 허용",
+  "siteSettingsThirdPartyCookiesHint": "광고, 공유 버튼, 분석 위젯처럼 다른 사이트에서 포함된 콘텐츠가 설정하는 쿠키입니다. 추적기가 한 사이트에서 다음 사이트로 사용자를 따라다니는 가장 오래된 방법이며, 그래서 추적 방지가 이를 끕니다. 일부 로그인 리디렉션과 포함된 결제 과정에는 이것이 필요하므로, 이것 없이 작동하지 않는 사이트에서는 다시 켜세요.",
+  "siteSettingsSectionContent": "콘텐츠",
+  "siteSettingsSectionBehaviour": "동작",
+  "siteSettingsSectionNetwork": "네트워크"
 }

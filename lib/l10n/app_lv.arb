@@ -733,5 +733,19 @@
   "permissionStateSimulated": "Simulēts",
   "permissionStateBlocked": "Bloķēts",
   "permissionsSummaryNothingGranted": "Nekas nav piešķirts",
-  "permissionsSummaryMore": "Vēl {count}"
+  "permissionsSummaryMore": "Vēl {count}",
+  "privacyTitle": "Privātums",
+  "privacyGroupTrackers": "Izsekotāji un reklāmas",
+  "privacyGroupFingerprinting": "Pirkstu nospiedumi",
+  "privacyGroupStorage": "Krātuve",
+  "privacyFingerprintingNote": "Izsekošanas aizsardzība šai vietnei nejaušina arī audekla, audio, fontu un aparatūras rādījumus.",
+  "privacySummaryProtectionOn": "Izsekošanas aizsardzība ieslēgta",
+  "privacySummaryNothingOn": "Nav ieslēgta neviena aizsardzība",
+  "siteSettingsForcedOffByTrackingProtection": "Piespiedu kārtā izslēgts ar Izsekošanas aizsardzību",
+  "siteSettingsNeedsTrackingProtection": "Nepieciešama Izsekošanas aizsardzība",
+  "siteSettingsThirdPartyCookiesSubtitle": "Ļaut iegultajam saturam iestatīt sīkdatnes starp vietnēm",
+  "siteSettingsThirdPartyCookiesHint": "Sīkdatnes, ko iestata no citas vietnes iegults saturs, piemēram, reklāmas, kopīgošanas pogas un analītikas logrīki. Tas ir vecākais veids, kā izsekotājs seko jums no vienas vietnes uz nākamo, tāpēc Izsekošanas aizsardzība tās izslēdz. Dažām pieteikšanās novirzēm un iegultajām norēķinu lapām tās ir vajadzīgas, tāpēc ieslēdziet tās atpakaļ vietnei, kas bez tām nedarbojas.",
+  "siteSettingsSectionContent": "Saturs",
+  "siteSettingsSectionBehaviour": "Uzvedība",
+  "siteSettingsSectionNetwork": "Tīkls"
 }

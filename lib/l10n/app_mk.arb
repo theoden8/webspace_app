@@ -733,5 +733,19 @@
   "permissionStateSimulated": "Симулирано",
   "permissionStateBlocked": "Блокирано",
   "permissionsSummaryNothingGranted": "Ништо не е доделено",
-  "permissionsSummaryMore": "Уште {count}"
+  "permissionsSummaryMore": "Уште {count}",
+  "privacyTitle": "Приватност",
+  "privacyGroupTrackers": "Следачи и реклами",
+  "privacyGroupFingerprinting": "Дигитален отпечаток",
+  "privacyGroupStorage": "Складирање",
+  "privacyFingerprintingNote": "Заштитата од следење исто така случајно ги менува отчитувањата на платно, аудио, фонтови и хардвер за оваа страница.",
+  "privacySummaryProtectionOn": "Заштитата од следење е вклучена",
+  "privacySummaryNothingOn": "Нема вклучена заштита",
+  "siteSettingsForcedOffByTrackingProtection": "Принудно исклучено од Заштита од следење",
+  "siteSettingsNeedsTrackingProtection": "Бара Заштита од следење",
+  "siteSettingsThirdPartyCookiesSubtitle": "Дозволи вградената содржина да поставува колачиња низ страниците",
+  "siteSettingsThirdPartyCookiesHint": "Колачиња што ги поставува содржина вградена од друга страница, како реклами, копчиња за споделување и аналитички виџети. Тие се најстариот начин на кој следач ве следи од една страница до друга, поради што Заштитата од следење ги исклучува. На некои пренасочувања при најава и вградени наплати им се потребни, па вклучете ги повторно за страница што без нив не работи.",
+  "siteSettingsSectionContent": "Содржина",
+  "siteSettingsSectionBehaviour": "Однесување",
+  "siteSettingsSectionNetwork": "Мрежа"
 }

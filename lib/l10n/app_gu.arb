@@ -733,5 +733,19 @@
   "permissionStateSimulated": "અનુકરણ",
   "permissionStateBlocked": "અવરોધિત",
   "permissionsSummaryNothingGranted": "કંઈ મંજૂર નથી",
-  "permissionsSummaryMore": "વધુ {count}"
+  "permissionsSummaryMore": "વધુ {count}",
+  "privacyTitle": "ગોપનીયતા",
+  "privacyGroupTrackers": "ટ્રેકર્સ અને જાહેરાતો",
+  "privacyGroupFingerprinting": "ફિંગરપ્રિન્ટિંગ",
+  "privacyGroupStorage": "સંગ્રહ",
+  "privacyFingerprintingNote": "ટ્રેકિંગ સંરક્ષણ આ સાઇટ માટે કેનવાસ, ઑડિયો, ફોન્ટ અને હાર્ડવેર વાચનોને પણ અવ્યવસ્થિત કરે છે.",
+  "privacySummaryProtectionOn": "ટ્રેકિંગ સંરક્ષણ ચાલુ",
+  "privacySummaryNothingOn": "કોઈ સંરક્ષણ સક્ષમ નથી",
+  "siteSettingsForcedOffByTrackingProtection": "ટ્રેકિંગ સંરક્ષણ દ્વારા ફરજિયાત બંધ",
+  "siteSettingsNeedsTrackingProtection": "ટ્રેકિંગ સંરક્ષણ જરૂરી છે",
+  "siteSettingsThirdPartyCookiesSubtitle": "એમ્બેડ કરેલી સામગ્રીને સાઇટ્સ વચ્ચે કૂકીઝ સેટ કરવા દો",
+  "siteSettingsThirdPartyCookiesHint": "બીજી સાઇટમાંથી એમ્બેડ કરેલી સામગ્રી દ્વારા સેટ કરાયેલી કૂકીઝ, જેમ કે જાહેરાતો, શેર બટન અને એનાલિટિક્સ વિજેટ્સ. ટ્રેકર તમને એક સાઇટથી બીજી સાઇટ સુધી અનુસરે તેની આ સૌથી જૂની રીત છે, તેથી જ ટ્રેકિંગ સંરક્ષણ તેમને બંધ કરે છે. કેટલાક સાઇન-ઇન રીડાયરેક્ટ અને એમ્બેડ કરેલા ચેકઆઉટને તેમની જરૂર પડે છે, તેથી તેમના વગર તૂટતી સાઇટ માટે તેમને ફરી ચાલુ કરો.",
+  "siteSettingsSectionContent": "સામગ્રી",
+  "siteSettingsSectionBehaviour": "વર્તણૂક",
+  "siteSettingsSectionNetwork": "નેટવર્ક"
 }

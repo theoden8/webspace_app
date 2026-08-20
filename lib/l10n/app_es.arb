@@ -733,5 +733,19 @@
   "permissionStateSimulated": "Simulado",
   "permissionStateBlocked": "Bloqueado",
   "permissionsSummaryNothingGranted": "Nada concedido",
-  "permissionsSummaryMore": "{count} más"
+  "permissionsSummaryMore": "{count} más",
+  "privacyTitle": "Privacidad",
+  "privacyGroupTrackers": "Rastreadores y anuncios",
+  "privacyGroupFingerprinting": "Huella digital",
+  "privacyGroupStorage": "Almacenamiento",
+  "privacyFingerprintingNote": "La protección de seguimiento también aleatoriza las lecturas de canvas, audio, fuentes y hardware para este sitio.",
+  "privacySummaryProtectionOn": "Protección de seguimiento activada",
+  "privacySummaryNothingOn": "Ninguna protección activada",
+  "siteSettingsForcedOffByTrackingProtection": "Desactivado por la protección de seguimiento",
+  "siteSettingsNeedsTrackingProtection": "Requiere protección de seguimiento",
+  "siteSettingsThirdPartyCookiesSubtitle": "Permitir que el contenido incrustado establezca cookies entre sitios",
+  "siteSettingsThirdPartyCookiesHint": "Cookies establecidas por contenido incrustado desde otro sitio, como anuncios, botones para compartir y widgets de analítica. Son la forma más antigua en que un rastreador te sigue de un sitio a otro, por eso la protección de seguimiento las desactiva. Algunas redirecciones de inicio de sesión y pagos incrustados las necesitan, así que vuelve a activarlas para un sitio que falle sin ellas.",
+  "siteSettingsSectionContent": "Contenido",
+  "siteSettingsSectionBehaviour": "Comportamiento",
+  "siteSettingsSectionNetwork": "Red"
 }

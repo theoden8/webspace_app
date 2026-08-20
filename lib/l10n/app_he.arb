@@ -733,5 +733,19 @@
   "permissionStateSimulated": "מדומה",
   "permissionStateBlocked": "חסום",
   "permissionsSummaryNothingGranted": "לא הוענקו הרשאות",
-  "permissionsSummaryMore": "עוד {count}"
+  "permissionsSummaryMore": "עוד {count}",
+  "privacyTitle": "פרטיות",
+  "privacyGroupTrackers": "עוקבים ופרסומות",
+  "privacyGroupFingerprinting": "טביעת אצבע",
+  "privacyGroupStorage": "אחסון",
+  "privacyFingerprintingNote": "הגנה מפני מעקב גם מגרילה קריאות של קנבס, שמע, גופנים וחומרה עבור אתר זה.",
+  "privacySummaryProtectionOn": "הגנה מפני מעקב פעילה",
+  "privacySummaryNothingOn": "לא הופעלה שום הגנה",
+  "siteSettingsForcedOffByTrackingProtection": "כובה על ידי הגנה מפני מעקב",
+  "siteSettingsNeedsTrackingProtection": "דורש הגנה מפני מעקב",
+  "siteSettingsThirdPartyCookiesSubtitle": "לאפשר לתוכן משובץ להגדיר עוגיות בין אתרים",
+  "siteSettingsThirdPartyCookiesHint": "עוגיות שמגדיר תוכן המשובץ מאתר אחר, כגון פרסומות, כפתורי שיתוף ווידג'טים של ניתוח נתונים. זו הדרך הוותיקה ביותר שבה עוקב עוקב אחריך מאתר אחד לאחר, ולכן ההגנה מפני מעקב מכבה אותן. חלק מהפניות ההתחברות ותשלומים משובצים זקוקים להן, לכן הפעל אותן מחדש עבור אתר שנשבר בלעדיהן.",
+  "siteSettingsSectionContent": "תוכן",
+  "siteSettingsSectionBehaviour": "התנהגות",
+  "siteSettingsSectionNetwork": "רשת"
 }

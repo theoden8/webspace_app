@@ -733,5 +733,19 @@
   "permissionStateSimulated": "সিমুলেটেড",
   "permissionStateBlocked": "অবরুদ্ধ",
   "permissionsSummaryNothingGranted": "কিছুই অনুমোদিত নয়",
-  "permissionsSummaryMore": "আরও {count}"
+  "permissionsSummaryMore": "আরও {count}",
+  "privacyTitle": "গোপনীয়তা",
+  "privacyGroupTrackers": "ট্র্যাকার ও বিজ্ঞাপন",
+  "privacyGroupFingerprinting": "ফিঙ্গারপ্রিন্টিং",
+  "privacyGroupStorage": "সঞ্চয়স্থান",
+  "privacyFingerprintingNote": "ট্র্যাকিং সুরক্ষা এই সাইটের জন্য ক্যানভাস, অডিও, ফন্ট ও হার্ডওয়্যার রিডিংও এলোমেলো করে দেয়।",
+  "privacySummaryProtectionOn": "ট্র্যাকিং সুরক্ষা চালু",
+  "privacySummaryNothingOn": "কোনো সুরক্ষা সক্ষম নয়",
+  "siteSettingsForcedOffByTrackingProtection": "ট্র্যাকিং সুরক্ষা দ্বারা বন্ধ করা হয়েছে",
+  "siteSettingsNeedsTrackingProtection": "ট্র্যাকিং সুরক্ষা প্রয়োজন",
+  "siteSettingsThirdPartyCookiesSubtitle": "এম্বেড করা কনটেন্টকে সাইট জুড়ে কুকি সেট করতে দিন",
+  "siteSettingsThirdPartyCookiesHint": "অন্য সাইট থেকে এম্বেড করা কনটেন্ট, যেমন বিজ্ঞাপন, শেয়ার বোতাম ও অ্যানালিটিক্স উইজেট দ্বারা সেট করা কুকি। একটি ট্র্যাকার আপনাকে এক সাইট থেকে আরেক সাইটে অনুসরণ করার এটিই প্রাচীনতম উপায়, তাই ট্র্যাকিং সুরক্ষা এগুলি বন্ধ করে দেয়। কিছু সাইন-ইন রিডিরেক্ট ও এম্বেড করা চেকআউটের এগুলি প্রয়োজন, তাই যে সাইট এগুলি ছাড়া কাজ করে না তার জন্য আবার চালু করুন।",
+  "siteSettingsSectionContent": "কনটেন্ট",
+  "siteSettingsSectionBehaviour": "আচরণ",
+  "siteSettingsSectionNetwork": "নেটওয়ার্ক"
 }

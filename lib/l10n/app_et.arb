@@ -733,5 +733,19 @@
   "permissionStateSimulated": "Simuleeritud",
   "permissionStateBlocked": "Blokeeritud",
   "permissionsSummaryNothingGranted": "Midagi pole lubatud",
-  "permissionsSummaryMore": "Veel {count}"
+  "permissionsSummaryMore": "Veel {count}",
+  "privacyTitle": "Privaatsus",
+  "privacyGroupTrackers": "Jälgijad ja reklaamid",
+  "privacyGroupFingerprinting": "Sõrmejälg",
+  "privacyGroupStorage": "Salvestusruum",
+  "privacyFingerprintingNote": "Jälgimiskaitse juhuslikustab selle saidi puhul ka lõuendi, heli, fontide ja riistvara näidud.",
+  "privacySummaryProtectionOn": "Jälgimiskaitse sees",
+  "privacySummaryNothingOn": "Ühtegi kaitset pole sisse lülitatud",
+  "siteSettingsForcedOffByTrackingProtection": "Jälgimiskaitse sundis välja",
+  "siteSettingsNeedsTrackingProtection": "Nõuab jälgimiskaitset",
+  "siteSettingsThirdPartyCookiesSubtitle": "Luba manustatud sisul seada küpsiseid saitide üleselt",
+  "siteSettingsThirdPartyCookiesHint": "Küpsised, mille seab teiselt saidilt manustatud sisu, näiteks reklaamid, jagamisnupud ja analüütikavidinad. Need on vanim viis, kuidas jälgija sind ühelt saidilt teisele järgib, ja seetõttu lülitab jälgimiskaitse need välja. Mõned sisselogimise ümbersuunamised ja manustatud maksed vajavad neid, seega lülita need saidi puhul, mis ilma nendeta ei tööta, uuesti sisse.",
+  "siteSettingsSectionContent": "Sisu",
+  "siteSettingsSectionBehaviour": "Käitumine",
+  "siteSettingsSectionNetwork": "Võrk"
 }

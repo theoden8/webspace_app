@@ -733,5 +733,19 @@
   "permissionStateSimulated": "Симульовано",
   "permissionStateBlocked": "Заблоковано",
   "permissionsSummaryNothingGranted": "Нічого не надано",
-  "permissionsSummaryMore": "Ще {count}"
+  "permissionsSummaryMore": "Ще {count}",
+  "privacyTitle": "Приватність",
+  "privacyGroupTrackers": "Стежники та реклама",
+  "privacyGroupFingerprinting": "Цифровий відбиток",
+  "privacyGroupStorage": "Сховище",
+  "privacyFingerprintingNote": "Захист від стеження також рандомізує показники полотна, звуку, шрифтів і обладнання для цього сайту.",
+  "privacySummaryProtectionOn": "Захист від стеження увімкнено",
+  "privacySummaryNothingOn": "Жодного захисту не увімкнено",
+  "siteSettingsForcedOffByTrackingProtection": "Примусово вимкнено захистом від стеження",
+  "siteSettingsNeedsTrackingProtection": "Потребує захисту від стеження",
+  "siteSettingsThirdPartyCookiesSubtitle": "Дозволити вбудованому вмісту встановлювати cookie між сайтами",
+  "siteSettingsThirdPartyCookiesHint": "Cookie, які встановлює вміст, вбудований з іншого сайту, як-от реклама, кнопки поширення та аналітичні віджети. Це найдавніший спосіб, у який стежник переслідує вас з одного сайту на інший, і саме тому захист від стеження їх вимикає. Деякі перенаправлення входу та вбудовані оплати їх потребують, тож увімкніть їх знову для сайту, який без них не працює.",
+  "siteSettingsSectionContent": "Вміст",
+  "siteSettingsSectionBehaviour": "Поведінка",
+  "siteSettingsSectionNetwork": "Мережа"
 }

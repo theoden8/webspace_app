@@ -12,17 +12,15 @@ import 'package:webspace/settings/microphone.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/webview.dart';
-import 'package:webspace/services/content_blocker_service.dart';
-import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/user_agent_identity.dart';
-import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/timezone_location_service.dart';
 import 'package:webspace/services/timezone_spoof_policy.dart';
 import 'package:webspace/screens/location_picker.dart';
 import 'package:webspace/screens/site_permissions.dart';
+import 'package:webspace/screens/site_privacy.dart';
 import 'package:webspace/screens/link_handling_settings.dart';
 import 'package:webspace/screens/site_settings_qr.dart';
 import 'package:webspace/screens/user_scripts.dart';
@@ -285,29 +283,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (mounted) setState(() {});
   }
 
-  /// Shown when the user enables a blocker whose backing data (DNS
-  /// blocklist, filter lists) hasn't been downloaded: the toggle still
-  /// flips and takes effect once the data arrives, but silently doing
-  /// nothing until then would read as the feature being broken.
-  void _warnBlockerNotConfigured(String feature) {
-    final loc = AppLocalizations.of(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(loc.siteSettingsBlockerNotConfiguredWarning(feature)),
-      ),
-    );
-  }
-
-  /// Persistent counterpart of [_warnBlockerNotConfigured]: rendered next
-  /// to a blocker tile whose toggle is effectively on while its data is
-  /// still missing, so the gap stays visible after the SnackBar is gone.
-  Widget _notConfiguredWarnIcon() {
-    return const Padding(
-      padding: EdgeInsets.only(left: 4),
-      child: Icon(Icons.warning_amber_rounded, size: 18, color: Colors.orange),
-    );
-  }
-
   /// Live browser/OS identity + validity readout for the UA field. Follows
   /// the field text as the user types (the controller listener already pokes
   /// setState); an empty field describes the platform default instead.
@@ -439,18 +414,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  /// Subtitle for the DNS blocklist / content blocker tiles. When forced
-  /// by Tracking Protection AND unconfigured, both facts matter, so they
-  /// are joined rather than the forced text masking the missing data.
-  String _blockerSubtitle({required bool ready, required String readyText}) {
-    final loc = AppLocalizations.of(context);
-    if (_trackingProtectionEnabled) {
-      final forced = loc.siteSettingsForcedByTrackingProtection;
-      return ready ? forced : '$forced · ${loc.siteSettingsNotConfigured}';
-    }
-    return ready ? readyText : loc.siteSettingsNotConfigured;
-  }
-
   /// Mirror [widget.webViewModel] into the form state. Called from
   /// [initState] and from the apply-from-QR handler after the decoded
   /// payload has been written back into the model.
@@ -557,51 +520,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return parts.isEmpty
         ? loc.siteSettingsUserScriptsNone
         : loc.siteSettingsUserScriptsActive(parts.join(', '));
-  }
-
-  Widget _buildDnsStatsCard() {
-    final loc = AppLocalizations.of(context);
-    final stats = DnsBlockService.instance.statsForSite(widget.webViewModel.siteId);
-    if (stats.total == 0) {
-      return const SizedBox.shrink();
-    }
-    final totalValue = '${stats.total}';
-    final allowedValue = '${stats.allowed}';
-    final blockedValue = '${stats.blocked}';
-    final blockRateValue = '${stats.blockRate.toStringAsFixed(1)}%';
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Row(
-        children: [
-          _buildDnsStatChip(totalValue, loc.siteSettingsDnsStatTotal, Colors.blue),
-          const SizedBox(width: 6),
-          _buildDnsStatChip(allowedValue, loc.siteSettingsDnsStatAllowed, Colors.green),
-          const SizedBox(width: 6),
-          _buildDnsStatChip(blockedValue, loc.siteSettingsDnsStatBlocked, Colors.red),
-          const SizedBox(width: 6),
-          _buildDnsStatChip(blockRateValue, loc.siteSettingsDnsStatBlocked, Colors.orange),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDnsStatChip(String value, String label, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-        decoration: BoxDecoration(
-          color: color.withAlpha(20),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: color.withAlpha(50)),
-        ),
-        child: Column(
-          children: [
-            Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color)),
-            Text(label, style: TextStyle(fontSize: 9, color: color.withAlpha(180))),
-          ],
-        ),
-      ),
-    );
   }
 
   Future<void> _saveSettings() async {
@@ -849,6 +767,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
       double.tryParse(_latitudeController.text.trim()) != null &&
       double.tryParse(_longitudeController.text.trim()) != null;
 
+  /// Label above a group of leaf settings. The two screens above (permissions,
+  /// privacy) carry their own structure; what is left on this screen is flat
+  /// switches, and a header is all they need to stop reading as one list of
+  /// twenty unrelated things.
+  Widget _sectionHeader(String title) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 6),
+        child: Text(
+          title,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
+      );
+
   /// One row where seven controls used to be scattered down the screen. The
   /// subtitle names what the site actually holds, so the common question is
   /// answered without opening it.
@@ -999,6 +933,90 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
 
+  SitePrivacyValues get _privacyValues => SitePrivacyValues(
+        trackingProtectionEnabled: _trackingProtectionEnabled,
+        clearUrlEnabled: _clearUrlEnabled,
+        dnsBlockEnabled: _dnsBlockEnabled,
+        contentBlockEnabled: _contentBlockEnabled,
+        localCdnEnabled: _localCdnEnabled,
+        thirdPartyCookiesEnabled: _thirdPartyCookiesEnabled,
+        letterboxEnabled: _letterboxEnabled,
+        incognito: _incognito,
+        htmlCachingEnabled: _htmlCachingEnabled,
+      );
+
+  /// Counterpart of [_buildPermissionsRow] for everything that decides what a
+  /// site can learn or keep. The subtitle answers the same question without
+  /// opening the screen: what is actually on.
+  Widget _buildPrivacyRow() {
+    final loc = AppLocalizations.of(context);
+    final v = _privacyValues;
+
+    // Built as data before it reaches Text(): the separator and the count are
+    // punctuation and numbers, not translatable copy (LOC-002).
+    final String summary;
+    if (v.trackingProtectionEnabled) {
+      summary = loc.privacySummaryProtectionOn;
+    } else {
+      final on = <String>[
+        if (v.clearUrlEnabled) loc.siteSettingsClearUrls,
+        if (v.dnsBlockEnabled) loc.siteSettingsDnsBlocklist,
+        if (v.contentBlockEnabled) loc.siteSettingsContentBlocker,
+        if (Platform.isAndroid && v.localCdnEnabled) loc.siteSettingsLocalCdn,
+        if (v.incognito) loc.siteSettingsIncognito,
+      ];
+      if (on.isEmpty) {
+        summary = loc.privacySummaryNothingOn;
+      } else {
+        const separator = ' \u00b7 ';
+        final shown = on.take(2).join(separator);
+        final overflow = on.length - 2;
+        summary = overflow > 0
+            ? '$shown$separator${loc.permissionsSummaryMore(overflow)}'
+            : shown;
+      }
+    }
+
+    return ListTile(
+      leading: Icon(
+        v.trackingProtectionEnabled
+            ? Icons.verified_user
+            : Icons.verified_user_outlined,
+      ),
+      title: Text(loc.privacyTitle),
+      subtitle: Text(summary, style: const TextStyle(fontSize: 12.5)),
+      trailing: const Icon(Icons.chevron_right, size: 18),
+      onTap: _openPrivacy,
+    );
+  }
+
+  Future<void> _openPrivacy() async {
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SitePrivacyScreen(
+          host: widget.webViewModel.currentUrl,
+          siteId: widget.webViewModel.siteId,
+          values: _privacyValues,
+          onChanged: (values) {
+            setState(() {
+              _trackingProtectionEnabled = values.trackingProtectionEnabled;
+              _clearUrlEnabled = values.clearUrlEnabled;
+              _dnsBlockEnabled = values.dnsBlockEnabled;
+              _contentBlockEnabled = values.contentBlockEnabled;
+              _localCdnEnabled = values.localCdnEnabled;
+              _thirdPartyCookiesEnabled = values.thirdPartyCookiesEnabled;
+              _letterboxEnabled = values.letterboxEnabled;
+              _incognito = values.incognito;
+              _htmlCachingEnabled = values.htmlCachingEnabled;
+            });
+          },
+        ),
+      ),
+    );
+    if (mounted) setState(() {});
+  }
+
   Widget _buildWebRtcTile() {
     final loc = AppLocalizations.of(context);
     return ListTile(
@@ -1052,96 +1070,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       appBar: AppBar(title: Text(loc.siteSettingsTitle)),
       body: ListView(
         children: [
-          // Only show proxy settings on supported platforms
-          if (PlatformInfo.isProxySupported) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              child: Text(
-                loc.siteSettingsProxyShared,
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-            ),
-            ListTile(
-              title: Text(loc.siteSettingsProxyType),
-              trailing: DropdownButton<ProxyType>(
-                value: _proxySettings.type,
-                onChanged: (ProxyType? newValue) {
-                  if (newValue != null) {
-                    setState(() {
-                      _proxySettings.type = newValue;
-                    });
-                  }
-                },
-                items: ProxyType.values.map<DropdownMenuItem<ProxyType>>(
-                  (ProxyType value) {
-                    return DropdownMenuItem<ProxyType>(
-                      value: value,
-                      child: Text(value.toString().split('.').last),
-                    );
-                  },
-                ).toList(),
-              ),
-            ),
-            if (_proxySettings.type != ProxyType.DEFAULT) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: TextFormField(
-                  controller: _proxyAddressController,
-                  decoration: InputDecoration(
-                    labelText: loc.siteSettingsProxyAddress,
-                    hintText: loc.siteSettingsProxyAddressHint,
-                    helperText: loc.siteSettingsProxyAddressHelper,
-                    border: const OutlineInputBorder(),
-                  ),
-                  validator: _validateProxyAddress,
-                ),
-              ),
-              CheckboxListTile(
-                title: Text(loc.siteSettingsProxyRequiresAuth),
-                value: _showProxyCredentials,
-                onChanged: (bool? value) {
-                  setState(() {
-                    _showProxyCredentials = value ?? false;
-                  });
-                },
-                controlAffinity: ListTileControlAffinity.leading,
-              ),
-              if (_showProxyCredentials) ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                  child: TextFormField(
-                    controller: _proxyUsernameController,
-                    decoration: InputDecoration(
-                      labelText: loc.siteSettingsProxyUsername,
-                      border: const OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                  child: TextFormField(
-                    controller: _proxyPasswordController,
-                    obscureText: _obscureProxyPassword,
-                    decoration: InputDecoration(
-                      labelText: loc.siteSettingsProxyPassword,
-                      border: const OutlineInputBorder(),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscureProxyPassword ? Icons.visibility : Icons.visibility_off,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _obscureProxyPassword = !_obscureProxyPassword;
-                          });
-                        },
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ],
-          _buildWebRtcTile(),
+          _buildPermissionsRow(),
+          _buildPrivacyRow(),
+          _sectionHeader(loc.siteSettingsSectionContent),
           SwitchListTile(
             title: Text(loc.siteSettingsJavascriptEnabled),
             value: _javascriptEnabled,
@@ -1279,238 +1210,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               },
             ),
           ),
-          SwitchListTile(
-            title: Text(loc.siteSettingsThirdPartyCookies),
-            value: _thirdPartyCookiesEnabled,
-            onChanged: (bool value) {
-              setState(() {
-                _thirdPartyCookiesEnabled = value;
-              });
-            },
-          ),
-          SwitchListTile(
-            title: Text(loc.siteSettingsIncognito),
-            subtitle: Text(loc.siteSettingsIncognitoSubtitle),
-            value: _incognito,
-            onChanged: (bool value) {
-              setState(() {
-                _incognito = value;
-              });
-            },
-          ),
-          SwitchListTile(
-            title: Text(loc.siteSettingsAlwaysOpenHome),
-            subtitle: Text(
-              _incognito
-                  ? loc.siteSettingsAlwaysOpenHomeForced
-                  : loc.siteSettingsAlwaysOpenHomeSubtitle,
-            ),
-            value: _incognito || _alwaysOpenHome,
-            onChanged: _incognito
-                ? null
-                : (bool value) {
-                    setState(() {
-                      _alwaysOpenHome = value;
-                    });
-                  },
-          ),
-          SwitchListTile(
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.siteSettingsKioskMode)),
-                HintButton(
-                  title: loc.siteSettingsKioskMode,
-                  description: loc.siteSettingsKioskModeHint,
-                ),
-              ],
-            ),
-            value: _kioskMode,
-            onChanged: (bool value) {
-              setState(() {
-                _kioskMode = value;
-              });
-            },
-          ),
-          SwitchListTile(
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.siteSettingsTrackingProtection)),
-                HintButton(
-                  title: loc.siteSettingsTrackingProtection,
-                  description: loc.siteSettingsTrackingProtectionHint,
-                ),
-                if (_trackingProtectionEnabled &&
-                    (!DnsBlockService.instance.hasBlocklist ||
-                        !ContentBlockerService.instance.hasRules))
-                  _notConfiguredWarnIcon(),
-              ],
-            ),
-            subtitle: Text(loc.siteSettingsTrackingProtectionSubtitle),
-            value: _trackingProtectionEnabled,
-            onChanged: (bool value) {
-              if (value) {
-                final missing = <String>[
-                  if (!DnsBlockService.instance.hasBlocklist)
-                    loc.siteSettingsDnsBlocklist,
-                  if (!ContentBlockerService.instance.hasRules)
-                    loc.siteSettingsContentBlocker,
-                ];
-                if (missing.isNotEmpty) {
-                  _warnBlockerNotConfigured(missing.join(', '));
-                }
-              }
-              setState(() {
-                _trackingProtectionEnabled = value;
-              });
-            },
-          ),
-          SwitchListTile(
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.siteSettingsLetterboxTitle)),
-                HintButton(
-                  title: loc.siteSettingsLetterboxTitle,
-                  description: loc.siteSettingsWindowSizeHelper,
-                ),
-              ],
-            ),
-            value: _letterboxEnabled && _trackingProtectionEnabled,
-            onChanged: _trackingProtectionEnabled
-                ? (bool value) {
-                    setState(() {
-                      _letterboxEnabled = value;
-                    });
-                  }
-                : null,
-          ),
-          SwitchListTile(
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.siteSettingsClearUrls)),
-                HintButton(
-                  title: loc.siteSettingsClearUrls,
-                  description: loc.siteSettingsClearUrlsHint,
-                ),
-              ],
-            ),
-            subtitle: Text(
-              _trackingProtectionEnabled
-                  ? loc.siteSettingsForcedByTrackingProtection
-                  : loc.siteSettingsClearUrlsSubtitle,
-            ),
-            value: _clearUrlEnabled || _trackingProtectionEnabled,
-            onChanged: _trackingProtectionEnabled
-                ? null
-                : (bool value) {
-                    setState(() {
-                      _clearUrlEnabled = value;
-                    });
-                  },
-          ),
-          SwitchListTile(
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.siteSettingsDnsBlocklist)),
-                HintButton(
-                  title: loc.siteSettingsDnsBlocklist,
-                  description: loc.siteSettingsDnsBlocklistHint,
-                ),
-                if ((_dnsBlockEnabled || _trackingProtectionEnabled) &&
-                    !DnsBlockService.instance.hasBlocklist)
-                  _notConfiguredWarnIcon(),
-              ],
-            ),
-            subtitle: Text(
-              _blockerSubtitle(
-                ready: DnsBlockService.instance.hasBlocklist,
-                readyText: dnsBlockLevelNames[DnsBlockService.instance.level],
-              ),
-              style: (_dnsBlockEnabled || _trackingProtectionEnabled) &&
-                      !DnsBlockService.instance.hasBlocklist
-                  ? const TextStyle(color: Colors.orange)
-                  : null,
-            ),
-            value: _dnsBlockEnabled || _trackingProtectionEnabled,
-            onChanged: _trackingProtectionEnabled
-                ? null
-                : (bool value) {
-                    if (value && !DnsBlockService.instance.hasBlocklist) {
-                      _warnBlockerNotConfigured(loc.siteSettingsDnsBlocklist);
-                    }
-                    setState(() {
-                      _dnsBlockEnabled = value;
-                    });
-                  },
-          ),
-          if (DnsBlockService.instance.hasBlocklist) _buildDnsStatsCard(),
-          SwitchListTile(
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.siteSettingsContentBlocker)),
-                HintButton(
-                  title: loc.siteSettingsContentBlocker,
-                  description: loc.siteSettingsContentBlockerHint,
-                ),
-                if ((_contentBlockEnabled || _trackingProtectionEnabled) &&
-                    !ContentBlockerService.instance.hasRules)
-                  _notConfiguredWarnIcon(),
-              ],
-            ),
-            subtitle: Text(
-              _blockerSubtitle(
-                ready: ContentBlockerService.instance.hasRules,
-                readyText: loc.siteSettingsContentBlockerRuleCount(
-                    ContentBlockerService.instance.totalRuleCount),
-              ),
-              style: (_contentBlockEnabled || _trackingProtectionEnabled) &&
-                      !ContentBlockerService.instance.hasRules
-                  ? const TextStyle(color: Colors.orange)
-                  : null,
-            ),
-            value: _contentBlockEnabled || _trackingProtectionEnabled,
-            onChanged: _trackingProtectionEnabled
-                ? null
-                : (bool value) {
-                    if (value && !ContentBlockerService.instance.hasRules) {
-                      _warnBlockerNotConfigured(
-                          loc.siteSettingsContentBlocker);
-                    }
-                    setState(() {
-                      _contentBlockEnabled = value;
-                    });
-                  },
-          ),
-          if (Platform.isAndroid)
-            SwitchListTile(
-              title: Row(
-                children: [
-                  Flexible(child: Text(loc.siteSettingsLocalCdn)),
-                  HintButton(
-                    title: loc.siteSettingsLocalCdn,
-                    description: loc.siteSettingsLocalCdnHint,
-                  ),
-                ],
-              ),
-              subtitle: Text(
-                _trackingProtectionEnabled
-                    ? loc.siteSettingsForcedByTrackingProtection
-                    : (LocalCdnService.instance.hasCache
-                        ? loc.siteSettingsLocalCdnResourceCount(
-                            LocalCdnService.instance.resourceCount)
-                        : loc.siteSettingsLocalCdnNeedsCache),
-              ),
-              value: (_localCdnEnabled || _trackingProtectionEnabled) &&
-                  LocalCdnService.instance.hasCache,
-              onChanged: _trackingProtectionEnabled
-                  ? null
-                  : (LocalCdnService.instance.hasCache
-                      ? (bool value) {
-                          setState(() {
-                            _localCdnEnabled = value;
-                          });
-                        }
-                      : null),
-            ),
           ListTile(
             title: Text(loc.siteSettingsUserScripts),
             subtitle: Text(
@@ -1555,6 +1254,58 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             },
           ),
+          _sectionHeader(loc.siteSettingsSectionBehaviour),
+          SwitchListTile(
+            title: Text(loc.siteSettingsAlwaysOpenHome),
+            subtitle: Text(
+              _incognito
+                  ? loc.siteSettingsAlwaysOpenHomeForced
+                  : loc.siteSettingsAlwaysOpenHomeSubtitle,
+            ),
+            value: _incognito || _alwaysOpenHome,
+            onChanged: _incognito
+                ? null
+                : (bool value) {
+                    setState(() {
+                      _alwaysOpenHome = value;
+                    });
+                  },
+          ),
+          SwitchListTile(
+            title: Row(
+              children: [
+                Flexible(child: Text(loc.siteSettingsKioskMode)),
+                HintButton(
+                  title: loc.siteSettingsKioskMode,
+                  description: loc.siteSettingsKioskModeHint,
+                ),
+              ],
+            ),
+            value: _kioskMode,
+            onChanged: (bool value) {
+              setState(() {
+                _kioskMode = value;
+              });
+            },
+          ),
+          SwitchListTile(
+            title: Row(
+              children: [
+                Flexible(child: Text(loc.siteSettingsFullscreen)),
+                HintButton(
+                  title: loc.siteSettingsFullscreenHintTitle,
+                  description: loc.siteSettingsFullscreenHint,
+                ),
+              ],
+            ),
+            subtitle: Text(loc.siteSettingsFullscreenSubtitle),
+            value: _fullscreenMode,
+            onChanged: (bool value) {
+              setState(() {
+                _fullscreenMode = value;
+              });
+            },
+          ),
           SwitchListTile(
             title: Row(
               children: [
@@ -1591,43 +1342,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               });
             },
           ),
-          SwitchListTile(
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.siteSettingsFullscreen)),
-                HintButton(
-                  title: loc.siteSettingsFullscreenHintTitle,
-                  description: loc.siteSettingsFullscreenHint,
-                ),
-              ],
-            ),
-            subtitle: Text(loc.siteSettingsFullscreenSubtitle),
-            value: _fullscreenMode,
-            onChanged: (bool value) {
-              setState(() {
-                _fullscreenMode = value;
-              });
-            },
-          ),
-          SwitchListTile(
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.siteSettingsHtmlCaching)),
-                HintButton(
-                  title: loc.siteSettingsHtmlCachingHintTitle,
-                  description: loc.siteSettingsHtmlCachingHint,
-                ),
-              ],
-            ),
-            subtitle: Text(loc.siteSettingsHtmlCachingSubtitle),
-            value: _htmlCachingEnabled,
-            onChanged: (bool value) {
-              setState(() {
-                _htmlCachingEnabled = value;
-              });
-            },
-          ),
-          _buildPermissionsRow(),
           DomainClaimsEditor(
             model: widget.webViewModel,
             otherSites: widget.otherSites,
@@ -1635,6 +1349,97 @@ class _SettingsScreenState extends State<SettingsScreen> {
               widget.webViewModel.domainClaims = next;
             },
           ),
+          _sectionHeader(loc.siteSettingsSectionNetwork),
+          // Only show proxy settings on supported platforms
+          if (PlatformInfo.isProxySupported) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Text(
+                loc.siteSettingsProxyShared,
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ),
+            ListTile(
+              title: Text(loc.siteSettingsProxyType),
+              trailing: DropdownButton<ProxyType>(
+                value: _proxySettings.type,
+                onChanged: (ProxyType? newValue) {
+                  if (newValue != null) {
+                    setState(() {
+                      _proxySettings.type = newValue;
+                    });
+                  }
+                },
+                items: ProxyType.values.map<DropdownMenuItem<ProxyType>>(
+                  (ProxyType value) {
+                    return DropdownMenuItem<ProxyType>(
+                      value: value,
+                      child: Text(value.toString().split('.').last),
+                    );
+                  },
+                ).toList(),
+              ),
+            ),
+            if (_proxySettings.type != ProxyType.DEFAULT) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: TextFormField(
+                  controller: _proxyAddressController,
+                  decoration: InputDecoration(
+                    labelText: loc.siteSettingsProxyAddress,
+                    hintText: loc.siteSettingsProxyAddressHint,
+                    helperText: loc.siteSettingsProxyAddressHelper,
+                    border: const OutlineInputBorder(),
+                  ),
+                  validator: _validateProxyAddress,
+                ),
+              ),
+              CheckboxListTile(
+                title: Text(loc.siteSettingsProxyRequiresAuth),
+                value: _showProxyCredentials,
+                onChanged: (bool? value) {
+                  setState(() {
+                    _showProxyCredentials = value ?? false;
+                  });
+                },
+                controlAffinity: ListTileControlAffinity.leading,
+              ),
+              if (_showProxyCredentials) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  child: TextFormField(
+                    controller: _proxyUsernameController,
+                    decoration: InputDecoration(
+                      labelText: loc.siteSettingsProxyUsername,
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  child: TextFormField(
+                    controller: _proxyPasswordController,
+                    obscureText: _obscureProxyPassword,
+                    decoration: InputDecoration(
+                      labelText: loc.siteSettingsProxyPassword,
+                      border: const OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscureProxyPassword ? Icons.visibility : Icons.visibility_off,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _obscureProxyPassword = !_obscureProxyPassword;
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ],
+          _buildWebRtcTile(),
           const SizedBox(height: 8),
           if (widget.onClearCookies != null)
             Padding(

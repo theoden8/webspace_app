@@ -16,6 +16,7 @@ const repoRoot = path.resolve(__dirname, '..', '..');
 
 const migrated = new Set([
   'lib/screens/site_permissions.dart',
+  'lib/screens/site_privacy.dart',
   'lib/widgets/site_permission_chip.dart',
   'lib/main.dart',
   'lib/screens/add_site.dart',

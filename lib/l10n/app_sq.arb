@@ -733,5 +733,19 @@
   "permissionStateSimulated": "I simuluar",
   "permissionStateBlocked": "I bllokuar",
   "permissionsSummaryNothingGranted": "Asgjë nuk është dhënë",
-  "permissionsSummaryMore": "{count} të tjera"
+  "permissionsSummaryMore": "{count} të tjera",
+  "privacyTitle": "Privatësia",
+  "privacyGroupTrackers": "Gjurmuesit dhe reklamat",
+  "privacyGroupFingerprinting": "Gjurmë gishtash",
+  "privacyGroupStorage": "Ruajtja",
+  "privacyFingerprintingNote": "Mbrojtja nga gjurmimi gjithashtu rastëson leximet e kanavacës, audios, shkronjave dhe harduerit për këtë sajt.",
+  "privacySummaryProtectionOn": "Mbrojtja nga gjurmimi aktive",
+  "privacySummaryNothingOn": "Asnjë mbrojtje e aktivizuar",
+  "siteSettingsForcedOffByTrackingProtection": "I detyruar joaktiv nga Mbrojtja nga gjurmimi",
+  "siteSettingsNeedsTrackingProtection": "Kërkon Mbrojtjen nga gjurmimi",
+  "siteSettingsThirdPartyCookiesSubtitle": "Lejo përmbajtjen e ngulitur të vendosë cookie mes sajteve",
+  "siteSettingsThirdPartyCookiesHint": "Cookie të vendosura nga përmbajtje e ngulitur nga një sajt tjetër, si reklama, butona ndarjeje dhe widget analitikash. Janë mënyra më e vjetër me të cilën një gjurmues të ndjek nga një sajt te tjetri, prandaj Mbrojtja nga gjurmimi i çaktivizon. Disa ridrejtime hyrjeje dhe pagesa të ngulitura kanë nevojë për to, prandaj aktivizoji sërish për një sajt që nuk punon pa to.",
+  "siteSettingsSectionContent": "Përmbajtja",
+  "siteSettingsSectionBehaviour": "Sjellja",
+  "siteSettingsSectionNetwork": "Rrjeti"
 }

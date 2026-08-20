@@ -733,5 +733,19 @@
   "permissionStateSimulated": "شبیه‌سازی‌شده",
   "permissionStateBlocked": "مسدود",
   "permissionsSummaryNothingGranted": "هیچ مجوزی داده نشده",
-  "permissionsSummaryMore": "{count} مورد دیگر"
+  "permissionsSummaryMore": "{count} مورد دیگر",
+  "privacyTitle": "حریم خصوصی",
+  "privacyGroupTrackers": "ردیاب‌ها و تبلیغات",
+  "privacyGroupFingerprinting": "انگشت‌نگاری",
+  "privacyGroupStorage": "ذخیره‌سازی",
+  "privacyFingerprintingNote": "محافظت در برابر ردیابی همچنین خوانش‌های بوم، صدا، قلم و سخت‌افزار را برای این سایت تصادفی می‌کند.",
+  "privacySummaryProtectionOn": "محافظت در برابر ردیابی روشن",
+  "privacySummaryNothingOn": "هیچ محافظتی فعال نیست",
+  "siteSettingsForcedOffByTrackingProtection": "به‌اجبار توسط محافظت در برابر ردیابی خاموش شده",
+  "siteSettingsNeedsTrackingProtection": "به محافظت در برابر ردیابی نیاز دارد",
+  "siteSettingsThirdPartyCookiesSubtitle": "به محتوای جاسازی‌شده اجازه بده کوکی‌های میان‌سایتی تنظیم کند",
+  "siteSettingsThirdPartyCookiesHint": "کوکی‌هایی که محتوای جاسازی‌شده از سایتی دیگر تنظیم می‌کند، مانند تبلیغات، دکمه‌های اشتراک‌گذاری و ابزارک‌های تحلیلی. این‌ها قدیمی‌ترین راهی هستند که یک ردیاب شما را از یک سایت تا سایت بعدی دنبال می‌کند، و به همین دلیل محافظت در برابر ردیابی آن‌ها را خاموش می‌کند. برخی تغییرمسیرهای ورود و پرداخت‌های جاسازی‌شده به آن‌ها نیاز دارند، پس برای سایتی که بدون آن‌ها کار نمی‌کند دوباره روشنشان کنید.",
+  "siteSettingsSectionContent": "محتوا",
+  "siteSettingsSectionBehaviour": "رفتار",
+  "siteSettingsSectionNetwork": "شبکه"
 }

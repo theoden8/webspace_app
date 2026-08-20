@@ -733,5 +733,19 @@
   "permissionStateSimulated": "Simulado",
   "permissionStateBlocked": "Bloqueado",
   "permissionsSummaryNothingGranted": "Nada concedido",
-  "permissionsSummaryMore": "Mais {count}"
+  "permissionsSummaryMore": "Mais {count}",
+  "privacyTitle": "Privacidade",
+  "privacyGroupTrackers": "Rastreadores e anúncios",
+  "privacyGroupFingerprinting": "Impressão digital",
+  "privacyGroupStorage": "Armazenamento",
+  "privacyFingerprintingNote": "A Proteção contra rastreamento também torna aleatórias as leituras de canvas, áudio, fontes e hardware para este site.",
+  "privacySummaryProtectionOn": "Proteção contra rastreamento ativada",
+  "privacySummaryNothingOn": "Nenhuma proteção ativada",
+  "siteSettingsForcedOffByTrackingProtection": "Desativado pela Proteção contra rastreamento",
+  "siteSettingsNeedsTrackingProtection": "Requer Proteção contra rastreamento",
+  "siteSettingsThirdPartyCookiesSubtitle": "Permitir que conteúdo incorporado defina cookies entre sites",
+  "siteSettingsThirdPartyCookiesHint": "Cookies definidos por conteúdo incorporado de outro site, como anúncios, botões de compartilhamento e widgets de análise. São a forma mais antiga de um rastreador seguir você de um site para outro, e por isso a Proteção contra rastreamento os desativa. Alguns redirecionamentos de login e checkouts incorporados precisam deles, então reative-os para um site que não funcione sem eles.",
+  "siteSettingsSectionContent": "Conteúdo",
+  "siteSettingsSectionBehaviour": "Comportamento",
+  "siteSettingsSectionNetwork": "Rede"
 }

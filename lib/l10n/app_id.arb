@@ -733,5 +733,19 @@
   "permissionStateSimulated": "Disimulasikan",
   "permissionStateBlocked": "Diblokir",
   "permissionsSummaryNothingGranted": "Tidak ada yang diberikan",
-  "permissionsSummaryMore": "{count} lagi"
+  "permissionsSummaryMore": "{count} lagi",
+  "privacyTitle": "Privasi",
+  "privacyGroupTrackers": "Pelacak dan iklan",
+  "privacyGroupFingerprinting": "Sidik jari",
+  "privacyGroupStorage": "Penyimpanan",
+  "privacyFingerprintingNote": "Perlindungan Pelacakan juga mengacak pembacaan kanvas, audio, fon, dan perangkat keras untuk situs ini.",
+  "privacySummaryProtectionOn": "Perlindungan Pelacakan aktif",
+  "privacySummaryNothingOn": "Tidak ada perlindungan yang aktif",
+  "siteSettingsForcedOffByTrackingProtection": "Dipaksa nonaktif oleh Perlindungan Pelacakan",
+  "siteSettingsNeedsTrackingProtection": "Memerlukan Perlindungan Pelacakan",
+  "siteSettingsThirdPartyCookiesSubtitle": "Izinkan konten tersemat menyetel cookie lintas situs",
+  "siteSettingsThirdPartyCookiesHint": "Cookie yang disetel oleh konten yang disematkan dari situs lain, seperti iklan, tombol berbagi, dan widget analitik. Inilah cara tertua sebuah pelacak mengikuti Anda dari satu situs ke situs berikutnya, karena itu Perlindungan Pelacakan menonaktifkannya. Beberapa pengalihan masuk dan pembayaran tersemat membutuhkannya, jadi aktifkan kembali untuk situs yang rusak tanpanya.",
+  "siteSettingsSectionContent": "Konten",
+  "siteSettingsSectionBehaviour": "Perilaku",
+  "siteSettingsSectionNetwork": "Jaringan"
 }

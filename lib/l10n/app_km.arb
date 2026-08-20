@@ -733,5 +733,19 @@
   "permissionStateSimulated": "ក្លែងធ្វើ",
   "permissionStateBlocked": "បានទប់ស្កាត់",
   "permissionsSummaryNothingGranted": "មិនបានផ្តល់អ្វីទេ",
-  "permissionsSummaryMore": "{count} ទៀត"
+  "permissionsSummaryMore": "{count} ទៀត",
+  "privacyTitle": "ឯកជនភាព",
+  "privacyGroupTrackers": "កម្មវិធីតាមដាន និងការផ្សាយពាណិជ្ជកម្ម",
+  "privacyGroupFingerprinting": "ការយកស្នាមម្រាមដៃ",
+  "privacyGroupStorage": "ការផ្ទុក",
+  "privacyFingerprintingNote": "ការការពារការតាមដានក៏ធ្វើឱ្យតម្លៃ canvas សំឡេង ពុម្ពអក្សរ និងផ្នែករឹងចៃដន្យសម្រាប់គេហទំព័រនេះផងដែរ។",
+  "privacySummaryProtectionOn": "ការការពារការតាមដានបានបើក",
+  "privacySummaryNothingOn": "មិនមានការការពារណាមួយបានបើកទេ",
+  "siteSettingsForcedOffByTrackingProtection": "បង្ខំបិទដោយការការពារការតាមដាន",
+  "siteSettingsNeedsTrackingProtection": "ត្រូវការការការពារការតាមដាន",
+  "siteSettingsThirdPartyCookiesSubtitle": "អនុញ្ញាតឱ្យខ្លឹមសារបង្កប់កំណត់ខូគីឆ្លងកាត់គេហទំព័រ",
+  "siteSettingsThirdPartyCookiesHint": "ខូគីដែលកំណត់ដោយខ្លឹមសារបង្កប់ពីគេហទំព័រផ្សេង ដូចជាការផ្សាយពាណិជ្ជកម្ម ប៊ូតុងចែករំលែក និងធាតុវិភាគ។ ពួកវាជាមធ្យោបាយចាស់បំផុតដែលកម្មវិធីតាមដានតាមអ្នកពីគេហទំព័រមួយទៅគេហទំព័រមួយទៀត ដែលជាហេតុធ្វើឱ្យការការពារការតាមដានបិទពួកវា។ ការបញ្ជូនបន្តពេលចូលគណនី និងការទូទាត់បង្កប់ខ្លះត្រូវការពួកវា ដូច្នេះសូមបើកពួកវាឡើងវិញសម្រាប់គេហទំព័រដែលខូចបើគ្មានពួកវា។",
+  "siteSettingsSectionContent": "ខ្លឹមសារ",
+  "siteSettingsSectionBehaviour": "អាកប្បកិរិយា",
+  "siteSettingsSectionNetwork": "បណ្តាញ"
 }

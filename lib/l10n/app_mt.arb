@@ -733,5 +733,19 @@
   "permissionStateSimulated": "Simulat",
   "permissionStateBlocked": "Imblukkat",
   "permissionsSummaryNothingGranted": "Xejn mhu mogħti",
-  "permissionsSummaryMore": "{count} oħra"
+  "permissionsSummaryMore": "{count} oħra",
+  "privacyTitle": "Privatezza",
+  "privacyGroupTrackers": "Traċċaturi u reklami",
+  "privacyGroupFingerprinting": "Marka tas-swaba'",
+  "privacyGroupStorage": "Ħażna",
+  "privacyFingerprintingNote": "Il-Protezzjoni mit-Traċċar tirrandomizza wkoll il-qari tal-canvas, l-awdjo, il-fonts u l-ħardwer għal dan is-sit.",
+  "privacySummaryProtectionOn": "Protezzjoni mit-Traċċar mixgħula",
+  "privacySummaryNothingOn": "L-ebda protezzjoni mhi attivata",
+  "siteSettingsForcedOffByTrackingProtection": "Imġiegħel mitfi mill-Protezzjoni mit-Traċċar",
+  "siteSettingsNeedsTrackingProtection": "Teħtieġ il-Protezzjoni mit-Traċċar",
+  "siteSettingsThirdPartyCookiesSubtitle": "Ħalli l-kontenut inkorporat jissettja cookies bejn is-siti",
+  "siteSettingsThirdPartyCookiesHint": "Cookies issettjati minn kontenut inkorporat minn sit ieħor, bħal reklami, buttuni tal-qsim u widgets tal-analitika. Huma l-eqdem mod kif traċċatur isegwik minn sit għall-ieħor, u għalhekk il-Protezzjoni mit-Traċċar titfihom. Xi redirects tal-illoggjar u ħlasijiet inkorporati jeħtieġuhom, mela erġa' ixgħelhom għal sit li jitkisser mingħajrhom.",
+  "siteSettingsSectionContent": "Kontenut",
+  "siteSettingsSectionBehaviour": "Imġiba",
+  "siteSettingsSectionNetwork": "Netwerk"
 }

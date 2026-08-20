@@ -733,5 +733,19 @@
   "permissionStateSimulated": "Simulert",
   "permissionStateBlocked": "Blokkert",
   "permissionsSummaryNothingGranted": "Ingenting er gitt",
-  "permissionsSummaryMore": "{count} til"
+  "permissionsSummaryMore": "{count} til",
+  "privacyTitle": "Personvern",
+  "privacyGroupTrackers": "Sporere og annonser",
+  "privacyGroupFingerprinting": "Fingeravtrykk",
+  "privacyGroupStorage": "Lagring",
+  "privacyFingerprintingNote": "Sporingsbeskyttelse tilfeldiggjør også avlesninger av lerret, lyd, skrifter og maskinvare for dette nettstedet.",
+  "privacySummaryProtectionOn": "Sporingsbeskyttelse på",
+  "privacySummaryNothingOn": "Ingen beskyttelse aktivert",
+  "siteSettingsForcedOffByTrackingProtection": "Tvunget av av sporingsbeskyttelse",
+  "siteSettingsNeedsTrackingProtection": "Krever sporingsbeskyttelse",
+  "siteSettingsThirdPartyCookiesSubtitle": "La innebygd innhold sette informasjonskapsler på tvers av nettsteder",
+  "siteSettingsThirdPartyCookiesHint": "Informasjonskapsler satt av innhold innebygd fra et annet nettsted, som annonser, delingsknapper og analysemoduler. De er den eldste måten en sporer følger deg fra ett nettsted til det neste, og derfor slår sporingsbeskyttelse dem av. Noen påloggingsomdirigeringer og innebygde betalinger trenger dem, så slå dem på igjen for et nettsted som ikke fungerer uten.",
+  "siteSettingsSectionContent": "Innhold",
+  "siteSettingsSectionBehaviour": "Oppførsel",
+  "siteSettingsSectionNetwork": "Nettverk"
 }

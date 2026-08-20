@@ -733,5 +733,19 @@
   "permissionStateSimulated": "Simuliert",
   "permissionStateBlocked": "Blockiert",
   "permissionsSummaryNothingGranted": "Nichts gewährt",
-  "permissionsSummaryMore": "{count} weitere"
+  "permissionsSummaryMore": "{count} weitere",
+  "privacyTitle": "Privatsphäre",
+  "privacyGroupTrackers": "Tracker und Werbung",
+  "privacyGroupFingerprinting": "Fingerabdruck",
+  "privacyGroupStorage": "Speicher",
+  "privacyFingerprintingNote": "Der Tracking-Schutz randomisiert für diese Website außerdem Canvas-, Audio-, Schriftart- und Hardware-Auslesungen.",
+  "privacySummaryProtectionOn": "Tracking-Schutz aktiv",
+  "privacySummaryNothingOn": "Kein Schutz aktiviert",
+  "siteSettingsForcedOffByTrackingProtection": "Durch Tracking-Schutz erzwungen deaktiviert",
+  "siteSettingsNeedsTrackingProtection": "Erfordert Tracking-Schutz",
+  "siteSettingsThirdPartyCookiesSubtitle": "Eingebetteten Inhalten erlauben, seitenübergreifend Cookies zu setzen",
+  "siteSettingsThirdPartyCookiesHint": "Cookies, die von Inhalten gesetzt werden, die aus einer anderen Website eingebettet sind, etwa Werbung, Teilen-Schaltflächen und Analyse-Widgets. Sie sind der älteste Weg, auf dem ein Tracker Sie von einer Website zur nächsten verfolgt, weshalb der Tracking-Schutz sie deaktiviert. Manche Anmelde-Weiterleitungen und eingebettete Bezahlvorgänge brauchen sie, schalten Sie sie also für eine Website, die ohne sie nicht funktioniert, wieder ein.",
+  "siteSettingsSectionContent": "Inhalt",
+  "siteSettingsSectionBehaviour": "Verhalten",
+  "siteSettingsSectionNetwork": "Netzwerk"
 }

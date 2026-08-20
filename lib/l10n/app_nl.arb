@@ -733,5 +733,19 @@
   "permissionStateSimulated": "Gesimuleerd",
   "permissionStateBlocked": "Geblokkeerd",
   "permissionsSummaryNothingGranted": "Niets verleend",
-  "permissionsSummaryMore": "Nog {count}"
+  "permissionsSummaryMore": "Nog {count}",
+  "privacyTitle": "Privacy",
+  "privacyGroupTrackers": "Trackers en advertenties",
+  "privacyGroupFingerprinting": "Vingerafdruk",
+  "privacyGroupStorage": "Opslag",
+  "privacyFingerprintingNote": "Trackingbescherming maakt voor deze site ook canvas-, audio-, lettertype- en hardware-uitlezingen willekeurig.",
+  "privacySummaryProtectionOn": "Trackingbescherming aan",
+  "privacySummaryNothingOn": "Geen bescherming ingeschakeld",
+  "siteSettingsForcedOffByTrackingProtection": "Geforceerd uit door trackingbescherming",
+  "siteSettingsNeedsTrackingProtection": "Vereist trackingbescherming",
+  "siteSettingsThirdPartyCookiesSubtitle": "Ingesloten inhoud toestaan cookies te plaatsen over sites heen",
+  "siteSettingsThirdPartyCookiesHint": "Cookies die worden geplaatst door inhoud die vanaf een andere site is ingesloten, zoals advertenties, deelknoppen en analysewidgets. Ze zijn de oudste manier waarop een tracker je van de ene site naar de andere volgt, en daarom schakelt trackingbescherming ze uit. Sommige inlogomleidingen en ingesloten afrekenpagina's hebben ze nodig, dus zet ze weer aan voor een site die het zonder niet doet.",
+  "siteSettingsSectionContent": "Inhoud",
+  "siteSettingsSectionBehaviour": "Gedrag",
+  "siteSettingsSectionNetwork": "Netwerk"
 }

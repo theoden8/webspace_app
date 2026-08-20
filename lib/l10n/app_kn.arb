@@ -733,5 +733,19 @@
   "permissionStateSimulated": "ಅನುಕರಿಸಲಾಗಿದೆ",
   "permissionStateBlocked": "ನಿರ್ಬಂಧಿಸಲಾಗಿದೆ",
   "permissionsSummaryNothingGranted": "ಏನನ್ನೂ ನೀಡಲಾಗಿಲ್ಲ",
-  "permissionsSummaryMore": "ಇನ್ನೂ {count}"
+  "permissionsSummaryMore": "ಇನ್ನೂ {count}",
+  "privacyTitle": "ಗೌಪ್ಯತೆ",
+  "privacyGroupTrackers": "ಟ್ರ್ಯಾಕರ್‌ಗಳು ಮತ್ತು ಜಾಹೀರಾತುಗಳು",
+  "privacyGroupFingerprinting": "ಫಿಂಗರ್‌ಪ್ರಿಂಟಿಂಗ್",
+  "privacyGroupStorage": "ಸಂಗ್ರಹಣೆ",
+  "privacyFingerprintingNote": "ಟ್ರ್ಯಾಕಿಂಗ್ ರಕ್ಷಣೆ ಈ ಸೈಟ್‌ಗಾಗಿ ಕ್ಯಾನ್ವಾಸ್, ಆಡಿಯೊ, ಫಾಂಟ್ ಮತ್ತು ಹಾರ್ಡ್‌ವೇರ್ ಓದುವಿಕೆಗಳನ್ನೂ ಯಾದೃಚ್ಛಿಕಗೊಳಿಸುತ್ತದೆ.",
+  "privacySummaryProtectionOn": "ಟ್ರ್ಯಾಕಿಂಗ್ ರಕ್ಷಣೆ ಆನ್",
+  "privacySummaryNothingOn": "ಯಾವುದೇ ರಕ್ಷಣೆ ಸಕ್ರಿಯವಾಗಿಲ್ಲ",
+  "siteSettingsForcedOffByTrackingProtection": "ಟ್ರ್ಯಾಕಿಂಗ್ ರಕ್ಷಣೆಯಿಂದ ಬಲವಂತವಾಗಿ ಆಫ್",
+  "siteSettingsNeedsTrackingProtection": "ಟ್ರ್ಯಾಕಿಂಗ್ ರಕ್ಷಣೆ ಅಗತ್ಯವಿದೆ",
+  "siteSettingsThirdPartyCookiesSubtitle": "ಎಂಬೆಡ್ ಮಾಡಿದ ವಿಷಯವು ಸೈಟ್‌ಗಳ ನಡುವೆ ಕುಕೀಗಳನ್ನು ಹೊಂದಿಸಲು ಅನುಮತಿಸಿ",
+  "siteSettingsThirdPartyCookiesHint": "ಜಾಹೀರಾತುಗಳು, ಹಂಚಿಕೆ ಬಟನ್‌ಗಳು ಮತ್ತು ಅನಾಲಿಟಿಕ್ಸ್ ವಿಜೆಟ್‌ಗಳಂತಹ ಇನ್ನೊಂದು ಸೈಟ್‌ನಿಂದ ಎಂಬೆಡ್ ಮಾಡಿದ ವಿಷಯವು ಹೊಂದಿಸುವ ಕುಕೀಗಳು. ಟ್ರ್ಯಾಕರ್ ನಿಮ್ಮನ್ನು ಒಂದು ಸೈಟ್‌ನಿಂದ ಇನ್ನೊಂದಕ್ಕೆ ಹಿಂಬಾಲಿಸುವ ಅತ್ಯಂತ ಹಳೆಯ ಮಾರ್ಗ ಇವು, ಆದ್ದರಿಂದಲೇ ಟ್ರ್ಯಾಕಿಂಗ್ ರಕ್ಷಣೆ ಇವನ್ನು ಆಫ್ ಮಾಡುತ್ತದೆ. ಕೆಲವು ಸೈನ್-ಇನ್ ಮರುನಿರ್ದೇಶನಗಳಿಗೆ ಮತ್ತು ಎಂಬೆಡ್ ಮಾಡಿದ ಚೆಕ್‌ಔಟ್‌ಗಳಿಗೆ ಇವು ಬೇಕಾಗುತ್ತವೆ, ಆದ್ದರಿಂದ ಇವಿಲ್ಲದೆ ಕೆಲಸ ಮಾಡದ ಸೈಟ್‌ಗಾಗಿ ಇವನ್ನು ಮತ್ತೆ ಆನ್ ಮಾಡಿ.",
+  "siteSettingsSectionContent": "ವಿಷಯ",
+  "siteSettingsSectionBehaviour": "ವರ್ತನೆ",
+  "siteSettingsSectionNetwork": "ನೆಟ್‌ವರ್ಕ್"
 }

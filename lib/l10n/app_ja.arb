@@ -733,5 +733,19 @@
   "permissionStateSimulated": "シミュレート",
   "permissionStateBlocked": "ブロック",
   "permissionsSummaryNothingGranted": "権限は付与されていません",
-  "permissionsSummaryMore": "他 {count} 件"
+  "permissionsSummaryMore": "他 {count} 件",
+  "privacyTitle": "プライバシー",
+  "privacyGroupTrackers": "トラッカーと広告",
+  "privacyGroupFingerprinting": "フィンガープリント",
+  "privacyGroupStorage": "ストレージ",
+  "privacyFingerprintingNote": "トラッキング保護は、このサイトに対してキャンバス、音声、フォント、ハードウェアの読み取り値もランダム化します。",
+  "privacySummaryProtectionOn": "トラッキング保護オン",
+  "privacySummaryNothingOn": "保護は有効になっていません",
+  "siteSettingsForcedOffByTrackingProtection": "トラッキング保護により強制的にオフ",
+  "siteSettingsNeedsTrackingProtection": "トラッキング保護が必要です",
+  "siteSettingsThirdPartyCookiesSubtitle": "埋め込みコンテンツがサイトをまたいで Cookie を設定することを許可する",
+  "siteSettingsThirdPartyCookiesHint": "広告、共有ボタン、アナリティクスウィジェットなど、別のサイトから埋め込まれたコンテンツが設定する Cookie です。トラッカーがあなたをサイトからサイトへ追跡する最も古い手段であり、そのためトラッキング保護はこれをオフにします。一部のサインインのリダイレクトや埋め込み決済には必要なので、これがないと壊れるサイトでは再度オンにしてください。",
+  "siteSettingsSectionContent": "コンテンツ",
+  "siteSettingsSectionBehaviour": "動作",
+  "siteSettingsSectionNetwork": "ネットワーク"
 }

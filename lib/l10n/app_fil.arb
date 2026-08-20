@@ -733,5 +733,19 @@
   "permissionStateSimulated": "Ginagaya",
   "permissionStateBlocked": "Naka-block",
   "permissionsSummaryNothingGranted": "Walang ipinagkaloob",
-  "permissionsSummaryMore": "{count} pa"
+  "permissionsSummaryMore": "{count} pa",
+  "privacyTitle": "Privacy",
+  "privacyGroupTrackers": "Mga tracker at ad",
+  "privacyGroupFingerprinting": "Fingerprinting",
+  "privacyGroupStorage": "Storage",
+  "privacyFingerprintingNote": "Ini-randomize din ng Tracking Protection ang mga pagbasa sa canvas, audio, font at hardware para sa site na ito.",
+  "privacySummaryProtectionOn": "Naka-on ang Tracking Protection",
+  "privacySummaryNothingOn": "Walang proteksyong naka-enable",
+  "siteSettingsForcedOffByTrackingProtection": "Pinilit na i-off ng Tracking Protection",
+  "siteSettingsNeedsTrackingProtection": "Kailangan ng Tracking Protection",
+  "siteSettingsThirdPartyCookiesSubtitle": "Hayaang magtakda ng cookie sa iba't ibang site ang naka-embed na nilalaman",
+  "siteSettingsThirdPartyCookiesHint": "Mga cookie na itinatakda ng nilalamang naka-embed mula sa ibang site, tulad ng mga ad, share button at analytics widget. Sila ang pinakamatandang paraan para sundan ka ng isang tracker mula sa isang site patungo sa susunod, kaya ini-off sila ng Tracking Protection. May ilang sign-in redirect at naka-embed na checkout na nangangailangan nito, kaya i-on mo ulit para sa site na hindi gumagana kung wala ito.",
+  "siteSettingsSectionContent": "Nilalaman",
+  "siteSettingsSectionBehaviour": "Pag-uugali",
+  "siteSettingsSectionNetwork": "Network"
 }

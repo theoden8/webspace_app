@@ -733,5 +733,19 @@
   "permissionStateSimulated": "模拟",
   "permissionStateBlocked": "已阻止",
   "permissionsSummaryNothingGranted": "未授予任何权限",
-  "permissionsSummaryMore": "另外 {count} 项"
+  "permissionsSummaryMore": "另外 {count} 项",
+  "privacyTitle": "隐私",
+  "privacyGroupTrackers": "跟踪器与广告",
+  "privacyGroupFingerprinting": "指纹识别",
+  "privacyGroupStorage": "存储",
+  "privacyFingerprintingNote": "跟踪保护还会为此站点随机化画布、音频、字体和硬件读数。",
+  "privacySummaryProtectionOn": "跟踪保护已开启",
+  "privacySummaryNothingOn": "未启用任何保护",
+  "siteSettingsForcedOffByTrackingProtection": "已被跟踪保护强制关闭",
+  "siteSettingsNeedsTrackingProtection": "需要跟踪保护",
+  "siteSettingsThirdPartyCookiesSubtitle": "允许嵌入内容跨站点设置 Cookie",
+  "siteSettingsThirdPartyCookiesHint": "由来自其他站点的嵌入内容设置的 Cookie，例如广告、分享按钮和分析组件。它们是跟踪器从一个站点跟到下一个站点的最古老手段，因此跟踪保护会将其关闭。某些登录跳转和嵌入式结账需要它们，所以对于缺少它们就无法使用的站点，请重新开启。",
+  "siteSettingsSectionContent": "内容",
+  "siteSettingsSectionBehaviour": "行为",
+  "siteSettingsSectionNetwork": "网络"
 }

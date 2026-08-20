@@ -733,5 +733,19 @@
   "permissionStateSimulated": "Insamhalta",
   "permissionStateBlocked": "Bactha",
   "permissionsSummaryNothingGranted": "Níor tugadh cead ar bith",
-  "permissionsSummaryMore": "{count} eile"
+  "permissionsSummaryMore": "{count} eile",
+  "privacyTitle": "Príobháideachas",
+  "privacyGroupTrackers": "Rianairí agus fógraí",
+  "privacyGroupFingerprinting": "Méarloirg",
+  "privacyGroupStorage": "Stóráil",
+  "privacyFingerprintingNote": "Randamaíonn an Chosaint ar Rianú léamha canbháis, fuaime, cló agus crua-earraí don suíomh seo freisin.",
+  "privacySummaryProtectionOn": "Cosaint ar Rianú ar siúl",
+  "privacySummaryNothingOn": "Níl aon chosaint cumasaithe",
+  "siteSettingsForcedOffByTrackingProtection": "Múchta go héigeantach ag an gCosaint ar Rianú",
+  "siteSettingsNeedsTrackingProtection": "Teastaíonn Cosaint ar Rianú",
+  "siteSettingsThirdPartyCookiesSubtitle": "Lig d'ábhar leabaithe fianáin a shocrú thar shuíomhanna",
+  "siteSettingsThirdPartyCookiesHint": "Fianáin a shocraíonn ábhar atá leabaithe ó shuíomh eile, ar nós fógraí, cnaipí comhroinnte agus giuirléidí anailísíochta. Is é an bealach is sine iad chun go leanfadh rianaire thú ó shuíomh amháin go dtí an chéad cheann eile, agus is sin an fáth a mhúchann an Chosaint ar Rianú iad. Teastaíonn siad ó roinnt atreoruithe sínithe isteach agus ó sheiceálacha amach leabaithe, mar sin cuir ar siúl arís iad do shuíomh a bhriseann gan iad.",
+  "siteSettingsSectionContent": "Ábhar",
+  "siteSettingsSectionBehaviour": "Iompar",
+  "siteSettingsSectionNetwork": "Líonra"
 }
