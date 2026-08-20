@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter/foundation.dart';
 
@@ -47,15 +47,8 @@ class ConnectivityService {
       _lastKnownOnline = result;
       return result;
     }
-    try {
-      final result = await InternetAddress.lookup('example.com')
-          .timeout(const Duration(seconds: 3));
-      final online = result.isNotEmpty && result[0].rawAddress.isNotEmpty;
-      _lastKnownOnline = online;
-      return online;
-    } catch (_) {
-      _lastKnownOnline = false;
-      return false;
-    }
+    final online = await hostCanResolve('example.com');
+    _lastKnownOnline = online;
+    return online;
   }
 }

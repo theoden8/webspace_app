@@ -1,11 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:webspace/services/abp_network_hosts.dart';
+import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/adblock_engine.dart';
+import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/bloom_filter.dart';
 import 'package:webspace/services/content_blocker_shim.dart';
 import 'package:webspace/services/host_lookup.dart';
@@ -15,7 +16,6 @@ import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/procedural_action_backfill.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// A filter list entry with metadata.
@@ -159,7 +159,7 @@ class ContentBlockerService {
   /// Cheap to call: the `DynamicLibrary.open` probe runs once and caches.
   bool get rustEngineSupportedOnPlatform {
     if (_rustEngineSupported != null) return _rustEngineSupported!;
-    if (Platform.isAndroid) {
+    if (hostIsAndroid) {
       return _rustEngineSupported ?? false;
     }
     final probe = AdblockEngine.load('');
@@ -593,7 +593,7 @@ class ContentBlockerService {
     try {
       final prefs = await SharedPreferences.getInstance();
       _useUboResources = prefs.getBool(kUseUboResourcesKey) ?? true;
-      if (Platform.isAndroid) {
+      if (hostIsAndroid) {
         _rustEngineSupported =
             await WebInterceptNative.isAdblockEngineSupported();
       }
@@ -652,9 +652,7 @@ class ContentBlockerService {
         return false;
       }
 
-      final cacheFile = await _getCacheFile(id);
-      await cacheFile.parent.create(recursive: true);
-      await cacheFile.writeAsString(response.body);
+      await _store.writeText(_cacheName(id), response.body);
 
       // adblock-rust counts rules at parse time inside the engine — we
       // don't have a parse-only API on this side, so the displayed
@@ -707,10 +705,7 @@ class ContentBlockerService {
     _lists.removeWhere((l) => l.id == id);
 
     try {
-      final cacheFile = await _getCacheFile(id);
-      if (await cacheFile.exists()) {
-        await cacheFile.delete();
-      }
+      await _store.delete(_cacheName(id));
     } catch (_) {}
 
     await _saveLists();
@@ -753,9 +748,9 @@ class ContentBlockerService {
     for (final list in _lists) {
       if (!list.enabled) continue;
       try {
-        final cacheFile = await _getCacheFile(list.id);
-        if (await cacheFile.exists()) {
-          buf.writeln(await cacheFile.readAsString());
+        final cached = await _store.readText(_cacheName(list.id));
+        if (cached != null) {
+          buf.writeln(cached);
           listCount++;
         }
       } catch (_) {}
@@ -771,7 +766,7 @@ class ContentBlockerService {
     _hasUntokenizableNetworkRules = prefilter.hasUntokenizable;
     _genericTokenBloom = null;
     if (buf.isEmpty) {
-      if (Platform.isAndroid) {
+      if (hostIsAndroid) {
         await WebInterceptNative.sendAdblockEngineRules('');
       }
       _notifyRulesChanged();
@@ -809,7 +804,7 @@ class ContentBlockerService {
           'Engine library is not loadable on this platform — '
           'adblock decisions will all return "allowed".',
           level: LogLevel.warning);
-      if (Platform.isAndroid) {
+      if (hostIsAndroid) {
         await WebInterceptNative.sendAdblockEngineRules('');
       }
       _notifyRulesChanged();
@@ -824,7 +819,7 @@ class ContentBlockerService {
     if (loadMode == 'parse') {
       unawaited(_writeEngineCache(rulesHash, engine));
     }
-    if (Platform.isAndroid) {
+    if (hostIsAndroid) {
       final result =
           await WebInterceptNative.sendAdblockEngineRules(rulesText,
               enableUboResources: _useUboResources);
@@ -910,33 +905,29 @@ class ContentBlockerService {
     await prefs.setString(_listsKey, json);
   }
 
-  Future<File> _getCacheFile(String id) async {
-    final appDir = await getApplicationDocumentsDirectory();
-    return File('${appDir.path}/$_cacheDir/$id.txt');
-  }
+  FileStore? _storeOverride;
 
-  Future<File> _engineCacheFile() async {
-    final appDir = await getApplicationDocumentsDirectory();
-    return File('${appDir.path}/$_cacheDir/.engine.bin');
-  }
+  /// Cache directory backing the downloaded lists and the serialized engine.
+  /// Tests and the design gallery can swap in a [MemoryFileStore].
+  @visibleForTesting
+  set store(FileStore store) => _storeOverride = store;
 
-  Future<File> _engineCacheMetaFile() async {
-    final appDir = await getApplicationDocumentsDirectory();
-    return File('${appDir.path}/$_cacheDir/.engine.meta');
-  }
+  FileStore get _store => _storeOverride ??= defaultFileStore(_cacheDir);
+
+  static const String _engineCacheName = '.engine.bin';
+  static const String _engineCacheMetaName = '.engine.meta';
+
+  String _cacheName(String id) => '$id.txt';
 
   Future<Uint8List?> _readEngineCache(String expectedHash) async {
     try {
-      final meta = await _engineCacheMetaFile();
-      if (!await meta.exists()) return null;
-      final metaText = await meta.readAsString();
+      final metaText = await _store.readText(_engineCacheMetaName);
+      if (metaText == null) return null;
       final parts = metaText.split(':');
       if (parts.length != 2) return null;
       if (parts[0] != expectedHash) return null;
       if ((parts[1] == '1') != _useUboResources) return null;
-      final bin = await _engineCacheFile();
-      if (!await bin.exists()) return null;
-      return await bin.readAsBytes();
+      return _store.readBytes(_engineCacheName);
     } catch (e) {
       LogService.instance.log('ContentBlocker',
           'engine cache read failed: $e — falling back to parse',
@@ -949,11 +940,9 @@ class ContentBlockerService {
     try {
       final blob = engine.serialize();
       if (blob == null) return;
-      final bin = await _engineCacheFile();
-      await bin.parent.create(recursive: true);
-      await bin.writeAsBytes(blob, flush: true);
-      final meta = await _engineCacheMetaFile();
-      await meta.writeAsString('$hash:${_useUboResources ? '1' : '0'}');
+      await _store.writeBytes(_engineCacheName, blob);
+      await _store.writeText(
+          _engineCacheMetaName, '$hash:${_useUboResources ? '1' : '0'}');
       LogService.instance.log('ContentBlocker',
           'engine cache written: ${blob.length} bytes (hash=${hash.substring(0, 8)}…)',
           level: LogLevel.debug);
@@ -966,10 +955,8 @@ class ContentBlockerService {
 
   Future<void> _clearEngineCache() async {
     try {
-      final bin = await _engineCacheFile();
-      if (await bin.exists()) await bin.delete();
-      final meta = await _engineCacheMetaFile();
-      if (await meta.exists()) await meta.delete();
+      await _store.delete(_engineCacheName);
+      await _store.delete(_engineCacheMetaName);
     } catch (_) {}
   }
 

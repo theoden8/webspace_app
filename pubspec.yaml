@@ -45,6 +45,8 @@ dependencies:
   cryptography: ^2.7.0
   socks5_proxy: ^2.1.1
   cached_network_image: ^3.4.1
+  # Used only by the web half of the favicon renderer (favicon_image_web.dart).
+  web: ^1.1.0
   flutter_svg: ^2.0.10+1
   html: ^0.15.4
 

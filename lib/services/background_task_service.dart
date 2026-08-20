@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io';
+import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter/services.dart';
 import 'package:webspace/services/log_service.dart';
@@ -43,7 +43,7 @@ class BackgroundTaskService {
 
   bool _initialized = false;
 
-  bool get _enabled => Platform.isIOS || Platform.isAndroid;
+  bool get _enabled => hostIsIOS || hostIsAndroid;
 
   /// Wires the method-call handler. Call once during app startup, after
   /// the first frame, before the first lifecycle transition.
@@ -77,7 +77,7 @@ class BackgroundTaskService {
   }
 
   Future<void> beginGracePeriod() async {
-    if (!Platform.isIOS) return;
+    if (!hostIsIOS) return;
     try {
       await _channel.invokeMethod('beginGracePeriod');
       LogService.instance.log(
@@ -92,7 +92,7 @@ class BackgroundTaskService {
   }
 
   Future<void> endGracePeriod() async {
-    if (!Platform.isIOS) return;
+    if (!hostIsIOS) return;
     try {
       await _channel.invokeMethod('endGracePeriod');
     } on PlatformException catch (e) {
@@ -155,7 +155,7 @@ class BackgroundTaskService {
   /// through a muted phone. Android needs no equivalent — WebView audio
   /// keeps playing as long as the process (and its JS) stays alive.
   Future<void> setBackgroundAudioActive(bool active) async {
-    if (!Platform.isIOS) return;
+    if (!hostIsIOS) return;
     if (_backgroundAudioActive == active) return;
     _backgroundAudioActive = active;
     try {

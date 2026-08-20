@@ -1,6 +1,6 @@
 import 'dart:collection';
 import 'dart:convert';
-import 'dart:io';
+import 'package:webspace/platform/host_platform.dart';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
@@ -150,7 +150,7 @@ class CookieManager {
   /// aren't reachable from it (e.g. `accounts.google.com` when only
   /// `mail.google.com` has been visited) cannot be discovered on Android.
   Future<List<Cookie>> getAllCookies({List<Uri>? candidateUrls}) async {
-    if (Platform.isIOS || Platform.isMacOS) {
+    if (hostIsIOS || hostIsMacOS) {
       return _manager.getAllCookies();
     }
     if (candidateUrls == null || candidateUrls.isEmpty) return [];
@@ -230,7 +230,7 @@ class CookieManager {
   /// platform costs no channel round-trip. Failures are swallowed: a flush is
   /// an optimization over the platform's own lazy commit, never a correctness
   /// requirement.
-  static bool get flushSupported => Platform.isAndroid;
+  static bool get flushSupported => hostIsAndroid;
 
   Future<void> flush() async {
     if (!flushSupported) return;
@@ -294,7 +294,7 @@ class ProxyManager {
     // `inapp.ProxyController` is Android-only. Runtime updates of the
     // per-site proxy require the WebView to be rebuilt by the caller (see
     // [WebViewModel.updateProxySettings]).
-    if (Platform.isIOS || Platform.isMacOS) {
+    if (hostIsIOS || hostIsMacOS) {
       LogService.instance.log(
         'Proxy',
         'setProxySettings: iOS/macOS bind proxy at WebView construction; no-op here',
@@ -314,7 +314,7 @@ class ProxyManager {
         effective.type != ProxyType.DEFAULT;
 
     if (effective.type == ProxyType.DEFAULT) {
-      if (Platform.isAndroid) await ProxyRelay.instance.stop();
+      if (hostIsAndroid) await ProxyRelay.instance.stop();
       LogService.instance.log(
         'Proxy',
         'Clearing proxy override (per-site=DEFAULT, no global proxy set)',
@@ -381,7 +381,7 @@ class ProxyManager {
     // WebView at it with NO credentials; the relay injects them upstream.
     // iOS/macOS never reach here; Linux/WebKit accepts a credentialed
     // proxy URI directly, so it keeps the inline-credential path below.
-    if (Platform.isAndroid && effective.hasCredentials) {
+    if (hostIsAndroid && effective.hasCredentials) {
       final localPort = await ProxyRelay.instance.start(effective);
       if (localPort == null) {
         LogService.instance.log(
@@ -421,7 +421,7 @@ class ProxyManager {
     // No credentials (or Linux): point ProxyController straight at the
     // upstream. Stop any relay left over from a previous credentialed
     // config so its loopback port isn't left listening.
-    if (Platform.isAndroid) await ProxyRelay.instance.stop();
+    if (hostIsAndroid) await ProxyRelay.instance.stop();
 
     final proxyUrl = effective.hasCredentials
         ? '$scheme://${Uri.encodeComponent(effective.username!)}:${Uri.encodeComponent(effective.password!)}@$host:$port'
@@ -453,8 +453,8 @@ class ProxyManager {
 
   Future<void> clearProxy() async {
     if (!PlatformInfo.isProxySupported) return;
-    if (Platform.isIOS || Platform.isMacOS) return;
-    if (Platform.isAndroid) await ProxyRelay.instance.stop();
+    if (hostIsIOS || hostIsMacOS) return;
+    if (hostIsAndroid) await ProxyRelay.instance.stop();
     final sw = Stopwatch()..start();
     await inapp.ProxyController.instance().clearProxyOverride();
     LogService.instance.log(
@@ -483,7 +483,7 @@ class PlatformInfo {
   static bool? _isProxySupportedCached;
 
   static Future<void> initialize() async {
-    if (Platform.isIOS || Platform.isMacOS || Platform.isLinux) {
+    if (hostIsIOS || hostIsMacOS || hostIsLinux) {
       // iOS / macOS: native side gates per-version
       // (`#available(iOS 17.0, macOS 14.0, *)`); surface the toggle
       // unconditionally and let the per-site proxy block silently
@@ -1132,7 +1132,7 @@ class _WebViewController implements WebViewController {
 
   @override
   Future<void> setTextZoom(int zoomPercent) async {
-    if (Platform.isAndroid) {
+    if (hostIsAndroid) {
       await _c.setSettings(
         settings: inapp.InAppWebViewSettings(textZoom: zoomPercent),
       );
@@ -1170,7 +1170,7 @@ class _WebViewController implements WebViewController {
     // Must NOT throw: callers run `pause()` then `pauseAllJsTimers()` inside one
     // try block, so an exception here would skip the global JS freeze.
     switch (perInstanceLifecycleCallFor(
-        isAndroid: Platform.isAndroid, isIOS: Platform.isIOS)) {
+        isAndroid: hostIsAndroid, isIOS: hostIsIOS)) {
       case PerInstanceLifecycleCall.none:
         return;
       case PerInstanceLifecycleCall.timers:
@@ -1182,7 +1182,7 @@ class _WebViewController implements WebViewController {
   Future<void> resume() async {
     // Mirror of [pause] (PAUSE-016): no-op on Android.
     switch (perInstanceLifecycleCallFor(
-        isAndroid: Platform.isAndroid, isIOS: Platform.isIOS)) {
+        isAndroid: hostIsAndroid, isIOS: hostIsIOS)) {
       case PerInstanceLifecycleCall.none:
         return;
       case PerInstanceLifecycleCall.timers:
@@ -1661,10 +1661,10 @@ class WebViewFactory {
   /// Android: uses hasGesture property.
   /// iOS/macOS: uses navigationType (LINK_ACTIVATED = user tap, FORM_SUBMITTED = user form).
   static bool _hasUserGesture(inapp.NavigationAction action) {
-    if (Platform.isAndroid) {
+    if (hostIsAndroid) {
       return action.hasGesture ?? true;
     }
-    if (Platform.isIOS || Platform.isMacOS) {
+    if (hostIsIOS || hostIsMacOS) {
       return action.navigationType == inapp.NavigationType.LINK_ACTIVATED ||
              action.navigationType == inapp.NavigationType.FORM_SUBMITTED;
     }
@@ -1736,7 +1736,7 @@ class WebViewFactory {
         // Enable DevTools inspection in debug mode (chrome://inspect on Android)
         isInspectable: kDebugMode,
       ),
-      initialUserScripts: Platform.isAndroid ? null : UnmodifiableListView([
+      initialUserScripts: hostIsAndroid ? null : UnmodifiableListView([
         inapp.UserScript(
           groupName: 'system_text_zoom',
           source: '${_textSizeAdjustScript(textZoom)}\n;null;',
@@ -1964,7 +1964,7 @@ class WebViewFactory {
     // this script the click is a silent no-op. iOS/macOS WKWebView
     // surfaces blob downloads through onDownloadStartRequest natively
     // and does not need (or want) the JS path.
-    if (Platform.isAndroid) {
+    if (hostIsAndroid) {
       userScripts.add(inapp.UserScript(
         groupName: 'blob_download_click_intercept',
         source: '$blobDownloadClickInterceptScript\n;null;',
@@ -2018,7 +2018,7 @@ class WebViewFactory {
     // when a page reaches first layout without an `initial-scale`; force
     // one onto every viewport meta. Desktop mode owns the viewport via its
     // own shim, so skip there.
-    if ((Platform.isIOS || Platform.isMacOS) && !desktopMode) {
+    if ((hostIsIOS || hostIsMacOS) && !desktopMode) {
       userScripts.add(inapp.UserScript(
         groupName: 'default_viewport',
         source: '$_defaultViewportScript\n;null;',
@@ -2028,7 +2028,7 @@ class WebViewFactory {
 
     // System text zoom for non-Android: WKWebView has no `textZoom`
     // setting, so inject CSS that pushes -webkit-text-size-adjust.
-    if (!Platform.isAndroid) {
+    if (!hostIsAndroid) {
       userScripts.add(inapp.UserScript(
         groupName: 'system_text_zoom',
         source: '${_textSizeAdjustScript(textZoom)}\n;null;',
@@ -2044,7 +2044,7 @@ class WebViewFactory {
     // or overflowing horizontally; desktop engines ignore the viewport meta
     // and keep the CSS `zoom` path. See [_pageZoomViewportScript].
     final useViewportZoom = config.zoomPercent != 100 &&
-        (Platform.isAndroid || Platform.isIOS) &&
+        (hostIsAndroid || hostIsIOS) &&
         !desktopMode;
     if (config.zoomPercent != 100) {
       userScripts.add(inapp.UserScript(
@@ -2232,7 +2232,7 @@ class WebViewFactory {
     // intent to visit the site, not on whether blocklists are populated.
     final hasDnsRules = DnsBlockService.instance.hasBlocklist;
     final hasAbpRules = ContentBlockerService.instance.hasRules;
-    if (!Platform.isAndroid && config.siteId != null) {
+    if (!hostIsAndroid && config.siteId != null) {
       userScripts.add(inapp.UserScript(
         groupName: 'block_resource_observer',
         source: '''
@@ -2301,7 +2301,7 @@ class WebViewFactory {
     // unique hosts and reports them via `blockResourceLoadedBatch` —
     // having both fire was double-counting hundreds of entries per
     // page.
-    if (!Platform.isAndroid
+    if (!hostIsAndroid
         && config.siteId != null
         && ((config.dnsBlockEnabled && hasDnsRules) ||
             (config.contentBlockEnabled && hasAbpRules))) {
@@ -2770,7 +2770,7 @@ class WebViewFactory {
     // through to the app-global outbound proxy, so a site the user
     // hasn't customized still inherits a global Tor / corporate proxy.
     // Explicit per-site values win.
-    final effectiveProxy = (Platform.isIOS || Platform.isMacOS) &&
+    final effectiveProxy = (hostIsIOS || hostIsMacOS) &&
             config.proxySettings != null
         ? resolveEffectiveProxy(config.proxySettings!)
         : null;
@@ -2788,7 +2788,7 @@ class WebViewFactory {
 
     LogService.instance.log(
       'DnsBlock',
-      'Creating webview: siteId=${config.siteId} dnsBlock=${config.dnsBlockEnabled} hasBlocklist=${DnsBlockService.instance.hasBlocklist} isAndroid=${Platform.isAndroid} url=${config.initialUrl} containerId=$containerId proxySettings=${inappProxy != null}',
+      'Creating webview: siteId=${config.siteId} dnsBlock=${config.dnsBlockEnabled} hasBlocklist=${DnsBlockService.instance.hasBlocklist} isAndroid=${hostIsAndroid} url=${config.initialUrl} containerId=$containerId proxySettings=${inappProxy != null}',
       sensitivity: LogSensitivity.sensitive,
     );
 
@@ -2884,7 +2884,7 @@ class WebViewFactory {
     // otherwise. loadWithOverviewMode must stay off so the WebView respects
     // our `initial-scale` rather than fitting the page to width. Desktop-mode
     // already flips these via preferredContentMode = DESKTOP.
-    if (Platform.isAndroid && useViewportZoom) {
+    if (hostIsAndroid && useViewportZoom) {
       settings.useWideViewPort = true;
       settings.loadWithOverviewMode = false;
     }
@@ -2930,12 +2930,12 @@ class WebViewFactory {
       // The fallback returns PROMPT for everything else: Android and Linux
       // WPE map any non-GRANT action to deny (their no-handler default),
       // iOS 15+/macOS 12+ show WebKit's own per-site prompt.
-      onPermissionRequest: ((Platform.isAndroid &&
+      onPermissionRequest: ((hostIsAndroid &&
                   config.onProtectedMediaRequest != null) ||
               config.onCameraDecision != null ||
               config.onMicrophoneDecision != null)
           ? (controller, request) async {
-              final wantsProtectedMedia = Platform.isAndroid &&
+              final wantsProtectedMedia = hostIsAndroid &&
                   config.onProtectedMediaRequest != null &&
                   request.resources.contains(
                       inapp.PermissionResourceType.PROTECTED_MEDIA_ID);
@@ -3191,7 +3191,7 @@ class WebViewFactory {
           });
           // iOS sub-resource blocking: per-URL check from JS interceptor.
           // Only the bloom-hit minority of requests hits this path.
-          if (!Platform.isAndroid) {
+          if (!hostIsAndroid) {
             controller.addJavaScriptHandler(handlerName: 'blockCheck', callback: (args) {
               // Return value contract for the JS shim:
               //   false       — allow (call origSet / origFetch as-is)
@@ -3527,7 +3527,7 @@ class WebViewFactory {
         // handler no-ops cheaply when neither blocklist nor CDN cache are
         // populated, and the references are shared with the plugin so
         // subsequent updates are picked up without re-attaching.
-        if (Platform.isAndroid) {
+        if (hostIsAndroid) {
           // Track attach attempts so we can correlate with the
           // native-side "attachToAllWebViews" log. Phase 14: helps
           // debug the case where Android sub-resources aren't blocked
@@ -3746,7 +3746,7 @@ class WebViewFactory {
         // redirects without a tap origin, pushState) carry no user
         // gesture — they don't activate AASA in the first place and
         // are passed through here without interception.
-        if (Platform.isIOS &&
+        if (hostIsIOS &&
             IosUniversalLinkBypass.isEligibleNavigation(
               isMainFrame: isMainFrame,
               url: url,
@@ -4177,7 +4177,7 @@ class WebViewFactory {
           return;
         }
         if (ExternalUrlSuppressor.isSuppressedInfo(externalInfo)) {
-          if (!Platform.isAndroid) {
+          if (!hostIsAndroid) {
             // WebKit reports a policy-cancelled external-scheme nav as
             // error 102 (frame load interrupted) but keeps the committed
             // page painted — loading about:blank here would wipe the page
@@ -4409,7 +4409,7 @@ class WebViewFactory {
     // remain useful for Android post-failure and for dart:io
     // `HttpClient.badCertificateCallback` (favicon fetch, etc.), but
     // querying them in this code path on Apple was log noise at best.
-    if (Platform.isIOS || Platform.isMacOS) {
+    if (hostIsIOS || hostIsMacOS) {
       return null;
     }
     if (TrustedHostsService.instance.isTrusted(
@@ -4609,7 +4609,7 @@ class WebViewFactory {
     // unknown-CA sites fail closed here. Users can install the cert
     // manually (Keychain Access on macOS, Settings → General →
     // Certificate Trust Settings on iOS).
-    if (Platform.isMacOS || Platform.isIOS) {
+    if (hostIsMacOS || hostIsIOS) {
       return false;
     }
     final uri = Uri.tryParse(url);
@@ -4636,7 +4636,7 @@ class WebViewFactory {
       LogService.instance.log(
         'TLS',
         'pin matches but iOS reported error for $host:$port — reloading once '
-            '(os: ${Platform.operatingSystem} ${Platform.operatingSystemVersion})',
+            '(os: $hostOperatingSystem $hostOperatingSystemVersion)',
         sensitivity: LogSensitivity.sensitive,
       );
       Future.microtask(() async {
@@ -4838,7 +4838,7 @@ class WebViewFactory {
   }
 
   static Future<String?> _saveViaPicker(DownloadResult result) async {
-    final isMobile = !kIsWeb && (Platform.isIOS || Platform.isAndroid);
+    final isMobile = !kIsWeb && (hostIsIOS || hostIsAndroid);
     final outputPath = await FilePicker.saveFile(
       dialogTitle: 'Save download',
       fileName: result.filename,
@@ -4846,8 +4846,7 @@ class WebViewFactory {
     );
     if (outputPath == null) return null;
     if (!isMobile) {
-      final file = File(outputPath);
-      await file.writeAsBytes(result.bytes);
+      await hostWriteBytes(outputPath, result.bytes);
     }
     return outputPath;
   }

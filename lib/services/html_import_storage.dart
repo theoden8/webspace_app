@@ -1,7 +1,6 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
-import 'package:path_provider/path_provider.dart';
+import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:encrypt/encrypt.dart' as encrypt;
@@ -24,14 +23,14 @@ class HtmlImportStorage {
   /// singleton uses the default-arg path.
   HtmlImportStorage({
     FlutterSecureStorage? secureStorage,
-    Directory? overrideAppDir,
+    FileStore? store,
   })  : _secureStorage = secureStorage ?? const FlutterSecureStorage(),
-        _overrideAppDir = overrideAppDir;
+        _overrideStore = store;
 
   final FlutterSecureStorage _secureStorage;
-  final Directory? _overrideAppDir;
+  final FileStore? _overrideStore;
 
-  Directory? _storageDirectory;
+  FileStore? _store;
   encrypt.Encrypter? _encrypter;
   encrypt.IV? _iv;
 
@@ -40,14 +39,11 @@ class HtmlImportStorage {
   final Map<String, String> _memoryStore = {};
 
   Future<void> initialize() async {
-    final appDir = _overrideAppDir ?? await getApplicationDocumentsDirectory();
-    _storageDirectory = Directory('${appDir.path}/$_storageDir');
+    _store = _overrideStore ?? defaultFileStore(_storageDir);
 
     await _initEncryption();
 
-    if (!await _storageDirectory!.exists()) {
-      await _storageDirectory!.create(recursive: true);
-    }
+    await _store!.ensure();
   }
 
   /// Decrypt every file on disk into [_memoryStore]. Mirrors
@@ -108,20 +104,21 @@ class HtmlImportStorage {
   }
 
   Future<void> _preloadAll() async {
-    if (_storageDirectory == null || !await _storageDirectory!.exists()) return;
+    final store = _store;
+    if (store == null) return;
 
     try {
-      final files = await _storageDirectory!.list().toList();
+      final files = await store.list();
       var skipped = 0;
-      for (final entity in files) {
-        if (entity is File && entity.path.endsWith('.enc')) {
+      for (final name in files) {
+        if (name.endsWith('.enc')) {
           try {
-            final encrypted = await entity.readAsString();
-            final decrypted = _decrypt(encrypted);
+            final encrypted = await store.readText(name);
+            final decrypted = encrypted == null ? null : _decrypt(encrypted);
             if (decrypted != null) {
               final newlineIndex = decrypted.indexOf('\n');
               if (newlineIndex != -1) {
-                final siteId = entity.path.split('/').last.replaceAll('.enc', '');
+                final siteId = name.replaceAll('.enc', '');
                 final html = decrypted.substring(newlineIndex + 1);
                 _memoryStore[siteId] = html;
               } else {
@@ -133,7 +130,7 @@ class HtmlImportStorage {
                 // transient Android Keystore read failure).
                 LogService.instance.log(
                   'HtmlImport',
-                  'Skipping invalid import file (kept on disk): ${entity.path}',
+                  'Skipping invalid import file (kept on disk): $name',
                   level: LogLevel.warning,
                   sensitivity: LogSensitivity.sensitive,
                 );
@@ -142,7 +139,7 @@ class HtmlImportStorage {
             } else {
               LogService.instance.log(
                 'HtmlImport',
-                'Skipping undecryptable import file (kept on disk): ${entity.path}',
+                'Skipping undecryptable import file (kept on disk): $name',
                 level: LogLevel.warning,
                 sensitivity: LogSensitivity.sensitive,
               );
@@ -151,7 +148,7 @@ class HtmlImportStorage {
           } catch (e) {
             LogService.instance.log(
               'HtmlImport',
-              'Skipping unreadable import file (kept on disk): ${entity.path} ($e)',
+              'Skipping unreadable import file (kept on disk): $name ($e)',
               level: LogLevel.warning,
               sensitivity: LogSensitivity.sensitive,
             );
@@ -169,9 +166,7 @@ class HtmlImportStorage {
     return _memoryStore[siteId];
   }
 
-  File _getImportFile(String siteId) {
-    return File('${_storageDirectory!.path}/$siteId.enc');
-  }
+  String _importFileName(String siteId) => '$siteId.enc';
 
   /// Per-site upper bound. Imports are user-supplied so this is a sanity
   /// gate, not a deduplication-or-eviction policy — the legacy cache used
@@ -179,7 +174,8 @@ class HtmlImportStorage {
   static const int _maxHtmlSize = 10 * 1024 * 1024;
 
   Future<void> saveHtml(String siteId, String html, String url) async {
-    if (_storageDirectory == null || _encrypter == null) return;
+    final store = _store;
+    if (store == null || _encrypter == null) return;
 
     if (html.length > _maxHtmlSize) {
       LogService.instance.log(
@@ -192,12 +188,11 @@ class HtmlImportStorage {
     }
 
     try {
-      final file = _getImportFile(siteId);
       final plaintext = '$url\n$html';
       final encrypted = _encrypt(plaintext);
       if (encrypted == null) return;
 
-      await file.writeAsString(encrypted);
+      await store.writeText(_importFileName(siteId), encrypted);
       _memoryStore[siteId] = html;
 
       LogService.instance.log(
@@ -216,13 +211,13 @@ class HtmlImportStorage {
   }
 
   Future<(String, String)?> loadHtml(String siteId) async {
-    if (_storageDirectory == null || _encrypter == null) return null;
+    final store = _store;
+    if (store == null || _encrypter == null) return null;
 
     try {
-      final file = _getImportFile(siteId);
-      if (!await file.exists()) return null;
+      final encrypted = await store.readText(_importFileName(siteId));
+      if (encrypted == null) return null;
 
-      final encrypted = await file.readAsString();
       final decrypted = _decrypt(encrypted);
       if (decrypted == null) return null;
 
@@ -245,30 +240,28 @@ class HtmlImportStorage {
   }
 
   Future<bool> hasImport(String siteId) async {
-    if (_storageDirectory == null) return false;
-    final file = _getImportFile(siteId);
-    return file.exists();
+    final store = _store;
+    if (store == null) return false;
+    return store.exists(_importFileName(siteId));
   }
 
   Future<void> deleteImport(String siteId) async {
-    if (_storageDirectory == null) return;
-    final file = _getImportFile(siteId);
-    if (await file.exists()) {
-      await file.delete();
-    }
+    final store = _store;
+    if (store == null) return;
+    await store.delete(_importFileName(siteId));
     _memoryStore.remove(siteId);
   }
 
   Future<void> removeOrphanedImports(Set<String> activeSiteIds) async {
-    if (_storageDirectory == null || !await _storageDirectory!.exists()) return;
+    final store = _store;
+    if (store == null) return;
 
-    final files = await _storageDirectory!.list().toList();
-    for (final entity in files) {
-      if (entity is File && entity.path.endsWith('.enc')) {
-        final filename = entity.path.split('/').last;
-        final siteId = filename.replaceAll('.enc', '');
+    final files = await store.list();
+    for (final name in files) {
+      if (name.endsWith('.enc')) {
+        final siteId = name.replaceAll('.enc', '');
         if (!activeSiteIds.contains(siteId)) {
-          await entity.delete();
+          await store.delete(name);
           _memoryStore.remove(siteId);
           LogService.instance.log(
             'HtmlImport',

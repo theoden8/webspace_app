@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io';
+import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp
@@ -262,7 +262,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
       siteId: widget.siteId,
       currentUrl: widget.url,
     );
-    final bool isMobile = Platform.isIOS || Platform.isAndroid;
+    final bool isMobile = hostIsIOS || hostIsAndroid;
     _pullToRefreshController = isMobile ? inapp.PullToRefreshController(
       settings: inapp.PullToRefreshSettings(enabled: true),
       onRefresh: () async {
@@ -533,7 +533,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   /// restore re-attaches a blank SurfaceView (BUG-001 / PAUSE-018). Mirrors
   /// `_WebSpacePageState._nudgeSurfaceRepaint`; no-op off Android.
   void _nudgeSurfaceRepaint() {
-    if (!Platform.isAndroid) return;
+    if (!hostIsAndroid) return;
     if (!_surfaceRepaint.request()) return;
     void tick() {
       if (!mounted) {
@@ -663,7 +663,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   /// Bounded so steady-state metric changes (keyboard, rotation) don't nudge.
   /// Mirrors `_WebSpacePageState._openResumeRepaintWindow` (PAUSE-020).
   void _openResumeRepaintWindow() {
-    if (!Platform.isAndroid) return;
+    if (!hostIsAndroid) return;
     _resumeRepaintWindowOpen = true;
     _resumeRepaintWindowTimer?.cancel();
     _resumeRepaintWindowTimer = Timer(const Duration(seconds: 3), () {
@@ -783,7 +783,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
             if (mounted) navigator.pop();
             return;
           }
-          if (Platform.isAndroid) {
+          if (hostIsAndroid) {
             if (await controller.canGoBack()) {
               await _goBackAndRepaint(controller);
               LogService.instance.log('Navigation',

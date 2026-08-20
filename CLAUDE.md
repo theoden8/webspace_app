@@ -80,6 +80,26 @@ Android flavors: `fdroid` (CI), `fmain` (Play), `fdebug`.
 
 Dart in `test/`, integration in `integration_test/` (screenshots).
 
+## Design (`tool/design_gallery/`)
+
+`web/` exists only so a designer can drive the real UI in a browser and so it
+can be screenshotted for review; the app is not shipped for web and the WebView
+does not run there. Two targets, both via `scripts/design_web.sh`:
+`app` ([lib/design_app/main.dart](lib/design_app/main.dart), the real
+`WebSpaceApp` on demo data) into `build/web`, and `gallery`
+([lib/design_gallery/main.dart](lib/design_gallery/main.dart), one card per
+widget) into `build/design_gallery`. `npm run design:serve` serves either.
+The Claude Design project cannot build Flutter, so it asks for a rebuild
+through the dated `_requests/refresh.md` mailbox (design-side state, gitignored
+here). Design artifacts that come out of that pipeline live in `assets/design/`
+under the `assets/` artwork licence, which names the designer; artwork by
+anyone else is case by case and gets its own licence file. Full workflow and constraints
+(canvas output, local fonts, web-clean check, refresh protocol):
+[tool/design_gallery/CLAUDE.md](tool/design_gallery/CLAUDE.md). Spec:
+[openspec/specs/design-gallery/spec.md](openspec/specs/design-gallery/spec.md);
+DESIGN-001 (every UI file compiles for web) is enforced by `npm run design:check`
+in CI's `validate` job, and the two web builds by the `design-web` job.
+
 ## Recurring bugs (`docs/bugs/`)
 
 A **recurring bug** is one whose symptom was fixed before and resurfaced through a
@@ -146,6 +166,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | configurable-suggested-sites | empty default for fdroid |
 | content-blocker | ABP filter lists via adblock-rust (network, cosmetic, procedural, $redirect/$csp/$removeparam) |
 | cookie-secure-storage | encrypted cookie persistence |
+| design-gallery | designer works in Dart on web; web-clean, token-validity, render-matrix and card gates |
 | desktop-mode | per-site UA → JS shim (userAgentData, maxTouchPoints, viewport rewrite) |
 | developer-tools | JS console, cookie inspector, HTML export, app logs |
 | dns-blocklist | Hagezi list, severity levels, per-site toggle |

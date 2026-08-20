@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert' show base64Decode, base64Encode;
-import 'dart:io';
+import 'package:webspace/platform/host_platform.dart';
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -990,7 +990,7 @@ class WebViewModel {
   /// `setState`) so the IndexedStack actually re-creates the slot.
   Future<void> updateProxySettings(UserProxySettings newSettings) async {
     proxySettings = newSettings;
-    if (Platform.isIOS || Platform.isMacOS) {
+    if (hostIsIOS || hostIsMacOS) {
       disposeWebView();
       return;
     }
@@ -1040,7 +1040,7 @@ class WebViewModel {
         'Using cached HTML: ${initialHtml != null} (${initialHtml?.length ?? 0} bytes)',
         sensitivity: LogSensitivity.sensitive,
       );
-      final bool isMobile = Platform.isIOS || Platform.isAndroid;
+      final bool isMobile = hostIsIOS || hostIsAndroid;
       final pullToRefreshController = isMobile ? inapp.PullToRefreshController(
         settings: inapp.PullToRefreshSettings(enabled: true),
         onRefresh: () async {
@@ -1079,7 +1079,7 @@ class WebViewModel {
       // initialUrlRequest load and replace state in place via interactionState.
       final bool deferRestoreLoad = deferInitialLoadForRestore(
         hasPendingRestoreState: _pendingRestoreState != null,
-        isAndroid: Platform.isAndroid,
+        isAndroid: hostIsAndroid,
         isFileImport: currentUrl.startsWith('file://'),
       );
       webview = WebViewFactory.createWebView(

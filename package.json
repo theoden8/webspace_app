@@ -5,14 +5,23 @@
   "scripts": {
     "test:js": "node --test --test-reporter=spec 'test/js/**/*.test.js'",
     "test:browser": "node --test --test-reporter=spec --test-timeout=90000 'test/browser/**/*.test.js'",
-    "bench:js": "node test/js/perf/blocking.bench.js"
+    "bench:js": "node test/js/perf/blocking.bench.js",
+    "design:fonts": "node tool/design_gallery/sync_fonts.js",
+    "design:app": "scripts/design_web.sh app",
+    "design:gallery": "scripts/design_web.sh gallery",
+    "design:serve": "node tool/design_gallery/serve.js",
+    "design:cards": "node tool/design_gallery/shoot.js",
+    "design:check": "node tool/design_gallery/web_clean.js",
+    "design:bundle": "node tool/design_gallery/bundle.js"
   },
   "devDependencies": {
+    "@expo-google-fonts/roboto": "^0.4.3",
     "@fingerprintjs/fingerprintjs": "^5.2.0",
     "@fission-ai/openspec": "^1.9.0",
     "cld3-asm": "^4.0.0",
     "jsdom": "^25.0.1",
     "jsqr": "^1.4.0",
+    "pngjs": "^7.0.0",
     "puppeteer": "^24.43.0",
     "qrcode": "^1.5.4"
   }

@@ -85,3 +85,10 @@ rust/webspace_adblock/cocoapods/keep_alive.c
 /lib/l10n/gen/
 # gen-l10n untranslated-messages coverage report (regenerated every build)
 /l10n_untranslated.json
+
+# Design gallery (see tool/design_gallery/): fetched from npm, regenerate with sync_fonts.js
+/web/fonts/
+
+# Design mailbox pulled out of the Claude Design project for servicing.
+# The request is the design side's state, not the repo's.
+/_requests/

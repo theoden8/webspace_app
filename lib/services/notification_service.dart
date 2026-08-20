@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
+import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -117,7 +117,7 @@ class NotificationService {
       onDidReceiveNotificationResponse: _onTap,
     );
 
-    if (Platform.isAndroid) {
+    if (hostIsAndroid) {
       final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
       await androidPlugin?.createNotificationChannel(
@@ -218,17 +218,17 @@ class NotificationService {
     if (!_initialized) await init();
 
     bool granted = false;
-    if (Platform.isAndroid) {
+    if (hostIsAndroid) {
       final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
       granted = await androidPlugin?.requestNotificationsPermission() ?? false;
-    } else if (Platform.isIOS) {
+    } else if (hostIsIOS) {
       final iosPlugin = _plugin.resolvePlatformSpecificImplementation<
           IOSFlutterLocalNotificationsPlugin>();
       granted = await iosPlugin?.requestPermissions(
               alert: true, badge: true, sound: true) ??
           false;
-    } else if (Platform.isMacOS) {
+    } else if (hostIsMacOS) {
       final macPlugin = _plugin.resolvePlatformSpecificImplementation<
           MacOSFlutterLocalNotificationsPlugin>();
       granted = await macPlugin?.requestPermissions(

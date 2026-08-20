@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:webspace/platform/host_platform.dart';
 import 'package:flutter/services.dart';
 
 class InboundHtmlShare {
@@ -19,7 +19,7 @@ class ShareIntentService {
   /// and clears it from the native side so the same URL is not handed out
   /// twice. Returns null if no inbound URL is pending.
   static Future<String?> consumeLaunchUrl() async {
-    if (!Platform.isAndroid && !Platform.isIOS) return null;
+    if (!hostIsAndroid && !hostIsIOS) return null;
     try {
       final result = await _channel.invokeMethod('consumeLaunchUrl');
       return result is String ? result : null;
@@ -32,7 +32,7 @@ class ShareIntentService {
   /// Cleared on the native side after one read. Returns null when no
   /// HTML share is pending or the platform doesn't support it.
   static Future<InboundHtmlShare?> consumeLaunchHtml() async {
-    if (!Platform.isAndroid && !Platform.isIOS) return null;
+    if (!hostIsAndroid && !hostIsIOS) return null;
     try {
       final result = await _channel.invokeMethod('consumeLaunchHtml');
       if (result is! Map) return null;

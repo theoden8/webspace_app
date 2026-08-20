@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/file_store_io.dart';
 import 'package:webspace/services/html_import_storage.dart';
 
 import 'helpers/mock_secure_storage.dart' show MockFlutterSecureStorage;
@@ -31,7 +32,7 @@ void main() {
   Future<HtmlImportStorage> newStorage() async {
     final storage = HtmlImportStorage(
       secureStorage: fakeStorage,
-      overrideAppDir: tempDir,
+      store: IoFileStore('html_imports', overrideRoot: tempDir),
     );
     await storage.initialize();
     return storage;

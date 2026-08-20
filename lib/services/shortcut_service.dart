@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:webspace/platform/host_platform.dart';
 import 'dart:typed_data';
 import 'package:flutter/services.dart';
 
@@ -61,7 +61,7 @@ class ShortcutService {
     Uint8List? iconBytes,
     String? iconUrl,
   }) async {
-    if (!Platform.isAndroid && !Platform.isIOS && !Platform.isMacOS) {
+    if (!hostIsAndroid && !hostIsIOS && !hostIsMacOS) {
       return false;
     }
     try {
@@ -86,7 +86,7 @@ class ShortcutService {
   /// On iOS the App Intents site list is rebuilt from the user's actual sites
   /// by `syncSites`, so a deletion drops out of the picker implicitly.
   static Future<void> removeShortcut(String siteId) async {
-    if (!Platform.isAndroid) return;
+    if (!hostIsAndroid) return;
     try {
       await _channel.invokeMethod('removeShortcut', {'siteId': siteId});
     } on PlatformException {
@@ -103,7 +103,7 @@ class ShortcutService {
   /// with the url ledger); iOS/macOS return a `{siteId, url}` map. Both shapes
   /// are tolerated so the platforms can share one call site.
   static Future<ShortcutLaunch?> getLaunch() async {
-    if (!Platform.isAndroid && !Platform.isIOS && !Platform.isMacOS) {
+    if (!hostIsAndroid && !hostIsIOS && !hostIsMacOS) {
       return null;
     }
     try {
@@ -135,7 +135,7 @@ class ShortcutService {
   /// Android-only — iOS has no public API to enumerate home-screen tiles, so
   /// this always returns an empty set on iOS.
   static Future<Set<String>> getPinnedSiteIds() async {
-    if (!Platform.isAndroid) return const <String>{};
+    if (!hostIsAndroid) return const <String>{};
     try {
       final result = await _channel.invokeMethod('getPinnedSiteIds');
       if (result is List) {
@@ -154,7 +154,7 @@ class ShortcutService {
   /// deleted site's shortcut (HS-011); the default leaves the tile tappable so
   /// it can re-route via the url ledger.
   static Future<void> disableShortcut(String siteId) async {
-    if (!Platform.isAndroid) return;
+    if (!hostIsAndroid) return;
     try {
       await _channel.invokeMethod('disableShortcut', {'siteId': siteId});
     } on PlatformException {
@@ -172,7 +172,7 @@ class ShortcutService {
     List<ShortcutSite> sites, {
     List<ShortcutSite> tombstones = const [],
   }) async {
-    if (!Platform.isIOS && !Platform.isMacOS) return;
+    if (!hostIsIOS && !hostIsMacOS) return;
     try {
       await _channel.invokeMethod('syncSites', {
         'sites': sites.map((s) => s.toMap()).toList(),
@@ -189,7 +189,7 @@ class ShortcutService {
   /// False on Android (Android uses its own pin path, not gated by this), on
   /// older iOS/macOS, and on every other platform.
   static Future<bool> isAppIntentsSupported() async {
-    if (!Platform.isIOS && !Platform.isMacOS) return false;
+    if (!hostIsIOS && !hostIsMacOS) return false;
     try {
       final result = await _channel.invokeMethod('isAppIntentsSupported');
       return result == true;

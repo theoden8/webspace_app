@@ -1,11 +1,10 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// A parsed ClearURLs provider that matches URLs and strips tracking parameters.
@@ -49,9 +48,8 @@ class ClearUrlService {
   /// Call in main() at app startup.
   Future<void> initialize() async {
     try {
-      final file = await _getRulesFile();
-      if (await file.exists()) {
-        final contents = await file.readAsString();
+      final contents = await hostReadDocumentText(_rulesFileName);
+      if (contents != null) {
         final json = jsonDecode(contents) as Map<String, dynamic>;
         _parseRules(json);
         LogService.instance.log('ClearURLs', 'Loaded ${_providers.length} providers from cache', level: LogLevel.info);
@@ -92,8 +90,7 @@ class ClearUrlService {
       final json = jsonDecode(response.body) as Map<String, dynamic>;
 
       // Save to disk
-      final file = await _getRulesFile();
-      await file.writeAsString(response.body);
+      await hostWriteDocumentText(_rulesFileName, response.body);
 
       // Save timestamp
       final prefs = await SharedPreferences.getInstance();
@@ -322,8 +319,4 @@ class ClearUrlService {
     return result;
   }
 
-  Future<File> _getRulesFile() async {
-    final appDir = await getApplicationDocumentsDirectory();
-    return File('${appDir.path}/$_rulesFileName');
-  }
 }

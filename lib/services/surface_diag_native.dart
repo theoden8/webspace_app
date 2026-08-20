@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter/services.dart';
 
@@ -54,7 +54,7 @@ class SurfaceDiagNative {
   /// iOS's blank class is renderer jettison, which the JS probe already
   /// detects, and the Flutter window there composites platform views in-tree.
   static Future<WindowRegionSample> sampleWindowRegion(Rect physicalRect) async {
-    if (!Platform.isAndroid) return WindowRegionSample.unsupported;
+    if (!hostIsAndroid) return WindowRegionSample.unsupported;
     try {
       final res = await _channel
           .invokeMapMethod<String, dynamic>('sampleWindowRegion', <String, int>{

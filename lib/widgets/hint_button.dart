@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:webspace/theme/design_tokens.dart';
+
 import 'package:webspace/l10n/gen/app_localizations.dart';
 
 /// A small info icon button that shows a descriptive tooltip dialog.
@@ -18,12 +20,12 @@ class HintButton extends StatelessWidget {
     return IconButton(
       icon: Icon(
         Icons.info_outline,
-        size: 20,
+        size: IconSizes.action,
         color: Theme.of(context).colorScheme.onSurfaceVariant,
       ),
       tooltip: title,
       padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+      constraints: const BoxConstraints(minWidth: TapTargets.compact, minHeight: TapTargets.compact),
       onPressed: () {
         showDialog(
           context: context,

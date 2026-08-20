@@ -15,6 +15,10 @@ const path = require('node:path');
 const repoRoot = path.resolve(__dirname, '..', '..');
 
 const migrated = new Set([
+  // Platform-split favicon rendering: no user-facing strings at all.
+  'lib/screens/favicon_image.dart',
+  'lib/screens/favicon_image_io.dart',
+  'lib/screens/favicon_image_web.dart',
   'lib/screens/site_permissions.dart',
   'lib/screens/site_privacy.dart',
   'lib/widgets/site_permission_chip.dart',

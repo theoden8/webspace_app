@@ -1,13 +1,12 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:encrypt/encrypt.dart' as encrypt;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/webview_state_storage.dart';
 
@@ -43,23 +42,23 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
   /// Optional override for the cache parent directory. When null,
   /// `getApplicationDocumentsDirectory()` is queried at init. Tests
   /// inject a temp dir to avoid the path_provider plugin.
-  final Directory? _overrideAppDir;
+  final FileStore? _overrideStore;
   /// Optional override for the version-tracking SharedPreferences-
   /// equivalent. When null, [SharedPreferences] is queried.
   /// Tests inject a stub to avoid plugin setup.
   final String Function()? _versionProvider;
 
-  Directory? _cacheDirectory;
+  FileStore? _store;
   encrypt.Encrypter? _encrypter;
   bool _initialized = false;
   Future<void>? _initInFlight;
 
   SecureWebViewStateStorage({
     FlutterSecureStorage? secureStorage,
-    Directory? overrideAppDir,
+    FileStore? store,
     String Function()? versionProvider,
   })  : _secureStorage = secureStorage ?? const FlutterSecureStorage(),
-        _overrideAppDir = overrideAppDir,
+        _overrideStore = store,
         _versionProvider = versionProvider;
 
   /// Initialize the storage. Idempotent. Must complete before any
@@ -76,13 +75,10 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
   }
 
   Future<void> _doInitialize() async {
-    final appDir = _overrideAppDir ?? await getApplicationDocumentsDirectory();
-    _cacheDirectory = Directory('${appDir.path}/$_cacheDir');
+    _store = _overrideStore ?? defaultFileStore(_cacheDir);
     await _initEncryption();
     await _clearCacheOnUpgrade();
-    if (!await _cacheDirectory!.exists()) {
-      await _cacheDirectory!.create(recursive: true);
-    }
+    await _store!.ensure();
     _initialized = true;
     _initInFlight = null;
   }
@@ -136,11 +132,9 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
       lastVersion = prefs.getString(_versionKey);
     }
     if (lastVersion != currentVersion) {
-      if (lastVersion != null && _cacheDirectory != null) {
+      if (lastVersion != null && _store != null) {
         try {
-          if (await _cacheDirectory!.exists()) {
-            await _cacheDirectory!.delete(recursive: true);
-          }
+          await _store!.deleteAll();
         } catch (e) {
           LogService.instance.log(
             'WebViewState',
@@ -169,15 +163,14 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
     }
   }
 
-  File _fileFor(String siteId) {
-    return File('${_cacheDirectory!.path}/$siteId.enc');
-  }
+  String _fileNameFor(String siteId) => '$siteId.enc';
 
   @override
   Future<void> saveState(String siteId, Uint8List state) async {
     if (state.isEmpty) return;
     if (!_initialized) await initialize();
-    if (_cacheDirectory == null || _encrypter == null) return;
+    final store = _store;
+    if (store == null || _encrypter == null) return;
     try {
       final encoded = base64.encode(state);
       final iv = encrypt.IV.fromSecureRandom(12);
@@ -185,7 +178,7 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
       final wire = Uint8List(iv.bytes.length + enc.bytes.length)
         ..setRange(0, iv.bytes.length, iv.bytes)
         ..setRange(iv.bytes.length, iv.bytes.length + enc.bytes.length, enc.bytes);
-      await _fileFor(siteId).writeAsString(base64.encode(wire));
+      await store.writeText(_fileNameFor(siteId), base64.encode(wire));
       LogService.instance.log(
         'WebViewState',
         'Saved ${state.length} bytes for site $siteId (encrypted)',
@@ -204,13 +197,14 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
   @override
   Future<Uint8List?> loadState(String siteId) async {
     if (!_initialized) await initialize();
-    if (_cacheDirectory == null || _encrypter == null) {
+    final store = _store;
+    if (store == null || _encrypter == null) {
       return null;
     }
     try {
-      final f = _fileFor(siteId);
-      if (!await f.exists()) return null;
-      final wire = base64.decode(await f.readAsString());
+      final raw = await store.readText(_fileNameFor(siteId));
+      if (raw == null) return null;
+      final wire = base64.decode(raw);
       // 12-byte nonce + 16-byte minimum GCM tag; legacy fixed-IV CBC blobs
       // are shorter-prefixed and fail auth, handled by the catch below.
       if (wire.length < 12 + 16) throw const FormatException('short blob');
@@ -229,7 +223,7 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
       // Corrupt entry — defensive: remove so a re-save can succeed
       // and we don't keep failing loads in a hot loop.
       try {
-        await _fileFor(siteId).delete();
+        await store.delete(_fileNameFor(siteId));
       } catch (_) {}
       return null;
     }
@@ -238,12 +232,10 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
   @override
   Future<void> removeState(String siteId) async {
     if (!_initialized) await initialize();
-    if (_cacheDirectory == null) return;
+    final store = _store;
+    if (store == null) return;
     try {
-      final f = _fileFor(siteId);
-      if (await f.exists()) {
-        await f.delete();
-      }
+      await store.delete(_fileNameFor(siteId));
     } catch (e) {
       LogService.instance.log(
         'WebViewState',
@@ -257,19 +249,18 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
   @override
   Future<int> removeOrphans(Set<String> activeSiteIds) async {
     if (!_initialized) await initialize();
-    if (_cacheDirectory == null || !await _cacheDirectory!.exists()) {
+    final store = _store;
+    if (store == null) {
       return 0;
     }
     var removed = 0;
     try {
-      final entries = await _cacheDirectory!.list().toList();
-      for (final entity in entries) {
-        if (entity is! File) continue;
-        if (!entity.path.endsWith('.enc')) continue;
-        final filename = entity.path.split('/').last;
-        final siteId = filename.replaceAll('.enc', '');
+      final entries = await store.list();
+      for (final name in entries) {
+        if (!name.endsWith('.enc')) continue;
+        final siteId = name.replaceAll('.enc', '');
         if (!activeSiteIds.contains(siteId)) {
-          await entity.delete();
+          await store.delete(name);
           removed++;
         }
       }
@@ -292,17 +283,16 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
   @override
   Future<Set<String>> siteIds() async {
     if (!_initialized) await initialize();
-    if (_cacheDirectory == null || !await _cacheDirectory!.exists()) {
+    final store = _store;
+    if (store == null) {
       return const <String>{};
     }
     final result = <String>{};
     try {
-      final entries = await _cacheDirectory!.list().toList();
-      for (final entity in entries) {
-        if (entity is! File) continue;
-        if (!entity.path.endsWith('.enc')) continue;
-        final filename = entity.path.split('/').last;
-        result.add(filename.replaceAll('.enc', ''));
+      final entries = await store.list();
+      for (final name in entries) {
+        if (!name.endsWith('.enc')) continue;
+        result.add(name.replaceAll('.enc', ''));
       }
     } catch (_) {
       // Best effort.

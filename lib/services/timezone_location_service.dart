@@ -1,13 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:webspace/platform/host_platform.dart';
 import 'log_service.dart';
 
 /// Default download URL: the latest `timezones-now` GeoJSON zip from
@@ -74,10 +73,8 @@ class TimezoneLocationService {
     }
   }
 
-  Future<File> _cacheFile() async {
-    final dir = await getApplicationDocumentsDirectory();
-    return File('${dir.path}/$_cacheFileName');
-  }
+  Future<String> _cachePath() async =>
+      '${await hostDocumentsPath()}/$_cacheFileName';
 
   /// Configured download URL (user-overridable in app settings).
   Future<String> getUrl() async {
@@ -109,14 +106,14 @@ class TimezoneLocationService {
     if (_loadAttempted) return false;
     _loadAttempted = true;
     try {
-      final file = await _cacheFile();
-      if (!await file.exists()) return false;
+      final path = await _cachePath();
+      if (!await hostFileExists(path)) return false;
       // Parse on a background isolate. The GeoJSON is tens of MB and the
       // polygon build is ~1s+ of CPU; on the main isolate it stalls cold start
       // and serializes against the other startup inits. compute keeps it off
       // the main isolate while the caller still awaits readiness, so
       // tz-from-location spoofing stays armed before any webview builds.
-      _zones = await compute(_readAndParseZones, file.path);
+      _zones = await compute(_readAndParseZones, path);
       LogService.instance
           .log('TZ', 'Loaded ${_zones?.length ?? 0} zones from cache');
       _notifyListeners();
@@ -185,8 +182,7 @@ class TimezoneLocationService {
 
       // Write through to disk first so a parse failure leaves the file
       // recoverable (the user can edit it / re-download).
-      final file = await _cacheFile();
-      await file.writeAsString(body);
+      await hostWriteFileText(await _cachePath(), body);
 
       _zones = await compute(_parseZones, body);
       final prefs = await SharedPreferences.getInstance();
@@ -208,8 +204,7 @@ class TimezoneLocationService {
     _zones = null;
     _loadAttempted = false;
     try {
-      final file = await _cacheFile();
-      if (await file.exists()) await file.delete();
+      await hostDeleteFile(await _cachePath());
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_lastUpdatedPrefKey);
     } catch (e) {
@@ -272,7 +267,7 @@ class TimezoneLocationService {
 /// via [compute] without capturing the service instance; the file read and
 /// the polygon build both stay off the main isolate.
 List<_ZoneEntry> _readAndParseZones(String path) =>
-    _parseZones(File(path).readAsStringSync());
+    _parseZones(hostReadFileTextSync(path));
 
 /// Benchmark/test hook: parse a GeoJSON body synchronously on the calling
 /// isolate and return the zone count. Lets a `flutter test` profile the parse

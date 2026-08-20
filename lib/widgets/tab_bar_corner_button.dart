@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:webspace/theme/design_tokens.dart';
+
 /// Floating circular button that reveals the tab strip on demand.
 ///
 /// Tap fires [onTap]. Dragging the button — either immediately
@@ -36,20 +38,20 @@ class TabBarCornerButton extends StatelessWidget {
       onPanEnd: (_) => onDragEnd(),
       onPanCancel: onDragEnd,
       child: AnimatedScale(
-        scale: dragging ? 1.2 : 1.0,
-        duration: const Duration(milliseconds: 100),
+        scale: dragging ? FloatingButton.dragScale : 1.0,
+        duration: Motion.press,
         child: Material(
-          color: Theme.of(context).colorScheme.primary.withOpacity(0.85),
+          color: Theme.of(context).colorScheme.primary.withOpacity(FloatingButton.surfaceOpacity),
           shape: const CircleBorder(),
-          elevation: dragging ? 8 : 3,
+          elevation: dragging ? Elevations.floatingActive : Elevations.floating,
           child: InkWell(
             customBorder: const CircleBorder(),
             onTap: onTap,
             child: Padding(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(FloatingButton.padding),
               child: Icon(
                 Icons.tab,
-                size: 22,
+                size: IconSizes.floating,
                 color: Theme.of(context).colorScheme.onPrimary,
               ),
             ),

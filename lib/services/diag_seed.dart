@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
+import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -75,7 +75,7 @@ class DiagSeed {
     } on PlatformException {
       encoded = null;
     }
-    encoded ??= Platform.environment['WS_DIAG_SEED'];
+    encoded ??= hostEnvironment['WS_DIAG_SEED'];
     if (encoded == null || encoded.isEmpty) return false;
     final DiagSeedData seed;
     try {
