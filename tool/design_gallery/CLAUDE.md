@@ -54,6 +54,11 @@ drew (almost) nothing, so this is CI-safe.
 
 ## What is gated
 
+Normative requirements and their regression scenarios:
+[openspec/specs/design-gallery/spec.md](../../openspec/specs/design-gallery/spec.md).
+DESIGN-001 and the token gates run in CI's `validate` job; DESIGN-002/003/008,
+the two web builds and the cards, run in the `design-web` job.
+
 - **Blank cards** (`shoot.js`): every card must clear 1% ink and 12 distinct
   colours, against a measured floor of 2.1% / 38. This is the only check that
   can see a correct widget tree rendering an empty frame; drop `web/fonts/` and
@@ -182,7 +187,8 @@ and screens, it does not decide what code changes.
 ## Which widgets can appear
 
 ```bash
-npm run design:check        # web_clean.js
+npm run design:check                              # web_clean.js, exits 1 on any blocker
+node tool/design_gallery/web_clean.js --report    # same report, no exit code
 ```
 
 Only files whose transitive imports avoid `dart:io` and `dart:ffi` compile for

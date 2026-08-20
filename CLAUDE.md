@@ -95,7 +95,10 @@ here). Design artifacts that come out of that pipeline live in `assets/design/`
 under the `assets/` artwork licence, which names the designer; artwork by
 anyone else is case by case and gets its own licence file. Full workflow and constraints
 (canvas output, local fonts, web-clean check, refresh protocol):
-[tool/design_gallery/CLAUDE.md](tool/design_gallery/CLAUDE.md).
+[tool/design_gallery/CLAUDE.md](tool/design_gallery/CLAUDE.md). Spec:
+[openspec/specs/design-gallery/spec.md](openspec/specs/design-gallery/spec.md);
+DESIGN-001 (every UI file compiles for web) is enforced by `npm run design:check`
+in CI's `validate` job, and the two web builds by the `design-web` job.
 
 ## Recurring bugs (`docs/bugs/`)
 
@@ -163,6 +166,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | configurable-suggested-sites | empty default for fdroid |
 | content-blocker | ABP filter lists via adblock-rust (network, cosmetic, procedural, $redirect/$csp/$removeparam) |
 | cookie-secure-storage | encrypted cookie persistence |
+| design-gallery | designer works in Dart on web; web-clean, token-validity, render-matrix and card gates |
 | desktop-mode | per-site UA → JS shim (userAgentData, maxTouchPoints, viewport rewrite) |
 | developer-tools | JS console, cookie inspector, HTML export, app logs |
 | dns-blocklist | Hagezi list, severity levels, per-site toggle |

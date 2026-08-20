@@ -56,10 +56,23 @@ for (const f of files) {
   hit ? blocked.push([f, hit]) : clean.push(f);
 }
 
+// Zero blocked is the invariant, not an aspiration: the designer's environment
+// is the real app, and one `dart:io` in a widget takes the screens out of it.
+// A platform call belongs behind a conditional-export seam
+// (lib/platform/host_platform.dart, lib/services/file_store.dart, ...), whose
+// native half is unchanged. --report drops the exit code for exploration.
+const strict = !process.argv.includes('--report');
+
 console.log(`web-clean (${clean.length}/${files.length}), usable in the gallery:`);
 for (const f of clean) console.log(`  ${f}`);
 console.log(`\nblocked (${blocked.length}):`);
 for (const [f, { chain, leaf }] of blocked) {
   console.log(`  ${f}`);
   console.log(`    ${chain.map((c) => c.replace(/^lib\//, '')).join(' -> ')} -> ${leaf}`);
+}
+
+if (strict && blocked.length) {
+  console.error(`\n${blocked.length} UI file(s) no longer compile for web.`);
+  console.error('  route the platform call through a seam, or the design gallery loses the screen');
+  process.exitCode = 1;
 }

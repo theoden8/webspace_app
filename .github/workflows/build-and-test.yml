@@ -52,6 +52,12 @@ jobs:
             puppeteer-${{ runner.os }}-
       - name: Install npm dependencies
         run: npm ci
+      # DESIGN-001: the designer's environment is the real app, so every UI
+      # file has to keep compiling for web. This is a static import walk, so
+      # it costs a second and catches the usual cause: a widget reaching
+      # dart:io through a service instead of through a platform seam.
+      - name: Check UI files still compile for web
+        run: npm run design:check
       # JS shim + localization tests (jsdom + node:test). Node-only, so
       # they belong in this lightweight checks job rather than gated behind
       # a platform build; runs early to fail fast.
@@ -120,6 +126,81 @@ jobs:
       # requireBrowser() in test/browser/helpers/launch.js.
       - name: Run browser tests (real-Chromium shim tier)
         run: npm run test:browser
+
+  design-web:
+    name: Design gallery + designer app
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - name: Cache Puppeteer Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/puppeteer
+          key: puppeteer-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            puppeteer-${{ runner.os }}-
+      - name: Install npm dependencies
+        run: npm ci
+      - name: Setup Flutter (for Dart SDK)
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Cache fvm Flutter SDK
+        uses: actions/cache@v4
+        with:
+          path: ~/.fvm/versions
+          key: fvm-${{ runner.os }}-${{ hashFiles('**/.fvmrc') }}
+          restore-keys: |
+            fvm-${{ runner.os }}-
+      - name: Install fvm
+        run: |
+          dart pub global activate fvm
+          echo "$HOME/.pub-cache/bin" >> $GITHUB_PATH
+      - name: Setup Flutter with fvm
+        run: |
+          fvm install
+          fvm use --force
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            pub-${{ runner.os }}-
+      - name: Get dependencies
+        run: fvm flutter pub get --enforce-lockfile
+      # DESIGN-002 + DESIGN-003. The build is the compile gate; shoot.js is
+      # the only check that can see a correct widget tree render an empty
+      # frame, and it fails on unexpected page errors too.
+      - name: Build the design gallery
+        run: ./scripts/design_web.sh gallery
+      - name: Install Puppeteer Chromium
+        run: npx puppeteer browsers install chrome
+      - name: Screenshot every card
+        run: node tool/design_gallery/shoot.js
+      - name: Upload design cards
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: design-cards
+          path: build/design_cards
+          if-no-files-found: warn
+      # DESIGN-002 + DESIGN-008. The designer drives this build, and the
+      # packing step is what makes it survive being served from a
+      # subdirectory inside the Claude Design project.
+      - name: Build the designer app
+        run: ./scripts/design_web.sh app
+      - name: Pack it for the design project
+        run: node tool/design_gallery/pack_app.js
+      - name: Boot the packed app in an iframe
+        run: node --test --test-timeout=180000 test/browser/design_app_packaging.test.js
 
   build-android:
     name: Build Android
