@@ -130,6 +130,32 @@ property reports the zoomed visual viewport.
 
 ---
 
+### Requirement: ZOOM-007 - The pin is corrected against the laid-out box
+
+Every width available before first layout describes the view rather than
+the WebView's own box, which letterbox mode and split screen make
+narrower. Once the page has laid out, the shim SHALL compare the layout
+viewport against `visualViewport.width` — at the site's scale that is the
+layout width which exactly fills the box — and SHALL re-pin to it when
+they disagree. The correction SHALL be bounded, SHALL run only in the
+frame that owns the viewport, and SHALL NOT run on the WebKit path, which
+sizes its own layout.
+
+#### Scenario: A letterboxed site is snapped back
+
+**Given** an Android site at 80% zoom in a WebView narrower than the view
+**When** the page has laid out
+**Then** the layout viewport is re-pinned to the WebView's own width
+**And** the page no longer extends past the right edge
+
+#### Scenario: A correct pin is left alone
+
+**Given** a zoomed site whose layout viewport already fits the WebView
+**When** the correction runs
+**Then** the viewport meta is unchanged
+
+---
+
 ### Requirement: ZOOM-005 - The meta survives the page
 
 The zoom shim SHALL be injected at DOCUMENT_START, SHALL rewrite every

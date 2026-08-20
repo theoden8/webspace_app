@@ -60,10 +60,12 @@ const String _kProbeJs = '''
     }
     var d=document.documentElement;
     var meta=document.querySelector('meta[name="viewport" i]');
+    var vv=window.visualViewport;
     return JSON.stringify({
       perRow:perRow,
       client:d.clientWidth,
       inner:window.innerWidth,
+      visual:vv&&vv.width>0?Math.round(vv.width):0,
       scroll:Math.max(d.scrollWidth,document.body?document.body.scrollWidth:0),
       meta:meta?meta.getAttribute('content'):null,
       zoom:String(getComputedStyle(d).zoom||'')
@@ -189,6 +191,20 @@ void main() {
   ) async =>
       measured[zoomPercent] ?? await measure(tester, zoomPercent);
 
+  double rootZoomOf(Map<String, dynamic>? m) =>
+      double.tryParse((m?['zoom'] as String?) ?? '') ?? 1;
+
+  /// Whether the site's zoom rode the CSS channel, read against the
+  /// unzoomed baseline rather than as an absolute: Android System WebView
+  /// reports the device pixel ratio as the computed root zoom (2.75 on the
+  /// Pixel 5 emulator, at every zoom level), so only the ratio is a signal.
+  bool cssZoomChannel(Map<String, dynamic>? zoomed) {
+    final base = rootZoomOf(measured[100]);
+    final now = rootZoomOf(zoomed);
+    if (base <= 0 || now <= 0) return false;
+    return (now / base - 1).abs() > 0.01;
+  }
+
   // The contract, one zoom level per case, against the 100% baseline: the
   // webview's CSS width is the platform's business (device pixel ratio,
   // insets, letterboxing), and only the *ratio* between zoom levels is a
@@ -233,19 +249,22 @@ void main() {
               'baseline=$baseline zoomed=$zoomed');
     }
 
-    // Horizontal overflow. The two CSSOM numbers are not always in the
-    // same coordinate space: on the CSS channel WebKit reports
-    // `clientWidth` unzoomed while `scrollWidth` is in the zoomed space
-    // (observed 320 vs 400 at 80% on WPE), so the visible width is
-    // recovered by dividing out whatever root zoom is actually applied.
+    // Horizontal overflow, but only on the viewport channel. There the
+    // layout viewport must fit inside the visible one, and both come from
+    // the same layout-space APIs; a wider layout viewport is a pin that
+    // overshot the WebView's box and hangs the page off the right edge.
+    // On the CSS channel `clientWidth` and `scrollWidth` are not in the
+    // same coordinate space (WebKit reported 303 vs 378 at 80% and 303 vs
+    // 303 at 150% for the same page), so no comparison of them means
+    // anything; the cells-per-row ratio above carries the contract there.
     final client = (zoomed['client'] as num?)?.toDouble() ?? 0;
-    final scroll = (zoomed['scroll'] as num?)?.toDouble() ?? 0;
-    final rootZoom = double.tryParse((zoomed['zoom'] as String?) ?? '') ?? 1;
-    final visible = rootZoom > 0 ? client / rootZoom : client;
-    expect(scroll, lessThanOrEqualTo(visible + 2),
-        reason: 'zoom must not push content off-screen horizontally: '
-            '${scroll.toStringAsFixed(0)}px of content in a '
-            '${visible.toStringAsFixed(0)}px viewport. zoomed=$zoomed');
+    final visual = (zoomed['visual'] as num?)?.toDouble() ?? 0;
+    if (!cssZoomChannel(zoomed) && visual > 0) {
+      expect(client, lessThanOrEqualTo(visual + 2),
+          reason: 'the layout viewport must fit the WebView: '
+              '${client.toStringAsFixed(0)}px laid out into a '
+              '${visual.toStringAsFixed(0)}px box. zoomed=$zoomed');
+    }
   }
 
   testWidgets('100%: the unzoomed baseline renders', (tester) async {
@@ -281,10 +300,8 @@ void main() {
       return;
     }
     final meta = zoomed['meta'] as String?;
-    final zoom = (zoomed['zoom'] as String?) ?? '';
-    final cssZoomed = zoom.isNotEmpty &&
-        zoom != 'normal' &&
-        (double.tryParse(zoom) ?? 1) != 1;
+    final cssZoomed = cssZoomChannel(zoomed);
+    final haveBaseline = measured.containsKey(100);
 
     if (Platform.isAndroid || Platform.isIOS) {
       expect(meta, isNotNull,
@@ -306,8 +323,9 @@ void main() {
       expect(meta, isNot(contains('initial-scale=0.8')),
           reason: 'desktop engines ignore the viewport meta; the zoom shim '
               'must not be writing one there. zoomed=$zoomed');
-      if (zoom.isEmpty) {
-        log('SKIP css-zoom assertion: engine reports no computed zoom');
+      if (!haveBaseline) {
+        log('SKIP css-zoom assertion: no baseline to read the root zoom '
+            'against');
       } else {
         expect(cssZoomed, isTrue,
             reason: 'the desktop channel is root CSS zoom. zoomed=$zoomed');

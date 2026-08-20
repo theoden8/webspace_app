@@ -152,8 +152,11 @@ void main() {
       // That shim is injected first and redefines Screen.prototype.width
       // (pinned 1920, or mirrored to innerWidth under letterbox). A layout
       // width derived from it compounds the zoom on every re-application.
+      final screenAccess = RegExp(
+          r'(window|globalThis)\s*\.\s*screen|\bScreen\s*\.\s*prototype'
+          r'|[^a-z]screen\s*\.\s*(width|height|avail)');
       for (final js in [android(80), android(150), webkit(80)]) {
-        expect(js, isNot(contains('screen')));
+        expect(screenAccess.hasMatch(js), isFalse);
       }
     });
 

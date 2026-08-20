@@ -211,6 +211,58 @@ test('without view extents the innerWidth sample carries the pin', () => {
   assert.equal(viewportContent(dom), `width=${layoutWidth(0.8, 360)}, initial-scale=0.8`);
 });
 
+test('a pin wider than the WebView is snapped back after layout', () => {
+  // The view extents describe the window, not the box: letterbox mode and
+  // split screen make the WebView narrower. Once the page has laid out the
+  // engine reports the box as the visual viewport, and a layout viewport
+  // wider than it means the pin overshot.
+  const dom = runZoomShim('page_zoom/android_80.js', {
+    html: withViewport('width=device-width'),
+    innerWidth: PORTRAIT,
+  });
+  assert.equal(
+    viewportContent(dom),
+    `width=${layoutWidth(0.8, PORTRAIT)}, initial-scale=0.8`,
+  );
+  // What a real engine reports for a 320px box at this scale.
+  dom.window.visualViewport = { width: 400 };
+  Object.defineProperty(dom.window.document.documentElement, 'clientWidth', {
+    value: layoutWidth(0.8, PORTRAIT),
+    configurable: true,
+  });
+  dom.window.dispatchEvent(new dom.window.Event('load'));
+  assert.equal(viewportContent(dom), 'width=400, initial-scale=0.8');
+});
+
+test('the snap stops once the layout viewport fits the box', () => {
+  const dom = runZoomShim('page_zoom/android_80.js', {
+    html: withViewport('width=device-width'),
+    innerWidth: PORTRAIT,
+  });
+  const pinned = layoutWidth(0.8, PORTRAIT);
+  dom.window.visualViewport = { width: pinned };
+  Object.defineProperty(dom.window.document.documentElement, 'clientWidth', {
+    value: pinned,
+    configurable: true,
+  });
+  dom.window.dispatchEvent(new dom.window.Event('load'));
+  assert.equal(viewportContent(dom), `width=${pinned}, initial-scale=0.8`);
+});
+
+test('WebKit is never snapped: it owns its own layout width', () => {
+  const dom = runZoomShim('page_zoom/webkit_80.js', {
+    html: withViewport('width=device-width'),
+    innerWidth: PORTRAIT,
+  });
+  dom.window.visualViewport = { width: 400 };
+  Object.defineProperty(dom.window.document.documentElement, 'clientWidth', {
+    value: 490,
+    configurable: true,
+  });
+  dom.window.dispatchEvent(new dom.window.Event('load'));
+  assert.equal(viewportContent(dom), 'initial-scale=0.8');
+});
+
 test('screen.width is never read: the AFP shim owns it', () => {
   // Tracking Protection redefines Screen.prototype.width (pinned 1920, or
   // mirrored to innerWidth in letterbox mode) and is injected first. A
@@ -231,7 +283,10 @@ test('screen.width is never read: the AFP shim owns it', () => {
     viewportContent(dom),
     `width=${layoutWidth(0.8, PORTRAIT)}, initial-scale=0.8`,
   );
-  assert.ok(!readFixture('page_zoom/android_80.js').includes('screen'));
+  assert.doesNotMatch(
+    readFixture('page_zoom/android_80.js'),
+    /(window|globalThis)\s*\.\s*screen|\bScreen\s*\.\s*prototype|[^a-z]screen\s*\.\s*(width|height|avail)/,
+  );
 });
 
 test('the emitted width never exceeds the box it has to fit', () => {

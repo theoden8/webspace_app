@@ -46,6 +46,11 @@
 //   * Flutter's view extents, passed in from Dart, cover re-application:
 //     they survive rotation (short side vs long side) and cannot be
 //     spoofed from the page.
+//   * None of those is the WebView's own box, which letterbox mode and
+//     split screen make narrower than the view. So the pin is corrected
+//     once the page has laid out, against `visualViewport.width` — at our
+//     scale that is exactly the layout width which fills the box, so a
+//     layout viewport wider than it is a pin that overshot.
 
 import 'dart:math' as math;
 
@@ -138,6 +143,8 @@ String buildPageZoomViewportShim({
   var LANDSCAPE=$landscape;
   var measured=0;
   var measuredLandscape=false;
+  var pinned=0;
+  var corrections=0;
   function isLandscape(){
     try{
       if(window.matchMedia){ return !!window.matchMedia('(orientation: landscape)').matches; }
@@ -165,8 +172,30 @@ String buildPageZoomViewportShim({
     return b>0?b:0;
   }
   function layoutWidth(){
+    if(pinned>0) return pinned;
     var b=baseWidth();
     return b>0?Math.max(1,Math.floor(b/SCALE)):0;
+  }
+  // Every width available before first layout describes the view, not the
+  // WebView's own box — letterbox mode resizes that box, and so does split
+  // screen. Once the meta is live the engine reports the box itself: at
+  // our scale the visual viewport IS the layout width that exactly fills
+  // it, so a layout viewport that disagrees is a pin that overshot (the
+  // page hangs off the right edge) or undershot. Snap to it, bounded, and
+  // only in the frame that owns the viewport.
+  function correct(){
+    if(!PIN||corrections>=3) return;
+    try{
+      if(window.top!==window) return;
+      var vv=window.visualViewport;
+      var d=document.documentElement;
+      if(!vv||!d||!(vv.width>0)) return;
+      var want=Math.max(1,Math.floor(vv.width));
+      if(Math.abs(d.clientWidth-want)<=1) return;
+      corrections++;
+      pinned=want;
+      ensure();
+    }catch(e){}
   }
   function content(){
     if(!PIN) return 'initial-scale='+SCALE;
@@ -211,9 +240,18 @@ String buildPageZoomViewportShim({
   // Rotation swaps which view extent applies, so the meta is re-derived.
   // Nothing in that derivation reads a value our own scale has moved, so
   // re-running cannot compound; applyTo also skips an unchanged value.
+  function reset(){ pinned=0; corrections=0; ensure(); correct(); }
   try{
-    window.addEventListener('resize',ensure);
-    window.addEventListener('orientationchange',ensure);
+    window.addEventListener('resize',reset);
+    window.addEventListener('orientationchange',reset);
+  }catch(e){}
+  // The correction needs a laid-out page. Run it as soon as one exists and
+  // once more after the load settles, in case the first pass raced it.
+  try{
+    if(document.readyState==='complete'){ correct(); }
+    else { window.addEventListener('load',correct); }
+    document.addEventListener('DOMContentLoaded',correct);
+    setTimeout(correct,500);
   }catch(e){}
 })();''';
 }

@@ -136,18 +136,28 @@ Diagnostic probes from the #461 investigation live in `test/fixtures/`
    width only. The width still comes from the view, not the WebView's own
    box (see gaps), and the MutationObserver gap below is still open.
 
+6. **2026-08-20 — same PR, after its first CI run.** The Android tier of
+   attempt 5's new integration tier failed on its own harness: a webview
+   mounted in a 320px box inside a 393px window pinned `width=490`
+   (393/0.8) instead of 400, hanging 90px of every page off the right
+   edge. That is the letterbox/split-screen gap attempt 5 documented,
+   reproduced. Fix: after the page lays out, snap the pin to
+   `visualViewport.width` when the layout viewport disagrees with it — at
+   the site's scale that is exactly the layout width which fills the
+   WebView's own box, so it needs no knowledge of the view, the device
+   scale, or the box. Bounded to three corrections, top frame only, and
+   skipped entirely on WebKit, which sizes its own layout. *Why partial*:
+   the snap needs one laid-out frame, so the very first paint of a
+   letterboxed zoomed site can still be too wide; and it reads the visual
+   viewport, so a pinch-zoom landing inside that window would feed it a
+   scale it did not choose.
+
 ## Known open gaps
 
-- The pinned Android layout width is derived from Flutter's view extents
-  and one pre-meta `innerWidth` sample. Both are the right box in the
-  common case and neither is measured continuously: a WebView that is
-  resized after load without a rotation (split-screen drag, freeform
-  window) keeps the width it was pinned at, and the re-derivation on
-  `resize` falls back to the view extent for the new orientation. Erring
-  low keeps that safe — the engine raises an under-estimate back to the
-  exact extend-to-zoom width — but an over-estimate would overflow.
-  Measuring the WebView itself means pushing the width in natively on
-  every resize.
+- The post-layout snap corrects the pin one frame late: a letterboxed or
+  split-screen zoomed site paints once at the view-derived width before
+  the box's own width lands. Only a native width pushed in before first
+  layout removes that frame.
 - Tracking Protection's `screen.*` spoof and the zoom shim are only
   proven not to interfere at the jsdom/Dart tier (the shim never reads
   `screen`); no integration case runs a zoomed site with ETP on.

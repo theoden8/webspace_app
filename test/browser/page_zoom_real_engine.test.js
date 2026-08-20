@@ -55,12 +55,12 @@ test.after(async () => {
 
 // Load the page under mobile emulation with `shim` injected at document
 // start, and report what the engine made of the viewport.
-async function measure(t, shim) {
+async function measure(t, shim, { width = DEVICE_WIDTH } = {}) {
   if (!requireBrowser(browser, t)) return null;
   const page = await browser.browser.newPage();
   try {
     await page.setViewport({
-      width: DEVICE_WIDTH,
+      width,
       height: DEVICE_HEIGHT,
       deviceScaleFactor: 2.75,
       isMobile: true,
@@ -68,10 +68,14 @@ async function measure(t, shim) {
     });
     if (shim) await page.evaluateOnNewDocument(shim);
     await page.goto(host.url, { waitUntil: 'load' });
+    // The shim's post-layout correction runs on load and once more shortly
+    // after; give the later pass room to land.
+    await new Promise((resolve) => setTimeout(resolve, 700));
     return await page.evaluate(() => {
       const d = document.documentElement;
       return {
         layoutWidth: d.clientWidth,
+        visualWidth: Math.round(window.visualViewport?.width ?? 0),
         scrollWidth: Math.max(d.scrollWidth, document.body.scrollWidth),
         meta: (document.querySelector('meta[name="viewport"]') || {})
           .getAttribute?.('content') ?? null,
@@ -160,6 +164,25 @@ test('an under-estimated pin is raised back to extend-to-zoom', async (t) => {
   assert.ok(
     Math.abs(m.layoutWidth - DEVICE_WIDTH / 0.8) <= 2,
     `layout width ${m.layoutWidth} did not recover from an under-estimate`,
+  );
+});
+
+test('a WebView narrower than the view is corrected after layout', async (t) => {
+  // The fixture's view extents say 393, but the box here is 320 — the
+  // letterbox and split-screen case. Left uncorrected the page lays out at
+  // 393/0.8 and hangs off the right edge; the post-layout snap has to
+  // bring it back to the box's own 320/0.8.
+  const m = await measure(t, readFixture('page_zoom/android_80.js'), {
+    width: 320,
+  });
+  if (!m) return;
+  assert.ok(
+    Math.abs(m.layoutWidth - 320 / 0.8) <= 2,
+    `layout width ${m.layoutWidth}, expected ~400 for a 320px box (meta ${m.meta})`,
+  );
+  assert.ok(
+    m.layoutWidth <= m.visualWidth + 1,
+    `layout ${m.layoutWidth} does not fit the ${m.visualWidth}px box`,
   );
 });
 
