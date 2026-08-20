@@ -546,3 +546,58 @@ test('BLOCKED: the real Geolocation.prototype methods are the patched ones', asy
     assert.equal(probe.stillPresent, true);
   });
 });
+
+// --- Realm escape (LOC-OFF-004) --------------------------------------------
+//
+// The shim is not a security boundary: it runs in the page's own realm. The
+// classic escape is to build a fresh same-origin realm and use its untouched
+// prototype -- either by calling through the child's own navigator, or by
+// borrowing the child's method and applying it to the parent's object.
+//
+// Whether that works depends on the injector reaching child realms, which is
+// an engine and platform property rather than anything the shim controls.
+// Chromium reaches them; this test pins that, so an engine or plugin change
+// that stops reaching them fails here instead of quietly reopening the hole.
+// It cannot speak for WKWebView or WPE, which inject by their own rules.
+
+test('BLOCKED: a fresh same-origin realm does not escape the refusal', async (t) => {
+  await withGrantedGeolocation(t, BLOCKED, async (page) => {
+    const seen = await page.evaluate(() => {
+      const frame = document.createElement('iframe');
+      document.body.appendChild(frame);
+      const child = frame.contentWindow;
+
+      const probe = (fn) => new Promise((resolve) => {
+        const timer = setTimeout(() => resolve('no callback'), 3000);
+        try {
+          fn(
+            (position) => {
+              clearTimeout(timer);
+              resolve(`leaked ${position.coords.latitude},${position.coords.longitude}`);
+            },
+            (error) => { clearTimeout(timer); resolve(`refused code=${error.code}`); },
+          );
+        } catch (e) { clearTimeout(timer); resolve(`threw ${e.message}`); }
+      });
+
+      return (async () => ({
+        // The child realm's own geolocation object.
+        childRealm: await probe((ok, no) =>
+          child.navigator.geolocation.getCurrentPosition(ok, no)),
+        // The child's prototype method applied to the parent's object: the
+        // shape that defeats an instance-only patch.
+        borrowedMethod: await probe((ok, no) =>
+          child.Geolocation.prototype.getCurrentPosition.call(
+            navigator.geolocation, ok, no)),
+        // And the reverse, in case only the child was left unpatched.
+        parentMethodOnChild: await probe((ok, no) =>
+          Geolocation.prototype.getCurrentPosition.call(
+            child.navigator.geolocation, ok, no)),
+      }))();
+    });
+
+    for (const [route, outcome] of Object.entries(seen)) {
+      assert.equal(outcome, 'refused code=1', `${route} was not refused: ${outcome}`);
+    }
+  });
+});

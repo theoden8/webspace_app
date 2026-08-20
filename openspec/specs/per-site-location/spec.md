@@ -34,13 +34,32 @@ The system SHALL expose a per-site `locationMode` with three values:
 - `live`: the shim replaces `navigator.geolocation` with a callback path that, on every `getCurrentPosition` / `watchPosition` tick, asks the Dart side for a fresh fix from the platform's native location service (Android `LocationManager`, iOS `CLLocationManager`) and returns those real coordinates. `watchPosition` polls every 5 s.
 
 Because `off` now blocks rather than abstains, the shim is injected for every
-site regardless of settings. Before this, `off` emitted no shim at all, which
-left the platform's own `navigator.geolocation` reachable: Android denied by
-default (the plugin's `WebChromeClient.onGeolocationPermissionsShowPrompt`
-calls back with `allow = false` when no Dart handler is registered), but
-iOS/macOS/Linux showed the engine's own permission prompt and could hand the
-page the real device fix. The option that read as least permissive was the only
-pass-through one, and it behaved differently per platform.
+site regardless of settings. Before this, `off` emitted no shim at all and the
+refusal was left entirely to whatever each engine happened to do:
+
+- **Android**: the plugin's `WebChromeClient.onGeolocationPermissionsShowPrompt`
+  calls back with `allow = false` when no Dart handler is registered, so the
+  request was denied by the plugin's default.
+- **Linux (WPE)**: `InAppWebView::OnPermissionRequest` denies on any non-`GRANT`
+  action and on an empty resource-type list, and the app's `onPermissionRequest`
+  only ever grants camera and protected media, so geolocation was denied.
+- **iOS / macOS**: the plugin wires no geolocation path at all. WKWebView
+  requires the embedder to implement private `_WKUIDelegate` geolocation
+  methods, so web geolocation is expected to be denied by absence. **This is
+  the one platform where the pre-change behaviour has not been confirmed on a
+  device.**
+
+So `off` most likely did refuse everywhere, but only as the sum of three
+unrelated engine defaults and one plugin implementation detail, none of them
+owned or tested here, while this spec and the UI string both told the user the
+opposite ("Pages get your real location"). Two things were defective in the
+app's own logic regardless of engine behaviour: a `spoof` site whose
+coordinates went missing emitted no shim at all, and nothing in the test suite
+would have caught a regression either way.
+
+The shim now refuses explicitly and uniformly, so the guarantee is the app's
+rather than the engine's, and `onGeolocationPermissionsShowPrompt` is wired
+explicitly rather than relying on the plugin default.
 
 In all three modes, `spoofTimezone` and `webRtcPolicy` apply independently — `live` does NOT bypass the timezone override or WebRTC policy. The on-disk values are `off` / `spoof` / `live`; existing settings backups round-trip without migration (older backups without a value default to `off`).
 
@@ -92,6 +111,24 @@ The user-facing concept of "mode" is removed — the user thinks in terms of "I 
 **Given** site "Acme" has `locationMode = spoof` but `spoofLatitude` / `spoofLongitude` are null (hand-edited or partially-restored backup)
 **When** the site calls `navigator.geolocation.getCurrentPosition(success, error)`
 **Then** the request is refused exactly as in LOC-OFF-001, rather than falling back to the platform fix
+
+#### Scenario: LOC-REACH-001 - Only a live site can reach the device
+
+**Given** site "Acme" has `locationMode` set to anything other than `live`
+**When** the site's WebView is built
+**Then** the `getRealLocation` JavaScript bridge handler is not registered for it
+**And** `CurrentLocationService.getCurrentLocation` has no other call site than that handler and the location picker's explicit "use current location" button
+
+#### Scenario: LOC-REACH-003 - The Android geolocation prompt is never granted
+
+**Given** any site, in any `locationMode`, on Android
+**When** the WebView raises `WebChromeClient.onGeolocationPermissionsShowPrompt`
+**Then** the app responds with `allow = false`
+
+Even `live` is denied here: live fixes are served through the `getRealLocation`
+bridge, which applies the site's `liveLocationGranularity` snapping before the
+fix leaves Dart. Granting the native prompt would hand the page the raw
+platform fix and silently bypass the `approximate` and `gsm` tiers.
 
 #### Scenario: LOC-OFF-003 - Watch requests are answered, not left hanging
 
