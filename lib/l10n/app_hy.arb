@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "Մաքրել հատուկ դիրքը",
   "siteSettingsLocationNoneSet": "Հատուկ դիրք սահմանված չէ",
   "siteSettingsLocationPick": "Ընտրել",
-  "siteSettingsLocationSectionTitle": "Դիրք և ժամային գոտի",
   "siteSettingsTimezoneLabel": "Ժամային գոտի",
   "siteSettingsTimezoneHelper": "Փոխարինում է Intl.DateTimeFormat-ը և Date getter-ները",
   "siteSettingsTimezoneForcedHelper": "Ստիպված է «Ընտրված դիրքից»՝ Հետևման պաշտպանության կողմից",

@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "Исчисти прилагодена локација",
   "siteSettingsLocationNoneSet": "Нема поставена прилагодена локација",
   "siteSettingsLocationPick": "Избери",
-  "siteSettingsLocationSectionTitle": "Локација и временска зона",
   "siteSettingsTimezoneLabel": "Временска зона",
   "siteSettingsTimezoneHelper": "Ги надминува Intl.DateTimeFormat и Date гетерите",
   "siteSettingsTimezoneForcedHelper": "Принудно на „Од избраната локација“ од Заштита од следење",

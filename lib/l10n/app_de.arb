@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "Benutzerdefinierten Standort löschen",
   "siteSettingsLocationNoneSet": "Kein benutzerdefinierter Standort festgelegt",
   "siteSettingsLocationPick": "Wählen",
-  "siteSettingsLocationSectionTitle": "Standort & Zeitzone",
   "siteSettingsTimezoneLabel": "Zeitzone",
   "siteSettingsTimezoneHelper": "Überschreibt Intl.DateTimeFormat und Date-Getter",
   "siteSettingsTimezoneForcedHelper": "Durch Tracking-Schutz auf \"Aus gewähltem Standort\" erzwungen",

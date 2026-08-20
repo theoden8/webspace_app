@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "Очистити власне місцезнаходження",
   "siteSettingsLocationNoneSet": "Власне місцезнаходження не задано",
   "siteSettingsLocationPick": "Вибрати",
-  "siteSettingsLocationSectionTitle": "Місцезнаходження та часовий пояс",
   "siteSettingsTimezoneLabel": "Часовий пояс",
   "siteSettingsTimezoneHelper": "Перевизначає Intl.DateTimeFormat та геттери Date",
   "siteSettingsTimezoneForcedHelper": "Примусово встановлено на «З вибраного місцезнаходження» захистом від стеження",

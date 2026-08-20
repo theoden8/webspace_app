@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "Hreinsa sérsniðna staðsetningu",
   "siteSettingsLocationNoneSet": "Engin sérsniðin staðsetning stillt",
   "siteSettingsLocationPick": "Velja",
-  "siteSettingsLocationSectionTitle": "Staðsetning og tímabelti",
   "siteSettingsTimezoneLabel": "Tímabelti",
   "siteSettingsTimezoneHelper": "Hnekkir Intl.DateTimeFormat og Date-sækjum",
   "siteSettingsTimezoneForcedHelper": "Þvingað á „Úr valdri staðsetningu“ af rakningarvörn",

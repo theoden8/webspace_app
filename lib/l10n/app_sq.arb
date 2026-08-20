@@ -453,7 +453,6 @@
   "siteSettingsLocationClearTooltip": "Pastro vendndodhjen e personalizuar",
   "siteSettingsLocationNoneSet": "Asnjë vendndodhje e personalizuar e vendosur",
   "siteSettingsLocationPick": "Zgjidh",
-  "siteSettingsLocationSectionTitle": "Vendndodhja dhe brezi orar",
   "siteSettingsTimezoneLabel": "Brezi orar",
   "siteSettingsTimezoneHelper": "Anashkalon Intl.DateTimeFormat dhe getter-at e Date",
   "siteSettingsTimezoneForcedHelper": "I detyruar te \"Nga vendndodhja e zgjedhur\" nga Mbrojtja nga gjurmimi",

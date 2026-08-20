@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "Изчисти персонализираното местоположение",
   "siteSettingsLocationNoneSet": "Няма зададено персонализирано местоположение",
   "siteSettingsLocationPick": "Избери",
-  "siteSettingsLocationSectionTitle": "Местоположение и часова зона",
   "siteSettingsTimezoneLabel": "Часова зона",
   "siteSettingsTimezoneHelper": "Заменя Intl.DateTimeFormat и гетерите на Date",
   "siteSettingsTimezoneForcedHelper": "Принудено на „От избраното местоположение“ от Защита от проследяване",

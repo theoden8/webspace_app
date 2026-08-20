@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "Egyéni hely törlése",
   "siteSettingsLocationNoneSet": "Nincs beállított egyéni hely",
   "siteSettingsLocationPick": "Kiválasztás",
-  "siteSettingsLocationSectionTitle": "Hely és időzóna",
   "siteSettingsTimezoneLabel": "Időzóna",
   "siteSettingsTimezoneHelper": "Felülírja az Intl.DateTimeFormat és a Date lekérőket",
   "siteSettingsTimezoneForcedHelper": "A nyomkövetés elleni védelem a „Kiválasztott helyből” értékre kényszerítette",

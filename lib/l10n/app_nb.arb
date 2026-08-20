@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "Fjern egendefinert plassering",
   "siteSettingsLocationNoneSet": "Ingen egendefinert plassering satt",
   "siteSettingsLocationPick": "Velg",
-  "siteSettingsLocationSectionTitle": "Plassering og tidssone",
   "siteSettingsTimezoneLabel": "Tidssone",
   "siteSettingsTimezoneHelper": "Overstyrer Intl.DateTimeFormat og Date-gettere",
   "siteSettingsTimezoneForcedHelper": "Tvunget til \"Fra valgt plassering\" av sporingsbeskyttelse",

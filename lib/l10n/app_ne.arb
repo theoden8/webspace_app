@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "अनुकूलन स्थान खाली गर्नुहोस्",
   "siteSettingsLocationNoneSet": "कुनै अनुकूलन स्थान सेट गरिएको छैन",
   "siteSettingsLocationPick": "छान्नुहोस्",
-  "siteSettingsLocationSectionTitle": "स्थान र समयक्षेत्र",
   "siteSettingsTimezoneLabel": "समयक्षेत्र",
   "siteSettingsTimezoneHelper": "Intl.DateTimeFormat र Date getter हरूलाई ओभरराइड गर्छ",
   "siteSettingsTimezoneForcedHelper": "ट्र्याकिङ सुरक्षाद्वारा \"छानिएको स्थानबाट\" मा बाध्य पारिएको",

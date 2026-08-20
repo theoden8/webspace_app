@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "ብጁ ቦታ አጽዳ",
   "siteSettingsLocationNoneSet": "ምንም ብጁ ቦታ አልተዋቀረም",
   "siteSettingsLocationPick": "ምረጥ",
-  "siteSettingsLocationSectionTitle": "ቦታ እና የሰዓት ሰቅ",
   "siteSettingsTimezoneLabel": "የሰዓት ሰቅ",
   "siteSettingsTimezoneHelper": "Intl.DateTimeFormat እና Date getters ይሽራል",
   "siteSettingsTimezoneForcedHelper": "በክትትል ጥበቃ ወደ \"ከተመረጠው ቦታ\" ተገድዷል",

@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "사용자 지정 위치 지우기",
   "siteSettingsLocationNoneSet": "설정된 사용자 지정 위치 없음",
   "siteSettingsLocationPick": "선택",
-  "siteSettingsLocationSectionTitle": "위치 및 시간대",
   "siteSettingsTimezoneLabel": "시간대",
   "siteSettingsTimezoneHelper": "Intl.DateTimeFormat 및 Date 게터를 재정의합니다",
   "siteSettingsTimezoneForcedHelper": "추적 방지에 의해 \"선택한 위치 기준\"으로 강제됨",

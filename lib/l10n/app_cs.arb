@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "Vymazat vlastní polohu",
   "siteSettingsLocationNoneSet": "Není nastavena žádná vlastní poloha",
   "siteSettingsLocationPick": "Vybrat",
-  "siteSettingsLocationSectionTitle": "Poloha a časové pásmo",
   "siteSettingsTimezoneLabel": "Časové pásmo",
   "siteSettingsTimezoneHelper": "Přepíše Intl.DateTimeFormat a gettery Date",
   "siteSettingsTimezoneForcedHelper": "Vynuceno na „Z vybrané polohy“ ochranou proti sledování",

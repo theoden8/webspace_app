@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "Očisti prilagođenu lokaciju",
   "siteSettingsLocationNoneSet": "Nije postavljena prilagođena lokacija",
   "siteSettingsLocationPick": "Odaberi",
-  "siteSettingsLocationSectionTitle": "Lokacija i vremenska zona",
   "siteSettingsTimezoneLabel": "Vremenska zona",
   "siteSettingsTimezoneHelper": "Nadjačava Intl.DateTimeFormat i Date getere",
   "siteSettingsTimezoneForcedHelper": "Prisiljeno na \"Iz odabrane lokacije\" zaštitom od praćenja",

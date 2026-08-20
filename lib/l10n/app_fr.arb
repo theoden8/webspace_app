@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "Effacer l'emplacement personnalisé",
   "siteSettingsLocationNoneSet": "Aucun emplacement personnalisé défini",
   "siteSettingsLocationPick": "Choisir",
-  "siteSettingsLocationSectionTitle": "Emplacement et fuseau horaire",
   "siteSettingsTimezoneLabel": "Fuseau horaire",
   "siteSettingsTimezoneHelper": "Remplace Intl.DateTimeFormat et les accesseurs de Date",
   "siteSettingsTimezoneForcedHelper": "Forcé sur « Depuis l'emplacement choisi » par la protection contre le pistage",

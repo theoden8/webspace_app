@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "ਕਸਟਮ ਟਿਕਾਣਾ ਸਾਫ਼ ਕਰੋ",
   "siteSettingsLocationNoneSet": "ਕੋਈ ਕਸਟਮ ਟਿਕਾਣਾ ਸੈਟ ਨਹੀਂ",
   "siteSettingsLocationPick": "ਚੁਣੋ",
-  "siteSettingsLocationSectionTitle": "ਟਿਕਾਣਾ ਅਤੇ ਟਾਈਮਜ਼ੋਨ",
   "siteSettingsTimezoneLabel": "ਟਾਈਮਜ਼ੋਨ",
   "siteSettingsTimezoneHelper": "Intl.DateTimeFormat ਅਤੇ Date getters ਨੂੰ ਓਵਰਰਾਈਡ ਕਰਦਾ ਹੈ",
   "siteSettingsTimezoneForcedHelper": "ਟਰੈਕਿੰਗ ਸੁਰੱਖਿਆ ਦੁਆਰਾ \"ਚੁਣੇ ਟਿਕਾਣੇ ਤੋਂ\" 'ਤੇ ਮਜਬੂਰ ਕੀਤਾ",

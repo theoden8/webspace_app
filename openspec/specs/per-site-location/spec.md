@@ -72,26 +72,45 @@ explicitly rather than relying on the plugin default.
 
 In all three modes, `spoofTimezone` and `webRtcPolicy` apply independently — `live` does NOT bypass the timezone override or WebRTC policy. The on-disk values are `off` / `spoof` / `live`; existing settings backups round-trip without migration (older backups without a value default to `off`).
 
-The UI SHALL NOT expose the mode as a separate dropdown. Instead, the per-site settings screen SHALL render a state-aware geolocation row with three states:
+The UI SHALL NOT expose the mode as a separate dropdown. Location is one row
+in the per-site permission screen, carrying a state chip from the shared
+vocabulary (`Blocked` / `Simulated` / `Allowed`, see `site-permission-badges`)
+and, when the state alone is ambiguous, one qualifier line naming the live
+precision or the missing coordinates. Tapping the row opens a sheet whose
+options are the states:
 
-- **Off** (no custom coords, live disabled): subtitle "No custom location set" with two buttons — "Pick" (opens the picker → flips to spoof) and "Live" (flips to live).
-- **Spoof** (custom coords): subtitle shows the coordinates and accuracy, with an edit-icon button (re-opens the picker) and a clear-icon button (flips to off).
-- **Live** (live tracking): subtitle "Live: tracks device GPS via the platform location service", with a clear button that flips back to off.
+- **Off** → `LocationMode.off`. Every request is refused (LOC-OFF-001).
+- **Static** → `LocationMode.spoof`, with the coordinate picker indented under
+  it. Choosing it with no coordinates set opens the picker immediately.
+- **Live** → `LocationMode.live`, with the three granularity tiers as one
+  indented list. They are a single enum and SHALL be a single control: the
+  earlier GPS/GSM segmented button plus a separate "Approximate" switch let two
+  controls write the same value.
 
 `locationMode` is derived at save time:
 - if the user is in the live state → `live`,
 - else if both `spoofLatitude` and `spoofLongitude` are non-null → `spoof`,
 - else → `off`.
 
-The user-facing concept of "mode" is removed — the user thinks in terms of "I have a custom location", "I'm tracking my real one", or "I don't have anything set".
+The user-facing concept of "mode" is removed — the user thinks in terms of "I
+have a custom location", "I'm tracking my real one", or "this site gets
+nothing".
+
+The timezone control SHALL sit at the foot of that same sheet, below every
+option rather than under one of them: it applies whichever location state is
+chosen, and a site refused location can still be handed a spoofed zone. It is
+placed with location because it is the same disclosure — a zone pins a site's
+guess at the user's region — and because its "From picked location" entry is
+derived from the coordinates chosen one control above. It is NOT a capability:
+it gets no row of its own in the permission list and no state chip.
 
 #### Scenario: No location set shows Pick affordance
 
 **Given** site "Acme" has `locationMode = off` and no `spoofLatitude` / `spoofLongitude`
-**When** the user opens per-site settings for Acme
-**Then** the Geolocation row shows the subtitle "No custom location set"
-**And** a single "Pick location" button is visible
-**And** no latitude/longitude/accuracy fields are shown
+**When** the user opens the permission screen for Acme and taps the Geolocation row
+**Then** the row's chip reads `Blocked` and the sheet's selected option is Off
+**And** choosing Static opens the coordinate picker straight away
+**And** no latitude/longitude/accuracy fields are shown anywhere in the sheet
 
 #### Scenario: Picking a location flips mode to spoof
 
@@ -103,9 +122,24 @@ The user-facing concept of "mode" is removed — the user thinks in terms of "I 
 #### Scenario: Clearing a location flips mode to off
 
 **Given** site "Acme" has `locationMode = spoof`, `spoofLatitude = 35.6762`, `spoofLongitude = 139.6503`
-**When** the user opens per-site settings, taps the clear (✕) icon next to the coordinates, and saves
+**When** the user opens the Geolocation sheet, chooses Off, and saves
 **Then** the persisted state is `locationMode = off` and the latitude/longitude are null
 **And** subsequent `navigator.geolocation.getCurrentPosition` calls from Acme are refused
+
+#### Scenario: LOC-TZ-001 - Timezone travels with location
+
+**Given** site "Acme" is in any `locationMode`
+**When** the user opens the Geolocation sheet
+**Then** the timezone control is shown once, at the foot of the sheet, whichever option is selected
+**And** it does not appear as its own row in the permission list, and carries no state chip
+**And** its "From picked location" entry names the zone the current coordinates resolve to, recomputed as those coordinates change
+
+#### Scenario: LOC-TZ-002 - Tracking Protection forces the derived zone
+
+**Given** site "Acme" has Tracking Protection on and static coordinates set
+**When** the user opens the Geolocation sheet
+**Then** the timezone control is inert and reads as following the picked location, so the spoofed `Date`/`Intl` values cannot disagree with the spoofed geo
+**And** with no coordinates set the umbrella does NOT touch the timezone: the stored choice, or the system default, stands
 
 #### Scenario: LOC-OFF-001 - Off mode refuses the page on every platform
 

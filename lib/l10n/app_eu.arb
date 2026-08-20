@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "Garbitu kokapen pertsonalizatua",
   "siteSettingsLocationNoneSet": "Ez da kokapen pertsonalizaturik ezarri",
   "siteSettingsLocationPick": "Hautatu",
-  "siteSettingsLocationSectionTitle": "Kokapena eta ordu-eremua",
   "siteSettingsTimezoneLabel": "Ordu-eremua",
   "siteSettingsTimezoneHelper": "Intl.DateTimeFormat eta Date getter-ak gainidazten ditu",
   "siteSettingsTimezoneForcedHelper": "\"Hautatutako kokapenetik\" behartuta Jarraipenaren aurkako babesak",

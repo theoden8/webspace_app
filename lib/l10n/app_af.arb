@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "Maak pasgemaakte ligging skoon",
   "siteSettingsLocationNoneSet": "Geen pasgemaakte ligging gestel nie",
   "siteSettingsLocationPick": "Kies",
-  "siteSettingsLocationSectionTitle": "Ligging en tydsone",
   "siteSettingsTimezoneLabel": "Tydsone",
   "siteSettingsTimezoneHelper": "Oorskryf Intl.DateTimeFormat en Date-kry-funksies",
   "siteSettingsTimezoneForcedHelper": "Geforseer na \"Vanaf gekose ligging\" deur Volgbeskerming",

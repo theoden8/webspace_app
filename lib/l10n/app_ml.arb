@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "ഇഷ്ടാനുസൃത സ്ഥാനം മായ്‌ക്കുക",
   "siteSettingsLocationNoneSet": "ഇഷ്ടാനുസൃത സ്ഥാനമൊന്നും സജ്ജമാക്കിയിട്ടില്ല",
   "siteSettingsLocationPick": "തിരഞ്ഞെടുക്കുക",
-  "siteSettingsLocationSectionTitle": "സ്ഥാനവും ടൈംസോണും",
   "siteSettingsTimezoneLabel": "ടൈംസോൺ",
   "siteSettingsTimezoneHelper": "Intl.DateTimeFormat-ഉം Date ഗെറ്ററുകളും മറികടക്കുന്നു",
   "siteSettingsTimezoneForcedHelper": "ട്രാക്കിംഗ് സംരക്ഷണം വഴി \"തിരഞ്ഞെടുത്ത സ്ഥാനത്തിൽ നിന്ന്\" എന്നതിലേക്ക് നിർബന്ധിച്ചു",

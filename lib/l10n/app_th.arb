@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "ล้างตำแหน่งที่กำหนดเอง",
   "siteSettingsLocationNoneSet": "ยังไม่ได้ตั้งตำแหน่งที่กำหนดเอง",
   "siteSettingsLocationPick": "เลือก",
-  "siteSettingsLocationSectionTitle": "ตำแหน่งและเขตเวลา",
   "siteSettingsTimezoneLabel": "เขตเวลา",
   "siteSettingsTimezoneHelper": "แทนที่ Intl.DateTimeFormat และ getter ของ Date",
   "siteSettingsTimezoneForcedHelper": "ถูกบังคับเป็น \"จากตำแหน่งที่เลือก\" โดยการป้องกันการติดตาม",

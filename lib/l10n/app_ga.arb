@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "Glan an suíomh saincheaptha",
   "siteSettingsLocationNoneSet": "Níor socraíodh aon suíomh saincheaptha",
   "siteSettingsLocationPick": "Roghnaigh",
-  "siteSettingsLocationSectionTitle": "Suíomh & crios ama",
   "siteSettingsTimezoneLabel": "Crios ama",
   "siteSettingsTimezoneHelper": "Sáraíonn sé Intl.DateTimeFormat agus gabhdóirí Date",
   "siteSettingsTimezoneForcedHelper": "Curtha go héigeantach ar \"Ón suíomh roghnaithe\" ag an gCosaint ar Rianú",

@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "נקה מיקום מותאם אישית",
   "siteSettingsLocationNoneSet": "לא הוגדר מיקום מותאם אישית",
   "siteSettingsLocationPick": "בחר",
-  "siteSettingsLocationSectionTitle": "מיקום ואזור זמן",
   "siteSettingsTimezoneLabel": "אזור זמן",
   "siteSettingsTimezoneHelper": "עוקף את Intl.DateTimeFormat ואת getters של Date",
   "siteSettingsTimezoneForcedHelper": "מאולץ ל\"מהמיקום שנבחר\" על ידי הגנה מפני מעקב",

@@ -815,108 +815,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   /// `locationMode` is derived from this state at save time, not stored
   /// explicitly here. See [_saveSettings].
 
-  /// Sentinel value used in the timezone dropdown for the "From picked
-  /// location" entry. Not a real IANA name — translated to/from the
-  /// `spoofTimezoneFromLocation` bool when reading and writing.
-  static const String _kFromLocationSentinel = '__from_location__';
-
-  Widget _buildTimezoneDropdown() {
-    final loc = AppLocalizations.of(context);
-    final tzReady = TimezoneLocationService.instance.isReady;
-    final lat = double.tryParse(_latitudeController.text.trim());
-    final lng = double.tryParse(_longitudeController.text.trim());
-    final hasCoords = lat != null && lng != null;
-    // Preview what the dataset would resolve to right now, so the user can
-    // see whether the lookup will succeed for their picked coords. Falls
-    // back to a hint if either prerequisite is missing.
-    final preview = (tzReady && hasCoords)
-        ? (TimezoneLocationService.instance.lookup(lat, lng) ??
-            loc.siteSettingsTimezonePreviewNoMatch)
-        : (!tzReady
-            ? loc.siteSettingsTimezonePreviewNeedsDataset
-            : loc.siteSettingsTimezonePreviewNeedsLocation);
-
-    // Tracking Protection forces the timezone to "From picked location"
-    // when coords are set so the spoofed Date/Intl values match the
-    // spoofed geo. With no coords picked the umbrella does NOT touch
-    // the timezone — the user's stored choice (or system default) stands.
-    final bool forceFromLocation = _trackingProtectionEnabled && hasCoords;
-    final String? value = forceFromLocation
-        ? _kFromLocationSentinel
-        : (_spoofTimezoneFromLocation
-            ? _kFromLocationSentinel
-            : (commonTimezones.any((e) => e.key == _spoofTimezone)
-                ? _spoofTimezone
-                : null));
-
-    // The "From picked location" entry is conceptually a sibling of
-    // "System default" (both auto-derive the timezone instead of taking
-    // an explicit value), so insert it right after the System default
-    // entry rather than at the bottom of the list.
-    final items = <DropdownMenuItem<String?>>[];
-    var insertedFromLocation = false;
-    for (final e in commonTimezones) {
-      items.add(DropdownMenuItem<String?>(
-        value: e.key,
-        child: Text(_timezoneLabel(e)),
-      ));
-      if (!insertedFromLocation && e.key == null) {
-        items.add(DropdownMenuItem<String?>(
-          value: _kFromLocationSentinel,
-          child: Text(loc.siteSettingsTimezoneFromLocation(preview)),
-        ));
-        insertedFromLocation = true;
-      }
-    }
-    // Defensive fallback: if commonTimezones ever loses the System
-    // default entry, still expose the option somewhere.
-    if (!insertedFromLocation) {
-      items.insert(0, DropdownMenuItem<String?>(
-        value: _kFromLocationSentinel,
-        child: Text(loc.siteSettingsTimezoneFromLocation(preview)),
-      ));
-    }
-
-    return DropdownButtonFormField<String?>(
-      value: value,
-      decoration: InputDecoration(
-        labelText: loc.siteSettingsTimezoneLabel,
-        helperText: forceFromLocation
-            ? loc.siteSettingsTimezoneForcedHelper
-            : loc.siteSettingsTimezoneHelper,
-        border: const OutlineInputBorder(),
-      ),
-      items: items,
-      isExpanded: true,
-      onChanged: forceFromLocation
-          ? null
-          : (v) => setState(() {
-                if (v == _kFromLocationSentinel) {
-                  _spoofTimezoneFromLocation = true;
-                  _spoofTimezone = null;
-                } else {
-                  _spoofTimezoneFromLocation = false;
-                  _spoofTimezone = v;
-                }
-              }),
-    );
-  }
 
   /// Render a timezone dropdown entry. The `null` (System default) entry is
   /// enriched with the device's current timezone abbreviation/offset and the
   /// current local time, so the user can see what "default" actually entails.
-  String _timezoneLabel(MapEntry<String?, String> entry) {
-    if (entry.key != null) return entry.value;
-    final now = DateTime.now();
-    final tzName = now.timeZoneName;
-    final offset = now.timeZoneOffset;
-    final sign = offset.isNegative ? '-' : '+';
-    final hours = offset.inHours.abs().toString().padLeft(2, '0');
-    final mins = (offset.inMinutes.abs() % 60).toString().padLeft(2, '0');
-    final hh = now.hour.toString().padLeft(2, '0');
-    final mm = now.minute.toString().padLeft(2, '0');
-    return '${entry.value} ($tzName, UTC$sign$hours:$mins, $hh:$mm)';
-  }
 
   /// Location mode as the permission screen sees it. The settings screen
   /// stores the live flag and the coordinates separately, exactly as
@@ -925,6 +827,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
   LocationMode get _effectiveLocationMode {
     if (_isLiveLocation) return LocationMode.live;
     return _hasStaticCoordinates ? LocationMode.spoof : LocationMode.off;
+  }
+
+  /// What the timezone dataset resolves the current coordinates to, or a hint
+  /// naming the missing prerequisite. Lives here because the coordinates do.
+  String _timezonePreview() {
+    final loc = AppLocalizations.of(context);
+    if (!TimezoneLocationService.instance.isReady) {
+      return loc.siteSettingsTimezonePreviewNeedsDataset;
+    }
+    final lat = double.tryParse(_latitudeController.text.trim());
+    final lng = double.tryParse(_longitudeController.text.trim());
+    if (lat == null || lng == null) {
+      return loc.siteSettingsTimezonePreviewNeedsLocation;
+    }
+    return TimezoneLocationService.instance.lookup(lat, lng) ??
+        loc.siteSettingsTimezonePreviewNoMatch;
   }
 
   bool get _hasStaticCoordinates =>
@@ -1036,7 +954,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             locationMode: _effectiveLocationMode,
             liveLocationGranularity: _liveLocationGranularity,
             hasStaticCoordinates: _hasStaticCoordinates,
+            spoofTimezone: _spoofTimezone,
+            spoofTimezoneFromLocation: _spoofTimezoneFromLocation,
           ),
+          timezonePreview: _timezonePreview,
           onOpenLocationPicker: _openLocationPicker,
           onEnableNotifications: () async {
             // First-time background-limits info dialog (NOTIF-005-{I,A});
@@ -1059,6 +980,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _backgroundAudioEnabled = values.backgroundAudioEnabled;
               _protectedContentAllowed = values.protectedContentAllowed;
               _liveLocationGranularity = values.liveLocationGranularity;
+              _spoofTimezone = values.spoofTimezone;
+              _spoofTimezoneFromLocation = values.spoofTimezoneFromLocation;
               _isLiveLocation = values.locationMode == LocationMode.live;
               if (values.locationMode == LocationMode.off) {
                 // Off is a refusal now, so stale coordinates must not linger
@@ -1075,20 +998,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (mounted) setState(() {});
   }
 
-  List<Widget> _buildLocationSection() {
-    final loc = AppLocalizations.of(context);
-    return [
-      Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-        child: Text(loc.siteSettingsLocationSectionTitle,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-      ),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-        child: _buildTimezoneDropdown(),
-      ),
-    ];
-  }
 
   Widget _buildWebRtcTile() {
     final loc = AppLocalizations.of(context);
@@ -1719,7 +1628,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           _buildPermissionsRow(),
-          ..._buildLocationSection(),
           DomainClaimsEditor(
             model: widget.webViewModel,
             otherSites: widget.otherSites,

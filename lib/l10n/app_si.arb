@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "අභිරුචි ස්ථානය ඉවත් කරන්න",
   "siteSettingsLocationNoneSet": "අභිරුචි ස්ථානයක් සකසා නැත",
   "siteSettingsLocationPick": "තෝරන්න",
-  "siteSettingsLocationSectionTitle": "ස්ථානය සහ කාල කලාපය",
   "siteSettingsTimezoneLabel": "කාල කලාපය",
   "siteSettingsTimezoneHelper": "Intl.DateTimeFormat සහ Date getters අභිබවා යයි",
   "siteSettingsTimezoneForcedHelper": "ලුහුබැඳීම් ආරක්ෂණය මගින් \"තෝරාගත් ස්ථානයෙන්\" වෙත බලෙන් යොදා ඇත",

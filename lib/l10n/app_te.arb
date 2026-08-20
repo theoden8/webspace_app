@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "అనుకూల స్థానాన్ని క్లియర్ చేయి",
   "siteSettingsLocationNoneSet": "అనుకూల స్థానం సెట్ చేయబడలేదు",
   "siteSettingsLocationPick": "ఎంచుకో",
-  "siteSettingsLocationSectionTitle": "స్థానం & టైమ్‌జోన్",
   "siteSettingsTimezoneLabel": "టైమ్‌జోన్",
   "siteSettingsTimezoneHelper": "Intl.DateTimeFormat మరియు Date గెట్టర్‌లను అధిగమిస్తుంది",
   "siteSettingsTimezoneForcedHelper": "ట్రాకింగ్ రక్షణ ద్వారా \"ఎంచుకున్న స్థానం నుండి\"కి బలవంతం చేయబడింది",

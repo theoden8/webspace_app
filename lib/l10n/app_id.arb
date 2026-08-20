@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "Hapus lokasi kustom",
   "siteSettingsLocationNoneSet": "Tidak ada lokasi kustom yang disetel",
   "siteSettingsLocationPick": "Pilih",
-  "siteSettingsLocationSectionTitle": "Lokasi & zona waktu",
   "siteSettingsTimezoneLabel": "Zona waktu",
   "siteSettingsTimezoneHelper": "Menimpa Intl.DateTimeFormat dan getter Date",
   "siteSettingsTimezoneForcedHelper": "Dipaksa ke \"Dari lokasi yang dipilih\" oleh Perlindungan Pelacakan",

@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "Rensa anpassad plats",
   "siteSettingsLocationNoneSet": "Ingen anpassad plats angiven",
   "siteSettingsLocationPick": "Välj",
-  "siteSettingsLocationSectionTitle": "Plats och tidszon",
   "siteSettingsTimezoneLabel": "Tidszon",
   "siteSettingsTimezoneHelper": "Åsidosätter Intl.DateTimeFormat och Date-getters",
   "siteSettingsTimezoneForcedHelper": "Tvingad till \"Från vald plats\" av Spårningsskydd",

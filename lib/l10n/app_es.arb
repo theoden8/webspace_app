@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "Borrar ubicación personalizada",
   "siteSettingsLocationNoneSet": "No hay ninguna ubicación personalizada definida",
   "siteSettingsLocationPick": "Elegir",
-  "siteSettingsLocationSectionTitle": "Ubicación y zona horaria",
   "siteSettingsTimezoneLabel": "Zona horaria",
   "siteSettingsTimezoneHelper": "Anula Intl.DateTimeFormat y los getters de Date",
   "siteSettingsTimezoneForcedHelper": "Forzado a \"Desde la ubicación elegida\" por la protección de seguimiento",

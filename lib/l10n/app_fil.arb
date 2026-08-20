@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "I-clear ang custom na lokasyon",
   "siteSettingsLocationNoneSet": "Walang naitakdang custom na lokasyon",
   "siteSettingsLocationPick": "Pumili",
-  "siteSettingsLocationSectionTitle": "Lokasyon at timezone",
   "siteSettingsTimezoneLabel": "Timezone",
   "siteSettingsTimezoneHelper": "Ino-override ang Intl.DateTimeFormat at mga Date getter",
   "siteSettingsTimezoneForcedHelper": "Pinilit sa \"Mula sa napiling lokasyon\" ng Tracking Protection",

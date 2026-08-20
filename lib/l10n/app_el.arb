@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "Εκκαθάριση προσαρμοσμένης τοποθεσίας",
   "siteSettingsLocationNoneSet": "Δεν έχει οριστεί προσαρμοσμένη τοποθεσία",
   "siteSettingsLocationPick": "Επιλογή",
-  "siteSettingsLocationSectionTitle": "Τοποθεσία & ζώνη ώρας",
   "siteSettingsTimezoneLabel": "Ζώνη ώρας",
   "siteSettingsTimezoneHelper": "Παρακάμπτει το Intl.DateTimeFormat και τους getters του Date",
   "siteSettingsTimezoneForcedHelper": "Εξαναγκασμένο σε «Από την επιλεγμένη τοποθεσία» από την Προστασία από παρακολούθηση",

@@ -25,6 +25,8 @@ SitePermissionValues _values({
       locationMode: location,
       liveLocationGranularity: LocationGranularity.gps,
       hasStaticCoordinates: false,
+      spoofTimezone: null,
+      spoofTimezoneFromLocation: false,
     );
 
 Future<void> _pump(
@@ -43,6 +45,7 @@ Future<void> _pump(
       onChanged: onChanged ?? (_) {},
       onOpenLocationPicker: () async => false,
       onEnableNotifications: () async {},
+      timezonePreview: () => 'Europe/Paris',
     ),
   ));
   await tester.pumpAndSettle();
@@ -102,6 +105,7 @@ void main() {
         onChanged: (_) {},
         onOpenLocationPicker: () async => false,
         onEnableNotifications: () async {},
+        timezonePreview: () => 'Europe/Paris',
       ),
     ));
     await tester.pumpAndSettle();
@@ -129,5 +133,62 @@ void main() {
     await tester.tap(find.text('Always block'));
     await tester.pumpAndSettle();
     expect(reported?.cameraMode, CameraAccessMode.block);
+  });
+
+  testWidgets('timezone sits inside the location sheet, not in the list',
+      (tester) async {
+    // It is the same disclosure as the coordinates it can be derived from, so
+    // it belongs with them. It is not a capability, though, so it gets no row
+    // of its own and no state chip: it is a property of the location sheet.
+    await _pump(tester, values: _values(location: LocationMode.spoof));
+    expect(find.text('Timezone'), findsNothing);
+
+    await tester.tap(find.text('Geolocation'));
+    await tester.pumpAndSettle();
+    expect(find.byType(DropdownButtonFormField<String?>), findsOneWidget);
+
+    // The "from location" entry names what the coordinates resolve to, so
+    // choosing it is not a guess. Only visible once the menu is open, which is
+    // the point: the preview is computed per rebuild, not snapshotted.
+    await tester.tap(find.byType(DropdownButtonFormField<String?>));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Europe/Paris'), findsWidgets);
+  });
+
+  testWidgets('the timezone stays visible whichever location state is chosen',
+      (tester) async {
+    // Rendered as a sheet footer rather than under one option: a site with
+    // location blocked can still be handed a spoofed zone.
+    await _pump(tester, values: _values(location: LocationMode.off));
+    await tester.tap(find.text('Geolocation'));
+    await tester.pumpAndSettle();
+    expect(find.byType(DropdownButtonFormField<String?>), findsOneWidget);
+  });
+
+  testWidgets('tracking protection forces the timezone to follow coordinates',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: SitePermissionsScreen(
+        host: 'example.com',
+        values: _values(location: LocationMode.spoof)
+            .copyWith(hasStaticCoordinates: true),
+        trackingProtectionEnabled: true,
+        onChanged: (_) {},
+        onOpenLocationPicker: () async => true,
+        onEnableNotifications: () async {},
+        timezonePreview: () => 'Europe/Paris',
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Geolocation'));
+    await tester.pumpAndSettle();
+    final field = tester.widget<DropdownButtonFormField<String?>>(
+      find.byType(DropdownButtonFormField<String?>),
+    );
+    expect(field.onChanged, isNull,
+        reason: 'forced to follow the spoofed geo, so it must be inert');
   });
 }

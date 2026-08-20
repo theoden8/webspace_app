@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "ಕಸ್ಟಮ್ ಸ್ಥಳವನ್ನು ತೆರವುಗೊಳಿಸಿ",
   "siteSettingsLocationNoneSet": "ಯಾವುದೇ ಕಸ್ಟಮ್ ಸ್ಥಳವನ್ನು ಹೊಂದಿಸಿಲ್ಲ",
   "siteSettingsLocationPick": "ಆಯ್ಕೆಮಾಡಿ",
-  "siteSettingsLocationSectionTitle": "ಸ್ಥಳ ಮತ್ತು ಸಮಯವಲಯ",
   "siteSettingsTimezoneLabel": "ಸಮಯವಲಯ",
   "siteSettingsTimezoneHelper": "Intl.DateTimeFormat ಮತ್ತು Date getters ಅನ್ನು ಅತಿಕ್ರಮಿಸುತ್ತದೆ",
   "siteSettingsTimezoneForcedHelper": "ಟ್ರ್ಯಾಕಿಂಗ್ ರಕ್ಷಣೆಯಿಂದ \"ಆಯ್ಕೆ ಮಾಡಿದ ಸ್ಥಳದಿಂದ\" ಗೆ ಬಲವಂತಿಸಲಾಗಿದೆ",

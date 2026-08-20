@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "カスタム位置をクリア",
   "siteSettingsLocationNoneSet": "カスタム位置は設定されていません",
   "siteSettingsLocationPick": "選択",
-  "siteSettingsLocationSectionTitle": "位置とタイムゾーン",
   "siteSettingsTimezoneLabel": "タイムゾーン",
   "siteSettingsTimezoneHelper": "Intl.DateTimeFormat と Date のゲッターを上書きします",
   "siteSettingsTimezoneForcedHelper": "トラッキング保護により「選択した位置から」に強制されています",

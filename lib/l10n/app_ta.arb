@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "தனிப்பயன் இடத்தை அழி",
   "siteSettingsLocationNoneSet": "தனிப்பயன் இடம் அமைக்கப்படவில்லை",
   "siteSettingsLocationPick": "தேர்ந்தெடு",
-  "siteSettingsLocationSectionTitle": "இடம் & நேர மண்டலம்",
   "siteSettingsTimezoneLabel": "நேர மண்டலம்",
   "siteSettingsTimezoneHelper": "Intl.DateTimeFormat மற்றும் Date பெறுநர்களை மேலெழுதுகிறது",
   "siteSettingsTimezoneForcedHelper": "கண்காணிப்பு பாதுகாப்பால் \"தேர்ந்தெடுக்கப்பட்ட இடத்திலிருந்து\" எனக் கட்டாயப்படுத்தப்பட்டது",

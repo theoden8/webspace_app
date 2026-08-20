@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "Neħħi l-post personalizzat",
   "siteSettingsLocationNoneSet": "L-ebda post personalizzat issettjat",
   "siteSettingsLocationPick": "Agħżel",
-  "siteSettingsLocationSectionTitle": "Post u żona tal-ħin",
   "siteSettingsTimezoneLabel": "Żona tal-ħin",
   "siteSettingsTimezoneHelper": "Tegħleb lil Intl.DateTimeFormat u lill-getters tad-Date",
   "siteSettingsTimezoneForcedHelper": "Imġiegħel għal \"Mill-post magħżul\" mill-Protezzjoni mit-Traċċar",

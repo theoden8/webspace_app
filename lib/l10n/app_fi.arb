@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "Tyhjennä mukautettu sijainti",
   "siteSettingsLocationNoneSet": "Ei asetettua mukautettua sijaintia",
   "siteSettingsLocationPick": "Valitse",
-  "siteSettingsLocationSectionTitle": "Sijainti ja aikavyöhyke",
   "siteSettingsTimezoneLabel": "Aikavyöhyke",
   "siteSettingsTimezoneHelper": "Ohittaa Intl.DateTimeFormat- ja Date-getterit",
   "siteSettingsTimezoneForcedHelper": "Seurannan suojaus pakottaa arvoon \"Valitusta sijainnista\"",

@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "Wyczyść niestandardową lokalizację",
   "siteSettingsLocationNoneSet": "Nie ustawiono niestandardowej lokalizacji",
   "siteSettingsLocationPick": "Wybierz",
-  "siteSettingsLocationSectionTitle": "Lokalizacja i strefa czasowa",
   "siteSettingsTimezoneLabel": "Strefa czasowa",
   "siteSettingsTimezoneHelper": "Nadpisuje Intl.DateTimeFormat i gettery Date",
   "siteSettingsTimezoneForcedHelper": "Wymuszone na „Z wybranej lokalizacji” przez Ochronę przed śledzeniem",

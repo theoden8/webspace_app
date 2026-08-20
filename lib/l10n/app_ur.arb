@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "حسب ضرورت مقام صاف کریں",
   "siteSettingsLocationNoneSet": "کوئی حسب ضرورت مقام سیٹ نہیں",
   "siteSettingsLocationPick": "منتخب کریں",
-  "siteSettingsLocationSectionTitle": "مقام اور ٹائم زون",
   "siteSettingsTimezoneLabel": "ٹائم زون",
   "siteSettingsTimezoneHelper": "Intl.DateTimeFormat اور Date گیٹرز کو اوور رائیڈ کرتا ہے",
   "siteSettingsTimezoneForcedHelper": "ٹریکنگ تحفظ کی وجہ سے زبردستی \"منتخب کردہ مقام سے\"",

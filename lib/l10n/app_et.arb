@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "Tühjenda kohandatud asukoht",
   "siteSettingsLocationNoneSet": "Kohandatud asukohta pole määratud",
   "siteSettingsLocationPick": "Vali",
-  "siteSettingsLocationSectionTitle": "Asukoht ja ajavöönd",
   "siteSettingsTimezoneLabel": "Ajavöönd",
   "siteSettingsTimezoneHelper": "Alistab Intl.DateTimeFormat ja Date getterid",
   "siteSettingsTimezoneForcedHelper": "Jälgimiskaitse sundis väärtusele „Valitud asukohast“",

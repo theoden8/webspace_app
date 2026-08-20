@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "清除自訂位置",
   "siteSettingsLocationNoneSet": "未設定自訂位置",
   "siteSettingsLocationPick": "選擇",
-  "siteSettingsLocationSectionTitle": "位置與時區",
   "siteSettingsTimezoneLabel": "時區",
   "siteSettingsTimezoneHelper": "覆寫 Intl.DateTimeFormat 與 Date 取值函式",
   "siteSettingsTimezoneForcedHelper": "因追蹤保護而強制設為「依選定位置」",

@@ -34,6 +34,8 @@ class SitePermissionValues {
     required this.locationMode,
     required this.liveLocationGranularity,
     required this.hasStaticCoordinates,
+    required this.spoofTimezone,
+    required this.spoofTimezoneFromLocation,
   });
 
   final CameraAccessMode cameraMode;
@@ -51,6 +53,14 @@ class SitePermissionValues {
   /// one is still outstanding.
   final bool hasStaticCoordinates;
 
+  /// IANA zone reported to the page, or null for the system default. Sits with
+  /// location rather than beside the user agent because it is the same
+  /// disclosure: a zone pins a site's guess at where you are to a region, and
+  /// `spoofTimezoneFromLocation` derives it from the very coordinates chosen
+  /// one control above.
+  final String? spoofTimezone;
+  final bool spoofTimezoneFromLocation;
+
   SitePermissionValues copyWith({
     CameraAccessMode? cameraMode,
     VirtualCameraSource? virtualCameraSource,
@@ -65,6 +75,9 @@ class SitePermissionValues {
     LocationMode? locationMode,
     LocationGranularity? liveLocationGranularity,
     bool? hasStaticCoordinates,
+    String? spoofTimezone,
+    bool clearSpoofTimezone = false,
+    bool? spoofTimezoneFromLocation,
   }) =>
       SitePermissionValues(
         cameraMode: cameraMode ?? this.cameraMode,
@@ -85,6 +98,10 @@ class SitePermissionValues {
         liveLocationGranularity:
             liveLocationGranularity ?? this.liveLocationGranularity,
         hasStaticCoordinates: hasStaticCoordinates ?? this.hasStaticCoordinates,
+        spoofTimezone:
+            clearSpoofTimezone ? null : (spoofTimezone ?? this.spoofTimezone),
+        spoofTimezoneFromLocation:
+            spoofTimezoneFromLocation ?? this.spoofTimezoneFromLocation,
       );
 }
 
@@ -101,6 +118,7 @@ class _Capability {
     this.qualifier,
     this.lockedReason,
     this.detail,
+    this.footer,
   });
 
   final IconData icon;
@@ -125,6 +143,11 @@ class _Capability {
   /// Extra controls under the selected option in the sheet (source picker,
   /// preview, precision).
   final Widget Function(BuildContext, StateSetter)? detail;
+
+  /// Controls shown once at the foot of the sheet, below every option. For
+  /// settings that belong to the capability as a whole rather than to one of
+  /// its states.
+  final Widget Function(BuildContext, StateSetter)? footer;
 }
 
 class _Option {
@@ -157,6 +180,7 @@ class SitePermissionsScreen extends StatefulWidget {
     required this.onChanged,
     required this.onOpenLocationPicker,
     required this.onEnableNotifications,
+    required this.timezonePreview,
     this.trackingProtectionEnabled = false,
     this.notificationsBlockedBySite,
     this.showNotifications = true,
@@ -176,7 +200,15 @@ class SitePermissionsScreen extends StatefulWidget {
   /// this screen does not import the one that pushes it.
   final Future<void> Function() onEnableNotifications;
 
-  /// Tracking protection forces protected content off while it is on.
+  /// What the timezone dataset resolves the caller's current coordinates to,
+  /// read on every rebuild rather than passed as a value: coordinates can be
+  /// picked from inside this screen, and a snapshot taken at push time would
+  /// go stale the moment they are.
+  final String Function() timezonePreview;
+
+  /// Tracking protection forces protected content off while it is on, and
+  /// forces the timezone to follow picked coordinates so the spoofed
+  /// Date/Intl values agree with the spoofed geo.
   final bool trackingProtectionEnabled;
 
   /// Android: another site is already polling in the background under a
@@ -488,6 +520,99 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
         }
         return const SizedBox.shrink();
       },
+      footer: (context, setSheetState) => _timezoneField(loc, setSheetState),
+    );
+  }
+
+  /// Sentinel for the "From picked location" entry. Not a real IANA name;
+  /// translated to and from `spoofTimezoneFromLocation` when read and written.
+  static const String _kFromLocationSentinel = '__from_location__';
+
+  /// Render a timezone entry. The `null` (System default) entry is enriched
+  /// with the device's current abbreviation/offset and local time, so the user
+  /// can see what "default" actually entails.
+  String _timezoneLabel(MapEntry<String?, String> entry) {
+    if (entry.key != null) return entry.value;
+    final now = DateTime.now();
+    final offset = now.timeZoneOffset;
+    final sign = offset.isNegative ? '-' : '+';
+    final hours = offset.abs().inHours.toString().padLeft(2, '0');
+    final minutes = (offset.abs().inMinutes % 60).toString().padLeft(2, '0');
+    final clock = '${now.hour.toString().padLeft(2, '0')}:'
+        '${now.minute.toString().padLeft(2, '0')}';
+    return '${entry.value} (${now.timeZoneName} $sign$hours:$minutes, $clock)';
+  }
+
+  Widget _timezoneField(AppLocalizations loc, StateSetter setSheetState) {
+    final preview = widget.timezonePreview();
+
+    // Tracking Protection forces the timezone to follow picked coordinates so
+    // the spoofed Date/Intl values match the spoofed geo. With no coordinates
+    // the umbrella does NOT touch the timezone: the user's stored choice (or
+    // the system default) stands.
+    final forceFromLocation =
+        widget.trackingProtectionEnabled && _values.hasStaticCoordinates;
+    final String? value = (forceFromLocation || _values.spoofTimezoneFromLocation)
+        ? _kFromLocationSentinel
+        : (commonTimezones.any((e) => e.key == _values.spoofTimezone)
+            ? _values.spoofTimezone
+            : null);
+
+    // "From picked location" is conceptually a sibling of "System default":
+    // both derive the zone instead of taking an explicit one, so it goes
+    // directly after that entry rather than at the bottom of the list.
+    final items = <DropdownMenuItem<String?>>[];
+    var insertedFromLocation = false;
+    for (final e in commonTimezones) {
+      items.add(DropdownMenuItem<String?>(
+        value: e.key,
+        child: Text(_timezoneLabel(e)),
+      ));
+      if (!insertedFromLocation && e.key == null) {
+        items.add(DropdownMenuItem<String?>(
+          value: _kFromLocationSentinel,
+          child: Text(loc.siteSettingsTimezoneFromLocation(preview)),
+        ));
+        insertedFromLocation = true;
+      }
+    }
+    // Defensive fallback: if commonTimezones ever loses the System default
+    // entry, still expose the option somewhere.
+    if (!insertedFromLocation) {
+      items.insert(
+        0,
+        DropdownMenuItem<String?>(
+          value: _kFromLocationSentinel,
+          child: Text(loc.siteSettingsTimezoneFromLocation(preview)),
+        ),
+      );
+    }
+
+    return DropdownButtonFormField<String?>(
+      value: value,
+      decoration: InputDecoration(
+        labelText: loc.siteSettingsTimezoneLabel,
+        helperText: forceFromLocation
+            ? loc.siteSettingsTimezoneForcedHelper
+            : loc.siteSettingsTimezoneHelper,
+        border: const OutlineInputBorder(),
+      ),
+      items: items,
+      isExpanded: true,
+      onChanged: forceFromLocation
+          ? null
+          : (v) {
+              if (v == _kFromLocationSentinel) {
+                _update(_values.copyWith(
+                    spoofTimezoneFromLocation: true, clearSpoofTimezone: true));
+              } else {
+                _update(_values.copyWith(
+                    spoofTimezoneFromLocation: false,
+                    spoofTimezone: v,
+                    clearSpoofTimezone: v == null));
+              }
+              setSheetState(() {});
+            },
     );
   }
 
@@ -688,6 +813,11 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
                           current.detail != null)
                         current.detail!(context, setSheetState),
                     ],
+                    if (current.footer != null)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+                        child: current.footer!(context, setSheetState),
+                      ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
                       child: Container(

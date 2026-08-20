@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "مسح الموقع المخصّص",
   "siteSettingsLocationNoneSet": "لم يتم تعيين موقع مخصّص",
   "siteSettingsLocationPick": "اختيار",
-  "siteSettingsLocationSectionTitle": "الموقع والمنطقة الزمنية",
   "siteSettingsTimezoneLabel": "المنطقة الزمنية",
   "siteSettingsTimezoneHelper": "يتجاوز Intl.DateTimeFormat ودوال جلب Date",
   "siteSettingsTimezoneForcedHelper": "مفروض على \"من الموقع المختار\" بسبب الحماية من التتبّع",

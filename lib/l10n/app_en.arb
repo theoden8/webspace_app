@@ -2205,10 +2205,6 @@
   "@siteSettingsLocationPick": {
     "description": "Button to open the location picker."
   },
-  "siteSettingsLocationSectionTitle": "Location & timezone",
-  "@siteSettingsLocationSectionTitle": {
-    "description": "Section header for the location and timezone settings."
-  },
   "siteSettingsTimezoneLabel": "Timezone",
   "@siteSettingsTimezoneLabel": {
     "description": "Label for the timezone dropdown."

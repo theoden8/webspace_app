@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "Počisti lokacijo po meri",
   "siteSettingsLocationNoneSet": "Lokacija po meri ni nastavljena",
   "siteSettingsLocationPick": "Izberi",
-  "siteSettingsLocationSectionTitle": "Lokacija in časovni pas",
   "siteSettingsTimezoneLabel": "Časovni pas",
   "siteSettingsTimezoneHelper": "Preglasi Intl.DateTimeFormat in pridobivalnike Date",
   "siteSettingsTimezoneForcedHelper": "Prisiljeno na \"Iz izbrane lokacije\" zaradi zaščite pred sledenjem",

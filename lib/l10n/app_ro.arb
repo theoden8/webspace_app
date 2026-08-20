@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "Șterge locația personalizată",
   "siteSettingsLocationNoneSet": "Nicio locație personalizată setată",
   "siteSettingsLocationPick": "Alege",
-  "siteSettingsLocationSectionTitle": "Locație și fus orar",
   "siteSettingsTimezoneLabel": "Fus orar",
   "siteSettingsTimezoneHelper": "Suprascrie Intl.DateTimeFormat și getterele Date",
   "siteSettingsTimezoneForcedHelper": "Forțat la \"Din locația aleasă\" de Protecția împotriva urmăririi",

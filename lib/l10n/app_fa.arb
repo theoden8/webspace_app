@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "پاک کردن مکان سفارشی",
   "siteSettingsLocationNoneSet": "هیچ مکان سفارشی‌ای تنظیم نشده",
   "siteSettingsLocationPick": "انتخاب",
-  "siteSettingsLocationSectionTitle": "مکان و منطقهٔ زمانی",
   "siteSettingsTimezoneLabel": "منطقهٔ زمانی",
   "siteSettingsTimezoneHelper": "Intl.DateTimeFormat و گترهای Date را بازنویسی می‌کند",
   "siteSettingsTimezoneForcedHelper": "به‌اجبار توسط محافظت در برابر ردیابی روی «از مکان انتخاب‌شده» تنظیم شده",

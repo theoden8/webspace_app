@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "Clirio'r lleoliad personol",
   "siteSettingsLocationNoneSet": "Dim lleoliad personol wedi'i osod",
   "siteSettingsLocationPick": "Dewis",
-  "siteSettingsLocationSectionTitle": "Lleoliad a chylchfa amser",
   "siteSettingsTimezoneLabel": "Cylchfa amser",
   "siteSettingsTimezoneHelper": "Yn diystyru Intl.DateTimeFormat a getwyr Date",
   "siteSettingsTimezoneForcedHelper": "Wedi'i orfodi i \"O'r lleoliad a ddewiswyd\" gan Amddiffyn rhag Tracio",

@@ -453,7 +453,6 @@
   "siteSettingsLocationClearTooltip": "សម្អាតទីតាំងផ្ទាល់ខ្លួន",
   "siteSettingsLocationNoneSet": "គ្មានទីតាំងផ្ទាល់ខ្លួន",
   "siteSettingsLocationPick": "ជ្រើស",
-  "siteSettingsLocationSectionTitle": "ទីតាំង & តំបន់ពេលវេលា",
   "siteSettingsTimezoneLabel": "តំបន់ពេលវេលា",
   "siteSettingsTimezoneHelper": "Override Intl.DateTimeFormat និង Date getters",
   "siteSettingsTimezoneForcedHelper": "បង្ខំទៅ \"ពីទីតាំងដែលបានជ្រើស\" ដោយការការពារការតាមដាន",

@@ -453,7 +453,6 @@
   "siteSettingsLocationClearTooltip": "Locum proprium delere",
   "siteSettingsLocationNoneSet": "Nullus locus proprius constitutus",
   "siteSettingsLocationPick": "Eligere",
-  "siteSettingsLocationSectionTitle": "Locus et zona temporis",
   "siteSettingsTimezoneLabel": "Zona temporis",
   "siteSettingsTimezoneHelper": "Intl.DateTimeFormat et accessores Date superat",
   "siteSettingsTimezoneForcedHelper": "Coactum ad \"Ex loco electo\" a Tutela contra investigationem",

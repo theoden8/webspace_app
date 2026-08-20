@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "Aangepaste locatie wissen",
   "siteSettingsLocationNoneSet": "Geen aangepaste locatie ingesteld",
   "siteSettingsLocationPick": "Kiezen",
-  "siteSettingsLocationSectionTitle": "Locatie en tijdzone",
   "siteSettingsTimezoneLabel": "Tijdzone",
   "siteSettingsTimezoneHelper": "Overschrijft Intl.DateTimeFormat en Date-getters",
   "siteSettingsTimezoneForcedHelper": "Geforceerd op \"Uit gekozen locatie\" door trackingbescherming",

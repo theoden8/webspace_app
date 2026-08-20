@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "Išvalyti pasirinktinę vietą",
   "siteSettingsLocationNoneSet": "Pasirinktinė vieta nenustatyta",
   "siteSettingsLocationPick": "Pasirinkti",
-  "siteSettingsLocationSectionTitle": "Vieta ir laiko juosta",
   "siteSettingsTimezoneLabel": "Laiko juosta",
   "siteSettingsTimezoneHelper": "Nepaiso Intl.DateTimeFormat ir Date getterių",
   "siteSettingsTimezoneForcedHelper": "Priverstinai nustatyta „Pagal pasirinktą vietą“ dėl sekimo apsaugos",

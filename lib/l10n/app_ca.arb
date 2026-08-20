@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "Esborra la ubicació personalitzada",
   "siteSettingsLocationNoneSet": "No s'ha establert cap ubicació personalitzada",
   "siteSettingsLocationPick": "Tria",
-  "siteSettingsLocationSectionTitle": "Ubicació i zona horària",
   "siteSettingsTimezoneLabel": "Zona horària",
   "siteSettingsTimezoneHelper": "Substitueix Intl.DateTimeFormat i els getters de Date",
   "siteSettingsTimezoneForcedHelper": "Forçat a \"De la ubicació triada\" per la Protecció contra el seguiment",

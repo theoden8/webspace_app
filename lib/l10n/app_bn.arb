@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "কাস্টম অবস্থান সাফ করুন",
   "siteSettingsLocationNoneSet": "কোনো কাস্টম অবস্থান সেট করা নেই",
   "siteSettingsLocationPick": "নির্বাচন করুন",
-  "siteSettingsLocationSectionTitle": "অবস্থান ও টাইমজোন",
   "siteSettingsTimezoneLabel": "টাইমজোন",
   "siteSettingsTimezoneHelper": "Intl.DateTimeFormat এবং Date গেটার ওভাররাইড করে",
   "siteSettingsTimezoneForcedHelper": "ট্র্যাকিং সুরক্ষা দ্বারা \"নির্বাচিত অবস্থান থেকে\"-তে বাধ্য করা হয়েছে",

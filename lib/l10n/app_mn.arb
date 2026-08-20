@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "Захиалгат байршлыг арилгах",
   "siteSettingsLocationNoneSet": "Захиалгат байршил тохируулаагүй",
   "siteSettingsLocationPick": "Сонгох",
-  "siteSettingsLocationSectionTitle": "Байршил ба цагийн бүс",
   "siteSettingsTimezoneLabel": "Цагийн бүс",
   "siteSettingsTimezoneHelper": "Intl.DateTimeFormat болон Date getter-уудыг дарж бичнэ",
   "siteSettingsTimezoneForcedHelper": "Хяналтаас хамгаалалтаар \"Сонгосон байршлаас\" болгож албадсан",

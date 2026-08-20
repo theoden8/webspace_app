@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "Notīrīt pielāgoto atrašanās vietu",
   "siteSettingsLocationNoneSet": "Nav iestatīta pielāgota atrašanās vieta",
   "siteSettingsLocationPick": "Izvēlēties",
-  "siteSettingsLocationSectionTitle": "Atrašanās vieta un laika josla",
   "siteSettingsTimezoneLabel": "Laika josla",
   "siteSettingsTimezoneHelper": "Pārraksta Intl.DateTimeFormat un Date getterus",
   "siteSettingsTimezoneForcedHelper": "Piespiedu kārtā uz \"No izvēlētās atrašanās vietas\" ar Izsekošanas aizsardzību",

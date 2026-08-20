@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "მორგებული მდებარეობის გასუფთავება",
   "siteSettingsLocationNoneSet": "მორგებული მდებარეობა არ არის დაყენებული",
   "siteSettingsLocationPick": "არჩევა",
-  "siteSettingsLocationSectionTitle": "მდებარეობა და სასაათო სარტყელი",
   "siteSettingsTimezoneLabel": "სასაათო სარტყელი",
   "siteSettingsTimezoneHelper": "გადააფარებს Intl.DateTimeFormat-სა და Date-ის გეტერებს",
   "siteSettingsTimezoneForcedHelper": "იძულებით დაყენებულია „არჩეული მდებარეობიდან“ თვალთვალისგან დაცვის მიერ",

@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "Cancella posizione personalizzata",
   "siteSettingsLocationNoneSet": "Nessuna posizione personalizzata impostata",
   "siteSettingsLocationPick": "Scegli",
-  "siteSettingsLocationSectionTitle": "Posizione e fuso orario",
   "siteSettingsTimezoneLabel": "Fuso orario",
   "siteSettingsTimezoneHelper": "Sovrascrive Intl.DateTimeFormat e i getter di Date",
   "siteSettingsTimezoneForcedHelper": "Forzato su \"Dalla posizione scelta\" dalla Protezione dal tracciamento",

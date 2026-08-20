@@ -451,7 +451,6 @@
   "siteSettingsLocationClearTooltip": "Özel konumu temizle",
   "siteSettingsLocationNoneSet": "Özel konum ayarlanmadı",
   "siteSettingsLocationPick": "Seç",
-  "siteSettingsLocationSectionTitle": "Konum ve saat dilimi",
   "siteSettingsTimezoneLabel": "Saat dilimi",
   "siteSettingsTimezoneHelper": "Intl.DateTimeFormat ve Date alıcılarını geçersiz kılar",
   "siteSettingsTimezoneForcedHelper": "İzleme Koruması tarafından \"Seçilen konumdan\" olarak zorlandı",
