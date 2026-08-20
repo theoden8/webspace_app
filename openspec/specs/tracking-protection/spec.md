@@ -726,10 +726,10 @@ fields, the dirty-snapshot diff and the save path (BUG-006 / EDIT-009);
 the screen reads a `SitePrivacyValues` and reports whole values back
 through `onChanged`.
 
-The Permissions and Privacy rows SHALL sit at the foot of site settings
-under a "Site" heading, below the leaf switches. They are the two rows a
-reader visits deliberately; the switches above are what they scroll past
-on the way to something else.
+The Privacy and Permissions rows SHALL sit at the foot of site settings
+under a "Site" heading, below the leaf switches, Privacy first. They are
+the two rows a reader visits deliberately; the switches above are what
+they scroll past on the way to something else.
 
 The Privacy row SHALL summarise the current posture without being opened:
 "Tracking Protection on" while the umbrella is on, otherwise the names of

@@ -854,7 +854,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
 
     return ListTile(
-      // A key, not a shield: the Privacy row directly below leads with a
+      // A key, not a shield: the Privacy row directly above leads with a
       // shield, and two shields side by side read as one thing.
       leading: const Icon(Icons.key_outlined),
       title: Text(loc.permissionsTitle),
@@ -1468,8 +1468,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ],
           _buildWebRtcTile(),
           _sectionHeader(loc.siteSettingsSectionSite),
-          _buildPermissionsRow(),
           _buildPrivacyRow(),
+          _buildPermissionsRow(),
           const SizedBox(height: 8),
           if (widget.onClearCookies != null)
             Padding(
