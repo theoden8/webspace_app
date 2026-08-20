@@ -38,9 +38,14 @@ importScripts("<absolute original url>");
 Both loads are synchronous and ordered, making this the worker-scope equivalent
 of `AT_DOCUMENT_START`. The original specifier SHALL be resolved to an absolute
 URL (a relative one would resolve against the `blob:` base and fail). Module
-workers (`{type: 'module'}`) SHALL instead receive two ordered static `import`s,
+workers (`{type: 'module'}`) SHALL instead receive ordered static `import`s,
 because `importScripts` does not exist in a module worker and dynamic `import()`
 would resolve in a later task, after messages may already have been delivered.
+
+Module evaluation is hoisted, so a module wrapper SHALL deliver `__wsShimUrl`
+through its own imported module placed before the shim import, never through an
+assignment in the wrapper body — that assignment would run after both imports and
+leave the payload with nothing to re-install itself from (see WORK-005).
 
 #### Scenario: Classic worker loads the shim before the site script
 
@@ -55,6 +60,7 @@ would resolve in a later task, after messages may already have been delivered.
 **Given** the page calls `new Worker('m.js', {type: 'module'})`
 **Then** the wrapper contains no `importScripts`
 **And** it statically imports the shim before the original module
+**And** it statically imports a module assigning `__wsShimUrl` before both
 
 ---
 
@@ -150,6 +156,18 @@ does not linger as an inspectable own-property.
 `inner.js`
 **And** `'__wsShimUrl' in globalThis` is `false`
 
+#### Scenario: A module worker spawning a worker propagates the shim
+
+Regression: module wrappers once set `__wsShimUrl` by assignment, which hoisting
+placed after the shim import, so module workers left `Worker` unpatched. They
+were spoofed themselves, but anything they spawned reported the real hardware —
+`new Worker(x, {type:'module'})` then `new Worker(y)` read straight through.
+
+**Given** the shim payload is running in a module worker
+**Then** `globalThis.__ws_worker_shim__` is `true`
+**When** that worker calls `new Worker('inner.js')`
+**Then** the nested worker reports the same spoofed values as the document
+
 ---
 
 ### Requirement: WORK-006 - Fail open, and only where it helps
@@ -166,10 +184,19 @@ real constructor verbatim: a broken worker is worse than an unspoofed one.
 
 #### Scenario: Wrapping failure still yields a working worker
 
-**Given** `URL.createObjectURL` throws (for example under a restrictive CSP)
+**Given** `URL.createObjectURL` throws
 **When** the page calls `new Worker('w.js')`
 **Then** the real constructor receives `'w.js'` unchanged
 **And** a worker is still created
+
+#### Known gap: a CSP that forbids `blob:` workers breaks them outright
+
+A site whose `worker-src` (or `default-src`) omits `blob:` blocks the wrapper
+script. CSP reports that refusal as an asynchronous `error` event on the worker
+rather than a constructor throw, so the fail-open fallback above never runs and
+no worker starts at all. The spoof holds — no unshimmed scope appears — but the
+site's workers stop working. Pinned by `test/browser/worker_realm_escape.test.js`;
+any fix that keeps such workers running MUST keep them shimmed.
 
 ---
 
