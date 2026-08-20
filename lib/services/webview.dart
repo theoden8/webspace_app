@@ -2692,6 +2692,21 @@ class WebViewFactory {
     // Initial-load fallback is handled inside the engine.
     String? lastStableUrl;
 
+    // URL of the main-frame navigation that just failed for a network
+    // reason; cleared when the next navigation starts. A failed load still
+    // commits the engine's own error page and still fires `onLoadStop`, so
+    // without this the HtmlCache save below serialises "connection
+    // refused" over the site's last-good snapshot — which is precisely
+    // what the offline path renders on the next cold start. Only the
+    // ordinary-failure branch of `onReceivedError` sets it; the external
+    // scheme paths there leave whatever the page managed to render intact
+    // and cacheable. Compared for null rather than against `onLoadStop`'s
+    // URL: platforms disagree on whether the settle reports the failing
+    // URL or the error-page URL, and skipping one save costs nothing (the
+    // next successful load writes the snapshot) while a missed match costs
+    // the snapshot itself.
+    String? failedNavUrl;
+
     // Monotonic counter bumped on every `shouldOverrideUrlLoading`
     // entry — i.e. every time chromium asks us about a new navigation,
     // including the synthetic invocations chromium fires for
@@ -3861,6 +3876,7 @@ class WebViewFactory {
 
         // Track that this URL has a real page load (not SPA navigation)
         lastLoadStartUrl = url?.toString();
+        failedNavUrl = null;
         // Record the page navigation for the block stats banner so it
         // appears immediately. Tag the source (DNS or ABP) so the log
         // keeps the attribution even for main-doc loads. Recorded for
@@ -4031,6 +4047,7 @@ class WebViewFactory {
         // stays open.
         if (config.onHtmlLoaded != null
             && !firedLiveReload
+            && failedNavUrl == null
             && (config.shouldFetchHtml?.call() ?? true)) {
           try {
             final html = await controller.getHtml();
@@ -4139,6 +4156,7 @@ class WebViewFactory {
           // above). Report it so the host can re-issue the load on the next
           // resume when the cause was the OS cutting the network out from
           // under a backgrounded process — PAUSE-022.
+          failedNavUrl = reqUrl;
           config.onMainFrameLoad?.call(
               MainFrameLoadSignal.failed(reqUrl, error.type.toValue()));
           return;
