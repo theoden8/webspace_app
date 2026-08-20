@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Anfon hysbysiad prawf",
   "devToolsTestNotificationSent": "Anfonwyd hysbysiad prawf (gweler y cofnodion)",
   "devToolsTestNotificationTitle": "Hysbysiad prawf WebSpace",
-  "devToolsTestNotificationBody": "Os gallwch weld hyn, mae danfon hysbysiadau'r system weithredu yn gweithio."
+  "devToolsTestNotificationBody": "Os gallwch weld hyn, mae danfon hysbysiadau'r system weithredu yn gweithio.",
+  "blockStatsTitle": "Adroddiad diogelwch",
+  "blockStatsSubtitleWeek": "Traciwyr wedi'u rhwystro yr wythnos hon",
+  "blockStatsSubtitleMonth": "Traciwyr wedi'u rhwystro yn y 30 diwrnod diwethaf",
+  "blockStatsRange7": "7 diwrnod",
+  "blockStatsRange30": "30 diwrnod",
+  "blockStatsCategoryFilterList": "Ceisiadau hysbysebion a thraciwyr",
+  "blockStatsCategoryDns": "Parthau tracio hysbys",
+  "blockStatsCategoryParam": "Paramedrau tracio wedi'u tynnu",
+  "blockStatsCategoryCdn": "Ceisiadau CDN wedi'u gweini'n lleol",
+  "blockStatsSince": "{count} wedi'u rhwystro ers {date}",
+  "blockStatsEmpty": "Dim byd wedi'i rwystro eto",
+  "blockStatsEmptyHint": "Trowch amddiffyniad rhag tracio ymlaen ar gyfer gwefan a bydd y ceisiadau mae'n eu rhwystro yn ymddangos yma.",
+  "blockStatsReset": "Ailosod yr ystadegau",
+  "blockStatsResetConfirm": "Mae pob cyfrifydd yn dychwelyd i sero ac mae'r cyfrif yn ailddechrau heddiw.",
+  "appSettingsProtectionReportSubtitle": "Yr hyn mae'r rhwystrwyr wedi'i atal, dros amser"
 }

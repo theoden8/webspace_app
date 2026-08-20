@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Испрати тестно известување",
   "devToolsTestNotificationSent": "Тестното известување е испратено (видете ги дневниците)",
   "devToolsTestNotificationTitle": "WebSpace тестно известување",
-  "devToolsTestNotificationBody": "Ако го гледате ова, испораката на известувања на оперативниот систем работи."
+  "devToolsTestNotificationBody": "Ако го гледате ова, испораката на известувања на оперативниот систем работи.",
+  "blockStatsTitle": "Извештај за заштита",
+  "blockStatsSubtitleWeek": "Следачи блокирани оваа недела",
+  "blockStatsSubtitleMonth": "Следачи блокирани во последните 30 дена",
+  "blockStatsRange7": "7 дена",
+  "blockStatsRange30": "30 дена",
+  "blockStatsCategoryFilterList": "Барања од реклами и следачи",
+  "blockStatsCategoryDns": "Познати домени за следење",
+  "blockStatsCategoryParam": "Отстранети параметри за следење",
+  "blockStatsCategoryCdn": "CDN-барања услужени локално",
+  "blockStatsSince": "{count} блокирани од {date}",
+  "blockStatsEmpty": "Сè уште ништо не е блокирано",
+  "blockStatsEmptyHint": "Вклучете заштита од следење за некој сајт и барањата што ги блокира ќе се појават овде.",
+  "blockStatsReset": "Ресетирај ја статистиката",
+  "blockStatsResetConfirm": "Секој бројач се враќа на нула и броењето почнува одново од денес.",
+  "appSettingsProtectionReportSubtitle": "Што запреле блокаторите со текот на времето"
 }

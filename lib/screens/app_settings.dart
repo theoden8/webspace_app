@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/settings/app_locale.dart';
 import 'package:webspace/main.dart' show AppThemeSettings, AccentColor;
+import 'package:webspace/screens/block_stats.dart';
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/screens/trusted_certificates.dart';
 import 'package:webspace/services/clearurl_service.dart';
@@ -1029,6 +1030,16 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               });
               widget.onShowStatsBannerChanged(value);
             },
+          ),
+          ListTile(
+            leading: const Icon(Icons.shield_outlined),
+            title: Text(loc.blockStatsTitle),
+            subtitle: Text(loc.appSettingsProtectionReportSubtitle),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const BlockStatsScreen()),
+            ),
           ),
           ListTile(
             leading: const Icon(Icons.language),

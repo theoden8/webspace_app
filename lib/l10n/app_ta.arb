@@ -706,5 +706,20 @@
   "devToolsTestNotification": "சோதனை அறிவிப்பை அனுப்பு",
   "devToolsTestNotificationSent": "சோதனை அறிவிப்பு அனுப்பப்பட்டது (பதிவுகளைப் பார்க்கவும்)",
   "devToolsTestNotificationTitle": "WebSpace சோதனை அறிவிப்பு",
-  "devToolsTestNotificationBody": "இதை நீங்கள் பார்க்க முடிந்தால், இயக்க முறைமையின் அறிவிப்பு வழங்கல் வேலை செய்கிறது."
+  "devToolsTestNotificationBody": "இதை நீங்கள் பார்க்க முடிந்தால், இயக்க முறைமையின் அறிவிப்பு வழங்கல் வேலை செய்கிறது.",
+  "blockStatsTitle": "பாதுகாப்பு அறிக்கை",
+  "blockStatsSubtitleWeek": "இந்த வாரம் தடுக்கப்பட்ட கண்காணிப்பிகள்",
+  "blockStatsSubtitleMonth": "கடந்த 30 நாட்களில் தடுக்கப்பட்ட கண்காணிப்பிகள்",
+  "blockStatsRange7": "7 நாட்கள்",
+  "blockStatsRange30": "30 நாட்கள்",
+  "blockStatsCategoryFilterList": "விளம்பர மற்றும் கண்காணிப்பி கோரிக்கைகள்",
+  "blockStatsCategoryDns": "அறியப்பட்ட கண்காணிப்பு களங்கள்",
+  "blockStatsCategoryParam": "நீக்கப்பட்ட கண்காணிப்பு அளபுருக்கள்",
+  "blockStatsCategoryCdn": "உள்ளூரில் வழங்கப்பட்ட CDN கோரிக்கைகள்",
+  "blockStatsSince": "{date} முதல் {count} தடுக்கப்பட்டன",
+  "blockStatsEmpty": "இதுவரை எதுவும் தடுக்கப்படவில்லை",
+  "blockStatsEmptyHint": "ஒரு தளத்திற்கு கண்காணிப்புப் பாதுகாப்பை இயக்கினால், அது தடுக்கும் கோரிக்கைகள் இங்கே காட்டப்படும்.",
+  "blockStatsReset": "புள்ளிவிவரங்களை மீட்டமை",
+  "blockStatsResetConfirm": "ஒவ்வொரு எண்ணிக்கையும் பூஜ்ஜியத்திற்குத் திரும்பும், எண்ணிக்கை இன்று முதல் மீண்டும் தொடங்கும்.",
+  "appSettingsProtectionReportSubtitle": "காலப்போக்கில் தடுப்பான்கள் நிறுத்தியவை"
 }

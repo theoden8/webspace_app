@@ -706,5 +706,20 @@
   "devToolsTestNotification": "테스트 알림 보내기",
   "devToolsTestNotificationSent": "테스트 알림을 보냈습니다 (로그 참조)",
   "devToolsTestNotificationTitle": "WebSpace 테스트 알림",
-  "devToolsTestNotificationBody": "이것이 보이면 운영 체제의 알림 전송이 작동합니다."
+  "devToolsTestNotificationBody": "이것이 보이면 운영 체제의 알림 전송이 작동합니다.",
+  "blockStatsTitle": "보호 보고서",
+  "blockStatsSubtitleWeek": "이번 주에 차단한 추적기",
+  "blockStatsSubtitleMonth": "지난 30일 동안 차단한 추적기",
+  "blockStatsRange7": "7일",
+  "blockStatsRange30": "30일",
+  "blockStatsCategoryFilterList": "광고 및 추적기 요청",
+  "blockStatsCategoryDns": "알려진 추적 도메인",
+  "blockStatsCategoryParam": "제거된 추적 매개변수",
+  "blockStatsCategoryCdn": "로컬에서 제공한 CDN 요청",
+  "blockStatsSince": "{date} 이후 {count}건 차단",
+  "blockStatsEmpty": "아직 차단된 항목이 없습니다",
+  "blockStatsEmptyHint": "사이트의 추적 보호를 켜면 차단된 요청이 여기에 표시됩니다.",
+  "blockStatsReset": "통계 초기화",
+  "blockStatsResetConfirm": "모든 카운터가 0으로 돌아가고 오늘부터 다시 집계합니다.",
+  "appSettingsProtectionReportSubtitle": "차단 기능이 그동안 막아낸 것"
 }

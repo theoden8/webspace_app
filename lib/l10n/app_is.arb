@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Senda prufutilkynningu",
   "devToolsTestNotificationSent": "Prufutilkynning send (sjá annála)",
   "devToolsTestNotificationTitle": "WebSpace prufutilkynning",
-  "devToolsTestNotificationBody": "Ef þú sérð þetta virkar afhending tilkynninga stýrikerfisins."
+  "devToolsTestNotificationBody": "Ef þú sérð þetta virkar afhending tilkynninga stýrikerfisins.",
+  "blockStatsTitle": "Verndarskýrsla",
+  "blockStatsSubtitleWeek": "Rekjarar sem lokað var á í þessari viku",
+  "blockStatsSubtitleMonth": "Rekjarar sem lokað var á síðustu 30 daga",
+  "blockStatsRange7": "7 dagar",
+  "blockStatsRange30": "30 dagar",
+  "blockStatsCategoryFilterList": "Beiðnir auglýsinga og rekjara",
+  "blockStatsCategoryDns": "Þekkt rakningarlén",
+  "blockStatsCategoryParam": "Fjarlægðar rakningarfæribreytur",
+  "blockStatsCategoryCdn": "CDN-beiðnir afgreiddar staðbundið",
+  "blockStatsSince": "{count} lokað frá {date}",
+  "blockStatsEmpty": "Engu hefur verið lokað enn",
+  "blockStatsEmptyHint": "Kveiktu á rakningarvörn fyrir vefsvæði og beiðnirnar sem hún stöðvar birtast hér.",
+  "blockStatsReset": "Núllstilla tölfræði",
+  "blockStatsResetConfirm": "Allir teljarar fara í núll og talning hefst að nýju í dag.",
+  "appSettingsProtectionReportSubtitle": "Hverju vörnin hefur stöðvað með tímanum"
 }

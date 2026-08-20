@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Send testvarsel",
   "devToolsTestNotificationSent": "Testvarsel sendt (se loggene)",
   "devToolsTestNotificationTitle": "WebSpace-testvarsel",
-  "devToolsTestNotificationBody": "Hvis du kan se dette, fungerer operativsystemets varsellevering."
+  "devToolsTestNotificationBody": "Hvis du kan se dette, fungerer operativsystemets varsellevering.",
+  "blockStatsTitle": "Beskyttelsesrapport",
+  "blockStatsSubtitleWeek": "Sporere blokkert denne uken",
+  "blockStatsSubtitleMonth": "Sporere blokkert de siste 30 dagene",
+  "blockStatsRange7": "7 dager",
+  "blockStatsRange30": "30 dager",
+  "blockStatsCategoryFilterList": "Forespørsler fra reklame og sporere",
+  "blockStatsCategoryDns": "Kjente sporingsdomener",
+  "blockStatsCategoryParam": "Fjernede sporingsparametere",
+  "blockStatsCategoryCdn": "CDN-forespørsler levert lokalt",
+  "blockStatsSince": "{count} blokkert siden {date}",
+  "blockStatsEmpty": "Ingenting er blokkert ennå",
+  "blockStatsEmptyHint": "Slå på sporingsbeskyttelse for et nettsted, så vises forespørslene det blokkerer her.",
+  "blockStatsReset": "Nullstill statistikk",
+  "blockStatsResetConfirm": "Alle tellere settes til null, og tellingen starter på nytt i dag.",
+  "appSettingsProtectionReportSubtitle": "Hva blokkererne har stoppet over tid"
 }

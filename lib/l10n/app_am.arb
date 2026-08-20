@@ -706,5 +706,20 @@
   "devToolsTestNotification": "የሙከራ ማስታወቂያ ላክ",
   "devToolsTestNotificationSent": "የሙከራ ማስታወቂያ ተልኳል (ምዝግቦችን ይመልከቱ)",
   "devToolsTestNotificationTitle": "የWebSpace የሙከራ ማስታወቂያ",
-  "devToolsTestNotificationBody": "ይህን ማየት ከቻሉ የስርዓተ ክወና ማስታወቂያ ማድረስ ይሰራል።"
+  "devToolsTestNotificationBody": "ይህን ማየት ከቻሉ የስርዓተ ክወና ማስታወቂያ ማድረስ ይሰራል።",
+  "blockStatsTitle": "የጥበቃ ሪፖርት",
+  "blockStatsSubtitleWeek": "በዚህ ሳምንት የታገዱ ተከታታዮች",
+  "blockStatsSubtitleMonth": "ባለፉት 30 ቀናት የታገዱ ተከታታዮች",
+  "blockStatsRange7": "7 ቀናት",
+  "blockStatsRange30": "30 ቀናት",
+  "blockStatsCategoryFilterList": "የማስታወቂያና የመከታተያ ጥያቄዎች",
+  "blockStatsCategoryDns": "የሚታወቁ የመከታተያ ጎራዎች",
+  "blockStatsCategoryParam": "የመከታተያ መለኪያዎች ተወግደዋል",
+  "blockStatsCategoryCdn": "የCDN ጥያቄዎች በአካባቢው ቀርበዋል",
+  "blockStatsSince": "ከ{date} ጀምሮ {count} ታግደዋል",
+  "blockStatsEmpty": "እስካሁን ምንም አልታገደም",
+  "blockStatsEmptyHint": "ለአንድ ድረ-ገጽ የመከታተያ ጥበቃን ያብሩ፤ የሚያግዳቸው ጥያቄዎች እዚህ ይታያሉ።",
+  "blockStatsReset": "ስታቲስቲክስን ዳግም አስጀምር",
+  "blockStatsResetConfirm": "እያንዳንዱ ቆጣሪ ወደ ዜሮ ይመለሳል፤ ቆጠራውም ከዛሬ ጀምሮ እንደገና ይጀምራል።",
+  "appSettingsProtectionReportSubtitle": "አጋጆቹ ያገዱት፣ በጊዜ ሂደት"
 }

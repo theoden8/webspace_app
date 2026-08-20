@@ -73,6 +73,7 @@ import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/adblock_engine.dart';
 import 'package:webspace/services/content_blocker_service.dart';
+import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/timezone_location_service.dart';
@@ -661,6 +662,7 @@ void main() async {
       () => _runTimed('firefoxUa', FirefoxUserAgentService.instance.initialize),
       () => _runTimed('adblock', ContentBlockerService.instance.initialize),
       () => _runTimed('localCdn', LocalCdnService.instance.initialize),
+      () => _runTimed('blockStats', BlockStatsService.instance.initialize),
       if (Platform.isAndroid)
         () => _runTimed('swBlock', blockServiceWorkerNetwork),
     ],
@@ -1593,6 +1595,10 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (state == AppLifecycleState.paused) {
       _foregroundPollTimer?.cancel();
       _foregroundPollTimer = null;
+      // Persist the protection-report counters before the OS can reclaim
+      // the process: the in-memory debounce would otherwise lose up to
+      // BlockStatsService.flushDelay of counts on a kill.
+      unawaited(BlockStatsService.instance.flush());
       // URL-ephemeral sites (alwaysOpenHome / incognito) revert to their
       // initUrl only on a genuine app restart (fromJson strips currentUrl on
       // cold start, AOH-002) and on home-shortcut tap (AOH-004) — never on a
@@ -2535,6 +2541,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       dnsBlockEnabled: model.dnsBlockEnabled,
       contentBlockEnabled: model.contentBlockEnabled,
       localCdnEnabled: model.effectiveLocalCdnEnabled,
+      contributesBlockStats: model.contributesBlockStats,
       trackingProtectionEnabled: model.trackingProtectionEnabled,
       letterboxEnabled: model.letterboxEnabled,
       spoofWindowWidth: model.spoofWindowWidth,
@@ -5019,6 +5026,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     required bool dnsBlockEnabled,
     required bool contentBlockEnabled,
     required bool localCdnEnabled,
+    required bool contributesBlockStats,
     required bool trackingProtectionEnabled,
     bool letterboxEnabled = false,
     int? spoofWindowWidth,
@@ -5054,6 +5062,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           dnsBlockEnabled: dnsBlockEnabled,
           contentBlockEnabled: contentBlockEnabled,
           localCdnEnabled: localCdnEnabled,
+          contributesBlockStats: contributesBlockStats,
           trackingProtectionEnabled: trackingProtectionEnabled,
           letterboxEnabled: letterboxEnabled,
           spoofWindowWidth: spoofWindowWidth,
@@ -6833,6 +6842,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                   dnsBlockEnabled: model.dnsBlockEnabled,
                   contentBlockEnabled: model.contentBlockEnabled,
                   localCdnEnabled: model.localCdnEnabled,
+                  contributesBlockStats: model.contributesBlockStats,
                   trackingProtectionEnabled: model.trackingProtectionEnabled,
                   letterboxEnabled: model.letterboxEnabled,
                   spoofWindowWidth: model.spoofWindowWidth,

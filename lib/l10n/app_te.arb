@@ -706,5 +706,20 @@
   "devToolsTestNotification": "పరీక్ష నోటిఫికేషన్ పంపండి",
   "devToolsTestNotificationSent": "పరీక్ష నోటిఫికేషన్ పంపబడింది (లాగ్‌లను చూడండి)",
   "devToolsTestNotificationTitle": "WebSpace పరీక్ష నోటిఫికేషన్",
-  "devToolsTestNotificationBody": "ఇది మీకు కనిపిస్తే, ఆపరేటింగ్ సిస్టమ్ నోటిఫికేషన్ డెలివరీ పని చేస్తోంది."
+  "devToolsTestNotificationBody": "ఇది మీకు కనిపిస్తే, ఆపరేటింగ్ సిస్టమ్ నోటిఫికేషన్ డెలివరీ పని చేస్తోంది.",
+  "blockStatsTitle": "రక్షణ నివేదిక",
+  "blockStatsSubtitleWeek": "ఈ వారం నిరోధించిన ట్రాకర్లు",
+  "blockStatsSubtitleMonth": "గత 30 రోజుల్లో నిరోధించిన ట్రాకర్లు",
+  "blockStatsRange7": "7 రోజులు",
+  "blockStatsRange30": "30 రోజులు",
+  "blockStatsCategoryFilterList": "ప్రకటన మరియు ట్రాకర్ అభ్యర్థనలు",
+  "blockStatsCategoryDns": "తెలిసిన ట్రాకింగ్ డొమైన్‌లు",
+  "blockStatsCategoryParam": "తొలగించిన ట్రాకింగ్ పారామితులు",
+  "blockStatsCategoryCdn": "స్థానికంగా అందించిన CDN అభ్యర్థనలు",
+  "blockStatsSince": "{date} నుండి {count} నిరోధించబడ్డాయి",
+  "blockStatsEmpty": "ఇంకా ఏదీ నిరోధించబడలేదు",
+  "blockStatsEmptyHint": "ఒక సైట్‌కు ట్రాకింగ్ రక్షణను ఆన్ చేయండి, అది నిరోధించే అభ్యర్థనలు ఇక్కడ కనిపిస్తాయి.",
+  "blockStatsReset": "గణాంకాలను రీసెట్ చేయండి",
+  "blockStatsResetConfirm": "ప్రతి కౌంటర్ సున్నాకు తిరిగి వస్తుంది, లెక్కింపు ఈరోజు నుండి మళ్లీ మొదలవుతుంది.",
+  "appSettingsProtectionReportSubtitle": "కాలక్రమేణా బ్లాకర్లు ఆపినవి"
 }

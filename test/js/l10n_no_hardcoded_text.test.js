@@ -18,6 +18,7 @@ const migrated = new Set([
   'lib/main.dart',
   'lib/screens/add_site.dart',
   'lib/screens/app_settings.dart',
+  'lib/screens/block_stats.dart',
   'lib/screens/dev_tools.dart',
   'lib/screens/inappbrowser.dart',
   'lib/screens/link_handling_settings.dart',

@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Skicka testavisering",
   "devToolsTestNotificationSent": "Testavisering skickad (se loggarna)",
   "devToolsTestNotificationTitle": "WebSpace-testavisering",
-  "devToolsTestNotificationBody": "Om du kan se detta fungerar operativsystemets aviseringsleverans."
+  "devToolsTestNotificationBody": "Om du kan se detta fungerar operativsystemets aviseringsleverans.",
+  "blockStatsTitle": "Skyddsrapport",
+  "blockStatsSubtitleWeek": "Spårare blockerade den här veckan",
+  "blockStatsSubtitleMonth": "Spårare blockerade de senaste 30 dagarna",
+  "blockStatsRange7": "7 dagar",
+  "blockStatsRange30": "30 dagar",
+  "blockStatsCategoryFilterList": "Förfrågningar från annonser och spårare",
+  "blockStatsCategoryDns": "Kända spårningsdomäner",
+  "blockStatsCategoryParam": "Borttagna spårningsparametrar",
+  "blockStatsCategoryCdn": "CDN-förfrågningar som levererats lokalt",
+  "blockStatsSince": "{count} blockerade sedan {date}",
+  "blockStatsEmpty": "Inget har blockerats ännu",
+  "blockStatsEmptyHint": "Slå på spårningsskydd för en webbplats, så visas förfrågningarna den blockerar här.",
+  "blockStatsReset": "Nollställ statistiken",
+  "blockStatsResetConfirm": "Alla räknare återgår till noll och räkningen börjar om i dag.",
+  "appSettingsProtectionReportSubtitle": "Vad blockerarna har stoppat över tid"
 }

@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Lähetä testi-ilmoitus",
   "devToolsTestNotificationSent": "Testi-ilmoitus lähetetty (katso lokit)",
   "devToolsTestNotificationTitle": "WebSpace-testi-ilmoitus",
-  "devToolsTestNotificationBody": "Jos näet tämän, käyttöjärjestelmän ilmoitusten toimitus toimii."
+  "devToolsTestNotificationBody": "Jos näet tämän, käyttöjärjestelmän ilmoitusten toimitus toimii.",
+  "blockStatsTitle": "Suojausraportti",
+  "blockStatsSubtitleWeek": "Tällä viikolla estetyt seuraimet",
+  "blockStatsSubtitleMonth": "Viimeisten 30 päivän aikana estetyt seuraimet",
+  "blockStatsRange7": "7 päivää",
+  "blockStatsRange30": "30 päivää",
+  "blockStatsCategoryFilterList": "Mainosten ja seuraimien pyynnöt",
+  "blockStatsCategoryDns": "Tunnetut seurantaverkkotunnukset",
+  "blockStatsCategoryParam": "Poistetut seurantaparametrit",
+  "blockStatsCategoryCdn": "Paikallisesti palvellut CDN-pyynnöt",
+  "blockStatsSince": "{count} estetty {date} alkaen",
+  "blockStatsEmpty": "Mitään ei ole vielä estetty",
+  "blockStatsEmptyHint": "Ota sivustolle seurannan esto käyttöön, niin sen estämät pyynnöt näkyvät täällä.",
+  "blockStatsReset": "Nollaa tilastot",
+  "blockStatsResetConfirm": "Jokainen laskuri palautuu nollaan ja laskenta alkaa uudelleen tästä päivästä.",
+  "appSettingsProtectionReportSubtitle": "Mitä estot ovat pysäyttäneet ajan mittaan"
 }

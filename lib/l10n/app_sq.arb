@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Dërgo njoftim provë",
   "devToolsTestNotificationSent": "Njoftimi provë u dërgua (shih regjistrat)",
   "devToolsTestNotificationTitle": "Njoftim provë i WebSpace",
-  "devToolsTestNotificationBody": "Nëse mund ta shihni këtë, dorëzimi i njoftimeve të sistemit operativ funksionon."
+  "devToolsTestNotificationBody": "Nëse mund ta shihni këtë, dorëzimi i njoftimeve të sistemit operativ funksionon.",
+  "blockStatsTitle": "Raport mbrojtjeje",
+  "blockStatsSubtitleWeek": "Gjurmues të bllokuar këtë javë",
+  "blockStatsSubtitleMonth": "Gjurmues të bllokuar në 30 ditët e fundit",
+  "blockStatsRange7": "7 ditë",
+  "blockStatsRange30": "30 ditë",
+  "blockStatsCategoryFilterList": "Kërkesa reklamash dhe gjurmuesish",
+  "blockStatsCategoryDns": "Domene gjurmimi të njohura",
+  "blockStatsCategoryParam": "Parametra gjurmimi të hequr",
+  "blockStatsCategoryCdn": "Kërkesa CDN të shërbyera lokalisht",
+  "blockStatsSince": "{count} të bllokuara që nga {date}",
+  "blockStatsEmpty": "Ende s'është bllokuar asgjë",
+  "blockStatsEmptyHint": "Aktivizo mbrojtjen nga gjurmimi për një sajt dhe kërkesat që bllokon do të shfaqen këtu.",
+  "blockStatsReset": "Rivendos statistikat",
+  "blockStatsResetConfirm": "Çdo numërues kthehet në zero dhe numërimi rinis që sot.",
+  "appSettingsProtectionReportSubtitle": "Çfarë kanë ndalur bllokuesit, me kalimin e kohës"
 }

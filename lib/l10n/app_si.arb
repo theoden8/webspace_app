@@ -706,5 +706,20 @@
   "devToolsTestNotification": "පරීක්ෂණ දැනුම්දීමක් යවන්න",
   "devToolsTestNotificationSent": "පරීක්ෂණ දැනුම්දීම යවන ලදී (ලඝු-සටහන් බලන්න)",
   "devToolsTestNotificationTitle": "WebSpace පරීක්ෂණ දැනුම්දීම",
-  "devToolsTestNotificationBody": "ඔබට මෙය දැකිය හැකි නම්, මෙහෙයුම් පද්ධතියේ දැනුම්දීම් බෙදා හැරීම ක්‍රියා කරයි."
+  "devToolsTestNotificationBody": "ඔබට මෙය දැකිය හැකි නම්, මෙහෙයුම් පද්ධතියේ දැනුම්දීම් බෙදා හැරීම ක්‍රියා කරයි.",
+  "blockStatsTitle": "ආරක්ෂණ වාර්තාව",
+  "blockStatsSubtitleWeek": "මෙම සතියේ අවහිර කළ ලුහුබැඳීම්",
+  "blockStatsSubtitleMonth": "පසුගිය දින 30 තුළ අවහිර කළ ලුහුබැඳීම්",
+  "blockStatsRange7": "දින 7",
+  "blockStatsRange30": "දින 30",
+  "blockStatsCategoryFilterList": "වෙළඳ දැන්වීම් සහ ලුහුබැඳීම් ඉල්ලීම්",
+  "blockStatsCategoryDns": "දන්නා ලුහුබැඳීම් වසම්",
+  "blockStatsCategoryParam": "ඉවත් කළ ලුහුබැඳීම් පරාමිති",
+  "blockStatsCategoryCdn": "ස්ථානීයව සපයන ලද CDN ඉල්ලීම්",
+  "blockStatsSince": "{date} සිට {count}ක් අවහිර කර ඇත",
+  "blockStatsEmpty": "තවම කිසිවක් අවහිර කර නැත",
+  "blockStatsEmptyHint": "අඩවියක් සඳහා ලුහුබැඳීම් ආරක්ෂණය සක්‍රීය කරන්න, එවිට එය අවහිර කරන ඉල්ලීම් මෙහි පෙනෙනු ඇත.",
+  "blockStatsReset": "සංඛ්‍යාලේඛන යළි සකසන්න",
+  "blockStatsResetConfirm": "සෑම ගණකයක්ම බිංදුවට පැමිණේ, ගණන් කිරීම අදින් නැවත ආරම්භ වේ.",
+  "appSettingsProtectionReportSubtitle": "කාලයාගේ ඇවෑමෙන් අවහිර කරන්නන් නැවැත්වූ දේ"
 }

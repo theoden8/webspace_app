@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Envoyer une notification de test",
   "devToolsTestNotificationSent": "Notification de test envoyée (voir les journaux)",
   "devToolsTestNotificationTitle": "Notification de test WebSpace",
-  "devToolsTestNotificationBody": "Si vous voyez ceci, la diffusion des notifications du système d'exploitation fonctionne."
+  "devToolsTestNotificationBody": "Si vous voyez ceci, la diffusion des notifications du système d'exploitation fonctionne.",
+  "blockStatsTitle": "Rapport de protection",
+  "blockStatsSubtitleWeek": "Traqueurs bloqués cette semaine",
+  "blockStatsSubtitleMonth": "Traqueurs bloqués ces 30 derniers jours",
+  "blockStatsRange7": "7 jours",
+  "blockStatsRange30": "30 jours",
+  "blockStatsCategoryFilterList": "Requêtes de publicités et de traqueurs",
+  "blockStatsCategoryDns": "Domaines de pistage connus",
+  "blockStatsCategoryParam": "Paramètres de suivi supprimés",
+  "blockStatsCategoryCdn": "Requêtes CDN servies localement",
+  "blockStatsSince": "{count} bloqués depuis le {date}",
+  "blockStatsEmpty": "Rien n'a encore été bloqué",
+  "blockStatsEmptyHint": "Activez la protection contre le pistage pour un site et les requêtes qu'il bloque apparaîtront ici.",
+  "blockStatsReset": "Réinitialiser les statistiques",
+  "blockStatsResetConfirm": "Tous les compteurs reviennent à zéro et le décompte reprend aujourd'hui.",
+  "appSettingsProtectionReportSubtitle": "Ce que les bloqueurs ont arrêté, au fil du temps"
 }

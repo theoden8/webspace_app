@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Sūtīt testa paziņojumu",
   "devToolsTestNotificationSent": "Testa paziņojums nosūtīts (skatiet žurnālus)",
   "devToolsTestNotificationTitle": "WebSpace testa paziņojums",
-  "devToolsTestNotificationBody": "Ja redzat šo, operētājsistēmas paziņojumu piegāde darbojas."
+  "devToolsTestNotificationBody": "Ja redzat šo, operētājsistēmas paziņojumu piegāde darbojas.",
+  "blockStatsTitle": "Aizsardzības pārskats",
+  "blockStatsSubtitleWeek": "Šonedēļ bloķētie izsekotāji",
+  "blockStatsSubtitleMonth": "Pēdējās 30 dienās bloķētie izsekotāji",
+  "blockStatsRange7": "7 dienas",
+  "blockStatsRange30": "30 dienas",
+  "blockStatsCategoryFilterList": "Reklāmu un izsekotāju pieprasījumi",
+  "blockStatsCategoryDns": "Zināmi izsekošanas domēni",
+  "blockStatsCategoryParam": "Noņemtie izsekošanas parametri",
+  "blockStatsCategoryCdn": "Lokāli apkalpotie CDN pieprasījumi",
+  "blockStatsSince": "{count} bloķēti kopš {date}",
+  "blockStatsEmpty": "Vēl nekas nav bloķēts",
+  "blockStatsEmptyHint": "Ieslēdziet vietnei aizsardzību pret izsekošanu, un tās bloķētie pieprasījumi parādīsies šeit.",
+  "blockStatsReset": "Atiestatīt statistiku",
+  "blockStatsResetConfirm": "Katrs skaitītājs atgriežas nullē, un skaitīšana no šodienas sākas no jauna.",
+  "appSettingsProtectionReportSubtitle": "Ko bloķētāji laika gaitā ir apturējuši"
 }

@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Testmelding verzenden",
   "devToolsTestNotificationSent": "Testmelding verzonden (zie logboeken)",
   "devToolsTestNotificationTitle": "WebSpace-testmelding",
-  "devToolsTestNotificationBody": "Als je dit kunt zien, werkt de meldingslevering van het besturingssysteem."
+  "devToolsTestNotificationBody": "Als je dit kunt zien, werkt de meldingslevering van het besturingssysteem.",
+  "blockStatsTitle": "Beschermingsrapport",
+  "blockStatsSubtitleWeek": "Deze week geblokkeerde trackers",
+  "blockStatsSubtitleMonth": "Geblokkeerde trackers in de afgelopen 30 dagen",
+  "blockStatsRange7": "7 dagen",
+  "blockStatsRange30": "30 dagen",
+  "blockStatsCategoryFilterList": "Verzoeken van advertenties en trackers",
+  "blockStatsCategoryDns": "Bekende trackingdomeinen",
+  "blockStatsCategoryParam": "Verwijderde trackingparameters",
+  "blockStatsCategoryCdn": "Lokaal geleverde CDN-verzoeken",
+  "blockStatsSince": "{count} geblokkeerd sinds {date}",
+  "blockStatsEmpty": "Nog niets geblokkeerd",
+  "blockStatsEmptyHint": "Zet trackingbescherming aan voor een site en de verzoeken die worden geblokkeerd verschijnen hier.",
+  "blockStatsReset": "Statistieken wissen",
+  "blockStatsResetConfirm": "Elke teller gaat terug naar nul en het tellen begint vandaag opnieuw.",
+  "appSettingsProtectionReportSubtitle": "Wat de blokkers in de loop van de tijd hebben tegengehouden"
 }

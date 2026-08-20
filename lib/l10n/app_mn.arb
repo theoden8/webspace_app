@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Туршилтын мэдэгдэл илгээх",
   "devToolsTestNotificationSent": "Туршилтын мэдэгдэл илгээгдсэн (бүртгэлийг харна уу)",
   "devToolsTestNotificationTitle": "WebSpace туршилтын мэдэгдэл",
-  "devToolsTestNotificationBody": "Хэрэв та үүнийг харж байгаа бол үйлдлийн системийн мэдэгдэл хүргэлт ажиллаж байна."
+  "devToolsTestNotificationBody": "Хэрэв та үүнийг харж байгаа бол үйлдлийн системийн мэдэгдэл хүргэлт ажиллаж байна.",
+  "blockStatsTitle": "Хамгаалалтын тайлан",
+  "blockStatsSubtitleWeek": "Энэ долоо хоногт хаасан хянагчид",
+  "blockStatsSubtitleMonth": "Сүүлийн 30 хоногт хаасан хянагчид",
+  "blockStatsRange7": "7 хоног",
+  "blockStatsRange30": "30 хоног",
+  "blockStatsCategoryFilterList": "Сурталчилгаа болон хянагчийн хүсэлтүүд",
+  "blockStatsCategoryDns": "Мэдэгдэж буй хянах домэйнууд",
+  "blockStatsCategoryParam": "Устгасан хянах параметрүүд",
+  "blockStatsCategoryCdn": "Дотооддоо үйлчилсэн CDN хүсэлтүүд",
+  "blockStatsSince": "{date}-аас хойш {count} хаагдсан",
+  "blockStatsEmpty": "Одоогоор юу ч хаагдаагүй байна",
+  "blockStatsEmptyHint": "Сайтын хянахаас хамгаалахыг асаавал түүний хаасан хүсэлтүүд энд харагдана.",
+  "blockStatsReset": "Статистикийг шинэчлэх",
+  "blockStatsResetConfirm": "Тоолуур бүр тэг рүү буцаж, тооллого өнөөдрөөс дахин эхэлнэ.",
+  "appSettingsProtectionReportSubtitle": "Хаагчид цаг хугацааны туршид юуг зогсоосон нь"
 }

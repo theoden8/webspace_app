@@ -706,5 +706,20 @@
   "devToolsTestNotification": "ടെസ്റ്റ് അറിയിപ്പ് അയയ്ക്കുക",
   "devToolsTestNotificationSent": "ടെസ്റ്റ് അറിയിപ്പ് അയച്ചു (ലോഗുകൾ കാണുക)",
   "devToolsTestNotificationTitle": "WebSpace ടെസ്റ്റ് അറിയിപ്പ്",
-  "devToolsTestNotificationBody": "ഇത് നിങ്ങൾക്ക് കാണാൻ കഴിയുമെങ്കിൽ, ഓപ്പറേറ്റിംഗ് സിസ്റ്റത്തിന്റെ അറിയിപ്പ് വിതരണം പ്രവർത്തിക്കുന്നു."
+  "devToolsTestNotificationBody": "ഇത് നിങ്ങൾക്ക് കാണാൻ കഴിയുമെങ്കിൽ, ഓപ്പറേറ്റിംഗ് സിസ്റ്റത്തിന്റെ അറിയിപ്പ് വിതരണം പ്രവർത്തിക്കുന്നു.",
+  "blockStatsTitle": "സുരക്ഷാ റിപ്പോർട്ട്",
+  "blockStatsSubtitleWeek": "ഈ ആഴ്ച തടഞ്ഞ ട്രാക്കറുകൾ",
+  "blockStatsSubtitleMonth": "കഴിഞ്ഞ 30 ദിവസത്തിൽ തടഞ്ഞ ട്രാക്കറുകൾ",
+  "blockStatsRange7": "7 ദിവസം",
+  "blockStatsRange30": "30 ദിവസം",
+  "blockStatsCategoryFilterList": "പരസ്യ, ട്രാക്കർ അഭ്യർത്ഥനകൾ",
+  "blockStatsCategoryDns": "അറിയപ്പെടുന്ന ട്രാക്കിംഗ് ഡൊമെയ്‌നുകൾ",
+  "blockStatsCategoryParam": "നീക്കം ചെയ്ത ട്രാക്കിംഗ് പാരാമീറ്ററുകൾ",
+  "blockStatsCategoryCdn": "പ്രാദേശികമായി നൽകിയ CDN അഭ്യർത്ഥനകൾ",
+  "blockStatsSince": "{date} മുതൽ {count} എണ്ണം തടഞ്ഞു",
+  "blockStatsEmpty": "ഇതുവരെ ഒന്നും തടഞ്ഞിട്ടില്ല",
+  "blockStatsEmptyHint": "ഒരു സൈറ്റിനായി ട്രാക്കിംഗ് സംരക്ഷണം ഓണാക്കുക, അത് തടയുന്ന അഭ്യർത്ഥനകൾ ഇവിടെ കാണാം.",
+  "blockStatsReset": "സ്ഥിതിവിവരം പുനഃസജ്ജമാക്കുക",
+  "blockStatsResetConfirm": "ഓരോ കൗണ്ടറും പൂജ്യത്തിലേക്ക് മടങ്ങുകയും എണ്ണം ഇന്ന് മുതൽ വീണ്ടും തുടങ്ങുകയും ചെയ്യും.",
+  "appSettingsProtectionReportSubtitle": "കാലക്രമേണ ബ്ലോക്കറുകൾ തടഞ്ഞത്"
 }

@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Testbenachrichtigung senden",
   "devToolsTestNotificationSent": "Testbenachrichtigung gesendet (siehe Protokolle)",
   "devToolsTestNotificationTitle": "WebSpace-Testbenachrichtigung",
-  "devToolsTestNotificationBody": "Wenn Sie dies sehen können, funktioniert die Benachrichtigungszustellung des Betriebssystems."
+  "devToolsTestNotificationBody": "Wenn Sie dies sehen können, funktioniert die Benachrichtigungszustellung des Betriebssystems.",
+  "blockStatsTitle": "Schutzbericht",
+  "blockStatsSubtitleWeek": "Diese Woche blockierte Tracker",
+  "blockStatsSubtitleMonth": "In den letzten 30 Tagen blockierte Tracker",
+  "blockStatsRange7": "7 Tage",
+  "blockStatsRange30": "30 Tage",
+  "blockStatsCategoryFilterList": "Werbe- und Tracker-Anfragen",
+  "blockStatsCategoryDns": "Bekannte Tracker-Domains",
+  "blockStatsCategoryParam": "Entfernte Tracking-Parameter",
+  "blockStatsCategoryCdn": "Lokal ausgelieferte CDN-Anfragen",
+  "blockStatsSince": "{count} blockiert seit {date}",
+  "blockStatsEmpty": "Bisher nichts blockiert",
+  "blockStatsEmptyHint": "Aktiviere den Tracking-Schutz für eine Website, dann erscheinen die blockierten Anfragen hier.",
+  "blockStatsReset": "Statistik zurücksetzen",
+  "blockStatsResetConfirm": "Alle Zähler werden auf null gesetzt und die Zählung beginnt heute von vorn.",
+  "appSettingsProtectionReportSubtitle": "Was die Blocker im Lauf der Zeit gestoppt haben"
 }

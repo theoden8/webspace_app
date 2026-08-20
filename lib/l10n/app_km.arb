@@ -706,5 +706,20 @@
   "devToolsTestNotification": "ផ្ញើការជូនដំណឹងសាកល្បង",
   "devToolsTestNotificationSent": "បានផ្ញើការជូនដំណឹងសាកល្បង (មើលកំណត់ហេតុ)",
   "devToolsTestNotificationTitle": "ការជូនដំណឹងសាកល្បង WebSpace",
-  "devToolsTestNotificationBody": "ប្រសិនបើអ្នកអាចមើលឃើញវា ការផ្ញើការជូនដំណឹងរបស់ប្រព័ន្ធប្រតិបត្តិការដំណើរការ។"
+  "devToolsTestNotificationBody": "ប្រសិនបើអ្នកអាចមើលឃើញវា ការផ្ញើការជូនដំណឹងរបស់ប្រព័ន្ធប្រតិបត្តិការដំណើរការ។",
+  "blockStatsTitle": "របាយការណ៍ការពារ",
+  "blockStatsSubtitleWeek": "កម្មវិធីតាមដានដែលបានទប់ស្កាត់សប្តាហ៍នេះ",
+  "blockStatsSubtitleMonth": "កម្មវិធីតាមដានដែលបានទប់ស្កាត់ក្នុងរយៈពេល 30 ថ្ងៃចុងក្រោយ",
+  "blockStatsRange7": "7 ថ្ងៃ",
+  "blockStatsRange30": "30 ថ្ងៃ",
+  "blockStatsCategoryFilterList": "សំណើពាណិជ្ជកម្ម និងកម្មវិធីតាមដាន",
+  "blockStatsCategoryDns": "ដែនតាមដានដែលស្គាល់",
+  "blockStatsCategoryParam": "ប៉ារ៉ាម៉ែត្រតាមដានដែលបានលុប",
+  "blockStatsCategoryCdn": "សំណើ CDN ដែលបានផ្តល់ជូនក្នុងមូលដ្ឋាន",
+  "blockStatsSince": "{count} ត្រូវបានទប់ស្កាត់តាំងពី {date}",
+  "blockStatsEmpty": "មិនទាន់មានអ្វីត្រូវបានទប់ស្កាត់ទេ",
+  "blockStatsEmptyHint": "បើកការការពារពីការតាមដានសម្រាប់គេហទំព័រណាមួយ រួចសំណើដែលវាទប់ស្កាត់នឹងបង្ហាញនៅទីនេះ។",
+  "blockStatsReset": "កំណត់ស្ថិតិឡើងវិញ",
+  "blockStatsResetConfirm": "ការរាប់នីមួយៗត្រឡប់ទៅសូន្យវិញ ហើយការរាប់ចាប់ផ្តើមឡើងវិញពីថ្ងៃនេះ។",
+  "appSettingsProtectionReportSubtitle": "អ្វីដែលកម្មវិធីទប់ស្កាត់បានបញ្ឈប់ តាមពេលវេលា"
 }

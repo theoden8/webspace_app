@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Saada testteavitus",
   "devToolsTestNotificationSent": "Testteavitus saadetud (vaata logisid)",
   "devToolsTestNotificationTitle": "WebSpace'i testteavitus",
-  "devToolsTestNotificationBody": "Kui näete seda, siis operatsioonisüsteemi teavituste edastamine töötab."
+  "devToolsTestNotificationBody": "Kui näete seda, siis operatsioonisüsteemi teavituste edastamine töötab.",
+  "blockStatsTitle": "Kaitsearuanne",
+  "blockStatsSubtitleWeek": "Sel nädalal blokeeritud jälgijad",
+  "blockStatsSubtitleMonth": "Viimase 30 päeva jooksul blokeeritud jälgijad",
+  "blockStatsRange7": "7 päeva",
+  "blockStatsRange30": "30 päeva",
+  "blockStatsCategoryFilterList": "Reklaami- ja jälgijapäringud",
+  "blockStatsCategoryDns": "Teadaolevad jälgimisdomeenid",
+  "blockStatsCategoryParam": "Eemaldatud jälgimisparameetrid",
+  "blockStatsCategoryCdn": "Kohapeal teenindatud CDN-päringud",
+  "blockStatsSince": "{count} blokeeritud alates {date}",
+  "blockStatsEmpty": "Veel pole midagi blokeeritud",
+  "blockStatsEmptyHint": "Lülita saidil jälgimiskaitse sisse ja siin ilmuvad päringud, mille see blokeerib.",
+  "blockStatsReset": "Lähtesta statistika",
+  "blockStatsResetConfirm": "Iga loendur läheb nulli ja lugemine algab tänasest uuesti.",
+  "appSettingsProtectionReportSubtitle": "Mida blokeerijad on aja jooksul peatanud"
 }

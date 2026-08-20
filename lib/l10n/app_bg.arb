@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Изпращане на тестово известие",
   "devToolsTestNotificationSent": "Тестовото известие е изпратено (вижте дневниците)",
   "devToolsTestNotificationTitle": "Тестово известие на WebSpace",
-  "devToolsTestNotificationBody": "Ако виждате това, доставянето на известия от операционната система работи."
+  "devToolsTestNotificationBody": "Ако виждате това, доставянето на известия от операционната система работи.",
+  "blockStatsTitle": "Отчет за защитата",
+  "blockStatsSubtitleWeek": "Блокирани тракери тази седмица",
+  "blockStatsSubtitleMonth": "Блокирани тракери през последните 30 дни",
+  "blockStatsRange7": "7 дни",
+  "blockStatsRange30": "30 дни",
+  "blockStatsCategoryFilterList": "Заявки към реклами и тракери",
+  "blockStatsCategoryDns": "Известни домейни на тракери",
+  "blockStatsCategoryParam": "Премахнати проследяващи параметри",
+  "blockStatsCategoryCdn": "Заявки към CDN, обслужени локално",
+  "blockStatsSince": "{count} блокирани от {date}",
+  "blockStatsEmpty": "Още нищо не е блокирано",
+  "blockStatsEmptyHint": "Включете защитата от проследяване за даден сайт и блокираните заявки ще се появят тук.",
+  "blockStatsReset": "Нулиране на статистиката",
+  "blockStatsResetConfirm": "Всеки брояч се връща на нула и броенето започва отново от днес.",
+  "appSettingsProtectionReportSubtitle": "Какво са спрели блокиращите модули с течение на времето"
 }

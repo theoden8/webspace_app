@@ -706,5 +706,20 @@
   "devToolsTestNotification": "ส่งการแจ้งเตือนทดสอบ",
   "devToolsTestNotificationSent": "ส่งการแจ้งเตือนทดสอบแล้ว (ดูบันทึก)",
   "devToolsTestNotificationTitle": "การแจ้งเตือนทดสอบ WebSpace",
-  "devToolsTestNotificationBody": "หากคุณเห็นข้อความนี้ แสดงว่าการส่งการแจ้งเตือนของระบบปฏิบัติการทำงานได้"
+  "devToolsTestNotificationBody": "หากคุณเห็นข้อความนี้ แสดงว่าการส่งการแจ้งเตือนของระบบปฏิบัติการทำงานได้",
+  "blockStatsTitle": "รายงานการป้องกัน",
+  "blockStatsSubtitleWeek": "ตัวติดตามที่ถูกบล็อกสัปดาห์นี้",
+  "blockStatsSubtitleMonth": "ตัวติดตามที่ถูกบล็อกใน 30 วันที่ผ่านมา",
+  "blockStatsRange7": "7 วัน",
+  "blockStatsRange30": "30 วัน",
+  "blockStatsCategoryFilterList": "คำขอจากโฆษณาและตัวติดตาม",
+  "blockStatsCategoryDns": "โดเมนติดตามที่รู้จัก",
+  "blockStatsCategoryParam": "พารามิเตอร์ติดตามที่ถูกลบ",
+  "blockStatsCategoryCdn": "คำขอ CDN ที่ให้บริการภายในเครื่อง",
+  "blockStatsSince": "บล็อกไปแล้ว {count} รายการตั้งแต่ {date}",
+  "blockStatsEmpty": "ยังไม่มีอะไรถูกบล็อก",
+  "blockStatsEmptyHint": "เปิดการป้องกันการติดตามให้กับเว็บไซต์ แล้วคำขอที่ถูกบล็อกจะแสดงที่นี่",
+  "blockStatsReset": "ล้างสถิติ",
+  "blockStatsResetConfirm": "ตัวนับทุกตัวจะกลับเป็นศูนย์และเริ่มนับใหม่ตั้งแต่วันนี้",
+  "appSettingsProtectionReportSubtitle": "สิ่งที่ตัวบล็อกหยุดไว้ ตลอดช่วงเวลา"
 }

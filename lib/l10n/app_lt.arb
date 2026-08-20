@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Siųsti bandomąjį pranešimą",
   "devToolsTestNotificationSent": "Bandomasis pranešimas išsiųstas (žr. žurnalus)",
   "devToolsTestNotificationTitle": "WebSpace bandomasis pranešimas",
-  "devToolsTestNotificationBody": "Jei tai matote, operacinės sistemos pranešimų pristatymas veikia."
+  "devToolsTestNotificationBody": "Jei tai matote, operacinės sistemos pranešimų pristatymas veikia.",
+  "blockStatsTitle": "Apsaugos ataskaita",
+  "blockStatsSubtitleWeek": "Šią savaitę užblokuoti sekliai",
+  "blockStatsSubtitleMonth": "Per pastarąsias 30 dienų užblokuoti sekliai",
+  "blockStatsRange7": "7 dienos",
+  "blockStatsRange30": "30 dienų",
+  "blockStatsCategoryFilterList": "Reklamų ir seklių užklausos",
+  "blockStatsCategoryDns": "Žinomi sekimo domenai",
+  "blockStatsCategoryParam": "Pašalinti sekimo parametrai",
+  "blockStatsCategoryCdn": "Vietoje aptarnautos CDN užklausos",
+  "blockStatsSince": "{count} užblokuota nuo {date}",
+  "blockStatsEmpty": "Kol kas nieko neužblokuota",
+  "blockStatsEmptyHint": "Įjunkite svetainės apsaugą nuo sekimo ir čia matysite jos blokuojamas užklausas.",
+  "blockStatsReset": "Atstatyti statistiką",
+  "blockStatsResetConfirm": "Visi skaitikliai grąžinami į nulį, o skaičiavimas pradedamas iš naujo nuo šiandien.",
+  "appSettingsProtectionReportSubtitle": "Ką blokavimo priemonės sustabdė laikui bėgant"
 }

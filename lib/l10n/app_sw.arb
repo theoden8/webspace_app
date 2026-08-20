@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Tuma arifa ya majaribio",
   "devToolsTestNotificationSent": "Arifa ya majaribio imetumwa (angalia kumbukumbu)",
   "devToolsTestNotificationTitle": "Arifa ya majaribio ya WebSpace",
-  "devToolsTestNotificationBody": "Ikiwa unaweza kuona hili, uwasilishaji wa arifa za mfumo wa uendeshaji unafanya kazi."
+  "devToolsTestNotificationBody": "Ikiwa unaweza kuona hili, uwasilishaji wa arifa za mfumo wa uendeshaji unafanya kazi.",
+  "blockStatsTitle": "Ripoti ya ulinzi",
+  "blockStatsSubtitleWeek": "Vifuatiliaji vilivyozuiwa wiki hii",
+  "blockStatsSubtitleMonth": "Vifuatiliaji vilivyozuiwa katika siku 30 zilizopita",
+  "blockStatsRange7": "Siku 7",
+  "blockStatsRange30": "Siku 30",
+  "blockStatsCategoryFilterList": "Maombi ya matangazo na vifuatiliaji",
+  "blockStatsCategoryDns": "Vikoa vya ufuatiliaji vinavyojulikana",
+  "blockStatsCategoryParam": "Vigezo vya ufuatiliaji vilivyoondolewa",
+  "blockStatsCategoryCdn": "Maombi ya CDN yaliyohudumiwa ndani ya kifaa",
+  "blockStatsSince": "{count} vimezuiwa tangu {date}",
+  "blockStatsEmpty": "Bado hakuna kilichozuiwa",
+  "blockStatsEmptyHint": "Washa ulinzi dhidi ya ufuatiliaji kwa tovuti fulani, kisha maombi inayozuia yataonekana hapa.",
+  "blockStatsReset": "Weka upya takwimu",
+  "blockStatsResetConfirm": "Kila kihesabu kinarudi sifuri na kuhesabu kunaanza upya leo.",
+  "appSettingsProtectionReportSubtitle": "Kile vizuizi vimezuia, kadri muda unavyopita"
 }

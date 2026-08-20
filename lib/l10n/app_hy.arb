@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Ուղարկել փորձնական ծանուցում",
   "devToolsTestNotificationSent": "Փորձնական ծանուցումն ուղարկվել է (տես մատյանները)",
   "devToolsTestNotificationTitle": "WebSpace փորձնական ծանուցում",
-  "devToolsTestNotificationBody": "Եթե տեսնում եք սա, օպերացիոն համակարգի ծանուցումների առաքումն աշխատում է:"
+  "devToolsTestNotificationBody": "Եթե տեսնում եք սա, օպերացիոն համակարգի ծանուցումների առաքումն աշխատում է:",
+  "blockStatsTitle": "Պաշտպանության հաշվետվություն",
+  "blockStatsSubtitleWeek": "Այս շաբաթ արգելափակված հետագծիչներ",
+  "blockStatsSubtitleMonth": "Վերջին 30 օրում արգելափակված հետագծիչներ",
+  "blockStatsRange7": "7 օր",
+  "blockStatsRange30": "30 օր",
+  "blockStatsCategoryFilterList": "Գովազդի և հետագծիչների հարցումներ",
+  "blockStatsCategoryDns": "Հայտնի հետագծման տիրույթներ",
+  "blockStatsCategoryParam": "Հեռացված հետագծման պարամետրեր",
+  "blockStatsCategoryCdn": "Տեղում սպասարկված CDN հարցումներ",
+  "blockStatsSince": "{count} արգելափակված՝ {date}-ից",
+  "blockStatsEmpty": "Դեռ ոչինչ չի արգելափակվել",
+  "blockStatsEmptyHint": "Միացրեք կայքի հետագծման պաշտպանությունը, և նրա արգելափակած հարցումները կհայտնվեն այստեղ։",
+  "blockStatsReset": "Զրոյացնել վիճակագրությունը",
+  "blockStatsResetConfirm": "Բոլոր հաշվիչները զրոյանում են, և հաշվարկը սկսվում է այսօրվանից։",
+  "appSettingsProtectionReportSubtitle": "Ինչ են կանգնեցրել արգելափակիչները ժամանակի ընթացքում"
 }

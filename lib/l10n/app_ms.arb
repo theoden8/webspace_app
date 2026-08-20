@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Hantar pemberitahuan ujian",
   "devToolsTestNotificationSent": "Pemberitahuan ujian dihantar (lihat log)",
   "devToolsTestNotificationTitle": "Pemberitahuan ujian WebSpace",
-  "devToolsTestNotificationBody": "Jika anda dapat melihat ini, penghantaran pemberitahuan sistem pengendalian berfungsi."
+  "devToolsTestNotificationBody": "Jika anda dapat melihat ini, penghantaran pemberitahuan sistem pengendalian berfungsi.",
+  "blockStatsTitle": "Laporan perlindungan",
+  "blockStatsSubtitleWeek": "Penjejak disekat minggu ini",
+  "blockStatsSubtitleMonth": "Penjejak disekat dalam 30 hari lepas",
+  "blockStatsRange7": "7 hari",
+  "blockStatsRange30": "30 hari",
+  "blockStatsCategoryFilterList": "Permintaan iklan dan penjejak",
+  "blockStatsCategoryDns": "Domain penjejakan yang diketahui",
+  "blockStatsCategoryParam": "Parameter penjejakan dibuang",
+  "blockStatsCategoryCdn": "Permintaan CDN disajikan secara setempat",
+  "blockStatsSince": "{count} disekat sejak {date}",
+  "blockStatsEmpty": "Belum ada apa-apa disekat",
+  "blockStatsEmptyHint": "Hidupkan perlindungan penjejakan bagi sesuatu tapak dan permintaan yang disekatnya akan muncul di sini.",
+  "blockStatsReset": "Tetapkan semula statistik",
+  "blockStatsResetConfirm": "Setiap pembilang kembali kepada sifar dan pengiraan bermula semula hari ini.",
+  "appSettingsProtectionReportSubtitle": "Apa yang dihalang oleh penyekat, dari masa ke masa"
 }

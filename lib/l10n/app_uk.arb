@@ -706,5 +706,20 @@
   "devToolsTestNotification": "Надіслати тестове сповіщення",
   "devToolsTestNotificationSent": "Тестове сповіщення надіслано (див. журнали)",
   "devToolsTestNotificationTitle": "Тестове сповіщення WebSpace",
-  "devToolsTestNotificationBody": "Якщо ви це бачите, доставлення сповіщень операційної системи працює."
+  "devToolsTestNotificationBody": "Якщо ви це бачите, доставлення сповіщень операційної системи працює.",
+  "blockStatsTitle": "Звіт про захист",
+  "blockStatsSubtitleWeek": "Заблоковані стежники цього тижня",
+  "blockStatsSubtitleMonth": "Заблоковані стежники за останні 30 днів",
+  "blockStatsRange7": "7 днів",
+  "blockStatsRange30": "30 днів",
+  "blockStatsCategoryFilterList": "Запити реклами та стежників",
+  "blockStatsCategoryDns": "Відомі домени стеження",
+  "blockStatsCategoryParam": "Вилучені параметри стеження",
+  "blockStatsCategoryCdn": "Запити CDN, обслужені локально",
+  "blockStatsSince": "{count} заблоковано з {date}",
+  "blockStatsEmpty": "Ще нічого не заблоковано",
+  "blockStatsEmptyHint": "Увімкніть захист від стеження для сайту, і заблоковані запити з'являться тут.",
+  "blockStatsReset": "Скинути статистику",
+  "blockStatsResetConfirm": "Кожен лічильник повертається до нуля, а підрахунок починається знову від сьогодні.",
+  "appSettingsProtectionReportSubtitle": "Що блокувальники зупинили з часом"
 }

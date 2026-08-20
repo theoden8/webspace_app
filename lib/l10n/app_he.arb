@@ -706,5 +706,20 @@
   "devToolsTestNotification": "שלח התראת בדיקה",
   "devToolsTestNotificationSent": "התראת הבדיקה נשלחה (ראה יומנים)",
   "devToolsTestNotificationTitle": "התראת בדיקה של WebSpace",
-  "devToolsTestNotificationBody": "אם אתה רואה זאת, מסירת ההתראות של מערכת ההפעלה פועלת."
+  "devToolsTestNotificationBody": "אם אתה רואה זאת, מסירת ההתראות של מערכת ההפעלה פועלת.",
+  "blockStatsTitle": "דוח הגנה",
+  "blockStatsSubtitleWeek": "עוקבים שנחסמו השבוע",
+  "blockStatsSubtitleMonth": "עוקבים שנחסמו ב-30 הימים האחרונים",
+  "blockStatsRange7": "7 ימים",
+  "blockStatsRange30": "30 יום",
+  "blockStatsCategoryFilterList": "בקשות של פרסומות ועוקבים",
+  "blockStatsCategoryDns": "דומיינים ידועים של מעקב",
+  "blockStatsCategoryParam": "פרמטרי מעקב שהוסרו",
+  "blockStatsCategoryCdn": "בקשות CDN שסופקו מקומית",
+  "blockStatsSince": "{count} נחסמו מאז {date}",
+  "blockStatsEmpty": "עדיין לא נחסם דבר",
+  "blockStatsEmptyHint": "הפעילו הגנה מפני מעקב עבור אתר, והבקשות שהוא חוסם יופיעו כאן.",
+  "blockStatsReset": "איפוס הסטטיסטיקה",
+  "blockStatsResetConfirm": "כל מונה חוזר לאפס והספירה מתחילה מחדש מהיום.",
+  "appSettingsProtectionReportSubtitle": "מה החוסמים עצרו, לאורך זמן"
 }
