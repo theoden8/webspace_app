@@ -187,6 +187,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | localcdn | cache CDN resources locally (Android) |
 | navigation | back gesture, drawer swipe, refresh, race guards |
 | nested-url-blocking | nested InAppBrowser, gesture auto-redirect block |
+| page-zoom | per-site zoom; viewport meta on mobile (Android pins the layout width), CSS `zoom` on desktop |
 | per-site-cookie-isolation | legacy engine (fallback) |
 | per-site-containers | native containers (preferred when supported) |
 | per-site-location | geo + IANA tz override + WebRTC lockdown |
