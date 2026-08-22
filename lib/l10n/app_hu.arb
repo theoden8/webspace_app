@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "Korlátozza, milyen széles lehet az egyes lapok, hogy a hosszú nevek tömörek maradjanak",
   "appSettingsFullscreenOnShortcut": "Teljes képernyő parancsikonból indításkor",
   "appSettingsFullscreenOnShortcutSubtitle": "Megnyitás teljes képernyőn, ha a kezdőképernyő parancsikonjából indul",
+  "appSettingsBackOpensMenu": "A vissza mozdulat megnyitja a menüt",
+  "appSettingsBackOpensMenuSubtitle": "Ha egy oldalon már nincs hová visszalépni, a vissza mozdulat az oldalsó menüt nyitja meg ahelyett, hogy nem tenne semmit. Androidon az újabb vissza megnyomása bezárja az alkalmazást.",
   "appSettingsFullscreenTabStrip": "Teljes képernyőn, lapsáv",
   "appSettingsFullscreenTabStripHidden": "Rejtett",
   "appSettingsFullscreenTabStripAlways": "Mindig látható",

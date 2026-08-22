@@ -84,7 +84,7 @@ site's own webview fully presented. Specifically the shell SHALL NOT
 present: the navigation drawer (and its edge-swipe and auto app-bar
 hamburger), the bottom tab strip, the app-bar actions (download, theme
 toggle, settings), or the per-site context menu (edit, delete, move,
-archive). The webview and in-page back navigation remain available.
+archive). The webview and in-page back navigation remain available; the opt-in back-at-history-start behaviour (NAV-009) is inert while locked, since it would otherwise reach the suppressed drawer or leave the app.
 
 #### Scenario: Locked shell renders only the site
 

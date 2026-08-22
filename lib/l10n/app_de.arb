@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "Begrenzen, wie breit jeder Tab werden kann, damit lange Namen kompakt bleiben",
   "appSettingsFullscreenOnShortcut": "Vollbild beim Start über Verknüpfung",
   "appSettingsFullscreenOnShortcutSubtitle": "Im Vollbild öffnen, wenn über eine Startbildschirm-Verknüpfung gestartet",
+  "appSettingsBackOpensMenu": "Zurück-Geste öffnet das Menü",
+  "appSettingsBackOpensMenuSubtitle": "Wenn es auf einer Website nichts mehr gibt, wohin zurückgegangen werden kann, öffnet die Zurück-Geste das Seitenmenü, statt nichts zu tun. Unter Android beendet ein weiteres Zurück die App.",
   "appSettingsFullscreenTabStrip": "Im Vollbild, Tableiste",
   "appSettingsFullscreenTabStripHidden": "Ausgeblendet",
   "appSettingsFullscreenTabStripAlways": "Immer sichtbar",

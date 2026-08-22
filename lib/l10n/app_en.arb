@@ -855,6 +855,14 @@
   "@appSettingsFullscreenOnShortcutSubtitle": {
     "description": "Subtitle for the toggle that enters full screen when a site is opened from a pinned home-screen shortcut"
   },
+  "appSettingsBackOpensMenu": "Back gesture opens the menu",
+  "@appSettingsBackOpensMenu": {
+    "description": "Toggle title in app settings: the system back gesture opens the side menu once the site has no page left to go back to"
+  },
+  "appSettingsBackOpensMenuSubtitle": "Where a site has nothing left to go back to, the back gesture opens the side menu instead of doing nothing. On Android, pressing back again leaves the app.",
+  "@appSettingsBackOpensMenuSubtitle": {
+    "description": "Subtitle for that toggle: at the start of a site's browsing history the back gesture opens the navigation drawer, and a second back press quits the app on Android"
+  },
   "appSettingsFullscreenTabStrip": "In full screen, tab strip",
   "@appSettingsFullscreenTabStrip": {
     "description": "Group label for the choice of how the tab strip behaves in full screen (followed by the Hidden / Always visible options)"

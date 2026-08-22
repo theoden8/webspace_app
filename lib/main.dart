@@ -62,6 +62,7 @@ import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/services/site_activation_engine.dart';
 import 'package:webspace/services/app_lifecycle_engine.dart';
+import 'package:webspace/services/back_gesture_engine.dart';
 import 'package:webspace/services/site_data_clear_engine.dart';
 import 'package:webspace/services/site_lifecycle_engine.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
@@ -1000,6 +1001,13 @@ class _WebSpacePageState extends State<WebSpacePage>
   // pref mirror of the `fullscreenOnShortcut` SharedPreferences key. On by
   // default. Independent of per-site `WebViewModel.fullscreenMode`.
   bool _fullscreenOnShortcut = true;
+  // NAV-009: what the back gesture does at the start of a site's history.
+  // Off by default — the gesture only walks webview history (issue #369);
+  // turning it on opens the drawer there, and again to leave the app (#431).
+  BackAtHistoryStart _backAtHistoryStart = BackAtHistoryStart.ignore;
+  // True while the drawer showing is the one the back gesture itself opened.
+  // Only that drawer escalates to leaving the app on the next gesture.
+  bool _drawerOpenedByBackGesture = false;
   int _tabMaxWidth = 140;
   // Runtime-only: whether the tab-bar button has revealed the tab strip.
   // Reset on exiting fullscreen and on site switch; never persisted.
@@ -3281,6 +3289,15 @@ class _WebSpacePageState extends State<WebSpacePage>
     await prefs.setBool('fullscreenOnShortcut', _fullscreenOnShortcut);
   }
 
+  Future<void> _saveBackAtHistoryStart() async {
+    if (isDemoMode) return;
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(
+      kBackOpensMenuKey,
+      _backAtHistoryStart == BackAtHistoryStart.openMenu,
+    );
+  }
+
   Future<void> _saveTabBarButton() async {
     if (isDemoMode) return;
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -4335,6 +4352,9 @@ class _WebSpacePageState extends State<WebSpacePage>
           prefs.getBool('tabBarButton') ?? prefs.getBool('tabBarButtonInFullscreen') ?? false;
       _tabBarButtonOnRight = prefs.getBool('tabBarButtonOnRight') ?? true;
       _fullscreenOnShortcut = prefs.getBool('fullscreenOnShortcut') ?? true;
+      _backAtHistoryStart = (prefs.getBool(kBackOpensMenuKey) ?? false)
+          ? BackAtHistoryStart.openMenu
+          : BackAtHistoryStart.ignore;
       _tabMaxWidth = prefs.getInt('tabMaxWidth') ?? 140;
       _showStatsBanner = prefs.getBool('showStatsBanner') ?? true;
       WebViewFactory.backForwardCacheEnabled =
@@ -5808,6 +5828,12 @@ class _WebSpacePageState extends State<WebSpacePage>
           backup.globalPrefs['tabBarButtonOnRight'] as bool? ?? _tabBarButtonOnRight;
       _fullscreenOnShortcut =
           backup.globalPrefs['fullscreenOnShortcut'] as bool? ?? _fullscreenOnShortcut;
+      final backOpensMenu = backup.globalPrefs[kBackOpensMenuKey] as bool?;
+      if (backOpensMenu != null) {
+        _backAtHistoryStart = backOpensMenu
+            ? BackAtHistoryStart.openMenu
+            : BackAtHistoryStart.ignore;
+      }
       _tabMaxWidth =
           backup.globalPrefs['tabMaxWidth'] as int? ?? _tabMaxWidth;
       _showStatsBanner =
@@ -6010,6 +6036,12 @@ class _WebSpacePageState extends State<WebSpacePage>
       return null;
     }
     return _webViewModels[_currentIndex!].getController(launchUrl, _cookieManager, _containerCookieManager, _saveWebViewModels, globalUserScripts: _globalUserScripts);
+  }
+
+  void _openDrawerFromBackGesture(ScaffoldState? scaffoldState) {
+    if (scaffoldState == null) return;
+    _drawerOpenedByBackGesture = true;
+    scaffoldState.openDrawer();
   }
 
   /// Navigate the visible webview back one history entry, then recomposite the
@@ -6310,6 +6342,16 @@ class _WebSpacePageState extends State<WebSpacePage>
                         _fullscreenOnShortcut = value;
                       });
                       _saveFullscreenOnShortcut();
+                    },
+                    backOpensMenu:
+                        _backAtHistoryStart == BackAtHistoryStart.openMenu,
+                    onBackOpensMenuChanged: (value) {
+                      setState(() {
+                        _backAtHistoryStart = value
+                            ? BackAtHistoryStart.openMenu
+                            : BackAtHistoryStart.ignore;
+                      });
+                      _saveBackAtHistoryStart();
                     },
                     tabBarButton: _tabBarButton,
                     onTabBarButtonChanged: (value) {
@@ -8534,54 +8576,80 @@ class _WebSpacePageState extends State<WebSpacePage>
         _isBackHandling = true;
         try {
           final scaffoldState = _scaffoldKey.currentState;
-          // If the drawer is open, just close it.
-          if (scaffoldState != null && scaffoldState.isDrawerOpen) {
-            LogService.instance.log('Navigation', 'Back gesture: closing open drawer');
-            Navigator.pop(context);
-            return;
-          }
-          // The back gesture only navigates webview history. It never opens
-          // the drawer and never exits the app; if there is nothing to go
-          // back to, it is a no-op.
+          final drawerOpen = scaffoldState?.isDrawerOpen ?? false;
           final controller = getController();
-          if (controller == null) {
-            LogService.instance.log('Navigation', 'Back gesture: no controller, ignoring');
-            return;
-          }
           // Android's canGoBack() is reliable (including for pushState/SPA
           // entries on Chromium). Trust it directly: URL-comparison can
           // false-positive when goBack() succeeds but the navigation
-          // hasn't propagated within the timeout.
-          if (hostIsAndroid) {
-            if (await controller.canGoBack()) {
-              await _goBackAndRepaint(controller);
-              LogService.instance.log('Navigation', 'Back gesture: navigated back (canGoBack)');
-            } else {
-              LogService.instance.log('Navigation', 'Back gesture: no history, ignoring');
-            }
-            return;
-          }
-          // iOS/macOS: canGoBack() can return false for pushState entries,
-          // so attempt goBack() unconditionally and use URL comparison as
-          // the authoritative check.
-          final urlBefore = (await controller.getUrl())?.toString();
-          await controller.goBack();
-          // Give the native webview time to process the navigation
-          await Future.delayed(const Duration(milliseconds: 150));
+          // hasn't propagated within the timeout. iOS/macOS decide from the
+          // URL diff instead, so they don't sample it at all.
+          final canGoBack = !drawerOpen && controller != null && hostIsAndroid
+              ? await controller.canGoBack()
+              : false;
           if (!mounted) return;
-          final urlAfter = (await controller.getUrl())?.toString();
-          if (urlBefore == urlAfter) {
-            LogService.instance.log(
-              'Navigation',
-              'Back gesture: URL unchanged ($urlAfter), ignoring',
-              sensitivity: LogSensitivity.sensitive,
-            );
-          } else {
-            LogService.instance.log(
-              'Navigation',
-              'Back gesture: navigated back from $urlBefore to $urlAfter',
-              sensitivity: LogSensitivity.sensitive,
-            );
+          final action = decideBackGesture(
+            drawerOpen: drawerOpen,
+            drawerOpenedByGesture: _drawerOpenedByBackGesture,
+            drawerAvailable: !_kioskLocked,
+            hasWebView: controller != null,
+            trustsCanGoBack: hostIsAndroid,
+            canGoBack: canGoBack,
+            atHistoryStart: _backAtHistoryStart,
+            canExitApp: hostIsAndroid,
+          );
+          switch (action) {
+            case BackGestureAction.ignore:
+              LogService.instance.log('Navigation', 'Back gesture: nothing to do, ignoring');
+              break;
+            case BackGestureAction.closeDrawer:
+              LogService.instance.log('Navigation', 'Back gesture: closing open drawer');
+              _scaffoldKey.currentState?.closeDrawer();
+              break;
+            case BackGestureAction.closeDrawerAndExit:
+              LogService.instance.log('Navigation', 'Back gesture: closing drawer and leaving app');
+              _scaffoldKey.currentState?.closeDrawer();
+              await SystemNavigator.pop();
+              break;
+            case BackGestureAction.openDrawer:
+              LogService.instance.log('Navigation', 'Back gesture: no history, opening drawer');
+              _openDrawerFromBackGesture(scaffoldState);
+              break;
+            case BackGestureAction.exitApp:
+              LogService.instance.log('Navigation', 'Back gesture: no site shown, leaving app');
+              await SystemNavigator.pop();
+              break;
+            case BackGestureAction.goBack:
+              await _goBackAndRepaint(controller!);
+              LogService.instance.log('Navigation', 'Back gesture: navigated back (canGoBack)');
+              break;
+            case BackGestureAction.attemptGoBack:
+              // iOS/macOS: canGoBack() can return false for pushState
+              // entries, so attempt goBack() unconditionally and use URL
+              // comparison as the authoritative check.
+              final urlBefore = (await controller!.getUrl())?.toString();
+              await controller.goBack();
+              // Give the native webview time to process the navigation
+              await Future.delayed(const Duration(milliseconds: 150));
+              if (!mounted) return;
+              final urlAfter = (await controller.getUrl())?.toString();
+              final urlChanged = urlBefore != urlAfter;
+              LogService.instance.log(
+                'Navigation',
+                urlChanged
+                    ? 'Back gesture: navigated back from $urlBefore to $urlAfter'
+                    : 'Back gesture: URL unchanged ($urlAfter)',
+                sensitivity: LogSensitivity.sensitive,
+              );
+              final next = decideAfterAttemptedGoBack(
+                urlChanged: urlChanged,
+                drawerAvailable: !_kioskLocked,
+                atHistoryStart: _backAtHistoryStart,
+              );
+              if (next == BackGestureAction.openDrawer) {
+                LogService.instance.log('Navigation', 'Back gesture: no history, opening drawer');
+                _openDrawerFromBackGesture(_scaffoldKey.currentState);
+              }
+              break;
           }
         } finally {
           _isBackHandling = false;
@@ -8589,6 +8657,11 @@ class _WebSpacePageState extends State<WebSpacePage>
       },
       child: Scaffold(
       key: _scaffoldKey,
+      // Clearing on close covers every way the drawer goes away; a drawer
+      // opened by any other affordance therefore starts with the flag down.
+      onDrawerChanged: (isOpen) {
+        if (!isOpen) _drawerOpenedByBackGesture = false;
+      },
       // Disable the drawer edge-swipe whenever a webview is active so the back
       // gesture never opens the drawer. The drawer is reached via the AppBar
       // menu button instead.

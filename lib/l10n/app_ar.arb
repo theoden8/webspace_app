@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "حدّد مدى اتساع كل تبويب لإبقاء الأسماء الطويلة مضغوطة",
   "appSettingsFullscreenOnShortcut": "ملء الشاشة عند التشغيل من اختصار",
   "appSettingsFullscreenOnShortcutSubtitle": "افتح بملء الشاشة عند التشغيل من اختصار على الشاشة الرئيسية",
+  "appSettingsBackOpensMenu": "إيماءة الرجوع تفتح القائمة",
+  "appSettingsBackOpensMenuSubtitle": "عندما لا يتبقى في الموقع ما يمكن الرجوع إليه، تفتح إيماءة الرجوع القائمة الجانبية بدلاً من ألا تفعل شيئًا. على Android، يؤدي الضغط على الرجوع مرة أخرى إلى الخروج من التطبيق.",
   "appSettingsFullscreenTabStrip": "في وضع ملء الشاشة، شريط التبويبات",
   "appSettingsFullscreenTabStripHidden": "مخفي",
   "appSettingsFullscreenTabStripAlways": "ظاهر دائمًا",

@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "දිගු නම් සංයුක්තව තබා ගැනීමට එක් එක් ටැබය කොතරම් පළල් විය හැකිද යන්න සීමා කරන්න",
   "appSettingsFullscreenOnShortcut": "කෙටිමඟකින් විවෘත කළ විට පූර්ණ තිරය",
   "appSettingsFullscreenOnShortcutSubtitle": "මුල් තිර කෙටිමඟකින් දියත් කළ විට පූර්ණ තිරයේ විවෘත කරන්න",
+  "appSettingsBackOpensMenu": "ආපසු අභිනය මෙනුව විවෘත කරයි",
+  "appSettingsBackOpensMenuSubtitle": "අඩවියක ආපසු යාමට කිසිවක් ඉතිරි නොවූ විට, ආපසු අභිනය කිසිවක් නොකර සිටීම වෙනුවට පැති මෙනුව විවෘත කරයි. Android හි නැවත ආපසු ඔබන විට යෙදුම වැසෙයි.",
   "appSettingsFullscreenTabStrip": "සම්පූර්ණ තිරයේ, ටැබ් තීරුව",
   "appSettingsFullscreenTabStripHidden": "සැඟවී ඇත",
   "appSettingsFullscreenTabStripAlways": "සැමවිටම දෘශ්‍යමාන",

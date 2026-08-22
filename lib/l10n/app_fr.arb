@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "Limiter la largeur de chaque onglet pour que les noms longs restent compacts",
   "appSettingsFullscreenOnShortcut": "Plein écran au lancement depuis un raccourci",
   "appSettingsFullscreenOnShortcutSubtitle": "Ouvrir en plein écran au lancement depuis un raccourci de l'écran d'accueil",
+  "appSettingsBackOpensMenu": "Le geste retour ouvre le menu",
+  "appSettingsBackOpensMenuSubtitle": "Lorsqu'un site n'a plus rien vers quoi revenir, le geste retour ouvre le menu latéral au lieu de ne rien faire. Sous Android, appuyer de nouveau sur retour quitte l'application.",
   "appSettingsFullscreenTabStrip": "En plein écran, barre d'onglets",
   "appSettingsFullscreenTabStripHidden": "Masquée",
   "appSettingsFullscreenTabStripAlways": "Toujours visible",

@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "Ograničite koliko svaka kartica može biti široka kako bi dugačka imena ostala kompaktna",
   "appSettingsFullscreenOnShortcut": "Cijeli zaslon pri pokretanju iz prečaca",
   "appSettingsFullscreenOnShortcutSubtitle": "Otvori u punom zaslonu kada se pokrene iz prečaca na početnom zaslonu",
+  "appSettingsBackOpensMenu": "Gesta natrag otvara izbornik",
+  "appSettingsBackOpensMenuSubtitle": "Kada se na stranici nema više čemu vratiti, gesta natrag otvara bočni izbornik umjesto da ne učini ništa. Na Androidu sljedeći pritisak natrag zatvara aplikaciju.",
   "appSettingsFullscreenTabStrip": "U punom zaslonu, traka kartica",
   "appSettingsFullscreenTabStripHidden": "Skriveno",
   "appSettingsFullscreenTabStripAlways": "Uvijek vidljivo",

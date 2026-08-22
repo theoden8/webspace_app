@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "Beperk hoe wyd elke oortjie kan word sodat lang name kompak bly",
   "appSettingsFullscreenOnShortcut": "Volskerm by kortpad-loods",
   "appSettingsFullscreenOnShortcutSubtitle": "Open in volskerm wanneer dit vanaf 'n tuisskerm-kortpad geloods word",
+  "appSettingsBackOpensMenu": "Terug-gebaar open die kieslys",
+  "appSettingsBackOpensMenuSubtitle": "Wanneer 'n webwerf niks meer het om na toe terug te gaan nie, open die terug-gebaar die sykieslys in plaas daarvan om niks te doen nie. Op Android sluit nog 'n terugdruk die program af.",
   "appSettingsFullscreenTabStrip": "In volskerm, oortjiebalk",
   "appSettingsFullscreenTabStripHidden": "Versteek",
   "appSettingsFullscreenTabStripAlways": "Altyd sigbaar",

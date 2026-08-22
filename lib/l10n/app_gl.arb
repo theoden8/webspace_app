@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "Limita canto pode medrar cada lapela para que os nomes longos se manteñan compactos",
   "appSettingsFullscreenOnShortcut": "Pantalla completa ao iniciar desde un atallo",
   "appSettingsFullscreenOnShortcutSubtitle": "Abrir en pantalla completa cando se inicia desde un atallo da pantalla de inicio",
+  "appSettingsBackOpensMenu": "O xesto atrás abre o menú",
+  "appSettingsBackOpensMenuSubtitle": "Cando nun sitio non queda nada ao que volver, o xesto atrás abre o menú lateral no canto de non facer nada. En Android, premer atrás outra vez pecha a aplicación.",
   "appSettingsFullscreenTabStrip": "En pantalla completa, barra de lapelas",
   "appSettingsFullscreenTabStripHidden": "Agochada",
   "appSettingsFullscreenTabStripAlways": "Sempre visible",

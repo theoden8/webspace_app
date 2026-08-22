@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "Punguza jinsi kila kichupo kinavyoweza kupanuka ili majina marefu yabaki yamebana",
   "appSettingsFullscreenOnShortcut": "Skrini nzima inapozinduliwa kutoka njia ya mkato",
   "appSettingsFullscreenOnShortcutSubtitle": "Fungua katika skrini nzima inapozinduliwa kutoka njia ya mkato ya skrini ya nyumbani",
+  "appSettingsBackOpensMenu": "Ishara ya kurudi hufungua menyu",
+  "appSettingsBackOpensMenuSubtitle": "Tovuti isipokuwa na mahali pengine pa kurudi, ishara ya kurudi hufungua menyu ya pembeni badala ya kutofanya chochote. Kwenye Android, kubonyeza kurudi tena hufunga programu.",
   "appSettingsFullscreenTabStrip": "Katika skrini nzima, upau wa vichupo",
   "appSettingsFullscreenTabStripHidden": "Imefichwa",
   "appSettingsFullscreenTabStripAlways": "Inaonekana kila wakati",

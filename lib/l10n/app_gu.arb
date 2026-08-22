@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "દરેક ટૅબ કેટલી પહોળી થઈ શકે તે મર્યાદિત કરો જેથી લાંબા નામ સંકુચિત રહે",
   "appSettingsFullscreenOnShortcut": "શૉર્ટકટથી શરૂ થાય ત્યારે પૂર્ણ સ્ક્રીન",
   "appSettingsFullscreenOnShortcutSubtitle": "હોમ-સ્ક્રીન શૉર્ટકટથી શરૂ થાય ત્યારે પૂર્ણ સ્ક્રીનમાં ખોલો",
+  "appSettingsBackOpensMenu": "પાછળ જવાનો સંકેત મેનૂ ખોલે છે",
+  "appSettingsBackOpensMenuSubtitle": "જ્યારે સાઇટ પર પાછા જવા માટે કંઈ બાકી ન હોય, ત્યારે પાછળનો સંકેત કંઈ ન કરવાને બદલે બાજુનું મેનૂ ખોલે છે. Android પર ફરીથી પાછળ દબાવવાથી ઍપ બંધ થાય છે.",
   "appSettingsFullscreenTabStrip": "પૂર્ણ સ્ક્રીનમાં, ટૅબ બાર",
   "appSettingsFullscreenTabStripHidden": "છુપાયેલ",
   "appSettingsFullscreenTabStripAlways": "હંમેશા દૃશ્યમાન",

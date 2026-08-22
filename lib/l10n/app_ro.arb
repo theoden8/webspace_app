@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "Limitează cât de lată poate deveni fiecare filă, astfel încât numele lungi să rămână compacte",
   "appSettingsFullscreenOnShortcut": "Ecran complet la lansarea din comandă rapidă",
   "appSettingsFullscreenOnShortcutSubtitle": "Deschide pe ecran complet când este lansat dintr-o comandă rapidă de pe ecranul de pornire",
+  "appSettingsBackOpensMenu": "Gestul înapoi deschide meniul",
+  "appSettingsBackOpensMenuSubtitle": "Când pe un site nu mai există unde să te întorci, gestul înapoi deschide meniul lateral în loc să nu facă nimic. Pe Android, o nouă apăsare pe înapoi închide aplicația.",
   "appSettingsFullscreenTabStrip": "Pe ecran complet, bara de file",
   "appSettingsFullscreenTabStripHidden": "Ascunsă",
   "appSettingsFullscreenTabStripAlways": "Întotdeauna vizibilă",

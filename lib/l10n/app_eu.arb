@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "Mugatu fitxa bakoitza zenbat zabaldu daitekeen, izen luzeak trinko mantentzeko",
   "appSettingsFullscreenOnShortcut": "Pantaila osoa lasterbidetik abiaraztean",
   "appSettingsFullscreenOnShortcutSubtitle": "Ireki pantaila osoan hasierako pantailako lasterbide batetik abiarazten denean",
+  "appSettingsBackOpensMenu": "Atzera keinuak menua irekitzen du",
+  "appSettingsBackOpensMenuSubtitle": "Gune batean atzera egiteko ezer geratzen ez denean, atzera keinuak alboko menua irekitzen du ezer egin ez ordez. Android-en, atzera berriro sakatzeak aplikazioa ixten du.",
   "appSettingsFullscreenTabStrip": "Pantaila osoan, fitxa-barra",
   "appSettingsFullscreenTabStripHidden": "Ezkutatuta",
   "appSettingsFullscreenTabStripAlways": "Beti ikusgai",

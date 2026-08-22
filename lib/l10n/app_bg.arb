@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "Ограничете колко широк може да стане всеки раздел, за да останат дългите имена компактни",
   "appSettingsFullscreenOnShortcut": "Цял екран при стартиране от пряк път",
   "appSettingsFullscreenOnShortcutSubtitle": "Отваряне на цял екран при стартиране от пряк път на началния екран",
+  "appSettingsBackOpensMenu": "Жестът за връщане отваря менюто",
+  "appSettingsBackOpensMenuSubtitle": "Когато в даден сайт няма към какво повече да се върнете, жестът за връщане отваря страничното меню, вместо да не прави нищо. В Android повторното натискане на връщане затваря приложението.",
   "appSettingsFullscreenTabStrip": "На цял екран, лента с раздели",
   "appSettingsFullscreenTabStripHidden": "Скрита",
   "appSettingsFullscreenTabStripAlways": "Винаги видима",

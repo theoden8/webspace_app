@@ -38,7 +38,7 @@ WebSpace embeds webviews in a Scaffold with a drawer. Navigation gestures compet
 
 ### Requirement: NAV-001 - System Back Gesture
 
-The system back gesture (Android back button, iOS/macOS left-edge swipe) SHALL navigate back in webview history when possible. On the root site webview, iOS/macOS use WKWebView's native back/forward swipe (`allowsBackForwardNavigationGestures`); Android, and all nested routes, use the PopScope handler. It SHALL NOT open the drawer and SHALL NOT exit the app; when there is no back history it is a no-op.
+The system back gesture (Android back button, iOS/macOS left-edge swipe) SHALL navigate back in webview history when possible. On the root site webview, iOS/macOS use WKWebView's native back/forward swipe (`allowsBackForwardNavigationGestures`); Android, and all nested routes, use the PopScope handler. It SHALL NOT open the drawer and SHALL NOT exit the app; when there is no back history it is a no-op. What happens at that history start is the one thing the user can change, via the opt-in setting in NAV-009 — off by default, which is this requirement.
 
 **Rationale:** Users navigating content-heavy sites (especially SPA news sites) expect the back gesture to mean "go back in the page," not "open the menu" or "leave the app." Folding drawer-opening and app-exit into the back gesture made the gesture ambiguous and, combined with the iOS `canGoBack()` heuristic (NAV-002), occasionally misfired mid-navigation. The drawer is reached via the AppBar menu button; the app is left via the OS home/recents gesture.
 
@@ -60,6 +60,7 @@ The system back gesture (Android back button, iOS/macOS left-edge swipe) SHALL n
 **Given** a webview is visible with no navigation history
 **When** the user triggers the system back gesture
 **Then** nothing happens (no drawer, no exit)
+**And** the setting in NAV-009 is off
 
 #### Scenario: Drawer is already open
 
@@ -264,6 +265,80 @@ The **AppBar back button** on a nested `InAppWebViewScreen` SHALL always close t
 
 ---
 
+### Requirement: NAV-009 - Back At Start Of History (opt-in)
+
+The app SHALL expose exactly one global setting for what the system back gesture does once the webview has no page left to go back to. It SHALL default to off, which is NAV-001's no-op.
+
+When the setting is on, the back gesture at the start of a site's history SHALL open the drawer, and a further back gesture on a drawer *that gesture opened* SHALL close it and leave the app. A drawer the user opened any other way (AppBar menu button, webspace tap) SHALL only close, never leave the app — and leaving the app SHALL happen on Android only, where finishing the activity is the platform's own back-at-root behaviour.
+
+The setting SHALL be persisted as the `backOpensMenu` app pref and ride settings export/import. It SHALL have no effect while the kiosk shell is locked (KIOSK-002), which owns the drawer's absence.
+
+**Rationale:** Issue #369 and issue #431 ask for opposite gestures from the same swipe: one user's news-site navigation is broken by the drawer appearing mid-article, the other lost the "menu, then exit" sequence they navigated by. Neither is wrong, and no heuristic separates them, so the choice belongs to the user. Off stays the default because it is the gesture that cannot misfire: it never takes the user somewhere they did not ask to go.
+
+The escalation to leaving the app is bound to the drawer the gesture itself opened, because otherwise back-to-dismiss on a deliberately opened menu would quit the app — the exact ambiguity NAV-001 removed.
+
+#### Scenario: Setting off — start of history stays a no-op
+
+**Given** the setting is off
+**And** a webview is visible with no back history
+**When** the user triggers the system back gesture
+**Then** nothing happens (no drawer, no exit)
+
+#### Scenario: Setting on — start of history opens the drawer
+
+**Given** the setting is on
+**And** a webview is visible with no back history
+**When** the user triggers the system back gesture
+**Then** the drawer opens
+
+#### Scenario: Setting on — second gesture leaves the app
+
+**Given** the setting is on
+**And** the drawer was opened by the back gesture on Android
+**When** the user triggers the system back gesture again
+**Then** the drawer closes
+**And** the app is left via `SystemNavigator.pop()`
+
+#### Scenario: Setting on — back never quits from a deliberately opened menu
+
+**Given** the setting is on
+**And** the user opened the drawer with the AppBar menu button
+**When** the user triggers the system back gesture
+**Then** the drawer closes
+**And** the app is NOT left
+
+#### Scenario: Setting on — history still wins
+
+**Given** the setting is on
+**And** a webview is visible with back history
+**When** the user triggers the system back gesture
+**Then** the webview navigates back in history
+**And** the drawer does not open
+
+#### Scenario: Setting on — no site shown (Android)
+
+**Given** the setting is on
+**And** the webspace list screen is visible on Android
+**When** the user triggers the system back gesture
+**Then** the app is left (the drawer would only repeat the list already on screen)
+
+#### Scenario: Setting on — iOS/macOS URL-comparison path
+
+**Given** the setting is on on iOS or macOS
+**And** `goBack()` was attempted and the URL did not change (NAV-002)
+**When** the handler resolves the gesture
+**Then** the drawer opens
+**And** the app is NOT left
+
+#### Scenario: Locked kiosk shell ignores the setting
+
+**Given** the setting is on
+**And** the kiosk shell is locked (KIOSK-002, no drawer)
+**When** the user triggers the system back gesture at the start of history
+**Then** nothing happens (no drawer, no exit)
+
+---
+
 ## Race Condition Guards
 
 ### Guard: RACE-002 - _isBackHandling Flag
@@ -297,19 +372,27 @@ Double-tap is harmless: second call disposes an already-null webview. `deleteCac
 
 ### Decision Flow: System Back Gesture
 
+The call site gathers state (drawer, controller, `canGoBack()` where it is
+trusted) and `decideBackGesture` in
+[lib/services/back_gesture_engine.dart](../../../lib/services/back_gesture_engine.dart)
+returns the action; `openMenu` below is the NAV-009 setting, and is forced off
+while the kiosk shell is locked.
+
 ```
 System back gesture received
   │
   ├─ didPop? ──────────────────── return (system handled it)
   ├─ _isBackHandling? ─────────── return (drop concurrent)
   │
-  ├─ Drawer open? ─────────────── close drawer (never exit)
+  ├─ Drawer open?
+  │   ├─ openMenu && opened by this gesture && Android ─── close drawer + exit app
+  │   └─ else ──────────────────────────────────────────── close drawer
   │
-  ├─ No controller? ───────────── no-op (no drawer, no exit)
+  ├─ No controller? ───────────── openMenu && Android ? exit app : no-op
   │
   ├─ Android && has controller:
   │   ├─ canGoBack()? ─────────── goBack()
-  │   └─ else ─────────────────── no-op
+  │   └─ else ─────────────────── openMenu ? open drawer : no-op
   │
   └─ iOS/macOS && has controller:
       ├─ urlBefore = getUrl()
@@ -318,7 +401,7 @@ System back gesture received
       ├─ urlAfter = getUrl()
       │
       ├─ URL changed? ─────────── back succeeded
-      └─ URL same? ────────────── no-op
+      └─ URL same? ────────────── openMenu ? open drawer : no-op
 ```
 
 ### Decision Flow: Drawer Edge Drag Width
@@ -350,8 +433,17 @@ Home button pressed
 
 ### Files
 
+#### `lib/services/back_gesture_engine.dart`
+- `decideBackGesture` / `decideAfterAttemptedGoBack` — the whole policy above as
+  pure functions returning a `BackGestureAction`; `BackAtHistoryStart` is the
+  NAV-009 setting. Tests: [test/back_gesture_engine_test.dart](../../../test/back_gesture_engine_test.dart)
+
 #### `lib/main.dart`
 - `_isBackHandling` — boolean guard for PopScope handler
+- `_backAtHistoryStart` — NAV-009 setting, mirrored from the `backOpensMenu` pref
+- `_drawerOpenedByBackGesture` — set when the handler opens the drawer, cleared by
+  `Scaffold.onDrawerChanged` on every close, so only a gesture-opened drawer escalates
+- `_openDrawerFromBackGesture()` — the one place that opens the drawer for NAV-009
 - `_goHome()` — synchronous: dispose webview, reset URL, trigger rebuild
 - `PopScope` widget — wraps Scaffold; `canPop: false` always on Android (so back never exits the app), `!webviewIsVisible` on other platforms; handles system back gesture with URL comparison, navigating webview history only
 - `drawerEdgeDragWidth` — `0` whenever a webview is visible (drawer edge swipe disabled on all platforms); `null` otherwise
@@ -393,6 +485,14 @@ Home button pressed
 3. Press system back (Android) or trigger PopScope (iOS)
 4. Verify each press navigates back one page
 5. When at the initial URL, verify back does nothing (no drawer, no exit)
+
+### Manual Test: Back At Start Of History (NAV-009)
+
+1. App settings → turn on "Back gesture opens the menu"
+2. Open a site, press system back at its initial URL — the drawer opens
+3. Press system back again — the drawer closes and the app is left (Android)
+4. Open the drawer with the AppBar menu button, press system back — it only closes
+5. Turn the setting off again and repeat step 2 — back does nothing
 
 ### Manual Test: Android Back Never Exits (Webview)
 

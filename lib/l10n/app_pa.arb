@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "ਸੀਮਤ ਕਰੋ ਕਿ ਹਰ ਟੈਬ ਕਿੰਨਾ ਚੌੜਾ ਹੋ ਸਕਦਾ ਹੈ ਤਾਂ ਜੋ ਲੰਬੇ ਨਾਮ ਸੰਖੇਪ ਰਹਿਣ",
   "appSettingsFullscreenOnShortcut": "ਸ਼ਾਰਟਕੱਟ ਤੋਂ ਖੋਲ੍ਹਣ 'ਤੇ ਪੂਰੀ ਸਕਰੀਨ",
   "appSettingsFullscreenOnShortcutSubtitle": "ਹੋਮ-ਸਕਰੀਨ ਸ਼ਾਰਟਕੱਟ ਤੋਂ ਲਾਂਚ ਹੋਣ 'ਤੇ ਪੂਰੀ ਸਕਰੀਨ ਵਿੱਚ ਖੋਲ੍ਹੋ",
+  "appSettingsBackOpensMenu": "ਪਿੱਛੇ ਦਾ ਇਸ਼ਾਰਾ ਮੀਨੂ ਖੋਲ੍ਹਦਾ ਹੈ",
+  "appSettingsBackOpensMenuSubtitle": "ਜਦੋਂ ਸਾਈਟ 'ਤੇ ਪਿੱਛੇ ਜਾਣ ਲਈ ਕੁਝ ਨਹੀਂ ਬਚਦਾ, ਤਾਂ ਪਿੱਛੇ ਦਾ ਇਸ਼ਾਰਾ ਕੁਝ ਨਾ ਕਰਨ ਦੀ ਥਾਂ ਪਾਸੇ ਵਾਲਾ ਮੀਨੂ ਖੋਲ੍ਹਦਾ ਹੈ। Android 'ਤੇ ਦੁਬਾਰਾ ਪਿੱਛੇ ਦਬਾਉਣ ਨਾਲ ਐਪ ਬੰਦ ਹੋ ਜਾਂਦੀ ਹੈ।",
   "appSettingsFullscreenTabStrip": "ਪੂਰੀ ਸਕ੍ਰੀਨ ਵਿੱਚ, ਟੈਬ ਬਾਰ",
   "appSettingsFullscreenTabStripHidden": "ਲੁਕਿਆ",
   "appSettingsFullscreenTabStripAlways": "ਹਮੇਸ਼ਾ ਦਿਖਾਈ ਦਿੰਦਾ",

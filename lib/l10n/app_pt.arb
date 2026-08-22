@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "Limite a largura de cada separador para que os nomes longos se mantenham compactos",
   "appSettingsFullscreenOnShortcut": "Ecrã inteiro ao abrir a partir de um atalho",
   "appSettingsFullscreenOnShortcutSubtitle": "Abrir em ecrã inteiro quando iniciado a partir de um atalho do ecrã inicial",
+  "appSettingsBackOpensMenu": "O gesto para trás abre o menu",
+  "appSettingsBackOpensMenuSubtitle": "Quando num site já não há nada para onde voltar, o gesto para trás abre o menu lateral em vez de não fazer nada. No Android, premir novamente para trás fecha a aplicação.",
   "appSettingsFullscreenTabStrip": "Em ecrã inteiro, barra de separadores",
   "appSettingsFullscreenTabStripHidden": "Oculta",
   "appSettingsFullscreenTabStripAlways": "Sempre visível",

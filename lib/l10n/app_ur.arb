@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "محدود کریں کہ ہر ٹیب کتنا چوڑا ہو سکتا ہے تاکہ لمبے نام مختصر رہیں",
   "appSettingsFullscreenOnShortcut": "شارٹ کٹ سے کھولنے پر فل اسکرین",
   "appSettingsFullscreenOnShortcutSubtitle": "ہوم اسکرین شارٹ کٹ سے کھلنے پر فل اسکرین میں کھولیں",
+  "appSettingsBackOpensMenu": "واپسی اشارہ مینو کھولتا ہے",
+  "appSettingsBackOpensMenuSubtitle": "جب کسی سائٹ پر واپس جانے کے لیے کچھ باقی نہ رہے تو واپسی کا اشارہ کچھ نہ کرنے کے بجائے سائیڈ مینو کھولتا ہے۔ Android پر دوبارہ واپس دبانے سے ایپ بند ہو جاتی ہے۔",
   "appSettingsFullscreenTabStrip": "فل اسکرین میں، ٹیب بار",
   "appSettingsFullscreenTabStripHidden": "پوشیدہ",
   "appSettingsFullscreenTabStripAlways": "ہمیشہ نظر آنے والا",

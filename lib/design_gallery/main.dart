@@ -472,6 +472,8 @@ class _AppSettingsCard extends StatelessWidget {
         onTabStripInFullscreenChanged: (_) {},
         fullscreenOnShortcut: false,
         onFullscreenOnShortcutChanged: (_) {},
+        backOpensMenu: false,
+        onBackOpensMenuChanged: (_) {},
         tabBarButton: true,
         onTabBarButtonChanged: (_) {},
         tabMaxWidth: 180,

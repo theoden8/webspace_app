@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "Obmedzte, aká široká môže byť každá karta, aby dlhé názvy zostali kompaktné",
   "appSettingsFullscreenOnShortcut": "Celá obrazovka pri spustení zo skratky",
   "appSettingsFullscreenOnShortcutSubtitle": "Otvoriť na celej obrazovke pri spustení zo skratky na ploche",
+  "appSettingsBackOpensMenu": "Gesto späť otvorí ponuku",
+  "appSettingsBackOpensMenuSubtitle": "Keď sa na stránke nie je kam vrátiť, gesto späť otvorí bočnú ponuku namiesto toho, aby neurobilo nič. V Androide ďalšie stlačenie späť ukončí aplikáciu.",
   "appSettingsFullscreenTabStrip": "Na celej obrazovke, panel kariet",
   "appSettingsFullscreenTabStripHidden": "Skrytý",
   "appSettingsFullscreenTabStripAlways": "Vždy viditeľný",

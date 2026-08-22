@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "लामो नामहरू सङ्कुचित रहून् भनेर प्रत्येक ट्याब कति चौडा हुन सक्छ भनेर सीमित गर्नुहोस्",
   "appSettingsFullscreenOnShortcut": "सर्टकटबाट सुरु गर्दा फुल स्क्रिन",
   "appSettingsFullscreenOnShortcutSubtitle": "होम-स्क्रिन सर्टकटबाट सुरु हुँदा फुल स्क्रिनमा खोल्नुहोस्",
+  "appSettingsBackOpensMenu": "पछाडि जाने इसाराले मेनु खोल्छ",
+  "appSettingsBackOpensMenuSubtitle": "साइटमा पछाडि जान केही बाँकी नभएको बेला, पछाडि जाने इसाराले केही नगर्नुको सट्टा छेउको मेनु खोल्छ। Android मा फेरि पछाडि थिच्दा एप बन्द हुन्छ।",
   "appSettingsFullscreenTabStrip": "पूर्ण स्क्रिनमा, ट्याब बार",
   "appSettingsFullscreenTabStripHidden": "लुकाइएको",
   "appSettingsFullscreenTabStripAlways": "सधैं देखिने",

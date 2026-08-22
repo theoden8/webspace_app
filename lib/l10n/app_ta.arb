@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "நீண்ட பெயர்கள் சுருக்கமாக இருக்க ஒவ்வொரு தாவலும் எவ்வளவு அகலமாக இருக்கலாம் என்பதை வரம்பிடவும்",
   "appSettingsFullscreenOnShortcut": "குறுக்குவழியில் இருந்து திறக்கும்போது முழுத்திரை",
   "appSettingsFullscreenOnShortcutSubtitle": "முகப்புத் திரை குறுக்குவழியில் இருந்து தொடங்கும்போது முழுத்திரையில் திறக்கவும்",
+  "appSettingsBackOpensMenu": "பின் சைகை மெனுவைத் திறக்கும்",
+  "appSettingsBackOpensMenuSubtitle": "ஒரு தளத்தில் பின்செல்ல எதுவும் இல்லாதபோது, பின் சைகை எதுவும் செய்யாமல் இருப்பதற்குப் பதிலாக பக்க மெனுவைத் திறக்கும். Android இல் மீண்டும் பின்னைத் தட்டினால் செயலி மூடப்படும்.",
   "appSettingsFullscreenTabStrip": "முழுத்திரையில், தாவல் பட்டி",
   "appSettingsFullscreenTabStripHidden": "மறைக்கப்பட்டது",
   "appSettingsFullscreenTabStripAlways": "எப்போதும் தெரியும்",

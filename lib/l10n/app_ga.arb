@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "Cuir teorainn le leithead gach cluaisín ionas go bhfanfaidh ainmneacha fada dlúth",
   "appSettingsFullscreenOnShortcut": "Lánscáileán nuair a sheoltar ó aicearra",
   "appSettingsFullscreenOnShortcutSubtitle": "Oscail i lánscáileán nuair a sheoltar ó aicearra ar an scáileán baile",
+  "appSettingsBackOpensMenu": "Osclaíonn an gotha ar ais an roghchlár",
+  "appSettingsBackOpensMenuSubtitle": "Nuair nach bhfuil aon rud fágtha ar shuíomh le filleadh air, osclaíonn an gotha ar ais an roghchlár taoibh in ionad gan aon rud a dhéanamh. Ar Android, dúnann brú eile ar ais an feidhmchlár.",
   "appSettingsFullscreenTabStrip": "Sa scáileán iomlán, barra cluaisíní",
   "appSettingsFullscreenTabStripHidden": "Folaithe",
   "appSettingsFullscreenTabStripAlways": "Le feiceáil i gcónaí",

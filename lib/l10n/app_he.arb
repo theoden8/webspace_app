@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "הגבל את רוחב כל כרטיסייה כדי ששמות ארוכים יישארו קומפקטיים",
   "appSettingsFullscreenOnShortcut": "מסך מלא בהפעלה מקיצור דרך",
   "appSettingsFullscreenOnShortcutSubtitle": "פתח במסך מלא בעת הפעלה מקיצור דרך במסך הבית",
+  "appSettingsBackOpensMenu": "מחוות החזרה פותחת את התפריט",
+  "appSettingsBackOpensMenuSubtitle": "כשבאתר לא נותר לאן לחזור, מחוות החזרה פותחת את התפריט הצדי במקום לא לעשות דבר. ב-Android, לחיצה נוספת על חזרה סוגרת את האפליקציה.",
   "appSettingsFullscreenTabStrip": "במסך מלא, סרגל כרטיסיות",
   "appSettingsFullscreenTabStripHidden": "מוסתר",
   "appSettingsFullscreenTabStripAlways": "תמיד גלוי",

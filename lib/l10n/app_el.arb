@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "Περιορίστε πόσο φαρδιά μπορεί να γίνει κάθε καρτέλα ώστε τα μεγάλα ονόματα να παραμένουν συμπαγή",
   "appSettingsFullscreenOnShortcut": "Πλήρης οθόνη κατά την εκκίνηση από συντόμευση",
   "appSettingsFullscreenOnShortcutSubtitle": "Άνοιγμα σε πλήρη οθόνη κατά την εκκίνηση από συντόμευση αρχικής οθόνης",
+  "appSettingsBackOpensMenu": "Η χειρονομία επιστροφής ανοίγει το μενού",
+  "appSettingsBackOpensMenuSubtitle": "Όταν σε έναν ιστότοπο δεν υπάρχει τίποτα άλλο για επιστροφή, η χειρονομία επιστροφής ανοίγει το πλαϊνό μενού αντί να μην κάνει τίποτα. Στο Android, μια ακόμη πίεση επιστροφής κλείνει την εφαρμογή.",
   "appSettingsFullscreenTabStrip": "Σε πλήρη οθόνη, γραμμή καρτελών",
   "appSettingsFullscreenTabStripHidden": "Κρυφή",
   "appSettingsFullscreenTabStripAlways": "Πάντα ορατή",

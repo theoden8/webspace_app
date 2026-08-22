@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "Ogranicz szerokość każdej karty, aby długie nazwy pozostały zwarte",
   "appSettingsFullscreenOnShortcut": "Pełny ekran przy uruchomieniu ze skrótu",
   "appSettingsFullscreenOnShortcutSubtitle": "Otwieraj na pełnym ekranie po uruchomieniu ze skrótu na ekranie głównym",
+  "appSettingsBackOpensMenu": "Gest wstecz otwiera menu",
+  "appSettingsBackOpensMenuSubtitle": "Gdy w witrynie nie ma już dokąd wracać, gest wstecz otwiera menu boczne, zamiast nie robić nic. W Androidzie kolejne naciśnięcie wstecz zamyka aplikację.",
   "appSettingsFullscreenTabStrip": "Na pełnym ekranie, pasek kart",
   "appSettingsFullscreenTabStripHidden": "Ukryty",
   "appSettingsFullscreenTabStripAlways": "Zawsze widoczny",

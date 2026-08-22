@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "შეზღუდე, რამდენად განიერი შეიძლება იყოს თითოეული ჩანართი, რომ გრძელი სახელები კომპაქტური დარჩეს",
   "appSettingsFullscreenOnShortcut": "სრული ეკრანი მალსახმობიდან გაშვებისას",
   "appSettingsFullscreenOnShortcutSubtitle": "გახსენით სრულ ეკრანზე, როცა მთავარი ეკრანის მალსახმობიდან ეშვება",
+  "appSettingsBackOpensMenu": "უკან ჟესტი ხსნის მენიუს",
+  "appSettingsBackOpensMenuSubtitle": "როცა საიტზე დასაბრუნებელი აღარაფერია, უკან ჟესტი არაფრის კეთების ნაცვლად ხსნის გვერდით მენიუს. Android-ზე უკან ხელახლა დაჭერა ხურავს აპლიკაციას.",
   "appSettingsFullscreenTabStrip": "სრულ ეკრანზე, ჩანართების ზოლი",
   "appSettingsFullscreenTabStripHidden": "დამალული",
   "appSettingsFullscreenTabStripAlways": "ყოველთვის ხილული",

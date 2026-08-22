@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "Limita cuánto puede crecer cada pestaña para que los nombres largos se mantengan compactos",
   "appSettingsFullscreenOnShortcut": "Pantalla completa al abrir desde un acceso directo",
   "appSettingsFullscreenOnShortcutSubtitle": "Abrir en pantalla completa cuando se inicia desde un acceso directo de la pantalla de inicio",
+  "appSettingsBackOpensMenu": "El gesto atrás abre el menú",
+  "appSettingsBackOpensMenuSubtitle": "Cuando en un sitio no queda nada a lo que volver, el gesto atrás abre el menú lateral en lugar de no hacer nada. En Android, pulsar atrás otra vez cierra la aplicación.",
   "appSettingsFullscreenTabStrip": "En pantalla completa, barra de pestañas",
   "appSettingsFullscreenTabStripHidden": "Oculta",
   "appSettingsFullscreenTabStripAlways": "Siempre visible",

@@ -61,6 +61,10 @@ class AppSettingsScreen extends StatefulWidget {
   final ValueChanged<bool> onTabStripInFullscreenChanged;
   final bool fullscreenOnShortcut;
   final ValueChanged<bool> onFullscreenOnShortcutChanged;
+  /// NAV-009: back gesture opens the drawer where a site has no page left to
+  /// go back to (and leaves the app on the press after that). Off by default.
+  final bool backOpensMenu;
+  final ValueChanged<bool> onBackOpensMenuChanged;
   final bool tabBarButton;
   final ValueChanged<bool> onTabBarButtonChanged;
   final int tabMaxWidth;
@@ -104,6 +108,8 @@ class AppSettingsScreen extends StatefulWidget {
     required this.onTabStripInFullscreenChanged,
     required this.fullscreenOnShortcut,
     required this.onFullscreenOnShortcutChanged,
+    required this.backOpensMenu,
+    required this.onBackOpensMenuChanged,
     required this.tabBarButton,
     required this.onTabBarButtonChanged,
     required this.tabMaxWidth,
@@ -130,6 +136,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   late bool _showTabStrip;
   late bool _tabStripInFullscreen;
   late bool _fullscreenOnShortcut;
+  late bool _backOpensMenu;
   late bool _tabBarButton;
   late double _tabMaxWidth;
   late bool _showStatsBanner;
@@ -190,6 +197,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     _showTabStrip = widget.showTabStrip;
     _tabStripInFullscreen = widget.tabStripInFullscreen;
     _fullscreenOnShortcut = widget.fullscreenOnShortcut;
+    _backOpensMenu = widget.backOpensMenu;
     _tabBarButton = widget.tabBarButton;
     _tabMaxWidth = widget.tabMaxWidth.toDouble();
     _showStatsBanner = widget.showStatsBanner;
@@ -1019,6 +1027,17 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                   ],
                 ),
               );
+            },
+          ),
+          SwitchListTile(
+            title: Text(loc.appSettingsBackOpensMenu),
+            subtitle: Text(loc.appSettingsBackOpensMenuSubtitle),
+            value: _backOpensMenu,
+            onChanged: (value) {
+              setState(() {
+                _backOpensMenu = value;
+              });
+              widget.onBackOpensMenuChanged(value);
             },
           ),
           SwitchListTile(

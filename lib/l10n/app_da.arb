@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "Begræns hvor bred hver fane kan blive, så lange navne forbliver kompakte",
   "appSettingsFullscreenOnShortcut": "Fuld skærm ved start fra genvej",
   "appSettingsFullscreenOnShortcutSubtitle": "Åbn i fuld skærm, når der startes fra en genvej på startskærmen",
+  "appSettingsBackOpensMenu": "Tilbage-bevægelsen åbner menuen",
+  "appSettingsBackOpensMenuSubtitle": "Når et websted ikke har mere at gå tilbage til, åbner tilbage-bevægelsen sidemenuen i stedet for ikke at gøre noget. På Android lukker endnu et tryk på tilbage appen.",
   "appSettingsFullscreenTabStrip": "I fuld skærm, fanebjælke",
   "appSettingsFullscreenTabStripHidden": "Skjult",
   "appSettingsFullscreenTabStripAlways": "Altid synlig",

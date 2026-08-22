@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "Limita l'amplada de cada pestanya perquè els noms llargs es mantinguin compactes",
   "appSettingsFullscreenOnShortcut": "Pantalla completa en obrir des d'una drecera",
   "appSettingsFullscreenOnShortcutSubtitle": "Obre en pantalla completa quan s'inicia des d'una drecera de la pantalla d'inici",
+  "appSettingsBackOpensMenu": "El gest enrere obre el menú",
+  "appSettingsBackOpensMenuSubtitle": "Quan en un lloc no queda res on tornar enrere, el gest enrere obre el menú lateral en lloc de no fer res. A Android, tornar a prémer enrere tanca l'aplicació.",
   "appSettingsFullscreenTabStrip": "En pantalla completa, barra de pestanyes",
   "appSettingsFullscreenTabStripHidden": "Amagada",
   "appSettingsFullscreenTabStripAlways": "Sempre visible",
