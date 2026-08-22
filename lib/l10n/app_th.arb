@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "จำกัดความกว้างของแต่ละแท็บเพื่อให้ชื่อยาว ๆ ยังคงกระชับ",
   "appSettingsFullscreenOnShortcut": "เต็มหน้าจอเมื่อเปิดจากทางลัด",
   "appSettingsFullscreenOnShortcutSubtitle": "เปิดแบบเต็มหน้าจอเมื่อเปิดใช้จากทางลัดบนหน้าจอหลัก",
+  "appSettingsBackOpensMenu": "ท่าทางย้อนกลับเปิดเมนู",
+  "appSettingsBackOpensMenuSubtitle": "เมื่อไม่มีหน้าให้ย้อนกลับในเว็บไซต์แล้ว ท่าทางย้อนกลับจะเปิดเมนูด้านข้างแทนที่จะไม่ทำอะไร บน Android การกดย้อนกลับอีกครั้งจะปิดแอป",
   "appSettingsFullscreenTabStrip": "ในโหมดเต็มจอ แถบแท็บ",
   "appSettingsFullscreenTabStripHidden": "ซ่อน",
   "appSettingsFullscreenTabStripAlways": "แสดงตลอดเวลา",

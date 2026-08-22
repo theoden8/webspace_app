@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "Урт нэрс нягт байхын тулд таб бүр хэр өргөн болохыг хязгаарлана",
   "appSettingsFullscreenOnShortcut": "Товчлолоор нээхэд бүтэн дэлгэц",
   "appSettingsFullscreenOnShortcutSubtitle": "Үндсэн дэлгэцийн товчлолоор эхлүүлэхэд бүтэн дэлгэцээр нээх",
+  "appSettingsBackOpensMenu": "Буцах зангаа цэсийг нээнэ",
+  "appSettingsBackOpensMenuSubtitle": "Сайт дээр буцах зүйл үлдээгүй үед буцах зангаа юу ч хийхгүй байхын оронд хажуугийн цэсийг нээнэ. Android дээр дахин буцахыг дарвал програм хаагдана.",
   "appSettingsFullscreenTabStrip": "Бүтэн дэлгэцэд, таб самбар",
   "appSettingsFullscreenTabStripHidden": "Нуусан",
   "appSettingsFullscreenTabStripAlways": "Үргэлж харагдана",

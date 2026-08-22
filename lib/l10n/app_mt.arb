@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "Illimita kemm jista' jikber wiesa' kull tab biex ismijiet twal jibqgħu kompatti",
   "appSettingsFullscreenOnShortcut": "Skrin sħiħ meta jitnieda minn shortcut",
   "appSettingsFullscreenOnShortcutSubtitle": "Iftaħ fi skrin sħiħ meta jitnieda minn shortcut tal-iskrin tad-dar",
+  "appSettingsBackOpensMenu": "Il-ġest lura jiftaħ il-menu",
+  "appSettingsBackOpensMenuSubtitle": "Meta f'sit ma jibqa' xejn fejn tmur lura, il-ġest lura jiftaħ il-menu tal-ġenb minflok ma jagħmel xejn. Fuq Android, għafas lura darb'oħra biex toħroġ mill-app.",
   "appSettingsFullscreenTabStrip": "Fl-iskrin sħiħ, bar tat-tabs",
   "appSettingsFullscreenTabStripHidden": "Moħbi",
   "appSettingsFullscreenTabStripAlways": "Dejjem viżibbli",

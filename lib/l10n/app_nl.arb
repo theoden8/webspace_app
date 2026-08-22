@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "Beperk hoe breed elke tab kan worden zodat lange namen compact blijven",
   "appSettingsFullscreenOnShortcut": "Volledig scherm bij starten via snelkoppeling",
   "appSettingsFullscreenOnShortcutSubtitle": "Open in volledig scherm bij starten vanaf een snelkoppeling op het startscherm",
+  "appSettingsBackOpensMenu": "Terug-gebaar opent het menu",
+  "appSettingsBackOpensMenuSubtitle": "Wanneer er op een site niets meer is om naar terug te gaan, opent het terug-gebaar het zijmenu in plaats van niets te doen. Op Android sluit nogmaals op terug drukken de app.",
   "appSettingsFullscreenTabStrip": "In volledig scherm, tabbalk",
   "appSettingsFullscreenTabStripHidden": "Verborgen",
   "appSettingsFullscreenTabStripAlways": "Altijd zichtbaar",

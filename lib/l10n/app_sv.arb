@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "Begränsa hur bred varje flik kan bli så att långa namn förblir kompakta",
   "appSettingsFullscreenOnShortcut": "Helskärm vid start från genväg",
   "appSettingsFullscreenOnShortcutSubtitle": "Öppna i helskärm när appen startas från en genväg på startskärmen",
+  "appSettingsBackOpensMenu": "Bakåtgesten öppnar menyn",
+  "appSettingsBackOpensMenuSubtitle": "När en webbplats inte har något mer att gå tillbaka till öppnar bakåtgesten sidomenyn i stället för att inte göra något. På Android stänger ytterligare en bakåttryckning appen.",
   "appSettingsFullscreenTabStrip": "I helskärm, flikfält",
   "appSettingsFullscreenTabStripHidden": "Dold",
   "appSettingsFullscreenTabStripAlways": "Alltid synlig",

@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "Uzun adların derli toplu kalması için her sekmenin ne kadar genişleyebileceğini sınırlayın",
   "appSettingsFullscreenOnShortcut": "Kısayoldan açılışta tam ekran",
   "appSettingsFullscreenOnShortcutSubtitle": "Ana ekran kısayolundan başlatıldığında tam ekranda aç",
+  "appSettingsBackOpensMenu": "Geri hareketi menüyü açar",
+  "appSettingsBackOpensMenuSubtitle": "Bir sitede geri dönülecek bir şey kalmadığında, geri hareketi hiçbir şey yapmamak yerine yan menüyü açar. Android'de geriye yeniden basmak uygulamadan çıkar.",
   "appSettingsFullscreenTabStrip": "Tam ekranda, sekme çubuğu",
   "appSettingsFullscreenTabStripHidden": "Gizli",
   "appSettingsFullscreenTabStripAlways": "Her zaman görünür",

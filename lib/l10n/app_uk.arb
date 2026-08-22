@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "Обмежте, наскільки широкою може стати кожна вкладка, щоб довгі назви залишалися компактними",
   "appSettingsFullscreenOnShortcut": "Повний екран під час запуску з ярлика",
   "appSettingsFullscreenOnShortcutSubtitle": "Відкривати на весь екран під час запуску з ярлика головного екрана",
+  "appSettingsBackOpensMenu": "Жест назад відкриває меню",
+  "appSettingsBackOpensMenuSubtitle": "Коли на сайті вже немає куди повертатися, жест назад відкриває бічне меню замість того, щоб нічого не робити. В Android наступне натискання назад закриває застосунок.",
   "appSettingsFullscreenTabStrip": "На весь екран, панель вкладок",
   "appSettingsFullscreenTabStripHidden": "Прихована",
   "appSettingsFullscreenTabStripAlways": "Завжди видима",

@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "Սահմանափակեք, թե որքան լայն կարող է լինել յուրաքանչյուր ներդիր, որպեսզի երկար անունները մնան կոմպակտ",
   "appSettingsFullscreenOnShortcut": "Լրիվ էկրան դյուրանցումից բացելիս",
   "appSettingsFullscreenOnShortcutSubtitle": "Բացել լրիվ էկրանով, երբ գործարկվում է հիմնական էկրանի դյուրանցումից",
+  "appSettingsBackOpensMenu": "Հետ ժեստը բացում է ընտրացանկը",
+  "appSettingsBackOpensMenuSubtitle": "Երբ կայքում այլևս ոչինչ չկա, ուր վերադառնալ, հետ ժեստը ոչինչ չանելու փոխարեն բացում է կողային ընտրացանկը։ Android-ում հետ կրկին սեղմելը փակում է հավելվածը։",
   "appSettingsFullscreenTabStrip": "Ամբողջ էկրանին, ներդիրների գոտի",
   "appSettingsFullscreenTabStripHidden": "Թաքնված",
   "appSettingsFullscreenTabStripAlways": "Միշտ տեսանելի",

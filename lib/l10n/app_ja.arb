@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "長い名前がコンパクトに収まるよう、各タブの幅を制限します",
   "appSettingsFullscreenOnShortcut": "ショートカットからの起動時に全画面",
   "appSettingsFullscreenOnShortcutSubtitle": "ホーム画面のショートカットから起動したときに全画面で開く",
+  "appSettingsBackOpensMenu": "戻る操作でメニューを開く",
+  "appSettingsBackOpensMenuSubtitle": "サイト内に戻る先が残っていないとき、戻る操作は何もしない代わりにサイドメニューを開きます。Android では、もう一度戻る操作を行うとアプリを終了します。",
   "appSettingsFullscreenTabStrip": "全画面でのタブバー",
   "appSettingsFullscreenTabStripHidden": "非表示",
   "appSettingsFullscreenTabStripAlways": "常に表示",

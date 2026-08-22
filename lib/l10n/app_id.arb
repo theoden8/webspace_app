@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "Batasi seberapa lebar setiap tab agar nama yang panjang tetap ringkas",
   "appSettingsFullscreenOnShortcut": "Layar penuh saat dibuka dari pintasan",
   "appSettingsFullscreenOnShortcutSubtitle": "Buka dalam layar penuh saat diluncurkan dari pintasan layar beranda",
+  "appSettingsBackOpensMenu": "Gestur kembali membuka menu",
+  "appSettingsBackOpensMenuSubtitle": "Saat tidak ada lagi tujuan untuk kembali di sebuah situs, gestur kembali membuka menu samping alih-alih tidak melakukan apa pun. Di Android, menekan kembali sekali lagi menutup aplikasi.",
   "appSettingsFullscreenTabStrip": "Di layar penuh, bilah tab",
   "appSettingsFullscreenTabStripHidden": "Tersembunyi",
   "appSettingsFullscreenTabStripAlways": "Selalu terlihat",

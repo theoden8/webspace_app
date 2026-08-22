@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "Apribokite, kokio pločio gali būti kiekviena kortelė, kad ilgi pavadinimai liktų kompaktiški",
   "appSettingsFullscreenOnShortcut": "Visas ekranas paleidžiant iš nuorodos",
   "appSettingsFullscreenOnShortcutSubtitle": "Atidaryti per visą ekraną, kai paleidžiama iš pradžios ekrano nuorodos",
+  "appSettingsBackOpensMenu": "Grįžimo gestas atveria meniu",
+  "appSettingsBackOpensMenuSubtitle": "Kai svetainėje nebėra kur grįžti, grįžimo gestas atveria šoninį meniu, užuot nieko nedaręs. „Android“ sistemoje dar kartą paspaudus grįžimą programa užveriama.",
   "appSettingsFullscreenTabStrip": "Viso ekrano režime, kortelių juosta",
   "appSettingsFullscreenTabStripHidden": "Paslėpta",
   "appSettingsFullscreenTabStripAlways": "Visada matoma",

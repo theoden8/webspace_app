@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "ረጅም ስሞች ጥቅጥቅ ብለው እንዲቆዩ እያንዳንዱ ትር ምን ያህል ሊሰፋ እንደሚችል ይገድቡ",
   "appSettingsFullscreenOnShortcut": "በአቋራጭ ሲጀመር ሙሉ ማያ",
   "appSettingsFullscreenOnShortcutSubtitle": "ከመነሻ ማያ አቋራጭ ሲጀመር በሙሉ ማያ ይክፈቱ",
+  "appSettingsBackOpensMenu": "የመመለሻ ምልክት ምናሌውን ይከፍታል",
+  "appSettingsBackOpensMenuSubtitle": "አንድ ጣቢያ የሚመለስበት ገጽ ሲያጣ፣ የመመለሻ ምልክቱ ምንም ከማድረግ ይልቅ የጎን ምናሌውን ይከፍታል። በAndroid ላይ መመለሻን እንደገና መጫን መተግበሪያውን ይዘጋል።",
   "appSettingsFullscreenTabStrip": "በሙሉ ማያ ገጽ፣ የትር አሞሌ",
   "appSettingsFullscreenTabStripHidden": "ተደብቋል",
   "appSettingsFullscreenTabStripAlways": "ሁልጊዜ የሚታይ",

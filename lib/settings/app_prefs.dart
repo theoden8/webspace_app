@@ -95,9 +95,15 @@ final Map<String, Object> kExportedAppPrefs = <String, Object>{
   // on back/forward navigation. Mirrored into WebViewFactory and applied to
   // every WebView; no-ops where the feature is unsupported.
   kBackForwardCacheEnabledKey: true,
+  // NAV-009: what the system back gesture does once a site has no page left
+  // to go back to. Off (default) keeps the gesture on webview history only;
+  // on, it opens the drawer there and leaves the app on the next press.
+  kBackOpensMenuKey: false,
 };
 
 const String kBackForwardCacheEnabledKey = 'backForwardCacheEnabled';
+
+const String kBackOpensMenuKey = 'backOpensMenu';
 
 const String kFirefoxUaAutoRefreshKey = 'firefoxUaAutoRefresh';
 

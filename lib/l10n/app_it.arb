@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "Limita quanto può diventare larga ogni scheda in modo che i nomi lunghi restino compatti",
   "appSettingsFullscreenOnShortcut": "Schermo intero all'avvio da scorciatoia",
   "appSettingsFullscreenOnShortcutSubtitle": "Apri a schermo intero quando avviato da una scorciatoia della schermata Home",
+  "appSettingsBackOpensMenu": "Il gesto Indietro apre il menu",
+  "appSettingsBackOpensMenuSubtitle": "Quando in un sito non c'è più nulla a cui tornare, il gesto Indietro apre il menu laterale invece di non fare nulla. Su Android, premere di nuovo Indietro chiude l'app.",
   "appSettingsFullscreenTabStrip": "A schermo intero, barra delle schede",
   "appSettingsFullscreenTabStripHidden": "Nascosta",
   "appSettingsFullscreenTabStripAlways": "Sempre visibile",

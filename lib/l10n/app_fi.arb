@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "Rajoita, kuinka leveäksi kukin välilehti voi kasvaa, jotta pitkät nimet pysyvät tiiviinä",
   "appSettingsFullscreenOnShortcut": "Koko näyttö pikakuvakkeesta käynnistettäessä",
   "appSettingsFullscreenOnShortcutSubtitle": "Avaa koko näytöllä, kun käynnistetään aloitusnäytön pikakuvakkeesta",
+  "appSettingsBackOpensMenu": "Takaisin-ele avaa valikon",
+  "appSettingsBackOpensMenuSubtitle": "Kun sivustolla ei ole enää mitään, mihin palata, takaisin-ele avaa sivuvalikon sen sijaan, että se ei tekisi mitään. Androidissa uusi takaisin-painallus sulkee sovelluksen.",
   "appSettingsFullscreenTabStrip": "Koko näytössä, välilehtipalkki",
   "appSettingsFullscreenTabStripHidden": "Piilotettu",
   "appSettingsFullscreenTabStripAlways": "Aina näkyvissä",

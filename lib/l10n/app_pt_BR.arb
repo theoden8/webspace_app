@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "Limite a largura de cada aba para que os nomes longos fiquem compactos",
   "appSettingsFullscreenOnShortcut": "Tela cheia ao abrir por atalho",
   "appSettingsFullscreenOnShortcutSubtitle": "Abrir em tela cheia quando iniciado por um atalho da tela inicial",
+  "appSettingsBackOpensMenu": "O gesto de voltar abre o menu",
+  "appSettingsBackOpensMenuSubtitle": "Quando não há mais para onde voltar em um site, o gesto de voltar abre o menu lateral em vez de não fazer nada. No Android, pressionar voltar de novo fecha o aplicativo.",
   "appSettingsFullscreenTabStrip": "Em tela cheia, barra de abas",
   "appSettingsFullscreenTabStripHidden": "Oculta",
   "appSettingsFullscreenTabStripAlways": "Sempre visível",

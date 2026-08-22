@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "限制每個分頁的最大寬度，讓較長的名稱保持精簡",
   "appSettingsFullscreenOnShortcut": "透過捷徑啟動時全螢幕",
   "appSettingsFullscreenOnShortcutSubtitle": "從主畫面捷徑啟動時以全螢幕開啟",
+  "appSettingsBackOpensMenu": "返回手勢開啟選單",
+  "appSettingsBackOpensMenuSubtitle": "當網站已沒有可返回的頁面時，返回手勢會開啟側邊選單，而不是什麼都不做。在 Android 上，再次按返回會結束應用程式。",
   "appSettingsFullscreenTabStrip": "全螢幕時，分頁列",
   "appSettingsFullscreenTabStripHidden": "隱藏",
   "appSettingsFullscreenTabStripAlways": "永遠顯示",

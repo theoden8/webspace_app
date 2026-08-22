@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "Kufizo sa e gjerë mund të bëhet çdo skedë që emrat e gjatë të mbeten kompaktë",
   "appSettingsFullscreenOnShortcut": "Ekran i plotë kur nisitet nga shkurtorja",
   "appSettingsFullscreenOnShortcutSubtitle": "Hape në ekran të plotë kur nisitet nga një shkurtore e ekranit bazë",
+  "appSettingsBackOpensMenu": "Gjesti prapa hap menynë",
+  "appSettingsBackOpensMenuSubtitle": "Kur në një sajt nuk ka më ku të kthehesh, gjesti prapa hap menynë anësore në vend që të mos bëjë asgjë. Në Android, shtypja sërish e prapa e mbyll aplikacionin.",
   "appSettingsFullscreenTabStrip": "Në ekran të plotë, shiriti i skedave",
   "appSettingsFullscreenTabStripHidden": "I fshehur",
   "appSettingsFullscreenTabStripAlways": "Gjithmonë i dukshëm",

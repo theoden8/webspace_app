@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "Piira, kui laiaks iga vahekaart võib kasvada, et pikad nimed jääksid kompaktseks",
   "appSettingsFullscreenOnShortcut": "Täisekraan otsetee kaudu avamisel",
   "appSettingsFullscreenOnShortcutSubtitle": "Ava täisekraanil, kui käivitatakse avakuva otseteest",
+  "appSettingsBackOpensMenu": "Tagasi-žest avab menüü",
+  "appSettingsBackOpensMenuSubtitle": "Kui saidil pole enam midagi, kuhu tagasi minna, avab tagasi-žest külgmenüü selle asemel, et mitte midagi teha. Androidis sulgeb järgmine tagasivajutus rakenduse.",
   "appSettingsFullscreenTabStrip": "Täisekraanil, vahekaartide riba",
   "appSettingsFullscreenTabStripHidden": "Peidetud",
   "appSettingsFullscreenTabStripAlways": "Alati nähtav",

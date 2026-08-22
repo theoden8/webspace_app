@@ -695,6 +695,8 @@
   "appSettingsTabMaxWidthSubtitle": "Limita quantum quaeque tabula latescere possit ut nomina longa compacta maneant",
   "appSettingsFullscreenOnShortcut": "Plena pictura cum e compendio aperitur",
   "appSettingsFullscreenOnShortcutSubtitle": "In plena pictura aperi cum e compendio paginae principalis initur",
+  "appSettingsBackOpensMenu": "Gestus retro menu aperit",
+  "appSettingsBackOpensMenuSubtitle": "Cum in loco nihil superest quo redeatur, gestus retro menu laterale aperit potius quam nihil agat. In Android, iterum retro premere applicationem claudit.",
   "appSettingsFullscreenTabStrip": "In pleno schemate, series tabularum",
   "appSettingsFullscreenTabStripHidden": "Occultata",
   "appSettingsFullscreenTabStripAlways": "Semper visibilis",
