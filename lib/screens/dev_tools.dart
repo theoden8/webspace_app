@@ -1312,7 +1312,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       children: [
         _buildDnsStats(stats),
         _buildDnsFilters(stats),
-        _buildDnsActions(stats),
+        _buildDnsActions(entries),
         Expanded(
           child: entries.isEmpty
               ? Center(child: Text(_searchQuery.isEmpty ? loc.devToolsDnsEmpty : loc.devToolsNoMatches))
@@ -1408,7 +1408,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     );
   }
 
-  Widget _buildDnsActions(DnsStats stats) {
+  Widget _buildDnsActions(List<DnsLogEntry> entries) {
     final loc = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -1422,10 +1422,11 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
             label: Text(loc.devToolsClear),
           ),
           TextButton.icon(
-            onPressed: stats.log.isEmpty
+            key: const Key('devtools-dns-copy'),
+            onPressed: entries.isEmpty
                 ? null
                 : () {
-                    final text = stats.log
+                    final text = entries
                         .map((e) =>
                             '[${_formatTimeMs(e.timestamp)}] ${e.blocked ? 'BLOCKED' : 'ALLOWED'} ${e.domain}')
                         .join('\n');
