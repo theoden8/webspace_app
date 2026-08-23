@@ -468,6 +468,17 @@ in profile mode. HttpOnly cookies, which the prior JS-eval
 (`document.cookie = ...`) approach could not touch, are now
 deletable because the operation happens in the native cookie store.
 
+One cookie op does not route through `ContainerCookieManager`: the
+download path's read
+([DL-003](../downloads/spec.md#requirement-dl-003--https-downloads)),
+which runs inside `WebViewFactory` holding the native controller and no
+site model. It carries `webViewController:` directly, which is the
+mechanism `ContainerCookieManager` itself uses, so the jar resolution is
+identical. The invariant that matters is the argument, not the wrapper:
+any op that omits it addresses the default jar, which in profile mode is
+empty. [test/js/container_cookie_scope_funnel.test.js](../../../test/js/container_cookie_scope_funnel.test.js)
+fails on a direct op that drops it.
+
 #### Scenario: Cookie blocking targets the per-site profile
 
 **Given** profile mode is active and Site A has `_ga` blocked via
