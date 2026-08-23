@@ -75,12 +75,27 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
   }
 
   Future<void> _doInitialize() async {
-    _store = _overrideStore ?? defaultFileStore(_cacheDir);
-    await _initEncryption();
-    await _clearCacheOnUpgrade();
-    await _store!.ensure();
-    _initialized = true;
-    _initInFlight = null;
+    try {
+      _store = _overrideStore ?? defaultFileStore(_cacheDir);
+      await _initEncryption();
+      await _clearCacheOnUpgrade();
+      await _store!.ensure();
+      _initialized = true;
+    } catch (e) {
+      // Never let an init failure escape: callers `await initialize()` from
+      // inside save/load, which run on the go-home and site-switch paths —
+      // a throw there used to abandon the navigation the user asked for.
+      // Nothing is initialized, so save/load degrade to no-ops below.
+      LogService.instance.log(
+        'WebViewState',
+        'Error initializing state storage: $e',
+        level: LogLevel.error,
+      );
+    } finally {
+      // Cleared on failure too: a memoized rejected future would make every
+      // later call re-throw the one-time failure for the rest of the run.
+      _initInFlight = null;
+    }
   }
 
   Future<void> _initEncryption() async {

@@ -339,6 +339,55 @@ The escalation to leaving the app is bound to the drawer the gesture itself open
 
 ---
 
+### Requirement: NAV-010 - Leaving A Site Is Committed Before Its Teardown
+
+Returning to the webspace list SHALL take effect on the user's tap, independently of the teardown of the site being left. `_setCurrentIndex(null)` SHALL assign `_currentIndex` and exit fullscreen **before** it captures nav state, stops a real camera capture, pauses media, or pauses the webview — nothing in that sequence decides where the user ends up.
+
+That teardown is best-effort and SHALL be funnelled through `SiteTeardownEngine.quiesceOutgoing` (also used by the site-switch path and the defensive sweep of background sites), which:
+
+- keeps the caller's step order (camera stop and media pause ahead of the pause — CAM-012 / BGAUDIO-009);
+- treats a step that throws as best-effort and runs the ones behind it anyway;
+- gives the whole sequence one budget (`SiteTeardownEngine.defaultBudget`) and returns when it expires, abandoning — not cancelling — the stalled step;
+- re-checks the `_setCurrentIndexVersion` guard before each remaining step, including after the budget expired, so an abandoned sequence whose native reply lands late cannot pause a webview a newer activation has since resumed (PAUSE-005).
+
+Storage on this path SHALL fail closed rather than throw: `SecureWebViewStateStorage` swallows an initialization failure, degrades save/load to no-ops, and clears its memoized in-flight init so a later call retries instead of replaying the failure for the rest of the run.
+
+**Rationale:** each teardown step is a native round-trip, and the commit used to sit behind all four. Any of them throwing (a state-storage init that failed once and then re-threw its memoized failure forever), being superseded (a version bump from a concurrent delete, archive close, or activation), or never answering at all left `_currentIndex` on the site the user asked to leave — "back to webspaces" did nothing, silently, with nothing to retry against. The never-answering case is reachable: on iOS the per-instance pause freezes the page's JS thread (the plugin's withheld-`alert()` hack), so a site left paused by a race-cancelled switch never answers the `evaluateJavascript` that the next teardown opens with.
+
+#### Scenario: A teardown step that never answers still returns the user home
+
+**Given** site A is active and its JS thread is frozen by an earlier pause
+**When** the user taps "Back to Webspaces"
+**And** the media-pause step never answers
+**Then** `_currentIndex` is already null and fullscreen is already exited
+**And** the sequence is abandoned once the budget expires
+**And** the webspace list is shown
+
+#### Scenario: A failing state capture does not cost the pause
+
+**Given** site A is active
+**And** the state storage fails to initialize
+**When** the user returns to the webspace list
+**Then** the capture step is recorded as failed
+**And** the camera stop, media pause and webview pause still run
+**And** the return to the list is unaffected
+
+#### Scenario: A newer activation still wins the teardown
+
+**Given** a return to the webspace list is mid-teardown of site A
+**When** the user taps site A again before the teardown finishes
+**Then** the remaining teardown steps are skipped
+**And** A is not left paused by the abandoned sequence
+
+#### Scenario: A concurrent delete no longer strands the return
+
+**Given** a return to the webspace list is mid-teardown
+**When** another path bumps `_setCurrentIndexVersion` (site delete, archive close)
+**Then** the teardown stops early
+**And** the user is still on the webspace list, because the commit already happened
+
+---
+
 ## Race Condition Guards
 
 ### Guard: RACE-002 - _isBackHandling Flag
@@ -517,6 +566,14 @@ Home button pressed
 1. Open any site so a webview is visible
 2. Swipe from the left edge — verify the drawer does NOT open
 3. Open the drawer via the AppBar menu button — verify it works
+
+### Manual Test: Back To Webspaces Always Leaves The Site
+
+1. Open a site, then tap "Back to Webspaces" (menu or drawer)
+2. Verify the webspace list appears every time, including:
+   - right after switching between two sites in quick succession
+   - right after deleting another site
+   - on a page that stopped responding
 
 ### Manual Test: Rapid Home Tap (Race Condition)
 

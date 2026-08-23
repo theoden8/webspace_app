@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/file_store_io.dart';
 import 'package:webspace/services/webview_state_secure_storage.dart';
 
@@ -139,6 +140,53 @@ class _FakeSecureStorage implements FlutterSecureStorage {
 }
 
 typedef ValueChanged<T> = void Function(T);
+
+/// A [FileStore] whose directory creation fails the first [_failures] times,
+/// then behaves like the in-memory store. Models a transient disk failure
+/// during storage init.
+class _FlakyEnsureStore implements FileStore {
+  _FlakyEnsureStore(this._failures);
+
+  int _failures;
+  final MemoryFileStore _inner = MemoryFileStore();
+  int ensureCalls = 0;
+
+  @override
+  Future<void> ensure() async {
+    ensureCalls++;
+    if (_failures > 0) {
+      _failures--;
+      throw const FileSystemException('no space left on device');
+    }
+    await _inner.ensure();
+  }
+
+  @override
+  Future<bool> exists(String name) => _inner.exists(name);
+
+  @override
+  Future<String?> readText(String name) => _inner.readText(name);
+
+  @override
+  Future<void> writeText(String name, String contents) =>
+      _inner.writeText(name, contents);
+
+  @override
+  Future<Uint8List?> readBytes(String name) => _inner.readBytes(name);
+
+  @override
+  Future<void> writeBytes(String name, List<int> bytes) =>
+      _inner.writeBytes(name, bytes);
+
+  @override
+  Future<void> delete(String name) => _inner.delete(name);
+
+  @override
+  Future<List<String>> list() => _inner.list();
+
+  @override
+  Future<void> deleteAll() => _inner.deleteAll();
+}
 
 void main() {
   late Directory tempDir;
@@ -330,6 +378,38 @@ void main() {
       await storage.removeState('a');
       expect(await storage.loadState('a'), isNull);
       expect(await storage.loadState('b'), Uint8List.fromList([1, 2, 3]));
+    });
+  });
+
+  group('SecureWebViewStateStorage init failure (NAV-010)', () {
+    test('a failing init never escapes into the caller', () async {
+      final store = _FlakyEnsureStore(1);
+      final storage = SecureWebViewStateStorage(
+        secureStorage: fakeStorage,
+        store: store,
+        versionProvider: () => 'v1',
+      );
+      // The go-home / site-switch paths await these; a throw here strands
+      // the navigation that triggered the capture.
+      await expectLater(
+          storage.saveState('a', Uint8List.fromList([1, 2, 3])), completes);
+      await expectLater(storage.loadState('a'), completes);
+    });
+
+    test('a later call retries init instead of replaying the failure',
+        () async {
+      final store = _FlakyEnsureStore(1);
+      final storage = SecureWebViewStateStorage(
+        secureStorage: fakeStorage,
+        store: store,
+        versionProvider: () => 'v1',
+      );
+      final bytes = Uint8List.fromList([9, 8, 7]);
+      await storage.saveState('a', bytes); // init fails, nothing written
+      await storage.saveState('a', bytes); // init retried, write lands
+      expect(store.ensureCalls, 2,
+          reason: 'a memoized rejected init future would never be retried');
+      expect(await storage.loadState('a'), bytes);
     });
   });
 }

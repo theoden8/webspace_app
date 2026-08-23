@@ -349,6 +349,8 @@ The system SHALL capture `controller.saveState()` bytes opportunistically — wi
 
 None of these paths mutate the model's `lifecycleState` — the field stays at `resident` because the webview is not actually disposed. Capture goes through `_captureStateBytes` (bytes-only) rather than `_captureStateForRestore` (bytes + flip-to-savedForRestore). All three gate on `WebViewModel.persistsNavState` (no capture for incognito or archive-tier sites).
 
+The go-home capture runs *after* the home state is committed, inside the bounded teardown of NAV-010 in [navigation](../navigation/spec.md): it is best-effort and never gates the return to the webspace list.
+
 #### Scenario: Go-home captures state for the previously-active site
 
 **Given** site A is the active site
@@ -904,7 +906,7 @@ This narrows PAUSE-001 and PAUSE-002 on Android only: the call sites and call or
 
 ### Requirement: PAUSE-005 — Site-Switch Pause Survives Race-Cancellation
 
-The site-switch pause SHALL respect the `_setCurrentIndexVersion` race guard so a rapid switch sequence does not invert pause/resume ordering.
+The site-switch pause SHALL respect the `_setCurrentIndexVersion` race guard so a rapid switch sequence does not invert pause/resume ordering. The guard is threaded into `SiteTeardownEngine.quiesceOutgoing` (NAV-010 in [navigation](../navigation/spec.md)), which re-checks it before every remaining step — including after its budget expired, so a step abandoned mid-flight cannot pause a site the newer switch has since resumed.
 
 #### Scenario: User taps two sites in quick succession
 

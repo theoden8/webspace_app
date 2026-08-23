@@ -61,6 +61,7 @@ import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/services/site_activation_engine.dart';
+import 'package:webspace/services/site_teardown_engine.dart';
 import 'package:webspace/services/app_lifecycle_engine.dart';
 import 'package:webspace/services/back_gesture_engine.dart';
 import 'package:webspace/services/site_data_clear_engine.dart';
@@ -3601,30 +3602,27 @@ class _WebSpacePageState extends State<WebSpacePage>
     final version = ++_setCurrentIndexVersion;
 
     if (index == null || index < 0 || index >= _webViewModels.length) {
-      // Going home: opportunistically capture state for the
-      // previously-active site so a later cold start (or
-      // OS-killed-while-backgrounded scenario) can re-hydrate its
-      // back/forward stack and form data on re-activation. The
-      // webview stays loaded (pause-only, not disposed) so a
-      // near-immediate return to the same site keeps its in-memory
-      // tab. Bytes-only capture — `lifecycleState` stays `live`
-      // because the webview is not actually disposed.
-      if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
-        await _captureStateBytes(_webViewModels[_currentIndex!]);
-        if (version != _setCurrentIndexVersion) return;
-        // Before the pause: on iOS the per-instance pause blocks the page's
-        // JS thread, so the stop would sit queued behind it (CAM-012), and so
-        // would the media pause (BGAUDIO-009, no-op for background-audio
-        // sites).
-        await _webViewModels[_currentIndex!].stopRealCameraCapture();
-        if (version != _setCurrentIndexVersion) return;
-        await _webViewModels[_currentIndex!].pauseMediaPlayback();
-        if (version != _setCurrentIndexVersion) return;
-        await _webViewModels[_currentIndex!].pauseWebView();
-        if (version != _setCurrentIndexVersion) return;
-      }
+      final leaving = _currentIndex != null &&
+              _currentIndex! < _webViewModels.length &&
+              _loadedIndices.contains(_currentIndex)
+          ? _webViewModels[_currentIndex!]
+          : null;
+      // Going home is committed before the teardown below, never after it
+      // (NAV-010): every step there is a native round-trip that can throw,
+      // be superseded, or never answer at all, and each of those used to
+      // abandon the whole call with `_currentIndex` still on the site the
+      // user asked to leave — a "back to webspaces" that silently did
+      // nothing. Nothing in the teardown decides where we end up.
       _currentIndex = index;
       _exitFullscreen();
+      // Opportunistically capture state for the previously-active site so a
+      // later cold start (or OS-killed-while-backgrounded scenario) can
+      // re-hydrate its back/forward stack and form data on re-activation.
+      // The webview stays loaded (pause-only, not disposed) so a
+      // near-immediate return to the same site keeps its in-memory tab.
+      // Bytes-only capture — `lifecycleState` stays `live` because the
+      // webview is not actually disposed.
+      if (leaving != null) await _quiesceOutgoingSite(leaving, version);
       return;
     }
 
@@ -3801,14 +3799,8 @@ class _WebSpacePageState extends State<WebSpacePage>
 
     // Pause the previously active webview to save resources
     if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
-      // Before the pause: on iOS the per-instance pause blocks the page's JS
-      // thread, so the stop would sit queued behind it (CAM-012), and so would
-      // the media pause (BGAUDIO-009, no-op for background-audio sites).
-      await _webViewModels[_currentIndex!].stopRealCameraCapture();
-      if (version != _setCurrentIndexVersion) return;
-      await _webViewModels[_currentIndex!].pauseMediaPlayback();
-      if (version != _setCurrentIndexVersion) return;
-      await _webViewModels[_currentIndex!].pauseWebView();
+      await _quiesceOutgoingSite(_webViewModels[_currentIndex!], version,
+          captureState: false);
       if (version != _setCurrentIndexVersion) return;
     }
 
@@ -3859,13 +3851,10 @@ class _WebSpacePageState extends State<WebSpacePage>
     // it unpaused. pauseWebView() is idempotent.
     //
     // unawaited: subsequent activation logic (fullscreen, logging)
-    // doesn't depend on these completing. Race-wise this is safe in
-    // Dart's single-threaded model: the resumeWebView above has
-    // already been dispatched on the platform channel by the time
-    // this loop runs, and the channel preserves FIFO order — so the
-    // active site is never left paused by these. A subsequent
-    // _setCurrentIndex would also do its own resume after these
-    // pauses, so the latest target always ends up resumed.
+    // doesn't depend on these completing, and a page whose JS thread is
+    // frozen may never answer at all. Race-wise the version guard inside
+    // the teardown is what keeps a sweep still in flight from pausing the
+    // site a newer activation has since resumed.
     //
     // (Per-instance pause() doesn't stop JavaScript — see
     // openspec/specs/webview-pause-lifecycle/spec.md. This is a
@@ -3878,13 +3867,10 @@ class _WebSpacePageState extends State<WebSpacePage>
       // Camera stop is dispatched before the pause (CAM-012) and covers the
       // sites pauseWebView() exempts — a notification or background-audio
       // site keeps its JS running, which is exactly where a forgotten capture
-      // would survive. Bound to a local model: the pause runs a microtask
+      // would survive. Bound to a local model: the steps run a microtask
       // later, by which point _webViewModels may have been reindexed.
       final model = _webViewModels[i];
-      unawaited(model
-          .stopRealCameraCapture()
-          .then((_) => model.pauseMediaPlayback())
-          .then((_) => model.pauseWebView()));
+      unawaited(_quiesceOutgoingSite(model, version, captureState: false));
     }
 
     // Auto-enter fullscreen if the site has fullscreenMode enabled
@@ -3988,6 +3974,42 @@ class _WebSpacePageState extends State<WebSpacePage>
       sensitivity: LogSensitivity.sensitive,
     );
     return true;
+  }
+
+  /// Quiesce the site the user is leaving — a site switch, or a return to the
+  /// webspace list (which also captures nav state).
+  ///
+  /// Ordering is CAM-012 / BGAUDIO-009: on iOS the per-instance pause blocks
+  /// the page's JS thread, so the camera stop and the media pause have to be
+  /// dispatched before it or they sit queued behind it forever. That same
+  /// freeze is why the engine bounds the sequence — a page an earlier pause
+  /// left frozen never answers `evaluateJavascript` again, and the caller's
+  /// own state change must not hang on it (NAV-010).
+  Future<void> _quiesceOutgoingSite(
+    WebViewModel model,
+    int version, {
+    bool captureState = true,
+  }) async {
+    final result = await SiteTeardownEngine.quiesceOutgoing(
+      superseded: () => version != _setCurrentIndexVersion,
+      steps: [
+        if (captureState)
+          SiteTeardownStep('captureState', () => _captureStateBytes(model)),
+        SiteTeardownStep('stopRealCameraCapture', model.stopRealCameraCapture),
+        SiteTeardownStep('pauseMediaPlayback', model.pauseMediaPlayback),
+        SiteTeardownStep('pauseWebView', model.pauseWebView),
+      ],
+    );
+    if (result.isClean) return;
+    LogService.instance.log(
+      'WebView',
+      'Teardown of "${model.name}" ran ${result.ran}'
+          '${result.errors.isEmpty ? '' : ', failed ${result.errors}'}'
+          '${result.stalledOn == null ? '' : ', stalled on ${result.stalledOn}'}'
+          '${result.supersededBefore == null ? '' : ', superseded before ${result.supersededBefore}'}',
+      level: result.stalledOn == null ? LogLevel.info : LogLevel.warning,
+      sensitivity: LogSensitivity.sensitive,
+    );
   }
 
   /// Capture state and flip the lifecycle to [SiteLifecycleState.savedForRestore].
