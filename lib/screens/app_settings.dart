@@ -977,8 +977,15 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               ),
             ),
           SwitchListTile(
-            title: Text(loc.appSettingsFullscreenOnShortcut),
-            subtitle: Text(loc.appSettingsFullscreenOnShortcutSubtitle),
+            title: Row(
+              children: [
+                Flexible(child: Text(loc.appSettingsFullscreenOnShortcut)),
+                HintButton(
+                  title: loc.appSettingsFullscreenOnShortcut,
+                  description: loc.appSettingsFullscreenOnShortcutHint,
+                ),
+              ],
+            ),
             value: _fullscreenOnShortcut,
             onChanged: (value) {
               setState(() {
@@ -997,13 +1004,19 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                   children: [
                     Row(
                       children: [
-                        Expanded(child: Text(loc.appSettingsTabMaxWidth)),
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Flexible(child: Text(loc.appSettingsTabMaxWidth)),
+                              HintButton(
+                                title: loc.appSettingsTabMaxWidth,
+                                description: loc.appSettingsTabMaxWidthHint,
+                              ),
+                            ],
+                          ),
+                        ),
                         Text(tabWidthLabel),
                       ],
-                    ),
-                    Text(
-                      loc.appSettingsTabMaxWidthSubtitle,
-                      style: Theme.of(context).textTheme.bodySmall,
                     ),
                     Slider(
                       value: _tabMaxWidth,
@@ -1030,8 +1043,15 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             },
           ),
           SwitchListTile(
-            title: Text(loc.appSettingsBackOpensMenu),
-            subtitle: Text(loc.appSettingsBackOpensMenuSubtitle),
+            title: Row(
+              children: [
+                Flexible(child: Text(loc.appSettingsBackOpensMenu)),
+                HintButton(
+                  title: loc.appSettingsBackOpensMenu,
+                  description: loc.appSettingsBackOpensMenuHint,
+                ),
+              ],
+            ),
             value: _backOpensMenu,
             onChanged: (value) {
               setState(() {

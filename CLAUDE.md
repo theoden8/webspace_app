@@ -196,6 +196,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | proxy-password-secure-storage | secrets in flutter_secure_storage; never in JSON |
 | screenshots | integration-test driven |
 | settings-backup | JSON import/export |
+| settings-hints *(change)* | where a settings row's text goes: state in the subtitle, explanation behind the hint button; fixed-string subtitles capped across all locales |
 | site-editing | URL + custom name |
 | site-permission-badges | drawer badges for location/camera/mic/background-audio grants; real device access vs simulated |
 | tracking-protection | umbrella per-site ETP: forces ClearURLs/DNS/content blocker/LocalCDN + injects anti-fingerprinting shim (Canvas/WebGL/audio/fonts/screen/hardware/timing/clientrects) seeded by siteId |
@@ -241,6 +242,34 @@ User-facing global pref persisted to SharedPreferences MUST round-trip through t
 - Don't register: migration flags, download timestamps, cache indices, machine state from downloaded data (DNS blocklist, content blocker, localcdn).
 - Per-site settings ride `WebViewModel.toJson` automatically — keep them on the model.
 - Touched export/import? Re-run `flutter test test/settings_backup_test.dart`.
+
+## Settings rows: state in the subtitle, explanation in the hint
+
+Spec: [openspec/changes/settings-hints/specs/settings-hints/spec.md](openspec/changes/settings-hints/specs/settings-hints/spec.md).
+A settings row has three places text can go and they are not interchangeable.
+
+- **Title** — what the setting is.
+- **Subtitle** — what it is set to, or a status that moves: a value, a count,
+  `Not configured`, `System`, `Forced off by Tracking Protection`. Often absent.
+- **`HintButton`** ([lib/widgets/hint_button.dart](lib/widgets/hint_button.dart)) —
+  what it does, what it costs, when to want it. Sits next to the title, opens a
+  dialog, and costs one icon of layout however long the text is.
+
+Explanation goes in the hint, never the subtitle. A sentence that is one tidy
+line of English is four wrapped lines of Malay under a switch, and nothing
+overflows, so no render test sees it — the list just goes ragged.
+
+- A fixed-string `subtitle:` (one uninvoked `loc.<key>`, no branch) MUST stay
+  under 90 chars **in every locale**, checked by
+  [test/js/settings_hint_placement.test.js](test/js/settings_hint_placement.test.js).
+  Over budget, move it into the hint — do not shorten the translation.
+- State-derived subtitles (`cond ? loc.a : loc.b`, `loc.count(n)`) are exempt.
+- Moving a description into a hint **renames** its ARB key
+  (`<setting>Subtitle` → `<setting>Hint`) across all `lib/l10n/app_*.arb`,
+  keeping every translation. Delete it instead only when an existing hint on
+  the same row already says it.
+- The `HintButton`'s `title` is the row's own title, and the label beside it is
+  `Flexible` (gated by `test/js/settings_title_row_overflow.test.js`).
 
 ## Adding user-facing strings (localization)
 
