@@ -851,17 +851,17 @@
   "@appSettingsFullscreenOnShortcut": {
     "description": "Toggle title for automatically entering full screen when a site is opened from a home-screen shortcut"
   },
-  "appSettingsFullscreenOnShortcutSubtitle": "Open in full screen when launched from a home-screen shortcut",
-  "@appSettingsFullscreenOnShortcutSubtitle": {
-    "description": "Subtitle for the toggle that enters full screen when a site is opened from a pinned home-screen shortcut"
+  "appSettingsFullscreenOnShortcutHint": "Open in full screen when launched from a home-screen shortcut",
+  "@appSettingsFullscreenOnShortcutHint": {
+    "description": "Hint dialog body for the toggle that enters full screen when a site is opened from a pinned home-screen shortcut"
   },
   "appSettingsBackOpensMenu": "Back gesture opens the menu",
   "@appSettingsBackOpensMenu": {
     "description": "Toggle title in app settings: the system back gesture opens the side menu once the site has no page left to go back to"
   },
-  "appSettingsBackOpensMenuSubtitle": "Where a site has nothing left to go back to, the back gesture opens the side menu instead of doing nothing. On Android, pressing back again leaves the app.",
-  "@appSettingsBackOpensMenuSubtitle": {
-    "description": "Subtitle for that toggle: at the start of a site's browsing history the back gesture opens the navigation drawer, and a second back press quits the app on Android"
+  "appSettingsBackOpensMenuHint": "Where a site has nothing left to go back to, the back gesture opens the side menu instead of doing nothing. On Android, pressing back again leaves the app.",
+  "@appSettingsBackOpensMenuHint": {
+    "description": "Hint dialog body for that toggle: at the start of a site's browsing history the back gesture opens the navigation drawer, and a second back press quits the app on Android"
   },
   "appSettingsFullscreenTabStrip": "In full screen, tab strip",
   "@appSettingsFullscreenTabStrip": {
@@ -883,9 +883,9 @@
   "@appSettingsTabMaxWidth": {
     "description": "Title for the slider that caps the maximum width of each tab in the tab bar"
   },
-  "appSettingsTabMaxWidthSubtitle": "Limit how wide each tab can grow so long names stay compact",
-  "@appSettingsTabMaxWidthSubtitle": {
-    "description": "Subtitle explaining the tab width limit slider"
+  "appSettingsTabMaxWidthHint": "Limit how wide each tab can grow so long names stay compact",
+  "@appSettingsTabMaxWidthHint": {
+    "description": "Hint dialog body explaining the tab width limit slider"
   },
   "appSettingsStatsBar": "Stats Bar",
   "@appSettingsStatsBar": {
@@ -1983,10 +1983,6 @@
   "@siteSettingsExternalLinksInBrowserHint": {
     "description": "Hint body explaining that off-site links open externally while claimed domains stay in the app."
   },
-  "siteSettingsExternalLinksInBrowserSubtitle": "Links outside this site's domains open in your default browser",
-  "@siteSettingsExternalLinksInBrowserSubtitle": {
-    "description": "Subtitle for the Open External Links in Browser switch."
-  },
   "siteSettingsFullscreen": "Full screen mode",
   "@siteSettingsFullscreen": {
     "description": "Switch label for full screen mode."
@@ -2014,10 +2010,6 @@
   "siteSettingsHtmlCachingHint": "Render this site from a cached HTML snapshot for instant first paint on cold start, then swap to the live page once the cached parse settles.\n\nOff (default): the cache is only consulted when the device is offline, so an online cold start always goes straight to live and never shows stale content. Snapshots are still saved in the background so the offline fallback works on the next launch.\n\nOn: trades a momentary glimpse of stale content for a faster first paint on every cold start.",
   "@siteSettingsHtmlCachingHint": {
     "description": "Hint body describing HTML caching."
-  },
-  "siteSettingsHtmlCachingSubtitle": "Show cached page on cold start (offline fallback always on)",
-  "@siteSettingsHtmlCachingSubtitle": {
-    "description": "Subtitle for the HTML caching switch."
   },
   "siteSettingsNotifications": "Notifications",
   "@siteSettingsNotifications": {

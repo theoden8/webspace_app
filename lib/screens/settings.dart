@@ -1343,7 +1343,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ],
             ),
-            subtitle: Text(loc.siteSettingsExternalLinksInBrowserSubtitle),
             value: _externalLinksInBrowser,
             onChanged: (bool value) {
               setState(() {
@@ -1361,7 +1360,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ],
             ),
-            subtitle: Text(loc.siteSettingsHtmlCachingSubtitle),
             value: _htmlCachingEnabled,
             onChanged: (bool value) {
               setState(() {
