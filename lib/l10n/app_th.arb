@@ -329,6 +329,8 @@
   "devToolsSensitiveShow": "แสดงรายการที่ละเอียดอ่อน (siteId, URL, ชื่อโฮสต์)",
   "devToolsExport": "ส่งออก",
   "devToolsLogsCopied": "คัดลอก {count} รายการบันทึกแล้ว",
+  "devToolsLogsCopySensitiveTitle": "คัดลอกรายการที่ละเอียดอ่อนหรือไม่",
+  "devToolsLogsCopySensitiveBody": "รายการที่แสดง {count} รายการมีรหัสไซต์ URL และชื่อโฮสต์ คลิปบอร์ดอาจซิงก์ออกนอกอุปกรณ์",
   "devToolsExportLogsDialogTitle": "ส่งออกบันทึก",
   "devToolsLogsExported": "ส่งออกบันทึกแล้ว",
   "siteSettingsTitle": "การตั้งค่า",

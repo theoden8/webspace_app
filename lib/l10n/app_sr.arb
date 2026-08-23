@@ -329,6 +329,8 @@
   "devToolsSensitiveShow": "Прикажи осетљиве уносе (siteId, URL-ови, хостнејмови)",
   "devToolsExport": "Извези",
   "devToolsLogsCopied": "Копирано {count} уноса дневника",
+  "devToolsLogsCopySensitiveTitle": "Копирати осетљиве уносе?",
+  "devToolsLogsCopySensitiveBody": "{count} приказаних уноса садржи ИД-ове сајтова, URL адресе и имена хостова. Остава може да се синхронизује изван уређаја.",
   "devToolsExportLogsDialogTitle": "Извези дневнике",
   "devToolsLogsExported": "Дневници извезени",
   "siteSettingsTitle": "Подешавања",

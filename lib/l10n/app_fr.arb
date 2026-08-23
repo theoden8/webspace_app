@@ -329,6 +329,8 @@
   "devToolsSensitiveShow": "Afficher les entrées sensibles (siteId, URL, noms d'hôte)",
   "devToolsExport": "Exporter",
   "devToolsLogsCopied": "{count} entrées de journal copiées",
+  "devToolsLogsCopySensitiveTitle": "Copier les entrées sensibles ?",
+  "devToolsLogsCopySensitiveBody": "{count} des entrées affichées contiennent des identifiants de site, des URL et des noms d'hôte. Le presse-papiers peut se synchroniser en dehors de l'appareil.",
   "devToolsExportLogsDialogTitle": "Exporter les journaux",
   "devToolsLogsExported": "Journaux exportés",
   "siteSettingsTitle": "Paramètres",

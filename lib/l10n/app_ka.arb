@@ -329,6 +329,8 @@
   "devToolsSensitiveShow": "სენსიტიური ჩანაწერების ჩვენება (siteId, URL-ები, ჰოსტსახელები)",
   "devToolsExport": "ექსპორტი",
   "devToolsLogsCopied": "დაკოპირდა {count} ჟურნალის ჩანაწერი",
+  "devToolsLogsCopySensitiveTitle": "დაკოპირდეს მგრძნობიარე ჩანაწერები?",
+  "devToolsLogsCopySensitiveBody": "ნაჩვენები ჩანაწერებიდან {count} შეიცავს საიტის იდენტიფიკატორებს, URL-ებსა და ჰოსტების სახელებს. ბუფერი შეიძლება მოწყობილობის გარეთ დასინქრონდეს.",
   "devToolsExportLogsDialogTitle": "ჟურნალების ექსპორტი",
   "devToolsLogsExported": "ჟურნალები დაექსპორტდა",
   "siteSettingsTitle": "პარამეტრები",

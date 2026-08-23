@@ -329,6 +329,8 @@
   "devToolsSensitiveShow": "முக்கியமான உள்ளீடுகளைக் காட்டு (siteId, URL கள், ஹோஸ்ட்நேம்கள்)",
   "devToolsExport": "ஏற்றுமதி",
   "devToolsLogsCopied": "{count} பதிவு உள்ளீடுகள் நகலெடுக்கப்பட்டன",
+  "devToolsLogsCopySensitiveTitle": "முக்கியமான உள்ளீடுகளை நகலெடுக்கவா?",
+  "devToolsLogsCopySensitiveBody": "காட்டப்படும் உள்ளீடுகளில் {count} எண்ணிக்கையில் தள ஐடிகள், URL-கள் மற்றும் ஹோஸ்ட்பெயர்கள் உள்ளன. கிளிப்போர்டு சாதனத்திற்கு வெளியே ஒத்திசைக்கப்படலாம்.",
   "devToolsExportLogsDialogTitle": "பதிவுகளை ஏற்றுமதி செய்",
   "devToolsLogsExported": "பதிவுகள் ஏற்றுமதி செய்யப்பட்டன",
   "siteSettingsTitle": "அமைப்புகள்",

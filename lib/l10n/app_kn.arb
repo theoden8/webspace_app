@@ -329,6 +329,8 @@
   "devToolsSensitiveShow": "ಸೂಕ್ಷ್ಮ ನಮೂದುಗಳನ್ನು (siteId, URL‌ಗಳು, ಹೋಸ್ಟ್‌ನೇಮ್‌ಗಳು) ತೋರಿಸಿ",
   "devToolsExport": "ರಫ್ತು",
   "devToolsLogsCopied": "{count} ಲಾಗ್ ನಮೂದುಗಳನ್ನು ನಕಲಿಸಲಾಗಿದೆ",
+  "devToolsLogsCopySensitiveTitle": "ಸೂಕ್ಷ್ಮ ನಮೂದುಗಳನ್ನು ನಕಲಿಸಬೇಕೆ?",
+  "devToolsLogsCopySensitiveBody": "ತೋರಿಸಲಾದ ನಮೂದುಗಳಲ್ಲಿ {count} ನಮೂದುಗಳು ಸೈಟ್ ಐಡಿಗಳು, URL ಗಳು ಮತ್ತು ಹೋಸ್ಟ್‌ನೇಮ್‌ಗಳನ್ನು ಹೊಂದಿವೆ. ಕ್ಲಿಪ್‌ಬೋರ್ಡ್ ಸಾಧನದ ಹೊರಗೆ ಸಿಂಕ್ ಆಗಬಹುದು.",
   "devToolsExportLogsDialogTitle": "ಲಾಗ್‌ಗಳನ್ನು ರಫ್ತು ಮಾಡಿ",
   "devToolsLogsExported": "ಲಾಗ್‌ಗಳನ್ನು ರಫ್ತು ಮಾಡಲಾಗಿದೆ",
   "siteSettingsTitle": "ಸೆಟ್ಟಿಂಗ್ಸ್",

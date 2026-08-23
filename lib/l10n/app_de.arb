@@ -329,6 +329,8 @@
   "devToolsSensitiveShow": "Sensible Einträge anzeigen (siteId, URLs, Hostnamen)",
   "devToolsExport": "Exportieren",
   "devToolsLogsCopied": "{count} Protokolleinträge kopiert",
+  "devToolsLogsCopySensitiveTitle": "Sensible Einträge kopieren?",
+  "devToolsLogsCopySensitiveBody": "{count} der angezeigten Einträge enthalten Website-IDs, URLs und Hostnamen. Die Zwischenablage kann außerhalb des Geräts synchronisiert werden.",
   "devToolsExportLogsDialogTitle": "Protokolle exportieren",
   "devToolsLogsExported": "Protokolle exportiert",
   "siteSettingsTitle": "Einstellungen",

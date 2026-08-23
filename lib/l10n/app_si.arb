@@ -329,6 +329,8 @@
   "devToolsSensitiveShow": "සංවේදී ඇතුළත් කිරීම් (siteId, URLs, සත්කාරක නාම) පෙන්වන්න",
   "devToolsExport": "නිර්යාත කරන්න",
   "devToolsLogsCopied": "ලොග් ඇතුළත් කිරීම් {count}ක් පිටපත් කෙරිණි",
+  "devToolsLogsCopySensitiveTitle": "සංවේදී ඇතුළත් කිරීම් පිටපත් කරන්නද?",
+  "devToolsLogsCopySensitiveBody": "පෙන්වා ඇති ඇතුළත් කිරීම් අතරින් {count}ක් අඩවි හැඳුනුම්, URL සහ ධාරක නාම දරයි. පසුරු පුවරුව උපාංගයෙන් පිටතට සමමුහුර්ත විය හැක.",
   "devToolsExportLogsDialogTitle": "ලොග් නිර්යාත කරන්න",
   "devToolsLogsExported": "ලොග් නිර්යාත කෙරිණි",
   "siteSettingsTitle": "සැකසුම්",

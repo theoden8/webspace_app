@@ -329,6 +329,8 @@
   "devToolsSensitiveShow": "Zobraziť citlivé záznamy (siteId, URL, názvy hostiteľov)",
   "devToolsExport": "Exportovať",
   "devToolsLogsCopied": "Skopírovaných {count} záznamov protokolu",
+  "devToolsLogsCopySensitiveTitle": "Skopírovať citlivé záznamy?",
+  "devToolsLogsCopySensitiveBody": "{count} zobrazených záznamov obsahuje ID stránok, adresy URL a názvy hostiteľov. Schránka sa môže synchronizovať mimo zariadenia.",
   "devToolsExportLogsDialogTitle": "Exportovať protokoly",
   "devToolsLogsExported": "Protokoly exportované",
   "siteSettingsTitle": "Nastavenia",

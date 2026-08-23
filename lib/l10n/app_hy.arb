@@ -329,6 +329,8 @@
   "devToolsSensitiveShow": "Ցույց տալ զգայուն գրառումները (siteId, URL-ներ, հոսթանուններ)",
   "devToolsExport": "Արտահանել",
   "devToolsLogsCopied": "Պատճենվեց {count} մատյանի գրառում",
+  "devToolsLogsCopySensitiveTitle": "Պատճենե՞լ զգայուն գրառումները",
+  "devToolsLogsCopySensitiveBody": "Ցուցադրված գրառումներից {count}-ը պարունակում է կայքի նույնացուցիչներ, URL-ներ և հոսթի անուններ։ Սեղմատախտակը կարող է համաժամացվել սարքից դուրս։",
   "devToolsExportLogsDialogTitle": "Արտահանել մատյանները",
   "devToolsLogsExported": "Մատյանները արտահանվեցին",
   "siteSettingsTitle": "Կարգավորումներ",

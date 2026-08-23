@@ -329,6 +329,8 @@
   "devToolsSensitiveShow": "Pokaži občutljive vnose (siteId, URL-ji, imena gostiteljev)",
   "devToolsExport": "Izvozi",
   "devToolsLogsCopied": "Kopiranih {count} vnosov dnevnika",
+  "devToolsLogsCopySensitiveTitle": "Želite kopirati občutljive vnose?",
+  "devToolsLogsCopySensitiveBody": "{count} prikazanih vnosov vsebuje ID-je spletnih mest, naslove URL in imena gostiteljev. Odložišče se lahko sinhronizira zunaj naprave.",
   "devToolsExportLogsDialogTitle": "Izvozi dnevnike",
   "devToolsLogsExported": "Dnevniki izvoženi",
   "siteSettingsTitle": "Nastavitve",

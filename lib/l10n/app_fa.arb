@@ -329,6 +329,8 @@
   "devToolsSensitiveShow": "نمایش مدخل‌های حساس (siteId، URLها، نام‌های میزبان)",
   "devToolsExport": "خروجی",
   "devToolsLogsCopied": "{count} مدخل گزارش کپی شد",
+  "devToolsLogsCopySensitiveTitle": "ورودی‌های حساس کپی شوند؟",
+  "devToolsLogsCopySensitiveBody": "{count} مورد از ورودی‌های نمایش‌داده‌شده شناسه سایت، نشانی اینترنتی و نام میزبان دارند. کلیپ‌بورد ممکن است خارج از دستگاه همگام‌سازی شود.",
   "devToolsExportLogsDialogTitle": "خروجی گرفتن از گزارش‌ها",
   "devToolsLogsExported": "گزارش‌ها خروجی گرفته شد",
   "siteSettingsTitle": "تنظیمات",

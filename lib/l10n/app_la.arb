@@ -331,6 +331,8 @@
   "devToolsSensitiveShow": "Inscriptiones sensibiles ostendere (siteId, URL, nomina hospitum)",
   "devToolsExport": "Exportare",
   "devToolsLogsCopied": "{count} inscriptiones actorum exscriptae",
+  "devToolsLogsCopySensitiveTitle": "Inscriptiones sensibiles exscribere?",
+  "devToolsLogsCopySensitiveBody": "{count} ex inscriptionibus ostensis identificatores locorum, URL et nomina hospitum continent. Tabula transcriptionis extra machinam synchronizari potest.",
   "devToolsExportLogsDialogTitle": "Acta exportare",
   "devToolsLogsExported": "Acta exportata",
   "siteSettingsTitle": "Institutiones",

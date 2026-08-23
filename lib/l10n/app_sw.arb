@@ -329,6 +329,8 @@
   "devToolsSensitiveShow": "Onyesha maingizo nyeti (siteId, URL, majina ya mwenyeji)",
   "devToolsExport": "Hamisha",
   "devToolsLogsCopied": "Zimenakiliwa maingizo {count} ya kumbukumbu",
+  "devToolsLogsCopySensitiveTitle": "Nakili maingizo nyeti?",
+  "devToolsLogsCopySensitiveBody": "Maingizo {count} kati ya yanayoonyeshwa yana vitambulisho vya tovuti, URL na majina ya seva pangishi. Ubao wa kunakili unaweza kusawazishwa nje ya kifaa.",
   "devToolsExportLogsDialogTitle": "Hamisha Kumbukumbu",
   "devToolsLogsExported": "Kumbukumbu zimehamishwa",
   "siteSettingsTitle": "Mipangilio",

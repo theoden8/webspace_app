@@ -329,6 +329,8 @@
   "devToolsSensitiveShow": "Mostrar entradas sensibles (siteId, URL, nombres de host)",
   "devToolsExport": "Exportar",
   "devToolsLogsCopied": "Se copiaron {count} entradas de registro",
+  "devToolsLogsCopySensitiveTitle": "¿Copiar las entradas sensibles?",
+  "devToolsLogsCopySensitiveBody": "{count} de las entradas mostradas contienen identificadores de sitio, URL y nombres de host. El portapapeles puede sincronizarse fuera del dispositivo.",
   "devToolsExportLogsDialogTitle": "Exportar registros",
   "devToolsLogsExported": "Registros exportados",
   "siteSettingsTitle": "Ajustes",

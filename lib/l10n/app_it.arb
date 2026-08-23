@@ -329,6 +329,8 @@
   "devToolsSensitiveShow": "Mostra voci sensibili (siteId, URL, hostname)",
   "devToolsExport": "Esporta",
   "devToolsLogsCopied": "Copiate {count} voci di log",
+  "devToolsLogsCopySensitiveTitle": "Copiare le voci sensibili?",
+  "devToolsLogsCopySensitiveBody": "{count} delle voci mostrate contengono ID dei siti, URL e nomi host. Gli appunti possono sincronizzarsi fuori dal dispositivo.",
   "devToolsExportLogsDialogTitle": "Esporta log",
   "devToolsLogsExported": "Log esportati",
   "siteSettingsTitle": "Impostazioni",

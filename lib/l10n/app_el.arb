@@ -329,6 +329,8 @@
   "devToolsSensitiveShow": "Εμφάνιση ευαίσθητων καταχωρήσεων (siteId, URL, ονόματα κεντρικών υπολογιστών)",
   "devToolsExport": "Εξαγωγή",
   "devToolsLogsCopied": "Αντιγράφηκαν {count} καταχωρήσεις καταγραφής",
+  "devToolsLogsCopySensitiveTitle": "Αντιγραφή ευαίσθητων καταχωρήσεων;",
+  "devToolsLogsCopySensitiveBody": "{count} από τις εμφανιζόμενες καταχωρήσεις περιέχουν αναγνωριστικά ιστότοπων, διευθύνσεις URL και ονόματα κεντρικών υπολογιστών. Το πρόχειρο μπορεί να συγχρονιστεί εκτός της συσκευής.",
   "devToolsExportLogsDialogTitle": "Εξαγωγή αρχείων καταγραφής",
   "devToolsLogsExported": "Τα αρχεία καταγραφής εξήχθησαν",
   "siteSettingsTitle": "Ρυθμίσεις",

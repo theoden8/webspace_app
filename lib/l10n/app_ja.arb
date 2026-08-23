@@ -329,6 +329,8 @@
   "devToolsSensitiveShow": "機密エントリ（siteId、URL、ホスト名）を表示",
   "devToolsExport": "エクスポート",
   "devToolsLogsCopied": "{count} 件のログエントリをコピーしました",
+  "devToolsLogsCopySensitiveTitle": "機密エントリをコピーしますか？",
+  "devToolsLogsCopySensitiveBody": "表示中のエントリのうち {count} 件にサイト ID、URL、ホスト名が含まれています。クリップボードは端末外に同期されることがあります。",
   "devToolsExportLogsDialogTitle": "ログをエクスポート",
   "devToolsLogsExported": "ログをエクスポートしました",
   "siteSettingsTitle": "設定",

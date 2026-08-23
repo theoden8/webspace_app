@@ -329,6 +329,8 @@
   "devToolsSensitiveShow": "Показати конфіденційні записи (siteId, URL, імена хостів)",
   "devToolsExport": "Експорт",
   "devToolsLogsCopied": "Скопійовано записів журналу: {count}",
+  "devToolsLogsCopySensitiveTitle": "Скопіювати чутливі записи?",
+  "devToolsLogsCopySensitiveBody": "{count} із показаних записів містять ідентифікатори сайтів, URL-адреси та імена хостів. Буфер обміну може синхронізуватися поза пристроєм.",
   "devToolsExportLogsDialogTitle": "Експортувати журнали",
   "devToolsLogsExported": "Журнали експортовано",
   "siteSettingsTitle": "Налаштування",

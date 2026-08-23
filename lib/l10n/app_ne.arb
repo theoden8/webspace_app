@@ -329,6 +329,8 @@
   "devToolsSensitiveShow": "संवेदनशील प्रविष्टिहरू देखाउनुहोस् (siteId, URL, होस्टनाम)",
   "devToolsExport": "निर्यात गर्नुहोस्",
   "devToolsLogsCopied": "{count} लग प्रविष्टिहरू कपी गरियो",
+  "devToolsLogsCopySensitiveTitle": "संवेदनशील प्रविष्टिहरू प्रतिलिपि गर्ने?",
+  "devToolsLogsCopySensitiveBody": "देखाइएका प्रविष्टिहरूमध्ये {count} मा साइट आईडी, URL र होस्टनाम छन्। क्लिपबोर्ड यन्त्रबाहिर सिंक हुन सक्छ।",
   "devToolsExportLogsDialogTitle": "लगहरू निर्यात गर्नुहोस्",
   "devToolsLogsExported": "लगहरू निर्यात गरियो",
   "siteSettingsTitle": "सेटिङ",

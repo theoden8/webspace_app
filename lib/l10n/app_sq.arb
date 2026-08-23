@@ -331,6 +331,8 @@
   "devToolsSensitiveShow": "Shfaq hyrje të ndjeshme (siteId, URL, emra hostesh)",
   "devToolsExport": "Eksporto",
   "devToolsLogsCopied": "U kopjuan {count} hyrje regjistri",
+  "devToolsLogsCopySensitiveTitle": "Të kopjohen hyrjet e ndjeshme?",
+  "devToolsLogsCopySensitiveBody": "{count} nga hyrjet e shfaqura përmbajnë ID sajtesh, URL dhe emra hostesh. Kujtesa e fragmenteve mund të sinkronizohet jashtë pajisjes.",
   "devToolsExportLogsDialogTitle": "Eksporto regjistrat",
   "devToolsLogsExported": "Regjistrat u eksportuan",
   "siteSettingsTitle": "Cilësimet",

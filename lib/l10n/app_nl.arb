@@ -329,6 +329,8 @@
   "devToolsSensitiveShow": "Gevoelige vermeldingen tonen (siteId, URL's, hostnamen)",
   "devToolsExport": "Exporteren",
   "devToolsLogsCopied": "{count} logvermeldingen gekopieerd",
+  "devToolsLogsCopySensitiveTitle": "Gevoelige items kopiëren?",
+  "devToolsLogsCopySensitiveBody": "{count} van de getoonde items bevatten site-ID's, URL's en hostnamen. Het klembord kan buiten het apparaat synchroniseren.",
   "devToolsExportLogsDialogTitle": "Logboeken exporteren",
   "devToolsLogsExported": "Logboeken geëxporteerd",
   "siteSettingsTitle": "Instellingen",

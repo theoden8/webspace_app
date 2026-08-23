@@ -329,6 +329,8 @@
   "devToolsSensitiveShow": "Mostra les entrades sensibles (siteId, URL, noms d'amfitrió)",
   "devToolsExport": "Exporta",
   "devToolsLogsCopied": "S'han copiat {count} entrades de registre",
+  "devToolsLogsCopySensitiveTitle": "Voleu copiar les entrades sensibles?",
+  "devToolsLogsCopySensitiveBody": "{count} de les entrades mostrades contenen identificadors de lloc, URL i noms d'amfitrió. El porta-retalls es pot sincronitzar fora del dispositiu.",
   "devToolsExportLogsDialogTitle": "Exporta els registres",
   "devToolsLogsExported": "S'han exportat els registres",
   "siteSettingsTitle": "Configuració",

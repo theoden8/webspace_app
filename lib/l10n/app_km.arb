@@ -331,6 +331,8 @@
   "devToolsSensitiveShow": "បង្ហាញ entries រសើប (siteId, URLs, hostnames)",
   "devToolsExport": "Export",
   "devToolsLogsCopied": "បានចម្លង {count} log entries",
+  "devToolsLogsCopySensitiveTitle": "ចម្លងធាតុរសើបឬ?",
+  "devToolsLogsCopySensitiveBody": "ធាតុដែលបង្ហាញចំនួន {count} មានលេខសម្គាល់គេហទំព័រ URL និងឈ្មោះម៉ាស៊ីន។ ក្ដារតម្បៀតខ្ទាស់អាចធ្វើសមកាលកម្មចេញក្រៅឧបករណ៍។",
   "devToolsExportLogsDialogTitle": "Export Logs",
   "devToolsLogsExported": "បាន export logs",
   "siteSettingsTitle": "ការកំណត់",

@@ -329,6 +329,8 @@
   "devToolsSensitiveShow": "Érzékeny bejegyzések megjelenítése (siteId, URL-ek, gazdagépnevek)",
   "devToolsExport": "Exportálás",
   "devToolsLogsCopied": "{count} naplóbejegyzés másolva",
+  "devToolsLogsCopySensitiveTitle": "Másolja az érzékeny bejegyzéseket?",
+  "devToolsLogsCopySensitiveBody": "A megjelenített bejegyzések közül {count} tartalmaz webhelyazonosítókat, URL-eket és gazdaneveket. A vágólap az eszközön kívülre is szinkronizálódhat.",
   "devToolsExportLogsDialogTitle": "Naplók exportálása",
   "devToolsLogsExported": "Naplók exportálva",
   "siteSettingsTitle": "Beállítások",

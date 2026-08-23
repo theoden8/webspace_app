@@ -329,6 +329,8 @@
   "devToolsSensitiveShow": "સંવેદનશીલ એન્ટ્રીઓ બતાવો (siteId, URL, હોસ્ટનામ)",
   "devToolsExport": "નિકાસ કરો",
   "devToolsLogsCopied": "{count} લોગ એન્ટ્રીઓ કૉપિ થઈ",
+  "devToolsLogsCopySensitiveTitle": "સંવેદનશીલ એન્ટ્રીઓ કૉપિ કરવી?",
+  "devToolsLogsCopySensitiveBody": "બતાવેલી એન્ટ્રીઓમાંથી {count} એન્ટ્રીમાં સાઇટ ID, URL અને હોસ્ટનેમ છે. ક્લિપબોર્ડ ઉપકરણની બહાર સિંક થઈ શકે છે.",
   "devToolsExportLogsDialogTitle": "લોગ્સ નિકાસ કરો",
   "devToolsLogsExported": "લોગ્સ નિકાસ થયા",
   "siteSettingsTitle": "સેટિંગ્સ",

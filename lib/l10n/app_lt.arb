@@ -329,6 +329,8 @@
   "devToolsSensitiveShow": "Rodyti jautrius įrašus (siteId, URL, pagrindinių kompiuterių vardus)",
   "devToolsExport": "Eksportuoti",
   "devToolsLogsCopied": "Nukopijuota žurnalo įrašų: {count}",
+  "devToolsLogsCopySensitiveTitle": "Kopijuoti jautrius įrašus?",
+  "devToolsLogsCopySensitiveBody": "{count} iš rodomų įrašų turi svetainių ID, URL adresus ir prieglobų vardus. Iškarpinė gali būti sinchronizuojama už įrenginio ribų.",
   "devToolsExportLogsDialogTitle": "Eksportuoti žurnalus",
   "devToolsLogsExported": "Žurnalai eksportuoti",
   "siteSettingsTitle": "Nustatymai",

@@ -329,6 +329,8 @@
   "devToolsSensitiveShow": "संवेदनशील नोंदी दाखवा (siteId, URL, होस्टनावे)",
   "devToolsExport": "निर्यात करा",
   "devToolsLogsCopied": "{count} लॉग नोंदी कॉपी केल्या",
+  "devToolsLogsCopySensitiveTitle": "संवेदनशील नोंदी कॉपी करायच्या?",
+  "devToolsLogsCopySensitiveBody": "दाखवलेल्या नोंदींपैकी {count} नोंदींमध्ये साइट आयडी, URL आणि होस्टनावे आहेत. क्लिपबोर्ड डिव्हाइसबाहेर सिंक होऊ शकतो.",
   "devToolsExportLogsDialogTitle": "लॉग निर्यात करा",
   "devToolsLogsExported": "लॉग निर्यात केले",
   "siteSettingsTitle": "सेटिंग्ज",

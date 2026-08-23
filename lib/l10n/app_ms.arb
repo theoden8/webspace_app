@@ -329,6 +329,8 @@
   "devToolsSensitiveShow": "Tunjukkan entri sensitif (siteId, URL, nama hos)",
   "devToolsExport": "Eksport",
   "devToolsLogsCopied": "{count} entri log disalin",
+  "devToolsLogsCopySensitiveTitle": "Salin entri sensitif?",
+  "devToolsLogsCopySensitiveBody": "{count} daripada entri yang dipaparkan mengandungi ID tapak, URL dan nama hos. Papan keratan boleh disegerakkan ke luar peranti.",
   "devToolsExportLogsDialogTitle": "Eksport Log",
   "devToolsLogsExported": "Log dieksport",
   "siteSettingsTitle": "Tetapan",

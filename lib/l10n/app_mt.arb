@@ -329,6 +329,8 @@
   "devToolsSensitiveShow": "Uri entrati sensittivi (siteId, URLs, hostnames)",
   "devToolsExport": "Esporta",
   "devToolsLogsCopied": "Ġew ikkupjati {count} entrati tal-log",
+  "devToolsLogsCopySensitiveTitle": "Tikkopja l-annotazzjonijiet sensittivi?",
+  "devToolsLogsCopySensitiveBody": "{count} mill-annotazzjonijiet murija fihom IDs ta' siti, URLs u ismijiet ta' hosts. Il-klipbord jista' jissinkronizza barra mill-apparat.",
   "devToolsExportLogsDialogTitle": "Esporta l-Logs",
   "devToolsLogsExported": "Il-logs ġew esportati",
   "siteSettingsTitle": "Settings",

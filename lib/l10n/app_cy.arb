@@ -329,6 +329,8 @@
   "devToolsSensitiveShow": "Dangos cofnodion sensitif (siteId, URLau, enwau gwesteiwyr)",
   "devToolsExport": "Allforio",
   "devToolsLogsCopied": "Copïwyd {count} cofnod log",
+  "devToolsLogsCopySensitiveTitle": "Copïo cofnodion sensitif?",
+  "devToolsLogsCopySensitiveBody": "Mae {count} o'r cofnodion a ddangosir yn cynnwys IDau gwefan, URLau ac enwau gwesteiwr. Gall y clipfwrdd gydweddu oddi ar y ddyfais.",
   "devToolsExportLogsDialogTitle": "Allforio Logiau",
   "devToolsLogsExported": "Allforiwyd y logiau",
   "siteSettingsTitle": "Gosodiadau",

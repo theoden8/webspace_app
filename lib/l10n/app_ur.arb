@@ -329,6 +329,8 @@
   "devToolsSensitiveShow": "حساس اندراجات دکھائیں (siteId، URLs، ہوسٹ نام)",
   "devToolsExport": "برآمد کریں",
   "devToolsLogsCopied": "{count} لاگ اندراجات کاپی ہو گئے",
+  "devToolsLogsCopySensitiveTitle": "حساس اندراجات کاپی کریں؟",
+  "devToolsLogsCopySensitiveBody": "دکھائے گئے اندراجات میں سے {count} میں سائٹ IDs، URLs اور ہوسٹ نام شامل ہیں۔ کلپ بورڈ ڈیوائس سے باہر مطابقت پذیر ہو سکتا ہے۔",
   "devToolsExportLogsDialogTitle": "لاگز برآمد کریں",
   "devToolsLogsExported": "لاگز برآمد ہو گئے",
   "siteSettingsTitle": "سیٹنگز",

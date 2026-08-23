@@ -329,6 +329,8 @@
   "devToolsSensitiveShow": "Pokaż wrażliwe wpisy (siteId, adresy URL, nazwy hostów)",
   "devToolsExport": "Eksportuj",
   "devToolsLogsCopied": "Skopiowano {count} wpisów dziennika",
+  "devToolsLogsCopySensitiveTitle": "Skopiować wrażliwe wpisy?",
+  "devToolsLogsCopySensitiveBody": "{count} z wyświetlonych wpisów zawiera identyfikatory witryn, adresy URL i nazwy hostów. Schowek może synchronizować się poza urządzeniem.",
   "devToolsExportLogsDialogTitle": "Eksportuj dzienniki",
   "devToolsLogsExported": "Wyeksportowano dzienniki",
   "siteSettingsTitle": "Ustawienia",

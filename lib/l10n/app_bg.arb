@@ -329,6 +329,8 @@
   "devToolsSensitiveShow": "Показвай чувствителни записи (siteId, URL адреси, имена на хостове)",
   "devToolsExport": "Експортирай",
   "devToolsLogsCopied": "Копирани {count} записа от дневника",
+  "devToolsLogsCopySensitiveTitle": "Копиране на чувствителните записи?",
+  "devToolsLogsCopySensitiveBody": "{count} от показаните записи съдържат идентификатори на сайтове, URL адреси и имена на хостове. Клипбордът може да се синхронизира извън устройството.",
   "devToolsExportLogsDialogTitle": "Експортиране на дневници",
   "devToolsLogsExported": "Дневниците са експортирани",
   "siteSettingsTitle": "Настройки",

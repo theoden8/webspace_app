@@ -329,6 +329,8 @@
   "devToolsSensitiveShow": "Afișează intrările sensibile (siteId, URL-uri, nume de host)",
   "devToolsExport": "Exportă",
   "devToolsLogsCopied": "S-au copiat {count} intrări de jurnal",
+  "devToolsLogsCopySensitiveTitle": "Copiezi intrările sensibile?",
+  "devToolsLogsCopySensitiveBody": "{count} dintre intrările afișate conțin ID-uri de site, adrese URL și nume de gazdă. Clipboardul se poate sincroniza în afara dispozitivului.",
   "devToolsExportLogsDialogTitle": "Exportă jurnalele",
   "devToolsLogsExported": "Jurnale exportate",
   "siteSettingsTitle": "Setări",

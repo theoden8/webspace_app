@@ -329,6 +329,8 @@
   "devToolsSensitiveShow": "ስሱ ግቤቶችን አሳይ (siteId, URLs, የአስተናጋጅ ስሞች)",
   "devToolsExport": "ላክ",
   "devToolsLogsCopied": "{count} የምዝግብ ግቤቶች ተቀድተዋል",
+  "devToolsLogsCopySensitiveTitle": "ሚስጥራዊ ግቤቶች ይቅዱ?",
+  "devToolsLogsCopySensitiveBody": "ከሚታዩት ግቤቶች ውስጥ {count} የጣቢያ መለያዎችን፣ URLs እና የአስተናጋጅ ስሞችን ይዘዋል። ቅንጥብ ሰሌዳው ከመሣሪያው ውጭ ሊመሳሰል ይችላል።",
   "devToolsExportLogsDialogTitle": "ምዝግቦችን ላክ",
   "devToolsLogsExported": "ምዝግቦች ተልከዋል",
   "siteSettingsTitle": "ቅንብሮች",

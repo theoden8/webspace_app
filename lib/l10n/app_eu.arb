@@ -329,6 +329,8 @@
   "devToolsSensitiveShow": "Erakutsi sarrera sentikorrak (siteId, URLak, ostalari-izenak)",
   "devToolsExport": "Esportatu",
   "devToolsLogsCopied": "{count} erregistro-sarrera kopiatuta",
+  "devToolsLogsCopySensitiveTitle": "Sarrera sentikorrak kopiatu?",
+  "devToolsLogsCopySensitiveBody": "Erakutsitako sarreretatik {count} sarrerak gunearen IDak, URLak eta ostalari-izenak dituzte. Arbela gailutik kanpo sinkroniza daiteke.",
   "devToolsExportLogsDialogTitle": "Esportatu erregistroak",
   "devToolsLogsExported": "Erregistroak esportatuta",
   "siteSettingsTitle": "Ezarpenak",
