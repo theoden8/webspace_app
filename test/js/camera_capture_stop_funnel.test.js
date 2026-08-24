@@ -14,25 +14,39 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { blockAfter } = require('./helpers/dart_blocks');
 
 const repoRoot = path.resolve(__dirname, '..', '..');
 const MAIN = 'lib/main.dart';
 
-const lines = fs.readFileSync(path.join(repoRoot, MAIN), 'utf8').split('\n');
+const src = fs.readFileSync(path.join(repoRoot, MAIN), 'utf8');
+const lines = src.split('\n');
 
-// Deactivation sites: a pause issued against a site that is losing (or has
-// lost) active status. pauseForAppLifecycle is a different axis — the whole
-// app going to background — and is deliberately not covered here.
+// Every deactivation path (go-home, site switch, the sweep of the sites left
+// in the background) runs the same step list through one funnel, so the
+// ordering is asserted once, where it is decided. See NAV-010.
+test(`${MAIN}: the deactivation funnel stops capture before it pauses`, () => {
+  const funnel = blockAfter(
+    src, 'Future<void> _quiesceOutgoingSite(', ') async {', MAIN);
+  const stopIdx = funnel.indexOf('stopRealCameraCapture');
+  const pauseIdx = funnel.indexOf('pauseWebView');
+  assert.notEqual(stopIdx, -1,
+    'a site being backgrounded must have its device capture ended (CAM-012)');
+  assert.notEqual(pauseIdx, -1, 'the funnel must still pause the webview');
+  assert.ok(
+    stopIdx < pauseIdx,
+    'the stop must be posted before the pause, or iOS freezes the JS ' +
+      'thread with the capture still running',
+  );
+});
+
+// Deactivation sites outside the funnel: a pause issued directly against a
+// site that is losing (or has lost) active status. pauseForAppLifecycle is a
+// different axis — the whole app going to background — and is deliberately
+// not covered here.
 const pauseSites = lines
   .map((line, i) => ({ line, i }))
   .filter(({ line }) => /\.pauseWebView\(\)/.test(line));
-
-test(`${MAIN}: has deactivation pause sites to guard`, () => {
-  assert.ok(
-    pauseSites.length >= 3,
-    `expected the known pause call sites, found ${pauseSites.length}`,
-  );
-});
 
 for (const { line, i } of pauseSites) {
   test(`${MAIN}:${i + 1}: capture stop precedes the pause`, () => {
