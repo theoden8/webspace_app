@@ -328,6 +328,8 @@
   "devToolsSensitiveShow": "Prikaži osjetljive unose (siteId, URL-ovi, imena hostova)",
   "devToolsExport": "Izvezi",
   "devToolsLogsCopied": "Kopirano {count} unosa zapisnika",
+  "devToolsLogsCopySensitiveTitle": "Kopirati osjetljive unose?",
+  "devToolsLogsCopySensitiveBody": "{count} prikazanih unosa sadrži ID-ove stranica, URL-ove i nazive hostova. Međuspremnik se može sinkronizirati izvan uređaja.",
   "devToolsExportLogsDialogTitle": "Izvezi zapisnike",
   "devToolsLogsExported": "Zapisnici izvezeni",
   "siteSettingsTitle": "Postavke",

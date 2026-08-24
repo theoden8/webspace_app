@@ -328,6 +328,8 @@
   "devToolsSensitiveShow": "Mostrar entradas sensíveis (siteId, URLs, nomes de anfitrião)",
   "devToolsExport": "Exportar",
   "devToolsLogsCopied": "Copiadas {count} entradas de registo",
+  "devToolsLogsCopySensitiveTitle": "Copiar as entradas sensíveis?",
+  "devToolsLogsCopySensitiveBody": "{count} das entradas mostradas contêm identificadores de sites, URLs e nomes de anfitrião. A área de transferência pode sincronizar fora do dispositivo.",
   "devToolsExportLogsDialogTitle": "Exportar registos",
   "devToolsLogsExported": "Registos exportados",
   "siteSettingsTitle": "Definições",

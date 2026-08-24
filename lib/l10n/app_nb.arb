@@ -328,6 +328,8 @@
   "devToolsSensitiveShow": "Vis sensitive oppføringer (siteId, URL-er, vertsnavn)",
   "devToolsExport": "Eksporter",
   "devToolsLogsCopied": "Kopierte {count} loggoppføringer",
+  "devToolsLogsCopySensitiveTitle": "Kopiere sensitive oppføringer?",
+  "devToolsLogsCopySensitiveBody": "{count} av oppføringene som vises inneholder nettsteds-ID-er, URL-er og vertsnavn. Utklippstavlen kan synkroniseres utenfor enheten.",
   "devToolsExportLogsDialogTitle": "Eksporter logger",
   "devToolsLogsExported": "Logger eksportert",
   "siteSettingsTitle": "Innstillinger",

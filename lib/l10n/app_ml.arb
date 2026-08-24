@@ -328,6 +328,8 @@
   "devToolsSensitiveShow": "സെൻസിറ്റീവ് എൻട്രികൾ കാണിക്കുക (siteId, URL-കൾ, ഹോസ്റ്റ്നെയിമുകൾ)",
   "devToolsExport": "കയറ്റുമതി ചെയ്യുക",
   "devToolsLogsCopied": "{count} ലോഗ് എൻട്രികൾ പകർത്തി",
+  "devToolsLogsCopySensitiveTitle": "സെൻസിറ്റീവ് എൻട്രികൾ പകർത്തണോ?",
+  "devToolsLogsCopySensitiveBody": "കാണിച്ചിരിക്കുന്ന എൻട്രികളിൽ {count} എണ്ണത്തിൽ സൈറ്റ് ഐഡികളും URL-കളും ഹോസ്റ്റ്നാമങ്ങളും ഉണ്ട്. ക്ലിപ്പ്ബോർഡ് ഉപകരണത്തിന് പുറത്തേക്ക് സമന്വയിപ്പിക്കപ്പെട്ടേക്കാം.",
   "devToolsExportLogsDialogTitle": "ലോഗുകൾ കയറ്റുമതി ചെയ്യുക",
   "devToolsLogsExported": "ലോഗുകൾ കയറ്റുമതി ചെയ്തു",
   "siteSettingsTitle": "ക്രമീകരണങ്ങൾ",

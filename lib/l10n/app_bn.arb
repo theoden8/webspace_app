@@ -328,6 +328,8 @@
   "devToolsSensitiveShow": "সংবেদনশীল এন্ট্রি দেখান (siteId, URL, হোস্টনেম)",
   "devToolsExport": "এক্সপোর্ট",
   "devToolsLogsCopied": "{count}টি লগ এন্ট্রি কপি হয়েছে",
+  "devToolsLogsCopySensitiveTitle": "সংবেদনশীল এন্ট্রি কপি করবেন?",
+  "devToolsLogsCopySensitiveBody": "প্রদর্শিত এন্ট্রিগুলির মধ্যে {count}টিতে সাইট আইডি, URL ও হোস্টনেম রয়েছে। ক্লিপবোর্ড ডিভাইসের বাইরে সিঙ্ক হতে পারে।",
   "devToolsExportLogsDialogTitle": "লগ এক্সপোর্ট করুন",
   "devToolsLogsExported": "লগ এক্সপোর্ট হয়েছে",
   "siteSettingsTitle": "সেটিংস",

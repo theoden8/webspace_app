@@ -328,6 +328,8 @@
   "devToolsSensitiveShow": "Rādīt sensitīvus ierakstus (siteId, URL, resursdatoru nosaukumi)",
   "devToolsExport": "Eksportēt",
   "devToolsLogsCopied": "Nokopēti {count} žurnāla ieraksti",
+  "devToolsLogsCopySensitiveTitle": "Kopēt sensitīvos ierakstus?",
+  "devToolsLogsCopySensitiveBody": "{count} no parādītajiem ierakstiem satur vietņu ID, URL adreses un resursdatoru nosaukumus. Starpliktuve var sinhronizēties ārpus ierīces.",
   "devToolsExportLogsDialogTitle": "Eksportēt žurnālus",
   "devToolsLogsExported": "Žurnāli eksportēti",
   "siteSettingsTitle": "Iestatījumi",

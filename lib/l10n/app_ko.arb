@@ -328,6 +328,8 @@
   "devToolsSensitiveShow": "민감한 항목(siteId, URL, 호스트 이름) 표시",
   "devToolsExport": "내보내기",
   "devToolsLogsCopied": "로그 항목 {count}개를 복사했습니다",
+  "devToolsLogsCopySensitiveTitle": "민감한 항목을 복사할까요?",
+  "devToolsLogsCopySensitiveBody": "표시된 항목 중 {count}개에 사이트 ID, URL, 호스트 이름이 포함되어 있습니다. 클립보드는 기기 외부로 동기화될 수 있습니다.",
   "devToolsExportLogsDialogTitle": "로그 내보내기",
   "devToolsLogsExported": "로그를 내보냈습니다",
   "siteSettingsTitle": "설정",

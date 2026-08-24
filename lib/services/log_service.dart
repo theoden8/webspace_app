@@ -94,15 +94,20 @@ class LogService extends ChangeNotifier {
     return buffer.toString();
   }
 
-  /// Format an arbitrary set of entries for the clipboard, dropping sensitive
-  /// ones. The system clipboard syncs off-device (Android clipboard history,
-  /// cloud clipboard, third-party keyboards), so copying from the Logs tab
-  /// falls under the same "sensitive never leaves the device" contract as
-  /// [export] — even when the tab is currently showing sensitive entries.
-  static String formatForClipboard(Iterable<LogEntry> entries) {
+  /// Format an arbitrary set of entries for the clipboard. Sensitive entries
+  /// are dropped unless [includeSensitive] is set: the system clipboard syncs
+  /// off-device (Android clipboard history, cloud clipboard, third-party
+  /// keyboards), so the caller must have confirmed that with the user first.
+  /// Files written by [export] never carry them at all.
+  static String formatForClipboard(
+    Iterable<LogEntry> entries, {
+    bool includeSensitive = false,
+  }) {
     final buffer = StringBuffer();
     for (final entry in entries) {
-      if (entry.sensitivity == LogSensitivity.sensitive) continue;
+      if (!includeSensitive && entry.sensitivity == LogSensitivity.sensitive) {
+        continue;
+      }
       final time = '${entry.timestamp.hour.toString().padLeft(2, '0')}:'
           '${entry.timestamp.minute.toString().padLeft(2, '0')}:'
           '${entry.timestamp.second.toString().padLeft(2, '0')}';

@@ -328,6 +328,8 @@
   "devToolsSensitiveShow": "Прикажи чувствителни записи (siteId, URL-и, имиња на хостови)",
   "devToolsExport": "Извези",
   "devToolsLogsCopied": "Копирани {count} записи од дневникот",
+  "devToolsLogsCopySensitiveTitle": "Да се копираат чувствителните записи?",
+  "devToolsLogsCopySensitiveBody": "{count} од прикажаните записи содржат идентификатори на сајтови, URL-адреси и имиња на хостови. Таблата со исечоци може да се синхронизира надвор од уредот.",
   "devToolsExportLogsDialogTitle": "Извези дневници",
   "devToolsLogsExported": "Дневниците се извезени",
   "siteSettingsTitle": "Поставки",

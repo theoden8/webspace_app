@@ -328,6 +328,8 @@
   "devToolsSensitiveShow": "Wys sensitiewe inskrywings (siteId, URL's, gasheername)",
   "devToolsExport": "Voer uit",
   "devToolsLogsCopied": "{count} loginskrywings gekopieer",
+  "devToolsLogsCopySensitiveTitle": "Sensitiewe inskrywings kopieer?",
+  "devToolsLogsCopySensitiveBody": "{count} van die inskrywings wat gewys word bevat werf-ID's, URL's en gasheername. Die knipbord kan van die toestel af sinkroniseer.",
   "devToolsExportLogsDialogTitle": "Voer logboeke uit",
   "devToolsLogsExported": "Logboeke uitgevoer",
   "siteSettingsTitle": "Instellings",

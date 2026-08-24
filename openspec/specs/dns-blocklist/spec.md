@@ -551,7 +551,9 @@ Developer Tools SHALL include a DNS tab with a Pi-hole-style query log showing a
 
 **Given** DNS entries are recorded
 **When** the user taps "Copy"
-**Then** the full log is copied to the clipboard in `[timestamp] BLOCKED/ALLOWED domain` format
+**Then** only the entries the status chip and the search query leave visible are
+copied to the clipboard, in `[timestamp] BLOCKED/ALLOWED domain` format
+**And** the Copy button is disabled when those filters leave no entries
 
 ---
 

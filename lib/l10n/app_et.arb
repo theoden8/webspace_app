@@ -328,6 +328,8 @@
   "devToolsSensitiveShow": "Näita tundlikke kirjeid (siteId, URL-id, hostinimed)",
   "devToolsExport": "Ekspordi",
   "devToolsLogsCopied": "Kopeeritud {count} logikirjet",
+  "devToolsLogsCopySensitiveTitle": "Kas kopeerida tundlikud kirjed?",
+  "devToolsLogsCopySensitiveBody": "{count} kuvatud kirjet sisaldab saidi ID-sid, URL-e ja hostinimesid. Lõikelaud võib sünkroonida seadmest välja.",
   "devToolsExportLogsDialogTitle": "Ekspordi logid",
   "devToolsLogsExported": "Logid eksporditud",
   "siteSettingsTitle": "Seaded",

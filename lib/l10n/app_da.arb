@@ -328,6 +328,8 @@
   "devToolsSensitiveShow": "Vis følsomme poster (siteId, URL'er, værtsnavne)",
   "devToolsExport": "Eksportér",
   "devToolsLogsCopied": "Kopierede {count} logposter",
+  "devToolsLogsCopySensitiveTitle": "Kopiér følsomme poster?",
+  "devToolsLogsCopySensitiveBody": "{count} af de viste poster indeholder websteds-id'er, URL'er og værtsnavne. Udklipsholderen kan synkronisere uden for enheden.",
   "devToolsExportLogsDialogTitle": "Eksportér logfiler",
   "devToolsLogsExported": "Logfiler eksporteret",
   "siteSettingsTitle": "Indstillinger",

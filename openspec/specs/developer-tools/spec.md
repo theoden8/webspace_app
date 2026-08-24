@@ -212,6 +212,22 @@ The app SHALL maintain a ring buffer of app-level log entries accessible from bo
 **Then** only the currently visible (filtered by level chips and search query) log entries are copied to clipboard
 **And** the snackbar shows the count of copied entries
 
+#### Scenario: Copying sensitive entries takes a second confirmation
+
+**Given** the show-sensitive toggle is on and the visible entries include sensitive ones
+**When** the user taps "Copy"
+**Then** a dialog names how many of them are sensitive and that the clipboard can sync off the device
+**When** the user confirms
+**Then** every visible entry, sensitive ones included, is copied
+**When** the user cancels
+**Then** nothing is written to the clipboard
+
+#### Scenario: Sensitive entries never reach a file
+
+**Given** the show-sensitive toggle is on
+**When** the user taps "Export"
+**Then** the written file carries only non-sensitive entries, whatever the toggle says
+
 #### Scenario: Access from App Settings
 
 **Given** no site is loaded
@@ -411,5 +427,6 @@ class ConsoleLogEntry {
 5a. **Save Icon as PNG** (AppBar image icon): tap and verify a save dialog with `{domain}_icon.png`; save and confirm the file opens as a PNG. Test on a site with an SVG favicon (e.g. codeberg) and one with an ICO favicon to confirm both rasterize/convert correctly
 6. **Scripts** (AppBar code icon): tap and verify bottom sheet shows user scripts (or "no scripts" message); expand a script and copy its source
 7. **App Logs tab**: verify app log entries appear; use filter chips; tap "Copy" and paste — verify only filtered entries are copied
-8. **Filtered copy**: on each tab, enter a search query, tap Copy, and verify clipboard contains only the matching entries (not all)
+8. **Filtered copy**: on each tab, enter a search query, tap Copy, and verify clipboard contains only the matching entries (not all). On the DNS tab also select the "Blocked" chip and confirm the allowed lookups stay off the clipboard
+8a. **Sensitive copy**: on the App Logs tab turn on "Show sensitive entries", tap Copy, cancel the dialog and verify the clipboard is untouched; tap Copy again, confirm, and verify the sensitive lines are in the paste. Then tap Export and verify the written file has none of them
 9. Go back, open App Settings -> App Logs: verify it works without a site loaded (share and scripts icons should not appear)

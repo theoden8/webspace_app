@@ -328,6 +328,8 @@
   "devToolsSensitiveShow": "Visa känsliga poster (siteId, URL:er, värdnamn)",
   "devToolsExport": "Exportera",
   "devToolsLogsCopied": "Kopierade {count} loggposter",
+  "devToolsLogsCopySensitiveTitle": "Kopiera känsliga poster?",
+  "devToolsLogsCopySensitiveBody": "{count} av posterna som visas innehåller webbplats-ID:n, URL:er och värdnamn. Urklipp kan synkroniseras utanför enheten.",
   "devToolsExportLogsDialogTitle": "Exportera loggar",
   "devToolsLogsExported": "Loggar exporterade",
   "siteSettingsTitle": "Inställningar",

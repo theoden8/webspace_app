@@ -328,6 +328,8 @@
   "devToolsSensitiveShow": "إظهار الإدخالات الحسّاسة (siteId، عناوين URL، أسماء المضيفين)",
   "devToolsExport": "تصدير",
   "devToolsLogsCopied": "تم نسخ {count} إدخال سجل",
+  "devToolsLogsCopySensitiveTitle": "نسخ الإدخالات الحساسة؟",
+  "devToolsLogsCopySensitiveBody": "{count} من الإدخالات المعروضة تحتوي على معرّفات المواقع وعناوين URL وأسماء المضيفين. قد تتم مزامنة الحافظة خارج الجهاز.",
   "devToolsExportLogsDialogTitle": "تصدير السجلات",
   "devToolsLogsExported": "تم تصدير السجلات",
   "siteSettingsTitle": "الإعدادات",

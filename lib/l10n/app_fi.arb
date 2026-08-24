@@ -328,6 +328,8 @@
   "devToolsSensitiveShow": "Näytä arkaluonteiset merkinnät (siteId, URL-osoitteet, isäntänimet)",
   "devToolsExport": "Vie",
   "devToolsLogsCopied": "Kopioitu {count} lokimerkintää",
+  "devToolsLogsCopySensitiveTitle": "Kopioidaanko arkaluontoiset merkinnät?",
+  "devToolsLogsCopySensitiveBody": "{count} näytetystä merkinnästä sisältää sivustotunnuksia, URL-osoitteita ja isäntänimiä. Leikepöytä voi synkronoitua laitteen ulkopuolelle.",
   "devToolsExportLogsDialogTitle": "Vie lokit",
   "devToolsLogsExported": "Lokit viety",
   "siteSettingsTitle": "Asetukset",

@@ -328,6 +328,8 @@
   "devToolsSensitiveShow": "Tampilkan entri sensitif (siteId, URL, nama host)",
   "devToolsExport": "Ekspor",
   "devToolsLogsCopied": "Menyalin {count} entri log",
+  "devToolsLogsCopySensitiveTitle": "Salin entri sensitif?",
+  "devToolsLogsCopySensitiveBody": "{count} dari entri yang ditampilkan memuat ID situs, URL, dan nama host. Papan klip dapat disinkronkan ke luar perangkat.",
   "devToolsExportLogsDialogTitle": "Ekspor Log",
   "devToolsLogsExported": "Log diekspor",
   "siteSettingsTitle": "Pengaturan",

@@ -1671,6 +1671,19 @@
       }
     }
   },
+  "devToolsLogsCopySensitiveTitle": "Copy sensitive entries?",
+  "@devToolsLogsCopySensitiveTitle": {
+    "description": "Title of the dialog shown when the Copy button on the app-log screen would put sensitive log entries on the clipboard."
+  },
+  "devToolsLogsCopySensitiveBody": "{count} of the entries shown carry site IDs, URLs and hostnames. The clipboard can sync off the device.",
+  "@devToolsLogsCopySensitiveBody": {
+    "description": "Body of the dialog asking whether sensitive log entries may be copied to the clipboard. {count} is how many of the visible entries are sensitive.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "devToolsExportLogsDialogTitle": "Export Logs",
   "@devToolsExportLogsDialogTitle": {
     "description": "Title of the file-save dialog when exporting app logs."

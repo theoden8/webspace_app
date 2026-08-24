@@ -328,6 +328,8 @@
   "devToolsSensitiveShow": "顯示敏感項目（siteId、網址、主機名稱）",
   "devToolsExport": "匯出",
   "devToolsLogsCopied": "已複製 {count} 條記錄項目",
+  "devToolsLogsCopySensitiveTitle": "复制敏感条目？",
+  "devToolsLogsCopySensitiveBody": "显示的条目中有 {count} 条包含站点 ID、网址和主机名。剪贴板可能会同步到设备之外。",
   "devToolsExportLogsDialogTitle": "匯出記錄",
   "devToolsLogsExported": "記錄已匯出",
   "siteSettingsTitle": "設定",

@@ -328,6 +328,8 @@
   "devToolsSensitiveShow": "Sýna viðkvæmar færslur (siteId, URL, hýsilheiti)",
   "devToolsExport": "Flytja út",
   "devToolsLogsCopied": "Afritaði {count} annálafærslur",
+  "devToolsLogsCopySensitiveTitle": "Afrita viðkvæmar færslur?",
+  "devToolsLogsCopySensitiveBody": "{count} af sýndum færslum innihalda auðkenni vefsvæða, vefslóðir og hýsilnöfn. Klippiborðið getur samstillst út fyrir tækið.",
   "devToolsExportLogsDialogTitle": "Flytja út annála",
   "devToolsLogsExported": "Annálar fluttir út",
   "siteSettingsTitle": "Stillingar",

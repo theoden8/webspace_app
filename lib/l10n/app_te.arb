@@ -328,6 +328,8 @@
   "devToolsSensitiveShow": "సున్నితమైన ఎంట్రీలను చూపించు (siteId, URLs, hostnames)",
   "devToolsExport": "ఎగుమతి చేయి",
   "devToolsLogsCopied": "{count} లాగ్ ఎంట్రీలు కాపీ చేయబడ్డాయి",
+  "devToolsLogsCopySensitiveTitle": "సున్నితమైన ఎంట్రీలను కాపీ చేయాలా?",
+  "devToolsLogsCopySensitiveBody": "చూపిన ఎంట్రీలలో {count} సైట్ IDలు, URLలు మరియు హోస్ట్‌నేమ్‌లను కలిగి ఉన్నాయి. క్లిప్‌బోర్డ్ పరికరం వెలుపలికి సింక్ కావచ్చు.",
   "devToolsExportLogsDialogTitle": "లాగ్‌లను ఎగుమతి చేయి",
   "devToolsLogsExported": "లాగ్‌లు ఎగుమతి చేయబడ్డాయి",
   "siteSettingsTitle": "సెట్టింగ్‌లు",

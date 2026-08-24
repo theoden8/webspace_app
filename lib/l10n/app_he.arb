@@ -328,6 +328,8 @@
   "devToolsSensitiveShow": "הצג רשומות רגישות (siteId, כתובות URL, שמות מארח)",
   "devToolsExport": "ייצא",
   "devToolsLogsCopied": "הועתקו {count} רשומות יומן",
+  "devToolsLogsCopySensitiveTitle": "להעתיק רשומות רגישות?",
+  "devToolsLogsCopySensitiveBody": "{count} מהרשומות המוצגות מכילות מזהי אתרים, כתובות URL ושמות מארח. הלוח עשוי להסתנכרן אל מחוץ למכשיר.",
   "devToolsExportLogsDialogTitle": "ייצא יומנים",
   "devToolsLogsExported": "היומנים יוצאו",
   "siteSettingsTitle": "הגדרות",

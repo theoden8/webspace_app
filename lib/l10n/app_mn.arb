@@ -328,6 +328,8 @@
   "devToolsSensitiveShow": "Эмзэг бичлэгүүдийг харуулах (siteId, URL, хостын нэр)",
   "devToolsExport": "Экспортлох",
   "devToolsLogsCopied": "{count} логийн бичлэг хуулагдлаа",
+  "devToolsLogsCopySensitiveTitle": "Нууцлалтай бичлэгүүдийг хуулах уу?",
+  "devToolsLogsCopySensitiveBody": "Харагдаж буй бичлэгүүдийн {count} нь сайтын ID, URL болон хостын нэр агуулна. Түр санах ой төхөөрөмжөөс гадагш синк хийгдэж болно.",
   "devToolsExportLogsDialogTitle": "Лог экспортлох",
   "devToolsLogsExported": "Лог экспортлогдлоо",
   "siteSettingsTitle": "Тохиргоо",

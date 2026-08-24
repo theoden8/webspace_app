@@ -328,6 +328,8 @@
   "devToolsSensitiveShow": "Hassas girişleri göster (siteId, URL'ler, ana makine adları)",
   "devToolsExport": "Dışa aktar",
   "devToolsLogsCopied": "{count} günlük girişi kopyalandı",
+  "devToolsLogsCopySensitiveTitle": "Hassas girdiler kopyalansın mı?",
+  "devToolsLogsCopySensitiveBody": "Gösterilen girdilerin {count} tanesi site kimlikleri, URL'ler ve ana bilgisayar adları içeriyor. Pano cihaz dışına eşitlenebilir.",
   "devToolsExportLogsDialogTitle": "Günlükleri Dışa Aktar",
   "devToolsLogsExported": "Günlükler dışa aktarıldı",
   "siteSettingsTitle": "Ayarlar",

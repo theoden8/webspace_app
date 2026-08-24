@@ -328,6 +328,8 @@
   "devToolsSensitiveShow": "ਸੰਵੇਦਨਸ਼ੀਲ ਐਂਟਰੀਆਂ ਵਿਖਾਓ (siteId, URL, ਹੋਸਟਨਾਮ)",
   "devToolsExport": "ਐਕਸਪੋਰਟ ਕਰੋ",
   "devToolsLogsCopied": "{count} ਲੌਗ ਐਂਟਰੀਆਂ ਕਾਪੀ ਹੋਈਆਂ",
+  "devToolsLogsCopySensitiveTitle": "ਸੰਵੇਦਨਸ਼ੀਲ ਐਂਟਰੀਆਂ ਕਾਪੀ ਕਰਨੀਆਂ ਹਨ?",
+  "devToolsLogsCopySensitiveBody": "ਦਿਖਾਈਆਂ ਗਈਆਂ ਐਂਟਰੀਆਂ ਵਿੱਚੋਂ {count} ਵਿੱਚ ਸਾਈਟ ID, URL ਅਤੇ ਹੋਸਟਨਾਮ ਹਨ। ਕਲਿੱਪਬੋਰਡ ਡੀਵਾਈਸ ਤੋਂ ਬਾਹਰ ਸਿੰਕ ਹੋ ਸਕਦਾ ਹੈ।",
   "devToolsExportLogsDialogTitle": "ਲੌਗ ਐਕਸਪੋਰਟ ਕਰੋ",
   "devToolsLogsExported": "ਲੌਗ ਐਕਸਪੋਰਟ ਹੋ ਗਏ",
   "siteSettingsTitle": "ਸੈਟਿੰਗਾਂ",

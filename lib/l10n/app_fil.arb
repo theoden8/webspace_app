@@ -328,6 +328,8 @@
   "devToolsSensitiveShow": "Ipakita ang mga sensitibong entry (siteId, URL, hostname)",
   "devToolsExport": "I-export",
   "devToolsLogsCopied": "Nakopya ang {count} na log entry",
+  "devToolsLogsCopySensitiveTitle": "Kopyahin ang mga sensitibong entry?",
+  "devToolsLogsCopySensitiveBody": "{count} sa mga ipinapakitang entry ang naglalaman ng mga site ID, URL, at hostname. Maaaring mag-sync ang clipboard sa labas ng device.",
   "devToolsExportLogsDialogTitle": "I-export ang mga Log",
   "devToolsLogsExported": "Na-export ang mga log",
   "siteSettingsTitle": "Mga Setting",

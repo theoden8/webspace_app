@@ -328,6 +328,8 @@
   "devToolsSensitiveShow": "Taispeáin iontrálacha íogaire (siteId, URLanna, óstainmneacha)",
   "devToolsExport": "Easpórtáil",
   "devToolsLogsCopied": "Cóipeáladh {count} iontráil loga",
+  "devToolsLogsCopySensitiveTitle": "Iontrálacha íogaire a chóipeáil?",
+  "devToolsLogsCopySensitiveBody": "Tá aitheantóirí suímh, URLanna agus óstainmneacha i {count} de na hiontrálacha atá ar taispeáint. Is féidir leis an ngearrthaisce sioncronú lasmuigh den ghléas.",
   "devToolsExportLogsDialogTitle": "Easpórtáil Logaí",
   "devToolsLogsExported": "Easpórtáladh na logaí",
   "siteSettingsTitle": "Socruithe",
