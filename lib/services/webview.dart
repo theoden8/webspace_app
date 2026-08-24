@@ -4683,7 +4683,8 @@ class WebViewFactory {
     switch (scheme) {
       case 'http':
       case 'https':
-        await _handleHttpDownload(req, referer: referer, proxy: proxy);
+        await _handleHttpDownload(controller, req,
+            referer: referer, proxy: proxy);
         return;
       case 'data':
         _handleDataDownload(req);
@@ -4697,6 +4698,7 @@ class WebViewFactory {
   }
 
   static Future<void> _handleHttpDownload(
+    inapp.InAppWebViewController controller,
     inapp.DownloadStartRequest req, {
     String? referer,
     UserProxySettings? proxy,
@@ -4712,10 +4714,23 @@ class WebViewFactory {
       bytesTotal: req.contentLength > 0 ? req.contentLength : null,
     );
     try {
-      final cookies = await inapp.CookieManager.instance()
-          .getCookies(url: req.url);
+      // Scope the read to the WebView that started the download. Under the
+      // container engine the site's session lives in its own jar; an
+      // unscoped read resolves against the default jar, which is empty, so
+      // the GET goes out logged-out and an authenticated download comes
+      // back 401/403 (DL-003, CONT-006).
+      final cookies = await inapp.CookieManager.instance().getCookies(
+        url: req.url,
+        webViewController: controller,
+      );
       final cookieHeader = DownloadEngine.buildCookieHeader(
         cookies.map((c) => MapEntry(c.name, c.value.toString())),
+      );
+      LogService.instance.log(
+        'Download',
+        'HTTP download: url=${req.url} cookies=${cookies.length} '
+            'ua=${req.userAgent != null} referer=${referer != null}',
+        sensitivity: LogSensitivity.sensitive,
       );
       final engine = DownloadEngine(proxy: proxy);
       final result = await engine.fetch(
