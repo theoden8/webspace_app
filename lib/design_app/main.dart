@@ -51,6 +51,9 @@ Future<void> main() async {
   if (!seeded) {
     await seedDemoData(theme: Uri.base.queryParameters['theme'] ?? 'system');
   }
+  // Counters for the protection report, so its shield carries a badge and the
+  // report has a week to draw. Session-only: nothing here is flushed.
+  seedDemoBlockStats();
 
   runApp(app.WebSpaceApp());
 }

@@ -17,9 +17,13 @@ import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/hint_button.dart';
 import 'package:webspace/widgets/tab_bar_corner_button.dart';
+import 'package:webspace/demo_data.dart'
+    show demoBlockStatsSiteNames, seedDemoBlockStats;
 import 'package:webspace/main.dart' show AppThemeSettings, AccentColor;
 import 'package:webspace/screens/add_site.dart';
 import 'package:webspace/screens/app_settings.dart';
+import 'package:webspace/screens/block_stats.dart';
+import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/screens/location_picker.dart';
 import 'package:webspace/screens/settings.dart';
 import 'package:webspace/screens/trusted_certificates.dart';
@@ -70,6 +74,8 @@ final List<GalleryCard> galleryCards = [
   GalleryCard(id: 'webspace-detail', label: 'Webspace detail screen', fullBleed: true, builder: (c) => const _WebspaceDetailCard()),
   GalleryCard(id: 'site-settings', label: 'Site settings screen', fullBleed: true, builder: (c) => const _SiteSettingsCard()),
   GalleryCard(id: 'app-settings', label: 'App settings screen', fullBleed: true, builder: (c) => const _AppSettingsCard()),
+  GalleryCard(id: 'protection-report', label: 'Protection report screen', fullBleed: true, builder: (c) => const _ProtectionReportCard()),
+  GalleryCard(id: 'protection-report-category', label: 'Protection report category', fullBleed: true, builder: (c) => const _ProtectionCategoryCard()),
   GalleryCard(id: 'add-site', label: 'Add site screen', fullBleed: true, builder: (c) => const _AddSiteCard()),
   GalleryCard(id: 'color-roles', label: 'Color roles', builder: (c) => const _ColorRolesCard()),
   GalleryCard(id: 'type-scale', label: 'Type scale', builder: (c) => const _TypeScaleCard()),
@@ -457,6 +463,32 @@ class _WebspaceDetailCard extends StatelessWidget {
 }
 
 /// The real AppSettingsScreen: the global preferences surface.
+/// The protection report on seeded counters (STATS-003).
+class _ProtectionReportCard extends StatelessWidget {
+  const _ProtectionReportCard();
+
+  @override
+  Widget build(BuildContext context) {
+    seedDemoBlockStats();
+    return const BlockStatsScreen(siteNames: demoBlockStatsSiteNames);
+  }
+}
+
+/// One category of the report, opened from its row (STATS-008).
+class _ProtectionCategoryCard extends StatelessWidget {
+  const _ProtectionCategoryCard();
+
+  @override
+  Widget build(BuildContext context) {
+    seedDemoBlockStats();
+    return const BlockStatsCategoryScreen(
+      category: BlockCategory.filterList,
+      rangeDays: 7,
+      siteNames: demoBlockStatsSiteNames,
+    );
+  }
+}
+
 class _AppSettingsCard extends StatelessWidget {
   const _AppSettingsCard();
 
