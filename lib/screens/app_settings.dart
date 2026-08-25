@@ -92,10 +92,14 @@ class AppSettingsScreen extends StatefulWidget {
   /// in the UI hint silently doesn't take effect until the next app
   /// restart.
   final VoidCallback? onOutboundProxyChanged;
+  /// `siteId` -> display name, passed through to the protection report so its
+  /// per-category drill-down can name the sites a block was recorded for.
+  final Map<String, String> siteNames;
 
   const AppSettingsScreen({
     super.key,
     required this.currentSettings,
+    this.siteNames = const {},
     required this.onSettingsChanged,
     required this.onExportSettings,
     required this.onImportSettings,
@@ -1078,7 +1082,10 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const BlockStatsScreen()),
+              MaterialPageRoute(
+                builder: (context) =>
+                    BlockStatsScreen(siteNames: widget.siteNames),
+              ),
             ),
           ),
           ListTile(

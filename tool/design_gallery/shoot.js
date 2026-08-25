@@ -18,6 +18,8 @@ const CARDS = [
   { id: 'webspaces', width: 400, height: 640 },
   { id: 'webspace-detail', width: 400, height: 640 },
   { id: 'app-settings', width: 400, height: 900 },
+  { id: 'protection-report', width: 400, height: 740 },
+  { id: 'protection-report-category', width: 400, height: 740 },
   { id: 'add-site', width: 400, height: 740 },
   { id: 'user-scripts', width: 400, height: 740 },
   { id: 'trusted-certificates', width: 400, height: 560 },

@@ -1,14 +1,82 @@
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/services/block_stats_detail.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/block_stats_service.dart';
+
+String _categoryLabel(AppLocalizations loc, BlockCategory category) {
+  switch (category) {
+    case BlockCategory.filterList:
+      return loc.blockStatsCategoryFilterList;
+    case BlockCategory.dnsBlocklist:
+      return loc.blockStatsCategoryDns;
+    case BlockCategory.trackingParam:
+      return loc.blockStatsCategoryParam;
+    case BlockCategory.localCdn:
+      return loc.blockStatsCategoryCdn;
+  }
+}
+
+IconData _categoryIcon(BlockCategory category) {
+  switch (category) {
+    case BlockCategory.filterList:
+      return Icons.block;
+    case BlockCategory.dnsBlocklist:
+      return Icons.dns_outlined;
+    case BlockCategory.trackingParam:
+      return Icons.link_off;
+    case BlockCategory.localCdn:
+      return Icons.cloud_off_outlined;
+  }
+}
+
+/// Daily totals as a bare bar strip. Deliberately label-free: the axis
+/// values would need a locale-formatted date per bar and the shape is the
+/// point, not the readings.
+Widget _dailyBars(ThemeData theme, List<int> daily) {
+  final peak = daily.fold<int>(0, (a, b) => b > a ? b : a);
+  return SizedBox(
+    height: 72,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          for (final value in daily)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 1),
+                child: FractionallySizedBox(
+                  // A zero day draws nothing; any non-zero day gets a
+                  // visible stub so a quiet day is not mistaken for none.
+                  heightFactor:
+                      value == 0 || peak == 0 ? 0.0 : (value / peak).clamp(0.04, 1.0),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    ),
+  );
+}
 
 /// App-wide protection report (STATS-003): what the blockers stopped over the
 /// last 7 / 30 days, split by the mechanism that stopped it, plus the
 /// all-time total since counting started.
 class BlockStatsScreen extends StatefulWidget {
-  const BlockStatsScreen({super.key});
+  /// `siteId` -> display name for the sites the drill-down may name. Only
+  /// app-tier sites belong here: an archive-tier site never contributes a
+  /// count in the first place (STATS-005).
+  final Map<String, String> siteNames;
+
+  const BlockStatsScreen({super.key, this.siteNames = const {}});
 
   @override
   State<BlockStatsScreen> createState() => _BlockStatsScreenState();
@@ -63,32 +131,6 @@ class _BlockStatsScreenState extends State<BlockStatsScreen> {
     setState(() {});
   }
 
-  String _categoryLabel(AppLocalizations loc, BlockCategory category) {
-    switch (category) {
-      case BlockCategory.filterList:
-        return loc.blockStatsCategoryFilterList;
-      case BlockCategory.dnsBlocklist:
-        return loc.blockStatsCategoryDns;
-      case BlockCategory.trackingParam:
-        return loc.blockStatsCategoryParam;
-      case BlockCategory.localCdn:
-        return loc.blockStatsCategoryCdn;
-    }
-  }
-
-  IconData _categoryIcon(BlockCategory category) {
-    switch (category) {
-      case BlockCategory.filterList:
-        return Icons.block;
-      case BlockCategory.dnsBlocklist:
-        return Icons.dns_outlined;
-      case BlockCategory.trackingParam:
-        return Icons.link_off;
-      case BlockCategory.localCdn:
-        return Icons.cloud_off_outlined;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
@@ -134,7 +176,7 @@ class _BlockStatsScreenState extends State<BlockStatsScreen> {
                     ),
                   ),
                 ),
-                _buildChart(theme, engine.dailyTotals(_rangeDays)),
+                _dailyBars(theme, engine.dailyTotals(_rangeDays)),
                 const SizedBox(height: 20),
                 ..._buildCategoryRows(loc, theme, totals, rangeTotal),
                 const Divider(height: 32),
@@ -222,41 +264,6 @@ class _BlockStatsScreenState extends State<BlockStatsScreen> {
     );
   }
 
-  /// Daily totals as a bare bar strip. Deliberately label-free: the axis
-  /// values would need a locale-formatted date per bar and the shape is the
-  /// point, not the readings.
-  Widget _buildChart(ThemeData theme, List<int> daily) {
-    final peak = daily.fold<int>(0, (a, b) => b > a ? b : a);
-    return SizedBox(
-      height: 72,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            for (final value in daily)
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 1),
-                  child: FractionallySizedBox(
-                    // A zero day draws nothing; any non-zero day gets a
-                    // visible stub so a quiet day is not mistaken for none.
-                    heightFactor: value == 0 ? 0.0 : (value / peak).clamp(0.04, 1.0),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
   List<Widget> _buildCategoryRows(
     AppLocalizations loc,
     ThemeData theme,
@@ -271,38 +278,254 @@ class _BlockStatsScreenState extends State<BlockStatsScreen> {
     };
     return [
       for (final category in ordered)
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-          child: Row(
-            children: [
-              Icon(_categoryIcon(category),
-                  color: theme.colorScheme.onSurfaceVariant),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      rowLabels[category]!,
-                      style: theme.textTheme.titleSmall,
-                    ),
-                    const SizedBox(height: 6),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: rangeTotal == 0
-                            ? 0
-                            : (totals[category] ?? 0) / rangeTotal,
-                        minHeight: 6,
-                        backgroundColor: theme.colorScheme.surfaceContainerHighest,
+        InkWell(
+          key: Key('block_stats_category_${category.name}'),
+          onTap: () => _openCategory(category),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: Row(
+              children: [
+                Icon(_categoryIcon(category),
+                    color: theme.colorScheme.onSurfaceVariant),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        rowLabels[category]!,
+                        style: theme.textTheme.titleSmall,
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 6),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: rangeTotal == 0
+                              ? 0
+                              : (totals[category] ?? 0) / rangeTotal,
+                          minHeight: 6,
+                          backgroundColor:
+                              theme.colorScheme.surfaceContainerHighest,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+                Icon(Icons.chevron_right,
+                    color: theme.colorScheme.onSurfaceVariant),
+              ],
+            ),
           ),
         ),
     ];
+  }
+
+  void _openCategory(BlockCategory category) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BlockStatsCategoryScreen(
+          category: category,
+          rangeDays: _rangeDays,
+          siteNames: widget.siteNames,
+        ),
+      ),
+    );
+  }
+}
+
+/// One category of the protection report, opened from its row (STATS-008).
+///
+/// Two halves with different lifetimes, and the screen says so: the counts
+/// and the chart come from the persisted buckets, while the list of what was
+/// actually stopped and which site it was stopped for is session-scoped and
+/// dies with the process.
+class BlockStatsCategoryScreen extends StatefulWidget {
+  final BlockCategory category;
+  final int rangeDays;
+  final Map<String, String> siteNames;
+
+  const BlockStatsCategoryScreen({
+    super.key,
+    required this.category,
+    required this.rangeDays,
+    this.siteNames = const {},
+  });
+
+  @override
+  State<BlockStatsCategoryScreen> createState() =>
+      _BlockStatsCategoryScreenState();
+}
+
+class _BlockStatsCategoryScreenState extends State<BlockStatsCategoryScreen> {
+  BlockStatsService get _service => BlockStatsService.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _service.addListener(_onStatsChanged);
+  }
+
+  @override
+  void dispose() {
+    _service.removeListener(_onStatsChanged);
+    super.dispose();
+  }
+
+  void _onStatsChanged() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final engine = _service.engine;
+    final detail = _service.detail;
+    final category = widget.category;
+    final rangeTotal = engine.totalsForLastDays(widget.rangeDays)[category] ?? 0;
+    final items = detail.topItems(category);
+    final sites = _namedSiteCounts(detail);
+
+    return Scaffold(
+      appBar: AppBar(title: Text(_categoryLabel(loc, category))),
+      body: ListView(
+        padding: const EdgeInsets.only(bottom: 24),
+        children: [
+          _buildHeader(loc, theme, rangeTotal),
+          _dailyBars(
+            theme,
+            engine.dailyTotals(widget.rangeDays, category: category),
+          ),
+          const SizedBox(height: 20),
+          if (items.isEmpty && sites.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                loc.blockStatsDetailEmpty,
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+            ),
+          if (items.isNotEmpty) ...[
+            _sectionHeader(theme, loc.blockStatsDetailItems),
+            for (final item in items)
+              _countRow(theme, item.label, item.count,
+                  icon: _categoryIcon(category)),
+          ],
+          if (sites.isNotEmpty) ...[
+            _sectionHeader(theme, loc.blockStatsDetailSites),
+            for (final site in sites)
+              _countRow(theme, site.key, site.value,
+                  icon: Icons.public_outlined),
+          ],
+          const Divider(height: 32),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  loc.blockStatsSince(
+                    engine.allTimeFor(category),
+                    MaterialLocalizations.of(context)
+                        .formatShortDate(engine.since),
+                  ),
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  loc.blockStatsDetailSessionNote,
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Session per-site counts, resolved to display names. A site deleted
+  /// mid-session has no name left to show, so it drops out rather than
+  /// surfacing a raw `siteId`.
+  List<MapEntry<String, int>> _namedSiteCounts(BlockStatsDetail detail) {
+    final out = <MapEntry<String, int>>[];
+    for (final entry in detail.siteCounts(widget.category)) {
+      final name = widget.siteNames[entry.key];
+      if (name == null || name.isEmpty) continue;
+      out.add(MapEntry(name, entry.value));
+    }
+    return out;
+  }
+
+  Widget _buildHeader(AppLocalizations loc, ThemeData theme, int total) {
+    final totalLabel = '$total';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            totalLabel,
+            style: theme.textTheme.displaySmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.primary,
+            ),
+          ),
+          Text(
+            widget.rangeDays == 7
+                ? loc.blockStatsSubtitleWeek
+                : loc.blockStatsSubtitleMonth,
+            style: theme.textTheme.titleSmall
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionHeader(ThemeData theme, String label) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Text(
+        label,
+        style: theme.textTheme.titleSmall
+            ?.copyWith(color: theme.colorScheme.primary),
+      ),
+    );
+  }
+
+  Widget _countRow(ThemeData theme, String label, int count,
+      {required IconData icon}) {
+    final countLabel = '$count';
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: theme.colorScheme.onSurfaceVariant),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodyMedium,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            countLabel,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -107,8 +107,11 @@ class WebInterceptNative {
       final list =
           await _channel.invokeMethod('fetchCdnEvents', {'siteId': siteId});
       if (list is! List) return;
-      for (final _ in list) {
-        LocalCdnService.instance.recordReplacement(siteId);
+      for (final event in list) {
+        final url = event is Map && event['url'] is String
+            ? event['url'] as String
+            : null;
+        LocalCdnService.instance.recordReplacement(siteId, url: url);
       }
     } catch (_) {}
   }

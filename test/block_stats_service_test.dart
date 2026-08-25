@@ -140,4 +140,45 @@ void main() {
       expect(service.engine.allTimeTotal, 3);
     });
   });
+
+  group('session detail (STATS-008)', () {
+    test('a label reaches the detail but never the persisted blob', () async {
+      final service = BlockStatsService.instance;
+      await service.initialize();
+      service.setSiteContributes('site', true);
+
+      service.record('site', BlockCategory.dnsBlocklist,
+          count: 2, label: 'ads.example');
+      await service.flush();
+
+      final prefs = await SharedPreferences.getInstance();
+      final stored = prefs.getString(BlockStatsService.prefsKey)!;
+      expect(service.detail.topItems(BlockCategory.dnsBlocklist).single.label,
+          'ads.example');
+      expect(stored, isNot(contains('ads.example')));
+      expect(stored, isNot(contains('site')));
+    });
+
+    test('an undeclared site leaves no detail either', () async {
+      final service = BlockStatsService.instance;
+      await service.initialize();
+
+      service.record('archive-site', BlockCategory.filterList,
+          label: 'tracker.example');
+
+      expect(service.detail.isEmpty, isTrue);
+    });
+
+    test('reset clears the session detail with the counters', () async {
+      final service = BlockStatsService.instance;
+      await service.initialize();
+      service.setSiteContributes('site', true);
+      service.record('site', BlockCategory.localCdn, label: 'cdn.example');
+
+      await service.reset();
+
+      expect(service.engine.allTimeTotal, 0);
+      expect(service.detail.isEmpty, isTrue);
+    });
+  });
 }

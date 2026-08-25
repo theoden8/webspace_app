@@ -101,6 +101,16 @@ The user SHALL be able to open a report from App Settings showing, for a selecta
 7- or 30-day range: the range total, a per-day bar chart, and each category's count
 with its share of the range; plus the all-time total and the date counting started.
 
+The app-bar shortcut into the report carries the week's count as a badge. That badge
+SHALL NOT use the error colour: it counts protection that worked, and an alarm colour
+reads as a fault the user has to deal with.
+
+#### Scenario: The badge is an accent, not an alarm
+
+**Given** a non-zero count for the last 7 days
+**When** the webspaces app bar renders the protection shield
+**Then** the badge is drawn in the accent role, not `colorScheme.error`
+
 #### Scenario: Nothing blocked yet
 
 **Given** the all-time total is zero
@@ -183,6 +193,74 @@ cannot start feeding the app-wide report.
 **When** that webview blocks requests
 **Then** no app-wide counter moves
 
+### Requirement: STATS-008 - Category Drill-Down
+
+Each category row on the report SHALL open a detail screen for that category showing:
+its count over the selected range, its own per-day chart on that range, its all-time
+total, and — for the current app session — what was actually stopped and which site it
+was stopped for.
+
+The itemised lists are **session-scoped and never persisted**. STATS-005 keeps hosts and
+`siteId`s out of the plaintext blob; holding the same data in memory for the running
+process changes nothing on disk, and the screen says which half survives a restart so
+the two numbers are not read as disagreeing.
+
+The label a funnel supplies is the substance of its own mechanism: the blocked host for
+DNS and filter-list blocks, the stripped query keys for ClearURLs, the CDN origin for a
+locally served resource. A funnel that cannot name what it stopped SHALL still attribute
+the event to its site.
+
+#### Scenario: A category names what it blocked
+
+**Given** two DNS blocks for `ads.example` and one for `beacon.example` this session
+**When** the user opens the DNS category
+**Then** both hosts are listed, most frequent first
+**And** the filter-list category's items are not among them
+
+#### Scenario: Per-site attribution
+
+**Given** blocks recorded for two app-tier sites in one category
+**When** the user opens that category
+**Then** each site is listed by its display name with its own count
+
+#### Scenario: Detail never reaches disk
+
+**Given** a block recorded with a host label
+**When** the service flushes
+**Then** the persisted payload contains neither the host nor the `siteId`
+
+#### Scenario: An archive-tier site leaves no detail either
+
+**Given** a site declared non-contributing
+**When** its blocks are recorded with labels
+**Then** the session detail stays empty
+
+#### Scenario: A site the user deleted mid-session
+
+**Given** a session count for a `siteId` that no longer has a display name
+**When** the user opens that category
+**Then** the row is omitted rather than shown as a raw `siteId`
+
+#### Scenario: Nothing this session, counters non-zero
+
+**Given** a category with a non-zero persisted total and no events since launch
+**When** the user opens it
+**Then** the counts and the chart still render
+**And** the itemised area says nothing has been recorded since the app started
+
+#### Scenario: Bounded memory
+
+**Given** more distinct items in one category than the per-category cap
+**When** further items are recorded
+**Then** the least frequent are evicted
+**And** the most frequent item is still listed
+
+#### Scenario: Reset clears the session detail
+
+**Given** recorded items and per-site counts
+**When** the user resets the statistics
+**Then** the itemised lists are empty alongside the zeroed counters
+
 ---
 
 ## Implementation Notes
@@ -192,10 +270,15 @@ cannot start feeding the app-wide report.
   the iOS/macOS JS bridge calls it per URL, navigation checks call it). The report
   hooks that one place, so the aggregate cannot drift from the per-site counters.
 - **No siteId is persisted.** Only per-category daily totals reach disk, so the blob
-  cannot be mined for which sites the user visits.
+  cannot be mined for which sites the user visits. The STATS-008 drill-down adds hosts
+  and per-site counts in memory only (`BlockStatsDetail`), gated by the same
+  `setSiteContributes` declaration as the counters, so an undeclared site fails closed
+  in both.
 - **Per-site live counters are unchanged.** `DnsStats` and the `StatsBanner` stay
   in-memory and session-scoped; this feature is additive.
-- Files: `lib/services/block_stats_engine.dart`, `lib/services/block_stats_service.dart`,
-  `lib/screens/block_stats.dart`. Tests: `test/block_stats_engine_test.dart`,
-  `test/block_stats_service_test.dart`. Structural gate for STATS-007:
-  `test/js/nested_webview_posture_parity.test.js` (`contributesBlockStats` is POSTURE).
+- Files: `lib/services/block_stats_engine.dart`, `lib/services/block_stats_detail.dart`,
+  `lib/services/block_stats_service.dart`, `lib/screens/block_stats.dart`. Tests:
+  `test/block_stats_engine_test.dart`, `test/block_stats_service_test.dart`,
+  `test/block_stats_detail_test.dart`, `test/block_stats_screen_test.dart`. Structural
+  gate for STATS-007: `test/js/nested_webview_posture_parity.test.js`
+  (`contributesBlockStats` is POSTURE).

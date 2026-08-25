@@ -3484,6 +3484,22 @@
   "@blockStatsResetConfirm": {
     "description": "Body of the confirmation dialog shown before clearing the protection report counters."
   },
+  "blockStatsDetailItems": "Most frequent",
+  "@blockStatsDetailItems": {
+    "description": "Section header on the protection report's per-category screen, above the list of the individual things that were stopped most often this session (domains, or the tracking parameters that were removed)."
+  },
+  "blockStatsDetailSites": "By site",
+  "@blockStatsDetailSites": {
+    "description": "Section header on the protection report's per-category screen, above the list of the user's sites with how many requests were stopped for each this session."
+  },
+  "blockStatsDetailEmpty": "Nothing recorded since the app started.",
+  "@blockStatsDetailEmpty": {
+    "description": "Shown on the protection report's per-category screen when no request of that kind has been stopped since the app was last launched. The totals above it can still be non-zero because they survive restarts."
+  },
+  "blockStatsDetailSessionNote": "The lists above cover this app session only; the totals are kept across restarts.",
+  "@blockStatsDetailSessionNote": {
+    "description": "Footnote on the protection report's per-category screen explaining that the itemised lists are held in memory and disappear when the app closes, while the counts above them are saved."
+  },
   "appSettingsProtectionReportSubtitle": "What the blockers stopped, over time",
   "@appSettingsProtectionReportSubtitle": {
     "description": "Subtitle of the App Settings row that opens the protection report screen."

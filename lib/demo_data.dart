@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/services/block_stats_engine.dart';
+import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
@@ -160,3 +162,83 @@ Future<void> seedDemoData({String theme = 'system', String? language}) async {
   isDemoMode = true;
   log('Demo mode enabled - changes will NOT be persisted to storage');
 }
+
+/// Design-time counters for the protection report, so the shield badge, the
+/// chart and the per-category drill-down have something to draw.
+///
+/// Kept out of [seedDemoData] on purpose: the integration screenshots seed
+/// through that and should not gain a badge they never asserted. Fills the
+/// engine and the session detail directly rather than going through
+/// `record`, which would stamp every event with today.
+void seedDemoBlockStats({DateTime? now}) {
+  final engine = BlockStatsService.instance.engine;
+  final detail = BlockStatsService.instance.detail;
+  if (engine.allTimeTotal > 0) return;
+  final at = now ?? DateTime.now();
+
+  const perDay = <BlockCategory, List<int>>{
+    BlockCategory.filterList: [38, 61, 55, 44, 74, 66, 91],
+    BlockCategory.dnsBlocklist: [18, 24, 12, 31, 27, 22, 35],
+    BlockCategory.trackingParam: [4, 9, 6, 3, 11, 7, 12],
+    BlockCategory.localCdn: [2, 5, 3, 6, 4, 8, 5],
+  };
+  perDay.forEach((category, days) {
+    for (var i = 0; i < days.length; i++) {
+      engine.record(
+        category,
+        count: days[i],
+        now: DateTime(at.year, at.month, at.day - (days.length - 1 - i)),
+      );
+    }
+  });
+
+  const items = <BlockCategory, Map<String, int>>{
+    BlockCategory.filterList: {
+      'doubleclick.net': 34,
+      'googlesyndication.com': 21,
+      'scorecardresearch.com': 12,
+      'adservice.google.com': 9,
+      'outbrain.com': 5,
+    },
+    BlockCategory.dnsBlocklist: {
+      'graph.facebook.com': 16,
+      'analytics.tiktok.com': 11,
+      'app-measurement.com': 7,
+      'branch.io': 4,
+    },
+    BlockCategory.trackingParam: {
+      'utm_medium, utm_source': 8,
+      'fbclid': 5,
+      'gclid': 3,
+      'igshid': 2,
+    },
+    BlockCategory.localCdn: {
+      'cdnjs.cloudflare.com': 6,
+      'ajax.googleapis.com': 4,
+      'fonts.gstatic.com': 3,
+    },
+  };
+  const sites = <BlockCategory, Map<String, int>>{
+    BlockCategory.filterList: {'demo-reddit': 48, 'demo-hn': 22, 'demo-github': 11},
+    BlockCategory.dnsBlocklist: {'demo-reddit': 24, 'demo-github': 9, 'demo-hn': 5},
+    BlockCategory.trackingParam: {'demo-reddit': 12, 'demo-hn': 6},
+    BlockCategory.localCdn: {'demo-github': 8, 'demo-hn': 5},
+  };
+  items.forEach((category, byLabel) {
+    byLabel.forEach((label, count) {
+      detail.record(category, siteId: 'demo', label: label, count: count);
+    });
+  });
+  sites.forEach((category, bySite) {
+    bySite.forEach((siteId, count) {
+      detail.record(category, siteId: siteId, count: count);
+    });
+  });
+}
+
+/// Display names for the sites [seedDemoBlockStats] attributes blocks to.
+const Map<String, String> demoBlockStatsSiteNames = {
+  'demo-reddit': 'Reddit',
+  'demo-hn': 'Hacker News',
+  'demo-github': 'GitHub',
+};

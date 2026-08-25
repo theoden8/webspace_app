@@ -184,6 +184,26 @@ class ClearUrlService {
     return url;
   }
 
+  /// Query keys present in [original] but gone from [cleaned], sorted and
+  /// comma-joined for display in the protection report.
+  ///
+  /// Empty when the difference is not expressible as removed keys — a
+  /// redirection rule swaps the whole URL, and naming the target's leftover
+  /// parameters there would be a lie about what was stripped.
+  static String strippedParamLabel(String original, String cleaned) {
+    if (cleaned.isEmpty || cleaned == original) return '';
+    final from = Uri.tryParse(original);
+    final to = Uri.tryParse(cleaned);
+    if (from == null || to == null) return '';
+    if (from.host != to.host || from.path != to.path) return '';
+    final kept = to.queryParametersAll.keys.toSet();
+    final removed = from.queryParametersAll.keys
+        .where((key) => !kept.contains(key))
+        .toList()
+      ..sort();
+    return removed.join(', ');
+  }
+
   /// Load rules from a parsed JSON map. Exposed for testing.
   @visibleForTesting
   void loadRulesFromJson(Map<String, dynamic> json) {

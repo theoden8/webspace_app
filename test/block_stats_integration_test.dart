@@ -130,4 +130,42 @@ void main() {
       expect(stats.engine.allTimeTotals[BlockCategory.localCdn], 2);
     });
   });
+
+  group('the funnels name what they stopped (STATS-008)', () {
+    test('a blocked host arrives as the detail item', () {
+      DnsBlockService.instance.recordHostRequest(
+          'site-1', 'Tracker.Example', true,
+          source: BlockSource.dns, count: 2);
+
+      final items = stats.detail.topItems(BlockCategory.dnsBlocklist);
+      expect(items.single.label, 'tracker.example');
+      expect(items.single.count, 2);
+      expect(stats.detail.siteCounts(BlockCategory.dnsBlocklist).single.key,
+          'site-1');
+    });
+
+    test('the native drain carries the host through', () {
+      WebInterceptNative.applyBlockEvents('site-1', [
+        {'host': 'ads.example', 'blocked': true, 'source': 'abp', 'count': 4},
+      ]);
+
+      expect(stats.detail.topItems(BlockCategory.filterList).single.label,
+          'ads.example');
+    });
+
+    test('a locally served CDN request is named by its origin', () {
+      LocalCdnService.instance.recordReplacement('site-1',
+          url: 'https://cdn.example/lib/jquery.js');
+
+      expect(stats.detail.topItems(BlockCategory.localCdn).single.label,
+          'cdn.example');
+    });
+
+    test('a CDN event with no URL still attributes to the site', () {
+      LocalCdnService.instance.recordReplacement('site-1');
+
+      expect(stats.detail.topItems(BlockCategory.localCdn), isEmpty);
+      expect(stats.detail.sessionTotal(BlockCategory.localCdn), 1);
+    });
+  });
 }
