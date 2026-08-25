@@ -3096,8 +3096,11 @@ class WebViewFactory {
               final original = args[0] as String;
               final cleaned = ClearUrlService.instance.cleanUrl(original);
               if (cleaned != original && config.siteId != null) {
-                BlockStatsService.instance
-                    .record(config.siteId!, BlockCategory.trackingParam);
+                BlockStatsService.instance.record(
+                  config.siteId!,
+                  BlockCategory.trackingParam,
+                  label: ClearUrlService.strippedParamLabel(original, cleaned),
+                );
               }
               return cleaned;
             }
@@ -3629,8 +3632,11 @@ class WebViewFactory {
           if (cleanedUrl.isEmpty) return inapp.NavigationActionPolicy.CANCEL;
           if (cleanedUrl != url) {
             if (config.siteId != null) {
-              BlockStatsService.instance
-                  .record(config.siteId!, BlockCategory.trackingParam);
+              BlockStatsService.instance.record(
+                config.siteId!,
+                BlockCategory.trackingParam,
+                label: ClearUrlService.strippedParamLabel(url, cleanedUrl),
+              );
             }
             controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(cleanedUrl)));
             return inapp.NavigationActionPolicy.CANCEL;

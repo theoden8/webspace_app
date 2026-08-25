@@ -397,4 +397,43 @@ void main() {
       });
     });
   });
+
+  group('strippedParamLabel (STATS-008)', () {
+    test('names the removed keys, sorted', () {
+      expect(
+        ClearUrlService.strippedParamLabel(
+          'https://example.com/p?utm_source=x&id=7&fbclid=y',
+          'https://example.com/p?id=7',
+        ),
+        equals('fbclid, utm_source'),
+      );
+    });
+
+    test('is empty when the whole query went away with nothing named', () {
+      expect(
+        ClearUrlService.strippedParamLabel(
+          'https://example.com/p',
+          'https://example.com/p',
+        ),
+        isEmpty,
+      );
+    });
+
+    test('a redirection rule names nothing: no key was stripped', () {
+      expect(
+        ClearUrlService.strippedParamLabel(
+          'https://www.google.com/url?q=https%3A%2F%2Fexample.org%2Fpage',
+          'https://example.org/page',
+        ),
+        isEmpty,
+      );
+    });
+
+    test('a completeProvider block names nothing', () {
+      expect(
+        ClearUrlService.strippedParamLabel('https://tracker.example/p?a=1', ''),
+        isEmpty,
+      );
+    });
+  });
 }

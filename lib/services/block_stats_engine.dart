@@ -100,12 +100,15 @@ class BlockStatsEngine {
       totalsForLastDays(days, now: now).values.fold(0, (a, b) => a + b);
 
   /// Daily totals oldest-first over the [days] window, for the bar chart.
-  List<int> dailyTotals(int days, {DateTime? now}) {
+  /// With [category] given, only that category's events count, so a category
+  /// drill-down charts the same window on the same scale.
+  List<int> dailyTotals(int days, {DateTime? now, BlockCategory? category}) {
     final at = now ?? DateTime.now();
     return List<int>.generate(days, (i) {
       final key = dayKey(DateTime(at.year, at.month, at.day - (days - 1 - i)));
       final bucket = _days[key];
       if (bucket == null) return 0;
+      if (category != null) return bucket[category] ?? 0;
       return bucket.values.fold(0, (a, b) => a + b);
     });
   }
@@ -114,6 +117,8 @@ class BlockStatsEngine {
       Map<BlockCategory, int>.unmodifiable(_allTime);
 
   int get allTimeTotal => _allTime.values.fold(0, (a, b) => a + b);
+
+  int allTimeFor(BlockCategory category) => _allTime[category] ?? 0;
 
   /// Drop buckets older than [retentionDays]. Returns the number dropped.
   int prune({DateTime? now}) {

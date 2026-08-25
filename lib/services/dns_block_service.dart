@@ -452,6 +452,7 @@ class DnsBlockService {
             ? BlockCategory.dnsBlocklist
             : BlockCategory.filterList,
         count: count,
+        label: host,
       );
     }
     recordDomainDecision(host, wasBlocked);

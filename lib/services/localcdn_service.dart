@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/block_stats_service.dart';
+import 'package:webspace/services/host_lookup.dart';
 import 'package:webspace/services/log_service.dart';
 
 /// CDN URL pattern with named capture groups for library, version, and file.
@@ -300,9 +301,15 @@ class LocalCdnService {
   final Map<String, int> _replacementsPerSite = {};
 
   /// Record that a CDN request was replaced with a local copy for [siteId].
-  void recordReplacement(String siteId) {
+  /// [url] is the CDN request that was served locally; only its host reaches
+  /// the report, and only the session-scoped detail.
+  void recordReplacement(String siteId, {String? url}) {
     _replacementsPerSite[siteId] = (_replacementsPerSite[siteId] ?? 0) + 1;
-    BlockStatsService.instance.record(siteId, BlockCategory.localCdn);
+    BlockStatsService.instance.record(
+      siteId,
+      BlockCategory.localCdn,
+      label: url == null ? null : extractHost(url),
+    );
   }
 
   /// Number of CDN requests replaced from cache for a given site.

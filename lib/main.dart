@@ -6318,6 +6318,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                 MaterialPageRoute(
                   builder: (context) => AppSettingsScreen(
                     currentSettings: _themeSettings,
+                    siteNames: _siteNames(),
                     onSettingsChanged: (AppThemeSettings newSettings) async {
                       setState(() {
                         _themeSettings = newSettings;
@@ -7915,16 +7916,24 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// page is loading, and returning from a site rebuilds it anyway.
   Widget _buildProtectionShield(BuildContext context, AppLocalizations loc) {
     final weekTotal = BlockStatsService.instance.engine.totalForLastDays(7);
+    final scheme = Theme.of(context).colorScheme;
     return Badge.count(
       count: weekTotal,
       isLabelVisible: weekTotal > 0,
+      // The accent, not the error red the badge defaults to: this counts
+      // protection that worked, and an alarm colour reads as something the
+      // user has to deal with.
+      backgroundColor: scheme.primary,
+      textColor: scheme.onPrimary,
       child: IconButton(
         icon: const Icon(Icons.shield_outlined),
         tooltip: loc.blockStatsTitle,
         onPressed: () async {
           await Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const BlockStatsScreen()),
+            MaterialPageRoute(
+              builder: (context) => BlockStatsScreen(siteNames: _siteNames()),
+            ),
           );
           if (!mounted) return;
           setState(() {});
@@ -7932,6 +7941,14 @@ class _WebSpacePageState extends State<WebSpacePage>
       ),
     );
   }
+
+  /// `siteId` -> display name for the sites the protection report may name.
+  /// Archive-tier sites are excluded: they never contribute a count
+  /// (STATS-005), so naming them there could only ever be noise.
+  Map<String, String> _siteNames() => {
+        for (final model in _webViewModels)
+          if (!model.isArchiveTier) model.siteId: model.getDisplayName(),
+      };
 
   Widget _buildSiteGridTile(BuildContext context, int index, int listIndex) {
     final isSelected = _currentIndex == index;

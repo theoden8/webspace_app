@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:webspace/services/block_stats_detail.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/log_service.dart';
 
@@ -36,6 +37,7 @@ class BlockStatsService {
   static void resetInstanceForTest() => _instance = null;
 
   BlockStatsEngine _engine = BlockStatsEngine();
+  final BlockStatsDetail _detail = BlockStatsDetail();
   final Set<String> _contributingSiteIds = <String>{};
   final Set<VoidCallback> _listeners = <VoidCallback>{};
   Timer? _flushTimer;
@@ -44,6 +46,10 @@ class BlockStatsService {
   bool _initialized = false;
 
   BlockStatsEngine get engine => _engine;
+
+  /// Session-scoped per-item / per-site detail (STATS-008). Never persisted:
+  /// the report on disk stays a bare count per category per day.
+  BlockStatsDetail get detail => _detail;
 
   bool get isInitialized => _initialized;
 
@@ -92,17 +98,22 @@ class BlockStatsService {
   bool siteContributes(String siteId) => _contributingSiteIds.contains(siteId);
 
   /// Record [count] block events of [category] attributed to [siteId].
-  /// Ignored for sites that have not been declared app-tier.
-  void record(String siteId, BlockCategory category, {int count = 1}) {
+  /// Ignored for sites that have not been declared app-tier. [label] names
+  /// what was stopped (a host, the stripped parameters) and only ever reaches
+  /// the in-memory [detail].
+  void record(String siteId, BlockCategory category,
+      {int count = 1, String? label}) {
     if (count < 1) return;
     if (!_contributingSiteIds.contains(siteId)) return;
     _engine.record(category, count: count);
+    _detail.record(category, siteId: siteId, label: label, count: count);
     _scheduleFlush();
     _scheduleNotify();
   }
 
   Future<void> reset() async {
     _engine.reset();
+    _detail.clear();
     await flush();
     notifyListeners();
   }
