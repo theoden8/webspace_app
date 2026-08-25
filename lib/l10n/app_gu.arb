@@ -750,7 +750,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "એમ્બેડ કરેલી સામગ્રીને સાઇટ્સ વચ્ચે કૂકીઝ સેટ કરવા દો",
   "siteSettingsThirdPartyCookiesHint": "બીજી સાઇટમાંથી એમ્બેડ કરેલી સામગ્રી દ્વારા સેટ કરાયેલી કૂકીઝ, જેમ કે જાહેરાતો, શેર બટન અને એનાલિટિક્સ વિજેટ્સ. ટ્રેકર તમને એક સાઇટથી બીજી સાઇટ સુધી અનુસરે તેની આ સૌથી જૂની રીત છે, તેથી જ ટ્રેકિંગ સંરક્ષણ તેમને બંધ કરે છે. કેટલાક સાઇન-ઇન રીડાયરેક્ટ અને એમ્બેડ કરેલા ચેકઆઉટને તેમની જરૂર પડે છે, તેથી તેમના વગર તૂટતી સાઇટ માટે તેમને ફરી ચાલુ કરો.",
   "siteSettingsSectionContent": "સામગ્રી",
-  "siteSettingsSectionBehaviour": "વર્તણૂક",
+  "behaviourTitle": "વર્તણૂક",
+  "behaviourGroupOpening": "ખોલવું અને પ્રદર્શન",
+  "behaviourSummaryNothingOn": "કંઈ સક્ષમ નથી",
   "siteSettingsSectionNetwork": "નેટવર્ક",
   "siteSettingsSectionSite": "સાઇટ"
 }

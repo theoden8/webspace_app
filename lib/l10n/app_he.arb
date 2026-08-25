@@ -750,7 +750,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "לאפשר לתוכן משובץ להגדיר עוגיות בין אתרים",
   "siteSettingsThirdPartyCookiesHint": "עוגיות שמגדיר תוכן המשובץ מאתר אחר, כגון פרסומות, כפתורי שיתוף ווידג'טים של ניתוח נתונים. זו הדרך הוותיקה ביותר שבה עוקב עוקב אחריך מאתר אחד לאחר, ולכן ההגנה מפני מעקב מכבה אותן. חלק מהפניות ההתחברות ותשלומים משובצים זקוקים להן, לכן הפעל אותן מחדש עבור אתר שנשבר בלעדיהן.",
   "siteSettingsSectionContent": "תוכן",
-  "siteSettingsSectionBehaviour": "התנהגות",
+  "behaviourTitle": "התנהגות",
+  "behaviourGroupOpening": "פתיחה ותצוגה",
+  "behaviourSummaryNothingOn": "שום דבר לא מופעל",
   "siteSettingsSectionNetwork": "רשת",
   "siteSettingsSectionSite": "אתר"
 }

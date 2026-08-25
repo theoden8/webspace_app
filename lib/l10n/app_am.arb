@@ -750,7 +750,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "የተካተተ ይዘት በጣቢያዎች መካከል ኩኪዎችን እንዲያዘጋጅ ፍቀድ",
   "siteSettingsThirdPartyCookiesHint": "ከሌላ ጣቢያ በተካተተ ይዘት የተቀመጡ ኩኪዎች፣ እንደ ማስታወቂያዎች፣ የማጋሪያ አዝራሮች እና የትንተና መግብሮች። አንድ ተከታታይ ከአንድ ጣቢያ ወደ ሌላው እንዲከተልህ የሚያደርግ በጣም የቆየ መንገድ ናቸው፣ ለዚህም ነው የክትትል ጥበቃ የሚያጠፋቸው። አንዳንድ የመግቢያ ማዘዋወሪያዎች እና የተካተቱ የክፍያ ሂደቶች ያስፈልጋቸዋል፣ ስለዚህ ያለ እነሱ ለሚበላሽ ጣቢያ እንደገና አብራቸው።",
   "siteSettingsSectionContent": "ይዘት",
-  "siteSettingsSectionBehaviour": "ባህሪ",
+  "behaviourTitle": "ባህሪ",
+  "behaviourGroupOpening": "መክፈት እና ማሳያ",
+  "behaviourSummaryNothingOn": "ምንም አልነቃም",
   "siteSettingsSectionNetwork": "አውታረ መረብ",
   "siteSettingsSectionSite": "ጣቢያ"
 }

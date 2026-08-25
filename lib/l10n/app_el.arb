@@ -750,7 +750,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "Να επιτρέπεται σε ενσωματωμένο περιεχόμενο να ορίζει cookies μεταξύ ιστοτόπων",
   "siteSettingsThirdPartyCookiesHint": "Cookies που ορίζονται από περιεχόμενο ενσωματωμένο από άλλον ιστότοπο, όπως διαφημίσεις, κουμπιά κοινοποίησης και widget αναλυτικών. Είναι ο παλαιότερος τρόπος με τον οποίο ένας ιχνηλάτης σας ακολουθεί από τον έναν ιστότοπο στον άλλο, γι' αυτό η Προστασία από παρακολούθηση τα απενεργοποιεί. Ορισμένες ανακατευθύνσεις σύνδεσης και ενσωματωμένες πληρωμές τα χρειάζονται, οπότε ενεργοποιήστε τα ξανά για έναν ιστότοπο που δεν λειτουργεί χωρίς αυτά.",
   "siteSettingsSectionContent": "Περιεχόμενο",
-  "siteSettingsSectionBehaviour": "Συμπεριφορά",
+  "behaviourTitle": "Συμπεριφορά",
+  "behaviourGroupOpening": "Άνοιγμα και εμφάνιση",
+  "behaviourSummaryNothingOn": "Τίποτα ενεργό",
   "siteSettingsSectionNetwork": "Δίκτυο",
   "siteSettingsSectionSite": "Ιστότοπος"
 }

@@ -750,7 +750,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "Lig d'ábhar leabaithe fianáin a shocrú thar shuíomhanna",
   "siteSettingsThirdPartyCookiesHint": "Fianáin a shocraíonn ábhar atá leabaithe ó shuíomh eile, ar nós fógraí, cnaipí comhroinnte agus giuirléidí anailísíochta. Is é an bealach is sine iad chun go leanfadh rianaire thú ó shuíomh amháin go dtí an chéad cheann eile, agus is sin an fáth a mhúchann an Chosaint ar Rianú iad. Teastaíonn siad ó roinnt atreoruithe sínithe isteach agus ó sheiceálacha amach leabaithe, mar sin cuir ar siúl arís iad do shuíomh a bhriseann gan iad.",
   "siteSettingsSectionContent": "Ábhar",
-  "siteSettingsSectionBehaviour": "Iompar",
+  "behaviourTitle": "Iompar",
+  "behaviourGroupOpening": "Oscailt agus taispeáint",
+  "behaviourSummaryNothingOn": "Níl aon rud cumasaithe",
   "siteSettingsSectionNetwork": "Líonra",
   "siteSettingsSectionSite": "Suíomh"
 }

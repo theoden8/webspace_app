@@ -750,7 +750,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "এম্বেড করা কনটেন্টকে সাইট জুড়ে কুকি সেট করতে দিন",
   "siteSettingsThirdPartyCookiesHint": "অন্য সাইট থেকে এম্বেড করা কনটেন্ট, যেমন বিজ্ঞাপন, শেয়ার বোতাম ও অ্যানালিটিক্স উইজেট দ্বারা সেট করা কুকি। একটি ট্র্যাকার আপনাকে এক সাইট থেকে আরেক সাইটে অনুসরণ করার এটিই প্রাচীনতম উপায়, তাই ট্র্যাকিং সুরক্ষা এগুলি বন্ধ করে দেয়। কিছু সাইন-ইন রিডিরেক্ট ও এম্বেড করা চেকআউটের এগুলি প্রয়োজন, তাই যে সাইট এগুলি ছাড়া কাজ করে না তার জন্য আবার চালু করুন।",
   "siteSettingsSectionContent": "কনটেন্ট",
-  "siteSettingsSectionBehaviour": "আচরণ",
+  "behaviourTitle": "আচরণ",
+  "behaviourGroupOpening": "খোলা এবং প্রদর্শন",
+  "behaviourSummaryNothingOn": "কিছুই সক্রিয় নয়",
   "siteSettingsSectionNetwork": "নেটওয়ার্ক",
   "siteSettingsSectionSite": "সাইট"
 }

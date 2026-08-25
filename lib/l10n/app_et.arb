@@ -750,7 +750,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "Luba manustatud sisul seada küpsiseid saitide üleselt",
   "siteSettingsThirdPartyCookiesHint": "Küpsised, mille seab teiselt saidilt manustatud sisu, näiteks reklaamid, jagamisnupud ja analüütikavidinad. Need on vanim viis, kuidas jälgija sind ühelt saidilt teisele järgib, ja seetõttu lülitab jälgimiskaitse need välja. Mõned sisselogimise ümbersuunamised ja manustatud maksed vajavad neid, seega lülita need saidi puhul, mis ilma nendeta ei tööta, uuesti sisse.",
   "siteSettingsSectionContent": "Sisu",
-  "siteSettingsSectionBehaviour": "Käitumine",
+  "behaviourTitle": "Käitumine",
+  "behaviourGroupOpening": "Avamine ja kuvamine",
+  "behaviourSummaryNothingOn": "Midagi pole lubatud",
   "siteSettingsSectionNetwork": "Võrk",
   "siteSettingsSectionSite": "Sait"
 }

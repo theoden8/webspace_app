@@ -45,6 +45,7 @@ const PENDING = [
   'lib/screens/link_handling_settings.dart',
   'lib/screens/location_picker.dart',
   'lib/screens/settings.dart',
+  'lib/screens/site_behaviour.dart',
   'lib/screens/site_permissions.dart',
   'lib/screens/site_privacy.dart',
   'lib/screens/site_settings_qr.dart',

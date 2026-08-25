@@ -750,7 +750,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "Gömülü içeriğin siteler arası çerez ayarlamasına izin ver",
   "siteSettingsThirdPartyCookiesHint": "Reklamlar, paylaşım düğmeleri ve analiz araçları gibi başka bir siteden gömülen içeriğin ayarladığı çerezler. Bir izleyicinin sizi bir siteden diğerine takip etmesinin en eski yoludur, bu yüzden İzleme Koruması bunları kapatır. Bazı oturum açma yönlendirmeleri ve gömülü ödeme sayfaları bunlara ihtiyaç duyar, bu nedenle bunlar olmadan çalışmayan bir site için tekrar açın.",
   "siteSettingsSectionContent": "İçerik",
-  "siteSettingsSectionBehaviour": "Davranış",
+  "behaviourTitle": "Davranış",
+  "behaviourGroupOpening": "Açılış ve görünüm",
+  "behaviourSummaryNothingOn": "Hiçbiri etkin değil",
   "siteSettingsSectionNetwork": "Ağ",
   "siteSettingsSectionSite": "Site"
 }

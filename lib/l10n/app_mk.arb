@@ -750,7 +750,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "Дозволи вградената содржина да поставува колачиња низ страниците",
   "siteSettingsThirdPartyCookiesHint": "Колачиња што ги поставува содржина вградена од друга страница, како реклами, копчиња за споделување и аналитички виџети. Тие се најстариот начин на кој следач ве следи од една страница до друга, поради што Заштитата од следење ги исклучува. На некои пренасочувања при најава и вградени наплати им се потребни, па вклучете ги повторно за страница што без нив не работи.",
   "siteSettingsSectionContent": "Содржина",
-  "siteSettingsSectionBehaviour": "Однесување",
+  "behaviourTitle": "Однесување",
+  "behaviourGroupOpening": "Отворање и приказ",
+  "behaviourSummaryNothingOn": "Ништо не е овозможено",
   "siteSettingsSectionNetwork": "Мрежа",
   "siteSettingsSectionSite": "Страница"
 }

@@ -750,7 +750,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "పొందుపరిచిన కంటెంట్ సైట్‌ల మధ్య కుకీలను సెట్ చేయడానికి అనుమతించు",
   "siteSettingsThirdPartyCookiesHint": "ప్రకటనలు, భాగస్వామ్య బటన్లు మరియు అనలిటిక్స్ విడ్జెట్‌ల వంటి మరొక సైట్ నుండి పొందుపరిచిన కంటెంట్ సెట్ చేసే కుకీలు. ఒక ట్రాకర్ మిమ్మల్ని ఒక సైట్ నుండి మరొక సైట్‌కు అనుసరించే పురాతన మార్గం ఇదే, అందుకే ట్రాకింగ్ రక్షణ వాటిని ఆఫ్ చేస్తుంది. కొన్ని సైన్-ఇన్ మళ్లింపులకు మరియు పొందుపరిచిన చెక్‌అవుట్‌లకు అవి అవసరం, కాబట్టి వాటి లేకుండా పని చేయని సైట్ కోసం వాటిని మళ్లీ ఆన్ చేయండి.",
   "siteSettingsSectionContent": "కంటెంట్",
-  "siteSettingsSectionBehaviour": "ప్రవర్తన",
+  "behaviourTitle": "ప్రవర్తన",
+  "behaviourGroupOpening": "తెరవడం మరియు ప్రదర్శన",
+  "behaviourSummaryNothingOn": "ఏదీ ప్రారంభించబడలేదు",
   "siteSettingsSectionNetwork": "నెట్‌వర్క్",
   "siteSettingsSectionSite": "సైట్"
 }

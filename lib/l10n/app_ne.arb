@@ -750,7 +750,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "एम्बेड गरिएको सामग्रीलाई साइटहरूबीच कुकी सेट गर्न दिनुहोस्",
   "siteSettingsThirdPartyCookiesHint": "विज्ञापन, साझेदारी बटन र एनालिटिक्स विजेटजस्ता अर्को साइटबाट एम्बेड गरिएको सामग्रीले सेट गर्ने कुकीहरू। ट्र्याकरले तपाईंलाई एउटा साइटबाट अर्को साइटसम्म पछ्याउने यो सबैभन्दा पुरानो तरिका हो, त्यसैले ट्र्याकिङ सुरक्षाले तिनलाई बन्द गर्छ। केही साइन-इन रिडिरेक्ट र एम्बेड गरिएका चेकआउटलाई तिनको आवश्यकता पर्छ, त्यसैले तिनीबिना नचल्ने साइटका लागि तिनलाई फेरि चालु गर्नुहोस्।",
   "siteSettingsSectionContent": "सामग्री",
-  "siteSettingsSectionBehaviour": "व्यवहार",
+  "behaviourTitle": "व्यवहार",
+  "behaviourGroupOpening": "खोल्ने र प्रदर्शन",
+  "behaviourSummaryNothingOn": "केही पनि सक्षम छैन",
   "siteSettingsSectionNetwork": "सञ्जाल",
   "siteSettingsSectionSite": "साइट"
 }

@@ -750,7 +750,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "포함된 콘텐츠가 사이트 간에 쿠키를 설정하도록 허용",
   "siteSettingsThirdPartyCookiesHint": "광고, 공유 버튼, 분석 위젯처럼 다른 사이트에서 포함된 콘텐츠가 설정하는 쿠키입니다. 추적기가 한 사이트에서 다음 사이트로 사용자를 따라다니는 가장 오래된 방법이며, 그래서 추적 방지가 이를 끕니다. 일부 로그인 리디렉션과 포함된 결제 과정에는 이것이 필요하므로, 이것 없이 작동하지 않는 사이트에서는 다시 켜세요.",
   "siteSettingsSectionContent": "콘텐츠",
-  "siteSettingsSectionBehaviour": "동작",
+  "behaviourTitle": "동작",
+  "behaviourGroupOpening": "열기 및 표시",
+  "behaviourSummaryNothingOn": "활성화된 항목 없음",
   "siteSettingsSectionNetwork": "네트워크",
   "siteSettingsSectionSite": "사이트"
 }

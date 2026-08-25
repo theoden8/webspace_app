@@ -750,7 +750,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "Sine contentum insertum crustula inter loca ponere",
   "siteSettingsThirdPartyCookiesHint": "Crustula ab contento ex alio loco inserto posita, ut praeconia, bullae communicandi et instrumenta analytica. Modus antiquissimus sunt quo investigator te ab uno loco ad alterum sequitur, quapropter Tutela contra investigationem ea exstinguit. Quaedam redirectiones initus et solutiones insertae ea requirunt, itaque ea rursus accende pro loco qui sine eis frangitur.",
   "siteSettingsSectionContent": "Contentum",
-  "siteSettingsSectionBehaviour": "Mores",
+  "behaviourTitle": "Mores",
+  "behaviourGroupOpening": "Apertio et ostensio",
+  "behaviourSummaryNothingOn": "Nihil actuatum",
   "siteSettingsSectionNetwork": "Rete",
   "siteSettingsSectionSite": "Locus"
 }

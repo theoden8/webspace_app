@@ -750,7 +750,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "Laat ingebedde inhoud toe om koekies oor werwe heen te stel",
   "siteSettingsThirdPartyCookiesHint": "Koekies wat gestel word deur inhoud wat vanaf 'n ander werf ingebed is, soos advertensies, deelknoppies en ontledingsblokkies. Hulle is die oudste manier waarop 'n volger jou van een werf na die volgende volg, en daarom skakel Volgbeskerming hulle af. Sommige aanmeldherleidings en ingebedde betaalprosesse het hulle nodig, dus skakel hulle weer aan vir 'n werf wat daarsonder breek.",
   "siteSettingsSectionContent": "Inhoud",
-  "siteSettingsSectionBehaviour": "Gedrag",
+  "behaviourTitle": "Gedrag",
+  "behaviourGroupOpening": "Oopmaak en vertoon",
+  "behaviourSummaryNothingOn": "Niks geaktiveer nie",
   "siteSettingsSectionNetwork": "Netwerk",
   "siteSettingsSectionSite": "Werf"
 }

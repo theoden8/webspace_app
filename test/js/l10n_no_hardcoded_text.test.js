@@ -19,6 +19,7 @@ const migrated = new Set([
   'lib/screens/favicon_image.dart',
   'lib/screens/favicon_image_io.dart',
   'lib/screens/favicon_image_web.dart',
+  'lib/screens/site_behaviour.dart',
   'lib/screens/site_permissions.dart',
   'lib/screens/site_privacy.dart',
   'lib/widgets/site_permission_chip.dart',

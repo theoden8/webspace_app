@@ -750,7 +750,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "Leisti įterptajam turiniui nustatyti slapukus tarp svetainių",
   "siteSettingsThirdPartyCookiesHint": "Slapukai, kuriuos nustato iš kitos svetainės įterptas turinys, pavyzdžiui, reklamos, bendrinimo mygtukai ir analitikos valdikliai. Tai seniausias būdas, kuriuo sekiklis seka jus iš vienos svetainės į kitą, todėl sekimo apsauga juos išjungia. Kai kurioms prisijungimo peradresavimams ir įterptiesiems atsiskaitymams jų reikia, todėl vėl juos įjunkite svetainei, kuri be jų neveikia.",
   "siteSettingsSectionContent": "Turinys",
-  "siteSettingsSectionBehaviour": "Elgsena",
+  "behaviourTitle": "Elgsena",
+  "behaviourGroupOpening": "Atidarymas ir rodymas",
+  "behaviourSummaryNothingOn": "Niekas neįjungta",
   "siteSettingsSectionNetwork": "Tinklas",
   "siteSettingsSectionSite": "Svetainė"
 }

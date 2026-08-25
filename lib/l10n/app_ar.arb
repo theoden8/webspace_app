@@ -750,7 +750,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "السماح للمحتوى المضمّن بتعيين ملفات تعريف ارتباط عبر المواقع",
   "siteSettingsThirdPartyCookiesHint": "ملفات تعريف ارتباط يعيّنها محتوى مضمّن من موقع آخر، مثل الإعلانات وأزرار المشاركة وأدوات التحليلات. وهي أقدم وسيلة يتتبّعك بها المتعقّب من موقع إلى آخر، ولهذا تعطّلها الحماية من التتبّع. بعض عمليات إعادة توجيه تسجيل الدخول وصفحات الدفع المضمّنة تحتاج إليها، لذا أعِد تفعيلها لموقع يتعطّل بدونها.",
   "siteSettingsSectionContent": "المحتوى",
-  "siteSettingsSectionBehaviour": "السلوك",
+  "behaviourTitle": "السلوك",
+  "behaviourGroupOpening": "الفتح والعرض",
+  "behaviourSummaryNothingOn": "لا شيء مُفعَّل",
   "siteSettingsSectionNetwork": "الشبكة",
   "siteSettingsSectionSite": "الموقع"
 }

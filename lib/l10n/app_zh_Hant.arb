@@ -750,7 +750,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "允許嵌入內容跨網站設定 Cookie",
   "siteSettingsThirdPartyCookiesHint": "由來自其他網站的嵌入內容設定的 Cookie，例如廣告、分享按鈕與分析元件。它們是追蹤器從一個網站跟到下一個網站的最古老手段，因此追蹤保護會將其關閉。某些登入轉址與嵌入式結帳需要它們，所以對於缺少它們就無法使用的網站，請重新開啟。",
   "siteSettingsSectionContent": "內容",
-  "siteSettingsSectionBehaviour": "行為",
+  "behaviourTitle": "行為",
+  "behaviourGroupOpening": "開啟與顯示",
+  "behaviourSummaryNothingOn": "未啟用任何項目",
   "siteSettingsSectionNetwork": "網路",
   "siteSettingsSectionSite": "網站"
 }

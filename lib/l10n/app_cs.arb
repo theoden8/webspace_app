@@ -750,7 +750,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "Povolit vloženému obsahu nastavovat cookies napříč weby",
   "siteSettingsThirdPartyCookiesHint": "Cookies nastavené obsahem vloženým z jiného webu, například reklamami, tlačítky pro sdílení a analytickými widgety. Jsou nejstarším způsobem, jak vás sledovač sleduje z jednoho webu na druhý, a proto je ochrana proti sledování vypíná. Některá přesměrování při přihlášení a vložené platby je potřebují, takže je pro web, který bez nich nefunguje, znovu zapněte.",
   "siteSettingsSectionContent": "Obsah",
-  "siteSettingsSectionBehaviour": "Chování",
+  "behaviourTitle": "Chování",
+  "behaviourGroupOpening": "Otevírání a zobrazení",
+  "behaviourSummaryNothingOn": "Nic není zapnuto",
   "siteSettingsSectionNetwork": "Síť",
   "siteSettingsSectionSite": "Web"
 }

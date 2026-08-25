@@ -750,7 +750,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "Permitir que el contenido incrustado establezca cookies entre sitios",
   "siteSettingsThirdPartyCookiesHint": "Cookies establecidas por contenido incrustado desde otro sitio, como anuncios, botones para compartir y widgets de analítica. Son la forma más antigua en que un rastreador te sigue de un sitio a otro, por eso la protección de seguimiento las desactiva. Algunas redirecciones de inicio de sesión y pagos incrustados las necesitan, así que vuelve a activarlas para un sitio que falle sin ellas.",
   "siteSettingsSectionContent": "Contenido",
-  "siteSettingsSectionBehaviour": "Comportamiento",
+  "behaviourTitle": "Comportamiento",
+  "behaviourGroupOpening": "Apertura y visualización",
+  "behaviourSummaryNothingOn": "Nada activado",
   "siteSettingsSectionNetwork": "Red",
   "siteSettingsSectionSite": "Sitio"
 }

@@ -750,7 +750,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "Consenti ai contenuti incorporati di impostare cookie tra i siti",
   "siteSettingsThirdPartyCookiesHint": "Cookie impostati da contenuti incorporati da un altro sito, come pubblicità, pulsanti di condivisione e widget di analisi. Sono il modo più antico con cui un tracker ti segue da un sito all'altro, ed è per questo che la Protezione dal tracciamento li disattiva. Alcuni reindirizzamenti di accesso e pagamenti incorporati ne hanno bisogno, quindi riattivali per un sito che senza di essi non funziona.",
   "siteSettingsSectionContent": "Contenuti",
-  "siteSettingsSectionBehaviour": "Comportamento",
+  "behaviourTitle": "Comportamento",
+  "behaviourGroupOpening": "Apertura e visualizzazione",
+  "behaviourSummaryNothingOn": "Nulla attivato",
   "siteSettingsSectionNetwork": "Rete",
   "siteSettingsSectionSite": "Sito"
 }
