@@ -746,7 +746,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "به محتوای جاسازی‌شده اجازه بده کوکی‌های میان‌سایتی تنظیم کند",
   "siteSettingsThirdPartyCookiesHint": "کوکی‌هایی که محتوای جاسازی‌شده از سایتی دیگر تنظیم می‌کند، مانند تبلیغات، دکمه‌های اشتراک‌گذاری و ابزارک‌های تحلیلی. این‌ها قدیمی‌ترین راهی هستند که یک ردیاب شما را از یک سایت تا سایت بعدی دنبال می‌کند، و به همین دلیل محافظت در برابر ردیابی آن‌ها را خاموش می‌کند. برخی تغییرمسیرهای ورود و پرداخت‌های جاسازی‌شده به آن‌ها نیاز دارند، پس برای سایتی که بدون آن‌ها کار نمی‌کند دوباره روشنشان کنید.",
   "siteSettingsSectionContent": "محتوا",
-  "siteSettingsSectionBehaviour": "رفتار",
+  "behaviourTitle": "رفتار",
+  "behaviourGroupOpening": "باز شدن و نمایش",
+  "behaviourSummaryNothingOn": "هیچ‌چیز فعال نیست",
   "siteSettingsSectionNetwork": "شبکه",
   "siteSettingsSectionSite": "سایت"
 }

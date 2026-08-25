@@ -746,7 +746,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "Суулгасан агуулгад сайт хооронд cookie тохируулахыг зөвшөөрөх",
   "siteSettingsThirdPartyCookiesHint": "Сурталчилгаа, хуваалцах товч, аналитик виджет зэрэг өөр сайтаас суулгасан агуулгын тохируулдаг cookie. Эдгээр нь хянагч таныг нэг сайтаас нөгөөд дагах хамгийн эртний арга бөгөөд тийм ч учраас Хяналтаас хамгаалалт тэдгээрийг унтраадаг. Зарим нэвтрэлтийн чиглүүлэлт болон суулгасан төлбөрийн хуудсанд эдгээр шаардлагатай тул тэдгээргүйгээр ажиллахгүй сайтын хувьд дахин асаана уу.",
   "siteSettingsSectionContent": "Агуулга",
-  "siteSettingsSectionBehaviour": "Үйлдэл",
+  "behaviourTitle": "Үйлдэл",
+  "behaviourGroupOpening": "Нээлт ба харагдац",
+  "behaviourSummaryNothingOn": "Юу ч идэвхжээгүй",
   "siteSettingsSectionNetwork": "Сүлжээ",
   "siteSettingsSectionSite": "Сайт"
 }

@@ -746,7 +746,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "Ħalli l-kontenut inkorporat jissettja cookies bejn is-siti",
   "siteSettingsThirdPartyCookiesHint": "Cookies issettjati minn kontenut inkorporat minn sit ieħor, bħal reklami, buttuni tal-qsim u widgets tal-analitika. Huma l-eqdem mod kif traċċatur isegwik minn sit għall-ieħor, u għalhekk il-Protezzjoni mit-Traċċar titfihom. Xi redirects tal-illoggjar u ħlasijiet inkorporati jeħtieġuhom, mela erġa' ixgħelhom għal sit li jitkisser mingħajrhom.",
   "siteSettingsSectionContent": "Kontenut",
-  "siteSettingsSectionBehaviour": "Imġiba",
+  "behaviourTitle": "Imġiba",
+  "behaviourGroupOpening": "Ftuħ u wiri",
+  "behaviourSummaryNothingOn": "Xejn attivat",
   "siteSettingsSectionNetwork": "Netwerk",
   "siteSettingsSectionSite": "Sit"
 }

@@ -746,7 +746,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "Дозволи уграђеном садржају да поставља колачиће између страница",
   "siteSettingsThirdPartyCookiesHint": "Колачићи које поставља садржај уграђен са друге странице, попут огласа, дугмади за дељење и аналитичких виџета. Они су најстарији начин на који вас пратилац прати са једне странице на другу, због чега их заштита од праћења искључује. Некима преусмеравањима при пријави и уграђеним наплатама су потребни, па их поново укључите за страницу која без њих не ради.",
   "siteSettingsSectionContent": "Садржај",
-  "siteSettingsSectionBehaviour": "Понашање",
+  "behaviourTitle": "Понашање",
+  "behaviourGroupOpening": "Отварање и приказ",
+  "behaviourSummaryNothingOn": "Ништа није омогућено",
   "siteSettingsSectionNetwork": "Мрежа",
   "siteSettingsSectionSite": "Страница"
 }

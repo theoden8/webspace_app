@@ -746,7 +746,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "Ingesloten inhoud toestaan cookies te plaatsen over sites heen",
   "siteSettingsThirdPartyCookiesHint": "Cookies die worden geplaatst door inhoud die vanaf een andere site is ingesloten, zoals advertenties, deelknoppen en analysewidgets. Ze zijn de oudste manier waarop een tracker je van de ene site naar de andere volgt, en daarom schakelt trackingbescherming ze uit. Sommige inlogomleidingen en ingesloten afrekenpagina's hebben ze nodig, dus zet ze weer aan voor een site die het zonder niet doet.",
   "siteSettingsSectionContent": "Inhoud",
-  "siteSettingsSectionBehaviour": "Gedrag",
+  "behaviourTitle": "Gedrag",
+  "behaviourGroupOpening": "Openen en weergave",
+  "behaviourSummaryNothingOn": "Niets ingeschakeld",
   "siteSettingsSectionNetwork": "Netwerk",
   "siteSettingsSectionSite": "Site"
 }

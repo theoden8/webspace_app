@@ -746,7 +746,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "Permet que el contingut incrustat defineixi galetes entre llocs",
   "siteSettingsThirdPartyCookiesHint": "Galetes definides per contingut incrustat des d'un altre lloc, com ara anuncis, botons de compartir i ginys d'analítica. Són la manera més antiga que té un rastrejador de seguir-te d'un lloc a un altre, i per això la Protecció contra el seguiment les desactiva. Algunes redireccions d'inici de sessió i pagaments incrustats les necessiten, així que torna-les a activar per a un lloc que no funcioni sense elles.",
   "siteSettingsSectionContent": "Contingut",
-  "siteSettingsSectionBehaviour": "Comportament",
+  "behaviourTitle": "Comportament",
+  "behaviourGroupOpening": "Obertura i visualització",
+  "behaviourSummaryNothingOn": "Res activat",
   "siteSettingsSectionNetwork": "Xarxa",
   "siteSettingsSectionSite": "Lloc"
 }

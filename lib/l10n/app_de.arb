@@ -746,7 +746,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "Eingebetteten Inhalten erlauben, seitenübergreifend Cookies zu setzen",
   "siteSettingsThirdPartyCookiesHint": "Cookies, die von Inhalten gesetzt werden, die aus einer anderen Website eingebettet sind, etwa Werbung, Teilen-Schaltflächen und Analyse-Widgets. Sie sind der älteste Weg, auf dem ein Tracker Sie von einer Website zur nächsten verfolgt, weshalb der Tracking-Schutz sie deaktiviert. Manche Anmelde-Weiterleitungen und eingebettete Bezahlvorgänge brauchen sie, schalten Sie sie also für eine Website, die ohne sie nicht funktioniert, wieder ein.",
   "siteSettingsSectionContent": "Inhalt",
-  "siteSettingsSectionBehaviour": "Verhalten",
+  "behaviourTitle": "Verhalten",
+  "behaviourGroupOpening": "Öffnen und Anzeige",
+  "behaviourSummaryNothingOn": "Nichts aktiviert",
   "siteSettingsSectionNetwork": "Netzwerk",
   "siteSettingsSectionSite": "Website"
 }

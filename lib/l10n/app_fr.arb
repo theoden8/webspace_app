@@ -746,7 +746,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "Autoriser le contenu intégré à déposer des cookies entre les sites",
   "siteSettingsThirdPartyCookiesHint": "Cookies déposés par du contenu intégré depuis un autre site, comme les publicités, les boutons de partage et les widgets d’analyse. C’est le plus ancien moyen pour un traqueur de vous suivre d’un site à l’autre, et c’est pourquoi la protection contre le pistage les désactive. Certaines redirections de connexion et certains paiements intégrés en ont besoin : réactivez-les pour un site qui ne fonctionne pas sans eux.",
   "siteSettingsSectionContent": "Contenu",
-  "siteSettingsSectionBehaviour": "Comportement",
+  "behaviourTitle": "Comportement",
+  "behaviourGroupOpening": "Ouverture et affichage",
+  "behaviourSummaryNothingOn": "Rien d’activé",
   "siteSettingsSectionNetwork": "Réseau",
   "siteSettingsSectionSite": "Site"
 }

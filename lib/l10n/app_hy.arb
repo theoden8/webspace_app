@@ -746,7 +746,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "Թույլ տալ ներդրված բովանդակությանը կայքերի միջև cookie-ներ սահմանել",
   "siteSettingsThirdPartyCookiesHint": "Այլ կայքից ներդրված բովանդակության սահմանած cookie-ներ՝ գովազդ, կիսվելու կոճակներ և վերլուծական վիջեթներ։ Դրանք ամենահին ձևն են, որով հետագծիչը հետևում է ձեզ մի կայքից մյուսը, և հենց դրա համար է Հետևման պաշտպանությունը դրանք անջատում։ Որոշ մուտքի վերահղումներ և ներդրված վճարումներ դրանց կարիքն ունեն, ուստի նորից միացրեք դրանք այն կայքի համար, որն առանց դրանց չի աշխատում։",
   "siteSettingsSectionContent": "Բովանդակություն",
-  "siteSettingsSectionBehaviour": "Վարքագիծ",
+  "behaviourTitle": "Վարքագիծ",
+  "behaviourGroupOpening": "Բացում և ցուցադրում",
+  "behaviourSummaryNothingOn": "Ոչինչ միացված չէ",
   "siteSettingsSectionNetwork": "Ցանց",
   "siteSettingsSectionSite": "Կայք"
 }

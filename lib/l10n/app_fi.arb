@@ -746,7 +746,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "Salli upotetun sisällön asettaa evästeitä sivustojen välillä",
   "siteSettingsThirdPartyCookiesHint": "Evästeet, jotka asettaa toiselta sivustolta upotettu sisältö, kuten mainokset, jakopainikkeet ja analytiikkawidgetit. Ne ovat vanhin tapa, jolla seurain seuraa sinua sivustolta toiselle, ja siksi seurannan suojaus poistaa ne käytöstä. Jotkin kirjautumisen uudelleenohjaukset ja upotetut maksut tarvitsevat niitä, joten kytke ne takaisin päälle sivustolle, joka ei toimi ilman niitä.",
   "siteSettingsSectionContent": "Sisältö",
-  "siteSettingsSectionBehaviour": "Toiminta",
+  "behaviourTitle": "Toiminta",
+  "behaviourGroupOpening": "Avaus ja näyttö",
+  "behaviourSummaryNothingOn": "Ei mitään käytössä",
   "siteSettingsSectionNetwork": "Verkko",
   "siteSettingsSectionSite": "Sivusto"
 }

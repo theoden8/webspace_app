@@ -746,7 +746,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "Ruhusu maudhui yaliyopachikwa kuweka vidakuzi kati ya tovuti",
   "siteSettingsThirdPartyCookiesHint": "Vidakuzi vinavyowekwa na maudhui yaliyopachikwa kutoka tovuti nyingine, kama matangazo, vitufe vya kushiriki na vidirisha vya uchanganuzi. Ni njia kongwe zaidi ambayo kifuatiliaji hukufuata kutoka tovuti moja hadi nyingine, ndiyo maana Ulinzi wa Ufuatiliaji huvizima. Baadhi ya uelekezaji wa kuingia na malipo yaliyopachikwa huvihitaji, hivyo viwashe tena kwa tovuti isiyofanya kazi bila vyo.",
   "siteSettingsSectionContent": "Maudhui",
-  "siteSettingsSectionBehaviour": "Tabia",
+  "behaviourTitle": "Tabia",
+  "behaviourGroupOpening": "Ufunguzi na onyesho",
+  "behaviourSummaryNothingOn": "Hakuna kilichowashwa",
   "siteSettingsSectionNetwork": "Mtandao",
   "siteSettingsSectionSite": "Tovuti"
 }

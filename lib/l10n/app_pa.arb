@@ -746,7 +746,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "ਏਮਬੈੱਡ ਕੀਤੀ ਸਮੱਗਰੀ ਨੂੰ ਸਾਈਟਾਂ ਵਿਚਕਾਰ ਕੂਕੀਜ਼ ਸੈੱਟ ਕਰਨ ਦਿਓ",
   "siteSettingsThirdPartyCookiesHint": "ਕਿਸੇ ਹੋਰ ਸਾਈਟ ਤੋਂ ਏਮਬੈੱਡ ਕੀਤੀ ਸਮੱਗਰੀ ਦੁਆਰਾ ਸੈੱਟ ਕੀਤੀਆਂ ਕੂਕੀਜ਼, ਜਿਵੇਂ ਇਸ਼ਤਿਹਾਰ, ਸਾਂਝਾ ਕਰਨ ਵਾਲੇ ਬਟਨ ਅਤੇ ਵਿਸ਼ਲੇਸ਼ਣ ਵਿਜੇਟ। ਇਹ ਸਭ ਤੋਂ ਪੁਰਾਣਾ ਤਰੀਕਾ ਹੈ ਜਿਸ ਨਾਲ ਕੋਈ ਟਰੈਕਰ ਤੁਹਾਨੂੰ ਇੱਕ ਸਾਈਟ ਤੋਂ ਦੂਜੀ ਤੱਕ ਪਿੱਛਾ ਕਰਦਾ ਹੈ, ਇਸੇ ਲਈ ਟਰੈਕਿੰਗ ਸੁਰੱਖਿਆ ਇਨ੍ਹਾਂ ਨੂੰ ਬੰਦ ਕਰ ਦਿੰਦੀ ਹੈ। ਕੁਝ ਸਾਈਨ-ਇਨ ਰੀਡਾਇਰੈਕਟ ਅਤੇ ਏਮਬੈੱਡ ਕੀਤੇ ਚੈੱਕਆਊਟ ਨੂੰ ਇਨ੍ਹਾਂ ਦੀ ਲੋੜ ਹੁੰਦੀ ਹੈ, ਇਸ ਲਈ ਜੋ ਸਾਈਟ ਇਨ੍ਹਾਂ ਬਿਨਾਂ ਕੰਮ ਨਹੀਂ ਕਰਦੀ ਉਸ ਲਈ ਇਨ੍ਹਾਂ ਨੂੰ ਮੁੜ ਚਾਲੂ ਕਰੋ।",
   "siteSettingsSectionContent": "ਸਮੱਗਰੀ",
-  "siteSettingsSectionBehaviour": "ਵਿਹਾਰ",
+  "behaviourTitle": "ਵਿਹਾਰ",
+  "behaviourGroupOpening": "ਖੋਲ੍ਹਣਾ ਅਤੇ ਡਿਸਪਲੇ",
+  "behaviourSummaryNothingOn": "ਕੁਝ ਵੀ ਸਮਰੱਥ ਨਹੀਂ",
   "siteSettingsSectionNetwork": "ਨੈੱਟਵਰਕ",
   "siteSettingsSectionSite": "ਸਾਈਟ"
 }

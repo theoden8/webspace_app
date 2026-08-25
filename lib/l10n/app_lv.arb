@@ -746,7 +746,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "Ļaut iegultajam saturam iestatīt sīkdatnes starp vietnēm",
   "siteSettingsThirdPartyCookiesHint": "Sīkdatnes, ko iestata no citas vietnes iegults saturs, piemēram, reklāmas, kopīgošanas pogas un analītikas logrīki. Tas ir vecākais veids, kā izsekotājs seko jums no vienas vietnes uz nākamo, tāpēc Izsekošanas aizsardzība tās izslēdz. Dažām pieteikšanās novirzēm un iegultajām norēķinu lapām tās ir vajadzīgas, tāpēc ieslēdziet tās atpakaļ vietnei, kas bez tām nedarbojas.",
   "siteSettingsSectionContent": "Saturs",
-  "siteSettingsSectionBehaviour": "Uzvedība",
+  "behaviourTitle": "Uzvedība",
+  "behaviourGroupOpening": "Atvēršana un attēlošana",
+  "behaviourSummaryNothingOn": "Nekas nav iespējots",
   "siteSettingsSectionNetwork": "Tīkls",
   "siteSettingsSectionSite": "Vietne"
 }

@@ -19,6 +19,7 @@ import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/timezone_location_service.dart';
 import 'package:webspace/services/timezone_spoof_policy.dart';
 import 'package:webspace/screens/location_picker.dart';
+import 'package:webspace/screens/site_behaviour.dart';
 import 'package:webspace/screens/site_permissions.dart';
 import 'package:webspace/screens/site_privacy.dart';
 import 'package:webspace/screens/link_handling_settings.dart';
@@ -777,10 +778,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       double.tryParse(_latitudeController.text.trim()) != null &&
       double.tryParse(_longitudeController.text.trim()) != null;
 
-  /// Label above a group of leaf settings. The two screens above (permissions,
-  /// privacy) carry their own structure; what is left on this screen is flat
-  /// switches, and a header is all they need to stop reading as one list of
-  /// twenty unrelated things.
+  /// Label above a group of leaf settings. The three screens below the "Site"
+  /// heading (behaviour, privacy, permissions) carry their own structure; what
+  /// is left on this screen is flat controls, and a header is all they need to
+  /// stop reading as one list of unrelated things.
   Widget _sectionHeader(String title) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 6),
         child: Text(
@@ -945,6 +946,87 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (mounted) setState(() {});
   }
 
+
+  SiteBehaviourValues get _behaviourValues => SiteBehaviourValues(
+        alwaysOpenHome: _alwaysOpenHome,
+        kioskMode: _kioskMode,
+        fullscreenMode: _fullscreenMode,
+        htmlCachingEnabled: _htmlCachingEnabled,
+        blockAutoRedirects: _blockAutoRedirects,
+        externalLinksInBrowser: _externalLinksInBrowser,
+      );
+
+  /// One of the three rows that open a screen of their own. Behaviour is what
+  /// the app does with the site rather than what the site is allowed to do, so
+  /// it leads the group.
+  Widget _buildBehaviourRow() {
+    final loc = AppLocalizations.of(context);
+    final v = _behaviourValues;
+    final on = <String>[
+      if (v.effectiveAlwaysOpenHome(_incognito)) loc.siteSettingsAlwaysOpenHome,
+      if (v.kioskMode) loc.siteSettingsKioskMode,
+      if (v.fullscreenMode) loc.siteSettingsFullscreen,
+      if (v.htmlCachingEnabled) loc.siteSettingsHtmlCaching,
+      if (v.blockAutoRedirects) loc.siteSettingsBlockAutoRedirects,
+      if (v.externalLinksInBrowser) loc.siteSettingsExternalLinksInBrowser,
+    ];
+
+    // Built as data before it reaches Text(): the separator and the count are
+    // punctuation and numbers, not translatable copy (LOC-002).
+    final String summary;
+    if (on.isEmpty) {
+      summary = loc.behaviourSummaryNothingOn;
+    } else {
+      const separator = ' · ';
+      final shown = on.take(2).join(separator);
+      final overflow = on.length - 2;
+      summary = overflow > 0
+          ? '$shown$separator${loc.permissionsSummaryMore(overflow)}'
+          : shown;
+    }
+
+    return ListTile(
+      leading: const Icon(Icons.tune),
+      title: Text(loc.behaviourTitle),
+      subtitle: Text(summary, style: const TextStyle(fontSize: 12.5)),
+      trailing: const Icon(Icons.chevron_right, size: 18),
+      onTap: _openBehaviour,
+    );
+  }
+
+  Future<void> _openBehaviour() async {
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SiteBehaviourScreen(
+          host: widget.webViewModel.currentUrl,
+          incognito: _incognito,
+          values: _behaviourValues,
+          // Writes straight to the model, like it did inline: domain claims
+          // are not part of the dirty snapshot and are saved as they are
+          // edited.
+          domainClaims: DomainClaimsEditor(
+            model: widget.webViewModel,
+            otherSites: widget.otherSites,
+            onChanged: (next) {
+              widget.webViewModel.domainClaims = next;
+            },
+          ),
+          onChanged: (values) {
+            setState(() {
+              _alwaysOpenHome = values.alwaysOpenHome;
+              _kioskMode = values.kioskMode;
+              _fullscreenMode = values.fullscreenMode;
+              _htmlCachingEnabled = values.htmlCachingEnabled;
+              _blockAutoRedirects = values.blockAutoRedirects;
+              _externalLinksInBrowser = values.externalLinksInBrowser;
+            });
+          },
+        ),
+      ),
+    );
+    if (mounted) setState(() {});
+  }
 
   SitePrivacyValues get _privacyValues => SitePrivacyValues(
         trackingProtectionEnabled: _trackingProtectionEnabled,
@@ -1263,117 +1345,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             },
           ),
-          _sectionHeader(loc.siteSettingsSectionBehaviour),
-          SwitchListTile(
-            title: Text(loc.siteSettingsAlwaysOpenHome),
-            subtitle: Text(
-              _incognito
-                  ? loc.siteSettingsAlwaysOpenHomeForced
-                  : loc.siteSettingsAlwaysOpenHomeSubtitle,
-            ),
-            value: _incognito || _alwaysOpenHome,
-            onChanged: _incognito
-                ? null
-                : (bool value) {
-                    setState(() {
-                      _alwaysOpenHome = value;
-                    });
-                  },
-          ),
-          SwitchListTile(
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.siteSettingsKioskMode)),
-                HintButton(
-                  title: loc.siteSettingsKioskMode,
-                  description: loc.siteSettingsKioskModeHint,
-                ),
-              ],
-            ),
-            value: _kioskMode,
-            onChanged: (bool value) {
-              setState(() {
-                _kioskMode = value;
-              });
-            },
-          ),
-          SwitchListTile(
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.siteSettingsFullscreen)),
-                HintButton(
-                  title: loc.siteSettingsFullscreenHintTitle,
-                  description: loc.siteSettingsFullscreenHint,
-                ),
-              ],
-            ),
-            subtitle: Text(loc.siteSettingsFullscreenSubtitle),
-            value: _fullscreenMode,
-            onChanged: (bool value) {
-              setState(() {
-                _fullscreenMode = value;
-              });
-            },
-          ),
-          SwitchListTile(
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.siteSettingsBlockAutoRedirects)),
-                HintButton(
-                  title: loc.siteSettingsBlockAutoRedirectsHintTitle,
-                  description: loc.siteSettingsBlockAutoRedirectsHint,
-                ),
-              ],
-            ),
-            subtitle: Text(loc.siteSettingsBlockAutoRedirectsSubtitle),
-            value: _blockAutoRedirects,
-            onChanged: (bool value) {
-              setState(() {
-                _blockAutoRedirects = value;
-              });
-            },
-          ),
-          SwitchListTile(
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.siteSettingsExternalLinksInBrowser)),
-                HintButton(
-                  title: loc.siteSettingsExternalLinksInBrowserHintTitle,
-                  description: loc.siteSettingsExternalLinksInBrowserHint,
-                ),
-              ],
-            ),
-            value: _externalLinksInBrowser,
-            onChanged: (bool value) {
-              setState(() {
-                _externalLinksInBrowser = value;
-              });
-            },
-          ),
-          SwitchListTile(
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.siteSettingsHtmlCaching)),
-                HintButton(
-                  title: loc.siteSettingsHtmlCachingHintTitle,
-                  description: loc.siteSettingsHtmlCachingHint,
-                ),
-              ],
-            ),
-            value: _htmlCachingEnabled,
-            onChanged: (bool value) {
-              setState(() {
-                _htmlCachingEnabled = value;
-              });
-            },
-          ),
-          DomainClaimsEditor(
-            model: widget.webViewModel,
-            otherSites: widget.otherSites,
-            onChanged: (next) {
-              widget.webViewModel.domainClaims = next;
-            },
-          ),
           _sectionHeader(loc.siteSettingsSectionNetwork),
           // Only show proxy settings on supported platforms
           if (PlatformInfo.isProxySupported) ...[
@@ -1466,6 +1437,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ],
           _buildWebRtcTile(),
           _sectionHeader(loc.siteSettingsSectionSite),
+          _buildBehaviourRow(),
           _buildPrivacyRow(),
           _buildPermissionsRow(),
           const SizedBox(height: 8),

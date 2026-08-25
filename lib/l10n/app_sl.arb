@@ -746,7 +746,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "Dovoli vdelani vsebini nastavljanje piškotkov med stranmi",
   "siteSettingsThirdPartyCookiesHint": "Piškotki, ki jih nastavi vsebina, vdelana z druge strani, na primer oglasi, gumbi za deljenje in analitični gradniki. So najstarejši način, kako vam sledilnik sledi z ene strani na drugo, zato jih zaščita pred sledenjem izklopi. Nekatera preusmeritve ob prijavi in vdelana plačila jih potrebujejo, zato jih za stran, ki brez njih ne deluje, znova vklopite.",
   "siteSettingsSectionContent": "Vsebina",
-  "siteSettingsSectionBehaviour": "Vedenje",
+  "behaviourTitle": "Vedenje",
+  "behaviourGroupOpening": "Odpiranje in prikaz",
+  "behaviourSummaryNothingOn": "Nič ni omogočeno",
   "siteSettingsSectionNetwork": "Omrežje",
   "siteSettingsSectionSite": "Stran"
 }

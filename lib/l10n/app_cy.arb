@@ -746,7 +746,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "Gadael i gynnwys wedi'i fewnosod osod cwcis ar draws gwefannau",
   "siteSettingsThirdPartyCookiesHint": "Cwcis a osodir gan gynnwys wedi'i fewnosod o wefan arall, fel hysbysebion, botymau rhannu a theclynnau dadansoddeg. Nhw yw'r ffordd hynaf i draciwr eich dilyn o un wefan i'r llall, a dyna pam mae Amddiffyn rhag Tracio yn eu diffodd. Mae rhai ailgyfeiriadau mewngofnodi a thalu wedi'u mewnosod eu hangen, felly trowch nhw yn ôl ymlaen ar gyfer gwefan sy'n torri hebddyn nhw.",
   "siteSettingsSectionContent": "Cynnwys",
-  "siteSettingsSectionBehaviour": "Ymddygiad",
+  "behaviourTitle": "Ymddygiad",
+  "behaviourGroupOpening": "Agor ac arddangos",
+  "behaviourSummaryNothingOn": "Dim byd wedi'i alluogi",
   "siteSettingsSectionNetwork": "Rhwydwaith",
   "siteSettingsSectionSite": "Gwefan"
 }

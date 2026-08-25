@@ -746,7 +746,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "Permitir que conteúdo incorporado defina cookies entre sites",
   "siteSettingsThirdPartyCookiesHint": "Cookies definidos por conteúdo incorporado a partir de outro site, como anúncios, botões de partilha e widgets de análise. São a forma mais antiga de um rastreador o seguir de um site para o seguinte, e por isso a proteção contra rastreio desativa-os. Alguns redirecionamentos de início de sessão e pagamentos incorporados precisam deles, por isso volte a ativá-los para um site que não funcione sem eles.",
   "siteSettingsSectionContent": "Conteúdo",
-  "siteSettingsSectionBehaviour": "Comportamento",
+  "behaviourTitle": "Comportamento",
+  "behaviourGroupOpening": "Abertura e apresentação",
+  "behaviourSummaryNothingOn": "Nada ativado",
   "siteSettingsSectionNetwork": "Rede",
   "siteSettingsSectionSite": "Site"
 }

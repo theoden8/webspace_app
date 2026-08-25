@@ -746,7 +746,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "කාවැද්දූ අන්තර්ගතයට අඩවි හරහා කුකීස් සැකසීමට ඉඩ දෙන්න",
   "siteSettingsThirdPartyCookiesHint": "දැන්වීම්, බෙදාගැනීමේ බොත්තම් සහ විශ්ලේෂණ විජට් වැනි වෙනත් අඩවියකින් කාවැද්දූ අන්තර්ගතය මගින් සකසන කුකීස්. ලුහුබඳින්නෙකු ඔබව එක් අඩවියක සිට තවත් අඩවියකට ලුහුබැඳීමේ පැරණිතම ක්‍රමය මෙයයි, ලුහුබැඳීම් ආරක්ෂණය ඒවා අක්‍රිය කරන්නේ එබැවිනි. සමහර පිවිසුම් යළි-යොමුවීම් සහ කාවැද්දූ ගෙවීම් සඳහා ඒවා අවශ්‍යයි, එබැවින් ඒවා නොමැතිව බිඳ වැටෙන අඩවියක් සඳහා ඒවා යළි ක්‍රියාත්මක කරන්න.",
   "siteSettingsSectionContent": "අන්තර්ගතය",
-  "siteSettingsSectionBehaviour": "හැසිරීම",
+  "behaviourTitle": "හැසිරීම",
+  "behaviourGroupOpening": "විවෘත කිරීම සහ දර්ශනය",
+  "behaviourSummaryNothingOn": "කිසිවක් සක්‍රීය නැත",
   "siteSettingsSectionNetwork": "ජාලය",
   "siteSettingsSectionSite": "අඩවිය"
 }

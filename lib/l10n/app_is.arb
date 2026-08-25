@@ -746,7 +746,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "Leyfa ígræddu efni að setja vefkökur þvert á vefsvæði",
   "siteSettingsThirdPartyCookiesHint": "Vefkökur sem efni ígrætt frá öðru vefsvæði setur, svo sem auglýsingar, deilihnappar og greiningargræjur. Þær eru elsta leiðin sem rekjari fylgir þér frá einu vefsvæði til annars, og þess vegna slekkur rakningarvörn á þeim. Sumar innskráningarumbeiningar og ígrædd greiðsluferli þurfa þær, svo kveiktu aftur á þeim fyrir vefsvæði sem virkar ekki án þeirra.",
   "siteSettingsSectionContent": "Efni",
-  "siteSettingsSectionBehaviour": "Hegðun",
+  "behaviourTitle": "Hegðun",
+  "behaviourGroupOpening": "Opnun og birting",
+  "behaviourSummaryNothingOn": "Ekkert virkjað",
   "siteSettingsSectionNetwork": "Netkerfi",
   "siteSettingsSectionSite": "Vefsvæði"
 }

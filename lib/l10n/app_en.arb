@@ -3589,9 +3589,17 @@
   "@siteSettingsSectionContent": {
     "description": "Heading in site settings for the group covering what the page is served and how it renders: scripts, user agent, language, zoom."
   },
-  "siteSettingsSectionBehaviour": "Behaviour",
-  "@siteSettingsSectionBehaviour": {
-    "description": "Heading in site settings for the group covering how the app treats the site: where it opens, how links leave it, and how much of the screen it uses."
+  "behaviourTitle": "Behaviour",
+  "@behaviourTitle": {
+    "description": "Title of the per-site behaviour screen, and of the row in site settings that opens it. Covers how the app hosts the site: where it opens, how much of the app shell it gets, and where links leaving it end up."
+  },
+  "behaviourGroupOpening": "Opening and display",
+  "@behaviourGroupOpening": {
+    "description": "Heading for the behaviour group covering what happens when the site is opened: whether it starts at its home page, how much of the app and system UI it hides, and whether it is drawn from a cached copy first."
+  },
+  "behaviourSummaryNothingOn": "Nothing enabled",
+  "@behaviourSummaryNothingOn": {
+    "description": "Summary on the behaviour row in site settings when none of the behaviour switches is on."
   },
   "siteSettingsSectionNetwork": "Network",
   "@siteSettingsSectionNetwork": {

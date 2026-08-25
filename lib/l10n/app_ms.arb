@@ -746,7 +746,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "Benarkan kandungan terbenam menetapkan kuki merentas tapak",
   "siteSettingsThirdPartyCookiesHint": "Kuki yang ditetapkan oleh kandungan terbenam daripada tapak lain, seperti iklan, butang kongsi dan widget analitik. Ia cara tertua seorang penjejak mengikuti anda dari satu tapak ke tapak seterusnya, sebab itulah Perlindungan Penjejakan mematikannya. Sesetengah ubah hala log masuk dan pembayaran terbenam memerlukannya, jadi hidupkannya semula untuk tapak yang rosak tanpanya.",
   "siteSettingsSectionContent": "Kandungan",
-  "siteSettingsSectionBehaviour": "Kelakuan",
+  "behaviourTitle": "Kelakuan",
+  "behaviourGroupOpening": "Pembukaan dan paparan",
+  "behaviourSummaryNothingOn": "Tiada yang diaktifkan",
   "siteSettingsSectionNetwork": "Rangkaian",
   "siteSettingsSectionSite": "Tapak"
 }

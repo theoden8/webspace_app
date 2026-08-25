@@ -746,7 +746,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "埋め込みコンテンツがサイトをまたいで Cookie を設定することを許可する",
   "siteSettingsThirdPartyCookiesHint": "広告、共有ボタン、アナリティクスウィジェットなど、別のサイトから埋め込まれたコンテンツが設定する Cookie です。トラッカーがあなたをサイトからサイトへ追跡する最も古い手段であり、そのためトラッキング保護はこれをオフにします。一部のサインインのリダイレクトや埋め込み決済には必要なので、これがないと壊れるサイトでは再度オンにしてください。",
   "siteSettingsSectionContent": "コンテンツ",
-  "siteSettingsSectionBehaviour": "動作",
+  "behaviourTitle": "動作",
+  "behaviourGroupOpening": "起動と表示",
+  "behaviourSummaryNothingOn": "有効な項目なし",
   "siteSettingsSectionNetwork": "ネットワーク",
   "siteSettingsSectionSite": "サイト"
 }

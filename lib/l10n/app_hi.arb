@@ -746,7 +746,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "एम्बेडेड सामग्री को साइटों के बीच कुकीज़ सेट करने दें",
   "siteSettingsThirdPartyCookiesHint": "किसी दूसरी साइट से एम्बेड की गई सामग्री द्वारा सेट की गई कुकीज़, जैसे विज्ञापन, साझा करने के बटन और एनालिटिक्स विजेट। यह सबसे पुराना तरीका है जिससे कोई ट्रैकर आपको एक साइट से दूसरी साइट तक फ़ॉलो करता है, इसीलिए ट्रैकिंग सुरक्षा इन्हें बंद कर देती है। कुछ साइन-इन रीडायरेक्ट और एम्बेडेड चेकआउट को इनकी ज़रूरत होती है, इसलिए जो साइट इनके बिना काम न करे उसके लिए इन्हें फिर चालू करें।",
   "siteSettingsSectionContent": "सामग्री",
-  "siteSettingsSectionBehaviour": "व्यवहार",
+  "behaviourTitle": "व्यवहार",
+  "behaviourGroupOpening": "खुलना और प्रदर्शन",
+  "behaviourSummaryNothingOn": "कुछ भी सक्षम नहीं",
   "siteSettingsSectionNetwork": "नेटवर्क",
   "siteSettingsSectionSite": "साइट"
 }

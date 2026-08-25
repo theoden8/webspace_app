@@ -746,7 +746,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "Zezwalaj osadzonej treści na ustawianie plików cookie między witrynami",
   "siteSettingsThirdPartyCookiesHint": "Pliki cookie ustawiane przez treść osadzoną z innej witryny, na przykład reklamy, przyciski udostępniania i widżety analityczne. To najstarszy sposób, w jaki element śledzący podąża za tobą z jednej witryny do drugiej, dlatego Ochrona przed śledzeniem je wyłącza. Niektóre przekierowania logowania i osadzone płatności ich potrzebują, więc włącz je z powrotem dla witryny, która bez nich nie działa.",
   "siteSettingsSectionContent": "Treść",
-  "siteSettingsSectionBehaviour": "Zachowanie",
+  "behaviourTitle": "Zachowanie",
+  "behaviourGroupOpening": "Otwieranie i wyświetlanie",
+  "behaviourSummaryNothingOn": "Nic nie włączone",
   "siteSettingsSectionNetwork": "Sieć",
   "siteSettingsSectionSite": "Witryna"
 }

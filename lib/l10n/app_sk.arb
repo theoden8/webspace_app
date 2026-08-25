@@ -746,7 +746,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "Povoliť vloženému obsahu nastavovať súbory cookie medzi stránkami",
   "siteSettingsThirdPartyCookiesHint": "Súbory cookie nastavené obsahom vloženým z inej stránky, napríklad reklamami, tlačidlami zdieľania a analytickými widgetmi. Sú najstarším spôsobom, akým vás sledovač sleduje z jednej stránky na druhú, a preto ich ochrana pred sledovaním vypína. Niektoré presmerovania pri prihlásení a vložené platby ich potrebujú, takže ich pre stránku, ktorá bez nich nefunguje, znova zapnite.",
   "siteSettingsSectionContent": "Obsah",
-  "siteSettingsSectionBehaviour": "Správanie",
+  "behaviourTitle": "Správanie",
+  "behaviourGroupOpening": "Otváranie a zobrazenie",
+  "behaviourSummaryNothingOn": "Nič nie je zapnuté",
   "siteSettingsSectionNetwork": "Sieť",
   "siteSettingsSectionSite": "Stránka"
 }

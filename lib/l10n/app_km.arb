@@ -746,7 +746,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "អនុញ្ញាតឱ្យខ្លឹមសារបង្កប់កំណត់ខូគីឆ្លងកាត់គេហទំព័រ",
   "siteSettingsThirdPartyCookiesHint": "ខូគីដែលកំណត់ដោយខ្លឹមសារបង្កប់ពីគេហទំព័រផ្សេង ដូចជាការផ្សាយពាណិជ្ជកម្ម ប៊ូតុងចែករំលែក និងធាតុវិភាគ។ ពួកវាជាមធ្យោបាយចាស់បំផុតដែលកម្មវិធីតាមដានតាមអ្នកពីគេហទំព័រមួយទៅគេហទំព័រមួយទៀត ដែលជាហេតុធ្វើឱ្យការការពារការតាមដានបិទពួកវា។ ការបញ្ជូនបន្តពេលចូលគណនី និងការទូទាត់បង្កប់ខ្លះត្រូវការពួកវា ដូច្នេះសូមបើកពួកវាឡើងវិញសម្រាប់គេហទំព័រដែលខូចបើគ្មានពួកវា។",
   "siteSettingsSectionContent": "ខ្លឹមសារ",
-  "siteSettingsSectionBehaviour": "អាកប្បកិរិយា",
+  "behaviourTitle": "អាកប្បកិរិយា",
+  "behaviourGroupOpening": "ការបើក និងការបង្ហាញ",
+  "behaviourSummaryNothingOn": "គ្មានអ្វីបានបើក",
   "siteSettingsSectionNetwork": "បណ្តាញ",
   "siteSettingsSectionSite": "គេហទំព័រ"
 }

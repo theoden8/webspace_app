@@ -746,7 +746,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "Dopusti ugrađenom sadržaju postavljanje kolačića između stranica",
   "siteSettingsThirdPartyCookiesHint": "Kolačići koje postavlja sadržaj ugrađen s druge stranice, poput oglasa, gumba za dijeljenje i analitičkih widgeta. Oni su najstariji način na koji vas pratitelj slijedi s jedne stranice na drugu, zbog čega ih zaštita od praćenja isključuje. Neka preusmjeravanja pri prijavi i ugrađena plaćanja trebaju ih, pa ih ponovno uključite za stranicu koja bez njih ne radi.",
   "siteSettingsSectionContent": "Sadržaj",
-  "siteSettingsSectionBehaviour": "Ponašanje",
+  "behaviourTitle": "Ponašanje",
+  "behaviourGroupOpening": "Otvaranje i prikaz",
+  "behaviourSummaryNothingOn": "Ništa nije omogućeno",
   "siteSettingsSectionNetwork": "Mreža",
   "siteSettingsSectionSite": "Stranica"
 }

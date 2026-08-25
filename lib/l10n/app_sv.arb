@@ -746,7 +746,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "Låt inbäddat innehåll sätta kakor över webbplatser",
   "siteSettingsThirdPartyCookiesHint": "Kakor som sätts av innehåll inbäddat från en annan webbplats, till exempel annonser, delningsknappar och analyswidgetar. De är det äldsta sättet för en spårare att följa dig från en webbplats till nästa, och därför stänger Spårningsskydd av dem. Vissa inloggningsomdirigeringar och inbäddade kassor behöver dem, så slå på dem igen för en webbplats som inte fungerar utan.",
   "siteSettingsSectionContent": "Innehåll",
-  "siteSettingsSectionBehaviour": "Beteende",
+  "behaviourTitle": "Beteende",
+  "behaviourGroupOpening": "Öppning och visning",
+  "behaviourSummaryNothingOn": "Inget aktiverat",
   "siteSettingsSectionNetwork": "Nätverk",
   "siteSettingsSectionSite": "Webbplats"
 }

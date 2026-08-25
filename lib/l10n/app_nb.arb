@@ -746,7 +746,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "La innebygd innhold sette informasjonskapsler på tvers av nettsteder",
   "siteSettingsThirdPartyCookiesHint": "Informasjonskapsler satt av innhold innebygd fra et annet nettsted, som annonser, delingsknapper og analysemoduler. De er den eldste måten en sporer følger deg fra ett nettsted til det neste, og derfor slår sporingsbeskyttelse dem av. Noen påloggingsomdirigeringer og innebygde betalinger trenger dem, så slå dem på igjen for et nettsted som ikke fungerer uten.",
   "siteSettingsSectionContent": "Innhold",
-  "siteSettingsSectionBehaviour": "Oppførsel",
+  "behaviourTitle": "Oppførsel",
+  "behaviourGroupOpening": "Åpning og visning",
+  "behaviourSummaryNothingOn": "Ingenting aktivert",
   "siteSettingsSectionNetwork": "Nettverk",
   "siteSettingsSectionSite": "Nettsted"
 }

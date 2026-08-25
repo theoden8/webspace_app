@@ -746,7 +746,9 @@
   "siteSettingsThirdPartyCookiesSubtitle": "A beágyazott tartalom oldalak közötti sütiket állíthasson be",
   "siteSettingsThirdPartyCookiesHint": "Egy másik oldalról beágyazott tartalom, például hirdetések, megosztógombok és analitikai widgetek által beállított sütik. Ez a legrégebbi módja annak, hogy egy nyomkövető egyik oldalról a másikra kövesse Önt, ezért kapcsolja ki őket a nyomkövetés elleni védelem. Néhány bejelentkezési átirányításnak és beágyazott fizetésnek szüksége van rájuk, ezért kapcsolja vissza őket olyan oldalnál, amely nélkülük nem működik.",
   "siteSettingsSectionContent": "Tartalom",
-  "siteSettingsSectionBehaviour": "Viselkedés",
+  "behaviourTitle": "Viselkedés",
+  "behaviourGroupOpening": "Megnyitás és megjelenítés",
+  "behaviourSummaryNothingOn": "Semmi sincs bekapcsolva",
   "siteSettingsSectionNetwork": "Hálózat",
   "siteSettingsSectionSite": "Oldal"
 }
