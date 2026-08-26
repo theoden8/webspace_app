@@ -1,0 +1,9 @@
+✨ New Features:
+• Protection report for blocked trackers
+
+🔧 Improvements:
+• Redesigned per-site settings
+
+🐛 Bug Fixes:
+• Page zoom below 100%
+• Downloads from signed-in sites
