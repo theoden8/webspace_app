@@ -1,11 +1,11 @@
 ## 1. Native iOS plugin (Tor.framework integration)
 
-- [ ] 1.1 Add `pod 'Tor', '409.11.2'` (exact version, not `~>`) to `ios/Podfile` under the `Runner` target; keep gated by the existing iOS-only platform clause. The pod downloads a precompiled `tor.xcframework` from GitHub releases at `pod install` time — verify the artifact checksum in CI rather than trusting the release URL.
-- [ ] 1.2 Create `ios/Runner/TorControllerPlugin.swift` registering `FlutterMethodChannel <bundleId>/tor` and `FlutterEventChannel <bundleId>/tor/events`. Register in `AppDelegate.swift` alongside `BackgroundTaskPlugin`.
-- [ ] 1.3 Implement `start()` — builds a `TorConfiguration` with `SocksPort auto IsolateSOCKSAuth IsolateDestAddr`, control-port cookie auth, ephemeral `DataDirectory` under `NSCachesDirectory/Tor/`, spawns `TorThread`, subscribes to control-port `BOOTSTRAP` events.
-- [ ] 1.4 Implement `status()` — returns `{state, bootstrapPct, socksHost, socksPort}` synchronously; emits the same shape via the event channel as state changes.
-- [ ] 1.5 Implement `rebuildCircuits()` — sends `SIGNAL NEWNYM` via the control port. Rate-limit at the plugin layer (no-op if last NEWNYM was less than 10s ago).
-- [ ] 1.6 Implement `stop()` — graceful shutdown via `TorThread.cancel()`, awaits termination with a 5s timeout then force-exits the thread. Clears in-memory port info.
+- [x] 1.1 Added `pod 'Tor', '409.11.2'` (exact version, not `~>`) to `ios/Podfile`. The podspec's `prepare_command` already verifies the downloaded `tor.xcframework` against pinned sha256 digests, so no extra CI checksum step is needed. Pod requires iOS 15.0, which the Podfile floor already is.
+- [x] 1.2 Create `ios/Runner/TorControllerPlugin.swift` registering `FlutterMethodChannel <bundleId>/tor` and `FlutterEventChannel <bundleId>/tor/events`. Register in `AppDelegate.swift` alongside `BackgroundTaskPlugin`.
+- [x] 1.3 Implement `start()` — builds a `TorConfiguration` with `SocksPort auto IsolateSOCKSAuth IsolateDestAddr`, control-port cookie auth, ephemeral `DataDirectory` under `NSCachesDirectory/Tor/`, spawns `TorThread`, subscribes to control-port `BOOTSTRAP` events.
+- [x] 1.4 Implement `status()` — returns `{state, bootstrapPct, socksHost, socksPort}` synchronously; emits the same shape via the event channel as state changes.
+- [x] 1.5 Implement `rebuildCircuits()` — sends `SIGNAL NEWNYM` via the control port. Rate-limit at the plugin layer (no-op if last NEWNYM was less than 10s ago).
+- [x] 1.6 Implement `stop()` — graceful shutdown via `TorThread.cancel()`, awaits termination with a 5s timeout then force-exits the thread. Clears in-memory port info.
 - [x] 1.7 Create `ios/Runner/PrivacyInfo.xcprivacy` (the repo has no privacy manifest today) and add it to the `Runner` target's Copy Bundle Resources. Declare the `NSPrivacyAccessedAPITypes` rows for the required-reason APIs the *app* calls, with the reason codes verified against Apple's current required-reasons list at implementation time rather than copied from this document. Do NOT put `NSPrivacyAccessedAPITypes` in `Info.plist` — Apple does not read it there (TOR-011).
 - [x] 1.8 Confirmed: the pinned Tor pod ships **no** `PrivacyInfo.xcprivacy` (checked the upstream tree). Its required-reason usage is declared from the app's manifest as the only available option; raise the gap upstream. If it does not, raise it upstream and record the gap in the change; do not declare the pod's API usage from the app's manifest.
 

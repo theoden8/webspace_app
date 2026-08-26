@@ -9,6 +9,7 @@ import UserNotifications
   private var backgroundTaskPlugin: BackgroundTaskPlugin?
   private var shortcutsPlugin: ShortcutsPlugin?
   private var mediaSessionPlugin: MediaSessionPlugin?
+  private var torControllerPlugin: TorControllerPlugin?
   private var pendingShareUrl: String?
 
   private let shareChannelName = "org.codeberg.theoden8.webspace/share_intent"
@@ -39,6 +40,7 @@ import UserNotifications
       backgroundTaskPlugin = BackgroundTaskPlugin(messenger: controller.binaryMessenger)
       shortcutsPlugin = ShortcutsPlugin(messenger: controller.binaryMessenger)
       mediaSessionPlugin = MediaSessionPlugin(messenger: controller.binaryMessenger)
+      torControllerPlugin = TorControllerPlugin(messenger: controller.binaryMessenger)
       if let registrar = self.registrar(forPlugin: "WebSpaceShortcutsLink") {
         registrar.register(
           ShortcutsLinkViewFactory(messenger: controller.binaryMessenger),

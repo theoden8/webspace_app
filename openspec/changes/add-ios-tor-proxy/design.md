@@ -111,11 +111,17 @@ component enters the bundle, which is what makes an embed like this
 distributable on the App Store at all.
 
 Note the pod resolves `tor.xcframework` by downloading a precompiled
-binary from GitHub releases during `pod install`. That is a build-time
-fetch, so Guideline 2.5.2 (no downloading or executing code) is not
-engaged — the binary is inside the submitted bundle. It is still a
-supply-chain seam: pin the exact version and verify the downloaded
-artifact's checksum in CI rather than trusting the release URL.
+binary from GitHub releases during `pod install`. Two things follow, and
+only one of them is a problem:
+
+- Guideline 2.5.2 (no downloading or executing code) is not engaged. The
+  fetch happens at build time and the binary ships inside the submitted
+  bundle; nothing is downloaded at runtime. Tor's runtime consensus and
+  descriptors are data, not code.
+- The supply-chain seam is already closed upstream: the podspec's
+  `prepare_command` passes pinned sha256 digests to `Tor/download.sh`,
+  so the artifact is verified rather than trusted by URL. Pin the exact
+  pod version (not a `~>` range) and the digests come with it.
 
 Why Tor.framework specifically:
 

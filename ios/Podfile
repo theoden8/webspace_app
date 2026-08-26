@@ -55,6 +55,15 @@ target 'Runner' do
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   pod 'webspace_adblock', :path => '../rust/webspace_adblock/cocoapods'
+  # Embedded Tor client (TOR-001). Exact version, never a `~>` range: this
+  # links a precompiled tor into our binary and carries an export-compliance
+  # declaration with it (TOR-010), so the version moves when we decide it
+  # does. The podspec's prepare_command verifies the downloaded
+  # tor.xcframework against pinned sha256 digests, so the build-time fetch
+  # is checksummed rather than trusted by URL. iOS only: Chromium has no
+  # SOCKS5 auth, so Android could not do per-site circuit isolation and
+  # keeps its manual Orbot row instead.
+  pod 'Tor', '409.11.2'
 
   target 'RunnerTests' do
     inherit! :search_paths
