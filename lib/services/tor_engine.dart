@@ -104,7 +104,12 @@ class TorEngine {
         _sessionSecret = sessionSecret,
         _idleDebounce = idleDebounce,
         _bootstrapTimeout = bootstrapTimeout {
-    _sub = _runtime.events.listen(_onRuntimeStatus);
+    // Second gate, belt to the runtime's braces: a runtime with no plugin
+    // behind it has nothing to say, and subscribing to find that out is
+    // what threw MissingPluginException on Android.
+    if (_runtime.isAvailable) {
+      _sub = _runtime.events.listen(_onRuntimeStatus);
+    }
   }
 
   final TorRuntime _runtime;

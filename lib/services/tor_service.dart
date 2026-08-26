@@ -49,19 +49,34 @@ class MethodChannelTorRuntime implements TorRuntime {
   @override
   bool get isAvailable => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
-  @override
-  Future<void> start() => _channel.invokeMethod<void>('start');
+  // Every channel touch below is gated on [isAvailable]. Without the gate,
+  // simply *asking* whether Tor is available on Android builds the engine,
+  // whose constructor subscribes to `events` — and
+  // `receiveBroadcastStream()` invokes `listen` eagerly, throwing
+  // MissingPluginException on every platform that has no plugin.
 
   @override
-  Future<void> stop() => _channel.invokeMethod<void>('stop');
+  Future<void> start() async {
+    if (!isAvailable) return;
+    await _channel.invokeMethod<void>('start');
+  }
 
   @override
-  Future<void> rebuildCircuits() =>
-      _channel.invokeMethod<void>('rebuildCircuits');
+  Future<void> stop() async {
+    if (!isAvailable) return;
+    await _channel.invokeMethod<void>('stop');
+  }
 
   @override
-  Stream<TorStatus> get events =>
-      _decoded ??= _eventChannel.receiveBroadcastStream().map(decodeStatus);
+  Future<void> rebuildCircuits() async {
+    if (!isAvailable) return;
+    await _channel.invokeMethod<void>('rebuildCircuits');
+  }
+
+  @override
+  Stream<TorStatus> get events => _decoded ??= isAvailable
+      ? _eventChannel.receiveBroadcastStream().map(decodeStatus)
+      : const Stream<TorStatus>.empty();
 
   /// Decode one native status payload. Unknown shapes degrade to an error
   /// rather than throwing into the event stream, which would tear down the

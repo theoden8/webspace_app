@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/tor_engine.dart';
+import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/web_view_model.dart';
@@ -181,6 +182,54 @@ void main() {
       final m = WebViewModel(initUrl: 'https://example.com', proxySettings: _tor());
       final encoded = m.toJson().toString();
       expect(encoded, isNot(contains('session-secret')));
+    });
+  });
+
+  group('TOR-007 platform gate', () {
+    // Tests run with defaultTargetPlatform == android, which is exactly the
+    // case that broke: reading `isAvailable` builds the engine, whose
+    // constructor used to subscribe to the event channel, and
+    // receiveBroadcastStream() invokes `listen` eagerly —
+    // MissingPluginException on every platform without the plugin.
+    test('the runtime reports unavailable off iOS', () {
+      expect(MethodChannelTorRuntime().isAvailable, isFalse);
+    });
+
+    test('subscribing to events off iOS does not touch the channel', () async {
+      final runtime = MethodChannelTorRuntime();
+      // Would throw MissingPluginException if it reached the platform.
+      await expectLater(runtime.events.toList(), completion(isEmpty));
+    });
+
+    test('start/stop/rebuild are no-ops off iOS', () async {
+      final runtime = MethodChannelTorRuntime();
+      await runtime.start();
+      await runtime.stop();
+      await runtime.rebuildCircuits();
+    });
+
+    test('touching the singleton off iOS is inert', () async {
+      addTearDown(TorService.reset);
+      expect(TorService.instance.isAvailable, isFalse);
+      expect(TorService.instance.status, isA<TorStopped>());
+      expect(TorService.instance.socksEndpoint, isNull);
+      await TorService.instance.maybeStart('site-a');
+      await TorService.instance.syncHolders({'site-a', 'site-b'});
+      expect(TorService.instance.socksFor(siteId: 'site-a'), isNull);
+    });
+
+    test('decodeStatus never throws on a malformed payload', () {
+      // An uncaught error here would tear down the subscription and leave
+      // the engine deaf for the rest of the session.
+      expect(MethodChannelTorRuntime.decodeStatus(null), isA<TorErrored>());
+      expect(MethodChannelTorRuntime.decodeStatus('nonsense'), isA<TorErrored>());
+      expect(MethodChannelTorRuntime.decodeStatus({'state': 'up'}), isA<TorErrored>(),
+          reason: 'up without an endpoint is not up');
+      expect(
+        MethodChannelTorRuntime.decodeStatus(
+            {'state': 'up', 'socksHost': '127.0.0.1', 'socksPort': 41337}),
+        isA<TorUp>(),
+      );
     });
   });
 }
