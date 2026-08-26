@@ -93,9 +93,18 @@ Constraints from the existing codebase:
 
 ### D1. Tor runtime — embed Tor.framework, manage from Swift
 
-Vendored via CocoaPods: `pod 'Tor', '~> 408.10'` (resolves to the
-current `iCepa/Tor.framework` release; a specific tag is pinned at
-implementation time and bumped explicitly, not via `~>`).
+Vendored via CocoaPods: `pod 'Tor', '409.11.2'` — an exact version,
+not a `~>` range. The pod is MIT-licensed; the code it wraps is tor
+(BSD-3), OpenSSL 3.x (Apache-2.0) and libevent (BSD). No GPL or LGPL
+component enters the bundle, which is what makes an embed like this
+distributable on the App Store at all.
+
+Note the pod resolves `tor.xcframework` by downloading a precompiled
+binary from GitHub releases during `pod install`. That is a build-time
+fetch, so Guideline 2.5.2 (no downloading or executing code) is not
+engaged — the binary is inside the submitted bundle. It is still a
+supply-chain seam: pin the exact version and verify the downloaded
+artifact's checksum in CI rather than trusting the release URL.
 
 Why Tor.framework specifically:
 
@@ -119,6 +128,21 @@ Why Tor.framework specifically:
   process target with its own memory budget, and the user-visible
   "VPN" indicator is a non-starter for an app that already has its
   own privacy posture. Rejected.
+
+  This rejection is also what keeps the change clear of Guideline
+  5.4, which is the guideline that looks most threatening to anything
+  Tor-shaped: *"Apps that offer VPN services must obtain permission
+  from the user before using their device as a VPN server. If your
+  VPN app doesn't connect to a server you own or contract with, it
+  doesn't belong on the App Store."* A Tor VPN would fail that second
+  sentence outright — Tor relays are by definition not servers we own
+  or contract with. An in-process SOCKS5 listener that only its own
+  app dials is not a VPN service: no `NEVPNManager`, no
+  NetworkExtension entitlement, no system VPN indicator, no traffic
+  from any other app, and the device never acts as a server. Record
+  this as a compliance decision, not only an ergonomic one: choosing
+  the loopback-proxy architecture is what makes 5.4 inapplicable, so
+  a later "let's cover other apps too" proposal reopens it.
 - Recommending Orbot for iOS (a port exists in TestFlight). Out of
   our control, not on the App Store stable channel as of 2026-05;
   user has to install separately. We can still document this as an
@@ -281,20 +305,38 @@ letting the caller's existing retry logic kick in.
 
 ### D8. Privacy manifest and export compliance
 
-Tor.framework reaches into a few Apple "required reasons" APIs
-(file timestamp, disk space, system boot time). We add corresponding
-rows in `Info.plist`'s `NSPrivacyAccessedAPITypes` with the
-documented reason strings (`C617.1`, `85F4.1`, `35F9.1`) — same as
-Onion Browser's privacy manifest.
+**Privacy manifest.** Required-reason API declarations go in a
+`PrivacyInfo.xcprivacy` resource, not `Info.plist` — Apple does not
+read `NSPrivacyAccessedAPITypes` from `Info.plist`, so a declaration
+placed there is silently absent at review. The repository ships no
+privacy manifest today, so this change adds the first one and the app
+declares only the required-reason APIs *it* calls. Tor.framework is
+responsible for its own manifest inside its own bundle; if the pinned
+pod ships none, that is an upstream gap to raise, not something the
+app can declare on the pod's behalf. See TOR-011.
 
-For App Store Connect export compliance: WebSpace today declares
-"uses encryption" with the standard HTTPS exemption. Adding
-Tor.framework keeps the same exemption category — open-source
-encryption library, used to protect end-user data, not exporting
-keys — and the existing `ITSAppUsesNonExemptEncryption=false` claim
-in `Info.plist` remains valid. We update the App Store Connect
-encryption documentation form (an out-of-tree artifact) but no
-plist change is needed.
+**Export compliance.** The app currently declares
+`ITSAppUsesNonExemptEncryption = false`. That declaration does not
+survive this change. Apple's exemption covers encryption provided by
+the operating system (HTTPS via `URLSession`) and encryption used
+purely for authentication; Tor.framework ships tor's own TLS and
+onion-routing cryptography plus a full OpenSSL build *inside our
+binary*, which is encryption the app implements. The key flips to
+`true`, export-compliance documentation is filed in App Store Connect
+before the first Tor build is submitted, and the annual
+self-classification report to BIS joins the release checklist.
+
+Two honest notes on this. First, the flip is arguably owed already:
+the app implements AES at rest in `archive_crypto.dart` and
+`html_cache_service.dart`, so the current `false` is questionable on
+its own terms and Tor only makes it unambiguous. Second, the earlier
+draft of this design asserted the opposite — that the exemption
+"remains valid" and "no plist change is needed" — by reasoning from
+Onion Browser's posture rather than from Apple's stated exemption
+categories. That was wrong, and it is the single highest-cost error
+in the change: a false submission-form declaration is a
+misrepresentation to Apple and a U.S. export-control exposure, not a
+guideline nit that review would simply bounce back. See TOR-010.
 
 ## Risks / Trade-offs
 
@@ -320,11 +362,22 @@ plist change is needed.
   country (via Tor control-port `GETINFO ip-to-country`) so the user
   sees evidence Tor is working. Out of scope for this change to
   surface in the main app bar, but acceptable as a settings detail.
-- **[App Store review surprise around Tor]** → mitigation: Onion
-  Browser, OrNet, Privoxy-on-iOS-via-Tor and similar apps have
-  shipped on the App Store for years. The encryption exemption is
-  established. Risk is non-zero (review is opaque) but historically
-  precedented.
+- **[App Store review]** → no guideline in the current App Store
+  Review Guidelines prohibits this design; the exposure is
+  concentrated in three places and each has an owner in the spec.
+  (a) Guideline 2.1, App Completeness, is the likeliest rejection:
+  review runs on a corporate network where bootstrap may be blocked,
+  and a reviewer who sees an untimed spinner reads a broken feature
+  (TOR-013 requires a bounded, plain-language failure plus App Review
+  notes). (b) Guideline 5.2.5 plus the Tor Project's own trademark
+  policy constrain how the marks may appear — descriptive use only,
+  never a product name or the onion logo (TOR-012). (c) The
+  export-compliance declaration must flip to `true` (TOR-010).
+  Precedent is strong for the architecture itself: Onion Browser has
+  shipped since 2012, is endorsed by the Tor Project, and takes the
+  same approach this design takes — iOS forbids a system-wide Tor
+  service, so tor is compiled into the binary and run as an
+  in-process thread.
 - **[Tor exit nodes blocked by sites the user cares about]** → out
   of scope; this is intrinsic to Tor, not a code-level concern. The
   per-site nature of the toggle is itself the mitigation: don't
@@ -355,6 +408,10 @@ plist change is needed.
   and a support-burden surface. Revisit only if requested.
 - Do we want an icon badge on the URL bar when `useTor` is active?
   Surface area for a future polish PR; not required for this change.
-- macOS port timing — `Tor.framework` already builds for macOS;
-  defer until iOS lands, then a follow-on (`add-macos-tor-proxy`)
-  reuses 90% of the code.
+- macOS port timing — deferral is a hard constraint, not a
+  preference: the pod requires macOS 12.0, while `macos/Podfile` is
+  `platform :osx, '10.15'` and the project builds against
+  `MACOSX_DEPLOYMENT_TARGET = 10.15`/`11.0`. A follow-on
+  (`add-macos-tor-proxy`) has to raise the deployment target first,
+  which drops macOS 10.15 and 11 users; that is its own decision to
+  make deliberately rather than as a side effect.

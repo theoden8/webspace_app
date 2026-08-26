@@ -1,12 +1,13 @@
 ## 1. Native iOS plugin (Tor.framework integration)
 
-- [ ] 1.1 Add `pod 'Tor', '~> 408.10'` (pinned tag) to `ios/Podfile` under the `Runner` target; keep gated by the existing iOS-only platform clause.
+- [ ] 1.1 Add `pod 'Tor', '409.11.2'` (exact version, not `~>`) to `ios/Podfile` under the `Runner` target; keep gated by the existing iOS-only platform clause. The pod downloads a precompiled `tor.xcframework` from GitHub releases at `pod install` time — verify the artifact checksum in CI rather than trusting the release URL.
 - [ ] 1.2 Create `ios/Runner/TorControllerPlugin.swift` registering `FlutterMethodChannel <bundleId>/tor` and `FlutterEventChannel <bundleId>/tor/events`. Register in `AppDelegate.swift` alongside `BackgroundTaskPlugin`.
 - [ ] 1.3 Implement `start()` — builds a `TorConfiguration` with `SocksPort auto IsolateSOCKSAuth IsolateDestAddr`, control-port cookie auth, ephemeral `DataDirectory` under `NSCachesDirectory/Tor/`, spawns `TorThread`, subscribes to control-port `BOOTSTRAP` events.
 - [ ] 1.4 Implement `status()` — returns `{state, bootstrapPct, socksHost, socksPort}` synchronously; emits the same shape via the event channel as state changes.
 - [ ] 1.5 Implement `rebuildCircuits()` — sends `SIGNAL NEWNYM` via the control port. Rate-limit at the plugin layer (no-op if last NEWNYM was less than 10s ago).
 - [ ] 1.6 Implement `stop()` — graceful shutdown via `TorThread.cancel()`, awaits termination with a 5s timeout then force-exits the thread. Clears in-memory port info.
-- [ ] 1.7 Add `NSPrivacyAccessedAPITypes` entries to `Info.plist` for the file-timestamp / disk-space / boot-time required-reason APIs Tor.framework uses (codes `C617.1`, `85F4.1`, `35F9.1`).
+- [ ] 1.7 Create `ios/Runner/PrivacyInfo.xcprivacy` (the repo has no privacy manifest today) and add it to the `Runner` target's Copy Bundle Resources. Declare the `NSPrivacyAccessedAPITypes` rows for the required-reason APIs the *app* calls, with the reason codes verified against Apple's current required-reasons list at implementation time rather than copied from this document. Do NOT put `NSPrivacyAccessedAPITypes` in `Info.plist` — Apple does not read it there (TOR-011).
+- [ ] 1.8 Confirm the pinned Tor pod ships its own `PrivacyInfo.xcprivacy`. If it does not, raise it upstream and record the gap in the change; do not declare the pod's API usage from the app's manifest.
 
 ## 2. Dart Tor service
 
@@ -41,7 +42,7 @@
 
 ## 6. UI surfaces
 
-- [ ] 6.1 In [lib/screens/settings.dart](../../../lib/screens/settings.dart) per-site Proxy block: add a `SwitchListTile` "Route through Tor (Tor)" above the existing proxy type dropdown, gated on `TorService.isAvailable`. When on, hide (don't unmount) the manual fields.
+- [ ] 6.1 In [lib/screens/settings.dart](../../../lib/screens/settings.dart) per-site Proxy block: add a `SwitchListTile` titled descriptively ("Route through the Tor network", per TOR-012) above the existing proxy type dropdown, gated on `TorService.isAvailable`. When on, hide (don't unmount) the manual fields.
 - [ ] 6.2 In [lib/screens/app_settings.dart](../../../lib/screens/app_settings.dart): add `ProxyType.TOR` option to the global outbound proxy dropdown (iOS only). Add a "Tor status" card subscribing to `TorService.statusStream` with bootstrap progress bar, current state, "Rebuild circuits" button.
 - [ ] 6.3 Show a per-site exit-country hint (small caption under the `useTor` switch) populated via `GETINFO ip-to-country/<exitIP>` once the site has completed at least one fetch under Tor. Update every 30s while site is foregrounded. Skip if Tor not bootstrapped.
 
@@ -75,7 +76,10 @@
 
 ## 11. Release prep
 
-- [ ] 11.1 Update App Store Connect encryption documentation to match Onion Browser's exemption claim (open-source crypto, end-user data protection, not exporting keys). No `Info.plist` change.
+- [ ] 11.1 Set `ITSAppUsesNonExemptEncryption` to `true` in `ios/Runner/Info.plist` and file export-compliance documentation in App Store Connect before the first Tor build is submitted (TOR-010). The current `false` does not survive embedding tor's own TLS/onion crypto and OpenSSL. Do not ship a build that still declares `false`.
+- [ ] 11.1a Add the annual BIS self-classification report (due 1 February for the prior calendar year's distributed builds) to the release checklist.
+- [ ] 11.1b Draft the App Review notes: what the toggle does, that bootstrap takes 10-30s on first use, and that a restricted network surfaces an explicit error by design (TOR-013).
+- [ ] 11.1c Audit UI strings and assets for trademark discipline before submission — descriptive use of "Tor" only, no onion logo, no "Tor" in app name/subtitle/bundle id, no implied Tor Project endorsement (TOR-012).
 - [ ] 11.2 Update fastlane iOS release notes in `fastlane/metadata/ios/en-US/release_notes.txt` (per Fastlane size limits) describing the new toggle. Run `scripts/validate_fastlane_metadata.sh` if any Android sibling notes also touched.
 - [ ] 11.3 Document the binary-size growth (~15 MB iOS IPA) in the PR description and the OpenSpec change archive note.
 - [ ] 11.4 Cross-link the new spec from CLAUDE.md's openspec slug table: add `tor-proxy | embedded Tor on iOS; per-site SOCKS5 isolation`.

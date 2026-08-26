@@ -271,3 +271,133 @@ termination.
   `test/settings_backup_test.dart::Tor secrets never appear in
   exports` asserts neither the cookie nor the session secret string
   appears anywhere in the serialized output
+
+---
+
+### Requirement: TOR-010 - Export compliance declaration
+
+Embedding Tor ships `tor`'s own TLS and onion-routing cryptography
+plus a full OpenSSL build inside the app binary. That is encryption
+the app *implements*, not encryption provided by the operating
+system, so it does not fall under the OS-provided/HTTPS exemption.
+`ITSAppUsesNonExemptEncryption` in
+[ios/Runner/Info.plist](../../../../ios/Runner/Info.plist) SHALL be
+`true` from the first build that links Tor.framework, and the App
+Store Connect export-compliance documentation SHALL be filed before
+that build is submitted.
+
+This supersedes the pre-existing `false` declaration, which is
+already questionable on its own terms: the app implements AES at
+rest in [archive_crypto.dart](../../../../lib/services/archive_crypto.dart)
+and [html_cache_service.dart](../../../../lib/services/html_cache_service.dart).
+Flipping the key is therefore a correction the app owes regardless
+of Tor, not a new cost introduced by this change.
+
+#### Scenario: Info.plist declares non-exempt encryption
+
+- **GIVEN** the iOS target links Tor.framework
+- **WHEN** `ios/Runner/Info.plist` is read
+- **THEN** `ITSAppUsesNonExemptEncryption` is `true`
+- **AND** no build declaring `false` is submitted to App Store Connect
+
+#### Scenario: Year-end self-classification is tracked
+
+- **GIVEN** a build containing Tor.framework was distributed in a
+  calendar year
+- **WHEN** the following 1 February approaches
+- **THEN** the annual self-classification report to the U.S. Bureau
+  of Industry and Security is filed for that build
+- **AND** the obligation is recorded in the release checklist, not
+  left to memory
+
+---
+
+### Requirement: TOR-011 - Privacy manifest as a resource, not Info.plist
+
+Required-reason API declarations SHALL live in a
+`PrivacyInfo.xcprivacy` resource inside the app bundle.
+`NSPrivacyAccessedAPITypes` SHALL NOT be added to `Info.plist` —
+that is not where Apple reads it, so a declaration placed there is
+silently absent at review time.
+
+The repository ships no privacy manifest today, so this change
+introduces the first one. The app declares its own required-reason
+API usage; Tor.framework declares its own in its bundle, and a pod
+that ships none SHALL be treated as an unmet review dependency and
+raised upstream rather than papered over from the app's manifest.
+
+#### Scenario: Manifest lives in the right file
+
+- **WHEN** the iOS bundle is inspected after a release build
+- **THEN** `PrivacyInfo.xcprivacy` is present in the app bundle
+- **AND** it carries the `NSPrivacyAccessedAPITypes` rows for the
+  required-reason APIs the app itself calls
+- **AND** `Info.plist` contains no `NSPrivacyAccessedAPITypes` key
+
+---
+
+### Requirement: TOR-012 - Trademark discipline for the Tor marks
+
+The Tor Project's trademark policy permits an open-source,
+non-commercial project to use "Tor" in an accurate *description* of
+what it does, and forbids using the marks in a product name,
+software title, trade name, or domain name. App Store Review
+Guideline 5.2.5 rejects apps that use a third-party mark without
+rights.
+
+The app SHALL therefore refer to the feature descriptively ("Route
+this site through the Tor network") and SHALL NOT: use "Tor" in the
+app name, subtitle, or bundle identifier; ship the Tor onion logo or
+a derivative as an app icon, tab icon, or badge; or imply
+endorsement by, or affiliation with, the Tor Project anywhere in the
+UI or App Store metadata.
+
+#### Scenario: Localized strings describe rather than brand
+
+- **WHEN** any `lib/l10n/app_*.arb` value mentioning Tor is reviewed
+- **THEN** it reads as a description of routing through the Tor
+  network
+- **AND** it does not present "Tor" as the name of a WebSpace feature,
+  mode, or product
+
+#### Scenario: No onion iconography
+
+- **WHEN** the asset catalogue and widget tree are searched
+- **THEN** no Tor onion logo or derivative ships as an icon or badge
+- **AND** the per-site indicator uses a generic routing/shield glyph
+  from the existing icon set
+
+---
+
+### Requirement: TOR-013 - Reviewer-legible failure, never a hang
+
+App Review runs on a corporate network where Tor bootstrap may be
+slow, throttled, or blocked outright. A reviewer who enables the
+toggle and sees an indefinite spinner will read it as a broken
+feature and reject under Guideline 2.1 (App Completeness). This is
+the most probable rejection path for the change, and it is a UX
+requirement rather than a policy one.
+
+The bootstrap interstitial (TOR-008) SHALL always resolve to either
+progress or a plain-language error within the 90-second timeout, and
+SHALL never present an unbounded spinner. The App Review notes
+submitted with the build SHALL explain that the toggle starts an
+embedded Tor client, that first bootstrap can take 10-30 seconds,
+and that a restrictive network surfaces an explicit error by design.
+
+#### Scenario: Blocked network surfaces an error, not a spinner
+
+- **GIVEN** the device network blocks Tor directory authorities
+- **WHEN** the user enables Tor on a site and navigates
+- **THEN** the interstitial shows a determinate progress bar while
+  bootstrapping
+- **AND** within 90 seconds it shows a plain-language error with a
+  Retry button
+- **AND** at no point does the UI present a spinner with no timeout
+
+#### Scenario: Review notes accompany the submission
+
+- **WHEN** the build linking Tor.framework is submitted
+- **THEN** the App Review notes describe the feature, the expected
+  bootstrap duration, and the expected behavior on a restricted
+  network

@@ -41,8 +41,10 @@ stream isolation, with no entitlement extensions needed.
   if any notification site has `useTor=true`; otherwise it shuts down
   cleanly to free the loopback port.
 - `Info.plist`: no new entitlements (`NSAppTransportSecurity` already
-  permits loopback HTTP for the fork's debugger bridge); a privacy
-  manifest entry for the Tor dependency's reasons.
+  permits loopback HTTP for the fork's debugger bridge), but
+  `ITSAppUsesNonExemptEncryption` flips to `true` (TOR-010). A new
+  `PrivacyInfo.xcprivacy` resource carries the required-reason API
+  rows — those do not belong in `Info.plist` (TOR-011).
 - Linker: `Tor.framework` + `OpenSSL.framework` + `libevent.framework`
   vendored under `ios/Frameworks/`, integrated via a Cocoapods podspec
   pulling from the upstream `iCepa/Tor.framework` tag.
@@ -69,8 +71,10 @@ stream isolation, with no entitlement extensions needed.
 - `tor-proxy`: embedded Tor runtime on iOS providing a loopback SOCKS5
   endpoint with per-site stream isolation, lifecycle managed against
   the set of sites/global settings requesting it, bootstrap and circuit
-  status surfaced in App Settings, and integrated with the existing
-  background-task grace window for notification sites.
+  status surfaced in App Settings, integrated with the existing
+  background-task grace window for notification sites, and carrying
+  the App Store compliance contract (export declaration, privacy
+  manifest, trademark discipline, reviewer-legible failure).
 
 ### Modified Capabilities
 - `proxy`: add `ProxyType.TOR`, per-site `useTor` field, behavior when
@@ -94,9 +98,11 @@ stream isolation, with no entitlement extensions needed.
     plugin (`org.codeberg.theoden8.webspace/tor`) exposing `start`,
     `stop`, `status`, `rebuildCircuits`, `socksEndpoint`, plus a
     bootstrap-progress event channel.
-  - `Info.plist`: no new entitlements; add `NSPrivacyAccessedAPITypes`
-    rows that Tor.framework requires (file-timestamp / disk-space, per
-    Apple's required-reasons API list).
+  - `Info.plist`: no new entitlements;
+    `ITSAppUsesNonExemptEncryption` becomes `true`.
+  - `ios/Runner/PrivacyInfo.xcprivacy`: new privacy-manifest resource
+    (the repo has none today) declaring the app's own required-reason
+    API usage.
   - Background task: extend the existing
     `BackgroundTaskService` grace window so Tor's shutdown defers if a
     `useTor` notification site is loaded.
@@ -142,7 +148,25 @@ stream isolation, with no entitlement extensions needed.
 - **Binary size**: Tor.framework + OpenSSL + libevent adds ~12-18 MB
   to the iOS IPA. Acceptable for the privacy benefit; will surface in
   the release changelog.
-- **Export compliance**: Tor.framework uses strong cryptography;
-  WebSpace's iOS export-compliance declaration in App Store Connect
-  must be updated to "uses exempt encryption" (matches Onion Browser's
-  declaration) before submission.
+- **Export compliance**: embedding Tor ships tor's own TLS/onion
+  cryptography and OpenSSL inside the binary, which is *not* the
+  OS-provided encryption Apple's exemption covers.
+  `ITSAppUsesNonExemptEncryption` flips from `false` to `true`,
+  export documentation is filed in App Store Connect before the first
+  Tor build is submitted, and the annual BIS self-classification
+  report joins the release checklist (TOR-010).
+- **App Store review**: no current App Store Review Guideline
+  prohibits this design. Guideline 5.4 (VPN Apps) does not apply — no
+  `NEVPNManager`, no NetworkExtension entitlement, and the loopback
+  listener serves only this app's own webviews, so the device never
+  acts as a VPN server. The live risks are Guideline 2.1 (a reviewer
+  on a network that blocks Tor must see a bounded error, not a
+  spinner — TOR-013) and Guideline 5.2.5 plus the Tor Project's
+  trademark policy (descriptive use of the marks only — TOR-012).
+  Licensing is clear: the pod is MIT, tor is BSD-3, OpenSSL 3.x is
+  Apache-2.0, libevent is BSD — no GPL component enters the bundle.
+- **Age rating**: WebSpace already answers "Unrestricted Web Access"
+  in the App Store Connect age-rating questionnaire as a browser.
+  Verify that answer is current under Apple's updated rating
+  questions before submitting a build that can reach `.onion`
+  services.
