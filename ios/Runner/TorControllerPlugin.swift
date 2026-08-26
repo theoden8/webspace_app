@@ -4,14 +4,14 @@ import Tor
 
 /// iOS bridge for [`TorService`](../../lib/services/tor_service.dart).
 ///
-/// Owns a `TORThread` plus the control-port connection that reports its
+/// Owns a `TorThread` plus the control-port connection that reports its
 /// bootstrap progress, and publishes both as a Flutter method channel and an
 /// event channel. Everything policy-shaped — when to start, when to stop,
 /// which SOCKS credentials a caller gets — lives in Dart
 /// (`tor_engine.dart`); this class only starts, stops, observes and reports.
 ///
 /// Concurrency (BUG-007). Four contexts touch this object: the Flutter
-/// platform thread (method calls), the `TORThread` itself, the control
+/// platform thread (method calls), the `TorThread` itself, the control
 /// port's callback queue, and the bootstrap-timeout timer. Every piece of
 /// mutable state below is therefore owned by `stateQueue` and touched
 /// nowhere else; the event sink is the one exception and is confined to the
@@ -25,9 +25,14 @@ class TorControllerPlugin: NSObject {
   /// Serial queue owning every stored property below this line.
   private let stateQueue = DispatchQueue(label: "org.codeberg.theoden8.webspace.tor")
 
-  private var thread: TORThread?
-  private var controller: TORController?
-  private var configuration: TORConfiguration?
+  /// Where the control-port handshake runs. It retries with sleeps, and
+  /// doing that on `stateQueue` would block every status call and the stop
+  /// path behind it for up to a second and a half.
+  private let attachQueue = DispatchQueue(label: "org.codeberg.theoden8.webspace.tor.attach")
+
+  private var thread: TorThread?
+  private var controller: TorController?
+  private var configuration: TorConfiguration?
   private var statusObserver: Any?
   private var circuitObserver: Any?
 
@@ -40,7 +45,7 @@ class TorControllerPlugin: NSObject {
   private var lastError: String?
 
   /// Guards against a second `start()` while one is already in flight —
-  /// two TORThreads in one process fight over the data directory.
+  /// two TorThreads in one process fight over the data directory.
   private var starting = false
 
   private var sink: FlutterEventSink?
@@ -93,7 +98,7 @@ class TorControllerPlugin: NSObject {
       self.lastError = nil
       self.publishLocked(state: "starting", pct: 0)
 
-      let config = TORConfiguration()
+      let config = TorConfiguration()
       let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
         .appendingPathComponent("Tor", isDirectory: true)
       try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
@@ -114,53 +119,83 @@ class TorControllerPlugin: NSObject {
       // IsolateSOCKSAuth is on by default per tor(1), but written out so
       // the isolation contract is legible here rather than inherited from
       // an upstream default that could change (TOR-003).
-      // `options` is an NSMutableDictionary on the ObjC side, so it will
-      // not take a Swift dictionary literal directly.
-      config.options = NSMutableDictionary(dictionary: [
+      config.options = [
         "SocksPort": "auto IsolateSOCKSAuth IsolateDestAddr",
-        "AvoidDiskWrites": "1",
-        "ClientOnly": "1",
-      ])
+        "Log": "err file /dev/null",
+        "SafeLogging": "1",
+      ]
       self.configuration = config
 
-      let thread = TORThread(configuration: config)
+      let thread = TorThread(configuration: config)
       self.thread = thread
       thread.start()
 
       // tor needs a moment to write its control-port file before the
       // controller can attach.
-      self.stateQueue.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-        self?.attachControllerLocked()
+      self.attachQueue.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+        self?.attachController(config)
       }
     }
   }
 
-  private func attachControllerLocked() {
-    guard let config = configuration, let portFile = config.controlPortFile else {
-      failLocked("Tor did not publish a control port.")
+  /// Runs on `attachQueue`, never on `stateQueue`: it sleeps between
+  /// retries. `config` is passed in rather than read back off the shared
+  /// property so this function touches no state it does not own.
+  private func attachController(_ config: TorConfiguration) {
+    guard let portFile = config.controlPortFile else {
+      stateQueue.async { self.failLocked("Tor did not publish a control port.") }
       return
     }
-    guard let cookie = config.cookie else {
-      failLocked("Tor control cookie unavailable.")
-      return
-    }
-    let controller = TORController(controlPortFile: portFile)
-    self.controller = controller
+    let controller = TorController(controlPortFile: portFile)
 
-    do {
-      try controller.connect()
-    } catch {
-      failLocked("Could not connect to the Tor control port: \(error.localizedDescription)")
+    // Both of the next two steps are racy against a tor that has only just
+    // started: the control port refuses connections and the auth cookie
+    // reads back nil for a beat after the port file appears. Retry rather
+    // than fail the whole bootstrap on a timing artifact.
+    var connectError: Error?
+    for _ in 0..<3 {
+      do {
+        connectError = nil
+        try controller.connect()
+        break
+      } catch {
+        connectError = error
+        Thread.sleep(forTimeInterval: 0.25)
+      }
+    }
+    if let error = connectError {
+      stateQueue.async {
+        self.failLocked("Could not reach the Tor control port: \(error.localizedDescription)")
+      }
       return
     }
 
-    controller.authenticate(with: cookie) { [weak self] success, error in
+    var cookie: Data?
+    for _ in 0..<3 {
+      cookie = config.cookie
+      if cookie != nil { break }
+      Thread.sleep(forTimeInterval: 0.25)
+    }
+    guard let cookie = cookie else {
+      stateQueue.async { self.failLocked("Tor control cookie unreadable.") }
+      return
+    }
+
+    controller.authenticate(with: cookie) { [weak self] _, error in
       guard let self = self else { return }
       self.stateQueue.async {
-        guard success else {
-          self.failLocked(
-            "Tor control authentication failed: "
-              + (error?.localizedDescription ?? "unknown error"))
+        // A stop() may have landed while this handshake was in flight. Its
+        // teardown already ran, so adopting this controller now would leave
+        // a live control connection attached to a runtime nobody is
+        // tracking — the resurrection half of BUG-007. Drop it instead.
+        guard self.starting, self.thread != nil else {
+          controller.disconnect()
+          return
+        }
+        // Publishing the controller happens here, on the queue that owns it.
+        self.controller = controller
+        if let error = error {
+          self.failLocked("Tor control authentication failed: \(error.localizedDescription)")
           return
         }
         self.observeLocked(controller)
@@ -168,11 +203,12 @@ class TorControllerPlugin: NSObject {
     }
   }
 
-  private func observeLocked(_ controller: TORController) {
+  private func observeLocked(_ controller: TorController) {
     statusObserver = controller.addObserver(forStatusEvents: {
       [weak self] (type, _, action, arguments) -> Bool in
       guard let self = self else { return false }
       guard type == "STATUS_CLIENT", action == "BOOTSTRAP" else { return false }
+      // The Bool is "I handled this event", not "stop observing".
       let pct = Int(arguments?["PROGRESS"] ?? "") ?? 0
       self.stateQueue.async {
         // Never walk backwards, and never overwrite a terminal state with
@@ -180,7 +216,7 @@ class TorControllerPlugin: NSObject {
         guard self.state == "starting" || self.state == "bootstrapping" else { return }
         self.publishLocked(state: "bootstrapping", pct: max(pct, self.bootstrapPct))
       }
-      return false
+      return true
     })
 
     circuitObserver = controller.addObserver(forCircuitEstablished: { [weak self] established in
@@ -189,17 +225,27 @@ class TorControllerPlugin: NSObject {
     })
   }
 
-  private func readSocksEndpointLocked(_ controller: TORController) {
-    controller.getInfo(forKeys: ["net/listeners/socks"]) { [weak self] values in
+  private func readSocksEndpointLocked(_ controller: TorController) {
+    // `getInfoForKeys:completion:` imports as the async `info(forKeys:)`.
+    Task { [weak self] in
       guard let self = self else { return }
+      let values = await controller.info(forKeys: ["net/listeners/socks"])
       self.stateQueue.async {
-        // "127.0.0.1:41337", quoted, or "unix:/path" which we never ask for.
-        let raw = values.first?.trimmingCharacters(in: CharacterSet(charactersIn: "\"")) ?? ""
+        // "127.0.0.1:41337", sometimes quoted. A "unix:/path" form can only
+        // appear if someone sets socksURL, which we never do.
+        let raw = values.first?
+          .trimmingCharacters(in: CharacterSet(charactersIn: "\"")) ?? ""
         let parts = raw.split(separator: ":")
         guard parts.count == 2, let port = Int(parts[1]), port > 0 else {
           self.failLocked("Tor reported no usable SOCKS listener.")
           return
         }
+        // Bootstrap is done; these observers have nothing left to say.
+        if let observer = self.statusObserver { controller.removeObserver(observer) }
+        if let observer = self.circuitObserver { controller.removeObserver(observer) }
+        self.statusObserver = nil
+        self.circuitObserver = nil
+
         self.socksHost = String(parts[0])
         self.socksPort = port
         self.starting = false
