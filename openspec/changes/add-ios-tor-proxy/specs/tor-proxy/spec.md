@@ -29,28 +29,29 @@ port dynamically via `SocksPort auto` rather than hardcoding `9050`.
 ### Requirement: TOR-002 - Lazy lifecycle with debounced idle stop
 
 `TorService` SHALL maintain a refcount of clients that need Tor (the
-count of per-site `useTor=true` entries plus 1 if `globalOutboundProxy.type == TOR`).
+count of sites whose `proxySettings.type == TOR`, plus 1 if
+`globalOutboundProxy.type == TOR`).
 When the refcount transitions from 0 to >0 the runtime SHALL start;
 when it transitions from >0 to 0 a 60-second debounce timer SHALL
 start, and the runtime SHALL stop only when the timer fires with the
 refcount still at 0. Reactivation during the debounce SHALL cancel
 the timer and keep the runtime up.
 
-#### Scenario: First useTor site starts Tor
+#### Scenario: First Tor site starts the runtime
 
-- **GIVEN** the app is running with no `useTor` sites and
+- **GIVEN** the app is running with no `TOR` sites and
   `globalOutboundProxy.type != TOR`
 - **AND** `TorService.status` is `stopped`
-- **WHEN** the user enables `useTor` on a site and saves
+- **WHEN** the user sets a site's proxy type to `TOR` and saves
 - **THEN** `TorService.status` transitions to `starting`, then
   `bootstrapping(_)`, then `up`
 - **AND** the SOCKS5 endpoint becomes available to webview and
   Dart-side callers
 
-#### Scenario: Disabling last useTor site debounces shutdown
+#### Scenario: Clearing the last Tor site debounces shutdown
 
-- **GIVEN** exactly one site has `useTor=true` and Tor is `up`
-- **WHEN** the user disables `useTor` on that site
+- **GIVEN** exactly one site has `type = TOR` and Tor is `up`
+- **WHEN** the user switches that site off `TOR`
 - **THEN** `TorService` schedules a 60-second debounce timer
 - **AND** the runtime remains `up` during the debounce
 - **AND** when the timer fires with no refcount, the runtime stops
@@ -58,7 +59,7 @@ the timer and keep the runtime up.
 #### Scenario: Reactivation cancels debounce
 
 - **GIVEN** the debounce timer is running with 30 seconds remaining
-- **WHEN** the user enables `useTor` on another site
+- **WHEN** the user sets another site's proxy type to `TOR`
 - **THEN** the timer is canceled
 - **AND** `TorService.status` stays `up` with no new bootstrap
   cycle
@@ -69,10 +70,10 @@ the timer and keep the runtime up.
 
 `TorService.socksFor` SHALL materialize SOCKS5 settings whose username is the requesting site's `siteId` (or the reserved literal `__webspace_app_global__` for app-global Dart-side traffic) and whose password is a per-app-launch random secret. Tor SHALL be configured with `SocksPort … IsolateSOCKSAuth IsolateDestAddr` so distinct username/password tuples force distinct circuits.
 
-#### Scenario: Two useTor sites get distinct exit IPs
+#### Scenario: Two Tor sites get distinct exit IPs
 
 - **GIVEN** site A (`siteId = a1`) and site B (`siteId = b2`) both
-  have `useTor=true`
+  have `type = TOR`
 - **WHEN** both sites are loaded concurrently in container mode and
   each fetches `https://check.torproject.org/`
 - **THEN** the JSON response shows two distinct exit IP addresses
@@ -82,7 +83,7 @@ the timer and keep the runtime up.
 #### Scenario: App-global traffic isolates from per-site
 
 - **GIVEN** the global outbound proxy is `TOR` and site A has
-  `useTor=true`
+  `type = TOR`
 - **WHEN** the DNS blocklist downloader and site A's favicon fetcher
   both run
 - **THEN** the SOCKS5 username for the DNS download is
@@ -109,7 +110,7 @@ are one of `stopped`, `starting`, `bootstrapping(0..100)`, `up`,
 `error(message)`. The App Settings screen SHALL render a status card
 that subscribes to this stream, showing the current state and a
 progress bar during bootstrap. The per-site Settings screen SHALL
-show a small inline indicator next to the `useTor` switch when
+show a small inline indicator next to the proxy-type row when
 status is anything other than `up`.
 
 #### Scenario: Settings card reflects bootstrap progress
@@ -140,7 +141,7 @@ not forced to migrate.
 
 #### Scenario: Rebuild changes the exit IP within 10 seconds
 
-- **GIVEN** Tor is `up` and a `useTor` site's last
+- **GIVEN** Tor is `up` and a `TOR` site's last
   `https://check.torproject.org/` response showed exit IP X
 - **WHEN** the user taps "Rebuild circuits"
 - **AND** the same site re-fetches `https://check.torproject.org/`
@@ -150,7 +151,7 @@ not forced to migrate.
 
 #### Scenario: Rebuild does not interrupt non-Tor sites
 
-- **GIVEN** site A has `useTor=true` and site B has `useTor=false`
+- **GIVEN** site A has `type = TOR` and site B does not
 - **WHEN** the user taps "Rebuild circuits" while both sites are
   loaded
 - **THEN** site B's connection is unaffected
@@ -160,11 +161,11 @@ not forced to migrate.
 
 ### Requirement: TOR-006 - Background grace window integration
 
-`BackgroundTaskService` SHALL keep `TorService` running through its ~30-second `beginBackgroundTask` grace window on iOS app pause if at least one notification site has `useTor=true`, and the `BGAppRefreshTask` registered for notification sites SHALL pre-warm Tor (call `maybeStart` and await `up`) before reloading any `useTor` notification site so the reload does not cold-bootstrap.
+`BackgroundTaskService` SHALL keep `TorService` running through its ~30-second `beginBackgroundTask` grace window on iOS app pause if at least one notification site has `proxySettings.type == TOR`, and the `BGAppRefreshTask` registered for notification sites SHALL pre-warm Tor (call `maybeStart` and await `up`) before reloading any `TOR` notification site so the reload does not cold-bootstrap.
 
 #### Scenario: Notification + Tor site keeps Tor alive during pause
 
-- **GIVEN** site N has `notificationsEnabled=true` and `useTor=true`
+- **GIVEN** site N has `notificationsEnabled=true` and `type = TOR`
 - **WHEN** the app moves to background
 - **THEN** `BackgroundTaskService.beginBackgroundTask` is invoked
 - **AND** `TorService` does not enter the idle-stop debounce while
@@ -174,7 +175,7 @@ not forced to migrate.
 
 #### Scenario: BGAppRefreshTask pre-warms Tor
 
-- **GIVEN** site N has `notificationsEnabled=true` and `useTor=true`
+- **GIVEN** site N has `notificationsEnabled=true` and `type = TOR`
 - **AND** the OS dispatches `BGAppRefreshTask`
 - **WHEN** the task handler runs
 - **THEN** `TorService.maybeStart` is awaited until `up` (or fails)
@@ -186,7 +187,7 @@ not forced to migrate.
 
 `TorService` SHALL only operate on iOS in the first cut. On every
 other platform `TorService.isAvailable` SHALL return `false`, and
-the per-site `useTor` switch SHALL be hidden in the UI. Existing
+the `TOR` option SHALL be absent from the per-site proxy-type dropdown. Existing
 per-site SOCKS5 configuration (manual `host:port`, with or without
 credentials) SHALL remain available on every platform that supports
 proxies today, so Android users can still point at Orbot's SOCKS5
@@ -219,13 +220,13 @@ endpoint manually.
 
 ### Requirement: TOR-008 - Fail-closed before bootstrap
 
-The system SHALL fail closed when a `useTor` request originates while `TorService.status != up`: Dart-side seams via `outboundHttp.clientFor` MUST return `OutboundClientBlocked` (never falling back to a direct connection), and webview navigation MUST be intercepted and rewritten to a Flutter-rendered bootstrap interstitial (`webspace://tor-bootstrap?next=<encoded>`) which auto-resumes navigation once `up`.
+The system SHALL fail closed when a `TOR` request originates while `TorService.status != up`: Dart-side seams via `outboundHttp.clientFor` MUST return `OutboundClientBlocked` (never falling back to a direct connection), and webview navigation MUST be intercepted and rewritten to a Flutter-rendered bootstrap interstitial (`webspace://tor-bootstrap?next=<encoded>`) which auto-resumes navigation once `up`.
 
 #### Scenario: Pre-bootstrap favicon fetch fails closed
 
-- **GIVEN** site A has `useTor=true` and `TorService.status == bootstrapping(20)`
+- **GIVEN** site A has `type = TOR` and `TorService.status == bootstrapping(20)`
 - **WHEN** the favicon stream runs for site A
-- **THEN** `outboundHttp.clientFor(useTor)` returns
+- **THEN** `outboundHttp.clientFor(torSettings)` returns
   `OutboundClientBlocked`
 - **AND** no TCP socket is opened to any host
 - **AND** the favicon falls back to the cached/default favicon
@@ -233,7 +234,7 @@ The system SHALL fail closed when a `useTor` request originates while `TorServic
 
 #### Scenario: Pre-bootstrap webview navigation shows interstitial
 
-- **GIVEN** site A has `useTor=true` and `TorService.status == starting`
+- **GIVEN** site A has `type = TOR` and `TorService.status == starting`
 - **WHEN** the user activates site A
 - **THEN** the WebView loads
   `webspace://tor-bootstrap?next=<original-url>`
@@ -244,7 +245,7 @@ The system SHALL fail closed when a `useTor` request originates while `TorServic
 #### Scenario: Error state surfaces, never falls through
 
 - **GIVEN** `TorService.status == error("…")`
-- **WHEN** any `useTor` request originates
+- **WHEN** any `TOR` request originates
 - **THEN** Dart-side seams return `OutboundClientBlocked`
 - **AND** webview navigation stays on the interstitial showing
   the error and a "Retry" button
@@ -263,7 +264,7 @@ termination.
 
 #### Scenario: Settings backup never contains Tor secrets
 
-- **GIVEN** Tor is `up` and at least one `useTor` site exists
+- **GIVEN** Tor is `up` and at least one `TOR` site exists
 - **WHEN** the user exports settings via Settings → Backup
 - **THEN** the resulting JSON contains no Tor control-cookie bytes
 - **AND** the JSON contains no SOCKS5 password material

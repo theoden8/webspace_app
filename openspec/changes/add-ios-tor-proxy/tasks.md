@@ -11,28 +11,32 @@
 
 ## 2. Dart Tor service
 
-- [ ] 2.1 Add `lib/services/tor_service.dart`: `TorService.instance`, `TorStatus` sealed class hierarchy (`Stopped`, `Starting`, `Bootstrapping(pct)`, `Up`, `Errored(msg)`), `Stream<TorStatus> statusStream` (broadcast), `bool isAvailable` (returns `Platform.isIOS` initially).
-- [ ] 2.2 Implement refcount + 60s debounce timer: `maybeStart(reason)`, `release(reason)`, internal `_count` keyed by reason string for diagnostics; idle-stop timer scheduled when `_count == 0`, canceled on reactivation.
-- [ ] 2.3 Implement `socksFor({String? siteId, bool appGlobal = false})` returning a `UserProxySettings` with type SOCKS5, address from current `socksEndpoint`, username = `siteId ?? '__webspace_app_global__'`, password = `_sessionSecret` (random 32-byte hex generated once per instance).
-- [ ] 2.4 Implement `rebuildCircuits()` — invokes the plugin method, surfaces any rate-limit response back to the caller (no-op snackbar in UI).
-- [ ] 2.5 Wire the plugin's event channel to `statusStream`; map Swift state codes to Dart `TorStatus` cases.
-- [ ] 2.6 Bootstrap timeout: if `Bootstrapping(*)` for >90s without reaching `Up`, transition to `Errored("bootstrap timed out")` and stop the underlying thread.
-- [ ] 2.7 Stub `TorService` on non-iOS platforms — every method is a no-op, `isAvailable == false`, `statusStream` emits only `Stopped`. No native plugin reference at all on Android/macOS/Linux builds.
+- [x] 2.1 Add `lib/services/tor_service.dart`: `TorService.instance`, `TorStatus` sealed class hierarchy (`Stopped`, `Starting`, `Bootstrapping(pct)`, `Up`, `Errored(msg)`), `Stream<TorStatus> statusStream` (broadcast), `bool isAvailable` (returns `Platform.isIOS` initially).
+- [x] 2.2 Implement refcount + 60s debounce timer: `maybeStart(reason)`, `release(reason)`, internal `_count` keyed by reason string for diagnostics; idle-stop timer scheduled when `_count == 0`, canceled on reactivation.
+- [x] 2.3 Implement `socksFor({String? siteId, bool appGlobal = false})` returning a `UserProxySettings` with type SOCKS5, address from current `socksEndpoint`, username = `siteId ?? '__webspace_app_global__'`, password = `_sessionSecret` (random 32-byte hex generated once per instance).
+- [x] 2.4 Implement `rebuildCircuits()` — invokes the plugin method, surfaces any rate-limit response back to the caller (no-op snackbar in UI).
+- [x] 2.5 Wire the plugin's event channel to `statusStream`; map Swift state codes to Dart `TorStatus` cases.
+- [x] 2.6 Bootstrap timeout: if `Bootstrapping(*)` for >90s without reaching `Up`, transition to `Errored("bootstrap timed out")` and stop the underlying thread.
+- [x] 2.7 Stub `TorService` on non-iOS platforms — every method is a no-op, `isAvailable == false`, `statusStream` emits only `Stopped`. No native plugin reference at all on Android/macOS/Linux builds.
 
-## 3. Per-site `useTor` field
+## 3. Per-site Tor selection (`ProxyType.TOR`)
 
-- [ ] 3.1 Add `bool useTor` to `WebViewModel` ([lib/web_view_model.dart](../../../lib/web_view_model.dart)), default `false`. JSON: `toJson` emits when true, `fromJson` decodes with `false` default.
-- [ ] 3.2 Thread `useTor` through `WebViewConfig`, `launchUrl` signature in [lib/main.dart](../../../lib/main.dart), `InAppWebViewScreen` constructor in [lib/screens/inappbrowser.dart](../../../lib/screens/inappbrowser.dart), and the `launchUrlFunc` typedef + both call sites in `web_view_model.dart` — the full nested-webview propagation per the CLAUDE.md rule.
-- [ ] 3.3 In `WebViewModel.updateProxySettings`: when `useTor` flips from `false → true`, call `TorService.instance.maybeStart(siteId)`; when `true → false`, call `TorService.instance.release(siteId)`. Dispose the webview on iOS so the rebuild picks up the new proxy.
-- [ ] 3.4 On `WebViewModel` deletion / app shutdown, ensure orphaned `useTor=true` sites release their refcount (mirror the proxy-password GC sites in `main.dart` — startup, post-import, post-delete).
+Superseded: the original plan added a parallel `useTor` bool. It encoded
+the same state as `ProxyType.TOR` and would have needed its own copy of
+the nested-webview propagation chain. See PROXY-010 for the reasoning.
+
+- [x] 3.1 Append `ProxyType.TOR` to the enum; `UserProxySettings.fromJson` decodes an unknown index to `DEFAULT` instead of throwing (rollback safety).
+- [x] 3.2 `WebViewModel.outboundProxySettings` returns a `siteId`-tagged *copy* under TOR, leaving the stored manual address/credentials intact. Every per-site outbound seam (9 call sites in `main.dart`, the `WebViewConfig`, both nested `launchUrlFunc` calls) passes the tagged copy, so nested webviews inherit isolation without a second propagation chain.
+- [x] 3.3 `_syncTorHolders` in `main.dart` reconciles the refcount from the site list plus the global proxy, called from `_saveWebViewModels` (the funnel every edit/import/delete passes through) and once at startup after the model load.
+- [x] 3.4 Deleted sites drop out of the holder set automatically — `syncHolders` diffs the whole set rather than tracking deltas per call site.
 
 ## 4. Proxy resolution and outbound HTTP
 
-- [ ] 4.1 Add `ProxyType.TOR` to the enum in [lib/settings/proxy.dart](../../../lib/settings/proxy.dart). Serialize as a new integer value (append; do NOT renumber existing values — would break backups).
-- [ ] 4.2 In [lib/services/outbound_http.dart](../../../lib/services/outbound_http.dart): extend `clientFor` so `ProxyType.TOR` (and `useTor=true`) resolves via `TorService.instance.socksFor(...)`; the returned `UserProxySettings` is then handled by the existing SOCKS5 branch (no duplicate `socks5_proxy` plumbing).
-- [ ] 4.3 In `resolveEffectiveProxy`: per-site `useTor=true` wins over both manual per-site proxy and global TOR. Per-site DEFAULT with `globalOutboundProxy.type == TOR` resolves with the `__webspace_app_global__` isolation tag, NOT the site's `siteId`.
-- [ ] 4.4 Fail-closed: when `useTor` or `TOR` is in play and `TorService.status != Up`, return `OutboundClientBlocked` from `clientFor`. Tests using `RecordingFactory` assert no fallback `http.Client()` is constructed.
-- [ ] 4.5 In [lib/services/webview.dart](../../../lib/services/webview.dart) `_userProxyToInappProxy`: when `useTor=true` or type `TOR`, fetch from `TorService.instance.socksFor(siteId: ...)` and emit the SOCKS5 map the fork's iOS native side consumes.
+- [x] 4.1 Add `ProxyType.TOR` to the enum in [lib/settings/proxy.dart](../../../lib/settings/proxy.dart). Serialize as a new integer value (append; do NOT renumber existing values — would break backups).
+- [x] 4.2 In [lib/services/outbound_http.dart](../../../lib/services/outbound_http.dart): extend `clientFor` so `ProxyType.TOR` (and `useTor=true`) resolves via `TorService.instance.socksFor(...)`; the returned `UserProxySettings` is then handled by the existing SOCKS5 branch (no duplicate `socks5_proxy` plumbing).
+- [x] 4.3 In `resolveEffectiveProxy`: per-site `useTor=true` wins over both manual per-site proxy and global TOR. Per-site DEFAULT with `globalOutboundProxy.type == TOR` resolves with the `__webspace_app_global__` isolation tag, NOT the site's `siteId`.
+- [x] 4.4 Fail-closed: when `useTor` or `TOR` is in play and `TorService.status != Up`, return `OutboundClientBlocked` from `clientFor`. Tests using `RecordingFactory` assert no fallback `http.Client()` is constructed.
+- [x] 4.5 In [lib/services/webview.dart](../../../lib/services/webview.dart) `_userProxyToInappProxy`: when `useTor=true` or type `TOR`, fetch from `TorService.instance.socksFor(siteId: ...)` and emit the SOCKS5 map the fork's iOS native side consumes.
 
 ## 5. Bootstrap interstitial
 
@@ -53,13 +57,13 @@
 
 ## 8. Settings backup
 
-- [ ] 8.1 No changes to `kExportedAppPrefs` registry expected — `useTor` rides through `WebViewModel.toJson`/`fromJson`; `ProxyType.TOR` in `globalOutboundProxy` round-trips automatically.
+- [x] 8.1 No changes to `kExportedAppPrefs` registry expected — `useTor` rides through `WebViewModel.toJson`/`fromJson`; `ProxyType.TOR` in `globalOutboundProxy` round-trips automatically.
 - [ ] 8.2 Regression test in [test/settings_backup_test.dart](../../../test/settings_backup_test.dart): assert that exporting settings with `useTor=true` sites and `globalOutboundProxy.type == TOR` does NOT contain any of: Tor control-cookie bytes, the session SOCKS5 password from `TorService._sessionSecret`, or any other Tor-runtime in-memory state. Title: "Tor secrets never appear in exports (TOR-009)".
 
 ## 9. Tests
 
 - [ ] 9.1 `test/tor_service_test.dart`: state machine (start → bootstrap → up → idle-stop debounce), 90s bootstrap timeout, refcount on/off correctness, session secret rotation across instances, `socksFor` username derivation (per-site vs app-global), "never reports 9050" hardcode check.
-- [ ] 9.2 `test/outbound_http_tor_test.dart`: `ProxyType.TOR` routes through `TorService.socksFor`, fail-closed when `status != Up`, per-site `useTor` overrides manual address, DEFAULT with global TOR uses the `__webspace_app_global__` tag.
+- [x] 9.2 `test/outbound_http_tor_test.dart`: `ProxyType.TOR` routes through `TorService.socksFor`, fail-closed when `status != Up`, per-site `useTor` overrides manual address, DEFAULT with global TOR uses the `__webspace_app_global__` tag.
 - [ ] 9.3 `test/web_view_model_tor_propagation_test.dart`: `useTor` survives `toJson` → `fromJson` round-trip; nested-webview ctor receives `useTor` through the full propagation chain (mirrors the existing per-site-field propagation tests).
 - [ ] 9.4 `test/tor_bootstrap_interstitial_test.dart`: navigation hook rewrites pre-bootstrap; auto-resumes on `Up`.
 - [ ] 9.5 Manual iOS test matrix in [tasks.md → manual checklist](#10-manual-test-matrix-ios) below.

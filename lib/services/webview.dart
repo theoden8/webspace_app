@@ -81,6 +81,15 @@ typedef Cookie = inapp.Cookie;
 /// challenges with `407 Proxy Authentication Required`.
 inapp.ProxySettings? _userProxyToInappProxy(UserProxySettings settings) {
   if (settings.type == ProxyType.DEFAULT) return null;
+  if (settings.type == ProxyType.TOR) {
+    // TOR has no address until the runtime is up. A null expansion means
+    // "not routable yet", and returning null here is what trips the
+    // `proxyUnavailable` fail-closed branch below rather than loading the
+    // page over the device IP.
+    final expanded = expandTorProxy(settings);
+    if (expanded == null) return null;
+    return _userProxyToInappProxy(expanded);
+  }
   final address = settings.address;
   if (address == null || address.isEmpty) return null;
   final parts = address.split(':');
@@ -1776,7 +1785,7 @@ class WebViewFactory {
     // Explicit per-site values win.
     final effectiveProxy = (hostIsIOS || hostIsMacOS) &&
             config.proxySettings != null
-        ? resolveEffectiveProxy(config.proxySettings!)
+        ? resolveEffectiveProxy(config.proxySettings!, siteId: config.siteId)
         : null;
     final inappProxy =
         effectiveProxy != null ? _userProxyToInappProxy(effectiveProxy) : null;

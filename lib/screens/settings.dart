@@ -11,6 +11,7 @@ import 'package:webspace/widgets/site_permission_chip.dart';
 import 'package:webspace/settings/microphone.dart';
 import 'package:webspace/settings/screen_share.dart';
 import 'package:webspace/settings/location.dart';
+import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
@@ -500,7 +501,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   String? _validateProxyAddress(String? value) {
     final loc = AppLocalizations.of(context);
-    if (_proxySettings.type == ProxyType.DEFAULT) {
+    // TOR supplies its own address once the runtime is up, so there is
+    // nothing for the user to type and nothing to validate.
+    if (_proxySettings.type == ProxyType.DEFAULT ||
+        _proxySettings.type == ProxyType.TOR) {
       return null;
     }
 
@@ -553,11 +557,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       // Update proxy settings only on supported platforms
       if (PlatformInfo.isProxySupported) {
-        _proxySettings.address = _proxyAddressController.text.isEmpty
-            ? null
-            : _proxyAddressController.text;
+        // Under TOR the address and credential fields are hidden, so their
+        // controllers hold whatever was last rendered — writing them back
+        // would quietly destroy the manual SOCKS5 config the user expects
+        // to find again on switch-out (PROXY-010). Leave the stored values
+        // untouched instead.
+        final torSelected = _proxySettings.type == ProxyType.TOR;
+        if (!torSelected) {
+          _proxySettings.address = _proxyAddressController.text.isEmpty
+              ? null
+              : _proxyAddressController.text;
+        }
         // Only save credentials if the checkbox is enabled
-        if (_showProxyCredentials) {
+        if (torSelected) {
+          // no-op: keep whatever is stored
+        } else if (_showProxyCredentials) {
           _proxySettings.username = _proxyUsernameController.text.isEmpty
               ? null
               : _proxyUsernameController.text;
@@ -1397,7 +1411,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     });
                   }
                 },
-                items: ProxyType.values.map<DropdownMenuItem<ProxyType>>(
+                // TOR is only offerable where a Tor runtime exists (TOR-007).
+                // A site that already carries TOR — say, from a backup taken
+                // on iOS and imported on Android — keeps the option visible,
+                // because a DropdownButton whose `value` is absent from its
+                // `items` throws.
+                items: ProxyType.values
+                    .where((v) =>
+                        v != ProxyType.TOR ||
+                        TorService.instance.isAvailable ||
+                        _proxySettings.type == ProxyType.TOR)
+                    .map<DropdownMenuItem<ProxyType>>(
                   (ProxyType value) {
                     return DropdownMenuItem<ProxyType>(
                       value: value,
@@ -1407,7 +1431,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ).toList(),
               ),
             ),
-            if (_proxySettings.type != ProxyType.DEFAULT) ...[
+            // TOR supplies its own loopback address and stream-isolation
+            // auth, so the manual fields are inert while it is selected.
+            // Hidden, not cleared: PROXY-010 requires a stored SOCKS5 config
+            // to survive a trip through TOR and come back on switch-out.
+            if (_proxySettings.type != ProxyType.DEFAULT &&
+                _proxySettings.type != ProxyType.TOR) ...[
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                 child: TextFormField(

@@ -112,6 +112,8 @@ import 'package:webspace/services/virtual_screen_service.dart';
 import 'package:webspace/services/virtual_media_picker.dart';
 import 'package:webspace/services/virtual_microphone_service.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/utils/url_utils.dart';
@@ -837,6 +839,13 @@ void main() async {
   // callers (flutter_map TileProvider, per-site DEFAULT fallthrough) read
   // GlobalOutboundProxy.current after this.
   await _runTimed('proxyInit', GlobalOutboundProxy.initialize);
+  // Teach the outbound seams how to expand ProxyType.TOR. Until this is
+  // installed every TOR request blocks rather than connecting directly,
+  // which is the right failure but a useless one, so install it early —
+  // before any site can build a webview or fetch a favicon.
+  torProxyResolver = (tag) => TorService.instance.socksFor(
+        siteId: tag == kTorAppGlobalTag ? null : tag,
+      );
   // Hydrate user-approved TLS exceptions so a self-signed site the user
   // already trusted in a previous session loads without a prompt — and
   // so the Dart-side `HttpClient.badCertificateCallback` (favicon
@@ -1381,7 +1390,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           await exportIconAsPng(
             model.initUrl,
             resolvedIconUrl: faviconUrl,
-            proxy: model.proxySettings,
+            proxy: model.outboundProxySettings,
           );
       if (!mounted) return;
       await ShortcutService.pinShortcut(
@@ -2698,7 +2707,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       userAgent: model.effectiveUserAgentOrNull,
       javascriptEnabled: model.javascriptEnabled,
       userScripts: model.combineUserScripts(_globalUserScripts),
-      proxySettings: model.proxySettings,
+      proxySettings: model.outboundProxySettings,
       notificationsEnabled: model.effectiveNotificationsEnabled,
       externalLinksInBrowser: model.effectiveExternalLinksInBrowser,
     );
@@ -2840,7 +2849,28 @@ class _WebSpacePageState extends State<WebSpacePage>
     await _saveWebViewModels();
   }
 
+  /// Reconcile the Tor runtime's refcount with the sites that actually want
+  /// it right now (TOR-002).
+  ///
+  /// A whole-set sync rather than per-toggle acquire/release calls: every
+  /// path that can change the answer — editing a site, importing settings,
+  /// deleting a site, flipping the global proxy — already funnels through
+  /// here, and computing a delta at each of those call sites is how a
+  /// deleted site ends up pinning the runtime up forever.
+  Future<void> _syncTorHolders() async {
+    if (!TorService.instance.isAvailable) return;
+    final holders = <String>{
+      for (final m in _webViewModels)
+        if (m.proxySettings.type == ProxyType.TOR) m.siteId,
+      if (GlobalOutboundProxy.current.type == ProxyType.TOR) kTorAppGlobalTag,
+    };
+    await TorService.instance.syncHolders(holders);
+  }
+
   Future<void> _saveWebViewModels() async {
+    // Before the demo-mode bail: the refcount tracks runtime intent, not
+    // persistence, and a demo session that pinned Tor up would keep it up.
+    await _syncTorHolders();
     if (isDemoMode) return; // Don't persist in demo mode
     SharedPreferences prefs = await SharedPreferences.getInstance();
 
@@ -4572,6 +4602,10 @@ class _WebSpacePageState extends State<WebSpacePage>
     // JSON to siteIds and seed the runtime projection.
     await _migrateLegacyWebspaceIndices();
     _resolveWebspaceIndices();
+    // Sites restored with ProxyType.TOR need the runtime coming up before
+    // their first navigation, or every one of them opens on the bootstrap
+    // interstitial instead of the page.
+    await _syncTorHolders();
     await _migrateGlobalScriptOptIn();
     _suggestedSites = await suggested_sites.getEffectiveSuggestedSites();
 
@@ -7279,7 +7313,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           UnifiedFaviconImage(
             url: siteModel.initUrl,
             size: 16,
-            proxy: siteModel.proxySettings,
+            proxy: siteModel.outboundProxySettings,
             customIcon: siteModel.customIconPng,
           ),
           SizedBox(width: 6),
@@ -7373,7 +7407,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                   userAgent: model.effectiveUserAgentOrNull,
                   javascriptEnabled: model.javascriptEnabled,
                   userScripts: model.combineUserScripts(_globalUserScripts),
-                  proxySettings: model.proxySettings,
+                  proxySettings: model.outboundProxySettings,
                   notificationsEnabled: model.notificationsEnabled,
                   externalLinksInBrowser: model.effectiveExternalLinksInBrowser,
                 );
@@ -7888,7 +7922,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                         : UnifiedFaviconImage(
                             url: model.initUrl,
                             size: 32,
-                            proxy: model.proxySettings,
+                            proxy: model.outboundProxySettings,
                           ),
                   ),
                   SizedBox(width: 12),
@@ -8453,7 +8487,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                   child: UnifiedFaviconImage(
                     url: m.initUrl,
                     size: 32,
-                    proxy: m.proxySettings,
+                    proxy: m.outboundProxySettings,
                     customIcon: m.customIconPng,
                   ),
                 ),
@@ -8690,7 +8724,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                         child: UnifiedFaviconImage(
                           url: _webViewModels[index].initUrl,
                           size: 28,
-                          proxy: _webViewModels[index].proxySettings,
+                          proxy: _webViewModels[index].outboundProxySettings,
                           customIcon: _webViewModels[index].customIconPng,
                         ),
                       ),
@@ -8743,7 +8777,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                             child: UnifiedFaviconImage(
                               url: _webViewModels[index].initUrl,
                               size: 36,
-                              proxy: _webViewModels[index].proxySettings,
+                              proxy: _webViewModels[index].outboundProxySettings,
                               customIcon: _webViewModels[index].customIconPng,
                             ),
                           ),
@@ -9569,7 +9603,7 @@ class _DispatchPickerSheetState extends State<_DispatchPickerSheet> {
         child: UnifiedFaviconImage(
           url: site.initUrl,
           size: 32,
-          proxy: site.proxySettings,
+          proxy: site.outboundProxySettings,
           customIcon: site.customIconPng,
         ),
       );

@@ -49,11 +49,12 @@ void main() {
     });
 
     test('ProxyType enum values', () {
-      expect(ProxyType.values.length, 4);
+      expect(ProxyType.values.length, 5);
       expect(ProxyType.values, contains(ProxyType.DEFAULT));
       expect(ProxyType.values, contains(ProxyType.HTTP));
       expect(ProxyType.values, contains(ProxyType.HTTPS));
       expect(ProxyType.values, contains(ProxyType.SOCKS5));
+      expect(ProxyType.values, contains(ProxyType.TOR));
     });
 
     test('ProxyType index consistency', () {

@@ -2,21 +2,21 @@
 
 ### Requirement: LEAK-008 - Tor stream isolation contract
 
-The system SHALL route per-site `useTor` traffic and `globalOutboundProxy.type == TOR` traffic through the embedded Tor runtime's SOCKS5 endpoint, using a SOCKS5 username that gives Tor's `IsolateSOCKSAuth IsolateDestAddr` semantics a stable per-context isolation tag: per-site traffic MUST use the site's `siteId`, app-global traffic MUST use the reserved literal `__webspace_app_global__`, and the system MUST NOT share a single SOCKS username across distinct sites or re-use a site's username for app-global traffic.
+The system SHALL route per-site `ProxyType.TOR` traffic and `globalOutboundProxy.type == TOR` traffic through the embedded Tor runtime's SOCKS5 endpoint, using a SOCKS5 username that gives Tor's `IsolateSOCKSAuth IsolateDestAddr` semantics a stable per-context isolation tag: per-site traffic MUST use the site's `siteId`, app-global traffic MUST use the reserved literal `__webspace_app_global__`, and the system MUST NOT share a single SOCKS username across distinct sites or re-use a site's username for app-global traffic.
 
-#### Scenario: Two useTor sites get uncorrelatable circuits
+#### Scenario: Two Tor sites get uncorrelatable circuits
 
 **Given** sites A (`siteId = a`) and B (`siteId = b`) both have
-`useTor = true` and are loaded concurrently
+`type = TOR` and are loaded concurrently
 **When** each fetches the same Tor-circuit fingerprinting endpoint
 **Then** the fetches use distinct Tor circuits
 **And** an observer at the destination cannot link the two fetches
 to the same Tor client
 
-#### Scenario: Per-site useTor wins over inherited global TOR
+#### Scenario: Per-site TOR wins over inherited global TOR
 
 **Given** `globalOutboundProxy.type == TOR`
-**And** site A has `useTor = true`
+**And** site A has `type = TOR`
 **When** site A initiates a Dart-side outbound call
 **Then** `resolveEffectiveProxy` resolves to per-site TOR with
 SOCKS username = `a` (not `__webspace_app_global__`)
@@ -24,9 +24,9 @@ SOCKS username = `a` (not `__webspace_app_global__`)
 #### Scenario: Pre-bootstrap traffic fails closed
 
 **Given** `TorService.status == bootstrapping(30)`
-**And** site A has `useTor = true`
+**And** site A has `type = TOR`
 **When** site A's user-script handler issues `__ws_f_*`
-**Then** `outboundHttp.clientFor(useTorSettings)` returns
+**Then** `outboundHttp.clientFor(torSettings)` returns
 `OutboundClientBlocked`
 **And** the user script's outbound call resolves with the
 fail-closed sentinel
@@ -73,7 +73,7 @@ asserts this property
 The proxy-coverage matrix below SHALL be kept in sync with the
 implementation. Adding a new outbound seam without registering it
 here is a spec violation. The Tor runtime introduces three
-additional categories: per-site `useTor` traffic, app-global TOR
+additional categories: per-site `TOR` traffic, app-global TOR
 traffic, and the Tor control port itself (loopback-only).
 
 | Category | Trigger | Proxy applied | Implementation |
@@ -88,7 +88,7 @@ traffic, and the Tor control port itself (loopback-only).
 | DNS blocklist download | "Update DNS blocklist" | Global only | `DnsBlockService.downloadList` |
 | Content-blocker list download | "Update content-blocker list" | Global only | `ContentBlockerService.downloadList` |
 | LocalCDN catalog download | LocalCDN cache populate | Global only | `LocalCdnService._downloadAndCache` |
-| Per-site Tor traffic (any of the above with `useTor=true`) | Same triggers as above | Tor SOCKS5 via `TorService.socksFor(siteId)` | `lib/services/tor_service.dart`, `lib/services/outbound_http.dart` (Tor branch), `lib/services/webview.dart` (`_userProxyToInappProxy` Tor branch) |
+| Per-site Tor traffic (any of the above with `type = TOR`) | Same triggers as above | Tor SOCKS5 via `TorService.socksFor(siteId)` | `lib/services/tor_service.dart`, `lib/services/outbound_http.dart` (Tor branch), `lib/services/webview.dart` (`_userProxyToInappProxy` Tor branch) |
 | App-global Tor traffic (any "Global only" row with `globalOutboundProxy == TOR`) | Same triggers as above | Tor SOCKS5 via `TorService.socksFor("__webspace_app_global__")` | `lib/services/tor_service.dart`, `lib/services/outbound_http.dart` (Tor branch) |
 | Tor control port | Internal: bootstrap progress, `SIGNAL NEWNYM`, `GETINFO` | Loopback-only, no external traffic | `ios/Runner/TorControllerPlugin.swift` |
 
@@ -105,7 +105,7 @@ traffic, and the Tor control port itself (loopback-only).
 #### Scenario: New Tor-routed outbound code path
 
 **Given** a developer adds a new outbound seam that needs to honor
-`useTor` and/or `globalOutboundProxy == TOR`
+a per-site `TOR` and/or `globalOutboundProxy == TOR`
 **Then** the code review process SHALL fail until the seam threads
 its `UserProxySettings` through `outboundHttp.clientFor` (which
 handles the Tor branch centrally)

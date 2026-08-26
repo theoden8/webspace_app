@@ -992,6 +992,28 @@ class WebViewModel {
         name = name ?? extractDomain(initUrl),
         proxySettings = proxySettings ?? UserProxySettings(type: ProxyType.DEFAULT);
 
+  /// This site's proxy as outbound seams should see it.
+  ///
+  /// Identical to [proxySettings] for every type but [ProxyType.TOR], where
+  /// it returns a copy carrying [siteId] as the SOCKS5 stream-isolation tag.
+  /// A *copy*, deliberately: stamping the tag into the stored object would
+  /// overwrite the user's manual proxy username, and PROXY-010 requires the
+  /// manual credentials survive a trip through TOR so switching back
+  /// restores them.
+  ///
+  /// Pass this — not [proxySettings] — to anything that opens a connection
+  /// on the site's behalf (favicons, downloads, user scripts, the webview),
+  /// or that traffic lands on the app-global circuit instead of the site's
+  /// and becomes correlatable with it.
+  UserProxySettings get outboundProxySettings {
+    if (proxySettings.type != ProxyType.TOR) return proxySettings;
+    return UserProxySettings(
+      type: ProxyType.TOR,
+      address: proxySettings.address,
+      username: siteId,
+    );
+  }
+
   /// Reroll the per-site anti-fingerprinting seed. Called when the user
   /// clears this site's data so the post-wipe page sees a fresh fingerprint
   /// (window size, canvas, WebGL, …) and can't re-identify the user (ETP-022).
@@ -1301,7 +1323,7 @@ class WebViewModel {
           // macOS 14+ via the patched `preWKWebViewConfiguration` (see
           // PROXY-002 / PROXY-008). Android ignores this and routes
           // through the global `ProxyController` in `_applyProxySettings`.
-          proxySettings: proxySettings,
+          proxySettings: outboundProxySettings,
           notificationsEnabled: effectiveNotificationsEnabled,
           backgroundAudioEnabled: effectiveBackgroundAudioEnabled,
           userScripts: combineUserScripts(globalUserScripts),
@@ -1413,7 +1435,7 @@ class WebViewModel {
                   '  -> CANCEL (opening nested webview)',
                   sensitivity: LogSensitivity.sensitive,
                 );
-                launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, dnsBlockLevel: effectiveDnsBlockLevel, contentBlockEnabled: contentBlockEnabled, disabledFilterLists: effectiveDisabledFilterLists, localCdnEnabled: effectiveLocalCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: effectiveNotificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser, blockAutoRedirects: blockAutoRedirects, blockedCookies: blockedCookies, cameraMode: effectiveCameraMode, virtualCameraSource: virtualCameraSource, microphoneMode: effectiveMicrophoneMode, virtualMicrophoneSource: virtualMicrophoneSource, screenShareMode: effectiveScreenShareMode, virtualScreenSource: virtualScreenSource, protectedContentAllowed: effectiveProtectedContentAllowed);
+                launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, dnsBlockLevel: effectiveDnsBlockLevel, contentBlockEnabled: contentBlockEnabled, disabledFilterLists: effectiveDisabledFilterLists, localCdnEnabled: effectiveLocalCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: outboundProxySettings, notificationsEnabled: effectiveNotificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser, blockAutoRedirects: blockAutoRedirects, blockedCookies: blockedCookies, cameraMode: effectiveCameraMode, virtualCameraSource: virtualCameraSource, microphoneMode: effectiveMicrophoneMode, virtualMicrophoneSource: virtualMicrophoneSource, screenShareMode: effectiveScreenShareMode, virtualScreenSource: virtualScreenSource, protectedContentAllowed: effectiveProtectedContentAllowed);
                 return false;
               case NavigationDecision.blockOpenExternal:
                 LogService.instance.log(
@@ -1520,7 +1542,7 @@ class WebViewModel {
                     sensitivity: LogSensitivity.sensitive,
                   );
                   if (handled.launchNestedUrl != null) {
-                    launchUrlFunc(handled.launchNestedUrl!, homeTitle: name, siteId: siteId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, dnsBlockLevel: effectiveDnsBlockLevel, contentBlockEnabled: contentBlockEnabled, disabledFilterLists: effectiveDisabledFilterLists, localCdnEnabled: effectiveLocalCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: effectiveNotificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser, blockAutoRedirects: blockAutoRedirects, blockedCookies: blockedCookies, cameraMode: effectiveCameraMode, virtualCameraSource: virtualCameraSource, microphoneMode: effectiveMicrophoneMode, virtualMicrophoneSource: virtualMicrophoneSource, screenShareMode: effectiveScreenShareMode, virtualScreenSource: virtualScreenSource, protectedContentAllowed: effectiveProtectedContentAllowed);
+                    launchUrlFunc(handled.launchNestedUrl!, homeTitle: name, siteId: siteId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, dnsBlockLevel: effectiveDnsBlockLevel, contentBlockEnabled: contentBlockEnabled, disabledFilterLists: effectiveDisabledFilterLists, localCdnEnabled: effectiveLocalCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: outboundProxySettings, notificationsEnabled: effectiveNotificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser, blockAutoRedirects: blockAutoRedirects, blockedCookies: blockedCookies, cameraMode: effectiveCameraMode, virtualCameraSource: virtualCameraSource, microphoneMode: effectiveMicrophoneMode, virtualMicrophoneSource: virtualMicrophoneSource, screenShareMode: effectiveScreenShareMode, virtualScreenSource: virtualScreenSource, protectedContentAllowed: effectiveProtectedContentAllowed);
                   }
                   return;
                 case NavigationDecision.blockOpenExternal:

@@ -1,4 +1,13 @@
-enum ProxyType { DEFAULT, HTTP, HTTPS, SOCKS5 }
+/// Proxy transports a site (or the app) can be pointed at.
+///
+/// [TOR] is resolved late: it carries no address of its own and
+/// materializes at use-time into SOCKS5 against the loopback endpoint
+/// [TorService] is listening on, with per-caller stream-isolation auth.
+/// See `openspec/specs/tor-proxy/spec.md` (TOR-001/TOR-003).
+///
+/// Append new values only. The index is the serialized form, so
+/// renumbering silently rewrites every user's stored proxy.
+enum ProxyType { DEFAULT, HTTP, HTTPS, SOCKS5, TOR }
 
 class UserProxySettings {
   ProxyType type;
@@ -24,11 +33,25 @@ class UserProxySettings {
       };
 
   factory UserProxySettings.fromJson(Map<String, dynamic> json) => UserProxySettings(
-        type: ProxyType.values[json['type']],
+        type: _typeFromIndex(json['type']),
         address: json['address'],
         username: json['username'],
         password: json['password'],
       );
+
+  /// Decode a persisted [ProxyType] index defensively.
+  ///
+  /// A backup written by a newer build can carry an index this build has
+  /// no value for (someone exports with TOR set, then rolls back). Reading
+  /// it positionally would throw and take the whole settings load down, so
+  /// an unknown index degrades to [ProxyType.DEFAULT] instead.
+  static ProxyType _typeFromIndex(Object? raw) {
+    final i = raw is int ? raw : int.tryParse('$raw');
+    if (i == null || i < 0 || i >= ProxyType.values.length) {
+      return ProxyType.DEFAULT;
+    }
+    return ProxyType.values[i];
+  }
 
   /// PII-safe one-line summary suitable for [LogService] output that the
   /// user may share publicly when debugging proxy issues. Type and address

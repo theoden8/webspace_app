@@ -30,7 +30,7 @@ The system SHALL support the following proxy types:
 **Then** the manual `host:port` / credentials fields are hidden (the
 underlying values, if previously set, are preserved but inert)
 **And** saving settings registers the site as a `TorService`
-refcount holder
+refcount holder keyed by `siteId`
 **And** the next request from that site is materialized as
 SOCKS5 to `TorService.socksEndpoint` with username equal to the
 site's `siteId`
@@ -47,59 +47,70 @@ Orbot or a similar local SOCKS5 server
 
 ## ADDED Requirements
 
-### Requirement: PROXY-010 - Per-site useTor field
+### Requirement: PROXY-010 - Per-site Tor is the proxy type, not a second flag
 
-`WebViewModel` SHALL carry a `useTor: bool` field, persisted via
-`toJson`/`fromJson`, defaulting to `false`. When `useTor` is true on
-a site, the effective per-site proxy SHALL resolve to the live
-`TorService` SOCKS5 endpoint with username = `siteId`, irrespective
-of the user's manual `address`/`username`/`password` values (the
-manual values are preserved but inert so toggling `useTor` off
-restores the prior configuration). Setting `useTor=true` SHALL
-implicitly increment `TorService`'s refcount via
-`TorService.maybeStart`; setting it back to `false` SHALL decrement
-via `TorService.release`.
+A site opts into Tor by setting `proxySettings.type` to
+`ProxyType.TOR`. There SHALL NOT be a separate per-site `useTor`
+boolean.
 
-#### Scenario: useTor overrides manual SOCKS5 config
+An earlier draft of this change specified both. They encode the same
+state, and two fields for one fact is a defect generator: every read
+path has to agree on which wins, and the one that disagrees routes a
+site the user believes is on Tor straight out the device IP. The
+enum alone satisfies every scenario below, and it inherits the
+nested-webview propagation, the settings-backup round-trip and the
+proxy-password GC that `proxySettings` already has.
 
-**Given** site A has `proxySettings.address = "192.0.2.1:1080"` (a
-public SOCKS5 server) and `useTor = false`
-**When** the user enables `useTor` on site A and saves
-**Then** the next webview navigation routes through
-`TorService.socksEndpoint`, NOT `192.0.2.1:1080`
-**And** the stored `address` field on `proxySettings` still reads
-`192.0.2.1:1080` for restoration when `useTor` is disabled
+Selecting `TOR` SHALL leave the manual `address`, `username` and
+`password` fields untouched on disk so switching back to `SOCKS5`
+restores the previous configuration; while `TOR` is selected those
+fields are inert. Entering the `TOR` state SHALL register the site
+as a `TorService` refcount holder keyed by `siteId`; leaving it (or
+deleting the site) SHALL release that holder.
 
-#### Scenario: Disabling useTor restores manual config
+#### Scenario: TOR overrides a stored manual SOCKS5 config
 
-**Given** site A has `useTor = true` and a previously-stored manual
-`address = "192.0.2.1:1080"`
-**When** the user disables `useTor` on site A and saves
-**Then** the next webview navigation routes through
-`192.0.2.1:1080`
-**And** `TorService`'s refcount is decremented; if it reaches 0 the
-runtime begins its idle-stop debounce
+- **GIVEN** site A has `proxySettings.address = "192.0.2.1:1080"`
+  and `type = SOCKS5`
+- **WHEN** the user switches site A's proxy type to `TOR` and saves
+- **THEN** the next webview navigation routes through
+  `TorService.socksEndpoint`, NOT `192.0.2.1:1080`
+- **AND** the stored `address` still reads `192.0.2.1:1080`
 
-#### Scenario: useTor rides through to nested webviews
+#### Scenario: Leaving TOR restores the manual config
 
-**Given** site A has `useTor = true`
-**When** a cross-domain link on site A opens a nested
-`InAppWebViewScreen`
-**Then** the nested view's `WebViewConfig.proxySettings` resolves
-through `TorService.socksFor(siteId = a)` exactly like the top-level
-view
-**And** the nested view's traffic uses the same site-isolated Tor
-circuit as the top-level view (same SOCKS auth → same circuit per
-Tor's `IsolateSOCKSAuth` semantics)
+- **GIVEN** site A has `type = TOR` and a stored
+  `address = "192.0.2.1:1080"`
+- **WHEN** the user switches the type back to `SOCKS5` and saves
+- **THEN** the next navigation routes through `192.0.2.1:1080`
+- **AND** `TorService`'s refcount for site A is released; if the
+  count reaches 0 the idle-stop debounce begins
 
-#### Scenario: useTor persists across app restart
+#### Scenario: TOR rides through to nested webviews
 
-**Given** site A has `useTor = true`
-**When** the app is closed and reopened
-**Then** `WebViewModel.fromJson` decodes `useTor = true` on site A
-**And** `main.dart`'s startup scan calls `TorService.maybeStart`
-**And** site A's first navigation waits for Tor to bootstrap before
-loading (per TOR-008 interstitial)
+- **GIVEN** site A has `type = TOR`
+- **WHEN** a cross-domain link opens a nested `InAppWebViewScreen`
+- **THEN** the nested view resolves through the same
+  `siteId`-tagged SOCKS5 settings as the top-level view
+- **AND** both share one circuit, because `IsolateSOCKSAuth` keys
+  circuits by the auth tuple and the tuple is identical
+
+#### Scenario: TOR persists across app restart
+
+- **GIVEN** site A has `type = TOR`
+- **WHEN** the app is closed and reopened
+- **THEN** `UserProxySettings.fromJson` decodes `type = TOR`
+- **AND** the startup scan registers site A as a refcount holder
+- **AND** site A's first navigation waits for bootstrap rather than
+  loading direct (TOR-008)
+
+#### Scenario: An unknown proxy type decodes to DEFAULT
+
+- **GIVEN** a settings backup written by a build whose `ProxyType`
+  enum has values this build does not
+- **WHEN** `UserProxySettings.fromJson` reads it
+- **THEN** the unknown index decodes to `ProxyType.DEFAULT`
+- **AND** the settings load completes rather than throwing
 
 ---
 
@@ -126,24 +137,24 @@ to `TorService.socksEndpoint`
 #### Scenario: Global TOR inherited by DEFAULT sites
 
 **Given** `globalOutboundProxy.type == TOR`
-**And** site A has `proxyType == DEFAULT` and `useTor == false`
+**And** site A has `proxyType == DEFAULT`
 **When** site A's favicon fetch runs
 **Then** `resolveEffectiveProxy` returns the global TOR settings
 **And** the SOCKS5 username is `__webspace_app_global__` (NOT
 `siteId == a`)
 
 The DEFAULT-inheritance case intentionally does NOT use the
-per-site stream-isolation tag — sites that opted into per-site
-stream isolation must set `useTor = true` explicitly. A site
+per-site stream-isolation tag — sites that want per-site
+stream isolation must select `TOR` explicitly. A site
 inheriting Tor through the global is effectively asking "use the
 app's default proxy" and gets the global isolation tag.
 
-#### Scenario: Global TOR with per-site useTor uses per-site tag
+#### Scenario: Global TOR with an explicit per-site TOR uses the site tag
 
 **Given** `globalOutboundProxy.type == TOR`
-**And** site A has `useTor == true`
+**And** site A has `proxyType == TOR`
 **When** site A's favicon fetch runs
 **Then** the SOCKS5 username is `siteA.siteId` (NOT
 `__webspace_app_global__`)
-**Because** explicit per-site `useTor` wins over inheriting global
-TOR
+**Because** an explicit per-site `TOR` wins over inheriting the
+global one

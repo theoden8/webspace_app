@@ -70,10 +70,21 @@ Constraints from the existing codebase:
 
 **Non-Goals:**
 
-- Android, macOS, Linux — deferred. Android users have Orbot;
-  Linux users have system `tor`; macOS gets it once iOS proves out
-  (Tor.framework supports macOS already, but the BackgroundTask
-  contract is iOS-specific).
+- Android — not deferred, **ruled out** for `ProxyType.TOR`. Orbot
+  already exposes a local SOCKS5 port, so pointing the existing
+  per-site SOCKS5 setting at `127.0.0.1:9050` works today and keeps
+  working. What cannot work is the part that makes this feature worth
+  having: Chromium's network stack implements no SOCKS5
+  authentication (`net/docs/proxy.md`; crbug 40323993, open since
+  2014), and Android WebView's per-site proxy goes through Chromium.
+  Without the auth tuple, Tor cannot tell one site's streams from
+  another's, so every site on Android would silently share circuits.
+  Offering a "Tor" toggle that quietly drops isolation is worse than
+  offering none, so Android keeps the honest manual SOCKS5 row.
+  Revisit only if Chromium ships SOCKS5 auth.
+- Linux, macOS — deferred. Linux users have system `tor`; macOS gets
+  it once iOS proves out (Tor.framework supports macOS already, but
+  the BackgroundTask contract is iOS-specific).
 - Tor Bridges / Pluggable Transports UI (`obfs4`, `snowflake`,
   `webtunnel`). Initial cut uses default directory authorities; users
   in heavily-censored networks still need to wait for the
@@ -192,9 +203,13 @@ isolation goes through SOCKS auth instead (D3).
 
 ### D3. Stream isolation — `IsolateSOCKSAuth` + per-site SOCKS user
 
-Tor isolates streams by SOCKS5 username/password tuple when the
-`SocksPort` is configured with `IsolateSOCKSAuth IsolateDestAddr`
-(`Tor.framework` default). We set:
+Tor isolates streams by SOCKS5 username/password tuple whenever
+`SocksPort` carries `IsolateSOCKSAuth`, which per `tor(1)` is "On by
+default; you can disable it with NoIsolateSOCKSAuth" — as is
+`IsolateClientAddr`. We still write the flags explicitly in our
+`TorConfiguration` so the isolation contract is legible at the
+config rather than inherited silently from an upstream default that
+could change. We set:
 
 - SOCKS5 username = `siteId` (UUID; never the human-readable site name)
 - SOCKS5 password = a random 32-byte hex string generated once per
