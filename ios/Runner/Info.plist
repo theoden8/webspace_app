@@ -2,8 +2,16 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- The app implements encryption rather than only consuming the OS's:
+	     AES at rest in archive_crypto.dart / html_cache_service.dart, and
+	     tor's own TLS and onion-routing crypto once Tor.framework links.
+	     Apple's exemption covers OS-provided encryption (HTTPS via
+	     URLSession) and authentication-only use; neither describes this.
+	     See openspec/changes/add-ios-tor-proxy/specs/tor-proxy/spec.md
+	     TOR-010. Export documentation is filed in App Store Connect, and
+	     the annual BIS self-classification report is a release step. -->
 	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
+	<true/>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>

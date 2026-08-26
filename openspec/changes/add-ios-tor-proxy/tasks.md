@@ -6,8 +6,8 @@
 - [ ] 1.4 Implement `status()` — returns `{state, bootstrapPct, socksHost, socksPort}` synchronously; emits the same shape via the event channel as state changes.
 - [ ] 1.5 Implement `rebuildCircuits()` — sends `SIGNAL NEWNYM` via the control port. Rate-limit at the plugin layer (no-op if last NEWNYM was less than 10s ago).
 - [ ] 1.6 Implement `stop()` — graceful shutdown via `TorThread.cancel()`, awaits termination with a 5s timeout then force-exits the thread. Clears in-memory port info.
-- [ ] 1.7 Create `ios/Runner/PrivacyInfo.xcprivacy` (the repo has no privacy manifest today) and add it to the `Runner` target's Copy Bundle Resources. Declare the `NSPrivacyAccessedAPITypes` rows for the required-reason APIs the *app* calls, with the reason codes verified against Apple's current required-reasons list at implementation time rather than copied from this document. Do NOT put `NSPrivacyAccessedAPITypes` in `Info.plist` — Apple does not read it there (TOR-011).
-- [ ] 1.8 Confirm the pinned Tor pod ships its own `PrivacyInfo.xcprivacy`. If it does not, raise it upstream and record the gap in the change; do not declare the pod's API usage from the app's manifest.
+- [x] 1.7 Create `ios/Runner/PrivacyInfo.xcprivacy` (the repo has no privacy manifest today) and add it to the `Runner` target's Copy Bundle Resources. Declare the `NSPrivacyAccessedAPITypes` rows for the required-reason APIs the *app* calls, with the reason codes verified against Apple's current required-reasons list at implementation time rather than copied from this document. Do NOT put `NSPrivacyAccessedAPITypes` in `Info.plist` — Apple does not read it there (TOR-011).
+- [x] 1.8 Confirmed: the pinned Tor pod ships **no** `PrivacyInfo.xcprivacy` (checked the upstream tree). Its required-reason usage is declared from the app's manifest as the only available option; raise the gap upstream. If it does not, raise it upstream and record the gap in the change; do not declare the pod's API usage from the app's manifest.
 
 ## 2. Dart Tor service
 
@@ -80,7 +80,9 @@ the nested-webview propagation chain. See PROXY-010 for the reasoning.
 
 ## 11. Release prep
 
-- [ ] 11.1 Set `ITSAppUsesNonExemptEncryption` to `true` in `ios/Runner/Info.plist` and file export-compliance documentation in App Store Connect before the first Tor build is submitted (TOR-010). The current `false` does not survive embedding tor's own TLS/onion crypto and OpenSSL. Do not ship a build that still declares `false`.
+- [x] 11.0 Structural CI gates in `test/js/ios_compliance_declarations.test.js`: the encryption declaration, the privacy manifest's existence, its absence from `Info.plist`, its presence in Copy Bundle Resources, and no hardcoded 9050. Each verified to fail on its own regression.
+
+- [x] 11.1 Set `ITSAppUsesNonExemptEncryption` to `true` in `ios/Runner/Info.plist` and file export-compliance documentation in App Store Connect before the first Tor build is submitted (TOR-010). The current `false` does not survive embedding tor's own TLS/onion crypto and OpenSSL. Do not ship a build that still declares `false`.
 - [ ] 11.1a Add the annual BIS self-classification report (due 1 February for the prior calendar year's distributed builds) to the release checklist.
 - [ ] 11.1b Draft the App Review notes: what the toggle does, that bootstrap takes 10-30s on first use, and that a restricted network surfaces an explicit error by design (TOR-013).
 - [ ] 11.1c Audit UI strings and assets for trademark discipline before submission — descriptive use of "Tor" only, no onion logo, no "Tor" in app name/subtitle/bundle id, no implied Tor Project endorsement (TOR-012).
