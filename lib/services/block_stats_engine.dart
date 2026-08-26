@@ -30,7 +30,11 @@ const Map<BlockCategory, String> _categoryKeys = {
   BlockCategory.localCdn: 'cdn',
 };
 
-BlockCategory? _categoryFromKey(String key) {
+/// Wire name for [category]. Shared by the persisted counter blob and the
+/// encrypted detail blob, so one category never has two spellings on disk.
+String blockCategoryKey(BlockCategory category) => _categoryKeys[category]!;
+
+BlockCategory? blockCategoryFromKey(String key) {
   for (final entry in _categoryKeys.entries) {
     if (entry.value == key) return entry.key;
   }
@@ -145,13 +149,13 @@ class BlockStatsEngine {
         'since': _since.toIso8601String(),
         'allTime': {
           for (final entry in _allTime.entries)
-            _categoryKeys[entry.key]!: entry.value,
+            blockCategoryKey(entry.key): entry.value,
         },
         'days': {
           for (final day in _days.entries)
             day.key.toString(): {
               for (final entry in day.value.entries)
-                _categoryKeys[entry.key]!: entry.value,
+                blockCategoryKey(entry.key): entry.value,
             },
         },
       };
@@ -181,7 +185,7 @@ class BlockStatsEngine {
   static Map<BlockCategory, int> _countsFromJson(Map<dynamic, dynamic> raw) {
     final out = <BlockCategory, int>{};
     for (final entry in raw.entries) {
-      final category = _categoryFromKey(entry.key.toString());
+      final category = blockCategoryFromKey(entry.key.toString());
       final count = entry.value;
       if (category == null || count is! int || count <= 0) continue;
       out[category] = count;

@@ -336,10 +336,10 @@ class _BlockStatsScreenState extends State<BlockStatsScreen> {
 
 /// One category of the protection report, opened from its row (STATS-008).
 ///
-/// Two halves with different lifetimes, and the screen says so: the counts
-/// and the chart come from the persisted buckets, while the list of what was
-/// actually stopped and which site it was stopped for is session-scoped and
-/// dies with the process.
+/// Counts and chart come from the persisted daily buckets; the lists of what
+/// was actually stopped and which site it was stopped for come from the
+/// encrypted detail blob (STATS-009). Both survive a restart, so the two
+/// halves of the screen no longer disagree after one.
 class BlockStatsCategoryScreen extends StatefulWidget {
   final BlockCategory category;
   final int rangeDays;
@@ -423,25 +423,14 @@ class _BlockStatsCategoryScreenState extends State<BlockStatsCategoryScreen> {
           const Divider(height: 32),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  loc.blockStatsSince(
-                    engine.allTimeFor(category),
-                    MaterialLocalizations.of(context)
-                        .formatShortDate(engine.since),
-                  ),
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  loc.blockStatsDetailSessionNote,
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                ),
-              ],
+            child: Text(
+              loc.blockStatsSince(
+                engine.allTimeFor(category),
+                MaterialLocalizations.of(context)
+                    .formatShortDate(engine.since),
+              ),
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
           ),
         ],
@@ -449,8 +438,8 @@ class _BlockStatsCategoryScreenState extends State<BlockStatsCategoryScreen> {
     );
   }
 
-  /// Session per-site counts, resolved to display names. A site deleted
-  /// mid-session has no name left to show, so it drops out rather than
+  /// Per-site counts, resolved to display names. A site deleted since its
+  /// row was written has no name left to show, so it drops out rather than
   /// surfacing a raw `siteId`.
   List<MapEntry<String, int>> _namedSiteCounts(BlockStatsDetail detail) {
     final out = <MapEntry<String, int>>[];

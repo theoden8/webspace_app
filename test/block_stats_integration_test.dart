@@ -10,6 +10,8 @@ import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 
+import 'helpers/memory_block_stats_store.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -19,7 +21,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     BlockStatsService.resetInstanceForTest();
     stats = BlockStatsService.instance;
-    await stats.initialize();
+    await stats.initialize(detailStore: MemoryBlockStatsDetailStore());
     stats.setSiteContributes('site-1', true);
     DnsBlockService.instance.clearStatsForSite('site-1');
   });
@@ -165,7 +167,7 @@ void main() {
       LocalCdnService.instance.recordReplacement('site-1');
 
       expect(stats.detail.topItems(BlockCategory.localCdn), isEmpty);
-      expect(stats.detail.sessionTotal(BlockCategory.localCdn), 1);
+      expect(stats.detail.totalFor(BlockCategory.localCdn), 1);
     });
   });
 }
