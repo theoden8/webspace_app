@@ -163,6 +163,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 |------|------|
 | captcha-support | |
 | clearurls | tracking-param removal, per-site toggle |
+| legal | App Store encryption declaration + licence composition of the shipped work |
 | configurable-suggested-sites | empty default for fdroid |
 | content-blocker | ABP filter lists via adblock-rust (network, cosmetic, procedural, $redirect/$csp/$removeparam) |
 | cookie-secure-storage | encrypted cookie persistence |
