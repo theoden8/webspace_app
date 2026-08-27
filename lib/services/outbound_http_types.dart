@@ -60,6 +60,10 @@ UserProxySettings _torTagged(UserProxySettings s, String? siteId) {
     address: s.address,
     username: tag,
     password: null,
+    // The pin rides the effective settings so a site left on DEFAULT that
+    // inherits a global Tor inherits the global's country too, rather than
+    // reading as unpinned and evicting every pinned neighbour (TOR-014).
+    torExitCountry: s.torExitCountry,
   );
 }
 

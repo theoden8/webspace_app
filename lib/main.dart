@@ -2865,6 +2865,15 @@ class _WebSpacePageState extends State<WebSpacePage>
       if (GlobalOutboundProxy.current.type == ProxyType.TOR) kTorAppGlobalTag,
     };
     await TorService.instance.syncHolders(holders);
+    // Clearing a site's pin in settings never re-activates it, so without
+    // this the country the user just removed would stay applied until the
+    // next site switch.
+    await TorService.instance.setExitCountry(
+      SiteUnloadEngine.torExitNodesFor(
+        indices: <int>{?_currentIndex, ..._loadedIndices},
+        models: _webViewModels,
+      ),
+    );
   }
 
   Future<void> _saveWebViewModels() async {
@@ -3926,6 +3935,41 @@ class _WebSpacePageState extends State<WebSpacePage>
         sensitivity: LogSensitivity.sensitive,
       );
       await _unloadSiteForOtherReason(i);
+      if (version != _setCurrentIndexVersion) return;
+    }
+
+    // Tor exit-country unload, on every platform with a Tor runtime. Same
+    // shape as the proxy mismatch above and for the same reason: tor's
+    // `ExitNodes` is a global client option, not a per-`SocksPort` one, so
+    // one runtime serves one country at a time. A sibling left loaded under
+    // a pin it did not ask for would exit from a country the user never
+    // chose for it (TOR-014).
+    if (TorService.instance.isAvailable) {
+      final exitMismatch = SiteUnloadEngine.indicesToUnloadForTorExitMismatch(
+        targetIndex: index,
+        models: _webViewModels,
+        loadedIndices: _loadedIndices,
+      );
+      for (final i in exitMismatch) {
+        LogService.instance.log(
+          'SiteUnload',
+          'Tor exit-country mismatch — unloading site $i: '
+              '"${_webViewModels[i].name}"',
+          level: LogLevel.warning,
+          sensitivity: LogSensitivity.sensitive,
+        );
+        await _unloadSiteForOtherReason(i);
+        if (version != _setCurrentIndexVersion) return;
+      }
+      // Only once the disagreeing siblings are gone: SETCONF takes effect
+      // for the whole runtime the moment it lands, so applying it first
+      // would route their next request through the new country.
+      await TorService.instance.setExitCountry(
+        SiteUnloadEngine.torExitNodesFor(
+          indices: <int>{index, ..._loadedIndices},
+          models: _webViewModels,
+        ),
+      );
       if (version != _setCurrentIndexVersion) return;
     }
 
