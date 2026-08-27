@@ -26,9 +26,17 @@ import 'package:webspace/services/log_service.dart';
 class BlockStatsService {
   static const String prefsKey = 'blockStatsV1';
 
-  /// How long a mutation may sit unpersisted. Block events arrive in bursts
-  /// of hundreds per page load; coalescing keeps that to one write.
-  static const Duration flushDelay = Duration(seconds: 10);
+  /// How long a burst must go quiet before it is persisted. Block events
+  /// arrive in bursts of hundreds per page load; the timer restarts on each
+  /// one, so the burst costs a single write and lands shortly after the page
+  /// settles rather than at the far end of a fixed window.
+  static const Duration flushDelay = Duration(seconds: 2);
+
+  /// Ceiling on how long a recorded count may sit unpersisted, measured from
+  /// the first unflushed record. A page that keeps firing blocked requests
+  /// (an infinite feed, a long-poll) would otherwise hold the idle debounce
+  /// open for as long as the user keeps browsing.
+  static const Duration maxFlushDelay = Duration(seconds: 10);
 
   static BlockStatsService? _instance;
   static BlockStatsService get instance => _instance ??= BlockStatsService._();
@@ -37,14 +45,19 @@ class BlockStatsService {
 
   /// Test seam: drop the singleton so each test starts from a clean engine.
   @visibleForTesting
-  static void resetInstanceForTest() => _instance = null;
+  static void resetInstanceForTest() {
+    _instance?._cancelFlushTimers();
+    _instance = null;
+  }
 
   BlockStatsEngine _engine = BlockStatsEngine();
   final BlockStatsDetail _detail = BlockStatsDetail();
   BlockStatsDetailStore? _detailStore;
   final Set<String> _contributingSiteIds = <String>{};
   final Set<VoidCallback> _listeners = <VoidCallback>{};
-  Timer? _flushTimer;
+  Timer? _idleFlushTimer;
+  Timer? _maxFlushTimer;
+  Future<void> _flushChain = Future<void>.value();
   Future<void>? _initFuture;
   bool _notifyScheduled = false;
   bool _initialized = false;
@@ -156,22 +169,31 @@ class BlockStatsService {
     notifyListeners();
   }
 
-  /// Persist now. Called on the debounce timer, on app pause, and after a
-  /// reset.
-  Future<void> flush() async {
-    _flushTimer?.cancel();
-    _flushTimer = null;
-    await _flushCounters();
-    await _flushDetail();
+  /// Persist now. Called on the debounce timer, on every step away from the
+  /// foreground, and after a reset.
+  Future<void> flush() {
+    _cancelFlushTimers();
+    // Serialised rather than concurrent: two flushes encoding the same
+    // counters can land the older payload last, which drops the difference
+    // until something else marks the engine dirty again.
+    final next =
+        _flushChain.then((_) => _flushCounters()).then((_) => _flushDetail());
+    _flushChain = next.catchError((_) {});
+    return next;
   }
 
   Future<void> _flushCounters() async {
-    if (!_engine.isDirty) return;
-    final payload = jsonEncode(_engine.toJson());
-    _engine.markClean();
+    final engine = _engine;
+    if (!engine.isDirty) return;
+    final revision = engine.revision;
+    final payload = jsonEncode(engine.toJson());
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(prefsKey, payload);
+      // Clean only what this payload carried. Marking clean before the write
+      // hands the counters to a write that may never land, and anything
+      // recorded while it was in flight is not in the payload at all.
+      engine.markCleanAt(revision);
     } catch (e) {
       LogService.instance.log('BlockStats', 'Failed to persist stats: $e',
           level: LogLevel.warning);
@@ -181,16 +203,25 @@ class BlockStatsService {
   Future<void> _flushDetail() async {
     final store = _detailStore;
     if (store == null || !_detail.isDirty) return;
+    final revision = _detail.revision;
     final payload = jsonEncode(_detail.toJson());
-    _detail.markClean();
-    await store.write(payload);
+    if (await store.write(payload)) _detail.markCleanAt(revision);
   }
 
   void _scheduleFlush() {
-    _flushTimer ??= Timer(flushDelay, () {
-      _flushTimer = null;
-      unawaited(flush());
-    });
+    _idleFlushTimer?.cancel();
+    _idleFlushTimer = Timer(flushDelay, () => unawaited(flush()));
+    // Armed once per pending batch and never restarted: the idle timer above
+    // restarts on every event, so a page that keeps blocking requests would
+    // otherwise hold the batch in memory for as long as it browses.
+    _maxFlushTimer ??= Timer(maxFlushDelay, () => unawaited(flush()));
+  }
+
+  void _cancelFlushTimers() {
+    _idleFlushTimer?.cancel();
+    _idleFlushTimer = null;
+    _maxFlushTimer?.cancel();
+    _maxFlushTimer = null;
   }
 
   void addListener(VoidCallback listener) => _listeners.add(listener);

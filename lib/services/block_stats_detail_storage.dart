@@ -13,7 +13,10 @@ abstract class BlockStatsDetailStore {
   /// The stored payload, or null when there is none (or it cannot be read).
   Future<String?> read();
 
-  Future<void> write(String payload);
+  /// True when [payload] reached the store. False means nothing was written
+  /// (no key, no file, an I/O error), and the caller must keep the payload
+  /// pending rather than treat it as persisted.
+  Future<bool> write(String payload);
 
   /// Forget everything stored. Must leave nothing behind for the next load
   /// to merge: a reset the user confirmed cannot come back on relaunch.
@@ -97,16 +100,18 @@ class SecureBlockStatsDetailStore implements BlockStatsDetailStore {
   }
 
   @override
-  Future<void> write(String payload) async {
+  Future<bool> write(String payload) async {
     await _initialize();
     final store = _store;
     final encrypter = _encrypter;
-    if (store == null || encrypter == null) return;
+    if (store == null || encrypter == null) return false;
     try {
       await store.writeText(_fileName, encrypter.encrypt(payload, iv: _iv).base64);
+      return true;
     } catch (e) {
       LogService.instance.log('BlockStats', 'Detail write failed: $e',
           level: LogLevel.warning);
+      return false;
     }
   }
 

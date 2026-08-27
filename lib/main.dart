@@ -1584,6 +1584,15 @@ class _WebSpacePageState extends State<WebSpacePage>
         setState(() => _maskBackground = true);
       }
     }
+    // Persist the protection-report counters on every step away from the
+    // foreground, not only on `paused` (STATS-002): desktop never delivers
+    // `paused` at all, and a foreground kill delivers nothing, so whatever
+    // sits inside the debounce window is what a restart loses. The write is
+    // gated on a dirty flag, so a transient `inactive` — a native <select>,
+    // a permission prompt — with nothing new recorded costs nothing.
+    if (state != AppLifecycleState.resumed) {
+      unawaited(BlockStatsService.instance.flush());
+    }
     // Only treat `paused` as a real backgrounding event. `inactive` fires for
     // any transient focus loss — native <select> popup dialog, app-switcher
     // peek, system permission prompt, incoming call on iOS — where pausing
@@ -1592,10 +1601,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (state == AppLifecycleState.paused) {
       _foregroundPollTimer?.cancel();
       _foregroundPollTimer = null;
-      // Persist the protection-report counters before the OS can reclaim
-      // the process: the in-memory debounce would otherwise lose up to
-      // BlockStatsService.flushDelay of counts on a kill.
-      unawaited(BlockStatsService.instance.flush());
       // URL-ephemeral sites (alwaysOpenHome / incognito) revert to their
       // initUrl only on a genuine app restart (fromJson strips currentUrl on
       // cold start, AOH-002) and on home-shortcut tap (AOH-004) — never on a

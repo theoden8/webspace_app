@@ -56,13 +56,24 @@ class BlockStatsDetail {
   final Map<BlockCategory, Map<String, BlockDetailItem>> _items = {};
   final Map<BlockCategory, Map<String, BlockDetailItem>> _sites = {};
   bool _dirty = false;
+  int _revision = 0;
 
   bool get isEmpty => _items.isEmpty && _sites.isEmpty;
 
   /// True when a mutation has not been persisted yet.
   bool get isDirty => _dirty;
 
+  /// Bumped by every mutation. Read it before encoding a payload and hand it
+  /// back to [markCleanAt] once that payload is on disk.
+  int get revision => _revision;
+
   void markClean() => _dirty = false;
+
+  /// Clear the dirty flag only if nothing has been recorded since [revision]
+  /// was read, so rows folded in while a write was in flight stay pending.
+  void markCleanAt(int revision) {
+    if (revision == _revision) _dirty = false;
+  }
 
   /// Fold [count] events of [category] attributed to [siteId] into the
   /// detail. A null or empty [label] still moves the per-site counter: a
@@ -79,13 +90,13 @@ class BlockStatsDetail {
     if (siteId.isNotEmpty) {
       _fold(_sites.putIfAbsent(category, () => <String, BlockDetailItem>{}),
           siteId, count, at, maxSitesPerCategory);
-      _dirty = true;
+      _markDirty();
     }
     final key = label?.trim().toLowerCase();
     if (key == null || key.isEmpty) return;
     _fold(_items.putIfAbsent(category, () => <String, BlockDetailItem>{}), key,
         count, at, maxItemsPerCategory);
-    _dirty = true;
+    _markDirty();
   }
 
   /// Items of [category], most frequent first, ties broken by recency.
@@ -116,7 +127,7 @@ class BlockStatsDetail {
     final cutoff = DateTime(at.year, at.month, at.day - retentionDays);
     final dropped =
         _pruneTables(_items, cutoff) + _pruneTables(_sites, cutoff);
-    if (dropped > 0) _dirty = true;
+    if (dropped > 0) _markDirty();
     return dropped;
   }
 
@@ -134,14 +145,19 @@ class BlockStatsDetail {
       dropped += stale.length;
     }
     _sites.removeWhere((_, table) => table.isEmpty);
-    if (dropped > 0) _dirty = true;
+    if (dropped > 0) _markDirty();
     return dropped;
   }
 
   void clear() {
     _items.clear();
     _sites.clear();
+    _markDirty();
+  }
+
+  void _markDirty() {
     _dirty = true;
+    _revision++;
   }
 
   Map<String, dynamic> toJson() => {

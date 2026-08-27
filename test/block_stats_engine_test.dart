@@ -128,6 +128,21 @@ void main() {
       expect(engine.isDirty, isTrue);
     });
 
+    test('markCleanAt clears only what the written payload carried', () {
+      final engine = BlockStatsEngine();
+      engine.record(BlockCategory.filterList);
+      final written = engine.revision;
+
+      // A block recorded while the write was in flight: it is not in the
+      // payload, so the engine must stay dirty for the next flush.
+      engine.record(BlockCategory.dnsBlocklist);
+      engine.markCleanAt(written);
+      expect(engine.isDirty, isTrue);
+
+      engine.markCleanAt(engine.revision);
+      expect(engine.isDirty, isFalse);
+    });
+
     test('corrupt payloads degrade instead of throwing', () {
       final restored = BlockStatsEngine.fromJson(<String, dynamic>{
         'since': 'not-a-date',

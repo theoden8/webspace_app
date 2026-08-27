@@ -56,6 +56,7 @@ class BlockStatsEngine {
 
   DateTime _since;
   bool _dirty = false;
+  int _revision = 0;
 
   BlockStatsEngine({
     DateTime? since,
@@ -71,7 +72,18 @@ class BlockStatsEngine {
   /// True when a mutation has not been persisted yet.
   bool get isDirty => _dirty;
 
+  /// Bumped by every mutation. Read it before encoding a payload and hand it
+  /// back to [markCleanAt] once that payload is on disk.
+  int get revision => _revision;
+
   void markClean() => _dirty = false;
+
+  /// Clear the dirty flag only if nothing has been recorded since [revision]
+  /// was read. A write that lands after a concurrent [record] must not mark
+  /// those newer counts persisted, or they are dropped on the next kill.
+  void markCleanAt(int revision) {
+    if (revision == _revision) _dirty = false;
+  }
 
   static int dayKey(DateTime d) => d.year * 10000 + d.month * 100 + d.day;
 
@@ -81,7 +93,7 @@ class BlockStatsEngine {
     final bucket = _days.putIfAbsent(dayKey(at), () => <BlockCategory, int>{});
     bucket[category] = (bucket[category] ?? 0) + count;
     _allTime[category] = (_allTime[category] ?? 0) + count;
-    _dirty = true;
+    _markDirty();
   }
 
   /// Per-category totals over the [days] calendar days ending today
@@ -132,7 +144,7 @@ class BlockStatsEngine {
     for (final k in stale) {
       _days.remove(k);
     }
-    if (stale.isNotEmpty) _dirty = true;
+    if (stale.isNotEmpty) _markDirty();
     return stale.length;
   }
 
@@ -141,7 +153,12 @@ class BlockStatsEngine {
     _days.clear();
     _allTime.clear();
     _since = now ?? DateTime.now();
+    _markDirty();
+  }
+
+  void _markDirty() {
     _dirty = true;
+    _revision++;
   }
 
   Map<String, dynamic> toJson() => {
