@@ -23,7 +23,10 @@ const LANGUAGE_ONLY = 'worker_shim/installer_language_only.js';
 
 // A jsdom page whose Blob/URL/Worker are recording stubs. Returns handles to
 // everything the installer touches so tests can inspect the generated wrapper.
-function pageWithStubs(fixture) {
+// `refuseBlobWorkers` models chromium under a CSP whose worker-src omits
+// blob:: the constructor returns a Worker and the refusal arrives later as an
+// error event on it.
+function pageWithStubs(fixture, { refuseBlobWorkers = false } = {}) {
   const dom = new JSDOM('<!doctype html><html><body></body></html>', {
     url: 'https://example.com/app/',
     runScripts: 'outside-only',
@@ -44,6 +47,12 @@ function pageWithStubs(fixture) {
     const Ctor = function (script, options) {
       created.push({ name, script: String(script), options });
       this.__script = String(script);
+      if (refuseBlobWorkers && this.__script.startsWith('blob:')) {
+        const worker = this;
+        w.setTimeout(() => {
+          if (worker.onerror) worker.onerror({ preventDefault() {} });
+        }, 0);
+      }
     };
     Ctor.prototype.__brand = name;
     return Ctor;
@@ -52,7 +61,23 @@ function pageWithStubs(fixture) {
   w.SharedWorker = recorder('SharedWorker');
 
   w.eval(readFixture(fixture));
-  return { dom, window: w, blobs, created };
+
+  // The installer starts one throwaway worker at install time to find out
+  // whether this document's CSP admits blob: workers at all. It is not a
+  // wrapper, so keep it out of the recording the wrapper tests index into.
+  const probes = [];
+  for (let i = created.length - 1; i >= 0; i--) {
+    if ((blobs.get(created[i].script) || '') === 'postMessage(1);close();') {
+      probes.unshift(created.splice(i, 1)[0]);
+    }
+  }
+  return { dom, window: w, blobs, created, probes };
+}
+
+// One macrotask in the jsdom window, which is when a refused blob: worker
+// reports its error.
+function tick(ctx) {
+  return new Promise((resolve) => ctx.window.setTimeout(resolve, 0));
 }
 
 // Content of the wrapper blob handed to the real constructor for call `i`.
@@ -155,6 +180,67 @@ test('fails open: a worker is still created when wrapping throws', () => {
   // Passed through verbatim — the fallback hands the real constructor exactly
   // what the page asked for.
   assert.equal(ctx.created[ctx.created.length - 1].script, '/app/w.js');
+});
+
+test('the installer probes blob: worker support before the page asks', () => {
+  // A CSP refusal is asynchronous, so the answer has to be in hand before the
+  // site builds its first worker — there is nothing to fall back to once one
+  // has been handed a wrapper that will never load.
+  const ctx = pageWithStubs(COMBINED);
+  assert.equal(ctx.probes.length, 1);
+  assert.equal(ctx.created.length, 0, 'nothing else may be constructed at install');
+  const payload = ctx.blobs.get(ctx.probes[0].script);
+  assert.match(payload, /postMessage\(1\);close\(\);/,
+    'the probe must report back and then shut itself down');
+});
+
+test('a refused blob: worker stops the wrapping (site worker survives)', async () => {
+  // The messenger.com case: worker-src without blob: kills every wrapper, and
+  // the refusal never reaches the constructor. Once the probe reports it, the
+  // page's own script is what the real constructor gets.
+  const ctx = pageWithStubs(COMBINED, { refuseBlobWorkers: true });
+  await tick(ctx);
+  new ctx.window.Worker('/app/w.js');
+  assert.equal(ctx.created.length, 1);
+  assert.equal(ctx.created[0].script, '/app/w.js');
+});
+
+test('a blob: worker-src violation stops the wrapping too', () => {
+  // Covers the window before the probe answers, for a page that builds a
+  // worker from an inline script at the top of the document.
+  const ctx = pageWithStubs(COMBINED);
+  const ev = new ctx.window.Event('securitypolicyviolation');
+  ev.blockedURI = 'blob';
+  ev.effectiveDirective = 'worker-src';
+  ctx.window.document.dispatchEvent(ev);
+  new ctx.window.Worker('/app/w.js');
+  assert.equal(ctx.created[0].script, '/app/w.js');
+});
+
+test('an unrelated blob: violation leaves the wrapping alone', () => {
+  // img-src says nothing about worker scripts; treating it as a refusal would
+  // drop the spoof on any site that blocks blob: images.
+  const ctx = pageWithStubs(COMBINED);
+  const ev = new ctx.window.Event('securitypolicyviolation');
+  ev.blockedURI = 'blob';
+  ev.effectiveDirective = 'img-src';
+  ctx.window.document.dispatchEvent(ev);
+  new ctx.window.Worker('/app/w.js');
+  assert.match(ctx.created[0].script, /^blob:/);
+});
+
+test('a refused shim import still leaves the original script loading', () => {
+  // worker-src admitting blob: while script-src does not: the wrapper worker
+  // starts and the shim import is what CSP kills. That must cost the spoof,
+  // not the site's worker.
+  const ctx = pageWithStubs(COMBINED);
+  new ctx.window.Worker('/app/w.js');
+  const wrapper = wrapperFor(ctx);
+  assert.match(wrapper, /try \{ importScripts\("blob:[^"]+"\); \}/);
+  assert.match(wrapper, /catch \(e\) \{ try \{ delete self\.__wsShimUrl; \}/);
+  const guarded = wrapper.indexOf('catch (e)');
+  const original = wrapper.indexOf('importScripts("https://example.com/app/w.js")');
+  assert.ok(original > guarded, `original import must follow the catch:\n${wrapper}`);
 });
 
 test('re-running the installer does not double-wrap', () => {

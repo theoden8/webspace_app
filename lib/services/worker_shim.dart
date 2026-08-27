@@ -27,10 +27,22 @@
 // prototype resolved from the live `navigator`, window-only sections guarded),
 // so one source serves both scopes.
 //
+// A CSP whose `worker-src` omits `blob:` refuses the wrapper, and chromium
+// reports that refusal as an asynchronous `error` event on the worker rather
+// than a constructor throw — so the fail-open branch below never sees it and
+// the site is left with a worker that never starts (messenger.com: the chat
+// worker dies and "verifying your PIN" hangs forever). There is no synchronous
+// way to ask a CSP about `blob:` worker scripts, so the installer asks the
+// engine instead: it starts one throwaway blob worker at document start and
+// remembers the answer. Once a refusal is known, wrapping stops and workers
+// are handed their original script — unshimmed, but alive.
+//
 // Known limits, all fail-open (functionality preferred over an extra spoof):
-//   * A CSP that forbids `blob:` workers makes worker creation fail. We cannot
-//     detect that synchronously (the failure surfaces as an async `error`
-//     event), so sites under such a CSP keep unspoofed workers.
+//   * Under such a CSP the workers run unshimmed, which is a live page/worker
+//     disagreement (WORK-002) — the trade WORK-006 makes, and the reason the
+//     probe exists rather than a blanket bypass.
+//   * A worker created before the probe's answer arrives (an inline script at
+//     the top of the document) still gets the doomed wrapper.
 //   * Module workers (`{type:'module'}`) get the shim via ordered static
 //     `import`s, but no nested propagation (`import.meta` cannot appear in the
 //     classic payload).
@@ -63,7 +75,7 @@ $_installerDefinition
   try {
     var u = globalThis.__wsShimUrl;
     try { delete globalThis.__wsShimUrl; } catch (e) {}
-    if (u) __wsInstallWorkerWrap(function() { return u; });
+    if (u) __wsInstallWorkerWrap(function() { return u; }, false);
   } catch (e) {}
 })();
 ''';
@@ -81,17 +93,19 @@ $_installerDefinition
       _url = URL.createObjectURL(new Blob([PAYLOAD], { type: 'text/javascript' }));
     }
     return _url;
-  });
+  }, true);
 })();
 ''';
 }
 
-/// JS defining `__wsInstallWorkerWrap(getShimUrl)`, shared verbatim by the
-/// page-side installer and the payload's nested-worker tail. `getShimUrl` is
-/// the only thing that differs between the two (the page builds the blob from
-/// the embedded payload; a worker reuses the URL it was loaded from).
+/// JS defining `__wsInstallWorkerWrap(getShimUrl, watchCsp)`, shared verbatim
+/// by the page-side installer and the payload's nested-worker tail.
+/// `getShimUrl` is what differs between the two (the page builds the blob from
+/// the embedded payload; a worker reuses the URL it was loaded from), and
+/// `watchCsp` is page-only: a worker running the payload is itself proof that
+/// this document's CSP admits `blob:` workers, so it has nothing to probe.
 const String _installerDefinition = r'''
-  function __wsInstallWorkerWrap(getShimUrl) {
+  function __wsInstallWorkerWrap(getShimUrl, watchCsp) {
     if (globalThis.__ws_worker_shim__) return;
     globalThis.__ws_worker_shim__ = true;
 
@@ -120,7 +134,62 @@ const String _installerDefinition = r'''
     // shared worker into N unshared ones and break the page.
     var _wrapped = new Map();
 
+    // Whether this document's CSP admits a `blob:` worker script at all.
+    // Refused means every wrapper is dead on arrival, and because the refusal
+    // is asynchronous the constructor below cannot fail open on it — so it is
+    // recorded here instead and read before wrapping anything else.
+    var _blobRefused = false;
+    var _blobProven = false;
+
+    // Starts one throwaway worker: a message back proves `blob:` workers run
+    // here, an error proves the CSP refuses them. Runs at document start so
+    // the answer is in before the site builds a worker of its own.
+    function probeBlobWorkers() {
+      var Real = globalThis.Worker;
+      if (typeof Real !== 'function') return;
+      try {
+        var url = URL.createObjectURL(new Blob(
+          ['postMessage(1);close();'], { type: 'text/javascript' }));
+        var probe = new Real(url);
+        var finish = function (refused) {
+          if (refused && !_blobProven) _blobRefused = true;
+          if (!refused) _blobProven = true;
+          try { probe.terminate(); } catch (e) {}
+          // Only ever after the load settled: revoking while the script is
+          // still in flight would fail the probe on a page that was fine.
+          try { URL.revokeObjectURL(url); } catch (e) {}
+        };
+        probe.onmessage = function () { finish(false); };
+        probe.onerror = function (e) {
+          try { e.preventDefault(); } catch (e2) {}
+          finish(true);
+        };
+      } catch (e) {
+        _blobRefused = true;
+      }
+    }
+
+    // Covers the window before the probe answers, and the directives it does
+    // not exercise: a refused `blob:` under anything that governs worker
+    // scripts says what the probe would have said. Ignored once the probe has
+    // seen a blob worker run, so a site that blocks blob *scripts* while
+    // allowing blob *workers* keeps its workers shimmed.
+    function watchBlobRefusals() {
+      if (typeof document === 'undefined' || !document.addEventListener) return;
+      document.addEventListener('securitypolicyviolation', function (e) {
+        var blocked = String(e.blockedURI || '');
+        if (blocked !== 'blob' && blocked.indexOf('blob:') !== 0) return;
+        var directive = String(e.effectiveDirective || e.violatedDirective || '');
+        if (/^(worker|child|script|default)-src/.test(directive) && !_blobProven) {
+          _blobRefused = true;
+        }
+      }, true);
+    }
+
     function wrap(script, isModule) {
+      // Null hands the page's own script to the real constructor: unshimmed,
+      // but a worker that starts (WORK-006).
+      if (_blobRefused) return null;
       var abs = new URL(String(script), globalThis.location.href).href;
       var key = (isModule ? 'm:' : 'c:') + abs;
       var hit = _wrapped.get(key);
@@ -145,8 +214,13 @@ const String _installerDefinition = r'''
                'import ' + JSON.stringify(shimUrl) + ';\n' +
                'import ' + JSON.stringify(abs) + ';\n';
       } else {
+        // The shim import is caught, the original's is not: a CSP that
+        // admits blob: workers but not blob: scripts must cost the spoof,
+        // never the site's worker. The handle goes with it, so a scope the
+        // payload never reached is not left with an own-property to find.
         body = 'self.__wsShimUrl = ' + JSON.stringify(shimUrl) + ';\n' +
-               'importScripts(' + JSON.stringify(shimUrl) + ');\n' +
+               'try { importScripts(' + JSON.stringify(shimUrl) + '); }\n' +
+               'catch (e) { try { delete self.__wsShimUrl; } catch (e2) {} }\n' +
                'importScripts(' + JSON.stringify(abs) + ');\n';
       }
       var url = URL.createObjectURL(new Blob([body], { type: 'text/javascript' }));
@@ -172,6 +246,11 @@ const String _installerDefinition = r'''
       } catch (e) {}
       asNative(Patched, name);
       try { globalThis[name] = Patched; } catch (e) {}
+    }
+
+    if (watchCsp) {
+      watchBlobRefusals();
+      probeBlobWorkers();
     }
 
     patch('Worker');

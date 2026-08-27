@@ -177,6 +177,27 @@ with no spoofing keeps the stock constructors and cannot be broken by the blob
 indirection. When wrapping throws, the original script SHALL be passed to the
 real constructor verbatim: a broken worker is worse than an unspoofed one.
 
+A CSP whose `worker-src` (or the `child-src`/`script-src`/`default-src` it falls
+back to) omits `blob:` refuses every wrapper, and chromium reports that refusal
+as an asynchronous `error` event on the worker rather than a constructor throw —
+so the fallback above never sees it and the site is left with a worker that
+never starts. No synchronous CSP query exists, so the page-side installer SHALL
+ask the engine instead: at document start it starts one throwaway `blob:` worker
+that messages back and closes itself. A refusal — that probe's `error` event, or
+a `securitypolicyviolation` naming a `blob:` URI under a directive that governs
+worker scripts — SHALL stop all further wrapping in that document, so every
+worker built afterwards receives the page's own script.
+
+A violation observed after the probe has seen a `blob:` worker run SHALL be
+ignored, so a site that refuses `blob:` *scripts* while admitting `blob:`
+*workers* keeps its workers shimmed. The payload SHALL NOT probe in worker
+scope: a worker running it is itself proof that the document admits `blob:`
+workers.
+
+In the classic wrapper the shim's `importScripts` SHALL be caught and the
+original's SHALL NOT, so a CSP that admits the wrapper but refuses what it
+imports also costs the spoof rather than the worker.
+
 #### Scenario: No shims, no patch
 
 **Given** a site with no active per-site shim
@@ -192,37 +213,41 @@ construction time
 **And** that worker is NOT shimmed — it reports the machine's real values while
 the document reports the spoofed ones
 
-This is the trade the requirement makes, not an implementation defect, but the
-cost is a live `WORK-002` disagreement and MUST be read as such: on any engine
-that refuses synchronously, every fail-open path is a fingerprinting escape.
-Which mode an engine picks is native — Chromium refuses a CSP-blocked `blob:`
-worker asynchronously, so the fallback never runs there. Both branches are
-pinned by `test/browser/worker_realm_escape.test.js`; the mode WKWebView and
-Android System WebView take is not yet established.
+#### Scenario: A blob-less CSP stops the wrapping instead of killing the worker
 
-#### Known gap: a CSP that forbids `blob:` workers breaks them outright
+Regression: messenger.com sets `worker-src` without `blob:`. Every wrapper was
+refused asynchronously, so no fallback ran and no worker started — the chat
+worker died and "verifying your PIN" hung with no error and no timeout.
 
-A site whose `worker-src` (or `default-src`) omits `blob:` blocks the wrapper
-script — the document records a violation naming `worker-src` and a `blob`
-blocked URI, on a page whose own worker script is same-origin and allowed. CSP
-reports that refusal as an asynchronous `error` event on the worker rather than a
-constructor throw, so the fail-open fallback above never runs and no worker
-starts at all. The spoof holds — no unshimmed scope appears — but the site's
-workers stop working.
+**Given** a page whose `worker-src` omits `blob:`
+**When** the installer's probe worker is refused at document start
+**And** the page then calls `new Worker('w.js')`, classic or module
+**Then** the real constructor receives `'w.js'` unchanged and the worker runs
+**And** the document records exactly one violation, naming the probe's `blob`
+under `worker-src`, not the site's own same-origin worker script
 
-Any fix MUST keep such workers shimmed, not merely running: the same page with
-`Worker` left unpatched gets a worker that starts and reports the real hardware
-while the document reports the spoof, which is the `WORK-002` disagreement this
-spec exists to prevent. Both halves are pinned by
-`test/browser/worker_realm_escape.test.js`.
+#### Scenario: A refused shim import does not take the worker with it
+
+**Given** a CSP admitting `blob:` workers but not `blob:` scripts
+**When** the wrapper's `importScripts` of the shim payload is refused
+**Then** the original script is still imported and the worker runs unshimmed
+
+Every branch above is the same trade, not an implementation defect, and the cost
+MUST be read as such: an unshimmed worker is a live `WORK-002` disagreement, and
+a fingerprinter reads the real hardware there while the document reports the
+spoof. It is taken only where the alternative is a worker that never starts, and
+only for the document that proved it. All branches are pinned by
+`test/browser/worker_realm_escape.test.js`, against a page whose CSP is the one
+messenger.com sends.
 
 ---
 
 ## Limitations
 
-- **CSP forbidding `blob:` workers.** Worker creation then fails. The failure
-  surfaces as an asynchronous `error` event, not a synchronous throw, so it
-  cannot be detected and retried; such sites keep unspoofed workers.
+- **CSP forbidding `blob:` workers.** No wrapper can preload the shim past such
+  a policy, so those workers run unshimmed. A worker built before the probe
+  answers — an inline script at the top of the document — still gets a wrapper
+  that never loads.
 - **Nested module workers.** Module workers receive the shim, but not the
   nested-propagation tail — `import.meta` cannot appear in the classic payload,
   so a module worker cannot learn its own URL.
@@ -245,3 +270,5 @@ spec exists to prevent. Both halves are pinned by
   fails if a payload shim dereferences `window`
 - `test/js/worker_shim.test.js` — installer tests under jsdom, and the payload
   executed in a simulated `WorkerGlobalScope` via `node:vm`
+- `test/browser/worker_realm_escape.test.js` — realm coverage and the CSP
+  branches under a real engine

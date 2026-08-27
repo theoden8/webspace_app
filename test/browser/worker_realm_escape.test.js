@@ -240,7 +240,7 @@ test('the installer markers are enumerable in worker scope too', async (t) => {
   t.todo('repo-wide: __ws* install markers enumerable via getOwnPropertyNames');
 });
 
-// ---------- documented gap ----------
+// ---------- CSP refusing blob: workers ----------
 
 // Models an engine that refuses a blob: worker at construction time
 // rather than asynchronously. Installed before the installer so it is
@@ -310,51 +310,89 @@ test('WORK-006 fail-open yields a working but UNSHIMMED worker', async (t) => {
 
 const NO_BLOB_CSP = "default-src 'self'; script-src 'self'; worker-src 'self'";
 
-test('KNOWN GAP: the wrapper blob is what a blob-less CSP refuses', async (t) => {
-  // The wrapper can only preload the shim by handing the constructor a
-  // blob: URL. A site that omits blob: from worker-src blocks that
-  // script, and because CSP surfaces the refusal as an async error event
-  // rather than a constructor throw, the fail-open fallback in WORK-006
-  // never runs — no worker starts.
-  //
-  // The violation report is what makes this a mechanism and not an
-  // inference: the refused URI is the wrapper's blob, under worker-src,
-  // on a page whose own worker script is same-origin and allowed.
-  await withPage(t, { csp: NO_BLOB_CSP }, async (page) => {
-    const r = await page.evaluate(async () => {
-      const violations = [];
-      document.addEventListener('securitypolicyviolation', (e) => violations.push(
-        { directive: e.violatedDirective, blocked: e.blockedURI }));
-      let outcome;
-      try {
-        const w = new Worker('/probe.js');
-        outcome = await new Promise((resolve) => {
-          w.onmessage = () => resolve('started');
-          w.onerror = () => resolve('blocked');
-          w.postMessage({ leaf: null });
-          setTimeout(() => resolve('timeout'), 5000);
-        });
-      } catch (e) {
-        outcome = `threw:${e.name}`;
-      }
-      return { outcome, violations };
-    });
+// Registered ahead of the installer so the probe's own violation, which
+// fires at document start, is recorded too.
+const RECORD_VIOLATIONS = `
+globalThis.__wsViolations = [];
+document.addEventListener('securitypolicyviolation', function (e) {
+  globalThis.__wsViolations.push(
+    { directive: e.violatedDirective, blocked: e.blockedURI });
+}, true);`;
 
-    assert.equal(r.outcome, 'blocked');
-    assert.deepEqual(r.violations, [{ directive: 'worker-src', blocked: 'blob' }],
-      'CSP must name the wrapper blob, not the site\'s own worker script');
+async function withShimmedPage(t, csp, fn) {
+  if (!requireBrowser(browser, t)) return;
+  const victim = await startVictim({ csp, assets: ASSETS });
+  const page = await browser.browser.newPage();
+  try {
+    await page.evaluateOnNewDocument(RECORD_VIOLATIONS);
+    await page.evaluateOnNewDocument(PAYLOAD);
+    await page.evaluateOnNewDocument(INSTALLER);
+    await page.goto(victim.url, { waitUntil: 'load' });
+    await fn(page, victim);
+  } finally {
+    await page.close();
+    await victim.close();
+  }
+}
+
+test('a blob-less CSP costs the shim, not the site\'s workers', async (t) => {
+  // messenger.com: worker-src without blob: refuses every wrapper, and
+  // chromium reports that refusal as an async error event rather than a
+  // constructor throw, so the WORK-006 fallback never saw it and no
+  // worker started at all — the chat worker died and the PIN prompt hung.
+  //
+  // The installer now asks the engine first, with one throwaway blob
+  // worker at document start. The violation report is what makes this a
+  // mechanism and not an inference: the only refused URI is that probe's
+  // blob, under worker-src, on a page whose own worker script is
+  // same-origin and allowed.
+  await withShimmedPage(t, NO_BLOB_CSP, async (page) => {
+    const beforeWorker = await page.evaluate(() => globalThis.__wsViolations.slice());
+    assert.deepEqual(beforeWorker, [{ directive: 'worker-src', blocked: 'blob' }],
+      'the probe must be what the CSP refuses, and it must have run by load');
+
+    const doc = await pageVals(page);
+    const classic = await page.evaluate(runWorker, null, NO_NEST);
+    const module = await page.evaluate(runWorker, { type: 'module' }, NO_NEST);
+
+    for (const [kind, r] of [['classic', classic], ['module', module]]) {
+      assert.ok(r.mine, `${kind}: the site's worker must start`);
+      // The cost, pinned rather than implied: WORK-006 buys a live worker
+      // with a page/worker disagreement, which is the signal WORK-002
+      // exists to deny. No wrapper can preload a shim past this CSP.
+      assert.equal(r.mine.shimInstalled, false, `${kind}: expected the fallback`);
+      assert.notEqual(r.mine.hardwareConcurrency, doc.hardwareConcurrency,
+        `${kind}: the fallback worker is the one leaking real values`);
+    }
+
+    assert.equal(await page.evaluate(() => globalThis.__wsViolations.length), 1,
+      'no wrapper may be handed to the constructor after the refusal');
   });
 });
 
-test('PREMISE: the same page under the same CSP gets a working worker '
-  + 'without the wrapper — so falling back would be an escape, not a fix',
-  async (t) => {
-    // Shim the document but leave Worker unpatched, which is what a
-    // "just fall back to the original script" fix would amount to here.
-    // The worker starts, and reports the real hardware while the document
-    // reports the spoof — exactly the page/worker disagreement WORK-002
-    // exists to prevent. Whatever fixes the breakage above has to keep
-    // these workers shimmed rather than merely running.
+// worker-src admits the wrapper, script-src refuses what it imports.
+const NO_BLOB_SCRIPT_CSP =
+  "default-src 'self'; script-src 'self'; worker-src 'self' blob:";
+
+test('a refused shim import leaves the worker running, unshimmed', async (t) => {
+  // The wrapper starts here — it is the shim's importScripts that CSP
+  // kills, inside a blob worker that inherited the document's policy.
+  // Uncaught, that takes the site's own script down with it, which is the
+  // same breakage one checkpoint later.
+  await withShimmedPage(t, NO_BLOB_SCRIPT_CSP, async (page) => {
+    const doc = await pageVals(page);
+    const { mine } = await page.evaluate(runWorker, null, NO_NEST);
+    assert.ok(mine, 'the worker must start despite the refused shim import');
+    assert.equal(mine.shimInstalled, false);
+    assert.notEqual(mine.hardwareConcurrency, doc.hardwareConcurrency);
+  });
+});
+
+test('PREMISE: the fallback is exactly an unpatched Worker', async (t) => {
+    // Shim the document but leave Worker unpatched — what the fallback
+    // above amounts to. The worker starts and reports the real hardware
+    // while the document reports the spoof, so the assertions above are
+    // measuring the trade, not a vacuous agreement.
     if (!requireBrowser(browser, t)) return;
     const victim = await startVictim({ csp: NO_BLOB_CSP, assets: ASSETS });
     const page = await browser.browser.newPage();

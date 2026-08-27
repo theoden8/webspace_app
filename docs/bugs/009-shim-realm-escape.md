@@ -62,6 +62,25 @@ path — page/worker agreement in one flavour is not evidence for another.**
    children, service workers, and `about:blank` / `srcdoc` / sandboxed frames
    are not yet compared against the document.
 
+3. **2026-08-27 — the blob-less-CSP refusal is detected, and falls open**
+   ([lib/services/worker_shim.dart](../../lib/services/worker_shim.dart)).
+   The page-side installer starts one throwaway `blob:` worker at document start
+   and records what the engine says. A refusal — that probe's `error` event, or a
+   `securitypolicyviolation` naming a `blob:` URI under a directive that governs
+   worker scripts — stops all further wrapping in that document, and the classic
+   wrapper's shim `importScripts` is now caught so a refusal one checkpoint later
+   costs the same thing. *Why:* messenger.com sends `worker-src` without `blob:`.
+   Every wrapper was refused asynchronously, no `WORK-006` fallback ran, and the
+   chat worker never started: the account stayed logged in while "Enter your PIN
+   to restore chats" sat on "verifying…" forever, with no error and no timeout
+   (issue #560). *Why partial:* it trades this breakage for the escape listed
+   below it. Under such a CSP the worker now runs unshimmed and reports the real
+   hardware against a spoofed document. No wrapper shape can preload a shim past
+   that policy — closing it means delivering the shim *with* the worker script
+   (a network-layer rewrite of the response) instead of in place of it. And a
+   worker built before the probe answers, from an inline script at the top of the
+   document, still gets a wrapper that never loads.
+
 ## Known open gaps
 
 - **Realms not yet compared against the document:** workers spawned by a
@@ -70,27 +89,28 @@ path — page/worker agreement in one flavour is not evidence for another.**
   browser tier can only model injection scope, not reproduce it — the native
   `forMainFrameOnly` / all-frames decision is what actually settles frames, so
   a real-device check is the honest gate there.
-- **A site can break its own workers to opt out of the wrapper.** A CSP whose
-  `worker-src` omits `blob:` blocks the wrapper script, and because CSP surfaces
-  that as an async `error` event rather than a constructor throw, the fail-open
-  fallback in `WORK-006` never runs and no worker starts. No unshimmed realm
-  appears, so the spoof holds, but the site's workers stop working. The mechanism
-  is pinned by the violation report itself (`worker-src`, blocked URI `blob`, on
-  a page whose own worker script is allowed), and the trap is pinned beside it:
-  the same page with `Worker` left unpatched gets a worker that starts and reads
-  the real hardware, so "fall back to the original script" would convert this
-  into a live escape. Both in `test/browser/worker_realm_escape.test.js`.
+- **A site can opt its workers out of the shim with one directive.** A CSP whose
+  `worker-src` omits `blob:` refuses every wrapper. Since attempt 3 the installer
+  detects that and hands the constructor the site's own script, so the workers
+  run — unshimmed, which is a live page/worker disagreement the site chose to
+  create. It is the widest deliberate hole, and it costs a site one directive to
+  open. Closing it means delivering the shim with the worker script rather than
+  instead of it: page JS cannot, since it cannot serve a same-origin URL, so it
+  would have to be the network layer rewriting the response (Android has
+  `WebInterceptPlugin`; WKWebView has no equivalent for http(s)). Pinned in
+  `test/browser/worker_realm_escape.test.js` against messenger.com's CSP shape.
 - **The fail-open path (`WORK-006`) is itself an escape where it fires.** When
   wrapping fails synchronously — `URL.createObjectURL` throwing, or an engine
   refusing a `blob:` worker at construction — the original script is handed to
   the real constructor and the resulting worker runs unshimmed, reporting the
   real hardware against a spoofed document. The spec accepts that trade
   explicitly ("a broken worker is worse than an unspoofed one"), so this is a
-  design decision to revisit rather than a bug to patch; it is listed here
-  because it is the widest remaining hole and its reach depends on a native
-  behavior nobody has measured. Chromium takes the async branch under CSP, so
-  the fallback does not fire there. **Unknown: which branch WKWebView and
-  Android System WebView take.** Both branches are pinned in
+  design decision to revisit rather than a bug to patch. Since attempt 3 it also
+  fires, deliberately, once the CSP probe reports a refusal — which is what
+  widened it from an engine quirk to something any site can trigger. **Unknown:
+  which branch WKWebView and Android System WebView take**; on WebKit a
+  synchronous refusal reaches the same fallback one step earlier, so the outcome
+  matches, but nobody has measured it. All branches are pinned in
   `test/browser/worker_realm_escape.test.js`; settling the native mode needs a
   device.
 
