@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Oopmaak en vertoon",
   "behaviourSummaryNothingOn": "Niks geaktiveer nie",
   "siteSettingsSectionNetwork": "Netwerk",
-  "siteSettingsSectionSite": "Werf"
+  "siteSettingsSectionSite": "Werf",
+  "homeImportGlobalProxyWarning": "Hierdie rugsteun stel 'n app-wye uitgaande proxy in: {address}. Elke webwerf wat nie sy eie proxy het nie, sal daardeur gestuur word.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{Hierdie rugsteun installeer 1 gebruikerskrip. Dit word afgeskakel bygevoeg — hersien dit voordat jy dit aanskakel.} other{Hierdie rugsteun installeer {count} gebruikerskripte. Hulle word afgeskakel bygevoeg — hersien hulle voordat jy hulle aanskakel.}}",
+  "homeQrReviewTitle": "Hersien gedeelde webwerf-instellings",
+  "homeQrReviewBody": "Hierdie kode is geskryf deur wie ook al dit gedeel het, en dit kies hierdie webwerf se privaatheidsinstellings. Gaan hulle na voordat jy byvoeg.",
+  "homeQrReviewUrl": "Adres: {url}",
+  "homeQrReviewName": "Naam: {name}",
+  "homeQrReviewProxy": "Stuur hierdie webwerf se verkeer deur 'n proxy: {address}",
+  "homeQrReviewTurnsOff": "Skakel af: {settings}",
+  "homeQrReviewTurnsOn": "Skakel aan: {settings}"
 }

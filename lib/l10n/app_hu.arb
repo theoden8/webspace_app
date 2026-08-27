@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Megnyitás és megjelenítés",
   "behaviourSummaryNothingOn": "Semmi sincs bekapcsolva",
   "siteSettingsSectionNetwork": "Hálózat",
-  "siteSettingsSectionSite": "Oldal"
+  "siteSettingsSectionSite": "Oldal",
+  "homeImportGlobalProxyWarning": "Ez a biztonsági mentés alkalmazásszintű kimenő proxyt állít be: {address}. Minden webhely, amelynek nincs saját proxyja, ezen keresztül kapcsolódik.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{Ez a biztonsági mentés 1 felhasználói szkriptet telepít. Kikapcsolt állapotban adja hozzá — nézze át, mielőtt bekapcsolja.} other{Ez a biztonsági mentés {count} felhasználói szkriptet telepít. Kikapcsolt állapotban adja hozzá őket — nézze át őket, mielőtt bekapcsolja.}}",
+  "homeQrReviewTitle": "Megosztott webhelybeállítások ellenőrzése",
+  "homeQrReviewBody": "Ezt a kódot az írta, aki megosztotta, és ez választja ki a webhely adatvédelmi beállításait. Ellenőrizze őket a hozzáadás előtt.",
+  "homeQrReviewUrl": "Cím: {url}",
+  "homeQrReviewName": "Név: {name}",
+  "homeQrReviewProxy": "A webhely forgalmát proxyn keresztül küldi: {address}",
+  "homeQrReviewTurnsOff": "Kikapcsolja: {settings}",
+  "homeQrReviewTurnsOn": "Bekapcsolja: {settings}"
 }

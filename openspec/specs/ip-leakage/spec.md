@@ -109,6 +109,35 @@ a recording fake (see `test/outbound_http_test.dart` and
 runs
 **Then** the recording fake observes `clientFor(HTTP 10.0.0.1:8080)`
 
+#### Scenario: Favicon bytes are rendered from the proxied client
+
+**Given** site "Acme" has proxy `HTTP 10.0.0.1:8080`
+**And** the winning favicon URL for "Acme" points at a host the page chose
+**When** the drawer, tab strip or site list renders that favicon
+**Then** the recording fake observes `clientFor(HTTP 10.0.0.1:8080)`
+**And** the image widget issues no HTTP request of its own
+
+#### Scenario: Blocked client renders the fallback icon
+
+**Given** site "Acme" has a proxy the factory cannot honor
+**When** its favicon is rendered
+**Then** the placeholder gives way to the fallback icon
+**And** no direct (unproxied) request is made for the icon
+
+#### Scenario: Timezone dataset download passes global proxy
+
+**Given** the app-global outbound proxy is `HTTP 10.0.0.1:8080`
+**When** the user taps "Download timezone data"
+**Then** the recording fake observes `clientFor(HTTP 10.0.0.1:8080)`
+**And** a `Blocked` result aborts the download and returns false
+
+#### Scenario: User-script editor download passes the site proxy
+
+**Given** the user saves a script whose URL source has not been fetched yet
+**When** the editor downloads that URL
+**Then** the recording fake observes the site's resolved proxy
+**And** a `Blocked` result surfaces its reason instead of downloading
+
 #### Scenario: OSM map tiles pass global proxy
 
 **Given** the app-global outbound proxy is `HTTP 10.0.0.1:8080`
@@ -116,6 +145,39 @@ runs
 **Then** the picker constructs a `NetworkTileProvider` whose `httpClient`
 came from `outboundHttp.clientFor(HTTP 10.0.0.1:8080)`
 **And** every subsequent tile request goes through that client
+
+#### Scenario: Media-session artwork passes the site proxy
+
+**Given** site "Acme" has proxy `HTTP 10.0.0.1:8080`
+**And** its page reports playback with an `artwork` URL
+**When** `MediaSessionService.report` fetches the artwork
+**Then** the recording fake observes `clientFor(HTTP 10.0.0.1:8080)`
+**And** a `Blocked` result drops the artwork and still raises the
+notification, rather than fetching direct
+
+#### Scenario: Page-title probe passes the resolved proxy
+
+**Given** the app-global outbound proxy is `SOCKS5 127.0.0.1:9050`
+**When** `getPageTitle` runs — from add-site, the title refresh in the site
+editor, the shortcut create-site path, or `_executeCreateSite` handling an
+inbound shared link
+**Then** the recording fake observes `clientFor(SOCKS5 127.0.0.1:9050)` for a
+site whose proxy is `DEFAULT`, and the site's own proxy otherwise
+**And** a `Blocked` result skips the title fetch and returns null
+
+**Because** the URL comes from a share intent or deep link on the
+`_executeCreateSite` path, so a direct `http.get` handed an
+attacker-authored host the device IP of a user who had configured Tor.
+
+#### Scenario: Artwork cannot be used to probe the local network
+
+**Given** a page reports playback with an `artwork` URL whose host is a
+loopback, RFC1918, unique-local or link-local literal (including
+`169.254.169.254`)
+**When** `MediaSessionService.report` runs
+**Then** no outbound client is requested and no request is made
+**Because** the URL is page-supplied and the media-session shim runs in
+every frame
 
 ---
 
@@ -255,6 +317,19 @@ documented gap that the implementation already avoids leaking through.
 **Then** the destination hostname is sent through the SOCKS5 server
 **And** the local resolver is **not** asked to resolve it
 
+#### Scenario: Add-site preview does not probe the local resolver
+
+**Given** any non-DEFAULT proxy resolves for the app
+**When** the user types a hostname into Add Site and the preview updates
+**Then** no `InternetAddress.lookup` is issued for that hostname
+**And** the preview card is shown without a reachability probe
+
+#### Scenario: Add-site preview still probes with no proxy
+
+**Given** no proxy is configured
+**When** the user types a hostname that does not resolve
+**Then** the reachability probe runs and the preview card stays hidden
+
 ---
 
 ### Requirement: LEAK-007 - Coverage matrix
@@ -268,13 +343,16 @@ spec violation.
 | Webview navigation (HTTP/HTTPS/CONNECT) | Site load, in-page request | Per-site (DEFAULT → global) | `ProxyManager.setProxySettings`, `lib/services/webview.dart:164` |
 | Webview WebRTC | RTCPeerConnection / STUN | Per-site `webRtcPolicy` | `lib/services/location_spoof_service.dart` |
 | Favicon: DDG, Google, FaviconFinder, SVG body | `getFaviconUrl(Stream)`, `getSvgContent`, `FaviconFinder.getAll` | Per-site (DEFAULT → global) | `lib/services/icon_service.dart`, `lib/third_party/favicon/favicon.dart` |
+| Favicon raster render | Drawer / tab strip / site list paints an icon | Per-site (DEFAULT → global) | `getIconBytes` in `lib/services/icon_service.dart`, `lib/screens/favicon_image_io.dart` |
 | Per-site downloads (HTTP/HTTPS) | `onDownloadStartRequest` | Per-site (DEFAULT → global) | `DownloadEngine`, `lib/services/webview.dart:_handleHttpDownload` |
 | User-script remote fetches | `__ws_s_*` / `__ws_f_*` JS handlers | Per-site (DEFAULT → global) | `lib/services/user_script_service.dart` |
+| User-script URL-source download | Saving a script with a URL in the editor | Per-site (DEFAULT → global) | `fetchUserScriptSource`, `lib/screens/user_scripts.dart` |
 | OSM tile fetches | Location-picker "Load map" | Global only | `lib/screens/location_picker.dart` |
 | ClearURLs rules download | "Update ClearURLs rules" | Global only | `ClearUrlService.downloadRules` |
 | DNS blocklist download | "Update DNS blocklist" | Global only | `DnsBlockService.downloadList` |
 | Content-blocker list download | "Update content-blocker list" | Global only | `ContentBlockerService.downloadList` |
 | LocalCDN catalog download | LocalCDN cache populate | Global only | `LocalCdnService._downloadAndCache` |
+| Timezone polygon dataset download | "Download timezone data" | Global only | `TimezoneLocationService.download` |
 
 #### Scenario: New outbound code path
 
@@ -284,6 +362,33 @@ spec violation.
     appropriate per-site or global proxy, **or**
   - the spec's coverage matrix gains a row justifying why the call is
     exempt (e.g. localhost-only, app-bundle resource fetch)
+
+---
+
+### Requirement: LEAK-008 - Proxy hops authenticate the far end
+
+Any hop the app terminates to a *proxy* — as opposed to an origin — SHALL
+authenticate that proxy's identity before writing anything that identifies the
+user or their destination. On Android the credentialed-proxy relay is the only
+such hop the app terminates itself, and its TLS handshake to an HTTPS upstream
+MUST verify the certificate identity against the configured upstream hostname
+(the normative requirement is [PROXY-012](../proxy/spec.md)).
+
+An unverified handshake there is a total compromise of the proxy's purpose,
+not a partial one: the impostor collects the proxy credentials, every
+`CONNECT host:port` the proxy existed to conceal, and every plaintext body.
+Chain-only validation does not prevent it — any attacker holding a valid
+certificate for a name they own passes it.
+
+#### Scenario: Impostor upstream learns nothing
+
+**Given** an on-path attacker answers for the configured HTTPS upstream with a
+chain-valid certificate for a domain the attacker owns
+**When** the webview issues any request through the relay
+**Then** the relay's handshake fails before its first write
+**And** the attacker observes no proxy credentials and no `CONNECT` target
+**And** the client receives `502` — the relay does not fall back to a direct
+connection
 
 ---
 

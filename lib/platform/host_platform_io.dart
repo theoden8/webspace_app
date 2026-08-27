@@ -89,30 +89,6 @@ String hostReadFileTextSync(String path) => io.File(path).readAsStringSync();
 Future<void> hostWriteFileText(String path, String contents) =>
     io.File(path).writeAsString(contents);
 
-/// Best-effort bounded GET: returns null on any non-200, timeout, or a body
-/// that exceeds [maxBytes]. Moved here verbatim from MediaSessionService so
-/// the artwork fetch keeps its caps and its direct (unproxied) client.
-Future<Uint8List?> hostFetchBounded(Uri uri, int maxBytes,
-    {Duration timeout = const Duration(seconds: 5)}) async {
-  io.HttpClient? client;
-  try {
-    client = io.HttpClient()..connectionTimeout = timeout;
-    final req = await client.getUrl(uri).timeout(timeout);
-    final resp = await req.close().timeout(timeout);
-    if (resp.statusCode != 200) return null;
-    final builder = BytesBuilder(copy: false);
-    await for (final chunk in resp.timeout(timeout)) {
-      builder.add(chunk);
-      if (builder.length > maxBytes) return null;
-    }
-    return builder.takeBytes();
-  } catch (_) {
-    return null;
-  } finally {
-    client?.close(force: true);
-  }
-}
-
 Future<String> hostReadFileText(String path) => io.File(path).readAsString();
 
 /// Whether a candidate icon URL can be checked with a HEAD request before use.

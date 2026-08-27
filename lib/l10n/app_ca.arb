@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Obertura i visualització",
   "behaviourSummaryNothingOn": "Res activat",
   "siteSettingsSectionNetwork": "Xarxa",
-  "siteSettingsSectionSite": "Lloc"
+  "siteSettingsSectionSite": "Lloc",
+  "homeImportGlobalProxyWarning": "Aquesta còpia de seguretat estableix un servidor intermediari de sortida per a tota l'app: {address}. Tots els llocs que no tinguin un servidor intermediari propi hi passaran.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{Aquesta còpia de seguretat instal·la 1 script d'usuari. S'afegeix desactivat: reviseu-lo abans d'activar-lo.} other{Aquesta còpia de seguretat instal·la {count} scripts d'usuari. S'afegeixen desactivats: reviseu-los abans d'activar-los.}}",
+  "homeQrReviewTitle": "Reviseu la configuració compartida del lloc",
+  "homeQrReviewBody": "Aquest codi l'ha escrit qui l'ha compartit i tria la configuració de privadesa d'aquest lloc. Comproveu-la abans d'afegir-lo.",
+  "homeQrReviewUrl": "Adreça: {url}",
+  "homeQrReviewName": "Nom: {name}",
+  "homeQrReviewProxy": "Envia el trànsit d'aquest lloc a través d'un servidor intermediari: {address}",
+  "homeQrReviewTurnsOff": "Desactiva: {settings}",
+  "homeQrReviewTurnsOn": "Activa: {settings}"
 }

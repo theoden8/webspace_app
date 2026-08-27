@@ -1,5 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:encrypt/encrypt.dart' as encrypt;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/file_store_io.dart';
 import 'package:webspace/services/html_import_storage.dart';
@@ -220,8 +223,8 @@ void main() {
     });
 
     test('different siteIds with identical bytes stay independent', () async {
-      // Sanity: fixed-IV AES means identical ciphertexts for identical
-      // plaintexts. The siteId-keyed filename is what disambiguates.
+      // The siteId-keyed filename is what disambiguates; under GCM the two
+      // ciphertexts also differ (see the at-rest group below).
       final s = await newStorage();
       await s.saveHtml('a', '<same>', 'file:///x.html');
       await s.saveHtml('b', '<same>', 'file:///x.html');
@@ -230,6 +233,100 @@ void main() {
       expect(await s.hasImport('a'), isFalse);
       expect(await s.hasImport('b'), isTrue);
       expect(s.getHtmlSync('b'), '<same>');
+    });
+  });
+
+  // At-rest shape. The store used AES-CBC under an IV that was the first 16
+  // bytes of the key: constant for the key's lifetime, so identical imports
+  // produced identical files and a rewrite shared a byte-identical prefix with
+  // its predecessor up to the first changed block. CBC also has no integrity,
+  // and an import goes straight into the webview as InAppWebViewInitialData.
+  group('HtmlImportStorage encryption at rest', () {
+    const keyEntry = 'html_import_encryption_key';
+
+    Future<String> fileContents(String siteId) =>
+        File('${tempDir.path}/html_imports/$siteId.enc').readAsString();
+
+    /// A blob in the pre-GCM format: AES-CBC under IV = key[0..16].
+    Future<void> writeLegacyBlob(String siteId, String plaintext) async {
+      final keyBytes = base64.decode(fakeStorage.storage[keyEntry]!);
+      final encrypter = encrypt.Encrypter(
+        encrypt.AES(encrypt.Key(Uint8List.fromList(keyBytes)),
+            mode: encrypt.AESMode.cbc),
+      );
+      final iv = encrypt.IV(Uint8List.fromList(keyBytes.sublist(0, 16)));
+      await IoFileStore('html_imports', overrideRoot: tempDir)
+          .writeText('$siteId.enc', encrypter.encrypt(plaintext, iv: iv).base64);
+    }
+
+    test('identical imports do not produce identical ciphertext', () async {
+      final s = await newStorage();
+      await s.saveHtml('a', '<same>', 'file:///x.html');
+      await s.saveHtml('b', '<same>', 'file:///x.html');
+      expect(await fileContents('a'), isNot(equals(await fileContents('b'))));
+    });
+
+    test('rewriting the same import shares no prefix with the previous bytes',
+        () async {
+      final s = await newStorage();
+      await s.saveHtml('a', '<p>one</p>', 'file:///x.html');
+      final first = await fileContents('a');
+      await s.saveHtml('a', '<p>one</p>', 'file:///x.html');
+      final second = await fileContents('a');
+      expect(second, isNot(equals(first)));
+      expect(second.substring(0, 8), isNot(equals(first.substring(0, 8))),
+          reason: 'a fresh nonce per write must change the leading bytes');
+    });
+
+    test('a legacy AES-CBC blob still reads', () async {
+      final s = await newStorage();
+      await s.saveHtml('a', '<p>seed</p>', 'file:///a.html');
+      await writeLegacyBlob('a', 'file:///legacy.html\n<p>legacy</p>');
+
+      final reopened = await newStorage();
+      final loaded = await reopened.loadHtml('a');
+      expect(loaded, isNotNull);
+      expect(loaded!.$1, 'file:///legacy.html');
+      expect(loaded.$2, '<p>legacy</p>');
+    });
+
+    test('a legacy blob is rewritten under GCM on first read', () async {
+      final s = await newStorage();
+      await s.saveHtml('a', '<p>seed</p>', 'file:///a.html');
+      await writeLegacyBlob('a', 'file:///legacy.html\n<p>legacy</p>');
+      final before = await fileContents('a');
+
+      final reopened = await newStorage();
+      await reopened.preloadAll();
+
+      final after = await fileContents('a');
+      expect(after, isNot(equals(before)),
+          reason: 'the CBC blob must not survive the first successful read');
+      expect(reopened.getHtmlSync('a'), '<p>legacy</p>');
+
+      // And the rewritten bytes are readable by an instance with no legacy
+      // path taken: a plain GCM round-trip.
+      final third = await newStorage();
+      expect((await third.loadHtml('a'))!.$2, '<p>legacy</p>');
+    });
+
+    test('a tampered blob reads as absent, not as attacker-chosen HTML',
+        () async {
+      final s = await newStorage();
+      await s.saveHtml('a', '<p>real</p>', 'file:///a.html');
+      final wire = base64.decode(await fileContents('a'));
+      // Flip a ciphertext byte, past the 12-byte nonce.
+      wire[wire.length - 20] ^= 0x01;
+      await IoFileStore('html_imports', overrideRoot: tempDir)
+          .writeText('a.enc', base64.encode(wire));
+
+      final reopened = await newStorage();
+      expect(await reopened.loadHtml('a'), isNull);
+      await reopened.preloadAll();
+      expect(reopened.getHtmlSync('a'), isNull);
+      // Never deleted: imports are the user's only copy (see the robustness
+      // group above).
+      expect(await File('${tempDir.path}/html_imports/a.enc').exists(), isTrue);
     });
   });
 }

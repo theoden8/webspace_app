@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "起動と表示",
   "behaviourSummaryNothingOn": "有効な項目なし",
   "siteSettingsSectionNetwork": "ネットワーク",
-  "siteSettingsSectionSite": "サイト"
+  "siteSettingsSectionSite": "サイト",
+  "homeImportGlobalProxyWarning": "このバックアップはアプリ全体の送信プロキシを設定します: {address}。独自のプロキシを持たないサイトはすべて、このプロキシを経由します。",
+  "homeImportUserScriptsWarning": "{count, plural, =1{このバックアップはユーザースクリプトを 1 件インストールします。オフの状態で追加されるので、有効にする前に内容を確認してください。} other{このバックアップはユーザースクリプトを {count} 件インストールします。オフの状態で追加されるので、有効にする前に内容を確認してください。}}",
+  "homeQrReviewTitle": "共有されたサイト設定を確認",
+  "homeQrReviewBody": "このコードは共有した人が作成したもので、このサイトのプライバシー設定を決めます。追加する前に内容を確認してください。",
+  "homeQrReviewUrl": "アドレス: {url}",
+  "homeQrReviewName": "名前: {name}",
+  "homeQrReviewProxy": "このサイトの通信をプロキシ経由で送信します: {address}",
+  "homeQrReviewTurnsOff": "オフにする項目: {settings}",
+  "homeQrReviewTurnsOn": "オンにする項目: {settings}"
 }

@@ -352,6 +352,13 @@
       return new _nativeDTF(locales, options);
     }
     PatchedDTF.prototype = _nativeDTF.prototype;
+    // The native prototype object carries an own `constructor` pointing back at
+    // the unpatched constructor, so leaving it reachable hands the page
+    // `Intl.DateTimeFormat.prototype.constructor` as an unspoofed formatter.
+    try {
+      Object.defineProperty(PatchedDTF.prototype, 'constructor',
+        { value: PatchedDTF, writable: true, configurable: true });
+    } catch (e) {}
     PatchedDTF.supportedLocalesOf = _nativeDTF.supportedLocalesOf
       ? _nativeDTF.supportedLocalesOf.bind(_nativeDTF) : undefined;
     asNative(PatchedDTF, 'DateTimeFormat');
@@ -391,6 +398,13 @@
         return pc;
       };
       _Patched.prototype = _RealRTC.prototype;
+      // Without this the native constructor stays reachable as
+      // `RTCPeerConnection.prototype.constructor`, and a peer connection built
+      // through it gathers host candidates outside the proxy.
+      try {
+        Object.defineProperty(_Patched.prototype, 'constructor',
+          { value: _Patched, writable: true, configurable: true });
+      } catch (e) {}
       asNative(_Patched, 'RTCPeerConnection');
       try { globalThis.RTCPeerConnection = _Patched; } catch (e) {}
       try { globalThis.webkitRTCPeerConnection = _Patched; } catch (e) {}

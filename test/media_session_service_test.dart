@@ -1,14 +1,31 @@
-import 'dart:io';
-
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/media_session_service.dart';
+import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/settings/proxy.dart';
 
-/// Restores real sockets inside a block: TestWidgetsFlutterBinding installs
-/// HttpOverrides that answer every request with a 400, which would make the
-/// artwork tests below pass for the wrong reason.
-class _RealHttpOverrides extends HttpOverrides {}
+/// Models the outbound seam: records the [UserProxySettings] each call asks
+/// for, and can refuse a client the way the real factory refuses a proxy it
+/// cannot honor.
+class _RecordingOutbound implements OutboundHttpFactory {
+  final List<UserProxySettings> queries = [];
+  http.Response Function(http.Request request) responder =
+      (_) => http.Response('', 404);
+  bool block = false;
+
+  UserProxySettings? get lastQuery => queries.isEmpty ? null : queries.last;
+
+  @override
+  OutboundClient clientFor(UserProxySettings settings) {
+    queries.add(settings);
+    if (block) return const OutboundClientBlocked('blocked by test fake');
+    return OutboundClientReady(MockClient((req) async => responder(req)));
+  }
+}
 
 /// BGAUDIO-006 channel contract. The shim tier proves the page reports its
 /// playback state; the emulator tier proves the notification reaches the
@@ -39,6 +56,7 @@ void main() {
     String artworkUrl = '',
     String frame = 'main',
     List<String>? js,
+    UserProxySettings? proxy,
   }) {
     return service.report(
       siteId: siteId,
@@ -49,6 +67,7 @@ void main() {
       artist: 'Artist',
       album: 'Album',
       artworkUrl: artworkUrl,
+      proxy: proxy,
     );
   }
 
@@ -168,48 +187,113 @@ void main() {
   });
 
   group('artwork', () {
+    late _RecordingOutbound fake;
+
+    setUp(() {
+      fake = _RecordingOutbound();
+      outboundHttp = fake;
+      GlobalOutboundProxy.resetForTest();
+    });
+
+    tearDown(() {
+      resetOutboundHttp();
+      GlobalOutboundProxy.resetForTest();
+    });
+
     test('a non-http artwork URL is dropped without a fetch', () async {
       await reportPlaying('a', artworkUrl: 'data:image/png;base64,AAAA');
       expect((controlCalls().single.arguments as Map)['artwork'], isNull);
+      expect(fake.queries, isEmpty);
     });
 
     test('an unreachable artwork URL still raises the notification', () async {
-      // Bind and immediately release a port so the connect is refused rather
-      // than hanging: the claim is that a dead artwork host cannot stop the
-      // notification from going up.
-      final probe = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
-      final deadPort = probe.port;
-      await probe.close();
+      fake.responder = (_) => throw http.ClientException('refused');
 
-      await HttpOverrides.runWithHttpOverrides(
-        () => reportPlaying('a',
-            artworkUrl: 'http://127.0.0.1:$deadPort/art.png'),
-        _RealHttpOverrides(),
-      );
+      await reportPlaying('a', artworkUrl: 'https://art.example/art.png');
 
       expect(controlCalls().map((c) => c.method), ['start']);
       expect((controlCalls().single.arguments as Map)['artwork'], isNull);
     });
 
     test('artwork bytes are forwarded as a byte buffer', () async {
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      server.listen((req) {
-        req.response
-          ..add(<int>[1, 2, 3, 4])
-          ..close();
-      });
-      addTearDown(() => server.close(force: true));
+      fake.responder = (_) => http.Response.bytes(<int>[1, 2, 3, 4], 200);
 
-      await HttpOverrides.runWithHttpOverrides(
-        () => reportPlaying('a',
-            artworkUrl: 'http://127.0.0.1:${server.port}/art.png'),
-        _RealHttpOverrides(),
-      );
+      await reportPlaying('a', artworkUrl: 'https://art.example/art.png');
 
       final artwork = (controlCalls().single.arguments as Map)['artwork'];
       expect(artwork, isA<Uint8List>(),
           reason: 'the Kotlin side reads this as ByteArray');
       expect(artwork, <int>[1, 2, 3, 4]);
+    });
+
+    // LEAK-002: the artwork URL is page-supplied and the media-session shim
+    // runs in every frame, so this is an attacker-reachable outbound request.
+    test("the site's proxy is what the fetch asks for", () async {
+      fake.responder = (_) => http.Response.bytes(<int>[9], 200);
+
+      await reportPlaying(
+        'a',
+        artworkUrl: 'https://art.example/art.png',
+        proxy: UserProxySettings(type: ProxyType.HTTP, address: '10.0.0.1:8080'),
+      );
+
+      expect(fake.lastQuery!.type, ProxyType.HTTP);
+      expect(fake.lastQuery!.address, '10.0.0.1:8080');
+    });
+
+    test('a per-site DEFAULT proxy resolves to the global outbound proxy',
+        () async {
+      GlobalOutboundProxy.setForTest(
+          UserProxySettings(type: ProxyType.HTTP, address: '192.168.1.10:3128'));
+      fake.responder = (_) => http.Response.bytes(<int>[9], 200);
+
+      await reportPlaying(
+        'a',
+        artworkUrl: 'https://art.example/art.png',
+        proxy: UserProxySettings(type: ProxyType.DEFAULT),
+      );
+
+      expect(fake.lastQuery!.address, '192.168.1.10:3128');
+    });
+
+    test('a proxy the factory refuses drops the artwork, never falls back',
+        () async {
+      fake.block = true;
+      fake.responder = (_) => http.Response.bytes(<int>[1, 2, 3, 4], 200);
+
+      await reportPlaying(
+        'a',
+        artworkUrl: 'https://art.example/art.png',
+        proxy: UserProxySettings(type: ProxyType.SOCKS5, address: 'nonsense'),
+      );
+
+      expect(controlCalls().map((c) => c.method), ['start'],
+          reason: 'a blocked artwork fetch must not stop the notification');
+      expect((controlCalls().single.arguments as Map)['artwork'], isNull);
+    });
+
+    test('loopback / private / link-local artwork hosts never reach the network',
+        () async {
+      fake.responder = (_) => http.Response.bytes(<int>[1, 2, 3, 4], 200);
+
+      for (final url in const [
+        'http://127.0.0.1:8080/art.png',
+        'http://localhost/art.png',
+        'http://10.1.2.3/art.png',
+        'http://192.168.1.5/art.png',
+        'http://172.16.0.1/art.png',
+        'http://169.254.169.254/latest/meta-data/',
+        'http://[::1]/art.png',
+      ]) {
+        service.debugReset();
+        calls.clear();
+        await reportPlaying('a', artworkUrl: url);
+        expect((controlCalls().single.arguments as Map)['artwork'], isNull,
+            reason: url);
+      }
+      expect(fake.queries, isEmpty,
+          reason: 'a page must not be able to probe the LAN or cloud metadata '
+              'through the artwork fetch');
     });
   });
 

@@ -9,8 +9,11 @@ ARCH-001 through ARCH-009 are wired end-to-end:
   `WebViewModel.isArchiveTier` in `_saveWebViewModels`,
   `_syncShortcutSites`, and `_exportSettings`. Regression tests in
   `test/archive_neutrality_test.dart`.
-- **ARCH-002 (passphrase KDF):** `ArchiveCrypto.deriveSalt` (HKDF) +
-  `deriveKey` (Argon2id 64 MiB / t=3 / p=4 / 32 bytes).
+- **ARCH-002 (passphrase KDF):** `ArchiveStorage.ensureKdfSalt` (16 random
+  bytes per install, minted with the slot pool) + `ArchiveCrypto.deriveKey`
+  (Argon2id 64 MiB / t=3 / p=4 / 32 bytes). `ArchiveCrypto.deriveSalt` is the
+  superseded passphrase-derived salt, kept only to open pre-upgrade slots,
+  which are re-sealed under the stored salt on first open.
 - **ARCH-003 (fixed slot pool):** 16 slots × 128 KiB each in
   `flutter_secure_storage`; slot bytes = full AEAD wire size with
   length-prefixed plaintext padding.
@@ -22,7 +25,10 @@ ARCH-001 through ARCH-009 are wired end-to-end:
 - **ARCH-006 (per-site override matrix):** `effectiveNotificationsEnabled`
   / `effectiveLocalCdnEnabled` getters; home-shortcut menu hides for
   archive-tier sites; persistence and iOS App Intents shortcut sync
-  filter on `isArchiveTier`.
+  filter on `isArchiveTier`. The effective getters are the whole
+  mechanism, so a consumer that reads the raw field instead is the
+  recurring failure — the legacy cookie engine and the nested-webview
+  launch both did.
 - **ARCH-007 (opaque container ids):** HMAC-derived
   `archiveContainerId` plumbed through `WebViewConfig`; teardown on
   close via `ContainerNative.deleteContainer`.
@@ -44,7 +50,8 @@ back to the "All" view if the user was inside an archive collection.
 **ARCH-010 (export opt-in):** when one or more archives are open, the
 settings export prompts whether to bundle them. Each open archive is
 sealed into a self-contained base64 section (`Archive.exportSection`,
-AES-256-GCM under the passphrase-derived key, no slot AAD) stored under
+AES-256-GCM under the archive key, no slot AAD, prefixed with the exporting
+install's ARCH-002 salt so another device can derive the same key) stored under
 the optional `extraSections` key in the backup JSON. The prompt only
 appears while archives are open — at which point their content is
 already visible in the switcher — so a backup taken with none open is
@@ -85,7 +92,7 @@ This spec adds an archive feature that satisfies both. Crucially, when no archiv
 
 ### Internal model
 
-- An *archive key* `MK_arch` is derived from the user's passphrase via Argon2id. The same passphrase always produces the same key — the passphrase **is** the archive's identity.
+- An *archive key* `MK_arch` is derived from the user's passphrase via Argon2id over the install's stored random salt. On a given install the same passphrase always produces the same key — the passphrase **is** the archive's identity there; across installs the same passphrase yields different keys, which is what stops one precomputed table from covering every device. An exported section carries its salt so it can still be restored elsewhere.
 - All archive state — webspace list, per-site `WebViewModel` JSON, cookies — is packed into a single ciphertext entry per archive in `flutter_secure_storage`, encrypted under `MK_arch` with AES-256-GCM.
 - The ciphertext entry lives in one of a fixed pool of K slots allocated at first launch. Slots are indistinguishable from random when unpopulated; slot count is constant regardless of how many archives exist. Restoration scans the pool, trial-decrypting each slot with the candidate key.
 - Per-site features that touch disk, background scheduling, or OS-level UI are disabled or forced for archive-tier sites (notifications, home-shortcuts, LocalCDN, file-import-sites, authenticated proxies). Incognito mode is forced on so localStorage / IndexedDB / ServiceWorker state stays inside the container and doesn't persist beyond a session.
@@ -125,26 +132,51 @@ The active app state SHALL be byte-identical regardless of whether the device ha
 **Given** an app process where no archive has been created and no passphrase has been entered
 **When** the app runs normally through startup, site activation, settings, export, import
 **Then** every code path that touches `ArchiveStorage` returns early as a no-op
-**And** no `flutter_secure_storage` write occurs that wouldn't have occurred on a build without the feature, except for the one-time slot-pool initialization on first launch
+**And** no `flutter_secure_storage` write occurs that wouldn't have occurred on a build without the feature, except for the one-time slot-pool initialization (the K slots plus the ARCH-002 salt entry, written together and independently of whether any archive exists)
 
 ### Requirement: ARCH-002 — Passphrase-based key derivation
 
-Archive keys SHALL be derived from the user's passphrase via Argon2id, deterministically — the same passphrase produces the same key. No salt, key, or key-derivation parameter is persisted to disk in plaintext.
+Archive keys SHALL be derived from the user's passphrase via Argon2id over a **random per-install salt**, deterministically within one install — the same passphrase produces the same key on the device that minted the salt. The salt SHALL be 16 bytes from `Random.secure()`, stored in `flutter_secure_storage` under a single fixed entry name. No key and no passphrase-derived material is persisted.
+
+The salt SHALL NOT be a function of the passphrase. A passphrase-derived salt carries no anti-precomputation entropy: it maps passphrase P to the same `MK_arch` on every install, which turns the Argon2id cost into a one-time table-building cost amortized across all users instead of a per-target cost, and lets a precomputed wordlist table trial-decrypt a seized device's slots at AES-GCM speed.
 
 #### Scenario: Derivation parameters are explicit and stable
 
 **Given** the archive key derivation service
 **When** a key is derived from passphrase P
-**Then** the salt is `HKDF-SHA256(P, info: "archive-salt-v1", L: 16)`
+**Then** the salt is the 16 random bytes stored for this install by `ArchiveStorage.ensureKdfSalt`
 **And** the key is `Argon2id(password: P, salt: salt, m: 64MiB, t: 3, p: 4, hashLen: 32)`
 **And** the derivation completes in roughly 0.5–2 seconds on target hardware
-**And** the parameters are constants in `ArchiveKeyDerivation`, not configurable at runtime
+**And** the parameters are constants in `ArchiveCrypto`, not configurable at runtime
 
-#### Scenario: Same passphrase yields same key across devices
+#### Scenario: The salt is minted with the slot pool, not with the first archive
 
-**Given** two devices running the same app build
+**Given** a device where the slot pool has been initialized and no archive has ever been created
+**When** the secure-storage namespace is inspected
+**Then** the salt entry is present and holds the fixed entry length
+**And** its presence, name, and length are identical to those on a device holding N closed archives (ARCH-001)
+
+#### Scenario: Two installs derive different keys from one passphrase
+
+**Given** two installs of the same app build with different stored salts
 **When** each derives a key from the same passphrase P
-**Then** both devices produce the same 32-byte `MK_arch`
+**Then** the two 32-byte `MK_arch` values differ
+**And** a table precomputed against one install is worthless against the other
+
+#### Scenario: Same passphrase across devices via an exported section
+
+**Given** an archive exported with `Archive.exportSection` on device A
+**When** the section is imported on device B under the same passphrase P
+**Then** device B derives the section's key using the salt carried in the section's cleartext header
+**And** the archive is re-sealed under device B's own stored salt before it is written to a slot
+
+#### Scenario: An archive sealed before the stored salt still opens
+
+**Given** a slot sealed under the legacy `HKDF-SHA256(P, info: "archive-salt-v1")` salt
+**When** the user opens it with passphrase P after upgrading
+**Then** the open path first tries the stored-salt key, then the legacy key
+**And** the slot is re-sealed under the stored-salt key on that first successful open
+**And** subsequent opens of that archive need only the stored-salt derivation
 
 #### Scenario: Key material lives only in memory
 
@@ -267,6 +299,8 @@ The override matrix:
 | HTML cache (`HtmlCacheService.saveHtml` / `getHtmlSync`) | disabled | The cache file path is keyed by `siteId`; even though the bytes are AES-encrypted, the file's existence correlates to specific archive sites on disk inspection. Gated by `effectiveHtmlCachingEnabled` (false for archive-tier) in the `onHtmlLoaded` / `shouldFetchHtml` / `initialHtml` paths in `lib/main.dart`. Archive sites always load live from URL; first paint is slightly slower but on-disk footprint stays empty. |
 | Webview navigation state (`SecureWebViewStateStorage.saveState` / `loadState`) | disabled | Same shape as HTML cache: per-`siteId` encrypted file containing `controller.saveState()` bytes (back/forward URL stack, Apple form data). Gated by an explicit `isArchiveTier` check in `_captureStateBytes` and the load path in `_setCurrentIndex`. Archive sites lose the in-process back/forward stack on memory-pressure eviction; acceptable trade for not leaking the URL stack to disk. `_closeArchive` calls `removeState(siteId)` for every owned site as a defensive back-erasure pass — covers any pre-fix bytes plus future code paths that forget the gate. |
 | `cameraMode` (web camera access) | effectively `block` | `effectiveCameraMode` denies without prompting: the Block/Use-file/Allow popup, the file picker, and Android's OS permission dialog are OS-level UI, and a real grant lights the system camera indicator. Stored mode and any picked `virtualCameraSource` preserved for when the site leaves the archive. See [web-camera-access](../web-camera-access/spec.md) CAM-006. |
+| Cookie persistence in the legacy engine | never written | `CookieIsolationEngine` reads `effectiveIncognito`, not the raw `incognito` field, at every guard. The raw field made an archive site's non-Secure cookies land in plaintext SharedPreferences (`cookies_fallback`) keyed by its cleartext `siteId` — underneath `_saveWebViewModels`'s `!isArchiveTier` filter, and a direct ARCH-001 break. See [per-site-cookie-isolation](../per-site-cookie-isolation/spec.md) ISO-005. |
+| Nested webviews (`InAppWebViewScreen`) | inherit the effective values | The two `launchUrlFunc` call sites pass `effectiveNotificationsEnabled` / `effectiveCameraMode` / `effectiveMicrophoneMode` / `effectiveProtectedContentAllowed` / `effectiveIncognito`, not the stored fields. Passing a raw value let an archive site post OS notifications naming itself from a nested webview, and those persist in the shade after the archive is closed. |
 | Logging that mentions any per-`siteId` identifier | `LogSensitivity.sensitive` | The tier-aware [`LogService`](../../../lib/services/log_service.dart) routes sensitive entries to a memory-only ring; they never reach disk, `debugPrint`, exports, or `adb logcat` / Console.app. Any new log call that includes a `siteId`, container name, cookie hostname, URL, or page title MUST be tagged sensitive (audit per #354 already covers every existing call site in `lib/`). The archive runtime flow (`_materialiseArchive`, `_openArchive`, `_closeArchive`, `_moveSiteToArchive`, `_promptRestoreArchive`) adds no log calls at all — strongest possible posture. |
 
 Adding any new per-site feature SHALL re-run this audit. The CLAUDE.md per-site checklist gains an explicit "archive-tier compatibility" item.
@@ -279,6 +313,28 @@ Adding any new per-site feature SHALL re-run this audit. The CLAUDE.md per-site 
 **And** the JS Notification polyfill is not injected for that site
 **And** the site is not added to the `BGAppRefreshTask` / `WorkManager` periodic refresh set
 **And** the site does not enter `_loadedIndices` at startup
+
+#### Scenario: Legacy cookie engine writes nothing for an archive site
+
+**Given** the device has no container support, so `CookieIsolationEngine` is
+the live engine
+**And** an archive-tier site is loaded with a live session in the shared jar
+**When** the user switches sites, triggering
+`unloadSiteForDomainSwitch` / `restoreCookiesForSite`, or deletes a site,
+triggering `preDeleteCookieCleanup`
+**Then** `CookieSecureStorage.saveCookiesForSite` is never called with a
+non-empty list for the archive site's `siteId`
+**And** the app-tier cookie store has no entry keyed by that `siteId`
+**And** an app-tier site loaded at the same time still round-trips its own
+cookies normally
+
+#### Scenario: Nested webview from an archive site posts no notifications
+
+**Given** an archive-tier site whose stored `notificationsEnabled` is `true`
+**When** it opens an outbound link in an `InAppWebViewScreen`
+**Then** the nested `WebViewConfig.notificationsEnabled` is `false`
+**And** the `webNotification` JavaScript handler is not registered, so
+nothing reaches `NotificationService`
 
 #### Scenario: Settings UI hides overridden controls for archive sites
 

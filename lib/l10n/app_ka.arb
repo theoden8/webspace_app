@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "გახსნა და ჩვენება",
   "behaviourSummaryNothingOn": "არაფერია ჩართული",
   "siteSettingsSectionNetwork": "ქსელი",
-  "siteSettingsSectionSite": "საიტი"
+  "siteSettingsSectionSite": "საიტი",
+  "homeImportGlobalProxyWarning": "ეს სარეზერვო ასლი აყენებს აპლიკაციის მასშტაბით მოქმედ გამავალ პროქსის: {address}. ყველა საიტი, რომელსაც საკუთარი პროქსი არ აქვს, მისი გავლით იმუშავებს.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{ეს სარეზერვო ასლი აყენებს მომხმარებლის 1 სკრიპტს. ის ემატება გამორთულ მდგომარეობაში — გადახედეთ მას ჩართვამდე.} other{ეს სარეზერვო ასლი აყენებს მომხმარებლის {count} სკრიპტს. ისინი ემატება გამორთულ მდგომარეობაში — გადახედეთ მათ ჩართვამდე.}}",
+  "homeQrReviewTitle": "გადახედეთ გაზიარებულ საიტის პარამეტრებს",
+  "homeQrReviewBody": "ეს კოდი დაწერა იმან, ვინც ის გააზიარა, და სწორედ ის ირჩევს ამ საიტის კონფიდენციალურობის პარამეტრებს. შეამოწმეთ ისინი დამატებამდე.",
+  "homeQrReviewUrl": "მისამართი: {url}",
+  "homeQrReviewName": "სახელი: {name}",
+  "homeQrReviewProxy": "აგზავნის ამ საიტის ტრაფიკს პროქსის გავლით: {address}",
+  "homeQrReviewTurnsOff": "თიშავს: {settings}",
+  "homeQrReviewTurnsOn": "რთავს: {settings}"
 }

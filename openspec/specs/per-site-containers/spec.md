@@ -123,7 +123,7 @@ Each site gets a named profile. Lifecycle:
 | App startup, after restoring sites | Cache `ContainerNative.isSupported()` once. Sweep profiles whose owning site no longer exists (`ContainerIsolationEngine.garbageCollectOrphans`), then drop every incognito site's container outright with `onSiteDeleted` (pre-bind, `deleteContainer` is reliable here). |
 | Site activated | `ContainerIsolationEngine.ensureContainer(siteId)` (idempotent). |
 | WebView created (`onWebViewCreated`) | `ContainerNative.bindContainerToWebView(siteId)` — native side walks the activity view tree and calls `WebViewCompat.setProfile` on every flutter_inappwebview WebView for that siteId. |
-| User taps "Clear Site Data" | `ContainerIsolationEngine.clearForSite(siteId)` → fork's `clearContainerData` (Apple: `WKWebsiteDataStore.removeData(ofTypes:modifiedSince:)`). Container stays in place; only its contents go. `disposeWebView` afterwards forces a fresh InAppWebView so the user sees a clean page. |
+| User taps "Clear Site Data" | `ContainerIsolationEngine.clearForSite(siteId)` → fork's `clearContainerData` (Apple: `WKWebsiteDataStore.removeData(ofTypes:modifiedSince:)`). Container stays in place; only its contents go. `disposeWebView` afterwards forces a fresh InAppWebView so the user sees a clean page. The app-side per-`siteId` residue the container never held — saved nav state and the HTML snapshot — is dropped alongside it in both engine modes ([tracking-protection](../tracking-protection/spec.md) ETP-022). |
 | Site deleted | `ContainerIsolationEngine.onSiteDeleted(siteId)` after `disposeWebView`. |
 | Profile API not supported (iOS, macOS, legacy Android) | `_useContainers` is false; engine selection at the call site falls through to `CookieIsolationEngine`. No cross-engine state leaks. |
 
@@ -248,6 +248,10 @@ container that nothing references.
 **And** the cached `WebViewModel.webview` is nulled so the next
   `IndexedStack` rebuild constructs a fresh `InAppWebView` bound to
   the now-empty profile
+**And** the app-side per-`siteId` residue is dropped too — the pending
+  debounced nav-state capture is cancelled, `removeState(siteId)` and
+  `HtmlCacheService.deleteCache(siteId)` run — since neither lives in the
+  container and both are replayed on the next activation (ETP-022)
 
 #### Scenario: Profile deleted on site deletion
 

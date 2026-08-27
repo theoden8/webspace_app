@@ -36,6 +36,20 @@ for free.
 | Hostile sender supplies wrong-typed values       | No        | Codec only type-checks `initUrl`; other fields are pass-through. A crafted payload that decodes but has e.g. `spoofLatitude: "x"` propagates through `WebViewModel.fromJson` and throws `TypeError` in `_addSite`. See QR-007 for the gap. |
 | Future sender ships a `vN > 1` payload to v1 app | Yes       | Receiver returns `null` from decode when `version > currentVersion` |
 
+The rows above model the **sender** leaking their own state. The payload
+also travels the other way: `MainActivity` is exported with a BROWSABLE
+`webspace` scheme filter, so any installed app or web page can hand the
+receiver a `webspace://qr/` URL, and the in-app scanner reads whatever is
+printed on a sticker. These rows model the **receiver** being attacked.
+
+| Threat                                             | Defended? | Mechanism |
+|----------------------------------------------------|-----------|-----------|
+| Hostile QR silently creates and shows a site        | Yes       | QR-008: both entry points pass through the review dialog; a deep-link-created site is never activated |
+| Hostile QR turns the receiver's protections off     | Yes       | QR-008: every protection the payload disables and every permission it grants is named in the dialog before the site exists |
+| Hostile QR installs proxy credentials on a site     | Yes       | QR-009: `decode` drops `proxySettings.password`. The proxy *address* is allowed but is named in the review dialog |
+| Hostile QR reaches the app with link handling off   | Yes       | The `linkHandlingEnabled` gate (LIR-008) runs before the `webspace://qr/` branch, not after |
+| Hostile QR arrives while the app is not in the foreground | Partly | The dialog is queued behind whatever the user is doing; nothing is created until they answer |
+
 ---
 
 ## Requirements
@@ -279,7 +293,7 @@ was used after being disposed" assertion that the previous
 **Given** the user pastes (or scans) a valid `webspace://qr/site/v1/...`
 URL and taps Apply
 **When** `_addSite` receives the result map containing
-`{'qrSettings': decoded}`
+`{'qrSettings': decoded}` **and the user accepts the QR-008 review dialog**
 **Then** a new `WebViewModel` is built via
 `WebViewModel.fromJson(SiteSettingsQrCodec.hydrateForFromJson(decoded), stateSetter)`
 **And** the new model has a freshly-minted `siteId` (the QR payload
@@ -303,6 +317,96 @@ returned title for both `name` and `pageTitle` if non-empty
 **When** `_addSite` consumes the `qrSettings`
 **Then** no `getPageTitle` HTTP fetch happens
 **And** the model's `pageTitle` is set to its `name`
+
+---
+
+### Requirement: QR-008 - Receiver Review Gate
+
+A QR payload is authored by whoever printed the code and chooses the new
+site's URL, its display name, its proxy, and the state of every per-site
+protection. The receiver SHALL NOT create a site from one until the user
+has seen those choices and accepted them.
+
+The gate SHALL live in `_addSite`'s `qrSettings` branch so that **both**
+entry points cross it: the in-app scanner / paste dialog
+(`AddSiteScreen._addByQr` → `showSiteSettingsQrApplyDialog`) and the
+`webspace://qr/` deep link handled by `_handleShareIntent`. The dialog
+SHALL show the payload's `initUrl`, its `name`, its proxy address when the
+payload sets a non-DEFAULT proxy, the protections the payload switches off
+(Tracking Protection, ClearURLs, DNS Blocklist, Content Blocker, LocalCDN,
+Block auto-redirects) and the permissions or modes it switches on
+(third-party cookies, Notifications, Background audio, Kiosk mode,
+Geolocation), and SHALL require an explicit accept.
+
+A site created from a deep link SHALL NOT be activated: `_registerNewSite`
+is called with `activate: false`, so the site is added to the list and
+persisted but `_setCurrentIndex` is not called and the current site keeps
+the screen. A site created from the in-app scanner IS activated — the user
+went looking for it.
+
+The `linkHandlingEnabled` master switch (LIR-008) SHALL be evaluated
+BEFORE the `webspace://qr/` branch, so turning link handling off drops QR
+deep links along with every other inbound URL.
+
+#### Scenario: Deep-link payload is reviewed, not applied
+
+**Given** link handling is enabled
+**And** another app opens `webspace://qr/site/v1/<payload>` where the
+payload sets `trackingProtectionEnabled: false` and a SOCKS5 proxy
+**When** `_handleShareIntent` decodes it and calls
+`_addSite(deepLinkQrSettings: decoded)`
+**Then** a review dialog is shown naming the URL, the name, the proxy
+address, and "Tracking Protection" as a protection being turned off
+**And** no `WebViewModel` exists until the user accepts
+
+#### Scenario: Declining the review creates nothing
+
+**Given** the review dialog is shown
+**When** the user cancels
+**Then** `_registerNewSite` is not called
+**And** `_webViewModels` is unchanged
+
+#### Scenario: Deep-link site does not take the screen
+
+**Given** the user accepts the review dialog for a deep-link payload
+**When** `_registerNewSite(model, activate: false)` runs
+**Then** the model is appended to `_webViewModels` and persisted
+**And** `_setCurrentIndex` is NOT called, so the currently-visible site
+stays visible
+
+#### Scenario: Link handling off drops the QR deep link
+
+**Given** `linkHandlingEnabled` is false
+**When** a `webspace://qr/` URL arrives
+**Then** it is dropped with the same "link handling disabled" log line as
+any other inbound URL
+**And** `SiteSettingsQrCodec.decode` is not reached
+
+---
+
+### Requirement: QR-009 - Nested Secrets Are Stripped on Decode
+
+`includedKeys` whitelists **top-level** keys only, so the
+`proxySettings` object is passed through unexamined. `decode` SHALL
+rebuild `proxySettings` without a `password` entry.
+
+The QR-003 table's claim that the password never rides a payload holds
+for senders using this app's encoder. It does not bind a hand-crafted
+payload, and `UserProxySettings.fromJson` reads `json['password']` — so
+without this step a printed code could install a proxy password on the
+receiver's new site and route its traffic through an authenticated proxy
+the attacker controls.
+
+#### Scenario: Hand-crafted password is dropped
+
+**Given** a payload whose `proxySettings` is
+`{type: 3, address: "attacker.example:1080", username: "u", password: "hunter2"}`
+**When** `SiteSettingsQrCodec.decode` returns
+**Then** the decoded `proxySettings` has no `password` key
+**And** `address` and `username` survive (they are named in the QR-008
+review dialog)
+**And** `UserProxySettings.fromJson(decoded['proxySettings']).password`
+is null
 
 ---
 
@@ -378,6 +482,8 @@ subset with the empty placeholders `WebViewModel.fromJson` requires
   `_addByQr` pops `{qrSettings: <decoded>}` for `_addSite` to consume
 - `lib/main.dart` — `_addSite` branches on `qrSettings`; the QR path
   uses `WebViewModel.fromJson(SiteSettingsQrCodec.hydrateForFromJson(...), stateSetter)`
+  behind `_confirmQrSiteSettings` (QR-008), and `_handleShareIntent`
+  evaluates `_linkHandlingEnabled` before the `webspace://qr/` branch
 - `lib/screens/settings.dart` — "Share QR" button wired to
   `showSiteSettingsQrShareDialog`, hidden for `file://` sites
 

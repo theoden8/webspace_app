@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Oscailt agus taispeáint",
   "behaviourSummaryNothingOn": "Níl aon rud cumasaithe",
   "siteSettingsSectionNetwork": "Líonra",
-  "siteSettingsSectionSite": "Suíomh"
+  "siteSettingsSectionSite": "Suíomh",
+  "homeImportGlobalProxyWarning": "Socraíonn an cúltaca seo seachfhreastalaí amach don aip ar fad: {address}. Rachaidh gach suíomh nach bhfuil a sheachfhreastalaí féin aige tríd.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{Suiteálann an cúltaca seo 1 script úsáideora. Cuirtear leis í agus í múchta — déan í a athbhreithniú sula gcuirfidh tú ar siúl í.} other{Suiteálann an cúltaca seo {count} script úsáideora. Cuirtear leis iad agus iad múchta — déan iad a athbhreithniú sula gcuirfidh tú ar siúl iad.}}",
+  "homeQrReviewTitle": "Athbhreithnigh na socruithe suímh a roinneadh",
+  "homeQrReviewBody": "Is é an duine a roinn an cód seo a scríobh é, agus roghnaíonn sé socruithe príobháideachais an tsuímh seo. Seiceáil iad sula gcuirfidh tú leis.",
+  "homeQrReviewUrl": "Seoladh: {url}",
+  "homeQrReviewName": "Ainm: {name}",
+  "homeQrReviewProxy": "Seolann sé trácht an tsuímh seo trí sheachfhreastalaí: {address}",
+  "homeQrReviewTurnsOff": "Múchann sé: {settings}",
+  "homeQrReviewTurnsOn": "Cuireann sé ar siúl: {settings}"
 }

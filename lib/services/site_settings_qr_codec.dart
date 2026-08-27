@@ -9,7 +9,8 @@ import 'dart:typed_data';
 /// `userScripts`, `enabledGlobalScriptIds`, `blockedCookies`, `siteId`
 /// (receiver mints fresh), `currentUrl`/`pageTitle` (runtime state).
 /// Proxy passwords never leave the device — `UserProxySettings.toJson`
-/// strips them per `proxy-password-secure-storage` (PWD-005).
+/// strips them per `proxy-password-secure-storage` (PWD-005), and [decode]
+/// strips any a hand-crafted payload smuggled in.
 ///
 /// Wire format: `webspace://qr/site/v1/<base64url>` where the payload is
 /// gzip-compressed UTF-8 JSON. base64url padding is stripped on encode and
@@ -171,6 +172,19 @@ class SiteSettingsQrCodec {
         if (key is String && includedKeys.contains(key)) {
           out[key] = entry.value;
         }
+      }
+      // `includedKeys` whitelists top-level keys only, so the nested
+      // `proxySettings` object arrives unexamined. `UserProxySettings.toJson`
+      // never emits a password, but a hostile sender is not bound by our
+      // encoder — and `fromJson` would happily read one straight into the
+      // receiver's live proxy credentials.
+      final proxy = out['proxySettings'];
+      if (proxy is Map) {
+        out['proxySettings'] = <String, dynamic>{
+          for (final e in proxy.entries)
+            if (e.key is String && e.key != 'password')
+              e.key as String: e.value,
+        };
       }
       if (out['initUrl'] is! String ||
           (out['initUrl'] as String).isEmpty) {

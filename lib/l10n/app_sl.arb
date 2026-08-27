@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Odpiranje in prikaz",
   "behaviourSummaryNothingOn": "Nič ni omogočeno",
   "siteSettingsSectionNetwork": "Omrežje",
-  "siteSettingsSectionSite": "Stran"
+  "siteSettingsSectionSite": "Stran",
+  "homeImportGlobalProxyWarning": "Ta varnostna kopija nastavi odhodni posredniški strežnik za celotno aplikacijo: {address}. Vsaka stran, ki nima svojega posredniškega strežnika, bo usmerjena prek njega.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{Ta varnostna kopija namesti 1 uporabniško skripto. Dodana je izklopljena — preglejte jo, preden jo omogočite.} two{Ta varnostna kopija namesti {count} uporabniški skripti. Dodani sta izklopljeni — preglejte ju, preden ju omogočite.} few{Ta varnostna kopija namesti {count} uporabniške skripte. Dodane so izklopljene — preglejte jih, preden jih omogočite.} other{Ta varnostna kopija namesti {count} uporabniških skript. Dodane so izklopljene — preglejte jih, preden jih omogočite.}}",
+  "homeQrReviewTitle": "Preglejte deljene nastavitve strani",
+  "homeQrReviewBody": "To kodo je napisal tisti, ki jo je delil, in prav ta določa nastavitve zasebnosti te strani. Preverite jih, preden jo dodate.",
+  "homeQrReviewUrl": "Naslov: {url}",
+  "homeQrReviewName": "Ime: {name}",
+  "homeQrReviewProxy": "Promet te strani pošilja prek posredniškega strežnika: {address}",
+  "homeQrReviewTurnsOff": "Izklopi: {settings}",
+  "homeQrReviewTurnsOn": "Vklopi: {settings}"
 }

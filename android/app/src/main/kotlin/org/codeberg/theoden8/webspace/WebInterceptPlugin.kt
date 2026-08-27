@@ -516,7 +516,11 @@ class FastSubresourceInterceptor(
         webView: InAppWebView,
         request: WebResourceRequestExt
     ): WebResourceResponse? {
-        val url = request.url ?: return null
+        // Normalize once, at the funnel: the engine, the LocalCDN patterns
+        // and the DNS set all have to see the same hostname, and only the
+        // DNS side goes through extractHost.
+        val rawUrl = request.url ?: return null
+        val url = stripRootDot(rawUrl)
         val host = extractHost(url) ?: return null
         if (host.isEmpty()) return null
 
@@ -572,7 +576,7 @@ class FastSubresourceInterceptor(
             // for $domain= matching. Both casings to survive header
             // normalization quirks across chromium versions.
             val headers = request.headers ?: emptyMap()
-            val sourceUrl = headers["Referer"] ?: headers["referer"] ?: ""
+            val sourceUrl = stripRootDot(headers["Referer"] ?: headers["referer"] ?: "")
             val requestType = mapResourceType(request)
             if (AdblockEngineNative.checkUrl(url, sourceUrl, requestType)) {
                 decision = Decision.BLOCKED_ABP
@@ -617,7 +621,7 @@ class FastSubresourceInterceptor(
             // shims, AdSense neutered scripts, etc.).
             if (decision == Decision.BLOCKED_ABP && AdblockEngineNative.active) {
                 val headers = request.headers ?: emptyMap()
-                val sourceUrl = headers["Referer"] ?: headers["referer"] ?: ""
+                val sourceUrl = stripRootDot(headers["Referer"] ?: headers["referer"] ?: "")
                 val requestType = mapResourceType(request)
                 val dataUrl = AdblockEngineNative.redirectFor(
                     url, sourceUrl, requestType)
@@ -846,11 +850,42 @@ class FastSubresourceInterceptor(
         /// strings, malformed userinfo, etc.) — each throw allocates a
         /// stack trace and pays for `Throwable.fillInStackTrace`. This
         /// hand-rolled extractor uses three index scans + one substring,
-        /// no exceptions.
+        /// no exceptions. A single trailing root dot is dropped:
+        /// chromium keeps the FQDN form (`tracker.example.com.`) in the
+        /// URL and DNS resolves it identically, but blocklist and
+        /// filter-list hostnames are written without it.
         @JvmStatic
         fun extractHost(url: String): String? {
+            val b = hostBounds(url)
+            if (b < 0L) return null
+            return slice(url, (b ushr 32).toInt(), (b and 0xFFFFFFFFL).toInt())
+        }
+
+        /// Drop the host's root dot inside a whole URL, leaving the rest
+        /// byte-identical. The adblock engine parses the URL itself
+        /// rather than taking [extractHost]'s output, so without this
+        /// `$domain=` and host-anchored rules would still be matched
+        /// against the FQDN form that [extractHost] already folds away.
+        /// Returns [url] itself when there is nothing to drop.
+        @JvmStatic
+        fun stripRootDot(url: String): String {
+            val b = hostBounds(url)
+            if (b < 0L) return url
+            val hostStart = (b ushr 32).toInt()
+            val hostEnd = (b and 0xFFFFFFFFL).toInt()
+            if (hostEnd <= hostStart || url[hostEnd - 1] != '.') return url
+            return url.substring(0, hostEnd - 1) + url.substring(hostEnd)
+        }
+
+        /// Locate the host inside `scheme://[userinfo@]host[:port]/...`:
+        /// start index in the high 32 bits, exclusive end (before any
+        /// root-dot normalization) in the low 32. -1 when the URL has no
+        /// `://` authority or an IPv6 literal is unterminated. Packed
+        /// rather than returned as a Pair so the per-request hot path
+        /// allocates nothing.
+        private fun hostBounds(url: String): Long {
             val schemeEnd = url.indexOf("://")
-            if (schemeEnd < 0) return null
+            if (schemeEnd < 0) return -1L
             val start = schemeEnd + 3
             val len = url.length
             var end = len
@@ -870,10 +905,10 @@ class FastSubresourceInterceptor(
             if (hostStart < end && url[hostStart].code == 0x5B) {
                 for (j in hostStart until end) {
                     if (url[j].code == 0x5D) {
-                        return slice(url, hostStart, j + 1)
+                        return (hostStart.toLong() shl 32) or (j + 1).toLong()
                     }
                 }
-                return null
+                return -1L
             }
             // Strip :port — first ':' between hostStart and end.
             var hostEnd = end
@@ -883,20 +918,25 @@ class FastSubresourceInterceptor(
                     break
                 }
             }
-            return slice(url, hostStart, hostEnd)
+            return (hostStart.toLong() shl 32) or hostEnd.toLong()
         }
 
         private fun slice(url: String, start: Int, end: Int): String {
-            if (start >= end) return ""
+            // One dot only: `example.com..` is not a valid FQDN form, so it
+            // stays unmatched rather than folding onto `example.com`.
+            // Bracketed IPv6 literals end in ']' and are untouched.
+            var stop = end
+            if (stop > start && url[stop - 1] == '.') stop--
+            if (start >= stop) return ""
             var hasUpper = false
-            for (j in start until end) {
+            for (j in start until stop) {
                 val c = url[j].code
                 if (c in 0x41..0x5A) {
                     hasUpper = true
                     break
                 }
             }
-            val s = url.substring(start, end)
+            val s = url.substring(start, stop)
             return if (hasUpper) s.lowercase() else s
         }
     }

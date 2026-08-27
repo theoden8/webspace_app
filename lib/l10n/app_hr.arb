@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Otvaranje i prikaz",
   "behaviourSummaryNothingOn": "Ništa nije omogućeno",
   "siteSettingsSectionNetwork": "Mreža",
-  "siteSettingsSectionSite": "Stranica"
+  "siteSettingsSectionSite": "Stranica",
+  "homeImportGlobalProxyWarning": "Ova sigurnosna kopija postavlja izlazni proxy za cijelu aplikaciju: {address}. Svaka stranica koja nema vlastiti proxy usmjeravat će promet kroz njega.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{Ova sigurnosna kopija instalira 1 korisničku skriptu. Dodaje se isključena — pregledajte je prije uključivanja.} few{Ova sigurnosna kopija instalira {count} korisničke skripte. Dodaju se isključene — pregledajte ih prije uključivanja.} other{Ova sigurnosna kopija instalira {count} korisničkih skripti. Dodaju se isključene — pregledajte ih prije uključivanja.}}",
+  "homeQrReviewTitle": "Pregled podijeljenih postavki stranice",
+  "homeQrReviewBody": "Ovaj je kod napisala osoba koja ga je podijelila i on određuje postavke privatnosti ove stranice. Provjerite ih prije dodavanja.",
+  "homeQrReviewUrl": "Adresa: {url}",
+  "homeQrReviewName": "Naziv: {name}",
+  "homeQrReviewProxy": "Šalje promet ove stranice kroz proxy: {address}",
+  "homeQrReviewTurnsOff": "Isključuje: {settings}",
+  "homeQrReviewTurnsOn": "Uključuje: {settings}"
 }

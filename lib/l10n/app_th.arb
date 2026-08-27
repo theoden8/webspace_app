@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "การเปิดและการแสดงผล",
   "behaviourSummaryNothingOn": "ไม่ได้เปิดใช้งานสิ่งใด",
   "siteSettingsSectionNetwork": "เครือข่าย",
-  "siteSettingsSectionSite": "ไซต์"
+  "siteSettingsSectionSite": "ไซต์",
+  "homeImportGlobalProxyWarning": "ไฟล์สำรองนี้ตั้งค่าพร็อกซีขาออกสำหรับทั้งแอป: {address} ทุกเว็บไซต์ที่ไม่มีพร็อกซีของตัวเองจะถูกส่งผ่านพร็อกซีนี้",
+  "homeImportUserScriptsWarning": "{count, plural, =1{ไฟล์สำรองนี้ติดตั้งสคริปต์ผู้ใช้ 1 รายการ โดยจะถูกเพิ่มในสถานะปิดอยู่ — โปรดตรวจสอบก่อนเปิดใช้งาน} other{ไฟล์สำรองนี้ติดตั้งสคริปต์ผู้ใช้ {count} รายการ โดยจะถูกเพิ่มในสถานะปิดอยู่ — โปรดตรวจสอบก่อนเปิดใช้งาน}}",
+  "homeQrReviewTitle": "ตรวจสอบการตั้งค่าเว็บไซต์ที่แชร์มา",
+  "homeQrReviewBody": "รหัสนี้เขียนโดยผู้ที่แชร์มา และเป็นตัวกำหนดการตั้งค่าความเป็นส่วนตัวของเว็บไซต์นี้ โปรดตรวจสอบก่อนเพิ่ม",
+  "homeQrReviewUrl": "ที่อยู่: {url}",
+  "homeQrReviewName": "ชื่อ: {name}",
+  "homeQrReviewProxy": "ส่งทราฟฟิกของเว็บไซต์นี้ผ่านพร็อกซี: {address}",
+  "homeQrReviewTurnsOff": "ปิด: {settings}",
+  "homeQrReviewTurnsOn": "เปิด: {settings}"
 }

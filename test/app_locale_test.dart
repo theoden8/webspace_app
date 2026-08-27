@@ -37,21 +37,25 @@ void main() {
     expect(r.countryCode, 'BR');
   });
 
-  test('zh-Hant-TW resolves to zh_Hant via script match', () {
+  // One Chinese locale ships, written in Traditional, under the base code
+  // `zh`. Both script variants therefore resolve to it: a Hant reader gets the
+  // script they expect, a Hans reader gets Traditional rather than nothing.
+  test('zh-Hant-TW resolves to the single zh locale', () {
     final r = resolveSupportedLocale(
       [const Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant', countryCode: 'TW')],
       supported,
     );
     expect(r.languageCode, 'zh');
-    expect(r.scriptCode, 'Hant');
+    expect(r.scriptCode, isNull);
   });
 
-  test('zh-Hans-CN (Simplified, unshipped script) falls back to a zh', () {
+  test('zh-Hans-CN resolves to the same zh locale', () {
     final r = resolveSupportedLocale(
       [const Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans', countryCode: 'CN')],
       supported,
     );
     expect(r.languageCode, 'zh');
+    expect(r.scriptCode, isNull);
   });
 
   test('first matching preferred locale is used', () {

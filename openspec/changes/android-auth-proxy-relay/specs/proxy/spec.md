@@ -77,3 +77,38 @@ user's IP.
 - **WHEN** the relay cannot bind a loopback port
 - **THEN** `setProxySettings` throws
 - **AND** the existing proxy override is left intact rather than cleared
+
+---
+
+### Requirement: PROXY-012 - Relay verifies the upstream's TLS identity
+
+When the upstream proxy's type is HTTPS, the relay SHALL complete a TLS
+handshake that verifies the server's certificate *identity* against the
+configured upstream hostname — not only its chain against the system trust
+store — before writing anything to the socket. A socket straight off
+`SSLSocketFactory` performs no hostname check, and the first bytes the relay
+writes are the user's `Proxy-Authorization: Basic` credentials followed by the
+`CONNECT host:port` target, so an unverified handshake hands both to whoever
+answered at that address.
+
+When the handshake fails the relay SHALL close the socket and fail the
+connection under PROXY-011 (`502` to the client). It SHALL NOT retry without
+verification, downgrade to a plaintext hop, or fall back to a direct
+connection.
+
+#### Scenario: Certificate issued for another host is rejected
+
+- **GIVEN** the upstream is `HTTPS proxy.example.com:8443` with credentials
+- **AND** the host answering at that address presents a chain-valid certificate whose CN/SAN names `evil.example`
+- **WHEN** a client opens a `CONNECT` request through the relay
+- **THEN** the TLS handshake fails and the socket is closed
+- **AND** the relay responds `502` to the client
+- **AND** no `Proxy-Authorization` header and no `CONNECT` target is ever written to that socket
+
+#### Scenario: Matching certificate proceeds to credential injection
+
+- **GIVEN** the upstream is `HTTPS proxy.example.com:8443` with credentials
+- **AND** the upstream presents a chain-valid certificate naming `proxy.example.com`
+- **WHEN** a client opens a `CONNECT` request through the relay
+- **THEN** the handshake completes
+- **AND** the relay writes the `CONNECT` line and the `Proxy-Authorization: Basic` header over the encrypted socket

@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "खुलना और प्रदर्शन",
   "behaviourSummaryNothingOn": "कुछ भी सक्षम नहीं",
   "siteSettingsSectionNetwork": "नेटवर्क",
-  "siteSettingsSectionSite": "साइट"
+  "siteSettingsSectionSite": "साइट",
+  "homeImportGlobalProxyWarning": "यह बैकअप पूरे ऐप के लिए एक आउटबाउंड प्रॉक्सी सेट करता है: {address}। जिन साइटों की अपनी प्रॉक्सी नहीं है, उन सभी का ट्रैफ़िक इसी से होकर जाएगा।",
+  "homeImportUserScriptsWarning": "{count, plural, =1{यह बैकअप 1 उपयोगकर्ता स्क्रिप्ट इंस्टॉल करता है। इसे बंद अवस्था में जोड़ा जाता है — चालू करने से पहले इसकी समीक्षा करें।} other{यह बैकअप {count} उपयोगकर्ता स्क्रिप्ट इंस्टॉल करता है। इन्हें बंद अवस्था में जोड़ा जाता है — चालू करने से पहले इनकी समीक्षा करें।}}",
+  "homeQrReviewTitle": "साझा की गई साइट सेटिंग की समीक्षा करें",
+  "homeQrReviewBody": "यह कोड उसी ने लिखा है जिसने इसे साझा किया, और यही इस साइट की गोपनीयता सेटिंग तय करता है। जोड़ने से पहले उन्हें जाँच लें।",
+  "homeQrReviewUrl": "पता: {url}",
+  "homeQrReviewName": "नाम: {name}",
+  "homeQrReviewProxy": "इस साइट का ट्रैफ़िक प्रॉक्सी से होकर भेजता है: {address}",
+  "homeQrReviewTurnsOff": "बंद करता है: {settings}",
+  "homeQrReviewTurnsOn": "चालू करता है: {settings}"
 }

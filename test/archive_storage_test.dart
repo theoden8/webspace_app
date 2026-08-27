@@ -1,6 +1,8 @@
+import 'dart:convert' show base64Url;
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/archive_crypto.dart' show kArchiveSaltLength;
 import 'package:webspace/services/archive_storage.dart';
 
 import 'helpers/mock_secure_storage.dart';
@@ -11,7 +13,8 @@ void main() {
       final secureStorage = MockFlutterSecureStorage();
       final storage = ArchiveStorage(secureStorage: secureStorage);
       await storage.ensureInitialized();
-      expect(secureStorage.storage.length, equals(kArchiveSlotCount));
+      // The K slots plus the one ARCH-002 salt entry.
+      expect(secureStorage.storage.length, equals(kArchiveSlotCount + 1));
       for (var i = 0; i < kArchiveSlotCount; i++) {
         final padded = i.toString().padLeft(2, '0');
         final key = 'archive_slot_$padded';
@@ -42,7 +45,76 @@ void main() {
       final storage = ArchiveStorage(secureStorage: secureStorage);
       await storage.ensureInitialized();
       expect(secureStorage.storage['archive_slot_05'], equals('preexisting'));
-      expect(secureStorage.storage.length, equals(kArchiveSlotCount));
+      expect(secureStorage.storage.length, equals(kArchiveSlotCount + 1));
+    });
+  });
+
+  // ARCH-002: the Argon2id salt is per-install random, not a function of the
+  // passphrase. A passphrase-derived salt mapped P to the same key on every
+  // device, so one precomputed wordlist table opened any seized device at
+  // AES-GCM speed instead of one Argon2id derivation per target.
+  group('ArchiveStorage.ensureKdfSalt', () {
+    test('mints a salt entry alongside the pool on a fresh install', () async {
+      final secureStorage = MockFlutterSecureStorage();
+      final storage = ArchiveStorage(secureStorage: secureStorage);
+      await storage.ensureInitialized();
+
+      final raw = secureStorage.storage[kArchiveKdfSaltKey];
+      expect(raw, isNotNull);
+      expect(base64Url.decode(raw!).length, equals(kArchiveKdfSaltEntryLength));
+
+      final entry = await storage.ensureKdfSalt();
+      expect(entry.salt.length, equals(kArchiveSaltLength));
+      expect(entry.legacyPossible, isFalse,
+          reason: 'nothing on a fresh pool can predate the salt');
+    });
+
+    test('two installs get different salts', () async {
+      final a = ArchiveStorage(secureStorage: MockFlutterSecureStorage());
+      final b = ArchiveStorage(secureStorage: MockFlutterSecureStorage());
+      await a.ensureInitialized();
+      await b.ensureInitialized();
+      expect((await a.ensureKdfSalt()).salt,
+          isNot(equals((await b.ensureKdfSalt()).salt)));
+    });
+
+    test('is stable across instances over the same storage', () async {
+      final secureStorage = MockFlutterSecureStorage();
+      final first = ArchiveStorage(secureStorage: secureStorage);
+      await first.ensureInitialized();
+      final salt = (await first.ensureKdfSalt()).salt;
+
+      final second = ArchiveStorage(secureStorage: secureStorage);
+      await second.ensureInitialized();
+      expect((await second.ensureKdfSalt()).salt, equals(salt));
+    });
+
+    test('flags a pool that predates the salt as legacy-capable', () async {
+      final secureStorage = MockFlutterSecureStorage();
+      // An install from before the salt existed: slots on disk, no salt entry.
+      await ArchiveStorage(secureStorage: secureStorage).ensureInitialized();
+      await secureStorage.delete(key: kArchiveKdfSaltKey);
+
+      final upgraded = ArchiveStorage(secureStorage: secureStorage);
+      await upgraded.ensureInitialized();
+      final entry = await upgraded.ensureKdfSalt();
+      expect(entry.legacyPossible, isTrue);
+      expect(entry.salt.length, equals(kArchiveSaltLength));
+      // The flag is install-age only: the entry is the same length either way,
+      // so it never reveals archive presence or count (ARCH-001).
+      expect(
+        base64Url.decode(secureStorage.storage[kArchiveKdfSaltKey]!).length,
+        equals(kArchiveKdfSaltEntryLength),
+      );
+    });
+
+    test('replaces an unreadable entry rather than throwing', () async {
+      final secureStorage = MockFlutterSecureStorage();
+      await secureStorage.write(key: kArchiveKdfSaltKey, value: 'not base64!!');
+      final storage = ArchiveStorage(secureStorage: secureStorage);
+      await storage.ensureInitialized();
+      expect((await storage.ensureKdfSalt()).salt.length,
+          equals(kArchiveSaltLength));
     });
   });
 

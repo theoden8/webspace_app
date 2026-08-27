@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Բացում և ցուցադրում",
   "behaviourSummaryNothingOn": "Ոչինչ միացված չէ",
   "siteSettingsSectionNetwork": "Ցանց",
-  "siteSettingsSectionSite": "Կայք"
+  "siteSettingsSectionSite": "Կայք",
+  "homeImportGlobalProxyWarning": "Այս կրկնօրինակը սահմանում է ողջ հավելվածի համար գործող ելքային պրոքսի՝ {address}։ Յուրաքանչյուր կայք, որը սեփական պրոքսի չունի, կուղղորդվի դրա միջով։",
+  "homeImportUserScriptsWarning": "{count, plural, =1{Այս կրկնօրինակը տեղադրում է 1 օգտատիրոջ սկրիպտ։ Այն ավելացվում է անջատված վիճակում — ստուգեք այն մինչև միացնելը։} other{Այս կրկնօրինակը տեղադրում է {count} օգտատիրոջ սկրիպտ։ Դրանք ավելացվում են անջատված վիճակում — ստուգեք դրանք մինչև միացնելը։}}",
+  "homeQrReviewTitle": "Ստուգեք համօգտագործված կայքի կարգավորումները",
+  "homeQrReviewBody": "Այս կոդը գրել է նա, ով այն տրամադրել է, և հենց այն է որոշում այս կայքի գաղտնիության կարգավորումները։ Ստուգեք դրանք նախքան ավելացնելը։",
+  "homeQrReviewUrl": "Հասցե՝ {url}",
+  "homeQrReviewName": "Անուն՝ {name}",
+  "homeQrReviewProxy": "Ուղարկում է այս կայքի տրաֆիկը պրոքսիի միջով՝ {address}",
+  "homeQrReviewTurnsOff": "Անջատում է՝ {settings}",
+  "homeQrReviewTurnsOn": "Միացնում է՝ {settings}"
 }

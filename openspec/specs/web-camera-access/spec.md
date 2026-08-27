@@ -406,6 +406,24 @@ the request rather than fall through to the device camera.
 
 ---
 
+### Requirement: CAM-013 — The prompt names an origin the page did not choose
+
+The origin rendered in the camera decision dialog SHALL be read from the
+webview (`controller.getUrl()`, falling back to the site's configured
+URL), never from the shim's argument. The camera shim is injected
+`forMainFrameOnly: false`, and `flutter_inappwebview.callHandler` is
+reachable from any frame's own script, so a page-supplied origin lets a
+frame ask the user for camera access in another site's name.
+
+#### Scenario: A page-supplied origin is ignored
+
+**Given** site "Acme" is loaded at `https://acme.example/app`
+**When** page script calls the `webCameraRequest` handler with
+`"https://bank.example"` as its argument
+**Then** the decision dialog names `https://acme.example/app`
+
+---
+
 ## Platform notes
 
 - **Android**: grant requires the app's CAMERA runtime permission

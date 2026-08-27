@@ -1,6 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 
 /// Registry of global app-level preferences that are round-tripped through
@@ -20,6 +19,13 @@ import 'package:webspace/settings/global_outbound_proxy.dart';
 /// Per-site settings (javascriptEnabled, userAgent, proxy, ...) live on
 /// `WebViewModel` and are exported via the `sites` array; they do not belong
 /// here.
+///
+/// Do **not** register state that grants trust on restore. TLS pins
+/// (`kTrustedHostsKey`) are the worked example: importing them makes
+/// `badCertificateCallback` return true and the webview PROCEED with no
+/// prompt, so a backup file would be able to install a
+/// man-in-the-middle certificate silently. `TrustedHostsService` persists
+/// and reloads that key on its own; it just never rides a backup.
 final Map<String, Object> kExportedAppPrefs = <String, Object>{
   'showUrlBar': false,
   'showTabStrip': false,
@@ -68,12 +74,6 @@ final Map<String, Object> kExportedAppPrefs = <String, Object>{
   // site without mutating its claim list — users manage claims manually in
   // the site's link-handling settings.
   'linkHandlingClaimDomains': false,
-  // User-approved exceptions for self-signed / otherwise-untrusted TLS
-  // certificates. Each entry is `host|port|sha256hex` and is consulted by
-  // both the webview's `onReceivedServerTrustAuthRequest` and the
-  // Dart-side `HttpClient.badCertificateCallback`. Round-trips so a
-  // self-hosted user keeps their trust decisions across reinstalls.
-  kTrustedHostsKey: <String>[],
   // Gates uBO web_accessible_resources/ — the resource pool that
   // backs $redirect= rules (noop.js, 1x1.gif, neutered tracker stubs)
   // and snippet injection. Enabled by default: filter authors rely on

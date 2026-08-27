@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Hapja dhe shfaqja",
   "behaviourSummaryNothingOn": "Asgjë e aktivizuar",
   "siteSettingsSectionNetwork": "Rrjeti",
-  "siteSettingsSectionSite": "Sajti"
+  "siteSettingsSectionSite": "Sajti",
+  "homeImportGlobalProxyWarning": "Kjo rezervë vendos një proxy dalëse për të gjithë aplikacionin: {address}. Çdo faqe që nuk ka proxy-n e vet do të kalojë përmes tij.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{Kjo rezervë instalon 1 skript përdoruesi. Shtohet i çaktivizuar — shqyrtoje para se ta aktivizosh.} other{Kjo rezervë instalon {count} skripte përdoruesi. Shtohen të çaktivizuara — shqyrtoji para se t'i aktivizosh.}}",
+  "homeQrReviewTitle": "Shqyrto cilësimet e ndara të faqes",
+  "homeQrReviewBody": "Ky kod është shkruar nga ai që e ndau dhe pikërisht ai zgjedh cilësimet e privatësisë së kësaj faqeje. Kontrolloji para se ta shtosh.",
+  "homeQrReviewUrl": "Adresa: {url}",
+  "homeQrReviewName": "Emri: {name}",
+  "homeQrReviewProxy": "E dërgon trafikun e kësaj faqeje përmes një proxy-je: {address}",
+  "homeQrReviewTurnsOff": "Çaktivizon: {settings}",
+  "homeQrReviewTurnsOn": "Aktivizon: {settings}"
 }

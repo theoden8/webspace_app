@@ -2947,6 +2947,77 @@
   "@homeImportSettingsSessionsNote": {
     "description": "Note in the import dialog explaining how login sessions are handled"
   },
+  "homeImportGlobalProxyWarning": "This backup sets an app-wide outbound proxy: {address}. Every site that has no proxy of its own will route through it.",
+  "@homeImportGlobalProxyWarning": {
+    "description": "Warning line in the settings-import confirmation dialog, shown when the backup file carries an app-wide outbound proxy. {address} is a host:port. Restoring it silently redirects all traffic, so the address is named before the user confirms.",
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "homeImportUserScriptsWarning": "{count, plural, =1{This backup installs 1 user script. It is added switched off — review it before enabling.} other{This backup installs {count} user scripts. They are added switched off — review them before enabling.}}",
+  "@homeImportUserScriptsWarning": {
+    "description": "Warning line in the settings-import confirmation dialog, shown when the backup file carries user scripts. A user script is JavaScript injected into pages, so the count is named before the user confirms and the scripts are restored disabled.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "homeQrReviewTitle": "Review shared site settings",
+  "@homeQrReviewTitle": {
+    "description": "Title of the dialog shown before a site is created from a scanned or linked WebSpace QR code"
+  },
+  "homeQrReviewBody": "This code was written by whoever shared it, and it chooses this site's privacy settings. Check them before adding.",
+  "@homeQrReviewBody": {
+    "description": "Body text of the QR review dialog, explaining that the settings come from the code's author rather than from the app"
+  },
+  "homeQrReviewUrl": "Address: {url}",
+  "@homeQrReviewUrl": {
+    "description": "Line in the QR review dialog showing the web address the shared site would open. {url} is a URL.",
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "homeQrReviewName": "Name: {name}",
+  "@homeQrReviewName": {
+    "description": "Line in the QR review dialog showing the name the shared site would be listed under. {name} is free text chosen by whoever made the code.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "homeQrReviewProxy": "Sends this site's traffic through a proxy: {address}",
+  "@homeQrReviewProxy": {
+    "description": "Line in the QR review dialog shown when the shared settings point the site at a proxy server. {address} is a host:port.",
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "homeQrReviewTurnsOff": "Turns off: {settings}",
+  "@homeQrReviewTurnsOff": {
+    "description": "Line in the QR review dialog listing the protections the shared settings would switch off. {settings} is a comma-separated list of setting names.",
+    "placeholders": {
+      "settings": {
+        "type": "String"
+      }
+    }
+  },
+  "homeQrReviewTurnsOn": "Turns on: {settings}",
+  "@homeQrReviewTurnsOn": {
+    "description": "Line in the QR review dialog listing the permissions or modes the shared settings would switch on. {settings} is a comma-separated list of setting names.",
+    "placeholders": {
+      "settings": {
+        "type": "String"
+      }
+    }
+  },
   "homeImportAction": "Import",
   "@homeImportAction": {
     "description": "Button label confirming a settings import"

@@ -10,6 +10,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/services/camera_decision_engine.dart';
+import 'package:webspace/services/container_cookie_manager.dart';
+import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/microphone_decision_engine.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/log_service.dart';
@@ -23,7 +25,11 @@ import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/web_view_model.dart'
-    show extractDomain, getNormalizedDomain, rendererProbeIndicatesGone;
+    show
+        BlockedCookie,
+        extractDomain,
+        matchesBlockedCookie,
+        rendererProbeIndicatesGone;
 import 'package:webspace/widgets/download_button.dart';
 import 'package:webspace/widgets/external_url_prompt.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
@@ -112,6 +118,34 @@ class InAppWebViewScreen extends StatefulWidget {
   /// against the page currently shown in this nested webview.
   final bool externalLinksInBrowser;
 
+  /// Inherited script-initiated-redirect block. Judged against the page
+  /// currently shown here, not the opening site's home URL: a nested screen
+  /// is one hop deep already, and without this a single tap on an outbound
+  /// link buys unlimited gesture-less cross-origin hops inside the parent's
+  /// container.
+  final bool blockAutoRedirects;
+
+  /// Cookies the opening site blocks. Deleted from the jar after every load
+  /// here too — the nested webview shares the parent's container, so a
+  /// blocked cookie re-set through an outbound link would come back.
+  final Set<BlockedCookie> blockedCookies;
+
+  /// Cookie readers for the [blockedCookies] sweep, forwarded from the host
+  /// so the read routes through whichever engine is live. Exactly one is
+  /// non-null; both are ignored when [blockedCookies] is empty.
+  final CookieManager? cookieManager;
+  final ContainerCookieManager? containerCookieManager;
+
+  /// Opening site's effective camera / microphone / protected-content
+  /// decisions. Seed this screen's in-memory state so a mode the user (or an
+  /// archive/ETP override) already settled is not silently re-asked, and so
+  /// a forced block stays blocked one hop out.
+  final CameraAccessMode cameraMode;
+  final VirtualCameraSource? virtualCameraSource;
+  final MicrophoneAccessMode microphoneMode;
+  final VirtualMicrophoneSource? virtualMicrophoneSource;
+  final bool? protectedContentAllowed;
+
   InAppWebViewScreen({
     required this.url,
     this.homeTitle,
@@ -150,6 +184,15 @@ class InAppWebViewScreen extends StatefulWidget {
     UserProxySettings? proxySettings,
     this.notificationsEnabled = false,
     this.externalLinksInBrowser = false,
+    this.blockAutoRedirects = false,
+    this.blockedCookies = const {},
+    this.cookieManager,
+    this.containerCookieManager,
+    this.cameraMode = CameraAccessMode.ask,
+    this.virtualCameraSource,
+    this.microphoneMode = MicrophoneAccessMode.ask,
+    this.virtualMicrophoneSource,
+    this.protectedContentAllowed,
   }) : proxySettings = proxySettings ??
             UserProxySettings(type: ProxyType.DEFAULT);
 
@@ -220,6 +263,10 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   /// double-pop the route or fire `goBack()` twice. Cleared in `finally`.
   bool _isBackHandling = false;
 
+  /// Same-domain gesture timestamp feeding `NavigationDecisionEngine`'s
+  /// 10s propagation window, mirroring the parent webview's closure state.
+  DateTime? _lastSameDomainGestureTime;
+
   /// Surface-repaint nudge for this nested webview (BUG-001 gap #1). A back
   /// navigation that restores a bfcached page re-attaches a blank Android
   /// SurfaceView; mirror the main page's `_goBackAndRepaint`/`_nudgeSurfaceRepaint`
@@ -257,6 +304,11 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     title = widget.homeTitle;
     _currentUrl = widget.url;
     _showUrlBar = widget.showUrlBar;
+    _cameraMode = widget.cameraMode;
+    _cameraSource = widget.virtualCameraSource;
+    _microphoneMode = widget.microphoneMode;
+    _microphoneSource = widget.virtualMicrophoneSource;
+    _protectedContentAllowed = widget.protectedContentAllowed;
     _devToolsHost = NestedDevToolsHost(
       name: widget.homeTitle ?? extractDomain(widget.url),
       siteId: widget.siteId,
@@ -384,6 +436,43 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                 ),
         currentMicrophoneMode: () => _microphoneMode,
         notificationsEnabled: widget.notificationsEnabled,
+        // Only wired when the opening site actually blocks cookies: an
+        // always-on reader would add a jar round-trip to every load here.
+        cookieManager:
+            widget.blockedCookies.isEmpty ? null : widget.cookieManager,
+        containerCookieManager: widget.blockedCookies.isEmpty
+            ? null
+            : widget.containerCookieManager,
+        cookieSiteId: widget.siteId,
+        onCookiesChanged: widget.blockedCookies.isEmpty
+            ? null
+            : (cookies) async {
+                final url = Uri.parse(_currentUrl);
+                for (final c in cookies) {
+                  if (!matchesBlockedCookie(
+                      widget.blockedCookies, c.name, c.domain)) {
+                    continue;
+                  }
+                  if (widget.containerCookieManager != null &&
+                      widget.siteId != null) {
+                    await widget.containerCookieManager!.deleteCookie(
+                      controller: _controller,
+                      siteId: widget.siteId!,
+                      url: url,
+                      name: c.name,
+                      domain: c.domain,
+                      path: c.path ?? '/',
+                    );
+                  } else {
+                    await widget.cookieManager?.deleteCookie(
+                      url: url,
+                      name: c.name,
+                      domain: c.domain,
+                      path: c.path ?? '/',
+                    );
+                  }
+                }
+              },
         pullToRefreshController: _pullToRefreshController,
         onUrlChanged: (url) {
           _devToolsHost.currentUrl = url;
@@ -427,23 +516,48 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
             });
           }
         },
-        // NESTED-009: when the opening site routes external links to the
-        // system browser, a user-tapped cross-domain link here leaves
-        // WebSpace instead of navigating in-place. Same-domain navigation
-        // and script-initiated (no-gesture) loads stay in this webview.
-        // Null when off, so default behaviour is byte-identical.
-        shouldOverrideUrlLoading: widget.externalLinksInBrowser
-            ? (url, hasGesture) {
-                if (!hasGesture) return true;
-                final scheme = Uri.tryParse(url)?.scheme ?? '';
-                if (scheme != 'http' && scheme != 'https') return true;
-                if (getNormalizedDomain(url) == getNormalizedDomain(_currentUrl)) {
-                  return true;
-                }
-                launchUrlInSystemBrowser(url);
-                return false;
-              }
-            : null,
+        // Same decision engine as the parent webview, judged against the
+        // page shown here (NESTED-009 for externalLinksInBrowser, NESTED-010
+        // for blockAutoRedirects). A nested screen has nowhere further to
+        // nest, so `blockOpenNested` navigates in place. Null when neither
+        // setting is on, so default behaviour is byte-identical.
+        shouldOverrideUrlLoading:
+            (widget.externalLinksInBrowser || widget.blockAutoRedirects)
+                ? (url, hasGesture) {
+                    final result = NavigationDecisionEngine
+                        .decideShouldOverrideUrlLoading(
+                      targetUrl: url,
+                      initUrl: _currentUrl,
+                      hasGesture: hasGesture,
+                      blockAutoRedirects: widget.blockAutoRedirects,
+                      isSiteActive: mounted,
+                      lastSameDomainGestureTime: _lastSameDomainGestureTime,
+                      now: DateTime.now(),
+                      externalLinksInBrowser: widget.externalLinksInBrowser,
+                    );
+                    switch (result.gestureUpdate) {
+                      case GestureStateUpdate.record:
+                        _lastSameDomainGestureTime = DateTime.now();
+                        break;
+                      case GestureStateUpdate.consume:
+                        _lastSameDomainGestureTime = null;
+                        break;
+                      case null:
+                        break;
+                    }
+                    switch (result.decision) {
+                      case NavigationDecision.allow:
+                      case NavigationDecision.blockOpenNested:
+                        return true;
+                      case NavigationDecision.blockSilent:
+                      case NavigationDecision.blockSuppressed:
+                        return false;
+                      case NavigationDecision.blockOpenExternal:
+                        launchUrlInSystemBrowser(url);
+                        return false;
+                    }
+                  }
+                : null,
         onWindowRequested: _showPopupWindow,
         onUntrustedCertificate: (host, port, cert) async {
           if (!mounted) return false;

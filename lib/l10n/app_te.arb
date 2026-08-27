@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "తెరవడం మరియు ప్రదర్శన",
   "behaviourSummaryNothingOn": "ఏదీ ప్రారంభించబడలేదు",
   "siteSettingsSectionNetwork": "నెట్‌వర్క్",
-  "siteSettingsSectionSite": "సైట్"
+  "siteSettingsSectionSite": "సైట్",
+  "homeImportGlobalProxyWarning": "ఈ బ్యాకప్ యాప్ మొత్తానికి వర్తించే అవుట్‌బౌండ్ ప్రాక్సీని సెట్ చేస్తుంది: {address}. సొంత ప్రాక్సీ లేని ప్రతి సైట్ దాని ద్వారానే వెళ్తుంది.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{ఈ బ్యాకప్ 1 వినియోగదారు స్క్రిప్ట్‌ను ఇన్‌స్టాల్ చేస్తుంది. అది ఆఫ్ చేసిన స్థితిలో జోడించబడుతుంది — ప్రారంభించే ముందు దానిని సమీక్షించండి.} other{ఈ బ్యాకప్ {count} వినియోగదారు స్క్రిప్ట్‌లను ఇన్‌స్టాల్ చేస్తుంది. అవి ఆఫ్ చేసిన స్థితిలో జోడించబడతాయి — ప్రారంభించే ముందు వాటిని సమీక్షించండి.}}",
+  "homeQrReviewTitle": "షేర్ చేసిన సైట్ సెట్టింగ్‌లను సమీక్షించండి",
+  "homeQrReviewBody": "ఈ కోడ్‌ను దానిని షేర్ చేసిన వ్యక్తే రాశారు, ఈ సైట్ గోప్యతా సెట్టింగ్‌లను ఎంచుకునేది కూడా అదే. జోడించే ముందు వాటిని తనిఖీ చేయండి.",
+  "homeQrReviewUrl": "చిరునామా: {url}",
+  "homeQrReviewName": "పేరు: {name}",
+  "homeQrReviewProxy": "ఈ సైట్ ట్రాఫిక్‌ను ప్రాక్సీ ద్వారా పంపుతుంది: {address}",
+  "homeQrReviewTurnsOff": "ఆఫ్ చేస్తుంది: {settings}",
+  "homeQrReviewTurnsOn": "ఆన్ చేస్తుంది: {settings}"
 }

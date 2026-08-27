@@ -97,11 +97,28 @@ class ArchiveHandle {
   }
 }
 
+/// Turns a passphrase into an archive key. [salt] is the per-install salt, or
+/// null for the superseded passphrase-derived one.
+typedef ArchiveKeyDeriver = Future<Uint8List> Function(
+  String passphrase,
+  Uint8List? salt,
+);
+
+Future<Uint8List> _argon2Derive(String passphrase, Uint8List? salt) {
+  return salt == null
+      ? ArchiveKeyDerivation.deriveLegacy(passphrase)
+      : ArchiveKeyDerivation.derive(passphrase, salt);
+}
+
 class Archive {
-  Archive({ArchiveStorage? storage})
-      : _storage = storage ?? ArchiveStorage();
+  /// [deriveKey] exists so tests can exercise the passphrase paths without
+  /// paying ~1s of Argon2id per call; production always takes the default.
+  Archive({ArchiveStorage? storage, ArchiveKeyDeriver? deriveKey})
+      : _storage = storage ?? ArchiveStorage(),
+        _derive = deriveKey ?? _argon2Derive;
 
   final ArchiveStorage _storage;
+  final ArchiveKeyDeriver _derive;
   final List<ArchiveHandle> _openHandles = <ArchiveHandle>[];
 
   List<ArchiveHandle> get openArchives =>
@@ -110,8 +127,31 @@ class Archive {
   Future<void> ensureInitialized() => _storage.ensureInitialized();
 
   Future<ArchiveHandle?> tryOpen(String passphrase) async {
-    final key = await ArchiveKeyDerivation.derive(passphrase);
-    return tryOpenWithKey(key);
+    await ensureInitialized();
+    final saltEntry = await _storage.ensureKdfSalt();
+    final key = await _derive(passphrase, saltEntry.salt);
+    final match = await _scanSlots(key);
+    if (match != null) {
+      return _adopt(key, match);
+    }
+    if (!saltEntry.legacyPossible) {
+      ArchiveCrypto.zeroize(key);
+      return null;
+    }
+    final legacyKey = await _derive(passphrase, null);
+    final legacyMatch = await _scanSlots(legacyKey);
+    ArchiveCrypto.zeroize(legacyKey);
+    if (legacyMatch == null) {
+      ArchiveCrypto.zeroize(key);
+      return null;
+    }
+    final handle = _adopt(key, legacyMatch);
+    if (identical(handle.key, key)) {
+      // Re-seal under the per-install salt so this slot never needs the legacy
+      // derivation again.
+      await _persist(handle);
+    }
+    return handle;
   }
 
   Future<ArchiveHandle?> tryOpenWithKey(Uint8List key) async {
@@ -121,6 +161,10 @@ class Archive {
       ArchiveCrypto.zeroize(key);
       return null;
     }
+    return _adopt(key, match);
+  }
+
+  ArchiveHandle _adopt(Uint8List key, _SlotMatch match) {
     final existing = _findOpenBySlot(match.slotIndex);
     if (existing != null) {
       ArchiveCrypto.zeroize(key);
@@ -138,7 +182,23 @@ class Archive {
   }
 
   Future<ArchiveHandle> create(String passphrase) async {
-    final key = await ArchiveKeyDerivation.derive(passphrase);
+    await ensureInitialized();
+    final saltEntry = await _storage.ensureKdfSalt();
+    if (saltEntry.legacyPossible) {
+      // A slot still sealed under the legacy key would be invisible to
+      // [createWithKey]'s scan, and claiming a second slot for the same
+      // passphrase would strand it.
+      final legacyKey = await _derive(passphrase, null);
+      final legacyMatch = await _scanSlots(legacyKey);
+      ArchiveCrypto.zeroize(legacyKey);
+      if (legacyMatch != null) {
+        throw StateError(
+          'an archive already exists for this passphrase '
+          '(slot ${legacyMatch.slotIndex})',
+        );
+      }
+    }
+    final key = await _derive(passphrase, saltEntry.salt);
     return createWithKey(key);
   }
 
@@ -198,12 +258,47 @@ class Archive {
     String passphrase,
     List<String> base64Sections,
   ) async {
-    final key = await ArchiveKeyDerivation.derive(passphrase);
-    try {
-      return await importSectionsWithKey(key, base64Sections);
-    } finally {
-      ArchiveCrypto.zeroize(key);
+    await ensureInitialized();
+    final localSalt = (await _storage.ensureKdfSalt()).salt;
+    final derived = <String, Uint8List>{};
+    Future<Uint8List> keyFor(Uint8List? salt) async {
+      final cacheKey = salt == null ? 'legacy' : base64.encode(salt);
+      final hit = derived[cacheKey];
+      if (hit != null) return hit;
+      final key = await _derive(passphrase, salt);
+      derived[cacheKey] = key;
+      return key;
     }
+
+    final unmatched = <String>[];
+    try {
+      for (final b64 in base64Sections) {
+        final section = _ArchiveSection.parse(b64);
+        if (section == null) {
+          unmatched.add(b64);
+          continue;
+        }
+        final plaintext =
+            await ArchiveCrypto.open(await keyFor(section.salt), section.wire);
+        if (plaintext == null) {
+          unmatched.add(b64);
+          continue;
+        }
+        final stateJson =
+            jsonDecode(utf8.decode(plaintext)) as Map<String, dynamic>;
+        // Re-key onto this device's salt: the section was sealed under the
+        // exporting device's, which this device's open path never derives.
+        await _writeState(
+          await keyFor(localSalt),
+          ArchiveState.fromJson(stateJson),
+        );
+      }
+    } finally {
+      for (final key in derived.values) {
+        ArchiveCrypto.zeroize(key);
+      }
+    }
+    return unmatched;
   }
 
   /// Key-based core of [importSections]. Does not consume or zeroize
@@ -217,14 +312,12 @@ class Archive {
     await ensureInitialized();
     final unmatched = <String>[];
     for (final b64 in base64Sections) {
-      Uint8List wire;
-      try {
-        wire = Uint8List.fromList(base64.decode(b64));
-      } catch (_) {
+      final section = _ArchiveSection.parse(b64);
+      if (section == null) {
         unmatched.add(b64);
         continue;
       }
-      final plaintext = await ArchiveCrypto.open(key, wire);
+      final plaintext = await ArchiveCrypto.open(key, section.wire);
       if (plaintext == null) {
         unmatched.add(b64);
         continue;
@@ -238,12 +331,20 @@ class Archive {
 
   /// Seals an archive's state into a self-contained base64 blob (no
   /// slot AAD) that [importSections] can later restore under the same
-  /// passphrase-derived key.
+  /// passphrase.
+  ///
+  /// The blob carries this install's Argon2id salt in the clear ahead of the
+  /// ciphertext: the receiving device derives with its own salt, so without it
+  /// a backup could only ever be restored onto the device that made it
+  /// (ARCH-002, "same passphrase across devices"). The salt is public input to
+  /// a KDF, not a secret — what it costs an attacker is the ability to reuse
+  /// one precomputed table against every other install.
   Future<String> exportSection(ArchiveHandle handle) async {
+    final salt = (await _storage.ensureKdfSalt()).salt;
     final plaintext =
         Uint8List.fromList(utf8.encode(jsonEncode(handle.state.toJson())));
     final wire = await ArchiveCrypto.seal(handle.key, plaintext);
-    return base64.encode(wire);
+    return _ArchiveSection(salt: salt, wire: wire).encode();
   }
 
   Future<void> _writeState(Uint8List key, ArchiveState state) async {
@@ -327,4 +428,52 @@ class _SlotMatch {
   _SlotMatch({required this.slotIndex, required this.plaintext});
   final int slotIndex;
   final Uint8List plaintext;
+}
+
+/// Wire framing for an exported section: `"WSA1" || salt || AEAD wire`. A blob
+/// with no magic predates the per-install salt, so its key came from the
+/// passphrase alone ([ArchiveKeyDerivation.deriveLegacy]).
+class _ArchiveSection {
+  _ArchiveSection({required this.salt, required this.wire});
+
+  static const List<int> _magic = <int>[0x57, 0x53, 0x41, 0x31];
+
+  final Uint8List? salt;
+  final Uint8List wire;
+
+  static _ArchiveSection? parse(String base64Section) {
+    Uint8List raw;
+    try {
+      raw = Uint8List.fromList(base64.decode(base64Section));
+    } catch (_) {
+      return null;
+    }
+    final headerLength = _magic.length + kArchiveSaltLength;
+    if (raw.length > headerLength && _hasMagic(raw)) {
+      return _ArchiveSection(
+        salt: Uint8List.sublistView(raw, _magic.length, headerLength),
+        wire: Uint8List.sublistView(raw, headerLength),
+      );
+    }
+    return _ArchiveSection(salt: null, wire: raw);
+  }
+
+  static bool _hasMagic(Uint8List raw) {
+    for (var i = 0; i < _magic.length; i++) {
+      if (raw[i] != _magic[i]) return false;
+    }
+    return true;
+  }
+
+  String encode() {
+    final s = salt;
+    if (s == null) {
+      return base64.encode(wire);
+    }
+    final out = Uint8List(_magic.length + s.length + wire.length);
+    out.setRange(0, _magic.length, _magic);
+    out.setRange(_magic.length, _magic.length + s.length, s);
+    out.setRange(_magic.length + s.length, out.length, wire);
+    return base64.encode(out);
+  }
 }

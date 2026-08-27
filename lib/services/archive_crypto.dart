@@ -8,10 +8,10 @@ const int kArchiveKeyLength = 32;
 const int kArchiveNonceLength = 12;
 const int kArchiveMacLength = 16;
 
-// Argon2id cost parameters (ARCH-002). These are the sole barrier to an
-// offline dictionary attack on the archive passphrase (the salt is derived
-// from the passphrase, so it adds no anti-precomputation entropy). Pinned by
-// test/archive_crypto_test.dart so a silent downgrade fails CI.
+// Argon2id cost parameters (ARCH-002). Together with the per-install random
+// salt they are the barrier to an offline dictionary attack on the archive
+// passphrase. Pinned by test/archive_crypto_test.dart so a silent downgrade
+// fails CI.
 const int kArchiveArgon2Parallelism = 4;
 const int kArchiveArgon2MemoryKiB = 64 * 1024; // 64 MiB
 const int kArchiveArgon2Iterations = 3;
@@ -37,6 +37,11 @@ final AesGcm _aesGcm = AesGcm.with256bits(nonceLength: kArchiveNonceLength);
 class ArchiveCrypto {
   ArchiveCrypto._();
 
+  /// Legacy salt: a pure function of the passphrase, so every install mapped
+  /// passphrase P to the same key and one precomputed table broke every
+  /// device. Superseded by the per-install random salt in `ArchiveStorage`;
+  /// retained only so archives sealed under it can still be opened and
+  /// re-sealed.
   static Future<Uint8List> deriveSalt(String passphrase) async {
     final pwBytes = utf8.encode(passphrase);
     final result = await _saltHkdf.deriveKey(

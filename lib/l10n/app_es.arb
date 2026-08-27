@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Apertura y visualización",
   "behaviourSummaryNothingOn": "Nada activado",
   "siteSettingsSectionNetwork": "Red",
-  "siteSettingsSectionSite": "Sitio"
+  "siteSettingsSectionSite": "Sitio",
+  "homeImportGlobalProxyWarning": "Esta copia de seguridad establece un proxy de salida para toda la app: {address}. Todos los sitios que no tengan un proxy propio pasarán por él.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{Esta copia de seguridad instala 1 user script. Se añade desactivado: revísalo antes de activarlo.} other{Esta copia de seguridad instala {count} user scripts. Se añaden desactivados: revísalos antes de activarlos.}}",
+  "homeQrReviewTitle": "Revisa los ajustes compartidos del sitio",
+  "homeQrReviewBody": "Este código lo escribió quien lo compartió y es él quien elige los ajustes de privacidad de este sitio. Compruébalos antes de añadirlo.",
+  "homeQrReviewUrl": "Dirección: {url}",
+  "homeQrReviewName": "Nombre: {name}",
+  "homeQrReviewProxy": "Envía el tráfico de este sitio a través de un proxy: {address}",
+  "homeQrReviewTurnsOff": "Desactiva: {settings}",
+  "homeQrReviewTurnsOn": "Activa: {settings}"
 }

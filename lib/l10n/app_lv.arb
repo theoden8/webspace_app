@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Atvēršana un attēlošana",
   "behaviourSummaryNothingOn": "Nekas nav iespējots",
   "siteSettingsSectionNetwork": "Tīkls",
-  "siteSettingsSectionSite": "Vietne"
+  "siteSettingsSectionSite": "Vietne",
+  "homeImportGlobalProxyWarning": "Šī dublējumkopija iestata visai lietotnei kopīgu izejošo starpniekserveri: {address}. Katra vietne, kurai nav sava starpniekservera, tiks novirzīta caur to.",
+  "homeImportUserScriptsWarning": "{count, plural, zero{Šī dublējumkopija instalē {count} lietotāja skriptu. Tie tiek pievienoti izslēgti — pārskatiet tos pirms ieslēgšanas.} one{Šī dublējumkopija instalē {count} lietotāja skriptu. Tas tiek pievienots izslēgts — pārskatiet to pirms ieslēgšanas.} other{Šī dublējumkopija instalē {count} lietotāja skriptus. Tie tiek pievienoti izslēgti — pārskatiet tos pirms ieslēgšanas.}}",
+  "homeQrReviewTitle": "Pārskatiet kopīgotos vietnes iestatījumus",
+  "homeQrReviewBody": "Šo kodu ir sarakstījis tas, kurš to kopīgoja, un tieši tas nosaka šīs vietnes privātuma iestatījumus. Pārbaudiet tos pirms pievienošanas.",
+  "homeQrReviewUrl": "Adrese: {url}",
+  "homeQrReviewName": "Nosaukums: {name}",
+  "homeQrReviewProxy": "Šīs vietnes datplūsmu sūta caur starpniekserveri: {address}",
+  "homeQrReviewTurnsOff": "Izslēdz: {settings}",
+  "homeQrReviewTurnsOn": "Ieslēdz: {settings}"
 }

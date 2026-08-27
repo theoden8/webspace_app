@@ -13,7 +13,6 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp
     show InAppWebViewController, ServiceWorkerController, SslCertificate;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:http/http.dart' as http;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:html/dom.dart' as html_dom;
@@ -69,6 +68,7 @@ import 'package:webspace/services/site_lifecycle_engine.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
 import 'package:webspace/services/site_retention_priority.dart';
 import 'package:webspace/services/orphan_sweep_engine.dart';
+import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/nav_state_capture_debouncer.dart';
 import 'package:webspace/services/webview_state_secure_storage.dart';
@@ -458,14 +458,33 @@ WebViewStateStorage? debugWebViewStateStorageOverride;
 List<WebViewModel>? debugWebViewModels;
 
 // Get page title by parsing HTML (fallback for platforms without native title support)
-Future<String?> getPageTitle(String url) async {
+//
+// LEAK-002: this is a network-bound fetch of a user-supplied URL, so it goes
+// through the outbound seam like every other Dart-side call. [proxy] is the
+// owning site's setting when there is one; a fresh add / inbound link has no
+// model yet and resolves through the global proxy. A blocked client aborts
+// the fetch — a direct GET would hand the URL's host the device IP, and the
+// URL can come straight from an attacker-authored share intent.
+Future<String?> getPageTitle(String url, {UserProxySettings? proxy}) async {
   // Check cache first
   if (_pageTitleCache.containsKey(url)) {
     return _pageTitleCache[url];
   }
 
+  final clientResult = outboundHttp.clientFor(
+    resolveEffectiveProxy(proxy ?? UserProxySettings(type: ProxyType.DEFAULT)),
+  );
+  if (clientResult is! OutboundClientReady) {
+    LogService.instance.log(
+      'Title',
+      'Outbound blocked: ${(clientResult as OutboundClientBlocked).reason}',
+      level: LogLevel.warning,
+    );
+    return null;
+  }
+  final client = clientResult.client;
   try {
-    final response = await http.get(Uri.parse(url)).timeout(
+    final response = await client.get(Uri.parse(url)).timeout(
       Duration(seconds: 5),
       onTimeout: () => throw TimeoutException('Page fetch timeout'),
     );
@@ -483,10 +502,35 @@ Future<String?> getPageTitle(String url) async {
     }
   } catch (e) {
     // Silently handle errors
+  } finally {
+    client.close();
   }
 
   _pageTitleCache[url] = null;
   return null;
+}
+
+/// Strip what a backup file must not be able to hand a restored site.
+///
+/// A backup is a plain JSON file the user was given, so everything in it is
+/// attacker-authorable:
+///   * a proxy password never rides an export (PWD-005) and so can only have
+///     been hand-written in — restoring it would point the site's traffic at
+///     someone else's authenticated proxy;
+///   * a user script injects at document start with full page privileges, on
+///     whatever site the same file chose. Nothing restored runs before the
+///     user has opened it and said yes. Global scripts are gated by per-site
+///     opt-in rather than their own `enabled` flag (`combineUserScripts`
+///     forces that true), so the opt-in set is what has to be dropped.
+@visibleForTesting
+void sanitizeImportedSites(List<WebViewModel> sites) {
+  for (final site in sites) {
+    site.proxySettings.password = null;
+    site.enabledGlobalScriptIds.clear();
+    for (final script in site.userScripts) {
+      script.enabled = false;
+    }
+  }
 }
 
 /// One-shot migration: copy file-import HTML out of [HtmlCacheService]
@@ -2295,10 +2339,18 @@ class _WebSpacePageState extends State<WebSpacePage>
         'received: $raw',
         sensitivity: LogSensitivity.sensitive,
       );
+      if (!_linkHandlingEnabled) {
+        LogService.instance.log(
+          'LinkIntent',
+          'Share dropped (link handling disabled): $raw',
+          sensitivity: LogSensitivity.sensitive,
+        );
+        return;
+      }
       if (raw.startsWith('webspace://qr/')) {
         final decoded = SiteSettingsQrCodec.decode(raw);
         if (decoded != null) {
-          _addSite(qrSettings: decoded);
+          await _addSite(deepLinkQrSettings: decoded);
         } else {
           LogService.instance.log(
             'LinkIntent',
@@ -2307,14 +2359,6 @@ class _WebSpacePageState extends State<WebSpacePage>
             sensitivity: LogSensitivity.sensitive,
           );
         }
-        return;
-      }
-      if (!_linkHandlingEnabled) {
-        LogService.instance.log(
-          'LinkIntent',
-          'Share dropped (link handling disabled): $raw',
-          sensitivity: LogSensitivity.sensitive,
-        );
         return;
       }
       final parsed = Uri.tryParse(raw);
@@ -2672,7 +2716,11 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// Add [model] to `_webViewModels`, attach to current named webspace,
   /// activate, persist, and apply the current theme. Shared by the
   /// "create new site for URL" and "create new site for HTML" flows.
-  Future<void> _registerNewSite(WebViewModel model) async {
+  ///
+  /// [activate] switches to the new site; pass false when the app, not the
+  /// user, chose to create it — an unattended entry point must not put a
+  /// stranger's page on screen.
+  Future<void> _registerNewSite(WebViewModel model, {bool activate = true}) async {
     // Apply theme before _setCurrentIndex triggers the first build —
     // initialHtml reads currentTheme to pick the dark prelude for cached
     // HTML (file:// imports especially, which never reload to live), and
@@ -2690,10 +2738,13 @@ class _WebSpacePageState extends State<WebSpacePage>
         await _saveWebspaces();
       }
     }
-    await _setCurrentIndex(newSiteIndex);
+    if (activate) {
+      await _setCurrentIndex(newSiteIndex);
+      if (!mounted) return;
+      await _saveCurrentIndex();
+    }
     if (!mounted) return;
     setState(() {});
-    await _saveCurrentIndex();
     await _saveWebViewModels();
   }
 
@@ -5089,6 +5140,13 @@ class _WebSpacePageState extends State<WebSpacePage>
     UserProxySettings? proxySettings,
     bool notificationsEnabled = false,
     bool externalLinksInBrowser = false,
+    bool blockAutoRedirects = false,
+    Set<BlockedCookie> blockedCookies = const {},
+    CameraAccessMode cameraMode = CameraAccessMode.ask,
+    VirtualCameraSource? virtualCameraSource,
+    MicrophoneAccessMode microphoneMode = MicrophoneAccessMode.ask,
+    VirtualMicrophoneSource? virtualMicrophoneSource,
+    bool? protectedContentAllowed,
   }) async {
     await Navigator.push(
       context,
@@ -5137,6 +5195,15 @@ class _WebSpacePageState extends State<WebSpacePage>
           proxySettings: proxySettings,
           notificationsEnabled: notificationsEnabled,
           externalLinksInBrowser: externalLinksInBrowser,
+          blockAutoRedirects: blockAutoRedirects,
+          blockedCookies: blockedCookies,
+          cookieManager: _cookieManager,
+          containerCookieManager: _containerCookieManager,
+          cameraMode: cameraMode,
+          virtualCameraSource: virtualCameraSource,
+          microphoneMode: microphoneMode,
+          virtualMicrophoneSource: virtualMicrophoneSource,
+          protectedContentAllowed: protectedContentAllowed,
         ),
       ),
     );
@@ -5736,6 +5803,35 @@ class _WebSpacePageState extends State<WebSpacePage>
     );
   }
 
+  /// `host:port` of the app-wide outbound proxy a backup would install, or
+  /// null when it sets none. Read from the backup, not live state, so the
+  /// dialog describes what is about to happen.
+  static String? _backupGlobalProxyAddress(SettingsBackup backup) {
+    try {
+      final raw = backup.globalPrefs[kGlobalOutboundProxyKey];
+      if (raw is! String || raw.isEmpty) return null;
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) return null;
+      final type = decoded['type'];
+      final address = decoded['address'];
+      if (type is! int || type == ProxyType.DEFAULT.index) return null;
+      if (address is! String || address.isEmpty) return null;
+      return address;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// How many user scripts a backup would install, global plus per-site.
+  static int _backupUserScriptCount(SettingsBackup backup) {
+    var count = backup.globalUserScripts?.length ?? 0;
+    for (final site in backup.sites) {
+      final scripts = site['userScripts'];
+      if (scripts is List) count += scripts.length;
+    }
+    return count;
+  }
+
   // Import settings from a file
   Future<void> _importSettings() async {
     final backup = await SettingsBackupService.pickAndImport(context);
@@ -5750,26 +5846,42 @@ class _WebSpacePageState extends State<WebSpacePage>
 
     final loc = AppLocalizations.of(context);
     final exportedLabel = loc.homeImportExportedLabel(exportDate);
+    // State the backup installs that acts on its own once restored: the
+    // app-wide proxy captures every DEFAULT site including webview traffic,
+    // and a user script runs at document start with full page privileges.
+    // Neither is visible in a site list, so the dialog has to name them.
+    final incomingGlobalProxy = _backupGlobalProxyAddress(backup);
+    final incomingScriptCount = _backupUserScriptCount(backup);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(loc.homeImportSettingsTitle),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(loc.homeImportSettingsConfirm(sitesCount, webspacesCount)),
-            SizedBox(height: 12),
-            Text(
-              exportedLabel,
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-            SizedBox(height: 16),
-            Text(
-              loc.homeImportSettingsSessionsNote,
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-            ),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(loc.homeImportSettingsConfirm(sitesCount, webspacesCount)),
+              SizedBox(height: 12),
+              Text(
+                exportedLabel,
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              if (incomingGlobalProxy != null) ...[
+                SizedBox(height: 12),
+                Text(loc.homeImportGlobalProxyWarning(incomingGlobalProxy)),
+              ],
+              if (incomingScriptCount > 0) ...[
+                SizedBox(height: 12),
+                Text(loc.homeImportUserScriptsWarning(incomingScriptCount)),
+              ],
+              SizedBox(height: 16),
+              Text(
+                loc.homeImportSettingsSessionsNote,
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -5801,6 +5913,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       restoredSites = SettingsBackupService.restoreSites(backup, () {
         setState(() {});
       });
+      sanitizeImportedSites(restoredSites);
       restoredWebspaces = SettingsBackupService.restoreWebspaces(backup);
     } catch (e) {
       LogService.instance.log(
@@ -5942,7 +6055,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     // Restore global user scripts if present in backup
     if (backup.globalUserScripts != null) {
       _globalUserScripts = backup.globalUserScripts!
-          .map((e) => UserScriptConfig.fromJson(e))
+          .map((e) => UserScriptConfig.fromJson(e)..enabled = false)
           .toList();
     }
     await _saveGlobalUserScripts();
@@ -6137,6 +6250,15 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (plan.deleteKnownCookies) {
       await model.deleteCookies(_cookieManager, _containerCookieManager);
     }
+    // Restorable residue the container/cookie wipes don't reach, both engines:
+    // the saved `controller.saveState()` bytes are replayed on the next
+    // activation, so a page that stashed an identifier in its URL via
+    // history.pushState would be reloaded at that URL and read itself back —
+    // defeating the fingerprint reroll above (ETP-022). The encrypted HTML
+    // snapshot is the same story for the page body.
+    _navStateDebouncer.cancel(model.siteId);
+    await _stateStorage.removeState(model.siteId);
+    await HtmlCacheService.instance.deleteCache(model.siteId);
     await _saveWebViewModels();
     if (!mounted) return;
     if (plan.userDrivenReload) {
@@ -7171,10 +7293,18 @@ class _WebSpacePageState extends State<WebSpacePage>
     );
   }
 
-  void _addSite({String? initialUrl, Map<String, dynamic>? qrSettings}) async {
+  /// [deepLinkQrSettings] is a decoded `webspace://qr/` payload that arrived
+  /// from outside the app. Both QR entry points (this one and the in-app
+  /// scanner, which returns `{'qrSettings': ...}` from `AddSiteScreen`) pass
+  /// through the same review gate below, and a payload the app did not ask
+  /// for never becomes the visible site.
+  Future<void> _addSite({
+    String? initialUrl,
+    Map<String, dynamic>? deepLinkQrSettings,
+  }) async {
     Object? result;
-    if (qrSettings != null) {
-      result = {'qrSettings': qrSettings};
+    if (deepLinkQrSettings != null) {
+      result = {'qrSettings': deepLinkQrSettings};
     } else {
       result = await Navigator.push(
         context,
@@ -7212,12 +7342,17 @@ class _WebSpacePageState extends State<WebSpacePage>
     final resultQrSettings = result['qrSettings'] as Map<String, dynamic>?;
 
     if (resultQrSettings != null) {
+      final accepted = await _confirmQrSiteSettings(resultQrSettings);
+      if (!accepted || !mounted) return;
       model = WebViewModel.fromJson(
         SiteSettingsQrCodec.hydrateForFromJson(resultQrSettings),
         stateSetter,
       );
       if ((model.name ?? '').isEmpty) {
-        final pageTitle = await getPageTitle(model.initUrl);
+        final pageTitle = await getPageTitle(
+          model.initUrl,
+          proxy: model.proxySettings,
+        );
         if (!mounted) return;
         if (pageTitle != null && pageTitle.isNotEmpty) {
           model.name = pageTitle;
@@ -7261,7 +7396,85 @@ class _WebSpacePageState extends State<WebSpacePage>
       }
     }
 
-    await _registerNewSite(model);
+    await _registerNewSite(model, activate: deepLinkQrSettings == null);
+  }
+
+  /// Mandatory review of a QR-borne site configuration before it is created.
+  /// The payload is authored by whoever printed the code, reaches us from any
+  /// app or web page via the exported `webspace://` scheme, and can turn every
+  /// protection off, point the site at a proxy, and name it anything.
+  Future<bool> _confirmQrSiteSettings(Map<String, dynamic> qr) async {
+    final loc = AppLocalizations.of(context);
+    final url = qr['initUrl'] as String? ?? '';
+    final name = (qr['name'] as String?) ?? extractDomain(url);
+    final proxyJson = qr['proxySettings'];
+    String? proxyAddress;
+    if (proxyJson is Map<String, dynamic>) {
+      final type = proxyJson['type'];
+      final address = proxyJson['address'];
+      if (type is int &&
+          type != ProxyType.DEFAULT.index &&
+          address is String &&
+          address.isNotEmpty) {
+        proxyAddress = address;
+      }
+    }
+    bool turnsOff(String key) => qr[key] == false;
+    bool turnsOn(String key) => qr[key] == true;
+    final weakened = <String>[
+      if (turnsOff('trackingProtectionEnabled')) loc.siteSettingsTrackingProtection,
+      if (turnsOff('clearUrlEnabled')) loc.siteSettingsClearUrls,
+      if (turnsOff('dnsBlockEnabled')) loc.siteSettingsDnsBlocklist,
+      if (turnsOff('contentBlockEnabled')) loc.siteSettingsContentBlocker,
+      if (turnsOff('localCdnEnabled')) loc.siteSettingsLocalCdn,
+      if (turnsOff('blockAutoRedirects')) loc.siteSettingsBlockAutoRedirects,
+    ];
+    final granted = <String>[
+      if (turnsOn('thirdPartyCookiesEnabled')) loc.siteSettingsThirdPartyCookies,
+      if (turnsOn('notificationsEnabled')) loc.siteSettingsNotifications,
+      if (turnsOn('backgroundAudioEnabled')) loc.siteSettingsBackgroundAudio,
+      if (turnsOn('kioskMode')) loc.siteSettingsKioskMode,
+      if (qr['locationMode'] is String && qr['locationMode'] != LocationMode.off.name)
+        loc.siteSettingsGeolocation,
+    ];
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(loc.homeQrReviewTitle),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(loc.homeQrReviewBody),
+              SizedBox(height: 12),
+              Text(loc.homeQrReviewUrl(url)),
+              Text(loc.homeQrReviewName(name)),
+              if (proxyAddress != null) Text(loc.homeQrReviewProxy(proxyAddress)),
+              if (weakened.isNotEmpty) ...[
+                SizedBox(height: 12),
+                Text(loc.homeQrReviewTurnsOff(weakened.join(', '))),
+              ],
+              if (granted.isNotEmpty) ...[
+                SizedBox(height: 12),
+                Text(loc.homeQrReviewTurnsOn(granted.join(', '))),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(loc.commonCancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(loc.qrApplyConfirm),
+          ),
+        ],
+      ),
+    );
+    return accepted == true;
   }
 
   void _editSite(int index) async {
@@ -7410,7 +7623,10 @@ class _WebSpacePageState extends State<WebSpacePage>
                           // fetched title lands in the name field, applied on
                           // Save like any other edit.
                           await FaviconUrlCache.invalidate(url);
-                          final title = await getPageTitle(url);
+                          final title = await getPageTitle(
+                            url,
+                            proxy: model.proxySettings,
+                          );
                           if (!context.mounted) return;
                           setDialogState(() {
                             if (title != null && title.isNotEmpty) {

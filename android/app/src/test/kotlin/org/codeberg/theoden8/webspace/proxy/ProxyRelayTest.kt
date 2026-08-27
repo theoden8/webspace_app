@@ -1,17 +1,26 @@
 package org.codeberg.theoden8.webspace.proxy
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
 import java.io.InputStream
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
+import java.nio.file.Files
+import java.security.KeyStore
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+import javax.net.ssl.KeyManagerFactory
+import javax.net.ssl.SSLContext
+import javax.net.ssl.SSLServerSocket
+import javax.net.ssl.TrustManagerFactory
 
 /**
  * JVM unit tests for [ProxyRelay] — no Android framework, no emulator.
@@ -147,7 +156,161 @@ class ProxyRelayTest {
         }
     }
 
+    @Test
+    fun httpsUpstream_rejectsCertificateIssuedForAnotherHost() {
+        // The upstream's certificate chains to a trusted root but is issued
+        // for a name the attacker owns. A raw SSLSocket validates the chain
+        // and stops there, so without endpoint identification the relay
+        // hands it the Proxy-Authorization header and every CONNECT target.
+        val pki = generateKeyStore("CN=evil.example", "dns:evil.example")
+        val seenAuth = AtomicReference<String?>(null)
+        val reachedUpstream = CountDownLatch(1)
+        val proxy = fakeTlsServer(serverContext(pki)) { sock ->
+            val req = readPreamble(sock.getInputStream())
+            if (req.requestLine.isNotEmpty()) {
+                seenAuth.set(req.headers.firstOrNull { it.startsWith("Proxy-Authorization:", true) })
+                reachedUpstream.countDown()
+            }
+        }
+        withDefaultSslContext(clientContext(pki)) {
+            val relay = ProxyRelay()
+            try {
+                val port = relay.start(
+                    ProxyRelay.UpstreamConfig(
+                        ProxyRelay.UpstreamType.HTTPS, "localhost", proxy.localPort, "user", "pass",
+                    )
+                )
+                Socket().use { c ->
+                    c.connect(InetSocketAddress("127.0.0.1", port), 3000)
+                    c.getOutputStream().write(
+                        "CONNECT example.com:443 HTTP/1.1\r\nHost: example.com:443\r\n\r\n".toByteArray()
+                    )
+                    c.getOutputStream().flush()
+                    val status = readPreamble(c.getInputStream()).requestLine
+                    assertTrue("expected 502, got: $status", status.contains("502"))
+                }
+                assertFalse(
+                    "handshake must not complete against a mismatched certificate",
+                    reachedUpstream.await(1, TimeUnit.SECONDS),
+                )
+                assertNull("credentials must never reach the impostor", seenAuth.get())
+            } finally {
+                relay.stop(); proxy.close()
+            }
+        }
+    }
+
+    @Test
+    fun httpsUpstream_acceptsMatchingCertificateAndInjectsCredentials() {
+        // Positive control for the test above: same trust setup, a
+        // certificate that actually names the configured upstream. Proves
+        // the rejection there is the hostname check and not the chain.
+        val pki = generateKeyStore("CN=localhost", "dns:localhost")
+        val origin = fakeOrigin("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nhi")
+        val seenAuth = AtomicReference<String?>(null)
+        val proxy = fakeTlsServer(serverContext(pki)) { sock ->
+            val req = readPreamble(sock.getInputStream())
+            seenAuth.set(req.headers.firstOrNull { it.startsWith("Proxy-Authorization:", true) })
+            sock.getOutputStream().write("HTTP/1.1 200 Connection Established\r\n\r\n".toByteArray())
+            sock.getOutputStream().flush()
+            spliceTo(sock, origin.localPort)
+        }
+        withDefaultSslContext(clientContext(pki)) {
+            val relay = ProxyRelay()
+            try {
+                val port = relay.start(
+                    ProxyRelay.UpstreamConfig(
+                        ProxyRelay.UpstreamType.HTTPS, "localhost", proxy.localPort, "user", "pass",
+                    )
+                )
+                val body = clientConnectThenGet(port, "example.com", 443)
+                assertTrue("origin response should reach the client", body.contains("hi"))
+                assertEquals(
+                    "Proxy-Authorization: Basic ${ProxyRelay.base64("user:pass".toByteArray())}",
+                    seenAuth.get(),
+                )
+            } finally {
+                relay.stop(); proxy.close(); origin.close()
+            }
+        }
+    }
+
     // --- helpers ---
+
+    /**
+     * Self-signed upstream certificate, generated fresh per run via the
+     * JDK's own keytool: no fixture to commit, and nothing that expires.
+     * The certificate is its own CA, so [clientContext] trusts exactly it
+     * and every other trust decision in the test is out of the picture.
+     */
+    private fun generateKeyStore(dname: String, san: String): KeyStore {
+        val dir = Files.createTempDirectory("proxy-relay-tls").toFile()
+        val file = File(dir, "upstream.p12")
+        val keytool = File(File(System.getProperty("java.home"), "bin"), "keytool")
+        val proc = ProcessBuilder(
+            keytool.absolutePath,
+            "-genkeypair", "-alias", KEY_ALIAS,
+            "-keyalg", "RSA", "-keysize", "2048", "-sigalg", "SHA256withRSA",
+            "-validity", "1",
+            "-dname", dname,
+            "-ext", "san=$san",
+            "-keystore", file.absolutePath, "-storetype", "PKCS12",
+            "-storepass", KEY_PASS, "-keypass", KEY_PASS,
+        ).redirectErrorStream(true).start()
+        val output = proc.inputStream.readBytes().toString(Charsets.UTF_8)
+        assertTrue("keytool timed out", proc.waitFor(60, TimeUnit.SECONDS))
+        assertTrue("keytool failed: $output", proc.exitValue() == 0)
+        val ks = KeyStore.getInstance("PKCS12")
+        file.inputStream().use { ks.load(it, KEY_PASS.toCharArray()) }
+        file.delete(); dir.delete()
+        return ks
+    }
+
+    private fun serverContext(ks: KeyStore): SSLContext {
+        val kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm())
+        kmf.init(ks, KEY_PASS.toCharArray())
+        return SSLContext.getInstance("TLS").apply { init(kmf.keyManagers, null, null) }
+    }
+
+    private fun clientContext(ks: KeyStore): SSLContext {
+        val trust = KeyStore.getInstance("JKS")
+        trust.load(null, null)
+        trust.setCertificateEntry(KEY_ALIAS, ks.getCertificate(KEY_ALIAS))
+        val tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
+        tmf.init(trust)
+        return SSLContext.getInstance("TLS").apply { init(null, tmf.trustManagers, null) }
+    }
+
+    /**
+     * The relay reaches TLS through `SSLSocketFactory.getDefault()`, which
+     * resolves `SSLContext.getDefault()` on every call — so swapping the
+     * default is how a test gets its own trust anchors in without the relay
+     * growing a seam that production would never use. Global JVM state:
+     * restore it or every later test inherits this trust store.
+     */
+    private fun <T> withDefaultSslContext(ctx: SSLContext, body: () -> T): T {
+        val previous = SSLContext.getDefault()
+        SSLContext.setDefault(ctx)
+        try {
+            return body()
+        } finally {
+            SSLContext.setDefault(previous)
+        }
+    }
+
+    private fun fakeTlsServer(ctx: SSLContext, handler: (Socket) -> Unit): ServerSocket {
+        val server = ctx.serverSocketFactory.createServerSocket() as SSLServerSocket
+        server.bind(InetSocketAddress(InetAddress.getByName("localhost"), 0))
+        Thread {
+            while (!server.isClosed) {
+                val s = try { server.accept() } catch (e: Exception) { break }
+                Thread {
+                    try { handler(s) } catch (e: Exception) { } finally { runCatching { s.close() } }
+                }.apply { isDaemon = true }.start()
+            }
+        }.apply { isDaemon = true }.start()
+        return server
+    }
 
     private data class Preamble(val requestLine: String, val headers: List<String>)
 
@@ -237,5 +400,10 @@ class ProxyRelayTest {
         }.apply { isDaemon = true }.start()
         latch.await(10, TimeUnit.SECONDS)
         runCatching { origin.close() }
+    }
+
+    companion object {
+        private const val KEY_ALIAS = "upstream"
+        private const val KEY_PASS = "changeit"
     }
 }

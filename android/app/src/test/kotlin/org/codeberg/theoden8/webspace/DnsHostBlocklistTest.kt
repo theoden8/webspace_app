@@ -59,6 +59,24 @@ class DnsHostBlocklistTest {
     }
 
     @Test
+    fun fqdnRootDotDoesNotBypassTheSet() {
+        // `https://ads.doubleclick.net./collect` resolves and renders exactly
+        // like the dotless form. The suffix walk has no notion of a root
+        // label — it would try `ads.doubleclick.net.`, `doubleclick.net.`,
+        // `net.` and return ALLOWED — so normalization has to land in the
+        // extractor, before the set is ever consulted.
+        val b = DnsHostBlocklist()
+        b.replaceFromBlob("doubleclick.net")
+        assertTrue(b.isBlocked(hostOf("https://ads.doubleclick.net./collect")))
+        assertTrue(b.isBlocked(hostOf("https://doubleclick.net.:443/x")))
+        assertTrue(b.isBlocked(hostOf("https://DoubleClick.NET./x")))
+        assertFalse(b.isBlocked(hostOf("https://notdoubleclick.net./x")))
+    }
+
+    private fun hostOf(url: String): String =
+        FastSubresourceInterceptor.extractHost(url)!!
+
+    @Test
     fun blankLinesIgnored() {
         val b = DnsHostBlocklist()
         b.replaceFromBlob("a.com\n\n\nb.com\n")

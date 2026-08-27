@@ -302,8 +302,11 @@ class DnsBlockService {
   static const _domainCacheKey = 'dns_domain_cache';
   static const _maxDomainCacheEntries = 5000;
 
-  /// Get the current domain cache (for hydrating new webviews).
-  Map<String, bool> getDomainCache() => _domainCache;
+  /// Read-only view of the merged domain-decision cache, for tests and
+  /// diagnostics. Never hand this to page JS: it is app-wide, so it names
+  /// every host every site has requested.
+  @visibleForTesting
+  Map<String, bool> get debugDomainCache => Map.unmodifiable(_domainCache);
 
   /// Insert (or update) a host->bool entry into the given cache, enforcing
   /// the [_maxDomainCacheEntries] cap with FIFO eviction. Single point of

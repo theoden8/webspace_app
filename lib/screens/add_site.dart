@@ -11,6 +11,7 @@ import 'package:webspace/l10n/gen/app_localizations.dart';
 import '../main.dart' show extractDomain;
 import 'favicon_image.dart';
 import '../services/icon_service.dart' show getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, faviconInvalidations, IconUpdate;
+import '../services/outbound_http.dart' show resolveEffectiveProxy;
 import '../settings/proxy.dart';
 import '../utils/url_utils.dart';
 import 'site_settings_qr.dart';
@@ -56,6 +57,14 @@ class FaviconUrlCache {
     invalidateFaviconFor(siteUrl);
   }
 }
+
+/// Whether the add-site preview may run its DNS reachability probe on the
+/// device's own resolver. False as soon as any outbound proxy is configured —
+/// the preview is a convenience, and losing it costs the user nothing but a
+/// preview card that stays up for a host that turns out not to exist.
+bool addSitePreviewMayResolveLocally() =>
+    resolveEffectiveProxy(UserProxySettings(type: ProxyType.DEFAULT)).type ==
+        ProxyType.DEFAULT;
 
 class SiteSuggestion {
   final String name;
@@ -296,6 +305,7 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
       return faviconNetworkImage(
         url: iconUrl,
         size: widget.size,
+        proxy: widget.proxy,
         placeholder: (context) => SizedBox(
           width: widget.size,
           height: widget.size,
@@ -409,8 +419,12 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
       return;
     }
 
-    // Skip DNS check for IP addresses and localhost
-    if (!_isDirectHost(uri.host)) {
+    // Skip DNS check for IP addresses, localhost, and whenever an outbound
+    // proxy is configured: the probe runs on the device's own resolver, so
+    // under Tor it would hand the local resolver and the ISP every site the
+    // user is about to add (LEAK-006). The proxy resolves the name itself
+    // when the site is actually loaded.
+    if (!_isDirectHost(uri.host) && addSitePreviewMayResolveLocally()) {
       if (!await hostCanResolve(uri.host)) {
         // DNS lookup failed — domain doesn't exist
         if (mounted && _previewUrl != null) {

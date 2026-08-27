@@ -188,13 +188,55 @@ void main() {
       expect(r.gestureUpdate, isNull, reason: 'same-domain changes do not touch gesture state');
     });
 
-    test('allows captcha challenge URLs even when cross-domain', () {
+    test('a captcha-shaped URL does not buy a gesture-less cross-origin hop',
+        () {
+      // `isCaptchaChallenge` matches a URL *shape*, so a page can send itself
+      // to `https://attacker.example/cdn-cgi/challenge-platform/x` and, when
+      // the allow ran first, render the attacker origin in place inside the
+      // site's own container and commit it as `currentUrl`.
       final r = decideChanged(
-        newUrl: 'https://challenges.cloudflare.com/foo',
+        newUrl: 'https://attacker.example/cdn-cgi/challenge-platform/x',
         initUrl: 'https://example.com',
         isCaptcha: _alwaysCaptcha,
       );
+      expect(r.decision, NavigationDecision.blockSilent);
+    });
+
+    test('a captcha the user reached renders in place instead of nesting', () {
+      // With the gesture (or with blockAutoRedirects off) the navigation is
+      // permitted anyway; the captcha check only keeps it out of a nested
+      // webview, where the challenge would be stranded away from the page
+      // that needs its cookie.
+      final withGesture = decideChanged(
+        newUrl: 'https://challenges.cloudflare.com/foo',
+        initUrl: 'https://example.com',
+        isCaptcha: _alwaysCaptcha,
+        lastSameDomainGestureTime: t0.subtract(const Duration(seconds: 2)),
+      );
+      expect(withGesture.decision, NavigationDecision.allow);
+      expect(withGesture.gestureUpdate, GestureStateUpdate.consume);
+
+      final unguarded = decideChanged(
+        newUrl: 'https://challenges.cloudflare.com/foo',
+        initUrl: 'https://example.com',
+        isCaptcha: _alwaysCaptcha,
+        blockAutoRedirects: false,
+      );
+      expect(unguarded.decision, NavigationDecision.allow);
+    });
+
+    test('a same-origin Cloudflare interstitial is still allowed unguarded',
+        () {
+      // The real interstitial is served by the site itself, so it never
+      // needed the captcha branch — the same-domain check clears it first.
+      final r = decideChanged(
+        newUrl: 'https://example.com/cdn-cgi/challenge-platform/h/b/orchestrate',
+        initUrl: 'https://example.com/',
+        isCaptcha: _alwaysCaptcha,
+        blockAutoRedirects: true,
+      );
       expect(r.decision, NavigationDecision.allow);
+      expect(r.gestureUpdate, isNull);
     });
 
     test('silently blocks server-side redirect when no recent gesture', () {
@@ -404,6 +446,31 @@ void main() {
       expect(handled.launchExternalUrl, 'https://unclaimed.com');
       expect(handled.launchNestedUrl, isNull);
       expect(handled.navigateBackTo, isNotNull);
+    });
+  });
+
+  group('private suffixes are cross-domain', () {
+    test('a hop between two github.io sites is not same-site', () {
+      // The same-domain branch returns `allow` before the gesture and
+      // blockAutoRedirects checks ever run, so a shared base domain here
+      // renders the attacker's page inside the victim's webview.
+      final r = decideShould(
+        targetUrl: 'https://attacker.github.io/steal',
+        initUrl: 'https://victim.github.io/',
+        hasGesture: false,
+        blockAutoRedirects: true,
+      );
+      expect(r.decision, NavigationDecision.blockSilent);
+    });
+
+    test('a site still navigates within its own github.io subdomain', () {
+      final r = decideShould(
+        targetUrl: 'https://victim.github.io/page',
+        initUrl: 'https://victim.github.io/',
+        hasGesture: false,
+        blockAutoRedirects: true,
+      );
+      expect(r.decision, NavigationDecision.allow);
     });
   });
 }

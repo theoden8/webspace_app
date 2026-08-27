@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Pembukaan dan paparan",
   "behaviourSummaryNothingOn": "Tiada yang diaktifkan",
   "siteSettingsSectionNetwork": "Rangkaian",
-  "siteSettingsSectionSite": "Tapak"
+  "siteSettingsSectionSite": "Tapak",
+  "homeImportGlobalProxyWarning": "Sandaran ini menetapkan proksi keluar untuk seluruh aplikasi: {address}. Setiap tapak yang tiada proksi sendiri akan dihalakan melaluinya.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{Sandaran ini memasang 1 skrip pengguna. Ia ditambah dalam keadaan dimatikan — semaknya sebelum menghidupkannya.} other{Sandaran ini memasang {count} skrip pengguna. Semuanya ditambah dalam keadaan dimatikan — semaknya sebelum menghidupkannya.}}",
+  "homeQrReviewTitle": "Semak tetapan tapak yang dikongsi",
+  "homeQrReviewBody": "Kod ini ditulis oleh sesiapa yang berkongsinya, dan kod itulah yang memilih tetapan privasi tapak ini. Semaknya sebelum menambah tapak tersebut.",
+  "homeQrReviewUrl": "Alamat: {url}",
+  "homeQrReviewName": "Nama: {name}",
+  "homeQrReviewProxy": "Menghantar trafik tapak ini melalui proksi: {address}",
+  "homeQrReviewTurnsOff": "Mematikan: {settings}",
+  "homeQrReviewTurnsOn": "Menghidupkan: {settings}"
 }

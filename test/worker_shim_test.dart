@@ -59,6 +59,21 @@ void main() {
     }
   });
 
+  // Every Intl constructor the language shim wraps takes the native
+  // prototype, so each needs its `constructor` re-pointed or
+  // `Intl.NumberFormat.prototype.constructor` formats in the OS locale.
+  group('language shim wrapper prototypes (BUG-009)', () {
+    test('re-points the wrapped constructor', () {
+      final shim = buildLanguageShim('fr-FR');
+      expect(shim, contains('Wrapped.prototype = Native.prototype'));
+      expect(
+        shim,
+        contains("Object.defineProperty(Wrapped.prototype, 'constructor'"),
+      );
+      expect(shim, contains('value: Wrapped'));
+    });
+  });
+
   group('buildWorkerShimScript', () {
     test('returns null when there is nothing to propagate', () {
       // No active spoofing => stock constructors, so a site that gains nothing
@@ -102,6 +117,33 @@ void main() {
       final script = buildWorkerShimScript([buildLanguageShim('en')])!;
       expect(script, contains('_wrapped'));
       expect(script, contains('_wrapped.get(key)'));
+    });
+
+    // BUG-009 / WORK-007: taking `Real.prototype` also inherits its own
+    // `constructor`, so without the re-point
+    // `new (Worker.prototype.constructor)('probe.js')` reaches the real
+    // constructor and produces a worker the payload never loaded into.
+    test('the Worker patch re-points prototype.constructor', () {
+      final script = buildWorkerShimScript([buildLanguageShim('en')])!;
+      expect(script, contains('Patched.prototype = Real.prototype'));
+      expect(
+        script,
+        contains("Object.defineProperty(Patched.prototype, 'constructor'"),
+      );
+      expect(script, contains('value: Patched'));
+    });
+
+    test('the nested-worker payload carries the same re-point', () {
+      final script = buildWorkerShimScript([buildLanguageShim('en')])!;
+      // The installer definition appears twice: once verbatim for the page,
+      // once JSON-encoded inside PAYLOAD for the worker that re-installs it.
+      // A fix applied only to the page half would show up once.
+      final occurrences = RegExp(
+        r"Object\.defineProperty\(Patched\.prototype, 'constructor'",
+      ).allMatches(script).length;
+      expect(occurrences, equals(2),
+          reason: 'the re-point must live in _installerDefinition so a '
+              'worker-spawned worker inherits it');
     });
 
     test('builder appends no evaluator tail (the call site owns that)', () {

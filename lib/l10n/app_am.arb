@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "መክፈት እና ማሳያ",
   "behaviourSummaryNothingOn": "ምንም አልነቃም",
   "siteSettingsSectionNetwork": "አውታረ መረብ",
-  "siteSettingsSectionSite": "ጣቢያ"
+  "siteSettingsSectionSite": "ጣቢያ",
+  "homeImportGlobalProxyWarning": "ይህ መጠባበቂያ በመተግበሪያው ሁሉ ላይ የሚሠራ ወጪ proxy ያዘጋጃል፦ {address}። የራሱ proxy የሌለው እያንዳንዱ ጣቢያ በእሱ በኩል ይተላለፋል።",
+  "homeImportUserScriptsWarning": "{count, plural, =1{ይህ መጠባበቂያ 1 የተጠቃሚ ስክሪፕት ይጭናል። ጠፍቶ ነው የሚታከለው — ከማንቃትዎ በፊት ይገምግሙት።} other{ይህ መጠባበቂያ {count} የተጠቃሚ ስክሪፕቶችን ይጭናል። ጠፍተው ነው የሚታከሉት — ከማንቃትዎ በፊት ይገምግሟቸው።}}",
+  "homeQrReviewTitle": "የተጋሩ የጣቢያ ቅንብሮችን ይገምግሙ",
+  "homeQrReviewBody": "ይህን ኮድ የጻፈው ያጋራው ሰው ነው፣ እናም የዚህን ጣቢያ የግላዊነት ቅንብሮች ይመርጣል። ከመጨመርዎ በፊት ያረጋግጧቸው።",
+  "homeQrReviewUrl": "አድራሻ፦ {url}",
+  "homeQrReviewName": "ስም፦ {name}",
+  "homeQrReviewProxy": "የዚህን ጣቢያ ትራፊክ በ proxy በኩል ይልካል፦ {address}",
+  "homeQrReviewTurnsOff": "ያሰናክላል፦ {settings}",
+  "homeQrReviewTurnsOn": "ያነቃል፦ {settings}"
 }

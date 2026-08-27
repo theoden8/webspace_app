@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Otwieranie i wyświetlanie",
   "behaviourSummaryNothingOn": "Nic nie włączone",
   "siteSettingsSectionNetwork": "Sieć",
-  "siteSettingsSectionSite": "Witryna"
+  "siteSettingsSectionSite": "Witryna",
+  "homeImportGlobalProxyWarning": "Ta kopia zapasowa ustawia proxy wychodzące dla całej aplikacji: {address}. Każda strona bez własnego proxy będzie kierowana przez nie.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{Ta kopia zapasowa instaluje 1 skrypt użytkownika. Zostaje dodany wyłączony — sprawdź go przed włączeniem.} few{Ta kopia zapasowa instaluje {count} skrypty użytkownika. Zostają dodane wyłączone — sprawdź je przed włączeniem.} many{Ta kopia zapasowa instaluje {count} skryptów użytkownika. Zostają dodane wyłączone — sprawdź je przed włączeniem.} other{Ta kopia zapasowa instaluje {count} skryptów użytkownika. Zostają dodane wyłączone — sprawdź je przed włączeniem.}}",
+  "homeQrReviewTitle": "Sprawdź udostępnione ustawienia strony",
+  "homeQrReviewBody": "Ten kod został napisany przez osobę, która go udostępniła, i to on wybiera ustawienia prywatności tej strony. Sprawdź je przed dodaniem.",
+  "homeQrReviewUrl": "Adres: {url}",
+  "homeQrReviewName": "Nazwa: {name}",
+  "homeQrReviewProxy": "Wysyła ruch tej strony przez proxy: {address}",
+  "homeQrReviewTurnsOff": "Wyłącza: {settings}",
+  "homeQrReviewTurnsOn": "Włącza: {settings}"
 }

@@ -153,6 +153,46 @@ void main() {
       expect(script, contains('Intl.DateTimeFormat'));
     });
 
+    // BUG-009 / ETP-025: `X.prototype = Native.prototype` takes the native
+    // prototype object, whose own `constructor` still names the native
+    // constructor. Leaving it means `RTCPeerConnection.prototype.constructor`
+    // builds an unpolicied peer connection that gathers host candidates
+    // outside the proxy, and `Intl.DateTimeFormat.prototype.constructor`
+    // resolves the device timezone.
+    test('relay wrapper re-points RTCPeerConnection.prototype.constructor', () {
+      final script = LocationSpoofService.buildScript(
+        locationMode: LocationMode.off,
+        spoofLatitude: null,
+        spoofLongitude: null,
+        spoofAccuracy: 50.0,
+        spoofTimezone: null,
+        webRtcPolicy: WebRtcPolicy.relayOnly,
+      );
+      expect(script, contains('_Patched.prototype = _RealRTC.prototype'));
+      expect(
+        script,
+        contains("Object.defineProperty(_Patched.prototype, 'constructor'"),
+      );
+      expect(script, contains('value: _Patched'));
+    });
+
+    test('timezone wrapper re-points DateTimeFormat.prototype.constructor', () {
+      final script = LocationSpoofService.buildScript(
+        locationMode: LocationMode.off,
+        spoofLatitude: null,
+        spoofLongitude: null,
+        spoofAccuracy: 50.0,
+        spoofTimezone: 'Asia/Tokyo',
+        webRtcPolicy: WebRtcPolicy.defaultPolicy,
+      );
+      expect(script, contains('PatchedDTF.prototype = _nativeDTF.prototype'));
+      expect(
+        script,
+        contains("Object.defineProperty(PatchedDTF.prototype, 'constructor'"),
+      );
+      expect(script, contains('value: PatchedDTF'));
+    });
+
     test('shim hardens Function.prototype.toString', () {
       final script = LocationSpoofService.buildScript(
         locationMode: LocationMode.spoof,

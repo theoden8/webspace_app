@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Pembukaan dan tampilan",
   "behaviourSummaryNothingOn": "Tidak ada yang aktif",
   "siteSettingsSectionNetwork": "Jaringan",
-  "siteSettingsSectionSite": "Situs"
+  "siteSettingsSectionSite": "Situs",
+  "homeImportGlobalProxyWarning": "Cadangan ini menetapkan proxy keluar untuk seluruh aplikasi: {address}. Setiap situs yang tidak punya proxy sendiri akan dirutekan melaluinya.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{Cadangan ini memasang 1 skrip pengguna. Skrip ditambahkan dalam keadaan nonaktif — tinjau sebelum mengaktifkannya.} other{Cadangan ini memasang {count} skrip pengguna. Semuanya ditambahkan dalam keadaan nonaktif — tinjau sebelum mengaktifkannya.}}",
+  "homeQrReviewTitle": "Tinjau pengaturan situs yang dibagikan",
+  "homeQrReviewBody": "Kode ini ditulis oleh orang yang membagikannya, dan kode itulah yang memilih pengaturan privasi situs ini. Periksa dulu sebelum menambahkan.",
+  "homeQrReviewUrl": "Alamat: {url}",
+  "homeQrReviewName": "Nama: {name}",
+  "homeQrReviewProxy": "Mengirim lalu lintas situs ini melalui proxy: {address}",
+  "homeQrReviewTurnsOff": "Menonaktifkan: {settings}",
+  "homeQrReviewTurnsOn": "Mengaktifkan: {settings}"
 }

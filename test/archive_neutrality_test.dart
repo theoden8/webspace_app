@@ -9,6 +9,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/services/cookie_isolation.dart';
 import 'package:webspace/services/file_store_io.dart';
 import 'package:webspace/services/archive.dart';
 import 'package:webspace/services/archive_storage.dart';
@@ -16,6 +17,8 @@ import 'package:webspace/services/webview_state_secure_storage.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 
+import 'cookie_isolation_integration_test.dart'
+    show MockCookieManager, MockCookieSecureStorage;
 import 'helpers/mock_secure_storage.dart';
 
 /// Active-state byte-identity regression tests (ARCH-001).
@@ -166,16 +169,20 @@ void main() {
   // state through a docs-dir writer or a keyed secure-storage entry —
   // even AES-encrypted, even blinded — fails here.
   group('Archive persistence is confined to the slot pool', () {
-    Set<String> slotKeys() => {
+    // The pool plus the ARCH-002 salt entry: everything the feature is allowed
+    // to put in the keychain, and all of it written at pool init whether or
+    // not an archive exists.
+    Set<String> poolKeys() => {
           for (var i = 0; i < kArchiveSlotCount; i++)
             'archive_slot_${i.toString().padLeft(2, '0')}',
+          kArchiveKdfSaltKey,
         };
 
     test('a full lifecycle touches only the 16 fixed slot keys', () async {
       final mock = MockFlutterSecureStorage();
       final archive = Archive(storage: ArchiveStorage(secureStorage: mock));
       await archive.ensureInitialized();
-      expect(mock.storage.keys.toSet(), equals(slotKeys()),
+      expect(mock.storage.keys.toSet(), equals(poolKeys()),
           reason: 'only the fixed pool exists after init');
 
       final handle = await archive.createWithKey(_testKey(7));
@@ -191,7 +198,7 @@ void main() {
 
       // The namespace is STILL exactly the slot pool — no per-site key
       // (cookies, webview-state, proxy password) ever appeared.
-      expect(mock.storage.keys.toSet(), equals(slotKeys()),
+      expect(mock.storage.keys.toSet(), equals(poolKeys()),
           reason: 'no per-site secure-storage key may be created');
       // And nothing leaked the archive siteId / cookie value in cleartext;
       // slot bodies are AEAD ciphertext (base64).
@@ -199,6 +206,54 @@ void main() {
         expect(value.contains('arch-site'), isFalse);
         expect(value.contains('super-secret-session'), isFalse);
       }
+    });
+
+    // ARCH-001 for the salt specifically: it is the one entry the KDF fix adds,
+    // and it would break deniability if it appeared only once the user had an
+    // archive, or varied in shape with the archive count.
+    test('the keychain footprint is identical with zero and with N archives',
+        () async {
+      final withNone = MockFlutterSecureStorage();
+      await Archive(storage: ArchiveStorage(secureStorage: withNone))
+          .ensureInitialized();
+
+      final withArchives = MockFlutterSecureStorage();
+      final archive =
+          Archive(storage: ArchiveStorage(secureStorage: withArchives));
+      for (var i = 0; i < 3; i++) {
+        final handle = await archive.createWithKey(_testKey(20 + i));
+        handle.state.sites.add({'siteId': 's$i', 'initUrl': 'https://s$i.test'});
+        await archive.save(handle);
+        await archive.close(handle);
+      }
+
+      expect(withArchives.storage.keys.toSet(),
+          equals(withNone.storage.keys.toSet()),
+          reason: 'the entry names must not depend on the archive count');
+      expect(withArchives.storage[kArchiveKdfSaltKey]!.length,
+          equals(withNone.storage[kArchiveKdfSaltKey]!.length));
+      for (final key in withNone.storage.keys) {
+        expect(withArchives.storage[key]!.length,
+            equals(withNone.storage[key]!.length),
+            reason: '$key must be the same size either way');
+      }
+      // Present on a device that has never held an archive, so its existence
+      // says nothing about whether one does.
+      expect(withNone.storage.containsKey(kArchiveKdfSaltKey), isTrue);
+      expect(
+        base64Url.decode(withNone.storage[kArchiveKdfSaltKey]!).length,
+        equals(kArchiveKdfSaltEntryLength),
+      );
+    });
+
+    test('the salt differs per install, so one table cannot cover two devices',
+        () async {
+      final a = ArchiveStorage(secureStorage: MockFlutterSecureStorage());
+      final b = ArchiveStorage(secureStorage: MockFlutterSecureStorage());
+      await a.ensureInitialized();
+      await b.ensureInitialized();
+      expect((await a.ensureKdfSalt()).salt,
+          isNot(equals((await b.ensureKdfSalt()).salt)));
     });
 
     test('a full lifecycle leaves the documents tree byte-identical', () async {
@@ -285,6 +340,114 @@ void main() {
           .toList();
 
       expect(withArchive, equals(withoutArchive));
+    });
+  });
+
+  // The legacy cookie engine (used wherever native containers are
+  // unsupported) branched on the raw `incognito` field, not
+  // `effectiveIncognito`. `_saveWebViewModels` filters archive-tier sites
+  // out of app-tier persistence, but the engine ran underneath that filter
+  // and put an archive site's non-Secure cookies into plaintext
+  // SharedPreferences (`cookies_fallback`) keyed by its cleartext siteId —
+  // an ARCH-001 byte-identity break the moment an archive is opened.
+  group('Legacy cookie engine leaves no app-tier trace for archive sites', () {
+    late MockCookieManager jar;
+    late MockCookieSecureStorage storage;
+    late CookieIsolationEngine engine;
+
+    setUp(() {
+      jar = MockCookieManager();
+      storage = MockCookieSecureStorage();
+      engine = CookieIsolationEngine(cookieManager: jar, storage: storage);
+    });
+
+    test('unloadSiteForDomainSwitch persists nothing for an archive site',
+        () async {
+      final archived = WebViewModel(
+        siteId: 'arch-1',
+        initUrl: 'https://secret.test',
+        isArchiveTier: true,
+      );
+      await jar.setCookie(
+        url: Uri.parse('https://secret.test/'),
+        name: 'sid',
+        value: 'archive-session',
+        domain: 'secret.test',
+      );
+
+      await engine.unloadSiteForDomainSwitch(
+        index: 0,
+        models: [archived],
+        loadedIndices: {0},
+      );
+
+      expect(storage.allStorage, isEmpty);
+      expect(archived.cookies, isEmpty);
+    });
+
+    test('restoreCookiesForSite skips an archive target and archive siblings',
+        () async {
+      final appSite = WebViewModel(
+        siteId: 'app-1',
+        initUrl: 'https://public.test',
+      );
+      final archived = WebViewModel(
+        siteId: 'arch-1',
+        initUrl: 'https://secret.test',
+        isArchiveTier: true,
+      );
+      await jar.setCookie(
+        url: Uri.parse('https://secret.test/'),
+        name: 'sid',
+        value: 'archive-session',
+        domain: 'secret.test',
+      );
+      await jar.setCookie(
+        url: Uri.parse('https://public.test/'),
+        name: 'sid',
+        value: 'app-session',
+        domain: 'public.test',
+      );
+
+      // Activating the app-tier site sweeps every loaded site into storage.
+      await engine.restoreCookiesForSite(
+        index: 0,
+        models: [appSite, archived],
+        loadedIndices: {0, 1},
+        versionAtEntry: 0,
+        currentVersion: () => 0,
+      );
+      expect(storage.allStorage.keys.toSet(), equals({'app-1'}));
+
+      // Activating the archive site itself must also write nothing.
+      await engine.restoreCookiesForSite(
+        index: 1,
+        models: [appSite, archived],
+        loadedIndices: {0, 1},
+        versionAtEntry: 0,
+        currentVersion: () => 0,
+      );
+      expect(storage.allStorage.containsKey('arch-1'), isFalse);
+    });
+
+    test('preDeleteCookieCleanup only erases the archive site entry',
+        () async {
+      final archived = WebViewModel(
+        siteId: 'arch-1',
+        initUrl: 'https://secret.test',
+        isArchiveTier: true,
+      );
+
+      await engine.preDeleteCookieCleanup(
+        deletedModel: archived,
+        deletedIndex: 0,
+        models: [archived],
+        loadedIndices: {0},
+      );
+
+      // `saveCookiesForSite(id, [])` removes the entry rather than writing
+      // one, so a delete stays an erase.
+      expect(storage.allStorage, isEmpty);
     });
   });
 

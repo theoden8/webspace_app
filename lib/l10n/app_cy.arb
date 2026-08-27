@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Agor ac arddangos",
   "behaviourSummaryNothingOn": "Dim byd wedi'i alluogi",
   "siteSettingsSectionNetwork": "Rhwydwaith",
-  "siteSettingsSectionSite": "Gwefan"
+  "siteSettingsSectionSite": "Gwefan",
+  "homeImportGlobalProxyWarning": "Mae'r copi wrth gefn hwn yn gosod dirprwy allanol ar gyfer yr ap cyfan: {address}. Bydd pob safle heb ei ddirprwy ei hun yn mynd drwyddo.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{Mae'r copi wrth gefn hwn yn gosod 1 sgript defnyddiwr. Caiff ei hychwanegu wedi'i diffodd — adolygwch hi cyn ei galluogi.} other{Mae'r copi wrth gefn hwn yn gosod {count} sgript defnyddiwr. Cânt eu hychwanegu wedi'u diffodd — adolygwch nhw cyn eu galluogi.}}",
+  "homeQrReviewTitle": "Adolygu gosodiadau safle a rannwyd",
+  "homeQrReviewBody": "Ysgrifennwyd y cod hwn gan bwy bynnag a'i rhannodd, ac mae'n dewis gosodiadau preifatrwydd y safle hwn. Gwiriwch nhw cyn ychwanegu.",
+  "homeQrReviewUrl": "Cyfeiriad: {url}",
+  "homeQrReviewName": "Enw: {name}",
+  "homeQrReviewProxy": "Yn anfon traffig y safle hwn drwy ddirprwy: {address}",
+  "homeQrReviewTurnsOff": "Yn analluogi: {settings}",
+  "homeQrReviewTurnsOn": "Yn galluogi: {settings}"
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Manual language review for ARB locale files. The CI guard
-// (test/js/l10n_language_test.js) checks each file in aggregate; this tool
+// (test/js/l10n_language.test.js) checks each file in aggregate; this tool
 // adds a --per-string mode to surface individual suspect values for human
 // review (the aggregate check can mask a few wrong strings in an otherwise
 // correct file).

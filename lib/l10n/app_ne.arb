@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "खोल्ने र प्रदर्शन",
   "behaviourSummaryNothingOn": "केही पनि सक्षम छैन",
   "siteSettingsSectionNetwork": "सञ्जाल",
-  "siteSettingsSectionSite": "साइट"
+  "siteSettingsSectionSite": "साइट",
+  "homeImportGlobalProxyWarning": "यो ब्याकअपले सम्पूर्ण एपका लागि बहिर्गामी प्रॉक्सी सेट गर्छ: {address}। आफ्नै प्रॉक्सी नभएका सबै साइटहरू त्यसैमार्फत जानेछन्।",
+  "homeImportUserScriptsWarning": "{count, plural, =1{यो ब्याकअपले 1 प्रयोगकर्ता स्क्रिप्ट स्थापना गर्छ। यो बन्द अवस्थामा थपिन्छ — सक्षम पार्नुअघि यसको समीक्षा गर्नुहोस्।} other{यो ब्याकअपले {count} प्रयोगकर्ता स्क्रिप्टहरू स्थापना गर्छ। तिनीहरू बन्द अवस्थामा थपिन्छन् — सक्षम पार्नुअघि तिनीहरूको समीक्षा गर्नुहोस्।}}",
+  "homeQrReviewTitle": "साझेदारी गरिएका साइट सेटिङहरूको समीक्षा गर्नुहोस्",
+  "homeQrReviewBody": "यो कोड यसलाई साझेदारी गर्ने व्यक्तिले लेखेको हो र यही कोडले यो साइटका गोपनीयता सेटिङहरू छान्छ। थप्नुअघि तिनीहरू जाँच्नुहोस्।",
+  "homeQrReviewUrl": "ठेगाना: {url}",
+  "homeQrReviewName": "नाम: {name}",
+  "homeQrReviewProxy": "यो साइटको ट्राफिक प्रॉक्सीमार्फत पठाउँछ: {address}",
+  "homeQrReviewTurnsOff": "बन्द गर्छ: {settings}",
+  "homeQrReviewTurnsOn": "चालू गर्छ: {settings}"
 }

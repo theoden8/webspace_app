@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Ftuħ u wiri",
   "behaviourSummaryNothingOn": "Xejn attivat",
   "siteSettingsSectionNetwork": "Netwerk",
-  "siteSettingsSectionSite": "Sit"
+  "siteSettingsSectionSite": "Sit",
+  "homeImportGlobalProxyWarning": "Dan il-backup jissettja proxy għall-ħruġ għall-app kollha: {address}. Kull sit li m'għandux proxy tiegħu stess se jgħaddi minnu.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{Dan il-backup jinstalla user script wieħed. Jiżdied mitfi — irrevedih qabel ma tixgħelu.} two{Dan il-backup jinstalla {count} user scripts. Jiżdiedu mitfija — irrevedihom qabel ma tixgħelhom.} few{Dan il-backup jinstalla {count} user scripts. Jiżdiedu mitfija — irrevedihom qabel ma tixgħelhom.} many{Dan il-backup jinstalla {count} user scripts. Jiżdiedu mitfija — irrevedihom qabel ma tixgħelhom.} other{Dan il-backup jinstalla {count} user scripts. Jiżdiedu mitfija — irrevedihom qabel ma tixgħelhom.}}",
+  "homeQrReviewTitle": "Irrevedi s-settings ixxerjati tas-sit",
+  "homeQrReviewBody": "Dan il-kodiċi nkiteb minn min qasmu, u huwa li jagħżel is-settings tal-privatezza ta' dan is-sit. Iċċekkjahom qabel ma żżid is-sit.",
+  "homeQrReviewUrl": "Indirizz: {url}",
+  "homeQrReviewName": "Isem: {name}",
+  "homeQrReviewProxy": "Jibgħat it-traffiku ta' dan is-sit minn proxy: {address}",
+  "homeQrReviewTurnsOff": "Jitfi: {settings}",
+  "homeQrReviewTurnsOn": "Jixgħel: {settings}"
 }

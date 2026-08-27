@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "খোলা এবং প্রদর্শন",
   "behaviourSummaryNothingOn": "কিছুই সক্রিয় নয়",
   "siteSettingsSectionNetwork": "নেটওয়ার্ক",
-  "siteSettingsSectionSite": "সাইট"
+  "siteSettingsSectionSite": "সাইট",
+  "homeImportGlobalProxyWarning": "এই ব্যাকআপটি অ্যাপ-জুড়ে একটি আউটবাউন্ড প্রক্সি সেট করে: {address}। যেসব সাইটের নিজস্ব প্রক্সি নেই, সেগুলোর সব ট্রাফিক এর মধ্য দিয়ে যাবে।",
+  "homeImportUserScriptsWarning": "{count, plural, =1{এই ব্যাকআপটি ১টি ইউজার স্ক্রিপ্ট ইনস্টল করে। এটি বন্ধ অবস্থায় যোগ করা হয় — চালু করার আগে সেটি যাচাই করে নিন।} other{এই ব্যাকআপটি {count}টি ইউজার স্ক্রিপ্ট ইনস্টল করে। সেগুলো বন্ধ অবস্থায় যোগ করা হয় — চালু করার আগে সেগুলো যাচাই করে নিন।}}",
+  "homeQrReviewTitle": "শেয়ার করা সাইট সেটিংস পর্যালোচনা করুন",
+  "homeQrReviewBody": "এই কোডটি যিনি শেয়ার করেছেন তিনিই লিখেছেন, এবং এটিই এই সাইটের গোপনীয়তা সেটিংস বেছে দেয়। যোগ করার আগে সেগুলো দেখে নিন।",
+  "homeQrReviewUrl": "ঠিকানা: {url}",
+  "homeQrReviewName": "নাম: {name}",
+  "homeQrReviewProxy": "এই সাইটের ট্রাফিক একটি প্রক্সির মধ্য দিয়ে পাঠায়: {address}",
+  "homeQrReviewTurnsOff": "বন্ধ করে: {settings}",
+  "homeQrReviewTurnsOn": "চালু করে: {settings}"
 }

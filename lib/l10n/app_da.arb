@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Åbning og visning",
   "behaviourSummaryNothingOn": "Intet aktiveret",
   "siteSettingsSectionNetwork": "Netværk",
-  "siteSettingsSectionSite": "Websted"
+  "siteSettingsSectionSite": "Websted",
+  "homeImportGlobalProxyWarning": "Denne sikkerhedskopi angiver en udgående proxy for hele appen: {address}. Alle websteder, der ikke har deres egen proxy, sendes gennem den.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{Denne sikkerhedskopi installerer 1 brugerscript. Det tilføjes slået fra — gennemgå det, før du slår det til.} other{Denne sikkerhedskopi installerer {count} brugerscripts. De tilføjes slået fra — gennemgå dem, før du slår dem til.}}",
+  "homeQrReviewTitle": "Gennemgå delte webstedsindstillinger",
+  "homeQrReviewBody": "Denne kode er skrevet af den, der delte den, og den vælger dette websteds indstillinger for privatliv. Kontrollér dem, før du tilføjer.",
+  "homeQrReviewUrl": "Adresse: {url}",
+  "homeQrReviewName": "Navn: {name}",
+  "homeQrReviewProxy": "Sender dette websteds trafik gennem en proxy: {address}",
+  "homeQrReviewTurnsOff": "Slår fra: {settings}",
+  "homeQrReviewTurnsOn": "Slår til: {settings}"
 }

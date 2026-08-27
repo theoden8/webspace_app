@@ -17,6 +17,11 @@ const {
   loadDetector,
   verifyLocale,
   suspectStrings,
+  stemOf,
+  localeText,
+  hanVariant,
+  expectedHanVariant,
+  declaredLocale,
 } = require('./helpers/l10n_language');
 
 test('locale files are written in their claimed language', async () => {
@@ -28,6 +33,38 @@ test('locale files are written in their claimed language', async () => {
       `${file}: detected ${lang} (p=${prob.toFixed(2)}, reliable=${reliable}), expected ${accept.join('/')}. Likely untranslated or wrong language.`,
     );
   }
+});
+
+// CLD3 reports both Chinese variants as "zh" and both are Han script, so
+// neither the language check above nor SCRIPTS can tell them apart. Without
+// this, a Traditional file shipped as Simplified passes every gate - which is
+// how a Traditional app_zh.arb sat in the repo claiming to be Simplified.
+// Keyed on the ARB's declared @@locale, not its filename: app_zh.arb exists
+// only because gen_l10n demands a base for zh_Hant, and is a symlink to it.
+test('Chinese locales use the character variant they declare', () => {
+  for (const file of localeFiles()) {
+    const want = expectedHanVariant(declaredLocale(file) || stemOf(file));
+    if (!want) continue;
+    const { simplified, traditional } = hanVariant(localeText(file));
+    const [mine, theirs] = want === 'simplified'
+      ? [simplified, traditional]
+      : [traditional, simplified];
+    assert.ok(
+      mine > theirs,
+      `${file} claims ${want} Chinese but carries ${theirs} variant-specific characters ` +
+        `against ${mine} of its own. It is written in the wrong variant.`,
+    );
+  }
+});
+
+// Negative control for the check above: prove it separates the variants,
+// so a future dependency or refactor cannot neuter it into always passing.
+test('the Han variant discriminator tells the two scripts apart', () => {
+  assert.deepEqual(hanVariant('这个网页设置'), { simplified: 5, traditional: 0 });
+  assert.deepEqual(hanVariant('這個網頁設定'), { simplified: 0, traditional: 5 });
+  assert.equal(expectedHanVariant('zh'), 'traditional');
+  assert.equal(expectedHanVariant('zh_Hant'), 'traditional');
+  assert.equal(expectedHanVariant('fr'), null);
 });
 
 // Per-string gate: no individual value may be left untranslated (in

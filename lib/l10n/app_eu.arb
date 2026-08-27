@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Irekitzea eta bistaratzea",
   "behaviourSummaryNothingOn": "Ezer ez gaituta",
   "siteSettingsSectionNetwork": "Sarea",
-  "siteSettingsSectionSite": "Gunea"
+  "siteSettingsSectionSite": "Gunea",
+  "homeImportGlobalProxyWarning": "Babeskopia honek aplikazio osorako irteerako proxy bat ezartzen du: {address}. Bere proxyrik ez duen gune bakoitza haren bidez bideratuko da.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{Babeskopia honek erabiltzaile-script 1 instalatzen du. Itzalita gehitzen da — berrikusi ezazu gaitu aurretik.} other{Babeskopia honek {count} erabiltzaile-script instalatzen ditu. Itzalita gehitzen dira — berrikusi itzazu gaitu aurretik.}}",
+  "homeQrReviewTitle": "Berrikusi partekatutako gune-ezarpenak",
+  "homeQrReviewBody": "Kode hau partekatu duenak idatzi du, eta berak aukeratzen ditu gune honen pribatutasun-ezarpenak. Egiaztatu itzazu gehitu aurretik.",
+  "homeQrReviewUrl": "Helbidea: {url}",
+  "homeQrReviewName": "Izena: {name}",
+  "homeQrReviewProxy": "Gune honen trafikoa proxy baten bidez bidaltzen du: {address}",
+  "homeQrReviewTurnsOff": "Desgaitzen du: {settings}",
+  "homeQrReviewTurnsOn": "Gaitzen du: {settings}"
 }

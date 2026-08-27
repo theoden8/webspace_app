@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Нээлт ба харагдац",
   "behaviourSummaryNothingOn": "Юу ч идэвхжээгүй",
   "siteSettingsSectionNetwork": "Сүлжээ",
-  "siteSettingsSectionSite": "Сайт"
+  "siteSettingsSectionSite": "Сайт",
+  "homeImportGlobalProxyWarning": "Энэ нөөцлөлт нь апп даяар үйлчлэх гарах прокси тохируулна: {address}. Өөрийн проксигүй бүх сайт түүгээр дамжина.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{Энэ нөөцлөлт 1 хэрэглэгчийн скрипт суулгана. Энэ нь унтраалттай нэмэгдэх тул асаахаасаа өмнө шалгана уу.} other{Энэ нөөцлөлт {count} хэрэглэгчийн скрипт суулгана. Тэдгээр нь унтраалттай нэмэгдэх тул асаахаасаа өмнө шалгана уу.}}",
+  "homeQrReviewTitle": "Хуваалцсан сайтын тохиргоог шалгах",
+  "homeQrReviewBody": "Энэ кодыг хуваалцсан хүн бичсэн бөгөөд энэ сайтын нууцлалын тохиргоог тэр код тодорхойлно. Нэмэхээсээ өмнө тэдгээрийг шалгана уу.",
+  "homeQrReviewUrl": "Хаяг: {url}",
+  "homeQrReviewName": "Нэр: {name}",
+  "homeQrReviewProxy": "Энэ сайтын урсгалыг прокси дамжуулан илгээнэ: {address}",
+  "homeQrReviewTurnsOff": "Унтраана: {settings}",
+  "homeQrReviewTurnsOn": "Асаана: {settings}"
 }

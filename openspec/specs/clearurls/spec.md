@@ -113,6 +113,51 @@ The system SHALL extract redirect targets from tracking redirect URLs.
 **When** the webview navigates to `https://redirect.example.com/go?url=https%3A%2F%2Ftarget.com%2Fpage&tracking=123`
 **Then** the webview loads `https://target.com/page` instead
 
+#### Scenario: A non-http(s) redirect target is refused
+
+**Given** a provider has a redirection rule whose capture group is the
+embedded destination
+**And** a page links to `https://redirect.example.com/go?url=javascript%3Aalert(1)`
+**When** `cleanUrl` runs
+**Then** the decoded target is not returned
+**And** the URL falls through to ordinary parameter stripping
+**Because** the capture group is page-controlled and the caller navigates
+to whatever `cleanUrl` returns — on Android `loadUrl` accepts any scheme,
+so a `javascript:` target would run in the document doing the navigating
+
+---
+
+### Requirement: CURL-014 - Rewrites are validated before they are loaded
+
+A URL the ClearURLs pass returns SHALL be re-checked with
+[`ExternalUrlParser.isLoadableWebUrl`](../../../lib/services/external_url_engine.dart)
+before the webview is asked to load it. Only `http`/`https` targets are
+loadable; anything else is dropped and the original navigation proceeds
+unmodified.
+
+#### Scenario: Rewrite target scheme is checked at the load site
+
+**Given** ClearURLs returns a cleaned URL different from the navigation URL
+**When** `shouldOverrideUrlLoading` is about to cancel and reissue it
+**Then** the cleaned URL is loaded only if its scheme is `http` or `https`
+
+---
+
+### Requirement: CURL-015 - Rewrites are main-frame-only
+
+The ClearURLs rewrite drives a load on the **top-level** webview
+(`controller.loadUrl`). It SHALL therefore run only for main-frame
+navigations, below the `isForMainFrame` gate in
+`shouldOverrideUrlLoading`.
+
+#### Scenario: A subframe navigation cannot steer the top document
+
+**Given** a cross-origin iframe navigates to a URL a ClearURLs redirection
+rule matches
+**When** `shouldOverrideUrlLoading` fires with `isForMainFrame == false`
+**Then** the navigation is allowed in place
+**And** no `loadUrl` is issued against the top-level controller
+
 ---
 
 ### Requirement: CURL-006 - Complete Provider Blocking

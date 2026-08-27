@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "열기 및 표시",
   "behaviourSummaryNothingOn": "활성화된 항목 없음",
   "siteSettingsSectionNetwork": "네트워크",
-  "siteSettingsSectionSite": "사이트"
+  "siteSettingsSectionSite": "사이트",
+  "homeImportGlobalProxyWarning": "이 백업은 앱 전체에 적용되는 아웃바운드 프록시를 설정합니다: {address}. 자체 프록시가 없는 모든 사이트는 이 프록시를 거쳐 연결됩니다.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{이 백업은 사용자 스크립트 1개를 설치합니다. 꺼진 상태로 추가되므로 켜기 전에 검토하세요.} other{이 백업은 사용자 스크립트 {count}개를 설치합니다. 모두 꺼진 상태로 추가되므로 켜기 전에 검토하세요.}}",
+  "homeQrReviewTitle": "공유된 사이트 설정 검토",
+  "homeQrReviewBody": "이 코드는 공유한 사람이 작성한 것이며, 이 사이트의 개인정보 설정을 결정합니다. 추가하기 전에 확인하세요.",
+  "homeQrReviewUrl": "주소: {url}",
+  "homeQrReviewName": "이름: {name}",
+  "homeQrReviewProxy": "이 사이트의 트래픽을 프록시를 통해 보냅니다: {address}",
+  "homeQrReviewTurnsOff": "끄는 항목: {settings}",
+  "homeQrReviewTurnsOn": "켜는 항목: {settings}"
 }

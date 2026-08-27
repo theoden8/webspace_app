@@ -1,7 +1,15 @@
+// Each case seals/scans the full 16 x 128 KiB slot pool several times; the
+// migration cases scan it twice per open. Loaded CI runners blow the default
+// 30s (same reason as archive_neutrality_test.dart).
+@Timeout(Duration(minutes: 2))
+library;
+
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/archive.dart';
+import 'package:webspace/services/archive_crypto.dart';
 import 'package:webspace/services/archive_storage.dart';
 
 import 'helpers/mock_secure_storage.dart';
@@ -10,6 +18,26 @@ Uint8List _testKey(int seed) {
   return Uint8List.fromList(
     List<int>.generate(32, (i) => (seed * 17 + i * 31) & 0xff),
   );
+}
+
+/// Stand-in for Argon2id: same contract (32 bytes, a pure function of
+/// passphrase and salt, distinct per salt), microseconds instead of ~1s, so the
+/// passphrase-driven paths can be exercised at all. The real derivation's cost
+/// parameters are pinned in `archive_crypto_test.dart`.
+class _CountingDeriver {
+  int calls = 0;
+  final List<bool> legacyCalls = <bool>[];
+
+  Future<Uint8List> call(String passphrase, Uint8List? salt) async {
+    calls++;
+    legacyCalls.add(salt == null);
+    final material = Uint8List(32);
+    final src = salt ?? Uint8List.fromList(utf8.encode('legacy-salt'));
+    for (var i = 0; i < material.length; i++) {
+      material[i] = src[i % src.length];
+    }
+    return ArchiveCrypto.hmac(material, passphrase);
+  }
 }
 
 void main() {
@@ -134,6 +162,114 @@ void main() {
   // Section export/import round-trips with fixed keys — no Argon2id, so
   // fast and CI-stable. Passphrase derivation is covered by the crypto
   // tests; here we only exercise the seal/restore-into-slot logic.
+  // ARCH-002: the per-install random salt. The passphrase-derived salt it
+  // replaces gave every install the same key for a given passphrase, so one
+  // precomputed table opened any device; these pin that two installs disagree,
+  // that pre-salt slots still open, and that they stop needing the legacy
+  // derivation once opened.
+  group('Archive passphrase derivation (ARCH-002)', () {
+    test('the same passphrase yields different keys on two installs', () async {
+      final deriver = _CountingDeriver();
+      final a = Archive(
+        storage: ArchiveStorage(secureStorage: MockFlutterSecureStorage()),
+        deriveKey: deriver.call,
+      );
+      final b = Archive(
+        storage: ArchiveStorage(secureStorage: MockFlutterSecureStorage()),
+        deriveKey: deriver.call,
+      );
+      final handleA = await a.create('correct horse battery staple');
+      final handleB = await b.create('correct horse battery staple');
+      expect(handleA.key, isNot(equals(handleB.key)));
+    });
+
+    test('a fresh install derives once per open, with no legacy attempt',
+        () async {
+      final deriver = _CountingDeriver();
+      final archive = Archive(
+        storage: ArchiveStorage(secureStorage: MockFlutterSecureStorage()),
+        deriveKey: deriver.call,
+      );
+      await archive.close(await archive.create('pw'));
+      deriver.calls = 0;
+      deriver.legacyCalls.clear();
+
+      expect(await archive.tryOpen('pw'), isNotNull);
+      expect(deriver.calls, equals(1));
+      expect(deriver.legacyCalls, equals([false]));
+
+      // A miss on a fresh install must not pay for a second derivation either.
+      deriver.calls = 0;
+      deriver.legacyCalls.clear();
+      expect(await archive.tryOpen('other'), isNull);
+      expect(deriver.legacyCalls, equals([false]));
+    });
+
+    test('an archive sealed before the salt existed still opens, then is '
+        're-sealed under the stored salt', () async {
+      final mock = MockFlutterSecureStorage();
+      final deriver = _CountingDeriver();
+
+      // A pre-salt install: the slot pool on disk, no salt entry, and one
+      // archive sealed under the passphrase-only key.
+      final legacy = Archive(
+        storage: ArchiveStorage(secureStorage: mock),
+        deriveKey: deriver.call,
+      );
+      await legacy.ensureInitialized();
+      await mock.delete(key: kArchiveKdfSaltKey);
+      final legacyKey = await deriver.call('pw', null);
+      final seeded = await legacy.createWithKey(Uint8List.fromList(legacyKey));
+      seeded.state.sites.add({'siteId': 'old', 'initUrl': 'https://old.test'});
+      await legacy.save(seeded);
+      await legacy.close(seeded);
+
+      // Upgrade: the salt is minted, flagged as possibly covering older slots.
+      final storage = ArchiveStorage(secureStorage: mock);
+      final upgraded = Archive(storage: storage, deriveKey: deriver.call);
+      final opened = await upgraded.tryOpen('pw');
+      expect(opened, isNotNull, reason: 'the legacy slot must still open');
+      expect(opened!.state.sites.single['siteId'], equals('old'));
+      await upgraded.close(opened);
+
+      // Re-sealed: the stored-salt key opens it and the legacy key no longer
+      // does, so the second Argon2id is paid exactly once.
+      final saltEntry = await storage.ensureKdfSalt();
+      final newKey = await deriver.call('pw', saltEntry.salt);
+      final viaNew =
+          await upgraded.tryOpenWithKey(Uint8List.fromList(newKey));
+      expect(viaNew, isNotNull);
+      await upgraded.close(viaNew!);
+      expect(
+        await upgraded.tryOpenWithKey(Uint8List.fromList(legacyKey)),
+        isNull,
+      );
+    });
+
+    test('create refuses a passphrase that still has a legacy slot', () async {
+      final mock = MockFlutterSecureStorage();
+      final deriver = _CountingDeriver();
+      final legacy = Archive(
+        storage: ArchiveStorage(secureStorage: mock),
+        deriveKey: deriver.call,
+      );
+      await legacy.ensureInitialized();
+      await mock.delete(key: kArchiveKdfSaltKey);
+      final legacyKey = await deriver.call('pw', null);
+      await legacy.close(await legacy.createWithKey(legacyKey));
+
+      final upgraded = Archive(
+        storage: ArchiveStorage(secureStorage: mock),
+        deriveKey: deriver.call,
+      );
+      expect(
+        () async => upgraded.create('pw'),
+        throwsA(isA<StateError>()),
+        reason: 'a second slot for the same passphrase would strand the first',
+      );
+    });
+  });
+
   group('Archive export/import sections', () {
     test('exportSection then importSectionsWithKey round-trips into a fresh pool', () async {
       final src = Archive(storage: ArchiveStorage(secureStorage: MockFlutterSecureStorage()));
@@ -154,6 +290,63 @@ void main() {
       expect(reopened!.state.sites, hasLength(1));
       expect(reopened.state.webspaces, hasLength(1));
       expect(reopened.state.webspaces.first['name'], equals('Group'));
+    });
+
+    test('a section restores onto a device with a different salt', () async {
+      // ARCH-002 cross-device: device B derives from its own salt, so the
+      // section has to carry the salt it was sealed under or the backup is
+      // only ever restorable on the machine that produced it.
+      final deriver = _CountingDeriver();
+      final src = Archive(
+        storage: ArchiveStorage(secureStorage: MockFlutterSecureStorage()),
+        deriveKey: deriver.call,
+      );
+      final handle = await src.create('shared passphrase');
+      handle.state.sites.add({'siteId': 's1', 'initUrl': 'https://a.test'});
+      await src.save(handle);
+      final blob = await src.exportSection(handle);
+      await src.close(handle);
+
+      final dstStorage = ArchiveStorage(secureStorage: MockFlutterSecureStorage());
+      final dst = Archive(storage: dstStorage, deriveKey: deriver.call);
+      await dst.ensureInitialized();
+      final srcSalt = Uint8List.fromList(base64.decode(blob).sublist(4, 20));
+      expect((await dstStorage.ensureKdfSalt()).salt, isNot(equals(srcSalt)),
+          reason: 'sanity: the two installs must have different salts');
+
+      expect(await dst.importSections('shared passphrase', [blob]), isEmpty);
+
+      // Restored under device B's own salt, so B's normal open path finds it.
+      final reopened = await dst.tryOpen('shared passphrase');
+      expect(reopened, isNotNull);
+      expect(reopened!.state.sites.single['siteId'], equals('s1'));
+    });
+
+    test('a section from before the salt is still importable', () async {
+      final deriver = _CountingDeriver();
+      final src = Archive(
+        storage: ArchiveStorage(secureStorage: MockFlutterSecureStorage()),
+        deriveKey: deriver.call,
+      );
+      final legacyKey = await deriver.call('pw', null);
+      final handle = await src.createWithKey(Uint8List.fromList(legacyKey));
+      handle.state.sites.add({'siteId': 's1', 'initUrl': 'https://a.test'});
+      await src.save(handle);
+      // The pre-salt wire: the bare AEAD blob with no salt header.
+      final legacyBlob = base64.encode(await ArchiveCrypto.seal(
+        handle.key,
+        Uint8List.fromList(utf8.encode(jsonEncode(handle.state.toJson()))),
+      ));
+      await src.close(handle);
+
+      final dst = Archive(
+        storage: ArchiveStorage(secureStorage: MockFlutterSecureStorage()),
+        deriveKey: deriver.call,
+      );
+      expect(await dst.importSections('pw', [legacyBlob]), isEmpty);
+      final reopened = await dst.tryOpen('pw');
+      expect(reopened, isNotNull);
+      expect(reopened!.state.sites.single['siteId'], equals('s1'));
     });
 
     test('importSectionsWithKey returns the blob unmatched under a wrong key', () async {

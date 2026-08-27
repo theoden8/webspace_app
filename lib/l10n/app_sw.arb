@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Ufunguzi na onyesho",
   "behaviourSummaryNothingOn": "Hakuna kilichowashwa",
   "siteSettingsSectionNetwork": "Mtandao",
-  "siteSettingsSectionSite": "Tovuti"
+  "siteSettingsSectionSite": "Tovuti",
+  "homeImportGlobalProxyWarning": "Nakala hii rudufu inaweka proksi ya kutoka kwa programu nzima: {address}. Kila tovuti isiyo na proksi yake yenyewe itapitia humo.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{Nakala hii rudufu inasakinisha hati 1 ya mtumiaji. Inaongezwa ikiwa imezimwa — ikague kabla ya kuiwasha.} other{Nakala hii rudufu inasakinisha hati {count} za mtumiaji. Zinaongezwa zikiwa zimezimwa — zikague kabla ya kuziwasha.}}",
+  "homeQrReviewTitle": "Kagua mipangilio ya tovuti iliyoshirikiwa",
+  "homeQrReviewBody": "Msimbo huu uliandikwa na yule aliyeushiriki, nao ndio unaochagua mipangilio ya faragha ya tovuti hii. Ikague kabla ya kuongeza.",
+  "homeQrReviewUrl": "Anwani: {url}",
+  "homeQrReviewName": "Jina: {name}",
+  "homeQrReviewProxy": "Hupitisha trafiki ya tovuti hii kupitia proksi: {address}",
+  "homeQrReviewTurnsOff": "Huzima: {settings}",
+  "homeQrReviewTurnsOn": "Huwasha: {settings}"
 }

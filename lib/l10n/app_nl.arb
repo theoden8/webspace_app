@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Openen en weergave",
   "behaviourSummaryNothingOn": "Niets ingeschakeld",
   "siteSettingsSectionNetwork": "Netwerk",
-  "siteSettingsSectionSite": "Site"
+  "siteSettingsSectionSite": "Site",
+  "homeImportGlobalProxyWarning": "Deze back-up stelt een uitgaande proxy voor de hele app in: {address}. Elke site zonder eigen proxy loopt voortaan hierdoorheen.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{Deze back-up installeert 1 gebruikersscript. Het wordt uitgeschakeld toegevoegd — bekijk het voordat je het inschakelt.} other{Deze back-up installeert {count} gebruikersscripts. Ze worden uitgeschakeld toegevoegd — bekijk ze voordat je ze inschakelt.}}",
+  "homeQrReviewTitle": "Gedeelde site-instellingen bekijken",
+  "homeQrReviewBody": "Deze code is geschreven door degene die hem deelde en bepaalt de privacy-instellingen van deze site. Controleer ze voordat je de site toevoegt.",
+  "homeQrReviewUrl": "Adres: {url}",
+  "homeQrReviewName": "Naam: {name}",
+  "homeQrReviewProxy": "Stuurt het verkeer van deze site via een proxy: {address}",
+  "homeQrReviewTurnsOff": "Schakelt uit: {settings}",
+  "homeQrReviewTurnsOn": "Schakelt in: {settings}"
 }

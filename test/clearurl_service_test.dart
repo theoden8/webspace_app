@@ -157,6 +157,25 @@ void main() {
         );
         expect(result, equals('https://target.com/page'));
       });
+
+      // The capture group is whatever the matched page put in the
+      // redirector's parameter, and the caller navigates to what cleanUrl
+      // returns — on the TOP frame, via `loadUrl`, which on Android takes any
+      // scheme. A `javascript:` target would run in the document doing the
+      // navigating.
+      test('a non-http(s) redirect target is never returned', () {
+        for (final target in const [
+          'javascript%3Aalert(document.cookie)',
+          'data%3Atext%2Fhtml%2C%3Cscript%3Ealert(1)%3C%2Fscript%3E',
+          'file%3A%2F%2F%2Fetc%2Fpasswd',
+          'intent%3A%2F%2Fscan%23Intent%3Bscheme%3Dzxing%3Bend',
+        ]) {
+          final url = 'https://redirect.example.com/go?url=$target';
+          final result = service.cleanUrl(url);
+          expect(result, equals(url),
+              reason: 'the rewrite must fall through, not hand back $target');
+        }
+      });
     });
 
     group('rawRules', () {

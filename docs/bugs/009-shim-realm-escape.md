@@ -4,7 +4,8 @@ Status: open (each escape found so far is closed; the class stays open until
 every realm a page can reach is enumerated and covered)
 
 **Spec:** [openspec/specs/worker-shim-propagation/spec.md](../../openspec/specs/worker-shim-propagation/spec.md)
-— `WORK-001`, `WORK-002`, `WORK-005`
+— `WORK-001`, `WORK-002`, `WORK-005`, `WORK-007`; the cross-shim rule is
+[`ETP-025`](../../openspec/specs/tracking-protection/spec.md)
 
 ## Symptom
 
@@ -80,6 +81,42 @@ path — page/worker agreement in one flavour is not evidence for another.**
    (a network-layer rewrite of the response) instead of in place of it. And a
    worker built before the probe answers, from an inline script at the top of the
    document, still gets a wrapper that never loads.
+
+4. **2026-08-27 — wrapper prototypes stop handing back the native constructor**
+   ([lib/services/worker_shim.dart](../../lib/services/worker_shim.dart),
+   [lib/services/location_spoof_service.dart](../../lib/services/location_spoof_service.dart),
+   [lib/services/language_shim.dart](../../lib/services/language_shim.dart)).
+   Four wrappers did `Patched.prototype = Real.prototype`, which takes the
+   native prototype *object* — whose own `constructor` property still points at
+   the native constructor. Each now re-points it with a guarded
+   `Object.defineProperty(Patched.prototype, 'constructor', {value: Patched,
+   writable: true, configurable: true})`. *Why:* this is the realm class the
+   earlier attempts did not consider — not a scope the shim fails to reach, but
+   the unpatched constructor left reachable *inside* a scope the shim did
+   reach. `new (Worker.prototype.constructor)('probe.js')` produced a worker
+   that never saw the blob wrapper and reported real
+   `hardwareConcurrency`/`deviceMemory`/`languages`/`userAgent`/timezone against
+   a spoofed document — the same `WORK-002` disagreement attempt 2 closed,
+   through a different door, and reachable in one expression with no CSP, no
+   module worker, and no nested spawn. The `relayOnly` RTC wrapper was the worst
+   of the four: `new (RTCPeerConnection.prototype.constructor)({iceServers})`
+   gave a native peer connection with `iceTransportPolicy` defaulting to `all`
+   and no SDP candidate filter, and Chromium's ICE gathering does not follow the
+   HTTP/SOCKS proxy — so the real LAN and public IP went out on the wire from a
+   site configured `webRtcPolicy: relayOnly`. `asNative` did not cover this: it
+   only registers a `toString` stub in `__wsFnStubs` and never touches
+   `constructor`. The worker fix lives in `_installerDefinition`, shared verbatim
+   by the page installer and the payload's nested-worker tail, so a
+   worker-spawned worker gets it on the same terms. *Why partial:* it covers the
+   four wrappers that exist today, in whatever realm the shim itself runs. It
+   does nothing for a realm the payload never reaches (the gaps below stand
+   unchanged), and nothing for a wrapper that leaks its native original by some
+   other route — a captured reference held in a closure, a `Reflect.construct`
+   over a stashed prototype, or an iframe's `contentWindow` constructors. The
+   class-level guard is structural, not behavioural: `test/js/shim_prototype_constructor.test.js`
+   fails when a new `X.prototype = Y.prototype` appears in a shim source without
+   an adjacent re-point, so the *next* instance of this exact shape fails CI,
+   but a wrapper built some other way is invisible to it.
 
 ## Known open gaps
 

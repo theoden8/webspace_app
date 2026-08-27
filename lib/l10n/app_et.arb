@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Avamine ja kuvamine",
   "behaviourSummaryNothingOn": "Midagi pole lubatud",
   "siteSettingsSectionNetwork": "Võrk",
-  "siteSettingsSectionSite": "Sait"
+  "siteSettingsSectionSite": "Sait",
+  "homeImportGlobalProxyWarning": "See varukoopia määrab kogu rakendust hõlmava väljuva proksi: {address}. Iga sait, millel pole oma proksit, suunatakse selle kaudu.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{See varukoopia paigaldab 1 kasutajaskripti. See lisatakse välja lülitatuna — vaata see enne sisselülitamist üle.} other{See varukoopia paigaldab {count} kasutajaskripti. Need lisatakse välja lülitatuna — vaata need enne sisselülitamist üle.}}",
+  "homeQrReviewTitle": "Vaata jagatud saidi seaded üle",
+  "homeQrReviewBody": "Selle koodi kirjutas see, kes seda jagas, ja just see valib selle saidi privaatsusseaded. Kontrolli neid enne lisamist.",
+  "homeQrReviewUrl": "Aadress: {url}",
+  "homeQrReviewName": "Nimi: {name}",
+  "homeQrReviewProxy": "Saadab selle saidi liikluse proksi kaudu: {address}",
+  "homeQrReviewTurnsOff": "Lülitab välja: {settings}",
+  "homeQrReviewTurnsOn": "Lülitab sisse: {settings}"
 }
