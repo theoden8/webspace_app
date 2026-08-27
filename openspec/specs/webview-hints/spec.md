@@ -43,6 +43,12 @@ Theme preference SHALL be applied to webviews via JavaScript injection that:
 3. Sets `color-scheme` CSS property on `document.documentElement`
 4. Maintains theme change listeners for dynamic updates
 
+The script runs at `AT_DOCUMENT_START`, where the parser has created `<html>`
+but not yet `<head>`, and a `color-scheme` meta only counts inside the head. It
+SHALL therefore defer the meta insertion to `DOMContentLoaded` rather than
+dereference `document.head`: an uncaught throw there drops the rest of the
+script, which is the theme-change listener replay.
+
 #### Scenario: Inject dark mode preference
 
 **Given** the app is in dark mode
@@ -50,6 +56,16 @@ Theme preference SHALL be applied to webviews via JavaScript injection that:
 **Then** JavaScript sets `<meta name="color-scheme" content="dark">`
 **And** sets `document.documentElement.style.colorScheme = 'dark'`
 **And** `window.matchMedia('(prefers-color-scheme: dark)')` returns `{ matches: true }`
+
+#### Scenario: Injected before the document has a head
+
+Regression: `document.head.appendChild` threw "Cannot read properties of null"
+on every page load, so the meta tag and the listener replay never ran.
+
+**Given** the shim runs at document start with `document.head` still null
+**Then** nothing is thrown
+**And** `document.documentElement.style.colorScheme` is set immediately
+**And** `<meta name="color-scheme">` is added once the head exists
 
 ---
 
