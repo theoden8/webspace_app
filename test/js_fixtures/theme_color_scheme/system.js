@@ -58,14 +58,26 @@
   };
   asNative(_patchedMM, 'matchMedia');
   window.matchMedia = _patchedMM;
-  let metaTag = document.querySelector('meta[name="color-scheme"]');
-  if (!metaTag) {
-    metaTag = document.createElement('meta');
-    metaTag.name = 'color-scheme';
-    document.head.appendChild(metaTag);
+  // The shim is a DOCUMENT_START user script, where the parser has made
+  // <html> but not yet <head> — and a color-scheme meta only counts inside
+  // the head. Touching either unguarded threw here, which killed the rest of
+  // this shim (the listener replay below) on every page load.
+  var applyColorScheme = function() {
+    if (!document.documentElement) return false;
+    document.documentElement.style.colorScheme = actualTheme;
+    let metaTag = document.querySelector('meta[name="color-scheme"]');
+    if (!metaTag) {
+      if (!document.head) return false;
+      metaTag = document.createElement('meta');
+      metaTag.name = 'color-scheme';
+      document.head.appendChild(metaTag);
+    }
+    metaTag.content = actualTheme;
+    return true;
+  };
+  if (!applyColorScheme()) {
+    document.addEventListener('DOMContentLoaded', applyColorScheme, { once: true });
   }
-  metaTag.content = actualTheme;
-  document.documentElement.style.colorScheme = actualTheme;
   if (window.__themeChangeListeners) {
     window.__themeChangeListeners.forEach(item => {
       const isDarkQuery = item.query.includes('dark');
