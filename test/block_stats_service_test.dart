@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/block_stats_engine.dart';
@@ -8,6 +10,22 @@ import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/settings/app_prefs.dart';
 
 import 'helpers/memory_block_stats_store.dart';
+
+/// Smallest slice the fake clock is advanced by, to straddle a timer.
+const Duration _tick = Duration(milliseconds: 1);
+
+/// Boot the service from inside a fake zone. Every future it awaits has to be
+/// created there too — a `Future` born in the real zone schedules its
+/// continuations on the real microtask queue, which the fake clock never
+/// drains, so the flush would appear never to finish.
+BlockStatsService _bootInFakeZone(
+    FakeAsync async, MemoryBlockStatsDetailStore detailStore) {
+  SharedPreferences.setMockInitialValues({});
+  final service = BlockStatsService.instance;
+  unawaited(service.initialize(detailStore: detailStore));
+  async.flushMicrotasks();
+  return service;
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -308,6 +326,109 @@ void main() {
       await service.flush();
 
       expect(detailStore.writes, 1);
+    });
+  });
+
+  group('flush cadence (STATS-002)', () {
+    test('the quiet window is short, and well inside the ceiling', () {
+      // The window is what a restart loses. A page load's burst has to be on
+      // disk seconds after it settles, not at the far end of the ceiling.
+      expect(BlockStatsService.flushDelay,
+          lessThanOrEqualTo(const Duration(seconds: 3)));
+      expect(BlockStatsService.maxFlushDelay,
+          lessThanOrEqualTo(const Duration(seconds: 10)));
+      expect(BlockStatsService.flushDelay,
+          lessThan(BlockStatsService.maxFlushDelay));
+    });
+
+    test('a burst costs one write, shortly after the page goes quiet', () {
+      fakeAsync((async) {
+        final service = _bootInFakeZone(async, detailStore);
+        service.setSiteContributes('site', true);
+
+        for (var i = 0; i < 200; i++) {
+          service.record('site', BlockCategory.filterList,
+              label: 'ads-$i.example');
+        }
+
+        async.elapse(BlockStatsService.flushDelay - _tick);
+        expect(detailStore.writes, 0, reason: 'still coalescing the burst');
+
+        async.elapse(_tick);
+        async.flushMicrotasks();
+
+        expect(detailStore.writes, 1);
+        expect(service.engine.isDirty, isFalse,
+            reason: 'the counters reached SharedPreferences on their own');
+      });
+    });
+
+    test('a page that never goes quiet is persisted at the ceiling', () {
+      fakeAsync((async) {
+        final service = _bootInFakeZone(async, detailStore);
+        service.setSiteContributes('site', true);
+
+        // One block a second: the idle debounce is restarted before it can
+        // expire, so only the ceiling can get this batch onto disk.
+        const step = Duration(seconds: 1);
+        for (var elapsed = Duration.zero;
+            elapsed < BlockStatsService.maxFlushDelay;
+            elapsed += step) {
+          service.record('site', BlockCategory.filterList,
+              label: 'ads.example');
+          expect(detailStore.writes, 0,
+              reason: 'ceiling not reached at $elapsed');
+          async.elapse(step);
+        }
+        async.flushMicrotasks();
+
+        expect(detailStore.writes, 1);
+        expect(service.engine.isDirty, isFalse);
+      });
+    });
+  });
+
+  group('durable flush (STATS-002/STATS-009)', () {
+    test('a detail write that cannot land leaves the rows pending', () async {
+      final service = BlockStatsService.instance;
+      await service.initialize(detailStore: detailStore);
+      service.setSiteContributes('site', true);
+      service.record('site', BlockCategory.filterList, label: 'ads.example');
+
+      detailStore.writable = false;
+      await service.flush();
+
+      expect(detailStore.payload, isNull);
+      expect(service.detail.isDirty, isTrue,
+          reason: 'a write that never landed must not count as persisted');
+
+      detailStore.writable = true;
+      await service.flush();
+
+      expect(detailStore.payload, contains('ads.example'));
+    });
+
+    test('rows recorded while a write is in flight are not marked persisted',
+        () async {
+      final service = BlockStatsService.instance;
+      await service.initialize(detailStore: detailStore);
+      service.setSiteContributes('site', true);
+      service.record('site', BlockCategory.filterList, label: 'first.example');
+
+      final gate = Completer<void>();
+      detailStore.writeGate = gate;
+      final flushing = service.flush();
+      await Future<void>.delayed(Duration.zero);
+      service.record('site', BlockCategory.filterList, label: 'second.example');
+      detailStore.writeGate = null;
+      gate.complete();
+      await flushing;
+
+      expect(service.detail.isDirty, isTrue);
+      expect(detailStore.payload, isNot(contains('second.example')));
+
+      await service.flush();
+      expect(detailStore.payload, contains('second.example'));
     });
   });
 }

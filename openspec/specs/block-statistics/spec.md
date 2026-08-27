@@ -79,8 +79,20 @@ The system SHALL accumulate block events into per-category buckets keyed by the
 ### Requirement: STATS-002 - Persistence Across Restarts
 
 Counters SHALL survive process death. Writes SHALL be debounced so a page load
-recording hundreds of blocks does not cause hundreds of SharedPreferences writes,
-and SHALL be flushed when the app is backgrounded.
+recording hundreds of blocks does not cause hundreds of SharedPreferences writes.
+
+The debounce is what a restart loses, so it SHALL be bounded from both ends: the
+timer restarts on each event and fires once the events stop (a quiet window of at
+most 3 seconds), and a ceiling of at most 10 seconds, measured from the batch's
+first event, SHALL persist a page that never goes quiet.
+
+Counters SHALL also be flushed on every step away from the foreground, not only on
+`AppLifecycleState.paused`: desktop never delivers `paused`, and a foreground kill
+delivers nothing at all.
+
+A batch SHALL be treated as persisted only once its write has landed. A write that
+fails, and any event recorded while a write was in flight, SHALL stay pending for
+the next flush.
 
 #### Scenario: Counters survive a restart
 
@@ -93,6 +105,26 @@ and SHALL be flushed when the app is backgrounded.
 **Given** a page load records many blocks within the debounce window
 **When** the events are recorded
 **Then** at most one SharedPreferences write is issued for the batch
+**And** it is issued once the page goes quiet, not at the far end of the ceiling
+
+#### Scenario: A page that never goes quiet is still persisted
+
+**Given** a page recording a block a second, so the debounce never expires
+**When** the ceiling is reached
+**Then** the batch is written without waiting for the page to stop
+
+#### Scenario: Leaving the foreground persists immediately
+
+**Given** blocks recorded since the last write
+**When** the app reports any lifecycle state other than `resumed`
+**Then** the counters are flushed without waiting for the debounce
+
+#### Scenario: A write that does not land is retried
+
+**Given** the store cannot accept the payload
+**When** the flush completes
+**Then** the batch stays pending
+**And** the next flush writes it
 
 #### Scenario: Corrupt stored payload
 
@@ -366,4 +398,11 @@ load is still in flight
   `test/block_stats_service_test.dart`, `test/block_stats_detail_test.dart`,
   `test/block_stats_detail_storage_test.dart`, `test/block_stats_screen_test.dart`.
   Structural gate for STATS-007: `test/js/nested_webview_posture_parity.test.js`
-  (`contributesBlockStats` is POSTURE).
+  (`contributesBlockStats` is POSTURE); for the STATS-002 lifecycle flush:
+  `test/js/block_stats_flush_lifecycle.test.js`.
+- **Why the flush is not on `paused` alone.** `paused` is the Android/iOS
+  backgrounding signal; desktop delivers `inactive`/`hidden`/`detached` instead, and
+  a kill from the foreground delivers nothing. Gating the write on a dirty flag makes
+  the wider trigger free: a transient `inactive` with nothing new recorded does no
+  I/O. Same class of gap as the capture-side kill paths in
+  [docs/bugs/003-cold-start-history-loss.md](../../../docs/bugs/003-cold-start-history-loss.md).
