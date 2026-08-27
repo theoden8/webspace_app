@@ -24,6 +24,7 @@ import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/screens/user_scripts.dart';
@@ -301,7 +302,13 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
 
   String? _validateOutboundProxyAddress(String value) {
     final loc = AppLocalizations.of(context);
-    if (_outboundProxy.type == ProxyType.DEFAULT) return null;
+    // TOR carries no address of its own, so there is nothing to type and
+    // nothing to validate. Without this the save below refuses an empty
+    // field and global Tor cannot be turned on at all.
+    if (_outboundProxy.type == ProxyType.DEFAULT ||
+        _outboundProxy.type == ProxyType.TOR) {
+      return null;
+    }
     final trimmed = value.trim();
     if (trimmed.isEmpty) return loc.appSettingsProxyAddressRequired;
     final parts = trimmed.split(':');
@@ -324,18 +331,26 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
         return;
       }
     }
-    final settings = UserProxySettings(
-      type: _outboundProxy.type,
-      address: _outboundProxy.type == ProxyType.DEFAULT ? null : address,
-      username: _outboundProxyShowCredentials &&
-              _outboundProxy.type != ProxyType.DEFAULT
-          ? _outboundProxyUsernameController.text
-          : null,
-      password: _outboundProxyShowCredentials &&
-              _outboundProxy.type != ProxyType.DEFAULT
-          ? _outboundProxyPasswordController.text
-          : null,
-    );
+    // Under TOR the manual fields are hidden, so their controllers hold
+    // whatever was last rendered; writing them back would destroy the
+    // config the user expects to find again on switch-out (PROXY-010).
+    final torSelected = _outboundProxy.type == ProxyType.TOR;
+    final previousSettings = GlobalOutboundProxy.current;
+    final manual = _outboundProxyShowCredentials &&
+        _outboundProxy.type != ProxyType.DEFAULT;
+    final settings = torSelected
+        ? UserProxySettings(
+            type: ProxyType.TOR,
+            address: previousSettings.address,
+            username: previousSettings.username,
+            password: previousSettings.password,
+          )
+        : UserProxySettings(
+            type: _outboundProxy.type,
+            address: _outboundProxy.type == ProxyType.DEFAULT ? null : address,
+            username: manual ? _outboundProxyUsernameController.text : null,
+            password: manual ? _outboundProxyPasswordController.text : null,
+          );
     final previous = GlobalOutboundProxy.current;
     final changed = previous.type != settings.type ||
         previous.address != settings.address ||
@@ -1204,6 +1219,10 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                 _saveOutboundProxy();
               },
               items: ProxyType.values
+                  .where((v) =>
+                      v != ProxyType.TOR ||
+                      TorService.instance.isAvailable ||
+                      _outboundProxy.type == ProxyType.TOR)
                   .map((v) => DropdownMenuItem(
                         value: v,
                         child: Text(v.toString().split('.').last),
@@ -1211,7 +1230,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                   .toList(),
             ),
           ),
-          if (_outboundProxy.type != ProxyType.DEFAULT) ...[
+          if (_outboundProxy.type != ProxyType.DEFAULT &&
+              _outboundProxy.type != ProxyType.TOR) ...[
             Padding(
               padding: const EdgeInsets.symmetric(
                   horizontal: 16.0, vertical: 8.0),

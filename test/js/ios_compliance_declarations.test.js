@@ -102,3 +102,37 @@ test('TOR-001: nothing hardcodes Tor\'s default SOCKS port', () => {
     );
   }
 });
+
+// Two screens render the ProxyType enum into a dropdown: the per-site block in
+// settings.dart and the app-global one in app_settings.dart. Adding TOR taught
+// only the first about it, so global Tor was unselectable — the validator
+// refused an empty address and the save bailed. The value of a gate here is
+// that it fails for a *third* dropdown too, which is how this recurs.
+test('TOR-007: every ProxyType dropdown handles TOR', () => {
+  const screens = ['lib/screens/settings.dart', 'lib/screens/app_settings.dart'];
+  for (const rel of screens) {
+    const src = read(rel);
+    if (!/DropdownButton<ProxyType>/.test(src)) continue;
+
+    assert.match(
+      src, /TorService\.instance\.isAvailable/,
+      `${rel} renders a ProxyType dropdown but never consults ` +
+      'TorService.isAvailable, so it offers TOR on platforms with no Tor ' +
+      'runtime (TOR-007).',
+    );
+    // The address validator must exempt TOR, or selecting it blocks the save.
+    assert.match(
+      src, /type == ProxyType\.DEFAULT \|\|\s*\n?\s*.*type == ProxyType\.TOR|ProxyType\.TOR\) \{\s*\n\s*return null/,
+      `${rel} validates a proxy address without exempting TOR. TOR carries ` +
+      'no address, so the validator rejects the empty field and the save ' +
+      'never lands.',
+    );
+    // And the inert manual fields must be hidden, not written back.
+    assert.match(
+      src, /!= ProxyType\.TOR/,
+      `${rel} never branches on ProxyType.TOR when showing or persisting the ` +
+      'manual address/credential fields; under TOR they are inert and must ' +
+      'be preserved, not overwritten (PROXY-010).',
+    );
+  }
+});
