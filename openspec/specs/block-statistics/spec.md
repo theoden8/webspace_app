@@ -24,9 +24,16 @@ and nothing answered "how much did this app block for me this month".
 A pure aggregation engine (`BlockStatsEngine`, `lib/services/block_stats_engine.dart`)
 holds per-category daily buckets, an all-time per-category total, and the timestamp
 counting started. `BlockStatsService` (`lib/services/block_stats_service.dart`) owns
-persistence (one JSON blob in SharedPreferences), debounced writes, archive gating,
-and change notification. `BlockStatsScreen` (`lib/screens/block_stats.dart`) renders
-the report, reachable from App Settings.
+persistence, debounced writes, archive gating, and change notification.
+`BlockStatsScreen` (`lib/screens/block_stats.dart`) renders the report, reachable
+from App Settings.
+
+The report is persisted in two stores with different contents, because the two halves
+carry different information. The counters — per-category daily buckets, no host, no
+`siteId` — are one JSON blob in plaintext SharedPreferences. The itemised detail —
+what was stopped and which site it was stopped for (`BlockStatsDetail`) — is
+browsing-derived, so it goes to an AES-encrypted file whose key lives in the platform
+keychain (`BlockStatsDetailStore`, `lib/services/block_stats_detail_storage.dart`).
 
 Categories are limited to what the app can actually attribute at block time. The ABP
 engine returns a boolean, not the matched list, so there is no per-filter-list or
@@ -140,10 +147,13 @@ persisted blob cannot grow without bound. All-time totals SHALL survive pruning.
 
 ### Requirement: STATS-005 - Archive Neutrality
 
-Archive-tier sites SHALL NOT contribute to the report. The report's counters live in
-plaintext SharedPreferences; a counter that only advances while an archive is open
-would leak that the archive was used, violating ARCH-001 active-state byte-identity
-and the ARCH-006 per-site feature audit.
+Archive-tier sites SHALL NOT contribute to the report — neither the counters nor the
+itemised detail. The report's counters live in plaintext SharedPreferences; a counter
+that only advances while an archive is open would leak that the archive was used,
+violating ARCH-001 active-state byte-identity and the ARCH-006 per-site feature audit.
+The detail is encrypted, but it is gated by the same declaration rather than by its
+encryption: one gate, checked once, so a new funnel cannot be secure in one store and
+leaky in the other.
 
 A site contributes only after its scope has been declared, keyed by `siteId`, at
 webview construction (`WebViewConfig.contributesBlockStats`, sourced from
@@ -171,9 +181,10 @@ that forgets to declare fails closed (undercount) rather than open (leak).
 
 ### Requirement: STATS-006 - Excluded from Settings Backup
 
-The report SHALL NOT be registered in `kExportedAppPrefs`. Backup files are emailed
-and synced; block volume over time is browsing-activity history, not a user setting,
-and restoring one device's activity onto another would be wrong regardless.
+The report SHALL NOT be registered in `kExportedAppPrefs`, and the detail blob SHALL
+NOT be serialised into a backup at all. Backup files are emailed and synced; block
+volume over time is browsing-activity history, not a user setting, and restoring one
+device's activity onto another would be wrong regardless.
 
 #### Scenario: Export omits the counters
 
@@ -200,10 +211,9 @@ its count over the selected range, its own per-day chart on that range, its all-
 total, and — for the current app session — what was actually stopped and which site it
 was stopped for.
 
-The itemised lists are **session-scoped and never persisted**. STATS-005 keeps hosts and
-`siteId`s out of the plaintext blob; holding the same data in memory for the running
-process changes nothing on disk, and the screen says which half survives a restart so
-the two numbers are not read as disagreeing.
+The itemised lists SHALL survive a restart alongside the counts they explain (STATS-009).
+They are kept out of the plaintext blob, not out of persistence: hosts and `siteId`s
+reach only the encrypted store.
 
 The label a funnel supplies is the substance of its own mechanism: the blocked host for
 DNS and filter-list blocks, the stripped query keys for ClearURLs, the CDN origin for a
@@ -223,30 +233,31 @@ the event to its site.
 **When** the user opens that category
 **Then** each site is listed by its display name with its own count
 
-#### Scenario: Detail never reaches disk
+#### Scenario: Detail never reaches the plaintext blob
 
 **Given** a block recorded with a host label
 **When** the service flushes
-**Then** the persisted payload contains neither the host nor the `siteId`
+**Then** the SharedPreferences payload contains neither the host nor the `siteId`
 
 #### Scenario: An archive-tier site leaves no detail either
 
 **Given** a site declared non-contributing
 **When** its blocks are recorded with labels
-**Then** the session detail stays empty
+**Then** the detail stays empty
+**And** nothing is written to the detail store
 
-#### Scenario: A site the user deleted mid-session
+#### Scenario: A site the user deleted
 
-**Given** a session count for a `siteId` that no longer has a display name
+**Given** a per-site count for a `siteId` that no longer has a display name
 **When** the user opens that category
 **Then** the row is omitted rather than shown as a raw `siteId`
 
-#### Scenario: Nothing this session, counters non-zero
+#### Scenario: Nothing itemised, counters non-zero
 
-**Given** a category with a non-zero persisted total and no events since launch
+**Given** a category with a non-zero persisted total and no itemised rows
 **When** the user opens it
 **Then** the counts and the chart still render
-**And** the itemised area says nothing has been recorded since the app started
+**And** the itemised area says nothing has been recorded yet
 
 #### Scenario: Bounded memory
 
@@ -255,11 +266,80 @@ the event to its site.
 **Then** the least frequent are evicted
 **And** the most frequent item is still listed
 
-#### Scenario: Reset clears the session detail
+#### Scenario: Reset clears the detail
 
 **Given** recorded items and per-site counts
 **When** the user resets the statistics
 **Then** the itemised lists are empty alongside the zeroed counters
+
+---
+
+### Requirement: STATS-009 - Detail Persistence, Encrypted
+
+The itemised detail SHALL survive process death, and SHALL reach disk only encrypted:
+an AES-256-CBC blob under the app's documents directory whose key lives in
+`flutter_secure_storage`. Hosts and `siteId`s SHALL NOT be written anywhere in
+plaintext. There SHALL be no plaintext fallback: where the key or the file cannot be
+had, the detail degrades to memory-only and the counters carry on.
+
+Rows SHALL be bounded the same way in the store as in memory — the per-category cap on
+load, and the counters' retention window (90 days) measured from each row's last-seen
+time. Per-site rows SHALL be reclaimed by the orphan sweep for sites outside the live
+non-incognito set, so a deleted site's row does not outlive the site and an incognito
+site's row does not outlive the launch.
+
+#### Scenario: Items and per-site counts survive a restart
+
+**Given** blocks recorded with host labels for a named site, then a flush
+**When** the app is launched again and the user opens that category
+**Then** the same hosts are listed with the same counts
+**And** the same site is named with its own count
+
+#### Scenario: The blob on disk is not readable as text
+
+**Given** a block recorded with a host label
+**When** the detail is persisted
+**Then** the bytes on disk contain neither the host nor the `siteId`
+
+#### Scenario: A block recorded before the load is not overwritten
+
+**Given** a stored blob for a host and a block recorded for the same host while the
+load is still in flight
+**When** the load completes
+**Then** the row carries both counts
+
+#### Scenario: Reset is not undone by the next launch
+
+**Given** the user confirmed a reset
+**When** the app is launched again
+**Then** the itemised lists are still empty
+
+#### Scenario: Unreadable detail costs the items, not the counters
+
+**Given** a stored detail blob that cannot be decrypted or parsed
+**When** the service initializes
+**Then** the counters load as usual
+**And** the itemised lists start empty without throwing on the startup path
+
+#### Scenario: No secure storage on the device
+
+**Given** a platform where the keychain read fails
+**When** blocks are recorded and flushed
+**Then** the counters still persist
+**And** nothing is written to the detail file
+
+#### Scenario: Rows age out with the buckets
+
+**Given** a row last seen beyond the retention window and one seen today
+**When** the service initializes and prunes
+**Then** only the recent row remains
+
+#### Scenario: A deleted site's row is reclaimed
+
+**Given** per-site rows for a live site and for one the user has deleted
+**When** the orphan sweep runs
+**Then** only the live site's row remains
+**And** the host counts the deleted site contributed are untouched
 
 ---
 
@@ -269,16 +349,21 @@ the event to its site.
   `DnsBlockService.recordHostRequest` (the Android native interceptor drains into it,
   the iOS/macOS JS bridge calls it per URL, navigation checks call it). The report
   hooks that one place, so the aggregate cannot drift from the per-site counters.
-- **No siteId is persisted.** Only per-category daily totals reach disk, so the blob
-  cannot be mined for which sites the user visits. The STATS-008 drill-down adds hosts
-  and per-site counts in memory only (`BlockStatsDetail`), gated by the same
-  `setSiteContributes` declaration as the counters, so an undeclared site fails closed
-  in both.
+- **No siteId reaches plaintext.** Only per-category daily totals go to
+  SharedPreferences, so that blob cannot be mined for which sites the user visits. The
+  STATS-008 drill-down's hosts and per-site counts (`BlockStatsDetail`) persist through
+  the encrypted store instead, gated by the same `setSiteContributes` declaration as
+  the counters, so an undeclared site fails closed in both.
+- **Why not one store.** Putting the detail in the plaintext blob would leak browsing
+  history; keeping it in memory to avoid that is what made the drill-down reset on
+  every restart while the counts above it did not — two halves of one screen
+  disagreeing. Encrypting the half that names things settles both.
 - **Per-site live counters are unchanged.** `DnsStats` and the `StatsBanner` stay
   in-memory and session-scoped; this feature is additive.
 - Files: `lib/services/block_stats_engine.dart`, `lib/services/block_stats_detail.dart`,
-  `lib/services/block_stats_service.dart`, `lib/screens/block_stats.dart`. Tests:
-  `test/block_stats_engine_test.dart`, `test/block_stats_service_test.dart`,
-  `test/block_stats_detail_test.dart`, `test/block_stats_screen_test.dart`. Structural
-  gate for STATS-007: `test/js/nested_webview_posture_parity.test.js`
+  `lib/services/block_stats_detail_storage.dart`, `lib/services/block_stats_service.dart`,
+  `lib/screens/block_stats.dart`. Tests: `test/block_stats_engine_test.dart`,
+  `test/block_stats_service_test.dart`, `test/block_stats_detail_test.dart`,
+  `test/block_stats_detail_storage_test.dart`, `test/block_stats_screen_test.dart`.
+  Structural gate for STATS-007: `test/js/nested_webview_posture_parity.test.js`
   (`contributesBlockStats` is POSTURE).

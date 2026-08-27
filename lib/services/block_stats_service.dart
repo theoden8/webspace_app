@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/services/block_stats_detail.dart';
+import 'package:webspace/services/block_stats_detail_storage.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/log_service.dart';
 
@@ -12,8 +13,10 @@ import 'package:webspace/services/log_service.dart';
 /// (STATS-001).
 ///
 /// Per-site live counters stay in `DnsBlockService` (session-scoped, keyed by
-/// siteId). This service is the aggregate: no siteId is ever persisted, only
-/// per-category daily totals, so the report cannot be mined for which sites
+/// siteId). This service is the aggregate, kept in two stores with different
+/// contents: per-category daily totals in plaintext SharedPreferences, and
+/// the itemised detail (blocked hosts, per-site counts) in an encrypted blob
+/// (STATS-009), so the plaintext half still cannot be mined for which sites
 /// the user visits.
 ///
 /// **Archive neutrality (ARCH-006).** A site only contributes once
@@ -38,6 +41,7 @@ class BlockStatsService {
 
   BlockStatsEngine _engine = BlockStatsEngine();
   final BlockStatsDetail _detail = BlockStatsDetail();
+  BlockStatsDetailStore? _detailStore;
   final Set<String> _contributingSiteIds = <String>{};
   final Set<VoidCallback> _listeners = <VoidCallback>{};
   Timer? _flushTimer;
@@ -47,21 +51,26 @@ class BlockStatsService {
 
   BlockStatsEngine get engine => _engine;
 
-  /// Session-scoped per-item / per-site detail (STATS-008). Never persisted:
-  /// the report on disk stays a bare count per category per day.
+  /// Per-item / per-site detail (STATS-008). Persisted, but only through
+  /// [BlockStatsDetailStore]: the plaintext report stays a bare count per
+  /// category per day.
   BlockStatsDetail get detail => _detail;
 
   bool get isInitialized => _initialized;
 
-  /// Load persisted counters. Safe to call more than once: concurrent callers
-  /// await the same load, and later calls are no-ops, so a re-entrant startup
-  /// path cannot replace an engine that has already taken counts.
-  Future<void> initialize() {
-    return _initFuture ??= _initialize();
+  /// Load the persisted counters and the encrypted detail. Safe to call more
+  /// than once: concurrent callers await the same load, and later calls are
+  /// no-ops, so a re-entrant startup path cannot replace an engine that has
+  /// already taken counts.
+  Future<void> initialize({
+    @visibleForTesting BlockStatsDetailStore? detailStore,
+  }) {
+    return _initFuture ??= _initialize(detailStore);
   }
 
-  Future<void> _initialize() async {
+  Future<void> _initialize(BlockStatsDetailStore? detailStore) async {
     _initialized = true;
+    _detailStore = detailStore ?? SecureBlockStatsDetailStore();
     try {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString(prefsKey);
@@ -76,10 +85,35 @@ class BlockStatsService {
           level: LogLevel.warning);
       _engine = BlockStatsEngine();
     }
-    if (_engine.prune() > 0) {
+    await _loadDetail();
+    // Both, then decide: `||` would short-circuit the detail out of every
+    // launch that pruned a counter bucket.
+    final pruned = _engine.prune() + _detail.prune();
+    if (pruned > 0) {
       unawaited(flush());
     }
     notifyListeners();
+  }
+
+  Future<void> _loadDetail() async {
+    try {
+      final raw = await _detailStore?.read();
+      if (raw == null || raw.isEmpty) return;
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) {
+        _detail.mergeFromJson(decoded);
+      }
+    } catch (e) {
+      LogService.instance.log('BlockStats', 'Failed to load detail: $e',
+          level: LogLevel.warning);
+    }
+  }
+
+  /// Drop per-site detail rows for sites that no longer exist. Called from
+  /// the orphan sweep alongside every other per-`siteId` store.
+  Future<void> removeOrphanedSites(Set<String> liveSiteIds) async {
+    if (_detail.retainSites(liveSiteIds) == 0) return;
+    await flush();
   }
 
   /// Declare whether [siteId]'s block events roll into the app-wide report.
@@ -114,7 +148,11 @@ class BlockStatsService {
   Future<void> reset() async {
     _engine.reset();
     _detail.clear();
+    _detail.markClean();
     await flush();
+    // Delete rather than write an empty blob: nothing is then left for the
+    // next launch to merge back in.
+    await _detailStore?.clear();
     notifyListeners();
   }
 
@@ -123,6 +161,11 @@ class BlockStatsService {
   Future<void> flush() async {
     _flushTimer?.cancel();
     _flushTimer = null;
+    await _flushCounters();
+    await _flushDetail();
+  }
+
+  Future<void> _flushCounters() async {
     if (!_engine.isDirty) return;
     final payload = jsonEncode(_engine.toJson());
     _engine.markClean();
@@ -133,6 +176,14 @@ class BlockStatsService {
       LogService.instance.log('BlockStats', 'Failed to persist stats: $e',
           level: LogLevel.warning);
     }
+  }
+
+  Future<void> _flushDetail() async {
+    final store = _detailStore;
+    if (store == null || !_detail.isDirty) return;
+    final payload = jsonEncode(_detail.toJson());
+    _detail.markClean();
+    await store.write(payload);
   }
 
   void _scheduleFlush() {

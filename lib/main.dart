@@ -5966,6 +5966,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     await _proxyPasswordStorage.removeOrphaned(activeSiteIds);
     await HtmlCacheService.instance.removeOrphanedCaches(activeSiteIds);
     await HtmlImportStorage.instance.removeOrphanedImports(activeSiteIds);
+    await BlockStatsService.instance.removeOrphanedSites(activeSiteIds);
 
     // Apply theme to all webviews
     final webViewTheme = _themeModeToWebViewTheme(_themeSettings.themeMode);
@@ -7761,6 +7762,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     await HtmlCacheService.instance.removeOrphanedCaches(activeSiteIds);
     await HtmlImportStorage.instance.removeOrphanedImports(activeSiteIds);
     await _stateStorage.removeOrphans(activeSiteIds);
+    await BlockStatsService.instance.removeOrphanedSites(activeSiteIds);
 
     // Deletion may have just removed the last notification site; tear
     // down the background refresh schedule if so. No-op on other
@@ -8932,6 +8934,10 @@ class _OrphanSweepTargets implements OrphanSweepTargets {
   @override
   Future<void> removeOrphanedWebViewState(Set<String> nonIncognitoSiteIds) =>
       state._stateStorage.removeOrphans(nonIncognitoSiteIds);
+
+  @override
+  Future<void> removeOrphanedBlockStatsSites(Set<String> nonIncognitoSiteIds) =>
+      BlockStatsService.instance.removeOrphanedSites(nonIncognitoSiteIds);
 
   @override
   Future<void> clearLegacyGlobalCookieJar() =>

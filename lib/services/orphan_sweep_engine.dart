@@ -14,6 +14,12 @@ abstract class OrphanSweepTargets {
   Future<void> removeOrphanedHtmlImports(Set<String> activeSiteIds);
   Future<void> removeOrphanedWebViewState(Set<String> nonIncognitoSiteIds);
 
+  /// Drops the protection report's per-site rows for sites outside the live
+  /// set. Measures against the non-incognito set: an attributed row names a
+  /// site the same way a cookie does, so an incognito site's is reclaimed
+  /// every launch. The category counts it fed are site-less and stay.
+  Future<void> removeOrphanedBlockStatsSites(Set<String> nonIncognitoSiteIds);
+
   /// Empties the single shared cookie jar the legacy engine partitions by
   /// hand. Only meaningful when [OrphanSweepEngine.sweep] runs with
   /// `useContainers: false`.
@@ -50,6 +56,7 @@ class OrphanSweepEngine {
     await targets.removeOrphanedHtmlCaches(nonIncognitoSiteIds);
     await targets.removeOrphanedHtmlImports(activeSiteIds);
     await targets.removeOrphanedWebViewState(nonIncognitoSiteIds);
+    await targets.removeOrphanedBlockStatsSites(nonIncognitoSiteIds);
     if (!useContainers) {
       await targets.clearLegacyGlobalCookieJar();
     }

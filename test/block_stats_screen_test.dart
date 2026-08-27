@@ -6,6 +6,8 @@ import 'package:webspace/screens/block_stats.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/block_stats_service.dart';
 
+import 'helpers/memory_block_stats_store.dart';
+
 Future<void> _pump(WidgetTester tester, Map<String, String> siteNames) async {
   tester.view.physicalSize = const Size(1000, 2400);
   tester.view.devicePixelRatio = 1.0;
@@ -30,7 +32,7 @@ void main() {
   testWidgets('a category row opens its detail, naming items and sites',
       (tester) async {
     final service = BlockStatsService.instance;
-    await service.initialize();
+    await service.initialize(detailStore: MemoryBlockStatsDetailStore());
     service.setSiteContributes('site-a', true);
     service.setSiteContributes('site-b', true);
     service.record('site-a', BlockCategory.dnsBlocklist,
@@ -57,7 +59,7 @@ void main() {
   testWidgets('a site with no name left is dropped rather than shown by id',
       (tester) async {
     final service = BlockStatsService.instance;
-    await service.initialize();
+    await service.initialize(detailStore: MemoryBlockStatsDetailStore());
     service.setSiteContributes('deleted-site', true);
     service.record('deleted-site', BlockCategory.filterList,
         label: 'tracker.example');
@@ -71,10 +73,10 @@ void main() {
     expect(find.text('deleted-site'), findsNothing);
   });
 
-  testWidgets('a category with nothing recorded this session says so',
+  testWidgets('a category with nothing itemised says so',
       (tester) async {
     final service = BlockStatsService.instance;
-    await service.initialize();
+    await service.initialize(detailStore: MemoryBlockStatsDetailStore());
     service.setSiteContributes('site-a', true);
     service.record('site-a', BlockCategory.filterList, label: 'tracker.example');
     await service.flush();

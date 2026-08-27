@@ -43,6 +43,10 @@ class _FakeTargets implements OrphanSweepTargets {
       _record('webViewState', live);
 
   @override
+  Future<void> removeOrphanedBlockStatsSites(Set<String> live) async =>
+      _record('blockStatsSites', live);
+
+  @override
   Future<void> clearLegacyGlobalCookieJar() async =>
       _record('globalCookieJar');
 }
@@ -81,6 +85,7 @@ void main() {
         'htmlCaches',
         'htmlImports',
         'webViewState',
+        'blockStatsSites',
       ]);
     });
 
@@ -96,14 +101,14 @@ void main() {
       );
 
       expect(targets.ops.last, 'globalCookieJar');
-      expect(targets.ops.length, 6);
+      expect(targets.ops.length, 7);
     });
 
     test('session-scoped storages measure against the non-incognito set',
         () async {
       // Incognito sites are deliberately treated as orphans for anything that
-      // must not outlive the process (issue #298): cookies, cached HTML, and
-      // saved navigation state.
+      // must not outlive the process (issue #298): cookies, cached HTML,
+      // saved navigation state, and the protection report's per-site rows.
       final targets = _FakeTargets();
 
       await OrphanSweepEngine.sweep(
@@ -116,6 +121,7 @@ void main() {
       expect(targets.liveSets['cookies'], nonIncognito);
       expect(targets.liveSets['htmlCaches'], nonIncognito);
       expect(targets.liveSets['webViewState'], nonIncognito);
+      expect(targets.liveSets['blockStatsSites'], nonIncognito);
     });
 
     test('config-scoped storages measure against the full active set',
