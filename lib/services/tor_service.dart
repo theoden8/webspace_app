@@ -74,6 +74,12 @@ class MethodChannelTorRuntime implements TorRuntime {
   }
 
   @override
+  Future<void> applyExitCountry(String? exitNodes) async {
+    if (!isAvailable) return;
+    await _channel.invokeMethod<void>('setExitCountry', {'exitNodes': exitNodes});
+  }
+
+  @override
   Stream<TorStatus> get events => _decoded ??= isAvailable
       ? _eventChannel.receiveBroadcastStream().map(decodeStatus)
       : const Stream<TorStatus>.empty();
@@ -151,6 +157,14 @@ class TorService {
   Future<void> syncHolders(Iterable<String> reasons) =>
       _engine.syncHolders(reasons);
   Future<void> rebuildCircuits() => _engine.rebuildCircuits();
+
+  /// Pin every circuit to a country (tor `ExitNodes` syntax) or clear it.
+  /// Global to the runtime — see TOR-014 for why that makes per-site pins
+  /// mutually exclusive.
+  Future<void> setExitCountry(String? exitNodes) =>
+      _engine.setExitCountry(exitNodes);
+
+  String? get exitNodes => _engine.exitNodes;
 
   /// SOCKS5 settings for a site (or app-global traffic when [siteId] is
   /// null). Null means "not routable yet" — the caller must fail closed.

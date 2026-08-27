@@ -23,6 +23,8 @@ class FakeTorRuntime implements TorRuntime {
   int stopCalls = 0;
   int rebuildCalls = 0;
   Object? startError;
+  final appliedExitNodes = <String?>[];
+  Object? exitCountryError;
 
   @override
   Stream<TorStatus> get events => _controller.stream;
@@ -38,6 +40,12 @@ class FakeTorRuntime implements TorRuntime {
 
   @override
   Future<void> rebuildCircuits() async => rebuildCalls++;
+
+  @override
+  Future<void> applyExitCountry(String? exitNodes) async {
+    if (exitCountryError != null) throw exitCountryError!;
+    appliedExitNodes.add(exitNodes);
+  }
 
   /// Push a status the way the native event channel would.
   void push(TorStatus s) => _controller.add(s);
@@ -328,5 +336,107 @@ void main() {
     await e.rebuildCircuits();
     expect(runtime.rebuildCalls, 1);
     await e.dispose();
+  });
+
+  group('TOR-014 exit-country pin', () {
+    test('a pin set while up reaches the runtime', () async {
+      final e = build();
+      await e.acquire('a1');
+      runtime.bootstrapTo(9999);
+      await pumpEventQueue();
+
+      await e.setExitCountry('{de}');
+      expect(runtime.appliedExitNodes, ['{de}']);
+      expect(e.exitNodes, '{de}');
+      await e.dispose();
+    });
+
+    test('a pin set before bootstrap is applied on reaching up', () async {
+      // SETCONF needs a live control port; a pin requested earlier must be
+      // deferred rather than dropped, or the user gets no pin at all.
+      final e = build();
+      await e.acquire('a1');
+      await e.setExitCountry('{nl}');
+      expect(runtime.appliedExitNodes, isEmpty, reason: 'no control port yet');
+
+      runtime.bootstrapTo(9999);
+      await pumpEventQueue();
+      await pumpEventQueue();
+      expect(runtime.appliedExitNodes, ['{nl}']);
+      await e.dispose();
+    });
+
+    test('re-setting the same pin does not re-issue SETCONF', () async {
+      final e = build();
+      await e.acquire('a1');
+      runtime.bootstrapTo(9999);
+      await pumpEventQueue();
+
+      await e.setExitCountry('{de}');
+      await e.setExitCountry('{de}');
+      expect(runtime.appliedExitNodes, ['{de}'], reason: 'idempotent');
+      await e.dispose();
+    });
+
+    test('clearing the pin resets it rather than leaving it set', () async {
+      final e = build();
+      await e.acquire('a1');
+      runtime.bootstrapTo(9999);
+      await pumpEventQueue();
+
+      await e.setExitCountry('{de}');
+      await e.setExitCountry(null);
+      expect(runtime.appliedExitNodes, ['{de}', null]);
+      expect(e.exitNodes, isNull);
+      await e.dispose();
+    });
+
+    test('a pin that fails to apply surfaces, never reads as in force', () async {
+      // Reporting an unapplied pin as live would tell the user traffic is
+      // leaving from a country it is not.
+      final e = build();
+      await e.acquire('a1');
+      runtime.bootstrapTo(9999);
+      await pumpEventQueue();
+
+      runtime.exitCountryError = StateError('control port said no');
+      await e.setExitCountry('{de}');
+      expect(e.status, isA<TorErrored>());
+      await e.dispose();
+    });
+
+    test('a restart re-applies the pin to the new instance', () {
+      // tor is gone, and the ExitNodes it held went with it.
+      fakeAsync((async) {
+        final e = build(debounce: const Duration(seconds: 60));
+        e.acquire('a1');
+        async.flushMicrotasks();
+        runtime.bootstrapTo(9999);
+        async.flushMicrotasks();
+        e.setExitCountry('{de}');
+        async.flushMicrotasks();
+        expect(runtime.appliedExitNodes, ['{de}']);
+
+        e.release('a1');
+        async.elapse(const Duration(seconds: 61));
+        expect(e.status, isA<TorStopped>());
+
+        e.acquire('a2');
+        async.flushMicrotasks();
+        runtime.bootstrapTo(9999);
+        async.flushMicrotasks();
+        async.flushMicrotasks();
+        expect(runtime.appliedExitNodes, ['{de}', '{de}'],
+            reason: 'the pin is re-applied, not assumed still live');
+      });
+    });
+
+    test('an unavailable runtime is never configured', () async {
+      runtime = FakeTorRuntime(isAvailable: false);
+      final e = build();
+      await e.setExitCountry('{de}');
+      expect(runtime.appliedExitNodes, isEmpty);
+      await e.dispose();
+    });
   });
 }

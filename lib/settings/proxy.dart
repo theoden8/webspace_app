@@ -15,7 +15,41 @@ class UserProxySettings {
   String? username;
   String? password;
 
-  UserProxySettings({required this.type, this.address, this.username, this.password});
+  /// ISO 3166-1 alpha-2 country the site's Tor traffic must exit from, or
+  /// null for no constraint. Meaningful only under [ProxyType.TOR].
+  ///
+  /// Lives here rather than on `WebViewModel` so it rides the same
+  /// `proxySettings` object every outbound seam already receives — a
+  /// separate per-site field would need its own copy of the nested-webview
+  /// propagation chain, and a pin that reaches the nested view while the
+  /// proxy does not is the silent mis-routing that rule guards against.
+  ///
+  /// The pin is strict (`StrictNodes 1`): no usable exit means the request
+  /// fails, never that it leaves from elsewhere. Because `ExitNodes` is a
+  /// global tor option, two loaded sites pinned to different countries
+  /// cannot coexist — see TOR-014.
+  String? torExitCountry;
+
+  UserProxySettings({
+    required this.type,
+    this.address,
+    this.username,
+    this.password,
+    this.torExitCountry,
+  });
+
+  /// The pin as tor's `ExitNodes` value, or null when unpinned or invalid.
+  ///
+  /// Anything that is not two ASCII letters is dropped rather than passed
+  /// through: a malformed value reaching `SETCONF` would be rejected by the
+  /// control port and leave the previous country applied, which is worse
+  /// than no pin because the user would believe a pin is in force.
+  String? get exitNodesValue {
+    final cc = torExitCountry?.trim().toLowerCase();
+    if (cc == null || cc.length != 2) return null;
+    if (!RegExp(r'^[a-z]{2}$').hasMatch(cc)) return null;
+    return '{$cc}';
+  }
 
   /// Serialize to JSON.
   ///
@@ -30,6 +64,7 @@ class UserProxySettings {
         'type': type.index,
         'address': address,
         'username': username,
+        if (torExitCountry != null) 'torExitCountry': torExitCountry,
       };
 
   factory UserProxySettings.fromJson(Map<String, dynamic> json) => UserProxySettings(
@@ -37,6 +72,7 @@ class UserProxySettings {
         address: json['address'],
         username: json['username'],
         password: json['password'],
+        torExitCountry: json['torExitCountry'] as String?,
       );
 
   /// Decode a persisted [ProxyType] index defensively.
@@ -62,7 +98,8 @@ class UserProxySettings {
     final t = type.toString().split('.').last;
     final a = address ?? '<none>';
     return 'type=$t address=$a hasUsername=${username != null && username!.isNotEmpty} '
-        'hasPassword=${password != null && password!.isNotEmpty}';
+        'hasPassword=${password != null && password!.isNotEmpty} '
+        'exitCountry=${torExitCountry ?? '<any>'}';
   }
 
   /// Returns true if credentials are provided

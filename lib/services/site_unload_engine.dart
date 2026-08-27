@@ -78,6 +78,51 @@ class SiteUnloadEngine {
     return result;
   }
 
+  /// Sites that must be unloaded because activating [targetIndex] would
+  /// repoint the process-global Tor `ExitNodes` out from under them.
+  ///
+  /// Same shape as [indicesToUnloadForProxyMismatch] and for the same
+  /// reason: `ExitNodes`/`StrictNodes` are global client options in
+  /// `tor(1)` — unlike the isolation flags they cannot be scoped to a
+  /// `SocksPort`, so one tor cannot serve two countries at once, and iOS
+  /// forbids a second process to run a second tor in. Two loaded sites
+  /// pinned to different countries would therefore share whichever pin was
+  /// written last, which is precisely the silent mis-routing the
+  /// fail-closed posture exists to prevent (TOR-014).
+  ///
+  /// Only *differing* pins conflict. Sites sharing a country, and sites
+  /// with no pin at all, coexist: an unpinned site imposes no constraint,
+  /// so it is content with whatever `ExitNodes` happens to be.
+  static Set<int> indicesToUnloadForTorExitMismatch({
+    required int targetIndex,
+    required List<WebViewModel> models,
+    required Set<int> loadedIndices,
+  }) {
+    if (targetIndex < 0 || targetIndex >= models.length) return const <int>{};
+    final target = _torExitPin(models[targetIndex]);
+    final result = <int>{};
+    for (final i in loadedIndices) {
+      if (i == targetIndex) continue;
+      if (i < 0 || i >= models.length) continue;
+      final other = _torExitPin(models[i]);
+      // Null on either side means "no opinion", which never conflicts.
+      if (target == null || other == null) continue;
+      if (target != other) result.add(i);
+    }
+    return result;
+  }
+
+  /// The site's effective exit-country pin, or null when it has none.
+  ///
+  /// A pin only binds when the site actually routes through Tor; a country
+  /// left over on a site since switched to SOCKS5 constrains nothing and
+  /// must not evict its neighbours.
+  static String? _torExitPin(WebViewModel model) {
+    final effective = resolveEffectiveProxy(model.proxySettings);
+    if (effective.type != ProxyType.TOR) return null;
+    return model.proxySettings.exitNodesValue;
+  }
+
   /// LRU eviction set. Returns the indices to evict (oldest first) so that
   /// [loadedIndices] plus [targetIndex] fits within [maxLoadedSites].
   ///

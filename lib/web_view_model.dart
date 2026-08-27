@@ -1011,6 +1011,7 @@ class WebViewModel {
       type: ProxyType.TOR,
       address: proxySettings.address,
       username: siteId,
+      torExitCountry: proxySettings.torExitCountry,
     );
   }
 

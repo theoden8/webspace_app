@@ -84,6 +84,12 @@ abstract class TorRuntime {
   /// `SIGNAL NEWNYM`. Rate-limiting is the runtime's business.
   Future<void> rebuildCircuits();
 
+  /// Pin exits to [exitNodes] (tor's `ExitNodes` syntax, e.g. `{de}`) with
+  /// `StrictNodes 1`, or clear both when null. Global to the tor instance:
+  /// the caller is responsible for ensuring no site that disagrees is
+  /// loaded (TOR-014).
+  Future<void> applyExitCountry(String? exitNodes);
+
   /// Status pushed from the native side.
   Stream<TorStatus> get events;
 }
@@ -124,6 +130,8 @@ class TorEngine {
   Timer? _idleTimer;
   Timer? _bootstrapTimer;
   TorStatus _status = const TorStopped();
+  String? _exitNodes;
+  bool _exitNodesApplied = false;
 
   bool get isAvailable => _runtime.isAvailable;
   TorStatus get status => _status;
@@ -165,6 +173,9 @@ class TorEngine {
       if (_holders.isNotEmpty) return;
       _cancelBootstrapTimeout();
       _runtime.stop().catchError((_) {});
+      // tor is gone, so whatever ExitNodes it held is gone with it; the pin
+      // must be re-applied to the next instance rather than assumed live.
+      _exitNodesApplied = false;
       _emit(const TorStopped());
     });
   }
@@ -185,6 +196,36 @@ class TorEngine {
   Future<void> rebuildCircuits() async {
     if (!_status.isUp) return;
     await _runtime.rebuildCircuits();
+  }
+
+  /// The exit-country pin currently in force, in tor's `ExitNodes` syntax.
+  String? get exitNodes => _exitNodes;
+
+  /// Pin every circuit to [exitNodes], or clear the pin when null.
+  ///
+  /// Deferred until the runtime is up: `SETCONF` needs a live control port,
+  /// and a pin set before then would be silently dropped. `_exitNodesApplied`
+  /// tracks whether the value in `_exitNodes` has actually reached tor, so
+  /// the deferred apply on reaching `up` is not mistaken for a no-op.
+  Future<void> setExitCountry(String? exitNodes) async {
+    if (!_runtime.isAvailable) return;
+    if (_exitNodes == exitNodes && _exitNodesApplied) return;
+    _exitNodes = exitNodes;
+    _exitNodesApplied = false;
+    await _flushExitCountry();
+  }
+
+  Future<void> _flushExitCountry() async {
+    if (!_status.isUp) return;
+    try {
+      await _runtime.applyExitCountry(_exitNodes);
+      _exitNodesApplied = true;
+    } catch (e) {
+      // A pin that did not land must not be reported as in force: the user
+      // would believe traffic is leaving from a country it is not.
+      _exitNodesApplied = false;
+      _emit(TorErrored('Could not apply the exit-country pin: $e'));
+    }
   }
 
   /// Materialize the SOCKS5 settings [reason] should dial (TOR-003).
@@ -210,11 +251,22 @@ class TorEngine {
 
   void _onRuntimeStatus(TorStatus s) {
     if (s is TorUp || s is TorErrored) _cancelBootstrapTimeout();
+
     // A late status from a runtime we already shut down must not resurrect
     // it; without this an in-flight bootstrap event racing `stop()` leaves
     // the engine reporting `up` against a dead listener.
     if (_holders.isEmpty && _idleTimer == null && s is! TorStopped) return;
     _emit(s);
+    // Only past the resurrection guard, and only once `_status` really is
+    // up: a pin requested before bootstrap finished has been waiting for a
+    // control port, and now there is one. Assigning `_status` here directly
+    // would step around the guard above and revive a shut-down runtime.
+    // Only when there is a pin to (re-)establish. A fresh tor has no
+    // ExitNodes of its own, so pushing a reset on every bootstrap would be
+    // a SETCONF round trip that changes nothing.
+    if (s is TorUp && _exitNodes != null && !_exitNodesApplied) {
+      Future.microtask(_flushExitCountry);
+    }
   }
 
   void _armBootstrapTimeout() {

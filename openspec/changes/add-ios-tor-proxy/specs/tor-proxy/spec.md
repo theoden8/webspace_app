@@ -402,3 +402,67 @@ and that a restrictive network surfaces an explicit error by design.
 - **THEN** the App Review notes describe the feature, the expected
   bootstrap duration, and the expected behavior on a restricted
   network
+
+---
+
+### Requirement: TOR-014 - Per-site strict exit country
+
+A site MAY pin the country its Tor traffic exits from. The pin SHALL be
+strict: when no exit in that country is usable, the request fails rather
+than silently leaving from somewhere else.
+
+**The constraint that shapes this.** `ExitNodes` and `StrictNodes` are
+global client options in `tor(1)` — unlike the isolation flags, they
+cannot be scoped to a `SocksPort` line, so the SOCKS auth tuple that
+gives each site its own circuit (TOR-003) cannot also give each site its
+own country. Nor can we run one tor per country: `TORThread` exposes a
+single class-level `activeThread` and tor keeps process-global state, so
+one instance per process is the hard ceiling.
+
+Per-site country is therefore delivered the way this app already
+delivers per-site proxies on Android — a **serialised global override**
+(PROXY-008). The consequence is explicit, not incidental: two loaded
+sites pinned to *different* countries cannot coexist, because the single
+`ExitNodes` value cannot be two things at once. Activating one SHALL
+unload the other, exactly as a mismatched proxy does today. Sites
+sharing a country, and sites with no pin, coexist normally.
+
+This costs iOS the concurrent-container property for differently-pinned
+sites. That is the price of the feature being honest; the alternative —
+applying one site's country to another site's traffic — is the silent
+mis-routing the whole fail-closed posture exists to prevent.
+
+#### Scenario: A pinned site exits from its country
+
+- **GIVEN** site A has `torExitCountry = "de"`
+- **WHEN** site A loads and Tor is `up`
+- **THEN** `ExitNodes` is `{de}` and `StrictNodes` is `1`
+- **AND** site A's traffic leaves the Tor network from a German exit
+
+#### Scenario: Two differently-pinned sites do not coexist
+
+- **GIVEN** site A is loaded with `torExitCountry = "de"`
+- **AND** site B has `torExitCountry = "nl"`
+- **WHEN** the user activates site B
+- **THEN** site A is unloaded before `ExitNodes` flips to `{nl}`
+- **AND** site A never issues a request from a Dutch exit
+
+#### Scenario: Same-country and unpinned sites coexist
+
+- **GIVEN** site A and site B both have `torExitCountry = "de"`
+- **AND** site C has no pin
+- **WHEN** all three are activated in turn
+- **THEN** none of them is unloaded for an exit-country mismatch
+
+#### Scenario: Clearing the pin restores unrestricted exits
+
+- **WHEN** the last loaded site with a pin is unloaded or cleared
+- **THEN** `ExitNodes` and `StrictNodes` are reset rather than left set
+- **AND** subsequent circuits may exit from any country
+
+#### Scenario: A strict pin with no usable exit fails visibly
+
+- **GIVEN** site A is pinned to a country with no reachable exit
+- **WHEN** site A navigates
+- **THEN** the request fails and the failure is surfaced to the user
+- **AND** the traffic does NOT leave from another country instead
