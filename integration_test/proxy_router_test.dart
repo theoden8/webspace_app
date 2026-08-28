@@ -34,7 +34,6 @@ import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/proxy_router_service.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/web_view_model.dart';
-import 'package:webspace/webspace_model.dart';
 
 import 'secure_storage_fake.dart';
 

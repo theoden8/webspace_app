@@ -505,6 +505,7 @@ jobs:
             bash scripts/run_android_background_audio_tests.sh
             bash scripts/run_android_camera_tests.sh
             bash scripts/run_android_page_zoom_tests.sh
+            bash scripts/run_android_proxy_router_tests.sh
             bash scripts/run_android_lifecycle_tests.sh
 
       - name: Upload white-screen lifecycle diagnostics
