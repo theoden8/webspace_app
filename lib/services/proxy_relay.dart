@@ -13,6 +13,12 @@ import 'package:webspace/settings/proxy.dart';
 abstract interface class ProxyRelayApi {
   Future<int?> startRouter(String realm);
   Future<bool> setRoutes(Map<String, Map<String, Object?>> routes);
+
+  /// Probe pairs the relay has observed: nonce -> the siteId whose
+  /// credential carried it. The attribution self-test reads this.
+  Future<Map<String, String>> probeResults();
+  Future<void> clearProbeResults();
+
   Future<void> stop();
 }
 
@@ -111,6 +117,27 @@ class ProxyRelay implements ProxyRelayApi {
       return ok ?? false;
     } on PlatformException {
       return false;
+    }
+  }
+
+  @override
+  Future<Map<String, String>> probeResults() async {
+    if (!hostIsAndroid) return const {};
+    try {
+      final raw = await _channel.invokeMapMethod<String, String>('probeResults');
+      return raw ?? const {};
+    } on PlatformException {
+      return const {};
+    }
+  }
+
+  @override
+  Future<void> clearProbeResults() async {
+    if (!hostIsAndroid) return;
+    try {
+      await _channel.invokeMethod('clearProbeResults');
+    } on PlatformException {
+      // Channel unavailable; the next activation re-reads anyway.
     }
   }
 

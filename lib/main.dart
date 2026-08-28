@@ -100,6 +100,7 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/proxy_conflict_engine.dart';
+import 'package:webspace/services/proxy_router_probe.dart';
 import 'package:webspace/services/proxy_router_service.dart';
 import 'package:webspace/services/suggested_sites_service.dart' as suggested_sites;
 import 'package:webspace/screens/dev_tools.dart';
@@ -2898,8 +2899,12 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// Nothing here may clear the proxy override on failure.
   Future<void> _activateProxyRouter() async {
     if (!ProxyRouterService.isSupported(useContainers: _useContainers)) return;
-    final port = await ProxyRouterService.instance
-        .activate(perSiteProxies: _routerProxyTable());
+    final port = await ProxyRouterService.instance.activate(
+      perSiteProxies: _routerProxyTable(),
+      // PROXY-015: never trust router mode without proving on THIS device
+      // that each container presents its own credential.
+      probe: runAttributionProbe,
+    );
     if (port == null) return;
     if (!await ProxyManager().applyRouterOverride(port)) {
       // The rule never landed, so nothing is actually routed through the

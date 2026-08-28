@@ -4,6 +4,16 @@ import 'package:webspace/services/proxy_relay.dart';
 import 'package:webspace/services/proxy_router_engine.dart';
 import 'package:webspace/settings/proxy.dart';
 
+/// Drives one site's container to fetch [probeUrl], so the relay can
+/// observe which credential that container actually presents.
+///
+/// A function rather than a concrete type so the service stays testable
+/// without a WebView; `main.dart` supplies the real one, which opens a
+/// short-lived headless WebView bound to that site's container.
+typedef ProxyAttributionProbe = Future<void> Function(
+  Map<String, String> siteIdToProbeUrl,
+);
+
 /// Owns Android's per-site proxy router (PROXY-013): the relay lifecycle,
 /// the per-site credentials, and the one question the WebView layer asks
 /// it at runtime ("is this auth challenge yours, and what do I answer?").
@@ -93,6 +103,7 @@ class ProxyRouterService {
   /// which still honours the user's per-site choice.
   Future<int?> activate({
     required Map<String, UserProxySettings> perSiteProxies,
+    ProxyAttributionProbe? probe,
   }) async {
     final state = _state ?? ProxyRouterState();
     final port = await _relay.startRouter(state.realm);
@@ -112,6 +123,19 @@ class ProxyRouterService {
       _port = null;
       return null;
     }
+    // PROXY-015. Everything above proves the app WANTS per-site routing;
+    // only the probe proves this device DELIVERS it. Skipping the check
+    // when no probe is supplied is deliberate for tests, but the app must
+    // always pass one: without it a device that shares a proxy auth cache
+    // across container profiles would route sites through each other and
+    // nothing would say so.
+    if (probe != null && !await _verifyAttribution(perSiteProxies.keys, probe)) {
+      _state = null;
+      _port = null;
+      await _relay.stop();
+      return null;
+    }
+
     LogService.instance.log(
       'Proxy',
       'Router mode active on 127.0.0.1:$port for ${perSiteProxies.length} site(s)',
@@ -119,6 +143,70 @@ class ProxyRouterService {
       sensitivity: LogSensitivity.sensitive,
     );
     return port;
+  }
+
+  /// Prove, on this device, that each container presents its own
+  /// credential — then and only then trust router mode.
+  ///
+  /// Each site's container is asked to fetch a unique probe host. The
+  /// relay answers those locally (never contacting an upstream, so a
+  /// probe cannot egress) and records which credential carried which
+  /// nonce. If any pair disagrees, or any is missing, attribution is not
+  /// proven and the caller falls back to PROXY-008 serialisation.
+  ///
+  /// A useful side effect: a successful probe warms that profile's proxy
+  /// auth cache, so a later service-worker request — which cannot answer
+  /// a challenge itself, as `AwHttpAuthHandler` cancels with no
+  /// `WebContents` — already has a credential to send.
+  Future<bool> _verifyAttribution(
+    Iterable<String> siteIds,
+    ProxyAttributionProbe probe,
+  ) async {
+    if (_state == null) return false;
+    final sites = siteIds.toList();
+    if (sites.isEmpty) return true;
+
+    await _relay.clearProbeResults();
+    final expected = {for (final s in sites) s: ProxyRouterEngine.mintNonce()};
+    try {
+      await probe({
+        for (final e in expected.entries)
+          e.key: ProxyRouterEngine.probeUrlFor(e.value),
+      });
+    } catch (e) {
+      LogService.instance.log(
+        'Proxy',
+        'Attribution probe failed to run ($e); not activating router mode',
+        level: LogLevel.error,
+        sensitivity: LogSensitivity.sensitive,
+      );
+      return false;
+    }
+
+    final observed = await _relay.probeResults();
+    final failures = ProxyRouterEngine.attributionFailures(
+      expected: expected,
+      observed: observed,
+    );
+    if (failures.isNotEmpty) {
+      LogService.instance.log(
+        'Proxy',
+        'ATTRIBUTION CHECK FAILED for ${failures.length} site(s): $failures. '
+            'This device did not give each container its own proxy '
+            'credential, so router mode would route sites through each '
+            "other's proxies. Falling back to serialised per-site proxy.",
+        level: LogLevel.error,
+        sensitivity: LogSensitivity.sensitive,
+      );
+      return false;
+    }
+    LogService.instance.log(
+      'Proxy',
+      'Attribution verified for ${sites.length} site(s)',
+      level: LogLevel.info,
+      sensitivity: LogSensitivity.sensitive,
+    );
+    return true;
   }
 
   /// Re-install the route table after sites or proxies changed.

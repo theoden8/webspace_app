@@ -102,6 +102,11 @@ class ProxyRelayPlugin(flutterEngine: FlutterEngine) {
                     relay.setRoutes(parsed)
                     result.success(true)
                 }
+                "probeResults" -> result.success(relay.probeObservations())
+                "clearProbeResults" -> {
+                    relay.clearProbeObservations()
+                    result.success(true)
+                }
                 "stop" -> {
                     relay.stop()
                     result.success(true)

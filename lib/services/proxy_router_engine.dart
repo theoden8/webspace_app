@@ -25,6 +25,51 @@ class ProxyRouterEngine {
 
   static const String loopbackHost = '127.0.0.1';
 
+  /// Suffix of the attribution self-test hostnames (PROXY-015). Mirrors
+  /// `ProxyRelay.PROBE_SUFFIX`. `.invalid` is RFC 2606 reserved, so a
+  /// probe host can never resolve even if something forwarded one.
+  static const String probeSuffix = '.webspace-probe.invalid';
+
+  /// Probe URL for [nonce]. Plain `http` on purpose: the relay answers it
+  /// itself, and an `https` probe would arrive as a CONNECT the relay
+  /// would have to fake a TLS handshake for.
+  static String probeUrlFor(String nonce) => 'http://$nonce$probeSuffix/';
+
+  /// Does the device actually attribute each site's traffic to that site?
+  ///
+  /// [expected] is siteId -> the nonce we told that site's container to
+  /// fetch; [observed] is nonce -> the siteId whose credential the relay
+  /// saw carrying it. They agree only if every container presented its
+  /// OWN credential.
+  ///
+  /// This is the runtime form of the PROXY-013 gate. Chromium caches a
+  /// proxy credential per `HttpNetworkSession`; if a device turned out to
+  /// share one session across container profiles, every probe would come
+  /// back stamped with whichever site authenticated first, and this
+  /// returns false. A missing observation also returns false: an
+  /// unproven site is treated exactly like a failed one, because the
+  /// failure it would otherwise hide is silent.
+  static bool attributionHolds({
+    required Map<String, String> expected,
+    required Map<String, String> observed,
+  }) {
+    if (expected.isEmpty) return true;
+    for (final entry in expected.entries) {
+      if (observed[entry.value] != entry.key) return false;
+    }
+    return true;
+  }
+
+  /// The sites whose attribution could not be proven, for logging.
+  static List<String> attributionFailures({
+    required Map<String, String> expected,
+    required Map<String, String> observed,
+  }) =>
+      [
+        for (final entry in expected.entries)
+          if (observed[entry.value] != entry.key) entry.key,
+      ];
+
   /// 128 bits of `Random.secure()` as lowercase hex.
   ///
   /// Used for both the per-site token and the realm nonce. The token is
