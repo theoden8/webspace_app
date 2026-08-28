@@ -84,6 +84,58 @@ of adding it is the whole feature.
 **Then** the proxy rule scheme is `http`
 **And** the relay performs no TLS handshake with the WebView
 
+### Requirement: PROXY-015 - Router mode verifies attribution on the device
+
+Before router mode is treated as active, the app SHALL prove on the
+running device that each container presents its own proxy credential.
+
+Each site's container SHALL be driven to fetch a unique probe host under
+`.webspace-probe.invalid`. The relay SHALL answer probe hosts itself and
+SHALL NOT open any upstream for them, recording only which credential
+carried which nonce. Router mode SHALL be activated only if every site's
+nonce comes back attributed to that same site; a mismatched pair, a
+missing pair, or a probe that fails to run SHALL each prevent activation
+and fall back to PROXY-008.
+
+This exists because the failure it detects is otherwise invisible.
+Chromium caches a proxy credential per `HttpNetworkSession` and does not
+partition proxy entries by `NetworkAnonymizationKey`, so on a device
+where container profiles shared a session, every site would present
+whichever credential was cached first. Pages would load, the relay would
+return `200`, and one site would be exiting through another site's proxy
+with nothing raised anywhere.
+
+#### Scenario: A device that attributes correctly activates
+
+**Given** router mode is starting with sites A and B
+**When** each container fetches its own probe host
+**And** the relay records A's nonce against A and B's nonce against B
+**Then** router mode activates
+
+#### Scenario: A device that mixes credentials is refused
+
+**Given** router mode is starting with sites A and B
+**When** both probes come back attributed to site A
+**Then** router mode is NOT activated
+**And** the relay is stopped
+**And** the app falls back to the PROXY-008 serialisation
+**And** the failure is logged naming the sites that could not be proven
+
+#### Scenario: An unproven site is treated as a failed one
+
+**Given** site B's probe never reaches the relay
+**Then** router mode is NOT activated
+
+#### Scenario: A probe cannot egress
+
+**Given** a probe request for `<nonce>.webspace-probe.invalid`
+**Then** the relay answers it locally
+**And** no upstream connection is opened for it
+**And** the hostname cannot resolve, being under the RFC 2606 reserved
+`.invalid` TLD
+
+---
+
 ## MODIFIED Requirements
 
 ### Requirement: PROXY-008 - Android / iOS Concurrency Asymmetry

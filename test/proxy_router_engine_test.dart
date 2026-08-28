@@ -275,4 +275,70 @@ void main() {
       expect(state.tokenFor('a'), isNot(realm));
     });
   });
+
+  group('attribution predicate (PROXY-015)', () {
+    test('holds when every nonce comes back stamped with its own site', () {
+      expect(
+        ProxyRouterEngine.attributionHolds(
+          expected: {'a': 'n1', 'b': 'n2'},
+          observed: {'n1': 'a', 'n2': 'b'},
+        ),
+        isTrue,
+      );
+    });
+
+    test('fails on the shared-auth-cache signature', () {
+      // Both containers replayed whichever credential was cached first,
+      // so both probes came back stamped 'a'. Nothing errors on such a
+      // device; this predicate is the only thing that notices.
+      expect(
+        ProxyRouterEngine.attributionHolds(
+          expected: {'a': 'n1', 'b': 'n2'},
+          observed: {'n1': 'a', 'n2': 'a'},
+        ),
+        isFalse,
+      );
+      expect(
+        ProxyRouterEngine.attributionFailures(
+          expected: {'a': 'n1', 'b': 'n2'},
+          observed: {'n1': 'a', 'n2': 'a'},
+        ),
+        ['b'],
+      );
+    });
+
+    test('fails when an observation is missing', () {
+      expect(
+        ProxyRouterEngine.attributionHolds(
+          expected: {'a': 'n1', 'b': 'n2'},
+          observed: {'n1': 'a'},
+        ),
+        isFalse,
+        reason: 'unproven must not read as proven',
+      );
+    });
+
+    test('fails when a nonce is stamped with an unrelated site', () {
+      expect(
+        ProxyRouterEngine.attributionHolds(
+          expected: {'a': 'n1'},
+          observed: {'n1': 'somebody-else'},
+        ),
+        isFalse,
+      );
+    });
+
+    test('vacuously holds with no sites', () {
+      expect(
+        ProxyRouterEngine.attributionHolds(expected: {}, observed: {}),
+        isTrue,
+      );
+    });
+
+    test('probe URL is http, carries the nonce, and uses the reserved TLD', () {
+      final url = ProxyRouterEngine.probeUrlFor('abc123');
+      expect(url, 'http://abc123.webspace-probe.invalid/');
+      expect(Uri.parse(url).host, endsWith('.invalid'));
+    });
+  });
 }

@@ -43,11 +43,25 @@ class FakeRelay implements ProxyRelayApi {
     return true;
   }
 
+  /// nonce -> siteId, as the relay would have observed it.
+  Map<String, String> probes = {};
+  int clearProbeCalls = 0;
+
+  @override
+  Future<Map<String, String>> probeResults() async => probes;
+
+  @override
+  Future<void> clearProbeResults() async {
+    clearProbeCalls++;
+    probes = {};
+  }
+
   @override
   Future<void> stop() async {
     stopCalls++;
     installed = {};
     startedRealm = null;
+    probes = {};
   }
 
   /// The upstream the relay would pick for [credential], or null when the
@@ -281,4 +295,122 @@ void main() {
       credential,
     );
   });
+
+  group('attribution self-test (PROXY-015)', () {
+    /// A device that behaves: each container presents its own credential,
+    /// so every nonce comes back stamped with its own site.
+    ProxyAttributionProbe honestDevice() => (siteIdToProbeUrl) async {
+          for (final e in siteIdToProbeUrl.entries) {
+            relay.probes[_nonceOf(e.value)] = e.key;
+          }
+        };
+
+    /// The device this whole check exists for: one shared proxy auth
+    /// cache, so whichever site authenticated first has its credential
+    /// replayed for every container. Every nonce comes back stamped with
+    /// that one site, and nothing errors anywhere.
+    ProxyAttributionProbe sharedAuthCacheDevice(String winner) =>
+        (siteIdToProbeUrl) async {
+          for (final e in siteIdToProbeUrl.entries) {
+            relay.probes[_nonceOf(e.value)] = winner;
+          }
+        };
+
+    test('activates when every container presents its own credential',
+        () async {
+      final port = await service.activate(
+        perSiteProxies: {
+          'a': proxy(ProxyType.SOCKS5, '127.0.0.1:9050'),
+          'b': proxy(ProxyType.HTTP, '10.0.0.1:8080'),
+        },
+        probe: honestDevice(),
+      );
+
+      expect(port, 43210);
+      expect(service.isActive, isTrue);
+      expect(relay.clearProbeCalls, 1,
+          reason: 'stale observations must not satisfy a fresh check');
+    });
+
+    test('REFUSES to activate when the device mixes credentials up',
+        () async {
+      // This is the silent-leak device. Without the check it would look
+      // exactly like success: routes installed, relay bound, pages load.
+      final port = await service.activate(
+        perSiteProxies: {
+          'a': proxy(ProxyType.SOCKS5, '127.0.0.1:9050'),
+          'b': proxy(ProxyType.HTTP, '10.0.0.1:8080'),
+        },
+        probe: sharedAuthCacheDevice('a'),
+      );
+
+      expect(port, isNull);
+      expect(service.isActive, isFalse,
+          reason: 'a device that cannot attribute must fall back to PROXY-008');
+      expect(service.credentialFor('a'), isNull);
+      expect(relay.stopCalls, greaterThan(0),
+          reason: 'the relay must not be left listening after a failed check');
+    });
+
+    test('refuses when any site fails to report at all', () async {
+      final port = await service.activate(
+        perSiteProxies: {
+          'a': proxy(ProxyType.HTTP, '10.0.0.1:8080'),
+          'b': proxy(ProxyType.HTTP, '10.0.0.2:8080'),
+        },
+        // Only site a probes; b never arrives.
+        probe: (siteIdToProbeUrl) async {
+          final only = siteIdToProbeUrl.entries.first;
+          relay.probes[_nonceOf(only.value)] = only.key;
+        },
+      );
+
+      expect(port, isNull,
+          reason: 'an unproven site is treated exactly like a failed one');
+      expect(service.isActive, isFalse);
+    });
+
+    test('refuses when the probe itself throws', () async {
+      final port = await service.activate(
+        perSiteProxies: {'a': proxy(ProxyType.HTTP, '10.0.0.1:8080')},
+        probe: (_) async => throw StateError('no webview'),
+      );
+      expect(port, isNull);
+      expect(service.isActive, isFalse);
+    });
+
+    test('probe URLs are unique per site and use the reserved suffix',
+        () async {
+      final urls = <String>[];
+      await service.activate(
+        perSiteProxies: {
+          for (var i = 0; i < 5; i++) 'site-$i': proxy(ProxyType.DEFAULT, null),
+        },
+        probe: (siteIdToProbeUrl) async {
+          urls.addAll(siteIdToProbeUrl.values);
+          for (final e in siteIdToProbeUrl.entries) {
+            relay.probes[_nonceOf(e.value)] = e.key;
+          }
+        },
+      );
+      expect(urls.toSet(), hasLength(5));
+      for (final u in urls) {
+        expect(u, startsWith('http://'));
+        expect(u, contains(ProxyRouterEngine.probeSuffix));
+      }
+    });
+
+    test('no probe supplied means no check (the test-only path)', () async {
+      final port = await service.activate(
+        perSiteProxies: {'a': proxy(ProxyType.HTTP, '10.0.0.1:8080')},
+      );
+      expect(port, 43210);
+      expect(relay.clearProbeCalls, 0);
+    });
+  });
 }
+
+/// Recover the nonce from a probe URL, the way the relay does from the
+/// request host.
+String _nonceOf(String probeUrl) =>
+    Uri.parse(probeUrl).host.replaceAll(ProxyRouterEngine.probeSuffix, '');

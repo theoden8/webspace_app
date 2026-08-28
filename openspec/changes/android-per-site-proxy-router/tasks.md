@@ -38,17 +38,38 @@
 - [x] 3.4 Integration: router comes up only where it can be honoured; the
       process-wide rule names the relay.
 
-## 4. Open
+## 4. Attribution self-test (PROXY-015)
+
+- [x] 4.0 Relay answers `.webspace-probe.invalid` locally, opens no
+      upstream, and records nonce -> siteId; `probeResults` /
+      `clearProbeResults` on the channel.
+- [x] 4.0.1 `ProxyRouterEngine.attributionHolds` / `attributionFailures`,
+      and `ProxyRouterService.activate(probe:)` refusing activation on any
+      mismatch, missing pair, or probe error.
+- [x] 4.0.2 Real probe via a short-lived headless WebView per container
+      (`proxy_router_probe.dart`) -- not an injected fetch, which a page
+      CSP could block and make look like a broken device.
+- [x] 4.0.3 Tests: JVM (probe answered locally, never upstream; pairs
+      recorded per credential; unadmitted caller records nothing) and Dart
+      (a simulated shared-auth-cache device is refused).
+
+## 4b. Open
 
 - [ ] 4.1 **On-device validation of the per-profile auth cache. STILL
       OPEN, and CI cannot close it.** The emulator tier runs the gate
       (`proxy_router_attribution_test.dart`) but the api-34/google_apis
-      image ships a System WebView older than 110, so `MULTI_PROFILE` is
-      absent, router mode never activates, and the test SKIPS while the
-      Build Android job goes green. A green CI run is therefore NOT
-      evidence for this item. Closing it needs a device (or an emulator
-      image) whose WebView is 110+: run the test and confirm both
-      upstreams are reached. Only one reached means Chromium shares an
+      image ships **WebView 113.0.5672.136**, which does NOT report
+      `MULTI_PROFILE` (measured: the wrapper prints the version, and the
+      run logs `Container API not supported`). Router mode therefore never
+      activates and the test SKIPS while the Build Android job goes green,
+      so a green CI run is NOT evidence for this item. androidx does not
+      document the milestone that adds the feature; the measured fact is
+      that 113 lacks it. Closing this needs an emulator image or device
+      whose WebView does report `MULTI_PROFILE`.
+      Note PROXY-015 now makes this fail-safe rather than fail-silent: a
+      device that cannot attribute refuses router mode instead of mixing
+      sites. The on-device run is still wanted, to confirm the happy path
+      actually activates rather than always falling back. Only one reached means Chromium shares an
       `HttpAuthCache` across container profiles and router mode must be
       withdrawn, not patched.
       Note this also means container mode itself is unexercised by the

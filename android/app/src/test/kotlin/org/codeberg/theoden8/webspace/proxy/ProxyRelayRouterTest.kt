@@ -447,6 +447,97 @@ class ProxyRelayRouterTest {
     }
 
     @Test
+    fun probeIsAnsweredLocallyAndNeverReachesAnUpstream() {
+        // The self-test must not be able to egress. If a probe could reach
+        // an upstream it would be a new leak path opened by the very thing
+        // meant to prove there is none.
+        val origin = fakeOrigin("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
+        val upstream = CountingUpstream(origin.localPort)
+        val relay = ProxyRelay()
+        try {
+            val port = relay.startRouter("9999aaaa")
+            val cred = credential("ws-a", "token-a")
+            relay.setRoutes(
+                mapOf(cred to ProxyRelay.Route("a", httpUpstream(upstream.port, "u", "p")))
+            )
+
+            val status = connectThrough(
+                port, cred, host = "n0nce${ProxyRelay.PROBE_SUFFIX}", dstPort = 80,
+            ).first
+            assertTrue("probe should be answered 200: $status", status.contains("200"))
+            assertEquals(
+                "a probe must never open an upstream connection",
+                0, upstream.connections.get(),
+            )
+            assertEquals(mapOf("n0nce" to "a"), relay.probeObservations())
+        } finally {
+            relay.stop(); upstream.close(); origin.close()
+        }
+    }
+
+    @Test
+    fun probesRecordTheSiteWhoseCredentialCarriedThem() {
+        // This is the attribution assertion itself, at the relay boundary:
+        // nonce -> the site whose credential arrived with it. On a device
+        // where Chromium replayed one site credential for both containers,
+        // BOTH nonces would map to the same siteId and the app refuses to
+        // activate router mode.
+        val relay = ProxyRelay()
+        try {
+            val port = relay.startRouter("abcd0001")
+            val credA = credential("ws-a", "token-a")
+            val credB = credential("ws-b", "token-b")
+            relay.setRoutes(
+                mapOf(
+                    credA to ProxyRelay.Route("a", httpUpstream(1, null, null)),
+                    credB to ProxyRelay.Route("b", httpUpstream(1, null, null)),
+                )
+            )
+
+            connectThrough(port, credA, host = "aaa${ProxyRelay.PROBE_SUFFIX}", dstPort = 80)
+            connectThrough(port, credB, host = "bbb${ProxyRelay.PROBE_SUFFIX}", dstPort = 80)
+
+            assertEquals(mapOf("aaa" to "a", "bbb" to "b"), relay.probeObservations())
+        } finally {
+            relay.stop()
+        }
+    }
+
+    @Test
+    fun probeFromAnUnknownCredentialRecordsNothing() {
+        val relay = ProxyRelay()
+        try {
+            val port = relay.startRouter("abcd0002")
+            relay.setRoutes(
+                mapOf(credential("ws-a", "t") to ProxyRelay.Route("a", httpUpstream(1, null, null)))
+            )
+            val status = connectThrough(
+                port, credential("ws-a", "guessed"),
+                host = "xxx${ProxyRelay.PROBE_SUFFIX}", dstPort = 80,
+            ).first
+            assertTrue("expected 502, got $status", status.contains("502"))
+            assertTrue(
+                "an unadmitted caller must not be able to write probe observations",
+                relay.probeObservations().isEmpty(),
+            )
+        } finally {
+            relay.stop()
+        }
+    }
+
+    @Test
+    fun stoppingClearsProbeObservations() {
+        val relay = ProxyRelay()
+        val port = relay.startRouter("abcd0003")
+        val cred = credential("ws-a", "t")
+        relay.setRoutes(mapOf(cred to ProxyRelay.Route("a", httpUpstream(1, null, null))))
+        connectThrough(port, cred, host = "zzz${ProxyRelay.PROBE_SUFFIX}", dstPort = 80)
+        assertTrue(relay.probeObservations().isNotEmpty())
+        relay.stop()
+        assertTrue(relay.probeObservations().isEmpty())
+    }
+
+    @Test
     fun routerModeIsIdempotentForTheSameRealm() {
         val relay = ProxyRelay()
         try {

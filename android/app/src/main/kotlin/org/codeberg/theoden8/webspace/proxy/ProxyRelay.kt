@@ -117,6 +117,11 @@ class ProxyRelay(
     private var routerRealm: String? = null
     @Volatile
     private var routes: Map<String, Route> = emptyMap()
+    // Probe observations: nonce -> siteId whose credential carried it.
+    // Replaced wholesale like `routes` so an accept-thread writer and a
+    // channel-thread reader never see a torn map (BUG-007).
+    @Volatile
+    private var probes: Map<String, String> = emptyMap()
     @Volatile
     private var boundPort: Int = -1
     @Volatile
@@ -232,6 +237,22 @@ class ProxyRelay(
         log("routes updated (${routes.size} site(s): ${routes.values.map { it.siteId }})")
     }
 
+    @Synchronized
+    private fun recordProbe(nonce: String, siteId: String) {
+        probes = java.util.Collections.unmodifiableMap(LinkedHashMap(probes).apply {
+            put(nonce, siteId)
+        })
+    }
+
+    /** Probe pairs observed so far: nonce -> the siteId that presented it. */
+    @Synchronized
+    fun probeObservations(): Map<String, String> = probes
+
+    @Synchronized
+    fun clearProbeObservations() {
+        probes = emptyMap()
+    }
+
     private fun startAcceptLoop(socket: ServerSocket) {
         val t = Thread({ acceptLoop(socket) }, "proxy-relay-accept").apply { isDaemon = true }
         acceptThread = t
@@ -245,6 +266,7 @@ class ProxyRelay(
         config = null
         routerRealm = null
         routes = emptyMap()
+        probes = emptyMap()
         boundPort = -1
         boundHost = LOOPBACK
         acceptThread = null
@@ -358,7 +380,8 @@ class ProxyRelay(
             writeStatus(cout, 400, "Bad Request")
             return
         }
-        val cfg = resolveUpstream(headers, cout) ?: return
+        val route = resolveUpstream(headers, cout) ?: return
+        val cfg = route.upstream
         val method = parts[0].uppercase()
         val target = parts[1]
         val isConnect = method == "CONNECT"
@@ -376,6 +399,21 @@ class ProxyRelay(
         }
         if (host.isEmpty()) {
             writeStatus(cout, 400, "Bad Request")
+            return
+        }
+
+        // Attribution self-test (PROXY-015). A probe host is answered here
+        // and NEVER forwarded: no upstream is contacted, so a probe cannot
+        // egress anywhere even if the site's proxy is broken or the route
+        // table is wrong. What it records is the pair the app needs --
+        // which credential arrived carrying which nonce -- so the app can
+        // prove, on THIS device and THIS WebView, that each container
+        // presents its own credential rather than replaying a sibling's.
+        if (host.endsWith(PROBE_SUFFIX)) {
+            val nonce = host.removeSuffix(PROBE_SUFFIX)
+            recordProbe(nonce, route.siteId)
+            log("probe ${route.siteId} (answered locally, no upstream)")
+            writeStatus(cout, 200, "OK")
             return
         }
 
@@ -665,9 +703,10 @@ class ProxyRelay(
      * challenge, so a caller that is guessing cannot be walked around the
      * loop indefinitely.
      */
-    private fun resolveUpstream(headers: List<String>, cout: OutputStream): UpstreamConfig? {
+    private fun resolveUpstream(headers: List<String>, cout: OutputStream): Route? {
         val realm = routerRealm
-            ?: return config ?: run { writeStatus(cout, 502, "Bad Gateway"); null }
+            ?: return config?.let { Route(LEGACY_SITE_ID, it) }
+                ?: run { writeStatus(cout, 502, "Bad Gateway"); null }
         val credential = proxyAuthCredential(headers)
         if (credential == null) {
             writeChallenge(cout, realm)
@@ -680,7 +719,7 @@ class ProxyRelay(
             return null
         }
         log("routing site ${route.siteId}")
-        return route.upstream
+        return route
     }
 
     /**
@@ -817,6 +856,14 @@ class ProxyRelay(
         private const val HANDSHAKE_TIMEOUT_MS = 20_000
         private const val MAX_PREAMBLE = 64 * 1024
         private val REALM_ALPHABET = ('a'..'f') + ('0'..'9')
+
+        // RFC 2606 reserved TLD: a probe host can never resolve, so even
+        // a bug that forwarded one could not reach a real server.
+        const val PROBE_SUFFIX = ".webspace-probe.invalid"
+
+        // Stand-in siteId for single-upstream (non-router) mode, where
+        // there is exactly one route and no attribution to make.
+        const val LEGACY_SITE_ID = "-"
 
         private const val B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
