@@ -288,6 +288,16 @@ enum WebViewTheme { light, dark, system }
 /// drops `is_proxy` and the port, so a site serving its own `401` lands
 /// here too, and proceeding would hand the page a token that admits its
 /// bearer to every site's route.
+///
+/// Attached on every platform, not just Android, and that is deliberate
+/// rather than an oversight: the fork's Linux plugin implements this
+/// callback too (pub.dev lists only Android/iOS/macOS). It stays inert
+/// there because WPE's `OnAuthenticate` already returns TRUE before Dart
+/// is consulted -- so WebKit's own dialog was never going to show -- and
+/// a null from here reaches the same `defaultBehaviour` that an
+/// unregistered handler does, which cancels. Registering the handler
+/// therefore changes nothing off Android. Anything that makes this
+/// function return non-null off Android would.
 Future<inapp.HttpAuthResponse?> answerProxyRouterChallenge(
   String? siteId,
   inapp.HttpAuthenticationChallenge challenge,
