@@ -26,6 +26,16 @@ if [ -z "$device_id" ]; then
   exit 1
 fi
 
+# Record the System WebView version. Router mode needs MULTI_PROFILE
+# (WebView 110+), and the emulator images ship whatever WebView was current
+# when the image was cut -- on api-34/google_apis that is older than 110, so
+# the gate SKIPS and the job still goes green. Printing the version means a
+# future reader can tell "the gate passed" from "the gate never ran" without
+# re-deriving it from a [Container/debug] line.
+echo "── System WebView on device ──"
+adb -s "$device_id" shell dumpsys package com.google.android.webview \
+  | grep -m1 versionName || echo "  (version not reported)"
+
 # Hard wall-clock cap: a webview mount can deadlock below the Dart timeout
 # layer (same rationale as the white-screen tier).
 exec timeout -k 30s 20m fvm flutter test \

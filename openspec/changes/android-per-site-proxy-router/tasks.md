@@ -40,11 +40,19 @@
 
 ## 4. Open
 
-- [ ] 4.1 **On-device validation of the per-profile auth cache.** Run
-      `integration_test/proxy_router_test.dart` on Android with two
-      containers and confirm the relay log shows two distinct credentials.
-      One credential for both sites means the gate assumption is wrong and
-      router mode must be withdrawn.
+- [ ] 4.1 **On-device validation of the per-profile auth cache. STILL
+      OPEN, and CI cannot close it.** The emulator tier runs the gate
+      (`proxy_router_attribution_test.dart`) but the api-34/google_apis
+      image ships a System WebView older than 110, so `MULTI_PROFILE` is
+      absent, router mode never activates, and the test SKIPS while the
+      Build Android job goes green. A green CI run is therefore NOT
+      evidence for this item. Closing it needs a device (or an emulator
+      image) whose WebView is 110+: run the test and confirm both
+      upstreams are reached. Only one reached means Chromium shares an
+      `HttpAuthCache` across container profiles and router mode must be
+      withdrawn, not patched.
+      Note this also means container mode itself is unexercised by the
+      current emulator tier, which is a pre-existing gap.
 - [ ] 4.2 Service-worker cold start: `AwHttpAuthHandler::Start` cancels
       when there is no `WebContents`, so a service-worker request that
       arrives before the profile's auth cache is warm fails closed. Decide
