@@ -93,6 +93,36 @@ void main() {
       expect(result, isEmpty);
     });
 
+    test('router mode keeps two same-domain sites with different proxies loaded',
+        () {
+      // PROXY-013. The case PROXY-008 could not serve: two accounts on one
+      // service, each meant to be seen from its own exit IP. Under router
+      // mode the process-wide rule points at the loopback router and stays
+      // there, so activating one must not evict the other -- evicting it is
+      // exactly the cold-start cost the router removes.
+      final models = [
+        _site('https://accountA.example.com',
+            proxy: UserProxySettings(type: ProxyType.SOCKS5, address: '127.0.0.1:9050')),
+        _site('https://accountB.example.com',
+            proxy: UserProxySettings(type: ProxyType.HTTP, address: 'p2:8080')),
+        _site('https://accountC.example.com',
+            proxy: UserProxySettings(type: ProxyType.DEFAULT)),
+      ];
+      for (var target = 0; target < models.length; target++) {
+        expect(
+          SiteUnloadEngine.indicesToUnloadForProxyMismatch(
+            targetIndex: target,
+            models: models,
+            loadedIndices: {0, 1, 2},
+            // What main.dart passes once ProxyRouterService is active.
+            proxyIsGlobal: false,
+          ),
+          isEmpty,
+          reason: 'activating site $target must not evict its siblings',
+        );
+      }
+    });
+
     test('flags loaded sites with a different proxy on Android', () {
       final models = [
         _site('https://a.example.com',

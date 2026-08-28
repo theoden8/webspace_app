@@ -24,11 +24,17 @@ import javax.net.ssl.SSLSocketFactory
  * username/password handshake, RFC 1929).
  *
  * Fail-closed by construction: the relay only ever connects to the
- * configured upstream, and for an HTTPS upstream only past a handshake
- * that verified that upstream's certificate identity (see [startTls]).
- * If the upstream is unreachable, untrusted, or rejects auth, the client
- * gets a `502` and the connection closes — the relay never opens a
- * direct connection to the origin, so a failed proxy cannot leak the IP.
+ * upstream configured for that connection, and for an HTTPS upstream only
+ * past a handshake that verified that upstream's certificate identity
+ * (see [startTls]). If the upstream is unreachable, untrusted, or rejects
+ * auth, the client gets a `502` and the connection closes. There is no
+ * fallback path of any kind, so a failed proxy cannot leak the IP — not
+ * even in router mode, where a *different* connection may legitimately be
+ * routed [UpstreamType.DIRECT] because its own site has no proxy set.
+ *
+ * In router mode it additionally fronts every site at once, selecting the
+ * upstream from the `Proxy-Authorization` credential the WebView presents
+ * (see [startRouter]).
  *
  * The listener is bound to loopback, which keeps it off the network but not
  * away from the device: every other app with `INTERNET` can reach
@@ -73,7 +79,16 @@ class ProxyRelay(
     /** Whether an accepted peer is one of this process's own sockets. */
     enum class PeerVerdict { OWN, FOREIGN, UNKNOWN }
 
-    enum class UpstreamType { HTTP, HTTPS, SOCKS5 }
+    /**
+     * DIRECT exists only for router mode. With `ProxyController` pointed
+     * at the relay, EVERY site's traffic arrives here, including a site
+     * the user left on the system default -- that site has to reach its
+     * origin unproxied. It is reachable only through a route the app
+     * configured as DIRECT and is never a fallback: a site whose proxy is
+     * unreachable still gets a 502, so a failing proxy can no more leak
+     * the device IP than it could before router mode existed.
+     */
+    enum class UpstreamType { HTTP, HTTPS, SOCKS5, DIRECT }
 
     data class UpstreamConfig(
         val type: UpstreamType,
@@ -86,10 +101,22 @@ class ProxyRelay(
             get() = !username.isNullOrEmpty() && !password.isNullOrEmpty()
     }
 
+    /** One site's upstream, as reached through its credential. */
+    data class Route(val siteId: String, val upstream: UpstreamConfig)
+
     @Volatile
     private var serverSocket: ServerSocket? = null
     @Volatile
     private var config: UpstreamConfig? = null
+    // Router mode. `routerRealm` non-null selects it; `routes` maps the
+    // base64 credential a WebView presents to the upstream it may reach.
+    // Both are replaced wholesale under the class monitor and read as a
+    // single volatile snapshot, never mutated in place, so an accept-thread
+    // reader can never observe a half-applied route table (BUG-007).
+    @Volatile
+    private var routerRealm: String? = null
+    @Volatile
+    private var routes: Map<String, Route> = emptyMap()
     @Volatile
     private var boundPort: Int = -1
     @Volatile
@@ -126,7 +153,7 @@ class ProxyRelay(
      */
     @Synchronized
     fun start(cfg: UpstreamConfig): Int {
-        if (isRunning() && cfg == config) {
+        if (isRunning() && cfg == config && routerRealm == null) {
             return boundPort
         }
         stop()
@@ -160,11 +187,64 @@ class ProxyRelay(
         return boundPort
     }
 
+    /**
+     * Start (or reconfigure) the relay in router mode, fronting every
+     * site's upstream at once. Returns the loopback port; [host] names the
+     * address it bound.
+     *
+     * Every connection MUST present a `Proxy-Authorization` credential
+     * that [setRoutes] maps to an upstream: a connection without one gets
+     * a 407 naming [realm], and one bearing an unknown credential gets a
+     * 502. Nothing is ever routed without a match and there is no default
+     * upstream, so another app on the device cannot borrow the user's
+     * proxy by connecting to this port even where the peer check cannot
+     * see who is calling.
+     */
+    @Synchronized
+    fun startRouter(realm: String): Int {
+        require(realm.isNotEmpty() && realm.all { it in REALM_ALPHABET }) {
+            "realm must be a non-empty hex nonce"
+        }
+        if (isRunning() && routerRealm == realm) {
+            return boundPort
+        }
+        stop()
+        val socket = bindLoopback(randomLoopbackHost())
+            ?: bindLoopback(LOOPBACK)
+            ?: throw IllegalStateException("could not bind a loopback listener")
+        serverSocket = socket
+        routerRealm = realm
+        boundHost = (socket.inetAddress?.hostAddress) ?: LOOPBACK
+        boundPort = socket.localPort
+        startAcceptLoop(socket)
+        log("started on $boundHost:$boundPort (router mode)")
+        return boundPort
+    }
+
+    /**
+     * Replace the route table. Keys are the base64 `user:pass` credential
+     * a WebView presents; the relay never decodes them, so a token is only
+     * ever compared, never parsed or logged.
+     */
+    @Synchronized
+    fun setRoutes(newRoutes: Map<String, Route>) {
+        routes = java.util.Collections.unmodifiableMap(LinkedHashMap(newRoutes))
+        log("routes updated (${routes.size} site(s): ${routes.values.map { it.siteId }})")
+    }
+
+    private fun startAcceptLoop(socket: ServerSocket) {
+        val t = Thread({ acceptLoop(socket) }, "proxy-relay-accept").apply { isDaemon = true }
+        acceptThread = t
+        t.start()
+    }
+
     @Synchronized
     fun stop() {
         serverSocket?.let { runCatching { it.close() } }
         serverSocket = null
         config = null
+        routerRealm = null
+        routes = emptyMap()
         boundPort = -1
         boundHost = LOOPBACK
         acceptThread = null
@@ -221,8 +301,7 @@ class ProxyRelay(
                 }
                 break
             }
-            val cfg = config
-            if (cfg == null) {
+            if (config == null && routerRealm == null) {
                 runCatching { client.close() }
                 continue
             }
@@ -233,7 +312,7 @@ class ProxyRelay(
             log("accepted connection from ${client.inetAddress.hostAddress}:${client.port}")
             pool.execute {
                 try {
-                    handle(client, cfg)
+                    handle(client)
                 } catch (e: Exception) {
                     log("client handling failed: ${e.javaClass.simpleName}")
                 } finally {
@@ -266,7 +345,7 @@ class ProxyRelay(
         }
     }
 
-    private fun handle(client: Socket, cfg: UpstreamConfig) {
+    private fun handle(client: Socket) {
         client.soTimeout = HANDSHAKE_TIMEOUT_MS
         val cin = client.getInputStream()
         val cout = client.getOutputStream()
@@ -279,6 +358,7 @@ class ProxyRelay(
             writeStatus(cout, 400, "Bad Request")
             return
         }
+        val cfg = resolveUpstream(headers, cout) ?: return
         val method = parts[0].uppercase()
         val target = parts[1]
         val isConnect = method == "CONNECT"
@@ -302,6 +382,7 @@ class ProxyRelay(
         log("upstream connecting via ${cfg.type} ${cfg.host}:${cfg.port} for ${if (isConnect) "CONNECT" else method} $host:$hostPort")
         val upstream: Socket = try {
             when (cfg.type) {
+                UpstreamType.DIRECT -> openDirect(host, hostPort)
                 UpstreamType.SOCKS5 -> openViaSocks5(cfg, host, hostPort)
                 UpstreamType.HTTP, UpstreamType.HTTPS ->
                     openViaHttpProxy(cfg, host, hostPort, isConnect)
@@ -324,7 +405,7 @@ class ProxyRelay(
                 // the upstream, then splice. SOCKS gives an origin tunnel
                 // (origin-form path, no proxy auth header); an HTTP proxy
                 // wants the absolute-form line plus Proxy-Authorization.
-                val rewritten = if (cfg.type == UpstreamType.SOCKS5) {
+                val rewritten = if (cfg.type != UpstreamType.HTTP && cfg.type != UpstreamType.HTTPS) {
                     rewriteForOriginTunnel(requestLine, target, headers)
                 } else {
                     rewriteForHttpProxy(requestLine, headers, cfg)
@@ -339,6 +420,12 @@ class ProxyRelay(
         } finally {
             runCatching { upstream.close() }
         }
+    }
+
+    private fun openDirect(host: String, port: Int): Socket {
+        val s = Socket()
+        s.connect(InetSocketAddress(host, port), CONNECT_TIMEOUT_MS)
+        return s
     }
 
     // --- Upstream: SOCKS5 (with optional RFC 1929 username/password) ---
@@ -566,6 +653,65 @@ class ProxyRelay(
         }
     }
 
+    /**
+     * Pick the upstream for one connection, or answer the client and
+     * return null.
+     *
+     * Router mode is fail-closed by construction: there is no default
+     * upstream to fall back to, so a caller that cannot present a known
+     * credential is answered and dropped rather than routed anywhere. A
+     * missing credential is a 407 (the WebView will re-issue the request
+     * with one); a credential we do not recognise is a 502, not a second
+     * challenge, so a caller that is guessing cannot be walked around the
+     * loop indefinitely.
+     */
+    private fun resolveUpstream(headers: List<String>, cout: OutputStream): UpstreamConfig? {
+        val realm = routerRealm
+            ?: return config ?: run { writeStatus(cout, 502, "Bad Gateway"); null }
+        val credential = proxyAuthCredential(headers)
+        if (credential == null) {
+            writeChallenge(cout, realm)
+            return null
+        }
+        val route = routes[credential]
+        if (route == null) {
+            log("rejecting connection bearing an unknown proxy credential")
+            writeStatus(cout, 502, "Bad Gateway")
+            return null
+        }
+        log("routing site ${route.siteId}")
+        return route.upstream
+    }
+
+    /**
+     * The base64 blob of a `Proxy-Authorization: Basic <blob>` header, or
+     * null. Never decoded: the blob is the map key, so a credential is
+     * only ever compared, and it cannot reach a log line by accident.
+     */
+    private fun proxyAuthCredential(headers: List<String>): String? {
+        for (h in headers) {
+            if (!h.startsWith("Proxy-Authorization:", true)) continue
+            val value = h.substringAfter(':').trim()
+            if (!value.startsWith("Basic ", true)) continue
+            return value.substring(6).trim().takeIf { it.isNotEmpty() }
+        }
+        return null
+    }
+
+    private fun writeChallenge(out: OutputStream, realm: String) {
+        runCatching {
+            out.write(
+                (
+                    "HTTP/1.1 407 Proxy Authentication Required\r\n" +
+                        "Proxy-Authenticate: Basic realm=\"$realm\"\r\n" +
+                        "Content-Length: 0\r\n" +
+                        "Connection: close\r\n\r\n"
+                    ).toByteArray(Charsets.ISO_8859_1)
+            )
+            out.flush()
+        }
+    }
+
     private fun writeStatus(out: OutputStream, code: Int, reason: String) {
         runCatching {
             out.write("HTTP/1.1 $code $reason\r\nConnection: close\r\n\r\n".toByteArray(Charsets.ISO_8859_1))
@@ -670,6 +816,7 @@ class ProxyRelay(
         private const val CONNECT_TIMEOUT_MS = 15_000
         private const val HANDSHAKE_TIMEOUT_MS = 20_000
         private const val MAX_PREAMBLE = 64 * 1024
+        private val REALM_ALPHABET = ('a'..'f') + ('0'..'9')
 
         private const val B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 

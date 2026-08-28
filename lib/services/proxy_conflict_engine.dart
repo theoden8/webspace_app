@@ -44,10 +44,18 @@ class ProxyConflictEngine {
   /// [otherEnabledProxies] MUST exclude the target site's own proxy —
   /// the caller owns the filter on `notificationsEnabled` AND `index !=
   /// targetIndex`.
+  ///
+  /// [routerActive] lifts the constraint entirely: under router mode
+  /// (PROXY-013) the process-wide rule points at the loopback router for
+  /// good and each site reaches its own upstream through its own
+  /// credential, so two background-poll sites with different proxies no
+  /// longer contend for a single slot.
   static bool canEnable({
     required UserProxySettings targetProxy,
     required Iterable<UserProxySettings> otherEnabledProxies,
+    bool routerActive = false,
   }) {
+    if (routerActive) return true;
     final targetFp = fingerprint(targetProxy);
     for (final other in otherEnabledProxies) {
       if (fingerprint(other) != targetFp) return false;
@@ -61,7 +69,9 @@ class ProxyConflictEngine {
   static UserProxySettings? firstConflict({
     required UserProxySettings targetProxy,
     required Iterable<UserProxySettings> otherEnabledProxies,
+    bool routerActive = false,
   }) {
+    if (routerActive) return null;
     final targetFp = fingerprint(targetProxy);
     for (final other in otherEnabledProxies) {
       if (fingerprint(other) != targetFp) return other;
