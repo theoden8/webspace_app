@@ -840,6 +840,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
+    final backOpensMenuHint = hostIsAndroid
+        ? '${loc.appSettingsBackOpensMenuHint} ${loc.appSettingsBackOpensMenuHintExit}'
+        : loc.appSettingsBackOpensMenuHint;
     return PopScope(
       canPop: !_isOutboundProxyDirty(),
       onPopInvokedWithResult: (didPop, _) async {
@@ -1052,7 +1055,10 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                 Flexible(child: Text(loc.appSettingsBackOpensMenu)),
                 HintButton(
                   title: loc.appSettingsBackOpensMenu,
-                  description: loc.appSettingsBackOpensMenuHint,
+                  // The escalation to leaving the app is Android's alone
+                  // (NAV-009), so the sentence describing it stays off every
+                  // other platform.
+                  description: backOpensMenuHint,
                 ),
               ],
             ),

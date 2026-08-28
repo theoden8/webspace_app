@@ -163,4 +163,39 @@ void main() {
       );
     });
   });
+
+  group('iOS edge-swipe fallback (NAV-009)', () {
+    bool needs({
+      bool isIOS = true,
+      bool webViewVisible = true,
+      bool drawerAvailable = true,
+      BackAtHistoryStart atHistoryStart = BackAtHistoryStart.openMenu,
+    }) =>
+        needsEdgeSwipeFallback(
+          isIOS: isIOS,
+          webViewVisible: webViewVisible,
+          drawerAvailable: drawerAvailable,
+          atHistoryStart: atHistoryStart,
+        );
+
+    test('iOS claims the edge back from WKWebView when the setting is on', () {
+      expect(needs(), isTrue);
+    });
+
+    test('the setting off leaves the native swipe alone (NAV-001)', () {
+      expect(needs(atHistoryStart: BackAtHistoryStart.ignore), isFalse);
+    });
+
+    test('other platforms reach the policy through PopScope', () {
+      expect(needs(isIOS: false), isFalse);
+    });
+
+    test('no strip over the site list, where there is no webview to go back in', () {
+      expect(needs(webViewVisible: false), isFalse);
+    });
+
+    test('a locked kiosk shell has no drawer to open (KIOSK-002)', () {
+      expect(needs(drawerAvailable: false), isFalse);
+    });
+  });
 }
