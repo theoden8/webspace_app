@@ -25,9 +25,14 @@ TLC model it backs (same definitions — no re-modeling).
 - **`containers_disjoint.tla`** — proves `[]Inv_Disjoint` for the per-site-containers engine
   and all `N`: the site → container binding is injective, so no two of *any* number of sites
   share storage (inductive via `Inv_Identity`). **23 obligations, all proved.**
-- **`proxy_coherent.tla`** — proves `[]Inv_ProxyCoherent` for all `N` and any proxy
-  assignment: every loaded site shares the active proxy (directly inductive — serialisation
-  rebuilds a homogeneous loaded set on each activation). **29 obligations, all proved.**
+- **`proxy_coherent.tla`** — proves `[]Inv_EgressMatchesConfig` for all `N` and any proxy
+  assignment: every loaded site egresses through the proxy IT was configured with. That is
+  the user-facing property, and it holds under both Android designs. `[]Inv_ProxyCoherent`
+  (every loaded site shares the *active* proxy) is only PROXY-008 serialisation's mechanism
+  and is false under the PROXY-013 router, so it is proved under `Router = "off"`. One
+  inductive invariant covers both: off-mode needs coherence as a conjunct to carry
+  `Inv_EgressMatchesConfig` (there every site's egress is the visible site's proxy), on-mode
+  carries it directly. Backs `proxy.tla`.
 - **`retention_safety.tla`** — proves `[](Inv_CurrentKept /\ Inv_NotifLast)` for all `N` and
   any tier assignment: the visible site is never evicted, and notification sites are evicted
   last (inductive via the eviction guard + monotonicity). **22 obligations, all proved.**
