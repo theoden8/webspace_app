@@ -150,4 +150,46 @@ void main() {
       expect(identical(conflict, first), isTrue);
     });
   });
+
+  group('router mode (PROXY-013)', () {
+    test('lifts the single-proxy constraint for background-poll sites', () {
+      // Under the router the process-wide rule points at the loopback
+      // relay permanently and each site reaches its own upstream through
+      // its own credential, so two notification sites with different
+      // proxies no longer contend for one slot.
+      final target = UserProxySettings(
+        type: ProxyType.SOCKS5,
+        address: '127.0.0.1:9050',
+      );
+      final others = [
+        UserProxySettings(type: ProxyType.HTTP, address: 'p:8080'),
+        UserProxySettings(type: ProxyType.DEFAULT),
+      ];
+
+      expect(
+        ProxyConflictEngine.canEnable(
+          targetProxy: target,
+          otherEnabledProxies: others,
+        ),
+        isFalse,
+        reason: 'without the router this is the PROXY-008 conflict',
+      );
+      expect(
+        ProxyConflictEngine.canEnable(
+          targetProxy: target,
+          otherEnabledProxies: others,
+          routerActive: true,
+        ),
+        isTrue,
+      );
+      expect(
+        ProxyConflictEngine.firstConflict(
+          targetProxy: target,
+          otherEnabledProxies: others,
+          routerActive: true,
+        ),
+        isNull,
+      );
+    });
+  });
 }

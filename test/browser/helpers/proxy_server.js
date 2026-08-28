@@ -22,6 +22,26 @@ function parseBasicAuth(header) {
   return { username: decoded.slice(0, idx), password: decoded.slice(idx + 1) };
 }
 
+const HOP_BY_HOP = new Set([
+  'proxy-authorization',
+  'proxy-authenticate',
+  'proxy-connection',
+  'connection',
+  'keep-alive',
+  'te',
+  'trailer',
+  'transfer-encoding',
+  'upgrade',
+]);
+
+function stripHopByHop(headers) {
+  const out = {};
+  for (const [k, v] of Object.entries(headers)) {
+    if (!HOP_BY_HOP.has(k.toLowerCase())) out[k] = v;
+  }
+  return out;
+}
+
 function startProxy({ auth = null } = {}) {
   const log = [];
 
@@ -85,7 +105,16 @@ function startProxy({ auth = null } = {}) {
       port: target.port || 80,
       path: target.pathname + target.search,
       method: req.method,
-      headers: req.headers,
+      // Hop-by-hop headers terminate at the proxy (RFC 7230 6.1).
+      // Forwarding `Proxy-Authorization` would hand the origin the
+      // credential that authenticates the client TO THE PROXY -- under
+      // the per-site router (PROXY-013) that credential is the site's
+      // routing token, so a proxy that leaks it lets one site's origin
+      // learn how to route through that site's proxy. Our own relay
+      // strips it (ProxyRelayRouterTest.clientCredentialIsNeverForwarded-
+      // Upstream); this fake has to model the same rule or tests that
+      // assert on it are measuring the fake, not the contract.
+      headers: stripHopByHop(req.headers),
     }, (uRes) => {
       res.writeHead(uRes.statusCode, uRes.headers);
       uRes.pipe(res);
@@ -136,13 +165,16 @@ function startProxy({ auth = null } = {}) {
 
 // Tiny HTTP origin server that returns a known body so tests can
 // distinguish "page loaded through proxy" from "page failed".
-function startOrigin({ body = 'origin-ok', contentType = 'text/html' } = {}) {
+function startOrigin({ body = 'origin-ok', contentType = 'text/html', cors = false } = {}) {
   const log = [];
   const server = http.createServer((req, res) => {
-    log.push({ url: req.url, host: req.headers.host });
+    // Full headers, so a test can assert which headers a page did NOT
+    // manage to put on the wire (see proxy_router_credential_isolation).
+    log.push({ url: req.url, host: req.headers.host, headers: req.headers });
     res.writeHead(200, {
       'Content-Type': contentType,
       'Content-Length': Buffer.byteLength(body).toString(),
+      ...(cors ? { 'Access-Control-Allow-Origin': '*' } : {}),
     });
     res.end(body);
   });
