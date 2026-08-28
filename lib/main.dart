@@ -1010,7 +1010,7 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   /// Cached result of [ContainerNative.isSupported] resolved during
   /// `_restoreAppState`. When true, the app uses native per-site
-  /// containers (Android System WebView 110+, iOS 17+, macOS 14+);
+  /// containers (Android `MULTI_PROFILE`, iOS 17+, macOS 14+);
   /// same-base-domain sites can be loaded concurrently and the
   /// capture-nuke-restore cycle in [_restoreCookiesForSite] /
   /// [_unloadSiteForDomainSwitch] / preDelete cleanup is skipped. When

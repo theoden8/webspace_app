@@ -10,7 +10,7 @@ import 'package:webspace/services/log_service.dart';
 /// (`ws-<siteId>`) that owns its own cookies, localStorage, IndexedDB,
 /// ServiceWorkers, and HTTP cache:
 ///
-///   - Android (System WebView 110+, androidx.webkit 1.9+):
+///   - Android (System WebView reporting `MULTI_PROFILE`):
 ///     `androidx.webkit.Profile`.
 ///   - iOS 17+ / macOS 14+: `WKWebsiteDataStore(forIdentifier:)`.
 ///   - Linux (WPE WebKit 2.40+): per-container `WebKitNetworkSession`
@@ -93,7 +93,7 @@ abstract class ContainerNative {
   ///     `WKWebsiteDataStore.removeData(ofTypes:modifiedSince:)` with
   ///     `allWebsiteDataTypes` and `Date.distantPast`. Single primitive
   ///     covers everything; designed for live-bound stores.
-  ///   - Android (System WebView 110+): composes `Profile.getCookieManager`
+  ///   - Android (`MULTI_PROFILE`): composes `Profile.getCookieManager`
   ///     + `Profile.getWebStorage` + `Profile.getGeolocationPermissions`.
   ///     The HTTP cache for live WebViews and the global
   ///     `ServiceWorkerControllerCompat` are NOT reached — we

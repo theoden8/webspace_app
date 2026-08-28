@@ -128,7 +128,7 @@ The system SHALL delete every incognito site's native container during app start
 
 #### Scenario: Wipe is platform-aware no-op
 
-**Given** the running platform does not support the Container API (Windows, web, Android System WebView <110, iOS <17, macOS <14, WPE WebKit <2.40)
+**Given** the running platform does not support the Container API (Windows, web, an Android System WebView not reporting `MULTI_PROFILE`, iOS <17, macOS <14, WPE WebKit <2.40)
 **When** `wipeContainers([...])` runs
 **Then** it returns 0 without error
 
