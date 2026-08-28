@@ -1679,12 +1679,6 @@ class _WebSpacePageState extends State<WebSpacePage>
             'capture=${pausePlan.captureStateIndex != null} '
             'bgAudio=$loadedBgAudio loaded',
       );
-      // Backgrounding is the last moment we control before the OS may kill
-      // the process, and Chromium commits cookies to disk lazily. Unawaited:
-      // durability is best-effort and nothing downstream depends on it.
-      if (pausePlan.flushCookies) {
-        unawaited(_cookieManager.flush());
-      }
       // BGAUDIO-012: a site that stops itself when the page reports hidden
       // (YouTube and every other player built for a tab) needs to be told the
       // app is backgrounded before the OS tells the page it is hidden.
@@ -1695,14 +1689,23 @@ class _WebSpacePageState extends State<WebSpacePage>
       }
       // BGAUDIO-009: a site the user never opted in for must not keep sounding
       // through a backgrounded app (and keep the system transport controls up
-      // with it). Dispatched before the JS pause below — on iOS that pause
-      // blocks the page's JS thread, so this would sit queued behind it.
+      // with it). Dispatched with the visibility hand-off above and ahead of
+      // everything else here: the JS pause below blocks the page's JS thread
+      // on iOS, and Android's CookieManager.flush() blocks the platform thread
+      // on disk I/O with every later channel message queued behind it. The
+      // element decodes on for as long as the stop is waiting its turn.
       final mediaStops = <int, Future<void>>{};
       for (final i in pausePlan.mediaPauseIndices) {
         if (i < 0 || i >= _webViewModels.length) continue;
         mediaStops[i] = _webViewModels[i].pauseMediaPlayback();
       }
       final allMediaStopped = Future.wait(mediaStops.values);
+      // Backgrounding is the last moment we control before the OS may kill
+      // the process, and Chromium commits cookies to disk lazily. Unawaited:
+      // durability is best-effort and nothing downstream depends on it.
+      if (pausePlan.flushCookies) {
+        unawaited(_cookieManager.flush());
+      }
       if (pausePlan.jsPauseIndex != null) {
         final idx = pausePlan.jsPauseIndex!;
         final stopped = mediaStops.remove(idx) ?? Future<void>.value();
