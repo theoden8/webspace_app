@@ -51,5 +51,12 @@
       whether to prewarm.
 - [ ] 4.3 Settings copy: PROXY-008's "switching cold-starts the other
       site" explanation no longer applies under router mode.
-- [ ] 4.4 `formal/proxy.tla`: add router mode so `Inv_ProxyCoherent` is
-      conditioned on it rather than assumed.
+- [x] 4.4 `formal/proxy.tla`: router mode added. The asserted safety
+      property is now `Inv_EgressMatchesConfig` (every loaded site
+      egresses through the proxy it was configured with), which holds in
+      both modes; `Inv_ProxyCoherent` is demoted to PROXY-008's mechanism
+      and asserted only in the "off" configs. The `misattribute`
+      demonstrator encodes the shared-`HttpAuthCache` failure the
+      on-device gate hunts for, and `Reach_MismatchedCoLoaded` is checked
+      from both sides: reachable under the router, unreachable under
+      serialisation.

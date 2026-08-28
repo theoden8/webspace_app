@@ -102,6 +102,16 @@ expect proxy_mismatch.cfg proxy.tla "Inv_ProxyCoherent is violated" \
 expect proxy_reach.cfg proxy.tla "Reach_TwoLoaded is violated" \
   "two compatible sites can co-load (coherence not vacuous)"
 
+echo "── PROXY: per-site router (PROXY-013) ──"
+expect proxy_router.cfg proxy.tla "No error has been found" \
+  "every loaded site egresses through its own proxy, mismatched or not"
+expect proxy_router_misattribute.cfg proxy.tla "Inv_EgressMatchesConfig is violated" \
+  "routing one site through another's upstream is caught (shared auth cache)"
+expect proxy_router_reach.cfg proxy.tla "Reach_MismatchedCoLoaded is violated" \
+  "mismatched-proxy sites CAN co-load under the router (not vacuous)"
+expect proxy_serialised_noconcurrency.cfg proxy.tla "No error has been found" \
+  "and CANNOT co-load under PROXY-008 serialisation (same formula, both sides)"
+
 echo "── RETENTION: memory-pressure cascade + notification retention (PAUSE-006) ──"
 expect retention.cfg retention.tla "No error has been found" \
   "current is never evicted and notification sites are evicted last"
