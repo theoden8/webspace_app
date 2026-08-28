@@ -351,6 +351,8 @@ The setting's hint SHALL describe the app-exit escalation only on the platform w
 
 **Rationale:** the root site webview owns the left edge natively (`allowsBackForwardNavigationGestures`, NAV-001) and the root route has no Flutter pop for `PopScope` to intercept, so on iOS the swipe was resolved entirely inside WKWebView — which does nothing, silently, at the start of history. NAV-009 could therefore never fire on iOS, and the toggle read as broken. Taking the edge back costs WKWebView's interactive swipe animation, which is why it is scoped to the sessions that opted in.
 
+Before #371 this worked by a different route: `drawerEdgeDragWidth` was left enabled on iOS exactly while a tracked `_canGoBack` was false, so the Scaffold's own edge drag opened the drawer at history start. #371 removed both the drag and the tracking, and #512 later handed the edge to WKWebView. That mechanism is not restored here: it gated on `canGoBack()`, which is unreliable on iOS in both directions (NAV-002), so it opened the drawer where history existed and stayed shut where it did not. The recognizer decides from the same `goBack()` + URL diff NAV-002 makes authoritative instead.
+
 The hint said "On Android, pressing back again leaves the app" on every platform, describing a behaviour iOS does not have.
 
 #### Scenario: Setting on — iOS edge swipe at the start of history
