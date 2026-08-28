@@ -99,7 +99,7 @@ class SiteDataClearEngine {
 
   /// Plan the per-site clear for the active isolation engine.
   ///
-  /// Container mode (Android System WebView 110+ / iOS 17+ / macOS 14+ /
+  /// Container mode (Android `MULTI_PROFILE` / iOS 17+ / macOS 14+ /
   /// Linux WPE 2.40+) routes through the fork's `clearContainerData`
   /// — drops cookies, localStorage, IndexedDB, ServiceWorkers, and
   /// HTTP cache for the named container in place, safe while a
