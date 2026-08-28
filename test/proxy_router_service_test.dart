@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/proxy_relay.dart';
 import 'package:webspace/services/proxy_router_engine.dart';
 import 'package:webspace/services/proxy_router_service.dart';
@@ -247,8 +248,20 @@ void main() {
       expect(service.realm, isNot(first));
     });
 
-    test('router mode is gated on container support', () {
+    test('router mode is gated on Android AND container support', () {
+      // Two independent gates, and this is where the negative contract
+      // lives now that the integration tier runs Android-only. Off
+      // Android the engine cannot deliver a per-WebView proxy challenge
+      // at all; on Android without MULTI_PROFILE every site shares one
+      // auth cache. Either way the app must stay on PROXY-008.
       expect(ProxyRouterService.isSupported(useContainers: false), isFalse);
+      if (!hostIsAndroid) {
+        expect(
+          ProxyRouterService.isSupported(useContainers: true),
+          isFalse,
+          reason: 'router mode must not engage off Android',
+        );
+      }
     });
   });
 
