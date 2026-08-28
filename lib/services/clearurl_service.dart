@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
@@ -144,6 +145,11 @@ class ClearUrlService {
           final target = match.group(1);
           if (target != null && target.isNotEmpty) {
             final decoded = Uri.decodeComponent(target);
+            // The capture group is whatever the matched page put in the
+            // redirector's parameter, and callers navigate to what we return.
+            // A `javascript:` / `data:` / `file:` target would run in, or
+            // read from, the document doing the navigating.
+            if (!ExternalUrlParser.isLoadableWebUrl(decoded)) break;
             return decoded;
           }
         }

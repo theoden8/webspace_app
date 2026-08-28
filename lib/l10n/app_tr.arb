@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Açılış ve görünüm",
   "behaviourSummaryNothingOn": "Hiçbiri etkin değil",
   "siteSettingsSectionNetwork": "Ağ",
-  "siteSettingsSectionSite": "Site"
+  "siteSettingsSectionSite": "Site",
+  "homeImportGlobalProxyWarning": "Bu yedek, uygulama genelinde bir giden proxy ayarlıyor: {address}. Kendi proxy'si olmayan her site bunun üzerinden yönlendirilecek.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{Bu yedek 1 kullanıcı betiği kuruyor. Kapalı olarak ekleniyor — etkinleştirmeden önce gözden geçirin.} other{Bu yedek {count} kullanıcı betiği kuruyor. Kapalı olarak ekleniyorlar — etkinleştirmeden önce gözden geçirin.}}",
+  "homeQrReviewTitle": "Paylaşılan site ayarlarını gözden geçirin",
+  "homeQrReviewBody": "Bu kodu paylaşan kişi yazdı ve bu sitenin gizlilik ayarlarını belirleyen de o. Eklemeden önce ayarları kontrol edin.",
+  "homeQrReviewUrl": "Adres: {url}",
+  "homeQrReviewName": "Ad: {name}",
+  "homeQrReviewProxy": "Bu sitenin trafiğini bir proxy üzerinden gönderir: {address}",
+  "homeQrReviewTurnsOff": "Kapatır: {settings}",
+  "homeQrReviewTurnsOn": "Açar: {settings}"
 }

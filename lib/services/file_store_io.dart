@@ -24,7 +24,10 @@ class IoFileStore implements FileStore {
     return _dir = Directory('${root.path}/$directoryName');
   }
 
-  File _file(Directory dir, String name) => File('${dir.path}/$name');
+  File _file(Directory dir, String name) {
+    checkFileStoreName(name);
+    return File('${dir.path}/$name');
+  }
 
   @override
   Future<void> ensure() async {

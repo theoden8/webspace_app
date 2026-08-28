@@ -170,6 +170,40 @@ were spoofed themselves, but anything they spawned reported the real hardware �
 
 ---
 
+### Requirement: WORK-007 - The real constructor is unreachable after the patch
+
+A wrapper that takes the real constructor's prototype object
+(`Patched.prototype = Real.prototype`) inherits that object's own `constructor`
+property, which still points at the real constructor. `Worker.prototype.constructor`
+is then the unpatched `Worker`, and two lines of page script open a realm the
+payload never reaches. The patch SHALL therefore re-point `constructor` at the
+wrapper after taking the prototype, and SHALL do so inside the shared installer
+definition so a nested (worker-spawned) install is covered on the same terms as
+the page install.
+
+Re-pointing SHALL be individually guarded: a frozen or non-configurable
+prototype must not abort the rest of the patch, and must not throw out of the
+concatenated-IIFE payload where an uncaught error silences every later shim.
+
+#### Scenario: A worker built through the prototype constructor is still shimmed
+
+**Given** a site with an active per-site shim
+**When** the page calls `new (Worker.prototype.constructor)('probe.js')`
+**Then** the real constructor receives a `blob:` wrapper URL, not `'probe.js'`
+**And** the worker reports the same `hardwareConcurrency`, `deviceMemory`,
+`languages`, `userAgent` and `Intl.DateTimeFormat().resolvedOptions().timeZone`
+as the document (WORK-002)
+**And** the same holds for `SharedWorker.prototype.constructor`
+
+#### Scenario: A worker spawned by a worker inherits the re-point
+
+**Given** a worker created through the patched constructor
+**When** that worker calls `new (Worker.prototype.constructor)('nested.js')`
+**Then** the nested worker is wrapped exactly as WORK-005 requires of a direct
+`new Worker` call
+
+---
+
 ### Requirement: WORK-006 - Fail open, and only where it helps
 
 The patch SHALL be installed only when at least one shim is active, so a site
@@ -268,6 +302,9 @@ messenger.com sends.
   — scope-agnostic shim sources
 - `test/worker_shim_test.dart` — builder tests plus the structural gate that
   fails if a payload shim dereferences `window`
+- `test/js/shim_prototype_constructor.test.js` — class-level gate (WORK-007 /
+  BUG-009): a new `X.prototype = Y.prototype` in any shim source fails CI unless
+  `constructor` is re-pointed next to it
 - `test/js/worker_shim.test.js` — installer tests under jsdom, and the payload
   executed in a simulated `WorkerGlobalScope` via `node:vm`
 - `test/browser/worker_realm_escape.test.js` — realm coverage and the CSP

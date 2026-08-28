@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Άνοιγμα και εμφάνιση",
   "behaviourSummaryNothingOn": "Τίποτα ενεργό",
   "siteSettingsSectionNetwork": "Δίκτυο",
-  "siteSettingsSectionSite": "Ιστότοπος"
+  "siteSettingsSectionSite": "Ιστότοπος",
+  "homeImportGlobalProxyWarning": "Αυτό το αντίγραφο ασφαλείας ορίζει εξερχόμενο proxy για ολόκληρη την εφαρμογή: {address}. Κάθε ιστότοπος που δεν έχει δικό του proxy θα δρομολογείται μέσω αυτού.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{Αυτό το αντίγραφο ασφαλείας εγκαθιστά 1 σενάριο χρήστη. Προστίθεται απενεργοποιημένο — ελέγξτε το πριν το ενεργοποιήσετε.} other{Αυτό το αντίγραφο ασφαλείας εγκαθιστά {count} σενάρια χρήστη. Προστίθενται απενεργοποιημένα — ελέγξτε τα πριν τα ενεργοποιήσετε.}}",
+  "homeQrReviewTitle": "Έλεγχος κοινόχρηστων ρυθμίσεων ιστότοπου",
+  "homeQrReviewBody": "Αυτόν τον κωδικό τον έγραψε όποιος τον μοιράστηκε και αυτός καθορίζει τις ρυθμίσεις απορρήτου αυτού του ιστότοπου. Ελέγξτε τις πριν από την προσθήκη.",
+  "homeQrReviewUrl": "Διεύθυνση: {url}",
+  "homeQrReviewName": "Όνομα: {name}",
+  "homeQrReviewProxy": "Στέλνει την κίνηση αυτού του ιστότοπου μέσω proxy: {address}",
+  "homeQrReviewTurnsOff": "Απενεργοποιεί: {settings}",
+  "homeQrReviewTurnsOn": "Ενεργοποιεί: {settings}"
 }

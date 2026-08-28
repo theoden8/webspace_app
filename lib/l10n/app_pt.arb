@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Abertura e apresentação",
   "behaviourSummaryNothingOn": "Nada ativado",
   "siteSettingsSectionNetwork": "Rede",
-  "siteSettingsSectionSite": "Site"
+  "siteSettingsSectionSite": "Site",
+  "homeImportGlobalProxyWarning": "Esta cópia de segurança define um proxy de saída para toda a aplicação: {address}. Todos os sites sem proxy próprio passarão a ser encaminhados através dele.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{Esta cópia de segurança instala 1 script de utilizador. É adicionado desativado — reveja-o antes de o ativar.} other{Esta cópia de segurança instala {count} scripts de utilizador. São adicionados desativados — reveja-os antes de os ativar.}}",
+  "homeQrReviewTitle": "Rever as definições de site partilhadas",
+  "homeQrReviewBody": "Este código foi escrito por quem o partilhou e é ele que escolhe as definições de privacidade deste site. Verifique-as antes de adicionar.",
+  "homeQrReviewUrl": "Endereço: {url}",
+  "homeQrReviewName": "Nome: {name}",
+  "homeQrReviewProxy": "Envia o tráfego deste site através de um proxy: {address}",
+  "homeQrReviewTurnsOff": "Desativa: {settings}",
+  "homeQrReviewTurnsOn": "Ativa: {settings}"
 }

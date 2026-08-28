@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "الفتح والعرض",
   "behaviourSummaryNothingOn": "لا شيء مُفعَّل",
   "siteSettingsSectionNetwork": "الشبكة",
-  "siteSettingsSectionSite": "الموقع"
+  "siteSettingsSectionSite": "الموقع",
+  "homeImportGlobalProxyWarning": "تضبط هذه النسخة الاحتياطية وكيلاً صادراً على مستوى التطبيق كله: {address}. كل موقع ليس له وكيل خاص به سيمر عبره.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{تثبّت هذه النسخة الاحتياطية برنامج مستخدم واحداً. يُضاف مُعطَّلاً — راجعه قبل تفعيله.} two{تثبّت هذه النسخة الاحتياطية برنامجَي مستخدم. يُضافان مُعطَّلَين — راجعهما قبل تفعيلهما.} few{تثبّت هذه النسخة الاحتياطية {count} برامج مستخدم. تُضاف مُعطَّلة — راجعها قبل تفعيلها.} many{تثبّت هذه النسخة الاحتياطية {count} برنامج مستخدم. تُضاف مُعطَّلة — راجعها قبل تفعيلها.} other{تثبّت هذه النسخة الاحتياطية {count} برنامج مستخدم. تُضاف مُعطَّلة — راجعها قبل تفعيلها.}}",
+  "homeQrReviewTitle": "مراجعة إعدادات الموقع المشتركة",
+  "homeQrReviewBody": "كتب هذا الرمز من شاركه، وهو يحدّد إعدادات الخصوصية لهذا الموقع. تحقّق منها قبل الإضافة.",
+  "homeQrReviewUrl": "العنوان: {url}",
+  "homeQrReviewName": "الاسم: {name}",
+  "homeQrReviewProxy": "يرسل حركة بيانات هذا الموقع عبر وكيل: {address}",
+  "homeQrReviewTurnsOff": "يعطّل: {settings}",
+  "homeQrReviewTurnsOn": "يفعّل: {settings}"
 }

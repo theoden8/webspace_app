@@ -1,4 +1,5 @@
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
+import 'package:http/http.dart' as http;
 
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
@@ -13,6 +14,90 @@ export 'package:webspace/services/user_script_shim.dart'
     show buildUserScriptShim, userScriptShimTemplate;
 
 const int _maxFetchBytes = 5 * 1024 * 1024;
+
+/// Redirect hops a bridged fetch will follow before giving up.
+const int _maxFetchRedirects = 5;
+
+bool _isRedirect(int status) =>
+    status == 301 ||
+    status == 302 ||
+    status == 303 ||
+    status == 307 ||
+    status == 308;
+
+/// GET [url] with the client's own redirect following switched off, running
+/// every `Location` back through [allow] before the next hop.
+///
+/// `http` follows redirects transparently, and the URL classification only
+/// ever sees the first hop — so a public host answering
+/// `302 Location: http://169.254.169.254/…` would hand the private-network
+/// body straight back to page JS. Returns null when a hop is refused or the
+/// chain outruns [_maxFetchRedirects].
+Future<http.Response?> _getWithCheckedRedirects(
+  http.Client client,
+  String url,
+  Future<bool> Function(String url) allow,
+) async {
+  var target = Uri.parse(url);
+  for (var hop = 0; hop <= _maxFetchRedirects; hop++) {
+    final request = http.Request('GET', target)..followRedirects = false;
+    final response = await http.Response.fromStream(await client.send(request));
+    final location = response.headers['location'];
+    if (!_isRedirect(response.statusCode) ||
+        location == null ||
+        location.isEmpty) {
+      return response;
+    }
+    final next = target.resolve(location);
+    if (!await allow(next.toString())) {
+      LogService.instance.log(
+        'UserScript',
+        'Blocked redirect target: $next',
+        sensitivity: LogSensitivity.sensitive,
+      );
+      return null;
+    }
+    target = next;
+  }
+  LogService.instance.log(
+    'UserScript',
+    'Too many redirects for $url',
+    sensitivity: LogSensitivity.sensitive,
+  );
+  return null;
+}
+
+/// Fetch user-script source at [url] through the proxy seam, applying the
+/// same URL classification and redirect re-checking the page-reachable
+/// bridge uses. Returns the body, or a short technical detail the caller
+/// localizes into its own failure message.
+Future<({String? source, String? error})> fetchUserScriptSource(
+  String url, {
+  UserProxySettings? proxy,
+}) async {
+  bool allowed(String candidate) =>
+      classifyScriptFetchUrl(candidate) != ScriptFetchUrlStatus.blocked;
+  if (!allowed(url)) return (source: null, error: 'blocked URL');
+  final clientResult = outboundHttp.clientFor(
+      resolveEffectiveProxy(proxy ?? UserProxySettings(type: ProxyType.DEFAULT)));
+  if (clientResult is OutboundClientBlocked) {
+    return (source: null, error: clientResult.reason);
+  }
+  final client = (clientResult as OutboundClientReady).client;
+  try {
+    final response = await _getWithCheckedRedirects(
+        client, url, (candidate) async => allowed(candidate));
+    if (response == null) return (source: null, error: 'blocked redirect');
+    if (response.statusCode != 200) {
+      return (source: null, error: 'HTTP ${response.statusCode}');
+    }
+    return (source: response.body, error: null);
+  } catch (e) {
+    return (source: null, error: e.toString());
+  } finally {
+    client.close();
+  }
+}
 
 /// Evaluate JS without triggering "unsupported type" serialization errors.
 /// WebKit (macOS/iOS) errors when evaluateJavascript returns `undefined`;
@@ -150,6 +235,41 @@ class UserScriptService {
     return 'if (!window.__wsRan_$safeId) { window.__wsRan_$safeId = true;\n$source\n}';
   }
 
+  /// Whether the script handler may fetch [url]: classification plus, for
+  /// anything off the whitelist, the user's confirmation. Applied to the
+  /// initial URL and again to every redirect target, so a whitelisted CDN
+  /// cannot hop the fetch onto an origin the user never approved.
+  Future<bool> _allowScriptFetch(String url) async {
+    final status = classifyScriptFetchUrl(url);
+    if (status == ScriptFetchUrlStatus.blocked) {
+      LogService.instance.log(
+        'UserScript',
+        'Blocked script fetch: $url',
+        sensitivity: LogSensitivity.sensitive,
+      );
+      return false;
+    }
+    if (status == ScriptFetchUrlStatus.requiresConfirmation) {
+      if (_onConfirmScriptFetch == null) {
+        LogService.instance.log(
+          'UserScript',
+          'Blocked non-whitelisted URL (no confirmation handler): $url',
+          sensitivity: LogSensitivity.sensitive,
+        );
+        return false;
+      }
+      if (!await _onConfirmScriptFetch(url)) {
+        LogService.instance.log(
+          'UserScript',
+          'User denied script fetch: $url',
+          sensitivity: LogSensitivity.sensitive,
+        );
+        return false;
+      }
+    }
+    return true;
+  }
+
   /// Register JS handlers on the controller for script fetching and
   /// CORS-bypassing resource fetching.
   void registerHandlers(inapp.InAppWebViewController controller) {
@@ -159,34 +279,7 @@ class UserScriptService {
     controller.addJavaScriptHandler(handlerName: _scriptHandlerName, callback: (args) async {
       if (args.isEmpty || args[0] is! String) return false;
       final url = args[0] as String;
-      final status = classifyScriptFetchUrl(url);
-      if (status == ScriptFetchUrlStatus.blocked) {
-        LogService.instance.log(
-          'UserScript',
-          'Blocked script fetch: $url',
-          sensitivity: LogSensitivity.sensitive,
-        );
-        return false;
-      }
-      if (status == ScriptFetchUrlStatus.requiresConfirmation) {
-        if (_onConfirmScriptFetch == null) {
-          LogService.instance.log(
-            'UserScript',
-            'Blocked non-whitelisted URL (no confirmation handler): $url',
-            sensitivity: LogSensitivity.sensitive,
-          );
-          return false;
-        }
-        final approved = await _onConfirmScriptFetch!(url);
-        if (!approved) {
-          LogService.instance.log(
-            'UserScript',
-            'User denied script fetch: $url',
-            sensitivity: LogSensitivity.sensitive,
-          );
-          return false;
-        }
-      }
+      if (!await _allowScriptFetch(url)) return false;
       LogService.instance.log(
         'UserScript',
         'Fetching external script: $url',
@@ -202,7 +295,9 @@ class UserScriptService {
       }
       final client = (clientResult as OutboundClientReady).client;
       try {
-        final response = await client.get(Uri.parse(url));
+        final response =
+            await _getWithCheckedRedirects(client, url, _allowScriptFetch);
+        if (response == null) return false;
         if (response.statusCode == 200) {
           if (response.body.length > _maxFetchBytes) {
             LogService.instance.log('UserScript', 'Rejected: response too large (${response.body.length} bytes, max $_maxFetchBytes)');
@@ -258,7 +353,13 @@ class UserScriptService {
       }
       final client = (clientResult as OutboundClientReady).client;
       try {
-        final response = await client.get(Uri.parse(url));
+        final response = await _getWithCheckedRedirects(
+          client,
+          url,
+          (candidate) async =>
+              classifyScriptFetchUrl(candidate) != ScriptFetchUrlStatus.blocked,
+        );
+        if (response == null) return {'status': 403};
         if (response.body.length > _maxFetchBytes) {
           LogService.instance.log('UserScript', 'Resource too large: ${response.body.length} bytes');
           return {'status': 413};

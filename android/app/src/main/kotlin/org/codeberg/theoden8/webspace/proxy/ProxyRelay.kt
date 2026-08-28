@@ -8,6 +8,7 @@ import java.net.ServerSocket
 import java.net.Socket
 import java.net.URI
 import java.util.concurrent.Executors
+import javax.net.ssl.SSLSocket
 import javax.net.ssl.SSLSocketFactory
 
 /**
@@ -22,8 +23,10 @@ import javax.net.ssl.SSLSocketFactory
  * username/password handshake, RFC 1929).
  *
  * Fail-closed by construction: the relay only ever connects to the
- * configured upstream. If the upstream is unreachable or rejects auth, the
- * client gets a `502` and the connection closes — the relay never opens a
+ * configured upstream, and for an HTTPS upstream only past a handshake
+ * that verified that upstream's certificate identity (see [startTls]).
+ * If the upstream is unreachable, untrusted, or rejects auth, the client
+ * gets a `502` and the connection closes — the relay never opens a
  * direct connection to the origin, so a failed proxy cannot leak the IP.
  *
  * Deliberately free of `android.*` imports so it runs under plain JVM
@@ -284,31 +287,60 @@ class ProxyRelay(private val logger: ((String) -> Unit)? = null) {
     // --- Upstream: HTTP / HTTPS proxy ---
 
     private fun openViaHttpProxy(cfg: UpstreamConfig, host: String, port: Int, isConnect: Boolean): Socket {
-        var s = Socket()
-        s.connect(InetSocketAddress(cfg.host, cfg.port), CONNECT_TIMEOUT_MS)
-        s.soTimeout = HANDSHAKE_TIMEOUT_MS
-        if (cfg.type == UpstreamType.HTTPS) {
-            s = (SSLSocketFactory.getDefault() as SSLSocketFactory)
-                .createSocket(s, cfg.host, cfg.port, true)
-        }
-        if (isConnect) {
-            // Establish the CONNECT tunnel through the upstream proxy.
-            val authority = "$host:$port"
-            val sb = StringBuilder()
-            sb.append("CONNECT ").append(authority).append(" HTTP/1.1\r\n")
-            sb.append("Host: ").append(authority).append("\r\n")
-            credentialHeader(cfg)?.let { sb.append(it).append("\r\n") }
-            sb.append("\r\n")
-            s.getOutputStream().write(sb.toString().toByteArray(Charsets.ISO_8859_1))
-            s.getOutputStream().flush()
-            val resp = readPreamble(s.getInputStream())
-                ?: throw IllegalStateException("no CONNECT response")
-            val code = resp.first.split(" ").getOrNull(1)?.toIntOrNull() ?: 0
-            if (code != 200) throw IllegalStateException("CONNECT rejected: ${resp.first}")
+        val raw = Socket()
+        raw.connect(InetSocketAddress(cfg.host, cfg.port), CONNECT_TIMEOUT_MS)
+        raw.soTimeout = HANDSHAKE_TIMEOUT_MS
+        var s: Socket = raw
+        try {
+            if (cfg.type == UpstreamType.HTTPS) {
+                s = startTls(raw, cfg)
+            }
+            if (isConnect) {
+                // Establish the CONNECT tunnel through the upstream proxy.
+                val authority = "$host:$port"
+                val sb = StringBuilder()
+                sb.append("CONNECT ").append(authority).append(" HTTP/1.1\r\n")
+                sb.append("Host: ").append(authority).append("\r\n")
+                credentialHeader(cfg)?.let { sb.append(it).append("\r\n") }
+                sb.append("\r\n")
+                s.getOutputStream().write(sb.toString().toByteArray(Charsets.ISO_8859_1))
+                s.getOutputStream().flush()
+                val resp = readPreamble(s.getInputStream())
+                    ?: throw IllegalStateException("no CONNECT response")
+                val code = resp.first.split(" ").getOrNull(1)?.toIntOrNull() ?: 0
+                if (code != 200) throw IllegalStateException("CONNECT rejected: ${resp.first}")
+            }
+        } catch (e: Exception) {
+            runCatching { s.close() }
+            runCatching { raw.close() }
+            throw e
         }
         // Forward (absolute-form) mode replays its rewritten preamble in
         // handle(); nothing more to do here.
         return s
+    }
+
+    /**
+     * Wrap [raw] in TLS to the configured upstream, with hostname
+     * verification.
+     *
+     * An `SSLSocket` straight off the factory validates the certificate
+     * chain but performs NO hostname check — the endpoint-identification
+     * algorithm has to be asked for explicitly. Without it any host that
+     * can present a valid publicly-trusted certificate for a name it owns
+     * completes this handshake and receives the `Proxy-Authorization`
+     * header (and every `CONNECT` target) written immediately afterwards.
+     * Handshaking here rather than lazily on first write keeps that
+     * failure inside the caller's fail-closed path.
+     */
+    private fun startTls(raw: Socket, cfg: UpstreamConfig): SSLSocket {
+        val ssl = (SSLSocketFactory.getDefault() as SSLSocketFactory)
+            .createSocket(raw, cfg.host, cfg.port, true) as SSLSocket
+        ssl.sslParameters = ssl.sslParameters.apply {
+            endpointIdentificationAlgorithm = "HTTPS"
+        }
+        ssl.startHandshake()
+        return ssl
     }
 
     private fun credentialHeader(cfg: UpstreamConfig): String? {

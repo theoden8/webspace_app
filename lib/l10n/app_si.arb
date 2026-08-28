@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "විවෘත කිරීම සහ දර්ශනය",
   "behaviourSummaryNothingOn": "කිසිවක් සක්‍රීය නැත",
   "siteSettingsSectionNetwork": "ජාලය",
-  "siteSettingsSectionSite": "අඩවිය"
+  "siteSettingsSectionSite": "අඩවිය",
+  "homeImportGlobalProxyWarning": "මෙම උපස්ථය යෙදුම පුරා ක්‍රියාත්මක වන පිටතට යන ප්‍රොක්සියක් සකසයි: {address}. තමන්ගේම ප්‍රොක්සියක් නොමැති සෑම අඩවියක්ම එය හරහා යොමු කෙරේ.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{මෙම උපස්ථය පරිශීලක ස්ක්‍රිප්ට් 1ක් ස්ථාපනය කරයි. එය අක්‍රිය තත්ත්වයෙන් එක් කෙරේ — සක්‍රිය කිරීමට පෙර එය පරීක්ෂා කරන්න.} other{මෙම උපස්ථය පරිශීලක ස්ක්‍රිප්ට් {count}ක් ස්ථාපනය කරයි. ඒවා අක්‍රිය තත්ත්වයෙන් එක් කෙරේ — සක්‍රිය කිරීමට පෙර ඒවා පරීක්ෂා කරන්න.}}",
+  "homeQrReviewTitle": "බෙදාගත් අඩවි සැකසුම් සමාලෝචනය කරන්න",
+  "homeQrReviewBody": "මෙම කේතය ලියා ඇත්තේ එය බෙදාගත් තැනැත්තා විසිනි, තවද මෙම අඩවියේ පෞද්ගලිකත්ව සැකසුම් තෝරන්නේ එයයි. එක් කිරීමට පෙර ඒවා පරීක්ෂා කරන්න.",
+  "homeQrReviewUrl": "ලිපිනය: {url}",
+  "homeQrReviewName": "නම: {name}",
+  "homeQrReviewProxy": "මෙම අඩවියේ තදබදය ප්‍රොක්සියක් හරහා යවයි: {address}",
+  "homeQrReviewTurnsOff": "අක්‍රිය කරයි: {settings}",
+  "homeQrReviewTurnsOn": "සක්‍රිය කරයි: {settings}"
 }

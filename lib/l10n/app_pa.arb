@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "ਖੋਲ੍ਹਣਾ ਅਤੇ ਡਿਸਪਲੇ",
   "behaviourSummaryNothingOn": "ਕੁਝ ਵੀ ਸਮਰੱਥ ਨਹੀਂ",
   "siteSettingsSectionNetwork": "ਨੈੱਟਵਰਕ",
-  "siteSettingsSectionSite": "ਸਾਈਟ"
+  "siteSettingsSectionSite": "ਸਾਈਟ",
+  "homeImportGlobalProxyWarning": "ਇਹ ਬੈਕਅੱਪ ਪੂਰੀ ਐਪ ਲਈ ਆਊਟਬਾਊਂਡ ਪ੍ਰੌਕਸੀ ਸੈੱਟ ਕਰਦਾ ਹੈ: {address}। ਹਰ ਉਹ ਸਾਈਟ ਜਿਸ ਦਾ ਆਪਣਾ ਪ੍ਰੌਕਸੀ ਨਹੀਂ ਹੈ, ਇਸੇ ਰਾਹੀਂ ਜਾਵੇਗੀ।",
+  "homeImportUserScriptsWarning": "{count, plural, =1{ਇਹ ਬੈਕਅੱਪ 1 ਯੂਜ਼ਰ ਸਕ੍ਰਿਪਟ ਸਥਾਪਤ ਕਰਦਾ ਹੈ। ਇਹ ਬੰਦ ਹਾਲਤ ਵਿੱਚ ਜੋੜੀ ਜਾਂਦੀ ਹੈ — ਚਾਲੂ ਕਰਨ ਤੋਂ ਪਹਿਲਾਂ ਇਸ ਦੀ ਸਮੀਖਿਆ ਕਰੋ।} other{ਇਹ ਬੈਕਅੱਪ {count} ਯੂਜ਼ਰ ਸਕ੍ਰਿਪਟਾਂ ਸਥਾਪਤ ਕਰਦਾ ਹੈ। ਇਹ ਬੰਦ ਹਾਲਤ ਵਿੱਚ ਜੋੜੀਆਂ ਜਾਂਦੀਆਂ ਹਨ — ਚਾਲੂ ਕਰਨ ਤੋਂ ਪਹਿਲਾਂ ਇਹਨਾਂ ਦੀ ਸਮੀਖਿਆ ਕਰੋ।}}",
+  "homeQrReviewTitle": "ਸਾਂਝੀਆਂ ਕੀਤੀਆਂ ਸਾਈਟ ਸੈਟਿੰਗਾਂ ਦੀ ਸਮੀਖਿਆ ਕਰੋ",
+  "homeQrReviewBody": "ਇਹ ਕੋਡ ਉਸੇ ਨੇ ਲਿਖਿਆ ਹੈ ਜਿਸ ਨੇ ਇਸ ਨੂੰ ਸਾਂਝਾ ਕੀਤਾ, ਅਤੇ ਇਹੀ ਇਸ ਸਾਈਟ ਦੀਆਂ ਨਿੱਜਤਾ ਸੈਟਿੰਗਾਂ ਚੁਣਦਾ ਹੈ। ਜੋੜਨ ਤੋਂ ਪਹਿਲਾਂ ਇਹਨਾਂ ਦੀ ਜਾਂਚ ਕਰੋ।",
+  "homeQrReviewUrl": "ਪਤਾ: {url}",
+  "homeQrReviewName": "ਨਾਮ: {name}",
+  "homeQrReviewProxy": "ਇਸ ਸਾਈਟ ਦਾ ਟ੍ਰੈਫਿਕ ਪ੍ਰੌਕਸੀ ਰਾਹੀਂ ਭੇਜਦਾ ਹੈ: {address}",
+  "homeQrReviewTurnsOff": "ਬੰਦ ਕਰਦਾ ਹੈ: {settings}",
+  "homeQrReviewTurnsOn": "ਚਾਲੂ ਕਰਦਾ ਹੈ: {settings}"
 }

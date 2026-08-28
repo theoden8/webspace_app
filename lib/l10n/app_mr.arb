@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "उघडणे आणि प्रदर्शन",
   "behaviourSummaryNothingOn": "काहीही सक्षम नाही",
   "siteSettingsSectionNetwork": "नेटवर्क",
-  "siteSettingsSectionSite": "साइट"
+  "siteSettingsSectionSite": "साइट",
+  "homeImportGlobalProxyWarning": "हा बॅकअप संपूर्ण अॅपसाठी आउटबाउंड प्रॉक्सी सेट करतो: {address}. स्वतःचा प्रॉक्सी नसलेली प्रत्येक साइट त्यामधून जाईल.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{हा बॅकअप 1 वापरकर्ता स्क्रिप्ट स्थापित करतो. ती बंद स्थितीत जोडली जाते — चालू करण्यापूर्वी तिचे पुनरावलोकन करा.} other{हा बॅकअप {count} वापरकर्ता स्क्रिप्ट स्थापित करतो. त्या बंद स्थितीत जोडल्या जातात — चालू करण्यापूर्वी त्यांचे पुनरावलोकन करा.}}",
+  "homeQrReviewTitle": "शेअर केलेल्या साइट सेटिंग्जचे पुनरावलोकन करा",
+  "homeQrReviewBody": "हा कोड ज्याने तो शेअर केला त्यानेच लिहिला आहे आणि तोच या साइटची गोपनीयता सेटिंग्ज ठरवतो. जोडण्यापूर्वी ती तपासा.",
+  "homeQrReviewUrl": "पत्ता: {url}",
+  "homeQrReviewName": "नाव: {name}",
+  "homeQrReviewProxy": "या साइटची रहदारी प्रॉक्सीमधून पाठवते: {address}",
+  "homeQrReviewTurnsOff": "बंद करते: {settings}",
+  "homeQrReviewTurnsOn": "चालू करते: {settings}"
 }

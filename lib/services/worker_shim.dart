@@ -241,6 +241,13 @@ const String _installerDefinition = r'''
         return new Real(script, options);
       };
       try { Patched.prototype = Real.prototype; } catch (e) {}
+      // Re-point the inherited own `constructor`: otherwise
+      // `Worker.prototype.constructor` is still the real constructor and a
+      // worker built through it never loads the shim payload.
+      try {
+        Object.defineProperty(Patched.prototype, 'constructor',
+          { value: Patched, writable: true, configurable: true });
+      } catch (e) {}
       try {
         Object.defineProperty(Patched, 'name', { value: name, configurable: true });
       } catch (e) {}

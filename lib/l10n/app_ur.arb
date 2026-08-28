@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "کھلنا اور ڈسپلے",
   "behaviourSummaryNothingOn": "کچھ بھی فعال نہیں",
   "siteSettingsSectionNetwork": "نیٹ ورک",
-  "siteSettingsSectionSite": "سائٹ"
+  "siteSettingsSectionSite": "سائٹ",
+  "homeImportGlobalProxyWarning": "یہ بیک اپ پوری ایپ کے لیے ایک آؤٹ باؤنڈ پراکسی مقرر کرتا ہے: {address}۔ ہر وہ سائٹ جس کی اپنی پراکسی نہیں ہے، اسی کے ذریعے گزرے گی۔",
+  "homeImportUserScriptsWarning": "{count, plural, =1{یہ بیک اپ 1 صارف اسکرپٹ نصب کرتا ہے۔ یہ بند حالت میں شامل ہوتا ہے — فعال کرنے سے پہلے اس کا جائزہ لیں۔} other{یہ بیک اپ {count} صارف اسکرپٹس نصب کرتا ہے۔ یہ بند حالت میں شامل ہوتے ہیں — فعال کرنے سے پہلے ان کا جائزہ لیں۔}}",
+  "homeQrReviewTitle": "شیئر کردہ سائٹ سیٹنگز کا جائزہ لیں",
+  "homeQrReviewBody": "یہ کوڈ اسی شخص نے لکھا ہے جس نے اسے شیئر کیا، اور یہی اس سائٹ کی رازداری سیٹنگز طے کرتا ہے۔ شامل کرنے سے پہلے انہیں جانچ لیں۔",
+  "homeQrReviewUrl": "پتہ: {url}",
+  "homeQrReviewName": "نام: {name}",
+  "homeQrReviewProxy": "اس سائٹ کی ٹریفک ایک پراکسی کے ذریعے بھیجتا ہے: {address}",
+  "homeQrReviewTurnsOff": "بند کرتا ہے: {settings}",
+  "homeQrReviewTurnsOn": "چالو کرتا ہے: {settings}"
 }

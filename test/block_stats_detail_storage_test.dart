@@ -104,6 +104,37 @@ void main() {
     expect(await rotated.read(), isNull);
   });
 
+  // The store used AES-CBC under an IV that was the first 16 bytes of the key.
+  // The detail is rewritten on every flush, so a constant IV made two backups
+  // of one device share a byte-identical prefix up to the first block that
+  // changed — a readout of how much of the blocked-host detail moved. CBC also
+  // left the blob malleable with no MAC.
+  test('two writes of the same payload produce unrelated bytes', () async {
+    final store = newStore();
+    final payload = payloadFor('ads.example', 'site-a');
+
+    await store.write(payload);
+    final first = await File((await filesOnDisk()).single).readAsString();
+    await store.write(payload);
+    final second = await File((await filesOnDisk()).single).readAsString();
+
+    expect(second, isNot(equals(first)));
+    expect(second.substring(0, 8), isNot(equals(first.substring(0, 8))),
+        reason: 'a fresh nonce per write must change the leading bytes');
+    expect(await store.read(), payload);
+  });
+
+  test('a tampered blob reads as absent', () async {
+    await newStore().write(payloadFor('ads.example', 'site-a'));
+    final path = (await filesOnDisk()).single;
+    final wire = base64.decode(await File(path).readAsString());
+    // Flip a ciphertext byte, past the 12-byte nonce.
+    wire[wire.length - 20] ^= 0x01;
+    await File(path).writeAsString(base64.encode(wire));
+
+    expect(await newStore().read(), isNull);
+  });
+
   test('no keychain means no detail on disk, and no exception', () async {
     final store = newStore(secureStorage: _FailingSecureStorage());
 

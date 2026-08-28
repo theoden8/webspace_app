@@ -110,6 +110,25 @@ The system SHALL provide a per-site toggle to control whether the site is allowe
 **Then** `notificationsEnabled` is set to `false`
 **And** any pending notification permission requests from the site are denied
 
+Every runtime consumer SHALL read `WebViewModel.effectiveNotificationsEnabled`,
+never the stored `notificationsEnabled` field. The effective getter forces
+false for archive-tier sites (ARCH-006); `NotificationService` has no archive
+check of its own, and the only gate on the `webNotification` JavaScript
+handler is `config.notificationsEnabled`. That covers the site's own
+`WebViewConfig` **and** both `launchUrlFunc` call sites, which hand the value
+to `InAppWebViewScreen`.
+
+#### Scenario: Archive-tier site posts no notification, in-page or nested
+
+**Given** an archive-tier site whose stored `notificationsEnabled` is `true`
+**When** its `WebViewConfig` is built, and when it opens an outbound link in
+an `InAppWebViewScreen`
+**Then** `config.notificationsEnabled` is `false` in both
+**And** the polyfill's bridge handler is never registered, so nothing reaches
+`flutter_local_notifications`
+**And** no notification naming the archived site can outlive the archive
+close in the system shade
+
 ### Requirement: NOTIF-005 - Per-Site Background Poll Toggle
 
 The system SHALL provide a per-site toggle that opts the site into background polling. Only visible when container mode is active. In container mode, there are no domain conflicts, so all background-poll sites stay loaded concurrently with their own isolated profiles. Background behavior is platform-dependent — see NOTIF-005-I (iOS) and NOTIF-005-A (Android).

@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "باز شدن و نمایش",
   "behaviourSummaryNothingOn": "هیچ‌چیز فعال نیست",
   "siteSettingsSectionNetwork": "شبکه",
-  "siteSettingsSectionSite": "سایت"
+  "siteSettingsSectionSite": "سایت",
+  "homeImportGlobalProxyWarning": "این پشتیبان یک پراکسی خروجی در سطح کل برنامه تنظیم می‌کند: {address}. هر سایتی که پراکسی مخصوص خود را نداشته باشد از طریق آن عبور می‌کند.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{این پشتیبان ۱ اسکریپت کاربر نصب می‌کند. خاموش افزوده می‌شود — پیش از فعال‌کردن، آن را بررسی کنید.} other{این پشتیبان {count} اسکریپت کاربر نصب می‌کند. خاموش افزوده می‌شوند — پیش از فعال‌کردن، آن‌ها را بررسی کنید.}}",
+  "homeQrReviewTitle": "بازبینی تنظیمات به‌اشتراک‌گذاشته‌شدهٔ سایت",
+  "homeQrReviewBody": "این کد را همان کسی نوشته که آن را به اشتراک گذاشته است، و همان تنظیمات حریم خصوصی این سایت را تعیین می‌کند. پیش از افزودن آن‌ها را بررسی کنید.",
+  "homeQrReviewUrl": "آدرس: {url}",
+  "homeQrReviewName": "نام: {name}",
+  "homeQrReviewProxy": "ترافیک این سایت را از طریق یک پراکسی می‌فرستد: {address}",
+  "homeQrReviewTurnsOff": "خاموش می‌کند: {settings}",
+  "homeQrReviewTurnsOn": "روشن می‌کند: {settings}"
 }

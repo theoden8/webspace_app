@@ -3,6 +3,8 @@ import 'dart:ui_web' as ui_web;
 import 'package:flutter/material.dart';
 import 'package:web/web.dart' as web;
 
+import 'package:webspace/settings/proxy.dart';
+
 /// Web favicon rendering, via a real `<img>` element.
 ///
 /// The obvious route — fetching the bytes, as CachedNetworkImage does — is
@@ -10,11 +12,14 @@ import 'package:web/web.dart' as web;
 /// send no `Access-Control-Allow-Origin`, so a browser refuses to hand the
 /// response to the page. An `<img>` may *display* a cross-origin image even
 /// when script may not read it, which is the whole difference here.
+/// [proxy] is ignored: the browser owns the connection an `<img>` makes, and
+/// the app's Dart-side proxy seam cannot reach it.
 Widget faviconNetworkImage({
   required String url,
   required double size,
   required WidgetBuilder placeholder,
   required WidgetBuilder error,
+  UserProxySettings? proxy,
 }) =>
     _ImgElementView(url: url, size: size);
 

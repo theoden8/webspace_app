@@ -318,6 +318,59 @@ User scripts SHALL be included in settings export/import.
 
 ---
 
+### Requirement: US-006 - Redirects are re-classified, not followed blindly
+
+`classifyScriptFetchUrl` only ever sees the URL the caller hands in, and
+`window.__wsFetch` is a page-reachable global that any third-party page script
+can drive. The bridge's fetches SHALL therefore disable the HTTP client's
+automatic redirect following, and SHALL re-run the gate that admitted the
+original URL against every `Location` before requesting it, over a bounded
+number of hops (5).
+
+The gate re-run is the one the path uses for its first URL: the `__wsFetch`
+handler refuses only `blocked` targets, while the script handler additionally
+requires confirmation for a target off the CDN whitelist — a whitelisted CDN
+must not be able to hand execution to an origin the user never approved.
+`fetchUserScriptSource` (the editor's URL-source download) applies the
+`__wsFetch` rule.
+
+This closes the redirect half of the SSRF guard in `_isPrivateOrLoopbackHost`.
+The DNS-rebinding half — a hostname whose A record points at a private address
+— remains open and is pinned as a known gap in
+`test/user_script_bridge_authz_test.dart`.
+
+#### Scenario: Redirect onto a cloud metadata endpoint
+
+**Given** a page calls `window.__wsFetch('https://evil.example/hop')`
+**And** `https://evil.example/hop` answers
+`302 Location: http://169.254.169.254/latest/meta-data/`
+**When** the bridge handles the redirect
+**Then** the handler returns `{status: 403}`
+**And** no request is issued to `169.254.169.254`
+
+#### Scenario: Redirect onto a public host is followed
+
+**Given** a page calls `window.__wsFetch('https://a.example/x')`
+**And** that URL answers `302 Location: https://b.example/y`
+**When** the bridge handles the redirect
+**Then** `https://b.example/y` is requested and its body returned
+
+#### Scenario: Whitelisted CDN redirects off the whitelist
+
+**Given** a script element points at a whitelisted CDN URL
+**And** that URL answers `302 Location: https://elsewhere.example/x.js`
+**When** the script handler handles the redirect
+**Then** the user is asked to confirm `https://elsewhere.example/x.js`
+**And** nothing is injected unless they approve it
+
+#### Scenario: Redirect chain is bounded
+
+**Given** a host that answers every request with another redirect
+**When** the bridge follows the chain
+**Then** it stops after 5 hops and returns `{status: 403}`
+
+---
+
 ## Implementation Details
 
 ### Data Model
@@ -504,7 +557,7 @@ Subdomain matching: `sub.cdn.jsdelivr.net` matches `cdn.jsdelivr.net`. Partial m
 ### URL Source (CDN Library Loading)
 
 Scripts can specify an optional `url` field pointing to a CDN-hosted library. The library content is:
-- **Downloaded automatically on save** — when the user saves a script with a URL, the content is fetched via HTTP and cached in `urlSource`
+- **Downloaded automatically on save** — when the user saves a script with a URL, the content is fetched through `fetchUserScriptSource` (the `outboundHttp` proxy seam, with the US-006 redirect check) and cached in `urlSource`
 - **Re-downloaded on URL change** — if the URL is modified, the library is re-fetched on next save
 - **Cleared when URL is removed** — removing the URL field clears `urlSource`
 - **Persisted** — `url` and `urlSource` are included in JSON serialization and the deep copy in `UserScriptsScreen`

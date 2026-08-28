@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Abertura e exibição",
   "behaviourSummaryNothingOn": "Nada ativado",
   "siteSettingsSectionNetwork": "Rede",
-  "siteSettingsSectionSite": "Site"
+  "siteSettingsSectionSite": "Site",
+  "homeImportGlobalProxyWarning": "Este backup define um proxy de saída para todo o app: {address}. Todos os sites sem proxy próprio passarão a ser roteados por ele.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{Este backup instala 1 script de usuário. Ele é adicionado desativado — revise-o antes de ativar.} other{Este backup instala {count} scripts de usuário. Eles são adicionados desativados — revise-os antes de ativar.}}",
+  "homeQrReviewTitle": "Revisar as configurações de site compartilhadas",
+  "homeQrReviewBody": "Este código foi escrito por quem o compartilhou e é ele que escolhe as configurações de privacidade deste site. Verifique-as antes de adicionar.",
+  "homeQrReviewUrl": "Endereço: {url}",
+  "homeQrReviewName": "Nome: {name}",
+  "homeQrReviewProxy": "Envia o tráfego deste site por um proxy: {address}",
+  "homeQrReviewTurnsOff": "Desativa: {settings}",
+  "homeQrReviewTurnsOn": "Ativa: {settings}"
 }

@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Apertio et ostensio",
   "behaviourSummaryNothingOn": "Nihil actuatum",
   "siteSettingsSectionNetwork": "Rete",
-  "siteSettingsSectionSite": "Locus"
+  "siteSettingsSectionSite": "Locus",
+  "homeImportGlobalProxyWarning": "Hoc subsidium procuratorem exeuntem pro tota applicatione constituit: {address}. Omnis locus qui procuratorem proprium non habet per eum iter faciet.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{Hoc subsidium 1 scriptum usoris inducit. Exstinctum additur — id recense priusquam accendas.} other{Hoc subsidium {count} scripta usoris inducit. Exstincta adduntur — ea recense priusquam accendas.}}",
+  "homeQrReviewTitle": "Institutiones loci communicatas recensere",
+  "homeQrReviewBody": "Hic codex ab eo qui eum communicavit scriptus est, et institutiones privatas huius loci eligit. Eas inspice priusquam addas.",
+  "homeQrReviewUrl": "Inscriptio: {url}",
+  "homeQrReviewName": "Nomen: {name}",
+  "homeQrReviewProxy": "Commercium huius loci per procuratorem mittit: {address}",
+  "homeQrReviewTurnsOff": "Exstinguit: {settings}",
+  "homeQrReviewTurnsOn": "Accendit: {settings}"
 }

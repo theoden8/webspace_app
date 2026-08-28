@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Ouverture et affichage",
   "behaviourSummaryNothingOn": "Rien d’activé",
   "siteSettingsSectionNetwork": "Réseau",
-  "siteSettingsSectionSite": "Site"
+  "siteSettingsSectionSite": "Site",
+  "homeImportGlobalProxyWarning": "Cette sauvegarde définit un proxy sortant pour toute l'application : {address}. Chaque site qui n'a pas son propre proxy passera par lui.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{Cette sauvegarde installe 1 script utilisateur. Il est ajouté désactivé — examinez-le avant de l'activer.} other{Cette sauvegarde installe {count} scripts utilisateur. Ils sont ajoutés désactivés — examinez-les avant de les activer.}}",
+  "homeQrReviewTitle": "Vérifier les paramètres de site partagés",
+  "homeQrReviewBody": "Ce code a été rédigé par la personne qui l'a partagé, et c'est lui qui choisit les paramètres de confidentialité de ce site. Vérifiez-les avant l'ajout.",
+  "homeQrReviewUrl": "Adresse : {url}",
+  "homeQrReviewName": "Nom : {name}",
+  "homeQrReviewProxy": "Fait passer le trafic de ce site par un proxy : {address}",
+  "homeQrReviewTurnsOff": "Désactive : {settings}",
+  "homeQrReviewTurnsOn": "Active : {settings}"
 }

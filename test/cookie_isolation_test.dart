@@ -223,6 +223,56 @@ void main() {
       final ip2 = getBaseDomain('http://192.168.1.2:8080');
       expect(ip1, isNot(equals(ip2)));
     });
+
+    test('private suffixes isolate per subdomain, not per registrant', () {
+      // `victim.github.io` and `attacker.github.io` are different people.
+      // Collapsing them to `github.io` shares one cookie container between
+      // them and makes a hop between them read as same-site navigation.
+      expect(getBaseDomain('https://a.github.io'), equals('a.github.io'));
+      expect(getBaseDomain('https://b.github.io'), equals('b.github.io'));
+      expect(
+        getBaseDomain('https://a.github.io'),
+        isNot(equals(getBaseDomain('https://b.github.io'))),
+      );
+      expect(getBaseDomain('https://x.pages.dev'), equals('x.pages.dev'));
+      expect(getBaseDomain('https://x.workers.dev'), equals('x.workers.dev'));
+      expect(getBaseDomain('https://x.vercel.app'), equals('x.vercel.app'));
+      expect(getBaseDomain('https://x.netlify.app'), equals('x.netlify.app'));
+      expect(getBaseDomain('https://x.web.app'), equals('x.web.app'));
+      expect(
+          getBaseDomain('https://x.firebaseapp.com'), equals('x.firebaseapp.com'));
+      expect(getBaseDomain('https://x.appspot.com'), equals('x.appspot.com'));
+      expect(getBaseDomain('https://x.azurewebsites.net'),
+          equals('x.azurewebsites.net'));
+      expect(getBaseDomain('https://x.herokuapp.com'), equals('x.herokuapp.com'));
+      expect(getBaseDomain('https://x.myshopify.com'), equals('x.myshopify.com'));
+      expect(getBaseDomain('https://x.blogspot.com'), equals('x.blogspot.com'));
+      expect(getBaseDomain('https://x.wordpress.com'), equals('x.wordpress.com'));
+    });
+
+    test('a private suffix still groups its own subdomains', () {
+      expect(getBaseDomain('https://www.a.github.io'), equals('a.github.io'));
+    });
+
+    test('an unlisted ccTLD registry suffix falls back to per-host isolation',
+        () {
+      // `com.ke` is not in the table. Guessing it registrable would put every
+      // Kenyan .com registrant into one site.
+      expect(getBaseDomain('https://a.com.ke'), equals('a.com.ke'));
+      expect(getBaseDomain('https://b.com.ke'), equals('b.com.ke'));
+      expect(
+        getBaseDomain('https://a.com.ke'),
+        isNot(equals(getBaseDomain('https://b.com.ke'))),
+      );
+      // Subdomains of the same registrant still group.
+      expect(getBaseDomain('https://www.a.com.ke'), equals('a.com.ke'));
+    });
+
+    test('a plain two-label domain under a short TLD is left alone', () {
+      expect(getBaseDomain('https://bit.ly'), equals('bit.ly'));
+      expect(getBaseDomain('https://www.angel.co'), equals('angel.co'));
+      expect(getBaseDomain('https://api.example.io'), equals('example.io'));
+    });
   });
 
   group('getNormalizedDomain (Nested Webview Navigation)', () {

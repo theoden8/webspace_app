@@ -15,11 +15,43 @@ library;
 /// and IPv6 literals (`[2001:db8::1]`). Returns null when no `://` is
 /// present (relative URLs, `data:` / `about:` / `javascript:` etc.).
 ///
+/// A single trailing root dot is dropped: chromium keeps the FQDN form
+/// (`tracker.example.com.`) in the URL and DNS resolves it identically,
+/// but every blocklist and filter-list hostname is written without it,
+/// so leaving it on turns the whole blocking stack into a no-op.
+///
 /// Case-folds only when the host actually contains uppercase ASCII —
 /// `String.toLowerCase()` always allocates a new string, so for the
 /// common case of already-lowercase hosts we return the substring
 /// directly.
 String? extractHost(String url) {
+  final bounds = _hostBounds(url);
+  if (bounds == null) return null;
+  return _slice(url, bounds.$1, bounds.$2);
+}
+
+/// Drop the host's root dot inside a whole URL, leaving the rest of the URL
+/// byte-identical. Returns [url] itself when there is nothing to drop.
+///
+/// adblock-rust parses the URL itself instead of taking [extractHost]'s
+/// output, so without this `$domain=` and host-anchored rules keep matching
+/// against the FQDN form that [extractHost] already folds away. Mirrors
+/// `WebInterceptPlugin.stripRootDot` on the Kotlin side — keep the two in
+/// step.
+String stripRootDot(String url) {
+  final bounds = _hostBounds(url);
+  if (bounds == null) return url;
+  final (hostStart, hostEnd) = bounds;
+  if (hostEnd <= hostStart || url.codeUnitAt(hostEnd - 1) != 0x2E /* . */) {
+    return url;
+  }
+  return url.substring(0, hostEnd - 1) + url.substring(hostEnd);
+}
+
+/// Locate the host inside `scheme://[userinfo@]host[:port]/...`: start index
+/// and exclusive end, before any root-dot normalization. Null when the URL
+/// has no `://` authority or an IPv6 literal is unterminated.
+(int, int)? _hostBounds(String url) {
   final i = url.indexOf('://');
   if (i < 0) return null;
   final start = i + 3;
@@ -42,7 +74,7 @@ String? extractHost(String url) {
   if (hostStart < end && url.codeUnitAt(hostStart) == 0x5B /* [ */) {
     for (var j = hostStart; j < end; j++) {
       if (url.codeUnitAt(j) == 0x5D /* ] */) {
-        return _slice(url, hostStart, j + 1);
+        return (hostStart, j + 1);
       }
     }
     return null;
@@ -55,19 +87,24 @@ String? extractHost(String url) {
       break;
     }
   }
-  return _slice(url, hostStart, hostEnd);
+  return (hostStart, hostEnd);
 }
 
 String _slice(String url, int start, int end) {
+  // Only one dot: `example.com..` is not a valid FQDN form, so it stays
+  // unmatched rather than being folded onto `example.com`. Bracketed IPv6
+  // literals end in ']' and are untouched.
+  var stop = end;
+  if (stop > start && url.codeUnitAt(stop - 1) == 0x2E /* . */) stop--;
   bool hasUpper = false;
-  for (var j = start; j < end; j++) {
+  for (var j = start; j < stop; j++) {
     final c = url.codeUnitAt(j);
     if (c >= 0x41 && c <= 0x5A) {
       hasUpper = true;
       break;
     }
   }
-  final s = url.substring(start, end);
+  final s = url.substring(start, stop);
   return hasUpper ? s.toLowerCase() : s;
 }
 

@@ -138,6 +138,13 @@ Users SHALL be able to manage multiple filter lists with download, enable/disabl
 
 The system SHALL block navigation and resource requests matched by the engine, for both main-document navigations and sub-resource requests. The engine handles every ABP rule shape: bare-domain (`||domain^`), path-anchored (`||domain^/path*`), regex, `$domain=`, `$third-party`, resource-type modifiers (`$script`, `$image`, etc.), and exceptions (`@@||...`).
 
+The engine parses the URL itself rather than taking the caller's extracted
+host, so the `url` and `sourceUrl` handed to it SHALL carry the same host
+normalization the DNS path applies — a single trailing root dot removed (see
+[DNS-004](../dns-blocklist/spec.md)). Filter-list hostnames are written
+without it, so an un-normalized `https://tracker.example.com./x` misses every
+host-anchored and `$domain=` rule.
+
 #### Scenario: Bare-domain rule blocks main-document nav
 
 **Given** the engine knows `||tracker.net^`
@@ -174,6 +181,17 @@ The system SHALL block navigation and resource requests matched by the engine, f
 **Then** the rule fires
 **When** the same URL is checked with `requestType: 'document'`
 **Then** the rule does NOT fire
+
+#### Scenario: FQDN root dot reaches the engine normalized
+
+**Given** the engine knows `||doubleclick.net^$domain=news.com`
+**When** a sub-resource request for `https://ads.doubleclick.net./pixel.gif`
+is checked with Referer `https://news.com./article`
+**Then** both the URL and the `sourceUrl` are normalized to their dotless
+form before the engine consult
+**And** the rule fires
+**And** nothing outside the host is rewritten, so path- and query-anchored
+rules match exactly as before
 
 #### Scenario: Hook ordering in shouldOverrideUrlLoading
 
@@ -509,6 +527,64 @@ fresh device, so the user re-downloads to activate blocking)
 **Given** a filter list has a rule count and a last-updated timestamp
 **When** settings are exported
 **Then** its exported entry contains only `{id, name, url, enabled}`
+
+---
+
+### Requirement: CB-013 - Imported list ids are path-safe
+
+A filter-list `id` becomes a filename by concatenation (`<id>.txt`) in the
+content-blocker cache directory, and an imported backup supplies it verbatim.
+`importListSelection` SHALL therefore drop any entry whose `id` does not match
+`^[A-Za-z0-9_-]{1,64}$` — the same shape `sanitizedSiteId` enforces for sites.
+Every id the app mints (`custom_<base36>`) and every built-in id matches, so
+a legitimate backup round-trips unchanged.
+
+The store is guarded independently: `FileStore` implementations SHALL refuse a
+name containing `/`, `\` or `..`, so a list id that reached the cache before
+this validation existed still cannot address a file outside the directory.
+
+#### Scenario: Traversal id is dropped on import
+
+**Given** a backup whose `contentBlockerLists` contains an entry with
+`id: "../../../../evil"`
+**When** the user imports that backup
+**Then** the entry does not appear in the restored list set
+**And** the remaining entries import normally
+**And** no later list update can write outside the cache directory
+
+#### Scenario: Store refuses a traversal name whatever the caller passes
+
+**Given** a `FileStore` for the content-blocker cache directory
+**When** any read, write, delete or exists call is made with a name
+containing `/`, `\` or `..`
+**Then** the call throws `ArgumentError`
+**And** nothing is created outside the store's directory
+
+---
+
+### Requirement: CB-014 - `$removeparam=` rewrites are validated and main-frame-only
+
+The `$removeparam=` rewrite in `shouldOverrideUrlLoading` cancels the
+navigation and issues `controller.loadUrl` on the **top-level** webview,
+with a URL the filter engine produced from a page-supplied one. It
+SHALL therefore run below the `isForMainFrame` gate, and its result
+SHALL be re-checked with `ExternalUrlParser.isLoadableWebUrl` before it
+is loaded. Same contract as CURL-014 / CURL-015 for ClearURLs, which the
+rewrite sits directly beneath.
+
+#### Scenario: A subframe navigation cannot drive a top-frame load
+
+**Given** a cross-origin iframe navigates to a URL a `$removeparam=` rule
+rewrites
+**When** `shouldOverrideUrlLoading` fires with `isForMainFrame == false`
+**Then** the navigation is allowed in place and no `loadUrl` is issued
+
+#### Scenario: A non-http(s) rewrite result is not loaded
+
+**Given** the engine returns a rewritten URL whose scheme is not `http`
+or `https`
+**When** the rewrite block runs on a main-frame navigation
+**Then** no `loadUrl` is issued and the original navigation proceeds
 
 ---
 

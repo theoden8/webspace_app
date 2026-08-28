@@ -220,8 +220,9 @@ class NavigationDecisionEngine {
   /// Decision for `onUrlChanged` — detects server-side 3xx redirects that
   /// bypassed `shouldOverrideUrlLoading`. Caller interpretation:
   ///
-  ///   * [allow] — no-op; URL is same-domain, an inline/about URI, or
-  ///     a recognized captcha challenge; update `currentUrl` as normal.
+  ///   * [allow] — no-op; URL is same-domain, an inline/about URI, or a
+  ///     recognized captcha challenge that already cleared the gesture and
+  ///     `blockAutoRedirects` checks; update `currentUrl` as normal.
   ///   * [blockSilent] — caller navigates the webview back to the last
   ///     same-domain URL and does nothing else.
   ///   * [blockSuppressed] — caller navigates back; the nested webview
@@ -231,7 +232,11 @@ class NavigationDecisionEngine {
   ///     URL in an InAppBrowser nested webview.
   ///
   /// [isCaptchaChallenge] is injected so the engine doesn't duplicate
-  /// the captcha domain list from `WebViewFactory`.
+  /// the captcha domain list from `WebViewFactory`. It is consulted only
+  /// after the gesture / `blockAutoRedirects` verdict: a challenge flow that
+  /// the user reached must complete in the parent webview rather than a
+  /// nested one, but a URL merely *shaped* like a challenge must not buy a
+  /// gesture-less cross-origin navigation.
   static NavigationDecisionResult decideOnUrlChanged({
     required String newUrl,
     required String initUrl,
@@ -253,9 +258,6 @@ class NavigationDecisionEngine {
     if (targetDomain == baseDomain) {
       return const NavigationDecisionResult(NavigationDecision.allow);
     }
-    if (isCaptchaChallenge(newUrl)) {
-      return const NavigationDecisionResult(NavigationDecision.allow);
-    }
 
     var hasRecentGesture = false;
     GestureStateUpdate? gestureUpdate;
@@ -269,6 +271,14 @@ class NavigationDecisionEngine {
 
     if (blockAutoRedirects && !hasRecentGesture) {
       return NavigationDecisionResult(NavigationDecision.blockSilent, gestureUpdate);
+    }
+    // Only rescues a navigation the checks above already let through. Ahead
+    // of them it was a bypass: `isCaptchaChallenge` matches a URL *shape*,
+    // and any page can send itself to an attacker origin carrying that shape
+    // with no gesture, which then renders in place, inside the site's own
+    // container, and commits as `currentUrl`.
+    if (isCaptchaChallenge(newUrl)) {
+      return NavigationDecisionResult(NavigationDecision.allow, gestureUpdate);
     }
     if (!isSiteActive) {
       return NavigationDecisionResult(NavigationDecision.blockSuppressed, gestureUpdate);

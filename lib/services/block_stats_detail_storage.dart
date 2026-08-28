@@ -25,11 +25,15 @@ abstract class BlockStatsDetailStore {
 
 /// AES-encrypted, on-disk detail blob.
 ///
-/// Models [HtmlImportStorage]: a 256-bit AES-CBC key in the platform
-/// keychain, the payload encrypted under an IV derived from that key and
-/// written to `<docs>/block_stats/detail.enc`. Unlike the HTML cache the file
-/// survives app upgrades — a report wiped by an update is the complaint this
-/// answers.
+/// Models `HtmlCacheService`: a 256-bit AES-GCM key in the platform keychain,
+/// the payload sealed under a fresh random nonce per write and written to
+/// `<docs>/block_stats/detail.enc`. Unlike the HTML cache the file survives
+/// app upgrades — a report wiped by an update is the complaint this answers.
+///
+/// The nonce has to be per-write rather than key-derived: the detail is
+/// rewritten on every flush, so a fixed IV would make successive backups share
+/// a byte-identical prefix up to the first block that changed, which is a
+/// readout of how much of the user's blocked-host detail moved.
 ///
 /// Blocked hosts and `siteId`s are browsing-derived, so they never join the
 /// counters in plaintext SharedPreferences (STATS-005). Every failure path
@@ -45,7 +49,6 @@ class SecureBlockStatsDetailStore implements BlockStatsDetailStore {
 
   FileStore? _store;
   encrypt.Encrypter? _encrypter;
-  encrypt.IV? _iv;
   Future<void>? _initInFlight;
 
   SecureBlockStatsDetailStore({
@@ -67,10 +70,9 @@ class SecureBlockStatsDetailStore implements BlockStatsDetailStore {
         await _secureStorage.write(key: _encryptionKeyKey, value: keyBase64);
       }
       final keyBytes = base64.decode(keyBase64);
-      _iv = encrypt.IV(Uint8List.fromList(keyBytes.sublist(0, 16)));
       _encrypter = encrypt.Encrypter(
           encrypt.AES(encrypt.Key(Uint8List.fromList(keyBytes)),
-              mode: encrypt.AESMode.cbc));
+              mode: encrypt.AESMode.gcm));
       await store.ensure();
       _store = store;
     } catch (e) {
@@ -89,9 +91,16 @@ class SecureBlockStatsDetailStore implements BlockStatsDetailStore {
     final encrypter = _encrypter;
     if (store == null || encrypter == null) return null;
     try {
-      final ciphertext = await store.readText(_fileName);
-      if (ciphertext == null || ciphertext.isEmpty) return null;
-      return encrypter.decrypt64(ciphertext, iv: _iv);
+      final wireBase64 = await store.readText(_fileName);
+      if (wireBase64 == null || wireBase64.isEmpty) return null;
+      final wire = base64.decode(wireBase64);
+      // 12-byte nonce + 16-byte tag. Anything shorter, a pre-GCM AES-CBC blob,
+      // or a tampered one fails below and reads as "no detail" — the report
+      // rebuilds from the plaintext counters rather than trusting the bytes.
+      if (wire.length < 12 + 16) return null;
+      final iv = encrypt.IV(Uint8List.fromList(wire.sublist(0, 12)));
+      final body = encrypt.Encrypted(Uint8List.fromList(wire.sublist(12)));
+      return encrypter.decrypt(body, iv: iv);
     } catch (e) {
       LogService.instance.log('BlockStats', 'Detail read failed: $e',
           level: LogLevel.warning);
@@ -106,7 +115,12 @@ class SecureBlockStatsDetailStore implements BlockStatsDetailStore {
     final encrypter = _encrypter;
     if (store == null || encrypter == null) return false;
     try {
-      await store.writeText(_fileName, encrypter.encrypt(payload, iv: _iv).base64);
+      final iv = encrypt.IV.fromSecureRandom(12);
+      final enc = encrypter.encrypt(payload, iv: iv);
+      final wire = Uint8List(iv.bytes.length + enc.bytes.length)
+        ..setRange(0, iv.bytes.length, iv.bytes)
+        ..setRange(iv.bytes.length, iv.bytes.length + enc.bytes.length, enc.bytes);
+      await store.writeText(_fileName, base64.encode(wire));
       return true;
     } catch (e) {
       LogService.instance.log('BlockStats', 'Detail write failed: $e',

@@ -172,7 +172,7 @@ No new data models. Imported HTML sites use the existing `WebViewModel` with:
 ## Files
 
 ### Added
-- `lib/services/html_import_storage.dart` - Persistent AES-encrypted store for user-imported HTML, separate from the cache so imports survive app upgrades
+- `lib/services/html_import_storage.dart` - Persistent AES-256-GCM store (fresh nonce per write, `nonce || ciphertext || tag`) for user-imported HTML, separate from the cache so imports survive app upgrades. Pre-GCM AES-CBC blobs are still readable and are rewritten under GCM on first successful read, because an import is the user's only copy of that data
 
 ### Modified
 - `lib/screens/add_site.dart` - Added `_importHtmlFile()` method and "Import HTML file" button

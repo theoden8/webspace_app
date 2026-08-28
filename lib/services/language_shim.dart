@@ -108,6 +108,13 @@ String buildLanguageShim(String language) {
         }
       }
       Wrapped.prototype = Native.prototype;
+      // `Native.prototype.constructor` is an own property still pointing at
+      // `Native`, so without this `Intl[name].prototype.constructor` is an
+      // unwrapped constructor that resolves the OS locale.
+      try {
+        Object.defineProperty(Wrapped.prototype, 'constructor',
+          { value: Wrapped, writable: true, configurable: true });
+      } catch (e) {}
       if (typeof Native.supportedLocalesOf === 'function') {
         Wrapped.supportedLocalesOf = asNative(function supportedLocalesOf() {
           return Native.supportedLocalesOf.apply(Native, arguments);

@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Pagbubukas at display",
   "behaviourSummaryNothingOn": "Walang naka-enable",
   "siteSettingsSectionNetwork": "Network",
-  "siteSettingsSectionSite": "Site"
+  "siteSettingsSectionSite": "Site",
+  "homeImportGlobalProxyWarning": "Nagtatakda ang backup na ito ng outbound na proxy para sa buong app: {address}. Ang bawat site na walang sariling proxy ay dadaan dito.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{Nag-i-install ang backup na ito ng 1 user script. Idinaragdag ito nang naka-off — suriin ito bago paganahin.} other{Nag-i-install ang backup na ito ng {count} user script. Idinaragdag ang mga ito nang naka-off — suriin ang mga ito bago paganahin.}}",
+  "homeQrReviewTitle": "Suriin ang ibinahaging mga setting ng site",
+  "homeQrReviewBody": "Isinulat ang code na ito ng kung sino man ang nagbahagi nito, at ito ang pumipili ng mga setting ng privacy para sa site na ito. Suriin ang mga ito bago magdagdag.",
+  "homeQrReviewUrl": "Address: {url}",
+  "homeQrReviewName": "Pangalan: {name}",
+  "homeQrReviewProxy": "Ipinapadaan ang trapiko ng site na ito sa isang proxy: {address}",
+  "homeQrReviewTurnsOff": "Ino-off: {settings}",
+  "homeQrReviewTurnsOn": "Ino-on: {settings}"
 }

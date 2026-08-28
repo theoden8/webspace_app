@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Öffnen und Anzeige",
   "behaviourSummaryNothingOn": "Nichts aktiviert",
   "siteSettingsSectionNetwork": "Netzwerk",
-  "siteSettingsSectionSite": "Website"
+  "siteSettingsSectionSite": "Website",
+  "homeImportGlobalProxyWarning": "Diese Sicherung legt einen app-weiten ausgehenden Proxy fest: {address}. Jede Website ohne eigenen Proxy wird darüber geleitet.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{Diese Sicherung installiert 1 Benutzerskript. Es wird ausgeschaltet hinzugefügt – prüfen Sie es, bevor Sie es aktivieren.} other{Diese Sicherung installiert {count} Benutzerskripte. Sie werden ausgeschaltet hinzugefügt – prüfen Sie sie, bevor Sie sie aktivieren.}}",
+  "homeQrReviewTitle": "Geteilte Website-Einstellungen prüfen",
+  "homeQrReviewBody": "Dieser Code stammt von der Person, die ihn geteilt hat, und er bestimmt die Datenschutzeinstellungen dieser Website. Prüfen Sie sie vor dem Hinzufügen.",
+  "homeQrReviewUrl": "Adresse: {url}",
+  "homeQrReviewName": "Name: {name}",
+  "homeQrReviewProxy": "Leitet den Datenverkehr dieser Website über einen Proxy: {address}",
+  "homeQrReviewTurnsOff": "Schaltet aus: {settings}",
+  "homeQrReviewTurnsOn": "Schaltet ein: {settings}"
 }

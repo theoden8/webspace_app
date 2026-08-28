@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Отварање и приказ",
   "behaviourSummaryNothingOn": "Ништа није омогућено",
   "siteSettingsSectionNetwork": "Мрежа",
-  "siteSettingsSectionSite": "Страница"
+  "siteSettingsSectionSite": "Страница",
+  "homeImportGlobalProxyWarning": "Ова резервна копија поставља одлазни прокси за целу апликацију: {address}. Сваки сајт који нема сопствени прокси биће усмерен кроз њега.",
+  "homeImportUserScriptsWarning": "{count, plural, one{Ова резервна копија инсталира {count} кориснички скрипт. Додаје се искључен — прегледајте га пре него што га укључите.} few{Ова резервна копија инсталира {count} корисничка скрипта. Додају се искључени — прегледајте их пре него што их укључите.} other{Ова резервна копија инсталира {count} корисничких скриптова. Додају се искључени — прегледајте их пре него што их укључите.}}",
+  "homeQrReviewTitle": "Прегледајте дељена подешавања сајта",
+  "homeQrReviewBody": "Овај код је написао онај ко га је поделио и управо он бира подешавања приватности овог сајта. Проверите их пре додавања.",
+  "homeQrReviewUrl": "Адреса: {url}",
+  "homeQrReviewName": "Назив: {name}",
+  "homeQrReviewProxy": "Шаље саобраћај овог сајта кроз прокси: {address}",
+  "homeQrReviewTurnsOff": "Искључује: {settings}",
+  "homeQrReviewTurnsOn": "Укључује: {settings}"
 }

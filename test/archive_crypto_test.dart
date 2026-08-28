@@ -5,7 +5,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/archive_crypto.dart';
 
 void main() {
-  group('ArchiveCrypto.deriveSalt', () {
+  // Superseded by the per-install random salt from `ArchiveStorage`; these
+  // stay because pre-upgrade slots and pre-upgrade exported sections are still
+  // opened with it (once, before being re-sealed).
+  group('ArchiveCrypto.deriveSalt (legacy)', () {
     test('is deterministic for the same passphrase', () async {
       final a = await ArchiveCrypto.deriveSalt('correct horse battery staple');
       final b = await ArchiveCrypto.deriveSalt('correct horse battery staple');
@@ -123,10 +126,10 @@ void main() {
     });
   });
 
-  // ARCH-002: the Argon2id cost is the only barrier to an offline dictionary
-  // attack (the salt derives from the passphrase, adding no entropy), so a
-  // silent parameter downgrade must fail CI. Pins the named constants that
-  // feed the Argon2id constructor.
+  // ARCH-002: with the per-install random salt, the Argon2id cost is what an
+  // attacker pays per target in an offline dictionary attack, so a silent
+  // parameter downgrade must fail CI. Pins the named constants that feed the
+  // Argon2id constructor.
   group('Argon2id cost parameters (ARCH-002)', () {
     test('are pinned at the documented values', () {
       expect(kArchiveArgon2Parallelism, equals(4));

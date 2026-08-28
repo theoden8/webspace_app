@@ -103,19 +103,57 @@ This replaces the previous hardcoded `_trackingDomains` blocklist (Stripe, analy
 
 ### Requirement: NESTED-005 - Allow Captcha Challenges
 
-The system SHALL allow captcha/challenge URLs regardless of gesture.
+The system SHALL keep a captcha/challenge navigation in the main webview
+rather than routing it to a nested one — a challenge stranded in a nested
+webview sets its clearance cookie where the page that needs it cannot see
+it.
 
 Supported challenges:
 - Cloudflare (`challenges.cloudflare.com`, `cdn-cgi/challenge-platform`, `cf-turnstile`)
 - hCaptcha (`hcaptcha.com`)
 - reCAPTCHA (`/recaptcha/` on `google.com`, `gstatic.com`, `recaptcha.net`, `googleapis.com`)
 
+The allow SHALL be applied **after** the gesture and `blockAutoRedirects`
+verdict, in both interception paths:
+
+- `shouldOverrideUrlLoading` — after `config.shouldOverrideUrlLoading`
+  returns (see [captcha-support](../captcha-support/spec.md) CAPTCHA-008).
+- `NavigationDecisionEngine.decideOnUrlChanged` — after the
+  `blockAutoRedirects && !hasRecentGesture` branch, not before the
+  cross-domain check.
+
+`isCaptchaChallenge` matches a URL *shape*. Consulted first it was a
+bypass: a page could set `location.href` to an attacker origin carrying a
+challenge-shaped path with no gesture, and the parent webview would
+navigate in place — inside the site's own container `ws-<siteId>` — and
+commit the attacker URL as the site's persisted `currentUrl`. A real
+interstitial is served by the site itself, so it is cleared by the
+same-domain check long before the captcha branch is reached.
+
 #### Scenario: Complete Cloudflare challenge
 
 **Given** a site is protected by Cloudflare
-**When** a challenge is triggered
-**Then** the challenge loads in the main webview (not nested)
+**When** a challenge is triggered on the site's own origin
+(`https://site.example/cdn-cgi/challenge-platform/...`)
+**Then** the navigation is same-domain and allowed
+**And** the challenge loads in the main webview (not nested)
 **And** the user can complete the challenge
+
+#### Scenario: Cross-domain challenge the user reached loads in place
+
+**Given** a site with `blockAutoRedirects` on
+**And** a same-domain gesture within the last 10 seconds
+**When** `onUrlChanged` fires for `https://challenges.cloudflare.com/...`
+**Then** the decision is `allow` (in place, not nested)
+**And** the pending gesture is consumed
+
+#### Scenario: Captcha-shaped URL buys no gesture-less cross-origin hop
+
+**Given** a site with `blockAutoRedirects` on and no recent gesture
+**When** the page sets `location.href` to
+`https://attacker.example/cdn-cgi/challenge-platform/x`
+**Then** `decideOnUrlChanged` returns `blockSilent`
+**And** the attacker URL is not committed as the site's `currentUrl`
 
 ---
 
@@ -176,6 +214,69 @@ Implementation: `lib/services/target_blank_rewrite.dart`
 **When** the popup is requested
 **Then** the rewrite does not apply (no anchor target involved)
 **And** the challenge is handled by the existing `onCreateWindow` captcha path
+
+---
+
+### Requirement: NESTED-010 - The Nested Screen Carries the Whole Per-Site Posture
+
+Every per-site field the parent webview applies SHALL reach
+`InAppWebViewScreen`. `LaunchUrlFunc`
+([lib/web_view_model.dart](../../../lib/web_view_model.dart)) is the single
+declaration of that chain; a field is threaded when it appears there, in
+`_WebSpacePageState.launchUrl`, in the `InAppWebViewScreen` constructor, and
+is read as `widget.<field>` inside the nested `WebViewConfig`.
+
+A dropped field is not a cosmetic gap. `shouldOverrideUrlLoading` is null
+unless the nested screen has a reason to build one, and null means allow — so
+with `blockAutoRedirects` missing, one tap on an outbound link bought
+unlimited gesture-less cross-origin redirects inside the parent's own
+container. `blockedCookies`, the camera/microphone modes and their sources,
+and `protectedContentAllowed` were missing for the same reason.
+
+The nested `shouldOverrideUrlLoading` SHALL run
+`NavigationDecisionEngine.decideShouldOverrideUrlLoading` with
+`initUrl = _currentUrl` — the page shown here, not the opening site's home
+URL, since a nested screen is already one hop out. It SHALL be non-null
+whenever `blockAutoRedirects` or `externalLinksInBrowser` is on, and null
+otherwise so default behaviour is byte-identical. A nested screen has nowhere
+further to nest, so `blockOpenNested` navigates in place.
+
+`blockedCookies` SHALL be swept after every load here too — the nested
+webview shares the parent's container, so a blocked cookie re-set through an
+outbound link would otherwise come back. The sweep and its cookie reader are
+wired only when the set is non-empty, so a site with no blocked cookies pays
+no extra jar round-trip.
+
+The camera / microphone / protected-content values passed SHALL be the
+`effective*` getters, so an archive-tier or Tracking-Protection forced block
+stays blocked one hop out (ARCH-006, ETP-023).
+
+Regression gate: `test/nested_webview_field_parity_test.dart` reads the
+typedef's parameters and fails when any one of them stops appearing in
+`launchUrl`, in the constructor, or as a `widget.` read.
+
+#### Scenario: A gesture-less redirect in a nested webview is blocked
+
+**Given** the opening site has `blockAutoRedirects` on
+**And** the user followed an outbound link into a nested webview
+**When** the nested page script-navigates cross-domain with no gesture
+**Then** `NavigationDecisionEngine.decideShouldOverrideUrlLoading` is run
+with `initUrl` = the nested page's current URL
+**And** the decision is `blockSilent`, so the navigation is cancelled
+
+#### Scenario: A blocked cookie stays blocked one hop out
+
+**Given** the opening site blocks the cookie `sid` on `ads.example`
+**When** a page in the nested webview sets it
+**Then** the nested screen deletes it from the shared container after the
+load, exactly as the parent does
+
+#### Scenario: A forced camera block survives the hop
+
+**Given** an archive-tier site (`effectiveCameraMode == block`)
+**When** it opens an outbound link and that page calls `getUserMedia`
+**Then** the nested screen's in-memory mode starts at `block`
+**And** no permission popup and no OS camera prompt appear
 
 ---
 
@@ -352,7 +453,8 @@ CLAUDE.md now forbids. Direct engine tests live in
 - `OnUrlChangedHandled.launchExternalUrl` carries the URL for the caller to launch
 
 #### `lib/screens/inappbrowser.dart`
-- `externalLinksInBrowser` ctor field; nested `WebViewConfig.shouldOverrideUrlLoading` (gated on the setting, null when off) routes user-gesture cross-domain navigations to `launchUrlInSystemBrowser`, judged against the page currently shown
+- `externalLinksInBrowser` / `blockAutoRedirects` ctor fields; nested `WebViewConfig.shouldOverrideUrlLoading` (non-null when either is on) delegates to `NavigationDecisionEngine.decideShouldOverrideUrlLoading` against the page currently shown, and routes `blockOpenExternal` to `launchUrlInSystemBrowser`
+- `blockedCookies` + the forwarded cookie managers drive a post-load sweep; `cameraMode` / `virtualCameraSource` / `microphoneMode` / `virtualMicrophoneSource` / `protectedContentAllowed` seed the screen's in-memory decisions (NESTED-010)
 
 #### `lib/screens/settings.dart`
 - "Block auto-redirects" toggle per site

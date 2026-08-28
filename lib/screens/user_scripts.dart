@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/services/user_script_service.dart'
+    show fetchUserScriptSource;
+import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
 
 /// Screen for managing user scripts.
@@ -54,6 +56,10 @@ class UserScriptsScreen extends StatefulWidget {
   /// next render. Without this, list toggle / opt-in changes silently no-op
   /// until the webview is recreated for some other reason.
   final VoidCallback? onWebViewReset;
+  /// Proxy of the site whose scripts are being edited, used when the editor
+  /// downloads a script's URL source. Null (App Settings mode, or a caller
+  /// with no site context) resolves to the app-global outbound proxy.
+  final UserProxySettings? proxy;
 
   const UserScriptsScreen({
     super.key,
@@ -68,6 +74,7 @@ class UserScriptsScreen extends StatefulWidget {
     this.onEnabledGlobalScriptIdsChanged,
     this.isGlobalLibrary = false,
     this.onWebViewReset,
+    this.proxy,
   });
 
   @override
@@ -123,7 +130,8 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
     final result = await Navigator.push<UserScriptConfig>(
       context,
       MaterialPageRoute(
-        builder: (_) => UserScriptEditScreen(onRun: widget.onRun),
+        builder: (_) =>
+            UserScriptEditScreen(onRun: widget.onRun, proxy: widget.proxy),
       ),
     );
     if (result != null) {
@@ -139,6 +147,7 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
         builder: (_) => UserScriptEditScreen(
           script: _scripts[index],
           onRun: widget.onRun,
+          proxy: widget.proxy,
         ),
       ),
     );
@@ -296,6 +305,7 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
         builder: (_) => UserScriptEditScreen(
           script: _globalScripts[index],
           onRun: widget.onRun,
+          proxy: widget.proxy,
         ),
       ),
     );
@@ -488,8 +498,12 @@ class UserScriptEditScreen extends StatefulWidget {
   final UserScriptConfig? script;
   /// Execute a script and return console output captured during execution.
   final Future<String> Function(String source)? onRun;
+  /// Proxy the URL-source download goes through. Null resolves to the
+  /// app-global outbound proxy.
+  final UserProxySettings? proxy;
 
-  const UserScriptEditScreen({super.key, this.script, this.onRun});
+  const UserScriptEditScreen(
+      {super.key, this.script, this.onRun, this.proxy});
 
   @override
   State<UserScriptEditScreen> createState() => _UserScriptEditScreenState();
@@ -552,27 +566,16 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen> {
     // Auto-download URL source if URL is set and either not yet cached or URL changed.
     if (url.isNotEmpty && (_urlSource == null || url != _originalUrl)) {
       setState(() { _downloading = true; });
-      try {
-        final response = await http.get(Uri.parse(url));
-        if (!mounted) return;
-        if (response.statusCode == 200) {
-          _urlSource = response.body;
-        } else {
-          setState(() { _downloading = false; });
-          final detail = 'HTTP ${response.statusCode}';
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(loc.userScriptsUrlDownloadFailed(detail))),
-          );
-          return;
-        }
-      } catch (e) {
-        if (!mounted) return;
+      final result = await fetchUserScriptSource(url, proxy: widget.proxy);
+      if (!mounted) return;
+      if (result.source == null) {
         setState(() { _downloading = false; });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(loc.userScriptsUrlDownloadFailed(e.toString()))),
+          SnackBar(content: Text(loc.userScriptsUrlDownloadFailed(result.error ?? ''))),
         );
         return;
       }
+      _urlSource = result.source;
     }
     // Clear urlSource if URL was removed.
     if (url.isEmpty) _urlSource = null;

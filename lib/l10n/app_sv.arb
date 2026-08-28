@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Öppning och visning",
   "behaviourSummaryNothingOn": "Inget aktiverat",
   "siteSettingsSectionNetwork": "Nätverk",
-  "siteSettingsSectionSite": "Webbplats"
+  "siteSettingsSectionSite": "Webbplats",
+  "homeImportGlobalProxyWarning": "Den här säkerhetskopian ställer in en utgående proxy för hela appen: {address}. Varje webbplats som inte har en egen proxy går via den.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{Den här säkerhetskopian installerar 1 användarskript. Det läggs till avstängt — granska det innan du aktiverar det.} other{Den här säkerhetskopian installerar {count} användarskript. De läggs till avstängda — granska dem innan du aktiverar dem.}}",
+  "homeQrReviewTitle": "Granska delade webbplatsinställningar",
+  "homeQrReviewBody": "Den här koden skrevs av den som delade den, och det är den som väljer webbplatsens integritetsinställningar. Kontrollera dem innan du lägger till.",
+  "homeQrReviewUrl": "Adress: {url}",
+  "homeQrReviewName": "Namn: {name}",
+  "homeQrReviewProxy": "Skickar den här webbplatsens trafik via en proxy: {address}",
+  "homeQrReviewTurnsOff": "Stänger av: {settings}",
+  "homeQrReviewTurnsOn": "Slår på: {settings}"
 }

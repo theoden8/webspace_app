@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Avaus ja näyttö",
   "behaviourSummaryNothingOn": "Ei mitään käytössä",
   "siteSettingsSectionNetwork": "Verkko",
-  "siteSettingsSectionSite": "Sivusto"
+  "siteSettingsSectionSite": "Sivusto",
+  "homeImportGlobalProxyWarning": "Tämä varmuuskopio asettaa koko sovellusta koskevan lähtevän välityspalvelimen: {address}. Jokainen sivusto, jolla ei ole omaa välityspalvelinta, reititetään sen kautta.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{Tämä varmuuskopio asentaa 1 käyttäjäskriptin. Se lisätään pois käytöstä — tarkista se ennen käyttöön ottamista.} other{Tämä varmuuskopio asentaa {count} käyttäjäskriptiä. Ne lisätään pois käytöstä — tarkista ne ennen käyttöön ottamista.}}",
+  "homeQrReviewTitle": "Tarkista jaetut sivustoasetukset",
+  "homeQrReviewBody": "Tämän koodin on kirjoittanut se, joka sen jakoi, ja se määrittää tämän sivuston yksityisyysasetukset. Tarkista ne ennen lisäämistä.",
+  "homeQrReviewUrl": "Osoite: {url}",
+  "homeQrReviewName": "Nimi: {name}",
+  "homeQrReviewProxy": "Lähettää tämän sivuston liikenteen välityspalvelimen kautta: {address}",
+  "homeQrReviewTurnsOff": "Poistaa käytöstä: {settings}",
+  "homeQrReviewTurnsOn": "Ottaa käyttöön: {settings}"
 }

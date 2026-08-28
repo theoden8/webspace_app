@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "തുറക്കലും പ്രദർശനവും",
   "behaviourSummaryNothingOn": "ഒന്നും പ്രവർത്തനക്ഷമമല്ല",
   "siteSettingsSectionNetwork": "നെറ്റ്‌വർക്ക്",
-  "siteSettingsSectionSite": "സൈറ്റ്"
+  "siteSettingsSectionSite": "സൈറ്റ്",
+  "homeImportGlobalProxyWarning": "ഈ ബാക്കപ്പ് ആപ്പ് മുഴുവനും ബാധകമായ ഒരു ഔട്ട്ബൗണ്ട് പ്രോക്സി സജ്ജമാക്കുന്നു: {address}. സ്വന്തമായി പ്രോക്സി ഇല്ലാത്ത എല്ലാ സൈറ്റുകളും അതിലൂടെയാകും കടന്നുപോകുക.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{ഈ ബാക്കപ്പ് 1 ഉപയോക്തൃ സ്ക്രിപ്റ്റ് ഇൻസ്റ്റാൾ ചെയ്യുന്നു. അത് ഓഫ് ആയാണ് ചേർക്കുന്നത് — ഓണാക്കുന്നതിന് മുമ്പ് അത് പരിശോധിക്കുക.} other{ഈ ബാക്കപ്പ് {count} ഉപയോക്തൃ സ്ക്രിപ്റ്റുകൾ ഇൻസ്റ്റാൾ ചെയ്യുന്നു. അവ ഓഫ് ആയാണ് ചേർക്കുന്നത് — ഓണാക്കുന്നതിന് മുമ്പ് അവ പരിശോധിക്കുക.}}",
+  "homeQrReviewTitle": "പങ്കിട്ട സൈറ്റ് ക്രമീകരണങ്ങൾ അവലോകനം ചെയ്യുക",
+  "homeQrReviewBody": "ഈ കോഡ് എഴുതിയത് അത് പങ്കിട്ട ആളാണ്, ഈ സൈറ്റിന്റെ സ്വകാര്യതാ ക്രമീകരണങ്ങൾ തീരുമാനിക്കുന്നതും അതാണ്. ചേർക്കുന്നതിന് മുമ്പ് അവ പരിശോധിക്കുക.",
+  "homeQrReviewUrl": "വിലാസം: {url}",
+  "homeQrReviewName": "പേര്: {name}",
+  "homeQrReviewProxy": "ഈ സൈറ്റിന്റെ ട്രാഫിക് ഒരു പ്രോക്സിയിലൂടെ അയയ്ക്കുന്നു: {address}",
+  "homeQrReviewTurnsOff": "ഓഫ് ചെയ്യുന്നു: {settings}",
+  "homeQrReviewTurnsOn": "ഓണാക്കുന്നു: {settings}"
 }

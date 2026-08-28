@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Otváranie a zobrazenie",
   "behaviourSummaryNothingOn": "Nič nie je zapnuté",
   "siteSettingsSectionNetwork": "Sieť",
-  "siteSettingsSectionSite": "Stránka"
+  "siteSettingsSectionSite": "Stránka",
+  "homeImportGlobalProxyWarning": "Táto záloha nastavuje odchádzajúcu proxy pre celú aplikáciu: {address}. Každá stránka, ktorá nemá vlastnú proxy, bude smerovaná cez ňu.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{Táto záloha nainštaluje 1 používateľský skript. Pridá sa vypnutý — pred zapnutím ho skontrolujte.} few{Táto záloha nainštaluje {count} používateľské skripty. Pridajú sa vypnuté — pred zapnutím ich skontrolujte.} many{Táto záloha nainštaluje {count} používateľského skriptu. Pridajú sa vypnuté — pred zapnutím ich skontrolujte.} other{Táto záloha nainštaluje {count} používateľských skriptov. Pridajú sa vypnuté — pred zapnutím ich skontrolujte.}}",
+  "homeQrReviewTitle": "Skontrolujte zdieľané nastavenia stránky",
+  "homeQrReviewBody": "Tento kód vytvoril ten, kto ho zdieľal, a určuje nastavenia súkromia tejto stránky. Pred pridaním ich skontrolujte.",
+  "homeQrReviewUrl": "Adresa: {url}",
+  "homeQrReviewName": "Názov: {name}",
+  "homeQrReviewProxy": "Posiela prevádzku tejto stránky cez proxy: {address}",
+  "homeQrReviewTurnsOff": "Vypína: {settings}",
+  "homeQrReviewTurnsOn": "Zapína: {settings}"
 }

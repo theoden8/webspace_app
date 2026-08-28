@@ -140,6 +140,14 @@ JS string literal.
 **Then** `navigator.language` returns the OS default
 **And** no override script is injected
 
+#### Scenario: The wrapped Intl constructor is not bypassable through its prototype
+
+**Given** a site set to `fr-FR` on a device whose OS locale is `en-US`
+**When** a page evaluates
+`new (Intl.NumberFormat.prototype.constructor)().resolvedOptions().locale`
+**Then** the result is the per-site tag, not the OS locale
+**And** the same holds for every constructor the shim wraps
+
 ---
 
 ### Requirement: LANG-003 - Language Selection UI

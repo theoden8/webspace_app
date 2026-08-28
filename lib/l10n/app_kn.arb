@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "ತೆರೆಯುವಿಕೆ ಮತ್ತು ಪ್ರದರ್ಶನ",
   "behaviourSummaryNothingOn": "ಯಾವುದೂ ಸಕ್ರಿಯವಾಗಿಲ್ಲ",
   "siteSettingsSectionNetwork": "ನೆಟ್‌ವರ್ಕ್",
-  "siteSettingsSectionSite": "ಸೈಟ್"
+  "siteSettingsSectionSite": "ಸೈಟ್",
+  "homeImportGlobalProxyWarning": "ಈ ಬ್ಯಾಕಪ್ ಇಡೀ ಅಪ್ಲಿಕೇಶನ್‌ಗೆ ಔಟ್‌ಬೌಂಡ್ ಪ್ರಾಕ್ಸಿಯನ್ನು ಹೊಂದಿಸುತ್ತದೆ: {address}. ಸ್ವಂತ ಪ್ರಾಕ್ಸಿ ಇಲ್ಲದ ಪ್ರತಿ ಸೈಟ್ ಇದರ ಮೂಲಕವೇ ಸಂಪರ್ಕಿಸುತ್ತದೆ.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{ಈ ಬ್ಯಾಕಪ್ 1 ಬಳಕೆದಾರ ಸ್ಕ್ರಿಪ್ಟ್ ಅನ್ನು ಸ್ಥಾಪಿಸುತ್ತದೆ. ಅದನ್ನು ಆಫ್ ಸ್ಥಿತಿಯಲ್ಲಿ ಸೇರಿಸಲಾಗುತ್ತದೆ — ಆನ್ ಮಾಡುವ ಮೊದಲು ಅದನ್ನು ಪರಿಶೀಲಿಸಿ.} other{ಈ ಬ್ಯಾಕಪ್ {count} ಬಳಕೆದಾರ ಸ್ಕ್ರಿಪ್ಟ್‌ಗಳನ್ನು ಸ್ಥಾಪಿಸುತ್ತದೆ. ಅವುಗಳನ್ನು ಆಫ್ ಸ್ಥಿತಿಯಲ್ಲಿ ಸೇರಿಸಲಾಗುತ್ತದೆ — ಆನ್ ಮಾಡುವ ಮೊದಲು ಅವುಗಳನ್ನು ಪರಿಶೀಲಿಸಿ.}}",
+  "homeQrReviewTitle": "ಹಂಚಿಕೊಂಡ ಸೈಟ್ ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ಪರಿಶೀಲಿಸಿ",
+  "homeQrReviewBody": "ಈ ಕೋಡ್ ಅನ್ನು ಅದನ್ನು ಹಂಚಿಕೊಂಡವರೇ ಬರೆದಿದ್ದಾರೆ, ಮತ್ತು ಅದೇ ಈ ಸೈಟ್‌ನ ಗೌಪ್ಯತೆ ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ಆಯ್ಕೆ ಮಾಡುತ್ತದೆ. ಸೇರಿಸುವ ಮೊದಲು ಅವುಗಳನ್ನು ಪರಿಶೀಲಿಸಿ.",
+  "homeQrReviewUrl": "ವಿಳಾಸ: {url}",
+  "homeQrReviewName": "ಹೆಸರು: {name}",
+  "homeQrReviewProxy": "ಈ ಸೈಟ್‌ನ ಟ್ರಾಫಿಕ್ ಅನ್ನು ಪ್ರಾಕ್ಸಿ ಮೂಲಕ ಕಳುಹಿಸುತ್ತದೆ: {address}",
+  "homeQrReviewTurnsOff": "ಆಫ್ ಮಾಡುತ್ತದೆ: {settings}",
+  "homeQrReviewTurnsOn": "ಆನ್ ಮಾಡುತ್ತದೆ: {settings}"
 }

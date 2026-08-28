@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Отваряне и показване",
   "behaviourSummaryNothingOn": "Нищо не е включено",
   "siteSettingsSectionNetwork": "Мрежа",
-  "siteSettingsSectionSite": "Сайт"
+  "siteSettingsSectionSite": "Сайт",
+  "homeImportGlobalProxyWarning": "Това резервно копие задава изходящ прокси за цялото приложение: {address}. Всеки сайт без собствен прокси ще минава през него.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{Това резервно копие инсталира 1 потребителски скрипт. Той се добавя изключен — прегледайте го, преди да го включите.} other{Това резервно копие инсталира {count} потребителски скрипта. Те се добавят изключени — прегледайте ги, преди да ги включите.}}",
+  "homeQrReviewTitle": "Преглед на споделените настройки на сайта",
+  "homeQrReviewBody": "Този код е написан от този, който го е споделил, и той избира настройките за поверителност на този сайт. Проверете ги, преди да добавите.",
+  "homeQrReviewUrl": "Адрес: {url}",
+  "homeQrReviewName": "Име: {name}",
+  "homeQrReviewProxy": "Изпраща трафика на този сайт през прокси: {address}",
+  "homeQrReviewTurnsOff": "Изключва: {settings}",
+  "homeQrReviewTurnsOn": "Включва: {settings}"
 }

@@ -141,6 +141,36 @@ const Set<String> _multiPartTlds = {
   'com.ru', 'org.ru', 'gov.ru',
 };
 
+/// Private suffixes: single registrants who hand out subdomains to mutually
+/// untrusting third parties. Without these, `victim.github.io` and
+/// `attacker.github.io` share a base domain — same cookie container, and
+/// `NavigationDecisionEngine` reads a hop between them as same-site.
+const Set<String> _privateSuffixes = {
+  'github.io',
+  'pages.dev',
+  'workers.dev',
+  'vercel.app',
+  'netlify.app',
+  'web.app',
+  'firebaseapp.com',
+  'appspot.com',
+  'azurewebsites.net',
+  'herokuapp.com',
+  'myshopify.com',
+  'blogspot.com',
+  'wordpress.com',
+};
+
+/// Second-level labels that a two-letter ccTLD registry almost always
+/// operates as a public suffix (`co.uk`, `com.au`, `ne.jp`, …). Used only
+/// where [_multiPartTlds] has no entry for the pair: guessing that the pair
+/// is registrable would put every registrant under it — `a.com.ke` and
+/// `b.com.ke` — into one site.
+const Set<String> _ambiguousCcTldSecondLevels = {
+  'co', 'com', 'net', 'org', 'edu', 'gov', 'govt',
+  'gob', 'gouv', 'ac', 'ne', 'or', 'go', 'mil', 'int',
+};
+
 /// Checks if a string is an IPv4 address.
 bool _isIPv4Address(String host) {
   final parts = host.split('.');
@@ -172,8 +202,15 @@ bool _isIPv6Address(String host) {
 /// Example: 'mail.google.com' -> 'google.com'
 /// Example: 'api.github.com' -> 'github.com'
 /// Example: 'www.google.co.uk' -> 'google.co.uk'
+/// Example: 'victim.github.io' -> 'victim.github.io'
 /// Example: '192.168.1.1' -> '192.168.1.1'
 /// Example: '[::1]' -> '[::1]'
+///
+/// There is no public suffix list here (a vendored PSL would be a committed
+/// derivative). The table covers the common ccTLD second levels plus the
+/// [_privateSuffixes] that hand subdomains to strangers; anything else that
+/// *looks* like a registry suffix resolves to per-host isolation rather than
+/// a guess, since guessing low merges unrelated sites.
 String getBaseDomain(String url) {
   final host = extractDomain(url);
 
@@ -187,8 +224,17 @@ String getBaseDomain(String url) {
   if (parts.length >= 3) {
     // Check if the last two parts form a multi-part TLD
     final possibleTld = '${parts[parts.length - 2]}.${parts.last}';
-    if (_multiPartTlds.contains(possibleTld)) {
+    if (_multiPartTlds.contains(possibleTld) ||
+        _privateSuffixes.contains(possibleTld)) {
       // Return third-to-last part + multi-part TLD (e.g., google.co.uk)
+      return '${parts[parts.length - 3]}.$possibleTld';
+    }
+    // The pair looks like a registry suffix the table doesn't list. Resolve
+    // it the over-isolating way — assume it IS a suffix — so unrelated
+    // registrants never collapse into one site. With no label above it
+    // (`a.com.ke`) that degrades to host equality.
+    if (parts.last.length == 2 &&
+        _ambiguousCcTldSecondLevels.contains(parts[parts.length - 2])) {
       return '${parts[parts.length - 3]}.$possibleTld';
     }
   }
@@ -322,6 +368,71 @@ class BlockedCookie {
   factory BlockedCookie.fromJson(Map<String, dynamic> json) =>
       BlockedCookie(name: json['name'] as String, domain: json['domain'] as String);
 }
+
+/// True if (name, domain) matches one of [blocked]. Domain match is
+/// bidirectional-suffix so a block on `example.com` also covers
+/// `.a.example.com` and vice versa. Free function so the nested webview
+/// screen, which has no [WebViewModel], applies the same rule.
+bool matchesBlockedCookie(
+  Set<BlockedCookie> blocked,
+  String name,
+  String? domain,
+) {
+  if (blocked.isEmpty) return false;
+  return blocked.any((b) =>
+      b.name == name &&
+      (domain != null &&
+          (b.domain == domain ||
+              domain.endsWith('.${b.domain}') ||
+              b.domain.endsWith('.$domain'))));
+}
+
+/// Opens [url] in a nested `InAppWebViewScreen` carrying the opening site's
+/// posture. Implemented by `_WebSpacePageState.launchUrl`.
+///
+/// Every per-site field the parent webview applies has to appear here, or an
+/// outbound link silently escapes it — see CLAUDE.md, "Per-site settings MUST
+/// apply to nested webviews", for the five call sites a new field touches.
+typedef LaunchUrlFunc = void Function(
+  String url, {
+  String? homeTitle,
+  required String? siteId,
+  required bool incognito,
+  required bool thirdPartyCookiesEnabled,
+  required bool clearUrlEnabled,
+  required bool dnsBlockEnabled,
+  required bool contentBlockEnabled,
+  required bool localCdnEnabled,
+  required bool contributesBlockStats,
+  required bool trackingProtectionEnabled,
+  bool letterboxEnabled,
+  int? spoofWindowWidth,
+  int? spoofWindowHeight,
+  String? fingerprintResetNonce,
+  required String? language,
+  required int zoomPercent,
+  LocationMode locationMode,
+  double? spoofLatitude,
+  double? spoofLongitude,
+  double spoofAccuracy,
+  String? spoofTimezone,
+  bool spoofTimezoneFromLocation,
+  LocationGranularity liveLocationGranularity,
+  WebRtcPolicy webRtcPolicy,
+  String? userAgent,
+  bool javascriptEnabled,
+  required List<UserScriptConfig> userScripts,
+  UserProxySettings? proxySettings,
+  bool notificationsEnabled,
+  bool externalLinksInBrowser,
+  bool blockAutoRedirects,
+  Set<BlockedCookie> blockedCookies,
+  CameraAccessMode cameraMode,
+  VirtualCameraSource? virtualCameraSource,
+  MicrophoneAccessMode microphoneMode,
+  VirtualMicrophoneSource? virtualMicrophoneSource,
+  bool? protectedContentAllowed,
+});
 
 /// Interpret a renderer-health probe result. The probe reads
 /// `document.body.offsetHeight`: a live renderer returns a number — `0`
@@ -826,14 +937,8 @@ class WebViewModel {
   }
 
   /// Check if a cookie is blocked by name + domain for this site.
-  bool isCookieBlocked(String name, String? domain) {
-    if (blockedCookies.isEmpty) return false;
-    return blockedCookies.any((b) =>
-        b.name == name &&
-        (domain != null && (b.domain == domain ||
-            domain.endsWith('.${b.domain}') ||
-            b.domain.endsWith('.$domain'))));
-  }
+  bool isCookieBlocked(String name, String? domain) =>
+      matchesBlockedCookie(blockedCookies, name, domain);
 
   void removeThirdPartyCookies(WebViewController controller) async {
     String script = '''
@@ -998,7 +1103,7 @@ class WebViewModel {
   }
 
   Widget getWebView(
-    Function(String url, {String? homeTitle, required String? siteId, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required bool contentBlockEnabled, required bool localCdnEnabled, required bool contributesBlockStats, required bool trackingProtectionEnabled, bool letterboxEnabled, int? spoofWindowWidth, int? spoofWindowHeight, String? fingerprintResetNonce, required String? language, required int zoomPercent, LocationMode locationMode, double? spoofLatitude, double? spoofLongitude, double spoofAccuracy, String? spoofTimezone, bool spoofTimezoneFromLocation, LocationGranularity liveLocationGranularity, WebRtcPolicy webRtcPolicy, String? userAgent, bool javascriptEnabled, required List<UserScriptConfig> userScripts, UserProxySettings? proxySettings, bool notificationsEnabled, bool externalLinksInBrowser}) launchUrlFunc,
+    LaunchUrlFunc launchUrlFunc,
     CookieManager cookieManager,
     ContainerCookieManager? containerCookieManager,
     Function saveFunc, {
@@ -1107,7 +1212,8 @@ class WebViewModel {
           clearUrlEnabled: clearUrlEnabled || trackingProtectionEnabled,
           dnsBlockEnabled: dnsBlockEnabled || trackingProtectionEnabled,
           contentBlockEnabled: contentBlockEnabled || trackingProtectionEnabled,
-          localCdnEnabled: localCdnEnabled || trackingProtectionEnabled,
+          localCdnEnabled:
+              effectiveLocalCdnEnabled || (trackingProtectionEnabled && !isArchiveTier),
           contributesBlockStats: contributesBlockStats,
           trackingProtectionEnabled: trackingProtectionEnabled,
           letterboxEnabled: letterboxEnabled,
@@ -1132,7 +1238,7 @@ class WebViewModel {
           // PROXY-002 / PROXY-008). Android ignores this and routes
           // through the global `ProxyController` in `_applyProxySettings`.
           proxySettings: proxySettings,
-          notificationsEnabled: notificationsEnabled,
+          notificationsEnabled: effectiveNotificationsEnabled,
           backgroundAudioEnabled: effectiveBackgroundAudioEnabled,
           userScripts: combineUserScripts(globalUserScripts),
           onConfirmScriptFetch: onConfirmScriptFetch,
@@ -1234,7 +1340,7 @@ class WebViewModel {
                   '  -> CANCEL (opening nested webview)',
                   sensitivity: LogSensitivity.sensitive,
                 );
-                launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: localCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: notificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser);
+                launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: effectiveLocalCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: effectiveNotificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser, blockAutoRedirects: blockAutoRedirects, blockedCookies: blockedCookies, cameraMode: effectiveCameraMode, virtualCameraSource: virtualCameraSource, microphoneMode: effectiveMicrophoneMode, virtualMicrophoneSource: virtualMicrophoneSource, protectedContentAllowed: effectiveProtectedContentAllowed);
                 return false;
               case NavigationDecision.blockOpenExternal:
                 LogService.instance.log(
@@ -1341,7 +1447,7 @@ class WebViewModel {
                     sensitivity: LogSensitivity.sensitive,
                   );
                   if (handled.launchNestedUrl != null) {
-                    launchUrlFunc(handled.launchNestedUrl!, homeTitle: name, siteId: siteId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: localCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: notificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser);
+                    launchUrlFunc(handled.launchNestedUrl!, homeTitle: name, siteId: siteId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: effectiveLocalCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: effectiveNotificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser, blockAutoRedirects: blockAutoRedirects, blockedCookies: blockedCookies, cameraMode: effectiveCameraMode, virtualCameraSource: virtualCameraSource, microphoneMode: effectiveMicrophoneMode, virtualMicrophoneSource: virtualMicrophoneSource, protectedContentAllowed: effectiveProtectedContentAllowed);
                   }
                   return;
                 case NavigationDecision.blockOpenExternal:
@@ -1549,7 +1655,7 @@ class WebViewModel {
   }
 
   WebViewController? getController(
-    Function(String url, {String? homeTitle, required String? siteId, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required bool contentBlockEnabled, required bool localCdnEnabled, required bool contributesBlockStats, required bool trackingProtectionEnabled, bool letterboxEnabled, int? spoofWindowWidth, int? spoofWindowHeight, String? fingerprintResetNonce, required String? language, required int zoomPercent, LocationMode locationMode, double? spoofLatitude, double? spoofLongitude, double spoofAccuracy, String? spoofTimezone, bool spoofTimezoneFromLocation, LocationGranularity liveLocationGranularity, WebRtcPolicy webRtcPolicy, String? userAgent, bool javascriptEnabled, required List<UserScriptConfig> userScripts, UserProxySettings? proxySettings, bool notificationsEnabled, bool externalLinksInBrowser}) launchUrlFunc,
+    LaunchUrlFunc launchUrlFunc,
     CookieManager cookieManager,
     ContainerCookieManager? containerCookieManager,
     Function saveFunc, {

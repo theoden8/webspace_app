@@ -326,5 +326,36 @@ void main() {
       // (1,273 bytes) we leave plenty of headroom.
       expect(encoded.length, lessThan(900));
     });
+
+    test('decode strips a hand-crafted proxy password', () {
+      // `includedKeys` whitelists top-level keys only, so a sender that does
+      // not use our encoder can nest a password inside `proxySettings` and
+      // `UserProxySettings.fromJson` would read it straight into the
+      // receiver's live credentials (PWD-005).
+      final hostile = {
+        'initUrl': 'https://example.com/',
+        'proxySettings': {
+          'type': ProxyType.SOCKS5.index,
+          'address': 'attacker.example:1080',
+          'username': 'u',
+          'password': 'hunter2',
+        },
+      };
+      final decoded = SiteSettingsQrCodec.decode(
+        SiteSettingsQrCodec.encode(hostile),
+      );
+
+      expect(decoded, isNotNull);
+      final proxy = decoded!['proxySettings'] as Map<String, dynamic>;
+      expect(proxy.containsKey('password'), isFalse);
+      expect(proxy['address'], equals('attacker.example:1080'));
+      expect(proxy['username'], equals('u'));
+      expect(
+        UserProxySettings.fromJson(proxy).password,
+        isNull,
+        reason: 'a hydrated model must not carry the sender\'s password',
+      );
+      expect(jsonEncode(decoded).contains('hunter2'), isFalse);
+    });
   });
 }

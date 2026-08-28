@@ -217,11 +217,19 @@ DER payload.
 
 ---
 
-### Requirement: TLS-007 - Pins survive across app launches and roundtrip through settings export/import
+### Requirement: TLS-007 - Pins survive across app launches, and never ride a backup
 
-Pins SHALL be persisted under SharedPreferences key `trustedHosts` and
-round-tripped through the existing `kExportedAppPrefs` registry so
-exporting and re-importing the settings file preserves them.
+Pins SHALL be persisted under SharedPreferences key `trustedHosts` by
+`TrustedHostsService` itself (`_persist` on every mutation, `initialize` on
+startup).
+
+They SHALL NOT be registered in `kExportedAppPrefs`. A pin is a standing
+instruction to skip the certificate prompt for a host, and a backup file is
+plain JSON the user was handed — so a round-trip through export/import is a
+way to install a man-in-the-middle certificate on a device by asking its
+owner to restore a settings file. The user re-approves each self-signed host
+on a new install, which is one prompt per host and is the same decision they
+made originally. See `settings-backup` BACKUP-010.
 
 #### Scenario: Pin survives app restart
 
@@ -230,13 +238,19 @@ exporting and re-importing the settings file preserves them.
 **Then** the in-memory map is populated from SharedPreferences key `trustedHosts`
 **And** the next navigation to that host returns `PROCEED` without a prompt
 
-#### Scenario: Pin survives settings export → import
+#### Scenario: Pins do not survive settings export → import
 
 **Given** the user has one pinned host
-**When** settings are exported via `SettingsBackupService` and then imported on a fresh install
-**Then** the `trustedHosts` SharedPreferences value is restored
-**And** `TrustedHostsService.reloadFromPrefs()` repopulates the in-memory map
-**And** the pinned host loads without a prompt on the new install
+**When** settings are exported via `SettingsBackupService`
+**Then** the exported JSON contains neither the `trustedHosts` key nor the
+pinned fingerprint
+
+#### Scenario: A backup cannot install a pin
+
+**Given** a hand-crafted backup whose `globalPrefs` names `trustedHosts`
+**When** the user imports it
+**Then** `writeExportedAppPrefs` leaves the stored `trustedHosts` untouched
+**And** navigating to the named host still shows the prompt
 
 ---
 
@@ -408,7 +422,7 @@ against existing pins.
 - `lib/services/outbound_http.dart` — `_isTrustedBadCert` consults `TrustedHostsService`
 - `lib/main.dart` — startup `TrustedHostsService.initialize()` + one-shot `clear()` migration
 - `lib/screens/inappbrowser.dart` + per-site `WebViewConfig` wiring — propagates the `onUntrustedCertificate` callback so nested webviews use the same prompt
-- `lib/settings/app_prefs.dart` — `trustedHosts` registered in `kExportedAppPrefs`
+- `lib/settings/app_prefs.dart` — `trustedHosts` deliberately NOT registered in `kExportedAppPrefs` (TLS-007)
 
 ---
 

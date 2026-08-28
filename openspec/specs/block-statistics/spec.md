@@ -309,10 +309,17 @@ the event to its site.
 ### Requirement: STATS-009 - Detail Persistence, Encrypted
 
 The itemised detail SHALL survive process death, and SHALL reach disk only encrypted:
-an AES-256-CBC blob under the app's documents directory whose key lives in
-`flutter_secure_storage`. Hosts and `siteId`s SHALL NOT be written anywhere in
-plaintext. There SHALL be no plaintext fallback: where the key or the file cannot be
-had, the detail degrades to memory-only and the counters carry on.
+an AES-256-GCM blob under the app's documents directory whose key lives in
+`flutter_secure_storage`, sealed under a fresh `Random.secure()` 12-byte nonce per
+write and stored as `nonce || ciphertext || tag`. Hosts and `siteId`s SHALL NOT be
+written anywhere in plaintext. There SHALL be no plaintext fallback: where the key or
+the file cannot be had, the detail degrades to memory-only and the counters carry on.
+
+The nonce SHALL NOT be derived from the key. The detail is rewritten on every flush,
+so a fixed IV would make two backups of the same device share a byte-identical prefix
+up to the first block that changed — a readout of how much of the user's blocked-host
+detail moved between them — and CBC would leave the blob malleable with nothing to
+detect the edit. A blob that fails authentication SHALL read as absent.
 
 Rows SHALL be bounded the same way in the store as in memory — the per-category cap on
 load, and the counters' retention window (90 days) measured from each row's last-seen
@@ -332,6 +339,20 @@ site's row does not outlive the launch.
 **Given** a block recorded with a host label
 **When** the detail is persisted
 **Then** the bytes on disk contain neither the host nor the `siteId`
+
+#### Scenario: Rewriting the same detail twice yields unrelated bytes
+
+**Given** the same detail payload flushed twice
+**When** the two on-disk blobs are compared
+**Then** they share no common prefix beyond chance, because each write draws a
+fresh nonce
+
+#### Scenario: A tampered blob reads as absent
+
+**Given** a stored blob with any byte flipped
+**When** the service loads it
+**Then** the read returns nothing and the report rebuilds from the counters
+**And** no attacker-chosen content reaches the report
 
 #### Scenario: A block recorded before the load is not overwritten
 

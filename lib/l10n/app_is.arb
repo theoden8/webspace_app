@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Opnun og birting",
   "behaviourSummaryNothingOn": "Ekkert virkjað",
   "siteSettingsSectionNetwork": "Netkerfi",
-  "siteSettingsSectionSite": "Vefsvæði"
+  "siteSettingsSectionSite": "Vefsvæði",
+  "homeImportGlobalProxyWarning": "Þetta afrit stillir útgangandi milliþjón fyrir allt forritið: {address}. Öll vefsvæði sem hafa engan eigin milliþjón fara um hann.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{Þetta afrit setur upp 1 notendaforskrift. Hún bætist við óvirk — farðu yfir hana áður en þú kveikir á henni.} other{Þetta afrit setur upp {count} notendaforskriftir. Þær bætast við óvirkar — farðu yfir þær áður en þú kveikir á þeim.}}",
+  "homeQrReviewTitle": "Farðu yfir deildar svæðisstillingar",
+  "homeQrReviewBody": "Þessi kóði var skrifaður af þeim sem deildi honum og hann velur persónuverndarstillingar þessa vefsvæðis. Athugaðu þær áður en þú bætir því við.",
+  "homeQrReviewUrl": "Vistfang: {url}",
+  "homeQrReviewName": "Heiti: {name}",
+  "homeQrReviewProxy": "Sendir umferð þessa vefsvæðis í gegnum milliþjón: {address}",
+  "homeQrReviewTurnsOff": "Slekkur á: {settings}",
+  "homeQrReviewTurnsOn": "Kveikir á: {settings}"
 }

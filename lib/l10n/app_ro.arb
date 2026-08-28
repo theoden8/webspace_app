@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Deschidere și afișare",
   "behaviourSummaryNothingOn": "Nimic activat",
   "siteSettingsSectionNetwork": "Rețea",
-  "siteSettingsSectionSite": "Site"
+  "siteSettingsSectionSite": "Site",
+  "homeImportGlobalProxyWarning": "Acest backup setează un proxy de ieșire la nivelul întregii aplicații: {address}. Fiecare site care nu are propriul proxy va fi rutat prin el.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{Acest backup instalează 1 script utilizator. Este adăugat dezactivat — verifică-l înainte de a-l activa.} few{Acest backup instalează {count} scripturi utilizator. Sunt adăugate dezactivate — verifică-le înainte de a le activa.} other{Acest backup instalează {count} de scripturi utilizator. Sunt adăugate dezactivate — verifică-le înainte de a le activa.}}",
+  "homeQrReviewTitle": "Verifică setările de site partajate",
+  "homeQrReviewBody": "Acest cod a fost scris de cel care l-a partajat, iar el alege setările de confidențialitate ale acestui site. Verifică-le înainte de a adăuga.",
+  "homeQrReviewUrl": "Adresă: {url}",
+  "homeQrReviewName": "Nume: {name}",
+  "homeQrReviewProxy": "Trimite traficul acestui site printr-un proxy: {address}",
+  "homeQrReviewTurnsOff": "Dezactivează: {settings}",
+  "homeQrReviewTurnsOn": "Activează: {settings}"
 }

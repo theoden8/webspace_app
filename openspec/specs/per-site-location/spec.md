@@ -332,6 +332,15 @@ The system SHALL expose a per-site `spoofTimezone` (IANA name, nullable). When s
 **When** a site reads `new Intl.DateTimeFormat().resolvedOptions().timeZone`
 **Then** the value is `'Asia/Tokyo'`
 
+#### Scenario: The wrapper is not bypassable through its own prototype
+
+**Given** `spoofTimezone = 'Asia/Tokyo'`
+**When** a site evaluates
+`new (Intl.DateTimeFormat.prototype.constructor)().resolvedOptions().timeZone`
+**Then** the value is `'Asia/Tokyo'`, not the device zone
+**And** the same holds after the language shim has wrapped `Intl.DateTimeFormat`
+in turn
+
 #### Scenario: getTimezoneOffset returns spoofed offset
 
 **Given** `spoofTimezone = 'Asia/Tokyo'`
@@ -416,6 +425,16 @@ the per-site / app-global proxy precedence.
 **When** a site creates a new `RTCPeerConnection(config)` and calls `setLocalDescription(offer)`
 **Then** the effective config has `iceTransportPolicy = 'relay'`
 **And** the SDP passed to `setLocalDescription` has all non-`typ relay` candidate lines stripped
+
+#### Scenario: Relay-only survives the prototype constructor
+
+**Given** `webRtcPolicy = relayOnly`
+**When** a site evaluates
+`new (RTCPeerConnection.prototype.constructor)({iceServers: [...]})`
+**Then** it gets the patched constructor, so `iceTransportPolicy` is still
+forced to `'relay'` and `setLocalDescription` still strips non-relay candidates
+**And** no path exists from page script to a peer connection that gathers host
+candidates outside the proxy
 
 #### Scenario: Disabled throws
 

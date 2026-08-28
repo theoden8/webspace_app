@@ -495,6 +495,22 @@ the user across the wipe. The nonce SHALL propagate to nested webviews via
 **Then** the non-incognito seed is `siteId:r1`
 **And** the incognito seed is `siteId:r1:launchNonce`
 
+Clearing a site's data SHALL additionally remove the two app-side artefacts
+that are keyed by `siteId` and replayed on the site's next activation, in
+**both** engine modes and outside every `SiteDataClearEngine` plan branch:
+
+- the saved `controller.saveState()` bytes
+  (`WebViewStateStorage.removeState`), plus any capture still pending on the
+  `NavStateCaptureDebouncer`;
+- the encrypted HTML snapshot (`HtmlCacheService.deleteCache`).
+
+Neither is reached by a container wipe or a cookie delete, and both restore
+the pre-clear URL. A page that ran
+`history.pushState(null, '', '/?uid=ABC')` before the clear is reloaded at
+that URL afterwards and reads its own identifier back, which defeats the
+reroll this requirement exists to guarantee. The delete-site and
+archive-close paths already removed both; the clear path had drifted.
+
 #### Scenario: Clearing site data rerolls the fingerprint
 
 **Given** a site whose data is cleared
@@ -503,6 +519,16 @@ the user across the wipe. The nonce SHALL propagate to nested webviews via
 **And** the regenerated anti-fingerprinting seed differs from the
 pre-clear seed
 **And** the new value round-trips through `toJson` / `fromJson`
+
+#### Scenario: Clearing site data leaves nothing restorable
+
+**Given** a site that pushed `/?uid=ABC` into its own history and whose
+navigation state and HTML snapshot are on disk
+**When** the user taps "Clear Site Data"
+**Then** the pending debounced capture is cancelled
+**And** `removeState(siteId)` and `deleteCache(siteId)` both run
+**And** the rebuilt webview loads `initUrl`, not `/?uid=ABC`
+**And** this holds whether the container engine or the legacy engine is live
 
 ---
 
@@ -594,6 +620,41 @@ detect the patch.
 **When** `Function.prototype.toString.call(Function.prototype.toString)`
 is called
 **Then** the result matches `/\[native code\]/`
+
+---
+
+### Requirement: ETP-025 - Wrapper prototypes do not leak the native constructor
+
+Any shim that wraps a constructor and takes the native prototype object
+(`Wrapped.prototype = Native.prototype`) SHALL re-point that object's own
+`constructor` property at the wrapper:
+
+```js
+try {
+  Object.defineProperty(Wrapped.prototype, 'constructor',
+    { value: Wrapped, writable: true, configurable: true });
+} catch (e) {}
+```
+
+Without it the native constructor stays reachable as
+`Wrapped.prototype.constructor` and the whole wrapper is one expression away
+from being bypassed — the same class of escape as an un-stubbed
+`Function.prototype.toString` (ETP-014), and the same class as a realm the
+shims never reach (BUG-009). The re-point also keeps `instance.constructor`
+consistent with the global the page can see, which a mismatch would otherwise
+expose as a tell.
+
+The `defineProperty` SHALL be individually guarded so a non-configurable
+prototype degrades to "this one wrapper is bypassable" rather than throwing out
+of the shim payload, where an uncaught error silences every shim after it.
+
+#### Scenario: The native constructor is not reachable through the wrapper
+
+**Given** any shim-wrapped constructor `C` (`RTCPeerConnection`,
+`Intl.DateTimeFormat`, `Worker`, `SharedWorker`, …)
+**When** a page evaluates `C.prototype.constructor`
+**Then** it is the wrapper, identical to the global `C`
+**And** constructing through it applies the same per-site policy
 
 ---
 

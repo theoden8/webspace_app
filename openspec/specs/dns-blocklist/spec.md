@@ -120,7 +120,7 @@ Downloaded blocklists SHALL be cached on disk and loaded at app startup without 
 
 ### Requirement: DNS-004 - Domain Matching
 
-The system SHALL block URLs whose host matches a domain in the blocklist, including subdomain matching via domain hierarchy walk-up. Partial string matches SHALL NOT occur.
+The system SHALL block URLs whose host matches a domain in the blocklist, including subdomain matching via domain hierarchy walk-up. Partial string matches SHALL NOT occur. Host extraction SHALL drop a single trailing root dot before the walk-up, on every platform: chromium keeps the FQDN form (`tracker.net.`) in the URL and DNS resolves it identically, while blocklist entries never carry it, so leaving it on makes the walk-up miss every parent and allow the request.
 
 #### Scenario: Exact domain match
 
@@ -145,6 +145,16 @@ The system SHALL block URLs whose host matches a domain in the blocklist, includ
 **Given** `ads.example.com` is in the blocklist
 **When** the webview navigates to `https://example.com/`
 **Then** navigation is allowed (only `ads.example.com` and its subdomains are blocked)
+
+#### Scenario: FQDN root dot does not bypass the blocklist
+
+**Given** `doubleclick.net` is in the blocklist
+**When** a request is made to `https://ads.doubleclick.net./collect`
+**Then** the extracted host is `ads.doubleclick.net`
+**And** the request is blocked by the parent-domain walk-up
+**And** `https://notdoubleclick.net./x` is still allowed (no partial match)
+**And** the same holds for `https://doubleclick.net.:443/x` (port present) and
+`https://DoubleClick.NET./x` (mixed case)
 
 ---
 
@@ -586,10 +596,10 @@ SHALL NOT be allowed to load past the cap).
 **Merged cache** (`_domainCache`): keyed by host, value is the merged
 DNS ∪ ABP decision. Populated by `recordRequest` from webview hooks
 after the caller has combined both signals. Persisted to
-SharedPreferences under `dns_domain_cache`, write-debounced. Shipped
-to the iOS JS interceptor on webview creation as `cache` field of
-`getBlockBloom`. Invalidated when **either** the DNS blocklist **or**
-the ABP rule set changes.
+SharedPreferences under `dns_domain_cache`. It is app-wide and
+Dart-side only: it SHALL NOT be handed to page JS (DNS-018).
+Invalidated when **either** the DNS blocklist **or** the ABP rule set
+changes.
 
 **DNS-only hot-path cache** (`_dnsBlockCache`): keyed by host, value
 is the DNS-only block decision. Read and written by `isBlocked()`.
@@ -601,15 +611,14 @@ allocation. Invalidated when the DNS blocklist changes.
 **Given** site A's webview has previously checked `cdn.example.com` and
 Dart recorded it as allowed
 **When** site B's webview later encounters `cdn.example.com`
-**Then** the decision is served from the merged cache without re-checking
-**And** no Dart roundtrip or Bloom filter check is needed on the JS side
+**Then** the decision is served from the merged cache on the Dart side
+without re-walking the blocklist
 
 #### Scenario: Merged cache survives app restart
 
 **Given** the merged domain cache contains decisions
 **When** the app is restarted
 **Then** the cache is loaded from SharedPreferences (`dns_domain_cache`)
-**And** is available to new webviews on creation
 **And** loading stops at the 5000-entry cap even if the on-disk blob is larger
 
 #### Scenario: Both caches invalidated on blocklist update
@@ -643,6 +652,36 @@ Dart recorded it as allowed
 **Then** SharedPreferences is written once after a 2-second idle window
 **And** individual writes do not block the recording path
 **And** the DNS-only hot-path cache, being in-memory, is not affected
+
+---
+
+### Requirement: DNS-018 - Bloom delivery carries no host list
+
+The `getBlockBloom` JS handler is reachable from any page: the
+interceptor that calls it is injected `forMainFrameOnly: false`, and no
+origin allowlist gates the bridge. Its response SHALL therefore carry
+only rule-derived Bloom state (bits, bit count, k, and the hostless-rule
+token bloom). It SHALL NOT carry the merged domain cache or any other
+per-host record of what the user has browsed, on any site.
+
+The JS interceptor SHALL treat a cold host cache as correct: the Bloom
+filter alone decides whether a host needs adjudication, and a miss costs
+at most one Dart round-trip per first-seen host.
+
+#### Scenario: A page cannot read other sites' browsing history
+
+**Given** the user has visited several sites and the merged domain cache
+holds hosts from all of them
+**When** page JS on any site calls `getBlockBloom`
+**Then** the response contains no host names
+**And** the app-wide domain cache is not serialised into it
+
+#### Scenario: Blocking still works with a cold JS cache
+
+**Given** a freshly created webview whose JS host cache is empty
+**When** the page requests a sub-resource on a blocked host
+**Then** the host hits the Bloom filter
+**And** the `blockCheck` round-trip adjudicates it and the request is blocked
 
 ---
 
@@ -781,10 +820,10 @@ keeps `isBlocked()` purely synchronous.
 
 Populated by `recordRequest` from `webview.dart` after the caller has
 combined DNS and ABP signals. Kept as a `Map<String, bool>` because
-it's exposed via `getDomainCache()` and shipped to the iOS JS
-interceptor's `allowedCache`/`blockedCache` on webview creation.
-Persisted to SharedPreferences under `dns_domain_cache`,
-write-debounced 2 seconds. Cleared when **either** the DNS blocklist
+it is read and written per host on the Dart side. It stays
+Dart-side: shipping it to page JS would hand any site the hosts every
+other site requested (DNS-018). Persisted to SharedPreferences under
+`dns_domain_cache`, write-debounced 2 seconds. Cleared when **either** the DNS blocklist
 **or** the ABP rule set changes, since merged decisions go stale on
 both inputs.
 

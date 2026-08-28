@@ -371,6 +371,23 @@ honest answer available.
 
 ---
 
+### Requirement: MIC-013 — The prompt names an origin the page did not choose
+
+The origin rendered in the microphone decision dialog SHALL be read from
+the webview (`controller.getUrl()`, falling back to the site's configured
+URL), never from the shim's argument. Same reasoning as CAM-013: the shim
+is injected `forMainFrameOnly: false` and any frame can call the handler
+directly.
+
+#### Scenario: A page-supplied origin is ignored
+
+**Given** site "Acme" is loaded at `https://acme.example/app`
+**When** page script calls the `webMicrophoneRequest` handler with
+`"https://bank.example"` as its argument
+**Then** the decision dialog names `https://acme.example/app`
+
+---
+
 ## Platform notes
 
 - **No native permission layer exists for this feature on any platform.**

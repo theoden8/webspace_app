@@ -66,6 +66,11 @@ final Map<String, int> _faviconQualityCache = {};
 // In-memory cache for SVG content
 final Map<String, String> _svgContentCache = {};
 
+// In-memory cache of raster icon bytes, keyed by icon URL. The render path
+// pulls bytes from here instead of letting an image widget run its own HTTP
+// stack, so without a cache every drawer/tab rebuild would re-issue the fetch.
+final Map<String, Uint8List> _iconBytesCache = {};
+
 /// Callback to persist SVG content. Set by the UI layer (FaviconUrlCache).
 Future<void> Function(String url, String content)? onSvgContentCached;
 
@@ -126,6 +131,19 @@ Future<Uint8List?> fetchIconBytes(String iconUrl, {UserProxySettings? proxy}) as
     client.close();
   }
   return null;
+}
+
+/// Bytes for [iconUrl], cached in memory, fetched through the proxy-aware
+/// client on a miss. The favicon host is chosen by the page (any absolute
+/// `href` in its markup wins) and the winner is re-rendered on every launch,
+/// so the render path must not reach the network on its own: null means
+/// "render the fallback", never "retry unproxied".
+Future<Uint8List?> getIconBytes(String iconUrl, {UserProxySettings? proxy}) async {
+  final cached = _iconBytesCache[iconUrl];
+  if (cached != null) return cached;
+  final bytes = await fetchIconBytes(iconUrl, proxy: proxy);
+  if (bytes != null) _iconBytesCache[iconUrl] = bytes;
+  return bytes;
 }
 
 /// Invalidate in-memory caches for a URL so icons are re-fetched.
@@ -806,6 +824,7 @@ void clearFaviconCache() {
   _faviconQualityCache.clear();
   _verifiedUrls.clear();
   _svgContentCache.clear();
+  _iconBytesCache.clear();
 }
 
 /// Gets current queue stats (for debugging)

@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "Atidarymas ir rodymas",
   "behaviourSummaryNothingOn": "Niekas neįjungta",
   "siteSettingsSectionNetwork": "Tinklas",
-  "siteSettingsSectionSite": "Svetainė"
+  "siteSettingsSectionSite": "Svetainė",
+  "homeImportGlobalProxyWarning": "Ši atsarginė kopija nustato visai programai taikomą išeinantį tarpinį serverį: {address}. Kiekviena svetainė, neturinti savo tarpinio serverio, bus nukreipiama per jį.",
+  "homeImportUserScriptsWarning": "{count, plural, one{Ši atsarginė kopija įdiegia {count} naudotojo skriptą. Jis pridedamas išjungtas – peržiūrėkite jį prieš įjungdami.} few{Ši atsarginė kopija įdiegia {count} naudotojo skriptus. Jie pridedami išjungti – peržiūrėkite juos prieš įjungdami.} other{Ši atsarginė kopija įdiegia {count} naudotojo skriptų. Jie pridedami išjungti – peržiūrėkite juos prieš įjungdami.}}",
+  "homeQrReviewTitle": "Peržiūrėkite bendrintus svetainės nustatymus",
+  "homeQrReviewBody": "Šį kodą parašė tas, kuris jį bendrino, ir būtent jis parenka šios svetainės privatumo nustatymus. Patikrinkite juos prieš pridėdami.",
+  "homeQrReviewUrl": "Adresas: {url}",
+  "homeQrReviewName": "Pavadinimas: {name}",
+  "homeQrReviewProxy": "Šios svetainės srautą siunčia per tarpinį serverį: {address}",
+  "homeQrReviewTurnsOff": "Išjungia: {settings}",
+  "homeQrReviewTurnsOn": "Įjungia: {settings}"
 }

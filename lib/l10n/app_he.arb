@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "פתיחה ותצוגה",
   "behaviourSummaryNothingOn": "שום דבר לא מופעל",
   "siteSettingsSectionNetwork": "רשת",
-  "siteSettingsSectionSite": "אתר"
+  "siteSettingsSectionSite": "אתר",
+  "homeImportGlobalProxyWarning": "הגיבוי הזה מגדיר פרוקסי יוצא לכל האפליקציה: {address}. כל אתר שאין לו פרוקסי משלו ינותב דרכו.",
+  "homeImportUserScriptsWarning": "{count, plural, =1{הגיבוי הזה מתקין סקריפט משתמש אחד. הוא נוסף במצב כבוי — בדקו אותו לפני ההפעלה.} other{הגיבוי הזה מתקין {count} סקריפטים של משתמש. הם נוספים במצב כבוי — בדקו אותם לפני ההפעלה.}}",
+  "homeQrReviewTitle": "בדיקת הגדרות האתר ששותפו",
+  "homeQrReviewBody": "הקוד הזה נכתב בידי מי ששיתף אותו, והוא זה שקובע את הגדרות הפרטיות של האתר. בדקו אותן לפני ההוספה.",
+  "homeQrReviewUrl": "כתובת: {url}",
+  "homeQrReviewName": "שם: {name}",
+  "homeQrReviewProxy": "שולח את התעבורה של האתר הזה דרך פרוקסי: {address}",
+  "homeQrReviewTurnsOff": "מכבה: {settings}",
+  "homeQrReviewTurnsOn": "מפעיל: {settings}"
 }

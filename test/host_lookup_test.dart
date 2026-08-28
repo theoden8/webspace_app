@@ -48,6 +48,28 @@ void main() {
       expect(extractHost(url), equals('example.com'));
     });
 
+    test('drops the FQDN root dot', () {
+      // Chromium keeps the trailing dot in the host; blocklists never
+      // carry it, so leaving it on bypasses every host lookup.
+      expect(extractHost('https://tracker.example.com./collect'),
+          equals('tracker.example.com'));
+      expect(extractHost('https://tracker.example.com.'),
+          equals('tracker.example.com'));
+      expect(extractHost('https://tracker.example.com.:8443/x'),
+          equals('tracker.example.com'));
+      expect(extractHost('https://user:pass@Tracker.Example.COM./x'),
+          equals('tracker.example.com'));
+    });
+
+    test('drops at most one root dot', () {
+      expect(extractHost('https://example.com../x'), equals('example.com.'));
+      expect(extractHost('https://./x'), equals(''));
+    });
+
+    test('leaves IPv6 literals alone', () {
+      expect(extractHost('https://[2001:db8::1]./'), equals('[2001:db8::1]'));
+    });
+
     test('returns null for non-scheme URLs', () {
       expect(extractHost('about:blank'), isNull);
       expect(extractHost('data:text/html,<p>hi</p>'), isNull);
@@ -99,6 +121,14 @@ void main() {
       expect(hostInSet('foo.ads.example.com', set), isTrue);
       expect(hostInSet('example.com', set), isFalse);
       expect(hostInSet('other.example.com', set), isFalse);
+    });
+
+    test('FQDN form reaches the set through extractHost', () {
+      // `https://ads.doubleclick.net./x` resolves and renders exactly like
+      // the dotless form, so it must not walk past the blocklist.
+      const set = {'doubleclick.net'};
+      expect(hostInSet(extractHost('https://ads.doubleclick.net./collect')!, set),
+          isTrue);
     });
 
     test('exact-match-on-eTLD parent does not match', () {

@@ -54,7 +54,7 @@ class CookieIsolationEngine {
       sensitivity: LogSensitivity.sensitive,
     );
 
-    if (!model.incognito) {
+    if (!model.effectiveIncognito) {
       // Snapshot the full native jar and attribute by base-domain so
       // sibling-subdomain cookies (e.g. `accounts.google.com` for a
       // `mail.google.com` site) aren't lost — a URL-scoped capture alone
@@ -110,7 +110,7 @@ class CookieIsolationEngine {
     if (index < 0 || index >= models.length) return;
 
     final model = models[index];
-    if (model.incognito) return;
+    if (model.effectiveIncognito) return;
 
     // Snapshot _loadedIndices before iterating: a concurrent _setCurrentIndex
     // may mutate it via unloadSiteForDomainSwitch between our awaits. The
@@ -123,10 +123,10 @@ class CookieIsolationEngine {
     final candidateModels = <WebViewModel>[];
     for (final i in loadedSnapshot) {
       if (i < 0 || i >= models.length) continue;
-      if (models[i].incognito) continue;
+      if (models[i].effectiveIncognito) continue;
       candidateModels.add(models[i]);
     }
-    if (!loadedSnapshot.contains(index) && !model.incognito) {
+    if (!loadedSnapshot.contains(index) && !model.effectiveIncognito) {
       candidateModels.add(model);
     }
     final allCookies = await cookieManager.getAllCookies(
@@ -139,7 +139,7 @@ class CookieIsolationEngine {
     for (final loadedIndex in loadedSnapshot) {
       if (loadedIndex >= models.length) continue;
       final loadedModel = models[loadedIndex];
-      if (loadedModel.incognito) continue;
+      if (loadedModel.effectiveIncognito) continue;
 
       final base = getBaseDomain(loadedModel.initUrl);
       final cookies = allCookies
@@ -196,7 +196,7 @@ class CookieIsolationEngine {
       if (loadedIdx == deletedIndex) continue;
       if (loadedIdx >= models.length) continue;
       final loaded = models[loadedIdx];
-      if (loaded.incognito) continue;
+      if (loaded.effectiveIncognito) continue;
       if (getBaseDomain(loaded.initUrl) == deletedBase) {
         survivingSameBase.add(loaded);
       }

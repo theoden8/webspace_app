@@ -753,5 +753,14 @@
   "behaviourGroupOpening": "ការបើក និងការបង្ហាញ",
   "behaviourSummaryNothingOn": "គ្មានអ្វីបានបើក",
   "siteSettingsSectionNetwork": "បណ្តាញ",
-  "siteSettingsSectionSite": "គេហទំព័រ"
+  "siteSettingsSectionSite": "គេហទំព័រ",
+  "homeImportGlobalProxyWarning": "ការបម្រុងទុកនេះកំណត់ proxy ចេញសម្រាប់កម្មវិធីទាំងមូល៖ {address}។ គេហទំព័រទាំងអស់ដែលគ្មាន proxy ផ្ទាល់ខ្លួននឹងឆ្លងកាត់វា។",
+  "homeImportUserScriptsWarning": "{count, plural, =1{ការបម្រុងទុកនេះដំឡើង user script 1។ វាត្រូវបានបន្ថែមក្នុងស្ថានភាពបិទ — សូមពិនិត្យវាមុនពេលបើក។} other{ការបម្រុងទុកនេះដំឡើង user script {count}។ ពួកវាត្រូវបានបន្ថែមក្នុងស្ថានភាពបិទ — សូមពិនិត្យពួកវាមុនពេលបើក។}}",
+  "homeQrReviewTitle": "ពិនិត្យការកំណត់គេហទំព័រដែលបានចែករំលែក",
+  "homeQrReviewBody": "កូដនេះត្រូវបានសរសេរដោយអ្នកដែលបានចែករំលែកវា ហើយវាជាអ្នកជ្រើសរើសការកំណត់ឯកជនភាពរបស់គេហទំព័រនេះ។ សូមពិនិត្យវាមុននឹងបន្ថែម។",
+  "homeQrReviewUrl": "អាសយដ្ឋាន៖ {url}",
+  "homeQrReviewName": "ឈ្មោះ៖ {name}",
+  "homeQrReviewProxy": "ផ្ញើចរាចរណ៍របស់គេហទំព័រនេះតាម proxy៖ {address}",
+  "homeQrReviewTurnsOff": "បិទ៖ {settings}",
+  "homeQrReviewTurnsOn": "បើក៖ {settings}"
 }

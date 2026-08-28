@@ -25,11 +25,26 @@ void main() {
         );
       });
 
-      test('cf-turnstile in URL is detected', () {
+      test('cf-turnstile in the path is detected', () {
         expect(
           WebViewFactory.isCaptchaChallenge('https://example.com/cf-turnstile/widget'),
           isTrue,
         );
+      });
+
+      // A captcha URL loads in place and can open a popup window, so any
+      // origin that could name itself one would get a way around the
+      // navigation decision engine. The Cloudflare markers are path-scoped:
+      // an attacker controls the query and fragment of a link they hand us.
+      test('a Cloudflare marker in the query string is NOT detected', () {
+        for (final url in const [
+          'https://evil.example/x?cf-turnstile',
+          'https://evil.example/x?next=/cdn-cgi/challenge-platform/h/b',
+          'https://evil.example/x#cf-turnstile',
+          'https://evil.example/x#/cdn-cgi/challenge-platform',
+        ]) {
+          expect(WebViewFactory.isCaptchaChallenge(url), isFalse, reason: url);
+        }
       });
     });
 

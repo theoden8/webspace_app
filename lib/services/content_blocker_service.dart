@@ -61,6 +61,12 @@ class FilterList {
       );
 }
 
+/// A filter-list id is concatenated into the cache filename (`<id>.txt`), so
+/// an imported backup must not smuggle path metacharacters. Same shape as
+/// `sanitizedSiteId`: minted ids (`custom_<base36>`) and the built-in ids all
+/// match; anything else is dropped on import.
+final RegExp _kListIdPattern = RegExp(r'^[A-Za-z0-9_-]{1,64}$');
+
 /// Default filter lists added on first initialization.
 const List<Map<String, String>> _defaultLists = [
   {
@@ -303,8 +309,8 @@ class ContentBlockerService {
     final engine = _rustEngine;
     if (engine == null) return null;
     return engine.redirectFor(
-      url,
-      sourceUrl: sourceUrl,
+      stripRootDot(url),
+      sourceUrl: stripRootDot(sourceUrl),
       requestType: requestType,
     );
   }
@@ -319,8 +325,8 @@ class ContentBlockerService {
     final engine = _rustEngine;
     if (engine == null) return null;
     return engine.rewrittenUrl(
-      url,
-      sourceUrl: sourceUrl,
+      stripRootDot(url),
+      sourceUrl: stripRootDot(sourceUrl),
       requestType: requestType,
     );
   }
@@ -378,24 +384,26 @@ class ContentBlockerService {
     final engine = _rustEngine;
     if (engine == null) return null;
     return engine.cspFor(
-      url,
-      sourceUrl: sourceUrl,
+      stripRootDot(url),
+      sourceUrl: stripRootDot(sourceUrl),
       requestType: requestType,
     );
   }
 
   bool isBlocked(
-    String url, {
+    String rawUrl, {
     String sourceUrl = '',
     String requestType = 'other',
   }) {
     final engine = _rustEngine;
     if (engine == null) return false;
+    final url = stripRootDot(rawUrl);
+    final source = stripRootDot(sourceUrl);
     if (_engineTimingEnabled) {
       final sw = Stopwatch()..start();
       final blocked = engine.shouldBlock(
         url,
-        sourceUrl: sourceUrl,
+        sourceUrl: source,
         requestType: requestType,
       );
       sw.stop();
@@ -404,7 +412,7 @@ class ContentBlockerService {
     }
     return engine.shouldBlock(
       url,
-      sourceUrl: sourceUrl,
+      sourceUrl: source,
       requestType: requestType,
     );
   }
@@ -873,8 +881,8 @@ class ContentBlockerService {
   /// where an imported id matches a list that was already present (its
   /// cache file may still be on disk): the prior counts/timestamp are
   /// kept so the engine rebuild reuses the existing blob and the UI shows
-  /// accurate counts without a re-download. Entries missing id/name/url
-  /// are skipped.
+  /// accurate counts without a re-download. Entries missing id/name/url,
+  /// or carrying an id that is not a path-safe token, are skipped.
   Future<void> importListSelection(List<Map<String, dynamic>> entries) async {
     final priorById = {for (final l in _lists) l.id: l};
     final restored = <FilterList>[];
@@ -883,6 +891,11 @@ class ContentBlockerService {
       final name = e['name'] as String?;
       final url = e['url'] as String?;
       if (id == null || name == null || url == null) continue;
+      if (!_kListIdPattern.hasMatch(id)) {
+        LogService.instance.log('ContentBlocker',
+            'Skipped imported list with unsafe id', level: LogLevel.warning);
+        continue;
+      }
       final prior = priorById[id];
       restored.add(FilterList(
         id: id,
