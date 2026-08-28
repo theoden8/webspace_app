@@ -420,6 +420,11 @@ the ordering constraint CAM-012 already carries):
 - the defensive sweep over other loaded sites at the tail of a switch;
 - every index in `LifecycleBackgroundPlan.mediaPauseIndices` on app background.
 
+On app background it SHALL also precede the cookie flush, which is the other
+platform call the handler makes: Android's `CookieManager.flush()` blocks the
+platform thread on disk I/O, and channel messages behind it wait — the element
+decodes on for as long as the stop sits in a queue.
+
 `AppLifecycleEngine.backgroundPlan` SHALL populate `mediaPauseIndices` with
 every loaded, in-bounds site WITHOUT background audio, ascending. Unlike the
 JS-pause veto (BGAUDIO-002), the exemption here is per-site: one opted-in site
@@ -487,6 +492,9 @@ on the Android emulator
 **When** the test injects `AppLifecycleState.paused`, waits, then `resumed`
 **Then** the beacons that follow the resume report `paused=true` with an
 unchanged `currentTime`
+**And** the media clock advanced by less than the background window it sat out,
+measured against the wall clock the run actually took: a fixed budget reads a
+slow emulator's foreground as a site that kept playing
 **And** `notificationPosted()` is false — no media surface for a site that
 never opted in
 (regression test: `integration_test/background_audio_media_stop_test.dart`)
