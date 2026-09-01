@@ -7554,6 +7554,15 @@ class _WebSpacePageState extends State<WebSpacePage>
       if (turnsOff('contentBlockEnabled')) loc.siteSettingsContentBlocker,
       if (turnsOff('localCdnEnabled')) loc.siteSettingsLocalCdn,
       if (turnsOff('blockAutoRedirects')) loc.siteSettingsBlockAutoRedirects,
+      // A level below the app-wide one, or a filter list switched off, weakens
+      // the blockers without turning either toggle off. Unnamed, a QR could
+      // relax protection while the review reported nothing.
+      if (qr['dnsBlockLevel'] is int &&
+          (qr['dnsBlockLevel'] as int) < DnsBlockService.instance.level)
+        loc.siteSettingsDnsBlocklistLevel,
+      if (qr['disabledFilterLists'] is List &&
+          (qr['disabledFilterLists'] as List).isNotEmpty)
+        loc.siteSettingsContentBlockerLists,
     ];
     final granted = <String>[
       if (turnsOn('thirdPartyCookiesEnabled')) loc.siteSettingsThirdPartyCookies,

@@ -58,6 +58,8 @@
 - [x] 5.2 "Filter lists" row under the content-blocker toggle: a checklist of
   the app's enabled lists.
 - [x] 5.3 Ten new ARB keys, translated across every shipped locale.
+- [x] 5.4 Name both relaxations in the QR review gate: a payload can lower the
+  level or mask a list off without moving either protection toggle.
 
 ## 6. Tests
 
@@ -68,7 +70,9 @@
   list.
 - [x] 6.3 `test/filter_list_mask_test.dart`: the rewrite string by string, and
   — against the real adblock-rust library — that a masked rule stops blocking
-  on the masked site only, that an existing `$domain=` survives, and that a
-  masked generic hide stays generic and comes back as an exception.
+  on the masked site only, that an existing `$domain=` (positive or negated)
+  survives the merge, that `$removeparam`, `$csp` and `$important` rules mask
+  like plain ones, and that a masked generic hide stays generic and comes back
+  as an exception.
 - [x] 6.4 `DnsHostBlocklistTest.kt`: marker parsing, tier lookup, level
   masking, lowest-suffix-wins.

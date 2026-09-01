@@ -72,7 +72,9 @@ configuration, and a subset is a mask, not a copy.
 ## Impact
 
 - Specs: `dns-blocklist` (DNS-019..DNS-022, DNS-005 and DNS-016 modified),
-  `content-blocker` (CB-015, CB-006 modified).
+  `content-blocker` (CB-015, CB-006 modified), `site-settings-qr` (QR-008
+  modified: a payload that only lowers the level or masks a list off weakens
+  the blockers without moving either toggle, so the review gate names both).
 - Code: `dns_tier_engine.dart`, `filter_list_mask.dart` (both new),
   `dns_block_service.dart`, `content_blocker_service.dart`, `web_view_model.dart`,
   `webview.dart`, `web_intercept_native.dart`, `main.dart`, the site privacy
