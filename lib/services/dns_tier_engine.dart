@@ -109,8 +109,6 @@ class DnsTiersBuilder {
     _tiers[_current]!.add(domain);
   }
 
-  int get currentLevelCount => _current == 0 ? 0 : _tiers[_current]!.length;
-
   DnsTiers build() => DnsTiers._(_tiers, Set<int>.unmodifiable(_levels));
 }
 
