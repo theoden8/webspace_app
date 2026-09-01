@@ -52,9 +52,7 @@ class DnsHostBlocklist {
      *
      * Format: a `#<level>` marker line introduces each tier, followed by that
      * tier's domains one per line. Lines before any marker are taken as level
-     * 1 so an unmarked blob still loads. Pre-sizes the HashSets to the line
-     * count so a ~650k-entry list doesn't pay the ~20 rehashes a
-     * default-capacity set incurs while filling.
+     * 1 so an unmarked blob still loads.
      */
     fun replaceFromBlob(blob: String) {
         val built = parse(blob)

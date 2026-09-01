@@ -485,11 +485,7 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
 ///   type), not just the host; the engine has its own internal caching.
 class FastSubresourceInterceptor(
     private val dnsBlocklist: DnsHostBlocklist,
-    /// Severity level this site blocks at; 0 when it has DNS blocking off.
-    /// The blocklist is app-wide, so this is the only place an Android
-    /// sub-resource learns the site's own DNS posture. Volatile because the
-    /// site's settings can change while chromium IO threads are reading it.
-    @Volatile var dnsLevel: Int = DnsHostBlocklist.MAX_LEVEL,
+    dnsLevel: Int = DnsHostBlocklist.MAX_LEVEL,
     private val cdnPatterns: MutableList<Regex>,
     private val cdnCacheIndex: MutableMap<String, String>,
     private val localCdnDisabled: AtomicBoolean,
@@ -497,6 +493,14 @@ class FastSubresourceInterceptor(
     private val onCdnReplaced: (String, String) -> Unit,
     private val onLog: (String, String) -> Unit = { _, _ -> }
 ) : ContentBlockerHandler() {
+
+    /// Severity level this site blocks at; 0 when it has DNS blocking off.
+    /// The blocklist is app-wide, so this is the only place an Android
+    /// sub-resource learns the site's own DNS posture. Volatile because a
+    /// settings edit moves it on the main thread while chromium IO threads
+    /// are reading it.
+    @Volatile
+    var dnsLevel: Int = dnsLevel
 
     private var checkCount = 0
     private var loggedNoCache = false
