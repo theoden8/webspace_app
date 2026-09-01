@@ -50,6 +50,9 @@
   did not move.
 - [x] 4.4 Push the mask from the site-save funnel, keyed by each site's
   registrable host.
+- [x] 4.5 Strip options before the regex test in `parseAbpNetworkPrefilter`,
+  so a masked regex rule keeps forcing a round-trip instead of being tokenized
+  on a literal it does not guarantee.
 
 ## 5. Settings UI
 

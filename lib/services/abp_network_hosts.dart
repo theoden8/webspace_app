@@ -118,7 +118,15 @@ AbpNetworkPrefilter parseAbpNetworkPrefilter(String filterText) {
     }
     // Hostless (or unclean-host) network rule: substring / path /
     // |scheme / regex.
+    // Strip options FIRST, at the last `$` the way adblock-rust splits
+    // them: the regex test below reads the pattern's final character, so a
+    // regex rule carrying any option — `/re/\$script`, or the `\$domain=`
+    // a per-site filter-list mask appends — would otherwise stop looking
+    // like a regex and get tokenized on a literal the rule does not
+    // guarantee, which is a false negative in the prefilter.
     var pattern = line;
+    final dollar = pattern.lastIndexOf('\$');
+    if (dollar >= 0) pattern = pattern.substring(0, dollar);
     // Regex rule `/.../` — no guaranteed literal token to extract.
     if (pattern.length > 2 &&
         pattern.codeUnitAt(0) == 0x2f &&
@@ -126,8 +134,6 @@ AbpNetworkPrefilter parseAbpNetworkPrefilter(String filterText) {
       hasUntokenizable = true;
       continue;
     }
-    final dollar = pattern.indexOf('\$'); // strip options
-    if (dollar >= 0) pattern = pattern.substring(0, dollar);
     final tok = _longestAlnumToken(pattern.toLowerCase());
     if (tok != null) {
       tokens.add(tok);

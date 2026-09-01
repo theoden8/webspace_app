@@ -120,6 +120,22 @@ example.com/tracker.gif
       expect(r.hasUntokenizable, isTrue);
     });
 
+    test('a regex rule carrying options is still untokenizable', () {
+      // The options have to come off before the trailing `/` is read, or the
+      // rule stops looking like a regex and gets tokenized on a literal it
+      // does not guarantee — a false negative in the prefilter. The
+      // per-site filter-list mask appends `$domain=` to every rule, so this
+      // is the shape it produces.
+      for (final rule in [
+        r'/[a-z]{8}\.com\/ad/$script',
+        r'/[a-z]{8}\.com\/ad/$domain=~masked.example',
+      ]) {
+        final r = parseAbpNetworkPrefilter(rule);
+        expect(r.tokens, isEmpty, reason: rule);
+        expect(r.hasUntokenizable, isTrue, reason: rule);
+      }
+    });
+
     test('rules whose only runs are < 3 chars set hasUntokenizable', () {
       final r = parseAbpNetworkPrefilter('/ad/');
       expect(r.tokens, isEmpty);

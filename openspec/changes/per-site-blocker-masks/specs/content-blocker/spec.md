@@ -53,6 +53,21 @@ Archive-tier sites SHALL carry no mask (ARCH-006): the rewrite changes the
 shared engine cache blob, whose contents must not vary with whether an archive
 is open.
 
+The iOS/macOS interceptor's prefilter is derived from the same rewritten text,
+so `parseAbpNetworkPrefilter` SHALL strip a rule's options before classifying
+it. A regex rule reads as a regex only by its trailing `/`, and every masked
+rule now carries a `$domain=` after it: classified as a plain pattern, a regex
+would be tokenized on a literal it does not guarantee, and the prefilter would
+hard-allow a request the engine blocks.
+
+#### Scenario: A masked regex rule still forces a round-trip
+
+**Given** a masked list carries a regex network rule
+**When** the interceptor prefilter is rebuilt
+**Then** the rule contributes no token
+**And** the prefilter reports untokenizable rules, so a host-Bloom miss still
+round-trips to the engine
+
 #### Scenario: A site switches one list off
 
 **Given** EasyList and EasyPrivacy are enabled app-wide
