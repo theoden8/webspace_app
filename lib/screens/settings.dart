@@ -126,7 +126,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _kioskMode;
   late bool _clearUrlEnabled;
   late bool _dnsBlockEnabled;
+  late int? _dnsBlockLevel;
   late bool _contentBlockEnabled;
+  late Set<String> _disabledFilterLists;
   late bool _trackingProtectionEnabled;
   late bool _letterboxEnabled;
   late bool _localCdnEnabled;
@@ -223,7 +225,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         'kioskMode': _kioskMode,
         'clearUrlEnabled': _clearUrlEnabled,
         'dnsBlockEnabled': _dnsBlockEnabled,
+        'dnsBlockLevel': _dnsBlockLevel,
         'contentBlockEnabled': _contentBlockEnabled,
+        'disabledFilterLists': (_disabledFilterLists.toList()..sort()).join(','),
         'trackingProtectionEnabled': _trackingProtectionEnabled,
         'letterboxEnabled': _letterboxEnabled,
         'localCdnEnabled': _localCdnEnabled,
@@ -449,7 +453,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _kioskMode = m.kioskMode;
     _clearUrlEnabled = m.clearUrlEnabled;
     _dnsBlockEnabled = m.dnsBlockEnabled;
+    _dnsBlockLevel = m.dnsBlockLevel;
     _contentBlockEnabled = m.contentBlockEnabled;
+    _disabledFilterLists = {...m.disabledFilterLists};
     _trackingProtectionEnabled = m.trackingProtectionEnabled;
     _letterboxEnabled = m.letterboxEnabled;
     _localCdnEnabled = m.localCdnEnabled;
@@ -600,7 +606,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.kioskMode = _kioskMode;
       widget.webViewModel.clearUrlEnabled = _clearUrlEnabled;
       widget.webViewModel.dnsBlockEnabled = _dnsBlockEnabled;
+      widget.webViewModel.dnsBlockLevel = _dnsBlockLevel;
       widget.webViewModel.contentBlockEnabled = _contentBlockEnabled;
+      widget.webViewModel.disabledFilterLists = {..._disabledFilterLists};
       widget.webViewModel.trackingProtectionEnabled = _trackingProtectionEnabled;
       widget.webViewModel.letterboxEnabled = _letterboxEnabled;
       widget.webViewModel.localCdnEnabled = _localCdnEnabled;
@@ -1050,7 +1058,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         trackingProtectionEnabled: _trackingProtectionEnabled,
         clearUrlEnabled: _clearUrlEnabled,
         dnsBlockEnabled: _dnsBlockEnabled,
+        dnsBlockLevel: _dnsBlockLevel,
         contentBlockEnabled: _contentBlockEnabled,
+        disabledFilterLists: _disabledFilterLists,
         localCdnEnabled: _localCdnEnabled,
         thirdPartyCookiesEnabled: _thirdPartyCookiesEnabled,
         letterboxEnabled: _letterboxEnabled,
@@ -1115,7 +1125,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _trackingProtectionEnabled = values.trackingProtectionEnabled;
               _clearUrlEnabled = values.clearUrlEnabled;
               _dnsBlockEnabled = values.dnsBlockEnabled;
+              _dnsBlockLevel = values.dnsBlockLevel;
               _contentBlockEnabled = values.contentBlockEnabled;
+              _disabledFilterLists = values.disabledFilterLists;
               _localCdnEnabled = values.localCdnEnabled;
               _thirdPartyCookiesEnabled = values.thirdPartyCookiesEnabled;
               _letterboxEnabled = values.letterboxEnabled;

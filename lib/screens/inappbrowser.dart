@@ -51,6 +51,8 @@ class InAppWebViewScreen extends StatefulWidget {
   final bool thirdPartyCookiesEnabled;
   final bool clearUrlEnabled;
   final bool dnsBlockEnabled;
+  final int? dnsBlockLevel;
+  final Set<String> disabledFilterLists;
   final bool contentBlockEnabled;
   final bool localCdnEnabled;
   /// Mirrors the parent site's `contributesBlockStats` so a nested webview
@@ -167,6 +169,8 @@ class InAppWebViewScreen extends StatefulWidget {
     required this.thirdPartyCookiesEnabled,
     required this.clearUrlEnabled,
     required this.dnsBlockEnabled,
+    this.dnsBlockLevel,
+    this.disabledFilterLists = const <String>{},
     required this.contentBlockEnabled,
     required this.localCdnEnabled,
     this.contributesBlockStats = true,
@@ -365,6 +369,8 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
             !widget.trackingProtectionEnabled,
         clearUrlEnabled: widget.clearUrlEnabled || widget.trackingProtectionEnabled,
         dnsBlockEnabled: widget.dnsBlockEnabled || widget.trackingProtectionEnabled,
+        dnsBlockLevel: widget.dnsBlockLevel,
+        disabledFilterLists: widget.disabledFilterLists,
         contentBlockEnabled: widget.contentBlockEnabled || widget.trackingProtectionEnabled,
         localCdnEnabled: widget.localCdnEnabled || widget.trackingProtectionEnabled,
         contributesBlockStats: widget.contributesBlockStats,
