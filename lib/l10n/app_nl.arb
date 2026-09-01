@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "Schermdeling",
   "siteSettingsScreenShareHint": "Bepaalt of deze site je scherm mag opnemen.\n\nWebSpace deelt nooit je echte scherm. Een schermopname bestrijkt het hele oppervlak en zou dus ook je andere sites in deze app tonen. In plaats daarvan kan de site een afbeelding of video te zien krijgen die jij kiest.\n\nVragen (standaard): een venster vraagt het de eerste keer en onthoudt daarna je keuze.\nMediabestand: toon het gekozen bestand aan de site als gedeeld scherm.\nAltijd blokkeren: weiger elk verzoek.",
   "siteSettingsScreenShareVirtual": "Gesimuleerd scherm",
-  "permissionScreenShareNeverReal": "Niet beschikbaar. Een schermopname bestrijkt het hele scherm en zou dus ook je andere sites tonen."
+  "permissionScreenShareNeverReal": "Niet beschikbaar. Een schermopname bestrijkt het hele scherm en zou dus ook je andere sites tonen.",
+  "siteSettingsDnsBlocklistLevel": "Niveau van de blokkeerlijst",
+  "siteSettingsDnsBlocklistLevelHint": "Elk niveau blokkeert meer domeinen dan het niveau eronder. Verlaag het voor een site die de blokkeerlijst stukmaakt, zodat er wat bescherming overblijft in plaats van geen. Een niveau dat de app nog niet heeft gedownload, wordt opgehaald zodra je het kiest.",
+  "siteSettingsDnsLevelFollowApp": "Hetzelfde als de app-instellingen",
+  "siteSettingsDnsLevelFollowsApp": "Hetzelfde als de app-instellingen ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "Nog niet gedownload, gebruikt {level}",
+  "siteSettingsDnsLevelDownloading": "Blokkeerlijst downloaden...",
+  "siteSettingsDnsLevelDownloadFailed": "Dat niveau van de blokkeerlijst kon niet worden gedownload",
+  "siteSettingsContentBlockerLists": "Filterlijsten",
+  "siteSettingsContentBlockerListsHint": "Zet hier een lijst uit zodat die alleen op deze site niet meer geldt. Overal elders blijven de lijsten aan. Alleen lijsten die in de app-instellingen aanstaan, zijn bruikbaar.",
+  "siteSettingsContentBlockerListsSubtitle": "{on} van {total} aan"
 }

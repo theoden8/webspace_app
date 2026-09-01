@@ -2951,10 +2951,10 @@ class WebViewFactory {
         final hosts = args[0] as List;
         final dnsSvc = DnsBlockService.instance;
         final abpSvc = ContentBlockerService.instance;
+        final dnsLevel = config.effectiveDnsLevel;
         for (final h in hosts) {
           if (h is! String || h.isEmpty) continue;
-          final dnsBlocked =
-              dnsSvc.isHostBlockedAtLevel(h, config.effectiveDnsLevel);
+          final dnsBlocked = dnsSvc.isHostBlockedAtLevel(h, dnsLevel);
           final abpBlocked = !dnsBlocked &&
               config.contentBlockEnabled &&
               abpSvc.isHostBlocked(h);

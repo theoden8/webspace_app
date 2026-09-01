@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "Pagbabahagi ng screen",
   "siteSettingsScreenShareHint": "Kinokontrol kung puwedeng i-capture ng site na ito ang iyong screen.\n\nHindi kailanman ibinabahagi ng WebSpace ang totoong screen mo. Sinasakop ng screen capture ang buong ibabaw, kaya ipapakita rin nito ang iba mong site sa app na ito. Sa halip, puwedeng ipakita sa site ang larawan o video na pipiliin mo.\n\nMagtanong (default): may magtatanong sa unang pagkakataon, tapos maaalala ang pinili mo.\nMedia file: ipakita sa site ang piniling file bilang ibinahaging screen.\nPalaging harangan: tanggihan ang bawat kahilingan.",
   "siteSettingsScreenShareVirtual": "Simuladong screen",
-  "permissionScreenShareNeverReal": "Hindi available. Sinasakop ng screen capture ang buong screen, kaya ipapakita rin nito ang iba mong site."
+  "permissionScreenShareNeverReal": "Hindi available. Sinasakop ng screen capture ang buong screen, kaya ipapakita rin nito ang iba mong site.",
+  "siteSettingsDnsBlocklistLevel": "Antas ng blocklist",
+  "siteSettingsDnsBlocklistLevelHint": "Mas maraming domain ang hinaharangan ng bawat antas kaysa sa nasa ilalim nito. Ibaba ito para sa site na nasisira ng blocklist, para may natitira pa ring proteksyon sa halip na wala. Ang antas na hindi pa na-download ng app ay kukunin kapag pinili mo ito.",
+  "siteSettingsDnsLevelFollowApp": "Kapareho ng mga setting ng app",
+  "siteSettingsDnsLevelFollowsApp": "Kapareho ng mga setting ng app ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "Hindi pa na-download, ginagamit ang {level}",
+  "siteSettingsDnsLevelDownloading": "Dina-download ang blocklist...",
+  "siteSettingsDnsLevelDownloadFailed": "Hindi na-download ang antas na iyon ng blocklist",
+  "siteSettingsContentBlockerLists": "Mga listahan ng filter",
+  "siteSettingsContentBlockerListsHint": "I-off ang isang listahan dito para tumigil itong gumana sa site na ito lamang. Mananatiling naka-on ang mga listahan sa lahat ng iba pa. Ang mga listahang naka-enable sa mga setting ng app lamang ang magagamit.",
+  "siteSettingsContentBlockerListsSubtitle": "{on} sa {total} ang naka-on"
 }

@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "Partage d'écran",
   "siteSettingsScreenShareHint": "Détermine si ce site peut capturer votre écran.\n\nWebSpace ne partage jamais votre véritable écran. Une capture d'écran couvre toute la surface et montrerait donc aussi vos autres sites dans cette application. À la place, le site peut se voir présenter une image ou une vidéo que vous choisissez.\n\nDemander (par défaut) : une fenêtre demande la première fois, puis votre choix est mémorisé.\nFichier multimédia : montrer au site le fichier choisi comme écran partagé.\nToujours bloquer : refuser chaque demande.",
   "siteSettingsScreenShareVirtual": "Écran simulé",
-  "permissionScreenShareNeverReal": "Indisponible. Une capture d'écran couvre tout l'écran et montrerait donc aussi vos autres sites."
+  "permissionScreenShareNeverReal": "Indisponible. Une capture d'écran couvre tout l'écran et montrerait donc aussi vos autres sites.",
+  "siteSettingsDnsBlocklistLevel": "Niveau de la liste de blocage",
+  "siteSettingsDnsBlocklistLevelHint": "Chaque niveau bloque plus de domaines que celui du dessous. Abaissez-le pour un site que la liste de blocage casse, afin qu'il garde une protection partielle plutôt qu'aucune. Un niveau que l'application n'a pas encore téléchargé est récupéré au moment où vous le choisissez.",
+  "siteSettingsDnsLevelFollowApp": "Comme les réglages de l'application",
+  "siteSettingsDnsLevelFollowsApp": "Comme les réglages de l'application ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "Pas encore téléchargé, utilisation de {level}",
+  "siteSettingsDnsLevelDownloading": "Téléchargement de la liste de blocage...",
+  "siteSettingsDnsLevelDownloadFailed": "Impossible de télécharger ce niveau de liste de blocage",
+  "siteSettingsContentBlockerLists": "Listes de filtres",
+  "siteSettingsContentBlockerListsHint": "Désactivez une liste ici pour qu'elle cesse de s'appliquer sur ce site uniquement. Les listes restent actives partout ailleurs. Seules les listes activées dans les réglages de l'application sont utilisables.",
+  "siteSettingsContentBlockerListsSubtitle": "{on} sur {total} actives"
 }

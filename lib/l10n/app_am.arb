@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "የማያ ገጽ ማጋራት",
   "siteSettingsScreenShareHint": "ይህ ጣቢያ ማያ ገጽዎን መቅረጽ ይችል እንደሆነ ይቆጣጠራል።\n\nWebSpace በጭራሽ ትክክለኛውን ማያ ገጽዎን አያጋራም። የማያ ገጽ ቀረጻ ሙሉውን ገጽ ስለሚይዝ በዚህ መተግበሪያ ውስጥ ያሉ ሌሎች ጣቢያዎችዎንም ያሳያል። በምትኩ ጣቢያው እርስዎ የመረጡትን ምስል ወይም ቪዲዮ ማየት ይችላል።\n\nጠይቅ (ነባሪ)፦ በመጀመሪያው ጊዜ ብቅ-ባይ ይጠይቃል፣ ከዚያም ምርጫዎን ያስታውሳል።\nየሚዲያ ፋይል፦ የተመረጠውን ፋይል እንደ የተጋራ ማያ ገጽ ለጣቢያው አሳይ።\nሁልጊዜ አግድ፦ ሁሉንም ጥያቄ ውድቅ አድርግ።",
   "siteSettingsScreenShareVirtual": "የተመሰለ ማያ ገጽ",
-  "permissionScreenShareNeverReal": "አይገኝም። የማያ ገጽ ቀረጻ ሙሉውን ማያ ገጽ ስለሚይዝ ሌሎች ጣቢያዎችዎንም ያሳያል።"
+  "permissionScreenShareNeverReal": "አይገኝም። የማያ ገጽ ቀረጻ ሙሉውን ማያ ገጽ ስለሚይዝ ሌሎች ጣቢያዎችዎንም ያሳያል።",
+  "siteSettingsDnsBlocklistLevel": "የማገጃ ዝርዝር ደረጃ",
+  "siteSettingsDnsBlocklistLevelHint": "እያንዳንዱ ደረጃ ከታችኛው ደረጃ የበለጠ ጎራዎችን ያግዳል። የማገጃ ዝርዝሩ የሚያበላሸውን ጣቢያ ሙሉ በሙሉ ጥበቃ ከማጣት ይልቅ የተወሰነ ጥበቃ እንዲይዝ ደረጃውን ዝቅ ያድርጉ። መተግበሪያው ገና ያላወረደው ደረጃ ሲመርጡት ይወርዳል።",
+  "siteSettingsDnsLevelFollowApp": "እንደ የመተግበሪያ ቅንብሮች",
+  "siteSettingsDnsLevelFollowsApp": "እንደ የመተግበሪያ ቅንብሮች ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "ገና አልወረደም፣ {level} በመጠቀም ላይ",
+  "siteSettingsDnsLevelDownloading": "የማገጃ ዝርዝር በመውረድ ላይ...",
+  "siteSettingsDnsLevelDownloadFailed": "ያንን የማገጃ ዝርዝር ደረጃ ማውረድ አልተቻለም",
+  "siteSettingsContentBlockerLists": "የማጣሪያ ዝርዝሮች",
+  "siteSettingsContentBlockerListsHint": "በዚህ ጣቢያ ላይ ብቻ እንዳይተገበር ዝርዝሩን እዚህ ያጥፉ። ዝርዝሮቹ በሌሎች ቦታዎች ሁሉ በርተው ይቆያሉ። በመተግበሪያ ቅንብሮች ውስጥ የነቁ ዝርዝሮች ብቻ ጥቅም ላይ ሊውሉ ይችላሉ።",
+  "siteSettingsContentBlockerListsSubtitle": "{on} ከ{total} በርቷል"
 }

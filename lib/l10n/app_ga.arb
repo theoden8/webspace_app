@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "Comhroinnt scáileáin",
   "siteSettingsScreenShareHint": "Rialaíonn sé an bhféadfaidh an suíomh seo do scáileán a thaifeadadh.\n\nNí chomhroinneann WebSpace do fhíorscáileán riamh. Clúdaíonn taifeadadh scáileáin an dromchla ar fad, agus mar sin thaispeánfadh sé do shuímh eile san aip seo freisin. Ina ionad sin, is féidir íomhá nó físeán a roghnaíonn tú a thaispeáint don suíomh.\n\nFiafraigh (réamhshocrú): fiafraítear díot an chéad uair, agus cuimhnítear ar do rogha ina dhiaidh sin.\nComhad meán: taispeáin an comhad roghnaithe don suíomh mar an scáileán comhroinnte.\nBac i gcónaí: diúltaigh do gach iarratas.",
   "siteSettingsScreenShareVirtual": "Scáileán insamhalta",
-  "permissionScreenShareNeverReal": "Níl sé ar fáil. Clúdaíonn taifeadadh scáileáin an scáileán ar fad, agus mar sin thaispeánfadh sé do shuímh eile freisin."
+  "permissionScreenShareNeverReal": "Níl sé ar fáil. Clúdaíonn taifeadadh scáileáin an scáileán ar fad, agus mar sin thaispeánfadh sé do shuímh eile freisin.",
+  "siteSettingsDnsBlocklistLevel": "Leibhéal an liosta bactha",
+  "siteSettingsDnsBlocklistLevelHint": "Cuireann gach leibhéal cosc ar níos mó fearann ná an ceann faoi. Ísligh é do shuíomh a bhriseann an liosta bactha, ionas go gcoinneoidh sé roinnt cosanta seachas a dhath. Íoslódáiltear leibhéal nach bhfuil ag an aip fós nuair a roghnaíonn tú é.",
+  "siteSettingsDnsLevelFollowApp": "Mar an gcéanna le socruithe na haipe",
+  "siteSettingsDnsLevelFollowsApp": "Mar an gcéanna le socruithe na haipe ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "Gan íoslódáil fós, {level} in úsáid",
+  "siteSettingsDnsLevelDownloading": "An liosta bactha á íoslódáil...",
+  "siteSettingsDnsLevelDownloadFailed": "Níorbh fhéidir an leibhéal sin den liosta bactha a íoslódáil",
+  "siteSettingsContentBlockerLists": "Liostaí scagaire",
+  "siteSettingsContentBlockerListsHint": "Múch liosta anseo le stop a chur leis ar an suíomh seo amháin. Fanann na liostaí ar siúl i ngach áit eile. Ní féidir ach liostaí atá cumasaithe i socruithe na haipe a úsáid.",
+  "siteSettingsContentBlockerListsSubtitle": "{on} as {total} ar siúl"
 }

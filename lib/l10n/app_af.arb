@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "Skermdeling",
   "siteSettingsScreenShareHint": "Bepaal of hierdie werf jou skerm mag vasvang.\n\nWebSpace deel nooit jou werklike skerm nie. ’n Skermopname dek die hele oppervlak, en sou dus ook jou ander werwe in hierdie app wys. Die werf kan eerder ’n prent of video sien wat jy kies.\n\nVra (verstek): ’n opspringer vra die eerste keer en onthou dan jou keuse.\nMediaLêer: wys die gekose lêer aan die werf as die gedeelde skerm.\nBlokkeer altyd: verwerp elke versoek.",
   "siteSettingsScreenShareVirtual": "Gesimuleerde skerm",
-  "permissionScreenShareNeverReal": "Nie beskikbaar nie. ’n Skermopname dek die hele skerm en sou dus ook jou ander werwe wys."
+  "permissionScreenShareNeverReal": "Nie beskikbaar nie. ’n Skermopname dek die hele skerm en sou dus ook jou ander werwe wys.",
+  "siteSettingsDnsBlocklistLevel": "Bloklysvlak",
+  "siteSettingsDnsBlocklistLevelHint": "Elke vlak blokkeer meer domeine as die een daaronder. Verlaag dit vir 'n werf wat die bloklys breek, sodat dit steeds 'n mate van beskerming behou in plaas van niks nie. 'n Vlak wat die program nog nie afgelaai het nie, word gehaal wanneer jy dit kies.",
+  "siteSettingsDnsLevelFollowApp": "Dieselfde as programinstellings",
+  "siteSettingsDnsLevelFollowsApp": "Dieselfde as programinstellings ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "Nog nie afgelaai nie, gebruik tans {level}",
+  "siteSettingsDnsLevelDownloading": "Bloklys word afgelaai...",
+  "siteSettingsDnsLevelDownloadFailed": "Kon nie daardie bloklysvlak aflaai nie",
+  "siteSettingsContentBlockerLists": "Filterlyste",
+  "siteSettingsContentBlockerListsHint": "Skakel 'n lys hier af sodat dit net op hierdie werf nie toegepas word nie. Lyste bly oral elders aan. Slegs lyste wat in die programinstellings geaktiveer is, kan gebruik word.",
+  "siteSettingsContentBlockerListsSubtitle": "{on} van {total} aan"
 }

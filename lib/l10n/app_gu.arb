@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "સ્ક્રીન શેરિંગ",
   "siteSettingsScreenShareHint": "આ સાઇટ તમારી સ્ક્રીન કૅપ્ચર કરી શકે કે નહીં તે નિયંત્રિત કરે છે.\n\nWebSpace ક્યારેય તમારી વાસ્તવિક સ્ક્રીન શેર કરતું નથી. સ્ક્રીન કૅપ્ચર આખી સપાટીને આવરી લે છે, તેથી તે આ ઍપમાંની તમારી બીજી સાઇટ્સ પણ બતાવત. તેના બદલે સાઇટને તમે પસંદ કરેલી છબી કે વીડિયો બતાવી શકાય છે.\n\nપૂછો (ડિફૉલ્ટ): પહેલી વાર પૉપઅપ પૂછે છે, પછી તમારી પસંદગી યાદ રાખે છે.\nમીડિયા ફાઇલ: પસંદ કરેલી ફાઇલ સાઇટને શેર કરેલી સ્ક્રીન તરીકે બતાવો.\nહંમેશાં અવરોધો: દરેક વિનંતી નકારો.",
   "siteSettingsScreenShareVirtual": "સિમ્યુલેટેડ સ્ક્રીન",
-  "permissionScreenShareNeverReal": "ઉપલબ્ધ નથી. સ્ક્રીન કૅપ્ચર આખી સ્ક્રીનને આવરી લે છે, તેથી તે તમારી બીજી સાઇટ્સ પણ બતાવત."
+  "permissionScreenShareNeverReal": "ઉપલબ્ધ નથી. સ્ક્રીન કૅપ્ચર આખી સ્ક્રીનને આવરી લે છે, તેથી તે તમારી બીજી સાઇટ્સ પણ બતાવત.",
+  "siteSettingsDnsBlocklistLevel": "બ્લોકસૂચિનું સ્તર",
+  "siteSettingsDnsBlocklistLevelHint": "દરેક સ્તર તેની નીચેના સ્તર કરતાં વધુ ડોમેન બ્લોક કરે છે. જે સાઇટ બ્લોકસૂચિથી બગડે તેના માટે સ્તર ઘટાડો, જેથી કોઈ સુરક્ષા ન રહેવાને બદલે થોડી સુરક્ષા જળવાઈ રહે. એપે હજી ડાઉનલોડ ન કરેલું સ્તર તમે પસંદ કરો ત્યારે મેળવવામાં આવે છે.",
+  "siteSettingsDnsLevelFollowApp": "એપ સેટિંગ્સ પ્રમાણે જ",
+  "siteSettingsDnsLevelFollowsApp": "એપ સેટિંગ્સ પ્રમાણે જ ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "હજી ડાઉનલોડ થયું નથી, {level} વપરાય છે",
+  "siteSettingsDnsLevelDownloading": "બ્લોકસૂચિ ડાઉનલોડ થઈ રહી છે...",
+  "siteSettingsDnsLevelDownloadFailed": "બ્લોકસૂચિનું તે સ્તર ડાઉનલોડ થઈ શક્યું નહીં",
+  "siteSettingsContentBlockerLists": "ફિલ્ટર સૂચિઓ",
+  "siteSettingsContentBlockerListsHint": "ફક્ત આ સાઇટ પર લાગુ ન થાય તે માટે અહીં સૂચિ બંધ કરો. બીજે બધે સૂચિઓ ચાલુ રહેશે. ફક્ત એપ સેટિંગ્સમાં સક્રિય કરેલી સૂચિઓ જ વાપરી શકાય છે.",
+  "siteSettingsContentBlockerListsSubtitle": "{total} માંથી {on} ચાલુ"
 }

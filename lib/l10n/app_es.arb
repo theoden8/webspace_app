@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "Compartir pantalla",
   "siteSettingsScreenShareHint": "Controla si este sitio puede capturar tu pantalla.\n\nWebSpace nunca comparte tu pantalla real. Una captura de pantalla abarca toda la superficie, así que también mostraría tus otros sitios en esta aplicación. En su lugar, se le puede mostrar al sitio una imagen o un vídeo que elijas tú.\n\nPreguntar (predeterminado): un aviso pregunta la primera vez y luego recuerda tu elección.\nArchivo multimedia: mostrar al sitio el archivo elegido como pantalla compartida.\nBloquear siempre: rechazar todas las solicitudes.",
   "siteSettingsScreenShareVirtual": "Pantalla simulada",
-  "permissionScreenShareNeverReal": "No disponible. Una captura de pantalla abarca toda la pantalla, así que también mostraría tus otros sitios."
+  "permissionScreenShareNeverReal": "No disponible. Una captura de pantalla abarca toda la pantalla, así que también mostraría tus otros sitios.",
+  "siteSettingsDnsBlocklistLevel": "Nivel de la lista de bloqueo",
+  "siteSettingsDnsBlocklistLevelHint": "Cada nivel bloquea más dominios que el anterior. Bájalo para un sitio que la lista de bloqueo rompe, así conserva algo de protección en vez de ninguna. Un nivel que la aplicación aún no ha descargado se descarga al elegirlo.",
+  "siteSettingsDnsLevelFollowApp": "Igual que los ajustes de la aplicación",
+  "siteSettingsDnsLevelFollowsApp": "Igual que los ajustes de la aplicación ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "Aún no descargado; se usa {level}",
+  "siteSettingsDnsLevelDownloading": "Descargando la lista de bloqueo...",
+  "siteSettingsDnsLevelDownloadFailed": "No se pudo descargar ese nivel de la lista de bloqueo",
+  "siteSettingsContentBlockerLists": "Listas de filtros",
+  "siteSettingsContentBlockerListsHint": "Desactiva una lista aquí para que deje de aplicarse solo en este sitio. En el resto siguen activas. Solo pueden usarse las listas activadas en los ajustes de la aplicación.",
+  "siteSettingsContentBlockerListsSubtitle": "{on} de {total} activas"
 }

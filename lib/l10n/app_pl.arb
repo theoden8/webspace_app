@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "Udostępnianie ekranu",
   "siteSettingsScreenShareHint": "Określa, czy ta witryna może nagrywać Twój ekran.\n\nWebSpace nigdy nie udostępnia Twojego prawdziwego ekranu. Nagranie ekranu obejmuje całą powierzchnię, więc pokazałoby też Twoje pozostałe witryny w tej aplikacji. Zamiast tego witrynie można pokazać wybrany przez Ciebie obraz lub film.\n\nPytaj (domyślnie): okno pyta za pierwszym razem, a potem wybór jest zapamiętywany.\nPlik multimedialny: pokaż witrynie wybrany plik jako udostępniony ekran.\nZawsze blokuj: odrzucaj każde żądanie.",
   "siteSettingsScreenShareVirtual": "Symulowany ekran",
-  "permissionScreenShareNeverReal": "Niedostępne. Nagranie ekranu obejmuje cały ekran, więc pokazałoby też Twoje pozostałe witryny."
+  "permissionScreenShareNeverReal": "Niedostępne. Nagranie ekranu obejmuje cały ekran, więc pokazałoby też Twoje pozostałe witryny.",
+  "siteSettingsDnsBlocklistLevel": "Poziom listy blokowania",
+  "siteSettingsDnsBlocklistLevelHint": "Każdy poziom blokuje więcej domen niż poziom poniżej. Obniż go dla witryny, którą lista blokowania psuje, żeby zachowała część ochrony zamiast żadnej. Poziom, którego aplikacja jeszcze nie pobrała, zostaje pobrany w chwili wyboru.",
+  "siteSettingsDnsLevelFollowApp": "Tak jak w ustawieniach aplikacji",
+  "siteSettingsDnsLevelFollowsApp": "Tak jak w ustawieniach aplikacji ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "Jeszcze nie pobrano, używany jest {level}",
+  "siteSettingsDnsLevelDownloading": "Pobieranie listy blokowania...",
+  "siteSettingsDnsLevelDownloadFailed": "Nie udało się pobrać tego poziomu listy blokowania",
+  "siteSettingsContentBlockerLists": "Listy filtrów",
+  "siteSettingsContentBlockerListsHint": "Wyłącz tutaj listę, aby przestała obowiązywać tylko na tej witrynie. Wszędzie indziej listy pozostają włączone. Użyć można wyłącznie list włączonych w ustawieniach aplikacji.",
+  "siteSettingsContentBlockerListsSubtitle": "Włączone {on} z {total}"
 }

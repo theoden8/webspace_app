@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "Skärmdelning",
   "siteSettingsScreenShareHint": "Styr om den här webbplatsen får spela in din skärm.\n\nWebSpace delar aldrig din riktiga skärm. En skärminspelning täcker hela ytan och skulle därför också visa dina andra webbplatser i den här appen. I stället kan webbplatsen få se en bild eller video som du väljer.\n\nFråga (standard): ett fönster frågar första gången och kommer sedan ihåg ditt val.\nMediefil: visa den valda filen för webbplatsen som den delade skärmen.\nBlockera alltid: avvisa varje begäran.",
   "siteSettingsScreenShareVirtual": "Simulerad skärm",
-  "permissionScreenShareNeverReal": "Inte tillgänglig. En skärminspelning täcker hela skärmen och skulle därför också visa dina andra webbplatser."
+  "permissionScreenShareNeverReal": "Inte tillgänglig. En skärminspelning täcker hela skärmen och skulle därför också visa dina andra webbplatser.",
+  "siteSettingsDnsBlocklistLevel": "Blockeringslistans nivå",
+  "siteSettingsDnsBlocklistLevelHint": "Varje nivå blockerar fler domäner än nivån under. Sänk den för en webbplats som blockeringslistan förstör, så att den behåller något skydd i stället för inget alls. En nivå som appen inte har hämtat ännu hämtas när du väljer den.",
+  "siteSettingsDnsLevelFollowApp": "Samma som appinställningarna",
+  "siteSettingsDnsLevelFollowsApp": "Samma som appinställningarna ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "Inte hämtad ännu, använder {level}",
+  "siteSettingsDnsLevelDownloading": "Hämtar blockeringslistan...",
+  "siteSettingsDnsLevelDownloadFailed": "Den nivån av blockeringslistan gick inte att hämta",
+  "siteSettingsContentBlockerLists": "Filterlistor",
+  "siteSettingsContentBlockerListsHint": "Stäng av en lista här så slutar den gälla enbart på den här webbplatsen. Överallt annars förblir listorna på. Bara listor som är på i appinställningarna går att använda.",
+  "siteSettingsContentBlockerListsSubtitle": "{on} av {total} på"
 }

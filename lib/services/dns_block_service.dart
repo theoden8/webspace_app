@@ -415,8 +415,7 @@ class DnsBlockService {
   BloomFilter getBloomFilter() {
     if (_bloomFilter != null) return _bloomFilter!;
     final sw = Stopwatch()..start();
-    _bloomFilter = BloomFilter.build(_tiers.domains.toList(growable: false),
-        fpRate: 0.05);
+    _bloomFilter = BloomFilter.build(_tiers.domains, fpRate: 0.05);
     sw.stop();
     LogService.instance.log('DnsBlock',
         'Built bloom filter: ${_bloomFilter!.sizeInBytes} bytes, k=${_bloomFilter!.k}, from ${_tiers.domainCount} domains in ${sw.elapsedMilliseconds}ms',
@@ -434,14 +433,26 @@ class DnsBlockService {
   BloomFilter getMergedBlockBloom() {
     if (_mergedBloomFilter != null) return _mergedBloomFilter!;
     final sw = Stopwatch()..start();
-    final union = <String>{..._tiers.domains, ..._abpNetworkHosts};
+    // Only materialise a union when there is something to union in: the DNS
+    // half alone is up to ~650K entries, and copying it every rebuild is the
+    // kind of transient allocation that shows up as a startup stall.
+    final Iterable<String> union;
+    final int unionCount;
+    if (_abpNetworkHosts.isEmpty) {
+      union = _tiers.domains;
+      unionCount = _tiers.domainCount;
+    } else {
+      final merged = <String>{..._tiers.domains, ..._abpNetworkHosts};
+      union = merged;
+      unionCount = merged.length;
+    }
     _mergedBloomFilter = BloomFilter.build(union, fpRate: 0.05);
     sw.stop();
     LogService.instance.log(
         'BlockBloom',
         'Built merged bloom: ${_mergedBloomFilter!.sizeInBytes} bytes, k=${_mergedBloomFilter!.k}, '
         'from ${_tiers.domainCount} DNS + ${_abpNetworkHosts.length} ABP '
-        'host(s) (${union.length} unique) in ${sw.elapsedMilliseconds}ms',
+        'host(s) ($unionCount unique) in ${sw.elapsedMilliseconds}ms',
         level: LogLevel.info);
     return _mergedBloomFilter!;
   }
@@ -825,14 +836,17 @@ class DnsBlockService {
   /// downloaded domain blob. This persists the level so the App Settings
   /// slider reflects the user's choice; the user re-downloads from there to
   /// repopulate the tiers. Every cached level is dropped along the way: the
-  /// import also replaces the per-site levels, so which tiers are wanted is
-  /// only known once the user re-downloads. Out-of-range levels are ignored.
+  /// files are not tagged with the level they were fetched at beyond their
+  /// name, and a per-site level the import brought in has no tier here yet.
+  /// Out-of-range levels, and an import that names the level already in
+  /// force, are no-ops. Tiers no site wants are reclaimed by the startup
+  /// sweep rather than here.
   Future<void> applyImportedLevel(int level) =>
       _serializeMutation(() => _applyImportedLevelInner(level));
 
   Future<void> _applyImportedLevelInner(int level) async {
     if (level < 0 || level > kDnsMaxLevel) return;
-    if (level == _level && _tiers.isEmpty) return;
+    if (level == _level) return;
     try {
       for (final downloaded in _tiers.levels) {
         await _store.delete(_cacheFileName(downloaded));

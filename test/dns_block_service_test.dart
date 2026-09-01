@@ -240,6 +240,66 @@ void main() {
     });
   });
 
+  group('per-site levels (DNS-020)', () {
+    setUp(() {
+      service.loadTiersFromStrings({
+        1: 'light.example',
+        3: 'light.example\npro.example',
+        5: 'light.example\npro.example\nultimate.example',
+      }, globalLevel: 3);
+    });
+
+    test('a site below the app-wide level blocks only the lower tiers', () {
+      expect(service.isBlockedAtLevel('https://light.example/', 1), isTrue);
+      expect(service.isBlockedAtLevel('https://pro.example/', 1), isFalse);
+    });
+
+    test('a site above the app-wide level blocks the higher tiers too', () {
+      expect(service.isBlockedAtLevel('https://ultimate.example/', 3), isFalse);
+      expect(service.isBlockedAtLevel('https://ultimate.example/', 5), isTrue);
+    });
+
+    test('the app-wide check runs at the app-wide level', () {
+      expect(service.isBlocked('https://pro.example/'), isTrue);
+      expect(service.isBlocked('https://ultimate.example/'), isFalse);
+    });
+
+    test('level 0 blocks nothing for that site while others still block', () {
+      expect(service.isBlockedAtLevel('https://light.example/', 0), isFalse);
+      expect(service.isBlockedAtLevel('https://light.example/', 1), isTrue);
+    });
+
+    test('the host cache serves every level from one walk', () {
+      // Same host, three levels, one tier: a cached answer that had baked in
+      // a level would have to be wrong for two of these.
+      expect(service.hostTier('pro.example'), 3);
+      expect(service.isBlockedAtLevel('https://pro.example/', 1), isFalse);
+      expect(service.isBlockedAtLevel('https://pro.example/', 3), isTrue);
+      expect(service.isBlockedAtLevel('https://pro.example/', 5), isTrue);
+    });
+
+    test('a site level with no downloaded list falls back to the app-wide one',
+        () {
+      service.loadTiersFromStrings({3: 'pro.example'}, globalLevel: 3);
+      expect(service.downloadedLevels, {3});
+      expect(service.effectiveLevelFor(1), 3,
+          reason: 'level 1 has no tier boundary, so it cannot be honoured');
+      expect(service.effectiveLevelFor(null), 3);
+      expect(service.effectiveLevelFor(0), 0);
+    });
+
+    test('the tiers partition the largest list, they do not duplicate it', () {
+      expect(service.domainCount, 3);
+      expect(service.tierDomains(1), {'light.example'});
+      expect(service.tierDomains(3), {'pro.example'});
+      expect(service.tierDomains(5), {'ultimate.example'});
+    });
+
+    test('the native push ships the partition', () {
+      expect(service.tiersByLevel.keys.toList()..sort(), [1, 3, 5]);
+    });
+  });
+
   group('downloaded body validation', () {
     Set<String> domainsOf(int n) =>
         {for (var i = 0; i < n; i++) 'blocked$i.example.com'};

@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "שיתוף מסך",
   "siteSettingsScreenShareHint": "קובע אם האתר הזה רשאי להקליט את המסך שלך.\n\nWebSpace לעולם אינו משתף את המסך האמיתי שלך. הקלטת מסך מכסה את כל המשטח, ולכן היא הייתה מציגה גם את האתרים האחרים שלך ביישום הזה. במקום זאת אפשר להציג לאתר תמונה או סרטון שתבחר.\n\nשאל (ברירת מחדל): חלון שואל בפעם הראשונה, ולאחר מכן הבחירה נזכרת.\nקובץ מדיה: הצג לאתר את הקובץ שנבחר כמסך המשותף.\nחסום תמיד: דחה כל בקשה.",
   "siteSettingsScreenShareVirtual": "מסך מדומה",
-  "permissionScreenShareNeverReal": "לא זמין. הקלטת מסך מכסה את כל המסך, ולכן היא הייתה מציגה גם את האתרים האחרים שלך."
+  "permissionScreenShareNeverReal": "לא זמין. הקלטת מסך מכסה את כל המסך, ולכן היא הייתה מציגה גם את האתרים האחרים שלך.",
+  "siteSettingsDnsBlocklistLevel": "רמת רשימת החסימה",
+  "siteSettingsDnsBlocklistLevelHint": "כל רמה חוסמת יותר דומיינים מזו שמתחתיה. הורידו אותה עבור אתר שרשימת החסימה שוברת, כדי שתישאר לו הגנה חלקית במקום כלום. רמה שהיישום עדיין לא הוריד תימשך ברגע שתבחרו בה.",
+  "siteSettingsDnsLevelFollowApp": "כמו בהגדרות היישום",
+  "siteSettingsDnsLevelFollowsApp": "כמו בהגדרות היישום ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "עדיין לא הורדה, בשימוש {level}",
+  "siteSettingsDnsLevelDownloading": "מוריד את רשימת החסימה...",
+  "siteSettingsDnsLevelDownloadFailed": "לא ניתן היה להוריד את רמת רשימת החסימה הזו",
+  "siteSettingsContentBlockerLists": "רשימות סינון",
+  "siteSettingsContentBlockerListsHint": "כבו כאן רשימה כדי שתפסיק לחול על האתר הזה בלבד. בכל שאר המקומות הרשימות נשארות פעילות. ניתן להשתמש רק ברשימות שהופעלו בהגדרות היישום.",
+  "siteSettingsContentBlockerListsSubtitle": "{on} מתוך {total} פעילות"
 }

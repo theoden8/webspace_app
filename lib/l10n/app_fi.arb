@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "Näytön jakaminen",
   "siteSettingsScreenShareHint": "Määrittää, saako tämä sivusto tallentaa näyttösi.\n\nWebSpace ei jaa koskaan oikeaa näyttöäsi. Näytön tallennus kattaa koko pinnan, joten se näyttäisi myös muut sivustosi tässä sovelluksessa. Sen sijaan sivustolle voidaan näyttää valitsemasi kuva tai video.\n\nKysy (oletus): ponnahdusikkuna kysyy ensimmäisellä kerralla ja muistaa sitten valintasi.\nMediatiedosto: näytä valittu tiedosto sivustolle jaettuna näyttönä.\nEstä aina: hylkää kaikki pyynnöt.",
   "siteSettingsScreenShareVirtual": "Simuloitu näyttö",
-  "permissionScreenShareNeverReal": "Ei käytettävissä. Näytön tallennus kattaa koko näytön, joten se näyttäisi myös muut sivustosi."
+  "permissionScreenShareNeverReal": "Ei käytettävissä. Näytön tallennus kattaa koko näytön, joten se näyttäisi myös muut sivustosi.",
+  "siteSettingsDnsBlocklistLevel": "Estolistan taso",
+  "siteSettingsDnsBlocklistLevelHint": "Jokainen taso estää enemmän verkkotunnuksia kuin sitä alempi. Laske sitä sivustolle, jonka estolista rikkoo, jotta se säilyttää edes jonkin verran suojaa eikä menetä kaikkea. Tason, jota sovellus ei ole vielä ladannut, se hakee kun valitset sen.",
+  "siteSettingsDnsLevelFollowApp": "Sama kuin sovelluksen asetuksissa",
+  "siteSettingsDnsLevelFollowsApp": "Sama kuin sovelluksen asetuksissa ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "Ei vielä ladattu, käytössä {level}",
+  "siteSettingsDnsLevelDownloading": "Ladataan estolistaa...",
+  "siteSettingsDnsLevelDownloadFailed": "Tämän estolistan tason lataaminen ei onnistunut",
+  "siteSettingsContentBlockerLists": "Suodatinlistat",
+  "siteSettingsContentBlockerListsHint": "Poista lista käytöstä täällä, niin se lakkaa vaikuttamasta vain tällä sivustolla. Muualla listat pysyvät käytössä. Vain sovelluksen asetuksissa käytössä olevia listoja voi käyttää.",
+  "siteSettingsContentBlockerListsSubtitle": "{on}/{total} käytössä"
 }

@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "Communicatio scrinii",
   "siteSettingsScreenShareHint": "Moderatur num hic locus scrinium tuum capere possit.\n\nWebSpace scrinium tuum verum numquam communicat. Captura scrinii totam superficiem comprehendit, itaque etiam alia loca tua in hac applicatione monstraret. Loco eius loco monstrari potest imago vel pellicula quam tu eligis.\n\nRogare (praedefinitum): fenestra primo rogat, deinde electionem tuam memorat.\nPlica media: monstra plicam electam loco tamquam scrinium communicatum.\nSemper impedire: omnem petitionem repudia.",
   "siteSettingsScreenShareVirtual": "Scrinium simulatum",
-  "permissionScreenShareNeverReal": "Non praesto. Captura scrinii totum scrinium comprehendit, itaque etiam alia loca tua monstraret."
+  "permissionScreenShareNeverReal": "Non praesto. Captura scrinii totum scrinium comprehendit, itaque etiam alia loca tua monstraret.",
+  "siteSettingsDnsBlocklistLevel": "Gradus indicis interclusionis",
+  "siteSettingsDnsBlocklistLevelHint": "Quisque gradus plura dominia intercludit quam is qui infra est. Eum deprime pro loco quem index interclusionis corrumpit, ut aliquam tutelam servet potius quam nullam. Gradus quem applicatio nondum deposuit, cum eum eligis, deponitur.",
+  "siteSettingsDnsLevelFollowApp": "Idem ac optiones applicationis",
+  "siteSettingsDnsLevelFollowsApp": "Idem ac optiones applicationis ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "Nondum depositus; {level} adhibetur",
+  "siteSettingsDnsLevelDownloading": "Index interclusionis deponitur...",
+  "siteSettingsDnsLevelDownloadFailed": "Ille gradus indicis interclusionis deponi non potuit",
+  "siteSettingsContentBlockerLists": "Indices percolationis",
+  "siteSettingsContentBlockerListsHint": "Indicem hic exstingue ut in hoc solo loco valere desinat. Ceteris in locis indices accensi manent. Soli indices in optionibus applicationis permissi adhiberi possunt.",
+  "siteSettingsContentBlockerListsSubtitle": "{on} ex {total} accensi"
 }

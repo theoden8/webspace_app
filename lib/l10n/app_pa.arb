@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "ਸਕ੍ਰੀਨ ਸਾਂਝਾਕਰਨ",
   "siteSettingsScreenShareHint": "ਇਹ ਕੰਟਰੋਲ ਕਰਦਾ ਹੈ ਕਿ ਇਹ ਸਾਈਟ ਤੁਹਾਡੀ ਸਕ੍ਰੀਨ ਕੈਪਚਰ ਕਰ ਸਕਦੀ ਹੈ ਜਾਂ ਨਹੀਂ।\n\nWebSpace ਕਦੇ ਵੀ ਤੁਹਾਡੀ ਅਸਲੀ ਸਕ੍ਰੀਨ ਸਾਂਝੀ ਨਹੀਂ ਕਰਦਾ। ਸਕ੍ਰੀਨ ਕੈਪਚਰ ਪੂਰੀ ਸਤ੍ਹਾ ਨੂੰ ਢੱਕਦਾ ਹੈ, ਇਸ ਲਈ ਇਹ ਇਸ ਐਪ ਦੀਆਂ ਤੁਹਾਡੀਆਂ ਹੋਰ ਸਾਈਟਾਂ ਵੀ ਵਿਖਾਉਂਦਾ। ਇਸ ਦੀ ਥਾਂ ਸਾਈਟ ਨੂੰ ਤੁਹਾਡੀ ਚੁਣੀ ਤਸਵੀਰ ਜਾਂ ਵੀਡੀਓ ਵਿਖਾਈ ਜਾ ਸਕਦੀ ਹੈ।\n\nਪੁੱਛੋ (ਮੂਲ): ਪਹਿਲੀ ਵਾਰ ਪੌਪਅੱਪ ਪੁੱਛਦਾ ਹੈ, ਫਿਰ ਤੁਹਾਡੀ ਚੋਣ ਯਾਦ ਰੱਖਦਾ ਹੈ।\nਮੀਡੀਆ ਫ਼ਾਈਲ: ਚੁਣੀ ਫ਼ਾਈਲ ਸਾਈਟ ਨੂੰ ਸਾਂਝੀ ਸਕ੍ਰੀਨ ਵਜੋਂ ਵਿਖਾਓ।\nਹਮੇਸ਼ਾ ਬਲਾਕ ਕਰੋ: ਹਰ ਬੇਨਤੀ ਰੱਦ ਕਰੋ।",
   "siteSettingsScreenShareVirtual": "ਸਿਮੂਲੇਟਿਡ ਸਕ੍ਰੀਨ",
-  "permissionScreenShareNeverReal": "ਉਪਲਬਧ ਨਹੀਂ। ਸਕ੍ਰੀਨ ਕੈਪਚਰ ਪੂਰੀ ਸਕ੍ਰੀਨ ਨੂੰ ਢੱਕਦਾ ਹੈ, ਇਸ ਲਈ ਇਹ ਤੁਹਾਡੀਆਂ ਹੋਰ ਸਾਈਟਾਂ ਵੀ ਵਿਖਾਉਂਦਾ।"
+  "permissionScreenShareNeverReal": "ਉਪਲਬਧ ਨਹੀਂ। ਸਕ੍ਰੀਨ ਕੈਪਚਰ ਪੂਰੀ ਸਕ੍ਰੀਨ ਨੂੰ ਢੱਕਦਾ ਹੈ, ਇਸ ਲਈ ਇਹ ਤੁਹਾਡੀਆਂ ਹੋਰ ਸਾਈਟਾਂ ਵੀ ਵਿਖਾਉਂਦਾ।",
+  "siteSettingsDnsBlocklistLevel": "ਰੋਕ-ਸੂਚੀ ਦਾ ਪੱਧਰ",
+  "siteSettingsDnsBlocklistLevelHint": "ਹਰ ਪੱਧਰ ਆਪਣੇ ਹੇਠਲੇ ਪੱਧਰ ਨਾਲੋਂ ਵੱਧ ਡੋਮੇਨ ਰੋਕਦਾ ਹੈ। ਜਿਸ ਸਾਈਟ ਨੂੰ ਰੋਕ-ਸੂਚੀ ਵਿਗਾੜਦੀ ਹੈ, ਉਸ ਲਈ ਪੱਧਰ ਘਟਾਓ, ਤਾਂ ਜੋ ਸਾਰੀ ਸੁਰੱਖਿਆ ਗੁਆਉਣ ਦੀ ਥਾਂ ਕੁਝ ਸੁਰੱਖਿਆ ਬਚੀ ਰਹੇ। ਜਿਹੜਾ ਪੱਧਰ ਐਪ ਨੇ ਹਾਲੇ ਡਾਊਨਲੋਡ ਨਹੀਂ ਕੀਤਾ, ਉਹ ਚੁਣਨ ਵੇਲੇ ਲਿਆਂਦਾ ਜਾਂਦਾ ਹੈ।",
+  "siteSettingsDnsLevelFollowApp": "ਐਪ ਸੈਟਿੰਗਾਂ ਵਾਂਗ ਹੀ",
+  "siteSettingsDnsLevelFollowsApp": "ਐਪ ਸੈਟਿੰਗਾਂ ਵਾਂਗ ਹੀ ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "ਹਾਲੇ ਡਾਊਨਲੋਡ ਨਹੀਂ ਹੋਇਆ, {level} ਵਰਤਿਆ ਜਾ ਰਿਹਾ ਹੈ",
+  "siteSettingsDnsLevelDownloading": "ਰੋਕ-ਸੂਚੀ ਡਾਊਨਲੋਡ ਹੋ ਰਹੀ ਹੈ...",
+  "siteSettingsDnsLevelDownloadFailed": "ਰੋਕ-ਸੂਚੀ ਦਾ ਉਹ ਪੱਧਰ ਡਾਊਨਲੋਡ ਨਹੀਂ ਹੋ ਸਕਿਆ",
+  "siteSettingsContentBlockerLists": "ਫਿਲਟਰ ਸੂਚੀਆਂ",
+  "siteSettingsContentBlockerListsHint": "ਸਿਰਫ਼ ਇਸੇ ਸਾਈਟ ਉੱਤੇ ਲਾਗੂ ਨਾ ਹੋਵੇ, ਇਸ ਲਈ ਇੱਥੇ ਸੂਚੀ ਬੰਦ ਕਰੋ। ਬਾਕੀ ਹਰ ਥਾਂ ਸੂਚੀਆਂ ਚਾਲੂ ਰਹਿਣਗੀਆਂ। ਸਿਰਫ਼ ਐਪ ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਚਾਲੂ ਕੀਤੀਆਂ ਸੂਚੀਆਂ ਹੀ ਵਰਤੀਆਂ ਜਾ ਸਕਦੀਆਂ ਹਨ।",
+  "siteSettingsContentBlockerListsSubtitle": "{total} ਵਿੱਚੋਂ {on} ਚਾਲੂ"
 }

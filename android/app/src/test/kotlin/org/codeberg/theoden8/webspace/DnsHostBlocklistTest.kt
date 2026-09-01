@@ -161,4 +161,70 @@ class DnsHostBlocklistTest {
         // Loose ceiling — a regression guard, not a per-machine perf gate.
         assertTrue("build took ${ms}ms", ms < 10_000)
     }
+
+    // --- per-site levels (DNS-020) ---------------------------------------
+
+    @Test
+    fun unmarkedBlobLoadsAtLevelOne() {
+        val b = DnsHostBlocklist()
+        b.replaceFromBlob("ads.example\ntracker.example")
+        assertEquals(1, b.tierOf("ads.example"))
+        assertEquals(listOf(1), b.levels)
+    }
+
+    @Test
+    fun markersPartitionTheBlobByLevel() {
+        val b = DnsHostBlocklist()
+        b.replaceFromBlob("#1\nlight.example\n#3\npro.example\n#5\nultimate.example")
+        assertEquals(3, b.size)
+        assertEquals(1, b.tierOf("light.example"))
+        assertEquals(3, b.tierOf("pro.example"))
+        assertEquals(5, b.tierOf("ultimate.example"))
+        assertEquals(0, b.tierOf("safe.example"))
+        assertEquals(listOf(1, 3, 5), b.levels)
+    }
+
+    @Test
+    fun aSiteBlocksItsOwnTierAndEveryTierBelow() {
+        val b = DnsHostBlocklist()
+        b.replaceFromBlob("#1\nlight.example\n#3\npro.example")
+        assertTrue(b.isBlockedAt("light.example", 1))
+        assertFalse(b.isBlockedAt("pro.example", 1))
+        assertTrue(b.isBlockedAt("pro.example", 3))
+        assertTrue(b.isBlockedAt("pro.example", 5))
+    }
+
+    @Test
+    fun levelZeroBlocksNothing() {
+        val b = DnsHostBlocklist()
+        b.replaceFromBlob("#1\nads.example")
+        assertFalse(b.isBlockedAt("ads.example", 0))
+    }
+
+    @Test
+    fun subdomainsInheritTheirParentTier() {
+        val b = DnsHostBlocklist()
+        b.replaceFromBlob("#3\nads.example")
+        assertEquals(3, b.tierOf("a.b.ads.example"))
+        assertFalse(b.isBlockedAt("a.b.ads.example", 2))
+        assertTrue(b.isBlockedAt("a.b.ads.example", 3))
+    }
+
+    @Test
+    fun theLowestMatchingSuffixWins() {
+        // The parent enters at 2, the child at 4: a site at level 2 already
+        // blocks the parent, so it blocks the child too.
+        val b = DnsHostBlocklist()
+        b.replaceFromBlob("#2\nexample.co.uk\n#4\ndeep.example.co.uk")
+        assertEquals(2, b.tierOf("deep.example.co.uk"))
+    }
+
+    @Test
+    fun anOutOfRangeMarkerKeepsThePreviousLevel() {
+        val b = DnsHostBlocklist()
+        b.replaceFromBlob("#2\na.example\n#9\nb.example")
+        assertEquals(2, b.tierOf("a.example"))
+        assertEquals(2, b.tierOf("b.example"))
+    }
+
 }

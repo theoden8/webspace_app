@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "Deljenje zaslona",
   "siteSettingsScreenShareHint": "Določa, ali sme to mesto snemati vaš zaslon.\n\nWebSpace nikoli ne deli vašega pravega zaslona. Posnetek zaslona pokriva celotno površino, zato bi pokazal tudi vaša druga mesta v tej aplikaciji. Namesto tega je mestu mogoče pokazati sliko ali videoposnetek, ki ga izberete vi.\n\nVprašaj (privzeto): pojavno okno vpraša prvič, nato si zapomni vašo izbiro.\nPredstavnostna datoteka: pokaži mestu izbrano datoteko kot deljeni zaslon.\nVedno blokiraj: zavrni vsako zahtevo.",
   "siteSettingsScreenShareVirtual": "Simuliran zaslon",
-  "permissionScreenShareNeverReal": "Ni na voljo. Posnetek zaslona pokriva celoten zaslon, zato bi pokazal tudi vaša druga mesta."
+  "permissionScreenShareNeverReal": "Ni na voljo. Posnetek zaslona pokriva celoten zaslon, zato bi pokazal tudi vaša druga mesta.",
+  "siteSettingsDnsBlocklistLevel": "Raven seznama blokiranja",
+  "siteSettingsDnsBlocklistLevelHint": "Vsaka raven blokira več domen kot tista pod njo. Znižajte jo za spletišče, ki ga seznam blokiranja pokvari, da ohrani nekaj zaščite namesto nobene. Raven, ki je aplikacija še ni prenesla, se prenese, ko jo izberete.",
+  "siteSettingsDnsLevelFollowApp": "Enako kot nastavitve aplikacije",
+  "siteSettingsDnsLevelFollowsApp": "Enako kot nastavitve aplikacije ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "Še ni preneseno, uporablja se {level}",
+  "siteSettingsDnsLevelDownloading": "Prenašanje seznama blokiranja...",
+  "siteSettingsDnsLevelDownloadFailed": "Te ravni seznama blokiranja ni bilo mogoče prenesti",
+  "siteSettingsContentBlockerLists": "Seznami filtrov",
+  "siteSettingsContentBlockerListsHint": "Tukaj izklopite seznam, da preneha veljati samo na tem spletišču. Povsod drugod seznami ostanejo vklopljeni. Uporabiti je mogoče le sezname, vklopljene v nastavitvah aplikacije.",
+  "siteSettingsContentBlockerListsSubtitle": "Vklopljenih {on} od {total}"
 }

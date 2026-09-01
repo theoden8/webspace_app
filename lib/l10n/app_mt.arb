@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "Qsim tal-iskrin",
   "siteSettingsScreenShareHint": "Jikkontrolla jekk dan is-sit jistax jirreġistra l-iskrin tiegħek.\n\nWebSpace qatt ma jaqsam l-iskrin veru tiegħek. Reġistrazzjoni tal-iskrin tkopri l-wiċċ kollu, u għalhekk kienet turi wkoll is-siti l-oħra tiegħek f'din l-app. Minflok, lis-sit tista' tintwera immaġni jew vidjow li tagħżel int.\n\nStaqsi (awtomatiku): tieqa tistaqsi l-ewwel darba, imbagħad tiftakar l-għażla tiegħek.\nFajl tal-midja: uri l-fajl magħżul lis-sit bħala l-iskrin maqsum.\nImblokka dejjem: irrifjuta kull talba.",
   "siteSettingsScreenShareVirtual": "Skrin simulat",
-  "permissionScreenShareNeverReal": "Mhux disponibbli. Reġistrazzjoni tal-iskrin tkopri l-iskrin kollu, u għalhekk kienet turi wkoll is-siti l-oħra tiegħek."
+  "permissionScreenShareNeverReal": "Mhux disponibbli. Reġistrazzjoni tal-iskrin tkopri l-iskrin kollu, u għalhekk kienet turi wkoll is-siti l-oħra tiegħek.",
+  "siteSettingsDnsBlocklistLevel": "Livell tal-lista tal-imblukkar",
+  "siteSettingsDnsBlocklistLevelHint": "Kull livell jimblokka aktar dominji minn dak ta' taħtu. Niżżlu għal sit li l-lista tal-imblukkar tħassar, biex iżomm xi ftit protezzjoni minflok xejn. Livell li l-applikazzjoni għadha ma niżżlitx jinġieb meta tagħżlu.",
+  "siteSettingsDnsLevelFollowApp": "L-istess bħall-issettjar tal-applikazzjoni",
+  "siteSettingsDnsLevelFollowsApp": "L-istess bħall-issettjar tal-applikazzjoni ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "Għadu ma tniżżilx, qed jintuża {level}",
+  "siteSettingsDnsLevelDownloading": "Qed titniżżel il-lista tal-imblukkar...",
+  "siteSettingsDnsLevelDownloadFailed": "Dak il-livell tal-lista tal-imblukkar ma setax jitniżżel",
+  "siteSettingsContentBlockerLists": "Listi ta' filtri",
+  "siteSettingsContentBlockerListsHint": "Itfi lista hawn biex tieqaf tapplika f'dan is-sit biss. Band'oħra l-listi jibqgħu mixgħula. Jistgħu jintużaw biss listi mixgħula fl-issettjar tal-applikazzjoni.",
+  "siteSettingsContentBlockerListsSubtitle": "{on} minn {total} mixgħula"
 }

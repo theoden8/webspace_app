@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "Képernyőmegosztás",
   "siteSettingsScreenShareHint": "Meghatározza, hogy ez a webhely rögzítheti-e a képernyőjét.\n\nA WebSpace soha nem osztja meg a valódi képernyőjét. A képernyőfelvétel a teljes felületet lefedi, így az alkalmazásban lévő többi webhelyét is megmutatná. Ehelyett a webhelynek megmutatható egy Ön által választott kép vagy videó.\n\nKérdezzen (alapértelmezett): első alkalommal felugró ablak kérdez, majd megjegyzi a választását.\nMédiafájl: a kiválasztott fájl megmutatása a webhelynek megosztott képernyőként.\nMindig tiltsa: minden kérés elutasítása.",
   "siteSettingsScreenShareVirtual": "Szimulált képernyő",
-  "permissionScreenShareNeverReal": "Nem érhető el. A képernyőfelvétel a teljes képernyőt lefedi, így a többi webhelyét is megmutatná."
+  "permissionScreenShareNeverReal": "Nem érhető el. A képernyőfelvétel a teljes képernyőt lefedi, így a többi webhelyét is megmutatná.",
+  "siteSettingsDnsBlocklistLevel": "Tiltólista szintje",
+  "siteSettingsDnsBlocklistLevelHint": "Minden szint több tartományt tilt, mint az alatta lévő. Csökkentse egy olyan oldalnál, amelyet a tiltólista elront, hogy maradjon valamennyi védelem a semmi helyett. Az alkalmazás által még le nem töltött szintet a kiválasztáskor tölti le.",
+  "siteSettingsDnsLevelFollowApp": "Ugyanaz, mint az alkalmazás beállításaiban",
+  "siteSettingsDnsLevelFollowsApp": "Ugyanaz, mint az alkalmazás beállításaiban ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "Még nincs letöltve, a(z) {level} van használatban",
+  "siteSettingsDnsLevelDownloading": "Tiltólista letöltése...",
+  "siteSettingsDnsLevelDownloadFailed": "Ezt a tiltólista-szintet nem sikerült letölteni",
+  "siteSettingsContentBlockerLists": "Szűrőlisták",
+  "siteSettingsContentBlockerListsHint": "Kapcsoljon ki itt egy listát, hogy csak ezen az oldalon ne érvényesüljön. Máshol a listák bekapcsolva maradnak. Csak az alkalmazás beállításaiban engedélyezett listák használhatók.",
+  "siteSettingsContentBlockerListsSubtitle": "{total} listából {on} aktív"
 }

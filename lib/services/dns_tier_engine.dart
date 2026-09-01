@@ -47,11 +47,8 @@ class DnsTiers {
   /// Every blocked domain, across all downloaded levels. Lazy so callers
   /// that only need to hash them (Bloom construction, the native push) never
   /// materialise a union set.
-  Iterable<String> get domains sync* {
-    for (final tier in _tiers) {
-      if (tier != null) yield* tier;
-    }
-  }
+  Iterable<String> get domains =>
+      _tiers.whereType<Set<String>>().expand((tier) => tier);
 
   Set<String> tierDomains(int level) =>
       (level >= 0 && level < _tiers.length ? _tiers[level] : null) ??

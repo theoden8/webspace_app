@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "Condivisione dello schermo",
   "siteSettingsScreenShareHint": "Determina se questo sito può registrare il tuo schermo.\n\nWebSpace non condivide mai il tuo schermo reale. Una registrazione dello schermo copre l'intera superficie e mostrerebbe quindi anche gli altri tuoi siti in questa app. Al sito può invece essere mostrata un'immagine o un video che scegli tu.\n\nChiedi (predefinito): una finestra chiede la prima volta, poi la scelta viene ricordata.\nFile multimediale: mostra al sito il file scelto come schermo condiviso.\nBlocca sempre: rifiuta ogni richiesta.",
   "siteSettingsScreenShareVirtual": "Schermo simulato",
-  "permissionScreenShareNeverReal": "Non disponibile. Una registrazione dello schermo copre l'intero schermo e mostrerebbe quindi anche gli altri tuoi siti."
+  "permissionScreenShareNeverReal": "Non disponibile. Una registrazione dello schermo copre l'intero schermo e mostrerebbe quindi anche gli altri tuoi siti.",
+  "siteSettingsDnsBlocklistLevel": "Livello della lista di blocco",
+  "siteSettingsDnsBlocklistLevelHint": "Ogni livello blocca più domini di quello sotto. Abbassalo per un sito che la lista di blocco rompe, così conserva una parte di protezione invece di nessuna. Un livello che l'app non ha ancora scaricato viene recuperato quando lo scegli.",
+  "siteSettingsDnsLevelFollowApp": "Come le impostazioni dell'app",
+  "siteSettingsDnsLevelFollowsApp": "Come le impostazioni dell'app ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "Non ancora scaricato, in uso {level}",
+  "siteSettingsDnsLevelDownloading": "Download della lista di blocco...",
+  "siteSettingsDnsLevelDownloadFailed": "Impossibile scaricare quel livello della lista di blocco",
+  "siteSettingsContentBlockerLists": "Liste di filtri",
+  "siteSettingsContentBlockerListsHint": "Disattiva qui una lista perché smetta di applicarsi solo su questo sito. Altrove le liste restano attive. Si possono usare solo le liste attivate nelle impostazioni dell'app.",
+  "siteSettingsContentBlockerListsSubtitle": "{on} di {total} attive"
 }

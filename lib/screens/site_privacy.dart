@@ -348,6 +348,10 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
     );
   }
 
+  /// Picker value standing for "follow the app setting". The picker never
+  /// offers level 0 — the row's own switch is what turns DNS blocking off.
+  static const int _followsAppSetting = -1;
+
   Future<void> _pickDnsLevel() async {
     final loc = AppLocalizations.of(context);
     final picked = await showDialog<int>(
@@ -355,26 +359,29 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
       builder: (context) => SimpleDialog(
         title: Text(loc.siteSettingsDnsBlocklistLevel),
         children: [
-          // Sentinel for "follow the app setting": the picker never stores
-          // level 0, since the row's own switch is what turns DNS off.
-          RadioListTile<int>(
-            value: -1,
-            groupValue: _values.dnsBlockLevel ?? -1,
-            title: Text(loc.siteSettingsDnsLevelFollowApp),
-            onChanged: (v) => Navigator.pop(context, v),
-          ),
-          for (var level = 1; level <= kDnsMaxLevel; level++)
-            RadioListTile<int>(
-              value: level,
-              groupValue: _values.dnsBlockLevel ?? -1,
-              title: Text(dnsBlockLevelNames[level]),
-              onChanged: (v) => Navigator.pop(context, v),
+          RadioGroup<int>(
+            groupValue: _values.dnsBlockLevel ?? _followsAppSetting,
+            onChanged: (value) => Navigator.pop(context, value),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                RadioListTile<int>(
+                  value: _followsAppSetting,
+                  title: Text(loc.siteSettingsDnsLevelFollowApp),
+                ),
+                for (var level = 1; level <= kDnsMaxLevel; level++)
+                  RadioListTile<int>(
+                    value: level,
+                    title: Text(dnsBlockLevelNames[level]),
+                  ),
+              ],
             ),
+          ),
         ],
       ),
     );
     if (picked == null || !mounted) return;
-    final level = picked < 0 ? null : picked;
+    final level = picked == _followsAppSetting ? null : picked;
     _update(_values.copyWith(dnsBlockLevel: level));
     if (level != null &&
         !DnsBlockService.instance.downloadedLevels.contains(level)) {

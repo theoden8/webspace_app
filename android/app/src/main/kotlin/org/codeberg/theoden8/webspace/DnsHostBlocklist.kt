@@ -134,7 +134,7 @@ class DnsHostBlocklist {
             HashSet<String>(if (counts[level] == 0) 0 else counts[level] * 4 / 3 + 1)
         }
         forEachEntry(blob) { level, domain -> sets[level].add(domain) }
-        return Array(MAX_LEVEL + 1) { sets[it] }
+        return Array<Set<String>>(MAX_LEVEL + 1) { sets[it] }
     }
 
     /**
@@ -158,6 +158,6 @@ class DnsHostBlocklist {
         const val MAX_LEVEL = 5
 
         private fun emptyTiers(): Array<Set<String>> =
-            Array(MAX_LEVEL + 1) { emptySet() }
+            Array<Set<String>>(MAX_LEVEL + 1) { emptySet() }
     }
 }

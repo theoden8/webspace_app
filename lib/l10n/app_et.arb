@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "Ekraani jagamine",
   "siteSettingsScreenShareHint": "Määrab, kas see sait tohib sinu ekraani salvestada.\n\nWebSpace ei jaga kunagi sinu tegelikku ekraani. Ekraanisalvestus katab kogu pinna ja näitaks seega ka sinu teisi saite selles rakenduses. Selle asemel saab saidile näidata sinu valitud pilti või videot.\n\nKüsi (vaikimisi): esimesel korral küsitakse hüpikaknas ja valik jäetakse meelde.\nMeediafail: näita saidile valitud faili jagatud ekraanina.\nBlokeeri alati: keeldu igast päringust.",
   "siteSettingsScreenShareVirtual": "Simuleeritud ekraan",
-  "permissionScreenShareNeverReal": "Pole saadaval. Ekraanisalvestus katab kogu ekraani ja näitaks seega ka sinu teisi saite."
+  "permissionScreenShareNeverReal": "Pole saadaval. Ekraanisalvestus katab kogu ekraani ja näitaks seega ka sinu teisi saite.",
+  "siteSettingsDnsBlocklistLevel": "Blokeerimisloendi tase",
+  "siteSettingsDnsBlocklistLevelHint": "Iga tase blokeerib rohkem domeene kui sellest allpool olev. Langeta seda saidi puhul, mille blokeerimisloend katki teeb, et jääks siiski mingi kaitse, mitte üldse mitte midagi. Taseme, mida rakendus pole veel alla laadinud, laadib ta alla, kui selle valid.",
+  "siteSettingsDnsLevelFollowApp": "Sama mis rakenduse seaded",
+  "siteSettingsDnsLevelFollowsApp": "Sama mis rakenduse seaded ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "Pole veel alla laaditud, kasutusel on {level}",
+  "siteSettingsDnsLevelDownloading": "Blokeerimisloendi allalaadimine...",
+  "siteSettingsDnsLevelDownloadFailed": "Seda blokeerimisloendi taset ei õnnestunud alla laadida",
+  "siteSettingsContentBlockerLists": "Filtriloendid",
+  "siteSettingsContentBlockerListsHint": "Lülita loend siin välja, et see lakkaks kehtimast ainult sellel saidil. Mujal jäävad loendid sisse. Kasutada saab ainult rakenduse seadetes sisse lülitatud loendeid.",
+  "siteSettingsContentBlockerListsSubtitle": "{on} / {total} sees"
 }

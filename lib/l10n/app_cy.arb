@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "Rhannu sgrin",
   "siteSettingsScreenShareHint": "Rheoli a gaiff y wefan hon recordio eich sgrin.\n\nNid yw WebSpace byth yn rhannu eich sgrin go iawn. Mae recordiad sgrin yn cwmpasu'r arwyneb cyfan, felly byddai hefyd yn dangos eich gwefannau eraill yn yr ap hwn. Yn lle hynny, gellir dangos delwedd neu fideo o'ch dewis i'r wefan.\n\nGofyn (rhagosodedig): mae neges yn gofyn y tro cyntaf, ac yna'n cofio eich dewis.\nFfeil cyfryngau: dangos y ffeil a ddewiswyd i'r wefan fel y sgrin a rennir.\nRhwystro bob amser: gwrthod pob cais.",
   "siteSettingsScreenShareVirtual": "Sgrin efelychiedig",
-  "permissionScreenShareNeverReal": "Ddim ar gael. Mae recordiad sgrin yn cwmpasu'r sgrin gyfan, felly byddai hefyd yn dangos eich gwefannau eraill."
+  "permissionScreenShareNeverReal": "Ddim ar gael. Mae recordiad sgrin yn cwmpasu'r sgrin gyfan, felly byddai hefyd yn dangos eich gwefannau eraill.",
+  "siteSettingsDnsBlocklistLevel": "Lefel y rhestr rwystro",
+  "siteSettingsDnsBlocklistLevelHint": "Mae pob lefel yn rhwystro mwy o barthau na'r un oddi tani. Gostyngwch hi ar gyfer safle y mae'r rhestr rwystro yn ei dorri, fel ei fod yn cadw rhywfaint o amddiffyniad yn hytrach na dim. Caiff lefel nad yw'r ap wedi ei lawrlwytho eto ei nôl pan fyddwch yn ei dewis.",
+  "siteSettingsDnsLevelFollowApp": "Yr un fath â gosodiadau'r ap",
+  "siteSettingsDnsLevelFollowsApp": "Yr un fath â gosodiadau'r ap ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "Heb ei lawrlwytho eto, yn defnyddio {level}",
+  "siteSettingsDnsLevelDownloading": "Wrthi'n lawrlwytho'r rhestr rwystro...",
+  "siteSettingsDnsLevelDownloadFailed": "Methwyd lawrlwytho'r lefel rhestr rwystro honno",
+  "siteSettingsContentBlockerLists": "Rhestrau hidlo",
+  "siteSettingsContentBlockerListsHint": "Diffoddwch restr yma i'w hatal rhag cael ei chymhwyso i'r safle hwn yn unig. Mae'r rhestrau'n aros ymlaen ym mhob man arall. Dim ond rhestrau sydd wedi'u galluogi yng ngosodiadau'r ap y gellir eu defnyddio.",
+  "siteSettingsContentBlockerListsSubtitle": "{on} o {total} ymlaen"
 }

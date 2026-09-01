@@ -189,6 +189,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | navigation | back gesture, drawer swipe, refresh, race guards |
 | nested-url-blocking | nested InAppBrowser, gesture auto-redirect block |
 | page-zoom | per-site zoom; viewport meta on mobile (Android pins the layout width), CSS `zoom` on desktop |
+| per-site-blocker-masks *(change)* | per-site DNS severity level and filter-list selection, as masks over the app-wide configuration: the blocklist is partitioned by the level each domain enters at, and a list a site switches off is scoped away with `$domain=~host` |
 | per-site-cookie-isolation | legacy engine (fallback) |
 | per-site-containers | native containers (preferred when supported) |
 | per-site-location | geo + IANA tz override + WebRTC lockdown |
@@ -334,6 +335,7 @@ When adding a notification-related code path, prefer extending `NotificationServ
 
 DNS blocklist, content blocker, LocalCDN need a downloaded blob.
 
+- **Per-site strength**: both blockers are also adjustable per site, as masks over the app-wide configuration — `WebViewModel.dnsBlockLevel` (null = follow the app level) and `disabledFilterLists`. A mask can only relax: the DNS tiers hold what has been downloaded (picking an undownloaded level fetches it, and falls back to the app level meanwhile), and a filter list not enabled app-wide is not in the engine at all. See [dns_tier_engine.dart](lib/services/dns_tier_engine.dart) and [filter_list_mask.dart](lib/services/filter_list_mask.dart).
 - **DNS blocklist / content blocker**: the switch stays interactive when the service has no data. Enabling it flips the setting (it takes effect once the data is downloaded) and fires `_warnBlockerNotConfigured` — a SnackBar naming the feature and pointing at App Settings. Tracking Protection's toggle fires the same warning for each unconfigured feature it forces on. While a blocker is effectively on without data, `_notConfiguredWarnIcon` renders next to the tile title and the "Not configured" subtitle turns amber (also on the Tracking Protection tile when a forced dep is unconfigured).
 - **LocalCDN**: still hard-gated (`onChanged: ... hasCache ? (v) => ... : null` grays the switch) — it can't serve anything without a cache and its `value` is forced off.
 - See [lib/screens/settings.dart](lib/screens/settings.dart): `DnsBlockService.hasBlocklist`, `ContentBlockerService.hasRules`, `LocalCdnService.hasCache`.
