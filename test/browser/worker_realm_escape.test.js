@@ -388,6 +388,36 @@ test('a refused shim import leaves the worker running, unshimmed', async (t) => 
   });
 });
 
+// Neither worker-src nor default-src is set, so chromium falls back to
+// script-src for worker scripts. A retailer sign-in reported this shape
+// (#567) with the refused blob and the importScripts NetworkError that
+// follows it, and the button did nothing. The two cases above both name
+// worker-src explicitly, so nothing pinned the fallback.
+const SCRIPT_SRC_FALLBACK_CSP = "script-src 'self' 'unsafe-eval' 'unsafe-inline'";
+
+test('a CSP that only sets script-src still answers the probe', async (t) => {
+  await withShimmedPage(t, SCRIPT_SRC_FALLBACK_CSP, async (page) => {
+    const beforeWorker = await page.evaluate(() => globalThis.__wsViolations.slice());
+    // The console message names script-src ("'worker-src' was not
+    // explicitly set, so 'script-src' is used as a fallback") while the
+    // violation event reports the effective directive instead. The
+    // installer's filter has to accept whichever name arrives, so pin
+    // the one the engine actually emits.
+    assert.deepEqual(beforeWorker, [{ directive: 'worker-src', blocked: 'blob' }],
+      'the probe must be refused here, and have run by load');
+
+    const doc = await pageVals(page);
+    const { mine } = await page.evaluate(runWorker, null, NO_NEST);
+    assert.ok(mine, "the site's worker must start");
+    assert.equal(mine.shimInstalled, false, 'expected the WORK-006 fallback');
+    assert.notEqual(mine.hardwareConcurrency, doc.hardwareConcurrency,
+      'the fallback worker is the one leaking real values');
+
+    assert.equal(await page.evaluate(() => globalThis.__wsViolations.length), 1,
+      'no wrapper may be handed to the constructor after the refusal');
+  });
+});
+
 test('PREMISE: the fallback is exactly an unpatched Worker', async (t) => {
     // Shim the document but leave Worker unpatched — what the fallback
     // above amounts to. The worker starts and reports the real hardware

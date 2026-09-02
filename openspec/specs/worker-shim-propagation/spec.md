@@ -260,6 +260,16 @@ worker died and "verifying your PIN" hung with no error and no timeout.
 **And** the document records exactly one violation, naming the probe's `blob`
 under `worker-src`, not the site's own same-origin worker script
 
+#### Scenario: The fallback directive answers the probe too
+
+**Given** a page that sets `script-src` without `blob:` and sets neither
+`worker-src` nor `default-src`
+**When** the installer's probe worker is refused at document start
+**Then** wrapping stops and the page's own worker script runs unshimmed
+**And** the recorded violation names the effective directive `worker-src`, not
+the `script-src` the console message attributes the refusal to — the installer's
+directive filter MUST accept either name
+
 #### Scenario: A refused shim import does not take the worker with it
 
 **Given** a CSP admitting `blob:` workers but not `blob:` scripts
