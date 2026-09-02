@@ -993,6 +993,24 @@ class DnsBlockService {
     return true;
   }
 
+  /// Drop every piece of in-memory state so a test can drive [initialize]
+  /// from a known-empty service. The singleton outlives a test otherwise, and
+  /// the storage paths are exactly what needs exercising from cold.
+  @visibleForTesting
+  void resetForTest() {
+    _levelSets = DnsLevelSets.empty;
+    _level = 0;
+    _bloomFilter = null;
+    _mergedBloomFilter = null;
+    _abpNetworkHosts = <String>{};
+    _dnsBlockCache.clear();
+    _domainCache.clear();
+    _persistTimer?.cancel();
+    _persistTimer = null;
+    _siteStats.clear();
+    _storeOverride = null;
+  }
+
   FileStore? _storeOverride;
 
   /// Cache directory for the downloaded blocklist. Swappable for tests and

@@ -127,6 +127,10 @@ class ContentBlockerService {
   /// the hot path.
   Map<String, Set<String>> _listMasks = const <String, Set<String>>{};
 
+  /// Read-only view of the mask in force, for tests and diagnostics.
+  @visibleForTesting
+  Map<String, Set<String>> get debugListMasks => Map.unmodifiable(_listMasks);
+
   /// Replace the per-site mask. Rebuilds only when the mask actually
   /// changed: the rebuild reparses every list, and this is called from the
   /// same funnel that persists sites.

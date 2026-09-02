@@ -94,3 +94,23 @@
 - [x] 6.6 `test/dns_block_benchmark_test.dart`: one downloaded level is one
   group, a second adds only its own domains, and the lookup stays under the
   per-call ceiling.
+- [x] 6.7 `test/dns_block_level_storage_test.dart`: the download and disk path
+  end to end over a fake mirror — a level writes one file plus its prefs, a
+  second folds in without duplicating a shared domain, a level already held
+  costs no request, a missing mirror and an implausibly short body leave the
+  partition alone, a re-download drops delisted domains, a cold start
+  reproduces every level, and the group marker is hex (levels 2+4, mask `a`,
+  where decimal and hex diverge). Legacy flat-file migration, prune, and
+  clearing to level 0 included.
+- [x] 6.8 `test/content_blocker_list_mask_test.dart`: the mask round-trips
+  through prefs with its hosts sorted, an empty selection is dropped, a
+  malformed or partly non-string blob degrades to none, and a rebuild is paid
+  only when the mask actually moves.
+- [x] 6.9 `test/web_view_model_test.dart`: `dnsBlockLevel` and
+  `disabledFilterLists` through `toJson`/`fromJson`, defaults omitted, an
+  out-of-range or wrong-typed level read as "follow the app setting", and both
+  suppressed for archive-tier sites.
+- [x] 6.10 `test/js/dns_level_blob_format.test.js`: structural gate that the
+  Dart writers and the Kotlin reader agree on the `#`-plus-hex marker, the
+  level-bit formula, the level range, and the unmarked-blob-is-level-1
+  fallback. Nothing else links the two sides of the platform channel.
