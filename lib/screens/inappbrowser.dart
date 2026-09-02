@@ -13,6 +13,7 @@ import 'package:webspace/services/camera_decision_engine.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/microphone_decision_engine.dart';
+import 'package:webspace/services/screen_share_decision_engine.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
@@ -21,6 +22,7 @@ import 'package:webspace/services/surface_route_observer.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/camera.dart';
 import 'package:webspace/settings/microphone.dart';
+import 'package:webspace/settings/screen_share.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
@@ -101,6 +103,15 @@ class InAppWebViewScreen extends StatefulWidget {
   /// `WebViewModel`).
   final Future<MicrophoneDecision> Function(
       String origin, MicrophoneAccessMode current)? onMicrophoneDecision;
+  /// Screen-sharing resolver, forwarded from the parent so a site followed
+  /// through an outbound link prompts the same way — including the "use a
+  /// media file" simulated-surface path. Called with the origin and this
+  /// screen's in-memory current mode; the decision is remembered in-memory for
+  /// this screen only (nested screens have no persisted `WebViewModel`), so a
+  /// grant the user gave the parent site is never inherited across the origin
+  /// change.
+  final Future<ScreenShareDecision> Function(
+      String origin, ScreenShareMode current)? onScreenShareDecision;
   /// Invoked when the user toggles the URL bar from this nested screen's
   /// popup menu. Threaded back to `_WebSpacePageState` so the change
   /// updates the same global preference shown in the parent menu.
@@ -144,6 +155,8 @@ class InAppWebViewScreen extends StatefulWidget {
   final VirtualCameraSource? virtualCameraSource;
   final MicrophoneAccessMode microphoneMode;
   final VirtualMicrophoneSource? virtualMicrophoneSource;
+  final ScreenShareMode screenShareMode;
+  final VirtualScreenSource? virtualScreenSource;
   final bool? protectedContentAllowed;
 
   InAppWebViewScreen({
@@ -180,6 +193,7 @@ class InAppWebViewScreen extends StatefulWidget {
     this.onProtectedMediaRequest,
     this.onCameraDecision,
     this.onMicrophoneDecision,
+    this.onScreenShareDecision,
     this.onShowUrlBarChanged,
     UserProxySettings? proxySettings,
     this.notificationsEnabled = false,
@@ -192,6 +206,8 @@ class InAppWebViewScreen extends StatefulWidget {
     this.virtualCameraSource,
     this.microphoneMode = MicrophoneAccessMode.ask,
     this.virtualMicrophoneSource,
+    this.screenShareMode = ScreenShareMode.ask,
+    this.virtualScreenSource,
     this.protectedContentAllowed,
   }) : proxySettings = proxySettings ??
             UserProxySettings(type: ProxyType.DEFAULT);
@@ -229,6 +245,13 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   MicrophoneAccessMode _microphoneMode = MicrophoneAccessMode.ask;
   VirtualMicrophoneSource? _microphoneSource;
   final MicrophoneDecisionEngine _microphoneEngine = MicrophoneDecisionEngine();
+
+  /// In-memory screen-sharing decision for this nested screen, same contract
+  /// as the camera one above.
+  ScreenShareMode _screenShareMode = ScreenShareMode.ask;
+  VirtualScreenSource? _screenShareSource;
+  final ScreenShareDecisionEngine _screenShareEngine =
+      ScreenShareDecisionEngine();
 
   /// Cached InAppWebView widget. Built once in initState and reused on
   /// every build() so setState calls (URL bar updates, find results,
@@ -308,6 +331,8 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     _cameraSource = widget.virtualCameraSource;
     _microphoneMode = widget.microphoneMode;
     _microphoneSource = widget.virtualMicrophoneSource;
+    _screenShareMode = widget.screenShareMode;
+    _screenShareSource = widget.virtualScreenSource;
     _protectedContentAllowed = widget.protectedContentAllowed;
     _devToolsHost = NestedDevToolsHost(
       name: widget.homeTitle ?? extractDomain(widget.url),
@@ -435,6 +460,24 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                   save: () async {},
                 ),
         currentMicrophoneMode: () => _microphoneMode,
+        onScreenShareDecision: widget.onScreenShareDecision == null
+            ? null
+            : (origin) => _screenShareEngine.decide(
+                  origin: origin,
+                  // Mounted is the nested screen's "on screen": a route pushed
+                  // above it (the popup itself included) must not read as
+                  // backgrounded, or a burst would stop coalescing onto it.
+                  isSiteActive: () => mounted,
+                  effectiveMode: _screenShareMode,
+                  currentSource: () => _screenShareSource,
+                  resolve: widget.onScreenShareDecision!,
+                  persist: (mode, source) {
+                    _screenShareMode = mode;
+                    if (source != null) _screenShareSource = source;
+                  },
+                  // Nested screens have no persisted model.
+                  save: () async {},
+                ),
         notificationsEnabled: widget.notificationsEnabled,
         // Only wired when the opening site actually blocks cookies: an
         // always-on reader would add a jar round-trip to every load here.

@@ -1,4 +1,5 @@
 import 'package:webspace/platform/host_platform.dart';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -107,5 +108,88 @@ class VirtualMediaPicker {
       extension: ext,
       fileName: file.name,
     );
+  }
+}
+
+/// A picked still image or looped video, already turned into the `data:` URL
+/// every visual capture source stores.
+///
+/// The two features that substitute a visual source (simulated camera,
+/// simulated shared surface) accept exactly the same files and encode them
+/// exactly the same way, so the extension list, the MIME map and the base64
+/// wrapping live here rather than once per feature.
+class VisualMediaPick {
+  /// `image` or `video`.
+  final String kind;
+  final String dataUrl;
+  final String fileName;
+
+  const VisualMediaPick({
+    required this.kind,
+    required this.dataUrl,
+    required this.fileName,
+  });
+}
+
+/// Picks the image or video a site is served in place of a real visual
+/// capture device.
+class VirtualVisualMediaPicker {
+  /// Hard cap on an inlined visual source. The bytes are base64'd onto the
+  /// model in SharedPreferences and decoded whole by the shim, so this bounds
+  /// both the persisted JSON and the page's decode footprint. 24 MiB of raw
+  /// bytes (~32 MiB base64) covers a screenshot or a few seconds of
+  /// phone-recorded video, which is all either substitution needs.
+  static const int maxBytes = 24 * 1024 * 1024;
+
+  static const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'];
+  static const videoExtensions = ['mp4', 'webm', 'mov', 'm4v', 'ogv'];
+
+  static Future<VirtualMediaPickResult<VisualMediaPick>> pick({
+    required int maxBytes,
+  }) async {
+    final outcome = await VirtualMediaPicker.pick(
+      allowedExtensions: [...imageExtensions, ...videoExtensions],
+      maxBytes: maxBytes,
+    );
+    if (outcome.cancelled) {
+      return const VirtualMediaPickResult<VisualMediaPick>.cancelled();
+    }
+    if (outcome.error != null) {
+      return VirtualMediaPickResult<VisualMediaPick>.error(outcome.error!);
+    }
+    final isVideo = videoExtensions.contains(outcome.extension);
+    return VirtualMediaPickResult<VisualMediaPick>.picked(VisualMediaPick(
+      kind: isVideo ? 'video' : 'image',
+      dataUrl: 'data:${mimeForExtension(outcome.extension, isVideo)};base64,'
+          '${base64Encode(outcome.bytes!)}',
+      fileName: outcome.fileName,
+    ));
+  }
+
+  static String mimeForExtension(String ext, bool isVideo) {
+    switch (ext) {
+      case 'png':
+        return 'image/png';
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'gif':
+        return 'image/gif';
+      case 'webp':
+        return 'image/webp';
+      case 'bmp':
+        return 'image/bmp';
+      case 'mp4':
+      case 'm4v':
+        return 'video/mp4';
+      case 'webm':
+        return 'video/webm';
+      case 'mov':
+        return 'video/quicktime';
+      case 'ogv':
+        return 'video/ogg';
+      default:
+        return isVideo ? 'video/mp4' : 'image/png';
+    }
   }
 }

@@ -762,5 +762,18 @@
   "homeQrReviewName": "Назив: {name}",
   "homeQrReviewProxy": "Шаље саобраћај овог сајта кроз прокси: {address}",
   "homeQrReviewTurnsOff": "Искључује: {settings}",
-  "homeQrReviewTurnsOn": "Укључује: {settings}"
+  "homeQrReviewTurnsOn": "Укључује: {settings}",
+  "homeScreenShareUseFileAction": "Користи медијску датотеку",
+  "homeScreenShareSourceTooLarge": "Датотека је превелика. Изаберите мању од 24 MB.",
+  "homeScreenShareSourceError": "Та датотека не може да се користи. Изаберите слику или видео.",
+  "siteSettingsScreenShareAsk": "Питај",
+  "siteSettingsScreenShareBlock": "Увек блокирај",
+  "siteSettingsScreenShareNoSource": "Ниједна датотека није изабрана",
+  "siteSettingsScreenShareChooseSource": "Изаберите медијску датотеку",
+  "homeScreenShareTitle": "Дозволити дељење екрана?",
+  "homeScreenShareBody": "{origin} жели да подели ваш екран.\n\nWebSpace неће поделити ваш стварни екран: снимак екрана обухвата све, укључујући и ваше друге сајтове у овој апликацији. Уместо тога можете изабрати слику или видео који сајт види као дељени екран. Ваш избор се памти за овај сајт.",
+  "siteSettingsScreenShare": "Дељење екрана",
+  "siteSettingsScreenShareHint": "Одређује да ли овај сајт сме да снима ваш екран.\n\nWebSpace никада не дели ваш стварни екран. Снимак екрана обухвата целу површину, па би приказао и ваше друге сајтове у овој апликацији. Уместо тога, сајту се може приказати слика или видео који ви изаберете.\n\nПитај (подразумевано): искачући прозор пита први пут, а затим памти ваш избор.\nМедијска датотека: прикажи изабрану датотеку сајту као дељени екран.\nУвек блокирај: одбиј сваки захтев.",
+  "siteSettingsScreenShareVirtual": "Симулирани екран",
+  "permissionScreenShareNeverReal": "Није доступно. Снимак екрана обухвата цео екран, па би приказао и ваше друге сајтове."
 }

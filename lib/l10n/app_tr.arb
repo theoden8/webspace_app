@@ -762,5 +762,18 @@
   "homeQrReviewName": "Ad: {name}",
   "homeQrReviewProxy": "Bu sitenin trafiğini bir proxy üzerinden gönderir: {address}",
   "homeQrReviewTurnsOff": "Kapatır: {settings}",
-  "homeQrReviewTurnsOn": "Açar: {settings}"
+  "homeQrReviewTurnsOn": "Açar: {settings}",
+  "homeScreenShareUseFileAction": "Medya dosyası kullan",
+  "homeScreenShareSourceTooLarge": "Bu dosya çok büyük. 24 MB altında bir tane seçin.",
+  "homeScreenShareSourceError": "Bu dosya kullanılamadı. Bir görüntü veya video seçin.",
+  "siteSettingsScreenShareAsk": "Sor",
+  "siteSettingsScreenShareBlock": "Her zaman engelle",
+  "siteSettingsScreenShareNoSource": "Dosya seçilmedi",
+  "siteSettingsScreenShareChooseSource": "Medya dosyası seç",
+  "homeScreenShareTitle": "Ekran paylaşımına izin verilsin mi?",
+  "homeScreenShareBody": "{origin} ekranınızı paylaşmak istiyor.\n\nWebSpace gerçek ekranınızı paylaşmaz: ekran kaydı, bu uygulamadaki diğer siteleriniz dahil her şeyi yakalar. Bunun yerine, sitenin paylaşılan ekran olarak göreceği bir görsel veya video seçebilirsiniz. Seçiminiz bu site için hatırlanır.",
+  "siteSettingsScreenShare": "Ekran paylaşımı",
+  "siteSettingsScreenShareHint": "Bu sitenin ekranınızı kaydedip kaydedemeyeceğini denetler.\n\nWebSpace gerçek ekranınızı asla paylaşmaz. Ekran kaydı tüm yüzeyi kapsar, dolayısıyla bu uygulamadaki diğer sitelerinizi de gösterirdi. Bunun yerine siteye, sizin seçtiğiniz bir görsel veya video gösterilebilir.\n\nSor (varsayılan): ilk seferde bir pencere sorar, sonra seçiminiz hatırlanır.\nOrtam dosyası: seçilen dosyayı siteye paylaşılan ekran olarak göster.\nHer zaman engelle: her isteği reddet.",
+  "siteSettingsScreenShareVirtual": "Simüle ekran",
+  "permissionScreenShareNeverReal": "Kullanılamıyor. Ekran kaydı tüm ekranı kapsar, dolayısıyla diğer sitelerinizi de gösterirdi."
 }

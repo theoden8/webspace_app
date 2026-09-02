@@ -762,5 +762,18 @@
   "homeQrReviewName": "Назва: {name}",
   "homeQrReviewProxy": "Надсилає трафік цього сайту через проксі: {address}",
   "homeQrReviewTurnsOff": "Вимикає: {settings}",
-  "homeQrReviewTurnsOn": "Вмикає: {settings}"
+  "homeQrReviewTurnsOn": "Вмикає: {settings}",
+  "homeScreenShareUseFileAction": "Використати медіафайл",
+  "homeScreenShareSourceTooLarge": "Файл завеликий. Виберіть менший за 24 MB.",
+  "homeScreenShareSourceError": "Не вдалося використати цей файл. Виберіть зображення або відео.",
+  "siteSettingsScreenShareAsk": "Запитувати",
+  "siteSettingsScreenShareBlock": "Завжди блокувати",
+  "siteSettingsScreenShareNoSource": "Файл не вибрано",
+  "siteSettingsScreenShareChooseSource": "Вибрати медіафайл",
+  "homeScreenShareTitle": "Дозволити демонстрацію екрана?",
+  "homeScreenShareBody": "{origin} хоче поділитися вашим екраном.\n\nWebSpace не покаже ваш справжній екран: запис екрана охоплює все, зокрема інші ваші сайти в цьому застосунку. Натомість ви можете вибрати зображення або відео, яке сайт побачить як демонстрований екран. Ваш вибір запам’ятовується для цього сайту.",
+  "siteSettingsScreenShare": "Демонстрація екрана",
+  "siteSettingsScreenShareHint": "Визначає, чи може цей сайт записувати ваш екран.\n\nWebSpace ніколи не показує ваш справжній екран. Запис екрана охоплює всю поверхню, тож показав би й інші ваші сайти в цьому застосунку. Натомість сайту можна показати вибране вами зображення або відео.\n\nЗапитувати (типово): спливне вікно запитує першого разу, потім вибір запам’ятовується.\nМедіафайл: показати сайту вибраний файл як демонстрований екран.\nЗавжди блокувати: відхиляти кожен запит.",
+  "siteSettingsScreenShareVirtual": "Симульований екран",
+  "permissionScreenShareNeverReal": "Недоступно. Запис екрана охоплює весь екран, тож показав би й інші ваші сайти."
 }

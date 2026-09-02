@@ -762,5 +762,18 @@
   "homeQrReviewName": "이름: {name}",
   "homeQrReviewProxy": "이 사이트의 트래픽을 프록시를 통해 보냅니다: {address}",
   "homeQrReviewTurnsOff": "끄는 항목: {settings}",
-  "homeQrReviewTurnsOn": "켜는 항목: {settings}"
+  "homeQrReviewTurnsOn": "켜는 항목: {settings}",
+  "homeScreenShareUseFileAction": "미디어 파일 사용",
+  "homeScreenShareSourceTooLarge": "파일이 너무 큽니다. 24 MB 미만으로 선택하세요.",
+  "homeScreenShareSourceError": "그 파일을 사용할 수 없습니다. 이미지나 동영상을 선택하세요.",
+  "siteSettingsScreenShareAsk": "물어보기",
+  "siteSettingsScreenShareBlock": "항상 차단",
+  "siteSettingsScreenShareNoSource": "선택된 파일 없음",
+  "siteSettingsScreenShareChooseSource": "미디어 파일 선택",
+  "homeScreenShareTitle": "화면 공유를 허용할까요?",
+  "homeScreenShareBody": "{origin}에서 화면을 공유하려고 합니다.\n\nWebSpace는 실제 화면을 공유하지 않습니다. 화면 캡처는 이 앱의 다른 사이트를 포함해 모든 것을 담기 때문입니다. 대신 사이트가 공유 화면으로 보게 될 이미지나 동영상을 선택할 수 있습니다. 선택한 내용은 이 사이트에 대해 기억됩니다.",
+  "siteSettingsScreenShare": "화면 공유",
+  "siteSettingsScreenShareHint": "이 사이트가 화면을 캡처할 수 있는지 제어합니다.\n\nWebSpace는 실제 화면을 공유하지 않습니다. 화면 캡처는 화면 전체를 담기 때문에 이 앱의 다른 사이트도 함께 보이게 됩니다. 대신 직접 선택한 이미지나 동영상을 사이트에 보여줄 수 있습니다.\n\n확인(기본값): 처음 한 번 팝업으로 묻고, 이후에는 선택을 기억합니다.\n미디어 파일: 선택한 파일을 공유 화면으로 사이트에 보여줍니다.\n항상 차단: 모든 요청을 거부합니다.",
+  "siteSettingsScreenShareVirtual": "시뮬레이션 화면",
+  "permissionScreenShareNeverReal": "사용할 수 없습니다. 화면 캡처는 화면 전체를 담기 때문에 다른 사이트도 함께 보이게 됩니다."
 }

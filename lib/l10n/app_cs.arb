@@ -762,5 +762,18 @@
   "homeQrReviewName": "Název: {name}",
   "homeQrReviewProxy": "Posílá provoz této stránky přes proxy: {address}",
   "homeQrReviewTurnsOff": "Vypne: {settings}",
-  "homeQrReviewTurnsOn": "Zapne: {settings}"
+  "homeQrReviewTurnsOn": "Zapne: {settings}",
+  "homeScreenShareUseFileAction": "Použít mediální soubor",
+  "homeScreenShareSourceTooLarge": "Soubor je příliš velký. Vyberte menší než 24 MB.",
+  "homeScreenShareSourceError": "Tento soubor nelze použít. Vyberte obrázek nebo video.",
+  "siteSettingsScreenShareAsk": "Zeptat se",
+  "siteSettingsScreenShareBlock": "Vždy blokovat",
+  "siteSettingsScreenShareNoSource": "Není vybrán žádný soubor",
+  "siteSettingsScreenShareChooseSource": "Vybrat mediální soubor",
+  "homeScreenShareTitle": "Povolit sdílení obrazovky?",
+  "homeScreenShareBody": "{origin} chce sdílet vaši obrazovku.\n\nWebSpace nebude sdílet vaši skutečnou obrazovku: záznam obrazovky zachytí všechno včetně vašich ostatních webů v této aplikaci. Místo toho můžete vybrat obrázek nebo video, které web uvidí jako sdílenou obrazovku. Vaše volba se pro tento web zapamatuje.",
+  "siteSettingsScreenShare": "Sdílení obrazovky",
+  "siteSettingsScreenShareHint": "Určuje, zda tento web smí zaznamenávat vaši obrazovku.\n\nWebSpace nikdy nesdílí vaši skutečnou obrazovku. Záznam obrazovky pokrývá celou plochu, takže by ukázal i vaše ostatní weby v této aplikaci. Místo toho lze webu zobrazit obrázek nebo video, které vyberete.\n\nZeptat se (výchozí): při prvním požadavku se zobrazí dotaz a volba se zapamatuje.\nMediální soubor: zobrazit webu vybraný soubor jako sdílenou obrazovku.\nVždy blokovat: odmítnout každý požadavek.",
+  "siteSettingsScreenShareVirtual": "Simulovaná obrazovka",
+  "permissionScreenShareNeverReal": "Není k dispozici. Záznam obrazovky pokrývá celou obrazovku, takže by ukázal i vaše ostatní weby."
 }

@@ -762,5 +762,18 @@
   "homeQrReviewName": "Nama: {name}",
   "homeQrReviewProxy": "Mengirim lalu lintas situs ini melalui proxy: {address}",
   "homeQrReviewTurnsOff": "Menonaktifkan: {settings}",
-  "homeQrReviewTurnsOn": "Mengaktifkan: {settings}"
+  "homeQrReviewTurnsOn": "Mengaktifkan: {settings}",
+  "homeScreenShareUseFileAction": "Gunakan berkas media",
+  "homeScreenShareSourceTooLarge": "Berkas terlalu besar. Pilih yang di bawah 24 MB.",
+  "homeScreenShareSourceError": "Tidak dapat menggunakan berkas itu. Pilih gambar atau video.",
+  "siteSettingsScreenShareAsk": "Tanya",
+  "siteSettingsScreenShareBlock": "Selalu blokir",
+  "siteSettingsScreenShareNoSource": "Tidak ada berkas dipilih",
+  "siteSettingsScreenShareChooseSource": "Pilih berkas media",
+  "homeScreenShareTitle": "Izinkan berbagi layar?",
+  "homeScreenShareBody": "{origin} ingin membagikan layar Anda.\n\nWebSpace tidak akan membagikan layar asli Anda: tangkapan layar merekam semuanya, termasuk situs Anda yang lain di aplikasi ini. Sebagai gantinya Anda dapat memilih gambar atau video yang dilihat situs sebagai layar yang dibagikan. Pilihan Anda diingat untuk situs ini.",
+  "siteSettingsScreenShare": "Berbagi layar",
+  "siteSettingsScreenShareHint": "Mengatur apakah situs ini boleh merekam layar Anda.\n\nWebSpace tidak pernah membagikan layar asli Anda. Perekaman layar mencakup seluruh permukaan, sehingga juga akan menampilkan situs Anda yang lain di aplikasi ini. Sebagai gantinya, situs dapat ditunjukkan gambar atau video yang Anda pilih.\n\nTanya (bawaan): sebuah jendela bertanya pertama kali, lalu mengingat pilihan Anda.\nBerkas media: tunjukkan berkas terpilih kepada situs sebagai layar yang dibagikan.\nSelalu blokir: tolak setiap permintaan.",
+  "siteSettingsScreenShareVirtual": "Layar simulasi",
+  "permissionScreenShareNeverReal": "Tidak tersedia. Perekaman layar mencakup seluruh layar, sehingga juga akan menampilkan situs Anda yang lain."
 }

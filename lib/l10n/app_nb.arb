@@ -762,5 +762,18 @@
   "homeQrReviewName": "Navn: {name}",
   "homeQrReviewProxy": "Sender trafikken til dette nettstedet gjennom en proxy: {address}",
   "homeQrReviewTurnsOff": "Slår av: {settings}",
-  "homeQrReviewTurnsOn": "Slår på: {settings}"
+  "homeQrReviewTurnsOn": "Slår på: {settings}",
+  "homeScreenShareUseFileAction": "Bruk en mediefil",
+  "homeScreenShareSourceTooLarge": "Filen er for stor. Velg en under 24 MB.",
+  "homeScreenShareSourceError": "Kunne ikke bruke den filen. Velg et bilde eller en video.",
+  "siteSettingsScreenShareAsk": "Spør",
+  "siteSettingsScreenShareBlock": "Alltid blokker",
+  "siteSettingsScreenShareNoSource": "Ingen fil valgt",
+  "siteSettingsScreenShareChooseSource": "Velg mediefil",
+  "homeScreenShareTitle": "Tillate skjermdeling?",
+  "homeScreenShareBody": "{origin} vil dele skjermen din.\n\nWebSpace deler ikke den ekte skjermen din: et skjermopptak fanger alt, også de andre nettstedene dine i denne appen. Du kan i stedet velge et bilde eller en video som nettstedet ser som den delte skjermen. Valget ditt huskes for dette nettstedet.",
+  "siteSettingsScreenShare": "Skjermdeling",
+  "siteSettingsScreenShareHint": "Bestemmer om dette nettstedet får ta opp skjermen din.\n\nWebSpace deler aldri den ekte skjermen din. Et skjermopptak dekker hele flaten og ville derfor også vise de andre nettstedene dine i denne appen. I stedet kan nettstedet få vist et bilde eller en video du velger.\n\nSpør (standard): et vindu spør første gang, og valget huskes deretter.\nMediefil: vis den valgte filen til nettstedet som den delte skjermen.\nBlokker alltid: avvis alle forespørsler.",
+  "siteSettingsScreenShareVirtual": "Simulert skjerm",
+  "permissionScreenShareNeverReal": "Ikke tilgjengelig. Et skjermopptak dekker hele skjermen og ville derfor også vise de andre nettstedene dine."
 }

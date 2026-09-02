@@ -762,5 +762,18 @@
   "homeQrReviewName": "名前: {name}",
   "homeQrReviewProxy": "このサイトの通信をプロキシ経由で送信します: {address}",
   "homeQrReviewTurnsOff": "オフにする項目: {settings}",
-  "homeQrReviewTurnsOn": "オンにする項目: {settings}"
+  "homeQrReviewTurnsOn": "オンにする項目: {settings}",
+  "homeScreenShareUseFileAction": "メディアファイルを使用",
+  "homeScreenShareSourceTooLarge": "ファイルが大きすぎます。24 MB 未満のものを選んでください。",
+  "homeScreenShareSourceError": "そのファイルは使用できませんでした。画像または動画を選んでください。",
+  "siteSettingsScreenShareAsk": "確認",
+  "siteSettingsScreenShareBlock": "常にブロック",
+  "siteSettingsScreenShareNoSource": "ファイルが選択されていません",
+  "siteSettingsScreenShareChooseSource": "メディアファイルを選択",
+  "homeScreenShareTitle": "画面共有を許可しますか？",
+  "homeScreenShareBody": "{origin} が画面の共有を求めています。\n\nWebSpace は実際の画面を共有しません。画面キャプチャは、このアプリ内の他のサイトも含めてすべてを取り込んでしまうためです。代わりに、サイトが共有画面として見る画像または動画を選べます。選択内容はこのサイトに記憶されます。",
+  "siteSettingsScreenShare": "画面共有",
+  "siteSettingsScreenShareHint": "このサイトが画面をキャプチャできるかどうかを制御します。\n\nWebSpace は実際の画面を共有しません。画面キャプチャは表示面全体を対象とするため、このアプリ内の他のサイトも映してしまいます。代わりに、選んだ画像または動画をサイトに見せることができます。\n\n確認する（既定）: 初回にダイアログで確認し、以後は選択を記憶します。\nメディアファイル: 選んだファイルを共有画面としてサイトに見せます。\n常にブロック: すべての要求を拒否します。",
+  "siteSettingsScreenShareVirtual": "シミュレート画面",
+  "permissionScreenShareNeverReal": "利用できません。画面キャプチャは画面全体を対象とするため、他のサイトも映してしまいます。"
 }

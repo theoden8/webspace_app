@@ -762,5 +762,18 @@
   "homeQrReviewName": "Name: {name}",
   "homeQrReviewProxy": "Leitet den Datenverkehr dieser Website über einen Proxy: {address}",
   "homeQrReviewTurnsOff": "Schaltet aus: {settings}",
-  "homeQrReviewTurnsOn": "Schaltet ein: {settings}"
+  "homeQrReviewTurnsOn": "Schaltet ein: {settings}",
+  "homeScreenShareUseFileAction": "Mediendatei verwenden",
+  "homeScreenShareSourceTooLarge": "Die Datei ist zu groß. Wählen Sie eine unter 24 MB.",
+  "homeScreenShareSourceError": "Diese Datei konnte nicht verwendet werden. Wählen Sie ein Bild oder Video.",
+  "siteSettingsScreenShareAsk": "Fragen",
+  "siteSettingsScreenShareBlock": "Immer blockieren",
+  "siteSettingsScreenShareNoSource": "Keine Datei ausgewählt",
+  "siteSettingsScreenShareChooseSource": "Mediendatei auswählen",
+  "homeScreenShareTitle": "Bildschirmfreigabe erlauben?",
+  "homeScreenShareBody": "{origin} möchte Ihren Bildschirm teilen.\n\nWebSpace gibt Ihren echten Bildschirm nicht frei: Eine Bildschirmaufnahme erfasst alles, auch Ihre anderen Websites in dieser App. Stattdessen können Sie ein Bild oder Video wählen, das die Website als geteilten Bildschirm sieht. Ihre Wahl wird für diese Website gespeichert.",
+  "siteSettingsScreenShare": "Bildschirmfreigabe",
+  "siteSettingsScreenShareHint": "Legt fest, ob diese Website Ihren Bildschirm aufnehmen darf.\n\nWebSpace gibt Ihren echten Bildschirm nie frei. Eine Bildschirmaufnahme erfasst die gesamte Oberfläche und würde damit auch Ihre anderen Websites in dieser App zeigen. Stattdessen kann der Website ein Bild oder Video Ihrer Wahl gezeigt werden.\n\nFragen (Standard): Beim ersten Mal wird gefragt, danach wird Ihre Wahl gespeichert.\nMediendatei: der Website die gewählte Datei als geteilten Bildschirm zeigen.\nImmer blockieren: jede Anfrage ablehnen.",
+  "siteSettingsScreenShareVirtual": "Simulierter Bildschirm",
+  "permissionScreenShareNeverReal": "Nicht verfügbar. Eine Bildschirmaufnahme erfasst den gesamten Bildschirm und würde damit auch Ihre anderen Websites zeigen."
 }

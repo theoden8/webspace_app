@@ -762,5 +762,18 @@
   "homeQrReviewName": "Անուն՝ {name}",
   "homeQrReviewProxy": "Ուղարկում է այս կայքի տրաֆիկը պրոքսիի միջով՝ {address}",
   "homeQrReviewTurnsOff": "Անջատում է՝ {settings}",
-  "homeQrReviewTurnsOn": "Միացնում է՝ {settings}"
+  "homeQrReviewTurnsOn": "Միացնում է՝ {settings}",
+  "homeScreenShareUseFileAction": "Օգտագործել մեդիաֆայլ",
+  "homeScreenShareSourceTooLarge": "Ֆայլը չափազանց մեծ է։ Ընտրեք 24 ՄԲ-ից փոքրը։",
+  "homeScreenShareSourceError": "Չհաջողվեց օգտագործել այդ ֆայլը։ Ընտրեք պատկեր կամ տեսանյութ։",
+  "siteSettingsScreenShareAsk": "Հարցնել",
+  "siteSettingsScreenShareBlock": "Միշտ արգելափակել",
+  "siteSettingsScreenShareNoSource": "Ֆայլ ընտրված չէ",
+  "siteSettingsScreenShareChooseSource": "Ընտրել մեդիաֆայլ",
+  "homeScreenShareTitle": "Թույլատրե՞լ էկրանի ցուցադրումը",
+  "homeScreenShareBody": "{origin}-ը ցանկանում է ցուցադրել ձեր էկրանը։\n\nWebSpace-ը չի ցուցադրի ձեր իրական էկրանը. էկրանի գրանցումը ընդգրկում է ամեն ինչ, ներառյալ այս հավելվածի ձեր մյուս կայքերը։ Փոխարենը կարող եք ընտրել պատկեր կամ տեսանյութ, որը կայքը կտեսնի որպես ցուցադրվող էկրան։ Ձեր ընտրությունը հիշվում է այս կայքի համար։",
+  "siteSettingsScreenShare": "Էկրանի ցուցադրում",
+  "siteSettingsScreenShareHint": "Կառավարում է՝ արդյոք այս կայքը կարող է գրանցել ձեր էկրանը։\n\nWebSpace-ը երբեք չի ցուցադրում ձեր իրական էկրանը։ Էկրանի գրանցումը ընդգրկում է ամբողջ մակերեսը, ուստի ցույց կտար նաև այս հավելվածի ձեր մյուս կայքերը։ Փոխարենը կայքին կարելի է ցույց տալ ձեր ընտրած պատկերը կամ տեսանյութը։\n\nՀարցնել (լռելյայն). առաջին անգամ պատուհանը հարցնում է, ապա հիշում ձեր ընտրությունը։\nՄեդիա ֆայլ. ցույց տալ ընտրված ֆայլը կայքին որպես ցուցադրվող էկրան։\nՄիշտ արգելափակել. մերժել բոլոր հարցումները։",
+  "siteSettingsScreenShareVirtual": "Մոդելավորված էկրան",
+  "permissionScreenShareNeverReal": "Հասանելի չէ։ Էկրանի գրանցումը ընդգրկում է ամբողջ էկրանը, ուստի ցույց կտար նաև ձեր մյուս կայքերը։"
 }

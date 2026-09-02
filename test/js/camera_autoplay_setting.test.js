@@ -35,7 +35,7 @@ test('the main webview allows media to autoplay so camera streams render', () =>
 test('the virtual-camera preview also allows autoplay so the loop plays', () => {
   const src = stripComments(
     fs.readFileSync(
-      path.join(repoRoot, 'lib/widgets/virtual_camera_preview.dart'), 'utf8'),
+      path.join(repoRoot, 'lib/widgets/virtual_source_preview.dart'), 'utf8'),
   );
   assert.match(src, /mediaPlaybackRequiresUserGesture\s*:\s*false/,
     'the preview WebView must autoplay so the looped clip plays without a tap.');

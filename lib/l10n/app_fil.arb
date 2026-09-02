@@ -762,5 +762,18 @@
   "homeQrReviewName": "Pangalan: {name}",
   "homeQrReviewProxy": "Ipinapadaan ang trapiko ng site na ito sa isang proxy: {address}",
   "homeQrReviewTurnsOff": "Ino-off: {settings}",
-  "homeQrReviewTurnsOn": "Ino-on: {settings}"
+  "homeQrReviewTurnsOn": "Ino-on: {settings}",
+  "homeScreenShareUseFileAction": "Gumamit ng media file",
+  "homeScreenShareSourceTooLarge": "Masyadong malaki ang file. Pumili ng wala pang 24 MB.",
+  "homeScreenShareSourceError": "Hindi magamit ang file na iyon. Pumili ng larawan o video.",
+  "siteSettingsScreenShareAsk": "Magtanong",
+  "siteSettingsScreenShareBlock": "Palaging i-block",
+  "siteSettingsScreenShareNoSource": "Walang piniling file",
+  "siteSettingsScreenShareChooseSource": "Pumili ng media file",
+  "homeScreenShareTitle": "Payagan ang pagbabahagi ng screen?",
+  "homeScreenShareBody": "Gustong ibahagi ng {origin} ang iyong screen.\n\nHindi ibabahagi ng WebSpace ang totoong screen mo: kinukuha ng screen capture ang lahat, pati na ang iba mong site sa app na ito. Sa halip ay puwede kang pumili ng larawan o video na makikita ng site bilang ibinahaging screen. Naaalala ang pinili mo para sa site na ito.",
+  "siteSettingsScreenShare": "Pagbabahagi ng screen",
+  "siteSettingsScreenShareHint": "Kinokontrol kung puwedeng i-capture ng site na ito ang iyong screen.\n\nHindi kailanman ibinabahagi ng WebSpace ang totoong screen mo. Sinasakop ng screen capture ang buong ibabaw, kaya ipapakita rin nito ang iba mong site sa app na ito. Sa halip, puwedeng ipakita sa site ang larawan o video na pipiliin mo.\n\nMagtanong (default): may magtatanong sa unang pagkakataon, tapos maaalala ang pinili mo.\nMedia file: ipakita sa site ang piniling file bilang ibinahaging screen.\nPalaging harangan: tanggihan ang bawat kahilingan.",
+  "siteSettingsScreenShareVirtual": "Simuladong screen",
+  "permissionScreenShareNeverReal": "Hindi available. Sinasakop ng screen capture ang buong screen, kaya ipapakita rin nito ang iba mong site."
 }

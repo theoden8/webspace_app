@@ -762,5 +762,18 @@
   "homeQrReviewName": "نام: {name}",
   "homeQrReviewProxy": "اس سائٹ کی ٹریفک ایک پراکسی کے ذریعے بھیجتا ہے: {address}",
   "homeQrReviewTurnsOff": "بند کرتا ہے: {settings}",
-  "homeQrReviewTurnsOn": "چالو کرتا ہے: {settings}"
+  "homeQrReviewTurnsOn": "چالو کرتا ہے: {settings}",
+  "homeScreenShareUseFileAction": "میڈیا فائل استعمال کریں",
+  "homeScreenShareSourceTooLarge": "وہ فائل بہت بڑی ہے۔ 24 MB سے چھوٹی منتخب کریں۔",
+  "homeScreenShareSourceError": "وہ فائل استعمال نہیں ہو سکی۔ ایک تصویر یا ویڈیو منتخب کریں۔",
+  "siteSettingsScreenShareAsk": "پوچھیں",
+  "siteSettingsScreenShareBlock": "ہمیشہ بلاک کریں",
+  "siteSettingsScreenShareNoSource": "کوئی فائل منتخب نہیں",
+  "siteSettingsScreenShareChooseSource": "میڈیا فائل منتخب کریں",
+  "homeScreenShareTitle": "اسکرین شیئرنگ کی اجازت دیں؟",
+  "homeScreenShareBody": "{origin} آپ کی اسکرین شیئر کرنا چاہتا ہے۔\n\nWebSpace آپ کی حقیقی اسکرین شیئر نہیں کرے گا: اسکرین کیپچر سب کچھ لے لیتا ہے، بشمول اس ایپ میں آپ کی دوسری سائٹس۔ اس کے بجائے آپ ایک تصویر یا ویڈیو منتخب کر سکتے ہیں، جسے سائٹ شیئر کی گئی اسکرین کے طور پر دیکھے گی۔ آپ کا انتخاب اس سائٹ کے لیے یاد رکھا جائے گا۔",
+  "siteSettingsScreenShare": "اسکرین شیئرنگ",
+  "siteSettingsScreenShareHint": "یہ کنٹرول کرتا ہے کہ یہ سائٹ آپ کی اسکرین ریکارڈ کر سکتی ہے یا نہیں۔\n\nWebSpace کبھی آپ کی حقیقی اسکرین شیئر نہیں کرتا۔ اسکرین کیپچر پوری سطح کا احاطہ کرتا ہے، اس لیے یہ اس ایپ میں آپ کی دوسری سائٹس بھی دکھاتا۔ اس کے بجائے سائٹ کو آپ کی منتخب کردہ تصویر یا ویڈیو دکھائی جا سکتی ہے۔\n\nپوچھیں (طے شدہ): پہلی بار ایک ونڈو پوچھتی ہے، پھر آپ کا انتخاب یاد رکھتی ہے۔\nمیڈیا فائل: منتخب کردہ فائل سائٹ کو شیئر کی گئی اسکرین کے طور پر دکھائیں۔\nہمیشہ مسدود کریں: ہر درخواست مسترد کریں۔",
+  "siteSettingsScreenShareVirtual": "مصنوعی اسکرین",
+  "permissionScreenShareNeverReal": "دستیاب نہیں۔ اسکرین کیپچر پوری اسکرین کا احاطہ کرتا ہے، اس لیے یہ آپ کی دوسری سائٹس بھی دکھاتا۔"
 }

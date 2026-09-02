@@ -762,5 +762,18 @@
   "homeQrReviewName": "નામ: {name}",
   "homeQrReviewProxy": "આ સાઇટનો ટ્રાફિક પ્રોક્સી મારફતે મોકલે છે: {address}",
   "homeQrReviewTurnsOff": "બંધ કરે છે: {settings}",
-  "homeQrReviewTurnsOn": "ચાલુ કરે છે: {settings}"
+  "homeQrReviewTurnsOn": "ચાલુ કરે છે: {settings}",
+  "homeScreenShareUseFileAction": "મીડિયા ફાઇલ વાપરો",
+  "homeScreenShareSourceTooLarge": "તે ફાઇલ ખૂબ મોટી છે. 24 MB થી નાની પસંદ કરો.",
+  "homeScreenShareSourceError": "તે ફાઇલ વાપરી શકાઈ નહીં. છબી અથવા વિડિઓ પસંદ કરો.",
+  "siteSettingsScreenShareAsk": "પૂછો",
+  "siteSettingsScreenShareBlock": "હંમેશા અવરોધો",
+  "siteSettingsScreenShareNoSource": "કોઈ ફાઇલ પસંદ કરી નથી",
+  "siteSettingsScreenShareChooseSource": "મીડિયા ફાઇલ પસંદ કરો",
+  "homeScreenShareTitle": "સ્ક્રીન શેરિંગની મંજૂરી આપવી?",
+  "homeScreenShareBody": "{origin} તમારી સ્ક્રીન શેર કરવા માગે છે.\n\nWebSpace તમારી વાસ્તવિક સ્ક્રીન શેર કરશે નહીં: સ્ક્રીન કૅપ્ચર બધું જ ઝડપે છે, આ ઍપમાંની તમારી બીજી સાઇટ્સ સહિત. તેના બદલે તમે એક છબી કે વીડિયો પસંદ કરી શકો છો, જેને સાઇટ શેર કરેલી સ્ક્રીન તરીકે જુએ છે. તમારી પસંદગી આ સાઇટ માટે યાદ રખાય છે.",
+  "siteSettingsScreenShare": "સ્ક્રીન શેરિંગ",
+  "siteSettingsScreenShareHint": "આ સાઇટ તમારી સ્ક્રીન કૅપ્ચર કરી શકે કે નહીં તે નિયંત્રિત કરે છે.\n\nWebSpace ક્યારેય તમારી વાસ્તવિક સ્ક્રીન શેર કરતું નથી. સ્ક્રીન કૅપ્ચર આખી સપાટીને આવરી લે છે, તેથી તે આ ઍપમાંની તમારી બીજી સાઇટ્સ પણ બતાવત. તેના બદલે સાઇટને તમે પસંદ કરેલી છબી કે વીડિયો બતાવી શકાય છે.\n\nપૂછો (ડિફૉલ્ટ): પહેલી વાર પૉપઅપ પૂછે છે, પછી તમારી પસંદગી યાદ રાખે છે.\nમીડિયા ફાઇલ: પસંદ કરેલી ફાઇલ સાઇટને શેર કરેલી સ્ક્રીન તરીકે બતાવો.\nહંમેશાં અવરોધો: દરેક વિનંતી નકારો.",
+  "siteSettingsScreenShareVirtual": "સિમ્યુલેટેડ સ્ક્રીન",
+  "permissionScreenShareNeverReal": "ઉપલબ્ધ નથી. સ્ક્રીન કૅપ્ચર આખી સ્ક્રીનને આવરી લે છે, તેથી તે તમારી બીજી સાઇટ્સ પણ બતાવત."
 }

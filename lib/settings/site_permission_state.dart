@@ -1,6 +1,7 @@
 import 'package:webspace/settings/camera.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/microphone.dart';
+import 'package:webspace/settings/screen_share.dart';
 
 /// The state a per-site capability is in, in one word.
 ///
@@ -56,6 +57,17 @@ SitePermissionState microphonePermissionState(MicrophoneAccessMode mode) =>
       MicrophoneAccessMode.ask => SitePermissionState.ask,
       MicrophoneAccessMode.virtual => SitePermissionState.simulated,
       MicrophoneAccessMode.block => SitePermissionState.blocked,
+    };
+
+/// There is no real-screen mode either, and for a stronger reason than the
+/// microphone's: a display capture is whole-surface, so granting one would
+/// hand the site every OTHER site in the webspace. So this never returns
+/// [SitePermissionState.allowed].
+SitePermissionState screenSharePermissionState(ScreenShareMode mode) =>
+    switch (mode) {
+      ScreenShareMode.ask => SitePermissionState.ask,
+      ScreenShareMode.virtual => SitePermissionState.simulated,
+      ScreenShareMode.block => SitePermissionState.blocked,
     };
 
 /// [LocationMode.off] maps to [SitePermissionState.blocked], not to a

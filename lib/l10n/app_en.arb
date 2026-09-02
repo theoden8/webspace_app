@@ -3691,5 +3691,62 @@
   "siteSettingsSectionSite": "Site",
   "@siteSettingsSectionSite": {
     "description": "Heading in site settings for the group holding the Permissions and Privacy rows, which open screens of their own."
+  },
+  "homeScreenShareTitle": "Allow screen sharing?",
+  "@homeScreenShareTitle": {
+    "description": "Title of the screen sharing permission dialog"
+  },
+  "homeScreenShareBody": "{origin} wants to share your screen.\n\nWebSpace will not share your real screen: a screen capture covers everything, including your other sites in this app. You can instead pick an image or video that the site sees as the shared screen. Your choice is remembered for this site.",
+  "@homeScreenShareBody": {
+    "description": "Body of the screen sharing permission dialog, explaining that the real screen is never shared and that a picked image or video can be shown instead",
+    "placeholders": {
+      "origin": {
+        "type": "String"
+      }
+    }
+  },
+  "homeScreenShareUseFileAction": "Use a media file",
+  "@homeScreenShareUseFileAction": {
+    "description": "Button in the screen sharing permission dialog to show a picked image or video to the site instead of the real screen"
+  },
+  "homeScreenShareSourceTooLarge": "That file is too large. Choose one under 24 MB.",
+  "@homeScreenShareSourceTooLarge": {
+    "description": "Error shown when the picked simulated-screen file exceeds the size limit (24 MB)"
+  },
+  "homeScreenShareSourceError": "Could not use that file. Choose an image or video.",
+  "@homeScreenShareSourceError": {
+    "description": "Error shown when the picked simulated-screen file can't be used (wrong type or unreadable)"
+  },
+  "siteSettingsScreenShare": "Screen sharing",
+  "@siteSettingsScreenShare": {
+    "description": "List tile label and hint title for the per-site screen sharing setting."
+  },
+  "siteSettingsScreenShareHint": "Controls whether this site may capture your screen.\n\nWebSpace never shares your real screen. A screen capture covers the whole surface, so it would also show your other sites in this app. The site can instead be shown an image or video you pick.\n\nAsk (default): a popup asks the first time, then remembers your choice.\nMedia file: show the chosen file to the site as the shared screen.\nAlways block: reject every request.",
+  "@siteSettingsScreenShareHint": {
+    "description": "Hint body describing the per-site screen sharing setting: the real screen is never shared because a capture would also show the user's other sites; a picked image or video can be shown instead."
+  },
+  "siteSettingsScreenShareAsk": "Ask",
+  "@siteSettingsScreenShareAsk": {
+    "description": "Screen sharing option: ask each time."
+  },
+  "siteSettingsScreenShareVirtual": "Simulated screen",
+  "@siteSettingsScreenShareVirtual": {
+    "description": "Screen sharing option: show a picked image or video to the site as the shared screen instead of the real screen"
+  },
+  "siteSettingsScreenShareBlock": "Always block",
+  "@siteSettingsScreenShareBlock": {
+    "description": "Screen sharing option: always block."
+  },
+  "siteSettingsScreenShareNoSource": "No file chosen",
+  "@siteSettingsScreenShareNoSource": {
+    "description": "Placeholder shown in per-site settings when no simulated-screen file has been chosen yet"
+  },
+  "siteSettingsScreenShareChooseSource": "Choose media file",
+  "@siteSettingsScreenShareChooseSource": {
+    "description": "Button in per-site settings to pick the image or video shown as the simulated screen"
+  },
+  "permissionScreenShareNeverReal": "Not available. A screen capture covers the whole screen, so it would also show your other sites.",
+  "@permissionScreenShareNeverReal": {
+    "description": "Shown on the greyed-out Allowed option for screen sharing, stating that the real screen is never shared because a capture would also show the user's other sites."
   }
 }

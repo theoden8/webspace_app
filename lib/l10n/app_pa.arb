@@ -762,5 +762,18 @@
   "homeQrReviewName": "ਨਾਮ: {name}",
   "homeQrReviewProxy": "ਇਸ ਸਾਈਟ ਦਾ ਟ੍ਰੈਫਿਕ ਪ੍ਰੌਕਸੀ ਰਾਹੀਂ ਭੇਜਦਾ ਹੈ: {address}",
   "homeQrReviewTurnsOff": "ਬੰਦ ਕਰਦਾ ਹੈ: {settings}",
-  "homeQrReviewTurnsOn": "ਚਾਲੂ ਕਰਦਾ ਹੈ: {settings}"
+  "homeQrReviewTurnsOn": "ਚਾਲੂ ਕਰਦਾ ਹੈ: {settings}",
+  "homeScreenShareUseFileAction": "ਮੀਡੀਆ ਫਾਈਲ ਵਰਤੋ",
+  "homeScreenShareSourceTooLarge": "ਉਹ ਫਾਈਲ ਬਹੁਤ ਵੱਡੀ ਹੈ। 24 MB ਤੋਂ ਛੋਟੀ ਚੁਣੋ।",
+  "homeScreenShareSourceError": "ਉਹ ਫਾਈਲ ਵਰਤੀ ਨਹੀਂ ਜਾ ਸਕੀ। ਇੱਕ ਚਿੱਤਰ ਜਾਂ ਵੀਡੀਓ ਚੁਣੋ।",
+  "siteSettingsScreenShareAsk": "ਪੁੱਛੋ",
+  "siteSettingsScreenShareBlock": "ਹਮੇਸ਼ਾ ਬਲੌਕ ਕਰੋ",
+  "siteSettingsScreenShareNoSource": "ਕੋਈ ਫਾਈਲ ਨਹੀਂ ਚੁਣੀ",
+  "siteSettingsScreenShareChooseSource": "ਮੀਡੀਆ ਫਾਈਲ ਚੁਣੋ",
+  "homeScreenShareTitle": "ਸਕ੍ਰੀਨ ਸਾਂਝਾਕਰਨ ਦੀ ਆਗਿਆ ਦੇਣੀ ਹੈ?",
+  "homeScreenShareBody": "{origin} ਤੁਹਾਡੀ ਸਕ੍ਰੀਨ ਸਾਂਝੀ ਕਰਨਾ ਚਾਹੁੰਦਾ ਹੈ।\n\nWebSpace ਤੁਹਾਡੀ ਅਸਲੀ ਸਕ੍ਰੀਨ ਸਾਂਝੀ ਨਹੀਂ ਕਰੇਗਾ: ਸਕ੍ਰੀਨ ਕੈਪਚਰ ਇਸ ਐਪ ਦੀਆਂ ਤੁਹਾਡੀਆਂ ਹੋਰ ਸਾਈਟਾਂ ਸਮੇਤ ਸਭ ਕੁਝ ਫੜ ਲੈਂਦਾ ਹੈ। ਇਸ ਦੀ ਥਾਂ ਤੁਸੀਂ ਇੱਕ ਤਸਵੀਰ ਜਾਂ ਵੀਡੀਓ ਚੁਣ ਸਕਦੇ ਹੋ, ਜਿਸ ਨੂੰ ਸਾਈਟ ਸਾਂਝੀ ਕੀਤੀ ਸਕ੍ਰੀਨ ਵਜੋਂ ਵੇਖੇਗੀ। ਤੁਹਾਡੀ ਚੋਣ ਇਸ ਸਾਈਟ ਲਈ ਯਾਦ ਰੱਖੀ ਜਾਂਦੀ ਹੈ।",
+  "siteSettingsScreenShare": "ਸਕ੍ਰੀਨ ਸਾਂਝਾਕਰਨ",
+  "siteSettingsScreenShareHint": "ਇਹ ਕੰਟਰੋਲ ਕਰਦਾ ਹੈ ਕਿ ਇਹ ਸਾਈਟ ਤੁਹਾਡੀ ਸਕ੍ਰੀਨ ਕੈਪਚਰ ਕਰ ਸਕਦੀ ਹੈ ਜਾਂ ਨਹੀਂ।\n\nWebSpace ਕਦੇ ਵੀ ਤੁਹਾਡੀ ਅਸਲੀ ਸਕ੍ਰੀਨ ਸਾਂਝੀ ਨਹੀਂ ਕਰਦਾ। ਸਕ੍ਰੀਨ ਕੈਪਚਰ ਪੂਰੀ ਸਤ੍ਹਾ ਨੂੰ ਢੱਕਦਾ ਹੈ, ਇਸ ਲਈ ਇਹ ਇਸ ਐਪ ਦੀਆਂ ਤੁਹਾਡੀਆਂ ਹੋਰ ਸਾਈਟਾਂ ਵੀ ਵਿਖਾਉਂਦਾ। ਇਸ ਦੀ ਥਾਂ ਸਾਈਟ ਨੂੰ ਤੁਹਾਡੀ ਚੁਣੀ ਤਸਵੀਰ ਜਾਂ ਵੀਡੀਓ ਵਿਖਾਈ ਜਾ ਸਕਦੀ ਹੈ।\n\nਪੁੱਛੋ (ਮੂਲ): ਪਹਿਲੀ ਵਾਰ ਪੌਪਅੱਪ ਪੁੱਛਦਾ ਹੈ, ਫਿਰ ਤੁਹਾਡੀ ਚੋਣ ਯਾਦ ਰੱਖਦਾ ਹੈ।\nਮੀਡੀਆ ਫ਼ਾਈਲ: ਚੁਣੀ ਫ਼ਾਈਲ ਸਾਈਟ ਨੂੰ ਸਾਂਝੀ ਸਕ੍ਰੀਨ ਵਜੋਂ ਵਿਖਾਓ।\nਹਮੇਸ਼ਾ ਬਲਾਕ ਕਰੋ: ਹਰ ਬੇਨਤੀ ਰੱਦ ਕਰੋ।",
+  "siteSettingsScreenShareVirtual": "ਸਿਮੂਲੇਟਿਡ ਸਕ੍ਰੀਨ",
+  "permissionScreenShareNeverReal": "ਉਪਲਬਧ ਨਹੀਂ। ਸਕ੍ਰੀਨ ਕੈਪਚਰ ਪੂਰੀ ਸਕ੍ਰੀਨ ਨੂੰ ਢੱਕਦਾ ਹੈ, ਇਸ ਲਈ ਇਹ ਤੁਹਾਡੀਆਂ ਹੋਰ ਸਾਈਟਾਂ ਵੀ ਵਿਖਾਉਂਦਾ।"
 }

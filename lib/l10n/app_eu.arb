@@ -762,5 +762,18 @@
   "homeQrReviewName": "Izena: {name}",
   "homeQrReviewProxy": "Gune honen trafikoa proxy baten bidez bidaltzen du: {address}",
   "homeQrReviewTurnsOff": "Desgaitzen du: {settings}",
-  "homeQrReviewTurnsOn": "Gaitzen du: {settings}"
+  "homeQrReviewTurnsOn": "Gaitzen du: {settings}",
+  "homeScreenShareUseFileAction": "Erabili multimedia-fitxategi bat",
+  "homeScreenShareSourceTooLarge": "Fitxategia handiegia da. Aukeratu 24 MB-tik beherakoa.",
+  "homeScreenShareSourceError": "Ezin izan da fitxategi hori erabili. Aukeratu irudia edo bideoa.",
+  "siteSettingsScreenShareAsk": "Galdetu",
+  "siteSettingsScreenShareBlock": "Beti blokeatu",
+  "siteSettingsScreenShareNoSource": "Ez da fitxategirik aukeratu",
+  "siteSettingsScreenShareChooseSource": "Aukeratu multimedia-fitxategia",
+  "homeScreenShareTitle": "Pantaila partekatzea baimendu?",
+  "homeScreenShareBody": "{origin} zure pantaila partekatu nahi du.\n\nWebSpace-k ez du zure benetako pantaila partekatuko: pantaila-kapturak dena hartzen du, aplikazio honetako zure beste guneak barne. Horren ordez, gunearentzat pantaila partekatua izango den irudi edo bideo bat aukera dezakezu. Zure aukera gune honentzat gogoratzen da.",
+  "siteSettingsScreenShare": "Pantaila partekatzea",
+  "siteSettingsScreenShareHint": "Gune honek zure pantaila kapturatu dezakeen kontrolatzen du.\n\nWebSpace-k ez du inoiz zure benetako pantaila partekatzen. Pantaila-kapturak azalera osoa hartzen du, eta beraz aplikazio honetako zure beste guneak ere erakutsiko lituzke. Horren ordez, zuk aukeratutako irudi edo bideo bat erakuts dakioke guneari.\n\nGaldetu (lehenetsia): lehen aldian leiho batek galdetzen du, eta gero zure aukera gogoratzen du.\nMultimedia-fitxategia: erakutsi aukeratutako fitxategia guneari pantaila partekatu gisa.\nBlokeatu beti: ukatu eskaera guztiak.",
+  "siteSettingsScreenShareVirtual": "Simulatutako pantaila",
+  "permissionScreenShareNeverReal": "Ez dago erabilgarri. Pantaila-kapturak pantaila osoa hartzen du, eta beraz zure beste guneak ere erakutsiko lituzke."
 }

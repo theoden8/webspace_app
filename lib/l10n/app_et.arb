@@ -762,5 +762,18 @@
   "homeQrReviewName": "Nimi: {name}",
   "homeQrReviewProxy": "Saadab selle saidi liikluse proksi kaudu: {address}",
   "homeQrReviewTurnsOff": "Lülitab välja: {settings}",
-  "homeQrReviewTurnsOn": "Lülitab sisse: {settings}"
+  "homeQrReviewTurnsOn": "Lülitab sisse: {settings}",
+  "homeScreenShareUseFileAction": "Kasuta meediafaili",
+  "homeScreenShareSourceTooLarge": "Fail on liiga suur. Vali alla 24 MB.",
+  "homeScreenShareSourceError": "Seda faili ei saanud kasutada. Vali pilt või video.",
+  "siteSettingsScreenShareAsk": "Küsi",
+  "siteSettingsScreenShareBlock": "Alati blokeeri",
+  "siteSettingsScreenShareNoSource": "Faili pole valitud",
+  "siteSettingsScreenShareChooseSource": "Vali meediafail",
+  "homeScreenShareTitle": "Kas lubada ekraani jagamine?",
+  "homeScreenShareBody": "{origin} soovib jagada sinu ekraani.\n\nWebSpace ei jaga sinu tegelikku ekraani: ekraanisalvestus jäädvustab kõik, sealhulgas sinu teised saidid selles rakenduses. Selle asemel võid valida pildi või video, mida sait näeb jagatud ekraanina. Sinu valik jäetakse selle saidi jaoks meelde.",
+  "siteSettingsScreenShare": "Ekraani jagamine",
+  "siteSettingsScreenShareHint": "Määrab, kas see sait tohib sinu ekraani salvestada.\n\nWebSpace ei jaga kunagi sinu tegelikku ekraani. Ekraanisalvestus katab kogu pinna ja näitaks seega ka sinu teisi saite selles rakenduses. Selle asemel saab saidile näidata sinu valitud pilti või videot.\n\nKüsi (vaikimisi): esimesel korral küsitakse hüpikaknas ja valik jäetakse meelde.\nMeediafail: näita saidile valitud faili jagatud ekraanina.\nBlokeeri alati: keeldu igast päringust.",
+  "siteSettingsScreenShareVirtual": "Simuleeritud ekraan",
+  "permissionScreenShareNeverReal": "Pole saadaval. Ekraanisalvestus katab kogu ekraani ja näitaks seega ka sinu teisi saite."
 }

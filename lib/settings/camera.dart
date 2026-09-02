@@ -1,5 +1,4 @@
-import 'dart:convert';
-import 'dart:typed_data';
+import 'package:webspace/settings/virtual_visual_source.dart';
 
 /// Per-site web camera access mode.
 ///
@@ -35,60 +34,22 @@ CameraAccessMode cameraAccessModeFromJson(Object? modeName, Object? legacyBool) 
   return CameraAccessMode.ask;
 }
 
-/// Source media for [CameraAccessMode.virtual]. The bytes live inline as a
-/// `data:` URL so the shim can hand them straight to an `<img>`/`<video>`
-/// element without a file:// read the page's origin could not perform.
-class VirtualCameraSource {
-  /// `image` or `video`. Decides whether the shim draws a still frame or
-  /// drives a looping `<video>` element onto the capture canvas.
-  final String kind;
-
-  /// `data:<mime>;base64,...` payload of the picked file.
-  final String dataUrl;
-
-  /// Original file name, shown in settings so the user can tell which
-  /// clip a site is set to use. Never sent to the page.
-  final String fileName;
-
+/// Source media for [CameraAccessMode.virtual]: a still image drawn onto the
+/// capture canvas, or a video looped onto it.
+class VirtualCameraSource extends VirtualVisualSource {
   const VirtualCameraSource({
-    required this.kind,
-    required this.dataUrl,
-    required this.fileName,
+    required super.kind,
+    required super.dataUrl,
+    required super.fileName,
   });
 
-  bool get isVideo => kind == 'video';
-
-  /// Decoded bytes of the `data:` payload (after `;base64,`), or null when
-  /// the URL is malformed. Used by the settings preview to render an image
-  /// without a WebView.
-  Uint8List? get bytes {
-    const marker = ';base64,';
-    final at = dataUrl.indexOf(marker);
-    if (at < 0) return null;
-    try {
-      return base64Decode(dataUrl.substring(at + marker.length));
-    } catch (_) {
-      return null;
-    }
-  }
-
-  Map<String, dynamic> toJson() => {
-        'kind': kind,
-        'dataUrl': dataUrl,
-        'fileName': fileName,
-      };
-
   static VirtualCameraSource? fromJson(Object? json) {
-    if (json is! Map) return null;
-    final kind = json['kind'];
-    final dataUrl = json['dataUrl'];
-    if (kind is! String || dataUrl is! String) return null;
-    if (kind != 'image' && kind != 'video') return null;
-    if (!dataUrl.startsWith('data:')) return null;
+    final parsed = VirtualVisualSource.parse(json);
+    if (parsed == null) return null;
     return VirtualCameraSource(
-      kind: kind,
-      dataUrl: dataUrl,
-      fileName: json['fileName'] is String ? json['fileName'] as String : '',
+      kind: parsed.kind,
+      dataUrl: parsed.dataUrl,
+      fileName: parsed.fileName,
     );
   }
 }

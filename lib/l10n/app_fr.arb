@@ -762,5 +762,18 @@
   "homeQrReviewName": "Nom : {name}",
   "homeQrReviewProxy": "Fait passer le trafic de ce site par un proxy : {address}",
   "homeQrReviewTurnsOff": "Désactive : {settings}",
-  "homeQrReviewTurnsOn": "Active : {settings}"
+  "homeQrReviewTurnsOn": "Active : {settings}",
+  "homeScreenShareUseFileAction": "Utiliser un fichier multimédia",
+  "homeScreenShareSourceTooLarge": "Ce fichier est trop volumineux. Choisissez-en un de moins de 24 Mo.",
+  "homeScreenShareSourceError": "Impossible d'utiliser ce fichier. Choisissez une image ou une vidéo.",
+  "siteSettingsScreenShareAsk": "Demander",
+  "siteSettingsScreenShareBlock": "Toujours bloquer",
+  "siteSettingsScreenShareNoSource": "Aucun fichier choisi",
+  "siteSettingsScreenShareChooseSource": "Choisir un fichier multimédia",
+  "homeScreenShareTitle": "Autoriser le partage d'écran ?",
+  "homeScreenShareBody": "{origin} souhaite partager votre écran.\n\nWebSpace ne partagera pas votre véritable écran : une capture d'écran saisit tout, y compris vos autres sites dans cette application. Vous pouvez à la place choisir une image ou une vidéo que le site verra comme écran partagé. Votre choix est mémorisé pour ce site.",
+  "siteSettingsScreenShare": "Partage d'écran",
+  "siteSettingsScreenShareHint": "Détermine si ce site peut capturer votre écran.\n\nWebSpace ne partage jamais votre véritable écran. Une capture d'écran couvre toute la surface et montrerait donc aussi vos autres sites dans cette application. À la place, le site peut se voir présenter une image ou une vidéo que vous choisissez.\n\nDemander (par défaut) : une fenêtre demande la première fois, puis votre choix est mémorisé.\nFichier multimédia : montrer au site le fichier choisi comme écran partagé.\nToujours bloquer : refuser chaque demande.",
+  "siteSettingsScreenShareVirtual": "Écran simulé",
+  "permissionScreenShareNeverReal": "Indisponible. Une capture d'écran couvre tout l'écran et montrerait donc aussi vos autres sites."
 }

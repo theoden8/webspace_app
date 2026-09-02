@@ -762,5 +762,18 @@
   "homeQrReviewName": "Ainm: {name}",
   "homeQrReviewProxy": "Seolann sé trácht an tsuímh seo trí sheachfhreastalaí: {address}",
   "homeQrReviewTurnsOff": "Múchann sé: {settings}",
-  "homeQrReviewTurnsOn": "Cuireann sé ar siúl: {settings}"
+  "homeQrReviewTurnsOn": "Cuireann sé ar siúl: {settings}",
+  "homeScreenShareUseFileAction": "Úsáid comhad meán",
+  "homeScreenShareSourceTooLarge": "Tá an comhad rómhór. Roghnaigh ceann faoi bhun 24 MB.",
+  "homeScreenShareSourceError": "Níorbh fhéidir an comhad sin a úsáid. Roghnaigh íomhá nó físeán.",
+  "siteSettingsScreenShareAsk": "Fiafraigh",
+  "siteSettingsScreenShareBlock": "Bac i gcónaí",
+  "siteSettingsScreenShareNoSource": "Níor roghnaíodh aon chomhad",
+  "siteSettingsScreenShareChooseSource": "Roghnaigh comhad meán",
+  "homeScreenShareTitle": "Comhroinnt scáileáin a cheadú?",
+  "homeScreenShareBody": "Tá {origin} ag iarraidh do scáileán a chomhroinnt.\n\nNí chomhroinnfidh WebSpace do fhíorscáileán: gabhann taifeadadh scáileáin gach rud, do shuímh eile san aip seo san áireamh. Ina ionad sin is féidir leat íomhá nó físeán a roghnú a fheicfidh an suíomh mar an scáileán comhroinnte. Cuimhnítear ar do rogha don suíomh seo.",
+  "siteSettingsScreenShare": "Comhroinnt scáileáin",
+  "siteSettingsScreenShareHint": "Rialaíonn sé an bhféadfaidh an suíomh seo do scáileán a thaifeadadh.\n\nNí chomhroinneann WebSpace do fhíorscáileán riamh. Clúdaíonn taifeadadh scáileáin an dromchla ar fad, agus mar sin thaispeánfadh sé do shuímh eile san aip seo freisin. Ina ionad sin, is féidir íomhá nó físeán a roghnaíonn tú a thaispeáint don suíomh.\n\nFiafraigh (réamhshocrú): fiafraítear díot an chéad uair, agus cuimhnítear ar do rogha ina dhiaidh sin.\nComhad meán: taispeáin an comhad roghnaithe don suíomh mar an scáileán comhroinnte.\nBac i gcónaí: diúltaigh do gach iarratas.",
+  "siteSettingsScreenShareVirtual": "Scáileán insamhalta",
+  "permissionScreenShareNeverReal": "Níl sé ar fáil. Clúdaíonn taifeadadh scáileáin an scáileán ar fad, agus mar sin thaispeánfadh sé do shuímh eile freisin."
 }

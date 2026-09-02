@@ -762,5 +762,18 @@
   "homeQrReviewName": "Nombre: {name}",
   "homeQrReviewProxy": "Envía el tráfico de este sitio a través de un proxy: {address}",
   "homeQrReviewTurnsOff": "Desactiva: {settings}",
-  "homeQrReviewTurnsOn": "Activa: {settings}"
+  "homeQrReviewTurnsOn": "Activa: {settings}",
+  "homeScreenShareUseFileAction": "Usar un archivo multimedia",
+  "homeScreenShareSourceTooLarge": "Ese archivo es demasiado grande. Elige uno de menos de 24 MB.",
+  "homeScreenShareSourceError": "No se pudo usar ese archivo. Elige una imagen o un vídeo.",
+  "siteSettingsScreenShareAsk": "Preguntar",
+  "siteSettingsScreenShareBlock": "Bloquear siempre",
+  "siteSettingsScreenShareNoSource": "Ningún archivo elegido",
+  "siteSettingsScreenShareChooseSource": "Elegir archivo multimedia",
+  "homeScreenShareTitle": "¿Permitir compartir pantalla?",
+  "homeScreenShareBody": "{origin} quiere compartir tu pantalla.\n\nWebSpace no compartirá tu pantalla real: una captura de pantalla lo recoge todo, incluidos tus otros sitios en esta aplicación. En su lugar puedes elegir una imagen o un vídeo que el sitio verá como pantalla compartida. Tu elección se recuerda para este sitio.",
+  "siteSettingsScreenShare": "Compartir pantalla",
+  "siteSettingsScreenShareHint": "Controla si este sitio puede capturar tu pantalla.\n\nWebSpace nunca comparte tu pantalla real. Una captura de pantalla abarca toda la superficie, así que también mostraría tus otros sitios en esta aplicación. En su lugar, se le puede mostrar al sitio una imagen o un vídeo que elijas tú.\n\nPreguntar (predeterminado): un aviso pregunta la primera vez y luego recuerda tu elección.\nArchivo multimedia: mostrar al sitio el archivo elegido como pantalla compartida.\nBloquear siempre: rechazar todas las solicitudes.",
+  "siteSettingsScreenShareVirtual": "Pantalla simulada",
+  "permissionScreenShareNeverReal": "No disponible. Una captura de pantalla abarca toda la pantalla, así que también mostraría tus otros sitios."
 }

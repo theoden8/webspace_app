@@ -762,5 +762,18 @@
   "homeQrReviewName": "Enw: {name}",
   "homeQrReviewProxy": "Yn anfon traffig y safle hwn drwy ddirprwy: {address}",
   "homeQrReviewTurnsOff": "Yn analluogi: {settings}",
-  "homeQrReviewTurnsOn": "Yn galluogi: {settings}"
+  "homeQrReviewTurnsOn": "Yn galluogi: {settings}",
+  "homeScreenShareUseFileAction": "Defnyddio ffeil cyfryngau",
+  "homeScreenShareSourceTooLarge": "Mae'r ffeil yn rhy fawr. Dewiswch un o dan 24 MB.",
+  "homeScreenShareSourceError": "Methwyd defnyddio'r ffeil honno. Dewiswch ddelwedd neu fideo.",
+  "siteSettingsScreenShareAsk": "Gofyn",
+  "siteSettingsScreenShareBlock": "Rhwystro bob amser",
+  "siteSettingsScreenShareNoSource": "Dim ffeil wedi'i dewis",
+  "siteSettingsScreenShareChooseSource": "Dewiswch ffeil cyfryngau",
+  "homeScreenShareTitle": "Caniatáu rhannu sgrin?",
+  "homeScreenShareBody": "Mae {origin} eisiau rhannu eich sgrin.\n\nNi fydd WebSpace yn rhannu eich sgrin go iawn: mae recordiad sgrin yn dal popeth, gan gynnwys eich gwefannau eraill yn yr ap hwn. Yn lle hynny, gallwch ddewis delwedd neu fideo y bydd y wefan yn ei weld fel y sgrin a rennir. Caiff eich dewis ei gofio ar gyfer y wefan hon.",
+  "siteSettingsScreenShare": "Rhannu sgrin",
+  "siteSettingsScreenShareHint": "Rheoli a gaiff y wefan hon recordio eich sgrin.\n\nNid yw WebSpace byth yn rhannu eich sgrin go iawn. Mae recordiad sgrin yn cwmpasu'r arwyneb cyfan, felly byddai hefyd yn dangos eich gwefannau eraill yn yr ap hwn. Yn lle hynny, gellir dangos delwedd neu fideo o'ch dewis i'r wefan.\n\nGofyn (rhagosodedig): mae neges yn gofyn y tro cyntaf, ac yna'n cofio eich dewis.\nFfeil cyfryngau: dangos y ffeil a ddewiswyd i'r wefan fel y sgrin a rennir.\nRhwystro bob amser: gwrthod pob cais.",
+  "siteSettingsScreenShareVirtual": "Sgrin efelychiedig",
+  "permissionScreenShareNeverReal": "Ddim ar gael. Mae recordiad sgrin yn cwmpasu'r sgrin gyfan, felly byddai hefyd yn dangos eich gwefannau eraill."
 }

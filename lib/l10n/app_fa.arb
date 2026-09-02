@@ -762,5 +762,18 @@
   "homeQrReviewName": "نام: {name}",
   "homeQrReviewProxy": "ترافیک این سایت را از طریق یک پراکسی می‌فرستد: {address}",
   "homeQrReviewTurnsOff": "خاموش می‌کند: {settings}",
-  "homeQrReviewTurnsOn": "روشن می‌کند: {settings}"
+  "homeQrReviewTurnsOn": "روشن می‌کند: {settings}",
+  "homeScreenShareUseFileAction": "استفاده از فایل رسانه‌ای",
+  "homeScreenShareSourceTooLarge": "این فایل خیلی بزرگ است. یکی کمتر از ۲۴ مگابایت انتخاب کنید.",
+  "homeScreenShareSourceError": "استفاده از آن فایل ممکن نشد. یک تصویر یا ویدیو انتخاب کنید.",
+  "siteSettingsScreenShareAsk": "بپرس",
+  "siteSettingsScreenShareBlock": "همیشه مسدود",
+  "siteSettingsScreenShareNoSource": "هیچ فایلی انتخاب نشده",
+  "siteSettingsScreenShareChooseSource": "انتخاب فایل رسانه‌ای",
+  "homeScreenShareTitle": "اشتراک‌گذاری صفحه مجاز شود؟",
+  "homeScreenShareBody": "{origin} می‌خواهد صفحهٔ شما را به اشتراک بگذارد.\n\nWebSpace صفحهٔ واقعی شما را به اشتراک نمی‌گذارد: ضبط صفحه همه‌چیز را می‌گیرد، از جمله سایت‌های دیگر شما در این برنامه. در عوض می‌توانید تصویر یا ویدیویی انتخاب کنید که سایت آن را به‌عنوان صفحهٔ به‌اشتراک‌گذاشته‌شده ببیند. انتخاب شما برای این سایت به خاطر سپرده می‌شود.",
+  "siteSettingsScreenShare": "اشتراک‌گذاری صفحه",
+  "siteSettingsScreenShareHint": "تعیین می‌کند که آیا این سایت می‌تواند صفحهٔ شما را ضبط کند.\n\nWebSpace هرگز صفحهٔ واقعی شما را به اشتراک نمی‌گذارد. ضبط صفحه کل سطح را دربر می‌گیرد و بنابراین سایت‌های دیگر شما در این برنامه را هم نشان می‌دهد. در عوض می‌توان تصویر یا ویدیویی را که شما انتخاب می‌کنید به سایت نشان داد.\n\nپرسیدن (پیش‌فرض): بار اول پنجره‌ای می‌پرسد و سپس انتخاب شما را به خاطر می‌سپارد.\nپروندهٔ رسانه‌ای: پروندهٔ انتخاب‌شده را به‌عنوان صفحهٔ به‌اشتراک‌گذاشته‌شده به سایت نشان بده.\nهمیشه مسدود کن: هر درخواست را رد کن.",
+  "siteSettingsScreenShareVirtual": "صفحهٔ شبیه‌سازی‌شده",
+  "permissionScreenShareNeverReal": "در دسترس نیست. ضبط صفحه کل صفحه را دربر می‌گیرد و بنابراین سایت‌های دیگر شما را هم نشان می‌دهد."
 }

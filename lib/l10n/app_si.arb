@@ -762,5 +762,18 @@
   "homeQrReviewName": "නම: {name}",
   "homeQrReviewProxy": "මෙම අඩවියේ තදබදය ප්‍රොක්සියක් හරහා යවයි: {address}",
   "homeQrReviewTurnsOff": "අක්‍රිය කරයි: {settings}",
-  "homeQrReviewTurnsOn": "සක්‍රිය කරයි: {settings}"
+  "homeQrReviewTurnsOn": "සක්‍රිය කරයි: {settings}",
+  "homeScreenShareUseFileAction": "මාධ්‍ය ගොනුවක් භාවිත කරන්න",
+  "homeScreenShareSourceTooLarge": "එම ගොනුව විශාල වැඩියි. 24 MB ට අඩු එකක් තෝරන්න.",
+  "homeScreenShareSourceError": "එම ගොනුව භාවිත කළ නොහැකි විය. රූපයක් හෝ වීඩියෝවක් තෝරන්න.",
+  "siteSettingsScreenShareAsk": "අසන්න",
+  "siteSettingsScreenShareBlock": "සැමවිට අවහිර කරන්න",
+  "siteSettingsScreenShareNoSource": "ගොනුවක් තෝරා නැත",
+  "siteSettingsScreenShareChooseSource": "මාධ්‍ය ගොනුවක් තෝරන්න",
+  "homeScreenShareTitle": "තිර බෙදාගැනීමට ඉඩ දෙන්නද?",
+  "homeScreenShareBody": "{origin} ඔබේ තිරය බෙදාගැනීමට අවශ්‍යයි.\n\nWebSpace ඔබේ සැබෑ තිරය බෙදාගන්නේ නැත: තිර ග්‍රහණය මෙම යෙදුමේ ඔබේ අනෙක් අඩවි ඇතුළුව සියල්ල අල්ලා ගනී. ඒ වෙනුවට අඩවිය බෙදාගත් තිරය ලෙස දකින රූපයක් හෝ වීඩියෝවක් ඔබට තෝරාගත හැකිය. ඔබේ තේරීම මෙම අඩවිය සඳහා මතක තබා ගැනේ.",
+  "siteSettingsScreenShare": "තිර බෙදාගැනීම",
+  "siteSettingsScreenShareHint": "මෙම අඩවියට ඔබේ තිරය ග්‍රහණය කළ හැකිද යන්න පාලනය කරයි.\n\nWebSpace කිසිවිටෙක ඔබේ සැබෑ තිරය බෙදාගන්නේ නැත. තිර ග්‍රහණය මුළු මතුපිටම ආවරණය කරන බැවින්, එය මෙම යෙදුමේ ඔබේ අනෙක් අඩවිද පෙන්වනු ඇත. ඒ වෙනුවට ඔබ තෝරාගත් රූපයක් හෝ වීඩියෝවක් අඩවියට පෙන්විය හැකිය.\n\nඅසන්න (පෙරනිමි): පළමු වරට උත්පතන කවුළුවක් අසයි, පසුව ඔබේ තේරීම මතක තබා ගනී.\nමාධ්‍ය ගොනුව: තෝරාගත් ගොනුව බෙදාගත් තිරය ලෙස අඩවියට පෙන්වන්න.\nසැමවිටම අවහිර කරන්න: සෑම ඉල්ලීමක්ම ප්‍රතික්ෂේප කරන්න.",
+  "siteSettingsScreenShareVirtual": "අනුකරණය කළ තිරය",
+  "permissionScreenShareNeverReal": "ලබා ගත නොහැක. තිර ග්‍රහණය මුළු තිරයම ආවරණය කරන බැවින්, එය ඔබේ අනෙක් අඩවිද පෙන්වනු ඇත."
 }

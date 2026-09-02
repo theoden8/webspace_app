@@ -762,5 +762,18 @@
   "homeQrReviewName": "სახელი: {name}",
   "homeQrReviewProxy": "აგზავნის ამ საიტის ტრაფიკს პროქსის გავლით: {address}",
   "homeQrReviewTurnsOff": "თიშავს: {settings}",
-  "homeQrReviewTurnsOn": "რთავს: {settings}"
+  "homeQrReviewTurnsOn": "რთავს: {settings}",
+  "homeScreenShareUseFileAction": "მედიაფაილის გამოყენება",
+  "homeScreenShareSourceTooLarge": "ფაილი ძალიან დიდია. აირჩიეთ 24 MB-ზე ნაკლები.",
+  "homeScreenShareSourceError": "ამ ფაილის გამოყენება ვერ მოხერხდა. აირჩიეთ სურათი ან ვიდეო.",
+  "siteSettingsScreenShareAsk": "კითხვა",
+  "siteSettingsScreenShareBlock": "ყოველთვის დაბლოკვა",
+  "siteSettingsScreenShareNoSource": "ფაილი არჩეული არ არის",
+  "siteSettingsScreenShareChooseSource": "აირჩიეთ მედიაფაილი",
+  "homeScreenShareTitle": "დაუშვათ ეკრანის გაზიარება?",
+  "homeScreenShareBody": "{origin} სურს თქვენი ეკრანის გაზიარება.\n\nWebSpace არ გააზიარებს თქვენს ნამდვილ ეკრანს: ეკრანის ჩაწერა იჭერს ყველაფერს, მათ შორის ამ აპში არსებულ თქვენს სხვა საიტებს. სამაგიეროდ შეგიძლიათ აირჩიოთ სურათი ან ვიდეო, რომელსაც საიტი გაზიარებულ ეკრანად დაინახავს. თქვენი არჩევანი დაიმახსოვრება ამ საიტისთვის.",
+  "siteSettingsScreenShare": "ეკრანის გაზიარება",
+  "siteSettingsScreenShareHint": "განსაზღვრავს, შეუძლია თუ არა ამ საიტს თქვენი ეკრანის ჩაწერა.\n\nWebSpace არასოდეს აზიარებს თქვენს ნამდვილ ეკრანს. ეკრანის ჩაწერა მოიცავს მთელ ზედაპირს, ამიტომ ის აჩვენებდა ამ აპში არსებულ თქვენს სხვა საიტებსაც. სამაგიეროდ საიტს შეიძლება ვაჩვენოთ თქვენ მიერ არჩეული სურათი ან ვიდეო.\n\nკითხვა (ნაგულისხმევი): პირველად ფანჯარა გკითხავთ, შემდეგ კი დაიმახსოვრებს თქვენს არჩევანს.\nმედიაფაილი: აჩვენე არჩეული ფაილი საიტს გაზიარებულ ეკრანად.\nყოველთვის დაბლოკვა: უარყავი ყველა მოთხოვნა.",
+  "siteSettingsScreenShareVirtual": "სიმულირებული ეკრანი",
+  "permissionScreenShareNeverReal": "მიუწვდომელია. ეკრანის ჩაწერა მოიცავს მთელ ეკრანს, ამიტომ ის აჩვენებდა თქვენს სხვა საიტებსაც."
 }

@@ -762,5 +762,18 @@
   "homeQrReviewName": "שם: {name}",
   "homeQrReviewProxy": "שולח את התעבורה של האתר הזה דרך פרוקסי: {address}",
   "homeQrReviewTurnsOff": "מכבה: {settings}",
-  "homeQrReviewTurnsOn": "מפעיל: {settings}"
+  "homeQrReviewTurnsOn": "מפעיל: {settings}",
+  "homeScreenShareUseFileAction": "השתמש בקובץ מדיה",
+  "homeScreenShareSourceTooLarge": "הקובץ גדול מדי. בחר קובץ קטן מ‑24 MB.",
+  "homeScreenShareSourceError": "לא ניתן היה להשתמש בקובץ הזה. בחר תמונה או סרטון.",
+  "siteSettingsScreenShareAsk": "שאל",
+  "siteSettingsScreenShareBlock": "תמיד חסום",
+  "siteSettingsScreenShareNoSource": "לא נבחר קובץ",
+  "siteSettingsScreenShareChooseSource": "בחר קובץ מדיה",
+  "homeScreenShareTitle": "לאפשר שיתוף מסך?",
+  "homeScreenShareBody": "{origin} מבקש לשתף את המסך שלך.\n\nWebSpace לא ישתף את המסך האמיתי שלך: הקלטת מסך קולטת הכול, כולל האתרים האחרים שלך ביישום הזה. במקום זאת אפשר לבחור תמונה או סרטון שהאתר יראה כמסך המשותף. הבחירה שלך תיזכר עבור האתר הזה.",
+  "siteSettingsScreenShare": "שיתוף מסך",
+  "siteSettingsScreenShareHint": "קובע אם האתר הזה רשאי להקליט את המסך שלך.\n\nWebSpace לעולם אינו משתף את המסך האמיתי שלך. הקלטת מסך מכסה את כל המשטח, ולכן היא הייתה מציגה גם את האתרים האחרים שלך ביישום הזה. במקום זאת אפשר להציג לאתר תמונה או סרטון שתבחר.\n\nשאל (ברירת מחדל): חלון שואל בפעם הראשונה, ולאחר מכן הבחירה נזכרת.\nקובץ מדיה: הצג לאתר את הקובץ שנבחר כמסך המשותף.\nחסום תמיד: דחה כל בקשה.",
+  "siteSettingsScreenShareVirtual": "מסך מדומה",
+  "permissionScreenShareNeverReal": "לא זמין. הקלטת מסך מכסה את כל המסך, ולכן היא הייתה מציגה גם את האתרים האחרים שלך."
 }

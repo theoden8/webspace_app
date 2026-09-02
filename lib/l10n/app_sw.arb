@@ -762,5 +762,18 @@
   "homeQrReviewName": "Jina: {name}",
   "homeQrReviewProxy": "Hupitisha trafiki ya tovuti hii kupitia proksi: {address}",
   "homeQrReviewTurnsOff": "Huzima: {settings}",
-  "homeQrReviewTurnsOn": "Huwasha: {settings}"
+  "homeQrReviewTurnsOn": "Huwasha: {settings}",
+  "homeScreenShareUseFileAction": "Tumia faili ya media",
+  "homeScreenShareSourceTooLarge": "Faili ni kubwa mno. Chagua iliyo chini ya MB 24.",
+  "homeScreenShareSourceError": "Faili hiyo haikuweza kutumika. Chagua picha au video.",
+  "siteSettingsScreenShareAsk": "Uliza",
+  "siteSettingsScreenShareBlock": "Zuia kila wakati",
+  "siteSettingsScreenShareNoSource": "Hakuna faili iliyochaguliwa",
+  "siteSettingsScreenShareChooseSource": "Chagua faili ya media",
+  "homeScreenShareTitle": "Kuruhusu kushiriki skrini?",
+  "homeScreenShareBody": "{origin} inataka kushiriki skrini yako.\n\nWebSpace haitashiriki skrini yako halisi: kunasa skrini hunasa kila kitu, ikiwa ni pamoja na tovuti zako nyingine katika programu hii. Badala yake unaweza kuchagua picha au video ambayo tovuti itaiona kama skrini iliyoshirikiwa. Chaguo lako hukumbukwa kwa tovuti hii.",
+  "siteSettingsScreenShare": "Kushiriki skrini",
+  "siteSettingsScreenShareHint": "Hudhibiti kama tovuti hii inaweza kunasa skrini yako.\n\nWebSpace haishiriki kamwe skrini yako halisi. Kunasa skrini hufunika uso mzima, hivyo kungeonyesha pia tovuti zako nyingine katika programu hii. Badala yake, tovuti inaweza kuonyeshwa picha au video unayochagua.\n\nUliza (chaguo-msingi): dirisha huuliza mara ya kwanza, kisha hukumbuka chaguo lako.\nFaili ya midia: onyesha faili iliyochaguliwa kwa tovuti kama skrini iliyoshirikiwa.\nZuia kila wakati: kataa kila ombi.",
+  "siteSettingsScreenShareVirtual": "Skrini ya kuiga",
+  "permissionScreenShareNeverReal": "Haipatikani. Kunasa skrini hufunika skrini nzima, hivyo kungeonyesha pia tovuti zako nyingine."
 }

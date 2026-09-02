@@ -762,5 +762,18 @@
   "homeQrReviewName": "Nama: {name}",
   "homeQrReviewProxy": "Menghantar trafik tapak ini melalui proksi: {address}",
   "homeQrReviewTurnsOff": "Mematikan: {settings}",
-  "homeQrReviewTurnsOn": "Menghidupkan: {settings}"
+  "homeQrReviewTurnsOn": "Menghidupkan: {settings}",
+  "homeScreenShareUseFileAction": "Guna fail media",
+  "homeScreenShareSourceTooLarge": "Fail terlalu besar. Pilih yang bawah 24 MB.",
+  "homeScreenShareSourceError": "Fail itu tidak dapat digunakan. Pilih imej atau video.",
+  "siteSettingsScreenShareAsk": "Tanya",
+  "siteSettingsScreenShareBlock": "Sentiasa sekat",
+  "siteSettingsScreenShareNoSource": "Tiada fail dipilih",
+  "siteSettingsScreenShareChooseSource": "Pilih fail media",
+  "homeScreenShareTitle": "Benarkan perkongsian skrin?",
+  "homeScreenShareBody": "{origin} mahu berkongsi skrin anda.\n\nWebSpace tidak akan berkongsi skrin sebenar anda: tangkapan skrin merakam segalanya, termasuk tapak anda yang lain dalam apl ini. Sebaliknya anda boleh memilih imej atau video yang dilihat tapak sebagai skrin yang dikongsi. Pilihan anda diingat untuk tapak ini.",
+  "siteSettingsScreenShare": "Perkongsian skrin",
+  "siteSettingsScreenShareHint": "Mengawal sama ada tapak ini boleh merakam skrin anda.\n\nWebSpace tidak pernah berkongsi skrin sebenar anda. Rakaman skrin meliputi seluruh permukaan, jadi ia juga akan menunjukkan tapak anda yang lain dalam apl ini. Sebaliknya, tapak boleh ditunjukkan imej atau video yang anda pilih.\n\nTanya (lalai): tetingkap bertanya kali pertama, kemudian mengingati pilihan anda.\nFail media: tunjukkan fail yang dipilih kepada tapak sebagai skrin yang dikongsi.\nSentiasa sekat: tolak setiap permintaan.",
+  "siteSettingsScreenShareVirtual": "Skrin simulasi",
+  "permissionScreenShareNeverReal": "Tidak tersedia. Rakaman skrin meliputi seluruh skrin, jadi ia juga akan menunjukkan tapak anda yang lain."
 }

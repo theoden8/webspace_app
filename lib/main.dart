@@ -101,8 +101,10 @@ import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/app_locale.dart';
 import 'package:webspace/settings/camera.dart';
+import 'package:webspace/settings/screen_share.dart';
 import 'package:webspace/settings/microphone.dart';
 import 'package:webspace/services/virtual_camera_service.dart';
+import 'package:webspace/services/virtual_screen_service.dart';
 import 'package:webspace/services/virtual_media_picker.dart';
 import 'package:webspace/services/virtual_microphone_service.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
@@ -5149,6 +5151,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     VirtualCameraSource? virtualCameraSource,
     MicrophoneAccessMode microphoneMode = MicrophoneAccessMode.ask,
     VirtualMicrophoneSource? virtualMicrophoneSource,
+    ScreenShareMode screenShareMode = ScreenShareMode.ask,
+    VirtualScreenSource? virtualScreenSource,
     bool? protectedContentAllowed,
   }) async {
     await Navigator.push(
@@ -5188,6 +5192,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           onProtectedMediaRequest: _promptProtectedMedia,
           onCameraDecision: _resolveCameraDecision,
           onMicrophoneDecision: _resolveMicrophoneDecision,
+          onScreenShareDecision: _resolveScreenShareDecision,
           onShowUrlBarChanged: (show) async {
             if (!mounted) return;
             setState(() {
@@ -5206,6 +5211,8 @@ class _WebSpacePageState extends State<WebSpacePage>
           virtualCameraSource: virtualCameraSource,
           microphoneMode: microphoneMode,
           virtualMicrophoneSource: virtualMicrophoneSource,
+          screenShareMode: screenShareMode,
+          virtualScreenSource: virtualScreenSource,
           protectedContentAllowed: protectedContentAllowed,
         ),
       ),
@@ -5445,6 +5452,80 @@ class _WebSpacePageState extends State<WebSpacePage>
       case VirtualMediaPickError.type:
       case VirtualMediaPickError.read:
         return loc.homeMicrophoneSourceError;
+    }
+  }
+
+  /// Stable resolver for a screen-sharing request (`getDisplayMedia`). On the
+  /// first request it shows a Block / Use-a-media-file popup; there is no
+  /// Allow, because no mode hands over a real display — a display capture is
+  /// whole-surface, so it would carry every other site in the webspace.
+  ///
+  /// [current] is the site's stored mode: a site already set to `virtual` but
+  /// missing a source skips the popup and goes straight to the picker. A
+  /// dismissed popup returns [ScreenShareMode.ask] so the request is denied
+  /// once and the popup returns next time; a cancelled picker leaves the prior
+  /// mode intact for the same reason.
+  Future<ScreenShareDecision> _resolveScreenShareDecision(
+      String origin, ScreenShareMode current) async {
+    if (!mounted) return const ScreenShareDecision.block();
+    if (current == ScreenShareMode.virtual) {
+      return _pickVirtualScreenOrKeep(current);
+    }
+    final loc = AppLocalizations.of(context);
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(loc.homeScreenShareTitle),
+        content: Text(loc.homeScreenShareBody(origin)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'block'),
+            child: Text(loc.homeBlockAction),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'file'),
+            child: Text(loc.homeScreenShareUseFileAction),
+          ),
+        ],
+      ),
+    );
+    switch (choice) {
+      case 'file':
+        return _pickVirtualScreenOrKeep(ScreenShareMode.ask);
+      case 'block':
+        return const ScreenShareDecision.block();
+      default:
+        // Dismissed: unresolved, deny this once and ask again next time.
+        return const ScreenShareDecision(ScreenShareMode.ask);
+    }
+  }
+
+  /// Runs the image/video picker. On success returns a `virtual` decision
+  /// carrying the surface source; on cancel or error returns [fallback] with
+  /// no source, so the caller's stored mode is preserved and the request is
+  /// denied this once.
+  Future<ScreenShareDecision> _pickVirtualScreenOrKeep(
+      ScreenShareMode fallback) async {
+    final result = await VirtualScreenService.pickSource();
+    if (result.source != null) {
+      return ScreenShareDecision(ScreenShareMode.virtual, result.source);
+    }
+    if (result.error != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_virtualScreenErrorText(result.error!))),
+      );
+    }
+    return ScreenShareDecision(fallback);
+  }
+
+  String _virtualScreenErrorText(VirtualMediaPickError error) {
+    final loc = AppLocalizations.of(context);
+    switch (error) {
+      case VirtualMediaPickError.tooLarge:
+        return loc.homeScreenShareSourceTooLarge;
+      case VirtualMediaPickError.type:
+      case VirtualMediaPickError.read:
+        return loc.homeScreenShareSourceError;
     }
   }
 
@@ -8661,6 +8742,8 @@ class _WebSpacePageState extends State<WebSpacePage>
                                   onCameraDecision: _resolveCameraDecision,
                                   onMicrophoneDecision:
                                       _resolveMicrophoneDecision,
+                                  onScreenShareDecision:
+                                      _resolveScreenShareDecision,
                                   onUntrustedCertificate: _promptUntrustedCertificate,
                                   onExternalSchemeUrl: (url, info) async {
                                     if (!mounted) return;

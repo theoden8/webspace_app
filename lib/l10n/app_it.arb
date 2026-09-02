@@ -762,5 +762,18 @@
   "homeQrReviewName": "Nome: {name}",
   "homeQrReviewProxy": "Invia il traffico di questo sito attraverso un proxy: {address}",
   "homeQrReviewTurnsOff": "Disattiva: {settings}",
-  "homeQrReviewTurnsOn": "Attiva: {settings}"
+  "homeQrReviewTurnsOn": "Attiva: {settings}",
+  "homeScreenShareUseFileAction": "Usa un file multimediale",
+  "homeScreenShareSourceTooLarge": "Il file è troppo grande. Scegline uno sotto i 24 MB.",
+  "homeScreenShareSourceError": "Impossibile usare quel file. Scegli un'immagine o un video.",
+  "siteSettingsScreenShareAsk": "Chiedi",
+  "siteSettingsScreenShareBlock": "Blocca sempre",
+  "siteSettingsScreenShareNoSource": "Nessun file scelto",
+  "siteSettingsScreenShareChooseSource": "Scegli file multimediale",
+  "homeScreenShareTitle": "Consentire la condivisione dello schermo?",
+  "homeScreenShareBody": "{origin} vuole condividere il tuo schermo.\n\nWebSpace non condividerà il tuo schermo reale: una registrazione dello schermo cattura tutto, compresi gli altri tuoi siti in questa app. Puoi invece scegliere un'immagine o un video che il sito vedrà come schermo condiviso. La tua scelta viene ricordata per questo sito.",
+  "siteSettingsScreenShare": "Condivisione dello schermo",
+  "siteSettingsScreenShareHint": "Determina se questo sito può registrare il tuo schermo.\n\nWebSpace non condivide mai il tuo schermo reale. Una registrazione dello schermo copre l'intera superficie e mostrerebbe quindi anche gli altri tuoi siti in questa app. Al sito può invece essere mostrata un'immagine o un video che scegli tu.\n\nChiedi (predefinito): una finestra chiede la prima volta, poi la scelta viene ricordata.\nFile multimediale: mostra al sito il file scelto come schermo condiviso.\nBlocca sempre: rifiuta ogni richiesta.",
+  "siteSettingsScreenShareVirtual": "Schermo simulato",
+  "permissionScreenShareNeverReal": "Non disponibile. Una registrazione dello schermo copre l'intero schermo e mostrerebbe quindi anche gli altri tuoi siti."
 }

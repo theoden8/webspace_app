@@ -762,5 +762,18 @@
   "homeQrReviewName": "Namn: {name}",
   "homeQrReviewProxy": "Skickar den här webbplatsens trafik via en proxy: {address}",
   "homeQrReviewTurnsOff": "Stänger av: {settings}",
-  "homeQrReviewTurnsOn": "Slår på: {settings}"
+  "homeQrReviewTurnsOn": "Slår på: {settings}",
+  "homeScreenShareUseFileAction": "Använd en mediefil",
+  "homeScreenShareSourceTooLarge": "Filen är för stor. Välj en under 24 MB.",
+  "homeScreenShareSourceError": "Det gick inte att använda filen. Välj en bild eller video.",
+  "siteSettingsScreenShareAsk": "Fråga",
+  "siteSettingsScreenShareBlock": "Blockera alltid",
+  "siteSettingsScreenShareNoSource": "Ingen fil vald",
+  "siteSettingsScreenShareChooseSource": "Välj mediefil",
+  "homeScreenShareTitle": "Tillåta skärmdelning?",
+  "homeScreenShareBody": "{origin} vill dela din skärm.\n\nWebSpace delar inte din riktiga skärm: en skärminspelning fångar allt, även dina andra webbplatser i den här appen. Du kan i stället välja en bild eller video som webbplatsen ser som den delade skärmen. Ditt val kommer ihåg för den här webbplatsen.",
+  "siteSettingsScreenShare": "Skärmdelning",
+  "siteSettingsScreenShareHint": "Styr om den här webbplatsen får spela in din skärm.\n\nWebSpace delar aldrig din riktiga skärm. En skärminspelning täcker hela ytan och skulle därför också visa dina andra webbplatser i den här appen. I stället kan webbplatsen få se en bild eller video som du väljer.\n\nFråga (standard): ett fönster frågar första gången och kommer sedan ihåg ditt val.\nMediefil: visa den valda filen för webbplatsen som den delade skärmen.\nBlockera alltid: avvisa varje begäran.",
+  "siteSettingsScreenShareVirtual": "Simulerad skärm",
+  "permissionScreenShareNeverReal": "Inte tillgänglig. En skärminspelning täcker hela skärmen och skulle därför också visa dina andra webbplatser."
 }
