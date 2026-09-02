@@ -274,11 +274,25 @@ a frame onto a canvas
 rather than freezing on the first decoded frame
 
 The probe waits for that change rather than sampling a fixed window: the
-emulator's software decoder runs the clip several times slower than real time
-and at a rate that varies per runner, so a fixed window turns a correctly
-playing stream into a red build (the same 4s window produced 8, 2 and 0
-transitions across runs). It samples until the first transition or 30s, so a
-stalled decoder still fails and a healthy one exits in about a second.
+emulator's software decoder runs the clip slower than real time and at a rate
+that varies per runner, so a fixed window can close before a correctly playing
+stream has shown both colours. It samples until the first transition or 30s, so
+a stalled decoder still fails and a healthy one exits in about a second.
+
+The fixture SHALL alternate its two colours on every frame, so each colour
+holds half the clip's media time and the first transition costs two decoded
+frames. Its predecessor carried the second colour on a single frame at the very
+end of the clip — the generator painted the canvas twice and let
+`captureStream(10)` sample it, and that capture emits a frame only when the
+canvas is touched — which left a sampler racing the loop wrap for that colour.
+That race is the 8/2/0 variance above, and a run that saw one colour across 300
+samples. `tool/generate_camera_video_fixture.js` enforces the property at
+generation time — it decodes what it just encoded, walks the presented frames,
+and refuses to write the fixture unless the first flip lands on frame 1 — and
+`test/browser/camera_stream_real_engine.test.js` re-derives it from the
+committed bytes in CI. This tightens the freeze check rather than loosening it,
+since a stream stuck on frame 0 still reports a single colour. Lineage:
+[docs/bugs/010-camera-clip-flip-flake.md](../../../docs/bugs/010-camera-clip-flip-flake.md).
 
 #### Scenario: Blocked site is denied on-device
 
