@@ -30,6 +30,7 @@
   "commonDone": "Kész",
   "commonRetry": "Újra",
   "commonShare": "Megosztás",
+  "commonRepaintScreen": "Képernyő újrarajzolása",
   "commonOpen": "Megnyitás",
   "statsBannerBlocked": "{count} blokkolva",
   "statsBannerAllowed": "{count} engedélyezve",

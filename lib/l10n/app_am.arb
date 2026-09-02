@@ -30,6 +30,7 @@
   "commonDone": "ተጠናቋል",
   "commonRetry": "እንደገና ሞክር",
   "commonShare": "አጋራ",
+  "commonRepaintScreen": "ማያ ገጹን እንደገና ሳል",
   "commonOpen": "ክፈት",
   "statsBannerBlocked": "{count} ታግደዋል",
   "statsBannerAllowed": "{count} ተፈቅደዋል",

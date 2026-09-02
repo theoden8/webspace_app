@@ -30,6 +30,7 @@
   "commonDone": "完了",
   "commonRetry": "再試行",
   "commonShare": "共有",
+  "commonRepaintScreen": "画面を再描画",
   "commonOpen": "開く",
   "statsBannerBlocked": "{count} 件ブロック",
   "statsBannerAllowed": "{count} 件許可",

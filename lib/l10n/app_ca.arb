@@ -30,6 +30,7 @@
   "commonDone": "Fet",
   "commonRetry": "Torna-ho a provar",
   "commonShare": "Comparteix",
+  "commonRepaintScreen": "Redibuixa la pantalla",
   "commonOpen": "Obre",
   "statsBannerBlocked": "{count} bloquejades",
   "statsBannerAllowed": "{count} permeses",

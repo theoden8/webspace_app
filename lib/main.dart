@@ -1020,6 +1020,8 @@ class _WebSpacePageState extends State<WebSpacePage>
   // its tick output. See lib/services/surface_repaint_engine.dart and
   // formal/kernel.tla (RepaintLiveness).
   final SurfaceRepaintEngine _surfaceRepaint = SurfaceRepaintEngine();
+  // Bounds the commit latch opened by _armCommitLatch (PAUSE-027).
+  Timer? _commitWindowTimer;
   /// When true, a full-screen opaque mask covers every webview so the
   /// OS task-switcher / recents snapshot doesn't capture archive-tier
   /// content (ARCH-009). Set on `inactive`/`paused` when at least one
@@ -1480,6 +1482,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   void dispose() {
     _foregroundPollTimer?.cancel();
     _resumeRepaintWindowTimer?.cancel();
+    _commitWindowTimer?.cancel();
     _navStateDebouncer.dispose();
     _untrustSub?.cancel();
     surfaceRouteObserver.unsubscribe(this);
@@ -2012,6 +2015,46 @@ class _WebSpacePageState extends State<WebSpacePage>
       Future.delayed(const Duration(milliseconds: 100), tick);
     }
     tick();
+  }
+
+  /// Arm the commit latch and hold it open for a bounded window.
+  ///
+  /// The latch used to be one-shot: the first load that settled after an issue
+  /// spent it. That drops the repaint exactly when the user needs it most —
+  /// a refresh issued while another is in flight settles twice (the aborted
+  /// load first, the replacement after), and a redirect chain commits an
+  /// interstitial before the page. The first settle then repaints a document
+  /// that is already gone and the one left on screen stays blank, which is the
+  /// rapid-refresh white screen (BUG-001 / PAUSE-027). Every load settling
+  /// inside the window repaints instead; the window bounds how long an
+  /// unrelated navigation can inherit one.
+  void _armCommitLatch() {
+    _surfaceRepaint.noteCommitPending();
+    _commitWindowTimer?.cancel();
+    _commitWindowTimer = Timer(SurfaceRepaintEngine.commitWindow, () {
+      _commitWindowTimer = null;
+      _surfaceRepaint.closeCommitWindow();
+    });
+  }
+
+  /// User asked for a repaint from the menu (PAUSE-028).
+  ///
+  /// Every other repaint trigger is a code path the app recognised as a
+  /// surface (re)attach; BUG-001 recurs precisely when a path nobody
+  /// enumerated reaches a blank surface, and the user is the only one who can
+  /// see that it happened. Probe first so a dead renderer is rebuilt rather
+  /// than nudged (the two blank classes are indistinguishable on screen), then
+  /// recomposite. Off Android the nudge is a no-op, so the menu entry is
+  /// Android-only.
+  void _repaintCurrentSurface() {
+    if (hostIsAndroid) {
+      LogService.instance.log('SurfaceDiag', 'trigger=manual -> nudge');
+    }
+    final idx = _currentIndex;
+    if (idx != null && idx < _webViewModels.length) {
+      unawaited(_probeRendererAndRecover(_webViewModels[idx], trigger: 'manual'));
+    }
+    _nudgeSurfaceRepaint();
   }
 
   Future<void> _handleShortcutIntent() async {
@@ -3980,7 +4023,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     // ordering on top of that: this nudge drains against a surface that has
     // nothing to show yet, and the commit lands afterwards. Latch it so
     // onLoadSettled repaints the committed document (PAUSE-025).
-    if (target.isLoading) _surfaceRepaint.noteCommitPending();
+    if (target.isLoading) _armCommitLatch();
     _nudgeSurfaceRepaint();
     // _loadedIndices may have changed (LRU eviction, conflict unload,
     // first-load of target), so re-evaluate the background refresh
@@ -6774,6 +6817,22 @@ class _WebSpacePageState extends State<WebSpacePage>
                     ],
                   ),
                 ),
+                // Manual escape hatch for the recurring Android blank surface
+                // (BUG-001 / PAUSE-028): every automatic trigger is an
+                // enumerated code path, and the user is the only one who can
+                // see a path nobody enumerated. Android-only, where the nudge
+                // is not a no-op.
+                if (hostIsAndroid)
+                  PopupMenuItem<String>(
+                    value: "repaint",
+                    child: Row(
+                      children: [
+                        Icon(Icons.format_paint),
+                        SizedBox(width: 8),
+                        Text(loc.commonRepaintScreen),
+                      ],
+                    ),
+                  ),
                 PopupMenuItem<String>(
                   value: "settings",
                   child: Row(
@@ -6814,6 +6873,9 @@ class _WebSpacePageState extends State<WebSpacePage>
                 break;
                 case 'fullscreen':
                   _toggleFullscreen();
+                break;
+                case 'repaint':
+                  _repaintCurrentSurface();
                 break;
                 case 'settings':
                   await Navigator.push(
@@ -7314,6 +7376,22 @@ class _WebSpacePageState extends State<WebSpacePage>
               ],
             ),
           ),
+          // Manual escape hatch for the recurring Android blank surface
+          // (BUG-001 / PAUSE-028): every automatic trigger is an
+          // enumerated code path, and the user is the only one who can
+          // see a path nobody enumerated. Android-only, where the nudge
+          // is not a no-op.
+          if (hostIsAndroid)
+            PopupMenuItem<String>(
+              value: "repaint",
+              child: Row(
+                children: [
+                  Icon(Icons.format_paint),
+                  SizedBox(width: 8),
+                  Text(loc.commonRepaintScreen),
+                ],
+              ),
+            ),
           PopupMenuItem<String>(
             value: "settings",
             child: Row(
@@ -7361,6 +7439,9 @@ class _WebSpacePageState extends State<WebSpacePage>
           break;
           case 'fullscreen':
             _toggleFullscreen();
+          break;
+          case 'repaint':
+            _repaintCurrentSurface();
           break;
           case 'settings':
             await Navigator.push(
@@ -8651,7 +8732,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                           // controller attaches — later than this loop's ~0.6s
                           // budget on a slow page — so latch the commit too and
                           // let onLoadSettled repaint it (PAUSE-025).
-                          _surfaceRepaint.noteCommitPending();
+                          _armCommitLatch();
                           if (hostIsAndroid) {
                             LogService.instance.log(
                                 'SurfaceDiag', 'trigger=controller-attach -> nudge');
@@ -8672,7 +8753,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                         // premise this fix rests on. See PAUSE-021.
                         webViewModel.onReloadIssued = () {
                           if (index != _currentIndex) return;
-                          _surfaceRepaint.reloadIssued();
+                          _armCommitLatch();
                           if (hostIsAndroid) {
                             LogService.instance
                                 .log('SurfaceDiag', 'trigger=reload -> nudge');
@@ -8681,7 +8762,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                         };
                         webViewModel.onLoadSettled = () {
                           if (index != _currentIndex) return;
-                          if (!_surfaceRepaint.consumeLoadSettled()) return;
+                          if (!_surfaceRepaint.noteLoadSettled()) return;
                           if (hostIsAndroid) {
                             LogService.instance.log(
                                 'SurfaceDiag', 'trigger=commit-settled -> nudge');

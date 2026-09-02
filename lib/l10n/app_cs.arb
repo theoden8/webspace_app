@@ -30,6 +30,7 @@
   "commonDone": "Hotovo",
   "commonRetry": "Zkusit znovu",
   "commonShare": "Sdílet",
+  "commonRepaintScreen": "Překreslit obrazovku",
   "commonOpen": "Otevřít",
   "statsBannerBlocked": "{count} blokováno",
   "statsBannerAllowed": "{count} povoleno",

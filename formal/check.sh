@@ -84,6 +84,14 @@ expect warmstart_bug.cfg warmstart.tla "Temporal propert(y|ies).*violated" \
 expect warmstart_reach.cfg warmstart.tla "Reach_LateReattach is violated" \
   "the late-reattach ordering is reachable (RepaintLiveness not vacuous)"
 
+echo "── RELOADLATCH: BUG-001 rapid-refresh white screen (PAUSE-027, Attempt 11) ──"
+expect reloadlatch.cfg reloadlatch.tla "No error has been found" \
+  "a bounded commit window repaints every commit that settles inside it"
+expect reloadlatch_bug.cfg reloadlatch.tla "Temporal propert(y|ies).*violated" \
+  "a one-shot latch spent by the aborted load leaves the replacement blank (reproduced + caught)"
+expect reloadlatch_reach.cfg reloadlatch.tla "Reach_SpentLatch is violated" \
+  "the spent-latch ordering is reachable (RepaintLiveness not vacuous)"
+
 echo "── PROXY: mutual exclusion (Android serialises mismatched-proxy sites) ──"
 expect proxy.cfg proxy.tla "No error has been found" \
   "every loaded site shares the active proxy"

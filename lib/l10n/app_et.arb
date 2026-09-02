@@ -30,6 +30,7 @@
   "commonDone": "Valmis",
   "commonRetry": "Proovi uuesti",
   "commonShare": "Jaga",
+  "commonRepaintScreen": "Joonista ekraan uuesti",
   "commonOpen": "Ava",
   "statsBannerBlocked": "{count} blokeeritud",
   "statsBannerAllowed": "{count} lubatud",

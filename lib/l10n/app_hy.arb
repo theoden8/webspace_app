@@ -30,6 +30,7 @@
   "commonDone": "Պատրաստ է",
   "commonRetry": "Կրկնել",
   "commonShare": "Կիսվել",
+  "commonRepaintScreen": "Վերագծել էկրանը",
   "commonOpen": "Բացել",
   "statsBannerBlocked": "{count} արգելափակված",
   "statsBannerAllowed": "{count} թույլատրված",

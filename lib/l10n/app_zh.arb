@@ -30,6 +30,7 @@
   "commonDone": "完成",
   "commonRetry": "重試",
   "commonShare": "分享",
+  "commonRepaintScreen": "重新繪製畫面",
   "commonOpen": "開啟",
   "statsBannerBlocked": "已封鎖 {count}",
   "statsBannerAllowed": "已允許 {count}",

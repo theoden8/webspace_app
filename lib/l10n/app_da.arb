@@ -30,6 +30,7 @@
   "commonDone": "Færdig",
   "commonRetry": "Prøv igen",
   "commonShare": "Del",
+  "commonRepaintScreen": "Gentegn skærmen",
   "commonOpen": "Åbn",
   "statsBannerBlocked": "{count} blokeret",
   "statsBannerAllowed": "{count} tilladt",

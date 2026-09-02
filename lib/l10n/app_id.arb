@@ -30,6 +30,7 @@
   "commonDone": "Selesai",
   "commonRetry": "Coba lagi",
   "commonShare": "Bagikan",
+  "commonRepaintScreen": "Gambar ulang layar",
   "commonOpen": "Buka",
   "statsBannerBlocked": "{count} diblokir",
   "statsBannerAllowed": "{count} diizinkan",

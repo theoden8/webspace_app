@@ -30,6 +30,7 @@
   "commonDone": "Eginda",
   "commonRetry": "Saiatu berriz",
   "commonShare": "Partekatu",
+  "commonRepaintScreen": "Marraztu pantaila berriro",
   "commonOpen": "Ireki",
   "statsBannerBlocked": "{count} blokeatuta",
   "statsBannerAllowed": "{count} baimenduta",

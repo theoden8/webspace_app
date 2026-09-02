@@ -30,6 +30,7 @@
   "commonDone": "Atlikta",
   "commonRetry": "Bandyti dar kartą",
   "commonShare": "Bendrinti",
+  "commonRepaintScreen": "Perpiešti ekraną",
   "commonOpen": "Atidaryti",
   "statsBannerBlocked": "Užblokuota: {count}",
   "statsBannerAllowed": "Leista: {count}",

@@ -30,6 +30,7 @@
   "commonDone": "Готово",
   "commonRetry": "Повторити",
   "commonShare": "Поділитися",
+  "commonRepaintScreen": "Перемалювати екран",
   "commonOpen": "Відкрити",
   "statsBannerBlocked": "{count} заблоковано",
   "statsBannerAllowed": "{count} дозволено",

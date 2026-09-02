@@ -30,6 +30,7 @@
   "commonDone": "Klar",
   "commonRetry": "Försök igen",
   "commonShare": "Dela",
+  "commonRepaintScreen": "Rita om skärmen",
   "commonOpen": "Öppna",
   "statsBannerBlocked": "{count} blockerade",
   "statsBannerAllowed": "{count} tillåtna",

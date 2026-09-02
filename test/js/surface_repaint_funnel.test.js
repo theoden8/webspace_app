@@ -91,8 +91,8 @@ for (const rel of GUARDED) {
     {
       file: 'lib/screens/inappbrowser.dart',
       funnel: /Future<void>\s+_reloadAndRepaint\s*\(/,
-      latch: /_surfaceRepaint\.reloadIssued\(\)/,
-      settled: /_surfaceRepaint\.consumeLoadSettled\(\)/,
+      latch: /_armCommitLatch\(\)/,
+      settled: /_surfaceRepaint\.noteLoadSettled\(\)/,
     },
   ];
 
@@ -138,9 +138,9 @@ for (const rel of GUARDED) {
     const src = linesOf('lib/main.dart').join('\n');
     assert.match(src, /onReloadIssued\s*=\s*\(\)\s*\{/,
       'main.dart must handle onReloadIssued for the visible site');
-    assert.match(src, /_surfaceRepaint\.reloadIssued\(\)/,
+    assert.match(src, /_armCommitLatch\(\)/,
       'the reload must be latched on the engine');
-    assert.match(src, /_surfaceRepaint\.consumeLoadSettled\(\)/,
+    assert.match(src, /_surfaceRepaint\.noteLoadSettled\(\)/,
       'the settled load must re-nudge (PAUSE-021)');
     const offenders = [];
     linesOf('lib/main.dart').forEach((l, i) => {
@@ -235,7 +235,7 @@ for (const rel of GUARDED) {
       const defIdx = lines.findIndex((l) => handler.test(l));
       assert.ok(defIdx >= 0, 'the controller-attach handler must exist');
       const body = lines.slice(defIdx, defIdx + 20).join('\n');
-      assert.match(body, /_surfaceRepaint\.noteCommitPending\(\)/,
+      assert.match(body, /_armCommitLatch\(\)/,
         'the attach must arm the commit latch (PAUSE-025)');
       assert.match(body, /_nudgeSurfaceRepaint\(\)/,
         'the attach must also nudge now (PAUSE-017)');
@@ -278,3 +278,70 @@ for (const rel of GUARDED) {
       'dispose must cancel the window timer');
   });
 }
+
+// Bounded commit window (PAUSE-027 / BUG-001 Attempt 11). The commit latch used
+// to be one-shot, so the first load that settled after an issue spent it. Two
+// refreshes inside one document's lifetime settle twice — the aborted load, then
+// the replacement — and the second, which is what the user is looking at, got no
+// repaint. Every host that latches a commit must therefore arm through a helper
+// that holds the window open for a bounded time and close it on a timer.
+{
+  const LATCH_HOSTS = ['lib/main.dart', 'lib/screens/inappbrowser.dart'];
+
+  for (const rel of LATCH_HOSTS) {
+    const lines = linesOf(rel);
+    const src = lines.join('\n');
+
+    test(`${rel}: _armCommitLatch arms the engine and bounds the window`, () => {
+      const defIdx = lines.findIndex((l) => /void\s+_armCommitLatch\s*\(\)/.test(l));
+      assert.ok(defIdx >= 0, '_armCommitLatch must be defined');
+      const body = lines.slice(defIdx, defIdx + 10).join('\n');
+      assert.match(body, /_surfaceRepaint\.noteCommitPending\(\)/,
+        'the helper must arm the engine latch');
+      assert.match(body, /_commitWindowTimer\?\.cancel\(\)/,
+        'a new issue must restart the window rather than stack timers');
+      assert.match(body, /Timer\(SurfaceRepaintEngine\.commitWindow/,
+        'the window must be bounded by the engine-owned duration');
+      assert.match(body, /_surfaceRepaint\.closeCommitWindow\(\)/,
+        'the timer must close the window (PAUSE-027)');
+    });
+
+    test(`${rel}: nothing arms the engine latch outside the helper`, () => {
+      const offenders = [];
+      lines.forEach((l, i) => {
+        if (/^\s*(\/\/|\*)/.test(l)) return; // prose, not a call site
+        if (!/_surfaceRepaint\.noteCommitPending\(\)/.test(l)) return;
+        if (/void\s+_armCommitLatch\s*\(\)/.test(context(lines, i, 3, 0))) return;
+        offenders.push(i + 1);
+      });
+      assert.deepEqual(offenders, [],
+        `raw noteCommitPending() at line(s) ${offenders.join(', ')}; ` +
+          'arm through _armCommitLatch so the window is bounded (PAUSE-027).');
+    });
+
+    test(`${rel}: dispose cancels the commit window timer`, () => {
+      const defIdx = lines.findIndex((l) => /void\s+dispose\s*\(\)/.test(l));
+      assert.ok(defIdx >= 0, 'dispose must exist');
+      const body = lines.slice(defIdx, defIdx + 14).join('\n');
+      assert.match(body, /_commitWindowTimer\?\.cancel\(\)/,
+        'a pending window timer must not outlive the screen');
+    });
+
+    test(`${rel}: the menu offers a manual repaint (PAUSE-028)`, () => {
+      assert.match(src, /value:\s*"repaint"/,
+        'the overflow menu must carry a repaint entry');
+      assert.match(src, /case\s+'repaint':\s*\n\s*_repaintCurrentSurface\(\);/,
+        'selecting it must route to _repaintCurrentSurface');
+      const defIdx = lines.findIndex((l) =>
+        /void\s+_repaintCurrentSurface\s*\(\)/.test(l),
+      );
+      assert.ok(defIdx >= 0, '_repaintCurrentSurface must be defined');
+      const body = lines.slice(defIdx, defIdx + 12).join('\n');
+      assert.match(body, /_nudgeSurfaceRepaint\(\)/,
+        'the manual action must actually nudge the surface');
+      assert.match(body, /SurfaceDiag/,
+        'the manual trigger must be traceable in a shareable log');
+    });
+  }
+}
+

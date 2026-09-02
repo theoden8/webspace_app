@@ -30,6 +30,7 @@
   "commonDone": "تم",
   "commonRetry": "إعادة المحاولة",
   "commonShare": "مشاركة",
+  "commonRepaintScreen": "إعادة رسم الشاشة",
   "commonOpen": "فتح",
   "statsBannerBlocked": "تم حجب {count}",
   "statsBannerAllowed": "تم السماح بـ {count}",

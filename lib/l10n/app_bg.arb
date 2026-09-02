@@ -30,6 +30,7 @@
   "commonDone": "Готово",
   "commonRetry": "Опитай пак",
   "commonShare": "Сподели",
+  "commonRepaintScreen": "Прерисуване на екрана",
   "commonOpen": "Отвори",
   "statsBannerBlocked": "{count} блокирани",
   "statsBannerAllowed": "{count} разрешени",

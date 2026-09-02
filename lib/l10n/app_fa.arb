@@ -30,6 +30,7 @@
   "commonDone": "انجام شد",
   "commonRetry": "تلاش دوباره",
   "commonShare": "اشتراک‌گذاری",
+  "commonRepaintScreen": "ترسیم مجدد صفحه",
   "commonOpen": "باز کردن",
   "statsBannerBlocked": "{count} مسدودشده",
   "statsBannerAllowed": "{count} مجاز",

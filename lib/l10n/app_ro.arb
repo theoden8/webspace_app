@@ -30,6 +30,7 @@
   "commonDone": "Gata",
   "commonRetry": "Reîncearcă",
   "commonShare": "Distribuie",
+  "commonRepaintScreen": "Redesenează ecranul",
   "commonOpen": "Deschide",
   "statsBannerBlocked": "{count} blocate",
   "statsBannerAllowed": "{count} permise",

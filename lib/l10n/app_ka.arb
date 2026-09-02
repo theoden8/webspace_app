@@ -30,6 +30,7 @@
   "commonDone": "მზადაა",
   "commonRetry": "ხელახლა ცდა",
   "commonShare": "გაზიარება",
+  "commonRepaintScreen": "ეკრანის ხელახლა დახატვა",
   "commonOpen": "გახსნა",
   "statsBannerBlocked": "{count} დაბლოკილი",
   "statsBannerAllowed": "{count} დაშვებული",

@@ -30,6 +30,7 @@
   "commonDone": "Listo",
   "commonRetry": "Reintentar",
   "commonShare": "Compartir",
+  "commonRepaintScreen": "Redibujar pantalla",
   "commonOpen": "Abrir",
   "statsBannerBlocked": "{count} bloqueadas",
   "statsBannerAllowed": "{count} permitidas",

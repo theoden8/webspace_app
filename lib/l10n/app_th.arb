@@ -30,6 +30,7 @@
   "commonDone": "เสร็จสิ้น",
   "commonRetry": "ลองใหม่",
   "commonShare": "แชร์",
+  "commonRepaintScreen": "วาดหน้าจอใหม่",
   "commonOpen": "เปิด",
   "statsBannerBlocked": "บล็อก {count}",
   "statsBannerAllowed": "อนุญาต {count}",

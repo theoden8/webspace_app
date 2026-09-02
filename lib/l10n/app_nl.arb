@@ -30,6 +30,7 @@
   "commonDone": "Klaar",
   "commonRetry": "Opnieuw proberen",
   "commonShare": "Delen",
+  "commonRepaintScreen": "Scherm opnieuw tekenen",
   "commonOpen": "Openen",
   "statsBannerBlocked": "{count} geblokkeerd",
   "statsBannerAllowed": "{count} toegestaan",

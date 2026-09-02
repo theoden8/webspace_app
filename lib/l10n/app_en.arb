@@ -118,6 +118,10 @@
   "@commonShare": {
     "description": "Generic button that shares a value."
   },
+  "commonRepaintScreen": "Repaint Screen",
+  "@commonRepaintScreen": {
+    "description": "Overflow-menu item that forces the page surface to redraw when Android leaves it blank."
+  },
   "commonOpen": "Open",
   "@commonOpen": {
     "description": "Generic button that opens a target."

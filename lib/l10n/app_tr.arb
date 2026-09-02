@@ -30,6 +30,7 @@
   "commonDone": "Bitti",
   "commonRetry": "Tekrar dene",
   "commonShare": "Paylaş",
+  "commonRepaintScreen": "Ekranı yeniden çiz",
   "commonOpen": "Aç",
   "statsBannerBlocked": "{count} engellendi",
   "statsBannerAllowed": "{count} izin verildi",

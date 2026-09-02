@@ -30,6 +30,7 @@
   "commonDone": "Τέλος",
   "commonRetry": "Επανάληψη",
   "commonShare": "Κοινή χρήση",
+  "commonRepaintScreen": "Επανασχεδίαση οθόνης",
   "commonOpen": "Άνοιγμα",
   "statsBannerBlocked": "{count} αποκλείστηκαν",
   "statsBannerAllowed": "{count} επιτράπηκαν",

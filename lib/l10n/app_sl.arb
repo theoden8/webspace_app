@@ -30,6 +30,7 @@
   "commonDone": "Končano",
   "commonRetry": "Poskusi znova",
   "commonShare": "Deli",
+  "commonRepaintScreen": "Ponovno izriši zaslon",
   "commonOpen": "Odpri",
   "statsBannerBlocked": "{count} blokiranih",
   "statsBannerAllowed": "{count} dovoljenih",

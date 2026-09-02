@@ -30,6 +30,7 @@
   "commonDone": "Gotowe",
   "commonRetry": "Ponów",
   "commonShare": "Udostępnij",
+  "commonRepaintScreen": "Przerysuj ekran",
   "commonOpen": "Otwórz",
   "statsBannerBlocked": "{count} zablokowanych",
   "statsBannerAllowed": "{count} dozwolonych",

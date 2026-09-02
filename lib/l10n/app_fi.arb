@@ -30,6 +30,7 @@
   "commonDone": "Valmis",
   "commonRetry": "Yritä uudelleen",
   "commonShare": "Jaa",
+  "commonRepaintScreen": "Piirrä näyttö uudelleen",
   "commonOpen": "Avaa",
   "statsBannerBlocked": "{count} estetty",
   "statsBannerAllowed": "{count} sallittu",
