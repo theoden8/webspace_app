@@ -2,8 +2,6 @@ import 'dart:async';
 import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp
-    show PullToRefreshController, PullToRefreshSettings, SslCertificate;
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -16,6 +14,7 @@ import 'package:webspace/services/microphone_decision_engine.dart';
 import 'package:webspace/services/screen_share_decision_engine.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/pull_to_refresh_gate.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/surface_repaint_engine.dart';
 import 'package:webspace/services/surface_route_observer.dart';
@@ -225,7 +224,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   WebViewController? _controller;
   String? title;
   late String _currentUrl;
-  late final inapp.PullToRefreshController? _pullToRefreshController;
+  late final PullToRefreshGate? _pullToRefreshGate;
 
   /// In-memory protected-content (Widevine/EME) decision for this nested
   /// screen. null = ask, true/false = remembered grant/deny. Nested screens
@@ -344,12 +343,8 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
       currentUrl: widget.url,
     );
     final bool isMobile = hostIsIOS || hostIsAndroid;
-    _pullToRefreshController = isMobile ? inapp.PullToRefreshController(
-      settings: inapp.PullToRefreshSettings(enabled: true),
-      onRefresh: () async {
-        await _reloadAndRepaint();
-      },
-    ) : null;
+    _pullToRefreshGate =
+        isMobile ? PullToRefreshGate.create(onRefresh: _reloadAndRepaint) : null;
     _webView = WebViewFactory.createWebView(
       config: WebViewConfig(
         siteId: widget.siteId,
@@ -522,7 +517,8 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                   }
                 }
               },
-        pullToRefreshController: _pullToRefreshController,
+        pullToRefreshController: _pullToRefreshGate?.controller,
+        pullToRefreshGate: _pullToRefreshGate,
         onUrlChanged: (url) {
           _devToolsHost.currentUrl = url;
           if (mounted) {

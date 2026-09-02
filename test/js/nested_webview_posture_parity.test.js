@@ -155,6 +155,9 @@ const PLUMBING = new Set([
   'onProgressChanged', 'onReloadIssued', 'onMainFrameLoad',
   'onWindowRequested', 'onHtmlLoaded', 'shouldFetchHtml', 'onConsoleMessage',
   'onConfirmScriptFetch', 'onExternalSchemeUrl', 'pullToRefreshController',
+  // Pointer bookkeeping for the refresh control above it, created next to it
+  // on both surfaces; not a posture value to copy.
+  'pullToRefreshGate',
   'onRendererGone', 'onProtectedMediaRequest', 'onCameraDecision',
   // Accessor for the host's live camera mode (backs the non-prompting
   // webCameraMode handler), not a posture value to copy: the nested screen
