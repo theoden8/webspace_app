@@ -118,13 +118,14 @@ class WebInterceptNative {
 
   // ========== Domain blocklists ==========
 
-  /// Push the DNS blocklist to the native interceptor, partitioned by
-  /// severity level so the Android side can answer at each site's own level
-  /// off one copy of the data.
+  /// Push the DNS blocklist to the native interceptor, grouped by which
+  /// levels name each domain, so the Android side can answer at each site's
+  /// own level off one copy of the data.
   ///
-  /// Each tier is introduced by a `#<level>` marker line; domain lines never
-  /// start with `#` because the parser drops comments on both sides.
-  static Future<void> sendDnsTiers(Map<int, Set<String>> tiers) async {
+  /// Each group is introduced by a `#<mask-hex>` marker line; domain lines
+  /// never start with `#` because the parser drops comments on both sides.
+  /// A domain appears once however many levels name it.
+  static Future<void> sendDnsLevelGroups(Map<int, Set<String>> groups) async {
     if (!isSupported) return;
     try {
       // Send one newline-joined blob, not a List<String>: the platform-channel
@@ -132,12 +133,12 @@ class WebInterceptNative {
       // entry), which is ~1s for a full ~650k-domain blocklist. A single string
       // is one encode/decode; the native side splits on '\n'.
       final sw = Stopwatch()..start();
-      final levels = tiers.keys.toList()..sort();
+      final masks = groups.keys.toList()..sort();
       final buf = StringBuffer();
       var total = 0;
-      for (final level in levels) {
-        buf.writeln('#$level');
-        for (final domain in tiers[level]!) {
+      for (final mask in masks) {
+        buf.writeln('#${mask.toRadixString(16)}');
+        for (final domain in groups[mask]!) {
           buf.writeln(domain);
           total++;
         }
@@ -152,7 +153,7 @@ class WebInterceptNative {
       });
       LogService.instance.log(
           'DnsBlock',
-          'Queued $total DNS domains across tiers $levels for native build '
+          'Queued $total DNS domains across ${masks.length} group(s) for native build '
               '(join=${joinMs}ms channel+native=${sw.elapsedMilliseconds - joinMs}ms)',
           level: LogLevel.info);
     } catch (e) {

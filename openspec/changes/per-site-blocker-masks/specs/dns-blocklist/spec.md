@@ -2,47 +2,74 @@
 
 ## ADDED Requirements
 
-### Requirement: DNS-019 - Tiered Blocklist Storage
+### Requirement: DNS-019 - Level-Membership Storage
 
-The downloaded blocklists SHALL be held as a partition: every domain sits in
-the tier of the **lowest** severity level whose list names it. Tiers SHALL be
-disjoint, so the total entry count equals the size of the largest downloaded
-list rather than the sum of the lists.
+The downloaded blocklists SHALL be held as a per-domain **level-membership
+mask**: one bit per severity level, set when that level's own list names the
+domain. "Blocked at level N" SHALL mean "bit N is set", never "some lower
+level named it".
 
-"Blocked at level N" SHALL mean "the domain's tier is in 1..N". The partition
-is what makes per-site levels free: the data is shared, and the per-site
-setting is a comparison against the tier.
+Hagezi describes the five levels as building on each other, and they do not.
+Across the published lists, 21,921 of the 297,756 domains drop out of a
+higher level — 1,455 are in Light and in nothing above it, 11,518 are in
+Normal and not in Pro. A "lowest level that names it" model would block those
+at every level above, which would make the **app-wide** level's behaviour
+change depending on which per-site levels happened to be downloaded. The mask
+is the only model that keeps a level meaning exactly what its own list says.
 
-Tiers are built by [`DnsTiersBuilder`](../../../../../lib/services/dns_tier_engine.dart),
-which is fed one domain at a time in ascending level order. A level's parsed
-list SHALL NOT be materialised as a set alongside the tiers it is about to be
-subtracted into — that is the one place the partition could cost more memory
-than the flat set it replaces.
+Domains SHALL be stored as disjoint groups keyed by that mask, so the entry
+count across all groups is exactly the union of the downloaded lists — what a
+flat set of that union costs — and one downloaded level is one group, which is
+where an install that never sets a per-site level stays. Measured on the real
+lists: Pro alone is 225,134 domains in 1 group; Pro plus Light is 229,939 in 3.
 
-Each downloaded level SHALL be cached in its own file
-(`dns_blocklist_<level>.txt`) and the set of downloaded levels persisted under
+Groups are built by [`DnsLevelSetsBuilder`](../../../../../lib/services/dns_level_mask_engine.dart),
+which is fed one domain at a time. A level's raw parsed list SHALL NOT be
+materialised as a set alongside the groups it is being folded into — that is
+the one place this structure could cost more memory than the flat set it
+replaces.
+
+The whole blocklist SHALL be cached in **one** file (`dns_blocklist_levels.txt`)
+of `#<mask-hex>` sections, so a domain is stored once however many levels name
+it and disk stays the size of the largest list rather than the sum of the
+downloaded ones. The set of downloaded levels is persisted under
 `dns_block_downloaded_levels`.
 
-#### Scenario: A domain in several lists takes the lowest tier
+#### Scenario: A domain carries a bit per level that names it
 
-**Given** `light.example` appears in the Light, Pro and Ultimate lists
-**When** all three are downloaded
-**Then** it sits in tier 1 and in no other tier
-**And** the total entry count equals the Ultimate list's
+**Given** `shared.example` appears in the Light and Pro lists and
+`light.example` only in Light
+**When** both are downloaded
+**Then** `shared.example` carries the Light and Pro bits
+**And** `light.example` carries the Light bit only
 
-#### Scenario: A level with no downloaded list has no tier
+#### Scenario: A level blocks only what its own list named
 
-**Given** only the Pro list has been downloaded
-**Then** `downloadedLevels` is `{3}`
-**And** tiers 1, 2, 4 and 5 are empty
+**Given** `light.example` is named by Light and by no higher level
+**When** a site running at Pro requests it
+**Then** the request is allowed
+**And** a site running at Light blocks it
 
-#### Scenario: The pre-tier cache is migrated
+#### Scenario: Downloading a lower level does not change the app-wide one
 
-**Given** an install that cached one blocklist under `dns_blocklist.txt` at
+**Given** the app-wide level is Pro
+**When** a site causes Light to be downloaded
+**Then** every site on the app-wide level blocks exactly what Pro named,
+unchanged
+
+#### Scenario: The union is stored once
+
+**Given** several levels are downloaded
+**Then** each domain appears exactly once in the cache file
+**And** the domain count equals the union of the downloaded lists
+
+#### Scenario: The pre-mask cache is migrated
+
+**Given** an install that cached one flat list under `dns_blocklist.txt` at
 level 3
 **When** the app starts after upgrading
-**Then** the file is re-filed as `dns_blocklist_3.txt`
-**And** level 3 is recorded as downloaded
+**Then** those domains are folded in carrying the level-3 bit
+**And** the flat file is deleted
 **And** the blocklist is available without a network request
 
 ---
@@ -51,10 +78,12 @@ level 3
 
 Each site SHALL have a `dnsBlockLevel` setting (default `null`, meaning
 "follow the app-wide level"). A site with a resolved level of N SHALL block
-exactly the domains whose tier is in 1..N; level 0 blocks nothing.
+exactly the domains whose mask carries level N's bit — what level N's own
+list named, not what any lower level did. Level 0 blocks nothing.
 
-The per-host decision cache SHALL store the host's tier, not a blocked or
-allowed bit, so one cached answer serves every site whatever level it runs at.
+The per-host decision cache SHALL store the host's level mask, not a blocked
+or allowed bit, so one cached answer serves every site whatever level it runs
+at: each site bit-tests the same number.
 
 The site's own toggle and its level SHALL be resolved into one number at the
 call site (`WebViewConfig.effectiveDnsLevel`): 0 when the toggle is off,
@@ -65,7 +94,7 @@ than the toggle and the level separately.
 
 **Given** the app-wide level is Pro and the Light list is downloaded
 **And** a site is set to Light
-**When** the site requests a domain that only the Pro list names
+**When** the site requests a domain the Pro list names and Light does not
 **Then** the request is allowed
 **And** the same domain is still blocked for every other site
 
@@ -80,8 +109,8 @@ than the toggle and the level separately.
 #### Scenario: One host, several levels, one walk
 
 **Given** two sites at different levels request the same host
-**Then** the host's tier is computed once and cached
-**And** each site's decision is that tier compared against its own level
+**Then** the host's level mask is computed once and cached
+**And** each site's decision is one bit test on that mask
 
 #### Scenario: Stats record what the site actually did
 
@@ -100,14 +129,19 @@ fetching exactly one level, so an install that never uses a per-site level
 downloads no more than before.
 
 Until the list lands, a site level that is not in `downloadedLevels` SHALL
-resolve to the app-wide level. Evaluating the requested level against a
-partition that has no boundary at it would block nothing at all, which is the
-one direction a relaxation must never take. Level 0 needs no list and SHALL
-always resolve to itself.
+resolve to the app-wide level. Its bit means nothing until then, so evaluating
+against the mask would block nothing at all, which is the one direction a
+relaxation must never take. Level 0 needs no list and SHALL always resolve to
+itself.
+
+A newly fetched level SHALL be folded into the stored partition — its bit set
+on the domains it names and cleared on the ones it does not — rather than kept
+as a separate list.
 
 A level no site asks for and that is not the app-wide level SHALL be dropped —
-its file deleted and its tier freed — during the deferred startup sweep, and
-not on the per-save path, where an unsaved edit would not yet name it.
+its bit cleared, and any domain no remaining level names removed — during the
+deferred startup sweep, and not on the per-save path, where an unsaved edit
+would not yet name it.
 
 #### Scenario: Picking an undownloaded level
 
@@ -127,7 +161,8 @@ use
 
 **Given** the only site running at Light is moved back to the app-wide level
 **When** the app next runs its deferred startup sweep
-**Then** `dns_blocklist_1.txt` is deleted and tier 1 is freed
+**Then** the Light bit is cleared from every domain
+**And** the domains no other level named are freed
 
 ---
 
@@ -138,12 +173,13 @@ the site whose webview it is attached to. The blocklist it consults is
 app-wide, so the level passed at attach time is the only place an Android
 sub-resource learns the site's DNS posture.
 
-The blob pushed to the native side SHALL carry the partition: a `#<level>`
-marker line introduces each tier. A blob with no marker SHALL load as level 1
-so an older payload still parses.
+The blob pushed to the native side SHALL carry the groups: a `#<mask-hex>`
+marker line introduces each one, and a domain appears once however many levels
+name it. A blob with no marker SHALL load as level 1 so an older payload still
+parses.
 
-The interceptor's per-host cache SHALL hold tiers, so a level change moves the
-site's decisions without invalidating the cache. An attach call that names no
+The interceptor's per-host cache SHALL hold level masks, so a level change
+moves the site's decisions without invalidating the cache. An attach call that names no
 level SHALL reuse the level last reported for that site rather than assuming
 full strength.
 
@@ -158,7 +194,7 @@ full strength.
 **Given** an attached interceptor for a site at Pro
 **When** the site is moved to Light and the webview re-attaches
 **Then** the interceptor evaluates at Light
-**And** the cached host tiers are still used
+**And** the cached host masks are still used
 
 ## MODIFIED Requirements
 
@@ -230,11 +266,12 @@ Invalidated when **either** the DNS blocklist **or** the ABP rule set
 changes.
 
 **DNS-only hot-path cache** (`_dnsBlockCache`): keyed by host, value is the
-host's **tier** (0 when no downloaded list names it) rather than a
-blocked/allowed bit, so a site's level is applied to the cached answer instead
-of baked into it. Read and written by `hostTier()`, which `isBlocked()` and
-its level-aware siblings share. In-memory only, ring-buffer-backed for O(1)
-eviction without iterator allocation. Invalidated when the tiers change.
+host's **level mask** (0 when no downloaded list names it) rather than a
+blocked/allowed bit, so a site's level bit-tests the cached answer instead of
+being baked into it. Read and written by `hostLevelMask()`, which
+`isBlocked()` and its level-aware siblings share. In-memory only,
+ring-buffer-backed for O(1) eviction without iterator allocation. Invalidated
+when the groups change.
 
 #### Scenario: Cached decision reused across sites
 
@@ -246,8 +283,9 @@ without re-walking the blocklist
 
 #### Scenario: Two sites at different levels share one cached walk
 
-**Given** site A at Light and site B at Pro both request `pro.example`
-**Then** the suffix walk runs once
+**Given** site A at Light and site B at Pro both request a host Pro names and
+Light does not
+**Then** the suffix walk runs once and the mask is cached
 **And** A allows the request while B blocks it
 
 #### Scenario: Merged cache survives app restart
@@ -263,7 +301,7 @@ without re-walking the blocklist
 **When** the download completes
 **Then** the merged cache is cleared and `dns_domain_cache` is removed
 **And** the DNS-only hot-path cache is cleared
-**Because** previously cached tiers may be invalidated by the new partition
+**Because** previously cached masks may be invalidated by the new groups
 
 #### Scenario: Merged cache invalidated on ABP rule change
 

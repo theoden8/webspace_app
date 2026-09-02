@@ -7,7 +7,7 @@ import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/services/bloom_filter.dart';
-import 'package:webspace/services/dns_tier_engine.dart';
+import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/host_lookup.dart';
 import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/log_service.dart';
@@ -174,25 +174,29 @@ List<String> dnsMirrorUrlsForLevel(int level) {
 /// Singleton service for downloading, caching, and querying Hagezi DNS blocklists.
 /// Blocks navigation to ad/malware/tracker domains at the webview level.
 class DnsBlockService {
-  /// Pre-tier installs kept the one downloaded list here, with no level in
-  /// the name. Read once at startup and re-filed under its level.
+  /// The whole blocklist, as `#<mask-hex>` sections of domains. Its domain
+  /// content is exactly the union of the downloaded levels — no domain is
+  /// stored twice however many levels name it — so disk stays the size of
+  /// the largest list rather than the sum of them.
+  static const String _levelsFileName = 'dns_blocklist_levels.txt';
+
+  /// Pre-mask installs kept one flat list here, with no level in the name.
+  /// Read once at startup and folded in under the level it was fetched at.
   static const String _legacyCacheFileName = 'dns_blocklist.txt';
   static const String _levelKey = 'dns_block_level';
   static const String _lastUpdatedKey = 'dns_block_last_updated';
   static const String _downloadedLevelsKey = 'dns_block_downloaded_levels';
-
-  static String _cacheFileName(int level) => 'dns_blocklist_$level.txt';
 
   static DnsBlockService? _instance;
   static DnsBlockService get instance => _instance ??= DnsBlockService._();
 
   DnsBlockService._();
 
-  DnsTiers _tiers = DnsTiers.empty;
+  DnsLevelSets _levelSets = DnsLevelSets.empty;
   int _level = 0;
 
   // Serialize blocklist mutations: downloadList and applyImportedLevel both
-  // rewrite the cache files, `_tiers`, `_level`, and prefs across many
+  // rewrite the cache file, `_levelSets`, `_level`, and prefs across many
   // awaits. Overlapping calls (two downloads, or a download racing an import)
   // could otherwise leave the file, level, and in-memory set from different
   // calls — the wrong list loading under the wrong label after restart.
@@ -211,37 +215,41 @@ class DnsBlockService {
   final List<VoidCallback> _dnsLogListeners = [];
 
   /// Whether a blocklist is loaded and active.
-  bool get hasBlocklist => !_tiers.isEmpty;
+  bool get hasBlocklist => !_levelSets.isEmpty;
 
   /// The app-wide severity level (0-5). Sites that don't set their own run
   /// here; a site's own level is resolved against [downloadedLevels].
   int get level => _level;
 
   /// Number of domains across every downloaded level.
-  int get domainCount => _tiers.domainCount;
+  int get domainCount => _levelSets.domainCount;
 
   /// Every blocked domain, across every downloaded level.
-  Iterable<String> get blockedDomains => _tiers.domains;
+  Iterable<String> get blockedDomains => _levelSets.domains;
 
   /// Levels whose list has been fetched, so a site may run at them.
-  Set<int> get downloadedLevels => _tiers.levels;
+  Set<int> get downloadedLevels => _levelSets.levels;
 
-  /// Domains that enter the blocklist at [level] and at no lower one. The
-  /// native push ships the partition rather than a flat set so the Android
-  /// interceptor can apply each site's own level.
-  Set<String> tierDomains(int level) => _tiers.tierDomains(level);
+  /// Domains [level]'s own list names.
+  Iterable<String> domainsAtLevel(int level) =>
+      _levelSets.domainsAtLevel(level);
 
-  /// The whole partition, level → its tier. What the native push ships.
-  Map<int, Set<String>> get tiersByLevel => {
-        for (final level in _tiers.levels) level: _tiers.tierDomains(level),
-      };
+  /// The disjoint groups, keyed by level-membership mask. What the native
+  /// push ships, so the Android interceptor can answer at each site's own
+  /// level off one copy of the data.
+  Map<int, Set<String>> get levelGroups => _levelSets.groups;
+
+  /// How many groups the downloaded levels resolve to. One while a single
+  /// level is downloaded, which is what an install that never sets a
+  /// per-site level stays at.
+  int get levelGroupCount => _levelSets.groupCount;
 
   /// Level [siteLevel] actually runs at once missing tier data is accounted
   /// for. See [resolveDnsLevel].
   int effectiveLevelFor(int? siteLevel) => resolveDnsLevel(
         siteLevel: siteLevel,
         globalLevel: _level,
-        downloadedLevels: _tiers.levels,
+        downloadedLevels: _levelSets.levels,
       );
 
   /// Cached Bloom filter built from DNS domains only.
@@ -268,7 +276,7 @@ class DnsBlockService {
   void _notifyBlocklistChanged() {
     // Invalidate the merged Bloom since the DNS half changed. The
     // ContentBlockerService change path invalidates it too. The DNS hot-path
-    // cache is also stale because the tiers themselves changed.
+    // cache is also stale because the groups themselves changed.
     _mergedBloomFilter = null;
     _dnsBlockCache.clear();
     for (final listener in List<VoidCallback>.from(_blocklistChangedListeners)) {
@@ -288,7 +296,7 @@ class DnsBlockService {
   /// merged host-decision cache (which may have stale entries: a host
   /// previously cached as blocked because of an ABP-only rule is no
   /// longer blocked, or vice versa). The DNS-only hot path cache is
-  /// unaffected because it depends only on the tiers.
+  /// unaffected because it depends only on the level groups.
   void setAbpNetworkHosts(Set<String> hosts) {
     _abpNetworkHosts = hosts;
     invalidateMergedBloom();
@@ -313,9 +321,9 @@ class DnsBlockService {
   final Map<String, bool> _domainCache = {};
 
   /// DNS-only host-decision cache for the [isBlocked] hot path. Holds the
-  /// host's *tier*, not a blocked/allowed bit: every site then masks the one
-  /// cached answer with its own level, so per-site levels cost no extra
-  /// entries and no extra walks. In-memory only — no disk persistence —
+  /// host's *level mask*, not a blocked/allowed bit: every site then bit-tests
+  /// the one cached answer with its own level, so per-site levels cost no
+  /// extra entries and no extra walks. In-memory only — no disk persistence —
   /// since the cost of a cold cache after startup is modest (a single cheap
   /// walk per first-seen host) and avoiding the persist debounce keeps
   /// [isBlocked] purely synchronous. Cleared whenever the tiers change.
@@ -415,10 +423,10 @@ class DnsBlockService {
   BloomFilter getBloomFilter() {
     if (_bloomFilter != null) return _bloomFilter!;
     final sw = Stopwatch()..start();
-    _bloomFilter = BloomFilter.build(_tiers.domains, fpRate: 0.05);
+    _bloomFilter = BloomFilter.build(_levelSets.domains, fpRate: 0.05);
     sw.stop();
     LogService.instance.log('DnsBlock',
-        'Built bloom filter: ${_bloomFilter!.sizeInBytes} bytes, k=${_bloomFilter!.k}, from ${_tiers.domainCount} domains in ${sw.elapsedMilliseconds}ms',
+        'Built bloom filter: ${_bloomFilter!.sizeInBytes} bytes, k=${_bloomFilter!.k}, from ${_levelSets.domainCount} domains in ${sw.elapsedMilliseconds}ms',
         level: LogLevel.info);
     return _bloomFilter!;
   }
@@ -439,10 +447,10 @@ class DnsBlockService {
     final Iterable<String> union;
     final int unionCount;
     if (_abpNetworkHosts.isEmpty) {
-      union = _tiers.domains;
-      unionCount = _tiers.domainCount;
+      union = _levelSets.domains;
+      unionCount = _levelSets.domainCount;
     } else {
-      final merged = <String>{..._tiers.domains, ..._abpNetworkHosts};
+      final merged = <String>{..._levelSets.domains, ..._abpNetworkHosts};
       union = merged;
       unionCount = merged.length;
     }
@@ -451,7 +459,7 @@ class DnsBlockService {
     LogService.instance.log(
         'BlockBloom',
         'Built merged bloom: ${_mergedBloomFilter!.sizeInBytes} bytes, k=${_mergedBloomFilter!.k}, '
-        'from ${_tiers.domainCount} DNS + ${_abpNetworkHosts.length} ABP '
+        'from ${_levelSets.domainCount} DNS + ${_abpNetworkHosts.length} ABP '
         'host(s) ($unionCount unique) in ${sw.elapsedMilliseconds}ms',
         level: LogLevel.info);
     return _mergedBloomFilter!;
@@ -541,20 +549,20 @@ class DnsBlockService {
     }
   }
 
-  /// Initialize the service by loading the cached domain files from disk (no
+  /// Initialize the service by loading the cached blocklist from disk (no
   /// network). Call in main() at app startup.
   Future<void> initialize() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       _level = prefs.getInt(_levelKey) ?? 0;
 
-      final levels = await _readDownloadedLevels(prefs);
-      if (levels.isNotEmpty) {
-        await _rebuildTiers(levels);
+      await _loadFromDisk(prefs);
+      if (!_levelSets.isEmpty) {
         LogService.instance.log(
             'DnsBlock',
-            'Loaded ${_tiers.domainCount} domains from cache '
-            '(level $_level, tiers ${_tiers.levels.toList()..sort()})',
+            'Loaded ${_levelSets.domainCount} domains from cache '
+            '(level $_level, levels ${_levelSets.levels.toList()..sort()}, '
+            '${_levelSets.groupCount} group(s))',
             level: LogLevel.info);
       }
       await _loadDomainCache();
@@ -563,27 +571,26 @@ class DnsBlockService {
     }
   }
 
-  /// Levels the app has a cached list for. Falls back to migrating the
-  /// pre-tier single-file cache the first time this runs after an upgrade.
-  Future<Set<int>> _readDownloadedLevels(SharedPreferences prefs) async {
-    final stored = prefs.getStringList(_downloadedLevelsKey);
+  /// Read the stored partition, or migrate the pre-mask single-file cache the
+  /// first time this runs after an upgrade.
+  Future<void> _loadFromDisk(SharedPreferences prefs) async {
+    final stored = await _store.readText(_levelsFileName);
     if (stored != null) {
-      final levels = <int>{};
-      for (final raw in stored) {
-        final level = int.tryParse(raw);
-        if (level != null && level >= 1 && level <= kDnsMaxLevel) {
-          levels.add(level);
-        }
-      }
-      return levels;
+      _applyLevelSets(_parseLevelSets(stored));
+      return;
     }
-    if (_level < 1 || _level > kDnsMaxLevel) return <int>{};
+    if (_level < 1 || _level > kDnsMaxLevel) return;
     final legacy = await _store.readText(_legacyCacheFileName);
-    if (legacy == null) return <int>{};
-    await _store.writeText(_cacheFileName(_level), legacy);
+    if (legacy == null) return;
+    final builder = DnsLevelSetsBuilder()..startLevel(_level);
+    for (final domain in _extractDomains(legacy)) {
+      builder.add(domain);
+    }
+    final migrated = builder.build();
+    await _store.writeText(_levelsFileName, _serializeLevelSets(migrated));
     await _store.delete(_legacyCacheFileName);
-    await _persistDownloadedLevels(prefs, <int>{_level});
-    return <int>{_level};
+    await _persistDownloadedLevels(prefs, migrated.levels);
+    _applyLevelSets(migrated);
   }
 
   Future<void> _persistDownloadedLevels(
@@ -597,37 +604,58 @@ class DnsBlockService {
         _downloadedLevelsKey, [for (final l in sorted) '$l']);
   }
 
-  /// Re-partition the cached level files into tiers. Reads ascending and
-  /// streams each file into the builder so the raw list of a level is never
-  /// live alongside the tier it is about to be folded into.
-  Future<void> _rebuildTiers(Set<int> levels) async {
-    final sorted = levels.toList()..sort();
-    final builder = DnsTiersBuilder();
-    final loaded = <int>{};
-    for (final level in sorted) {
-      final text = await _store.readText(_cacheFileName(level));
-      if (text == null) continue;
-      builder.startLevel(level);
-      for (final line in const LineSplitter().convert(text)) {
-        final domain = line.trim();
-        if (domain.isEmpty || domain.startsWith('#')) continue;
-        builder.add(domain);
+  /// `#<mask-hex>` section markers, then that group's domains. Domains never
+  /// start with `#` — the parser on both sides drops comment lines — so the
+  /// marker is unambiguous, and a domain appears exactly once however many
+  /// levels name it.
+  static String _serializeLevelSets(DnsLevelSets sets) {
+    final buf = StringBuffer();
+    final masks = sets.groups.keys.toList()..sort();
+    for (final mask in masks) {
+      buf.writeln('#${mask.toRadixString(16)}');
+      for (final domain in sets.groups[mask]!) {
+        buf.writeln(domain);
       }
-      loaded.add(level);
     }
-    if (loaded.length != levels.length) {
-      final prefs = await SharedPreferences.getInstance();
-      await _persistDownloadedLevels(prefs, loaded);
-    }
-    _applyTiers(builder.build());
+    return buf.toString();
   }
 
-  void _applyTiers(DnsTiers tiers) {
-    _tiers = tiers;
+  static DnsLevelSets _parseLevelSets(String text) {
+    final builder = DnsLevelSetsBuilder();
+    final byMask = <int, List<String>>{};
+    var mask = 0;
+    for (final line in const LineSplitter().convert(text)) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) continue;
+      if (trimmed.startsWith('#')) {
+        mask = int.tryParse(trimmed.substring(1), radix: 16) ?? 0;
+        continue;
+      }
+      if (mask == 0) continue;
+      (byMask[mask] ??= <String>[]).add(trimmed);
+    }
+    // Replay the partition level by level: the builder owns the mask
+    // arithmetic, so there is one place that decides what a group means.
+    for (var level = 1; level <= kDnsMaxLevel; level++) {
+      final bit = dnsLevelBit(level);
+      if (!byMask.keys.any((m) => m & bit != 0)) continue;
+      builder.startLevel(level);
+      for (final entry in byMask.entries) {
+        if (entry.key & bit == 0) continue;
+        for (final domain in entry.value) {
+          builder.add(domain);
+        }
+      }
+    }
+    return builder.build();
+  }
+
+  void _applyLevelSets(DnsLevelSets sets) {
+    _levelSets = sets;
     // Rebuild the bloom filter eagerly so the first webview page load doesn't
     // pay the ~500ms build cost synchronously.
     _bloomFilter = null;
-    if (!tiers.isEmpty) {
+    if (!sets.isEmpty) {
       getBloomFilter();
     }
     _notifyBlocklistChanged();
@@ -644,9 +672,7 @@ class DnsBlockService {
 
     if (level == 0) {
       try {
-        for (final downloaded in _tiers.levels) {
-          await _store.delete(_cacheFileName(downloaded));
-        }
+        await _store.delete(_levelsFileName);
         await _store.delete(_legacyCacheFileName);
         final prefs = await SharedPreferences.getInstance();
         await prefs.setInt(_levelKey, 0);
@@ -657,21 +683,20 @@ class DnsBlockService {
       }
       _level = 0;
       await _clearDomainCache();
-      _applyTiers(DnsTiers.empty);
+      _applyLevelSets(DnsLevelSets.empty);
       return true;
     }
 
-    if (!await _fetchLevelFile(level)) return false;
+    if (!await _foldLevel(level)) return false;
     _level = level;
-    final levels = <int>{..._tiers.levels, level};
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_levelKey, level);
     await prefs.setString(_lastUpdatedKey, DateTime.now().toIso8601String());
-    await _persistDownloadedLevels(prefs, levels);
+    await _persistDownloadedLevels(prefs, _levelSets.levels);
     await _clearDomainCache();
-    await _rebuildTiers(levels);
     LogService.instance.log('DnsBlock',
-        'Downloaded ${_tiers.domainCount} domains (level $level)',
+        'Downloaded level $level (${_levelSets.domainCount} domains across '
+        '${_levelSets.groupCount} group(s))',
         level: LogLevel.info);
     return true;
   }
@@ -684,48 +709,74 @@ class DnsBlockService {
 
   Future<bool> _downloadLevelInner(int level) async {
     if (level < 1 || level > kDnsMaxLevel) return false;
-    if (_tiers.levels.contains(level)) return true;
-    if (!await _fetchLevelFile(level)) return false;
-    final levels = <int>{..._tiers.levels, level};
+    if (_levelSets.levels.contains(level)) return true;
+    if (!await _foldLevel(level)) return false;
     final prefs = await SharedPreferences.getInstance();
-    await _persistDownloadedLevels(prefs, levels);
+    await _persistDownloadedLevels(prefs, _levelSets.levels);
     await _clearDomainCache();
-    await _rebuildTiers(levels);
     LogService.instance.log('DnsBlock',
-        'Added tier for level $level (${_tiers.domainCount} domains total)',
+        'Added level $level (${_levelSets.domainCount} domains across '
+        '${_levelSets.groupCount} group(s))',
         level: LogLevel.info);
     return true;
   }
 
   /// Drop cached levels nothing asks for any more. [keep] comes from
-  /// [requiredDnsLevels]; the app-wide level is always in it.
+  /// [requiredDnsLevels]; the app-wide level is always in it. A domain no
+  /// remaining level names falls out with its last bit.
   Future<void> pruneLevels(Set<int> keep) =>
       _serializeMutation(() => _pruneLevelsInner(keep));
 
   Future<void> _pruneLevelsInner(Set<int> keep) async {
-    final drop = _tiers.levels.where((l) => !keep.contains(l)).toSet();
+    final drop = _levelSets.levels.where((l) => !keep.contains(l)).toSet();
     if (drop.isEmpty) return;
+    final builder = DnsLevelSetsBuilder.from(_levelSets);
     for (final level in drop) {
-      try {
-        await _store.delete(_cacheFileName(level));
-      } catch (_) {}
+      builder.dropLevel(level);
     }
-    final remaining = _tiers.levels.difference(drop);
+    final pruned = builder.build();
+    await _writeLevelSets(pruned);
     final prefs = await SharedPreferences.getInstance();
-    await _persistDownloadedLevels(prefs, remaining);
+    await _persistDownloadedLevels(prefs, pruned.levels);
     await _clearDomainCache();
-    await _rebuildTiers(remaining);
+    _applyLevelSets(pruned);
     LogService.instance.log('DnsBlock',
-        'Dropped unused blocklist tiers ${drop.toList()..sort()}',
+        'Dropped unused blocklist levels ${drop.toList()..sort()} '
+        '(${pruned.domainCount} domains left)',
         level: LogLevel.info);
   }
 
-  /// Download [level]'s list and write it to its cache file. Tries each
-  /// mirror in order; a mirror that answers 200 with something that isn't a
-  /// domain list never overwrites a working cache.
-  Future<bool> _fetchLevelFile(int level) async {
+  /// Download [level]'s list and fold it into the partition, setting its bit
+  /// on the domains it names and clearing it on the ones it does not. The
+  /// raw body is parsed into a set that is dropped as soon as the fold is
+  /// done; only the partition survives.
+  Future<bool> _foldLevel(int level) async {
+    final body = await _fetchLevelBody(level);
+    if (body == null) return false;
+    final builder = DnsLevelSetsBuilder.from(_levelSets)..startLevel(level);
+    for (final domain in _extractDomains(body)) {
+      builder.add(domain);
+    }
+    final folded = builder.build();
+    await _writeLevelSets(folded);
+    _applyLevelSets(folded);
+    return true;
+  }
+
+  Future<void> _writeLevelSets(DnsLevelSets sets) async {
+    if (sets.isEmpty) {
+      await _store.delete(_levelsFileName);
+      return;
+    }
+    await _store.writeText(_levelsFileName, _serializeLevelSets(sets));
+  }
+
+  /// Fetch [level]'s list body. Tries each mirror in order; a mirror that
+  /// answers 200 with something that isn't a domain list is skipped rather
+  /// than folded into a working partition.
+  Future<String?> _fetchLevelBody(int level) async {
     final filePath = _levelFiles[level];
-    if (filePath == null) return false;
+    if (filePath == null) return null;
 
     // Route through the app-global outbound proxy (HTTP/HTTPS findProxy on
     // dart:io's HttpClient, or the SOCKS5 tunnel from socks5_proxy when the
@@ -738,7 +789,7 @@ class DnsBlockService {
         'Skipped download: ${clientResult.reason}',
         level: LogLevel.warning,
       );
-      return false;
+      return null;
     }
     final client = (clientResult as OutboundClientReady).client;
     try {
@@ -766,8 +817,7 @@ class DnsBlockService {
             continue;
           }
 
-          await _store.writeText(_cacheFileName(level), response.body);
-          return true;
+          return response.body;
         } catch (e) {
           LogService.instance.log('DnsBlock', 'Mirror error: $e', level: LogLevel.error);
           continue;
@@ -775,7 +825,7 @@ class DnsBlockService {
       }
 
       LogService.instance.log('DnsBlock', 'All mirrors failed for level $level', level: LogLevel.error);
-      return false;
+      return null;
     } finally {
       client.close();
     }
@@ -805,7 +855,7 @@ class DnsBlockService {
   /// level runs. The tier lookup is shared, so this costs the same as the
   /// app-wide check.
   bool isBlockedAtLevel(String url, int level) {
-    if (level <= kDnsLevelOff || _tiers.isEmpty) return false;
+    if (level <= kDnsLevelOff || _levelSets.isEmpty) return false;
     final host = extractHost(url);
     if (host == null || host.isEmpty) return false;
     return isHostBlockedAtLevel(host, level);
@@ -813,21 +863,22 @@ class DnsBlockService {
 
   /// [isHostBlocked] at a specific severity level.
   bool isHostBlockedAtLevel(String host, int level) {
-    if (level <= kDnsLevelOff || _tiers.isEmpty || host.isEmpty) return false;
-    final tier = hostTier(host);
-    return tier != 0 && tier <= level;
+    if (level <= kDnsLevelOff || level > kDnsMaxLevel) return false;
+    if (_levelSets.isEmpty || host.isEmpty) return false;
+    return hostLevelMask(host) & dnsLevelBit(level) != 0;
   }
 
-  /// Lowest level whose list names [host] (or a parent), 0 when none does.
-  /// Cached, so repeat hosts within a page walk the tiers once however many
-  /// sites with however many levels ask.
-  int hostTier(String host) {
+  /// Which levels name [host] (or a parent domain), as a mask; 0 when none
+  /// does. Cached, so repeat hosts within a page walk the groups once
+  /// however many sites at however many levels ask — the one cached number
+  /// answers all of them with a bit test.
+  int hostLevelMask(String host) {
     if (host.isEmpty) return 0;
     final cached = _dnsBlockCache[host];
     if (cached != null) return cached;
-    final tier = _tiers.tierOf(host);
-    _dnsBlockCache.put(host, tier);
-    return tier;
+    final mask = _levelSets.maskOf(host);
+    _dnsBlockCache.put(host, mask);
+    return mask;
   }
 
   /// Apply a DNS severity level restored from a settings backup.
@@ -848,9 +899,7 @@ class DnsBlockService {
     if (level < 0 || level > kDnsMaxLevel) return;
     if (level == _level) return;
     try {
-      for (final downloaded in _tiers.levels) {
-        await _store.delete(_cacheFileName(downloaded));
-      }
+      await _store.delete(_levelsFileName);
       await _store.delete(_legacyCacheFileName);
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(_levelKey, level);
@@ -862,7 +911,7 @@ class DnsBlockService {
     }
     _level = level;
     await _clearDomainCache();
-    _applyTiers(DnsTiers.empty);
+    _applyLevelSets(DnsLevelSets.empty);
   }
 
   /// Get the last time the blocklist was downloaded, or null if never.
@@ -880,22 +929,22 @@ class DnsBlockService {
     final domains = _extractDomains(data);
     _level = level;
     if (domains.isEmpty) {
-      _applyTiers(DnsTiers.empty);
+      _applyLevelSets(DnsLevelSets.empty);
       return;
     }
-    final builder = DnsTiersBuilder()..startLevel(level);
+    final builder = DnsLevelSetsBuilder()..startLevel(level);
     for (final domain in domains) {
       builder.add(domain);
     }
-    _applyTiers(builder.build());
+    _applyLevelSets(builder.build());
   }
 
   /// Load several levels at once, as if each had been downloaded. Keys are
   /// levels, values raw list bodies. Exposed for testing.
   @visibleForTesting
-  void loadTiersFromStrings(Map<int, String> byLevel, {int? globalLevel}) {
+  void loadLevelsFromStrings(Map<int, String> byLevel, {int? globalLevel}) {
     final levels = byLevel.keys.toList()..sort();
-    final builder = DnsTiersBuilder();
+    final builder = DnsLevelSetsBuilder();
     for (final level in levels) {
       builder.startLevel(level);
       for (final domain in _extractDomains(byLevel[level]!)) {
@@ -903,7 +952,19 @@ class DnsBlockService {
       }
     }
     _level = globalLevel ?? (levels.isEmpty ? 0 : levels.last);
-    _applyTiers(builder.build());
+    _applyLevelSets(builder.build());
+  }
+
+  /// The stored form of the current partition, for tests that need to prove
+  /// a round-trip through disk preserves every level's membership.
+  @visibleForTesting
+  String serializeLevelSetsForTest() => _serializeLevelSets(_levelSets);
+
+  @visibleForTesting
+  void loadLevelSetsFromSerialized(String text, {int? globalLevel}) {
+    final parsed = _parseLevelSets(text);
+    _level = globalLevel ?? _level;
+    _applyLevelSets(parsed);
   }
 
   static Set<String> _extractDomains(String data) {

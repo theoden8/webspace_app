@@ -1,17 +1,19 @@
 ## 1. Partition the DNS blocklist
 
-- [x] 1.1 Add `lib/services/dns_tier_engine.dart`: `DnsTiers` (disjoint tiers,
-  `tierOf`, `blockedAt`), `DnsTiersBuilder` (ascending, streamed so a level's
-  raw set never sits beside the tiers), `resolveDnsLevel`,
-  `dnsLevelNeedsDownload`, `requiredDnsLevels`.
-- [x] 1.2 Hold tiers in `DnsBlockService` instead of the flat set; expose
-  `downloadedLevels`, `tierDomains`, `tiersByLevel`, `effectiveLevelFor`.
-- [x] 1.3 Cache the host's tier rather than a blocked bit
+- [x] 1.1 Add `lib/services/dns_level_mask_engine.dart`: `DnsLevelSets`
+  (disjoint groups keyed by level-membership mask, `maskOf`, `blockedAt`),
+  `DnsLevelSetsBuilder` (streamed, folds a level into an existing partition,
+  drops one), `resolveDnsLevel`, `dnsLevelNeedsDownload`, `requiredDnsLevels`.
+- [x] 1.2 Hold the groups in `DnsBlockService` instead of the flat set; expose
+  `downloadedLevels`, `domainsAtLevel`, `levelGroups`, `effectiveLevelFor`.
+- [x] 1.3 Cache the host's level mask rather than a blocked bit
   (`HostFifoCache<int>`), so per-site levels add no cache entries.
-- [x] 1.4 One cache file per level, with the pre-tier single file migrated on
-  first launch; persist `dns_block_downloaded_levels`.
-- [x] 1.5 `downloadLevel(level)` for on-demand fetches and `pruneLevels(keep)`
-  for reclaiming levels nothing asks for, both on the existing mutation chain.
+- [x] 1.4 One cache file of `#<mask-hex>` sections holding each domain once,
+  with the pre-mask flat file migrated on first launch; persist
+  `dns_block_downloaded_levels`.
+- [x] 1.5 `downloadLevel(level)` folds a level's bit in; `pruneLevels(keep)`
+  clears the bits nothing asks for and drops the domains left with none. Both
+  on the existing mutation chain.
 
 ## 2. Per-site DNS level
 
@@ -29,13 +31,13 @@
 
 ## 3. Android sub-resources
 
-- [x] 3.1 `DnsHostBlocklist` holds tiers, parses `#<level>` markers, answers
-  `tierOf` / `isBlockedAt`.
-- [x] 3.2 `sendDnsTiers` ships the partition; `attachToWebViews` carries the
-  site's level.
-- [x] 3.3 `FastSubresourceInterceptor` caches tiers and applies a volatile
-  `dnsLevel`; the plugin remembers each site's level so an attach that names
-  none cannot promote a site back to full strength.
+- [x] 3.1 `DnsHostBlocklist` holds the groups, parses `#<mask-hex>` markers,
+  answers `maskOf` / `isBlockedAt`.
+- [x] 3.2 `sendDnsLevelGroups` ships the groups; `attachToWebViews` carries
+  the site's level.
+- [x] 3.3 `FastSubresourceInterceptor` caches level masks and bit-tests a
+  volatile `dnsLevel`; the plugin remembers each site's level so an attach
+  that names none cannot promote a site back to full strength.
 
 ## 4. Per-site filter lists
 
@@ -66,16 +68,29 @@
 
 ## 6. Tests
 
-- [x] 6.1 `test/dns_tier_engine_test.dart`: partition, lowest-tier-wins,
-  subdomain inheritance, level resolution and fallback, required levels.
-- [x] 6.2 `test/dns_block_service_test.dart`: per-site levels over a real tier
-  set, one cached walk serving several levels, fallback when a level has no
-  list.
+- [x] 6.1 `test/dns_level_mask_engine_test.dart`: grouping, a level naming
+  exactly its own list over deliberately non-nesting inputs, subdomain
+  inheritance, re-adding and dropping a level, level resolution and fallback,
+  required levels.
+- [x] 6.2 `test/dns_block_service_test.dart`: per-site levels over a
+  non-nesting set, one cached mask serving several levels, fallback when a
+  level has no list, and a disk round-trip that preserves every level's
+  membership with each domain stored once.
 - [x] 6.3 `test/filter_list_mask_test.dart`: the rewrite string by string, and
   — against the real adblock-rust library — that a masked rule stops blocking
   on the masked site only, that an existing `$domain=` (positive or negated)
   survives the merge, that `$removeparam`, `$csp` and `$important` rules mask
   like plain ones, and that a masked generic hide stays generic and comes back
   as an exception.
-- [x] 6.4 `DnsHostBlocklistTest.kt`: marker parsing, tier lookup, level
-  masking, lowest-suffix-wins.
+- [x] 6.4 `DnsHostBlocklistTest.kt`: `#<mask-hex>` parsing, mask lookup, a
+  level blocking only its own list, suffix union.
+- [x] 6.5 `test/filter_list_mask_test.dart`: a differential proving the mask
+  is indistinguishable from not having the list — the masked engine against
+  one built without it for the masked site, and against one built with both
+  for every other site, over a corpus derived from the rules. Run at full
+  scale on EasyList + EasyPrivacy during development (834,676 decisions, zero
+  divergence); committed at fixture scale. The shapes left global are pinned
+  by their own test.
+- [x] 6.6 `test/dns_block_benchmark_test.dart`: one downloaded level is one
+  group, a second adds only its own domains, and the lookup stays under the
+  per-call ceiling.

@@ -20,23 +20,32 @@ configuration, and a subset is a mask, not a copy.
 
 ## What Changes
 
-- **The DNS blocklist becomes a partition, not a set.** Each domain is stored
-  under the lowest severity level whose list names it, so "blocked at level N"
-  is "sits in some tier 1..N". Tiers are disjoint, so the entry count across
-  all of them equals the size of the largest downloaded list — the same memory
-  the flat set used. New pure-Dart engine
-  [`dns_tier_engine.dart`](../../../lib/services/dns_tier_engine.dart)
+- **The DNS blocklist becomes a per-domain level-membership mask.** One bit
+  per severity level, set when that level's own list names the domain. The
+  obvious compression — store the lowest level that names it and block at
+  everything above — assumes the levels nest, and they do not: 21,921 of the
+  297,756 domains across Hagezi's five lists drop out of a higher level, so
+  that model would have made the *app-wide* level block more as soon as some
+  site caused a lower level to be downloaded. Domains are grouped by mask, so
+  the entry count is exactly the union and one downloaded level is one group.
+  New pure-Dart engine
+  [`dns_level_mask_engine.dart`](../../../lib/services/dns_level_mask_engine.dart)
   (DNS-019).
 - **Per-site DNS level.** `WebViewModel.dnsBlockLevel` (null = follow the
-  app-wide level). The per-host decision cache stores the host's *tier* rather
-  than a blocked/allowed bit, so every site masks one cached answer with its
-  own level: no extra cache entries, no extra suffix walks (DNS-020).
-- **Levels are fetched on demand.** The App Settings download is unchanged —
-  one file, one level. Picking a per-site level the app has no list for fetches
-  that level's list and folds it into the partition. Until it lands, the site
-  runs at the app-wide level: the tier boundary it asked for does not exist
-  yet, and evaluating against the tiers anyway would block *nothing*, which is
-  the one direction a relaxation must not go (DNS-021).
+  app-wide level). The per-host decision cache stores the host's *level mask*
+  rather than a blocked/allowed bit, so every site bit-tests one cached
+  answer: no extra cache entries, no extra suffix walks (DNS-020).
+- **Levels are fetched on demand, and stored once.** The App Settings download
+  is unchanged — one list, one level. Picking a per-site level the app has no
+  list for fetches it and folds its bit into the stored mask; the whole
+  blocklist lives in one file whose domain content is the union, so disk stays
+  the size of the largest list rather than the sum of the downloaded ones.
+  Until a level lands, the site runs at the app-wide level: its bit means
+  nothing yet, and evaluating against the mask anyway would block *nothing*,
+  which is the one direction a relaxation must not go (DNS-021).
+
+  Over the wire this is cheaper than it looks — jsDelivr gzips, so Light is
+  294 KB and Ultimate 1.97 MB transferred, against 806 KB and 5.29 MB raw.
 - **Per-site filter lists.** `WebViewModel.disabledFilterLists` names list ids
   the site opts out of. The mask is compiled into the rules at engine-build
   time using adblock-rust's own domain scoping — `$domain=~host` on network
@@ -46,6 +55,23 @@ configuration, and a subset is a mask, not a copy.
   interceptor evaluated the app-wide blocklist for every site, so per-site
   `dnsBlockEnabled: false` never reached Android sub-resource fetches. It now
   carries the site's level, which subsumes the old boolean (DNS-022).
+
+## Measured
+
+- **The filter-list mask is indistinguishable from removing the list.** Built
+  as a differential over EasyList + EasyPrivacy: a corpus of 208,669 URLs
+  harvested from the rules themselves, four request types each — 834,676
+  network decisions. On the masked site the masked engine agrees with an
+  engine built *without* EasyList on every one; on every other site it agrees
+  with an engine built with both. Cosmetic hide sets match too (428 selectors
+  on an unmasked host, 0 on the masked one, both engines). The fixture-scale
+  version of that differential is committed.
+- **The level mask costs nothing until a second level exists.** Same data
+  (Pro, 225,134 domains): flat set +38 MB RSS and 0.99 µs per uncached miss,
+  mask +31 MB and 0.89 µs. Adding Light: 3 groups, 229,939 domains, +31 MB,
+  1.56 µs. All five levels: 15 groups, 297,756 domains, 4.94 µs. The cost
+  falls only on a host's first sight — the per-host cache serves every
+  repeat, and every site, from one number.
 
 ## Trade-offs and limits
 
@@ -62,8 +88,13 @@ configuration, and a subset is a mask, not a copy.
   by matching options), cosmetic unhide (`#@#` — adblock-rust rejects a rule
   that is both an unhide and domain-negated), and generic scriptlet/procedural
   rules (a generic rule with only negated hostnames keeps applying elsewhere
-  only for plain hides). EasyList and EasyPrivacy carry zero generic
-  procedurals today; the shape appears in uBO-style lists.
+  only for plain hides). Counted on the shipped lists: EasyList and
+  EasyPrivacy carry zero `$badfilter`, zero generic scriptlets and zero
+  generic procedurals between them, and EasyList's 336 cosmetic unhides are
+  no-ops once the hides they cancel are already suppressed — which is why the
+  full-scale differential is clean. The shapes appear in uBO-style lists, and
+  the exclusions are pinned by a test so they can be lifted if adblock-rust
+  ever makes them scopable.
 - **Archive-tier sites carry neither mask** (ARCH-006). A per-site level pins a
   downloaded level file and a per-site list selection rewrites the shared
   engine cache blob — both are traces outside the archive's keyspace whose
@@ -75,11 +106,11 @@ configuration, and a subset is a mask, not a copy.
   `content-blocker` (CB-015, CB-006 modified), `site-settings-qr` (QR-008
   modified: a payload that only lowers the level or masks a list off weakens
   the blockers without moving either toggle, so the review gate names both).
-- Code: `dns_tier_engine.dart`, `filter_list_mask.dart` (both new),
+- Code: `dns_level_mask_engine.dart`, `filter_list_mask.dart` (both new),
   `dns_block_service.dart`, `content_blocker_service.dart`, `web_view_model.dart`,
   `webview.dart`, `web_intercept_native.dart`, `main.dart`, the site privacy
   screen, `DnsHostBlocklist.kt`, `WebInterceptPlugin.kt`.
-- Storage: the blocklist cache is now one file per downloaded level
-  (`dns_blocklist_<level>.txt`); the pre-tier single file is migrated on first
-  launch. New machine-state prefs `dns_block_downloaded_levels` and
+- Storage: the blocklist cache is one file of `#<mask-hex>` sections
+  (`dns_blocklist_levels.txt`) holding each domain once; the pre-mask flat file
+  is migrated on first launch. New machine-state prefs `dns_block_downloaded_levels` and
   `content_blocker_list_masks` (neither is exported — both are derived).

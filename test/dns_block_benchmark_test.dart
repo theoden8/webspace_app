@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -87,6 +88,61 @@ void main() {
       // 1ms = 1000us per call
       expect(perCallUs, lessThan(1000),
           reason: 'Lookup time should be under 1ms per call');
+    });
+
+    // What the per-site level mask is allowed to cost. The structural claims
+    // are asserted; the timings are printed, because a ratio gate on shared
+    // CI hardware measures the runner, not the code.
+    test('the level mask costs nothing until a second level is downloaded',
+        () {
+      final service = DnsBlockService.instance;
+      final levelThree = _generateSyntheticDomainList(200000);
+      // Overlapping but NOT nested, the way the real Hagezi levels are.
+      final levelOne = [
+        ...const LineSplitter()
+            .convert(levelThree)
+            .where((l) => l.isNotEmpty && !l.startsWith('#'))
+            .take(30000),
+        for (var i = 0; i < 5000; i++) 'lightonly$i.example',
+      ].join('\n');
+
+      service.loadLevelsFromStrings({3: levelThree}, globalLevel: 3);
+      final oneLevelCount = service.domainCount;
+      expect(service.levelGroupCount, 1,
+          reason: 'one downloaded level is one group, so one suffix walk');
+
+      final probes = [
+        for (var i = 0; i < 20000; i++) 'https://miss$i.notblocked$i.example/'
+      ];
+      double timeLookups() {
+        final sw = Stopwatch()..start();
+        for (final url in probes) {
+          service.isBlocked(url);
+        }
+        sw.stop();
+        return sw.elapsedMicroseconds / probes.length;
+      }
+
+      final oneLevelUs = timeLookups();
+
+      service.loadLevelsFromStrings(
+          {1: levelOne, 3: levelThree}, globalLevel: 3);
+      final twoLevelUs = timeLookups();
+
+      // The union, not the sum: a domain both levels name is stored once.
+      expect(service.domainCount, oneLevelCount + 5000,
+          reason: 'only the 5000 level-1-only domains are new');
+      expect(service.levelGroupCount, 3,
+          reason: '{1}, {3} and {1,3}');
+
+      // ignore: avoid_print
+      print('Level mask lookup: 1 level ${oneLevelUs.toStringAsFixed(2)}us, '
+          '2 levels ${twoLevelUs.toStringAsFixed(2)}us '
+          '(${service.domainCount} domains, '
+          '${service.levelGroupCount} groups)');
+
+      expect(twoLevelUs, lessThan(1000),
+          reason: 'still well under the per-call ceiling');
     });
   });
 }

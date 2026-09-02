@@ -80,7 +80,7 @@ import 'package:webspace/services/adblock_engine.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
-import 'package:webspace/services/dns_tier_engine.dart';
+import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/timezone_location_service.dart';
 import 'package:webspace/services/web_intercept_native.dart';
@@ -692,15 +692,15 @@ void main() async {
   if (DnsBlockService.instance.hasBlocklist) {
     await _runTimed(
         'dnsSend(${DnsBlockService.instance.domainCount})',
-        () => WebInterceptNative.sendDnsTiers(
-            DnsBlockService.instance.tiersByLevel));
+        () => WebInterceptNative.sendDnsLevelGroups(
+            DnsBlockService.instance.levelGroups));
   }
 
   // Keep the DNS-side native domain push in sync when the DNS list
   // changes. (Android's native interceptor consumes the raw domains;
   // the iOS/macOS JS prefilter consumes the merged bloom below.)
   DnsBlockService.instance.addBlocklistChangedListener(() {
-    WebInterceptNative.sendDnsTiers(DnsBlockService.instance.tiersByLevel);
+    WebInterceptNative.sendDnsLevelGroups(DnsBlockService.instance.levelGroups);
   });
   ContentBlockerService.instance.addRulesChangedListener(() {
     // Feed the ABP `||host^` block hosts into the merged prefilter Bloom

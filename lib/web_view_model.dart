@@ -10,7 +10,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp
     show CookieManager, PullToRefreshController, PullToRefreshSettings, SslCertificate, WebUri;
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
-import 'package:webspace/services/dns_tier_engine.dart';
+import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/html_cache_service.dart';

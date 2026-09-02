@@ -346,7 +346,7 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
             val level = siteDnsLevel[siteId] ?: DnsHostBlocklist.MAX_LEVEL
             if (existing != null) {
                 // Already attached: the settings edit only moves the level.
-                // The host cache holds tiers, not decisions, so it survives.
+                // The host cache holds masks, not decisions, so it survives.
                 existing.dnsLevel = level
                 continue
             }
@@ -506,11 +506,11 @@ class FastSubresourceInterceptor(
     private var loggedNoCache = false
     private var loggedLocalCdnDisabled = false
 
-    /// Per-instance host tier cache. Capacity 1024 covers a typical busy
-    /// page (≤ a few hundred unique hosts) plus headroom; once full, FIFO
-    /// eviction keeps memory bounded. Caches the blocklist *tier* rather than
-    /// a blocked/allowed decision, so [dnsLevel] can move without the cached
-    /// answers going stale.
+    /// Per-instance host level-mask cache. Capacity 1024 covers a typical
+    /// busy page (≤ a few hundred unique hosts) plus headroom; once full,
+    /// FIFO eviction keeps memory bounded. Caches which levels name the host
+    /// rather than a blocked/allowed decision, so [dnsLevel] can move without
+    /// the cached answers going stale.
     private val hostDecision = LinkedHashMap<String, Int>(256, 0.75f, false)
     private val hostDecisionCap = 1024
 
@@ -560,15 +560,15 @@ class FastSubresourceInterceptor(
             onLog("WebIntercept", "checkUrl #$checkCount host=$host url=$url")
         }
 
-        // 1. Look up the cached DNS host-only tier. On miss, walk the DNS
-        // tiers and cache. The dominant cost the cache saves is the suffix
-        // walk — `tracker.example.com` resolved once doesn't need to look up
-        // `tracker.example.com`, `example.com`, then fail again on every
-        // subsequent fetch. The site's level is applied to the cached tier,
-        // not baked into it.
-        var tier = synchronized(hostDecisionLock) { hostDecision[host] }
-        val cached = tier != null
-        if (tier == null) {
+        // 1. Look up the cached DNS level mask for this host. On miss, walk
+        // the groups and cache. The dominant cost the cache saves is the
+        // suffix walk — `tracker.example.com` resolved once doesn't need to
+        // look up `tracker.example.com`, `example.com`, then fail again on
+        // every subsequent fetch. The site's level bit-tests the cached mask
+        // rather than being baked into it.
+        var mask = synchronized(hostDecisionLock) { hostDecision[host] }
+        val cached = mask != null
+        if (mask == null) {
             // Fail-closed: if the blocklist build is still in flight, wait for
             // it rather than evaluate against an incomplete set and let a
             // tracker through. Runs on a WebView request thread (not the UI
@@ -579,18 +579,16 @@ class FastSubresourceInterceptor(
                     "DNS blocklist not ready after ${DNS_READY_TIMEOUT_MS}ms — " +
                     "allowing $host (safety valve)")
             }
-            tier = dnsBlocklist.tierOf(host)
-            putHostDecision(host, tier)
+            mask = dnsBlocklist.maskOf(host)
+            putHostDecision(host, mask)
         }
         val level = dnsLevel
-        var decision = if (tier != 0 && tier <= level) {
-            Decision.BLOCKED_DNS
-        } else {
-            Decision.ALLOWED
-        }
+        val blockedByDns = level in 1..DnsHostBlocklist.MAX_LEVEL &&
+            mask and DnsHostBlocklist.levelBit(level) != 0
+        var decision = if (blockedByDns) Decision.BLOCKED_DNS else Decision.ALLOWED
         if (verbose) {
             onLog("WebIntercept",
-                "  host-only decision=$decision (tier=$tier level=$level " +
+                "  host-only decision=$decision (mask=$mask level=$level " +
                 "cached=$cached, dnsSetSize=${dnsBlocklist.size})")
         }
 
@@ -700,7 +698,7 @@ class FastSubresourceInterceptor(
         return null
     }
 
-    private fun putHostDecision(host: String, tier: Int) {
+    private fun putHostDecision(host: String, mask: Int) {
         synchronized(hostDecisionLock) {
             if (hostDecision.size >= hostDecisionCap) {
                 val it = hostDecision.entries.iterator()
@@ -709,7 +707,7 @@ class FastSubresourceInterceptor(
                     it.remove()
                 }
             }
-            hostDecision[host] = tier
+            hostDecision[host] = mask
         }
     }
 

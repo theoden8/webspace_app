@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
-import 'package:webspace/services/dns_tier_engine.dart';
+import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/widgets/hint_button.dart';
 

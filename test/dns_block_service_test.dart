@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/dns_level_mask_engine.dart';
 
 void main() {
   late DnsBlockService service;
@@ -242,25 +243,28 @@ void main() {
 
   group('per-site levels (DNS-020)', () {
     setUp(() {
-      service.loadTiersFromStrings({
-        1: 'light.example',
-        3: 'light.example\npro.example',
-        5: 'light.example\npro.example\nultimate.example',
+      // Deliberately non-nesting, the way the real Hagezi levels are:
+      // light.example is named by Light and by nothing above it.
+      service.loadLevelsFromStrings({
+        1: 'light.example\nshared.example',
+        3: 'shared.example\npro.example',
+        5: 'shared.example\npro.example\nultimate.example',
       }, globalLevel: 3);
     });
 
-    test('a site below the app-wide level blocks only the lower tiers', () {
+    test('a level blocks exactly what its own list named', () {
       expect(service.isBlockedAtLevel('https://light.example/', 1), isTrue);
+      expect(service.isBlockedAtLevel('https://light.example/', 3), isFalse,
+          reason: 'Pro does not name it, so Pro must not block it');
       expect(service.isBlockedAtLevel('https://pro.example/', 1), isFalse);
-    });
-
-    test('a site above the app-wide level blocks the higher tiers too', () {
+      expect(service.isBlockedAtLevel('https://pro.example/', 3), isTrue);
       expect(service.isBlockedAtLevel('https://ultimate.example/', 3), isFalse);
       expect(service.isBlockedAtLevel('https://ultimate.example/', 5), isTrue);
     });
 
     test('the app-wide check runs at the app-wide level', () {
       expect(service.isBlocked('https://pro.example/'), isTrue);
+      expect(service.isBlocked('https://light.example/'), isFalse);
       expect(service.isBlocked('https://ultimate.example/'), isFalse);
     });
 
@@ -270,33 +274,70 @@ void main() {
     });
 
     test('the host cache serves every level from one walk', () {
-      // Same host, three levels, one tier: a cached answer that had baked in
+      // Same host, three levels, one cached mask: an answer that had baked in
       // a level would have to be wrong for two of these.
-      expect(service.hostTier('pro.example'), 3);
-      expect(service.isBlockedAtLevel('https://pro.example/', 1), isFalse);
-      expect(service.isBlockedAtLevel('https://pro.example/', 3), isTrue);
-      expect(service.isBlockedAtLevel('https://pro.example/', 5), isTrue);
+      expect(service.hostLevelMask('shared.example'),
+          dnsLevelBit(1) | dnsLevelBit(3) | dnsLevelBit(5));
+      expect(service.isBlockedAtLevel('https://shared.example/', 1), isTrue);
+      expect(service.isBlockedAtLevel('https://shared.example/', 3), isTrue);
+      expect(service.isBlockedAtLevel('https://shared.example/', 5), isTrue);
     });
 
     test('a site level with no downloaded list falls back to the app-wide one',
         () {
-      service.loadTiersFromStrings({3: 'pro.example'}, globalLevel: 3);
+      service.loadLevelsFromStrings({3: 'pro.example'}, globalLevel: 3);
       expect(service.downloadedLevels, {3});
       expect(service.effectiveLevelFor(1), 3,
-          reason: 'level 1 has no tier boundary, so it cannot be honoured');
+          reason: 'level 1 has no membership bit, so it cannot be honoured');
       expect(service.effectiveLevelFor(null), 3);
       expect(service.effectiveLevelFor(0), 0);
     });
 
-    test('the tiers partition the largest list, they do not duplicate it', () {
-      expect(service.domainCount, 3);
-      expect(service.tierDomains(1), {'light.example'});
-      expect(service.tierDomains(3), {'pro.example'});
-      expect(service.tierDomains(5), {'ultimate.example'});
+    test('groups partition the union, they do not duplicate it', () {
+      expect(service.domainCount, 4,
+          reason: 'light, shared, pro, ultimate — each stored once');
+      // {1}, {1,3,5}, {3,5} and {5} — one group per distinct membership.
+      expect(service.levelGroupCount, 4);
     });
 
-    test('the native push ships the partition', () {
-      expect(service.tiersByLevel.keys.toList()..sort(), [1, 3, 5]);
+    test('the stored form round-trips every level exactly', () {
+      final serialized = service.serializeLevelSetsForTest();
+      final before = {
+        for (var level = 1; level <= 5; level++)
+          level: [
+            for (final host in [
+              'light.example',
+              'shared.example',
+              'pro.example',
+              'ultimate.example'
+            ])
+              service.isHostBlockedAtLevel(host, level)
+          ]
+      };
+      service.loadLevelSetsFromSerialized(serialized, globalLevel: 3);
+      for (var level = 1; level <= 5; level++) {
+        final after = [
+          for (final host in [
+            'light.example',
+            'shared.example',
+            'pro.example',
+            'ultimate.example'
+          ])
+            service.isHostBlockedAtLevel(host, level)
+        ];
+        expect(after, before[level], reason: 'level $level after reload');
+      }
+      expect(service.downloadedLevels, {1, 3, 5});
+    });
+
+    test('the stored form carries each domain once', () {
+      final lines = service
+          .serializeLevelSetsForTest()
+          .split('\n')
+          .where((l) => l.isNotEmpty && !l.startsWith('#'))
+          .toList();
+      expect(lines.length, lines.toSet().length);
+      expect(lines.length, service.domainCount);
     });
   });
 

@@ -168,63 +168,71 @@ class DnsHostBlocklistTest {
     fun unmarkedBlobLoadsAtLevelOne() {
         val b = DnsHostBlocklist()
         b.replaceFromBlob("ads.example\ntracker.example")
-        assertEquals(1, b.tierOf("ads.example"))
-        assertEquals(listOf(1), b.levels)
+        assertEquals(DnsHostBlocklist.levelBit(1), b.maskOf("ads.example"))
+        assertEquals(1, b.groupCount)
     }
 
     @Test
-    fun markersPartitionTheBlobByLevel() {
+    fun markersGroupTheBlobByMembershipMask() {
+        // 1 = light only, 4 = pro only, 1f = every level.
         val b = DnsHostBlocklist()
-        b.replaceFromBlob("#1\nlight.example\n#3\npro.example\n#5\nultimate.example")
+        b.replaceFromBlob("#1\nlight.example\n#4\npro.example\n#1f\nevery.example")
         assertEquals(3, b.size)
-        assertEquals(1, b.tierOf("light.example"))
-        assertEquals(3, b.tierOf("pro.example"))
-        assertEquals(5, b.tierOf("ultimate.example"))
-        assertEquals(0, b.tierOf("safe.example"))
-        assertEquals(listOf(1, 3, 5), b.levels)
+        assertEquals(3, b.groupCount)
+        assertEquals(0b00001, b.maskOf("light.example"))
+        assertEquals(0b00100, b.maskOf("pro.example"))
+        assertEquals(0b11111, b.maskOf("every.example"))
+        assertEquals(0, b.maskOf("safe.example"))
     }
 
     @Test
-    fun aSiteBlocksItsOwnTierAndEveryTierBelow() {
+    fun aLevelBlocksOnlyWhatItsOwnListNames() {
+        // The levels do not nest: light.example is in Light and in nothing
+        // above it, so Pro must not block it.
         val b = DnsHostBlocklist()
-        b.replaceFromBlob("#1\nlight.example\n#3\npro.example")
+        b.replaceFromBlob("#1\nlight.example\n#4\npro.example")
         assertTrue(b.isBlockedAt("light.example", 1))
+        assertFalse(b.isBlockedAt("light.example", 3))
         assertFalse(b.isBlockedAt("pro.example", 1))
         assertTrue(b.isBlockedAt("pro.example", 3))
-        assertTrue(b.isBlockedAt("pro.example", 5))
     }
 
     @Test
-    fun levelZeroBlocksNothing() {
+    fun levelZeroAndOutOfRangeBlockNothing() {
         val b = DnsHostBlocklist()
-        b.replaceFromBlob("#1\nads.example")
+        b.replaceFromBlob("#1f\nads.example")
         assertFalse(b.isBlockedAt("ads.example", 0))
+        assertFalse(b.isBlockedAt("ads.example", 6))
+        assertTrue(b.isBlockedAt("ads.example", 5))
     }
 
     @Test
-    fun subdomainsInheritTheirParentTier() {
+    fun subdomainsInheritTheirParentMask() {
         val b = DnsHostBlocklist()
-        b.replaceFromBlob("#3\nads.example")
-        assertEquals(3, b.tierOf("a.b.ads.example"))
+        b.replaceFromBlob("#4\nads.example")
+        assertEquals(0b00100, b.maskOf("a.b.ads.example"))
         assertFalse(b.isBlockedAt("a.b.ads.example", 2))
         assertTrue(b.isBlockedAt("a.b.ads.example", 3))
     }
 
     @Test
-    fun theLowestMatchingSuffixWins() {
-        // The parent enters at 2, the child at 4: a site at level 2 already
-        // blocks the parent, so it blocks the child too.
+    fun maskOfUnionsEveryMatchingSuffix() {
+        // The child is named by Pro, the parent by Light: the host is blocked
+        // at both, and at neither of the levels that name neither.
         val b = DnsHostBlocklist()
-        b.replaceFromBlob("#2\nexample.co.uk\n#4\ndeep.example.co.uk")
-        assertEquals(2, b.tierOf("deep.example.co.uk"))
+        b.replaceFromBlob("#1\nexample.co.uk\n#4\ndeep.example.co.uk")
+        assertEquals(0b00101, b.maskOf("deep.example.co.uk"))
+        assertTrue(b.isBlockedAt("deep.example.co.uk", 1))
+        assertTrue(b.isBlockedAt("deep.example.co.uk", 3))
+        assertFalse(b.isBlockedAt("deep.example.co.uk", 2))
     }
 
     @Test
-    fun anOutOfRangeMarkerKeepsThePreviousLevel() {
+    fun anOutOfRangeMarkerKeepsThePreviousMask() {
         val b = DnsHostBlocklist()
-        b.replaceFromBlob("#2\na.example\n#9\nb.example")
-        assertEquals(2, b.tierOf("a.example"))
-        assertEquals(2, b.tierOf("b.example"))
+        b.replaceFromBlob("#2\na.example\n#ff\nb.example")
+        assertEquals(0b00010, b.maskOf("a.example"))
+        assertEquals(0b00010, b.maskOf("b.example"))
     }
 
 }

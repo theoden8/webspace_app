@@ -36,7 +36,7 @@ import 'package:webspace/services/user_agent_metadata_builder.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
-import 'package:webspace/services/dns_tier_engine.dart';
+import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/services/download_engine.dart';
 import 'package:webspace/services/download_manager.dart';
