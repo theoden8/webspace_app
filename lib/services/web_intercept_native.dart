@@ -118,8 +118,14 @@ class WebInterceptNative {
 
   // ========== Domain blocklists ==========
 
-  /// Push the DNS blocklist domains to the native interceptor.
-  static Future<void> sendDnsDomains(Set<String> domains) async {
+  /// Push the DNS blocklist to the native interceptor, grouped by which
+  /// levels name each domain, so the Android side can answer at each site's
+  /// own level off one copy of the data.
+  ///
+  /// Each group is introduced by a `#<mask-hex>` marker line; domain lines
+  /// never start with `#` because the parser drops comments on both sides.
+  /// A domain appears once however many levels name it.
+  static Future<void> sendDnsLevelGroups(Map<int, Set<String>> groups) async {
     if (!isSupported) return;
     try {
       // Send one newline-joined blob, not a List<String>: the platform-channel
@@ -127,7 +133,17 @@ class WebInterceptNative {
       // entry), which is ~1s for a full ~650k-domain blocklist. A single string
       // is one encode/decode; the native side splits on '\n'.
       final sw = Stopwatch()..start();
-      final blob = domains.join('\n');
+      final masks = groups.keys.toList()..sort();
+      final buf = StringBuffer();
+      var total = 0;
+      for (final mask in masks) {
+        buf.writeln('#${mask.toRadixString(16)}');
+        for (final domain in groups[mask]!) {
+          buf.writeln(domain);
+          total++;
+        }
+      }
+      final blob = buf.toString();
       final joinMs = sw.elapsedMilliseconds;
       // The native handler kicks the set build onto a worker thread and returns
       // immediately; we already know the count here, so don't make native
@@ -137,7 +153,7 @@ class WebInterceptNative {
       });
       LogService.instance.log(
           'DnsBlock',
-          'Queued ${domains.length} DNS domains for native build '
+          'Queued $total DNS domains across ${masks.length} group(s) for native build '
               '(join=${joinMs}ms channel+native=${sw.elapsedMilliseconds - joinMs}ms)',
           level: LogLevel.info);
     } catch (e) {
@@ -239,15 +255,21 @@ class WebInterceptNative {
 
   // ========== Shared ==========
 
-  static Future<int> attachToWebViews({String? siteId}) async {
+  /// [dnsLevel] is the severity level this site blocks at (0 = the site has
+  /// DNS blocking off). The interceptor applies it per request, which is the
+  /// only place Android sub-resources learn about a site's DNS posture — the
+  /// blocklist itself is app-wide.
+  static Future<int> attachToWebViews({String? siteId, int? dnsLevel}) async {
     if (!isSupported) return 0;
     try {
       final count = await _channel.invokeMethod('attachToWebViews', {
         if (siteId != null) 'siteId': siteId,
+        if (dnsLevel != null) 'dnsLevel': dnsLevel,
       });
       LogService.instance.log(
         'WebIntercept',
-        'Attached native interceptor to $count webviews (siteId: $siteId)',
+        'Attached native interceptor to $count webviews '
+        '(siteId: $siteId, dnsLevel: $dnsLevel)',
         sensitivity: LogSensitivity.sensitive,
       );
       return count as int;

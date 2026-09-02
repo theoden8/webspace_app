@@ -80,6 +80,82 @@ void main() {
       expect(model.thirdPartyCookiesEnabled, equals(true));
     });
 
+    group('per-site blocker masks (DNS-020, CB-015)', () {
+      test('default to following the app-wide configuration', () {
+        final m = WebViewModel(initUrl: 'https://example.com');
+        expect(m.dnsBlockLevel, isNull);
+        expect(m.disabledFilterLists, isEmpty);
+      });
+
+      test('round-trip through JSON', () {
+        final m = WebViewModel(initUrl: 'https://example.com')
+          ..dnsBlockLevel = 2
+          ..disabledFilterLists = {'easylist', 'fanboy-social'};
+        final back = WebViewModel.fromJson(m.toJson(), null);
+        expect(back.dnsBlockLevel, 2);
+        expect(back.disabledFilterLists, {'easylist', 'fanboy-social'});
+      });
+
+      test('a null level round-trips as null, not as Off', () {
+        final m = WebViewModel(initUrl: 'https://example.com');
+        final back = WebViewModel.fromJson(m.toJson(), null);
+        expect(back.dnsBlockLevel, isNull,
+            reason: 'null follows the app level; 0 would mean blocking off');
+      });
+
+      test('level 0 survives as an explicit Off', () {
+        final m = WebViewModel(initUrl: 'https://example.com')
+          ..dnsBlockLevel = 0;
+        expect(WebViewModel.fromJson(m.toJson(), null).dnsBlockLevel, 0);
+      });
+
+      test('a level outside 0..5 reads as following the app setting', () {
+        // A hand-edited backup or a future build's wider range must not
+        // become an out-of-range block posture.
+        for (final bad in [-1, 6, 99]) {
+          final json = WebViewModel(initUrl: 'https://example.com').toJson()
+            ..['dnsBlockLevel'] = bad;
+          expect(WebViewModel.fromJson(json, null).dnsBlockLevel, isNull,
+              reason: 'level $bad');
+        }
+      });
+
+      test('a non-integer level reads as following the app setting', () {
+        final json = WebViewModel(initUrl: 'https://example.com').toJson()
+          ..['dnsBlockLevel'] = 'three';
+        expect(WebViewModel.fromJson(json, null).dnsBlockLevel, isNull);
+      });
+
+      test('a malformed list selection degrades to empty', () {
+        for (final bad in [<dynamic>[1, 2], 'easylist', <String, String>{}]) {
+          final json = WebViewModel(initUrl: 'https://example.com').toJson()
+            ..['disabledFilterLists'] = bad;
+          final back = WebViewModel.fromJson(json, null);
+          expect(back.disabledFilterLists, isEmpty, reason: '$bad');
+        }
+      });
+
+      test('the stored list selection is order-stable', () {
+        final a = WebViewModel(initUrl: 'https://example.com')
+          ..disabledFilterLists = {'b', 'a'};
+        final b = WebViewModel(initUrl: 'https://example.com')
+          ..disabledFilterLists = {'a', 'b'};
+        expect(a.toJson()['disabledFilterLists'],
+            b.toJson()['disabledFilterLists'],
+            reason: 'set iteration order must not churn the persisted JSON');
+      });
+
+      test('archive-tier sites carry neither mask (ARCH-006)', () {
+        final m = WebViewModel(initUrl: 'https://example.com')
+          ..dnsBlockLevel = 1
+          ..disabledFilterLists = {'easylist'}
+          ..isArchiveTier = true;
+        expect(m.effectiveDnsBlockLevel, isNull);
+        expect(m.effectiveDisabledFilterLists, isEmpty);
+        expect(m.dnsBlockLevel, 1, reason: 'the stored intent is untouched');
+      });
+    });
+
     test('domainClaims null by default; toJson omits it; fromJson stays null',
         () {
       final m = WebViewModel(initUrl: 'https://example.org/');

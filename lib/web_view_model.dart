@@ -10,6 +10,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp
     show CookieManager, PullToRefreshController, PullToRefreshSettings, SslCertificate, WebUri;
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
+import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/html_cache_service.dart';
@@ -403,7 +404,9 @@ typedef LaunchUrlFunc = void Function(
   required bool thirdPartyCookiesEnabled,
   required bool clearUrlEnabled,
   required bool dnsBlockEnabled,
+  int? dnsBlockLevel,
   required bool contentBlockEnabled,
+  Set<String> disabledFilterLists,
   required bool localCdnEnabled,
   required bool contributesBlockStats,
   required bool trackingProtectionEnabled,
@@ -488,7 +491,27 @@ class WebViewModel {
   int zoomPercent;
   bool clearUrlEnabled; // Strip tracking parameters from URLs via ClearURLs
   bool dnsBlockEnabled; // Block navigation to domains on Hagezi DNS blocklist
+
+  /// Hagezi severity level this site blocks at, or null to follow the
+  /// app-wide level. A level only takes effect once its list has been
+  /// downloaded — see `DnsBlockService.effectiveLevelFor`.
+  int? dnsBlockLevel;
   bool contentBlockEnabled; // Block ads/trackers via ABP filter list rules
+
+  /// Filter lists this site opts out of, by list id. A mask over the
+  /// app-wide selection: a list not enabled globally is not in the engine at
+  /// all, so naming it here does nothing.
+  Set<String> disabledFilterLists;
+
+  /// Both blocker masks are dropped for archive-tier sites (ARCH-006). Each
+  /// leaves a trace outside the archive's keyspace whose presence would
+  /// betray that an archive exists: a per-site level pins a downloaded level
+  /// file, and a per-site list selection rewrites the shared engine cache
+  /// blob. Archive sites run the app-wide posture instead.
+  int? get effectiveDnsBlockLevel => isArchiveTier ? null : dnsBlockLevel;
+
+  Set<String> get effectiveDisabledFilterLists =>
+      isArchiveTier ? const <String>{} : disabledFilterLists;
   /// Umbrella per-site Enhanced Tracking Protection: when true, applies
   /// the anti-fingerprinting JS shim (Canvas/WebGL/audio/fonts/screen/
   /// hardware/timing) AND forces clearUrlEnabled, dnsBlockEnabled, and
@@ -915,7 +938,9 @@ class WebViewModel {
     this.zoomPercent = kDefaultZoomPercent,
     this.clearUrlEnabled = true,
     this.dnsBlockEnabled = true,
+    this.dnsBlockLevel,
     this.contentBlockEnabled = true,
+    this.disabledFilterLists = const <String>{},
     this.trackingProtectionEnabled = true,
     this.localCdnEnabled = true,
     this.blockAutoRedirects = true,
@@ -1244,7 +1269,9 @@ class WebViewModel {
           // individual paths under a custom posture.
           clearUrlEnabled: clearUrlEnabled || trackingProtectionEnabled,
           dnsBlockEnabled: dnsBlockEnabled || trackingProtectionEnabled,
+          dnsBlockLevel: effectiveDnsBlockLevel,
           contentBlockEnabled: contentBlockEnabled || trackingProtectionEnabled,
+          disabledFilterLists: effectiveDisabledFilterLists,
           localCdnEnabled:
               effectiveLocalCdnEnabled || (trackingProtectionEnabled && !isArchiveTier),
           contributesBlockStats: contributesBlockStats,
@@ -1381,7 +1408,7 @@ class WebViewModel {
                   '  -> CANCEL (opening nested webview)',
                   sensitivity: LogSensitivity.sensitive,
                 );
-                launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: effectiveLocalCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: effectiveNotificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser, blockAutoRedirects: blockAutoRedirects, blockedCookies: blockedCookies, cameraMode: effectiveCameraMode, virtualCameraSource: virtualCameraSource, microphoneMode: effectiveMicrophoneMode, virtualMicrophoneSource: virtualMicrophoneSource, screenShareMode: effectiveScreenShareMode, virtualScreenSource: virtualScreenSource, protectedContentAllowed: effectiveProtectedContentAllowed);
+                launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, dnsBlockLevel: effectiveDnsBlockLevel, contentBlockEnabled: contentBlockEnabled, disabledFilterLists: effectiveDisabledFilterLists, localCdnEnabled: effectiveLocalCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: effectiveNotificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser, blockAutoRedirects: blockAutoRedirects, blockedCookies: blockedCookies, cameraMode: effectiveCameraMode, virtualCameraSource: virtualCameraSource, microphoneMode: effectiveMicrophoneMode, virtualMicrophoneSource: virtualMicrophoneSource, screenShareMode: effectiveScreenShareMode, virtualScreenSource: virtualScreenSource, protectedContentAllowed: effectiveProtectedContentAllowed);
                 return false;
               case NavigationDecision.blockOpenExternal:
                 LogService.instance.log(
@@ -1488,7 +1515,7 @@ class WebViewModel {
                     sensitivity: LogSensitivity.sensitive,
                   );
                   if (handled.launchNestedUrl != null) {
-                    launchUrlFunc(handled.launchNestedUrl!, homeTitle: name, siteId: siteId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: effectiveLocalCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: effectiveNotificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser, blockAutoRedirects: blockAutoRedirects, blockedCookies: blockedCookies, cameraMode: effectiveCameraMode, virtualCameraSource: virtualCameraSource, microphoneMode: effectiveMicrophoneMode, virtualMicrophoneSource: virtualMicrophoneSource, screenShareMode: effectiveScreenShareMode, virtualScreenSource: virtualScreenSource, protectedContentAllowed: effectiveProtectedContentAllowed);
+                    launchUrlFunc(handled.launchNestedUrl!, homeTitle: name, siteId: siteId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, dnsBlockLevel: effectiveDnsBlockLevel, contentBlockEnabled: contentBlockEnabled, disabledFilterLists: effectiveDisabledFilterLists, localCdnEnabled: effectiveLocalCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: effectiveNotificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser, blockAutoRedirects: blockAutoRedirects, blockedCookies: blockedCookies, cameraMode: effectiveCameraMode, virtualCameraSource: virtualCameraSource, microphoneMode: effectiveMicrophoneMode, virtualMicrophoneSource: virtualMicrophoneSource, screenShareMode: effectiveScreenShareMode, virtualScreenSource: virtualScreenSource, protectedContentAllowed: effectiveProtectedContentAllowed);
                   }
                   return;
                 case NavigationDecision.blockOpenExternal:
@@ -2282,6 +2309,8 @@ class WebViewModel {
         if (zoomPercent != kDefaultZoomPercent) 'zoomPercent': zoomPercent,
         'clearUrlEnabled': clearUrlEnabled,
         'dnsBlockEnabled': dnsBlockEnabled,
+        'dnsBlockLevel': dnsBlockLevel,
+        'disabledFilterLists': disabledFilterLists.toList()..sort(),
         'contentBlockEnabled': contentBlockEnabled,
         'trackingProtectionEnabled': trackingProtectionEnabled,
         'localCdnEnabled': localCdnEnabled,
@@ -2336,6 +2365,15 @@ class WebViewModel {
       };
   }
 
+  /// A stored level outside 0..5 (hand-edited backup, a future build's
+  /// wider range) means "follow the app-wide level" rather than an
+  /// out-of-range block posture.
+  static int? _readDnsBlockLevel(dynamic raw) {
+    if (raw is! int) return null;
+    if (raw < kDnsLevelOff || raw > kDnsMaxLevel) return null;
+    return raw;
+  }
+
   factory WebViewModel.fromJson(
     Map<String, dynamic> json,
     Function? stateSetterF, {
@@ -2388,6 +2426,13 @@ class WebViewModel {
           (json['zoomPercent'] as num?)?.toInt() ?? kDefaultZoomPercent),
       clearUrlEnabled: json['clearUrlEnabled'] ?? true,
       dnsBlockEnabled: json['dnsBlockEnabled'] ?? true,
+      dnsBlockLevel: _readDnsBlockLevel(json['dnsBlockLevel']),
+      disabledFilterLists: json['disabledFilterLists'] is List
+          ? {
+              for (final id in json['disabledFilterLists'] as List)
+                if (id is String) id
+            }
+          : const <String>{},
       contentBlockEnabled: json['contentBlockEnabled'] ?? true,
       trackingProtectionEnabled: json['trackingProtectionEnabled'] ?? true,
       localCdnEnabled: json['localCdnEnabled'] ?? true,

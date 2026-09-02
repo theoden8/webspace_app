@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "Ekrāna kopīgošana",
   "siteSettingsScreenShareHint": "Nosaka, vai šī vietne drīkst tvert jūsu ekrānu.\n\nWebSpace nekad nekopīgo jūsu īsto ekrānu. Ekrāna tveršana aptver visu virsmu, tāpēc tā rādītu arī jūsu pārējās vietnes šajā lietotnē. Tā vietā vietnei var parādīt jūsu izvēlētu attēlu vai video.\n\nJautāt (noklusējums): pirmajā reizē jautā uznirstošais logs, pēc tam izvēle tiek iegaumēta.\nMultivides fails: rādīt vietnei izvēlēto failu kā kopīgoto ekrānu.\nVienmēr bloķēt: noraidīt katru pieprasījumu.",
   "siteSettingsScreenShareVirtual": "Simulēts ekrāns",
-  "permissionScreenShareNeverReal": "Nav pieejams. Ekrāna tveršana aptver visu ekrānu, tāpēc tā rādītu arī jūsu pārējās vietnes."
+  "permissionScreenShareNeverReal": "Nav pieejams. Ekrāna tveršana aptver visu ekrānu, tāpēc tā rādītu arī jūsu pārējās vietnes.",
+  "siteSettingsDnsBlocklistLevel": "Bloķēšanas saraksta līmenis",
+  "siteSettingsDnsBlocklistLevelHint": "Katrs līmenis bloķē vairāk domēnu nekā zemākais. Pazeminiet to vietnei, ko bloķēšanas saraksts sabojā, lai saglabātu kaut daļu aizsardzības, nevis nekādu. Līmeni, ko lietotne vēl nav lejupielādējusi, tā iegūst brīdī, kad to izvēlaties.",
+  "siteSettingsDnsLevelFollowApp": "Tāpat kā lietotnes iestatījumos",
+  "siteSettingsDnsLevelFollowsApp": "Tāpat kā lietotnes iestatījumos ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "Vēl nav lejupielādēts, tiek lietots {level}",
+  "siteSettingsDnsLevelDownloading": "Notiek bloķēšanas saraksta lejupielāde...",
+  "siteSettingsDnsLevelDownloadFailed": "Šo bloķēšanas saraksta līmeni neizdevās lejupielādēt",
+  "siteSettingsContentBlockerLists": "Filtru saraksti",
+  "siteSettingsContentBlockerListsHint": "Izslēdziet sarakstu šeit, lai tas pārstātu darboties tikai šajā vietnē. Visur citur saraksti paliek ieslēgti. Var lietot tikai lietotnes iestatījumos ieslēgtos sarakstus.",
+  "siteSettingsContentBlockerListsSubtitle": "Ieslēgti {on} no {total}"
 }

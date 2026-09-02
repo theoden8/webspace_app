@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "Perkongsian skrin",
   "siteSettingsScreenShareHint": "Mengawal sama ada tapak ini boleh merakam skrin anda.\n\nWebSpace tidak pernah berkongsi skrin sebenar anda. Rakaman skrin meliputi seluruh permukaan, jadi ia juga akan menunjukkan tapak anda yang lain dalam apl ini. Sebaliknya, tapak boleh ditunjukkan imej atau video yang anda pilih.\n\nTanya (lalai): tetingkap bertanya kali pertama, kemudian mengingati pilihan anda.\nFail media: tunjukkan fail yang dipilih kepada tapak sebagai skrin yang dikongsi.\nSentiasa sekat: tolak setiap permintaan.",
   "siteSettingsScreenShareVirtual": "Skrin simulasi",
-  "permissionScreenShareNeverReal": "Tidak tersedia. Rakaman skrin meliputi seluruh skrin, jadi ia juga akan menunjukkan tapak anda yang lain."
+  "permissionScreenShareNeverReal": "Tidak tersedia. Rakaman skrin meliputi seluruh skrin, jadi ia juga akan menunjukkan tapak anda yang lain.",
+  "siteSettingsDnsBlocklistLevel": "Tahap senarai sekatan",
+  "siteSettingsDnsBlocklistLevelHint": "Setiap tahap menyekat lebih banyak domain daripada tahap di bawahnya. Turunkan tahap bagi tapak yang rosak akibat senarai sekatan, supaya sebahagian perlindungan kekal dan bukannya hilang sama sekali. Tahap yang belum dimuat turun oleh apl akan diambil apabila anda memilihnya.",
+  "siteSettingsDnsLevelFollowApp": "Sama seperti tetapan apl",
+  "siteSettingsDnsLevelFollowsApp": "Sama seperti tetapan apl ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "Belum dimuat turun, menggunakan {level}",
+  "siteSettingsDnsLevelDownloading": "Memuat turun senarai sekatan...",
+  "siteSettingsDnsLevelDownloadFailed": "Tahap senarai sekatan itu tidak dapat dimuat turun",
+  "siteSettingsContentBlockerLists": "Senarai penapis",
+  "siteSettingsContentBlockerListsHint": "Matikan senarai di sini supaya ia berhenti terpakai pada tapak ini sahaja. Di tempat lain senarai kekal hidup. Hanya senarai yang dihidupkan dalam tetapan apl boleh digunakan.",
+  "siteSettingsContentBlockerListsSubtitle": "{on} daripada {total} hidup"
 }

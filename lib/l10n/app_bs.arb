@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "Dijeljenje ekrana",
   "siteSettingsScreenShareHint": "Određuje smije li ova stranica snimati vaš ekran.\n\nWebSpace nikada ne dijeli vaš stvarni ekran. Snimanje ekrana obuhvata cijelu površinu, pa bi prikazalo i vaše druge stranice u ovoj aplikaciji. Umjesto toga, stranici se može prikazati slika ili video koji vi odaberete.\n\nPitaj (zadano): iskačući prozor pita prvi put, a zatim pamti vaš izbor.\nMedijska datoteka: prikaži odabranu datoteku stranici kao dijeljeni ekran.\nUvijek blokiraj: odbij svaki zahtjev.",
   "siteSettingsScreenShareVirtual": "Simulirani ekran",
-  "permissionScreenShareNeverReal": "Nije dostupno. Snimanje ekrana obuhvata cijeli ekran, pa bi prikazalo i vaše druge stranice."
+  "permissionScreenShareNeverReal": "Nije dostupno. Snimanje ekrana obuhvata cijeli ekran, pa bi prikazalo i vaše druge stranice.",
+  "siteSettingsDnsBlocklistLevel": "Nivo liste blokiranja",
+  "siteSettingsDnsBlocklistLevelHint": "Svaki nivo blokira više domena od onog ispod njega. Snizite ga za stranicu koju lista blokiranja kvari, kako bi zadržala nešto zaštite umjesto nijedne. Nivo koji aplikacija još nije preuzela preuzima se kada ga odaberete.",
+  "siteSettingsDnsLevelFollowApp": "Isto kao postavke aplikacije",
+  "siteSettingsDnsLevelFollowsApp": "Isto kao postavke aplikacije ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "Još nije preuzeto, koristi se {level}",
+  "siteSettingsDnsLevelDownloading": "Preuzimanje liste blokiranja...",
+  "siteSettingsDnsLevelDownloadFailed": "Nije moguće preuzeti taj nivo liste blokiranja",
+  "siteSettingsContentBlockerLists": "Liste filtera",
+  "siteSettingsContentBlockerListsHint": "Isključite listu ovdje da se prestane primjenjivati samo na ovoj stranici. Liste ostaju uključene svugdje drugdje. Mogu se koristiti samo liste uključene u postavkama aplikacije.",
+  "siteSettingsContentBlockerListsSubtitle": "{on} od {total} uključeno"
 }

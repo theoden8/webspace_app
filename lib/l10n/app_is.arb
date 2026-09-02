@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "Skjádeiling",
   "siteSettingsScreenShareHint": "Stýrir því hvort þetta vefsvæði megi taka upp skjáinn þinn.\n\nWebSpace deilir aldrei raunverulegum skjá þínum. Skjáupptaka nær yfir allt yfirborðið og myndi því einnig sýna hin vefsvæðin þín í þessu forriti. Í staðinn má sýna vefsvæðinu mynd eða myndskeið sem þú velur.\n\nSpyrja (sjálfgefið): sprettigluggi spyr í fyrsta skipti og man svo valið þitt.\nMargmiðlunarskrá: sýna vefsvæðinu völdu skrána sem deilda skjáinn.\nAlltaf loka á: hafna öllum beiðnum.",
   "siteSettingsScreenShareVirtual": "Hermdur skjár",
-  "permissionScreenShareNeverReal": "Ekki í boði. Skjáupptaka nær yfir allan skjáinn og myndi því einnig sýna hin vefsvæðin þín."
+  "permissionScreenShareNeverReal": "Ekki í boði. Skjáupptaka nær yfir allan skjáinn og myndi því einnig sýna hin vefsvæðin þín.",
+  "siteSettingsDnsBlocklistLevel": "Stig útilokunarlista",
+  "siteSettingsDnsBlocklistLevelHint": "Hvert stig útilokar fleiri lén en stigið fyrir neðan. Lækkaðu það fyrir vef sem útilokunarlistinn skemmir, svo hann haldi einhverri vörn í stað engrar. Stig sem forritið hefur ekki sótt enn er sótt þegar þú velur það.",
+  "siteSettingsDnsLevelFollowApp": "Sama og stillingar forritsins",
+  "siteSettingsDnsLevelFollowsApp": "Sama og stillingar forritsins ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "Ekki sótt enn, notar {level}",
+  "siteSettingsDnsLevelDownloading": "Sæki útilokunarlista...",
+  "siteSettingsDnsLevelDownloadFailed": "Ekki tókst að sækja þetta stig útilokunarlistans",
+  "siteSettingsContentBlockerLists": "Síunarlistar",
+  "siteSettingsContentBlockerListsHint": "Slökktu á lista hér svo hann hætti að gilda aðeins á þessum vef. Annars staðar haldast listarnir virkir. Aðeins listar sem eru virkir í stillingum forritsins eru nothæfir.",
+  "siteSettingsContentBlockerListsSubtitle": "{on} af {total} virkir"
 }

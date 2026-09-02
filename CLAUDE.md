@@ -189,6 +189,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | navigation | back gesture, drawer swipe, refresh, race guards |
 | nested-url-blocking | nested InAppBrowser, gesture auto-redirect block |
 | page-zoom | per-site zoom; viewport meta on mobile (Android pins the layout width), CSS `zoom` on desktop |
+| per-site-blocker-masks *(change)* | per-site DNS severity level and filter-list selection, as masks over the app-wide configuration: each domain carries a bit per level that names it (the levels do not nest), and a list a site switches off is scoped away with `$domain=~host` |
 | per-site-cookie-isolation | legacy engine (fallback) |
 | per-site-containers | native containers (preferred when supported) |
 | per-site-location | geo + IANA tz override + WebRTC lockdown |
@@ -334,6 +335,7 @@ When adding a notification-related code path, prefer extending `NotificationServ
 
 DNS blocklist, content blocker, LocalCDN need a downloaded blob.
 
+- **Per-site strength**: both blockers are also adjustable per site, as masks over the app-wide configuration — `WebViewModel.dnsBlockLevel` (null = follow the app level) and `disabledFilterLists`. A mask can only relax: a level's list is fetched on demand and falls back to the app level until it lands, and a filter list not enabled app-wide is not in the engine at all. **The Hagezi levels do not nest** (21,921 of 297,756 domains drop out of a higher level), so each domain carries a bit per level that names it rather than a single "lowest level"; anything else makes the app-wide level's behaviour depend on which per-site levels were downloaded. See [dns_level_mask_engine.dart](lib/services/dns_level_mask_engine.dart) and [filter_list_mask.dart](lib/services/filter_list_mask.dart).
 - **DNS blocklist / content blocker**: the switch stays interactive when the service has no data. Enabling it flips the setting (it takes effect once the data is downloaded) and fires `_warnBlockerNotConfigured` — a SnackBar naming the feature and pointing at App Settings. Tracking Protection's toggle fires the same warning for each unconfigured feature it forces on. While a blocker is effectively on without data, `_notConfiguredWarnIcon` renders next to the tile title and the "Not configured" subtitle turns amber (also on the Tracking Protection tile when a forced dep is unconfigured).
 - **LocalCDN**: still hard-gated (`onChanged: ... hasCache ? (v) => ... : null` grays the switch) — it can't serve anything without a cache and its `value` is forced off.
 - See [lib/screens/settings.dart](lib/screens/settings.dart): `DnsBlockService.hasBlocklist`, `ContentBlockerService.hasRules`, `LocalCdnService.hasCache`.

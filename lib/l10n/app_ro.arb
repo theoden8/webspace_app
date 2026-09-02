@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "Partajarea ecranului",
   "siteSettingsScreenShareHint": "Stabilește dacă acest site poate captura ecranul tău.\n\nWebSpace nu îți partajează niciodată ecranul real. O captură de ecran acoperă întreaga suprafață, deci ar arăta și celelalte site-uri ale tale din această aplicație. În schimb, site-ului i se poate arăta o imagine sau un videoclip ales de tine.\n\nÎntreabă (implicit): o fereastră întreabă prima dată, apoi îți reține alegerea.\nFișier media: arată site-ului fișierul ales ca ecran partajat.\nBlochează întotdeauna: respinge fiecare cerere.",
   "siteSettingsScreenShareVirtual": "Ecran simulat",
-  "permissionScreenShareNeverReal": "Indisponibil. O captură de ecran acoperă întregul ecran, deci ar arăta și celelalte site-uri ale tale."
+  "permissionScreenShareNeverReal": "Indisponibil. O captură de ecran acoperă întregul ecran, deci ar arăta și celelalte site-uri ale tale.",
+  "siteSettingsDnsBlocklistLevel": "Nivelul listei de blocare",
+  "siteSettingsDnsBlocklistLevelHint": "Fiecare nivel blochează mai multe domenii decât cel de sub el. Coboară-l pentru un site pe care lista de blocare îl strică, astfel încât să păstreze o parte din protecție în loc de niciuna. Un nivel pe care aplicația nu l-a descărcat încă este adus în momentul în care îl alegi.",
+  "siteSettingsDnsLevelFollowApp": "La fel ca setările aplicației",
+  "siteSettingsDnsLevelFollowsApp": "La fel ca setările aplicației ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "Încă nedescărcat; se folosește {level}",
+  "siteSettingsDnsLevelDownloading": "Se descarcă lista de blocare...",
+  "siteSettingsDnsLevelDownloadFailed": "Acel nivel al listei de blocare nu a putut fi descărcat",
+  "siteSettingsContentBlockerLists": "Liste de filtre",
+  "siteSettingsContentBlockerListsHint": "Oprește aici o listă ca să nu se mai aplice doar pe acest site. În rest, listele rămân pornite. Pot fi folosite doar listele activate în setările aplicației.",
+  "siteSettingsContentBlockerListsSubtitle": "{on} din {total} pornite"
 }

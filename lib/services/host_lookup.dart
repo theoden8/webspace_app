@@ -127,7 +127,7 @@ bool hostInSet(String host, Set<String> set) {
   return false;
 }
 
-/// Bounded host->bool cache with FIFO eviction. Designed for the per-URL
+/// Bounded host->[T] cache with FIFO eviction. Designed for the per-URL
 /// hot path in [DnsBlockService.isBlocked] / [ContentBlockerService.isBlocked]
 /// where the same host repeats dozens of times per page.
 ///
@@ -136,19 +136,19 @@ bool hostInSet(String host, Set<String> set) {
 /// evicted via `_ring[head++ % cap]`. Hits never reorder the ring — read
 /// path is a single `Map` lookup. Re-inserting an existing key keeps its
 /// original position so a hot host doesn't keep evicting itself.
-class HostFifoCache {
+class HostFifoCache<T extends Object> {
   final int capacity;
   final List<String?> _ring;
   int _head = 0;
   int _size = 0;
-  final Map<String, bool> _map = <String, bool>{};
+  final Map<String, T> _map = <String, T>{};
 
   HostFifoCache(this.capacity)
       : _ring = List<String?>.filled(capacity, null);
 
-  bool? operator [](String key) => _map[key];
+  T? operator [](String key) => _map[key];
 
-  void put(String key, bool value) {
+  void put(String key, T value) {
     if (_map.containsKey(key)) {
       _map[key] = value;
       return;

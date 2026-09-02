@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/widgets/hint_button.dart';
 
@@ -20,7 +21,9 @@ class SitePrivacyValues {
     required this.trackingProtectionEnabled,
     required this.clearUrlEnabled,
     required this.dnsBlockEnabled,
+    this.dnsBlockLevel,
     required this.contentBlockEnabled,
+    this.disabledFilterLists = const <String>{},
     required this.localCdnEnabled,
     required this.thirdPartyCookiesEnabled,
     required this.letterboxEnabled,
@@ -30,17 +33,30 @@ class SitePrivacyValues {
   final bool trackingProtectionEnabled;
   final bool clearUrlEnabled;
   final bool dnsBlockEnabled;
+
+  /// Severity level this site blocks at, or null to follow the app-wide one.
+  final int? dnsBlockLevel;
   final bool contentBlockEnabled;
+
+  /// Filter list ids this site opts out of.
+  final Set<String> disabledFilterLists;
   final bool localCdnEnabled;
   final bool thirdPartyCookiesEnabled;
   final bool letterboxEnabled;
   final bool incognito;
 
+  /// `dnsBlockLevel` is nullable *and* meaningful when null ("follow the app
+  /// setting"), so it can't use the `?? this.` idiom — passing null has to
+  /// mean "set it to null", not "leave it".
+  static const Object _keep = Object();
+
   SitePrivacyValues copyWith({
     bool? trackingProtectionEnabled,
     bool? clearUrlEnabled,
     bool? dnsBlockEnabled,
+    Object? dnsBlockLevel = _keep,
     bool? contentBlockEnabled,
+    Set<String>? disabledFilterLists,
     bool? localCdnEnabled,
     bool? thirdPartyCookiesEnabled,
     bool? letterboxEnabled,
@@ -51,7 +67,11 @@ class SitePrivacyValues {
             trackingProtectionEnabled ?? this.trackingProtectionEnabled,
         clearUrlEnabled: clearUrlEnabled ?? this.clearUrlEnabled,
         dnsBlockEnabled: dnsBlockEnabled ?? this.dnsBlockEnabled,
+        dnsBlockLevel: identical(dnsBlockLevel, _keep)
+            ? this.dnsBlockLevel
+            : dnsBlockLevel as int?,
         contentBlockEnabled: contentBlockEnabled ?? this.contentBlockEnabled,
+        disabledFilterLists: disabledFilterLists ?? this.disabledFilterLists,
         localCdnEnabled: localCdnEnabled ?? this.localCdnEnabled,
         thirdPartyCookiesEnabled:
             thirdPartyCookiesEnabled ?? this.thirdPartyCookiesEnabled,
@@ -100,6 +120,10 @@ class SitePrivacyScreen extends StatefulWidget {
 
 class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
   late SitePrivacyValues _values = widget.values;
+
+  /// Level whose list is being fetched right now, so the row can show it is
+  /// working rather than looking like the pick did nothing.
+  int? _downloadingLevel;
 
   void _update(SitePrivacyValues next) {
     setState(() => _values = next);
@@ -243,7 +267,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
       warn: missing,
       subtitle: _blockerSubtitle(
         ready: DnsBlockService.instance.hasBlocklist,
-        readyText: dnsBlockLevelNames[DnsBlockService.instance.level],
+        readyText: dnsBlockLevelNames[_effectiveDnsLevel],
       ),
       subtitleColor: missing ? Colors.orange : null,
       value: _values.effectiveDnsBlock,
@@ -281,6 +305,170 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
               _update(_values.copyWith(contentBlockEnabled: value));
             },
     );
+  }
+
+  /// Severity level the site's DNS checks actually run at.
+  int get _effectiveDnsLevel =>
+      DnsBlockService.instance.effectiveLevelFor(_values.dnsBlockLevel);
+
+  bool get _dnsLevelNeedsDownload => dnsLevelNeedsDownload(
+        siteLevel: _values.dnsBlockLevel,
+        downloadedLevels: DnsBlockService.instance.downloadedLevels,
+      );
+
+  Widget _dnsBlocklistLevel(AppLocalizations loc) {
+    final needsDownload = _dnsLevelNeedsDownload;
+    final chosen = _values.dnsBlockLevel;
+    final title = loc.siteSettingsDnsBlocklistLevel;
+    final subtitle = needsDownload
+        ? loc.siteSettingsDnsLevelNeedsDownload(
+            dnsBlockLevelNames[_effectiveDnsLevel])
+        : (chosen == null
+            ? loc.siteSettingsDnsLevelFollowsApp(
+                dnsBlockLevelNames[DnsBlockService.instance.level])
+            : dnsBlockLevelNames[chosen]);
+    return ListTile(
+      contentPadding: const EdgeInsets.only(left: 32, right: 16),
+      title: Row(
+        children: [
+          Flexible(child: Text(title)),
+          HintButton(
+              title: title, description: loc.siteSettingsDnsBlocklistLevelHint),
+          if (needsDownload) _warnIcon(),
+        ],
+      ),
+      subtitle: Text(subtitle,
+          style: TextStyle(color: needsDownload ? Colors.orange : null)),
+      trailing: _downloadingLevel != null
+          ? const SizedBox(
+              width: 18, height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2))
+          : const Icon(Icons.chevron_right, size: 18),
+      onTap: _downloadingLevel != null ? null : _pickDnsLevel,
+    );
+  }
+
+  /// Picker value standing for "follow the app setting". The picker never
+  /// offers level 0 — the row's own switch is what turns DNS blocking off.
+  static const int _followsAppSetting = -1;
+
+  Future<void> _pickDnsLevel() async {
+    final loc = AppLocalizations.of(context);
+    final picked = await showDialog<int>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: Text(loc.siteSettingsDnsBlocklistLevel),
+        children: [
+          RadioGroup<int>(
+            groupValue: _values.dnsBlockLevel ?? _followsAppSetting,
+            onChanged: (value) => Navigator.pop(context, value),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                RadioListTile<int>(
+                  value: _followsAppSetting,
+                  title: Text(loc.siteSettingsDnsLevelFollowApp),
+                ),
+                for (var level = 1; level <= kDnsMaxLevel; level++)
+                  RadioListTile<int>(
+                    value: level,
+                    title: Text(dnsBlockLevelNames[level]),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    if (picked == null || !mounted) return;
+    final level = picked == _followsAppSetting ? null : picked;
+    _update(_values.copyWith(dnsBlockLevel: level));
+    if (level != null &&
+        !DnsBlockService.instance.downloadedLevels.contains(level)) {
+      await _downloadLevel(level);
+    }
+  }
+
+  /// Fetch a level's list on demand. Until it lands the site keeps running at
+  /// the app-wide level — the tier boundary it asked for does not exist yet,
+  /// and evaluating against the tiers anyway would block nothing.
+  Future<void> _downloadLevel(int level) async {
+    setState(() => _downloadingLevel = level);
+    _snack(AppLocalizations.of(context).siteSettingsDnsLevelDownloading);
+    final ok = await DnsBlockService.instance.downloadLevel(level);
+    if (!mounted) return;
+    setState(() => _downloadingLevel = null);
+    if (!ok) _snack(AppLocalizations.of(context).siteSettingsDnsLevelDownloadFailed);
+  }
+
+  void _snack(String message) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Widget _contentBlockerLists(AppLocalizations loc) {
+    final available =
+        ContentBlockerService.instance.lists.where((l) => l.enabled).toList();
+    if (available.isEmpty) return const SizedBox.shrink();
+    final off = _values.disabledFilterLists;
+    final onCount = available.where((l) => !off.contains(l.id)).length;
+    final title = loc.siteSettingsContentBlockerLists;
+    return ListTile(
+      contentPadding: const EdgeInsets.only(left: 32, right: 16),
+      title: Row(
+        children: [
+          Flexible(child: Text(title)),
+          HintButton(
+              title: title,
+              description: loc.siteSettingsContentBlockerListsHint),
+        ],
+      ),
+      subtitle: Text(loc.siteSettingsContentBlockerListsSubtitle(
+          onCount, available.length)),
+      trailing: const Icon(Icons.chevron_right, size: 18),
+      onTap: () => _pickFilterLists(available),
+    );
+  }
+
+  Future<void> _pickFilterLists(List<FilterList> available) async {
+    final loc = AppLocalizations.of(context);
+    final off = {..._values.disabledFilterLists};
+    await showDialog<void>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(loc.siteSettingsContentBlockerLists),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                for (final list in available)
+                  CheckboxListTile(
+                    value: !off.contains(list.id),
+                    title: Text(list.name),
+                    onChanged: (on) => setDialogState(() {
+                      if (on ?? false) {
+                        off.remove(list.id);
+                      } else {
+                        off.add(list.id);
+                      }
+                    }),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(loc.commonDone),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted) return;
+    _update(_values.copyWith(disabledFilterLists: off));
   }
 
   Widget _localCdn(AppLocalizations loc) {
@@ -429,8 +617,13 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
           _groupHeader(loc.privacyGroupTrackers),
           _clearUrls(loc),
           _dnsBlocklist(loc),
+          if (_values.effectiveDnsBlock && DnsBlockService.instance.hasBlocklist)
+            _dnsBlocklistLevel(loc),
           if (DnsBlockService.instance.hasBlocklist) _dnsStats(),
           _contentBlocker(loc),
+          if (_values.effectiveContentBlock &&
+              ContentBlockerService.instance.hasRules)
+            _contentBlockerLists(loc),
           if (hostIsAndroid) _localCdn(loc),
           _thirdPartyCookies(loc),
           _groupHeader(loc.privacyGroupFingerprinting),

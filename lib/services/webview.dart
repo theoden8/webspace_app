@@ -36,6 +36,7 @@ import 'package:webspace/services/user_agent_metadata_builder.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/services/download_engine.dart';
 import 'package:webspace/services/download_manager.dart';
@@ -619,6 +620,24 @@ class WebViewConfig {
   final bool clearUrlEnabled;
   /// Whether to block navigation to domains on the Hagezi DNS blocklist.
   final bool dnsBlockEnabled;
+
+  /// Hagezi severity level this site blocks at, or null to follow the
+  /// app-wide level. Resolved through [DnsBlockService.effectiveLevelFor] so
+  /// a level whose list was never downloaded falls back instead of silently
+  /// blocking nothing.
+  final int? dnsBlockLevel;
+
+  /// Filter list ids this site opts out of. The engine carries the mask
+  /// itself (the rules of a masked list are scoped away from this site's
+  /// host), so nothing here is consulted per request.
+  final Set<String> disabledFilterLists;
+
+  /// Severity level every DNS check for this site runs at: 0 when the toggle
+  /// is off, otherwise the resolved per-site level. One number so the
+  /// toggle and the level can't disagree at a call site.
+  int get effectiveDnsLevel => dnsBlockEnabled
+      ? DnsBlockService.instance.effectiveLevelFor(dnsBlockLevel)
+      : kDnsLevelOff;
   /// Whether to apply ABP content blocker rules (ads, trackers, cosmetic).
   final bool contentBlockEnabled;
   /// Umbrella per-site Enhanced Tracking Protection: when true, the
@@ -799,6 +818,8 @@ class WebViewConfig {
     this.contributesBlockStats = true,
     this.clearUrlEnabled = true,
     this.dnsBlockEnabled = true,
+    this.dnsBlockLevel,
+    this.disabledFilterLists = const <String>{},
     this.contentBlockEnabled = true,
     this.trackingProtectionEnabled = true,
     this.spoofWindowWidth,
@@ -2374,7 +2395,7 @@ class WebViewFactory {
     // page.
     if (!hostIsAndroid
         && config.siteId != null
-        && ((config.dnsBlockEnabled && hasDnsRules) ||
+        && ((config.effectiveDnsLevel > kDnsLevelOff && hasDnsRules) ||
             (config.contentBlockEnabled && hasAbpRules))) {
       userScripts.add(inapp.UserScript(
         groupName: 'block_js_interceptor',
@@ -2930,10 +2951,10 @@ class WebViewFactory {
         final hosts = args[0] as List;
         final dnsSvc = DnsBlockService.instance;
         final abpSvc = ContentBlockerService.instance;
+        final dnsLevel = config.effectiveDnsLevel;
         for (final h in hosts) {
           if (h is! String || h.isEmpty) continue;
-          final dnsBlocked =
-              config.dnsBlockEnabled && dnsSvc.isHostBlocked(h);
+          final dnsBlocked = dnsSvc.isHostBlockedAtLevel(h, dnsLevel);
           final abpBlocked = !dnsBlocked &&
               config.contentBlockEnabled &&
               abpSvc.isHostBlocked(h);
@@ -3000,7 +3021,7 @@ class WebViewFactory {
           // `$domain=` modifiers apply.
           final abpBlocked = config.contentBlockEnabled &&
               abpSvc.isBlocked(url, sourceUrl: sourceUrl() ?? '');
-          if (config.dnsBlockEnabled && dnsSvc.isBlocked(url)) {
+          if (dnsSvc.isBlockedAtLevel(url, config.effectiveDnsLevel)) {
             dnsSvc.recordRequest(config.siteId!, url, true,
                 source: BlockSource.dns);
             return true;
@@ -3424,7 +3445,7 @@ class WebViewFactory {
 
     LogService.instance.log(
       'DnsBlock',
-      'Creating webview: siteId=${config.siteId} dnsBlock=${config.dnsBlockEnabled} hasBlocklist=${DnsBlockService.instance.hasBlocklist} isAndroid=${hostIsAndroid} url=${config.initialUrl} containerId=$containerId proxySettings=${inappProxy != null}',
+      'Creating webview: siteId=${config.siteId} dnsLevel=${config.effectiveDnsLevel} hasBlocklist=${DnsBlockService.instance.hasBlocklist} isAndroid=${hostIsAndroid} url=${config.initialUrl} containerId=$containerId proxySettings=${inappProxy != null}',
       sensitivity: LogSensitivity.sensitive,
     );
 
@@ -3699,7 +3720,8 @@ class WebViewFactory {
             level: LogLevel.debug,
             sensitivity: LogSensitivity.sensitive,
           );
-          Future.microtask(() => WebInterceptNative.attachToWebViews(siteId: config.siteId));
+          Future.microtask(() => WebInterceptNative.attachToWebViews(
+              siteId: config.siteId, dnsLevel: config.effectiveDnsLevel));
         }
       },
       shouldOverrideUrlLoading: (controller, navigationAction) async {
@@ -3782,11 +3804,13 @@ class WebViewFactory {
         // calls `notifyListeners()` which triggers a setState rebuild
         // on the dev tools log tab for every single navigation.
         if (config.siteId != null && url.startsWith('http')) {
-          final blocked = DnsBlockService.instance.hasBlocklist &&
-              DnsBlockService.instance.isBlocked(url);
+          // At the site's own level, so the recorded stat is the decision
+          // the navigation actually got rather than the app-wide one.
+          final blocked = DnsBlockService.instance
+              .isBlockedAtLevel(url, config.effectiveDnsLevel);
           DnsBlockService.instance.recordRequest(config.siteId!, url, blocked,
               source: blocked ? BlockSource.dns : null);
-          if (blocked && config.dnsBlockEnabled) {
+          if (blocked) {
             return inapp.NavigationActionPolicy.CANCEL;
           }
         }

@@ -80,6 +80,7 @@ import 'package:webspace/services/adblock_engine.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/timezone_location_service.dart';
 import 'package:webspace/services/web_intercept_native.dart';
@@ -690,16 +691,16 @@ void main() async {
 
   if (DnsBlockService.instance.hasBlocklist) {
     await _runTimed(
-        'dnsSend(${DnsBlockService.instance.blockedDomains.length})',
-        () => WebInterceptNative.sendDnsDomains(
-            DnsBlockService.instance.blockedDomains));
+        'dnsSend(${DnsBlockService.instance.domainCount})',
+        () => WebInterceptNative.sendDnsLevelGroups(
+            DnsBlockService.instance.levelGroups));
   }
 
   // Keep the DNS-side native domain push in sync when the DNS list
   // changes. (Android's native interceptor consumes the raw domains;
   // the iOS/macOS JS prefilter consumes the merged bloom below.)
   DnsBlockService.instance.addBlocklistChangedListener(() {
-    WebInterceptNative.sendDnsDomains(DnsBlockService.instance.blockedDomains);
+    WebInterceptNative.sendDnsLevelGroups(DnsBlockService.instance.levelGroups);
   });
   ContentBlockerService.instance.addRulesChangedListener(() {
     // Feed the ABP `||host^` block hosts into the merged prefilter Bloom
@@ -2590,7 +2591,9 @@ class _WebSpacePageState extends State<WebSpacePage>
       thirdPartyCookiesEnabled: model.effectiveThirdPartyCookiesEnabled,
       clearUrlEnabled: model.clearUrlEnabled,
       dnsBlockEnabled: model.dnsBlockEnabled,
+      dnsBlockLevel: model.effectiveDnsBlockLevel,
       contentBlockEnabled: model.contentBlockEnabled,
+      disabledFilterLists: model.effectiveDisabledFilterLists,
       localCdnEnabled: model.effectiveLocalCdnEnabled,
       contributesBlockStats: model.contributesBlockStats,
       trackingProtectionEnabled: model.trackingProtectionEnabled,
@@ -2800,6 +2803,29 @@ class _WebSpacePageState extends State<WebSpacePage>
     }).toList();
     await prefs.setStringList('webViewModels', webViewModelsJson);
     _syncShortcutSites();
+    // Compile the per-site filter-list mask into the engine. Fire-and-forget:
+    // it no-ops unless the mask actually moved, and a save must not wait on
+    // an engine reparse.
+    unawaited(ContentBlockerService.instance.setListMasks(_filterListMasks()));
+  }
+
+  /// Which sites switched each filter list off, by list id, keyed by the
+  /// site's registrable host — the identity adblock-rust's `$domain=` scoping
+  /// matches against. Archive-tier sites are excluded (ARCH-006): their mask
+  /// would rewrite the shared engine cache blob, which must not vary with
+  /// whether an archive is open.
+  Map<String, Set<String>> _filterListMasks() {
+    final masks = <String, Set<String>>{};
+    for (final model in _webViewModels) {
+      final off = model.effectiveDisabledFilterLists;
+      if (off.isEmpty) continue;
+      final host = getNormalizedDomain(model.initUrl);
+      if (host.isEmpty) continue;
+      for (final id in off) {
+        (masks[id] ??= <String>{}).add(host);
+      }
+    }
+    return masks;
   }
 
   /// Materialises an open [ArchiveHandle]'s sites into [_webViewModels]
@@ -4926,6 +4952,16 @@ class _WebSpacePageState extends State<WebSpacePage>
         nonIncognitoSiteIds: nonIncognitoSiteIds,
         useContainers: _useContainers,
       );
+      // Blocklist levels nothing asks for any more: a site that moved back
+      // to the app-wide level leaves its tier behind, and each one is a
+      // multi-megabyte file plus its share of the in-memory partition. Only
+      // here, not on every model save — an unsaved per-site edit is not in
+      // `_webViewModels` yet, and pruning against it would delete the tier
+      // the user just waited for.
+      await DnsBlockService.instance.pruneLevels(requiredDnsLevels(
+        globalLevel: DnsBlockService.instance.level,
+        siteLevels: [for (final m in _webViewModels) m.effectiveDnsBlockLevel],
+      ));
     } catch (e) {
       LogService.instance.log(
         'Startup',
@@ -5121,7 +5157,9 @@ class _WebSpacePageState extends State<WebSpacePage>
     required bool thirdPartyCookiesEnabled,
     required bool clearUrlEnabled,
     required bool dnsBlockEnabled,
+    int? dnsBlockLevel,
     required bool contentBlockEnabled,
+    Set<String> disabledFilterLists = const <String>{},
     required bool localCdnEnabled,
     required bool contributesBlockStats,
     required bool trackingProtectionEnabled,
@@ -5166,7 +5204,9 @@ class _WebSpacePageState extends State<WebSpacePage>
           thirdPartyCookiesEnabled: thirdPartyCookiesEnabled,
           clearUrlEnabled: clearUrlEnabled,
           dnsBlockEnabled: dnsBlockEnabled,
+          dnsBlockLevel: dnsBlockLevel,
           contentBlockEnabled: contentBlockEnabled,
+          disabledFilterLists: disabledFilterLists,
           localCdnEnabled: localCdnEnabled,
           contributesBlockStats: contributesBlockStats,
           trackingProtectionEnabled: trackingProtectionEnabled,
@@ -7116,7 +7156,9 @@ class _WebSpacePageState extends State<WebSpacePage>
                   thirdPartyCookiesEnabled: model.effectiveThirdPartyCookiesEnabled,
                   clearUrlEnabled: model.clearUrlEnabled,
                   dnsBlockEnabled: model.dnsBlockEnabled,
+                  dnsBlockLevel: model.effectiveDnsBlockLevel,
                   contentBlockEnabled: model.contentBlockEnabled,
+                  disabledFilterLists: model.effectiveDisabledFilterLists,
                   localCdnEnabled: model.localCdnEnabled,
                   contributesBlockStats: model.contributesBlockStats,
                   trackingProtectionEnabled: model.trackingProtectionEnabled,
@@ -7512,6 +7554,15 @@ class _WebSpacePageState extends State<WebSpacePage>
       if (turnsOff('contentBlockEnabled')) loc.siteSettingsContentBlocker,
       if (turnsOff('localCdnEnabled')) loc.siteSettingsLocalCdn,
       if (turnsOff('blockAutoRedirects')) loc.siteSettingsBlockAutoRedirects,
+      // A level below the app-wide one, or a filter list switched off, weakens
+      // the blockers without turning either toggle off. Unnamed, a QR could
+      // relax protection while the review reported nothing.
+      if (qr['dnsBlockLevel'] is int &&
+          (qr['dnsBlockLevel'] as int) < DnsBlockService.instance.level)
+        loc.siteSettingsDnsBlocklistLevel,
+      if (qr['disabledFilterLists'] is List &&
+          (qr['disabledFilterLists'] as List).isNotEmpty)
+        loc.siteSettingsContentBlockerLists,
     ];
     final granted = <String>[
       if (turnsOn('thirdPartyCookiesEnabled')) loc.siteSettingsThirdPartyCookies,

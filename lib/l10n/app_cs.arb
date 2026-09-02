@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "Sdílení obrazovky",
   "siteSettingsScreenShareHint": "Určuje, zda tento web smí zaznamenávat vaši obrazovku.\n\nWebSpace nikdy nesdílí vaši skutečnou obrazovku. Záznam obrazovky pokrývá celou plochu, takže by ukázal i vaše ostatní weby v této aplikaci. Místo toho lze webu zobrazit obrázek nebo video, které vyberete.\n\nZeptat se (výchozí): při prvním požadavku se zobrazí dotaz a volba se zapamatuje.\nMediální soubor: zobrazit webu vybraný soubor jako sdílenou obrazovku.\nVždy blokovat: odmítnout každý požadavek.",
   "siteSettingsScreenShareVirtual": "Simulovaná obrazovka",
-  "permissionScreenShareNeverReal": "Není k dispozici. Záznam obrazovky pokrývá celou obrazovku, takže by ukázal i vaše ostatní weby."
+  "permissionScreenShareNeverReal": "Není k dispozici. Záznam obrazovky pokrývá celou obrazovku, takže by ukázal i vaše ostatní weby.",
+  "siteSettingsDnsBlocklistLevel": "Úroveň seznamu blokování",
+  "siteSettingsDnsBlocklistLevelHint": "Každá úroveň blokuje více domén než ta pod ní. Pro web, který seznam blokování rozbíjí, ji snižte, aby si zachoval alespoň nějakou ochranu místo žádné. Úroveň, kterou aplikace zatím nestáhla, se stáhne, jakmile ji zvolíte.",
+  "siteSettingsDnsLevelFollowApp": "Stejně jako nastavení aplikace",
+  "siteSettingsDnsLevelFollowsApp": "Stejně jako nastavení aplikace ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "Zatím nestaženo, používá se {level}",
+  "siteSettingsDnsLevelDownloading": "Stahování seznamu blokování...",
+  "siteSettingsDnsLevelDownloadFailed": "Tuto úroveň seznamu blokování se nepodařilo stáhnout",
+  "siteSettingsContentBlockerLists": "Seznamy filtrů",
+  "siteSettingsContentBlockerListsHint": "Vypnutím seznamu zde přestane platit jen pro tento web. Jinde zůstávají seznamy zapnuté. Použít lze pouze seznamy zapnuté v nastavení aplikace.",
+  "siteSettingsContentBlockerListsSubtitle": "{on} z {total} zapnuto"
 }

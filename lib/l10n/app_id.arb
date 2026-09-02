@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "Berbagi layar",
   "siteSettingsScreenShareHint": "Mengatur apakah situs ini boleh merekam layar Anda.\n\nWebSpace tidak pernah membagikan layar asli Anda. Perekaman layar mencakup seluruh permukaan, sehingga juga akan menampilkan situs Anda yang lain di aplikasi ini. Sebagai gantinya, situs dapat ditunjukkan gambar atau video yang Anda pilih.\n\nTanya (bawaan): sebuah jendela bertanya pertama kali, lalu mengingat pilihan Anda.\nBerkas media: tunjukkan berkas terpilih kepada situs sebagai layar yang dibagikan.\nSelalu blokir: tolak setiap permintaan.",
   "siteSettingsScreenShareVirtual": "Layar simulasi",
-  "permissionScreenShareNeverReal": "Tidak tersedia. Perekaman layar mencakup seluruh layar, sehingga juga akan menampilkan situs Anda yang lain."
+  "permissionScreenShareNeverReal": "Tidak tersedia. Perekaman layar mencakup seluruh layar, sehingga juga akan menampilkan situs Anda yang lain.",
+  "siteSettingsDnsBlocklistLevel": "Tingkat daftar blokir",
+  "siteSettingsDnsBlocklistLevelHint": "Setiap tingkat memblokir lebih banyak domain daripada tingkat di bawahnya. Turunkan untuk situs yang rusak karena daftar blokir, agar tetap ada sebagian perlindungan alih-alih tidak ada sama sekali. Tingkat yang belum diunduh aplikasi akan diambil saat Anda memilihnya.",
+  "siteSettingsDnsLevelFollowApp": "Sama seperti pengaturan aplikasi",
+  "siteSettingsDnsLevelFollowsApp": "Sama seperti pengaturan aplikasi ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "Belum diunduh, memakai {level}",
+  "siteSettingsDnsLevelDownloading": "Mengunduh daftar blokir...",
+  "siteSettingsDnsLevelDownloadFailed": "Tidak dapat mengunduh tingkat daftar blokir tersebut",
+  "siteSettingsContentBlockerLists": "Daftar filter",
+  "siteSettingsContentBlockerListsHint": "Matikan sebuah daftar di sini agar berhenti berlaku hanya di situs ini. Di tempat lain daftar tetap aktif. Hanya daftar yang diaktifkan di pengaturan aplikasi yang dapat dipakai.",
+  "siteSettingsContentBlockerListsSubtitle": "{on} dari {total} aktif"
 }

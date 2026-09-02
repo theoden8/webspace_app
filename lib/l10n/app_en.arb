@@ -3748,5 +3748,63 @@
   "permissionScreenShareNeverReal": "Not available. A screen capture covers the whole screen, so it would also show your other sites.",
   "@permissionScreenShareNeverReal": {
     "description": "Shown on the greyed-out Allowed option for screen sharing, stating that the real screen is never shared because a capture would also show the user's other sites."
+  },
+  "siteSettingsDnsBlocklistLevel": "Blocklist level",
+  "@siteSettingsDnsBlocklistLevel": {
+    "description": "Title of the per-site row that picks how strict the DNS blocklist is for this site."
+  },
+  "siteSettingsDnsBlocklistLevelHint": "Each level blocks more domains than the one below it. Lower it for a site the blocklist breaks, so it keeps some protection instead of none. A level the app has not downloaded yet is fetched when you pick it.",
+  "@siteSettingsDnsBlocklistLevelHint": {
+    "description": "Explanation shown in the hint dialog next to the per-site blocklist level row."
+  },
+  "siteSettingsDnsLevelFollowApp": "Same as app settings",
+  "@siteSettingsDnsLevelFollowApp": {
+    "description": "Option in the per-site blocklist level picker meaning the site tracks the app-wide level."
+  },
+  "siteSettingsDnsLevelFollowsApp": "Same as app settings ({level})",
+  "@siteSettingsDnsLevelFollowsApp": {
+    "description": "Subtitle of the per-site blocklist level row when the site tracks the app-wide level. {level} is the level name, e.g. Pro.",
+    "placeholders": {
+      "level": {
+        "type": "String"
+      }
+    }
+  },
+  "siteSettingsDnsLevelNeedsDownload": "Not downloaded yet, using {level}",
+  "@siteSettingsDnsLevelNeedsDownload": {
+    "description": "Subtitle of the per-site blocklist level row when the chosen level has no downloaded list, so the site runs at the fallback level instead. {level} is the fallback level name.",
+    "placeholders": {
+      "level": {
+        "type": "String"
+      }
+    }
+  },
+  "siteSettingsDnsLevelDownloading": "Downloading blocklist...",
+  "@siteSettingsDnsLevelDownloading": {
+    "description": "Message shown while the list for a newly picked per-site blocklist level is being fetched."
+  },
+  "siteSettingsDnsLevelDownloadFailed": "Could not download that blocklist level",
+  "@siteSettingsDnsLevelDownloadFailed": {
+    "description": "Message shown when fetching the list for a per-site blocklist level failed."
+  },
+  "siteSettingsContentBlockerLists": "Filter lists",
+  "@siteSettingsContentBlockerLists": {
+    "description": "Title of the per-site row that picks which content blocker filter lists apply to this site."
+  },
+  "siteSettingsContentBlockerListsHint": "Turn off a list here to stop it applying to this site only. Lists stay on everywhere else. Only lists enabled in app settings can be used.",
+  "@siteSettingsContentBlockerListsHint": {
+    "description": "Explanation shown in the hint dialog next to the per-site filter lists row."
+  },
+  "siteSettingsContentBlockerListsSubtitle": "{on} of {total} on",
+  "@siteSettingsContentBlockerListsSubtitle": {
+    "description": "Subtitle of the per-site filter lists row: how many of the app's enabled filter lists apply to this site.",
+    "placeholders": {
+      "on": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
   }
 }

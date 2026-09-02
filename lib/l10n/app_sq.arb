@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "Ndarja e ekranit",
   "siteSettingsScreenShareHint": "Kontrollon nëse ky sajt mund ta regjistrojë ekranin tuaj.\n\nWebSpace nuk e ndan kurrë ekranin tuaj të vërtetë. Një regjistrim i ekranit mbulon të gjithë sipërfaqen, prandaj do të tregonte edhe sajtet tuaja të tjera në këtë aplikacion. Në vend të kësaj, sajtit mund t'i tregohet një imazh ose video që zgjidhni ju.\n\nPyet (parazgjedhje): një dritare pyet herën e parë, pastaj mban mend zgjedhjen tuaj.\nSkedar media: tregoji sajtit skedarin e zgjedhur si ekranin e ndarë.\nBllokoje gjithmonë: refuzo çdo kërkesë.",
   "siteSettingsScreenShareVirtual": "Ekran i simuluar",
-  "permissionScreenShareNeverReal": "Nuk ofrohet. Një regjistrim i ekranit mbulon të gjithë ekranin, prandaj do të tregonte edhe sajtet tuaja të tjera."
+  "permissionScreenShareNeverReal": "Nuk ofrohet. Një regjistrim i ekranit mbulon të gjithë ekranin, prandaj do të tregonte edhe sajtet tuaja të tjera.",
+  "siteSettingsDnsBlocklistLevel": "Niveli i listës së bllokimit",
+  "siteSettingsDnsBlocklistLevelHint": "Çdo nivel bllokon më shumë domene se ai poshtë tij. Ulni nivelin për një sajt që lista e bllokimit e prish, që të mbetet një pjesë e mbrojtjes në vend që të humbasë e gjitha. Një nivel që aplikacioni nuk e ka shkarkuar ende merret kur ta zgjidhni.",
+  "siteSettingsDnsLevelFollowApp": "Njësoj si cilësimet e aplikacionit",
+  "siteSettingsDnsLevelFollowsApp": "Njësoj si cilësimet e aplikacionit ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "Ende i pashkarkuar; po përdoret {level}",
+  "siteSettingsDnsLevelDownloading": "Po shkarkohet lista e bllokimit...",
+  "siteSettingsDnsLevelDownloadFailed": "Ai nivel i listës së bllokimit nuk u shkarkua dot",
+  "siteSettingsContentBlockerLists": "Listat e filtrave",
+  "siteSettingsContentBlockerListsHint": "Fikni një listë këtu që të pushojë së zbatuari vetëm në këtë sajt. Kudo tjetër listat mbeten të ndezura. Mund të përdoren vetëm listat e aktivizuara te cilësimet e aplikacionit.",
+  "siteSettingsContentBlockerListsSubtitle": "{on} nga {total} të ndezura"
 }

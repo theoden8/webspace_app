@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "Compartilhamento de tela",
   "siteSettingsScreenShareHint": "Controla se este site pode capturar sua tela.\n\nO WebSpace nunca compartilha sua tela real. Uma captura de tela abrange toda a superfície, então também mostraria seus outros sites neste aplicativo. Em vez disso, pode-se mostrar ao site uma imagem ou um vídeo escolhido por você.\n\nPerguntar (padrão): uma janela pergunta na primeira vez e depois lembra sua escolha.\nArquivo de mídia: mostrar ao site o arquivo escolhido como tela compartilhada.\nSempre bloquear: rejeitar todas as solicitações.",
   "siteSettingsScreenShareVirtual": "Tela simulada",
-  "permissionScreenShareNeverReal": "Indisponível. Uma captura de tela abrange a tela inteira, então também mostraria seus outros sites."
+  "permissionScreenShareNeverReal": "Indisponível. Uma captura de tela abrange a tela inteira, então também mostraria seus outros sites.",
+  "siteSettingsDnsBlocklistLevel": "Nível da lista de bloqueio",
+  "siteSettingsDnsBlocklistLevelHint": "Cada nível bloqueia mais domínios do que o anterior. Diminua-o para um site que a lista de bloqueio quebra, assim ele mantém alguma proteção em vez de nenhuma. Um nível que o aplicativo ainda não baixou é obtido quando você o escolhe.",
+  "siteSettingsDnsLevelFollowApp": "Igual às configurações do aplicativo",
+  "siteSettingsDnsLevelFollowsApp": "Igual às configurações do aplicativo ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "Ainda não baixado; usando {level}",
+  "siteSettingsDnsLevelDownloading": "Baixando a lista de bloqueio...",
+  "siteSettingsDnsLevelDownloadFailed": "Não foi possível baixar esse nível da lista de bloqueio",
+  "siteSettingsContentBlockerLists": "Listas de filtros",
+  "siteSettingsContentBlockerListsHint": "Desligue uma lista aqui para ela parar de valer somente neste site. Em todo o resto as listas continuam ligadas. Só podem ser usadas as listas ativadas nas configurações do aplicativo.",
+  "siteSettingsContentBlockerListsSubtitle": "{on} de {total} ativas"
 }

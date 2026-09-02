@@ -161,4 +161,78 @@ class DnsHostBlocklistTest {
         // Loose ceiling — a regression guard, not a per-machine perf gate.
         assertTrue("build took ${ms}ms", ms < 10_000)
     }
+
+    // --- per-site levels (DNS-020) ---------------------------------------
+
+    @Test
+    fun unmarkedBlobLoadsAtLevelOne() {
+        val b = DnsHostBlocklist()
+        b.replaceFromBlob("ads.example\ntracker.example")
+        assertEquals(DnsHostBlocklist.levelBit(1), b.maskOf("ads.example"))
+        assertEquals(1, b.groupCount)
+    }
+
+    @Test
+    fun markersGroupTheBlobByMembershipMask() {
+        // 1 = light only, 4 = pro only, 1f = every level.
+        val b = DnsHostBlocklist()
+        b.replaceFromBlob("#1\nlight.example\n#4\npro.example\n#1f\nevery.example")
+        assertEquals(3, b.size)
+        assertEquals(3, b.groupCount)
+        assertEquals(0b00001, b.maskOf("light.example"))
+        assertEquals(0b00100, b.maskOf("pro.example"))
+        assertEquals(0b11111, b.maskOf("every.example"))
+        assertEquals(0, b.maskOf("safe.example"))
+    }
+
+    @Test
+    fun aLevelBlocksOnlyWhatItsOwnListNames() {
+        // The levels do not nest: light.example is in Light and in nothing
+        // above it, so Pro must not block it.
+        val b = DnsHostBlocklist()
+        b.replaceFromBlob("#1\nlight.example\n#4\npro.example")
+        assertTrue(b.isBlockedAt("light.example", 1))
+        assertFalse(b.isBlockedAt("light.example", 3))
+        assertFalse(b.isBlockedAt("pro.example", 1))
+        assertTrue(b.isBlockedAt("pro.example", 3))
+    }
+
+    @Test
+    fun levelZeroAndOutOfRangeBlockNothing() {
+        val b = DnsHostBlocklist()
+        b.replaceFromBlob("#1f\nads.example")
+        assertFalse(b.isBlockedAt("ads.example", 0))
+        assertFalse(b.isBlockedAt("ads.example", 6))
+        assertTrue(b.isBlockedAt("ads.example", 5))
+    }
+
+    @Test
+    fun subdomainsInheritTheirParentMask() {
+        val b = DnsHostBlocklist()
+        b.replaceFromBlob("#4\nads.example")
+        assertEquals(0b00100, b.maskOf("a.b.ads.example"))
+        assertFalse(b.isBlockedAt("a.b.ads.example", 2))
+        assertTrue(b.isBlockedAt("a.b.ads.example", 3))
+    }
+
+    @Test
+    fun maskOfUnionsEveryMatchingSuffix() {
+        // The child is named by Pro, the parent by Light: the host is blocked
+        // at both, and at neither of the levels that name neither.
+        val b = DnsHostBlocklist()
+        b.replaceFromBlob("#1\nexample.co.uk\n#4\ndeep.example.co.uk")
+        assertEquals(0b00101, b.maskOf("deep.example.co.uk"))
+        assertTrue(b.isBlockedAt("deep.example.co.uk", 1))
+        assertTrue(b.isBlockedAt("deep.example.co.uk", 3))
+        assertFalse(b.isBlockedAt("deep.example.co.uk", 2))
+    }
+
+    @Test
+    fun anOutOfRangeMarkerKeepsThePreviousMask() {
+        val b = DnsHostBlocklist()
+        b.replaceFromBlob("#2\na.example\n#ff\nb.example")
+        assertEquals(0b00010, b.maskOf("a.example"))
+        assertEquals(0b00010, b.maskOf("b.example"))
+    }
+
 }

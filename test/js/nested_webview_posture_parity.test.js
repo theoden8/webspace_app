@@ -133,7 +133,8 @@ function launchUrlParams(src) {
 const POSTURE = new Set([
   'siteId', 'javascriptEnabled', 'userAgent', 'thirdPartyCookiesEnabled',
   'incognito', 'language', 'zoomPercent', 'clearUrlEnabled', 'dnsBlockEnabled',
-  'contentBlockEnabled', 'trackingProtectionEnabled', 'spoofWindowWidth',
+  'dnsBlockLevel', 'contentBlockEnabled', 'disabledFilterLists',
+  'trackingProtectionEnabled', 'spoofWindowWidth',
   'spoofWindowHeight', 'letterboxEnabled', 'fingerprintResetNonce',
   'localCdnEnabled', 'userScripts', 'locationMode', 'spoofLatitude',
   'spoofLongitude', 'spoofAccuracy', 'spoofTimezone', 'spoofTimezoneFromLocation',

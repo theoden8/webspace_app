@@ -163,7 +163,8 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
                 }
                 "attachToWebViews" -> {
                     val siteId = call.argument<String>("siteId")
-                    val count = attachToAllWebViews(siteId)
+                    val dnsLevel = call.argument<Int>("dnsLevel")
+                    val count = attachToAllWebViews(siteId, dnsLevel)
                     result.success(count)
                 }
                 "fetchBlockEvents" -> {
@@ -290,7 +291,11 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
         }
     }
 
-    private fun attachToAllWebViews(newSiteId: String?): Int {
+    private fun attachToAllWebViews(
+        newSiteId: String?,
+        dnsLevel: Int? = null
+    ): Int {
+        if (newSiteId != null && dnsLevel != null) siteDnsLevel[newSiteId] = dnsLevel
         val rootView = activity.window.decorView.rootView
         val webViews = mutableListOf<InAppWebView>()
         findInAppWebViews(rootView, webViews)
@@ -329,40 +334,56 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
         }
 
         for (webView in webViews) {
-            val isNew = webView.contentBlockerHandler !is FastSubresourceInterceptor
-            if (isNew && newSiteId != null) {
+            val existing = webView.contentBlockerHandler as? FastSubresourceInterceptor
+            if (existing == null && newSiteId != null) {
                 siteIdMap[webView] = newSiteId
             }
-            if (isNew) {
-                val siteId = siteIdMap[webView] ?: "unknown"
-                // Always attach the interceptor. The kill-switch
-                // (localCdnDisabled) governs only the LocalCDN
-                // FileInputStream serve path inside checkUrl — it does
-                // not gate DNS or ABP blocking, which must stay active
-                // so users don't have a window where their blocklists
-                // silently stop protecting sub-resource fetches.
-                webView.contentBlockerHandler = FastSubresourceInterceptor(
-                    dnsBlocklist = dnsBlocklist,
-                    cdnPatterns = cdnPatterns,
-                    cdnCacheIndex = cdnCacheIndex,
-                    localCdnDisabled = localCdnDisabled,
-                    onBlockChecked = { host, blocked, source ->
-                        recordBlockEvent(siteId, host, blocked, source)
-                    },
-                    onCdnReplaced = { cacheKey, url -> recordCdnEvent(siteId, cacheKey, url) },
-                    onLog = { tag, message -> log(tag, message) }
-                )
-                log("WebIntercept",
-                    "Attached interceptor: siteId=$siteId dns=${dnsBlocklist.size} " +
-                    "cdnPatterns=${cdnPatterns.size} " +
-                    "cdnCache=${cdnCacheIndex.size} " +
-                    "localCdnDisabled=${localCdnDisabled.get()}")
+            val siteId = siteIdMap[webView] ?: "unknown"
+            // A site's own level, remembered across re-attach so a call that
+            // names no level (the LocalCDN kill switch re-attaching everything)
+            // can't silently promote a site back to full blocking. Unknown
+            // sites fail closed at the strongest level.
+            val level = siteDnsLevel[siteId] ?: DnsHostBlocklist.MAX_LEVEL
+            if (existing != null) {
+                // Already attached: the settings edit only moves the level.
+                // The host cache holds masks, not decisions, so it survives.
+                existing.dnsLevel = level
+                continue
             }
+            // Always attach the interceptor. The kill-switch
+            // (localCdnDisabled) governs only the LocalCDN
+            // FileInputStream serve path inside checkUrl — it does
+            // not gate DNS or ABP blocking, which must stay active
+            // so users don't have a window where their blocklists
+            // silently stop protecting sub-resource fetches.
+            webView.contentBlockerHandler = FastSubresourceInterceptor(
+                dnsBlocklist = dnsBlocklist,
+                dnsLevel = level,
+                cdnPatterns = cdnPatterns,
+                cdnCacheIndex = cdnCacheIndex,
+                localCdnDisabled = localCdnDisabled,
+                onBlockChecked = { host, blocked, source ->
+                    recordBlockEvent(siteId, host, blocked, source)
+                },
+                onCdnReplaced = { cacheKey, url -> recordCdnEvent(siteId, cacheKey, url) },
+                onLog = { tag, message -> log(tag, message) }
+            )
+            log("WebIntercept",
+                "Attached interceptor: siteId=$siteId dnsLevel=$level " +
+                "dns=${dnsBlocklist.size} " +
+                "cdnPatterns=${cdnPatterns.size} " +
+                "cdnCache=${cdnCacheIndex.size} " +
+                "localCdnDisabled=${localCdnDisabled.get()}")
         }
         return webViews.size
     }
 
     private val siteIdMap = HashMap<InAppWebView, String>()
+
+    /// Last DNS severity level Dart reported for each site. Read on every
+    /// attach so an interceptor created by a call that names no level still
+    /// gets the site's own posture.
+    private val siteDnsLevel = HashMap<String, Int>()
 
     /// Exponential backoff: 50, 100, 200, 400, 800 ms. The platform-
     /// view materialisation lag is usually 1-2 frames; this gives us
@@ -464,6 +485,7 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
 ///   type), not just the host; the engine has its own internal caching.
 class FastSubresourceInterceptor(
     private val dnsBlocklist: DnsHostBlocklist,
+    dnsLevel: Int = DnsHostBlocklist.MAX_LEVEL,
     private val cdnPatterns: MutableList<Regex>,
     private val cdnCacheIndex: MutableMap<String, String>,
     private val localCdnDisabled: AtomicBoolean,
@@ -472,16 +494,24 @@ class FastSubresourceInterceptor(
     private val onLog: (String, String) -> Unit = { _, _ -> }
 ) : ContentBlockerHandler() {
 
+    /// Severity level this site blocks at; 0 when it has DNS blocking off.
+    /// The blocklist is app-wide, so this is the only place an Android
+    /// sub-resource learns the site's own DNS posture. Volatile because a
+    /// settings edit moves it on the main thread while chromium IO threads
+    /// are reading it.
+    @Volatile
+    var dnsLevel: Int = dnsLevel
+
     private var checkCount = 0
     private var loggedNoCache = false
     private var loggedLocalCdnDisabled = false
 
-    /// Per-instance host classification cache. Capacity 1024 covers a
-    /// typical busy page (≤ a few hundred unique hosts) plus headroom;
-    /// once full, FIFO eviction keeps memory bounded. Storing
-    /// `Decision` (an enum) instead of raw `String?` for the source
-    /// avoids re-classifying on dedup'd repeats.
-    private val hostDecision = LinkedHashMap<String, Decision>(256, 0.75f, false)
+    /// Per-instance host level-mask cache. Capacity 1024 covers a typical
+    /// busy page (≤ a few hundred unique hosts) plus headroom; once full,
+    /// FIFO eviction keeps memory bounded. Caches which levels name the host
+    /// rather than a blocked/allowed decision, so [dnsLevel] can move without
+    /// the cached answers going stale.
+    private val hostDecision = LinkedHashMap<String, Int>(256, 0.75f, false)
     private val hostDecisionCap = 1024
 
     /// Guards every access to [hostDecision]. `checkUrl` runs on chromium's
@@ -530,14 +560,15 @@ class FastSubresourceInterceptor(
             onLog("WebIntercept", "checkUrl #$checkCount host=$host url=$url")
         }
 
-        // 1. Look up the cached DNS host-only classification. On miss,
-        // walk the DNS set and cache. The dominant cost the cache
-        // saves is the suffix walk — `tracker.example.com` resolved
-        // once doesn't need to look up `tracker.example.com`,
-        // `example.com`, then fail again on every subsequent fetch.
-        var decision = synchronized(hostDecisionLock) { hostDecision[host] }
-        val cached = decision != null
-        if (decision == null) {
+        // 1. Look up the cached DNS level mask for this host. On miss, walk
+        // the groups and cache. The dominant cost the cache saves is the
+        // suffix walk — `tracker.example.com` resolved once doesn't need to
+        // look up `tracker.example.com`, `example.com`, then fail again on
+        // every subsequent fetch. The site's level bit-tests the cached mask
+        // rather than being baked into it.
+        var mask = synchronized(hostDecisionLock) { hostDecision[host] }
+        val cached = mask != null
+        if (mask == null) {
             // Fail-closed: if the blocklist build is still in flight, wait for
             // it rather than evaluate against an incomplete set and let a
             // tracker through. Runs on a WebView request thread (not the UI
@@ -548,17 +579,17 @@ class FastSubresourceInterceptor(
                     "DNS blocklist not ready after ${DNS_READY_TIMEOUT_MS}ms — " +
                     "allowing $host (safety valve)")
             }
-            decision = if (dnsBlocklist.isBlocked(host)) {
-                Decision.BLOCKED_DNS
-            } else {
-                Decision.ALLOWED
-            }
-            putHostDecision(host, decision)
+            mask = dnsBlocklist.maskOf(host)
+            putHostDecision(host, mask)
         }
+        val level = dnsLevel
+        val blockedByDns = level in 1..DnsHostBlocklist.MAX_LEVEL &&
+            mask and DnsHostBlocklist.levelBit(level) != 0
+        var decision = if (blockedByDns) Decision.BLOCKED_DNS else Decision.ALLOWED
         if (verbose) {
             onLog("WebIntercept",
-                "  host-only decision=$decision (cached=$cached, " +
-                "dnsSetSize=${dnsBlocklist.size})")
+                "  host-only decision=$decision (mask=$mask level=$level " +
+                "cached=$cached, dnsSetSize=${dnsBlocklist.size})")
         }
 
         // 1b. When the DNS host-only check let it through, consult the
@@ -667,7 +698,7 @@ class FastSubresourceInterceptor(
         return null
     }
 
-    private fun putHostDecision(host: String, decision: Decision) {
+    private fun putHostDecision(host: String, mask: Int) {
         synchronized(hostDecisionLock) {
             if (hostDecision.size >= hostDecisionCap) {
                 val it = hostDecision.entries.iterator()
@@ -676,7 +707,7 @@ class FastSubresourceInterceptor(
                     it.remove()
                 }
             }
-            hostDecision[host] = decision
+            hostDecision[host] = mask
         }
     }
 

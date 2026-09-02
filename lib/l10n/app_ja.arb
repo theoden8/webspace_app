@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "画面共有",
   "siteSettingsScreenShareHint": "このサイトが画面をキャプチャできるかどうかを制御します。\n\nWebSpace は実際の画面を共有しません。画面キャプチャは表示面全体を対象とするため、このアプリ内の他のサイトも映してしまいます。代わりに、選んだ画像または動画をサイトに見せることができます。\n\n確認する（既定）: 初回にダイアログで確認し、以後は選択を記憶します。\nメディアファイル: 選んだファイルを共有画面としてサイトに見せます。\n常にブロック: すべての要求を拒否します。",
   "siteSettingsScreenShareVirtual": "シミュレート画面",
-  "permissionScreenShareNeverReal": "利用できません。画面キャプチャは画面全体を対象とするため、他のサイトも映してしまいます。"
+  "permissionScreenShareNeverReal": "利用できません。画面キャプチャは画面全体を対象とするため、他のサイトも映してしまいます。",
+  "siteSettingsDnsBlocklistLevel": "ブロックリストの強度",
+  "siteSettingsDnsBlocklistLevelHint": "強度が上がるほど、より多くのドメインをブロックします。ブロックリストが原因で壊れるサイトでは強度を下げれば、保護をすべて失う代わりに一部を残せます。まだダウンロードしていない強度は、選んだ時点で取得されます。",
+  "siteSettingsDnsLevelFollowApp": "アプリ設定と同じ",
+  "siteSettingsDnsLevelFollowsApp": "アプリ設定と同じ（{level}）",
+  "siteSettingsDnsLevelNeedsDownload": "未ダウンロードのため {level} を使用中",
+  "siteSettingsDnsLevelDownloading": "ブロックリストをダウンロード中...",
+  "siteSettingsDnsLevelDownloadFailed": "その強度のブロックリストをダウンロードできませんでした",
+  "siteSettingsContentBlockerLists": "フィルターリスト",
+  "siteSettingsContentBlockerListsHint": "ここでリストをオフにすると、このサイトでだけ適用されなくなります。他のサイトではオンのままです。使えるのはアプリ設定で有効になっているリストだけです。",
+  "siteSettingsContentBlockerListsSubtitle": "{total} 件中 {on} 件が有効"
 }

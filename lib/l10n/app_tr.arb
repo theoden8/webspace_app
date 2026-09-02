@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "Ekran paylaşımı",
   "siteSettingsScreenShareHint": "Bu sitenin ekranınızı kaydedip kaydedemeyeceğini denetler.\n\nWebSpace gerçek ekranınızı asla paylaşmaz. Ekran kaydı tüm yüzeyi kapsar, dolayısıyla bu uygulamadaki diğer sitelerinizi de gösterirdi. Bunun yerine siteye, sizin seçtiğiniz bir görsel veya video gösterilebilir.\n\nSor (varsayılan): ilk seferde bir pencere sorar, sonra seçiminiz hatırlanır.\nOrtam dosyası: seçilen dosyayı siteye paylaşılan ekran olarak göster.\nHer zaman engelle: her isteği reddet.",
   "siteSettingsScreenShareVirtual": "Simüle ekran",
-  "permissionScreenShareNeverReal": "Kullanılamıyor. Ekran kaydı tüm ekranı kapsar, dolayısıyla diğer sitelerinizi de gösterirdi."
+  "permissionScreenShareNeverReal": "Kullanılamıyor. Ekran kaydı tüm ekranı kapsar, dolayısıyla diğer sitelerinizi de gösterirdi.",
+  "siteSettingsDnsBlocklistLevel": "Engelleme listesi düzeyi",
+  "siteSettingsDnsBlocklistLevelHint": "Her düzey, altındakinden daha çok alan adını engeller. Engelleme listesinin bozduğu bir site için düzeyi düşürün; böylece korumanın tamamını yitirmek yerine bir kısmı kalır. Uygulamanın henüz indirmediği bir düzey, siz seçtiğinizde indirilir.",
+  "siteSettingsDnsLevelFollowApp": "Uygulama ayarlarıyla aynı",
+  "siteSettingsDnsLevelFollowsApp": "Uygulama ayarlarıyla aynı ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "Henüz indirilmedi, {level} kullanılıyor",
+  "siteSettingsDnsLevelDownloading": "Engelleme listesi indiriliyor...",
+  "siteSettingsDnsLevelDownloadFailed": "Engelleme listesinin o düzeyi indirilemedi",
+  "siteSettingsContentBlockerLists": "Süzgeç listeleri",
+  "siteSettingsContentBlockerListsHint": "Yalnızca bu sitede geçerli olmaması için bir listeyi buradan kapatın. Diğer her yerde listeler açık kalır. Yalnızca uygulama ayarlarında açık olan listeler kullanılabilir.",
+  "siteSettingsContentBlockerListsSubtitle": "{total} listeden {on} tanesi açık"
 }

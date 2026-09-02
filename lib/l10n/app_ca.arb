@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "Compartició de pantalla",
   "siteSettingsScreenShareHint": "Controla si aquest lloc pot capturar la vostra pantalla.\n\nWebSpace no comparteix mai la pantalla real. Una captura de pantalla abasta tota la superfície, de manera que també mostraria els vostres altres llocs d'aquesta aplicació. En comptes d'això, es pot mostrar al lloc una imatge o un vídeo que trieu vós.\n\nPregunta (per defecte): un missatge ho pregunta el primer cop i després recorda la vostra tria.\nFitxer multimèdia: mostra el fitxer triat al lloc com a pantalla compartida.\nBloqueja sempre: rebutja totes les peticions.",
   "siteSettingsScreenShareVirtual": "Pantalla simulada",
-  "permissionScreenShareNeverReal": "No disponible. Una captura de pantalla abasta tota la pantalla, de manera que també mostraria els vostres altres llocs."
+  "permissionScreenShareNeverReal": "No disponible. Una captura de pantalla abasta tota la pantalla, de manera que també mostraria els vostres altres llocs.",
+  "siteSettingsDnsBlocklistLevel": "Nivell de la llista de bloqueig",
+  "siteSettingsDnsBlocklistLevelHint": "Cada nivell bloqueja més dominis que el de sota. Baixa'l per a un lloc que la llista de bloqueig espatlla, així conserva una mica de protecció en lloc de cap. Un nivell que l'aplicació encara no ha baixat es descarrega quan el tries.",
+  "siteSettingsDnsLevelFollowApp": "Igual que la configuració de l'aplicació",
+  "siteSettingsDnsLevelFollowsApp": "Igual que la configuració de l'aplicació ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "Encara no s'ha baixat; s'utilitza {level}",
+  "siteSettingsDnsLevelDownloading": "S'està baixant la llista de bloqueig...",
+  "siteSettingsDnsLevelDownloadFailed": "No s'ha pogut baixar aquest nivell de la llista de bloqueig",
+  "siteSettingsContentBlockerLists": "Llistes de filtres",
+  "siteSettingsContentBlockerListsHint": "Desactiva una llista aquí perquè deixi d'aplicar-se només en aquest lloc. Les llistes continuen actives a la resta. Només es poden fer servir les llistes activades a la configuració de l'aplicació.",
+  "siteSettingsContentBlockerListsSubtitle": "{on} de {total} actives"
 }

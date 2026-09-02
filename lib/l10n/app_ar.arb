@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "مشاركة الشاشة",
   "siteSettingsScreenShareHint": "يتحكم في ما إذا كان بإمكان هذا الموقع تسجيل شاشتك.\n\nلا يشارك WebSpace شاشتك الحقيقية أبدًا. فتسجيل الشاشة يغطي السطح بأكمله، وبذلك يعرض أيضًا مواقعك الأخرى في هذا التطبيق. يمكن بدلاً من ذلك عرض صورة أو فيديو تختاره أنت على الموقع.\n\nاسأل (الافتراضي): تظهر نافذة في المرة الأولى، ثم يُحفظ اختيارك.\nملف وسائط: اعرض الملف المختار على الموقع بوصفه الشاشة المشتركة.\nحظر دائمًا: ارفض كل طلب.",
   "siteSettingsScreenShareVirtual": "شاشة محاكاة",
-  "permissionScreenShareNeverReal": "غير متاح. تسجيل الشاشة يغطي الشاشة بأكملها، وبذلك يعرض أيضًا مواقعك الأخرى."
+  "permissionScreenShareNeverReal": "غير متاح. تسجيل الشاشة يغطي الشاشة بأكملها، وبذلك يعرض أيضًا مواقعك الأخرى.",
+  "siteSettingsDnsBlocklistLevel": "مستوى قائمة الحظر",
+  "siteSettingsDnsBlocklistLevelHint": "يحظر كل مستوى نطاقات أكثر من المستوى الذي تحته. اخفض المستوى لموقع تعطّله قائمة الحظر، لكي يحتفظ ببعض الحماية بدلاً من فقدانها كلها. أي مستوى لم ينزّله التطبيق بعد يُنزَّل عند اختياره.",
+  "siteSettingsDnsLevelFollowApp": "مثل إعدادات التطبيق",
+  "siteSettingsDnsLevelFollowsApp": "مثل إعدادات التطبيق ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "لم يُنزَّل بعد، يُستخدم {level}",
+  "siteSettingsDnsLevelDownloading": "جارٍ تنزيل قائمة الحظر...",
+  "siteSettingsDnsLevelDownloadFailed": "تعذّر تنزيل مستوى قائمة الحظر هذا",
+  "siteSettingsContentBlockerLists": "قوائم التصفية",
+  "siteSettingsContentBlockerListsHint": "أوقف قائمة هنا لمنع تطبيقها على هذا الموقع فقط. تبقى القوائم مفعّلة في كل مكان آخر. لا يمكن استخدام سوى القوائم المفعّلة في إعدادات التطبيق.",
+  "siteSettingsContentBlockerListsSubtitle": "{on} من {total} مفعّلة"
 }

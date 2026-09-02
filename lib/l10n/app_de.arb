@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "Bildschirmfreigabe",
   "siteSettingsScreenShareHint": "Legt fest, ob diese Website Ihren Bildschirm aufnehmen darf.\n\nWebSpace gibt Ihren echten Bildschirm nie frei. Eine Bildschirmaufnahme erfasst die gesamte Oberfläche und würde damit auch Ihre anderen Websites in dieser App zeigen. Stattdessen kann der Website ein Bild oder Video Ihrer Wahl gezeigt werden.\n\nFragen (Standard): Beim ersten Mal wird gefragt, danach wird Ihre Wahl gespeichert.\nMediendatei: der Website die gewählte Datei als geteilten Bildschirm zeigen.\nImmer blockieren: jede Anfrage ablehnen.",
   "siteSettingsScreenShareVirtual": "Simulierter Bildschirm",
-  "permissionScreenShareNeverReal": "Nicht verfügbar. Eine Bildschirmaufnahme erfasst den gesamten Bildschirm und würde damit auch Ihre anderen Websites zeigen."
+  "permissionScreenShareNeverReal": "Nicht verfügbar. Eine Bildschirmaufnahme erfasst den gesamten Bildschirm und würde damit auch Ihre anderen Websites zeigen.",
+  "siteSettingsDnsBlocklistLevel": "Sperrlisten-Stufe",
+  "siteSettingsDnsBlocklistLevelHint": "Jede Stufe blockiert mehr Domains als die darunter. Senken Sie sie für eine Website, die durch die Sperrliste kaputtgeht, damit ein Rest an Schutz bleibt statt gar keiner. Eine Stufe, die die App noch nicht heruntergeladen hat, wird beim Auswählen geholt.",
+  "siteSettingsDnsLevelFollowApp": "Wie in den App-Einstellungen",
+  "siteSettingsDnsLevelFollowsApp": "Wie in den App-Einstellungen ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "Noch nicht heruntergeladen, verwendet {level}",
+  "siteSettingsDnsLevelDownloading": "Sperrliste wird heruntergeladen...",
+  "siteSettingsDnsLevelDownloadFailed": "Diese Sperrlisten-Stufe konnte nicht heruntergeladen werden",
+  "siteSettingsContentBlockerLists": "Filterlisten",
+  "siteSettingsContentBlockerListsHint": "Schalten Sie hier eine Liste ab, damit sie nur auf dieser Website nicht mehr greift. Überall sonst bleiben die Listen aktiv. Nur in den App-Einstellungen aktivierte Listen sind verwendbar.",
+  "siteSettingsContentBlockerListsSubtitle": "{on} von {total} aktiv"
 }

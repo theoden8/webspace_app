@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "Skjermdeling",
   "siteSettingsScreenShareHint": "Bestemmer om dette nettstedet får ta opp skjermen din.\n\nWebSpace deler aldri den ekte skjermen din. Et skjermopptak dekker hele flaten og ville derfor også vise de andre nettstedene dine i denne appen. I stedet kan nettstedet få vist et bilde eller en video du velger.\n\nSpør (standard): et vindu spør første gang, og valget huskes deretter.\nMediefil: vis den valgte filen til nettstedet som den delte skjermen.\nBlokker alltid: avvis alle forespørsler.",
   "siteSettingsScreenShareVirtual": "Simulert skjerm",
-  "permissionScreenShareNeverReal": "Ikke tilgjengelig. Et skjermopptak dekker hele skjermen og ville derfor også vise de andre nettstedene dine."
+  "permissionScreenShareNeverReal": "Ikke tilgjengelig. Et skjermopptak dekker hele skjermen og ville derfor også vise de andre nettstedene dine.",
+  "siteSettingsDnsBlocklistLevel": "Blokkeringslistenivå",
+  "siteSettingsDnsBlocklistLevelHint": "Hvert nivå blokkerer flere domener enn nivået under. Senk det for et nettsted som blokkeringslisten ødelegger, slik at det beholder noe beskyttelse i stedet for ingen. Et nivå appen ikke har lastet ned ennå, hentes når du velger det.",
+  "siteSettingsDnsLevelFollowApp": "Samme som appinnstillingene",
+  "siteSettingsDnsLevelFollowsApp": "Samme som appinnstillingene ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "Ikke lastet ned ennå, bruker {level}",
+  "siteSettingsDnsLevelDownloading": "Laster ned blokkeringsliste...",
+  "siteSettingsDnsLevelDownloadFailed": "Dette blokkeringslistenivået kunne ikke lastes ned",
+  "siteSettingsContentBlockerLists": "Filterlister",
+  "siteSettingsContentBlockerListsHint": "Slå av en liste her for at den skal slutte å gjelde bare på dette nettstedet. Alle andre steder forblir listene på. Bare lister som er slått på i appinnstillingene, kan brukes.",
+  "siteSettingsContentBlockerListsSubtitle": "{on} av {total} på"
 }

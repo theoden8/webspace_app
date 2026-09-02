@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "Skærmdeling",
   "siteSettingsScreenShareHint": "Bestemmer, om dette websted må optage din skærm.\n\nWebSpace deler aldrig din rigtige skærm. En skærmoptagelse dækker hele fladen og ville derfor også vise dine andre websteder i denne app. I stedet kan webstedet få vist et billede eller en video, du vælger.\n\nSpørg (standard): der spørges første gang, og valget huskes derefter.\nMediefil: vis den valgte fil til webstedet som den delte skærm.\nBlokér altid: afvis alle anmodninger.",
   "siteSettingsScreenShareVirtual": "Simuleret skærm",
-  "permissionScreenShareNeverReal": "Ikke tilgængelig. En skærmoptagelse dækker hele skærmen og ville derfor også vise dine andre websteder."
+  "permissionScreenShareNeverReal": "Ikke tilgængelig. En skærmoptagelse dækker hele skærmen og ville derfor også vise dine andre websteder.",
+  "siteSettingsDnsBlocklistLevel": "Blokeringslisteniveau",
+  "siteSettingsDnsBlocklistLevelHint": "Hvert niveau blokerer flere domæner end niveauet under. Sænk det for et websted, som blokeringslisten ødelægger, så det beholder en vis beskyttelse i stedet for ingen. Et niveau, appen endnu ikke har hentet, hentes, når du vælger det.",
+  "siteSettingsDnsLevelFollowApp": "Samme som appindstillinger",
+  "siteSettingsDnsLevelFollowsApp": "Samme som appindstillinger ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "Endnu ikke hentet, bruger {level}",
+  "siteSettingsDnsLevelDownloading": "Henter blokeringsliste...",
+  "siteSettingsDnsLevelDownloadFailed": "Det blokeringslisteniveau kunne ikke hentes",
+  "siteSettingsContentBlockerLists": "Filterlister",
+  "siteSettingsContentBlockerListsHint": "Slå en liste fra her for kun at stoppe den på dette websted. Listerne forbliver slået til alle andre steder. Kun lister, der er slået til i appindstillingerne, kan bruges.",
+  "siteSettingsContentBlockerListsSubtitle": "{on} af {total} slået til"
 }

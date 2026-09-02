@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "Partilha de ecrã",
   "siteSettingsScreenShareHint": "Controla se este site pode capturar o seu ecrã.\n\nO WebSpace nunca partilha o seu ecrã real. Uma captura de ecrã abrange toda a superfície, pelo que mostraria também os seus outros sites nesta aplicação. Em vez disso, pode mostrar-se ao site uma imagem ou um vídeo à sua escolha.\n\nPerguntar (predefinição): uma janela pergunta da primeira vez e depois memoriza a sua escolha.\nFicheiro multimédia: mostrar ao site o ficheiro escolhido como ecrã partilhado.\nBloquear sempre: rejeitar todos os pedidos.",
   "siteSettingsScreenShareVirtual": "Ecrã simulado",
-  "permissionScreenShareNeverReal": "Indisponível. Uma captura de ecrã abrange todo o ecrã, pelo que mostraria também os seus outros sites."
+  "permissionScreenShareNeverReal": "Indisponível. Uma captura de ecrã abrange todo o ecrã, pelo que mostraria também os seus outros sites.",
+  "siteSettingsDnsBlocklistLevel": "Nível da lista de bloqueio",
+  "siteSettingsDnsBlocklistLevelHint": "Cada nível bloqueia mais domínios do que o anterior. Baixe-o para um site que a lista de bloqueio estraga, para que fique com alguma proteção em vez de nenhuma. Um nível que a aplicação ainda não transferiu é obtido quando o escolhe.",
+  "siteSettingsDnsLevelFollowApp": "Igual às definições da aplicação",
+  "siteSettingsDnsLevelFollowsApp": "Igual às definições da aplicação ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "Ainda não transferido; a usar {level}",
+  "siteSettingsDnsLevelDownloading": "A transferir a lista de bloqueio...",
+  "siteSettingsDnsLevelDownloadFailed": "Não foi possível transferir esse nível da lista de bloqueio",
+  "siteSettingsContentBlockerLists": "Listas de filtros",
+  "siteSettingsContentBlockerListsHint": "Desligue aqui uma lista para deixar de se aplicar apenas neste site. Em todo o resto as listas continuam ligadas. Só podem ser usadas as listas ativadas nas definições da aplicação.",
+  "siteSettingsContentBlockerListsSubtitle": "{on} de {total} ativas"
 }

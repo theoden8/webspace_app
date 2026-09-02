@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "Ekrano bendrinimas",
   "siteSettingsScreenShareHint": "Nustato, ar ši svetainė gali įrašyti jūsų ekraną.\n\n„WebSpace“ niekada nebendrina tikrojo jūsų ekrano. Ekrano įrašas apima visą paviršių, tad parodytų ir kitas jūsų svetaines šioje programoje. Vietoje to svetainei galima parodyti jūsų pasirinktą paveikslėlį ar vaizdo įrašą.\n\nKlausti (numatytoji): pirmą kartą klausiama iškylančiajame lange, paskui pasirinkimas įsimenamas.\nMedijos failas: rodyti svetainei pasirinktą failą kaip bendrinamą ekraną.\nVisada blokuoti: atmesti kiekvieną užklausą.",
   "siteSettingsScreenShareVirtual": "Imituojamas ekranas",
-  "permissionScreenShareNeverReal": "Nepasiekiama. Ekrano įrašas apima visą ekraną, tad parodytų ir kitas jūsų svetaines."
+  "permissionScreenShareNeverReal": "Nepasiekiama. Ekrano įrašas apima visą ekraną, tad parodytų ir kitas jūsų svetaines.",
+  "siteSettingsDnsBlocklistLevel": "Blokavimo sąrašo lygis",
+  "siteSettingsDnsBlocklistLevelHint": "Kiekvienas lygis blokuoja daugiau domenų nei žemesnysis. Sumažinkite jį svetainei, kurią blokavimo sąrašas gadina, kad liktų bent dalis apsaugos, o ne jokios. Lygį, kurio programa dar neatsisiuntė, ji parsiunčia jį pasirinkus.",
+  "siteSettingsDnsLevelFollowApp": "Kaip programos nustatymuose",
+  "siteSettingsDnsLevelFollowsApp": "Kaip programos nustatymuose ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "Dar neatsisiųsta, naudojama {level}",
+  "siteSettingsDnsLevelDownloading": "Atsiunčiamas blokavimo sąrašas...",
+  "siteSettingsDnsLevelDownloadFailed": "Nepavyko atsisiųsti šio blokavimo sąrašo lygio",
+  "siteSettingsContentBlockerLists": "Filtrų sąrašai",
+  "siteSettingsContentBlockerListsHint": "Išjunkite sąrašą čia, kad jis nustotų galioti tik šioje svetainėje. Visur kitur sąrašai lieka įjungti. Naudoti galima tik programos nustatymuose įjungtus sąrašus.",
+  "siteSettingsContentBlockerListsSubtitle": "Įjungta {on} iš {total}"
 }

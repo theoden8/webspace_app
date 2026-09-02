@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "Kushiriki skrini",
   "siteSettingsScreenShareHint": "Hudhibiti kama tovuti hii inaweza kunasa skrini yako.\n\nWebSpace haishiriki kamwe skrini yako halisi. Kunasa skrini hufunika uso mzima, hivyo kungeonyesha pia tovuti zako nyingine katika programu hii. Badala yake, tovuti inaweza kuonyeshwa picha au video unayochagua.\n\nUliza (chaguo-msingi): dirisha huuliza mara ya kwanza, kisha hukumbuka chaguo lako.\nFaili ya midia: onyesha faili iliyochaguliwa kwa tovuti kama skrini iliyoshirikiwa.\nZuia kila wakati: kataa kila ombi.",
   "siteSettingsScreenShareVirtual": "Skrini ya kuiga",
-  "permissionScreenShareNeverReal": "Haipatikani. Kunasa skrini hufunika skrini nzima, hivyo kungeonyesha pia tovuti zako nyingine."
+  "permissionScreenShareNeverReal": "Haipatikani. Kunasa skrini hufunika skrini nzima, hivyo kungeonyesha pia tovuti zako nyingine.",
+  "siteSettingsDnsBlocklistLevel": "Kiwango cha orodha ya kuzuia",
+  "siteSettingsDnsBlocklistLevelHint": "Kila kiwango huzuia vikoa vingi zaidi kuliko kiwango kilicho chini yake. Kishushe kwa tovuti ambayo orodha ya kuzuia inaiharibu, ili ibaki na ulinzi kiasi badala ya kukosa kabisa. Kiwango ambacho programu bado haijapakua hupakuliwa unapokichagua.",
+  "siteSettingsDnsLevelFollowApp": "Sawa na mipangilio ya programu",
+  "siteSettingsDnsLevelFollowsApp": "Sawa na mipangilio ya programu ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "Bado haijapakuliwa, inatumia {level}",
+  "siteSettingsDnsLevelDownloading": "Inapakua orodha ya kuzuia...",
+  "siteSettingsDnsLevelDownloadFailed": "Kiwango hicho cha orodha ya kuzuia hakikuweza kupakuliwa",
+  "siteSettingsContentBlockerLists": "Orodha za vichujio",
+  "siteSettingsContentBlockerListsHint": "Zima orodha hapa ili iache kutumika kwenye tovuti hii pekee. Kwingineko orodha hubaki zimewashwa. Ni orodha zilizowashwa katika mipangilio ya programu pekee zinazoweza kutumika.",
+  "siteSettingsContentBlockerListsSubtitle": "{on} kati ya {total} zimewashwa"
 }

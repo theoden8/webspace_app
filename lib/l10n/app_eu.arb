@@ -775,5 +775,15 @@
   "siteSettingsScreenShare": "Pantaila partekatzea",
   "siteSettingsScreenShareHint": "Gune honek zure pantaila kapturatu dezakeen kontrolatzen du.\n\nWebSpace-k ez du inoiz zure benetako pantaila partekatzen. Pantaila-kapturak azalera osoa hartzen du, eta beraz aplikazio honetako zure beste guneak ere erakutsiko lituzke. Horren ordez, zuk aukeratutako irudi edo bideo bat erakuts dakioke guneari.\n\nGaldetu (lehenetsia): lehen aldian leiho batek galdetzen du, eta gero zure aukera gogoratzen du.\nMultimedia-fitxategia: erakutsi aukeratutako fitxategia guneari pantaila partekatu gisa.\nBlokeatu beti: ukatu eskaera guztiak.",
   "siteSettingsScreenShareVirtual": "Simulatutako pantaila",
-  "permissionScreenShareNeverReal": "Ez dago erabilgarri. Pantaila-kapturak pantaila osoa hartzen du, eta beraz zure beste guneak ere erakutsiko lituzke."
+  "permissionScreenShareNeverReal": "Ez dago erabilgarri. Pantaila-kapturak pantaila osoa hartzen du, eta beraz zure beste guneak ere erakutsiko lituzke.",
+  "siteSettingsDnsBlocklistLevel": "Blokeo-zerrendaren maila",
+  "siteSettingsDnsBlocklistLevelHint": "Maila bakoitzak azpikoak baino domeinu gehiago blokeatzen ditu. Jaitsi ezazu blokeo-zerrendak hausten duen gune baterako, babes apur bat gorde dezan bat ere ez izan beharrean. Aplikazioak oraindik deskargatu ez duen maila bat aukeratzean deskargatzen da.",
+  "siteSettingsDnsLevelFollowApp": "Aplikazioaren ezarpenen berdina",
+  "siteSettingsDnsLevelFollowsApp": "Aplikazioaren ezarpenen berdina ({level})",
+  "siteSettingsDnsLevelNeedsDownload": "Oraindik ez da deskargatu, {level} erabiltzen",
+  "siteSettingsDnsLevelDownloading": "Blokeo-zerrenda deskargatzen...",
+  "siteSettingsDnsLevelDownloadFailed": "Ezin izan da blokeo-zerrendaren maila hori deskargatu",
+  "siteSettingsContentBlockerLists": "Iragazki-zerrendak",
+  "siteSettingsContentBlockerListsHint": "Itzali zerrenda bat hemen gune honetan bakarrik aplika ez dadin. Beste guztietan piztuta jarraituko dute. Aplikazioaren ezarpenetan gaituta dauden zerrendak bakarrik erabil daitezke.",
+  "siteSettingsContentBlockerListsSubtitle": "{total}(e)tik {on} piztuta"
 }

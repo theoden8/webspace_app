@@ -7,6 +7,7 @@ import 'package:webspace/services/abp_network_hosts.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/adblock_engine.dart';
 import 'package:webspace/services/file_store.dart';
+import 'package:webspace/services/filter_list_mask.dart';
 import 'package:webspace/services/bloom_filter.dart';
 import 'package:webspace/services/content_blocker_shim.dart';
 import 'package:webspace/services/host_lookup.dart';
@@ -100,6 +101,7 @@ const List<Map<String, String>> _defaultLists = [
 /// (e.g. Windows is unsupported), all queries silently no-op.
 class ContentBlockerService {
   static const String _listsKey = 'content_blocker_lists';
+  static const String _listMasksKey = 'content_blocker_list_masks';
   static const String _cacheDir = 'content_blocker_cache';
 
   /// Bump when the rules-text preprocessing (procedural backfill
@@ -117,6 +119,83 @@ class ContentBlockerService {
   ContentBlockerService._();
 
   List<FilterList> _lists = [];
+
+  /// Per-site content-blocker mask: list id -> hosts of the sites that
+  /// switched that list off. Pushed by the app whenever the site set or a
+  /// site's selection changes; the mask is compiled into the rules rather
+  /// than consulted per request, so it costs a rebuild here and nothing on
+  /// the hot path.
+  Map<String, Set<String>> _listMasks = const <String, Set<String>>{};
+
+  /// Read-only view of the mask in force, for tests and diagnostics.
+  @visibleForTesting
+  Map<String, Set<String>> get debugListMasks => Map.unmodifiable(_listMasks);
+
+  /// Replace the per-site mask. Rebuilds only when the mask actually
+  /// changed: the rebuild reparses every list, and this is called from the
+  /// same funnel that persists sites.
+  ///
+  /// The mask is persisted so [initialize] can compile it into the very
+  /// first engine build. It is derived from the sites and rewritten on every
+  /// save, so a stale copy self-heals on the next one.
+  Future<void> setListMasks(Map<String, Set<String>> masks) async {
+    final next = _normalizeMasks(masks);
+    if (_sameMasks(_listMasks, next)) return;
+    _listMasks = next;
+    LogService.instance.log('ContentBlocker',
+        'Per-site filter-list mask changed: '
+        '${next.map((id, hosts) => MapEntry(id, hosts.length))}',
+        level: LogLevel.info);
+    await _saveListMasks();
+    await _rebuildEngine();
+  }
+
+  static Map<String, Set<String>> _normalizeMasks(
+          Map<String, Set<String>> masks) =>
+      <String, Set<String>>{
+        for (final entry in masks.entries)
+          if (entry.value.isNotEmpty) entry.key: {...entry.value},
+      };
+
+  Future<void> _saveListMasks() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (_listMasks.isEmpty) {
+      await prefs.remove(_listMasksKey);
+      return;
+    }
+    await prefs.setString(
+        _listMasksKey,
+        jsonEncode(_listMasks
+            .map((id, hosts) => MapEntry(id, hosts.toList()..sort()))));
+  }
+
+  Map<String, Set<String>> _readListMasks(SharedPreferences prefs) {
+    final raw = prefs.getString(_listMasksKey);
+    if (raw == null) return const <String, Set<String>>{};
+    try {
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      return _normalizeMasks({
+        for (final entry in decoded.entries)
+          entry.key: {
+            for (final host in entry.value as List)
+              if (host is String) host
+          },
+      });
+    } catch (_) {
+      return const <String, Set<String>>{};
+    }
+  }
+
+  static bool _sameMasks(
+      Map<String, Set<String>> a, Map<String, Set<String>> b) {
+    if (a.length != b.length) return false;
+    for (final entry in a.entries) {
+      final other = b[entry.key];
+      if (other == null || other.length != entry.value.length) return false;
+      if (!other.containsAll(entry.value)) return false;
+    }
+    return true;
+  }
 
   /// Hosts named by anchored `||host^` network-block rules in the loaded
   /// lists. Pushed to [DnsBlockService] so the iOS/macOS sub-resource
@@ -605,6 +684,7 @@ class ContentBlockerService {
         _rustEngineSupported =
             await WebInterceptNative.isAdblockEngineSupported();
       }
+      _listMasks = _readListMasks(prefs);
       final listsJson = prefs.getString(_listsKey);
 
       if (listsJson != null) {
@@ -758,7 +838,10 @@ class ContentBlockerService {
       try {
         final cached = await _store.readText(_cacheName(list.id));
         if (cached != null) {
-          buf.writeln(cached);
+          // Sites that switched this list off get it scoped away here, so
+          // the engine carries the mask instead of every decision site.
+          buf.writeln(scopeRulesAwayFromHosts(
+              cached, _listMasks[list.id] ?? const <String>{}));
           listCount++;
         }
       } catch (_) {}
