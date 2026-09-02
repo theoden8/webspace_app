@@ -13,8 +13,9 @@
 //      -> bridge -> shim -> canvas captureStream -> <video> -> page, and fails
 //      on the autoplay regression because no frame ever arrives.
 //   2. Virtual mode, VIDEO source: the clip must play AND keep looping. The
-//      fixture alternates two colours every ~500ms, so a stream frozen on its
-//      first decoded frame reports zero transitions and fails.
+//      fixture alternates its two colours on every frame, so a stream frozen
+//      on its first decoded frame reports zero transitions and fails, while a
+//      live one proves itself off two decoded frames.
 //   3. Block mode: the same page must be denied (NotAllowedError), proving
 //      scenarios 1-2 are not vacuously green.
 //   4. Real mode: the device camera is handed over when one exists. Skipped
@@ -120,14 +121,15 @@ function transitions(list) {
     // single-sample check), so the test needs the observed colours and the
     // number of transitions.
     var samples = [];
-    // The emulator's software decoder runs the clip several times slower than
-    // real time, and how much slower varies per runner: the same 4s window has
-    // produced 8, 2 and 0 transitions across CI runs, the last of which is a
-    // red build for a stream that is playing correctly. So watch the video
-    // source until it has actually flipped, capped well above the slowest
-    // observed decode; a healthy engine proves the loop in about a second and
-    // breaks out immediately. Sources that are supposed to hold one colour
-    // keep the short window.
+    // The emulator's software decoder runs the clip slower than real time, at
+    // a rate that varies per runner: the same 4s window has produced 8, 2 and
+    // 0 transitions across CI runs, the last of which is a red build for a
+    // stream that is playing correctly. The fixture answers most of that by
+    // flipping colour on every frame, so the proof costs two decoded frames;
+    // this window is the remaining headroom. Watch the video source until it
+    // has actually flipped rather than for a fixed span, capped well above the
+    // slowest observed decode; a healthy engine breaks out in about a second.
+    // Sources that are supposed to hold one colour keep the short window.
     var observeMs = WANTS_LOOP ? 30000 : 4000;
     var deadline = Date.now() + (WANTS_LOOP ? 45000 : 20000);
     var observeUntil = null;
@@ -362,7 +364,7 @@ void main() {
     expect(virtualReport['cams'], 1);
 
     // --- Scenario 2: a video source plays AND loops ------------------------
-    // The clip alternates two colours every ~500ms, so a stream that is
+    // The clip alternates two colours on every frame, so a stream that is
     // merely frozen on the first decoded frame reports zero transitions.
     await openSiteDrawer(tester);
     await tapSite(tester, 'CamVideo');
@@ -385,16 +387,17 @@ void main() {
             '${videoReport['observedMs']}ms');
     expect(sawColour(kVirtualCameraVideoColorB), isTrue,
         reason: 'second colour of the clip should appear; saw $distinct after '
-            '${videoReport['observedMs']}ms. The probe watches until the clip '
-            'flips or 30s elapse, so one colour here means the decoder is '
-            'stalled, not merely slow.');
+            '${videoReport['observedMs']}ms. Every frame of the clip flips '
+            'colour, so one colour here means under two frames decoded in the '
+            'whole window, not merely a slow decoder.');
     // At least one transition proves the stream is live rather than frozen on
     // the first decoded frame. Deliberately not a tighter bound: the emulator
     // decodes the VP8 clip far slower than real time and at a rate that varies
     // per runner (CI has seen 8, 2 and 0 transitions inside the same 4s
-    // window), so the probe waits for the flip instead and the count stays at
-    // one. The strict looping proof — several transitions per clip length — is
-    // asserted in test/browser/camera_stream_real_engine.test.js against a
+    // window, back when catching the second colour was also a race with the
+    // loop wrap), so the probe waits for the flip instead and the count stays
+    // at one. The strict looping proof — several transitions per clip length —
+    // is asserted in test/browser/camera_stream_real_engine.test.js against a
     // real engine.
     expect((videoReport['changes'] as num) >= 1, isTrue,
         reason: 'the clip must keep playing, not freeze on one frame; '
