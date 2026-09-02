@@ -184,6 +184,21 @@ All webviews (main and nested) SHALL support pull-to-refresh to reload the curre
 **And** the pull-to-refresh indicator animates
 **And** the indicator stops when `onLoadStop` fires
 
+#### Scenario: Pinch to zoom does not refresh
+
+**Given** a webview is scrolled to the top
+**When** the user pinches with two fingers
+**Then** the page does not reload
+**And** the refresh control is disabled for the rest of that gesture
+**And** a refresh that the native control fired before the gate reached it is
+swallowed, stopping the indicator without reloading
+
+**Note:** Neither `SwipeRefreshLayout` (Android) nor `UIRefreshControl` (iOS)
+consults the pointer count, so a pinch reads as a downward drag. `PullToRefreshGate`
+([lib/services/pull_to_refresh_gate.dart](../../../lib/services/pull_to_refresh_gate.dart))
+watches Flutter's pointer stream through a `Listener` wrapped around the webview
+and both disables the control and guards `onRefresh`.
+
 ---
 
 ### Requirement: NAV-007 - URL Bar Sync
@@ -589,6 +604,9 @@ Home button pressed
 4. Open a cross-domain link (opens nested webview)
 5. Pull down in the nested webview
 6. Verify refresh works in nested webview too
+7. Scroll back to the top and pinch to zoom with two fingers
+8. Verify no refresh indicator appears and the page does not reload
+9. Verify a normal one-finger pull still refreshes right after
 
 ### Manual Test: URL Bar Sync on iOS Back Gesture
 

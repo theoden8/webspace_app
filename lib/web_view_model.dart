@@ -7,7 +7,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' show ConsoleMessageLevel;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp
-    show CookieManager, PullToRefreshController, PullToRefreshSettings, SslCertificate, WebUri;
+    show CookieManager, SslCertificate, WebUri;
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/domain_claim.dart';
@@ -21,6 +21,7 @@ import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/camera_decision_engine.dart';
 import 'package:webspace/services/screen_share_decision_engine.dart';
 import 'package:webspace/services/microphone_decision_engine.dart';
+import 'package:webspace/services/pull_to_refresh_gate.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
@@ -1179,12 +1180,8 @@ class WebViewModel {
         sensitivity: LogSensitivity.sensitive,
       );
       final bool isMobile = hostIsIOS || hostIsAndroid;
-      final pullToRefreshController = isMobile ? inapp.PullToRefreshController(
-        settings: inapp.PullToRefreshSettings(enabled: true),
-        onRefresh: () async {
-          await userDrivenReload();
-        },
-      ) : null;
+      final pullToRefreshGate =
+          isMobile ? PullToRefreshGate.create(onRefresh: userDrivenReload) : null;
       // Track last user gesture on same-domain navigation, so we can
       // propagate it to cross-domain redirects (e.g., search engine
       // redirect links like DuckDuckGo's /l/?uddg=... or Google's /url?q=...).
@@ -1324,7 +1321,8 @@ class WebViewModel {
                     isActive: isActive,
                     saveFunc: saveFunc,
                   ),
-          pullToRefreshController: pullToRefreshController,
+          pullToRefreshController: pullToRefreshGate?.controller,
+          pullToRefreshGate: pullToRefreshGate,
           onWindowRequested: onWindowRequested,
           shouldOverrideUrlLoading: (url, hasGesture) {
             LogService.instance.log(

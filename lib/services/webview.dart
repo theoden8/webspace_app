@@ -16,6 +16,7 @@ import 'package:webspace/services/launch_nonce.dart';
 import 'package:webspace/services/letterbox.dart';
 import 'package:webspace/services/page_zoom_shim.dart';
 import 'package:webspace/services/proxy_relay.dart';
+import 'package:webspace/services/pull_to_refresh_gate.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/target_blank_rewrite.dart';
 import 'package:webspace/services/theme_color_scheme_shim.dart';
@@ -679,6 +680,10 @@ class WebViewConfig {
   )? onUntrustedCertificate;
   /// Optional pull-to-refresh controller for enabling pull-to-refresh gesture.
   final inapp.PullToRefreshController? pullToRefreshController;
+  /// Guards [pullToRefreshController] against two-finger gestures. Owns the
+  /// pointer bookkeeping the platform refresh controls lack; the factory
+  /// feeds it from a [Listener] wrapped around the webview.
+  final PullToRefreshGate? pullToRefreshGate;
   /// Fires when the underlying renderer terminates unexpectedly. On Android
   /// this maps to `WebView.onRenderProcessGone` — the OS sometimes kills the
   /// renderer to reclaim memory after the app has been backgrounded for a
@@ -827,6 +832,7 @@ class WebViewConfig {
     this.onExternalSchemeUrl,
     this.onUntrustedCertificate,
     this.pullToRefreshController,
+    this.pullToRefreshGate,
     this.onRendererGone,
     this.locationMode = LocationMode.off,
     this.spoofLatitude,
@@ -4507,7 +4513,22 @@ class WebViewFactory {
         config.onRendererGone?.call(true);
       },
     );
-    return _applyLetterbox(config, webViewWidget);
+    return _applyLetterbox(config, _applyRefreshGate(config, webViewWidget));
+  }
+
+  /// Feeds the raw pointer stream to [WebViewConfig.pullToRefreshGate].
+  /// [Listener] never joins the gesture arena, so the webview keeps every
+  /// touch it would otherwise receive.
+  static Widget _applyRefreshGate(WebViewConfig config, Widget webView) {
+    final gate = config.pullToRefreshGate;
+    if (gate == null) return webView;
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: (event) => gate.onPointerDown(event.pointer),
+      onPointerUp: (event) => gate.onPointerUp(event.pointer),
+      onPointerCancel: (event) => gate.onPointerUp(event.pointer),
+      child: webView,
+    );
   }
 
   /// Wrap [webView] in a centered, grid-snapped box with margin bars when the
