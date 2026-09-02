@@ -762,5 +762,18 @@
   "homeQrReviewName": "ชื่อ: {name}",
   "homeQrReviewProxy": "ส่งทราฟฟิกของเว็บไซต์นี้ผ่านพร็อกซี: {address}",
   "homeQrReviewTurnsOff": "ปิด: {settings}",
-  "homeQrReviewTurnsOn": "เปิด: {settings}"
+  "homeQrReviewTurnsOn": "เปิด: {settings}",
+  "homeScreenShareUseFileAction": "ใช้ไฟล์สื่อ",
+  "homeScreenShareSourceTooLarge": "ไฟล์นั้นใหญ่เกินไป เลือกที่ต่ำกว่า 24 MB",
+  "homeScreenShareSourceError": "ใช้ไฟล์นั้นไม่ได้ เลือกรูปภาพหรือวิดีโอ",
+  "siteSettingsScreenShareAsk": "ถาม",
+  "siteSettingsScreenShareBlock": "บล็อกเสมอ",
+  "siteSettingsScreenShareNoSource": "ยังไม่ได้เลือกไฟล์",
+  "siteSettingsScreenShareChooseSource": "เลือกไฟล์สื่อ",
+  "homeScreenShareTitle": "อนุญาตการแชร์หน้าจอ?",
+  "homeScreenShareBody": "{origin} ต้องการแชร์หน้าจอของคุณ\n\nWebSpace จะไม่แชร์หน้าจอจริงของคุณ เพราะการบันทึกหน้าจอจะจับทุกอย่าง รวมถึงเว็บไซต์อื่น ๆ ของคุณในแอปนี้ด้วย คุณสามารถเลือกรูปภาพหรือวิดีโอที่เว็บไซต์จะเห็นเป็นหน้าจอที่แชร์แทนได้ ตัวเลือกของคุณจะถูกจดจำไว้สำหรับเว็บไซต์นี้",
+  "siteSettingsScreenShare": "การแชร์หน้าจอ",
+  "siteSettingsScreenShareHint": "ควบคุมว่าเว็บไซต์นี้บันทึกหน้าจอของคุณได้หรือไม่\n\nWebSpace ไม่เคยแชร์หน้าจอจริงของคุณ การบันทึกหน้าจอครอบคลุมพื้นผิวทั้งหมด จึงจะแสดงเว็บไซต์อื่น ๆ ของคุณในแอปนี้ด้วย แทนที่จะเป็นเช่นนั้น เว็บไซต์สามารถเห็นรูปภาพหรือวิดีโอที่คุณเลือกได้\n\nถาม (ค่าเริ่มต้น): หน้าต่างจะถามในครั้งแรก จากนั้นจะจดจำตัวเลือกของคุณ\nไฟล์สื่อ: แสดงไฟล์ที่เลือกให้เว็บไซต์เป็นหน้าจอที่แชร์\nบล็อกเสมอ: ปฏิเสธทุกคำขอ",
+  "siteSettingsScreenShareVirtual": "หน้าจอจำลอง",
+  "permissionScreenShareNeverReal": "ไม่พร้อมใช้งาน การบันทึกหน้าจอครอบคลุมทั้งหน้าจอ จึงจะแสดงเว็บไซต์อื่น ๆ ของคุณด้วย"
 }

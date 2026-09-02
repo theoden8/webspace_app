@@ -36,7 +36,7 @@ const PENDING = [
   'lib/widgets/site_permission_chip.dart',
   'lib/widgets/stats_banner.dart',
   'lib/widgets/untrusted_cert_prompt.dart',
-  'lib/widgets/virtual_camera_preview.dart',
+  'lib/widgets/virtual_source_preview.dart',
   'lib/screens/add_site.dart',
   'lib/screens/app_settings.dart',
   'lib/screens/block_stats.dart',

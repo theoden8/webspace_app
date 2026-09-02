@@ -762,5 +762,18 @@
   "homeQrReviewName": "Nimi: {name}",
   "homeQrReviewProxy": "Lähettää tämän sivuston liikenteen välityspalvelimen kautta: {address}",
   "homeQrReviewTurnsOff": "Poistaa käytöstä: {settings}",
-  "homeQrReviewTurnsOn": "Ottaa käyttöön: {settings}"
+  "homeQrReviewTurnsOn": "Ottaa käyttöön: {settings}",
+  "homeScreenShareUseFileAction": "Käytä mediatiedostoa",
+  "homeScreenShareSourceTooLarge": "Tiedosto on liian suuri. Valitse alle 24 Mt.",
+  "homeScreenShareSourceError": "Tiedostoa ei voitu käyttää. Valitse kuva tai video.",
+  "siteSettingsScreenShareAsk": "Kysy",
+  "siteSettingsScreenShareBlock": "Estä aina",
+  "siteSettingsScreenShareNoSource": "Ei valittua tiedostoa",
+  "siteSettingsScreenShareChooseSource": "Valitse mediatiedosto",
+  "homeScreenShareTitle": "Sallitaanko näytön jakaminen?",
+  "homeScreenShareBody": "{origin} haluaa jakaa näyttösi.\n\nWebSpace ei jaa oikeaa näyttöäsi: näytön tallennus kaappaa kaiken, myös muut sivustosi tässä sovelluksessa. Voit sen sijaan valita kuvan tai videon, jonka sivusto näkee jaettuna näyttönä. Valintasi muistetaan tälle sivustolle.",
+  "siteSettingsScreenShare": "Näytön jakaminen",
+  "siteSettingsScreenShareHint": "Määrittää, saako tämä sivusto tallentaa näyttösi.\n\nWebSpace ei jaa koskaan oikeaa näyttöäsi. Näytön tallennus kattaa koko pinnan, joten se näyttäisi myös muut sivustosi tässä sovelluksessa. Sen sijaan sivustolle voidaan näyttää valitsemasi kuva tai video.\n\nKysy (oletus): ponnahdusikkuna kysyy ensimmäisellä kerralla ja muistaa sitten valintasi.\nMediatiedosto: näytä valittu tiedosto sivustolle jaettuna näyttönä.\nEstä aina: hylkää kaikki pyynnöt.",
+  "siteSettingsScreenShareVirtual": "Simuloitu näyttö",
+  "permissionScreenShareNeverReal": "Ei käytettävissä. Näytön tallennus kattaa koko näytön, joten se näyttäisi myös muut sivustosi."
 }

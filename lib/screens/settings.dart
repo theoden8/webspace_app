@@ -9,6 +9,7 @@ import 'package:webspace/settings/camera.dart';
 import 'package:webspace/settings/site_permission_state.dart';
 import 'package:webspace/widgets/site_permission_chip.dart';
 import 'package:webspace/settings/microphone.dart';
+import 'package:webspace/settings/screen_share.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/webview.dart';
@@ -140,6 +141,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   VirtualCameraSource? _virtualCameraSource;
   MicrophoneAccessMode _microphoneMode = MicrophoneAccessMode.ask;
   VirtualMicrophoneSource? _virtualMicrophoneSource;
+  ScreenShareMode _screenShareMode = ScreenShareMode.ask;
+  VirtualScreenSource? _virtualScreenSource;
   String? _selectedLanguage;
   late int _zoomPercent;
   bool _obscureProxyPassword = true;
@@ -235,6 +238,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         'virtualCameraSource': _virtualCameraSource?.dataUrl,
         'microphoneMode': _microphoneMode,
         'virtualMicrophoneSource': _virtualMicrophoneSource?.dataUrl,
+        'screenShareMode': _screenShareMode,
+        'virtualScreenSource': _virtualScreenSource?.dataUrl,
         'selectedLanguage': _selectedLanguage,
         'zoomPercent': _zoomPercent,
         'latitude': _latitudeController.text,
@@ -459,6 +464,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _virtualCameraSource = m.virtualCameraSource;
     _microphoneMode = m.microphoneMode;
     _virtualMicrophoneSource = m.virtualMicrophoneSource;
+    _screenShareMode = m.screenShareMode;
+    _virtualScreenSource = m.virtualScreenSource;
     _selectedLanguage = m.language;
     _zoomPercent = m.zoomPercent;
     _latitudeController.text = m.spoofLatitude?.toString() ?? '';
@@ -608,6 +615,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.virtualCameraSource = _virtualCameraSource;
       widget.webViewModel.microphoneMode = _microphoneMode;
       widget.webViewModel.virtualMicrophoneSource = _virtualMicrophoneSource;
+      widget.webViewModel.screenShareMode = _screenShareMode;
+      widget.webViewModel.virtualScreenSource = _virtualScreenSource;
       widget.webViewModel.language = _selectedLanguage;
       widget.webViewModel.zoomPercent = _zoomPercent;
       // locationMode is derived from the UI state:
@@ -815,6 +824,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         loc.siteSettingsMicrophoneAccess,
         Icons.mic_none
       ),
+      (
+        screenSharePermissionState(_screenShareMode),
+        loc.siteSettingsScreenShare,
+        Icons.screen_share_outlined
+      ),
       if (widget.useContainers)
         (
           notificationPermissionState(_notificationsEnabled),
@@ -895,6 +909,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             virtualCameraSource: _virtualCameraSource,
             microphoneMode: _microphoneMode,
             virtualMicrophoneSource: _virtualMicrophoneSource,
+            screenShareMode: _screenShareMode,
+            virtualScreenSource: _virtualScreenSource,
             notificationsEnabled: _notificationsEnabled,
             backgroundAudioEnabled: _backgroundAudioEnabled,
             protectedContentAllowed: _protectedContentAllowed,
@@ -924,6 +940,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _virtualCameraSource = values.virtualCameraSource;
               _microphoneMode = values.microphoneMode;
               _virtualMicrophoneSource = values.virtualMicrophoneSource;
+              _screenShareMode = values.screenShareMode;
+              _virtualScreenSource = values.virtualScreenSource;
               _notificationsEnabled = values.notificationsEnabled;
               _backgroundAudioEnabled = values.backgroundAudioEnabled;
               _protectedContentAllowed = values.protectedContentAllowed;

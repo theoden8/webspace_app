@@ -762,5 +762,18 @@
   "homeQrReviewName": "Heiti: {name}",
   "homeQrReviewProxy": "Sendir umferð þessa vefsvæðis í gegnum milliþjón: {address}",
   "homeQrReviewTurnsOff": "Slekkur á: {settings}",
-  "homeQrReviewTurnsOn": "Kveikir á: {settings}"
+  "homeQrReviewTurnsOn": "Kveikir á: {settings}",
+  "homeScreenShareUseFileAction": "Nota margmiðlunarskrá",
+  "homeScreenShareSourceTooLarge": "Skráin er of stór. Veldu eina undir 24 MB.",
+  "homeScreenShareSourceError": "Ekki tókst að nota þessa skrá. Veldu mynd eða myndband.",
+  "siteSettingsScreenShareAsk": "Spyrja",
+  "siteSettingsScreenShareBlock": "Loka alltaf",
+  "siteSettingsScreenShareNoSource": "Engin skrá valin",
+  "siteSettingsScreenShareChooseSource": "Veldu margmiðlunarskrá",
+  "homeScreenShareTitle": "Leyfa skjádeilingu?",
+  "homeScreenShareBody": "{origin} vill deila skjánum þínum.\n\nWebSpace deilir ekki raunverulegum skjá þínum: skjáupptaka nemur allt, líka hin vefsvæðin þín í þessu forriti. Í staðinn geturðu valið mynd eða myndskeið sem vefsvæðið sér sem deilda skjáinn. Valið þitt er munað fyrir þetta vefsvæði.",
+  "siteSettingsScreenShare": "Skjádeiling",
+  "siteSettingsScreenShareHint": "Stýrir því hvort þetta vefsvæði megi taka upp skjáinn þinn.\n\nWebSpace deilir aldrei raunverulegum skjá þínum. Skjáupptaka nær yfir allt yfirborðið og myndi því einnig sýna hin vefsvæðin þín í þessu forriti. Í staðinn má sýna vefsvæðinu mynd eða myndskeið sem þú velur.\n\nSpyrja (sjálfgefið): sprettigluggi spyr í fyrsta skipti og man svo valið þitt.\nMargmiðlunarskrá: sýna vefsvæðinu völdu skrána sem deilda skjáinn.\nAlltaf loka á: hafna öllum beiðnum.",
+  "siteSettingsScreenShareVirtual": "Hermdur skjár",
+  "permissionScreenShareNeverReal": "Ekki í boði. Skjáupptaka nær yfir allan skjáinn og myndi því einnig sýna hin vefsvæðin þín."
 }

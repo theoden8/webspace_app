@@ -7,12 +7,14 @@ import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/virtual_camera_service.dart';
 import 'package:webspace/services/virtual_media_picker.dart';
 import 'package:webspace/services/virtual_microphone_service.dart';
+import 'package:webspace/services/virtual_screen_service.dart';
 import 'package:webspace/settings/camera.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/microphone.dart';
+import 'package:webspace/settings/screen_share.dart';
 import 'package:webspace/settings/site_permission_state.dart';
 import 'package:webspace/widgets/site_permission_chip.dart';
-import 'package:webspace/widgets/virtual_camera_preview.dart';
+import 'package:webspace/widgets/virtual_source_preview.dart';
 
 /// Everything the permission screen may change, in one value so the caller can
 /// apply a whole edit in a single `setState`.
@@ -28,6 +30,8 @@ class SitePermissionValues {
     required this.virtualCameraSource,
     required this.microphoneMode,
     required this.virtualMicrophoneSource,
+    required this.screenShareMode,
+    required this.virtualScreenSource,
     required this.notificationsEnabled,
     required this.backgroundAudioEnabled,
     required this.protectedContentAllowed,
@@ -42,6 +46,8 @@ class SitePermissionValues {
   final VirtualCameraSource? virtualCameraSource;
   final MicrophoneAccessMode microphoneMode;
   final VirtualMicrophoneSource? virtualMicrophoneSource;
+  final ScreenShareMode screenShareMode;
+  final VirtualScreenSource? virtualScreenSource;
   final bool notificationsEnabled;
   final bool backgroundAudioEnabled;
   final bool? protectedContentAllowed;
@@ -68,6 +74,9 @@ class SitePermissionValues {
     MicrophoneAccessMode? microphoneMode,
     VirtualMicrophoneSource? virtualMicrophoneSource,
     bool clearVirtualMicrophoneSource = false,
+    ScreenShareMode? screenShareMode,
+    VirtualScreenSource? virtualScreenSource,
+    bool clearVirtualScreenSource = false,
     bool? notificationsEnabled,
     bool? backgroundAudioEnabled,
     bool? protectedContentAllowed,
@@ -88,6 +97,10 @@ class SitePermissionValues {
         virtualMicrophoneSource: clearVirtualMicrophoneSource
             ? null
             : (virtualMicrophoneSource ?? this.virtualMicrophoneSource),
+        screenShareMode: screenShareMode ?? this.screenShareMode,
+        virtualScreenSource: clearVirtualScreenSource
+            ? null
+            : (virtualScreenSource ?? this.virtualScreenSource),
         notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
         backgroundAudioEnabled:
             backgroundAudioEnabled ?? this.backgroundAudioEnabled,
@@ -273,6 +286,23 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
     });
   }
 
+  Future<void> _pickScreenShareSource() async {
+    final result = await VirtualScreenService.pickSource();
+    if (!mounted) return;
+    if (result.source != null) {
+      _update(_values.copyWith(virtualScreenSource: result.source));
+      return;
+    }
+    if (result.error == null) return;
+    final loc = AppLocalizations.of(context);
+    _snack(switch (result.error!) {
+      VirtualMediaPickError.tooLarge => loc.homeScreenShareSourceTooLarge,
+      VirtualMediaPickError.type ||
+      VirtualMediaPickError.read =>
+        loc.homeScreenShareSourceError,
+    });
+  }
+
   void _snack(String message) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
@@ -338,7 +368,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
             },
             preview: _values.virtualCameraSource == null
                 ? null
-                : VirtualCameraPreview(source: _values.virtualCameraSource!),
+                : VirtualSourcePreview(source: _values.virtualCameraSource!),
           );
         },
       );
@@ -401,6 +431,75 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
               await _pickMicrophoneSource();
               setSheetState(() {});
             },
+          );
+        },
+      );
+
+  _Capability _screenShare(AppLocalizations loc) => _Capability(
+        icon: Icons.screen_share_outlined,
+        title: loc.siteSettingsScreenShare,
+        hint: loc.siteSettingsScreenShareHint,
+        state: screenSharePermissionState(_values.screenShareMode),
+        qualifier: _values.screenShareMode == ScreenShareMode.virtual
+            ? (_values.virtualScreenSource?.fileName ??
+                loc.siteSettingsScreenShareNoSource)
+            : null,
+        options: [
+          _Option(
+            state: SitePermissionState.ask,
+            label: loc.siteSettingsScreenShareAsk,
+            onSelect: () =>
+                _update(_values.copyWith(screenShareMode: ScreenShareMode.ask)),
+          ),
+          // Shown, not omitted, for the same reason as the microphone's: the
+          // unavailable row is where "no site is ever handed the real screen"
+          // becomes visible.
+          _Option(
+            state: SitePermissionState.allowed,
+            label: loc.permissionStateAllowed,
+            onSelect: () {},
+            enabled: false,
+            unavailableReason: loc.permissionScreenShareNeverReal,
+          ),
+          _Option(
+            state: SitePermissionState.simulated,
+            label: loc.siteSettingsScreenShareVirtual,
+            onSelect: () async {
+              _update(
+                  _values.copyWith(screenShareMode: ScreenShareMode.virtual));
+              if (_values.virtualScreenSource == null) {
+                await _pickScreenShareSource();
+              }
+            },
+          ),
+          _Option(
+            state: SitePermissionState.blocked,
+            label: loc.siteSettingsScreenShareBlock,
+            onSelect: () => _update(
+                _values.copyWith(screenShareMode: ScreenShareMode.block)),
+          ),
+        ],
+        detail: (context, setSheetState) {
+          if (_values.screenShareMode != ScreenShareMode.virtual) {
+            return const SizedBox.shrink();
+          }
+          return _sourceDetail(
+            loc,
+            fileName: _values.virtualScreenSource?.fileName,
+            emptyLabel: loc.siteSettingsScreenShareNoSource,
+            actionLabel: loc.siteSettingsScreenShareChooseSource,
+            icon: Icons.photo_library_outlined,
+            onPick: () async {
+              await _pickScreenShareSource();
+              setSheetState(() {});
+            },
+            preview: _values.virtualScreenSource == null
+                ? null
+                : VirtualSourcePreview(
+                    source: _values.virtualScreenSource!,
+                    aspectRatio: 16 / 9,
+                    fit: BoxFit.contain,
+                  ),
           );
         },
       );
@@ -852,6 +951,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
   List<_Capability> _capabilities(AppLocalizations loc) => [
         _camera(loc),
         _microphone(loc),
+        _screenShare(loc),
         _location(loc),
         if (widget.showNotifications) _notifications(loc),
         _protectedContent(loc),
@@ -878,6 +978,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
           _groupHeader(loc.permissionsGroupDeviceAccess),
           _row(_camera(loc)),
           _row(_microphone(loc)),
+          _row(_screenShare(loc)),
           _row(_location(loc)),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),

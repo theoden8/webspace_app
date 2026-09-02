@@ -762,5 +762,18 @@
   "homeQrReviewName": "नाम: {name}",
   "homeQrReviewProxy": "इस साइट का ट्रैफ़िक प्रॉक्सी से होकर भेजता है: {address}",
   "homeQrReviewTurnsOff": "बंद करता है: {settings}",
-  "homeQrReviewTurnsOn": "चालू करता है: {settings}"
+  "homeQrReviewTurnsOn": "चालू करता है: {settings}",
+  "homeScreenShareUseFileAction": "मीडिया फ़ाइल का उपयोग करें",
+  "homeScreenShareSourceTooLarge": "वह फ़ाइल बहुत बड़ी है। 24 MB से छोटी चुनें।",
+  "homeScreenShareSourceError": "उस फ़ाइल का उपयोग नहीं हो सका। एक छवि या वीडियो चुनें।",
+  "siteSettingsScreenShareAsk": "पूछें",
+  "siteSettingsScreenShareBlock": "हमेशा अवरुद्ध करें",
+  "siteSettingsScreenShareNoSource": "कोई फ़ाइल नहीं चुनी गई",
+  "siteSettingsScreenShareChooseSource": "मीडिया फ़ाइल चुनें",
+  "homeScreenShareTitle": "स्क्रीन शेयरिंग की अनुमति दें?",
+  "homeScreenShareBody": "{origin} आपकी स्क्रीन साझा करना चाहता है।\n\nWebSpace आपकी वास्तविक स्क्रीन साझा नहीं करेगा: स्क्रीन कैप्चर सब कुछ पकड़ लेता है, इस ऐप की आपकी दूसरी साइटें भी। इसके बजाय आप एक छवि या वीडियो चुन सकते हैं, जिसे साइट साझा की गई स्क्रीन के रूप में देखेगी। आपका चुनाव इस साइट के लिए याद रखा जाएगा।",
+  "siteSettingsScreenShare": "स्क्रीन शेयरिंग",
+  "siteSettingsScreenShareHint": "यह नियंत्रित करता है कि यह साइट आपकी स्क्रीन कैप्चर कर सकती है या नहीं।\n\nWebSpace कभी भी आपकी वास्तविक स्क्रीन साझा नहीं करता। स्क्रीन कैप्चर पूरी सतह को ढक लेता है, इसलिए वह इस ऐप की आपकी दूसरी साइटें भी दिखाता। इसके बजाय साइट को आपकी चुनी हुई छवि या वीडियो दिखाया जा सकता है।\n\nपूछें (डिफ़ॉल्ट): पहली बार एक पॉपअप पूछता है, फिर आपका चुनाव याद रखता है।\nमीडिया फ़ाइल: चुनी हुई फ़ाइल साइट को साझा स्क्रीन के रूप में दिखाएँ।\nहमेशा ब्लॉक करें: हर अनुरोध अस्वीकार करें।",
+  "siteSettingsScreenShareVirtual": "सिम्युलेटेड स्क्रीन",
+  "permissionScreenShareNeverReal": "उपलब्ध नहीं। स्क्रीन कैप्चर पूरी स्क्रीन को ढक लेता है, इसलिए वह आपकी दूसरी साइटें भी दिखाता।"
 }

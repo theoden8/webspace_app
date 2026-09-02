@@ -762,5 +762,18 @@
   "homeQrReviewName": "Nomen: {name}",
   "homeQrReviewProxy": "Commercium huius loci per procuratorem mittit: {address}",
   "homeQrReviewTurnsOff": "Exstinguit: {settings}",
-  "homeQrReviewTurnsOn": "Accendit: {settings}"
+  "homeQrReviewTurnsOn": "Accendit: {settings}",
+  "homeScreenShareUseFileAction": "Uti plica media",
+  "homeScreenShareSourceTooLarge": "Plica nimis magna est. Elige minorem quam 24 MB.",
+  "homeScreenShareSourceError": "Non licuit hoc plicae uti. Elige imaginem vel pelliculam.",
+  "siteSettingsScreenShareAsk": "Rogare",
+  "siteSettingsScreenShareBlock": "Semper impedire",
+  "siteSettingsScreenShareNoSource": "Nulla plica electa",
+  "siteSettingsScreenShareChooseSource": "Elige plicam mediam",
+  "homeScreenShareTitle": "Communicationem scrinii permittere?",
+  "homeScreenShareBody": "{origin} scrinium tuum communicare vult.\n\nWebSpace scrinium tuum verum non communicabit: captura scrinii omnia comprehendit, etiam alia loca tua in hac applicatione. Loco eius imaginem vel pelliculam eligere potes, quam locus tamquam scrinium communicatum videt. Electio tua huic loco memoratur.",
+  "siteSettingsScreenShare": "Communicatio scrinii",
+  "siteSettingsScreenShareHint": "Moderatur num hic locus scrinium tuum capere possit.\n\nWebSpace scrinium tuum verum numquam communicat. Captura scrinii totam superficiem comprehendit, itaque etiam alia loca tua in hac applicatione monstraret. Loco eius loco monstrari potest imago vel pellicula quam tu eligis.\n\nRogare (praedefinitum): fenestra primo rogat, deinde electionem tuam memorat.\nPlica media: monstra plicam electam loco tamquam scrinium communicatum.\nSemper impedire: omnem petitionem repudia.",
+  "siteSettingsScreenShareVirtual": "Scrinium simulatum",
+  "permissionScreenShareNeverReal": "Non praesto. Captura scrinii totum scrinium comprehendit, itaque etiam alia loca tua monstraret."
 }

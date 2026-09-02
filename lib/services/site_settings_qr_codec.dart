@@ -78,6 +78,8 @@ class SiteSettingsQrCodec {
     'virtualCameraSource',
     'microphoneMode',
     'virtualMicrophoneSource',
+    'screenShareMode',
+    'virtualScreenSource',
     // Base64 PNG bytes: would blow QR capacity, and an icon is
     // device-local cosmetics, not shareable configuration.
     'customIconPng',

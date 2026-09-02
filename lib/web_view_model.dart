@@ -19,6 +19,7 @@ import 'package:webspace/services/media_session_service.dart';
 import 'package:webspace/services/media_session_shim.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/camera_decision_engine.dart';
+import 'package:webspace/services/screen_share_decision_engine.dart';
 import 'package:webspace/services/microphone_decision_engine.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
@@ -27,6 +28,7 @@ import 'package:webspace/services/tab_bar_corner.dart';
 import 'package:webspace/services/user_agent_preset.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/camera.dart';
+import 'package:webspace/settings/screen_share.dart';
 import 'package:webspace/settings/microphone.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -431,6 +433,8 @@ typedef LaunchUrlFunc = void Function(
   VirtualCameraSource? virtualCameraSource,
   MicrophoneAccessMode microphoneMode,
   VirtualMicrophoneSource? virtualMicrophoneSource,
+  ScreenShareMode screenShareMode,
+  VirtualScreenSource? virtualScreenSource,
   bool? protectedContentAllowed,
 });
 
@@ -558,6 +562,18 @@ class WebViewModel {
   /// Bytes live inline as a `data:` URL so the shim can decode them with
   /// WebAudio. Null until the user picks a file.
   VirtualMicrophoneSource? virtualMicrophoneSource;
+  /// Remembered per-site decision for screen sharing (`getDisplayMedia`).
+  /// [ScreenShareMode.ask] (default) shows the Block/Use-file popup on the
+  /// first request; `virtual` serves [virtualScreenSource] as the shared
+  /// surface; `block` denies silently. There is no mode that captures the
+  /// real display — a display capture is whole-surface, so granting one would
+  /// hand the site every other site in the webspace.
+  ScreenShareMode screenShareMode;
+  /// Image or looped video served as the shared surface in
+  /// [ScreenShareMode.virtual]. Bytes live inline as a `data:` URL so the shim
+  /// can hand them to an `<img>`/`<video>` element. Null until the user picks
+  /// a file.
+  VirtualScreenSource? virtualScreenSource;
   List<UserScriptConfig> userScripts; // Per-site user scripts
   /// IDs of global user scripts opted into for this site. Global scripts
   /// are stored once in app state (shared source/URL) and each site
@@ -771,6 +787,14 @@ class WebViewModel {
   MicrophoneAccessMode get effectiveMicrophoneMode =>
       isArchiveTier ? MicrophoneAccessMode.block : microphoneMode;
 
+  /// Effective screen-sharing mode. Archive-tier sites are forced to
+  /// [ScreenShareMode.block] regardless of stored value: the permission popup
+  /// and the file picker are OS-level UI, which ARCH-006 forbids for archive
+  /// sites. Blocked without prompting; the stored value and any picked source
+  /// are preserved for when the site leaves the archive.
+  ScreenShareMode get effectiveScreenShareMode =>
+      isArchiveTier ? ScreenShareMode.block : screenShareMode;
+
   /// Effective "open external links in the system browser" setting.
   /// Archive-tier sites never hand a URL to another app: launching the
   /// system browser is OS-level UI that crosses the archive's isolation
@@ -796,6 +820,10 @@ class WebViewModel {
   /// Orchestrates microphone-request resolution (decide → coalesce →
   /// persist), same contract as [_cameraEngine].
   final MicrophoneDecisionEngine _microphoneEngine = MicrophoneDecisionEngine();
+  /// Orchestrates screen-sharing resolution (decide → coalesce → persist),
+  /// same contract as [_cameraEngine].
+  final ScreenShareDecisionEngine _screenShareEngine =
+      ScreenShareDecisionEngine();
   Function? stateSetterF;
   /// Host hook fired once each time a fresh native controller attaches for
   /// this model (cold start, `_goHome` recreate, renderer-gone recovery,
@@ -902,6 +930,8 @@ class WebViewModel {
     this.virtualCameraSource,
     this.microphoneMode = MicrophoneAccessMode.ask,
     this.virtualMicrophoneSource,
+    this.screenShareMode = ScreenShareMode.ask,
+    this.virtualScreenSource,
     List<UserScriptConfig>? userScripts,
     Set<String>? enabledGlobalScriptIds,
     Set<BlockedCookie>? blockedCookies,
@@ -1126,6 +1156,9 @@ class WebViewModel {
     Future<MicrophoneDecision> Function(
             String origin, MicrophoneAccessMode current)?
         onMicrophoneDecision,
+    Future<ScreenShareDecision> Function(
+            String origin, ScreenShareMode current)?
+        onScreenShareDecision,
     List<UserScriptConfig> globalUserScripts = const [],
   }) {
     if (webview == null) {
@@ -1283,6 +1316,14 @@ class WebViewModel {
                     saveFunc: saveFunc,
                   ),
           currentMicrophoneMode: () => effectiveMicrophoneMode,
+          onScreenShareDecision: onScreenShareDecision == null
+              ? null
+              : (origin) => resolveScreenShareRequest(
+                    origin,
+                    resolver: onScreenShareDecision,
+                    isActive: isActive,
+                    saveFunc: saveFunc,
+                  ),
           pullToRefreshController: pullToRefreshController,
           onWindowRequested: onWindowRequested,
           shouldOverrideUrlLoading: (url, hasGesture) {
@@ -1340,7 +1381,7 @@ class WebViewModel {
                   '  -> CANCEL (opening nested webview)',
                   sensitivity: LogSensitivity.sensitive,
                 );
-                launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: effectiveLocalCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: effectiveNotificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser, blockAutoRedirects: blockAutoRedirects, blockedCookies: blockedCookies, cameraMode: effectiveCameraMode, virtualCameraSource: virtualCameraSource, microphoneMode: effectiveMicrophoneMode, virtualMicrophoneSource: virtualMicrophoneSource, protectedContentAllowed: effectiveProtectedContentAllowed);
+                launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: effectiveLocalCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: effectiveNotificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser, blockAutoRedirects: blockAutoRedirects, blockedCookies: blockedCookies, cameraMode: effectiveCameraMode, virtualCameraSource: virtualCameraSource, microphoneMode: effectiveMicrophoneMode, virtualMicrophoneSource: virtualMicrophoneSource, screenShareMode: effectiveScreenShareMode, virtualScreenSource: virtualScreenSource, protectedContentAllowed: effectiveProtectedContentAllowed);
                 return false;
               case NavigationDecision.blockOpenExternal:
                 LogService.instance.log(
@@ -1447,7 +1488,7 @@ class WebViewModel {
                     sensitivity: LogSensitivity.sensitive,
                   );
                   if (handled.launchNestedUrl != null) {
-                    launchUrlFunc(handled.launchNestedUrl!, homeTitle: name, siteId: siteId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: effectiveLocalCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: effectiveNotificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser, blockAutoRedirects: blockAutoRedirects, blockedCookies: blockedCookies, cameraMode: effectiveCameraMode, virtualCameraSource: virtualCameraSource, microphoneMode: effectiveMicrophoneMode, virtualMicrophoneSource: virtualMicrophoneSource, protectedContentAllowed: effectiveProtectedContentAllowed);
+                    launchUrlFunc(handled.launchNestedUrl!, homeTitle: name, siteId: siteId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: effectiveLocalCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: effectiveNotificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser, blockAutoRedirects: blockAutoRedirects, blockedCookies: blockedCookies, cameraMode: effectiveCameraMode, virtualCameraSource: virtualCameraSource, microphoneMode: effectiveMicrophoneMode, virtualMicrophoneSource: virtualMicrophoneSource, screenShareMode: effectiveScreenShareMode, virtualScreenSource: virtualScreenSource, protectedContentAllowed: effectiveProtectedContentAllowed);
                   }
                   return;
                 case NavigationDecision.blockOpenExternal:
@@ -1786,6 +1827,30 @@ class WebViewModel {
         persist: (mode, source) {
           cameraMode = mode;
           if (source != null) virtualCameraSource = source;
+        },
+        save: () async => saveFunc(),
+      );
+
+  /// Resolve a per-site screen-sharing request for [origin] against this model
+  /// (SHARE-001, SHARE-006, SHARE-011). Same contract as
+  /// [resolveCameraRequest].
+  Future<ScreenShareDecision> resolveScreenShareRequest(
+    String origin, {
+    required Future<ScreenShareDecision> Function(String, ScreenShareMode)
+        resolver,
+    required bool Function()? isActive,
+    required Function saveFunc,
+  }) =>
+      _screenShareEngine.decide(
+        origin: origin,
+        isSiteActive: () => isActive?.call() ?? true,
+        // Archive-tier is folded into effectiveScreenShareMode.
+        effectiveMode: effectiveScreenShareMode,
+        currentSource: () => virtualScreenSource,
+        resolve: resolver,
+        persist: (mode, source) {
+          screenShareMode = mode;
+          if (source != null) virtualScreenSource = source;
         },
         save: () async => saveFunc(),
       );
@@ -2241,6 +2306,10 @@ class WebViewModel {
           'microphoneMode': microphoneMode.name,
         if (virtualMicrophoneSource != null)
           'virtualMicrophoneSource': virtualMicrophoneSource!.toJson(),
+        if (screenShareMode != ScreenShareMode.ask)
+          'screenShareMode': screenShareMode.name,
+        if (virtualScreenSource != null)
+          'virtualScreenSource': virtualScreenSource!.toJson(),
         'userScripts': userScripts.map((s) => s.toJson()).toList(),
         if (enabledGlobalScriptIds.isNotEmpty)
           'enabledGlobalScriptIds': enabledGlobalScriptIds.toList(),
@@ -2349,6 +2418,9 @@ class WebViewModel {
       microphoneMode: microphoneAccessModeFromJson(json['microphoneMode']),
       virtualMicrophoneSource:
           VirtualMicrophoneSource.fromJson(json['virtualMicrophoneSource']),
+      screenShareMode: screenShareModeFromJson(json['screenShareMode']),
+      virtualScreenSource:
+          VirtualScreenSource.fromJson(json['virtualScreenSource']),
       userScripts: (json['userScripts'] as List<dynamic>?)
           ?.map((e) => UserScriptConfig.fromJson(e as Map<String, dynamic>))
           .toList(),

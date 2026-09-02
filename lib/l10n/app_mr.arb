@@ -762,5 +762,18 @@
   "homeQrReviewName": "नाव: {name}",
   "homeQrReviewProxy": "या साइटची रहदारी प्रॉक्सीमधून पाठवते: {address}",
   "homeQrReviewTurnsOff": "बंद करते: {settings}",
-  "homeQrReviewTurnsOn": "चालू करते: {settings}"
+  "homeQrReviewTurnsOn": "चालू करते: {settings}",
+  "homeScreenShareUseFileAction": "मीडिया फाइल वापरा",
+  "homeScreenShareSourceTooLarge": "ती फाइल खूप मोठी आहे. 24 MB पेक्षा लहान निवडा.",
+  "homeScreenShareSourceError": "ती फाइल वापरता आली नाही. प्रतिमा किंवा व्हिडिओ निवडा.",
+  "siteSettingsScreenShareAsk": "विचारा",
+  "siteSettingsScreenShareBlock": "नेहमी अवरोधित करा",
+  "siteSettingsScreenShareNoSource": "कोणतीही फाइल निवडली नाही",
+  "siteSettingsScreenShareChooseSource": "मीडिया फाइल निवडा",
+  "homeScreenShareTitle": "स्क्रीन सामायिकीकरणास अनुमती द्यायची?",
+  "homeScreenShareBody": "{origin} ला तुमची स्क्रीन सामायिक करायची आहे.\n\nWebSpace तुमची खरी स्क्रीन सामायिक करणार नाही: स्क्रीन कॅप्चर या अ‍ॅपमधील तुमच्या इतर साइटांसह सर्व काही टिपते. त्याऐवजी तुम्ही एक प्रतिमा किंवा व्हिडिओ निवडू शकता, जो साइट सामायिक स्क्रीन म्हणून पाहील. तुमची निवड या साइटसाठी लक्षात ठेवली जाते.",
+  "siteSettingsScreenShare": "स्क्रीन सामायिकीकरण",
+  "siteSettingsScreenShareHint": "ही साइट तुमची स्क्रीन कॅप्चर करू शकते का हे नियंत्रित करते.\n\nWebSpace कधीही तुमची खरी स्क्रीन सामायिक करत नाही. स्क्रीन कॅप्चर संपूर्ण पृष्ठभाग व्यापते, त्यामुळे ते या अ‍ॅपमधील तुमच्या इतर साइटदेखील दाखवेल. त्याऐवजी साइटला तुम्ही निवडलेली प्रतिमा किंवा व्हिडिओ दाखवता येतो.\n\nविचारा (डीफॉल्ट): पहिल्यांदा पॉपअप विचारतो, नंतर तुमची निवड लक्षात ठेवतो.\nमीडिया फाइल: निवडलेली फाइल साइटला सामायिक स्क्रीन म्हणून दाखवा.\nनेहमी अवरोधित करा: प्रत्येक विनंती नाकारा.",
+  "siteSettingsScreenShareVirtual": "सिम्युलेटेड स्क्रीन",
+  "permissionScreenShareNeverReal": "उपलब्ध नाही. स्क्रीन कॅप्चर संपूर्ण स्क्रीन व्यापते, त्यामुळे ते तुमच्या इतर साइटदेखील दाखवेल."
 }

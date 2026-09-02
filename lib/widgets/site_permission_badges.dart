@@ -4,6 +4,7 @@ import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/settings/camera.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/microphone.dart';
+import 'package:webspace/settings/screen_share.dart';
 import 'package:webspace/web_view_model.dart';
 
 /// A capture/background capability a site currently holds, surfaced as a
@@ -36,6 +37,11 @@ enum SitePermissionBadge {
   /// microphone grant that exists.
   virtualMicrophone,
 
+  /// [ScreenShareMode.virtual]: a picked image/video is served as the shared
+  /// surface. There is no real-screen mode in the app, so this is the only
+  /// screen-sharing grant that exists.
+  virtualScreenShare,
+
   /// `backgroundAudioEnabled`: the site keeps playing while another site is
   /// visible or the app is backgrounded.
   backgroundAudio,
@@ -59,6 +65,8 @@ List<SitePermissionBadge> sitePermissionBadges(WebViewModel model) {
     },
     if (model.effectiveMicrophoneMode == MicrophoneAccessMode.virtual)
       SitePermissionBadge.virtualMicrophone,
+    if (model.effectiveScreenShareMode == ScreenShareMode.virtual)
+      SitePermissionBadge.virtualScreenShare,
     if (model.effectiveBackgroundAudioEnabled)
       SitePermissionBadge.backgroundAudio,
   ].nonNulls.toList();
@@ -77,6 +85,7 @@ IconData sitePermissionBadgeIcon(SitePermissionBadge badge) => switch (badge) {
       SitePermissionBadge.realCamera => Icons.videocam,
       SitePermissionBadge.virtualCamera => Icons.videocam_outlined,
       SitePermissionBadge.virtualMicrophone => Icons.mic_none,
+      SitePermissionBadge.virtualScreenShare => Icons.screen_share_outlined,
       SitePermissionBadge.backgroundAudio => Icons.music_note,
     };
 
@@ -96,6 +105,8 @@ String sitePermissionBadgeLabel(AppLocalizations loc, SitePermissionBadge badge)
       '${loc.siteSettingsCameraAccess}$separator${loc.siteSettingsCameraAccessVirtual}',
     SitePermissionBadge.virtualMicrophone =>
       '${loc.siteSettingsMicrophoneAccess}$separator${loc.siteSettingsMicrophoneAccessVirtual}',
+    SitePermissionBadge.virtualScreenShare =>
+      '${loc.siteSettingsScreenShare}$separator${loc.siteSettingsScreenShareVirtual}',
     SitePermissionBadge.backgroundAudio => loc.siteSettingsBackgroundAudio,
   };
 }

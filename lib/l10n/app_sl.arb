@@ -762,5 +762,18 @@
   "homeQrReviewName": "Ime: {name}",
   "homeQrReviewProxy": "Promet te strani pošilja prek posredniškega strežnika: {address}",
   "homeQrReviewTurnsOff": "Izklopi: {settings}",
-  "homeQrReviewTurnsOn": "Vklopi: {settings}"
+  "homeQrReviewTurnsOn": "Vklopi: {settings}",
+  "homeScreenShareUseFileAction": "Uporabi predstavnostno datoteko",
+  "homeScreenShareSourceTooLarge": "Datoteka je prevelika. Izberite manjšo od 24 MB.",
+  "homeScreenShareSourceError": "Te datoteke ni bilo mogoče uporabiti. Izberite sliko ali videoposnetek.",
+  "siteSettingsScreenShareAsk": "Vprašaj",
+  "siteSettingsScreenShareBlock": "Vedno blokiraj",
+  "siteSettingsScreenShareNoSource": "Nobena datoteka ni izbrana",
+  "siteSettingsScreenShareChooseSource": "Izberite predstavnostno datoteko",
+  "homeScreenShareTitle": "Dovolim deljenje zaslona?",
+  "homeScreenShareBody": "{origin} želi deliti vaš zaslon.\n\nWebSpace ne bo delil vašega pravega zaslona: posnetek zaslona zajame vse, tudi vaša druga mesta v tej aplikaciji. Namesto tega lahko izberete sliko ali videoposnetek, ki ga mesto vidi kot deljeni zaslon. Vaša izbira se za to mesto zapomni.",
+  "siteSettingsScreenShare": "Deljenje zaslona",
+  "siteSettingsScreenShareHint": "Določa, ali sme to mesto snemati vaš zaslon.\n\nWebSpace nikoli ne deli vašega pravega zaslona. Posnetek zaslona pokriva celotno površino, zato bi pokazal tudi vaša druga mesta v tej aplikaciji. Namesto tega je mestu mogoče pokazati sliko ali videoposnetek, ki ga izberete vi.\n\nVprašaj (privzeto): pojavno okno vpraša prvič, nato si zapomni vašo izbiro.\nPredstavnostna datoteka: pokaži mestu izbrano datoteko kot deljeni zaslon.\nVedno blokiraj: zavrni vsako zahtevo.",
+  "siteSettingsScreenShareVirtual": "Simuliran zaslon",
+  "permissionScreenShareNeverReal": "Ni na voljo. Posnetek zaslona pokriva celoten zaslon, zato bi pokazal tudi vaša druga mesta."
 }

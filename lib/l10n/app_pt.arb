@@ -762,5 +762,18 @@
   "homeQrReviewName": "Nome: {name}",
   "homeQrReviewProxy": "Envia o tráfego deste site através de um proxy: {address}",
   "homeQrReviewTurnsOff": "Desativa: {settings}",
-  "homeQrReviewTurnsOn": "Ativa: {settings}"
+  "homeQrReviewTurnsOn": "Ativa: {settings}",
+  "homeScreenShareUseFileAction": "Usar um ficheiro multimédia",
+  "homeScreenShareSourceTooLarge": "Esse ficheiro é demasiado grande. Escolha um com menos de 24 MB.",
+  "homeScreenShareSourceError": "Não foi possível usar esse ficheiro. Escolha uma imagem ou vídeo.",
+  "siteSettingsScreenShareAsk": "Perguntar",
+  "siteSettingsScreenShareBlock": "Bloquear sempre",
+  "siteSettingsScreenShareNoSource": "Nenhum ficheiro escolhido",
+  "siteSettingsScreenShareChooseSource": "Escolher ficheiro multimédia",
+  "homeScreenShareTitle": "Permitir a partilha do ecrã?",
+  "homeScreenShareBody": "{origin} quer partilhar o seu ecrã.\n\nO WebSpace não partilhará o seu ecrã real: uma captura de ecrã recolhe tudo, incluindo os seus outros sites nesta aplicação. Em vez disso, pode escolher uma imagem ou um vídeo que o site verá como ecrã partilhado. A sua escolha é memorizada para este site.",
+  "siteSettingsScreenShare": "Partilha de ecrã",
+  "siteSettingsScreenShareHint": "Controla se este site pode capturar o seu ecrã.\n\nO WebSpace nunca partilha o seu ecrã real. Uma captura de ecrã abrange toda a superfície, pelo que mostraria também os seus outros sites nesta aplicação. Em vez disso, pode mostrar-se ao site uma imagem ou um vídeo à sua escolha.\n\nPerguntar (predefinição): uma janela pergunta da primeira vez e depois memoriza a sua escolha.\nFicheiro multimédia: mostrar ao site o ficheiro escolhido como ecrã partilhado.\nBloquear sempre: rejeitar todos os pedidos.",
+  "siteSettingsScreenShareVirtual": "Ecrã simulado",
+  "permissionScreenShareNeverReal": "Indisponível. Uma captura de ecrã abrange todo o ecrã, pelo que mostraria também os seus outros sites."
 }

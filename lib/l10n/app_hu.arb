@@ -762,5 +762,18 @@
   "homeQrReviewName": "Név: {name}",
   "homeQrReviewProxy": "A webhely forgalmát proxyn keresztül küldi: {address}",
   "homeQrReviewTurnsOff": "Kikapcsolja: {settings}",
-  "homeQrReviewTurnsOn": "Bekapcsolja: {settings}"
+  "homeQrReviewTurnsOn": "Bekapcsolja: {settings}",
+  "homeScreenShareUseFileAction": "Médiafájl használata",
+  "homeScreenShareSourceTooLarge": "A fájl túl nagy. Válasszon 24 MB alattit.",
+  "homeScreenShareSourceError": "Ezt a fájlt nem sikerült használni. Válasszon képet vagy videót.",
+  "siteSettingsScreenShareAsk": "Kérdezzen",
+  "siteSettingsScreenShareBlock": "Mindig blokkolja",
+  "siteSettingsScreenShareNoSource": "Nincs kiválasztott fájl",
+  "siteSettingsScreenShareChooseSource": "Médiafájl választása",
+  "homeScreenShareTitle": "Engedélyezi a képernyőmegosztást?",
+  "homeScreenShareBody": "A(z) {origin} meg szeretné osztani a képernyőjét.\n\nA WebSpace nem osztja meg a valódi képernyőjét: a képernyőfelvétel mindent rögzít, köztük az alkalmazásban lévő többi webhelyét is. Ehelyett választhat egy képet vagy videót, amelyet a webhely megosztott képernyőként lát. A választását a rendszer megjegyzi ehhez a webhelyhez.",
+  "siteSettingsScreenShare": "Képernyőmegosztás",
+  "siteSettingsScreenShareHint": "Meghatározza, hogy ez a webhely rögzítheti-e a képernyőjét.\n\nA WebSpace soha nem osztja meg a valódi képernyőjét. A képernyőfelvétel a teljes felületet lefedi, így az alkalmazásban lévő többi webhelyét is megmutatná. Ehelyett a webhelynek megmutatható egy Ön által választott kép vagy videó.\n\nKérdezzen (alapértelmezett): első alkalommal felugró ablak kérdez, majd megjegyzi a választását.\nMédiafájl: a kiválasztott fájl megmutatása a webhelynek megosztott képernyőként.\nMindig tiltsa: minden kérés elutasítása.",
+  "siteSettingsScreenShareVirtual": "Szimulált képernyő",
+  "permissionScreenShareNeverReal": "Nem érhető el. A képernyőfelvétel a teljes képernyőt lefedi, így a többi webhelyét is megmutatná."
 }

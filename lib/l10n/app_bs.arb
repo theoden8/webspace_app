@@ -762,5 +762,18 @@
   "homeQrReviewName": "Naziv: {name}",
   "homeQrReviewProxy": "Šalje promet ove stranice kroz proxy: {address}",
   "homeQrReviewTurnsOff": "Isključuje: {settings}",
-  "homeQrReviewTurnsOn": "Uključuje: {settings}"
+  "homeQrReviewTurnsOn": "Uključuje: {settings}",
+  "homeScreenShareUseFileAction": "Koristi medijsku datoteku",
+  "homeScreenShareSourceTooLarge": "Datoteka je prevelika. Odaberite manju od 24 MB.",
+  "homeScreenShareSourceError": "Nije moguće koristiti tu datoteku. Odaberite sliku ili video.",
+  "siteSettingsScreenShareAsk": "Pitaj",
+  "siteSettingsScreenShareBlock": "Uvijek blokiraj",
+  "siteSettingsScreenShareNoSource": "Nijedna datoteka nije odabrana",
+  "siteSettingsScreenShareChooseSource": "Odaberite medijsku datoteku",
+  "homeScreenShareTitle": "Dozvoliti dijeljenje ekrana?",
+  "homeScreenShareBody": "{origin} želi dijeliti vaš ekran.\n\nWebSpace neće dijeliti vaš stvarni ekran: snimanje ekrana obuhvata sve, uključujući vaše druge stranice u ovoj aplikaciji. Umjesto toga možete odabrati sliku ili video koji stranica vidi kao dijeljeni ekran. Vaš izbor se pamti za ovu stranicu.",
+  "siteSettingsScreenShare": "Dijeljenje ekrana",
+  "siteSettingsScreenShareHint": "Određuje smije li ova stranica snimati vaš ekran.\n\nWebSpace nikada ne dijeli vaš stvarni ekran. Snimanje ekrana obuhvata cijelu površinu, pa bi prikazalo i vaše druge stranice u ovoj aplikaciji. Umjesto toga, stranici se može prikazati slika ili video koji vi odaberete.\n\nPitaj (zadano): iskačući prozor pita prvi put, a zatim pamti vaš izbor.\nMedijska datoteka: prikaži odabranu datoteku stranici kao dijeljeni ekran.\nUvijek blokiraj: odbij svaki zahtjev.",
+  "siteSettingsScreenShareVirtual": "Simulirani ekran",
+  "permissionScreenShareNeverReal": "Nije dostupno. Snimanje ekrana obuhvata cijeli ekran, pa bi prikazalo i vaše druge stranice."
 }

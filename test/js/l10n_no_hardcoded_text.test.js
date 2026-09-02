@@ -49,7 +49,7 @@ const migrated = new Set([
   'lib/widgets/tab_bar_corner_button.dart',
   'lib/widgets/untrusted_cert_prompt.dart',
   'lib/widgets/url_bar.dart',
-  'lib/widgets/virtual_camera_preview.dart',
+  'lib/widgets/virtual_source_preview.dart',
 ]);
 
 // Known not-yet-migrated. Shrinks as files move to `migrated`; goal is empty.

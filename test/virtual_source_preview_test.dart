@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/widgets/virtual_camera_preview.dart';
+import 'package:webspace/widgets/virtual_source_preview.dart';
 
 void main() {
-  group('buildVirtualCameraPreviewHtml', () {
+  group('buildVirtualSourcePreviewHtml', () {
     const dataUrl = 'data:video/mp4;base64,AAAA';
-    final html = buildVirtualCameraPreviewHtml(dataUrl);
+    final html = buildVirtualSourcePreviewHtml(dataUrl);
 
     test('embeds the source and renders a looping muted autoplay video', () {
       expect(html, contains('src="$dataUrl"'));

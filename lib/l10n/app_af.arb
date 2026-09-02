@@ -762,5 +762,18 @@
   "homeQrReviewName": "Naam: {name}",
   "homeQrReviewProxy": "Stuur hierdie webwerf se verkeer deur 'n proxy: {address}",
   "homeQrReviewTurnsOff": "Skakel af: {settings}",
-  "homeQrReviewTurnsOn": "Skakel aan: {settings}"
+  "homeQrReviewTurnsOn": "Skakel aan: {settings}",
+  "homeScreenShareUseFileAction": "Gebruik 'n medialêer",
+  "homeScreenShareSourceTooLarge": "Daardie lêer is te groot. Kies een onder 24 MB.",
+  "homeScreenShareSourceError": "Kon nie daardie lêer gebruik nie. Kies 'n beeld of video.",
+  "siteSettingsScreenShareAsk": "Vra",
+  "siteSettingsScreenShareBlock": "Blokkeer altyd",
+  "siteSettingsScreenShareNoSource": "Geen lêer gekies nie",
+  "siteSettingsScreenShareChooseSource": "Kies medialêer",
+  "homeScreenShareTitle": "Skermdeling toelaat?",
+  "homeScreenShareBody": "{origin} wil jou skerm deel.\n\nWebSpace sal nie jou werklike skerm deel nie: ’n skermopname vang alles vas, ook jou ander werwe in hierdie app. Jy kan eerder ’n prent of video kies wat die werf as die gedeelde skerm sien. Jou keuse word vir hierdie werf onthou.",
+  "siteSettingsScreenShare": "Skermdeling",
+  "siteSettingsScreenShareHint": "Bepaal of hierdie werf jou skerm mag vasvang.\n\nWebSpace deel nooit jou werklike skerm nie. ’n Skermopname dek die hele oppervlak, en sou dus ook jou ander werwe in hierdie app wys. Die werf kan eerder ’n prent of video sien wat jy kies.\n\nVra (verstek): ’n opspringer vra die eerste keer en onthou dan jou keuse.\nMediaLêer: wys die gekose lêer aan die werf as die gedeelde skerm.\nBlokkeer altyd: verwerp elke versoek.",
+  "siteSettingsScreenShareVirtual": "Gesimuleerde skerm",
+  "permissionScreenShareNeverReal": "Nie beskikbaar nie. ’n Skermopname dek die hele skerm en sou dus ook jou ander werwe wys."
 }

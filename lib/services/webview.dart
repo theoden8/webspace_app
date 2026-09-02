@@ -26,6 +26,7 @@ import 'package:webspace/services/procedural_cosmetic_shim.dart';
 import 'package:webspace/services/camera_permission_service.dart';
 import 'package:webspace/services/camera_stream_shim.dart';
 import 'package:webspace/services/microphone_stream_shim.dart';
+import 'package:webspace/services/screen_share_shim.dart';
 import 'package:webspace/services/current_location_service.dart';
 import 'package:webspace/services/desktop_mode_shim.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
@@ -53,6 +54,7 @@ import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/user_script_service.dart';
 import 'package:webspace/settings/camera.dart';
+import 'package:webspace/settings/screen_share.dart';
 import 'package:webspace/settings/microphone.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/user_script.dart';
@@ -768,6 +770,18 @@ class WebViewConfig {
   /// enumeration must never pop a permission dialog, so it cannot go through
   /// [onMicrophoneDecision].
   final MicrophoneAccessMode Function()? currentMicrophoneMode;
+  /// Resolves the site's decision when the page calls `getDisplayMedia`.
+  /// Called with the origin and the site's current [ScreenShareMode]; returns
+  /// a settled [ScreenShareDecision] (virtual / block, plus a
+  /// [VirtualScreenSource] for virtual) after any Block/Use-a-media-file popup
+  /// or file-pick. When null the shim is not injected either, and
+  /// `getDisplayMedia` keeps whatever the platform provides — which on every
+  /// platform this app ships is nothing (see the native note on
+  /// `onPermissionRequest`). When non-null, the `webScreenShareRequest` JS
+  /// handler serves the whole flow in JS and no display surface is ever
+  /// captured.
+  final Future<ScreenShareDecision> Function(String origin)?
+      onScreenShareDecision;
 
   WebViewConfig({
     this.key,
@@ -830,6 +844,7 @@ class WebViewConfig {
     this.currentCameraMode,
     this.onMicrophoneDecision,
     this.currentMicrophoneMode,
+    this.onScreenShareDecision,
   });
 }
 
@@ -1918,6 +1933,31 @@ class WebViewFactory {
       ));
     }
 
+    // Simulated screen sharing shim. Intercepts getDisplayMedia and, per the
+    // site's decision (fetched via the webScreenShareRequest handler), serves
+    // a user-picked image / looped video as the shared surface. No mode
+    // captures a real display, on any platform.
+    //
+    // forMainFrameOnly:TRUE, unlike the camera and microphone shims. A screen
+    // share is the grant a user is least willing to have redirected, and a
+    // third-party frame is not who they answered the popup for, so a subframe
+    // gets no getDisplayMedia from us at all. Nothing under it can back-door
+    // one either: no platform this app ships offers display capture to a
+    // WKWebView / Android WebView, and the Linux WPE plugin denies a
+    // display-device user-media request natively before Dart is consulted
+    // (its resource-type mapping yields an empty list, which it treats as a
+    // refusal). The shim re-reads the same `window === window.top` test
+    // internally, so the guard survives a platform that stops honouring the
+    // flag.
+    if (config.onScreenShareDecision != null) {
+      userScripts.add(inapp.UserScript(
+        groupName: 'screen_share',
+        source: '${buildScreenShareShim()}\n;null;',
+        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+        forMainFrameOnly: true,
+      ));
+    }
+
     // Always-on: rewrite `target="_blank"` anchors to `_self` so cross-domain
     // link taps route through shouldOverrideUrlLoading (reliable gesture)
     // instead of onCreateWindow (unreliable gesture / empty URL on Android),
@@ -2829,6 +2869,33 @@ class WebViewFactory {
             .name,
       );
     }
+    // Simulated screen sharing bridge: the screen-share shim calls this on
+    // getDisplayMedia to learn the site's decision. The model wrapper resolves
+    // it (short-circuiting a settled mode, coalescing a burst, showing the
+    // Block/Use-a-media-file popup or the file-pick only when unresolved) and
+    // returns {mode, source?}. Null callback -> the shim isn't injected
+    // either, so this is never hit.
+    //
+    // Registered with the frame-aware handler signature rather than the plain
+    // `(args)` one so the deny for a subframe is enforced HERE and not only in
+    // JS: the shim's own top-frame test and the plugin's forMainFrameOnly
+    // wrapper both live in the page's realm, and this does not. `isMainFrame`
+    // is computed by the plugin's bridge preamble and reaches Dart behind the
+    // bridge secret, so page script can neither forge it nor call the handler
+    // around it (SHARE-005).
+    if (config.onScreenShareDecision != null) {
+      controller.addJavaScriptHandler(
+        handlerName: 'webScreenShareRequest',
+        callback: (inapp.JavaScriptHandlerFunctionData data) async {
+          if (!data.isMainFrame) {
+            return const ScreenShareDecision.block().toBridgeJson();
+          }
+          final decision = await config
+              .onScreenShareDecision!(await _promptOrigin(controller, config));
+          return decision.toBridgeJson();
+        },
+      );
+    }
     // Register ClearURLs handler for clipboard/share URL cleaning
     if (config.clearUrlEnabled) {
       controller.addJavaScriptHandler(handlerName: 'clearUrl', callback: (args) {
@@ -3499,6 +3566,20 @@ class WebViewFactory {
       //   combined camera+microphone request too: the shim splits it and
       //   re-issues the video half on its own, so what arrives here is
       //   either camera-only or a request the page must not get.
+      //
+      // Screen sharing never reaches here on any platform this app ships, and
+      // that is a property to preserve rather than an omission: Android
+      // WebView's WebChromeClient has no display-capture resource, WKWebView
+      // (iOS/macOS) routes only WKMediaCaptureType camera/microphone through
+      // the plugin, and the Linux WPE plugin maps a display-device user-media
+      // request to an EMPTY resource list, which it denies natively before
+      // Dart is consulted. There is likewise no PermissionResourceType that
+      // names a display, so nothing here could single one out even if it
+      // arrived; the fallback below would deny it on Android and Linux and
+      // hand it to WebKit's own prompt on iOS/macOS. If a fork bump ever adds
+      // such a resource type, it must be denied explicitly right here — that
+      // is what `test/screen_share_native_denial_test.dart` fails over
+      // (SHARE-003).
       //
       // The fallback returns PROMPT for everything else: Android and Linux
       // WPE map any non-GRANT action to deny (their no-handler default),

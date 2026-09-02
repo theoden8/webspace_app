@@ -762,5 +762,18 @@
   "homeQrReviewName": "ឈ្មោះ៖ {name}",
   "homeQrReviewProxy": "ផ្ញើចរាចរណ៍របស់គេហទំព័រនេះតាម proxy៖ {address}",
   "homeQrReviewTurnsOff": "បិទ៖ {settings}",
-  "homeQrReviewTurnsOn": "បើក៖ {settings}"
+  "homeQrReviewTurnsOn": "បើក៖ {settings}",
+  "homeScreenShareUseFileAction": "ប្រើឯកសារមេឌៀ",
+  "homeScreenShareSourceTooLarge": "ឯកសារធំពេក។ ជ្រើសមួយតូចជាង 24 MB។",
+  "homeScreenShareSourceError": "មិនអាចប្រើឯកសារនោះបានទេ។ ជ្រើសរូបភាព ឬវីដេអូ។",
+  "siteSettingsScreenShareAsk": "សួរ",
+  "siteSettingsScreenShareBlock": "ទប់ស្កាត់ជានិច្ច",
+  "siteSettingsScreenShareNoSource": "មិនបានជ្រើសឯកសារ",
+  "siteSettingsScreenShareChooseSource": "ជ្រើសឯកសារមេឌៀ",
+  "homeScreenShareTitle": "អនុញ្ញាតការចែករំលែកអេក្រង់?",
+  "homeScreenShareBody": "{origin} ចង់ចែករំលែកអេក្រង់របស់អ្នក។\n\nWebSpace នឹងមិនចែករំលែកអេក្រង់ពិតរបស់អ្នកទេ៖ ការថតអេក្រង់ចាប់យកអ្វីៗទាំងអស់ រួមទាំងគេហទំព័រផ្សេងទៀតរបស់អ្នកនៅក្នុងកម្មវិធីនេះ។ ជំនួសមកវិញ អ្នកអាចជ្រើសរើសរូបភាព ឬវីដេអូ ដែលគេហទំព័រមើលឃើញជាអេក្រង់ដែលបានចែករំលែក។ ជម្រើសរបស់អ្នកត្រូវបានចងចាំសម្រាប់គេហទំព័រនេះ។",
+  "siteSettingsScreenShare": "ការចែករំលែកអេក្រង់",
+  "siteSettingsScreenShareHint": "គ្រប់គ្រងថាតើគេហទំព័រនេះអាចថតអេក្រង់របស់អ្នកបានឬទេ។\n\nWebSpace មិនដែលចែករំលែកអេក្រង់ពិតរបស់អ្នកឡើយ។ ការថតអេក្រង់គ្របដណ្តប់លើផ្ទៃទាំងមូល ដូច្នេះវានឹងបង្ហាញគេហទំព័រផ្សេងទៀតរបស់អ្នកនៅក្នុងកម្មវិធីនេះផងដែរ។ ជំនួសមកវិញ គេហទំព័រអាចត្រូវបានបង្ហាញរូបភាព ឬវីដេអូដែលអ្នកជ្រើសរើស។\n\nសួរ (លំនាំដើម)៖ បង្អួចមួយសួរនៅលើកទីមួយ បន្ទាប់មកចងចាំជម្រើសរបស់អ្នក។\nឯកសារមេឌៀ៖ បង្ហាញឯកសារដែលបានជ្រើសរើសទៅគេហទំព័រជាអេក្រង់ដែលបានចែករំលែក។\nទប់ស្កាត់ជានិច្ច៖ បដិសេធរាល់សំណើ។",
+  "siteSettingsScreenShareVirtual": "អេក្រង់ក្លែងធ្វើ",
+  "permissionScreenShareNeverReal": "មិនមាន។ ការថតអេក្រង់គ្របដណ្តប់លើអេក្រង់ទាំងមូល ដូច្នេះវានឹងបង្ហាញគេហទំព័រផ្សេងទៀតរបស់អ្នកផងដែរ។"
 }

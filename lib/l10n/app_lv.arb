@@ -762,5 +762,18 @@
   "homeQrReviewName": "Nosaukums: {name}",
   "homeQrReviewProxy": "Šīs vietnes datplūsmu sūta caur starpniekserveri: {address}",
   "homeQrReviewTurnsOff": "Izslēdz: {settings}",
-  "homeQrReviewTurnsOn": "Ieslēdz: {settings}"
+  "homeQrReviewTurnsOn": "Ieslēdz: {settings}",
+  "homeScreenShareUseFileAction": "Izmantot multivides failu",
+  "homeScreenShareSourceTooLarge": "Fails ir pārāk liels. Izvēlieties mazāku par 24 MB.",
+  "homeScreenShareSourceError": "Šo failu nevarēja izmantot. Izvēlieties attēlu vai video.",
+  "siteSettingsScreenShareAsk": "Jautāt",
+  "siteSettingsScreenShareBlock": "Vienmēr bloķēt",
+  "siteSettingsScreenShareNoSource": "Nav izvēlēts fails",
+  "siteSettingsScreenShareChooseSource": "Izvēlēties multivides failu",
+  "homeScreenShareTitle": "Vai atļaut ekrāna kopīgošanu?",
+  "homeScreenShareBody": "{origin} vēlas kopīgot jūsu ekrānu.\n\nWebSpace nekopīgos jūsu īsto ekrānu: ekrāna tveršana aptver visu, arī jūsu pārējās vietnes šajā lietotnē. Tā vietā varat izvēlēties attēlu vai video, ko vietne redzēs kā kopīgoto ekrānu. Jūsu izvēle tiek iegaumēta šai vietnei.",
+  "siteSettingsScreenShare": "Ekrāna kopīgošana",
+  "siteSettingsScreenShareHint": "Nosaka, vai šī vietne drīkst tvert jūsu ekrānu.\n\nWebSpace nekad nekopīgo jūsu īsto ekrānu. Ekrāna tveršana aptver visu virsmu, tāpēc tā rādītu arī jūsu pārējās vietnes šajā lietotnē. Tā vietā vietnei var parādīt jūsu izvēlētu attēlu vai video.\n\nJautāt (noklusējums): pirmajā reizē jautā uznirstošais logs, pēc tam izvēle tiek iegaumēta.\nMultivides fails: rādīt vietnei izvēlēto failu kā kopīgoto ekrānu.\nVienmēr bloķēt: noraidīt katru pieprasījumu.",
+  "siteSettingsScreenShareVirtual": "Simulēts ekrāns",
+  "permissionScreenShareNeverReal": "Nav pieejams. Ekrāna tveršana aptver visu ekrānu, tāpēc tā rādītu arī jūsu pārējās vietnes."
 }

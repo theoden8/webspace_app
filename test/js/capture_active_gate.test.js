@@ -1,4 +1,4 @@
-// Backgrounded-site gate wiring (CAM-011 / MIC-011).
+// Backgrounded-site gate wiring (CAM-011 / MIC-011 / SHARE-011).
 //
 // The engines take `isSiteActive` as a REQUIRED argument, so the compiler
 // already forces every call site to pass something. What it cannot force is
@@ -76,9 +76,9 @@ for (const rel of SOURCES) {
 }
 
 test('the known isSiteActive call sites are present', () => {
-  // Two capture resolvers on the model, two on the nested screen, plus the
+  // Three capture resolvers on the model, three on the nested screen, plus the
   // navigation engine's. A drop to zero would make this file vacuous.
-  assert.ok(sites.length >= 6,
+  assert.ok(sites.length >= 8,
     `expected the known isSiteActive call sites, found ${sites.length}`);
 });
 
@@ -87,7 +87,8 @@ for (const { rel, line, arg } of sites) {
     const normalized = arg.replace(/\s+/g, '');
     assert.ok(
       !['true', 'false', '()=>true', '()=>false'].includes(normalized),
-      `a hard-coded "${arg}" reopens CAM-011 / MIC-011: a backgrounded site ` +
+      `a hard-coded "${arg}" reopens CAM-011 / MIC-011 / SHARE-011: a `
+        + `backgrounded site ` +
         `would prompt under the visible site's name. Pass the host's real ` +
         `activity predicate (isActive / mounted).`,
     );

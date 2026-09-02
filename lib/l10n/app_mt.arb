@@ -762,5 +762,18 @@
   "homeQrReviewName": "Isem: {name}",
   "homeQrReviewProxy": "Jibgħat it-traffiku ta' dan is-sit minn proxy: {address}",
   "homeQrReviewTurnsOff": "Jitfi: {settings}",
-  "homeQrReviewTurnsOn": "Jixgħel: {settings}"
+  "homeQrReviewTurnsOn": "Jixgħel: {settings}",
+  "homeScreenShareUseFileAction": "Uża fajl tal-midja",
+  "homeScreenShareSourceTooLarge": "Il-fajl huwa kbir wisq. Agħżel wieħed taħt 24 MB.",
+  "homeScreenShareSourceError": "Ma setgħetx tintuża dik il-fajl. Agħżel stampa jew vidjow.",
+  "siteSettingsScreenShareAsk": "Staqsi",
+  "siteSettingsScreenShareBlock": "Dejjem imblokka",
+  "siteSettingsScreenShareNoSource": "L-ebda fajl magħżul",
+  "siteSettingsScreenShareChooseSource": "Agħżel fajl tal-midja",
+  "homeScreenShareTitle": "Tippermetti l-qsim tal-iskrin?",
+  "homeScreenShareBody": "{origin} irid jaqsam l-iskrin tiegħek.\n\nWebSpace mhux se jaqsam l-iskrin veru tiegħek: reġistrazzjoni tal-iskrin taqbad kollox, inklużi s-siti l-oħra tiegħek f'din l-app. Minflok tista' tagħżel immaġni jew vidjow li s-sit jara bħala l-iskrin maqsum. L-għażla tiegħek tinżamm għal dan is-sit.",
+  "siteSettingsScreenShare": "Qsim tal-iskrin",
+  "siteSettingsScreenShareHint": "Jikkontrolla jekk dan is-sit jistax jirreġistra l-iskrin tiegħek.\n\nWebSpace qatt ma jaqsam l-iskrin veru tiegħek. Reġistrazzjoni tal-iskrin tkopri l-wiċċ kollu, u għalhekk kienet turi wkoll is-siti l-oħra tiegħek f'din l-app. Minflok, lis-sit tista' tintwera immaġni jew vidjow li tagħżel int.\n\nStaqsi (awtomatiku): tieqa tistaqsi l-ewwel darba, imbagħad tiftakar l-għażla tiegħek.\nFajl tal-midja: uri l-fajl magħżul lis-sit bħala l-iskrin maqsum.\nImblokka dejjem: irrifjuta kull talba.",
+  "siteSettingsScreenShareVirtual": "Skrin simulat",
+  "permissionScreenShareNeverReal": "Mhux disponibbli. Reġistrazzjoni tal-iskrin tkopri l-iskrin kollu, u għalhekk kienet turi wkoll is-siti l-oħra tiegħek."
 }

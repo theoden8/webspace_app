@@ -762,5 +762,18 @@
   "homeQrReviewName": "Nom: {name}",
   "homeQrReviewProxy": "Envia el trànsit d'aquest lloc a través d'un servidor intermediari: {address}",
   "homeQrReviewTurnsOff": "Desactiva: {settings}",
-  "homeQrReviewTurnsOn": "Activa: {settings}"
+  "homeQrReviewTurnsOn": "Activa: {settings}",
+  "homeScreenShareUseFileAction": "Usa un fitxer multimèdia",
+  "homeScreenShareSourceTooLarge": "Aquest fitxer és massa gran. Trieu-ne un de menys de 24 MB.",
+  "homeScreenShareSourceError": "No s'ha pogut usar aquest fitxer. Trieu una imatge o un vídeo.",
+  "siteSettingsScreenShareAsk": "Pregunta",
+  "siteSettingsScreenShareBlock": "Bloqueja sempre",
+  "siteSettingsScreenShareNoSource": "Cap fitxer triat",
+  "siteSettingsScreenShareChooseSource": "Trieu un fitxer multimèdia",
+  "homeScreenShareTitle": "Voleu permetre la compartició de pantalla?",
+  "homeScreenShareBody": "{origin} vol compartir la vostra pantalla.\n\nWebSpace no compartirà la pantalla real: una captura de pantalla ho recull tot, incloent-hi els vostres altres llocs d'aquesta aplicació. En comptes d'això podeu triar una imatge o un vídeo que el lloc veurà com a pantalla compartida. La vostra tria es recorda per a aquest lloc.",
+  "siteSettingsScreenShare": "Compartició de pantalla",
+  "siteSettingsScreenShareHint": "Controla si aquest lloc pot capturar la vostra pantalla.\n\nWebSpace no comparteix mai la pantalla real. Una captura de pantalla abasta tota la superfície, de manera que també mostraria els vostres altres llocs d'aquesta aplicació. En comptes d'això, es pot mostrar al lloc una imatge o un vídeo que trieu vós.\n\nPregunta (per defecte): un missatge ho pregunta el primer cop i després recorda la vostra tria.\nFitxer multimèdia: mostra el fitxer triat al lloc com a pantalla compartida.\nBloqueja sempre: rebutja totes les peticions.",
+  "siteSettingsScreenShareVirtual": "Pantalla simulada",
+  "permissionScreenShareNeverReal": "No disponible. Una captura de pantalla abasta tota la pantalla, de manera que també mostraria els vostres altres llocs."
 }

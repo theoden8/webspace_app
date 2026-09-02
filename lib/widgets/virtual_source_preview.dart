@@ -1,32 +1,44 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 
-import 'package:webspace/settings/camera.dart';
+import 'package:webspace/settings/virtual_visual_source.dart';
 
-/// Builds the preview page for a video [VirtualCameraSource].
+/// Builds the preview page for a video [VirtualVisualSource].
 ///
-/// Mirrors what the camera shim serves the site: the clip fills a frame with
-/// `object-fit: cover` (the shim's cover-fit), muted + looped + autoplaying,
-/// so the user sees the exact framing (including any crop) and confirms the
+/// Mirrors what the shim serves the site, which is why [objectFit] is a
+/// parameter rather than a constant: the camera cover-fits (a sensor fills its
+/// frame, and the user needs to see the crop), while a shared surface is shown
+/// entire. Muted + looped + autoplaying either way, so the user confirms the
 /// loop. Pure string so it is testable without a WebView.
-String buildVirtualCameraPreviewHtml(String dataUrl) {
+String buildVirtualSourcePreviewHtml(String dataUrl,
+    {String objectFit = 'cover'}) {
   return '<!doctype html><html><head>'
       '<meta name="viewport" content="width=device-width,initial-scale=1">'
       '<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}'
-      'video{width:100%;height:100%;object-fit:cover;display:block}</style>'
+      'video{width:100%;height:100%;object-fit:$objectFit;display:block}</style>'
       '</head><body>'
       '<video src="$dataUrl" autoplay loop muted playsinline></video>'
       '</body></html>';
 }
 
-/// A small 4:3 preview of the source a site is served in
-/// [CameraAccessMode.virtual]. Images render natively (cover-fit, so the
-/// same crop the shim applies is visible); videos render in a muted, looping
-/// WebView so the user can watch the loop the page will receive.
-class VirtualCameraPreview extends StatelessWidget {
-  final VirtualCameraSource source;
+/// A small preview of the media a site is served in place of a real visual
+/// capture. Images render natively; videos render in a muted, looping WebView
+/// so the user can watch the loop the page will receive.
+///
+/// [aspectRatio] and [fit] follow the shim doing the substituting: the camera
+/// cover-fits into 4:3, so the preview shows the crop the page gets; a shared
+/// surface is served whole, so it is contained in a 16:9 frame instead.
+class VirtualSourcePreview extends StatelessWidget {
+  final VirtualVisualSource source;
+  final double aspectRatio;
+  final BoxFit fit;
 
-  const VirtualCameraPreview({super.key, required this.source});
+  const VirtualSourcePreview({
+    super.key,
+    required this.source,
+    this.aspectRatio = 4 / 3,
+    this.fit = BoxFit.cover,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -35,13 +47,16 @@ class VirtualCameraPreview extends StatelessWidget {
       child: SizedBox(
         width: 220,
         child: AspectRatio(
-          aspectRatio: 4 / 3,
+          aspectRatio: aspectRatio,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: Container(
               color: Colors.black,
               child: source.isVideo
-                  ? _VideoPreview(dataUrl: source.dataUrl)
+                  ? _VideoPreview(
+                      dataUrl: source.dataUrl,
+                      objectFit: fit == BoxFit.contain ? 'contain' : 'cover',
+                    )
                   : _imagePreview(),
             ),
           ),
@@ -53,13 +68,14 @@ class VirtualCameraPreview extends StatelessWidget {
   Widget _imagePreview() {
     final bytes = source.bytes;
     if (bytes == null) return const SizedBox.shrink();
-    return Image.memory(bytes, fit: BoxFit.cover, gaplessPlayback: true);
+    return Image.memory(bytes, fit: fit, gaplessPlayback: true);
   }
 }
 
 class _VideoPreview extends StatefulWidget {
   final String dataUrl;
-  const _VideoPreview({required this.dataUrl});
+  final String objectFit;
+  const _VideoPreview({required this.dataUrl, required this.objectFit});
 
   @override
   State<_VideoPreview> createState() => _VideoPreviewState();
@@ -69,7 +85,8 @@ class _VideoPreviewState extends State<_VideoPreview> {
   // Built once so scrolling the settings list doesn't restart playback.
   late final Widget _webView = inapp.InAppWebView(
     initialData: inapp.InAppWebViewInitialData(
-      data: buildVirtualCameraPreviewHtml(widget.dataUrl),
+      data: buildVirtualSourcePreviewHtml(widget.dataUrl,
+          objectFit: widget.objectFit),
       mimeType: 'text/html',
       encoding: 'utf-8',
     ),

@@ -762,5 +762,18 @@
   "homeQrReviewName": "Emri: {name}",
   "homeQrReviewProxy": "E dërgon trafikun e kësaj faqeje përmes një proxy-je: {address}",
   "homeQrReviewTurnsOff": "Çaktivizon: {settings}",
-  "homeQrReviewTurnsOn": "Aktivizon: {settings}"
+  "homeQrReviewTurnsOn": "Aktivizon: {settings}",
+  "homeScreenShareUseFileAction": "Përdor një skedar mediatik",
+  "homeScreenShareSourceTooLarge": "Ai skedar është shumë i madh. Zgjidh një nën 24 MB.",
+  "homeScreenShareSourceError": "Ai skedar nuk mund të përdorej. Zgjidh një imazh ose video.",
+  "siteSettingsScreenShareAsk": "Pyet",
+  "siteSettingsScreenShareBlock": "Blloko gjithmonë",
+  "siteSettingsScreenShareNoSource": "Asnjë skedar i zgjedhur",
+  "siteSettingsScreenShareChooseSource": "Zgjidh skedar mediatik",
+  "homeScreenShareTitle": "Të lejohet ndarja e ekranit?",
+  "homeScreenShareBody": "{origin} dëshiron të ndajë ekranin tuaj.\n\nWebSpace nuk do ta ndajë ekranin tuaj të vërtetë: një regjistrim i ekranit kap gjithçka, përfshirë sajtet tuaja të tjera në këtë aplikacion. Në vend të kësaj mund të zgjidhni një imazh ose video që sajti e sheh si ekranin e ndarë. Zgjedhja juaj mbahet mend për këtë sajt.",
+  "siteSettingsScreenShare": "Ndarja e ekranit",
+  "siteSettingsScreenShareHint": "Kontrollon nëse ky sajt mund ta regjistrojë ekranin tuaj.\n\nWebSpace nuk e ndan kurrë ekranin tuaj të vërtetë. Një regjistrim i ekranit mbulon të gjithë sipërfaqen, prandaj do të tregonte edhe sajtet tuaja të tjera në këtë aplikacion. Në vend të kësaj, sajtit mund t'i tregohet një imazh ose video që zgjidhni ju.\n\nPyet (parazgjedhje): një dritare pyet herën e parë, pastaj mban mend zgjedhjen tuaj.\nSkedar media: tregoji sajtit skedarin e zgjedhur si ekranin e ndarë.\nBllokoje gjithmonë: refuzo çdo kërkesë.",
+  "siteSettingsScreenShareVirtual": "Ekran i simuluar",
+  "permissionScreenShareNeverReal": "Nuk ofrohet. Një regjistrim i ekranit mbulon të gjithë ekranin, prandaj do të tregonte edhe sajtet tuaja të tjera."
 }

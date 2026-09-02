@@ -762,5 +762,18 @@
   "homeQrReviewName": "Pavadinimas: {name}",
   "homeQrReviewProxy": "Šios svetainės srautą siunčia per tarpinį serverį: {address}",
   "homeQrReviewTurnsOff": "Išjungia: {settings}",
-  "homeQrReviewTurnsOn": "Įjungia: {settings}"
+  "homeQrReviewTurnsOn": "Įjungia: {settings}",
+  "homeScreenShareUseFileAction": "Naudoti medijos failą",
+  "homeScreenShareSourceTooLarge": "Failas per didelis. Pasirinkite mažesnį nei 24 MB.",
+  "homeScreenShareSourceError": "Nepavyko panaudoti šio failo. Pasirinkite vaizdą arba vaizdo įrašą.",
+  "siteSettingsScreenShareAsk": "Klausti",
+  "siteSettingsScreenShareBlock": "Visada blokuoti",
+  "siteSettingsScreenShareNoSource": "Failas nepasirinktas",
+  "siteSettingsScreenShareChooseSource": "Pasirinkite medijos failą",
+  "homeScreenShareTitle": "Leisti bendrinti ekraną?",
+  "homeScreenShareBody": "„{origin}“ nori bendrinti jūsų ekraną.\n\n„WebSpace“ nebendrins tikrojo jūsų ekrano: ekrano įrašas užfiksuoja viską, taip pat ir kitas jūsų svetaines šioje programoje. Vietoje to galite pasirinkti paveikslėlį ar vaizdo įrašą, kurį svetainė matys kaip bendrinamą ekraną. Jūsų pasirinkimas įsimenamas šiai svetainei.",
+  "siteSettingsScreenShare": "Ekrano bendrinimas",
+  "siteSettingsScreenShareHint": "Nustato, ar ši svetainė gali įrašyti jūsų ekraną.\n\n„WebSpace“ niekada nebendrina tikrojo jūsų ekrano. Ekrano įrašas apima visą paviršių, tad parodytų ir kitas jūsų svetaines šioje programoje. Vietoje to svetainei galima parodyti jūsų pasirinktą paveikslėlį ar vaizdo įrašą.\n\nKlausti (numatytoji): pirmą kartą klausiama iškylančiajame lange, paskui pasirinkimas įsimenamas.\nMedijos failas: rodyti svetainei pasirinktą failą kaip bendrinamą ekraną.\nVisada blokuoti: atmesti kiekvieną užklausą.",
+  "siteSettingsScreenShareVirtual": "Imituojamas ekranas",
+  "permissionScreenShareNeverReal": "Nepasiekiama. Ekrano įrašas apima visą ekraną, tad parodytų ir kitas jūsų svetaines."
 }

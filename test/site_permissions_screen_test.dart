@@ -5,11 +5,13 @@ import 'package:webspace/screens/site_permissions.dart';
 import 'package:webspace/settings/camera.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/microphone.dart';
+import 'package:webspace/settings/screen_share.dart';
 import 'package:webspace/settings/site_permission_state.dart';
 
 SitePermissionValues _values({
   CameraAccessMode camera = CameraAccessMode.ask,
   MicrophoneAccessMode microphone = MicrophoneAccessMode.ask,
+  ScreenShareMode screenShare = ScreenShareMode.ask,
   LocationMode location = LocationMode.off,
   bool notifications = false,
   bool? protectedContent,
@@ -19,6 +21,8 @@ SitePermissionValues _values({
       virtualCameraSource: null,
       microphoneMode: microphone,
       virtualMicrophoneSource: null,
+      screenShareMode: screenShare,
+      virtualScreenSource: null,
       notificationsEnabled: notifications,
       backgroundAudioEnabled: false,
       protectedContentAllowed: protectedContent,

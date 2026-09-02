@@ -762,5 +762,18 @@
   "homeQrReviewName": "Nume: {name}",
   "homeQrReviewProxy": "Trimite traficul acestui site printr-un proxy: {address}",
   "homeQrReviewTurnsOff": "Dezactivează: {settings}",
-  "homeQrReviewTurnsOn": "Activează: {settings}"
+  "homeQrReviewTurnsOn": "Activează: {settings}",
+  "homeScreenShareUseFileAction": "Folosește un fișier media",
+  "homeScreenShareSourceTooLarge": "Fișierul e prea mare. Alege unul sub 24 MB.",
+  "homeScreenShareSourceError": "Acel fișier nu a putut fi folosit. Alege o imagine sau un video.",
+  "siteSettingsScreenShareAsk": "Întreabă",
+  "siteSettingsScreenShareBlock": "Blochează întotdeauna",
+  "siteSettingsScreenShareNoSource": "Niciun fișier ales",
+  "siteSettingsScreenShareChooseSource": "Alege fișier media",
+  "homeScreenShareTitle": "Permiți partajarea ecranului?",
+  "homeScreenShareBody": "{origin} vrea să îți partajeze ecranul.\n\nWebSpace nu îți va partaja ecranul real: o captură de ecran surprinde totul, inclusiv celelalte site-uri ale tale din această aplicație. În schimb poți alege o imagine sau un videoclip pe care site-ul îl vede ca ecran partajat. Alegerea ta este reținută pentru acest site.",
+  "siteSettingsScreenShare": "Partajarea ecranului",
+  "siteSettingsScreenShareHint": "Stabilește dacă acest site poate captura ecranul tău.\n\nWebSpace nu îți partajează niciodată ecranul real. O captură de ecran acoperă întreaga suprafață, deci ar arăta și celelalte site-uri ale tale din această aplicație. În schimb, site-ului i se poate arăta o imagine sau un videoclip ales de tine.\n\nÎntreabă (implicit): o fereastră întreabă prima dată, apoi îți reține alegerea.\nFișier media: arată site-ului fișierul ales ca ecran partajat.\nBlochează întotdeauna: respinge fiecare cerere.",
+  "siteSettingsScreenShareVirtual": "Ecran simulat",
+  "permissionScreenShareNeverReal": "Indisponibil. O captură de ecran acoperă întregul ecran, deci ar arăta și celelalte site-uri ale tale."
 }

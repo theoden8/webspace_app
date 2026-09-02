@@ -762,5 +762,18 @@
   "homeQrReviewName": "ስም፦ {name}",
   "homeQrReviewProxy": "የዚህን ጣቢያ ትራፊክ በ proxy በኩል ይልካል፦ {address}",
   "homeQrReviewTurnsOff": "ያሰናክላል፦ {settings}",
-  "homeQrReviewTurnsOn": "ያነቃል፦ {settings}"
+  "homeQrReviewTurnsOn": "ያነቃል፦ {settings}",
+  "homeScreenShareUseFileAction": "የሚዲያ ፋይል ተጠቀም",
+  "homeScreenShareSourceTooLarge": "ያ ፋይል በጣም ትልቅ ነው። ከ24 ሜባ በታች ይምረጡ።",
+  "homeScreenShareSourceError": "ያ ፋይል መጠቀም አልተቻለም። ምስል ወይም ቪዲዮ ይምረጡ።",
+  "siteSettingsScreenShareAsk": "ጠይቅ",
+  "siteSettingsScreenShareBlock": "ሁልጊዜ አግድ",
+  "siteSettingsScreenShareNoSource": "ምንም ፋይል አልተመረጠም",
+  "siteSettingsScreenShareChooseSource": "የሚዲያ ፋይል ይምረጡ",
+  "homeScreenShareTitle": "የማያ ገጽ ማጋራት ይፈቀድ?",
+  "homeScreenShareBody": "{origin} ማያ ገጽዎን ማጋራት ይፈልጋል።\n\nWebSpace ትክክለኛውን ማያ ገጽዎን አያጋራም፦ የማያ ገጽ ቀረጻ በዚህ መተግበሪያ ውስጥ ያሉ ሌሎች ጣቢያዎችዎን ጨምሮ ሁሉንም ነገር ይይዛል። በምትኩ ጣቢያው እንደ የተጋራ ማያ ገጽ የሚያየውን ምስል ወይም ቪዲዮ መምረጥ ይችላሉ። ምርጫዎ ለዚህ ጣቢያ ይታወሳል።",
+  "siteSettingsScreenShare": "የማያ ገጽ ማጋራት",
+  "siteSettingsScreenShareHint": "ይህ ጣቢያ ማያ ገጽዎን መቅረጽ ይችል እንደሆነ ይቆጣጠራል።\n\nWebSpace በጭራሽ ትክክለኛውን ማያ ገጽዎን አያጋራም። የማያ ገጽ ቀረጻ ሙሉውን ገጽ ስለሚይዝ በዚህ መተግበሪያ ውስጥ ያሉ ሌሎች ጣቢያዎችዎንም ያሳያል። በምትኩ ጣቢያው እርስዎ የመረጡትን ምስል ወይም ቪዲዮ ማየት ይችላል።\n\nጠይቅ (ነባሪ)፦ በመጀመሪያው ጊዜ ብቅ-ባይ ይጠይቃል፣ ከዚያም ምርጫዎን ያስታውሳል።\nየሚዲያ ፋይል፦ የተመረጠውን ፋይል እንደ የተጋራ ማያ ገጽ ለጣቢያው አሳይ።\nሁልጊዜ አግድ፦ ሁሉንም ጥያቄ ውድቅ አድርግ።",
+  "siteSettingsScreenShareVirtual": "የተመሰለ ማያ ገጽ",
+  "permissionScreenShareNeverReal": "አይገኝም። የማያ ገጽ ቀረጻ ሙሉውን ማያ ገጽ ስለሚይዝ ሌሎች ጣቢያዎችዎንም ያሳያል።"
 }

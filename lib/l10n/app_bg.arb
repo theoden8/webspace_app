@@ -762,5 +762,18 @@
   "homeQrReviewName": "Име: {name}",
   "homeQrReviewProxy": "Изпраща трафика на този сайт през прокси: {address}",
   "homeQrReviewTurnsOff": "Изключва: {settings}",
-  "homeQrReviewTurnsOn": "Включва: {settings}"
+  "homeQrReviewTurnsOn": "Включва: {settings}",
+  "homeScreenShareUseFileAction": "Използване на медиен файл",
+  "homeScreenShareSourceTooLarge": "Файлът е твърде голям. Изберете под 24 MB.",
+  "homeScreenShareSourceError": "Файлът не може да се използва. Изберете изображение или видео.",
+  "siteSettingsScreenShareAsk": "Питай",
+  "siteSettingsScreenShareBlock": "Винаги блокирай",
+  "siteSettingsScreenShareNoSource": "Не е избран файл",
+  "siteSettingsScreenShareChooseSource": "Изберете медиен файл",
+  "homeScreenShareTitle": "Да се разреши ли споделяне на екрана?",
+  "homeScreenShareBody": "{origin} иска да сподели екрана ви.\n\nWebSpace няма да сподели истинския ви екран: записът на екрана обхваща всичко, включително другите ви сайтове в това приложение. Вместо това можете да изберете изображение или видео, което сайтът вижда като споделен екран. Изборът ви се запомня за този сайт.",
+  "siteSettingsScreenShare": "Споделяне на екрана",
+  "siteSettingsScreenShareHint": "Определя дали този сайт може да записва екрана ви.\n\nWebSpace никога не споделя истинския ви екран. Записът на екрана обхваща цялата повърхност и затова би показал и другите ви сайтове в това приложение. Вместо това на сайта може да бъде показано избрано от вас изображение или видео.\n\nПитане (по подразбиране): изскачащ прозорец пита първия път, след което изборът се запомня.\nМедиен файл: показвайте избрания файл на сайта като споделен екран.\nВинаги блокиране: отхвърляй всяка заявка.",
+  "siteSettingsScreenShareVirtual": "Симулиран екран",
+  "permissionScreenShareNeverReal": "Не е налично. Записът на екрана обхваща целия екран и затова би показал и другите ви сайтове."
 }

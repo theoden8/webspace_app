@@ -762,5 +762,18 @@
   "homeQrReviewName": "Nazwa: {name}",
   "homeQrReviewProxy": "Wysyła ruch tej strony przez proxy: {address}",
   "homeQrReviewTurnsOff": "Wyłącza: {settings}",
-  "homeQrReviewTurnsOn": "Włącza: {settings}"
+  "homeQrReviewTurnsOn": "Włącza: {settings}",
+  "homeScreenShareUseFileAction": "Użyj pliku multimedialnego",
+  "homeScreenShareSourceTooLarge": "Plik jest za duży. Wybierz mniejszy niż 24 MB.",
+  "homeScreenShareSourceError": "Nie można użyć tego pliku. Wybierz obraz lub wideo.",
+  "siteSettingsScreenShareAsk": "Pytaj",
+  "siteSettingsScreenShareBlock": "Zawsze blokuj",
+  "siteSettingsScreenShareNoSource": "Nie wybrano pliku",
+  "siteSettingsScreenShareChooseSource": "Wybierz plik multimedialny",
+  "homeScreenShareTitle": "Zezwolić na udostępnianie ekranu?",
+  "homeScreenShareBody": "{origin} chce udostępnić Twój ekran.\n\nWebSpace nie udostępni Twojego prawdziwego ekranu: nagranie ekranu obejmuje wszystko, w tym Twoje pozostałe witryny w tej aplikacji. Zamiast tego możesz wybrać obraz lub film, który witryna zobaczy jako udostępniony ekran. Twój wybór zostanie zapamiętany dla tej witryny.",
+  "siteSettingsScreenShare": "Udostępnianie ekranu",
+  "siteSettingsScreenShareHint": "Określa, czy ta witryna może nagrywać Twój ekran.\n\nWebSpace nigdy nie udostępnia Twojego prawdziwego ekranu. Nagranie ekranu obejmuje całą powierzchnię, więc pokazałoby też Twoje pozostałe witryny w tej aplikacji. Zamiast tego witrynie można pokazać wybrany przez Ciebie obraz lub film.\n\nPytaj (domyślnie): okno pyta za pierwszym razem, a potem wybór jest zapamiętywany.\nPlik multimedialny: pokaż witrynie wybrany plik jako udostępniony ekran.\nZawsze blokuj: odrzucaj każde żądanie.",
+  "siteSettingsScreenShareVirtual": "Symulowany ekran",
+  "permissionScreenShareNeverReal": "Niedostępne. Nagranie ekranu obejmuje cały ekran, więc pokazałoby też Twoje pozostałe witryny."
 }
