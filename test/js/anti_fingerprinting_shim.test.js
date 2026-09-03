@@ -434,6 +434,36 @@ test('CanvasRenderingContext2D.prototype.getImageData calls original and returns
   assert.equal(calls.length, 1);
 });
 
+test('the noise nudge is applied once per canvas, not once per read', () => {
+  // The nudge paints onto the canvas, so re-running it on the next read
+  // stacks a second pixel and two reads of one canvas disagree — the
+  // averaging weakness the noise exists to resist.
+  const dom = loadShim(ALPHA);
+  const canvas = dom.window.document.createElement('canvas');
+  canvas.width = 32; canvas.height = 32;
+  canvas.toDataURL('image/png');
+  canvas.toDataURL('image/png');
+  canvas.getContext('2d').getImageData(0, 0, 4, 4);
+  const fills = dom.window.__calls.filter((c) => c.name === 'ctx.fillRect');
+  assert.equal(fills.length, 1);
+
+  // A second canvas still gets its own.
+  const other = dom.window.document.createElement('canvas');
+  other.width = 32; other.height = 32;
+  other.toDataURL('image/png');
+  assert.equal(dom.window.__calls.filter((c) => c.name === 'ctx.fillRect').length, 2);
+});
+
+test('performance.now is quantized without becoming an own property', () => {
+  // A pristine engine reports no own properties on `performance`; assigning
+  // the wrapper to the instance announced the quantization through the one
+  // enumeration the rest of the shim stays out of.
+  const dom = loadShim(ALPHA);
+  assert.deepEqual(Object.getOwnPropertyNames(dom.window.performance), []);
+  const t = dom.window.performance.now();
+  assert.equal(t % 100, 0);
+});
+
 test('Canvas toDataURL invokes the original after a noise nudge', () => {
   const dom = loadShim(ALPHA);
   const canvas = dom.window.document.createElement('canvas');

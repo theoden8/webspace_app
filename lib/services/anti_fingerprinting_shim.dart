@@ -437,8 +437,16 @@ String buildAntiFingerprintingShim(
     if (typeof HTMLCanvasElement !== 'undefined' &&
         HTMLCanvasElement.prototype) {
       var canProto = HTMLCanvasElement.prototype;
+      // Once per canvas. The nudge paints a pixel ONTO the canvas, so running
+      // it again on the next read stacks a second pixel on the first: two
+      // reads of one canvas return different bytes and the per-site
+      // fingerprint drifts within a page, which is the averaging weakness the
+      // noise exists to resist.
+      var _nudged = new WeakSet();
       function nudgeCanvas(canvas, salt) {
         try {
+          if (_nudged.has(canvas)) return;
+          _nudged.add(canvas);
           var ctx = canvas.getContext && canvas.getContext('2d');
           if (!ctx || typeof ctx.fillRect !== 'function') return;
           var rng = seededRng(salt);
@@ -619,10 +627,28 @@ String buildAntiFingerprintingShim(
   // animation/loading code that tolerates >>16ms scheduling jitter anyway.
   try {
     if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
-      var origPerf = performance.now.bind(performance);
-      performance.now = asNative(function now() {
-        return Math.floor(origPerf() / 100) * 100;
-      }, 'now');
+      // On the PROTOTYPE. Assigning to `performance.now` creates an own
+      // property, and a pristine engine's
+      // `Object.getOwnPropertyNames(performance)` is empty, so the
+      // quantization announced itself through the one enumeration the rest of
+      // this file stays out of.
+      var perfProto = Object.getPrototypeOf(performance);
+      var nowDesc = perfProto
+          ? Object.getOwnPropertyDescriptor(perfProto, 'now') : null;
+      if (nowDesc && typeof nowDesc.value === 'function') {
+        var origNow = nowDesc.value;
+        perfProto.now = asNative(function now() {
+          return Math.floor(origNow.call(this) / 100) * 100;
+        }, 'now');
+      } else {
+        // Nothing on the prototype to patch. The instance reintroduces the own
+        // property this branch exists to avoid, but an unquantized
+        // high-resolution timer is an actual side channel.
+        var origPerf = performance.now.bind(performance);
+        performance.now = asNative(function now() {
+          return Math.floor(origPerf() / 100) * 100;
+        }, 'now');
+      }
     }
   } catch (e) {}
   try {
