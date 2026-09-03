@@ -19,6 +19,7 @@ import 'package:webspace/services/proxy_relay.dart';
 import 'package:webspace/services/pull_to_refresh_gate.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/target_blank_rewrite.dart';
+import 'package:webspace/services/webgl_kill_switch_shim.dart';
 import 'package:webspace/services/theme_color_scheme_shim.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
@@ -1354,46 +1355,6 @@ class _WebViewController implements WebViewController {
 }
 
 
-/// JavaScript that disables every entry-point JS has into WebGL context
-/// creation, so chromium never enters its WebGL-blocklist code path —
-/// the suspect for a dangling-raw_ptr SIGTRAP at
-/// `partition_alloc_support.cc:770` on the Android System WebView build
-/// our crash logs come from. Injected at DOCUMENT_START into every
-/// frame on Android only (see WebViewFactory.createWebView).
-///
-/// Coverage:
-///   - HTMLCanvasElement.prototype.getContext('webgl' | 'webgl2' |
-///     'experimental-webgl' | 'experimental-webgl2') → null
-///   - OffscreenCanvas.prototype.getContext same treatment
-///   - window.WebGLRenderingContext / WebGL2RenderingContext deleted so
-///     `typeof WebGLRenderingContext === 'undefined'` feature detection
-///     short-circuits before getContext is even attempted
-const String _webGlKillSwitchScript = r'''
-(function() {
-  var GL_TYPES = {
-    'webgl': 1, 'webgl2': 1,
-    'experimental-webgl': 1, 'experimental-webgl2': 1
-  };
-  function patchGetContext(proto) {
-    if (!proto || !proto.getContext) return;
-    var orig = proto.getContext;
-    proto.getContext = function(type) {
-      if (typeof type === 'string' && GL_TYPES[type.toLowerCase()]) {
-        return null;
-      }
-      return orig.apply(this, arguments);
-    };
-  }
-  try { patchGetContext(HTMLCanvasElement.prototype); } catch (_) {}
-  try {
-    if (typeof OffscreenCanvas !== 'undefined') {
-      patchGetContext(OffscreenCanvas.prototype);
-    }
-  } catch (_) {}
-  try { delete window.WebGLRenderingContext; } catch (_) {}
-  try { delete window.WebGL2RenderingContext; } catch (_) {}
-})();
-''';
 
 /// JavaScript that intercepts clipboard writes and Web Share API calls to clean
 /// tracking parameters from URLs before they leave the webview. Sends URLs to
@@ -1986,7 +1947,7 @@ class WebViewFactory {
     if (config.trackingProtectionEnabled) {
       userScripts.add(inapp.UserScript(
         groupName: 'webgl_kill_switch',
-        source: '$_webGlKillSwitchScript\n;null;',
+        source: '$webGlKillSwitchScript\n;null;',
         injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
         // Inject into every frame — third-party fingerprint scripts
         // routinely run inside iframes.

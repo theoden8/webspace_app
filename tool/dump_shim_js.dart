@@ -18,6 +18,7 @@
 
 import 'dart:io';
 
+import 'package:webspace/services/webgl_kill_switch_shim.dart';
 import 'package:webspace/services/anti_fingerprinting_shim.dart';
 import 'package:webspace/services/blob_url_capture.dart';
 import 'package:webspace/services/camera_stream_shim.dart';
@@ -122,6 +123,7 @@ Map<String, String> buildAllFixtures() {
     webRtcPolicy: WebRtcPolicy.defaultPolicy,
   );
   // Zero-offset zone: the negative-zero boundary case.
+  fixtures['webgl_kill_switch/shim.js'] = webGlKillSwitchScript;
   fixtures['location_spoof/timezone_only_utc.js'] =
       LocationSpoofService.buildScript(
     locationMode: LocationMode.off,
