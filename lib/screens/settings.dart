@@ -13,6 +13,7 @@ import 'package:webspace/settings/screen_share.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/tor_exit_countries.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/user_agent_identity.dart';
@@ -438,6 +439,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       address: PlatformInfo.isProxySupported ? m.proxySettings.address : null,
       username: PlatformInfo.isProxySupported ? m.proxySettings.username : null,
       password: PlatformInfo.isProxySupported ? m.proxySettings.password : null,
+      torExitCountry:
+          PlatformInfo.isProxySupported ? m.proxySettings.torExitCountry : null,
     );
     // effectiveUserAgent so a preset site's field shows the string the
     // webview actually sends (current version), not the stored snapshot.
@@ -1154,6 +1157,61 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (mounted) setState(() {});
   }
 
+  Widget _buildTorExitCountryTile() {
+    final loc = AppLocalizations.of(context);
+    final pinned = _proxySettings.torExitCountry;
+    final known = torExitCountryFor(pinned);
+    // An unlisted pin keeps its bare code rather than reading as unpinned:
+    // it is still a valid `{cc}` that tor honours, and showing "Any" for a
+    // site that is in fact pinned would be the mis-report TOR-014 forbids.
+    final subtitle = known?.label ??
+        (pinned == null || pinned.trim().isEmpty
+            ? loc.siteSettingsTorExitCountryAny
+            : pinned.toUpperCase());
+    return ListTile(
+      title: Row(
+        children: [
+          Flexible(child: Text(loc.siteSettingsTorExitCountry)),
+          HintButton(
+            title: loc.siteSettingsTorExitCountry,
+            description: loc.siteSettingsTorExitCountryHint,
+          ),
+        ],
+      ),
+      subtitle: Text(subtitle),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: _pickTorExitCountry,
+    );
+  }
+
+  Future<void> _pickTorExitCountry() async {
+    final loc = AppLocalizations.of(context);
+    final selected = await showDialog<String?>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(loc.siteSettingsTorExitCountry),
+        children: [
+          // Sentinel: `null` is a legal value here (unpin), so the dialog
+          // returns a wrapper the caller unpacks rather than relying on a
+          // null result, which also means "dismissed".
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(ctx, ''),
+            child: Text(loc.siteSettingsTorExitCountryAny),
+          ),
+          for (final c in kTorExitCountries)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(ctx, c.code),
+              child: Text(c.label),
+            ),
+        ],
+      ),
+    );
+    if (selected == null || !mounted) return;
+    setState(() {
+      _proxySettings.torExitCountry = selected.isEmpty ? null : selected;
+    });
+  }
+
   Widget _buildWebRtcTile() {
     final loc = AppLocalizations.of(context);
     return ListTile(
@@ -1431,6 +1489,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ).toList(),
               ),
             ),
+            if (_proxySettings.type == ProxyType.TOR) _buildTorExitCountryTile(),
             // TOR supplies its own loopback address and stream-isolation
             // auth, so the manual fields are inert while it is selected.
             // Hidden, not cleared: PROXY-010 requires a stored SOCKS5 config

@@ -1738,6 +1738,18 @@
     "description": "Note above the proxy section explaining proxy scope."
   },
   "siteSettingsProxyType": "Proxy Type",
+  "siteSettingsTorExitCountry": "Exit country",
+  "@siteSettingsTorExitCountry": {
+    "description": "Label for the row that pins which country a Tor site exits from."
+  },
+  "siteSettingsTorExitCountryAny": "Any country",
+  "@siteSettingsTorExitCountryAny": {
+    "description": "Value shown on the exit-country row when no country is pinned, and the first option in the picker."
+  },
+  "siteSettingsTorExitCountryHint": "Your traffic leaves the Tor network from this country. The pin is strict: if no exit there works, the request fails instead of leaving from somewhere else. Only one country applies at a time, so opening this site unloads any site pinned to a different country.",
+  "@siteSettingsTorExitCountryHint": {
+    "description": "Hint body explaining that the exit-country pin is strict and that only one country applies at a time."
+  },
   "@siteSettingsProxyType": {
     "description": "Label for the proxy type dropdown."
   },
