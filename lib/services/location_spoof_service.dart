@@ -401,6 +401,7 @@ const String _template = r'''
   // --- Timezone spoofing ---
   if (TZ) {
     var _nativeDTF = Intl.DateTimeFormat;
+    var _origGetTZO = Date.prototype.getTimezoneOffset;
 
     // Compute the target zone's UTC offset (minutes, sign flipped to match
     // Date.prototype.getTimezoneOffset: positive when local is behind UTC)
@@ -419,13 +420,22 @@ const String _template = r'''
         var asUtc = Date.UTC(
           +parts.year, +parts.month - 1, +parts.day,
           +parts.hour, +parts.minute, +parts.second);
-        return -Math.round((asUtc - t) / 60000);
+        var mins = -Math.round((asUtc - t) / 60000);
+        // Normalize negative zero. `asUtc` has second precision, so for a
+        // zero-offset zone the difference is the sub-second remainder: when
+        // the instant lands exactly on a second boundary `Math.round` yields
+        // +0 and the unary minus turns it into -0. A real engine returns +0
+        // for UTC, so `Object.is(d.getTimezoneOffset(), -0)` would be true
+        // only here.
+        return mins === 0 ? 0 : mins;
       } catch (e) {
-        return date.getTimezoneOffset();
+        // The unpatched method. Calling `date.getTimezoneOffset()` here would
+        // re-enter this function through the override and recurse until the
+        // stack blows.
+        return _origGetTZO.call(date);
       }
     }
 
-    var _origGetTZO = Date.prototype.getTimezoneOffset;
     var _getTZO = function getTimezoneOffset() {
       return targetOffsetMinutes(this);
     };

@@ -121,6 +121,16 @@ Map<String, String> buildAllFixtures() {
     spoofTimezone: null,
     webRtcPolicy: WebRtcPolicy.defaultPolicy,
   );
+  // Zero-offset zone: the negative-zero boundary case.
+  fixtures['location_spoof/timezone_only_utc.js'] =
+      LocationSpoofService.buildScript(
+    locationMode: LocationMode.off,
+    spoofLatitude: null,
+    spoofLongitude: null,
+    spoofAccuracy: 50.0,
+    spoofTimezone: 'UTC',
+    webRtcPolicy: WebRtcPolicy.defaultPolicy,
+  );
   fixtures['location_spoof/timezone_only_tokyo.js'] =
       LocationSpoofService.buildScript(
     locationMode: LocationMode.off,

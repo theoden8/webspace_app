@@ -235,6 +235,25 @@ for (const tier of SNAP_TIERS) {
   });
 }
 
+test('a zero-offset zone reports +0, never negative zero', () => {
+  // `-Math.round(0)` is -0, and `Object.is(d.getTimezoneOffset(), -0)` is true
+  // only under this shim: a real engine returns +0 for UTC. The instant
+  // matters — the leak only appeared when the sub-second remainder was exactly
+  // zero, which the quantized clock makes common — so probe both boundary and
+  // non-boundary instants.
+  const dom = loadShim('location_spoof/timezone_only_utc.js');
+  const r = dom.window.eval(`(() => {
+    const out = [];
+    for (const ms of [0, 1, 500, 999, 1000, 1700000000000, 1700000000123]) {
+      out.push(Object.is(new Date(ms).getTimezoneOffset(), -0));
+    }
+    return out;
+  })()`);
+  assert.deepEqual(Array.from(r), [false, false, false, false, false, false, false],
+    'no instant may produce a negative-zero offset');
+  assert.equal(dom.window.eval("new Date(0).getTimezoneOffset()"), 0);
+});
+
 test('full_combo: all four overrides install in the same realm', () => {
   // Smoke test that the combined shim doesn't fail to install one
   // override because a previous one threw — they're all independent and
