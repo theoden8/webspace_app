@@ -13,6 +13,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -142,7 +143,24 @@ class TorService {
 
   final TorEngine _engine;
 
-  bool get isAvailable => _engine.isAvailable;
+  /// Whether anything may offer or start Tor.
+  ///
+  /// Two conditions, and both are gates rather than one being a detail of
+  /// the other. The platform must actually have the runtime (TOR-007), and
+  /// developer mode must be on (DEVTOOLS-010): the bootstrap interstitial
+  /// and status card are not built, so a site set to TOR sits on the
+  /// fail-closed blank page with nothing explaining why. That is a support
+  /// burden and an App Store completeness risk, and neither is something to
+  /// hand an ordinary user before the surface exists.
+  ///
+  /// The gate lives here rather than in [MethodChannelTorRuntime] or
+  /// [TorEngine], which answer the narrower question "does this build have
+  /// a tor to talk to" and are unit-tested against fakes on that basis.
+  /// Every start path below re-checks it, so the answer does not depend on
+  /// the caller having asked first.
+  bool get isAvailable =>
+      _engine.isAvailable && DeveloperModeService.instance.enabled;
+
   TorStatus get status => _engine.status;
   Stream<TorStatus> get statusStream => _engine.statusStream;
 
@@ -152,24 +170,40 @@ class TorService {
     return s is TorUp ? '${s.host}:${s.port}' : null;
   }
 
-  Future<void> maybeStart(String reason) => _engine.acquire(reason);
+  Future<void> maybeStart(String reason) async {
+    if (!isAvailable) return;
+    await _engine.acquire(reason);
+  }
+
   void release(String reason) => _engine.release(reason);
-  Future<void> syncHolders(Iterable<String> reasons) =>
-      _engine.syncHolders(reasons);
+
+  Future<void> syncHolders(Iterable<String> reasons) async {
+    // Not an early return: turning developer mode off while Tor sites are
+    // configured has to release the holders it already took, or the runtime
+    // stays pinned up for a feature the user can no longer reach.
+    await _engine.syncHolders(isAvailable ? reasons : const <String>[]);
+  }
+
   Future<void> rebuildCircuits() => _engine.rebuildCircuits();
 
   /// Pin every circuit to a country (tor `ExitNodes` syntax) or clear it.
   /// Global to the runtime — see TOR-014 for why that makes per-site pins
   /// mutually exclusive.
-  Future<void> setExitCountry(String? exitNodes) =>
-      _engine.setExitCountry(exitNodes);
+  Future<void> setExitCountry(String? exitNodes) async {
+    if (!isAvailable) return;
+    await _engine.setExitCountry(exitNodes);
+  }
 
   String? get exitNodes => _engine.exitNodes;
 
   /// SOCKS5 settings for a site (or app-global traffic when [siteId] is
   /// null). Null means "not routable yet" — the caller must fail closed.
+  ///
+  /// Returns null with the gate shut, which is the fail-closed answer: a
+  /// site still carrying `ProxyType.TOR` from before developer mode was
+  /// turned off is blocked, never quietly sent out over the device IP.
   UserProxySettings? socksFor({String? siteId}) =>
-      _engine.socksFor(TorEngine.tagFor(siteId));
+      isAvailable ? _engine.socksFor(TorEngine.tagFor(siteId)) : null;
 
   /// Per-launch SOCKS password. Not a secret Tor verifies — it only has to
   /// be unguessable and stable within a launch so a site keeps one circuit,

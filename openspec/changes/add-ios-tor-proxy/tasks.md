@@ -46,6 +46,8 @@ the nested-webview propagation chain. See PROXY-010 for the reasoning.
 
 ## 6. UI surfaces
 
+- [x] 6.0 Gate the whole feature behind developer mode (DEVTOOLS-010) until TOR-013's bootstrap surface lands: `TorService.isAvailable` is the conjunction of the platform gate and `DeveloperModeService.instance.enabled`, every start path re-checks it, `socksFor` returns null with it shut, and turning the flag off releases the holders already taken. The gate deliberately sits on `TorService` rather than the runtime or engine, which stay pure platform questions for their fake-backed tests.
+
 - [x] 6.1 In [lib/screens/settings.dart](../../../lib/screens/settings.dart) per-site Proxy block: offer `ProxyType.TOR` in the proxy type dropdown, gated on `TorService.isAvailable`, and hide the manual address/credential fields under it without overwriting what they hold. Shipped as a dropdown value rather than the planned separate switch — PROXY-010 records why a second flag was dropped.
 - [x] 6.2a In [lib/screens/app_settings.dart](../../../lib/screens/app_settings.dart): add `ProxyType.TOR` to the global outbound proxy dropdown, on the same `TorService.isAvailable` gate, with the address validator exempting it.
 - [ ] 6.2b Add a "Tor status" card subscribing to `TorService.statusStream`: bootstrap progress bar, current state, "Rebuild circuits" button. Nothing renders `TorStatus` today — `bootstrapPct`, the SOCKS endpoint and `lastError` all reach `TorEngine` and stop there. Pairs with the 5.x interstitial as the TOR-013 surface.

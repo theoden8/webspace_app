@@ -183,15 +183,56 @@ not forced to migrate.
 
 ---
 
-### Requirement: TOR-007 - Platform gate
+### Requirement: TOR-007 - Platform and developer-mode gate
 
-`TorService` SHALL only operate on iOS in the first cut. On every
-other platform `TorService.isAvailable` SHALL return `false`, and
-the `TOR` option SHALL be absent from the per-site proxy-type dropdown. Existing
-per-site SOCKS5 configuration (manual `host:port`, with or without
-credentials) SHALL remain available on every platform that supports
-proxies today, so Android users can still point at Orbot's SOCKS5
-endpoint manually.
+`TorService` SHALL only operate on iOS in the first cut, **and only
+while developer mode is on**. `TorService.isAvailable` SHALL be the
+conjunction of the two, and SHALL be the single reader both the
+per-site and app-global proxy-type dropdowns consult; with it false the
+`TOR` option SHALL be absent from both. Existing per-site SOCKS5
+configuration (manual `host:port`, with or without credentials) SHALL
+remain available on every platform that supports proxies today, so
+Android users can still point at Orbot's SOCKS5 endpoint manually.
+
+**Why developer mode and not release.** The bootstrap interstitial and
+status card (TOR-004/TOR-008/TOR-013) are not built. Without them a
+site set to `TOR` sits on the fail-closed blank page for the length of
+a bootstrap with nothing on screen explaining why, which is a support
+burden and a Guideline 2.1 completeness risk. Reusing DEVTOOLS-010
+rather than adding a second flag keeps one answer to "is this feature
+reachable", and it is deliberately reachable on release builds: the
+users who can exercise an embedded tor on real hardware are the ones
+who would report on it, and a debug-build gate would exclude them.
+This gate comes off when TOR-013's surface lands, not when the code
+merges.
+
+**Where the gate lives.** On `TorService`, not on
+`MethodChannelTorRuntime` or `TorEngine`. Those answer the narrower
+question "does this build have a tor to talk to" and are unit-tested
+against a fake on that basis; folding a user-facing flag into them
+would conflate capability with permission. Every start path on
+`TorService` SHALL re-check the gate, so the answer does not depend on
+a caller having asked first, and `socksFor` SHALL return null with the
+gate shut — a site still carrying `ProxyType.TOR` from before the flag
+was turned off is blocked, never quietly sent out over the device IP.
+
+Turning developer mode off SHALL release the refcount holders already
+taken rather than leave the runtime pinned up for a feature the user
+can no longer reach.
+
+#### Scenario: Tor is absent until developer mode is on
+
+- **GIVEN** the app is running on iOS with developer mode off
+- **WHEN** the user opens a site's Proxy settings block
+- **THEN** `TOR` is absent from the proxy-type dropdown
+- **AND** turning developer mode on makes it available with no restart
+
+#### Scenario: Turning developer mode off stops the runtime
+
+- **GIVEN** a site is routed through Tor and the runtime is up
+- **WHEN** the user turns developer mode off
+- **THEN** the holders are released and the runtime is allowed to stop
+- **AND** that site's requests are blocked rather than sent direct
 
 #### Scenario: Android hides the Tor switch
 
