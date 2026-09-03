@@ -15,11 +15,13 @@
 		7AC100012ED2DC5600515811 /* LocationPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC100002ED2DC5600515811 /* LocationPlugin.swift */; };
 		7AC100032ED2DC5600515813 /* BackgroundTaskPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC100022ED2DC5600515813 /* BackgroundTaskPlugin.swift */; };
 		7AC300012ED2DC5600515830 /* MediaSessionPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC300002ED2DC5600515830 /* MediaSessionPlugin.swift */; };
+		A11C0DE100000000000000T2 /* TorControllerPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11C0DE100000000000000T1 /* TorControllerPlugin.swift */; };
 		7AC200012ED2DC5600515820 /* ShortcutsPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC200002ED2DC5600515820 /* ShortcutsPlugin.swift */; };
 		7AC200032ED2DC5600515821 /* WebSpaceAppIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC200022ED2DC5600515821 /* WebSpaceAppIntents.swift */; };
 		897CA73A1B12E395D36631E0 /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BEB686F40D1F327FFB98EB57 /* Pods_Runner.framework */; };
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
+		A11C0DE100000000000000P2 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A11C0DE100000000000000P1 /* PrivacyInfo.xcprivacy */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
 		7B0E0000000000000000001E /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B0E0000000000000000000A /* ShareViewController.swift */; };
 		7B0E0000000000000000001F /* ShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 7B0E00000000000000000009 /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -78,6 +80,7 @@
 		7AC100002ED2DC5600515811 /* LocationPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LocationPlugin.swift; sourceTree = "<group>"; };
 		7AC100022ED2DC5600515813 /* BackgroundTaskPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = BackgroundTaskPlugin.swift; sourceTree = "<group>"; };
 		7AC300002ED2DC5600515830 /* MediaSessionPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MediaSessionPlugin.swift; sourceTree = "<group>"; };
+		A11C0DE100000000000000T1 /* TorControllerPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TorControllerPlugin.swift; sourceTree = "<group>"; };
 		7AC200002ED2DC5600515820 /* ShortcutsPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ShortcutsPlugin.swift; sourceTree = "<group>"; };
 		7AC200022ED2DC5600515821 /* WebSpaceAppIntents.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = WebSpaceAppIntents.swift; sourceTree = "<group>"; };
 		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Release.xcconfig; path = Flutter/Release.xcconfig; sourceTree = "<group>"; };
@@ -87,6 +90,7 @@
 		97C146EE1CF9000F007C117D /* Runner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Runner.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		97C146FB1CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		97C146FD1CF9000F007C117D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A11C0DE100000000000000P1 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		97C147001CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A873FC68CB535DFAC8A0FA03 /* Pods-RunnerTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.release.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.release.xcconfig"; sourceTree = "<group>"; };
@@ -199,6 +203,7 @@
 			children = (
 				97C146FA1CF9000F007C117D /* Main.storyboard */,
 				97C146FD1CF9000F007C117D /* Assets.xcassets */,
+				A11C0DE100000000000000P1 /* PrivacyInfo.xcprivacy */,
 				97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */,
 				97C147021CF9000F007C117D /* Info.plist */,
 				1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */,
@@ -207,6 +212,7 @@
 				7AC100002ED2DC5600515811 /* LocationPlugin.swift */,
 				7AC100022ED2DC5600515813 /* BackgroundTaskPlugin.swift */,
 				7AC300002ED2DC5600515830 /* MediaSessionPlugin.swift */,
+				A11C0DE100000000000000T1 /* TorControllerPlugin.swift */,
 				7AC200002ED2DC5600515820 /* ShortcutsPlugin.swift */,
 				7AC200022ED2DC5600515821 /* WebSpaceAppIntents.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
@@ -347,6 +353,7 @@
 				97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */,
 				3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */,
 				97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */,
+				A11C0DE100000000000000P2 /* PrivacyInfo.xcprivacy in Resources */,
 				97C146FC1CF9000F007C117D /* Main.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -472,6 +479,7 @@
 				7AC100012ED2DC5600515811 /* LocationPlugin.swift in Sources */,
 				7AC100032ED2DC5600515813 /* BackgroundTaskPlugin.swift in Sources */,
 				7AC300012ED2DC5600515830 /* MediaSessionPlugin.swift in Sources */,
+				A11C0DE100000000000000T2 /* TorControllerPlugin.swift in Sources */,
 				7AC200012ED2DC5600515820 /* ShortcutsPlugin.swift in Sources */,
 				7AC200032ED2DC5600515821 /* WebSpaceAppIntents.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,

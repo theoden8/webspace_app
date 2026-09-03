@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Privacy manifest (TOR-011). This belongs here and not in Info.plist:
+	     Apple reads NSPrivacyAccessedAPITypes from a PrivacyInfo.xcprivacy
+	     resource, so the same keys parked in Info.plist are silently absent
+	     at review while looking correct in the diff.
+
+	     Declare only what is actually reached. Over-declaring is its own
+	     rejection (ITMS-91055, invalid API reason declaration), so each row
+	     below names the caller that justifies it. The app's own Dart and
+	     Swift code calls none of the required-reason APIs directly; these
+	     rows exist for the statically linked tor build, which owns a
+	     DataDirectory on disk.
+
+	     Upstream gap: Tor.framework ships no PrivacyInfo.xcprivacy of its
+	     own, so its usage cannot be inherited from the pod and is declared
+	     here instead. Raise it upstream; re-verify these rows against the
+	     linked tor version rather than trusting this comment. -->
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<!-- tor stats files inside its DataDirectory (consensus and
+			     descriptor caches, lock file, state file). C617.1: access
+			     the timestamps, size, or other metadata of files inside
+			     the app container. -->
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>C617.1</string>
+			</array>
+		</dict>
+		<dict>
+			<!-- tor checks free space before writing its caches. E174.1 is
+			     the "sufficient space to write / low space so we can delete"
+			     reason; 85F4.1 is for *displaying* disk space to the user,
+			     which this app never does. -->
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryDiskSpace</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>E174.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

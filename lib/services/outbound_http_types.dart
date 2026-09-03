@@ -6,6 +6,7 @@
 
 import 'package:http/http.dart' as http;
 
+import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 
@@ -20,11 +21,69 @@ import 'package:webspace/settings/proxy.dart';
 /// Apply this at every per-site outbound seam — Dart-side HTTP *and* the
 /// native webview proxy — so a site set to DEFAULT doesn't silently bypass
 /// the global proxy in either direction.
-UserProxySettings resolveEffectiveProxy(UserProxySettings perSite) {
+/// [siteId] only affects [ProxyType.TOR]: it becomes the SOCKS5
+/// stream-isolation tag, so each site rides its own circuit. A site left on
+/// DEFAULT that inherits a global TOR gets the app-global tag instead of its
+/// own — inheriting the app's default proxy is not the same request as
+/// opting into per-site isolation, and conflating them would hand every
+/// uncustomized site a circuit of its own (PROXY-011).
+UserProxySettings resolveEffectiveProxy(
+  UserProxySettings perSite, {
+  String? siteId,
+}) {
   if (perSite.type == ProxyType.DEFAULT) {
-    return GlobalOutboundProxy.current;
+    final global = GlobalOutboundProxy.current;
+    return global.type == ProxyType.TOR
+        ? _torTagged(global, kTorAppGlobalTag)
+        : global;
   }
+  if (perSite.type == ProxyType.TOR) return _torTagged(perSite, siteId);
   return perSite;
+}
+
+/// Stamp the isolation tag into `username`, where the SOCKS5 expansion later
+/// reads it. Carrying the tag on the settings object keeps `clientFor` a
+/// one-argument function all the way down.
+/// Precedence: an explicit [siteId] from the call site, else a tag the
+/// settings object already carries (WebViewModel stamps its `siteId` there
+/// so the ~15 places that pass `model.proxySettings` straight through don't
+/// each have to thread an id), else app-global.
+UserProxySettings _torTagged(UserProxySettings s, String? siteId) {
+  final existing = s.username;
+  final tag = (siteId != null && siteId.isNotEmpty)
+      ? siteId
+      : (existing != null && existing.isNotEmpty)
+          ? existing
+          : kTorAppGlobalTag;
+  return UserProxySettings(
+    type: ProxyType.TOR,
+    address: s.address,
+    username: tag,
+    password: null,
+    // The pin rides the effective settings so a site left on DEFAULT that
+    // inherits a global Tor inherits the global's country too, rather than
+    // reading as unpinned and evicting every pinned neighbour (TOR-014).
+    torExitCountry: s.torExitCountry,
+  );
+}
+
+/// Expands a tagged [ProxyType.TOR] into live SOCKS5 settings, or returns
+/// null when the runtime is not up.
+typedef TorProxyResolver = UserProxySettings? Function(String isolationTag);
+
+/// Installed once at startup from `TorService`. Left null, every TOR request
+/// blocks — which is the correct default: a missing resolver must never mean
+/// "connect directly" (TOR-008).
+TorProxyResolver? torProxyResolver;
+
+/// Shared TOR expansion for both outbound seams (Dart HTTP and the native
+/// webview). Null means block.
+UserProxySettings? expandTorProxy(UserProxySettings settings) {
+  if (settings.type != ProxyType.TOR) return settings;
+  final tag = (settings.username == null || settings.username!.isEmpty)
+      ? kTorAppGlobalTag
+      : settings.username!;
+  return torProxyResolver?.call(tag);
 }
 
 /// Result of asking the [OutboundHttpFactory] to build a client honoring a

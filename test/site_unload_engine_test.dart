@@ -437,6 +437,310 @@ void main() {
     });
   });
 
+  group('SiteUnloadEngine.indicesToUnloadForTorExitMismatch', () {
+    UserProxySettings tor({String? country}) =>
+        UserProxySettings(type: ProxyType.TOR, torExitCountry: country);
+
+    test('flags a loaded site pinned to a different country', () {
+      final models = [
+        _site('https://a.example.com', proxy: tor(country: 'de')),
+        _site('https://b.example.com', proxy: tor(country: 'nl')),
+      ];
+      final result = SiteUnloadEngine.indicesToUnloadForTorExitMismatch(
+        targetIndex: 1,
+        models: models,
+        loadedIndices: {0, 1},
+      );
+      expect(result, {0});
+    });
+
+    test('leaves sites sharing a country loaded', () {
+      final models = [
+        _site('https://a.example.com', proxy: tor(country: 'de')),
+        _site('https://b.example.com', proxy: tor(country: 'de')),
+      ];
+      final result = SiteUnloadEngine.indicesToUnloadForTorExitMismatch(
+        targetIndex: 1,
+        models: models,
+        loadedIndices: {0, 1},
+      );
+      expect(result, isEmpty);
+    });
+
+    test('country matching ignores case and surrounding whitespace', () {
+      // The pin is compared as tor's `ExitNodes` value, not as the raw
+      // string the user typed, so "DE" and "de " are the same country and
+      // must not evict each other.
+      final models = [
+        _site('https://a.example.com', proxy: tor(country: 'DE')),
+        _site('https://b.example.com', proxy: tor(country: ' de ')),
+      ];
+      final result = SiteUnloadEngine.indicesToUnloadForTorExitMismatch(
+        targetIndex: 1,
+        models: models,
+        loadedIndices: {0, 1},
+      );
+      expect(result, isEmpty);
+    });
+
+    test('an unpinned Tor site evicts a pinned one', () {
+      // "No pin" means "must be unrestricted", not "no opinion": there is
+      // one global ExitNodes, so leaving the pinned site loaded would keep
+      // routing the unpinned site through Germany (TOR-014).
+      final models = [
+        _site('https://a.example.com', proxy: tor(country: 'de')),
+        _site('https://b.example.com', proxy: tor()),
+      ];
+      final result = SiteUnloadEngine.indicesToUnloadForTorExitMismatch(
+        targetIndex: 1,
+        models: models,
+        loadedIndices: {0, 1},
+      );
+      expect(result, {0});
+    });
+
+    test('a pinned Tor site evicts an unpinned one', () {
+      final models = [
+        _site('https://a.example.com', proxy: tor()),
+        _site('https://b.example.com', proxy: tor(country: 'de')),
+      ];
+      final result = SiteUnloadEngine.indicesToUnloadForTorExitMismatch(
+        targetIndex: 1,
+        models: models,
+        loadedIndices: {0, 1},
+      );
+      expect(result, {0});
+    });
+
+    test('two unpinned Tor sites coexist', () {
+      final models = [
+        _site('https://a.example.com', proxy: tor()),
+        _site('https://b.example.com', proxy: tor()),
+      ];
+      final result = SiteUnloadEngine.indicesToUnloadForTorExitMismatch(
+        targetIndex: 1,
+        models: models,
+        loadedIndices: {0, 1},
+      );
+      expect(result, isEmpty);
+    });
+
+    test('a malformed country is treated as unpinned, not as its own pin', () {
+      // It never reaches SETCONF (exitNodesValue drops it), so a site
+      // carrying one is unrestricted and must conflict like any other
+      // unpinned site rather than forming a third bucket of its own.
+      final models = [
+        _site('https://a.example.com', proxy: tor(country: 'deutschland')),
+        _site('https://b.example.com', proxy: tor()),
+        _site('https://c.example.com', proxy: tor(country: 'de')),
+      ];
+      expect(
+        SiteUnloadEngine.indicesToUnloadForTorExitMismatch(
+          targetIndex: 1,
+          models: models,
+          loadedIndices: {0, 1},
+        ),
+        isEmpty,
+      );
+      expect(
+        SiteUnloadEngine.indicesToUnloadForTorExitMismatch(
+          targetIndex: 2,
+          models: models,
+          loadedIndices: {0, 2},
+        ),
+        {0},
+      );
+    });
+
+    test('a non-Tor site neither evicts nor is evicted', () {
+      // ExitNodes says nothing about where a SOCKS5 site's traffic goes.
+      final models = [
+        _site('https://a.example.com', proxy: tor(country: 'de')),
+        _site('https://b.example.com',
+            proxy: UserProxySettings(type: ProxyType.SOCKS5, address: 'p:9')),
+      ];
+      expect(
+        SiteUnloadEngine.indicesToUnloadForTorExitMismatch(
+          targetIndex: 1,
+          models: models,
+          loadedIndices: {0, 1},
+        ),
+        isEmpty,
+      );
+      expect(
+        SiteUnloadEngine.indicesToUnloadForTorExitMismatch(
+          targetIndex: 0,
+          models: models,
+          loadedIndices: {0, 1},
+        ),
+        isEmpty,
+      );
+    });
+
+    test('a country left over on a site since switched away is inert', () {
+      final models = [
+        _site('https://a.example.com', proxy: tor()),
+        _site('https://b.example.com',
+            proxy: UserProxySettings(
+              type: ProxyType.SOCKS5,
+              address: 'p:9',
+              torExitCountry: 'nl',
+            )),
+      ];
+      final result = SiteUnloadEngine.indicesToUnloadForTorExitMismatch(
+        targetIndex: 0,
+        models: models,
+        loadedIndices: {0, 1},
+      );
+      expect(result, isEmpty);
+    });
+
+    test('a DEFAULT site inherits the global pin rather than reading as unpinned', () {
+      GlobalOutboundProxy.setForTest(tor(country: 'de'));
+      addTearDown(GlobalOutboundProxy.resetForTest);
+      final models = [
+        _site('https://a.example.com', proxy: tor(country: 'de')),
+        _site('https://b.example.com',
+            proxy: UserProxySettings(type: ProxyType.DEFAULT)),
+        _site('https://c.example.com', proxy: tor(country: 'nl')),
+      ];
+      expect(
+        SiteUnloadEngine.indicesToUnloadForTorExitMismatch(
+          targetIndex: 1,
+          models: models,
+          loadedIndices: {0, 1},
+        ),
+        isEmpty,
+        reason: 'it inherits {de}, which is what site A already holds',
+      );
+      expect(
+        SiteUnloadEngine.indicesToUnloadForTorExitMismatch(
+          targetIndex: 1,
+          models: models,
+          loadedIndices: {1, 2},
+        ),
+        {2},
+        reason: 'inheriting {de} conflicts with {nl} like any other pin',
+      );
+    });
+
+    test('a DEFAULT site under a non-Tor global is unaffected', () {
+      GlobalOutboundProxy.setForTest(
+          UserProxySettings(type: ProxyType.HTTP, address: 'p:8080'));
+      addTearDown(GlobalOutboundProxy.resetForTest);
+      final models = [
+        _site('https://a.example.com', proxy: tor(country: 'de')),
+        _site('https://b.example.com',
+            proxy: UserProxySettings(type: ProxyType.DEFAULT)),
+      ];
+      final result = SiteUnloadEngine.indicesToUnloadForTorExitMismatch(
+        targetIndex: 1,
+        models: models,
+        loadedIndices: {0, 1},
+      );
+      expect(result, isEmpty);
+    });
+
+    test('does not flag the activating site itself', () {
+      final models = [_site('https://a.example.com', proxy: tor(country: 'de'))];
+      final result = SiteUnloadEngine.indicesToUnloadForTorExitMismatch(
+        targetIndex: 0,
+        models: models,
+        loadedIndices: {0},
+      );
+      expect(result, isEmpty);
+    });
+
+    test('ignores unloaded sites', () {
+      final models = [
+        _site('https://a.example.com', proxy: tor(country: 'de')),
+        _site('https://b.example.com', proxy: tor(country: 'nl')),
+      ];
+      final result = SiteUnloadEngine.indicesToUnloadForTorExitMismatch(
+        targetIndex: 1,
+        models: models,
+        loadedIndices: {1},
+      );
+      expect(result, isEmpty);
+    });
+
+    test('the pin in force follows the loaded set', () {
+      final models = [
+        _site('https://a.example.com', proxy: tor(country: 'de')),
+        _site('https://b.example.com', proxy: tor()),
+        _site('https://c.example.com',
+            proxy: UserProxySettings(type: ProxyType.SOCKS5, address: 'p:9')),
+      ];
+      expect(
+        SiteUnloadEngine.torExitNodesFor(indices: {0}, models: models),
+        '{de}',
+      );
+      expect(
+        SiteUnloadEngine.torExitNodesFor(indices: {1}, models: models),
+        isNull,
+        reason: 'an unpinned Tor site wants ExitNodes cleared, not left set',
+      );
+      expect(
+        SiteUnloadEngine.torExitNodesFor(indices: {2}, models: models),
+        isNull,
+      );
+      expect(
+        SiteUnloadEngine.torExitNodesFor(indices: const <int>{}, models: models),
+        isNull,
+      );
+    });
+
+    test('a non-Tor site does not mask the pin a loaded Tor site holds', () {
+      // Activating a SOCKS5 site evicts nobody, so the pinned site is still
+      // loaded and the pin must survive the reconciliation.
+      final models = [
+        _site('https://a.example.com',
+            proxy: UserProxySettings(type: ProxyType.SOCKS5, address: 'p:9')),
+        _site('https://b.example.com', proxy: tor(country: 'de')),
+      ];
+      expect(
+        SiteUnloadEngine.torExitNodesFor(indices: {0, 1}, models: models),
+        '{de}',
+      );
+    });
+
+    test('the pin ignores out-of-range indices', () {
+      final models = [_site('https://a.example.com', proxy: tor(country: 'de'))];
+      expect(
+        SiteUnloadEngine.torExitNodesFor(indices: {-1, 9, 0}, models: models),
+        '{de}',
+      );
+    });
+
+    test('tolerates out-of-range indices', () {
+      final models = [_site('https://a.example.com', proxy: tor(country: 'de'))];
+      expect(
+        SiteUnloadEngine.indicesToUnloadForTorExitMismatch(
+          targetIndex: -1,
+          models: models,
+          loadedIndices: {0},
+        ),
+        isEmpty,
+      );
+      expect(
+        SiteUnloadEngine.indicesToUnloadForTorExitMismatch(
+          targetIndex: 5,
+          models: models,
+          loadedIndices: {0},
+        ),
+        isEmpty,
+      );
+      expect(
+        SiteUnloadEngine.indicesToUnloadForTorExitMismatch(
+          targetIndex: 0,
+          models: models,
+          loadedIndices: {0, 9},
+        ),
+        isEmpty,
+      );
+    });
+  });
+
   group('SiteUnloadEngine.indicesToEvictForLruCap', () {
     test('returns empty when within cap', () {
       final result = SiteUnloadEngine.indicesToEvictForLruCap(

@@ -112,6 +112,8 @@ import 'package:webspace/services/virtual_screen_service.dart';
 import 'package:webspace/services/virtual_media_picker.dart';
 import 'package:webspace/services/virtual_microphone_service.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/utils/url_utils.dart';
@@ -837,6 +839,13 @@ void main() async {
   // callers (flutter_map TileProvider, per-site DEFAULT fallthrough) read
   // GlobalOutboundProxy.current after this.
   await _runTimed('proxyInit', GlobalOutboundProxy.initialize);
+  // Teach the outbound seams how to expand ProxyType.TOR. Until this is
+  // installed every TOR request blocks rather than connecting directly,
+  // which is the right failure but a useless one, so install it early —
+  // before any site can build a webview or fetch a favicon.
+  torProxyResolver = (tag) => TorService.instance.socksFor(
+        siteId: tag == kTorAppGlobalTag ? null : tag,
+      );
   // Hydrate user-approved TLS exceptions so a self-signed site the user
   // already trusted in a previous session loads without a prompt — and
   // so the Dart-side `HttpClient.badCertificateCallback` (favicon
@@ -1381,7 +1390,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           await exportIconAsPng(
             model.initUrl,
             resolvedIconUrl: faviconUrl,
-            proxy: model.proxySettings,
+            proxy: model.outboundProxySettings,
           );
       if (!mounted) return;
       await ShortcutService.pinShortcut(
@@ -2698,7 +2707,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       userAgent: model.effectiveUserAgentOrNull,
       javascriptEnabled: model.javascriptEnabled,
       userScripts: model.combineUserScripts(_globalUserScripts),
-      proxySettings: model.proxySettings,
+      proxySettings: model.outboundProxySettings,
       notificationsEnabled: model.effectiveNotificationsEnabled,
       externalLinksInBrowser: model.effectiveExternalLinksInBrowser,
     );
@@ -2840,7 +2849,40 @@ class _WebSpacePageState extends State<WebSpacePage>
     await _saveWebViewModels();
   }
 
+  /// Reconcile the Tor runtime's refcount with the sites that actually want
+  /// it right now (TOR-002).
+  ///
+  /// A whole-set sync rather than per-toggle acquire/release calls: every
+  /// path that can change the answer — editing a site, importing settings,
+  /// deleting a site, flipping the global proxy — already funnels through
+  /// here, and computing a delta at each of those call sites is how a
+  /// deleted site ends up pinning the runtime up forever.
+  Future<void> _syncTorHolders() async {
+    // No `isAvailable` early return: `syncHolders` is also how holders get
+    // released, and turning developer mode off has to release the ones
+    // already taken rather than leave the runtime pinned up for a feature
+    // the user can no longer reach. TorService shuts its own gate.
+    final holders = <String>{
+      for (final m in _webViewModels)
+        if (m.proxySettings.type == ProxyType.TOR) m.siteId,
+      if (GlobalOutboundProxy.current.type == ProxyType.TOR) kTorAppGlobalTag,
+    };
+    await TorService.instance.syncHolders(holders);
+    // Clearing a site's pin in settings never re-activates it, so without
+    // this the country the user just removed would stay applied until the
+    // next site switch.
+    await TorService.instance.setExitCountry(
+      SiteUnloadEngine.torExitNodesFor(
+        indices: <int>{?_currentIndex, ..._loadedIndices},
+        models: _webViewModels,
+      ),
+    );
+  }
+
   Future<void> _saveWebViewModels() async {
+    // Before the demo-mode bail: the refcount tracks runtime intent, not
+    // persistence, and a demo session that pinned Tor up would keep it up.
+    await _syncTorHolders();
     if (isDemoMode) return; // Don't persist in demo mode
     SharedPreferences prefs = await SharedPreferences.getInstance();
 
@@ -3899,6 +3941,41 @@ class _WebSpacePageState extends State<WebSpacePage>
       if (version != _setCurrentIndexVersion) return;
     }
 
+    // Tor exit-country unload, on every platform with a Tor runtime. Same
+    // shape as the proxy mismatch above and for the same reason: tor's
+    // `ExitNodes` is a global client option, not a per-`SocksPort` one, so
+    // one runtime serves one country at a time. A sibling left loaded under
+    // a pin it did not ask for would exit from a country the user never
+    // chose for it (TOR-014).
+    if (TorService.instance.isAvailable) {
+      final exitMismatch = SiteUnloadEngine.indicesToUnloadForTorExitMismatch(
+        targetIndex: index,
+        models: _webViewModels,
+        loadedIndices: _loadedIndices,
+      );
+      for (final i in exitMismatch) {
+        LogService.instance.log(
+          'SiteUnload',
+          'Tor exit-country mismatch — unloading site $i: '
+              '"${_webViewModels[i].name}"',
+          level: LogLevel.warning,
+          sensitivity: LogSensitivity.sensitive,
+        );
+        await _unloadSiteForOtherReason(i);
+        if (version != _setCurrentIndexVersion) return;
+      }
+      // Only once the disagreeing siblings are gone: SETCONF takes effect
+      // for the whole runtime the moment it lands, so applying it first
+      // would route their next request through the new country.
+      await TorService.instance.setExitCountry(
+        SiteUnloadEngine.torExitNodesFor(
+          indices: <int>{index, ..._loadedIndices},
+          models: _webViewModels,
+        ),
+      );
+      if (version != _setCurrentIndexVersion) return;
+    }
+
     // LRU cap. Bound the number of concurrently loaded webviews; under
     // container mode the unload-on-webspace-switch step is skipped, so
     // without a cap a heavy user could pile up dozens of live webviews.
@@ -4572,6 +4649,10 @@ class _WebSpacePageState extends State<WebSpacePage>
     // JSON to siteIds and seed the runtime projection.
     await _migrateLegacyWebspaceIndices();
     _resolveWebspaceIndices();
+    // Sites restored with ProxyType.TOR need the runtime coming up before
+    // their first navigation, or every one of them opens on the bootstrap
+    // interstitial instead of the page.
+    await _syncTorHolders();
     await _migrateGlobalScriptOptIn();
     _suggestedSites = await suggested_sites.getEffectiveSuggestedSites();
 
@@ -7279,7 +7360,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           UnifiedFaviconImage(
             url: siteModel.initUrl,
             size: 16,
-            proxy: siteModel.proxySettings,
+            proxy: siteModel.outboundProxySettings,
             customIcon: siteModel.customIconPng,
           ),
           SizedBox(width: 6),
@@ -7373,7 +7454,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                   userAgent: model.effectiveUserAgentOrNull,
                   javascriptEnabled: model.javascriptEnabled,
                   userScripts: model.combineUserScripts(_globalUserScripts),
-                  proxySettings: model.proxySettings,
+                  proxySettings: model.outboundProxySettings,
                   notificationsEnabled: model.notificationsEnabled,
                   externalLinksInBrowser: model.effectiveExternalLinksInBrowser,
                 );
@@ -7888,7 +7969,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                         : UnifiedFaviconImage(
                             url: model.initUrl,
                             size: 32,
-                            proxy: model.proxySettings,
+                            proxy: model.outboundProxySettings,
                           ),
                   ),
                   SizedBox(width: 12),
@@ -8453,7 +8534,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                   child: UnifiedFaviconImage(
                     url: m.initUrl,
                     size: 32,
-                    proxy: m.proxySettings,
+                    proxy: m.outboundProxySettings,
                     customIcon: m.customIconPng,
                   ),
                 ),
@@ -8690,7 +8771,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                         child: UnifiedFaviconImage(
                           url: _webViewModels[index].initUrl,
                           size: 28,
-                          proxy: _webViewModels[index].proxySettings,
+                          proxy: _webViewModels[index].outboundProxySettings,
                           customIcon: _webViewModels[index].customIconPng,
                         ),
                       ),
@@ -8743,7 +8824,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                             child: UnifiedFaviconImage(
                               url: _webViewModels[index].initUrl,
                               size: 36,
-                              proxy: _webViewModels[index].proxySettings,
+                              proxy: _webViewModels[index].outboundProxySettings,
                               customIcon: _webViewModels[index].customIconPng,
                             ),
                           ),
@@ -9569,7 +9650,7 @@ class _DispatchPickerSheetState extends State<_DispatchPickerSheet> {
         child: UnifiedFaviconImage(
           url: site.initUrl,
           size: 32,
-          proxy: site.proxySettings,
+          proxy: site.outboundProxySettings,
           customIcon: site.customIconPng,
         ),
       );
