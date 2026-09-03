@@ -200,6 +200,25 @@ wait_for_pixels() { # $1 = slug, $2 = deadline secs, rest = classifier expectati
   done
 }
 
+wait_for_logcat() { # $1 = slug, $2 = deadline secs, $3 = literal pattern
+  local slug="$1" deadline="$2" pattern="$3" start now
+  start=$(date +%s)
+  while :; do
+    if adb logcat -d 2>/dev/null | grep -qF -- "$pattern"; then
+      echo "  $slug: logged '$pattern'"
+      return 0
+    fi
+    now=$(date +%s)
+    if [ $((now - start)) -ge "$deadline" ]; then
+      echo "FAIL: $slug never logged '$pattern' within ${deadline}s" >&2
+      adb logcat -d -t 2000 > "$artifacts/fail-$slug.logcat.txt" 2>/dev/null || true
+      adb exec-out screencap -p > "$artifacts/fail-$slug.png" 2>/dev/null || true
+      exit 1
+    fi
+    sleep 1
+  done
+}
+
 adb shell input keyevent KEYCODE_WAKEUP
 adb shell input keyevent 82
 adb shell svc power stayon true
@@ -494,7 +513,12 @@ else
   sleep 5
   # No seed extra on the return: the suppression is already armed in-process,
   # and reseeding would restart the app rather than warm-start it.
+  # Clear first so the only drop we can match is this resume's, not the cold
+  # start's. Without this assertion a green B2 is unreadable: "the native layer
+  # repainted" and "the suppression never armed" produce the same dark frame.
+  adb logcat -c 2>/dev/null || true
   b2_start -n "$component"
+  wait_for_logcat b2-resume-nudge-suppressed 60 "trigger=resume suppressed"
   wait_for_pixels b2-warm-start-native-repaint 90 --expect-dominant "$dark"
 fi
 
