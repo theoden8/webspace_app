@@ -93,6 +93,7 @@ import 'package:webspace/services/share_intent_service.dart';
 import 'package:webspace/services/link_routing_service.dart';
 import 'package:webspace/services/link_intent_dispatch_engine.dart';
 import 'package:webspace/screens/link_handling_settings.dart';
+import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/services/notification_service.dart';
@@ -839,6 +840,9 @@ void main() async {
   // so the Dart-side `HttpClient.badCertificateCallback` (favicon
   // probes, downloads, …) sees the same pinned set.
   await TrustedHostsService.instance.initialize();
+  // Gate for diagnostic-only affordances; read directly by the menus rather
+  // than plumbed, so it must be hydrated before the first frame.
+  await DeveloperModeService.instance.initialize();
   // Re-fetch favicons whose initial request died on
   // CERTIFICATE_VERIFY_FAILED once the user later approves the cert
   // via the webview trust prompt. Subscribes before any pin can fire,
@@ -6198,6 +6202,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     // only the legacy `tabBarButtonInFullscreen` field, which the registry
     // writer above ignores (it would otherwise reset the new key to default).
     await prefsToWrite.setBool('tabBarButton', _tabBarButton);
+    // The registry write above set the raw key; the service caches it.
+    await DeveloperModeService.instance.reload();
     // Hydrate the in-memory GlobalOutboundProxy from the (password-less)
     // imported value so subsequent outbound calls pick up the new
     // address/username without an app restart.
@@ -6821,8 +6827,9 @@ class _WebSpacePageState extends State<WebSpacePage>
                 // (BUG-001 / PAUSE-028): every automatic trigger is an
                 // enumerated code path, and the user is the only one who can
                 // see a path nobody enumerated. Android-only, where the nudge
-                // is not a no-op.
-                if (hostIsAndroid)
+                // is not a no-op, and behind developer mode: it is a
+                // diagnostic, not something to meet by accident.
+                if (hostIsAndroid && DeveloperModeService.instance.enabled)
                   PopupMenuItem<String>(
                     value: "repaint",
                     child: Row(
@@ -7380,8 +7387,9 @@ class _WebSpacePageState extends State<WebSpacePage>
           // (BUG-001 / PAUSE-028): every automatic trigger is an
           // enumerated code path, and the user is the only one who can
           // see a path nobody enumerated. Android-only, where the nudge
-          // is not a no-op.
-          if (hostIsAndroid)
+          // is not a no-op, and behind developer mode: it is a
+          // diagnostic, not something to meet by accident.
+          if (hostIsAndroid && DeveloperModeService.instance.enabled)
             PopupMenuItem<String>(
               value: "repaint",
               child: Row(

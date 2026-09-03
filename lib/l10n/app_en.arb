@@ -1384,6 +1384,35 @@
   "@appSettingsAbout": {
     "description": "About section header in app settings"
   },
+  "appSettingsVersion": "Version",
+  "@appSettingsVersion": {
+    "description": "About-section row showing the installed app version; tapping it seven times unlocks developer mode"
+  },
+  "appSettingsDeveloperMode": "Developer mode",
+  "@appSettingsDeveloperMode": {
+    "description": "Switch in the Developer section that keeps diagnostic-only affordances visible"
+  },
+  "appSettingsDeveloperModeHint": "Shows diagnostic tools meant for reporting bugs, such as the Repaint Screen action in the page menu. They change nothing on their own; turn this off to hide them again.",
+  "@appSettingsDeveloperModeHint": {
+    "description": "Hint dialog for the developer mode switch, explaining what it reveals and that it is safe to leave off"
+  },
+  "appSettingsDeveloperModeEnabled": "Developer mode is on",
+  "@appSettingsDeveloperModeEnabled": {
+    "description": "Confirmation shown after the seventh tap on the version row turns developer mode on"
+  },
+  "appSettingsDeveloperModeAlreadyOn": "Developer mode is already on",
+  "@appSettingsDeveloperModeAlreadyOn": {
+    "description": "Shown when the user taps the version row while developer mode is already enabled"
+  },
+  "appSettingsDeveloperModeStepsAway": "{count} more taps to turn on developer mode",
+  "@appSettingsDeveloperModeStepsAway": {
+    "description": "Countdown shown on each tap of the version row as the user approaches unlocking developer mode",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "appSettingsLicenses": "Licenses",
   "@appSettingsLicenses": {
     "description": "Title for the open source licenses entry"

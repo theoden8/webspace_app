@@ -13,6 +13,7 @@ import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/microphone_decision_engine.dart';
 import 'package:webspace/services/screen_share_decision_engine.dart';
 import 'package:webspace/services/connectivity_service.dart';
+import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/pull_to_refresh_gate.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
@@ -1083,9 +1084,10 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                   ),
                 ),
                 // Manual escape hatch for the recurring Android blank
-                // surface (BUG-001 / PAUSE-028); Android-only, where the
-                // nudge is not a no-op.
-                if (hostIsAndroid)
+                // surface (BUG-001 / PAUSE-028). Android-only, where the
+                // nudge is not a no-op, and behind developer mode: it is a
+                // diagnostic, not something to meet by accident.
+                if (hostIsAndroid && DeveloperModeService.instance.enabled)
                   PopupMenuItem<String>(
                     value: "repaint",
                     child: Row(

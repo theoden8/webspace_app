@@ -12,6 +12,8 @@ import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/screens/trusted_certificates.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
+import 'package:webspace/services/developer_mode_service.dart';
+import 'package:webspace/services/developer_unlock_engine.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/log_service.dart';
@@ -148,6 +150,12 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   bool _isDownloadingRules = false;
   DateTime? _rulesLastUpdated;
 
+  /// `version+build` from the platform package, null until it resolves.
+  String? _appVersion;
+  /// Running tap count on the version row; the developer-options gesture.
+  int _versionTaps = 0;
+  bool _developerMode = DeveloperModeService.instance.enabled;
+
   bool _isUpdatingFirefoxVersion = false;
   bool _firefoxAutoRefresh = false;
 
@@ -206,6 +214,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     _tabMaxWidth = widget.tabMaxWidth.toDouble();
     _showStatsBanner = widget.showStatsBanner;
     _osmTileUrlController = TextEditingController();
+    _loadAppVersion();
     _loadOsmTileUrl();
     _loadFirefoxAutoRefresh();
     _outboundProxy = UserProxySettings(
@@ -583,6 +592,56 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
       return '${(n / 1000).toStringAsFixed(n % 1000 == 0 ? 0 : 1)}K';
     }
     return n.toString();
+  }
+
+  Future<void> _loadAppVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    if (!mounted) return;
+    setState(() => _appVersion = '${info.version}+${info.buildNumber}');
+  }
+
+  /// One tap on the version row: the Android developer-options gesture, which
+  /// is the only entry point to [DeveloperModeService]. Diagnostic
+  /// affordances (the Repaint Screen menu entry) are useless to an ordinary
+  /// user and confusing to meet by accident, but a user reporting a bug has
+  /// to be able to reach them without a debug build.
+  Future<void> _onVersionTapped() async {
+    final loc = AppLocalizations.of(context);
+    final step = DeveloperUnlockEngine.tap(
+      taps: _versionTaps,
+      enabled: _developerMode,
+    );
+    setState(() => _versionTaps = step.taps);
+    String? message;
+    switch (step.outcome) {
+      case DeveloperUnlockOutcome.silent:
+        return;
+      case DeveloperUnlockOutcome.countdown:
+        message = loc.appSettingsDeveloperModeStepsAway(step.remaining);
+      case DeveloperUnlockOutcome.alreadyEnabled:
+        message = loc.appSettingsDeveloperModeAlreadyOn;
+      case DeveloperUnlockOutcome.unlocked:
+        await _setDeveloperMode(true);
+        if (!mounted) return;
+        message = loc.appSettingsDeveloperModeEnabled;
+    }
+    if (!mounted) return;
+    // Replace rather than queue: taps arrive faster than a snackbar's life, so
+    // queueing would leave the countdown showing a number several taps stale.
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text(message), duration: const Duration(seconds: 1)),
+      );
+  }
+
+  Future<void> _setDeveloperMode(bool value) async {
+    await DeveloperModeService.instance.setEnabled(value);
+    if (!mounted) return;
+    setState(() {
+      _developerMode = value;
+      _versionTaps = 0;
+    });
   }
 
   Future<void> _loadOsmTileUrl() async {
@@ -1804,6 +1863,21 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               ),
             ),
           ),
+          if (_developerMode)
+            SwitchListTile(
+              title: Row(
+                children: [
+                  Flexible(child: Text(loc.appSettingsDeveloperMode)),
+                  HintButton(
+                    title: loc.appSettingsDeveloperMode,
+                    description: loc.appSettingsDeveloperModeHint,
+                  ),
+                ],
+              ),
+              secondary: const Icon(Icons.developer_mode),
+              value: _developerMode,
+              onChanged: (value) => _setDeveloperMode(value),
+            ),
           ListTile(
             leading: const Icon(Icons.article_outlined),
             title: Text(loc.appSettingsAppLogs),
@@ -1831,6 +1905,12 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                 fontWeight: FontWeight.bold,
               ),
             ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.tag),
+            title: Text(loc.appSettingsVersion),
+            subtitle: _appVersion == null ? null : Text(_appVersion!),
+            onTap: _onVersionTapped,
           ),
           ListTile(
             leading: const Icon(Icons.info_outline),

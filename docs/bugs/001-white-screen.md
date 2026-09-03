@@ -265,9 +265,12 @@ arms; `noteLoadSettled` (was `consumeLoadSettled`) repaints while armed and no l
 disarms; both hosts arm through one `_armCommitLatch` helper that restarts a 15s timer
 (`SurfaceRepaintEngine.commitWindow`) and closes the window with `closeCommitWindow`,
 cancelled in `dispose`.
-(b) **A Repaint Screen entry in the three-dot menu** (`PAUSE-028`), Android-only, in both
-webview screens: `_probeRendererAndRecover` then `_nudgeSurfaceRepaint` on the main page,
-nudge only in the nested screen, each emitting `trigger=manual` / `trigger=manual-nested`.
+(b) **A Repaint Screen entry in the three-dot menu** (`PAUSE-028`) in both webview screens:
+`_probeRendererAndRecover` then `_nudgeSurfaceRepaint` on the main page, nudge only in the
+nested screen, each emitting `trigger=manual` / `trigger=manual-nested`. Gated on Android
+**and** on a new developer-mode flag unlocked by seven taps on a Version row in App Settings
+(`developer-tools` DEVTOOLS-010), so the diagnostic is reachable on a release build without
+sitting in the menu an ordinary user opens to refresh a page.
 (c) **The loading bar reflects the tap.** `userDrivenReload` marks the model loading
 before it awaits the HTTP-cache clear, and takes a re-entrancy guard so a double tap
 issues one reload instead of two.
@@ -292,7 +295,9 @@ single, later refresh can, which is exactly the shape of the report. A redirect 
 settling twice is the same defect with one tap. (b) exists because the reporter is the
 only observer of a path nobody enumerated (gap #9) and had no way to act on one: rotating
 the device is not discoverable, and refreshing — the thing users actually try — re-issues
-the load and can land blank again. (c) is why the report says the progress bar is not
+the load and can land blank again. It is gated because the population that can act on it is
+exactly the population reporting the bug, and everyone else would meet a control whose
+effect they cannot interpret. (c) is why the report says the progress bar is not
 obviously there: `userDrivenReload` awaits a platform HTTP-cache clear before `reload()`,
 and nothing renders during that round trip, so the tap reads as ignored and invites the
 rapid second tap that (a) is about.
@@ -307,7 +312,9 @@ repaints, which is harmless but is not free. (b) is the first thing here that ca
 clearing the screen, the nudge demonstrably recomposites on that device; if they report it
 not clearing, every attempt since Attempt 2 rests on a false premise. Until such a report
 exists that remains untested, and (b) is a workaround, not a fix — a menu entry the user
-has to find is an admission the automatic coverage is still incomplete.
+has to find is an admission the automatic coverage is still incomplete. The developer-mode
+gate sharpens that trade-off rather than resolving it: the diagnostic now reaches only users
+who were told how to unlock it, so the falsifying report needs someone to ask for it.
 
 ## Known open gaps (candidates for the next recurrence)
 
@@ -398,7 +405,9 @@ has to find is an admission the automatic coverage is still incomplete.
    report has ever tested that in isolation, because every automatic nudge fires
    alongside something else. Attempt 11's menu entry (`PAUSE-028`) is the isolated test —
    one user, one tap, no navigation — and until someone reports what it does, this stays
-   the single largest untested premise in the whole lineage.
+   the single largest untested premise in the whole lineage. The developer-mode gate means
+   that report will not arrive on its own: someone has to walk a reporter through the seven
+   taps, so treat asking as part of triaging the next recurrence.
 
 ## Guardrails now in place
 
@@ -442,7 +451,9 @@ has to find is an admission the automatic coverage is still incomplete.
   which must restart a `SurfaceRepaintEngine.commitWindow` timer and close the window;
   nothing may call `noteCommitPending` outside it (an unbounded window is as much a defect
   as a one-shot one); `dispose` must cancel the timer; and both menus must carry the
-  manual repaint entry wired to `_repaintCurrentSurface`.
+  manual repaint entry wired to `_repaintCurrentSurface`, with *every* occurrence behind
+  both the Android and the developer-mode gate (counted, not matched: a second menu with
+  one ungated entry is the regression shape).
 - **Window-pixel detector + scenario suite**
   ([android/.../SurfaceDiagPlugin.kt](../../android/app/src/main/kotlin/org/codeberg/theoden8/webspace/SurfaceDiagPlugin.kt),
   [lib/services/surface_diag_native.dart](../../lib/services/surface_diag_native.dart),

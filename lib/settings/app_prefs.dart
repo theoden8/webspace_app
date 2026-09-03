@@ -1,5 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 
 /// Registry of global app-level preferences that are round-tripped through
@@ -66,6 +67,10 @@ final Map<String, Object> kExportedAppPrefs = <String, Object>{
   // LIR-008: master "Handle shared links" switch. When false, the app
   // ignores incoming share/open intents (Android ACTION_SEND, webspace://,
   // iOS/macOS Share Extension) without crashing. Default: enabled.
+  // Unlocked by tapping the version row in App Settings seven times. Gates
+  // affordances that only make sense while diagnosing the app (the Repaint
+  // Screen menu entry), so an ordinary user never meets them.
+  kDeveloperModeKey: false,
   'linkHandlingEnabled': true,
   // LIR-010 / discussion #439: when the user sends a shared link to an
   // existing site via the dispatch picker, also append exactHost +

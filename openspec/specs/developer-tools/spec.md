@@ -342,6 +342,38 @@ is shared / saved / copied
 
 ---
 
+### Requirement: DEVTOOLS-010 - Developer Mode Gate
+
+The app SHALL carry an app-global **developer mode** flag, off by default, that gates affordances which exist to diagnose the app rather than to use it.
+
+Diagnostics accumulate. A blank-screen repaint action (`webview-pause-lifecycle` PAUSE-028) is the first, and each one is a control an ordinary user cannot interpret sitting in a menu they open to refresh a page. Hiding them behind a debug build is not an option either: the users who hit these bugs run release builds, and the report is worth nothing if they cannot reach the tool. So the flag is reachable on every build and reached only deliberately.
+
+- **The gesture.** App Settings SHALL show a **Version** row in the About section carrying `version+buildNumber`. Seven taps on it turn developer mode on, the Android developer-options convention, so the gesture needs no discovery mechanism of its own. The first two taps SHALL say nothing (a stray double tap is not a discovery), the third through sixth SHALL show the remaining count, and the seventh SHALL confirm. Each message SHALL replace the previous one rather than queue behind it, or the countdown lags several taps behind the finger. Tapping while already on SHALL say so and SHALL NOT count. Counting logic lives in `DeveloperUnlockEngine` (`lib/services/developer_unlock_engine.dart`), not in the widget.
+- **Turning it off.** Once on, the Developer section SHALL show a **Developer mode** switch, so the state is visible and reversible without repeating the gesture. The switch is hidden while off: a control whose only purpose is to undo a hidden gesture has nothing to say before the gesture happens.
+- **Reading it.** `DeveloperModeService.instance.enabled` (`lib/services/developer_mode_service.dart`) is the single reader. It is a service rather than a widget parameter because both webview-hosting screens consult it and it is **not** a per-site setting: routing it through the per-site `launchUrl` pipeline would misfile it as one. A `PopupMenuButton`'s `itemBuilder` runs each time the menu opens, so a flip takes effect with no rebuild and no restart.
+- **Persistence.** The flag is a user-facing global pref: it SHALL be registered in `kExportedAppPrefs` (`kDeveloperModeKey`) so it round-trips export/import, and the service SHALL be re-read after an import, which writes the raw key through the registry behind the service's cache.
+
+#### Scenario: Unlocking developer mode
+
+**Given** developer mode is off
+**When** the user taps the Version row in App Settings seven times
+**Then** the last five taps count down and the seventh confirms developer mode is on
+**And** the Developer section grows a Developer mode switch that turns it back off
+
+#### Scenario: A stray tap says nothing
+
+**Given** developer mode is off
+**When** the user taps the Version row twice
+**Then** no message is shown, because the gesture has not been recognisably started
+
+#### Scenario: The flag survives a backup round trip
+
+**Given** developer mode is on and the user exports settings
+**When** that backup is imported
+**Then** developer mode is on and the service reflects it without a restart
+
+---
+
 ### Requirement: DEVTOOLS-007 - Console Eval
 
 The app SHALL provide a JavaScript evaluation input in the Console tab, allowing users to execute arbitrary JS in the context of the current page and see results inline, like a standard browser console.
@@ -414,6 +446,7 @@ class ConsoleLogEntry {
 - All service files use `LogService.instance.log()` instead of `debugPrint()`
 - Popup menu "Developer Tools" item in `main.dart` (top-level sites) and `inappbrowser.dart` (nested webviews)
 - "App Logs" tile in App Settings screen
+- `lib/services/developer_mode_service.dart` + `lib/services/developer_unlock_engine.dart` — DEVTOOLS-010 gate and its unlock gesture; `test/developer_unlock_engine_test.dart` characterizes the counting
 
 ---
 
@@ -430,3 +463,4 @@ class ConsoleLogEntry {
 8. **Filtered copy**: on each tab, enter a search query, tap Copy, and verify clipboard contains only the matching entries (not all). On the DNS tab also select the "Blocked" chip and confirm the allowed lookups stay off the clipboard
 8a. **Sensitive copy**: on the App Logs tab turn on "Show sensitive entries", tap Copy, cancel the dialog and verify the clipboard is untouched; tap Copy again, confirm, and verify the sensitive lines are in the paste. Then tap Export and verify the written file has none of them
 9. Go back, open App Settings -> App Logs: verify it works without a site loaded (share and scripts icons should not appear)
+10. **Developer mode**: App Settings -> About -> tap Version seven times; verify the countdown starts on the third tap, each message replaces the last, and the seventh confirms. Verify a Developer mode switch appears in the Developer section, and that the page overflow menu now carries Repaint Screen on Android. Turn the switch off and verify the entry goes away

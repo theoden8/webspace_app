@@ -824,13 +824,20 @@ The ordering is model-checked in [formal/reloadlatch.tla](../../../formal/reload
 
 ### Requirement: PAUSE-028 — A Manual Repaint Is Reachable From The Menu
 
-On Android, the overflow menu of both webview-hosting screens SHALL offer a **Repaint Screen** action that recomposites the visible surface on demand.
+On Android, and while developer mode is on, the overflow menu of both webview-hosting screens SHALL offer a **Repaint Screen** action that recomposites the visible surface on demand.
 
 Every other repaint in this spec fires from a code path the app recognised as a surface (re)attach, and BUG-001 recurs precisely when a path nobody enumerated reaches a blank surface (bug doc gap #9). The user is the only observer who can see that it happened, and until now had no way to act on it short of rotating the device or switching tabs — neither of which is discoverable, and a refresh, the thing users actually try, *re-issues the load* and can leave the surface blank again. This requirement gives the symptom a direct remedy that does not touch the document.
 
 On the main page the action SHALL run `_probeRendererAndRecover` before the nudge, because the two blank classes are indistinguishable on screen: a dead renderer (BUG-002) needs the rebuild of PAUSE-013/014, a live-but-unpainted surface needs the nudge. In `InAppWebViewScreen` it SHALL nudge only — that screen recreates nothing. Both SHALL emit a non-sensitive `SurfaceDiag` line (`trigger=manual -> nudge`, `trigger=manual-nested -> nudge`; no site name or URL), which is the point of the affordance beyond the immediate fix: a user who reports that the menu action clears the screen has established that the nudge physically recomposites on that device, and one who reports that it does not has falsified it — the premise every attempt since Attempt 2 has rested on and none has confirmed (bug doc gaps #4 and #5).
 
-The entry SHALL be Android-only, where the nudge is not a no-op, and SHALL be labelled from the shared `commonRepaintScreen` string in both screens.
+The entry SHALL be gated on Android — where the nudge is not a no-op — **and** on `DeveloperModeService.enabled` (see `developer-tools` DEVTOOLS-010), and SHALL be labelled from the shared `commonRepaintScreen` string in both screens. The gate is what makes the affordance affordable: an action whose effect an ordinary user cannot interpret does not belong in the menu they open to refresh a page, but a user who is reporting a blank screen has to be able to reach it on a release build. Every occurrence of the entry SHALL carry both halves of the gate, which the `surface_repaint_funnel` structural gate counts rather than merely matching — a second menu with one ungated entry is the regression shape.
+
+#### Scenario: The entry is absent until developer mode is on
+
+**Given** the app is running on Android with developer mode off
+**When** the user opens the page overflow menu
+**Then** no Repaint Screen entry is shown
+**And** it appears once developer mode is turned on, with no restart
 
 #### Scenario: The user clears a blank surface from the menu
 
@@ -841,7 +848,7 @@ The entry SHALL be Android-only, where the nudge is not a no-op, and SHALL be la
 
 #### Scenario: The entry is absent off Android
 
-**Given** the app is running on iOS, macOS, or Linux
+**Given** the app is running on iOS, macOS, or Linux with developer mode on
 **When** the user opens the overflow menu
 **Then** no Repaint Screen entry is shown, because `_nudgeSurfaceRepaint` is a no-op there
 
