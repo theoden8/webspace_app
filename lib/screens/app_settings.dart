@@ -1907,12 +1907,6 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             ),
           ),
           ListTile(
-            leading: const Icon(Icons.tag),
-            title: Text(loc.appSettingsVersion),
-            subtitle: _appVersion == null ? null : Text(_appVersion!),
-            onTap: _onVersionTapped,
-          ),
-          ListTile(
             leading: const Icon(Icons.info_outline),
             title: Text(loc.appSettingsLicenses),
             subtitle: Text(loc.appSettingsLicensesSubtitle),
@@ -1926,6 +1920,12 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                 applicationLegalese: '© 2023 Kirill Rodriguez',
               );
             },
+          ),
+          ListTile(
+            leading: const Icon(Icons.tag),
+            title: Text(loc.appSettingsVersion),
+            subtitle: _appVersion == null ? null : Text(_appVersion!),
+            onTap: _onVersionTapped,
           ),
         ],
       ),
