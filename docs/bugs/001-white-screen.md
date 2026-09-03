@@ -409,6 +409,24 @@ who were told how to unlock it, so the falsifying report needs someone to ask fo
    *assumes* the window outlasts the in-flight loads rather than proving it. This is gap
    #6 on the other axis — not "the proxy fires too early" but "the debt expires too soon".
    The `trigger=commit-settled` line is what would show a device where it does.
+13. **Whether a native attach callback closes gap #3 is now testable, and untested.**
+   The instrument exists but has not been run: `RepaintSuppression` (debug-only,
+   diag tiers only) drops named Dart triggers, and adb Scenario B2 warm-starts with
+   `resume,metrics-resume` suppressed — so what repaints the surface afterwards is
+   whatever the native layer does alone. It is OPT-IN
+   (`WS_RUN_NATIVE_REPAINT_PROBE=1`) because it is expected red against a fork with
+   no such hook, and a permanently-red scenario would drown this tier's other
+   signals. `formal/warmstart.tla` now splits the two readings the model previously
+   conflated — `Fix="proxy"` (a correlated signal that may not fire; violates
+   `RepaintLiveness`) against `Fix="attach"` (the attach itself schedules the nudge;
+   holds) — which is gap #5 as a model-checked difference rather than an argument.
+   Upstream `starship-s/flutter_inappwebview` 643cf23 + 1a8ed58 add exactly that
+   hook (`onAttachedToWindow` + `onWindowVisibilityChanged(VISIBLE)` → geometry-free
+   `requestLayout()` + `postInvalidateOnAnimation()`); both cherry-pick cleanly onto
+   `v6.2.0-beta.3-privacy-v6`. Note they are **View**-lifecycle callbacks, not the
+   SurfaceView's own buffer callbacks, so they cover the warm-start and fresh-mount
+   triggers and none of the commit-side class (Attempts 9/10/11) — they narrow gap
+   #3, they do not close it.
 12. **The trace is now honest but still opt-in.** `PAUSE-029` closed the coverage half
    of the diagnostic — every path reports, and a new one cannot be silent — but the
    developer-mode gate means a user who hits the bug has no trace *of the occurrence that

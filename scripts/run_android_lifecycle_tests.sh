@@ -233,14 +233,16 @@ wait_for_pixels warm-start-dark 90 --expect-dominant "$dark"
 # own. Modeled as `Fix="proxy"` vs `Fix="attach"` in formal/warmstart.tla.
 #
 # EXPECTED RED against a fork with no native attach/visibility repaint hook.
-# That red IS the reproduction: it is the evidence that the surface depends on
-# a Dart proxy nobody has confirmed fires. It turns green when the fork gains
-# the hook (upstream starship-s 643cf23 + 1a8ed58 add exactly that), at which
-# point this scenario becomes the regression guard for it.
+# That red IS the reproduction: evidence that the surface depends on a Dart
+# proxy nobody has confirmed fires. It turns green when the fork gains the hook
+# (upstream starship-s 643cf23 + 1a8ed58 add exactly that), at which point this
+# becomes its regression guard.
 #
-# Set WS_SKIP_NATIVE_REPAINT_PROBE=1 to skip while the fork lacks the hook.
-if [ "${WS_SKIP_NATIVE_REPAINT_PROBE:-0}" = "1" ]; then
-  echo "== Scenario B2: SKIPPED (WS_SKIP_NATIVE_REPAINT_PROBE=1)"
+# OPT-IN, because a scenario that is red by design would drown the signal from
+# every other scenario in this tier. Set WS_RUN_NATIVE_REPAINT_PROBE=1 to run
+# it — the PR that bumps the fork pin turns it on for good.
+if [ "${WS_RUN_NATIVE_REPAINT_PROBE:-0}" != "1" ]; then
+  echo "== Scenario B2: SKIPPED (set WS_RUN_NATIVE_REPAINT_PROBE=1 to run)"
 else
   echo "== Scenario B2: warm start with the Dart resume nudges suppressed"
   echo "   (BUG-001 gap #5: does the native layer repaint on its own?)"
