@@ -112,9 +112,9 @@ class TorControllerPlugin: NSObject {
       config.avoidDiskWrites = true
       config.ignoreMissingTorrc = true
       // `auto` lets tor pick a free loopback port and report it back.
-      // Never 9050: another app on the device (Orbot, Onion Browser) may
-      // already own it, and binding a fixed port is how a user's traffic
-      // ends up at whatever else answers there.
+      // Never 9050: another tor-embedding app (Onion Browser) may already
+      // own it, and binding a fixed port is how a user's traffic ends up at
+      // whatever else answers there.
       //
       // IsolateSOCKSAuth is on by default per tor(1), but written out so
       // the isolation contract is legible here rather than inherited from

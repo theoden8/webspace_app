@@ -88,9 +88,10 @@ test('TOR-011: the privacy manifest is bundled, not just present on disk', () =>
 });
 
 test('TOR-001: nothing hardcodes Tor\'s default SOCKS port', () => {
-  // The embedded runtime picks its own port; 9050 may belong to another app
-  // on the device (Orbot, Onion Browser). A hardcoded 9050 in the routing
-  // path would silently send the user's traffic to whatever answers.
+  // The embedded runtime picks its own port; 9050 may belong to another
+  // tor-embedding app on the device (Onion Browser). A hardcoded 9050 in
+  // the routing path would silently send the user's traffic to whatever
+  // answers.
   const torSources = ['lib/services/tor_engine.dart', 'lib/services/tor_service.dart'];
   for (const rel of torSources) {
     if (!exists(rel)) continue;

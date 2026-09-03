@@ -13,9 +13,15 @@ tunnel with fail-closed posture on malformed addresses
 ([ip-leakage/spec.md LEAK-003](../../specs/ip-leakage/spec.md#requirement-leak-003---socks5-tunneling-and-fail-closed-posture)).
 
 What is missing on iOS is a SOCKS5 *server* the user can point at. Apple
-does not bundle one, there is no system Tor service, and Orbot — the
-de-facto Android solution — has no iOS analogue because `VpnService`
-does not exist there. The historical answer is to embed Tor in-process:
+bundles none and there is no system Tor service. Orbot does ship on iOS
+([App Store](https://apps.apple.com/us/app/orbot/id1609461599),
+[guardianproject/orbot-apple](https://github.com/guardianproject/orbot-apple)),
+but it is not that server: the Apple build is an `NEPacketTunnelProvider`
+that tunnels the whole device, and the `127.0.0.1:9050` SOCKS listener
+Orbot is known for is Android-only (`VpnService` plus a local proxy). No
+port exists for `ProxyType.SOCKS5` to dial, and D1's rejected
+alternatives record why routing through that tunnel is no substitute.
+The historical answer is to embed Tor in-process:
 this is what Onion Browser does using
 [`iCepa/Tor.framework`](https://github.com/iCepa/Tor.framework), a
 CocoaPods-distributed static framework that wraps upstream `tor`,
@@ -24,8 +30,8 @@ CocoaPods-distributed static framework that wraps upstream `tor`,
 Stakeholders: privacy-focused iOS users (primary), the F-Droid /
 Play-only Android tier (no impact — Android stays generic SOCKS5,
 Orbot users keep their existing config), and the iOS App Store review
-process (export-compliance declaration must be updated to match Onion
-Browser's "uses exempt encryption").
+process (`ITSAppUsesNonExemptEncryption` flips to `true` — see D8, which
+corrects the draft's reasoning-from-Onion-Browser here).
 
 Constraints from the existing codebase:
 
@@ -160,10 +166,18 @@ Why Tor.framework specifically:
   this as a compliance decision, not only an ergonomic one: choosing
   the loopback-proxy architecture is what makes 5.4 inapplicable, so
   a later "let's cover other apps too" proposal reopens it.
-- Recommending Orbot for iOS (a port exists in TestFlight). Out of
-  our control, not on the App Store stable channel as of 2026-05;
-  user has to install separately. We can still document this as an
-  alternative for the bridge-needing minority.
+- Recommending Orbot for iOS. It is a real, shipping App Store app,
+  so the objection is not availability — it is that its iOS build
+  offers no SOCKS5 port to point at (see above), and that its VPN is
+  the wrong shape for this feature twice over. **iOS runs one tunnel
+  at a time**, and a packet-tunnel provider pre-empts any other VPN,
+  so a user who already runs one would have to give it up for as long
+  as they want Tor. And **a device tunnel is all-or-nothing**: it
+  carries every app and every site, so a site left on DEFAULT gets
+  Tor'd too and no site can stay direct while another is onion-routed
+  — the opposite of a per-site proxy. Worth documenting as the better
+  answer for a user who wants their *whole device* on Tor, or who
+  needs bridges, which this feature does not offer.
 
 ### D2. Lifecycle — lazy start, debounced idle stop
 
@@ -277,7 +291,7 @@ siteId.
 ### D5. SOCKS port allocation — dynamic, never hardcoded
 
 Tor's default SOCKS port is 9050. We do **not** use it: another app
-(Orbot/Onion Browser if the user has both) may already own it, and
+(Onion Browser, or anything else embedding tor) may already own it, and
 iOS does not let us know whether a port is free without trying.
 
 `TorConfiguration` sets `SocksPort auto IsolateSOCKSAuth

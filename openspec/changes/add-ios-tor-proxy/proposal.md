@@ -1,13 +1,23 @@
 ## Why
 
-iOS is hostile to system-wide proxying: there is no Orbot equivalent that
-transparently shovels every app's traffic through Tor, and Apple's
-Network.framework rejects loopback proxies set on `WKWebsiteDataStore`
-unless something is actually listening on that port. Users who want
-Tor-routed browsing on iOS today have to install a separate onion
-browser, which loses every WebSpace privacy layer (container isolation,
-ClearURLs, content blocker, ETP fingerprinting shim, per-site language
-and geolocation).
+iOS has no SOCKS5 server for a per-site proxy to point at. Orbot does
+ship on iOS, but the Apple build is an `NEPacketTunnelProvider` — a VPN
+that tunnels the whole device. The `127.0.0.1:9050` listener people
+know from Orbot is Android-only; the iOS build exposes no port another
+app can dial. Apple's Network.framework also rejects a loopback proxy
+set on `WKWebsiteDataStore` unless something is really listening there.
+
+Routing through Orbot's tunnel instead would break two things this
+feature exists to provide. iOS runs **one** tunnel at a time and a
+packet-tunnel provider pre-empts any other VPN, so Tor would cost the
+user whatever VPN they already run. And a device tunnel is
+all-or-nothing: every app and every site rides Tor, which is the
+opposite of a per-site proxy — a site left on DEFAULT would be routed
+too, and no site could be direct while another is onion-routed.
+
+The alternative today is a separate onion browser, which loses every
+WebSpace privacy layer (container isolation, ClearURLs, content
+blocker, ETP fingerprinting shim, per-site language and geolocation).
 
 The plumbing for per-site SOCKS5 already works end-to-end on iOS 17+
 (`proxy` + `ip-leakage` specs). The missing piece is a SOCKS5 endpoint
