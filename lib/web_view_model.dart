@@ -1026,37 +1026,6 @@ class WebViewModel {
   bool isCookieBlocked(String name, String? domain) =>
       matchesBlockedCookie(blockedCookies, name, domain);
 
-  void removeThirdPartyCookies(WebViewController controller) async {
-    String script = '''
-      (function() {
-        function getDomain(hostname) {
-          var parts = hostname.split('.');
-          if (parts.length <= 2) {
-            return hostname;
-          }
-          return parts.slice(parts.length - 2).join('.');
-        }
-
-        var currentDomain = getDomain(location.hostname);
-
-        var cookies = document.cookie.split("; ");
-        for (var i = 0; i < cookies.length; i++) {
-          var cookie = cookies[i];
-          var domain = cookie.match(/domain=[^;]+/);
-          if (domain) {
-            var domainValue = domain[0].split("=")[1];
-            if (getDomain(domainValue) !== currentDomain) {
-              var cookieName = cookie.split("=")[0];
-              document.cookie = cookieName + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=" + domainValue;
-            }
-          }
-        }
-      })();
-    ''';
-
-    await controller.evaluateJavascript(script);
-  }
-
   Future<void> setController() async {
     if (controller == null) {
       return;
@@ -1643,9 +1612,6 @@ class WebViewModel {
               cookies = newCookies.where((c) => !isCookieBlocked(c.name, c.domain)).toList();
             } else {
               cookies = newCookies;
-            }
-            if (!effectiveThirdPartyCookiesEnabled && controller != null) {
-              removeThirdPartyCookies(controller!);
             }
             await saveFunc();
           },
