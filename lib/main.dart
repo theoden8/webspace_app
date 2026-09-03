@@ -2024,7 +2024,12 @@ class _WebSpacePageState extends State<WebSpacePage>
     // Debug-only, diag tiers only: drop this trigger so a scenario can observe
     // what the native layer repaints on its own (BUG-001 gap #5).
     if (RepaintSuppression.suppresses(trigger)) {
-      _traceRepaint('$trigger-suppressed', coalesced: false);
+      // Logged directly, not through _traceRepaint: that is gated on developer
+      // mode, and the adb probe needs this line in logcat to prove the nudge it
+      // suppressed was actually reached. A green probe with no drop recorded
+      // means the suppression never armed, not that the surface came back on
+      // its own.
+      LogService.instance.log('SurfaceDiag', 'trigger=$trigger suppressed');
       return;
     }
     final started = _surfaceRepaint.request();
