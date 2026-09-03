@@ -46,9 +46,11 @@ the nested-webview propagation chain. See PROXY-010 for the reasoning.
 
 ## 6. UI surfaces
 
-- [ ] 6.1 In [lib/screens/settings.dart](../../../lib/screens/settings.dart) per-site Proxy block: add a `SwitchListTile` titled descriptively ("Route through the Tor network", per TOR-012) above the existing proxy type dropdown, gated on `TorService.isAvailable`. When on, hide (don't unmount) the manual fields.
-- [ ] 6.2 In [lib/screens/app_settings.dart](../../../lib/screens/app_settings.dart): add `ProxyType.TOR` option to the global outbound proxy dropdown (iOS only). Add a "Tor status" card subscribing to `TorService.statusStream` with bootstrap progress bar, current state, "Rebuild circuits" button.
-- [ ] 6.3 Show a per-site exit-country hint (small caption under the `useTor` switch) populated via `GETINFO ip-to-country/<exitIP>` once the site has completed at least one fetch under Tor. Update every 30s while site is foregrounded. Skip if Tor not bootstrapped.
+- [x] 6.1 In [lib/screens/settings.dart](../../../lib/screens/settings.dart) per-site Proxy block: offer `ProxyType.TOR` in the proxy type dropdown, gated on `TorService.isAvailable`, and hide the manual address/credential fields under it without overwriting what they hold. Shipped as a dropdown value rather than the planned separate switch — PROXY-010 records why a second flag was dropped.
+- [x] 6.2a In [lib/screens/app_settings.dart](../../../lib/screens/app_settings.dart): add `ProxyType.TOR` to the global outbound proxy dropdown, on the same `TorService.isAvailable` gate, with the address validator exempting it.
+- [ ] 6.2b Add a "Tor status" card subscribing to `TorService.statusStream`: bootstrap progress bar, current state, "Rebuild circuits" button. Nothing renders `TorStatus` today — `bootstrapPct`, the SOCKS endpoint and `lastError` all reach `TorEngine` and stop there. Pairs with the 5.x interstitial as the TOR-013 surface.
+- [ ] 6.2c Exit-country **picker** for TOR-014. The engine, persistence, eviction rule and `SETCONF` apply all ship, so `torExitCountry` is settable on the model and reachable from a settings backup, but there is no way to set it in the app. Decide the country list before building: ~250 ISO names across 68 locales is ~17k strings and cannot go through ARB by hand, so the options are the countries that actually run exit relays (a much shorter list), a non-localized name plus ISO code, or a locale-data source. Blocked on that decision, not on the plumbing.
+- [ ] 6.3 Show a per-site exit-country *hint* — what country the circuit actually left from, distinct from 6.2c's pin — populated via `GETINFO ip-to-country/<exitIP>` once the site has completed at least one fetch under Tor. Update every 30s while site is foregrounded. Skip if Tor not bootstrapped.
 
 ## 7. Background task integration
 
