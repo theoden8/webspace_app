@@ -472,6 +472,41 @@ const String _template = r'''
     asNative(_toString, 'toString');
     try { Date.prototype.toString = _toString; } catch (e) {}
 
+    // Date.prototype.toLocale{String,DateString,TimeString}.
+    //
+    // These do NOT route through the `Intl.DateTimeFormat` binding patched
+    // below: ECMA-402 has them call the abstract formatting operation
+    // directly, so replacing the global leaves them on the system zone. With
+    // a site pinned to UTC in Europe/Moscow, `resolvedOptions()` said UTC,
+    // `Date.prototype.toString` said GMT+0000 and `new Date(0)
+    // .toLocaleString()` said 3:00:00 AM.
+    //
+    // Injected only when the caller passed no `timeZone` of their own, as the
+    // DateTimeFormat wrapper does. The language shim wraps these same methods
+    // to inject the locale; the two chain in either install order, because
+    // each only fills in an argument the caller omitted.
+    //
+    // No declared parameters: a native `toLocaleString.length` is 0.
+    function wrapLocaleTz(method) {
+      try {
+        var orig = Date.prototype[method];
+        if (typeof orig !== 'function') return;
+        var wrapped = function () {
+          var locales = arguments[0];
+          var options = arguments[1];
+          if (!options || options.timeZone === undefined) {
+            options = Object.assign({}, options || {}, { timeZone: TZ });
+          }
+          return orig.call(this, locales, options);
+        };
+        asNative(wrapped, method);
+        try { Date.prototype[method] = wrapped; } catch (e) {}
+      } catch (e) {}
+    }
+    wrapLocaleTz('toLocaleString');
+    wrapLocaleTz('toLocaleDateString');
+    wrapLocaleTz('toLocaleTimeString');
+
     // Intl.DateTimeFormat: inject TZ when no explicit timeZone provided,
     // so `resolvedOptions().timeZone` reports the spoofed zone.
     function PatchedDTF(locales, options) {

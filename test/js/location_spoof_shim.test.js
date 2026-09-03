@@ -10,7 +10,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { loadShim } = require('./helpers/load_shim');
+const { loadShim, makeDom, runInDom, readFixture } = require('./helpers/load_shim');
 
 test('webrtc_disabled: new RTCPeerConnection() throws "WebRTC disabled"', () => {
   const dom = loadShim('location_spoof/webrtc_disabled.js');
@@ -234,6 +234,75 @@ for (const tier of SNAP_TIERS) {
     assert.ok(Math.abs(pos1.coords.longitude - pos2.coords.longitude) < 0.0001);
   });
 }
+
+test('toLocale* report the spoofed zone, not the system one', () => {
+  // ECMA-402 has Date.prototype.toLocale{String,DateString,TimeString} call
+  // the abstract formatting operation directly, so patching the global
+  // `Intl.DateTimeFormat` never reached them. The host realm here is
+  // unshimmed, which makes it the reference for what each zone should render.
+  const at = (fixture, expr) =>
+    loadShim(fixture).window.eval(expr);
+
+  for (const [fixture, zone] of [
+    ['location_spoof/timezone_only_utc.js', 'UTC'],
+    ['location_spoof/timezone_only_tokyo.js', 'Asia/Tokyo'],
+  ]) {
+    for (const method of
+        ['toLocaleString', 'toLocaleDateString', 'toLocaleTimeString']) {
+      assert.equal(
+        at(fixture, `new Date(0).${method}('en-US')`),
+        new Date(0)[method]('en-US', { timeZone: zone }),
+        `${method} under ${zone}`,
+      );
+    }
+  }
+
+  // Non-vacuous: two spoofed zones must disagree, which can only happen if
+  // the shim is driving the zone rather than the host's.
+  assert.notEqual(
+    at('location_spoof/timezone_only_utc.js', "new Date(0).toLocaleString('en-US')"),
+    at('location_spoof/timezone_only_tokyo.js', "new Date(0).toLocaleString('en-US')"),
+  );
+});
+
+test('an explicit timeZone argument is still honoured', () => {
+  const dom = loadShim('location_spoof/timezone_only_tokyo.js');
+  assert.equal(
+    dom.window.eval(
+      "new Date(0).toLocaleString('en-US', { timeZone: 'America/New_York' })"),
+    new Date(0).toLocaleString('en-US', { timeZone: 'America/New_York' }),
+  );
+});
+
+test('the toLocale* wrappers keep a native arity', () => {
+  // A native `Date.prototype.toLocaleString.length` is 0. Declaring
+  // (locales, options) on the wrapper would make it 2, which is a
+  // one-expression tell.
+  const dom = loadShim('location_spoof/timezone_only_tokyo.js');
+  for (const method of
+      ['toLocaleString', 'toLocaleDateString', 'toLocaleTimeString']) {
+    assert.equal(dom.window.eval(`Date.prototype.${method}.length`), 0);
+    assert.match(
+      dom.window.eval(`Function.prototype.toString.call(Date.prototype.${method})`),
+      /\[native code\]/,
+    );
+  }
+});
+
+test('the language and timezone wrappers chain in either install order', () => {
+  // Both wrap the same three methods and each only fills in an argument the
+  // caller omitted, so locale and zone must both survive whichever installs
+  // first.
+  const LANG = readFixture('language/ja.js');
+  const TZ = readFixture('location_spoof/timezone_only_tokyo.js');
+  const expected = new Date(0).toLocaleString('ja', { timeZone: 'Asia/Tokyo' });
+
+  for (const order of [[LANG, TZ], [TZ, LANG]]) {
+    const dom = makeDom();
+    for (const src of order) runInDom(dom, src);
+    assert.equal(dom.window.eval('new Date(0).toLocaleString()'), expected);
+  }
+});
 
 test('a zero-offset zone reports +0, never negative zero', () => {
   // `-Math.round(0)` is -0, and `Object.is(d.getTimezoneOffset(), -0)` is true
