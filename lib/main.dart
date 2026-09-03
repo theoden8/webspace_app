@@ -95,6 +95,7 @@ import 'package:webspace/services/link_intent_dispatch_engine.dart';
 import 'package:webspace/screens/link_handling_settings.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/repaint_log_throttle.dart';
+import 'package:webspace/services/repaint_suppression.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/services/notification_service.dart';
@@ -2006,6 +2007,12 @@ class _WebSpacePageState extends State<WebSpacePage>
     // engine refills the tick budget and reports whether a loop is already
     // running, so two interleaving loops can't toggle the inset against each
     // other. Settling at a zero inset on an odd refill is the engine's job.
+    // Debug-only, diag tiers only: drop this trigger so a scenario can observe
+    // what the native layer repaints on its own (BUG-001 gap #5).
+    if (RepaintSuppression.suppresses(trigger)) {
+      _traceRepaint('$trigger-suppressed', coalesced: false);
+      return;
+    }
     final started = _surfaceRepaint.request();
     _traceRepaint(trigger, coalesced: !started);
     if (!started) return;

@@ -260,7 +260,8 @@ class AdblockEngine {
       {bool enableUboResources = true}) {
     final lib = _tryOpenLibrary();
     if (lib == null) return null;
-    final bindings = _Bindings.fromLib(lib);
+    final bindings = _tryBindings(lib);
+    if (bindings == null) return null;
     final bytes = utf8.encode(rulesText);
     final ptr = malloc.allocate<ffi.Uint8>(bytes.length);
     try {
@@ -289,7 +290,8 @@ class AdblockEngine {
     if (bytes.isEmpty) return null;
     final lib = _tryOpenLibrary();
     if (lib == null) return null;
-    final bindings = _Bindings.fromLib(lib);
+    final bindings = _tryBindings(lib);
+    if (bindings == null) return null;
     final ptr = malloc.allocate<ffi.Uint8>(bytes.length);
     try {
       ptr.asTypedList(bytes.length).setAll(0, bytes);
@@ -342,7 +344,8 @@ class AdblockEngine {
   static List<Map<String, dynamic>> depLicenses() {
     final lib = _tryOpenLibrary();
     if (lib == null) return const [];
-    final bindings = _Bindings.fromLib(lib);
+    final bindings = _tryBindings(lib);
+    if (bindings == null) return const [];
     final ptr = bindings.depLicenses();
     if (ptr == ffi.nullptr) return const [];
     // ws_dep_licenses_json returns a pointer to .rodata — DO NOT free.
@@ -652,7 +655,8 @@ class AdblockEngine {
   static String? filterListToAppleContentBlockingJson(String rulesText) {
     final lib = _tryOpenLibrary();
     if (lib == null) return null;
-    final bindings = _Bindings.fromLib(lib);
+    final bindings = _tryBindings(lib);
+    if (bindings == null) return null;
     final bytes = utf8.encode(rulesText);
     final ptr = malloc.allocate<ffi.Uint8>(bytes.length);
     try {
@@ -681,6 +685,27 @@ class AdblockEngine {
 /// Resolve the native library on the current platform. Returns null
 /// when the library isn't shipped — callers must fall back to the
 /// legacy Dart engine in that case.
+/// Resolve the FFI bindings, or null when the library is present as a handle
+/// but carries none of our symbols.
+///
+/// The Apple branch of [_tryOpenLibrary] returns `DynamicLibrary.process()`,
+/// which ALWAYS succeeds — it is a handle on the running process, not on a
+/// file. In a build that never linked the framework (a `flutter test` host
+/// process is the everyday case), opening therefore succeeds and the failure
+/// surfaces one step later, as `lookup` throwing `ArgumentError` on the first
+/// symbol. Every entry point here documents "returns null when the library
+/// can't be loaded on this platform/arch", so the symbol resolution has to sit
+/// behind the same guard as the open; otherwise a caller on Apple gets a throw
+/// where the contract promises a null. `AppSettingsScreen` calls this from
+/// `build()`, so the throw took the whole screen down.
+_Bindings? _tryBindings(ffi.DynamicLibrary lib) {
+  try {
+    return _Bindings.fromLib(lib);
+  } on ArgumentError {
+    return null;
+  }
+}
+
 ffi.DynamicLibrary? _tryOpenLibrary() {
   // Test runs (`flutter test`, `dart test`) execute on the host
   // machine, NOT inside the bundled app, so the per-platform paths

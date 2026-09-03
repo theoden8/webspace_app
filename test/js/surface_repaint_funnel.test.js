@@ -373,7 +373,7 @@ for (const rel of GUARDED) {
       );
       assert.ok(defIdx >= 0,
         '_nudgeSurfaceRepaint must take a trigger label, so every path names itself');
-      const body = lines.slice(defIdx, defIdx + 10).join('\n');
+      const body = lines.slice(defIdx, defIdx + 22).join('\n');
       assert.match(body, /_traceRepaint\(trigger,\s*coalesced:/,
         'the funnel must report through _traceRepaint, not its call sites');
     });

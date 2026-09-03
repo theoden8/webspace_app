@@ -15,6 +15,7 @@ import 'package:webspace/services/screen_share_decision_engine.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/repaint_log_throttle.dart';
+import 'package:webspace/services/repaint_suppression.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/pull_to_refresh_gate.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
@@ -702,6 +703,12 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   /// `_WebSpacePageState._nudgeSurfaceRepaint`; no-op off Android.
   void _nudgeSurfaceRepaint(String trigger) {
     if (!hostIsAndroid) return;
+    // Debug-only, diag tiers only: drop this trigger so a scenario can observe
+    // what the native layer repaints on its own (BUG-001 gap #5).
+    if (RepaintSuppression.suppresses(trigger)) {
+      _traceRepaint('$trigger-suppressed', coalesced: false);
+      return;
+    }
     final started = _surfaceRepaint.request();
     _traceRepaint(trigger, coalesced: !started);
     if (!started) return;

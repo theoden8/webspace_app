@@ -83,6 +83,8 @@ expect warmstart_bug.cfg warmstart.tla "Temporal propert(y|ies).*violated" \
   "a reattach after the resume one-shot nudge drains is left blank (reproduced + caught)"
 expect warmstart_reach.cfg warmstart.tla "Reach_LateReattach is violated" \
   "the late-reattach ordering is reachable (RepaintLiveness not vacuous)"
+expect warmstart_proxy.cfg warmstart.tla "Temporal propert(y|ies).*violated" \
+  "a proxy that may not fire leaves the reattach blank (gap #5: what a native attach callback removes)"
 
 echo "── RELOADLATCH: BUG-001 rapid-refresh white screen (PAUSE-027, Attempt 11) ──"
 expect reloadlatch.cfg reloadlatch.tla "No error has been found" \
