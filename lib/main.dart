@@ -1476,10 +1476,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// foreground. See PAUSE-024 / BUG-001.
   @override
   void didPopNext() {
-    if (hostIsAndroid) {
-      LogService.instance.log('SurfaceDiag', 'trigger=route-return -> nudge');
-    }
-    _nudgeSurfaceRepaint();
+    _nudgeSurfaceRepaint('route-return');
   }
 
   @override
@@ -1508,10 +1505,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     // on-device that a warm-start surface reattach actually surfaces here as a
     // metrics change, the premise Attempt 8 depends on. Bounded to the window,
     // so it is not emitted for steady-state metric changes. See PAUSE-020.
-    if (hostIsAndroid) {
-      LogService.instance.log('SurfaceDiag', 'trigger=metrics-resume -> nudge');
-    }
-    _nudgeSurfaceRepaint();
+    _nudgeSurfaceRepaint('metrics-resume');
   }
 
   @override
@@ -1615,7 +1609,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         await _probeRendererAndRecover(_webViewModels[activeIdx],
             trigger: 'memory-pressure');
         if (!mounted) return;
-        _nudgeSurfaceRepaint();
+        _nudgeSurfaceRepaint('memory-pressure');
       }
     } finally {
       _isHandlingMemoryPressure = false;
@@ -1836,7 +1830,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       // One relayout against the now-final visible site, in case the activity
       // was recreated and the platform-view surface came back blank. See
       // PAUSE-015.
-      _nudgeSurfaceRepaint();
+      _nudgeSurfaceRepaint('resume');
       // A repaint cannot recover a page that never loaded. Re-issue a load
       // the OS stranded while we were backgrounded, against the same
       // now-final visible site. Runs long (bounded retries with a backoff),
@@ -2000,14 +1994,23 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// because the new surface may not be attached on the first frame after
   /// resume, which is why a single rebuild (e.g. the one in _setCurrentIndex)
   /// is not enough on its own.
-  void _nudgeSurfaceRepaint() {
+  void _nudgeSurfaceRepaint(String trigger) {
     if (!hostIsAndroid) return;
     // Coalesce concurrent callers (e.g. _setCurrentIndex from a warm-shortcut
     // _openShortcutIndex, then _onResumed's tail call) onto a single loop: the
     // engine refills the tick budget and reports whether a loop is already
     // running, so two interleaving loops can't toggle the inset against each
     // other. Settling at a zero inset on an odd refill is the engine's job.
-    if (!_surfaceRepaint.request()) return;
+    final started = _surfaceRepaint.request();
+    // Every repaint reports which path asked for it, from inside the funnel
+    // rather than at the call sites: the trace exists to say which trigger
+    // fired on a device that went blank, and a hand-written line at some of
+    // the call sites left most paths dark. Non-sensitive (no site name or
+    // URL), so a user can share it. `coalesced` means an already-running loop
+    // absorbed this request — the repaint still happens, on the other loop.
+    LogService.instance.log('SurfaceDiag',
+        'trigger=$trigger -> nudge${started ? '' : ' (coalesced)'}');
+    if (!started) return;
     void tick() {
       if (!mounted) {
         _surfaceRepaint.abort();
@@ -2051,14 +2054,11 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// recomposite. Off Android the nudge is a no-op, so the menu entry is
   /// Android-only.
   void _repaintCurrentSurface() {
-    if (hostIsAndroid) {
-      LogService.instance.log('SurfaceDiag', 'trigger=manual -> nudge');
-    }
     final idx = _currentIndex;
     if (idx != null && idx < _webViewModels.length) {
       unawaited(_probeRendererAndRecover(_webViewModels[idx], trigger: 'manual'));
     }
-    _nudgeSurfaceRepaint();
+    _nudgeSurfaceRepaint('manual');
   }
 
   Future<void> _handleShortcutIntent() async {
@@ -4028,7 +4028,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     // nothing to show yet, and the commit lands afterwards. Latch it so
     // onLoadSettled repaints the committed document (PAUSE-025).
     if (target.isLoading) _armCommitLatch();
-    _nudgeSurfaceRepaint();
+    _nudgeSurfaceRepaint('activate');
     // _loadedIndices may have changed (LRU eviction, conflict unload,
     // first-load of target), so re-evaluate the background refresh
     // schedule. No-op on non-iOS / non-Android.
@@ -5631,7 +5631,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     // Removing the app bar / changing the bottom bar resizes the webview; on
     // Android the hybrid-composition SurfaceView can come back with a 1px dark
     // seam at the bottom edge until it recomposites. github #421-followup
-    _nudgeSurfaceRepaint();
+    _nudgeSurfaceRepaint('fullscreen-toggle');
     // KIOSK-003: the hint promises an exit that a locked session won't honor.
     if (_kioskLocked) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -5653,7 +5653,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       _tabBarOverlayVisible = false;
     });
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    _nudgeSurfaceRepaint();
+    _nudgeSurfaceRepaint('fullscreen-exit');
   }
 
   void _toggleFullscreen() {
@@ -6366,7 +6366,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// No-op off Android.
   Future<void> _goBackAndRepaint(WebViewController controller) async {
     await controller.goBack();
-    _nudgeSurfaceRepaint();
+    _nudgeSurfaceRepaint('back');
   }
 
   /// User-driven reload of the current site (Refresh button, Clear-cookies).
@@ -7021,7 +7021,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                   setState(() {
                     _tabBarOverlayVisible = false;
                   });
-                  _nudgeSurfaceRepaint();
+                  _nudgeSurfaceRepaint('tab-overlay-hide');
                 },
               ),
             Expanded(
@@ -8741,11 +8741,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                           // budget on a slow page — so latch the commit too and
                           // let onLoadSettled repaint it (PAUSE-025).
                           _armCommitLatch();
-                          if (hostIsAndroid) {
-                            LogService.instance.log(
-                                'SurfaceDiag', 'trigger=controller-attach -> nudge');
-                          }
-                          _nudgeSurfaceRepaint();
+                          _nudgeSurfaceRepaint('controller-attach');
                         };
 
                         // A reload of the visible site blanks the surface
@@ -8762,20 +8758,12 @@ class _WebSpacePageState extends State<WebSpacePage>
                         webViewModel.onReloadIssued = () {
                           if (index != _currentIndex) return;
                           _armCommitLatch();
-                          if (hostIsAndroid) {
-                            LogService.instance
-                                .log('SurfaceDiag', 'trigger=reload -> nudge');
-                          }
-                          _nudgeSurfaceRepaint();
+                          _nudgeSurfaceRepaint('reload');
                         };
                         webViewModel.onLoadSettled = () {
                           if (index != _currentIndex) return;
                           if (!_surfaceRepaint.noteLoadSettled()) return;
-                          if (hostIsAndroid) {
-                            LogService.instance.log(
-                                'SurfaceDiag', 'trigger=commit-settled -> nudge');
-                          }
-                          _nudgeSurfaceRepaint();
+                          _nudgeSurfaceRepaint('commit-settled');
                         };
 
                         // Keep the on-disk back/forward stack tracking
@@ -8996,7 +8984,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                             setState(() {
                               _tabBarOverlayVisible = true;
                             });
-                            _nudgeSurfaceRepaint();
+                            _nudgeSurfaceRepaint('tab-overlay-show');
                           },
                           onDragBegin: (globalPosition) {
                             HapticFeedback.mediumImpact();

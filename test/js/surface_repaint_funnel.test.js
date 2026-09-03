@@ -42,7 +42,7 @@ for (const rel of GUARDED) {
     assert.ok(defIdx >= 0, '_goBackAndRepaint must be defined');
     const body = lines.slice(defIdx, defIdx + 6).join('\n');
     assert.match(body, /controller\.goBack\(\)/, 'funnel must call goBack');
-    assert.match(body, /_nudgeSurfaceRepaint\(\)/, 'funnel must nudge the surface');
+    assert.match(body, /_nudgeSurfaceRepaint\(/, 'funnel must nudge the surface');
   });
 
   test(`${rel}: Android back-nav routes through the funnel`, () => {
@@ -168,7 +168,7 @@ for (const rel of GUARDED) {
     const body = lines.slice(defIdx, defIdx + 20).join('\n');
     assert.match(body, /_resumeRepaintWindowOpen/,
       'didChangeMetrics must gate on the post-resume window');
-    assert.match(body, /_nudgeSurfaceRepaint\(\)/,
+    assert.match(body, /_nudgeSurfaceRepaint\(/,
       'didChangeMetrics must nudge the surface on the attach signal');
   });
 
@@ -211,7 +211,7 @@ for (const rel of GUARDED) {
       const defIdx = lines.findIndex((l) => /void\s+didPopNext\s*\(/.test(l));
       assert.ok(defIdx >= 0, 'didPopNext override must exist');
       const body = lines.slice(defIdx, defIdx + 8).join('\n');
-      assert.match(body, /_nudgeSurfaceRepaint\(\)/,
+      assert.match(body, /_nudgeSurfaceRepaint\(/,
         'returning from a pushed route must nudge the surface');
     });
   }
@@ -237,7 +237,7 @@ for (const rel of GUARDED) {
       const body = lines.slice(defIdx, defIdx + 20).join('\n');
       assert.match(body, /_armCommitLatch\(\)/,
         'the attach must arm the commit latch (PAUSE-025)');
-      assert.match(body, /_nudgeSurfaceRepaint\(\)/,
+      assert.match(body, /_nudgeSurfaceRepaint\(/,
         'the attach must also nudge now (PAUSE-017)');
     });
   }
@@ -259,7 +259,7 @@ for (const rel of GUARDED) {
     const body = lines.slice(defIdx, defIdx + 24).join('\n');
     assert.match(body, /_openResumeRepaintWindow\(\)/,
       'a resume must open the post-resume repaint window');
-    assert.match(body, /_nudgeSurfaceRepaint\(\)/,
+    assert.match(body, /_nudgeSurfaceRepaint\(/,
       'a resume must nudge the nested surface');
   });
 
@@ -269,7 +269,7 @@ for (const rel of GUARDED) {
     const body = lines.slice(defIdx, defIdx + 12).join('\n');
     assert.match(body, /_resumeRepaintWindowOpen/,
       'the re-nudge must be bounded to the post-resume window');
-    assert.match(body, /_nudgeSurfaceRepaint\(\)/,
+    assert.match(body, /_nudgeSurfaceRepaint\(/,
       'the attach signal must nudge the nested surface');
   });
 
@@ -350,10 +350,53 @@ for (const rel of GUARDED) {
       );
       assert.ok(defIdx >= 0, '_repaintCurrentSurface must be defined');
       const body = lines.slice(defIdx, defIdx + 12).join('\n');
-      assert.match(body, /_nudgeSurfaceRepaint\(\)/,
-        'the manual action must actually nudge the surface');
+      assert.match(body, /_nudgeSurfaceRepaint\('manual'\)/,
+        "the manual action must nudge under the 'manual' trigger, so a user " +
+          'report can be matched to the log line the tap produced');
+    });
+  }
+}
+
+// Diagnostic funnel (BUG-001 Attempt 11). The SurfaceDiag trace exists to say
+// WHICH path repainted on a device that went blank, and hand-written log lines
+// at a few call sites left most paths dark: 6 of 26 nudges reported. The line
+// is therefore emitted inside _nudgeSurfaceRepaint from a required trigger
+// label, so a new path cannot be added silently.
+{
+  for (const rel of GUARDED) {
+    const lines = linesOf(rel);
+    const src = lines.join('\n');
+
+    test(`${rel}: the nudge funnel logs its own trigger`, () => {
+      const defIdx = lines.findIndex((l) =>
+        /void\s+_nudgeSurfaceRepaint\s*\(String\s+trigger\)/.test(l),
+      );
+      assert.ok(defIdx >= 0,
+        '_nudgeSurfaceRepaint must take a trigger label, so every path names itself');
+      const body = lines.slice(defIdx, defIdx + 16).join('\n');
       assert.match(body, /SurfaceDiag/,
-        'the manual trigger must be traceable in a shareable log');
+        'the funnel must emit the diagnostic, not its call sites');
+      assert.match(body, /trigger=\$trigger/,
+        'the emitted line must carry the caller-supplied label');
+    });
+
+    test(`${rel}: every repaint call site passes a trigger`, () => {
+      const offenders = [];
+      lines.forEach((l, i) => {
+        if (/_nudgeSurfaceRepaint\(\s*\)/.test(l)) offenders.push(i + 1);
+      });
+      assert.deepEqual(offenders, [],
+        `unlabelled _nudgeSurfaceRepaint() at line(s) ${offenders.join(', ')}; ` +
+          'pass a trigger so the SurfaceDiag trace can name the path.');
+    });
+
+    test(`${rel}: no call site hand-writes a trigger line any more`, () => {
+      // A duplicate line at a call site is how the coverage drifted before:
+      // the funnel reports, so a second report means someone re-introduced the
+      // per-site pattern and the next path will be forgotten again.
+      const hand = (src.match(/'trigger=[a-z-]+ -> nudge'/g) || []).length;
+      assert.equal(hand, 0,
+        'trigger lines belong in the funnel, not at the call sites');
     });
   }
 }
