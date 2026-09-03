@@ -205,17 +205,29 @@ void main() {
   /// all. The trace is the half that can tell those apart, so a refactor that
   /// silently drops a funnel fails here even when the pixels stay green. The
   /// trace is gated on developer mode, which `setUpAll` turns on.
-  void expectRepaintTrigger(DateTime since, String trigger, String context) {
-    final trace = LogService.instance.allEntriesMerged
+  /// Polled, not asserted once: the pixel wait above returns as soon as the
+  /// surface shows the right colour, and the settle-side repaint fires later,
+  /// at `onLoadStop`. Asserting immediately raced it and failed with only the
+  /// issue-time trigger in the trace. A folded burst also matches, because the
+  /// throttle's summary keeps the `trigger=... ->` prefix.
+  Future<void> expectRepaintTrigger(
+    WidgetTester tester,
+    DateTime since,
+    String trigger,
+    String context, {
+    Duration timeout = const Duration(seconds: 20),
+  }) async {
+    List<String> trace() => LogService.instance.allEntriesMerged
         .where((e) => e.tag == 'SurfaceDiag' && !e.timestamp.isBefore(since))
         .map((e) => e.message)
         .toList();
-    expect(
-      trace.any((m) => m.startsWith('trigger=$trigger ->')),
-      isTrue,
-      reason: '$context: expected a "$trigger" repaint in the SurfaceDiag '
-          'trace, got $trace',
-    );
+    final deadline = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(deadline)) {
+      if (trace().any((m) => m.startsWith('trigger=$trigger ->'))) return;
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+    fail('$context: expected a "$trigger" repaint in the SurfaceDiag trace '
+        'within ${timeout.inSeconds}s, got ${trace()}');
   }
 
   Future<WindowRegionSample> sampleSlot(WidgetTester tester, Finder slot) {
@@ -406,8 +418,9 @@ void main() {
       // Both halves of PAUSE-021: the issue-time nudge and the settle-side
       // one. A reload that painted only because the page was fast would show
       // the first and not the second.
-      expectRepaintTrigger(reloadMark, 'reload', 'scenario 4');
-      expectRepaintTrigger(reloadMark, 'commit-settled', 'scenario 4');
+      await expectRepaintTrigger(tester, reloadMark, 'reload', 'scenario 4');
+      await expectRepaintTrigger(
+          tester, reloadMark, 'commit-settled', 'scenario 4');
 
       // Scenario 5: OS memory pressure with the site visible (Attempt 7).
       // Delivered as the real platform message so it flows through
