@@ -317,31 +317,44 @@ String buildAntiFingerprintingShim(
   // --- navigator.plugins / mimeTypes -> empty array-likes ---
   // A real PluginArray has length, item(), namedItem(), refresh(). Returning
   // a plain array would leak the override; we synthesize the missing methods.
+  //
+  // Built from the LIVE collection's own prototype, not from an Array:
+  // `Object.defineProperty([], 'length', ...)` throws because an Array's
+  // length is non-configurable, which aborted this whole block and left the
+  // real plugin list in place with nothing reporting the failure. A plain
+  // array was also a tell in its own right — `Array.isArray(navigator
+  // .plugins)` is false on a real engine and its prototype is `PluginArray`.
   try {
-    function makeEmptyArrayLike(name) {
-      var arr = [];
-      Object.defineProperty(arr, 'length', { value: 0, configurable: true });
-      Object.defineProperty(arr, 'item', {
-        value: asNative(function() { return null; }, 'item'),
-        configurable: true,
-      });
-      Object.defineProperty(arr, 'namedItem', {
-        value: asNative(function() { return null; }, 'namedItem'),
-        configurable: true,
-      });
-      if (name === 'plugins') {
-        Object.defineProperty(arr, 'refresh', {
-          value: asNative(function() {}, 'refresh'),
+    function emptyCollectionLike(live, withRefresh) {
+      if (!live) return null;
+      var proto = Object.getPrototypeOf(live);
+      if (!proto) return null;
+      var d = Object.getOwnPropertyDescriptor(proto, 'length');
+      if (d && d.configurable !== false) {
+        Object.defineProperty(proto, 'length', {
           configurable: true,
+          enumerable: d.enumerable,
+          get: asNative(function length() { return 0; }, 'length'),
         });
       }
-      return arr;
+      if (typeof proto.item === 'function') {
+        proto.item = asNative(function item() { return null; }, 'item');
+      }
+      if (typeof proto.namedItem === 'function') {
+        proto.namedItem = asNative(function namedItem() { return null; }, 'namedItem');
+      }
+      if (withRefresh && typeof proto.refresh === 'function') {
+        proto.refresh = asNative(function refresh() {}, 'refresh');
+      }
+      return Object.create(proto);
     }
     // Skipped in worker scope: a real WorkerNavigator has no plugins /
     // mimeTypes, so defining them there would ADD a property the engine lacks.
-    if (!IS_WORKER) {
-      defineGetterOnProto(NavProto, 'plugins', makeEmptyArrayLike('plugins'));
-      defineGetterOnProto(NavProto, 'mimeTypes', makeEmptyArrayLike('mimeTypes'));
+    if (!IS_WORKER && typeof navigator !== 'undefined') {
+      var emptyPlugins = emptyCollectionLike(navigator.plugins, true);
+      var emptyMimes = emptyCollectionLike(navigator.mimeTypes, false);
+      if (emptyPlugins) defineGetterOnProto(NavProto, 'plugins', emptyPlugins);
+      if (emptyMimes) defineGetterOnProto(NavProto, 'mimeTypes', emptyMimes);
     }
   } catch (e) {}
 
@@ -668,9 +681,22 @@ String buildAntiFingerprintingShim(
   // fingerprinting vectors — installed-font lists vary wildly per device.
   // We answer `true` only for a small allowlist of common platform fonts;
   // every other family reads as not-installed, even if it actually is.
+  //
+  // Installed on the prototype of the LIVE `document.fonts`. Assigning to the
+  // instance put `check` in `Object.getOwnPropertyNames(document.fonts)`,
+  // where a stock engine has none. The global `FontFaceSet` is not the right
+  // target either: on Chromium `Object.getPrototypeOf(document.fonts)` is not
+  // `FontFaceSet.prototype` and the global carries no `check` at all.
   try {
-    if (typeof document !== 'undefined' && document.fonts &&
-        typeof document.fonts.check === 'function') {
+    var _fontsProto = (typeof document !== 'undefined' && document.fonts)
+        ? Object.getPrototypeOf(document.fonts) : null;
+    var _fontsTarget = (_fontsProto && typeof _fontsProto.check === 'function')
+        ? _fontsProto
+        // No prototype to patch. The instance reintroduces the own property,
+        // but open font enumeration is the worse of the two.
+        : ((typeof document !== 'undefined' && document.fonts &&
+            typeof document.fonts.check === 'function') ? document.fonts : null);
+    if (_fontsTarget) {
       var COMMON_FONTS = {
         'serif': 1, 'sans-serif': 1, 'monospace': 1,
         'cursive': 1, 'fantasy': 1, 'system-ui': 1,
@@ -680,7 +706,7 @@ String buildAntiFingerprintingShim(
         'verdana': 1, 'georgia': 1, 'tahoma': 1,
         'trebuchet ms': 1, 'impact': 1,
       };
-      document.fonts.check = asNative(function check(font) {
+      _fontsTarget.check = asNative(function check(font) {
         try {
           var s = String(font || '').toLowerCase();
           var families = s.split(',');

@@ -173,10 +173,42 @@ function makeDom({ url = 'https://example.com/' } = {}) {
   return dom;
 }
 
-function loadShim(rel, options) {
+function loadShim(rel, options, prepare) {
   const dom = makeDom(options);
+  if (prepare) prepare(dom.window);
   dom.window.eval(readFixture(rel));
   return dom;
+}
+
+// jsdom's own navigator.plugins is already an empty PluginArray, so a test
+// that only reads it back passes whether or not the shim ran. Seeding a
+// populated collection first is what makes the assertion able to fail.
+function seedPlugins(window) {
+  function FakePluginArray() {}
+  Object.defineProperty(FakePluginArray.prototype, 'length', {
+    configurable: true, enumerable: true,
+    get: function() { return this.__entries.length; },
+  });
+  FakePluginArray.prototype.item = function(i) { return this.__entries[i] || null; };
+  FakePluginArray.prototype.namedItem = function(n) {
+    return this.__entries.find((e) => e.name === n) || null;
+  };
+  FakePluginArray.prototype.refresh = function() {};
+
+  function make(entries) {
+    const inst = Object.create(FakePluginArray.prototype);
+    inst.__entries = entries;
+    return inst;
+  }
+  const navProto = Object.getPrototypeOf(window.navigator);
+  for (const [prop, entries] of [
+    ['plugins', [{ name: 'PDF Viewer' }, { name: 'Chrome PDF Viewer' }]],
+    ['mimeTypes', [{ type: 'application/pdf' }]],
+  ]) {
+    Object.defineProperty(navProto, prop, {
+      configurable: true, enumerable: true, get: () => make(entries),
+    });
+  }
 }
 
 const ALPHA = 'anti_fingerprinting/shim_seed_alpha.js';
@@ -340,6 +372,23 @@ test('navigator.mimeTypes is empty', () => {
   const mt = dom.window.navigator.mimeTypes;
   assert.equal(mt.length, 0);
   assert.equal(mt.item(0), null);
+});
+
+test('a populated plugin list is actually emptied', () => {
+  const dom = loadShim(ALPHA, undefined, seedPlugins);
+  const plugins = dom.window.navigator.plugins;
+  assert.equal(plugins.length, 0);
+  assert.equal(plugins.item(0), null);
+  assert.equal(plugins.namedItem('PDF Viewer'), null);
+  assert.equal(dom.window.navigator.mimeTypes.length, 0);
+});
+
+test('the emptied collections are not arrays and carry no own properties', () => {
+  const dom = loadShim(ALPHA, undefined, seedPlugins);
+  for (const c of [dom.window.navigator.plugins, dom.window.navigator.mimeTypes]) {
+    assert.equal(Array.isArray(c), false);
+    assert.deepEqual(Object.getOwnPropertyNames(c), []);
+  }
 });
 
 test('navigator.getBattery resolves to fixed values', async () => {
