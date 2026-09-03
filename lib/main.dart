@@ -1007,6 +1007,11 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// webview surface below doesn't shift by a few pixels every time a
   /// navigation starts or ends.
   static const double _loadingBarHeight = 3.0;
+  // Width of the iOS left-edge strip the app claims back from WKWebView's
+  // own swipe when NAV-009 is on. Matches the system edge-gesture region.
+  static const double _backEdgeSwipeWidth = 24.0;
+  // Horizontal travel accumulated by that strip's drag, in logical pixels.
+  double _edgeSwipeDx = 0;
 
   bool _isBackHandling = false;
   bool _isFindVisible = false;
@@ -6309,6 +6314,94 @@ class _WebSpacePageState extends State<WebSpacePage>
     scaffoldState.openDrawer();
   }
 
+  /// Resolve one back gesture, whatever raised it: the Android system back,
+  /// a pushable route's pop, or the iOS left-edge swipe the app takes over
+  /// under NAV-009 (see [needsEdgeSwipeFallback]).
+  Future<void> _handleBackGesture() async {
+    if (_isBackHandling) return;
+    _isBackHandling = true;
+    try {
+      final scaffoldState = _scaffoldKey.currentState;
+      final drawerOpen = scaffoldState?.isDrawerOpen ?? false;
+      final controller = getController();
+      // Android's canGoBack() is reliable (including for pushState/SPA
+      // entries on Chromium). Trust it directly: URL-comparison can
+      // false-positive when goBack() succeeds but the navigation
+      // hasn't propagated within the timeout. iOS/macOS decide from the
+      // URL diff instead, so they don't sample it at all.
+      final canGoBack = !drawerOpen && controller != null && hostIsAndroid
+          ? await controller.canGoBack()
+          : false;
+      if (!mounted) return;
+      final action = decideBackGesture(
+        drawerOpen: drawerOpen,
+        drawerOpenedByGesture: _drawerOpenedByBackGesture,
+        drawerAvailable: !_kioskLocked,
+        hasWebView: controller != null,
+        trustsCanGoBack: hostIsAndroid,
+        canGoBack: canGoBack,
+        atHistoryStart: _backAtHistoryStart,
+        canExitApp: hostIsAndroid,
+      );
+      switch (action) {
+        case BackGestureAction.ignore:
+          LogService.instance.log('Navigation', 'Back gesture: nothing to do, ignoring');
+          break;
+        case BackGestureAction.closeDrawer:
+          LogService.instance.log('Navigation', 'Back gesture: closing open drawer');
+          _scaffoldKey.currentState?.closeDrawer();
+          break;
+        case BackGestureAction.closeDrawerAndExit:
+          LogService.instance.log('Navigation', 'Back gesture: closing drawer and leaving app');
+          _scaffoldKey.currentState?.closeDrawer();
+          await SystemNavigator.pop();
+          break;
+        case BackGestureAction.openDrawer:
+          LogService.instance.log('Navigation', 'Back gesture: no history, opening drawer');
+          _openDrawerFromBackGesture(scaffoldState);
+          break;
+        case BackGestureAction.exitApp:
+          LogService.instance.log('Navigation', 'Back gesture: no site shown, leaving app');
+          await SystemNavigator.pop();
+          break;
+        case BackGestureAction.goBack:
+          await _goBackAndRepaint(controller!);
+          LogService.instance.log('Navigation', 'Back gesture: navigated back (canGoBack)');
+          break;
+        case BackGestureAction.attemptGoBack:
+          // iOS/macOS: canGoBack() can return false for pushState
+          // entries, so attempt goBack() unconditionally and use URL
+          // comparison as the authoritative check.
+          final urlBefore = (await controller!.getUrl())?.toString();
+          await controller.goBack();
+          // Give the native webview time to process the navigation
+          await Future.delayed(const Duration(milliseconds: 150));
+          if (!mounted) return;
+          final urlAfter = (await controller.getUrl())?.toString();
+          final urlChanged = urlBefore != urlAfter;
+          LogService.instance.log(
+            'Navigation',
+            urlChanged
+                ? 'Back gesture: navigated back from $urlBefore to $urlAfter'
+                : 'Back gesture: URL unchanged ($urlAfter)',
+            sensitivity: LogSensitivity.sensitive,
+          );
+          final next = decideAfterAttemptedGoBack(
+            urlChanged: urlChanged,
+            drawerAvailable: !_kioskLocked,
+            atHistoryStart: _backAtHistoryStart,
+          );
+          if (next == BackGestureAction.openDrawer) {
+            LogService.instance.log('Navigation', 'Back gesture: no history, opening drawer');
+            _openDrawerFromBackGesture(_scaffoldKey.currentState);
+          }
+          break;
+      }
+    } finally {
+      _isBackHandling = false;
+    }
+  }
+
   /// Navigate the visible webview back one history entry, then recomposite the
   /// Android surface. A back/forward-cache restore re-attaches a fresh
   /// hybrid-composition SurfaceView that can come back blank-white, and back
@@ -8813,6 +8906,37 @@ class _WebSpacePageState extends State<WebSpacePage>
                       ),
                     ),
                   ),
+                // NAV-009 on iOS: WKWebView owns the left-edge swipe on the
+                // root site webview, so the gesture never reaches PopScope and
+                // the setting would do nothing. Claim a strip of that edge back
+                // and run the same policy. A horizontal drag recognizer competes
+                // in the gesture arena, so a vertical scroll started at the edge
+                // still reaches the page.
+                if (needsEdgeSwipeFallback(
+                  isIOS: hostIsIOS,
+                  webViewVisible: _currentIndex != null &&
+                      _currentIndex! < _webViewModels.length,
+                  drawerAvailable: !_kioskLocked,
+                  atHistoryStart: _backAtHistoryStart,
+                ))
+                  Positioned(
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    width: _backEdgeSwipeWidth,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onHorizontalDragStart: (_) => _edgeSwipeDx = 0,
+                      onHorizontalDragUpdate: (details) =>
+                          _edgeSwipeDx += details.delta.dx,
+                      onHorizontalDragEnd: (details) {
+                        final flungRight = (details.primaryVelocity ?? 0) > 300;
+                        if (_edgeSwipeDx > 48 || (flungRight && _edgeSwipeDx > 0)) {
+                          unawaited(_handleBackGesture());
+                        }
+                      },
+                    ),
+                  ),
                 // Fullscreen sessions (including kiosk-locked, where
                 // fullscreen is forced and held — KIOSK-003) have no AppBar
                 // to host the load progress bar, so overlay it along the top
@@ -8971,88 +9095,8 @@ class _WebSpacePageState extends State<WebSpacePage>
       // only when no webview is visible.
       canPop: hostIsAndroid ? false : !webviewIsVisible,
       onPopInvokedWithResult: (didPop, _) async {
-        if (didPop || _isBackHandling) return;
-        _isBackHandling = true;
-        try {
-          final scaffoldState = _scaffoldKey.currentState;
-          final drawerOpen = scaffoldState?.isDrawerOpen ?? false;
-          final controller = getController();
-          // Android's canGoBack() is reliable (including for pushState/SPA
-          // entries on Chromium). Trust it directly: URL-comparison can
-          // false-positive when goBack() succeeds but the navigation
-          // hasn't propagated within the timeout. iOS/macOS decide from the
-          // URL diff instead, so they don't sample it at all.
-          final canGoBack = !drawerOpen && controller != null && hostIsAndroid
-              ? await controller.canGoBack()
-              : false;
-          if (!mounted) return;
-          final action = decideBackGesture(
-            drawerOpen: drawerOpen,
-            drawerOpenedByGesture: _drawerOpenedByBackGesture,
-            drawerAvailable: !_kioskLocked,
-            hasWebView: controller != null,
-            trustsCanGoBack: hostIsAndroid,
-            canGoBack: canGoBack,
-            atHistoryStart: _backAtHistoryStart,
-            canExitApp: hostIsAndroid,
-          );
-          switch (action) {
-            case BackGestureAction.ignore:
-              LogService.instance.log('Navigation', 'Back gesture: nothing to do, ignoring');
-              break;
-            case BackGestureAction.closeDrawer:
-              LogService.instance.log('Navigation', 'Back gesture: closing open drawer');
-              _scaffoldKey.currentState?.closeDrawer();
-              break;
-            case BackGestureAction.closeDrawerAndExit:
-              LogService.instance.log('Navigation', 'Back gesture: closing drawer and leaving app');
-              _scaffoldKey.currentState?.closeDrawer();
-              await SystemNavigator.pop();
-              break;
-            case BackGestureAction.openDrawer:
-              LogService.instance.log('Navigation', 'Back gesture: no history, opening drawer');
-              _openDrawerFromBackGesture(scaffoldState);
-              break;
-            case BackGestureAction.exitApp:
-              LogService.instance.log('Navigation', 'Back gesture: no site shown, leaving app');
-              await SystemNavigator.pop();
-              break;
-            case BackGestureAction.goBack:
-              await _goBackAndRepaint(controller!);
-              LogService.instance.log('Navigation', 'Back gesture: navigated back (canGoBack)');
-              break;
-            case BackGestureAction.attemptGoBack:
-              // iOS/macOS: canGoBack() can return false for pushState
-              // entries, so attempt goBack() unconditionally and use URL
-              // comparison as the authoritative check.
-              final urlBefore = (await controller!.getUrl())?.toString();
-              await controller.goBack();
-              // Give the native webview time to process the navigation
-              await Future.delayed(const Duration(milliseconds: 150));
-              if (!mounted) return;
-              final urlAfter = (await controller.getUrl())?.toString();
-              final urlChanged = urlBefore != urlAfter;
-              LogService.instance.log(
-                'Navigation',
-                urlChanged
-                    ? 'Back gesture: navigated back from $urlBefore to $urlAfter'
-                    : 'Back gesture: URL unchanged ($urlAfter)',
-                sensitivity: LogSensitivity.sensitive,
-              );
-              final next = decideAfterAttemptedGoBack(
-                urlChanged: urlChanged,
-                drawerAvailable: !_kioskLocked,
-                atHistoryStart: _backAtHistoryStart,
-              );
-              if (next == BackGestureAction.openDrawer) {
-                LogService.instance.log('Navigation', 'Back gesture: no history, opening drawer');
-                _openDrawerFromBackGesture(_scaffoldKey.currentState);
-              }
-              break;
-          }
-        } finally {
-          _isBackHandling = false;
-        }
+        if (didPop) return;
+        await _handleBackGesture();
       },
       child: Scaffold(
       key: _scaffoldKey,

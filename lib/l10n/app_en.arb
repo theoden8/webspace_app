@@ -859,9 +859,13 @@
   "@appSettingsBackOpensMenu": {
     "description": "Toggle title in app settings: the system back gesture opens the side menu once the site has no page left to go back to"
   },
-  "appSettingsBackOpensMenuHint": "Where a site has nothing left to go back to, the back gesture opens the side menu instead of doing nothing. On Android, pressing back again leaves the app.",
+  "appSettingsBackOpensMenuHint": "Where a site has nothing left to go back to, the back gesture opens the side menu instead of doing nothing.",
   "@appSettingsBackOpensMenuHint": {
-    "description": "Hint dialog body for that toggle: at the start of a site's browsing history the back gesture opens the navigation drawer, and a second back press quits the app on Android"
+    "description": "Hint dialog body for that toggle: at the start of a site's browsing history the back gesture opens the navigation drawer instead of doing nothing"
+  },
+  "appSettingsBackOpensMenuHintExit": "On Android, pressing back again leaves the app.",
+  "@appSettingsBackOpensMenuHintExit": {
+    "description": "Extra sentence appended to the back-gesture hint on Android only: once that gesture has opened the menu, a further back press leaves the app."
   },
   "appSettingsFullscreenTabStrip": "In full screen, tab strip",
   "@appSettingsFullscreenTabStrip": {

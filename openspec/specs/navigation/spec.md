@@ -30,6 +30,7 @@ WebSpace embeds webviews in a Scaffold with a drawer. Navigation gestures compet
 | iOS | `target="_blank"` links may only trigger `onCreateWindow`, not `shouldOverrideUrlLoading` | Links load in current webview instead of nested browser without explicit delegation (fixed in PR #175) |
 | iOS/macOS | `allowsBackForwardNavigationGestures` is enabled for the **root site webview** only | The root webview lives at the `MaterialApp` root route, which has no Flutter route-pop edge-swipe — so without the native gesture the main view has no reliable back-swipe (PopScope only fires for pushable routes). Nested `InAppWebViewScreen`s leave it off so their route-pop-at-history-start (NAV-008) isn't hijacked. |
 | Android | `hasGesture` on `NavigationAction` is a reliable boolean | Used directly for gesture detection |
+| iOS | WKWebView's native swipe is silent at the start of history, and consumes the gesture | The app never learns the swipe happened, so NAV-009 cannot act on it through PopScope; the opt-in installs its own left-edge recognizer instead (NAV-011) |
 | iOS/macOS | No `hasGesture`; must infer from `navigationType` (`LINK_ACTIVATED`, `FORM_SUBMITTED`) | Less reliable than Android's boolean flag |
 
 ---
@@ -54,6 +55,7 @@ The system back gesture (Android back button, iOS/macOS left-edge swipe) SHALL n
 **When** the user performs a left-edge back swipe
 **Then** WKWebView navigates back in its own history, including `history.pushState` entries
 **And** at the start of history the swipe is a no-op: the app does not exit and the drawer does not open
+**And** the setting in NAV-009 is off (on, iOS takes the edge back per NAV-011)
 
 #### Scenario: Webview has no back history
 
@@ -351,6 +353,58 @@ The escalation to leaving the app is bound to the drawer the gesture itself open
 **And** the kiosk shell is locked (KIOSK-002, no drawer)
 **When** the user triggers the system back gesture at the start of history
 **Then** nothing happens (no drawer, no exit)
+
+---
+
+### Requirement: NAV-011 - iOS Edge Swipe Reaches The NAV-009 Policy
+
+While the NAV-009 setting is on and a site is visible on iOS, the app SHALL claim a narrow strip of the webview's left edge with its own horizontal drag recognizer and route a rightward drag there through the same back-gesture policy as the system back gesture. The strip SHALL exist only while the setting is on, a webview is visible, and the drawer is available (KIOSK-002); with the setting off, the edge belongs to WKWebView and NAV-001 stands unchanged.
+
+A drag that resolves as horizontal SHALL be handled by the app, and one that resolves as vertical SHALL reach the page, so scrolling at the left edge still works. Leaving the app stays Android-only (NAV-009), so on iOS the strip only ever navigates back or opens the drawer.
+
+The setting's hint SHALL describe the app-exit escalation only on the platform where it happens.
+
+**Rationale:** the root site webview owns the left edge natively (`allowsBackForwardNavigationGestures`, NAV-001) and the root route has no Flutter pop for `PopScope` to intercept, so on iOS the swipe was resolved entirely inside WKWebView — which does nothing, silently, at the start of history. NAV-009 could therefore never fire on iOS, and the toggle read as broken. Taking the edge back costs WKWebView's interactive swipe animation, which is why it is scoped to the sessions that opted in.
+
+Before #371 this worked by a different route: `drawerEdgeDragWidth` was left enabled on iOS exactly while a tracked `_canGoBack` was false, so the Scaffold's own edge drag opened the drawer at history start. #371 removed both the drag and the tracking, and #512 later handed the edge to WKWebView. That mechanism is not restored here: it gated on `canGoBack()`, which is unreliable on iOS in both directions (NAV-002), so it opened the drawer where history existed and stayed shut where it did not. The recognizer decides from the same `goBack()` + URL diff NAV-002 makes authoritative instead.
+
+The hint said "On Android, pressing back again leaves the app" on every platform, describing a behaviour iOS does not have.
+
+#### Scenario: Setting on — iOS edge swipe at the start of history
+
+**Given** the setting is on on iOS
+**And** a webview is visible with no back history
+**When** the user swipes right from the left edge
+**Then** the drawer opens
+**And** the app is NOT left
+
+#### Scenario: Setting on — iOS edge swipe with history
+
+**Given** the setting is on on iOS
+**And** a webview is visible with back history
+**When** the user swipes right from the left edge
+**Then** the webview navigates back (the NAV-002 URL-comparison path)
+**And** the drawer does not open
+
+#### Scenario: Setting off — the edge stays WKWebView's
+
+**Given** the setting is off on iOS
+**When** a site is visible
+**Then** the app installs no recognizer over the left edge
+**And** the native back/forward swipe behaves as in NAV-001
+
+#### Scenario: Vertical scrolling at the left edge still reaches the page
+
+**Given** the setting is on on iOS
+**When** the user drags vertically starting at the left edge
+**Then** the page scrolls
+**And** no back gesture is resolved
+
+#### Scenario: Hint copy names app-exit only where it applies
+
+**Given** the app settings screen is open
+**When** the user opens the setting's hint on a platform other than Android
+**Then** the hint does not mention leaving the app
 
 ---
 

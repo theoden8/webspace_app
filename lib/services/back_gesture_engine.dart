@@ -83,3 +83,25 @@ BackGestureAction decideAfterAttemptedGoBack({
       ? BackGestureAction.openDrawer
       : BackGestureAction.ignore;
 }
+
+/// Whether the main page has to install its own left-edge back-swipe over the
+/// visible webview.
+///
+/// On iOS the root site webview owns the edge swipe natively
+/// (`allowsBackForwardNavigationGestures`, NAV-001): WKWebView consumes the
+/// gesture and, at the start of history, silently does nothing. The root route
+/// has no Flutter pop for `PopScope` to intercept either, so [decideBackGesture]
+/// is never reached and NAV-009 would have no effect on iOS at all. When the
+/// setting is on, a Flutter drag recognizer over the left edge takes the gesture
+/// back and routes it through the same policy — trading WKWebView's interactive
+/// swipe animation for a decision the app can act on.
+bool needsEdgeSwipeFallback({
+  required bool isIOS,
+  required bool webViewVisible,
+  required bool drawerAvailable,
+  required BackAtHistoryStart atHistoryStart,
+}) =>
+    isIOS &&
+    webViewVisible &&
+    drawerAvailable &&
+    atHistoryStart == BackAtHistoryStart.openMenu;
