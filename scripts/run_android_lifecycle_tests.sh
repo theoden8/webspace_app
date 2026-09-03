@@ -469,7 +469,12 @@ if [ "${WS_RUN_NATIVE_REPAINT_PROBE:-0}" != "1" ]; then
 else
   echo "== Scenario B2: warm start with the Dart resume nudges suppressed"
   echo "   (BUG-001 gap #5: does the native layer repaint on its own?)"
-  adb shell am force-stop "$pkg"
+  # Wipe first, not just force-stop. This runs last, after Scenario H has
+  # deliberately left the dark site's session navigated to the magenta page,
+  # and a cold start restores that session: the seed replaces the site list
+  # but not the per-siteId nav state, so the cold start below came up magenta
+  # and the scenario failed in setup without ever testing a repaint.
+  adb shell pm clear "$pkg" >/dev/null
   adb shell am start -W -n "$component" \
     --es ws_diag_seed "$(seed_b64 dark.html "$dark_site_id")" \
     --es ws_diag_suppress_repaint "resume,metrics-resume" \
