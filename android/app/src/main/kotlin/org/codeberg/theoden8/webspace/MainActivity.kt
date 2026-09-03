@@ -149,6 +149,20 @@ class MainActivity: FlutterActivity() {
                         (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
                     result.success(if (debuggable) intent?.getStringExtra("ws_diag_seed") else null)
                 }
+                "getDiagRepaintSuppression" -> {
+                    // Same debuggable gate as the seed: this drops repaint
+                    // triggers, so on a release build it could only ever make
+                    // the recurring blank screen easier to hit.
+                    val debuggable =
+                        (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+                    result.success(
+                        if (debuggable) {
+                            intent?.getStringExtra("ws_diag_suppress_repaint")
+                        } else {
+                            null
+                        }
+                    )
+                }
                 "getLaunchSiteId" -> {
                     val siteId = intent?.getStringExtra("siteId")
                     // Drain the extra after reading so it fires once per tap.

@@ -676,7 +676,7 @@ The ordering is model-checked in [formal/warmstart.tla](../../../formal/warmstar
 
 On Android, the system SHALL recomposite the surface after the visible webview reloads, and SHALL do so again when the reloaded document commits. A reload discards the currently painted compositor frame at the moment `reload()` is called and commits the replacement an unbounded time later (network, parse, script). In between, the hybrid-composition `SurfaceView` holds no frame and nothing re-lays it out, so the page renders **white** — the same blank-surface class as PAUSE-015/017/018/020, reached through the reload trigger. A reload keeps the same site and the same controller, so it passes through none of the existing chokepoints: not `_setCurrentIndex` (PAUSE-015), not `onControllerReady` (PAUSE-017), not the back path (PAUSE-018), not a resume (PAUSE-020).
 
-Repainting only when `reload()` is issued is insufficient, and for the same ordering reason as PAUSE-020: the nudge's tick budget (~0.6s) drains against the *old* surface while the new document is still in flight, so a reload slower than the budget leaves the recommitted surface unpainted. The host SHALL therefore latch the reload (`SurfaceRepaintEngine.reloadIssued`) and repaint **twice**: once at issue time, and again when the next main-frame load settles (`SurfaceRepaintEngine.consumeLoadSettled`, driven by `onLoadingChanged(false)`) — the closest Dart-side signal to the reloaded document committing onto the surface. The latch is one-shot, so an ordinary navigation's load-stop does not nudge.
+Repainting only when `reload()` is issued is insufficient, and for the same ordering reason as PAUSE-020: the nudge's tick budget (~0.6s) drains against the *old* surface while the new document is still in flight, so a reload slower than the budget leaves the recommitted surface unpainted. The host SHALL therefore latch the reload (`SurfaceRepaintEngine.noteCommitPending`, through the host's `_armCommitLatch`) and repaint **twice**: once at issue time, and again when the next main-frame load settles (`SurfaceRepaintEngine.noteLoadSettled`, driven by `onLoadingChanged(false)`) — the closest Dart-side signal to the reloaded document committing onto the surface. Arming is bounded by a window rather than one-shot (PAUSE-027), so an ordinary navigation's load-stop outside it does not nudge.
 
 Every reload of a webview SHALL go through a funnel that fires the latch: `WebViewModel.reloadAndRepaint` for the main page (covering the Refresh button and Clear-cookies via `userDrivenReload`, pull-to-refresh, the `restoreState` materialize reload, and the notification background refresh) and `_reloadAndRepaint` in `InAppWebViewScreen` for the nested screen (menu Refresh and pull-to-refresh). Reloads the webview factory issues on its own — the cached-HTML one-shot live refresh — SHALL report through `WebViewConfig.onReloadIssued` so they latch identically. The funnels are held by the `surface_repaint_funnel` structural gate; a new raw `controller.reload()` fails CI. All of it is a no-op off Android.
 
@@ -738,7 +738,7 @@ Each webview-hosting screen SHALL be `RouteAware`, subscribe its own `ModalRoute
 
 On Android, the system SHALL repaint the surface when a webview's **first** document commits, not only when a reload's does. PAUSE-021 established that a repaint fired at issue time drains against a surface the new document has not reached yet; the identical ordering applies to a webview that has never painted at all. A freshly created webview attaches a brand-new `SurfaceView` showing its white default fill, both the activation nudge (PAUSE-015) and the controller-attach nudge (PAUSE-017) run and drain within ~0.6s, and the initial load commits an unbounded time later — so on a slow first load nothing repaints after the commit. This is BUG-001 open gap #7, reported 2026-08-13: cold start to the site picker, tap a not-yet-loaded site, white screen.
 
-The commit latch SHALL therefore be armed by more than a reload. `SurfaceRepaintEngine.noteCommitPending` (which `reloadIssued` now delegates to) SHALL be called when a fresh controller attaches for the visible site, and when a site is activated while its main-frame load is still in flight; `consumeLoadSettled` then repaints once the document settles, exactly as it does for a reload. The latch stays one-shot, so an ordinary in-page navigation still does not nudge. The settled nudge SHALL emit the non-sensitive `SurfaceDiag` line `trigger=commit-settled -> nudge` (which subsumes the PAUSE-021 `reload-settled` line), and the attach SHALL emit `trigger=controller-attach -> nudge` — the path was previously diagnostically dark, because `_probeRendererAndRecover` early-returns without logging when a fresh model has no controller yet.
+The commit latch SHALL therefore be armed by more than a reload. `SurfaceRepaintEngine.noteCommitPending` SHALL be called when a fresh controller attaches for the visible site, and when a site is activated while its main-frame load is still in flight; `noteLoadSettled` then repaints once the document settles, exactly as it does for a reload. Arming is bounded rather than one-shot (PAUSE-027), so an ordinary in-page navigation outside the window still does not nudge. The settled nudge SHALL emit the non-sensitive `SurfaceDiag` line `trigger=commit-settled -> nudge` (which subsumes the PAUSE-021 `reload-settled` line), and the attach SHALL emit `trigger=controller-attach -> nudge` — the path was previously diagnostically dark, because `_probeRendererAndRecover` early-returns without logging when a fresh model has no controller yet.
 
 This narrows, but does not close, BUG-001 gap #3: `onLoadingChanged(false)` remains a *proxy* for the commit (it maps to `onLoadStop`, i.e. document parse rather than the compositor's first frame), so a page that paints materially later than load-stop can still outrun it. The durable fix remains a native surface-changed callback.
 
@@ -747,7 +747,7 @@ This narrows, but does not close, BUG-001 gap #3: `onLoadingChanged(false)` rema
 **Given** a site that has never been loaded is activated on Android
 **And** its first document takes longer to commit than the nudge's tick budget
 **When** the controller attaches, the nudges drain, and the document finally commits
-**Then** the attach-armed latch is consumed by the settled load and `_nudgeSurfaceRepaint` runs against the committed document
+**Then** the settled load finds the attach-armed latch and `_nudgeSurfaceRepaint` runs against the committed document
 **And** the page paints instead of staying blank-white
 
 #### Scenario: Activating a site mid-load
@@ -787,7 +787,106 @@ Its webview slot SHALL carry `ValueKey(kNestedWebViewSlotKey)` so the pixel suit
 
 **Given** a cross-domain link opens the nested screen on Android
 **When** the entry document commits after the attach nudge has drained
-**Then** the latch armed at controller attach is consumed by the settled load and the surface repaints
+**Then** the settled load finds the latch armed at controller attach and the surface repaints
+
+---
+
+### Requirement: PAUSE-027 — The Commit Latch Spans Every Commit In Its Window
+
+The commit latch of PAUSE-021/025 SHALL stay armed for a bounded window after an issue rather than being spent by the first load that settles inside it.
+
+A one-shot latch assumes one issue produces one commit. It does not. A refresh issued while another is still in flight settles **twice** — the aborted load first, its replacement after — and a single issue settles twice as well when the response is a redirect chain that commits an interstitial before the target. In both cases the first settle spends the repaint on a document that has already been discarded, and the document the user is actually looking at commits onto a blank surface with nothing left to relayout it. This is BUG-001 reached by hitting Refresh again while the page is still blank, which is what a user does: reported 2026-09-02 as "if I hit refresh often it's still there; hitting refresh again helps". A lone refresh gets both nudges and clears the screen, which is why refreshing *once more, later* works and refreshing *rapidly* does not.
+
+`SurfaceRepaintEngine.noteCommitPending` therefore opens a window: `noteLoadSettled` repaints while it is open and does not close it, and the host closes it with `closeCommitWindow` from a timer of `SurfaceRepaintEngine.commitWindow` (15s) restarted on every arm. Both webview-hosting screens SHALL arm through a single `_armCommitLatch` helper that restarts that timer, SHALL cancel it in `dispose`, and SHALL NOT call `noteCommitPending` anywhere else — an unbounded window would hand a repaint to an unrelated navigation minutes later. The bound is a *design premise*, the same shape as PAUSE-020's `didChangeMetrics` and PAUSE-021's load-stop proxy: a commit landing more than 15s after its issue is outside it, and the `SurfaceDiag` `trigger=commit-settled` line is what would show that on a device.
+
+The ordering is model-checked in [formal/reloadlatch.tla](../../../formal/reloadlatch.tla): with `Fix="oneshot"` the aborted load's settle consumes the latch and the second commit stutters blank forever, violating `RepaintLiveness` (the reproduction); with `Fix="window"` it holds. `reloadlatch_reach.cfg` proves the spent-latch state is reachable, so the check is not vacuous. The runnable counterpart is the rapid-refresh group in `test/surface_repaint_engine_test.dart`, and the wiring is held by the `surface_repaint_funnel` structural gate.
+
+#### Scenario: A second refresh issued while the first is in flight
+
+**Given** a site is refreshed on Android and refreshed again before that load settles
+**When** the aborted load settles, then the replacement commits
+**Then** both settles find the window open and each repaints the surface
+**And** the document left on screen is the one the second repaint runs against
+
+#### Scenario: A redirect chain settling twice
+
+**Given** a reload whose response redirects, committing an interstitial document first
+**When** each of the two loads settles inside the window
+**Then** each repaints, so the final document is not left on a blank surface
+
+#### Scenario: An unrelated navigation past the window
+
+**Given** the commit window opened by a reload has elapsed
+**When** the user follows a link and that load settles
+**Then** `noteLoadSettled` returns false and no nudge runs
+
+---
+
+### Requirement: PAUSE-029 — Every Repaint Reports Itself, Once
+
+Every surface repaint SHALL report which path asked for it, from inside the nudge funnel, while developer mode is on, with bursts collapsed.
+
+The `SurfaceDiag` trace is the only thing that can say *which* trigger fired on a device that went blank — the premise every attempt since Attempt 2 rests on and none has confirmed. It was written by hand next to a few call sites, so 6 of 26 nudges reported: `back`, `activate`, `memory-pressure`, both fullscreen toggles, `goHome`, and the entire nested screen were dark. A per-call-site line is also how the coverage drifts, because the next path added is one nobody remembers to annotate.
+
+`_nudgeSurfaceRepaint` SHALL therefore take a required `trigger` label and emit the line itself, via `_traceRepaint`. Two properties keep that from becoming noise:
+
+- **Gated.** Nothing is logged unless `DeveloperModeService.enabled` (`developer-tools` DEVTOOLS-010). `LogService` keeps 2000 entries; an ordinary session must not spend that ring on repaints nobody will read, evicting the navigation and error history that *is* read. A user diagnosing a blank screen turns developer mode on and reproduces.
+- **Throttled.** Repaints arrive in bursts by design: `didChangeMetrics` fires repeatedly through a warm resume, and the funnel's own coalescing absorbs concurrent callers. `RepaintLogThrottle` keeps the first of a burst and folds the rest into one summary (`trigger=… -> nudge x7 more (7 coalesced)`), flushed by a host timer on `burstWindow` (2s) and cancelled in `dispose`. A differing trigger flushes the pending burst *before* announcing itself, so the trace never reorders.
+
+The nested screen SHALL suffix its triggers `-nested`: it owns a separate `SurfaceView` and separate repaint machinery, and a shared trace that cannot tell them apart is a trace that cannot locate the fault.
+
+Because the trace names the funnel rather than the outcome, the integration tiers SHALL enable developer mode and assert on it. A pixel verdict says the surface ended up painted; on a page that commits in a millisecond it says that whether or not the funnel ran at all. `integration_test/white_screen_test.dart` asserts the reload scenario shows both `trigger=reload` and `trigger=commit-settled`, and `DiagSeed` turns developer mode on for the externally-driven tiers (INTEG-011).
+
+#### Scenario: A warm-resume metrics burst is one line and one summary
+
+**Given** developer mode is on and the app warm-starts on Android
+**When** `didChangeMetrics` fires a dozen times inside the post-resume window
+**Then** the trace carries one `trigger=metrics-resume -> nudge` line and one folded summary
+**And** the rest of the log ring is untouched
+
+#### Scenario: An ordinary session logs nothing
+
+**Given** developer mode is off
+**When** any repaint path runs
+**Then** no `SurfaceDiag` repaint line is written
+
+#### Scenario: A dropped funnel fails the integration suite
+
+**Given** the reload funnel is removed but the page still paints quickly
+**When** the reload scenario runs
+**Then** the pixel check passes and the trace assertion fails, naming the missing trigger
+
+---
+
+### Requirement: PAUSE-028 — A Manual Repaint Is Reachable From The Menu
+
+On Android, and while developer mode is on, the overflow menu of both webview-hosting screens SHALL offer a **Repaint Screen** action that recomposites the visible surface on demand.
+
+Every other repaint in this spec fires from a code path the app recognised as a surface (re)attach, and BUG-001 recurs precisely when a path nobody enumerated reaches a blank surface (bug doc gap #9). The user is the only observer who can see that it happened, and until now had no way to act on it short of rotating the device or switching tabs — neither of which is discoverable, and a refresh, the thing users actually try, *re-issues the load* and can leave the surface blank again. This requirement gives the symptom a direct remedy that does not touch the document.
+
+On the main page the action SHALL run `_probeRendererAndRecover` before the nudge, because the two blank classes are indistinguishable on screen: a dead renderer (BUG-002) needs the rebuild of PAUSE-013/014, a live-but-unpainted surface needs the nudge. In `InAppWebViewScreen` it SHALL nudge only — that screen recreates nothing. Both SHALL emit a non-sensitive `SurfaceDiag` line (`trigger=manual -> nudge`, `trigger=manual-nested -> nudge`; no site name or URL), which is the point of the affordance beyond the immediate fix: a user who reports that the menu action clears the screen has established that the nudge physically recomposites on that device, and one who reports that it does not has falsified it — the premise every attempt since Attempt 2 has rested on and none has confirmed (bug doc gaps #4 and #5).
+
+The entry SHALL be gated on Android — where the nudge is not a no-op — **and** on `DeveloperModeService.enabled` (see `developer-tools` DEVTOOLS-010), and SHALL be labelled from the shared `commonRepaintScreen` string in both screens. The gate is what makes the affordance affordable: an action whose effect an ordinary user cannot interpret does not belong in the menu they open to refresh a page, but a user who is reporting a blank screen has to be able to reach it on a release build. Every occurrence of the entry SHALL carry both halves of the gate, which the `surface_repaint_funnel` structural gate counts rather than merely matching — a second menu with one ungated entry is the regression shape.
+
+#### Scenario: The entry is absent until developer mode is on
+
+**Given** the app is running on Android with developer mode off
+**When** the user opens the page overflow menu
+**Then** no Repaint Screen entry is shown
+**And** it appears once developer mode is turned on, with no restart
+
+#### Scenario: The user clears a blank surface from the menu
+
+**Given** the visible webview on Android is blank while its page is alive
+**When** the user opens the overflow menu and selects Repaint Screen
+**Then** the renderer is probed, the surface is recomposited, and a `SurfaceDiag` `trigger=manual` line is logged
+**And** the page is not reloaded, so no scroll position or form state is lost
+
+#### Scenario: The entry is absent off Android
+
+**Given** the app is running on iOS, macOS, or Linux with developer mode on
+**When** the user opens the overflow menu
+**Then** no Repaint Screen entry is shown, because `_nudgeSurfaceRepaint` is a no-op there
 
 ---
 
@@ -1066,6 +1165,7 @@ class _WebViewController implements WebViewController {
 - `test/webview_pause_lifecycle_test.dart` — contract tests for the API split.
 - `lib/services/resume_reload_engine.dart` — PAUSE-022 decision engine.
 - `test/resume_reload_engine_test.dart` — PAUSE-022 characterization tests.
+- `formal/reloadlatch.tla` (+ `reloadlatch.cfg`, `reloadlatch_bug.cfg`, `reloadlatch_reach.cfg`) — PAUSE-027 rapid-refresh ordering, run by `formal/check.sh`.
 - `openspec/specs/webview-pause-lifecycle/spec.md` — this document.
 
 ## Related Specs

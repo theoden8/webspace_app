@@ -52,6 +52,16 @@ class.
   PAUSE-014). `Recovered` (a visible dead renderer is always eventually rebuilt); the
   `noProbe` demonstrator drops PAUSE-014 and reproduces the offscreen-kill stuck black
   screen. Standalone (renderer lifecycle, no shared kernel state).
+- **`warmstart.tla`** + `warmstart*.cfg` — BUG-001 warm-start white screen (PAUSE-020).
+  `RepaintLiveness` with the nudge modeled as an event-triggered one-shot and the
+  SurfaceView reattach as a *separate* async action (no magic `WF(Nudge)`), so the ordering
+  the kernel's atomic `Resume == Attach` hides is reachable; `Fix="none"` reproduces the
+  blank surface, `Fix="attach"` closes it. Standalone (one surface, no shared kernel state).
+- **`reloadlatch.tla`** + `reloadlatch*.cfg` — BUG-001 rapid-refresh white screen
+  (PAUSE-027). The *settle* side of the same ordering: `Fix="oneshot"` is the one-shot
+  commit latch, which the aborted load of a double refresh spends, leaving the replacement's
+  commit blank and violating `RepaintLiveness`; `Fix="window"` is the bounded window that
+  repaints every commit inside it. Standalone (one surface, bounded issue count).
 - **`proxy.tla`** + `proxy*.cfg` — proxy mutual exclusion (spec: `proxy`). `Inv_ProxyCoherent`
   (every loaded site shares the active proxy, because Android serialises mismatched-proxy
   sites onto one native proxy slot); the `mismatch` demonstrator co-loads a mismatched site

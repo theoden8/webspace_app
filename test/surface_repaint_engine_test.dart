@@ -214,42 +214,43 @@ void main() {
 
     test('reproduce: the issue-time nudge drains before the recommit', () {
       final e = SurfaceRepaintEngine();
-      e.reloadIssued();
+      e.noteCommitPending();
       e.request();
       drain(e);
       expect(e.owed, isFalse, reason: 'nothing has re-attached yet');
 
       // The new document commits onto the surface only now. Pre-Attempt-9
       // there was no signal here, so no nudge ran against it.
-      expect(e.consumeLoadSettled(), isTrue);
+      expect(e.noteLoadSettled(), isTrue);
       expect(e.owed, isTrue,
           reason: 'BUG-001: the recommitted surface is left unpainted');
     });
 
     test('fix: the load-settled re-nudge repaints the recommit', () {
       final e = SurfaceRepaintEngine();
-      e.reloadIssued();
+      e.noteCommitPending();
       e.request();
       drain(e);
 
-      expect(e.consumeLoadSettled(), isTrue);
+      expect(e.noteLoadSettled(), isTrue);
       e.request();
       drain(e);
       expect(e.owed, isFalse);
     });
 
-    test('the latch is one-shot: a later unrelated load does not nudge', () {
+    test('a closed window means a later unrelated load does not nudge', () {
       final e = SurfaceRepaintEngine();
-      e.reloadIssued();
-      expect(e.consumeLoadSettled(), isTrue);
+      e.noteCommitPending();
+      expect(e.noteLoadSettled(), isTrue);
+      e.closeCommitWindow();
       expect(e.commitPending, isFalse);
-      expect(e.consumeLoadSettled(), isFalse,
+      expect(e.noteLoadSettled(), isFalse,
           reason: 'an ordinary navigation must not trigger a repaint');
     });
 
     test('a load settling with no reload in flight owes nothing', () {
       final e = SurfaceRepaintEngine();
-      expect(e.consumeLoadSettled(), isFalse);
+      expect(e.noteLoadSettled(), isFalse);
       expect(e.owed, isFalse);
     });
 
@@ -272,10 +273,10 @@ void main() {
             tick();
           }
 
-          e.reloadIssued();
+          e.noteCommitPending();
           nudge();
           Future.delayed(const Duration(seconds: 2), () {
-            if (e.consumeLoadSettled() && withSettledRenudge) nudge();
+            if (e.noteLoadSettled() && withSettledRenudge) nudge();
           });
           async.elapse(const Duration(seconds: 5));
 
@@ -342,7 +343,7 @@ void main() {
         e.attach();
         nudge();
         Future.delayed(const Duration(seconds: 3), () {
-          if (e.consumeLoadSettled()) nudge();
+          if (e.noteLoadSettled()) nudge();
         });
         async.elapse(const Duration(seconds: 6));
 
@@ -350,13 +351,110 @@ void main() {
       });
     });
 
-    test('a reload latch and a first-commit latch are the same one-shot', () {
+    test('a reload latch and a first-commit latch arm the same window', () {
       final e = SurfaceRepaintEngine();
       e.noteCommitPending();
-      e.reloadIssued();
-      expect(e.consumeLoadSettled(), isTrue);
-      expect(e.consumeLoadSettled(), isFalse,
-          reason: 'one pending commit, one repaint');
+      e.noteCommitPending();
+      expect(e.noteLoadSettled(), isTrue);
+      expect(e.noteLoadSettled(), isTrue,
+          reason: 'the window stays open until the host closes it');
+      e.closeCommitWindow();
+      expect(e.noteLoadSettled(), isFalse);
+    });
+  });
+
+  group('rapid-refresh ordering (BUG-001 Attempt 11 / PAUSE-027)', () {
+    // Reported: "if I hit refresh often it's still there; hitting refresh
+    // again helps". Two refreshes land inside one document's lifetime, so the
+    // aborted load settles first and the replacement settles after it. Under
+    // the one-shot latch the first settle spent the repaint on a document that
+    // was already discarded, and the one the user is looking at stayed blank.
+
+    void drain(SurfaceRepaintEngine e) {
+      RepaintTick t;
+      do {
+        t = e.tick();
+      } while (!t.done);
+    }
+
+    // The pre-fix latch: the first settle after an issue consumes it.
+    bool oneShotSettle(SurfaceRepaintEngine e) {
+      if (!e.commitPending) return false;
+      e.closeCommitWindow();
+      e.attach();
+      return true;
+    }
+
+    test('reproduce: a one-shot latch leaves the second refresh unpainted', () {
+      final e = SurfaceRepaintEngine();
+      e.noteCommitPending(); // refresh #1
+      e.request();
+      drain(e);
+      e.noteCommitPending(); // refresh #2, issued while #1 is in flight
+      e.request();
+      drain(e);
+
+      expect(oneShotSettle(e), isTrue,
+          reason: "refresh #1's load aborts and settles first");
+      e.request();
+      drain(e);
+
+      expect(oneShotSettle(e), isFalse,
+          reason: "refresh #2's commit finds the latch already spent");
+      // Which is the bug: that commit is the surface the user is looking at.
+      e.attach();
+      expect(e.owed, isTrue);
+    });
+
+    test('fix: the window repaints every commit inside it', () {
+      final e = SurfaceRepaintEngine();
+      e.noteCommitPending();
+      e.noteCommitPending();
+
+      expect(e.noteLoadSettled(), isTrue, reason: 'aborted load settles');
+      e.request();
+      drain(e);
+
+      expect(e.noteLoadSettled(), isTrue,
+          reason: 'the replacement commits and still repaints');
+      e.request();
+      drain(e);
+      expect(e.owed, isFalse);
+    });
+
+    test('a redirect chain settling twice repaints both commits', () {
+      // One issue, two settles: the interstitial commits, then the target.
+      final e = SurfaceRepaintEngine();
+      e.noteCommitPending();
+      expect(e.noteLoadSettled(), isTrue);
+      expect(e.noteLoadSettled(), isTrue);
+    });
+
+    test('timing-faithful: the host window bounds how long a settle repaints',
+        () {
+      fakeAsync((async) {
+        final e = SurfaceRepaintEngine();
+        // Host harness mirroring _armCommitLatch in main.dart.
+        Timer? window;
+        void arm() {
+          e.noteCommitPending();
+          window?.cancel();
+          window = Timer(SurfaceRepaintEngine.commitWindow, () {
+            window = null;
+            e.closeCommitWindow();
+          });
+        }
+
+        arm();
+        async.elapse(SurfaceRepaintEngine.commitWindow - const Duration(seconds: 1));
+        expect(e.noteLoadSettled(), isTrue,
+            reason: 'a slow recommit inside the window still repaints');
+
+        async.elapse(const Duration(seconds: 2));
+        expect(e.noteLoadSettled(), isFalse,
+            reason: 'an unrelated navigation past the window does not');
+        window?.cancel();
+      });
     });
   });
 }

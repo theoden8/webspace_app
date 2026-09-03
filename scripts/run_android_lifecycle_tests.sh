@@ -217,6 +217,49 @@ sleep 5
 adb shell am start -W -n "$component"
 wait_for_pixels warm-start-dark 90 --expect-dominant "$dark"
 
+# Scenario B2 asks a question the rest of the suite structurally cannot: does
+# ANYTHING below Dart repaint the surface when the window comes back?
+#
+# Every warm-start repaint the app has keys on a Dart-side signal — the
+# `_onResumed` tail nudge (PAUSE-015) and the `didChangeMetrics` re-nudge
+# (PAUSE-020). BUG-001 gap #5 is that `didChangeMetrics` is a *proxy* for the
+# SurfaceView reattach, not the reattach: Flutter can dedupe identical window
+# metrics and the callback tracks the main FlutterView. On a device where it
+# does not fire, Attempt 8 is a no-op — and Scenario B above cannot tell that
+# device from a healthy one, because on the emulator the proxy always fires.
+#
+# Suppressing both triggers by name simulates that device exactly. What repaints
+# the surface afterwards, if anything, is whatever the native layer does on its
+# own. Modeled as `Fix="proxy"` vs `Fix="attach"` in formal/warmstart.tla.
+#
+# EXPECTED RED against a fork with no native attach/visibility repaint hook.
+# That red IS the reproduction: evidence that the surface depends on a Dart
+# proxy nobody has confirmed fires. It turns green when the fork gains the hook
+# (upstream starship-s 643cf23 + 1a8ed58 add exactly that), at which point this
+# becomes its regression guard.
+#
+# OPT-IN, because a scenario that is red by design would drown the signal from
+# every other scenario in this tier. Set WS_RUN_NATIVE_REPAINT_PROBE=1 to run
+# it — the PR that bumps the fork pin turns it on for good.
+if [ "${WS_RUN_NATIVE_REPAINT_PROBE:-0}" != "1" ]; then
+  echo "== Scenario B2: SKIPPED (set WS_RUN_NATIVE_REPAINT_PROBE=1 to run)"
+else
+  echo "== Scenario B2: warm start with the Dart resume nudges suppressed"
+  echo "   (BUG-001 gap #5: does the native layer repaint on its own?)"
+  adb shell am force-stop "$pkg"
+  adb shell am start -W -n "$component" \
+    --es ws_diag_seed "$(seed_b64 dark.html "$dark_site_id")" \
+    --es ws_diag_suppress_repaint "resume,metrics-resume" \
+    --es siteId "$dark_site_id"
+  wait_for_pixels b2-cold-start-dark 180 --expect-dominant "$dark"
+  adb shell input keyevent 3
+  sleep 5
+  # No seed extra on the return: the suppression is already armed in-process,
+  # and reseeding would restart the app rather than warm-start it.
+  adb shell am start -W -n "$component"
+  wait_for_pixels b2-warm-start-native-repaint 90 --expect-dominant "$dark"
+fi
+
 echo "== Scenario C: back into a bfcached entry repaints (PAUSE-018)"
 size="$(adb shell wm size | sed -n 's/.*: *\([0-9]*\)x\([0-9]*\).*/\1 \2/p' | head -1)"
 w="${size% *}"

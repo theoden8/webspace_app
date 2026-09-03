@@ -42,7 +42,7 @@ for (const rel of GUARDED) {
     assert.ok(defIdx >= 0, '_goBackAndRepaint must be defined');
     const body = lines.slice(defIdx, defIdx + 6).join('\n');
     assert.match(body, /controller\.goBack\(\)/, 'funnel must call goBack');
-    assert.match(body, /_nudgeSurfaceRepaint\(\)/, 'funnel must nudge the surface');
+    assert.match(body, /_nudgeSurfaceRepaint\(/, 'funnel must nudge the surface');
   });
 
   test(`${rel}: Android back-nav routes through the funnel`, () => {
@@ -91,8 +91,8 @@ for (const rel of GUARDED) {
     {
       file: 'lib/screens/inappbrowser.dart',
       funnel: /Future<void>\s+_reloadAndRepaint\s*\(/,
-      latch: /_surfaceRepaint\.reloadIssued\(\)/,
-      settled: /_surfaceRepaint\.consumeLoadSettled\(\)/,
+      latch: /_armCommitLatch\(\)/,
+      settled: /_surfaceRepaint\.noteLoadSettled\(\)/,
     },
   ];
 
@@ -138,9 +138,9 @@ for (const rel of GUARDED) {
     const src = linesOf('lib/main.dart').join('\n');
     assert.match(src, /onReloadIssued\s*=\s*\(\)\s*\{/,
       'main.dart must handle onReloadIssued for the visible site');
-    assert.match(src, /_surfaceRepaint\.reloadIssued\(\)/,
+    assert.match(src, /_armCommitLatch\(\)/,
       'the reload must be latched on the engine');
-    assert.match(src, /_surfaceRepaint\.consumeLoadSettled\(\)/,
+    assert.match(src, /_surfaceRepaint\.noteLoadSettled\(\)/,
       'the settled load must re-nudge (PAUSE-021)');
     const offenders = [];
     linesOf('lib/main.dart').forEach((l, i) => {
@@ -168,7 +168,7 @@ for (const rel of GUARDED) {
     const body = lines.slice(defIdx, defIdx + 20).join('\n');
     assert.match(body, /_resumeRepaintWindowOpen/,
       'didChangeMetrics must gate on the post-resume window');
-    assert.match(body, /_nudgeSurfaceRepaint\(\)/,
+    assert.match(body, /_nudgeSurfaceRepaint\(/,
       'didChangeMetrics must nudge the surface on the attach signal');
   });
 
@@ -211,7 +211,7 @@ for (const rel of GUARDED) {
       const defIdx = lines.findIndex((l) => /void\s+didPopNext\s*\(/.test(l));
       assert.ok(defIdx >= 0, 'didPopNext override must exist');
       const body = lines.slice(defIdx, defIdx + 8).join('\n');
-      assert.match(body, /_nudgeSurfaceRepaint\(\)/,
+      assert.match(body, /_nudgeSurfaceRepaint\(/,
         'returning from a pushed route must nudge the surface');
     });
   }
@@ -235,9 +235,9 @@ for (const rel of GUARDED) {
       const defIdx = lines.findIndex((l) => handler.test(l));
       assert.ok(defIdx >= 0, 'the controller-attach handler must exist');
       const body = lines.slice(defIdx, defIdx + 20).join('\n');
-      assert.match(body, /_surfaceRepaint\.noteCommitPending\(\)/,
+      assert.match(body, /_armCommitLatch\(\)/,
         'the attach must arm the commit latch (PAUSE-025)');
-      assert.match(body, /_nudgeSurfaceRepaint\(\)/,
+      assert.match(body, /_nudgeSurfaceRepaint\(/,
         'the attach must also nudge now (PAUSE-017)');
     });
   }
@@ -259,7 +259,7 @@ for (const rel of GUARDED) {
     const body = lines.slice(defIdx, defIdx + 24).join('\n');
     assert.match(body, /_openResumeRepaintWindow\(\)/,
       'a resume must open the post-resume repaint window');
-    assert.match(body, /_nudgeSurfaceRepaint\(\)/,
+    assert.match(body, /_nudgeSurfaceRepaint\(/,
       'a resume must nudge the nested surface');
   });
 
@@ -269,7 +269,7 @@ for (const rel of GUARDED) {
     const body = lines.slice(defIdx, defIdx + 12).join('\n');
     assert.match(body, /_resumeRepaintWindowOpen/,
       'the re-nudge must be bounded to the post-resume window');
-    assert.match(body, /_nudgeSurfaceRepaint\(\)/,
+    assert.match(body, /_nudgeSurfaceRepaint\(/,
       'the attach signal must nudge the nested surface');
   });
 
@@ -278,3 +278,151 @@ for (const rel of GUARDED) {
       'dispose must cancel the window timer');
   });
 }
+
+// Bounded commit window (PAUSE-027 / BUG-001 Attempt 11). The commit latch used
+// to be one-shot, so the first load that settled after an issue spent it. Two
+// refreshes inside one document's lifetime settle twice — the aborted load, then
+// the replacement — and the second, which is what the user is looking at, got no
+// repaint. Every host that latches a commit must therefore arm through a helper
+// that holds the window open for a bounded time and close it on a timer.
+{
+  const LATCH_HOSTS = ['lib/main.dart', 'lib/screens/inappbrowser.dart'];
+
+  for (const rel of LATCH_HOSTS) {
+    const lines = linesOf(rel);
+    const src = lines.join('\n');
+
+    test(`${rel}: _armCommitLatch arms the engine and bounds the window`, () => {
+      const defIdx = lines.findIndex((l) => /void\s+_armCommitLatch\s*\(\)/.test(l));
+      assert.ok(defIdx >= 0, '_armCommitLatch must be defined');
+      const body = lines.slice(defIdx, defIdx + 10).join('\n');
+      assert.match(body, /_surfaceRepaint\.noteCommitPending\(\)/,
+        'the helper must arm the engine latch');
+      assert.match(body, /_commitWindowTimer\?\.cancel\(\)/,
+        'a new issue must restart the window rather than stack timers');
+      assert.match(body, /Timer\(SurfaceRepaintEngine\.commitWindow/,
+        'the window must be bounded by the engine-owned duration');
+      assert.match(body, /_surfaceRepaint\.closeCommitWindow\(\)/,
+        'the timer must close the window (PAUSE-027)');
+    });
+
+    test(`${rel}: nothing arms the engine latch outside the helper`, () => {
+      const offenders = [];
+      lines.forEach((l, i) => {
+        if (/^\s*(\/\/|\*)/.test(l)) return; // prose, not a call site
+        if (!/_surfaceRepaint\.noteCommitPending\(\)/.test(l)) return;
+        if (/void\s+_armCommitLatch\s*\(\)/.test(context(lines, i, 3, 0))) return;
+        offenders.push(i + 1);
+      });
+      assert.deepEqual(offenders, [],
+        `raw noteCommitPending() at line(s) ${offenders.join(', ')}; ` +
+          'arm through _armCommitLatch so the window is bounded (PAUSE-027).');
+    });
+
+    test(`${rel}: dispose cancels the commit window timer`, () => {
+      const defIdx = lines.findIndex((l) => /void\s+dispose\s*\(\)/.test(l));
+      assert.ok(defIdx >= 0, 'dispose must exist');
+      const body = lines.slice(defIdx, defIdx + 14).join('\n');
+      assert.match(body, /_commitWindowTimer\?\.cancel\(\)/,
+        'a pending window timer must not outlive the screen');
+    });
+
+    test(`${rel}: the menu offers a manual repaint (PAUSE-028)`, () => {
+      assert.match(src, /value:\s*"repaint"/,
+        'the overflow menu must carry a repaint entry');
+      // The entry is a diagnostic, not a feature: EVERY occurrence must sit
+      // behind the developer-mode gate as well as the Android one, or a user
+      // meets a button whose effect they cannot interpret. Counted, not
+      // matched: a file with two menus must not pass on one gated entry.
+      const entries = (src.match(/value:\s*"repaint"/g) || []).length;
+      const gated = (
+        src.match(
+          /if\s*\(hostIsAndroid\s*&&\s*DeveloperModeService\.instance\.enabled\)\s*\n\s*PopupMenuItem<String>\(\s*\n\s*value:\s*"repaint"/g,
+        ) || []
+      ).length;
+      assert.equal(gated, entries,
+        `${entries} repaint entr(y|ies), ${gated} behind the developer-mode ` +
+          'gate; every one must be (PAUSE-028).');
+      assert.match(src, /case\s+'repaint':\s*\n\s*_repaintCurrentSurface\(\);/,
+        'selecting it must route to _repaintCurrentSurface');
+      const defIdx = lines.findIndex((l) =>
+        /void\s+_repaintCurrentSurface\s*\(\)/.test(l),
+      );
+      assert.ok(defIdx >= 0, '_repaintCurrentSurface must be defined');
+      const body = lines.slice(defIdx, defIdx + 12).join('\n');
+      assert.match(body, /_nudgeSurfaceRepaint\('manual'\)/,
+        "the manual action must nudge under the 'manual' trigger, so a user " +
+          'report can be matched to the log line the tap produced');
+    });
+  }
+}
+
+// Diagnostic funnel (BUG-001 Attempt 11). The SurfaceDiag trace exists to say
+// WHICH path repainted on a device that went blank, and hand-written log lines
+// at a few call sites left most paths dark: 6 of 26 nudges reported. The line
+// is therefore emitted inside _nudgeSurfaceRepaint from a required trigger
+// label, so a new path cannot be added silently.
+{
+  for (const rel of GUARDED) {
+    const lines = linesOf(rel);
+    const src = lines.join('\n');
+
+    test(`${rel}: the nudge funnel reports its own trigger`, () => {
+      const defIdx = lines.findIndex((l) =>
+        /void\s+_nudgeSurfaceRepaint\s*\(String\s+trigger\)/.test(l),
+      );
+      assert.ok(defIdx >= 0,
+        '_nudgeSurfaceRepaint must take a trigger label, so every path names itself');
+      const body = lines.slice(defIdx, defIdx + 22).join('\n');
+      assert.match(body, /_traceRepaint\(trigger,\s*coalesced:/,
+        'the funnel must report through _traceRepaint, not its call sites');
+    });
+
+    test(`${rel}: the trace is gated on developer mode and throttled`, () => {
+      const defIdx = lines.findIndex((l) =>
+        /void\s+_traceRepaint\s*\(String\s+trigger/.test(l),
+      );
+      assert.ok(defIdx >= 0, '_traceRepaint must be defined');
+      const body = lines.slice(defIdx, defIdx + 18).join('\n');
+      // A repaint line per call would evict LogService's 2000-entry ring with
+      // one repeated sentence: didChangeMetrics alone fires it many times a
+      // second through a warm resume.
+      assert.match(body, /if\s*\(!DeveloperModeService\.instance\.enabled\)\s*return;/,
+        'an ordinary session must not spend its log ring on the repaint trace');
+      assert.match(body, /_repaintLog\s*\n?\s*\.note\(|_repaintLog\.note\(/,
+        'the trace must go through the burst collapser');
+      assert.match(body, /RepaintLogThrottle\.burstWindow/,
+        'a folded burst must be flushed on the throttle window');
+      assert.match(body, /_repaintLog\.flush\(\)/,
+        'the flush timer must emit the pending summary');
+    });
+
+    test(`${rel}: the trace flush timer does not outlive the screen`, () => {
+      const defIdx = lines.findIndex((l) => /void\s+dispose\s*\(\)/.test(l));
+      assert.ok(defIdx >= 0, 'dispose must exist');
+      const body = lines.slice(defIdx, defIdx + 14).join('\n');
+      assert.match(body, /_repaintLogFlushTimer\?\.cancel\(\)/,
+        'a pending flush must be cancelled with the screen');
+    });
+
+    test(`${rel}: every repaint call site passes a trigger`, () => {
+      const offenders = [];
+      lines.forEach((l, i) => {
+        if (/_nudgeSurfaceRepaint\(\s*\)/.test(l)) offenders.push(i + 1);
+      });
+      assert.deepEqual(offenders, [],
+        `unlabelled _nudgeSurfaceRepaint() at line(s) ${offenders.join(', ')}; ` +
+          'pass a trigger so the SurfaceDiag trace can name the path.');
+    });
+
+    test(`${rel}: no call site hand-writes a trigger line any more`, () => {
+      // A duplicate line at a call site is how the coverage drifted before:
+      // the funnel reports, so a second report means someone re-introduced the
+      // per-site pattern and the next path will be forgotten again.
+      const hand = (src.match(/'trigger=[a-z-]+ -> nudge/g) || []).length;
+      assert.equal(hand, 0,
+        'trigger lines belong in the funnel, not at the call sites');
+    });
+  }
+}
+

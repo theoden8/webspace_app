@@ -2,8 +2,8 @@
 
 **Status:** open (recurring — each fix has closed one entry path; new paths keep surfacing)
 **Platform:** Android only (hybrid-composition `SurfaceView`)
-**Spec:** [openspec/specs/webview-pause-lifecycle/spec.md](../../openspec/specs/webview-pause-lifecycle/spec.md) — requirements `PAUSE-013`…`PAUSE-021`
-**Formal model:** [formal/kernel.tla](../../formal/kernel.tla) — `RepaintLiveness` ("every blank-surface attach is eventually repainted"). The `kernel_conflict.cfg` demonstrator is a back path that bypasses the chokepoint — i.e. this exact bug — and TLC rejects it with a counterexample.
+**Spec:** [openspec/specs/webview-pause-lifecycle/spec.md](../../openspec/specs/webview-pause-lifecycle/spec.md) — requirements `PAUSE-013`…`PAUSE-028`
+**Formal models:** [formal/kernel.tla](../../formal/kernel.tla), [formal/warmstart.tla](../../formal/warmstart.tla), [formal/reloadlatch.tla](../../formal/reloadlatch.tla) — `RepaintLiveness` ("every blank-surface attach is eventually repainted"). The `kernel_conflict.cfg` demonstrator is a back path that bypasses the chokepoint — i.e. this exact bug — and TLC rejects it with a counterexample.
 
 ## Symptom
 
@@ -254,6 +254,78 @@ diagnostic exists to establish that from a log. The route-return nudge also assu
 embedder actually detaches the platform view under an opaque route; if a Flutter version keeps
 it attached, the nudge is a harmless no-op rather than a fix.
 
+### Attempt 11 — Bounded commit window + a manual repaint in the menu (`PAUSE-027`/`028`)
+**Date:** 2026-09-02 · **Files:** lib/services/surface_repaint_engine.dart, lib/main.dart,
+lib/screens/inappbrowser.dart, lib/web_view_model.dart, formal/reloadlatch.tla (+ cfgs,
+check.sh), test/surface_repaint_engine_test.dart, test/js/surface_repaint_funnel.test.js,
+lib/l10n/app_*.arb, openspec/specs/webview-pause-lifecycle/spec.md
+**What it did:** Three things, one report.
+(a) **The commit latch is a window, not a ticket** (`PAUSE-027`). `noteCommitPending`
+arms; `noteLoadSettled` (was `consumeLoadSettled`) repaints while armed and no longer
+disarms; both hosts arm through one `_armCommitLatch` helper that restarts a 15s timer
+(`SurfaceRepaintEngine.commitWindow`) and closes the window with `closeCommitWindow`,
+cancelled in `dispose`.
+(b) **A Repaint Screen entry in the three-dot menu** (`PAUSE-028`) in both webview screens:
+`_probeRendererAndRecover` then `_nudgeSurfaceRepaint` on the main page, nudge only in the
+nested screen, each emitting `trigger=manual` / `trigger=manual-nested`. Gated on Android
+**and** on a new developer-mode flag unlocked by seven taps on a Version row in App Settings
+(`developer-tools` DEVTOOLS-010), so the diagnostic is reachable on a release build without
+sitting in the menu an ordinary user opens to refresh a page.
+(c) **The loading bar reflects the tap.** `userDrivenReload` marks the model loading
+before it awaits the HTTP-cache clear, and takes a re-entrancy guard so a double tap
+issues one reload instead of two.
+(d) **Every repaint reports itself** (`PAUSE-029`). The `SurfaceDiag` line moved from a
+handful of call sites into `_nudgeSurfaceRepaint(trigger)`, which took a required label:
+6 of 26 nudges had been reporting, so `back`, `activate`, `memory-pressure`, `goHome`,
+both fullscreen toggles and the whole nested screen were dark. Gated on developer mode
+(an ordinary session must not spend `LogService`'s 2000-entry ring on it) and collapsed
+through `RepaintLogThrottle`, since `didChangeMetrics` and the funnel's own coalescing
+fire the same trigger many times a second. `DiagSeed` and the in-process suite turn
+developer mode on, and the reload scenario now asserts the trace shows both halves of
+PAUSE-021 — a pixel verdict alone cannot tell a working funnel from a page that was
+merely fast.
+**Reproduced + proved (mechanism, not device):** `formal/reloadlatch.tla`. `Fix="oneshot"`
+(`reloadlatch_bug.cfg`) is the pre-fix latch and TLC returns the reported trace: two
+`Issue`s, the aborted load `Settle`s and consumes the latch, its nudge drains, the
+replacement `Settle`s onto a blank surface with `nudging = 0` and stutters blank forever —
+`RepaintLiveness` violated. `Fix="window"` (`reloadlatch.cfg`) makes it hold, and
+`reloadlatch_reach.cfg` proves the spent-latch state is reachable. Mirrored runnable in
+`test/surface_repaint_engine_test.dart` (`rapid-refresh ordering`), including the redirect
+chain and a FakeAsync case bounding the window, and gated in `surface_repaint_funnel.test.js`.
+**Why:** Reported as a **white** screen that **survives repeated refreshes** — "if I hit
+refresh often it's still there and I'm not sure I even see progress bar properly; hitting
+refresh again helps" — which is Attempt 9's trigger with Attempt 9's fix already in place.
+The trigger is confirmed by the reporter, as in Attempt 9. Attempt 9 assumed one issue
+produces one commit, so it spent the latch on the first settle. A user staring at a blank
+page does not refresh once and wait; they refresh again, and the second `reload()` lands
+inside the first document's lifetime. The aborted load settles first and spends the
+repaint on a document that is already discarded, then the replacement commits onto the
+blank surface with nothing armed — so *rapid* refreshing cannot clear the screen while a
+single, later refresh can, which is exactly the shape of the report. A redirect chain
+settling twice is the same defect with one tap. (b) exists because the reporter is the
+only observer of a path nobody enumerated (gap #9) and had no way to act on one: rotating
+the device is not discoverable, and refreshing — the thing users actually try — re-issues
+the load and can land blank again. It is gated because the population that can act on it is
+exactly the population reporting the bug, and everyone else would meet a control whose
+effect they cannot interpret. (c) is why the report says the progress bar is not
+obviously there: `userDrivenReload` awaits a platform HTTP-cache clear before `reload()`,
+and nothing renders during that round trip, so the tap reads as ignored and invites the
+rapid second tap that (a) is about.
+**Why partial:** Still per-path (gap #3) — this fixes the *latch* on the settle side, not
+the enumeration of triggers, and it inherits gap #6 whole: `onLoadingChanged(false)` is
+still load-stop, not the compositor's first frame. The 15s window is a *guess bounded by
+taste*: a commit landing later than it is uncovered, and the model encodes that premise
+rather than proving it (`CloseWindow` is enabled only when nothing is in flight). It also
+buys robustness with extra nudges — an unrelated navigation settling inside the window now
+repaints, which is harmless but is not free. (b) is the first thing here that can
+*falsify* the remedy rather than assume it (gaps #4/#5): if a user reports the menu action
+clearing the screen, the nudge demonstrably recomposites on that device; if they report it
+not clearing, every attempt since Attempt 2 rests on a false premise. Until such a report
+exists that remains untested, and (b) is a workaround, not a fix — a menu entry the user
+has to find is an admission the automatic coverage is still incomplete. The developer-mode
+gate sharpens that trade-off rather than resolving it: the diagnostic now reaches only users
+who were told how to unlock it, so the falsifying report needs someone to ask for it.
+
 ## Known open gaps (candidates for the next recurrence)
 
 1. ~~Nested `InAppWebViewScreen`~~ — **closed by Attempt 6** (now funneled + gated).
@@ -278,7 +350,10 @@ it attached, the nudge is a harmless no-op rather than a fix.
    once more** — a reload, keyed on the load-settled proxy — and is the second recurrence
    in a row whose fix was an *ordering* one (nudge at the trigger, re-nudge at the attach
    proxy). Two data points that the durable fix is the native callback, not a longer list
-   of triggers.
+   of triggers. **Attempt 11 is a third**, and the sharpest: its trigger was already
+   covered — the user was refreshing, the path Attempt 9 added — and it still went blank,
+   because the *settle side* of a proxy-keyed fix has its own arithmetic to get wrong. A
+   native attach callback would need no latch at all, so it would have no latch to spend.
 6. **Proxies fire before the compositor.** Both attach proxies now in use are upstream of
    the actual first paint: `didChangeMetrics` (Attempt 8) tracks the main FlutterView's
    metrics, and `onLoadingChanged(false)` (Attempt 9) maps to `onLoadStop`, i.e. document
@@ -327,12 +402,59 @@ it attached, the nudge is a harmless no-op rather than a fix.
    path. Undetermined whether that report was this bug or a load that never committed; the
    window-pixel sampler below exists to make the next occurrence classifiable.
 
+10. **The 15s commit window is a guess.** Attempt 11 replaced a one-shot latch with a
+   bounded window because the number of commits per issue is not knowable from Dart, but
+   the bound itself is picked, not derived: a document that commits more than 15s after
+   its issue settles outside the window and is not repainted, and `formal/reloadlatch.tla`
+   *assumes* the window outlasts the in-flight loads rather than proving it. This is gap
+   #6 on the other axis — not "the proxy fires too early" but "the debt expires too soon".
+   The `trigger=commit-settled` line is what would show a device where it does.
+13. **Whether a native attach callback closes gap #3 is now testable, and untested.**
+   The instrument exists but has not been run: `RepaintSuppression` (debug-only,
+   diag tiers only) drops named Dart triggers, and adb Scenario B2 warm-starts with
+   `resume,metrics-resume` suppressed — so what repaints the surface afterwards is
+   whatever the native layer does alone. It is OPT-IN
+   (`WS_RUN_NATIVE_REPAINT_PROBE=1`) because it is expected red against a fork with
+   no such hook, and a permanently-red scenario would drown this tier's other
+   signals. `formal/warmstart.tla` now splits the two readings the model previously
+   conflated — `Fix="proxy"` (a correlated signal that may not fire; violates
+   `RepaintLiveness`) against `Fix="attach"` (the attach itself schedules the nudge;
+   holds) — which is gap #5 as a model-checked difference rather than an argument.
+   Upstream `starship-s/flutter_inappwebview` 643cf23 + 1a8ed58 add exactly that
+   hook (`onAttachedToWindow` + `onWindowVisibilityChanged(VISIBLE)` → geometry-free
+   `requestLayout()` + `postInvalidateOnAnimation()`); both cherry-pick cleanly onto
+   `v6.2.0-beta.3-privacy-v6`. Note they are **View**-lifecycle callbacks, not the
+   SurfaceView's own buffer callbacks, so they cover the warm-start and fresh-mount
+   triggers and none of the commit-side class (Attempts 9/10/11) — they narrow gap
+   #3, they do not close it.
+12. **The trace is now honest but still opt-in.** `PAUSE-029` closed the coverage half
+   of the diagnostic — every path reports, and a new one cannot be silent — but the
+   developer-mode gate means a user who hits the bug has no trace *of the occurrence that
+   prompted them to report it*. They can only capture the next one. That is the deliberate
+   trade against evicting the log ring in every ordinary session, and it is why the
+   integration tiers assert on the trace rather than waiting for a user to supply one.
+11. **Nobody has confirmed the nudge repaints on the affected device.** Gaps #4 and #5
+   restated as an open question, not a modelling hole: every attempt since Attempt 2
+   assumes the 1px inset flip physically recomposites the SurfaceView, and no device
+   report has ever tested that in isolation, because every automatic nudge fires
+   alongside something else. Attempt 11's menu entry (`PAUSE-028`) is the isolated test —
+   one user, one tap, no navigation — and until someone reports what it does, this stays
+   the single largest untested premise in the whole lineage. The developer-mode gate means
+   that report will not arrive on its own: someone has to walk a reporter through the seven
+   taps, so treat asking as part of triaging the next recurrence.
+
 ## Guardrails now in place
 
 - **Formal model** ([formal/kernel.tla](../../formal/kernel.tla)): `RepaintLiveness`
   (every blank-surface attach is eventually repainted); the `bypass` demonstrator *is*
   this bug and TLC rejects it. Liveness backbone proved for unbounded N in
   [formal/proofs/repaint_liveness.tla](../../formal/proofs/repaint_liveness.tla).
+- **Reload-latch model** ([formal/reloadlatch.tla](../../formal/reloadlatch.tla), run by
+  `formal/check.sh`): the settle side of the commit latch, which `warmstart.tla` does not
+  model. `reloadlatch_bug.cfg` (Fix="oneshot") reproduces the rapid-refresh white screen
+  (`RepaintLiveness` violated on the second commit); `reloadlatch.cfg` (Fix="window")
+  proves the bounded window closes it; `reloadlatch_reach.cfg` proves the spent-latch
+  state is reachable.
 - **Warm-start model** ([formal/warmstart.tla](../../formal/warmstart.tla), run by
   `formal/check.sh`): models the nudge as an event-triggered one-shot with a *separate*
   async `SurfaceReattach` (no magic `WF(Nudge)`), so the warm-start ordering the kernel
@@ -359,6 +481,16 @@ it attached, the nudge is a harmless no-op rather than a fix.
   registered on `MaterialApp`); each controller-attach handler must arm the commit latch as
   well as nudge; and the nested screen must carry the resume window + `didChangeMetrics`
   re-nudge. Dropping any of that wiring — the way a refactor quietly would — fails CI.
+  Attempt 11 adds the latch's own shape: both hosts must arm through `_armCommitLatch`,
+  which must restart a `SurfaceRepaintEngine.commitWindow` timer and close the window;
+  nothing may call `noteCommitPending` outside it (an unbounded window is as much a defect
+  as a one-shot one); `dispose` must cancel the timer; and both menus must carry the
+  manual repaint entry wired to `_repaintCurrentSurface`, with *every* occurrence behind
+  both the Android and the developer-mode gate (counted, not matched: a second menu with
+  one ungated entry is the regression shape). It also holds the reporting contract: the
+  funnel must take a trigger label and report through `_traceRepaint`, no call site may
+  omit a label or hand-write a line, and `_traceRepaint` must carry the developer-mode
+  gate, the throttle and the flush-timer cancel.
 - **Window-pixel detector + scenario suite**
   ([android/.../SurfaceDiagPlugin.kt](../../android/app/src/main/kotlin/org/codeberg/theoden8/webspace/SurfaceDiagPlugin.kt),
   [lib/services/surface_diag_native.dart](../../lib/services/surface_diag_native.dart),

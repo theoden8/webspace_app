@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/demo_data.dart' show isDemoMode;
+import 'package:webspace/services/developer_mode_service.dart';
+import 'package:webspace/services/repaint_suppression.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
@@ -76,6 +78,24 @@ class DiagSeed {
       encoded = null;
     }
     encoded ??= hostEnvironment['WS_DIAG_SEED'];
+    // Independent of the site seed: a scenario may want the suppression
+    // without reseeding, and an unparseable seed must not silently leave a
+    // previous run's suppression armed.
+    String? suppress;
+    try {
+      suppress = await _channel.invokeMethod<String>('getDiagRepaintSuppression');
+    } on MissingPluginException {
+      suppress = null;
+    } on PlatformException {
+      suppress = null;
+    }
+    suppress ??= hostEnvironment['WS_DIAG_SUPPRESS_REPAINT'];
+    RepaintSuppression.setFromSpec(suppress);
+    if (RepaintSuppression.triggers.isNotEmpty) {
+      LogService.instance.log('DiagSeed',
+          'repaint triggers suppressed: '
+          '${RepaintSuppression.triggers.join(', ')}');
+    }
     if (encoded == null || encoded.isEmpty) return false;
     final DiagSeedData seed;
     try {
@@ -96,6 +116,11 @@ class DiagSeed {
     // "viewing full screen" education bubble, whose screen-wide 50% dim
     // corrupts every pixel sample.
     await prefs.setBool('fullscreenOnShortcut', false);
+    // Turn the SurfaceDiag repaint trace on for the run: it is gated on
+    // developer mode so an ordinary session does not spend its log ring on
+    // it, but the externally-driven tiers exist precisely to see which
+    // repaint path fired, and a pixel verdict alone cannot say that.
+    await prefs.setBool(kDeveloperModeKey, true);
     isDemoMode = true;
     LogService.instance.log('DiagSeed',
         'seeded ${seed.sites.length} sites: '

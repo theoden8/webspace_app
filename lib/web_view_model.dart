@@ -691,6 +691,13 @@ class WebViewModel {
   /// while a load is in flight.
   bool isLoading = false;
 
+  /// Re-entrancy guard for [userDrivenReload]. The handler awaits a platform
+  /// cache clear before it reloads, so a second tap lands inside the first
+  /// call and issues a competing reload against the same webview. Cleared in
+  /// a `finally`, so a deliberate second refresh after the first has been
+  /// issued still works.
+  bool _userReloadInFlight = false;
+
   /// Recovery state for a main-frame load the OS stranded while the app was
   /// backgrounded (PAUSE-022). Fed by the `WebViewConfig.onMainFrameLoad`
   /// signals wired in [getWebView]; consulted by the host on resume.
@@ -2095,11 +2102,32 @@ class WebViewModel {
   /// hot path.
   Future<void> userDrivenReload() async {
     if (controller == null) return;
-    if (ConnectivityService.instance.lastKnownOnline ?? true) {
-      HtmlCacheService.instance.evictInMemory(siteId);
+    if (_userReloadInFlight) return;
+    _userReloadInFlight = true;
+    try {
+      _beginPendingLoad();
+      if (ConnectivityService.instance.lastKnownOnline ?? true) {
+        HtmlCacheService.instance.evictInMemory(siteId);
+      }
+      await clearWebViewCache();
+      await reloadAndRepaint();
+    } finally {
+      _userReloadInFlight = false;
     }
-    await clearWebViewCache();
-    await reloadAndRepaint();
+  }
+
+  /// Show the loading bar from the moment the user asks for a reload rather
+  /// than from `onLoadStart`. [userDrivenReload] clears the chromium HTTP
+  /// cache over a platform channel first, and that round trip is long enough
+  /// on a loaded device that the tap reads as ignored — which is what makes a
+  /// user tap Refresh again and again on a blank page. `onLoadStart`'s own
+  /// `onLoadingChanged(true)` is then deduped by the equality guard, so the
+  /// bar does not flicker.
+  void _beginPendingLoad() {
+    if (isLoading) return;
+    isLoading = true;
+    loadingProgress = 0;
+    stateSetterF?.call();
   }
 
   /// The single funnel every reload of this site's webview goes through.
@@ -2121,7 +2149,13 @@ class WebViewModel {
     try {
       await ctrl.reload();
     } catch (_) {
-      // Controller may have been disposed between the cache clear and the reload.
+      // Controller may have been disposed between the cache clear and the
+      // reload. No load will start, so clear the bar [_beginPendingLoad] turned
+      // on rather than leaving the action button stuck on Stop.
+      if (isLoading) {
+        isLoading = false;
+        stateSetterF?.call();
+      }
     }
   }
 

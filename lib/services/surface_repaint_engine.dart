@@ -71,6 +71,11 @@ class SurfaceRepaintEngine {
 
   bool _commitPending = false;
 
+  /// How long the host holds the commit latch open after an issue
+  /// (PAUSE-027). Long enough to outlast a slow recommit, short enough that
+  /// an unrelated navigation minutes later does not inherit a repaint.
+  static const Duration commitWindow = Duration(seconds: 15);
+
   /// Whether a document has been issued whose commit onto the visible surface
   /// has not yet settled.
   bool get commitPending => _commitPending;
@@ -81,26 +86,36 @@ class SurfaceRepaintEngine {
   /// and the replacement commits later (network, parse, script), so the
   /// one-shot nudge fired at issue time can drain before the commit lands —
   /// the same ordering `formal/warmstart.tla` model-checks for the warm-start
-  /// resume. This latch carries the debt across that gap; [consumeLoadSettled]
+  /// resume. This latch carries the debt across that gap; [noteLoadSettled]
   /// pays it.
   ///
-  /// Two callers arm it: a reload ([reloadIssued], PAUSE-021) and a
-  /// freshly-attached surface whose *first* document has not committed yet
-  /// (PAUSE-025).
+  /// Callers arm it: a reload, a re-issued load, and a freshly-attached
+  /// surface whose *first* document has not committed yet (PAUSE-021/025).
+  ///
+  /// Arming opens a *window*, not a one-shot ticket, and the host closes it
+  /// with [closeCommitWindow] after [commitWindow] (PAUSE-027). One issue can
+  /// settle more than once — a redirect chain commits an interstitial first —
+  /// and a reload issued while another is still in flight settles twice: the
+  /// aborted load's settle first, the replacement's after. Disarming on the
+  /// first settle spends the repaint on a document that is already gone and
+  /// leaves the one the user is looking at blank, which is the rapid-refresh
+  /// white screen.
   void noteCommitPending() {
     _commitPending = true;
   }
 
-  /// A reload was issued on the visible webview (PAUSE-021).
-  void reloadIssued() => noteCommitPending();
-
-  /// A main-frame load settled on the visible webview. Returns true iff it
-  /// completes a pending commit, in which case the host MUST nudge: the
-  /// commit is the document's real surface attach. Consumes the latch, so a
-  /// later unrelated navigation does not nudge.
-  bool consumeLoadSettled() {
-    if (!_commitPending) return false;
+  /// Close the commit window: later loads settle without a repaint. Driven by
+  /// the host's bounded timer, restarted on every [noteCommitPending].
+  void closeCommitWindow() {
     _commitPending = false;
+  }
+
+  /// A main-frame load settled on the visible webview. Returns true iff the
+  /// commit window is open, in which case the host MUST nudge: the commit is
+  /// the document's real surface attach. Does not close the window — see
+  /// [noteCommitPending].
+  bool noteLoadSettled() {
+    if (!_commitPending) return false;
     attach();
     return true;
   }
