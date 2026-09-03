@@ -58,6 +58,7 @@ import 'package:webspace/main.dart' as app;
 import 'package:webspace/demo_data.dart';
 import 'package:webspace/screens/inappbrowser.dart';
 import 'package:webspace/screens/settings.dart';
+import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/surface_diag_native.dart';
 import 'package:webspace/web_view_model.dart';
@@ -86,6 +87,7 @@ void main() {
 
   setUpAll(() async {
     isDemoMode = true;
+    DeveloperModeService.instance.debugSet(true);
 
     // anyIPv4, not loopbackIPv4: the nested-screen scenario needs a second
     // host name for the same pages (127.0.0.2), because the nested screen
@@ -151,7 +153,12 @@ void main() {
       // nested screen.
       blockAutoRedirects: false,
     );
+    // The repaint trace is gated on developer mode so an ordinary session does
+    // not spend its log ring on it. Turn it on for the suite: a pixel verdict
+    // says the surface is painted, and only the trace says which repaint path
+    // painted it — which is what a silently-dropped funnel would change.
     SharedPreferences.setMockInitialValues({
+      kDeveloperModeKey: true,
       'webViewModels': [
         jsonEncode(dark.toJson()),
         jsonEncode(white.toJson()),
@@ -189,6 +196,26 @@ void main() {
     for (final e in entries.skip(entries.length < 60 ? 0 : entries.length - 60)) {
       print('  [${e.tag}/${e.level.name}] ${e.message}');
     }
+  }
+
+  /// Assert the repaint trace names the funnel that ran since [since].
+  ///
+  /// A pixel verdict says the surface ended up painted; on a page that commits
+  /// in a millisecond it says that whether or not the repaint funnel ran at
+  /// all. The trace is the half that can tell those apart, so a refactor that
+  /// silently drops a funnel fails here even when the pixels stay green. The
+  /// trace is gated on developer mode, which `setUpAll` turns on.
+  void expectRepaintTrigger(DateTime since, String trigger, String context) {
+    final trace = LogService.instance.allEntriesMerged
+        .where((e) => e.tag == 'SurfaceDiag' && !e.timestamp.isBefore(since))
+        .map((e) => e.message)
+        .toList();
+    expect(
+      trace.any((m) => m.startsWith('trigger=$trigger ->')),
+      isTrue,
+      reason: '$context: expected a "$trigger" repaint in the SurfaceDiag '
+          'trace, got $trace',
+    );
   }
 
   Future<WindowRegionSample> sampleSlot(WidgetTester tester, Finder slot) {
@@ -372,9 +399,15 @@ void main() {
       // open: open the menu, tap Refresh, then require the recommitted
       // document on the window. Menu contents are built at open time, so a
       // menu showing Stop is dismissed and reopened until the load settles.
+      final reloadMark = DateTime.now();
       await openOverflowMenuAction(tester, Icons.refresh, 'scenario 4');
       await pollSite(tester, 'ws-dark',
           'scenario 4: reload recommits dark content', darkVisible);
+      // Both halves of PAUSE-021: the issue-time nudge and the settle-side
+      // one. A reload that painted only because the page was fast would show
+      // the first and not the second.
+      expectRepaintTrigger(reloadMark, 'reload', 'scenario 4');
+      expectRepaintTrigger(reloadMark, 'commit-settled', 'scenario 4');
 
       // Scenario 5: OS memory pressure with the site visible (Attempt 7).
       // Delivered as the real platform message so it flows through

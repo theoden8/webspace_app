@@ -822,6 +822,42 @@ The ordering is model-checked in [formal/reloadlatch.tla](../../../formal/reload
 
 ---
 
+### Requirement: PAUSE-029 — Every Repaint Reports Itself, Once
+
+Every surface repaint SHALL report which path asked for it, from inside the nudge funnel, while developer mode is on, with bursts collapsed.
+
+The `SurfaceDiag` trace is the only thing that can say *which* trigger fired on a device that went blank — the premise every attempt since Attempt 2 rests on and none has confirmed. It was written by hand next to a few call sites, so 6 of 26 nudges reported: `back`, `activate`, `memory-pressure`, both fullscreen toggles, `goHome`, and the entire nested screen were dark. A per-call-site line is also how the coverage drifts, because the next path added is one nobody remembers to annotate.
+
+`_nudgeSurfaceRepaint` SHALL therefore take a required `trigger` label and emit the line itself, via `_traceRepaint`. Two properties keep that from becoming noise:
+
+- **Gated.** Nothing is logged unless `DeveloperModeService.enabled` (`developer-tools` DEVTOOLS-010). `LogService` keeps 2000 entries; an ordinary session must not spend that ring on repaints nobody will read, evicting the navigation and error history that *is* read. A user diagnosing a blank screen turns developer mode on and reproduces.
+- **Throttled.** Repaints arrive in bursts by design: `didChangeMetrics` fires repeatedly through a warm resume, and the funnel's own coalescing absorbs concurrent callers. `RepaintLogThrottle` keeps the first of a burst and folds the rest into one summary (`trigger=… -> nudge x7 more (7 coalesced)`), flushed by a host timer on `burstWindow` (2s) and cancelled in `dispose`. A differing trigger flushes the pending burst *before* announcing itself, so the trace never reorders.
+
+The nested screen SHALL suffix its triggers `-nested`: it owns a separate `SurfaceView` and separate repaint machinery, and a shared trace that cannot tell them apart is a trace that cannot locate the fault.
+
+Because the trace names the funnel rather than the outcome, the integration tiers SHALL enable developer mode and assert on it. A pixel verdict says the surface ended up painted; on a page that commits in a millisecond it says that whether or not the funnel ran at all. `integration_test/white_screen_test.dart` asserts the reload scenario shows both `trigger=reload` and `trigger=commit-settled`, and `DiagSeed` turns developer mode on for the externally-driven tiers (INTEG-011).
+
+#### Scenario: A warm-resume metrics burst is one line and one summary
+
+**Given** developer mode is on and the app warm-starts on Android
+**When** `didChangeMetrics` fires a dozen times inside the post-resume window
+**Then** the trace carries one `trigger=metrics-resume -> nudge` line and one folded summary
+**And** the rest of the log ring is untouched
+
+#### Scenario: An ordinary session logs nothing
+
+**Given** developer mode is off
+**When** any repaint path runs
+**Then** no `SurfaceDiag` repaint line is written
+
+#### Scenario: A dropped funnel fails the integration suite
+
+**Given** the reload funnel is removed but the page still paints quickly
+**When** the reload scenario runs
+**Then** the pixel check passes and the trace assertion fails, naming the missing trigger
+
+---
+
 ### Requirement: PAUSE-028 — A Manual Repaint Is Reachable From The Menu
 
 On Android, and while developer mode is on, the overflow menu of both webview-hosting screens SHALL offer a **Repaint Screen** action that recomposites the visible surface on demand.

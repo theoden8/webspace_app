@@ -274,6 +274,16 @@ sitting in the menu an ordinary user opens to refresh a page.
 (c) **The loading bar reflects the tap.** `userDrivenReload` marks the model loading
 before it awaits the HTTP-cache clear, and takes a re-entrancy guard so a double tap
 issues one reload instead of two.
+(d) **Every repaint reports itself** (`PAUSE-029`). The `SurfaceDiag` line moved from a
+handful of call sites into `_nudgeSurfaceRepaint(trigger)`, which took a required label:
+6 of 26 nudges had been reporting, so `back`, `activate`, `memory-pressure`, `goHome`,
+both fullscreen toggles and the whole nested screen were dark. Gated on developer mode
+(an ordinary session must not spend `LogService`'s 2000-entry ring on it) and collapsed
+through `RepaintLogThrottle`, since `didChangeMetrics` and the funnel's own coalescing
+fire the same trigger many times a second. `DiagSeed` and the in-process suite turn
+developer mode on, and the reload scenario now asserts the trace shows both halves of
+PAUSE-021 — a pixel verdict alone cannot tell a working funnel from a page that was
+merely fast.
 **Reproduced + proved (mechanism, not device):** `formal/reloadlatch.tla`. `Fix="oneshot"`
 (`reloadlatch_bug.cfg`) is the pre-fix latch and TLC returns the reported trace: two
 `Issue`s, the aborted load `Settle`s and consumes the latch, its nudge drains, the
@@ -399,6 +409,12 @@ who were told how to unlock it, so the falsifying report needs someone to ask fo
    *assumes* the window outlasts the in-flight loads rather than proving it. This is gap
    #6 on the other axis — not "the proxy fires too early" but "the debt expires too soon".
    The `trigger=commit-settled` line is what would show a device where it does.
+12. **The trace is now honest but still opt-in.** `PAUSE-029` closed the coverage half
+   of the diagnostic — every path reports, and a new one cannot be silent — but the
+   developer-mode gate means a user who hits the bug has no trace *of the occurrence that
+   prompted them to report it*. They can only capture the next one. That is the deliberate
+   trade against evicting the log ring in every ordinary session, and it is why the
+   integration tiers assert on the trace rather than waiting for a user to supply one.
 11. **Nobody has confirmed the nudge repaints on the affected device.** Gaps #4 and #5
    restated as an open question, not a modelling hole: every attempt since Attempt 2
    assumes the 1px inset flip physically recomposites the SurfaceView, and no device
@@ -453,7 +469,10 @@ who were told how to unlock it, so the falsifying report needs someone to ask fo
   as a one-shot one); `dispose` must cancel the timer; and both menus must carry the
   manual repaint entry wired to `_repaintCurrentSurface`, with *every* occurrence behind
   both the Android and the developer-mode gate (counted, not matched: a second menu with
-  one ungated entry is the regression shape).
+  one ungated entry is the regression shape). It also holds the reporting contract: the
+  funnel must take a trigger label and report through `_traceRepaint`, no call site may
+  omit a label or hand-write a line, and `_traceRepaint` must carry the developer-mode
+  gate, the throttle and the flush-timer cancel.
 - **Window-pixel detector + scenario suite**
   ([android/.../SurfaceDiagPlugin.kt](../../android/app/src/main/kotlin/org/codeberg/theoden8/webspace/SurfaceDiagPlugin.kt),
   [lib/services/surface_diag_native.dart](../../lib/services/surface_diag_native.dart),

@@ -14,6 +14,7 @@ import 'package:webspace/services/microphone_decision_engine.dart';
 import 'package:webspace/services/screen_share_decision_engine.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/developer_mode_service.dart';
+import 'package:webspace/services/repaint_log_throttle.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/pull_to_refresh_gate.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
@@ -305,6 +306,9 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   Timer? _resumeRepaintWindowTimer;
   // Bounds the commit latch opened by _armCommitLatch (PAUSE-027).
   Timer? _commitWindowTimer;
+  // Collapses repaint-trace bursts; only ever fed while developer mode is on.
+  final RepaintLogThrottle _repaintLog = RepaintLogThrottle();
+  Timer? _repaintLogFlushTimer;
 
   /// Recovery state for a load the OS stranded while the app was backgrounded
   /// (PAUSE-022). The nested screen is as exposed as the main page: it is the
@@ -670,6 +674,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   void dispose() {
     _resumeRepaintWindowTimer?.cancel();
     _commitWindowTimer?.cancel();
+    _repaintLogFlushTimer?.cancel();
     surfaceRouteObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -698,11 +703,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   void _nudgeSurfaceRepaint(String trigger) {
     if (!hostIsAndroid) return;
     final started = _surfaceRepaint.request();
-    // Reported from inside the funnel, so a new path cannot be diagnostically
-    // dark; `-nested` distinguishes this screen's surface from the main page's
-    // in a shared trace. Non-sensitive: no site name or URL.
-    LogService.instance.log('SurfaceDiag',
-        'trigger=$trigger-nested -> nudge${started ? '' : ' (coalesced)'}');
+    _traceRepaint(trigger, coalesced: !started);
     if (!started) return;
     void tick() {
       if (!mounted) {
@@ -721,6 +722,25 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   Future<void> _goBackAndRepaint(WebViewController controller) async {
     await controller.goBack();
     _nudgeSurfaceRepaint('back');
+  }
+
+  /// Nested counterpart of `_WebSpacePageState._traceRepaint`: same funnel,
+  /// same developer-mode gate and burst collapsing. `-nested` distinguishes
+  /// this screen's surface from the main page's in a shared trace — the two
+  /// have separate SurfaceViews and separate repaint machinery.
+  void _traceRepaint(String trigger, {required bool coalesced}) {
+    if (!DeveloperModeService.instance.enabled) return;
+    for (final line in _repaintLog
+        .note('$trigger-nested', coalesced: coalesced, now: DateTime.now())) {
+      LogService.instance.log('SurfaceDiag', line);
+    }
+    _repaintLogFlushTimer?.cancel();
+    if (!_repaintLog.hasPending) return;
+    _repaintLogFlushTimer = Timer(RepaintLogThrottle.burstWindow, () {
+      _repaintLogFlushTimer = null;
+      final summary = _repaintLog.flush();
+      if (summary != null) LogService.instance.log('SurfaceDiag', summary);
+    });
   }
 
   /// Nested counterpart of `_WebSpacePageState._armCommitLatch` (PAUSE-027):

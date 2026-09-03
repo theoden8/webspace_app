@@ -367,17 +367,42 @@ for (const rel of GUARDED) {
     const lines = linesOf(rel);
     const src = lines.join('\n');
 
-    test(`${rel}: the nudge funnel logs its own trigger`, () => {
+    test(`${rel}: the nudge funnel reports its own trigger`, () => {
       const defIdx = lines.findIndex((l) =>
         /void\s+_nudgeSurfaceRepaint\s*\(String\s+trigger\)/.test(l),
       );
       assert.ok(defIdx >= 0,
         '_nudgeSurfaceRepaint must take a trigger label, so every path names itself');
-      const body = lines.slice(defIdx, defIdx + 16).join('\n');
-      assert.match(body, /SurfaceDiag/,
-        'the funnel must emit the diagnostic, not its call sites');
-      assert.match(body, /trigger=\$trigger/,
-        'the emitted line must carry the caller-supplied label');
+      const body = lines.slice(defIdx, defIdx + 10).join('\n');
+      assert.match(body, /_traceRepaint\(trigger,\s*coalesced:/,
+        'the funnel must report through _traceRepaint, not its call sites');
+    });
+
+    test(`${rel}: the trace is gated on developer mode and throttled`, () => {
+      const defIdx = lines.findIndex((l) =>
+        /void\s+_traceRepaint\s*\(String\s+trigger/.test(l),
+      );
+      assert.ok(defIdx >= 0, '_traceRepaint must be defined');
+      const body = lines.slice(defIdx, defIdx + 18).join('\n');
+      // A repaint line per call would evict LogService's 2000-entry ring with
+      // one repeated sentence: didChangeMetrics alone fires it many times a
+      // second through a warm resume.
+      assert.match(body, /if\s*\(!DeveloperModeService\.instance\.enabled\)\s*return;/,
+        'an ordinary session must not spend its log ring on the repaint trace');
+      assert.match(body, /_repaintLog\s*\n?\s*\.note\(|_repaintLog\.note\(/,
+        'the trace must go through the burst collapser');
+      assert.match(body, /RepaintLogThrottle\.burstWindow/,
+        'a folded burst must be flushed on the throttle window');
+      assert.match(body, /_repaintLog\.flush\(\)/,
+        'the flush timer must emit the pending summary');
+    });
+
+    test(`${rel}: the trace flush timer does not outlive the screen`, () => {
+      const defIdx = lines.findIndex((l) => /void\s+dispose\s*\(\)/.test(l));
+      assert.ok(defIdx >= 0, 'dispose must exist');
+      const body = lines.slice(defIdx, defIdx + 14).join('\n');
+      assert.match(body, /_repaintLogFlushTimer\?\.cancel\(\)/,
+        'a pending flush must be cancelled with the screen');
     });
 
     test(`${rel}: every repaint call site passes a trigger`, () => {
@@ -394,7 +419,7 @@ for (const rel of GUARDED) {
       // A duplicate line at a call site is how the coverage drifted before:
       // the funnel reports, so a second report means someone re-introduced the
       // per-site pattern and the next path will be forgotten again.
-      const hand = (src.match(/'trigger=[a-z-]+ -> nudge'/g) || []).length;
+      const hand = (src.match(/'trigger=[a-z-]+ -> nudge/g) || []).length;
       assert.equal(hand, 0,
         'trigger lines belong in the funnel, not at the call sites');
     });

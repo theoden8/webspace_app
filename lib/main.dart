@@ -94,6 +94,7 @@ import 'package:webspace/services/link_routing_service.dart';
 import 'package:webspace/services/link_intent_dispatch_engine.dart';
 import 'package:webspace/screens/link_handling_settings.dart';
 import 'package:webspace/services/developer_mode_service.dart';
+import 'package:webspace/services/repaint_log_throttle.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/services/notification_service.dart';
@@ -1026,6 +1027,9 @@ class _WebSpacePageState extends State<WebSpacePage>
   final SurfaceRepaintEngine _surfaceRepaint = SurfaceRepaintEngine();
   // Bounds the commit latch opened by _armCommitLatch (PAUSE-027).
   Timer? _commitWindowTimer;
+  // Collapses repaint-trace bursts; only ever fed while developer mode is on.
+  final RepaintLogThrottle _repaintLog = RepaintLogThrottle();
+  Timer? _repaintLogFlushTimer;
   /// When true, a full-screen opaque mask covers every webview so the
   /// OS task-switcher / recents snapshot doesn't capture archive-tier
   /// content (ARCH-009). Set on `inactive`/`paused` when at least one
@@ -1484,6 +1488,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     _foregroundPollTimer?.cancel();
     _resumeRepaintWindowTimer?.cancel();
     _commitWindowTimer?.cancel();
+    _repaintLogFlushTimer?.cancel();
     _navStateDebouncer.dispose();
     _untrustSub?.cancel();
     surfaceRouteObserver.unsubscribe(this);
@@ -2002,14 +2007,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     // running, so two interleaving loops can't toggle the inset against each
     // other. Settling at a zero inset on an odd refill is the engine's job.
     final started = _surfaceRepaint.request();
-    // Every repaint reports which path asked for it, from inside the funnel
-    // rather than at the call sites: the trace exists to say which trigger
-    // fired on a device that went blank, and a hand-written line at some of
-    // the call sites left most paths dark. Non-sensitive (no site name or
-    // URL), so a user can share it. `coalesced` means an already-running loop
-    // absorbed this request — the repaint still happens, on the other loop.
-    LogService.instance.log('SurfaceDiag',
-        'trigger=$trigger -> nudge${started ? '' : ' (coalesced)'}');
+    _traceRepaint(trigger, coalesced: !started);
     if (!started) return;
     void tick() {
       if (!mounted) {
@@ -2022,6 +2020,33 @@ class _WebSpacePageState extends State<WebSpacePage>
       Future.delayed(const Duration(milliseconds: 100), tick);
     }
     tick();
+  }
+
+  /// Report one repaint on the shareable `SurfaceDiag` trace.
+  ///
+  /// Emitted from inside the nudge funnel rather than at the call sites: the
+  /// trace exists to name the path that repainted on a device that went blank,
+  /// and hand-written lines at a few call sites left most paths dark. Two
+  /// things keep it from becoming noise. It runs only while developer mode is
+  /// on (`developer-tools` DEVTOOLS-010) — an ordinary session must not spend
+  /// its 2000-entry ring on repaints it will never read — and bursts collapse
+  /// through [RepaintLogThrottle], because `didChangeMetrics` and the funnel's
+  /// own coalescing fire the same trigger many times per second.
+  ///
+  /// Non-sensitive: no site name, no URL, so the whole trace is shareable.
+  void _traceRepaint(String trigger, {required bool coalesced}) {
+    if (!DeveloperModeService.instance.enabled) return;
+    for (final line in _repaintLog
+        .note(trigger, coalesced: coalesced, now: DateTime.now())) {
+      LogService.instance.log('SurfaceDiag', line);
+    }
+    _repaintLogFlushTimer?.cancel();
+    if (!_repaintLog.hasPending) return;
+    _repaintLogFlushTimer = Timer(RepaintLogThrottle.burstWindow, () {
+      _repaintLogFlushTimer = null;
+      final summary = _repaintLog.flush();
+      if (summary != null) LogService.instance.log('SurfaceDiag', summary);
+    });
   }
 
   /// Arm the commit latch and hold it open for a bounded window.

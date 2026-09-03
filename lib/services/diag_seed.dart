@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/demo_data.dart' show isDemoMode;
+import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
@@ -96,6 +97,11 @@ class DiagSeed {
     // "viewing full screen" education bubble, whose screen-wide 50% dim
     // corrupts every pixel sample.
     await prefs.setBool('fullscreenOnShortcut', false);
+    // Turn the SurfaceDiag repaint trace on for the run: it is gated on
+    // developer mode so an ordinary session does not spend its log ring on
+    // it, but the externally-driven tiers exist precisely to see which
+    // repaint path fired, and a pixel verdict alone cannot say that.
+    await prefs.setBool(kDeveloperModeKey, true);
     isDemoMode = true;
     LogService.instance.log('DiagSeed',
         'seeded ${seed.sites.length} sites: '
