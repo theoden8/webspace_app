@@ -47,6 +47,8 @@ The only way to truly silence a site is `disposeWebView()` — which tears down 
 
 The system SHALL pause the previously active webview on site switch using the per-instance API only, with no process-global side effects. Exempt: notification sites (`notificationsEnabled`) and background-audio sites (`effectiveBackgroundAudioEnabled`, BGAUDIO-001 in [background-audio](../background-audio/spec.md)) — `pauseWebView()` early-returns for both, since the iOS per-instance pause freezes the page's JS thread.
 
+A tap on the site that is **already active** is not a switch and SHALL quiesce nothing: the outgoing and incoming site are the same webview, and the teardown would run against a site that is resumed a few statements later. `SiteActivationEngine.outgoingSiteToQuiesce` decides this — it names the outgoing index only when there is a *different*, in-bounds, loaded site to leave. Skipping matters beyond the wasted work: the teardown ends a camera capture the site is running (CAM-012) and pauses its media (BGAUDIO-009), and on iOS its `pauseWebView()` strands the alert-hack alert for the resume moments later to expose as an empty system dialog (PAUSE-030) — which made a self-tap raise an empty popup every time, on any site.
+
 #### Scenario: Site switch from A to B
 
 **Given** sites A and B are both loaded
@@ -56,6 +58,14 @@ The system SHALL pause the previously active webview on site switch using the pe
 **And** A's controller receives `pause()` (Android: **no-op**, see PAUSE-016; iOS: per-instance `pauseTimers()` alert hack)
 **And** A's controller does NOT receive `pauseAllJsTimers()`
 **And** B's JS timers are unaffected by A's pause
+
+#### Scenario: Tapping the site already on screen
+
+**Given** site A is the currently active site
+**When** the user taps A in the drawer or tab strip
+**Then** no site is quiesced — A is not paused, its media keeps playing and a camera capture it is running is not ended
+**And** A is still resumed and re-added to `_loadedIndices` as the activation completes
+**And** no empty system dialog appears on iOS
 
 #### Scenario: Sites loaded but never previously active also get paused
 
@@ -1195,7 +1205,7 @@ bool isEscapedPauseTimersAlert({
 [lib/main.dart](../../lib/main.dart):
 
 - `didChangeAppLifecycleState`: calls `pauseForAppLifecycle()` / `resumeFromAppLifecycle()`.
-- `_setCurrentIndex`: calls `pauseWebView()` / `resumeWebView()`.
+- `_setCurrentIndex`: calls `pauseWebView()` / `resumeWebView()`, with the outgoing site named by `SiteActivationEngine.outgoingSiteToQuiesce` (PAUSE-001).
 
 `WebViewFactory.createWebView` ([lib/services/webview.dart](../../lib/services/webview.dart)):
 
@@ -1214,6 +1224,10 @@ bool isEscapedPauseTimersAlert({
 - PAUSE-016: `perInstanceLifecycleCallFor` returns `none` for Android and
   desktop, `timers` for iOS — verifying the Android per-instance no-op without
   a native controller.
+- PAUSE-001: `test/site_activation_engine_test.dart` — `outgoingSiteToQuiesce`
+  names nothing for a self-tap, for a null or unloaded outgoing index, or for
+  one left out of bounds by a deletion, and the outgoing index for a real
+  switch.
 - PAUSE-030: `pauseTimersUsesAlertHack` names iOS and macOS but not Android;
   `isEscapedPauseTimersAlert` swallows only a messageless main-frame alert on a
   webview that has been paused, and leaves a page's own dialog, a subframe
@@ -1225,7 +1239,8 @@ bool isEscapedPauseTimersAlert({
 
 - `lib/services/webview.dart` — split the `WebViewController` interface; `_WebViewController.pause()` no longer calls `pauseTimers()`; `createWebView` wires the PAUSE-030 `onJsAlert` funnel.
 - `lib/web_view_model.dart` — added `pauseForAppLifecycle()` / `resumeFromAppLifecycle()`; updated docs on `pauseWebView()` / `resumeWebView()`.
-- `lib/main.dart` — `didChangeAppLifecycleState` and `_resumeAfterLifecyclePause` use the lifecycle-named methods.
+- `lib/main.dart` — `didChangeAppLifecycleState` and `_resumeAfterLifecyclePause` use the lifecycle-named methods; `_setCurrentIndex` asks the engine which site to quiesce.
+- `lib/services/site_activation_engine.dart` — `outgoingSiteToQuiesce`.
 
 ### Added
 
