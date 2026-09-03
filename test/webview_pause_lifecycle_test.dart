@@ -265,6 +265,83 @@ void main() {
     });
   });
 
+  group('PAUSE-030 escaped pauseTimers() alert', () {
+    test('the alert hack is what pauseTimers means on iOS and macOS', () {
+      expect(
+        pauseTimersUsesAlertHack(
+            isAndroid: false, isIOS: true, isMacOS: false),
+        isTrue,
+      );
+      expect(
+        pauseTimersUsesAlertHack(
+            isAndroid: false, isIOS: false, isMacOS: true),
+        isTrue,
+        reason: 'macOS has no process-global lever either, so the global '
+            'pause lands on the same hack and can strand the same alert.',
+      );
+      expect(
+        pauseTimersUsesAlertHack(
+            isAndroid: true, isIOS: false, isMacOS: false),
+        isFalse,
+        reason: 'Android pauseTimers() is the real global timer API — it '
+            'raises no alert to escape.',
+      );
+      expect(
+        pauseTimersUsesAlertHack(
+            isAndroid: false, isIOS: false, isMacOS: false),
+        isFalse,
+      );
+    });
+
+    test('a messageless alert after a pause is the hack, and is swallowed', () {
+      expect(
+        isEscapedPauseTimersAlert(
+            pauseWasIssued: true, message: '', isMainFrame: true),
+        isTrue,
+      );
+      expect(
+        isEscapedPauseTimersAlert(
+            pauseWasIssued: true, message: null, isMainFrame: true),
+        isTrue,
+        reason: 'alert() with no argument carries no message at all.',
+      );
+    });
+
+    test('a webview that was never paused keeps its own empty alert', () {
+      expect(
+        isEscapedPauseTimersAlert(
+            pauseWasIssued: false, message: '', isMainFrame: true),
+        isFalse,
+      );
+    });
+
+    test("a page's own dialog is never swallowed", () {
+      expect(
+        isEscapedPauseTimersAlert(
+            pauseWasIssued: true, message: 'Are you sure?', isMainFrame: true),
+        isFalse,
+      );
+      expect(
+        isEscapedPauseTimersAlert(
+            pauseWasIssued: true, message: '', isMainFrame: false),
+        isFalse,
+        reason: 'The hack evaluates alert() on the webview itself, so it is '
+            'always the main frame; a subframe empty alert is the page.',
+      );
+    });
+
+    test('pauseWasIssued is sticky once the hack has run', () {
+      final state = PauseTimersHackState();
+      expect(state.pauseWasIssued, isFalse);
+      state.notePauseIssued();
+      expect(state.pauseWasIssued, isTrue);
+      state.notePauseIssued();
+      expect(state.pauseWasIssued, isTrue,
+          reason: 'There is no signal for when the queued alert was '
+              'consumed, so the record cannot be cleared.');
+    });
+  });
+
   group('cold-start restore initial-load deferral', () {
     test('Android with pending restore defers the initial load', () {
       expect(

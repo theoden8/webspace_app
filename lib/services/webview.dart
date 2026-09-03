@@ -1014,6 +1014,59 @@ PerInstanceLifecycleCall perInstanceLifecycleCallFor({
   return PerInstanceLifecycleCall.none;
 }
 
+/// Whether `pauseTimers()` on this platform is the plugin's messageless
+/// `alert()` hack rather than a real timer pause. Android has the real API
+/// (`WebView.pauseTimers()`); iOS and macOS both implement it by evaluating
+/// `alert()` and having the native `WKUIDelegate` withhold its dismissal
+/// callback, which is what blocks the page's JS thread.
+bool pauseTimersUsesAlertHack({
+  required bool isAndroid,
+  required bool isIOS,
+  required bool isMacOS,
+}) =>
+    !isAndroid && (isIOS || isMacOS);
+
+/// Per-webview record of whether the `alert()`-hack pause has ever run on it
+/// (PAUSE-030), so the hack's own alert can be told apart from a dialog the
+/// page asked for.
+class PauseTimersHackState {
+  bool _issued = false;
+
+  /// True once a `pauseTimers()` that uses the alert hack has been issued on
+  /// this webview. Sticky: the hack leaves an alert queued in the page's JS
+  /// event loop with no signal for when it was consumed, so there is no point
+  /// at which this can be cleared without re-opening the escape.
+  bool get pauseWasIssued => _issued;
+
+  void notePauseIssued() => _issued = true;
+}
+
+/// Whether a JS alert arriving in Dart is the escaped remains of the
+/// `alert()`-hack pause (PAUSE-030) rather than a dialog the page asked for.
+///
+/// `pauseTimers()` marks the webview paused and evaluates `alert()`; the
+/// native delegate swallows that alert for as long as the mark is set.
+/// `resumeTimers()` clears the mark on the next site switch, app resume or
+/// dispose whether or not the alert has been delivered — and
+/// `evaluateJavaScript` queues behind the page's own JS, so on a busy or
+/// still-loading page the alert can land after the mark is gone and fall
+/// through to the app as a real, messageless system dialog.
+///
+/// Only an escaped alert can reach this predicate: the native delegate
+/// consults Dart only after its own paused check, so while the pause is live
+/// the alert never gets here. Answering it therefore releases a JS thread
+/// whose pause is already over, rather than cutting one short.
+///
+/// A page's own main-frame `alert('')` on an already-paused webview is
+/// swallowed too. It is indistinguishable from the hack's, and it renders as
+/// an empty system dialog carrying no information either way.
+bool isEscapedPauseTimersAlert({
+  required bool pauseWasIssued,
+  required String? message,
+  required bool? isMainFrame,
+}) =>
+    pauseWasIssued && (message ?? '').isEmpty && (isMainFrame ?? true);
+
 /// Whether the root site webview must defer its initial load so the
 /// controller-created handler can apply `restoreState` to a pristine
 /// back/forward list. True only on Android: `WebView.restoreState` no-ops
@@ -1037,7 +1090,13 @@ bool deferInitialLoadForRestore({
 /// InAppWebView controller wrapper
 class _WebViewController implements WebViewController {
   final inapp.InAppWebViewController _c;
-  _WebViewController(this._c);
+
+  /// Shared with the `onJsAlert` handler of the same webview, which needs to
+  /// know that this controller issued an alert-hack pause (PAUSE-030).
+  final PauseTimersHackState _pauseHack;
+
+  _WebViewController(this._c, {required PauseTimersHackState pauseHack})
+      : _pauseHack = pauseHack;
 
   @override
   inapp.InAppWebViewController get nativeController => _c;
@@ -1218,6 +1277,7 @@ class _WebViewController implements WebViewController {
       case PerInstanceLifecycleCall.none:
         return;
       case PerInstanceLifecycleCall.timers:
+        _pauseHack.notePauseIssued();
         await _c.pauseTimers();
     }
   }
@@ -1235,7 +1295,16 @@ class _WebViewController implements WebViewController {
   }
 
   @override
-  Future<void> pauseAllJsTimers() => _c.pauseTimers();
+  Future<void> pauseAllJsTimers() {
+    // On iOS and macOS there is no process-global lever: this lands on the
+    // same per-instance alert hack as [pause] and leaves the same escapable
+    // alert behind (PAUSE-030).
+    if (pauseTimersUsesAlertHack(
+        isAndroid: hostIsAndroid, isIOS: hostIsIOS, isMacOS: hostIsMacOS)) {
+      _pauseHack.notePauseIssued();
+    }
+    return _c.pauseTimers();
+  }
 
   @override
   Future<void> resumeAllJsTimers() => _c.resumeTimers();
@@ -3556,6 +3625,10 @@ class WebViewFactory {
       settings.loadWithOverviewMode = false;
     }
 
+    // Shared between this webview's controller (which issues the pause) and
+    // its `onJsAlert` (which has to recognise the pause's own alert).
+    final pauseHack = PauseTimersHackState();
+
     final inapp.InAppWebView webViewWidget = inapp.InAppWebView(
       key: config.key,
       initialUrlRequest: (renderInitialData || suppressInitialLoad) ? null : inapp.URLRequest(
@@ -3687,8 +3760,30 @@ class WebViewFactory {
             allow: false,
             retain: false,
           ),
+      // A messageless alert on a webview that has been through the iOS/macOS
+      // per-instance pause is that pause's own `alert()`, arriving after
+      // `resumeTimers()` stopped withholding it — never something the page
+      // asked for (PAUSE-030). Answer it so WebKit drops it instead of
+      // presenting an empty system dialog over the app; everything else
+      // returns null and keeps the plugin's default dialog.
+      onJsAlert: (controller, request) async {
+        if (!isEscapedPauseTimersAlert(
+          pauseWasIssued: pauseHack.pauseWasIssued,
+          message: request.message,
+          isMainFrame: request.isMainFrame,
+        )) {
+          return null;
+        }
+        LogService.instance.log(
+          'WebView',
+          'Swallowed escaped pauseTimers() alert for siteId=${config.siteId}',
+          sensitivity: LogSensitivity.sensitive,
+        );
+        return inapp.JsAlertResponse(handledByClient: true);
+      },
       onWebViewCreated: (controller) async {
-        final wrappedController = _WebViewController(controller);
+        final wrappedController =
+            _WebViewController(controller, pauseHack: pauseHack);
         onControllerCreated(wrappedController);
         _registerPageHandlers(
           controller,
@@ -4236,7 +4331,7 @@ class WebViewFactory {
           final List<Cookie> cookies;
           if (config.containerCookieManager != null && config.cookieSiteId != null) {
             cookies = await config.containerCookieManager!.getCookies(
-              controller: _WebViewController(controller),
+              controller: _WebViewController(controller, pauseHack: pauseHack),
               siteId: config.cookieSiteId!,
               url: Uri.parse(urlStr),
             );
