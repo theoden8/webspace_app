@@ -144,6 +144,7 @@ dark_site_id="ws-$run_tag-dark"
 white_site_id="ws-$run_tag-white"
 notif_site_id="ws-$run_tag-notif"
 blue_site_id="ws-$run_tag-blue"
+b2_site_id="ws-$run_tag-b2"
 
 site_json() { # $1 = page basename, $2 = siteId, $3 = extra site fields (optional)
   printf '{"name":"Diag","url":"%s/%s","siteId":"%s"%s}' \
@@ -469,22 +470,31 @@ if [ "${WS_RUN_NATIVE_REPAINT_PROBE:-0}" != "1" ]; then
 else
   echo "== Scenario B2: warm start with the Dart resume nudges suppressed"
   echo "   (BUG-001 gap #5: does the native layer repaint on its own?)"
-  # Wipe first, not just force-stop. This runs last, after Scenario H has
-  # deliberately left the dark site's session navigated to the magenta page,
-  # and a cold start restores that session: the seed replaces the site list
-  # but not the per-siteId nav state, so the cold start below came up magenta
-  # and the scenario failed in setup without ever testing a repaint.
-  adb shell pm clear "$pkg" >/dev/null
-  adb shell am start -W -n "$component" \
-    --es ws_diag_seed "$(seed_b64 dark.html "$dark_site_id")" \
+  # Its own siteId, not the dark site's. This runs last, after Scenario H has
+  # deliberately left the dark site's session navigated to the magenta page:
+  # the seed replaces the site list but not the per-siteId nav state, so
+  # reusing $dark_site_id restored magenta and the scenario failed in setup
+  # without ever testing a repaint. A siteId nothing has touched has no state
+  # to restore. (`pm clear` would also work, but mid-suite it left `am start
+  # -W` blocked past the step budget.)
+  adb shell am force-stop "$pkg"
+  # `am start -W` blocks until the launch reports complete; a start that never
+  # reports would burn the whole emulator step. Cap it and let the pixel check
+  # decide -- it produces the screenshot and logcat a bare hang does not.
+  b2_start() {
+    timeout 120 adb shell am start -W "$@" \
+      || echo "  (am start -W did not return in 120s; continuing to pixels)"
+  }
+  b2_start -n "$component" \
+    --es ws_diag_seed "$(seed_b64 dark.html "$b2_site_id")" \
     --es ws_diag_suppress_repaint "resume,metrics-resume" \
-    --es siteId "$dark_site_id"
+    --es siteId "$b2_site_id"
   wait_for_pixels b2-cold-start-dark 180 --expect-dominant "$dark"
   adb shell input keyevent 3
   sleep 5
   # No seed extra on the return: the suppression is already armed in-process,
   # and reseeding would restart the app rather than warm-start it.
-  adb shell am start -W -n "$component"
+  b2_start -n "$component"
   wait_for_pixels b2-warm-start-native-repaint 90 --expect-dominant "$dark"
 fi
 
