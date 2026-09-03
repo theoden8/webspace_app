@@ -483,6 +483,38 @@ String buildAntiFingerprintingShim(
   // A multiplicative ±0.01% jitter on every numeric TextMetrics field.
   // Big enough to break exact-equality fingerprints, small enough that
   // text never visibly mis-lays-out.
+  //
+  // The jitter is applied by wrapping the getters on TextMetrics.prototype,
+  // not by returning a copy. The copy was a plain object: `m instanceof
+  // TextMetrics` came back false and its prototype chain ended at `Object`,
+  // so the noise was undetectable but the presence of the noise was not, and
+  // it broke any caller that type-checked the result. The engine's own
+  // TextMetrics is handed back untouched and a WeakMap keyed on it carries
+  // the factor, so the instance keeps zero own properties.
+  var _tmJitter = new WeakMap();
+  function patchTextMetricsProto() {
+    if (typeof TextMetrics === 'undefined' || !TextMetrics.prototype) return;
+    var proto = TextMetrics.prototype;
+    var names = Object.getOwnPropertyNames(proto);
+    for (var i = 0; i < names.length; i++) {
+      var name = names[i];
+      if (name === 'constructor') continue;
+      var d = Object.getOwnPropertyDescriptor(proto, name);
+      if (!d || !d.get) continue;
+      (function(getter, propName, desc) {
+        Object.defineProperty(proto, propName, {
+          configurable: true,
+          enumerable: desc.enumerable,
+          get: asNative(function() {
+            var v = getter.call(this);
+            if (typeof v !== 'number') return v;
+            var j = _tmJitter.get(this);
+            return j === undefined ? v : v * j;
+          }, propName),
+        });
+      })(d.get, name, d);
+    }
+  }
   function wrapMeasureText(proto, salt) {
     if (!proto) return;
     var orig = proto.measureText;
@@ -491,23 +523,13 @@ String buildAntiFingerprintingShim(
       var m = orig.apply(this, arguments);
       try {
         var rng = seededRng(salt + ':' + (text || ''));
-        var jitter = 1.0 + (rng() - 0.5) * 0.0002;
-        var wrapped = {};
-        for (var k in m) {
-          var v;
-          try { v = m[k]; } catch (e) { continue; }
-          if (typeof v === 'number') {
-            wrapped[k] = v * jitter;
-          } else {
-            wrapped[k] = v;
-          }
-        }
-        return wrapped;
+        _tmJitter.set(m, 1.0 + (rng() - 0.5) * 0.0002);
       } catch (e) {}
       return m;
     }, 'measureText');
   }
   try {
+    patchTextMetricsProto();
     if (typeof CanvasRenderingContext2D !== 'undefined') {
       wrapMeasureText(CanvasRenderingContext2D.prototype, 'canvas2d:measureText');
     }
@@ -662,26 +684,65 @@ String buildAntiFingerprintingShim(
   // ±0.001px jitter on x/y. Real browsers deliver fractional pixels for
   // sub-pixel layout; the magnitude is below the visible threshold but
   // above floating-point comparison fingerprints.
+  //
+  // Returns a real `DOMRect`. The object literal this used to build was
+  // rejected by `instanceof DOMRect` and its prototype chain ended at
+  // `Object`, so the noise was undetectable but the presence of the noise was
+  // not, and any site that type-checked the result broke. `DOMRect` has a
+  // public constructor, so there is nothing to fake.
   function jitterRect(r, salt) {
     if (!r) return r;
     try {
       var rng = seededRng(salt + ':' + r.x + ':' + r.y + ':' + r.width + ':' + r.height);
       var jx = (rng() - 0.5) * 0.001;
       var jy = (rng() - 0.5) * 0.001;
-      return {
-        x: r.x + jx, y: r.y + jy,
-        left: (r.left != null ? r.left : r.x) + jx,
-        top: (r.top != null ? r.top : r.y) + jy,
-        right: (r.right != null ? r.right : (r.x + r.width)) + jx,
-        bottom: (r.bottom != null ? r.bottom : (r.y + r.height)) + jy,
-        width: r.width,
-        height: r.height,
-        toJSON: function() {
-          return { x: this.x, y: this.y, width: this.width, height: this.height,
-                   left: this.left, top: this.top, right: this.right, bottom: this.bottom };
-        },
-      };
-    } catch (e) { return r; }
+      if (typeof DOMRect === 'function') {
+        return new DOMRect(r.x + jx, r.y + jy, r.width, r.height);
+      }
+    } catch (e) {}
+    return r;
+  }
+  // getClientRects() was not wrapped at all, so the un-jittered geometry of
+  // the same element was readable straight past getBoundingClientRect: both a
+  // bypass and a disagreement between two APIs that must agree.
+  //
+  // It returns a `DOMRectList`, which has no constructor. Building on its
+  // prototype keeps `instanceof DOMRectList` true and `Array.isArray` false,
+  // with `length` shadowed as an own property because the inherited getter
+  // only works on a platform object. Where the interface is absent the
+  // array-like below is the fallback: a different type is a weaker tell than
+  // handing back exact layout.
+  function jitterRectList(list, salt) {
+    try {
+      var rects = [];
+      for (var i = 0; i < list.length; i++) {
+        rects.push(jitterRect(list[i], salt + ':' + i));
+      }
+      var out;
+      if (typeof DOMRectList === 'function') {
+        out = Object.create(DOMRectList.prototype);
+        for (var j = 0; j < rects.length; j++) {
+          Object.defineProperty(out, j, {
+            configurable: true, enumerable: true, value: rects[j],
+          });
+        }
+        // Shadowed as an own property: the inherited getter only works on a
+        // platform object. Not attempted on the array fallback, where
+        // redefining a non-configurable `length` throws.
+        Object.defineProperty(out, 'length', {
+          configurable: true, value: rects.length,
+        });
+      } else {
+        out = rects;
+      }
+      Object.defineProperty(out, 'item', {
+        configurable: true,
+        value: asNative(function item(i) {
+          return (i >>> 0) < this.length ? this[i] : null;
+        }, 'item'),
+      });
+      return out;
+    } catch (e) { return list; }
   }
   try {
     if (typeof Element !== 'undefined' && Element.prototype &&
@@ -691,6 +752,13 @@ String buildAntiFingerprintingShim(
         var r = origGB.apply(this, arguments);
         return jitterRect(r, 'rect:' + (this.tagName || ''));
       }, 'getBoundingClientRect');
+      var origGCR = Element.prototype.getClientRects;
+      if (typeof origGCR === 'function') {
+        Element.prototype.getClientRects = asNative(function getClientRects() {
+          return jitterRectList(origGCR.apply(this, arguments),
+              'rects:' + (this.tagName || ''));
+        }, 'getClientRects');
+      }
     }
     if (typeof Range !== 'undefined' && Range.prototype &&
         typeof Range.prototype.getBoundingClientRect === 'function') {
@@ -699,6 +767,12 @@ String buildAntiFingerprintingShim(
         var r = origRangeGB.apply(this, arguments);
         return jitterRect(r, 'range');
       }, 'getBoundingClientRect');
+      var origRangeGCR = Range.prototype.getClientRects;
+      if (typeof origRangeGCR === 'function') {
+        Range.prototype.getClientRects = asNative(function getClientRects() {
+          return jitterRectList(origRangeGCR.apply(this, arguments), 'rangeRects');
+        }, 'getClientRects');
+      }
     }
   } catch (e) {}
 

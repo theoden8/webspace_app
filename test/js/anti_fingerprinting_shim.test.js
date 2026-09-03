@@ -30,6 +30,28 @@ function installFpStubs(window) {
   window.__calls = [];
   function record(name, args) { window.__calls.push({ name, args }); }
 
+  // jsdom has no TextMetrics. Model the interface rather than stubbing it:
+  // real values live behind prototype getters and the instance carries no own
+  // properties, which is what the shim patches and what a test can check.
+  class TextMetrics {
+    constructor(values) { Object.defineProperty(this, '_v', { value: values }); }
+  }
+  for (const name of ['width', 'actualBoundingBoxLeft', 'actualBoundingBoxRight',
+                      'actualBoundingBoxAscent', 'actualBoundingBoxDescent']) {
+    Object.defineProperty(TextMetrics.prototype, name, {
+      configurable: true, enumerable: true,
+      get() { return this._v[name]; },
+    });
+  }
+  window.TextMetrics = TextMetrics;
+
+  // jsdom returns an empty list for a detached element, so the shim's
+  // getClientRects wrapper would have nothing to jitter.
+  window.Element.prototype.getClientRects = function() {
+    record('el.getClientRects', []);
+    return [new window.DOMRect(10, 20, 30, 40), new window.DOMRect(50, 60, 70, 80)];
+  };
+
   // --- WebGL ---
   function WebGLRenderingContext() {}
   WebGLRenderingContext.prototype.getParameter = function(p) {
@@ -64,10 +86,10 @@ function installFpStubs(window) {
   };
   CanvasRenderingContext2D.prototype.measureText = function(text) {
     record('ctx.measureText', [text]);
-    return {
+    return new window.TextMetrics({
       width: 42, actualBoundingBoxLeft: 1, actualBoundingBoxRight: 41,
       actualBoundingBoxAscent: 10, actualBoundingBoxDescent: 2,
-    };
+    });
   };
   CanvasRenderingContext2D.prototype.fillRect = function() { record('ctx.fillRect', [...arguments]); };
   CanvasRenderingContext2D.prototype.save = function() {};
@@ -103,7 +125,8 @@ function installFpStubs(window) {
   function OffscreenCanvasRenderingContext2D() {}
   OffscreenCanvasRenderingContext2D.prototype.measureText = function(text) {
     record('osc.measureText', [text]);
-    return { width: 24, actualBoundingBoxAscent: 8, actualBoundingBoxDescent: 1 };
+    return new window.TextMetrics(
+      { width: 24, actualBoundingBoxAscent: 8, actualBoundingBoxDescent: 1 });
   };
   window.OffscreenCanvasRenderingContext2D = OffscreenCanvasRenderingContext2D;
 
@@ -494,6 +517,17 @@ test('measureText returns jittered numeric fields and preserves shape', () => {
   assert.equal(typeof m.actualBoundingBoxAscent, 'number');
 });
 
+test('measureText hands back the engine TextMetrics, not a copy', () => {
+  // The old wrapper returned a plain object: `instanceof TextMetrics` false,
+  // prototype chain ending at Object, and zero own properties turned into
+  // five. All three are readable in one line.
+  const dom = loadShim(ALPHA);
+  const m = new dom.window.CanvasRenderingContext2D().measureText('hello');
+  assert.ok(m instanceof dom.window.TextMetrics);
+  assert.equal(Object.getPrototypeOf(m), dom.window.TextMetrics.prototype);
+  assert.deepEqual(Object.getOwnPropertyNames(m).filter((k) => k !== '_v'), []);
+});
+
 test('measureText jitter is deterministic per seed + text', () => {
   // Same site, same text → same width across reads. A varying jitter
   // would let a fingerprinter average it away.
@@ -643,6 +677,40 @@ test('Element.getBoundingClientRect returns a rect with sub-pixel jitter', () =>
   // jitter magnitude bound
   assert.ok(Math.abs(r.x) < 0.01, `x=${r.x} jitter outside bound`);
   assert.ok(Math.abs(r.y) < 0.01, `y=${r.y} jitter outside bound`);
+});
+
+test('getBoundingClientRect returns a real DOMRect', () => {
+  // Same class of tell as TextMetrics: the object literal this used to build
+  // failed `instanceof DOMRect` and broke callers that type-checked it.
+  const dom = loadShim(ALPHA);
+  const el = dom.window.document.createElement('div');
+  assert.ok(el.getBoundingClientRect() instanceof dom.window.DOMRect);
+});
+
+test('getClientRects is jittered too, and agrees with the bounding rect', () => {
+  // Unwrapped, getClientRects handed back exact geometry for the same element
+  // whose bounding rect was jittered: a bypass, and a disagreement between two
+  // APIs that must agree.
+  const dom = loadShim(ALPHA);
+  const el = dom.window.document.createElement('div');
+  const rects = el.getClientRects();
+  assert.equal(rects.length, 2);
+  for (const r of rects) {
+    assert.ok(r instanceof dom.window.DOMRect);
+  }
+  assert.notEqual(rects[0].x, 10, 'first rect x must not be the raw value');
+  assert.ok(Math.abs(rects[0].x - 10) < 0.001);
+  assert.equal(rects[0].width, 30, 'width is not jittered');
+  assert.equal(typeof rects.item, 'function');
+  assert.equal(rects.item(0), rects[0]);
+  assert.equal(rects.item(5), null);
+});
+
+test('getClientRects jitter is deterministic per seed and differs per seed', () => {
+  const at = (fx) => loadShim(fx).window.document.createElement('div')
+      .getClientRects()[0].x;
+  assert.equal(at(ALPHA), at(ALPHA));
+  assert.notEqual(at(ALPHA), at(BETA));
 });
 
 test('getBoundingClientRect is deterministic per (seed, element identity)', () => {
