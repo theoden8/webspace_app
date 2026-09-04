@@ -520,6 +520,14 @@ else
   b2_start -n "$component"
   wait_for_logcat b2-resume-nudge-suppressed 60 "trigger=resume suppressed"
   wait_for_pixels b2-warm-start-native-repaint 90 --expect-dominant "$dark"
+  # The seed turns developer mode on, so every nudge that was NOT suppressed
+  # also traced. Print the slice: a dark frame with resume dropped only proves
+  # the native layer repainted if nothing else nudged in its place, and the
+  # trace is the only thing that can say which of the other 12 triggers fired.
+  adb logcat -d 2>/dev/null | grep -F 'SurfaceDiag' \
+    > "$artifacts/b2-surfacediag.txt" || true
+  echo "   SurfaceDiag trace across the warm start:"
+  sed 's/^/     /' "$artifacts/b2-surfacediag.txt" || true
 fi
 
 echo "White-screen lifecycle + shortcut tier passed."
