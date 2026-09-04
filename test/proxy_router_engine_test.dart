@@ -235,6 +235,37 @@ void main() {
       expect(entry['password'], 's3cret');
     });
 
+    test('a TOR site gets no route, not a cleartext one (TOR-008)', () {
+      // Selecting TOR deliberately keeps the previous manual proxy address
+      // so switching back restores it (PROXY-010). Encoding that leftover
+      // as `http` would send a site the user put on Tor straight through an
+      // unrelated proxy in clear. No route means the relay answers 502.
+      final state = ProxyRouterState();
+      final wire = ProxyRouterEngine.toWire(
+        ProxyRouterEngine.buildRoutes(
+          perSiteProxies: {
+            'a': proxy(ProxyType.TOR, '203.0.113.9:9050'),
+          },
+          tokens: {'a': state.tokenFor('a')},
+        ),
+      );
+      expect(wire, isEmpty);
+    });
+
+    test('a DEFAULT site inheriting a global TOR gets no route either', () {
+      GlobalOutboundProxy.setForTest(
+        proxy(ProxyType.TOR, '203.0.113.9:9050'),
+      );
+      final state = ProxyRouterState();
+      final wire = ProxyRouterEngine.toWire(
+        ProxyRouterEngine.buildRoutes(
+          perSiteProxies: {'plain': proxy(ProxyType.DEFAULT, null)},
+          tokens: {'plain': state.tokenFor('plain')},
+        ),
+      );
+      expect(wire, isEmpty);
+    });
+
     test('an IPv6 proxy address keeps its host intact', () {
       final state = ProxyRouterState();
       final wire = ProxyRouterEngine.toWire(

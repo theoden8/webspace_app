@@ -84,6 +84,37 @@ of adding it is the whole feature.
 **Then** the proxy rule scheme is `http`
 **And** the relay performs no TLS handshake with the WebView
 
+### Requirement: PROXY-016 - A Tor site is blocked, never downgraded
+
+The route table SHALL NOT encode a `ProxyType.TOR` site as any other
+proxy type. A site whose effective proxy is TOR SHALL receive no route,
+so the relay answers `502` and the site cannot reach the network.
+
+Selecting TOR deliberately preserves the previous manual proxy address so
+switching back restores it (PROXY-010), so a TOR setting normally carries
+a stale address belonging to an unrelated proxy. The Tor runtime is
+iOS-only and the router is Android-only, so on the router's platform
+there is no endpoint that address could correctly resolve to. Encoding it
+as a plain proxy would send a site the user put on Tor through an
+unrelated host in clear, which is the failure TOR-008 forbids: a missing
+resolver must never mean "connect anyway".
+
+#### Scenario: A per-site Tor setting reaches the router
+
+**Given** router mode is active
+**And** a site's proxy type is TOR carrying a leftover manual address
+**Then** the route table contains no entry for that site
+**And** the relay answers `502` for its traffic
+
+#### Scenario: A default site inherits an app-global Tor setting
+
+**Given** router mode is active
+**And** the app-global outbound proxy is TOR
+**And** a site is left on DEFAULT
+**Then** the route table contains no entry for that site
+
+---
+
 ### Requirement: PROXY-015 - Router mode verifies attribution on the device
 
 Before router mode is treated as active, the app SHALL prove on the
