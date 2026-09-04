@@ -32,6 +32,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validate Fastlane metadata
         run: ./scripts/validate_fastlane_metadata.sh
+      # Shallow checkout has no master to diff against; 50 covers any branch
+      # worth reviewing, and the script skips rather than fails past that.
+      - name: Check commit attribution
+        run: |
+          git fetch --no-tags --depth=50 origin master
+          BASE=FETCH_HEAD ./scripts/check_commit_attribution.sh
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
