@@ -1973,6 +1973,14 @@ class _WebSpacePageState extends State<WebSpacePage>
       {String trigger = 'unspecified'}) async {
     final controller = model.controller;
     if (controller == null) return;
+    // Debug-only, diag tiers only. The offsetHeight read below is itself a
+    // repaint path, so a scenario isolating what the native layer does on its
+    // own has to drop this too: suppressing only the nudge funnel leaves this
+    // running under the same trigger name and the surface comes back anyway.
+    if (RepaintSuppression.suppresses(trigger)) {
+      LogService.instance.log('SurfaceDiag', 'trigger=$trigger probe suppressed');
+      return;
+    }
     final result = await controller
         .evaluateJavascriptReturning('document.body ? document.body.offsetHeight : -1');
     if (!mounted) return;
