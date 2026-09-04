@@ -471,9 +471,12 @@ wait_for_pixels shortcut-warm-preserves-session 90 --expect-dominant "$magenta"
 # does not fire, Attempt 8 is a no-op — and Scenario B above cannot tell that
 # device from a healthy one, because on the emulator the proxy always fires.
 #
-# Suppressing both triggers by name simulates that device exactly. What repaints
-# the surface afterwards, if anything, is whatever the native layer does on its
-# own. Modeled as `Fix="proxy"` vs `Fix="attach"` in formal/warmstart.tla.
+# Suppressing the Dart triggers by name simulates that device exactly. Both
+# resume-time paths go, the nudge funnel and the renderer probe (its
+# offsetHeight read forces the layout that schedules the missing paint, so it
+# repaints whether or not the funnel ran). What is left is whatever the native
+# layer does on its own. Modeled as `Fix="proxy"` vs `Fix="attach"` in
+# formal/warmstart.tla.
 #
 # EXPECTED RED against a fork with no native attach/visibility repaint hook.
 # That red IS the reproduction: evidence that the surface depends on a Dart
@@ -519,11 +522,16 @@ else
   adb logcat -c 2>/dev/null || true
   b2_start -n "$component"
   wait_for_logcat b2-resume-nudge-suppressed 60 "trigger=resume suppressed"
+  # Two independent Dart paths repaint on resume, both under the trigger name
+  # `resume`: the nudge funnel, and the renderer probe, whose offsetHeight read
+  # forces the layout that schedules the missing paint. Asserting only the
+  # first is how this scenario passed while the second quietly did the work.
+  wait_for_logcat b2-resume-probe-suppressed 60 "trigger=resume probe suppressed"
   wait_for_pixels b2-warm-start-native-repaint 90 --expect-dominant "$dark"
-  # The seed turns developer mode on, so every nudge that was NOT suppressed
-  # also traced. Print the slice: a dark frame with resume dropped only proves
-  # the native layer repainted if nothing else nudged in its place, and the
-  # trace is the only thing that can say which of the other 12 triggers fired.
+  # The seed turns developer mode on, so every repaint path that was NOT
+  # suppressed also traced. Print the slice: a dark frame only proves the
+  # native layer repainted if nothing Dart-side did it instead, and the trace
+  # is the only thing that can say which path ran.
   adb logcat -d 2>/dev/null | grep -F 'SurfaceDiag' \
     > "$artifacts/b2-surfacediag.txt" || true
   echo "   SurfaceDiag trace across the warm start:"
