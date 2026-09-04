@@ -427,6 +427,27 @@ who were told how to unlock it, so the falsifying report needs someone to ask fo
    SurfaceView's own buffer callbacks, so they cover the warm-start and fresh-mount
    triggers and none of the commit-side class (Attempts 9/10/11) — they narrow gap
    #3, they do not close it.
+
+   **Run on 2026-09-04 (PR #576): the emulator cannot answer it.** With both
+   resume-time Dart repaint paths dropped and the `SurfaceDiag` trace showing
+   nothing else ran, the warm-started surface came back the page colour,
+   `uniform: 1.0`. On the CI emulator (API 34, x86_64, `swiftshader_indirect`)
+   the reattached SurfaceView repaints with no Dart help at all, so B2 is green
+   by nature there and can never be the red that justifies the fork pin. Two
+   readings of the instrument had to be fixed before that was even legible, and
+   both are worth knowing:
+   `RepaintSuppression` gated only `_nudgeSurfaceRepaint`, while
+   `_probeRendererAndRecover` repaints too — its `offsetHeight` read forces the
+   layout that schedules the missing paint — and both log under the same trigger
+   name, so suppressing "the resume nudge" left the other one doing the work;
+   and a passing run dumped no logcat, so a green proved nothing. Both are fixed
+   (the probe honours the suppression; B2 asserts both drops and prints the trace
+   on success). A corollary: because the native layer alone suffices on the
+   emulator, no CI run there can say whether the probe's read repaints anything —
+   which leaves the contradiction between `_nudgeSurfaceRepaint`'s doc comment
+   ("a JS `offsetHeight` read does not [fix it]") and `_probeRendererAndRecover`'s
+   ("the read alone fixes the blank surface") open. Deciding gap #5, and the fork
+   pin with it, needs a device that actually goes white.
 12. **The trace is now honest but still opt-in.** `PAUSE-029` closed the coverage half
    of the diagnostic — every path reports, and a new one cannot be silent — but the
    developer-mode gate means a user who hits the bug has no trace *of the occurrence that
