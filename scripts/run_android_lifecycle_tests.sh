@@ -209,6 +209,16 @@ wait_for_pixels() { # $1 = slug, $2 = deadline secs, rest = classifier expectati
       adb exec-out screencap -p > "$artifacts/fail-$slug.png" 2>/dev/null || true
       adb logcat -d -t 500 > "$artifacts/fail-$slug.logcat.txt" 2>/dev/null || true
       printf '%s\n' "$out" > "$artifacts/fail-$slug.classify.json" || true
+      # A blank frame alone does not say which bug it is: an app that is alive
+      # and unpainted is BUG-001, a dead one or a system dialog over the window
+      # is infrastructure, and the two are indistinguishable in a screenshot
+      # nobody downloads. Say which, in the log, where it is already being read.
+      echo "  app pid: $(adb shell pidof "$pkg" 2>/dev/null | tr -d '\r' || true)" >&2
+      echo "  focus: $(adb shell dumpsys window 2>/dev/null \
+        | grep -m1 -i 'mCurrentFocus' | tr -d '\r' || true)" >&2
+      echo "  last SurfaceDiag lines:" >&2
+      adb logcat -d 2>/dev/null | grep -F 'SurfaceDiag' | tail -8 \
+        | sed 's/^/    /' >&2 || true
       exit 1
     fi
     sleep 1
