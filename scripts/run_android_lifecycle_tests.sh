@@ -171,6 +171,16 @@ blue_site_id="ws-$run_tag-blue"
 b2_site_id="ws-$run_tag-b2"
 b3_site_id="ws-$run_tag-b3"
 
+# Every trigger _nudgeSurfaceRepaint takes, for the control that has to see a
+# blank. Naming only the reload-path ones left `metrics-resume` live, and
+# didChangeMetrics fires throughout a reload: it nudged 17 times and the
+# control measured nothing. A control is only a control if nothing Dart-side
+# can repaint behind it.
+all_repaint_triggers="route-return,metrics-resume,memory-pressure,resume,manual"
+all_repaint_triggers="$all_repaint_triggers,activate,fullscreen-toggle,fullscreen-exit"
+all_repaint_triggers="$all_repaint_triggers,back,tab-overlay-hide,tab-overlay-show"
+all_repaint_triggers="$all_repaint_triggers,controller-attach,reload,commit-settled"
+
 site_json() { # $1 = page basename, $2 = siteId, $3 = extra site fields (optional)
   printf '{"name":"Diag","url":"%s/%s","siteId":"%s"%s}' \
     "$base" "$1" "$2" "${3:-}"
@@ -621,7 +631,7 @@ echo "== Scenario B3-A: a committed reload with its repaint suppressed must blan
 adb shell am force-stop "$pkg"
 capped_start -n "$component" \
   --es ws_diag_seed "$(seed_b64 slow.html "$b3_site_id")" \
-  --es ws_diag_suppress_repaint "reload,commit-settled,controller-attach" \
+  --es ws_diag_suppress_repaint "$all_repaint_triggers" \
   --es siteId "$b3_site_id"
 wait_for_pixels b3-cold-start-dark 180 --expect-dominant "$dark"
 adb shell input keyevent 3
