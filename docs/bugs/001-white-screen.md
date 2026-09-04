@@ -448,6 +448,36 @@ who were told how to unlock it, so the falsifying report needs someone to ask fo
    ("a JS `offsetHeight` read does not [fix it]") and `_probeRendererAndRecover`'s
    ("the read alone fixes the blank surface") open. Deciding gap #5, and the fork
    pin with it, needs a device that actually goes white.
+
+   **The reload path answers the same way (2026-09-04, PR #576).** Gap #5's
+   warm start was one route; refresh is the other, and the one this bug was
+   reported on. It differs in the way that should matter: a warm start carries
+   a window visibility change and a reload does not, so nothing below Dart has
+   an obvious reason to repaint what a reload blanks. Scenario B3-A suppresses
+   all fourteen `_nudgeSurfaceRepaint` triggers, issues one reload of a page
+   that stalls 5s before its first byte, and samples *past* the commit -- blank
+   before it is a slow page, blank after it is the bug. The trace shows the
+   four suppressions and nothing else firing, and the surface came back
+   painted. So the emulator repaints reloads on its own too, and no route this
+   harness has can make it go white. B3-A is therefore opt-in
+   (`WS_RUN_BLANK_CONTROL=1`) and not run in CI: it is the right experiment for
+   hardware that reproduces, not for this one. Three of the attempts to get
+   there were instrument defects rather than evidence -- a suppression list
+   missing `_probeRendererAndRecover`, one missing `metrics-resume`, and a
+   dropped `os.chdir` that made every page 404 into a white error document that
+   looked exactly like the bug. Each is why the tier now prints the app pid,
+   the focused window, the page-server access log and the SurfaceDiag tail on
+   any pixel failure.
+
+   **The same run is the first direct evidence that PAUSE-027 works.**
+   Scenario B3-B drives five reloads 120ms apart against that 5s page, so four
+   commits abort before the fifth lands -- the shape that spent the old
+   one-shot latch on an aborted load. Every reload nudge coalesced into one
+   loop, and then `commit-settled` fired as a *fresh, uncoalesced* nudge when
+   the real document committed ~5s later, and the surface stayed painted. That
+   is the bounded commit window doing exactly what Attempt 11 built it for,
+   observed on a real surface rather than argued. B3-B runs unconditionally and
+   is now that fix's regression guard.
 12. **The trace is now honest but still opt-in.** `PAUSE-029` closed the coverage half
    of the diagnostic — every path reports, and a new one cannot be silent — but the
    developer-mode gate means a user who hits the bug has no trace *of the occurrence that
