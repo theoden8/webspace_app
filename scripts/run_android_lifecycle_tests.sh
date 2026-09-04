@@ -622,27 +622,41 @@ adb logcat -d 2>/dev/null | grep -F 'SurfaceDiag' \
 echo "   SurfaceDiag trace across the rapid reloads:"
 sed 's/^/     /' "$artifacts/b3b-surfacediag.txt" || true
 
-# POSITIVE CONTROL, and it runs last because it is expected to be the arm that
-# breaks first. Suppress every repaint on the reload path, issue one reload,
-# and wait past the commit before sampling: a blank BEFORE the commit is just a
-# slow page, a blank AFTER it is the bug. If this cannot go red then no B3
-# result means anything, which is exactly the trap B2 fell into.
-echo "== Scenario B3-A: a committed reload with its repaint suppressed must blank"
-adb shell am force-stop "$pkg"
-capped_start -n "$component" \
-  --es ws_diag_seed "$(seed_b64 slow.html "$b3_site_id")" \
-  --es ws_diag_suppress_repaint "$all_repaint_triggers" \
-  --es siteId "$b3_site_id"
-wait_for_pixels b3-cold-start-dark 180 --expect-dominant "$dark"
-adb shell input keyevent 3
-sleep 3
-adb logcat -c 2>/dev/null || true
-capped_start -n "$component" --es ws_diag_reload "1"
-wait_for_logcat b3-reload-nudge-suppressed 90 "trigger=reload suppressed"
-# Reload fires 1s after resume, the page commits ~5s later. Sample past that:
-# the question is whether the committed document reached the surface without
-# the Dart nudge, not whether a loading page is briefly blank.
-sleep 15
-wait_for_pixels b3-blank-after-suppressed-reload 25 --expect-blank
+# The blank control, OPT-IN and not run in CI. With all fourteen repaint
+# triggers suppressed and the trace showing nothing else fired, the surface
+# still came back painted after a commit that landed 5s behind the reload
+# (2026-09-04). That is the second path, after B2's warm start, where this
+# emulator repaints the platform view with no Dart help at all -- so the arm
+# cannot go red here and a green from it would mean nothing.
+#
+# It is kept because it is still the right experiment, just not for this
+# device: run it against hardware that actually goes white and it answers
+# BUG-001 gap #11, whether the nudge is what prevents the blank. Nothing in
+# the app is needed beyond a debug build:
+#
+#   WS_RUN_BLANK_CONTROL=1 bash scripts/run_android_lifecycle_tests.sh <serial>
+#
+# See docs/bugs/001-white-screen.md, gap #11.
+if [ "${WS_RUN_BLANK_CONTROL:-0}" != "1" ]; then
+  echo "== Scenario B3-A: SKIPPED (set WS_RUN_BLANK_CONTROL=1 on a device that reproduces)"
+else
+  echo "== Scenario B3-A: a committed reload with its repaint suppressed must blank"
+  adb shell am force-stop "$pkg"
+  capped_start -n "$component" \
+    --es ws_diag_seed "$(seed_b64 slow.html "$b3_site_id")" \
+    --es ws_diag_suppress_repaint "$all_repaint_triggers" \
+    --es siteId "$b3_site_id"
+  wait_for_pixels b3-cold-start-dark 180 --expect-dominant "$dark"
+  adb shell input keyevent 3
+  sleep 3
+  adb logcat -c 2>/dev/null || true
+  capped_start -n "$component" --es ws_diag_reload "1"
+  wait_for_logcat b3-reload-nudge-suppressed 90 "trigger=reload suppressed"
+  # Reload fires 1s after resume, the page commits ~5s later. Sample past that:
+  # the question is whether the committed document reached the surface without
+  # the Dart nudge, not whether a loading page is briefly blank.
+  sleep 15
+  wait_for_pixels b3-blank-after-suppressed-reload 25 --expect-blank
+fi
 
 echo "White-screen lifecycle + shortcut tier passed."
