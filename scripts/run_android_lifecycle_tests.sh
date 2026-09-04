@@ -146,6 +146,14 @@ if ! [[ "$port" =~ ^[0-9]+$ ]]; then
 fi
 base="http://10.0.2.2:$port"
 echo "Serving diag pages from $base (host pid $server_pid)"
+# Prove the server serves before blaming the app for a blank screen: a page the
+# emulator never received renders as a white error document, which is
+# indistinguishable from an unpainted surface in a screenshot.
+if ! curl -sf -o /dev/null "http://127.0.0.1:$port/dark.html"; then
+  echo "ERROR: page server did not serve dark.html to the host" >&2
+  cat "$server_log" >&2
+  exit 1
+fi
 
 # Per-run unique siteIds: no keyed state (cookies, containers, nav-state)
 # can bleed across runs, and the harness knows the id to activate. A plain
@@ -216,6 +224,8 @@ wait_for_pixels() { # $1 = slug, $2 = deadline secs, rest = classifier expectati
       echo "  app pid: $(adb shell pidof "$pkg" 2>/dev/null | tr -d '\r' || true)" >&2
       echo "  focus: $(adb shell dumpsys window 2>/dev/null \
         | grep -m1 -i 'mCurrentFocus' | tr -d '\r' || true)" >&2
+      echo "  page server access log (did the emulator fetch the page?):" >&2
+      tail -15 "$server_log" | sed 's/^/    /' >&2 || true
       echo "  last SurfaceDiag lines:" >&2
       adb logcat -d 2>/dev/null | grep -F 'SurfaceDiag' | tail -8 \
         | sed 's/^/    /' >&2 || true
