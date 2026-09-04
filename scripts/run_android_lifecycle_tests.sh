@@ -368,9 +368,41 @@ if [ -z "$job_ids" ]; then
   dump_bg_diagnostics no-workmanager-job
   exit 1
 fi
-echo "  forcing WorkManager job(s): $(echo "$job_ids" | tr '\n' ' ')"
-for id in $job_ids; do
-  adb shell cmd jobscheduler run -f "$pkg" "$id" || true
+echo "  WorkManager job(s) scheduled: $(echo "$job_ids" | tr '\n' ' ')"
+
+# The job exists, but it cannot be driven with `cmd jobscheduler run -f`:
+# that only bypasses JobScheduler's constraints, while WorkManager still
+# refuses a periodic WorkSpec whose next run time has not arrived ("executed
+# before schedule") and reschedules instead, so nothing reaches the worker.
+# Which of those two cases the forced job landed in depended on whether the
+# periodic work's first slot had already been spent, i.e. on a race. The
+# debug-build receiver enqueues a one-shot of the same worker, which runs the
+# leg this scenario is about; the schedule itself is asserted above.
+#
+# Both legs log under one tag. Read it filtered and counted rather than
+# sliced by timestamp: `adb logcat -t '<time>'` cannot carry a space through
+# adb's argument joining, and clearing the buffer would cost every later
+# scenario its history.
+bg_log() { adb logcat -d -s WebspaceBgRefresh:I 2>/dev/null | tr -d '\r' || true; }
+bg_log_hits() { bg_log | grep -c "$1" || true; }
+
+triggers_before="$(bg_log_hits 'debug trigger: enqueueing')"
+worker_runs_before="$(bg_log_hits 'NotificationRefreshWorker fired')"
+echo "  triggering a one-shot refresh via the debug receiver"
+adb shell am broadcast -n "$pkg/.NotificationRefreshDebugReceiver" >/dev/null
+
+# `am broadcast` reports the same result whether or not a receiver matched,
+# so confirm delivery instead of spending the 90s notification deadline on a
+# release APK that never declared the receiver.
+deadline=$(( $(date +%s) + 20 ))
+while [ "$(bg_log_hits 'debug trigger: enqueueing')" -le "$triggers_before" ]; do
+  if [ "$(date +%s)" -ge "$deadline" ]; then
+    echo "FAIL: the debug refresh receiver never fired — is the installed APK" \
+         "a debug build (src/debug declares the receiver)?" >&2
+    dump_bg_diagnostics no-debug-receiver
+    exit 1
+  fi
+  sleep 1
 done
 
 deadline=$(( $(date +%s) + 90 ))
@@ -383,7 +415,12 @@ while :; do
   if [ "$(date +%s)" -ge "$deadline" ]; then
     now_beacons="$(beacon_hits)"
     now_pid="$(app_pid)"
-    echo "FAIL: no new notification within 90s of forcing the refresh job" >&2
+    # "the worker never ran" and "the worker ran but Dart never reloaded" are
+    # the same silence from outside, and reading the second for the first is
+    # what made the last failure unreadable. The worker's own log line splits
+    # them.
+    worker_runs_now="$(bg_log_hits 'NotificationRefreshWorker fired')"
+    echo "FAIL: no new notification within 90s of the refresh trigger" >&2
     echo "  notification identities unchanged (page loads: $baseline_beacons -> $now_beacons)" >&2
     if [ "$now_beacons" -gt "$baseline_beacons" ]; then
       echo "  the site DID reload in the background — the break is downstream," \
@@ -393,10 +430,15 @@ while :; do
            "the OS reclaimed it while backgrounded, so the worker had no engine to" \
            "dispatch to. NOTIF-005-A accepts that; this is emulator memory pressure," \
            "not the dispatch leg." >&2
+    elif [ "$worker_runs_now" -le "$worker_runs_before" ]; then
+      echo "  the worker never ran — the break is in the trigger, before" \
+           "NotificationRefreshWorker.doWork (WorkManager never dispatched it)" >&2
     else
       echo "  the site did NOT reload — the break is upstream," \
            "in the worker -> engine dispatch -> onBackgroundRefresh leg" >&2
     fi
+    echo "  WebspaceBgRefresh logcat:" >&2
+    bg_log | tail -20 | sed 's/^/    /' >&2
     dump_bg_diagnostics notif-refresh
     exit 1
   fi

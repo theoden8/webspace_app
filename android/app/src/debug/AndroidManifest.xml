@@ -4,4 +4,15 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+
+    <application>
+        <!-- Debug builds only (this manifest is not merged into any release
+             build), so the adb lifecycle tier can run one background refresh
+             on demand. Exported because `am broadcast` reaches it from the
+             shell uid; see NotificationRefreshDebugReceiver for why the
+             periodic job cannot be forced instead. -->
+        <receiver
+            android:name=".NotificationRefreshDebugReceiver"
+            android:exported="true"/>
+    </application>
 </manifest>

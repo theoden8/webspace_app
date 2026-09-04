@@ -18,8 +18,9 @@ import 'package:webspace/services/log_service.dart';
 ///
 ///   - [scheduleNextRefresh] — submits a `BGAppRefreshTaskRequest` on
 ///     iOS, an `androidx.work` `PeriodicWorkRequest` on Android (15-min
-///     minimum, `NetworkType.CONNECTED`). The system fires whenever it
-///     deems appropriate.
+///     minimum, `NetworkType.CONNECTED`, first run one interval out so a
+///     freshly scheduled refresh does not reload the site the user just
+///     opened). The system fires whenever it deems appropriate.
 ///
 ///   - [cancelScheduledRefreshes] — cancels the iOS request / Android
 ///     unique work. Use when the last notification site goes away.

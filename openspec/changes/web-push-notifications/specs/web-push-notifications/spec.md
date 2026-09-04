@@ -190,15 +190,25 @@ On Android, the system SHALL mirror the iOS opportunistic-refresh strategy: sche
 
 The `ProxyController` is a process-wide singleton, so concurrent background-poll sites with different proxy configurations remain unsupported even under the refresh model — proxies thrash when reloads run back-to-back.
 
+The request SHALL carry an initial delay of one interval. WorkManager treats the first period of a `PeriodicWorkRequest` as due at enqueue time (`WorkSpec.calculateNextRunTime` returns `lastEnqueueTime` while `periodCount == 0`), so without the delay the refresh fires seconds after the first notification site is loaded and reloads the page the user just opened — the native refresh path does not exclude the active site, and `reloadAndRepaint` drops its painted frame. Nothing is lost by waiting: while a site is loaded its page JS is running and fires notifications live through the polyfill; the refresh only matters once the app has been backgrounded for a while.
+
 #### Scenario: At least one notification site loaded — refresh is scheduled
 
 **Given** the platform is Android
 **And** Site A has `backgroundPoll == true` and is loaded
 **When** the app enters the background
-**Then** a `WorkManager` `PeriodicWorkRequest` is enqueued under the unique name `webspace-notification-refresh` with a 15-minute interval and `NetworkType.CONNECTED` constraint
+**Then** a `WorkManager` `PeriodicWorkRequest` is enqueued under the unique name `webspace-notification-refresh` with a 15-minute interval, a 15-minute initial delay, and `NetworkType.CONNECTED` constraint
 **And** no foreground service is started
 **And** no persistent notification is shown
 **And** the OS gives the process its normal short grace before freezing — no explicit `beginBackgroundTask`-equivalent is used (Android has none without a foreground service)
+
+#### Scenario: A newly scheduled refresh does not fire immediately
+
+**Given** the platform is Android
+**And** no notification site was loaded, so the unique work was cancelled
+**When** a notification site is loaded and the periodic refresh is enqueued afresh
+**Then** the first refresh runs one interval later, not at enqueue time
+**And** the site the user just opened is not reloaded underneath them
 
 #### Scenario: WorkManager fires while the Flutter engine is alive — sites reload
 
