@@ -44,4 +44,24 @@ class SiteActivationEngine {
     }
     return null;
   }
+
+  /// The index whose webview must be quiesced when [targetIndex] becomes
+  /// active, or `null` if none is.
+  ///
+  /// A tap on the site already showing is not a switch. That site is resumed
+  /// moments later, so quiescing it would stop its media, end a camera
+  /// capture it is running, and — on iOS, where the per-instance pause is the
+  /// plugin's `alert()` hack — strand that alert for the resume to expose as
+  /// an empty system dialog (PAUSE-030).
+  static int? outgoingSiteToQuiesce({
+    required int? currentIndex,
+    required int targetIndex,
+    required int siteCount,
+    required Set<int> loadedIndices,
+  }) {
+    if (currentIndex == null || currentIndex == targetIndex) return null;
+    if (currentIndex < 0 || currentIndex >= siteCount) return null;
+    if (!loadedIndices.contains(currentIndex)) return null;
+    return currentIndex;
+  }
 }

@@ -47,6 +47,8 @@ The only way to truly silence a site is `disposeWebView()` — which tears down 
 
 The system SHALL pause the previously active webview on site switch using the per-instance API only, with no process-global side effects. Exempt: notification sites (`notificationsEnabled`) and background-audio sites (`effectiveBackgroundAudioEnabled`, BGAUDIO-001 in [background-audio](../background-audio/spec.md)) — `pauseWebView()` early-returns for both, since the iOS per-instance pause freezes the page's JS thread.
 
+A tap on the site that is **already active** is not a switch and SHALL quiesce nothing: the outgoing and incoming site are the same webview, and the teardown would run against a site that is resumed a few statements later. `SiteActivationEngine.outgoingSiteToQuiesce` decides this — it names the outgoing index only when there is a *different*, in-bounds, loaded site to leave. Skipping matters beyond the wasted work: the teardown ends a camera capture the site is running (CAM-012) and pauses its media (BGAUDIO-009), and on iOS its `pauseWebView()` strands the alert-hack alert for the resume moments later to expose as an empty system dialog (PAUSE-030) — which made a self-tap raise an empty popup every time, on any site.
+
 #### Scenario: Site switch from A to B
 
 **Given** sites A and B are both loaded
@@ -56,6 +58,14 @@ The system SHALL pause the previously active webview on site switch using the pe
 **And** A's controller receives `pause()` (Android: **no-op**, see PAUSE-016; iOS: per-instance `pauseTimers()` alert hack)
 **And** A's controller does NOT receive `pauseAllJsTimers()`
 **And** B's JS timers are unaffected by A's pause
+
+#### Scenario: Tapping the site already on screen
+
+**Given** site A is the currently active site
+**When** the user taps A in the drawer or tab strip
+**Then** no site is quiesced — A is not paused, its media keeps playing and a camera capture it is running is not ended
+**And** A is still resumed and re-added to `_loadedIndices` as the activation completes
+**And** no empty system dialog appears on iOS
 
 #### Scenario: Sites loaded but never previously active also get paused
 
@@ -983,6 +993,51 @@ This narrows PAUSE-001 and PAUSE-002 on Android only: the call sites and call or
 
 ---
 
+### Requirement: PAUSE-030 — The Alert-Hack Pause Never Surfaces Its Own Dialog
+
+The iOS/macOS `pauseTimers()` is the plugin's `alert()` deadlock: it marks the webview paused and evaluates `alert()`, and the native `WKUIDelegate` blocks the page's JS thread by withholding that alert's dismissal callback for as long as the mark is set. `resumeTimers()` clears the mark on the next site switch, app resume or dispose — whether or not the alert has been delivered yet. But `evaluateJavaScript` queues behind the page's own JS, so on a busy or still-loading page the alert can land *after* the mark is gone, fall through to the app's `onJsAlert`, and be presented as a real system dialog. `alert()` is called with no argument, so what the user sees is an **empty system popup** with an OK button, over whichever site they just switched to.
+
+Every webview the app creates SHALL therefore answer that escaped alert itself instead of letting the plugin present it:
+
+- A webview records whether an alert-hack `pauseTimers()` has ever been issued on it. Both levers count: the per-instance `pause()` (PAUSE-001, iOS) and `pauseAllJsTimers()` (PAUSE-002), which on iOS and macOS lands on the same hack because neither has a process-global timer pause.
+- An `onJsAlert` carrying **no message**, from the **main frame**, on a webview with that record, MUST be answered `handledByClient` so WebKit drops it silently. Every other alert MUST return null and keep the plugin's default dialog, unchanged.
+- Answering it cannot cut a live pause short: the native delegate consults Dart only *after* its own paused check, so while the pause is live the alert never reaches Dart at all. Anything that gets there belongs to a pause that is already over, and answering releases the page's JS thread — which is what the resume asked for.
+- The record is sticky. The hack leaves an alert queued in the page's JS event loop with no signal for when it was consumed, so there is no point at which it could be cleared without re-opening the escape. A page's own messageless main-frame `alert('')` on an already-paused webview is swallowed as collateral: it is indistinguishable from the hack's, and it renders as an empty dialog carrying no information either way.
+
+This is a funnel: it belongs to webview construction (`WebViewFactory.createWebView`), so the site webview and the nested `InAppWebViewScreen` both inherit it rather than each wiring its own. Popup webviews (`createPopupWebView`) are outside it and need nothing — they are never handed a controller wrapper, so no pause is ever issued on them. The record is a **required** constructor parameter of the controller wrapper, so a future webview path that issues a pause cannot compile without one — the gate is the type, not a grep.
+
+#### Scenario: Switching away and straight back does not raise a popup
+
+**Given** iOS with site A loaded, whose page is still running its load scripts
+**When** the user switches to site B (A is per-instance paused, queueing the hack's `alert()` behind A's JS) and switches back to A before that alert runs
+**Then** `resumeTimers()` has already cleared the plugin's paused mark, so the alert reaches the app's `onJsAlert`
+**And** the app recognises it as the hack's own (no message, main frame, pause was issued) and answers `handledByClient`
+**And** no system dialog is presented
+**And** A's JS thread is released
+
+#### Scenario: A page's real alert still shows
+
+**Given** iOS with site A, which has been paused and resumed at least once
+**When** A's page calls `alert('Session expired')`
+**Then** `onJsAlert` returns null
+**And** the plugin presents its usual dialog with that message
+
+#### Scenario: An empty alert on a never-paused webview still shows
+
+**Given** a freshly created webview that has never been per-instance paused
+**When** its page calls `alert('')`
+**Then** the app returns null and the plugin's dialog is presented
+**And** nothing in the pause machinery is implicated
+
+#### Scenario: The app-lifecycle global pause is covered too
+
+**Given** iOS or macOS, where `pauseAllJsTimers()` maps to the same per-instance `alert()` hack
+**When** the app is backgrounded and foregrounded quickly enough that the alert lands after `resumeAllJsTimers()`
+**Then** the escaped alert is swallowed by the same funnel
+**And** the user sees no empty popup on returning to the app
+
+---
+
 ### Requirement: PAUSE-004 — Null-Safe Controller Access
 
 `pauseWebView()`, `resumeWebView()`, `pauseForAppLifecycle()`, and `resumeFromAppLifecycle()` SHALL be no-ops when the underlying controller has not yet been initialized or has been disposed.
@@ -1122,9 +1177,22 @@ class _WebViewController implements WebViewController {
   }
 
   @override
-  Future<void> pauseAllJsTimers() => _c.pauseTimers();
+  Future<void> pauseAllJsTimers() {
+    if (pauseTimersUsesAlertHack(...)) _pauseHack.notePauseIssued();  // PAUSE-030
+    return _c.pauseTimers();
+  }
   // ... resume mirrors pause ...
 }
+
+// PAUSE-030: telling the alert hack's own stranded alert apart from a dialog
+// the page asked for. Both pure; the record is per webview.
+bool pauseTimersUsesAlertHack({
+  required bool isAndroid, required bool isIOS, required bool isMacOS,
+});
+class PauseTimersHackState { bool get pauseWasIssued; void notePauseIssued(); }
+bool isEscapedPauseTimersAlert({
+  required bool pauseWasIssued, required String? message, required bool? isMainFrame,
+});
 ```
 
 ### Call Sites
@@ -1137,7 +1205,12 @@ class _WebViewController implements WebViewController {
 [lib/main.dart](../../lib/main.dart):
 
 - `didChangeAppLifecycleState`: calls `pauseForAppLifecycle()` / `resumeFromAppLifecycle()`.
-- `_setCurrentIndex`: calls `pauseWebView()` / `resumeWebView()`.
+- `_setCurrentIndex`: calls `pauseWebView()` / `resumeWebView()`, with the outgoing site named by `SiteActivationEngine.outgoingSiteToQuiesce` (PAUSE-001).
+
+`WebViewFactory.createWebView` ([lib/services/webview.dart](../../lib/services/webview.dart)):
+
+- Builds one `PauseTimersHackState` per webview, hands it to that webview's
+  `_WebViewController`, and reads it from the widget's `onJsAlert` (PAUSE-030).
 
 ### Tests
 
@@ -1151,14 +1224,23 @@ class _WebViewController implements WebViewController {
 - PAUSE-016: `perInstanceLifecycleCallFor` returns `none` for Android and
   desktop, `timers` for iOS — verifying the Android per-instance no-op without
   a native controller.
+- PAUSE-001: `test/site_activation_engine_test.dart` — `outgoingSiteToQuiesce`
+  names nothing for a self-tap, for a null or unloaded outgoing index, or for
+  one left out of bounds by a deletion, and the outgoing index for a real
+  switch.
+- PAUSE-030: `pauseTimersUsesAlertHack` names iOS and macOS but not Android;
+  `isEscapedPauseTimersAlert` swallows only a messageless main-frame alert on a
+  webview that has been paused, and leaves a page's own dialog, a subframe
+  alert and a never-paused webview alone; the record is sticky.
 
 ## Files
 
 ### Modified
 
-- `lib/services/webview.dart` — split the `WebViewController` interface; `_WebViewController.pause()` no longer calls `pauseTimers()`.
+- `lib/services/webview.dart` — split the `WebViewController` interface; `_WebViewController.pause()` no longer calls `pauseTimers()`; `createWebView` wires the PAUSE-030 `onJsAlert` funnel.
 - `lib/web_view_model.dart` — added `pauseForAppLifecycle()` / `resumeFromAppLifecycle()`; updated docs on `pauseWebView()` / `resumeWebView()`.
-- `lib/main.dart` — `didChangeAppLifecycleState` and `_resumeAfterLifecyclePause` use the lifecycle-named methods.
+- `lib/main.dart` — `didChangeAppLifecycleState` and `_resumeAfterLifecyclePause` use the lifecycle-named methods; `_setCurrentIndex` asks the engine which site to quiesce.
+- `lib/services/site_activation_engine.dart` — `outgoingSiteToQuiesce`.
 
 ### Added
 

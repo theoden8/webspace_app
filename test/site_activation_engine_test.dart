@@ -148,4 +148,79 @@ void main() {
       expect(result, anyOf(1, 2));
     });
   });
+
+  group('SiteActivationEngine.outgoingSiteToQuiesce', () {
+    test('tapping the site already active quiesces nothing (PAUSE-030)', () {
+      expect(
+        SiteActivationEngine.outgoingSiteToQuiesce(
+          currentIndex: 2,
+          targetIndex: 2,
+          siteCount: 4,
+          loadedIndices: {0, 2},
+        ),
+        isNull,
+        reason: 'The site is resumed moments later; pausing it first strands '
+            "the iOS pause hack's alert and stops its media.",
+      );
+    });
+
+    test('a real switch quiesces the outgoing site', () {
+      expect(
+        SiteActivationEngine.outgoingSiteToQuiesce(
+          currentIndex: 2,
+          targetIndex: 3,
+          siteCount: 4,
+          loadedIndices: {0, 2, 3},
+        ),
+        2,
+      );
+    });
+
+    test('nothing to quiesce when no site is active', () {
+      expect(
+        SiteActivationEngine.outgoingSiteToQuiesce(
+          currentIndex: null,
+          targetIndex: 1,
+          siteCount: 4,
+          loadedIndices: {1},
+        ),
+        isNull,
+      );
+    });
+
+    test('an unloaded outgoing site has no webview to quiesce', () {
+      expect(
+        SiteActivationEngine.outgoingSiteToQuiesce(
+          currentIndex: 2,
+          targetIndex: 3,
+          siteCount: 4,
+          loadedIndices: {3},
+        ),
+        isNull,
+      );
+    });
+
+    test('an out-of-bounds outgoing index is ignored', () {
+      expect(
+        SiteActivationEngine.outgoingSiteToQuiesce(
+          currentIndex: 7,
+          targetIndex: 1,
+          siteCount: 4,
+          loadedIndices: {1, 7},
+        ),
+        isNull,
+        reason: 'Deletion can shift indices out from under an in-flight '
+            'activation.',
+      );
+      expect(
+        SiteActivationEngine.outgoingSiteToQuiesce(
+          currentIndex: -1,
+          targetIndex: 1,
+          siteCount: 4,
+          loadedIndices: {1, -1},
+        ),
+        isNull,
+      );
+    });
+  });
 }

@@ -4045,9 +4045,16 @@ class _WebSpacePageState extends State<WebSpacePage>
       }
     }
 
-    // Pause the previously active webview to save resources
-    if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
-      await _quiesceOutgoingSite(_webViewModels[_currentIndex!], version,
+    // Pause the previously active webview to save resources. Nothing to do
+    // when the user tapped the site they are already on — see the engine.
+    final outgoing = SiteActivationEngine.outgoingSiteToQuiesce(
+      currentIndex: _currentIndex,
+      targetIndex: index,
+      siteCount: _webViewModels.length,
+      loadedIndices: _loadedIndices,
+    );
+    if (outgoing != null) {
+      await _quiesceOutgoingSite(_webViewModels[outgoing], version,
           captureState: false);
       if (version != _setCurrentIndexVersion) return;
     }
