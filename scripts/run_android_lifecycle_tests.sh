@@ -81,6 +81,7 @@ page '#123524' 'magenta.html' > "$www/dark.html"
 page '#8c1d5a' > "$www/magenta.html"
 page '#ffffff' > "$www/white.html"
 page '#1d3f8c' > "$www/blue.html"
+page '#123524' > "$www/slow.html"
 
 # Same dark fill, plus a JS Notification on every load: a forced
 # background refresh reloads the page, so a new OS notification is the
@@ -111,10 +112,23 @@ cat > "$www/notif.html" <<'EOF'
 EOF
 
 python3 - "$www" > "$server_log" 2>&1 <<'EOF' &
-import http.server, os, sys
-os.chdir(sys.argv[1])
-srv = http.server.ThreadingHTTPServer(('0.0.0.0', 0),
-                                      http.server.SimpleHTTPRequestHandler)
+import http.server, os, sys, time
+
+
+class Handler(http.server.SimpleHTTPRequestHandler):
+    def do_GET(self):
+        # `slow.html` stalls before the first byte. BUG-001's blank is the gap
+        # between a reload discarding the painted frame and the replacement
+        # committing, and a 200-byte page off localhost closes that gap faster
+        # than a 1 Hz screencap sampler can see -- which is the regime the app
+        # is never wrong in. A slow commit is the regime the bug was reported
+        # in, and the one Attempts 9/10/11 are all about.
+        if self.path.startswith('/slow'):
+            time.sleep(5)
+        return super().do_GET()
+
+
+srv = http.server.ThreadingHTTPServer(('0.0.0.0', 0), Handler)
 print(srv.server_address[1], flush=True)
 srv.serve_forever()
 EOF
@@ -541,37 +555,50 @@ else
 fi
 
 # Scenario B3 goes after the path BUG-001 was actually reported on: refresh.
-# B2 found that the emulator repaints a warm-started surface on its own, but a
-# warm start carries a window visibility change and a reload does not, so
-# nothing below Dart has a reason to repaint what a reload blanks. That makes
-# this the path where suppressing the Dart repaint should be visible, and it is
-# the one no scenario could reach before (refresh lives in the overflow menu,
-# which adb cannot drive; `ws_diag_reload` calls the same `reloadAndRepaint`
-# funnel the menu item does).
+# B2 found the emulator repaints a warm-started surface on its own, but a warm
+# start carries a window visibility change and a reload does not, so nothing
+# below Dart has a reason to repaint what a reload blanks. Refresh is also the
+# one path no scenario could reach (it lives in the overflow menu, which adb
+# cannot drive); `ws_diag_reload` calls the same `reloadAndRepaint` funnel.
 #
-# Two arms, and the first is the point:
+# Both arms load `slow.html`, which stalls 5s before its first byte. The first
+# attempt used the instant localhost page and proved nothing: the replacement
+# committed inside a single sampler tick, so the blank window the bug is about
+# never existed to be photographed. A slow commit is the regime the bug was
+# reported in and the one Attempts 9/10/11 all address.
 #
-#   A. POSITIVE CONTROL. Suppress every repaint on the reload path and issue one
-#      reload. The surface MUST go blank. If it does, three things are settled
-#      at once: the reload really does blank the surface (BUG-001's mechanism,
-#      observed rather than argued), this harness can see a white screen through
-#      this route at all, and the Dart nudge is what prevents it -- gap #11, the
-#      largest untested premise in the whole lineage. If it comes back painted,
-#      something below Dart repaints reloads too and the nudge is unnecessary
-#      here, which is equally worth knowing.
-#
-#   B. THE LIVE TEST. Same page, no suppression, several rapid reloads. Asserts
-#      the surface stays painted. Red here is the user-reported bug reproduced
-#      on current code, after the bounded commit window (PAUSE-027) that was
-#      supposed to fix exactly this.
-#
-# Arm A is why B2's shape is not repeated: a scenario that asserts a green
-# without a control that can go red proves nothing, which is how B2 passed for
-# two runs while measuring nothing.
-echo "== Scenario B3-A: a reload with its repaint suppressed must blank (control)"
+# The live test runs FIRST so a failing control cannot abort it -- it is the arm
+# that can find a real bug, and it is the user's reported symptom.
+echo "== Scenario B3-B: rapid reloads of a slow page stay painted (PAUSE-027)"
 adb shell am force-stop "$pkg"
 capped_start -n "$component" \
-  --es ws_diag_seed "$(seed_b64 dark.html "$b3_site_id")" \
+  --es ws_diag_seed "$(seed_b64 slow.html "$b3_site_id")" \
+  --es siteId "$b3_site_id"
+wait_for_pixels b3b-cold-start-dark 180 --expect-dominant "$dark"
+adb shell input keyevent 3
+sleep 3
+adb logcat -c 2>/dev/null || true
+# Five reloads 120ms apart against a 5s page: each lands while the previous is
+# still in flight, so four commits are aborted before the fifth lands. That is
+# the shape that spent the old one-shot latch on an aborted load and left the
+# surface blank (BUG-001 / PAUSE-027).
+capped_start -n "$component" --es ws_diag_reload "5"
+sleep 20
+wait_for_pixels b3b-rapid-reload-stays-painted 60 --expect-dominant "$dark"
+adb logcat -d 2>/dev/null | grep -F 'SurfaceDiag' \
+  > "$artifacts/b3b-surfacediag.txt" || true
+echo "   SurfaceDiag trace across the rapid reloads:"
+sed 's/^/     /' "$artifacts/b3b-surfacediag.txt" || true
+
+# POSITIVE CONTROL, and it runs last because it is expected to be the arm that
+# breaks first. Suppress every repaint on the reload path, issue one reload,
+# and wait past the commit before sampling: a blank BEFORE the commit is just a
+# slow page, a blank AFTER it is the bug. If this cannot go red then no B3
+# result means anything, which is exactly the trap B2 fell into.
+echo "== Scenario B3-A: a committed reload with its repaint suppressed must blank"
+adb shell am force-stop "$pkg"
+capped_start -n "$component" \
+  --es ws_diag_seed "$(seed_b64 slow.html "$b3_site_id")" \
   --es ws_diag_suppress_repaint "reload,commit-settled,controller-attach" \
   --es siteId "$b3_site_id"
 wait_for_pixels b3-cold-start-dark 180 --expect-dominant "$dark"
@@ -580,25 +607,10 @@ sleep 3
 adb logcat -c 2>/dev/null || true
 capped_start -n "$component" --es ws_diag_reload "1"
 wait_for_logcat b3-reload-nudge-suppressed 90 "trigger=reload suppressed"
-wait_for_pixels b3-blank-after-suppressed-reload 60 --expect-blank
-
-echo "== Scenario B3-B: rapid reloads keep the surface painted (BUG-001/PAUSE-027)"
-adb shell am force-stop "$pkg"
-capped_start -n "$component" \
-  --es ws_diag_seed "$(seed_b64 dark.html "$b3_site_id")" \
-  --es siteId "$b3_site_id"
-wait_for_pixels b3b-cold-start-dark 180 --expect-dominant "$dark"
-adb shell input keyevent 3
-sleep 3
-adb logcat -c 2>/dev/null || true
-# Five reloads 120ms apart: each lands while the previous is still in flight,
-# which is the shape that spent the old one-shot latch on an aborted load.
-capped_start -n "$component" --es ws_diag_reload "5"
-sleep 12
-wait_for_pixels b3b-rapid-reload-stays-painted 60 --expect-dominant "$dark"
-adb logcat -d 2>/dev/null | grep -F 'SurfaceDiag' \
-  > "$artifacts/b3b-surfacediag.txt" || true
-echo "   SurfaceDiag trace across the rapid reloads:"
-sed 's/^/     /' "$artifacts/b3b-surfacediag.txt" || true
+# Reload fires 1s after resume, the page commits ~5s later. Sample past that:
+# the question is whether the committed document reached the surface without
+# the Dart nudge, not whether a loading page is briefly blank.
+sleep 15
+wait_for_pixels b3-blank-after-suppressed-reload 25 --expect-blank
 
 echo "White-screen lifecycle + shortcut tier passed."
