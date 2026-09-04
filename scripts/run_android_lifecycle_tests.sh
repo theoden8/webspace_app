@@ -114,6 +114,8 @@ EOF
 python3 - "$www" > "$server_log" 2>&1 <<'EOF' &
 import http.server, os, sys, time
 
+os.chdir(sys.argv[1])
+
 
 class Handler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
