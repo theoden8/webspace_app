@@ -165,6 +165,12 @@ class ProxyRouterEngine {
         'port': 0,
       };
     }
+    // A TOR setting keeps the user's previous manual proxy address so
+    // switching back restores it (PROXY-010), and the router is Android-only
+    // while the Tor runtime is iOS-only. Encoding that leftover address would
+    // route a Tor site through an unrelated proxy in clear, so drop the route
+    // and let the relay answer 502 instead (TOR-008).
+    if (proxy.type == ProxyType.TOR) return null;
     final address = proxy.address;
     if (address == null) return null;
     final separator = address.lastIndexOf(':');
