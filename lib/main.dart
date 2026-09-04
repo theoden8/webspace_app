@@ -1851,6 +1851,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       // was recreated and the platform-view surface came back blank. See
       // PAUSE-015.
       _nudgeSurfaceRepaint('resume');
+      unawaited(_handleDiagReload());
       // A repaint cannot recover a page that never loaded. Re-issue a load
       // the OS stranded while we were backgrounded, against the same
       // now-final visible site. Runs long (bounded retries with a backoff),
@@ -2118,6 +2119,31 @@ class _WebSpacePageState extends State<WebSpacePage>
       unawaited(_probeRendererAndRecover(_webViewModels[idx], trigger: 'manual'));
     }
     _nudgeSurfaceRepaint('manual');
+  }
+
+  /// Adb white-screen tier only (INTEG-011): issue the launch intent's
+  /// requested reloads through the production refresh funnel.
+  ///
+  /// The reload path is the one BUG-001 was reported on and the one no
+  /// scenario could reach, because refresh lives in the overflow menu. It also
+  /// differs from a warm start in the way that matters: a reload carries no
+  /// window visibility change, so nothing below Dart has a reason to repaint
+  /// the surface it blanks.
+  ///
+  /// Delayed so the resume nudge that necessarily precedes it has drained;
+  /// otherwise its tick loop repaints the surface the reload just blanked and
+  /// the scenario measures the resume instead of the reload.
+  Future<void> _handleDiagReload() async {
+    final count = await DiagSeed.takeReloadRequest();
+    if (count == null || count <= 0 || !mounted) return;
+    await Future.delayed(const Duration(seconds: 1));
+    for (var i = 0; i < count; i++) {
+      if (!mounted) return;
+      final idx = _currentIndex;
+      if (idx == null || idx < 0 || idx >= _webViewModels.length) return;
+      unawaited(_webViewModels[idx].reloadAndRepaint());
+      await Future.delayed(const Duration(milliseconds: 120));
+    }
   }
 
   Future<void> _handleShortcutIntent() async {

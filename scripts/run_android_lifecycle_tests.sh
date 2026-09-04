@@ -145,6 +145,7 @@ white_site_id="ws-$run_tag-white"
 notif_site_id="ws-$run_tag-notif"
 blue_site_id="ws-$run_tag-blue"
 b2_site_id="ws-$run_tag-b2"
+b3_site_id="ws-$run_tag-b3"
 
 site_json() { # $1 = page basename, $2 = siteId, $3 = extra site fields (optional)
   printf '{"name":"Diag","url":"%s/%s","siteId":"%s"%s}' \
@@ -198,6 +199,14 @@ wait_for_pixels() { # $1 = slug, $2 = deadline secs, rest = classifier expectati
     fi
     sleep 1
   done
+}
+
+# `am start -W` blocks until the launch reports complete; a start that never
+# reports would burn the whole emulator step. Cap it and let the pixel check
+# decide -- it produces the screenshot and logcat a bare hang does not.
+capped_start() {
+  timeout 120 adb shell am start -W "$@" \
+    || echo "  (am start -W did not return in 120s; continuing to pixels)"
 }
 
 wait_for_logcat() { # $1 = slug, $2 = deadline secs, $3 = literal pattern
@@ -500,14 +509,7 @@ else
   # to restore. (`pm clear` would also work, but mid-suite it left `am start
   # -W` blocked past the step budget.)
   adb shell am force-stop "$pkg"
-  # `am start -W` blocks until the launch reports complete; a start that never
-  # reports would burn the whole emulator step. Cap it and let the pixel check
-  # decide -- it produces the screenshot and logcat a bare hang does not.
-  b2_start() {
-    timeout 120 adb shell am start -W "$@" \
-      || echo "  (am start -W did not return in 120s; continuing to pixels)"
-  }
-  b2_start -n "$component" \
+  capped_start -n "$component" \
     --es ws_diag_seed "$(seed_b64 dark.html "$b2_site_id")" \
     --es ws_diag_suppress_repaint "resume,metrics-resume" \
     --es siteId "$b2_site_id"
@@ -520,7 +522,7 @@ else
   # start's. Without this assertion a green B2 is unreadable: "the native layer
   # repainted" and "the suppression never armed" produce the same dark frame.
   adb logcat -c 2>/dev/null || true
-  b2_start -n "$component"
+  capped_start -n "$component"
   wait_for_logcat b2-resume-nudge-suppressed 60 "trigger=resume suppressed"
   # Two independent Dart paths repaint on resume, both under the trigger name
   # `resume`: the nudge funnel, and the renderer probe, whose offsetHeight read
@@ -537,5 +539,66 @@ else
   echo "   SurfaceDiag trace across the warm start:"
   sed 's/^/     /' "$artifacts/b2-surfacediag.txt" || true
 fi
+
+# Scenario B3 goes after the path BUG-001 was actually reported on: refresh.
+# B2 found that the emulator repaints a warm-started surface on its own, but a
+# warm start carries a window visibility change and a reload does not, so
+# nothing below Dart has a reason to repaint what a reload blanks. That makes
+# this the path where suppressing the Dart repaint should be visible, and it is
+# the one no scenario could reach before (refresh lives in the overflow menu,
+# which adb cannot drive; `ws_diag_reload` calls the same `reloadAndRepaint`
+# funnel the menu item does).
+#
+# Two arms, and the first is the point:
+#
+#   A. POSITIVE CONTROL. Suppress every repaint on the reload path and issue one
+#      reload. The surface MUST go blank. If it does, three things are settled
+#      at once: the reload really does blank the surface (BUG-001's mechanism,
+#      observed rather than argued), this harness can see a white screen through
+#      this route at all, and the Dart nudge is what prevents it -- gap #11, the
+#      largest untested premise in the whole lineage. If it comes back painted,
+#      something below Dart repaints reloads too and the nudge is unnecessary
+#      here, which is equally worth knowing.
+#
+#   B. THE LIVE TEST. Same page, no suppression, several rapid reloads. Asserts
+#      the surface stays painted. Red here is the user-reported bug reproduced
+#      on current code, after the bounded commit window (PAUSE-027) that was
+#      supposed to fix exactly this.
+#
+# Arm A is why B2's shape is not repeated: a scenario that asserts a green
+# without a control that can go red proves nothing, which is how B2 passed for
+# two runs while measuring nothing.
+echo "== Scenario B3-A: a reload with its repaint suppressed must blank (control)"
+adb shell am force-stop "$pkg"
+capped_start -n "$component" \
+  --es ws_diag_seed "$(seed_b64 dark.html "$b3_site_id")" \
+  --es ws_diag_suppress_repaint "reload,commit-settled,controller-attach" \
+  --es siteId "$b3_site_id"
+wait_for_pixels b3-cold-start-dark 180 --expect-dominant "$dark"
+adb shell input keyevent 3
+sleep 3
+adb logcat -c 2>/dev/null || true
+capped_start -n "$component" --es ws_diag_reload "1"
+wait_for_logcat b3-reload-nudge-suppressed 90 "trigger=reload suppressed"
+wait_for_pixels b3-blank-after-suppressed-reload 60 --expect-blank
+
+echo "== Scenario B3-B: rapid reloads keep the surface painted (BUG-001/PAUSE-027)"
+adb shell am force-stop "$pkg"
+capped_start -n "$component" \
+  --es ws_diag_seed "$(seed_b64 dark.html "$b3_site_id")" \
+  --es siteId "$b3_site_id"
+wait_for_pixels b3b-cold-start-dark 180 --expect-dominant "$dark"
+adb shell input keyevent 3
+sleep 3
+adb logcat -c 2>/dev/null || true
+# Five reloads 120ms apart: each lands while the previous is still in flight,
+# which is the shape that spent the old one-shot latch on an aborted load.
+capped_start -n "$component" --es ws_diag_reload "5"
+sleep 12
+wait_for_pixels b3b-rapid-reload-stays-painted 60 --expect-dominant "$dark"
+adb logcat -d 2>/dev/null | grep -F 'SurfaceDiag' \
+  > "$artifacts/b3b-surfacediag.txt" || true
+echo "   SurfaceDiag trace across the rapid reloads:"
+sed 's/^/     /' "$artifacts/b3b-surfacediag.txt" || true
 
 echo "White-screen lifecycle + shortcut tier passed."

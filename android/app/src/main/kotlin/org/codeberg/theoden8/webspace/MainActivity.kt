@@ -163,6 +163,18 @@ class MainActivity: FlutterActivity() {
                         }
                     )
                 }
+                "getDiagReload" -> {
+                    // Adb white-screen tier (INTEG-011). The refresh funnel
+                    // is only reachable from the overflow menu, which adb
+                    // cannot drive; same debuggable gate as the seed. Drained
+                    // on read so a later resume does not reload again.
+                    val debuggable =
+                        (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+                    val spec =
+                        if (debuggable) intent?.getStringExtra("ws_diag_reload") else null
+                    intent?.removeExtra("ws_diag_reload")
+                    result.success(spec)
+                }
                 "getLaunchSiteId" -> {
                     val siteId = intent?.getStringExtra("siteId")
                     // Drain the extra after reading so it fires once per tap.

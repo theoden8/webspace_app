@@ -60,6 +60,27 @@ class DiagSeed {
     return DiagSeedData(sites: sites);
   }
 
+  /// How many reloads the launch intent asked the harness to issue, drained
+  /// on read so a later resume does not repeat them.
+  ///
+  /// The refresh funnel is only reachable from the overflow menu, which adb
+  /// cannot drive, and the reload path is the one BUG-001 was reported on.
+  /// Debug builds only, like the seed.
+  static Future<int?> takeReloadRequest() async {
+    if (!kDebugMode) return null;
+    String? spec;
+    try {
+      spec = await _channel.invokeMethod<String>('getDiagReload');
+    } on MissingPluginException {
+      spec = null;
+    } on PlatformException {
+      spec = null;
+    }
+    spec ??= hostEnvironment['WS_DIAG_RELOAD'];
+    if (spec == null || spec.trim().isEmpty) return null;
+    return int.tryParse(spec.trim());
+  }
+
   /// Reads the seed from the `ws_diag_seed` launch-intent extra (Android)
   /// or the `WS_DIAG_SEED` process environment (iOS/macOS: `simctl launch`
   /// forwards `SIMCTL_CHILD_`-prefixed host variables, so a future simctl
