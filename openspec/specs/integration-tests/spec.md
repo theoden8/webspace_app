@@ -672,13 +672,27 @@ contract (`NOTIF-005-A`,
 — still an unarchived change, so its requirements live under `openspec/changes/`)
 end to end from outside the process: a site seeded with
 `notificationsEnabled` whose page posts a JS `Notification` on every
-load, the app backgrounded, and the WorkManager periodic job
-(`webspace-notification-refresh`) forced via
-`adb shell cmd jobscheduler run -f` — the OS notification that
-appears (read via `dumpsys notification`) is proof the full pipeline
-ran with no foreground activity: worker → engine dispatch →
-`onBackgroundRefresh` site reload → `Notification` polyfill →
+load, the app backgrounded, and one `NotificationRefreshWorker` run
+triggered through the debug-build-only `NotificationRefreshDebugReceiver`
+— the OS notification that appears (read via `dumpsys notification`) is
+proof the full pipeline ran with no foreground activity: worker → engine
+dispatch → `onBackgroundRefresh` site reload → `Notification` polyfill →
 `flutter_local_notifications`.
+
+Trigger contract: the periodic job SHALL NOT be driven with
+`adb shell cmd jobscheduler run -f`. Forcing the job bypasses
+JobScheduler's constraints but not WorkManager's own guard, which
+refuses any periodic `WorkSpec` executed before its next run time
+(`WorkerWrapper`: "executed before schedule") and reschedules instead,
+reaching neither the worker nor Dart. Whether a forced run was honoured
+therefore depended on whether the work's first period — due at enqueue
+time while `periodCount == 0` — had already been spent by an unforced
+run, which is a race the harness cannot observe and which read from
+outside as a broken dispatch leg. The receiver enqueues an unconstrained
+one-shot of the same worker, so the leg under test is the real one and
+only the trigger is synthetic; it is declared in the `debug` source set
+alone, so no shippable build carries it. The scheduling half of
+NOTIF-005-A stays asserted separately, from the JobScheduler dump.
 
 Observation contract: "a new notification" SHALL be read as a set
 difference over notification **identities** (the `user|pkg|id|tag|uid`
@@ -722,14 +736,16 @@ tier for the non-background scenarios remains future scope.
   set it produced is the baseline the background assertion diffs
   against
 
-#### Scenario: Forced periodic refresh posts a new notification while backgrounded
+#### Scenario: A background refresh posts a new notification while backgrounded
 
 - **Given** the app is backgrounded (HOME) with the process alive
-- **When** the harness forces the WorkManager job(s)
-- **Then** a notification identity absent from the baseline appears
-  within the polling deadline, and on failure the harness saves the
-  jobscheduler dump, the notification dump, and a logcat tail as
-  artifacts
+- **When** the harness broadcasts to the debug refresh receiver
+- **Then** the receiver's own log line confirms the broadcast was
+  delivered (else the run fails at once naming the installed APK,
+  instead of spending the notification deadline), a notification
+  identity absent from the baseline appears within the polling
+  deadline, and on failure the harness saves the jobscheduler dump,
+  the notification dump, and a logcat tail as artifacts
 
 #### Scenario: A failure names the leg that broke
 
@@ -739,8 +755,13 @@ tier for the non-background scenarios remains future scope.
 - **Then** a risen count reports the break as downstream (the site
   reloaded, the polyfill → `NotificationService` →
   `flutter_local_notifications` leg dropped it) and an unchanged count
-  reports it as upstream (worker → engine dispatch →
-  `onBackgroundRefresh` never reloaded the site)
+  reports it as upstream
+- **And** upstream is split further by the worker's own log line: no
+  `NotificationRefreshWorker fired` names the trigger, before
+  `doWork` ever ran; the line present names the engine-dispatch →
+  `onBackgroundRefresh` leg. The two are the same silence from
+  outside, and reading one for the other is what made an earlier
+  failure unreadable
 
 #### Scenario: The refreshed site still paints on return
 

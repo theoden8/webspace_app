@@ -16,7 +16,8 @@ import java.util.concurrent.TimeUnit
 /**
  * Android side of NOTIF-005-A. Mirrors `BackgroundTaskPlugin.swift`:
  * the Dart side calls `scheduleRefresh` on background, and `WorkManager`
- * fires roughly every 15 minutes (system minimum). The worker invokes
+ * fires roughly every 15 minutes (system minimum), the first run one
+ * interval after it is scheduled rather than at once. The worker invokes
  * `onBackgroundRefresh` over the same method channel iOS uses, the Dart
  * handler reloads notification sites, and `bgRefreshDidComplete`
  * finalises the work.
@@ -71,16 +72,22 @@ class BackgroundTaskAndroidPlugin(
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()
         val request = PeriodicWorkRequestBuilder<NotificationRefreshWorker>(
-            15, TimeUnit.MINUTES,
+            REFRESH_INTERVAL_MINUTES, TimeUnit.MINUTES,
         )
             .setConstraints(constraints)
+            // While `periodCount == 0` WorkManager reports the next run time as
+            // the enqueue time itself (`WorkSpec.calculateNextRunTime`), so an
+            // undelayed request fires seconds after the first notification site
+            // is loaded and reloads the page the user just opened. The delay
+            // makes the first period wait like every later one.
+            .setInitialDelay(REFRESH_INTERVAL_MINUTES, TimeUnit.MINUTES)
             .build()
         WorkManager.getInstance(context).enqueueUniquePeriodicWork(
             UNIQUE_NAME,
             ExistingPeriodicWorkPolicy.UPDATE,
             request,
         )
-        Log.i(TAG, "scheduled periodic refresh ($UNIQUE_NAME, 15min)")
+        Log.i(TAG, "scheduled periodic refresh ($UNIQUE_NAME, ${REFRESH_INTERVAL_MINUTES}min)")
     }
 
     private fun cancel() {
@@ -91,6 +98,7 @@ class BackgroundTaskAndroidPlugin(
     companion object {
         const val CHANNEL = "org.codeberg.theoden8.webspace/background_task"
         const val UNIQUE_NAME = "webspace-notification-refresh"
+        const val REFRESH_INTERVAL_MINUTES = 15L
         private const val TAG = "WebspaceBgRefresh"
     }
 }
