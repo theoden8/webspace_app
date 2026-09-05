@@ -689,6 +689,19 @@ who were told how to unlock it, so the falsifying report needs someone to ask fo
     returns nothing. A repaint driven by the commit the engine actually reports,
     rather than by a lifecycle event we hope implies one, needs no list.
 
+    **First step taken (2026-09-05): assert the request, not the paint.** Since
+    the pixels cannot fail here, the tier now also asserts, from the app's own
+    `SurfaceDiag` trace, that a repaint was *requested* on the path just driven:
+    `trigger=resume` after a warm start, `trigger=back` after a back gesture,
+    `trigger=activate` after a warm site switch (`assert_nudged` in
+    `scripts/run_android_lifecycle_tests.sh`). This is host-independent — it
+    reads the app, not the compositor — and it fails on the actual recurrence
+    mode, a path that reaches a surface without passing a chokepoint. It does
+    not make the tier representative: it still only covers paths someone
+    enumerated, and it still cannot tell whether a nudge that fires actually
+    saves the screen. Those two need the commit-driven chokepoint above and a
+    device trace respectively.
+
     One correction rides along, because it changes where the next fix should
     look. The `SurfaceView`-does-not-self-invalidate rule was cited here as the
     root mechanism, but under HC the platform view is an `android.webkit.WebView`
@@ -702,15 +715,21 @@ who were told how to unlock it, so the falsifying report needs someone to ask fo
     the doc quote names, and any fix aimed at "invalidate the platform view's
     SurfaceView" would be aimed at the wrong object.
 
-   **The same run is the first direct evidence that PAUSE-027 works.**
-   Scenario B3-B drives five reloads 120ms apart against that 5s page, so four
-   commits abort before the fifth lands -- the shape that spent the old
-   one-shot latch on an aborted load. Every reload nudge coalesced into one
-   loop, and then `commit-settled` fired as a *fresh, uncoalesced* nudge when
-   the real document committed ~5s later, and the surface stayed painted. That
-   is the bounded commit window doing exactly what Attempt 11 built it for,
-   observed on a real surface rather than argued. B3-B runs unconditionally and
-   is now that fix's regression guard.
+   **What Scenario B3-B does and does not show.** It drives five reloads 120ms
+   apart against that 5s page, so four commits abort before the fifth lands --
+   the shape that spent the old one-shot latch on an aborted load. Every reload
+   nudge coalesced into one loop, and then `commit-settled` fired as a *fresh,
+   uncoalesced* nudge when the real document committed ~5s later. That trace is
+   real evidence, and it is evidence about the **latch's timing**: the window
+   was still open at the commit, which is what Attempt 11 built it for.
+
+   It is not evidence that the repaint prevented a blank. An earlier revision of
+   this paragraph said the surface "stayed painted" and read that as the fix
+   working, which is the same vacuity gap #16 describes: on this host the
+   surface stays painted with every trigger suppressed, so "stayed painted"
+   distinguishes nothing. B3-B guards the latch's *ordering*, read from the
+   app's trace. Whether that ordering saves a real screen is untested here and
+   needs a device.
 
    **Forcing GPU composition was tried and could not be tried (2026-09-05).**
    The one cheap hypothesis for why the emulator repaints unasked is hardware

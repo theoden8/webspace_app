@@ -345,6 +345,43 @@ $(adb shell getprop ro.product.model 2>/dev/null | tr -d '\r')"
   echo "    full dump: $out"
 }
 
+# The pixel assertions below are close to vacuous on this host. Scenario B3-A
+# suppressed all fourteen `_nudgeSurfaceRepaint` triggers *and* the second
+# repaint path in `_probeRendererAndRecover`, and every surface still came back
+# painted -- so this tier would stay green with the repaint machinery deleted.
+# What it can still check, host-independently, is the wiring: that the app
+# ASKED for a repaint on the path just driven. That is the thing that actually
+# keeps recurring (a new entry path reaches a surface without passing a
+# chokepoint), and it is read from the app's own trace rather than from the
+# compositor. `_traceRepaint` is developer-mode gated and the diag seed turns
+# developer mode on, so the lines are there in every seeded run.
+nudge_hits() { # $1 = trigger label
+  adb logcat -d 2>/dev/null | grep -cF "trigger=$1" || true
+}
+
+assert_nudged() { # $1 = slug, $2 = trigger label, $3 = count before the action
+  local slug="$1" trigger="$2" before="$3" deadline
+  # RepaintLogThrottle.burstWindow is 2s; the first line of a burst is emitted
+  # immediately, so this only has to outlast a loaded runner.
+  deadline=$(( $(date +%s) + 20 ))
+  while [ "$(nudge_hits "$trigger")" -le "$before" ]; do
+    if [ "$(date +%s)" -ge "$deadline" ]; then
+      echo "FAIL: $slug painted, but the app never asked it to" >&2
+      echo "  No new 'trigger=$trigger' line within 20s. The pixels above prove" >&2
+      echo "  nothing on this emulator -- it repaints an unnudged surface on its" >&2
+      echo "  own (B2/B3-A) -- so a path that stopped nudging shows up here and" >&2
+      echo "  nowhere else. See docs/bugs/001-white-screen.md gap #16." >&2
+      echo "  SurfaceDiag tail:" >&2
+      adb logcat -d 2>/dev/null | grep -F 'SurfaceDiag' | tail -15 \
+        | sed 's/^/    /' >&2
+      adb logcat -d -t 2000 > "$artifacts/fail-$slug.logcat.txt" 2>/dev/null || true
+      exit 1
+    fi
+    sleep 1
+  done
+  echo "  $slug: repaint requested (trigger=$trigger)"
+}
+
 adb shell input keyevent KEYCODE_WAKEUP
 adb shell input keyevent 82
 adb shell svc power stayon true
@@ -361,8 +398,10 @@ dump_composition_mode
 echo "== Scenario B: warm start repaints the re-attached surface (PAUSE-020)"
 adb shell input keyevent 3
 sleep 5
+resume_nudges_before="$(nudge_hits resume)"
 adb shell am start -W -n "$component"
 wait_for_pixels warm-start-dark 90 --expect-dominant "$dark"
+assert_nudged warm-start-nudged resume "$resume_nudges_before"
 
 echo "== Scenario C: back into a bfcached entry repaints (PAUSE-018)"
 size="$(adb shell wm size | sed -n 's/.*: *\([0-9]*\)x\([0-9]*\).*/\1 \2/p' | head -1)"
@@ -370,8 +409,10 @@ w="${size% *}"
 h="${size#* }"
 adb shell input tap "$((w / 2))" "$((h / 2))"
 wait_for_pixels forward-nav-magenta 90 --expect-dominant "$magenta"
+back_nudges_before="$(nudge_hits back)"
 adb shell input keyevent 4
 wait_for_pixels back-nav-dark 90 --expect-dominant "$dark"
+assert_nudged back-nav-nudged back "$back_nudges_before"
 
 echo "== Scenario D: activity recreation ends painted"
 adb shell settings put global always_finish_activities 1
@@ -608,8 +649,10 @@ adb shell am start -W -n "$component" \
   --es siteId "$dark_site_id"
 wait_for_pixels shortcut-cold-dark 180 --expect-dominant "$dark"
 
+activate_nudges_before="$(nudge_hits activate)"
 adb shell am start -W -n "$component" --es siteId "$blue_site_id"
 wait_for_pixels shortcut-warm-switch-blue 90 --expect-dominant "$blue"
+assert_nudged shortcut-warm-switch-nudged activate "$activate_nudges_before"
 
 echo "== Scenario H: warm tap leaves the running session intact (HS-006)"
 # Back to the dark site, drive it off its initUrl (the full-page link),
