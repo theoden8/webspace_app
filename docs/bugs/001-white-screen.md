@@ -456,10 +456,12 @@ who were told how to unlock it, so the falsifying report needs someone to ask fo
    pin with it, needs a device that actually goes white.
 
    **The reload path answers the same way (2026-09-04, PR #576).** Gap #5's
-   warm start was one route; refresh is another. Refresh is not *the* trigger --
-   the symptom is reported across warm start, tab switch, fullscreen exit and
-   back navigation as well, and any account that treats one entry path as the
-   bug's definition is describing a route, not the bug. Refresh is worth its own
+   warm start was one route; refresh is another. Refresh is not *the* trigger:
+   the reporter's words are that it happens on "many things", without naming
+   them, and any account that treats one entry path as the bug's definition is
+   describing a route, not the bug. (An earlier revision of this paragraph
+   listed four specific paths as if the report named them. It did not; that
+   list was invented here and is removed.) Refresh is worth its own
    arm because it differs in the way that should matter: a warm start carries
    a window visibility change and a reload does not, so nothing below Dart has
    an obvious reason to repaint what a reload blanks. Scenario B3-A suppresses
@@ -647,6 +649,45 @@ who were told how to unlock it, so the falsifying report needs someone to ask fo
     next run time), so the debug receiver is the only way in and it was only
     ever used from the background. Scenario F2 now fires it foregrounded and
     asserts the visible site neither re-fetches nor blanks.
+
+    **What gap #15 does NOT claim.** That `v0.3.1` lacks `PAUSE-027` is a fact
+    about the tag. That `PAUSE-027` fixes this user's white screens is a
+    separate claim, and the base rate is against it: eleven attempts precede it,
+    every one landed believing it had the bug, and this file exists because each
+    was partial. Attempt 12 asserting otherwise would be the same error a
+    twelfth time.
+
+    Three things argue specifically against it. The reporter says the symptom
+    arrives on "many things", and `PAUSE-027` is a bounded window over the
+    *reload* latch: it does not touch warm start, activation, memory pressure or
+    route return. Those paths were already wired in the release —
+    `v0.3.1:lib/main.dart` has **14** `_nudgeSurfaceRepaint` call sites against
+    master's **15**, and already logs `commit-settled`, `controller-attach`,
+    `metrics-resume`, `reload` and `route-return`. So a device going white on
+    paths other than rapid refresh is a device on which Attempts 1–10 did not
+    hold, and one more call site plus a window will not change that. The honest
+    reading of the version skew is that it covers the *rapid-refresh subset* of
+    the report and nothing more.
+
+16. **The tier is built from the same enumeration as the fix, so it cannot
+    catch what the enumeration missed.** This is the structural answer to "why
+    is CI green", and unlike gap #15 it does not depend on which attempt is
+    latest. Every fix keys on a Dart-side proxy for "a surface attached"
+    (resumed, metrics changed, route popped, load settled), every scenario in
+    the adb tier drives one of those same known entry paths and checks pixels,
+    and the bug by construction lives in whatever path nobody enumerated. A
+    suite derived from the fix's own list of paths can only ever confirm the
+    list, never find what is missing from it. That is gap #3 and gap #9 stated
+    as a property of the tests rather than of the code, and it is why the count
+    of green scenarios has never predicted anything about the device.
+
+    The way out is the same one gap #3 names: stop enumerating. The fork
+    already surfaces the real signal — `onPageCommitVisible` is plumbed all the
+    way to Dart (`InAppWebViewClient.java:782`,
+    `InAppWebViewClientCompat.java:808`, `WebViewChannelDelegate.java:1183`,
+    `platform_webview.dart:1399`) and `grep -rn onPageCommitVisible lib/`
+    returns nothing. A repaint driven by the commit the engine actually reports,
+    rather than by a lifecycle event we hope implies one, needs no list.
 
     One correction rides along, because it changes where the next fix should
     look. The `SurfaceView`-does-not-self-invalidate rule was cited here as the
