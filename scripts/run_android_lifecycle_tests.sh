@@ -696,8 +696,8 @@ else
 fi
 
 # Scenario B3 adds refresh to the entry paths this tier drives. Refresh is one
-# of many -- BUG-001 is reported across warm start, tab switch, fullscreen exit
-# and back navigation too -- but it is the one no scenario could reach, because
+# of many -- the report says "many things" without naming them -- but it is the
+# one no scenario could reach, because
 # it lives in the overflow menu and adb cannot drive it; `ws_diag_reload` calls
 # the same `reloadAndRepaint` funnel. B2 found the emulator repaints a
 # warm-started surface on its own, and a warm start carries a window visibility
