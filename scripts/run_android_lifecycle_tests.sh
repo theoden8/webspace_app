@@ -353,14 +353,16 @@ $(adb shell settings get global animator_duration_scale 2>/dev/null | tr -d '\r'
     echo "  host: build: $(adb shell getprop ro.build.version.release 2>/dev/null | tr -d '\r') \
 api $(adb shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r') \
 $(adb shell getprop ro.product.model 2>/dev/null | tr -d '\r')"
-    echo "  composition: SurfaceFlinger layers naming $pkg"
-    printf '%s\n' "$layers" | grep -F "$pkg" | head -12 | sed 's/^/    /' \
-      || echo "    (none)"
-    # An android.webkit.WebView draws through a functor into whatever surface
-    # contains it and never owns a layer here, in either mode. So these names
-    # say which surfaces the app has, not which one the page renders into.
-    echo "    full dump: $out"
   } | tee "$artifacts/host-summary.txt"
+  # Outside the summary: nine lines of layer names would swamp the six facts
+  # the replay exists to carry, and they are already in $out. An
+  # android.webkit.WebView draws through a functor into whatever surface
+  # contains it and never owns a layer here, in either mode, so these names say
+  # which surfaces the app has, not which one the page renders into.
+  echo "  composition: SurfaceFlinger layers naming $pkg"
+  printf '%s\n' "$layers" | grep -F "$pkg" | head -12 | sed 's/^/    /' \
+    || echo "    (none)"
+  echo "    full dump: $out"
 }
 
 # The pixel assertions below are close to vacuous on this host. Scenario B3-A
