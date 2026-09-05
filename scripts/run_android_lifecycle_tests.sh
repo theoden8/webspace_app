@@ -554,6 +554,46 @@ done
 adb shell am start -W -n "$component"
 wait_for_pixels notif-foreground-dark 90 --expect-dominant "$dark"
 
+echo "== Scenario F2: a refresh tick in the foreground must not touch the visible site"
+# v0.3.1 shipped this reloading the page the user was reading. Android's
+# WorkManager tick (NOTIF-005-A) fires whenever the Flutter engine is
+# reachable, the foreground included, and the handler had no active-site
+# exclusion: it was written when only iOS's BGAppRefreshTask reached it, where
+# the app is suspended by definition. A spontaneous reload of the visible page
+# discards its painted frame, which is BUG-001's reload path (PAUSE-021/027)
+# arriving with no user action behind it -- and therefore at no reproducible
+# moment, which is what "it happens on many things" looks like from outside.
+# Fixed on master by f02d4af. Scenario F fires this same receiver while the
+# app is BACKGROUNDED, so no scenario has ever driven the leg that broke.
+fg_beacons_before="$(beacon_hits)"
+fg_triggers_before="$(bg_log_hits 'debug trigger: enqueueing')"
+adb shell am broadcast -n "$pkg/.NotificationRefreshDebugReceiver" >/dev/null
+deadline=$(( $(date +%s) + 20 ))
+while [ "$(bg_log_hits 'debug trigger: enqueueing')" -le "$fg_triggers_before" ]; do
+  if [ "$(date +%s)" -ge "$deadline" ]; then
+    echo "FAIL: the debug refresh receiver never fired with the app foregrounded" >&2
+    dump_bg_diagnostics no-debug-receiver-foreground
+    exit 1
+  fi
+  sleep 1
+done
+# The worker dispatches asynchronously; a reload would beacon well inside this.
+sleep 20
+fg_beacons_after="$(beacon_hits)"
+if [ "$fg_beacons_after" -gt "$fg_beacons_before" ]; then
+  echo "FAIL: the refresh tick reloaded the site the user is looking at"        "(page loads $fg_beacons_before -> $fg_beacons_after)" >&2
+  echo "  This is the v0.3.1 behaviour: _refreshNotificationSites must pass"        "excludeActive when the app is resumed." >&2
+  echo "  WebspaceBgRefresh logcat:" >&2
+  bg_log | tail -10 | sed 's/^/    /' >&2
+  dump_bg_diagnostics foreground-refresh-reloaded-active
+  exit 1
+fi
+echo "  visible site not reloaded (page loads unchanged at $fg_beacons_after)"
+# Even with the reload correctly skipped, the surface must still be painted:
+# a green above with a blank screen here would mean the tick blanked it by
+# some other route.
+wait_for_pixels notif-foreground-tick-stays-painted 30 --expect-dominant "$dark"
+
 # ---- Warm home-shortcut taps (HS-002 / HS-006 / INTEG-013) ----
 #
 # A tap on a pinned tile while the app is running is delivered as
