@@ -71,6 +71,7 @@ cleanup() {
   adb shell settings put global hide_error_dialogs 0 >/dev/null 2>&1 || true
   adb shell svc power stayon false >/dev/null 2>&1 || true
   adb shell service call SurfaceFlinger 1008 i32 0 >/dev/null 2>&1 || true
+  adb unroot >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
@@ -652,14 +653,29 @@ else
   # nothing asked it to repaint is the whole reason no arrangement of this
   # tier goes red, and hardware overlays are the part of the composition path
   # most likely to be doing it: an overlay-composed layer is re-scanned out
-  # every frame from whatever the buffer last held. `1008` is what the
-  # "Disable HW overlays" developer option calls. It is not asserted, because
-  # the call is silent on failure -- the dumpsys line below is the evidence,
-  # and a run where composition never changed reads as one where it did not.
+  # every frame from whatever the buffer last held. `1008` is the raw binder
+  # code the "Disable HW overlays" developer option used before SurfaceFlinger
+  # moved to AIDL; shell also lacks ACCESS_SURFACE_FLINGER, so try as root.
+  adb root >/dev/null 2>&1 || true
+  adb wait-for-device
   adb shell service call SurfaceFlinger 1008 i32 1 >/dev/null 2>&1 || true
-  echo "   composition after disabling HW overlays:"
-  adb shell dumpsys SurfaceFlinger 2>/dev/null \
-    | grep -iE 'hwc|client|device' | head -8 | sed 's/^/     /' || true
+  # The call is silent on failure and the first attempt was accepted and
+  # discarded, so the arm ran with overlays fully on and its red meant nothing.
+  # Verify the precondition instead of assuming it: a layer still reported as
+  # DEVICE is composed by the hardware composer, and the experiment did not
+  # happen. Skip rather than fail -- a red here would claim a result we do not
+  # have, which is the mistake this scenario exists to avoid.
+  device_layers="$(adb shell dumpsys SurfaceFlinger 2>/dev/null \
+    | grep -c 'composition type=DEVICE' | tr -d '[:space:]' || true)"
+  echo "   layers still on hardware overlays: ${device_layers:-unknown}"
+  if [ "${device_layers:-1}" != "0" ]; then
+    echo "   SKIPPED: forcing GPU composition did not take. The 1008 binder code"
+    echo "   does not reach SurfaceFlinger on this API level, so the overlay"
+    echo "   hypothesis is untested, not disproved."
+    adb unroot >/dev/null 2>&1 || true
+    adb wait-for-device
+    exit 0
+  fi
   adb shell input keyevent 3
   sleep 3
   adb logcat -c 2>/dev/null || true
