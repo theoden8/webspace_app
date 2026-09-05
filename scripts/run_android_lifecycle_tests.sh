@@ -337,28 +337,30 @@ dump_composition_mode() {
   # Matched nothing on the first run: the engine's banner is not the phrase this
   # guessed at, or it never reaches logcat here. Dump the candidate lines rather
   # than pattern-match a message whose wording is unverified.
-  echo "  host: renderer lines: $(adb logcat -d 2>/dev/null | tr -d '\r' \
-    | grep -iE 'impeller|vulkan|opengl|angle|swiftshader' | tail -3 \
-    | tr '\n' '|' || true)"
-  echo "  host: isolation engine: $(adb logcat -d 2>/dev/null | tr -d '\r' \
-    | grep -F '[Container' | tail -1 | sed 's/.*\[Container[^]]*\] *//' || true)"
-  echo "  host: system webview: $(adb shell dumpsys webviewupdate 2>/dev/null \
-    | tr -d '\r' | grep -m1 -i 'current webview package (name, version)' || true)"
-  echo "  host: animation scales (window/transition/animator): \
+  {
+    echo "  host: renderer lines: $(adb logcat -d 2>/dev/null | tr -d '\r' \
+      | grep -iE 'impeller|vulkan|opengl|angle|swiftshader' | tail -3 \
+      | tr '\n' '|' || true)"
+    echo "  host: isolation engine: $(adb logcat -d 2>/dev/null | tr -d '\r' \
+      | grep -F '[Container' | tail -1 | sed 's/.*\[Container[^]]*\] *//' || true)"
+    echo "  host: system webview: $(adb shell dumpsys webviewupdate 2>/dev/null \
+      | tr -d '\r' | grep -m1 -i 'current webview package (name, version)' || true)"
+    echo "  host: animation scales (window/transition/animator): \
 $(adb shell settings get global window_animation_scale 2>/dev/null | tr -d '\r') \
 $(adb shell settings get global transition_animation_scale 2>/dev/null | tr -d '\r') \
 $(adb shell settings get global animator_duration_scale 2>/dev/null | tr -d '\r')"
-  echo "  host: app build mode: $build_mode"
-  echo "  host: build: $(adb shell getprop ro.build.version.release 2>/dev/null | tr -d '\r') \
+    echo "  host: app build mode: $build_mode"
+    echo "  host: build: $(adb shell getprop ro.build.version.release 2>/dev/null | tr -d '\r') \
 api $(adb shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r') \
 $(adb shell getprop ro.product.model 2>/dev/null | tr -d '\r')"
-  echo "  composition: SurfaceFlinger layers naming $pkg"
-  printf '%s\n' "$layers" | grep -F "$pkg" | head -12 | sed 's/^/    /' \
-    || echo "    (none)"
-  # An android.webkit.WebView draws through a functor into whatever surface
-  # contains it and never owns a layer here, in either mode. So these names
-  # say which surfaces the app has, not which one the page renders into.
-  echo "    full dump: $out"
+    echo "  composition: SurfaceFlinger layers naming $pkg"
+    printf '%s\n' "$layers" | grep -F "$pkg" | head -12 | sed 's/^/    /' \
+      || echo "    (none)"
+    # An android.webkit.WebView draws through a functor into whatever surface
+    # contains it and never owns a layer here, in either mode. So these names
+    # say which surfaces the app has, not which one the page renders into.
+    echo "    full dump: $out"
+  } | tee "$artifacts/host-summary.txt"
 }
 
 # The pixel assertions below are close to vacuous on this host. Scenario B3-A
@@ -856,4 +858,9 @@ else
   wait_for_pixels b3-blank-after-suppressed-reload 25 --expect-blank
 fi
 
+# Repeated here on purpose: in a passing run the original sits ~370 lines up,
+# past the tail a reader (or a log-fetch API) actually gets. A green is only
+# worth anything alongside what it was green on.
+echo "== What this run was green on"
+sed 's/^/  /' "$artifacts/host-summary.txt" 2>/dev/null || true
 echo "White-screen lifecycle + shortcut tier passed."
