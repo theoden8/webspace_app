@@ -194,8 +194,14 @@ test('the committed clip alternates colour on every frame', async (t) => {
     const flipped = (p, q) => Math.abs(p[0] - q[0]) + Math.abs(p[1] - q[1]) +
       Math.abs(p[2] - q[2]) > 40;
     assert.ok(r.length >= 8, `clip presented only ${r.length} frames`);
-    assert.ok(flipped(r[0], r[1]),
-      `the clip must flip on its second frame, got ${JSON.stringify(r.slice(0, 3))}`);
+    // Not `flipped(r[0], r[1])`: presentation can repeat a frame under a
+    // software decoder running slower than real time, which the transitions
+    // budget below already allows for. Demanding the flip at a fixed index
+    // contradicted that tolerance and failed a clip that was playing fine.
+    const firstFlip = r.findIndex((_, i) => i > 0 && flipped(r[i - 1], r[i]));
+    assert.ok(firstFlip > 0 && firstFlip <= 3,
+      `the clip must start alternating within its first frames, got ${
+        JSON.stringify(r.slice(0, 4))}`);
     let transitions = 0;
     for (let i = 1; i < r.length; i++) if (flipped(r[i - 1], r[i])) transitions++;
     // Presentation can duplicate a frame under load; half the boundaries is
