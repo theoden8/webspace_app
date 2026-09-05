@@ -478,6 +478,20 @@ who were told how to unlock it, so the falsifying report needs someone to ask fo
    is the bounded commit window doing exactly what Attempt 11 built it for,
    observed on a real surface rather than argued. B3-B runs unconditionally and
    is now that fix's regression guard.
+
+   **Forcing GPU composition was tried and could not be tried (2026-09-05).**
+   The one cheap hypothesis for why the emulator repaints unasked is hardware
+   overlays: an overlay-composed layer is re-scanned out every frame from
+   whatever its buffer last held. `service call SurfaceFlinger 1008 i32 1`, the
+   old "Disable HW overlays" developer-option call, was accepted and discarded
+   on API 34 both as shell and as root, with `dumpsys` still reporting four
+   layers at `composition type=DEVICE`. `1008` is a raw binder code from before
+   SurfaceFlinger moved to AIDL and no longer maps to that toggle. B3-A now
+   verifies that precondition and *skips* rather than failing, because a red
+   from an arm whose precondition never held is the same false evidence this
+   scenario exists to prevent. The overlay hypothesis is untested, not
+   disproved; testing it needs whatever the developer option calls on a modern
+   API level.
 12. **The trace is now honest but still opt-in.** `PAUSE-029` closed the coverage half
    of the diagnostic — every path reports, and a new one cannot be silent — but the
    developer-mode gate means a user who hits the bug has no trace *of the occurrence that
