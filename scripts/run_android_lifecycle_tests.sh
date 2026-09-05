@@ -867,3 +867,15 @@ echo "White-screen lifecycle + shortcut tier passed."
 # green on, so this is the final thing the tier says.
 echo "== What this run was green on"
 sed 's/^/  /' "$artifacts/host-summary.txt" 2>/dev/null || true
+# Also on the run's summary page. The job log is not a reliable place to read
+# one line from: the runner appends 135-240 lines of post-job cleanup after the
+# last thing this script prints, and how many depends on whether the caches
+# happened to save, so no fixed tail reaches it.
+if [ -n "${GITHUB_STEP_SUMMARY:-}" ] && [ -s "$artifacts/host-summary.txt" ]; then
+  {
+    echo "### White-screen tier: what this run was green on"
+    echo '```'
+    cat "$artifacts/host-summary.txt"
+    echo '```'
+  } >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+fi
