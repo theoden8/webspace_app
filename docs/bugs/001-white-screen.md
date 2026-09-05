@@ -450,8 +450,11 @@ who were told how to unlock it, so the falsifying report needs someone to ask fo
    pin with it, needs a device that actually goes white.
 
    **The reload path answers the same way (2026-09-04, PR #576).** Gap #5's
-   warm start was one route; refresh is the other, and the one this bug was
-   reported on. It differs in the way that should matter: a warm start carries
+   warm start was one route; refresh is another. Refresh is not *the* trigger --
+   the symptom is reported across warm start, tab switch, fullscreen exit and
+   back navigation as well, and any account that treats one entry path as the
+   bug's definition is describing a route, not the bug. Refresh is worth its own
+   arm because it differs in the way that should matter: a warm start carries
    a window visibility change and a reload does not, so nothing below Dart has
    an obvious reason to repaint what a reload blanks. Scenario B3-A suppresses
    all fourteen `_nudgeSurfaceRepaint` triggers, issues one reload of a page
@@ -468,6 +471,25 @@ who were told how to unlock it, so the falsifying report needs someone to ask fo
    looked exactly like the bug. Each is why the tier now prints the app pid,
    the focused window, the page-server access log and the SurfaceDiag tail on
    any pixel failure.
+
+12. **Nothing has established which composition mode the CI emulator runs.**
+    Flutter's platform-view docs state the rule this bug lives under: certain
+    Android views, `SurfaceView` and `SurfaceTexture` among them, do not
+    invalidate themselves when their content changes, so an embedder hosting
+    one must invalidate it manually after the swap chain flips. That is the
+    invariant behind all eleven attempts, and it only applies in the modes that
+    put the webview behind such a surface. If the emulator resolves the
+    platform view to the texture path instead, Flutter's own frame loop redraws
+    it and the gap cannot occur there **by construction** -- which would make
+    every negative result above (gap #5's warm start, gap #11's reload) a
+    statement about the emulator, not about the bug. This is disproved at the
+    *plugin* level: the fork defaults `useHybridComposition = true`. It is not
+    disproved at the *engine* level, which is where the mode is actually
+    chosen. The lifecycle tier now dumps `dumpsys SurfaceFlinger --list`, the
+    per-layer composition types and the platform-view logcat chatter on every
+    run (`build/white_screen_adb/composition-mode.txt`, uploaded on green runs
+    too) so the question stops being unanswered by default. Read that before
+    trusting any green from this tier.
 
    **The same run is the first direct evidence that PAUSE-027 works.**
    Scenario B3-B drives five reloads 120ms apart against that 5s page, so four
