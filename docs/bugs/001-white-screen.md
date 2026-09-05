@@ -604,6 +604,34 @@ who were told how to unlock it, so the falsifying report needs someone to ask fo
     with no keep rules for the fork or androidx.webkit beyond their own consumer
     rules. That gap stays open.
 
+15. **A trigger with no user action behind it, shipped in v0.3.1 and untested.**
+    `_refreshNotificationSites` reloaded the *visible* site on every native
+    background-refresh tick. Android's WorkManager tick (NOTIF-005-A) fires
+    whenever the Flutter engine is reachable, the foreground included, and the
+    handler took no `excludeActive`: it was written when only iOS's
+    `BGAppRefreshTask` reached it, where the app is suspended by definition.
+    So on any device with a notification site, the page the user was reading
+    was reloaded out of nowhere on the worker's schedule, and a reload discards
+    the painted frame. That is BUG-001's reload path (PAUSE-021/027) reached
+    with no user action, at no reproducible moment, which is what "it happens
+    on many things" looks like from outside the app.
+
+    Fixed on master by `f02d4af` (2026-09-03), which lands **after** `v0.3.1`,
+    so the released build still has it. This does not subsume the class: the
+    reload path is nudged and latched, so a correct commit still repaints. What
+    it supplies is the missing *trigger* — an unattributable one — and it
+    explains why a user hits this without being able to say what they did.
+
+    **Why no test caught it.** Scenario F fires the refresh receiver while the
+    app is BACKGROUNDED, which is the leg that was always correct; nothing
+    fired it in the foreground, which is the leg that broke. The real
+    15-minute WorkManager tick cannot be driven in CI at all (`cmd jobscheduler
+    run -f` will not execute a periodic `WorkSpec` before its next run time),
+    so the debug receiver is the only way in, and it was only ever used from
+    the background. Scenario F2 now fires the same receiver with the app
+    foregrounded and asserts the visible site neither re-fetches (its beacon
+    count is unchanged) nor goes blank.
+
     One correction rides along, because it changes where the next fix should
     look. The `SurfaceView`-does-not-self-invalidate rule was cited here as the
     root mechanism, but under HC the platform view is an `android.webkit.WebView`
