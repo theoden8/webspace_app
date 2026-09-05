@@ -515,7 +515,7 @@ jobs:
             bash scripts/run_android_background_audio_tests.sh
             bash scripts/run_android_camera_tests.sh
             bash scripts/run_android_page_zoom_tests.sh
-            WS_RUN_NATIVE_REPAINT_PROBE=1 WS_RUN_BLANK_CONTROL=${{ inputs.blank_control && '1' || '0' }} WS_LIFECYCLE_BUILD_MODE=profile bash scripts/run_android_lifecycle_tests.sh
+            WS_RUN_NATIVE_REPAINT_PROBE=1 WS_RUN_BLANK_CONTROL=${{ inputs.blank_control && '1' || '0' }} WS_LIFECYCLE_BUILD_MODE=${{ inputs.lifecycle_build_mode || 'debug' }} bash scripts/run_android_lifecycle_tests.sh
 
       # always(), not failure(): the tier now dumps the platform view's
       # composition mode on every run, and that dump is only worth having on

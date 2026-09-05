@@ -257,6 +257,15 @@ wait_for_pixels() { # $1 = slug, $2 = deadline secs, rest = classifier expectati
       echo "  last SurfaceDiag lines:" >&2
       adb logcat -d 2>/dev/null | grep -F 'SurfaceDiag' | tail -8 \
         | sed 's/^/    /' >&2 || true
+      # SurfaceDiag only speaks once a repaint is traced, so an empty list above
+      # says nothing about whether the app got that far. These two do: the Dart
+      # side's own output, and anything that killed or refused the activity.
+      echo "  last app log lines:" >&2
+      adb logcat -d -s flutter:V 2>/dev/null | tail -25 | sed 's/^/    /' >&2 || true
+      echo "  crashes / activity errors:" >&2
+      adb logcat -d 2>/dev/null \
+        | grep -E "AndroidRuntime|FATAL|ANR in|Force finishing|$pkg.*(died|killed)" \
+        | tail -10 | sed 's/^/    /' >&2 || true
       exit 1
     fi
     sleep 1

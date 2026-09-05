@@ -606,6 +606,30 @@ who were told how to unlock it, so the falsifying report needs someone to ask fo
     with no keep rules for the fork or androidx.webkit beyond their own consumer
     rules. That gap stays open.
 
+    **First profile run (2026-09-05, `79ada4e`): unresolved, not negative.** The
+    `app-fdebug-profile.apk` built (152 MB) and installed, `am start -W` reported
+    `Status: ok / LaunchState: COLD / TotalTime: 2849`, and then Scenario A never
+    reached its pixels in 180s. What the job log carries: dominant `ffffff` at
+    `uniform 0.7644`, the app process alive (`pid 9414`), `mCurrentFocus` on the
+    **launcher** rather than the app, and the page server showing only the host's
+    own startup curl — the emulator never fetched `dark.html`. That is consistent
+    with the app never reaching a seeded webview, and it is not enough to say
+    why: the seed's native gate is `FLAG_DEBUGGABLE`, which profile should
+    satisfy (`initWith(debug)`), so either that assumption is wrong on this AGP
+    version or the app failed earlier. The run also cold-booted its AVD (snapshot
+    cache miss), so it was the slowest configuration this tier has had.
+
+    The empty `last SurfaceDiag lines` in that dump is *not* evidence either way:
+    those lines only appear once a repaint is traced, so an empty list says
+    nothing about how far startup got. That the dump could not distinguish
+    "crashed", "never seeded" and "still starting" is a defect in the dump, now
+    fixed — a pixel failure prints the Dart side's own `flutter:V` tail and any
+    `AndroidRuntime`/`FATAL`/`ANR`/force-finish lines. The tier is back on
+    `debug` by default; the profile arm stays available through
+    `WS_LIFECYCLE_BUILD_MODE` and the `lifecycle_build_mode` dispatch input, and
+    the next run of it will say what happened in the job log rather than only in
+    an artifact.
+
 15. **The release predates the fix the tests are testing.** `v0.3.1` is tagged
     2026-08-27. Attempt 11 (`PAUSE-027`/`PAUSE-028`, the bounded commit window)
     landed 2026-09-03 in `7453743`, six days later. `v0.3.1:lib/main.dart`
