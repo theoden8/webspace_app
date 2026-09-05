@@ -858,9 +858,10 @@ else
   wait_for_pixels b3-blank-after-suppressed-reload 25 --expect-blank
 fi
 
-# Repeated here on purpose: in a passing run the original sits ~370 lines up,
-# past the tail a reader (or a log-fetch API) actually gets. A green is only
-# worth anything alongside what it was green on.
+echo "White-screen lifecycle + shortcut tier passed."
+# Last, on purpose. The original sits ~370 lines up in a passing run, past the
+# tail a reader (or a log-fetch API) gets; printed second-to-last it still fell
+# outside a 148-line tail. A green is only worth anything alongside what it was
+# green on, so this is the final thing the tier says.
 echo "== What this run was green on"
 sed 's/^/  /' "$artifacts/host-summary.txt" 2>/dev/null || true
-echo "White-screen lifecycle + shortcut tier passed."
