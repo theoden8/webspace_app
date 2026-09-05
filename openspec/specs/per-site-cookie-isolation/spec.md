@@ -5,9 +5,9 @@
 
 > **Note:** This is the fallback engine, used when
 > [`ContainerNative.isSupported()`](../../../lib/services/container_native.dart)
-> is `false` — i.e. iOS, macOS, and Android System WebView <110. On
-> Android System WebView 110+, the app uses native per-site profiles
-> instead; see
+> is `false` — i.e. Windows, web, iOS <17, macOS <14, WPE WebKit
+> <2.40, and an Android System WebView not reporting `MULTI_PROFILE`.
+> Everywhere else the app uses native per-site profiles instead; see
 > [openspec/specs/per-site-containers/spec.md](../per-site-containers/spec.md).
 > Engine selection is a single cached `bool _useProfiles` in
 > [`_WebSpacePageState`](../../../lib/main.dart) resolved at startup;

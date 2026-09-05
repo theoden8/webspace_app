@@ -5,6 +5,23 @@ import 'package:flutter/services.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/settings/proxy.dart';
 
+/// The relay operations the router service depends on.
+///
+/// Narrow on purpose: it exists so `ProxyRouterService` can be driven by
+/// a fake in tests without a platform channel, per the engine/service
+/// split in CLAUDE.md.
+abstract interface class ProxyRelayApi {
+  Future<int?> startRouter(String realm);
+  Future<bool> setRoutes(Map<String, Map<String, Object?>> routes);
+
+  /// Probe pairs the relay has observed: nonce -> the siteId whose
+  /// credential carried it. The attribution self-test reads this.
+  Future<Map<String, String>> probeResults();
+  Future<void> clearProbeResults();
+
+  Future<void> stop();
+}
+
 /// Dart side of the Android local authenticating proxy relay.
 ///
 /// Android's `ProxyController` cannot carry proxy credentials, so for a
@@ -13,7 +30,7 @@ import 'package:webspace/settings/proxy.dart';
 /// credentials; the relay injects them upstream. Android-only — iOS/macOS
 /// bind credentials to the per-site data store, and Linux/WebKit accepts a
 /// credentialed proxy URI directly.
-class ProxyRelay {
+class ProxyRelay implements ProxyRelayApi {
   static const MethodChannel _channel =
       MethodChannel('org.codeberg.theoden8.webspace/proxy_relay');
 
@@ -66,7 +83,66 @@ class ProxyRelay {
     }
   }
 
+  /// Start (or reconfigure) the relay in router mode, fronting every
+  /// site's upstream at once. Returns the loopback port to hand to
+  /// `ProxyController`, or `null` if it could not bind (the caller MUST
+  /// then fail closed, never clearing the override).
+  ///
+  /// [realm] is the nonce the relay names in its `407`; the Dart side
+  /// answers a challenge only when it matches (see
+  /// `ProxyRouterEngine.shouldAnswerChallenge`).
+  @override
+  Future<int?> startRouter(String realm) async {
+    if (!hostIsAndroid) return null;
+    try {
+      return await _channel.invokeMethod<int>('startRouter', {'realm': realm});
+    } on PlatformException {
+      return null;
+    }
+  }
+
+  /// Replace the relay's route table. Keys are per-site credentials from
+  /// `ProxyRouterEngine.credentialFor`; a site absent from the table
+  /// cannot reach the network, which is the fail-closed direction.
+  ///
+  /// Returns false if the table was rejected, in which case the caller
+  /// MUST NOT treat router mode as active.
+  @override
+  Future<bool> setRoutes(Map<String, Map<String, Object?>> routes) async {
+    if (!hostIsAndroid) return false;
+    try {
+      final ok = await _channel.invokeMethod<bool>('setRoutes', {
+        'routes': routes,
+      });
+      return ok ?? false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
+  @override
+  Future<Map<String, String>> probeResults() async {
+    if (!hostIsAndroid) return const {};
+    try {
+      final raw = await _channel.invokeMapMethod<String, String>('probeResults');
+      return raw ?? const {};
+    } on PlatformException {
+      return const {};
+    }
+  }
+
+  @override
+  Future<void> clearProbeResults() async {
+    if (!hostIsAndroid) return;
+    try {
+      await _channel.invokeMethod('clearProbeResults');
+    } on PlatformException {
+      // Channel unavailable; the next activation re-reads anyway.
+    }
+  }
+
   /// Stop the relay if running. Safe to call when not running.
+  @override
   Future<void> stop() async {
     if (!hostIsAndroid) return;
     try {

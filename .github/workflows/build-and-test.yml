@@ -505,6 +505,7 @@ jobs:
             bash scripts/run_android_background_audio_tests.sh
             bash scripts/run_android_camera_tests.sh
             bash scripts/run_android_page_zoom_tests.sh
+            bash scripts/run_android_proxy_router_tests.sh
             bash scripts/run_android_lifecycle_tests.sh
 
       - name: Upload white-screen lifecycle diagnostics
@@ -869,6 +870,15 @@ jobs:
                 # state and delete prompt are Platform.isAndroid-gated).
                 [ "$(basename "$t")" = "shortcut_behavior_test.dart" ] && continue
                 [ "$(basename "$t")" = "camera_test.dart" ] && continue
+                # PROXY-013 router is Android-only: the attribution test
+                # skips immediately here and the router test only asserts
+                # that router mode does NOT engage, which
+                # test/proxy_router_service_test.dart already asserts in
+                # milliseconds. Both run for real in the emulator job. This
+                # loop sits near its 45m step cap, so an app build per file
+                # that asserts nothing is not worth the budget.
+                [ "$(basename "$t")" = "proxy_router_test.dart" ] && continue
+                [ "$(basename "$t")" = "proxy_router_attribution_test.dart" ] && continue
                 # BGAUDIO-006 media notification is an Android foreground
                 # service; the emulator job owns it.
                 [ "$(basename "$t")" = "background_audio_media_notification_test.dart" ] && continue

@@ -150,7 +150,8 @@ class MockCookieManager implements CookieManager {
 /// request URL host. This makes the legacy engine's sibling-subdomain
 /// host-only-cookie loss observable in tests instead of hidden.
 ///
-/// Legacy engine only: the container engine (the default for Android SW 110+,
+/// Legacy engine only: the container engine (the default for Android
+/// `MULTI_PROFILE`,
 /// iOS 17+, macOS 14+, Linux WPE 2.40+ — i.e. most users) owns each site's
 /// cookies in a native per-site store and never runs this URL-scoped
 /// capture-nuke-restore, so it is not subject to this limitation.
@@ -1318,7 +1319,7 @@ void main() {
   // behavior so a future "capture is complete" assumption is caught.
   //
   // This is a legacy-engine (fallback) limitation ONLY. The container engine
-  // — the default for Android SW 110+, iOS 17+, macOS 14+, Linux WPE 2.40+,
+  // — the default for Android `MULTI_PROFILE`, iOS 17+, macOS 14+, Linux WPE 2.40+,
   // i.e. most users — keeps each site's cookies in its own native store and
   // never runs this capture-nuke-restore, so it does not lose them.
   // ==========================================================================

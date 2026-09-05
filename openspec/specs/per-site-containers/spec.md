@@ -1,17 +1,19 @@
 # Per-Site Containers
 
 ## Status
-**Implemented on Android (System WebView 110+), iOS / macOS (iOS 17+ /
+**Implemented on Android (System WebView reporting `MULTI_PROFILE`), iOS / macOS (iOS 17+ /
 macOS 14+) and Linux (WPE WebKit 2.40+ via the WebSpace fork's
 `flutter_inappwebview_linux`). Older OS / WebView versions fall
 through to [`CookieIsolationEngine`](../per-site-cookie-isolation/spec.md).**
 
 ## Platform Support Matrix
 
-The three native primitives this engine binds to all landed within
-seven months of each other in 2023, so the floor for the Profile
-path is roughly "anything that can run the September-2023 OS cohort
-or later". Older devices keep working via the legacy
+The Apple and Linux primitives both landed in 2023, so on those
+platforms the floor is roughly "anything that can run the
+September-2023 OS cohort or later". Android has no comparable floor
+to quote: `MULTI_PROFILE` is detected at runtime and ships with
+whatever System WebView the device happens to carry, independent of
+its OS version. Devices without it keep working via the legacy
 [`CookieIsolationEngine`](../per-site-cookie-isolation/spec.md)
 fallback — `_useContainers` resolves to `false` at startup and the
 existing capture-nuke-restore code path runs unchanged.
@@ -20,7 +22,7 @@ existing capture-nuke-restore code path runs unchanged.
 
 | Platform | Minimum OS | Native primitive | Earliest devices | Released |
 |----------|------------|------------------|------------------|----------|
-| Android  | Lollipop (API 21) **AND** System WebView 110+ | [`androidx.webkit.Profile`](https://developer.android.com/reference/androidx/webkit/Profile) via [`WebViewCompat.setProfile`](https://developer.android.com/reference/androidx/webkit/WebViewCompat#setProfile) | Anything that can update System WebView via Play Store; in practice Android 7.0+ (Nougat) keeps WebView fresh on most devices | Feb 2023 (WebView 110) |
+| Android  | Lollipop (API 21) **AND** a System WebView reporting `MULTI_PROFILE` | [`androidx.webkit.Profile`](https://developer.android.com/reference/androidx/webkit/Profile) via [`WebViewCompat.setProfile`](https://developer.android.com/reference/androidx/webkit/WebViewCompat#setProfile) | Anything that can update System WebView via Play Store; in practice Android 7.0+ (Nougat) keeps WebView fresh on most devices | Runtime-detected; no published milestone |
 | iOS      | 17.0 | [`WKWebsiteDataStore(forIdentifier:)`](https://developer.apple.com/documentation/webkit/wkwebsitedatastore/init(foridentifier:)) | iPhone XS / XR (2018) and newer; iPad Pro 11" 1st-gen / 12.9" 3rd-gen / iPad Air 3 / iPad mini 5 / iPad 7 and newer — anything with the A12 Bionic or newer | Sept 2023 |
 | macOS    | 14.0 Sonoma | Same as iOS (`WKWebsiteDataStore(forIdentifier:)`) | iMac 2019+, iMac Pro 2017+, MacBook Air 2018+, MacBook Pro 2018+, Mac mini 2018+, Mac Pro 2019+, Mac Studio 2022+ | Sept 2023 |
 | Linux    | WPE WebKit 2.40 | Per-container `WebKitNetworkSession` cached in `container_session_cache` (fork's `flutter_inappwebview_linux`); cookies routed via `webkit_web_view_get_network_session(webview)`; proxy fan-out across default + cached container sessions | Ubuntu 23.10+, Fedora 38+, Debian trixie | Mar 2023 (WPE 2.40) |
@@ -32,6 +34,13 @@ The runtime check that decides Profile vs. legacy engine is in
   This catches the device + WebView combination correctly (e.g. an
   Android 6 device with an outdated System WebView returns false
   even though `androidx.webkit` is present in the build).
+
+  Do not restate this gate as a WebView version number. `androidx.webkit`
+  declares `MULTI_PROFILE` as an `ApiFeature.NoFramework` with a
+  runtime-only `isSupportedByWebView()`, and neither the reference docs
+  nor the source publishes a minimum milestone. Measured counterexample:
+  the API-34 `google_apis` emulator image ships WebView
+  113.0.5672.136 and does **not** report the feature.
 - **iOS / macOS.** Native side checks
   `if #available(iOS 17.0, macOS 14.0, *)`.
 - **Linux.** Build-time check via
@@ -57,7 +66,8 @@ Engine-level cookie + storage isolation between sites in WebSpace.
 Replaces the cookie-only capture-nuke-restore engine on platforms with
 native per-site data-store primitives:
 
-- **Android**, System WebView 110+: `androidx.webkit.Profile`. Each
+- **Android**, System WebView reporting `MULTI_PROFILE`:
+  `androidx.webkit.Profile`. Each
   site maps to a named profile `ws-<siteId>`.
 - **iOS 17+ / macOS 14+**: `WKWebsiteDataStore(forIdentifier: UUID)`.
   The siteId string is hashed via SHA-256 to produce a deterministic
@@ -111,8 +121,8 @@ for cookies but leaves three gaps:
    With per-site profiles the jars are partitioned at the engine
    level, so this restriction is unnecessary.
 
-`androidx.webkit.Profile` (System WebView 110+) is the native
-primitive for partitioning all of the above in one call.
+`androidx.webkit.Profile` (System WebView reporting `MULTI_PROFILE`)
+is the native primitive for partitioning all of the above in one call.
 
 ## Solution
 
@@ -142,8 +152,8 @@ check resolved at app startup.
 
 #### Scenario: Profile API supported on Android
 
-**Given** the app is launching on Android with System WebView 110+
-  (`WebViewFeature.MULTI_PROFILE` true)
+**Given** the app is launching on Android with a System WebView
+  reporting `WebViewFeature.MULTI_PROFILE` true
 **When** `_restoreAppState` runs
 **Then** `_useContainers` resolves to `true`
 **And** every subsequent `_setCurrentIndex(index)` skips
@@ -176,9 +186,9 @@ check resolved at app startup.
 
 #### Scenario: Profile API not supported
 
-**Given** the app is launching on Android System WebView <110, or
-  iOS <17, or macOS <14, or Windows / web (or Linux without the fork
-  override resolved)
+**Given** the app is launching on an Android System WebView that does
+  not report `MULTI_PROFILE`, or iOS <17, or macOS <14, or Windows /
+  web (or Linux without the fork override resolved)
 **When** `_restoreAppState` runs
 **Then** `_useContainers` resolves to `false`
 **And** `_setCurrentIndex` runs the existing capture-nuke-restore flow
@@ -812,7 +822,8 @@ local-dev convenience.
 
 ## Manual Testing
 
-Profile-mode hardware (Android with Chrome WebView 110+):
+Profile-mode hardware (Android with a System WebView reporting
+`MULTI_PROFILE`):
 
 1. Create two sites on the same domain, e.g. `github.com/personal`
    and `github.com/work`.
@@ -830,7 +841,8 @@ Profile-mode hardware (Android with Chrome WebView 110+):
 7. Delete site A — confirm its profile dir is gone and B's is
    intact.
 
-Legacy hardware (Android System WebView <110):
+Legacy hardware (Android System WebView not reporting
+`MULTI_PROFILE`):
 
 1. Confirm at startup `LogService` reports `Profile API not
    supported — using CookieIsolationEngine fallback`.

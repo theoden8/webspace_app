@@ -16,6 +16,7 @@ import 'package:webspace/services/launch_nonce.dart';
 import 'package:webspace/services/letterbox.dart';
 import 'package:webspace/services/page_zoom_shim.dart';
 import 'package:webspace/services/proxy_relay.dart';
+import 'package:webspace/services/proxy_router_service.dart';
 import 'package:webspace/services/pull_to_refresh_gate.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/target_blank_rewrite.dart';
@@ -271,6 +272,52 @@ class FindMatchesResult {
 /// Theme preference for webviews
 enum WebViewTheme { light, dark, system }
 
+/// Answer the loopback proxy router's `407` with this site's credential
+/// (PROXY-013).
+///
+/// Chromium routes a proxy auth challenge to the `WebContents` that
+/// issued the request, so this callback is the one per-WebView channel
+/// Android gives us for saying *which site* a connection belongs to. The
+/// credential is looked up by [siteId] rather than threaded through
+/// [WebViewConfig] on purpose: every WebView the app builds already
+/// carries its site id, so a popup or a nested `InAppWebViewScreen`
+/// cannot be wired up without it.
+///
+/// Returns null for anything that is not the relay's challenge, which is
+/// the platform's own default (cancel). That matters: Android's callback
+/// drops `is_proxy` and the port, so a site serving its own `401` lands
+/// here too, and proceeding would hand the page a token that admits its
+/// bearer to every site's route.
+///
+/// Attached on every platform, not just Android, and that is deliberate
+/// rather than an oversight: the fork's Linux plugin implements this
+/// callback too (pub.dev lists only Android/iOS/macOS). It stays inert
+/// there because WPE's `OnAuthenticate` already returns TRUE before Dart
+/// is consulted -- so WebKit's own dialog was never going to show -- and
+/// a null from here reaches the same `defaultBehaviour` that an
+/// unregistered handler does, which cancels. Registering the handler
+/// therefore changes nothing off Android. Anything that makes this
+/// function return non-null off Android would.
+Future<inapp.HttpAuthResponse?> answerProxyRouterChallenge(
+  String? siteId,
+  inapp.HttpAuthenticationChallenge challenge,
+) async {
+  if (siteId == null) return null;
+  final router = ProxyRouterService.instance;
+  final space = challenge.protectionSpace;
+  if (!router.ownsChallenge(host: space.host, realm: space.realm)) return null;
+  final token = router.tokenFor(siteId);
+  if (token == null) return null;
+  return inapp.HttpAuthResponse(
+    action: inapp.HttpAuthResponseAction.PROCEED,
+    username: router.usernameFor(siteId),
+    password: token,
+    // Never write the token to the platform's credential store: it is
+    // valid only for this run of the relay.
+    permanentPersistence: false,
+  );
+}
+
 /// Proxy manager singleton.
 ///
 /// Two delivery paths coexist behind a single API:
@@ -314,6 +361,19 @@ class ProxyManager {
       LogService.instance.log(
         'Proxy',
         'setProxySettings: iOS/macOS bind proxy at WebView construction; no-op here',
+        sensitivity: LogSensitivity.sensitive,
+      );
+      return;
+    }
+
+    // Router mode owns the process-wide rule: it already points at the
+    // loopback router for every site, and flipping it per activation is
+    // exactly the serialisation PROXY-013 removes. Per-site routing is
+    // refreshed through `ProxyRouterService`, not here.
+    if (ProxyRouterService.instance.isActive) {
+      LogService.instance.log(
+        'Proxy',
+        'setProxySettings: router mode active; process-wide rule unchanged',
         sensitivity: LogSensitivity.sensitive,
       );
       return;
@@ -465,6 +525,39 @@ class ProxyManager {
       level: LogLevel.info,
       sensitivity: LogSensitivity.sensitive,
     );
+  }
+
+  /// Point the process-wide rule at the loopback router and leave it
+  /// there (PROXY-013).
+  ///
+  /// Returns false if the override could not be applied, in which case
+  /// the caller MUST NOT treat router mode as active — every site would
+  /// otherwise go direct while believing it was proxied.
+  Future<bool> applyRouterOverride(int port) async {
+    if (!hostIsAndroid || !PlatformInfo.isProxySupported) return false;
+    try {
+      await inapp.ProxyController.instance().setProxyOverride(
+        settings: inapp.ProxySettings(
+          proxyRules: [inapp.ProxyRule(url: 'http://127.0.0.1:$port')],
+          bypassRules: ['<local>'],
+        ),
+      );
+      LogService.instance.log(
+        'Proxy',
+        'Applied router override -> 127.0.0.1:$port',
+        level: LogLevel.info,
+        sensitivity: LogSensitivity.sensitive,
+      );
+      return true;
+    } catch (e) {
+      LogService.instance.log(
+        'Proxy',
+        'Router override failed to apply: $e',
+        level: LogLevel.error,
+        sensitivity: LogSensitivity.sensitive,
+      );
+      return false;
+    }
   }
 
   Future<void> clearProxy() async {
@@ -1907,6 +2000,10 @@ class WebViewFactory {
       // it falls back to.
       onReceivedServerTrustAuthRequest: (controller, challenge) =>
           _handleServerTrust(controller, challenge, null),
+      // A popup is the same site in a dialog, so it presents the same
+      // router credential (PROXY-013).
+      onReceivedHttpAuthRequest: (controller, challenge) =>
+          answerProxyRouterChallenge(parent.siteId, challenge),
     );
   }
 
@@ -4572,6 +4669,8 @@ class WebViewFactory {
       },
       onReceivedServerTrustAuthRequest: (controller, challenge) =>
           _handleServerTrust(controller, challenge, config.onUntrustedCertificate),
+      onReceivedHttpAuthRequest: (controller, challenge) =>
+          answerProxyRouterChallenge(config.siteId, challenge),
       // Android `WebView.onRenderProcessGone`: the OS can kill the renderer
       // process while the app is backgrounded to reclaim memory. Coming back
       // to a renderer-gone WebView shows a black surface because the view is
