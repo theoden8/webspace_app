@@ -57,11 +57,17 @@ test('reports playing:true with page metadata once audio actually plays', async 
     });
     assert.equal(played, true, 'autoplay must be allowed in this tier');
 
-    const got = await waitForReports(page, (r) => r.length >= 1);
-    assert.ok(got.length >= 1, 'shim reported nothing while audio was playing');
-    assert.equal(got[0].name, 'wsMediaSession');
+    // Not `got[0]`: the shim's liveness predicate is `currentTime > 0`, and
+    // the 300ms debounce after `play` can elapse before the media clock has
+    // moved on a loaded runner. That first report says playing:false and the
+    // 3s reconcile follows with the real state, so wait for the one that
+    // says playing rather than assuming it is the first.
+    const got = await waitForReports(page, (r) => r.some((x) => x.payload.playing));
+    const said = got.find((x) => x.payload.playing) || got[0];
+    assert.ok(said, 'shim reported nothing while audio was playing');
+    assert.equal(said.name, 'wsMediaSession');
     // Opaque per-frame token; media_session_frames.test.js owns its semantics.
-    const { frame, ...payload } = got[0].payload;
+    const { frame, ...payload } = said.payload;
     assert.match(frame, /^f[a-z0-9]+$/);
     // Every remaining key MediaSessionService.report destructures.
     assert.deepEqual(payload, {
@@ -89,12 +95,13 @@ test('falls back to document.title when the page declares no metadata', async (t
       document.body.appendChild(a);
       await a.play();
     });
-    const got = await waitForReports(page, (r) => r.length >= 1);
-    assert.ok(got.length >= 1, 'shim reported nothing');
-    assert.equal(got[0].payload.playing, true);
-    assert.equal(got[0].payload.title, 'Radio Station');
-    assert.equal(got[0].payload.artist, '');
-    assert.equal(got[0].payload.artwork, '');
+    const got = await waitForReports(page, (r) => r.some((x) => x.payload.playing));
+    const said = got.find((x) => x.payload.playing) || got[0];
+    assert.ok(said, 'shim reported nothing');
+    assert.equal(said.payload.playing, true);
+    assert.equal(said.payload.title, 'Radio Station');
+    assert.equal(said.payload.artist, '');
+    assert.equal(said.payload.artwork, '');
   } finally {
     await page.close();
   }
