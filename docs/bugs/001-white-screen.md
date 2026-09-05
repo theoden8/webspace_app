@@ -14,10 +14,16 @@ user just sees a dead-looking screen after some navigation or app-lifecycle even
 
 ## Root mechanism (the invariant behind every instance)
 
-On Android the webview is a **hybrid-composition `SurfaceView`**. That surface can
+On Android the webview runs under **hybrid composition** (confirmed: the fork
+defaults `useHybridComposition` to `true`, which routes to
+`PlatformViewsService.initExpensiveAndroidView`, "always creates a 'Hybrid
+Composition (HC)' view"). The surface backing the composited result can
 **re-attach (or newly attach) without receiving a paint**. The renderer is healthy,
 so nothing emits an error event; the compositor just never draws onto the new
-surface until something forces a relayout.
+surface until something forces a relayout. The `WebView` itself is an ordinary
+Android view in the hierarchy, not a `SurfaceView`; the surface that presents a
+stale frame is Flutter's own `FlutterImageView` overlay, which shows the last
+image it acquired and does not repaint on its own (see open gap #12).
 
 Two colors, two sub-causes:
 
@@ -427,6 +433,379 @@ who were told how to unlock it, so the falsifying report needs someone to ask fo
    SurfaceView's own buffer callbacks, so they cover the warm-start and fresh-mount
    triggers and none of the commit-side class (Attempts 9/10/11) — they narrow gap
    #3, they do not close it.
+
+   **Run on 2026-09-04 (PR #576): the emulator cannot answer it.** With both
+   resume-time Dart repaint paths dropped and the `SurfaceDiag` trace showing
+   nothing else ran, the warm-started surface came back the page colour,
+   `uniform: 1.0`. On the CI emulator (API 34, x86_64, `swiftshader_indirect`)
+   the reattached SurfaceView repaints with no Dart help at all, so B2 is green
+   by nature there and can never be the red that justifies the fork pin. Two
+   readings of the instrument had to be fixed before that was even legible, and
+   both are worth knowing:
+   `RepaintSuppression` gated only `_nudgeSurfaceRepaint`, while
+   `_probeRendererAndRecover` repaints too — its `offsetHeight` read forces the
+   layout that schedules the missing paint — and both log under the same trigger
+   name, so suppressing "the resume nudge" left the other one doing the work;
+   and a passing run dumped no logcat, so a green proved nothing. Both are fixed
+   (the probe honours the suppression; B2 asserts both drops and prints the trace
+   on success). A corollary: because the native layer alone suffices on the
+   emulator, no CI run there can say whether the probe's read repaints anything —
+   which leaves the contradiction between `_nudgeSurfaceRepaint`'s doc comment
+   ("a JS `offsetHeight` read does not [fix it]") and `_probeRendererAndRecover`'s
+   ("the read alone fixes the blank surface") open. Deciding gap #5, and the fork
+   pin with it, needs a device that actually goes white.
+
+   **The reload path answers the same way (2026-09-04, PR #576).** Gap #5's
+   warm start was one route; refresh is another. Refresh is not *the* trigger:
+   the reporter's words are that it happens on "many things", without naming
+   them, and any account that treats one entry path as the bug's definition is
+   describing a route, not the bug. (An earlier revision of this paragraph
+   listed four specific paths as if the report named them. It did not; that
+   list was invented here and is removed.) Refresh is worth its own
+   arm because it differs in the way that should matter: a warm start carries
+   a window visibility change and a reload does not, so nothing below Dart has
+   an obvious reason to repaint what a reload blanks. Scenario B3-A suppresses
+   all fourteen `_nudgeSurfaceRepaint` triggers, issues one reload of a page
+   that stalls 5s before its first byte, and samples *past* the commit -- blank
+   before it is a slow page, blank after it is the bug. The trace shows the
+   four suppressions and nothing else firing, and the surface came back
+   painted. So the emulator repaints reloads on its own too, and no route this
+   harness has can make it go white. B3-A is therefore opt-in
+   (`WS_RUN_BLANK_CONTROL=1`) and not run in CI: it is the right experiment for
+   hardware that reproduces, not for this one. Three of the attempts to get
+   there were instrument defects rather than evidence -- a suppression list
+   missing `_probeRendererAndRecover`, one missing `metrics-resume`, and a
+   dropped `os.chdir` that made every page 404 into a white error document that
+   looked exactly like the bug. Each is why the tier now prints the app pid,
+   the focused window, the page-server access log and the SurfaceDiag tail on
+   any pixel failure.
+
+12. ~~Which composition mode the CI emulator runs~~ — **answered 2026-09-05, and
+    it is the affected one.** The worry was real: Flutter's platform-view docs
+    warn that certain Android views (`SurfaceView`, `SurfaceTexture`) do not
+    invalidate themselves when their content changes, so the embedder must; if
+    the emulator instead composited the webview into Flutter's own frames,
+    Flutter's frame loop would redraw it and the gap could not occur there by
+    construction, making gap #5's and gap #11's negatives statements about the
+    emulator rather than about the bug. It does not. The mode is settled in
+    Dart, not at runtime: `InAppWebViewSettings.useHybridComposition` defaults
+    to `true` and this app never sets it, and the fork's
+    `_createAndroidViewController` routes `true` to
+    `PlatformViewsService.initExpensiveAndroidView`, whose contract in the
+    pinned SDK (`packages/flutter/lib/src/services/platform_views.dart`) is
+    "Always creates a 'Hybrid Composition (HC)' view" with "the Android view and
+    Flutter widgets ... composed at the Android view hierarchy level". No
+    TLHC-or-HC fallback is in play; that logic belongs to
+    `initSurfaceAndroidView`, which is the `false` branch. So the emulator runs
+    the same mode as the reporting devices, and this tier's negative results
+    stand as evidence. The lifecycle tier still dumps `dumpsys SurfaceFlinger
+    --list`, the per-layer composition types and the platform-view logcat
+    chatter on every run (`build/white_screen_adb/composition-mode.txt`,
+    uploaded on green runs too) as the runtime witness — it does not decide the
+    mode, and a first cut of it that tried to read the mode off the layer count
+    got the reading backwards, which is why it now prints layer names and no
+    verdict. What it prints on the emulator, with the webview on screen:
+    `SurfaceView[<pkg>/.MainActivity]#402`, its `(BLAST)#403` buffer-queue
+    child, `Background for` that same SurfaceView, and the activity's own
+    window layers. One SurfaceView, which is `FlutterSurfaceView`, and no layer
+    of any kind for the webview. That is consistent with HC as current Flutter
+    implements it: the SurfaceView base stays and `FlutterImageView` overlays
+    are added above the platform view, and an overlay is a View inside the
+    window layer, not a layer of its own. So a layer list cannot separate the
+    two modes in either direction, and the Dart-level determination above is
+    the only sound one. Do not re-derive a verdict from this dump.
+
+13. **Why the device reproduces and this tier does not.** The tier's negatives
+    are real (gap #12), which makes this the live question, and it has one
+    settled part and several open ones.
+
+    Settled: **the emulator repaints the platform view with no Dart help.**
+    Scenario B2 (warm start) and Scenario B3-A (committed reload) each
+    suppressed every `_nudgeSurfaceRepaint` trigger *and* the second repaint
+    path in `_probeRendererAndRecover`, showed the drops in the trace, and the
+    surface came back painted anyway. So no arrangement of scenarios on this
+    host can go red on this class: the symptom needs a surface that stays stale
+    until something forces it, and this one does not stay stale. Adding
+    scenarios is not the missing piece.
+
+    Open: which host difference supplies that unprompted repaint. Ranked by how
+    directly each bears on it, with what CI can do about it:
+
+    1. **Software rasterisation.** The runner has no GPU, so the emulator runs
+       `-gpu swiftshader_indirect`. A software compositor recomposes the whole
+       frame every vsync; there is no damage-rect, buffer-age or partial-update
+       path for a stale buffer to survive in. This is the best candidate and it
+       is the one CI cannot change: GitHub-hosted runners have no GPU.
+    2. **Animations disabled.** The emulator step runs with
+       `disable-animations: true`, zeroing all three scales. BUG-001 lives in
+       activity and route transitions, and a transition with no animation has a
+       different surface-transaction ordering than a real one. Cheap to flip in
+       this tier; untried.
+    3. **Debug build.** The tier installs `app-fdebug-debug.apk`; users run
+       release. JIT vs AOT changes frame timing, and the timing is what decides
+       whether an attach lands before or after a commit. Flipping it costs the
+       diag hooks: `RepaintSuppression` is `kDebugMode`-gated, so B2/B3-A cannot
+       run against release, though the pixel scenarios could.
+    4. **One site, one trivial page.** The seed is a single site serving a
+       solid-colour static document from localhost. Users run many sites in the
+       `IndexedStack` with real pages: slow first paint, subframes, service
+       workers, and enough memory pressure to evict a renderer. Site count and
+       page weight are both raisable here.
+    5. **A different isolation engine.** `_useContainers` is resolved from
+       `WebViewFeature.MULTI_PROFILE` at startup, and it selects a different
+       webview creation path (`containerId` set, a Profile bound in the fork's
+       `prepare()`). If the emulator's bundled System WebView answers
+       differently from a Play-updated one on a phone, the two are not running
+       the same attach path at all. The tier now records the answer.
+
+    **Measured 2026-09-05 (`f3afb5c`), and #5 is no longer a candidate.** The
+    `host:` lines from the first green run carrying them:
+
+    ```
+    isolation engine: Container API not supported - using CookieIsolationEngine
+                      + (legacy) CookieManager
+    system webview:   com.google.android.webview, 113.0.5672.136
+    animation scales: 0.0 0.0 0.0   (window / transition / animator)
+    app build mode:   debug
+    build:            Android 14, api 34, sdk_gphone64_x86_64
+    ```
+
+    So **CI never runs the container engine at all.** The emulator's bundled
+    WebView is 113, which does not advertise `MULTI_PROFILE`, so
+    `ContainerNative.isSupported()` returns false and every scenario in this
+    tier exercises `CookieIsolationEngine`. A phone with a Play-updated System
+    WebView takes the other branch, where `WebViewFactory.createWebView` sets
+    `containerId` and the fork binds an `androidx.webkit.Profile` inside
+    `InAppWebView.prepare()`. That is a different webview creation and attach
+    path, and the attach path is where this bug lives. Candidate #5 is
+    confirmed: the two are not running the same code.
+
+    Candidate #2 is confirmed too — all three animation scales are 0.0, against
+    1.0 on a normal device, so every activity and route transition this tier
+    drives completes without the animation a real one has.
+
+    The WebView version is worth its own line: 113.0.5672.136 shipped in May
+    2023. The compositor a phone runs is years of Chromium ahead of the one
+    every one of these scenarios has ever tested.
+
+    The renderer line came back empty: the logcat pattern was a guess at the
+    engine's banner wording and matched nothing, so Impeller-vs-Skia and
+    Vulkan-vs-GLES are still unmeasured. The probe now dumps the candidate
+    lines instead of matching a phrase it cannot verify.
+
+    **The measurement that would settle it is on the device, not here.**
+    `_traceRepaint` is gated on developer mode, not `kDebugMode`, so a release
+    build with developer mode on records the full SurfaceDiag trigger sequence
+    into `LogService` (2000-entry ring) and Dev Tools can export it. Capturing
+    that at the moment a real screen goes white separates the two hypotheses
+    every attempt so far has had to guess between: **no nudge fired** (another
+    unnudged path, which is gap #3 and what all eleven attempts assumed) versus
+    **a nudge fired and the surface stayed blank** (the nudge itself does not
+    work on real hardware, which would invalidate the remedy rather than its
+    coverage). Nothing in the repository currently distinguishes them.
+
+14. **No CI tier has ever run a non-debug build on a device.** Every Android
+    device-side script builds debug: the lifecycle tier does
+    `flutter build apk --debug --flavor fdebug`, and the four `flutter test`
+    tiers get a debug APK by default. The release job builds the shipped APK
+    and checks two static properties of it (GMS-free, JNI survived shrinking),
+    then never installs it. So the artifact that goes white has not been run by
+    any test.
+
+    Two differences follow, and both sit inside the component that goes blank:
+
+    - **`isInspectable: kDebugMode`** (`lib/services/webview.dart:1221`, `:1928`,
+      `:3621`) is the *only* build-mode-dependent WebView setting in the app.
+      Every webview CI drives has `setWebContentsDebuggingEnabled(true)`; every
+      webview that ships has it off. An audit of `kDebugMode` across `lib/`
+      turns up nothing else touching the webview: the rest is startup
+      stopwatches, log forwarding, and the diag hooks themselves.
+    - **JIT vs AOT.** Frame timing decides whether an attach lands before or
+      after a commit, and every ordering fix in this file (PAUSE-020/021/025/027)
+      is about exactly that ordering.
+
+    The tier can now drive `profile` (`WS_LIFECYCLE_BUILD_MODE=profile`, also a
+    `workflow_dispatch` input), which flips both: AOT, `isInspectable` false,
+    and still debuggable, because Flutter's profile build type is
+    `initWith(debug)` (`FlutterPlugin.kt:250`) so the native `FLAG_DEBUGGABLE`
+    gate the diag channels use still passes. Three gates moved from `kDebugMode`
+    to `!kReleaseMode` to let it through — `DiagSeed`, `RepaintSuppression`, and
+    `LogService`'s logcat forwarding — none of which changes release behaviour,
+    which is what those gates were protecting.
+
+    This does not reach the shipped artifact: profile does not run R8, and
+    `minifyEnabled true` with `proguard-android-optimize.txt` is release-only,
+    with no keep rules for the fork or androidx.webkit beyond their own consumer
+    rules. That gap stays open.
+
+    **First profile run (2026-09-05, `79ada4e`): unresolved, not negative.** The
+    `app-fdebug-profile.apk` built (152 MB) and installed, `am start -W` reported
+    `Status: ok / LaunchState: COLD / TotalTime: 2849`, and then Scenario A never
+    reached its pixels in 180s. What the job log carries: dominant `ffffff` at
+    `uniform 0.7644`, the app process alive (`pid 9414`), `mCurrentFocus` on the
+    **launcher** rather than the app, and the page server showing only the host's
+    own startup curl — the emulator never fetched `dark.html`. That is consistent
+    with the app never reaching a seeded webview, and it is not enough to say
+    why: the seed's native gate is `FLAG_DEBUGGABLE`, which profile should
+    satisfy (`initWith(debug)`), so either that assumption is wrong on this AGP
+    version or the app failed earlier. The run also cold-booted its AVD (snapshot
+    cache miss), so it was the slowest configuration this tier has had.
+
+    The empty `last SurfaceDiag lines` in that dump is *not* evidence either way:
+    those lines only appear once a repaint is traced, so an empty list says
+    nothing about how far startup got. That the dump could not distinguish
+    "crashed", "never seeded" and "still starting" is a defect in the dump, now
+    fixed — a pixel failure prints the Dart side's own `flutter:V` tail and any
+    `AndroidRuntime`/`FATAL`/`ANR`/force-finish lines. The tier is back on
+    `debug` by default; the profile arm stays available through
+    `WS_LIFECYCLE_BUILD_MODE` and the `lifecycle_build_mode` dispatch input, and
+    the next run of it will say what happened in the job log rather than only in
+    an artifact.
+
+15. **The release predates the fix the tests are testing.** `v0.3.1` is tagged
+    2026-08-27. Attempt 11 (`PAUSE-027`/`PAUSE-028`, the bounded commit window)
+    landed 2026-09-03 in `7453743`, six days later. `v0.3.1:lib/main.dart`
+    carries `PAUSE-009`…`PAUSE-025`; master carries those plus `PAUSE-027` and
+    `PAUSE-028`, and `commitWindow` appears zero times in `v0.3.1`'s
+    `surface_repaint_engine.dart` against three on master.
+
+    So a device on `v0.3.1` has Attempt 9's one-shot reload latch with no
+    bounded window over it, which is precisely the state Attempt 11 was written
+    for: the report it answers is "if I hit refresh often it's still there ...
+    hitting refresh again helps", and a one-shot latch is exactly what makes
+    rapid refreshing fail while a single later refresh succeeds. Meanwhile
+    **Scenario B3-B, the tier's rapid-reload scenario, is the regression guard
+    for `PAUSE-027`** — it asserts behaviour the shipped build does not contain.
+    Before reaching for host or artifact differences, that is the first-order
+    answer to "why is CI green and the device not": CI is running the fix.
+
+    Two more BUG-001-adjacent fixes are also post-tag: `7fd570a` (pull-to-refresh
+    firing on a two-finger pinch, 2026-09-02) and `f02d4af` (below).
+
+    **Correction, and the reasoning error behind it.** This entry first claimed
+    the discriminator was `f02d4af`: `_refreshNotificationSites` reloading the
+    *visible* site on a native background-refresh tick, since Android's
+    WorkManager tick fires in the foreground while the handler took no
+    `excludeActive`. Two checks kill that as *the* discriminator. The same
+    unconditional wiring is present in `v0.2.6`, `v0.2.7`, `v0.2.9` and `v0.3.0`,
+    so nothing about it changed at this release; and the reload it issues goes
+    through `reloadAndRepaint`, the funnelled path the `PAUSE-021`/`027` latch
+    already covers, so it is a *trigger* for a blank the machinery claims to
+    handle, not an unnudged path. It also needs a `notificationsEnabled` site
+    and fires at most every 15 minutes. What it genuinely contributes is a
+    trigger with no user action behind it, which is worth having on the list of
+    things a user cannot attribute; it is not why this release goes white and
+    the tests do not. The error was reading a commit that post-dates the tag as
+    a regression introduced by the tag, without checking the older tags.
+
+    **Why no test caught the foreground leg anyway.** Scenario F fires the
+    refresh receiver while the app is BACKGROUNDED, the leg that was always
+    correct; the real 15-minute WorkManager tick cannot be driven in CI at all
+    (`cmd jobscheduler run -f` will not execute a periodic `WorkSpec` before its
+    next run time), so the debug receiver is the only way in and it was only
+    ever used from the background. Scenario F2 now fires it foregrounded and
+    asserts the visible site neither re-fetches nor blanks.
+
+    Verified green on `f3afb5c`: `visible site not reloaded (page loads
+    unchanged at 2)`, with the surface still painted. That confirms `f02d4af`
+    holds on a real foreground tick, and it is the leg no scenario drove before.
+
+    **What gap #15 does NOT claim.** That `v0.3.1` lacks `PAUSE-027` is a fact
+    about the tag. That `PAUSE-027` fixes this user's white screens is a
+    separate claim, and the base rate is against it: eleven attempts precede it,
+    every one landed believing it had the bug, and this file exists because each
+    was partial. Attempt 12 asserting otherwise would be the same error a
+    twelfth time.
+
+    Three things argue specifically against it. The reporter says the symptom
+    arrives on "many things", and `PAUSE-027` is a bounded window over the
+    *reload* latch: it does not touch warm start, activation, memory pressure or
+    route return. Those paths were already wired in the release —
+    `v0.3.1:lib/main.dart` has **14** `_nudgeSurfaceRepaint` call sites against
+    master's **15**, and already logs `commit-settled`, `controller-attach`,
+    `metrics-resume`, `reload` and `route-return`. So a device going white on
+    paths other than rapid refresh is a device on which Attempts 1–10 did not
+    hold, and one more call site plus a window will not change that. The honest
+    reading of the version skew is that it covers the *rapid-refresh subset* of
+    the report and nothing more.
+
+16. **The tier is built from the same enumeration as the fix, so it cannot
+    catch what the enumeration missed.** This is the structural answer to "why
+    is CI green", and unlike gap #15 it does not depend on which attempt is
+    latest. Every fix keys on a Dart-side proxy for "a surface attached"
+    (resumed, metrics changed, route popped, load settled), every scenario in
+    the adb tier drives one of those same known entry paths and checks pixels,
+    and the bug by construction lives in whatever path nobody enumerated. A
+    suite derived from the fix's own list of paths can only ever confirm the
+    list, never find what is missing from it. That is gap #3 and gap #9 stated
+    as a property of the tests rather than of the code, and it is why the count
+    of green scenarios has never predicted anything about the device.
+
+    The way out is the same one gap #3 names: stop enumerating. The fork
+    already surfaces the real signal — `onPageCommitVisible` is plumbed all the
+    way to Dart (`InAppWebViewClient.java:782`,
+    `InAppWebViewClientCompat.java:808`, `WebViewChannelDelegate.java:1183`,
+    `platform_webview.dart:1399`) and `grep -rn onPageCommitVisible lib/`
+    returns nothing. A repaint driven by the commit the engine actually reports,
+    rather than by a lifecycle event we hope implies one, needs no list.
+
+    **First step taken (2026-09-05): assert the request, not the paint.** Since
+    the pixels cannot fail here, the tier now also asserts, from the app's own
+    `SurfaceDiag` trace, that a repaint was *requested* on the path just driven:
+    `trigger=resume` after a warm start, `trigger=back` after a back gesture,
+    `trigger=activate` after a warm site switch (`assert_nudged` in
+    `scripts/run_android_lifecycle_tests.sh`). All three passed first time on
+    `f3afb5c`, so they are guards rather than findings: the wiring is intact on
+    the paths the tier drives. This is host-independent — it
+    reads the app, not the compositor — and it fails on the actual recurrence
+    mode, a path that reaches a surface without passing a chokepoint. It does
+    not make the tier representative: it still only covers paths someone
+    enumerated, and it still cannot tell whether a nudge that fires actually
+    saves the screen. Those two need the commit-driven chokepoint above and a
+    device trace respectively.
+
+    One correction rides along, because it changes where the next fix should
+    look. The `SurfaceView`-does-not-self-invalidate rule was cited here as the
+    root mechanism, but under HC the platform view is an `android.webkit.WebView`
+    in the Android view hierarchy, and a `WebView` is not a `SurfaceView` — it
+    draws through a functor into whatever surface contains it and never owns a
+    SurfaceFlinger layer. The surface that can present a stale frame in HC is
+    Flutter's own: `FlutterView.convertToImageView()` swaps the render surface
+    for `FlutterImageView`s, which present whatever image was last acquired and
+    do not repaint on their own. That is consistent with the symptom and with
+    why a 1px inset toggle clears it, but it is a different surface from the one
+    the doc quote names, and any fix aimed at "invalidate the platform view's
+    SurfaceView" would be aimed at the wrong object.
+
+   **What Scenario B3-B does and does not show.** It drives five reloads 120ms
+   apart against that 5s page, so four commits abort before the fifth lands --
+   the shape that spent the old one-shot latch on an aborted load. Every reload
+   nudge coalesced into one loop, and then `commit-settled` fired as a *fresh,
+   uncoalesced* nudge when the real document committed ~5s later. That trace is
+   real evidence, and it is evidence about the **latch's timing**: the window
+   was still open at the commit, which is what Attempt 11 built it for.
+
+   It is not evidence that the repaint prevented a blank. An earlier revision of
+   this paragraph said the surface "stayed painted" and read that as the fix
+   working, which is the same vacuity gap #16 describes: on this host the
+   surface stays painted with every trigger suppressed, so "stayed painted"
+   distinguishes nothing. B3-B guards the latch's *ordering*, read from the
+   app's trace. Whether that ordering saves a real screen is untested here and
+   needs a device.
+
+   **Forcing GPU composition was tried and could not be tried (2026-09-05).**
+   The one cheap hypothesis for why the emulator repaints unasked is hardware
+   overlays: an overlay-composed layer is re-scanned out every frame from
+   whatever its buffer last held. `service call SurfaceFlinger 1008 i32 1`, the
+   old "Disable HW overlays" developer-option call, was accepted and discarded
+   on API 34 both as shell and as root, with `dumpsys` still reporting four
+   layers at `composition type=DEVICE`. `1008` is a raw binder code from before
+   SurfaceFlinger moved to AIDL and no longer maps to that toggle. B3-A now
+   verifies that precondition and *skips* rather than failing, because a red
+   from an arm whose precondition never held is the same false evidence this
+   scenario exists to prevent. The overlay hypothesis is untested, not
+   disproved; testing it needs whatever the developer option calls on a modern
+   API level.
 12. **The trace is now honest but still opt-in.** `PAUSE-029` closed the coverage half
    of the diagnostic — every path reports, and a new one cannot be silent — but the
    developer-mode gate means a user who hits the bug has no trace *of the occurrence that
