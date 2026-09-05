@@ -513,6 +513,63 @@ who were told how to unlock it, so the falsifying report needs someone to ask fo
     two modes in either direction, and the Dart-level determination above is
     the only sound one. Do not re-derive a verdict from this dump.
 
+13. **Why the device reproduces and this tier does not.** The tier's negatives
+    are real (gap #12), which makes this the live question, and it has one
+    settled part and several open ones.
+
+    Settled: **the emulator repaints the platform view with no Dart help.**
+    Scenario B2 (warm start) and Scenario B3-A (committed reload) each
+    suppressed every `_nudgeSurfaceRepaint` trigger *and* the second repaint
+    path in `_probeRendererAndRecover`, showed the drops in the trace, and the
+    surface came back painted anyway. So no arrangement of scenarios on this
+    host can go red on this class: the symptom needs a surface that stays stale
+    until something forces it, and this one does not stay stale. Adding
+    scenarios is not the missing piece.
+
+    Open: which host difference supplies that unprompted repaint. Ranked by how
+    directly each bears on it, with what CI can do about it:
+
+    1. **Software rasterisation.** The runner has no GPU, so the emulator runs
+       `-gpu swiftshader_indirect`. A software compositor recomposes the whole
+       frame every vsync; there is no damage-rect, buffer-age or partial-update
+       path for a stale buffer to survive in. This is the best candidate and it
+       is the one CI cannot change: GitHub-hosted runners have no GPU.
+    2. **Animations disabled.** The emulator step runs with
+       `disable-animations: true`, zeroing all three scales. BUG-001 lives in
+       activity and route transitions, and a transition with no animation has a
+       different surface-transaction ordering than a real one. Cheap to flip in
+       this tier; untried.
+    3. **Debug build.** The tier installs `app-fdebug-debug.apk`; users run
+       release. JIT vs AOT changes frame timing, and the timing is what decides
+       whether an attach lands before or after a commit. Flipping it costs the
+       diag hooks: `RepaintSuppression` is `kDebugMode`-gated, so B2/B3-A cannot
+       run against release, though the pixel scenarios could.
+    4. **One site, one trivial page.** The seed is a single site serving a
+       solid-colour static document from localhost. Users run many sites in the
+       `IndexedStack` with real pages: slow first paint, subframes, service
+       workers, and enough memory pressure to evict a renderer. Site count and
+       page weight are both raisable here.
+    5. **A different isolation engine.** `_useContainers` is resolved from
+       `WebViewFeature.MULTI_PROFILE` at startup, and it selects a different
+       webview creation path (`containerId` set, a Profile bound in the fork's
+       `prepare()`). If the emulator's bundled System WebView answers
+       differently from a Play-updated one on a phone, the two are not running
+       the same attach path at all. The tier now records the answer.
+
+    The tier records 1, 2, 4 and 5 per run (`host:` lines beside the
+    composition dump) so a future green states what it was green on.
+
+    **The measurement that would settle it is on the device, not here.**
+    `_traceRepaint` is gated on developer mode, not `kDebugMode`, so a release
+    build with developer mode on records the full SurfaceDiag trigger sequence
+    into `LogService` (2000-entry ring) and Dev Tools can export it. Capturing
+    that at the moment a real screen goes white separates the two hypotheses
+    every attempt so far has had to guess between: **no nudge fired** (another
+    unnudged path, which is gap #3 and what all eleven attempts assumed) versus
+    **a nudge fired and the surface stayed blank** (the nudge itself does not
+    work on real hardware, which would invalidate the remedy rather than its
+    coverage). Nothing in the repository currently distinguishes them.
+
     One correction rides along, because it changes where the next fix should
     look. The `SurfaceView`-does-not-self-invalidate rule was cited here as the
     root mechanism, but under HC the platform view is an `android.webkit.WebView`
