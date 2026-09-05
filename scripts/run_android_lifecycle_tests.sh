@@ -301,6 +301,26 @@ dump_composition_mode() {
       | grep -iE 'platformview|hybrid composition|FlutterImageView|virtual display' \
       | tail -40
   } > "$out" 2>&1 || true
+  # The host facts that decide whether a green here means anything. Every one
+  # of these differs between this emulator and a phone, and each is a candidate
+  # explanation for why the emulator repaints a surface nothing asked it to.
+  # Recorded, not asserted: the tier must not go red because a runner image
+  # changed, but a bug report that cites a green run should be able to say what
+  # it ran on. See docs/bugs/001-white-screen.md gap #13.
+  echo "  host: rendering backend: $(adb logcat -d 2>/dev/null | tr -d '\r' \
+    | grep -oiE 'impeller[^,)]*(vulkan|opengles|gl)|using the [a-z]+ rendering backend' \
+    | tail -1 || true)"
+  echo "  host: isolation engine: $(adb logcat -d 2>/dev/null | tr -d '\r' \
+    | grep -F '[Container' | tail -1 | sed 's/.*\[Container[^]]*\] *//' || true)"
+  echo "  host: system webview: $(adb shell dumpsys webviewupdate 2>/dev/null \
+    | tr -d '\r' | grep -m1 -i 'current webview package (name, version)' || true)"
+  echo "  host: animation scales (window/transition/animator): \
+$(adb shell settings get global window_animation_scale 2>/dev/null | tr -d '\r') \
+$(adb shell settings get global transition_animation_scale 2>/dev/null | tr -d '\r') \
+$(adb shell settings get global animator_duration_scale 2>/dev/null | tr -d '\r')"
+  echo "  host: build: $(adb shell getprop ro.build.version.release 2>/dev/null | tr -d '\r') \
+api $(adb shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r') \
+$(adb shell getprop ro.product.model 2>/dev/null | tr -d '\r')"
   echo "  composition: SurfaceFlinger layers naming $pkg"
   printf '%s\n' "$layers" | grep -F "$pkg" | head -12 | sed 's/^/    /' \
     || echo "    (none)"
