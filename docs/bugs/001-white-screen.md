@@ -558,8 +558,40 @@ who were told how to unlock it, so the falsifying report needs someone to ask fo
        differently from a Play-updated one on a phone, the two are not running
        the same attach path at all. The tier now records the answer.
 
-    The tier records 1, 2, 4 and 5 per run (`host:` lines beside the
-    composition dump) so a future green states what it was green on.
+    **Measured 2026-09-05 (`f3afb5c`), and #5 is no longer a candidate.** The
+    `host:` lines from the first green run carrying them:
+
+    ```
+    isolation engine: Container API not supported - using CookieIsolationEngine
+                      + (legacy) CookieManager
+    system webview:   com.google.android.webview, 113.0.5672.136
+    animation scales: 0.0 0.0 0.0   (window / transition / animator)
+    app build mode:   debug
+    build:            Android 14, api 34, sdk_gphone64_x86_64
+    ```
+
+    So **CI never runs the container engine at all.** The emulator's bundled
+    WebView is 113, which does not advertise `MULTI_PROFILE`, so
+    `ContainerNative.isSupported()` returns false and every scenario in this
+    tier exercises `CookieIsolationEngine`. A phone with a Play-updated System
+    WebView takes the other branch, where `WebViewFactory.createWebView` sets
+    `containerId` and the fork binds an `androidx.webkit.Profile` inside
+    `InAppWebView.prepare()`. That is a different webview creation and attach
+    path, and the attach path is where this bug lives. Candidate #5 is
+    confirmed: the two are not running the same code.
+
+    Candidate #2 is confirmed too — all three animation scales are 0.0, against
+    1.0 on a normal device, so every activity and route transition this tier
+    drives completes without the animation a real one has.
+
+    The WebView version is worth its own line: 113.0.5672.136 shipped in May
+    2023. The compositor a phone runs is years of Chromium ahead of the one
+    every one of these scenarios has ever tested.
+
+    The renderer line came back empty: the logcat pattern was a guess at the
+    engine's banner wording and matched nothing, so Impeller-vs-Skia and
+    Vulkan-vs-GLES are still unmeasured. The probe now dumps the candidate
+    lines instead of matching a phrase it cannot verify.
 
     **The measurement that would settle it is on the device, not here.**
     `_traceRepaint` is gated on developer mode, not `kDebugMode`, so a release
@@ -674,6 +706,10 @@ who were told how to unlock it, so the falsifying report needs someone to ask fo
     ever used from the background. Scenario F2 now fires it foregrounded and
     asserts the visible site neither re-fetches nor blanks.
 
+    Verified green on `f3afb5c`: `visible site not reloaded (page loads
+    unchanged at 2)`, with the surface still painted. That confirms `f02d4af`
+    holds on a real foreground tick, and it is the leg no scenario drove before.
+
     **What gap #15 does NOT claim.** That `v0.3.1` lacks `PAUSE-027` is a fact
     about the tag. That `PAUSE-027` fixes this user's white screens is a
     separate claim, and the base rate is against it: eleven attempts precede it,
@@ -718,7 +754,9 @@ who were told how to unlock it, so the falsifying report needs someone to ask fo
     `SurfaceDiag` trace, that a repaint was *requested* on the path just driven:
     `trigger=resume` after a warm start, `trigger=back` after a back gesture,
     `trigger=activate` after a warm site switch (`assert_nudged` in
-    `scripts/run_android_lifecycle_tests.sh`). This is host-independent — it
+    `scripts/run_android_lifecycle_tests.sh`). All three passed first time on
+    `f3afb5c`, so they are guards rather than findings: the wiring is intact on
+    the paths the tier drives. This is host-independent — it
     reads the app, not the compositor — and it fails on the actual recurrence
     mode, a path that reaches a surface without passing a chokepoint. It does
     not make the tier representative: it still only covers paths someone

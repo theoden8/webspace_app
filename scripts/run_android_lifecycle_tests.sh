@@ -330,9 +330,12 @@ dump_composition_mode() {
   # Recorded, not asserted: the tier must not go red because a runner image
   # changed, but a bug report that cites a green run should be able to say what
   # it ran on. See docs/bugs/001-white-screen.md gap #13.
-  echo "  host: rendering backend: $(adb logcat -d 2>/dev/null | tr -d '\r' \
-    | grep -oiE 'impeller[^,)]*(vulkan|opengles|gl)|using the [a-z]+ rendering backend' \
-    | tail -1 || true)"
+  # Matched nothing on the first run: the engine's banner is not the phrase this
+  # guessed at, or it never reaches logcat here. Dump the candidate lines rather
+  # than pattern-match a message whose wording is unverified.
+  echo "  host: renderer lines: $(adb logcat -d 2>/dev/null | tr -d '\r' \
+    | grep -iE 'impeller|vulkan|opengl|angle|swiftshader' | tail -3 \
+    | tr '\n' '|' || true)"
   echo "  host: isolation engine: $(adb logcat -d 2>/dev/null | tr -d '\r' \
     | grep -F '[Container' | tail -1 | sed 's/.*\[Container[^]]*\] *//' || true)"
   echo "  host: system webview: $(adb shell dumpsys webviewupdate 2>/dev/null \
