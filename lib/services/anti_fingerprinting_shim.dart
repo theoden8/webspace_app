@@ -200,6 +200,16 @@ String buildAntiFingerprintingShim(
   // deviceMemory ∈ {4, 8}
   var DEVICE_MEMORY = (_baseRng() < 0.5) ? 4 : 8;
 
+  // Correct only what the engine already exposes. Defining a property the
+  // real engine lacks is a one-expression tell (`'x' in navigator`), the
+  // same leak class as the own-property override ETP-010 already forbids.
+  function hasOnNav(name) {
+    try {
+      return typeof navigator !== 'undefined' && !!navigator &&
+        (name in navigator);
+    } catch (e) { return false; }
+  }
+
   function defineGetterOnProto(proto, name, value) {
     if (!proto) return;
     try {
@@ -309,9 +319,17 @@ String buildAntiFingerprintingShim(
   // --- navigator.hardwareConcurrency / deviceMemory ---
   // hardwareConcurrency / deviceMemory exist on WorkerNavigator too, so these
   // are spoofed in worker scope as well — the page and its workers MUST agree.
+  //
+  // deviceMemory is Chromium-only: absent on the WebKit builds behind iOS,
+  // macOS and Linux, so defining it unconditionally ADDED a property those
+  // engines lack.
   try {
-    defineGetterOnProto(NavProto, 'hardwareConcurrency', HW_CONCURRENCY);
-    defineGetterOnProto(NavProto, 'deviceMemory', DEVICE_MEMORY);
+    if (hasOnNav('hardwareConcurrency')) {
+      defineGetterOnProto(NavProto, 'hardwareConcurrency', HW_CONCURRENCY);
+    }
+    if (hasOnNav('deviceMemory')) {
+      defineGetterOnProto(NavProto, 'deviceMemory', DEVICE_MEMORY);
+    }
   } catch (e) {}
 
   // --- navigator.plugins / mimeTypes -> empty array-likes ---
@@ -359,9 +377,11 @@ String buildAntiFingerprintingShim(
   } catch (e) {}
 
   // --- navigator.getBattery -> fixed values ---
-  // Window-only: the Battery API is not exposed to workers (see plugins above).
+  // Window-only: the Battery API is not exposed to workers (see plugins above),
+  // and Chromium-only: WebKit has no navigator.getBattery at all, so this is
+  // corrected where it exists rather than introduced where it does not.
   try {
-    if (NavProto && !IS_WORKER) {
+    if (NavProto && !IS_WORKER && hasOnNav('getBattery')) {
       var fixedBattery = {
         charging: true,
         chargingTime: 0,

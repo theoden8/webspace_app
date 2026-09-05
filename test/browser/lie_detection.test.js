@@ -33,6 +33,7 @@ const FULL_COMBO = readFixture('location_spoof/full_combo.js');
 const THEME_DARK = readFixture('theme_color_scheme/dark.js');
 const BLOB_SHIM = readFixture('blob_url_capture/shim.js');
 const CAMERA_SHIM = readFixture('camera_stream/shim.js');
+const AF_ALPHA = readFixture('anti_fingerprinting/shim_seed_alpha.js');
 
 const browser = setupBrowser();
 
@@ -113,6 +114,89 @@ test('desktop_mode: Object.getOwnPropertyNames(navigator) does not list override
           `${k} leaks as own-property of navigator: ${JSON.stringify(ownProps)}`);
       }
     });
+  });
+
+// ---------- Absent-property leak ----------
+
+// navigator.deviceMemory and navigator.getBattery are Chromium-only AND
+// secure-context-gated: absent from every WebKit build (so from iOS, macOS
+// and Linux WPE), and absent from Chromium itself on a plain-http page.
+// Defining them unconditionally therefore announced the shim on three of
+// four platforms and on every insecure origin, by one expression and with
+// no measurement: `'deviceMemory' in navigator`.
+
+test('anti_fingerprinting: the shim adds no navigator property Chromium lacks',
+  async (t) => {
+    // The mirror of the own-property probe above, over both context kinds.
+    // Compared against a pristine page in the same browser rather than a
+    // fixed list, so a future Chromium's own surface changes with it.
+    if (!requireBrowser(browser, t)) return;
+    const keysOf = () => {
+      const seen = [];
+      for (let o = navigator; o; o = Object.getPrototypeOf(o)) {
+        for (const k of Object.getOwnPropertyNames(o)) {
+          if (!seen.includes(k)) seen.push(k);
+        }
+      }
+      return seen.sort();
+    };
+    const server = await startSecureOriginServer();
+    try {
+      for (const url of ['about:blank',
+                         `http://127.0.0.1:${server.address().port}/`]) {
+        const clean = await browser.browser.newPage();
+        const shimmed = await browser.browser.newPage();
+        try {
+          await shimmed.evaluateOnNewDocument(AF_ALPHA);
+          await clean.goto(url, { waitUntil: 'load' });
+          await shimmed.goto(url, { waitUntil: 'load' });
+          const before = await clean.evaluate(keysOf);
+          const after = await shimmed.evaluate(keysOf);
+          const added = after.filter((k) => !before.includes(k));
+          const removed = before.filter((k) => !after.includes(k));
+          assert.deepEqual(added, [], `${url}: shim added ${added.join(', ')}`);
+          assert.deepEqual(removed, [],
+            `${url}: shim removed ${removed.join(', ')}`);
+        } finally {
+          await clean.close();
+          await shimmed.close();
+        }
+      }
+    } finally {
+      server.close();
+    }
+  });
+
+test('anti_fingerprinting: deviceMemory and getBattery are still spoofed here',
+  async (t) => {
+    // The other direction of the same guard: on a secure origin Chromium HAS
+    // both, so skipping them where they are absent must not have skipped
+    // them where they are present.
+    if (!requireBrowser(browser, t)) return;
+    const server = await startSecureOriginServer();
+    const page = await browser.browser.newPage();
+    try {
+      await page.evaluateOnNewDocument(AF_ALPHA);
+      await page.goto(`http://127.0.0.1:${server.address().port}/`,
+        { waitUntil: 'load' });
+      const r = await page.evaluate(async () => {
+        const battery = await navigator.getBattery();
+        return {
+          deviceMemory: navigator.deviceMemory,
+          charging: battery.charging,
+          level: battery.level,
+          dischargingIsInfinite: battery.dischargingTime === Infinity,
+        };
+      });
+      assert.ok(r.deviceMemory === 4 || r.deviceMemory === 8,
+        `deviceMemory=${r.deviceMemory} not in {4, 8}`);
+      assert.equal(r.charging, true);
+      assert.equal(r.level, 1);
+      assert.equal(r.dischargingIsInfinite, true);
+    } finally {
+      await page.close();
+      server.close();
+    }
   });
 
 // ---------- Iframe escape ----------

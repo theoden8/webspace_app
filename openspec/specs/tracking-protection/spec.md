@@ -337,6 +337,16 @@ self-incriminate) so:
   PluginArray-shaped objects (with `length`, `item`, `namedItem`, and
   for plugins `refresh`).
 
+Each SHALL be corrected only where the engine already exposes it, and the
+shim SHALL NOT introduce one the engine lacks. `navigator.deviceMemory` and
+`navigator.getBattery` (ETP-011) are Chromium-only and secure-context-gated:
+absent from every WebKit build, so from iOS, macOS and Linux WPE, and absent
+from Chromium itself on a plain-http page. Defining them regardless is
+answered by `'deviceMemory' in navigator` in one expression with no
+measurement — the same self-incrimination as the own-property leak below,
+and the rule worker scope already follows for `plugins` / `mimeTypes`
+(WORK-003).
+
 The shim SHALL ALSO wrap `window.matchMedia` so single-feature
 `(min-|max-)?device-width` / `device-height` media queries resolve against
 the SAME dimensions `screen.*` reports — the pinned `SCREEN_W`/`SCREEN_H`
@@ -369,6 +379,22 @@ of `hardwareConcurrency`, `deviceMemory`, `plugins`, `mimeTypes`,
 `getBattery`
 **And** `Object.getOwnPropertyNames(screen)` does NOT contain `width`,
 `height`, `colorDepth`, or `pixelDepth`
+
+#### Scenario: Absent properties are NOT introduced
+
+**Given** the shim is loaded in a context whose engine exposes neither
+`navigator.deviceMemory` nor `navigator.getBattery` (any WebKit build, or
+Chromium on an insecure origin)
+**Then** `'deviceMemory' in navigator` is `false`
+**And** `'getBattery' in navigator` is `false`
+**And** the set of keys reachable on `navigator`, own and inherited, is the
+same as without the injection
+
+#### Scenario: Present properties are still corrected
+
+**Given** the shim is loaded on Chromium over a secure origin
+**Then** `navigator.deviceMemory` ∈ {4, 8}
+**And** `await navigator.getBattery()` reports the ETP-011 fixed values
 
 ---
 
@@ -534,14 +560,15 @@ navigation state and HTML snapshot are on disk
 
 ### Requirement: ETP-011 - Battery and speech-synthesis
 
-The shim SHALL define `navigator.getBattery()` to resolve a Promise of
-fixed values (`charging: true`, `chargingTime: 0`,
-`dischargingTime: Infinity`, `level: 1`) and shall override
-`SpeechSynthesis.prototype.getVoices` to return an empty array.
+Where the engine exposes it (ETP-010), the shim SHALL correct
+`navigator.getBattery()` to resolve a Promise of fixed values
+(`charging: true`, `chargingTime: 0`, `dischargingTime: Infinity`,
+`level: 1`) and shall override `SpeechSynthesis.prototype.getVoices` to
+return an empty array.
 
 #### Scenario: getBattery returns fixed values
 
-**Given** the shim is loaded
+**Given** the shim is loaded on an engine that exposes `navigator.getBattery`
 **When** `await navigator.getBattery()` is awaited
 **Then** the result has `charging === true`, `level === 1`,
 `dischargingTime === Infinity`

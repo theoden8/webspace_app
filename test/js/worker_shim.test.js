@@ -361,6 +361,12 @@ test('worker hardware values are the spoofed ones, matching the page', () => {
   // source runs in both. Compare against the page's own values.
   const { worker, page } = loadPayloadInWorker();
   const pageDom = new JSDOM('<!doctype html>', { runScripts: 'outside-only' });
+  // The shim corrects deviceMemory only where the engine has it, and the
+  // worker stub above has it. jsdom's page navigator does not, so without
+  // this the two scopes are modelling two different engines and the
+  // agreement the test is about cannot be read off them.
+  Object.defineProperty(Object.getPrototypeOf(pageDom.window.navigator),
+    'deviceMemory', { value: 2, configurable: true });
   pageDom.window.eval(readFixture('anti_fingerprinting/shim_seed_alpha.js'));
   assert.equal(worker.run('navigator.hardwareConcurrency'),
     pageDom.window.navigator.hardwareConcurrency);
@@ -368,6 +374,7 @@ test('worker hardware values are the spoofed ones, matching the page', () => {
     pageDom.window.navigator.deviceMemory);
   // And not the host's real values from the stub.
   assert.notEqual(worker.run('navigator.hardwareConcurrency'), 10);
+  assert.notEqual(worker.run('navigator.deviceMemory'), 2);
   assert.ok(page);
 });
 

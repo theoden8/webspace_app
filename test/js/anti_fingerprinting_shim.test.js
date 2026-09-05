@@ -234,6 +234,32 @@ function seedPlugins(window) {
   }
 }
 
+// jsdom's navigator has neither deviceMemory nor getBattery, and neither has
+// WebKit. The shim corrects them only where the engine already exposes them,
+// so a test of the spoofed value has to model a Chromium engine first, or it
+// asserts on the shim's own addition rather than on an override.
+function seedChromiumNav(window) {
+  const navProto = Object.getPrototypeOf(window.navigator);
+  Object.defineProperty(navProto, 'deviceMemory', {
+    configurable: true, enumerable: true, get: () => 2,
+  });
+  Object.defineProperty(navProto, 'getBattery', {
+    configurable: true, writable: true,
+    value: function getBattery() {
+      return Promise.resolve({ charging: false, level: 0.37 });
+    },
+  });
+}
+
+// Every key reachable on navigator, own and inherited.
+function navKeys(navigator) {
+  const seen = new Set();
+  for (let o = navigator; o; o = Object.getPrototypeOf(o)) {
+    for (const k of Object.getOwnPropertyNames(o)) seen.add(k);
+  }
+  return seen;
+}
+
 const ALPHA = 'anti_fingerprinting/shim_seed_alpha.js';
 const BETA = 'anti_fingerprinting/shim_seed_beta.js';
 const ALPHA_LETTERBOX = 'anti_fingerprinting/shim_seed_alpha_letterbox.js';
@@ -352,7 +378,7 @@ test('navigator.hardwareConcurrency is in the seeded range [4, 8]', () => {
 });
 
 test('navigator.deviceMemory is one of {4, 8}', () => {
-  const dom = loadShim(ALPHA);
+  const dom = loadShim(ALPHA, undefined, seedChromiumNav);
   const dm = dom.window.navigator.deviceMemory;
   assert.ok(dm === 4 || dm === 8, `deviceMemory=${dm} not in {4,8}`);
 });
@@ -361,8 +387,8 @@ test('same seed → same hardwareConcurrency / deviceMemory across runs', () => 
   // Per-site stability: a given site must report the same hardware
   // fingerprint on every launch. Re-loading the same fixture twice
   // must produce the same numbers.
-  const a = loadShim(ALPHA);
-  const b = loadShim(ALPHA);
+  const a = loadShim(ALPHA, undefined, seedChromiumNav);
+  const b = loadShim(ALPHA, undefined, seedChromiumNav);
   assert.equal(a.window.navigator.hardwareConcurrency,
     b.window.navigator.hardwareConcurrency);
   assert.equal(a.window.navigator.deviceMemory,
@@ -374,8 +400,8 @@ test('different seeds may report different deviceMemory', () => {
   // disagree. Since deviceMemory is binary {4, 8} we check the values
   // are present and well-formed; the alpha/beta seeds were chosen to
   // straddle the threshold.
-  const a = loadShim(ALPHA).window.navigator.deviceMemory;
-  const b = loadShim(BETA).window.navigator.deviceMemory;
+  const a = loadShim(ALPHA, undefined, seedChromiumNav).window.navigator.deviceMemory;
+  const b = loadShim(BETA, undefined, seedChromiumNav).window.navigator.deviceMemory;
   assert.ok([4, 8].includes(a));
   assert.ok([4, 8].includes(b));
 });
@@ -415,12 +441,37 @@ test('the emptied collections are not arrays and carry no own properties', () =>
 });
 
 test('navigator.getBattery resolves to fixed values', async () => {
-  const dom = loadShim(ALPHA);
+  const dom = loadShim(ALPHA, undefined, seedChromiumNav);
   const battery = await dom.window.navigator.getBattery();
   assert.equal(battery.charging, true);
   assert.equal(battery.level, 1);
   assert.equal(battery.dischargingTime, Infinity);
   assert.equal(typeof battery.addEventListener, 'function');
+});
+
+test('the shim introduces no navigator property the engine lacks', () => {
+  // Class-level gate for ETP-010. An absent property that appears under the
+  // shim answers `'x' in navigator` differently from the real engine, which
+  // is the same leak as an own-property override and needs no measurement.
+  const dom = makeDom();
+  const before = navKeys(dom.window.navigator);
+  dom.window.eval(readFixture(ALPHA));
+  const added = [...navKeys(dom.window.navigator)].filter((k) => !before.has(k));
+  assert.deepEqual(added, [], `shim added ${added.join(', ')} to navigator`);
+});
+
+test('deviceMemory stays absent on an engine without it', () => {
+  // Chromium-only, so on the WebKit builds behind iOS, macOS and Linux the
+  // spoofed value must not appear at all.
+  const dom = loadShim(ALPHA);
+  assert.equal('deviceMemory' in dom.window.navigator, false);
+  assert.equal(dom.window.navigator.deviceMemory, undefined);
+});
+
+test('getBattery stays absent on an engine without it', () => {
+  const dom = loadShim(ALPHA);
+  assert.equal('getBattery' in dom.window.navigator, false);
+  assert.equal(dom.window.navigator.getBattery, undefined);
 });
 
 test('speechSynthesis.getVoices returns []', () => {
