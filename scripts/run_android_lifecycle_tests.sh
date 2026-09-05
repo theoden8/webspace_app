@@ -197,9 +197,23 @@ seed_pair_b64() { # $1/$2 = first page + siteId, $3/$4 = second page + siteId
     "$(site_json "$1" "$2")" "$(site_json "$3" "$4")" | base64 | tr -d '\n'
 }
 
-echo "== Building default-entrypoint fdebug APK"
-fvm flutter build apk --debug --flavor fdebug -t lib/main.dart
-apk="build/app/outputs/flutter-apk/app-fdebug-debug.apk"
+# The shipped artifact is AOT-compiled and its webviews are created with
+# `isInspectable: false` (webview.dart gates that on kDebugMode, and it is the
+# only build-mode-dependent WebView setting in the app). A debug build has
+# neither property, so no scenario here has ever driven the webview users get.
+# `profile` flips both and stays debuggable -- Flutter's profile build type is
+# `initWith(debug)` -- so the diag seed, the reload extra and the repaint
+# suppression all still work. Default stays debug; set the mode to profile to
+# run the tier against the closer artifact. See docs/bugs/001-white-screen.md
+# gap #13.
+build_mode="${WS_LIFECYCLE_BUILD_MODE:-debug}"
+case "$build_mode" in
+  debug|profile) ;;
+  *) echo "ERROR: WS_LIFECYCLE_BUILD_MODE must be debug or profile" >&2; exit 1 ;;
+esac
+echo "== Building default-entrypoint fdebug APK ($build_mode)"
+fvm flutter build apk "--$build_mode" --flavor fdebug -t lib/main.dart
+apk="build/app/outputs/flutter-apk/app-fdebug-$build_mode.apk"
 if [ ! -f "$apk" ]; then
   echo "ERROR: $apk not produced" >&2
   exit 1
@@ -318,6 +332,7 @@ dump_composition_mode() {
 $(adb shell settings get global window_animation_scale 2>/dev/null | tr -d '\r') \
 $(adb shell settings get global transition_animation_scale 2>/dev/null | tr -d '\r') \
 $(adb shell settings get global animator_duration_scale 2>/dev/null | tr -d '\r')"
+  echo "  host: app build mode: $build_mode"
   echo "  host: build: $(adb shell getprop ro.build.version.release 2>/dev/null | tr -d '\r') \
 api $(adb shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r') \
 $(adb shell getprop ro.product.model 2>/dev/null | tr -d '\r')"

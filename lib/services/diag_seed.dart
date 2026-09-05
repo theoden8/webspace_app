@@ -25,10 +25,13 @@ class DiagSeedData {
 /// base64 JSON site list (Android intent extra / `WS_DIAG_SEED` env)
 /// and the app seeds itself before the first prefs read.
 ///
-/// Debug builds only: the call is gated on [kDebugMode] and the Kotlin
-/// side refuses the extra on non-debuggable builds, so a release build
-/// never honors it. Seeding enables demo mode, so nothing from the run
-/// is persisted past the seeded values themselves.
+/// Never in a release build: the call is gated on [kReleaseMode] and the
+/// Kotlin side refuses the extra on non-debuggable builds, so a release build
+/// never honors it. Profile builds are in scope, and are how the tier drives
+/// an AOT, non-inspectable webview (Flutter's `profile` build type is
+/// `initWith(debug)`, so it stays debuggable and the native gate passes).
+/// Seeding enables demo mode, so nothing from the run is persisted past the
+/// seeded values themselves.
 class DiagSeed {
   static const _channel =
       MethodChannel('org.codeberg.theoden8.webspace/shortcuts');
@@ -64,10 +67,10 @@ class DiagSeed {
   /// on read so a later resume does not repeat them.
   ///
   /// The refresh funnel is only reachable from the overflow menu, which adb
-  /// cannot drive, and the reload path is the one BUG-001 was reported on.
-  /// Debug builds only, like the seed.
+  /// cannot drive, and refresh is one of the entry paths BUG-001 is reported
+  /// on. Non-release builds only, like the seed.
   static Future<int?> takeReloadRequest() async {
-    if (!kDebugMode) return null;
+    if (kReleaseMode) return null;
     String? spec;
     try {
       spec = await _channel.invokeMethod<String>('getDiagReload');
@@ -89,7 +92,7 @@ class DiagSeed {
   /// Returns whether a seed was applied. Must complete before the page
   /// state loads models from prefs.
   static Future<bool> applyFromLaunch() async {
-    if (!kDebugMode) return false;
+    if (kReleaseMode) return false;
     String? encoded;
     try {
       encoded = await _channel.invokeMethod<String>('getDiagSeed');

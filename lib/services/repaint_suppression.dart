@@ -16,8 +16,10 @@ import 'package:flutter/foundation.dart';
 /// the instrument for deciding whether a native attach callback in the fork is
 /// worth adopting.
 ///
-/// Gated on [kDebugMode] and never set outside the diag tiers, so a release
-/// build cannot lose a repaint to it.
+/// Gated on [kReleaseMode] and never set outside the diag tiers, so a release
+/// build cannot lose a repaint to it. Profile builds are in scope on purpose:
+/// they are what the tier needs to drive an AOT, non-inspectable webview, the
+/// two things a shipped build has and a debug build does not.
 class RepaintSuppression {
   RepaintSuppression._();
 
@@ -26,9 +28,9 @@ class RepaintSuppression {
   /// Trigger labels currently dropped. Empty in every ordinary build.
   static Set<String> get triggers => _triggers;
 
-  /// Replace the suppressed set. No-op outside debug builds.
+  /// Replace the suppressed set. No-op in release builds.
   static void set(Iterable<String> triggers) {
-    if (!kDebugMode) return;
+    if (kReleaseMode) return;
     _triggers = Set<String>.unmodifiable(triggers.map((t) => t.trim()).where(
           (t) => t.isNotEmpty,
         ));
@@ -46,7 +48,7 @@ class RepaintSuppression {
 
   /// Whether [trigger] is currently dropped.
   static bool suppresses(String trigger) =>
-      kDebugMode && _triggers.contains(trigger);
+      !kReleaseMode && _triggers.contains(trigger);
 
   @visibleForTesting
   static void reset() => _triggers = const <String>{};
