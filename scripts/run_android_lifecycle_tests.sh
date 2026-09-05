@@ -276,6 +276,48 @@ wait_for_logcat() { # $1 = slug, $2 = deadline secs, $3 = literal pattern
   done
 }
 
+# Which composition mode the engine picked for the platform view decides
+# whether this tier can observe BUG-001 at all. Flutter's own rule is that a
+# SurfaceView-backed platform view does not invalidate itself when its
+# content changes, so the embedder has to; a texture-composited one is
+# redrawn by Flutter's frame loop and cannot go blank that way. Every
+# negative result this tier has produced is conditional on the emulator
+# running the same mode as the devices that report the symptom, and nothing
+# in the suite recorded which one it ran. Dump the evidence on every run.
+# Never fail on it: the layer list is the fact, the reading below is a
+# heuristic, and a wrong heuristic must not turn a real pass red.
+dump_composition_mode() {
+  local out="$artifacts/composition-mode.txt"
+  {
+    echo "# dumpsys SurfaceFlinger --list"
+    adb shell dumpsys SurfaceFlinger --list 2>/dev/null | tr -d '\r'
+    echo
+    echo "# SurfaceFlinger layer records mentioning $pkg, with composition types"
+    adb shell dumpsys SurfaceFlinger 2>/dev/null | tr -d '\r' \
+      | grep -E "$pkg|composition type" | tail -80
+    echo
+    echo "# platform-view chatter in logcat"
+    adb logcat -d 2>/dev/null | tr -d '\r' \
+      | grep -iE 'platformview|hybrid composition|FlutterImageView|virtual display' \
+      | tail -40
+  } > "$out" 2>&1 || true
+  local sv
+  sv="$(grep -cE "SurfaceView\[$pkg" "$out" 2>/dev/null || true)"
+  sv="$(printf '%s' "${sv:-0}" | tr -d '[:space:]')"
+  echo "  composition: SurfaceView layers owned by $pkg: ${sv:-0}"
+  if [ "${sv:-0}" = "0" ]; then
+    echo "    reading (heuristic): no FlutterSurfaceView layer while the webview is"
+    echo "    on screen, which is what the engine leaves behind after it converts"
+    echo "    to FlutterImageView for hybrid composition. The affected mode."
+  else
+    echo "    reading (heuristic): Flutter is still rendering through its own"
+    echo "    SurfaceView, so the platform view is composited into Flutter's frames"
+    echo "    (texture path). BUG-001's invalidate gap cannot occur in this mode,"
+    echo "    and this tier's negative results say nothing about the reported one."
+  fi
+  echo "    full dump: $out"
+}
+
 adb shell input keyevent KEYCODE_WAKEUP
 adb shell input keyevent 82
 adb shell svc power stayon true
@@ -287,6 +329,7 @@ adb shell am start -W -n "$component" \
   --es ws_diag_seed "$(seed_b64 dark.html "$dark_site_id")" \
   --es siteId "$dark_site_id"
 wait_for_pixels cold-start-dark 180 --expect-dominant "$dark"
+dump_composition_mode
 
 echo "== Scenario B: warm start repaints the re-attached surface (PAUSE-020)"
 adb shell input keyevent 3
@@ -588,12 +631,14 @@ else
   sed 's/^/     /' "$artifacts/b2-surfacediag.txt" || true
 fi
 
-# Scenario B3 goes after the path BUG-001 was actually reported on: refresh.
-# B2 found the emulator repaints a warm-started surface on its own, but a warm
-# start carries a window visibility change and a reload does not, so nothing
-# below Dart has a reason to repaint what a reload blanks. Refresh is also the
-# one path no scenario could reach (it lives in the overflow menu, which adb
-# cannot drive); `ws_diag_reload` calls the same `reloadAndRepaint` funnel.
+# Scenario B3 adds refresh to the entry paths this tier drives. Refresh is one
+# of many -- BUG-001 is reported across warm start, tab switch, fullscreen exit
+# and back navigation too -- but it is the one no scenario could reach, because
+# it lives in the overflow menu and adb cannot drive it; `ws_diag_reload` calls
+# the same `reloadAndRepaint` funnel. B2 found the emulator repaints a
+# warm-started surface on its own, and a warm start carries a window visibility
+# change that a reload does not, so a reload is the entry path where nothing
+# below Dart has an obvious reason to repaint.
 #
 # Both arms load `slow.html`, which stalls 5s before its first byte. The first
 # attempt used the instant localhost page and proved nothing: the replacement
