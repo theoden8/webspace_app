@@ -555,16 +555,13 @@ adb shell am start -W -n "$component"
 wait_for_pixels notif-foreground-dark 90 --expect-dominant "$dark"
 
 echo "== Scenario F2: a refresh tick in the foreground must not touch the visible site"
-# v0.3.1 shipped this reloading the page the user was reading. Android's
-# WorkManager tick (NOTIF-005-A) fires whenever the Flutter engine is
-# reachable, the foreground included, and the handler had no active-site
-# exclusion: it was written when only iOS's BGAppRefreshTask reached it, where
-# the app is suspended by definition. A spontaneous reload of the visible page
-# discards its painted frame, which is BUG-001's reload path (PAUSE-021/027)
-# arriving with no user action behind it -- and therefore at no reproducible
-# moment, which is what "it happens on many things" looks like from outside.
-# Fixed on master by f02d4af. Scenario F fires this same receiver while the
-# app is BACKGROUNDED, so no scenario has ever driven the leg that broke.
+# Android's WorkManager tick (NOTIF-005-A) fires whenever the Flutter engine
+# is reachable, the foreground included, and the handler took no active-site
+# exclusion until f02d4af: it was written when only iOS's BGAppRefreshTask
+# reached it, where the app is suspended by definition. So the page the user
+# was reading was reloaded on the worker's schedule, with no user action behind
+# it. Scenario F fires this same receiver while the app is BACKGROUNDED, the
+# leg that was always correct, so nothing drove the leg that broke.
 fg_beacons_before="$(beacon_hits)"
 fg_triggers_before="$(bg_log_hits 'debug trigger: enqueueing')"
 adb shell am broadcast -n "$pkg/.NotificationRefreshDebugReceiver" >/dev/null
