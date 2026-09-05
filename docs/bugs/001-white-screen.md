@@ -14,10 +14,16 @@ user just sees a dead-looking screen after some navigation or app-lifecycle even
 
 ## Root mechanism (the invariant behind every instance)
 
-On Android the webview is a **hybrid-composition `SurfaceView`**. That surface can
+On Android the webview runs under **hybrid composition** (confirmed: the fork
+defaults `useHybridComposition` to `true`, which routes to
+`PlatformViewsService.initExpensiveAndroidView`, "always creates a 'Hybrid
+Composition (HC)' view"). The surface backing the composited result can
 **re-attach (or newly attach) without receiving a paint**. The renderer is healthy,
 so nothing emits an error event; the compositor just never draws onto the new
-surface until something forces a relayout.
+surface until something forces a relayout. The `WebView` itself is an ordinary
+Android view in the hierarchy, not a `SurfaceView`; the surface that presents a
+stale frame is Flutter's own `FlutterImageView` overlay, which shows the last
+image it acquired and does not repaint on its own (see open gap #12).
 
 Two colors, two sub-causes:
 
@@ -472,24 +478,44 @@ who were told how to unlock it, so the falsifying report needs someone to ask fo
    the focused window, the page-server access log and the SurfaceDiag tail on
    any pixel failure.
 
-12. **Nothing has established which composition mode the CI emulator runs.**
-    Flutter's platform-view docs state the rule this bug lives under: certain
-    Android views, `SurfaceView` and `SurfaceTexture` among them, do not
-    invalidate themselves when their content changes, so an embedder hosting
-    one must invalidate it manually after the swap chain flips. That is the
-    invariant behind all eleven attempts, and it only applies in the modes that
-    put the webview behind such a surface. If the emulator resolves the
-    platform view to the texture path instead, Flutter's own frame loop redraws
-    it and the gap cannot occur there **by construction** -- which would make
-    every negative result above (gap #5's warm start, gap #11's reload) a
-    statement about the emulator, not about the bug. This is disproved at the
-    *plugin* level: the fork defaults `useHybridComposition = true`. It is not
-    disproved at the *engine* level, which is where the mode is actually
-    chosen. The lifecycle tier now dumps `dumpsys SurfaceFlinger --list`, the
-    per-layer composition types and the platform-view logcat chatter on every
-    run (`build/white_screen_adb/composition-mode.txt`, uploaded on green runs
-    too) so the question stops being unanswered by default. Read that before
-    trusting any green from this tier.
+12. ~~Which composition mode the CI emulator runs~~ — **answered 2026-09-05, and
+    it is the affected one.** The worry was real: Flutter's platform-view docs
+    warn that certain Android views (`SurfaceView`, `SurfaceTexture`) do not
+    invalidate themselves when their content changes, so the embedder must; if
+    the emulator instead composited the webview into Flutter's own frames,
+    Flutter's frame loop would redraw it and the gap could not occur there by
+    construction, making gap #5's and gap #11's negatives statements about the
+    emulator rather than about the bug. It does not. The mode is settled in
+    Dart, not at runtime: `InAppWebViewSettings.useHybridComposition` defaults
+    to `true` and this app never sets it, and the fork's
+    `_createAndroidViewController` routes `true` to
+    `PlatformViewsService.initExpensiveAndroidView`, whose contract in the
+    pinned SDK (`packages/flutter/lib/src/services/platform_views.dart`) is
+    "Always creates a 'Hybrid Composition (HC)' view" with "the Android view and
+    Flutter widgets ... composed at the Android view hierarchy level". No
+    TLHC-or-HC fallback is in play; that logic belongs to
+    `initSurfaceAndroidView`, which is the `false` branch. So the emulator runs
+    the same mode as the reporting devices, and this tier's negative results
+    stand as evidence. The lifecycle tier still dumps `dumpsys SurfaceFlinger
+    --list`, the per-layer composition types and the platform-view logcat
+    chatter on every run (`build/white_screen_adb/composition-mode.txt`,
+    uploaded on green runs too) as the runtime witness — it does not decide the
+    mode, and a first cut of it that tried to read the mode off the layer count
+    got the reading backwards, which is why it now prints layer names and no
+    verdict.
+
+    One correction rides along, because it changes where the next fix should
+    look. The `SurfaceView`-does-not-self-invalidate rule was cited here as the
+    root mechanism, but under HC the platform view is an `android.webkit.WebView`
+    in the Android view hierarchy, and a `WebView` is not a `SurfaceView` — it
+    draws through a functor into whatever surface contains it and never owns a
+    SurfaceFlinger layer. The surface that can present a stale frame in HC is
+    Flutter's own: `FlutterView.convertToImageView()` swaps the render surface
+    for `FlutterImageView`s, which present whatever image was last acquired and
+    do not repaint on their own. That is consistent with the symptom and with
+    why a 1px inset toggle clears it, but it is a different surface from the one
+    the doc quote names, and any fix aimed at "invalidate the platform view's
+    SurfaceView" would be aimed at the wrong object.
 
    **The same run is the first direct evidence that PAUSE-027 works.**
    Scenario B3-B drives five reloads 120ms apart against that 5s page, so four

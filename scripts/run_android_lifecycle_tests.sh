@@ -277,20 +277,20 @@ wait_for_logcat() { # $1 = slug, $2 = deadline secs, $3 = literal pattern
 }
 
 # Which composition mode the engine picked for the platform view decides
-# whether this tier can observe BUG-001 at all. Flutter's own rule is that a
-# SurfaceView-backed platform view does not invalidate itself when its
-# content changes, so the embedder has to; a texture-composited one is
-# redrawn by Flutter's frame loop and cannot go blank that way. Every
-# negative result this tier has produced is conditional on the emulator
-# running the same mode as the devices that report the symptom, and nothing
-# in the suite recorded which one it ran. Dump the evidence on every run.
-# Never fail on it: the layer list is the fact, the reading below is a
-# heuristic, and a wrong heuristic must not turn a real pass red.
+# whether this tier can observe BUG-001 at all: if Flutter composites the
+# webview into its own frames, its frame loop redraws it and the gap cannot
+# occur here by construction, which would make every negative result this
+# tier produced a statement about the emulator rather than about the bug.
+# The mode itself is settled in Dart (the fork defaults useHybridComposition
+# to true, and `initExpensiveAndroidView` "always creates a Hybrid
+# Composition (HC) view"), so this dump is the runtime witness for it, not
+# the decision. Never fail on it: the layer list is the fact.
 dump_composition_mode() {
-  local out="$artifacts/composition-mode.txt"
+  local out="$artifacts/composition-mode.txt" layers
+  layers="$(adb shell dumpsys SurfaceFlinger --list 2>/dev/null | tr -d '\r' || true)"
   {
     echo "# dumpsys SurfaceFlinger --list"
-    adb shell dumpsys SurfaceFlinger --list 2>/dev/null | tr -d '\r'
+    printf '%s\n' "$layers"
     echo
     echo "# SurfaceFlinger layer records mentioning $pkg, with composition types"
     adb shell dumpsys SurfaceFlinger 2>/dev/null | tr -d '\r' \
@@ -301,20 +301,12 @@ dump_composition_mode() {
       | grep -iE 'platformview|hybrid composition|FlutterImageView|virtual display' \
       | tail -40
   } > "$out" 2>&1 || true
-  local sv
-  sv="$(grep -cE "SurfaceView\[$pkg" "$out" 2>/dev/null || true)"
-  sv="$(printf '%s' "${sv:-0}" | tr -d '[:space:]')"
-  echo "  composition: SurfaceView layers owned by $pkg: ${sv:-0}"
-  if [ "${sv:-0}" = "0" ]; then
-    echo "    reading (heuristic): no FlutterSurfaceView layer while the webview is"
-    echo "    on screen, which is what the engine leaves behind after it converts"
-    echo "    to FlutterImageView for hybrid composition. The affected mode."
-  else
-    echo "    reading (heuristic): Flutter is still rendering through its own"
-    echo "    SurfaceView, so the platform view is composited into Flutter's frames"
-    echo "    (texture path). BUG-001's invalidate gap cannot occur in this mode,"
-    echo "    and this tier's negative results say nothing about the reported one."
-  fi
+  echo "  composition: SurfaceFlinger layers naming $pkg"
+  printf '%s\n' "$layers" | grep -F "$pkg" | head -12 | sed 's/^/    /' \
+    || echo "    (none)"
+  # An android.webkit.WebView draws through a functor into whatever surface
+  # contains it and never owns a layer here, in either mode. So these names
+  # say which surfaces the app has, not which one the page renders into.
   echo "    full dump: $out"
 }
 
