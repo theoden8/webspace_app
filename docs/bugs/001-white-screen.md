@@ -502,7 +502,16 @@ who were told how to unlock it, so the falsifying report needs someone to ask fo
     uploaded on green runs too) as the runtime witness — it does not decide the
     mode, and a first cut of it that tried to read the mode off the layer count
     got the reading backwards, which is why it now prints layer names and no
-    verdict.
+    verdict. What it prints on the emulator, with the webview on screen:
+    `SurfaceView[<pkg>/.MainActivity]#402`, its `(BLAST)#403` buffer-queue
+    child, `Background for` that same SurfaceView, and the activity's own
+    window layers. One SurfaceView, which is `FlutterSurfaceView`, and no layer
+    of any kind for the webview. That is consistent with HC as current Flutter
+    implements it: the SurfaceView base stays and `FlutterImageView` overlays
+    are added above the platform view, and an overlay is a View inside the
+    window layer, not a layer of its own. So a layer list cannot separate the
+    two modes in either direction, and the Dart-level determination above is
+    the only sound one. Do not re-derive a verdict from this dump.
 
     One correction rides along, because it changes where the next fix should
     look. The `SurfaceView`-does-not-self-invalidate rule was cited here as the
