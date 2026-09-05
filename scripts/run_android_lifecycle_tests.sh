@@ -70,6 +70,7 @@ cleanup() {
   adb shell settings put global always_finish_activities 0 >/dev/null 2>&1 || true
   adb shell settings put global hide_error_dialogs 0 >/dev/null 2>&1 || true
   adb shell svc power stayon false >/dev/null 2>&1 || true
+  adb shell service call SurfaceFlinger 1008 i32 0 >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
@@ -647,6 +648,18 @@ else
     --es ws_diag_suppress_repaint "$all_repaint_triggers" \
     --es siteId "$b3_site_id"
   wait_for_pixels b3-cold-start-dark 180 --expect-dominant "$dark"
+  # Force GPU composition for this arm. The emulator repainting a surface
+  # nothing asked it to repaint is the whole reason no arrangement of this
+  # tier goes red, and hardware overlays are the part of the composition path
+  # most likely to be doing it: an overlay-composed layer is re-scanned out
+  # every frame from whatever the buffer last held. `1008` is what the
+  # "Disable HW overlays" developer option calls. It is not asserted, because
+  # the call is silent on failure -- the dumpsys line below is the evidence,
+  # and a run where composition never changed reads as one where it did not.
+  adb shell service call SurfaceFlinger 1008 i32 1 >/dev/null 2>&1 || true
+  echo "   composition after disabling HW overlays:"
+  adb shell dumpsys SurfaceFlinger 2>/dev/null \
+    | grep -iE 'hwc|client|device' | head -8 | sed 's/^/     /' || true
   adb shell input keyevent 3
   sleep 3
   adb logcat -c 2>/dev/null || true
