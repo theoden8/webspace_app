@@ -63,7 +63,11 @@ class LogService extends ChangeNotifier {
       if (_entries.length > maxEntries) {
         _entries.removeAt(0);
       }
-      if (kDebugMode) {
+      // Not release: a shipped build keeps its log ring in memory for Dev
+      // Tools and puts nothing in logcat. Profile is in scope because the
+      // adb tiers read these lines out of logcat, and profile is the build
+      // mode that gets them an AOT, non-inspectable webview.
+      if (!kReleaseMode) {
         debugPrint('[${entry.tag}/${entry.level.name}] ${entry.message}');
       }
     }

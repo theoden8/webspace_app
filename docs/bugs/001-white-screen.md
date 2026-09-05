@@ -570,6 +570,40 @@ who were told how to unlock it, so the falsifying report needs someone to ask fo
     work on real hardware, which would invalidate the remedy rather than its
     coverage). Nothing in the repository currently distinguishes them.
 
+14. **No CI tier has ever run a non-debug build on a device.** Every Android
+    device-side script builds debug: the lifecycle tier does
+    `flutter build apk --debug --flavor fdebug`, and the four `flutter test`
+    tiers get a debug APK by default. The release job builds the shipped APK
+    and checks two static properties of it (GMS-free, JNI survived shrinking),
+    then never installs it. So the artifact that goes white has not been run by
+    any test.
+
+    Two differences follow, and both sit inside the component that goes blank:
+
+    - **`isInspectable: kDebugMode`** (`lib/services/webview.dart:1221`, `:1928`,
+      `:3621`) is the *only* build-mode-dependent WebView setting in the app.
+      Every webview CI drives has `setWebContentsDebuggingEnabled(true)`; every
+      webview that ships has it off. An audit of `kDebugMode` across `lib/`
+      turns up nothing else touching the webview: the rest is startup
+      stopwatches, log forwarding, and the diag hooks themselves.
+    - **JIT vs AOT.** Frame timing decides whether an attach lands before or
+      after a commit, and every ordering fix in this file (PAUSE-020/021/025/027)
+      is about exactly that ordering.
+
+    The tier can now drive `profile` (`WS_LIFECYCLE_BUILD_MODE=profile`, also a
+    `workflow_dispatch` input), which flips both: AOT, `isInspectable` false,
+    and still debuggable, because Flutter's profile build type is
+    `initWith(debug)` (`FlutterPlugin.kt:250`) so the native `FLAG_DEBUGGABLE`
+    gate the diag channels use still passes. Three gates moved from `kDebugMode`
+    to `!kReleaseMode` to let it through — `DiagSeed`, `RepaintSuppression`, and
+    `LogService`'s logcat forwarding — none of which changes release behaviour,
+    which is what those gates were protecting.
+
+    This does not reach the shipped artifact: profile does not run R8, and
+    `minifyEnabled true` with `proguard-android-optimize.txt` is release-only,
+    with no keep rules for the fork or androidx.webkit beyond their own consumer
+    rules. That gap stays open.
+
     One correction rides along, because it changes where the next fix should
     look. The `SurfaceView`-does-not-self-invalidate rule was cited here as the
     root mechanism, but under HC the platform view is an `android.webkit.WebView`
