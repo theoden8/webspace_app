@@ -649,7 +649,7 @@ echo "== Scenario F2: a refresh tick in the foreground must not touch the visibl
 # leg that was always correct, so nothing drove the leg that broke.
 fg_beacons_before="$(beacon_hits)"
 fg_triggers_before="$(bg_log_hits 'debug trigger: enqueueing')"
-adb shell am broadcast -n "$pkg/.NotificationRefreshDebugReceiver" >/dev/null
+adb shell am broadcast -n "$pkg/$ns.NotificationRefreshDebugReceiver" >/dev/null
 deadline=$(( $(date +%s) + 20 ))
 while [ "$(bg_log_hits 'debug trigger: enqueueing')" -le "$fg_triggers_before" ]; do
   if [ "$(date +%s)" -ge "$deadline" ]; then
