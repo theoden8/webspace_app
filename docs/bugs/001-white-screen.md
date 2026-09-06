@@ -987,21 +987,27 @@ who were told how to unlock it, so the falsifying report needs someone to ask fo
 
     The same site had a body earlier in the session (`onLoadStop` at 22:17:33,
     a 376 KB HTML cache save at 22:17:56), then sat backgrounded and paused
-    from 22:17:38 to 22:23:49 while two other webviews loaded. A document does
-    not lose its body by being slow: a parsing document has one. It loses it by
-    being replaced, which is what an Android WebView does when its renderer is
-    reaped under memory pressure while backgrounded and comes back attached to
-    a fresh empty document. That reads as BUG-002, except the BUG-002 detector
-    cannot see it: the probe returns *successfully* from the new document, so
-    `probeResult == null` is false and `handleRendererGone` is never called.
-    The two recovery paths split on "did the call fail", and this case fails
-    neither.
+    from 22:17:38 to 22:23:49 while two other webviews loaded, with no
+    `Creating webview` / `onControllerCreated` / `onLoadStart` for it in
+    between. Nothing was loading when the `-1`s were logged, and a parsing
+    document has a body from its first bytes, so "the page had not loaded yet"
+    does not account for four probes over 31 seconds.
 
-    This is also the concrete answer to gap #11 (whether a nudge that fires
-    saves the screen: no, on this path) and to why CI is green (gap #16): the
-    emulator has memory to spare and no scenario leaves a site backgrounded
-    behind two other loaded webviews for six minutes, so its renderers are
-    never reaped and `-1` never appears in a tier trace.
+    **Two things this trace cannot settle, both of them the trace's fault.**
+    The probe line carried no site identity, and the window holds two logged
+    switches to site 2 (22:23:49, 22:24:00), two concurrent `site-switch`
+    probes, and teardowns of two other sites: a `-1` off a torn-down Maps
+    controller is indistinguishable from one off GitHub. `site=<siteId>` is now
+    on both probe lines. And the obvious mechanism — an Android WebView whose
+    renderer was reaped while backgrounded, answering from a fresh empty
+    document — is contradicted here: `handleRendererGone` logs
+    `Renderer gone for "..."` unconditionally (`lib/web_view_model.dart:1779`)
+    and that line is absent, so `onRenderProcessGone` never fired. Whatever
+    emptied the document did not announce itself as a renderer death.
+
+    Whichever site the `-1`s belong to, no tier scenario has ever produced one:
+    none leaves a site backgrounded behind two other loaded webviews for six
+    minutes, so `-1` has never appeared in a tier trace (gap #16).
 
     **Not yet closed, and deliberately not fixed on one capture.** The trace
     shows the classification is wrong; it does not yet show *which* document
