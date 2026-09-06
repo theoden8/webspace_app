@@ -65,7 +65,10 @@ fvm flutter build linux  --release
 fvm dart run flutter_launcher_icons
 ```
 
-Android flavors: `fdroid` (CI), `fmain` (Play), `fdebug`.
+Android flavors: `fdroid` (CI), `fmain` (Play), `fdebug`. The `debug` build type
+suffixes the applicationId (`org.codeberg.theoden8.webspace.debug`, label "Webspace
+Debug") so a dev build installs beside a store one; the namespace is unchanged, so
+`adb` component names in `scripts/` must be fully qualified, not `pkg/.Class`.
 
 ## Architecture
 

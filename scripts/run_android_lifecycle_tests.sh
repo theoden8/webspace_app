@@ -35,8 +35,12 @@ if [ -z "$device_id" ]; then
 fi
 export ANDROID_SERIAL="$device_id"
 
-pkg="org.codeberg.theoden8.webspace"
-component="$pkg/.MainActivity"
+# The debug build type suffixes the applicationId (android/app/build.gradle)
+# but not the namespace, so `pkg/.Class` shorthand would resolve to a class
+# that does not exist -- components are spelled out in full.
+pkg="org.codeberg.theoden8.webspace.debug"
+ns="org.codeberg.theoden8.webspace"
+component="$pkg/$ns.MainActivity"
 artifacts="$root/build/white_screen_adb"
 classify="$root/scripts/classify_window_pixels.py"
 dark=123524
@@ -389,7 +393,7 @@ bg_log_hits() { bg_log | grep -c "$1" || true; }
 triggers_before="$(bg_log_hits 'debug trigger: enqueueing')"
 worker_runs_before="$(bg_log_hits 'NotificationRefreshWorker fired')"
 echo "  triggering a one-shot refresh via the debug receiver"
-adb shell am broadcast -n "$pkg/.NotificationRefreshDebugReceiver" >/dev/null
+adb shell am broadcast -n "$pkg/$ns.NotificationRefreshDebugReceiver" >/dev/null
 
 # `am broadcast` reports the same result whether or not a receiver matched,
 # so confirm delivery instead of spending the 90s notification deadline on a
