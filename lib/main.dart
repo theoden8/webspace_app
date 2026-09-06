@@ -1995,6 +1995,20 @@ class _WebSpacePageState extends State<WebSpacePage>
       'trigger=$trigger probe=${result ?? 'null'} → '
           '${gone ? 'renderer-gone (recreate)' : 'renderer-alive (nudge)'}',
     );
+    // -1 is `document.body` missing, which the classification above counts as
+    // alive: the call returned, so the renderer answered. A document with no
+    // body cannot be repainted by a surface nudge, so say which document
+    // answered — an Android WebView whose renderer was reaped while
+    // backgrounded comes back attached to a fresh empty one. See BUG-001
+    // gap #17.
+    if (!gone && result.toString() == '-1') {
+      final detail = await controller.evaluateJavascriptReturning(
+          "document.readyState + ' ' + (document.documentElement ? 'html' : "
+          "'no-html') + ' ' + location.protocol + '//' + location.host");
+      if (!mounted) return;
+      LogService.instance
+          .log('SurfaceDiag', 'trigger=$trigger no body: ${detail ?? 'null'}');
+    }
     // identical() guard: a concurrent recreate may have already swapped the
     // controller out from under us — don't null a fresh one.
     if (gone && identical(model.controller, controller)) {

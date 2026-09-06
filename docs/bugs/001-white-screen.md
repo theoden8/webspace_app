@@ -963,6 +963,57 @@ who were told how to unlock it, so the falsifying report needs someone to ask fo
   does a rotate or tab-switch instantly fix it? If yes → surface, use the nudge. If a
   rotate doesn't fix it and JS is dead → renderer death, a different bug:
   [BUG-002](002-black-screen.md) (`PAUSE-013/014`).
+17. **The probe calls an empty document healthy (first device capture,
+    2026-09-06).** The first `SurfaceDiag` trace anyone has taken off an
+    affected phone, an `fdebug` debug build in ordinary use over seven minutes,
+    ends like this:
+
+    ```
+    22:23:49  Switching to site 2: "GitHub ..." (siteId: hm1uscucyi-vy3)
+    22:24:00  Teardown of "Google Maps" ran [], stalled on stopRealCameraCapture
+    22:24:02  trigger=site-switch probe=-1 -> renderer-alive (nudge)
+    22:24:08  trigger=resume      probe=-1 -> renderer-alive (nudge)
+    22:24:19  trigger=resume      probe=-1 -> renderer-alive (nudge)
+    22:24:33  trigger=resume      probe=-1 -> renderer-alive (nudge)
+    ```
+
+    with the reporter saying GitHub never appeared. `-1` is the else branch of
+    `document.body ? document.body.offsetHeight : -1`: the document has no
+    body. `rendererProbeIndicatesGone` is `probeResult == null`
+    (`lib/web_view_model.dart:452`), so `-1` classifies as alive and the app
+    nudges. **A surface nudge cannot repaint a document that has no body**, so
+    every trigger on that path is a no-op by construction, however many of them
+    fire — which is why the count of enumerated paths has never mattered.
+
+    The same site had a body earlier in the session (`onLoadStop` at 22:17:33,
+    a 376 KB HTML cache save at 22:17:56), then sat backgrounded and paused
+    from 22:17:38 to 22:23:49 while two other webviews loaded. A document does
+    not lose its body by being slow: a parsing document has one. It loses it by
+    being replaced, which is what an Android WebView does when its renderer is
+    reaped under memory pressure while backgrounded and comes back attached to
+    a fresh empty document. That reads as BUG-002, except the BUG-002 detector
+    cannot see it: the probe returns *successfully* from the new document, so
+    `probeResult == null` is false and `handleRendererGone` is never called.
+    The two recovery paths split on "did the call fail", and this case fails
+    neither.
+
+    This is also the concrete answer to gap #11 (whether a nudge that fires
+    saves the screen: no, on this path) and to why CI is green (gap #16): the
+    emulator has memory to spare and no scenario leaves a site backgrounded
+    behind two other loaded webviews for six minutes, so its renderers are
+    never reaped and `-1` never appears in a tier trace.
+
+    **Not yet closed, and deliberately not fixed on one capture.** The trace
+    shows the classification is wrong; it does not yet show *which* document
+    answered. `_probeRendererAndRecover` now emits a second line on the `-1`
+    path (`readyState`, whether `documentElement` exists, `protocol//host`),
+    which separates a renderer that came back on `about:blank` from a live
+    document that genuinely has no body. Developer mode was off for this
+    capture, so `_traceRepaint` wrote nothing and only the probe's four call
+    sites are visible — the next capture needs it on. What the fix will be
+    depends on that line: a third classification (no body -> reload, not
+    nudge) if the document is blank, something else if it is not.
+
 - Identify the **new entry path**: what navigation/lifecycle event preceded the blank?
   Does it pass through `_setCurrentIndex` (Attempt 3) or `onControllerReady`
   (Attempt 4)? If neither, that path needs `_nudgeSurfaceRepaint`.
