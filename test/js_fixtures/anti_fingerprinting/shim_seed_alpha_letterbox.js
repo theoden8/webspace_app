@@ -259,11 +259,22 @@
             return origConnAdd.apply(this, arguments);
           }, 'addEventListener');
         }
+        // Reading back what was just assigned is the observable half of an
+        // event-handler property, and a slot that always answers null is the
+        // one-expression tell this block exists to avoid. Keep the value off
+        // the engine instead: it round-trips, and nothing ever registers it,
+        // so it cannot fire. A non-function assigns as null, as natively.
+        var _connOnChange = new WeakMap();
         Object.defineProperty(connProto, 'onchange', {
           configurable: true,
           enumerable: true,
-          get: asNative(function onchange() { return null; }, 'onchange'),
-          set: asNative(function onchange() {}, 'onchange'),
+          get: asNative(function onchange() {
+            var v = _connOnChange.get(this);
+            return v === undefined ? null : v;
+          }, 'onchange'),
+          set: asNative(function onchange(v) {
+            _connOnChange.set(this, typeof v === 'function' ? v : null);
+          }, 'onchange'),
         });
       }
     }

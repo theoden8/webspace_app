@@ -519,6 +519,21 @@ test('a change listener on navigator.connection is not registered (ETP-026)', ()
   assert.deepEqual(dom.window.__connListeners, ['typechange']);
 });
 
+test('navigator.connection.onchange round-trips but never fires (ETP-026)', () => {
+  // A handler slot that answers null after an assignment is itself a
+  // one-expression tell. The value is kept, the engine never sees it.
+  const dom = loadShim(ALPHA, undefined, seedConnection);
+  const c = dom.window.navigator.connection;
+  assert.equal(c.onchange, null);
+  const fn = () => {};
+  c.onchange = fn;
+  assert.equal(c.onchange, fn);
+  c.onchange = 42;
+  assert.equal(c.onchange, null, 'a non-function assigns as null, as natively');
+  // Nothing reached the engine: the seeded interface records registrations.
+  assert.deepEqual(dom.window.__connListeners, []);
+});
+
 test('getBattery stays absent on an engine without it', () => {
   const dom = loadShim(ALPHA);
   assert.equal('getBattery' in dom.window.navigator, false);

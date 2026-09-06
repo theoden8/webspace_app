@@ -247,6 +247,33 @@ test('anti_fingerprinting: navigator.connection is corrected, not extended',
     }
   });
 
+test('anti_fingerprinting: connection.onchange round-trips as it does natively',
+  async (t) => {
+    // ETP-026. Chromium returns the assigned handler; a slot that answers
+    // null instead is detectable in one expression.
+    await withShim(t, AF_ALPHA, async (page) => {
+      const r = await page.evaluate(() => {
+        const c = navigator.connection;
+        if (!c) return null;
+        const initial = c.onchange;
+        const fn = () => {};
+        c.onchange = fn;
+        const roundTrip = c.onchange === fn;
+        c.onchange = 42;
+        const nonFunction = c.onchange;
+        c.onchange = null;
+        return { initial, roundTrip, nonFunction };
+      });
+      if (r === null) {
+        t.skip('this Chromium exposes no navigator.connection');
+        return;
+      }
+      assert.equal(r.initial, null);
+      assert.equal(r.roundTrip, true);
+      assert.equal(r.nonFunction, null);
+    });
+  });
+
 // ---------- Iframe escape ----------
 
 test('iframe contentWindow inherits the spoofed navigator.platform',

@@ -606,6 +606,12 @@ real device produces, and the event's timing alone tracks the user moving
 between networks. The shim SHALL therefore not deliver `change` on the
 connection object.
 
+Assigning `onchange` SHALL nonetheless read back the assigned value, and
+`null` for a non-function, exactly as it does natively. A handler slot that
+answers `null` after an assignment is a one-expression tell of the same kind
+this requirement exists to close. The value is held off the engine, so it is
+never registered and cannot fire.
+
 #### Scenario: link values are the fixed ones
 
 **Given** the shim is loaded on an engine exposing `navigator.connection`
@@ -628,6 +634,14 @@ without the injection
 **Given** the shim is loaded
 **When** a `change` listener is registered on `navigator.connection`
 **Then** it is not registered with the engine
+
+#### Scenario: onchange round-trips but never fires
+
+**Given** the shim is loaded
+**When** `navigator.connection.onchange` is assigned a function
+**Then** reading `navigator.connection.onchange` returns that function
+**And** assigning a non-function reads back as `null`
+**And** the handler is never registered with the engine
 
 ---
 
