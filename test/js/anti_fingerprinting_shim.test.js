@@ -251,6 +251,31 @@ function seedChromiumNav(window) {
   });
 }
 
+// jsdom has no NetworkInformation. Model desktop Chromium's: values behind
+// prototype accessors, an `onchange` slot, and no `type` / `downlinkMax`.
+function seedConnection(window) {
+  function NetworkInformation() {}
+  const real = { effectiveType: '3g', rtt: 275, downlink: 0.4, saveData: true };
+  for (const name of Object.keys(real)) {
+    Object.defineProperty(NetworkInformation.prototype, name, {
+      configurable: true, enumerable: true, get: () => real[name],
+    });
+  }
+  let handler = null;
+  Object.defineProperty(NetworkInformation.prototype, 'onchange', {
+    configurable: true, enumerable: true,
+    get() { return handler; }, set(v) { handler = v; },
+  });
+  window.__connListeners = [];
+  NetworkInformation.prototype.addEventListener = function(type) {
+    window.__connListeners.push(type);
+  };
+  const conn = new NetworkInformation();
+  Object.defineProperty(Object.getPrototypeOf(window.navigator), 'connection', {
+    configurable: true, enumerable: true, get: () => conn,
+  });
+}
+
 // Every key reachable on navigator, own and inherited.
 function navKeys(navigator) {
   const seen = new Set();
@@ -466,6 +491,32 @@ test('deviceMemory stays absent on an engine without it', () => {
   const dom = loadShim(ALPHA);
   assert.equal('deviceMemory' in dom.window.navigator, false);
   assert.equal(dom.window.navigator.deviceMemory, undefined);
+});
+
+test('navigator.connection reports fixed link values (ETP-026)', () => {
+  const dom = loadShim(ALPHA, undefined, seedConnection);
+  const c = dom.window.navigator.connection;
+  assert.equal(c.effectiveType, '4g');
+  assert.equal(c.rtt, 50);
+  assert.equal(c.downlink, 10);
+  assert.equal(c.saveData, false);
+});
+
+test('navigator.connection gains no field the engine lacks (ETP-026)', () => {
+  const dom = loadShim(ALPHA, undefined, seedConnection);
+  const c = dom.window.navigator.connection;
+  // Desktop Chromium has neither, and the seeded interface above has neither.
+  assert.equal('type' in c, false);
+  assert.equal('downlinkMax' in c, false);
+});
+
+test('a change listener on navigator.connection is not registered (ETP-026)', () => {
+  // Static values plus a change event is a contradiction, and the event's
+  // timing alone tracks the user moving between networks.
+  const dom = loadShim(ALPHA, undefined, seedConnection);
+  dom.window.navigator.connection.addEventListener('change', () => {});
+  dom.window.navigator.connection.addEventListener('typechange', () => {});
+  assert.deepEqual(dom.window.__connListeners, ['typechange']);
 });
 
 test('getBattery stays absent on an engine without it', () => {

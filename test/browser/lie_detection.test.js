@@ -199,6 +199,54 @@ test('anti_fingerprinting: deviceMemory and getBattery are still spoofed here',
     }
   });
 
+test('anti_fingerprinting: navigator.connection is corrected, not extended',
+  async (t) => {
+    // ETP-026. Chromium exposes effectiveType / rtt / downlink / saveData and
+    // NOT type / downlinkMax, so this checks both halves at once: the values
+    // are the fixed ones, and the key set is byte-for-byte the clean one.
+    if (!requireBrowser(browser, t)) return;
+    const connKeys = () => {
+      const c = navigator.connection;
+      if (!c) return null;
+      const seen = [];
+      for (let o = c; o; o = Object.getPrototypeOf(o)) {
+        for (const k of Object.getOwnPropertyNames(o)) {
+          if (!seen.includes(k)) seen.push(k);
+        }
+      }
+      return seen.sort();
+    };
+    const server = await startSecureOriginServer();
+    const url = `http://127.0.0.1:${server.address().port}/`;
+    const clean = await browser.browser.newPage();
+    const shimmed = await browser.browser.newPage();
+    try {
+      await shimmed.evaluateOnNewDocument(AF_ALPHA);
+      await clean.goto(url, { waitUntil: 'load' });
+      await shimmed.goto(url, { waitUntil: 'load' });
+      const before = await clean.evaluate(connKeys);
+      if (before === null) {
+        t.skip('this Chromium exposes no navigator.connection');
+        return;
+      }
+      const after = await shimmed.evaluate(connKeys);
+      assert.deepEqual(after, before,
+        `connection key set changed: ${JSON.stringify({ before, after })}`);
+      const values = await shimmed.evaluate(() => ({
+        effectiveType: navigator.connection.effectiveType,
+        rtt: navigator.connection.rtt,
+        downlink: navigator.connection.downlink,
+        saveData: navigator.connection.saveData,
+      }));
+      assert.deepEqual(values,
+        { effectiveType: '4g', rtt: 50, downlink: 10, saveData: false });
+    } finally {
+      await clean.close();
+      await shimmed.close();
+      server.close();
+    }
+  });
+
 // ---------- Iframe escape ----------
 
 test('iframe contentWindow inherits the spoofed navigator.platform',

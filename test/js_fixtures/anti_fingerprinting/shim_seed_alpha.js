@@ -207,6 +207,68 @@
     }
   } catch (e) {}
 
+  // --- navigator.maxTouchPoints ---
+  // Reports the real digitizer count (5 or 10 on a phone) and so contradicts
+  // the desktop screen size. The desktop-mode shim runs after this one and
+  // sets its own value for desktop UAs; this is the mobile-UA case, which
+  // had no coverage.
+  try {
+    if (hasOnNav('maxTouchPoints')) {
+      defineGetterOnProto(NavProto, 'maxTouchPoints', 0);
+    }
+  } catch (e) {}
+
+  // --- navigator.connection (NetworkInformation) ---
+  // Present on WorkerNavigator too, which is why this is not in the
+  // window-only section. `effectiveType`/`rtt`/`downlink` describe the
+  // user's link, change as they move between networks, and are readable
+  // without any permission — a coarse location and mobility signal. Only
+  // the values are corrected; the object is left in place because removing
+  // a property a real WebView has is itself the tell.
+  try {
+    if (NavProto && 'connection' in NavProto) {
+      var conn = navigator.connection;
+      if (conn) {
+        var connProto = Object.getPrototypeOf(conn);
+        // Correct only what is already there. `NetworkInformation.type` does
+        // not exist on every build — measured absent on desktop Chromium and
+        // present on mobile — so defining it unconditionally ADDED a property
+        // the engine lacks, which is both the rule this file states and a
+        // one-expression tell: `'type' in navigator.connection` answered
+        // false natively and true under the shim.
+        function correct(name, value) {
+          if (!(name in connProto)) return;
+          defineGetterOnProto(connProto, name, value);
+        }
+        correct('effectiveType', '4g');
+        correct('type', 'wifi');
+        correct('rtt', 50);
+        correct('downlink', 10);
+        correct('downlinkMax', Infinity);
+        correct('saveData', false);
+        // The engine still fires `change` when the real link changes. A
+        // listener that wakes up and reads the same constants back is a
+        // contradiction no real device produces, and the event's mere timing
+        // tracks the user moving between networks. Drop the delivery: with
+        // static values there is nothing truthful left to announce.
+        var origConnAdd = connProto.addEventListener;
+        if (typeof origConnAdd === 'function') {
+          connProto.addEventListener = asNative(
+              function addEventListener(type) {
+            if (type === 'change') return;
+            return origConnAdd.apply(this, arguments);
+          }, 'addEventListener');
+        }
+        Object.defineProperty(connProto, 'onchange', {
+          configurable: true,
+          enumerable: true,
+          get: asNative(function onchange() { return null; }, 'onchange'),
+          set: asNative(function onchange() {}, 'onchange'),
+        });
+      }
+    }
+  } catch (e) {}
+
   // --- navigator.plugins / mimeTypes -> empty array-likes ---
   // A real PluginArray has length, item(), namedItem(), refresh(). Returning
   // a plain array would leak the override; we synthesize the missing methods.

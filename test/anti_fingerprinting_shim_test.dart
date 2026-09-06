@@ -112,6 +112,16 @@ void main() {
       expect(js, contains("'deviceMemory'"));
       expect(js, contains("'plugins'"));
       expect(js, contains("'mimeTypes'"));
+      expect(js, contains("'maxTouchPoints'"));
+    });
+
+    test('corrects navigator.connection without extending it (ETP-026)', () {
+      expect(js, contains("'connection' in NavProto"));
+      expect(js, contains("correct('effectiveType', '4g')"));
+      expect(js, contains("correct('rtt', 50)"));
+      // The presence check is what keeps `type` / `downlinkMax` from being
+      // introduced on a build that lacks them.
+      expect(js, contains('if (!(name in connProto)) return;'));
     });
 
     test('overrides navigator.getBattery to a fixed-value Promise', () {

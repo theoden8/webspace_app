@@ -333,6 +333,9 @@ self-incriminate) so:
 * `screen.colorDepth = 24`, `screen.pixelDepth = 24`
 * `navigator.hardwareConcurrency` ∈ [4, 8] derived from the seed
 * `navigator.deviceMemory` ∈ {4, 8} derived from the seed
+* `navigator.maxTouchPoints` = 0, so the digitizer count agrees with the
+  pinned desktop screen size. The `desktop-mode` shim already covers
+  desktop UAs; this is the mobile-UA case, which it does not reach.
 * `navigator.plugins` and `navigator.mimeTypes` are empty
   PluginArray-shaped objects (with `length`, `item`, `namedItem`, and
   for plugins `refresh`).
@@ -578,6 +581,53 @@ return an empty array.
 **Given** the shim is loaded
 **When** `(new SpeechSynthesis()).getVoices()` is called
 **Then** the result is `[]`
+
+---
+
+### Requirement: ETP-026 - Network information
+
+`navigator.connection` describes the user's link. `effectiveType`, `rtt`,
+`downlink` and `saveData` are readable with no permission and change as the
+user moves between networks, which together make a coarse location and
+mobility signal. The shim SHALL correct them to fixed values
+(`effectiveType` `'4g'`, `rtt` 50, `downlink` 10, `saveData` false) under
+ETP-010's presence rule, so nothing the engine lacks is introduced:
+`type` and `downlinkMax` are absent on desktop Chromium and MUST NOT
+appear there.
+
+The `connection` object itself SHALL be left in place. Removing a property
+a real WebView exposes is a tell in its own right. `NetworkInformation` is
+exposed to workers, so this section is not window-only and page and worker
+MUST report the same values (WORK-002).
+
+With the values fixed there is nothing truthful left to announce: a `change`
+listener that wakes and reads back the same constants is a contradiction no
+real device produces, and the event's timing alone tracks the user moving
+between networks. The shim SHALL therefore not deliver `change` on the
+connection object.
+
+#### Scenario: link values are the fixed ones
+
+**Given** the shim is loaded on an engine exposing `navigator.connection`
+**Then** `navigator.connection.effectiveType` is `'4g'`
+**And** `navigator.connection.rtt` is `50`
+**And** `navigator.connection.downlink` is `10`
+**And** `navigator.connection.saveData` is `false`
+
+#### Scenario: absent NetworkInformation fields are NOT introduced
+
+**Given** the shim is loaded on desktop Chromium, where `NetworkInformation`
+has no `type` and no `downlinkMax`
+**Then** `'type' in navigator.connection` is `false`
+**And** `'downlinkMax' in navigator.connection` is `false`
+**And** the set of keys reachable on `navigator.connection` is the same as
+without the injection
+
+#### Scenario: change is not delivered
+
+**Given** the shim is loaded
+**When** a `change` listener is registered on `navigator.connection`
+**Then** it is not registered with the engine
 
 ---
 
