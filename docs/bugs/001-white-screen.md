@@ -662,6 +662,13 @@ who were told how to unlock it, so the falsifying report needs someone to ask fo
     `LogService`'s logcat forwarding — none of which changes release behaviour,
     which is what those gates were protecting.
 
+    The two modes install under **different applicationIds**. `#579` gave the
+    `debug` build type `applicationIdSuffix ".debug"`; `initWith(debug)` runs
+    while Flutter applies its plugin, which is before that block, so `profile`
+    copies `debuggable = true` but not the suffix. The tier derives `pkg` from
+    the mode for that reason — a hardcoded package name is right for exactly one
+    of them.
+
     This does not reach the shipped artifact: profile does not run R8, and
     `minifyEnabled true` with `proguard-android-optimize.txt` is release-only,
     with no keep rules for the fork or androidx.webkit beyond their own consumer

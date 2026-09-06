@@ -35,11 +35,24 @@ if [ -z "$device_id" ]; then
 fi
 export ANDROID_SERIAL="$device_id"
 
+# `initWith(debug)` -- so the diag seed, the reload extra and the repaint
+# suppression all still work. Default stays debug; set the mode to profile to
+# run the tier against the closer artifact. See docs/bugs/001-white-screen.md
+# gap #13.
+build_mode="${WS_LIFECYCLE_BUILD_MODE:-debug}"
+case "$build_mode" in
+  debug|profile) ;;
+  *) echo "ERROR: WS_LIFECYCLE_BUILD_MODE must be debug or profile" >&2; exit 1 ;;
+esac
+
 # The debug build type suffixes the applicationId (android/app/build.gradle)
 # but not the namespace, so `pkg/.Class` shorthand would resolve to a class
-# that does not exist -- components are spelled out in full.
-pkg="org.codeberg.theoden8.webspace.debug"
+# that does not exist -- components are spelled out in full. Only debug carries
+# the suffix: Flutter creates profile with `initWith(debug)` while applying its
+# plugin, which is before the `debug {}` block below sets the suffix, so a
+# profile build keeps the unsuffixed id.
 ns="org.codeberg.theoden8.webspace"
+if [ "$build_mode" = "debug" ]; then pkg="$ns.debug"; else pkg="$ns"; fi
 component="$pkg/$ns.MainActivity"
 artifacts="$root/build/white_screen_adb"
 classify="$root/scripts/classify_window_pixels.py"
@@ -212,15 +225,6 @@ seed_pair_b64() { # $1/$2 = first page + siteId, $3/$4 = second page + siteId
 # only build-mode-dependent WebView setting in the app). A debug build has
 # neither property, so no scenario here has ever driven the webview users get.
 # `profile` flips both and stays debuggable -- Flutter's profile build type is
-# `initWith(debug)` -- so the diag seed, the reload extra and the repaint
-# suppression all still work. Default stays debug; set the mode to profile to
-# run the tier against the closer artifact. See docs/bugs/001-white-screen.md
-# gap #13.
-build_mode="${WS_LIFECYCLE_BUILD_MODE:-debug}"
-case "$build_mode" in
-  debug|profile) ;;
-  *) echo "ERROR: WS_LIFECYCLE_BUILD_MODE must be debug or profile" >&2; exit 1 ;;
-esac
 echo "== Building default-entrypoint fdebug APK ($build_mode)"
 fvm flutter build apk "--$build_mode" --flavor fdebug -t lib/main.dart
 apk="build/app/outputs/flutter-apk/app-fdebug-$build_mode.apk"
