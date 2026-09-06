@@ -177,3 +177,27 @@ unguarded and is the obvious next file to point this technique at.
 4. **CONT-005 silent degrade-to-shared.** If the native `containerId` bind ever fails, the
    site falls back to the default store; the engine tolerates a zero-bind result but can't
    detect the degraded (isolation-lost) state. Wants a native post-bind assertion.
+5. **Adblock engine: correct locking, unbounded latency.** Found 2026-09-06 while triaging
+   upstream [#2888](https://github.com/pichillilorenzo/flutter_inappwebview/issues/2888)
+   (a fork latch with no timeout) and [#2718](https://github.com/pichillilorenzo/flutter_inappwebview/issues/2718)
+   (an ANR in `MyCookieManager.deleteAllCookies`); see
+   [docs/upstream/flutter-inappwebview-audit.md](../upstream/flutter-inappwebview-audit.md).
+   Neither upstream issue reaches us, but reading them exposed the same geometry in our own
+   code. `AdblockEngineNative.setRules` (`AdblockEngineNative.kt:90-111`) holds the **write**
+   lock across `nativeEngineFree` plus `nativeEngineNew(rulesText)`, a full adblock-rust parse
+   of the concatenated filter lists, and it runs synchronously on the Android platform thread
+   from the method-channel handler (`WebInterceptPlugin.kt:105-115`). `checkUrl`
+   (`AdblockEngineNative.kt:118-128`) takes an **unbounded** `readLock.lock()` on chromium's
+   concurrent sub-resource IO threads. So flipping the content-blocker toggle blocks the main
+   thread in a JNI parse and every IO thread queued behind it, with no timeout on either side.
+   Separately `DNS_READY_TIMEOUT_MS` is `15_000L` (`WebInterceptPlugin.kt:846`), three times
+   the ANR window, deliberately fail-closed but reachable from those same IO threads.
+   This is attempt 1's RW-lock doing exactly what it was asked to do: it closed the UAF and
+   was never asked to bound latency. It is a **gap, not a regression** (no crash, no
+   incorrect block decision), and it is recorded here rather than as a fix attempt because
+   nothing has been attempted yet. The shape of the fix is the one #2888 proposes for the
+   fork: move `setRules` onto the build-worker pattern `setDnsBlockedDomains` already uses
+   (`WebInterceptPlugin.kt:88-95`), and give `checkUrl` a `tryLock(timeout)` that falls
+   through to allow. `AdblockEngineNativeTest.kt` asserts readers and writers don't deadlock
+   or throw; it does not assert either of them finishes in bounded time, which is why this
+   sat unnoticed.

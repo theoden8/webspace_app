@@ -219,6 +219,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | site-permission-badges | drawer badges for location/camera/mic/background-audio grants; real device access vs simulated |
 | tracking-protection | umbrella per-site ETP: forces ClearURLs/DNS/content blocker/LocalCDN + injects anti-fingerprinting shim (Canvas/WebGL/audio/fonts/screen/hardware/timing/clientrects) seeded by siteId |
 | user-agent-identity | engine-consistent navigator identity for the per-site UA (vendor/productSub/oscpu/buildID/platform/userAgentData); complements desktop-mode |
+| upstream-webview-defects *(change)* | defects found auditing the pinned flutter_inappwebview fork's upstream tracker: a declined `onCreateWindow` still navigating on iOS/macOS, UA client hints that half-spoof, the plugin's unmasked console wrappers, the real Linux WPE build floor |
 | user-scripts | per-site JS injection w/ timing control |
 | web-camera-access | per-site camera for camera-only getUserMedia (banking QR flows); `cameraMode` ask/real/virtual/block. Virtual serves a user-picked image/looped video via a canvas `captureStream` shim (no real camera, no OS prompt); real grant ensures Android CAMERA perm |
 | web-microphone-access | per-site audio capture with **no real-mic mode**; `microphoneMode` ask/virtual/block. Virtual loops a user-picked clip through WebAudio into a `MediaStreamAudioDestinationNode`. No OS recording permission on any platform (native layer DENYs MICROPHONE outright); audio+video requests are split, video re-issued to the camera shim |
