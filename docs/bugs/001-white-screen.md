@@ -593,6 +593,31 @@ who were told how to unlock it, so the falsifying report needs someone to ask fo
     Vulkan-vs-GLES are still unmeasured. The probe now dumps the candidate
     lines instead of matching a phrase it cannot verify.
 
+    **Four of the five were our own choices (2026-09-06).** Only #1 is a
+    property of the runner. The others were configuration, and are now changed:
+
+    - **#5, the isolation engine.** `androidx.webkit` resolves to 1.14.0 (the
+      fork pins it; the app asks for 1.12.1), so the library supports
+      `MULTI_PROFILE`. What did not was the runtime WebView: `google_apis`
+      images ship a WebView pinned at image build time and have no Play Store
+      to update it, so API 34 sat on 113.0.5672.136 from May 2023 no matter how
+      current the image itself looked. The emulator is now API 35, which
+      carries a newer bundled WebView; the tier records the version, so the run
+      says whether that crossed the threshold. If it still reports unsupported,
+      the next step is API 36, not a sideloaded WebView APK: pulling a
+      third-party binary into CI to fix a test host is not a trade worth making.
+    - **#2, animations.** The tier now sets all three scales to 1.0 for its own
+      run and restores what it found. It runs last in the emulator session, so
+      no other tier sees them.
+    - **#3, build mode.** Already switchable (`WS_LIFECYCLE_BUILD_MODE`),
+      default `debug` until the profile arm's Scenario A failure is understood.
+
+    That leaves #1, software rasterisation, as the only difference CI cannot
+    close, and it is also the one Cuttlefish would not close: a GitHub-hosted
+    runner has no GPU, so `cvd` falls back to the same software compositor.
+    Reaching for a different emulator was the wrong instinct; the cheap
+    configuration changes above buy the differences that matter.
+
     **The measurement that would settle it is on the device, not here.**
     `_traceRepaint` is gated on developer mode, not `kDebugMode`, so a release
     build with developer mode on records the full SurfaceDiag trigger sequence

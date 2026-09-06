@@ -71,6 +71,12 @@ server_pid=""
 
 cleanup() {
   if [ -n "$server_pid" ]; then kill "$server_pid" 2>/dev/null || true; fi
+  for scale in window_animation_scale transition_animation_scale \
+               animator_duration_scale; do
+    eval "restore=\${saved_$scale:-}"
+    [ -n "$restore" ] && adb shell settings put global "$scale" "$restore" \
+      >/dev/null 2>&1 || true
+  done
   adb shell settings put global always_finish_activities 0 >/dev/null 2>&1 || true
   adb shell settings put global hide_error_dialogs 0 >/dev/null 2>&1 || true
   adb shell svc power stayon false >/dev/null 2>&1 || true
@@ -401,6 +407,20 @@ assert_nudged() { # $1 = slug, $2 = trigger label, $3 = count before the action
   done
   echo "  $slug: repaint requested (trigger=$trigger)"
 }
+
+# Animations, on, for this tier only. The emulator step runs with
+# `disable-animations: true`, which zeroes all three scales, and BUG-001 lives
+# in activity and route transitions: an unanimated transition has a different
+# surface-transaction ordering than the one a phone performs. Every other tier
+# in this emulator session has already run by now, and cleanup restores what
+# was there. `wait_for_pixels` polls to a deadline, so a frame sampled mid
+# transition costs a retry, not a failure.
+for scale in window_animation_scale transition_animation_scale \
+             animator_duration_scale; do
+  value="$(adb shell settings get global "$scale" 2>/dev/null | tr -d '\r')"
+  eval "saved_$scale=\$value"
+  adb shell settings put global "$scale" 1.0 >/dev/null 2>&1 || true
+done
 
 adb shell input keyevent KEYCODE_WAKEUP
 adb shell input keyevent 82
