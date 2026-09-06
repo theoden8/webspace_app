@@ -452,14 +452,14 @@ jobs:
           path: |
             ~/.android/avd/*
             ~/.android/adb*
-          key: avd-api35-x86_64-google_apis-pixel_5-v1
+          key: avd-api35-x86_64-aosp-pixel_5-v1
 
       - name: Pre-warm AVD snapshot
         if: steps.avd-cache.outputs.cache-hit != 'true'
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
-          target: google_apis
+          target: default
           arch: x86_64
           profile: pixel_5
           disk-size: 4096M
@@ -468,6 +468,13 @@ jobs:
           disable-animations: true
           script: echo "Generated AVD snapshot for caching."
 
+      # `target: default` is the AOSP image, deliberately: this app ships
+      # GMS-free (the "Verify APK is free of Google Mobile Services" step above
+      # asserts it), so the test host must not be a google_apis image either.
+      # Its WebView is `com.android.webview`, and like every emulator image it
+      # is pinned at image build time with no Play Store to update it, so the
+      # API level is what moves it. The lifecycle tier records the version it
+      # got; see docs/bugs/001-white-screen.md gap #13.
       # Emulator scenarios, run on every push/PR:
       #   INTEG-010 white-screen pixels — drive the known blank-screen entry
       #     paths and assert on composited window pixels over the webview via
@@ -488,7 +495,7 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
-          target: google_apis
+          target: default
           arch: x86_64
           profile: pixel_5
           disk-size: 4096M
@@ -534,7 +541,7 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
-          target: google_apis
+          target: default
           arch: x86_64
           profile: pixel_5
           disk-size: 4096M

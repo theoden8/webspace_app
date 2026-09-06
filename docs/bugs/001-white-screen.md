@@ -598,14 +598,18 @@ who were told how to unlock it, so the falsifying report needs someone to ask fo
 
     - **#5, the isolation engine.** `androidx.webkit` resolves to 1.14.0 (the
       fork pins it; the app asks for 1.12.1), so the library supports
-      `MULTI_PROFILE`. What did not was the runtime WebView: `google_apis`
-      images ship a WebView pinned at image build time and have no Play Store
-      to update it, so API 34 sat on 113.0.5672.136 from May 2023 no matter how
-      current the image itself looked. The emulator is now API 35, which
-      carries a newer bundled WebView; the tier records the version, so the run
-      says whether that crossed the threshold. If it still reports unsupported,
-      the next step is API 36, not a sideloaded WebView APK: pulling a
-      third-party binary into CI to fix a test host is not a trade worth making.
+      `MULTI_PROFILE`. What did not was the runtime WebView. Every emulator
+      image pins its WebView at image build time and has no Play Store to
+      update it, so API 34 sat on Chromium 113 from May 2023 no matter how
+      current the image itself looked; the API level is the only thing that
+      moves it. The emulator is now API 35, and on the **AOSP** image
+      (`target: default`, WebView `com.android.webview`) rather than
+      `google_apis`: this app ships GMS-free and CI asserts that about the APK,
+      so the test host should not carry Google's stack either. The tier records
+      the version it got, so the run says whether it crossed the threshold. If
+      it still reports unsupported, the next step is API 36, not a sideloaded
+      WebView APK: pulling a third-party binary into CI to fix a test host is
+      not a trade worth making.
     - **#2, animations.** The tier now sets all three scales to 1.0 for its own
       run and restores what it found. It runs last in the emulator session, so
       no other tier sees them.
