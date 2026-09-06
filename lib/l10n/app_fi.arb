@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "Ei käytettävissä. Näytön tallennus kattaa koko näytön, joten se näyttäisi myös muut sivustosi.",
   "siteSettingsDnsBlocklistLevel": "Estolistan taso",
   "siteSettingsDnsBlocklistLevelHint": "Jokainen taso estää enemmän verkkotunnuksia kuin sitä alempi. Laske sitä sivustolle, jonka estolista rikkoo, jotta se säilyttää edes jonkin verran suojaa eikä menetä kaikkea. Tason, jota sovellus ei ole vielä ladannut, se hakee kun valitset sen.",
-  "siteSettingsDnsLevelFollowApp": "Sama kuin sovelluksen asetuksissa",
+  "siteSettingsDnsLevelFollowAppShort": "Sovellus",
   "siteSettingsDnsLevelFollowsApp": "Sama kuin sovelluksen asetuksissa ({level})",
   "siteSettingsDnsLevelNeedsDownload": "Ei vielä ladattu, käytössä {level}",
   "siteSettingsDnsLevelDownloading": "Ladataan estolistaa...",

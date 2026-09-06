@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "Боломжгүй. Дэлгэцийн бичлэг бүх дэлгэцийг хамардаг тул таны бусад сайтуудыг ч харуулах болно.",
   "siteSettingsDnsBlocklistLevel": "Хориглох жагсаалтын түвшин",
   "siteSettingsDnsBlocklistLevelHint": "Түвшин бүр өөрөөсөө доогуур түвшнээс илүү олон домэйныг хориглоно. Хориглох жагсаалт эвдэж буй сайтын хувьд түвшинг бууруулбал бүх хамгаалалтаа алдахын оронд зарим нь үлдэнэ. Аппын хараахан татаагүй түвшинг та сонгох үед татна.",
-  "siteSettingsDnsLevelFollowApp": "Аппын тохиргоотой ижил",
+  "siteSettingsDnsLevelFollowAppShort": "Апп",
   "siteSettingsDnsLevelFollowsApp": "Аппын тохиргоотой ижил ({level})",
   "siteSettingsDnsLevelNeedsDownload": "Хараахан татаагүй, {level} ашиглаж байна",
   "siteSettingsDnsLevelDownloading": "Хориглох жагсаалтыг татаж байна...",

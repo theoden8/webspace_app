@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "Niedostępne. Nagranie ekranu obejmuje cały ekran, więc pokazałoby też Twoje pozostałe witryny.",
   "siteSettingsDnsBlocklistLevel": "Poziom listy blokowania",
   "siteSettingsDnsBlocklistLevelHint": "Każdy poziom blokuje więcej domen niż poziom poniżej. Obniż go dla witryny, którą lista blokowania psuje, żeby zachowała część ochrony zamiast żadnej. Poziom, którego aplikacja jeszcze nie pobrała, zostaje pobrany w chwili wyboru.",
-  "siteSettingsDnsLevelFollowApp": "Tak jak w ustawieniach aplikacji",
+  "siteSettingsDnsLevelFollowAppShort": "Aplikacja",
   "siteSettingsDnsLevelFollowsApp": "Tak jak w ustawieniach aplikacji ({level})",
   "siteSettingsDnsLevelNeedsDownload": "Jeszcze nie pobrano, używany jest {level}",
   "siteSettingsDnsLevelDownloading": "Pobieranie listy blokowania...",

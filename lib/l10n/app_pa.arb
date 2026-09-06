@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "ਉਪਲਬਧ ਨਹੀਂ। ਸਕ੍ਰੀਨ ਕੈਪਚਰ ਪੂਰੀ ਸਕ੍ਰੀਨ ਨੂੰ ਢੱਕਦਾ ਹੈ, ਇਸ ਲਈ ਇਹ ਤੁਹਾਡੀਆਂ ਹੋਰ ਸਾਈਟਾਂ ਵੀ ਵਿਖਾਉਂਦਾ।",
   "siteSettingsDnsBlocklistLevel": "ਰੋਕ-ਸੂਚੀ ਦਾ ਪੱਧਰ",
   "siteSettingsDnsBlocklistLevelHint": "ਹਰ ਪੱਧਰ ਆਪਣੇ ਹੇਠਲੇ ਪੱਧਰ ਨਾਲੋਂ ਵੱਧ ਡੋਮੇਨ ਰੋਕਦਾ ਹੈ। ਜਿਸ ਸਾਈਟ ਨੂੰ ਰੋਕ-ਸੂਚੀ ਵਿਗਾੜਦੀ ਹੈ, ਉਸ ਲਈ ਪੱਧਰ ਘਟਾਓ, ਤਾਂ ਜੋ ਸਾਰੀ ਸੁਰੱਖਿਆ ਗੁਆਉਣ ਦੀ ਥਾਂ ਕੁਝ ਸੁਰੱਖਿਆ ਬਚੀ ਰਹੇ। ਜਿਹੜਾ ਪੱਧਰ ਐਪ ਨੇ ਹਾਲੇ ਡਾਊਨਲੋਡ ਨਹੀਂ ਕੀਤਾ, ਉਹ ਚੁਣਨ ਵੇਲੇ ਲਿਆਂਦਾ ਜਾਂਦਾ ਹੈ।",
-  "siteSettingsDnsLevelFollowApp": "ਐਪ ਸੈਟਿੰਗਾਂ ਵਾਂਗ ਹੀ",
+  "siteSettingsDnsLevelFollowAppShort": "ਐਪ",
   "siteSettingsDnsLevelFollowsApp": "ਐਪ ਸੈਟਿੰਗਾਂ ਵਾਂਗ ਹੀ ({level})",
   "siteSettingsDnsLevelNeedsDownload": "ਹਾਲੇ ਡਾਊਨਲੋਡ ਨਹੀਂ ਹੋਇਆ, {level} ਵਰਤਿਆ ਜਾ ਰਿਹਾ ਹੈ",
   "siteSettingsDnsLevelDownloading": "ਰੋਕ-ਸੂਚੀ ਡਾਊਨਲੋਡ ਹੋ ਰਹੀ ਹੈ...",

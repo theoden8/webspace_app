@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "Nem érhető el. A képernyőfelvétel a teljes képernyőt lefedi, így a többi webhelyét is megmutatná.",
   "siteSettingsDnsBlocklistLevel": "Tiltólista szintje",
   "siteSettingsDnsBlocklistLevelHint": "Minden szint több tartományt tilt, mint az alatta lévő. Csökkentse egy olyan oldalnál, amelyet a tiltólista elront, hogy maradjon valamennyi védelem a semmi helyett. Az alkalmazás által még le nem töltött szintet a kiválasztáskor tölti le.",
-  "siteSettingsDnsLevelFollowApp": "Ugyanaz, mint az alkalmazás beállításaiban",
+  "siteSettingsDnsLevelFollowAppShort": "Alkalmazás",
   "siteSettingsDnsLevelFollowsApp": "Ugyanaz, mint az alkalmazás beállításaiban ({level})",
   "siteSettingsDnsLevelNeedsDownload": "Még nincs letöltve, a(z) {level} van használatban",
   "siteSettingsDnsLevelDownloading": "Tiltólista letöltése...",

@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "Není k dispozici. Záznam obrazovky pokrývá celou obrazovku, takže by ukázal i vaše ostatní weby.",
   "siteSettingsDnsBlocklistLevel": "Úroveň seznamu blokování",
   "siteSettingsDnsBlocklistLevelHint": "Každá úroveň blokuje více domén než ta pod ní. Pro web, který seznam blokování rozbíjí, ji snižte, aby si zachoval alespoň nějakou ochranu místo žádné. Úroveň, kterou aplikace zatím nestáhla, se stáhne, jakmile ji zvolíte.",
-  "siteSettingsDnsLevelFollowApp": "Stejně jako nastavení aplikace",
+  "siteSettingsDnsLevelFollowAppShort": "Aplikace",
   "siteSettingsDnsLevelFollowsApp": "Stejně jako nastavení aplikace ({level})",
   "siteSettingsDnsLevelNeedsDownload": "Zatím nestaženo, používá se {level}",
   "siteSettingsDnsLevelDownloading": "Stahování seznamu blokování...",

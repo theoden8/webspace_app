@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "Indisponibil. O captură de ecran acoperă întregul ecran, deci ar arăta și celelalte site-uri ale tale.",
   "siteSettingsDnsBlocklistLevel": "Nivelul listei de blocare",
   "siteSettingsDnsBlocklistLevelHint": "Fiecare nivel blochează mai multe domenii decât cel de sub el. Coboară-l pentru un site pe care lista de blocare îl strică, astfel încât să păstreze o parte din protecție în loc de niciuna. Un nivel pe care aplicația nu l-a descărcat încă este adus în momentul în care îl alegi.",
-  "siteSettingsDnsLevelFollowApp": "La fel ca setările aplicației",
+  "siteSettingsDnsLevelFollowAppShort": "Aplicație",
   "siteSettingsDnsLevelFollowsApp": "La fel ca setările aplicației ({level})",
   "siteSettingsDnsLevelNeedsDownload": "Încă nedescărcat; se folosește {level}",
   "siteSettingsDnsLevelDownloading": "Se descarcă lista de blocare...",

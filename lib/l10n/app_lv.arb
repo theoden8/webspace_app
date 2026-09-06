@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "Nav pieejams. Ekrāna tveršana aptver visu ekrānu, tāpēc tā rādītu arī jūsu pārējās vietnes.",
   "siteSettingsDnsBlocklistLevel": "Bloķēšanas saraksta līmenis",
   "siteSettingsDnsBlocklistLevelHint": "Katrs līmenis bloķē vairāk domēnu nekā zemākais. Pazeminiet to vietnei, ko bloķēšanas saraksts sabojā, lai saglabātu kaut daļu aizsardzības, nevis nekādu. Līmeni, ko lietotne vēl nav lejupielādējusi, tā iegūst brīdī, kad to izvēlaties.",
-  "siteSettingsDnsLevelFollowApp": "Tāpat kā lietotnes iestatījumos",
+  "siteSettingsDnsLevelFollowAppShort": "Lietotne",
   "siteSettingsDnsLevelFollowsApp": "Tāpat kā lietotnes iestatījumos ({level})",
   "siteSettingsDnsLevelNeedsDownload": "Vēl nav lejupielādēts, tiek lietots {level}",
   "siteSettingsDnsLevelDownloading": "Notiek bloķēšanas saraksta lejupielāde...",

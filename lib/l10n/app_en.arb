@@ -3806,9 +3806,9 @@
   "@siteSettingsDnsBlocklistLevelHint": {
     "description": "Explanation shown in the hint dialog next to the per-site blocklist level row."
   },
-  "siteSettingsDnsLevelFollowApp": "Same as app settings",
-  "@siteSettingsDnsLevelFollowApp": {
-    "description": "Option in the per-site blocklist level picker meaning the site tracks the app-wide level."
+  "siteSettingsDnsLevelFollowAppShort": "App",
+  "@siteSettingsDnsLevelFollowAppShort": {
+    "description": "Label under the leftmost stop of the per-site blocklist level slider, meaning the site tracks the app-wide level. It sits in a row of six tick labels, so keep it to one short word; the row's subtitle spells the setting out in full."
   },
   "siteSettingsDnsLevelFollowsApp": "Same as app settings ({level})",
   "@siteSettingsDnsLevelFollowsApp": {

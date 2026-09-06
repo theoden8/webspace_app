@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "მიუწვდომელია. ეკრანის ჩაწერა მოიცავს მთელ ეკრანს, ამიტომ ის აჩვენებდა თქვენს სხვა საიტებსაც.",
   "siteSettingsDnsBlocklistLevel": "ბლოკსიის დონე",
   "siteSettingsDnsBlocklistLevelHint": "ყოველი დონე მის ქვემოთ მდებარეზე მეტ დომენს ბლოკავს. დაუწიეთ იმ საიტისთვის, რომელსაც ბლოკსია აფუჭებს, რომ დაცვის ნაწილი მაინც შენარჩუნდეს და არა არაფერი. დონე, რომელიც აპს ჯერ არ ჩამოუტვირთავს, არჩევისთანავე ჩამოიტვირთება.",
-  "siteSettingsDnsLevelFollowApp": "იგივე, რაც აპის პარამეტრებში",
+  "siteSettingsDnsLevelFollowAppShort": "აპი",
   "siteSettingsDnsLevelFollowsApp": "იგივე, რაც აპის პარამეტრებში ({level})",
   "siteSettingsDnsLevelNeedsDownload": "ჯერ არ ჩამოტვირთულა, გამოიყენება {level}",
   "siteSettingsDnsLevelDownloading": "ბლოკსიის ჩამოტვირთვა...",

@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "Mhux disponibbli. Reġistrazzjoni tal-iskrin tkopri l-iskrin kollu, u għalhekk kienet turi wkoll is-siti l-oħra tiegħek.",
   "siteSettingsDnsBlocklistLevel": "Livell tal-lista tal-imblukkar",
   "siteSettingsDnsBlocklistLevelHint": "Kull livell jimblokka aktar dominji minn dak ta' taħtu. Niżżlu għal sit li l-lista tal-imblukkar tħassar, biex iżomm xi ftit protezzjoni minflok xejn. Livell li l-applikazzjoni għadha ma niżżlitx jinġieb meta tagħżlu.",
-  "siteSettingsDnsLevelFollowApp": "L-istess bħall-issettjar tal-applikazzjoni",
+  "siteSettingsDnsLevelFollowAppShort": "App",
   "siteSettingsDnsLevelFollowsApp": "L-istess bħall-issettjar tal-applikazzjoni ({level})",
   "siteSettingsDnsLevelNeedsDownload": "Għadu ma tniżżilx, qed jintuża {level}",
   "siteSettingsDnsLevelDownloading": "Qed titniżżel il-lista tal-imblukkar...",

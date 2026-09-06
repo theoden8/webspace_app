@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "Недоступно. Запис екрана охоплює весь екран, тож показав би й інші ваші сайти.",
   "siteSettingsDnsBlocklistLevel": "Рівень списку блокування",
   "siteSettingsDnsBlocklistLevelHint": "Кожен рівень блокує більше доменів, ніж той, що нижче. Знизьте його для сайту, який список блокування ламає, щоб залишився хоч якийсь захист замість жодного. Рівень, який застосунок ще не завантажив, отримується в момент вибору.",
-  "siteSettingsDnsLevelFollowApp": "Так само, як у налаштуваннях застосунку",
+  "siteSettingsDnsLevelFollowAppShort": "Застосунок",
   "siteSettingsDnsLevelFollowsApp": "Так само, як у налаштуваннях застосунку ({level})",
   "siteSettingsDnsLevelNeedsDownload": "Ще не завантажено, використовується {level}",
   "siteSettingsDnsLevelDownloading": "Завантаження списку блокування...",

@@ -58,8 +58,10 @@
 
 ## 5. Settings UI
 
-- [x] 5.1 "Blocklist level" row under the DNS toggle: level picker, the
-  app-setting default, the not-downloaded state, and the on-demand fetch.
+- [x] 5.1 "Blocklist level" row under the DNS toggle: the stepped slider App
+  Settings uses for the app-wide level (`lib/widgets/level_slider.dart`), whose
+  leftmost stop is the app-setting default, plus the not-downloaded state and
+  the on-demand fetch once the drag settles.
 - [x] 5.2 "Filter lists" row under the content-blocker toggle: a checklist of
   the app's enabled lists.
 - [x] 5.3 Ten new ARB keys, translated across every shipped locale.
@@ -114,3 +116,8 @@
   Dart writers and the Kotlin reader agree on the `#`-plus-hex marker, the
   level-bit formula, the level range, and the unmarked-blob-is-level-1
   fallback. Nothing else links the two sides of the platform channel.
+- [x] 6.11 `test/level_slider_test.dart` and the slider group in
+  `test/site_privacy_screen_test.dart`: every stop labelled and the current one
+  highlighted, an out-of-range level clamped onto the track, the tick row
+  fitting a narrow phone in all 67 locales, and the leftmost stop reading and
+  writing "follow the app setting".

@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "사용할 수 없습니다. 화면 캡처는 화면 전체를 담기 때문에 다른 사이트도 함께 보이게 됩니다.",
   "siteSettingsDnsBlocklistLevel": "차단 목록 수준",
   "siteSettingsDnsBlocklistLevelHint": "수준이 높을수록 더 많은 도메인을 차단합니다. 차단 목록 때문에 깨지는 사이트는 수준을 낮추면 보호를 전부 포기하지 않고 일부를 남길 수 있습니다. 앱이 아직 내려받지 않은 수준은 선택하는 순간 내려받습니다.",
-  "siteSettingsDnsLevelFollowApp": "앱 설정과 동일",
+  "siteSettingsDnsLevelFollowAppShort": "앱",
   "siteSettingsDnsLevelFollowsApp": "앱 설정과 동일({level})",
   "siteSettingsDnsLevelNeedsDownload": "아직 내려받지 않아 {level} 사용 중",
   "siteSettingsDnsLevelDownloading": "차단 목록을 내려받는 중...",

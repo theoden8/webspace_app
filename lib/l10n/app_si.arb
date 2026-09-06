@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "ලබා ගත නොහැක. තිර ග්‍රහණය මුළු තිරයම ආවරණය කරන බැවින්, එය ඔබේ අනෙක් අඩවිද පෙන්වනු ඇත.",
   "siteSettingsDnsBlocklistLevel": "අවහිර ලැයිස්තුවේ මට්ටම",
   "siteSettingsDnsBlocklistLevelHint": "සෑම මට්ටමක්ම එයට පහළ මට්ටමට වඩා වැඩි වසම් අවහිර කරයි. අවහිර ලැයිස්තුව නිසා කැඩෙන අඩවියක් සඳහා මට්ටම අඩු කරන්න, එවිට මුළු ආරක්ෂාවම නැති කර ගැනීම වෙනුවට යම් ආරක්ෂාවක් ඉතිරි වේ. යෙදුම තවම බාගත නොකළ මට්ටමක් ඔබ තෝරන විට බාගත වේ.",
-  "siteSettingsDnsLevelFollowApp": "යෙදුම් සැකසුම් හා සමානයි",
+  "siteSettingsDnsLevelFollowAppShort": "යෙදුම",
   "siteSettingsDnsLevelFollowsApp": "යෙදුම් සැකසුම් හා සමානයි ({level})",
   "siteSettingsDnsLevelNeedsDownload": "තවම බාගත කර නැත, {level} භාවිතා වේ",
   "siteSettingsDnsLevelDownloading": "අවහිර ලැයිස්තුව බාගත වෙමින්...",

@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "Ez dago erabilgarri. Pantaila-kapturak pantaila osoa hartzen du, eta beraz zure beste guneak ere erakutsiko lituzke.",
   "siteSettingsDnsBlocklistLevel": "Blokeo-zerrendaren maila",
   "siteSettingsDnsBlocklistLevelHint": "Maila bakoitzak azpikoak baino domeinu gehiago blokeatzen ditu. Jaitsi ezazu blokeo-zerrendak hausten duen gune baterako, babes apur bat gorde dezan bat ere ez izan beharrean. Aplikazioak oraindik deskargatu ez duen maila bat aukeratzean deskargatzen da.",
-  "siteSettingsDnsLevelFollowApp": "Aplikazioaren ezarpenen berdina",
+  "siteSettingsDnsLevelFollowAppShort": "Aplikazioa",
   "siteSettingsDnsLevelFollowsApp": "Aplikazioaren ezarpenen berdina ({level})",
   "siteSettingsDnsLevelNeedsDownload": "Oraindik ez da deskargatu, {level} erabiltzen",
   "siteSettingsDnsLevelDownloading": "Blokeo-zerrenda deskargatzen...",

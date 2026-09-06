@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "غير متاح. تسجيل الشاشة يغطي الشاشة بأكملها، وبذلك يعرض أيضًا مواقعك الأخرى.",
   "siteSettingsDnsBlocklistLevel": "مستوى قائمة الحظر",
   "siteSettingsDnsBlocklistLevelHint": "يحظر كل مستوى نطاقات أكثر من المستوى الذي تحته. اخفض المستوى لموقع تعطّله قائمة الحظر، لكي يحتفظ ببعض الحماية بدلاً من فقدانها كلها. أي مستوى لم ينزّله التطبيق بعد يُنزَّل عند اختياره.",
-  "siteSettingsDnsLevelFollowApp": "مثل إعدادات التطبيق",
+  "siteSettingsDnsLevelFollowAppShort": "التطبيق",
   "siteSettingsDnsLevelFollowsApp": "مثل إعدادات التطبيق ({level})",
   "siteSettingsDnsLevelNeedsDownload": "لم يُنزَّل بعد، يُستخدم {level}",
   "siteSettingsDnsLevelDownloading": "جارٍ تنزيل قائمة الحظر...",

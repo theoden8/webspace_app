@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "Ikke tilgjengelig. Et skjermopptak dekker hele skjermen og ville derfor også vise de andre nettstedene dine.",
   "siteSettingsDnsBlocklistLevel": "Blokkeringslistenivå",
   "siteSettingsDnsBlocklistLevelHint": "Hvert nivå blokkerer flere domener enn nivået under. Senk det for et nettsted som blokkeringslisten ødelegger, slik at det beholder noe beskyttelse i stedet for ingen. Et nivå appen ikke har lastet ned ennå, hentes når du velger det.",
-  "siteSettingsDnsLevelFollowApp": "Samme som appinnstillingene",
+  "siteSettingsDnsLevelFollowAppShort": "App",
   "siteSettingsDnsLevelFollowsApp": "Samme som appinnstillingene ({level})",
   "siteSettingsDnsLevelNeedsDownload": "Ikke lastet ned ennå, bruker {level}",
   "siteSettingsDnsLevelDownloading": "Laster ned blokkeringsliste...",

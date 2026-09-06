@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "उपलब्ध छैन। स्क्रिन क्याप्चरले सम्पूर्ण स्क्रिन ओगट्छ, त्यसैले यसले तपाईंका अन्य साइटहरू पनि देखाउँथ्यो।",
   "siteSettingsDnsBlocklistLevel": "अवरोधसूचीको स्तर",
   "siteSettingsDnsBlocklistLevelHint": "हरेक स्तरले आफूभन्दा तलको स्तरभन्दा बढी डोमेन रोक्छ। अवरोधसूचीले बिगार्ने साइटका लागि स्तर घटाउनुहोस्, ताकि सम्पूर्ण सुरक्षा गुमाउनुको साटो केही सुरक्षा रहोस्। एपले अझै डाउनलोड नगरेको स्तर तपाईंले छान्नेबित्तिकै ल्याइन्छ।",
-  "siteSettingsDnsLevelFollowApp": "एप सेटिङजस्तै",
+  "siteSettingsDnsLevelFollowAppShort": "एप",
   "siteSettingsDnsLevelFollowsApp": "एप सेटिङजस्तै ({level})",
   "siteSettingsDnsLevelNeedsDownload": "अझै डाउनलोड भएको छैन, {level} प्रयोगमा छ",
   "siteSettingsDnsLevelDownloading": "अवरोधसूची डाउनलोड हुँदै...",

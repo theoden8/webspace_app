@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "उपलब्ध नाही. स्क्रीन कॅप्चर संपूर्ण स्क्रीन व्यापते, त्यामुळे ते तुमच्या इतर साइटदेखील दाखवेल.",
   "siteSettingsDnsBlocklistLevel": "अवरोधसूचीची पातळी",
   "siteSettingsDnsBlocklistLevelHint": "प्रत्येक पातळी तिच्या खालच्या पातळीपेक्षा अधिक डोमेन अडवते. अवरोधसूचीमुळे बिघडणाऱ्या साइटसाठी पातळी कमी करा, म्हणजे संपूर्ण संरक्षण गमावण्याऐवजी थोडे तरी टिकून राहील. अ‍ॅपने अद्याप न उतरवलेली पातळी तुम्ही निवडताच उतरवली जाते.",
-  "siteSettingsDnsLevelFollowApp": "अ‍ॅप सेटिंग्जप्रमाणेच",
+  "siteSettingsDnsLevelFollowAppShort": "ॲप",
   "siteSettingsDnsLevelFollowsApp": "अ‍ॅप सेटिंग्जप्रमाणेच ({level})",
   "siteSettingsDnsLevelNeedsDownload": "अद्याप उतरवलेली नाही, {level} वापरात आहे",
   "siteSettingsDnsLevelDownloading": "अवरोधसूची उतरवली जात आहे...",

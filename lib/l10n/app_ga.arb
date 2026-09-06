@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "Níl sé ar fáil. Clúdaíonn taifeadadh scáileáin an scáileán ar fad, agus mar sin thaispeánfadh sé do shuímh eile freisin.",
   "siteSettingsDnsBlocklistLevel": "Leibhéal an liosta bactha",
   "siteSettingsDnsBlocklistLevelHint": "Cuireann gach leibhéal cosc ar níos mó fearann ná an ceann faoi. Ísligh é do shuíomh a bhriseann an liosta bactha, ionas go gcoinneoidh sé roinnt cosanta seachas a dhath. Íoslódáiltear leibhéal nach bhfuil ag an aip fós nuair a roghnaíonn tú é.",
-  "siteSettingsDnsLevelFollowApp": "Mar an gcéanna le socruithe na haipe",
+  "siteSettingsDnsLevelFollowAppShort": "Aip",
   "siteSettingsDnsLevelFollowsApp": "Mar an gcéanna le socruithe na haipe ({level})",
   "siteSettingsDnsLevelNeedsDownload": "Gan íoslódáil fós, {level} in úsáid",
   "siteSettingsDnsLevelDownloading": "An liosta bactha á íoslódáil...",

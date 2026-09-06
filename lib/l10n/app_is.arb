@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "Ekki í boði. Skjáupptaka nær yfir allan skjáinn og myndi því einnig sýna hin vefsvæðin þín.",
   "siteSettingsDnsBlocklistLevel": "Stig útilokunarlista",
   "siteSettingsDnsBlocklistLevelHint": "Hvert stig útilokar fleiri lén en stigið fyrir neðan. Lækkaðu það fyrir vef sem útilokunarlistinn skemmir, svo hann haldi einhverri vörn í stað engrar. Stig sem forritið hefur ekki sótt enn er sótt þegar þú velur það.",
-  "siteSettingsDnsLevelFollowApp": "Sama og stillingar forritsins",
+  "siteSettingsDnsLevelFollowAppShort": "Forrit",
   "siteSettingsDnsLevelFollowsApp": "Sama og stillingar forritsins ({level})",
   "siteSettingsDnsLevelNeedsDownload": "Ekki sótt enn, notar {level}",
   "siteSettingsDnsLevelDownloading": "Sæki útilokunarlista...",

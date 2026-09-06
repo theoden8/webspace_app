@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "Није доступно. Снимак екрана обухвата цео екран, па би приказао и ваше друге сајтове.",
   "siteSettingsDnsBlocklistLevel": "Ниво листе блокирања",
   "siteSettingsDnsBlocklistLevelHint": "Сваки ниво блокира више домена од оног испод њега. Спустите га за сајт који листа блокирања квари, како би задржао део заштите уместо ниједне. Ниво који апликација још није преузела преузима се када га изаберете.",
-  "siteSettingsDnsLevelFollowApp": "Исто као подешавања апликације",
+  "siteSettingsDnsLevelFollowAppShort": "Апликација",
   "siteSettingsDnsLevelFollowsApp": "Исто као подешавања апликације ({level})",
   "siteSettingsDnsLevelNeedsDownload": "Још није преузето, користи се {level}",
   "siteSettingsDnsLevelDownloading": "Преузимање листе блокирања...",

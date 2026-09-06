@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "Ni na voljo. Posnetek zaslona pokriva celoten zaslon, zato bi pokazal tudi vaša druga mesta.",
   "siteSettingsDnsBlocklistLevel": "Raven seznama blokiranja",
   "siteSettingsDnsBlocklistLevelHint": "Vsaka raven blokira več domen kot tista pod njo. Znižajte jo za spletišče, ki ga seznam blokiranja pokvari, da ohrani nekaj zaščite namesto nobene. Raven, ki je aplikacija še ni prenesla, se prenese, ko jo izberete.",
-  "siteSettingsDnsLevelFollowApp": "Enako kot nastavitve aplikacije",
+  "siteSettingsDnsLevelFollowAppShort": "Aplikacija",
   "siteSettingsDnsLevelFollowsApp": "Enako kot nastavitve aplikacije ({level})",
   "siteSettingsDnsLevelNeedsDownload": "Še ni preneseno, uporablja se {level}",
   "siteSettingsDnsLevelDownloading": "Prenašanje seznama blokiranja...",

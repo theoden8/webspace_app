@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "Nicht verfügbar. Eine Bildschirmaufnahme erfasst den gesamten Bildschirm und würde damit auch Ihre anderen Websites zeigen.",
   "siteSettingsDnsBlocklistLevel": "Sperrlisten-Stufe",
   "siteSettingsDnsBlocklistLevelHint": "Jede Stufe blockiert mehr Domains als die darunter. Senken Sie sie für eine Website, die durch die Sperrliste kaputtgeht, damit ein Rest an Schutz bleibt statt gar keiner. Eine Stufe, die die App noch nicht heruntergeladen hat, wird beim Auswählen geholt.",
-  "siteSettingsDnsLevelFollowApp": "Wie in den App-Einstellungen",
+  "siteSettingsDnsLevelFollowAppShort": "App",
   "siteSettingsDnsLevelFollowsApp": "Wie in den App-Einstellungen ({level})",
   "siteSettingsDnsLevelNeedsDownload": "Noch nicht heruntergeladen, verwendet {level}",
   "siteSettingsDnsLevelDownloading": "Sperrliste wird heruntergeladen...",

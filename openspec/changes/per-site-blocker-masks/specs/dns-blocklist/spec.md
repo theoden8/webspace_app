@@ -151,6 +151,13 @@ use
 **And** the site blocks at Pro until the Light list arrives
 **And** the Light list is fetched
 
+#### Scenario: Dragging across levels fetches only where the drag settles
+
+**Given** a site on the app-wide level and no other level downloaded
+**When** the user drags the level slider from the app-wide stop to Ultimate
+**Then** the site's level follows the thumb across every stop it crosses
+**And** only Ultimate's list is fetched
+
 #### Scenario: A failed fetch leaves the site protected
 
 **Given** every mirror fails for the requested level
@@ -247,6 +254,9 @@ inherits them.
 **Then** a "Blocklist level" row sits under the toggle
 **And** its subtitle names the level in use, or that the site follows the app
 setting
+**And** the level is picked on a stepped slider labelled with every level,
+whose leftmost stop is the app-wide setting, the same control App Settings
+uses for the app-wide level
 
 ---
 

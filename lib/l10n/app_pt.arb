@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "Indisponível. Uma captura de ecrã abrange todo o ecrã, pelo que mostraria também os seus outros sites.",
   "siteSettingsDnsBlocklistLevel": "Nível da lista de bloqueio",
   "siteSettingsDnsBlocklistLevelHint": "Cada nível bloqueia mais domínios do que o anterior. Baixe-o para um site que a lista de bloqueio estraga, para que fique com alguma proteção em vez de nenhuma. Um nível que a aplicação ainda não transferiu é obtido quando o escolhe.",
-  "siteSettingsDnsLevelFollowApp": "Igual às definições da aplicação",
+  "siteSettingsDnsLevelFollowAppShort": "Aplicação",
   "siteSettingsDnsLevelFollowsApp": "Igual às definições da aplicação ({level})",
   "siteSettingsDnsLevelNeedsDownload": "Ainda não transferido; a usar {level}",
   "siteSettingsDnsLevelDownloading": "A transferir a lista de bloqueio...",

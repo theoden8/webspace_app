@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "دستیاب نہیں۔ اسکرین کیپچر پوری اسکرین کا احاطہ کرتا ہے، اس لیے یہ آپ کی دوسری سائٹس بھی دکھاتا۔",
   "siteSettingsDnsBlocklistLevel": "بلاک فہرست کی سطح",
   "siteSettingsDnsBlocklistLevelHint": "ہر سطح اپنے سے نیچے والی سطح کی نسبت زیادہ ڈومین روکتی ہے۔ جس سائٹ کو بلاک فہرست خراب کرتی ہو اس کے لیے سطح کم کر دیں، تاکہ ساری حفاظت گنوانے کے بجائے کچھ حفاظت باقی رہے۔ جو سطح ایپ نے ابھی ڈاؤن لوڈ نہیں کی، وہ منتخب کرتے ہی حاصل کر لی جاتی ہے۔",
-  "siteSettingsDnsLevelFollowApp": "ایپ کی ترتیبات جیسی ہی",
+  "siteSettingsDnsLevelFollowAppShort": "ایپ",
   "siteSettingsDnsLevelFollowsApp": "ایپ کی ترتیبات جیسی ہی ({level})",
   "siteSettingsDnsLevelNeedsDownload": "ابھی ڈاؤن لوڈ نہیں ہوئی، {level} استعمال ہو رہی ہے",
   "siteSettingsDnsLevelDownloading": "بلاک فہرست ڈاؤن لوڈ ہو رہی ہے...",

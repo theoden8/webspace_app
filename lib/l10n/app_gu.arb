@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "ઉપલબ્ધ નથી. સ્ક્રીન કૅપ્ચર આખી સ્ક્રીનને આવરી લે છે, તેથી તે તમારી બીજી સાઇટ્સ પણ બતાવત.",
   "siteSettingsDnsBlocklistLevel": "બ્લોકસૂચિનું સ્તર",
   "siteSettingsDnsBlocklistLevelHint": "દરેક સ્તર તેની નીચેના સ્તર કરતાં વધુ ડોમેન બ્લોક કરે છે. જે સાઇટ બ્લોકસૂચિથી બગડે તેના માટે સ્તર ઘટાડો, જેથી કોઈ સુરક્ષા ન રહેવાને બદલે થોડી સુરક્ષા જળવાઈ રહે. એપે હજી ડાઉનલોડ ન કરેલું સ્તર તમે પસંદ કરો ત્યારે મેળવવામાં આવે છે.",
-  "siteSettingsDnsLevelFollowApp": "એપ સેટિંગ્સ પ્રમાણે જ",
+  "siteSettingsDnsLevelFollowAppShort": "ઍપ",
   "siteSettingsDnsLevelFollowsApp": "એપ સેટિંગ્સ પ્રમાણે જ ({level})",
   "siteSettingsDnsLevelNeedsDownload": "હજી ડાઉનલોડ થયું નથી, {level} વપરાય છે",
   "siteSettingsDnsLevelDownloading": "બ્લોકસૂચિ ડાઉનલોડ થઈ રહી છે...",

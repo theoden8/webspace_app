@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/site_privacy.dart';
+import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/widgets/level_slider.dart';
 
 SitePrivacyValues _values({
   bool trackingProtection = false,
   bool clearUrl = false,
   bool dnsBlock = false,
+  int? dnsBlockLevel,
   bool contentBlock = false,
   bool localCdn = false,
   bool thirdPartyCookies = false,
@@ -17,6 +20,7 @@ SitePrivacyValues _values({
       trackingProtectionEnabled: trackingProtection,
       clearUrlEnabled: clearUrl,
       dnsBlockEnabled: dnsBlock,
+      dnsBlockLevel: dnsBlockLevel,
       contentBlockEnabled: contentBlock,
       localCdnEnabled: localCdn,
       thirdPartyCookiesEnabled: thirdPartyCookies,
@@ -165,6 +169,53 @@ void main() {
     expect(find.textContaining('Forced on by'), findsNothing);
     expect(find.text('Forced off by Tracking Protection'), findsOneWidget);
     expect(find.text('Strip tracking parameters from URLs'), findsOneWidget);
+  });
+
+  group('the per-site level uses the same slider as App Settings', () {
+    // The level row only renders with a blocklist in memory, and the slider's
+    // stops are the levels the app knows about, so the service has to be
+    // seeded rather than stubbed at the call site.
+    setUp(() {
+      DnsBlockService.instance.loadLevelsFromStrings(
+        {2: 'normal.example', 3: 'pro.example'},
+        globalLevel: 3,
+      );
+    });
+    tearDown(DnsBlockService.instance.resetForTest);
+
+    LevelSlider slider(WidgetTester tester) {
+      final found = find.byType(LevelSlider);
+      expect(found, findsOneWidget);
+      return tester.widget<LevelSlider>(found);
+    }
+
+    testWidgets('the leftmost stop is the app-wide setting', (tester) async {
+      await _pump(tester, values: _values(dnsBlock: true));
+      final s = slider(tester);
+      expect(s.value, 0);
+      expect(s.labels, ['App', 'Light', 'Normal', 'Pro', 'Pro++', 'Ultimate']);
+      expect(find.text('Same as app settings (Pro)'), findsOneWidget);
+    });
+
+    testWidgets('a site level puts the thumb on that level', (tester) async {
+      await _pump(tester, values: _values(dnsBlock: true, dnsBlockLevel: 2));
+      expect(slider(tester).value, 2);
+    });
+
+    testWidgets('moving the thumb reports the level, stop 0 reports null',
+        (tester) async {
+      SitePrivacyValues? seen;
+      await _pump(
+        tester,
+        values: _values(dnsBlock: true, dnsBlockLevel: 2),
+        onChanged: (v) => seen = v,
+      );
+      slider(tester).onChanged!(3);
+      expect(seen!.dnsBlockLevel, 3);
+      await tester.pumpAndSettle();
+      slider(tester).onChanged!(0);
+      expect(seen!.dnsBlockLevel, isNull);
+    });
   });
 
   testWidgets('toggling a row reports the whole value back', (tester) async {

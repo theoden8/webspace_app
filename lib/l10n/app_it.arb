@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "Non disponibile. Una registrazione dello schermo copre l'intero schermo e mostrerebbe quindi anche gli altri tuoi siti.",
   "siteSettingsDnsBlocklistLevel": "Livello della lista di blocco",
   "siteSettingsDnsBlocklistLevelHint": "Ogni livello blocca più domini di quello sotto. Abbassalo per un sito che la lista di blocco rompe, così conserva una parte di protezione invece di nessuna. Un livello che l'app non ha ancora scaricato viene recuperato quando lo scegli.",
-  "siteSettingsDnsLevelFollowApp": "Come le impostazioni dell'app",
+  "siteSettingsDnsLevelFollowAppShort": "App",
   "siteSettingsDnsLevelFollowsApp": "Come le impostazioni dell'app ({level})",
   "siteSettingsDnsLevelNeedsDownload": "Non ancora scaricato, in uso {level}",
   "siteSettingsDnsLevelDownloading": "Download della lista di blocco...",

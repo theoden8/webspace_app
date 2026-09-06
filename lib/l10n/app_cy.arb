@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "Ddim ar gael. Mae recordiad sgrin yn cwmpasu'r sgrin gyfan, felly byddai hefyd yn dangos eich gwefannau eraill.",
   "siteSettingsDnsBlocklistLevel": "Lefel y rhestr rwystro",
   "siteSettingsDnsBlocklistLevelHint": "Mae pob lefel yn rhwystro mwy o barthau na'r un oddi tani. Gostyngwch hi ar gyfer safle y mae'r rhestr rwystro yn ei dorri, fel ei fod yn cadw rhywfaint o amddiffyniad yn hytrach na dim. Caiff lefel nad yw'r ap wedi ei lawrlwytho eto ei nôl pan fyddwch yn ei dewis.",
-  "siteSettingsDnsLevelFollowApp": "Yr un fath â gosodiadau'r ap",
+  "siteSettingsDnsLevelFollowAppShort": "Ap",
   "siteSettingsDnsLevelFollowsApp": "Yr un fath â gosodiadau'r ap ({level})",
   "siteSettingsDnsLevelNeedsDownload": "Heb ei lawrlwytho eto, yn defnyddio {level}",
   "siteSettingsDnsLevelDownloading": "Wrthi'n lawrlwytho'r rhestr rwystro...",

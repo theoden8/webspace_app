@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "Nie beskikbaar nie. ’n Skermopname dek die hele skerm en sou dus ook jou ander werwe wys.",
   "siteSettingsDnsBlocklistLevel": "Bloklysvlak",
   "siteSettingsDnsBlocklistLevelHint": "Elke vlak blokkeer meer domeine as die een daaronder. Verlaag dit vir 'n werf wat die bloklys breek, sodat dit steeds 'n mate van beskerming behou in plaas van niks nie. 'n Vlak wat die program nog nie afgelaai het nie, word gehaal wanneer jy dit kies.",
-  "siteSettingsDnsLevelFollowApp": "Dieselfde as programinstellings",
+  "siteSettingsDnsLevelFollowAppShort": "Program",
   "siteSettingsDnsLevelFollowsApp": "Dieselfde as programinstellings ({level})",
   "siteSettingsDnsLevelNeedsDownload": "Nog nie afgelaai nie, gebruik tans {level}",
   "siteSettingsDnsLevelDownloading": "Bloklys word afgelaai...",
