@@ -320,37 +320,55 @@ termination.
 
 Embedding Tor ships `tor`'s own TLS and onion-routing cryptography
 plus a full OpenSSL build inside the app binary. That is encryption
-the app *implements*, not encryption provided by the operating
-system, so it does not fall under the OS-provided/HTTPS exemption.
-`ITSAppUsesNonExemptEncryption` in
-[ios/Runner/Info.plist](../../../../ios/Runner/Info.plist) SHALL be
-`true` from the first build that links Tor.framework, and the App
-Store Connect export-compliance documentation SHALL be filed before
-that build is submitted.
+the app *implements*, so Apple's OS-provided/HTTPS and
+authentication-only exemptions do not cover it.
 
-This supersedes the pre-existing `false` declaration, which is
-already questionable on its own terms: the app implements AES at
-rest in [archive_crypto.dart](../../../../lib/services/archive_crypto.dart)
-and [html_cache_service.dart](../../../../lib/services/html_cache_service.dart).
-Flipping the key is therefore a correction the app owes regardless
-of Tor, not a new cost introduced by this change.
+They are not what covers it. `ITSAppUsesNonExemptEncryption` in
+[ios/Runner/Info.plist](../../../../ios/Runner/Info.plist) SHALL
+remain `false` under EXPORT-001's basis: the source is publicly
+available under MIT and the object code is therefore not subject to
+the EAR (note to 15 CFR 734.3(b)(3), 742.15(b)(1)). Tor changes what
+cryptography ships; it does not change whether the source is public.
 
-#### Scenario: Info.plist declares non-exempt encryption
+An earlier revision of this requirement mandated `true`, on the
+reasoning that the app implements rather than borrows its
+cryptography. That is true and beside the point: it rebuts the
+OS-provided exemption, which EXPORT-001 never invoked. The
+consequence was concrete, not academic. `true` obliges an
+`ITSEncryptionExportComplianceCode` that Apple issues only after
+approving uploaded documentation, so every upload was rejected with
+ITMS-90592 ("the export compliance key value [] ... doesn't match")
+until the key was reverted.
+
+No 15 CFR 742.15(b)(2) notification is owed either: it reaches only
+source code performing "non-standard cryptography", and everything
+the app and the Tor pod use is a published standard. See EXPORT-001
+for the full argument and EXPORT-002 for the primitive list that
+keeps it true.
+
+#### Scenario: Info.plist declares exempt encryption
 
 - **GIVEN** the iOS target links Tor.framework
 - **WHEN** `ios/Runner/Info.plist` is read
-- **THEN** `ITSAppUsesNonExemptEncryption` is `true`
-- **AND** no build declaring `false` is submitted to App Store Connect
+- **THEN** `ITSAppUsesNonExemptEncryption` is `false`
+- **AND** no `ITSEncryptionExportComplianceCode` is present, since an
+  exempt declaration carries no code
 
-#### Scenario: Year-end self-classification is tracked
+#### Scenario: A build is submitted
 
-- **GIVEN** a build containing Tor.framework was distributed in a
-  calendar year
-- **WHEN** the following 1 February approaches
-- **THEN** the annual self-classification report to the U.S. Bureau
-  of Industry and Security is filed for that build
-- **AND** the obligation is recorded in the release checklist, not
-  left to memory
+- **GIVEN** an IPA built from this source
+- **WHEN** it is uploaded to App Store Connect
+- **THEN** it is not rejected for export compliance
+- **AND** [scripts/check_ios_export_compliance.sh](../../../../scripts/check_ios_export_compliance.sh)
+  exits non-zero before the upload if the two keys ever disagree
+
+#### Scenario: The declaration is set to true
+
+- **GIVEN** a change sets `ITSAppUsesNonExemptEncryption` to `true`
+- **THEN** `ITSEncryptionExportComplianceCode` carries the code Apple
+  issued after approving export documentation, never a placeholder
+- **AND** the documentation is filed and approved before the build is
+  submitted, since the code does not exist beforehand
 
 ---
 

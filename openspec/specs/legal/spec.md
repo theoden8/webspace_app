@@ -16,17 +16,69 @@ encryption declaration, and MIT as the licence of the shipped work.
 
 ### EXPORT-001 - Encryption declaration
 
-The iOS bundle SHALL declare `ITSAppUsesNonExemptEncryption` as `false`.
+The iOS bundle SHALL declare `ITSAppUsesNonExemptEncryption` as `false` and
+SHALL NOT carry an `ITSEncryptionExportComplianceCode`.
 
 Basis: the source is published under a licence permitting further
 dissemination, so the object code is not subject to the EAR (note to
-15 CFR 734.3(b)(3), criteria in 15 CFR 742.15(b)). This rests on EXPORT-002
-and EXPORT-003; revisit it if either stops holding.
+15 CFR 734.3(b)(3), criteria in 15 CFR 742.15(b)(1)). This rests on
+EXPORT-002 and EXPORT-003; revisit it if either stops holding.
+
+**Exempt is not "no encryption".** The app implements AES-GCM-256, Argon2id,
+HKDF-SHA-256 and HMAC-SHA-256 in
+[archive_crypto.dart](../../../lib/services/archive_crypto.dart), AES over the
+page cache in
+[html_cache_service.dart](../../../lib/services/html_cache_service.dart), and
+links tor's TLS and OpenSSL. Apple's OS-provided and authentication-only
+exemptions describe none of that. Reasoning from *those* exemptions is what
+led #344 to flip the key to `true`; they were never the basis here.
+
+**No notification is owed, and it turns on one term.** 15 CFR 742.15(b)(2)
+requires emailing the source location to BIS and the ENC Encryption Request
+Coordinator, but only for source code that "provides or performs
+*non-standard cryptography*" — an EAR term of art for proprietary or
+unpublished algorithms. EXPORT-002 confines the app to published standards
+(FIPS 197, NIST SP 800-38D, RFC 9106, RFC 5869, RFC 2104, RFC 8446,
+RFC 7748/8032), so 742.15(b)(2) does not reach it and there is nothing to
+file. This is the whole reason the app owes no paperwork despite shipping a
+lot of cryptography, and it is the first thing to re-check when EXPORT-002
+is amended.
+
+**Tor is the near miss, and it clears.** 15 CFR 772.1 defines non-standard
+cryptography as functionality "that ha[s] not been adopted or approved by a
+duly recognized international standards body (e.g., IEEE, IETF, ISO, ITU,
+ETSI, 3GPP, TIA, and GSMA) **and** ha[s] not otherwise been published". Tor's
+circuit protocol and ntor handshake are not IETF standards, so the first limb
+is met. The second is not: the protocol is published in full at
+spec.torproject.org, the implementation is open source, and the primitives
+under it are AES, SHA-2, Curve25519 (RFC 7748), Ed25519 (RFC 8032) and TLS
+(RFC 8446). The test is conjunctive, so an unratified but published protocol
+is not non-standard cryptography. A future component that is *unpublished*
+fails on the second limb no matter how standard its primitives are, and that
+is the case to watch for.
+
+**`true` is not the cautious alternative.** It obliges an
+`ITSEncryptionExportComplianceCode`, which Apple issues only after approving
+uploaded documentation; for standard algorithms that documentation is the
+French ANSSI declaration, required when distributing in France and reported
+to take one to two months. Until the code exists every upload is rejected as
+ITMS-90592, which is how #344 blocked releases.
+[scripts/check_ios_export_compliance.sh](../../../scripts/check_ios_export_compliance.sh)
+gates the two keys against each other on the fastlane deploy lanes.
 
 #### Scenario: Key present
 
 - **GIVEN** `ios/Runner/Info.plist`
 - **THEN** `ITSAppUsesNonExemptEncryption` is `false`
+- **AND** no `ITSEncryptionExportComplianceCode` is present
+
+#### Scenario: A change introduces a non-standard algorithm
+
+- **GIVEN** a proprietary or unpublished cryptographic algorithm is added,
+  contrary to EXPORT-002
+- **THEN** the 15 CFR 742.15(b)(2) notification naming the source location is
+  sent to BIS and the ENC Encryption Request Coordinator before release
+- **AND** the date it was sent is recorded in this requirement
 
 ---
 

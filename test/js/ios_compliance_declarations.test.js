@@ -1,7 +1,7 @@
 // Structural gates for the two iOS submission declarations that are easy to
 // get wrong and impossible to notice: they are not code, nothing imports
 // them, no test exercises them, and both fail silently — a wrong
-// ITSAppUsesNonExemptEncryption is a false statement on a submission form
+// a wrong ITSAppUsesNonExemptEncryption is a false statement on a submission
 // that ships, and a privacy manifest in the wrong file is simply not read.
 //
 // Spec: openspec/changes/add-ios-tor-proxy/specs/tor-proxy/spec.md
@@ -19,6 +19,8 @@ const exists = (p) => fs.existsSync(path.join(repo, p));
 const INFO_PLIST = 'ios/Runner/Info.plist';
 const PRIVACY_MANIFEST = 'ios/Runner/PrivacyInfo.xcprivacy';
 const PBXPROJ = 'ios/Runner.xcodeproj/project.pbxproj';
+const FASTFILE = 'ios/fastlane/Fastfile';
+const COMPLIANCE_CHECK = 'scripts/check_ios_export_compliance.sh';
 
 /** Value of a <key>…</key> followed by <true/> or <false/>. */
 function boolForKey(plist, key) {
@@ -28,7 +30,23 @@ function boolForKey(plist, key) {
   return m ? m[1] === 'true' : null;
 }
 
-test('TOR-010: the app declares non-exempt encryption', () => {
+/** Value of a <key>…</key> followed by <string>…</string>. */
+function stringForKey(plist, key) {
+  const m = plist.match(
+    new RegExp(`<key>${key}</key>\\s*<string>([^<]*)</string>`),
+  );
+  return m ? m[1] : null;
+}
+
+/** Fastlane lane bodies keyed by lane name. */
+function lanes(fastfile) {
+  return Object.fromEntries(
+    fastfile.split(/^  lane :/m).slice(1)
+      .map((part) => [part.match(/^(\w+)/)[1], part]),
+  );
+}
+
+test('TOR-010: the app declares its encryption exempt', () => {
   const declared = boolForKey(read(INFO_PLIST), 'ITSAppUsesNonExemptEncryption');
   assert.notStrictEqual(
     declared, null,
@@ -36,13 +54,76 @@ test('TOR-010: the app declares non-exempt encryption', () => {
     'stalls every submission on the export-compliance prompt.',
   );
   assert.strictEqual(
-    declared, true,
-    'The app ships its own cryptography (AES at rest in archive_crypto.dart ' +
-    'and html_cache_service.dart; tor\'s TLS and onion routing via ' +
-    'Tor.framework). Apple\'s exemption covers OS-provided encryption and ' +
-    'authentication-only use, so `false` here is a false declaration to ' +
-    'Apple, not a guideline nit a review would bounce back. See TOR-010.',
+    declared, false,
+    'EXPORT-001 rests on publicly available source (MIT, 15 CFR ' +
+    '734.3(b)(3) note, 742.15(b)(1)), not on Apple\'s OS-provided ' +
+    'exemption. The app does ship its own cryptography, and that is not ' +
+    'what decides this key. `true` obliges an ' +
+    'ITSEncryptionExportComplianceCode that Apple issues only after ' +
+    'approving uploaded documentation, so flipping it here rejects every ' +
+    'upload with ITMS-90592 until the code exists. See EXPORT-001.',
   );
+});
+
+// `true` is only half the declaration: once App Store Connect approves the
+// encryption documentation Apple issues a code, and a build declaring `true`
+// without it is rejected at upload with ITMS-90592 ("the export compliance
+// key value [] ... doesn't match"). It archives and exports cleanly first, so
+// the source tree cannot tell the two states apart — which is why the real
+// gate is a pre-submission script and this only fixes the shape.
+test('TOR-010: the compliance code, if declared, is not empty', () => {
+  const plist = read(INFO_PLIST);
+  const code = stringForKey(plist, 'ITSEncryptionExportComplianceCode');
+  if (code !== null) {
+    assert.notStrictEqual(
+      code.trim(), '',
+      `${INFO_PLIST} declares an empty ITSEncryptionExportComplianceCode. ` +
+      'That is the exact value App Store Connect reports as [] when it ' +
+      'rejects the upload. Use the code Apple issued, or drop the key.',
+    );
+  }
+  if (boolForKey(plist, 'ITSAppUsesNonExemptEncryption') === false) {
+    assert.strictEqual(
+      code, null,
+      `${INFO_PLIST} declares encryption exempt but still carries an ` +
+      'ITSEncryptionExportComplianceCode. An exempt declaration has no code.',
+    );
+  }
+});
+
+// The value of a gate here is that it fails for a *third* deploy lane too,
+// which is how this recurs: the check is one line that a new lane forgets,
+// and forgetting it costs a full upload round-trip to find out.
+test('TOR-010: every lane that uploads a binary checks export compliance', () => {
+  assert.ok(
+    exists(COMPLIANCE_CHECK),
+    `${COMPLIANCE_CHECK} is missing; the deploy lanes call it before upload.`,
+  );
+  const fastfile = read(FASTFILE);
+  assert.match(
+    fastfile, new RegExp(COMPLIANCE_CHECK.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+    `${FASTFILE} defines check_export_compliance but never runs ` +
+    `${COMPLIANCE_CHECK}.`,
+  );
+
+  const uploading = Object.entries(lanes(fastfile)).filter(
+    ([, body]) =>
+      /upload_to_testflight|upload_to_app_store/.test(body) &&
+      !/skip_binary_upload:\s*true/.test(body),
+  );
+  assert.ok(
+    uploading.length > 0,
+    `${FASTFILE} has no binary-uploading lane; did the parser break?`,
+  );
+  for (const [name, body] of uploading) {
+    assert.match(
+      body, /check_export_compliance/,
+      `Lane :${name} uploads a binary to App Store Connect without calling ` +
+      'check_export_compliance first. A mismatched export-compliance key is ' +
+      'only diagnosed by Apple at upload (ITMS-90592), so the check has to ' +
+      'run before the binary is sent. See TOR-010.',
+    );
+  }
 });
 
 test('TOR-011: required-reason APIs are declared in a privacy manifest', () => {

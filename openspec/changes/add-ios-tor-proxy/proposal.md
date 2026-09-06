@@ -52,7 +52,7 @@ stream isolation, with no entitlement extensions needed.
   cleanly to free the loopback port.
 - `Info.plist`: no new entitlements (`NSAppTransportSecurity` already
   permits loopback HTTP for the fork's debugger bridge), but
-  `ITSAppUsesNonExemptEncryption` flips to `true` (TOR-010). A new
+  `ITSAppUsesNonExemptEncryption` stays `false` (TOR-010). A new
   `PrivacyInfo.xcprivacy` resource carries the required-reason API
   rows — those do not belong in `Info.plist` (TOR-011).
 - Linker: `Tor.framework` + `OpenSSL.framework` + `libevent.framework`
@@ -109,7 +109,7 @@ stream isolation, with no entitlement extensions needed.
     `stop`, `status`, `rebuildCircuits`, `socksEndpoint`, plus a
     bootstrap-progress event channel.
   - `Info.plist`: no new entitlements;
-    `ITSAppUsesNonExemptEncryption` becomes `true`.
+    `ITSAppUsesNonExemptEncryption` is unchanged at `false`.
   - `ios/Runner/PrivacyInfo.xcprivacy`: new privacy-manifest resource
     (the repo has none today) declaring the app's own required-reason
     API usage.
@@ -160,11 +160,11 @@ stream isolation, with no entitlement extensions needed.
   the release changelog.
 - **Export compliance**: embedding Tor ships tor's own TLS/onion
   cryptography and OpenSSL inside the binary, which is *not* the
-  OS-provided encryption Apple's exemption covers.
-  `ITSAppUsesNonExemptEncryption` flips from `false` to `true`,
-  export documentation is filed in App Store Connect before the first
-  Tor build is submitted, and the annual BIS self-classification
-  report joins the release checklist (TOR-010).
+  OS-provided encryption Apple's exemption covers. That exemption is
+  not the one EXPORT-001 relies on, so
+  `ITSAppUsesNonExemptEncryption` stays `false` on the
+  publicly-available-source basis, and no 742.15(b)(2) notification is
+  owed because every primitive is a published standard (TOR-010).
 - **App Store review**: no current App Store Review Guideline
   prohibits this design. Guideline 5.4 (VPN Apps) does not apply — no
   `NEVPNManager`, no NetworkExtension entitlement, and the loopback

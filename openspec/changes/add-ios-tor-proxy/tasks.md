@@ -86,7 +86,7 @@ the nested-webview propagation chain. See PROXY-010 for the reasoning.
 
 - [x] 11.0 Structural CI gates in `test/js/ios_compliance_declarations.test.js`: the encryption declaration, the privacy manifest's existence, its absence from `Info.plist`, its presence in Copy Bundle Resources, and no hardcoded 9050. Each verified to fail on its own regression.
 
-- [x] 11.1 Set `ITSAppUsesNonExemptEncryption` to `true` in `ios/Runner/Info.plist` and file export-compliance documentation in App Store Connect before the first Tor build is submitted (TOR-010). The current `false` does not survive embedding tor's own TLS/onion crypto and OpenSSL. Do not ship a build that still declares `false`.
+- [x] 11.1 Leave `ITSAppUsesNonExemptEncryption` at `false` in `ios/Runner/Info.plist` (TOR-010). Tor changes what cryptography ships, not whether the source is public, and EXPORT-001's exemption is the publicly-available-source one. An earlier revision of this task mandated `true`; that obliges a compliance code Apple issues only after approving documentation, and it blocked every upload with ITMS-90592 until reverted.
 - [ ] 11.1a Add the annual BIS self-classification report (due 1 February for the prior calendar year's distributed builds) to the release checklist.
 - [ ] 11.1b Draft the App Review notes: what the toggle does, that bootstrap takes 10-30s on first use, and that a restricted network surfaces an explicit error by design (TOR-013).
 - [ ] 11.1c Audit UI strings and assets for trademark discipline before submission — descriptive use of "Tor" only, no onion logo, no "Tor" in app name/subtitle/bundle id, no implied Tor Project endorsement (TOR-012).
