@@ -43,6 +43,7 @@ const migrated = new Set([
   'lib/widgets/find_toolbar.dart',
   'lib/widgets/firefox_version_tile.dart',
   'lib/widgets/hint_button.dart',
+  'lib/widgets/level_slider.dart',
   'lib/widgets/root_messenger.dart',
   'lib/widgets/site_permission_badges.dart',
   'lib/widgets/stats_banner.dart',

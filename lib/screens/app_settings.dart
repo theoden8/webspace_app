@@ -30,6 +30,7 @@ import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/screens/user_scripts.dart';
 import 'package:webspace/widgets/firefox_version_tile.dart';
 import 'package:webspace/widgets/hint_button.dart';
+import 'package:webspace/widgets/level_slider.dart';
 
 // Accent color definitions for display
 const Map<AccentColor, Color> _accentColors = {
@@ -189,7 +190,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   bool _isDownloadingBlocklist = false;
   DateTime? _blocklistLastUpdated;
   int _dnsBlockLevel = 0; // Downloaded level
-  double _dnsBlockSliderValue = 0; // Ephemeral slider value
+  int _dnsBlockSliderValue = 0; // Ephemeral slider value
   late AnimationController _spinController;
 
   // Content Blocker state
@@ -442,14 +443,14 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     if (mounted) {
       setState(() {
         _dnsBlockLevel = DnsBlockService.instance.level;
-        _dnsBlockSliderValue = _dnsBlockLevel.toDouble();
+        _dnsBlockSliderValue = _dnsBlockLevel;
         _blocklistLastUpdated = lastUpdated;
       });
     }
   }
 
   Future<void> _downloadBlocklist() async {
-    final level = _dnsBlockSliderValue.round();
+    final level = _dnsBlockSliderValue;
 
     setState(() {
       _isDownloadingBlocklist = true;
@@ -1620,54 +1621,22 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                   )
                 : IconButton(
                     icon: Icon(
-                      _dnsBlockSliderValue.round() != _dnsBlockLevel
+                      _dnsBlockSliderValue != _dnsBlockLevel
                           ? Icons.download
                           : Icons.sync,
                     ),
-                    tooltip: _dnsBlockSliderValue.round() != _dnsBlockLevel
+                    tooltip: _dnsBlockSliderValue != _dnsBlockLevel
                         ? loc.appSettingsDownloadBlocklist
                         : loc.appSettingsRefreshBlocklist,
                     onPressed: _downloadBlocklist,
                   ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Column(
-              children: [
-                Slider(
-                  value: _dnsBlockSliderValue,
-                  min: 0,
-                  max: 5,
-                  divisions: 5,
-                  label: dnsBlockLevelNames[_dnsBlockSliderValue.round()],
-                  onChanged: _isDownloadingBlocklist
-                      ? null
-                      : (value) {
-                          setState(() {
-                            _dnsBlockSliderValue = value;
-                          });
-                        },
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    for (int i = 0; i < dnsBlockLevelNames.length; i++)
-                      Text(
-                        dnsBlockLevelNames[i],
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: _dnsBlockSliderValue.round() == i
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                          color: _dnsBlockSliderValue.round() == i
-                              ? Theme.of(context).colorScheme.secondary
-                              : null,
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
+          LevelSlider(
+            labels: dnsBlockLevelNames,
+            value: _dnsBlockSliderValue,
+            onChanged: _isDownloadingBlocklist
+                ? null
+                : (value) => setState(() => _dnsBlockSliderValue = value),
           ),
 
           // LocalCDN (Android only)

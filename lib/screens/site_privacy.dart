@@ -8,6 +8,7 @@ import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/widgets/hint_button.dart';
+import 'package:webspace/widgets/level_slider.dart';
 
 /// Everything the privacy screen may change, in one value so the caller can
 /// apply a whole edit in a single `setState`.
@@ -316,6 +317,11 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
         downloadedLevels: DnsBlockService.instance.downloadedLevels,
       );
 
+  /// Slider stop standing for "same as app settings". The stops above it are
+  /// the levels themselves; level 0 (Off) is not one of them, because the
+  /// row's own switch is what turns DNS blocking off.
+  static const int _followsAppStop = 0;
+
   Widget _dnsBlocklistLevel(AppLocalizations loc) {
     final needsDownload = _dnsLevelNeedsDownload;
     final chosen = _values.dnsBlockLevel;
@@ -327,66 +333,51 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
             ? loc.siteSettingsDnsLevelFollowsApp(
                 dnsBlockLevelNames[DnsBlockService.instance.level])
             : dnsBlockLevelNames[chosen]);
-    return ListTile(
-      contentPadding: const EdgeInsets.only(left: 32, right: 16),
-      title: Row(
-        children: [
-          Flexible(child: Text(title)),
-          HintButton(
-              title: title, description: loc.siteSettingsDnsBlocklistLevelHint),
-          if (needsDownload) _warnIcon(),
-        ],
-      ),
-      subtitle: Text(subtitle,
-          style: TextStyle(color: needsDownload ? Colors.orange : null)),
-      trailing: _downloadingLevel != null
-          ? const SizedBox(
-              width: 18, height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2))
-          : const Icon(Icons.chevron_right, size: 18),
-      onTap: _downloadingLevel != null ? null : _pickDnsLevel,
-    );
-  }
-
-  /// Picker value standing for "follow the app setting". The picker never
-  /// offers level 0 — the row's own switch is what turns DNS blocking off.
-  static const int _followsAppSetting = -1;
-
-  Future<void> _pickDnsLevel() async {
-    final loc = AppLocalizations.of(context);
-    final picked = await showDialog<int>(
-      context: context,
-      builder: (context) => SimpleDialog(
-        title: Text(loc.siteSettingsDnsBlocklistLevel),
-        children: [
-          RadioGroup<int>(
-            groupValue: _values.dnsBlockLevel ?? _followsAppSetting,
-            onChanged: (value) => Navigator.pop(context, value),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                RadioListTile<int>(
-                  value: _followsAppSetting,
-                  title: Text(loc.siteSettingsDnsLevelFollowApp),
-                ),
-                for (var level = 1; level <= kDnsMaxLevel; level++)
-                  RadioListTile<int>(
-                    value: level,
-                    title: Text(dnsBlockLevelNames[level]),
-                  ),
-              ],
-            ),
+    return Column(
+      children: [
+        ListTile(
+          contentPadding: const EdgeInsets.only(left: 32, right: 16),
+          title: Row(
+            children: [
+              Flexible(child: Text(title)),
+              HintButton(
+                  title: title, description: loc.siteSettingsDnsBlocklistLevelHint),
+              if (needsDownload) _warnIcon(),
+            ],
           ),
-        ],
-      ),
+          subtitle: Text(subtitle,
+              style: TextStyle(color: needsDownload ? Colors.orange : null)),
+          trailing: _downloadingLevel != null
+              ? const SizedBox(
+                  width: 18, height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2))
+              : null,
+        ),
+        LevelSlider(
+          padding: const EdgeInsets.only(left: 32, right: 16),
+          labels: [
+            loc.siteSettingsDnsLevelFollowAppShort,
+            for (var level = 1; level <= kDnsMaxLevel; level++)
+              dnsBlockLevelNames[level],
+          ],
+          value: chosen ?? _followsAppStop,
+          onChanged: _downloadingLevel != null
+              ? null
+              : (stop) => _update(_values.copyWith(
+                    dnsBlockLevel: stop == _followsAppStop ? null : stop,
+                  )),
+          // Fetching waits for the drag to settle: every stop the thumb
+          // crosses is a level, and downloading each one would pull four
+          // lists nobody asked for.
+          onChangeEnd: (stop) {
+            if (stop != _followsAppStop &&
+                !DnsBlockService.instance.downloadedLevels.contains(stop)) {
+              _downloadLevel(stop);
+            }
+          },
+        ),
+      ],
     );
-    if (picked == null || !mounted) return;
-    final level = picked == _followsAppSetting ? null : picked;
-    _update(_values.copyWith(dnsBlockLevel: level));
-    if (level != null &&
-        !DnsBlockService.instance.downloadedLevels.contains(level)) {
-      await _downloadLevel(level);
-    }
   }
 
   /// Fetch a level's list on demand. Until it lands the site keeps running at

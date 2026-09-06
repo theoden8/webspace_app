@@ -23,6 +23,7 @@ const MIGRATED = [
   'lib/screens/favicon_image_web.dart',
   'lib/widgets/url_bar.dart',
   'lib/widgets/hint_button.dart',
+  'lib/widgets/level_slider.dart',
   'lib/widgets/tab_bar_corner_button.dart',
 ];
 
