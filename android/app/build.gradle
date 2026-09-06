@@ -65,6 +65,7 @@ android {
         targetSdkVersion 36
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
+        resValue "string", "app_name", "Webspace"
     }
 
     signingConfigs {
@@ -103,6 +104,18 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Distinct applicationId so a debug build installs alongside a
+            // release/store install instead of colliding with it (a collision
+            // also fails outright, since the signing keys differ). The
+            // namespace is untouched, so every class name, MethodChannel and
+            // JNI symbol stays as-is; only the package identity moves.
+            // adb-driven scripts under scripts/ must follow this suffix.
+            applicationIdSuffix ".debug"
+            versionNameSuffix "-debug"
+            resValue "string", "app_name", "Webspace Debug"
+        }
+
         release {
             // Only use release signing if keystore exists
             def keystorePropertiesFile = rootProject.file('key.properties')

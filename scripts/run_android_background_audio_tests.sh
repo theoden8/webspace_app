@@ -17,7 +17,8 @@
 # device id in scope across the `flutter test` calls.
 set -euo pipefail
 
-PKG="org.codeberg.theoden8.webspace"
+# Debug build type suffixes the applicationId; see android/app/build.gradle.
+PKG="org.codeberg.theoden8.webspace.debug"
 
 device_id="${1:-$(adb devices | grep -w 'device' | head -1 | awk '{print $1}' || true)}"
 if [ -z "$device_id" ]; then

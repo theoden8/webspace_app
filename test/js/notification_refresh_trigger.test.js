@@ -65,7 +65,7 @@ test('the debug refresh receiver lives only in the debug source set', () => {
 });
 
 test('the harness triggers the refresh through the receiver', () => {
-  assert.match(harness, /am broadcast -n "\$pkg\/\.NotificationRefreshDebugReceiver"/,
+  assert.match(harness, /am broadcast -n "[^"]*NotificationRefreshDebugReceiver"/,
     `${harnessRel} must drive the refresh through the debug receiver`);
 });
 
