@@ -7,6 +7,9 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.view.PixelCopy
+import android.view.View
+import android.view.ViewGroup
+import android.webkit.WebView
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
@@ -48,8 +51,70 @@ class SurfaceDiagPlugin(private val activity: Activity, flutterEngine: FlutterEn
                         sampleWindowRegion(left, top, width, height, result)
                     }
                 }
+                "nativeRepaint" -> {
+                    val mode = call.argument<String>("mode")
+                    if (mode == null) {
+                        result.error("INVALID_ARGS", "mode required", null)
+                    } else {
+                        result.success(nativeRepaint(mode))
+                    }
+                }
                 else -> result.notImplemented()
             }
+        }
+    }
+
+    /**
+     * Ask the real Android views to redraw, rather than resizing them from
+     * Dart.
+     *
+     * A Dart-side nudge changes a widget's padding, which reaches the platform
+     * view as a resize through Flutter's own plumbing; BUG-001 gap #18 recorded
+     * six such nudges landing against a live renderer with the screen blank.
+     * These call the View API directly on every WebView in the window, which is
+     * what rotation and lock-unlock do and what a resize does not:
+     *
+     *  - "invalidate": schedule a redraw and a measure/layout pass.
+     *  - "visibility": GONE then VISIBLE, so the view detaches from and
+     *    re-attaches to the window without the WebView being destroyed.
+     *
+     * Main-looper only, like everything else here (BUG-007: none-shared).
+     */
+    private fun nativeRepaint(mode: String): Map<String, Any> {
+        val decor = activity.window?.decorView
+            ?: return mapOf("status" to "no-window", "views" to 0)
+        val views = ArrayList<WebView>()
+        collectWebViews(decor, views)
+        for (v in views) {
+            when (mode) {
+                "invalidate" -> {
+                    v.invalidate()
+                    v.requestLayout()
+                }
+                "visibility" -> {
+                    val previous = v.visibility
+                    v.visibility = View.GONE
+                    // Restore on the next main-looper turn: setting it back in
+                    // this one is coalesced into no change at all, since the
+                    // view never reaches a traversal in between.
+                    Handler(Looper.getMainLooper()).post {
+                        v.visibility = previous
+                        v.invalidate()
+                    }
+                }
+                else -> return mapOf("status" to "unknown-mode", "views" to 0)
+            }
+        }
+        return mapOf("status" to "ok", "views" to views.size)
+    }
+
+    private fun collectWebViews(view: View, out: MutableList<WebView>) {
+        if (view is WebView) {
+            out.add(view)
+            return
+        }
+        if (view is ViewGroup) {
+            for (i in 0 until view.childCount) collectWebViews(view.getChildAt(i), out)
         }
     }
 

@@ -48,6 +48,7 @@ import 'package:webspace/services/html_import_storage.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/cookie_isolation.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
+import 'package:webspace/services/surface_diag_native.dart';
 import 'package:webspace/services/surface_repaint_engine.dart';
 import 'package:webspace/services/surface_route_observer.dart';
 import 'package:webspace/services/diag_seed.dart';
@@ -2148,13 +2149,26 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (idx != null && idx < _webViewModels.length) {
       unawaited(_probeRendererAndRecover(_webViewModels[idx], trigger: 'manual'));
     }
-    const mechanisms = <String>['inset-1', 'inset-16', 'unpaint', 'recreate'];
+    const mechanisms = <String>[
+      'inset-1',
+      'inset-16',
+      'unpaint',
+      'native-invalidate',
+      'native-visibility',
+      'recreate',
+    ];
     final mechanism = mechanisms[_manualRepaintPass % mechanisms.length];
     _manualRepaintPass++;
     LogService.instance.log('SurfaceDiag', 'manual mechanism=$mechanism');
     if (mechanism == 'unpaint') {
       _repaintInsetPx = 1.0;
       unawaited(_holdUnpainted());
+    } else if (mechanism.startsWith('native-')) {
+      _repaintInsetPx = 1.0;
+      unawaited(SurfaceDiagNative.nativeRepaint(
+              mechanism.substring('native-'.length))
+          .then((views) => LogService.instance
+              .log('SurfaceDiag', 'manual $mechanism reached ${views ?? 0} view(s)')));
     } else if (mechanism == 'recreate') {
       _repaintInsetPx = 1.0;
       _resetCurrentSiteWebView();

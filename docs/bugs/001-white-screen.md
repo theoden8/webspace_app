@@ -1100,13 +1100,27 @@ nothing after, because there is no second commit for a same-document update.
     an inert mechanism.
 
     **The discriminator is one tap.** The developer-mode "Repaint Screen" entry
-    now cycles through mechanisms on successive taps and logs which it ran:
-    `inset-1` (today's), `inset-16`, `unpaint` (held unpainted for a few frames,
-    which detaches and re-attaches the Android view without destroying the
-    WebView), `recreate`. On a blank screen, `inset-1` restoring it means H2 and
-    the mechanism is sound; `inset-1` doing nothing where `unpaint` or
-    `recreate` works means H1 and the mechanism has to change. Attempt 12 acts
-    on H2, which is the cheap half; H1 stays open until a device answers.
+    cycles through mechanisms on successive taps and logs which it ran:
+
+    | tap | mechanism | what it does that the others do not |
+    |-----|-----------|-------------------------------------|
+    | 1 | `inset-1` | today's mechanism, unchanged |
+    | 2 | `inset-16` | same resize, sixteen times the magnitude |
+    | 3 | `unpaint` | Flutter stops painting the subtree for a few frames, so the Android view leaves and re-enters the hierarchy without the WebView being destroyed |
+    | 4 | `native-invalidate` | `View.invalidate()` + `requestLayout()` on every WebView in the window, called on the platform thread rather than resized from Dart |
+    | 5 | `native-visibility` | `GONE` then `VISIBLE` on the same views, which is what lock-unlock does |
+    | 6 | `recreate` | dispose and rebuild (reloads the page) |
+
+    Taps 1 and 2 separate "the mechanism works" from "the magnitude is too
+    small". Tap 3 separates a resize from a detach. Taps 4 and 5 separate
+    Flutter's platform-view plumbing from the Android views themselves —
+    `SurfaceDiagPlugin` already holds the Activity and runs on the main looper,
+    so neither needs a change in the fork. Tap 6 is the answer that always
+    works and costs the page.
+
+    Whichever tap restores the screen names the layer, and the mechanism the
+    automatic nudge should use becomes that one. Attempt 12 acts on H2, the
+    cheap half; H1 stays open until a device answers.
 
     It also retires two working assumptions. The blank does not need a
     backgrounded site or a warm start — this was a first load after a cold
