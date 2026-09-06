@@ -16,17 +16,31 @@ encryption declaration, and MIT as the licence of the shipped work.
 
 ### EXPORT-001 - Encryption declaration
 
-The iOS bundle SHALL declare `ITSAppUsesNonExemptEncryption` as `false`.
+The iOS bundle SHALL declare `ITSAppUsesNonExemptEncryption` as `true`, and
+SHALL carry the App Store Connect compliance code as
+`ITSEncryptionExportComplianceCode` once Apple issues it. Normative detail,
+including the pre-submission gate, is TOR-010 in
+[the tor-proxy change](../../changes/add-ios-tor-proxy/specs/tor-proxy/spec.md)
+until that change is archived.
 
-Basis: the source is published under a licence permitting further
-dissemination, so the object code is not subject to the EAR (note to
-15 CFR 734.3(b)(3), criteria in 15 CFR 742.15(b)). This rests on EXPORT-002
-and EXPORT-003; revisit it if either stops holding.
+This requirement previously read `false`, on the basis that the source is
+published under a licence permitting further dissemination, so the object
+code is not subject to the EAR (note to 15 CFR 734.3(b)(3), criteria in
+15 CFR 742.15(b)). TOR-010 superseded it in #344, when `pod 'Tor'` began
+linking tor's TLS and OpenSSL into the binary; the app also implements AES
+at rest (EXPORT-002), so `false` was already doubtful on the OS-provided
+exemption alone.
+
+Two things that argument did not settle, recorded so the next reader does
+not assume they were: it answered only the OS-provided and
+authentication-only exemptions, never the publicly-available-source basis
+above, and no 15 CFR 742.15(b) notification is recorded anywhere in this
+repo. Reopening `false` means resolving both, not just citing the licence.
 
 #### Scenario: Key present
 
 - **GIVEN** `ios/Runner/Info.plist`
-- **THEN** `ITSAppUsesNonExemptEncryption` is `false`
+- **THEN** `ITSAppUsesNonExemptEncryption` is `true`
 
 ---
 

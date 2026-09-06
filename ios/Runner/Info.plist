@@ -8,8 +8,16 @@
 	     Apple's exemption covers OS-provided encryption (HTTPS via
 	     URLSession) and authentication-only use; neither describes this.
 	     See openspec/changes/add-ios-tor-proxy/specs/tor-proxy/spec.md
-	     TOR-010. Export documentation is filed in App Store Connect, and
-	     the annual BIS self-classification report is a release step. -->
+	     TOR-010.
+
+	     `true` is half the declaration. Apple issues a compliance code once
+	     it approves the encryption documentation in App Store Connect, and
+	     that code belongs here as ITSEncryptionExportComplianceCode; until
+	     it does, every upload is rejected with ITMS-90592 ("the export
+	     compliance key value [] ... doesn't match"). The documentation is
+	     not filed yet, so the key is absent rather than guessed.
+	     scripts/check_ios_export_compliance.sh gates the pair on the
+	     fastlane deploy lanes. -->
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<true/>
 	<key>CADisableMinimumFrameDurationOnPhone</key>

@@ -342,6 +342,34 @@ of Tor, not a new cost introduced by this change.
 - **THEN** `ITSAppUsesNonExemptEncryption` is `true`
 - **AND** no build declaring `false` is submitted to App Store Connect
 
+`true` is half the declaration. Apple issues a compliance code once it
+approves the uploaded encryption documentation, and the binary SHALL
+carry that code as `ITSEncryptionExportComplianceCode` in the same
+plist. A build declaring `true` with the code absent compiles,
+archives and exports cleanly, and is rejected only at upload
+(ITMS-90592, "the export compliance key value [] in the app's
+Info.plist doesn't match the key value of the app's export compliance
+documentation"). Nothing between the edit and the upload observes it,
+so the pair SHALL be checked before submission by
+[scripts/check_ios_export_compliance.sh](../../../../scripts/check_ios_export_compliance.sh),
+wired into the fastlane deploy lanes. The code SHALL be the value
+Apple issued; a placeholder is a false statement on a submission form,
+not a rejected upload.
+
+#### Scenario: A build is submitted with the declaration set
+
+- **GIVEN** `ITSAppUsesNonExemptEncryption` is `true`
+- **WHEN** an IPA is uploaded to App Store Connect
+- **THEN** `ITSEncryptionExportComplianceCode` is present and non-empty
+- **AND** `scripts/check_ios_export_compliance.sh` exits non-zero when it
+  is not, before the upload rather than after
+
+#### Scenario: The declaration is reverted to exempt
+
+- **GIVEN** `ITSAppUsesNonExemptEncryption` is `false`
+- **THEN** `ITSEncryptionExportComplianceCode` is absent, since an exempt
+  declaration carries no code
+
 #### Scenario: Year-end self-classification is tracked
 
 - **GIVEN** a build containing Tor.framework was distributed in a

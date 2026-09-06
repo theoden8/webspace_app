@@ -16,6 +16,14 @@ platform :ios do
     File.expand_path("../..", __dir__)
   end
 
+  # ITSAppUsesNonExemptEncryption without its matching
+  # ITSEncryptionExportComplianceCode archives and exports cleanly and is
+  # rejected only by App Store Connect at upload (ITMS-90592). Fail before the
+  # binary is sent rather than after. See TOR-010.
+  def check_export_compliance
+    sh("cd '#{project_root}' && ./scripts/check_ios_export_compliance.sh")
+  end
+
   desc "Run tests"
   lane :test do
     run_tests(
@@ -54,6 +62,7 @@ platform :ios do
 
   desc "Deploy to TestFlight"
   lane :deploy_beta do
+    check_export_compliance
     build_release
     upload_to_testflight(
       skip_waiting_for_build_processing: true
@@ -62,6 +71,7 @@ platform :ios do
 
   desc "Deploy to App Store"
   lane :deploy_production do
+    check_export_compliance
     build_release
     upload_to_app_store(
       submit_for_review: false,
