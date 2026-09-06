@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "利用できません。画面キャプチャは画面全体を対象とするため、他のサイトも映してしまいます。",
   "siteSettingsDnsBlocklistLevel": "ブロックリストの強度",
   "siteSettingsDnsBlocklistLevelHint": "強度が上がるほど、より多くのドメインをブロックします。ブロックリストが原因で壊れるサイトでは強度を下げれば、保護をすべて失う代わりに一部を残せます。まだダウンロードしていない強度は、選んだ時点で取得されます。",
-  "siteSettingsDnsLevelFollowApp": "アプリ設定と同じ",
+  "siteSettingsDnsLevelFollowAppShort": "アプリ",
   "siteSettingsDnsLevelFollowsApp": "アプリ設定と同じ（{level}）",
   "siteSettingsDnsLevelNeedsDownload": "未ダウンロードのため {level} を使用中",
   "siteSettingsDnsLevelDownloading": "ブロックリストをダウンロード中...",

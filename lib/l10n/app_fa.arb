@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "در دسترس نیست. ضبط صفحه کل صفحه را دربر می‌گیرد و بنابراین سایت‌های دیگر شما را هم نشان می‌دهد.",
   "siteSettingsDnsBlocklistLevel": "سطح فهرست مسدودسازی",
   "siteSettingsDnsBlocklistLevelHint": "هر سطح دامنه‌های بیشتری از سطح پایین‌تر مسدود می‌کند. برای سایتی که فهرست مسدودسازی خرابش می‌کند آن را پایین بیاورید تا به‌جای هیچ محافظتی، اندکی محافظت باقی بماند. سطحی که برنامه هنوز دریافت نکرده، هنگام انتخاب دریافت می‌شود.",
-  "siteSettingsDnsLevelFollowApp": "مانند تنظیمات برنامه",
+  "siteSettingsDnsLevelFollowAppShort": "برنامه",
   "siteSettingsDnsLevelFollowsApp": "مانند تنظیمات برنامه ({level})",
   "siteSettingsDnsLevelNeedsDownload": "هنوز دریافت نشده؛ {level} در حال استفاده است",
   "siteSettingsDnsLevelDownloading": "در حال دریافت فهرست مسدودسازی...",

@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "לא זמין. הקלטת מסך מכסה את כל המסך, ולכן היא הייתה מציגה גם את האתרים האחרים שלך.",
   "siteSettingsDnsBlocklistLevel": "רמת רשימת החסימה",
   "siteSettingsDnsBlocklistLevelHint": "כל רמה חוסמת יותר דומיינים מזו שמתחתיה. הורידו אותה עבור אתר שרשימת החסימה שוברת, כדי שתישאר לו הגנה חלקית במקום כלום. רמה שהיישום עדיין לא הוריד תימשך ברגע שתבחרו בה.",
-  "siteSettingsDnsLevelFollowApp": "כמו בהגדרות היישום",
+  "siteSettingsDnsLevelFollowAppShort": "אפליקציה",
   "siteSettingsDnsLevelFollowsApp": "כמו בהגדרות היישום ({level})",
   "siteSettingsDnsLevelNeedsDownload": "עדיין לא הורדה, בשימוש {level}",
   "siteSettingsDnsLevelDownloading": "מוריד את רשימת החסימה...",

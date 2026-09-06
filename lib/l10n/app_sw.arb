@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "Haipatikani. Kunasa skrini hufunika skrini nzima, hivyo kungeonyesha pia tovuti zako nyingine.",
   "siteSettingsDnsBlocklistLevel": "Kiwango cha orodha ya kuzuia",
   "siteSettingsDnsBlocklistLevelHint": "Kila kiwango huzuia vikoa vingi zaidi kuliko kiwango kilicho chini yake. Kishushe kwa tovuti ambayo orodha ya kuzuia inaiharibu, ili ibaki na ulinzi kiasi badala ya kukosa kabisa. Kiwango ambacho programu bado haijapakua hupakuliwa unapokichagua.",
-  "siteSettingsDnsLevelFollowApp": "Sawa na mipangilio ya programu",
+  "siteSettingsDnsLevelFollowAppShort": "Programu",
   "siteSettingsDnsLevelFollowsApp": "Sawa na mipangilio ya programu ({level})",
   "siteSettingsDnsLevelNeedsDownload": "Bado haijapakuliwa, inatumia {level}",
   "siteSettingsDnsLevelDownloading": "Inapakua orodha ya kuzuia...",

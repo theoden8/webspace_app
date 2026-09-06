@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "Non praesto. Captura scrinii totum scrinium comprehendit, itaque etiam alia loca tua monstraret.",
   "siteSettingsDnsBlocklistLevel": "Gradus indicis interclusionis",
   "siteSettingsDnsBlocklistLevelHint": "Quisque gradus plura dominia intercludit quam is qui infra est. Eum deprime pro loco quem index interclusionis corrumpit, ut aliquam tutelam servet potius quam nullam. Gradus quem applicatio nondum deposuit, cum eum eligis, deponitur.",
-  "siteSettingsDnsLevelFollowApp": "Idem ac optiones applicationis",
+  "siteSettingsDnsLevelFollowAppShort": "Applicatio",
   "siteSettingsDnsLevelFollowsApp": "Idem ac optiones applicationis ({level})",
   "siteSettingsDnsLevelNeedsDownload": "Nondum depositus; {level} adhibetur",
   "siteSettingsDnsLevelDownloading": "Index interclusionis deponitur...",

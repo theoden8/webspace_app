@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "Inte tillgänglig. En skärminspelning täcker hela skärmen och skulle därför också visa dina andra webbplatser.",
   "siteSettingsDnsBlocklistLevel": "Blockeringslistans nivå",
   "siteSettingsDnsBlocklistLevelHint": "Varje nivå blockerar fler domäner än nivån under. Sänk den för en webbplats som blockeringslistan förstör, så att den behåller något skydd i stället för inget alls. En nivå som appen inte har hämtat ännu hämtas när du väljer den.",
-  "siteSettingsDnsLevelFollowApp": "Samma som appinställningarna",
+  "siteSettingsDnsLevelFollowAppShort": "App",
   "siteSettingsDnsLevelFollowsApp": "Samma som appinställningarna ({level})",
   "siteSettingsDnsLevelNeedsDownload": "Inte hämtad ännu, använder {level}",
   "siteSettingsDnsLevelDownloading": "Hämtar blockeringslistan...",

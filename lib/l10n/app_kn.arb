@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "ಲಭ್ಯವಿಲ್ಲ. ಸ್ಕ್ರೀನ್ ಸೆರೆಹಿಡಿಯುವಿಕೆ ಇಡೀ ಸ್ಕ್ರೀನ್ ಆವರಿಸುತ್ತದೆ, ಆದ್ದರಿಂದ ಅದು ನಿಮ್ಮ ಇತರ ಸೈಟ್‌ಗಳನ್ನೂ ತೋರಿಸುತ್ತಿತ್ತು.",
   "siteSettingsDnsBlocklistLevel": "ನಿರ್ಬಂಧ ಪಟ್ಟಿಯ ಮಟ್ಟ",
   "siteSettingsDnsBlocklistLevelHint": "ಪ್ರತಿ ಮಟ್ಟವು ತನ್ನ ಕೆಳಗಿನ ಮಟ್ಟಕ್ಕಿಂತ ಹೆಚ್ಚು ಡೊಮೇನ್‌ಗಳನ್ನು ನಿರ್ಬಂಧಿಸುತ್ತದೆ. ನಿರ್ಬಂಧ ಪಟ್ಟಿಯಿಂದ ಹಾಳಾಗುವ ಸೈಟ್‌ಗೆ ಮಟ್ಟವನ್ನು ಇಳಿಸಿ, ಆಗ ಎಲ್ಲ ರಕ್ಷಣೆ ಕಳೆದುಕೊಳ್ಳುವ ಬದಲು ಸ್ವಲ್ಪ ರಕ್ಷಣೆ ಉಳಿಯುತ್ತದೆ. ಅಪ್ಲಿಕೇಶನ್ ಇನ್ನೂ ಡೌನ್‌ಲೋಡ್ ಮಾಡದ ಮಟ್ಟವನ್ನು ನೀವು ಆಯ್ಕೆ ಮಾಡಿದಾಗ ತರಲಾಗುತ್ತದೆ.",
-  "siteSettingsDnsLevelFollowApp": "ಅಪ್ಲಿಕೇಶನ್ ಸೆಟ್ಟಿಂಗ್‌ಗಳಂತೆಯೇ",
+  "siteSettingsDnsLevelFollowAppShort": "ಅಪ್ಲಿಕೇಶನ್",
   "siteSettingsDnsLevelFollowsApp": "ಅಪ್ಲಿಕೇಶನ್ ಸೆಟ್ಟಿಂಗ್‌ಗಳಂತೆಯೇ ({level})",
   "siteSettingsDnsLevelNeedsDownload": "ಇನ್ನೂ ಡೌನ್‌ಲೋಡ್ ಆಗಿಲ್ಲ, {level} ಬಳಕೆಯಲ್ಲಿದೆ",
   "siteSettingsDnsLevelDownloading": "ನಿರ್ಬಂಧ ಪಟ್ಟಿ ಡೌನ್‌ಲೋಡ್ ಆಗುತ್ತಿದೆ...",

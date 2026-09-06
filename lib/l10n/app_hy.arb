@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "Հասանելի չէ։ Էկրանի գրանցումը ընդգրկում է ամբողջ էկրանը, ուստի ցույց կտար նաև ձեր մյուս կայքերը։",
   "siteSettingsDnsBlocklistLevel": "Արգելացանկի մակարդակ",
   "siteSettingsDnsBlocklistLevelHint": "Յուրաքանչյուր մակարդակ արգելափակում է ավելի շատ դոմեններ, քան իրենից ցածրը։ Իջեցրեք այն այն կայքի համար, որը արգելացանկը փչացնում է, որպեսզի պաշտպանության մի մասը մնա՝ ամբողջը կորցնելու փոխարեն։ Այն մակարդակը, որը հավելվածը դեռ չի ներբեռնել, ներբեռնվում է ընտրելու պահին։",
-  "siteSettingsDnsLevelFollowApp": "Նույնը, ինչ հավելվածի կարգավորումներում",
+  "siteSettingsDnsLevelFollowAppShort": "Հավելված",
   "siteSettingsDnsLevelFollowsApp": "Նույնը, ինչ հավելվածի կարգավորումներում ({level})",
   "siteSettingsDnsLevelNeedsDownload": "Դեռ ներբեռնված չէ, օգտագործվում է {level}",
   "siteSettingsDnsLevelDownloading": "Արգելացանկը ներբեռնվում է...",

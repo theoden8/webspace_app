@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "Tidak tersedia. Perekaman layar mencakup seluruh layar, sehingga juga akan menampilkan situs Anda yang lain.",
   "siteSettingsDnsBlocklistLevel": "Tingkat daftar blokir",
   "siteSettingsDnsBlocklistLevelHint": "Setiap tingkat memblokir lebih banyak domain daripada tingkat di bawahnya. Turunkan untuk situs yang rusak karena daftar blokir, agar tetap ada sebagian perlindungan alih-alih tidak ada sama sekali. Tingkat yang belum diunduh aplikasi akan diambil saat Anda memilihnya.",
-  "siteSettingsDnsLevelFollowApp": "Sama seperti pengaturan aplikasi",
+  "siteSettingsDnsLevelFollowAppShort": "Aplikasi",
   "siteSettingsDnsLevelFollowsApp": "Sama seperti pengaturan aplikasi ({level})",
   "siteSettingsDnsLevelNeedsDownload": "Belum diunduh, memakai {level}",
   "siteSettingsDnsLevelDownloading": "Mengunduh daftar blokir...",

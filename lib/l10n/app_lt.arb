@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "Nepasiekiama. Ekrano įrašas apima visą ekraną, tad parodytų ir kitas jūsų svetaines.",
   "siteSettingsDnsBlocklistLevel": "Blokavimo sąrašo lygis",
   "siteSettingsDnsBlocklistLevelHint": "Kiekvienas lygis blokuoja daugiau domenų nei žemesnysis. Sumažinkite jį svetainei, kurią blokavimo sąrašas gadina, kad liktų bent dalis apsaugos, o ne jokios. Lygį, kurio programa dar neatsisiuntė, ji parsiunčia jį pasirinkus.",
-  "siteSettingsDnsLevelFollowApp": "Kaip programos nustatymuose",
+  "siteSettingsDnsLevelFollowAppShort": "Programėlė",
   "siteSettingsDnsLevelFollowsApp": "Kaip programos nustatymuose ({level})",
   "siteSettingsDnsLevelNeedsDownload": "Dar neatsisiųsta, naudojama {level}",
   "siteSettingsDnsLevelDownloading": "Atsiunčiamas blokavimo sąrašas...",

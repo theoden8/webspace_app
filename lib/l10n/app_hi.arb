@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "उपलब्ध नहीं। स्क्रीन कैप्चर पूरी स्क्रीन को ढक लेता है, इसलिए वह आपकी दूसरी साइटें भी दिखाता।",
   "siteSettingsDnsBlocklistLevel": "ब्लॉकसूची स्तर",
   "siteSettingsDnsBlocklistLevelHint": "हर स्तर अपने नीचे वाले स्तर से ज़्यादा डोमेन रोकता है। जिस साइट को ब्लॉकसूची तोड़ देती है, उसके लिए स्तर घटा दें, ताकि पूरी सुरक्षा खोने के बजाय कुछ सुरक्षा बनी रहे। जो स्तर ऐप ने अभी डाउनलोड नहीं किया है, वह चुनते ही डाउनलोड हो जाता है।",
-  "siteSettingsDnsLevelFollowApp": "ऐप सेटिंग्स जैसा ही",
+  "siteSettingsDnsLevelFollowAppShort": "ऐप",
   "siteSettingsDnsLevelFollowsApp": "ऐप सेटिंग्स जैसा ही ({level})",
   "siteSettingsDnsLevelNeedsDownload": "अभी डाउनलोड नहीं हुआ, {level} इस्तेमाल हो रहा है",
   "siteSettingsDnsLevelDownloading": "ब्लॉकसूची डाउनलोड हो रही है...",

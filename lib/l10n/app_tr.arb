@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "Kullanılamıyor. Ekran kaydı tüm ekranı kapsar, dolayısıyla diğer sitelerinizi de gösterirdi.",
   "siteSettingsDnsBlocklistLevel": "Engelleme listesi düzeyi",
   "siteSettingsDnsBlocklistLevelHint": "Her düzey, altındakinden daha çok alan adını engeller. Engelleme listesinin bozduğu bir site için düzeyi düşürün; böylece korumanın tamamını yitirmek yerine bir kısmı kalır. Uygulamanın henüz indirmediği bir düzey, siz seçtiğinizde indirilir.",
-  "siteSettingsDnsLevelFollowApp": "Uygulama ayarlarıyla aynı",
+  "siteSettingsDnsLevelFollowAppShort": "Uygulama",
   "siteSettingsDnsLevelFollowsApp": "Uygulama ayarlarıyla aynı ({level})",
   "siteSettingsDnsLevelNeedsDownload": "Henüz indirilmedi, {level} kullanılıyor",
   "siteSettingsDnsLevelDownloading": "Engelleme listesi indiriliyor...",

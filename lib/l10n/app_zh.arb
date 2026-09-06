@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "無法使用。畫面擷取會涵蓋整個畫面，因此也會顯示您的其他網站。",
   "siteSettingsDnsBlocklistLevel": "封鎖清單層級",
   "siteSettingsDnsBlocklistLevelHint": "層級越高，封鎖的網域越多。若某個網站因封鎖清單而故障，可為它調低層級，這樣仍保有部分防護，而不是完全放棄。應用程式尚未下載的層級，會在你選取時取得。",
-  "siteSettingsDnsLevelFollowApp": "與應用程式設定相同",
+  "siteSettingsDnsLevelFollowAppShort": "應用程式",
   "siteSettingsDnsLevelFollowsApp": "與應用程式設定相同（{level}）",
   "siteSettingsDnsLevelNeedsDownload": "尚未下載，目前使用 {level}",
   "siteSettingsDnsLevelDownloading": "正在下載封鎖清單...",

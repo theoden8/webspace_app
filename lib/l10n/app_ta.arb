@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "கிடைக்கவில்லை. திரைப் பிடிப்பு முழுத் திரையையும் உள்ளடக்குவதால், உங்கள் மற்ற தளங்களையும் காட்டியிருக்கும்.",
   "siteSettingsDnsBlocklistLevel": "தடுப்புப்பட்டியல் நிலை",
   "siteSettingsDnsBlocklistLevelHint": "ஒவ்வொரு நிலையும் அதற்குக் கீழுள்ள நிலையை விட அதிக டொமைன்களைத் தடுக்கும். தடுப்புப்பட்டியலால் பழுதாகும் தளத்திற்கு நிலையைக் குறையுங்கள், அப்போது முழு பாதுகாப்பையும் இழப்பதற்குப் பதிலாக ஓரளவு பாதுகாப்பு இருக்கும். செயலி இன்னும் பதிவிறக்காத நிலையை நீங்கள் தேர்ந்தெடுக்கும்போது பெறப்படும்.",
-  "siteSettingsDnsLevelFollowApp": "செயலி அமைப்புகளைப் போலவே",
+  "siteSettingsDnsLevelFollowAppShort": "செயலி",
   "siteSettingsDnsLevelFollowsApp": "செயலி அமைப்புகளைப் போலவே ({level})",
   "siteSettingsDnsLevelNeedsDownload": "இன்னும் பதிவிறக்கப்படவில்லை, {level} பயன்படுத்தப்படுகிறது",
   "siteSettingsDnsLevelDownloading": "தடுப்புப்பட்டியல் பதிவிறக்கப்படுகிறது...",

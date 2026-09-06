@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "មិនមាន។ ការថតអេក្រង់គ្របដណ្តប់លើអេក្រង់ទាំងមូល ដូច្នេះវានឹងបង្ហាញគេហទំព័រផ្សេងទៀតរបស់អ្នកផងដែរ។",
   "siteSettingsDnsBlocklistLevel": "កម្រិតបញ្ជីទប់ស្កាត់",
   "siteSettingsDnsBlocklistLevelHint": "កម្រិតនីមួយៗទប់ស្កាត់ដែនច្រើនជាងកម្រិតខាងក្រោមវា។ សូមបន្ថយវាសម្រាប់គេហទំព័រដែលបញ្ជីទប់ស្កាត់ធ្វើឱ្យខូច ដើម្បីឱ្យវានៅមានការការពារខ្លះ ជាជាងគ្មានសោះ។ កម្រិតដែលកម្មវិធីមិនទាន់ទាញយក នឹងត្រូវទាញយកនៅពេលអ្នកជ្រើសរើសវា។",
-  "siteSettingsDnsLevelFollowApp": "ដូចការកំណត់កម្មវិធី",
+  "siteSettingsDnsLevelFollowAppShort": "កម្មវិធី",
   "siteSettingsDnsLevelFollowsApp": "ដូចការកំណត់កម្មវិធី ({level})",
   "siteSettingsDnsLevelNeedsDownload": "មិនទាន់ទាញយកទេ កំពុងប្រើ {level}",
   "siteSettingsDnsLevelDownloading": "កំពុងទាញយកបញ្ជីទប់ស្កាត់...",

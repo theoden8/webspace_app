@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "ไม่พร้อมใช้งาน การบันทึกหน้าจอครอบคลุมทั้งหน้าจอ จึงจะแสดงเว็บไซต์อื่น ๆ ของคุณด้วย",
   "siteSettingsDnsBlocklistLevel": "ระดับรายการบล็อก",
   "siteSettingsDnsBlocklistLevelHint": "แต่ละระดับจะบล็อกโดเมนมากกว่าระดับที่ต่ำกว่า ลดระดับลงสำหรับเว็บไซต์ที่รายการบล็อกทำให้พัง เพื่อให้ยังเหลือการป้องกันบางส่วนแทนที่จะไม่มีเลย ระดับที่แอปยังไม่ได้ดาวน์โหลดจะถูกดึงมาเมื่อคุณเลือก",
-  "siteSettingsDnsLevelFollowApp": "เหมือนกับการตั้งค่าแอป",
+  "siteSettingsDnsLevelFollowAppShort": "แอป",
   "siteSettingsDnsLevelFollowsApp": "เหมือนกับการตั้งค่าแอป ({level})",
   "siteSettingsDnsLevelNeedsDownload": "ยังไม่ได้ดาวน์โหลด กำลังใช้ {level}",
   "siteSettingsDnsLevelDownloading": "กำลังดาวน์โหลดรายการบล็อก...",

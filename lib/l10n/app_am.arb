@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "አይገኝም። የማያ ገጽ ቀረጻ ሙሉውን ማያ ገጽ ስለሚይዝ ሌሎች ጣቢያዎችዎንም ያሳያል።",
   "siteSettingsDnsBlocklistLevel": "የማገጃ ዝርዝር ደረጃ",
   "siteSettingsDnsBlocklistLevelHint": "እያንዳንዱ ደረጃ ከታችኛው ደረጃ የበለጠ ጎራዎችን ያግዳል። የማገጃ ዝርዝሩ የሚያበላሸውን ጣቢያ ሙሉ በሙሉ ጥበቃ ከማጣት ይልቅ የተወሰነ ጥበቃ እንዲይዝ ደረጃውን ዝቅ ያድርጉ። መተግበሪያው ገና ያላወረደው ደረጃ ሲመርጡት ይወርዳል።",
-  "siteSettingsDnsLevelFollowApp": "እንደ የመተግበሪያ ቅንብሮች",
+  "siteSettingsDnsLevelFollowAppShort": "መተግበሪያ",
   "siteSettingsDnsLevelFollowsApp": "እንደ የመተግበሪያ ቅንብሮች ({level})",
   "siteSettingsDnsLevelNeedsDownload": "ገና አልወረደም፣ {level} በመጠቀም ላይ",
   "siteSettingsDnsLevelDownloading": "የማገጃ ዝርዝር በመውረድ ላይ...",

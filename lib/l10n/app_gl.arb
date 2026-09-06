@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "Non dispoñible. Unha captura de pantalla abrangue toda a pantalla, polo que tamén amosaría os teus outros sitios.",
   "siteSettingsDnsBlocklistLevel": "Nivel da lista de bloqueo",
   "siteSettingsDnsBlocklistLevelHint": "Cada nivel bloquea máis dominios que o anterior. Báixao para un sitio que a lista de bloqueo estraga, así conserva algo de protección en lugar de ningunha. Un nivel que a aplicación aínda non descargou obtense ao escollelo.",
-  "siteSettingsDnsLevelFollowApp": "Igual que os axustes da aplicación",
+  "siteSettingsDnsLevelFollowAppShort": "Aplicación",
   "siteSettingsDnsLevelFollowsApp": "Igual que os axustes da aplicación ({level})",
   "siteSettingsDnsLevelNeedsDownload": "Aínda non descargado; úsase {level}",
   "siteSettingsDnsLevelDownloading": "Descargando a lista de bloqueo...",

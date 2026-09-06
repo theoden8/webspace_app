@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "అందుబాటులో లేదు. స్క్రీన్ క్యాప్చర్ మొత్తం స్క్రీన్‌ను కప్పుతుంది, కాబట్టి ఇది మీ ఇతర సైట్లను కూడా చూపేది.",
   "siteSettingsDnsBlocklistLevel": "నిరోధక జాబితా స్థాయి",
   "siteSettingsDnsBlocklistLevelHint": "ప్రతి స్థాయి తన కింది స్థాయి కంటే ఎక్కువ డొమైన్‌లను నిరోధిస్తుంది. నిరోధక జాబితా వల్ల పాడయ్యే సైట్‌కు స్థాయిని తగ్గించండి, అప్పుడు మొత్తం రక్షణ కోల్పోయే బదులు కొంత రక్షణ మిగులుతుంది. యాప్ ఇంకా దించని స్థాయిని మీరు ఎంచుకున్నప్పుడు తెచ్చుకుంటుంది.",
-  "siteSettingsDnsLevelFollowApp": "యాప్ సెట్టింగ్‌ల మాదిరిగానే",
+  "siteSettingsDnsLevelFollowAppShort": "యాప్",
   "siteSettingsDnsLevelFollowsApp": "యాప్ సెట్టింగ్‌ల మాదిరిగానే ({level})",
   "siteSettingsDnsLevelNeedsDownload": "ఇంకా దించలేదు, {level} వాడుతోంది",
   "siteSettingsDnsLevelDownloading": "నిరోధక జాబితా దించబడుతోంది...",

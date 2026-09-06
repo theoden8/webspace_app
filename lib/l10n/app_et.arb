@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "Pole saadaval. Ekraanisalvestus katab kogu ekraani ja näitaks seega ka sinu teisi saite.",
   "siteSettingsDnsBlocklistLevel": "Blokeerimisloendi tase",
   "siteSettingsDnsBlocklistLevelHint": "Iga tase blokeerib rohkem domeene kui sellest allpool olev. Langeta seda saidi puhul, mille blokeerimisloend katki teeb, et jääks siiski mingi kaitse, mitte üldse mitte midagi. Taseme, mida rakendus pole veel alla laadinud, laadib ta alla, kui selle valid.",
-  "siteSettingsDnsLevelFollowApp": "Sama mis rakenduse seaded",
+  "siteSettingsDnsLevelFollowAppShort": "Rakendus",
   "siteSettingsDnsLevelFollowsApp": "Sama mis rakenduse seaded ({level})",
   "siteSettingsDnsLevelNeedsDownload": "Pole veel alla laaditud, kasutusel on {level}",
   "siteSettingsDnsLevelDownloading": "Blokeerimisloendi allalaadimine...",

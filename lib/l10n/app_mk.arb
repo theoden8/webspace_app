@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "Недостапно. Снимањето на екранот го зафаќа целиот екран, па би ги прикажало и вашите други сајтови.",
   "siteSettingsDnsBlocklistLevel": "Ниво на списокот за блокирање",
   "siteSettingsDnsBlocklistLevelHint": "Секое ниво блокира повеќе домени од претходното. Намалете го за страница што списокот за блокирање ја расипува, за да задржи дел од заштитата наместо ниту една. Ниво што апликацијата сè уште не го презела се презема кога ќе го изберете.",
-  "siteSettingsDnsLevelFollowApp": "Исто како поставките на апликацијата",
+  "siteSettingsDnsLevelFollowAppShort": "Апликација",
   "siteSettingsDnsLevelFollowsApp": "Исто како поставките на апликацијата ({level})",
   "siteSettingsDnsLevelNeedsDownload": "Сè уште не е преземено, се користи {level}",
   "siteSettingsDnsLevelDownloading": "Се презема списокот за блокирање...",

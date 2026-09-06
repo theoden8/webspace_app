@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "Niet beschikbaar. Een schermopname bestrijkt het hele scherm en zou dus ook je andere sites tonen.",
   "siteSettingsDnsBlocklistLevel": "Niveau van de blokkeerlijst",
   "siteSettingsDnsBlocklistLevelHint": "Elk niveau blokkeert meer domeinen dan het niveau eronder. Verlaag het voor een site die de blokkeerlijst stukmaakt, zodat er wat bescherming overblijft in plaats van geen. Een niveau dat de app nog niet heeft gedownload, wordt opgehaald zodra je het kiest.",
-  "siteSettingsDnsLevelFollowApp": "Hetzelfde als de app-instellingen",
+  "siteSettingsDnsLevelFollowAppShort": "App",
   "siteSettingsDnsLevelFollowsApp": "Hetzelfde als de app-instellingen ({level})",
   "siteSettingsDnsLevelNeedsDownload": "Nog niet gedownload, gebruikt {level}",
   "siteSettingsDnsLevelDownloading": "Blokkeerlijst downloaden...",

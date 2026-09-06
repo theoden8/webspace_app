@@ -789,7 +789,7 @@
   "permissionScreenShareNeverReal": "উপলব্ধ নয়। স্ক্রিন ক্যাপচার পুরো স্ক্রিন ধারণ করে, তাই এটি আপনার অন্যান্য সাইটও দেখাত।",
   "siteSettingsDnsBlocklistLevel": "ব্লকতালিকার স্তর",
   "siteSettingsDnsBlocklistLevelHint": "প্রতিটি স্তর তার নিচের স্তরের চেয়ে বেশি ডোমেইন ব্লক করে। যে সাইট ব্লকতালিকার কারণে ভেঙে যায় তার জন্য স্তর কমিয়ে দিন, যাতে পুরো সুরক্ষা হারানোর বদলে কিছুটা সুরক্ষা থাকে। অ্যাপ যে স্তর এখনও নামায়নি, সেটি বেছে নিলে নামানো হয়।",
-  "siteSettingsDnsLevelFollowApp": "অ্যাপ সেটিংসের মতোই",
+  "siteSettingsDnsLevelFollowAppShort": "অ্যাপ",
   "siteSettingsDnsLevelFollowsApp": "অ্যাপ সেটিংসের মতোই ({level})",
   "siteSettingsDnsLevelNeedsDownload": "এখনও নামানো হয়নি, {level} ব্যবহার করা হচ্ছে",
   "siteSettingsDnsLevelDownloading": "ব্লকতালিকা নামানো হচ্ছে...",
