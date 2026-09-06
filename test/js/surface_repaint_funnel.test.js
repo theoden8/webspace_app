@@ -349,10 +349,60 @@ for (const rel of GUARDED) {
         /void\s+_repaintCurrentSurface\s*\(\)/.test(l),
       );
       assert.ok(defIdx >= 0, '_repaintCurrentSurface must be defined');
-      const body = lines.slice(defIdx, defIdx + 12).join('\n');
+      // An expression body is the whole method; a block body runs to its
+      // closing brace rather than a fixed window, because the main-page one
+      // cycles through repaint mechanisms (BUG-001 gap #18) and a line count
+      // would fail on the next mechanism added.
+      const isExpr = /=>/.test(lines[defIdx]);
+      let body;
+      if (isExpr) {
+        body = lines[defIdx];
+      } else {
+        const endIdx = lines.findIndex((l, i) => i > defIdx && /^ {2}}$/.test(l));
+        assert.ok(endIdx > defIdx, '_repaintCurrentSurface must be closed');
+        body = lines.slice(defIdx, endIdx).join('\n');
+        // A mechanism that does not route through the nudge funnel emits no
+        // trigger= line, so a tap must name itself or a user report cannot be
+        // matched to what it actually did.
+        assert.match(body, /LogService\.instance\.log\(\s*'SurfaceDiag'/,
+          'a branching manual repaint must log which mechanism it ran');
+      }
       assert.match(body, /_nudgeSurfaceRepaint\('manual'\)/,
         "the manual action must nudge under the 'manual' trigger, so a user " +
           'report can be matched to the log line the tap produced');
+    });
+  }
+}
+
+// Commit-visible trigger (BUG-001 Attempt 12 / PAUSE-031). `onPageCommitVisible`
+// is the only signal that fires because the renderer produced pixels; every
+// other trigger is a lifecycle event hoped to imply one. Gap #18 caught a load
+// whose nudges had all drained, and whose 15s commit window had closed, before
+// the renderer produced anything. So this trigger must NOT be gated on that
+// window -- a later tidy-up that routes it through noteLoadSettled() would
+// reproduce exactly the failure it was added for.
+{
+  const GUARDED = ['lib/main.dart', 'lib/screens/inappbrowser.dart'];
+  for (const rel of GUARDED) {
+    const lines = linesOf(rel);
+    const src = lines.join('\n');
+
+    test(`${rel}: the commit-visible trigger nudges (PAUSE-031)`, () => {
+      assert.match(src, /_nudgeSurfaceRepaint\('page-commit-visible'\)/,
+        'onPageCommitVisible must route through the nudge funnel');
+    });
+
+    test(`${rel}: the commit-visible trigger is not window-gated (PAUSE-031)`, () => {
+      const i = lines.findIndex((l) =>
+        /_nudgeSurfaceRepaint\('page-commit-visible'\)/.test(l),
+      );
+      assert.ok(i >= 0, 'the commit-visible nudge must exist');
+      // The five lines above the nudge: enough to hold an index guard, not
+      // enough to reach the neighbouring commit-settled handler's own gate.
+      const before = lines.slice(Math.max(0, i - 5), i).join('\n');
+      assert.doesNotMatch(before, /noteLoadSettled\(\)/,
+        'the commit-visible nudge must not be gated on the commit window: ' +
+          'the window can close before a slow renderer produces a frame');
     });
   }
 }

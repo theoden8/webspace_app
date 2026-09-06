@@ -332,6 +332,38 @@ has to find is an admission the automatic coverage is still incomplete. The deve
 gate sharpens that trade-off rather than resolving it: the diagnostic now reaches only users
 who were told how to unlock it, so the falsifying report needs someone to ask for it.
 
+### Attempt 12 — Repaint when the renderer reports pixels (`PAUSE-031`)
+
+**Date:** 2026-09-06
+
+**What it did.** Wired Android's `onPageCommitVisible` through
+`WebViewConfig` to a nudge under the trigger `page-commit-visible`, on both the
+site webview (via `WebViewModel.onPageCommitVisible`, the same shape as
+`onLoadSettled`) and the nested `InAppWebViewScreen`. Deliberately not gated on
+the PAUSE-027 commit window.
+
+**Why.** The second device capture (gap #18) showed a load where all six nudges
+had drained and the 15-second window had closed twelve or more seconds before
+the renderer produced any content. Every trigger up to here is a lifecycle
+event *hoped* to imply a painted surface — a resume, a metrics change, a route
+pop, a load settling. `onLoadStop` is the closest, and it reports that a
+navigation finished, not that a frame exists; on a slow device the gap between
+them is seconds. `onPageCommitVisible` is the only signal in the stack that
+fires because the WebView committed a visible frame, so it is the one trigger
+that cannot land before there is something to paint. It was already plumbed to
+Dart in the fork and unused, which gap #16 had named as the way out of
+enumerating paths.
+
+**Why it is partial.** It is still a trigger, and gap #18 leaves open whether
+the mechanism it calls works at all on the reporting device — the two
+hypotheses in that gap are not yet separated, and this attempt only helps under
+one of them. It says nothing about the `-1` no-body case (gap #17). It is
+Android-only by construction. And a page whose first commit-visible frame is
+itself blank (a shell that paints later) gets one nudge at the wrong moment and
+nothing after, because there is no second commit for a same-document update.
+
+---
+
 ## Known open gaps (candidates for the next recurrence)
 
 1. ~~Nested `InAppWebViewScreen`~~ — **closed by Attempt 6** (now funneled + gated).
@@ -1041,21 +1073,40 @@ who were told how to unlock it, so the falsifying report needs someone to ask fo
 
     Six nudges. The two `commit-settled` ones are not coalesced, so each ran
     its own six-tick loop, and they ran immediately after `onLoadStop` — the
-    exact moment PAUSE-027 exists to cover. The renderer answered `getHtml`
-    five times over the following seven seconds with a 376 KB document, after
-    the screen was already blank. Live renderer, complete document, correct
-    trigger, correct timing, blank surface.
+    moment PAUSE-027 exists to cover. The renderer answered `getHtml` five
+    times over the following seven seconds with a 376 KB document, after the
+    screen was already blank. Live renderer, complete document, every
+    enumerated trigger fired, blank surface.
 
-    **This closes gap #11 against the fix rather than for it.** The question
-    was whether a nudge that fires saves the screen. It does not. Every attempt
-    in this file from 3 onward adds or moves a *trigger*; the trigger set was
-    never the problem on this path. `_nudgeSurfaceRepaint` toggles a 1px body
+    **Two hypotheses fit this, and they are not yet separated.**
+
+    *H1, the mechanism is inert.* `_nudgeSurfaceRepaint` toggles a 1px body
     inset over six frames to make the platform view recomposite
-    (`lib/main.dart`), as a stand-in for the rotation / lock-unlock / tab
-    switch that the reporter has always said does recover the screen. The
-    stand-in does not reproduce the effect. Until something is found that
-    does, no trigger work can help, `onPageCommitVisible` (gap #16) included:
-    it is a better-timed call to the same inert mechanism.
+    (`lib/main.dart`), standing in for the rotation / lock-unlock / tab switch
+    the reporter has always said does recover the screen. Those differ from a
+    1px resize in magnitude, in whether the view stops being painted, and in
+    whether the platform view is destroyed. If the stand-in reproduces none of
+    what matters, no trigger work can help.
+
+    *H2, every nudge ran too early.* The last nudge fired at 22:32:29 and its
+    six ticks drained by ~22:32:29.6. The commit window was armed by the reload
+    at 22:32:21 and closed 15 seconds later, ~22:32:36. No `onLoadStop`
+    followed 22:32:29, so no further `commit-settled` nudge. The renderer's DOM
+    serializations land at 22:32:41, :45 and :48 — 12 to 19 seconds after the
+    last nudge drained and after the window shut. If the first composited frame
+    arrived in that span, every trigger had already spent itself. This is the
+    shape of attempts 9, 10 and 11, one step further out in time, and it makes
+    `onPageCommitVisible` (gap #16) the fix rather than a better-timed call to
+    an inert mechanism.
+
+    **The discriminator is one tap.** The developer-mode "Repaint Screen" entry
+    now cycles through mechanisms on successive taps and logs which it ran:
+    `inset-1` (today's), `inset-16`, `unpaint` (held unpainted for a few frames,
+    which detaches and re-attaches the Android view without destroying the
+    WebView), `recreate`. On a blank screen, `inset-1` restoring it means H2 and
+    the mechanism is sound; `inset-1` doing nothing where `unpaint` or
+    `recreate` works means H1 and the mechanism has to change. Attempt 12 acts
+    on H2, which is the cheap half; H1 stays open until a device answers.
 
     It also retires two working assumptions. The blank does not need a
     backgrounded site or a warm start — this was a first load after a cold

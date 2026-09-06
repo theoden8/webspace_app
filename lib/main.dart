@@ -1035,6 +1035,14 @@ class _WebSpacePageState extends State<WebSpacePage>
   // forces Android hybrid-composition platform views to recomposite after
   // the activity is recreated (shortcut/resume). Always false in steady state.
   bool _repaintNudge = false;
+  // Magnitude of that inset, and whether the visible subtree is held unpainted
+  // for a frame. Both exist because the 1px inset provably does not repaint the
+  // surface on the reporting device (BUG-001 gap #18) while rotation,
+  // lock-unlock and a tab switch do; the menu repaint cycles through them so a
+  // device can say which property matters. Steady state is 1.0 / false.
+  double _repaintInsetPx = 1.0;
+  bool _repaintHidden = false;
+  int _manualRepaintPass = 0;
   // Coalescing tick machine for _nudgeSurfaceRepaint. Pure-Dart engine (no
   // Timer/setState); the host drives the clock and renders _repaintNudge from
   // its tick output. See lib/services/surface_repaint_engine.dart and
@@ -2125,12 +2133,48 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// than nudged (the two blank classes are indistinguishable on screen), then
   /// recomposite. Off Android the nudge is a no-op, so the menu entry is
   /// Android-only.
+  ///
+  /// Successive taps try a *different* mechanism, because the default one is
+  /// known not to work: BUG-001 gap #18 caught six nudges firing against a
+  /// live renderer holding a 376 KB document with the screen blank, while
+  /// rotation, lock-unlock and a tab switch all recover it. Those differ from
+  /// a 1px resize in magnitude, in whether the view stops being painted, and
+  /// in whether the platform view is destroyed; one tap each says which
+  /// property the surface actually responds to. The chosen magnitude sticks
+  /// for later automatic nudges in the same session, which only matters while
+  /// a loop is running (steady state settles at a zero inset).
   void _repaintCurrentSurface() {
     final idx = _currentIndex;
     if (idx != null && idx < _webViewModels.length) {
       unawaited(_probeRendererAndRecover(_webViewModels[idx], trigger: 'manual'));
     }
-    _nudgeSurfaceRepaint('manual');
+    const mechanisms = <String>['inset-1', 'inset-16', 'unpaint', 'recreate'];
+    final mechanism = mechanisms[_manualRepaintPass % mechanisms.length];
+    _manualRepaintPass++;
+    LogService.instance.log('SurfaceDiag', 'manual mechanism=$mechanism');
+    if (mechanism == 'unpaint') {
+      _repaintInsetPx = 1.0;
+      unawaited(_holdUnpainted());
+    } else if (mechanism == 'recreate') {
+      _repaintInsetPx = 1.0;
+      _resetCurrentSiteWebView();
+    } else {
+      _repaintInsetPx = mechanism == 'inset-16' ? 16.0 : 1.0;
+      _nudgeSurfaceRepaint('manual');
+    }
+  }
+
+  /// Hold the visible subtree unpainted for a few frames, keeping it mounted
+  /// and laid out. Flutter drops the platform view's layer while nothing
+  /// paints it, so the Android view leaves and re-enters the native hierarchy
+  /// without the WebView being destroyed — what a tab switch does, and what a
+  /// resize does not.
+  Future<void> _holdUnpainted() async {
+    if (_repaintHidden) return;
+    setState(() => _repaintHidden = true);
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+    if (!mounted) return;
+    setState(() => _repaintHidden = false);
   }
 
   /// Adb white-screen tier only (INTEG-011): issue the launch intent's
@@ -8983,8 +9027,14 @@ class _WebSpacePageState extends State<WebSpacePage>
                     // hybrid-composition webview SurfaceView to recomposite —
                     // otherwise it can come back black on Android. No-op
                     // (zero inset) in steady state.
-                    child: Padding(
-                      padding: EdgeInsets.only(bottom: _repaintNudge ? 1.0 : 0.0),
+                    child: Visibility(
+                      visible: !_repaintHidden,
+                      maintainState: true,
+                      maintainSize: true,
+                      maintainAnimation: true,
+                      child: Padding(
+                      padding: EdgeInsets.only(
+                          bottom: _repaintNudge ? _repaintInsetPx : 0.0),
                       child: IndexedStack(
                       index: _currentIndex ?? 0,
                       children: _webViewModels.asMap().entries.map<Widget>((entry) {
@@ -9033,6 +9083,15 @@ class _WebSpacePageState extends State<WebSpacePage>
                           if (index != _currentIndex) return;
                           if (!_surfaceRepaint.noteLoadSettled()) return;
                           _nudgeSurfaceRepaint('commit-settled');
+                        };
+                        // Deliberately not gated on the commit window the
+                        // trigger above uses. That window is 15s from the
+                        // issue, and gap #18 caught a load whose renderer
+                        // produced its first content well after it closed —
+                        // gating this on it would reproduce exactly that.
+                        webViewModel.onPageCommitVisible = () {
+                          if (index != _currentIndex) return;
+                          _nudgeSurfaceRepaint('page-commit-visible');
                         };
 
                         // Keep the on-disk back/forward stack tracking
@@ -9157,6 +9216,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                         );
                       }).toList(),
                       ),
+                    ),
                     ),
                   ),
                 // NAV-009 on iOS: WKWebView owns the left-edge swipe on the

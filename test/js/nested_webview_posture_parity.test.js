@@ -159,6 +159,9 @@ const PLUMBING = new Set([
   // on both surfaces; not a posture value to copy.
   'pullToRefreshGate',
   'onRendererGone', 'onProtectedMediaRequest', 'onCameraDecision',
+  // Repaint wiring, not a posture value: both surfaces set their own handler
+  // to nudge their own surface (PAUSE-031), gated by surface_repaint_funnel.
+  'onPageCommitVisible',
   // Accessor for the host's live camera mode (backs the non-prompting
   // webCameraMode handler), not a posture value to copy: the nested screen
   // supplies its own in-memory mode.
