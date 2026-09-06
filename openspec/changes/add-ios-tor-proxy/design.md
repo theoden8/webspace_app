@@ -30,8 +30,8 @@ CocoaPods-distributed static framework that wraps upstream `tor`,
 Stakeholders: privacy-focused iOS users (primary), the F-Droid /
 Play-only Android tier (no impact — Android stays generic SOCKS5,
 Orbot users keep their existing config), and the iOS App Store review
-process (`ITSAppUsesNonExemptEncryption` flips to `true` — see D8, which
-corrects the draft's reasoning-from-Onion-Browser here).
+process (`ITSAppUsesNonExemptEncryption` stays `false` — see D8, which
+corrects an earlier revision that flipped it).
 
 Constraints from the existing codebase:
 
@@ -350,28 +350,25 @@ responsible for its own manifest inside its own bundle; if the pinned
 pod ships none, that is an upstream gap to raise, not something the
 app can declare on the pod's behalf. See TOR-011.
 
-**Export compliance.** The app currently declares
-`ITSAppUsesNonExemptEncryption = false`. That declaration does not
-survive this change. Apple's exemption covers encryption provided by
-the operating system (HTTPS via `URLSession`) and encryption used
-purely for authentication; Tor.framework ships tor's own TLS and
-onion-routing cryptography plus a full OpenSSL build *inside our
-binary*, which is encryption the app implements. The key flips to
-`true`, export-compliance documentation is filed in App Store Connect
-before the first Tor build is submitted, and the annual
-self-classification report to BIS joins the release checklist.
+**Export compliance.** `ITSAppUsesNonExemptEncryption` stays
+`false`. Tor.framework ships tor's own TLS and onion-routing
+cryptography plus a full OpenSSL build *inside our binary*, so
+Apple's OS-provided (`URLSession` HTTPS) and authentication-only
+exemptions do not cover it. They never did: the app already
+implements AES at rest in `archive_crypto.dart` and
+`html_cache_service.dart`. EXPORT-001's basis is a different one
+entirely, publicly available source, and Tor does not touch it.
 
-Two honest notes on this. First, the flip is arguably owed already:
-the app implements AES at rest in `archive_crypto.dart` and
-`html_cache_service.dart`, so the current `false` is questionable on
-its own terms and Tor only makes it unambiguous. Second, the earlier
-draft of this design asserted the opposite — that the exemption
-"remains valid" and "no plist change is needed" — by reasoning from
-Onion Browser's posture rather than from Apple's stated exemption
-categories. That was wrong, and it is the single highest-cost error
-in the change: a false submission-form declaration is a
-misrepresentation to Apple and a U.S. export-control exposure, not a
-guideline nit that review would simply bounce back. See TOR-010.
+This design shipped with the opposite conclusion and it cost
+releases. It argued the key must flip to `true` because the app
+implements rather than borrows its cryptography, which rebuts the
+OS-provided exemption that EXPORT-001 never claimed. `true` then
+obliges an `ITSEncryptionExportComplianceCode` that Apple issues only
+after approving uploaded documentation, and for standard algorithms
+that documentation is the French ANSSI declaration, one to two months
+out. Every upload in between was rejected as ITMS-90592. The lesson
+is narrow and worth keeping: check which exemption a `false` actually
+rests on before arguing it away. See TOR-010 and EXPORT-001.
 
 ## Risks / Trade-offs
 

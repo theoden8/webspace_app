@@ -1,7 +1,7 @@
 // Structural gates for the two iOS submission declarations that are easy to
 // get wrong and impossible to notice: they are not code, nothing imports
 // them, no test exercises them, and both fail silently — a wrong
-// ITSAppUsesNonExemptEncryption is a false statement on a submission form
+// a wrong ITSAppUsesNonExemptEncryption is a false statement on a submission
 // that ships, and a privacy manifest in the wrong file is simply not read.
 //
 // Spec: openspec/changes/add-ios-tor-proxy/specs/tor-proxy/spec.md
@@ -46,7 +46,7 @@ function lanes(fastfile) {
   );
 }
 
-test('TOR-010: the app declares non-exempt encryption', () => {
+test('TOR-010: the app declares its encryption exempt', () => {
   const declared = boolForKey(read(INFO_PLIST), 'ITSAppUsesNonExemptEncryption');
   assert.notStrictEqual(
     declared, null,
@@ -54,12 +54,14 @@ test('TOR-010: the app declares non-exempt encryption', () => {
     'stalls every submission on the export-compliance prompt.',
   );
   assert.strictEqual(
-    declared, true,
-    'The app ships its own cryptography (AES at rest in archive_crypto.dart ' +
-    'and html_cache_service.dart; tor\'s TLS and onion routing via ' +
-    'Tor.framework). Apple\'s exemption covers OS-provided encryption and ' +
-    'authentication-only use, so `false` here is a false declaration to ' +
-    'Apple, not a guideline nit a review would bounce back. See TOR-010.',
+    declared, false,
+    'EXPORT-001 rests on publicly available source (MIT, 15 CFR ' +
+    '734.3(b)(3) note, 742.15(b)(1)), not on Apple\'s OS-provided ' +
+    'exemption. The app does ship its own cryptography, and that is not ' +
+    'what decides this key. `true` obliges an ' +
+    'ITSEncryptionExportComplianceCode that Apple issues only after ' +
+    'approving uploaded documentation, so flipping it here rejects every ' +
+    'upload with ITMS-90592 until the code exists. See EXPORT-001.',
   );
 });
 

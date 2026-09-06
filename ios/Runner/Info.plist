@@ -2,24 +2,29 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- The app implements encryption rather than only consuming the OS's:
-	     AES at rest in archive_crypto.dart / html_cache_service.dart, and
-	     tor's own TLS and onion-routing crypto once Tor.framework links.
-	     Apple's exemption covers OS-provided encryption (HTTPS via
-	     URLSession) and authentication-only use; neither describes this.
-	     See openspec/changes/add-ios-tor-proxy/specs/tor-proxy/spec.md
-	     TOR-010.
+	<!-- Exempt, which is not the same as "no encryption". The app
+	     implements AES-GCM-256, Argon2id, HKDF-SHA-256 and HMAC-SHA-256
+	     (archive_crypto.dart, html_cache_service.dart) and links tor's
+	     TLS and OpenSSL, so Apple's OS-provided and authentication-only
+	     exemptions genuinely do not apply.
 
-	     `true` is half the declaration. Apple issues a compliance code once
-	     it approves the encryption documentation in App Store Connect, and
-	     that code belongs here as ITSEncryptionExportComplianceCode; until
-	     it does, every upload is rejected with ITMS-90592 ("the export
-	     compliance key value [] ... doesn't match"). The documentation is
-	     not filed yet, so the key is absent rather than guessed.
-	     scripts/check_ios_export_compliance.sh gates the pair on the
-	     fastlane deploy lanes. -->
+	     The basis is publicly available source: MIT, free, built from a
+	     public repo, so the object code is not subject to the EAR (note
+	     to 15 CFR 734.3(b)(3), 742.15(b)(1)).
+
+	     The detail that decides it: 742.15(b)(2) requires an email
+	     notification to BIS and the ENC Coordinator only for
+	     "non-standard cryptography". Every primitive here is published
+	     (FIPS 197, SP 800-38D, RFC 9106, RFC 5869, RFC 2104, RFC 8446),
+	     so nothing is owed. A proprietary or unpublished algorithm, or
+	     the source ceasing to be public, ends that. See EXPORT-001.
+
+	     `true` is not the safe fallback: it obliges an
+	     ITSEncryptionExportComplianceCode that only exists after Apple
+	     approves uploaded documentation, and every upload without one is
+	     rejected (ITMS-90592). -->
 	<key>ITSAppUsesNonExemptEncryption</key>
-	<true/>
+	<false/>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
