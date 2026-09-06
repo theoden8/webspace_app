@@ -1020,6 +1020,58 @@ who were told how to unlock it, so the falsifying report needs someone to ask fo
     depends on that line: a third classification (no body -> reload, not
     nudge) if the document is blank, something else if it is not.
 
+18. **The nudge fires correctly and does not repaint (second device capture,
+    2026-09-06).** Same phone, same `fdebug` debug build, developer mode on so
+    `_traceRepaint` writes. A cold start, then one site opened for the first
+    time. It went white, and the trace is complete:
+
+    ```
+    22:32:19  trigger=activate          -> nudge
+    22:32:20  trigger=controller-attach -> nudge (coalesced)
+    22:32:21  trigger=reload            -> nudge (coalesced)
+    22:32:23  onLoadStart
+    22:32:24  onLoadStop
+    22:32:24  trigger=commit-settled    -> nudge
+    22:32:28  onLoadStart / onLoadStop
+    22:32:29  trigger=commit-settled    -> nudge
+    22:32:41  HtmlCache saved 376028 bytes for site hm1uscucyi-vy3
+    22:32:45  HtmlCache saved 376020 bytes
+    22:32:48  HtmlCache saved 376028 bytes  (x3)
+    ```
+
+    Six nudges. The two `commit-settled` ones are not coalesced, so each ran
+    its own six-tick loop, and they ran immediately after `onLoadStop` — the
+    exact moment PAUSE-027 exists to cover. The renderer answered `getHtml`
+    five times over the following seven seconds with a 376 KB document, after
+    the screen was already blank. Live renderer, complete document, correct
+    trigger, correct timing, blank surface.
+
+    **This closes gap #11 against the fix rather than for it.** The question
+    was whether a nudge that fires saves the screen. It does not. Every attempt
+    in this file from 3 onward adds or moves a *trigger*; the trigger set was
+    never the problem on this path. `_nudgeSurfaceRepaint` toggles a 1px body
+    inset over six frames to make the platform view recomposite
+    (`lib/main.dart`), as a stand-in for the rotation / lock-unlock / tab
+    switch that the reporter has always said does recover the screen. The
+    stand-in does not reproduce the effect. Until something is found that
+    does, no trigger work can help, `onPageCommitVisible` (gap #16) included:
+    it is a better-timed call to the same inert mechanism.
+
+    It also retires two working assumptions. The blank does not need a
+    backgrounded site or a warm start — this was a first load after a cold
+    start. And it is unrelated to gap #17's `-1`: the document here is 376 KB.
+
+    **The formal layer defined this away.** `Nudge` in `formal/kernel.tla`
+    carries `surface' = "painted"` inside the action, so "nudging repaints the
+    surface" is an axiom, and `formal/proofs/repaint_liveness.tla`
+    (`THEOREM Liveness == GoodSpecWF => (surface = "blank" ~> surface =
+    "painted")`) discharges liveness from it plus `WF_vars(Nudge)`. TLC and
+    TLAPS were both sound about a machine in which the failing proposition is
+    true by construction. A model of the repaint must make the effect of a
+    nudge a *possibility* rather than a definition, with a behavior where the
+    nudge fires and the surface stays blank — that behavior is the bug, and it
+    is currently unrepresentable.
+
 - Identify the **new entry path**: what navigation/lifecycle event preceded the blank?
   Does it pass through `_setCurrentIndex` (Attempt 3) or `onControllerReady`
   (Attempt 4)? If neither, that path needs `_nudgeSurfaceRepaint`.
