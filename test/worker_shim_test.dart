@@ -146,6 +146,22 @@ void main() {
               'worker-spawned worker inherits it');
     });
 
+    // WORK-006: the probe's answer is a task away, so a wrapper handed out
+    // before it lands is refused with nothing left to fall open on. Three
+    // conditions bound the rescue, and each is there for its own reason: page
+    // scope only (a worker running the payload is itself proof that blob:
+    // workers load here), dedicated workers only (a SharedWorker's port cannot
+    // be re-entangled with a second worker), and only while the answer is
+    // outstanding.
+    test('the pre-answer rescue is armed only where it can help', () {
+      final script = buildWorkerShimScript([buildLanguageShim('en')])!;
+      expect(
+        script,
+        contains("if (watchCsp && name === 'Worker' && !_blobProven)"),
+      );
+      expect(script, contains('armRescue(Real, w, script, options)'));
+    });
+
     test('builder appends no evaluator tail (the call site owns that)', () {
       final script = buildWorkerShimScript([buildLanguageShim('en')])!;
       expect(script.trimRight().endsWith('})();'), isTrue);

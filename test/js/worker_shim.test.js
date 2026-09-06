@@ -21,6 +21,10 @@ const { readFixture } = require('./helpers/load_shim');
 const COMBINED = 'worker_shim/installer_combined.js';
 const LANGUAGE_ONLY = 'worker_shim/installer_language_only.js';
 
+// The installer's probe worker, by its body: one throwaway blob: worker whose
+// fate is the answer about this document's CSP.
+const PROBE_BODY = 'postMessage(1);close();';
+
 // A jsdom page whose Blob/URL/Worker are recording stubs. Returns handles to
 // everything the installer touches so tests can inspect the generated wrapper.
 // `refuseBlobWorkers` models chromium under a CSP whose worker-src omits
@@ -42,19 +46,52 @@ function pageWithStubs(fixture, { refuseBlobWorkers = false } = {}) {
     return url;
   };
 
+  // Real EventTargets, because the installer's rescue path listens for the
+  // `error` a refused wrapper fires and re-dispatches the rebuilt worker's
+  // events on the object the page holds. `onerror` and friends register their
+  // listener when the attribute is set, as they do on a real Worker — the
+  // rescue's own listener is registered first and stops theirs, and that
+  // ordering is the whole mechanism.
   const created = [];
   function recorder(name) {
-    const Ctor = function (script, options) {
-      created.push({ name, script: String(script), options });
-      this.__script = String(script);
-      if (refuseBlobWorkers && this.__script.startsWith('blob:')) {
-        const worker = this;
-        w.setTimeout(() => {
-          if (worker.onerror) worker.onerror({ preventDefault() {} });
-        }, 0);
+    const Ctor = class extends w.EventTarget {
+      constructor(script, options) {
+        super();
+        this.__script = String(script);
+        this.__posted = [];
+        created.push({ name, script: this.__script, options, worker: this });
+        if (this.__script.startsWith('blob:')) {
+          const isProbe = (blobs.get(this.__script) || '') === PROBE_BODY;
+          w.setTimeout(() => {
+            // chromium reports a CSP refusal as a plain `error` Event with no
+            // message, asynchronously, on the object the constructor returned.
+            if (refuseBlobWorkers) {
+              this.dispatchEvent(new w.Event('error', { cancelable: true }));
+            } else if (isProbe) {
+              // A blob: worker that runs: the probe reports back, which is
+              // what tells the installer the wrapping is safe here.
+              this.dispatchEvent(new w.MessageEvent('message', { data: 1 }));
+            }
+          }, 0);
+        }
       }
+      postMessage() { this.__posted.push(Array.prototype.slice.call(arguments)); }
+      terminate() { this.__terminated = true; }
     };
     Ctor.prototype.__brand = name;
+    for (const attr of ['onmessage', 'onerror', 'onmessageerror']) {
+      const type = attr.slice(2);
+      Object.defineProperty(Ctor.prototype, attr, {
+        configurable: true,
+        get() { return this['__' + attr] || null; },
+        set(fn) {
+          const prev = this['__' + attr];
+          if (prev) this.removeEventListener(type, prev);
+          this['__' + attr] = fn;
+          if (fn) this.addEventListener(type, fn);
+        },
+      });
+    }
     return Ctor;
   }
   w.Worker = recorder('Worker');
@@ -67,7 +104,7 @@ function pageWithStubs(fixture, { refuseBlobWorkers = false } = {}) {
   // wrapper, so keep it out of the recording the wrapper tests index into.
   const probes = [];
   for (let i = created.length - 1; i >= 0; i--) {
-    if ((blobs.get(created[i].script) || '') === 'postMessage(1);close();') {
+    if ((blobs.get(created[i].script) || '') === PROBE_BODY) {
       probes.unshift(created.splice(i, 1)[0]);
     }
   }
@@ -203,6 +240,60 @@ test('a refused blob: worker stops the wrapping (site worker survives)', async (
   new ctx.window.Worker('/app/w.js');
   assert.equal(ctx.created.length, 1);
   assert.equal(ctx.created[0].script, '/app/w.js');
+});
+
+test('a worker built before the answer is rebuilt on the site\'s own script', async () => {
+  // The window the probe cannot cover: an inline script at the top of the
+  // document builds its worker in the same turn as the installer, so the
+  // wrapper is already in the page's hands when the refusal lands. There is
+  // no constructor to fall open on by then — the worker is simply dead.
+  const ctx = pageWithStubs(COMBINED, { refuseBlobWorkers: true });
+  const worker = new ctx.window.Worker('/app/w.js');
+  const errors = [];
+  worker.onerror = (e) => errors.push(e);
+  worker.postMessage('go');
+  assert.match(ctx.created[0].script, /^blob:/, 'this one must get a wrapper');
+
+  await tick(ctx);
+  await tick(ctx);
+
+  assert.equal(ctx.created.length, 2, 'the refused wrapper must be rebuilt');
+  assert.equal(ctx.created[1].script, '/app/w.js', 'on what the page asked for');
+  assert.deepEqual(ctx.created[1].worker.__posted, [['go']],
+    'the message posted to the wrapper must reach the worker that replaced it');
+  assert.deepEqual(errors, [],
+    "the refused wrapper's error belongs to a worker the page never had");
+  assert.equal(ctx.created[0].worker.__terminated, true);
+});
+
+test('an error thrown by the site\'s own worker is not read as a refusal', () => {
+  // Same event type, opposite meaning: a refusal never reaches any script and
+  // so carries no message, while this one is the page's to handle. Rebuilding
+  // here would run the site's worker twice.
+  const ctx = pageWithStubs(COMBINED);
+  const worker = new ctx.window.Worker('/app/w.js');
+  const errors = [];
+  worker.onerror = (e) => errors.push(e.message);
+  worker.dispatchEvent(new ctx.window.ErrorEvent('error', { message: 'boom' }));
+
+  assert.deepEqual(errors, ['boom']);
+  assert.equal(ctx.created.length, 1, 'nothing may be rebuilt');
+});
+
+test('once blob: workers are known to run, a load failure reaches the page', () => {
+  // The mirror of the case above. Once the probe has reported back, a
+  // message-less error is the site's own worker script failing to load, and
+  // swallowing it would hide a real breakage behind the shim.
+  const ctx = pageWithStubs(COMBINED);
+  const worker = new ctx.window.Worker('/app/w.js');
+  const errors = [];
+  worker.onerror = () => errors.push('error');
+
+  return tick(ctx).then(() => {
+    worker.dispatchEvent(new ctx.window.Event('error', { cancelable: true }));
+    assert.deepEqual(errors, ['error']);
+    assert.equal(ctx.created.length, 1, 'nothing may be rebuilt');
+  });
 });
 
 test('a blob: worker-src violation stops the wrapping too', () => {

@@ -319,7 +319,7 @@ document.addEventListener('securitypolicyviolation', function (e) {
     { directive: e.violatedDirective, blocked: e.blockedURI });
 }, true);`;
 
-async function withShimmedPage(t, csp, fn) {
+async function withShimmedPage(t, csp, fn, { early = null } = {}) {
   if (!requireBrowser(browser, t)) return;
   const victim = await startVictim({ csp, assets: ASSETS });
   const page = await browser.browser.newPage();
@@ -327,12 +327,36 @@ async function withShimmedPage(t, csp, fn) {
     await page.evaluateOnNewDocument(RECORD_VIOLATIONS);
     await page.evaluateOnNewDocument(PAYLOAD);
     await page.evaluateOnNewDocument(INSTALLER);
+    // Runs in the same turn as the installer, which is what an inline script
+    // at the top of the document does — before any answer about blob: workers
+    // can have arrived.
+    if (early) await page.evaluateOnNewDocument(early);
     await page.goto(victim.url, { waitUntil: 'load' });
     await fn(page, victim);
   } finally {
     await page.close();
     await victim.close();
   }
+}
+
+// Builds its worker before the probe can have answered, keeps whatever the
+// page's own error handler is given, and posts a message the worker has to
+// answer — a wrapper that never loads swallows both.
+const EARLY_WORKER = `
+globalThis.__earlyErrors = [];
+globalThis.__early = new Promise(function (resolve) {
+  var w = new Worker('/probe.js');
+  w.onerror = function (e) { globalThis.__earlyErrors.push(e.message || '(no message)'); };
+  var t = setTimeout(function () { resolve({ error: 'timeout' }); }, 8000);
+  w.onmessage = function (e) { clearTimeout(t); resolve(e.data); };
+  w.postMessage({ leaf: null });
+});`;
+
+async function earlyResult(page) {
+  return {
+    result: await page.evaluate(() => globalThis.__early),
+    errors: await page.evaluate(() => globalThis.__earlyErrors.slice()),
+  };
 }
 
 test('a blob-less CSP costs the shim, not the site\'s workers', async (t) => {
@@ -368,6 +392,52 @@ test('a blob-less CSP costs the shim, not the site\'s workers', async (t) => {
     assert.equal(await page.evaluate(() => globalThis.__wsViolations.length), 1,
       'no wrapper may be handed to the constructor after the refusal');
   });
+});
+
+test('a worker built before the probe answers is rebuilt, not lost', async (t) => {
+  // The window the probe cannot close. Its answer is a task away, and a
+  // wrapper handed out before it arrives is refused asynchronously: no
+  // constructor throw, so nothing falls open, and the page is left holding a
+  // worker that never starts — messenger.com's failure one turn earlier.
+  //
+  // The rescue rebuilds it on the page's own script behind the same object,
+  // so the handlers the page already attached and the message it already
+  // posted still land.
+  await withShimmedPage(t, NO_BLOB_CSP, async (page) => {
+    const doc = await pageVals(page);
+    const { result, errors } = await earlyResult(page);
+
+    assert.ok(result.mine, 'the early worker must run: ' + JSON.stringify(result));
+    assert.deepEqual(errors, [],
+      "the refused wrapper's error belongs to a worker the page never had");
+    // The same trade as every other branch of WORK-006, taken one turn later.
+    assert.equal(result.mine.shimInstalled, false, 'expected the unshimmed rebuild');
+    assert.notEqual(result.mine.hardwareConcurrency, doc.hardwareConcurrency,
+      'the rebuilt worker is the one leaking real values');
+
+    const violations = await page.evaluate(() => globalThis.__wsViolations.slice());
+    assert.deepEqual(violations, [
+      { directive: 'worker-src', blocked: 'blob' },
+      { directive: 'worker-src', blocked: 'blob' },
+    ], 'exactly two blob: refusals: the probe, and the wrapper this one raced');
+  }, { early: EARLY_WORKER });
+});
+
+test('PREMISE: the same early worker is wrapped and shimmed where blob: is allowed', async (t) => {
+  // Without this the test above proves nothing: if the window were narrow
+  // enough that no wrapper was ever handed out, the early worker would run for
+  // want of anything to refuse rather than because it was rebuilt.
+  await withShimmedPage(t, CSP, async (page) => {
+    const doc = await pageVals(page);
+    const { result, errors } = await earlyResult(page);
+
+    assert.ok(result.mine, 'the early worker must run here too');
+    assert.deepEqual(errors, []);
+    assert.equal(result.mine.shimInstalled, true,
+      'a worker built in that window does get a wrapper');
+    assert.equal(result.mine.hardwareConcurrency, doc.hardwareConcurrency);
+    assert.deepEqual(await page.evaluate(() => globalThis.__wsViolations.slice()), []);
+  }, { early: EARLY_WORKER });
 });
 
 // worker-src admits the wrapper, script-src refuses what it imports.

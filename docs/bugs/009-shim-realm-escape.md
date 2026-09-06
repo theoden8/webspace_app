@@ -118,6 +118,30 @@ path — page/worker agreement in one flavour is not evidence for another.**
    an adjacent re-point, so the *next* instance of this exact shape fails CI,
    but a wrapper built some other way is invisible to it.
 
+5. **2026-09-06 — the wrapper the answer arrives too late for is rebuilt**
+   ([lib/services/worker_shim.dart](../../lib/services/worker_shim.dart)).
+   A dedicated worker wrapped while the CSP verdict is still outstanding now
+   keeps what rebuilding it takes, and on a refusal is rebuilt on the page's own
+   script *behind the object the page already holds*: `postMessage` and
+   `terminate` forwarded to the rebuilt worker, its `message` / `messageerror` /
+   `error` events re-dispatched on the original, and the messages posted before
+   the swap replayed in order. *Why:* attempt 3 left this window open and said
+   so. The probe's answer is a task away, so a worker built from an inline
+   script at the top of the document is handed a wrapper before any verdict
+   exists; under a CSP whose `worker-src` names hosts and no `blob:`
+   (github.com's shape) that wrapper is refused *after* its constructor
+   returned, so no fail-open branch sees it and the page holds a worker that
+   never starts — #560's failure one turn earlier. Nothing measured it: every
+   CSP test built its worker after `load`, by which time the probe had long
+   answered. *Why partial:* dedicated workers only. A `SharedWorker` built in
+   the same window still dies, because the page takes its `MessagePort` at
+   construction and a port cannot be re-entangled with a second worker. The
+   discriminator between a refusal and the site's own worker throwing is the
+   error's message (a refusal reaches no script, so it carries none), which is
+   chromium's shape; an engine that reports a refused worker *with* a message
+   falls back to attempt 3's behaviour. And the rebuilt worker is unshimmed, so
+   what stands at the end of it is still the WORK-006 trade, one turn later.
+
 ## Known open gaps
 
 - **Realms not yet compared against the document:** workers spawned by a
@@ -150,6 +174,22 @@ path — page/worker agreement in one flavour is not evidence for another.**
   matches, but nobody has measured it. All branches are pinned in
   `test/browser/worker_realm_escape.test.js`; settling the native mode needs a
   device.
+
+- **The probe is one CSP violation per document on every site that refuses
+  `blob:` workers**, and it is first-party observable: a `securitypolicyviolation`
+  listener registered before the shim reads it, and a policy carrying
+  `report-uri` / `report-to` mails it home. Nothing in a stock browser starts a
+  `blob:` worker at document start, so what the site sees identifies the app —
+  against `tracking-protection`'s whole point. The obvious remedy, remembering
+  the refusal per origin so only the first load probes, was rejected rather than
+  deferred: the page is the only thing that can observe the refusal, and on
+  Android the bridge's `origin` and `isMainFrame` come from the injected JS
+  itself (`JavaScriptBridgeInterface` reads them out of the call's payload), so
+  any script in the document could claim a refusal and take its own origin's
+  workers out of the shim for the rest of the process. That is this file's
+  escape, handed over as an API. Closing the beacon for real means reading the
+  CSP where a page cannot forge it — the response headers — which only some
+  platforms allow, the same wall the gap above runs into.
 
 - **The `__ws*` install markers remain enumerable** on `globalThis` in worker
   scope as well as on `window`, so a fingerprinter can detect that *a* shim is

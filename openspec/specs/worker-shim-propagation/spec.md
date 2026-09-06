@@ -220,7 +220,8 @@ ask the engine instead: at document start it starts one throwaway `blob:` worker
 that messages back and closes itself. A refusal — that probe's `error` event, or
 a `securitypolicyviolation` naming a `blob:` URI under a directive that governs
 worker scripts — SHALL stop all further wrapping in that document, so every
-worker built afterwards receives the page's own script.
+worker built afterwards receives the page's own script. Workers built *before*
+that answer arrives are past this branch and are covered by WORK-008 instead.
 
 A violation observed after the probe has seen a `blob:` worker run SHALL be
 ignored, so a site that refuses `blob:` *scripts* while admitting `blob:`
@@ -286,12 +287,88 @@ messenger.com sends.
 
 ---
 
+### Requirement: WORK-008 - A wrapper the answer arrives too late for is rebuilt
+
+The probe's answer is a task away, so a `Worker` constructed in the same turn as
+the installer — an inline script at the top of the document — is handed a wrapper
+before this document has a verdict. Under a `blob:`-refusing CSP that wrapper is
+refused *after* its constructor returned, so WORK-006's fail-open branch never
+runs and the page is left holding a worker that never starts: messenger.com's
+failure one turn earlier.
+
+For a dedicated worker wrapped while the verdict is outstanding, the installer
+SHALL keep what rebuilding it takes — the real constructor, the page's own script
+argument and options, and every message posted to it — and, on learning the
+document refuses `blob:` workers, SHALL construct that worker on the page's own
+script and route it through the object the page already holds: `postMessage` and
+`terminate` forwarded to the rebuilt worker, its `message`, `messageerror` and
+`error` events re-dispatched on the original object, and the messages posted
+before the swap replayed in order. Handing the page a second object cannot do
+this — its handlers, its `instanceof`, and every reference it passed on belong to
+the one it has.
+
+Messages SHALL be recorded rather than withheld: holding a page's messages until
+the verdict arrives would delay the workers of every site to serve this one. A
+transferable is detached by the post that goes to the refused wrapper and is lost
+to the replay, which is the narrower cost.
+
+The refused wrapper's own `error` SHALL NOT reach the page — it belongs to a
+worker the page never had — and an `error` carrying a message SHALL be left
+alone: a refusal never reaches any script, so only a message-less error can be
+one, and rebuilding on the site's own runtime error would run its worker twice.
+Once the verdict is that `blob:` workers do run in this document, the rescue
+SHALL stop intercepting errors on that worker at all: a message-less error there
+is the site's own script failing to load, and swallowing it would hide a real
+breakage behind the shim.
+
+The rescue SHALL be armed only in page scope (a worker running the payload is
+itself proof that its document admits `blob:` workers), only for dedicated
+workers (see the `SharedWorker` limitation below), and only while the verdict is
+outstanding.
+
+#### Scenario: A worker built before the answer arrives still runs
+
+**Given** a page whose `worker-src` omits `blob:`
+**When** an inline script at the top of the document calls `new Worker('w.js')`
+and posts a message to it
+**Then** the worker runs and answers that message
+**And** the page's `onerror` is never called for the wrapper the CSP refused
+**And** the worker is NOT shimmed — the WORK-006 trade, taken one turn later
+**And** the document records exactly two `blob:` refusals: the probe's, and the
+wrapper this worker raced
+
+#### Scenario: PREMISE - that worker really is wrapped in that window
+
+**Given** the same inline script on a page whose CSP admits `blob:` workers
+**Then** its worker runs and IS shimmed, reporting the document's own
+`hardwareConcurrency`
+
+#### Scenario: An error from the site's own worker is not read as a refusal
+
+**Given** a wrapped worker whose own script throws
+**When** the resulting `error` event carries a message
+**Then** the page's handler receives it
+**And** nothing is rebuilt
+
+#### Scenario: After the verdict, a failed load still reaches the page
+
+**Given** a document whose probe reported that `blob:` workers run
+**When** a wrapped worker fires a message-less `error` — its script failed to
+load
+**Then** the page's handler receives it
+**And** nothing is rebuilt
+
+---
+
 ## Limitations
 
 - **CSP forbidding `blob:` workers.** No wrapper can preload the shim past such
-  a policy, so those workers run unshimmed. A worker built before the probe
-  answers — an inline script at the top of the document — still gets a wrapper
-  that never loads.
+  a policy, so those workers run unshimmed.
+- **A `SharedWorker` built before the probe answers.** WORK-008 rebuilds a
+  dedicated worker behind the object the page holds; a `SharedWorker` cannot be
+  rebuilt that way, because the page takes its `MessagePort` at construction and
+  a port cannot be re-entangled with a second worker. One built in that window
+  under a refusing CSP still never starts.
 - **Nested module workers.** Module workers receive the shim, but not the
   nested-propagation tail — `import.meta` cannot appear in the classic payload,
   so a module worker cannot learn its own URL.
@@ -317,5 +394,5 @@ messenger.com sends.
   `constructor` is re-pointed next to it
 - `test/js/worker_shim.test.js` — installer tests under jsdom, and the payload
   executed in a simulated `WorkerGlobalScope` via `node:vm`
-- `test/browser/worker_realm_escape.test.js` — realm coverage and the CSP
-  branches under a real engine
+- `test/browser/worker_realm_escape.test.js` — realm coverage, the CSP
+  branches, and the WORK-008 window under a real engine
