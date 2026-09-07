@@ -146,20 +146,25 @@ void main() {
               'worker-spawned worker inherits it');
     });
 
-    // WORK-006: the probe's answer is a task away, so a wrapper handed out
-    // before it lands is refused with nothing left to fall open on. Three
-    // conditions bound the rescue, and each is there for its own reason: page
-    // scope only (a worker running the payload is itself proof that blob:
-    // workers load here), dedicated workers only (a SharedWorker's port cannot
-    // be re-entangled with a second worker), and only while the answer is
-    // outstanding.
-    test('the pre-answer rescue is armed only where it can help', () {
+    // WORK-006: nothing is asked of the CSP up front. A document that never
+    // builds a worker never breaks the policy, which is the only way a page
+    // can learn what it says.
+    test('installs no worker of its own', () {
       final script = buildWorkerShimScript([buildLanguageShim('en')])!;
-      expect(
-        script,
-        contains("if (watchCsp && name === 'Worker' && !_blobProven)"),
-      );
-      expect(script, contains('armRescue(Real, w, script, options)'));
+      expect(script, isNot(contains('postMessage(1);close();')),
+          reason: 'a throwaway probe worker announces the app to every site '
+              'on every load, whether or not the page wanted a worker');
+    });
+
+    // A wrapper handed out before the answer is known is refused with nothing
+    // left to fall open on, so both kinds carry a rescue until blob: workers
+    // are known to run here. A worker running the payload is itself that
+    // proof, which is why the nested install starts answered and arms nothing.
+    test('both worker kinds are armed until the answer is known', () {
+      final script = buildWorkerShimScript([buildLanguageShim('en')])!;
+      expect(script, contains('var _blobProven = !watchCsp;'));
+      expect(script, contains("if (name === 'Worker') armRescue(Real, w, script, options);"));
+      expect(script, contains('else armSharedRescue(Real, w, script, options);'));
     });
 
     test('builder appends no evaluator tail (the call site owns that)', () {
