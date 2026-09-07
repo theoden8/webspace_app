@@ -97,7 +97,7 @@
 - [x] 7.3 `test/js/os_capability_declarations.test.js`: flip the three
   microphone absence assertions to presence, rewrite the header comment, leave
   every other set untouched.
-- [ ] 7.4 `test/js/camera_capture_stop_funnel.test.js`: follow the rename and
+- [x] 7.4 `test/js/camera_capture_stop_funnel.test.js`: follow the rename and
   extend to the microphone shim's registration, so a shim that hands over a
   device track without registering it fails.
 - [x] 7.5 `test/js/microphone_stream_shim.test.js`: `real` passes through,
@@ -106,11 +106,25 @@
   `test/site_permission_state_test.dart`,
   `test/site_permissions_screen_test.dart`: the new badge, state and enabled
   option.
-- [ ] 7.7 A test for the MIC-014 derived clause: granting site B ends site A's
-  device track, so at most one capture is live.
-- [ ] 7.8 `test/browser/microphone_stream_real_engine.test.js`: the existing
-  tier asserts the page's `microphone` permission state never moves. That
-  assertion is now mode-scoped, not global; keep it for `virtual` and `block`.
+- [x] 7.7 `test/browser/capture_stop_mixed_stream.test.js`: under real
+  Chromium, both shims in one realm and both injection orders, the stop ends
+  the device audio half of a mixed stream and spares the simulated video half.
+  This is the mechanism behind the MIC-014 derived clause; a two-site
+  integration test would prove the clause end to end and does not exist yet.
+- [x] 7.8 `test/browser/microphone_stream_real_engine.test.js`: the existing
+  tier asserts the page's `microphone` permission state never moves. Scoped to
+  the mode it actually drives, since it is no longer true of the feature.
+- [x] 7.9 `test/js/native_capture_grant_gate.test.js`: the `onPermissionRequest`
+  microphone branch is a closure no unit test can reach, and it went from an
+  unconditional DENY to a grant. Structural gate over its clauses, mutation
+  tested against four ways to widen it.
+- [x] 7.10 `test/browser/lie_detection.test.js`: the tier probed the camera
+  shim only. MIC-009 makes the same undetectability claims for audio, so the
+  same three probes now run against the microphone shim.
+- [ ] 7.11 Still open: the `AudioContext` resume-on-gesture path (MIC-008) is
+  not genuinely exercised. jsdom stubs `resume()` to a resolved promise and the
+  browser harness calls it itself, so an engine that suspends would hand the
+  page a silent track with both tiers green.
 
 ## 8. Release
 
