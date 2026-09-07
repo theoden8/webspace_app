@@ -2,6 +2,15 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- EXPORT-001: same declaration, and the same basis, as
+	     ios/Runner/Info.plist, which carries the reasoning. Gated by
+	     scripts/check_export_compliance.sh before an upload. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<!-- Mac App Store validation rejects a bundle without it, and the Finder
+	     and Launchpad file the app under it. -->
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.productivity</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleExecutable</key>

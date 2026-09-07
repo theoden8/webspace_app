@@ -11,6 +11,16 @@ WebSpace: Flutter app managing multiple websites with per-site cookie isolation 
 - Commit messages: short subject (<70 chars, imperative), 1-2 line body for the *why* if needed. No marketing prose, no bullet lists of every changed file, no "this commit also...".
 - Don't speculate. Read the code or docs before asserting an API/version/flag.
 
+## Shipping macOS
+
+macOS is a release target, not just a dev platform: signing happens after the
+build (`scripts/sign_macos.sh`), the entitlements name team-prefixed groups
+that an ad-hoc signature cannot back, and a capability entitlement has to
+agree with its `ENABLE_*` build setting. Read
+[docs/releasing-macos.md](docs/releasing-macos.md) before touching
+`macos/Runner/Info.plist`, either entitlements file, or the signing settings
+in the Xcode project. Spec: PLATFORM-006.
+
 ## Git
 
 - Never push to master. Branch first.
@@ -60,7 +70,9 @@ fvm flutter analyze
 fvm flutter build apk    --flavor fdroid --release       # F-Droid (CI, unsigned)
 fvm flutter build apk    --flavor fmain  --release --split-per-abi   # Play (signed)
 fvm flutter build ipa    --release                       # iOS unsigned
-fvm flutter build macos  --release
+fvm flutter build macos  --release                       # unsigned; see below
+./scripts/sign_macos.sh devid                            # notarized zip (needs certs)
+./scripts/sign_macos.sh mas                              # Mac App Store .pkg
 fvm flutter build linux  --release
 fvm dart run flutter_launcher_icons
 ```

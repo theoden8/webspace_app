@@ -8,7 +8,7 @@ encryption declaration, and MIT as the licence of the shipped work.
 ## Status
 
 - **Status**: Completed
-- **Platforms**: iOS (declaration), all (the rest)
+- **Platforms**: iOS and macOS (declaration), all (the rest)
 
 ---
 
@@ -16,8 +16,10 @@ encryption declaration, and MIT as the licence of the shipped work.
 
 ### EXPORT-001 - Encryption declaration
 
-The iOS bundle SHALL declare `ITSAppUsesNonExemptEncryption` as `false` and
-SHALL NOT carry an `ITSEncryptionExportComplianceCode`.
+The iOS and macOS bundles SHALL each declare `ITSAppUsesNonExemptEncryption`
+as `false` and SHALL NOT carry an `ITSEncryptionExportComplianceCode`. Both
+ship the same code from the same source, so they answer the question the same
+way; a macOS bundle that omits the key stalls its own submission.
 
 Basis: the source is published under a licence permitting further
 dissemination, so the object code is not subject to the EAR (note to
@@ -63,12 +65,12 @@ uploaded documentation; for standard algorithms that documentation is the
 French ANSSI declaration, required when distributing in France and reported
 to take one to two months. Until the code exists every upload is rejected as
 ITMS-90592, which is how #344 blocked releases.
-[scripts/check_ios_export_compliance.sh](../../../scripts/check_ios_export_compliance.sh)
+[scripts/check_export_compliance.sh](../../../scripts/check_export_compliance.sh)
 gates the two keys against each other on the fastlane deploy lanes.
 
 #### Scenario: Key present
 
-- **GIVEN** `ios/Runner/Info.plist`
+- **GIVEN** `ios/Runner/Info.plist` or `macos/Runner/Info.plist`
 - **THEN** `ITSAppUsesNonExemptEncryption` is `false`
 - **AND** no `ITSEncryptionExportComplianceCode` is present
 

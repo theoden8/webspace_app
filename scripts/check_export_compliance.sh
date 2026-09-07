@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Verify the two export-compliance keys in ios/Runner/Info.plist agree before
-# a build is handed to App Store Connect.
+# Verify the two export-compliance keys in an Info.plist agree before the
+# build carrying it is handed to App Store Connect. Both Apple targets ship
+# from the same declaration: ios/Runner/Info.plist (default) and
+# macos/Runner/Info.plist.
 #
 # ITSAppUsesNonExemptEncryption is only half the declaration. Once Apple
 # approves the uploaded encryption documentation it issues a compliance code,
@@ -21,7 +23,7 @@
 # gate would be red for the whole turnaround. This is a property of a
 # submission, not of the source tree, so it runs on the fastlane deploy lanes.
 #
-# Usage: scripts/check_ios_export_compliance.sh [path-to-Info.plist]
+# Usage: scripts/check_export_compliance.sh [path-to-Info.plist]
 
 set -euo pipefail
 
@@ -52,8 +54,8 @@ code=$(plist_value_after_key ITSEncryptionExportComplianceCode |
 
 case "$declared" in
   "")
-    cat >&2 <<'MSG'
-ERROR: ios/Runner/Info.plist declares no ITSAppUsesNonExemptEncryption.
+    cat >&2 <<MSG
+ERROR: $PLIST declares no ITSAppUsesNonExemptEncryption.
 
 Omitting it does not skip the question; it stalls every submission on the
 export-compliance prompt in App Store Connect instead.
@@ -62,7 +64,7 @@ MSG
     ;;
   "<true/>")
     if [[ -z "$code" ]]; then
-      cat >&2 <<'MSG'
+      cat >&2 <<MSG
 ERROR: ITSAppUsesNonExemptEncryption is <true/> but
 ITSEncryptionExportComplianceCode is missing or empty.
 
@@ -74,7 +76,7 @@ App Store Connect will reject the upload with ITMS-90592:
 
 The code is issued after Apple approves the encryption documentation:
 App Store Connect > My Apps > Webspace > App Information > App Encryption
-Documentation. Add it to ios/Runner/Info.plist as
+Documentation. Add it to $PLIST as
 
   <key>ITSEncryptionExportComplianceCode</key>
   <string>the-code-apple-gave-you</string>

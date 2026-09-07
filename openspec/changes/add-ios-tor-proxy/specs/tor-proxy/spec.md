@@ -359,7 +359,7 @@ keeps it true.
 - **GIVEN** an IPA built from this source
 - **WHEN** it is uploaded to App Store Connect
 - **THEN** it is not rejected for export compliance
-- **AND** [scripts/check_ios_export_compliance.sh](../../../../scripts/check_ios_export_compliance.sh)
+- **AND** [scripts/check_export_compliance.sh](../../../../scripts/check_export_compliance.sh)
   exits non-zero before the upload if the two keys ever disagree
 
 #### Scenario: The declaration is set to true
