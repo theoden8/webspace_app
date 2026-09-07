@@ -30,7 +30,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -171,8 +171,32 @@ void main() {
     // the other, so by the end both are loaded and both have issued
     // traffic through their own credential.
     for (final name in ['Attribution A', 'Attribution B']) {
-      final tile = find.text(name);
-      if (tile.evaluate().isEmpty) {
+      // Re-open the drawer each time: activating a site closes it, so the
+      // second name is not on screen when the loop comes back around.
+      for (var attempt = 0; attempt < 3; attempt++) {
+        if (find.byType(Drawer).evaluate().isNotEmpty) break;
+        final menuIcon = find.byIcon(Icons.menu);
+        if (menuIcon.evaluate().isNotEmpty) {
+          await tester.tap(menuIcon.first);
+        } else {
+          for (final element in find.byType(Scaffold).evaluate()) {
+            final state = tester.state<ScaffoldState>(
+                find.byWidget(element.widget as Scaffold));
+            if (state.hasDrawer) {
+              state.openDrawer();
+              break;
+            }
+          }
+        }
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+      }
+
+      final drawer = find.byType(Drawer);
+      if (drawer.evaluate().isNotEmpty &&
+          find.descendant(of: drawer, matching: find.text(name))
+              .evaluate()
+              .isEmpty) {
         final allTile = find.byKey(const ValueKey(kAllWebspaceId));
         if (allTile.evaluate().isNotEmpty) {
           await tester.tap(allTile);
@@ -181,9 +205,15 @@ void main() {
           }
         }
       }
-      final target = find.text(name);
-      expect(target, findsOneWidget, reason: '$name should be in the drawer');
-      await tester.tap(target);
+
+      // Scoped to the drawer and `findsWidgets`: the active site's name
+      // also renders in the app bar, so a bare finder matches twice.
+      final scoped = find.byType(Drawer);
+      final target = scoped.evaluate().isNotEmpty
+          ? find.descendant(of: scoped, matching: find.text(name))
+          : find.text(name);
+      expect(target, findsWidgets, reason: '$name should be in the drawer');
+      await tester.tap(target.first);
       for (var i = 0; i < 24; i++) {
         await tester.pump(const Duration(milliseconds: 500));
       }
