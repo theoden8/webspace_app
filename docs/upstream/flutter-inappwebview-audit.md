@@ -289,23 +289,25 @@ if (frame_name != nullptr && frame_name[0] != '\0') is_for_main_frame = false;
 It defaults to `true`, which is the unsafe direction, and an unnamed cross-origin
 iframe hits that default.
 
-**This reaches us, and we already noticed the symptom without naming the cause.**
-`lib/services/webview.dart:3918` reads
-`navigationAction.isForMainFrame ?? true`, and the comment three lines below it
-says WebKit on Linux "has been observed to return true for navigations that
-originate from inside an iframe". Everything below that gate assumes the
-navigation is the top document, and the comment at `:3930-3933` states the
-intent plainly: "a cross-origin subframe navigation must never be able to steer
-the top document."
+**None of that is a new discovery.** [PR #356](https://github.com/theoden8/webspace_app/pull/356)
+(open since 2026-05-17, currently conflicted) already documents it in the
+`nested-url-blocking` spec: "the Linux plugin can't reliably mark iframe
+navigations as non-main-frame (`webkit_navigation_action_get_frame_name()` is
+the *target* frame name, not the source, so iframes whose own URL navigates show
+up with `isForMainFrame=true`). The result is that those iframes can open a
+nested webview. Per-site `blockAutoRedirects = false` is the escape hatch."
+`lib/services/webview.dart:3920-3923` carries the same observation as a comment.
 
-On Linux it can. Past the gate sit the ClearURLs rewrite and the ABP
-`$removeparam` rewrite, both of which respond to a match by calling
-`controller.loadUrl(cleanedUrl)` on the **top** frame and cancelling the original
-load. So an iframe whose URL merely carries a stripped tracking parameter
-navigates the whole page to that iframe's URL. Below those sits the cross-domain
-nested-webview routing, which would open embedded iframes (SSO, captcha
-challenges, one-tap sign-in) as separate top-level screens. There is no
-`Platform.isLinux` guard anywhere in `webview.dart`.
+What that write-up does not name is the **second** consequence, which is worse
+than the nested webview and has no escape hatch. Past the main-frame gate sit the
+ClearURLs rewrite and the ABP `$removeparam` rewrite, and both respond to a match
+by calling `controller.loadUrl(cleanedUrl)` on the **top** frame and cancelling
+the original load. So an iframe whose URL merely carries a stripped tracking
+parameter navigates the whole page to that iframe's URL. The comment at
+`:3930-3933` states the intent this violates: "a cross-origin subframe navigation
+must never be able to steer the top document." There is no `Platform.isLinux`
+guard anywhere in `webview.dart`, and `blockAutoRedirects = false` does not
+disable the rewrites.
 
 Two tracks, and they are independent:
 
@@ -314,7 +316,14 @@ Two tracks, and they are independent:
   `create_window_action.cc:41`, which hardcodes `isForMainFrame(true)`.
 - **Until then:** the app must not steer the top document on a main-frame signal
   it cannot trust. NESTED-013 states that; it is a WebSpace-side fix that needs
-  no WebKit change and should not wait for one.
+  no WebKit change and should not wait for one. It supersedes PR #356's
+  "disable the feature per site" escape hatch for the rewrite half, which that
+  hatch never covered.
+
+PR #356 itself is worth rescuing separately: it is a two-line fix plus spec text
+for a different signal on the same handler (`hasGesture`, not `isForMainFrame`),
+it has been conflicted since August, and NESTED-013 touches the same spec
+section, so land one before writing the other.
 
 Note for whoever revisits the Linux CI comment: the claim at
 `.github/workflows/build-and-test.yml:562-566` that the plugin calls

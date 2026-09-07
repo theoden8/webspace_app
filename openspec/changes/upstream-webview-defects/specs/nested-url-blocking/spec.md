@@ -98,10 +98,17 @@ cross-origin subframe navigation must never be able to steer the top document".
 The gate is only as good as its input, and its input is not uniform. Android
 reports `isForMainFrame` correctly. Linux cannot: WPE WebKit exposes no
 main-frame flag on `WebKitNavigationAction`, so the plugin infers it from
-`webkit_navigation_action_get_frame_name()` being empty, which is also true of
-every unnamed iframe. The inference defaults to main frame, and the app then
-reads `isForMainFrame ?? true`, so an unreliable signal and a missing signal both
-resolve to the permissive answer.
+`webkit_navigation_action_get_frame_name()` being empty, which is the *target*
+frame name and so is also empty for every unnamed iframe. The inference defaults
+to main frame, and the app then reads `isForMainFrame ?? true`, so an unreliable
+signal and a missing signal both resolve to the permissive answer.
+
+That much is already recorded, in this spec's platform-gesture section and in
+[PR #356](https://github.com/theoden8/webspace_app/pull/356), which names the
+nested-webview consequence and offers per-site `blockAutoRedirects = false` as
+the escape hatch. This requirement exists because that hatch covers only the
+routing half. It does not disable the rewrites, and the rewrites are the half
+that lets a subframe navigate the top document.
 
 Therefore: an action that navigates or replaces the top document MUST NOT run on
 a main-frame signal the platform cannot vouch for. Where the signal is absent or

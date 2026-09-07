@@ -159,6 +159,14 @@ stays pinned for the process lifetime on the parent's configuration and jar.
 Independent of WebKit PR 65415. Do the app half now; the platform half retires
 the inference later.
 
+The signal's unreliability is already documented in PR #356, which covers the
+nested-webview consequence and offers a per-site escape hatch. This section is
+about the half that hatch does not reach: the top-frame rewrites.
+
+- [ ] 12.0 Land or close PR #356 first. It has been conflicted since August, it
+  edits the same spec section, and it fixes a different signal (`hasGesture`) on
+  the same handler. Two open edits to one section is how one of them gets lost.
+
 - [ ] 12.1 Stop resolving a missing or inferred main-frame signal to the
   permissive answer at `lib/services/webview.dart:3918`
   (`isForMainFrame ?? true`). Distinguish "reported false", "reported true" and
