@@ -18,6 +18,7 @@
          the per-site Allow popup. Not used for any background capture or
          media collection. -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <application
         android:label="@string/app_name"

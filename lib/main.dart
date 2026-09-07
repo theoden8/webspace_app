@@ -4250,7 +4250,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       steps: [
         if (captureState)
           SiteTeardownStep('captureState', () => _captureStateBytes(model)),
-        SiteTeardownStep('stopRealCameraCapture', model.stopRealCameraCapture),
+        SiteTeardownStep('stopRealCapture', model.stopRealCapture),
         SiteTeardownStep('pauseMediaPlayback', model.pauseMediaPlayback),
         SiteTeardownStep('pauseWebView', model.pauseWebView),
       ],
@@ -5598,11 +5598,11 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// Stable resolver for a microphone request (any `getUserMedia` asking for
   /// audio). On the first request it shows a Block / Use-audio-file popup;
   /// picking the file opens a picker and the chosen clip becomes the site's
-  /// virtual microphone, looped forever. There is deliberately no "allow the
-  /// real microphone" answer: the app never asks the OS for a recording
-  /// permission. The per-site decision is remembered by the caller (the
-  /// parent webview persists it on the `WebViewModel`; nested webviews
-  /// remember it in-memory), so this only collects user intent.
+  /// virtual microphone, looped forever; allowing hands the site the device
+  /// microphone while it is the one on screen (MIC-014). The per-site
+  /// decision is remembered by the caller (the parent webview persists it on
+  /// the `WebViewModel`; nested webviews remember it in-memory), so this only
+  /// collects user intent.
   ///
   /// [current] is the site's stored mode: a site already set to `virtual` but
   /// missing a clip skips the popup and goes straight to the picker. A
@@ -5630,12 +5630,18 @@ class _WebSpacePageState extends State<WebSpacePage>
             onPressed: () => Navigator.pop(ctx, 'file'),
             child: Text(loc.homeMicrophoneUseFileAction),
           ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'allow'),
+            child: Text(loc.homeAllowAction),
+          ),
         ],
       ),
     );
     switch (choice) {
       case 'file':
         return _pickVirtualMicrophoneOrKeep(MicrophoneAccessMode.ask);
+      case 'allow':
+        return const MicrophoneDecision(MicrophoneAccessMode.real);
       case 'block':
         return const MicrophoneDecision.block();
       default:

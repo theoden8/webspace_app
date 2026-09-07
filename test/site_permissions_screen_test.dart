@@ -79,23 +79,23 @@ void main() {
     expect(find.text('Blocked'), findsWidgets);
   });
 
-  testWidgets('the microphone sheet shows Allowed as unavailable',
+  testWidgets('the microphone sheet offers a real grant (MIC-002)',
       (tester) async {
-    // The greyed row is the guarantee made visible: WebSpace has no
-    // real-microphone mode at all. Omitting it would hide the reassurance,
-    // which is what the old hint-popup did.
+    // Previously a greyed row explaining that no real-microphone mode
+    // existed. The mode exists now, so the row has to be selectable: an inert
+    // "Allowed" would tell the user the opposite of what the app does.
     await _pump(tester, values: _values());
     await tester.tap(find.text('Microphone access'));
     await tester.pumpAndSettle();
 
     final allowed = tester.widget<RadioListTile<SitePermissionState>>(
       find.ancestor(
-        of: find.text('Allowed').last,
+        of: find.text('Always allow').last,
         matching: find.byType(RadioListTile<SitePermissionState>),
       ),
     );
-    expect(allowed.onChanged, isNull, reason: 'Allowed must be inert');
-    expect(find.textContaining('never opens a real microphone'), findsOneWidget);
+    expect(allowed.onChanged, isNotNull, reason: 'Allowed must be selectable');
+    expect(find.textContaining('never opens a real microphone'), findsNothing);
   });
 
   testWidgets('a capability another setting owns is inert and says why',

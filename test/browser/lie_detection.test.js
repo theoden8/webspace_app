@@ -33,6 +33,7 @@ const FULL_COMBO = readFixture('location_spoof/full_combo.js');
 const THEME_DARK = readFixture('theme_color_scheme/dark.js');
 const BLOB_SHIM = readFixture('blob_url_capture/shim.js');
 const CAMERA_SHIM = readFixture('camera_stream/shim.js');
+const MICROPHONE_SHIM = readFixture('microphone_stream/shim.js');
 const AF_ALPHA = readFixture('anti_fingerprinting/shim_seed_alpha.js');
 
 const browser = setupBrowser();
@@ -636,4 +637,118 @@ test('camera_stream: cross-realm toString hides the override source',
     // toString does not recognise the child's function. Verified identical
     // for location_spoof, so this is the shared funnel's gap.
     t.todo('repo-wide: parent-realm toString reveals a child realm override');
+  });
+
+// The same probes against the microphone shim. MIC-009 claims the substituted
+// microphone is not detectable by shape, in the same words CAM-008 uses, and
+// until now no probe in this tier ever loaded the audio shim: the jsdom tier
+// asserts override placement, and the real-engine tier asserts that the clip
+// carries signal. Neither is a fingerprinter.
+
+// A 0.1 s silent mono WAV. Generated here rather than committed: it is a
+// derivative of these four numbers.
+function makeWavDataUrl(seconds = 0.1, rate = 8000) {
+  const frames = Math.round(seconds * rate);
+  const buf = Buffer.alloc(44 + frames * 2);
+  buf.write('RIFF', 0); buf.writeUInt32LE(36 + frames * 2, 4); buf.write('WAVE', 8);
+  buf.write('fmt ', 12); buf.writeUInt32LE(16, 16); buf.writeUInt16LE(1, 20);
+  buf.writeUInt16LE(1, 22); buf.writeUInt32LE(rate, 24);
+  buf.writeUInt32LE(rate * 2, 28); buf.writeUInt16LE(2, 32);
+  buf.writeUInt16LE(16, 34); buf.write('data', 36);
+  buf.writeUInt32LE(frames * 2, 40);
+  return `data:audio/wav;base64,${buf.toString('base64')}`;
+}
+
+async function withMicrophoneShim(t, fn) {
+  if (!requireBrowser(browser, t)) return;
+  const server = await startSecureOriginServer();
+  const page = await browser.browser.newPage();
+  const dataUrl = makeWavDataUrl();
+  try {
+    await page.evaluateOnNewDocument((clip) => {
+      window.flutter_inappwebview = {
+        callHandler: (name) => Promise.resolve(
+          name === 'webMicrophoneMode'
+            ? 'virtual'
+            : { mode: 'virtual', source: { dataUrl: clip } }),
+      };
+    }, dataUrl);
+    await page.evaluateOnNewDocument(MICROPHONE_SHIM);
+    await page.goto(`http://127.0.0.1:${server.address().port}/`,
+      { waitUntil: 'load' });
+    await fn(page);
+  } finally {
+    await page.close();
+    server.close();
+  }
+}
+
+test('microphone_stream: getUserMedia and enumerateDevices stringify as native',
+  async (t) => {
+    await withMicrophoneShim(t, async (page) => {
+      const r = await page.evaluate(() => {
+        const s = (fn) => Function.prototype.toString.call(fn);
+        return {
+          gum: s(navigator.mediaDevices.getUserMedia),
+          enumerate: s(navigator.mediaDevices.enumerateDevices),
+        };
+      });
+      assert.match(r.gum, /\[native code\]/,
+        `getUserMedia leaks its source: ${r.gum}`);
+      assert.match(r.enumerate, /\[native code\]/,
+        `enumerateDevices leaks its source: ${r.enumerate}`);
+    });
+  });
+
+test('microphone_stream: overrides sit on MediaDevices.prototype, not the instance',
+  async (t) => {
+    await withMicrophoneShim(t, async (page) => {
+      const r = await page.evaluate(() => ({
+        own: Object.getOwnPropertyNames(navigator.mediaDevices),
+        protoHasGum: Object.getOwnPropertyNames(MediaDevices.prototype)
+          .includes('getUserMedia'),
+      }));
+      assert.deepEqual(r.own, [],
+        `overrides leak as own-properties of mediaDevices: ${JSON.stringify(r.own)}`);
+      assert.equal(r.protoHasGum, true);
+    });
+  });
+
+test('microphone_stream: the synthetic track passes for an ordinary mic track',
+  async (t) => {
+    await withMicrophoneShim(t, async (page) => {
+      const r = await page.evaluate(async () => {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const track = stream.getAudioTracks()[0];
+        const s = (fn) => Function.prototype.toString.call(fn);
+        const labelDesc =
+          Object.getOwnPropertyDescriptor(MediaStreamTrack.prototype, 'label');
+        return {
+          own: Object.getOwnPropertyNames(track),
+          ctor: Object.getPrototypeOf(track).constructor.name,
+          kind: track.kind,
+          readyState: track.readyState,
+          label: track.label,
+          labelOnInstance: !!Object.getOwnPropertyDescriptor(track, 'label'),
+          labelGetter: labelDesc && labelDesc.get ? s(labelDesc.get) : 'none',
+          getSettings: s(track.getSettings),
+          settings: track.getSettings(),
+        };
+      });
+      assert.deepEqual(r.own, [],
+        `track carries own-properties a real one lacks: ${JSON.stringify(r.own)}`);
+      assert.equal(r.ctor, 'MediaStreamTrack');
+      assert.equal(r.kind, 'audio');
+      assert.equal(r.readyState, 'live');
+      assert.equal(r.labelOnInstance, false);
+      assert.match(r.labelGetter, /\[native code\]/,
+        `the label getter leaks its source: ${r.labelGetter}`);
+      assert.match(r.getSettings, /\[native code\]/);
+      assert.equal(r.label, 'Microphone Array');
+      // A WebAudio destination track otherwise reports an empty settings bag,
+      // which is the tell this fills in.
+      assert.equal(typeof r.settings.deviceId, 'string');
+      assert.equal(typeof r.settings.sampleRate, 'number');
+      assert.equal(typeof r.settings.echoCancellation, 'boolean');
+    });
   });

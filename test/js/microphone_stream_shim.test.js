@@ -49,9 +49,27 @@ function setupMicDom({ decision, mode, noBridge = false, realMics = [] } = {}) {
     getUserMedia(constraints) {
       calls.realGum += 1;
       calls.lastConstraints = constraints;
+      calls.gumConstraints = (calls.gumConstraints || []).concat([constraints]);
+      // Tracks follow the constraints, so a `real` audio request gets an
+      // audio track and the split in MIC-004 is observable.
+      const tracks = [];
+      if (constraints && constraints.audio) {
+        tracks.push({
+          kind: 'audio', __real: true, readyState: 'live',
+          stop() { this.readyState = 'ended'; calls.realAudioStopped = true; },
+        });
+      }
+      if (constraints && constraints.video) {
+        tracks.push({
+          kind: 'video', __real: true, readyState: 'live',
+          stop() { this.readyState = 'ended'; },
+        });
+      }
       return Promise.resolve({
         __realStream: true,
-        getTracks: () => [{ kind: 'video', __real: true, stop() {} }],
+        getTracks: () => tracks,
+        getAudioTracks: () => tracks.filter((t) => t.kind === 'audio'),
+        getVideoTracks: () => tracks.filter((t) => t.kind === 'video'),
       });
     }
     enumerateDevices() {
@@ -376,4 +394,56 @@ test('one bridge round trip serves a burst of requests', async () => {
     md.getUserMedia({ audio: true }),
   ]);
   assert.equal(handlerCalls, 1);
+});
+
+test('real hands over the device microphone (MIC-001)', async () => {
+  const { window, calls } = setupMicDom({ decision: { mode: 'real' } });
+  const stream = await window.navigator.mediaDevices.getUserMedia({ audio: true });
+  assert.equal(calls.realGum, 1, 'the platform request is what serves this mode');
+  assert.equal(stream.getAudioTracks()[0].__real, true);
+  assert.equal(calls.contexts, undefined, 'no WebAudio graph is built');
+});
+
+test('real splits a combined request rather than asking for both (MIC-004)', async () => {
+  const { window, calls } = setupMicDom({ decision: { mode: 'real' } });
+  await window.navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+  // Two separate platform requests, never one carrying both: iOS and macOS
+  // report a single CAMERA_AND_MICROPHONE resource for the combined form and
+  // it cannot be half-granted.
+  assert.equal(calls.gumConstraints.length, 2);
+  assert.deepEqual(
+    calls.gumConstraints.map((c) => [!!c.audio, !!c.video]),
+    [[true, false], [false, true]],
+  );
+});
+
+test('a device audio track is registered for the deactivation stop (MIC-012)', async () => {
+  const { window, calls } = setupMicDom({ decision: { mode: 'real' } });
+  const stream = await window.navigator.mediaDevices.getUserMedia({ audio: true });
+  assert.equal(window.__wsRealTracks.length, 1);
+  assert.equal(window.__wsStopRealCapture(), 1);
+  assert.equal(stream.getAudioTracks()[0].readyState, 'ended');
+  assert.equal(calls.realAudioStopped, true);
+});
+
+test('the deactivation stop leaves a substituted audio track alone (MIC-012)', async () => {
+  const { window, calls } = setupMicDom({
+    decision: { mode: 'virtual', source: AUDIO_SOURCE },
+  });
+  const stream = await window.navigator.mediaDevices.getUserMedia({ audio: true });
+  assert.equal(window.__wsStopRealCapture(), 0, 'nothing device-backed to stop');
+  assert.equal(calls.trackStopped, undefined);
+  assert.ok(window.__wsSyntheticTracks.has(stream.getAudioTracks()[0]));
+});
+
+test('real mode leaves the platform device list alone (MIC-009)', async () => {
+  const realMics = [
+    { deviceId: 'm1', kind: 'audioinput', label: 'Built-in', groupId: 'g1' },
+    { deviceId: 'm2', kind: 'audioinput', label: 'Headset', groupId: 'g2' },
+  ];
+  const { window } = setupMicDom({ decision: { mode: 'real' }, mode: 'real', realMics });
+  const list = await window.navigator.mediaDevices.enumerateDevices();
+  const inputs = list.filter((d) => d.kind === 'audioinput');
+  assert.equal(inputs.length, 2);
+  assert.deepEqual(inputs.map((d) => d.deviceId), ['m1', 'm2']);
 });

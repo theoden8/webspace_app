@@ -30,6 +30,8 @@
 	<string>NSApplication</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Used when you allow a website to use the camera (for example to scan a QR code in a banking web app). The camera feed is not stored or transmitted by the app.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Used only when you allow a specific website to use the microphone in that site's permission settings. Audio is delivered to that site's page and is not stored or transmitted by the app, and recording ends as soon as you switch away from the site.</string>
 	<!-- LIR-004: webspace://open?url=... entry point. macOS routes
 	     `open webspace://...` and Services-menu / launchctl URL invocations
 	     through application:openURLs:. -->

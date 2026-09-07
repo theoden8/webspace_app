@@ -389,15 +389,11 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
             onSelect: () => _update(
                 _values.copyWith(microphoneMode: MicrophoneAccessMode.ask)),
           ),
-          // Shown, not omitted: the unavailable row is where the "no real
-          // microphone, ever" guarantee becomes visible. Today it is buried in
-          // a hint popup.
           _Option(
             state: SitePermissionState.allowed,
-            label: loc.permissionStateAllowed,
-            onSelect: () {},
-            enabled: false,
-            unavailableReason: loc.permissionMicrophoneNeverReal,
+            label: loc.siteSettingsMicrophoneAccessAllow,
+            onSelect: () => _update(
+                _values.copyWith(microphoneMode: MicrophoneAccessMode.real)),
           ),
           _Option(
             state: SitePermissionState.simulated,

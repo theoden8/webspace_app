@@ -11,24 +11,45 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.PluginRegistry
 
 /**
- * Ensures the app holds the CAMERA runtime permission before the webview
- * grants a page's camera permission request. Android's
- * `PermissionRequest.grant()` fails silently when the app itself lacks the
- * permission, so the Dart-side grant path calls `ensureCameraPermission`
- * first. Permission is requested on demand via ActivityCompat; the activity
- * forwards onRequestPermissionsResult here (same contract as LocationPlugin).
+ * Ensures the app holds a capture runtime permission before the webview grants
+ * a page's capture permission request. Android's `PermissionRequest.grant()`
+ * fails silently when the app itself lacks the permission, so the Dart-side
+ * grant path calls the ensure method first. Permission is requested on demand
+ * via ActivityCompat; the activity forwards onRequestPermissionsResult here
+ * (same contract as LocationPlugin).
+ *
+ * One instance per capability, each with its own channel and request code, so
+ * the camera and the microphone queue independently and a prompt for one does
+ * not resolve waiters on the other.
  */
-class CameraPermissionPlugin(
+class CapturePermissionPlugin(
     private val activity: FlutterActivity,
     flutterEngine: FlutterEngine,
+    channelName: String,
+    private val method: String,
+    private val permission: String,
+    private val requestCode: Int,
 ) : MethodChannel.MethodCallHandler, PluginRegistry.RequestPermissionsResultListener {
 
     companion object {
-        private const val CHANNEL = "org.codeberg.theoden8.webspace/camera_permission"
-        private const val REQ_PERMISSION = 0x10D
+        fun camera(activity: FlutterActivity, engine: FlutterEngine) = CapturePermissionPlugin(
+            activity, engine,
+            "org.codeberg.theoden8.webspace/camera_permission",
+            "ensureCameraPermission",
+            Manifest.permission.CAMERA,
+            0x10D,
+        )
+
+        fun microphone(activity: FlutterActivity, engine: FlutterEngine) = CapturePermissionPlugin(
+            activity, engine,
+            "org.codeberg.theoden8.webspace/microphone_permission",
+            "ensureMicrophonePermission",
+            Manifest.permission.RECORD_AUDIO,
+            0x10E,
+        )
     }
 
-    private val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
+    private val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
 
     // All calls arrive on the main thread; a burst of requests while the OS
     // prompt is up shares the single in-flight prompt and every waiter is
@@ -41,14 +62,14 @@ class CameraPermissionPlugin(
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
-            "ensureCameraPermission" -> handleEnsureCameraPermission(result)
+            method -> handleEnsurePermission(result)
             else -> result.notImplemented()
         }
     }
 
-    private fun handleEnsureCameraPermission(result: MethodChannel.Result) {
+    private fun handleEnsurePermission(result: MethodChannel.Result) {
         val granted = ContextCompat.checkSelfPermission(
-            activity, Manifest.permission.CAMERA
+            activity, permission
         ) == PackageManager.PERMISSION_GRANTED
         if (granted) {
             result.success("granted")
@@ -58,7 +79,7 @@ class CameraPermissionPlugin(
         pending.add(result)
         if (!promptInFlight) {
             ActivityCompat.requestPermissions(
-                activity, arrayOf(Manifest.permission.CAMERA), REQ_PERMISSION
+                activity, arrayOf(permission), this.requestCode
             )
         }
     }
@@ -68,7 +89,7 @@ class CameraPermissionPlugin(
         permissions: Array<out String>,
         grantResults: IntArray,
     ): Boolean {
-        if (requestCode != REQ_PERMISSION) return false
+        if (requestCode != this.requestCode) return false
         val waiters = pending.toList()
         pending.clear()
         val granted = grantResults.any { it == PackageManager.PERMISSION_GRANTED }

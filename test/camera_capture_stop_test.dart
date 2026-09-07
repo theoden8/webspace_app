@@ -39,17 +39,17 @@ WebViewModel _model(
 }
 
 void main() {
-  group('stopRealCameraCapture (CAM-012)', () {
+  group('stopRealCapture (CAM-012)', () {
     test('posts the shim hook into the page', () async {
       final c = _RecordingController();
-      await _model(c).stopRealCameraCapture();
+      await _model(c).stopRealCapture();
       expect(c.evaluated, hasLength(1));
       expect(c.evaluated.single, contains('__wsStopRealCapture'));
     });
 
     test('guards on the hook so a page without the shim is a no-op', () async {
       final c = _RecordingController();
-      await _model(c).stopRealCameraCapture();
+      await _model(c).stopRealCapture();
       // The shim returns early on a platform with no mediaDevices, so the
       // hook can legitimately be absent; an unguarded call would throw a
       // ReferenceError into the page.
@@ -57,11 +57,11 @@ void main() {
     });
 
     test('no controller is a no-op rather than a throw', () async {
-      await _model(null).stopRealCameraCapture();
+      await _model(null).stopRealCapture();
     });
 
     test('a disposed controller is swallowed', () async {
-      await _model(_ThrowingController()).stopRealCameraCapture();
+      await _model(_ThrowingController()).stopRealCapture();
     });
 
     test('notification sites still stop capture', () async {
@@ -69,13 +69,13 @@ void main() {
       // is a separate call: their JS keeps running in the background, so a
       // capture would too.
       final c = _RecordingController();
-      await _model(c, notificationsEnabled: true).stopRealCameraCapture();
+      await _model(c, notificationsEnabled: true).stopRealCapture();
       expect(c.evaluated, hasLength(1));
     });
 
     test('background-audio sites still stop capture', () async {
       final c = _RecordingController();
-      await _model(c, backgroundAudioEnabled: true).stopRealCameraCapture();
+      await _model(c, backgroundAudioEnabled: true).stopRealCapture();
       expect(c.evaluated, hasLength(1));
     });
 
@@ -86,7 +86,7 @@ void main() {
       // are synthetic.
       final c = _RecordingController();
       await _model(c, cameraMode: CameraAccessMode.virtual)
-          .stopRealCameraCapture();
+          .stopRealCapture();
       expect(c.evaluated, hasLength(1));
     });
   });

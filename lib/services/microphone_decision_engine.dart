@@ -46,6 +46,9 @@ class MicrophoneDecisionEngine {
         denied: () => const MicrophoneDecision.block(),
         effectiveMode: effectiveMode,
         settled: (mode, source) {
+          if (mode == MicrophoneAccessMode.real) {
+            return const MicrophoneDecision(MicrophoneAccessMode.real);
+          }
           if (mode == MicrophoneAccessMode.block) {
             return const MicrophoneDecision.block();
           }

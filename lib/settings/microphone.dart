@@ -3,13 +3,12 @@ import 'dart:typed_data';
 
 /// Per-site web microphone access mode.
 ///
-/// There is deliberately no "hand over the real microphone" mode: this
-/// feature never asks the OS for a recording permission and never opens a
-/// capture device. A site either gets a synthetic microphone rendered from an
-/// audio file the user picked, or nothing.
-///
 /// - [ask]: no decision recorded yet. The first `getUserMedia` that asks for
-///   audio shows the Block / Use-audio-file popup and records the answer.
+///   audio shows the Block / Use-audio-file / Allow popup and records the
+///   answer.
+/// - [real]: the device microphone is handed to the page. Granted only while
+///   the site is the one on screen, ended when it leaves the screen, and
+///   backed by the app-level recording permission (MIC-014, MIC-015).
 /// - [virtual]: the page gets a [MediaStream] whose audio track is the
 ///   user-picked file decoded once and looped forever through a WebAudio
 ///   graph. The real microphone is never opened and no OS microphone
@@ -17,9 +16,13 @@ import 'dart:typed_data';
 /// - [block]: audio capture requests are rejected without prompting. The page
 ///   sees a `NotAllowedError`, exactly as if the user had denied a real
 ///   browser prompt.
-enum MicrophoneAccessMode { ask, virtual, block }
+enum MicrophoneAccessMode { ask, real, virtual, block }
 
 /// Parse a stored mode name, defaulting to [MicrophoneAccessMode.ask].
+///
+/// An older build reading a `real` written here has no such value and falls
+/// back to [MicrophoneAccessMode.ask], which is the safe direction for a
+/// downgrade: a grant becomes a prompt, never the reverse.
 MicrophoneAccessMode microphoneAccessModeFromJson(Object? modeName) {
   if (modeName is String) {
     for (final m in MicrophoneAccessMode.values) {
