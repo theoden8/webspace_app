@@ -325,9 +325,23 @@ for a different signal on the same handler (`hasGesture`, not `isForMainFrame`),
 it has been conflicted since August, and NESTED-013 touches the same spec
 section, so land one before writing the other.
 
-Note for whoever revisits the Linux CI comment: the claim at
-`.github/workflows/build-and-test.yml:562-566` that the plugin calls
-`webkit_navigation_action_is_for_main_frame` describes the *intended* end state,
-not the present one. The symbol does not exist in shipped WebKit yet, which is
-what PR 65415 is for, and nothing in the fork calls it. Only
-`webkit_web_view_get_theme_color` actually forces the 2.50 floor today.
+### Verified against WebKit sources, 2026-09-07
+
+`webkit_navigation_action_is_for_main_frame` **has never been added to WebKit.**
+`Source/WebKit/UIProcess/API/glib/WebKitNavigationAction.h.in` declares the same
+six accessors (`get_navigation_type`, `get_mouse_button`, `get_modifiers`,
+`get_request`, `is_user_gesture`, `get_frame_name`) and nothing else on every ref
+checked: `main`, `webkitglib/2.50`, `webkitglib/2.52` and `webkitglib/2.54`, all
+HTTP 200. PR 65415 is open and merging-blocked, so there is no release to wait
+for and no version to gate on yet.
+
+The claim at `.github/workflows/build-and-test.yml:562-566` that the plugin
+"calls `webkit_navigation_action_is_for_main_frame` (added in 2.50)" is wrong on
+both halves: nothing in the fork calls it, and it was not added in 2.50 or in
+any release since.
+
+`webkit_web_view_get_theme_color` is real and the boundary is as stated: absent
+from `WebKitWebView.h.in` on `webkitglib/2.48`, present on `webkitglib/2.50`. It
+is the only symbol actually forcing our 2.50 floor, so PR #2781's guard should
+free the `debian:sid-slim` pin on its own. The full Linux job is still the proof,
+but the second symbol in that comment was never a reason.

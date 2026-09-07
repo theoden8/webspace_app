@@ -89,8 +89,11 @@ something to wait for. Keep each contributor's `--author` and cite
 - [ ] 8.1 #2781, the `WEBKIT_CHECK_VERSION(2,50,0)` guard. Then flip the Linux
   CI container off `debian:sid-slim` and confirm the whole job stays green,
   including the Xvfb integration loop. The build is the only proof no other 2.50
-  symbol lurks. Fix the stale comment at `build-and-test.yml:562-566` while
-  there: `webkit_navigation_action_is_for_main_frame` is not in the fork.
+  symbol lurks. Fix the wrong comment at `build-and-test.yml:562-566` while
+  there: `webkit_navigation_action_is_for_main_frame` is not called by the fork
+  and was never added to WebKit (verified absent on `main` and on the 2.50,
+  2.52 and 2.54 branches). `webkit_web_view_get_theme_color` is the only real
+  2.50 symbol, verified absent on 2.48 and present on 2.50.
 - [ ] 8.2 #2767, the `responds(to:)` guard for `upgradeKnownHostsToHTTPS`. If we
   would rather not keep a Big Sur VM to verify it, the honest alternative is to
   raise `macos/Podfile` and `MACOSX_DEPLOYMENT_TARGET` to 12.0 and skip it.

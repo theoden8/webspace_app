@@ -248,7 +248,9 @@ empty, which is also true of every unnamed iframe, and defaults to `true`.
 The real API is coming from us:
 [WebKit PR 65415](https://github.com/WebKit/WebKit/pull/65415) adds
 `webkit_navigation_action_is_for_main_frame()` for WPE and GTK. It is open and
-merging-blocked on test failures.
+merging-blocked on test failures, and the symbol exists in **no** WebKit release:
+verified absent from `WebKitNavigationAction.h.in` on `main` and on the
+`webkitglib/2.50`, `2.52` and `2.54` branches. There is nothing to gate on yet.
 
 When it lands and a WPE release carries it, replace both sites with the real
 call behind a `WEBKIT_CHECK_VERSION` guard, the same shape as B1, so the fork
