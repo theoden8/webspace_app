@@ -9,7 +9,7 @@
   map to `MICROPHONE`, and is GRANT honoured the way the camera's is? Until
   confirmed, MIC-015 keeps Linux at today's behaviour and the UI does not offer
   the real option there.
-- [ ] 1.4 Update the `web-microphone-access` one-liner in the `CLAUDE.md`
+- [x] 1.4 Update the `web-microphone-access` one-liner in the `CLAUDE.md`
   OpenSpec table once implemented, and mark the slug *(change)* until archived.
 
 ## 2. Model and state
@@ -50,12 +50,17 @@
 ## 4. Native
 
 - [x] 4.1 `android/app/src/main/AndroidManifest.xml`: add `RECORD_AUDIO`.
-- [x] 4.2 `MicrophonePermissionPlugin.kt` beside `CameraPermissionPlugin.kt`,
-  channel `org.codeberg.theoden8.webspace/microphone_permission`, registered
-  where the camera one is.
-- [x] 4.3 `lib/services/microphone_permission_service.dart`: a
-  `CameraPermissionService` twin, re-checking on every request and caching
-  nothing (MIC-015).
+- [x] 4.2 Generalise `CameraPermissionPlugin.kt` into `CapturePermissionPlugin.kt`,
+  parameterised by (channel, method, permission, request code) with `camera()`
+  and `microphone()` factories, and register both in `MainActivity`. A second
+  copy of the plugin would have been the copy the repo's "code flows new →
+  stable" rule forbids; separate request codes keep the two prompts from
+  resolving each other's waiters.
+- [x] 4.3 Generalise `camera_permission_service.dart` into
+  `CapturePermissionService`, with `CameraPermissionService` and
+  `MicrophonePermissionService` as named entry points over it. Re-checks on
+  every request and caches nothing (MIC-015). No new file: the camera path and
+  its tests reach for the old name.
 - [x] 4.4 `ios/Runner/Info.plist`: `NSMicrophoneUsageDescription`.
 - [x] 4.5 `macos/Runner/Info.plist`: `NSMicrophoneUsageDescription`;
   `macos/Runner/{DebugProfile,Release}.entitlements`:
@@ -71,8 +76,10 @@
   documents the opposite guarantee.
 - [x] 5.2 `lib/web_view_model.dart`: rename `stopRealCameraCapture` to
   `stopRealCapture`, update its doc comment and both call sites in `main.dart`.
-- [x] 5.3 `main.dart` and `InAppWebViewScreen`: the popup gains an Allow
-  button; nothing else in the decision funnel changes.
+- [x] 5.3 `main.dart`: `_resolveMicrophoneDecision` gains an Allow button,
+  reusing the existing `homeAllowAction` key. `InAppWebViewScreen` needed no
+  edit — it delegates to this resolver, so the nested flow got the button for
+  free.
 
 ## 6. UI
 
@@ -109,8 +116,10 @@
 - [x] 7.7 `test/browser/capture_stop_mixed_stream.test.js`: under real
   Chromium, both shims in one realm and both injection orders, the stop ends
   the device audio half of a mixed stream and spares the simulated video half.
-  This is the mechanism behind the MIC-014 derived clause; a two-site
-  integration test would prove the clause end to end and does not exist yet.
+  This is the *mechanism* behind the MIC-014 derived clause.
+- [ ] 7.7a The derived clause itself ("at most one site is capturing") is not
+  proven end to end: no test drives two sites and asserts that granting B ended
+  A's track. It needs the integration tier, since it spans a site switch.
 - [x] 7.8 `test/browser/microphone_stream_real_engine.test.js`: the existing
   tier asserts the page's `microphone` permission state never moves. Scoped to
   the mode it actually drives, since it is no longer true of the feature.
@@ -121,10 +130,12 @@
 - [x] 7.10 `test/browser/lie_detection.test.js`: the tier probed the camera
   shim only. MIC-009 makes the same undetectability claims for audio, so the
   same three probes now run against the microphone shim.
-- [ ] 7.11 Still open: the `AudioContext` resume-on-gesture path (MIC-008) is
-  not genuinely exercised. jsdom stubs `resume()` to a resolved promise and the
-  browser harness calls it itself, so an engine that suspends would hand the
-  page a silent track with both tiers green.
+- [ ] 7.11 Exercise the `AudioContext` resume-on-gesture path (MIC-008) for
+  real: start the context suspended, assert the shim resumes it, and assert the
+  gesture retry when the first resume is refused. jsdom stubs `resume()` to a
+  resolved promise and the browser harness calls it itself, so today an engine
+  that suspends would hand the page a silent track with both tiers green.
+  Pre-existing, not introduced by this change.
 
 ## 8. Release
 

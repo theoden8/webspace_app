@@ -459,10 +459,15 @@ rather than configuration:
 
 - Android: `android.permission.RECORD_AUDIO` in the manifest, plus a
   `MicrophonePermissionService` (channel
-  `org.codeberg.theoden8.webspace/microphone_permission`, plugin beside
-  `CameraPermissionPlugin.kt`) that requests the runtime permission on demand
-  at grant time. `PermissionRequest.grant()` fails silently without it, the
-  same way the camera does.
+  `org.codeberg.theoden8.webspace/microphone_permission`) that requests the
+  runtime permission on demand at grant time. `PermissionRequest.grant()`
+  fails silently without it, the same way the camera does. The camera's plugin
+  and service are generalised rather than copied: one
+  `CapturePermissionPlugin` parameterised by (channel, method, permission,
+  request code) with a factory per capability, and one
+  `CapturePermissionService` behind the two named entry points. Each capability
+  SHALL keep its own request code, so a prompt for one never resolves the
+  waiters queued on the other.
 - iOS: `NSMicrophoneUsageDescription`. Responding GRANT suppresses only
   WebKit's per-site prompt; WebKit itself triggers the app-level TCC prompt
   when capture starts.
@@ -470,10 +475,16 @@ rather than configuration:
   today declares only the camera one) and the
   `com.apple.security.device.audio-input` sandbox entitlement in both
   entitlements files.
-- Linux (WPE): unresolved, and unresolved means unoffered. The fork maps a
-  video-only user-media request to `CAMERA` and honours GRANT; until the audio
-  path is read out of the fork and confirmed, the platform SHALL keep today's
-  behaviour and SHALL NOT offer the real option.
+- Linux (WPE): **unverified.** The fork maps a video-only user-media request
+  to `CAMERA` and honours GRANT; whether it maps an audio request to
+  `MICROPHONE` and honours a grant the same way has not been read out of the
+  fork. The option is offered there like everywhere else, and the failure
+  direction if the fork does not route audio is safe: the request never
+  reaches Dart and WPE denies it natively, so an allowed site gets a denial
+  rather than an unannounced capture. What it costs is a setting that silently
+  does nothing, which is why confirming the path stays an open task rather
+  than a note. Do not write a Linux-specific behaviour into this requirement
+  before reading the fork.
 
 The app-level permission SHALL be re-checked on every request and cached
 nowhere, so a permission the user revokes in system settings stops the next
