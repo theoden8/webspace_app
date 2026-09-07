@@ -155,7 +155,7 @@ test('virtual microphone plays the picked clip and keeps looping', async (t) => 
   }
 });
 
-test('no OS capture is involved: the page never holds a microphone permission',
+test('virtual mode involves no OS capture: the permission state never moves',
   async (t) => {
     if (!requireBrowser(browser, t)) return;
     const { page, server } = await openPage({

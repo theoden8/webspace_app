@@ -2167,13 +2167,17 @@
   "@siteSettingsMicrophoneAccess": {
     "description": "List tile label and hint title for the per-site web microphone access setting."
   },
-  "siteSettingsMicrophoneAccessHint": "Controls whether this site may capture audio.\n\nWebSpace never opens your real microphone and never asks the system for a recording permission. Instead, the site can be fed an audio file that it hears on repeat.\n\nAsk (default): a popup asks the first time, then remembers your choice.\nAudio file: loop the chosen file to the site.\nAlways block: reject every request.",
+  "siteSettingsMicrophoneAccessHint": "Controls whether this site may capture audio.\n\nOnly the site you are looking at can record. Recording stops when you switch to another site, and a site in the background is never granted the microphone.\n\nAsk (default): a popup asks the first time, then remembers your choice.\nAlways allow: hand this site your real microphone.\nAudio file: loop the chosen file to the site.\nAlways block: reject every request.",
   "@siteSettingsMicrophoneAccessHint": {
-    "description": "Hint body describing the per-site web microphone access setting: no real microphone is ever used; the site can instead be fed a looped audio file."
+    "description": "Hint body describing the per-site web microphone access setting: the four modes, and the rule that only the on-screen site can record."
   },
   "siteSettingsMicrophoneAccessAsk": "Ask",
   "@siteSettingsMicrophoneAccessAsk": {
     "description": "Microphone access dropdown option: ask each time."
+  },
+  "siteSettingsMicrophoneAccessAllow": "Always allow",
+  "@siteSettingsMicrophoneAccessAllow": {
+    "description": "Microphone access dropdown option: hand the device microphone to the site whenever the site is the one on screen."
   },
   "siteSettingsMicrophoneAccessVirtual": "Audio file",
   "@siteSettingsMicrophoneAccessVirtual": {
@@ -3643,10 +3647,6 @@
   "permissionsBackgroundAudioNotAGrant": "Exempt from pausing. Grants nothing.",
   "@permissionsBackgroundAudioNotAGrant": {
     "description": "Subtitle for the background audio switch, clarifying it is a playback exemption rather than a permission."
-  },
-  "permissionMicrophoneNeverReal": "Not available. WebSpace never opens a real microphone and never asks the system for a recording permission.",
-  "@permissionMicrophoneNeverReal": {
-    "description": "Shown on the greyed-out Allowed option for microphone, stating that a real microphone is never used."
   },
   "permissionStateAsk": "Ask",
   "@permissionStateAsk": {

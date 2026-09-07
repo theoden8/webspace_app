@@ -246,19 +246,19 @@
   // dropped stream is collectable.
   var _syntheticTracks = new WeakMap();
 
-  // Every track ANY WebSpace capture shim substituted, shared across shims.
-  // The microphone shim writes to the same set: a combined audio+video
-  // request is served by both, and whichever shim wraps the other sees the
-  // other's track in the stream it returns. Without this, CAM-012 would end
-  // the simulated microphone the moment the user switched sites — the exact
-  // thing the simulated camera is exempted from.
+  // Every track ANY WebSpace capture shim substituted, and every DEVICE track
+  // any of them handed over, both shared across shims: a combined audio+video
+  // request is served by two shims, and whichever wraps the other sees the
+  // other's track in the stream it returns. Without the shared sets, CAM-012
+  // would end the simulated microphone the moment the user switched sites,
+  // and whichever shim installed the stop hook last would own it alone.
   var _wsSynthetic = globalThis.__wsSyntheticTracks || new WeakSet();
   globalThis.__wsSyntheticTracks = _wsSynthetic;
 
-  // Device tracks this shim has handed to the page, so a later deactivation
-  // can end them (CAM-012). WeakRef where available, so a page that churns
-  // streams doesn't pin dead tracks for the document's lifetime.
-  var _realTracks = [];
+  // WeakRef where available, so a page that churns streams doesn't pin dead
+  // tracks for the document's lifetime.
+  var _realTracks = globalThis.__wsRealTracks || [];
+  globalThis.__wsRealTracks = _realTracks;
   function trackRef(t) {
     return typeof WeakRef === 'function'
       ? new WeakRef(t)
@@ -267,40 +267,39 @@
   function rememberRealTracks(stream) {
     try {
       var tracks = (stream && stream.getTracks) ? stream.getTracks() : [];
-      for (var i = 0; i < tracks.length; i++) _realTracks.push(trackRef(tracks[i]));
+      for (var i = 0; i < tracks.length; i++) {
+        if (_wsSynthetic.has(tracks[i])) continue;
+        _realTracks.push(trackRef(tracks[i]));
+      }
     } catch (e) {}
     return stream;
   }
 
-  // Ends every device track this shim handed out. Dart calls it when the site
-  // stops being the one on screen: a camera must not keep capturing behind
-  // another site's page, and the page cannot silently re-acquire one because
-  // the bridge denies a backgrounded request (CAM-011).
-  //
-  // Synthetic tracks are deliberately left running. They are a local file
-  // drawn onto a canvas — nothing is being observed — and killing them would
-  // drop a half-finished scan the user comes back to.
-  try {
-    Object.defineProperty(globalThis, '__wsStopRealCapture', {
-      value: function stopRealCapture() {
-        var stopped = 0;
-        var live = [];
-        for (var i = 0; i < _realTracks.length; i++) {
-          var t = _realTracks[i].deref();
-          if (!t) continue;
-          if (_syntheticTracks.has(t) || _wsSynthetic.has(t)) { live.push(_realTracks[i]); continue; }
-          try {
-            if (t.readyState !== 'ended') { t.stop(); stopped++; }
-          } catch (e) {}
-        }
-        _realTracks = live;
-        return stopped;
-      },
-      writable: true,
-      enumerable: false,
-      configurable: true,
-    });
-  } catch (e) {}
+  if (typeof globalThis.__wsStopRealCapture !== 'function') {
+    try {
+      Object.defineProperty(globalThis, '__wsStopRealCapture', {
+        value: function stopRealCapture() {
+          var reg = globalThis.__wsRealTracks || [];
+          var stopped = 0;
+          var live = [];
+          for (var i = 0; i < reg.length; i++) {
+            var t = reg[i].deref();
+            if (!t) continue;
+            if (_wsSynthetic.has(t)) { live.push(reg[i]); continue; }
+            try {
+              if (t.readyState !== 'ended') { t.stop(); stopped++; }
+            } catch (e) {}
+          }
+          reg.length = 0;
+          for (var j = 0; j < live.length; j++) reg.push(live[j]);
+          return stopped;
+        },
+        writable: true,
+        enumerable: false,
+        configurable: true,
+      });
+    } catch (e) {}
+  }
 
   // Per spec a device label is only exposed once the page holds a capture
   // permission; flipped the first time this shim serves any stream.

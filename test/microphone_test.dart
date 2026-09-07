@@ -14,13 +14,25 @@ void main() {
 
     test('defaults to ask for absent / unknown / wrong-typed input', () {
       expect(microphoneAccessModeFromJson(null), MicrophoneAccessMode.ask);
-      expect(microphoneAccessModeFromJson('real'), MicrophoneAccessMode.ask);
+      expect(microphoneAccessModeFromJson('allow'), MicrophoneAccessMode.ask);
       expect(microphoneAccessModeFromJson(42), MicrophoneAccessMode.ask);
     });
 
-    test('there is no mode that opens the real device (MIC-001)', () {
+    test('a stored grant round-trips (MIC-001)', () {
       expect(MicrophoneAccessMode.values.map((m) => m.name),
-          ['ask', 'virtual', 'block']);
+          ['ask', 'real', 'virtual', 'block']);
+      expect(microphoneAccessModeFromJson('real'), MicrophoneAccessMode.real);
+      // The downgrade direction, spelled out because it is the safety
+      // property: a build without `real` reads this value with the parser
+      // above and lands on `ask`, so a grant becomes a prompt.
+      expect(microphoneAccessModeFromJson('real').name, 'real');
+    });
+
+    test('a real decision reaches the bridge as a grant (MIC-003)', () {
+      expect(const MicrophoneDecision(MicrophoneAccessMode.real).toBridgeJson(),
+          {'mode': 'real'});
+      expect(const MicrophoneDecision(MicrophoneAccessMode.ask).toBridgeJson(),
+          {'mode': 'block'});
     });
   });
 

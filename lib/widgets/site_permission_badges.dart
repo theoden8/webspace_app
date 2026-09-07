@@ -32,9 +32,12 @@ enum SitePermissionBadge {
   /// [CameraAccessMode.virtual]: a picked image/video is served instead.
   virtualCamera,
 
+  /// [MicrophoneAccessMode.real]: the device microphone is handed to the
+  /// page, while the site is the one on screen (MIC-014).
+  realMicrophone,
+
   /// [MicrophoneAccessMode.virtual]: a picked audio clip is looped to the
-  /// page. There is no real-microphone mode in the app, so this is the only
-  /// microphone grant that exists.
+  /// page.
   virtualMicrophone,
 
   /// [ScreenShareMode.virtual]: a picked image/video is served as the shared
@@ -63,8 +66,11 @@ List<SitePermissionBadge> sitePermissionBadges(WebViewModel model) {
       CameraAccessMode.virtual => SitePermissionBadge.virtualCamera,
       CameraAccessMode.ask || CameraAccessMode.block => null,
     },
-    if (model.effectiveMicrophoneMode == MicrophoneAccessMode.virtual)
-      SitePermissionBadge.virtualMicrophone,
+    switch (model.effectiveMicrophoneMode) {
+      MicrophoneAccessMode.real => SitePermissionBadge.realMicrophone,
+      MicrophoneAccessMode.virtual => SitePermissionBadge.virtualMicrophone,
+      MicrophoneAccessMode.ask || MicrophoneAccessMode.block => null,
+    },
     if (model.effectiveScreenShareMode == ScreenShareMode.virtual)
       SitePermissionBadge.virtualScreenShare,
     if (model.effectiveBackgroundAudioEnabled)
@@ -76,7 +82,8 @@ List<SitePermissionBadge> sitePermissionBadges(WebViewModel model) {
 /// opposed to a synthetic stream or a background-playback exemption.
 bool _isRealDeviceAccess(SitePermissionBadge badge) =>
     badge == SitePermissionBadge.realLocation ||
-    badge == SitePermissionBadge.realCamera;
+    badge == SitePermissionBadge.realCamera ||
+    badge == SitePermissionBadge.realMicrophone;
 
 /// Filled glyph for a real device, outlined for a synthetic stream.
 IconData sitePermissionBadgeIcon(SitePermissionBadge badge) => switch (badge) {
@@ -84,6 +91,7 @@ IconData sitePermissionBadgeIcon(SitePermissionBadge badge) => switch (badge) {
       SitePermissionBadge.spoofLocation => Icons.location_on_outlined,
       SitePermissionBadge.realCamera => Icons.videocam,
       SitePermissionBadge.virtualCamera => Icons.videocam_outlined,
+      SitePermissionBadge.realMicrophone => Icons.mic,
       SitePermissionBadge.virtualMicrophone => Icons.mic_none,
       SitePermissionBadge.virtualScreenShare => Icons.screen_share_outlined,
       SitePermissionBadge.backgroundAudio => Icons.music_note,
@@ -103,6 +111,8 @@ String sitePermissionBadgeLabel(AppLocalizations loc, SitePermissionBadge badge)
       '${loc.siteSettingsCameraAccess}$separator${loc.siteSettingsCameraAccessAllow}',
     SitePermissionBadge.virtualCamera =>
       '${loc.siteSettingsCameraAccess}$separator${loc.siteSettingsCameraAccessVirtual}',
+    SitePermissionBadge.realMicrophone =>
+      '${loc.siteSettingsMicrophoneAccess}$separator${loc.siteSettingsMicrophoneAccessAllow}',
     SitePermissionBadge.virtualMicrophone =>
       '${loc.siteSettingsMicrophoneAccess}$separator${loc.siteSettingsMicrophoneAccessVirtual}',
     SitePermissionBadge.virtualScreenShare =>

@@ -1899,11 +1899,13 @@ class WebViewModel {
         save: () async => saveFunc(),
       );
 
-  /// End any device-camera capture this site is running (CAM-012).
+  /// End any device capture this site is running: camera (CAM-012) and
+  /// microphone (MIC-012), through one hook over the shims' shared registry.
   ///
   /// Called when the site stops being the one on screen. The simulated camera
-  /// keeps streaming: it is a local file drawn onto a canvas, so nothing is
-  /// being observed, and ending it would drop a half-finished scan.
+  /// and microphone keep streaming: they are local files the user picked, so
+  /// nothing is being observed, and ending them would drop a half-finished
+  /// scan or stop playback the user comes back to.
   ///
   /// Two properties this must keep, both easy to lose:
   ///   * it runs BEFORE [pauseWebView] at every call site — the iOS
@@ -1912,7 +1914,7 @@ class WebViewModel {
   ///   * it is NOT folded into [pauseWebView], which early-returns for
   ///     notification and background-audio sites. Those sites may keep running
   ///     JS and audio in the background. The camera is not covered by either.
-  Future<void> stopRealCameraCapture() async {
+  Future<void> stopRealCapture() async {
     final c = controller;
     if (c == null) return;
     try {
@@ -1955,7 +1957,7 @@ class WebViewModel {
   /// keeps playing after it loses the screen and holds the OS transport
   /// controls up with it.
   ///
-  /// Same ordering constraint as [stopRealCameraCapture]: it must be
+  /// Same ordering constraint as [stopRealCapture]: it must be
   /// dispatched BEFORE the pause, since the iOS per-instance pause blocks the
   /// page's JS thread and this would sit queued behind it. Main frame only
   /// (`evaluateJavascript` targets it) — a player inside a cross-origin

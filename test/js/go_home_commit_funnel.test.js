@@ -53,7 +53,7 @@ test('outgoing-site teardown is funnelled through _quiesceOutgoingSite', () => {
   for (const raw of [
     /\.pauseWebView\(\)/,
     /\.pauseMediaPlayback\(\)/,
-    /\.stopRealCameraCapture\(\)/,
+    /\.stopRealCapture\(\)/,
   ]) {
     assert.ok(!raw.test(setCurrentIndex),
       `_setCurrentIndex dispatches ${raw} directly; route it through ` +

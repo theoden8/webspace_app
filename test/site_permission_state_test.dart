@@ -16,15 +16,12 @@ void main() {
           SitePermissionState.blocked);
     });
 
-    test('microphone can never report allowed', () {
-      // Not a property of this mapping so much as of the app: there is no
-      // real-microphone mode, the native layer denies audio capture, and no
-      // platform manifest declares a recording permission. If a `real` value
-      // is ever added to MicrophoneAccessMode this test is where it surfaces.
+    test('microphone reports allowed only for real (MIC-002)', () {
       for (final mode in MicrophoneAccessMode.values) {
-        expect(microphonePermissionState(mode),
-            isNot(SitePermissionState.allowed),
-            reason: '$mode must not project to allowed');
+        expect(
+            microphonePermissionState(mode) == SitePermissionState.allowed,
+            mode == MicrophoneAccessMode.real,
+            reason: '$mode');
       }
     });
 
@@ -68,6 +65,7 @@ void main() {
           MicrophoneAccessMode.values.map(microphonePermissionState).toSet(),
           {
             SitePermissionState.ask,
+            SitePermissionState.allowed,
             SitePermissionState.simulated,
             SitePermissionState.blocked,
           });

@@ -1,11 +1,10 @@
-// Virtual microphone JavaScript shim.
+// Per-site microphone JavaScript shim.
 //
-// Intercepts a `getUserMedia` that asks for audio and resolves it with a
-// MediaStream whose audio track is a user-picked clip decoded once and looped
-// forever through a WebAudio graph (`AudioBufferSourceNode.loop` ->
-// `MediaStreamAudioDestinationNode`). The device microphone is never opened
-// and no OS recording permission is ever requested on any platform — there is
-// no "hand over the real mic" mode to fall through to.
+// Intercepts a `getUserMedia` that asks for audio and resolves it from the
+// site's mode: `virtual` builds a MediaStream whose audio track is a
+// user-picked clip decoded once and looped forever through a WebAudio graph
+// (`AudioBufferSourceNode.loop` -> `MediaStreamAudioDestinationNode`), `real`
+// passes an audio-only request to the platform, and anything else denies.
 //
 // The per-site decision lives in Dart (`WebViewModel.microphoneMode`); this
 // shim asks for it through the `webMicrophoneRequest` handler on the first
@@ -22,17 +21,22 @@
 // presentation hygiene for a stream the user deliberately substituted — it is
 // not a defeat of any analysis of the audio itself.
 //
-// Composition with the camera shim: a request for audio AND video is split.
-// The audio half is synthesised here; the video half is re-issued through
-// `navigator.mediaDevices.getUserMedia` — the live public entry point, not
-// the function this shim captured at install time — so the virtual camera
-// serves it whichever order the two shims were injected in. Re-entry
-// terminates because a video-only request always falls through this shim.
+// Composition with the camera shim: a request for audio AND video is split in
+// every mode. The audio half is synthesised or requested audio-only here; the
+// video half is re-issued through `navigator.mediaDevices.getUserMedia` — the
+// live public entry point, not the function this shim captured at install
+// time — so the camera shim resolves it per `cameraMode` whichever order the
+// two were injected in. Re-entry terminates because a video-only request
+// always falls through this shim. Splitting is also what keeps the platform's
+// own combined resource (CAMERA_AND_MICROPHONE on iOS and macOS, which cannot
+// be half-granted) out of the picture for a page this shim reached.
 //
 // Must be injected at DOCUMENT_START (and with forMainFrameOnly: false) so it
 // beats the page's own capture code and reaches cross-origin iframes.
 
 import 'dart:convert';
+
+import 'package:webspace/services/capture_track_registry.dart';
 
 /// Build the virtual-microphone shim.
 ///
@@ -43,6 +47,7 @@ import 'dart:convert';
 /// and the drift check.
 String buildMicrophoneStreamShim({String deviceLabel = 'Microphone Array'}) {
   final label = jsonEncode(deviceLabel);
+  final registry = buildRealCaptureRegistry();
   return '''
 (function() {
   'use strict';
@@ -118,6 +123,21 @@ String buildMicrophoneStreamShim({String deviceLabel = 'Microphone Array'}) {
     return out;
   }
 
+  // Shallow copy with the video half removed, for the platform audio request
+  // a `real` decision issues. Splitting is what keeps a combined request off
+  // the platform's own combined resource (iOS and macOS report a single
+  // CAMERA_AND_MICROPHONE that cannot be half-granted), so the camera half
+  // stays the camera shim's decision whatever this site's microphone mode is.
+  function audioOnly(constraints) {
+    var out = {};
+    for (var k in constraints) {
+      if (k !== 'video' && Object.prototype.hasOwnProperty.call(constraints, k)) {
+        out[k] = constraints[k];
+      }
+    }
+    return out;
+  }
+
   // Honours ideal/exact/min/max shapes on a numeric audio constraint.
   function pickNumber(spec, fallback) {
     if (typeof spec === 'number') return spec;
@@ -172,7 +192,7 @@ String buildMicrophoneStreamShim({String deviceLabel = 'Microphone Array'}) {
   }
 
   // Asks Dart for this site's microphone decision. Returns a promise
-  // resolving to {mode: 'virtual'|'block', source?: {dataUrl}}.
+  // resolving to {mode: 'real'|'virtual'|'block', source?: {dataUrl}}.
   //
   // Coalesced: a page that calls getUserMedia in a burst (retry loops are
   // common) must not stack popups. The Dart side also coalesces, but doing it
@@ -182,8 +202,8 @@ String buildMicrophoneStreamShim({String deviceLabel = 'Microphone Array'}) {
     if (_decisionInFlight) return _decisionInFlight;
     var iaw = globalThis.flutter_inappwebview;
     if (!iaw || !iaw.callHandler) {
-      // No bridge: fail closed. There is no real-microphone mode to fall
-      // through to, so denying is also the only honest answer.
+      // No bridge: fail closed (MIC-010). Without the per-site decision there
+      // is no way to tell a site the user allowed from one they did not.
       return Promise.resolve({ mode: 'block' });
     }
     var origin = '';
@@ -205,15 +225,12 @@ String buildMicrophoneStreamShim({String deviceLabel = 'Microphone Array'}) {
   // dropped stream is collectable.
   var _syntheticTracks = new WeakMap();
 
-  // Every track ANY WebSpace capture shim substituted, shared across shims.
-  // The camera shim ends the device tracks it handed out when the site leaves
-  // the screen (CAM-012) and skips substituted ones; a combined audio+video
-  // request returns a stream carrying this shim's audio track through that
-  // shim, so the exemption has to be readable from there. MIC-012 is why the
-  // audio side has no stop of its own: there is no device to release.
-  var _wsSynthetic = globalThis.__wsSyntheticTracks || new WeakSet();
-  globalThis.__wsSyntheticTracks = _wsSynthetic;
-
+  // Shared across every capture shim: the tracks any of them substituted, and
+  // the DEVICE tracks any of them handed over. A combined audio+video request
+  // is served by two shims, so each has to recognise the other's tracks, and
+  // the deactivation stop (MIC-012 / CAM-012) has to end the device half of
+  // such a stream while leaving the substituted half running.
+${registry}
   // Per spec a device label is only exposed once the page holds a capture
   // permission; flipped the first time this shim serves any stream.
   var _servedStream = false;
@@ -463,7 +480,10 @@ String buildMicrophoneStreamShim({String deviceLabel = 'Microphone Array'}) {
         // A clone of a synthetic track must keep presenting as the same
         // device; without this it would report a real (empty) label and
         // settings, betraying the original.
-        if (meta && copy) _syntheticTracks.set(copy, meta);
+        if (meta && copy) {
+          _syntheticTracks.set(copy, meta);
+          try { _wsSynthetic.add(copy); } catch (e) {}
+        }
         return copy;
       }, 'clone');
       try { proto.clone = clone; } catch (e) {}
@@ -556,22 +576,38 @@ String buildMicrophoneStreamShim({String deviceLabel = 'Microphone Array'}) {
     }
     var alsoVideo = wantsVideo(constraints);
     return fetchDecision().then(function(decision) {
-      if (decision.mode !== 'virtual') {
+      var real = decision.mode === 'real';
+      if (!real && decision.mode !== 'virtual') {
         // Blocked. Per spec a request fails as a whole when any requested
         // kind cannot be provided, so a combined request is rejected too
         // rather than silently downgraded to video.
         throw notAllowed('Permission denied');
       }
-      return virtualAudioStream(decision.source, constraints).then(function(audioStream) {
-        if (!alsoVideo) {
-          _servedStream = true;
-          return audioStream;
-        }
+      // The audio half. `real` goes to the platform as an AUDIO-ONLY request
+      // even when the page asked for video too, so the video half stays the
+      // camera shim's decision (MIC-004) and the platform never sees the
+      // combined resource it cannot half-grant. Dart still denies that
+      // resource defensively (MIC-003) for a page this shim did not reach.
+      var audioPromise = real
+        ? Promise.resolve(callOrigGum(self, audioOnly(constraints)))
+            .then(function(stream) {
+              if (!stream) throw notAllowed('getUserMedia is unavailable');
+              return rememberRealTracks(stream);
+            })
+        : virtualAudioStream(decision.source, constraints);
+      return audioPromise.then(function(audioStream) {
+        // Gates the synthetic device label behind a served stream. Only the
+        // substituted device has a label to reveal; a real grant exposes the
+        // platform's own list unmasked.
+        if (!real) _servedStream = true;
+        if (!alsoVideo) return audioStream;
         return Promise.resolve(delegateVideo(self, videoOnly(constraints)))
           .then(function(videoStream) {
-            _servedStream = true;
             return combine(audioStream, videoStream);
           }, function(err) {
+            // Never leave the audio half running behind a request the page
+            // saw fail: stops a device track, and tears down the WebAudio
+            // graph through the prototype `stop` override for a synthetic one.
             abandon(audioStream);
             throw err;
           });
@@ -610,9 +646,10 @@ String buildMicrophoneStreamShim({String deviceLabel = 'Microphone Array'}) {
   // microphone and never calls getUserMedia, so the user is never offered the
   // "use audio file" popup at all.
   //
-  // In BLOCK mode (and ASK where a real microphone exists): pass the platform
-  // list through untouched. Masking there would break the common "pick a
-  // microphone" UI.
+  // In REAL and BLOCK mode (and ASK where a real microphone exists): pass the
+  // platform list through untouched. Masking there would break the common
+  // "pick a microphone" UI, and in REAL mode it would misreport the hardware
+  // the user chose to expose (MIC-009).
   //
   // Audio OUTPUT devices are left alone throughout — they are speakers, not
   // capture, and nothing here substitutes them.

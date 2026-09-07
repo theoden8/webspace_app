@@ -48,13 +48,10 @@ SitePermissionState cameraPermissionState(CameraAccessMode mode) =>
       CameraAccessMode.block => SitePermissionState.blocked,
     };
 
-/// There is no real-microphone mode: [MicrophoneAccessMode] has no `real`
-/// value, the native layer denies audio capture outright, and no platform
-/// manifest declares a recording permission. So this never returns
-/// [SitePermissionState.allowed].
 SitePermissionState microphonePermissionState(MicrophoneAccessMode mode) =>
     switch (mode) {
       MicrophoneAccessMode.ask => SitePermissionState.ask,
+      MicrophoneAccessMode.real => SitePermissionState.allowed,
       MicrophoneAccessMode.virtual => SitePermissionState.simulated,
       MicrophoneAccessMode.block => SitePermissionState.blocked,
     };

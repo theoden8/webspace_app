@@ -138,6 +138,49 @@ void main() {
       expect(saves, 1);
     });
 
+    test('a stored real grant settles without prompting (MIC-001)', () async {
+      final model = _site(microphone: MicrophoneAccessMode.real);
+      var saves = 0;
+      final d = await model.resolveMicrophoneRequest(
+        'https://meet.example',
+        resolver: (_, _) async => fail('a settled mode must not prompt'),
+        isActive: () => true,
+        saveFunc: () => saves++,
+      );
+      expect(d.mode, MicrophoneAccessMode.real);
+      expect(d.toBridgeJson(), {'mode': 'real'});
+      expect(saves, 0, reason: 'nothing changed, so nothing to persist');
+    });
+
+    test('a backgrounded real grant does not open the device (MIC-011)',
+        () async {
+      // The sharpest case of the background rule now that a device exists:
+      // without the gate this would start recording behind another site's
+      // page, with nothing on screen to attribute it to.
+      final model = _site(microphone: MicrophoneAccessMode.real);
+      final d = await model.resolveMicrophoneRequest(
+        'https://meet.example',
+        resolver: (_, _) async => fail('a background site must not prompt'),
+        isActive: () => false,
+        saveFunc: () {},
+      );
+      expect(d.mode, MicrophoneAccessMode.block);
+      expect(model.microphoneMode, MicrophoneAccessMode.real);
+    });
+
+    test('an archive-tier real grant is folded away (MIC-006)', () async {
+      final model = _site(microphone: MicrophoneAccessMode.real, archived: true);
+      final d = await model.resolveMicrophoneRequest(
+        'https://meet.example',
+        resolver: (_, _) async => fail('an archive site must not prompt'),
+        isActive: () => true,
+        saveFunc: () {},
+      );
+      expect(d.mode, MicrophoneAccessMode.block);
+      expect(model.microphoneMode, MicrophoneAccessMode.real,
+          reason: 'preserved for when the site leaves the archive');
+    });
+
     test('a site with no activity predicate counts as active', () async {
       final model = _site(microphone: MicrophoneAccessMode.virtual);
       final d = await model.resolveMicrophoneRequest(

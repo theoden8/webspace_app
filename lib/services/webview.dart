@@ -3628,14 +3628,13 @@ class WebViewFactory {
       //   runtime permission on Android. Requests that bundle the microphone
       //   (iOS/macOS report the single resource CAMERA_AND_MICROPHONE,
       //   Android CAMERA+MICROPHONE) never reach the camera flow.
-      // - Microphone: denied outright whenever the microphone resolver is
-      //   wired. Audio capture is served entirely in JS from a user-picked
-      //   clip, so nothing downstream needs an OS recording permission, and
-      //   an explicit DENY keeps WebKit from raising its own prompt on
-      //   iOS/macOS (Android/Linux would deny anyway). This covers the
-      //   combined camera+microphone request too: the shim splits it and
-      //   re-issues the video half on its own, so what arrives here is
-      //   either camera-only or a request the page must not get.
+      // - Microphone: resolved the same way, and granted only for a site the
+      //   user allowed that is also the one on screen. Everything else is an
+      //   explicit DENY rather than the PROMPT fallback, which iOS/macOS
+      //   render as WebKit's own prompt (Android/Linux would deny anyway).
+      //   The combined camera+microphone resource cannot be half-granted, so
+      //   it needs both decisions to be `real`; the shims normally split such
+      //   a request before it reaches here.
       //
       // Screen sharing never reaches here on any platform this app ships, and
       // that is a property to preserve rather than an omission: Android
@@ -3675,18 +3674,48 @@ class WebViewFactory {
                       : inapp.PermissionResponseAction.DENY,
                 );
               }
-              // No native path ever grants audio capture: with the resolver
-              // wired, a microphone request reaching this point means the JS
-              // shim did not serve it, and falling through to PROMPT would
-              // let WebKit ask for the real device.
-              if (config.onMicrophoneDecision != null &&
-                  (request.resources.contains(
-                          inapp.PermissionResourceType.MICROPHONE) ||
-                      request.resources.contains(inapp.PermissionResourceType
-                          .CAMERA_AND_MICROPHONE))) {
+              // Audio capture. The resolver applies the per-site decision,
+              // the on-screen gate and the archive-tier fold, so `real` here
+              // means the user allowed this site and is looking at it. Every
+              // other answer is an explicit DENY rather than the PROMPT
+              // fallback, which iOS 15+/macOS 12+ render as WebKit's own
+              // per-site prompt: a second decision the app does not control
+              // and cannot reconcile with the one it just made.
+              //
+              // The combined resource iOS and macOS report cannot be
+              // half-granted, so it needs both features to say `real`. A page
+              // the microphone shim reached never produces one (the shim
+              // splits the request and asks for audio only), so this is the
+              // backstop for a frame the shim missed or a build without it.
+              final wantsMicrophone = config.onMicrophoneDecision != null &&
+                  request.resources
+                      .contains(inapp.PermissionResourceType.MICROPHONE);
+              final wantsBoth = config.onMicrophoneDecision != null &&
+                  request.resources.contains(
+                      inapp.PermissionResourceType.CAMERA_AND_MICROPHONE);
+              if (wantsMicrophone || wantsBoth) {
+                final origin = await _promptOrigin(controller, config);
+                final micDecision =
+                    await config.onMicrophoneDecision!(origin);
+                bool granted =
+                    micDecision.mode == MicrophoneAccessMode.real;
+                if (granted && wantsBoth) {
+                  final camDecision = config.onCameraDecision == null
+                      ? const CameraDecision.block()
+                      : await config.onCameraDecision!(origin);
+                  granted = camDecision.mode == CameraAccessMode.real;
+                }
+                if (granted) {
+                  granted = await MicrophonePermissionService.ensurePermission();
+                }
+                if (granted && wantsBoth) {
+                  granted = await CameraPermissionService.ensurePermission();
+                }
                 return inapp.PermissionResponse(
                   resources: request.resources,
-                  action: inapp.PermissionResponseAction.DENY,
+                  action: granted
+                      ? inapp.PermissionResponseAction.GRANT
+                      : inapp.PermissionResponseAction.DENY,
                 );
               }
               final wantsCameraOnly = config.onCameraDecision != null &&

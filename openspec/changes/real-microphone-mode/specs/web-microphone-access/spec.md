@@ -133,8 +133,7 @@ How the halves are obtained depends on the pairing:
 | Microphone | Camera | Audio half | Video half |
 |---|---|---|---|
 | `virtual` | any | synthesised (MIC-008) | re-issued through the live `getUserMedia`, `audio` constraint removed |
-| `real` | `virtual` | platform audio-only `getUserMedia` | served by the camera shim |
-| `real` | `real` | platform combined request | same request |
+| `real` | any | platform **audio-only** `getUserMedia` | re-issued the same way |
 | `block` | any | rejects the whole request | not issued |
 
 The re-issue SHALL use the LIVE `navigator.mediaDevices.getUserMedia`, not the
@@ -142,9 +141,12 @@ function captured at install time, so the camera shim resolves it per
 `cameraMode` regardless of which shim was injected last. Re-entry terminates
 because a video-only request always falls through the microphone shim.
 
-The `real`/`real` row is the only one that reaches the platform as a combined
-request, which is what makes MIC-003's `CAMERA_AND_MICROPHONE` rule sufficient:
-every other pairing is split before it gets there.
+The audio half is requested **audio-only even when the page asked for video
+too**, in `real` as in `virtual`. That is what keeps the video half the camera
+shim's decision in every pairing, and it means a page this shim reached never
+produces the platform's combined `CAMERA_AND_MICROPHONE` resource at all. The
+rule MIC-003 states for that resource is therefore a backstop for a frame the
+shim did not reach or a build without it, not the normal path.
 
 #### Scenario: Virtual microphone and virtual camera together
 
@@ -159,6 +161,13 @@ every other pairing is split before it gets there.
 **When** the page calls `getUserMedia({audio: true, video: true})`
 **Then** the resolved stream carries one device audio track and one synthetic video track
 **And** no combined `CAMERA_AND_MICROPHONE` request is issued
+
+#### Scenario: Real microphone with a real camera is still two requests
+
+**Given** an on-screen site with `microphoneMode == real` and `cameraMode == real`
+**When** the page calls `getUserMedia({audio: true, video: true})`
+**Then** the platform receives one audio-only request and one video-only request
+**And** neither carries both kinds
 
 #### Scenario: Blocked microphone fails the whole combined request
 

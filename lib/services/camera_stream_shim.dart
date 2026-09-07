@@ -31,6 +31,8 @@
 
 import 'dart:convert';
 
+import 'package:webspace/services/capture_track_registry.dart';
+
 /// Build the virtual-camera shim.
 ///
 /// [deviceLabel] is the camera name reported to the page for both the track
@@ -40,6 +42,7 @@ import 'dart:convert';
 /// and the drift check.
 String buildCameraStreamShim({String deviceLabel = 'Integrated Camera'}) {
   final label = jsonEncode(deviceLabel);
+  final registry = buildRealCaptureRegistry();
   return '''
 (function() {
   'use strict';
@@ -289,62 +292,13 @@ String buildCameraStreamShim({String deviceLabel = 'Integrated Camera'}) {
   // dropped stream is collectable.
   var _syntheticTracks = new WeakMap();
 
-  // Every track ANY WebSpace capture shim substituted, shared across shims.
-  // The microphone shim writes to the same set: a combined audio+video
-  // request is served by both, and whichever shim wraps the other sees the
-  // other's track in the stream it returns. Without this, CAM-012 would end
-  // the simulated microphone the moment the user switched sites — the exact
-  // thing the simulated camera is exempted from.
-  var _wsSynthetic = globalThis.__wsSyntheticTracks || new WeakSet();
-  globalThis.__wsSyntheticTracks = _wsSynthetic;
-
-  // Device tracks this shim has handed to the page, so a later deactivation
-  // can end them (CAM-012). WeakRef where available, so a page that churns
-  // streams doesn't pin dead tracks for the document's lifetime.
-  var _realTracks = [];
-  function trackRef(t) {
-    return typeof WeakRef === 'function'
-      ? new WeakRef(t)
-      : { deref: function() { return t; } };
-  }
-  function rememberRealTracks(stream) {
-    try {
-      var tracks = (stream && stream.getTracks) ? stream.getTracks() : [];
-      for (var i = 0; i < tracks.length; i++) _realTracks.push(trackRef(tracks[i]));
-    } catch (e) {}
-    return stream;
-  }
-
-  // Ends every device track this shim handed out. Dart calls it when the site
-  // stops being the one on screen: a camera must not keep capturing behind
-  // another site's page, and the page cannot silently re-acquire one because
-  // the bridge denies a backgrounded request (CAM-011).
-  //
-  // Synthetic tracks are deliberately left running. They are a local file
-  // drawn onto a canvas — nothing is being observed — and killing them would
-  // drop a half-finished scan the user comes back to.
-  try {
-    Object.defineProperty(globalThis, '__wsStopRealCapture', {
-      value: function stopRealCapture() {
-        var stopped = 0;
-        var live = [];
-        for (var i = 0; i < _realTracks.length; i++) {
-          var t = _realTracks[i].deref();
-          if (!t) continue;
-          if (_syntheticTracks.has(t) || _wsSynthetic.has(t)) { live.push(_realTracks[i]); continue; }
-          try {
-            if (t.readyState !== 'ended') { t.stop(); stopped++; }
-          } catch (e) {}
-        }
-        _realTracks = live;
-        return stopped;
-      },
-      writable: true,
-      enumerable: false,
-      configurable: true,
-    });
-  } catch (e) {}
-
+  // Every track ANY WebSpace capture shim substituted, and every DEVICE track
+  // any of them handed over, both shared across shims: a combined audio+video
+  // request is served by two shims, and whichever wraps the other sees the
+  // other's track in the stream it returns. Without the shared sets, CAM-012
+  // would end the simulated microphone the moment the user switched sites,
+  // and whichever shim installed the stop hook last would own it alone.
+${registry}
   // Per spec a device label is only exposed once the page holds a capture
   // permission; flipped the first time this shim serves any stream.
   var _servedStream = false;

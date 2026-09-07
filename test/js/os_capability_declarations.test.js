@@ -3,14 +3,20 @@
 // The strongest per-site control is not a shim or a native callback: it is
 // never holding the capability. A permission the app does not declare cannot
 // leak through a bug, because the OS refuses before any of our code runs.
-// Microphone is the worked example -- no RECORD_AUDIO, no
-// NSMicrophoneUsageDescription, no audio-input entitlement -- so there is no
-// path by which a page reaches a real microphone on any platform.
+// Location on macOS is the worked example -- no usage description, no
+// personal-information entitlement -- so CoreLocation is refused under the App
+// Sandbox whatever the app asks for.
 //
 // These sets are therefore a security surface, not configuration. Widening one
 // means a capability that was previously impossible becomes merely gated, so
 // it has to be a deliberate edit here rather than a line quietly added to a
 // manifest.
+//
+// The microphone was that example until MIC-015 traded it: the app now holds
+// the recording capability and pays for it with the containment contract
+// (MIC-014) rather than with the OS's refusal. The three assertions below
+// still pin it, in the other direction -- a declaration the app relies on
+// must not be dropped by accident either.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -33,10 +39,11 @@ test('Android declares exactly the permissions it needs', () => {
     'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
     'android.permission.INTERNET',
     'android.permission.POST_NOTIFICATIONS',
+    'android.permission.RECORD_AUDIO',
   ]);
-  // Spelled out because it is the guarantee, not an accident of the list above:
-  // no real-microphone mode exists, so the permission is never requested.
-  assert.ok(!declared.includes('android.permission.RECORD_AUDIO'));
+  // Held for the per-site real-microphone grant (MIC-015), and requested only
+  // while resolving a grant the user already allowed for a site on screen.
+  assert.ok(declared.includes('android.permission.RECORD_AUDIO'));
 });
 
 test('iOS declares exactly the usage descriptions it needs', () => {
@@ -45,9 +52,9 @@ test('iOS declares exactly the usage descriptions it needs', () => {
   assert.deepEqual(declared, [
     'NSCameraUsageDescription',
     'NSLocationWhenInUseUsageDescription',
+    'NSMicrophoneUsageDescription',
     'NSPhotoLibraryUsageDescription',
   ]);
-  assert.ok(!declared.includes('NSMicrophoneUsageDescription'));
 });
 
 test('macOS holds no location capability at all', () => {
@@ -59,7 +66,7 @@ test('macOS holds no location capability at all', () => {
   // and this test is what keeps it that way.
   const info = read('macos/Runner/Info.plist');
   assert.deepEqual(uniqueSorted(info.match(/NS\w+UsageDescription/g) ?? []),
-    ['NSCameraUsageDescription']);
+    ['NSCameraUsageDescription', 'NSMicrophoneUsageDescription']);
 
   for (const rel of ['macos/Runner/DebugProfile.entitlements',
                      'macos/Runner/Release.entitlements']) {
@@ -70,11 +77,13 @@ test('macOS holds no location capability at all', () => {
       `${rel} must stay sandboxed`);
     for (const forbidden of [
       'com.apple.security.personal-information.location',
-      'com.apple.security.device.audio-input',
-      'com.apple.security.device.microphone',
     ]) {
       assert.ok(!keys.includes(forbidden), `${rel} must not declare ${forbidden}`);
     }
+    // Required, not forbidden, since MIC-015: WebKit cannot start a capture
+    // for an allowed site without it under the App Sandbox.
+    assert.ok(keys.includes('com.apple.security.device.audio-input'),
+      `${rel} must declare com.apple.security.device.audio-input`);
   }
 });
 
