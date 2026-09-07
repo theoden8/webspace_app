@@ -362,6 +362,10 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         // leaving a dead black surface. Destroy-and-rebuild on the event,
         // mirroring the main screen's handleRendererGone.
         onRendererGone: (didCrash) => _handleRendererGone(didCrash),
+        // Ungated, unlike the commit-settled trigger below: this fires when
+        // the WebView has pixels, and the 15s commit window can close before
+        // a slow renderer produces any (BUG-001 gap #18).
+        onPageCommitVisible: () => _nudgeSurfaceRepaint('page-commit-visible'),
         incognito: widget.incognito,
         javascriptEnabled: widget.javascriptEnabled,
         userAgent: widget.userAgent,

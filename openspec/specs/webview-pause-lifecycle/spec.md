@@ -1137,6 +1137,55 @@ unawaited at the call site and failures are logged, never surfaced.
 
 ---
 
+---
+
+### Requirement: PAUSE-031 — A Repaint Is Owed When The Renderer Reports Pixels
+
+Every repaint trigger before this one is a lifecycle event *hoped* to imply a
+surface with content: a resume, a metrics change, a route pop, a load settling.
+None of them is reported by the renderer, and a load settling is not a frame —
+`onLoadStop` fires when the main-frame navigation finishes, which on a slow
+device can precede the first composited frame by many seconds.
+
+Android's `onPageCommitVisible` is the one signal that fires *because* the
+WebView has committed a frame that is visible. Every webview the app creates
+SHALL route it to a surface repaint:
+
+- `WebViewConfig.onPageCommitVisible` is wired in `WebViewFactory.createWebView`,
+  so the site webview and the nested `InAppWebViewScreen` both carry it.
+- The site webview reaches the page through `WebViewModel.onPageCommitVisible`,
+  the same shape as `onLoadSettled` (PAUSE-021); the nested screen nudges its
+  own surface directly.
+- Both nudge under the trigger label `page-commit-visible`, so the `SurfaceDiag`
+  trace names it like every other path (PAUSE-029).
+
+The trigger SHALL NOT be gated on the commit window (`noteLoadSettled`,
+PAUSE-027). That window is 15 seconds from the issue, and BUG-001 gap #18
+recorded a load whose six nudges had all drained and whose window had closed
+before the renderer produced any content at all. Gating this trigger on the
+window would reproduce precisely the failure it exists to cover. Structural
+gate: `test/js/surface_repaint_funnel.test.js`.
+
+Off Android the nudge is a no-op, so no platform gate is needed at the call
+site; `_nudgeSurfaceRepaint` already returns early.
+
+#### Scenario: A slow first paint lands after every other trigger has drained
+
+**Given** the visible site's webview is created and its navigation settles
+**And** the nudges for activate, controller-attach, reload and commit-settled have all drained
+**And** the 15-second commit window has closed
+**When** the renderer commits its first visible frame
+**Then** `onPageCommitVisible` fires
+**And** the surface is nudged under the trigger `page-commit-visible`
+**And** the trace carries that trigger, so the repaint can be attributed to it
+
+#### Scenario: The commit-visible trigger reaches the nested webview
+
+**Given** a cross-domain link opened an `InAppWebViewScreen`
+**When** its renderer commits its first visible frame
+**Then** that screen nudges its own surface under the same trigger label
+
+
 ## Implementation
 
 ### API Surface

@@ -21,6 +21,10 @@ expectation not met, 2 = unreadable frame. Expectations:
       webview composited).
   --expect-blank-white
       verdict must be the white blank (detector sensitivity control).
+  --expect-blank
+      verdict must be either blank. Which shade the uncomposited hole
+      samples as is not the app's to decide, so a scenario asserting the
+      surface went blank must not depend on it.
 """
 
 import argparse
@@ -95,6 +99,7 @@ def main():
     ap.add_argument('--tolerance', type=int, default=28)
     ap.add_argument('--min-uniform', type=float, default=0.5)
     ap.add_argument('--expect-blank-white', action='store_true')
+    ap.add_argument('--expect-blank', action='store_true')
     args = ap.parse_args()
 
     crop = DEFAULT_CROP
@@ -135,6 +140,8 @@ def main():
         return 0 if near and uniform >= args.min_uniform else 3
     if args.expect_blank_white:
         return 0 if verdict == 'blank-white' else 3
+    if args.expect_blank:
+        return 0 if verdict in ('blank-white', 'blank-black') else 3
     return 0
 
 

@@ -48,6 +48,7 @@ import 'package:webspace/services/html_import_storage.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/cookie_isolation.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
+import 'package:webspace/services/surface_diag_native.dart';
 import 'package:webspace/services/surface_repaint_engine.dart';
 import 'package:webspace/services/surface_route_observer.dart';
 import 'package:webspace/services/diag_seed.dart';
@@ -1035,6 +1036,14 @@ class _WebSpacePageState extends State<WebSpacePage>
   // forces Android hybrid-composition platform views to recomposite after
   // the activity is recreated (shortcut/resume). Always false in steady state.
   bool _repaintNudge = false;
+  // Magnitude of that inset, and whether the visible subtree is held unpainted
+  // for a frame. Both exist because the 1px inset provably does not repaint the
+  // surface on the reporting device (BUG-001 gap #18) while rotation,
+  // lock-unlock and a tab switch do; the menu repaint cycles through them so a
+  // device can say which property matters. Steady state is 1.0 / false.
+  double _repaintInsetPx = 1.0;
+  bool _repaintHidden = false;
+  int _manualRepaintPass = 0;
   // Coalescing tick machine for _nudgeSurfaceRepaint. Pure-Dart engine (no
   // Timer/setState); the host drives the clock and renders _repaintNudge from
   // its tick output. See lib/services/surface_repaint_engine.dart and
@@ -1851,6 +1860,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       // was recreated and the platform-view surface came back blank. See
       // PAUSE-015.
       _nudgeSurfaceRepaint('resume');
+      unawaited(_handleDiagReload());
       // A repaint cannot recover a page that never loaded. Re-issue a load
       // the OS stranded while we were backgrounded, against the same
       // now-final visible site. Runs long (bounded retries with a backoff),
@@ -1973,6 +1983,14 @@ class _WebSpacePageState extends State<WebSpacePage>
       {String trigger = 'unspecified'}) async {
     final controller = model.controller;
     if (controller == null) return;
+    // Debug-only, diag tiers only. The offsetHeight read below is itself a
+    // repaint path, so a scenario isolating what the native layer does on its
+    // own has to drop this too: suppressing only the nudge funnel leaves this
+    // running under the same trigger name and the surface comes back anyway.
+    if (RepaintSuppression.suppresses(trigger)) {
+      LogService.instance.log('SurfaceDiag', 'trigger=$trigger probe suppressed');
+      return;
+    }
     final result = await controller
         .evaluateJavascriptReturning('document.body ? document.body.offsetHeight : -1');
     if (!mounted) return;
@@ -1983,9 +2001,21 @@ class _WebSpacePageState extends State<WebSpacePage>
     // unpainted surface (a number → BUG-001, nudge). See PAUSE-019.
     LogService.instance.log(
       'SurfaceDiag',
-      'trigger=$trigger probe=${result ?? 'null'} → '
+      'trigger=$trigger site=${model.siteId} probe=${result ?? 'null'} → '
           '${gone ? 'renderer-gone (recreate)' : 'renderer-alive (nudge)'}',
     );
+    // -1 is `document.body` missing, which the classification above counts as
+    // alive: the call returned, so the renderer answered. A document with no
+    // body cannot be repainted by a surface nudge, so say which document
+    // answered. See BUG-001 gap #17.
+    if (!gone && result.toString() == '-1') {
+      final detail = await controller.evaluateJavascriptReturning(
+          "document.readyState + ' ' + (document.documentElement ? 'html' : "
+          "'no-html') + ' ' + location.protocol + '//' + location.host");
+      if (!mounted) return;
+      LogService.instance.log('SurfaceDiag',
+          'trigger=$trigger site=${model.siteId} no body: ${detail ?? 'null'}');
+    }
     // identical() guard: a concurrent recreate may have already swapped the
     // controller out from under us — don't null a fresh one.
     if (gone && identical(model.controller, controller)) {
@@ -2024,7 +2054,12 @@ class _WebSpacePageState extends State<WebSpacePage>
     // Debug-only, diag tiers only: drop this trigger so a scenario can observe
     // what the native layer repaints on its own (BUG-001 gap #5).
     if (RepaintSuppression.suppresses(trigger)) {
-      _traceRepaint('$trigger-suppressed', coalesced: false);
+      // Logged directly, not through _traceRepaint: that is gated on developer
+      // mode, and the adb probe needs this line in logcat to prove the nudge it
+      // suppressed was actually reached. A green probe with no drop recorded
+      // means the suppression never armed, not that the surface came back on
+      // its own.
+      LogService.instance.log('SurfaceDiag', 'trigger=$trigger suppressed');
       return;
     }
     final started = _surfaceRepaint.request();
@@ -2099,12 +2134,86 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// than nudged (the two blank classes are indistinguishable on screen), then
   /// recomposite. Off Android the nudge is a no-op, so the menu entry is
   /// Android-only.
+  ///
+  /// Successive taps try a *different* mechanism, because the default one is
+  /// known not to work: BUG-001 gap #18 caught six nudges firing against a
+  /// live renderer holding a 376 KB document with the screen blank, while
+  /// rotation, lock-unlock and a tab switch all recover it. Those differ from
+  /// a 1px resize in magnitude, in whether the view stops being painted, and
+  /// in whether the platform view is destroyed; one tap each says which
+  /// property the surface actually responds to. The chosen magnitude sticks
+  /// for later automatic nudges in the same session, which only matters while
+  /// a loop is running (steady state settles at a zero inset).
   void _repaintCurrentSurface() {
     final idx = _currentIndex;
     if (idx != null && idx < _webViewModels.length) {
       unawaited(_probeRendererAndRecover(_webViewModels[idx], trigger: 'manual'));
     }
-    _nudgeSurfaceRepaint('manual');
+    const mechanisms = <String>[
+      'inset-1',
+      'inset-16',
+      'unpaint',
+      'native-invalidate',
+      'native-visibility',
+      'recreate',
+    ];
+    final mechanism = mechanisms[_manualRepaintPass % mechanisms.length];
+    _manualRepaintPass++;
+    LogService.instance.log('SurfaceDiag', 'manual mechanism=$mechanism');
+    if (mechanism == 'unpaint') {
+      _repaintInsetPx = 1.0;
+      unawaited(_holdUnpainted());
+    } else if (mechanism.startsWith('native-')) {
+      _repaintInsetPx = 1.0;
+      unawaited(SurfaceDiagNative.nativeRepaint(
+              mechanism.substring('native-'.length))
+          .then((views) => LogService.instance
+              .log('SurfaceDiag', 'manual $mechanism reached ${views ?? 0} view(s)')));
+    } else if (mechanism == 'recreate') {
+      _repaintInsetPx = 1.0;
+      _resetCurrentSiteWebView();
+    } else {
+      _repaintInsetPx = mechanism == 'inset-16' ? 16.0 : 1.0;
+      _nudgeSurfaceRepaint('manual');
+    }
+  }
+
+  /// Hold the visible subtree unpainted for a few frames, keeping it mounted
+  /// and laid out. Flutter drops the platform view's layer while nothing
+  /// paints it, so the Android view leaves and re-enters the native hierarchy
+  /// without the WebView being destroyed — what a tab switch does, and what a
+  /// resize does not.
+  Future<void> _holdUnpainted() async {
+    if (_repaintHidden) return;
+    setState(() => _repaintHidden = true);
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+    if (!mounted) return;
+    setState(() => _repaintHidden = false);
+  }
+
+  /// Adb white-screen tier only (INTEG-011): issue the launch intent's
+  /// requested reloads through the production refresh funnel.
+  ///
+  /// The reload path is the one BUG-001 was reported on and the one no
+  /// scenario could reach, because refresh lives in the overflow menu. It also
+  /// differs from a warm start in the way that matters: a reload carries no
+  /// window visibility change, so nothing below Dart has a reason to repaint
+  /// the surface it blanks.
+  ///
+  /// Delayed so the resume nudge that necessarily precedes it has drained;
+  /// otherwise its tick loop repaints the surface the reload just blanked and
+  /// the scenario measures the resume instead of the reload.
+  Future<void> _handleDiagReload() async {
+    final count = await DiagSeed.takeReloadRequest();
+    if (count == null || count <= 0 || !mounted) return;
+    await Future.delayed(const Duration(seconds: 1));
+    for (var i = 0; i < count; i++) {
+      if (!mounted) return;
+      final idx = _currentIndex;
+      if (idx == null || idx < 0 || idx >= _webViewModels.length) return;
+      unawaited(_webViewModels[idx].reloadAndRepaint());
+      await Future.delayed(const Duration(milliseconds: 120));
+    }
   }
 
   Future<void> _handleShortcutIntent() async {
@@ -8938,8 +9047,14 @@ class _WebSpacePageState extends State<WebSpacePage>
                     // hybrid-composition webview SurfaceView to recomposite —
                     // otherwise it can come back black on Android. No-op
                     // (zero inset) in steady state.
-                    child: Padding(
-                      padding: EdgeInsets.only(bottom: _repaintNudge ? 1.0 : 0.0),
+                    child: Visibility(
+                      visible: !_repaintHidden,
+                      maintainState: true,
+                      maintainSize: true,
+                      maintainAnimation: true,
+                      child: Padding(
+                      padding: EdgeInsets.only(
+                          bottom: _repaintNudge ? _repaintInsetPx : 0.0),
                       child: IndexedStack(
                       index: _currentIndex ?? 0,
                       children: _webViewModels.asMap().entries.map<Widget>((entry) {
@@ -8988,6 +9103,15 @@ class _WebSpacePageState extends State<WebSpacePage>
                           if (index != _currentIndex) return;
                           if (!_surfaceRepaint.noteLoadSettled()) return;
                           _nudgeSurfaceRepaint('commit-settled');
+                        };
+                        // Deliberately not gated on the commit window the
+                        // trigger above uses. That window is 15s from the
+                        // issue, and gap #18 caught a load whose renderer
+                        // produced its first content well after it closed —
+                        // gating this on it would reproduce exactly that.
+                        webViewModel.onPageCommitVisible = () {
+                          if (index != _currentIndex) return;
+                          _nudgeSurfaceRepaint('page-commit-visible');
                         };
 
                         // Keep the on-disk back/forward stack tracking
@@ -9112,6 +9236,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                         );
                       }).toList(),
                       ),
+                    ),
                     ),
                   ),
                 // NAV-009 on iOS: WKWebView owns the left-edge swipe on the

@@ -721,6 +721,12 @@ class WebViewConfig {
   /// the controller and rebuild the widget. If unset, the WebView is left
   /// in its post-crash state (visible to the user as a black rectangle).
   final void Function(bool didCrash)? onRendererGone;
+  /// Android: the WebView has committed a frame that is visible for the first
+  /// time on this navigation. The only signal in the app that fires *because
+  /// pixels exist* — every other repaint trigger is a lifecycle event hoped to
+  /// imply one, and BUG-001 gap #18 caught a load whose nudges had all drained
+  /// twelve seconds before the renderer produced anything.
+  final VoidCallback? onPageCommitVisible;
   /// Per-site geolocation mode. [LocationMode.spoof] injects a shim that
   /// overrides `navigator.geolocation` with [spoofLatitude]/[spoofLongitude].
   final LocationMode locationMode;
@@ -865,6 +871,7 @@ class WebViewConfig {
     this.pullToRefreshController,
     this.pullToRefreshGate,
     this.onRendererGone,
+    this.onPageCommitVisible,
     this.locationMode = LocationMode.off,
     this.spoofLatitude,
     this.spoofLongitude,
@@ -4254,6 +4261,14 @@ class WebViewFactory {
         if (stillCurrent()) {
           await userScriptService.reinjectOnLoadStart(controller);
         }
+      },
+      onPageCommitVisible: (controller, url) {
+        LogService.instance.log(
+          'WebViewLifecycle',
+          'onPageCommitVisible siteId=${config.siteId} url=$url',
+          sensitivity: LogSensitivity.sensitive,
+        );
+        config.onPageCommitVisible?.call();
       },
       onLoadStop: (controller, url) async {
         LogService.instance.log(

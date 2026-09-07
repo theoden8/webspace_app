@@ -79,6 +79,29 @@ class SurfaceDiagNative {
     }
   }
 
+  /// Ask the Android views themselves to redraw ([SurfaceDiagPlugin.kt]).
+  ///
+  /// A Dart nudge resizes the platform view through Flutter's plumbing; this
+  /// calls `invalidate()` + `requestLayout()` (`mode` `invalidate`) or cycles
+  /// visibility so the view leaves and re-enters the window (`visibility`) on
+  /// every WebView in it. Rotation and lock-unlock do the latter and recover
+  /// the screen; a resize does neither (BUG-001 gap #18). Returns how many
+  /// views it reached, or null off Android.
+  static Future<int?> nativeRepaint(String mode) async {
+    if (!hostIsAndroid) return null;
+    try {
+      final res = await _channel.invokeMapMethod<String, dynamic>(
+          'nativeRepaint', <String, String>{'mode': mode});
+      if (res == null) return null;
+      if (res['status'] != 'ok') return null;
+      return res['views'] as int?;
+    } on MissingPluginException {
+      return null;
+    } on PlatformException {
+      return null;
+    }
+  }
+
   /// Map a logical-coordinate region to the physical-pixel window rect the
   /// sampler needs. [insetLogical] shrinks the region on all sides so
   /// borders, scrollbar gutters, and the pull-to-refresh edge glow don't

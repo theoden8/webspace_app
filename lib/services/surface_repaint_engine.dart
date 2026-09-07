@@ -19,6 +19,7 @@ enum SurfaceTransition {
   back, // bfcache restore reuses the controller (PAUSE-018)
   forward, // bfcache restore reuses the controller (PAUSE-018)
   reload, // reload discards the painted frame, recommits later (PAUSE-021)
+  pageCommitVisible, // the renderer produced its first visible frame (PAUSE-031)
   routeReturn, // an opaque route above popped, re-attaching the view (PAUSE-024)
   goHome, // dispose + rebuild at initUrl (PAUSE-017)
   rendererRebuilt, // renderer-gone recovery rebuild (PAUSE-017)

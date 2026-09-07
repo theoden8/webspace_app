@@ -876,6 +876,12 @@ class WebViewModel {
   /// closest Dart-side signal to the reloaded document committing onto
   /// the surface, which is the moment the repaint has to land (PAUSE-021).
   VoidCallback? onLoadSettled;
+  /// Host hook fired when the WebView commits its first visible frame for a
+  /// navigation (Android `onPageCommitVisible`). Unlike [onLoadSettled] this
+  /// reports that pixels exist rather than that a load finished, so it is the
+  /// one repaint trigger that cannot fire before there is something to paint
+  /// (BUG-001 gap #18).
+  VoidCallback? onPageCommitVisible;
   /// Host hook fired once per committed navigation (deduped across the
   /// `onLoadStop` / `onUpdateVisitedHistory` double-fire). The host
   /// debounces `controller.saveState()` captures off this so the
@@ -1626,6 +1632,7 @@ class WebViewModel {
           shouldFetchHtml: shouldFetchHtml,
           initialHtml: initialHtml,
           onRendererGone: (didCrash) => handleRendererGone(didCrash: didCrash),
+          onPageCommitVisible: () => onPageCommitVisible?.call(),
           onConsoleMessage: (message, level) {
             consoleLogs.add(ConsoleLogEntry(
               timestamp: DateTime.now(),
