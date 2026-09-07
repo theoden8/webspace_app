@@ -111,11 +111,14 @@ taskgated SIGKILLs such a bundle at launch as "Code Signature Invalid", so an
 unsigned build is a developer artifact and never a release.
 
 Each capability entitlement SHALL agree with its `ENABLE_*` build setting in
-the configuration that uses it, and the entitlements file SHALL name every
-capability the build grants. Xcode merges the generated entitlements with the
-file, so a capability present in one and absent from the other half-ships;
-and because signing happens after the build, a capability that exists only as
-a build setting is dropped when the release signature replaces them.
+the configuration that uses it. Xcode merges the generated entitlements with
+the file, so a capability present in one and absent from the other half-ships.
+
+A signature applied after the build SHALL be taken from the bundle's own
+entitlements rather than from the committed file, which carries neither what
+the build settings generate nor what the provisioning profile adds, and SHALL
+drop `com.apple.security.get-task-allow` — Xcode grants it whenever it signs
+for development, and a distributed build carrying it is rejected.
 
 #### Scenario: Build without a signing identity
 

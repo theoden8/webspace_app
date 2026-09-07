@@ -102,13 +102,15 @@ and deletes it afterwards. Repository secrets:
 - **The sandbox stays on.** All file IO already goes through
   `FilePicker` (powerbox) or the app container, and nothing binds a socket,
   so the sandbox costs the app nothing today.
-- **The entitlements file is the complete set.** Signing after the build
-  replaces the entitlements the build embedded, so a capability that exists
-  only as an `ENABLE_*` build setting is silently dropped at that point:
-  `com.apple.security.network.client` is the one that hurts, since a
-  sandboxed browser without it loads nothing and reports nothing.
-  `sign_macos.sh` diffs the built bundle's entitlements against the file and
-  refuses to sign when the file is missing a key.
+- **The signature is taken from the built bundle, not from the file.** The
+  build resolves the team prefix, adds what the `ENABLE_*` settings generate
+  (`com.apple.security.network.client`, without which a sandboxed browser
+  loads nothing and reports nothing) and what the provisioning profile
+  carries (`application-identifier`, `team-identifier`). The committed file
+  has none of those, so `sign_macos.sh` reads the bundle's own entitlements,
+  drops `com.apple.security.get-task-allow` (Xcode's development grant, which
+  notarization and App Store Connect both reject), and fails when the file
+  declares a capability the build did not grant.
 - **Entitlements and `ENABLE_*` build settings agree.** Xcode merges the
   generated set with the file, so a capability granted in one and denied in
   the other half-ships. Gated by

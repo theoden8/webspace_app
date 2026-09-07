@@ -59,42 +59,52 @@ esac
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
-# $(AppIdentifierPrefix) is expanded by Xcode at build time from
-# DEVELOPMENT_TEAM; we sign outside that build, so substitute it here.
-materialize_entitlements() {
-  local src="$1" out="$2"
-  sed "s/[$](AppIdentifierPrefix)/${TEAM_ID}./g" "$src" > "$out"
-  if [[ "$MODE" == "adhoc" ]]; then
-    # An ad-hoc signature cannot back a team-scoped group, and the launch
-    # failure it causes is a SIGKILL with no dialog.
-    /usr/libexec/PlistBuddy -c 'Delete :com.apple.security.application-groups' "$out" 2>/dev/null || true
-    /usr/libexec/PlistBuddy -c 'Delete :keychain-access-groups' "$out" 2>/dev/null || true
-  fi
-}
-
 plist_keys() {
   plutil -convert xml1 -o - "$1" |
     sed -n 's|.*<key>\(.*\)</key>.*|\1|p' | sort -u
 }
 
-# The project generates some entitlements from ENABLE_* build settings rather
-# than from the file (com.apple.security.network.client is one), and this
-# signature replaces whatever the build embedded. Dropping one is silent: a
-# sandboxed browser without network.client loads nothing and reports nothing.
-assert_nothing_dropped() {
-  local embedded="$WORK/embedded.entitlements" dropped
-  # An unsigned bundle prints nothing; older codesign prefixes the plist with
-  # a blob header.
-  codesign -d --entitlements :- "$APP" 2>/dev/null | sed -n '/<?xml/,$p' > "$embedded" || true
-  [[ -s "$embedded" ]] || return 0
-  # The two group keys are the ones adhoc mode drops on purpose.
-  dropped=$(comm -23 <(plist_keys "$embedded") <(plist_keys "$WORK/app.entitlements") |
-    grep -v -e '^com.apple.security.application-groups$' -e '^keychain-access-groups$' || true)
-  [[ -z "$dropped" ]] && return 0
-  echo "ERROR: the built app carries entitlements the signing set does not:" >&2
-  echo "$dropped" | sed 's/^/  /' >&2
-  echo "Add them to macos/Runner/Release.entitlements (PLATFORM-006 keeps the" >&2
-  echo "file and the ENABLE_* build settings in agreement)." >&2
+plist_delete() {
+  /usr/libexec/PlistBuddy -c "Delete :$2" "$1" 2>/dev/null || true
+}
+
+# Sign with what the build embedded, not with the committed file: the build
+# resolves $(AppIdentifierPrefix) from DEVELOPMENT_TEAM, adds what the project
+# generates from ENABLE_* build settings (network.client), and adds what the
+# provisioning profile carries (application-identifier, team-identifier). The
+# file alone has none of those, and a sandboxed browser signed without
+# network.client loads nothing and reports nothing.
+materialize_entitlements() {
+  local bundle="$1" src="$2" out="$3"
+  codesign -d --entitlements :- "$bundle" 2>/dev/null | sed -n '/<?xml/,$p' > "$out" || true
+  if [[ ! -s "$out" ]]; then
+    sed "s/[$](AppIdentifierPrefix)/${TEAM_ID}./g" "$src" > "$out"
+  fi
+  # Xcode grants this whenever it signs for development. A distribution build
+  # that keeps it is rejected by notarization and by App Store Connect.
+  plist_delete "$out" com.apple.security.get-task-allow
+  if [[ "$MODE" == "adhoc" ]]; then
+    # An ad-hoc signature cannot back a team-scoped group, and the launch
+    # failure it causes is a SIGKILL with no dialog.
+    plist_delete "$out" com.apple.security.application-groups
+    plist_delete "$out" keychain-access-groups
+  fi
+  assert_grants_present "$src" "$out"
+}
+
+# The other direction: a capability the file declares but the build never
+# granted (an ENABLE_* setting left at NO) would be signed away here.
+assert_grants_present() {
+  local src="$1" out="$2" missing
+  missing=$(comm -23 <(plist_keys "$src") <(plist_keys "$out") || true)
+  if [[ "$MODE" == "adhoc" ]]; then
+    missing=$(printf '%s\n' "$missing" |
+      grep -v -e '^com.apple.security.application-groups$' -e '^keychain-access-groups$' || true)
+  fi
+  [[ -z "${missing//[[:space:]]/}" ]] && return 0
+  echo "ERROR: $src declares entitlements the built bundle does not carry:" >&2
+  printf '%s\n' "$missing" | sed '/^$/d; s/^/  /' >&2
+  echo "The file and the ENABLE_* build settings have to agree (PLATFORM-006)." >&2
   exit 1
 }
 
@@ -122,9 +132,7 @@ if [[ "$MODE" == "mas" ]]; then
   cp "$MACOS_PROVISION_PROFILE" "$APP/Contents/embedded.provisionprofile"
 fi
 
-materialize_entitlements "$APP_ENTITLEMENTS" "$WORK/app.entitlements"
-materialize_entitlements "$EXT_ENTITLEMENTS" "$WORK/ext.entitlements"
-assert_nothing_dropped
+materialize_entitlements "$APP" "$APP_ENTITLEMENTS" "$WORK/app.entitlements"
 
 # Nested code first: a signature over a bundle whose contents change
 # afterwards is invalid, and codesign will not tell you until launch.
@@ -134,6 +142,7 @@ done < <(find "$APP/Contents/Frameworks" -depth \( -name '*.framework' -o -name 
 
 while IFS= read -r -d '' appex; do
   [[ "$MODE" == "mas" ]] && cp "$MACOS_EXT_PROVISION_PROFILE" "$appex/Contents/embedded.provisionprofile"
+  materialize_entitlements "$appex" "$EXT_ENTITLEMENTS" "$WORK/ext.entitlements"
   sign_one "$appex" "$WORK/ext.entitlements"
 done < <(find "$APP/Contents/PlugIns" -maxdepth 1 -name '*.appex' -print0 2>/dev/null)
 
