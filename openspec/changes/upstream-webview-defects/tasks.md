@@ -132,3 +132,24 @@ something to wait for. Keep each contributor's `--author` and cite
   probe rather than a static platform-name list, so a backend without
   `WebKitNetworkSession` (PR #2832's WebKitGTK, say) reports false and we fall
   back deliberately instead of reporting containers active over one shared jar.
+
+## 11. The popup transport leak (ours)
+
+`windowWebViews` entries are removed in exactly three places: `defaultBehaviour`
+on decline, a windowId webview's own `dispose()`, and manager teardown. Our
+captcha handler returns `true`, which skips the first, and
+`createPopupWebView` can then bail to `SizedBox.shrink()` without ever building
+an `InAppWebView(windowId:)`, which skips the second. The native popup WKWebView
+stays pinned for the process lifetime on the parent's configuration and jar.
+
+- [ ] 11.1 Decide the contract: either `onCreateWindow` must not return `true`
+  on a path where `createPopupWebView` can bail, or the bail must tell the
+  native side to drop the transport. Prefer the first, it needs no fork change.
+- [ ] 11.2 Move both bail conditions (no recorded parent config,
+  `proxyUnavailable`) ahead of the return value in
+  `lib/services/webview.dart:4063-4077`, so the decision is made once.
+- [ ] 11.3 Structural gate under `test/js/`: `onCreateWindow` must not return
+  `true` on any path that reaches a `createPopupWebView` early return.
+- [ ] 11.4 Note the ordering hazard in the fix: `_popupParentConfigs[windowId]`
+  is cleared in a `finally` when `onWindowRequested` resolves, so a late
+  `createPopupWebView` finds no parent and takes bail one.

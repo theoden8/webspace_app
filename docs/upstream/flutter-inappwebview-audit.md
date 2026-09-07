@@ -17,7 +17,9 @@ down.
 
 **What does not:** the behaviour we decided to require as a result. That goes in
 the owning OpenSpec capability, and a bug whose symptom recurs across code paths
-goes in [docs/bugs/](../bugs/). This file links out to both.
+goes in [docs/bugs/](../bugs/). This file links out to both. Work that lands in
+the fork rather than here has its own standalone brief:
+[fork-work-brief.md](fork-work-brief.md).
 
 ## Method
 
