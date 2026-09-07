@@ -1028,10 +1028,18 @@ jobs:
           fvm flutter build ipa --release --no-codesign
           bash scripts/verify_adblock_shipped.sh ios
 
+      # The ad-hoc re-sign is what makes the artifact launchable. CI has no
+      # signing identity, so the build resolves $(AppIdentifierPrefix) to
+      # nothing and ad-hoc signs entitlements naming an app group and a
+      # keychain group; taskgated SIGKILLs that at launch as "Code Signature
+      # Invalid". sign_macos.sh adhoc drops the two group keys and re-signs.
+      # The result is a developer build, not a shipping one — see
+      # docs/releasing-macos.md.
       - name: Build macOS
         run: |
           fvm flutter build macos --release
           bash scripts/verify_adblock_shipped.sh macos
+          bash scripts/sign_macos.sh adhoc
 
       # Reclaim disk before the macOS integration loop. The macos-latest
       # runner has a tight disk budget, and by this point three build trees
@@ -1275,6 +1283,6 @@ jobs:
           echo "✅ Android APKs (fdroid flavor, split by ABI)" >> $GITHUB_STEP_SUMMARY
           echo "✅ iOS IPA (unsigned)" >> $GITHUB_STEP_SUMMARY
           echo "✅ Linux x64 build" >> $GITHUB_STEP_SUMMARY
-          echo "✅ macOS app bundle" >> $GITHUB_STEP_SUMMARY
+          echo "✅ macOS app bundle (ad-hoc signed, developer build)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "All platform builds completed successfully!" >> $GITHUB_STEP_SUMMARY

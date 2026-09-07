@@ -1,0 +1,189 @@
+name: Release macOS
+
+# The signed macOS build. build-and-test.yml produces an ad-hoc signed
+# developer bundle on every push; this is the one that leaves the project:
+#
+#   devid  Developer ID + hardened runtime, notarized and stapled. Attach the
+#          zip to a GitHub release.
+#   mas    Apple Distribution + provisioning profiles, packaged as a .pkg for
+#          App Store Connect.
+#
+# Signing happens after the build (scripts/sign_macos.sh), so nothing here
+# needs the project to carry an identity. Setup mirrors build-apple in
+# build-and-test.yml. Secrets are listed in docs/releasing-macos.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: 'Distribution channel'
+        type: choice
+        options: [devid, mas]
+        default: devid
+
+jobs:
+  release-macos:
+    name: Build and sign macOS
+    runs-on: macos-latest
+    env:
+      CHANNEL: ${{ inputs.channel }}
+      WEBSPACE_TEAM_ID: ${{ secrets.WEBSPACE_TEAM_ID }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Fail here rather than after a 20-minute build.
+      - name: Check signing secrets are configured
+        env:
+          CERT: ${{ secrets.MACOS_CERT_P12 }}
+          NOTARY: ${{ secrets.NOTARY_KEY_P8 }}
+          PROFILE: ${{ secrets.MACOS_PROVISION_PROFILE_B64 }}
+          EXT_PROFILE: ${{ secrets.MACOS_EXT_PROVISION_PROFILE_B64 }}
+        run: |
+          missing=""
+          [ -n "$CERT" ] || missing="$missing MACOS_CERT_P12"
+          [ -n "${WEBSPACE_TEAM_ID:-}" ] || missing="$missing WEBSPACE_TEAM_ID"
+          if [ "$CHANNEL" = "devid" ]; then
+            [ -n "$NOTARY" ] || missing="$missing NOTARY_KEY_P8"
+          else
+            [ -n "$PROFILE" ] || missing="$missing MACOS_PROVISION_PROFILE_B64"
+            [ -n "$EXT_PROFILE" ] || missing="$missing MACOS_EXT_PROVISION_PROFILE_B64"
+          fi
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing (see docs/releasing-macos.md)"
+            exit 1
+          fi
+
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+
+      - name: Install CocoaPods
+        run: |
+          brew install cocoapods
+          brew link --force cocoapods
+
+      - name: Cache fvm Flutter SDK
+        uses: actions/cache@v4
+        with:
+          path: ~/.fvm/versions
+          key: fvm-${{ runner.os }}-${{ hashFiles('**/.fvmrc') }}
+          restore-keys: |
+            fvm-${{ runner.os }}-
+
+      - name: Install fvm
+        run: |
+          dart pub global activate fvm
+          echo "$HOME/.pub-cache/bin" >> $GITHUB_PATH
+
+      - name: Setup Flutter with fvm
+        run: |
+          fvm install
+          fvm use --force
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            pub-${{ runner.os }}-
+
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: |
+            macos/Pods
+            ~/Library/Caches/CocoaPods
+            ~/.cocoapods/repos
+          key: pods-macos-release-${{ hashFiles('macos/Podfile.lock') }}
+          restore-keys: |
+            pods-macos-release-
+
+      - name: Get dependencies
+        run: fvm flutter pub get --enforce-lockfile
+
+      - name: Read Rust toolchain
+        id: rust
+        run: echo "channel=$(sed -n -E 's/channel = "(.*)"/\1/p' rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ steps.rust.outputs.channel }}
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Build Rust adblock for Apple
+        run: bash scripts/build_rust.sh apple
+
+      - name: Generate launcher icons
+        run: fvm dart run flutter_launcher_icons
+
+      # A build-local keychain: the runner's login keychain is shared with
+      # every other step, and the identity must not outlive this job.
+      - name: Import signing certificate
+        env:
+          CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/webspace-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -base64 24)"
+          echo "$CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$CERT_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/productbuild
+          # Without this, codesign blocks on a UI prompt for keychain access
+          # that no one can answer on a runner.
+          security set-key-partition-list -S apple-tool:,apple:,codesign:,productbuild: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          rm -f "$RUNNER_TEMP/cert.p12"
+          security find-identity -v -p codesigning "$KEYCHAIN"
+
+      - name: Write provisioning profiles
+        if: ${{ inputs.channel == 'mas' }}
+        env:
+          PROFILE: ${{ secrets.MACOS_PROVISION_PROFILE_B64 }}
+          EXT_PROFILE: ${{ secrets.MACOS_EXT_PROVISION_PROFILE_B64 }}
+        run: |
+          echo "$PROFILE" | base64 --decode > "$RUNNER_TEMP/app.provisionprofile"
+          echo "$EXT_PROFILE" | base64 --decode > "$RUNNER_TEMP/ext.provisionprofile"
+
+      - name: Write notary key
+        if: ${{ inputs.channel == 'devid' }}
+        env:
+          NOTARY_KEY_P8: ${{ secrets.NOTARY_KEY_P8 }}
+        run: echo "$NOTARY_KEY_P8" | base64 --decode > "$RUNNER_TEMP/notary.p8"
+
+      - name: Build macOS
+        run: |
+          fvm flutter build macos --release
+          bash scripts/verify_adblock_shipped.sh macos
+
+      - name: Sign
+        env:
+          MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+          MACOS_INSTALLER_IDENTITY: ${{ secrets.MACOS_INSTALLER_IDENTITY }}
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER: ${{ secrets.NOTARY_ISSUER }}
+        run: |
+          export NOTARY_KEY="$RUNNER_TEMP/notary.p8"
+          export MACOS_PROVISION_PROFILE="$RUNNER_TEMP/app.provisionprofile"
+          export MACOS_EXT_PROVISION_PROFILE="$RUNNER_TEMP/ext.provisionprofile"
+          bash scripts/sign_macos.sh "$CHANNEL"
+
+      - name: Upload signed build
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ inputs.channel }}
+          path: |
+            build/macos/*.zip
+            build/macos/*.pkg
+          if-no-files-found: error
+
+      - name: Remove signing keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/webspace-signing.keychain-db" || true

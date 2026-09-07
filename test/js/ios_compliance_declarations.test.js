@@ -20,7 +20,7 @@ const INFO_PLIST = 'ios/Runner/Info.plist';
 const PRIVACY_MANIFEST = 'ios/Runner/PrivacyInfo.xcprivacy';
 const PBXPROJ = 'ios/Runner.xcodeproj/project.pbxproj';
 const FASTFILE = 'ios/fastlane/Fastfile';
-const COMPLIANCE_CHECK = 'scripts/check_ios_export_compliance.sh';
+const COMPLIANCE_CHECK = 'scripts/check_export_compliance.sh';
 
 /** Value of a <key>…</key> followed by <true/> or <false/>. */
 function boolForKey(plist, key) {

@@ -21,7 +21,7 @@ platform :ios do
   # rejected only by App Store Connect at upload (ITMS-90592). Fail before the
   # binary is sent rather than after. See TOR-010.
   def check_export_compliance
-    sh("cd '#{project_root}' && ./scripts/check_ios_export_compliance.sh")
+    sh("cd '#{project_root}' && ./scripts/check_export_compliance.sh")
   end
 
   desc "Run tests"

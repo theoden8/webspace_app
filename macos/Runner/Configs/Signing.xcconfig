@@ -1,0 +1,23 @@
+// Signing inputs for the macOS targets, indirected so the checked-in project
+// builds without any certificate (CI, and contributors who have none) while a
+// release machine gets a real identity without editing the project.
+//
+// To sign locally, write a Signing.local.xcconfig next to this file (it is
+// gitignored) and set what you have:
+//
+//   WEBSPACE_TEAM_ID = 7NGC2P87LM
+//   WEBSPACE_CODE_SIGN_IDENTITY = Apple Development
+//
+// The Mac App Store .pkg and the notarized Developer ID build are signed
+// after the build by scripts/sign_macos.sh and need none of this. See
+// docs/releasing-macos.md.
+
+// The unsigned path. With no team, $(AppIdentifierPrefix) expands to nothing,
+// so the app-group and keychain entitlements name no team: the app builds and
+// runs, but flutter_secure_storage returns -34018 and the app group is
+// unavailable. Good enough to develop against, never to ship.
+WEBSPACE_TEAM_ID =
+WEBSPACE_CODE_SIGN_IDENTITY = -
+WEBSPACE_PROVISIONING_PROFILE =
+
+#include? "Signing.local.xcconfig"
