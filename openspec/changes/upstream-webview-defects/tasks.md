@@ -153,3 +153,24 @@ stays pinned for the process lifetime on the parent's configuration and jar.
 - [ ] 11.4 Note the ordering hazard in the fix: `_popupParentConfigs[windowId]`
   is cleared in a `finally` when `onWindowRequested` resolves, so a late
   `createPopupWebView` finds no parent and takes bail one.
+
+## 12. Untrustworthy main-frame signal on Linux (NESTED-013)
+
+Independent of WebKit PR 65415. Do the app half now; the platform half retires
+the inference later.
+
+- [ ] 12.1 Stop resolving a missing or inferred main-frame signal to the
+  permissive answer at `lib/services/webview.dart:3918`
+  (`isForMainFrame ?? true`). Distinguish "reported false", "reported true" and
+  "not trustworthy on this platform".
+- [ ] 12.2 On the untrustworthy branch, allow the navigation unmodified: skip
+  the ClearURLs and `$removeparam` top-frame `loadUrl` rewrites and the
+  cross-domain nested route. Losing a stripped parameter beats letting a
+  subframe steer the top document.
+- [ ] 12.3 Keep the existing diagnostic log at `:3925`; it is what surfaced this.
+- [ ] 12.4 Regression test for the two NESTED-013 scenarios against a fake
+  navigation action reporting the inferred signal.
+- [ ] 12.5 Once WebKit PR 65415 lands and WPE ships it, replace the fork's
+  heuristic (`in_app_webview.cc:3966-3972`) and the hardcoded
+  `isForMainFrame(true)` in `create_window_action.cc:41` with the real API, then
+  drop the untrustworthy branch. Fork-side, see the brief.

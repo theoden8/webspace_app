@@ -260,3 +260,65 @@ WebKit 2.50 symbols, but `webkit_navigation_action_is_for_main_frame` does not
 appear anywhere in the fork. `webkit_web_view_get_theme_color` is the only one,
 which is why #2781 alone should free the pin. The Linux build is the proof, not
 the comment.
+
+## Upstream beyond the plugin: WebKit
+
+The plugin is not the only upstream we depend on. On Linux the fork binds to WPE
+WebKit's GLib API, so a missing WebKit API is our problem too.
+
+### WebKit PR 65415, main-frame status on `WebKitNavigationAction`
+
+<https://github.com/WebKit/WebKit/pull/65415> (ours, open, currently
+merging-blocked) adds `webkit_navigation_action_is_for_main_frame()` to the
+WPE/GTK GLib bindings, mirroring `WKNavigationAction.targetFrame.isMainFrame` on
+Cocoa. Without it the `decide-policy` signal cannot distinguish a main-frame
+navigation from a subframe one: `webkit_navigation_action_get_frame_name()`
+returns NULL for an ordinary unnamed iframe, which is indistinguishable from the
+main frame.
+
+The fork implements exactly the heuristic the PR describes as forced
+(`flutter_inappwebview_linux/linux/in_app_webview/in_app_webview.cc:3966-3972`):
+
+```c
+// Best-effort main frame detection: frame name is usually null/empty for main frame.
+bool is_for_main_frame = true;
+const gchar* frame_name = webkit_navigation_action_get_frame_name(nav_action);
+if (frame_name != nullptr && frame_name[0] != '\0') is_for_main_frame = false;
+```
+
+It defaults to `true`, which is the unsafe direction, and an unnamed cross-origin
+iframe hits that default.
+
+**This reaches us, and we already noticed the symptom without naming the cause.**
+`lib/services/webview.dart:3918` reads
+`navigationAction.isForMainFrame ?? true`, and the comment three lines below it
+says WebKit on Linux "has been observed to return true for navigations that
+originate from inside an iframe". Everything below that gate assumes the
+navigation is the top document, and the comment at `:3930-3933` states the
+intent plainly: "a cross-origin subframe navigation must never be able to steer
+the top document."
+
+On Linux it can. Past the gate sit the ClearURLs rewrite and the ABP
+`$removeparam` rewrite, both of which respond to a match by calling
+`controller.loadUrl(cleanedUrl)` on the **top** frame and cancelling the original
+load. So an iframe whose URL merely carries a stripped tracking parameter
+navigates the whole page to that iframe's URL. Below those sits the cross-domain
+nested-webview routing, which would open embedded iframes (SSO, captcha
+challenges, one-tap sign-in) as separate top-level screens. There is no
+`Platform.isLinux` guard anywhere in `webview.dart`.
+
+Two tracks, and they are independent:
+
+- **Root fix:** land PR 65415, then replace the heuristic in the fork's
+  `OnDecidePolicy` with the real API. That also retires the guessing in
+  `create_window_action.cc:41`, which hardcodes `isForMainFrame(true)`.
+- **Until then:** the app must not steer the top document on a main-frame signal
+  it cannot trust. NESTED-013 states that; it is a WebSpace-side fix that needs
+  no WebKit change and should not wait for one.
+
+Note for whoever revisits the Linux CI comment: the claim at
+`.github/workflows/build-and-test.yml:562-566` that the plugin calls
+`webkit_navigation_action_is_for_main_frame` describes the *intended* end state,
+not the present one. The symbol does not exist in shipped WebKit yet, which is
+what PR 65415 is for, and nothing in the fork calls it. Only
+`webkit_web_view_get_theme_color` actually forces the 2.50 floor today.

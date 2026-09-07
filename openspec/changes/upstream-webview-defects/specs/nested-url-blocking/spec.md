@@ -81,3 +81,59 @@ fork.
 - **THEN** the destination receives `Sec-Fetch-Site: none` and no `Referer`
 - **AND** this spec says so, so the destination's trust decision is a known
   property of the app rather than a surprise
+
+### Requirement: NESTED-013 - Top-Document Steering Requires A Trustworthy Main-Frame Signal
+
+`shouldOverrideUrlLoading` fires for subframe navigations as well as main-frame
+ones, and several actions below the main-frame gate steer the **top** document:
+the ClearURLs rewrite and the ABP `$removeparam` rewrite both respond to a match
+by calling `loadUrl` on the top frame and cancelling the original navigation, and
+the cross-domain path routes the navigation into a nested `InAppWebViewScreen`.
+
+Those actions are correct for a main-frame navigation and are a redress attack
+for a subframe one: an embedded cross-origin iframe gets to decide where the
+whole page goes. The existing gate says so already, requiring that "a
+cross-origin subframe navigation must never be able to steer the top document".
+
+The gate is only as good as its input, and its input is not uniform. Android
+reports `isForMainFrame` correctly. Linux cannot: WPE WebKit exposes no
+main-frame flag on `WebKitNavigationAction`, so the plugin infers it from
+`webkit_navigation_action_get_frame_name()` being empty, which is also true of
+every unnamed iframe. The inference defaults to main frame, and the app then
+reads `isForMainFrame ?? true`, so an unreliable signal and a missing signal both
+resolve to the permissive answer.
+
+Therefore: an action that navigates or replaces the top document MUST NOT run on
+a main-frame signal the platform cannot vouch for. Where the signal is absent or
+known-unreliable, the navigation is allowed to proceed unmodified rather than
+rewritten or rerouted. Losing a stripped tracking parameter is the acceptable
+cost; letting a subframe steer the top document is not.
+
+This requirement is satisfied either by the platform supplying a real signal
+(WebKit PR 65415 adds `webkit_navigation_action_is_for_main_frame()` for
+WPE/GTK, after which the fork can drop the inference) or by the app treating the
+inferred signal as untrustworthy. The app-side half MUST NOT wait for the
+platform half.
+
+#### Scenario: A tracking parameter inside an iframe URL
+
+- **GIVEN** a page on Linux embedding a cross-origin iframe whose URL carries a
+  parameter ClearURLs strips
+- **WHEN** the iframe navigates and `shouldOverrideUrlLoading` fires
+- **THEN** the top document does not navigate to the iframe's URL
+- **AND** the iframe is allowed to load, stripped or not
+
+#### Scenario: An embedded sign-in iframe
+
+- **GIVEN** a cross-domain SSO or captcha iframe on a platform with no reliable
+  main-frame signal
+- **WHEN** the navigation is evaluated
+- **THEN** it loads in place
+- **AND** it is not routed into a nested `InAppWebViewScreen`
+
+#### Scenario: The signal becomes trustworthy
+
+- **GIVEN** a platform that reports main-frame status from the engine rather than
+  by inference
+- **WHEN** a genuine main-frame navigation carries a tracking parameter
+- **THEN** the rewrite runs as it does on Android, with no capability lost

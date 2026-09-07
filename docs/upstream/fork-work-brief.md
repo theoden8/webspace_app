@@ -235,3 +235,22 @@ Most of this is not reachable from any automated tier.
 - **A4**'s quiet half is observable: open and close a `windowId` popup
   repeatedly and assert the popup still reports the parent's per-site shim
   values. That belongs in the app's macOS integration tier.
+
+---
+
+## E. Blocked on WebKit, not on us
+
+`OnDecidePolicy` (`flutter_inappwebview_linux/linux/in_app_webview/in_app_webview.cc:3966-3972`)
+infers main-frame status from `webkit_navigation_action_get_frame_name()` being
+empty, which is also true of every unnamed iframe, and defaults to `true`.
+`create_window_action.cc:41` simply hardcodes `isForMainFrame(true)`.
+
+The real API is coming from us:
+[WebKit PR 65415](https://github.com/WebKit/WebKit/pull/65415) adds
+`webkit_navigation_action_is_for_main_frame()` for WPE and GTK. It is open and
+merging-blocked on test failures.
+
+When it lands and a WPE release carries it, replace both sites with the real
+call behind a `WEBKIT_CHECK_VERSION` guard, the same shape as B1, so the fork
+still builds against older WPE. Until then the app compensates (NESTED-013), so
+this is not urgent for the fork; do not paper over it with a second heuristic.
