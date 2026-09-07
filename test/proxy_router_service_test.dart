@@ -107,6 +107,41 @@ void main() {
       expect(relay.resolve(service.credentialFor('b')!)!['host'], '10.0.0.1');
     });
 
+    test('the override is bound before the probe runs (PROXY-015)', () async {
+      // The probe's own traffic travels the process-wide proxy. Bound
+      // after the probe, it resolves its own hostname directly, never
+      // reaches the relay, and attribution fails on every device --
+      // router mode then can never activate anywhere.
+      final order = <String>[];
+      final port = await service.activate(
+        perSiteProxies: {'a': proxy(ProxyType.HTTP, '10.0.0.1:8080')},
+        bindOverride: (p) async {
+          order.add('bind');
+          return true;
+        },
+        probe: (urls) async {
+          order.add('probe');
+          for (final e in urls.entries) {
+            relay.probes[Uri.parse(e.value).host.split('.').first] = e.key;
+          }
+        },
+      );
+
+      expect(order, ['bind', 'probe']);
+      expect(port, isNotNull);
+      expect(service.isActive, isTrue);
+    });
+
+    test('a failed override bind leaves the service inactive', () async {
+      final port = await service.activate(
+        perSiteProxies: {'a': proxy(ProxyType.HTTP, '10.0.0.1:8080')},
+        bindOverride: (p) async => false,
+      );
+
+      expect(port, isNull);
+      expect(service.isActive, isFalse);
+    });
+
     test('a bind failure leaves the service inactive', () async {
       relay.canBind = false;
       final port = await service.activate(

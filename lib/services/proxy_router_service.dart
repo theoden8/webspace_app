@@ -14,6 +14,14 @@ typedef ProxyAttributionProbe = Future<void> Function(
   Map<String, String> siteIdToProbeUrl,
 );
 
+/// Points the process-wide WebView proxy at the relay on [port].
+///
+/// Runs after the routes are installed and BEFORE the attribution probe:
+/// the probe travels that same process-wide proxy, so with the override
+/// not yet applied it resolves its own hostname directly, never reaches
+/// the relay, and reads as a failed attribution on every device.
+typedef ProxyRouterOverrideBinder = Future<bool> Function(int port);
+
 /// Owns Android's per-site proxy router (PROXY-013): the relay lifecycle,
 /// the per-site credentials, and the one question the WebView layer asks
 /// it at runtime ("is this auth challenge yours, and what do I answer?").
@@ -103,6 +111,7 @@ class ProxyRouterService {
   /// which still honours the user's per-site choice.
   Future<int?> activate({
     required Map<String, UserProxySettings> perSiteProxies,
+    ProxyRouterOverrideBinder? bindOverride,
     ProxyAttributionProbe? probe,
   }) async {
     final state = _state ?? ProxyRouterState();
@@ -112,7 +121,6 @@ class ProxyRouterService {
         'Proxy',
         'Router relay failed to bind; falling back to serialised per-site proxy',
         level: LogLevel.error,
-        sensitivity: LogSensitivity.sensitive,
       );
       return null;
     }
@@ -120,7 +128,25 @@ class ProxyRouterService {
     _port = port;
     final installed = await _installRoutes(perSiteProxies);
     if (!installed) {
+      LogService.instance.log(
+        'Proxy',
+        'Relay rejected the route table; not activating router mode',
+        level: LogLevel.error,
+      );
       _port = null;
+      return null;
+    }
+    // Before the probe, not after: the probe's own traffic has to reach
+    // the relay, and it only does once the process-wide proxy points
+    // there. Binding afterwards makes every probe fail to resolve and
+    // router mode unreachable on every device.
+    if (bindOverride != null && !await bindOverride(port)) {
+      LogService.instance.log(
+        'Proxy',
+        'Proxy override did not apply; not activating router mode',
+        level: LogLevel.error,
+      );
+      await deactivate();
       return null;
     }
     // PROXY-015. Everything above proves the app WANTS per-site routing;
@@ -130,9 +156,7 @@ class ProxyRouterService {
     // across container profiles would route sites through each other and
     // nothing would say so.
     if (probe != null && !await _verifyAttribution(perSiteProxies.keys, probe)) {
-      _state = null;
-      _port = null;
-      await _relay.stop();
+      await deactivate();
       return null;
     }
 
@@ -189,6 +213,12 @@ class ProxyRouterService {
       observed: observed,
     );
     if (failures.isNotEmpty) {
+      LogService.instance.log(
+        'Proxy',
+        'ATTRIBUTION CHECK FAILED for ${failures.length} of ${sites.length} '
+            'site(s); not activating router mode',
+        level: LogLevel.error,
+      );
       LogService.instance.log(
         'Proxy',
         'ATTRIBUTION CHECK FAILED for ${failures.length} site(s): $failures. '

@@ -174,12 +174,23 @@ void main() {
     expect(url, isNot(contains('9050')));
     expect(url, isNot(contains('198.51.100.7')));
 
-    // The credential the WebView will present is not written anywhere the
-    // route table can be read back from disk; it exists for this run only.
-    expect(ProxyRouterService.instance.credentialFor('router-a'), isNotNull);
-    expect(
-      ProxyRouterService.instance.credentialFor('router-a'),
-      isNot(ProxyRouterService.instance.credentialFor('router-b')),
-    );
+    // The credential the WebView will present exists for this run only
+    // and never reaches disk, so a leaked backup admits nobody.
+    //
+    // Router mode is deliberately NOT asserted active here: both platform
+    // channels are mocked, so no real proxy override lands and the
+    // PROXY-015 probe cannot reach the relay. The device path is
+    // `proxy_router_attribution_test.dart`.
+    final prefs = await SharedPreferences.getInstance();
+    final persisted = [
+      for (final key in prefs.getKeys()) '${prefs.get(key)}',
+    ].join('\n');
+    for (final credential in routes.keys.cast<String>()) {
+      expect(
+        persisted,
+        isNot(contains(credential)),
+        reason: 'a route credential must never be persisted',
+      );
+    }
   });
 }

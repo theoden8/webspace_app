@@ -3128,19 +3128,16 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// Nothing here may clear the proxy override on failure.
   Future<void> _activateProxyRouter() async {
     if (!ProxyRouterService.isSupported(useContainers: _useContainers)) return;
-    final port = await ProxyRouterService.instance.activate(
+    await ProxyRouterService.instance.activate(
       perSiteProxies: _routerProxyTable(),
+      bindOverride: ProxyManager().applyRouterOverride,
       // PROXY-015: never trust router mode without proving on THIS device
       // that each container presents its own credential.
       probe: runAttributionProbe,
     );
-    if (port == null) return;
-    if (!await ProxyManager().applyRouterOverride(port)) {
-      // The rule never landed, so nothing is actually routed through the
-      // relay. Stand the router down rather than let callers believe
-      // mismatched sites may now co-exist.
-      await ProxyRouterService.instance.deactivate();
-    }
+    // A null return stands the router down but never clears the override:
+    // the `_setCurrentIndex` that follows re-applies the site's PROXY-008
+    // proxy, and until it does a dead relay port fails closed.
   }
 
   /// Re-install routes after sites, proxies, or the global proxy changed.
