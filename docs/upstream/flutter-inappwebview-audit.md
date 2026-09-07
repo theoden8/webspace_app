@@ -60,14 +60,13 @@ cleared.
 | 2763 | iOS `onCreateWindow` return value ignored | AFFECTS, high | fork iOS `InAppWebView.swift:2762-2766` calls `self?.loadUrl(navigationAction.request)` in `defaultBehaviour`; Android `InAppWebViewChromeClient.java:675-679` only drops the pending message; our handler returns `false` on every path but the captcha popup (`lib/services/webview.dart:4054-4141`) | NESTED-011, EXT-009 |
 | 2834 | Suppress/customize `Sec-CH-UA` | AFFECTS, medium (residual) | `lib/services/user_agent_metadata_builder.dart:49-62` ships `platform`/`mobile` with a null `brandVersionList`; fork `InAppWebView.java:2370-2372` then skips `setBrandVersionList`, leaving the real brands | UAID-005 |
 | 2878 | Soft keyboard dead app-wide after HTML5 fullscreen | AFFECTS, high | fork `InAppWebViewChromeClient.java:151-179` `onHideCustomView` restores system UI and orientation, never the IME; zero `InputMethodManager` references in the file | fork patch, no spec |
-| 2859 | iOS 17.2+ scroll stuck after keyboard dismiss | AFFECTS, medium | fork iOS `InAppWebView.swift:189-193` applies a negative `contentInset`; `:201-203` `keyboardWillHide` only clears `_scrollViewContentInsetAdjusted` | cherry-pick reporter's PR |
 | 2718 | ANR in `MyCookieManager.deleteAllCookies` | AFFECTS, medium | fork `MyCookieManager.java:445-460` flushes on the platform thread, and our own `flushContainerCookieManagers()` (`:535-556`) fans that out across every profile; callers `lib/main.dart:6315`, `:9548`, `lib/services/cookie_isolation.dart:155` | BUG-007 gap 5 |
 | 2703 | 16 KB page size | AFFECTS, medium (release) | no `max-page-size` flag anywhere in the repo; alignment is incidental, from `CARGO_NDK_VERSION: "4.1.2"` (`.github/workflows/build-and-test.yml:25`) against NDK r26d, and CI builds only `--flavor fdroid` (`:367-369`) | tasks 5.x |
 | 2863 | Android native WebView background color | AFFECTS, low-medium | fork `InAppWebView.java:397-398` sets `Color.TRANSPARENT` only when `transparentBackground` is set, which we never set outside `lib/widgets/virtual_source_preview.dart:97` | [BUG-001](../bugs/001-white-screen.md) |
 | 2850 | iOS `console.log` coerces objects | AFFECTS, low-medium | fork's `ConsoleLogJS` concatenation is identical on iOS, macOS and Linux; consumed raw at `lib/services/webview.dart:4405-4406` | ETP-025 (the fingerprinting half) |
 | 2873 | Restrict FileProvider paths | AFFECTS, low-medium | our `android/app/src/main/res/xml/flutter_inappwebview_android_provider_paths.xml` carries five roots against upstream's one | tasks 6.x |
 | 2791 | `shouldOverrideUrlLoading` always returns true | AFFECTS, medium | `lib/services/webview.dart:3531` sets `useShouldOverrideUrlLoading` unconditionally; fork `InAppWebViewClient.java:105` returns `request.isForMainFrame()` even on ALLOW, reissuing at `:145` | NESTED-012, documentation only |
-| 2780 | `webkit_web_view_get_theme_color` on WebKit < 2.50 | AFFECTS, build | one unguarded call at fork `flutter_inappwebview_linux/linux/in_app_webview/in_app_webview.cc:6268`; no `WEBKIT_CHECK_VERSION` anywhere in the Linux plugin | CONT-009 |
+| 2780 | `webkit_web_view_get_theme_color` on WebKit < 2.50 | AFFECTS, build | one unguarded call at fork `flutter_inappwebview_linux/linux/in_app_webview/in_app_webview.cc:6268`; no `WEBKIT_CHECK_VERSION` anywhere in the Linux plugin | CONT-009; fixed by PR #2781 |
 | 2861 | Linux white screen under `DISABLE_GL=1` | AFFECTS, users only | env var read at `custom_platform_view.cc:18`, never consulted by the buffer path; CI uses llvmpipe instead (`.github/workflows/build-and-test.yml:811`) | [BUG-001](../bugs/001-white-screen.md) |
 | 2862 | Cannot build on Ubuntu | AFFECTS, docs | fork `flutter_inappwebview_linux/linux/CMakeLists.txt:47-63` probes 2.0/1.1/1.0 and never version-checks | CONT-009 |
 | 2883 | Flutter 3.47 UI separation | AFFECTS on next upgrade | `.fvmrc` pins 3.38.6 | fork rebase, blocks the bump |
@@ -121,6 +120,7 @@ Recording these is the point of the file: each one cost a read of both trees.
 | 2753 | We discard subframe errors anyway (`lib/services/webview.dart:4432`). |
 | 2707, 2855, 2730, 2619, 2570 | Native `InAppBrowser`, `ContextMenu`, `targetFrame`, `callAsyncJavaScript`, autofill: none referenced in `lib/`. Our `lib/screens/inappbrowser.dart` is a Flutter route, not the plugin's native browser. |
 | 2723, 2795, 2598, 2340, 2821 | Require a scroll ancestor, a `Slider`, a `Draggable` or a `BackdropFilter` over a live webview. We have none. |
+| 2859 | **Corrected 2026-09-07.** Listed as AFFECTS in the first pass; it is not. `keyboardWillShow` only takes the negative-inset branch when `scrollView.adjustedContentInset != .zero`, and `contentInsetAdjustmentBehavior` defaults to `NEVER` (`in_app_webview_settings.dart:3561-3562`) with no override in `lib/`, so adjusted equals `contentInset`, which starts `.zero`. The branch is never entered and `keyboardWillHide` clears a flag that was never set. Becomes live the moment we set `contentInsetAdjustmentBehavior` or `resizeToAvoidBottomInset: false`. |
 | 2415, 2762 | Fixed in Flutter 3.38.6, which `.fvmrc` already pins. |
 | 2654 | Reported against 5.8/6.0; `dispose()` at our ref removes every observer symmetrically. |
 | 2887, 2830 | Our AGP (8.13.1) and iOS deployment target (15.0) are past the reporters' boundaries. |
@@ -138,3 +138,123 @@ looking at our own code. They are recorded where they belong rather than here:
   [BUG-007 gap 5](../bugs/007-native-shared-state-races.md).
 - `DNS_READY_TIMEOUT_MS` is 15s (`WebInterceptPlugin.kt:846`), three times the
   ANR window: same gap.
+
+## Audit 2026-09-07: open pull requests
+
+Same baseline. The issue sweep found defects; this pass asks whether anyone has
+already fixed them, and whether an unmerged PR would help or hurt us on the next
+fork rebase. All **72** open PRs read, diffs fetched rather than rendered pages.
+
+Two facts shape every verdict. Our fork sits on upstream master, so an open PR is
+genuinely unmerged, not something we already carry. And **no maintainer has
+reviewed any of these**, so "wait for upstream" is not a plan: anything we want,
+we carry as a fork patch.
+
+### Take
+
+| # | What | Why it is worth carrying |
+|---|---|---|
+| 2781 | Linux: `#if WEBKIT_CHECK_VERSION(2,50,0)` around `webkit_web_view_get_theme_color` | The single thing pinning our Linux CI to `debian:sid-slim`. We never call `getMetaThemeColor` from Dart, so returning nothing below 2.50 costs us nothing, and it makes trixie and ParrotOS buildable. Guards the 2.50-only `WebKitColor` type as well as the call, so it is complete. |
+| 2767 | macOS: `responds(to: "setUpgradeKnownHostsToHTTPS:")` instead of `#available(macOS 11.3)` | We advertise Big Sur (`macos/Podfile:1` targets 10.15), the setting defaults to `true`, and the assignment is on the path every macOS webview creation takes. An affected user crashes on first site load. The selector check is strictly stronger than the availability check, which is what fails here. |
+| 2851 | iOS: serialize console arguments instead of string-concatenating them | Fixes #2850 on one of the three platforms where we are degraded. Port the same `_stringify` into the macOS and Linux copies in the same commit; they carry the byte-identical bug. |
+| 2243 | Android: reject picker results that canonicalize under the app data dir | CVE-2020-6563's mitigation for the plugin's own file picker. We never set `useOnShowFileChooser`, so we take the unfiltered default path. Does **not** close our variant: it covers `file://` only, and our FileProvider maps five roots over the whole data dir with `grantUriPermissions="true"`, so a `content://` result still reaches `HtmlCacheService` blobs. Pick it and narrow the provider paths. |
+| 2881 | Linux: re-import DMA-BUF per frame on Flutter's EGLDisplay | Two of its five commits matter. One is #2861's actual cause: `OnWpePlatformBufferRendered` sets `buffer_handled = true` on any DMA-BUF import even in software mode, so the pixel buffer is never filled and the texture stays blank. The other fixes a raster-thread use-after-free on recycled textures, which is BUG-007's shape on Linux. |
+| 2870 | macOS: availability-annotated `ASWebAuthenticationPresentationContextProviding` helper | We never use `WebAuthenticationSession`, but it compiles into the macOS plugin and CI builds macOS on `macos-latest`. This is a build break waiting for the next Xcode. |
+
+### Take, but verify on a device first
+
+- **#2776**, `windowId` EXC_BAD_ACCESS. Routes around the faulting
+  `evaluateJavaScript(_:frame:contentWorld:)` overload. Behaviour-neutral for us
+  because our content world is always `.page`. Needs mirroring into the macOS
+  twin, and its `callAsyncJavaScript` half dropped. It fixes the crash, not the
+  cause: see "still owed" below.
+- **#2866**, `NavigationActionPolicy.ALLOW_WITHOUT_TRYING_APP_LINK`. The right
+  shape for `ios-universal-link-bypass`: it suppresses app-link matching on the
+  original `WKNavigationAction` instead of cancelling and reissuing it, so
+  `Referer`, `window.opener` and `Sec-Fetch-Site: cross-site` all survive. It
+  would delete `lib/services/ios_universal_link_bypass.dart` outright and
+  recover the iOS half of NESTED-012. Three caveats: iOS and macOS only, so the
+  Android half of NESTED-012 stays open; our fork decodes unknown policy ints to
+  `.cancel`, so the Dart enum alone is not enough; and the failure mode is
+  silent, since a rejected raw value degrades to a plain allow and universal
+  links resume with nothing in the logs. Keep the old path behind a flag for one
+  release and prove the new policy on a device before deleting it.
+
+### Never take
+
+- **#2671**, WKWebView proxy for iOS 17+. Assigns
+  `WKWebsiteDataStore.nonPersistent()` unconditionally at the end of the same
+  `preWKWebViewConfiguration` block our container binding and per-site proxy live
+  in (`flutter_inappwebview_ios/.../InAppWebView.swift:745-772`). If it landed
+  and we rebased naively, its assignment would run after ours and silently drop
+  both: every iOS site sharing one ephemeral jar on the global proxy. That is a
+  per-site-containers failure and an `ip-leakage` failure at once, and neither
+  shows up as a build break. Treat `preWKWebViewConfiguration` as a permanent
+  hand-resolved conflict site.
+- **#2832**, WebKitGTK backend for Linux. It would make us build on Ubuntu, and
+  it would cost us Linux isolation silently. It targets `webkit2gtk-4.1`, a
+  generation with no `WebKitNetworkSession` at all, which is the type our whole
+  Linux container layer is built on. Worse, `ContainerController.isClassSupported`
+  is a static platform-name list with no runtime probe, so `_useContainers` would
+  stay `true`, `containerId` would be accepted and ignored, and every site would
+  share one cookie jar while the UI reported containers active.
+- **#2771** (disables all content-world JS: `frame: nil` is how the plugin says
+  "main frame"), **#1952** (shadows a loop binding, returns empty credentials),
+  **#2694** (comments out the iOS Apple Pay guard). All three are regressions
+  presented as fixes.
+
+### Wrong remedy for a real problem
+
+- **#2864** adds a runtime `setBackgroundColor` controller method for #2863. A
+  runtime call cannot fire before the platform view's first paint, and the first
+  paint *is* the flash. The fix belongs in `prepare()` beside
+  `transparentBackground`, as a setting.
+- **#2729** adds `Build.VERSION.SDK_INT` to `TrustedWebActivity.java` without
+  adding `import android.os.Build`, which is absent at our ref. It does not
+  compile. Pick it only with the import added.
+
+### Watch
+
+- **#2844** defers Android JS bridge registrations off platform-view attach,
+  fixing a real cold-start race. Not as-is: it defers plugin scripts but not
+  user-only scripts, inverting DOCUMENT_START order so our shims would run
+  before the bridge, and both its catch blocks log and continue, which is
+  fail-open injection. If we take it, defer both and make the catch fail closed.
+- **#2829** (system nlohmann) would break our Linux job until
+  `nlohmann-json3-dev` joins the apt set. **#2817** (Java deprecations) collides
+  with our two cookie flush/memo commits in `MyCookieManager.java`.
+
+### Still owed after all of the above
+
+#2776 fixes the eval call, not the state behind it. The fork keeps
+`contentWorlds`, `userOnlyScripts` and `pluginScripts` in process-global static
+dictionaries keyed by the object's pointer formatted as a string
+(`Types/WKUserContentController.swift:18-53`, and the macOS twin), unsynchronised.
+`getContentWorlds` already carries a scar comment about `EXC_BREAKPOINT` when the
+set mutates mid-loop, mitigated with a copy rather than a lock: BUG-007 exactly.
+The quiet consequence is worse than the crash. A controller freed without
+`dispose()` leaves its entry behind, and the next controller at that address
+inherits it, so `containsPluginScript` reports scripts that were never added and
+`sync()` skips them. That is a site whose per-site shims silently never inject.
+
+Separately, ours to fix: `windowWebViews` entries are removed in only three
+places (`InAppWebView.swift:2764` on decline, `:3656` on a windowId webview's own
+dispose, `:128` on manager teardown). Our captcha handler returns `true`, so the
+first never runs, and `createPopupWebView` can still bail to `SizedBox.shrink()`
+(`lib/services/webview.dart:1858-1865`) without building an
+`InAppWebView(windowId:)`, so the second never runs either. The native popup
+WKWebView stays pinned for the process lifetime on the parent's configuration and
+cookie jar.
+
+### Correction to the 2026-09-06 audit
+
+**#2859 does not affect us** and its row has moved to the cleared table. The
+negative-inset branch is guarded by `adjustedContentInset != .zero`, and
+`contentInsetAdjustmentBehavior` defaults to `NEVER` with no override in `lib/`.
+
+Also stale, and worth fixing while we are here: the comment at
+`.github/workflows/build-and-test.yml:562-566` justifies the sid pin with two
+WebKit 2.50 symbols, but `webkit_navigation_action_is_for_main_frame` does not
+appear anywhere in the fork. `webkit_web_view_get_theme_color` is the only one,
+which is why #2781 alone should free the pin. The Linux build is the proof, not
+the comment.

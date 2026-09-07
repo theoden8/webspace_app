@@ -72,11 +72,63 @@
 
 - [ ] 7.1 File or comment on #2763 with the Android-parity patch: it is a
   cross-platform contract violation, not a WebSpace-specific need.
-- [ ] 7.2 Cherry-pick the reporter's #2859 `contentInset` fix into the fork,
-  keeping their `--author` and citing `Cherry-picked-from:`.
-- [ ] 7.3 Patch #2878 (IME dead after HTML5 fullscreen) in the fork and offer it
+- [ ] 7.2 Patch #2878 (IME dead after HTML5 fullscreen) in the fork and offer it
   upstream. Its predecessor #1176 is unresolved, so upstream will not fix it
   for us.
-- [ ] 7.4 Add a `backgroundColor` setting for the Android native WebView
-  (#2863), which is the white half of BUG-001 that the repaint funnel cannot
-  reach.
+- [ ] 7.3 Add a `backgroundColor` **setting** for the Android native WebView
+  (#2863), applied in `prepare()` beside `transparentBackground`. Not upstream
+  PR #2864, which adds a runtime controller method that cannot fire before the
+  first paint, and the first paint is the flash.
+
+## 8. Cherry-picks from open upstream PRs
+
+No maintainer has reviewed any of these, so each is a fork patch we carry, not
+something to wait for. Keep each contributor's `--author` and cite
+`Cherry-picked-from: <sha> (pichillilorenzo/flutter_inappwebview)`.
+
+- [ ] 8.1 #2781, the `WEBKIT_CHECK_VERSION(2,50,0)` guard. Then flip the Linux
+  CI container off `debian:sid-slim` and confirm the whole job stays green,
+  including the Xvfb integration loop. The build is the only proof no other 2.50
+  symbol lurks. Fix the stale comment at `build-and-test.yml:562-566` while
+  there: `webkit_navigation_action_is_for_main_frame` is not in the fork.
+- [ ] 8.2 #2767, the `responds(to:)` guard for `upgradeKnownHostsToHTTPS`. If we
+  would rather not keep a Big Sur VM to verify it, the honest alternative is to
+  raise `macos/Podfile` and `MACOSX_DEPLOYMENT_TARGET` to 12.0 and skip it.
+- [ ] 8.3 #2851, console argument serialization, ported in the same commit to
+  the macOS and Linux copies. Add a structural gate asserting all three
+  `ConsoleLogJS` copies carry `_stringify`, so a rebase cannot silently drop two.
+- [ ] 8.4 #2243, the picker sandbox filter (CVE-2020-6563). Land it with task
+  6.1: it covers `file://` only, and our `content://` provider surface is the
+  half that reaches `HtmlCacheService`.
+- [ ] 8.5 #2881, the two Linux commits that matter: the `skip_pixel_readback_`
+  gate (issue #2861) and the raster-thread use-after-free on recycled textures.
+  Record the second in BUG-007, it is the same class on a new platform.
+- [ ] 8.6 #2870, the macOS availability helper, before the next Xcode bump
+  breaks the macOS build.
+- [ ] 8.7 #2776, the `windowId` eval crash, mirrored into macOS and with its
+  `callAsyncJavaScript` half dropped. It fixes the crash and not the cause, so
+  file the remaining work (address-keyed statics in
+  `Types/WKUserContentController.swift`) as a BUG-007 gap in the same change.
+
+## 9. Retire the universal-link hack (#2866)
+
+- [ ] 9.1 Cherry-pick `ALLOW_WITHOUT_TRYING_APP_LINK` and patch the fork's
+  policy decode, which currently maps unknown ints to `.cancel`.
+- [ ] 9.2 Verify on a device with an AASA app installed that the app is not
+  backgrounded and that `Referer` and `Sec-Fetch-Site: cross-site` survive.
+  The failure mode is silent: a rejected raw value degrades to a plain allow.
+- [ ] 9.3 Keep `IosUniversalLinkBypass` behind a flag for one release, then
+  delete it along with its eligibility predicate, 2s memo and GET/HEAD carve-out.
+- [ ] 9.4 Update IOS-UL-001 and NESTED-012: the iOS half of the provenance loss
+  is recovered, the Android half is not.
+
+## 10. Guard against a harmful rebase
+
+- [ ] 10.1 Record `preWKWebViewConfiguration` as a permanent hand-resolved
+  conflict site. If #2671 ever merges, keep our block and drop theirs: its
+  unconditional `nonPersistent()` assignment would silently drop both the
+  container binding and the per-site proxy, with no build break.
+- [ ] 10.2 Give Linux `ContainerController.isClassSupported` a real runtime
+  probe rather than a static platform-name list, so a backend without
+  `WebKitNetworkSession` (PR #2832's WebKitGTK, say) reports false and we fall
+  back deliberately instead of reporting containers active over one shared jar.
