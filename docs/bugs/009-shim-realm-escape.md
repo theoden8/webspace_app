@@ -118,6 +118,56 @@ path — page/worker agreement in one flavour is not evidence for another.**
    an adjacent re-point, so the *next* instance of this exact shape fails CI,
    but a wrapper built some other way is invisible to it.
 
+5. **2026-09-06 — the wrapper the answer arrives too late for is rebuilt**
+   ([lib/services/worker_shim.dart](../../lib/services/worker_shim.dart)).
+   A dedicated worker wrapped while the CSP verdict is still outstanding now
+   keeps what rebuilding it takes, and on a refusal is rebuilt on the page's own
+   script *behind the object the page already holds*: `postMessage` and
+   `terminate` forwarded to the rebuilt worker, its `message` / `messageerror` /
+   `error` events re-dispatched on the original, and the messages posted before
+   the swap replayed in order. *Why:* attempt 3 left this window open and said
+   so. The probe's answer is a task away, so a worker built from an inline
+   script at the top of the document is handed a wrapper before any verdict
+   exists; under a CSP whose `worker-src` names hosts and no `blob:`
+   (github.com's shape) that wrapper is refused *after* its constructor
+   returned, so no fail-open branch sees it and the page holds a worker that
+   never starts — #560's failure one turn earlier. Nothing measured it: every
+   CSP test built its worker after `load`, by which time the probe had long
+   answered. *Why partial:* dedicated workers only. A `SharedWorker` built in
+   the same window still dies, because the page takes its `MessagePort` at
+   construction and a port cannot be re-entangled with a second worker. The
+   discriminator between a refusal and the site's own worker throwing is the
+   error's message (a refusal reaches no script, so it carries none), which is
+   chromium's shape; an engine that reports a refused worker *with* a message
+   falls back to attempt 3's behaviour. And the rebuilt worker is unshimmed, so
+   what stands at the end of it is still the WORK-006 trade, one turn later.
+
+6. **2026-09-07 — nothing is asked of the CSP until the page wants a worker**
+   ([lib/services/worker_shim.dart](../../lib/services/worker_shim.dart)).
+   The document-start probe is gone. The site's own first worker is the test
+   instead: it gets a wrapper, its refusal is the answer, and attempt 5's
+   rescue is what makes that survivable. The rescue now covers `SharedWorker`
+   too, by handing the page one end of a `MessageChannel` in place of the
+   worker's port and re-pointing the other end at the rebuilt worker, so
+   nothing regressed by dropping the probe that used to protect it. Any
+   enforced violation the site causes for its own reasons carries
+   `originalPolicy`, which is parsed for the same answer when it arrives first
+   — the one time the platform hands a page its own policy. *Why:* the probe
+   was a beacon. A page cannot read a header-delivered CSP, so testing meant
+   breaking it, and testing up front broke it on every load of every refusing
+   site whether or not the page had a use for a worker. github.com's
+   `worker-src` names hosts and no `blob:`, so each load logged a refusal that
+   a first party can read off a `securitypolicyviolation` listener and a
+   `report-uri` mails home; nothing in a stock browser starts a `blob:` worker
+   at document start, so it identified the app — against
+   `tracking-protection`'s whole point. *Why partial:* the first worker of a
+   refusing document still pays. It costs one violation and, being rebuilt on
+   the site's own script, still runs unshimmed. Only reading the policy where a
+   page cannot forge it answers for free, and that is platform-shaped (see the
+   gap below). The directive filter also narrowed to worker-governing
+   directives, so an engine that reports only `violatedDirective` on a worker
+   refusal now falls through to the rescue rather than pre-empting it.
+
 ## Known open gaps
 
 - **Realms not yet compared against the document:** workers spawned by a
@@ -150,6 +200,28 @@ path — page/worker agreement in one flavour is not evidence for another.**
   matches, but nobody has measured it. All branches are pinned in
   `test/browser/worker_realm_escape.test.js`; settling the native mode needs a
   device.
+
+- **The first worker of a refusing document still costs one CSP violation**, and
+  it is first-party observable: a `securitypolicyviolation` listener sees it and
+  a policy carrying `report-uri` / `report-to` mails it home. Since attempt 6 a
+  page that never builds a worker never touches the policy, but the one that
+  does announces the app the same way, once, and then runs unshimmed. No page
+  can do better: a header-delivered CSP is invisible to JS, and the only time
+  the platform hands a page its own policy is inside a violation report.
+  Answering for free means reading the response headers from the embedder side,
+  which is platform-shaped. iOS and macOS carry them on `onNavigationResponse`,
+  but switching that hook on also disables the `decisionHandler(.download)`
+  branch in the fork's `InAppWebView.swift`, so it wants a passive header
+  callback rather than the existing policy hook. The Linux fork already holds
+  the `WebKitURIResponse` in its response-policy decision
+  (`in_app_webview.cc:3864`), one call from the headers. Android's WebView
+  exposes response headers only through `onReceivedHttpError`, which fires only
+  for status >= 400, so a 200 document's policy cannot be read there at all.
+  Note also that this answer must come from the native side, not a page report:
+  on Android the JS bridge's `origin` and `isMainFrame` are supplied by the
+  injected script itself (`JavaScriptBridgeInterface` reads them out of the
+  call's payload), so a page-reported verdict would hand any script a switch to
+  take its own origin's workers out of the shim.
 
 - **The `__ws*` install markers remain enumerable** on `globalThis` in worker
   scope as well as on `window`, so a fingerprinter can detect that *a* shim is

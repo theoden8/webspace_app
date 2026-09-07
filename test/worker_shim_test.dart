@@ -146,6 +146,27 @@ void main() {
               'worker-spawned worker inherits it');
     });
 
+    // WORK-006: nothing is asked of the CSP up front. A document that never
+    // builds a worker never breaks the policy, which is the only way a page
+    // can learn what it says.
+    test('installs no worker of its own', () {
+      final script = buildWorkerShimScript([buildLanguageShim('en')])!;
+      expect(script, isNot(contains('postMessage(1);close();')),
+          reason: 'a throwaway probe worker announces the app to every site '
+              'on every load, whether or not the page wanted a worker');
+    });
+
+    // A wrapper handed out before the answer is known is refused with nothing
+    // left to fall open on, so both kinds carry a rescue until blob: workers
+    // are known to run here. A worker running the payload is itself that
+    // proof, which is why the nested install starts answered and arms nothing.
+    test('both worker kinds are armed until the answer is known', () {
+      final script = buildWorkerShimScript([buildLanguageShim('en')])!;
+      expect(script, contains('var _blobProven = !watchCsp;'));
+      expect(script, contains("if (name === 'Worker') armRescue(Real, w, script, options);"));
+      expect(script, contains('else armSharedRescue(Real, w, script, options);'));
+    });
+
     test('builder appends no evaluator tail (the call site owns that)', () {
       final script = buildWorkerShimScript([buildLanguageShim('en')])!;
       expect(script.trimRight().endsWith('})();'), isTrue);

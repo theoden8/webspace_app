@@ -81,7 +81,42 @@ self.onmessage = function () {
   });
 };`;
 
-const ASSETS = { 'probe.js': PROBE_WORKER, 'leaf.js': LEAF_WORKER };
+const SHARED_WORKER = `
+self.onconnect = function (ev) {
+  var port = ev.ports[0];
+  port.onmessage = function () {
+    port.postMessage({
+      hardwareConcurrency: navigator.hardwareConcurrency,
+      deviceMemory: navigator.deviceMemory,
+      language: navigator.language,
+      shimInstalled: !!globalThis.__ws_anti_fp_shim__,
+      wrapperInstalled: !!globalThis.__ws_worker_shim__,
+    });
+  };
+  port.start();
+};`;
+
+// Answers on a port the page transferred to it, which is the thing a
+// MessageChannel in the middle can silently drop: a MessagePort cannot be
+// cloned, so a forward that leaves the transfer list behind throws.
+const PORT_SHARED_WORKER = `
+self.onconnect = function (ev) {
+  var port = ev.ports[0];
+  port.onmessage = function (e) {
+    var given = e.ports && e.ports[0];
+    if (!given) { port.postMessage('no-port'); return; }
+    given.postMessage('through-the-transferred-port');
+    given.start();
+  };
+  port.start();
+};`;
+
+const ASSETS = {
+  'probe.js': PROBE_WORKER,
+  'leaf.js': LEAF_WORKER,
+  'shared.js': SHARED_WORKER,
+  'shared_port.js': PORT_SHARED_WORKER,
+};
 
 const browser = setupBrowser();
 
@@ -118,6 +153,36 @@ const runWorker = async (opts, leafUrl) => {
   const r = await done;
   w.terminate();
   return r;
+};
+
+// Same, for a SharedWorker: its traffic runs through a MessagePort, which is
+// what the refusal path has to keep working.
+const runShared = async () => {
+  const s = new SharedWorker('/shared.js');
+  const errors = [];
+  s.onerror = (e) => errors.push(e.message || '(no message)');
+  const mine = await new Promise((resolve) => {
+    const t = setTimeout(() => resolve(null), 10000);
+    s.port.onmessage = (e) => { clearTimeout(t); resolve(e.data); };
+    s.port.start();
+    s.port.postMessage('go');
+  });
+  return { mine, errors };
+};
+
+// Hands the shared worker one end of a channel of the page's own and waits for
+// the answer to come back on it.
+const runSharedPort = async () => {
+  const s = new SharedWorker('/shared_port.js');
+  const ch = new MessageChannel();
+  const answer = new Promise((resolve) => {
+    setTimeout(() => resolve('timeout'), 10000);
+    ch.port1.onmessage = (e) => resolve(e.data);
+    ch.port1.start();
+  });
+  s.port.start();
+  s.port.postMessage('take', [ch.port2]);
+  return answer;
 };
 
 // Passed instead of a bare origin when the probe should not nest.
@@ -319,7 +384,7 @@ document.addEventListener('securitypolicyviolation', function (e) {
     { directive: e.violatedDirective, blocked: e.blockedURI });
 }, true);`;
 
-async function withShimmedPage(t, csp, fn) {
+async function withShimmedPage(t, csp, fn, { early = null } = {}) {
   if (!requireBrowser(browser, t)) return;
   const victim = await startVictim({ csp, assets: ASSETS });
   const page = await browser.browser.newPage();
@@ -327,6 +392,10 @@ async function withShimmedPage(t, csp, fn) {
     await page.evaluateOnNewDocument(RECORD_VIOLATIONS);
     await page.evaluateOnNewDocument(PAYLOAD);
     await page.evaluateOnNewDocument(INSTALLER);
+    // Runs in the same turn as the installer, which is what an inline script
+    // at the top of the document does — before any answer about blob: workers
+    // can have arrived.
+    if (early) await page.evaluateOnNewDocument(early);
     await page.goto(victim.url, { waitUntil: 'load' });
     await fn(page, victim);
   } finally {
@@ -335,22 +404,47 @@ async function withShimmedPage(t, csp, fn) {
   }
 }
 
-test('a blob-less CSP costs the shim, not the site\'s workers', async (t) => {
-  // messenger.com: worker-src without blob: refuses every wrapper, and
-  // chromium reports that refusal as an async error event rather than a
-  // constructor throw, so the WORK-006 fallback never saw it and no
-  // worker started at all — the chat worker died and the PIN prompt hung.
-  //
-  // The installer now asks the engine first, with one throwaway blob
-  // worker at document start. The violation report is what makes this a
-  // mechanism and not an inference: the only refused URI is that probe's
-  // blob, under worker-src, on a page whose own worker script is
-  // same-origin and allowed.
-  await withShimmedPage(t, NO_BLOB_CSP, async (page) => {
-    const beforeWorker = await page.evaluate(() => globalThis.__wsViolations.slice());
-    assert.deepEqual(beforeWorker, [{ directive: 'worker-src', blocked: 'blob' }],
-      'the probe must be what the CSP refuses, and it must have run by load');
+// Builds its worker before the probe can have answered, keeps whatever the
+// page's own error handler is given, and posts a message the worker has to
+// answer — a wrapper that never loads swallows both.
+const EARLY_WORKER = `
+globalThis.__earlyErrors = [];
+globalThis.__early = new Promise(function (resolve) {
+  var w = new Worker('/probe.js');
+  w.onerror = function (e) { globalThis.__earlyErrors.push(e.message || '(no message)'); };
+  var t = setTimeout(function () { resolve({ error: 'timeout' }); }, 8000);
+  w.onmessage = function (e) { clearTimeout(t); resolve(e.data); };
+  w.postMessage({ leaf: null });
+});`;
 
+async function earlyResult(page) {
+  return {
+    result: await page.evaluate(() => globalThis.__early),
+    errors: await page.evaluate(() => globalThis.__earlyErrors.slice()),
+  };
+}
+
+test('a document that builds no worker never touches the CSP', async (t) => {
+  // Asking up front cost one refusal on every load of every site whose
+  // worker-src omits blob:, whether or not the page had any use for a worker.
+  // A first party sees that (a securitypolicyviolation listener, a report-uri)
+  // and nothing in a stock browser does it, so it announced the app.
+  await withShimmedPage(t, NO_BLOB_CSP, async (page) => {
+    assert.deepEqual(await page.evaluate(() => globalThis.__wsViolations.slice()), [],
+      'nothing may be asked of the policy before the page wants a worker');
+  });
+});
+
+test('a blob-less CSP costs the shim, not the site\'s workers', async (t) => {
+  // messenger.com: worker-src without blob: kills every wrapper, and chromium
+  // reports that refusal as an async error event rather than a constructor
+  // throw, so the WORK-006 fallback never saw it and no worker started at all
+  // — the chat worker died and the PIN prompt hung.
+  //
+  // The site's first worker is what finds this out now. It is rebuilt on the
+  // page's own script behind the object the page holds, and every worker after
+  // it is handed that script directly.
+  await withShimmedPage(t, NO_BLOB_CSP, async (page) => {
     const doc = await pageVals(page);
     const classic = await page.evaluate(runWorker, null, NO_NEST);
     const module = await page.evaluate(runWorker, { type: 'module' }, NO_NEST);
@@ -365,8 +459,82 @@ test('a blob-less CSP costs the shim, not the site\'s workers', async (t) => {
         `${kind}: the fallback worker is the one leaking real values`);
     }
 
-    assert.equal(await page.evaluate(() => globalThis.__wsViolations.length), 1,
-      'no wrapper may be handed to the constructor after the refusal');
+    assert.deepEqual(await page.evaluate(() => globalThis.__wsViolations.slice()),
+      [{ directive: 'worker-src', blocked: 'blob' }],
+      'one refusal buys the answer; nothing after it may be wrapped');
+  });
+});
+
+test('the worker an inline script builds at document start is rebuilt', async (t) => {
+  // The historical shape of this failure (#560): the worker exists before the
+  // page has run a line of its own script, and the refusal reaches it as an
+  // error event with no constructor left to fall open on.
+  await withShimmedPage(t, NO_BLOB_CSP, async (page) => {
+    const doc = await pageVals(page);
+    const { result, errors } = await earlyResult(page);
+
+    assert.ok(result.mine, 'the early worker must run: ' + JSON.stringify(result));
+    assert.deepEqual(errors, [],
+      "the refused wrapper's error belongs to a worker the page never had");
+    assert.equal(result.mine.shimInstalled, false, 'expected the unshimmed rebuild');
+    assert.notEqual(result.mine.hardwareConcurrency, doc.hardwareConcurrency);
+    assert.deepEqual(await page.evaluate(() => globalThis.__wsViolations.slice()),
+      [{ directive: 'worker-src', blocked: 'blob' }]);
+  }, { early: EARLY_WORKER });
+});
+
+test('PREMISE: the same early worker is wrapped and shimmed where blob: is allowed', async (t) => {
+  // Without this the test above proves nothing: a worker that was never
+  // wrapped would run for want of anything to refuse.
+  await withShimmedPage(t, CSP, async (page) => {
+    const doc = await pageVals(page);
+    const { result, errors } = await earlyResult(page);
+
+    assert.ok(result.mine, 'the early worker must run here too');
+    assert.deepEqual(errors, []);
+    assert.equal(result.mine.shimInstalled, true, 'it does get a wrapper');
+    assert.equal(result.mine.hardwareConcurrency, doc.hardwareConcurrency);
+    assert.deepEqual(await page.evaluate(() => globalThis.__wsViolations.slice()), []);
+  }, { early: EARLY_WORKER });
+});
+
+test('a SharedWorker survives the refusal too', async (t) => {
+  // It cannot be swapped the way a dedicated worker is: the page takes its
+  // MessagePort at construction and a port cannot be re-entangled. It is
+  // handed one end of a channel of ours instead, and the other end moves.
+  await withShimmedPage(t, NO_BLOB_CSP, async (page) => {
+    const doc = await pageVals(page);
+    const r = await page.evaluate(runShared);
+    assert.ok(r.mine, 'the shared worker must start: ' + JSON.stringify(r));
+    assert.deepEqual(r.errors, []);
+    assert.equal(r.mine.shimInstalled, false, 'expected the WORK-006 fallback');
+    assert.notEqual(r.mine.hardwareConcurrency, doc.hardwareConcurrency);
+  });
+});
+
+test('a port the page transfers survives the channel in the middle', async (t) => {
+  // The bridge stands between the page and its shared worker for the life of
+  // the worker, on every site, refusing CSP or not. A forward that dropped the
+  // transfer list would throw on any message carrying a port and lose it, so
+  // both policies have to carry one end to end.
+  for (const csp of [CSP, NO_BLOB_CSP]) {
+    await withShimmedPage(t, csp, async (page) => {
+      assert.equal(await page.evaluate(runSharedPort), 'through-the-transferred-port',
+        `port transfer must survive under: ${csp}`);
+    });
+  }
+});
+
+test('PREMISE: that SharedWorker is wrapped and shimmed where blob: is allowed', async (t) => {
+  // Otherwise the test above proves only that the channel does not break a
+  // worker that was never wrapped in the first place.
+  await withShimmedPage(t, CSP, async (page) => {
+    const doc = await pageVals(page);
+    const r = await page.evaluate(runShared);
+    assert.ok(r.mine, 'the shared worker must start here too');
+    assert.equal(r.mine.shimInstalled, true, 'it does get a wrapper');
+    assert.equal(r.mine.hardwareConcurrency, doc.hardwareConcurrency);
+    assert.deepEqual(await page.evaluate(() => globalThis.__wsViolations.slice()), []);
   });
 });
 
@@ -391,21 +559,11 @@ test('a refused shim import leaves the worker running, unshimmed', async (t) => 
 // Neither worker-src nor default-src is set, so chromium falls back to
 // script-src for worker scripts. A retailer sign-in reported this shape
 // (#567) with the refused blob and the importScripts NetworkError that
-// follows it, and the button did nothing. The two cases above both name
-// worker-src explicitly, so nothing pinned the fallback.
+// follows it, and the button did nothing.
 const SCRIPT_SRC_FALLBACK_CSP = "script-src 'self' 'unsafe-eval' 'unsafe-inline'";
 
-test('a CSP that only sets script-src still answers the probe', async (t) => {
+test('a CSP that only sets script-src is answered by the same worker', async (t) => {
   await withShimmedPage(t, SCRIPT_SRC_FALLBACK_CSP, async (page) => {
-    const beforeWorker = await page.evaluate(() => globalThis.__wsViolations.slice());
-    // The console message names script-src ("'worker-src' was not
-    // explicitly set, so 'script-src' is used as a fallback") while the
-    // violation event reports the effective directive instead. The
-    // installer's filter has to accept whichever name arrives, so pin
-    // the one the engine actually emits.
-    assert.deepEqual(beforeWorker, [{ directive: 'worker-src', blocked: 'blob' }],
-      'the probe must be refused here, and have run by load');
-
     const doc = await pageVals(page);
     const { mine } = await page.evaluate(runWorker, null, NO_NEST);
     assert.ok(mine, "the site's worker must start");
@@ -413,8 +571,47 @@ test('a CSP that only sets script-src still answers the probe', async (t) => {
     assert.notEqual(mine.hardwareConcurrency, doc.hardwareConcurrency,
       'the fallback worker is the one leaking real values');
 
-    assert.equal(await page.evaluate(() => globalThis.__wsViolations.length), 1,
-      'no wrapper may be handed to the constructor after the refusal');
+    // The console message names script-src ("'worker-src' was not explicitly
+    // set, so 'script-src' is used as a fallback") while the violation event
+    // reports the effective directive instead, and only the directives that
+    // govern worker scripts are read as an answer — so pin the name the
+    // engine actually emits.
+    assert.deepEqual(await page.evaluate(() => globalThis.__wsViolations.slice()),
+      [{ directive: 'worker-src', blocked: 'blob' }]);
+  });
+});
+
+// blob: is admitted for workers and scripts, refused for images. The site
+// breaking its own policy over something unrelated must not cost the shim.
+const NO_BLOB_IMAGE_CSP =
+  "default-src 'self'; script-src 'self' blob:; worker-src 'self' blob:; img-src 'self'";
+
+test('an unrelated blob: refusal says nothing about workers', async (t) => {
+  // Reading any blob: refusal as a worker answer would drop the spoof on a
+  // site whose workers are fine, which is the WORK-002 disagreement this
+  // feature exists to deny. The violation report carries the whole policy,
+  // and the policy says workers may have blob:.
+  await withShimmedPage(t, NO_BLOB_IMAGE_CSP, async (page) => {
+    const before = await page.evaluate(async () => {
+      const url = URL.createObjectURL(new Blob([new Uint8Array(1)], { type: 'image/png' }));
+      await new Promise((resolve) => {
+        const img = document.createElement('img');
+        img.onload = img.onerror = resolve;
+        img.src = url;
+        document.body.appendChild(img);
+      });
+      return globalThis.__wsViolations.slice();
+    });
+    assert.ok(before.some((v) => /^img-src/.test(v.directive)),
+      'the premise: the page really did get a blob: image refused, saw ' +
+      JSON.stringify(before));
+
+    const doc = await pageVals(page);
+    const { mine } = await page.evaluate(runWorker, null, NO_NEST);
+    assert.ok(mine, 'the worker must run');
+    assert.equal(mine.shimInstalled, true,
+      'and must still be wrapped: the refusal was about images');
+    assert.equal(mine.hardwareConcurrency, doc.hardwareConcurrency);
   });
 });
 

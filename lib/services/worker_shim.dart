@@ -31,18 +31,29 @@
 // reports that refusal as an asynchronous `error` event on the worker rather
 // than a constructor throw — so the fail-open branch below never sees it and
 // the site is left with a worker that never starts (messenger.com: the chat
-// worker dies and "verifying your PIN" hangs forever). There is no synchronous
-// way to ask a CSP about `blob:` worker scripts, so the installer asks the
-// engine instead: it starts one throwaway blob worker at document start and
-// remembers the answer. Once a refusal is known, wrapping stops and workers
-// are handed their original script — unshimmed, but alive.
+// worker dies and "verifying your PIN" hangs forever).
+//
+// A page cannot read the policy that would say so in advance. A header-
+// delivered CSP is invisible to JS, and the one time the platform hands a page
+// its own policy is inside a violation report — from in here, the only way to
+// learn the rule is to break it. So nothing is asked in advance: the site's
+// first worker is the test. It gets a wrapper, and if the CSP refuses it the
+// worker is rebuilt on the site's own script behind the object the page
+// already holds, which the page cannot tell apart from the worker it asked
+// for. That refusal is the answer, and every worker after it is handed its
+// original script — unshimmed, but alive.
+//
+// So a document that never builds a worker never touches the CSP, where asking
+// up front announced the app to every site on every load. When the site
+// happens to break its own policy first for unrelated reasons, the report
+// carries `originalPolicy` and the same answer is read out of it for free.
 //
 // Known limits, all fail-open (functionality preferred over an extra spoof):
 //   * Under such a CSP the workers run unshimmed, which is a live page/worker
-//     disagreement (WORK-002) — the trade WORK-006 makes, and the reason the
-//     probe exists rather than a blanket bypass.
-//   * A worker created before the probe's answer arrives (an inline script at
-//     the top of the document) still gets the doomed wrapper.
+//     disagreement (WORK-002) — the trade WORK-006 makes rather than leaving
+//     the site with workers that do not start.
+//   * The first worker of a refusing document is the one that pays for the
+//     answer: it is rebuilt, so it runs, but it costs one CSP violation.
 //   * Module workers (`{type:'module'}`) get the shim via ordered static
 //     `import`s, but no nested propagation (`import.meta` cannot appear in the
 //     classic payload).
@@ -138,52 +149,286 @@ const String _installerDefinition = r'''
     // Refused means every wrapper is dead on arrival, and because the refusal
     // is asynchronous the constructor below cannot fail open on it — so it is
     // recorded here instead and read before wrapping anything else.
+    //
+    // A worker running the payload is itself proof that its document admits
+    // them, which is why the nested install starts answered.
     var _blobRefused = false;
-    var _blobProven = false;
+    var _blobProven = !watchCsp;
 
-    // Starts one throwaway worker: a message back proves `blob:` workers run
-    // here, an error proves the CSP refuses them. Runs at document start so
-    // the answer is in before the site builds a worker of its own.
-    function probeBlobWorkers() {
-      var Real = globalThis.Worker;
-      if (typeof Real !== 'function') return;
-      try {
-        var url = URL.createObjectURL(new Blob(
-          ['postMessage(1);close();'], { type: 'text/javascript' }));
-        var probe = new Real(url);
-        var finish = function (refused) {
-          if (refused && !_blobProven) _blobRefused = true;
-          if (!refused) _blobProven = true;
-          try { probe.terminate(); } catch (e) {}
-          // Only ever after the load settled: revoking while the script is
-          // still in flight would fail the probe on a page that was fine.
-          try { URL.revokeObjectURL(url); } catch (e) {}
-        };
-        probe.onmessage = function () { finish(false); };
-        probe.onerror = function (e) {
-          try { e.preventDefault(); } catch (e2) {}
-          finish(true);
-        };
-      } catch (e) {
-        _blobRefused = true;
+    // Wrappers handed out before the answer is known. A wrapper the CSP
+    // refuses fails asynchronously, long after its constructor returned, so
+    // the fail-open branch cannot see it and the page is left holding a worker
+    // that never starts. Each entry rebuilds one of those on the site's own
+    // script, or drops its bookkeeping once blob: workers are known to run.
+    var _pending = [];
+    function settle(refused) {
+      var armed = _pending;
+      _pending = [];
+      for (var i = 0; i < armed.length; i++) {
+        try { armed[i](refused); } catch (e) {}
       }
     }
+    function markRefused() {
+      if (_blobRefused || _blobProven) return;
+      _blobRefused = true;
+      settle(true);
+    }
+    function markProven() {
+      if (_blobProven) return;
+      _blobProven = true;
+      settle(false);
+    }
 
-    // Covers the window before the probe answers, and the directives it does
-    // not exercise: a refused `blob:` under anything that governs worker
-    // scripts says what the probe would have said. Ignored once the probe has
-    // seen a blob worker run, so a site that blocks blob *scripts* while
-    // allowing blob *workers* keeps its workers shimmed.
-    function watchBlobRefusals() {
+    // Shared by both rescues: shadow one of [w]'s own methods with [fn],
+    // stringifying as the native one it stands in for.
+    function own(w, name, fn) {
+      try {
+        Object.defineProperty(w, name, {
+          value: asNative(fn, name), writable: true, configurable: true });
+      } catch (e) {}
+    }
+    // Registered before the page can hold the worker, so stopping the event
+    // here stops the page's handlers with it.
+    function swallow(ev) {
+      try { ev.preventDefault(); } catch (e) {}
+      try { ev.stopImmediatePropagation(); } catch (e) {}
+    }
+    // The page's messages are recorded rather than withheld: holding them
+    // until the answer arrives would delay every worker on every site to buy
+    // the refused one. The cap bounds a worker that is never answered for at
+    // all, since a refusal always lands within a task or two of construction.
+    var RECORD_LIMIT = 32;
+
+    // Keeps [w] — the object the page already holds — usable whichever way the
+    // answer goes, by swapping a worker built on the site's own script in
+    // behind it. The page's handlers, its `instanceof`, and every reference it
+    // handed out survive, which re-issuing the constructor could not do.
+    function armRescue(Real, w, script, options) {
+      var post, term;
+      try {
+        post = w.postMessage;
+        term = w.terminate;
+        if (typeof post !== 'function' || typeof term !== 'function' ||
+            typeof w.addEventListener !== 'function') return;
+      } catch (e) { return; }
+
+      // 'waiting' until the answer lands, then 'kept' (blob: workers run here,
+      // or the page terminated this one) or 'swapped' (rebuilt behind [w]).
+      var state = 'waiting';
+      // The rebuilt worker once there is one. Everything [w] exposes reads it,
+      // so a reference the page took while waiting keeps working after a swap.
+      var real = null;
+      var sent = [];
+      var relaying = false;
+
+      own(w, 'postMessage', function () {
+        if (real) return real.postMessage.apply(real, arguments);
+        if (sent && sent.length < RECORD_LIMIT) {
+          sent.push(Array.prototype.slice.call(arguments));
+        }
+        return post.apply(w, arguments);
+      });
+      own(w, 'terminate', function () {
+        if (real) return real.terminate();
+        keep();
+        return term.call(w);
+      });
+
+      // A refused wrapper never reaches any script, so its error carries no
+      // message; an error thrown by the site's own worker code does, and is
+      // the page's to see. Unhooked once blob: workers are known to run, where
+      // a message-less error means the site's own script failed to load and
+      // the page must hear about it.
+      function onError(ev) {
+        if (relaying || ev.message) return;
+        swallow(ev);
+        // After a swap this is the refused wrapper's own error, arriving late
+        // for a worker the page never got to use.
+        if (state === 'waiting') markRefused();
+      }
+      // Anything this worker says is proof that its wrapper ran, which is the
+      // answer the document needed and the end of every arm on the page.
+      function onMessage() { if (!relaying) markProven(); }
+      try {
+        w.addEventListener('error', onError, true);
+        w.addEventListener('message', onMessage, true);
+      } catch (e) {}
+
+      function keep() {
+        state = 'kept';
+        sent = null;
+        try { delete w.postMessage; } catch (e) {}
+        try { delete w.terminate; } catch (e) {}
+        try { w.removeEventListener('error', onError, true); } catch (e) {}
+        try { w.removeEventListener('message', onMessage, true); } catch (e) {}
+      }
+      // Re-dispatched on [w] so the page's own handlers see it, and flagged
+      // while in flight so the listeners above do not read one back as the
+      // wrapper answering or failing.
+      function relay(type, e) {
+        relaying = true;
+        try {
+          w.dispatchEvent(type === 'error'
+            ? new ErrorEvent('error', { message: e.message,
+                filename: e.filename, lineno: e.lineno, colno: e.colno })
+            : new MessageEvent(type, { data: e.data, ports: e.ports }));
+        } catch (e2) {} finally { relaying = false; }
+      }
+      function swap() {
+        var built;
+        try { built = new Real(script, options); } catch (e) { keep(); return; }
+        state = 'swapped';
+        real = built;
+        built.onmessage = function (e) { relay('message', e); };
+        built.onmessageerror = function (e) { relay('messageerror', e); };
+        built.onerror = function (e) {
+          try { e.preventDefault(); } catch (e2) {}
+          relay('error', e);
+        };
+        try { term.call(w); } catch (e) {}
+        var queued = sent || [];
+        sent = null;
+        for (var i = 0; i < queued.length; i++) {
+          try { built.postMessage.apply(built, queued[i]); } catch (e) {}
+        }
+      }
+
+      _pending.push(function (refused) {
+        if (state !== 'waiting') return;
+        if (refused) swap(); else keep();
+      });
+    }
+
+    // The same trade for a `SharedWorker`, which cannot be swapped the same
+    // way: the page takes its `MessagePort` at construction and a port cannot
+    // be re-entangled with a second worker. So the page is handed one end of a
+    // channel of ours instead, and the other end is what moves.
+    function armSharedRescue(Real, w, script, options) {
+      var mine, theirs, target;
+      try {
+        if (typeof MessageChannel !== 'function') return;
+        target = w.port;
+        if (!target || typeof w.addEventListener !== 'function') return;
+        var chan = new MessageChannel();
+        theirs = chan.port1;
+        mine = chan.port2;
+        Object.defineProperty(w, 'port', {
+          value: theirs, writable: true, configurable: true });
+      } catch (e) { return; }
+
+      var state = 'waiting';
+      var sent = [];
+      var relaying = false;
+
+      // Ports ride along: a MessagePort cannot be cloned, so forwarding a
+      // message that carries one without its transfer list would throw and
+      // lose it. Buffers are copied rather than transferred, which costs a
+      // copy and breaks nothing.
+      function listen(port) {
+        port.onmessage = function (e) {
+          if (state === 'waiting') markProven();
+          try { mine.postMessage(e.data, e.ports || []); } catch (e2) {}
+        };
+        try { port.start(); } catch (e) {}
+      }
+      mine.onmessage = function (e) {
+        var ports = e.ports || [];
+        if (sent && sent.length < RECORD_LIMIT) sent.push([e.data, ports]);
+        try { target.postMessage(e.data, ports); } catch (e2) {}
+      };
+      try { mine.start(); } catch (e) {}
+      listen(target);
+
+      function onError(ev) {
+        if (relaying || ev.message) return;
+        swallow(ev);
+        if (state === 'waiting') markRefused();
+      }
+      try { w.addEventListener('error', onError, true); } catch (e) {}
+
+      _pending.push(function (refused) {
+        if (state !== 'waiting') return;
+        if (!refused) {
+          state = 'kept';
+          sent = null;
+          try { w.removeEventListener('error', onError, true); } catch (e) {}
+          return;
+        }
+        var built;
+        try { built = new Real(script, options); } catch (e) { return; }
+        state = 'swapped';
+        // The page holds [w], so the rebuilt worker's failures have to arrive
+        // there; the refused wrapper's own error keeps being swallowed above.
+        built.onerror = function (e) {
+          try { e.preventDefault(); } catch (e2) {}
+          relaying = true;
+          try {
+            w.dispatchEvent(new ErrorEvent('error', { message: e.message,
+              filename: e.filename, lineno: e.lineno, colno: e.colno }));
+          } catch (e2) {} finally { relaying = false; }
+        };
+        target = built.port;
+        listen(target);
+        var queued = sent || [];
+        sent = null;
+        for (var i = 0; i < queued.length; i++) {
+          try { target.postMessage(queued[i][0], queued[i][1]); } catch (e) {}
+        }
+      });
+    }
+
+    // The one time the platform hands a page its own policy is inside a
+    // violation report, whichever rule was broken, so read it there rather
+    // than inferring an answer from the refusal in front of us. A report-only
+    // policy blocks nothing and must not be read as a refusal.
+    function watchCspViolations() {
       if (typeof document === 'undefined' || !document.addEventListener) return;
       document.addEventListener('securitypolicyviolation', function (e) {
+        if (e.disposition && e.disposition !== 'enforce') return;
+        var verdict = policyAdmitsBlobWorkers(String(e.originalPolicy || ''));
+        if (verdict === true) { markProven(); return; }
+        if (verdict === false) { markRefused(); return; }
+        // No policy text on the event: fall back to what this refusal says on
+        // its own. Only the directives that govern worker scripts count —
+        // chromium names the effective one, so a policy that reaches workers
+        // through `script-src` still reports `worker-src` here, and a refused
+        // blob: *script* stays what it is.
         var blocked = String(e.blockedURI || '');
         if (blocked !== 'blob' && blocked.indexOf('blob:') !== 0) return;
         var directive = String(e.effectiveDirective || e.violatedDirective || '');
-        if (/^(worker|child|script|default)-src/.test(directive) && !_blobProven) {
-          _blobRefused = true;
-        }
+        if (/^(worker|child)-src/.test(directive)) markRefused();
       }, true);
+    }
+
+    // true / false / null when the policy says nothing about worker scripts.
+    // Worker scripts fall back worker-src -> child-src -> script-src ->
+    // default-src, and a `blob:` URL is admitted only by the scheme source
+    // itself: neither `*` nor `'self'` covers it.
+    function policyAdmitsBlobWorkers(policy) {
+      if (!policy) return null;
+      var answer = null;
+      var policies = policy.split(',');
+      for (var p = 0; p < policies.length; p++) {
+        var directives = policies[p].split(';');
+        var rank = -1;
+        var sources = null;
+        for (var i = 0; i < directives.length; i++) {
+          var parts = directives[i].trim().split(/\s+/);
+          var name = (parts[0] || '').toLowerCase();
+          var r = name === 'worker-src' ? 3 : name === 'child-src' ? 2 :
+                  name === 'script-src' ? 1 : name === 'default-src' ? 0 : -1;
+          if (r > rank) { rank = r; sources = parts.slice(1); }
+        }
+        if (rank < 0) continue;
+        var admits = false;
+        for (var j = 0; j < sources.length; j++) {
+          if (sources[j].toLowerCase() === 'blob:') { admits = true; break; }
+        }
+        // Every policy delivered has to admit it; one refusal is the answer.
+        if (!admits) return false;
+        answer = true;
+      }
+      return answer;
     }
 
     function wrap(script, isModule) {
@@ -235,7 +480,15 @@ const String _installerDefinition = r'''
         try {
           var isModule = !!(options && options.type === 'module');
           var url = wrap(script, isModule);
-          if (url) return new Real(url, options);
+          if (url) {
+            var w = new Real(url, options);
+            // Nothing to rescue once blob: workers are known to run here.
+            if (!_blobProven) {
+              if (name === 'Worker') armRescue(Real, w, script, options);
+              else armSharedRescue(Real, w, script, options);
+            }
+            return w;
+          }
         } catch (e) {}
         // Fail open: a broken worker is worse than an unspoofed one.
         return new Real(script, options);
@@ -255,10 +508,7 @@ const String _installerDefinition = r'''
       try { globalThis[name] = Patched; } catch (e) {}
     }
 
-    if (watchCsp) {
-      watchBlobRefusals();
-      probeBlobWorkers();
-    }
+    if (watchCsp) watchCspViolations();
 
     patch('Worker');
     patch('SharedWorker');

@@ -213,20 +213,37 @@ real constructor verbatim: a broken worker is worse than an unspoofed one.
 
 A CSP whose `worker-src` (or the `child-src`/`script-src`/`default-src` it falls
 back to) omits `blob:` refuses every wrapper, and chromium reports that refusal
-as an asynchronous `error` event on the worker rather than a constructor throw —
+as an asynchronous `error` event on the worker rather than a constructor throw,
 so the fallback above never sees it and the site is left with a worker that
-never starts. No synchronous CSP query exists, so the page-side installer SHALL
-ask the engine instead: at document start it starts one throwaway `blob:` worker
-that messages back and closes itself. A refusal — that probe's `error` event, or
-a `securitypolicyviolation` naming a `blob:` URI under a directive that governs
-worker scripts — SHALL stop all further wrapping in that document, so every
-worker built afterwards receives the page's own script.
+never starts.
 
-A violation observed after the probe has seen a `blob:` worker run SHALL be
-ignored, so a site that refuses `blob:` *scripts* while admitting `blob:`
-*workers* keeps its workers shimmed. The payload SHALL NOT probe in worker
-scope: a worker running it is itself proof that the document admits `blob:`
-workers.
+The installer SHALL NOT test the policy in advance. A page cannot read one —
+a header-delivered CSP is invisible to JS, and the only time the platform hands
+a page its own policy is inside a violation report — so testing means breaking
+the policy, and doing that at document start breaks it on every load of every
+refusing site whether or not the page had any use for a worker. That is
+first-party observable (a `securitypolicyviolation` listener sees it, a
+`report-uri` mails it home) and nothing in a stock browser does it, so it
+announces the app. Instead the site's own first worker SHALL be what finds out:
+it is wrapped, and its refusal is the answer. Once a refusal is known, wrapping
+stops and every later worker receives the page's own script, unshimmed but
+alive. The worker that found out is not lost either (see WORK-008).
+
+When a violation report reaches the document first, for whatever reason, the
+installer SHALL read `originalPolicy` and answer from the policy itself rather
+than from the refusal in front of it, resolving the question without having
+caused anything. A report-only policy blocks nothing and SHALL NOT be read as a
+refusal.
+
+Where no policy text is available, only a `blob:` refusal under a directive that
+governs worker scripts SHALL count. Chromium names the *effective* directive, so
+a policy that reaches workers through `script-src` still reports `worker-src`;
+a refused `blob:` *script* stays a script refusal and SHALL leave the wrapping
+alone, so a site that admits `blob:` workers while refusing `blob:` scripts
+keeps its workers shimmed.
+
+The payload SHALL NOT ask anything in worker scope: a worker running it is
+itself proof that its document admits `blob:` workers.
 
 In the classic wrapper the shim's `importScripts` SHALL be caught and the
 original's SHALL NOT, so a CSP that admits the wrapper but refuses what it
@@ -236,6 +253,12 @@ imports also costs the spoof rather than the worker.
 
 **Given** a site with no active per-site shim
 **Then** no worker installer script is injected
+
+#### Scenario: A document that builds no worker never touches the CSP
+
+**Given** a page whose `worker-src` omits `blob:`
+**When** the page never constructs a worker
+**Then** the document records no CSP violation at all
 
 #### Scenario: Wrapping failure still yields a working but unshimmed worker
 
@@ -247,28 +270,35 @@ construction time
 **And** that worker is NOT shimmed — it reports the machine's real values while
 the document reports the spoofed ones
 
-#### Scenario: A blob-less CSP stops the wrapping instead of killing the worker
+#### Scenario: A blob-less CSP costs the shim, not the site's workers
 
 Regression: messenger.com sets `worker-src` without `blob:`. Every wrapper was
 refused asynchronously, so no fallback ran and no worker started — the chat
 worker died and "verifying your PIN" hung with no error and no timeout.
 
 **Given** a page whose `worker-src` omits `blob:`
-**When** the installer's probe worker is refused at document start
-**And** the page then calls `new Worker('w.js')`, classic or module
-**Then** the real constructor receives `'w.js'` unchanged and the worker runs
-**And** the document records exactly one violation, naming the probe's `blob`
-under `worker-src`, not the site's own same-origin worker script
+**When** the page calls `new Worker('w.js')`, classic or module, and then builds
+a second worker
+**Then** both workers run
+**And** the second is handed its own script, never a wrapper
+**And** the document records exactly one violation, for the wrapper the first
+worker was given
 
-#### Scenario: The fallback directive answers the probe too
+#### Scenario: The fallback directive answers too
 
 **Given** a page that sets `script-src` without `blob:` and sets neither
 `worker-src` nor `default-src`
-**When** the installer's probe worker is refused at document start
-**Then** wrapping stops and the page's own worker script runs unshimmed
+**When** the page builds a worker
+**Then** it runs unshimmed
 **And** the recorded violation names the effective directive `worker-src`, not
-the `script-src` the console message attributes the refusal to — the installer's
-directive filter MUST accept either name
+the `script-src` the console message attributes the refusal to
+
+#### Scenario: An unrelated blob: refusal says nothing about workers
+
+**Given** a page that admits `blob:` workers and refuses `blob:` images
+**When** the site's own blob image is refused
+**Then** the policy is read off that report
+**And** the page's workers are still wrapped and shimmed
 
 #### Scenario: A refused shim import does not take the worker with it
 
@@ -286,12 +316,93 @@ messenger.com sends.
 
 ---
 
+### Requirement: WORK-008 - The worker that finds the refusal is not lost
+
+The refusal reaches the worker that carried the wrapper, asynchronously, after
+its constructor returned: WORK-006's fail-open branch cannot see it, and the
+page is left holding a worker that never starts. Every wrapper handed out before
+the answer is known SHALL therefore be recoverable.
+
+For a dedicated `Worker`, the installer SHALL keep what rebuilding it takes —
+the real constructor, the page's own script argument and options, and the
+messages posted to it — and on a refusal SHALL construct that worker on the
+page's own script and route it through the object the page already holds:
+`postMessage` and `terminate` forwarded to the rebuilt worker, its `message`,
+`messageerror` and `error` events re-dispatched on the original object, and the
+recorded messages replayed in order. Handing the page a second object cannot do
+this: its handlers, its `instanceof`, and every reference it passed on belong to
+the one it has.
+
+A `SharedWorker` cannot be swapped that way, because the page takes its
+`MessagePort` at construction and a port cannot be re-entangled with a second
+worker. The installer SHALL therefore hand the page one end of a `MessageChannel`
+of its own in place of that port, forward both directions, and on a refusal
+re-point its own end at the rebuilt worker's port.
+
+Messages SHALL be recorded rather than withheld: holding a page's messages until
+the answer arrives would delay the workers of every site to serve the refused
+one. The record SHALL be bounded, since a refusal always lands within a task or
+two of construction. A transferable is detached by the post that went to the
+refused wrapper and is lost to the replay, which is the narrower cost.
+
+Anything a wrapped worker says is proof that its wrapper ran, and SHALL settle
+the question for the document. The refused wrapper's own `error` SHALL NOT reach
+the page — it belongs to a worker the page never had — and an `error` carrying a
+message SHALL be left alone: a refusal never reaches any script, so only a
+message-less error can be one, and rebuilding on the site's own runtime error
+would run its worker twice. Once `blob:` workers are known to run, the rescue
+SHALL stop intercepting errors at all: a message-less error there is the site's
+own script failing to load, and swallowing it would hide a real breakage.
+
+#### Scenario: The worker that finds the refusal still runs
+
+**Given** a page whose `worker-src` omits `blob:`
+**When** an inline script at the top of the document calls `new Worker('w.js')`
+and posts a message to it
+**Then** the worker runs and answers that message
+**And** the page's `onerror` is never called for the wrapper the CSP refused
+**And** the worker is NOT shimmed — the WORK-006 trade
+
+#### Scenario: PREMISE - that worker really is wrapped
+
+**Given** the same inline script on a page whose CSP admits `blob:` workers
+**Then** its worker runs and IS shimmed, reporting the document's own
+`hardwareConcurrency`
+
+#### Scenario: A SharedWorker survives the refusal
+
+**Given** a page whose `worker-src` omits `blob:`
+**When** the page calls `new SharedWorker('s.js')` and posts through `port`
+**Then** the worker runs and answers on that same port
+**And** it is NOT shimmed
+**And** the same call on a page admitting `blob:` workers is shimmed
+
+#### Scenario: An error from the site's own worker is not read as a refusal
+
+**Given** a wrapped worker whose own script throws
+**When** the resulting `error` event carries a message
+**Then** the page's handler receives it
+**And** nothing is rebuilt
+
+#### Scenario: After the answer, a failed load still reaches the page
+
+**Given** a wrapped worker that has already sent the page a message
+**When** it later fires a message-less `error` — its script failed to load
+**Then** the page's handler receives it
+**And** nothing is rebuilt
+
+---
+
 ## Limitations
 
 - **CSP forbidding `blob:` workers.** No wrapper can preload the shim past such
-  a policy, so those workers run unshimmed. A worker built before the probe
-  answers — an inline script at the top of the document — still gets a wrapper
-  that never loads.
+  a policy, so those workers run unshimmed.
+- **The first worker of a refusing document pays for the answer.** It is
+  rebuilt, so it runs, but it runs unshimmed and it costs the one CSP violation
+  that tells the installer what the policy says. Only a policy read natively,
+  off the response headers, could answer without it, and the platform that would
+  have to supply them (Android's WebView) exposes response headers only for
+  status >= 400.
 - **Nested module workers.** Module workers receive the shim, but not the
   nested-propagation tail — `import.meta` cannot appear in the classic payload,
   so a module worker cannot learn its own URL.
@@ -317,5 +428,5 @@ messenger.com sends.
   `constructor` is re-pointed next to it
 - `test/js/worker_shim.test.js` — installer tests under jsdom, and the payload
   executed in a simulated `WorkerGlobalScope` via `node:vm`
-- `test/browser/worker_realm_escape.test.js` — realm coverage and the CSP
-  branches under a real engine
+- `test/browser/worker_realm_escape.test.js` — realm coverage, the CSP
+  branches, and the WORK-008 window under a real engine
