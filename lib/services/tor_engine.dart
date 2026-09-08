@@ -7,6 +7,9 @@
 // isolation, TOR-008 fail-closed).
 
 import 'dart:async';
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
 
 import 'package:webspace/services/tor_failure.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -310,8 +313,29 @@ class TorEngine {
       type: ProxyType.SOCKS5,
       address: '${s.host}:${s.port}',
       username: reason,
-      password: _sessionSecret,
+      password: _passwordFor(reason),
     );
+  }
+
+  /// Per-reason SOCKS password, derived rather than shared.
+  ///
+  /// Isolation itself never depended on this: tor's `IsolateSOCKSAuth` keys
+  /// circuits on the whole (username, password) tuple, and the usernames
+  /// already differ, so one shared password still gave every site its own
+  /// circuit. What it did not give is containment. The password's job is to
+  /// be an unguessable seal, so that nothing else on loopback can dial the
+  /// SOCKS port and join a site's circuit — and `siteId`s are not secret
+  /// (they appear in exported settings and in logs). With one shared
+  /// secret, anything that learned it could pair it with any siteId and ride
+  /// that site's circuit. Deriving per reason confines such a leak to the
+  /// one site it came from.
+  ///
+  /// HMAC keyed with the launch secret: deterministic within a launch (so a
+  /// site keeps one stable circuit), different per reason, and not
+  /// invertible back to the secret.
+  String _passwordFor(String reason) {
+    final mac = Hmac(sha256, utf8.encode(_sessionSecret));
+    return mac.convert(utf8.encode(reason)).toString();
   }
 
   /// Isolation tag for a site, or the app-global tag when [siteId] is

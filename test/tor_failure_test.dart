@@ -5,11 +5,14 @@
 // matter as much as the positive ones: several signatures overlap, and the
 // wrong precedence tells a user with a wrong clock that they are censored.
 
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:webspace/services/tor_failure.dart';
+import 'package:webspace/services/tor_engine.dart';
 
 void main() {
+  _authTests();
   group('classifyTorFailure', () {
     test('clock skew wins over the circuit wording it shares', () {
       // tor's clock-skew warning also talks about circuits, which is the
@@ -123,4 +126,93 @@ void main() {
       expect(f.toString(), contains('at=25%'));
     });
   });
+}
+
+// TOR-003 containment: the SOCKS auth tuple.
+//
+// Isolation never depended on the password — tor keys circuits on the whole
+// (username, password) tuple and the usernames already differ. What a shared
+// password cost was containment: siteIds are not secret, so anything that
+// learned the one secret could pair it with any siteId and ride that site's
+// circuit. These pin the derived form.
+void _authTests() {
+  group('SOCKS auth per reason', () {
+    late _Runtime runtime;
+    late TorEngine engine;
+
+    setUp(() {
+      runtime = _Runtime();
+      engine = TorEngine(runtime: runtime, sessionSecret: 'launch-secret');
+    });
+
+    tearDown(() async => engine.dispose());
+
+    Future<void> bringUp() async {
+      await engine.acquire('holder');
+      runtime.emit(const TorUp('127.0.0.1', 9999));
+      await Future<void>.delayed(Duration.zero);
+    }
+
+    test('two sites get different usernames AND different passwords',
+        () async {
+      await bringUp();
+      final a = engine.socksFor('site-a')!;
+      final b = engine.socksFor('site-b')!;
+      expect(a.username, isNot(b.username));
+      expect(a.password, isNot(b.password),
+          reason: 'a leaked password must not unlock another site’s circuit');
+    });
+
+    test('the same site is stable within a launch', () async {
+      await bringUp();
+      expect(engine.socksFor('site-a')!.password,
+          engine.socksFor('site-a')!.password,
+          reason: 'an unstable password would rebuild the circuit per request');
+    });
+
+    test('a new launch secret changes every password', () async {
+      await bringUp();
+      final first = engine.socksFor('site-a')!.password;
+      final other = TorEngine(runtime: _Runtime(), sessionSecret: 'other');
+      await other.acquire('holder');
+      // Not up, so socksFor is null: assert via a fresh engine that reaches up.
+      await other.dispose();
+      final second = TorEngine(runtime: runtime, sessionSecret: 'other');
+      await second.acquire('h2');
+      runtime.emit(const TorUp('127.0.0.1', 9999));
+      await Future<void>.delayed(Duration.zero);
+      expect(second.socksFor('site-a')!.password, isNot(first),
+          reason: 'circuits must not outlive the process');
+      await second.dispose();
+    });
+
+    test('the launch secret is never handed out verbatim', () async {
+      await bringUp();
+      expect(engine.socksFor('site-a')!.password, isNot('launch-secret'));
+    });
+  });
+}
+
+class _Runtime implements TorRuntime {
+  final _events = StreamController<TorStatus>.broadcast();
+
+  @override
+  bool get isAvailable => true;
+
+  @override
+  Stream<TorStatus> get events => _events.stream;
+
+  @override
+  Future<void> start() async {}
+
+  @override
+  Future<void> stop() async {}
+
+  @override
+  Future<void> rebuildCircuits() async {}
+
+  @override
+  Future<void> applyExitCountry(String? exitNodes) async {}
+
+  void emit(TorStatus s) => _events.add(s);
 }
