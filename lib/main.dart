@@ -1208,6 +1208,8 @@ class _WebSpacePageState extends State<WebSpacePage>
   bool _kioskLocked = false;
 
   StreamSubscription<TrustedHostEntry>? _untrustSub;
+  StreamSubscription<TorStatus>? _torStatusSub;
+  bool _lastTorUp = false;
 
   @override
   void initState() {
@@ -1226,6 +1228,35 @@ class _WebSpacePageState extends State<WebSpacePage>
     // the trust callback finds no pin, and the prompt fires again.
     _untrustSub =
         TrustedHostsService.instance.untrustChanges.listen(_onPinRevoked);
+    // Every TOR-bound webview computes its proxy binding once at
+    // construction time (webview.dart _bindingFor is synchronous). Without
+    // this listener a webview built during bootstrap stays bound to a null
+    // SOCKS endpoint for its whole lifetime, so a later Up transition
+    // silently loads the site direct (the fail-open flavour of TOR-008).
+    // Dispose any TOR-bound webview when the runtime crosses Up in either
+    // direction; the next build fetches a fresh binding from
+    // TorService.socksFor, or falls back to the interstitial when Up gave
+    // way to error / stopped.
+    _lastTorUp = TorService.instance.status.isUp;
+    _torStatusSub =
+        TorService.instance.statusStream.listen(_onTorStatusChanged);
+  }
+
+  void _onTorStatusChanged(TorStatus s) {
+    if (!mounted) return;
+    final nowUp = s.isUp;
+    if (nowUp == _lastTorUp) return;
+    _lastTorUp = nowUp;
+    var anyTorSite = false;
+    for (final m in _webViewModels) {
+      if (m.proxySettings.type != ProxyType.TOR) continue;
+      anyTorSite = true;
+      // A site whose webview is null is showing the placeholder — no
+      // dispose needed there, but the setState below still swaps in the
+      // real webview once getWebView is called again.
+      if (m.webview != null) m.disposeWebView();
+    }
+    if (anyTorSite) setState(() {});
   }
 
   Future<void> _onPinRevoked(TrustedHostEntry entry) async {
@@ -1515,6 +1546,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     _repaintLogFlushTimer?.cancel();
     _navStateDebouncer.dispose();
     _untrustSub?.cancel();
+    _torStatusSub?.cancel();
     surfaceRouteObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();

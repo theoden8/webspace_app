@@ -36,7 +36,9 @@ import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/utils/url_utils.dart';
+import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/widgets/external_url_prompt.dart' show launchUrlInSystemBrowser;
+import 'package:webspace/widgets/tor_bootstrap.dart';
 
 export 'package:webspace/settings/location.dart'
     show LocationMode, LocationGranularity, WebRtcPolicy;
@@ -1192,6 +1194,21 @@ class WebViewModel {
         onScreenShareDecision,
     List<UserScriptConfig> globalUserScripts = const [],
   }) {
+    // Fail closed while Tor is still bootstrapping (TOR-008). The stored
+    // `proxySettings.type` is the source of truth — resolving through the
+    // global-inherit path would keep DEFAULT sites off Tor, which is the
+    // documented decision for globally-inherited traffic (PROXY-011 last
+    // scenario). Constructing an InAppWebView here with a null proxy binds
+    // its WKWebsiteDataStore to no proxy for the life of the widget, so a
+    // later `Up` transition would silently leak — hence the widget-level
+    // gate rather than a proxy substitution.
+    final needsTor = proxySettings.type == ProxyType.TOR;
+    if (needsTor && !TorService.instance.status.isUp) {
+      // Do not cache the placeholder in `webview` — the next getWebView call
+      // after WebSpacePage's Tor listener disposes + setStates must fall
+      // through to real construction.
+      return const TorBootstrapPlaceholder();
+    }
     if (webview == null) {
       // Use this.language directly to ensure we get the current value from WebViewModel
       final effectiveLanguage = this.language;

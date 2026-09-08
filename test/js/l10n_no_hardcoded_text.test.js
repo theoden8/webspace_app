@@ -48,6 +48,7 @@ const migrated = new Set([
   'lib/widgets/site_permission_badges.dart',
   'lib/widgets/stats_banner.dart',
   'lib/widgets/tab_bar_corner_button.dart',
+  'lib/widgets/tor_bootstrap.dart',
   'lib/widgets/untrusted_cert_prompt.dart',
   'lib/widgets/url_bar.dart',
   'lib/widgets/virtual_source_preview.dart',

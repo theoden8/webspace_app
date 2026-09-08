@@ -21,6 +21,7 @@ import 'package:webspace/services/pull_to_refresh_gate.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/surface_repaint_engine.dart';
 import 'package:webspace/services/surface_route_observer.dart';
+import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/camera.dart';
 import 'package:webspace/settings/microphone.dart';
@@ -37,6 +38,7 @@ import 'package:webspace/web_view_model.dart'
 import 'package:webspace/widgets/download_button.dart';
 import 'package:webspace/widgets/external_url_prompt.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
+import 'package:webspace/widgets/tor_bootstrap.dart';
 import 'package:webspace/widgets/untrusted_cert_prompt.dart';
 import 'package:webspace/widgets/url_bar.dart';
 
@@ -274,7 +276,13 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   /// `partition_alloc_support.cc:770 dangling raw_ptr` SIGTRAPs on
   /// Chrome_IOThread. Stabilizing the Widget reference removes the
   /// source of churn.
-  late final Widget _webView;
+  /// Null while the site's proxy is `ProxyType.TOR` and the runtime has not
+  /// yet reached [TorUp]. Constructing the InAppWebView here against a null
+  /// proxy binding would leave its WKWebsiteDataStore with no proxy for the
+  /// life of the widget (TOR-008), so we defer construction until the SOCKS
+  /// endpoint is real. The subscription in [_torStatusSub] flips this in.
+  Widget? _webView;
+  StreamSubscription<TorStatus>? _torStatusSub;
 
   bool _isFindVisible = false;
   late bool _showUrlBar;
@@ -353,7 +361,28 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     final bool isMobile = hostIsIOS || hostIsAndroid;
     _pullToRefreshGate =
         isMobile ? PullToRefreshGate.create(onRefresh: _reloadAndRepaint) : null;
-    _webView = WebViewFactory.createWebView(
+    // Defer InAppWebView construction while Tor is not up (TOR-008). Building
+    // it here binds its WKWebsiteDataStore to a null proxy for the widget's
+    // lifetime, so a later Up transition would leak — the nested twin of the
+    // gate in WebViewModel.getWebView.
+    if (widget.proxySettings.type == ProxyType.TOR &&
+        !TorService.instance.status.isUp) {
+      _torStatusSub = TorService.instance.statusStream.listen((s) {
+        if (s is TorUp && _webView == null && mounted) {
+          setState(() => _webView = _createNestedInappWebView());
+        }
+      });
+      TorService.instance.maybeStart('nested:${widget.siteId}');
+    } else {
+      _webView = _createNestedInappWebView();
+    }
+  }
+
+  /// Extracted so [initState] can defer the call under Tor. All state it
+  /// closes over is either on [widget] or on `this`; no locals from
+  /// `initState`.
+  Widget _createNestedInappWebView() {
+    return WebViewFactory.createWebView(
       config: WebViewConfig(
         siteId: widget.siteId,
         initialUrl: widget.url,
@@ -680,6 +709,10 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     _resumeRepaintWindowTimer?.cancel();
     _commitWindowTimer?.cancel();
     _repaintLogFlushTimer?.cancel();
+    _torStatusSub?.cancel();
+    if (widget.proxySettings.type == ProxyType.TOR) {
+      TorService.instance.release('nested:${widget.siteId}');
+    }
     surfaceRouteObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -1215,7 +1248,10 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
               padding: EdgeInsets.only(bottom: _repaintNudge ? 1.0 : 0.0),
               // KeyedSubtree key bumped by _handleRendererGone remounts a fresh
               // InAppWebView after a renderer death (BUG-002 gap #1).
-              child: KeyedSubtree(key: ValueKey(_rendererGen), child: _webView),
+              child: KeyedSubtree(
+                key: ValueKey(_rendererGen),
+                child: _webView ?? const TorBootstrapPlaceholder(),
+              ),
             ),
           ),
           if (_showUrlBar)
