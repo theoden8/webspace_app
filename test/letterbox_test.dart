@@ -116,6 +116,61 @@ void main() {
       expect(t.height, 750);
     });
 
+    test('the repaint nudge shrinks the box, never the bars', () {
+      // BUG-001's Android nudge toggles a 1px body inset a few times a second.
+      // The snap is a step function, so feeding the inset in raw drops the box
+      // a whole grid step (300 -> 287.5) and the bars flash in and out.
+      const nudge = 1.0;
+      for (final settled in const <double>[
+        300, 400, 600, 700, 730.9, 800, 844, 866.3, 873, 915, 926, 1080,
+      ]) {
+        final at = computeLetterboxTarget(
+            availableWidth: 393, availableHeight: settled);
+        final nudged = computeLetterboxTarget(
+          availableWidth: 393,
+          availableHeight: settled - nudge,
+          transientInsetHeight: nudge,
+        );
+        expect(nudged.height, at.height - nudge,
+            reason: 'box must absorb the nudge at $settled');
+        expect(settled - nudge - nudged.height, settled - at.height,
+            reason: 'bars must hold still at $settled');
+      }
+    });
+
+    test('a nudged fixed box still resizes so the surface recomposites', () {
+      // A fixed box smaller than the screen would otherwise swallow the inset
+      // whole: the platform view keeps its size and the nudge does nothing.
+      final t = computeLetterboxTarget(
+        availableWidth: 400,
+        availableHeight: 799,
+        fixedWidth: 360,
+        fixedHeight: 640,
+        transientInsetHeight: 1,
+      );
+      expect(t.width, 360);
+      expect(t.height, 639);
+    });
+
+    test('a zero inset leaves the target untouched', () {
+      final plain =
+          computeLetterboxTarget(availableWidth: 393, availableHeight: 873);
+      final zero = computeLetterboxTarget(
+          availableWidth: 393, availableHeight: 873, transientInsetHeight: 0);
+      expect(zero, plain);
+    });
+
+    test('a full-frame height stays full-frame under the nudge', () {
+      // The reported symptom: 800 has no bars, and one pixel under it the raw
+      // snap falls to 750. Both toggle states must stay bar-free.
+      final t = computeLetterboxTarget(
+        availableWidth: 400,
+        availableHeight: 799,
+        transientInsetHeight: 1,
+      );
+      expect(t.height, 799);
+    });
+
     test('infinite or non-positive constraints degrade gracefully', () {
       final inf = computeLetterboxTarget(
           availableWidth: double.infinity, availableHeight: 800);
