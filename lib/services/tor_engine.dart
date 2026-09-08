@@ -8,7 +8,11 @@
 
 import 'dart:async';
 
+import 'package:webspace/services/tor_failure.dart';
 import 'package:webspace/settings/proxy.dart';
+
+export 'package:webspace/services/tor_failure.dart'
+    show TorFailure, TorFailureKind, classifyTorFailure;
 
 /// Reserved SOCKS5 username for app-global Dart-side traffic (blocklist
 /// downloads, filter lists, map tiles). Never a real `siteId`, so app-global
@@ -47,10 +51,21 @@ class TorStarting extends TorStatus {
 }
 
 class TorBootstrapping extends TorStatus {
-  const TorBootstrapping(this.percent);
+  const TorBootstrapping(this.percent, {this.tag, this.summary});
   final int percent;
+
+  /// tor's `BOOTSTRAP TAG` for the phase it is in (`conn_dir`,
+  /// `loading_descriptors`, `circuit_create`, …). Kept because where
+  /// bootstrap stalls is most of what distinguishes a censored network
+  /// from a merely slow one.
+  final String? tag;
+
+  /// tor's human-readable `SUMMARY` for the phase.
+  final String? summary;
+
   @override
-  String toString() => 'bootstrapping($percent%)';
+  String toString() =>
+      'bootstrapping($percent%${tag == null ? '' : ', $tag'})';
 }
 
 class TorUp extends TorStatus {
@@ -62,10 +77,19 @@ class TorUp extends TorStatus {
 }
 
 class TorErrored extends TorStatus {
-  const TorErrored(this.message);
-  final String message;
+  TorErrored(String message, {TorFailure? failure})
+      : failure = failure ?? classifyTorFailure(message);
+
+  /// The classified failure. Built from [message] when the caller has no
+  /// richer signals, so every construction site keeps working while the
+  /// ones that do have tor's bootstrap fields can pass a real [TorFailure].
+  final TorFailure failure;
+
+  String get message => failure.detail;
+  TorFailureKind get kind => failure.kind;
+
   @override
-  String toString() => 'error($message)';
+  String toString() => 'error($failure)';
 }
 
 /// The side of the runtime the engine cannot decide for itself. Implemented
@@ -133,6 +157,12 @@ class TorEngine {
   String? _exitNodes;
   bool _exitNodesApplied = false;
 
+  /// Last bootstrap progress seen, kept past the transition out of
+  /// [TorBootstrapping] so a timeout can say where it stalled. Where it
+  /// stopped is most of the difference between "censored" and "slow".
+  int? _lastBootstrapPercent;
+  String? _lastBootstrapTag;
+
   bool get isAvailable => _runtime.isAvailable;
   TorStatus get status => _status;
   Stream<TorStatus> get statusStream => _statuses.stream;
@@ -198,6 +228,40 @@ class TorEngine {
     await _runtime.rebuildCircuits();
   }
 
+  /// Tear the runtime down and start it again, keeping the holder set.
+  ///
+  /// This is what a Retry needs and what [acquire] cannot provide: acquire
+  /// returns early whenever the holder set is already non-empty, which it
+  /// always is for a site pinned to TOR, so retrying through it was a no-op
+  /// and the button was left out of the first cut rather than shipped inert.
+  /// Stopping first also discards whatever half-state the failure left —
+  /// a control connection attached to a dead thread, a consensus that never
+  /// finished downloading — which a bare re-start would inherit.
+  Future<void> restart() async {
+    if (!_runtime.isAvailable) return;
+    if (_holders.isEmpty) return;
+    _cancelBootstrapTimeout();
+    _lastBootstrapPercent = null;
+    _lastBootstrapTag = null;
+    // The pin has to be re-applied to whatever instance comes back; the one
+    // that dies takes its SETCONF with it.
+    _exitNodesApplied = false;
+    try {
+      await _runtime.stop();
+    } catch (_) {
+      // A stop that fails on an already-dead runtime must not block the
+      // restart that is the entire point of this call.
+    }
+    _emit(const TorStarting());
+    _armBootstrapTimeout();
+    try {
+      await _runtime.start();
+    } catch (e) {
+      _cancelBootstrapTimeout();
+      _emit(TorErrored('$e'));
+    }
+  }
+
   /// The exit-country pin currently in force, in tor's `ExitNodes` syntax.
   String? get exitNodes => _exitNodes;
 
@@ -224,7 +288,13 @@ class TorEngine {
       // A pin that did not land must not be reported as in force: the user
       // would believe traffic is leaving from a country it is not.
       _exitNodesApplied = false;
-      _emit(TorErrored('Could not apply the exit-country pin: $e'));
+      _emit(TorErrored(
+        'Could not apply the exit-country pin: $e',
+        failure: classifyTorFailure(
+          'Could not apply the exit-country pin: $e',
+          hadExitPin: true,
+        ),
+      ));
     }
   }
 
@@ -251,6 +321,10 @@ class TorEngine {
 
   void _onRuntimeStatus(TorStatus s) {
     if (s is TorUp || s is TorErrored) _cancelBootstrapTimeout();
+    if (s is TorBootstrapping) {
+      _lastBootstrapPercent = s.percent;
+      _lastBootstrapTag = s.tag ?? _lastBootstrapTag;
+    }
 
     // A late status from a runtime we already shut down must not resurrect
     // it; without this an in-flight bootstrap event racing `stop()` leaves
@@ -275,7 +349,19 @@ class TorEngine {
       _bootstrapTimer = null;
       if (_status is TorUp) return;
       _runtime.stop().catchError((_) {});
-      _emit(const TorErrored('Tor did not finish bootstrapping in time.'));
+      // Where it stalled is the signal: a deadline hit in the directory
+      // phase is what a censoring network looks like, while one past
+      // circuit-building with a strict exit pin in force is the pin.
+      _emit(TorErrored(
+        'Tor did not finish bootstrapping in time.',
+        failure: classifyTorFailure(
+          'Tor did not finish bootstrapping in time.',
+          torTag: _lastBootstrapTag,
+          atPercent: _lastBootstrapPercent,
+          hadExitPin: _exitNodes != null,
+          timedOut: true,
+        ),
+      ));
     });
   }
 

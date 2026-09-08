@@ -3855,5 +3855,116 @@
         "type": "int"
       }
     }
+  },
+  "torStatusTitle": "Tor",
+  "@torStatusTitle": {
+    "description": "Title of the Tor status card in App Settings."
+  },
+  "torStatusHint": "Shows whether the embedded Tor client is running and connected. Sites set to the TOR proxy type wait for this to be connected before they load; they never fall back to a direct connection.",
+  "@torStatusHint": {
+    "description": "Hint dialog text for the Tor status card."
+  },
+  "torStatusStopped": "Not running",
+  "@torStatusStopped": {
+    "description": "Tor status: the client is not started because no site needs it."
+  },
+  "torStatusStarting": "Starting",
+  "@torStatusStarting": {
+    "description": "Tor status: the client is launching but has not begun connecting yet."
+  },
+  "torStatusBootstrapping": "Connecting… {percent}%",
+  "@torStatusBootstrapping": {
+    "description": "Tor status while it connects. {percent} is 0-100.",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "torStatusConnected": "Connected",
+  "@torStatusConnected": {
+    "description": "Tor status: circuits are built and traffic can flow."
+  },
+  "torStatusEndpoint": "SOCKS5 on {endpoint}",
+  "@torStatusEndpoint": {
+    "description": "Shows the local address Tor is listening on, e.g. 127.0.0.1:41337.",
+    "placeholders": {
+      "endpoint": {
+        "type": "String"
+      }
+    }
+  },
+  "torStatusRebuildCircuits": "Rebuild circuits",
+  "@torStatusRebuildCircuits": {
+    "description": "Button that asks Tor for fresh circuits (a new route and exit)."
+  },
+  "torStatusPhase": "Phase: {phase}",
+  "@torStatusPhase": {
+    "description": "Which stage of connecting Tor is in, e.g. loading relay descriptors.",
+    "placeholders": {
+      "phase": {
+        "type": "String"
+      }
+    }
+  },
+  "torFailOfflineTitle": "No network",
+  "@torFailOfflineTitle": {
+    "description": "Tor failure heading: nothing on the network answered."
+  },
+  "torFailOfflineBody": "Tor could not reach anything. Check the device's connection, then try again.",
+  "@torFailOfflineBody": {
+    "description": "Tor failure explanation and remedy for having no network."
+  },
+  "torFailCensoredTitle": "Tor appears to be blocked",
+  "@torFailCensoredTitle": {
+    "description": "Tor failure heading: the network is filtering Tor."
+  },
+  "torFailCensoredBody": "This network answers, but not for Tor: the relays it needs are unreachable. Getting past this needs bridges, which this version does not offer yet. A different network should work.",
+  "@torFailCensoredBody": {
+    "description": "Tor failure explanation for a censored or filtered network."
+  },
+  "torFailClockSkewTitle": "The device clock is wrong",
+  "@torFailClockSkewTitle": {
+    "description": "Tor failure heading: the system clock is too far off for Tor."
+  },
+  "torFailClockSkewBody": "Tor refuses to build circuits while the clock is off by too much. Correct the date and time, then try again.",
+  "@torFailClockSkewBody": {
+    "description": "Tor failure explanation and remedy for clock skew."
+  },
+  "torFailExitPolicyTitle": "No usable exit in that country",
+  "@torFailExitPolicyTitle": {
+    "description": "Tor failure heading: the pinned exit country has no working exit."
+  },
+  "torFailExitPolicyBody": "The exit country is pinned strictly, so Tor will not leave from anywhere else. Pick another country, or set it back to any country.",
+  "@torFailExitPolicyBody": {
+    "description": "Tor failure explanation and remedy for a strict exit-country pin."
+  },
+  "torFailControlChannelTitle": "Could not talk to Tor",
+  "@torFailControlChannelTitle": {
+    "description": "Tor failure heading: the app failed to reach Tor's control channel."
+  },
+  "torFailControlChannelBody": "The app could not reach Tor's control channel, so it cannot tell whether traffic is protected. This is a defect in the app rather than something to configure; the details are in Developer Tools.",
+  "@torFailControlChannelBody": {
+    "description": "Tor failure explanation for an internal control-channel failure."
+  },
+  "torFailTimeoutTitle": "Tor took too long",
+  "@torFailTimeoutTitle": {
+    "description": "Tor failure heading: bootstrap ran past its deadline."
+  },
+  "torFailTimeoutBody": "Connecting did not finish in time. A slow or busy network can cause this; trying again often works.",
+  "@torFailTimeoutBody": {
+    "description": "Tor failure explanation and remedy for a bootstrap timeout."
+  },
+  "torFailRuntimeTitle": "Tor stopped unexpectedly",
+  "@torFailRuntimeTitle": {
+    "description": "Tor failure heading: an unclassified runtime failure."
+  },
+  "torFailRuntimeBody": "Tor stopped for a reason the app does not recognise. The raw message is below and in Developer Tools.",
+  "@torFailRuntimeBody": {
+    "description": "Tor failure explanation for an unrecognised runtime failure."
+  },
+  "torFailTransientNote": "Tor expects to recover from this on its own.",
+  "@torFailTransientNote": {
+    "description": "Shown when Tor marks a failure as one it can recover from unaided."
   }
 }

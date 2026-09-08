@@ -26,6 +26,9 @@ export 'package:webspace/services/tor_engine.dart'
         TorBootstrapping,
         TorUp,
         TorErrored,
+        TorFailure,
+        TorFailureKind,
+        classifyTorFailure,
         kTorAppGlobalTag;
 
 const String _kChannel = 'org.codeberg.theoden8.webspace/tor';
@@ -185,6 +188,15 @@ class TorService {
   }
 
   Future<void> rebuildCircuits() => _engine.rebuildCircuits();
+
+  /// Stop and re-start the runtime, keeping the holder set. Backs the Retry
+  /// offered on a failure: [maybeStart] cannot serve that, because acquire
+  /// short-circuits whenever a holder is already registered — which it
+  /// always is for a site pinned to TOR.
+  Future<void> restart() async {
+    if (!isAvailable) return;
+    await _engine.restart();
+  }
 
   /// Pin every circuit to a country (tor `ExitNodes` syntax) or clear it.
   /// Global to the runtime — see TOR-014 for why that makes per-site pins

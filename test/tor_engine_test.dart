@@ -296,7 +296,7 @@ void main() {
       await pumpEventQueue();
       expect(e.socksFor('a1'), isNotNull);
 
-      runtime.push(const TorErrored('control port died'));
+      runtime.push(TorErrored('control port died'));
       await pumpEventQueue();
       expect(e.socksFor('a1'), isNull,
           reason: 'an error must not keep serving a stale endpoint');
