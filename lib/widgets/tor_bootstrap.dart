@@ -17,6 +17,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:webspace/services/tor_service.dart';
+import 'package:webspace/theme/design_tokens.dart';
 
 /// Renders a placeholder for a TOR-bound webview whose runtime is not yet
 /// [TorUp]. Subscribes to [TorService.statusStream] so its own progress
@@ -30,6 +31,14 @@ class TorBootstrapPlaceholder extends StatefulWidget {
   State<TorBootstrapPlaceholder> createState() =>
       _TorBootstrapPlaceholderState();
 }
+
+/// Empty-state glyph, larger than anything in [IconSizes] — those name
+/// in-row and in-button icons, and this one is the only thing on screen.
+const double _glyphSize = 56;
+
+/// Width of the bootstrap progress bar. A layout measure rather than a
+/// spacing step, so it is not a [Spacing] value.
+const double _progressWidth = 220;
 
 class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
   StreamSubscription<TorStatus>? _sub;
@@ -68,7 +77,7 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
     Widget centered(Widget child) => Container(
           color: scheme.surface,
           alignment: Alignment.center,
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(Spacing.xl),
           child: child,
         );
 
@@ -80,7 +89,7 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
       // triggers a fresh acquire. A dedicated restart API belongs in the
       // status card follow-on (TOR-013).
       return centered(
-        Icon(Icons.cloud_off_outlined, size: 56, color: scheme.error),
+        Icon(Icons.cloud_off_outlined, size: _glyphSize, color: scheme.error),
       );
     }
 
@@ -92,13 +101,13 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(Icons.privacy_tip_outlined,
-            size: 56, color: scheme.primary.withOpacity(0.7)),
-        const SizedBox(height: 20),
+            size: _glyphSize, color: scheme.primary.withOpacity(0.7)),
+        const SizedBox(height: Spacing.xl),
         SizedBox(
-          width: 220,
+          width: _progressWidth,
           child: LinearProgressIndicator(
             value: progress,
-            minHeight: 4,
+            minHeight: Spacing.xs,
           ),
         ),
       ],
