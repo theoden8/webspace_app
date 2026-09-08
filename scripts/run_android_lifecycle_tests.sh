@@ -549,14 +549,43 @@ echo "  app pid while backgrounded: ${baseline_pid:-none}"
 # NOTIF-005-A schedules unique periodic work (webspace-notification-refresh)
 # whenever a notification site exists; WorkManager backs it with a
 # JobScheduler job. No job = the scheduling contract itself broke.
-job_ids="$(adb shell dumpsys jobscheduler 2>/dev/null \
-  | grep "$pkg/androidx.work" \
-  | sed -n 's/.*#u[0-9a]*\/\([0-9]\{1,\}\):.*/\1/p' | sort -u)"
-if [ -z "$job_ids" ]; then
-  echo "FAIL: no WorkManager job scheduled for $pkg (NOTIF-005-A)" >&2
-  dump_bg_diagnostics no-workmanager-job
-  exit 1
-fi
+#
+# Polled rather than read once after the fixed sleep above: the enqueue is
+# two hops from the keyevent (lifecycle -> platform channel ->
+# enqueueUniquePeriodicWork), and WorkManager writes its own DB and
+# registers with JobScheduler on a background executor, so how long the job
+# takes to become visible to dumpsys is a property of runner load, not of
+# the contract. Three seconds is usually enough and occasionally is not,
+# which is the coin flip #577 set out to remove. The deadline keeps the
+# assertion honest: a job that never appears still fails the scenario, just
+# 60s later than it used to.
+deadline=$(( $(date +%s) + 60 ))
+while :; do
+  # `|| true` on both stages: grep exits 1 when the app has no androidx.work
+  # entry yet, and under `set -o pipefail` that non-zero would propagate out
+  # of the command substitution and kill the script at the assignment
+  # instead of letting the poll (and the diagnostics below) run.
+  job_lines="$(adb shell dumpsys jobscheduler 2>/dev/null \
+    | grep "$pkg/androidx.work" || true)"
+  job_ids="$(printf '%s\n' "$job_lines" \
+    | sed -n 's/.*#u[0-9a]*\/\([0-9]\{1,\}\):.*/\1/p' | sort -u || true)"
+  [ -n "$job_ids" ] && break
+  if [ "$(date +%s)" -ge "$deadline" ]; then
+    echo "FAIL: no WorkManager job scheduled for $pkg within 60s (NOTIF-005-A)" >&2
+    # "no job at all" and "a job dumpsys words differently than the id
+    # pattern expects" both reach here with job_ids empty, and only the raw
+    # lines separate them.
+    if [ -n "$job_lines" ]; then
+      echo "  androidx.work lines present but no id parsed from:" >&2
+      printf '    %s\n' "$job_lines" >&2
+    else
+      echo "  no $pkg/androidx.work line in dumpsys jobscheduler at all" >&2
+    fi
+    dump_bg_diagnostics no-workmanager-job
+    exit 1
+  fi
+  sleep 2
+done
 echo "  WorkManager job(s) scheduled: $(echo "$job_ids" | tr '\n' ' ')"
 
 # The job exists, but it cannot be driven with `cmd jobscheduler run -f`:
