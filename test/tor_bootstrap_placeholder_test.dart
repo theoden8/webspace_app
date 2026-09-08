@@ -38,14 +38,22 @@ class _Runtime implements TorRuntime {
   Future<void> applyExitCountry(String? exitNodes) async {}
 
   void emit(TorStatus s) => _events.add(s);
-  Future<void> dispose() => _events.close();
 }
 
 void main() {
-  late _Runtime runtime;
-
-  setUp(() {
-    runtime = _Runtime();
+  /// Install a fake-backed engine **from inside the test body**.
+  ///
+  /// Not from `setUp`: that runs in the real async zone, while a
+  /// `testWidgets` body runs inside `fakeAsync`. `TorEngine`'s constructor
+  /// subscribes to `runtime.events`, and a stream delivers to its listener
+  /// in the zone that called `listen`. Built in `setUp`, the engine's
+  /// `_onRuntimeStatus` deliveries are scheduled on the real microtask
+  /// queue, which `tester.pump` never drains — so `runtime.emit(...)`
+  /// silently never reaches the engine, and the widget sits on the
+  /// `TorStarting` that `acquire` emitted synchronously. Constructing here
+  /// puts that subscription in the same zone as the pumps.
+  _Runtime installEngine() {
+    final runtime = _Runtime();
     TorService.overrideEngine(
       TorEngine(runtime: runtime, sessionSecret: 'secret'),
     );
@@ -54,11 +62,11 @@ void main() {
     // fake runtime — otherwise startCalls stays 0 and the widget looks
     // broken for the wrong reason.
     DeveloperModeService.instance.debugSet(true);
-  });
+    return runtime;
+  }
 
   tearDown(() async {
     await TorService.reset();
-    await runtime.dispose();
     DeveloperModeService.instance.debugSet(false);
   });
 
@@ -67,21 +75,26 @@ void main() {
     await t.pump(const Duration(milliseconds: 10));
   }
 
-  /// Unmount, then tear the engine down, both inside the test body.
+  /// Unmount, then run both of the engine's one-shot timers out on the fake
+  /// clock.
   ///
-  /// `acquire` arms a 90s bootstrap timeout and `release` arms a 60s idle
-  /// debounce; flutter_test fails any test that ends with a pending Timer.
-  /// The group tearDown cannot clear them — it runs after the binding's
-  /// invariant check. Unmount first so the placeholder's own release lands
-  /// before dispose cancels both timers.
+  /// `acquire` arms a 90s bootstrap timeout and `release` a 60s idle
+  /// debounce. flutter_test fails any test that ends with a pending Timer,
+  /// and the group tearDown cannot clear them — it runs after the binding's
+  /// invariant check. Awaiting `TorService.reset()` here instead deadlocks:
+  /// the await stops the body from advancing the fake clock that the
+  /// disposal is waiting on, and the test hangs rather than fails. Pumping
+  /// past both is the one move that works from inside the body. Firing them
+  /// is harmless once the widget is gone — each is one-shot, and the
+  /// TorStopped / TorErrored they emit arm nothing new.
   Future<void> teardownTor(WidgetTester t) async {
     await t.pumpWidget(const SizedBox.shrink());
     await settle(t);
-    await TorService.reset();
-    await settle(t);
+    await t.pump(const Duration(seconds: 91));
   }
 
   testWidgets('renders a progress bar while bootstrapping', (t) async {
+    final runtime = installEngine();
     await t.pumpWidget(const MaterialApp(home: TorBootstrapPlaceholder()));
     await settle(t);
 
@@ -98,6 +111,7 @@ void main() {
 
   testWidgets('renders an error icon on TorErrored, no retry button',
       (t) async {
+    final runtime = installEngine();
     await t.pumpWidget(const MaterialApp(home: TorBootstrapPlaceholder()));
     await settle(t);
 
@@ -115,6 +129,7 @@ void main() {
   });
 
   testWidgets('kicks TorService.maybeStart on mount', (t) async {
+    final runtime = installEngine();
     expect(runtime.startCalls, 0);
 
     await t.pumpWidget(const MaterialApp(home: TorBootstrapPlaceholder()));
