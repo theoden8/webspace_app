@@ -28,6 +28,7 @@ const MIGRATED = [
   'lib/widgets/tor_bootstrap.dart',
   // Ambient layout state, no painting: nothing to tokenise.
   'lib/widgets/surface_nudge_scope.dart',
+  'lib/widgets/tor_status_card.dart',
 ];
 
 const PENDING = [
