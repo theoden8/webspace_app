@@ -34,7 +34,8 @@ enum BackGestureAction {
 /// [BackAtHistoryStart.ignore] is the default (issue #369): the gesture only
 /// ever walks webview history. [BackAtHistoryStart.openMenu] restores the
 /// pre-#371 behaviour (issue #431): the drawer opens, and a second gesture on
-/// that drawer leaves the app.
+/// that drawer leaves the app. Only offered where the app sees the gesture at
+/// all — see [backAtHistoryStartConfigurable].
 enum BackAtHistoryStart { ignore, openMenu }
 
 /// Decides what a back gesture means before any webview navigation is
@@ -84,24 +85,17 @@ BackGestureAction decideAfterAttemptedGoBack({
       : BackGestureAction.ignore;
 }
 
-/// Whether the main page has to install its own left-edge back-swipe over the
-/// visible webview.
+/// Whether the NAV-009 setting is offered on this platform.
 ///
-/// On iOS the root site webview owns the edge swipe natively
-/// (`allowsBackForwardNavigationGestures`, NAV-001): WKWebView consumes the
-/// gesture and, at the start of history, silently does nothing. The root route
-/// has no Flutter pop for `PopScope` to intercept either, so [decideBackGesture]
-/// is never reached and NAV-009 would have no effect on iOS at all. When the
-/// setting is on, a Flutter drag recognizer over the left edge takes the gesture
-/// back and routes it through the same policy — trading WKWebView's interactive
-/// swipe animation for a decision the app can act on.
-bool needsEdgeSwipeFallback({
+/// Apple is out. WKWebView owns the root site webview's left edge natively
+/// (`allowsBackForwardNavigationGestures`, NAV-001) and resolves the swipe
+/// inside itself, and the root route has no Flutter pop for `PopScope` to
+/// intercept, so the app never learns a start-of-history swipe happened. An
+/// app-side edge recognizer put the gesture back in reach but had to infer
+/// history from `goBack()` plus a URL diff, which misreads the start of
+/// history often enough that the drawer appears mid-history.
+bool backAtHistoryStartConfigurable({
   required bool isIOS,
-  required bool webViewVisible,
-  required bool drawerAvailable,
-  required BackAtHistoryStart atHistoryStart,
+  required bool isMacOS,
 }) =>
-    isIOS &&
-    webViewVisible &&
-    drawerAvailable &&
-    atHistoryStart == BackAtHistoryStart.openMenu;
+    !isIOS && !isMacOS;
