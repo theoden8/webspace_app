@@ -7,7 +7,6 @@
 // a half-copied one must name the missing half instead of "invalid bridge".
 
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -29,6 +28,21 @@ const _jpegB64 =
     '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRof'
     'Hh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAAB'
     'AAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==';
+
+/// A store already holding an enabled, obfs4 configuration.
+///
+/// The screen collapses to the switch alone when bridges are off — nothing
+/// below it is in force — so every test that reaches the transport picker,
+/// the paste field or the Moat button starts from bridges on.
+_FakeStore _enabledStore() {
+  final s = _FakeStore();
+  s.store['tor_bridges'] = jsonEncode({
+    'enabled': true,
+    'transport': 'obfs4',
+    'lines': <String>[],
+  });
+  return s;
+}
 
 class _FakeStore implements FlutterSecureStorage {
   final Map<String, String> store = {};
@@ -88,7 +102,7 @@ void main() {
     // the requirement is that the user is told where the button is — not in
     // a hint they must open, and not after the fact.
     await t.pumpWidget(host(TorBridgeSettingsScreen(
-      storage: TorBridgeSecureStorage(secureStorage: _FakeStore()),
+      storage: TorBridgeSecureStorage(secureStorage: _enabledStore()),
     )));
     await t.pumpAndSettle();
 
@@ -102,7 +116,7 @@ void main() {
 
   testWidgets('a half-copied obfs4 line names the missing half', (t) async {
     await t.pumpWidget(host(TorBridgeSettingsScreen(
-      storage: TorBridgeSecureStorage(secureStorage: _FakeStore()),
+      storage: TorBridgeSecureStorage(secureStorage: _enabledStore()),
     )));
     await t.pumpAndSettle();
 
@@ -118,7 +132,7 @@ void main() {
 
   testWidgets('an unknown transport is refused by name', (t) async {
     await t.pumpWidget(host(TorBridgeSettingsScreen(
-      storage: TorBridgeSecureStorage(secureStorage: _FakeStore()),
+      storage: TorBridgeSecureStorage(secureStorage: _enabledStore()),
     )));
     await t.pumpAndSettle();
 
@@ -130,7 +144,7 @@ void main() {
   });
 
   testWidgets('a pasted line is stored, listed, and kept verbatim', (t) async {
-    final backing = _FakeStore();
+    final backing = _enabledStore();
     await t.pumpWidget(host(TorBridgeSettingsScreen(
       storage: TorBridgeSecureStorage(secureStorage: backing),
     )));
@@ -149,7 +163,7 @@ void main() {
     // On a censored network this is the expected outcome. Reporting it as a
     // service outage would send the user away from the route that works.
     await t.pumpWidget(host(TorBridgeSettingsScreen(
-      storage: TorBridgeSecureStorage(secureStorage: _FakeStore()),
+      storage: TorBridgeSecureStorage(secureStorage: _enabledStore()),
       moatClientFactory: () => MoatClient(
         client: _FakeHttp((_) => throw Exception('no route')),
       ),
@@ -166,7 +180,7 @@ void main() {
   });
 
   testWidgets('a successful fetch adds the bridges it received', (t) async {
-    final backing = _FakeStore();
+    final backing = _enabledStore();
     await t.pumpWidget(host(TorBridgeSettingsScreen(
       storage: TorBridgeSecureStorage(secureStorage: backing),
       moatClientFactory: () => MoatClient(
@@ -192,7 +206,6 @@ void main() {
     await t.tap(find.text('Get bridges automatically'));
     await t.pumpAndSettle();
 
-    // ignore: avoid_print
     expect(find.text(_obfs4), findsOneWidget);
     expect(find.textContaining('Added 1 bridges'), findsOneWidget);
     expect(backing.store['tor_bridges'], contains('192.0.2.10:9443'));
@@ -214,6 +227,38 @@ void main() {
     expect(find.textContaining('needs no bridge line'), findsOneWidget);
     expect(find.text('No bridge lines added'), findsNothing,
         reason: 'an empty list is correct for snowflake, not a missing step');
+  });
+
+  testWidgets('with bridges off the screen is the switch and nothing else',
+      (t) async {
+    // Every control below the switch configures bridges that are not in
+    // force. Rendering them anyway reads as a set of live settings that
+    // silently do nothing.
+    await t.pumpWidget(host(TorBridgeSettingsScreen(
+      storage: TorBridgeSecureStorage(secureStorage: _FakeStore()),
+    )));
+    await t.pumpAndSettle();
+
+    expect(find.text('Use bridges'), findsOneWidget);
+    expect(find.text('Transport'), findsNothing);
+    expect(find.byType(TextField), findsNothing);
+    expect(find.text('Get bridges automatically'), findsNothing);
+    expect(find.textContaining('without going through Tor'), findsNothing,
+        reason: 'the exposure belongs next to the button that causes it');
+  });
+
+  testWidgets('turning the switch on reveals the configuration', (t) async {
+    await t.pumpWidget(host(TorBridgeSettingsScreen(
+      storage: TorBridgeSecureStorage(secureStorage: _FakeStore()),
+    )));
+    await t.pumpAndSettle();
+
+    await t.tap(find.byType(Switch));
+    await t.pumpAndSettle();
+
+    expect(find.text('Transport'), findsOneWidget);
+    expect(find.byType(TextField), findsOneWidget);
+    expect(find.text('Get bridges automatically'), findsOneWidget);
   });
 
   group('message mapping', () {

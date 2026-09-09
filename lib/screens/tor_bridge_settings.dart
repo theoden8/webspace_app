@@ -275,31 +275,46 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
                       ? null
                       : (v) => _commit(_config.copyWith(enabled: v)),
                 ),
-                ListTile(
-                  title: Text(loc.torBridgesTransport),
-                  trailing: DropdownButton<TorTransport>(
-                    value: _config.transport,
-                    onChanged: _busy
-                        ? null
-                        : (v) => v == null
-                            ? null
-                            : _commit(_config.copyWith(transport: v)),
-                    items: [
-                      for (final t in TorTransport.values)
-                        DropdownMenuItem(value: t, child: Text(t.wireName)),
-                    ],
+                // Everything below the switch configures bridges, and with
+                // the switch off none of it is in force. Showing it anyway
+                // reads as a set of live settings that silently do nothing,
+                // so the screen collapses to the one control that matters.
+                if (_config.enabled) ...[
+                  ListTile(
+                    title: Text(loc.torBridgesTransport),
+                    trailing: DropdownButton<TorTransport>(
+                      value: _config.transport,
+                      onChanged: _busy
+                          ? null
+                          : (v) => v == null
+                              ? null
+                              : _commit(_config.copyWith(transport: v)),
+                      items: [
+                        for (final t in TorTransport.values)
+                          DropdownMenuItem(value: t, child: Text(t.wireName)),
+                      ],
+                    ),
                   ),
-                ),
-                if (_restartNeeded)
+                  if (_restartNeeded)
+                    _notice(theme, loc.torBridgesRestartNeeded,
+                        action: TextButton(
+                          onPressed: _busy ? null : _restartTor,
+                          child: Text(loc.torBridgesRestartNow),
+                        )),
+                  const Divider(),
+                  _linesSection(loc, theme),
+                  const Divider(),
+                  _fetchSection(loc, theme),
+                ]
+                // Turning bridges off while tor is up still needs a restart
+                // to take effect, so that notice outlives the section it
+                // came from.
+                else if (_restartNeeded)
                   _notice(theme, loc.torBridgesRestartNeeded,
                       action: TextButton(
                         onPressed: _busy ? null : _restartTor,
                         child: Text(loc.torBridgesRestartNow),
                       )),
-                const Divider(),
-                _linesSection(loc, theme),
-                const Divider(),
-                _fetchSection(loc, theme),
                 if (_message != null)
                   Padding(
                     padding: const EdgeInsets.all(Spacing.lg),
