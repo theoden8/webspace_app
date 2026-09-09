@@ -613,6 +613,16 @@ Where Tor itself is blocked, a bridge is the only route in, so the app
 SHALL let the user configure pluggable transports: obfs4, snowflake,
 meek_lite and webtunnel, run by IPtProxy.
 
+The configuration applied at start SHALL be the persisted one, read by
+the engine itself rather than pushed in by a caller. Bridges are kept in
+the keystore precisely so they survive a relaunch, and nothing on a cold
+start visits the settings screen: a value seeded only by that screen is
+simply absent on every launch after the first, which is a bridgeless
+bootstrap to the public directory authorities from the user's real IP
+while the screen still shows the toggle on. A keystore that cannot be
+read SHALL leave Tor startable rather than refusing to start, and SHALL
+be retried on a later start rather than cached as a failure.
+
 Bridge configuration SHALL be applied at runtime start, never by SETCONF
 afterwards: bridges have to be in force before bootstrap begins, and
 configuring them later means a bootstrap attempt over the direct guards
@@ -652,6 +662,22 @@ is covered by LEAK-010.
 - **THEN** the transport is started and its port read back
 - **AND** tor receives `UseBridges 1`, one `ClientTransportPlugin` naming
   that port, and both `Bridge` lines
+
+#### Scenario: A persisted configuration survives a relaunch
+
+- **GIVEN** bridges are enabled in the keystore from an earlier session
+- **AND** nothing this launch has opened the bridge settings screen
+- **WHEN** a site pinned to Tor starts the runtime
+- **THEN** tor receives `UseBridges 1` and the stored `Bridge` lines
+- **AND** the transport is started, without any caller having pushed the
+  configuration in
+
+#### Scenario: An unreadable keystore does not strand the user
+
+- **GIVEN** the keystore throws when the bridge configuration is read
+- **WHEN** the runtime starts
+- **THEN** tor still starts, without bridge options
+- **AND** a later start re-reads rather than reusing the failure
 
 #### Scenario: Bridges off clear the options rather than leaving them stale
 

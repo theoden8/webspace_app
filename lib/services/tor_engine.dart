@@ -154,10 +154,12 @@ class TorEngine {
     required String sessionSecret,
     Duration idleDebounce = kTorIdleDebounce,
     Duration bootstrapTimeout = kTorBootstrapTimeout,
+    Future<TorBridgeConfig> Function()? bridgeLoader,
   })  : _runtime = runtime,
         _sessionSecret = sessionSecret,
         _idleDebounce = idleDebounce,
-        _bootstrapTimeout = bootstrapTimeout {
+        _bootstrapTimeout = bootstrapTimeout,
+        _bridgeLoader = bridgeLoader {
     // Second gate, belt to the runtime's braces: a runtime with no plugin
     // behind it has nothing to say, and subscribing to find that out is
     // what threw MissingPluginException on Android.
@@ -191,6 +193,25 @@ class TorEngine {
   /// than applied immediately: bridges only take effect at bootstrap, so
   /// changing them while tor is up needs a [restart] to mean anything.
   TorBridgeConfig _bridges = const TorBridgeConfig();
+
+  /// Reads the persisted bridge configuration, or null where nothing
+  /// persists it (tests, and platforms with no runtime).
+  ///
+  /// The engine pulls rather than waiting to be pushed. Bridges live in the
+  /// keystore precisely so they survive a relaunch, and an in-memory field
+  /// seeded only by the settings screen does not: nothing on a cold start
+  /// visits that screen, so a user with obfs4 configured got a bridgeless
+  /// bootstrap straight to the public directory authorities — from their
+  /// real IP, while the screen still showed the toggle on and the card said
+  /// "connected". Hydrating here rather than at a startup call site makes
+  /// that unmissable, since every start already funnels through
+  /// [_applyBridgeConfig].
+  final Future<TorBridgeConfig> Function()? _bridgeLoader;
+
+  /// Whether [_bridges] reflects storage yet. Set by the first load and by
+  /// any [setBridges]: an explicit set is the user acting now, so it wins
+  /// over a re-read and is not overwritten by one.
+  bool _bridgesHydrated = false;
 
   bool get isAvailable => _runtime.isAvailable;
   TorStatus get status => _status;
@@ -270,7 +291,30 @@ class TorEngine {
   /// editing a text field.
   bool setBridges(TorBridgeConfig config) {
     _bridges = config;
+    _bridgesHydrated = true;
     return _status is TorUp || _status is TorBootstrapping;
+  }
+
+  /// Pull the persisted configuration in, once, before the first start that
+  /// needs it.
+  ///
+  /// A loader that throws leaves the default (bridges off) rather than
+  /// propagating: the alternative is refusing to start Tor at all because
+  /// the keystore was unreadable. It stays un-hydrated so a later start can
+  /// try again rather than caching the failure for the process lifetime.
+  Future<void> _hydrateBridges() async {
+    if (_bridgesHydrated) return;
+    final loader = _bridgeLoader;
+    if (loader == null) {
+      _bridgesHydrated = true;
+      return;
+    }
+    try {
+      _bridges = await loader();
+      _bridgesHydrated = true;
+    } catch (_) {
+      // Left un-hydrated deliberately; see above.
+    }
   }
 
   /// Put [_bridges] into force for the start that is about to happen.
@@ -281,6 +325,7 @@ class TorEngine {
   /// configuration pointing at a dead port — tor would otherwise hang the
   /// whole bootstrap dialling it.
   Future<void> _applyBridgeConfig() async {
+    await _hydrateBridges();
     final config = _bridges;
     if (!config.enabled || !config.isUsable) {
       await _runtime.setTorrcOptions(const []);

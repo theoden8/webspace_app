@@ -265,6 +265,91 @@ void main() {
       await engine.dispose();
     });
 
+    test('a persisted configuration reaches tor with no one pushing it',
+        () async {
+      // The cold-start case, and the one that was broken: nothing on a
+      // fresh launch opens the bridge screen, so an engine seeded only by
+      // that screen started tor bridgeless — straight to the public
+      // directory authorities from the user's real IP, while the screen
+      // still showed the toggle on.
+      final runtime = FakeTorRuntime()..transportPort = 47000;
+      var loads = 0;
+      final engine = TorEngine(
+        runtime: runtime,
+        sessionSecret: 's',
+        bridgeLoader: () async {
+          loads++;
+          return TorBridgeConfig(
+            enabled: true,
+            transport: TorTransport.obfs4,
+            lines: [line(_obfs4)],
+          );
+        },
+      );
+
+      // No setBridges anywhere: this is a launch, not an edit.
+      await engine.acquire('site-a');
+
+      expect(loads, 1);
+      expect(runtime.startedTransports, ['obfs4']);
+      expect(runtime.torrcOptions, contains(('UseBridges', '1')));
+      expect(runtime.torrcOptions, contains(('Bridge', _obfs4)));
+      await engine.dispose();
+    });
+
+    test('an explicit set wins over the persisted value', () async {
+      // The user acting now beats a re-read: setBridges is called after the
+      // save, so re-loading would at best duplicate it and at worst undo it
+      // if the keystore write had failed.
+      final runtime = FakeTorRuntime()..transportPort = 47000;
+      final engine = TorEngine(
+        runtime: runtime,
+        sessionSecret: 's',
+        bridgeLoader: () async => const TorBridgeConfig(),
+      );
+      engine.setBridges(TorBridgeConfig(
+        enabled: true,
+        transport: TorTransport.obfs4,
+        lines: [line(_obfs4)],
+      ));
+
+      await engine.acquire('site-a');
+
+      expect(runtime.torrcOptions, contains(('Bridge', _obfs4)));
+      await engine.dispose();
+    });
+
+    test('a keystore that throws leaves tor startable, and retries later',
+        () async {
+      // Refusing to start Tor because the keychain was unreadable would be
+      // worse than starting without bridges, but caching the failure would
+      // strand the user bridgeless for the whole process.
+      final runtime = FakeTorRuntime()..transportPort = 47000;
+      var attempts = 0;
+      final engine = TorEngine(
+        runtime: runtime,
+        sessionSecret: 's',
+        bridgeLoader: () async {
+          attempts++;
+          if (attempts == 1) throw StateError('keystore unavailable');
+          return TorBridgeConfig(
+            enabled: true,
+            transport: TorTransport.obfs4,
+            lines: [line(_obfs4)],
+          );
+        },
+      );
+
+      await engine.acquire('site-a');
+      expect(runtime.startCalls, 1, reason: 'tor still starts');
+      expect(runtime.torrcOptions, isEmpty);
+
+      await engine.restart();
+      expect(attempts, 2, reason: 'the failure is retried, not cached');
+      expect(runtime.torrcOptions, contains(('Bridge', _obfs4)));
+      await engine.dispose();
+    });
+
     test('bridges off clears the options rather than leaving them stale',
         () async {
       final runtime = FakeTorRuntime();
