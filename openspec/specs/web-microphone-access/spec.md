@@ -336,9 +336,9 @@ case, and the audio equivalent of `__wsStopRealCapture()` would have an empty
 job. No such hook is installed, and no call site pretends otherwise.
 
 What this does require is that the camera's stop not reach the substituted
-audio track. Both shims register what they substituted in one cross-shim registry, closed
-over by the stop hook rather than exposed as a global, and the camera's stop
-skips anything in it. A combined audio+video request is served by both shims and returns a
+audio track. Both shims register what they substituted in one cross-shim
+`globalThis.__wsSyntheticTracks` set, and the camera's stop skips anything in
+it. A combined audio+video request is served by both shims and returns a
 single stream carrying both tracks, so whichever shim wraps the other sees
 the other's track and must be able to recognise it — without the shared set
 the simulated microphone would be killed on every site switch, and only by

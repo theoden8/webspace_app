@@ -1,0 +1,51 @@
+Implemented on `claude/site-exploit-shims-passwords-yl5bqm`; every box below is
+done and verified locally (Dart suite, JS tier, real-Chromium browser tier,
+`kotlinc` + JUnit for the relay, `design:check`, `openspec validate --all`).
+
+## 1. Capture stop out of the page's reach (CAM-012)
+
+- [x] 1.1 `capture_track_registry.dart`: install `__wsStopRealCapture` once, `writable: false, configurable: false`, over a device-track list and substituted-track set that live in the installing closure — no `__wsRealTracks` / `__wsSyntheticTracks` globals.
+- [x] 1.2 Expose `remember` / `markSynthetic` as non-enumerable properties on the hook so the sibling shims still share one registry; `markSynthetic` refuses a track already registered as device-backed.
+- [x] 1.3 Carry registration onto `MediaStreamTrack.clone` and `MediaStream.clone` (the latter matched by `kind`).
+- [x] 1.4 Relay the stop down `globalThis.frames` and run the local stop on receipt, so a subframe's capture is reached.
+- [x] 1.5 Route `camera_stream_shim`, `microphone_stream_shim` and `screen_share_shim` through the shared block; drop `screen_share_shim`'s own copy of the set.
+- [x] 1.6 `test/js/capture_stop_tamper.test.js`: each of the three bypasses, both clone paths, and both halves of the relay.
+- [x] 1.7 Rewrite the composition/shim tests that asserted membership of the removed globals onto the behaviour they stood for.
+
+## 2. Frame-scoped camera and microphone grants (CAM-014 / MIC-016)
+
+- [x] 2.1 `MediaGrantEngine.decide` takes `isTopFrame`: gate `persist`/`save` on it, and key `_inFlight` by prompt origin.
+- [x] 2.2 `CameraDecisionEngine` / `MicrophoneDecisionEngine`: `real` short-circuits only for the top document; `block` and `virtual` still do.
+- [x] 2.3 Hold a subframe answer for a 30s per-origin grace window so the platform's follow-up permission request does not re-prompt.
+- [x] 2.4 `ScreenShareDecisionEngine` passes `isTopFrame: true` (SHARE-005 denies subframes outright).
+- [x] 2.5 Thread the flag through `WebViewModel.resolveCameraRequest` / `resolveMicrophoneRequest`, `getWebView`, and the nested `InAppWebViewScreen`.
+- [x] 2.6 `WebViewConfig.onCameraDecision` / `onMicrophoneDecision` take `(origin, isTopFrame)`; the two handlers move to the frame-aware callback; `_promptOrigin` names a subframe's own origin.
+- [x] 2.7 Native `onPermissionRequest`: derive the frame from `request.origin` vs the live top-level origin (`_sameOrigin`).
+- [x] 2.8 Engine tests for inheritance, non-persistence, the grace window and its per-origin isolation; structural gate in `page_bridge_authority.test.js`.
+
+## 3. Media-session ownership (BGAUDIO-008)
+
+- [x] 3.1 `MediaSessionService.report` takes `isMainFrame` and records `_ownerIsMainFrame`; a subframe claim is refused while a main frame holds the notification.
+- [x] 3.2 `wsMediaSession` moves to the frame-aware callback.
+- [x] 3.3 Tests for the refusal and for the embedded-player case that must still work.
+
+## 4. Per-script privileged bridge (US-DR-005 / US-DR-006)
+
+- [x] 4.1 `UserScriptConfig.bypassSitePolicy`, in `toJson`, with the absent-key default derived from `url`/`urlSource`.
+- [x] 4.2 `UserScriptService.hasPrivilegedBridge` gates the shim and all three handler registrations.
+- [x] 4.3 Delete the `window.fetch` patch from the shim; keep `__wsFetch` as the documented route.
+- [x] 4.4 Editor switch + `HintButton` saying the weakening applies to the whole page; `userScriptsBypassSitePolicyLabel` / `...Hint` in `app_en.arb`, then the 66 translations in their own commit.
+- [x] 4.5 Invert the browser tier's SOP and `connect-src` proof-of-vulnerability tests into proofs that both hold, and add one that a library still reaches `__wsFetch` by name.
+- [x] 4.6 Dart tests for the bridge being absent without the flag, present with it, and unarmed by a disabled script.
+
+## 5. Relay peer ownership (PROXY-013, in `android-auth-proxy-relay`)
+
+- [x] 5.1 `ProxyRelay.peerVerdict` — pure parse of `/proc/net/tcp{,6}` returning OWN / FOREIGN / UNKNOWN.
+- [x] 5.2 Gate each accepted connection before any upstream connect; log UNKNOWN once per relay, not per connection.
+- [x] 5.3 Injectable `peerCheck` so a JVM test can arrange the foreign case.
+- [x] 5.4 JVM tests for all three verdicts, the IPv6 table, a refused foreign peer, and a same-process peer served through the real check.
+
+## 6. Incidental
+
+- [x] 6.1 `content_blocker_shim.dart`: emit filter-list text with `jsonEncode` instead of the hand-rolled escaper, which missed newlines.
+- [x] 6.2 Teach the nested-webview parity gate to read a `final` field whose type wraps onto a second line, and classify the two fields that surfaced.

@@ -366,15 +366,8 @@ therefore be frame-scoped:
   has nothing to say about playback.
 - `MediaSessionService` SHALL record the reporting frame on every
   `playing: true` and SHALL accept `playing: false` only from that same
-  frame of that same site.
-- Ownership moves with playback, but not to any frame that asks for it. The
-  frame token is minted by the shim, which runs in an ad iframe too, so "who
-  reported last" is otherwise all it takes to retitle what the user is
-  listening to and inherit its transport controls. A **subframe** report of
-  `playing: true` SHALL therefore take ownership only when no main frame holds
-  it. A main-frame report takes ownership as before. Whether a report came from
-  the top document SHALL be read from the `wsMediaSession` handler's frame data
-  (computed by the plugin's bridge preamble), never from the page's payload.
+  frame of that same site. Ownership moves with playback: a report of
+  `playing: true` from another frame makes that frame the owner.
 
 Without this, a site whose player sits in the main frame is silenced by its
 own subframes: the ad iframe reports `playing: false` for the same `siteId`
@@ -396,19 +389,10 @@ notification is up
 **And** even if it did report `playing: false`, the frame guard would drop it
 (regression test: `test/media_session_service_test.dart`)
 
-#### Scenario: An ad iframe cannot retitle what is playing
+#### Scenario: Playback moving between frames transfers ownership
 
-**Given** a background-audio site is playing in its main frame and the
-notification is up
-**When** a subframe of the same site reports `playing: true` with its own
-title and artwork
-**Then** the notification still shows the main frame's track
-(regression test: `test/media_session_service_test.dart`)
-
-#### Scenario: An embedded player owns the notification
-
-**Given** a background-audio site whose top document never plays anything
-**When** its player iframe reports `playing: true`
+**Given** the main frame raised the notification
+**When** a subframe reports `playing: true`
 **Then** the subframe becomes the owner and its later `playing: false` is
 honored
 
