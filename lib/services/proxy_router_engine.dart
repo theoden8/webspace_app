@@ -25,6 +25,30 @@ class ProxyRouterEngine {
 
   static const String loopbackHost = '127.0.0.1';
 
+  /// Identity the relay attributes a site's traffic to when the site has
+  /// no container profile of its own.
+  ///
+  /// The whole design rests on one Chromium network session per site,
+  /// because a proxy credential is cached per `HttpNetworkSession` and
+  /// its entries are not partitioned by `NetworkAnonymizationKey`. A site
+  /// the app cannot bind to a container -- incognito, and archive-tier
+  /// which is always incognito -- runs in the default profile, which
+  /// every other such site shares. Per-site credentials there would let
+  /// one cached by a site that has since unloaded route the next site to
+  /// load. They therefore share a single identity whose upstream follows
+  /// whichever of them is active, which is exactly what PROXY-008 did for
+  /// every site. The eviction that keeps that unambiguous is
+  /// `SiteUnloadEngine.indicesToUnloadForProxyMismatch`, which still
+  /// serialises this group under router mode.
+  static const String sharedProfileIdentity = '__ws_shared_profile__';
+
+  /// The identity [siteId] presents to the relay.
+  static String identityFor({
+    required String siteId,
+    required bool ownsContainer,
+  }) =>
+      ownsContainer ? siteId : sharedProfileIdentity;
+
   /// Suffix of the attribution self-test hostnames (PROXY-015). Mirrors
   /// `ProxyRelay.PROBE_SUFFIX`. `.invalid` is RFC 2606 reserved, so a
   /// probe host can never resolve even if something forwarded one.
@@ -138,6 +162,36 @@ class ProxyRouterEngine {
     return routes;
   }
 
+  /// The route table for [sites], keyed by routing identity.
+  ///
+  /// A site with its own container profile keys on its own site id. The
+  /// rest collapse onto [sharedProfileIdentity], whose upstream is taken
+  /// from the first entry of [sharedProfilePriority] that names one of
+  /// them -- the site being activated, then the visible one, then the
+  /// loaded ones. Well defined because the mismatched loaded siblings of
+  /// that group have already been evicted, so any of them answers for all
+  /// of them.
+  ///
+  /// When no shared-profile site is in play the identity gets no entry at
+  /// all, so the relay answers 502 rather than sending the next such site
+  /// out through a stale upstream.
+  static Map<String, UserProxySettings> routeTable({
+    required List<RouterSite> sites,
+    List<int> sharedProfilePriority = const [],
+  }) {
+    final table = <String, UserProxySettings>{};
+    for (final site in sites) {
+      if (site.ownsContainer) table[site.siteId] = site.proxy;
+    }
+    for (final i in sharedProfilePriority) {
+      if (i < 0 || i >= sites.length) continue;
+      if (sites[i].ownsContainer) continue;
+      table[sharedProfileIdentity] = sites[i].proxy;
+      break;
+    }
+    return table;
+  }
+
   /// Serialise [routes] for the platform channel.
   ///
   /// A malformed address resolves to no entry at all rather than to a
@@ -228,4 +282,20 @@ class ProxyRouterState {
     final keep = siteIds.toSet();
     _tokens.removeWhere((siteId, _) => !keep.contains(siteId));
   }
+}
+
+/// One site as the router's route table sees it.
+class RouterSite {
+  final String siteId;
+  final UserProxySettings proxy;
+
+  /// Whether the site is bound to a container profile of its own, and so
+  /// to a Chromium network session that caches only its own credential.
+  final bool ownsContainer;
+
+  const RouterSite({
+    required this.siteId,
+    required this.proxy,
+    required this.ownsContainer,
+  });
 }

@@ -17,6 +17,7 @@ import 'package:webspace/services/launch_nonce.dart';
 import 'package:webspace/services/letterbox.dart';
 import 'package:webspace/services/page_zoom_shim.dart';
 import 'package:webspace/services/proxy_relay.dart';
+import 'package:webspace/services/proxy_router_engine.dart';
 import 'package:webspace/services/proxy_router_service.dart';
 import 'package:webspace/services/pull_to_refresh_gate.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
@@ -277,11 +278,12 @@ enum WebViewTheme { light, dark, system }
 ///
 /// Chromium routes a proxy auth challenge to the `WebContents` that
 /// issued the request, so this callback is the one per-WebView channel
-/// Android gives us for saying *which site* a connection belongs to. The
-/// credential is looked up by [siteId] rather than threaded through
-/// [WebViewConfig] on purpose: every WebView the app builds already
-/// carries its site id, so a popup or a nested `InAppWebViewScreen`
-/// cannot be wired up without it.
+/// Android gives us for saying *which site* a connection belongs to.
+///
+/// [identity] is the site's routing identity, not always its site id: a
+/// site with no container profile shares one identity with every other
+/// such site, because they share the network session whose auth cache
+/// holds the credential ([routerIdentityForSite]).
 ///
 /// Returns null for anything that is not the relay's challenge, which is
 /// the platform's own default (cancel). That matters: Android's callback
@@ -299,24 +301,76 @@ enum WebViewTheme { light, dark, system }
 /// therefore changes nothing off Android. Anything that makes this
 /// function return non-null off Android would.
 Future<inapp.HttpAuthResponse?> answerProxyRouterChallenge(
-  String? siteId,
+  String? identity,
   inapp.HttpAuthenticationChallenge challenge,
 ) async {
-  if (siteId == null) return null;
+  if (identity == null) return null;
   final router = ProxyRouterService.instance;
   final space = challenge.protectionSpace;
   if (!router.ownsChallenge(host: space.host, realm: space.realm)) return null;
-  final token = router.tokenFor(siteId);
+  final token = router.tokenFor(identity);
   if (token == null) return null;
   return inapp.HttpAuthResponse(
     action: inapp.HttpAuthResponseAction.PROCEED,
-    username: router.usernameFor(siteId),
+    username: router.usernameFor(identity),
     password: token,
     // Never write the token to the platform's credential store: it is
     // valid only for this run of the relay.
     permanentPersistence: false,
   );
 }
+
+/// The identity a site presents to the proxy router (PROXY-013).
+///
+/// Sites without a container profile share the default profile's cached
+/// proxy credential, so they share one identity; see
+/// [ProxyRouterEngine.sharedProfileIdentity].
+String routerIdentityForSite({
+  required String siteId,
+  String? archiveContainerId,
+  required bool incognito,
+}) =>
+    ProxyRouterEngine.identityFor(
+      siteId: siteId,
+      ownsContainer: siteOwnsContainerProfile(
+        containersSupported: ContainerNative.instance.cachedSupported,
+        containerSiteIdentifier: archiveContainerId ?? siteId,
+        incognito: incognito,
+      ),
+    );
+
+String? _routerIdentityForConfig(WebViewConfig config) {
+  final siteId = config.siteId;
+  if (siteId == null) return null;
+  return routerIdentityForSite(
+    siteId: siteId,
+    archiveContainerId: config.archiveContainerId,
+    incognito: config.incognito,
+  );
+}
+
+/// Whether a site gets a native container profile of its own.
+///
+/// The single source for the binding rule, because three other decisions
+/// have to agree with it: which routing identity the site presents to the
+/// proxy router, whether router mode still has to serialise it, and which
+/// profile the PROXY-015 probe measures. A site that is bound here has its
+/// own Chromium network session, and therefore its own cached proxy
+/// credential; one that is not shares the default profile with every other
+/// such site.
+bool siteOwnsContainerProfile({
+  required bool containersSupported,
+  required String? containerSiteIdentifier,
+  required bool incognito,
+}) =>
+    containersSupported &&
+    containerSiteIdentifier != null &&
+    // Android binds one even under incognito: it has no ephemeral profile,
+    // so an unbound site would share the default store with every other
+    // such site and leave its storage behind (ARCH-006/ARCH-007). The other
+    // platforms short-circuit to an ephemeral store instead, which is a
+    // session of its own and needs no name.
+    (!incognito || hostIsAndroid);
 
 /// Proxy manager singleton.
 ///
@@ -1946,10 +2000,11 @@ class WebViewFactory {
     // archive closes (ARCH-006/ARCH-007). So Android always binds a named
     // profile and relies on the existing teardown: incognito ids are deleted
     // at startup and archive container ids at close.
-    final bindUnderIncognito = hostIsAndroid;
-    final containerId = (ContainerNative.instance.cachedSupported &&
-            containerSiteIdentifier != null &&
-            (!config.incognito || bindUnderIncognito))
+    final containerId = siteOwnsContainerProfile(
+      containersSupported: ContainerNative.instance.cachedSupported,
+      containerSiteIdentifier: containerSiteIdentifier,
+      incognito: config.incognito,
+    )
         ? 'ws-$containerSiteIdentifier'
         : null;
 
@@ -2101,7 +2156,7 @@ class WebViewFactory {
       // A popup is the same site in a dialog, so it presents the same
       // router credential (PROXY-013).
       onReceivedHttpAuthRequest: (controller, challenge) =>
-          answerProxyRouterChallenge(parent.siteId, challenge),
+          answerProxyRouterChallenge(_routerIdentityForConfig(parent), challenge),
     );
   }
 
@@ -4882,7 +4937,7 @@ class WebViewFactory {
       onReceivedServerTrustAuthRequest: (controller, challenge) =>
           _handleServerTrust(controller, challenge, config.onUntrustedCertificate),
       onReceivedHttpAuthRequest: (controller, challenge) =>
-          answerProxyRouterChallenge(config.siteId, challenge),
+          answerProxyRouterChallenge(_routerIdentityForConfig(config), challenge),
       // Android `WebView.onRenderProcessGone`: the OS can kill the renderer
       // process while the app is backgrounded to reclaim memory. Coming back
       // to a renderer-gone WebView shows a black surface because the view is

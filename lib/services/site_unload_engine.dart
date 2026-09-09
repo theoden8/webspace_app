@@ -56,20 +56,35 @@ class SiteUnloadEngine {
 
   /// Sites that must be unloaded because activating [targetIndex] would
   /// repoint a process-global proxy override out from under them.
+  ///
+  /// [sharesDefaultSession] narrows the rule for Android's router mode
+  /// (PROXY-013), where [proxyIsGlobal] is false because the process-wide
+  /// rule names the relay rather than any site's proxy. Concurrency there
+  /// is bought by the per-site container profile, and a site that has no
+  /// container profile did not buy it: it runs in the default profile,
+  /// whose one cached proxy credential every other such site also uses.
+  /// Passing the predicate keeps PROXY-008's eviction alive for exactly
+  /// that group, so at most one of its proxies is ever in force. Leave it
+  /// null off router mode.
   static Set<int> indicesToUnloadForProxyMismatch({
     required int targetIndex,
     required List<WebViewModel> models,
     required Set<int> loadedIndices,
     required bool proxyIsGlobal,
+    bool Function(WebViewModel model)? sharesDefaultSession,
   }) {
-    if (!proxyIsGlobal) return const <int>{};
     if (targetIndex < 0 || targetIndex >= models.length) return const <int>{};
-    final targetEffective =
-        resolveEffectiveProxy(models[targetIndex].proxySettings);
+    final target = models[targetIndex];
+    if (!proxyIsGlobal) {
+      if (sharesDefaultSession == null) return const <int>{};
+      if (!sharesDefaultSession(target)) return const <int>{};
+    }
+    final targetEffective = resolveEffectiveProxy(target.proxySettings);
     final result = <int>{};
     for (final i in loadedIndices) {
       if (i == targetIndex) continue;
       if (i < 0 || i >= models.length) continue;
+      if (!proxyIsGlobal && !sharesDefaultSession!(models[i])) continue;
       final effective = resolveEffectiveProxy(models[i].proxySettings);
       if (!_proxyEquivalent(targetEffective, effective)) {
         result.add(i);

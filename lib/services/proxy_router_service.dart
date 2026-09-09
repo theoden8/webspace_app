@@ -187,7 +187,12 @@ class ProxyRouterService {
     ProxyAttributionProbe probe,
   ) async {
     if (_state == null) return false;
-    final sites = siteIds.toList();
+    // The shared-profile identity has no container to drive, and nothing
+    // to prove: it exists precisely because those sites share one
+    // session. What the probe certifies is the per-container boundary.
+    final sites = siteIds
+        .where((s) => s != ProxyRouterEngine.sharedProfileIdentity)
+        .toList();
     if (sites.isEmpty) return true;
 
     await _relay.clearProbeResults();

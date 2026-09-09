@@ -16,7 +16,8 @@ Router mode SHALL be gated on `WebViewFeature.MULTI_PROFILE`. Chromium's
 `HttpAuthCache` is owned by the `HttpNetworkSession` and its proxy entries
 are not partitioned by `NetworkAnonymizationKey`, so without a per-profile
 session every site would present the first site's credential. Where the
-gate fails, PROXY-008 applies unchanged.
+gate fails, PROXY-008 applies unchanged. The gate is per device; whether a
+given site actually receives a profile is PROXY-018.
 
 #### Scenario: Two same-domain sites with different proxies stay loaded
 
@@ -64,6 +65,70 @@ process-wide override fails to apply
 **And** two notification sites have different proxies
 **Then** both may be enabled for background polling at once
 **And** each poll reaches its own upstream with no reconfiguration
+
+---
+
+### Requirement: PROXY-018 - A site with no container profile is not its own identity
+
+Router mode SHALL attribute traffic per *container profile*, not per site.
+A site the app does not bind to a container profile -- an incognito site,
+and an archive-tier site, which is always incognito -- SHALL present a
+single shared credential rather than one of its own, and the app SHALL
+keep evicting mismatched-proxy siblings within that group exactly as
+PROXY-008 requires.
+
+PROXY-013 gates on `MULTI_PROFILE` because Chromium's `HttpAuthCache`
+lives in the `HttpNetworkSession` and its proxy entries are not
+partitioned by `NetworkAnonymizationKey`. That gate answers whether the
+*device* can give a site its own session; it does not answer whether
+*this* site got one. An incognito site deliberately does not: an
+`androidx.webkit` Profile is always on-disk and has no incognito guard,
+so binding one would outlive the session and defeat the ephemeral
+promise. Those sites therefore run in the default profile, sharing one
+session and one cached proxy credential with every other such site --
+the precise condition PROXY-013 names as unsafe.
+
+A per-site credential in that group is not a boundary. Chromium attaches
+a cached proxy credential preemptively, so the first such site to
+authenticate routes every later one, including after it has unloaded,
+and nothing surfaces: the relay answers 200 and the page loads. One
+shared identity whose upstream follows the active site of the group
+removes the ambiguity, because a stale cached credential is then the
+same credential and its route is current.
+
+The shared identity SHALL carry no route when no site of the group is
+active or loaded, so the relay answers `502` rather than sending the
+next such site out through the previous one's upstream. Its route SHALL
+be installed before the activating site can issue a request.
+
+The PROXY-015 probe SHALL NOT attempt to attribute the shared identity:
+it has no container to drive, and what the probe certifies is the
+per-container boundary.
+
+#### Scenario: Two incognito sites with different proxies
+
+**Given** router mode is active on Android
+**And** Site A is incognito with proxy P1
+**And** Site B is incognito with proxy P2
+**When** the user activates Site B while Site A is loaded
+**Then** Site A is disposed before Site B's first request
+**And** the shared identity's route names P2
+
+#### Scenario: An incognito site does not evict a container-bound sibling
+
+**Given** router mode is active on Android
+**And** Site A is a normal site with proxy P1, loaded
+**And** Site B is incognito with proxy P2
+**When** the user activates Site B
+**Then** Site A stays loaded
+**Because** Site A has its own network session and its own cached
+credential
+
+#### Scenario: An unloaded shared-profile site has no route
+
+**Given** router mode is active
+**And** no incognito or archive-tier site is active or loaded
+**Then** the route table has no entry for the shared identity
 
 ---
 

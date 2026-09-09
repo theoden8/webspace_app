@@ -278,6 +278,159 @@ void main() {
     });
   });
 
+  group('shared-profile identity', () {
+    // A site the app cannot bind to a container profile -- incognito, and
+    // archive-tier which is always incognito -- runs in the default
+    // profile. Chromium caches a proxy credential per network session and
+    // does not partition proxy entries by NetworkAnonymizationKey, so
+    // every such site presents whichever credential that one session
+    // cached. Per-site credentials there are not a boundary, they are a
+    // misattribution waiting for the first site to unload.
+    test('a container-bound site is its own identity', () {
+      expect(
+        ProxyRouterEngine.identityFor(siteId: 'a', ownsContainer: true),
+        'a',
+      );
+    });
+
+    test('container-less sites collapse onto one identity', () {
+      final a = ProxyRouterEngine.identityFor(siteId: 'a', ownsContainer: false);
+      final b = ProxyRouterEngine.identityFor(siteId: 'b', ownsContainer: false);
+      expect(a, ProxyRouterEngine.sharedProfileIdentity);
+      expect(b, a,
+          reason: 'two sites in one network session must present one '
+              'credential, or a cached one routes the other');
+    });
+
+    test('the shared identity cannot collide with a site id', () {
+      // Site ids are UUIDs; the sentinel is not one. If it could collide,
+      // a site could claim the shared route by naming itself.
+      expect(
+        ProxyRouterEngine.sharedProfileIdentity,
+        isNot(matches(RegExp(r'^[0-9a-fA-F-]+$'))),
+      );
+    });
+
+    test('the route table keys container-bound sites by site', () {
+      final table = ProxyRouterEngine.routeTable(
+        sites: [
+          RouterSite(
+              siteId: 'a',
+              proxy: proxy(ProxyType.HTTP, '10.0.0.1:8080'),
+              ownsContainer: true),
+          RouterSite(
+              siteId: 'b',
+              proxy: proxy(ProxyType.SOCKS5, '10.0.0.2:9050'),
+              ownsContainer: true),
+        ],
+      );
+      expect(table.keys, unorderedEquals(['a', 'b']));
+      expect(table[ProxyRouterEngine.sharedProfileIdentity], isNull);
+    });
+
+    test('container-less sites share one entry, not one each', () {
+      final table = ProxyRouterEngine.routeTable(
+        sites: [
+          RouterSite(
+              siteId: 'incog-a',
+              proxy: proxy(ProxyType.HTTP, '10.0.0.1:8080'),
+              ownsContainer: false),
+          RouterSite(
+              siteId: 'incog-b',
+              proxy: proxy(ProxyType.SOCKS5, '10.0.0.2:9050'),
+              ownsContainer: false),
+        ],
+        sharedProfilePriority: [1],
+      );
+      expect(table.keys, [ProxyRouterEngine.sharedProfileIdentity]);
+      expect(table['incog-a'], isNull);
+      expect(table['incog-b'], isNull);
+    });
+
+    test('the shared upstream follows the site being activated', () {
+      final sites = [
+        RouterSite(
+            siteId: 'incog-a',
+            proxy: proxy(ProxyType.HTTP, '10.0.0.1:8080'),
+            ownsContainer: false),
+        RouterSite(
+            siteId: 'incog-b',
+            proxy: proxy(ProxyType.SOCKS5, '10.0.0.2:9050'),
+            ownsContainer: false),
+      ];
+      final activatingB = ProxyRouterEngine.routeTable(
+        sites: sites,
+        sharedProfilePriority: [1, 0],
+      );
+      expect(
+        activatingB[ProxyRouterEngine.sharedProfileIdentity]!.address,
+        '10.0.0.2:9050',
+      );
+      final activatingA = ProxyRouterEngine.routeTable(
+        sites: sites,
+        sharedProfilePriority: [0, 1],
+      );
+      expect(
+        activatingA[ProxyRouterEngine.sharedProfileIdentity]!.address,
+        '10.0.0.1:8080',
+      );
+    });
+
+    test('a container-bound priority entry does not claim the shared route',
+        () {
+      final table = ProxyRouterEngine.routeTable(
+        sites: [
+          RouterSite(
+              siteId: 'a',
+              proxy: proxy(ProxyType.HTTP, '10.0.0.1:8080'),
+              ownsContainer: true),
+          RouterSite(
+              siteId: 'incog',
+              proxy: proxy(ProxyType.SOCKS5, '10.0.0.2:9050'),
+              ownsContainer: false),
+        ],
+        sharedProfilePriority: [0, 1],
+      );
+      expect(
+        table[ProxyRouterEngine.sharedProfileIdentity]!.address,
+        '10.0.0.2:9050',
+        reason: 'the visible container-bound site says nothing about which '
+            'upstream the shared session should use',
+      );
+    });
+
+    test('no shared-profile site in play leaves the identity unrouted', () {
+      final table = ProxyRouterEngine.routeTable(
+        sites: [
+          RouterSite(
+              siteId: 'incog',
+              proxy: proxy(ProxyType.SOCKS5, '10.0.0.2:9050'),
+              ownsContainer: false),
+        ],
+        sharedProfilePriority: const [],
+      );
+      // Fail closed: 502 from the relay, not egress through whatever the
+      // previous shared-profile site was using.
+      expect(table, isEmpty);
+    });
+
+    test('out-of-range priority entries are skipped, not fatal', () {
+      final table = ProxyRouterEngine.routeTable(
+        sites: [
+          RouterSite(
+              siteId: 'incog',
+              proxy: proxy(ProxyType.SOCKS5, '10.0.0.2:9050'),
+              ownsContainer: false),
+        ],
+        sharedProfilePriority: [-1, 7, 0],
+      );
+      expect(
+        table[ProxyRouterEngine.sharedProfileIdentity]!.address,
+        '10.0.0.2:9050',
+      );
+    });
+  });
+
   group('token registry', () {
     test('a token is stable for a site across calls', () {
       final state = ProxyRouterState();

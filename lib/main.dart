@@ -103,6 +103,7 @@ import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/proxy_conflict_engine.dart';
 import 'package:webspace/services/proxy_router_probe.dart';
+import 'package:webspace/services/proxy_router_engine.dart';
 import 'package:webspace/services/proxy_router_service.dart';
 import 'package:webspace/services/suggested_sites_service.dart' as suggested_sites;
 import 'package:webspace/screens/dev_tools.dart';
@@ -3110,15 +3111,45 @@ class _WebSpacePageState extends State<WebSpacePage>
     );
   }
 
-  /// Per-site proxies as the router's route table sees them.
+  /// Whether [model] gets a container profile, and so a Chromium network
+  /// session, of its own.
+  bool _ownsContainerProfile(WebViewModel model) => siteOwnsContainerProfile(
+        containersSupported: _useContainers,
+        containerSiteIdentifier: model.archiveContainerId ?? model.siteId,
+        incognito: model.effectiveIncognito,
+      );
+
+  /// Per-site proxies as the router's route table sees them, keyed by
+  /// routing identity rather than by site.
   ///
-  /// Archive-tier sites are included: they render like any other site and
-  /// their traffic still has to reach the right upstream. Only their
+  /// A site with its own container profile is its own identity. The rest
+  /// -- incognito, and archive-tier which is always incognito -- share the
+  /// default profile and therefore one cached proxy credential, so they
+  /// share one identity whose upstream follows whichever of them is
+  /// active. Giving them a credential each would let one cached by a site
+  /// that has since unloaded route the next site to load, straight through
+  /// the wrong upstream.
+  ///
+  /// Archive-tier sites are routed like any other: they render like one
+  /// and their traffic still has to reach the right upstream. Only their
   /// *persistence* is partitioned (ARCH-001), and no route is written to
   /// disk.
-  Map<String, UserProxySettings> _routerProxyTable() => {
-        for (final m in _webViewModels) m.siteId: m.proxySettings,
-      };
+  Map<String, UserProxySettings> _routerProxyTable({int? activeIndex}) =>
+      ProxyRouterEngine.routeTable(
+        sites: [
+          for (final m in _webViewModels)
+            RouterSite(
+              siteId: m.siteId,
+              proxy: m.proxySettings,
+              ownsContainer: _ownsContainerProfile(m),
+            ),
+        ],
+        sharedProfilePriority: [
+          ?activeIndex,
+          ?_currentIndex,
+          ..._loadedIndices,
+        ],
+      );
 
   /// Bring up Android's per-site proxy router (PROXY-013).
   ///
@@ -3141,10 +3172,14 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   /// Re-install routes after sites, proxies, or the global proxy changed.
-  Future<void> _refreshProxyRoutes() async {
+  ///
+  /// [activeIndex] names the site about to be activated, so the
+  /// shared-profile identity is repointed before that site's first
+  /// request rather than after it.
+  Future<void> _refreshProxyRoutes({int? activeIndex}) async {
     if (!ProxyRouterService.instance.isActive) return;
-    await ProxyRouterService.instance
-        .refreshRoutes(perSiteProxies: _routerProxyTable());
+    await ProxyRouterService.instance.refreshRoutes(
+        perSiteProxies: _routerProxyTable(activeIndex: activeIndex));
   }
 
   Future<void> _saveWebViewModels() async {
@@ -4246,6 +4281,13 @@ class _WebSpacePageState extends State<WebSpacePage>
       // together (PROXY-013). Linux has no equivalent and keeps the unload.
       proxyIsGlobal: (hostIsAndroid && !ProxyRouterService.instance.isActive) ||
           hostIsLinux,
+      // What buys that concurrency is the per-site container profile. A
+      // site without one runs in the default profile, whose single cached
+      // proxy credential every other such site presents too, so the group
+      // stays serialised exactly as PROXY-008 had it.
+      sharesDefaultSession: ProxyRouterService.instance.isActive
+          ? (m) => !_ownsContainerProfile(m)
+          : null,
     );
     for (final i in proxyMismatch) {
       LogService.instance.log(
@@ -4255,6 +4297,17 @@ class _WebSpacePageState extends State<WebSpacePage>
         sensitivity: LogSensitivity.sensitive,
       );
       await _unloadSiteForOtherReason(i);
+      if (version != _setCurrentIndexVersion) return;
+    }
+
+    // Repoint the shared-profile route before this site can issue a
+    // request, not after: the identity is shared, so until this lands the
+    // relay still holds the previous shared-profile site's upstream.
+    if (ProxyRouterService.instance.isActive &&
+        index >= 0 &&
+        index < _webViewModels.length &&
+        !_ownsContainerProfile(_webViewModels[index])) {
+      await _refreshProxyRoutes(activeIndex: index);
       if (version != _setCurrentIndexVersion) return;
     }
 

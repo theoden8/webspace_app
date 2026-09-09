@@ -93,6 +93,98 @@ void main() {
       expect(result, isEmpty);
     });
 
+    test('router mode still serialises sites that share the default profile',
+        () {
+      // The concurrency PROXY-013 buys is bought by the per-site container
+      // profile: its own Chromium network session, its own cached proxy
+      // credential. A site the app cannot bind to one -- incognito, and
+      // archive-tier which is always incognito -- runs in the default
+      // profile alongside every other such site, so they share the single
+      // credential that session caches. Left co-loaded with different
+      // proxies, whichever authenticated first routes the rest, silently.
+      final models = [
+        _site('https://a.example.com',
+            proxy:
+                UserProxySettings(type: ProxyType.SOCKS5, address: 'p1:9050')),
+        _site('https://b.example.com',
+            proxy: UserProxySettings(type: ProxyType.HTTP, address: 'p2:8080')),
+        _site('https://c.example.com',
+            proxy: UserProxySettings(type: ProxyType.HTTP, address: 'p2:8080')),
+      ];
+      final result = SiteUnloadEngine.indicesToUnloadForProxyMismatch(
+        targetIndex: 0,
+        models: models,
+        loadedIndices: {0, 1, 2},
+        proxyIsGlobal: false,
+        sharesDefaultSession: (_) => true,
+      );
+      expect(result, {1, 2},
+          reason: 'both disagree with the activated site and share its '
+              'session, so both must go');
+    });
+
+    test('a container-bound sibling is untouched by that serialisation', () {
+      final models = [
+        _site('https://incognito.example.com',
+            proxy:
+                UserProxySettings(type: ProxyType.SOCKS5, address: 'p1:9050')),
+        _site('https://normal.example.com',
+            proxy: UserProxySettings(type: ProxyType.HTTP, address: 'p2:8080')),
+      ];
+      final result = SiteUnloadEngine.indicesToUnloadForProxyMismatch(
+        targetIndex: 0,
+        models: models,
+        loadedIndices: {0, 1},
+        proxyIsGlobal: false,
+        // Only index 0 lives in the default profile.
+        sharesDefaultSession: (m) => m == models[0],
+      );
+      expect(result, isEmpty,
+          reason: 'the container-bound site has its own session and its own '
+              'cached credential, so it is not in the conflict');
+    });
+
+    test('activating a container-bound site evicts nothing', () {
+      final models = [
+        _site('https://incognito.example.com',
+            proxy:
+                UserProxySettings(type: ProxyType.SOCKS5, address: 'p1:9050')),
+        _site('https://normal.example.com',
+            proxy: UserProxySettings(type: ProxyType.HTTP, address: 'p2:8080')),
+      ];
+      final result = SiteUnloadEngine.indicesToUnloadForProxyMismatch(
+        targetIndex: 1,
+        models: models,
+        loadedIndices: {0, 1},
+        proxyIsGlobal: false,
+        sharesDefaultSession: (m) => m == models[0],
+      );
+      expect(result, isEmpty);
+    });
+
+    test('the shared-session rule never widens the global one', () {
+      // Off router mode the predicate must not narrow anything: Android
+      // without MULTI_PROFILE and Linux still evict every mismatched
+      // sibling, container profile or not.
+      final models = [
+        _site('https://a.example.com',
+            proxy:
+                UserProxySettings(type: ProxyType.SOCKS5, address: 'p1:9050')),
+        _site('https://b.example.com',
+            proxy: UserProxySettings(type: ProxyType.HTTP, address: 'p2:8080')),
+      ];
+      expect(
+        SiteUnloadEngine.indicesToUnloadForProxyMismatch(
+          targetIndex: 0,
+          models: models,
+          loadedIndices: {0, 1},
+          proxyIsGlobal: true,
+          sharesDefaultSession: (_) => false,
+        ),
+        {1},
+      );
+    });
+
     test('router mode keeps two same-domain sites with different proxies loaded',
         () {
       // PROXY-013. The case PROXY-008 could not serve: two accounts on one
