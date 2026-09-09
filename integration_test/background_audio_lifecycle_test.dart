@@ -40,6 +40,7 @@ import 'package:webspace/webspace_model.dart';
 import 'dart:convert';
 
 import 'fixtures/background_audio_fixture.dart';
+import 'fixture_server.dart';
 
 class _Beacon {
   _Beacon(this.at, this.ticks, this.audioState);
@@ -68,7 +69,7 @@ void main() {
   setUpAll(() async {
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     port = server.port;
-    server.listen((req) {
+    listenFixture(server, (req) {
       if (req.uri.path == '/beacon') {
         beacons.add(_Beacon(
           DateTime.now(),

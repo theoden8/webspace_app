@@ -47,6 +47,7 @@ import 'package:webspace/demo_data.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
+import 'fixture_server.dart';
 
 const _kShortcutChannel = MethodChannel(
   'org.codeberg.theoden8.webspace/shortcuts',
@@ -81,7 +82,7 @@ void main() {
 
     // anyIPv4 so both loopback names below reach the same server.
     server = await HttpServer.bind(InternetAddress.anyIPv4, 0);
-    server!.listen((request) {
+    listenFixture(server!, (request) {
       final page = switch (request.uri.path) {
         '/a.html' => _solidPage('#123524'),
         '/b.html' => _solidPage('#1d3f8c'),

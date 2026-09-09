@@ -44,6 +44,7 @@ import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 
 import 'secure_storage_fake.dart';
+import 'fixture_server.dart';
 
 /// A minimal upstream HTTP proxy that records what reached it.
 ///
@@ -58,7 +59,7 @@ class RecordingUpstream {
   final List<String> credentials = [];
 
   RecordingUpstream._(this._server, this.label) {
-    _server.listen((socket) {
+    listenFixture(_server, (socket) {
       final buffer = StringBuffer();
       late StreamSubscription sub;
       sub = socket.listen(

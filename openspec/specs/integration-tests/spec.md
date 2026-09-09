@@ -453,6 +453,37 @@ either target.
 
 ---
 
+### Requirement: INTEG-015 — Fixture socket errors never fail a test
+
+An integration test that binds a loopback server as a page fixture SHALL
+subscribe through `listenFixture`
+([integration_test/fixture_server.dart](../../../integration_test/fixture_server.dart)),
+or attach an error handler of its own.
+
+An unhandled error on that stream is an uncaught async error, and
+`flutter_test` reports it against whichever test finished last. A socket
+hiccup in the fixture therefore fails an unrelated assertion, under the
+banner "this test failed after it had already completed" — which names
+neither the fixture nor the real cause. The fixture exists so a webview
+has something to load; nothing asserts on its socket.
+
+Gate: [test/js/integration_fixture_errors.test.js](../../../test/js/integration_fixture_errors.test.js).
+
+#### Scenario: A fixture server errors during teardown
+
+**Given** an integration test serving pages from a loopback fixture
+**When** that server's stream emits an error
+**Then** no test fails on account of it
+
+#### Scenario: A new integration test adds a fixture
+
+**Given** a test file that binds an `HttpServer` or `ServerSocket`
+**When** it subscribes without `listenFixture` and without its own
+  `onError`
+**Then** the structural gate fails
+
+---
+
 ### Requirement: INTEG-010 — Android white-screen pixel scenarios
 
 `integration_test/white_screen_test.dart` SHALL drive the

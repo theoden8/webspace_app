@@ -48,6 +48,7 @@ import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 
 import 'fixtures/virtual_camera_video.dart';
+import 'fixture_server.dart';
 
 // A colour Flutter never draws and no real camera would produce, so a match
 // proves the sampled pixel came from the picked image.
@@ -196,7 +197,7 @@ void main() {
     isDemoMode = true;
 
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-    server!.listen((request) {
+    listenFixture(server!, (request) {
       if (request.uri.path == '/report') {
         final tag = request.uri.queryParameters['site'] ?? 'unknown';
         final raw = request.uri.queryParameters['data'] ?? '{}';
