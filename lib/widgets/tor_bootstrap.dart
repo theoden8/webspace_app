@@ -16,6 +16,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/screens/tor_bridge_settings.dart';
+import 'package:webspace/services/tor_bridges.dart' show bridgesMayHelp;
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/tor_status_card.dart'
@@ -119,10 +121,32 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
               ?.copyWith(color: scheme.onSurfaceVariant),
         ),
         const SizedBox(height: Spacing.md),
-        TextButton.icon(
-          onPressed: _retrying ? null : _retry,
-          icon: const Icon(Icons.refresh, size: IconSizes.action),
-          label: Text(loc.commonRetry),
+        // Same pair as the status card, and for a stronger reason: this is
+        // what a user actually sees when a TOR site will not load, while
+        // the card is inside App Settings. Naming bridges as the way past a
+        // block and then offering no route to them is how the feature was
+        // unreachable in the first place.
+        Wrap(
+          alignment: WrapAlignment.center,
+          children: [
+            TextButton.icon(
+              onPressed: _retrying ? null : _retry,
+              icon: const Icon(Icons.refresh, size: IconSizes.action),
+              label: Text(loc.commonRetry),
+            ),
+            if (bridgesMayHelp(s.failure.kind))
+              TextButton.icon(
+                onPressed: _retrying
+                    ? null
+                    : () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const TorBridgeSettingsScreen(),
+                          ),
+                        ),
+                icon: const Icon(Icons.alt_route, size: IconSizes.action),
+                label: Text(loc.torBridgesTitle),
+              ),
+          ],
         ),
       ]);
     }

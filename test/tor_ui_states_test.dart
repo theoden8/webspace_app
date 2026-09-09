@@ -368,6 +368,10 @@ void main() {
           expect(find.text('Tor appears to be blocked'), findsOneWidget);
           expect(find.textContaining('Bridges route around'), findsOneWidget);
           expect(find.text('Retry'), findsOneWidget);
+          // The interstitial is what a user sees when a TOR site will not
+          // load; naming bridges without a route to them is how the whole
+          // feature was unreachable before.
+          expect(find.text('Bridges'), findsOneWidget);
         },
         size: const Size(430, 430),
       );
@@ -382,6 +386,8 @@ void main() {
             'tor will not build circuits.'),
         () {
           expect(find.text('The device clock is wrong'), findsOneWidget);
+          expect(find.text('Bridges'), findsNothing,
+              reason: 'bridges cannot fix a wrong clock');
           expect(find.textContaining('Correct the date and time'),
               findsOneWidget);
         },
