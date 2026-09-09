@@ -8,11 +8,12 @@ in the `inapp.ProxyController` proxy rule. Android WebView's
 `ProxyController` has no proxy-authentication primitive and Chromium rejects
 a proxy rule containing userinfo, which silently degrades to a direct
 connection. The relay ([`ProxyRelay`](../../../../android/app/src/main/kotlin/org/codeberg/theoden8/webspace/proxy/ProxyRelay.kt))
-SHALL accept HTTP proxy traffic on `127.0.0.1`, forward it to the configured
-upstream, and inject the upstream credentials — HTTP `Proxy-Authorization:
-Basic` for HTTP/HTTPS upstreams, the RFC 1929 username/password handshake
-for SOCKS5. WebView SHALL be pointed at `http://127.0.0.1:<port>` with no
-credentials in the rule.
+SHALL accept HTTP proxy traffic on a loopback address, forward it to the
+configured upstream, and inject the upstream credentials — HTTP
+`Proxy-Authorization: Basic` for HTTP/HTTPS upstreams, the RFC 1929
+username/password handshake for SOCKS5. WebView SHALL be pointed at
+`http://<loopback address>:<port>` with no credentials in the rule; the
+address is the one PROXY-014 binds, not a fixed `127.0.0.1`.
 
 The relay SHALL bind a fresh random ephemeral port chosen by the OS on every
 (re)start, SHALL bind to the loopback interface only, and SHALL NOT persist
@@ -45,11 +46,11 @@ and SHALL NOT start the relay.
 - **THEN** `ProxyController` is pointed directly at the upstream
 - **AND** any relay started for a previous credentialed config is stopped
 
-#### Scenario: Each start binds an independent loopback port
+#### Scenario: Each start binds an independent loopback endpoint
 
 - **WHEN** the relay is started
 - **THEN** the bound port is an OS-assigned ephemeral port on the loopback interface
-- **AND** the port is not written to persistent storage
+- **AND** neither the address nor the port is written to persistent storage
 
 ---
 
@@ -76,10 +77,9 @@ outright rather than filtering it per-UID, so from API 29 every peer is
 UNKNOWN and the check is inert. The app's `minSdkVersion` is 24, so this
 covers API 24-28 and nothing above. No supported replacement exists —
 `ConnectivityManager.getConnectionOwnerUid` answers only for the caller's own
-`VpnService` tunnel, and TCP has no `SO_PEERCRED` — so on API 29+ the
-ephemeral port remains the only barrier. That residual exposure predates this
-requirement and is not closed by it; a design that closes it needs something
-other than a peer lookup.
+`VpnService` tunnel, and TCP has no `SO_PEERCRED` — so on API 29+ no peer
+lookup can answer. What stands there instead is the listener's address, not
+this check: see PROXY-014.
 
 Page script cannot reach the relay in the first place: `fetch` sends an
 origin-form request line, which carries no host to forward and is answered with
@@ -110,6 +110,47 @@ origin-form request line, which carries no host to forward and is answered with
 - **GIVEN** a device whose policy denies reading `/proc/net/tcp`
 - **WHEN** a connection arrives
 - **THEN** it is served, and the unverifiable check is logged once
+
+---
+
+### Requirement: PROXY-014 - The relay's loopback address is unguessable
+
+On API 29+ no peer lookup can answer (PROXY-013), so the only thing between a
+local app with `INTERNET` and the user's upstream credentials is the cost of
+finding the listener. An ephemeral port alone is about 15 bits and a local
+process scans that range in seconds.
+
+The relay SHALL therefore bind a **random address within 127/8** drawn from a
+cryptographic source, not `127.0.0.1`, and hand that address to
+`ProxyController` alongside the port. The whole of 127/8 routes to the loopback
+interface, and a connection to the same port on a different 127/8 address is
+refused rather than aliased, so the address is roughly 24 further bits an
+attacker must guess and not a decoration on the port.
+
+The address SHALL be verified reachable from this process before it is used:
+the relay connects to its own listener and falls back to `127.0.0.1` if that
+fails. A device that will not route the random address loses the extra bits,
+never proxying — and losing proxying is the IP leak PROXY-011 exists to
+prevent.
+
+#### Scenario: The listener is not on 127.0.0.1
+
+- **WHEN** the relay starts on a device that routes 127/8 normally
+- **THEN** its bound address is within 127/8 and is not `127.0.0.1`
+- **AND** the proxy rule handed to `ProxyController` names that address
+
+#### Scenario: The address is a barrier, not an alias
+
+- **GIVEN** the relay is bound to a random 127/8 address
+- **WHEN** a connection is made to `127.0.0.1` on the same port
+- **THEN** it is refused
+
+#### Scenario: An unroutable random address falls back rather than failing
+
+- **GIVEN** a device on which the random 127/8 address binds but does not accept
+  a connection from this process
+- **WHEN** the relay starts
+- **THEN** it rebinds on `127.0.0.1` and proxying continues
 
 ---
 

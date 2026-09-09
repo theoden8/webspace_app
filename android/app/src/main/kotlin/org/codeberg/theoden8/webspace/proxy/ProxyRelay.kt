@@ -92,6 +92,8 @@ class ProxyRelay(
     private var config: UpstreamConfig? = null
     @Volatile
     private var boundPort: Int = -1
+    @Volatile
+    private var boundHost: String = LOOPBACK
     private var acceptThread: Thread? = null
     @Volatile
     private var peerCheckUnavailableLogged: Boolean = false
@@ -102,6 +104,14 @@ class ProxyRelay(
 
     val port: Int
         get() = boundPort
+
+    /**
+     * Loopback address the listener is bound to. Random within 127/8 rather
+     * than 127.0.0.1, so finding the relay costs an attacker the address as
+     * well as the port. Handed to `ProxyController` with [port].
+     */
+    val host: String
+        get() = boundHost
 
     @Synchronized
     fun isRunning(): Boolean = serverSocket?.isClosed == false
@@ -120,22 +130,33 @@ class ProxyRelay(
             return boundPort
         }
         stop()
-        val socket = ServerSocket()
-        socket.reuseAddress = true
-        // Pin to IPv4 loopback (127.0.0.1) explicitly. InetAddress
-        // .getLoopbackAddress() can return ::1 on dual-stack JVMs, which
-        // is unreachable from the http://127.0.0.1:<port> rule we hand to
-        // ProxyController — Chromium gets ERR_PROXY_CONNECTION_FAILED
-        // without ever opening a TCP connection to our listener.
-        val bindAddr = InetAddress.getByName("127.0.0.1")
-        socket.bind(InetSocketAddress(bindAddr, 0), BACKLOG)
+        // Always IPv4: InetAddress.getLoopbackAddress() can return ::1 on a
+        // dual-stack JVM, which is unreachable from the http://<ip>:<port> rule
+        // handed to ProxyController — Chromium gets ERR_PROXY_CONNECTION_FAILED
+        // without ever opening a TCP connection to the listener.
+        //
+        // Within that, a random 127/8 address rather than 127.0.0.1. The peer
+        // check below cannot reject anything from API 29 (see the class doc), so
+        // on a modern device the only thing between a local app and the user's
+        // proxy credentials is the difficulty of finding this listener. A port
+        // alone is ~15 bits and scannable in seconds; an address drawn from
+        // 127/8 adds ~24 more and is not. The whole of 127/8 routes to lo, and a
+        // connection to the same port on a different 127/8 address is refused,
+        // so the address is real entropy rather than an alias.
+        val socket = bindLoopback(randomLoopbackHost())
+            // A device that will not route the random address falls back rather
+            // than losing proxying: `selfConnects` proves reachability from this
+            // process, and WebView's network stack shares it.
+            ?: bindLoopback(LOOPBACK)
+            ?: throw IllegalStateException("could not bind a loopback listener")
         serverSocket = socket
         config = cfg
+        boundHost = (socket.inetAddress?.hostAddress) ?: LOOPBACK
         boundPort = socket.localPort
         val t = Thread({ acceptLoop(socket) }, "proxy-relay-accept").apply { isDaemon = true }
         acceptThread = t
         t.start()
-        log("started on ${bindAddr.hostAddress}:$boundPort (upstream type=${cfg.type})")
+        log("started on $boundHost:$boundPort (upstream type=${cfg.type})")
         return boundPort
     }
 
@@ -145,7 +166,47 @@ class ProxyRelay(
         serverSocket = null
         config = null
         boundPort = -1
+        boundHost = LOOPBACK
         acceptThread = null
+    }
+
+    /**
+     * Bind a listener on [ip], returning null when the address will not serve
+     * this device — either the bind itself fails, or the socket is bound but
+     * unreachable. Reachability is proven by connecting to it from this
+     * process, which is where WebView's network stack lives too.
+     */
+    private fun bindLoopback(ip: String): ServerSocket? {
+        val socket = ServerSocket()
+        return try {
+            socket.reuseAddress = true
+            socket.bind(InetSocketAddress(InetAddress.getByName(ip), 0), BACKLOG)
+            if (!selfConnects(socket)) {
+                log("loopback address $ip bound but unreachable; falling back")
+                runCatching { socket.close() }
+                null
+            } else {
+                socket
+            }
+        } catch (e: Exception) {
+            log("could not bind $ip: ${e.javaClass.simpleName}")
+            runCatching { socket.close() }
+            null
+        }
+    }
+
+    private fun selfConnects(socket: ServerSocket): Boolean {
+        val addr = InetSocketAddress(socket.inetAddress, socket.localPort)
+        return try {
+            Socket().use { probe ->
+                probe.connect(addr, SELF_TEST_TIMEOUT_MS)
+                // The accept loop is not running yet, but the kernel completes
+                // the handshake from the backlog, which is all this proves.
+                true
+            }
+        } catch (e: Exception) {
+            false
+        }
     }
 
     private fun acceptLoop(socket: ServerSocket) {
@@ -527,6 +588,21 @@ class ProxyRelay(
 
     companion object {
         private const val BACKLOG = 64
+        private const val LOOPBACK = "127.0.0.1"
+        private const val SELF_TEST_TIMEOUT_MS = 2_000
+
+        /**
+         * A random address in 127/8, avoiding 127.0.0.1 itself and the .0/.255
+         * last octets. Drawn from [java.security.SecureRandom] so it is not
+         * predictable from the process's timing.
+         */
+        private fun randomLoopbackHost(): String {
+            val rnd = java.security.SecureRandom()
+            val b = rnd.nextInt(256)
+            val c = rnd.nextInt(256)
+            val d = 1 + rnd.nextInt(254)
+            return if (b == 0 && c == 0 && d == 1) "127.0.0.2" else "127.$b.$c.$d"
+        }
 
         private val PROC_NET_TCP = listOf("/proc/net/tcp", "/proc/net/tcp6")
 

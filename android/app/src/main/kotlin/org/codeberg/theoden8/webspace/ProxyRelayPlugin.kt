@@ -70,7 +70,9 @@ class ProxyRelayPlugin(flutterEngine: FlutterEngine) {
                                 password = call.argument<String>("password"),
                             )
                         )
-                        result.success(localPort)
+                        // Host as well as port: the listener binds a random
+                        // 127/8 address, so 127.0.0.1 is the wrong target.
+                        result.success(mapOf("host" to relay.host, "port" to localPort))
                     } catch (e: Exception) {
                         // Bind failure: report it so Dart can fail closed
                         // rather than clearing the override (which would

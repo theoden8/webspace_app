@@ -399,8 +399,8 @@ class ProxyManager {
     // iOS/macOS never reach here; Linux/WebKit accepts a credentialed
     // proxy URI directly, so it keeps the inline-credential path below.
     if (hostIsAndroid && effective.hasCredentials) {
-      final localPort = await ProxyRelay.instance.start(effective);
-      if (localPort == null) {
+      final relay = await ProxyRelay.instance.start(effective);
+      if (relay == null) {
         LogService.instance.log(
           'Proxy',
           'Auth proxy relay failed to start; refusing to fall back to a '
@@ -421,14 +421,14 @@ class ProxyManager {
       final sw = Stopwatch()..start();
       await controller.setProxyOverride(
         settings: inapp.ProxySettings(
-          proxyRules: [inapp.ProxyRule(url: 'http://127.0.0.1:$localPort')],
+          proxyRules: [inapp.ProxyRule(url: 'http://${relay.host}:${relay.port}')],
           bypassRules: ['<local>'],
         ),
       );
       LogService.instance.log(
         'Proxy',
         'Applied proxy override via relay (native call took ${sw.elapsedMilliseconds}ms, '
-            'relay port=$localPort)',
+            'relay endpoint=${relay.host}:${relay.port})',
         level: LogLevel.info,
         sensitivity: LogSensitivity.sensitive,
       );

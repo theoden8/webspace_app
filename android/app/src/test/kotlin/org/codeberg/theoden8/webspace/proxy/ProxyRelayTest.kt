@@ -76,7 +76,7 @@ class ProxyRelayTest {
                     ProxyRelay.UpstreamType.HTTP, "127.0.0.1", proxy.localPort, "user", "pass",
                 )
             )
-            val body = clientConnectThenGet(port, "example.com", 443)
+            val body = clientConnectThenGet(port, "example.com", 443, relay.host)
             assertTrue("origin response should reach the client", body.contains("hi"))
             assertEquals(
                 "Proxy-Authorization: Basic ${ProxyRelay.base64("user:pass".toByteArray())}",
@@ -121,7 +121,7 @@ class ProxyRelayTest {
                     ProxyRelay.UpstreamType.SOCKS5, "127.0.0.1", socks.localPort, "alice", "s3cret",
                 )
             )
-            val body = clientConnectThenGet(port, "example.com", 443)
+            val body = clientConnectThenGet(port, "example.com", 443, relay.host)
             assertTrue(body.contains("ok"))
             assertEquals("alice", seenUser.get())
             assertEquals("s3cret", seenPass.get())
@@ -215,6 +215,50 @@ class ProxyRelayTest {
     }
 
     @Test
+    fun listener_bindsARandomLoopbackAddressNotJust127001() {
+        // The peer check cannot reject anything from API 29, so on a modern
+        // device finding the listener is the only cost an attacker pays. A port
+        // is ~15 bits; the address adds ~24 more, and 127/8 all routes to lo.
+        val relays = (1..8).map { ProxyRelay() }
+        try {
+            val cfg = ProxyRelay.UpstreamConfig(
+                ProxyRelay.UpstreamType.HTTP, "127.0.0.1", 1, null, null)
+            val hosts = relays.map { it.start(cfg); it.host }
+            assertTrue("every bind must land inside 127/8",
+                hosts.all { it.startsWith("127.") })
+            assertTrue("the address must carry entropy, not always be 127.0.0.1",
+                hosts.any { it != "127.0.0.1" })
+        } finally {
+            relays.forEach { it.stop() }
+        }
+    }
+
+    @Test
+    fun listener_isNotReachableOnAnotherLoopbackAddress() {
+        // Proves the address is real entropy rather than an alias: the same
+        // port on 127.0.0.1 must not answer.
+        val relay = ProxyRelay()
+        try {
+            val port = relay.start(
+                ProxyRelay.UpstreamConfig(
+                    ProxyRelay.UpstreamType.HTTP, "127.0.0.1", 1, null, null))
+            org.junit.Assume.assumeTrue(
+                "fell back to 127.0.0.1 on this host", relay.host != "127.0.0.1")
+            Socket().use { s ->
+                val refused = try {
+                    s.connect(InetSocketAddress(InetAddress.getByName("127.0.0.1"), port), 1500)
+                    false
+                } catch (e: Exception) {
+                    true
+                }
+                assertTrue("the port must not answer on a different 127/8 address", refused)
+            }
+        } finally {
+            relay.stop()
+        }
+    }
+
+    @Test
     fun foreignPeer_isRefusedBeforeAnyUpstreamConnect() {
         val upstreamHits = AtomicReference(0)
         val proxy = fakeServer { sock ->
@@ -229,7 +273,7 @@ class ProxyRelayTest {
                 )
             )
             Socket().use { s ->
-                s.connect(InetSocketAddress(InetAddress.getByName("127.0.0.1"), port), 2000)
+                s.connect(InetSocketAddress(InetAddress.getByName(relay.host), port), 2000)
                 s.soTimeout = 3000
                 s.getOutputStream().write(
                     "CONNECT example.com:443 HTTP/1.1\r\nHost: example.com\r\n\r\n".toByteArray()
@@ -269,7 +313,7 @@ class ProxyRelayTest {
                     ProxyRelay.UpstreamType.HTTP, "127.0.0.1", proxy.localPort, "user", "pass",
                 )
             )
-            assertTrue(clientConnectThenGet(port, "example.com", 443).contains("hi"))
+            assertTrue(clientConnectThenGet(port, "example.com", 443, relay.host).contains("hi"))
         } finally {
             relay.stop(); proxy.close(); origin.close()
         }
@@ -295,7 +339,7 @@ class ProxyRelayTest {
                     ProxyRelay.UpstreamType.HTTP, "127.0.0.1", proxy.localPort, "user", "pass",
                 )
             )
-            assertTrue(clientConnectThenGet(port, "example.com", 443).contains("hi"))
+            assertTrue(clientConnectThenGet(port, "example.com", 443, relay.host).contains("hi"))
         } finally {
             relay.stop(); proxy.close(); origin.close()
         }
@@ -314,7 +358,7 @@ class ProxyRelayTest {
                 )
             )
             Socket().use { c ->
-                c.connect(InetSocketAddress("127.0.0.1", port), 2000)
+                c.connect(InetSocketAddress(relay.host, port), 2000)
                 c.getOutputStream().write(
                     "CONNECT example.com:443 HTTP/1.1\r\nHost: example.com:443\r\n\r\n".toByteArray()
                 )
@@ -352,7 +396,7 @@ class ProxyRelayTest {
                     )
                 )
                 Socket().use { c ->
-                    c.connect(InetSocketAddress("127.0.0.1", port), 3000)
+                    c.connect(InetSocketAddress(relay.host, port), 3000)
                     c.getOutputStream().write(
                         "CONNECT example.com:443 HTTP/1.1\r\nHost: example.com:443\r\n\r\n".toByteArray()
                     )
@@ -394,7 +438,7 @@ class ProxyRelayTest {
                         ProxyRelay.UpstreamType.HTTPS, "localhost", proxy.localPort, "user", "pass",
                     )
                 )
-                val body = clientConnectThenGet(port, "example.com", 443)
+                val body = clientConnectThenGet(port, "example.com", 443, relay.host)
                 assertTrue("origin response should reach the client", body.contains("hi"))
                 assertEquals(
                     "Proxy-Authorization: Basic ${ProxyRelay.base64("user:pass".toByteArray())}",
@@ -508,9 +552,14 @@ class ProxyRelayTest {
         }
     }
 
-    private fun clientConnectThenGet(relayPort: Int, host: String, port: Int): String {
+    private fun clientConnectThenGet(
+        relayPort: Int,
+        host: String,
+        port: Int,
+        relayHost: String = "127.0.0.1",
+    ): String {
         Socket().use { c ->
-            c.connect(InetSocketAddress("127.0.0.1", relayPort), 3000)
+            c.connect(InetSocketAddress(relayHost, relayPort), 3000)
             val out = c.getOutputStream()
             out.write("CONNECT $host:$port HTTP/1.1\r\nHost: $host:$port\r\n\r\n".toByteArray())
             out.flush()
