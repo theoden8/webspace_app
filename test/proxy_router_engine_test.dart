@@ -432,6 +432,28 @@ void main() {
   });
 
   group('token registry', () {
+    test('the shared identity keeps its token across a route refresh', () {
+      // Its route comes and goes with the loaded set, but the credential
+      // Chromium cached in the default profile does not. Reminting would
+      // strand that credential outside the table, and the relay answers an
+      // unknown credential with 502 -- a response, not a challenge, so
+      // nothing would ever ask the app to authenticate again.
+      final state = ProxyRouterState(rng: Random(7));
+      final before = state.tokenFor(ProxyRouterEngine.sharedProfileIdentity);
+      state.retainOnly(['a', 'b']);
+      expect(
+        state.tokenFor(ProxyRouterEngine.sharedProfileIdentity),
+        before,
+      );
+    });
+
+    test('a deleted site still loses its token', () {
+      final state = ProxyRouterState(rng: Random(7));
+      state.tokenFor('gone');
+      state.retainOnly(['a']);
+      expect(state.tokens.containsKey('gone'), isFalse);
+    });
+
     test('a token is stable for a site across calls', () {
       final state = ProxyRouterState();
       expect(state.tokenFor('a'), state.tokenFor('a'));

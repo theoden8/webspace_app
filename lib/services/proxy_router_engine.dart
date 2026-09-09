@@ -278,8 +278,17 @@ class ProxyRouterState {
 
   /// Drop tokens for sites that no longer exist, so a deleted site's
   /// credential stops being routable.
+  ///
+  /// [ProxyRouterEngine.sharedProfileIdentity] is exempt: it leaves the
+  /// route table whenever no shared-profile site is loaded, and reminting
+  /// its token would strand the credential Chromium has already cached in
+  /// the default profile. That credential would then miss the table and
+  /// draw a 502, which is a response rather than a challenge, so nothing
+  /// would ask the app to authenticate again. One token per run, whose
+  /// route comes and goes.
   void retainOnly(Iterable<String> siteIds) {
-    final keep = siteIds.toSet();
+    final keep = siteIds.toSet()
+      ..add(ProxyRouterEngine.sharedProfileIdentity);
     _tokens.removeWhere((siteId, _) => !keep.contains(siteId));
   }
 }
