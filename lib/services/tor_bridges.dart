@@ -187,6 +187,45 @@ class TorBridgeConfig {
         transport: transport ?? this.transport,
         lines: lines ?? this.lines,
       );
+
+  /// Serialised form for secure storage.
+  ///
+  /// There is deliberately no path from here into settings export: bridge
+  /// lines live only in `flutter_secure_storage`, never in SharedPreferences
+  /// and never in `kExportedAppPrefs`. A privately-allocated obfs4 bridge
+  /// identifies its user, and a backup file gets mailed and synced
+  /// (the reasoning behind PWD-005, applied to a different secret).
+  Map<String, Object?> toJson() => {
+        'enabled': enabled,
+        'transport': transport.wireName,
+        'lines': lines.map((l) => l.raw).toList(),
+      };
+
+  /// Rebuild from stored JSON, re-parsing each line rather than trusting it.
+  ///
+  /// The store is on-device and encrypted, but it is still input: a line
+  /// that no longer parses (a transport we dropped, a truncated write) is
+  /// discarded rather than handed to tor, which would fail the whole
+  /// configuration and take the working lines down with it.
+  static TorBridgeConfig fromJson(Map<String, Object?> json) {
+    final transport =
+        TorTransport.fromWireName(json['transport'] as String? ?? '') ??
+            TorTransport.obfs4;
+    final raw = json['lines'];
+    final lines = <TorBridgeLine>[];
+    if (raw is List) {
+      for (final entry in raw) {
+        if (entry is! String) continue;
+        final parsed = parseTorBridgeLine(entry);
+        if (parsed.isOk) lines.add(parsed.line!);
+      }
+    }
+    return TorBridgeConfig(
+      enabled: json['enabled'] == true,
+      transport: transport,
+      lines: lines,
+    );
+  }
 }
 
 /// The torrc options that put [config] into force, given the local SOCKS
