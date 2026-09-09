@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "Vahemälus: {bytes} baiti",
   "userScriptsCachedBytesWillRedownload": "Vahemälus: {bytes} baiti (laaditakse salvestamisel uuesti alla)",
   "userScriptsInjectionTimeLabel": "Süstimise aeg",
+  "userScriptsBypassSitePolicyLabel": "Saidi CSP-st ja CORS-ist möödaminek",
+  "userScriptsBypassSitePolicyHint": "Mõned teegid (näiteks DarkReader) ei saa töötada, kui rakendus ei käivita nende koodi ja võrgupäringuid saidi turvapoliitikast mööda. Lülitage see sisse ainult skripti jaoks, mis seda vajab. Kui see on sees, on kaitse kogu lehe ulatuses välja lülitatud: sama teed saab kasutada iga muu seal töötav kood, sealhulgas saidi enda skriptid ja iga reklaam või sisestatud kood.",
   "userScriptsAtDocumentStart": "Dokumendi algus",
   "userScriptsAtDocumentEnd": "Dokumendi lõpp",
   "userScriptsSourceLabel": "JavaScripti lähtekood",

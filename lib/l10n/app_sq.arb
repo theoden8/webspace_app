@@ -526,6 +526,8 @@
   "userScriptsCachedBytes": "Në cache: {bytes} bajt",
   "userScriptsCachedBytesWillRedownload": "Në cache: {bytes} bajt (do të rishkarkohet në ruajtje)",
   "userScriptsInjectionTimeLabel": "Koha e injektimit",
+  "userScriptsBypassSitePolicyLabel": "Anashkalo CSP-në dhe CORS-in e faqes",
+  "userScriptsBypassSitePolicyHint": "Disa biblioteka (për shembull DarkReader) nuk mund të funksionojnë nëse aplikacioni nuk e ekzekuton kodin dhe kërkesat e tyre të rrjetit jashtë politikës së sigurisë së faqes. Aktivizojeni këtë vetëm për një skript që e ka të nevojshme. Ndërsa është aktiv, mbrojtja është e çaktivizuar për të gjithë faqen: të njëjtën rrugë mund ta përdorë çdo kod tjetër që ekzekutohet aty, përfshirë skriptet e vetë faqes dhe çdo reklamë ose kod të injektuar.",
   "userScriptsAtDocumentStart": "Fillimi i dokumentit",
   "userScriptsAtDocumentEnd": "Fundi i dokumentit",
   "userScriptsSourceLabel": "Burimi JavaScript",

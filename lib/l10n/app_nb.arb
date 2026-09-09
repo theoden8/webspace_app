@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "Bufret: {bytes} byte",
   "userScriptsCachedBytesWillRedownload": "Bufret: {bytes} byte (lastes ned på nytt ved lagring)",
   "userScriptsInjectionTimeLabel": "Injeksjonstidspunkt",
+  "userScriptsBypassSitePolicyLabel": "Omgå nettstedets CSP og CORS",
+  "userScriptsBypassSitePolicyHint": "Enkelte biblioteker (for eksempel DarkReader) kan ikke fungere med mindre appen kjører koden og nettverksforespørslene deres utenom nettstedets sikkerhetspolicy. Slå dette på bare for et skript som trenger det. Så lenge det er på, er beskyttelsen av for hele siden: all annen kode som kjører der, inkludert nettstedets egne skript og enhver annonse eller innsprøytet kode, kan bruke samme vei.",
   "userScriptsAtDocumentStart": "Dokumentstart",
   "userScriptsAtDocumentEnd": "Dokumentslutt",
   "userScriptsSourceLabel": "JavaScript-kildekode",

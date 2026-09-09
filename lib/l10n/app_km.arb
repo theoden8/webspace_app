@@ -526,6 +526,8 @@
   "userScriptsCachedBytes": "Cached: {bytes} bytes",
   "userScriptsCachedBytesWillRedownload": "Cached: {bytes} bytes (នឹងទាញយកម្ដងទៀតនៅពេលរក្សាទុក)",
   "userScriptsInjectionTimeLabel": "ពេលវេលា injection",
+  "userScriptsBypassSitePolicyLabel": "រំលង CSP និង CORS របស់គេហទំព័រ",
+  "userScriptsBypassSitePolicyHint": "បណ្ណាល័យខ្លះ (ឧទាហរណ៍ DarkReader) មិនអាចដំណើរការបានទេ លុះត្រាតែកម្មវិធីដំណើរការកូដ និងសំណើបណ្តាញរបស់ពួកវានៅក្រៅគោលការណ៍សុវត្ថិភាពរបស់គេហទំព័រ។ បើកវាតែសម្រាប់ស្គ្រីបដែលត្រូវការវាប៉ុណ្ណោះ។ ខណៈពេលដែលវាបើក ការការពារត្រូវបានបិទសម្រាប់ទំព័រទាំងមូល៖ កូដផ្សេងទៀតដែលដំណើរការនៅទីនោះ រួមទាំងស្គ្រីបផ្ទាល់របស់គេហទំព័រ និងការផ្សាយពាណិជ្ជកម្ម ឬកូដដែលបានបញ្ចូល អាចប្រើផ្លូវដដែលបាន។",
   "userScriptsAtDocumentStart": "Document start",
   "userScriptsAtDocumentEnd": "Document end",
   "userScriptsSourceLabel": "JavaScript source",

@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "Кэшэлсэн: {bytes} байт",
   "userScriptsCachedBytesWillRedownload": "Кэшэлсэн: {bytes} байт (хадгалахад дахин татна)",
   "userScriptsInjectionTimeLabel": "Тарих хугацаа",
+  "userScriptsBypassSitePolicyLabel": "Сайтын CSP болон CORS-ыг тойрох",
+  "userScriptsBypassSitePolicyHint": "Зарим сан (жишээ нь DarkReader) нь програм тэдгээрийн кодыг болон сүлжээний хүсэлтийг сайтын аюулгүй байдлын бодлогоос гадуур ажиллуулахгүй бол ажиллаж чадахгүй. Үүнийг зөвхөн шаардлагатай скриптэд асаана уу. Асаалттай байх хугацаанд хамгаалалт бүх хуудсанд унтарна: тэнд ажиллаж буй бусад аливаа код, түүний дотор сайтын өөрийн скриптүүд болон аливаа сурталчилгаа эсвэл оруулсан код мөн ижил замыг ашиглаж чадна.",
   "userScriptsAtDocumentStart": "Document start",
   "userScriptsAtDocumentEnd": "Document end",
   "userScriptsSourceLabel": "JavaScript эх код",

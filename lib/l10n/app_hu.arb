@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "Gyorsítótárazva: {bytes} bájt",
   "userScriptsCachedBytesWillRedownload": "Gyorsítótárazva: {bytes} bájt (mentéskor újra letöltődik)",
   "userScriptsInjectionTimeLabel": "Beillesztési idő",
+  "userScriptsBypassSitePolicyLabel": "A webhely CSP és CORS szabályainak megkerülése",
+  "userScriptsBypassSitePolicyHint": "Egyes programkönyvtárak (például a DarkReader) csak akkor működnek, ha az alkalmazás a kódjukat és a hálózati kéréseiket a webhely biztonsági szabályzata mellett futtatja. Ezt csak olyan parancsfájlnál kapcsolja be, amelynek szüksége van rá. Amíg be van kapcsolva, a védelem az egész oldalon ki van kapcsolva: ugyanezt az utat használhatja bármely más, ott futó kód is, beleértve a webhely saját parancsfájljait és bármely hirdetést vagy befecskendezett kódot.",
   "userScriptsAtDocumentStart": "Dokumentum eleje",
   "userScriptsAtDocumentEnd": "Dokumentum vége",
   "userScriptsSourceLabel": "JavaScript forrás",

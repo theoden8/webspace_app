@@ -526,6 +526,8 @@
   "userScriptsCachedBytes": "In cella: {bytes} bytes",
   "userScriptsCachedBytesWillRedownload": "In cella: {bytes} bytes (iterum exonerabitur cum servabitur)",
   "userScriptsInjectionTimeLabel": "Tempus iniectionis",
+  "userScriptsBypassSitePolicyLabel": "CSP et CORS situs praeterire",
+  "userScriptsBypassSitePolicyHint": "Nonnullae bibliothecae (exempli gratia DarkReader) operari non possunt nisi applicatio codicem earum et petitiones retis extra rationem securitatis situs exsequatur. Hoc solum pro scripto quod eo eget accende. Dum accensum est, tutela per totam paginam exstincta est: quilibet alius codex ibi currens, inclusis scriptis ipsius situs et quavis promulgatione vel codice inserto, eadem via uti potest.",
   "userScriptsAtDocumentStart": "Initium documenti",
   "userScriptsAtDocumentEnd": "Finis documenti",
   "userScriptsSourceLabel": "Fons JavaScript",

@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "Gecacht: {bytes} bytes",
   "userScriptsCachedBytesWillRedownload": "Gecacht: {bytes} bytes (wordt opnieuw gedownload bij opslaan)",
   "userScriptsInjectionTimeLabel": "Injectietijd",
+  "userScriptsBypassSitePolicyLabel": "CSP en CORS van de site omzeilen",
+  "userScriptsBypassSitePolicyHint": "Sommige bibliotheken (bijvoorbeeld DarkReader) werken alleen als de app hun code en netwerkverzoeken buiten het beveiligingsbeleid van de site om uitvoert. Zet dit alleen aan voor een script dat het nodig heeft. Zolang het aan staat, is de bescherming voor de hele pagina uit: elke andere code die daar draait, waaronder de eigen scripts van de site en elke advertentie of geïnjecteerde code, kan dezelfde weg gebruiken.",
   "userScriptsAtDocumentStart": "Document start",
   "userScriptsAtDocumentEnd": "Document end",
   "userScriptsSourceLabel": "JavaScript-broncode",

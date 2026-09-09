@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "കാഷെ ചെയ്തു: {bytes} ബൈറ്റുകൾ",
   "userScriptsCachedBytesWillRedownload": "കാഷെ ചെയ്തു: {bytes} ബൈറ്റുകൾ (സംരക്ഷിക്കുമ്പോൾ വീണ്ടും ഡൗൺലോഡ് ചെയ്യും)",
   "userScriptsInjectionTimeLabel": "ഇഞ്ചക്ഷൻ സമയം",
+  "userScriptsBypassSitePolicyLabel": "സൈറ്റിന്റെ CSP-യും CORS-ഉം മറികടക്കുക",
+  "userScriptsBypassSitePolicyHint": "ചില ലൈബ്രറികൾക്ക് (ഉദാഹരണത്തിന് DarkReader) ആപ്പ് അവയുടെ കോഡും നെറ്റ്‌വർക്ക് അഭ്യർത്ഥനകളും സൈറ്റിന്റെ സുരക്ഷാ നയത്തിന് പുറത്ത് പ്രവർത്തിപ്പിച്ചില്ലെങ്കിൽ പ്രവർത്തിക്കാനാവില്ല. അത് ആവശ്യമുള്ള സ്ക്രിപ്റ്റിന് മാത്രം ഇത് ഓണാക്കുക. ഇത് ഓണായിരിക്കുമ്പോൾ പേജ് മുഴുവനും സംരക്ഷണം ഓഫാണ്: അവിടെ പ്രവർത്തിക്കുന്ന മറ്റേതൊരു കോഡിനും, സൈറ്റിന്റെ സ്വന്തം സ്ക്രിപ്റ്റുകളും ഏതെങ്കിലും പരസ്യമോ കുത്തിവച്ച കോഡോ ഉൾപ്പെടെ, അതേ വഴി ഉപയോഗിക്കാം.",
   "userScriptsAtDocumentStart": "ഡോക്യുമെന്റ് സ്റ്റാർട്ട്",
   "userScriptsAtDocumentEnd": "ഡോക്യുമെന്റ് എൻഡ്",
   "userScriptsSourceLabel": "JavaScript ഉറവിടം",

@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "Imehifadhiwa: baiti {bytes}",
   "userScriptsCachedBytesWillRedownload": "Imehifadhiwa: baiti {bytes} (itapakuliwa upya wakati wa kuhifadhi)",
   "userScriptsInjectionTimeLabel": "Muda wa kuingiza",
+  "userScriptsBypassSitePolicyLabel": "Kwepa CSP na CORS ya tovuti",
+  "userScriptsBypassSitePolicyHint": "Baadhi ya maktaba (kwa mfano DarkReader) haziwezi kufanya kazi isipokuwa programu iendeshe msimbo wao na maombi yao ya mtandao nje ya sera ya usalama ya tovuti. Washa hii kwa hati inayoihitaji pekee. Ikiwa imewashwa, ulinzi umezimwa kwa ukurasa mzima: msimbo mwingine wowote unaoendeshwa hapo, ikiwa ni pamoja na hati za tovuti yenyewe na tangazo lolote au msimbo ulioingizwa, unaweza kutumia njia hiyo hiyo.",
   "userScriptsAtDocumentStart": "Mwanzo wa hati",
   "userScriptsAtDocumentEnd": "Mwisho wa hati",
   "userScriptsSourceLabel": "Chanzo cha JavaScript",

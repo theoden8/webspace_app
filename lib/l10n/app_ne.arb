@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "क्यास गरिएको: {bytes} बाइट",
   "userScriptsCachedBytesWillRedownload": "क्यास गरिएको: {bytes} बाइट (सुरक्षित गर्दा पुनः-डाउनलोड हुनेछ)",
   "userScriptsInjectionTimeLabel": "इन्जेक्सन समय",
+  "userScriptsBypassSitePolicyLabel": "साइटको CSP र CORS छल्नुहोस्",
+  "userScriptsBypassSitePolicyHint": "केही लाइब्रेरीहरू (उदाहरणका लागि DarkReader) एपले तिनीहरूको कोड र नेटवर्क अनुरोधहरू साइटको सुरक्षा नीतिबाहिर नचलाएसम्म काम गर्न सक्दैनन्। यो चाहिने स्क्रिप्टका लागि मात्र यसलाई सक्रिय गर्नुहोस्। यो सक्रिय रहँदा सम्पूर्ण पृष्ठका लागि सुरक्षा बन्द हुन्छ: त्यहाँ चल्ने अरू कुनै पनि कोडले, साइटका आफ्नै स्क्रिप्ट र कुनै पनि विज्ञापन वा घुसाइएको कोडसहित, त्यही बाटो प्रयोग गर्न सक्छ।",
   "userScriptsAtDocumentStart": "Document start",
   "userScriptsAtDocumentEnd": "Document end",
   "userScriptsSourceLabel": "JavaScript स्रोत",

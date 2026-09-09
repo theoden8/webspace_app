@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "Välimuistissa: {bytes} tavua",
   "userScriptsCachedBytesWillRedownload": "Välimuistissa: {bytes} tavua (ladataan uudelleen tallennettaessa)",
   "userScriptsInjectionTimeLabel": "Injektiohetki",
+  "userScriptsBypassSitePolicyLabel": "Ohita sivuston CSP ja CORS",
+  "userScriptsBypassSitePolicyHint": "Jotkin kirjastot (esimerkiksi DarkReader) eivät toimi, ellei sovellus suorita niiden koodia ja verkkopyyntöjä sivuston tietoturvakäytännön ohi. Ota tämä käyttöön vain skriptille, joka sitä tarvitsee. Käytössä ollessaan suojaus on pois päältä koko sivulta: mikä tahansa muu siellä suoritettava koodi, mukaan lukien sivuston omat skriptit ja mikä tahansa mainos tai syötetty koodi, voi käyttää samaa reittiä.",
   "userScriptsAtDocumentStart": "Dokumentin alku",
   "userScriptsAtDocumentEnd": "Dokumentin loppu",
   "userScriptsSourceLabel": "JavaScript-lähdekoodi",

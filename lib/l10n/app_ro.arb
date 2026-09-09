@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "În cache: {bytes} octeți",
   "userScriptsCachedBytesWillRedownload": "În cache: {bytes} octeți (se va redescărca la salvare)",
   "userScriptsInjectionTimeLabel": "Momentul injectării",
+  "userScriptsBypassSitePolicyLabel": "Ocolește CSP și CORS ale site-ului",
+  "userScriptsBypassSitePolicyHint": "Unele biblioteci (de exemplu DarkReader) nu pot funcționa decât dacă aplicația le rulează codul și cererile de rețea în afara politicii de securitate a site-ului. Activați acest lucru doar pentru un script care are nevoie. Cât timp este activ, protecția este dezactivată pentru întreaga pagină: aceeași cale poate fi folosită de orice alt cod care rulează acolo, inclusiv scripturile site-ului și orice reclamă sau cod injectat.",
   "userScriptsAtDocumentStart": "Începutul documentului",
   "userScriptsAtDocumentEnd": "Sfârșitul documentului",
   "userScriptsSourceLabel": "Sursă JavaScript",

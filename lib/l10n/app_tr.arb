@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "Önbelleğe alındı: {bytes} bayt",
   "userScriptsCachedBytesWillRedownload": "Önbelleğe alındı: {bytes} bayt (kaydederken yeniden indirilecek)",
   "userScriptsInjectionTimeLabel": "Enjeksiyon zamanı",
+  "userScriptsBypassSitePolicyLabel": "Sitenin CSP ve CORS kurallarını atla",
+  "userScriptsBypassSitePolicyHint": "Bazı kitaplıklar (örneğin DarkReader) uygulama onların kodunu ve ağ isteklerini sitenin güvenlik politikasının dışında çalıştırmadıkça işlev göremez. Bunu yalnızca buna ihtiyaç duyan bir betik için açın. Açık olduğu sürece koruma sayfanın tamamı için kapalıdır: orada çalışan başka herhangi bir kod da, sitenin kendi betikleri ve her türlü reklam ya da enjekte edilmiş kod dahil, aynı yolu kullanabilir.",
   "userScriptsAtDocumentStart": "Belge başlangıcı",
   "userScriptsAtDocumentEnd": "Belge sonu",
   "userScriptsSourceLabel": "JavaScript kaynağı",

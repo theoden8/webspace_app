@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "కాష్ చేయబడింది: {bytes} బైట్‌లు",
   "userScriptsCachedBytesWillRedownload": "కాష్ చేయబడింది: {bytes} బైట్‌లు (సేవ్‌లో మళ్లీ డౌన్‌లోడ్ అవుతుంది)",
   "userScriptsInjectionTimeLabel": "ఇంజెక్షన్ సమయం",
+  "userScriptsBypassSitePolicyLabel": "సైట్ యొక్క CSP మరియు CORS ను దాటవేయి",
+  "userScriptsBypassSitePolicyHint": "కొన్ని లైబ్రరీలు (ఉదాహరణకు DarkReader) యాప్ వాటి కోడ్‌ను, నెట్‌వర్క్ అభ్యర్థనలను సైట్ భద్రతా విధానానికి వెలుపల అమలు చేయకపోతే పని చేయలేవు. దీని అవసరం ఉన్న స్క్రిప్ట్‌కు మాత్రమే దీన్ని ఆన్ చేయండి. ఇది ఆన్‌లో ఉన్నంత వరకు పేజీ మొత్తానికి రక్షణ ఆఫ్‌లో ఉంటుంది: అక్కడ నడిచే ఇతర ఏ కోడ్ అయినా, సైట్ సొంత స్క్రిప్ట్‌లు మరియు ఏదైనా ప్రకటన లేదా చొప్పించిన కోడ్‌తో సహా, అదే మార్గాన్ని ఉపయోగించగలదు.",
   "userScriptsAtDocumentStart": "డాక్యుమెంట్ ప్రారంభం",
   "userScriptsAtDocumentEnd": "డాక్యుమెంట్ ముగింపు",
   "userScriptsSourceLabel": "JavaScript మూలం",

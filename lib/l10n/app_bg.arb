@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "Кеширани: {bytes} байта",
   "userScriptsCachedBytesWillRedownload": "Кеширани: {bytes} байта (ще се изтеглят отново при запазване)",
   "userScriptsInjectionTimeLabel": "Време на инжектиране",
+  "userScriptsBypassSitePolicyLabel": "Заобикаляне на CSP и CORS на сайта",
+  "userScriptsBypassSitePolicyHint": "Някои библиотеки (например DarkReader) не могат да работят, освен ако приложението не изпълнява кода и мрежовите им заявки извън политиката за сигурност на сайта. Включвайте това само за скрипт, който има нужда от него. Докато е включено, защитата е изключена за цялата страница: всеки друг код, който се изпълнява там, включително собствените скриптове на сайта и всяка реклама или вмъкнат код, може да използва същия път.",
   "userScriptsAtDocumentStart": "Начало на документа",
   "userScriptsAtDocumentEnd": "Край на документа",
   "userScriptsSourceLabel": "JavaScript код",

@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "Gekas: {bytes} grepe",
   "userScriptsCachedBytesWillRedownload": "Gekas: {bytes} grepe (sal weer aflaai met stoor)",
   "userScriptsInjectionTimeLabel": "Inspuit-tyd",
+  "userScriptsBypassSitePolicyLabel": "Omseil die werf se CSP en CORS",
+  "userScriptsBypassSitePolicyHint": "Sommige biblioteke (byvoorbeeld DarkReader) kan nie werk tensy die program hul kode en netwerkversoeke om die werf se sekuriteitsbeleid heen laat loop nie. Skakel dit net aan vir 'n skrip wat dit nodig het. Terwyl dit aan is, is die beskerming vir die hele bladsy af: enige ander kode wat daar loop, insluitend die werf se eie skripte en enige advertensie of ingespuite kode, kan dieselfde roete gebruik.",
   "userScriptsAtDocumentStart": "Dokumentbegin",
   "userScriptsAtDocumentEnd": "Dokumenteinde",
   "userScriptsSourceLabel": "JavaScript-bron",

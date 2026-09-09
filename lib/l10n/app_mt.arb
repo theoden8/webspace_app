@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "Fil-cache: {bytes} bytes",
   "userScriptsCachedBytesWillRedownload": "Fil-cache: {bytes} bytes (jerġa' jitniżżel mal-issejvjar)",
   "userScriptsInjectionTimeLabel": "Ħin tal-injezzjoni",
+  "userScriptsBypassSitePolicyLabel": "Aqbeż is-CSP u s-CORS tas-sit",
+  "userScriptsBypassSitePolicyHint": "Xi libreriji (pereżempju DarkReader) ma jistgħux jaħdmu sakemm l-app ma tħaddimx il-kodiċi u t-talbiet tan-netwerk tagħhom barra mill-politika ta' sigurtà tas-sit. Ixgħel dan biss għal skript li jeħtieġu. Waqt li jkun mixgħul, il-protezzjoni tkun mitfija għall-paġna kollha: kwalunkwe kodiċi ieħor li jaħdem hemm, inklużi l-iskripts tas-sit innifsu u kwalunkwe reklam jew kodiċi injettat, jista' juża l-istess triq.",
   "userScriptsAtDocumentStart": "Bidu tad-dokument",
   "userScriptsAtDocumentEnd": "Tmiem tad-dokument",
   "userScriptsSourceLabel": "Sors JavaScript",

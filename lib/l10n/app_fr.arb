@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "En cache : {bytes} octets",
   "userScriptsCachedBytesWillRedownload": "En cache : {bytes} octets (sera retéléchargé à l'enregistrement)",
   "userScriptsInjectionTimeLabel": "Moment d'injection",
+  "userScriptsBypassSitePolicyLabel": "Contourner la CSP et le CORS du site",
+  "userScriptsBypassSitePolicyHint": "Certaines bibliothèques (DarkReader par exemple) ne peuvent fonctionner que si l'application exécute leur code et leurs requêtes réseau en dehors de la politique de sécurité du site. N'activez ceci que pour un script qui en a besoin. Tant que c'est activé, la protection est désactivée pour toute la page : tout autre code qui s'y exécute, y compris les scripts du site lui-même et toute publicité ou tout code injecté, peut emprunter le même chemin.",
   "userScriptsAtDocumentStart": "Début du document",
   "userScriptsAtDocumentEnd": "Fin du document",
   "userScriptsSourceLabel": "Source JavaScript",

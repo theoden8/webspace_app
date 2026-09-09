@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "A la memòria cau: {bytes} bytes",
   "userScriptsCachedBytesWillRedownload": "A la memòria cau: {bytes} bytes (es tornarà a baixar en desar)",
   "userScriptsInjectionTimeLabel": "Moment d'injecció",
+  "userScriptsBypassSitePolicyLabel": "Ometre la CSP i el CORS del lloc",
+  "userScriptsBypassSitePolicyHint": "Algunes biblioteques (per exemple DarkReader) no poden funcionar si l'aplicació no executa el seu codi i les seves peticions de xarxa fora de la política de seguretat del lloc. Activeu-ho només per a un script que ho necessiti. Mentre estigui activat, la protecció està desactivada per a tota la pàgina: qualsevol altre codi que s'hi executi, inclosos els scripts del mateix lloc i qualsevol anunci o codi injectat, pot fer servir la mateixa via.",
   "userScriptsAtDocumentStart": "Inici del document",
   "userScriptsAtDocumentEnd": "Final del document",
   "userScriptsSourceLabel": "Codi font de JavaScript",

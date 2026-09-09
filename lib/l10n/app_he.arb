@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "במטמון: {bytes} בתים",
   "userScriptsCachedBytesWillRedownload": "במטמון: {bytes} בתים (יורד מחדש בשמירה)",
   "userScriptsInjectionTimeLabel": "זמן הזרקה",
+  "userScriptsBypassSitePolicyLabel": "עקיפת ה-CSP וה-CORS של האתר",
+  "userScriptsBypassSitePolicyHint": "ספריות מסוימות (למשל DarkReader) אינן יכולות לפעול אלא אם היישום מריץ את הקוד ואת בקשות הרשת שלהן מחוץ למדיניות האבטחה של האתר. הפעילו זאת רק עבור סקריפט שזקוק לכך. כל עוד זה מופעל, ההגנה כבויה עבור הדף כולו: כל קוד אחר שרץ בו, לרבות הסקריפטים של האתר עצמו וכל פרסומת או קוד שהוזרק, יכול להשתמש באותה דרך.",
   "userScriptsAtDocumentStart": "תחילת מסמך",
   "userScriptsAtDocumentEnd": "סוף מסמך",
   "userScriptsSourceLabel": "מקור JavaScript",

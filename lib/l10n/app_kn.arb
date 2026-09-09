@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "ಕ್ಯಾಶ್ ಮಾಡಲಾಗಿದೆ: {bytes} ಬೈಟ್‌ಗಳು",
   "userScriptsCachedBytesWillRedownload": "ಕ್ಯಾಶ್ ಮಾಡಲಾಗಿದೆ: {bytes} ಬೈಟ್‌ಗಳು (ಉಳಿಸುವಾಗ ಮರು-ಡೌನ್‌ಲೋಡ್ ಆಗುತ್ತದೆ)",
   "userScriptsInjectionTimeLabel": "ಇಂಜೆಕ್ಷನ್ ಸಮಯ",
+  "userScriptsBypassSitePolicyLabel": "ಸೈಟ್‌ನ CSP ಮತ್ತು CORS ಅನ್ನು ಬೈಪಾಸ್ ಮಾಡಿ",
+  "userScriptsBypassSitePolicyHint": "ಕೆಲವು ಲೈಬ್ರರಿಗಳು (ಉದಾಹರಣೆಗೆ DarkReader) ಅಪ್ಲಿಕೇಶನ್ ಅವುಗಳ ಕೋಡ್ ಮತ್ತು ನೆಟ್‌ವರ್ಕ್ ವಿನಂತಿಗಳನ್ನು ಸೈಟ್‌ನ ಭದ್ರತಾ ನೀತಿಯ ಹೊರಗೆ ಚಲಾಯಿಸದ ಹೊರತು ಕೆಲಸ ಮಾಡಲಾರವು. ಅದು ಅಗತ್ಯವಿರುವ ಸ್ಕ್ರಿಪ್ಟ್‌ಗೆ ಮಾತ್ರ ಇದನ್ನು ಆನ್ ಮಾಡಿ. ಇದು ಆನ್ ಆಗಿರುವಾಗ ಇಡೀ ಪುಟಕ್ಕೆ ರಕ್ಷಣೆ ಆಫ್ ಆಗಿರುತ್ತದೆ: ಅಲ್ಲಿ ಚಲಿಸುವ ಬೇರೆ ಯಾವುದೇ ಕೋಡ್, ಸೈಟ್‌ನ ಸ್ವಂತ ಸ್ಕ್ರಿಪ್ಟ್‌ಗಳು ಮತ್ತು ಯಾವುದೇ ಜಾಹೀರಾತು ಅಥವಾ ಸೇರಿಸಲಾದ ಕೋಡ್ ಸೇರಿದಂತೆ, ಅದೇ ಮಾರ್ಗವನ್ನು ಬಳಸಬಹುದು.",
   "userScriptsAtDocumentStart": "ಡಾಕ್ಯುಮೆಂಟ್ ಪ್ರಾರಂಭ",
   "userScriptsAtDocumentEnd": "ಡಾಕ್ಯುಮೆಂಟ್ ಅಂತ್ಯ",
   "userScriptsSourceLabel": "JavaScript ಮೂಲ",
