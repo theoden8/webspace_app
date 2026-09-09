@@ -2,7 +2,6 @@ package org.codeberg.theoden8.webspace.proxy
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.codeberg.theoden8.webspace.proxy.RelayTestSupport.fakeOrigin
@@ -307,17 +306,38 @@ class ProxyRelayRouterTest {
     @Test
     fun stoppingRelayClearsRoutesAndRealm() {
         val relay = ProxyRelay()
-        val port = relay.startRouter("00ff00ff")
+        relay.startRouter("00ff00ff")
         relay.setRoutes(
             mapOf(credential("ws-a", "t") to ProxyRelay.Route("a", httpUpstream(1, null, null)))
         )
         relay.stop()
         assertFalse(relay.isRunning())
-        // The port is released; nothing answers on it any more.
-        val failure = runCatching {
-            Socket().use { it.connect(InetSocketAddress("127.0.0.1", port), 500) }
-        }.exceptionOrNull()
-        assertNotNull("the relay port must be released on stop", failure)
+
+        // Not asserted: that nothing answers on the old port. The relay
+        // released an ephemeral port and the OS may hand it to anyone --
+        // including the next relay this class starts -- so a connection
+        // succeeding there says nothing about our state. Restart and read
+        // the cleared state back instead.
+        val port = relay.startRouter("11aa11aa")
+        try {
+            val (_, headers) = connectThrough(port, credential = null)
+            assertTrue(
+                "the restarted relay must challenge with its own realm",
+                headers.any {
+                    it.contains("Proxy-Authenticate: Basic realm=\"11aa11aa\"", true)
+                },
+            )
+            assertFalse(
+                "the stopped run's realm must not survive a restart",
+                headers.any { it.contains("00ff00ff", true) },
+            )
+            assertTrue(
+                "a credential from the stopped run must not route",
+                connectThrough(port, credential("ws-a", "t")).first.contains("502"),
+            )
+        } finally {
+            relay.stop()
+        }
     }
 
     @Test
