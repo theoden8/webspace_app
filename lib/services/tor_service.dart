@@ -15,6 +15,7 @@ import 'package:flutter/services.dart';
 
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/tor_bridge_secure_storage.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/settings/proxy.dart';
 
@@ -155,6 +156,11 @@ class TorService {
       _instance ??= TorService._(TorEngine(
         runtime: MethodChannelTorRuntime(),
         sessionSecret: newSessionSecret(),
+        // The engine reads bridges itself rather than waiting for a startup
+        // call to push them: nothing on a cold start opens the bridge
+        // screen, so a pushed-only configuration was simply absent on every
+        // relaunch (TOR-016).
+        bridgeLoader: () => TorBridgeSecureStorage().load(),
       ));
 
   /// Swap in an engine backed by a fake runtime. Tests only.
