@@ -3254,7 +3254,11 @@ class WebViewFactory {
         MediaSessionService.instance.isSupported) {
       controller.addJavaScriptHandler(
         handlerName: 'wsMediaSession',
-        callback: (args) async {
+        // Frame-aware: the shim runs in every frame of the site and they all
+        // share this handler, so whether the report came from the top document
+        // has to be decided here rather than taken from the page (BGAUDIO-008).
+        callback: (inapp.JavaScriptHandlerFunctionData call) async {
+          final args = call.args;
           if (args.isEmpty || args[0] is! Map) return null;
           final data = Map<String, dynamic>.from(args[0] as Map);
           final control = data['control'] as String?;
@@ -3268,6 +3272,7 @@ class WebViewFactory {
           await MediaSessionService.instance.report(
             siteId: config.siteId!,
             frame: data['frame'] as String? ?? '',
+            isMainFrame: call.isMainFrame,
             runJs: (js) => controller.evaluateJavascript(source: js),
             playing: data['playing'] as bool? ?? false,
             title: data['title'] as String? ?? '',

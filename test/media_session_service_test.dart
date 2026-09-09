@@ -55,12 +55,14 @@ void main() {
     String title = 'Track',
     String artworkUrl = '',
     String frame = 'main',
+    bool isMainFrame = true,
     List<String>? js,
     UserProxySettings? proxy,
   }) {
     return service.report(
       siteId: siteId,
       frame: frame,
+      isMainFrame: isMainFrame,
       runJs: (source) async => js?.add(source),
       playing: playing,
       title: title,
@@ -150,6 +152,32 @@ void main() {
     await reportPlaying('a', frame: 'player-iframe', playing: false);
 
     expect(controlCalls().map((c) => c.method), ['start', 'update', 'update']);
+    expect((controlCalls().last.arguments as Map)['playing'], isFalse);
+  });
+
+  test('an ad iframe cannot take the notification off the main frame', () async {
+    // The play path is the other half of BGAUDIO-008. The frame token is minted
+    // by the shim, which runs in an ad iframe too, so without the main-frame
+    // rule any frame that reports `playing:true` retitles what the user is
+    // listening to — and inherits the transport controls with it.
+    await reportPlaying('a', frame: 'main', title: 'Real Track');
+    await reportPlaying('a',
+        frame: 'ad-iframe', isMainFrame: false, title: 'Buy Now');
+
+    expect(controlCalls().map((c) => c.method), ['start']);
+    expect((controlCalls().single.arguments as Map)['title'], 'Real Track');
+  });
+
+  test('a subframe owns the notification when no main frame claimed it',
+      () async {
+    // The common embedded-player case: the top document never plays anything,
+    // so the iframe that does is the only candidate and must not be locked out.
+    await reportPlaying('a',
+        frame: 'player-iframe', isMainFrame: false, title: 'Embedded');
+    await reportPlaying('a',
+        frame: 'player-iframe', isMainFrame: false, playing: false);
+
+    expect(controlCalls().map((c) => c.method), ['start', 'update']);
     expect((controlCalls().last.arguments as Map)['playing'], isFalse);
   });
 

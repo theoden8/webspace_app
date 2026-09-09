@@ -42,6 +42,13 @@ class MediaSessionService {
   /// alone cannot tell the playing frame from a sibling iframe (BGAUDIO-008).
   String? _ownerFrame;
 
+  /// Whether the owning frame is its site's top document. A subframe cannot
+  /// take the notification off a main frame that holds it (BGAUDIO-008): the
+  /// frame token is minted by the shim, which runs in an ad iframe too, so
+  /// "who reported last" is otherwise all it takes to retitle what the user is
+  /// listening to.
+  bool _ownerIsMainFrame = false;
+
   /// Set once per activation so the "raised but nothing on screen" warning
   /// (usually a denied `POST_NOTIFICATIONS`) is logged once, not per report.
   bool _visibilityChecked = false;
@@ -78,6 +85,7 @@ class MediaSessionService {
     _ownerSiteId = null;
     _ownerRunJs = null;
     _ownerFrame = null;
+    _ownerIsMainFrame = false;
     _visibilityChecked = false;
   }
 
@@ -120,6 +128,7 @@ class MediaSessionService {
   Future<void> report({
     required String siteId,
     required String frame,
+    required bool isMainFrame,
     required Future<void> Function(String js) runJs,
     required bool playing,
     required String title,
@@ -130,8 +139,15 @@ class MediaSessionService {
   }) async {
     if (!_enabled) return;
     if (playing) {
+      // Taking the notification over is how a site the user starts playing
+      // becomes the one the controls drive. A SUBFRAME doing it is an ad
+      // retitling the track the top document is playing, so it may own the
+      // notification only when no main frame does (BGAUDIO-008).
+      final sameFrame = _ownerSiteId == siteId && _ownerFrame == frame;
+      if (!isMainFrame && _active && _ownerIsMainFrame && !sameFrame) return;
       _ownerSiteId = siteId;
       _ownerFrame = frame;
+      _ownerIsMainFrame = isMainFrame;
       _ownerRunJs = runJs;
       final artwork = await _fetchArtwork(artworkUrl, proxy);
       final raising = !_active;
@@ -199,6 +215,7 @@ class MediaSessionService {
       _ownerSiteId = null;
       _ownerRunJs = null;
       _ownerFrame = null;
+      _ownerIsMainFrame = false;
       _visibilityChecked = false;
       LogService.instance.log('MediaSession', 'Notification torn down');
     }
