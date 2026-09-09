@@ -15,10 +15,7 @@ import 'dart:math';
 /// sites that have explicitly opted it in via
 /// [WebViewModel.enabledGlobalScriptIds]. Global scripts have no master
 /// switch; per-site opt-in is the only enable control.
-enum UserScriptInjectionTime {
-  atDocumentStart,
-  atDocumentEnd,
-}
+enum UserScriptInjectionTime { atDocumentStart, atDocumentEnd }
 
 /// Trusted CDN domains for user script external dependencies.
 /// URLs matching these domains are fetched without user confirmation.
@@ -48,8 +45,10 @@ const Set<String> scriptFetchWhitelist = {
 enum ScriptFetchUrlStatus {
   /// URL is on the trusted whitelist — fetch without confirmation.
   whitelisted,
+
   /// URL is valid http/https but not whitelisted — requires user confirmation.
   requiresConfirmation,
+
   /// URL scheme is blocked (javascript:, data:, blob:, file://) or invalid.
   blocked,
 }
@@ -152,16 +151,31 @@ class UserScriptConfig {
   final String id;
   String name;
   String source;
+
   /// Optional URL to fetch script source from (e.g., CDN-hosted library).
   /// Fetched at the Dart level, bypassing page CSP restrictions.
   String? url;
+
   /// Cached content downloaded from [url].
   String? urlSource;
   UserScriptInjectionTime injectionTime;
+
   /// Master switch. For global scripts this disables the script on all
   /// sites regardless of per-site opt-in; for site scripts this simply
   /// controls whether the script is injected.
   bool enabled;
+
+  /// Whether this script needs the privileged bridge: DOM insertions routed
+  /// past the page's CSP, and `window.__wsFetch` for cross-origin reads the
+  /// same-origin policy denies. Libraries like DarkReader do not work without
+  /// it; an ordinary user script does not need it.
+  ///
+  /// Off by default because the bridge cannot be handed to one script alone.
+  /// It installs page-realm globals and prototype wrappers, so everything else
+  /// running on that page — the site's own code, a third-party ad, an XSS
+  /// payload — reaches it too. That is the cost this flag makes visible: the
+  /// site's CSP and same-origin policy stop applying while it is on.
+  bool bypassSitePolicy;
 
   UserScriptConfig({
     String? id,
@@ -171,6 +185,7 @@ class UserScriptConfig {
     this.urlSource,
     this.injectionTime = UserScriptInjectionTime.atDocumentEnd,
     this.enabled = true,
+    this.bypassSitePolicy = false,
   }) : id = id ?? _generateUserScriptId();
 
   /// The full script to inject: URL source (if any) followed by user source.
@@ -185,14 +200,15 @@ class UserScriptConfig {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'source': source,
-        if (url != null) 'url': url,
-        if (urlSource != null) 'urlSource': urlSource,
-        'injectionTime': injectionTime.index,
-        'enabled': enabled,
-      };
+    'id': id,
+    'name': name,
+    'source': source,
+    if (url != null) 'url': url,
+    if (urlSource != null) 'urlSource': urlSource,
+    'injectionTime': injectionTime.index,
+    'enabled': enabled,
+    'bypassSitePolicy': bypassSitePolicy,
+  };
 
   factory UserScriptConfig.fromJson(Map<String, dynamic> json) {
     return UserScriptConfig(
@@ -205,6 +221,15 @@ class UserScriptConfig {
           ? UserScriptInjectionTime.atDocumentStart
           : UserScriptInjectionTime.atDocumentEnd,
       enabled: json['enabled'] ?? true,
+      // Migration: the bridge used to be installed for any site with any user
+      // script. A script written before this flag existed and backed by a
+      // fetched library is the case it was built for (US-DR-001), so keep it
+      // working; a plain script keeps the site's CSP instead of silently
+      // having lost it all along.
+      bypassSitePolicy:
+          json['bypassSitePolicy'] as bool? ??
+          ((json['url'] as String?)?.isNotEmpty ?? false) ||
+              ((json['urlSource'] as String?)?.isNotEmpty ?? false),
     );
   }
 }

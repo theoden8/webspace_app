@@ -2,11 +2,14 @@
 // UserScriptService installs.
 //
 // user_script_handlers_test.dart covers the handlers' functional
-// contract. This file asks the adversarial question instead: given that
-// the shim publishes `window.__wsFetch` and patches DOM/fetch globals,
-// *any* script running in a user-script-enabled page can drive these
-// handlers — the site's own JS, a third-party ad script, or an XSS
-// payload. These tests pin what that caller can and cannot reach.
+// contract. This file asks the adversarial question instead: the shim
+// publishes `window.__wsFetch` and wraps DOM globals, so *any* script running
+// on a page that has the bridge can drive these handlers — the site's own JS,
+// a third-party ad script, or an XSS payload. That is not fixable from inside
+// the page realm, which is why the bridge is installed only where a user
+// script explicitly asked for it (US-DR-005, first group below). These tests
+// pin both halves: when the bridge exists at all, and what a caller reaches
+// once it does.
 //
 // Sibling: test/browser/bridge_privilege_escalation.test.js proves the
 // reachability half under a real engine.
@@ -20,43 +23,109 @@ import 'package:webspace/settings/user_script.dart';
 import 'helpers/user_script_bridge_fakes.dart';
 
 void main() {
+  group('the bridge is not installed unless a script asked for it', () {
+    // Enabling a user script says "run my code". It does not say "stop
+    // enforcing this site's CSP and same-origin policy for everything on the
+    // page", which is what installing the bridge unavoidably does.
+    test('an ordinary user script gets no handlers', () async {
+      final ctrl = FakeUserScriptController();
+      final svc = serviceWith(plainScript);
+
+      svc.registerHandlers(ctrl);
+
+      expect(svc.hasScripts, isTrue, reason: 'the script still runs');
+      expect(svc.hasPrivilegedBridge, isFalse);
+      expect(ctrl.handlers, isEmpty);
+      expect(
+        svc.shimScript,
+        isNull,
+        reason: 'no shim means no __wsFetch and no DOM wrappers either',
+      );
+    });
+
+    test('one script asking for it arms the bridge for the site', () async {
+      final ctrl = FakeUserScriptController();
+      final svc = serviceWith([
+        UserScriptConfig(name: 'plain', source: 'noop;'),
+        UserScriptConfig(
+          name: 'darkreader',
+          source: 'noop;',
+          bypassSitePolicy: true,
+        ),
+      ]);
+
+      svc.registerHandlers(ctrl);
+
+      expect(svc.hasPrivilegedBridge, isTrue);
+      expect(ctrl.handlers, isNotEmpty);
+    });
+
+    test('a disabled script cannot arm it', () async {
+      final ctrl = FakeUserScriptController();
+      final svc = serviceWith([
+        UserScriptConfig(
+          name: 'off',
+          source: 'noop;',
+          enabled: false,
+          bypassSitePolicy: true,
+        ),
+      ]);
+
+      svc.registerHandlers(ctrl);
+
+      expect(svc.hasPrivilegedBridge, isFalse);
+      expect(ctrl.handlers, isEmpty);
+    });
+  });
+
   group('confirmation gate asymmetry', () {
     // The script handler treats requiresConfirmation as "ask the user".
     // The resource-fetch handler only checks for `blocked` and fetches
     // everything else, so the confirmation prompt does not apply to it.
-    test('__wsFetch reaches a non-whitelisted host with no user prompt',
-        () async {
-      final factory = FakeOutboundFactory((_) => http.Response('SECRET', 200));
-      outboundHttp = factory;
-      final asked = <String>[];
-      final ctrl = FakeUserScriptController();
-      serviceWith(oneScript, confirm: (url) async {
-        asked.add(url);
-        return false;
-      }).registerHandlers(ctrl);
+    test(
+      '__wsFetch reaches a non-whitelisted host with no user prompt',
+      () async {
+        final factory = FakeOutboundFactory(
+          (_) => http.Response('SECRET', 200),
+        );
+        outboundHttp = factory;
+        final asked = <String>[];
+        final ctrl = FakeUserScriptController();
+        serviceWith(
+          oneScript,
+          confirm: (url) async {
+            asked.add(url);
+            return false;
+          },
+        ).registerHandlers(ctrl);
 
-      final res = await ctrl
-          .handler(kFetchHandlerPrefix)(['https://not-whitelisted.example/x']);
+        final res = await ctrl.handler(kFetchHandlerPrefix)([
+          'https://not-whitelisted.example/x',
+        ]);
 
-      expect((res as Map)['status'], 200);
-      expect(res['body'], 'SECRET');
-      expect(asked, isEmpty);
-      expect(factory.requested.single.host, 'not-whitelisted.example');
-    });
+        expect((res as Map)['status'], 200);
+        expect(res['body'], 'SECRET');
+        expect(asked, isEmpty);
+        expect(factory.requested.single.host, 'not-whitelisted.example');
+      },
+    );
 
-    test('the script handler gates the same URL behind confirmation',
-        () async {
+    test('the script handler gates the same URL behind confirmation', () async {
       final factory = FakeOutboundFactory((_) => http.Response('CODE;', 200));
       outboundHttp = factory;
       final asked = <String>[];
       final ctrl = FakeUserScriptController();
-      serviceWith(oneScript, confirm: (url) async {
-        asked.add(url);
-        return false;
-      }).registerHandlers(ctrl);
+      serviceWith(
+        oneScript,
+        confirm: (url) async {
+          asked.add(url);
+          return false;
+        },
+      ).registerHandlers(ctrl);
 
-      final ok = await ctrl
-          .handler(kScriptHandlerPrefix)(['https://not-whitelisted.example/x']);
+      final ok = await ctrl.handler(kScriptHandlerPrefix)([
+        'https://not-whitelisted.example/x',
+      ]);
 
       expect(ok, isFalse);
       expect(asked, ['https://not-whitelisted.example/x']);
@@ -96,23 +165,27 @@ void main() {
     // A hostname whose A record points at loopback or the LAN walks
     // straight through, so DNS rebinding defeats this guard. Pinned so
     // that a future resolve-then-check fix has a test to flip.
-    test('KNOWN GAP: a hostname is not checked against what it resolves to',
-        () async {
-      final factory = FakeOutboundFactory((_) => http.Response('x', 200));
-      outboundHttp = factory;
-      final ctrl = FakeUserScriptController();
-      serviceWith(oneScript).registerHandlers(ctrl);
+    test(
+      'KNOWN GAP: a hostname is not checked against what it resolves to',
+      () async {
+        final factory = FakeOutboundFactory((_) => http.Response('x', 200));
+        outboundHttp = factory;
+        final ctrl = FakeUserScriptController();
+        serviceWith(oneScript).registerHandlers(ctrl);
 
-      expect(classifyScriptFetchUrl('http://localtest.me/admin'),
-          ScriptFetchUrlStatus.requiresConfirmation);
+        expect(
+          classifyScriptFetchUrl('http://localtest.me/admin'),
+          ScriptFetchUrlStatus.requiresConfirmation,
+        );
 
-      final res = await ctrl.handler(kFetchHandlerPrefix)([
-        'http://localtest.me/admin',
-      ]);
+        final res = await ctrl.handler(kFetchHandlerPrefix)([
+          'http://localtest.me/admin',
+        ]);
 
-      expect((res as Map)['status'], 200);
-      expect(factory.requested.single.host, 'localtest.me');
-    });
+        expect((res as Map)['status'], 200);
+        expect(factory.requested.single.host, 'localtest.me');
+      },
+    );
   });
 
   group('inline-script bridge', () {
@@ -132,18 +205,25 @@ void main() {
       expect(ctrl.evaluatedAny('attacker.example'), isTrue);
     });
 
-    test('handlers are absent entirely when the site has no user scripts',
-        () async {
-      final ctrl = FakeUserScriptController();
-      serviceWith([]).registerHandlers(ctrl);
+    test(
+      'handlers are absent entirely when the site has no user scripts',
+      () async {
+        final ctrl = FakeUserScriptController();
+        serviceWith([]).registerHandlers(ctrl);
 
-      expect(ctrl.handlers, isEmpty);
-    });
+        expect(ctrl.handlers, isEmpty);
+      },
+    );
 
     test('a disabled script leaves the bridge uninstalled', () async {
       final ctrl = FakeUserScriptController();
       serviceWith([
-        UserScriptConfig(name: 'off', source: 'noop;', enabled: false),
+        UserScriptConfig(
+          name: 'off',
+          source: 'noop;',
+          enabled: false,
+          bypassSitePolicy: true,
+        ),
       ]).registerHandlers(ctrl);
 
       expect(ctrl.handlers, isEmpty);

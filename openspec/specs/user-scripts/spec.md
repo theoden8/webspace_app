@@ -318,6 +318,82 @@ User scripts SHALL be included in settings export/import.
 
 ---
 
+### Requirement: US-DR-005 - The privileged bridge is granted per script, not implied
+
+Enabling a user script says "run my code". It does not say "stop enforcing this
+site's CSP and same-origin policy", and until this requirement the two were the
+same act: any site with any enabled user script got the shim, and with it every
+script on that page — the site's own, a third-party tag, an XSS payload — got
+CSP-exempt execution through the inline bridge and cross-origin reads through
+`window.__wsFetch`.
+
+The bridge cannot be scoped to the script that wanted it. Its wrappers sit on
+the page's own prototypes and its entry points are page-realm globals, so
+whoever shares the document shares the capability. What can be scoped is
+*whether the site has it at all*. `UserScriptConfig` SHALL therefore carry a
+`bypassSitePolicy` flag, and the shim and all three Dart handlers SHALL be
+installed only when the site has an **enabled** script that sets it. A site
+whose scripts do not set it keeps native CSP and same-origin enforcement, and
+the handlers are never registered — an unregistered handler cannot be reached
+by a caller that guesses its name.
+
+New scripts SHALL default to off. A script stored before the flag existed SHALL
+inherit `true` when it is library-backed (a `url` or cached `urlSource`), which
+is the case the bridge was built for (US-DR-001), and `false` otherwise: a
+plain script keeps the CSP it should never have been costing the user.
+
+The flag SHALL be editable in the script editor, ride `toJson` (and so settings
+backup, US-005), and be presented with what it costs — the weakening applies to
+the whole page, not to the one script.
+
+#### Scenario: An ordinary user script does not weaken the site
+
+**Given** a site with an enabled user script that does not set `bypassSitePolicy`
+**When** the webview is built
+**Then** no shim is injected and no bridge handler is registered
+**And** the script itself still runs
+
+#### Scenario: A library-backed script keeps working across the upgrade
+
+**Given** a stored script with a cached `urlSource` and no `bypassSitePolicy` key
+**When** it is loaded from JSON
+**Then** `bypassSitePolicy` reads `true`
+
+#### Scenario: A disabled script cannot arm the bridge
+
+**Given** the only script setting `bypassSitePolicy` is disabled
+**When** the webview is built
+**Then** the bridge is not installed
+
+---
+
+### Requirement: US-DR-006 - `window.fetch` is left alone
+
+The shim SHALL NOT replace `window.fetch`. It previously wrapped it to retry a
+cross-origin `TypeError` through `__wsFetch` and answer with the body, which
+made every same-origin-policy refusal and every `connect-src` the site set
+unenforceable for all page script, without anything asking for it. The retry
+was also lossy — it could not carry the original method, headers or body, so a
+refused `POST` came back as the response to a `GET` the server saw twice.
+
+A library that wants the bridged fetch is handed it by name
+(`MyLib.setFetchMethod(window.__wsFetch)`), which is the documented route and
+is unaffected.
+
+#### Scenario: A cross-origin read the browser refuses stays refused
+
+**Given** a site with the bridge installed and a CSP of `connect-src 'none'`
+**When** page script calls `fetch` for a cross-origin URL
+**Then** the call rejects and nothing is re-issued through the bridge
+
+#### Scenario: A user script's library still reaches the bridge
+
+**Given** the same site
+**When** a script calls `window.__wsFetch` for that URL
+**Then** the body is returned
+
+---
+
 ### Requirement: US-006 - Redirects are re-classified, not followed blindly
 
 `classifyScriptFetchUrl` only ever sees the URL the caller hands in, and
@@ -442,10 +518,14 @@ A shim is injected at `AT_DOCUMENT_START` before user scripts. It provides:
 
 1. **`appendChild` / `insertBefore` / `Element.append` interception**: Catches both `<script src="...">` insertions for whitelisted CDN URLs and inline `<script>{textContent}` insertions, routing both through Dart handlers that evaluate the source via `controller.evaluateJavascript` (bypassing CSP). `Element.prototype.append` is wrapped in addition to `Node.prototype.appendChild`/`insertBefore` because `ParentNode.append` does not invoke `appendChild` internally — libraries like DarkReader call `head.append(scriptEl)`, which `appendChild`-only wrappers miss.
 2. **`window.__wsFetch(url)`**: CORS-bypassing fetch that returns a standard `Response` object. User scripts can use this for libraries that need custom fetch methods (e.g. `MyLib.setFetchMethod(window.__wsFetch)`).
-3. **`window.fetch` CORS fallback**: Patches `window.fetch` to fall back to `__wsFetch` on TypeError (CORS/network failures).
-4. **Deduplication**: Tracks loaded URLs to avoid double-loading when both `initialUserScripts` and re-injection run.
+3. **Deduplication**: Tracks loaded URLs to avoid double-loading when both `initialUserScripts` and re-injection run.
 
-Handler names are randomized per webview instance for security.
+`window.fetch` is deliberately **not** patched — see US-DR-006.
+
+The shim is installed only for a site carrying an enabled user script with
+`bypassSitePolicy` set (US-DR-005). Handler names are derived from the wall
+clock; they are not the access control, since the shim publishes
+`window.__wsFetch` as a plain global.
 
 #### Inline Script Bridging (US-DR-001)
 
@@ -467,9 +547,9 @@ The shim closes the gap by catching inline `<script>` insertions in the same wra
 
 ##### Trade-offs (US-DR-002)
 
-- **CSP weakening is scoped to opted-in sites**: the shim is installed only on sites with at least one enabled user script (`hasScripts == true`). Sites with no user scripts retain full native CSP enforcement.
+- **CSP weakening is scoped to sites that asked for it**: the shim is installed only where an enabled user script sets `bypassSitePolicy` (US-DR-005). Every other site — including one running ordinary user scripts — retains full native CSP enforcement.
 - **Execution timing is async**: the bridge round-trip adds a microtask + IPC hop (typically <50ms on a warm bridge). DarkReader's proxy installs `Element.prototype` overrides used in later page lifecycle, so async timing does not break it. A user script that depends on a hard-synchronous execution guarantee for an inline script it appends would not be satisfied — there is no `eval`-based fast path because the page CSP also forbids `eval` in the policies that motivate this feature.
-- **All inline _classic_ scripts on the page are bridged**, not just user-script-created ones. Distinguishing the two reliably from JS is not feasible. The opt-in scope (user has scripts on this site) is the security boundary. Module scripts and non-JS `type` blocks are excluded — see US-DR-003.
+- **All inline _classic_ scripts on the page are bridged**, not just user-script-created ones. Distinguishing the two reliably from JS is not feasible: the wrappers live on the page's own prototypes, and a library like DarkReader appends its proxy long after the user script that loaded it returned, so neither a call-stack test nor a time window separates them. That is precisely why the grant is explicit (US-DR-005) rather than implied by having a user script. Module scripts and non-JS `type` blocks are excluded — see US-DR-003.
 - **DocumentFragment-mediated insertion is not intercepted**: `frag.appendChild(scriptEl); parent.appendChild(frag)` moves the script into the parent in a single DOM op that does not pass through our `appendChild` wrapper a second time. The first `appendChild` (into the fragment) is caught — the bridged evaluation still runs — so user scripts that follow this pattern still execute their JS; the script element just never reaches the live DOM.
 
 #### Classic-Script-Only Bridging (US-DR-003)

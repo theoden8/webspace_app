@@ -6,21 +6,22 @@
 // — a third-party tag, a compromised dependency, an XSS payload — and
 // asks what the shim hands them that the browser would otherwise deny.
 //
-// Two capabilities come out of it, both by design for user scripts and
-// both reachable by anyone else in the same document:
+// One capability comes out of it, by design for user scripts and reachable by
+// anyone else in the same document: inline <script> elements are routed to a
+// privileged Dart handler that evaluates them outside the page's CSP, so an
+// injection the browser refuses to run becomes an injection that runs. It is
+// not a claim that the shim is wrong — that bypass is the feature — but it is
+// why the shim is installed only for a site whose user script explicitly asked
+// for it (US-DR-005). These tests pin the blast radius of the grant, so a
+// change in who can reach the bridge has to break a test first.
 //
-//   1. Inline <script> elements are routed to a privileged Dart handler
-//      that evaluates them outside the page's CSP. An injection the
-//      browser refuses to run becomes an injection that runs.
-//   2. window.fetch is patched to retry cross-origin failures through
-//      the same bridge, which answers with the response body. Reads the
-//      same-origin policy and connect-src refuse become readable.
+// window.fetch used to be patched to retry cross-origin failures through the
+// same bridge, which answered with the body — every read the same-origin
+// policy and connect-src refused became readable, for all page script, with
+// nothing asking for it. That patch is gone; the tests below hold the line.
 //
-// Neither is a claim that the shim is wrong — the CORS and CSP bypasses
-// are the feature. The tests pin the blast radius so that a change in
-// who can reach the bridge (a wider injection scope, a new caller) has
-// to break a test first. The Dart half of the contract, including the
-// absent confirmation prompt on the fetch path, lives in
+// The Dart half of the contract, including which sites get the bridge at all
+// and the absent confirmation prompt on the fetch path, lives in
 // test/user_script_bridge_authz_test.dart.
 
 const test = require('node:test');
@@ -198,7 +199,7 @@ test('non-classic script types are not bridged', async (t) => {
   }
 });
 
-// ---------- Same-origin policy: the patched window.fetch ----------
+// ---------- Same-origin policy: window.fetch is not ours to patch ----------
 
 test('PREMISE: without the shim, a no-CORS cross-origin read fails',
   async (t) => {
@@ -226,44 +227,71 @@ test('PREMISE: without the shim, a no-CORS cross-origin read fails',
     }
   });
 
-test('with the shim, the failed cross-origin read is re-issued and returned',
-  async (t) => {
-    if (!requireBrowser(browser, t)) return;
-    const third = await startThirdParty();
-    const secret = '{"secret":"third-party-only"}';
-    try {
-      await withVictim(t, {
-        csp: "default-src 'self'; script-src 'self'; connect-src *",
-        body: secret,
-      }, async (page) => {
-        const r = await page.evaluate(async (u, h) => {
-          const res = await fetch(u);
-          return {
-            body: await res.text(),
-            bridged: window.__calls.filter((c) => c.name === h).map((c) => c.args[0]),
-          };
-        }, `${third.origin}/secret.json`, FETCH_HANDLER);
-
-        assert.equal(r.body, secret,
-          'page script reads a body the same-origin policy denied it');
-        assert.deepEqual(r.bridged, [`${third.origin}/secret.json`]);
-      });
-    } finally {
-      await third.close();
-    }
-  });
-
-test('connect-src none is bypassed the same way', async (t) => {
+test('with the shim, the cross-origin read still fails', async (t) => {
   if (!requireBrowser(browser, t)) return;
   const third = await startThirdParty();
-  const secret = '{"secret":"csp-denied"}';
+  try {
+    await withVictim(t, {
+      csp: "default-src 'self'; script-src 'self'; connect-src *",
+      body: '{"secret":"third-party-only"}',
+    }, async (page) => {
+      const r = await page.evaluate(async (u, h) => {
+        let name = null;
+        try { await fetch(u); } catch (e) { name = e.constructor.name; }
+        return {
+          name,
+          bridged: window.__calls.filter((c) => c.name === h).length,
+        };
+      }, `${third.origin}/secret.json`, FETCH_HANDLER);
+
+      assert.equal(r.name, 'TypeError',
+        'the same-origin policy still decides what page script may read');
+      assert.equal(r.bridged, 0, 'nothing was re-issued through the bridge');
+    });
+  } finally {
+    await third.close();
+  }
+});
+
+test('connect-src none still holds', async (t) => {
+  if (!requireBrowser(browser, t)) return;
+  const third = await startThirdParty();
+  try {
+    await withVictim(t, {
+      csp: "default-src 'self'; script-src 'self'; connect-src 'none'",
+      body: '{"secret":"csp-denied"}',
+    }, async (page) => {
+      const r = await page.evaluate(async (u, h) => {
+        let failed = false;
+        try { await fetch(u); } catch (e) { failed = true; }
+        return {
+          failed,
+          bridged: window.__calls.filter((c) => c.name === h).length,
+        };
+      }, `${third.origin}/secret.json`, FETCH_HANDLER);
+
+      assert.equal(r.failed, true, 'the policy the site set is enforced');
+      assert.equal(r.bridged, 0);
+    });
+  } finally {
+    await third.close();
+  }
+});
+
+test('a library still reaches the bridge by name', async (t) => {
+  // The explicit route the shim documents for user scripts
+  // (`setFetchMethod(window.__wsFetch)`) is what the grant is for, and it is
+  // unaffected by window.fetch being left alone.
+  if (!requireBrowser(browser, t)) return;
+  const third = await startThirdParty();
+  const secret = '{"secret":"asked-for"}';
   try {
     await withVictim(t, {
       csp: "default-src 'self'; script-src 'self'; connect-src 'none'",
       body: secret,
     }, async (page) => {
       const r = await page.evaluate(async (u, h) => {
-        const res = await fetch(u);
+        const res = await window.__wsFetch(u);
         return {
           body: await res.text(),
           bridged: window.__calls.filter((c) => c.name === h).length,
@@ -298,8 +326,9 @@ test('__wsFetch is a plain global — no handler name needed, no whitelist',
   });
 
 test('a same-origin failure is not re-issued through the bridge', async (t) => {
-  // Retrying same-origin through Dart would drop the WebView's cookies
-  // and silently log the user out, so the shim rethrows instead.
+  // Nothing re-issues a page fetch now, same-origin included — and retrying
+  // this one through Dart would also drop the WebView's cookies and silently
+  // log the user out.
   await withVictim(t, { csp: "default-src 'self'; script-src 'self'" },
     async (page, victim) => {
       const r = await page.evaluate(async (u, h) => {

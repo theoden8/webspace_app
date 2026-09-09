@@ -27,10 +27,12 @@ class FakeOutboundFactory implements OutboundHttpFactory {
 
   @override
   OutboundClient clientFor(UserProxySettings settings) {
-    return OutboundClientReady(MockClient((req) async {
-      requested.add(req.url);
-      return responder(req);
-    }));
+    return OutboundClientReady(
+      MockClient((req) async {
+        requested.add(req.url);
+        return responder(req);
+      }),
+    );
   }
 }
 
@@ -72,8 +74,16 @@ class FakeUserScriptController extends Fake
 UserScriptService serviceWith(
   List<UserScriptConfig> scripts, {
   Future<bool> Function(String url)? confirm,
-}) =>
-    UserScriptService(scripts: scripts, onConfirmScriptFetch: confirm);
+}) => UserScriptService(scripts: scripts, onConfirmScriptFetch: confirm);
 
-List<UserScriptConfig> get oneScript =>
-    [UserScriptConfig(name: 't', source: 'noop;')];
+/// A script that asked for the privileged bridge. The authorization probes
+/// are about what the bridge admits once a user has granted it; whether it is
+/// installed at all is [plainScript]'s question.
+List<UserScriptConfig> get oneScript => [
+  UserScriptConfig(name: 't', source: 'noop;', bypassSitePolicy: true),
+];
+
+/// An ordinary user script: runs its code, asks for no bridge.
+List<UserScriptConfig> get plainScript => [
+  UserScriptConfig(name: 't', source: 'noop;'),
+];

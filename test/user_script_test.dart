@@ -13,7 +13,10 @@ void main() {
 
       expect(script.name, equals('Test Script'));
       expect(script.source, equals('console.log("hello");'));
-      expect(script.injectionTime, equals(UserScriptInjectionTime.atDocumentEnd));
+      expect(
+        script.injectionTime,
+        equals(UserScriptInjectionTime.atDocumentEnd),
+      );
       expect(script.enabled, isTrue);
       // Each script gets an auto-generated, non-empty id.
       expect(script.id, isNotEmpty);
@@ -57,7 +60,10 @@ void main() {
       final json = script.toJson();
 
       expect(json['name'], equals('Dark Mode'));
-      expect(json['source'], equals('document.body.style.background = "black";'));
+      expect(
+        json['source'],
+        equals('document.body.style.background = "black";'),
+      );
       expect(json['injectionTime'], equals(0)); // atDocumentStart
       expect(json['enabled'], isFalse);
     });
@@ -73,8 +79,14 @@ void main() {
       final script = UserScriptConfig.fromJson(json);
 
       expect(script.name, equals('Auto Login'));
-      expect(script.source, equals('document.querySelector("#login").click();'));
-      expect(script.injectionTime, equals(UserScriptInjectionTime.atDocumentEnd));
+      expect(
+        script.source,
+        equals('document.querySelector("#login").click();'),
+      );
+      expect(
+        script.injectionTime,
+        equals(UserScriptInjectionTime.atDocumentEnd),
+      );
       expect(script.enabled, isTrue);
     });
 
@@ -83,7 +95,10 @@ void main() {
 
       expect(script.name, equals('Untitled'));
       expect(script.source, equals(''));
-      expect(script.injectionTime, equals(UserScriptInjectionTime.atDocumentEnd));
+      expect(
+        script.injectionTime,
+        equals(UserScriptInjectionTime.atDocumentEnd),
+      );
       expect(script.enabled, isTrue);
     });
 
@@ -114,10 +129,7 @@ void main() {
       final model = WebViewModel(
         initUrl: 'https://example.com',
         userScripts: [
-          UserScriptConfig(
-            name: 'Script 1',
-            source: 'console.log(1);',
-          ),
+          UserScriptConfig(name: 'Script 1', source: 'console.log(1);'),
           UserScriptConfig(
             name: 'Script 2',
             source: 'console.log(2);',
@@ -165,7 +177,10 @@ void main() {
 
       expect(model.userScripts, hasLength(1));
       expect(model.userScripts[0].name, equals('My Script'));
-      expect(model.userScripts[0].injectionTime, equals(UserScriptInjectionTime.atDocumentStart));
+      expect(
+        model.userScripts[0].injectionTime,
+        equals(UserScriptInjectionTime.atDocumentStart),
+      );
     });
 
     test('should handle missing userScripts in JSON (backward compat)', () {
@@ -204,25 +219,28 @@ void main() {
       expect(restored.enabledGlobalScriptIds, {'us-aaa', 'us-bbb'});
     });
 
-    test('legacy WebViewModel JSON without enabledGlobalScriptIds defaults to empty', () {
-      final json = {
-        'initUrl': 'https://example.com',
-        'currentUrl': 'https://example.com',
-        'name': 'Example',
-        'cookies': [],
-        'proxySettings': {'type': 0},
-        'javascriptEnabled': true,
-        'userAgent': '',
-        'thirdPartyCookiesEnabled': false,
-        'incognito': false,
-        'clearUrlEnabled': true,
-        'dnsBlockEnabled': true,
-        'contentBlockEnabled': true,
-        'blockAutoRedirects': true,
-      };
-      final model = WebViewModel.fromJson(json, null);
-      expect(model.enabledGlobalScriptIds, isEmpty);
-    });
+    test(
+      'legacy WebViewModel JSON without enabledGlobalScriptIds defaults to empty',
+      () {
+        final json = {
+          'initUrl': 'https://example.com',
+          'currentUrl': 'https://example.com',
+          'name': 'Example',
+          'cookies': [],
+          'proxySettings': {'type': 0},
+          'javascriptEnabled': true,
+          'userAgent': '',
+          'thirdPartyCookiesEnabled': false,
+          'incognito': false,
+          'clearUrlEnabled': true,
+          'dnsBlockEnabled': true,
+          'contentBlockEnabled': true,
+          'blockAutoRedirects': true,
+        };
+        final model = WebViewModel.fromJson(json, null);
+        expect(model.enabledGlobalScriptIds, isEmpty);
+      },
+    );
 
     test('toJson omits enabledGlobalScriptIds when empty', () {
       final model = WebViewModel(initUrl: 'https://example.com');
@@ -235,42 +253,54 @@ void main() {
     // Whitelisted CDN domains
     test('should whitelist cdn.jsdelivr.net', () {
       expect(
-        classifyScriptFetchUrl('https://cdn.jsdelivr.net/npm/lodash/lodash.min.js'),
+        classifyScriptFetchUrl(
+          'https://cdn.jsdelivr.net/npm/lodash/lodash.min.js',
+        ),
         ScriptFetchUrlStatus.whitelisted,
       );
     });
 
     test('should whitelist unpkg.com', () {
       expect(
-        classifyScriptFetchUrl('https://unpkg.com/react@18/umd/react.production.min.js'),
+        classifyScriptFetchUrl(
+          'https://unpkg.com/react@18/umd/react.production.min.js',
+        ),
         ScriptFetchUrlStatus.whitelisted,
       );
     });
 
     test('should whitelist cdnjs.cloudflare.com', () {
       expect(
-        classifyScriptFetchUrl('https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js'),
+        classifyScriptFetchUrl(
+          'https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js',
+        ),
         ScriptFetchUrlStatus.whitelisted,
       );
     });
 
     test('should whitelist raw.githubusercontent.com', () {
       expect(
-        classifyScriptFetchUrl('https://raw.githubusercontent.com/user/repo/main/script.js'),
+        classifyScriptFetchUrl(
+          'https://raw.githubusercontent.com/user/repo/main/script.js',
+        ),
         ScriptFetchUrlStatus.whitelisted,
       );
     });
 
     test('should whitelist gist.githubusercontent.com', () {
       expect(
-        classifyScriptFetchUrl('https://gist.githubusercontent.com/user/abc123/raw/script.js'),
+        classifyScriptFetchUrl(
+          'https://gist.githubusercontent.com/user/abc123/raw/script.js',
+        ),
         ScriptFetchUrlStatus.whitelisted,
       );
     });
 
     test('should whitelist ajax.googleapis.com', () {
       expect(
-        classifyScriptFetchUrl('https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js'),
+        classifyScriptFetchUrl(
+          'https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js',
+        ),
         ScriptFetchUrlStatus.whitelisted,
       );
     });
@@ -291,7 +321,9 @@ void main() {
 
     test('should whitelist http:// (not just https://)', () {
       expect(
-        classifyScriptFetchUrl('http://cdn.jsdelivr.net/npm/lodash/lodash.min.js'),
+        classifyScriptFetchUrl(
+          'http://cdn.jsdelivr.net/npm/lodash/lodash.min.js',
+        ),
         ScriptFetchUrlStatus.whitelisted,
       );
     });
@@ -358,7 +390,9 @@ void main() {
 
     test('should require confirmation for https with path and query', () {
       expect(
-        classifyScriptFetchUrl('https://my-server.com/api/script.js?v=2&token=abc'),
+        classifyScriptFetchUrl(
+          'https://my-server.com/api/script.js?v=2&token=abc',
+        ),
         ScriptFetchUrlStatus.requiresConfirmation,
       );
     });
@@ -400,10 +434,7 @@ void main() {
     });
 
     test('should block empty URL', () {
-      expect(
-        classifyScriptFetchUrl(''),
-        ScriptFetchUrlStatus.blocked,
-      );
+      expect(classifyScriptFetchUrl(''), ScriptFetchUrlStatus.blocked);
     });
 
     test('should block URL with no scheme', () {
@@ -443,14 +474,17 @@ void main() {
     });
 
     // Whitelist should not match partial domain names
-    test('should not whitelist domains that merely end with a whitelisted suffix', () {
-      // evilcdn.jsdelivr.net would match because it ends with .cdn.jsdelivr.net
-      // but evil-unpkg.com should NOT match unpkg.com
-      expect(
-        classifyScriptFetchUrl('https://evil-unpkg.com/script.js'),
-        ScriptFetchUrlStatus.requiresConfirmation,
-      );
-    });
+    test(
+      'should not whitelist domains that merely end with a whitelisted suffix',
+      () {
+        // evilcdn.jsdelivr.net would match because it ends with .cdn.jsdelivr.net
+        // but evil-unpkg.com should NOT match unpkg.com
+        expect(
+          classifyScriptFetchUrl('https://evil-unpkg.com/script.js'),
+          ScriptFetchUrlStatus.requiresConfirmation,
+        );
+      },
+    );
 
     test('should not whitelist notcdnjs.cloudflare.com as cdnjs.cloudflare.com', () {
       // notcdnjs.cloudflare.com ends with cdnjs.cloudflare.com but is NOT a subdomain
@@ -471,7 +505,11 @@ void main() {
     });
 
     test('fullSource returns urlSource when no source', () {
-      final script = UserScriptConfig(name: 'test', source: '', urlSource: 'var x = 1;');
+      final script = UserScriptConfig(
+        name: 'test',
+        source: '',
+        urlSource: 'var x = 1;',
+      );
       expect(script.fullSource, 'var x = 1;');
     });
 
@@ -510,10 +548,13 @@ void main() {
       expect(script.fullSource, 'alert(1)');
     });
 
-    test('fullSource returns empty when both urlSource and source are empty', () {
-      final script = UserScriptConfig(name: 'empty', source: '');
-      expect(script.fullSource, '');
-    });
+    test(
+      'fullSource returns empty when both urlSource and source are empty',
+      () {
+        final script = UserScriptConfig(name: 'empty', source: '');
+        expect(script.fullSource, '');
+      },
+    );
 
     test('fullSource returns empty urlSource only when source is empty', () {
       final script = UserScriptConfig(name: 'test', source: '', urlSource: '');
@@ -565,42 +606,96 @@ void main() {
     // (and any similar dynamic-injector) survive strict CSP on Android
     // Chromium WebView. A refactor that drops any of these substrings
     // silently reverts that fix.
-    test('shim wraps Node.appendChild, Node.insertBefore, and Element.append', () {
-      final service = UserScriptService(scripts: [
-        UserScriptConfig(name: 't', source: 'noop;', enabled: true),
-      ]);
-      final shim = service.shimScript;
-      expect(shim, isNotNull);
-      expect(shim, contains('Node.prototype.appendChild = function'));
-      expect(shim, contains('Node.prototype.insertBefore = function'));
-      expect(shim, contains('Element.prototype.append = function'));
-    });
+    test(
+      'shim wraps Node.appendChild, Node.insertBefore, and Element.append',
+      () {
+        final service = UserScriptService(
+          scripts: [
+            UserScriptConfig(
+              name: 't',
+              source: 'noop;',
+              enabled: true,
+              bypassSitePolicy: true,
+            ),
+          ],
+        );
+        final shim = service.shimScript;
+        expect(shim, isNotNull);
+        expect(shim, contains('Node.prototype.appendChild = function'));
+        expect(shim, contains('Node.prototype.insertBefore = function'));
+        expect(shim, contains('Element.prototype.append = function'));
+      },
+    );
 
-    test('shim intercepts inline <script>{textContent} via interceptInline', () {
-      final service = UserScriptService(scripts: [
-        UserScriptConfig(name: 't', source: 'noop;', enabled: true),
-      ]);
-      final shim = service.shimScript!;
-      expect(shim, contains('function interceptInline'));
-      expect(shim, contains('scriptEl.text || scriptEl.textContent'));
-    });
+    test(
+      'shim intercepts inline <script>{textContent} via interceptInline',
+      () {
+        final service = UserScriptService(
+          scripts: [
+            UserScriptConfig(
+              name: 't',
+              source: 'noop;',
+              enabled: true,
+              bypassSitePolicy: true,
+            ),
+          ],
+        );
+        final shim = service.shimScript!;
+        expect(shim, contains('function interceptInline'));
+        expect(shim, contains('scriptEl.text || scriptEl.textContent'));
+      },
+    );
 
     test('shim is omitted when no enabled scripts are configured', () {
-      final service = UserScriptService(scripts: [
-        UserScriptConfig(name: 't', source: 'noop;', enabled: false),
-      ]);
+      final service = UserScriptService(
+        scripts: [
+          UserScriptConfig(
+            name: 't',
+            source: 'noop;',
+            enabled: false,
+            bypassSitePolicy: true,
+          ),
+        ],
+      );
       expect(service.shimScript, isNull);
       expect(service.hasScripts, isFalse);
     });
 
-    test('inline-script handler placeholder is replaced in the emitted shim', () {
-      final service = UserScriptService(scripts: [
-        UserScriptConfig(name: 't', source: 'noop;', enabled: true),
-      ]);
-      final shim = service.shimScript!;
-      expect(shim, isNot(contains('__INLINE_SCRIPT_HANDLER_NAME__')),
-          reason: 'placeholder must be substituted with a randomized name');
+    test('shim is omitted when no script asked for the bridge (US-DR-005)', () {
+      final service = UserScriptService(
+        scripts: [UserScriptConfig(name: 't', source: 'noop;', enabled: true)],
+      );
+      expect(service.hasScripts, isTrue, reason: 'the script still runs');
+      expect(
+        service.shimScript,
+        isNull,
+        reason:
+            'running a user script is not a request to disable the '
+            "site's CSP and same-origin policy for the whole page",
+      );
     });
+
+    test(
+      'inline-script handler placeholder is replaced in the emitted shim',
+      () {
+        final service = UserScriptService(
+          scripts: [
+            UserScriptConfig(
+              name: 't',
+              source: 'noop;',
+              enabled: true,
+              bypassSitePolicy: true,
+            ),
+          ],
+        );
+        final shim = service.shimScript!;
+        expect(
+          shim,
+          isNot(contains('__INLINE_SCRIPT_HANDLER_NAME__')),
+          reason: 'placeholder must be substituted with a randomized name',
+        );
+      },
+    );
   });
 
   group('SettingsBackup global user scripts', () {
@@ -619,7 +714,10 @@ void main() {
       expect(restored, hasLength(1));
       expect(restored[0].name, 'Global Script');
       expect(restored[0].source, 'console.log("global");');
-      expect(restored[0].injectionTime, UserScriptInjectionTime.atDocumentStart);
+      expect(
+        restored[0].injectionTime,
+        UserScriptInjectionTime.atDocumentStart,
+      );
     });
   });
 }

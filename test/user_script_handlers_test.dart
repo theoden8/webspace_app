@@ -20,12 +20,16 @@ void main() {
 
   group('__wsFetch resource handler', () {
     test('returns status/body/contentType for an allowed URL', () async {
-      outboundHttp = FakeOutboundFactory((_) =>
-          http.Response('BODY', 200, headers: {'content-type': 'text/css'}));
+      outboundHttp = FakeOutboundFactory(
+        (_) =>
+            http.Response('BODY', 200, headers: {'content-type': 'text/css'}),
+      );
       final ctrl = FakeUserScriptController();
       serviceWith(oneScript).registerHandlers(ctrl);
 
-      final res = await ctrl.handler(fetchPrefix)(['https://example.com/x.css']);
+      final res = await ctrl.handler(fetchPrefix)([
+        'https://example.com/x.css',
+      ]);
       expect((res as Map)['status'], 200);
       expect(res['body'], 'BODY');
       expect(res['contentType'], 'text/css');
@@ -64,37 +68,44 @@ void main() {
 
   group('script fetch handler', () {
     test('fetches a whitelisted URL and injects the body', () async {
-      outboundHttp = FakeOutboundFactory((_) => http.Response('CODE_A();', 200));
+      outboundHttp = FakeOutboundFactory(
+        (_) => http.Response('CODE_A();', 200),
+      );
       final ctrl = FakeUserScriptController();
       serviceWith(oneScript).registerHandlers(ctrl);
 
-      final ok = await ctrl
-          .handler(scriptPrefix)(['https://cdn.jsdelivr.net/npm/x/x.js']);
+      final ok = await ctrl.handler(scriptPrefix)([
+        'https://cdn.jsdelivr.net/npm/x/x.js',
+      ]);
       expect(ok, isTrue);
       expect(ctrl.evaluatedAny('CODE_A();'), isTrue);
     });
 
-    test('blocks a non-whitelisted URL when there is no confirm handler',
-        () async {
-      final factory = FakeOutboundFactory((_) => http.Response('CODE;', 200));
-      outboundHttp = factory;
-      final ctrl = FakeUserScriptController();
-      serviceWith(oneScript).registerHandlers(ctrl);
+    test(
+      'blocks a non-whitelisted URL when there is no confirm handler',
+      () async {
+        final factory = FakeOutboundFactory((_) => http.Response('CODE;', 200));
+        outboundHttp = factory;
+        final ctrl = FakeUserScriptController();
+        serviceWith(oneScript).registerHandlers(ctrl);
 
-      final ok =
-          await ctrl.handler(scriptPrefix)(['https://evil.example/x.js']);
-      expect(ok, isFalse);
-      expect(factory.requested, isEmpty);
-      expect(ctrl.evaluatedAny('CODE;'), isFalse);
-    });
+        final ok = await ctrl.handler(scriptPrefix)([
+          'https://evil.example/x.js',
+        ]);
+        expect(ok, isFalse);
+        expect(factory.requested, isEmpty);
+        expect(ctrl.evaluatedAny('CODE;'), isFalse);
+      },
+    );
 
     test('fetches a non-whitelisted URL after the user confirms', () async {
-      outboundHttp = FakeOutboundFactory((_) => http.Response('CONFIRMED();', 200));
+      outboundHttp = FakeOutboundFactory(
+        (_) => http.Response('CONFIRMED();', 200),
+      );
       final ctrl = FakeUserScriptController();
       serviceWith(oneScript, confirm: (_) async => true).registerHandlers(ctrl);
 
-      final ok =
-          await ctrl.handler(scriptPrefix)(['https://ok.example/x.js']);
+      final ok = await ctrl.handler(scriptPrefix)(['https://ok.example/x.js']);
       expect(ok, isTrue);
       expect(ctrl.evaluatedAny('CONFIRMED();'), isTrue);
     });
@@ -104,8 +115,9 @@ void main() {
       final ctrl = FakeUserScriptController();
       serviceWith(oneScript).registerHandlers(ctrl);
 
-      final ok = await ctrl
-          .handler(scriptPrefix)(['https://cdn.jsdelivr.net/npm/x/x.js']);
+      final ok = await ctrl.handler(scriptPrefix)([
+        'https://cdn.jsdelivr.net/npm/x/x.js',
+      ]);
       expect(ok, isFalse);
       expect(ctrl.evaluated, isEmpty);
     });
@@ -129,55 +141,75 @@ void main() {
 
   group('re-injection orchestration', () {
     List<UserScriptConfig> mixed() => [
-          UserScriptConfig(
-              id: 's1',
-              name: 'start',
-              source: 'START();',
-              injectionTime: UserScriptInjectionTime.atDocumentStart),
-          UserScriptConfig(
-              id: 's2',
-              name: 'end',
-              source: 'END();',
-              injectionTime: UserScriptInjectionTime.atDocumentEnd),
-          UserScriptConfig(
-              id: 's3',
-              name: 'lib',
-              source: 'INIT();',
-              urlSource: 'LIB();',
-              injectionTime: UserScriptInjectionTime.atDocumentStart),
-          UserScriptConfig(
-              id: 's4',
-              name: 'off',
-              source: 'OFF();',
-              injectionTime: UserScriptInjectionTime.atDocumentStart,
-              enabled: false),
-        ];
+      UserScriptConfig(
+        id: 's1',
+        name: 'start',
+        source: 'START();',
+        // Arms the bridge for this site, so the shim is part of what
+        // re-injection has to re-run.
+        bypassSitePolicy: true,
+        injectionTime: UserScriptInjectionTime.atDocumentStart,
+      ),
+      UserScriptConfig(
+        id: 's2',
+        name: 'end',
+        source: 'END();',
+        injectionTime: UserScriptInjectionTime.atDocumentEnd,
+      ),
+      UserScriptConfig(
+        id: 's3',
+        name: 'lib',
+        source: 'INIT();',
+        urlSource: 'LIB();',
+        injectionTime: UserScriptInjectionTime.atDocumentStart,
+      ),
+      UserScriptConfig(
+        id: 's4',
+        name: 'off',
+        source: 'OFF();',
+        injectionTime: UserScriptInjectionTime.atDocumentStart,
+        enabled: false,
+      ),
+    ];
 
-    test('onLoadStart re-runs the shim and only atStart non-library scripts',
-        () async {
-      final ctrl = FakeUserScriptController();
-      await serviceWith(mixed()).reinjectOnLoadStart(ctrl);
+    test(
+      'onLoadStart re-runs the shim and only atStart non-library scripts',
+      () async {
+        final ctrl = FakeUserScriptController();
+        await serviceWith(mixed()).reinjectOnLoadStart(ctrl);
 
-      expect(ctrl.evaluatedAny('Node.prototype.appendChild'), isTrue,
-          reason: 'shim must be re-injected at load start');
-      expect(ctrl.evaluatedAny('START();'), isTrue);
-      expect(ctrl.evaluatedAny('window.__wsRan_s1'), isTrue);
-      expect(ctrl.evaluatedAny('END();'), isFalse);
-      expect(ctrl.evaluatedAny('LIB();'), isFalse,
-          reason: 'urlSource libraries are handled by initialUserScripts');
-      expect(ctrl.evaluatedAny('OFF();'), isFalse);
-    });
+        expect(
+          ctrl.evaluatedAny('Node.prototype.appendChild'),
+          isTrue,
+          reason: 'shim must be re-injected at load start',
+        );
+        expect(ctrl.evaluatedAny('START();'), isTrue);
+        expect(ctrl.evaluatedAny('window.__wsRan_s1'), isTrue);
+        expect(ctrl.evaluatedAny('END();'), isFalse);
+        expect(
+          ctrl.evaluatedAny('LIB();'),
+          isFalse,
+          reason: 'urlSource libraries are handled by initialUserScripts',
+        );
+        expect(ctrl.evaluatedAny('OFF();'), isFalse);
+      },
+    );
 
-    test('onLoadStop re-runs only atEnd non-library scripts, no shim',
-        () async {
-      final ctrl = FakeUserScriptController();
-      await serviceWith(mixed()).reinjectOnLoadStop(ctrl);
+    test(
+      'onLoadStop re-runs only atEnd non-library scripts, no shim',
+      () async {
+        final ctrl = FakeUserScriptController();
+        await serviceWith(mixed()).reinjectOnLoadStop(ctrl);
 
-      expect(ctrl.evaluatedAny('Node.prototype.appendChild'), isFalse,
-          reason: 'load stop must not re-inject the shim');
-      expect(ctrl.evaluatedAny('END();'), isTrue);
-      expect(ctrl.evaluatedAny('START();'), isFalse);
-      expect(ctrl.evaluatedAny('LIB();'), isFalse);
-    });
+        expect(
+          ctrl.evaluatedAny('Node.prototype.appendChild'),
+          isFalse,
+          reason: 'load stop must not re-inject the shim',
+        );
+        expect(ctrl.evaluatedAny('END();'), isTrue);
+        expect(ctrl.evaluatedAny('START();'), isFalse);
+        expect(ctrl.evaluatedAny('LIB();'), isFalse);
+      },
+    );
   });
 }
