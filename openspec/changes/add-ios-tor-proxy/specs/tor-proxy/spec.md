@@ -560,3 +560,164 @@ site is gone, must not linger and apply itself to whatever loads next.
 - **WHEN** site A navigates
 - **THEN** the request fails and the failure is surfaced to the user
 - **AND** the traffic does NOT leave from another country instead
+
+---
+
+### Requirement: TOR-015 - Every failure names itself and its remedy
+
+Tor fails in kinds that call for opposite reactions, and the app SHALL
+distinguish them rather than presenting one opaque string. A blocked
+network is fixed with bridges; a wrong device clock is fixed in Settings
+and by nothing else; a dead exit pin is fixed by clearing the pin; a
+control-channel fault is ours and the user can do nothing about it.
+Collapsing these into "Tor failed" sends the user down roads that cannot
+help, which is how a working feature reads as broken.
+
+Each classified failure SHALL carry its own heading, its own remedy text,
+and its own icon, and the raw message SHALL stay visible alongside them —
+the classification is pattern-matched from tor's output, and the raw line
+is what makes a wrong guess obvious. The same copy SHALL back both the
+status card and the in-webview interstitial, so the two cannot describe
+one failure differently.
+
+A route to bridge settings SHALL be offered only for the failure kinds
+bridges can plausibly fix (`censored`, `bootstrapTimeout`).
+
+#### Scenario: A blocked network offers bridges; a wrong clock does not
+
+- **GIVEN** tor reports a failure classified as `censored`
+- **THEN** the status card offers both Retry and a route to bridge
+  settings
+- **GIVEN** tor reports a failure classified as `clockSkew`
+- **THEN** the card names the clock as the cause and offers Retry only
+
+#### Scenario: The raw message survives classification
+
+- **GIVEN** any classified failure
+- **THEN** tor's own message is rendered under the classified copy
+- **AND** a misclassification is therefore visible rather than hidden
+
+#### Scenario: Retry actually restarts
+
+- **GIVEN** a site pinned to Tor is holding the runtime and tor has failed
+- **WHEN** the user presses Retry
+- **THEN** the runtime is stopped and started again, keeping the holder
+  set — acquiring alone returns early whenever a holder exists, so a
+  Retry routed through it would be inert
+
+---
+
+### Requirement: TOR-016 - Bridges, configured by the user and applied at start
+
+Where Tor itself is blocked, a bridge is the only route in, so the app
+SHALL let the user configure pluggable transports: obfs4, snowflake,
+meek_lite and webtunnel, run by IPtProxy.
+
+Bridge configuration SHALL be applied at runtime start, never by SETCONF
+afterwards: bridges have to be in force before bootstrap begins, and
+configuring them later means a bootstrap attempt over the direct guards
+the user is trying to avoid. The transport SHALL be started first, since
+its SOCKS listener port is allocated at start time and the
+`ClientTransportPlugin` line is built around it.
+
+Repeatable torrc keys SHALL survive the crossing to native code. `Bridge`
+appears once per line, so the options SHALL travel as an ordered list of
+pairs and reach tor through its argument vector, never through a
+name-keyed map that would keep only the last line.
+
+A transport that fails to start SHALL NOT abort the run: it yields no
+bridge options, and tor comes up without bridges rather than not at all.
+On a censored network that then fails at bootstrap and is reported as
+`censored` (TOR-015), which is the honest outcome.
+
+Snowflake SHALL be usable without the user supplying a line. Its
+rendezvous parameters — broker URL, domain fronts, STUN servers — ride
+the bridge line as SOCKS arguments and IPtProxy defaults every one of
+them to empty, so the app SHALL supply the Tor Project's published
+built-in snowflake line when the user has none. `UseBridges 1` with no
+`Bridge` line is not a working default; it leaves tor with nothing to
+dial.
+
+Bridge lines SHALL be kept verbatim. The tail of a line is
+transport-defined and tor is the authority on it, so the app validates
+shape only and never re-serialises from parsed parts.
+
+Storage is covered by TOR-017; the exposure of fetching bridges over Moat
+is covered by LEAK-010.
+
+#### Scenario: An enabled configuration reaches tor
+
+- **GIVEN** bridges are enabled with obfs4 and two pasted lines
+- **WHEN** the runtime starts
+- **THEN** the transport is started and its port read back
+- **AND** tor receives `UseBridges 1`, one `ClientTransportPlugin` naming
+  that port, and both `Bridge` lines
+
+#### Scenario: Bridges off clear the options rather than leaving them stale
+
+- **GIVEN** a previous start configured bridges
+- **WHEN** the user turns bridges off and the runtime restarts
+- **THEN** no bridge options are sent, rather than the previous set
+
+#### Scenario: A transport that will not start does not stop tor
+
+- **GIVEN** bridges are enabled
+- **AND** starting the transport fails or reports port 0
+- **THEN** no bridge options are produced
+- **AND** tor still starts
+
+#### Scenario: Snowflake with no user line still has something to dial
+
+- **GIVEN** bridges are enabled with snowflake and no pasted lines
+- **WHEN** the runtime starts
+- **THEN** tor receives the built-in snowflake `Bridge` line
+- **AND** that line carries its own `url=`, `fronts=` and `ice=`
+
+#### Scenario: Only the selected transport's lines are sent
+
+- **GIVEN** the list holds both obfs4 and snowflake lines
+- **AND** snowflake is selected
+- **THEN** only the snowflake lines are sent — tor rejects a `Bridge`
+  line whose transport has no plugin, failing the whole configuration
+  rather than ignoring it
+
+#### Scenario: Editing bridges while tor is up says so
+
+- **GIVEN** tor is connected
+- **WHEN** the user changes the bridge configuration
+- **THEN** the screen reports that a restart is needed, and offers it
+
+---
+
+### Requirement: TOR-017 - Bridge configuration is a secret, and never exported
+
+A privately-allocated bridge is allocated *to a person*: it names a host
+reachable from a censored network, and possessing it links its holder to
+that bridge. Bridge configuration SHALL therefore live in
+`flutter_secure_storage`, never in `SharedPreferences`, and SHALL NOT
+appear in a settings export — the same reasoning that keeps proxy
+passwords out of backups (PWD-005).
+
+Exclusion SHALL be by construction rather than by a filter: nothing
+writes bridge state to `SharedPreferences` or to `kExportedAppPrefs`, so
+there is no export path to remember to suppress.
+
+A write that did not land SHALL NOT be reported as saved: the user would
+otherwise believe they are reaching Tor through a bridge that is not
+configured. A keystore that cannot be read SHALL yield "bridges off",
+since the alternative is telling tor `UseBridges 1` with lines the app
+could not read.
+
+Logs SHALL NOT carry bridge lines: they reach bug reports.
+
+#### Scenario: A backup carries no bridge
+
+- **GIVEN** bridges are configured
+- **WHEN** the user exports settings
+- **THEN** no bridge line, transport or enabled flag appears in the JSON
+
+#### Scenario: A failed write is not reported as success
+
+- **GIVEN** the keystore refuses the write
+- **WHEN** the user adds a bridge line
+- **THEN** the save reports failure and the UI does not claim it is set
