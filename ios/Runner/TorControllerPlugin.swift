@@ -164,7 +164,12 @@ class TorControllerPlugin: NSObject {
       // compiles `options` from a dictionary, so a repeated `Bridge` key
       // would collapse to whichever line hashed last. `arguments` is
       // appended verbatim, which is what a repeatable torrc key needs.
-      config.arguments = self.pendingTorrcOptions.flatMap { ["--\($0.0)", $0.1] }
+      //
+      // Wrapped rather than assigned: `arguments` is typed NSMutableArray,
+      // which takes an array *literal* but not a `[String]` value, so the
+      // flatMap result has to be boxed explicitly.
+      config.arguments = NSMutableArray(
+        array: self.pendingTorrcOptions.flatMap { ["--\($0.0)", $0.1] })
       self.configuration = config
 
       let thread = TorThread(configuration: config)
@@ -423,9 +428,15 @@ class TorControllerPlugin: NSObject {
         // Clearing takes two commands: RESETCONF puts ExitNodes back to no
         // pin at all, and StrictNodes has to be turned off separately or
         // tor keeps enforcing an empty set.
+        //
+        // StrictNodes goes through setConfs rather than the single-key
+        // setter: `setConfForKey:withValue:` starts with `set`, so Swift
+        // imports it whole rather than splitting off `forKey:`, and the
+        // split spelling does not exist. setConfs needs no such guess.
         controller.resetConf(forKey: "ExitNodes") { success, error in
           guard success else { done(false, error); return }
-          controller.setConf(forKey: "StrictNodes", withValue: "0", completion: done)
+          controller.setConfs(
+            [["key": "StrictNodes", "value": "0"]], completion: done)
         }
         return
       }
