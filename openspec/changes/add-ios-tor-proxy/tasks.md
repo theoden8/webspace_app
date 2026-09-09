@@ -40,7 +40,7 @@ the nested-webview propagation chain. See PROXY-010 for the reasoning.
 
 ## 5. Bootstrap interstitial
 
-- [ ] 5.1 Add a Flutter screen `lib/screens/tor_bootstrap.dart` that subscribes to `TorService.statusStream`, renders a determinate progress bar (`Bootstrapping(pct)`), an error + Retry button (`Errored`), and on `Up` calls `Navigator.pushReplacement` with the `next` URL.
+- [x] 5.1 Add a Flutter screen `lib/screens/tor_bootstrap.dart` that subscribes to `TorService.statusStream`, renders a determinate progress bar (`Bootstrapping(pct)`), an error + Retry button (`Errored`), and on `Up` calls `Navigator.pushReplacement` with the `next` URL.
 - [ ] 5.2 In `WebViewModel`'s navigation policy hook (existing `shouldOverrideUrlLoading`): when the destination has `useTor=true` and `TorService.status != Up`, rewrite to `webspace://tor-bootstrap?next=<encoded>`. Hook the existing custom-scheme dispatcher (same surface used by `default-app-for-links`).
 - [ ] 5.3 Unit test: feeding the navigation hook a `useTor` site with `Bootstrapping(50)` returns the interstitial URL; with `Up`, returns the original.
 
@@ -50,9 +50,22 @@ the nested-webview propagation chain. See PROXY-010 for the reasoning.
 
 - [x] 6.1 In [lib/screens/settings.dart](../../../lib/screens/settings.dart) per-site Proxy block: offer `ProxyType.TOR` in the proxy type dropdown, gated on `TorService.isAvailable`, and hide the manual address/credential fields under it without overwriting what they hold. Shipped as a dropdown value rather than the planned separate switch — PROXY-010 records why a second flag was dropped.
 - [x] 6.2a In [lib/screens/app_settings.dart](../../../lib/screens/app_settings.dart): add `ProxyType.TOR` to the global outbound proxy dropdown, on the same `TorService.isAvailable` gate, with the address validator exempting it.
-- [ ] 6.2b Add a "Tor status" card subscribing to `TorService.statusStream`: bootstrap progress bar, current state, "Rebuild circuits" button. Nothing renders `TorStatus` today — `bootstrapPct`, the SOCKS endpoint and `lastError` all reach `TorEngine` and stop there. Pairs with the 5.x interstitial as the TOR-013 surface.
+- [x] 6.2b Add a "Tor status" card subscribing to `TorService.statusStream`: bootstrap progress bar, current state, "Rebuild circuits" button. Nothing renders `TorStatus` today — `bootstrapPct`, the SOCKS endpoint and `lastError` all reach `TorEngine` and stop there. Pairs with the 5.x interstitial as the TOR-013 surface.
 - [x] 6.2c Exit-country **picker** for TOR-014. A shortlist of the countries that carry a durable share of exit capacity, not all of ISO 3166: `StrictNodes` makes a pin with no usable exit a dead end, so offering every code would be offering mostly dead ends. Names are endonyms in a const Dart map, the same trick `kLanguageNativeNames` uses for the language picker, which keeps ~40 country names out of 67 ARB files; the ISO code rides alongside so an unfamiliar endonym is still identifiable. A stored pin outside the shortlist keeps its bare code rather than reading as unpinned.
 - [ ] 6.3 Show a per-site exit-country *hint* — what country the circuit actually left from, distinct from 6.2c's pin — populated via `GETINFO ip-to-country/<exitIP>` once the site has completed at least one fetch under Tor. Update every 30s while site is foregrounded. Skip if Tor not bootstrapped.
+
+## 6b. Failure classification and bridges (TOR-015, TOR-016, TOR-017)
+
+- [x] 6b.1 `lib/services/tor_failure.dart`: classify tor's output into `offline`, `censored`, `clockSkew`, `exitPolicy`, `controlChannel`, `bootstrapTimeout`, `runtime`, each with its own copy, icon and transience. The raw message stays alongside, so a misclassification is visible rather than hidden.
+- [x] 6b.2 `TorEngine.restart()`: stop then start keeping the holder set. `acquire` returns early whenever a holder exists — which it always does for a site pinned to TOR — so the Retry button was inert routed through it.
+- [x] 6b.3 `lib/services/tor_bridges.dart`: transports, verbatim bridge lines, per-error parse failures, and `torBridgeOptions` generating the torrc pairs. Pure Dart, so the Swift side applies an already-tested configuration.
+- [x] 6b.4 `TorRuntime.startTransport` / `setTorrcOptions`, applied before every `start` in both `acquire` and `restart`. Options travel as an ordered pair list: `Bridge` repeats per line and a map would keep only the last.
+- [x] 6b.5 Built-in snowflake line. IPtProxy's `Controller` defaults every snowflake rendezvous field to empty, so `UseBridges 1` with no `Bridge` line leaves tor with nothing to dial rather than reaching a default.
+- [x] 6b.6 `lib/services/tor_bridge_secure_storage.dart` (TOR-017): keystore-backed, outside the export registry by construction. A failed write reports failure rather than claiming saved.
+- [x] 6b.7 `lib/services/tor_moat_client.dart`: BridgeDB over Moat, empty solution first so the common case needs no captcha. Wire format verified against the live service — `transport` is a list, the image is JPEG, `challenge` is the transport name.
+- [x] 6b.8 `lib/screens/tor_bridge_settings.dart`: toggle, transport picker, verbatim line list, paste with per-error messages, Moat fetch with the LEAK-010 exposure stated above the button, restart-needed notice. Reached from the status card only where `bridgesMayHelp`.
+- [x] 6b.9 iOS native: `setTorrcOptions`, `startTransport` and `setExitCountry` handlers in `TorControllerPlugin.swift`; `IPtProxy` 5.5.1 in the Podfile; Go pinned in the Apple CI job, since that pod cross-compiles from source during `pod install`. Bridges reach tor through `TORConfiguration.arguments`, not `options` — the latter is a dictionary and would collapse repeated `Bridge` keys.
+- [ ] 6b.10 On-device: obfs4 and snowflake each bootstrap on a network that blocks tor directly. Not reachable from CI — no simulator can be censored, and the transports need a real hostile network to mean anything.
 
 ## 7. Background task integration
 

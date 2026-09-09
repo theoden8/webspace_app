@@ -57,6 +57,23 @@ class FakeTorRuntime implements TorRuntime {
     push(TorUp('127.0.0.1', port));
   }
 
+  int transportPort = 47000;
+  final startedTransports = <String>[];
+  List<(String, String)> torrcOptions = const [];
+  Object? transportError;
+
+  @override
+  Future<int> startTransport(String transport) async {
+    if (transportError != null) throw transportError!;
+    startedTransports.add(transport);
+    return transportPort;
+  }
+
+  @override
+  Future<void> setTorrcOptions(List<(String, String)> options) async {
+    torrcOptions = options;
+  }
+
   void dispose() => _controller.close();
 }
 
@@ -246,14 +263,24 @@ void main() {
       await e.dispose();
     });
 
-    test('the session secret is the SOCKS password for every tag', () async {
+    test('the SOCKS password is derived per tag, not shared', () async {
+      // This test used to assert the opposite — that the launch secret was
+      // handed out verbatim as every tag's password. Isolation never
+      // depended on that (tor keys circuits on the whole username+password
+      // tuple, and the usernames already differ), but containment did:
+      // siteIds are not secret, so anything that learned the one shared
+      // secret could pair it with any siteId and ride that site's circuit.
+      // The password is now HMAC(launch secret, tag), which confines a leak
+      // to the site it came from. Derivation details live in
+      // test/tor_failure_test.dart.
       final e = build();
       await e.acquire('a1');
       runtime.bootstrapTo(9999);
       await pumpEventQueue();
 
-      expect(e.socksFor('a1')!.password, 'deadbeef');
-      expect(e.socksFor('b2')!.password, 'deadbeef');
+      expect(e.socksFor('a1')!.password, isNot('deadbeef'),
+          reason: 'the launch secret itself must never go on the wire');
+      expect(e.socksFor('a1')!.password, isNot(e.socksFor('b2')!.password));
       await e.dispose();
     });
 
@@ -296,7 +323,7 @@ void main() {
       await pumpEventQueue();
       expect(e.socksFor('a1'), isNotNull);
 
-      runtime.push(const TorErrored('control port died'));
+      runtime.push(TorErrored('control port died'));
       await pumpEventQueue();
       expect(e.socksFor('a1'), isNull,
           reason: 'an error must not keep serving a stale endpoint');

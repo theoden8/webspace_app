@@ -3855,5 +3855,225 @@
         "type": "int"
       }
     }
+  },
+  "torStatusTitle": "Tor",
+  "@torStatusTitle": {
+    "description": "Title of the Tor status card in App Settings."
+  },
+  "torStatusHint": "Shows whether the embedded Tor client is running and connected. Sites set to the TOR proxy type wait for this to be connected before they load; they never fall back to a direct connection.",
+  "@torStatusHint": {
+    "description": "Hint dialog text for the Tor status card."
+  },
+  "torStatusStopped": "Not running",
+  "@torStatusStopped": {
+    "description": "Tor status: the client is not started because no site needs it."
+  },
+  "torStatusStarting": "Starting",
+  "@torStatusStarting": {
+    "description": "Tor status: the client is launching but has not begun connecting yet."
+  },
+  "torStatusBootstrapping": "Connecting… {percent}%",
+  "@torStatusBootstrapping": {
+    "description": "Tor status while it connects. {percent} is 0-100.",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "torStatusConnected": "Connected",
+  "@torStatusConnected": {
+    "description": "Tor status: circuits are built and traffic can flow."
+  },
+  "torStatusEndpoint": "SOCKS5 on {endpoint}",
+  "@torStatusEndpoint": {
+    "description": "Shows the local address Tor is listening on, e.g. 127.0.0.1:41337.",
+    "placeholders": {
+      "endpoint": {
+        "type": "String"
+      }
+    }
+  },
+  "torStatusRebuildCircuits": "Rebuild circuits",
+  "@torStatusRebuildCircuits": {
+    "description": "Button that asks Tor for fresh circuits (a new route and exit)."
+  },
+  "torStatusPhase": "Phase: {phase}",
+  "@torStatusPhase": {
+    "description": "Which stage of connecting Tor is in, e.g. loading relay descriptors.",
+    "placeholders": {
+      "phase": {
+        "type": "String"
+      }
+    }
+  },
+  "torFailOfflineTitle": "No network",
+  "@torFailOfflineTitle": {
+    "description": "Tor failure heading: nothing on the network answered."
+  },
+  "torFailOfflineBody": "Tor could not reach anything. Check the device's connection, then try again.",
+  "@torFailOfflineBody": {
+    "description": "Tor failure explanation and remedy for having no network."
+  },
+  "torFailCensoredTitle": "Tor appears to be blocked",
+  "@torFailCensoredTitle": {
+    "description": "Tor failure heading: the network is filtering Tor."
+  },
+  "torFailCensoredBody": "This network answers, but not for Tor: the relays it needs are unreachable. Bridges route around a block like this; a different network also works.",
+  "@torFailCensoredBody": {
+    "description": "Tor failure explanation for a censored or filtered network."
+  },
+  "torFailClockSkewTitle": "The device clock is wrong",
+  "@torFailClockSkewTitle": {
+    "description": "Tor failure heading: the system clock is too far off for Tor."
+  },
+  "torFailClockSkewBody": "Tor refuses to build circuits while the clock is off by too much. Correct the date and time, then try again.",
+  "@torFailClockSkewBody": {
+    "description": "Tor failure explanation and remedy for clock skew."
+  },
+  "torFailExitPolicyTitle": "No usable exit in that country",
+  "@torFailExitPolicyTitle": {
+    "description": "Tor failure heading: the pinned exit country has no working exit."
+  },
+  "torFailExitPolicyBody": "The exit country is pinned strictly, so Tor will not leave from anywhere else. Pick another country, or set it back to any country.",
+  "@torFailExitPolicyBody": {
+    "description": "Tor failure explanation and remedy for a strict exit-country pin."
+  },
+  "torFailControlChannelTitle": "Could not talk to Tor",
+  "@torFailControlChannelTitle": {
+    "description": "Tor failure heading: the app failed to reach Tor's control channel."
+  },
+  "torFailControlChannelBody": "The app could not reach Tor's control channel, so it cannot tell whether traffic is protected. This is a defect in the app rather than something to configure; the details are in Developer Tools.",
+  "@torFailControlChannelBody": {
+    "description": "Tor failure explanation for an internal control-channel failure."
+  },
+  "torFailTimeoutTitle": "Tor took too long",
+  "@torFailTimeoutTitle": {
+    "description": "Tor failure heading: bootstrap ran past its deadline."
+  },
+  "torFailTimeoutBody": "Connecting did not finish in time. A slow or busy network can cause this; trying again often works.",
+  "@torFailTimeoutBody": {
+    "description": "Tor failure explanation and remedy for a bootstrap timeout."
+  },
+  "torFailRuntimeTitle": "Tor stopped unexpectedly",
+  "@torFailRuntimeTitle": {
+    "description": "Tor failure heading: an unclassified runtime failure."
+  },
+  "torFailRuntimeBody": "Tor stopped for a reason the app does not recognise. The raw message is below and in Developer Tools.",
+  "@torFailRuntimeBody": {
+    "description": "Tor failure explanation for an unrecognised runtime failure."
+  },
+  "torFailTransientNote": "Tor expects to recover from this on its own.",
+  "@torFailTransientNote": {
+    "description": "Shown when Tor marks a failure as one it can recover from unaided."
+  },
+  "torBridgesTitle": "Bridges",
+  "@torBridgesTitle": {
+    "description": "Title of the Tor bridges settings screen."
+  },
+  "torBridgesHint": "A bridge is an unlisted way into the Tor network, for use where Tor itself is blocked. Bridges are slower than the normal route, so leave this off unless Tor cannot connect without it.",
+  "@torBridgesHint": {
+    "description": "Hint dialog explaining what Tor bridges are and when to use them."
+  },
+  "torBridgesEnable": "Use bridges",
+  "@torBridgesEnable": {
+    "description": "Switch that turns bridge use on or off."
+  },
+  "torBridgesTransport": "Transport",
+  "@torBridgesTransport": {
+    "description": "Label for the pluggable-transport picker (obfs4, snowflake, and so on)."
+  },
+  "torBridgesLinesHeading": "Bridge lines",
+  "@torBridgesLinesHeading": {
+    "description": "Heading above the list of configured bridge lines."
+  },
+  "torBridgesNoLines": "No bridge lines added",
+  "@torBridgesNoLines": {
+    "description": "Shown when the user has configured no bridges yet."
+  },
+  "torBridgesBuiltInLine": "This transport uses a built-in bridge, so there is no need to add one.",
+  "@torBridgesBuiltInLine": {
+    "description": "Shown in place of the bridge-line list for a transport the app already carries a published bridge line for (snowflake, meek_lite), so an empty list is correct rather than a missing step."
+  },
+  "torBridgesPasteLabel": "Paste a bridge line",
+  "@torBridgesPasteLabel": {
+    "description": "Label of the text field where a bridge line is entered."
+  },
+  "torBridgesAdd": "Add",
+  "@torBridgesAdd": {
+    "description": "Button that adds the pasted bridge line to the list."
+  },
+  "torBridgesRemove": "Remove this bridge",
+  "@torBridgesRemove": {
+    "description": "Tooltip on the button that deletes one bridge line."
+  },
+  "torBridgesFetch": "Get bridges automatically",
+  "@torBridgesFetch": {
+    "description": "Button that requests bridges from the Tor Project over Moat."
+  },
+  "torBridgesFetchExposure": "Requesting bridges contacts the Tor Project directly, without going through Tor — the network you are on can see that you asked for bridges. Pasting a line you obtained elsewhere does not.",
+  "@torBridgesFetchExposure": {
+    "description": "LEAK-010 disclosure shown next to the automatic bridge fetch."
+  },
+  "torBridgesFetching": "Requesting bridges…",
+  "@torBridgesFetching": {
+    "description": "Progress text while bridges are being fetched."
+  },
+  "torBridgesAdded": "Bridges added: {count}",
+  "@torBridgesAdded": {
+    "description": "Confirmation after fetching. {count} is how many were added.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "torBridgesCaptchaTitle": "Prove you are human",
+  "@torBridgesCaptchaTitle": {
+    "description": "Title of the captcha dialog shown when the bridge service asks for one."
+  },
+  "torBridgesCaptchaHelp": "Type the characters shown in the image.",
+  "@torBridgesCaptchaHelp": {
+    "description": "Instruction above the captcha answer field."
+  },
+  "torBridgesCaptchaAnswer": "Answer",
+  "@torBridgesCaptchaAnswer": {
+    "description": "Label of the captcha answer text field."
+  },
+  "torBridgesRestartNeeded": "Tor is running. Restart it for this change to take effect.",
+  "@torBridgesRestartNeeded": {
+    "description": "Notice shown when bridges are edited while Tor is already connected."
+  },
+  "torBridgesRestartNow": "Restart Tor",
+  "@torBridgesRestartNow": {
+    "description": "Button that restarts Tor so an edited bridge configuration applies."
+  },
+  "torBridgeErrorEmpty": "Enter a bridge line.",
+  "@torBridgeErrorEmpty": {
+    "description": "Validation error when the bridge-line field is empty."
+  },
+  "torBridgeErrorTransport": "That transport is not one this app can run. Bridge lines must start with obfs4, snowflake, meek_lite or webtunnel.",
+  "@torBridgeErrorTransport": {
+    "description": "Validation error for an unknown or unsupported pluggable transport."
+  },
+  "torBridgeErrorAddress": "That line is missing the address, or it is not in host:port form.",
+  "@torBridgeErrorAddress": {
+    "description": "Validation error for a bridge line whose address is missing or malformed."
+  },
+  "torBridgeErrorCert": "That obfs4 line is missing its cert= value, so it cannot connect. Copy the whole line.",
+  "@torBridgeErrorCert": {
+    "description": "Validation error for an obfs4 bridge line with no certificate."
+  },
+  "torMoatErrorUnreachable": "Could not reach the bridge service. On a network that blocks Tor this is expected — paste a bridge line obtained another way instead.",
+  "@torMoatErrorUnreachable": {
+    "description": "Error when the Moat bridge service cannot be contacted."
+  },
+  "torMoatErrorMalformed": "The bridge service replied in a way this app did not understand.",
+  "@torMoatErrorMalformed": {
+    "description": "Error when the Moat response cannot be parsed."
+  },
+  "torMoatErrorNoBridges": "The bridge service returned nothing this app can use.",
+  "@torMoatErrorNoBridges": {
+    "description": "Error when Moat returns only bridges for transports the app cannot run."
   }
 }

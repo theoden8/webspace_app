@@ -31,6 +31,7 @@ import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/screens/user_scripts.dart';
 import 'package:webspace/widgets/firefox_version_tile.dart';
 import 'package:webspace/widgets/hint_button.dart';
+import 'package:webspace/widgets/tor_status_card.dart';
 import 'package:webspace/widgets/level_slider.dart';
 
 // Accent color definitions for display
@@ -1308,6 +1309,12 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               ),
             ],
           ],
+
+          // Directly under the proxy block it reports on: the dropdown is
+          // where TOR gets selected, and this is where the user finds out
+          // whether it actually came up. Renders nothing unless Tor is
+          // available (platform + developer mode).
+          const TorStatusCard(),
 
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),

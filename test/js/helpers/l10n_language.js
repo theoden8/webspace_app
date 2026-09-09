@@ -104,7 +104,22 @@ const STOP_WORDS = new Set(
   + 'such only other also').split(' '),
 );
 
-const cleanValue = (v) => v.replace(/\{[^}]*\}/g, ' ').replace(/[a-z]+:\/\/\S+/gi, ' ');
+// Strips placeholders and ICU select/plural constructs. Brace-counting
+// rather than /\{[^}]*\}/, which stops at the first `}` of a nested ICU
+// message and leaves its keywords — `other`, `plural` — behind as bare
+// words. `other` is a stop word, so every plural-carrying value in a Latin
+// locale then sat one common word away from being called English: adding
+// "do" to an English string was enough to flag a correct Portuguese plural.
+function cleanValue(v) {
+  let out = '';
+  let depth = 0;
+  for (const ch of v) {
+    if (ch === '{') depth += 1;
+    else if (ch === '}') depth = Math.max(0, depth - 1);
+    else if (depth === 0) out += ch;
+  }
+  return out.replace(/[a-z]+:\/\/\S+/gi, ' ');
+}
 const wordsOf = (v) => (cleanValue(v).toLowerCase().match(/[a-zà-ÿ]{2,}/gi) || []).map((w) => w.toLowerCase());
 
 let _enVocab;

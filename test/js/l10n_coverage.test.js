@@ -34,6 +34,7 @@ const IDENTICAL_EVERYWHERE_ALLOWLIST = new Set([
   'linkHandlingTestUrlHint', // https://example.org/foo (example URL)
   'siteSettingsLetterboxAutoHint', // "auto" (universal token)
   'appSettingsFirefoxVersionCurrent', // "Firefox {version}" (brand + number)
+  'torStatusTitle', // Tor (project name; written "Tor" in Tor's own locales)
 ]);
 
 const loadArb = (name) => JSON.parse(fs.readFileSync(path.join(arbDir, name), 'utf8'));

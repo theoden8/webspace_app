@@ -26,6 +26,9 @@ export 'package:webspace/services/tor_engine.dart'
         TorBootstrapping,
         TorUp,
         TorErrored,
+        TorFailure,
+        TorFailureKind,
+        classifyTorFailure,
         kTorAppGlobalTag;
 
 const String _kChannel = 'org.codeberg.theoden8.webspace/tor';
@@ -78,6 +81,31 @@ class MethodChannelTorRuntime implements TorRuntime {
   Future<void> applyExitCountry(String? exitNodes) async {
     if (!isAvailable) return;
     await _channel.invokeMethod<void>('setExitCountry', {'exitNodes': exitNodes});
+  }
+
+  @override
+  Future<int> startTransport(String transport) async {
+    if (!isAvailable) return 0;
+    // 0 is the "did not start" contract, so a null or non-int reply from a
+    // plugin that failed must read as failure rather than crash the start
+    // path — the engine turns 0 into "no bridge options" and tor comes up
+    // without bridges instead of dialling a dead port.
+    final port =
+        await _channel.invokeMethod<int>('startTransport', {'transport': transport});
+    return port ?? 0;
+  }
+
+  @override
+  Future<void> setTorrcOptions(List<(String, String)> options) async {
+    if (!isAvailable) return;
+    // Sent as a flat list of pairs rather than a map: torrc allows the same
+    // key more than once, and `Bridge` in particular is repeated per line,
+    // so a map would silently keep only the last bridge.
+    await _channel.invokeMethod<void>('setTorrcOptions', {
+      'options': [
+        for (final (key, value) in options) [key, value],
+      ],
+    });
   }
 
   @override
@@ -185,6 +213,24 @@ class TorService {
   }
 
   Future<void> rebuildCircuits() => _engine.rebuildCircuits();
+
+  /// The bridge configuration currently in force, or queued for next start.
+  TorBridgeConfig get bridges => _engine.bridges;
+
+  /// Set the bridge configuration, returning whether a [restart] is needed
+  /// for it to apply. Not gated on [isAvailable]: the user can configure
+  /// bridges before anything has started Tor, and refusing the write would
+  /// silently discard what they typed.
+  bool setBridges(TorBridgeConfig config) => _engine.setBridges(config);
+
+  /// Stop and re-start the runtime, keeping the holder set. Backs the Retry
+  /// offered on a failure: [maybeStart] cannot serve that, because acquire
+  /// short-circuits whenever a holder is already registered — which it
+  /// always is for a site pinned to TOR.
+  Future<void> restart() async {
+    if (!isAvailable) return;
+    await _engine.restart();
+  }
 
   /// Pin every circuit to a country (tor `ExitNodes` syntax) or clear it.
   /// Global to the runtime — see TOR-014 for why that makes per-site pins

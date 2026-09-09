@@ -1,14 +1,17 @@
-// Widget contract for the interstitial that stands in for a TOR-bound
-// webview while the runtime is not [TorUp]. The point of the widget is
-// twofold: block a null-proxy InAppWebView from ever being constructed
-// (TOR-008 fail-closed), and give the user something visible while
-// bootstrap runs (TOR-013).
+// Refcount lifecycle of the interstitial that stands in for a TOR-bound
+// webview (TOR-008 fail-closed).
+//
+// What each state *renders* is asserted in tor_ui_states_test.dart, which
+// covers every failure kind with its copy and remedy. This file keeps the
+// part that file does not: that merely showing the placeholder is enough to
+// get the runtime started, and that it lets go again on the way out.
 
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';
@@ -37,6 +40,12 @@ class _Runtime implements TorRuntime {
   @override
   Future<void> applyExitCountry(String? exitNodes) async {}
 
+  @override
+  Future<int> startTransport(String transport) async => 0;
+
+  @override
+  Future<void> setTorrcOptions(List<(String, String)> options) async {}
+
   void emit(TorStatus s) => _events.add(s);
 }
 
@@ -49,9 +58,7 @@ void main() {
   /// in the zone that called `listen`. Built in `setUp`, the engine's
   /// `_onRuntimeStatus` deliveries are scheduled on the real microtask
   /// queue, which `tester.pump` never drains — so `runtime.emit(...)`
-  /// silently never reaches the engine, and the widget sits on the
-  /// `TorStarting` that `acquire` emitted synchronously. Constructing here
-  /// puts that subscription in the same zone as the pumps.
+  /// silently never reaches the engine.
   _Runtime installEngine() {
     final runtime = _Runtime();
     TorService.overrideEngine(
@@ -75,74 +82,39 @@ void main() {
     await t.pump(const Duration(milliseconds: 10));
   }
 
-  /// Unmount, then run both of the engine's one-shot timers out on the fake
-  /// clock.
-  ///
-  /// `acquire` arms a 90s bootstrap timeout and `release` a 60s idle
-  /// debounce. flutter_test fails any test that ends with a pending Timer,
-  /// and the group tearDown cannot clear them — it runs after the binding's
-  /// invariant check. Awaiting `TorService.reset()` here instead deadlocks:
-  /// the await stops the body from advancing the fake clock that the
-  /// disposal is waiting on, and the test hangs rather than fails. Pumping
-  /// past both is the one move that works from inside the body. Firing them
-  /// is harmless once the widget is gone — each is one-shot, and the
-  /// TorStopped / TorErrored they emit arm nothing new.
-  Future<void> teardownTor(WidgetTester t) async {
-    await t.pumpWidget(const SizedBox.shrink());
-    await settle(t);
-    await t.pump(const Duration(seconds: 91));
-  }
+  Widget host(Widget child) => MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: child,
+      );
 
-  testWidgets('renders a progress bar while bootstrapping', (t) async {
-    final runtime = installEngine();
-    await t.pumpWidget(const MaterialApp(home: TorBootstrapPlaceholder()));
-    await settle(t);
-
-    runtime.emit(const TorBootstrapping(45));
-    await settle(t);
-
-    final progressFinder = find.byType(LinearProgressIndicator);
-    expect(progressFinder, findsOneWidget);
-    final progress = t.widget<LinearProgressIndicator>(progressFinder);
-    expect(progress.value, closeTo(0.45, 1e-6));
-
-    await teardownTor(t);
-  });
-
-  testWidgets('renders an error icon on TorErrored, no retry button',
+  testWidgets('showing the placeholder is enough to start the runtime',
       (t) async {
-    final runtime = installEngine();
-    await t.pumpWidget(const MaterialApp(home: TorBootstrapPlaceholder()));
-    await settle(t);
-
-    runtime.emit(const TorErrored('directory authority unreachable'));
-    await settle(t);
-
-    expect(find.byIcon(Icons.cloud_off_outlined), findsOneWidget);
-    // No retry: the current engine has no restart-from-error path
-    // (TorEngine.acquire returns early with a non-empty holder set), so
-    // the button would be inert. Guard against it accidentally coming back
-    // and lying to the user.
-    expect(find.byType(TextButton), findsNothing);
-
-    await teardownTor(t);
-  });
-
-  testWidgets('kicks TorService.maybeStart on mount', (t) async {
     final runtime = installEngine();
     expect(runtime.startCalls, 0);
 
-    await t.pumpWidget(const MaterialApp(home: TorBootstrapPlaceholder()));
+    await t.pumpWidget(host(const TorBootstrapPlaceholder()));
     await settle(t);
 
     expect(runtime.startCalls, 1,
         reason: 'the placeholder acquires a refcount so bootstrap actually '
             'begins even if no site is holding one yet');
 
-    await teardownTor(t);
+    // Unmount, then run the engine's two one-shot timers out on the fake
+    // clock: `acquire` arms a 90s bootstrap timeout and `release` a 60s
+    // idle debounce, and flutter_test fails a test that ends with a pending
+    // Timer. The group tearDown cannot clear them — it runs after the
+    // binding's invariant check — and awaiting TorService.reset() here
+    // deadlocks, because the await stops the body from advancing the very
+    // clock the disposal waits on.
+    await t.pumpWidget(const SizedBox.shrink());
+    await settle(t);
+    await t.pump(const Duration(seconds: 91));
 
-    // No second start after unmount: the placeholder released rather than
-    // re-acquired on the way out.
+    // Released rather than re-acquired on the way out: no second start, and
+    // the idle debounce was allowed to expire into a stop.
     expect(runtime.startCalls, 1);
+    expect(runtime.stopCalls, greaterThan(0),
+        reason: 'the last holder going away must let the runtime shut down');
   });
 }
