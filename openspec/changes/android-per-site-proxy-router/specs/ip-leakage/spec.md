@@ -75,3 +75,32 @@ header
 
 **Given** Site A loads an `http://` page through its proxy
 **Then** the origin's request headers carry no `Proxy-Authorization`
+
+## ADDED Requirements
+
+### Requirement: LEAK-011 - No proxy bypass list exempts a site
+
+The proxy override the app installs SHALL carry no bypass entry that can
+exempt a site's traffic. In particular it SHALL NOT pass `<local>`.
+
+Chromium reads `<local>` as "send simple, dotless hostnames direct", so a
+site at `http://intranet/` leaves the device without touching the proxy at
+all -- and under router mode, without touching the relay that decides
+which upstream it is allowed. That is the defeat this spec's purpose
+names: one outbound path that bypasses the proxy defeats the proxy.
+
+`<local>` is not what makes the loopback relay reachable. Chromium
+bypasses loopback of its own accord, which is why the browser tier has to
+pass `<-loopback>` to defeat it and reach a fake origin on 127.0.0.1.
+
+#### Scenario: A site on a dotless hostname
+
+**Given** a proxy is configured, in router mode or not
+**When** the WebView navigates to a host with no dot in it
+**Then** the request goes through the proxy
+**And** it is not sent direct
+
+#### Scenario: The installed override carries no exemption
+
+**Given** the app applies a proxy override
+**Then** its bypass list is empty

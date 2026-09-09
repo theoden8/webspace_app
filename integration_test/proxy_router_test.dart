@@ -174,6 +174,14 @@ void main() {
     expect(url, isNot(contains('9050')));
     expect(url, isNot(contains('198.51.100.7')));
 
+    // No bypass may exempt a site from the relay: a `<local>` entry sends
+    // dotless hosts direct, which skips the routing decision entirely.
+    expect(
+      settings['bypassRules'],
+      anyOf(isNull, isEmpty),
+      reason: 'a bypass entry would let a site leave without a route',
+    );
+
     // The credential the WebView will present exists for this run only
     // and never reaches disk, so a leaked backup admits nobody.
     //

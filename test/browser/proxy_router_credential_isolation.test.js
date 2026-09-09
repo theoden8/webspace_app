@@ -70,6 +70,45 @@ async function withBrowser(args, body) {
   }
 }
 
+test('a dotless host is proxied, not sent direct', async (t) => {
+  // The app used to ship `bypassRules: ['<local>']`. Chromium reads that
+  // as "send simple, dotless hostnames direct", so a site at
+  // http://intranet/ left the device without touching the proxy at all --
+  // and under router mode, without touching the relay that decides which
+  // upstream a site is even allowed. The coverage contract is every byte.
+  //
+  // `<local>` was never what made the relay reachable: Chromium bypasses
+  // loopback on its own, which is why every test here passes
+  // `<-loopback>` to defeat it.
+  if (!puppeteer) return t.skip('puppeteer not installed');
+  const origin = await startOrigin({ body: '<html><body>lan</body></html>' });
+  const proxy = await startProxy();
+  try {
+    const args = [
+      `--proxy-server=127.0.0.1:${proxy.port}`,
+      // The shipped bypass list, whatever it is, must not exempt this host.
+      '--proxy-bypass-list=',
+      `--host-resolver-rules=MAP intranet 127.0.0.1:${origin.port}`,
+    ];
+    await withBrowser(args, async (browser, launchError) => {
+      if (!browser) return requireBrowser(t, launchError);
+      const page = await browser.newPage();
+      await page.goto('http://intranet/', { timeout: 8000 }).catch(() => {});
+      const sawHost = proxy.log.some(
+        (e) => JSON.stringify(e).includes('intranet'),
+      );
+      assert.ok(
+        sawHost,
+        'the proxy never saw the dotless host; it went direct. '
+          + `proxy log: ${JSON.stringify(proxy.log)}`,
+      );
+    });
+  } finally {
+    await proxy.close();
+    await origin.close();
+  }
+});
+
 test('a page cannot put Proxy-Authorization on the wire', async (t) => {
   if (!puppeteer) return t.skip('puppeteer not installed');
   const origin = await startOrigin({ body: '<html><body>site</body></html>' });

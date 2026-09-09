@@ -488,7 +488,11 @@ class ProxyManager {
       await controller.setProxyOverride(
         settings: inapp.ProxySettings(
           proxyRules: [inapp.ProxyRule(url: 'http://${relay.host}:${relay.port}')],
-          bypassRules: ['<local>'],
+          // No `<local>`: it exempts dotless hosts (http://intranet/) from
+          // the proxy entirely, and the coverage contract is every byte.
+          // Loopback is bypassed by Chromium regardless, which is what
+          // keeps the relay itself reachable.
+          bypassRules: [],
         ),
       );
       overrideActive = true;
@@ -523,7 +527,7 @@ class ProxyManager {
     await controller.setProxyOverride(
       settings: inapp.ProxySettings(
         proxyRules: [inapp.ProxyRule(url: proxyUrl)],
-        bypassRules: ['<local>'],
+        bypassRules: [],
       ),
     );
     overrideActive = true;
@@ -548,7 +552,7 @@ class ProxyManager {
       await inapp.ProxyController.instance().setProxyOverride(
         settings: inapp.ProxySettings(
           proxyRules: [inapp.ProxyRule(url: 'http://127.0.0.1:$port')],
-          bypassRules: ['<local>'],
+          bypassRules: [],
         ),
       );
       LogService.instance.log(
