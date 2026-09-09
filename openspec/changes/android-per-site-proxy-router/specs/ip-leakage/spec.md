@@ -76,8 +76,6 @@ header
 **Given** Site A loads an `http://` page through its proxy
 **Then** the origin's request headers carry no `Proxy-Authorization`
 
-## ADDED Requirements
-
 ### Requirement: LEAK-011 - No proxy bypass list exempts a site
 
 The proxy override the app installs SHALL carry no bypass entry that can
@@ -92,6 +90,40 @@ names: one outbound path that bypasses the proxy defeats the proxy.
 `<local>` is not what makes the loopback relay reachable. Chromium
 bypasses loopback of its own accord, which is why the browser tier has to
 pass `<-loopback>` to defeat it and reach a fake origin on 127.0.0.1.
+
+The exemption is decided on the URL host alone, before anything is
+resolved: any host with no dot in it takes it. Two properties make that
+reachable by an attacker rather than merely untidy.
+
+**Any page can emit the request.** A single-label host is not something
+only the user can type. `<img src="http://intranet/p?id=...">`, a `fetch`,
+a subframe, or a `302` to `http://intranet/` all take the same exemption,
+so a remote page chooses when the device opens an unproxied connection.
+LEAK-002's artwork scenario already treats page-supplied hosts as hostile
+on the Dart side; the webview path must not be softer.
+
+**The network decides what the host means.** A single-label name has no
+global meaning. It resolves through the platform resolver, whose servers
+and search list come from the network the device is attached to (DHCP /
+router advertisement), so whoever runs that network -- or can answer for
+it on the path -- chooses the address `intranet` resolves to, a public
+address they own included. Under SOCKS5 this inverts LEAK-006: the
+webview would otherwise hand the name to the proxy to resolve remotely,
+and `<local>` handed precisely the network-controlled names back to the
+local resolver.
+
+Together they compose: a remote page names a single-label host, the local
+network resolves it to a collector, and the device connects direct. The
+parties the user configured a proxy to hide from -- the local network and
+the ISP -- are the ones that receive the connection and the device's real
+address.
+
+#### Scenario: A page-supplied subresource on a single-label host
+
+**Given** a proxy is configured
+**When** a loaded page requests `http://intranet/beacon` as a subresource
+**Then** the request goes through the proxy like every other subresource
+**And** no connection is made outside it
 
 #### Scenario: A site on a dotless hostname
 

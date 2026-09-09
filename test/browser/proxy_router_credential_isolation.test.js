@@ -91,7 +91,7 @@ test('a dotless host is proxied, not sent direct', async (t) => {
       `--host-resolver-rules=MAP intranet 127.0.0.1:${origin.port}`,
     ];
     await withBrowser(args, async (browser, launchError) => {
-      if (!browser) return requireBrowser(t, launchError);
+      if (!requireBrowser(launchError, t)) return;
       const page = await browser.newPage();
       await page.goto('http://intranet/', { timeout: 8000 }).catch(() => {});
       const sawHost = proxy.log.some(
@@ -100,6 +100,53 @@ test('a dotless host is proxied, not sent direct', async (t) => {
       assert.ok(
         sawHost,
         'the proxy never saw the dotless host; it went direct. '
+          + `proxy log: ${JSON.stringify(proxy.log)}`,
+      );
+    });
+  } finally {
+    await proxy.close();
+    await origin.close();
+  }
+});
+
+test('a page-supplied subresource on a dotless host is proxied', async (t) => {
+  // The exploitable half of the same finding. A single-label host is not
+  // something only the user can type: a page can name one in an <img>, a
+  // fetch, a subframe or a redirect, and the exemption is decided on the
+  // URL host before anything is resolved. What that host resolves to is
+  // chosen by the network the device is attached to, so with `<local>` a
+  // page could make the device open an unproxied connection to an address
+  // the local network picked (LEAK-011).
+  //
+  // The page is served from loopback because the fake proxy resolves
+  // destinations itself and cannot reach a made-up name; Chromium's
+  // implicit loopback bypass therefore fetches the page direct, which is
+  // an artifact of the harness. The subresource is the subject: it must
+  // reach the proxy.
+  if (!puppeteer) return t.skip('puppeteer not installed');
+  const origin = await startOrigin({
+    body: '<html><body><img src="http://beacon/pixel"></body></html>',
+  });
+  const proxy = await startProxy();
+  try {
+    const args = [
+      `--proxy-server=127.0.0.1:${proxy.port}`,
+      // The shipped bypass list, whatever it is, must not exempt this host.
+      '--proxy-bypass-list=',
+    ];
+    await withBrowser(args, async (browser, launchError) => {
+      if (!requireBrowser(launchError, t)) return;
+      const page = await browser.newPage();
+      await page.goto(origin.url, { waitUntil: 'domcontentloaded', timeout: 8000 });
+      const sawBeacon = () =>
+        proxy.log.some((e) => JSON.stringify(e).includes('beacon'));
+      const deadline = Date.now() + 5000;
+      while (Date.now() < deadline && !sawBeacon()) {
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      assert.ok(
+        sawBeacon(),
+        'the page-supplied dotless subresource went direct. '
           + `proxy log: ${JSON.stringify(proxy.log)}`,
       );
     });

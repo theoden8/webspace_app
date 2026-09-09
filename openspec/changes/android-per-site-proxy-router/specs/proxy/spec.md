@@ -7,8 +7,8 @@ its own upstream proxy concurrently, rather than serialising mismatched
 sites under PROXY-008.
 
 `ProxyController` SHALL be pointed once at a loopback relay
-(`http://127.0.0.1:<ephemeral>`, bypass `<local>`) and SHALL NOT be
-repointed on site activation. The relay SHALL select each connection's
+(`http://127.0.0.1:<ephemeral>`, no bypass entries -- LEAK-011) and SHALL
+NOT be repointed on site activation. The relay SHALL select each connection's
 upstream from the `Proxy-Authorization` credential the WebView presents,
 which the app answers per-WebView through `onReceivedHttpAuthRequest`.
 
@@ -198,6 +198,32 @@ with nothing raised anywhere.
 ---
 
 ## MODIFIED Requirements
+
+### Requirement: PROXY-007 - Localhost Bypass
+
+The proxy configuration SHALL bypass localhost addresses to ensure local
+resources work correctly. It SHALL achieve this without installing a
+bypass list of its own.
+
+#### Scenario: Access localhost without proxy (Android)
+
+**Given** a SOCKS5 proxy is configured on Android
+**When** the site accesses localhost:3000
+**Then** the request connects directly, not through the proxy
+
+Chromium bypasses loopback destinations of its own accord, so the app
+passes an empty `bypassRules`. The earlier `<local>` entry was never what
+made loopback reachable; it additionally exempted every dotless hostname,
+which LEAK-011 now forbids. Defeating the loopback default takes an
+explicit `<-loopback>`, which the browser test tier passes so a fake
+origin on 127.0.0.1 goes through the proxy under test.
+
+On iOS / macOS the `Network.framework` `ProxyConfiguration` API does not
+expose a per-config bypass list; localhost routing is governed by
+Apple's defaults (loopback addresses bypass automatically for HTTP
+CONNECT and SOCKS5 proxies).
+
+---
 
 ### Requirement: PROXY-008 - Android / iOS Concurrency Asymmetry
 
