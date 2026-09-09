@@ -41,15 +41,23 @@ done and verified locally (Dart suite, JS tier, real-Chromium browser tier,
 - [x] 4.5 Invert the browser tier's SOP and `connect-src` proof-of-vulnerability tests into proofs that both hold, and add one that a library still reaches `__wsFetch` by name.
 - [x] 4.6 Dart tests for the bridge being absent without the flag, present with it, and unarmed by a disabled script.
 
-## 5. Relay peer ownership (PROXY-013, in `android-auth-proxy-relay`)
+## 5. The SSRF guard resolves the name (US-DR-007)
 
-- [x] 5.1 `ProxyRelay.peerVerdict` — pure parse of `/proc/net/tcp{,6}` returning OWN / FOREIGN / UNKNOWN, discriminating on the row's UID (field 7) against this process's own. The port pair alone is the row *any* caller creates, so matching it and stopping classified everyone as OWN.
-- [x] 5.5 Correct the class doc and PROXY-013: `/proc/net` is denied outright from API 29, not filtered per-UID, so the check covers API 24-28 and is inert above it. No supported replacement exists.
-- [x] 5.2 Gate each accepted connection before any upstream connect; log UNKNOWN once per relay, not per connection.
-- [x] 5.3 Injectable `peerCheck` so a JVM test can arrange the foreign case.
-- [x] 5.4 JVM tests for all three verdicts, the IPv6 table, a refused foreign peer, and a same-process peer served through the real check.
+- [x] 5.1 `host_resolution.dart` — one home for the literal-range check (it was copied verbatim into `user_script.dart` and `media_session_service.dart`) plus a `hostLookup` seam behind a conditional import, since `InternetAddress.lookup` is dart:io and this sits under the screens' import closure.
+- [x] 5.2 `_resolvedTargetAllowed` on all three seams (`__wsFetch`, the script handler, `fetchUserScriptSource`) and on every redirect hop. Refuses when any resolved address is in range, and when the name does not resolve; exempt under a remote-DNS proxy, where a local answer describes a network the request never traverses.
+- [x] 5.3 Runs *before* the script handler's confirmation prompt: the dialog shows a URL, and `http://cdn.evil.example/lib.js` reads as a CDN whatever it resolves to.
+- [x] 5.4 Flip the pinned `KNOWN GAP: a hostname is not checked against what it resolves to` into five passing defences (loopback, LAN, one private address among public, redirect hop, no-prompt), each verified to fail with the gate neutered, plus the remote-DNS exemption. `stubHostLookup` in the shared fakes keeps the rest of the suite off DNS.
 
-## 6. Incidental
+## 6. Relay peer ownership (PROXY-013, in `android-auth-proxy-relay`)
 
-- [x] 6.1 `content_blocker_shim.dart`: emit filter-list text with `jsonEncode` instead of the hand-rolled escaper, which missed newlines.
-- [x] 6.2 Teach the nested-webview parity gate to read a `final` field whose type wraps onto a second line, and classify the two fields that surfaced.
+- [x] 6.1 `ProxyRelay.peerVerdict` — pure parse of `/proc/net/tcp{,6}` returning OWN / FOREIGN / UNKNOWN, discriminating on the row's UID (field 7) against this process's own. The port pair alone is the row *any* caller creates, so matching it and stopping classified everyone as OWN.
+- [x] 6.2 Gate each accepted connection before any upstream connect; log UNKNOWN once per relay, not per connection.
+- [x] 6.3 Injectable `peerCheck` so a JVM test can arrange the foreign case.
+- [x] 6.4 JVM tests for all three verdicts, the IPv6 table, a refused foreign peer, and a same-process peer served through the real check.
+- [x] 6.5 Correct the class doc and PROXY-013: `/proc/net` is denied outright from API 29, not filtered per-UID, so the check covers API 24-28 and is inert above it. No supported replacement exists.
+- [x] 6.6 What stands on API 29+ instead: bind a random 127/8 address, not `127.0.0.1` (PROXY-014, tasks in that change).
+
+## 7. Incidental
+
+- [x] 7.1 `content_blocker_shim.dart`: emit filter-list text with `jsonEncode` instead of the hand-rolled escaper, which missed newlines.
+- [x] 7.2 Teach the nested-webview parity gate to read a `final` field whose type wraps onto a second line, and classify the two fields that surfaced.

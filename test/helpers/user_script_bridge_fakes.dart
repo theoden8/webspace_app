@@ -10,6 +10,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
+import 'package:webspace/services/host_resolution.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/user_script_service.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -87,3 +88,17 @@ List<UserScriptConfig> get oneScript => [
 List<UserScriptConfig> get plainScript => [
   UserScriptConfig(name: 't', source: 'noop;'),
 ];
+
+/// Answers the resolving half of the SSRF guard without touching DNS.
+///
+/// The default answer is a routable address, so a test that says nothing
+/// about resolution keeps testing what it was written to test. Name a host in
+/// [table] to point it somewhere — `['127.0.0.1']` for the rebinding case, or
+/// `[]` for a name that does not resolve.
+///
+/// Install in `setUp` and call [resetHostLookup] in `tearDown`: left
+/// unstubbed, every one of these tests would depend on the sandbox resolving
+/// `*.example`, which it does not.
+void stubHostLookup([Map<String, List<String>> table = const {}]) {
+  hostLookup = (host) async => table[host] ?? const ['93.184.216.34'];
+}

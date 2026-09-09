@@ -9,6 +9,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 
+import 'package:webspace/services/host_resolution.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/user_script_service.dart'
     show fetchUserScriptSource;
@@ -29,7 +30,9 @@ FakeOutboundFactory redirectingFactory(
     });
 
 void main() {
+  setUp(stubHostLookup);
   tearDown(resetOutboundHttp);
+  tearDown(resetHostLookup);
 
   group('__wsFetch re-classifies every redirect target', () {
     test('a redirect onto a link-local metadata host is refused', () async {

@@ -17,12 +17,18 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 
+import 'package:webspace/services/host_resolution.dart';
 import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/services/user_script_service.dart';
+import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
 
 import 'helpers/user_script_bridge_fakes.dart';
 
 void main() {
+  setUp(stubHostLookup);
+  tearDown(resetHostLookup);
+
   group('the bridge is not installed unless a script asked for it', () {
     // Enabling a user script says "run my code". It does not say "stop
     // enforcing this site's CSP and same-origin policy for everything on the
@@ -160,32 +166,139 @@ void main() {
       });
     }
 
-    // Documented gap, not a passing defense. _isPrivateOrLoopbackHost
-    // matches literal addresses in the URL string; it never resolves.
-    // A hostname whose A record points at loopback or the LAN walks
-    // straight through, so DNS rebinding defeats this guard. Pinned so
-    // that a future resolve-then-check fix has a test to flip.
-    test(
-      'KNOWN GAP: a hostname is not checked against what it resolves to',
-      () async {
-        final factory = FakeOutboundFactory((_) => http.Response('x', 200));
-        outboundHttp = factory;
-        final ctrl = FakeUserScriptController();
-        serviceWith(oneScript).registerHandlers(ctrl);
+    // The literal check reads the URL string, so a name is whatever it looks
+    // like: `localtest.me` reads as an ordinary host and its A record is
+    // 127.0.0.1. This used to walk straight through and hand the page
+    // whatever the device was serving on loopback. It is now resolved before
+    // the connection, and the answer goes through the same ranges.
+    test('a hostname that resolves onto loopback is refused', () async {
+      stubHostLookup({'localtest.me': const ['127.0.0.1']});
+      final factory = FakeOutboundFactory((_) => http.Response('x', 200));
+      outboundHttp = factory;
+      final ctrl = FakeUserScriptController();
+      serviceWith(oneScript).registerHandlers(ctrl);
 
-        expect(
-          classifyScriptFetchUrl('http://localtest.me/admin'),
-          ScriptFetchUrlStatus.requiresConfirmation,
-        );
+      expect(
+        classifyScriptFetchUrl('http://localtest.me/admin'),
+        ScriptFetchUrlStatus.requiresConfirmation,
+        reason: 'the literal half cannot see it — that is the point',
+      );
 
-        final res = await ctrl.handler(kFetchHandlerPrefix)([
-          'http://localtest.me/admin',
-        ]);
+      final res = await ctrl.handler(kFetchHandlerPrefix)([
+        'http://localtest.me/admin',
+      ]);
 
-        expect((res as Map)['status'], 200);
-        expect(factory.requested.single.host, 'localtest.me');
-      },
-    );
+      expect((res as Map)['status'], 403);
+      expect(factory.requested, isEmpty);
+    });
+
+    test('a hostname resolving into the LAN is refused', () async {
+      stubHostLookup({'nas.example': const ['192.168.1.10']});
+      final factory = FakeOutboundFactory((_) => http.Response('x', 200));
+      outboundHttp = factory;
+      final ctrl = FakeUserScriptController();
+      serviceWith(oneScript).registerHandlers(ctrl);
+
+      final res = await ctrl.handler(kFetchHandlerPrefix)([
+        'http://nas.example/config',
+      ]);
+
+      expect((res as Map)['status'], 403);
+      expect(factory.requested, isEmpty);
+    });
+
+    // A name is refused if ANY of its addresses is in range: a record set
+    // that pairs a public address with a private one is the same attack with
+    // a decoy in front of it.
+    test('one private address among public ones is enough to refuse',
+        () async {
+      stubHostLookup({
+        'mixed.example': const ['93.184.216.34', '10.1.2.3'],
+      });
+      final factory = FakeOutboundFactory((_) => http.Response('x', 200));
+      outboundHttp = factory;
+      final ctrl = FakeUserScriptController();
+      serviceWith(oneScript).registerHandlers(ctrl);
+
+      final res = await ctrl.handler(kFetchHandlerPrefix)([
+        'http://mixed.example/x',
+      ]);
+
+      expect((res as Map)['status'], 403);
+      expect(factory.requested, isEmpty);
+    });
+
+    test('a redirect onto a name that resolves onto loopback is refused',
+        () async {
+      stubHostLookup({'localtest.me': const ['127.0.0.1']});
+      final factory = FakeOutboundFactory(
+        (req) => req.url.host == 'cdn.example'
+            ? http.Response('', 302,
+                headers: {'location': 'http://localtest.me/admin'})
+            : http.Response('SECRET', 200),
+      );
+      outboundHttp = factory;
+      final ctrl = FakeUserScriptController();
+      serviceWith(oneScript).registerHandlers(ctrl);
+
+      final res = await ctrl.handler(kFetchHandlerPrefix)([
+        'http://cdn.example/lib.js',
+      ]);
+
+      expect((res as Map)['status'], 403);
+      expect(factory.requested.map((u) => u.host), ['cdn.example'],
+          reason: 'the hop is judged before it is followed');
+    });
+
+    // The script handler prompts for a non-whitelisted host. A name pointing
+    // at loopback must never reach that prompt: the dialog shows a URL, and
+    // `http://cdn.evil.example/lib.js` reads as a CDN whatever it resolves to.
+    test('a rebinding host is refused before the confirmation prompt',
+        () async {
+      stubHostLookup({'cdn.evil.example': const ['127.0.0.1']});
+      final factory = FakeOutboundFactory((_) => http.Response('x', 200));
+      outboundHttp = factory;
+      final ctrl = FakeUserScriptController();
+      var prompted = false;
+      serviceWith(oneScript, confirm: (_) async {
+        prompted = true;
+        return true;
+      }).registerHandlers(ctrl);
+
+      final ok = await ctrl.handler(kScriptHandlerPrefix)([
+        'http://cdn.evil.example/lib.js',
+      ]);
+
+      expect(ok, false);
+      expect(prompted, isFalse);
+      expect(factory.requested, isEmpty);
+    });
+
+    // Under SOCKS5 or Tor the destination name travels to the proxy and is
+    // resolved there, so what this device's resolver says describes a network
+    // the request never touches. Checking it anyway would refuse a host on
+    // the strength of an answer that does not apply — and a Tor user has no
+    // local resolver to ask.
+    test('the resolve check does not apply under a remote-DNS proxy',
+        () async {
+      stubHostLookup({'onion-gw.example': const ['127.0.0.1']});
+      final factory = FakeOutboundFactory((_) => http.Response('x', 200));
+      outboundHttp = factory;
+      final ctrl = FakeUserScriptController();
+      UserScriptService(
+        scripts: oneScript,
+        proxy: UserProxySettings(
+          type: ProxyType.SOCKS5,
+          address: '127.0.0.1:9050',
+        ),
+      ).registerHandlers(ctrl);
+
+      final res = await ctrl.handler(kFetchHandlerPrefix)([
+        'http://onion-gw.example/x',
+      ]);
+
+      expect((res as Map)['status'], 200);
+    });
   });
 
   group('inline-script bridge', () {

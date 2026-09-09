@@ -8,12 +8,16 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 
+import 'package:webspace/services/host_resolution.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/settings/user_script.dart';
 
 import 'helpers/user_script_bridge_fakes.dart';
 
 void main() {
+  setUp(stubHostLookup);
+  tearDown(resetHostLookup);
+
   const scriptPrefix = '__ws_s_';
   const inlinePrefix = '__ws_i_';
   const fetchPrefix = '__ws_f_';

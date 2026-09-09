@@ -71,3 +71,124 @@ is unaffected.
 **Given** the same site
 **When** a script calls `window.__wsFetch` for that URL
 **Then** the body is returned
+
+---
+
+### Requirement: US-DR-007 - A name is checked against what it resolves to
+
+`classifyScriptFetchUrl` reads the URL string, so it refuses
+`http://127.0.0.1/` and lets `http://evil.example/` through — the same
+destination, spelled differently. A hostname whose A record names a loopback
+or LAN address defeated the whole SSRF guard, and the bridge is reachable by
+any script on a page that has it.
+
+Where the app is the one resolving the destination, the host SHALL be resolved
+before the connection and refused when **any** address it names is in a range
+`isPrivateOrLoopbackHost` rejects. This SHALL apply to the initial URL and to
+every redirect hop, on all three seams: the `__wsFetch` handler, the script
+handler, and the editor's URL-source download.
+
+A name that does not resolve SHALL be refused; the connection would use the
+same resolver and fail anyway. A build with no resolver at all (web) SHALL be
+allowed through — it has no webview and so no page script to drive this.
+
+The check SHALL be applied **before** the script handler's confirmation
+prompt, never as part of it: the dialog shows a URL, and
+`http://cdn.evil.example/lib.js` reads as a CDN whatever it resolves to, so a
+user cannot be the one to catch this.
+
+The check SHALL NOT be applied under a SOCKS5 or Tor proxy, or an HTTP proxy.
+Those resolve the destination at the far end by design, so what this device's
+resolver answers describes a network the request never traverses — and a Tor
+user has no local resolver to consult.
+
+**Residual.** An answer can change between this lookup and the client's own
+(a short-TTL flip). Closing that needs the connection pinned to the address
+checked, which the `http` client does not expose.
+
+#### Scenario: A hostname resolving onto loopback is refused
+
+**Given** a page calls `window.__wsFetch('http://localtest.me/admin')`
+**And** `localtest.me` resolves to `127.0.0.1`
+**When** the bridge handles it
+**Then** the handler returns `{status: 403}` and no request is issued
+
+#### Scenario: One private address among public ones is enough
+
+**Given** a host that resolves to both a routable address and `10.1.2.3`
+**When** the bridge handles a fetch for it
+**Then** it is refused
+
+#### Scenario: A rebinding host never reaches the confirmation prompt
+
+**Given** the script handler is asked to fetch `http://cdn.evil.example/lib.js`
+**And** that name resolves to `127.0.0.1`
+**When** the handler classifies it
+**Then** it is refused and the user is not prompted
+
+#### Scenario: A redirect onto a rebinding host is refused
+
+**Given** a public URL answers `302 Location: http://localtest.me/admin`
+**And** `localtest.me` resolves to `127.0.0.1`
+**When** the bridge handles the redirect
+**Then** it returns `{status: 403}` and the hop is not requested
+
+#### Scenario: Remote-DNS proxies are exempt
+
+**Given** the site's effective proxy is SOCKS5 or Tor
+**When** the bridge fetches any host
+**Then** no local resolution is consulted and the fetch proceeds
+
+---
+
+## MODIFIED Requirements
+
+### Requirement: US-006 - Redirects are re-classified, not followed blindly
+
+`classifyScriptFetchUrl` only ever sees the URL the caller hands in, and
+`window.__wsFetch` is a page-reachable global that any third-party page script
+can drive. The bridge's fetches SHALL therefore disable the HTTP client's
+automatic redirect following, and SHALL re-run the gate that admitted the
+original URL against every `Location` before requesting it, over a bounded
+number of hops (5).
+
+The gate re-run is the one the path uses for its first URL: the `__wsFetch`
+handler refuses only `blocked` targets, while the script handler additionally
+requires confirmation for a target off the CDN whitelist — a whitelisted CDN
+must not be able to hand execution to an origin the user never approved.
+`fetchUserScriptSource` (the editor's URL-source download) applies the
+`__wsFetch` rule.
+
+This closes the redirect half of the SSRF guard. The DNS-rebinding half is
+closed by US-DR-007, whose resolution runs as part of this same re-run, so a
+redirect onto a name pointing at a private address is refused by both halves.
+
+#### Scenario: Redirect onto a cloud metadata endpoint
+
+**Given** a page calls `window.__wsFetch('https://evil.example/hop')`
+**And** `https://evil.example/hop` answers
+`302 Location: http://169.254.169.254/latest/meta-data/`
+**When** the bridge handles the redirect
+**Then** the handler returns `{status: 403}`
+**And** no request is issued to `169.254.169.254`
+
+#### Scenario: Redirect onto a public host is followed
+
+**Given** a page calls `window.__wsFetch('https://a.example/x')`
+**And** that URL answers `302 Location: https://b.example/y`
+**When** the bridge handles the redirect
+**Then** `https://b.example/y` is requested and its body returned
+
+#### Scenario: Whitelisted CDN redirects off the whitelist
+
+**Given** a script element points at a whitelisted CDN URL
+**And** that URL answers `302 Location: https://elsewhere.example/x.js`
+**When** the script handler handles the redirect
+**Then** the user is asked to confirm `https://elsewhere.example/x.js`
+**And** nothing is injected unless they approve it
+
+#### Scenario: Redirect chain is bounded
+
+**Given** a host that answers every request with another redirect
+**When** the bridge follows the chain
+**Then** it stops after 5 hops and returns `{status: 403}`

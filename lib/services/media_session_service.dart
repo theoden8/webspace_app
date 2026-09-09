@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/services/host_resolution.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -330,7 +331,7 @@ class MediaSessionService {
     if (uri == null || !(uri.isScheme('http') || uri.isScheme('https'))) {
       return null;
     }
-    if (_isPrivateOrLoopbackHost(uri.host.toLowerCase())) return null;
+    if (isPrivateOrLoopbackHost(uri.host.toLowerCase())) return null;
     final result = outboundHttp.clientFor(
       resolveEffectiveProxy(
         proxy ?? UserProxySettings(type: ProxyType.DEFAULT),
@@ -358,44 +359,4 @@ class MediaSessionService {
       client.close();
     }
   }
-}
-
-/// True if [host] is a loopback, private (RFC1918), unique-local, or
-/// link-local literal address (IPv4 or IPv6), or the `localhost` name.
-bool _isPrivateOrLoopbackHost(String host) {
-  if (host == 'localhost' || host.endsWith('.localhost')) return true;
-
-  // IPv6 literal (Uri.host strips the surrounding brackets).
-  if (host.contains(':')) {
-    final h = host.split('%').first; // drop any zone id
-    if (h == '::1' || h == '::') return true;
-    // fc00::/7 unique-local, fe80::/10 link-local.
-    if (h.startsWith('fc') || h.startsWith('fd')) return true;
-    if (h.startsWith('fe8') ||
-        h.startsWith('fe9') ||
-        h.startsWith('fea') ||
-        h.startsWith('feb')) {
-      return true;
-    }
-    return false;
-  }
-
-  // IPv4 dotted-quad.
-  final parts = host.split('.');
-  if (parts.length == 4) {
-    final octets = <int>[];
-    for (final p in parts) {
-      final v = int.tryParse(p);
-      if (v == null || v < 0 || v > 255) return false; // not an IPv4 literal
-      octets.add(v);
-    }
-    final a = octets[0], b = octets[1];
-    if (a == 0) return true; // 0.0.0.0/8
-    if (a == 127) return true; // loopback
-    if (a == 10) return true; // private
-    if (a == 172 && b >= 16 && b <= 31) return true; // private
-    if (a == 192 && b == 168) return true; // private
-    if (a == 169 && b == 254) return true; // link-local + cloud metadata
-  }
-  return false;
 }

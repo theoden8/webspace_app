@@ -115,6 +115,35 @@ and the retry cannot carry the original method, headers or body — a refused
 `POST` came back as the response to a `GET` the server saw twice. Libraries use
 the documented `setFetchMethod(window.__wsFetch)` instead.
 
+### The SSRF guard resolves the name
+
+`classifyScriptFetchUrl` reads the URL string, so `http://127.0.0.1/` is
+refused and `http://evil.example/` — same destination, different spelling —
+was not. The literal check stays where it is and a resolving half is added at
+the point of connection, because only there is it known whether *we* are the
+one resolving.
+
+*Why not inside the classifier.* It is sync, called from the editor and the
+tests, and would become a network round trip on every call. More to the point,
+the answer depends on the effective proxy, which the classifier does not see.
+
+*Why the proxy exemption.* SOCKS5 and Tor resolve the destination at the far
+end by design — that is the DNS-leak property the proxy was chosen for. An
+HTTP proxy is handed the name in the request line. In all three, a local
+answer describes a network the request never traverses, and a Tor user may
+have no local resolver at all.
+
+*Why a name that does not resolve is refused.* The connection would use the
+same resolver and fail. Refusing turns a connect error into an earlier one and
+keeps the code from having to guess.
+
+*What is not closed.* An answer can change between this lookup and the client's
+own. Pinning the connection to the address checked needs a socket-level hook
+the `http` client does not expose; a `HttpClient.connectionFactory` could, at
+the cost of re-implementing TLS SNI and certificate validation against the
+original name. Not worth it for a race that needs a sub-second TTL and a
+resolver that honours it.
+
 ### Relay peer ownership
 
 `/proc/net/tcp{,6}` lists only the calling UID's sockets on API 29+, so a

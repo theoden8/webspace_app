@@ -1,6 +1,7 @@
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:http/http.dart' as http;
 
+import 'package:webspace/services/host_resolution.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/user_script_shim.dart';
@@ -67,6 +68,49 @@ Future<http.Response?> _getWithCheckedRedirects(
   return null;
 }
 
+/// Whether the bridge may connect to [url], given the [effective] proxy.
+///
+/// The literal classification in `classifyScriptFetchUrl` refuses an address
+/// the URL spells out. This is the half it cannot do: when *we* are the ones
+/// resolving, the name is resolved and the answer checked against the same
+/// ranges, so `http://evil.example/` whose A record is `127.0.0.1` is refused
+/// instead of handing the page whatever listens on loopback (US-DR-007).
+///
+/// Skipped under a proxy. SOCKS5 and Tor resolve the destination at the far
+/// end by design (the local resolver never sees the name), and an HTTP proxy
+/// is handed the name in the request line — in all three the addresses this
+/// device would resolve describe a network the request never traverses, and a
+/// Tor user has no local resolver to consult in the first place.
+///
+/// A name that does not resolve is refused, which only turns a connect error
+/// into an earlier one. A build with no resolver at all (web) is allowed
+/// through: it has no webview, so no page JS to drive this.
+///
+/// Residual: an answer can change between this lookup and the client's own.
+/// Closing that needs the connection pinned to the address checked, which the
+/// `http` client does not expose.
+Future<bool> _resolvedTargetAllowed(
+  String url,
+  UserProxySettings effective,
+) async {
+  if (effective.type != ProxyType.DEFAULT) return true;
+  final host = Uri.tryParse(url)?.host.toLowerCase();
+  if (host == null || host.isEmpty) return false;
+  final verdict = await classifyResolvedHost(host);
+  if (verdict == HostRangeVerdict.public ||
+      verdict == HostRangeVerdict.noResolver) {
+    return true;
+  }
+  LogService.instance.log(
+    'UserScript',
+    verdict == HostRangeVerdict.private
+        ? 'Blocked $host: resolves into a private range'
+        : 'Blocked $host: does not resolve',
+    sensitivity: LogSensitivity.sensitive,
+  );
+  return false;
+}
+
 /// Fetch user-script source at [url] through the proxy seam, applying the
 /// same URL classification and redirect re-checking the page-reachable
 /// bridge uses. Returns the body, or a short technical detail the caller
@@ -75,12 +119,14 @@ Future<({String? source, String? error})> fetchUserScriptSource(
   String url, {
   UserProxySettings? proxy,
 }) async {
-  bool allowed(String candidate) =>
-      classifyScriptFetchUrl(candidate) != ScriptFetchUrlStatus.blocked;
-  if (!allowed(url)) return (source: null, error: 'blocked URL');
-  final clientResult = outboundHttp.clientFor(
-    resolveEffectiveProxy(proxy ?? UserProxySettings(type: ProxyType.DEFAULT)),
+  final effective = resolveEffectiveProxy(
+    proxy ?? UserProxySettings(type: ProxyType.DEFAULT),
   );
+  Future<bool> allowed(String candidate) async =>
+      classifyScriptFetchUrl(candidate) != ScriptFetchUrlStatus.blocked &&
+      await _resolvedTargetAllowed(candidate, effective);
+  if (!await allowed(url)) return (source: null, error: 'blocked URL');
+  final clientResult = outboundHttp.clientFor(effective);
   if (clientResult is OutboundClientBlocked) {
     return (source: null, error: clientResult.reason);
   }
@@ -89,7 +135,7 @@ Future<({String? source, String? error})> fetchUserScriptSource(
     final response = await _getWithCheckedRedirects(
       client,
       url,
-      (candidate) async => allowed(candidate),
+      allowed,
     );
     if (response == null) return (source: null, error: 'blocked redirect');
     if (response.statusCode != 200) {
@@ -277,6 +323,13 @@ class UserScriptService {
       );
       return false;
     }
+    // Before the prompt, not after: a name resolving into a private range is
+    // refused outright, never offered to the user as a choice. The dialog
+    // shows a URL, and `http://cdn.evil.example/lib.js` reads as a CDN
+    // whatever it resolves to.
+    if (!await _resolvedTargetAllowed(url, resolveEffectiveProxy(_proxy))) {
+      return false;
+    }
     if (status == ScriptFetchUrlStatus.requiresConfirmation) {
       if (_onConfirmScriptFetch == null) {
         LogService.instance.log(
@@ -390,8 +443,12 @@ class UserScriptService {
       callback: (args) async {
         if (args.isEmpty || args[0] is! String) return {'status': 400};
         final url = args[0] as String;
-        final status = classifyScriptFetchUrl(url);
-        if (status == ScriptFetchUrlStatus.blocked) {
+        final effective = resolveEffectiveProxy(_proxy);
+        Future<bool> reachable(String candidate) async =>
+            classifyScriptFetchUrl(candidate) !=
+                ScriptFetchUrlStatus.blocked &&
+            await _resolvedTargetAllowed(candidate, effective);
+        if (!await reachable(url)) {
           LogService.instance.log(
             'UserScript',
             'Blocked resource fetch: $url',
@@ -399,9 +456,7 @@ class UserScriptService {
           );
           return {'status': 403};
         }
-        final clientResult = outboundHttp.clientFor(
-          resolveEffectiveProxy(_proxy),
-        );
+        final clientResult = outboundHttp.clientFor(effective);
         if (clientResult is OutboundClientBlocked) {
           LogService.instance.log(
             'UserScript',
@@ -414,9 +469,7 @@ class UserScriptService {
           final response = await _getWithCheckedRedirects(
             client,
             url,
-            (candidate) async =>
-                classifyScriptFetchUrl(candidate) !=
-                ScriptFetchUrlStatus.blocked,
+            reachable,
           );
           if (response == null) return {'status': 403};
           if (response.body.length > _maxFetchBytes) {
