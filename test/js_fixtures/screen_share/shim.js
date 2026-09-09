@@ -175,11 +175,147 @@
   var _syntheticTracks = new WeakMap();
 
   // Every track ANY WebSpace capture shim substituted, shared across shims.
-  // The camera's deactivation stop (CAM-012) skips anything in this set, so a
-  // simulated surface is not torn down when the user switches sites — it is a
-  // local file drawn onto a canvas, with nothing being observed.
-  var _wsSynthetic = globalThis.__wsSyntheticTracks || new WeakSet();
-  globalThis.__wsSyntheticTracks = _wsSynthetic;
+  // The camera's deactivation stop (CAM-012) skips anything registered here,
+  // so a simulated surface is not torn down when the user switches sites — it
+  // is a local file drawn onto a canvas, with nothing being observed.
+  if (typeof globalThis.__wsStopRealCapture !== 'function') {
+    (function() {
+      var RELAY = '__wsStopRealCapture';
+      var real = [];
+      var synthetic = new WeakSet();
+
+      // WeakRef where available, so a page that churns streams doesn't pin dead
+      // tracks for the document's lifetime.
+      function trackRef(t) {
+        return typeof WeakRef === 'function'
+          ? new WeakRef(t)
+          : { deref: function() { return t; } };
+      }
+      function isReal(t) {
+        for (var i = 0; i < real.length; i++) {
+          if (real[i].deref() === t) return true;
+        }
+        return false;
+      }
+      function addReal(t) {
+        if (!t || synthetic.has(t) || isReal(t)) return;
+        real.push(trackRef(t));
+      }
+      function remember(stream) {
+        try {
+          var tracks = (stream && stream.getTracks) ? stream.getTracks() : [];
+          for (var i = 0; i < tracks.length; i++) addReal(tracks[i]);
+        } catch (e) {}
+        return stream;
+      }
+      function markSynthetic(track) {
+        try { if (track && !isReal(track)) synthetic.add(track); } catch (e) {}
+        return track;
+      }
+      function stopLocal() {
+        var stopped = 0;
+        for (var i = 0; i < real.length; i++) {
+          var t = real[i].deref();
+          if (!t) continue;
+          try {
+            if (t.readyState !== 'ended') { t.stop(); stopped++; }
+          } catch (e) {}
+        }
+        real.length = 0;
+        return stopped;
+      }
+      function relay() {
+        try {
+          var fs = globalThis.frames;
+          var n = fs ? fs.length : 0;
+          for (var i = 0; i < n; i++) {
+            try { fs[i].postMessage(RELAY, '*'); } catch (e) {}
+          }
+        } catch (e) {}
+      }
+      if (typeof globalThis.addEventListener === 'function') {
+        globalThis.addEventListener('message', function(e) {
+          if (e && e.data === RELAY) { stopLocal(); relay(); }
+        });
+      }
+
+      // Carry registration onto a clone: stopping the original leaves an
+      // independently live copy capturing otherwise.
+      function wrapTrackClone() {
+        var MST = globalThis.MediaStreamTrack;
+        if (!MST || !MST.prototype || typeof MST.prototype.clone !== 'function') return;
+        var orig = MST.prototype.clone;
+        MST.prototype.clone = asNative(function clone() {
+          var out = orig.apply(this, arguments);
+          try {
+            if (synthetic.has(this)) markSynthetic(out);
+            else if (isReal(this)) addReal(out);
+          } catch (e) {}
+          return out;
+        }, 'clone');
+      }
+      // `MediaStream.clone()` clones each track by the spec's own algorithm,
+      // which need not run through the JS-visible track `clone`. Match the
+      // copies to the source by kind.
+      function wrapStreamClone() {
+        var MS = globalThis.MediaStream;
+        if (!MS || !MS.prototype || typeof MS.prototype.clone !== 'function') return;
+        var orig = MS.prototype.clone;
+        MS.prototype.clone = asNative(function clone() {
+          var out = orig.apply(this, arguments);
+          try {
+            var kinds = {};
+            var src = this.getTracks();
+            for (var i = 0; i < src.length; i++) {
+              if (isReal(src[i])) kinds[src[i].kind] = 1;
+            }
+            var got = out.getTracks();
+            for (var j = 0; j < got.length; j++) {
+              if (kinds[got[j].kind]) addReal(got[j]);
+            }
+          } catch (e) {}
+          return out;
+        }, 'clone');
+      }
+      try { wrapTrackClone(); } catch (e) {}
+      try { wrapStreamClone(); } catch (e) {}
+
+      var hook = asNative(function stopRealCapture() {
+        var stopped = stopLocal();
+        relay();
+        return stopped;
+      }, 'stopRealCapture');
+      // Non-enumerable siblings so the shim injected after this one reaches the
+      // same lists. Both are safe in a page's hands: one only adds tracks to be
+      // stopped, the other refuses a device track.
+      function hide(name, value) {
+        try {
+          Object.defineProperty(hook, name, {
+            value: value, writable: false, enumerable: false, configurable: false,
+          });
+        } catch (e) {}
+      }
+      hide('r', remember);
+      hide('s', markSynthetic);
+      try {
+        Object.defineProperty(globalThis, '__wsStopRealCapture', {
+          value: hook,
+          writable: false,
+          enumerable: false,
+          configurable: false,
+        });
+      } catch (e) {}
+    })();
+  }
+
+  var _wsCapture = globalThis.__wsStopRealCapture;
+  function rememberRealTracks(stream) {
+    try { return _wsCapture.r(stream); } catch (e) { return stream; }
+  }
+  function markSyntheticTrack(track) {
+    try { return _wsCapture.s(track); } catch (e) { return track; }
+  }
+
 
   // Draws `media` (an <img> or a looping <video>) onto a canvas at `fps` and
   // returns the canvas's captured MediaStream. The canvas is kept out of the
@@ -234,7 +370,7 @@
           ? constraints.video
           : {},
       });
-      try { _wsSynthetic.add(track); } catch (e) {}
+      markSyntheticTrack(track);
       // A canvas track is a CanvasCaptureMediaStreamTrack; a display capture
       // track is not. Re-point the prototype so the class matches. Internal
       // slots live on the instance, so the track keeps working; if any engine
@@ -357,7 +493,7 @@
         // original. It also has to stay exempt from the camera's stop.
         if (meta && copy) {
           _syntheticTracks.set(copy, meta);
-          try { _wsSynthetic.add(copy); } catch (e) {}
+          markSyntheticTrack(copy);
         }
         return copy;
       }, 'clone');

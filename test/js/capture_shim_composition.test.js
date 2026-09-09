@@ -6,7 +6,7 @@
 // (CAM-012) ends the device tracks it handed out and skips substituted ones —
 // so it has to recognise a track the *other* shim substituted, or switching
 // sites would kill the simulated microphone. The shims share one
-// `globalThis.__wsSyntheticTracks` set for exactly this.
+// shared capture registry for exactly this.
 //
 // Both injection orders are exercised: the outer shim is the one that sees
 // the other's track, and which one that is depends only on the order
@@ -196,11 +196,12 @@ for (const order of ['camera-first', 'microphone-first']) {
       audio: true,
       video: true,
     });
-    // The set is what makes the exemption readable across shims; assert the
-    // membership directly so a regression names the cause, not the symptom.
+    // Both halves were substituted, so the shared registry must hold neither
+    // as device-backed: the stop finds nothing and both tracks stay live.
+    assert.equal(window.__wsStopRealCapture(), 0);
     for (const t of stream.getTracks()) {
-      assert.equal(window.__wsSyntheticTracks.has(t), true,
-        `the ${t.kind} track must be registered as substituted`);
+      assert.equal(t.readyState, 'live',
+        `the ${t.kind} track was substituted and must survive the stop`);
     }
   });
 }
@@ -212,7 +213,6 @@ for (const order of ['camera-first', 'microphone-first']) {
       video: true,
     });
     const track = stream.getVideoTracks()[0];
-    assert.equal(window.__wsSyntheticTracks.has(track), true);
     assert.equal(window.__wsStopRealCapture(), 0);
     assert.equal(track.readyState, 'live',
       'the simulated surface is a local file; a site switch must not end it');

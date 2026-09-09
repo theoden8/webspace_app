@@ -357,15 +357,16 @@ test('a burst of requests asks the bridge once', async () => {
 
 test('the simulated surface is exempt from the camera deactivation stop',
   async () => {
-    // Both shims register what they substituted in one cross-shim set; the
-    // camera's __wsStopRealCapture() skips anything in it. Without this the
-    // surface would be torn down on every site switch (SHARE-012).
+    // Both shims register what they substituted in one cross-shim registry;
+    // the camera's __wsStopRealCapture() skips anything in it. Without this
+    // the surface would be torn down on every site switch (SHARE-012).
     const { window } = setupShareDom({
       decision: { mode: 'virtual', source: IMAGE_SOURCE },
     });
     const stream = await window.navigator.mediaDevices.getDisplayMedia({ video: true });
     const track = stream.getVideoTracks()[0];
-    assert.ok(window.__wsSyntheticTracks.has(track));
+    assert.equal(window.__wsStopRealCapture(), 0);
+    assert.equal(track.readyState, 'live');
   });
 
 test('stopping the track drops the repaint loop', async () => {

@@ -36,8 +36,8 @@
   returns the platform list unmodified, like `block`.
 - [x] 3.3 Extract the device-track registry and the `__wsStopRealCapture` hook
   out of `camera_stream_shim.dart` into a shared installer over
-  `globalThis.__wsRealTracks`, installed once, iterating both shims' tracks and
-  skipping `__wsSyntheticTracks`. A second installation must not displace the
+  a closed-over registry, installed once, iterating both shims' tracks and
+  skipping substituted ones. A second installation must not displace the
   first (MIC-012).
 - [x] 3.4 Combined-request matrix (MIC-004): `real` issues a platform
   audio-only request in every camera pairing and combines it with whatever the

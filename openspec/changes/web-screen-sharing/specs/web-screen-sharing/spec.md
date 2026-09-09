@@ -385,9 +385,9 @@ canvas, nothing is being observed, and ending it would drop a share the user
 comes back to. No stop hook is installed and no call site pretends otherwise.
 
 What this does require is that the camera's stop not reach the substituted
-surface. This shim registers what it substituted in the same cross-shim
-`globalThis.__wsSyntheticTracks` set the camera and microphone shims use, and
-the camera's stop skips anything in it.
+surface. This shim registers what it substituted in the same cross-shim registry the
+camera and microphone shims use — closed over by the stop hook, not exposed as
+a global — and the camera's stop skips anything in it.
 
 #### Scenario: Switching away leaves the simulated surface alone
 
