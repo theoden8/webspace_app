@@ -3,7 +3,7 @@
   if (!document.getElementById(ID)) {
     var s = document.createElement('style');
     s.id = ID;
-    s.textContent = '.batch1-a { display: none !important; } .batch1-b { display: none !important; } .batch1-c { display: none !important; } .batch1-d { display: none !important; } .batch1-e { display: none !important; } .batch1-f { display: none !important; } .batch1-g { display: none !important; } .batch1-h { display: none !important; } .batch1-i { display: none !important; } .batch1-j { display: none !important; } .batch1-k { display: none !important; } .batch1-l { display: none !important; } .batch1-m { display: none !important; } .batch1-n { display: none !important; } .batch1-o { display: none !important; } .batch1-p { display: none !important; } .batch1-q { display: none !important; } .batch1-r { display: none !important; } .batch1-s { display: none !important; } .batch1-t { display: none !important; } >>>invalid<<< { display: none !important; } .batch2-b { display: none !important; } .batch2-c { display: none !important; } .batch2-d { display: none !important; } .batch2-e { display: none !important; } ';
+    s.textContent = ".batch1-a { display: none !important; } .batch1-b { display: none !important; } .batch1-c { display: none !important; } .batch1-d { display: none !important; } .batch1-e { display: none !important; } .batch1-f { display: none !important; } .batch1-g { display: none !important; } .batch1-h { display: none !important; } .batch1-i { display: none !important; } .batch1-j { display: none !important; } .batch1-k { display: none !important; } .batch1-l { display: none !important; } .batch1-m { display: none !important; } .batch1-n { display: none !important; } .batch1-o { display: none !important; } .batch1-p { display: none !important; } .batch1-q { display: none !important; } .batch1-r { display: none !important; } .batch1-s { display: none !important; } .batch1-t { display: none !important; } >>>invalid<<< { display: none !important; } .batch2-b { display: none !important; } .batch2-c { display: none !important; } .batch2-d { display: none !important; } .batch2-e { display: none !important; } ";
     (document.head || document.documentElement).appendChild(s);
   }
   // Selector-based hiding is handled entirely by the early <style>
@@ -18,7 +18,7 @@
   // Text-content rules (#?# / :-abp-contains) cannot be expressed in
   // CSS, so they keep a debounced MutationObserver that re-runs the
   // text scan on DOM bursts.
-  var TEXT_RULES = [{sel:'p.notice',pats:['Promoted','Sponsored']},{sel:'div.bio',pats:['Editor']}];
+  var TEXT_RULES = [{"sel":"p.notice","pats":["Promoted","Sponsored"]},{"sel":"div.bio","pats":["Editor"]}];
   function hideText() {
     for (var i = 0; i < TEXT_RULES.length; i++) {
       var r = TEXT_RULES[i];

@@ -3,7 +3,7 @@
   if (!document.getElementById(ID)) {
     var s = document.createElement('style');
     s.id = ID;
-    s.textContent = 'div.post:has(.ad-tag) { display: none !important; } .banner { display: none !important; } ';
+    s.textContent = "div.post:has(.ad-tag) { display: none !important; } .banner { display: none !important; } ";
     (document.head || document.documentElement).appendChild(s);
   }
   // Selector-based hiding is handled entirely by the early <style>
@@ -18,7 +18,7 @@
   // Text-content rules (#?# / :-abp-contains) cannot be expressed in
   // CSS, so they keep a debounced MutationObserver that re-runs the
   // text scan on DOM bursts.
-  var TEXT_RULES = [{sel:'p.notice',pats:['Sponsored','Promoted']},{sel:'article',pats:['Advertisement']}];
+  var TEXT_RULES = [{"sel":"p.notice","pats":["Sponsored","Promoted"]},{"sel":"article","pats":["Advertisement"]}];
   function hideText() {
     for (var i = 0; i < TEXT_RULES.length; i++) {
       var r = TEXT_RULES[i];
