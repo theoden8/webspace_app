@@ -12,8 +12,21 @@
 /// [M] is the feature's mode enum, [S] its picked source, [D] its decision.
 class MediaGrantEngine<M, S, D> {
   /// Coalesces a burst of requests (capture libraries retry `getUserMedia`)
-  /// onto a single popup / file-pick. Cleared once the decision settles.
-  Future<D>? _inFlight;
+  /// onto a single popup / file-pick. Keyed by prompt origin so a subframe
+  /// never rides the answer the user gave for the top document, and cleared
+  /// once each decision settles.
+  final Map<String, Future<D>> _inFlight = {};
+
+  /// A subframe's answer is deliberately not persisted, but it still has to
+  /// outlive the popup that produced it by a moment: allowing a frame makes the
+  /// shim call the real `getUserMedia`, and the platform permission request
+  /// that follows arrives milliseconds later for the same origin. Without a
+  /// grace window the user answers the same question twice, once in our popup
+  /// and once behind it. Keyed by prompt origin, so it can only ever hand back
+  /// the answer given for that exact frame.
+  final Map<String, (DateTime, D)> _recentSubframe = {};
+
+  static const Duration _subframeGrace = Duration(seconds: 30);
 
   /// Resolve a request for [origin].
   ///
@@ -28,6 +41,10 @@ class MediaGrantEngine<M, S, D> {
   ///   shims cache it per document and gating it would strand a site that
   ///   enumerated while backgrounded.
   /// - [denied]: the decision handed back for a backgrounded site.
+  /// - [isTopFrame]: whether the request came from the top document. A
+  ///   subframe's answer is used for that request and never written back to
+  ///   the site: the popup the user answered named the frame, not the site,
+  ///   so it cannot be what flips the site's own mode (CAM-014 / MIC-016).
   /// - [effectiveMode]: the site's current mode with archive-tier already
   ///   applied by the caller.
   /// - [settled]: maps a (mode, source) pair to the decision that needs no
@@ -44,6 +61,7 @@ class MediaGrantEngine<M, S, D> {
   Future<D> decide({
     required String origin,
     required bool Function() isSiteActive,
+    required bool isTopFrame,
     required D Function() denied,
     required M effectiveMode,
     required D? Function(M mode, S? source) settled,
@@ -56,16 +74,35 @@ class MediaGrantEngine<M, S, D> {
     if (!isSiteActive()) return denied();
     final immediate = settled(effectiveMode, currentSource());
     if (immediate != null) return immediate;
-    _inFlight ??= () async {
+    if (!isTopFrame) {
+      final recent = _takeRecentSubframe(origin);
+      if (recent != null) return recent;
+    }
+    final pending = _inFlight[origin] ??= () async {
       final resolved = await resolve(origin, effectiveMode);
-      persist(resolved);
-      await save();
+      if (isTopFrame) {
+        persist(resolved);
+        await save();
+      } else {
+        _recentSubframe[origin] = (DateTime.now(), resolved);
+      }
       return finalize(resolved, currentSource());
     }();
     try {
-      return await _inFlight!;
+      return await pending;
     } finally {
-      _inFlight = null;
+      _inFlight.remove(origin);
     }
+  }
+
+  /// The answer given for [origin] inside the grace window, if any. Expired
+  /// entries are dropped as they are found rather than on a timer.
+  D? _takeRecentSubframe(String origin) {
+    final now = DateTime.now();
+    _recentSubframe.removeWhere(
+      (_, e) => now.difference(e.$1) > _subframeGrace,
+    );
+    final hit = _recentSubframe[origin];
+    return hit == null ? null : hit.$2;
   }
 }

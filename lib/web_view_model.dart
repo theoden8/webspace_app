@@ -1346,19 +1346,21 @@ class WebViewModel {
                 },
           onCameraDecision: onCameraDecision == null
               ? null
-              : (origin) => resolveCameraRequest(
+              : (origin, isTopFrame) => resolveCameraRequest(
                     origin,
                     resolver: onCameraDecision,
                     isActive: isActive,
+                    isTopFrame: isTopFrame,
                     saveFunc: saveFunc,
                   ),
           currentCameraMode: () => effectiveCameraMode,
           onMicrophoneDecision: onMicrophoneDecision == null
               ? null
-              : (origin) => resolveMicrophoneRequest(
+              : (origin, isTopFrame) => resolveMicrophoneRequest(
                     origin,
                     resolver: onMicrophoneDecision,
                     isActive: isActive,
+                    isTopFrame: isTopFrame,
                     saveFunc: saveFunc,
                   ),
           currentMicrophoneMode: () => effectiveMicrophoneMode,
@@ -1860,11 +1862,13 @@ class WebViewModel {
     String origin, {
     required Future<CameraDecision> Function(String, CameraAccessMode) resolver,
     required bool Function()? isActive,
+    required bool isTopFrame,
     required Function saveFunc,
   }) =>
       _cameraEngine.decide(
         origin: origin,
         isSiteActive: () => isActive?.call() ?? true,
+        isTopFrame: isTopFrame,
         // Archive-tier is folded into effectiveCameraMode.
         effectiveMode: effectiveCameraMode,
         currentSource: () => virtualCameraSource,
@@ -1907,11 +1911,13 @@ class WebViewModel {
     required Future<MicrophoneDecision> Function(String, MicrophoneAccessMode)
         resolver,
     required bool Function()? isActive,
+    required bool isTopFrame,
     required Function saveFunc,
   }) =>
       _microphoneEngine.decide(
         origin: origin,
         isSiteActive: () => isActive?.call() ?? true,
+        isTopFrame: isTopFrame,
         // Archive-tier is folded into effectiveMicrophoneMode.
         effectiveMode: effectiveMicrophoneMode,
         currentSource: () => virtualMicrophoneSource,

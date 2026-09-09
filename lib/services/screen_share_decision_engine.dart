@@ -42,6 +42,9 @@ class ScreenShareDecisionEngine {
       _engine.decide(
         origin: origin,
         isSiteActive: isSiteActive,
+        // A subframe never reaches this engine: the shim is injected
+        // forMainFrameOnly:true and the handler denies one outright (SHARE-005).
+        isTopFrame: true,
         denied: () => const ScreenShareDecision.block(),
         effectiveMode: effectiveMode,
         settled: (mode, source) {

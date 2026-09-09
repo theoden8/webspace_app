@@ -57,6 +57,7 @@ void main() {
           'https://bank.example',
           resolver: (_, _) async => fail('a background site must not prompt'),
           isActive: () => false,
+          isTopFrame: true,
           saveFunc: () => saves++,
         );
         expect(d.mode, CameraAccessMode.block, reason: 'stored mode $mode');
@@ -72,6 +73,7 @@ void main() {
         'https://bank.example',
         resolver: (_, _) async => const CameraDecision(CameraAccessMode.real),
         isActive: () => true,
+        isTopFrame: true,
         saveFunc: () => saves++,
       );
       expect(d.mode, CameraAccessMode.real);
@@ -85,6 +87,7 @@ void main() {
         'https://bank.example',
         resolver: (_, _) async => fail('a settled mode must not prompt'),
         isActive: null,
+        isTopFrame: true,
         saveFunc: () {},
       );
       expect(d.mode, CameraAccessMode.real);
@@ -96,6 +99,7 @@ void main() {
         'https://bank.example',
         resolver: (_, _) async => fail('an archive site must not prompt'),
         isActive: () => true,
+        isTopFrame: true,
         saveFunc: () {},
       );
       expect(d.mode, CameraAccessMode.block);
@@ -113,6 +117,7 @@ void main() {
           'https://meet.example',
           resolver: (_, _) async => fail('a background site must not prompt'),
           isActive: () => false,
+          isTopFrame: true,
           saveFunc: () => saves++,
         );
         expect(d.mode, MicrophoneAccessMode.block, reason: 'stored mode $mode');
@@ -130,6 +135,7 @@ void main() {
         resolver: (_, _) async =>
             const MicrophoneDecision(MicrophoneAccessMode.virtual, _micSrc),
         isActive: () => true,
+        isTopFrame: true,
         saveFunc: () => saves++,
       );
       expect(d.mode, MicrophoneAccessMode.virtual);
@@ -145,6 +151,7 @@ void main() {
         'https://meet.example',
         resolver: (_, _) async => fail('a settled mode must not prompt'),
         isActive: () => true,
+        isTopFrame: true,
         saveFunc: () => saves++,
       );
       expect(d.mode, MicrophoneAccessMode.real);
@@ -162,6 +169,7 @@ void main() {
         'https://meet.example',
         resolver: (_, _) async => fail('a background site must not prompt'),
         isActive: () => false,
+        isTopFrame: true,
         saveFunc: () {},
       );
       expect(d.mode, MicrophoneAccessMode.block);
@@ -174,6 +182,7 @@ void main() {
         'https://meet.example',
         resolver: (_, _) async => fail('an archive site must not prompt'),
         isActive: () => true,
+        isTopFrame: true,
         saveFunc: () {},
       );
       expect(d.mode, MicrophoneAccessMode.block);
@@ -187,6 +196,7 @@ void main() {
         'https://meet.example',
         resolver: (_, _) async => fail('a settled mode must not prompt'),
         isActive: null,
+        isTopFrame: true,
         saveFunc: () {},
       );
       expect(d.mode, MicrophoneAccessMode.virtual);
@@ -199,6 +209,7 @@ void main() {
         'https://meet.example',
         resolver: (_, _) async => fail('an archive site must not prompt'),
         isActive: () => true,
+        isTopFrame: true,
         saveFunc: () {},
       );
       expect(d.mode, MicrophoneAccessMode.block);
@@ -216,6 +227,7 @@ void main() {
         'https://meet.example',
         resolver: (_, _) async => fail('a settled mode must not prompt'),
         isActive: () => active,
+        isTopFrame: true,
         saveFunc: () {},
       );
       expect(first.mode, MicrophoneAccessMode.virtual);
@@ -224,6 +236,7 @@ void main() {
         'https://meet.example',
         resolver: (_, _) async => fail('a background site must not prompt'),
         isActive: () => active,
+        isTopFrame: true,
         saveFunc: () {},
       );
       expect(second.mode, MicrophoneAccessMode.block);

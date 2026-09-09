@@ -25,9 +25,11 @@ class _Host {
 
   _Host({this.mode = CameraAccessMode.ask, this.source, this.active = true});
 
-  Future<CameraDecision> decide(String origin) => engine.decide(
+  Future<CameraDecision> decide(String origin, {bool isTopFrame = true}) =>
+      engine.decide(
         origin: origin,
         isSiteActive: () => active,
+        isTopFrame: isTopFrame,
         effectiveMode: mode,
         currentSource: () => source,
         resolve: (o, current) async {
@@ -191,6 +193,85 @@ void main() {
       final second = await host.decide('https://bank.example');
       expect(second.mode, CameraAccessMode.block);
       expect(host.resolveCalls, 1);
+    });
+
+    // --- frame scoping (CAM-014) ---------------------------------------
+    //
+    // The shim is injected forMainFrameOnly:false so a QR scanner in a
+    // cross-origin frame is covered. That also means an ad frame calls the
+    // same handler, and the popup the user answered named the top document.
+    // A settled `real` grant is therefore the top document's; a subframe is
+    // asked separately, under its own origin.
+
+    test('a subframe does not inherit a settled real grant', () async {
+      final host = _Host(mode: CameraAccessMode.real);
+      host.onResolve = (_, __) => const CameraDecision(CameraAccessMode.block);
+      final d = await host.decide('https://ads.example', isTopFrame: false);
+      expect(d.mode, CameraAccessMode.block);
+      expect(host.resolveCalls, 1, reason: 'the frame gets its own popup');
+      expect(host.mode, CameraAccessMode.real,
+          reason: "the site's own grant is left alone");
+    });
+
+    test('a subframe answer is never written back to the site', () async {
+      final host = _Host(mode: CameraAccessMode.ask);
+      host.onResolve = (_, __) => const CameraDecision(CameraAccessMode.real);
+      final d = await host.decide('https://ads.example', isTopFrame: false);
+      expect(d.mode, CameraAccessMode.real, reason: 'the frame may be allowed');
+      expect(host.mode, CameraAccessMode.ask,
+          reason: 'but one frame cannot flip the whole site to real');
+      expect(host.saveCalls, 0);
+    });
+
+    test('a subframe still inherits the device-free answers', () async {
+      // Nothing is observed either way: block denies, and virtual serves the
+      // file the user picked. Prompting again for those would only train the
+      // user to dismiss popups.
+      for (final mode in [CameraAccessMode.block, CameraAccessMode.virtual]) {
+        final host = _Host(mode: mode, source: _src);
+        final d = await host.decide('https://ads.example', isTopFrame: false);
+        expect(d.mode, mode);
+        expect(host.resolveCalls, 0, reason: 'stored mode $mode');
+      }
+    });
+
+    test('the platform follow-up reuses the frame answer, not a new popup',
+        () async {
+      // Allowing a frame makes the shim call the real getUserMedia, and the
+      // platform permission request that follows lands here again for the same
+      // origin. Asking twice for one decision trains the user to stop reading.
+      final host = _Host(mode: CameraAccessMode.ask);
+      host.onResolve = (_, __) => const CameraDecision(CameraAccessMode.real);
+      final first = await host.decide('https://ads.example', isTopFrame: false);
+      final second = await host.decide('https://ads.example', isTopFrame: false);
+      expect(first.mode, CameraAccessMode.real);
+      expect(second.mode, CameraAccessMode.real);
+      expect(host.resolveCalls, 1, reason: 'one question, one popup');
+      expect(host.mode, CameraAccessMode.ask,
+          reason: 'still never written back to the site');
+    });
+
+    test('the grace window does not leak to another frame', () async {
+      final host = _Host(mode: CameraAccessMode.ask);
+      host.onResolve = (_, __) => const CameraDecision(CameraAccessMode.real);
+      await host.decide('https://ads.example', isTopFrame: false);
+      host.onResolve = (_, __) => const CameraDecision(CameraAccessMode.block);
+      final other = await host.decide('https://other.example', isTopFrame: false);
+      expect(other.mode, CameraAccessMode.block);
+      expect(host.resolveCalls, 2, reason: 'a different frame is a new question');
+    });
+
+    test('a subframe does not ride the top document\'s popup', () async {
+      // One engine serves every frame, and a burst coalesces onto one popup.
+      // Two different frames asking at once are two questions, not one.
+      final host = _Host(mode: CameraAccessMode.ask);
+      host.gate = Completer<CameraDecision>();
+      final top = host.decide('https://bank.example');
+      final frame = host.decide('https://ads.example', isTopFrame: false);
+      host.gate!.complete(const CameraDecision(CameraAccessMode.real));
+      await top;
+      await frame;
+      expect(host.resolveCalls, 2);
     });
   });
 }
