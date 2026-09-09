@@ -207,11 +207,11 @@ void main() {
     await t.pumpAndSettle();
 
     expect(find.text(_obfs4), findsOneWidget);
-    expect(find.textContaining('Added 1 bridges'), findsOneWidget);
+    expect(find.textContaining('Bridges added: 1'), findsOneWidget);
     expect(backing.store['tor_bridges'], contains('192.0.2.10:9443'));
   });
 
-  testWidgets('snowflake says it needs no line rather than looking unset',
+  testWidgets('a built-in-line transport says so rather than looking unset',
       (t) async {
     final backing = _FakeStore();
     backing.store['tor_bridges'] = jsonEncode({
@@ -224,7 +224,7 @@ void main() {
     )));
     await t.pumpAndSettle();
 
-    expect(find.textContaining('needs no bridge line'), findsOneWidget);
+    expect(find.textContaining('uses a built-in bridge'), findsOneWidget);
     expect(find.text('No bridge lines added'), findsNothing,
         reason: 'an empty list is correct for snowflake, not a missing step');
   });
@@ -259,6 +259,30 @@ void main() {
     expect(find.text('Transport'), findsOneWidget);
     expect(find.byType(TextField), findsOneWidget);
     expect(find.text('Get bridges automatically'), findsOneWidget);
+  });
+
+  testWidgets('the fetch button is absent where BridgeDB serves nothing',
+      (t) async {
+    // Asking Moat for snowflake or meek_lite is an HTTP 400, not an empty
+    // answer: they are not allocated per user. Offering the button there
+    // offers a request that cannot succeed.
+    for (final transport in ['snowflake', 'meek_lite']) {
+      final backing = _FakeStore();
+      backing.store['tor_bridges'] = jsonEncode({
+        'enabled': true,
+        'transport': transport,
+        'lines': <String>[],
+      });
+      await t.pumpWidget(host(TorBridgeSettingsScreen(
+        storage: TorBridgeSecureStorage(secureStorage: backing),
+      )));
+      await t.pumpAndSettle();
+
+      expect(find.text('Get bridges automatically'), findsNothing,
+          reason: transport);
+      expect(find.textContaining('uses a built-in bridge'), findsOneWidget,
+          reason: '$transport still has something to dial');
+    }
   });
 
   group('message mapping', () {

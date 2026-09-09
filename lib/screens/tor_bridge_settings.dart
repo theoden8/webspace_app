@@ -303,8 +303,15 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
                         )),
                   const Divider(),
                   _linesSection(loc, theme),
-                  const Divider(),
-                  _fetchSection(loc, theme),
+                  // Only where BridgeDB actually hands bridges out.
+                  // Snowflake and meek_lite answer the fetch with an HTTP
+                  // 400, so offering the button there offers a request that
+                  // cannot succeed — and neither needs it, since the app
+                  // already carries their line.
+                  if (_config.transport.moatDistributes) ...[
+                    const Divider(),
+                    _fetchSection(loc, theme),
+                  ],
                 ]
                 // Turning bridges off while tor is up still needs a restart
                 // to take effect, so that notice outlives the section it
@@ -358,10 +365,11 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: Spacing.lg),
             child: Text(
-              // Snowflake carries its own rendezvous defaults, so an empty
-              // list is correct there rather than a missing step.
+              // Snowflake and meek are not allocated per user; the app
+              // carries their published line, so an empty list is correct
+              // there rather than a missing step.
               _config.transport.worksWithoutBridgeLine
-                  ? loc.torBridgesSnowflakeNeedsNone
+                  ? loc.torBridgesBuiltInLine
                   : loc.torBridgesNoLines,
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
@@ -370,8 +378,13 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
         for (final line in lines)
           ListTile(
             dense: true,
+            // A bridge line runs past three lines of a phone width, and a
+            // hard clip makes a correct line look corrupted. The user needs
+            // to tell two stored bridges apart, not re-read the cert.
             title: Text(line.raw,
-                style: theme.textTheme.bodySmall, maxLines: 3),
+                style: theme.textTheme.bodySmall,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis),
             trailing: IconButton(
               tooltip: loc.torBridgesRemove,
               icon: const Icon(Icons.delete_outline),
@@ -391,6 +404,11 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
                   decoration: InputDecoration(
                     labelText: loc.torBridgesPasteLabel,
                     errorText: _pasteError,
+                    // Every paste error names which half of the line is
+                    // wrong and what to do about it, and the default of one
+                    // line cuts that off mid-sentence — the remedy is the
+                    // half that gets lost.
+                    errorMaxLines: 5,
                     border: const OutlineInputBorder(),
                   ),
                   onSubmitted: (_) {

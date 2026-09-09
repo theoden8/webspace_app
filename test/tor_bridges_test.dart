@@ -97,7 +97,7 @@ void main() {
       expect(r.isOk, isTrue);
       final bare = parseTorBridgeLine('snowflake');
       expect(bare.isOk, isTrue,
-          reason: 'its rendezvous defaults are compiled in');
+          reason: 'the app supplies the published line for it');
     });
   });
 
@@ -172,6 +172,31 @@ void main() {
       final opts = torBridgeOptions(cfg, transportPort: 47000);
       expect(opts, contains(('UseBridges', '1')));
       expect(opts, contains(('Bridge', kBuiltInSnowflakeBridge)));
+    });
+
+    test('meek with no lines falls back to its built-in bridge', () {
+      const cfg = TorBridgeConfig(
+        enabled: true,
+        transport: TorTransport.meekLite,
+      );
+      expect(cfg.isUsable, isTrue);
+      final opts = torBridgeOptions(cfg, transportPort: 47000);
+      expect(opts, contains(('Bridge', kBuiltInMeekBridge)));
+    });
+
+    test('BridgeDB only distributes obfs4 and webtunnel', () {
+      // Verified against the live service: snowflake and meek_lite answer
+      // /moat/fetch with 400 "Not valid request" rather than an empty set.
+      expect(TorTransport.obfs4.moatDistributes, isTrue);
+      expect(TorTransport.webtunnel.moatDistributes, isTrue);
+      expect(TorTransport.snowflake.moatDistributes, isFalse);
+      expect(TorTransport.meekLite.moatDistributes, isFalse);
+      // The two Moat will not serve are exactly the two the app already
+      // carries a line for, so neither is left without a route.
+      for (final t in TorTransport.values) {
+        expect(t.moatDistributes || t.builtInLine != null, isTrue,
+            reason: '${t.wireName} has no way to obtain a bridge');
+      }
     });
 
     test('the built-in snowflake line carries its own rendezvous', () {

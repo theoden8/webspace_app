@@ -277,7 +277,7 @@ void main() {
         _errored('bootstrap stalled',
             reason: 'CONNECTREFUSED', tag: 'conn_dir', pct: 10),
         'Tor appears to be blocked',
-        'bridges',
+        'Bridges route around',
       ),
       'clock_skew': (
         _errored('Clock skew of 3600 seconds detected; '
@@ -366,7 +366,7 @@ void main() {
             reason: 'CONNECTREFUSED', tag: 'conn_dir', pct: 10),
         () {
           expect(find.text('Tor appears to be blocked'), findsOneWidget);
-          expect(find.textContaining('bridges'), findsOneWidget);
+          expect(find.textContaining('Bridges route around'), findsOneWidget);
           expect(find.text('Retry'), findsOneWidget);
         },
         size: const Size(430, 430),

@@ -41,11 +41,31 @@ enum TorTransport {
     return null;
   }
 
+  /// Whether BridgeDB hands out bridges for this transport over Moat.
+  ///
+  /// obfs4 and webtunnel only. Asking for snowflake or meek_lite is not an
+  /// empty answer but an HTTP 400 "Not valid request" — they are not
+  /// allocated per user at all, they use one published line each. Offering
+  /// the fetch button for them would offer a request that cannot succeed.
+  bool get moatDistributes =>
+      this == TorTransport.obfs4 || this == TorTransport.webtunnel;
+
+  /// The published line to use when the user supplied none, or null when
+  /// this transport needs one of their own.
+  ///
+  /// Snowflake and meek_lite are the two that are not allocated per user:
+  /// there is one public bridge for each, and its parameters ride the line
+  /// as SOCKS arguments. No transport works with *no* bridge line — these
+  /// two work with a line the app already knows.
+  String? get builtInLine => switch (this) {
+        TorTransport.snowflake => kBuiltInSnowflakeBridge,
+        TorTransport.meekLite => kBuiltInMeekBridge,
+        _ => null,
+      };
+
   /// Whether the user can leave the bridge-line list empty for this
-  /// transport. True only for snowflake, and only because
-  /// [kBuiltInSnowflakeBridge] stands in — no transport works with no
-  /// bridge line at all.
-  bool get worksWithoutBridgeLine => this == TorTransport.snowflake;
+  /// transport, because [builtInLine] stands in.
+  bool get worksWithoutBridgeLine => builtInLine != null;
 }
 
 /// The snowflake bridge used when the user supplied none.
@@ -67,6 +87,16 @@ const String kBuiltInSnowflakeBridge =
     'stun:stun.telnyx.com:3478,stun:stun.hot-chilli.net:3478,'
     'stun:stun.fitauto.ru:3478,stun:stun.m-online.net:3478 '
     'utls-imitate=hellorandomizedalpn';
+
+/// The meek bridge used when the user supplied none.
+///
+/// Same reasoning as the snowflake line: meek is domain-fronted, its front
+/// and CDN URL ride the line as SOCKS arguments, and BridgeDB does not
+/// allocate meek bridges per user. This is the published line. Note it is
+/// no longer the old meek-azure one — that fronting path is dead.
+const String kBuiltInMeekBridge =
+    'meek_lite 192.0.2.20:80 url=https://1603026938.rsc.cdn77.org '
+    'front=www.phpmyadmin.net utls=HelloRandomizedALPN';
 
 /// One parsed bridge line.
 ///
@@ -286,8 +316,9 @@ List<(String, String)> torBridgeOptions(
   for (final line in matching) {
     out.add(('Bridge', line.raw));
   }
-  if (matching.isEmpty && t == TorTransport.snowflake) {
-    out.add(('Bridge', kBuiltInSnowflakeBridge));
+  final builtIn = t.builtInLine;
+  if (matching.isEmpty && builtIn != null) {
+    out.add(('Bridge', builtIn));
   }
   return out;
 }

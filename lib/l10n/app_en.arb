@@ -3919,7 +3919,7 @@
   "@torFailCensoredTitle": {
     "description": "Tor failure heading: the network is filtering Tor."
   },
-  "torFailCensoredBody": "This network answers, but not for Tor: the relays it needs are unreachable. Getting past this needs bridges, which this version does not offer yet. A different network should work.",
+  "torFailCensoredBody": "This network answers, but not for Tor: the relays it needs are unreachable. Bridges route around a block like this; a different network also works.",
   "@torFailCensoredBody": {
     "description": "Tor failure explanation for a censored or filtered network."
   },
@@ -3991,9 +3991,9 @@
   "@torBridgesNoLines": {
     "description": "Shown when the user has configured no bridges yet."
   },
-  "torBridgesSnowflakeNeedsNone": "Snowflake needs no bridge line; it finds its own way in.",
-  "@torBridgesSnowflakeNeedsNone": {
-    "description": "Explains why the bridge-line list can stay empty for the snowflake transport."
+  "torBridgesBuiltInLine": "This transport uses a built-in bridge, so there is no need to add one.",
+  "@torBridgesBuiltInLine": {
+    "description": "Shown in place of the bridge-line list for a transport the app already carries a published bridge line for (snowflake, meek_lite), so an empty list is correct rather than a missing step."
   },
   "torBridgesPasteLabel": "Paste a bridge line",
   "@torBridgesPasteLabel": {
@@ -4019,7 +4019,7 @@
   "@torBridgesFetching": {
     "description": "Progress text while bridges are being fetched."
   },
-  "torBridgesAdded": "Added {count} bridges",
+  "torBridgesAdded": "Bridges added: {count}",
   "@torBridgesAdded": {
     "description": "Confirmation after fetching. {count} is how many were added.",
     "placeholders": {
