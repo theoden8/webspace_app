@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:webspace/services/host_resolution.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/media_session_service.dart';
 import 'package:webspace/services/outbound_http.dart';
@@ -277,11 +278,13 @@ void main() {
       fake = _RecordingOutbound();
       outboundHttp = fake;
       GlobalOutboundProxy.resetForTest();
+      _stubLookup();
     });
 
     tearDown(() {
       resetOutboundHttp();
       GlobalOutboundProxy.resetForTest();
+      resetHostLookup();
     });
 
     test('a non-http artwork URL is dropped without a fetch', () async {
@@ -402,6 +405,29 @@ void main() {
         );
       },
     );
+
+    // The artwork URL is page-supplied metadata, so the literal check above is
+    // the same half-measure it was on the user-script bridge: a name pointing
+    // into the LAN reads as an ordinary CDN. Nothing comes back to the page
+    // here, but the GET still lands on whatever answers.
+    test('an artwork host that resolves into the LAN never reaches it',
+        () async {
+      _stubLookup({'art.evil.example': const ['192.168.1.5']});
+      fake.responder = (_) => http.Response.bytes(<int>[1, 2, 3, 4], 200);
+
+      await reportPlaying('a', artworkUrl: 'http://art.evil.example/art.png');
+
+      expect((controlCalls().single.arguments as Map)['artwork'], isNull);
+      expect(fake.queries, isEmpty);
+    });
+
+    test('an artwork host on a routable address is still fetched', () async {
+      fake.responder = (_) => http.Response.bytes(<int>[1, 2, 3, 4], 200);
+
+      await reportPlaying('a', artworkUrl: 'https://art.example/art.png');
+
+      expect((controlCalls().single.arguments as Map)['artwork'], isNotNull);
+    });
   });
 
   test('a raised-but-unposted notification is logged as a warning', () async {
@@ -600,4 +626,11 @@ void main() {
     MediaSessionService.debugEnabledOverride = true;
     expect(service.isSupported, isTrue);
   });
+}
+
+/// Answers the artwork fetch's resolving guard without touching DNS: routable
+/// unless a host is named otherwise. Without it these tests would depend on
+/// the sandbox resolving `*.example`, which it does not.
+void _stubLookup([Map<String, List<String>> table = const {}]) {
+  hostLookup = (host) async => table[host] ?? const ['93.184.216.34'];
 }

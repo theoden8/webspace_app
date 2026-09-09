@@ -15,6 +15,8 @@
 
 import 'package:flutter/foundation.dart';
 
+import 'package:webspace/settings/proxy.dart';
+
 import 'package:webspace/services/host_resolution_web.dart'
     if (dart.library.io) 'package:webspace/services/host_resolution_io.dart';
 
@@ -92,9 +94,10 @@ enum HostRangeVerdict {
   /// resolver should refuse: the connection would fail anyway.
   unresolvable,
 
-  /// This build has no resolver (web). Says nothing about [host]; a caller
-  /// must not read it as either verdict.
-  noResolver,
+  /// Nothing here resolved it — this build has no resolver (web), or the
+  /// destination is resolved at the far end of a proxy. Says nothing about
+  /// the host; a caller must not read it as either verdict.
+  notResolvedHere,
 }
 
 /// Resolve [host] and judge the addresses behind it.
@@ -110,7 +113,7 @@ Future<HostRangeVerdict> classifyResolvedHost(String host) async {
   } catch (_) {
     return HostRangeVerdict.unresolvable;
   }
-  if (addresses == null) return HostRangeVerdict.noResolver;
+  if (addresses == null) return HostRangeVerdict.notResolvedHere;
   if (addresses.isEmpty) return HostRangeVerdict.unresolvable;
   for (final a in addresses) {
     if (isPrivateOrLoopbackHost(a.toLowerCase())) {
@@ -118,4 +121,27 @@ Future<HostRangeVerdict> classifyResolvedHost(String host) async {
     }
   }
   return HostRangeVerdict.public;
+}
+
+/// Judge [url] for an outbound call whose destination page script can choose,
+/// given the [effective] proxy that will carry it.
+///
+/// Returns [HostRangeVerdict.notResolvedHere] — say nothing, allow — under any
+/// proxy. SOCKS5 and Tor resolve the destination at the far end by design (the
+/// local resolver never sees the name), and an HTTP proxy is handed the name in
+/// the request line. In all three, the addresses this device would resolve
+/// describe a network the request never traverses, and a Tor user may have no
+/// local resolver to consult in the first place.
+///
+/// Residual: an answer can change between this lookup and the client's own.
+/// Closing that needs the connection pinned to the address checked, which the
+/// `http` client does not expose.
+Future<HostRangeVerdict> classifyOutboundTarget(
+  String url,
+  UserProxySettings effective,
+) async {
+  if (effective.type != ProxyType.DEFAULT) return HostRangeVerdict.notResolvedHere;
+  final host = Uri.tryParse(url)?.host.toLowerCase();
+  if (host == null || host.isEmpty) return HostRangeVerdict.unresolvable;
+  return classifyResolvedHost(host);
 }

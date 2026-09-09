@@ -76,36 +76,24 @@ Future<http.Response?> _getWithCheckedRedirects(
 /// ranges, so `http://evil.example/` whose A record is `127.0.0.1` is refused
 /// instead of handing the page whatever listens on loopback (US-DR-007).
 ///
-/// Skipped under a proxy. SOCKS5 and Tor resolve the destination at the far
-/// end by design (the local resolver never sees the name), and an HTTP proxy
-/// is handed the name in the request line — in all three the addresses this
-/// device would resolve describe a network the request never traverses, and a
-/// Tor user has no local resolver to consult in the first place.
-///
 /// A name that does not resolve is refused, which only turns a connect error
-/// into an earlier one. A build with no resolver at all (web) is allowed
-/// through: it has no webview, so no page JS to drive this.
-///
-/// Residual: an answer can change between this lookup and the client's own.
-/// Closing that needs the connection pinned to the address checked, which the
-/// `http` client does not expose.
+/// into an earlier one. Where nothing here did the resolving — a proxy, or a
+/// build with no resolver — the call goes through; see [classifyOutboundTarget]
+/// for why, and for what this does not close.
 Future<bool> _resolvedTargetAllowed(
   String url,
   UserProxySettings effective,
 ) async {
-  if (effective.type != ProxyType.DEFAULT) return true;
-  final host = Uri.tryParse(url)?.host.toLowerCase();
-  if (host == null || host.isEmpty) return false;
-  final verdict = await classifyResolvedHost(host);
+  final verdict = await classifyOutboundTarget(url, effective);
   if (verdict == HostRangeVerdict.public ||
-      verdict == HostRangeVerdict.noResolver) {
+      verdict == HostRangeVerdict.notResolvedHere) {
     return true;
   }
   LogService.instance.log(
     'UserScript',
     verdict == HostRangeVerdict.private
-        ? 'Blocked $host: resolves into a private range'
-        : 'Blocked $host: does not resolve',
+        ? 'Blocked $url: resolves into a private range'
+        : 'Blocked $url: does not resolve',
     sensitivity: LogSensitivity.sensitive,
   );
   return false;

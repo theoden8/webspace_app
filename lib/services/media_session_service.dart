@@ -332,11 +332,24 @@ class MediaSessionService {
       return null;
     }
     if (isPrivateOrLoopbackHost(uri.host.toLowerCase())) return null;
-    final result = outboundHttp.clientFor(
-      resolveEffectiveProxy(
-        proxy ?? UserProxySettings(type: ProxyType.DEFAULT),
-      ),
+    final effective = resolveEffectiveProxy(
+      proxy ?? UserProxySettings(type: ProxyType.DEFAULT),
     );
+    // The artwork URL comes from the page's own media-session metadata, so a
+    // name pointing into the LAN turns this into a blind request the site
+    // chose. Nothing comes back to the page here, but a GET still lands.
+    final verdict = await classifyOutboundTarget(url, effective);
+    if (verdict != HostRangeVerdict.public &&
+        verdict != HostRangeVerdict.notResolvedHere) {
+      LogService.instance.log(
+        'MediaSession',
+        'Artwork fetch skipped: $url does not resolve to a routable address',
+        level: LogLevel.warning,
+        sensitivity: LogSensitivity.sensitive,
+      );
+      return null;
+    }
+    final result = outboundHttp.clientFor(effective);
     if (result is OutboundClientBlocked) {
       LogService.instance.log(
         'MediaSession',
