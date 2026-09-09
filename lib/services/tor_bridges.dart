@@ -19,7 +19,8 @@ enum TorTransport {
   /// Lyrebird's obfs4. The default: needs a bridge line, hardest to block.
   obfs4('obfs4'),
 
-  /// Snowflake. Carries its own defaults, so it works with no bridge line.
+  /// Snowflake. The app carries a built-in line, so the user need not
+  /// supply one.
   snowflake('snowflake'),
 
   /// Lyrebird's meek_lite, domain-fronted. Slow; a last resort.
@@ -40,11 +41,32 @@ enum TorTransport {
     return null;
   }
 
-  /// Whether tor can use this transport with no user-supplied bridge line.
-  /// Snowflake's rendezvous defaults are compiled in; the others need a
-  /// specific bridge to dial.
+  /// Whether the user can leave the bridge-line list empty for this
+  /// transport. True only for snowflake, and only because
+  /// [kBuiltInSnowflakeBridge] stands in — no transport works with no
+  /// bridge line at all.
   bool get worksWithoutBridgeLine => this == TorTransport.snowflake;
 }
+
+/// The snowflake bridge used when the user supplied none.
+///
+/// Snowflake's rendezvous parameters — broker URL, domain fronts, STUN
+/// servers — ride the bridge line as SOCKS arguments, and IPtProxy's
+/// `Controller` defaults every one of them to the empty string. So
+/// `UseBridges 1` with a snowflake `ClientTransportPlugin` and no `Bridge`
+/// line does not fall back to a working default; it leaves tor with
+/// nothing to dial. This is the Tor Project's published built-in line, the
+/// one Tor Browser ships.
+const String kBuiltInSnowflakeBridge =
+    'snowflake 192.0.2.3:80 2B280B23E1107BB62ABFC40DDCC8824814F80A72 '
+    'fingerprint=2B280B23E1107BB62ABFC40DDCC8824814F80A72 '
+    'url=https://1098762253.rsc.cdn77.org/ '
+    'fronts=app.datapacket.com,www.datapacket.com '
+    'ice=stun:stun.epygi.com:3478,stun:stun.uls.co.za:3478,'
+    'stun:stun.voipgate.com:3478,stun:stun.mixvoip.com:3478,'
+    'stun:stun.telnyx.com:3478,stun:stun.hot-chilli.net:3478,'
+    'stun:stun.fitauto.ru:3478,stun:stun.m-online.net:3478 '
+    'utls-imitate=hellorandomizedalpn';
 
 /// One parsed bridge line.
 ///
@@ -260,8 +282,12 @@ List<(String, String)> torBridgeOptions(
   // Only the lines matching the selected transport: tor rejects a Bridge
   // line whose transport has no ClientTransportPlugin, and shipping the
   // others would fail the whole configuration rather than be ignored.
-  for (final line in config.lines.where((l) => l.transport == t)) {
+  final matching = config.lines.where((l) => l.transport == t).toList();
+  for (final line in matching) {
     out.add(('Bridge', line.raw));
+  }
+  if (matching.isEmpty && t == TorTransport.snowflake) {
+    out.add(('Bridge', kBuiltInSnowflakeBridge));
   }
   return out;
 }

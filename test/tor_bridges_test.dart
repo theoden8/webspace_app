@@ -160,7 +160,10 @@ void main() {
       expect(torBridgeOptions(wrongTransport, transportPort: 47000), isEmpty);
     });
 
-    test('snowflake is usable with no lines at all', () {
+    test('snowflake with no lines falls back to the built-in bridge', () {
+      // IPtProxy's Controller defaults every snowflake rendezvous field to
+      // the empty string, so UseBridges with no Bridge line leaves tor with
+      // nothing to dial rather than reaching a working default.
       const cfg = TorBridgeConfig(
         enabled: true,
         transport: TorTransport.snowflake,
@@ -168,7 +171,30 @@ void main() {
       expect(cfg.isUsable, isTrue);
       final opts = torBridgeOptions(cfg, transportPort: 47000);
       expect(opts, contains(('UseBridges', '1')));
-      expect(opts.any((o) => o.$1 == 'Bridge'), isFalse);
+      expect(opts, contains(('Bridge', kBuiltInSnowflakeBridge)));
+    });
+
+    test('the built-in snowflake line carries its own rendezvous', () {
+      // These ride the line as SOCKS args; without them the transport has
+      // no broker to reach and no way to punch through.
+      final parsed = parseTorBridgeLine(kBuiltInSnowflakeBridge);
+      expect(parsed.line?.transport, TorTransport.snowflake);
+      for (final arg in ['url=', 'fronts=', 'ice=']) {
+        expect(kBuiltInSnowflakeBridge, contains(arg));
+      }
+    });
+
+    test('a user snowflake line replaces the built-in one', () {
+      final cfg = TorBridgeConfig(
+        enabled: true,
+        transport: TorTransport.snowflake,
+        lines: [line('snowflake 192.0.2.9:80 ABCDEF url=https://example.test/')],
+      );
+      final bridges = torBridgeOptions(cfg, transportPort: 47000)
+          .where((o) => o.$1 == 'Bridge')
+          .toList();
+      expect(bridges.length, 1);
+      expect(bridges.single.$2, contains('192.0.2.9'));
     });
 
     test('produces nothing when the transport never got a port', () {

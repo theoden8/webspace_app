@@ -64,6 +64,14 @@ target 'Runner' do
   # SOCKS5 auth, so Android could not do per-site circuit isolation and
   # keeps its manual Orbot row instead.
   pod 'Tor', '409.11.2'
+  # Pluggable transports for bridges (TOR-016): Lyrebird (obfs4, meek_lite,
+  # webtunnel) and Snowflake. Exact version for the same reason as Tor.
+  #
+  # Unlike Tor, this pod has no prebuilt binary: its prepare_command runs
+  # build.sh, which clones dnstt at a pinned ref and cross-compiles the Go
+  # sources with gomobile. So `pod install` needs Go 1.24+ and network
+  # access, and the Apple build is minutes longer.
+  pod 'IPtProxy', '5.5.1'
 
   target 'RunnerTests' do
     inherit! :search_paths

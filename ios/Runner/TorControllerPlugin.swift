@@ -1,5 +1,6 @@
 import Flutter
 import Foundation
+import IPtProxy
 import Tor
 
 /// iOS bridge for [`TorService`](../../lib/services/tor_service.dart).
@@ -30,6 +31,16 @@ class TorControllerPlugin: NSObject {
   /// path behind it for up to a second and a half.
   private let attachQueue = DispatchQueue(label: "org.codeberg.theoden8.webspace.tor.attach")
 
+  /// Sole owner of `ptController` and `startedTransports`, and the only
+  /// place IPtProxy's blocking Go calls run. Nothing outside
+  /// `startTransport`/`stopTransports` reads or writes that pair, so the
+  /// pluggable-transport state shares nothing with `stateQueue`'s — the
+  /// none-shared half of BUG-007 rather than a second lock over the same
+  /// fields.
+  private let ptQueue = DispatchQueue(label: "org.codeberg.theoden8.webspace.tor.pt")
+  private var ptController: IPtProxyController?
+  private var startedTransports: Set<String> = []
+
   private var thread: TorThread?
   private var controller: TorController?
   private var configuration: TorConfiguration?
@@ -38,6 +49,14 @@ class TorControllerPlugin: NSObject {
 
   /// Last status published, so a late `status()` call and a fresh event
   /// subscription agree with each other.
+  /// torrc options queued by Dart for the next start, as flat pairs.
+  ///
+  /// Not a dictionary: torrc allows a key more than once and `Bridge` is
+  /// repeated per line, so keying by name would silently keep only the last
+  /// bridge. They are applied at start rather than by SETCONF because
+  /// bridges have to be in force before bootstrap begins.
+  private var pendingTorrcOptions: [(String, String)] = []
+
   private var state: String = "stopped"
   private var bootstrapPct: Int = 0
   private var socksHost: String?
@@ -83,6 +102,23 @@ class TorControllerPlugin: NSObject {
     case "rebuildCircuits":
       rebuildCircuits()
       result(nil)
+    case "setTorrcOptions":
+      let args = call.arguments as? [String: Any]
+      // [[key, value], ...]. Anything that is not a two-element pair of
+      // strings is dropped rather than crashing the start path.
+      let pairs = (args?["options"] as? [[String]] ?? []).compactMap {
+        $0.count == 2 ? ($0[0], $0[1]) : nil
+      }
+      stateQueue.async { [weak self] in
+        self?.pendingTorrcOptions = pairs
+        DispatchQueue.main.async { result(nil) }
+      }
+    case "startTransport":
+      let name = (call.arguments as? [String: Any])?["transport"] as? String ?? ""
+      startTransport(name, result: result)
+    case "setExitCountry":
+      let exitNodes = (call.arguments as? [String: Any])?["exitNodes"] as? String
+      setExitCountry(exitNodes, result: result)
     default:
       result(FlutterMethodNotImplemented)
     }
@@ -124,6 +160,11 @@ class TorControllerPlugin: NSObject {
         "Log": "err file /dev/null",
         "SafeLogging": "1",
       ]
+      // Bridges go through `arguments`, not `options`: TORConfiguration
+      // compiles `options` from a dictionary, so a repeated `Bridge` key
+      // would collapse to whichever line hashed last. `arguments` is
+      // appended verbatim, which is what a repeatable torrc key needs.
+      config.arguments = self.pendingTorrcOptions.flatMap { ["--\($0.0)", $0.1] }
       self.configuration = config
 
       let thread = TorThread(configuration: config)
@@ -255,6 +296,12 @@ class TorControllerPlugin: NSObject {
   }
 
   private func stop() {
+    // Outside the stateQueue hop: the transports are owned by ptQueue and
+    // nothing on the tor teardown path reads them. A restart's stop and the
+    // startTransport that follows it land on that one serial queue in the
+    // order they were issued, which is what makes the transport come back
+    // on a fresh port rather than a stale one.
+    stopTransports()
     stateQueue.async { [weak self] in
       guard let self = self else { return }
       // Idempotent: a stop racing the idle-stop timer must not double-free
@@ -272,6 +319,125 @@ class TorControllerPlugin: NSObject {
       self.socksPort = nil
       self.starting = false
       self.publishLocked(state: "stopped", pct: 0)
+    }
+  }
+
+  // MARK: - Pluggable transports
+
+  /// Start `name` and answer with the loopback port its SOCKS listener
+  /// bound to, or 0.
+  ///
+  /// 0 rather than an error on every failure path, because Dart's contract
+  /// is "0 means no transport": the engine turns that into an empty option
+  /// list and tor comes up without bridges, which on an uncensored network
+  /// still works. Throwing here would instead abort the whole start.
+  private func startTransport(_ name: String, result: @escaping FlutterResult) {
+    guard !name.isEmpty else { result(0); return }
+    ptQueue.async { [weak self] in
+      guard let self = self else {
+        DispatchQueue.main.async { result(0) }
+        return
+      }
+      let answer: (Int) -> Void = { port in
+        DispatchQueue.main.async { result(port) }
+      }
+
+      if self.ptController == nil {
+        // Not the Tor data directory: IPtProxy writes transport state and
+        // its own log here, and pointing it at tor's would put two
+        // processes' state in one place.
+        let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+          .appendingPathComponent("PluggableTransports", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        // Logging off and the address scrubber on: the transport log would
+        // otherwise record which bridges this device dials, in the clear,
+        // in the app container.
+        self.ptController = IPtProxyController(
+          dir.path, enableLogging: false, unsafeLogging: false,
+          logLevel: "ERROR", transportEvents: nil)
+      }
+      guard let controller = self.ptController else { answer(0); return }
+
+      // Idempotent: acquire and restart both apply the bridge config, and
+      // starting a running transport throws rather than returning the port
+      // it already has.
+      if !self.startedTransports.contains(name) {
+        do {
+          // No proxy: an upstream proxy in front of the transport is a
+          // configuration this app does not offer, and snowflake and dnstt
+          // reject one outright.
+          try controller.start(name, proxy: nil)
+          self.startedTransports.insert(name)
+        } catch {
+          answer(0)
+          return
+        }
+      }
+      answer(controller.port(name))
+    }
+  }
+
+  private func stopTransports() {
+    ptQueue.async { [weak self] in
+      guard let self = self else { return }
+      for name in self.startedTransports {
+        self.ptController?.stop(name)
+      }
+      self.startedTransports.removeAll()
+    }
+  }
+
+  // MARK: - Exit country
+
+  /// Apply or clear the `ExitNodes` pin (TOR-009).
+  ///
+  /// Failure is reported to Dart rather than swallowed: the engine treats a
+  /// throw as "the pin did not land", and a pin silently not in force would
+  /// have the user believe traffic leaves from a country it does not.
+  private func setExitCountry(_ exitNodes: String?, result: @escaping FlutterResult) {
+    stateQueue.async { [weak self] in
+      guard let self = self else { result(nil); return }
+      guard let controller = self.controller, self.state == "up" else {
+        DispatchQueue.main.async {
+          result(FlutterError(
+            code: "tor_not_up",
+            message: "Tor is not connected, so the exit-country pin was not applied.",
+            details: nil))
+        }
+        return
+      }
+      let done: (Bool, Error?) -> Void = { success, error in
+        DispatchQueue.main.async {
+          if success {
+            result(nil)
+          } else {
+            result(FlutterError(
+              code: "setconf_failed",
+              message: error?.localizedDescription ?? "Tor refused the exit-country pin.",
+              details: nil))
+          }
+        }
+      }
+
+      guard let exitNodes = exitNodes, !exitNodes.isEmpty else {
+        // Clearing takes two commands: RESETCONF puts ExitNodes back to no
+        // pin at all, and StrictNodes has to be turned off separately or
+        // tor keeps enforcing an empty set.
+        controller.resetConf(forKey: "ExitNodes") { success, error in
+          guard success else { done(false, error); return }
+          controller.setConf(forKey: "StrictNodes", withValue: "0", completion: done)
+        }
+        return
+      }
+      // StrictNodes 1 alongside: without it tor treats ExitNodes as a
+      // preference and silently leaves through another country when the
+      // pinned one has no usable exit.
+      controller.setConfs(
+        [
+          ["key": "ExitNodes", "value": exitNodes],
+          ["key": "StrictNodes", "value": "1"],
+        ],
+        completion: done)
     }
   }
 

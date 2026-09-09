@@ -992,6 +992,16 @@ jobs:
           restore-keys: |
             cargo-apple-${{ runner.os }}-
 
+      # The IPtProxy pod has no prebuilt binary: its prepare_command
+      # cross-compiles the transports from Go with gomobile during `pod
+      # install`, which `flutter build ipa` runs. Pinned rather than left to
+      # whatever the runner image ships, because the pod needs 1.24+ and a
+      # runner image bump is not something this build should notice.
+      - name: Setup Go (for the IPtProxy pod's gomobile build)
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
       - name: Read Rust toolchain
         id: rust
         run: echo "channel=$(sed -n -E 's/channel = "(.*)"/\1/p' rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
