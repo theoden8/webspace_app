@@ -10,6 +10,7 @@ import 'package:webspace/main.dart' show AppThemeSettings, AccentColor;
 import 'package:webspace/screens/block_stats.dart';
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/screens/trusted_certificates.dart';
+import 'package:webspace/services/back_gesture_engine.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/developer_mode_service.dart';
@@ -918,6 +919,10 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     final backOpensMenuHint = hostIsAndroid
         ? '${loc.appSettingsBackOpensMenuHint} ${loc.appSettingsBackOpensMenuHintExit}'
         : loc.appSettingsBackOpensMenuHint;
+    final backOpensMenuOffered = backAtHistoryStartConfigurable(
+      isIOS: hostIsIOS,
+      isMacOS: hostIsMacOS,
+    );
     return PopScope(
       canPop: !_isOutboundProxyDirty(),
       onPopInvokedWithResult: (didPop, _) async {
@@ -1124,27 +1129,30 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               );
             },
           ),
-          SwitchListTile(
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.appSettingsBackOpensMenu)),
-                HintButton(
-                  title: loc.appSettingsBackOpensMenu,
-                  // The escalation to leaving the app is Android's alone
-                  // (NAV-009), so the sentence describing it stays off every
-                  // other platform.
-                  description: backOpensMenuHint,
-                ),
-              ],
+          // Apple has no back gesture the app can act on (NAV-009), so the
+          // setting is absent there rather than present and inert.
+          if (backOpensMenuOffered)
+            SwitchListTile(
+              title: Row(
+                children: [
+                  Flexible(child: Text(loc.appSettingsBackOpensMenu)),
+                  HintButton(
+                    title: loc.appSettingsBackOpensMenu,
+                    // The escalation to leaving the app is Android's alone
+                    // (NAV-009), so the sentence describing it stays off every
+                    // other platform.
+                    description: backOpensMenuHint,
+                  ),
+                ],
+              ),
+              value: _backOpensMenu,
+              onChanged: (value) {
+                setState(() {
+                  _backOpensMenu = value;
+                });
+                widget.onBackOpensMenuChanged(value);
+              },
             ),
-            value: _backOpensMenu,
-            onChanged: (value) {
-              setState(() {
-                _backOpensMenu = value;
-              });
-              widget.onBackOpensMenuChanged(value);
-            },
-          ),
           SwitchListTile(
             title: Text(loc.appSettingsStatsBar),
             subtitle: Text(loc.appSettingsStatsBarSubtitle),

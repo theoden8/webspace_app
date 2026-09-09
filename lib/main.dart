@@ -1024,11 +1024,6 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// webview surface below doesn't shift by a few pixels every time a
   /// navigation starts or ends.
   static const double _loadingBarHeight = 3.0;
-  // Width of the iOS left-edge strip the app claims back from WKWebView's
-  // own swipe when NAV-009 is on. Matches the system edge-gesture region.
-  static const double _backEdgeSwipeWidth = 24.0;
-  // Horizontal travel accumulated by that strip's drag, in logical pixels.
-  double _edgeSwipeDx = 0;
 
   bool _isBackHandling = false;
   bool _isFindVisible = false;
@@ -1087,7 +1082,12 @@ class _WebSpacePageState extends State<WebSpacePage>
   // NAV-009: what the back gesture does at the start of a site's history.
   // Off by default — the gesture only walks webview history (issue #369);
   // turning it on opens the drawer there, and again to leave the app (#431).
+  // Pinned off where the setting is not offered.
   BackAtHistoryStart _backAtHistoryStart = BackAtHistoryStart.ignore;
+  bool get _backAtHistoryStartOffered => backAtHistoryStartConfigurable(
+        isIOS: hostIsIOS,
+        isMacOS: hostIsMacOS,
+      );
   // True while the drawer showing is the one the back gesture itself opened.
   // Only that drawer escalates to leaving the app on the next gesture.
   bool _drawerOpenedByBackGesture = false;
@@ -4771,9 +4771,10 @@ class _WebSpacePageState extends State<WebSpacePage>
           prefs.getBool('tabBarButton') ?? prefs.getBool('tabBarButtonInFullscreen') ?? false;
       _tabBarButtonOnRight = prefs.getBool('tabBarButtonOnRight') ?? true;
       _fullscreenOnShortcut = prefs.getBool('fullscreenOnShortcut') ?? true;
-      _backAtHistoryStart = (prefs.getBool(kBackOpensMenuKey) ?? false)
-          ? BackAtHistoryStart.openMenu
-          : BackAtHistoryStart.ignore;
+      _backAtHistoryStart =
+          _backAtHistoryStartOffered && (prefs.getBool(kBackOpensMenuKey) ?? false)
+              ? BackAtHistoryStart.openMenu
+              : BackAtHistoryStart.ignore;
       _tabMaxWidth = prefs.getInt('tabMaxWidth') ?? 140;
       _showStatsBanner = prefs.getBool('showStatsBanner') ?? true;
       WebViewFactory.backForwardCacheEnabled =
@@ -6419,7 +6420,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           backup.globalPrefs['fullscreenOnShortcut'] as bool? ?? _fullscreenOnShortcut;
       final backOpensMenu = backup.globalPrefs[kBackOpensMenuKey] as bool?;
       if (backOpensMenu != null) {
-        _backAtHistoryStart = backOpensMenu
+        _backAtHistoryStart = backOpensMenu && _backAtHistoryStartOffered
             ? BackAtHistoryStart.openMenu
             : BackAtHistoryStart.ignore;
       }
@@ -6636,9 +6637,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     scaffoldState.openDrawer();
   }
 
-  /// Resolve one back gesture, whatever raised it: the Android system back,
-  /// a pushable route's pop, or the iOS left-edge swipe the app takes over
-  /// under NAV-009 (see [needsEdgeSwipeFallback]).
+  /// Resolve one back gesture: the Android system back button, or a pushable
+  /// route's pop.
   Future<void> _handleBackGesture() async {
     if (_isBackHandling) return;
     _isBackHandling = true;
@@ -9273,37 +9273,6 @@ class _WebSpacePageState extends State<WebSpacePage>
                       ),
                     ),
                     ),
-                    ),
-                  ),
-                // NAV-009 on iOS: WKWebView owns the left-edge swipe on the
-                // root site webview, so the gesture never reaches PopScope and
-                // the setting would do nothing. Claim a strip of that edge back
-                // and run the same policy. A horizontal drag recognizer competes
-                // in the gesture arena, so a vertical scroll started at the edge
-                // still reaches the page.
-                if (needsEdgeSwipeFallback(
-                  isIOS: hostIsIOS,
-                  webViewVisible: _currentIndex != null &&
-                      _currentIndex! < _webViewModels.length,
-                  drawerAvailable: !_kioskLocked,
-                  atHistoryStart: _backAtHistoryStart,
-                ))
-                  Positioned(
-                    left: 0,
-                    top: 0,
-                    bottom: 0,
-                    width: _backEdgeSwipeWidth,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.translucent,
-                      onHorizontalDragStart: (_) => _edgeSwipeDx = 0,
-                      onHorizontalDragUpdate: (details) =>
-                          _edgeSwipeDx += details.delta.dx,
-                      onHorizontalDragEnd: (details) {
-                        final flungRight = (details.primaryVelocity ?? 0) > 300;
-                        if (_edgeSwipeDx > 48 || (flungRight && _edgeSwipeDx > 0)) {
-                          unawaited(_handleBackGesture());
-                        }
-                      },
                     ),
                   ),
                 // Fullscreen sessions (including kiosk-locked, where
