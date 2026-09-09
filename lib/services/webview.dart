@@ -83,7 +83,8 @@ typedef Cookie = inapp.Cookie;
 /// auth API in the public surface; the URL-embedded form is what the
 /// underlying `Network.framework` honors when the proxy server
 /// challenges with `407 Proxy Authentication Required`.
-inapp.ProxySettings? _userProxyToInappProxy(UserProxySettings settings) {
+@visibleForTesting
+inapp.ProxySettings? userProxyToInappProxy(UserProxySettings settings) {
   if (settings.type == ProxyType.DEFAULT) return null;
   if (settings.type == ProxyType.TOR) {
     // TOR has no address until the runtime is up. A null expansion means
@@ -92,15 +93,12 @@ inapp.ProxySettings? _userProxyToInappProxy(UserProxySettings settings) {
     // page over the device IP.
     final expanded = expandTorProxy(settings);
     if (expanded == null) return null;
-    return _userProxyToInappProxy(expanded);
+    return userProxyToInappProxy(expanded);
   }
-  final address = settings.address;
-  if (address == null || address.isEmpty) return null;
-  final parts = address.split(':');
-  if (parts.length != 2) return null;
-  final host = parts[0];
-  final port = int.tryParse(parts[1]);
-  if (host.isEmpty || port == null || port <= 0 || port > 65535) return null;
+  final parsed = splitProxyAddress(settings.address);
+  if (parsed == null) return null;
+  final host = parsed.host;
+  final port = parsed.port;
   final scheme = switch (settings.type) {
     ProxyType.HTTPS => 'https',
     ProxyType.SOCKS5 => 'socks5',
@@ -1968,7 +1966,7 @@ class WebViewFactory {
         ? resolveEffectiveProxy(config.proxySettings!, siteId: config.siteId)
         : null;
     final inappProxy = effectiveProxy != null && PlatformInfo.isProxySupported
-        ? _userProxyToInappProxy(effectiveProxy)
+        ? userProxyToInappProxy(effectiveProxy)
         : null;
     // Fail closed: on iOS/macOS the per-site proxy is bound here via
     // `proxySettings`. If the site expects a non-DEFAULT proxy but the

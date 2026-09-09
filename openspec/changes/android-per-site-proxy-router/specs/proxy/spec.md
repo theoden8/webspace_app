@@ -84,6 +84,36 @@ of adding it is the whole feature.
 **Then** the proxy rule scheme is `http`
 **And** the relay performs no TLS handshake with the WebView
 
+### Requirement: PROXY-017 - Both proxy mechanisms agree on egress
+
+For any per-site proxy configuration, router mode and the native
+per-WebView binding SHALL send that site's traffic to the same
+`(scheme, host, port)`, and SHALL agree on whether the site egresses
+through a proxy at all.
+
+Android routes by credential through the loopback relay because
+`ProxyController` is process-wide; every other platform binds a proxy per
+WebView. Two decision paths answering one question is how PROXY-016 got
+in: the router encoded a Tor site's stale address as plain `http` while
+the native path blocked it. The address parse SHALL therefore be a single
+shared rule rather than a copy on each side.
+
+#### Scenario: The same site configuration is resolved by both paths
+
+**Given** any per-site proxy setting, including one inheriting the
+  app-global proxy
+**Then** the upstream router mode installs matches the upstream the
+  native per-WebView binding would use
+**And** where one refuses to egress, so does the other
+
+#### Scenario: An IPv6 proxy literal
+
+**Given** a site whose proxy address is a bracketed IPv6 literal
+**Then** both mechanisms route it to that host and port
+**And** neither drops the site for being unparseable
+
+---
+
 ### Requirement: PROXY-016 - A Tor site is blocked, never downgraded
 
 The route table SHALL NOT encode a `ProxyType.TOR` site as any other

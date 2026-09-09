@@ -171,14 +171,10 @@ class ProxyRouterEngine {
     // route a Tor site through an unrelated proxy in clear, so drop the route
     // and let the relay answer 502 instead (TOR-008).
     if (proxy.type == ProxyType.TOR) return null;
-    final address = proxy.address;
-    if (address == null) return null;
-    final separator = address.lastIndexOf(':');
-    if (separator <= 0) return null;
-    final port = int.tryParse(address.substring(separator + 1));
-    if (port == null || port < 1 || port > 65535) return null;
-    final host = address.substring(0, separator);
-    if (host.isEmpty) return null;
+    final parsed = splitProxyAddress(proxy.address);
+    if (parsed == null) return null;
+    final host = parsed.host;
+    final port = parsed.port;
     return {
       'siteId': route.siteId,
       'type': switch (proxy.type) {
