@@ -84,6 +84,31 @@ class MethodChannelTorRuntime implements TorRuntime {
   }
 
   @override
+  Future<int> startTransport(String transport) async {
+    if (!isAvailable) return 0;
+    // 0 is the "did not start" contract, so a null or non-int reply from a
+    // plugin that failed must read as failure rather than crash the start
+    // path — the engine turns 0 into "no bridge options" and tor comes up
+    // without bridges instead of dialling a dead port.
+    final port =
+        await _channel.invokeMethod<int>('startTransport', {'transport': transport});
+    return port ?? 0;
+  }
+
+  @override
+  Future<void> setTorrcOptions(List<(String, String)> options) async {
+    if (!isAvailable) return;
+    // Sent as a flat list of pairs rather than a map: torrc allows the same
+    // key more than once, and `Bridge` in particular is repeated per line,
+    // so a map would silently keep only the last bridge.
+    await _channel.invokeMethod<void>('setTorrcOptions', {
+      'options': [
+        for (final (key, value) in options) [key, value],
+      ],
+    });
+  }
+
+  @override
   Stream<TorStatus> get events => _decoded ??= isAvailable
       ? _eventChannel.receiveBroadcastStream().map(decodeStatus)
       : const Stream<TorStatus>.empty();

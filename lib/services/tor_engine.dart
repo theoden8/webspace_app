@@ -11,9 +11,12 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 
+import 'package:webspace/services/tor_bridges.dart';
 import 'package:webspace/services/tor_failure.dart';
 import 'package:webspace/settings/proxy.dart';
 
+export 'package:webspace/services/tor_bridges.dart'
+    show TorBridgeConfig, TorBridgeLine, TorTransport, parseTorBridgeLine;
 export 'package:webspace/services/tor_failure.dart'
     show TorFailure, TorFailureKind, classifyTorFailure;
 
@@ -117,6 +120,24 @@ abstract class TorRuntime {
   /// loaded (TOR-014).
   Future<void> applyExitCountry(String? exitNodes);
 
+  /// Start the pluggable transport named [transport] and return the loopback
+  /// port its SOCKS listener bound to, or 0 when it failed to start.
+  ///
+  /// The port is allocated by IPtProxy at start time, so only the native
+  /// side can know it — which is why this is a round trip rather than a
+  /// constant. Dart then builds the torrc options around the returned port,
+  /// keeping that logic in [torBridgeOptions] where it is tested, rather
+  /// than reimplementing it in Swift.
+  Future<int> startTransport(String transport);
+
+  /// Extra torrc options to fold into the configuration on the next
+  /// [start]. Replaces any previously set; an empty list clears them.
+  ///
+  /// Applied at start rather than by SETCONF because bridges have to be in
+  /// force before bootstrap begins — configuring them afterwards would mean
+  /// a bootstrap attempt over the direct guards the user is trying to avoid.
+  Future<void> setTorrcOptions(List<(String, String)> options);
+
   /// Status pushed from the native side.
   Stream<TorStatus> get events;
 }
@@ -166,6 +187,11 @@ class TorEngine {
   int? _lastBootstrapPercent;
   String? _lastBootstrapTag;
 
+  /// Bridge configuration to put in force on the next start. Held rather
+  /// than applied immediately: bridges only take effect at bootstrap, so
+  /// changing them while tor is up needs a [restart] to mean anything.
+  TorBridgeConfig _bridges = const TorBridgeConfig();
+
   bool get isAvailable => _runtime.isAvailable;
   TorStatus get status => _status;
   Stream<TorStatus> get statusStream => _statuses.stream;
@@ -186,6 +212,7 @@ class TorEngine {
     _emit(const TorStarting());
     _armBootstrapTimeout();
     try {
+      await _applyBridgeConfig();
       await _runtime.start();
     } catch (e) {
       _cancelBootstrapTimeout();
@@ -231,6 +258,50 @@ class TorEngine {
     await _runtime.rebuildCircuits();
   }
 
+  /// The bridge configuration currently in force, or queued for next start.
+  TorBridgeConfig get bridges => _bridges;
+
+  /// Set the bridge configuration.
+  ///
+  /// Takes effect on the next start. Returns whether a [restart] is needed
+  /// for it to apply — true when tor is already running, since bridges are
+  /// only read at bootstrap. The caller decides whether to restart: doing it
+  /// implicitly would tear down every site's circuits as a side effect of
+  /// editing a text field.
+  bool setBridges(TorBridgeConfig config) {
+    _bridges = config;
+    return _status is TorUp || _status is TorBootstrapping;
+  }
+
+  /// Put [_bridges] into force for the start that is about to happen.
+  ///
+  /// Starting the transport is what allocates its port, so it has to happen
+  /// before the options can be built. A transport that fails to start yields
+  /// port 0, and [torBridgeOptions] then produces nothing rather than a
+  /// configuration pointing at a dead port — tor would otherwise hang the
+  /// whole bootstrap dialling it.
+  Future<void> _applyBridgeConfig() async {
+    final config = _bridges;
+    if (!config.enabled || !config.isUsable) {
+      await _runtime.setTorrcOptions(const []);
+      return;
+    }
+    int port = 0;
+    try {
+      port = await _runtime.startTransport(config.transport.wireName);
+    } catch (e) {
+      // A transport that will not start is not fatal on its own: falling
+      // through with port 0 produces no bridge options, so tor starts
+      // without bridges rather than not at all. On a censored network that
+      // will fail at bootstrap and be reported as `censored`, which is the
+      // honest outcome.
+      port = 0;
+    }
+    await _runtime.setTorrcOptions(
+      torBridgeOptions(config, transportPort: port),
+    );
+  }
+
   /// Tear the runtime down and start it again, keeping the holder set.
   ///
   /// This is what a Retry needs and what [acquire] cannot provide: acquire
@@ -258,6 +329,10 @@ class TorEngine {
     _emit(const TorStarting());
     _armBootstrapTimeout();
     try {
+      // Re-applied on every start: a restart is the only way an edited
+      // bridge configuration reaches tor, and the transport must be started
+      // again to hand back a live port.
+      await _applyBridgeConfig();
       await _runtime.start();
     } catch (e) {
       _cancelBootstrapTimeout();

@@ -40,6 +40,12 @@ class _AvailableRuntime implements TorRuntime {
   Future<void> applyExitCountry(String? exitNodes) async =>
       applied.add(exitNodes);
 
+  @override
+  Future<int> startTransport(String transport) async => 0;
+
+  @override
+  Future<void> setTorrcOptions(List<(String, String)> options) async {}
+
   void emit(TorStatus s) => _events.add(s);
   Future<void> dispose() => _events.close();
 }

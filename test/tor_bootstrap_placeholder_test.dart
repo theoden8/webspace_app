@@ -40,6 +40,12 @@ class _Runtime implements TorRuntime {
   @override
   Future<void> applyExitCountry(String? exitNodes) async {}
 
+  @override
+  Future<int> startTransport(String transport) async => 0;
+
+  @override
+  Future<void> setTorrcOptions(List<(String, String)> options) async {}
+
   void emit(TorStatus s) => _events.add(s);
 }
 

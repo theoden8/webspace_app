@@ -10,7 +10,13 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:webspace/services/tor_bridges.dart';
+import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_failure.dart';
+
+// Reuses the engine test's fake rather than a third copy of the same
+// contract: one fake drifting from another is how a test starts passing
+// against behaviour the real runtime does not have.
+import 'tor_engine_test.dart' show FakeTorRuntime;
 
 // A real-shaped obfs4 line (address and keys are invented).
 const _obfs4 =
@@ -175,6 +181,127 @@ void main() {
         lines: [line(_obfs4)],
       );
       expect(torBridgeOptions(cfg, transportPort: 0), isEmpty);
+    });
+  });
+
+  group('reaching tor (TOR-016 wiring)', () {
+    // The model and the storage are worth nothing if no bridge ever reaches
+    // the runtime. These drive TorEngine against a fake and assert the
+    // torrc options that come out the far side.
+    TorBridgeLine line(String s) => parseTorBridgeLine(s).line!;
+
+    test('an enabled configuration starts the transport and sets torrc',
+        () async {
+      final runtime = FakeTorRuntime()..transportPort = 47000;
+      final engine = TorEngine(runtime: runtime, sessionSecret: 's');
+      engine.setBridges(TorBridgeConfig(
+        enabled: true,
+        transport: TorTransport.obfs4,
+        lines: [line(_obfs4)],
+      ));
+
+      await engine.acquire('site-a');
+
+      expect(runtime.startedTransports, ['obfs4'],
+          reason: 'the transport must start before tor, to allocate its port');
+      expect(runtime.torrcOptions, contains(('UseBridges', '1')));
+      expect(
+        runtime.torrcOptions,
+        contains(('ClientTransportPlugin', 'obfs4 socks5 127.0.0.1:47000')),
+        reason: 'the port the transport actually bound, not a constant',
+      );
+      expect(runtime.torrcOptions, contains(('Bridge', _obfs4)));
+      await engine.dispose();
+    });
+
+    test('bridges off clears the options rather than leaving them stale',
+        () async {
+      final runtime = FakeTorRuntime();
+      final engine = TorEngine(runtime: runtime, sessionSecret: 's');
+      await engine.acquire('site-a');
+
+      expect(runtime.torrcOptions, isEmpty);
+      expect(runtime.startedTransports, isEmpty,
+          reason: 'no transport process for a user who did not ask for one');
+      await engine.dispose();
+    });
+
+    test('a transport that will not start yields no bridge options',
+        () async {
+      // Port 0 means the transport died. Emitting a ClientTransportPlugin
+      // pointing at it would hang bootstrap dialling a dead port; coming up
+      // without bridges fails visibly instead, and classifies as `censored`.
+      final runtime = FakeTorRuntime()..transportPort = 0;
+      final engine = TorEngine(runtime: runtime, sessionSecret: 's');
+      engine.setBridges(TorBridgeConfig(
+        enabled: true,
+        transport: TorTransport.obfs4,
+        lines: [line(_obfs4)],
+      ));
+
+      await engine.acquire('site-a');
+
+      expect(runtime.torrcOptions, isEmpty);
+      expect(runtime.startCalls, 1, reason: 'tor still starts, without bridges');
+      await engine.dispose();
+    });
+
+    test('a transport that throws does not stop tor starting', () async {
+      final runtime = FakeTorRuntime()..transportError = StateError('no go');
+      final engine = TorEngine(runtime: runtime, sessionSecret: 's');
+      engine.setBridges(TorBridgeConfig(
+        enabled: true,
+        transport: TorTransport.obfs4,
+        lines: [line(_obfs4)],
+      ));
+
+      await engine.acquire('site-a');
+
+      expect(runtime.torrcOptions, isEmpty);
+      expect(runtime.startCalls, 1);
+      expect(engine.status, isNot(isA<TorErrored>()),
+          reason: 'a dead transport is not itself a fatal Tor failure');
+      await engine.dispose();
+    });
+
+    test('a restart re-applies bridges, since only a start reads them',
+        () async {
+      final runtime = FakeTorRuntime()..transportPort = 47000;
+      final engine = TorEngine(runtime: runtime, sessionSecret: 's');
+      await engine.acquire('site-a');
+      expect(runtime.torrcOptions, isEmpty);
+
+      // Edited while running: the change must not silently do nothing.
+      final needsRestart = engine.setBridges(TorBridgeConfig(
+        enabled: true,
+        transport: TorTransport.obfs4,
+        lines: [line(_obfs4)],
+      ));
+      expect(needsRestart, isFalse,
+          reason: 'not up yet, so the pending start will pick them up');
+
+      await engine.restart();
+
+      expect(runtime.startedTransports, ['obfs4']);
+      expect(runtime.torrcOptions, contains(('Bridge', _obfs4)));
+      await engine.dispose();
+    });
+
+    test('editing bridges while up reports that a restart is needed',
+        () async {
+      final runtime = FakeTorRuntime()..transportPort = 47000;
+      final engine = TorEngine(runtime: runtime, sessionSecret: 's');
+      await engine.acquire('site-a');
+      runtime.bootstrapTo(9999);
+      await pumpEventQueue();
+
+      final needsRestart = engine.setBridges(
+          TorBridgeConfig(enabled: true, lines: [line(_obfs4)]));
+
+      expect(needsRestart, isTrue,
+          reason: 'bridges are only read at bootstrap; the UI must say so '
+              'rather than let the user believe an edit took effect');
+      await engine.dispose();
     });
   });
 

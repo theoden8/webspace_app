@@ -66,6 +66,42 @@ asserts this property
 
 ---
 
+### Requirement: LEAK-010 - The Moat bridge fetch is exempt, and says so
+
+Fetching bridges from BridgeDB over Moat SHALL go direct rather than
+through any proxy, and the UI offering it SHALL say that the request
+is visible to the network.
+
+This is the one deliberate exception to LEAK-007. Every other outbound
+seam routes through the per-site or app-global proxy; this one cannot,
+because it exists precisely when Tor is unreachable and there is no
+circuit to carry it. A network observer therefore sees a TLS connection
+to `bridges.torproject.org`, which on a censoring network is close to
+announcing an attempt to obtain bridges.
+
+The mitigation is domain fronting (Moat over meek), which this release
+does not ship. Until it does, the exemption SHALL be disclosed at the
+point of use, and pasting a bridge line obtained by some other means
+SHALL remain available as the private alternative. `MoatClient` SHALL
+take its HTTP client by injection so a fronted transport can be
+supplied without changing its callers.
+
+#### Scenario: The fetch is not routed through Tor
+
+- **GIVEN** the user opens Tor bridge settings on a censored network
+- **WHEN** they fetch bridges over Moat
+- **THEN** the request goes direct, not through `outboundHttp.clientFor`
+- **AND** it is not blocked by the fail-closed rule in TOR-008, which
+  governs traffic that is supposed to be on a circuit
+
+#### Scenario: The exposure is disclosed rather than silent
+
+- **WHEN** the bridge settings screen offers to fetch bridges
+- **THEN** it states that fetching is visible to the network
+- **AND** it offers pasting a bridge line as the alternative that is not
+
+---
+
 ## MODIFIED Requirements
 
 ### Requirement: LEAK-007 - Coverage matrix
@@ -91,6 +127,7 @@ traffic, and the Tor control port itself (loopback-only).
 | Per-site Tor traffic (any of the above with `type = TOR`) | Same triggers as above | Tor SOCKS5 via `TorService.socksFor(siteId)` | `lib/services/tor_service.dart`, `lib/services/outbound_http.dart` (Tor branch), `lib/services/webview.dart` (`_userProxyToInappProxy` Tor branch) |
 | App-global Tor traffic (any "Global only" row with `globalOutboundProxy == TOR`) | Same triggers as above | Tor SOCKS5 via `TorService.socksFor("__webspace_app_global__")` | `lib/services/tor_service.dart`, `lib/services/outbound_http.dart` (Tor branch) |
 | Tor control port | Internal: bootstrap progress, `SIGNAL NEWNYM`, `GETINFO` | Loopback-only, no external traffic | `ios/Runner/TorControllerPlugin.swift` |
+| Moat bridge fetch | User taps "Get bridges" in Tor settings | **None — direct, deliberately** | `lib/services/tor_moat_client.dart` |
 
 #### Scenario: New outbound code path
 

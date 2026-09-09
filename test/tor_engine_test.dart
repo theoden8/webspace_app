@@ -57,6 +57,23 @@ class FakeTorRuntime implements TorRuntime {
     push(TorUp('127.0.0.1', port));
   }
 
+  int transportPort = 47000;
+  final startedTransports = <String>[];
+  List<(String, String)> torrcOptions = const [];
+  Object? transportError;
+
+  @override
+  Future<int> startTransport(String transport) async {
+    if (transportError != null) throw transportError!;
+    startedTransports.add(transport);
+    return transportPort;
+  }
+
+  @override
+  Future<void> setTorrcOptions(List<(String, String)> options) async {
+    torrcOptions = options;
+  }
+
   void dispose() => _controller.close();
 }
 
