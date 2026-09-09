@@ -182,6 +182,79 @@ class ProxyRelayRouterTest {
     }
 
     @Test
+    fun threeAuthenticatedSites_eachReachesItsOwnUpstreamWithItsOwnCredentials() {
+        // Two sites leave the interesting failures indistinguishable: with
+        // one pair, "routed to the wrong upstream" and "routed correctly
+        // but handed the other site's password" both show up as a count on
+        // the wrong server, and a table with a single mis-keyed entry looks
+        // like a clean swap. Three, each with its own authenticated proxy,
+        // separates them -- and the credential assertions below are the
+        // half nothing else covers: every other test checks only which
+        // upstream was reached, never which password arrived there.
+        val sites = listOf("a", "b", "c")
+        val origins = sites.map { fakeOrigin("HTTP/1.1 200 OK\r\nContent-Length: 1\r\n\r\n$it") }
+        val upstreams = origins.map { CountingUpstream(it.localPort) }
+        val creds = sites.map { credential("ws-$it", "token-$it") }
+        val relay = ProxyRelay()
+        try {
+            val port = relay.startRouter("abcd1234")
+            relay.setRoutes(
+                sites.indices.associate { i ->
+                    creds[i] to ProxyRelay.Route(
+                        sites[i],
+                        httpUpstream(upstreams[i].port, "user-${sites[i]}", "pass-${sites[i]}"),
+                    )
+                }
+            )
+
+            // Interleaved, and not in table order: a relay that keyed off
+            // arrival order rather than the credential would still pass a
+            // strictly sequential walk.
+            for (i in listOf(2, 0, 1, 2, 0)) {
+                assertTrue(
+                    "site ${sites[i]} must be routed",
+                    connectThrough(port, creds[i]).first.contains("200"),
+                )
+            }
+
+            assertEquals("site c ran twice", 2, upstreams[2].connections.get())
+            assertEquals("site a ran twice", 2, upstreams[0].connections.get())
+            assertEquals("site b ran once", 1, upstreams[1].connections.get())
+
+            for (i in sites.indices) {
+                val seen = upstreams[i].seenAuth.toList().joinToString("\n")
+                assertTrue(
+                    "upstream ${sites[i]} must receive its own credentials",
+                    seen.contains(
+                        ProxyRelay.base64("user-${sites[i]}:pass-${sites[i]}".toByteArray())
+                    ),
+                )
+                for (j in sites.indices) {
+                    if (i == j) continue
+                    assertFalse(
+                        "upstream ${sites[i]} must never see site ${sites[j]}'s password",
+                        seen.contains(
+                            ProxyRelay.base64("user-${sites[j]}:pass-${sites[j]}".toByteArray())
+                        ),
+                    )
+                    assertFalse(
+                        "upstream ${sites[i]} must never see site ${sites[j]}'s relay token",
+                        seen.contains(creds[j]),
+                    )
+                }
+                assertFalse(
+                    "the relay token must never be forwarded upstream",
+                    seen.contains(creds[i]),
+                )
+            }
+        } finally {
+            relay.stop()
+            upstreams.forEach { it.close() }
+            origins.forEach { it.close() }
+        }
+    }
+
+    @Test
     fun concurrentSites_holdTunnelsToDistinctUpstreamsAtTheSameTime() {
         // The whole point of router mode: two sites with different proxies
         // are live simultaneously, rather than one being unloaded so the
