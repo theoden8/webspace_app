@@ -1,5 +1,6 @@
 package org.codeberg.theoden8.webspace.proxy
 
+import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.InetAddress
@@ -29,11 +30,33 @@ import javax.net.ssl.SSLSocketFactory
  * gets a `502` and the connection closes — the relay never opens a
  * direct connection to the origin, so a failed proxy cannot leak the IP.
  *
+ * The listener is bound to loopback, which keeps it off the network but not
+ * away from the device: every other app with `INTERNET` can reach
+ * `127.0.0.1:<port>` too, and this relay answers with the user's upstream
+ * credentials attached. So each accepted connection is checked against
+ * `/proc/net/tcp`, which on API 29+ lists only the calling UID's sockets — a
+ * peer that is one of our own sockets appears there, another app's does not.
+ * Page JS cannot reach the relay in the first place (a `fetch` sends an
+ * origin-form request line, which has no host to forward and is answered with
+ * `400`), so this is about other apps.
+ *
+ * Unreadable table means unverifiable, not hostile: some kernels and SELinux
+ * policies deny the read outright, and failing closed there would strand
+ * proxying entirely for a threat that needs a malicious app already installed.
+ * A readable table that does not list the peer is a foreign process and is
+ * refused.
+ *
  * Deliberately free of `android.*` imports so it runs under plain JVM
  * JUnit (no Robolectric). The lifecycle wrapper / method channel lives in
  * [ProxyRelayPlugin].
  */
-class ProxyRelay(private val logger: ((String) -> Unit)? = null) {
+class ProxyRelay(
+    private val logger: ((String) -> Unit)? = null,
+    private val peerCheck: ((peerPort: Int, relayPort: Int) -> PeerVerdict)? = null,
+) {
+
+    /** Whether an accepted peer is one of this process's own sockets. */
+    enum class PeerVerdict { OWN, FOREIGN, UNKNOWN }
 
     enum class UpstreamType { HTTP, HTTPS, SOCKS5 }
 
@@ -55,6 +78,8 @@ class ProxyRelay(private val logger: ((String) -> Unit)? = null) {
     @Volatile
     private var boundPort: Int = -1
     private var acceptThread: Thread? = null
+    @Volatile
+    private var peerCheckUnavailableLogged: Boolean = false
 
     private val pool = Executors.newCachedThreadPool { r ->
         Thread(r, "proxy-relay-worker").apply { isDaemon = true }
@@ -125,6 +150,10 @@ class ProxyRelay(private val logger: ((String) -> Unit)? = null) {
                 runCatching { client.close() }
                 continue
             }
+            if (!peerAllowed(client.port)) {
+                runCatching { client.close() }
+                continue
+            }
             log("accepted connection from ${client.inetAddress.hostAddress}:${client.port}")
             pool.execute {
                 try {
@@ -134,6 +163,29 @@ class ProxyRelay(private val logger: ((String) -> Unit)? = null) {
                 } finally {
                     runCatching { client.close() }
                 }
+            }
+        }
+    }
+
+    /**
+     * Gate an accepted connection on the peer being one of our own sockets.
+     * An unverifiable verdict is logged once per relay, not per connection.
+     */
+    private fun peerAllowed(peerPort: Int): Boolean {
+        val check: (Int, Int) -> PeerVerdict =
+            peerCheck ?: { p, r -> readPeerVerdict(p, r) }
+        return when (check(peerPort, boundPort)) {
+            PeerVerdict.OWN -> true
+            PeerVerdict.FOREIGN -> {
+                log("refused connection from another process (peer port $peerPort)")
+                false
+            }
+            PeerVerdict.UNKNOWN -> {
+                if (!peerCheckUnavailableLogged) {
+                    peerCheckUnavailableLogged = true
+                    log("peer ownership unverifiable (/proc/net/tcp unreadable); accepting local connections")
+                }
+                true
             }
         }
     }
@@ -460,6 +512,49 @@ class ProxyRelay(private val logger: ((String) -> Unit)? = null) {
 
     companion object {
         private const val BACKLOG = 64
+
+        private val PROC_NET_TCP = listOf("/proc/net/tcp", "/proc/net/tcp6")
+
+        private fun readPeerVerdict(peerPort: Int, relayPort: Int): PeerVerdict =
+            peerVerdict(
+                PROC_NET_TCP.map { path -> runCatching { File(path).readText() }.getOrNull() },
+                peerPort,
+                relayPort,
+            )
+
+        /**
+         * Classify a peer against the contents of `/proc/net/{tcp,tcp6}`.
+         *
+         * A connection this process opened to the relay shows up as a row whose
+         * local port is the peer's and whose remote port is the relay's. Rows
+         * are `sl local_address rem_address ...` with `hex-ip:hex-port`
+         * addresses. Split out for a JVM test, which cannot arrange a foreign
+         * process to connect.
+         */
+        fun peerVerdict(tables: List<String?>, peerPort: Int, relayPort: Int): PeerVerdict {
+            var readable = false
+            for (table in tables) {
+                if (table == null) continue
+                readable = true
+                for (line in table.lineSequence()) {
+                    val fields = line.trim().split(WHITESPACE)
+                    if (fields.size < 3) continue
+                    val local = hexPort(fields[1]) ?: continue
+                    val remote = hexPort(fields[2]) ?: continue
+                    if (local == peerPort && remote == relayPort) return PeerVerdict.OWN
+                }
+            }
+            return if (readable) PeerVerdict.FOREIGN else PeerVerdict.UNKNOWN
+        }
+
+        private val WHITESPACE = Regex("\\s+")
+
+        private fun hexPort(address: String): Int? {
+            val sep = address.lastIndexOf(':')
+            if (sep < 0) return null
+            return address.substring(sep + 1).toIntOrNull(16)
+        }
+
         private const val CONNECT_TIMEOUT_MS = 15_000
         private const val HANDSHAKE_TIMEOUT_MS = 20_000
         private const val MAX_PREAMBLE = 64 * 1024

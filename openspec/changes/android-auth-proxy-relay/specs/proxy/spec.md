@@ -53,6 +53,49 @@ and SHALL NOT start the relay.
 
 ---
 
+### Requirement: PROXY-013 - The relay serves only this app
+
+Loopback keeps the listener off the network but not away from the device:
+every other app holding `INTERNET` can reach `127.0.0.1:<port>`, and the relay
+answers with the user's upstream credentials attached — an open proxy on their
+account for as long as a credentialed site is loaded. Each accepted connection
+SHALL therefore be checked against `/proc/net/tcp{,6}`, which on API 29+ lists
+only the calling UID's sockets: a connection this process opened appears there
+as a row whose local port is the peer's and whose remote port is the relay's,
+and another app's does not.
+
+A readable table that does not list the peer is a foreign process and the
+connection SHALL be closed before any upstream connection is opened. An
+unreadable table is unverifiable, not hostile — some kernels and SELinux
+policies deny the read — and SHALL be accepted, logged once per relay rather
+than per connection. Failing closed there would strand proxying entirely for a
+threat that needs a malicious app already installed.
+
+Page script cannot reach the relay in the first place: `fetch` sends an
+origin-form request line, which carries no host to forward and is answered with
+`400`. This requirement is about other apps.
+
+#### Scenario: A connection from another process is refused
+
+- **GIVEN** the relay is running with a credentialed upstream
+- **WHEN** a connection arrives whose peer socket is not one of this process's
+- **THEN** the connection is closed without a response
+- **AND** no upstream connection is opened, so no credentials are sent
+
+#### Scenario: The WebView's own connection is served
+
+- **GIVEN** the relay is running
+- **WHEN** the WebView in this process connects to it
+- **THEN** the peer is found in this process's socket table and served normally
+
+#### Scenario: An unreadable socket table does not break proxying
+
+- **GIVEN** a device whose policy denies reading `/proc/net/tcp`
+- **WHEN** a connection arrives
+- **THEN** it is served, and the unverifiable check is logged once
+
+---
+
 ### Requirement: PROXY-011 - Auth proxy relay fails closed
 
 The Android authenticated-proxy relay SHALL never open a direct connection

@@ -130,6 +130,117 @@ class ProxyRelayTest {
         }
     }
 
+    // --- peer ownership -------------------------------------------------
+    //
+    // The listener is on loopback, so every app on the device can reach it and
+    // would get the user's upstream credentials attached to whatever it asked
+    // for. A connection this process opened appears in our own /proc/net/tcp
+    // (API 29+ scopes that file to the calling UID); another app's does not.
+
+    @Test
+    fun peerVerdict_ownSocketIsRecognised() {
+        // local 127.0.0.1:0xC001 -> remote 127.0.0.1:0x1F90 (relay).
+        val table = """
+              sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid
+               0: 0100007F:C001 0100007F:1F90 01 00000000:00000000 00:00000000 00000000  10123
+        """.trimIndent()
+        assertEquals(
+            ProxyRelay.PeerVerdict.OWN,
+            ProxyRelay.peerVerdict(listOf(table, null), 0xC001, 0x1F90),
+        )
+    }
+
+    @Test
+    fun peerVerdict_readableTableWithoutThePeerIsForeign() {
+        val table = """
+              sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid
+               0: 0100007F:1F90 00000000:0000 0A 00000000:00000000 00:00000000 00000000  10123
+        """.trimIndent()
+        assertEquals(
+            "only the listener is ours; the connecting socket belongs elsewhere",
+            ProxyRelay.PeerVerdict.FOREIGN,
+            ProxyRelay.peerVerdict(listOf(table, null), 0xC001, 0x1F90),
+        )
+    }
+
+    @Test
+    fun peerVerdict_unreadableTableIsUnknownNotForeign() {
+        // Failing closed here would strand proxying on every device whose
+        // kernel or SELinux policy denies the read.
+        assertEquals(
+            ProxyRelay.PeerVerdict.UNKNOWN,
+            ProxyRelay.peerVerdict(listOf(null, null), 0xC001, 0x1F90),
+        )
+    }
+
+    @Test
+    fun peerVerdict_scansTheIpv6Table() {
+        val tcp6 = """
+              sl  local_address                         remote_address
+               0: 0000000000000000FFFF00000100007F:C001 0000000000000000FFFF00000100007F:1F90 01
+        """.trimIndent()
+        assertEquals(
+            ProxyRelay.PeerVerdict.OWN,
+            ProxyRelay.peerVerdict(listOf(null, tcp6), 0xC001, 0x1F90),
+        )
+    }
+
+    @Test
+    fun foreignPeer_isRefusedBeforeAnyUpstreamConnect() {
+        val upstreamHits = AtomicReference(0)
+        val proxy = fakeServer { sock ->
+            upstreamHits.set(upstreamHits.get() + 1)
+            runCatching { sock.close() }
+        }
+        val relay = ProxyRelay(peerCheck = { _, _ -> ProxyRelay.PeerVerdict.FOREIGN })
+        try {
+            val port = relay.start(
+                ProxyRelay.UpstreamConfig(
+                    ProxyRelay.UpstreamType.HTTP, "127.0.0.1", proxy.localPort, "user", "pass",
+                )
+            )
+            Socket().use { s ->
+                s.connect(InetSocketAddress(InetAddress.getByName("127.0.0.1"), port), 2000)
+                s.soTimeout = 3000
+                s.getOutputStream().write(
+                    "CONNECT example.com:443 HTTP/1.1\r\nHost: example.com\r\n\r\n".toByteArray()
+                )
+                s.getOutputStream().flush()
+                assertEquals("the relay must close on a foreign peer, not answer it",
+                    -1, s.getInputStream().read())
+            }
+            assertEquals("no upstream connection may be opened for a foreign peer",
+                0, upstreamHits.get())
+        } finally {
+            relay.stop(); proxy.close()
+        }
+    }
+
+    @Test
+    fun ownPeer_isServedNormally() {
+        // The default check runs for real here: the test client and the relay
+        // are the same process, so a readable /proc/net/tcp must classify the
+        // connection as ours rather than refusing it.
+        val origin = fakeOrigin("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nhi")
+        val proxy = fakeServer { sock ->
+            readPreamble(sock.getInputStream())
+            sock.getOutputStream().write("HTTP/1.1 200 Connection Established\r\n\r\n".toByteArray())
+            sock.getOutputStream().flush()
+            spliceTo(sock, origin.localPort)
+        }
+        val relay = ProxyRelay()
+        try {
+            val port = relay.start(
+                ProxyRelay.UpstreamConfig(
+                    ProxyRelay.UpstreamType.HTTP, "127.0.0.1", proxy.localPort, "user", "pass",
+                )
+            )
+            assertTrue(clientConnectThenGet(port, "example.com", 443).contains("hi"))
+        } finally {
+            relay.stop(); proxy.close(); origin.close()
+        }
+    }
+
     @Test
     fun failClosed_unreachableUpstreamYields502NotDirect() {
         // Upstream points at a closed port: the relay must answer 502 and
