@@ -168,6 +168,11 @@ void main() {
         300.0,
         scrollable: find.byType(Scrollable).first,
       );
+      // The drag loop stops as soon as the tile is built, which the ListView
+      // does up to a cacheExtent below the fold, and the ensureVisible jump
+      // that closes it is not laid out until the next frame. Settle so the
+      // tap reads where the tile ended up rather than where it was.
+      await tester.pumpAndSettle();
     }
 
     // Tap the Export Settings tile. The tile's onTap pops the
