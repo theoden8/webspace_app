@@ -40,15 +40,18 @@ function setupRealCapture() {
   class MediaStreamTrack {
     constructor(kind) {
       this.kind = kind || 'video';
-      this.readyState = 'live';
+      this._state = 'live';
     }
+    // On the prototype, as on a real MediaStreamTrack: an own `readyState`
+    // would shadow the getter and the tamper case below could never bite.
+    get readyState() { return this._state; }
     get label() { return ''; }
     getSettings() { return {}; }
     getCapabilities() { return {}; }
     getConstraints() { return {}; }
     applyConstraints() { return Promise.resolve(); }
     clone() { return new MediaStreamTrack(this.kind); }
-    stop() { this.readyState = 'ended'; }
+    stop() { this._state = 'ended'; this._stopped = true; }
     addEventListener() {}
   }
   window.MediaStreamTrack = MediaStreamTrack;
@@ -161,6 +164,64 @@ test('a clone of the whole stream is stopped too', async () => {
   assert.equal(copy.getVideoTracks()[0].readyState, 'ended');
 });
 
+// --- the primitives the hook calls ------------------------------------
+//
+// Closing the state over the install block is only half of it. Everything the
+// hook CALLS was resolved by bare lookup when the hook ran, which is long after
+// page script did — so each of these neutered the stop from the outside without
+// touching the hook at all. Verified against real Chromium before the fix: the
+// device kept delivering frames after the app had run its whole teardown.
+
+test('a replaced WeakRef cannot empty the registry', async () => {
+  const { window } = setupRealCapture();
+  // Replaced BEFORE the grant, which is when trackRef() runs — the page script
+  // that does this executes long before it calls getUserMedia. Every entry
+  // would then deref to null, so the stop walks past all of them, and
+  // markSynthetic (whose only defence is isReal) would accept the device track.
+  window.eval('window.WeakRef = function () { return { deref: function () { return null; } }; };');
+  const track = await grabDeviceTrack(window);
+
+  assert.equal(window.__wsStopRealCapture(), 1);
+  assert.equal(track.readyState, 'ended');
+});
+
+test('a replaced MediaStreamTrack.stop cannot fake the stop', async () => {
+  const { window } = setupRealCapture();
+  const track = await grabDeviceTrack(window);
+
+  // The worst of the three: the hook counted the track and reported success
+  // while the device kept capturing.
+  window.eval('window.MediaStreamTrack.prototype.stop = function () {};');
+
+  assert.equal(window.__wsStopRealCapture(), 1);
+  assert.equal(track.readyState, 'ended',
+    'the captured original must end the track, not the page\'s replacement');
+});
+
+test('a replaced readyState getter cannot skip the stop', async () => {
+  const { window } = setupRealCapture();
+  const track = await grabDeviceTrack(window);
+
+  window.eval("Object.defineProperty(window.MediaStreamTrack.prototype, 'readyState', "
+    + "{ get: function () { return 'ended'; }, configurable: true });");
+
+  assert.equal(window.__wsStopRealCapture(), 1);
+  assert.equal(track._stopped, true);
+});
+
+test('a replaced MediaStream.getTracks cannot hide the registration', async () => {
+  const { window } = setupRealCapture();
+  // Replaced BEFORE the grant, since getTracks is what registers the track.
+  // getVideoTracks stays intact, so the page keeps full use of the stream.
+  window.eval('window.MediaStream.prototype.getTracks = function () { return []; };');
+  const track = await grabDeviceTrack(window);
+
+  assert.equal(window.__wsStopRealCapture(), 1);
+  assert.equal(track.readyState, 'ended');
+});
+
+// --- reaching subframes -----------------------------------------------
+
 test('the stop is relayed to subframes', async () => {
   const { window } = setupRealCapture();
   await grabDeviceTrack(window);
@@ -169,14 +230,48 @@ test('the stop is relayed to subframes', async () => {
   // forMainFrameOnly:false — a cross-origin subframe holds a registry the main
   // frame's hook cannot see, so the stop has to travel to it.
   const posted = [];
-  Object.defineProperty(window, 'frames', {
-    value: [{ postMessage: (msg, origin) => posted.push([msg, origin]) }],
-    configurable: true,
-  });
+  window[0] = { postMessage: (msg, origin) => posted.push([msg, origin]) };
 
   window.__wsStopRealCapture();
   assert.deepEqual(posted, [['__wsStopRealCapture', '*']]);
 });
+
+test('a same-origin subframe has its own hook called', async () => {
+  const { window } = setupRealCapture();
+  await grabDeviceTrack(window);
+
+  // A same-origin child can null its own postMessage, so the relay must not
+  // depend on it alone. Its hook is non-writable, so that path survives.
+  let hookCalls = 0;
+  window[0] = {
+    __wsStopRealCapture: () => { hookCalls += 1; },
+    postMessage: () => { throw new Error('nulled by the child'); },
+  };
+
+  window.__wsStopRealCapture();
+  assert.equal(hookCalls, 1);
+});
+
+for (const tamper of [
+  ['window.frames = { length: 0 };', 'frames'],
+  ['window.frames = undefined;', 'frames = undefined'],
+  ['window.length = 0;', 'length'],
+]) {
+  test(`replacing window.${tamper[1]} does not hide a subframe`, async () => {
+    // Both are [Replaceable] on Window, so one assignment used to hide every
+    // child. Indexed access is not forgeable: WindowProxy [[DefineOwnProperty]]
+    // rejects array indices, so window[0] is always the real child.
+    const { window } = setupRealCapture();
+    await grabDeviceTrack(window);
+    const posted = [];
+    window[0] = { postMessage: (msg) => posted.push(msg) };
+
+    window.eval(tamper[0]);
+
+    window.__wsStopRealCapture();
+    assert.deepEqual(posted, ['__wsStopRealCapture']);
+  });
+}
 
 test('a relayed stop ends the receiving frame\'s capture', async () => {
   const { window } = setupRealCapture();

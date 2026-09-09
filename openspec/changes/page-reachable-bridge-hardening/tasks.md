@@ -9,8 +9,10 @@ done and verified locally (Dart suite, JS tier, real-Chromium browser tier,
 - [x] 1.3 Carry registration onto `MediaStreamTrack.clone` and `MediaStream.clone` (the latter matched by `kind`).
 - [x] 1.4 Relay the stop down `globalThis.frames` and run the local stop on receipt, so a subframe's capture is reached.
 - [x] 1.5 Route `camera_stream_shim`, `microphone_stream_shim` and `screen_share_shim` through the shared block; drop `screen_share_shim`'s own copy of the set.
-- [x] 1.6 `test/js/capture_stop_tamper.test.js`: each of the three bypasses, both clone paths, and both halves of the relay.
-- [x] 1.7 Rewrite the composition/shim tests that asserted membership of the removed globals onto the behaviour they stood for.
+- [x] 1.6 Capture every primitive the hook calls (`WeakRef`, `MediaStreamTrack.prototype.stop`, its `readyState` getter, `MediaStream.prototype.getTracks`) inside the install block and invoke with `.call()` — resolved at call time, each was a writable global that neutered the stop from outside without touching the hook.
+- [x] 1.7 Walk relay children by index instead of `frames`/`length` (both `[Replaceable]`), and deliver by both a direct hook call and `postMessage`.
+- [x] 1.8 `test/js/capture_stop_tamper.test.js`: each bypass, both clone paths, both halves of the relay, all four primitive tampers, and the three frame-hiding tampers. Every case verified to fail against the pre-hardening registry.
+- [x] 1.9 Rewrite the composition/shim tests that asserted membership of the removed globals onto the behaviour they stood for.
 
 ## 2. Frame-scoped camera and microphone grants (CAM-014 / MIC-016)
 

@@ -32,10 +32,32 @@ non-writable and non-configurable, its track lists are closed over rather than
 held on `globalThis`, and its skip list refuses a track already registered as
 device-backed. Registration SHALL carry onto a clone (`MediaStreamTrack.clone`,
 `MediaStream.clone`), since a clone is independently live and stopping the
-original leaves it capturing. Because Dart evaluates in the main frame only and
-the shim is injected `forMainFrameOnly: false`, the hook SHALL relay the stop
-down the frame tree; a relayed message can only end capture, never start it.
-Regression: `test/js/capture_stop_tamper.test.js`.
+original leaves it capturing.
+
+Closing the state over the install block is only half of it: everything the hook
+CALLS is resolved when the hook runs, which is long after page script has. Every
+platform primitive it depends on — `WeakRef`, `MediaStreamTrack.prototype.stop`,
+that prototype's `readyState` getter, `MediaStream.prototype.getTracks` — SHALL
+therefore be captured inside the install block and invoked with `.call()`. Left
+as a bare lookup each one is an ordinary writable global that neuters the stop
+from outside without touching the hook: a `WeakRef` whose `deref` returns null
+empties the registry, a no-op `stop` makes the hook report a stop it never
+performed, and a `getTracks` returning `[]` means nothing is ever registered
+while `getVideoTracks` keeps serving the page.
+
+Because Dart evaluates in the main frame only and the shim is injected
+`forMainFrameOnly: false`, the hook SHALL relay the stop down the frame tree. It
+SHALL walk children by index rather than through `frames` or `length`: both are
+`[Replaceable]` on `Window`, so either one hides every subframe behind a single
+assignment, while indexed access is unforgeable (WindowProxy
+`[[DefineOwnProperty]]` rejects array indices). It SHALL deliver by both a
+direct hook call and `postMessage`, since each path alone is tamperable from a
+different side — a same-origin child can null its own `postMessage`, and a frame
+the shim never reached could define a hostile hook — while a cross-origin child
+can do neither. A relayed message can only end capture, never start it.
+
+Regression: `test/js/capture_stop_tamper.test.js`, every case of which fails
+against the pre-hardening registry.
 
 #### Scenario: The page cannot neutralise the stop
 
@@ -44,6 +66,23 @@ Regression: `test/js/capture_stop_tamper.test.js`.
 list, or marks its device track as substituted
 **And** the user switches to another site
 **Then** the track still ends
+
+#### Scenario: The page cannot neutralise what the stop calls
+
+**Given** a site in `real` mode
+**When** page script replaces `WeakRef`, `MediaStreamTrack.prototype.stop`, its
+`readyState` getter, or `MediaStream.prototype.getTracks` before or after the
+grant
+**And** the user switches to another site
+**Then** the track still ends, and the hook does not report a stop it did not
+perform
+
+#### Scenario: A subframe cannot be hidden from the relay
+
+**Given** a site whose subframe holds a device track
+**When** page script sets `window.frames` or `window.length` to hide it
+**And** the user switches to another site
+**Then** the relay still reaches that subframe and its capture ends
 
 #### Scenario: A cloned device track is ended too
 

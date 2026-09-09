@@ -357,9 +357,15 @@ device-backed (a device track is registered while the `getUserMedia` promise is
 still resolving, so the page cannot reach one before the registry does). Each
 of the three was a one-line bypass while the hook was a writable global over
 globals: the microphone kept recording with the app reporting capture ended.
-Registration SHALL carry onto a clone, which is independently live. Because
-Dart evaluates in the main frame only while the shim is injected
-`forMainFrameOnly: false`, the hook SHALL relay the stop down the frame tree.
+Registration SHALL carry onto a clone, which is independently live. Every
+platform primitive the hook calls (`WeakRef`, `MediaStreamTrack.prototype.stop`,
+its `readyState` getter, `MediaStream.prototype.getTracks`) SHALL be captured at
+install and invoked with `.call()`, since those lookups happen when the hook
+runs and a bare one lets the page neuter the stop from outside. Because Dart
+evaluates in the main frame only while the shim is injected
+`forMainFrameOnly: false`, the hook SHALL relay the stop down the frame tree,
+walking children by index rather than through the `[Replaceable]` `frames` and
+`length`. This is the camera's CAM-012 verbatim, on the shared registry.
 Regression: `test/js/capture_stop_tamper.test.js`.
 
 The camera's two ordering properties hold unchanged for audio and are gated by
