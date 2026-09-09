@@ -62,6 +62,7 @@ import 'package:webspace/settings/microphone.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/widgets/root_messenger.dart';
+import 'package:webspace/widgets/surface_nudge_scope.dart';
 
 // Re-export inapp.Cookie as Cookie for convenience
 typedef Cookie = inapp.Cookie;
@@ -4669,6 +4670,11 @@ class WebViewFactory {
   /// layout changes (rotation re-snaps the box without rebuilding the view),
   /// so the page is not reloaded. When letterboxing is off or the parent is
   /// unbounded, the WebView is returned unwrapped.
+  ///
+  /// The box is snapped against the extent the body has with the repaint nudge
+  /// backed out ([SurfaceNudgeScope]); the nudge's pixel is then taken off the
+  /// box rather than the bars, so the platform view still resizes and the bars
+  /// hold still.
   static Widget _applyLetterbox(WebViewConfig config, Widget webView) {
     if (!config.letterboxEnabled) return webView;
     return LayoutBuilder(
@@ -4681,6 +4687,7 @@ class WebViewFactory {
           availableHeight: constraints.maxHeight,
           fixedWidth: config.spoofWindowWidth,
           fixedHeight: config.spoofWindowHeight,
+          transientInsetHeight: SurfaceNudgeScope.bottomInsetOf(context),
         );
         return Container(
           color: const Color(0xFF202124),

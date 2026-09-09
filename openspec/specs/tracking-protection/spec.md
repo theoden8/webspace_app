@@ -423,6 +423,18 @@ live `window.inner*` so screen and window agree (rather than the fixed
 1920x1080 of ETP-010). Letterboxing is gated on `trackingProtectionEnabled`
 (the shim is) and propagates to nested webviews via `launchUrl`.
 
+The snap is a step function, so a transient sub-grid change in the available
+area moves the box a whole grid step. Android's blank-surface repaint nudge
+(`PAUSE-015`, BUG-001) is exactly such a change: it toggles a one-pixel body
+inset several times a second, and fed into the snap raw it makes the bars
+appear and disappear on every toggle. The host SHALL therefore publish the
+inset it is applying (`SurfaceNudgeScope`) and `computeLetterboxTarget` SHALL
+snap against the extent with that inset backed out, then take the inset off the
+resulting box. The margin is then invariant under the nudge while the webview
+still changes size, so the platform view recomposites. The same holds for a
+`spoofWindowWidth`/`spoofWindowHeight` box (ETP-021), which would otherwise
+absorb the inset whole and leave the nudge with nothing to resize.
+
 #### Scenario: Available area snaps down to the grid
 
 **Given** an available area of 1366 x 768
@@ -439,6 +451,18 @@ live `window.inner*` so screen and window agree (rather than the fixed
 **Then** the box never exceeds the available area
 **And** the trimmed margin on each axis is at most 1/8 of that axis (a
 390-wide phone yields a ~350px box, not 200)
+
+#### Scenario: The repaint nudge moves the box, not the bars
+
+**Given** a letterboxed site on Android with an available height of 800
+**When** the surface-repaint nudge applies its one-pixel body inset
+**Then** `computeLetterboxTarget` is called with `availableHeight: 799` and
+`transientInsetHeight: 1` and returns a box one pixel shorter than the
+un-nudged box
+**And** the margin on that axis is unchanged, so the bars do not move (raw, the
+799 would snap to 750 and flash a 49px bar in and out)
+**And** a fixed box (ETP-021) shrinks by the same pixel, so the platform view
+still resizes
 
 #### Scenario: screen.* mirrors the letterboxed viewport
 

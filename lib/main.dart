@@ -123,6 +123,7 @@ import 'package:webspace/widgets/download_button.dart';
 import 'package:webspace/widgets/external_url_prompt.dart';
 import 'package:webspace/widgets/root_messenger.dart';
 import 'package:webspace/widgets/site_permission_badges.dart';
+import 'package:webspace/widgets/surface_nudge_scope.dart';
 import 'package:webspace/widgets/untrusted_cert_prompt.dart';
 
 // Accent color enum
@@ -9024,6 +9025,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// The tab strip stays in bottomNavigationBar separately.
   Widget _buildBodyWithBottomBar() {
     final inputBar = _buildInputBar();
+    final nudgeInset = _repaintNudge ? _repaintInsetPx : 0.0;
     // Tab strip in bottomNavigationBar handles bottom safe area when visible.
     // Input bar has its own SafeArea. Only apply body safe area when neither
     // is present (e.g. webspace list screen). The tab strip is also rendered
@@ -9084,9 +9086,10 @@ class _WebSpacePageState extends State<WebSpacePage>
                       maintainState: true,
                       maintainSize: true,
                       maintainAnimation: true,
+                      child: SurfaceNudgeScope(
+                      bottomInset: nudgeInset,
                       child: Padding(
-                      padding: EdgeInsets.only(
-                          bottom: _repaintNudge ? _repaintInsetPx : 0.0),
+                      padding: EdgeInsets.only(bottom: nudgeInset),
                       child: IndexedStack(
                       index: _currentIndex ?? 0,
                       children: _webViewModels.asMap().entries.map<Widget>((entry) {
@@ -9268,6 +9271,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                         );
                       }).toList(),
                       ),
+                    ),
                     ),
                     ),
                   ),

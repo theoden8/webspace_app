@@ -86,6 +86,16 @@ double _snapAxis(double available, double grid) {
 /// When [fixedWidth] and [fixedHeight] are both set and positive the box is
 /// that exact size, capped to the available area so it never overflows the
 /// screen; no grid snap is applied.
+///
+/// [transientInsetHeight] is a shrink the caller has already applied to
+/// [availableHeight] and that must not move the bars. Android's blank-surface
+/// repaint nudge (BUG-001 / PAUSE-015) toggles a one-pixel body inset several
+/// times a second to force the hybrid-composition platform view to
+/// recomposite; fed straight into the snap that pixel is amplified, because
+/// [_snapAxis] is a step function and one pixel below a grid multiple drops the
+/// box a whole step (300 -> 287.5), so the bars flash in and out on every
+/// toggle. Snapping the un-inset extent and handing the inset back to the box
+/// keeps the margin constant while the webview still resizes.
 LetterboxTarget computeLetterboxTarget({
   required double availableWidth,
   required double availableHeight,
@@ -93,20 +103,30 @@ LetterboxTarget computeLetterboxTarget({
   int? fixedHeight,
   double gridWidth = 200,
   double gridHeight = 100,
+  double transientInsetHeight = 0,
 }) {
   final aw = availableWidth.isFinite ? math.max(0.0, availableWidth) : 0.0;
   final ah = availableHeight.isFinite ? math.max(0.0, availableHeight) : 0.0;
+  final inset = (transientInsetHeight.isFinite && transientInsetHeight > 0)
+      ? transientInsetHeight
+      : 0.0;
   if (aw <= 0 || ah <= 0) return LetterboxTarget(aw, ah);
 
+  // Size against the extent the body has when nothing is nudging it, then hand
+  // the inset back to the box. The bars are the difference between the two, so
+  // they stay put while the webview still changes size by the inset.
+  final settledHeight = ah + inset;
+  final double width;
+  final double height;
   if (fixedWidth != null &&
       fixedWidth > 0 &&
       fixedHeight != null &&
       fixedHeight > 0) {
-    return LetterboxTarget(
-      math.min(fixedWidth.toDouble(), aw),
-      math.min(fixedHeight.toDouble(), ah),
-    );
+    width = math.min(fixedWidth.toDouble(), aw);
+    height = math.min(fixedHeight.toDouble(), settledHeight);
+  } else {
+    width = _snapAxis(aw, gridWidth);
+    height = _snapAxis(settledHeight, gridHeight);
   }
-
-  return LetterboxTarget(_snapAxis(aw, gridWidth), _snapAxis(ah, gridHeight));
+  return LetterboxTarget(width, math.max(0.0, math.min(ah, height - inset)));
 }

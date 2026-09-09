@@ -181,6 +181,46 @@ for (const rel of GUARDED) {
   });
 }
 
+// Nudge-inset publication gate (ETP-020 x BUG-001). The nudge's body inset is
+// not private to the repaint machinery: anything below it that quantises its
+// own size amplifies the pixel. The letterbox box is a step function of the
+// available height, so a raw inset drops it a whole grid step and the bars
+// flash in and out on every toggle. The inset must therefore reach the box, and
+// both the Padding and the scope must read the same value — a second, unpublished
+// inset would reproduce the jitter.
+{
+  const lines = linesOf('lib/main.dart');
+  const src = lines.join('\n');
+
+  test('lib/main.dart: the nudge inset is published to SurfaceNudgeScope', () => {
+    assert.match(src, /SurfaceNudgeScope\(\s*\n?\s*bottomInset:\s*nudgeInset,/,
+      'the body must publish the nudge inset for descendants that quantise size');
+    assert.match(src, /final\s+nudgeInset\s*=\s*_repaintNudge\s*\?\s*_repaintInsetPx\s*:\s*0\.0;/,
+      'the inset must be computed once so the Padding and the scope cannot drift');
+  });
+
+  test('lib/main.dart: no unpublished nudge inset', () => {
+    const offenders = [];
+    lines.forEach((l, i) => {
+      if (/_repaintNudge\s*\?/.test(l) && !/final\s+nudgeInset/.test(l)) {
+        offenders.push(i + 1);
+      }
+    });
+    assert.deepEqual(offenders, [],
+      `raw _repaintNudge inset at line(s) ${offenders.join(', ')}; route it through ` +
+        'nudgeInset so SurfaceNudgeScope carries it to the letterbox.');
+  });
+
+  test('lib/services/webview.dart: the letterbox backs the nudge out of its snap', () => {
+    const wv = linesOf('lib/services/webview.dart');
+    const defIdx = wv.findIndex((l) => /Widget\s+_applyLetterbox\s*\(/.test(l));
+    assert.ok(defIdx >= 0, '_applyLetterbox must exist');
+    const body = wv.slice(defIdx, defIdx + 30).join('\n');
+    assert.match(body, /transientInsetHeight:\s*SurfaceNudgeScope\.bottomInsetOf\(context\)/,
+      'the box must snap against the settled extent, not the nudged one');
+  });
+}
+
 // Route-return repaint gate (PAUSE-024 / BUG-001 Attempt 10). An opaque route
 // pushed over a webview screen stops its platform view from being composited,
 // so Android detaches the SurfaceView and re-attaches it blank on the pop.

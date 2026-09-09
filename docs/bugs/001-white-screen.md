@@ -892,6 +892,14 @@ nothing after, because there is no second commit for a same-document update.
 
 ## Guardrails now in place
 
+- **Nudge-inset publication** ([test/js/surface_repaint_funnel.test.js](../../test/js/surface_repaint_funnel.test.js)):
+  the nudge's body inset is visible to layout below it, and anything that quantises
+  its own size amplifies the pixel. The letterbox box (`ETP-020`) is a step function
+  of the available height, so the raw inset dropped it a whole grid step and the bars
+  flashed in and out on every toggle (reported on a slow debug build). The inset is now
+  published through `SurfaceNudgeScope` and backed out of the snap; the gate asserts one
+  shared `nudgeInset` value feeds both the `Padding` and the scope, and that
+  `_applyLetterbox` reads it. A second, unpublished inset fails CI.
 - **Formal model** ([formal/kernel.tla](../../formal/kernel.tla)): `RepaintLiveness`
   (every blank-surface attach is eventually repainted); the `bypass` demonstrator *is*
   this bug and TLC rejects it. Liveness backbone proved for unbounded N in

@@ -26,6 +26,8 @@ const MIGRATED = [
   'lib/widgets/level_slider.dart',
   'lib/widgets/tab_bar_corner_button.dart',
   'lib/widgets/tor_bootstrap.dart',
+  // Ambient layout state, no painting: nothing to tokenise.
+  'lib/widgets/surface_nudge_scope.dart',
 ];
 
 const PENDING = [
