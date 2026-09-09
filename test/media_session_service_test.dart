@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:typed_data';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -13,8 +15,8 @@ import 'package:webspace/settings/proxy.dart';
 /// cannot honor.
 class _RecordingOutbound implements OutboundHttpFactory {
   final List<UserProxySettings> queries = [];
-  http.Response Function(http.Request request) responder =
-      (_) => http.Response('', 404);
+  http.Response Function(http.Request request) responder = (_) =>
+      http.Response('', 404);
   bool block = false;
 
   UserProxySettings? get lastQuery => queries.isEmpty ? null : queries.last;
@@ -36,8 +38,7 @@ class _RecordingOutbound implements OutboundHttpFactory {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  const channel =
-      MethodChannel('org.codeberg.theoden8.webspace/media_session');
+  const channel = MethodChannel('org.codeberg.theoden8.webspace/media_session');
   const codec = StandardMethodCodec();
 
   late List<MethodCall> calls;
@@ -83,10 +84,11 @@ void main() {
     service.debugReset();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
-      calls.add(call);
-      if (call.method == 'isNotificationActive') return osPostedNotification;
-      return null;
-    });
+          calls.add(call);
+          if (call.method == 'isNotificationActive')
+            return osPostedNotification;
+          return null;
+        });
   });
 
   tearDown(() {
@@ -97,54 +99,67 @@ void main() {
     service.debugReset();
   });
 
-  test('first playing report starts the service, later ones update it',
-      () async {
-    await reportPlaying('a', title: 'One');
-    await reportPlaying('a', title: 'Two');
+  test(
+    'first playing report starts the service, later ones update it',
+    () async {
+      await reportPlaying('a', title: 'One');
+      await reportPlaying('a', title: 'Two');
 
-    expect(controlCalls().map((c) => c.method), ['start', 'update']);
-    expect(controlCalls().first.arguments, {
-      'title': 'One',
-      'artist': 'Artist',
-      'album': 'Album',
-      'playing': true,
-      'artwork': null,
-    });
-    expect(service.isActive, isTrue);
-  });
+      expect(controlCalls().map((c) => c.method), ['start', 'update']);
+      expect(controlCalls().first.arguments, {
+        'title': 'One',
+        'artist': 'Artist',
+        'album': 'Album',
+        'playing': true,
+        'artwork': null,
+      });
+      expect(service.isActive, isTrue);
+    },
+  );
 
-  test('the owner pausing flips the notification without tearing it down',
-      () async {
-    await reportPlaying('a');
-    await reportPlaying('a', playing: false);
+  test(
+    'the owner pausing flips the notification without tearing it down',
+    () async {
+      await reportPlaying('a');
+      await reportPlaying('a', playing: false);
 
-    expect(controlCalls().map((c) => c.method), ['start', 'update']);
-    expect((controlCalls().last.arguments as Map)['playing'], isFalse);
-    expect(service.isActive, isTrue,
-        reason: 'a paused player is still the owner and can be resumed');
-  });
+      expect(controlCalls().map((c) => c.method), ['start', 'update']);
+      expect((controlCalls().last.arguments as Map)['playing'], isFalse);
+      expect(
+        service.isActive,
+        isTrue,
+        reason: 'a paused player is still the owner and can be resumed',
+      );
+    },
+  );
 
   test('a non-owner reporting not-playing cannot clobber the owner', () async {
     await reportPlaying('a');
     await reportPlaying('b', playing: false);
 
-    expect(controlCalls().map((c) => c.method), ['start'],
-        reason: 'a background site going quiet must not touch the '
-            'notification the user is listening to');
+    expect(
+      controlCalls().map((c) => c.method),
+      ['start'],
+      reason:
+          'a background site going quiet must not touch the '
+          'notification the user is listening to',
+    );
   });
 
-  test('a sibling iframe of the playing site cannot pause the notification',
-      () async {
-    // BGAUDIO-008. The shim runs in every frame and they share one handler, so
-    // an ad / comments iframe reports `playing:false` for the same siteId
-    // moments after the main frame raised the notification. Without the frame
-    // guard that flips it to a paused, dismissible state while audio plays.
-    await reportPlaying('a', frame: 'main');
-    await reportPlaying('a', frame: 'ad-iframe', playing: false);
+  test(
+    'a sibling iframe of the playing site cannot pause the notification',
+    () async {
+      // BGAUDIO-008. The shim runs in every frame and they share one handler, so
+      // an ad / comments iframe reports `playing:false` for the same siteId
+      // moments after the main frame raised the notification. Without the frame
+      // guard that flips it to a paused, dismissible state while audio plays.
+      await reportPlaying('a', frame: 'main');
+      await reportPlaying('a', frame: 'ad-iframe', playing: false);
 
-    expect(controlCalls().map((c) => c.method), ['start']);
-    expect(service.isActive, isTrue);
-  });
+      expect(controlCalls().map((c) => c.method), ['start']);
+      expect(service.isActive, isTrue);
+    },
+  );
 
   test('playback moving to another frame transfers ownership', () async {
     await reportPlaying('a', frame: 'main');
@@ -161,24 +176,65 @@ void main() {
     // rule any frame that reports `playing:true` retitles what the user is
     // listening to — and inherits the transport controls with it.
     await reportPlaying('a', frame: 'main', title: 'Real Track');
-    await reportPlaying('a',
-        frame: 'ad-iframe', isMainFrame: false, title: 'Buy Now');
+    await reportPlaying(
+      'a',
+      frame: 'ad-iframe',
+      isMainFrame: false,
+      title: 'Buy Now',
+    );
 
     expect(controlCalls().map((c) => c.method), ['start']);
     expect((controlCalls().single.arguments as Map)['title'], 'Real Track');
   });
 
-  test('a subframe owns the notification when no main frame claimed it',
-      () async {
-    // The common embedded-player case: the top document never plays anything,
-    // so the iframe that does is the only candidate and must not be locked out.
-    await reportPlaying('a',
-        frame: 'player-iframe', isMainFrame: false, title: 'Embedded');
-    await reportPlaying('a',
-        frame: 'player-iframe', isMainFrame: false, playing: false);
+  test(
+    'a subframe owns the notification when no main frame claimed it',
+    () async {
+      // The common embedded-player case: the top document never plays anything,
+      // so the iframe that does is the only candidate and must not be locked out.
+      await reportPlaying(
+        'a',
+        frame: 'player-iframe',
+        isMainFrame: false,
+        title: 'Embedded',
+      );
+      await reportPlaying(
+        'a',
+        frame: 'player-iframe',
+        isMainFrame: false,
+        playing: false,
+      );
 
-    expect(controlCalls().map((c) => c.method), ['start', 'update']);
-    expect((controlCalls().last.arguments as Map)['playing'], isFalse);
+      expect(controlCalls().map((c) => c.method), ['start', 'update']);
+      expect((controlCalls().last.arguments as Map)['playing'], isFalse);
+    },
+  );
+
+  test('a report parked on its artwork fetch cannot publish after losing the '
+      'notification', () async {
+    // The guard runs before the artwork fetch, so a frame that stalls its own
+    // artwork stays parked across a main-frame takeover and its continuation
+    // would otherwise land with attacker-chosen metadata.
+    final gate = Completer<Uint8List?>();
+    MediaSessionService.debugArtworkFetchOverride = (_, __) => gate.future;
+    addTearDown(() => MediaSessionService.debugArtworkFetchOverride = null);
+
+    final parked = reportPlaying(
+      'a',
+      frame: 'ad-iframe',
+      isMainFrame: false,
+      title: 'Buy Now',
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    MediaSessionService.debugArtworkFetchOverride = null;
+    await reportPlaying('a', frame: 'main', title: 'Real Track');
+
+    gate.complete(null);
+    await parked;
+
+    expect(controlCalls().map((c) => c.method), ['start']);
+    expect((controlCalls().single.arguments as Map)['title'], 'Real Track');
   });
 
   test('not-playing before anything was raised is a no-op', () async {
@@ -249,8 +305,11 @@ void main() {
       await reportPlaying('a', artworkUrl: 'https://art.example/art.png');
 
       final artwork = (controlCalls().single.arguments as Map)['artwork'];
-      expect(artwork, isA<Uint8List>(),
-          reason: 'the Kotlin side reads this as ByteArray');
+      expect(
+        artwork,
+        isA<Uint8List>(),
+        reason: 'the Kotlin side reads this as ByteArray',
+      );
       expect(artwork, <int>[1, 2, 3, 4]);
     });
 
@@ -262,67 +321,87 @@ void main() {
       await reportPlaying(
         'a',
         artworkUrl: 'https://art.example/art.png',
-        proxy: UserProxySettings(type: ProxyType.HTTP, address: '10.0.0.1:8080'),
+        proxy: UserProxySettings(
+          type: ProxyType.HTTP,
+          address: '10.0.0.1:8080',
+        ),
       );
 
       expect(fake.lastQuery!.type, ProxyType.HTTP);
       expect(fake.lastQuery!.address, '10.0.0.1:8080');
     });
 
-    test('a per-site DEFAULT proxy resolves to the global outbound proxy',
-        () async {
-      GlobalOutboundProxy.setForTest(
-          UserProxySettings(type: ProxyType.HTTP, address: '192.168.1.10:3128'));
-      fake.responder = (_) => http.Response.bytes(<int>[9], 200);
+    test(
+      'a per-site DEFAULT proxy resolves to the global outbound proxy',
+      () async {
+        GlobalOutboundProxy.setForTest(
+          UserProxySettings(type: ProxyType.HTTP, address: '192.168.1.10:3128'),
+        );
+        fake.responder = (_) => http.Response.bytes(<int>[9], 200);
 
-      await reportPlaying(
-        'a',
-        artworkUrl: 'https://art.example/art.png',
-        proxy: UserProxySettings(type: ProxyType.DEFAULT),
-      );
+        await reportPlaying(
+          'a',
+          artworkUrl: 'https://art.example/art.png',
+          proxy: UserProxySettings(type: ProxyType.DEFAULT),
+        );
 
-      expect(fake.lastQuery!.address, '192.168.1.10:3128');
-    });
+        expect(fake.lastQuery!.address, '192.168.1.10:3128');
+      },
+    );
 
-    test('a proxy the factory refuses drops the artwork, never falls back',
-        () async {
-      fake.block = true;
-      fake.responder = (_) => http.Response.bytes(<int>[1, 2, 3, 4], 200);
+    test(
+      'a proxy the factory refuses drops the artwork, never falls back',
+      () async {
+        fake.block = true;
+        fake.responder = (_) => http.Response.bytes(<int>[1, 2, 3, 4], 200);
 
-      await reportPlaying(
-        'a',
-        artworkUrl: 'https://art.example/art.png',
-        proxy: UserProxySettings(type: ProxyType.SOCKS5, address: 'nonsense'),
-      );
+        await reportPlaying(
+          'a',
+          artworkUrl: 'https://art.example/art.png',
+          proxy: UserProxySettings(type: ProxyType.SOCKS5, address: 'nonsense'),
+        );
 
-      expect(controlCalls().map((c) => c.method), ['start'],
-          reason: 'a blocked artwork fetch must not stop the notification');
-      expect((controlCalls().single.arguments as Map)['artwork'], isNull);
-    });
+        expect(
+          controlCalls().map((c) => c.method),
+          ['start'],
+          reason: 'a blocked artwork fetch must not stop the notification',
+        );
+        expect((controlCalls().single.arguments as Map)['artwork'], isNull);
+      },
+    );
 
-    test('loopback / private / link-local artwork hosts never reach the network',
-        () async {
-      fake.responder = (_) => http.Response.bytes(<int>[1, 2, 3, 4], 200);
+    test(
+      'loopback / private / link-local artwork hosts never reach the network',
+      () async {
+        fake.responder = (_) => http.Response.bytes(<int>[1, 2, 3, 4], 200);
 
-      for (final url in const [
-        'http://127.0.0.1:8080/art.png',
-        'http://localhost/art.png',
-        'http://10.1.2.3/art.png',
-        'http://192.168.1.5/art.png',
-        'http://172.16.0.1/art.png',
-        'http://169.254.169.254/latest/meta-data/',
-        'http://[::1]/art.png',
-      ]) {
-        service.debugReset();
-        calls.clear();
-        await reportPlaying('a', artworkUrl: url);
-        expect((controlCalls().single.arguments as Map)['artwork'], isNull,
-            reason: url);
-      }
-      expect(fake.queries, isEmpty,
-          reason: 'a page must not be able to probe the LAN or cloud metadata '
-              'through the artwork fetch');
-    });
+        for (final url in const [
+          'http://127.0.0.1:8080/art.png',
+          'http://localhost/art.png',
+          'http://10.1.2.3/art.png',
+          'http://192.168.1.5/art.png',
+          'http://172.16.0.1/art.png',
+          'http://169.254.169.254/latest/meta-data/',
+          'http://[::1]/art.png',
+        ]) {
+          service.debugReset();
+          calls.clear();
+          await reportPlaying('a', artworkUrl: url);
+          expect(
+            (controlCalls().single.arguments as Map)['artwork'],
+            isNull,
+            reason: url,
+          );
+        }
+        expect(
+          fake.queries,
+          isEmpty,
+          reason:
+              'a page must not be able to probe the LAN or cloud metadata '
+              'through the artwork fetch',
+        );
+      },
+    );
   });
 
   test('a raised-but-unposted notification is logged as a warning', () async {
@@ -336,74 +415,92 @@ void main() {
     final warnings = LogService.instance.allEntriesMerged
         .where((e) => e.level == LogLevel.warning)
         .map((e) => e.message);
-    expect(warnings.join('\n'), contains('not posted by the OS'),
-        reason: 'a denied notification permission leaves the service running '
-            'with nothing on screen — it must not be silent');
+    expect(
+      warnings.join('\n'),
+      contains('not posted by the OS'),
+      reason:
+          'a denied notification permission leaves the service running '
+          'with nothing on screen — it must not be silent',
+    );
   });
 
   test('a posted notification logs no warning', () async {
     await reportPlaying('a');
     await Future<void>.delayed(Duration.zero);
 
-    final warnings = LogService.instance.allEntriesMerged
-        .where((e) => e.level == LogLevel.warning);
+    final warnings = LogService.instance.allEntriesMerged.where(
+      (e) => e.level == LogLevel.warning,
+    );
     expect(warnings, isEmpty);
   });
 
-  test('transport actions run the control shim on the owning webview',
-      () async {
-    service.initialize();
-    final js = <String>[];
-    await reportPlaying('a', js: js);
+  test(
+    'transport actions run the control shim on the owning webview',
+    () async {
+      service.initialize();
+      final js = <String>[];
+      await reportPlaying('a', js: js);
 
-    for (final action in ['play', 'pause', 'stop']) {
+      for (final action in ['play', 'pause', 'stop']) {
+        await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .handlePlatformMessage(
+              channel.name,
+              codec.encodeMethodCall(
+                MethodCall('onTransport', {'action': action}),
+              ),
+              (_) {},
+            );
+      }
+
+      expect(js, [
+        'if(window.__wsMediaControl)window.__wsMediaControl("play");',
+        'if(window.__wsMediaControl)window.__wsMediaControl("pause");',
+        'if(window.__wsMediaControl)window.__wsMediaControl("stop");',
+      ]);
+    },
+  );
+
+  test(
+    'native audio-session state lands in the app log (BGAUDIO-011)',
+    () async {
+      service.initialize();
       await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .handlePlatformMessage(
-        channel.name,
-        codec.encodeMethodCall(MethodCall('onTransport', {'action': action})),
-        (_) {},
-      );
-    }
-
-    expect(js, [
-      'if(window.__wsMediaControl)window.__wsMediaControl("play");',
-      'if(window.__wsMediaControl)window.__wsMediaControl("pause");',
-      'if(window.__wsMediaControl)window.__wsMediaControl("stop");',
-    ]);
-  });
-
-  test('native audio-session state lands in the app log (BGAUDIO-011)',
-      () async {
-    service.initialize();
-    await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .handlePlatformMessage(
-      channel.name,
-      codec.encodeMethodCall(const MethodCall('onSessionState', {
-        'message': 'interruption ended, session re-activated '
-            '[category=AVAudioSessionCategoryPlayback otherAudio=false]',
-      })),
-      (_) {},
-    );
-    final lines = LogService.instance.allEntriesMerged
-        .where((e) => e.tag == 'MediaSession')
-        .map((e) => e.message)
-        .toList();
-    expect(lines.any((m) => m.contains('interruption ended')), isTrue);
-    expect(lines.any((m) => m.contains('Playback')), isTrue);
-  });
+            channel.name,
+            codec.encodeMethodCall(
+              const MethodCall('onSessionState', {
+                'message':
+                    'interruption ended, session re-activated '
+                    '[category=AVAudioSessionCategoryPlayback otherAudio=false]',
+              }),
+            ),
+            (_) {},
+          );
+      final lines = LogService.instance.allEntriesMerged
+          .where((e) => e.tag == 'MediaSession')
+          .map((e) => e.message)
+          .toList();
+      expect(lines.any((m) => m.contains('interruption ended')), isTrue);
+      expect(lines.any((m) => m.contains('Playback')), isTrue);
+    },
+  );
 
   test('an empty session-state message is ignored', () async {
     service.initialize();
     await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .handlePlatformMessage(
-      channel.name,
-      codec.encodeMethodCall(
-          const MethodCall('onSessionState', {'message': ''})),
-      (_) {},
+          channel.name,
+          codec.encodeMethodCall(
+            const MethodCall('onSessionState', {'message': ''}),
+          ),
+          (_) {},
+        );
+    expect(
+      LogService.instance.allEntriesMerged.where(
+        (e) => e.tag == 'MediaSession' && e.message.startsWith('Audio session'),
+      ),
+      isEmpty,
     );
-    expect(LogService.instance.allEntriesMerged.where((e) =>
-        e.tag == 'MediaSession' && e.message.startsWith('Audio session')),
-        isEmpty);
   });
 
   test('an empty transport action is ignored', () async {
@@ -413,10 +510,12 @@ void main() {
 
     await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .handlePlatformMessage(
-      channel.name,
-      codec.encodeMethodCall(const MethodCall('onTransport', {'action': ''})),
-      (_) {},
-    );
+          channel.name,
+          codec.encodeMethodCall(
+            const MethodCall('onTransport', {'action': ''}),
+          ),
+          (_) {},
+        );
 
     expect(js, isEmpty);
   });
@@ -424,7 +523,9 @@ void main() {
   group('control failures are diagnosable (BGAUDIO-007)', () {
     test('a refused transport is logged as a warning, no metadata', () async {
       await service.reportControlFailure(
-          action: 'play', error: 'NotAllowedError');
+        action: 'play',
+        error: 'NotAllowedError',
+      );
       final warnings = LogService.instance.allEntriesMerged
           .where((e) => e.tag == 'MediaSession' && e.level == LogLevel.warning)
           .map((e) => e.message)
@@ -449,11 +550,12 @@ void main() {
       // processing the pause that preceded this.
       expect(controlCalls().map((c) => c.method), ['stop', 'stop']);
       expect(
-          controlCalls().every((c) =>
-              (c.arguments as Map)['deactivate'] == true),
-          isTrue,
-          reason: 'clearing the metadata alone leaves an entry the engine '
-              'repopulates; the session has to go with it');
+        controlCalls().every((c) => (c.arguments as Map)['deactivate'] == true),
+        isTrue,
+        reason:
+            'clearing the metadata alone leaves an entry the engine '
+            'repopulates; the session has to go with it',
+      );
     });
 
     test('tears our own surface down when we do own it', () async {
@@ -478,19 +580,21 @@ void main() {
     await expectLater(reportPlaying('a'), completes);
   });
 
-  test('everything is inert on a platform with no native media session',
-      () async {
-    MediaSessionService.debugEnabledOverride = false;
-    service.debugReset();
+  test(
+    'everything is inert on a platform with no native media session',
+    () async {
+      MediaSessionService.debugEnabledOverride = false;
+      service.debugReset();
 
-    await reportPlaying('a');
-    await service.stopAll();
-    expect(calls, isEmpty);
-    expect(await service.notificationPosted(), isFalse);
-    // The same answer gates the shim + handler injection in webview.dart, so
-    // no report can arrive on a platform that would drop it.
-    expect(service.isSupported, isFalse);
-  });
+      await reportPlaying('a');
+      await service.stopAll();
+      expect(calls, isEmpty);
+      expect(await service.notificationPosted(), isFalse);
+      // The same answer gates the shim + handler injection in webview.dart, so
+      // no report can arrive on a platform that would drop it.
+      expect(service.isSupported, isFalse);
+    },
+  );
 
   test('isSupported is what arms the bridge', () async {
     MediaSessionService.debugEnabledOverride = true;

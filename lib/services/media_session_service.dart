@@ -25,8 +25,9 @@ class MediaSessionService {
   static final MediaSessionService instance = MediaSessionService._();
   MediaSessionService._();
 
-  static const _channel =
-      MethodChannel('org.codeberg.theoden8.webspace/media_session');
+  static const _channel = MethodChannel(
+    'org.codeberg.theoden8.webspace/media_session',
+  );
 
   bool _initialized = false;
   bool _active = false;
@@ -58,8 +59,7 @@ class MediaSessionService {
   @visibleForTesting
   static bool? debugEnabledOverride;
 
-  bool get _enabled =>
-      debugEnabledOverride ?? (hostIsAndroid || hostIsIOS);
+  bool get _enabled => debugEnabledOverride ?? (hostIsAndroid || hostIsIOS);
 
   /// Whether this platform has a native media session behind the channel.
   /// Read by `webview.dart` to gate the shim + handler injection, so the
@@ -114,7 +114,8 @@ class MediaSessionService {
         final runJs = _ownerRunJs;
         if (runJs != null) {
           await runJs(
-              'if(window.__wsMediaControl)window.__wsMediaControl(${jsonEncode(action)});');
+            'if(window.__wsMediaControl)window.__wsMediaControl(${jsonEncode(action)});',
+          );
         }
       }
       return null;
@@ -150,6 +151,13 @@ class MediaSessionService {
       _ownerIsMainFrame = isMainFrame;
       _ownerRunJs = runJs;
       final artwork = await _fetchArtwork(artworkUrl, proxy);
+      // The artwork fetch is a network round trip on a URL the calling frame
+      // chose, so a second report can take ownership while this one is parked
+      // here. Publishing regardless would let a frame that stalled its own
+      // artwork retitle the notification the main frame has since raised, which
+      // is the guard above defeated by waiting. Ownership decided before the
+      // await is not ownership now.
+      if (_ownerSiteId != siteId || _ownerFrame != frame) return;
       final raising = !_active;
       await _invoke(raising ? 'start' : 'update', {
         'title': title,
@@ -308,7 +316,15 @@ class MediaSessionService {
   /// (LEAK-002) and fails closed when that proxy cannot be honored, and it
   /// refuses loopback / private / link-local literals so a page cannot use it
   /// to probe the LAN or cloud metadata.
+  /// Test seam: parks or short-circuits the artwork fetch so the ownership
+  /// re-check after it can be driven deterministically.
+  @visibleForTesting
+  static Future<Uint8List?> Function(String url, UserProxySettings? proxy)?
+  debugArtworkFetchOverride;
+
   Future<Uint8List?> _fetchArtwork(String url, UserProxySettings? proxy) async {
+    final override = debugArtworkFetchOverride;
+    if (override != null) return override(url, proxy);
     if (url.isEmpty) return null;
     final uri = Uri.tryParse(url);
     if (uri == null || !(uri.isScheme('http') || uri.isScheme('https'))) {
@@ -316,7 +332,10 @@ class MediaSessionService {
     }
     if (_isPrivateOrLoopbackHost(uri.host.toLowerCase())) return null;
     final result = outboundHttp.clientFor(
-        resolveEffectiveProxy(proxy ?? UserProxySettings(type: ProxyType.DEFAULT)));
+      resolveEffectiveProxy(
+        proxy ?? UserProxySettings(type: ProxyType.DEFAULT),
+      ),
+    );
     if (result is OutboundClientBlocked) {
       LogService.instance.log(
         'MediaSession',

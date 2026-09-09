@@ -33,18 +33,27 @@ import javax.net.ssl.SSLSocketFactory
  * The listener is bound to loopback, which keeps it off the network but not
  * away from the device: every other app with `INTERNET` can reach
  * `127.0.0.1:<port>` too, and this relay answers with the user's upstream
- * credentials attached. So each accepted connection is checked against
- * `/proc/net/tcp`, which on API 29+ lists only the calling UID's sockets — a
- * peer that is one of our own sockets appears there, another app's does not.
- * Page JS cannot reach the relay in the first place (a `fetch` sends an
- * origin-form request line, which has no host to forward and is answered with
- * `400`), so this is about other apps.
+ * credentials attached. Each accepted connection is therefore checked against
+ * `/proc/net/tcp{,6}`: the peer's connection appears as a row whose local port
+ * is its own and whose remote port is ours, and field 7 names the UID that owns
+ * it. A row owned by anyone but us is another app, and is refused before any
+ * upstream connection is opened.
  *
- * Unreadable table means unverifiable, not hostile: some kernels and SELinux
- * policies deny the read outright, and failing closed there would strand
- * proxying entirely for a threat that needs a malicious app already installed.
- * A readable table that does not list the peer is a foreign process and is
- * refused.
+ * **Know what this does and does not cover.** The port pair alone is the row
+ * *any* caller creates, so the UID is the whole discriminator — matching ports
+ * and stopping there would classify every caller as OWN. And the table is only
+ * readable up to API 28: Android 10 denies `/proc/net` outright rather than
+ * filtering it per-UID, so from API 29 the read fails and every peer is
+ * UNKNOWN. The check therefore bites on API 24-28 and is inert above it.
+ * Nothing supported replaces it: `ConnectivityManager.getConnectionOwnerUid`
+ * answers only for the caller's own `VpnService` tunnel, and TCP has no
+ * `SO_PEERCRED`. On API 29+ the ephemeral port is the only thing between a
+ * local app and this relay, and ~15 bits is scannable — that residual exposure
+ * predates this check and is not closed by it.
+ *
+ * Unreadable table means unverifiable, not hostile: failing closed there would
+ * strand proxying on every modern device for a threat that needs a malicious
+ * app already installed.
  *
  * Deliberately free of `android.*` imports so it runs under plain JVM
  * JUnit (no Robolectric). The lifecycle wrapper / method channel lives in
@@ -52,6 +61,12 @@ import javax.net.ssl.SSLSocketFactory
  */
 class ProxyRelay(
     private val logger: ((String) -> Unit)? = null,
+    /**
+     * This process's UID, for the `/proc/net/tcp` peer check. Passed in rather
+     * than read here so the class stays free of `android.*` and JVM-testable.
+     * Null disables the UID half of the check, which then cannot reject.
+     */
+    private val ownUid: Int? = null,
     private val peerCheck: ((peerPort: Int, relayPort: Int) -> PeerVerdict)? = null,
 ) {
 
@@ -173,7 +188,7 @@ class ProxyRelay(
      */
     private fun peerAllowed(peerPort: Int): Boolean {
         val check: (Int, Int) -> PeerVerdict =
-            peerCheck ?: { p, r -> readPeerVerdict(p, r) }
+            peerCheck ?: { p, r -> readPeerVerdict(p, r, ownUid) }
         return when (check(peerPort, boundPort)) {
             PeerVerdict.OWN -> true
             PeerVerdict.FOREIGN -> {
@@ -515,23 +530,39 @@ class ProxyRelay(
 
         private val PROC_NET_TCP = listOf("/proc/net/tcp", "/proc/net/tcp6")
 
-        private fun readPeerVerdict(peerPort: Int, relayPort: Int): PeerVerdict =
+        private fun readPeerVerdict(peerPort: Int, relayPort: Int, ownUid: Int?): PeerVerdict =
             peerVerdict(
                 PROC_NET_TCP.map { path -> runCatching { File(path).readText() }.getOrNull() },
                 peerPort,
                 relayPort,
+                ownUid,
             )
 
         /**
          * Classify a peer against the contents of `/proc/net/{tcp,tcp6}`.
          *
-         * A connection this process opened to the relay shows up as a row whose
-         * local port is the peer's and whose remote port is the relay's. Rows
-         * are `sl local_address rem_address ...` with `hex-ip:hex-port`
-         * addresses. Split out for a JVM test, which cannot arrange a foreign
-         * process to connect.
+         * A connection to the relay shows up as a row whose local port is the
+         * peer's and whose remote port is the relay's. Rows are
+         * `sl local_address rem_address st tx:rx tr:when retrnsmt uid ...` with
+         * `hex-ip:hex-port` addresses, so the owning UID is field 7.
+         *
+         * **The port pair alone proves nothing.** It is the row that *any*
+         * connection to the relay creates, ours or another app's, so matching on
+         * it and stopping there classifies every caller as OWN. [ownUid] is what
+         * actually discriminates: on a table that lists the whole namespace, a
+         * row owned by another UID is another app. When it is null, or the row
+         * carries no parsable UID, the check degrades to the port pair and
+         * cannot reject anything — which is the honest answer, not a pass.
+         *
+         * Split out for a JVM test, which cannot arrange a foreign process to
+         * connect.
          */
-        fun peerVerdict(tables: List<String?>, peerPort: Int, relayPort: Int): PeerVerdict {
+        fun peerVerdict(
+            tables: List<String?>,
+            peerPort: Int,
+            relayPort: Int,
+            ownUid: Int? = null,
+        ): PeerVerdict {
             var readable = false
             for (table in tables) {
                 if (table == null) continue
@@ -541,9 +572,14 @@ class ProxyRelay(
                     if (fields.size < 3) continue
                     val local = hexPort(fields[1]) ?: continue
                     val remote = hexPort(fields[2]) ?: continue
-                    if (local == peerPort && remote == relayPort) return PeerVerdict.OWN
+                    if (local != peerPort || remote != relayPort) continue
+                    val uid = fields.getOrNull(7)?.toIntOrNull()
+                    if (ownUid == null || uid == null) return PeerVerdict.OWN
+                    if (uid == ownUid) return PeerVerdict.OWN
                 }
             }
+            // Readable, and either no row for this peer or one owned by
+            // somebody else. Both are foreign.
             return if (readable) PeerVerdict.FOREIGN else PeerVerdict.UNKNOWN
         }
 

@@ -59,17 +59,27 @@ Loopback keeps the listener off the network but not away from the device:
 every other app holding `INTERNET` can reach `127.0.0.1:<port>`, and the relay
 answers with the user's upstream credentials attached — an open proxy on their
 account for as long as a credentialed site is loaded. Each accepted connection
-SHALL therefore be checked against `/proc/net/tcp{,6}`, which on API 29+ lists
-only the calling UID's sockets: a connection this process opened appears there
-as a row whose local port is the peer's and whose remote port is the relay's,
-and another app's does not.
+SHALL therefore be checked against `/proc/net/tcp{,6}`: the peer's connection
+appears as a row whose local port is the peer's and whose remote port is the
+relay's, and field 7 names the UID owning it. The row SHALL be required to
+carry this process's own UID; the port pair alone is the row *any* caller
+creates, so a check that matched it and stopped would classify every caller as
+OWN and reject nothing.
 
-A readable table that does not list the peer is a foreign process and the
-connection SHALL be closed before any upstream connection is opened. An
-unreadable table is unverifiable, not hostile — some kernels and SELinux
-policies deny the read — and SHALL be accepted, logged once per relay rather
-than per connection. Failing closed there would strand proxying entirely for a
-threat that needs a malicious app already installed.
+A readable table with no row for the peer, or one owned by another UID, is a
+foreign process and the connection SHALL be closed before any upstream
+connection is opened. An unreadable table is unverifiable, not hostile, and
+SHALL be accepted, logged once per relay rather than per connection.
+
+**Coverage.** `/proc/net` is readable only up to API 28: Android 10 denies it
+outright rather than filtering it per-UID, so from API 29 every peer is
+UNKNOWN and the check is inert. The app's `minSdkVersion` is 24, so this
+covers API 24-28 and nothing above. No supported replacement exists —
+`ConnectivityManager.getConnectionOwnerUid` answers only for the caller's own
+`VpnService` tunnel, and TCP has no `SO_PEERCRED` — so on API 29+ the
+ephemeral port remains the only barrier. That residual exposure predates this
+requirement and is not closed by it; a design that closes it needs something
+other than a peer lookup.
 
 Page script cannot reach the relay in the first place: `fetch` sends an
 origin-form request line, which carries no host to forward and is answered with
@@ -77,10 +87,17 @@ origin-form request line, which carries no host to forward and is answered with
 
 #### Scenario: A connection from another process is refused
 
-- **GIVEN** the relay is running with a credentialed upstream
-- **WHEN** a connection arrives whose peer socket is not one of this process's
+- **GIVEN** the relay is running with a credentialed upstream on a readable table
+- **WHEN** a connection arrives whose peer row carries another app's UID
 - **THEN** the connection is closed without a response
 - **AND** no upstream connection is opened, so no credentials are sent
+
+#### Scenario: A matching port pair is not on its own sufficient
+
+- **GIVEN** a readable table whose row for the peer is owned by another UID
+- **WHEN** the peer is classified
+- **THEN** it is FOREIGN, even though its local and remote ports match the
+  relay's connection exactly
 
 #### Scenario: The WebView's own connection is served
 

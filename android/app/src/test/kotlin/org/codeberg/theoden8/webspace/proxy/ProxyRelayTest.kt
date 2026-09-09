@@ -139,14 +139,43 @@ class ProxyRelayTest {
 
     @Test
     fun peerVerdict_ownSocketIsRecognised() {
-        // local 127.0.0.1:0xC001 -> remote 127.0.0.1:0x1F90 (relay).
+        // local 127.0.0.1:0xC001 -> remote 127.0.0.1:0x1F90 (relay), uid 10123.
         val table = """
               sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid
                0: 0100007F:C001 0100007F:1F90 01 00000000:00000000 00:00000000 00000000  10123
         """.trimIndent()
         assertEquals(
             ProxyRelay.PeerVerdict.OWN,
-            ProxyRelay.peerVerdict(listOf(table, null), 0xC001, 0x1F90),
+            ProxyRelay.peerVerdict(listOf(table, null), 0xC001, 0x1F90, 10123),
+        )
+    }
+
+    @Test
+    fun peerVerdict_anotherUidOwningThePortPairIsForeign() {
+        // The whole point: on a table that lists the namespace, this row is
+        // exactly what a foreign app's connection to the relay looks like. Match
+        // on ports alone and it reads as OWN, which is what made the check inert.
+        val table = """
+              sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid
+               0: 0100007F:C001 0100007F:1F90 01 00000000:00000000 00:00000000 00000000  10999
+        """.trimIndent()
+        assertEquals(
+            ProxyRelay.PeerVerdict.FOREIGN,
+            ProxyRelay.peerVerdict(listOf(table, null), 0xC001, 0x1F90, 10123),
+        )
+    }
+
+    @Test
+    fun peerVerdict_withoutOurUidTheCheckCannotReject() {
+        // No UID to compare against degrades to the port pair, which cannot
+        // reject. Stated so nobody mistakes that path for a passing check.
+        val table = """
+              sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid
+               0: 0100007F:C001 0100007F:1F90 01 00000000:00000000 00:00000000 00000000  10999
+        """.trimIndent()
+        assertEquals(
+            ProxyRelay.PeerVerdict.OWN,
+            ProxyRelay.peerVerdict(listOf(table, null), 0xC001, 0x1F90, null),
         )
     }
 
@@ -159,7 +188,7 @@ class ProxyRelayTest {
         assertEquals(
             "only the listener is ours; the connecting socket belongs elsewhere",
             ProxyRelay.PeerVerdict.FOREIGN,
-            ProxyRelay.peerVerdict(listOf(table, null), 0xC001, 0x1F90),
+            ProxyRelay.peerVerdict(listOf(table, null), 0xC001, 0x1F90, 10123),
         )
     }
 
@@ -169,7 +198,7 @@ class ProxyRelayTest {
         // kernel or SELinux policy denies the read.
         assertEquals(
             ProxyRelay.PeerVerdict.UNKNOWN,
-            ProxyRelay.peerVerdict(listOf(null, null), 0xC001, 0x1F90),
+            ProxyRelay.peerVerdict(listOf(null, null), 0xC001, 0x1F90, 10123),
         )
     }
 
@@ -177,11 +206,11 @@ class ProxyRelayTest {
     fun peerVerdict_scansTheIpv6Table() {
         val tcp6 = """
               sl  local_address                         remote_address
-               0: 0000000000000000FFFF00000100007F:C001 0000000000000000FFFF00000100007F:1F90 01
+               0: 0000000000000000FFFF00000100007F:C001 0000000000000000FFFF00000100007F:1F90 01 00000000:00000000 00:00000000 00000000  10123
         """.trimIndent()
         assertEquals(
             ProxyRelay.PeerVerdict.OWN,
-            ProxyRelay.peerVerdict(listOf(null, tcp6), 0xC001, 0x1F90),
+            ProxyRelay.peerVerdict(listOf(null, tcp6), 0xC001, 0x1F90, 10123),
         )
     }
 
@@ -217,7 +246,38 @@ class ProxyRelayTest {
     }
 
     @Test
+    fun ownPeer_withThisProcessUid_isServedNormally() {
+        // The UID half of the check, against a live /proc: this JVM's own
+        // connection to the relay must carry this JVM's UID. Nothing else here
+        // proves that a socket we opened is attributed to us.
+        val uid = File("/proc/self/status").readLines()
+            .firstOrNull { it.startsWith("Uid:") }
+            ?.trim()?.split(Regex("\\s+"))?.getOrNull(1)?.toIntOrNull()
+        org.junit.Assume.assumeTrue("no readable /proc/self/status", uid != null)
+
+        val origin = fakeOrigin("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nhi")
+        val proxy = fakeServer { sock ->
+            readPreamble(sock.getInputStream())
+            sock.getOutputStream().write("HTTP/1.1 200 Connection Established\r\n\r\n".toByteArray())
+            sock.getOutputStream().flush()
+            spliceTo(sock, origin.localPort)
+        }
+        val relay = ProxyRelay(ownUid = uid)
+        try {
+            val port = relay.start(
+                ProxyRelay.UpstreamConfig(
+                    ProxyRelay.UpstreamType.HTTP, "127.0.0.1", proxy.localPort, "user", "pass",
+                )
+            )
+            assertTrue(clientConnectThenGet(port, "example.com", 443).contains("hi"))
+        } finally {
+            relay.stop(); proxy.close(); origin.close()
+        }
+    }
+
+    @Test
     fun ownPeer_isServedNormally() {
+
         // The default check runs for real here: the test client and the relay
         // are the same process, so a readable /proc/net/tcp must classify the
         // connection as ours rather than refusing it.

@@ -29,7 +29,8 @@ done and verified locally (Dart suite, JS tier, real-Chromium browser tier,
 
 - [x] 3.1 `MediaSessionService.report` takes `isMainFrame` and records `_ownerIsMainFrame`; a subframe claim is refused while a main frame holds the notification.
 - [x] 3.2 `wsMediaSession` moves to the frame-aware callback.
-- [x] 3.3 Tests for the refusal and for the embedded-player case that must still work.
+- [x] 3.3 Re-check ownership after the artwork fetch: the guard runs before a network round trip on a frame-supplied URL, so a report parked there could publish after a main frame took the notification.
+- [x] 3.4 Tests for the refusal, the embedded-player case that must still work, and the parked-report case (fails without the re-check).
 
 ## 4. Per-script privileged bridge (US-DR-005 / US-DR-006)
 
@@ -42,7 +43,8 @@ done and verified locally (Dart suite, JS tier, real-Chromium browser tier,
 
 ## 5. Relay peer ownership (PROXY-013, in `android-auth-proxy-relay`)
 
-- [x] 5.1 `ProxyRelay.peerVerdict` — pure parse of `/proc/net/tcp{,6}` returning OWN / FOREIGN / UNKNOWN.
+- [x] 5.1 `ProxyRelay.peerVerdict` — pure parse of `/proc/net/tcp{,6}` returning OWN / FOREIGN / UNKNOWN, discriminating on the row's UID (field 7) against this process's own. The port pair alone is the row *any* caller creates, so matching it and stopping classified everyone as OWN.
+- [x] 5.5 Correct the class doc and PROXY-013: `/proc/net` is denied outright from API 29, not filtered per-UID, so the check covers API 24-28 and is inert above it. No supported replacement exists.
 - [x] 5.2 Gate each accepted connection before any upstream connect; log UNKNOWN once per relay, not per connection.
 - [x] 5.3 Injectable `peerCheck` so a JVM test can arrange the foreign case.
 - [x] 5.4 JVM tests for all three verdicts, the IPv6 table, a refused foreign peer, and a same-process peer served through the real check.

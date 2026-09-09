@@ -2,6 +2,7 @@ package org.codeberg.theoden8.webspace
 
 import android.os.Handler
 import android.os.Looper
+import android.os.Process
 import android.util.Log
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -29,12 +30,15 @@ class ProxyRelayPlugin(flutterEngine: FlutterEngine) {
     // proxied page load = ProxyController not reaching the container).
     // `logger` by name, not as a trailing lambda: ProxyRelay takes a second
     // optional parameter, so a trailing lambda binds to whichever one is last.
-    private val relay = ProxyRelay(logger = { msg ->
-        Log.i(TAG, msg)
-        mainHandler.post {
-            runCatching { channel.invokeMethod("logEvent", mapOf("msg" to msg)) }
-        }
-    })
+    private val relay = ProxyRelay(
+        logger = { msg ->
+            Log.i(TAG, msg)
+            mainHandler.post {
+                runCatching { channel.invokeMethod("logEvent", mapOf("msg" to msg)) }
+            }
+        },
+        ownUid = Process.myUid(),
+    )
 
     init {
         channel.setMethodCallHandler { call, result ->
