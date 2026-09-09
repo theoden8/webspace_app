@@ -3966,5 +3966,114 @@
   "torFailTransientNote": "Tor expects to recover from this on its own.",
   "@torFailTransientNote": {
     "description": "Shown when Tor marks a failure as one it can recover from unaided."
+  },
+  "torBridgesTitle": "Bridges",
+  "@torBridgesTitle": {
+    "description": "Title of the Tor bridges settings screen."
+  },
+  "torBridgesHint": "A bridge is an unlisted way into the Tor network, for use where Tor itself is blocked. Bridges are slower than the normal route, so leave this off unless Tor cannot connect without it.",
+  "@torBridgesHint": {
+    "description": "Hint dialog explaining what Tor bridges are and when to use them."
+  },
+  "torBridgesEnable": "Use bridges",
+  "@torBridgesEnable": {
+    "description": "Switch that turns bridge use on or off."
+  },
+  "torBridgesTransport": "Transport",
+  "@torBridgesTransport": {
+    "description": "Label for the pluggable-transport picker (obfs4, snowflake, and so on)."
+  },
+  "torBridgesLinesHeading": "Bridge lines",
+  "@torBridgesLinesHeading": {
+    "description": "Heading above the list of configured bridge lines."
+  },
+  "torBridgesNoLines": "No bridge lines added",
+  "@torBridgesNoLines": {
+    "description": "Shown when the user has configured no bridges yet."
+  },
+  "torBridgesSnowflakeNeedsNone": "Snowflake needs no bridge line; it finds its own way in.",
+  "@torBridgesSnowflakeNeedsNone": {
+    "description": "Explains why the bridge-line list can stay empty for the snowflake transport."
+  },
+  "torBridgesPasteLabel": "Paste a bridge line",
+  "@torBridgesPasteLabel": {
+    "description": "Label of the text field where a bridge line is entered."
+  },
+  "torBridgesAdd": "Add",
+  "@torBridgesAdd": {
+    "description": "Button that adds the pasted bridge line to the list."
+  },
+  "torBridgesRemove": "Remove this bridge",
+  "@torBridgesRemove": {
+    "description": "Tooltip on the button that deletes one bridge line."
+  },
+  "torBridgesFetch": "Get bridges automatically",
+  "@torBridgesFetch": {
+    "description": "Button that requests bridges from the Tor Project over Moat."
+  },
+  "torBridgesFetchExposure": "Requesting bridges contacts the Tor Project directly, without going through Tor — the network you are on can see that you asked for bridges. Pasting a line you obtained elsewhere does not.",
+  "@torBridgesFetchExposure": {
+    "description": "LEAK-010 disclosure shown next to the automatic bridge fetch."
+  },
+  "torBridgesFetching": "Requesting bridges…",
+  "@torBridgesFetching": {
+    "description": "Progress text while bridges are being fetched."
+  },
+  "torBridgesAdded": "Added {count} bridges",
+  "@torBridgesAdded": {
+    "description": "Confirmation after fetching. {count} is how many were added.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "torBridgesCaptchaTitle": "Prove you are human",
+  "@torBridgesCaptchaTitle": {
+    "description": "Title of the captcha dialog shown when the bridge service asks for one."
+  },
+  "torBridgesCaptchaHelp": "Type the characters shown in the image.",
+  "@torBridgesCaptchaHelp": {
+    "description": "Instruction above the captcha answer field."
+  },
+  "torBridgesCaptchaAnswer": "Answer",
+  "@torBridgesCaptchaAnswer": {
+    "description": "Label of the captcha answer text field."
+  },
+  "torBridgesRestartNeeded": "Tor is running. Restart it for this change to take effect.",
+  "@torBridgesRestartNeeded": {
+    "description": "Notice shown when bridges are edited while Tor is already connected."
+  },
+  "torBridgesRestartNow": "Restart Tor",
+  "@torBridgesRestartNow": {
+    "description": "Button that restarts Tor so an edited bridge configuration applies."
+  },
+  "torBridgeErrorEmpty": "Enter a bridge line.",
+  "@torBridgeErrorEmpty": {
+    "description": "Validation error when the bridge-line field is empty."
+  },
+  "torBridgeErrorTransport": "That transport is not one this app can run. Bridge lines must start with obfs4, snowflake, meek_lite or webtunnel.",
+  "@torBridgeErrorTransport": {
+    "description": "Validation error for an unknown or unsupported pluggable transport."
+  },
+  "torBridgeErrorAddress": "That line is missing the address, or it is not in host:port form.",
+  "@torBridgeErrorAddress": {
+    "description": "Validation error for a bridge line whose address is missing or malformed."
+  },
+  "torBridgeErrorCert": "That obfs4 line is missing its cert= value, so it cannot connect. Copy the whole line.",
+  "@torBridgeErrorCert": {
+    "description": "Validation error for an obfs4 bridge line with no certificate."
+  },
+  "torMoatErrorUnreachable": "Could not reach the bridge service. On a network that blocks Tor this is expected — paste a bridge line obtained another way instead.",
+  "@torMoatErrorUnreachable": {
+    "description": "Error when the Moat bridge service cannot be contacted."
+  },
+  "torMoatErrorMalformed": "The bridge service replied in a way this app did not understand.",
+  "@torMoatErrorMalformed": {
+    "description": "Error when the Moat response cannot be parsed."
+  },
+  "torMoatErrorNoBridges": "The bridge service returned nothing this app can use.",
+  "@torMoatErrorNoBridges": {
+    "description": "Error when Moat returns only bridges for transports the app cannot run."
   }
 }

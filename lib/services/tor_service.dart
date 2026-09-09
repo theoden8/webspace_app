@@ -214,6 +214,15 @@ class TorService {
 
   Future<void> rebuildCircuits() => _engine.rebuildCircuits();
 
+  /// The bridge configuration currently in force, or queued for next start.
+  TorBridgeConfig get bridges => _engine.bridges;
+
+  /// Set the bridge configuration, returning whether a [restart] is needed
+  /// for it to apply. Not gated on [isAvailable]: the user can configure
+  /// bridges before anything has started Tor, and refusing the write would
+  /// silently discard what they typed.
+  bool setBridges(TorBridgeConfig config) => _engine.setBridges(config);
+
   /// Stop and re-start the runtime, keeping the holder set. Backs the Retry
   /// offered on a failure: [maybeStart] cannot serve that, because acquire
   /// short-circuits whenever a holder is already registered — which it

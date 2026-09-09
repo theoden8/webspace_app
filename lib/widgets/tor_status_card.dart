@@ -16,6 +16,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/screens/tor_bridge_settings.dart';
+import 'package:webspace/services/tor_bridges.dart' show bridgesMayHelp;
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/hint_button.dart';
@@ -253,14 +255,30 @@ class _TorStatusCardState extends State<TorStatusCard> {
             fontStyle: FontStyle.italic,
           ),
         ),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed:
-                _busy ? null : () => _run(TorService.instance.restart),
-            icon: const Icon(Icons.refresh, size: IconSizes.action),
-            label: Text(AppLocalizations.of(context).commonRetry),
-          ),
+        Row(
+          children: [
+            TextButton.icon(
+              onPressed:
+                  _busy ? null : () => _run(TorService.instance.restart),
+              icon: const Icon(Icons.refresh, size: IconSizes.action),
+              label: Text(loc.commonRetry),
+            ),
+            // Only where bridges could actually help. Offering them for a
+            // wrong clock or a dead exit pin sends the user down a road
+            // that cannot fix their problem (TOR-016).
+            if (bridgesMayHelp(failure.kind))
+              TextButton.icon(
+                onPressed: _busy
+                    ? null
+                    : () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const TorBridgeSettingsScreen(),
+                          ),
+                        ),
+                icon: const Icon(Icons.alt_route, size: IconSizes.action),
+                label: Text(loc.torBridgesTitle),
+              ),
+          ],
         ),
       ],
     );

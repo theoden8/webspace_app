@@ -28,11 +28,21 @@ class TorBridgeSecureStorage {
   final FlutterSecureStorage _secureStorage;
   bool _secureStorageAvailable = true;
 
-  /// Serializes mutations of the single entry. Static so it is shared
-  /// across instances, matching ProxyPasswordSecureStorage: an
-  /// unsynchronized load-modify-save from two holders would silently drop
-  /// one of them.
-  static Future<void> _writeLock = Future<void>.value();
+  /// Serializes mutations of the single entry.
+  ///
+  /// Per-instance, unlike ProxyPasswordSecureStorage's static lock. That one
+  /// is static because two independent holders (per-site settings and the
+  /// global proxy) write the same key and a load-modify-save from one would
+  /// clobber the other. Bridges have a single writer — the settings screen —
+  /// so an instance lock covers the only real race (rapid taps on one
+  /// screen).
+  ///
+  /// The distinction is not academic: a static lock is chained across every
+  /// caller in the process, and a link added inside one `testWidgets`
+  /// fake-async zone never completes once that test ends. The next test then
+  /// awaits a dead Future forever, and its save silently never lands — which
+  /// is exactly how this was found.
+  Future<void> _writeLock = Future<void>.value();
 
   Future<T> _synchronized<T>(Future<T> Function() action) {
     final result = _writeLock.then((_) => action());
