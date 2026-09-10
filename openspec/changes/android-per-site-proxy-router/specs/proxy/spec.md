@@ -84,12 +84,19 @@ PROXY-013 gates on `MULTI_PROFILE` because Chromium's `HttpAuthCache`
 lives in the `HttpNetworkSession` and its proxy entries are not
 partitioned by `NetworkAnonymizationKey`. That gate answers whether the
 *device* can give a site its own session; it does not answer whether
-*this* site got one. An incognito site deliberately does not: an
-`androidx.webkit` Profile is always on-disk and has no incognito guard,
-so binding one would outlive the session and defeat the ephemeral
-promise. Those sites therefore run in the default profile, sharing one
-session and one cached proxy credential with every other such site --
-the precise condition PROXY-013 names as unsafe.
+*this* site got one. A site that does not runs in the default profile,
+sharing one session and one cached proxy credential with every other such
+site -- the precise condition PROXY-013 names as unsafe.
+
+Which sites those are is not this requirement's to decide: it is whatever
+`siteOwnsContainerProfile` says, the same predicate the bind itself uses.
+On Android today the answer is "all of them" -- incognito and
+archive-tier sites bind a named profile there because Android has no
+ephemeral one and an unbound site would leave its storage in the default
+store (ARCH-006/ARCH-007), so the shared group is empty and this
+requirement is inert. It was not inert before that rule changed, and one
+predicate driving the bind, the routing identity, the eviction and the
+probe is what makes routing follow the rule instead of restating it.
 
 A per-site credential in that group is not a boundary. Chromium attaches
 a cached proxy credential preemptively, so the first such site to
@@ -108,7 +115,7 @@ The PROXY-015 probe SHALL NOT attempt to attribute the shared identity:
 it has no container to drive, and what the probe certifies is the
 per-container boundary.
 
-#### Scenario: Two incognito sites with different proxies
+#### Scenario: Two sites the app did not bind to a profile
 
 **Given** router mode is active on Android
 **And** Site A is incognito with proxy P1
