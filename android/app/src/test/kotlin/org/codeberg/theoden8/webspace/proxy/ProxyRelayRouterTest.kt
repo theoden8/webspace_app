@@ -70,13 +70,15 @@ class ProxyRelayRouterTest {
      * like any local process that found the port, not like a WebView.
      */
     private fun connectThrough(
+        relay: ProxyRelay,
         relayPort: Int,
         credential: String?,
         host: String = "example.com",
         dstPort: Int = 443,
     ): Pair<String, List<String>> {
         Socket().use { c ->
-            c.connect(InetSocketAddress("127.0.0.1", relayPort), 3000)
+            // The listener is on a random 127/8 address, not 127.0.0.1.
+            c.connect(InetSocketAddress(relay.host, relayPort), 3000)
             c.soTimeout = 5000
             val sb = StringBuilder()
             sb.append("CONNECT $host:$dstPort HTTP/1.1\r\nHost: $host:$dstPort\r\n")
@@ -103,7 +105,7 @@ class ProxyRelayRouterTest {
                 )
             )
 
-            val (status, headers) = connectThrough(port, credential = null)
+            val (status, headers) = connectThrough(relay, port, credential = null)
 
             assertTrue("expected a 407 challenge, got: $status", status.contains("407"))
             assertTrue(
@@ -133,7 +135,7 @@ class ProxyRelayRouterTest {
                 )
             )
 
-            val (status, headers) = connectThrough(port, credential("ws-a", "guessed"))
+            val (status, headers) = connectThrough(relay, port, credential("ws-a", "guessed"))
 
             // 502 and not a second 407: a caller that is guessing must not
             // be handed a fresh challenge to iterate against.
@@ -169,11 +171,11 @@ class ProxyRelayRouterTest {
                 )
             )
 
-            assertTrue(connectThrough(port, credA).first.contains("200"))
+            assertTrue(connectThrough(relay, port, credA).first.contains("200"))
             assertEquals("site A must reach upstream A", 1, upstreamA.connections.get())
             assertEquals("site A must not touch upstream B", 0, upstreamB.connections.get())
 
-            assertTrue(connectThrough(port, credB).first.contains("200"))
+            assertTrue(connectThrough(relay, port, credB).first.contains("200"))
             assertEquals("site B must reach upstream B", 1, upstreamB.connections.get())
             assertEquals("site B must not touch upstream A", 1, upstreamA.connections.get())
         } finally {
@@ -213,7 +215,7 @@ class ProxyRelayRouterTest {
             for (i in listOf(2, 0, 1, 2, 0)) {
                 assertTrue(
                     "site ${sites[i]} must be routed",
-                    connectThrough(port, creds[i]).first.contains("200"),
+                    connectThrough(relay, port, creds[i]).first.contains("200"),
                 )
             }
 
@@ -299,7 +301,7 @@ class ProxyRelayRouterTest {
             val done = CountDownLatch(2)
             for (cred in listOf(credA, credB)) {
                 Thread {
-                    runCatching { results.add(connectThrough(port, cred).first) }
+                    runCatching { results.add(connectThrough(relay, port, cred).first) }
                     done.countDown()
                 }.apply { isDaemon = true }.start()
             }
@@ -330,7 +332,7 @@ class ProxyRelayRouterTest {
                 mapOf(cred to ProxyRelay.Route("a", httpUpstream(upstream.port, "realuser", "realpass")))
             )
 
-            assertTrue(connectThrough(port, cred).first.contains("200"))
+            assertTrue(connectThrough(relay, port, cred).first.contains("200"))
 
             val forwarded = upstream.seenAuth.toList()
             assertTrue("upstream should see the user's own proxy auth", forwarded.isNotEmpty())
@@ -359,14 +361,14 @@ class ProxyRelayRouterTest {
             relay.setRoutes(
                 mapOf(cred to ProxyRelay.Route("a", httpUpstream(upstream.port, "u", "p")))
             )
-            assertTrue(connectThrough(port, cred).first.contains("200"))
+            assertTrue(connectThrough(relay, port, cred).first.contains("200"))
             assertEquals(1, upstream.connections.get())
 
             // Site deleted / proxy changed: its credential must stop working
             // immediately, without restarting the relay.
             relay.setRoutes(emptyMap())
 
-            assertTrue(connectThrough(port, cred).first.contains("502"))
+            assertTrue(connectThrough(relay, port, cred).first.contains("502"))
             assertEquals(
                 "a revoked credential must not reach the upstream",
                 1, upstream.connections.get(),
@@ -393,7 +395,7 @@ class ProxyRelayRouterTest {
         // the cleared state back instead.
         val port = relay.startRouter("11aa11aa")
         try {
-            val (_, headers) = connectThrough(port, credential = null)
+            val (_, headers) = connectThrough(relay, port, credential = null)
             assertTrue(
                 "the restarted relay must challenge with its own realm",
                 headers.any {
@@ -406,7 +408,7 @@ class ProxyRelayRouterTest {
             )
             assertTrue(
                 "a credential from the stopped run must not route",
-                connectThrough(port, credential("ws-a", "t")).first.contains("502"),
+                connectThrough(relay, port, credential("ws-a", "t")).first.contains("502"),
             )
         } finally {
             relay.stop()
@@ -452,7 +454,7 @@ class ProxyRelayRouterTest {
                 )
             )
             assertTrue(
-                connectThrough(port, cred, host = "127.0.0.1", dstPort = origin.localPort)
+                connectThrough(relay, port, cred, host = "127.0.0.1", dstPort = origin.localPort)
                     .first.contains("200"),
             )
         } finally {
@@ -488,12 +490,12 @@ class ProxyRelayRouterTest {
 
             assertTrue(
                 "a site with a dead proxy must fail closed, not go direct",
-                connectThrough(port, credProxied, host = "127.0.0.1", dstPort = origin.localPort)
+                connectThrough(relay, port, credProxied, host = "127.0.0.1", dstPort = origin.localPort)
                     .first.contains("502"),
             )
             // ...while the genuinely-direct site is unaffected.
             assertTrue(
-                connectThrough(port, credDirect, host = "127.0.0.1", dstPort = origin.localPort)
+                connectThrough(relay, port, credDirect, host = "127.0.0.1", dstPort = origin.localPort)
                     .first.contains("200"),
             )
         } finally {
@@ -528,8 +530,8 @@ class ProxyRelayRouterTest {
             // Interleave several polls from the background site with
             // foreground traffic, with no reconfiguration in between.
             repeat(5) {
-                assertTrue(connectThrough(port, credBg).first.contains("200"))
-                assertTrue(connectThrough(port, credFg).first.contains("200"))
+                assertTrue(connectThrough(relay, port, credBg).first.contains("200"))
+                assertTrue(connectThrough(relay, port, credFg).first.contains("200"))
             }
 
             assertEquals("every background poll reached its own upstream", 5, upBg.connections.get())
@@ -555,7 +557,7 @@ class ProxyRelayRouterTest {
             )
 
             val status = connectThrough(
-                port, cred, host = "n0nce${ProxyRelay.PROBE_SUFFIX}", dstPort = 80,
+                relay, port, cred, host = "n0nce${ProxyRelay.PROBE_SUFFIX}", dstPort = 80,
             ).first
             assertTrue("probe should be answered 200: $status", status.contains("200"))
             assertEquals(
@@ -587,8 +589,8 @@ class ProxyRelayRouterTest {
                 )
             )
 
-            connectThrough(port, credA, host = "aaa${ProxyRelay.PROBE_SUFFIX}", dstPort = 80)
-            connectThrough(port, credB, host = "bbb${ProxyRelay.PROBE_SUFFIX}", dstPort = 80)
+            connectThrough(relay, port, credA, host = "aaa${ProxyRelay.PROBE_SUFFIX}", dstPort = 80)
+            connectThrough(relay, port, credB, host = "bbb${ProxyRelay.PROBE_SUFFIX}", dstPort = 80)
 
             assertEquals(mapOf("aaa" to "a", "bbb" to "b"), relay.probeObservations())
         } finally {
@@ -605,7 +607,7 @@ class ProxyRelayRouterTest {
                 mapOf(credential("ws-a", "t") to ProxyRelay.Route("a", httpUpstream(1, null, null)))
             )
             val status = connectThrough(
-                port, credential("ws-a", "guessed"),
+                relay, port, credential("ws-a", "guessed"),
                 host = "xxx${ProxyRelay.PROBE_SUFFIX}", dstPort = 80,
             ).first
             assertTrue("expected 502, got $status", status.contains("502"))
@@ -624,7 +626,7 @@ class ProxyRelayRouterTest {
         val port = relay.startRouter("abcd0003")
         val cred = credential("ws-a", "t")
         relay.setRoutes(mapOf(cred to ProxyRelay.Route("a", httpUpstream(1, null, null))))
-        connectThrough(port, cred, host = "zzz${ProxyRelay.PROBE_SUFFIX}", dstPort = 80)
+        connectThrough(relay, port, cred, host = "zzz${ProxyRelay.PROBE_SUFFIX}", dstPort = 80)
         assertTrue(relay.probeObservations().isNotEmpty())
         relay.stop()
         assertTrue(relay.probeObservations().isEmpty())

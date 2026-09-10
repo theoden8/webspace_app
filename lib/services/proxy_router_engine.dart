@@ -23,7 +23,22 @@ class ProxyRouterEngine {
   /// relay log line can name the site without touching the token.
   static const String usernamePrefix = 'ws-';
 
-  static const String loopbackHost = '127.0.0.1';
+  /// Whether [host] is an IPv4 loopback address (127/8).
+  ///
+  /// The relay binds a random address in that range rather than
+  /// `127.0.0.1`, so the challenge check cannot compare against a
+  /// constant. It still has to know the challenger is on loopback at all:
+  /// a `407` from anywhere else is not ours whatever realm it names.
+  static bool isLoopbackHost(String? host) {
+    if (host == null) return false;
+    final parts = host.split('.');
+    if (parts.length != 4) return false;
+    for (var i = 0; i < 4; i++) {
+      final n = int.tryParse(parts[i]);
+      if (n == null || n < 0 || n > 255) return false;
+    }
+    return parts[0] == '127';
+  }
 
   /// Identity the relay attributes a site's traffic to when the site has
   /// no container profile of its own.
@@ -125,15 +140,18 @@ class ProxyRouterEngine {
   /// A site that serves its own `401` therefore reaches the same handler,
   /// and answering it would hand the page the token that admits its
   /// bearer to every site's route. Both checks are required: the host
-  /// pins the challenge to the loopback relay, and the realm nonce pins
-  /// it to *this* run of it.
+  /// pins the challenge to the address this run of the relay bound -- a
+  /// random one in 127/8, so naming it costs a page ~24 bits it has no
+  /// way to read -- and the realm nonce pins it to that run.
   static bool shouldAnswerChallenge({
     required String? host,
     required String? realm,
     required String expectedRealm,
+    required String? expectedHost,
   }) {
     if (expectedRealm.isEmpty) return false;
-    if (host != loopbackHost) return false;
+    if (expectedHost == null || !isLoopbackHost(expectedHost)) return false;
+    if (host != expectedHost) return false;
     return realm == expectedRealm;
   }
 

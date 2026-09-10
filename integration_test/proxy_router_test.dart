@@ -49,6 +49,9 @@ void main() {
   final relayCalls = <MethodCall>[];
   final proxyCalls = <MethodCall>[];
   const fakeRelayPort = 45671;
+  // Not 127.0.0.1: the relay binds a random address in 127/8, and router
+  // mode has to point the process-wide rule at the one it actually bound.
+  const fakeRelayHost = '127.41.8.203';
 
   setUpAll(() async {
     isDemoMode = true;
@@ -85,7 +88,7 @@ void main() {
         .setMockMethodCallHandler(relayChannel, (call) async {
       relayCalls.add(call);
       return switch (call.method) {
-        'startRouter' => fakeRelayPort,
+        'startRouter' => {'host': fakeRelayHost, 'port': fakeRelayPort},
         'setRoutes' => true,
         'isRunning' => true,
         _ => null,
@@ -170,7 +173,7 @@ void main() {
     final settings = ((overrides.last.arguments as Map)['settings'] as Map)
         .cast<String, dynamic>();
     final url = ((settings['proxyRules'] as List).first as Map)['url'] as String;
-    expect(url, 'http://127.0.0.1:$fakeRelayPort');
+    expect(url, 'http://$fakeRelayHost:$fakeRelayPort');
     expect(url, isNot(contains('9050')));
     expect(url, isNot(contains('198.51.100.7')));
 

@@ -11,7 +11,7 @@ import 'package:webspace/settings/proxy.dart';
 /// a fake in tests without a platform channel, per the engine/service
 /// split in CLAUDE.md.
 abstract interface class ProxyRelayApi {
-  Future<int?> startRouter(String realm);
+  Future<({String host, int port})?> startRouter(String realm);
   Future<bool> setRoutes(Map<String, Map<String, Object?>> routes);
 
   /// Probe pairs the relay has observed: nonce -> the siteId whose
@@ -26,7 +26,7 @@ abstract interface class ProxyRelayApi {
 ///
 /// Android's `ProxyController` cannot carry proxy credentials, so for a
 /// credentialed upstream we start a native loopback relay
-/// ([`ProxyRelayPlugin`]) and point WebView at `127.0.0.1:<port>` with no
+/// ([`ProxyRelayPlugin`]) and point WebView at `<127/8 host>:<port>` with no
 /// credentials; the relay injects them upstream. Android-only — iOS/macOS
 /// bind credentials to the per-site data store, and Linux/WebKit accepts a
 /// credentialed proxy URI directly.
@@ -91,18 +91,28 @@ class ProxyRelay implements ProxyRelayApi {
   }
 
   /// Start (or reconfigure) the relay in router mode, fronting every
-  /// site's upstream at once. Returns the loopback port to hand to
-  /// `ProxyController`, or `null` if it could not bind (the caller MUST
-  /// then fail closed, never clearing the override).
+  /// site's upstream at once. Returns the loopback address and port to
+  /// hand to `ProxyController`, or `null` if it could not bind (the caller
+  /// MUST then fail closed, never clearing the override).
+  ///
+  /// The host is a random address in 127/8, as for [start]. Router mode
+  /// cannot assume `127.0.0.1`: the address is half of what a local app
+  /// would have to guess to reach the listener, and it is also what the
+  /// challenge answer is pinned to.
   ///
   /// [realm] is the nonce the relay names in its `407`; the Dart side
-  /// answers a challenge only when it matches (see
+  /// answers a challenge only when both host and realm match (see
   /// `ProxyRouterEngine.shouldAnswerChallenge`).
   @override
-  Future<int?> startRouter(String realm) async {
+  Future<({String host, int port})?> startRouter(String realm) async {
     if (!hostIsAndroid) return null;
     try {
-      return await _channel.invokeMethod<int>('startRouter', {'realm': realm});
+      final res = await _channel
+          .invokeMethod<Map<dynamic, dynamic>>('startRouter', {'realm': realm});
+      final host = res?['host'] as String?;
+      final port = res?['port'] as int?;
+      if (host == null || port == null) return null;
+      return (host: host, port: port);
     } on PlatformException {
       return null;
     }

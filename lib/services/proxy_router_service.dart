@@ -14,13 +14,14 @@ typedef ProxyAttributionProbe = Future<void> Function(
   Map<String, String> siteIdToProbeUrl,
 );
 
-/// Points the process-wide WebView proxy at the relay on [port].
+/// Points the process-wide WebView proxy at the relay on [host]:[port].
 ///
 /// Runs after the routes are installed and BEFORE the attribution probe:
 /// the probe travels that same process-wide proxy, so with the override
 /// not yet applied it resolves its own hostname directly, never reaches
 /// the relay, and reads as a failed attribution on every device.
-typedef ProxyRouterOverrideBinder = Future<bool> Function(int port);
+typedef ProxyRouterOverrideBinder = Future<bool> Function(
+    String host, int port);
 
 /// Owns Android's per-site proxy router (PROXY-013): the relay lifecycle,
 /// the per-site credentials, and the one question the WebView layer asks
@@ -45,6 +46,7 @@ class ProxyRouterService {
 
   ProxyRelayApi _relay = ProxyRelay.instance;
   ProxyRouterState? _state;
+  String? _host;
   int? _port;
 
   /// Test seam: swap the platform-channel relay for a fake.
@@ -55,11 +57,16 @@ class ProxyRouterService {
   /// Reset to the pre-activation state. Tests only.
   void resetForTest() {
     _state = null;
+    _host = null;
     _port = null;
   }
 
   /// True once the relay is bound and holding a route table.
-  bool get isActive => _state != null && _port != null;
+  bool get isActive => _state != null && _port != null && _host != null;
+
+  /// Loopback address the relay bound, or null. A random one in 127/8,
+  /// so it is not interchangeable with `127.0.0.1`.
+  String? get host => _host;
 
   /// Loopback port `ProxyController` should be pointed at, or null.
   int? get port => _port;
@@ -98,6 +105,7 @@ class ProxyRouterService {
       host: host,
       realm: realm,
       expectedRealm: expected,
+      expectedHost: _host,
     );
   }
 
@@ -115,8 +123,8 @@ class ProxyRouterService {
     ProxyAttributionProbe? probe,
   }) async {
     final state = _state ?? ProxyRouterState();
-    final port = await _relay.startRouter(state.realm);
-    if (port == null) {
+    final endpoint = await _relay.startRouter(state.realm);
+    if (endpoint == null) {
       LogService.instance.log(
         'Proxy',
         'Router relay failed to bind; falling back to serialised per-site proxy',
@@ -124,7 +132,9 @@ class ProxyRouterService {
       );
       return null;
     }
+    final port = endpoint.port;
     _state = state;
+    _host = endpoint.host;
     _port = port;
     final installed = await _installRoutes(perSiteProxies);
     if (!installed) {
@@ -133,6 +143,7 @@ class ProxyRouterService {
         'Relay rejected the route table; not activating router mode',
         level: LogLevel.error,
       );
+      _host = null;
       _port = null;
       return null;
     }
@@ -140,7 +151,7 @@ class ProxyRouterService {
     // the relay, and it only does once the process-wide proxy points
     // there. Binding afterwards makes every probe fail to resolve and
     // router mode unreachable on every device.
-    if (bindOverride != null && !await bindOverride(port)) {
+    if (bindOverride != null && !await bindOverride(endpoint.host, port)) {
       LogService.instance.log(
         'Proxy',
         'Proxy override did not apply; not activating router mode',
@@ -162,7 +173,8 @@ class ProxyRouterService {
 
     LogService.instance.log(
       'Proxy',
-      'Router mode active on 127.0.0.1:$port for ${perSiteProxies.length} site(s)',
+      'Router mode active on ${endpoint.host}:$port for '
+          '${perSiteProxies.length} site(s)',
       level: LogLevel.info,
       sensitivity: LogSensitivity.sensitive,
     );
@@ -295,6 +307,7 @@ class ProxyRouterService {
   /// Tear the relay down and forget every credential.
   Future<void> deactivate() async {
     _state = null;
+    _host = null;
     _port = null;
     await _relay.stop();
   }

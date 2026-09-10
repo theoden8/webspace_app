@@ -7,8 +7,11 @@ its own upstream proxy concurrently, rather than serialising mismatched
 sites under PROXY-008.
 
 `ProxyController` SHALL be pointed once at a loopback relay
-(`http://127.0.0.1:<ephemeral>`, no bypass entries -- LEAK-011) and SHALL
-NOT be repointed on site activation. The relay SHALL select each connection's
+(`http://<127/8 host>:<ephemeral>`, no bypass entries -- LEAK-011) and
+SHALL NOT be repointed on site activation. The host is the address the
+relay actually bound, which is a random one in 127/8 rather than
+`127.0.0.1`; the challenge answer is pinned to it as well as to the realm,
+so a page serving its own `401` has to name an address it cannot read. The relay SHALL select each connection's
 upstream from the `Proxy-Authorization` credential the WebView presents,
 which the app answers per-WebView through `onReceivedHttpAuthRequest`.
 
@@ -32,7 +35,7 @@ given site actually receives a profile is PROXY-018.
 
 **Given** router mode has come up
 **When** `ProxyController.setProxyOverride` is applied
-**Then** the rule URL is `http://127.0.0.1:<relay port>`
+**Then** the rule URL is `http://<the address the relay bound>:<relay port>`
 **And** it carries no site's proxy host, port, or credentials
 **And** it is not reapplied when a site is activated
 

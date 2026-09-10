@@ -594,24 +594,25 @@ class ProxyManager {
     );
   }
 
-  /// Point the process-wide rule at the loopback router and leave it
-  /// there (PROXY-013).
+  /// Point the process-wide rule at the loopback router on [host]:[port]
+  /// and leave it there (PROXY-013). The host is the random 127/8 address
+  /// the relay bound, not `127.0.0.1`.
   ///
   /// Returns false if the override could not be applied, in which case
   /// the caller MUST NOT treat router mode as active — every site would
   /// otherwise go direct while believing it was proxied.
-  Future<bool> applyRouterOverride(int port) async {
+  Future<bool> applyRouterOverride(String host, int port) async {
     if (!hostIsAndroid || !PlatformInfo.isProxySupported) return false;
     try {
       await inapp.ProxyController.instance().setProxyOverride(
         settings: inapp.ProxySettings(
-          proxyRules: [inapp.ProxyRule(url: 'http://127.0.0.1:$port')],
+          proxyRules: [inapp.ProxyRule(url: 'http://$host:$port')],
           bypassRules: [],
         ),
       );
       LogService.instance.log(
         'Proxy',
-        'Applied router override -> 127.0.0.1:$port',
+        'Applied router override -> $host:$port',
         level: LogLevel.info,
         sensitivity: LogSensitivity.sensitive,
       );

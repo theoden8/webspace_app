@@ -83,7 +83,8 @@ class ProxyRelayPlugin(flutterEngine: FlutterEngine) {
                         return@setMethodCallHandler
                     }
                     try {
-                        result.success(relay.startRouter(realm))
+                        val localPort = relay.startRouter(realm)
+                        result.success(mapOf("host" to relay.host, "port" to localPort))
                     } catch (e: Exception) {
                         result.error("RELAY_START_FAILED", e.message, null)
                     }

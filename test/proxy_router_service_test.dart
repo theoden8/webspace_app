@@ -28,12 +28,16 @@ class FakeRelay implements ProxyRelayApi {
   /// When false, `setRoutes` rejects the table.
   bool acceptsRoutes = true;
 
+  /// The address the fake reports binding. A random 127/8 one, as the
+  /// real relay picks, so nothing can quietly assume 127.0.0.1.
+  static const String boundHost = '127.63.9.212';
+
   @override
-  Future<int?> startRouter(String realm) async {
+  Future<({String host, int port})?> startRouter(String realm) async {
     startCalls++;
     if (!canBind) return null;
     startedRealm = realm;
-    return 43210;
+    return (host: boundHost, port: 43210);
   }
 
   @override
@@ -115,7 +119,7 @@ void main() {
       final order = <String>[];
       final port = await service.activate(
         perSiteProxies: {'a': proxy(ProxyType.HTTP, '10.0.0.1:8080')},
-        bindOverride: (p) async {
+        bindOverride: (h, p) async {
           order.add('bind');
           return true;
         },
@@ -135,7 +139,7 @@ void main() {
     test('a failed override bind leaves the service inactive', () async {
       final port = await service.activate(
         perSiteProxies: {'a': proxy(ProxyType.HTTP, '10.0.0.1:8080')},
-        bindOverride: (p) async => false,
+        bindOverride: (h, p) async => false,
       );
 
       expect(port, isNull);
@@ -171,15 +175,24 @@ void main() {
       expect(relay.startedRealm, isNotNull);
       expect(relay.startedRealm, service.realm);
       expect(
-        service.ownsChallenge(host: '127.0.0.1', realm: relay.startedRealm),
+        service.ownsChallenge(
+            host: FakeRelay.boundHost, realm: relay.startedRealm),
         isTrue,
+      );
+      // Being on loopback is not enough. The relay binds a random address
+      // in 127/8 precisely so that naming it costs more than knowing the
+      // feature exists, and the answer is pinned to the one it bound.
+      expect(
+        service.ownsChallenge(host: '127.0.0.1', realm: relay.startedRealm),
+        isFalse,
       );
     });
   });
 
   group('challenge ownership', () {
     test('refuses every challenge before activation', () {
-      expect(service.ownsChallenge(host: '127.0.0.1', realm: 'anything'),
+      expect(
+          service.ownsChallenge(host: FakeRelay.boundHost, realm: 'anything'),
           isFalse);
     });
 

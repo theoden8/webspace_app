@@ -62,13 +62,17 @@ void main() {
 
   group('challenge admission', () {
     const realm = 'a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4';
+    // Not 127.0.0.1: the relay binds a random address in 127/8, and the
+    // answer is pinned to the one this run bound.
+    const boundHost = '127.94.31.7';
 
     test('answers the relay challenge on loopback with the current realm', () {
       expect(
         ProxyRouterEngine.shouldAnswerChallenge(
-          host: '127.0.0.1',
+          host: boundHost,
           realm: realm,
           expectedRealm: realm,
+          expectedHost: boundHost,
         ),
         isTrue,
       );
@@ -83,6 +87,7 @@ void main() {
           host: 'accounts.example.com',
           realm: realm,
           expectedRealm: realm,
+          expectedHost: boundHost,
         ),
         isFalse,
       );
@@ -91,9 +96,10 @@ void main() {
     test('refuses a loopback challenge naming a different realm', () {
       expect(
         ProxyRouterEngine.shouldAnswerChallenge(
-          host: '127.0.0.1',
+          host: boundHost,
           realm: 'ffffffffffffffffffffffffffffffff',
           expectedRealm: realm,
+          expectedHost: boundHost,
         ),
         isFalse,
       );
@@ -105,14 +111,16 @@ void main() {
           host: null,
           realm: realm,
           expectedRealm: realm,
+          expectedHost: boundHost,
         ),
         isFalse,
       );
       expect(
         ProxyRouterEngine.shouldAnswerChallenge(
-          host: '127.0.0.1',
+          host: boundHost,
           realm: null,
           expectedRealm: realm,
+          expectedHost: boundHost,
         ),
         isFalse,
       );
@@ -121,21 +129,66 @@ void main() {
     test('refuses everything when no realm is configured', () {
       expect(
         ProxyRouterEngine.shouldAnswerChallenge(
-          host: '127.0.0.1',
+          host: boundHost,
           realm: '',
           expectedRealm: '',
+          expectedHost: boundHost,
         ),
         isFalse,
       );
     });
 
+    test('refuses every challenge when the relay bound nothing', () {
+      expect(
+        ProxyRouterEngine.shouldAnswerChallenge(
+          host: boundHost,
+          realm: realm,
+          expectedRealm: realm,
+          expectedHost: null,
+        ),
+        isFalse,
+      );
+    });
+
+    test('refuses a bound host that is not on loopback', () {
+      // Defence against the relay reporting something unexpected: a
+      // non-loopback listener is not this relay whatever it says.
+      expect(
+        ProxyRouterEngine.shouldAnswerChallenge(
+          host: '10.0.0.1',
+          realm: realm,
+          expectedRealm: realm,
+          expectedHost: '10.0.0.1',
+        ),
+        isFalse,
+      );
+    });
+
+    test('accepts any address in 127/8 as loopback', () {
+      expect(ProxyRouterEngine.isLoopbackHost('127.0.0.1'), isTrue);
+      expect(ProxyRouterEngine.isLoopbackHost('127.255.255.254'), isTrue);
+      expect(ProxyRouterEngine.isLoopbackHost('128.0.0.1'), isFalse);
+      expect(ProxyRouterEngine.isLoopbackHost('localhost'), isFalse);
+      expect(ProxyRouterEngine.isLoopbackHost('127.0.0'), isFalse);
+      expect(ProxyRouterEngine.isLoopbackHost('127.0.0.256'), isFalse);
+      expect(ProxyRouterEngine.isLoopbackHost(null), isFalse);
+    });
+
     test('refuses a lookalike loopback host', () {
-      for (final host in ['127.0.0.2', 'localhost', '127.0.0.1.evil.com']) {
+      // 127.0.0.1 is in the list on purpose: being on loopback is not
+      // enough, it has to be the address this relay bound.
+      for (final host in [
+        '127.0.0.1',
+        '127.0.0.2',
+        'localhost',
+        '127.94.31.7.evil.com',
+      ]) {
         expect(
           ProxyRouterEngine.shouldAnswerChallenge(
             host: host,
             realm: realm,
             expectedRealm: realm,
+            expectedHost: boundHost,
           ),
           isFalse,
           reason: '$host must not be treated as the relay',

@@ -11,10 +11,13 @@ routed to any upstream, or to a direct connection, without a match.
 Android places every installed app on one loopback interface and offers no
 way for a normal app to identify the peer of a local TCP connection
 (`ConnectivityManager.getConnectionOwnerUid` is restricted to VPN apps
-over their own tunnel, and `/proc/net/tcp` is unreadable from API 29). The
-credential is therefore the only admission control this socket can have,
+over their own tunnel, and `/proc/net/tcp` is denied outright from API 29,
+so the peer check bites on API 24-28 and is inert above it). The
+credential is therefore the admission control that holds on every version,
 and the ephemeral port is not one: 64K loopback ports are scanned in about
-a second.
+a second. The random address the listener binds within 127/8 adds ~24 bits
+to that search but is likewise not admission control: it raises the cost
+of finding the socket, it does not decide who may use it.
 
 Tokens SHALL be at least 128 bits from a cryptographic RNG, SHALL live in
 memory for one app run only, SHALL never be persisted, and SHALL never be
