@@ -3,7 +3,7 @@
   if (!document.getElementById(ID)) {
     var s = document.createElement('style');
     s.id = ID;
-    s.textContent = '.always-hidden { display: none !important; } .shrunk-banner { height: 1px !important } .faded-promo { opacity: 0.1 !important } ';
+    s.textContent = ".always-hidden { display: none !important; } .shrunk-banner { height: 1px !important } .faded-promo { opacity: 0.1 !important } ";
     (document.head || document.documentElement).appendChild(s);
   }
   // Selector-based hiding is handled entirely by the early <style>

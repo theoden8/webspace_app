@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "I dtaisce: {bytes} beart",
   "userScriptsCachedBytesWillRedownload": "I dtaisce: {bytes} beart (athíoslódálfar é ar shábháil)",
   "userScriptsInjectionTimeLabel": "Am instealladh",
+  "userScriptsBypassSitePolicyLabel": "Seachain CSP agus CORS an tsuímh",
+  "userScriptsBypassSitePolicyHint": "Ní féidir le roinnt leabharlann (DarkReader mar shampla) oibriú mura rithfidh an feidhmchlár a gcód agus a n-iarratais líonra taobh amuigh de bheartas slándála an tsuímh. Ná cuir seo ar siúl ach amháin do script a bhfuil sé de dhíth uirthi. Fad is atá sé ar siúl, tá an chosaint múchta don leathanach ar fad: is féidir le haon chód eile a ritheann ann, lena n-áirítear scripteanna an tsuímh féin agus aon fhógra nó cód insteallta, an bealach céanna a úsáid.",
   "userScriptsAtDocumentStart": "Tús na cáipéise",
   "userScriptsAtDocumentEnd": "Deireadh na cáipéise",
   "userScriptsSourceLabel": "Foinse JavaScript",

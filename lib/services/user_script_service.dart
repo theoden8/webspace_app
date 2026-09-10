@@ -1,6 +1,7 @@
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:http/http.dart' as http;
 
+import 'package:webspace/services/host_resolution.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/user_script_shim.dart';
@@ -67,6 +68,37 @@ Future<http.Response?> _getWithCheckedRedirects(
   return null;
 }
 
+/// Whether the bridge may connect to [url], given the [effective] proxy.
+///
+/// The literal classification in `classifyScriptFetchUrl` refuses an address
+/// the URL spells out. This is the half it cannot do: when *we* are the ones
+/// resolving, the name is resolved and the answer checked against the same
+/// ranges, so `http://evil.example/` whose A record is `127.0.0.1` is refused
+/// instead of handing the page whatever listens on loopback (US-DR-007).
+///
+/// A name that does not resolve is refused, which only turns a connect error
+/// into an earlier one. Where nothing here did the resolving — a proxy, or a
+/// build with no resolver — the call goes through; see [classifyOutboundTarget]
+/// for why, and for what this does not close.
+Future<bool> _resolvedTargetAllowed(
+  String url,
+  UserProxySettings effective,
+) async {
+  final verdict = await classifyOutboundTarget(url, effective);
+  if (verdict == HostRangeVerdict.public ||
+      verdict == HostRangeVerdict.notResolvedHere) {
+    return true;
+  }
+  LogService.instance.log(
+    'UserScript',
+    verdict == HostRangeVerdict.private
+        ? 'Blocked $url: resolves into a private range'
+        : 'Blocked $url: does not resolve',
+    sensitivity: LogSensitivity.sensitive,
+  );
+  return false;
+}
+
 /// Fetch user-script source at [url] through the proxy seam, applying the
 /// same URL classification and redirect re-checking the page-reachable
 /// bridge uses. Returns the body, or a short technical detail the caller
@@ -75,18 +107,24 @@ Future<({String? source, String? error})> fetchUserScriptSource(
   String url, {
   UserProxySettings? proxy,
 }) async {
-  bool allowed(String candidate) =>
-      classifyScriptFetchUrl(candidate) != ScriptFetchUrlStatus.blocked;
-  if (!allowed(url)) return (source: null, error: 'blocked URL');
-  final clientResult = outboundHttp.clientFor(
-      resolveEffectiveProxy(proxy ?? UserProxySettings(type: ProxyType.DEFAULT)));
+  final effective = resolveEffectiveProxy(
+    proxy ?? UserProxySettings(type: ProxyType.DEFAULT),
+  );
+  Future<bool> allowed(String candidate) async =>
+      classifyScriptFetchUrl(candidate) != ScriptFetchUrlStatus.blocked &&
+      await _resolvedTargetAllowed(candidate, effective);
+  if (!await allowed(url)) return (source: null, error: 'blocked URL');
+  final clientResult = outboundHttp.clientFor(effective);
   if (clientResult is OutboundClientBlocked) {
     return (source: null, error: clientResult.reason);
   }
   final client = (clientResult as OutboundClientReady).client;
   try {
     final response = await _getWithCheckedRedirects(
-        client, url, (candidate) async => allowed(candidate));
+      client,
+      url,
+      allowed,
+    );
     if (response == null) return (source: null, error: 'blocked redirect');
     if (response.statusCode != 200) {
       return (source: null, error: 'HTTP ${response.statusCode}');
@@ -120,8 +158,16 @@ class UserScriptService {
   final String _fetchHandlerName;
   final String _inlineScriptHandlerName;
   final bool hasScripts;
+
+  /// Whether any enabled script asked for the privileged bridge. The bridge is
+  /// page-realm machinery — globals and prototype wrappers — so it cannot be
+  /// scoped to the script that wanted it; installing it takes the site's CSP
+  /// and same-origin policy down for every script on the page. It is therefore
+  /// installed only when a script explicitly asks (US-DR-005).
+  final bool hasPrivilegedBridge;
   final List<UserScriptConfig> _scripts;
   final Future<bool> Function(String url)? _onConfirmScriptFetch;
+
   /// Per-site proxy of the site this service belongs to. Resolved through
   /// the per-site → global precedence ladder when the JS handlers fetch
   /// external script/resource URLs.
@@ -133,15 +179,16 @@ class UserScriptService {
     required String fetchHandlerName,
     required String inlineScriptHandlerName,
     required this.hasScripts,
+    required this.hasPrivilegedBridge,
     required List<UserScriptConfig> scripts,
     required Future<bool> Function(String url)? onConfirmScriptFetch,
     required UserProxySettings proxy,
-  })  : _scriptHandlerName = scriptHandlerName,
-        _fetchHandlerName = fetchHandlerName,
-        _inlineScriptHandlerName = inlineScriptHandlerName,
-        _scripts = scripts,
-        _onConfirmScriptFetch = onConfirmScriptFetch,
-        _proxy = proxy;
+  }) : _scriptHandlerName = scriptHandlerName,
+       _fetchHandlerName = fetchHandlerName,
+       _inlineScriptHandlerName = inlineScriptHandlerName,
+       _scripts = scripts,
+       _onConfirmScriptFetch = onConfirmScriptFetch,
+       _proxy = proxy;
 
   /// Create a service instance for the given user scripts.
   factory UserScriptService({
@@ -150,13 +197,16 @@ class UserScriptService {
     UserProxySettings? proxy,
   }) {
     final hasScripts = scripts.any((s) => s.enabled && s.fullSource.isNotEmpty);
+    final hasPrivilegedBridge = scripts.any(
+      (s) => s.enabled && s.fullSource.isNotEmpty && s.bypassSitePolicy,
+    );
     final ts = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
     final scriptHandlerName = '__ws_s_$ts';
     final fetchHandlerName = '__ws_f_$ts';
     final inlineScriptHandlerName = '__ws_i_$ts';
 
     String? shimScript;
-    if (hasScripts) {
+    if (hasPrivilegedBridge) {
       shimScript = buildUserScriptShim(
         scriptHandlerName: scriptHandlerName,
         fetchHandlerName: fetchHandlerName,
@@ -170,6 +220,7 @@ class UserScriptService {
       fetchHandlerName: fetchHandlerName,
       inlineScriptHandlerName: inlineScriptHandlerName,
       hasScripts: hasScripts,
+      hasPrivilegedBridge: hasPrivilegedBridge,
       scripts: scripts,
       onConfirmScriptFetch: onConfirmScriptFetch,
       proxy: proxy ?? UserProxySettings(type: ProxyType.DEFAULT),
@@ -185,15 +236,20 @@ class UserScriptService {
     // Shim first (at DOCUMENT_START, before user scripts).
     // Append ";null;" so WebKit doesn't error on undefined return value.
     if (shimScript != null) {
-      result.add(inapp.UserScript(
-        groupName: 'script_fetch_shim',
-        source: '${shimScript!}\n;null;',
-        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-      ));
+      result.add(
+        inapp.UserScript(
+          groupName: 'script_fetch_shim',
+          source: '${shimScript!}\n;null;',
+          injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+        ),
+      );
     }
 
     // User scripts
-    LogService.instance.log('UserScript', 'createWebView: ${_scripts.length} user scripts configured');
+    LogService.instance.log(
+      'UserScript',
+      'createWebView: ${_scripts.length} user scripts configured',
+    );
     for (final script in _scripts) {
       final src = _buildSource(script);
       if (!script.enabled || src.isEmpty) {
@@ -204,19 +260,25 @@ class UserScriptService {
         );
         continue;
       }
-      final time = script.injectionTime == UserScriptInjectionTime.atDocumentStart ? 'DOCUMENT_START' : 'DOCUMENT_END';
+      final time =
+          script.injectionTime == UserScriptInjectionTime.atDocumentStart
+          ? 'DOCUMENT_START'
+          : 'DOCUMENT_END';
       LogService.instance.log(
         'UserScript',
         'Adding to initialUserScripts: "${script.name}" at $time (${src.length} chars, url=${script.url ?? "none"})',
         sensitivity: LogSensitivity.sensitive,
       );
-      result.add(inapp.UserScript(
-        groupName: 'user_scripts',
-        source: '${_guarded(script.id, src)}\n;null;',
-        injectionTime: script.injectionTime == UserScriptInjectionTime.atDocumentStart
-            ? inapp.UserScriptInjectionTime.AT_DOCUMENT_START
-            : inapp.UserScriptInjectionTime.AT_DOCUMENT_END,
-      ));
+      result.add(
+        inapp.UserScript(
+          groupName: 'user_scripts',
+          source: '${_guarded(script.id, src)}\n;null;',
+          injectionTime:
+              script.injectionTime == UserScriptInjectionTime.atDocumentStart
+              ? inapp.UserScriptInjectionTime.AT_DOCUMENT_START
+              : inapp.UserScriptInjectionTime.AT_DOCUMENT_END,
+        ),
+      );
     }
     return result;
   }
@@ -249,6 +311,13 @@ class UserScriptService {
       );
       return false;
     }
+    // Before the prompt, not after: a name resolving into a private range is
+    // refused outright, never offered to the user as a choice. The dialog
+    // shows a URL, and `http://cdn.evil.example/lib.js` reads as a CDN
+    // whatever it resolves to.
+    if (!await _resolvedTargetAllowed(url, resolveEffectiveProxy(_proxy))) {
+      return false;
+    }
     if (status == ScriptFetchUrlStatus.requiresConfirmation) {
       if (_onConfirmScriptFetch == null) {
         LogService.instance.log(
@@ -273,110 +342,145 @@ class UserScriptService {
   /// Register JS handlers on the controller for script fetching and
   /// CORS-bypassing resource fetching.
   void registerHandlers(inapp.InAppWebViewController controller) {
-    if (!hasScripts) return;
+    // No bridge, no handlers: the shim that reaches them is not injected
+    // either, and a handler nothing can call is still a handler anything on
+    // the page could call if it learned the name.
+    if (!hasPrivilegedBridge) return;
 
     // Script handler: fetches URL and injects content as JS via evaluateJavascript.
-    controller.addJavaScriptHandler(handlerName: _scriptHandlerName, callback: (args) async {
-      if (args.isEmpty || args[0] is! String) return false;
-      final url = args[0] as String;
-      if (!await _allowScriptFetch(url)) return false;
-      LogService.instance.log(
-        'UserScript',
-        'Fetching external script: $url',
-        sensitivity: LogSensitivity.sensitive,
-      );
-      final clientResult = outboundHttp.clientFor(resolveEffectiveProxy(_proxy));
-      if (clientResult is OutboundClientBlocked) {
+    controller.addJavaScriptHandler(
+      handlerName: _scriptHandlerName,
+      callback: (args) async {
+        if (args.isEmpty || args[0] is! String) return false;
+        final url = args[0] as String;
+        if (!await _allowScriptFetch(url)) return false;
         LogService.instance.log(
           'UserScript',
-          'Blocked external script fetch: ${clientResult.reason}',
+          'Fetching external script: $url',
+          sensitivity: LogSensitivity.sensitive,
         );
-        return false;
-      }
-      final client = (clientResult as OutboundClientReady).client;
-      try {
-        final response =
-            await _getWithCheckedRedirects(client, url, _allowScriptFetch);
-        if (response == null) return false;
-        if (response.statusCode == 200) {
-          if (response.body.length > _maxFetchBytes) {
-            LogService.instance.log('UserScript', 'Rejected: response too large (${response.body.length} bytes, max $_maxFetchBytes)');
-            return false;
-          }
-          LogService.instance.log('UserScript', 'Injecting fetched script (${response.body.length} bytes)');
-          await _safeEval(controller, response.body);
-          return true;
+        final clientResult = outboundHttp.clientFor(
+          resolveEffectiveProxy(_proxy),
+        );
+        if (clientResult is OutboundClientBlocked) {
+          LogService.instance.log(
+            'UserScript',
+            'Blocked external script fetch: ${clientResult.reason}',
+          );
+          return false;
         }
-        LogService.instance.log('UserScript', 'Fetch failed: HTTP ${response.statusCode}');
-      } catch (e) {
-        LogService.instance.log('UserScript', 'Fetch failed: $e');
-      } finally {
-        client.close();
-      }
-      return false;
-    });
+        final client = (clientResult as OutboundClientReady).client;
+        try {
+          final response = await _getWithCheckedRedirects(
+            client,
+            url,
+            _allowScriptFetch,
+          );
+          if (response == null) return false;
+          if (response.statusCode == 200) {
+            if (response.body.length > _maxFetchBytes) {
+              LogService.instance.log(
+                'UserScript',
+                'Rejected: response too large (${response.body.length} bytes, max $_maxFetchBytes)',
+              );
+              return false;
+            }
+            LogService.instance.log(
+              'UserScript',
+              'Injecting fetched script (${response.body.length} bytes)',
+            );
+            await _safeEval(controller, response.body);
+            return true;
+          }
+          LogService.instance.log(
+            'UserScript',
+            'Fetch failed: HTTP ${response.statusCode}',
+          );
+        } catch (e) {
+          LogService.instance.log('UserScript', 'Fetch failed: $e');
+        } finally {
+          client.close();
+        }
+        return false;
+      },
+    );
 
     // Inline-script handler: takes a captured <script>{textContent} source
     // string and evaluates it via the privileged Dart bridge, bypassing
     // page CSP. Fire-and-forget — the JS side doesn't await a result.
-    controller.addJavaScriptHandler(handlerName: _inlineScriptHandlerName, callback: (args) async {
-      if (args.isEmpty || args[0] is! String) return null;
-      final source = args[0] as String;
-      if (source.isEmpty) return null;
-      LogService.instance.log('UserScript', 'Inline script bridged (${source.length} bytes)');
-      await _safeEval(controller, source);
-      return null;
-    });
+    controller.addJavaScriptHandler(
+      handlerName: _inlineScriptHandlerName,
+      callback: (args) async {
+        if (args.isEmpty || args[0] is! String) return null;
+        final source = args[0] as String;
+        if (source.isEmpty) return null;
+        LogService.instance.log(
+          'UserScript',
+          'Inline script bridged (${source.length} bytes)',
+        );
+        await _safeEval(controller, source);
+        return null;
+      },
+    );
 
     // Resource fetch handler: fetches URL and returns body as text.
     // Used by window.__wsFetch() for CORS-bypassing fetch (e.g., reading
     // cross-origin stylesheets).
-    controller.addJavaScriptHandler(handlerName: _fetchHandlerName, callback: (args) async {
-      if (args.isEmpty || args[0] is! String) return {'status': 400};
-      final url = args[0] as String;
-      final status = classifyScriptFetchUrl(url);
-      if (status == ScriptFetchUrlStatus.blocked) {
-        LogService.instance.log(
-          'UserScript',
-          'Blocked resource fetch: $url',
-          sensitivity: LogSensitivity.sensitive,
-        );
-        return {'status': 403};
-      }
-      final clientResult = outboundHttp.clientFor(resolveEffectiveProxy(_proxy));
-      if (clientResult is OutboundClientBlocked) {
-        LogService.instance.log(
-          'UserScript',
-          'Blocked resource fetch: ${clientResult.reason}',
-        );
-        return {'status': 403};
-      }
-      final client = (clientResult as OutboundClientReady).client;
-      try {
-        final response = await _getWithCheckedRedirects(
-          client,
-          url,
-          (candidate) async =>
-              classifyScriptFetchUrl(candidate) != ScriptFetchUrlStatus.blocked,
-        );
-        if (response == null) return {'status': 403};
-        if (response.body.length > _maxFetchBytes) {
-          LogService.instance.log('UserScript', 'Resource too large: ${response.body.length} bytes');
-          return {'status': 413};
+    controller.addJavaScriptHandler(
+      handlerName: _fetchHandlerName,
+      callback: (args) async {
+        if (args.isEmpty || args[0] is! String) return {'status': 400};
+        final url = args[0] as String;
+        final effective = resolveEffectiveProxy(_proxy);
+        Future<bool> reachable(String candidate) async =>
+            classifyScriptFetchUrl(candidate) !=
+                ScriptFetchUrlStatus.blocked &&
+            await _resolvedTargetAllowed(candidate, effective);
+        if (!await reachable(url)) {
+          LogService.instance.log(
+            'UserScript',
+            'Blocked resource fetch: $url',
+            sensitivity: LogSensitivity.sensitive,
+          );
+          return {'status': 403};
         }
-        final contentType = response.headers['content-type'] ?? '';
-        return {
-          'status': response.statusCode,
-          'body': response.body,
-          'contentType': contentType,
-        };
-      } catch (e) {
-        LogService.instance.log('UserScript', 'Resource fetch failed: $e');
-        return {'status': 500};
-      } finally {
-        client.close();
-      }
-    });
+        final clientResult = outboundHttp.clientFor(effective);
+        if (clientResult is OutboundClientBlocked) {
+          LogService.instance.log(
+            'UserScript',
+            'Blocked resource fetch: ${clientResult.reason}',
+          );
+          return {'status': 403};
+        }
+        final client = (clientResult as OutboundClientReady).client;
+        try {
+          final response = await _getWithCheckedRedirects(
+            client,
+            url,
+            reachable,
+          );
+          if (response == null) return {'status': 403};
+          if (response.body.length > _maxFetchBytes) {
+            LogService.instance.log(
+              'UserScript',
+              'Resource too large: ${response.body.length} bytes',
+            );
+            return {'status': 413};
+          }
+          final contentType = response.headers['content-type'] ?? '';
+          return {
+            'status': response.statusCode,
+            'body': response.body,
+            'contentType': contentType,
+          };
+        } catch (e) {
+          LogService.instance.log('UserScript', 'Resource fetch failed: $e');
+          return {'status': 500};
+        } finally {
+          client.close();
+        }
+      },
+    );
   }
 
   /// Build injectable source for a user script.
@@ -392,7 +496,9 @@ class UserScriptService {
   /// persists across navigations. Re-injecting large libraries via
   /// evaluateJavascript at onLoadStart races with the JS context setup and
   /// causes ReferenceErrors.
-  Future<void> reinjectOnLoadStart(inapp.InAppWebViewController controller) async {
+  Future<void> reinjectOnLoadStart(
+    inapp.InAppWebViewController controller,
+  ) async {
     if (!hasScripts) return;
     if (shimScript != null) {
       await _safeEval(controller, shimScript!);
@@ -419,7 +525,9 @@ class UserScriptService {
   ///
   /// Scripts with [urlSource] are skipped — same rationale as
   /// [reinjectOnLoadStart].
-  Future<void> reinjectOnLoadStop(inapp.InAppWebViewController controller) async {
+  Future<void> reinjectOnLoadStop(
+    inapp.InAppWebViewController controller,
+  ) async {
     if (!hasScripts) return;
     for (final script in _scripts) {
       if (!script.enabled) continue;
@@ -444,7 +552,9 @@ class UserScriptService {
   /// On SPA navigations the JS context persists, so the library (urlSource)
   /// is still loaded. We only re-run the user's [source] code to re-trigger
   /// initialization (e.g. re-running a library's enable() call).
-  Future<void> reinjectOnSpaNavigation(inapp.InAppWebViewController controller) async {
+  Future<void> reinjectOnSpaNavigation(
+    inapp.InAppWebViewController controller,
+  ) async {
     if (!hasScripts) return;
     for (final script in _scripts) {
       if (!script.enabled || script.source.isEmpty) continue;
@@ -454,7 +564,10 @@ class UserScriptService {
         sensitivity: LogSensitivity.sensitive,
       );
       final safeName = script.name.replaceAll('"', '\\"');
-      await _safeEval(controller, 'console.log("__ws: SPA re-inject: $safeName");\n${script.source}');
+      await _safeEval(
+        controller,
+        'console.log("__ws: SPA re-inject: $safeName");\n${script.source}',
+      );
     }
   }
 }

@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "مخزّن: {bytes} بايت",
   "userScriptsCachedBytesWillRedownload": "مخزّن: {bytes} بايت (سيُعاد تنزيله عند الحفظ)",
   "userScriptsInjectionTimeLabel": "وقت الحقن",
+  "userScriptsBypassSitePolicyLabel": "تجاوز CSP وCORS الخاصة بالموقع",
+  "userScriptsBypassSitePolicyHint": "بعض المكتبات (مثل DarkReader) لا تعمل ما لم يشغّل التطبيق شفرتها وطلبات الشبكة الخاصة بها خارج سياسة أمان الموقع. فعّل هذا فقط للبرنامج النصي الذي يحتاجه. أثناء تفعيله تتوقف الحماية عن الصفحة بأكملها: يمكن لأي شفرة أخرى تعمل فيها، بما في ذلك برامج الموقع النصية وأي إعلان أو شفرة محقونة، أن تسلك الطريق نفسه.",
   "userScriptsAtDocumentStart": "بداية المستند",
   "userScriptsAtDocumentEnd": "نهاية المستند",
   "userScriptsSourceLabel": "مصدر JavaScript",

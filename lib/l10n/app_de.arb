@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "Zwischengespeichert: {bytes} Bytes",
   "userScriptsCachedBytesWillRedownload": "Zwischengespeichert: {bytes} Bytes (wird beim Speichern erneut heruntergeladen)",
   "userScriptsInjectionTimeLabel": "Injektionszeitpunkt",
+  "userScriptsBypassSitePolicyLabel": "CSP und CORS der Website umgehen",
+  "userScriptsBypassSitePolicyHint": "Manche Bibliotheken (zum Beispiel DarkReader) funktionieren nur, wenn die App ihren Code und ihre Netzwerkanfragen an der Sicherheitsrichtlinie der Website vorbeiführt. Schalten Sie dies nur für ein Skript ein, das es braucht. Solange es aktiv ist, ist der Schutz für die gesamte Seite ausgeschaltet: Jeder andere Code, der dort läuft, einschließlich der eigenen Skripte der Website sowie jeder Werbung oder eingeschleustem Code, kann denselben Weg nutzen.",
   "userScriptsAtDocumentStart": "Document start",
   "userScriptsAtDocumentEnd": "Document end",
   "userScriptsSourceLabel": "JavaScript-Quelltext",

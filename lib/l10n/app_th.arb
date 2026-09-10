@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "แคชไว้: {bytes} ไบต์",
   "userScriptsCachedBytesWillRedownload": "แคชไว้: {bytes} ไบต์ (จะดาวน์โหลดใหม่เมื่อบันทึก)",
   "userScriptsInjectionTimeLabel": "เวลาฉีด",
+  "userScriptsBypassSitePolicyLabel": "ข้ามผ่าน CSP และ CORS ของเว็บไซต์",
+  "userScriptsBypassSitePolicyHint": "ไลบรารีบางตัว (เช่น DarkReader) จะทำงานไม่ได้หากแอปไม่รันโค้ดและคำขอเครือข่ายของมันนอกนโยบายความปลอดภัยของเว็บไซต์ เปิดใช้งานนี้เฉพาะกับสคริปต์ที่จำเป็นต้องใช้เท่านั้น ขณะที่เปิดอยู่ การป้องกันจะถูกปิดสำหรับทั้งหน้า โค้ดอื่นใดที่ทำงานอยู่ที่นั่น รวมถึงสคริปต์ของเว็บไซต์เองและโฆษณาหรือโค้ดที่ถูกแทรกเข้ามา ก็สามารถใช้เส้นทางเดียวกันได้",
   "userScriptsAtDocumentStart": "เริ่มเอกสาร",
   "userScriptsAtDocumentEnd": "จบเอกสาร",
   "userScriptsSourceLabel": "ซอร์ส JavaScript",

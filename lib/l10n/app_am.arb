@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "ተሸጎጧል: {bytes} bytes",
   "userScriptsCachedBytesWillRedownload": "ተሸጎጧል: {bytes} bytes (ሲቀመጥ እንደገና ይወርዳል)",
   "userScriptsInjectionTimeLabel": "የማስገቢያ ጊዜ",
+  "userScriptsBypassSitePolicyLabel": "የጣቢያውን CSP እና CORS አልፍ",
+  "userScriptsBypassSitePolicyHint": "አንዳንድ ቤተ-መጻሕፍት (ለምሳሌ DarkReader) መተግበሪያው ኮዳቸውንና የአውታረ መረብ ጥያቄዎቻቸውን ከጣቢያው የደኅንነት መመሪያ ውጭ ካላስኬደ መሥራት አይችሉም። ይህን የሚያስፈልገው ስክሪፕት ላይ ብቻ አብሩት። እየሠራ ሳለ ጥበቃው ለመላው ገጹ ጠፍቷል፦ እዚያ የሚሠራ ማንኛውም ሌላ ኮድ፣ የጣቢያው የራሱ ስክሪፕቶችና ማንኛውም ማስታወቂያ ወይም የገባ ኮድ ጨምሮ፣ ተመሳሳዩን መንገድ መጠቀም ይችላል።",
   "userScriptsAtDocumentStart": "የሰነድ መጀመሪያ",
   "userScriptsAtDocumentEnd": "የሰነድ መጨረሻ",
   "userScriptsSourceLabel": "JavaScript ምንጭ",

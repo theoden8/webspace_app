@@ -420,7 +420,6 @@ test('real splits a combined request rather than asking for both (MIC-004)', asy
 test('a device audio track is registered for the deactivation stop (MIC-012)', async () => {
   const { window, calls } = setupMicDom({ decision: { mode: 'real' } });
   const stream = await window.navigator.mediaDevices.getUserMedia({ audio: true });
-  assert.equal(window.__wsRealTracks.length, 1);
   assert.equal(window.__wsStopRealCapture(), 1);
   assert.equal(stream.getAudioTracks()[0].readyState, 'ended');
   assert.equal(calls.realAudioStopped, true);
@@ -432,8 +431,9 @@ test('the deactivation stop leaves a substituted audio track alone (MIC-012)', a
   });
   const stream = await window.navigator.mediaDevices.getUserMedia({ audio: true });
   assert.equal(window.__wsStopRealCapture(), 0, 'nothing device-backed to stop');
+  // A substituted track is a local file: the stop must never reach it.
   assert.equal(calls.trackStopped, undefined);
-  assert.ok(window.__wsSyntheticTracks.has(stream.getAudioTracks()[0]));
+  assert.equal(stream.getAudioTracks().length, 1);
 });
 
 test('real mode leaves the platform device list alone (MIC-009)', async () => {

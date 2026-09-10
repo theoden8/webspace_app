@@ -27,9 +27,11 @@ class _Host {
 
   _Host({this.mode = MicrophoneAccessMode.ask, this.source, this.active = true});
 
-  Future<MicrophoneDecision> decide(String origin) => engine.decide(
+  Future<MicrophoneDecision> decide(String origin, {bool isTopFrame = true}) =>
+      engine.decide(
         origin: origin,
         isSiteActive: () => active,
+        isTopFrame: isTopFrame,
         effectiveMode: mode,
         currentSource: () => source,
         resolve: (o, current) async {
@@ -188,6 +190,47 @@ void main() {
       expect(host.mode, MicrophoneAccessMode.ask);
       await host.decide('https://meet.example');
       expect(host.resolveCalls, 2);
+    });
+
+    // --- frame scoping (MIC-016) ---------------------------------------
+    //
+    // The shim is injected forMainFrameOnly:false, so an ad frame reaches the
+    // same handler as the page. `real` hands over the device mic under the
+    // MIC-014 containment contract, and the popup that produced it named the
+    // top document — so it does not travel to a frame the user never saw.
+
+    test('a subframe does not inherit a settled real grant', () async {
+      final host = _Host(mode: MicrophoneAccessMode.real);
+      host.onResolve =
+          (_, __) => const MicrophoneDecision(MicrophoneAccessMode.block);
+      final d = await host.decide('https://ads.example', isTopFrame: false);
+      expect(d.mode, MicrophoneAccessMode.block);
+      expect(host.resolveCalls, 1, reason: 'the frame gets its own popup');
+      expect(host.mode, MicrophoneAccessMode.real,
+          reason: "the site's own grant is left alone");
+    });
+
+    test('a subframe answer is never written back to the site', () async {
+      final host = _Host(mode: MicrophoneAccessMode.ask);
+      host.onResolve =
+          (_, __) => const MicrophoneDecision(MicrophoneAccessMode.real);
+      final d = await host.decide('https://ads.example', isTopFrame: false);
+      expect(d.mode, MicrophoneAccessMode.real);
+      expect(host.mode, MicrophoneAccessMode.ask,
+          reason: 'one frame cannot flip the whole site to real');
+      expect(host.saveCalls, 0);
+    });
+
+    test('a subframe still inherits the device-free answers', () async {
+      for (final mode in [
+        MicrophoneAccessMode.block,
+        MicrophoneAccessMode.virtual,
+      ]) {
+        final host = _Host(mode: mode, source: _src);
+        final d = await host.decide('https://ads.example', isTopFrame: false);
+        expect(d.mode, mode);
+        expect(host.resolveCalls, 0, reason: 'stored mode $mode');
+      }
     });
   });
 }

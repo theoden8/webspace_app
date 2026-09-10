@@ -15,6 +15,8 @@
 // `tool/dump_shim_js.dart` can register them and the drift check
 // keeps the committed fixtures byte-identical to runtime output.
 
+import 'dart:convert';
+
 /// A text-based hiding rule: hide elements whose `selector`-match
 /// contents include any of `patterns`. Kept as a typedef so the
 /// builder stays usable from any future caller that supplies its own
@@ -40,7 +42,7 @@ String? buildContentBlockerEarlyCssShim({
   if (document.getElementById(ID)) return;
   var s = document.createElement('style');
   s.id = ID;
-  s.textContent = '$cssText';
+  s.textContent = ${jsonEncode(cssText)};
   (document.head || document.documentElement || document).appendChild(s);
 })();
 ''';
@@ -70,15 +72,9 @@ String? buildContentBlockerCosmeticShim({
   }
   final cssText = _buildCssText(selectors, styleRules);
 
-  final textRulesJs = StringBuffer('[');
-  for (var i = 0; i < textRules.length; i++) {
-    if (i > 0) textRulesJs.write(',');
-    final r = textRules[i];
-    final sel = _escapeForJsString(r.selector);
-    final pats = r.patterns.map((p) => "'${_escapeForJsString(p)}'").join(',');
-    textRulesJs.write("{sel:'$sel',pats:[$pats]}");
-  }
-  textRulesJs.write(']');
+  final textRulesJs = jsonEncode([
+    for (final r in textRules) {'sel': r.selector, 'pats': r.patterns},
+  ]);
 
   return '''
 (function() {
@@ -86,7 +82,7 @@ String? buildContentBlockerCosmeticShim({
   if (!document.getElementById(ID)) {
     var s = document.createElement('style');
     s.id = ID;
-    s.textContent = '$cssText';
+    s.textContent = ${jsonEncode(cssText)};
     (document.head || document.documentElement).appendChild(s);
   }
   // Selector-based hiding is handled entirely by the early <style>
@@ -144,16 +140,10 @@ String _buildCssText(
 ) {
   final cssRules = StringBuffer();
   for (final s in selectors) {
-    final escaped = _escapeForJsString(s);
-    cssRules.write('$escaped { display: none !important; } ');
+    cssRules.write('$s { display: none !important; } ');
   }
   for (final r in styleRules) {
-    final sel = _escapeForJsString(r.selector);
-    final decls = _escapeForJsString(r.declarations);
-    cssRules.write('$sel { $decls } ');
+    cssRules.write('${r.selector} { ${r.declarations} } ');
   }
   return cssRules.toString();
 }
-
-String _escapeForJsString(String input) =>
-    input.replaceAll('\\', '\\\\').replaceAll("'", "\\'");

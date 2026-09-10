@@ -465,8 +465,9 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
               },
         onCameraDecision: widget.onCameraDecision == null
             ? null
-            : (origin) => _cameraEngine.decide(
+            : (origin, isTopFrame) => _cameraEngine.decide(
                   origin: origin,
+                  isTopFrame: isTopFrame,
                   // A nested screen is the visible webview for as long as it
                   // is mounted; a route pushed above it (including the camera
                   // popup itself) must not read as backgrounded, or a burst
@@ -485,8 +486,9 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         currentCameraMode: () => _cameraMode,
         onMicrophoneDecision: widget.onMicrophoneDecision == null
             ? null
-            : (origin) => _microphoneEngine.decide(
+            : (origin, isTopFrame) => _microphoneEngine.decide(
                   origin: origin,
+                  isTopFrame: isTopFrame,
                   // Mounted is the nested screen's "on screen": a route pushed
                   // above it (the popup itself included) must not read as
                   // backgrounded, or a burst would stop coalescing onto it.

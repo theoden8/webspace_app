@@ -46,16 +46,24 @@ void main() {
       expect(js, contains('.banner { visibility: hidden }'));
     });
 
-    test('escapes quotes inside :style declarations', () {
-      // A declaration like `content: "x"` must be escaped or the
-      // surrounding `s.textContent = '...'` JS string literal breaks.
+    test('a filter list cannot break out of the CSS string literal', () {
+      // The blob is a JS string literal, and its contents come from a
+      // downloaded filter list. A quote must survive as data, and so must a
+      // newline: the payload is one script of concatenated shims, so a single
+      // SyntaxError here silences every shim after it.
       final js = buildContentBlockerEarlyCssShim(
         selectors: const [],
         styleRules: const [
           (selector: '.x', declarations: "content: 'ad'"),
+          (selector: '.y', declarations: 'color: red;\n} body { display: none'),
         ],
       )!;
-      expect(js, contains(r"content: \'ad\'"));
+      // The blob is emitted as a JSON literal, so a quote is data and needs no
+      // escape; a newline is escaped rather than ending the literal.
+      expect(js, contains("content: 'ad'"));
+      expect(js, isNot(contains('red;\n}')),
+          reason: 'a raw newline would terminate the string literal');
+      expect(js, contains(r'red;\n}'));
     });
   });
 
@@ -107,7 +115,7 @@ void main() {
       )!;
       expect(js, contains('MutationObserver'));
       expect(js, contains('hideText'));
-      expect(js, contains("'Sponsored'"));
+      expect(js, contains('"Sponsored"'));
     });
   });
 }

@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "Քեշավորված է՝ {bytes} բայթ",
   "userScriptsCachedBytesWillRedownload": "Քեշավորված է՝ {bytes} բայթ (պահպանելիս կրկին կներբեռնվի)",
   "userScriptsInjectionTimeLabel": "Ներարկման ժամանակ",
+  "userScriptsBypassSitePolicyLabel": "Շրջանցել կայքի CSP-ն և CORS-ը",
+  "userScriptsBypassSitePolicyHint": "Որոշ գրադարաններ (օրինակ՝ DarkReader) չեն կարող աշխատել, եթե հավելվածը դրանց կոդն ու ցանցային հարցումները չկատարի կայքի անվտանգության քաղաքականությունից դուրս։ Միացրեք սա միայն այն սցենարի համար, որին դա անհրաժեշտ է։ Քանի դեռ միացված է, պաշտպանությունն անջատված է ամբողջ էջի համար. նույն ճանապարհը կարող է օգտագործել այնտեղ աշխատող ցանկացած այլ կոդ, ներառյալ կայքի սեփական սցենարները և ցանկացած գովազդ կամ ներարկված կոդ։",
   "userScriptsAtDocumentStart": "Փաստաթղթի սկիզբ",
   "userScriptsAtDocumentEnd": "Փաստաթղթի վերջ",
   "userScriptsSourceLabel": "JavaScript կոդ",

@@ -134,12 +134,89 @@ test('CAM-013 / MIC-013: camera / microphone prompts name an origin read from th
       `${handler} must not take the origin from the page: the shim is ` +
       'injected forMainFrameOnly:false, so any frame can call the handler ' +
       'directly and name a site it is not');
-    assert.ok(body.includes('_promptOrigin(controller, config)'),
-      `${handler} must derive the origin from the controller`);
+    assert.ok(body.includes('_promptOrigin(controller, config, frame: data)'),
+      `${handler} must derive the origin from the controller and the frame`);
   }
   assert.match(WEBVIEW,
-    /_promptOrigin\([\s\S]{0,200}?await controller\.getUrl\(\)\)\?\.toString\(\) \?\? config\.initialUrl/,
+    /_promptOrigin\([\s\S]{0,400}?await controller\.getUrl\(\)\)\?\.toString\(\) \?\? config\.initialUrl/,
     '_promptOrigin must read the live URL, falling back to the site URL');
+  assert.match(WEBVIEW,
+    /if \(frame != null && !frame\.isMainFrame\) return frame\.origin\.toString\(\);/,
+    'a subframe prompt must name the frame, not the document that embeds it');
+});
+
+test('CAM-014 / MIC-016: a device grant does not travel to a subframe', () => {
+  // The shims are injected forMainFrameOnly:false so a QR scanner in a
+  // cross-origin frame is covered — which also puts an ad frame on the same
+  // handler. `real` is the one answer that opens the device, and the popup
+  // that produced it named the top document.
+  for (const handler of ['webCameraRequest', 'webMicrophoneRequest']) {
+    const at = WEBVIEW.indexOf(`handlerName: '${handler}'`);
+    const body = WEBVIEW.slice(at, WEBVIEW.indexOf('addJavaScriptHandler', at + 1));
+    assert.ok(body.includes('inapp.JavaScriptHandlerFunctionData data'),
+      `${handler} must use the frame-aware callback: page script can neither ` +
+      'forge isMainFrame nor call the handler around it');
+    assert.ok(body.includes('data.isMainFrame'),
+      `${handler} must hand the frame identity to the resolver`);
+  }
+  for (const [file, engine] of [
+    ['lib/services/camera_decision_engine.dart', 'CameraAccessMode'],
+    ['lib/services/microphone_decision_engine.dart', 'MicrophoneAccessMode'],
+  ]) {
+    const src = read(file);
+    assert.match(src, new RegExp(
+      `if \\(mode == ${engine}\\.real\\) \\{\\s*return isTopFrame`),
+      `${file}: a settled real mode must short-circuit only for the top document`);
+  }
+  // The answer a subframe popup produced is that request's, not the site's.
+  const grant = read('lib/services/media_grant_engine.dart');
+  assert.match(grant, /if \(isTopFrame\) \{\s*persist\(resolved\);/,
+    'media_grant_engine.dart: a subframe answer must not be written back to ' +
+    'the site — one frame cannot flip the whole site to real');
+  assert.match(grant, /_inFlight\[origin\]/,
+    'media_grant_engine.dart: coalescing must be keyed by prompt origin, or a ' +
+    'subframe rides the answer the user gave for the top document');
+});
+
+test('BGAUDIO-008: only a main frame takes the notification off a main frame', () => {
+  const at = WEBVIEW.indexOf("handlerName: 'wsMediaSession'");
+  assert.notEqual(at, -1, 'the wsMediaSession handler is gone');
+  const body = WEBVIEW.slice(at, WEBVIEW.indexOf('addJavaScriptHandler', at + 1));
+  assert.ok(body.includes('inapp.JavaScriptHandlerFunctionData call'),
+    'wsMediaSession must use the frame-aware callback: the frame token is ' +
+    'minted by the shim, which runs in an ad iframe too');
+  assert.ok(body.includes('isMainFrame: call.isMainFrame'),
+    'wsMediaSession must report the frame identity, not infer it');
+  const svc = read('lib/services/media_session_service.dart');
+  assert.match(svc, /if \(!isMainFrame && _active && _ownerIsMainFrame && !sameFrame\) return;/,
+    'media_session_service.dart: a subframe claiming playback must not ' +
+    'displace the main frame that holds the notification');
+});
+
+test('CAM-012 / MIC-012: the capture stop is out of the page\'s reach', () => {
+  // The hook is the only thing that ends a device capture on deactivation, and
+  // Dart can only reach it by name from the page's own realm. Reachable is
+  // fine; replaceable is not, and neither is a registry the page can empty.
+  const registry = read('lib/services/capture_track_registry.dart');
+  assert.match(registry, /writable: false,\s*\n\s*enumerable: false,\s*\n\s*configurable: false,/,
+    'the hook must be installed non-writable and non-configurable');
+  assert.ok(!/globalThis\.__wsRealTracks\s*=/.test(registry),
+    'the device-track list must not be reachable through a global: assigning ' +
+    'an empty one used to be a complete bypass');
+  assert.ok(!/globalThis\.__wsSyntheticTracks\s*=/.test(registry),
+    'the skip list must not be reachable through a global: adding a device ' +
+    'track to it used to be a complete bypass');
+  assert.match(registry, /if \(track && !isReal\(track\)\)/,
+    'markSynthetic must refuse a track already registered as device-backed');
+  assert.match(registry, /postMessage\(RELAY, '\*'\)/,
+    'the stop must relay to subframes: Dart evaluates in the main frame only, ' +
+    'and a subframe granted a device track holds its own registry');
+  for (const shim of ['camera_stream_shim', 'microphone_stream_shim',
+    'screen_share_shim']) {
+    const src = read(`lib/services/${shim}.dart`);
+    assert.ok(!src.includes('__wsSyntheticTracks'),
+      `${shim}.dart must reach the registry through the shared block, not a global`);
+  }
 });
 
 // --- the blocker bridge ---------------------------------------------------

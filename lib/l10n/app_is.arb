@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "Í skyndiminni: {bytes} bæti",
   "userScriptsCachedBytesWillRedownload": "Í skyndiminni: {bytes} bæti (verður endursótt við vistun)",
   "userScriptsInjectionTimeLabel": "Innspýtingartími",
+  "userScriptsBypassSitePolicyLabel": "Sniðganga CSP og CORS vefsvæðisins",
+  "userScriptsBypassSitePolicyHint": "Sum forritasöfn (til dæmis DarkReader) geta ekki virkað nema forritið keyri kóða þeirra og netbeiðnir fram hjá öryggisstefnu vefsvæðisins. Kveiktu aðeins á þessu fyrir skriftu sem þarf á því að halda. Meðan kveikt er á því er verndin slökkt fyrir alla síðuna: allur annar kóði sem keyrir þar, þar á meðal skriftur vefsvæðisins sjálfs og hvers kyns auglýsingar eða innspýttur kóði, getur farið sömu leið.",
   "userScriptsAtDocumentStart": "Upphaf skjals",
   "userScriptsAtDocumentEnd": "Lok skjals",
   "userScriptsSourceLabel": "JavaScript-frumkóði",

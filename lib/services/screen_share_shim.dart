@@ -36,6 +36,8 @@
 
 import 'dart:convert';
 
+import 'package:webspace/services/capture_track_registry.dart';
+
 /// Build the simulated screen-sharing shim.
 ///
 /// [surfaceLabel] is the surface name reported to the page as the track's
@@ -45,6 +47,7 @@ import 'dart:convert';
 /// and the drift check.
 String buildScreenShareShim({String surfaceLabel = 'Screen'}) {
   final label = jsonEncode(surfaceLabel);
+  final registry = buildRealCaptureRegistry();
   return '''
 (function() {
   'use strict';
@@ -223,11 +226,10 @@ String buildScreenShareShim({String surfaceLabel = 'Screen'}) {
   var _syntheticTracks = new WeakMap();
 
   // Every track ANY WebSpace capture shim substituted, shared across shims.
-  // The camera's deactivation stop (CAM-012) skips anything in this set, so a
-  // simulated surface is not torn down when the user switches sites — it is a
-  // local file drawn onto a canvas, with nothing being observed.
-  var _wsSynthetic = globalThis.__wsSyntheticTracks || new WeakSet();
-  globalThis.__wsSyntheticTracks = _wsSynthetic;
+  // The camera's deactivation stop (CAM-012) skips anything registered here,
+  // so a simulated surface is not torn down when the user switches sites — it
+  // is a local file drawn onto a canvas, with nothing being observed.
+${registry}
 
   // Draws `media` (an <img> or a looping <video>) onto a canvas at `fps` and
   // returns the canvas's captured MediaStream. The canvas is kept out of the
@@ -282,7 +284,7 @@ String buildScreenShareShim({String surfaceLabel = 'Screen'}) {
           ? constraints.video
           : {},
       });
-      try { _wsSynthetic.add(track); } catch (e) {}
+      markSyntheticTrack(track);
       // A canvas track is a CanvasCaptureMediaStreamTrack; a display capture
       // track is not. Re-point the prototype so the class matches. Internal
       // slots live on the instance, so the track keeps working; if any engine
@@ -405,7 +407,7 @@ String buildScreenShareShim({String surfaceLabel = 'Screen'}) {
         // original. It also has to stay exempt from the camera's stop.
         if (meta && copy) {
           _syntheticTracks.set(copy, meta);
-          try { _wsSynthetic.add(copy); } catch (e) {}
+          markSyntheticTrack(copy);
         }
         return copy;
       }, 'clone');

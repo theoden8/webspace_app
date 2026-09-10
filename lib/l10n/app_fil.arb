@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "Naka-cache: {bytes} bytes",
   "userScriptsCachedBytesWillRedownload": "Naka-cache: {bytes} bytes (muling ida-download sa pag-save)",
   "userScriptsInjectionTimeLabel": "Oras ng injection",
+  "userScriptsBypassSitePolicyLabel": "Laktawan ang CSP at CORS ng site",
+  "userScriptsBypassSitePolicyHint": "May mga library (halimbawa ang DarkReader) na hindi gumagana maliban kung patatakbuhin ng app ang kanilang code at mga kahilingan sa network sa labas ng patakaran sa seguridad ng site. Buksan lamang ito para sa script na nangangailangan nito. Habang naka-on ito, naka-off ang proteksyon para sa buong pahina: magagamit ang parehong daan ng kahit anong ibang code na tumatakbo doon, kabilang ang sariling mga script ng site at anumang advertisement o na-inject na code.",
   "userScriptsAtDocumentStart": "Document start",
   "userScriptsAtDocumentEnd": "Document end",
   "userScriptsSourceLabel": "JavaScript source",

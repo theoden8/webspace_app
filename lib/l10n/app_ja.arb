@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "キャッシュ済み: {bytes} バイト",
   "userScriptsCachedBytesWillRedownload": "キャッシュ済み: {bytes} バイト（保存時に再ダウンロードされます）",
   "userScriptsInjectionTimeLabel": "注入タイミング",
+  "userScriptsBypassSitePolicyLabel": "サイトの CSP と CORS を回避",
+  "userScriptsBypassSitePolicyHint": "一部のライブラリ（たとえば DarkReader）は、アプリがそのコードとネットワーク要求をサイトのセキュリティポリシーの外で実行しない限り動作しません。これが必要なスクリプトにだけ有効にしてください。有効な間はページ全体で保護が無効になります。そこで実行される他のすべてのコード、サイト自身のスクリプトや広告、注入されたコードも同じ経路を使えます。",
   "userScriptsAtDocumentStart": "ドキュメント開始時",
   "userScriptsAtDocumentEnd": "ドキュメント終了時",
   "userScriptsSourceLabel": "JavaScript ソース",

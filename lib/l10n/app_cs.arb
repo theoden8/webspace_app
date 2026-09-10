@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "V mezipaměti: {bytes} bajtů",
   "userScriptsCachedBytesWillRedownload": "V mezipaměti: {bytes} bajtů (při uložení se znovu stáhne)",
   "userScriptsInjectionTimeLabel": "Doba vložení",
+  "userScriptsBypassSitePolicyLabel": "Obejít CSP a CORS webu",
+  "userScriptsBypassSitePolicyHint": "Některé knihovny (například DarkReader) nemohou fungovat, pokud aplikace nespouští jejich kód a síťové požadavky mimo bezpečnostní zásady webu. Zapněte to jen pro skript, který to potřebuje. Dokud je to zapnuté, je ochrana vypnutá pro celou stránku: stejnou cestu může využít jakýkoli jiný kód, který na ní běží, včetně vlastních skriptů webu a jakékoli reklamy nebo vloženého kódu.",
   "userScriptsAtDocumentStart": "Začátek dokumentu",
   "userScriptsAtDocumentEnd": "Konec dokumentu",
   "userScriptsSourceLabel": "Zdrojový kód JavaScriptu",

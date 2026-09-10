@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "ქეშირებულია: {bytes} ბაიტი",
   "userScriptsCachedBytesWillRedownload": "ქეშირებულია: {bytes} ბაიტი (ხელახლა ჩამოიტვირთება შენახვისას)",
   "userScriptsInjectionTimeLabel": "ჩანერგვის დრო",
+  "userScriptsBypassSitePolicyLabel": "საიტის CSP-ისა და CORS-ის გვერდის ავლა",
+  "userScriptsBypassSitePolicyHint": "ზოგიერთი ბიბლიოთეკა (მაგალითად, DarkReader) ვერ იმუშავებს, თუ აპლიკაცია მათ კოდსა და ქსელურ მოთხოვნებს საიტის უსაფრთხოების პოლიტიკის გვერდის ავლით არ გაუშვებს. ჩართეთ ეს მხოლოდ იმ სკრიპტისთვის, რომელსაც ეს სჭირდება. სანამ ჩართულია, დაცვა გამორთულია მთელი გვერდისთვის: იმავე გზას გამოიყენებს იქ გაშვებული ნებისმიერი სხვა კოდი, მათ შორის საიტის საკუთარი სკრიპტები და ნებისმიერი რეკლამა ან შეყვანილი კოდი.",
   "userScriptsAtDocumentStart": "დოკუმენტის დასაწყისი",
   "userScriptsAtDocumentEnd": "დოკუმენტის დასასრული",
   "userScriptsSourceLabel": "JavaScript წყარო",

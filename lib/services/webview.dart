@@ -399,8 +399,8 @@ class ProxyManager {
     // iOS/macOS never reach here; Linux/WebKit accepts a credentialed
     // proxy URI directly, so it keeps the inline-credential path below.
     if (hostIsAndroid && effective.hasCredentials) {
-      final localPort = await ProxyRelay.instance.start(effective);
-      if (localPort == null) {
+      final relay = await ProxyRelay.instance.start(effective);
+      if (relay == null) {
         LogService.instance.log(
           'Proxy',
           'Auth proxy relay failed to start; refusing to fall back to a '
@@ -421,14 +421,14 @@ class ProxyManager {
       final sw = Stopwatch()..start();
       await controller.setProxyOverride(
         settings: inapp.ProxySettings(
-          proxyRules: [inapp.ProxyRule(url: 'http://127.0.0.1:$localPort')],
+          proxyRules: [inapp.ProxyRule(url: 'http://${relay.host}:${relay.port}')],
           bypassRules: ['<local>'],
         ),
       );
       LogService.instance.log(
         'Proxy',
         'Applied proxy override via relay (native call took ${sw.elapsedMilliseconds}ms, '
-            'relay port=$localPort)',
+            'relay endpoint=${relay.host}:${relay.port})',
         level: LogLevel.info,
         sensitivity: LogSensitivity.sensitive,
       );
@@ -787,8 +787,11 @@ class WebViewConfig {
   /// `real` (and, on Android, after [CameraPermissionService] ensures the
   /// app-level CAMERA runtime permission). Requests that bundle the
   /// microphone never route here. The model computes the current mode
-  /// internally, so this takes only the origin.
-  final Future<CameraDecision> Function(String origin)? onCameraDecision;
+  /// internally, so this takes the requesting frame's origin plus whether that
+  /// frame is the top document — a settled `real` grant belongs to the document
+  /// the popup named and is not inherited by a subframe (CAM-014).
+  final Future<CameraDecision> Function(String origin, bool isTopFrame)?
+      onCameraDecision;
   /// Reads the site's current camera mode WITHOUT prompting. Backs the
   /// `webCameraMode` JS handler, which the shim uses to decide whether
   /// `enumerateDevices` should mask real cameras (virtual mode) — enumeration
@@ -803,8 +806,11 @@ class WebViewConfig {
   /// (deny on Android/Linux, WebKit's own prompt on iOS/macOS). When
   /// non-null, the `webMicrophoneRequest` JS handler serves the whole flow in
   /// JS and the native layer denies every MICROPHONE request outright, so no
-  /// OS recording permission is ever requested.
-  final Future<MicrophoneDecision> Function(String origin)? onMicrophoneDecision;
+  /// OS recording permission is ever requested. Takes the requesting frame's
+  /// origin plus whether that frame is the top document, for the same reason
+  /// as [onCameraDecision] (MIC-016).
+  final Future<MicrophoneDecision> Function(String origin, bool isTopFrame)?
+      onMicrophoneDecision;
   /// Reads the site's current microphone mode WITHOUT prompting. Backs the
   /// `webMicrophoneMode` JS handler, which the shim uses to decide whether
   /// `enumerateDevices` should mask real microphones (virtual mode) —
@@ -2826,15 +2832,35 @@ class WebViewFactory {
     );
   }
 
-  /// The origin a camera / microphone prompt names, read from the webview
-  /// rather than from the shim's argument: the shims are injected
+  /// The origin a camera / microphone prompt names.
+  ///
+  /// Never the shim's argument: the shims are injected
   /// `forMainFrameOnly: false`, so any frame can call the handler directly and
-  /// would otherwise get to choose which site the dialog accuses.
+  /// would otherwise get to choose which site the dialog accuses. The top
+  /// document's origin comes from the webview; a subframe's comes from the
+  /// plugin's bridge preamble, which computes it behind the bridge secret and
+  /// so is no more forgeable than `isMainFrame` (CAM-014 / MIC-016).
   static Future<String> _promptOrigin(
     inapp.InAppWebViewController controller,
-    WebViewConfig config,
-  ) async =>
-      (await controller.getUrl())?.toString() ?? config.initialUrl;
+    WebViewConfig config, {
+    inapp.JavaScriptHandlerFunctionData? frame,
+  }) async {
+    if (frame != null && !frame.isMainFrame) return frame.origin.toString();
+    return (await controller.getUrl())?.toString() ?? config.initialUrl;
+  }
+
+  /// Whether a native permission request came from the top document.
+  ///
+  /// The platform hands `onPermissionRequest` the requesting frame's origin
+  /// but not its frame identity, so compare it with the document the webview
+  /// is actually showing. Anything that does not match is a subframe and does
+  /// not inherit a settled device grant (CAM-014 / MIC-016).
+  static bool _sameOrigin(String a, String b) {
+    final ua = Uri.tryParse(a);
+    final ub = Uri.tryParse(b);
+    if (ua == null || ub == null) return false;
+    return ua.scheme == ub.scheme && ua.host == ub.host && ua.port == ub.port;
+  }
 
   /// Register the Dart side of every shim [_buildPageScripts] installs.
   /// The two go together: a shim whose handler is missing leaves the
@@ -2906,9 +2932,11 @@ class WebViewFactory {
     if (config.onCameraDecision != null) {
       controller.addJavaScriptHandler(
         handlerName: 'webCameraRequest',
-        callback: (args) async {
-          final decision =
-              await config.onCameraDecision!(await _promptOrigin(controller, config));
+        callback: (inapp.JavaScriptHandlerFunctionData data) async {
+          final decision = await config.onCameraDecision!(
+            await _promptOrigin(controller, config, frame: data),
+            data.isMainFrame,
+          );
           return decision.toBridgeJson();
         },
       );
@@ -2929,9 +2957,11 @@ class WebViewFactory {
     if (config.onMicrophoneDecision != null) {
       controller.addJavaScriptHandler(
         handlerName: 'webMicrophoneRequest',
-        callback: (args) async {
-          final decision = await config
-              .onMicrophoneDecision!(await _promptOrigin(controller, config));
+        callback: (inapp.JavaScriptHandlerFunctionData data) async {
+          final decision = await config.onMicrophoneDecision!(
+            await _promptOrigin(controller, config, frame: data),
+            data.isMainFrame,
+          );
           return decision.toBridgeJson();
         },
       );
@@ -3224,7 +3254,11 @@ class WebViewFactory {
         MediaSessionService.instance.isSupported) {
       controller.addJavaScriptHandler(
         handlerName: 'wsMediaSession',
-        callback: (args) async {
+        // Frame-aware: the shim runs in every frame of the site and they all
+        // share this handler, so whether the report came from the top document
+        // has to be decided here rather than taken from the page (BGAUDIO-008).
+        callback: (inapp.JavaScriptHandlerFunctionData call) async {
+          final args = call.args;
           if (args.isEmpty || args[0] is! Map) return null;
           final data = Map<String, dynamic>.from(args[0] as Map);
           final control = data['control'] as String?;
@@ -3238,6 +3272,7 @@ class WebViewFactory {
           await MediaSessionService.instance.report(
             siteId: config.siteId!,
             frame: data['frame'] as String? ?? '',
+            isMainFrame: call.isMainFrame,
             runJs: (js) => controller.evaluateJavascript(source: js),
             playing: data['playing'] as bool? ?? false,
             title: data['title'] as String? ?? '',
@@ -3702,15 +3737,18 @@ class WebViewFactory {
                   request.resources.contains(
                       inapp.PermissionResourceType.CAMERA_AND_MICROPHONE);
               if (wantsMicrophone || wantsBoth) {
-                final origin = await _promptOrigin(controller, config);
+                final topOrigin = await _promptOrigin(controller, config);
+                final requestOrigin = request.origin.toString();
+                final isTopFrame = _sameOrigin(topOrigin, requestOrigin);
+                final origin = isTopFrame ? topOrigin : requestOrigin;
                 final micDecision =
-                    await config.onMicrophoneDecision!(origin);
+                    await config.onMicrophoneDecision!(origin, isTopFrame);
                 bool granted =
                     micDecision.mode == MicrophoneAccessMode.real;
                 if (granted && wantsBoth) {
                   final camDecision = config.onCameraDecision == null
                       ? const CameraDecision.block()
-                      : await config.onCameraDecision!(origin);
+                      : await config.onCameraDecision!(origin, isTopFrame);
                   granted = camDecision.mode == CameraAccessMode.real;
                 }
                 if (granted) {
@@ -3731,8 +3769,14 @@ class WebViewFactory {
                   request.resources
                       .contains(inapp.PermissionResourceType.CAMERA);
               if (wantsCameraOnly) {
+                final requestOrigin = request.origin.toString();
                 final decision = await config.onCameraDecision!(
-                    request.origin.toString());
+                  requestOrigin,
+                  _sameOrigin(
+                    await _promptOrigin(controller, config),
+                    requestOrigin,
+                  ),
+                );
                 bool granted = decision.mode == CameraAccessMode.real;
                 if (granted) {
                   granted = await CameraPermissionService.ensurePermission();

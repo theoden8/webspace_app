@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "نهان‌شده: {bytes} بایت",
   "userScriptsCachedBytesWillRedownload": "نهان‌شده: {bytes} بایت (هنگام ذخیره دوباره دانلود می‌شود)",
   "userScriptsInjectionTimeLabel": "زمان تزریق",
+  "userScriptsBypassSitePolicyLabel": "دور زدن CSP و CORS سایت",
+  "userScriptsBypassSitePolicyHint": "برخی کتابخانه‌ها (برای نمونه DarkReader) کار نمی‌کنند مگر آنکه برنامه کد و درخواست‌های شبکه‌ی آن‌ها را بیرون از سیاست امنیتی سایت اجرا کند. این را تنها برای اسکریپتی روشن کنید که به آن نیاز دارد. تا زمانی که روشن است، محافظت برای کل صفحه خاموش است: هر کد دیگری که آنجا اجرا می‌شود، از جمله اسکریپت‌های خود سایت و هر تبلیغ یا کد تزریق‌شده، می‌تواند از همان مسیر استفاده کند.",
   "userScriptsAtDocumentStart": "آغاز سند",
   "userScriptsAtDocumentEnd": "پایان سند",
   "userScriptsSourceLabel": "کد منبع JavaScript",

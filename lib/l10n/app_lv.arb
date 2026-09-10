@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "Kešots: {bytes} baiti",
   "userScriptsCachedBytesWillRedownload": "Kešots: {bytes} baiti (saglabājot tiks atkārtoti lejupielādēts)",
   "userScriptsInjectionTimeLabel": "Ievadīšanas laiks",
+  "userScriptsBypassSitePolicyLabel": "Apiet vietnes CSP un CORS",
+  "userScriptsBypassSitePolicyHint": "Dažas bibliotēkas (piemēram, DarkReader) nevar darboties, ja lietotne to kodu un tīkla pieprasījumus neizpilda ārpus vietnes drošības politikas. Ieslēdziet to tikai skriptam, kuram tas ir nepieciešams. Kamēr tas ir ieslēgts, aizsardzība ir izslēgta visai lapai: to pašu ceļu var izmantot jebkurš cits tur izpildīts kods, tostarp pašas vietnes skripti un jebkura reklāma vai ievadīts kods.",
   "userScriptsAtDocumentStart": "Dokumenta sākums",
   "userScriptsAtDocumentEnd": "Dokumenta beigas",
   "userScriptsSourceLabel": "JavaScript pirmkods",

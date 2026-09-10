@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "Cachean: {bytes} byte",
   "userScriptsCachedBytesWillRedownload": "Cachean: {bytes} byte (berriz deskargatuko da gordetzean)",
   "userScriptsInjectionTimeLabel": "Injekzio-unea",
+  "userScriptsBypassSitePolicyLabel": "Saltatu gunearen CSP eta CORS",
+  "userScriptsBypassSitePolicyHint": "Liburutegi batzuek (adibidez, DarkReader) ezin dute funtzionatu aplikazioak haien kodea eta sareko eskaerak gunearen segurtasun-politikatik kanpo exekutatzen ez baditu. Piztu hau behar duen script batentzat soilik. Piztuta dagoen bitartean, babesa itzalita dago orrialde osorako: han exekutatzen den beste edozein kodek, gunearen script propioak eta edozein iragarki edo txertatutako kode barne, bide bera erabil dezake.",
   "userScriptsAtDocumentStart": "Dokumentuaren hasiera",
   "userScriptsAtDocumentEnd": "Dokumentuaren amaiera",
   "userScriptsSourceLabel": "JavaScript iturburua",

@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "Tertembolok: {bytes} bita",
   "userScriptsCachedBytesWillRedownload": "Tertembolok: {bytes} bita (akan diunduh ulang saat disimpan)",
   "userScriptsInjectionTimeLabel": "Waktu penyuntikan",
+  "userScriptsBypassSitePolicyLabel": "Lewati CSP dan CORS situs",
+  "userScriptsBypassSitePolicyHint": "Beberapa pustaka (misalnya DarkReader) tidak dapat bekerja kecuali aplikasi menjalankan kode dan permintaan jaringannya di luar kebijakan keamanan situs. Aktifkan ini hanya untuk skrip yang membutuhkannya. Selama aktif, perlindungan mati untuk seluruh halaman: kode lain apa pun yang berjalan di sana, termasuk skrip milik situs sendiri dan iklan atau kode sisipan apa pun, dapat memakai jalur yang sama.",
   "userScriptsAtDocumentStart": "Awal dokumen",
   "userScriptsAtDocumentEnd": "Akhir dokumen",
   "userScriptsSourceLabel": "Sumber JavaScript",

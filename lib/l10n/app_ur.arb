@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "کیش شدہ: {bytes} بائٹس",
   "userScriptsCachedBytesWillRedownload": "کیش شدہ: {bytes} بائٹس (محفوظ کرنے پر دوبارہ ڈاؤن لوڈ ہوگا)",
   "userScriptsInjectionTimeLabel": "انجیکشن وقت",
+  "userScriptsBypassSitePolicyLabel": "سائٹ کے CSP اور CORS کو نظرانداز کریں",
+  "userScriptsBypassSitePolicyHint": "کچھ لائبریریاں (مثلاً DarkReader) اُس وقت تک کام نہیں کر سکتیں جب تک ایپ اُن کا کوڈ اور نیٹ ورک درخواستیں سائٹ کی سیکیورٹی پالیسی سے باہر نہ چلائے۔ اسے صرف اُس اسکرپٹ کے لیے آن کریں جسے اس کی ضرورت ہو۔ جب تک یہ آن ہے، پورے صفحے کے لیے تحفظ بند رہتا ہے: وہاں چلنے والا کوئی بھی دوسرا کوڈ، بشمول سائٹ کی اپنی اسکرپٹس اور کوئی بھی اشتہار یا داخل کیا گیا کوڈ، وہی راستہ استعمال کر سکتا ہے۔",
   "userScriptsAtDocumentStart": "ڈاکیومنٹ آغاز",
   "userScriptsAtDocumentEnd": "ڈاکیومنٹ اختتام",
   "userScriptsSourceLabel": "JavaScript ماخذ",

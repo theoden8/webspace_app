@@ -2,6 +2,7 @@ package org.codeberg.theoden8.webspace
 
 import android.os.Handler
 import android.os.Looper
+import android.os.Process
 import android.util.Log
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -27,12 +28,17 @@ class ProxyRelayPlugin(flutterEngine: FlutterEngine) {
     // in-app Logs tab next to the proxy-apply events — critical for the
     // container-reach diagnostic (zero accepted connections during a
     // proxied page load = ProxyController not reaching the container).
-    private val relay = ProxyRelay { msg ->
-        Log.i(TAG, msg)
-        mainHandler.post {
-            runCatching { channel.invokeMethod("logEvent", mapOf("msg" to msg)) }
-        }
-    }
+    // `logger` by name, not as a trailing lambda: ProxyRelay takes a second
+    // optional parameter, so a trailing lambda binds to whichever one is last.
+    private val relay = ProxyRelay(
+        logger = { msg ->
+            Log.i(TAG, msg)
+            mainHandler.post {
+                runCatching { channel.invokeMethod("logEvent", mapOf("msg" to msg)) }
+            }
+        },
+        ownUid = Process.myUid(),
+    )
 
     init {
         channel.setMethodCallHandler { call, result ->
@@ -64,7 +70,9 @@ class ProxyRelayPlugin(flutterEngine: FlutterEngine) {
                                 password = call.argument<String>("password"),
                             )
                         )
-                        result.success(localPort)
+                        // Host as well as port: the listener binds a random
+                        // 127/8 address, so 127.0.0.1 is the wrong target.
+                        result.success(mapOf("host" to relay.host, "port" to localPort))
                     } catch (e: Exception) {
                         // Bind failure: report it so Dart can fail closed
                         // rather than clearing the override (which would

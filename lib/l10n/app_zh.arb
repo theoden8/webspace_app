@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "已快取：{bytes} 位元組",
   "userScriptsCachedBytesWillRedownload": "已快取：{bytes} 位元組（儲存時會重新下載）",
   "userScriptsInjectionTimeLabel": "注入時間",
+  "userScriptsBypassSitePolicyLabel": "略過網站的 CSP 與 CORS",
+  "userScriptsBypassSitePolicyHint": "有些程式庫（例如 DarkReader）除非應用程式將其程式碼與網路請求繞過網站的安全性原則執行，否則無法運作。請只為需要它的腳本開啟此項。開啟期間，整個頁面的保護都會關閉：在該頁面執行的任何其他程式碼，包括網站本身的腳本以及任何廣告或被注入的程式碼，都能走同一條路徑。",
   "userScriptsAtDocumentStart": "文件開始",
   "userScriptsAtDocumentEnd": "文件結束",
   "userScriptsSourceLabel": "JavaScript 原始碼",

@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "Podėlyje: {bytes} baitų",
   "userScriptsCachedBytesWillRedownload": "Podėlyje: {bytes} baitų (bus atsisiųsta iš naujo įrašant)",
   "userScriptsInjectionTimeLabel": "Įterpimo laikas",
+  "userScriptsBypassSitePolicyLabel": "Apeiti svetainės CSP ir CORS",
+  "userScriptsBypassSitePolicyHint": "Kai kurios bibliotekos (pavyzdžiui, „DarkReader“) negali veikti, jei programa nevykdo jų kodo ir tinklo užklausų apeidama svetainės saugumo politiką. Įjunkite tai tik tam scenarijui, kuriam to reikia. Kol įjungta, apsauga išjungta visam puslapiui: tuo pačiu keliu gali pasinaudoti bet koks kitas ten vykdomas kodas, įskaitant pačios svetainės scenarijus ir bet kokią reklamą ar įterptą kodą.",
   "userScriptsAtDocumentStart": "Dokumento pradžia",
   "userScriptsAtDocumentEnd": "Dokumento pabaiga",
   "userScriptsSourceLabel": "JavaScript pirminis kodas",

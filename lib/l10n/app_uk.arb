@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "Кешовано: {bytes} байтів",
   "userScriptsCachedBytesWillRedownload": "Кешовано: {bytes} байтів (буде перезавантажено під час збереження)",
   "userScriptsInjectionTimeLabel": "Час впровадження",
+  "userScriptsBypassSitePolicyLabel": "Обхід CSP і CORS сайту",
+  "userScriptsBypassSitePolicyHint": "Деякі бібліотеки (наприклад, DarkReader) не можуть працювати, якщо застосунок не виконує їхній код і мережеві запити в обхід політики безпеки сайту. Вмикайте це лише для сценарію, якому це потрібно. Поки ввімкнено, захист вимкнено для всієї сторінки: тим самим шляхом може скористатися будь-який інший код, що виконується на ній, зокрема власні сценарії сайту та будь-яка реклама чи впроваджений код.",
   "userScriptsAtDocumentStart": "Початок документа",
   "userScriptsAtDocumentEnd": "Кінець документа",
   "userScriptsSourceLabel": "Джерело JavaScript",

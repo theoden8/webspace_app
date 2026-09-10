@@ -257,17 +257,18 @@ test('shim is idempotent — running it twice does not double-wrap', () => {
     're-installation must be a no-op, not a double-intercept');
 });
 
-// ── window.fetch CORS-fallback layer ──
+// ── window.fetch is left alone ──
 //
-// The shim patches window.fetch to retry TypeError failures through
-// __wsFetch (the Dart bridge). That bridge carries none of the WebView's
-// cookies, so retrying a *same-origin* request there silently drops the
-// user's session (a logged-in github.com starts demanding login). The
-// fallback must be scoped to cross-origin URLs only.
+// The shim used to patch window.fetch to retry cross-origin TypeError
+// failures through __wsFetch, which handed every fetch on the page — the
+// site's own, an ad's, an XSS payload's — a body the same-origin policy had
+// denied it, and made the site's `connect-src` unenforceable. Nothing asked
+// for it: a library that wants the bridged fetch is given it by name
+// (`setFetchMethod(window.__wsFetch)`).
 //
 // The rejection must be a jsdom-realm TypeError: the shim runs via
-// window.eval, so its `err instanceof TypeError` checks the jsdom TypeError,
-// not Node's.
+// window.eval, so an `err instanceof TypeError` check would see the jsdom
+// TypeError, not Node's.
 function setupFetch({ url = 'https://site.example/', rejectWith } = {}) {
   const dom = makeDom({ url });
   const calls = [];
@@ -294,40 +295,31 @@ function setupFetch({ url = 'https://site.example/', rejectWith } = {}) {
   return { dom, calls, err };
 }
 
-test('same-origin fetch TypeError is NOT retried through the cookie-less bridge', async () => {
+test('the shim does not replace window.fetch', () => {
+  const dom = makeDom({ url: 'https://site.example/' });
+  const original = function stubFetch() { return Promise.reject(new Error('x')); };
+  dom.window.fetch = original;
+  dom.window.flutter_inappwebview = { callHandler: () => Promise.resolve(null) };
+  runInDom(dom, SHIM);
+  assert.strictEqual(dom.window.fetch, original,
+    'wrapping window.fetch turns every CORS refusal on the page into a read');
+});
+
+test('a cross-origin fetch failure is not retried through the bridge', async () => {
   const { dom, calls, err } = setupFetch({ url: 'https://github.example/' });
   await assert.rejects(
-    dom.window.fetch('https://github.example/session/check'),
+    dom.window.fetch('https://cdn.other.example/lib.css'),
     (e) => e === err,
-    'same-origin failure must propagate unchanged, not fall back');
+    'the failure must reach the caller, not be answered from the bridge');
   assert.strictEqual(calls.filter(c => c[0] === FETCH_HANDLER).length, 0,
-    'same-origin request must never hit __wsFetch — it would drop the session cookie');
+    'the site keeps whatever its CSP connect-src and CORS decided');
 });
 
-test('relative-URL fetch TypeError stays same-origin (no bridge fallback)', async () => {
-  const { dom, calls } = setupFetch({ url: 'https://github.example/' });
-  await assert.rejects(dom.window.fetch('/notifications/indicator'));
-  assert.strictEqual(calls.filter(c => c[0] === FETCH_HANDLER).length, 0,
-    'a relative URL resolves same-origin and must not fall back');
-});
-
-test('cross-origin fetch TypeError DOES fall back to __wsFetch', async () => {
-  const { dom, calls } = setupFetch({ url: 'https://github.example/' });
-  try { await dom.window.fetch('https://cdn.other.example/lib.css'); } catch (_) { /* Response shape irrelevant */ }
-  const fetchCalls = calls.filter(c => c[0] === FETCH_HANDLER);
-  assert.strictEqual(fetchCalls.length, 1,
-    'a genuine cross-origin CORS failure should still use the bridge fallback');
-  assert.strictEqual(fetchCalls[0][1], 'https://cdn.other.example/lib.css');
-});
-
-test('non-TypeError fetch rejection is never intercepted', async () => {
-  // Application errors (e.g. an abort) must propagate untouched, even
-  // cross-origin — only a TypeError signals a CORS/network failure.
-  const abort = new Error('aborted');
-  const { dom, calls } = setupFetch({ url: 'https://github.example/', rejectWith: abort });
-  await assert.rejects(dom.window.fetch('https://cdn.other.example/x'), (e) => e === abort);
-  assert.strictEqual(calls.filter(c => c[0] === FETCH_HANDLER).length, 0,
-    'non-TypeError rejections are not CORS failures and must not fall back');
+test('a same-origin fetch failure is untouched too', async () => {
+  const { dom, calls, err } = setupFetch({ url: 'https://github.example/' });
+  await assert.rejects(
+    dom.window.fetch('https://github.example/session/check'), (e) => e === err);
+  assert.strictEqual(calls.filter(c => c[0] === FETCH_HANDLER).length, 0);
 });
 
 // ── window.__wsFetch direct usage (setFetchMethod pattern) ──

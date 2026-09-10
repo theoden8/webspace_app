@@ -261,9 +261,8 @@ String buildCameraStreamShim({String deviceLabel = 'Integrated Camera'}) {
         height: canvas.height,
         fps: fps,
       });
-      // Also into the cross-shim set the capture stop consults (both are
-      // assigned by the time any stream is served — the IIFE has finished).
-      try { _wsSynthetic.add(track); } catch (e) {}
+      // Also into the cross-shim registry the capture stop consults.
+      markSyntheticTrack(track);
       // A canvas track is a CanvasCaptureMediaStreamTrack; a camera track is
       // a plain MediaStreamTrack, and the constructor name is readable via
       // the prototype chain. Re-point the prototype so the class matches an

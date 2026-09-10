@@ -38,9 +38,12 @@ class ProxyRelay {
   }
 
   /// Start or reconfigure the relay for [upstream]. Returns the loopback
-  /// port to hand to `ProxyController`, or `null` if it could not bind (the
-  /// caller MUST then fail closed, never clearing the override).
-  Future<int?> start(UserProxySettings upstream) async {
+  /// address and port to hand to `ProxyController`, or `null` if it could not
+  /// bind (the caller MUST then fail closed, never clearing the override).
+  ///
+  /// The host is not `127.0.0.1`: the listener binds a random address in 127/8
+  /// so that finding it costs an attacker the address as well as the port.
+  Future<({String host, int port})?> start(UserProxySettings upstream) async {
     if (!hostIsAndroid) return null;
     final address = upstream.address;
     if (address == null) return null;
@@ -54,13 +57,17 @@ class ProxyRelay {
       _ => 'http',
     };
     try {
-      return await _channel.invokeMethod<int>('start', {
+      final res = await _channel.invokeMethod<Map<dynamic, dynamic>>('start', {
         'type': type,
         'host': parts[0],
         'port': port,
         'username': upstream.username,
         'password': upstream.password,
       });
+      final localHost = res?['host'] as String?;
+      final localPort = res?['port'] as int?;
+      if (localHost == null || localPort == null) return null;
+      return (host: localHost, port: localPort);
     } on PlatformException {
       return null;
     }

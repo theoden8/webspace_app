@@ -2574,6 +2574,14 @@
   "@userScriptsInjectionTimeLabel": {
     "description": "Label for the dropdown selecting when a user script is injected"
   },
+  "userScriptsBypassSitePolicyLabel": "Bypass site CSP and CORS",
+  "@userScriptsBypassSitePolicyLabel": {
+    "description": "Label for a switch in the user-script editor. Turning it on lets this script load libraries and read cross-origin data that the website's Content Security Policy and same-origin policy would otherwise block."
+  },
+  "userScriptsBypassSitePolicyHint": "Some libraries (for example DarkReader) cannot work unless the app runs their code and network requests around the site’s security policy. Turn this on only for a script that needs it. While it is on, the protection is off for the whole page: any other code running there, including the site’s own scripts and any advertisement or injected code, can use the same route.",
+  "@userScriptsBypassSitePolicyHint": {
+    "description": "Hint dialog text explaining the \"Bypass site CSP and CORS\" switch in the user-script editor: what it is for, and that the weakening applies to every script on the page rather than to this one script."
+  },
   "userScriptsAtDocumentStart": "Document start",
   "@userScriptsAtDocumentStart": {
     "description": "Dropdown option for injecting a user script at document start"

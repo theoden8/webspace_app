@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "Dicache: {bytes} bait",
   "userScriptsCachedBytesWillRedownload": "Dicache: {bytes} bait (akan dimuat turun semula apabila disimpan)",
   "userScriptsInjectionTimeLabel": "Masa suntikan",
+  "userScriptsBypassSitePolicyLabel": "Pintas CSP dan CORS tapak",
+  "userScriptsBypassSitePolicyHint": "Sesetengah pustaka (contohnya DarkReader) tidak dapat berfungsi melainkan apl menjalankan kod dan permintaan rangkaian mereka di luar dasar keselamatan tapak. Hidupkan ini hanya untuk skrip yang memerlukannya. Semasa ia dihidupkan, perlindungan dimatikan untuk keseluruhan halaman: mana-mana kod lain yang berjalan di situ, termasuk skrip tapak itu sendiri dan sebarang iklan atau kod yang disuntik, boleh menggunakan laluan yang sama.",
   "userScriptsAtDocumentStart": "Permulaan dokumen",
   "userScriptsAtDocumentEnd": "Penghujung dokumen",
   "userScriptsSourceLabel": "Sumber JavaScript",

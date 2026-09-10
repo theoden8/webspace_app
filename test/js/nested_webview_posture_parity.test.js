@@ -59,7 +59,10 @@ function webViewConfigFields(src) {
   const ctor = body.search(/\n  (?:const )?WebViewConfig\(/);
   const decls = body.slice(0, ctor);
   const fields = new Set();
-  for (const m of decls.matchAll(/^\s*final\s+.+?\s(\w+);/gm)) fields.add(m[1]);
+  // `[^;]+?` rather than `.+?`: a field whose type is long enough to wrap
+  // (a callback signature, typically) declares its name on the next line, and
+  // a single-line pattern silently drops it from the parity check.
+  for (const m of decls.matchAll(/^\s*final\s+[^;]+?\s(\w+);/gm)) fields.add(m[1]);
   return fields;
 }
 
@@ -170,6 +173,10 @@ const PLUMBING = new Set([
   // Same shape as currentCameraMode: an accessor for the host's live
   // microphone mode (backs the non-prompting webMicrophoneMode handler).
   'currentMicrophoneMode',
+  // Host callbacks, wired by each surface to its own resolver rather than
+  // copied as a value. Both were invisible to this gate until the field parser
+  // learned to read a declaration whose type wraps onto a second line.
+  'onScreenShareDecision', 'onUntrustedCertificate',
 ]);
 
 // Posture-ish but not yet threaded to nested webviews. An archive-tier site

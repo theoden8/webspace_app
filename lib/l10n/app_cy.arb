@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "Wedi'i storio: {bytes} beit",
   "userScriptsCachedBytesWillRedownload": "Wedi'i storio: {bytes} beit (yn ail-lawrlwytho wrth gadw)",
   "userScriptsInjectionTimeLabel": "Amser chwistrellu",
+  "userScriptsBypassSitePolicyLabel": "Osgoi CSP a CORS y wefan",
+  "userScriptsBypassSitePolicyHint": "Ni all rhai llyfrgelloedd (er enghraifft DarkReader) weithio oni bai bod yr ap yn rhedeg eu cod a'u ceisiadau rhwydwaith y tu allan i bolisi diogelwch y wefan. Trowch hyn ymlaen ar gyfer sgript sydd ei angen yn unig. Tra bo ymlaen, mae'r amddiffyniad i ffwrdd ar gyfer y dudalen gyfan: gall unrhyw god arall sy'n rhedeg yno, gan gynnwys sgriptiau'r wefan ei hun ac unrhyw hysbyseb neu god a chwistrellwyd, ddefnyddio'r un llwybr.",
   "userScriptsAtDocumentStart": "Dechrau dogfen",
   "userScriptsAtDocumentEnd": "Diwedd dogfen",
   "userScriptsSourceLabel": "Ffynhonnell JavaScript",

@@ -341,13 +341,32 @@ alone, so a microphone shim defining its own would silently replace it, and
 which capture survives a site switch would depend on injection order.
 
 Therefore the hook SHALL be installed once over a **shared device-track
-registry** (`globalThis.__wsRealTracks`), mirroring the existing
-`globalThis.__wsSyntheticTracks` set: each shim appends the device tracks it
-hands over, whichever shim installs the hook iterates the shared registry, and
-a second installation SHALL NOT displace the first. Tracks in
-`__wsSyntheticTracks` SHALL continue to be skipped, so a combined stream
-carrying one device track and one synthetic track loses exactly the device
-half.
+registry**: each shim appends the device tracks it hands over, whichever shim
+installs the hook iterates the shared registry, and a second installation SHALL
+NOT displace the first. Tracks a shim substituted SHALL continue to be skipped,
+so a combined stream carrying one device track and one synthetic track loses
+exactly the device half.
+
+The registry is shared between shims but SHALL NOT be shared with the page.
+Dart can only reach the hook by name from the page's own realm, so the name is
+page-reachable and calling it is harmless; everything reachable through it is
+not. Specifically: the hook SHALL be installed non-writable and
+non-configurable, the track lists SHALL be closed over rather than held on
+`globalThis`, and the skip list SHALL refuse a track already registered as
+device-backed (a device track is registered while the `getUserMedia` promise is
+still resolving, so the page cannot reach one before the registry does). Each
+of the three was a one-line bypass while the hook was a writable global over
+globals: the microphone kept recording with the app reporting capture ended.
+Registration SHALL carry onto a clone, which is independently live. Every
+platform primitive the hook calls (`WeakRef`, `MediaStreamTrack.prototype.stop`,
+its `readyState` getter, `MediaStream.prototype.getTracks`) SHALL be captured at
+install and invoked with `.call()`, since those lookups happen when the hook
+runs and a bare one lets the page neuter the stop from outside. Because Dart
+evaluates in the main frame only while the shim is injected
+`forMainFrameOnly: false`, the hook SHALL relay the stop down the frame tree,
+walking children by index rather than through the `[Replaceable]` `frames` and
+`length`. This is the camera's CAM-012 verbatim, on the shared registry.
+Regression: `test/js/capture_stop_tamper.test.js`.
 
 The camera's two ordering properties hold unchanged for audio and are gated by
 the same structural test:
@@ -417,7 +436,8 @@ rather than a precedent to reconstruct.
 | The grant is visible in the drawer while held | PERMBADGE-001 |
 | An archive-tier site is never granted, and its stored intent survives | MIC-006 / ARCH-006 |
 | A nested webview decides for itself and persists nothing | MIC-005 |
-| A subframe cannot obtain what the top frame was denied | MIC-013 |
+| A subframe cannot obtain what the top frame was denied | MIC-013 + MIC-016 |
+| The page cannot defeat the stop that ends capture | MIC-012 |
 | The decision is never shared as configuration | MIC-007 |
 | No bridge means no grant | MIC-010 |
 
@@ -524,3 +544,33 @@ alone by this change.
 **Then** `RECORD_AUDIO`, `NSMicrophoneUsageDescription` and
 `com.apple.security.device.audio-input` are asserted present
 **And** the location absences are asserted exactly as before
+
+### Requirement: MIC-016 — A device grant does not travel to a subframe
+
+The microphone shim is injected `forMainFrameOnly: false`, so a third-party ad
+frame reaches the same handler as the page, and `real` is the mode that hands
+over the device under the MIC-014 containment contract. A settled `real` grant
+SHALL therefore short-circuit only for the top document; a subframe SHALL be
+asked separately, its popup SHALL name the frame's own origin, and the answer
+SHALL apply to that request only rather than being written back to the site's
+stored mode. Request coalescing SHALL be keyed by prompt origin, so a subframe
+never rides the answer the user gave for the top document. The device-free
+answers are inherited as they are: `block` denies, and `virtual` loops the clip
+the user picked, which records nothing.
+
+This is the camera's CAM-014 verbatim, on the same shared grant engine, including
+the grace window that keeps the platform's follow-up request from asking the
+user twice.
+
+#### Scenario: An ad frame does not inherit the site's microphone
+
+**Given** site "Meet" is set to `real` and is the site on screen
+**When** a cross-origin frame it embeds calls `getUserMedia({audio: true})`
+**Then** the user is asked, and the dialog names the frame's origin
+**And** the site's own mode is still `real` whatever the user answers
+
+#### Scenario: A frame's allow does not become the site's
+
+**Given** site "Meet" is set to `ask`
+**When** a cross-origin frame asks and the user allows it
+**Then** the site's stored mode is still `ask`

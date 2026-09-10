@@ -344,7 +344,7 @@ ${registry}
             constraints: (constraints && constraints.audio === true)
               ? {} : ((constraints && constraints.audio) || {}),
           });
-          try { _wsSynthetic.add(track); } catch (e) {}
+          markSyntheticTrack(track);
           // A track that ends must also tear down the graph, else a page that
           // discards the stream without calling stop() leaks an AudioContext
           // (engines cap how many a document may hold) for the document's
@@ -482,7 +482,7 @@ ${registry}
         // settings, betraying the original.
         if (meta && copy) {
           _syntheticTracks.set(copy, meta);
-          try { _wsSynthetic.add(copy); } catch (e) {}
+          markSyntheticTrack(copy);
         }
         return copy;
       }, 'clone');

@@ -1,5 +1,6 @@
 package org.codeberg.theoden8.webspace.proxy
 
+import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.InetAddress
@@ -29,11 +30,48 @@ import javax.net.ssl.SSLSocketFactory
  * gets a `502` and the connection closes — the relay never opens a
  * direct connection to the origin, so a failed proxy cannot leak the IP.
  *
+ * The listener is bound to loopback, which keeps it off the network but not
+ * away from the device: every other app with `INTERNET` can reach
+ * `127.0.0.1:<port>` too, and this relay answers with the user's upstream
+ * credentials attached. Each accepted connection is therefore checked against
+ * `/proc/net/tcp{,6}`: the peer's connection appears as a row whose local port
+ * is its own and whose remote port is ours, and field 7 names the UID that owns
+ * it. A row owned by anyone but us is another app, and is refused before any
+ * upstream connection is opened.
+ *
+ * **Know what this does and does not cover.** The port pair alone is the row
+ * *any* caller creates, so the UID is the whole discriminator — matching ports
+ * and stopping there would classify every caller as OWN. And the table is only
+ * readable up to API 28: Android 10 denies `/proc/net` outright rather than
+ * filtering it per-UID, so from API 29 the read fails and every peer is
+ * UNKNOWN. The check therefore bites on API 24-28 and is inert above it.
+ * Nothing supported replaces it: `ConnectivityManager.getConnectionOwnerUid`
+ * answers only for the caller's own `VpnService` tunnel, and TCP has no
+ * `SO_PEERCRED`. On API 29+ the ephemeral port is the only thing between a
+ * local app and this relay, and ~15 bits is scannable — that residual exposure
+ * predates this check and is not closed by it.
+ *
+ * Unreadable table means unverifiable, not hostile: failing closed there would
+ * strand proxying on every modern device for a threat that needs a malicious
+ * app already installed.
+ *
  * Deliberately free of `android.*` imports so it runs under plain JVM
  * JUnit (no Robolectric). The lifecycle wrapper / method channel lives in
  * [ProxyRelayPlugin].
  */
-class ProxyRelay(private val logger: ((String) -> Unit)? = null) {
+class ProxyRelay(
+    private val logger: ((String) -> Unit)? = null,
+    /**
+     * This process's UID, for the `/proc/net/tcp` peer check. Passed in rather
+     * than read here so the class stays free of `android.*` and JVM-testable.
+     * Null disables the UID half of the check, which then cannot reject.
+     */
+    private val ownUid: Int? = null,
+    private val peerCheck: ((peerPort: Int, relayPort: Int) -> PeerVerdict)? = null,
+) {
+
+    /** Whether an accepted peer is one of this process's own sockets. */
+    enum class PeerVerdict { OWN, FOREIGN, UNKNOWN }
 
     enum class UpstreamType { HTTP, HTTPS, SOCKS5 }
 
@@ -54,7 +92,11 @@ class ProxyRelay(private val logger: ((String) -> Unit)? = null) {
     private var config: UpstreamConfig? = null
     @Volatile
     private var boundPort: Int = -1
+    @Volatile
+    private var boundHost: String = LOOPBACK
     private var acceptThread: Thread? = null
+    @Volatile
+    private var peerCheckUnavailableLogged: Boolean = false
 
     private val pool = Executors.newCachedThreadPool { r ->
         Thread(r, "proxy-relay-worker").apply { isDaemon = true }
@@ -62,6 +104,14 @@ class ProxyRelay(private val logger: ((String) -> Unit)? = null) {
 
     val port: Int
         get() = boundPort
+
+    /**
+     * Loopback address the listener is bound to. Random within 127/8 rather
+     * than 127.0.0.1, so finding the relay costs an attacker the address as
+     * well as the port. Handed to `ProxyController` with [port].
+     */
+    val host: String
+        get() = boundHost
 
     @Synchronized
     fun isRunning(): Boolean = serverSocket?.isClosed == false
@@ -80,22 +130,33 @@ class ProxyRelay(private val logger: ((String) -> Unit)? = null) {
             return boundPort
         }
         stop()
-        val socket = ServerSocket()
-        socket.reuseAddress = true
-        // Pin to IPv4 loopback (127.0.0.1) explicitly. InetAddress
-        // .getLoopbackAddress() can return ::1 on dual-stack JVMs, which
-        // is unreachable from the http://127.0.0.1:<port> rule we hand to
-        // ProxyController — Chromium gets ERR_PROXY_CONNECTION_FAILED
-        // without ever opening a TCP connection to our listener.
-        val bindAddr = InetAddress.getByName("127.0.0.1")
-        socket.bind(InetSocketAddress(bindAddr, 0), BACKLOG)
+        // Always IPv4: InetAddress.getLoopbackAddress() can return ::1 on a
+        // dual-stack JVM, which is unreachable from the http://<ip>:<port> rule
+        // handed to ProxyController — Chromium gets ERR_PROXY_CONNECTION_FAILED
+        // without ever opening a TCP connection to the listener.
+        //
+        // Within that, a random 127/8 address rather than 127.0.0.1. The peer
+        // check below cannot reject anything from API 29 (see the class doc), so
+        // on a modern device the only thing between a local app and the user's
+        // proxy credentials is the difficulty of finding this listener. A port
+        // alone is ~15 bits and scannable in seconds; an address drawn from
+        // 127/8 adds ~24 more and is not. The whole of 127/8 routes to lo, and a
+        // connection to the same port on a different 127/8 address is refused,
+        // so the address is real entropy rather than an alias.
+        val socket = bindLoopback(randomLoopbackHost())
+            // A device that will not route the random address falls back rather
+            // than losing proxying: `selfConnects` proves reachability from this
+            // process, and WebView's network stack shares it.
+            ?: bindLoopback(LOOPBACK)
+            ?: throw IllegalStateException("could not bind a loopback listener")
         serverSocket = socket
         config = cfg
+        boundHost = (socket.inetAddress?.hostAddress) ?: LOOPBACK
         boundPort = socket.localPort
         val t = Thread({ acceptLoop(socket) }, "proxy-relay-accept").apply { isDaemon = true }
         acceptThread = t
         t.start()
-        log("started on ${bindAddr.hostAddress}:$boundPort (upstream type=${cfg.type})")
+        log("started on $boundHost:$boundPort (upstream type=${cfg.type})")
         return boundPort
     }
 
@@ -105,7 +166,47 @@ class ProxyRelay(private val logger: ((String) -> Unit)? = null) {
         serverSocket = null
         config = null
         boundPort = -1
+        boundHost = LOOPBACK
         acceptThread = null
+    }
+
+    /**
+     * Bind a listener on [ip], returning null when the address will not serve
+     * this device — either the bind itself fails, or the socket is bound but
+     * unreachable. Reachability is proven by connecting to it from this
+     * process, which is where WebView's network stack lives too.
+     */
+    private fun bindLoopback(ip: String): ServerSocket? {
+        val socket = ServerSocket()
+        return try {
+            socket.reuseAddress = true
+            socket.bind(InetSocketAddress(InetAddress.getByName(ip), 0), BACKLOG)
+            if (!selfConnects(socket)) {
+                log("loopback address $ip bound but unreachable; falling back")
+                runCatching { socket.close() }
+                null
+            } else {
+                socket
+            }
+        } catch (e: Exception) {
+            log("could not bind $ip: ${e.javaClass.simpleName}")
+            runCatching { socket.close() }
+            null
+        }
+    }
+
+    private fun selfConnects(socket: ServerSocket): Boolean {
+        val addr = InetSocketAddress(socket.inetAddress, socket.localPort)
+        return try {
+            Socket().use { probe ->
+                probe.connect(addr, SELF_TEST_TIMEOUT_MS)
+                // The accept loop is not running yet, but the kernel completes
+                // the handshake from the backlog, which is all this proves.
+                true
+            }
+        } catch (e: Exception) {
+            false
+        }
     }
 
     private fun acceptLoop(socket: ServerSocket) {
@@ -125,6 +226,10 @@ class ProxyRelay(private val logger: ((String) -> Unit)? = null) {
                 runCatching { client.close() }
                 continue
             }
+            if (!peerAllowed(client.port)) {
+                runCatching { client.close() }
+                continue
+            }
             log("accepted connection from ${client.inetAddress.hostAddress}:${client.port}")
             pool.execute {
                 try {
@@ -134,6 +239,29 @@ class ProxyRelay(private val logger: ((String) -> Unit)? = null) {
                 } finally {
                     runCatching { client.close() }
                 }
+            }
+        }
+    }
+
+    /**
+     * Gate an accepted connection on the peer being one of our own sockets.
+     * An unverifiable verdict is logged once per relay, not per connection.
+     */
+    private fun peerAllowed(peerPort: Int): Boolean {
+        val check: (Int, Int) -> PeerVerdict =
+            peerCheck ?: { p, r -> readPeerVerdict(p, r, ownUid) }
+        return when (check(peerPort, boundPort)) {
+            PeerVerdict.OWN -> true
+            PeerVerdict.FOREIGN -> {
+                log("refused connection from another process (peer port $peerPort)")
+                false
+            }
+            PeerVerdict.UNKNOWN -> {
+                if (!peerCheckUnavailableLogged) {
+                    peerCheckUnavailableLogged = true
+                    log("peer ownership unverifiable (/proc/net/tcp unreadable); accepting local connections")
+                }
+                true
             }
         }
     }
@@ -460,6 +588,85 @@ class ProxyRelay(private val logger: ((String) -> Unit)? = null) {
 
     companion object {
         private const val BACKLOG = 64
+        private const val LOOPBACK = "127.0.0.1"
+        private const val SELF_TEST_TIMEOUT_MS = 2_000
+
+        /**
+         * A random address in 127/8, avoiding 127.0.0.1 itself and the .0/.255
+         * last octets. Drawn from [java.security.SecureRandom] so it is not
+         * predictable from the process's timing.
+         */
+        private fun randomLoopbackHost(): String {
+            val rnd = java.security.SecureRandom()
+            val b = rnd.nextInt(256)
+            val c = rnd.nextInt(256)
+            val d = 1 + rnd.nextInt(254)
+            return if (b == 0 && c == 0 && d == 1) "127.0.0.2" else "127.$b.$c.$d"
+        }
+
+        private val PROC_NET_TCP = listOf("/proc/net/tcp", "/proc/net/tcp6")
+
+        private fun readPeerVerdict(peerPort: Int, relayPort: Int, ownUid: Int?): PeerVerdict =
+            peerVerdict(
+                PROC_NET_TCP.map { path -> runCatching { File(path).readText() }.getOrNull() },
+                peerPort,
+                relayPort,
+                ownUid,
+            )
+
+        /**
+         * Classify a peer against the contents of `/proc/net/{tcp,tcp6}`.
+         *
+         * A connection to the relay shows up as a row whose local port is the
+         * peer's and whose remote port is the relay's. Rows are
+         * `sl local_address rem_address st tx:rx tr:when retrnsmt uid ...` with
+         * `hex-ip:hex-port` addresses, so the owning UID is field 7.
+         *
+         * **The port pair alone proves nothing.** It is the row that *any*
+         * connection to the relay creates, ours or another app's, so matching on
+         * it and stopping there classifies every caller as OWN. [ownUid] is what
+         * actually discriminates: on a table that lists the whole namespace, a
+         * row owned by another UID is another app. When it is null, or the row
+         * carries no parsable UID, the check degrades to the port pair and
+         * cannot reject anything — which is the honest answer, not a pass.
+         *
+         * Split out for a JVM test, which cannot arrange a foreign process to
+         * connect.
+         */
+        fun peerVerdict(
+            tables: List<String?>,
+            peerPort: Int,
+            relayPort: Int,
+            ownUid: Int? = null,
+        ): PeerVerdict {
+            var readable = false
+            for (table in tables) {
+                if (table == null) continue
+                readable = true
+                for (line in table.lineSequence()) {
+                    val fields = line.trim().split(WHITESPACE)
+                    if (fields.size < 3) continue
+                    val local = hexPort(fields[1]) ?: continue
+                    val remote = hexPort(fields[2]) ?: continue
+                    if (local != peerPort || remote != relayPort) continue
+                    val uid = fields.getOrNull(7)?.toIntOrNull()
+                    if (ownUid == null || uid == null) return PeerVerdict.OWN
+                    if (uid == ownUid) return PeerVerdict.OWN
+                }
+            }
+            // Readable, and either no row for this peer or one owned by
+            // somebody else. Both are foreign.
+            return if (readable) PeerVerdict.FOREIGN else PeerVerdict.UNKNOWN
+        }
+
+        private val WHITESPACE = Regex("\\s+")
+
+        private fun hexPort(address: String): Int? {
+            val sep = address.lastIndexOf(':')
+            if (sep < 0) return null
+            return address.substring(sep + 1).toIntOrNull(16)
+        }
+
         private const val CONNECT_TIMEOUT_MS = 15_000
         private const val HANDSHAKE_TIMEOUT_MS = 20_000
         private const val MAX_PREAMBLE = 64 * 1024

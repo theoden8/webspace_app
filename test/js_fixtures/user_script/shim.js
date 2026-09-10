@@ -163,30 +163,12 @@
     });
   };
 
-  // Patch window.fetch to fall back to __wsFetch on CORS errors.
-  // Only catches TypeError (which browsers throw for CORS and network
-  // failures), not application errors like 404. This avoids breaking
-  // video/binary fetches that fail for non-CORS reasons.
-  //
-  // Scoped to cross-origin URLs. __wsFetch reissues the request through the
-  // Dart bridge, which carries none of the WebView's cookies, so retrying a
-  // same-origin request there silently drops the user's session — a logged-in
-  // site (github.com) starts demanding login. A same-origin TypeError is a
-  // genuine network error, not CORS, so rethrow it untouched.
-  function isCrossOrigin(u) {
-    try { return new URL(u, location.href).origin !== location.origin; }
-    catch (e) { return false; }
-  }
-  var _origFetch = window.fetch.bind(window);
-  window.fetch = function(input, init) {
-    return _origFetch(input, init).catch(function(err) {
-      if (err instanceof TypeError) {
-        var url = typeof input === 'string' ? input : (input && input.url ? input.url : '');
-        if (isFetchableUrl(url) && isCrossOrigin(url)) {
-          return window.__wsFetch(url);
-        }
-      }
-      throw err;
-    });
-  };
+  // `window.fetch` itself is deliberately NOT patched. It used to retry any
+  // cross-origin TypeError through __wsFetch, which meant every fetch the page
+  // made — the site's own, an ad's, an XSS payload's — silently got back a body
+  // the same-origin policy had denied it, and a `connect-src` the site set was
+  // not enforcing anything. Nothing asked for that: a library that wants the
+  // bridged fetch is handed it explicitly (`setFetchMethod(window.__wsFetch)`),
+  // and the retry could not carry the original method, headers or body anyway,
+  // so a failed POST came back as the response to a GET the server saw twice.
 })();

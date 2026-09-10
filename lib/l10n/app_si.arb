@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "හැඹිලිගත: බයිට් {bytes}ක්",
   "userScriptsCachedBytesWillRedownload": "හැඹිලිගත: බයිට් {bytes}ක් (සුරැකීමේදී යළි බාගනී)",
   "userScriptsInjectionTimeLabel": "එන්නත් කරන වේලාව",
+  "userScriptsBypassSitePolicyLabel": "අඩවියේ CSP සහ CORS මඟහරින්න",
+  "userScriptsBypassSitePolicyHint": "සමහර පුස්තකාල (උදාහරණයක් ලෙස DarkReader) යෙදුම ඒවායේ කේතය සහ ජාල ඉල්ලීම් අඩවියේ ආරක්ෂක ප්‍රතිපත්තියෙන් පිටත ධාවනය නොකළහොත් ක්‍රියා කළ නොහැක. එය අවශ්‍ය පිටපතට පමණක් මෙය සක්‍රීය කරන්න. එය සක්‍රීයව ඇති අතරතුර මුළු පිටුව සඳහාම ආරක්ෂාව අක්‍රීයයි: එහි ධාවනය වන වෙනත් ඕනෑම කේතයකට, අඩවියේම පිටපත් සහ ඕනෑම දැන්වීමක් හෝ ඇතුළත් කළ කේතයක් ඇතුළුව, එම මාර්ගයම භාවිත කළ හැකිය.",
   "userScriptsAtDocumentStart": "ලේඛන ආරම්භය",
   "userScriptsAtDocumentEnd": "ලේඛන අවසානය",
   "userScriptsSourceLabel": "JavaScript මූලාශ්‍රය",

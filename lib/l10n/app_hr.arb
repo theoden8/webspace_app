@@ -524,6 +524,8 @@
   "userScriptsCachedBytes": "Predmemorirano: {bytes} bajtova",
   "userScriptsCachedBytesWillRedownload": "Predmemorirano: {bytes} bajtova (ponovno će se preuzeti pri spremanju)",
   "userScriptsInjectionTimeLabel": "Vrijeme umetanja",
+  "userScriptsBypassSitePolicyLabel": "Zaobiđi CSP i CORS stranice",
+  "userScriptsBypassSitePolicyHint": "Neke biblioteke (na primjer DarkReader) ne mogu raditi ako aplikacija njihov kod i mrežne zahtjeve ne izvodi izvan sigurnosnih pravila stranice. Uključite ovo samo za skriptu kojoj je to potrebno. Dok je uključeno, zaštita je isključena za cijelu stranicu: isti put može koristiti bilo koji drugi kod koji se ondje izvodi, uključujući vlastite skripte stranice i svaki oglas ili ubačeni kod.",
   "userScriptsAtDocumentStart": "Početak dokumenta",
   "userScriptsAtDocumentEnd": "Kraj dokumenta",
   "userScriptsSourceLabel": "JavaScript izvor",

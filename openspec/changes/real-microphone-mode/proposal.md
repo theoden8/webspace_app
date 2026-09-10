@@ -63,7 +63,7 @@ and are reused rather than reinvented.
   ([camera_stream_shim.dart:327](../../../lib/services/camera_stream_shim.dart)),
   so a microphone shim defining its own would clobber it depending on injection
   order. The device-track registry becomes shared, mirroring the existing
-  `__wsSyntheticTracks` set, and `WebViewModel.stopRealCameraCapture` is
+  cross-shim registry, and `WebViewModel.stopRealCameraCapture` is
   renamed to `stopRealCapture`.
 - **Combined audio+video is split in every mode pairing**, `real` included:
   the audio half goes to the platform audio-only even when the page asked for
