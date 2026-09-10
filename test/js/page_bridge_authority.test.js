@@ -11,7 +11,7 @@
 //   openspec/specs/clearurls/spec.md            CURL-014, CURL-015
 //   openspec/specs/content-blocker/spec.md      CB-014
 //   openspec/specs/dns-blocklist/spec.md        DNS-018
-//   openspec/specs/captcha-support/spec.md      CAPTCHA-007/008/009
+//   openspec/specs/captcha-support/spec.md      CAPTCHA-007/008/009/010
 //   openspec/specs/web-camera-access/spec.md    CAM-013 / MIC-013
 //   openspec/specs/ip-leakage/spec.md           LEAK-002
 //   openspec/specs/per-site-location/spec.md    LOC-011
@@ -82,7 +82,7 @@ test('CURL-014/015 + CB-014: a rewrite target is scheme-checked before it is loa
 
 test('CAPTCHA-008: the captcha allow comes after the routing decision', () => {
   const override = NAV.indexOf('config.shouldOverrideUrlLoading!(url, hasGesture)');
-  const captcha = NAV.indexOf('isCaptchaChallenge(url)');
+  const captcha = NAV.indexOf('isCaptchaChallenge(url, siteUrl: config.initialUrl)');
   assert.notEqual(override, -1, 'the shouldOverrideUrlLoading call is gone');
   assert.notEqual(captcha, -1, 'the captcha allow is gone');
   assert.ok(captcha > override,
@@ -92,7 +92,7 @@ test('CAPTCHA-008: the captcha allow comes after the routing decision', () => {
 });
 
 test('CAPTCHA-007: the captcha markers Cloudflare serves per-origin are path-scoped', () => {
-  const body = blockAfter(WEBVIEW, 'static bool isCaptchaChallenge(String url) {',
+  const body = blockAfter(WEBVIEW, 'static bool isCaptchaChallenge(String url, {String? siteUrl}) {',
     undefined, 'webview.dart');
   assert.ok(!/url\.contains\(/.test(body),
     'a substring test on the whole URL lets any origin claim a challenge ' +
@@ -150,6 +150,45 @@ test('NESTED-013: onCreateWindow loads into the top webview only on a gesture', 
   assert.equal(gated, loads,
     'every loadUrl in onCreateWindow must sit under `allow && hasGesture`: a '
     + 'script-driven window.open() must not navigate the top document');
+});
+
+// --- web notifications ----------------------------------------------------
+
+test('NOTIF-010: a notification post from a cross-origin iframe is dropped', () => {
+  const at = WEBVIEW.indexOf("handlerName: 'webNotification'");
+  assert.notEqual(at, -1, 'webNotification registration is gone');
+  const body = WEBVIEW.slice(at, WEBVIEW.indexOf('addJavaScriptHandler', at + 1));
+  assert.ok(body.includes('inapp.JavaScriptHandlerFunctionData call'),
+    'webNotification must use the frame-aware callback: the polyfill is in '
+    + 'every frame and any frame can call the handler directly');
+  assert.ok(body.includes('if (!call.isMainFrame)'),
+    'webNotification must test the frame before posting under the site');
+  assert.ok(!body.includes('args[0][\'siteId\']') && !body.includes("data['siteId']"),
+    'the target site is never taken from the page');
+});
+
+// --- the verification popup -----------------------------------------------
+
+test('CAPTCHA-010: the popup webview runs the document checks and stays on the challenge', () => {
+  const at = WEBVIEW.indexOf('static Widget createPopupWebView({');
+  assert.notEqual(at, -1, 'createPopupWebView is gone');
+  const body = WEBVIEW.slice(at, WEBVIEW.indexOf('\n  }\n', at));
+  assert.ok(body.includes('useShouldOverrideUrlLoading: true'),
+    'the popup must opt into shouldOverrideUrlLoading or the callback never fires');
+  assert.ok(body.includes('shouldOverrideUrlLoading: (_, navigationAction) async {'),
+    'the popup had no navigation gate: after the first load it went anywhere');
+  for (const check of [
+    'DnsBlockService.instance',
+    "requestType: 'document'",
+    'navigationAction.isForMainFrame == false',
+    'isCaptchaChallenge(url, siteUrl: parent.initialUrl)',
+  ]) {
+    assert.ok(body.includes(check), `popup gate lacks ${check}`);
+  }
+  // The path markers only count on the site's own domain, at every caller.
+  const callers = WEBVIEW.match(/isCaptchaChallenge\(url\)/g) || [];
+  assert.equal(callers.length, 0,
+    'isCaptchaChallenge must be called with siteUrl: a bare path marker on any origin is a claim');
 });
 
 // --- the live location fix ------------------------------------------------

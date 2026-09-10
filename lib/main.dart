@@ -3292,37 +3292,52 @@ class _WebSpacePageState extends State<WebSpacePage>
       for (final m in _webViewModels)
         if (slice.siteIds.contains(m.siteId)) m,
     ];
-    handle.state.cookies
-      ..clear()
-      ..addEntries(
-        ownedSites.map(
-          (m) => MapEntry(
-            m.siteId,
-            m.cookies.map((c) => c.toJson()).toList(),
+    // Rows missing from the runtime mean something cleared the list under
+    // an open archive; sealing what is left would empty the archive. Keep
+    // the state as opened instead.
+    final intact = ownedSites.length >= slice.siteIds.length;
+    if (intact) {
+      handle.state.cookies
+        ..clear()
+        ..addEntries(
+          ownedSites.map(
+            (m) => MapEntry(
+              m.siteId,
+              m.cookies.map((c) => c.toJson()).toList(),
+            ),
           ),
-        ),
+        );
+      handle.state.sites
+        ..clear()
+        ..addAll(ownedSites.map((m) => m.toJson()));
+      // Capture this archive's collections back into its state so any
+      // rename / reorder / membership change made while open persists.
+      final ownedSpaces = [
+        for (final w in _webspaces)
+          if (slice.webspaceIds.contains(w.id)) w,
+      ];
+      handle.state.webspaces
+        ..clear()
+        ..addAll(ownedSpaces.map((w) => w.toJson()));
+    } else {
+      LogService.instance.log(
+        'Archive',
+        'close: ${slice.siteIds.length - ownedSites.length} archived sites '
+            'missing from the runtime; sealed state left as opened',
+        level: LogLevel.error,
       );
-    handle.state.sites
-      ..clear()
-      ..addAll(ownedSites.map((m) => m.toJson()));
-    // Capture this archive's collections back into its state so any
-    // rename / reorder / membership change made while open persists.
-    final ownedSpaces = [
-      for (final w in _webspaces)
-        if (slice.webspaceIds.contains(w.id)) w,
-    ];
-    handle.state.webspaces
-      ..clear()
-      ..addAll(ownedSpaces.map((w) => w.toJson()));
+    }
     // App-tier membership of the archived sites goes into the archive
     // state and out of the runtime lists, so nothing names them once the
     // archive is closed (ARCH-001).
     final membership =
         ArchiveMembershipEngine.detach(_webspaces, slice.siteIds);
-    handle.state.appTierMembership
-      ..clear()
-      ..addAll(membership);
-    await _archive.save(handle);
+    if (intact) {
+      handle.state.appTierMembership
+        ..clear()
+        ..addAll(membership);
+      await _archive.save(handle);
+    }
     await _archive.close(handle);
     // Dispose webviews owned by this archive before removing them from
     // the list, so the IndexedStack rebuild doesn't try to render
@@ -6496,6 +6511,13 @@ class _WebSpacePageState extends State<WebSpacePage>
       }
       return;
     }
+
+    // The clear below would drop an open archive's materialised rows while
+    // its handle stayed registered, and the next close would seal that
+    // emptiness over the slot (ARCH-010). Seal every open archive as it
+    // stands first.
+    await _closeAllArchives();
+    if (!mounted) return;
 
     // Apply the imported settings
     setState(() {

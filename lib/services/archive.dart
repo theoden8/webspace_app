@@ -187,6 +187,7 @@ class Archive {
       ArchiveCrypto.zeroize(key);
       return existing;
     }
+    _knownOccupied.add(match.slotIndex);
     final handle = ArchiveHandle._(
       key: key,
       slotIndex: match.slotIndex,
@@ -221,7 +222,7 @@ class Archive {
 
   Future<ArchiveHandle> createWithKey(Uint8List key) async {
     await ensureInitialized();
-    final claimed = <int>{for (final h in _openHandles) h.slotIndex};
+    final claimed = _claimedSlots();
     final scan = await _scanSlots(key);
     if (scan != null) {
       ArchiveCrypto.zeroize(key);
@@ -236,9 +237,22 @@ class Archive {
       state: ArchiveState(),
     );
     await _persist(handle);
+    _knownOccupied.add(slotIndex);
     _openHandles.add(handle);
     return handle;
   }
+
+  /// Slots this process has seen hold an archive: every open handle plus
+  /// every slot that decrypted or was written since launch. A closed
+  /// archive under another passphrase is invisible to [_scanSlots], so
+  /// without this a new archive could land on it. Nothing here persists:
+  /// an on-disk occupancy marker would vary with archive count (ARCH-001).
+  final Set<int> _knownOccupied = <int>{};
+
+  Set<int> _claimedSlots() => <int>{
+        for (final h in _openHandles) h.slotIndex,
+        ..._knownOccupied,
+      };
 
   Future<void> save(ArchiveHandle handle) async {
     if (handle.isClosed) {
@@ -370,9 +384,9 @@ class Archive {
     if (match != null) {
       slotIndex = match.slotIndex;
     } else {
-      final claimed = <int>{for (final h in _openHandles) h.slotIndex};
-      slotIndex = _storage.pickRandomUnclaimedSlot(claimed);
+      slotIndex = _storage.pickRandomUnclaimedSlot(_claimedSlots());
     }
+    _knownOccupied.add(slotIndex);
     // Build a transient handle over a private copy of the key just to
     // persist; never registered as open, zeroed immediately after.
     final handle = ArchiveHandle._(

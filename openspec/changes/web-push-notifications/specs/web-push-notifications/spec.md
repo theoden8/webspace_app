@@ -362,6 +362,26 @@ SHALL stay the `siteId` so a tap still routes to the originating site.
 **Then** the second post lands on the same `(tag, id)` pair and replaces the first
 **And** a different page tag, or the same page tag on another site, lands beside it
 
+### Requirement: NOTIF-010 - A post names the frame that made it
+
+The `Notification` polyfill is injected into every frame, and any frame can
+also call the `webNotification` bridge directly. The handler SHALL read the
+frame identity the plugin's bridge preamble supplies
+(`JavaScriptHandlerFunctionData`) and SHALL drop a post whose frame is not
+the top document and whose origin differs from the top document's, so a
+cross-origin iframe cannot post a notification under the site's identity,
+nor replace the site's tagged notifications. The target `siteId` stays the
+webview's own, never the page's. The polyfill stays in frames so
+`Notification.permission` reads consistently. Gated by
+`test/js/page_bridge_authority.test.js`.
+
+#### Scenario: A cross-origin iframe posts
+
+**Given** site "Acme" has notifications enabled and embeds a cross-origin ad frame
+**When** the frame calls `new Notification('Security alert', {body: '...'})`, or the bridge directly
+**Then** no OS notification is shown
+**And** a post from Acme's own document, or a same-origin frame, is shown as before
+
 ## Manual Test Procedure
 
 Use the HTML test fixture at `test/fixtures/notification_test.html`. Import it via "Import HTML file" on the Add Site screen. **Requires container mode support** (iOS 17+ or Android with System WebView 110+).

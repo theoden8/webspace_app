@@ -449,6 +449,13 @@ When at least one archive is open and the app is backgrounded, the visible UI SH
 **Then** the restored webspaces and sites enter `_webViewModels` (app-tier)
 **And** no archive is created or opened by the import flow
 
+#### Scenario: Import while an archive is open
+
+**Given** an archive is open with sites materialised in `_webViewModels`
+**When** the user confirms a settings import
+**Then** every open archive is closed and sealed as it stands before the runtime lists are cleared
+**And** a close that finds fewer of its rows in the runtime than the archive opened with leaves the sealed state as opened rather than sealing the truncated set
+
 #### Scenario: V1 scope note
 
 **Given** the v1 implementation
@@ -591,6 +598,7 @@ These tests run in CI and are the regression-prevention spine of ARCH-001.
 - **Memory zeroization is best-effort.** Dart strings are immutable; the passphrase string can't be reliably zero-filled. We keep the passphrase as a `String` only for the brief moment between dialog submit and KDF call, then immediately drop it. The derived `MK_arch` is held in `Uint8List` and zero-filled on close.
 - **Live-device forensics is out of scope.** An adversary executing code inside the running app process while an archive is open can read `MK_arch` and the archive's plaintext from memory. There is no software-only mitigation at the app layer.
 - **Slot size cap.** Archives larger than 128 KiB of packed state (typically: cookies + webspace JSON for ~50 sites) currently fail at write with a clear error to the user. v1 does not split archives across slots.
+- **Slot collision is bounded, not eliminated.** The slot for a new archive is picked at random among the slots the process does not know to be occupied: open handles plus every slot that decrypted or was written since launch (`_knownOccupied`, memory only, since a persisted occupancy marker would vary with archive count and break ARCH-001). A closed archive under a passphrase that has not been entered since launch is invisible to the scan and still eligible, with probability `unseen / (16 - known)` per create or import; it is lost if picked. Entering each passphrase once after launch removes the risk for that archive.
 - **Per-site browser state beyond cookies does not migrate on move-to-archive.** Cookies are captured from the running container and pushed into the new opaque container on next webview build. `localStorage`, `IndexedDB`, `ServiceWorker` registrations, and `HTTP cache` are not — the new container is a fresh slate. Sites that store user preferences (theme, language, layout) in `localStorage` will revert to defaults the first time they're opened from an archive after a move. The move-to-archive snackbar warns the user. Mitigation would require fork-side API to read/write per-container `localStorage`; tracked but out of scope for v1.
 - **Dart-side console leakage is closed.** Every `LogService` call in `lib/` that interpolated a URL, host, site JSON, or stack trace is now `LogSensitivity.sensitive` (download / blob errors, share-intent failures, malformed-site-JSON boot warnings, proxy-apply failures), so it lands in the memory-only ring and never reaches disk / `debugPrint` / `adb logcat` / Console.app.
 - **Native (fork) console leakage — Android mitigated in release, iOS/macOS low-exposure.** The leaking lines are upstream `flutter_inappwebview` code (re-audited at `v6.2.0-beta.3-privacy-v3`, unchanged):

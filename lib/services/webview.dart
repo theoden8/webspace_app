@@ -1779,8 +1779,20 @@ class WebViewFactory {
   static bool _matchesDomain(String host, String domain) =>
       host == domain || host.endsWith('.$domain');
 
+  /// Whether [host] is the site at [siteUrl] or one of its subdomains, or
+  /// the site is a subdomain of it.
+  static bool _sameSite(String host, String? siteUrl) {
+    final siteHost = siteUrl == null ? '' : (Uri.tryParse(siteUrl)?.host ?? '');
+    if (siteHost.isEmpty) return false;
+    return _matchesDomain(host, siteHost) || _matchesDomain(siteHost, host);
+  }
+
+  /// A captcha URL loads in place and may open the verification popup, so
+  /// the Cloudflare path markers, which any origin can put in a path, count
+  /// only on the site's own domain ([siteUrl]); Cloudflare serves the
+  /// interstitial from the protected origin itself (CAPTCHA-010).
   @visibleForTesting
-  static bool isCaptchaChallenge(String url) {
+  static bool isCaptchaChallenge(String url, {String? siteUrl}) {
     final uri = Uri.tryParse(url);
     if (uri == null) return false;
     final host = uri.host;
@@ -1788,12 +1800,12 @@ class WebViewFactory {
     // Exact captcha domains (hcaptcha, Cloudflare challenges, which is also
     // where the Turnstile widget iframe is served from).
     if (_captchaDomains.any((d) => _matchesDomain(host, d))) return true;
-    // Cloudflare serves the interstitial from the protected origin itself, so
-    // these two can't be pinned to a domain. Match the PATH only: a substring
-    // test on the whole URL let any origin claim a challenge with an
-    // attacker-chosen query or fragment (`https://evil.example/x?cf-turnstile`).
-    if (uri.path.contains('/cdn-cgi/challenge-platform') ||
-        uri.path.contains('cf-turnstile')) {
+    // Match the PATH only: a substring test on the whole URL let any origin
+    // claim a challenge with an attacker-chosen query or fragment
+    // (`https://evil.example/x?cf-turnstile`).
+    if ((uri.path.contains('/cdn-cgi/challenge-platform') ||
+            uri.path.contains('cf-turnstile')) &&
+        _sameSite(host, siteUrl)) {
       return true;
     }
     // reCAPTCHA: /recaptcha/ path only on known Google-owned domains
@@ -1933,6 +1945,7 @@ class WebViewFactory {
         cacheEnabled: true,
         // Enable DevTools inspection in debug mode (chrome://inspect on Android)
         isInspectable: kDebugMode,
+        useShouldOverrideUrlLoading: true,
       ),
       initialUserScripts: UnmodifiableListView(page.userScripts),
       onWebViewCreated: (controller) {
@@ -1942,6 +1955,43 @@ class WebViewFactory {
           userScriptService: page.userScriptService,
           sourceUrl: () => parent.initialUrl,
         );
+      },
+      // The popup exists for one challenge: its documents pass the site's
+      // DNS and content-blocker checks, and its top document stays on a
+      // captcha host or the site's own domain (CAPTCHA-010).
+      shouldOverrideUrlLoading: (_, navigationAction) async {
+        final url = navigationAction.request.url?.toString() ?? '';
+        if (_shouldBlockUrl(url)) return inapp.NavigationActionPolicy.CANCEL;
+        if (url.startsWith('about:')) return inapp.NavigationActionPolicy.ALLOW;
+        if (parent.siteId != null && url.startsWith('http')) {
+          final blocked = DnsBlockService.instance
+              .isBlockedAtLevel(url, parent.effectiveDnsLevel);
+          DnsBlockService.instance.recordRequest(parent.siteId!, url, blocked,
+              source: blocked ? BlockSource.dns : null);
+          if (blocked) return inapp.NavigationActionPolicy.CANCEL;
+        }
+        if (parent.contentBlockEnabled &&
+            ContentBlockerService.instance.isBlocked(
+              url,
+              sourceUrl: parent.initialUrl,
+              requestType: 'document',
+            )) {
+          if (parent.siteId != null) {
+            DnsBlockService.instance.recordRequest(parent.siteId!, url, true,
+                source: BlockSource.abp);
+          }
+          return inapp.NavigationActionPolicy.CANCEL;
+        }
+        if (navigationAction.isForMainFrame == false) {
+          return inapp.NavigationActionPolicy.ALLOW;
+        }
+        final host = Uri.tryParse(url)?.host ?? '';
+        if (url.startsWith('http') &&
+            (isCaptchaChallenge(url, siteUrl: parent.initialUrl) ||
+                _sameSite(host, parent.initialUrl))) {
+          return inapp.NavigationActionPolicy.ALLOW;
+        }
+        return inapp.NavigationActionPolicy.CANCEL;
       },
       onCloseWindow: (controller) {
         onCloseWindow?.call();
@@ -3274,8 +3324,17 @@ class WebViewFactory {
     if (config.siteId != null && config.notificationsEnabled) {
       controller.addJavaScriptHandler(
         handlerName: 'webNotification',
-        callback: (args) async {
+        // The polyfill is in every frame. A cross-origin iframe posting
+        // under the site's identity is dropped here, on the frame identity
+        // the plugin supplies, not on anything the page says (NOTIF-010).
+        callback: (inapp.JavaScriptHandlerFunctionData call) async {
+          final args = call.args;
           if (args.isEmpty || args[0] is! Map) return null;
+          if (!call.isMainFrame) {
+            final top =
+                (await controller.getUrl())?.toString() ?? config.initialUrl;
+            if (!_sameOrigin(call.origin.toString(), top)) return null;
+          }
           final data = Map<String, dynamic>.from(args[0] as Map);
           final title = data['title'] as String? ?? '';
           final body = data['body'] as String? ?? '';
@@ -4127,7 +4186,9 @@ class WebViewFactory {
         // URL?" becomes a way to navigate the parent webview to any origin
         // with blockAutoRedirects, the gesture requirement and the
         // cross-domain nested route all skipped.
-        if (isCaptchaChallenge(url)) return inapp.NavigationActionPolicy.ALLOW;
+        if (isCaptchaChallenge(url, siteUrl: config.initialUrl)) {
+          return inapp.NavigationActionPolicy.ALLOW;
+        }
         // iOS Universal Link bypass. WKWebView auto-routes user-tap
         // navigations (and redirect chains rooted in a tap) to the
         // native app for URLs whose host matches an installed app's
@@ -4199,7 +4260,7 @@ class WebViewFactory {
         );
 
         // Show popup dialog for Cloudflare challenges (captcha verification).
-        if (isCaptchaChallenge(url)) {
+        if (isCaptchaChallenge(url, siteUrl: config.initialUrl)) {
           if (config.onWindowRequested != null && windowId != null) {
             // The host builds the popup widget out of a BuildContext that has
             // no site attached; hand it this webview's posture by windowId so

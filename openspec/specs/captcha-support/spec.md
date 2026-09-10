@@ -197,6 +197,37 @@ parent config
 **When** the widget is built
 **Then** no webview is created
 
+### Requirement: CAPTCHA-010 - A challenge is claimed by the site, not by a path
+
+`isCaptchaChallenge` SHALL count the two host-agnostic Cloudflare path
+markers (`/cdn-cgi/challenge-platform`, `cf-turnstile`) only on the site's
+own domain (`siteUrl`, the requesting webview's `initialUrl`, or a subdomain
+either way): Cloudflare serves the interstitial from the protected origin
+itself, and any other origin naming the marker in a path is a claim, not a
+challenge. The known captcha hosts (`challenges.cloudflare.com`,
+`hcaptcha.com`, the reCAPTCHA domains) stay host-matched as before. Every
+caller SHALL pass `siteUrl`.
+
+The verification popup SHALL carry a `shouldOverrideUrlLoading` of its own
+(`useShouldOverrideUrlLoading: true`): every document passes the site's DNS
+blocklist and content-blocker document checks, a subframe is then allowed,
+and a main-frame navigation is allowed only to a captcha URL or the site's
+own domain; anything else is cancelled. Gated by
+`test/captcha_detection_test.dart` and `test/js/page_bridge_authority.test.js`.
+
+#### Scenario: Another origin puts the marker in its path
+
+**Given** site "Acme" and a page it embeds from `evil.example`
+**When** that page opens `https://evil.example/cf-turnstile/x`
+**Then** it is not a captcha challenge: no popup opens and the navigation is decided by the ordinary route
+
+#### Scenario: The popup cannot be steered away from the challenge
+
+**Given** the "Verification" popup is open for a Cloudflare challenge on "Acme"
+**When** script in it navigates the popup's top document to `https://attacker.example/`
+**Then** the navigation is cancelled
+**And** a navigation to `https://challenges.cloudflare.com/...` or back to `acme.example` proceeds
+
 ---
 
 ## Known Limitations

@@ -1517,7 +1517,8 @@ class WebViewModel {
               isSiteActive: isActive?.call() ?? true,
               lastSameDomainGestureTime: lastSameDomainGestureTime,
               now: DateTime.now(),
-              isCaptchaChallenge: WebViewFactory.isCaptchaChallenge,
+              isCaptchaChallenge: (u) =>
+                  WebViewFactory.isCaptchaChallenge(u, siteUrl: initUrl),
               state: urlChangedState,
               externalLinksInBrowser: effectiveExternalLinksInBrowser,
               matchesSiteClaim: matchesSiteClaim,
