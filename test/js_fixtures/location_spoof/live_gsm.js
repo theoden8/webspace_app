@@ -323,9 +323,10 @@
     // We rebuild it with the spoofed zone. Sites that regex the tz
     // abbreviation or offset will see the spoofed values.
     function pad2(n) { n = String(n); return n.length < 2 ? '0' + n : n; }
-    var _toString = function toString() {
-      var t = this.getTime();
-      if (isNaN(t)) return 'Invalid Date';
+    // toString, toDateString and toTimeString are independent builtins that
+    // each print the engine's real zone, so all three are rebuilt from one
+    // set of spoofed parts.
+    function spoofedParts(date) {
       var parts = {};
       try {
         new _nativeDTF('en-US', {
@@ -333,20 +334,50 @@
           weekday: 'short', month: 'short', day: '2-digit', year: 'numeric',
           hour: '2-digit', minute: '2-digit', second: '2-digit',
           timeZoneName: 'long',
-        }).formatToParts(this).forEach(function(p) { parts[p.type] = p.value; });
+        }).formatToParts(date).forEach(function(p) { parts[p.type] = p.value; });
       } catch (e) {
-        try { return Date.prototype.toISOString.call(this); } catch (_) { return ''; }
+        return null;
       }
-      var off = targetOffsetMinutes(this);
+      var off = targetOffsetMinutes(date);
       var sign = off <= 0 ? '+' : '-';
       var abs = Math.abs(off);
-      var offStr = 'GMT' + sign + pad2(Math.floor(abs / 60)) + pad2(abs % 60);
-      return parts.weekday + ' ' + parts.month + ' ' + parts.day + ' ' +
-        parts.year + ' ' + parts.hour + ':' + parts.minute + ':' +
-        parts.second + ' ' + offStr + ' (' + (parts.timeZoneName || TZ) + ')';
+      parts.offset = 'GMT' + sign + pad2(Math.floor(abs / 60)) + pad2(abs % 60);
+      parts.zone = parts.timeZoneName || TZ;
+      return parts;
+    }
+    function datePart(p) {
+      return p.weekday + ' ' + p.month + ' ' + p.day + ' ' + p.year;
+    }
+    function timePart(p) {
+      return p.hour + ':' + p.minute + ':' + p.second + ' ' + p.offset +
+        ' (' + p.zone + ')';
+    }
+    function spoofedString(date, build) {
+      var t = date.getTime();
+      if (isNaN(t)) return 'Invalid Date';
+      var p = spoofedParts(date);
+      if (!p) {
+        try { return Date.prototype.toISOString.call(date); } catch (_) { return ''; }
+      }
+      return build(p);
+    }
+    var _toString = function toString() {
+      return spoofedString(this, function(p) {
+        return datePart(p) + ' ' + timePart(p);
+      });
+    };
+    var _toDateString = function toDateString() {
+      return spoofedString(this, datePart);
+    };
+    var _toTimeString = function toTimeString() {
+      return spoofedString(this, timePart);
     };
     asNative(_toString, 'toString');
+    asNative(_toDateString, 'toDateString');
+    asNative(_toTimeString, 'toTimeString');
     try { Date.prototype.toString = _toString; } catch (e) {}
+    try { Date.prototype.toDateString = _toDateString; } catch (e) {}
+    try { Date.prototype.toTimeString = _toTimeString; } catch (e) {}
 
     // Date.prototype.toLocale{String,DateString,TimeString}.
     //
@@ -426,21 +457,47 @@
   } else if (!IS_WORKER && WRTC === 'relay') {
     var _RealRTC = globalThis.RTCPeerConnection || globalThis.webkitRTCPeerConnection;
     if (_RealRTC) {
-      var _Patched = function RTCPeerConnection(config) {
-        config = config || {};
+      var _rtcProto = _RealRTC.prototype;
+      function relayOnlyConfig(config) {
+        config = Object.assign({}, config || {});
         config.iceTransportPolicy = 'relay';
-        var pc = new _RealRTC(config);
-        var _origSetLocal = pc.setLocalDescription.bind(pc);
-        pc.setLocalDescription = function(desc) {
-          if (desc && typeof desc.sdp === 'string') {
-            desc.sdp = desc.sdp.split('\r\n').filter(function(line) {
-              if (line.indexOf('a=candidate:') !== 0) return true;
-              return line.indexOf(' typ relay') !== -1;
-            }).join('\r\n');
-          }
-          return _origSetLocal(desc);
-        };
-        return pc;
+        return config;
+      }
+      function relayOnlyDesc(desc) {
+        if (!desc || typeof desc.sdp !== 'string') return desc;
+        var sdp = desc.sdp.split('\r\n').filter(function(line) {
+          if (line.indexOf('a=candidate:') !== 0) return true;
+          return line.indexOf(' typ relay') !== -1;
+        }).join('\r\n');
+        return { type: desc.type, sdp: sdp };
+      }
+      // Both live on the prototype. A wrapper written onto the instance is
+      // skipped by `RTCPeerConnection.prototype.setLocalDescription.call`,
+      // and the native `setConfiguration` may change the policy the
+      // constructor forced.
+      try {
+        var _origSetConfig = _rtcProto.setConfiguration;
+        if (typeof _origSetConfig === 'function') {
+          var _setConfig = function setConfiguration(config) {
+            return _origSetConfig.call(this, relayOnlyConfig(config));
+          };
+          asNative(_setConfig, 'setConfiguration');
+          _rtcProto.setConfiguration = _setConfig;
+        }
+      } catch (e) {}
+      try {
+        var _origSetLocal = _rtcProto.setLocalDescription;
+        if (typeof _origSetLocal === 'function') {
+          var _setLocal = function setLocalDescription(desc) {
+            if (arguments.length === 0) return _origSetLocal.call(this);
+            return _origSetLocal.call(this, relayOnlyDesc(desc));
+          };
+          asNative(_setLocal, 'setLocalDescription');
+          _rtcProto.setLocalDescription = _setLocal;
+        }
+      } catch (e) {}
+      var _Patched = function RTCPeerConnection(config) {
+        return new _RealRTC(relayOnlyConfig(config));
       };
       _Patched.prototype = _RealRTC.prototype;
       // Without this the native constructor stays reachable as

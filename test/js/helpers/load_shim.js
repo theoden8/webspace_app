@@ -116,6 +116,12 @@ function installBrowserPolyfills(window) {
         this.__lastSdp = desc;
         return Promise.resolve();
       }
+      setConfiguration(config) {
+        this.__config = config || {};
+      }
+      getConfiguration() {
+        return this.__config;
+      }
       close() {}
     }
     window.RTCPeerConnection = RTCPeerConnection;

@@ -2099,6 +2099,9 @@ class WebViewFactory {
     // ones (see worker_shim.dart). Window-only shims (desktop mode, viewport,
     // zoom, notifications) are deliberately absent.
     final workerScopeShims = <String>[];
+    if (config.trackingProtectionEnabled) {
+      workerScopeShims.add(webGlKillSwitchScript);
+    }
 
     final antiFpSource = buildAntiFingerprintingScriptSource(
       siteId: config.siteId,

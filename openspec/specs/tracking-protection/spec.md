@@ -145,6 +145,13 @@ identical in page and worker (WORK-002), and the window-only sections (`screen.*
 the `matchMedia` wrapper, `plugins` / `mimeTypes` / `getBattery`) MUST NOT be
 applied in worker scope (WORK-003).
 
+The WebGL kill switch (`webgl_kill_switch_shim.dart`) SHALL ride the same
+worker payload, so a worker cannot obtain through an `OffscreenCanvas` a
+WebGL or WebGPU context the page reports absent. The Canvas 2D noise SHALL
+cover `OffscreenCanvasRenderingContext2D.getImageData` and
+`OffscreenCanvas.convertToBlob` in page and worker alike, so copying a
+covered canvas into an `OffscreenCanvas` does not read it clean.
+
 #### Scenario: Shim injected on construction
 
 **Given** a webview is constructed for a site with the umbrella on
@@ -372,15 +379,28 @@ measurement — the same self-incrimination as the own-property leak below,
 and the rule worker scope already follows for `plugins` / `mimeTypes`
 (WORK-003).
 
-The shim SHALL ALSO wrap `window.matchMedia` so single-feature
-`(min-|max-)?device-width` / `device-height` media queries resolve against
-the SAME dimensions `screen.*` reports — the pinned `SCREEN_W`/`SCREEN_H`
-(1920x1080) normally, or the live `window.inner*` in letterbox mode
-(ETP-020). Without this, a fingerprinter binary-searching
-`(max-device-width: Npx)` recovers the real screen size and contradicts
-`screen.width` (CreepJS's "CSS Media Queries" leak). Non-device queries fall
-through to the real implementation, and the wrapper stringifies as
+The shim SHALL ALSO wrap `window.matchMedia` so every `device-width`,
+`device-height` and `device-aspect-ratio` feature in a query resolves
+against the SAME dimensions `screen.*` reports — the pinned
+`SCREEN_W`/`SCREEN_H` (1920x1080) normally, or the live `window.inner*` in
+letterbox mode (ETP-020) — whatever surrounds the feature: a media type,
+`not`, `and`, a comma list, the colon or the range syntax, and any absolute
+length unit. A single feature is answered by the shim; in a compound query
+each device feature is replaced by a standard feature that is always true
+or always false and the rewritten string is handed to the engine, so the
+query's boolean structure stays the engine's to evaluate. Without this, a
+fingerprinter binary-searching `(max-device-width: Npx)`, or
+`(max-device-width: Npx) and (min-width: 0px)` once the single-feature
+form is covered, recovers the real screen size and contradicts
+`screen.width` (CreepJS's "CSS Media Queries" leak). Non-device queries
+fall through to the real implementation, and the wrapper stringifies as
 `[native code]`.
+
+Residual: a stylesheet `@media (max-device-width: Npx)` block is evaluated
+by the engine's CSS cascade, which the shim does not reach, so a page that
+measures a probe element's computed style under such a block still learns
+the real screen size. Closing that needs the engine's own media
+environment, not a JS wrapper.
 
 #### Scenario: screen dimensions pinned
 
@@ -393,6 +413,14 @@ through to the real implementation, and the wrapper stringifies as
 **Then** `matchMedia('(max-device-width: 1920px)').matches` is `true`
 **And** `matchMedia('(max-device-width: 1919px)').matches` is `false`
 **And** `matchMedia('(device-height: 1080px)').matches` is `true`
+
+#### Scenario: compound and range device queries agree too
+
+**Given** the shim is loaded (non-letterbox)
+**Then** `matchMedia('(max-device-width: 1919px) and (min-width: 0px)').matches` is `false`
+**And** `matchMedia('(1000px <= device-width <= 2000px)').matches` is `true`
+**And** `matchMedia('(device-aspect-ratio: 16/9)').matches` is `true`
+**And** the string the engine receives names no `device-` feature
 **And** a non-device query such as `(min-width: 100px)` is delegated to the
 real `matchMedia`
 

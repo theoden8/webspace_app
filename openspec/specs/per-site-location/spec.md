@@ -325,6 +325,7 @@ The system SHALL expose a per-site `spoofTimezone` (IANA name, nullable). When s
 - `Intl.DateTimeFormat(locales, options)` — when `options.timeZone` is absent, the configured zone is injected so `resolvedOptions().timeZone` reports it,
 - `Date.prototype.getTimezoneOffset` — returns the offset in the configured zone at the given Date instant (DST-correct via Intl),
 - `Date.prototype.toString` — returns a well-formed browser-style string with the spoofed GMT offset and long timezone name.
+- `Date.prototype.toDateString` and `Date.prototype.toTimeString` — the two halves of that string, rebuilt from the same parts; each is an independent builtin that would otherwise print the engine's real zone.
 
 #### Scenario: Intl reports spoofed zone
 
@@ -351,7 +352,7 @@ in turn
 
 **Given** `spoofTimezone = 'Asia/Tokyo'` and device real zone is `UTC`
 **When** a site calls `new Date().getHours()` and compares to `Intl.DateTimeFormat('en', { hour: 'numeric', timeZone: 'Asia/Tokyo' }).format(new Date())`
-**Then** the values disagree (real local vs spoofed). This is a known gap — the implementation deliberately does not override `Date` getters to keep the shim small; cross-referencing callers can detect the spoof.
+**Then** the values disagree (real local vs spoofed). This is a known gap — the implementation deliberately does not override `Date` getters to keep the shim small; cross-referencing callers can detect the spoof. The `Date()` call form (no `new`) returns the engine's own string too; the global constructor is not wrapped.
 
 **Rationale:** covering `getHours`/`getMinutes`/`getDate`/... requires shifting each call into the target zone, which is invasive and has DST-boundary edge cases. Most fingerprint libraries use `Intl` or `getTimezoneOffset`.
 
@@ -425,6 +426,13 @@ the per-site / app-global proxy precedence.
 **When** a site creates a new `RTCPeerConnection(config)` and calls `setLocalDescription(offer)`
 **Then** the effective config has `iceTransportPolicy = 'relay'`
 **And** the SDP passed to `setLocalDescription` has all non-`typ relay` candidate lines stripped
+
+#### Scenario: Relay-only survives setConfiguration and the prototype method
+
+**Given** `webRtcPolicy = relayOnly` and a connection the page created
+**When** the page calls `pc.setConfiguration({iceTransportPolicy: 'all'})`, or `RTCPeerConnection.prototype.setLocalDescription.call(pc, offer)`, or `pc.setLocalDescription()` with no argument
+**Then** the configuration the engine holds still has `iceTransportPolicy = 'relay'` (the policy is forced on `RTCPeerConnection.prototype.setConfiguration`)
+**And** the SDP filter is the prototype method itself, so there is no per-instance wrapper to skip
 
 #### Scenario: Relay-only survives the prototype constructor
 
