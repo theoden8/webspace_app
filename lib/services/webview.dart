@@ -3962,6 +3962,12 @@ class WebViewFactory {
           // links, tel:) still hit the confirmation dialog.
           final resolved = ExternalUrlParser.toWebUrl(externalInfo);
           if (resolved != null) {
+            // The reissued load below lands on the top-frame controller, so
+            // a subframe must not reach it (NESTED-013): an ad iframe would
+            // otherwise steer the top document with the session attached.
+            if (navigationAction.isForMainFrame == false) {
+              return inapp.NavigationActionPolicy.CANCEL;
+            }
             final hasGesture = _hasUserGesture(navigationAction);
             // Loop guard (EXT-007): x.com re-fires its Safari bounce on
             // every page render — resolving it again would reload the
@@ -4241,7 +4247,10 @@ class WebViewFactory {
             if (config.shouldOverrideUrlLoading != null) {
               allow = config.shouldOverrideUrlLoading!(resolved, hasGesture);
             }
-            if (allow) {
+            // A window this webview did not ask for by gesture never loads
+            // into it (NESTED-013); a real target="_blank" tap is rewritten
+            // before it gets here (NESTED-008).
+            if (allow && hasGesture) {
               controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(resolved)));
             }
             return false;
@@ -4261,7 +4270,7 @@ class WebViewFactory {
         if (url.startsWith('http') && config.shouldOverrideUrlLoading != null) {
           final hasGesture = _hasUserGesture(createWindowAction);
           final allow = config.shouldOverrideUrlLoading!(url, hasGesture);
-          if (allow) {
+          if (allow && hasGesture) {
             // Same-domain target="_blank": load in current webview
             controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(url)));
           }
@@ -5202,6 +5211,15 @@ class WebViewFactory {
       final result = await engine.fetch(
         url: req.url.toString(),
         cookieHeader: cookieHeader,
+        cookieHeaderFor: (uri) async {
+          final hop = await inapp.CookieManager.instance().getCookies(
+            url: inapp.WebUri(uri.toString()),
+            webViewController: controller,
+          );
+          return DownloadEngine.buildCookieHeader(
+            hop.map((c) => MapEntry(c.name, c.value.toString())),
+          );
+        },
         userAgent: req.userAgent,
         referer: referer,
         suggestedFilename: req.suggestedFilename,

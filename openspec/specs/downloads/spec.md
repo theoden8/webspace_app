@@ -162,6 +162,38 @@ the jar the same way for both. Enforced structurally by
 
 ---
 
+### Requirement: DL-007 — Redirects are followed by hand
+
+`DownloadEngine.fetch` SHALL send every request with `followRedirects =
+false` and follow up to `maxRedirects` (5) redirects itself. `dart:io` copies
+every header of the previous request onto the `Location` target with no
+origin comparison, so an authenticated download that 302s to another host
+would deliver the site's session cookie (HttpOnly included), referer and UA
+there. On each hop the engine SHALL recompute the `cookie` header for the new
+URL from the site's jar (the `cookieHeaderFor` callback the download handler
+supplies, scoped to the WebView exactly as DL-003 requires), SHALL drop the
+referer when the hop changes origin, and SHALL refuse a hop from https to
+http, a non-http(s) scheme, or a redirect without a `Location`.
+
+#### Scenario: A redirect to another host
+
+**Given** the user is logged in to `app.example`
+**When** a download link there answers `302 Location: https://attacker.example/x.zip`
+**Then** the request to `attacker.example` carries no `cookie` and no `referer`
+**And** the body is still fetched, so an unauthenticated CDN hand-off works
+
+#### Scenario: A same-origin redirect keeps the session
+
+**Given** the same site
+**When** the download link answers `301 Location: /files/real.zip`
+**Then** the second request carries the cookies the jar holds for that URL
+
+#### Scenario: A downgrade is refused
+
+**When** an https download link answers `302 Location: http://app.example/x.zip`
+**Then** the download fails with a `DownloadException`
+**And** no request is made over http
+
 ### Requirement: DL-004 — `data:` URI downloads
 
 `DownloadEngine.decodeDataUri` MUST handle both base64 (`;base64,`) and

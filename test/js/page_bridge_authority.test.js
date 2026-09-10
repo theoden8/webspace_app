@@ -15,6 +15,7 @@
 //   openspec/specs/web-camera-access/spec.md    CAM-013 / MIC-013
 //   openspec/specs/ip-leakage/spec.md           LEAK-002
 //   openspec/specs/per-site-location/spec.md    LOC-011
+//   openspec/changes/upstream-webview-defects/specs/nested-url-blocking/spec.md  NESTED-013
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -122,6 +123,33 @@ test('CAPTCHA-009: the popup webview inherits the parent site posture', () => {
   assert.ok(WEBVIEW.includes('_popupParentConfigs[windowId] = config;'),
     'onCreateWindow must record the requesting webview\'s config so the '
     + 'popup can inherit it');
+});
+
+// --- top-document steering from a subframe --------------------------------
+
+test('NESTED-013: a subframe cannot steer the top document through an external scheme', () => {
+  const at = WEBVIEW.indexOf("'External scheme intercepted: scheme=");
+  assert.notEqual(at, -1, 'the external-scheme branch is gone');
+  const body = WEBVIEW.slice(at, WEBVIEW.indexOf('onExternalSchemeUrl', at));
+  const gate = body.indexOf('navigationAction.isForMainFrame == false');
+  const load = body.indexOf('controller.loadUrl(');
+  assert.notEqual(gate, -1,
+    'the external branch must refuse a subframe: it resolves intent:// and '
+    + 'x-safari- targets onto the top-frame controller');
+  assert.ok(load === -1 || gate < load,
+    'the frame test must precede the reissued load');
+});
+
+test('NESTED-013: onCreateWindow loads into the top webview only on a gesture', () => {
+  const at = WEBVIEW.indexOf('onCreateWindow: (controller, createWindowAction)');
+  assert.notEqual(at, -1, 'onCreateWindow is gone');
+  const body = WEBVIEW.slice(at, WEBVIEW.indexOf('onProgressChanged:', at));
+  const loads = body.split('controller.loadUrl(').length - 1;
+  const gated = (body.match(/if \(allow && hasGesture\) \{/g) || []).length;
+  assert.ok(loads > 0, 'no loadUrl in onCreateWindow: the guard has nothing to gate');
+  assert.equal(gated, loads,
+    'every loadUrl in onCreateWindow must sit under `allow && hasGesture`: a '
+    + 'script-driven window.open() must not navigate the top document');
 });
 
 // --- the live location fix ------------------------------------------------

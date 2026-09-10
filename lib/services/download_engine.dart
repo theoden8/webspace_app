@@ -47,6 +47,9 @@ class DownloadEngine {
   /// guard, not a product policy — it sits far above any realistic file.
   static const int defaultMaxBytes = 2 * 1024 * 1024 * 1024;
 
+  /// Redirect hops followed before the download is refused.
+  static const int maxRedirects = 5;
+
   final http.Client _client;
   final OutboundClient? _outboundResult;
   final int _maxBytes;
@@ -123,9 +126,21 @@ class DownloadEngine {
     return 'download${ext ?? ''}';
   }
 
+  /// Fetch [url], following up to [maxRedirects] redirects by hand.
+  ///
+  /// `dart:io` copies every header of the previous request onto a
+  /// `Location` target with no origin comparison, so an authenticated
+  /// download that 302s to another host would carry the site's session
+  /// cookie (HttpOnly included), `referer` and UA there (DL-007). Each hop
+  /// instead recomputes the cookie header: through [cookieHeaderFor] (the
+  /// site's jar, asked for the new URL) when the caller supplies it,
+  /// otherwise [cookieHeader] only while the hop stays on the first URL's
+  /// origin. The referer is dropped on an origin change, and an https to
+  /// http hop is refused outright.
   Future<DownloadResult> fetch({
     required String url,
     String? cookieHeader,
+    Future<String?> Function(Uri url)? cookieHeaderFor,
     String? userAgent,
     String? referer,
     String? suggestedFilename,
@@ -150,27 +165,61 @@ class DownloadEngine {
       throw DownloadException('Unsupported scheme: ${uri.scheme}');
     }
 
-    final request = http.Request('GET', uri);
-    if (cookieHeader != null && cookieHeader.isNotEmpty) {
-      request.headers['cookie'] = cookieHeader;
-    }
-    if (userAgent != null && userAgent.isNotEmpty) {
-      request.headers['user-agent'] = userAgent;
-    }
     // Many download servers use Referer for hotlink protection; without
     // one they may 302 to an error page or stream HTML with no
     // Content-Length, which makes the progress ring spin indeterminately.
     // Only forward http(s) referers so we don't leak data: / file: URLs.
-    if (referer != null &&
-        (referer.startsWith('http://') || referer.startsWith('https://'))) {
-      request.headers['referer'] = referer;
-    }
-
-    final http.StreamedResponse response;
-    try {
-      response = await _client.send(request);
-    } catch (e) {
-      throw DownloadException('Network error: $e');
+    var hopReferer = referer != null &&
+            (referer.startsWith('http://') || referer.startsWith('https://'))
+        ? referer
+        : null;
+    var current = uri;
+    var hops = 0;
+    http.StreamedResponse response;
+    while (true) {
+      final request = http.Request('GET', current)..followRedirects = false;
+      final String? cookie;
+      if (hops == 0) {
+        cookie = cookieHeader;
+      } else if (cookieHeaderFor != null) {
+        cookie = await cookieHeaderFor(current);
+      } else {
+        cookie = _sameOrigin(current, uri) ? cookieHeader : null;
+      }
+      if (cookie != null && cookie.isNotEmpty) {
+        request.headers['cookie'] = cookie;
+      }
+      if (userAgent != null && userAgent.isNotEmpty) {
+        request.headers['user-agent'] = userAgent;
+      }
+      if (hopReferer != null) {
+        request.headers['referer'] = hopReferer;
+      }
+      try {
+        response = await _client.send(request);
+      } catch (e) {
+        throw DownloadException('Network error: $e');
+      }
+      if (!_isRedirect(response.statusCode)) break;
+      final location = response.headers['location'];
+      try {
+        await response.stream.drain<void>();
+      } catch (_) {}
+      if (location == null || location.isEmpty) {
+        throw DownloadException('HTTP ${response.statusCode}');
+      }
+      if (++hops > maxRedirects) {
+        throw DownloadException('Too many redirects');
+      }
+      final next = current.resolve(location);
+      if (next.scheme != 'http' && next.scheme != 'https') {
+        throw DownloadException('Unsupported scheme: ${next.scheme}');
+      }
+      if (current.scheme == 'https' && next.scheme == 'http') {
+        throw DownloadException('Redirect downgrades https to http');
+      }
+      if (!_sameOrigin(next, current)) hopReferer = null;
+      current = next;
     }
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -245,6 +294,13 @@ class DownloadEngine {
       mimeType: mime,
     );
   }
+
+  static bool _isRedirect(int status) =>
+      status == 301 || status == 302 || status == 303 || status == 307 ||
+      status == 308;
+
+  static bool _sameOrigin(Uri a, Uri b) =>
+      a.scheme == b.scheme && a.host == b.host && a.port == b.port;
 
   /// Inflate [compressed] through [codec] in chunks, aborting the moment the
   /// running output exceeds [_maxBytes] so a decompression bomb never fully
