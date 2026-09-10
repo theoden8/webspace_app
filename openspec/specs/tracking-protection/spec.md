@@ -185,6 +185,28 @@ SHALL produce distinct shim sources so two sites differ.
 **Then** `S1 != S2`
 **And** both contain the literal seed string for the FNV-1a hash
 
+### Requirement: ETP-027 - The seed the page sees is a digest
+
+`computeAntiFingerprintingSeed` names the record: `siteId`, the reset nonce
+(ETP-022) and, under incognito, the launch nonce. The shim text is copied
+into the worker payload (worker-shim-propagation), which page script can read
+back through `URL.createObjectURL`, so the record MUST NOT be embedded as
+it is. `buildAntiFingerprintingScriptSource` SHALL pass
+`opaqueAntiFingerprintingSeed(seed)` (SHA-256 over a fixed prefix and the
+seed) to `buildAntiFingerprintingShim`. Determinism (ETP-004), the reroll on
+data clear (ETP-022) and the per-launch incognito reroll are unchanged, since
+the digest is a function of the same input; what changes is that a page that
+captures its own shim learns neither the `siteId` nor the launch nonce, so
+two incognito sites in one launch cannot be joined and a site cannot
+recognise a user across a data wipe. Gated by
+`test/anti_fingerprinting_seed_opacity_test.dart`.
+
+#### Scenario: A page captures its own shim
+
+**Given** site "Acme" is incognito with `siteId = site-A` and a reset nonce
+**When** page script overrides `URL.createObjectURL` and reads the worker payload
+**Then** the payload contains a 64-hex-digit `SEED` and neither `site-A`, the reset nonce nor the launch nonce
+
 ---
 
 ### Requirement: ETP-005 - Canvas 2D fingerprinting

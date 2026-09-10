@@ -52,6 +52,8 @@
 
 import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
+
 /// Compute the seed string passed to [buildAntiFingerprintingShim].
 ///
 /// Non-incognito sites seed with `siteId` verbatim — the fingerprint stays
@@ -105,8 +107,18 @@ String? buildAntiFingerprintingScriptSource({
     launchNonce: launchNonce,
     resetNonce: resetNonce,
   );
-  return '${buildAntiFingerprintingShim(seed, letterbox: letterbox)}\n;null;';
+  return '${buildAntiFingerprintingShim(opaqueAntiFingerprintingSeed(seed), letterbox: letterbox)}\n;null;';
 }
+
+/// The seed the page actually sees. [computeAntiFingerprintingSeed] names
+/// the record (`siteId`, the reset nonce, the launch nonce) and the shim
+/// text is copied into the worker payload, where page script can read it
+/// back through `URL.createObjectURL`, so the identifiers are digested
+/// first: the same input still yields the same fingerprint, a reroll still
+/// rerolls, and two incognito sites in one launch share nothing a tracker
+/// can join on.
+String opaqueAntiFingerprintingSeed(String seed) =>
+    sha256.convert(utf8.encode('ws-afp:$seed')).toString();
 
 /// Build the per-site anti-fingerprinting shim seeded by [seed]. The seed
 /// is computed via [computeAntiFingerprintingSeed] — siteId-only for

@@ -14,6 +14,7 @@
 //   openspec/specs/captcha-support/spec.md      CAPTCHA-007/008/009
 //   openspec/specs/web-camera-access/spec.md    CAM-013 / MIC-013
 //   openspec/specs/ip-leakage/spec.md           LEAK-002
+//   openspec/specs/per-site-location/spec.md    LOC-011
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -121,6 +122,23 @@ test('CAPTCHA-009: the popup webview inherits the parent site posture', () => {
   assert.ok(WEBVIEW.includes('_popupParentConfigs[windowId] = config;'),
     'onCreateWindow must record the requesting webview\'s config so the '
     + 'popup can inherit it');
+});
+
+// --- the live location fix ------------------------------------------------
+
+test('LOC-011: a live fix is served to the top document only', () => {
+  const at = WEBVIEW.indexOf("handlerName: 'getRealLocation'");
+  assert.notEqual(at, -1, 'getRealLocation registration is gone');
+  const body = WEBVIEW.slice(at, WEBVIEW.indexOf('addJavaScriptHandler', at + 1));
+  assert.ok(body.includes('inapp.JavaScriptHandlerFunctionData data'),
+    'getRealLocation must use the frame-aware callback: the location shim is '
+    + 'injected forMainFrameOnly:false, so a cross-origin iframe can call it '
+    + 'directly and skip the Permissions-Policy check');
+  assert.ok(body.includes('if (!data.isMainFrame)'),
+    'getRealLocation must test the frame before reading the device');
+  assert.ok(body.includes("'status': 'permission_denied'"),
+    'a refused frame must see PERMISSION_DENIED, what an undelegated iframe '
+    + 'gets in a browser');
 });
 
 // --- the permission prompts ----------------------------------------------

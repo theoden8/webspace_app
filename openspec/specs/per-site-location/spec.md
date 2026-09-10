@@ -596,6 +596,23 @@ Otherwise a site could defeat the spoof by linking to a detection page (e.g. bro
 **Then** `navigator.geolocation` returns the spoofed coordinates
 **And** `RTCPeerConnection` is either neutered or relay-only per the parent site's policy
 
+### Requirement: LOC-011 - A live fix is served to the top document only
+
+The location shim is injected `forMainFrameOnly: false` (LOC-007) so a page's own frames see the same spoof, which also puts a cross-origin iframe on the `getRealLocation` handler. In `live` mode the handler SHALL read the frame identity the plugin's bridge preamble supplies (`JavaScriptHandlerFunctionData`, which page script can neither forge nor call around) and SHALL answer a frame whose origin differs from the top document's with `permission_denied`, which the shim maps to `PERMISSION_DENIED`: exactly what an iframe without `allow="geolocation"` sees in a browser. A same-origin frame keeps the engine's default `'self'` allowlist. Gated by `test/js/page_bridge_authority.test.js`.
+
+#### Scenario: A cross-origin iframe asks for the device fix
+
+**Given** site "Acme" has `locationMode = live`
+**When** a cross-origin iframe it embeds calls `navigator.geolocation.getCurrentPosition`, or calls the `getRealLocation` handler directly
+**Then** the error callback receives `PERMISSION_DENIED`
+**And** the device's location service is not consulted
+
+#### Scenario: The top document and its own frames still get a fix
+
+**Given** the same site
+**When** the top document, or a same-origin iframe, calls `getCurrentPosition`
+**Then** the snapped device fix is returned as before
+
 ---
 
 ### Requirement: LOC-005 - Persistence and backup

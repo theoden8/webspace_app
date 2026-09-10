@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show compute;
+import 'package:webspace/services/media_metadata_strip.dart';
 
 /// Why a picked file could not become a synthetic capture source.
 enum VirtualMediaPickError { type, read, tooLarge }
@@ -157,11 +159,25 @@ class VirtualVisualMediaPicker {
     if (outcome.error != null) {
       return VirtualMediaPickResult<VisualMediaPick>.error(outcome.error!);
     }
-    final isVideo = videoExtensions.contains(outcome.extension);
+    if (videoExtensions.contains(outcome.extension)) {
+      final bytes = stripContainerMetadata(outcome.bytes!, outcome.extension);
+      return VirtualMediaPickResult<VisualMediaPick>.picked(VisualMediaPick(
+        kind: 'video',
+        dataUrl: 'data:${mimeForExtension(outcome.extension, true)};base64,'
+            '${base64Encode(bytes)}',
+        fileName: outcome.fileName,
+      ));
+    }
+    final jpeg = outcome.extension == 'jpg' || outcome.extension == 'jpeg';
+    final image =
+        await compute(stripImageMetadataForIsolate, (outcome.bytes!, jpeg));
+    if (image == null) {
+      return const VirtualMediaPickResult<VisualMediaPick>.error(
+          VirtualMediaPickError.type);
+    }
     return VirtualMediaPickResult<VisualMediaPick>.picked(VisualMediaPick(
-      kind: isVideo ? 'video' : 'image',
-      dataUrl: 'data:${mimeForExtension(outcome.extension, isVideo)};base64,'
-          '${base64Encode(outcome.bytes!)}',
+      kind: 'image',
+      dataUrl: 'data:${image.mime};base64,${base64Encode(image.bytes)}',
       fileName: outcome.fileName,
     ));
   }

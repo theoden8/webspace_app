@@ -2924,7 +2924,18 @@ class WebViewFactory {
               : LocationAccuracy.fine;
       controller.addJavaScriptHandler(
         handlerName: 'getRealLocation',
-        callback: (args) async {
+        callback: (inapp.JavaScriptHandlerFunctionData data) async {
+          // The shim reaches every frame, so a cross-origin iframe can call
+          // this directly and skip the engine's Permissions-Policy check.
+          // Serve it what an undelegated iframe sees in a browser (LOC-011);
+          // a same-origin frame keeps the default 'self' allowlist.
+          if (!data.isMainFrame) {
+            final top =
+                (await controller.getUrl())?.toString() ?? config.initialUrl;
+            if (!_sameOrigin(data.origin.toString(), top)) {
+              return {'status': 'permission_denied', 'message': 'subframe'};
+            }
+          }
           final res = await CurrentLocationService.getCurrentLocation(
             accuracy: requestAccuracy,
           );

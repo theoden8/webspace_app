@@ -274,6 +274,19 @@ denied and the picker re-offered.
 **When** the page calls `getDisplayMedia()`
 **Then** the request is denied (`NotAllowedError`) rather than capturing anything
 
+### Requirement: SHARE-016 — The picked file carries no metadata
+
+The surface's bytes reach page script as a `data:` URL, so the picked image or
+video SHALL be stripped at pick time exactly as the virtual camera's is
+(CAM-015): the two features share `VirtualVisualMediaPicker`, so the same
+re-encode and box walker run before the source lands on the model.
+
+#### Scenario: A screenshot from the camera roll becomes the surface
+
+**Given** the user picks a PNG that carries an XMP block naming the device
+**When** the pick completes
+**Then** the `data:` URL on the model decodes to a PNG with no XMP, EXIF or ICC chunk
+
 ### Requirement: SHARE-009 — The substitution is not detectable by shape
 
 The synthetic surface SHALL present as an ordinary display capture at the

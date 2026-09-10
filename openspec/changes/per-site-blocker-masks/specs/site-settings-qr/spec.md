@@ -60,6 +60,16 @@ address, and "Tracking Protection" as a protection being turned off
 **Then** it names "Blocklist level" and "Filter lists" among the
 protections the payload turns off
 
+#### Scenario: The review sees the proxy the apply path installs
+
+**Given** a payload whose `proxySettings` is `{"type": 4}` (Tor, no address)
+**When** the review dialog is built
+**Then** it names Tor as the site's proxy
+**And** a payload whose `proxySettings.type` is the string `"1"` never
+reaches the dialog: `decode` returns null for a `type` that is not an int
+in range or an `address`, `username` or `torExitCountry` that is not a
+string, so a value `fromJson` would coerce cannot slip past the review
+
 #### Scenario: Declining the review creates nothing
 
 **Given** the review dialog is shown

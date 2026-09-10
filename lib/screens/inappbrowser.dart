@@ -24,6 +24,7 @@ import 'package:webspace/services/surface_route_observer.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/outbound_http_types.dart';
+import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/settings/camera.dart';
 import 'package:webspace/settings/microphone.dart';
 import 'package:webspace/settings/screen_share.dart';
@@ -347,9 +348,11 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     title = widget.homeTitle;
     _currentUrl = widget.url;
     _showUrlBar = widget.showUrlBar;
-    _cameraMode = widget.cameraMode;
+    _cameraMode = nestedSeedMode(widget.cameraMode,
+        real: CameraAccessMode.real, ask: CameraAccessMode.ask);
     _cameraSource = widget.virtualCameraSource;
-    _microphoneMode = widget.microphoneMode;
+    _microphoneMode = nestedSeedMode(widget.microphoneMode,
+        real: MicrophoneAccessMode.real, ask: MicrophoneAccessMode.ask);
     _microphoneSource = widget.virtualMicrophoneSource;
     _screenShareMode = widget.screenShareMode;
     _screenShareSource = widget.virtualScreenSource;

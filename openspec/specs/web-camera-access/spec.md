@@ -152,6 +152,13 @@ decision is not inherited across the origin change.
 **And** the answer is reused for further requests within that nested screen
 **And** nothing is persisted
 
+#### Scenario: The parent's device grant does not follow the link
+
+**Given** site "Acme" is set to `real`
+**When** a link on it opens a nested webview on another domain and that page requests the camera
+**Then** the nested screen starts from `ask` (`nestedSeedMode` maps `real` to `ask`; `block` and `virtual` are inherited as they are)
+**And** the Allow/Block popup names the nested page's origin before the device opens
+
 ### Requirement: CAM-006 — Archive-tier sites deny silently
 
 `effectiveCameraMode` SHALL be `block` for archive-tier sites regardless
@@ -241,6 +248,26 @@ from the constraints before the real camera is opened
 **Given** a site with `cameraMode == virtual` and no `virtualCameraSource`
 **When** the page calls `getUserMedia({video: true})`
 **Then** the request is denied (NotAllowedError) rather than opening the real camera
+
+### Requirement: CAM-015 — The picked file carries no metadata
+
+The stream a virtual source produces observes nothing, but the file behind it
+was taken by the user's own device, and the shim hands the file's bytes to page
+script as a `data:` URL that any frame can also fetch from the bridge directly.
+At pick time the source SHALL therefore be stripped of what it says about the
+user (`lib/services/media_metadata_strip.dart`): an image is re-encoded without
+EXIF, XMP or ICC (JPEG stays JPEG, everything else becomes PNG); an ISO-BMFF
+video (mp4, m4v, mov) has every `udta`, `meta` and `uuid` box overwritten in
+place with `free` so chunk offsets stay valid. A container the walker does not
+parse (webm, ogv) is delivered as picked. The same rule covers the shared
+surface (SHARE-016) and the microphone clip (MIC-017).
+
+#### Scenario: A phone photo becomes the camera
+
+**Given** the user picks a JPEG whose EXIF carries GPS coordinates, the device model and the capture time
+**When** the pick completes
+**Then** the `data:` URL on the model decodes to a JPEG with no EXIF segment
+**And** a page reading the bridge response sees the pixels and nothing else
 
 ### Requirement: CAM-010 — Real-Android-WebView coverage
 

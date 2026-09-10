@@ -155,6 +155,13 @@ the origin change.
 **And** the answer is reused for further requests within that nested screen
 **And** nothing is persisted
 
+#### Scenario: The parent's device grant does not follow the link
+
+**Given** site "Acme" is set to `real`
+**When** a link on it opens a nested webview on another domain and that page requests audio
+**Then** the nested screen starts from `ask` (`nestedSeedMode` maps `real` to `ask`; `block` and `virtual` are inherited as they are)
+**And** the popup names the nested page's origin before the microphone opens
+
 ### Requirement: MIC-006 — Archive-tier sites deny silently
 
 `effectiveMicrophoneMode` SHALL be `block` for archive-tier sites regardless
@@ -218,6 +225,22 @@ denied and the picker re-offered.
 **Given** a served synthetic microphone track
 **When** the page calls `track.stop()`
 **Then** the buffer source is stopped and the `AudioContext` is closed
+
+### Requirement: MIC-017 — The picked clip carries no metadata
+
+The clip's bytes reach page script as a `data:` URL, so at pick time the source
+SHALL be stripped of container metadata (`lib/services/media_metadata_strip.dart`):
+an MP3 loses its ID3v2 and ID3v1 tags, an ISO-BMFF clip (m4a) has every `udta`,
+`meta` and `uuid` box overwritten in place with `free`. A container the walker
+does not parse (wav, ogg, opus, flac, aac, weba) is delivered as picked. Mirrors
+CAM-015.
+
+#### Scenario: A tagged MP3 becomes the microphone
+
+**Given** the user picks an MP3 whose ID3 tag names the artist and a recording location
+**When** the pick completes
+**Then** the `data:` URL on the model decodes to the bare MPEG audio stream
+**And** it still loops as the microphone (MIC-008)
 
 ### Requirement: MIC-009 — The substitution is not detectable by shape
 
