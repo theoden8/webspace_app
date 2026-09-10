@@ -2830,12 +2830,23 @@ class _WebSpacePageState extends State<WebSpacePage>
     // being activated, so run the PROXY-008 sequence here or it would load
     // through whatever the active site left behind, bound to this site's
     // container (LEAK-003). Fail closed when the override cannot be applied.
+    //
+    // Under router mode there is nothing to flip: the rule points at the
+    // relay for every site and the nested screen presents this site's own
+    // credential, so `setProxySettings` no-ops and the eviction would only
+    // cold-start the siblings PROXY-013 exists to keep loaded. Same gating
+    // as the activation path, or a share intent quietly reserialises the app.
     if (hostIsAndroid || hostIsLinux) {
       final mismatch = SiteUnloadEngine.indicesToUnloadForProxyMismatch(
         targetIndex: index,
         models: _webViewModels,
         loadedIndices: _loadedIndices,
-        proxyIsGlobal: true,
+        proxyIsGlobal:
+            (hostIsAndroid && !ProxyRouterService.instance.isActive) ||
+                hostIsLinux,
+        sharesDefaultSession: ProxyRouterService.instance.isActive
+            ? (m) => !_ownsContainerProfile(m)
+            : null,
       );
       for (final i in mismatch) {
         await _unloadSiteForOtherReason(i);
