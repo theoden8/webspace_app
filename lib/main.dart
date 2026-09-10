@@ -55,6 +55,7 @@ import 'package:webspace/services/diag_seed.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
 import 'package:webspace/services/archive.dart';
+import 'package:webspace/services/archive_membership_engine.dart';
 import 'package:webspace/services/archive_crypto.dart';
 import 'package:webspace/services/container_isolation_engine.dart';
 import 'package:webspace/services/container_native.dart';
@@ -1250,7 +1251,10 @@ class _WebSpacePageState extends State<WebSpacePage>
     _lastTorUp = nowUp;
     var anyTorSite = false;
     for (final m in _webViewModels) {
-      if (m.proxySettings.type != ProxyType.TOR) continue;
+      if (resolveEffectiveProxy(m.proxySettings, siteId: m.siteId).type !=
+          ProxyType.TOR) {
+        continue;
+      }
       anyTorSite = true;
       // A site whose webview is null is showing the placeholder — no
       // dispose needed there, but the setState below still swaps in the
@@ -1425,8 +1429,9 @@ class _WebSpacePageState extends State<WebSpacePage>
       // Rasterize the favicon to PNG here (HS-003): Android's BitmapFactory
       // can't decode SVG, so an SVG favicon would otherwise fall back to the
       // WebSpace app icon. exportIconAsPng also normalizes ICO/PNG and applies
-      // the site's proxy. iconUrl stays as a native-side fallback if it fails.
-      // A user-chosen icon is already normalized PNG and wins outright.
+      // the site's proxy; when it fails the native side uses the app icon.
+      // The page-chosen URL is never handed to native for a direct retry
+      // (LEAK-003). A user-chosen icon is already normalized PNG and wins.
       final iconBytes = model.customIconPng ??
           await exportIconAsPng(
             model.initUrl,
@@ -1438,7 +1443,6 @@ class _WebSpacePageState extends State<WebSpacePage>
         siteId: model.siteId,
         label: model.name,
         iconBytes: iconBytes,
-        iconUrl: iconBytes == null ? faviconUrl : null,
       );
       // HS-011: remember this id's url now so a later delete+recreate can be
       // routed by domain. _refreshPinnedSiteIds also reconciles on resume.
@@ -2818,6 +2822,43 @@ class _WebSpacePageState extends State<WebSpacePage>
     final model = _webViewModels[index];
     await _maybeSwitchToAllForSite(model, index);
     if (!mounted) return;
+    // Android/Linux: the proxy is a process-global override that only the
+    // activation path flips. The nested screen is for a site that is not
+    // being activated, so run the PROXY-008 sequence here or it would load
+    // through whatever the active site left behind, bound to this site's
+    // container (LEAK-003). Fail closed when the override cannot be applied.
+    if (hostIsAndroid || hostIsLinux) {
+      final mismatch = SiteUnloadEngine.indicesToUnloadForProxyMismatch(
+        targetIndex: index,
+        models: _webViewModels,
+        loadedIndices: _loadedIndices,
+        proxyIsGlobal: true,
+      );
+      for (final i in mismatch) {
+        await _unloadSiteForOtherReason(i);
+        if (!mounted) return;
+      }
+      try {
+        await ProxyManager().setProxySettings(model.proxySettings);
+      } catch (e) {
+        LogService.instance.log(
+          'Proxy',
+          'Nested open refused: proxy apply failed: $e',
+          level: LogLevel.error,
+          sensitivity: LogSensitivity.sensitive,
+        );
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context).siteSettingsProxyError('$e'),
+            ),
+          ),
+        );
+        return;
+      }
+      if (!mounted) return;
+    }
     await launchUrl(
       a.url,
       homeTitle: model.name,
@@ -3141,6 +3182,9 @@ class _WebSpacePageState extends State<WebSpacePage>
       _webspaces.add(ws);
       webspaceIds.add(ws.id);
     }
+    // Put the archived sites back into the app-tier collections they were
+    // archived from. Runtime only: `_saveWebspaces` strips archive-tier ids.
+    ArchiveMembershipEngine.attach(_webspaces, handle.state.appTierMembership);
     _archiveSlices[handle] = _ArchiveSlice(
       siteIds: siteIds,
       webspaceIds: webspaceIds,
@@ -3224,6 +3268,14 @@ class _WebSpacePageState extends State<WebSpacePage>
     handle.state.webspaces
       ..clear()
       ..addAll(ownedSpaces.map((w) => w.toJson()));
+    // App-tier membership of the archived sites goes into the archive
+    // state and out of the runtime lists, so nothing names them once the
+    // archive is closed (ARCH-001).
+    final membership =
+        ArchiveMembershipEngine.detach(_webspaces, slice.siteIds);
+    handle.state.appTierMembership
+      ..clear()
+      ..addAll(membership);
     await _archive.save(handle);
     await _archive.close(handle);
     // Dispose webviews owned by this archive before removing them from
@@ -3247,6 +3299,9 @@ class _WebSpacePageState extends State<WebSpacePage>
       await _stateStorage.removeState(sid);
       await _cookieSecureStorage.saveCookiesForSite(sid, const []);
       await HtmlCacheService.instance.deleteCache(sid);
+    }
+    for (final m in ownedSites) {
+      await FaviconUrlCache.invalidate(m.initUrl);
     }
     await _proxyPasswordStorage.mutate((draft) {
       for (final sid in slice.siteIds) {
@@ -3400,16 +3455,22 @@ class _WebSpacePageState extends State<WebSpacePage>
         capturedCookies.map((c) => c.toJson()).toList();
     _archiveSlices[target]!.siteIds.add(model.siteId);
     _archiveSlices[target]!.containerIds.add(model.archiveContainerId!);
+    // Remember which app-tier collections the site came from inside the
+    // archive; the runtime lists keep it while the archive is open and
+    // `_saveWebspaces` strips it from the persisted form (ARCH-001).
+    target.state.appTierMembership
+      ..clear()
+      ..addAll(ArchiveMembershipEngine.record(
+        _webspaces,
+        {model.siteId},
+        existing: target.state.appTierMembership,
+      ));
     await _archive.save(target);
+    await FaviconUrlCache.invalidate(model.initUrl);
 
-    // Webspace membership is keyed by siteId (not positional index), so
-    // no change is needed here — the runtime `siteIndices` projection
-    // will continue to surface this site under any webspace it
-    // belonged to whenever the archive is open. When the archive
-    // closes, the siteId stays in webspace.siteIds (persisted) but
-    // drops out of siteIndices (runtime view) automatically.
     _resolveWebspaceIndices();
     await _saveWebViewModels();
+    await _saveWebspaces();
     if (mounted) {
       setState(() {});
       ScaffoldMessenger.of(context).showSnackBar(
@@ -3445,6 +3506,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     // Pop the site out of the archive's state and slice.
     handle.state.sites.removeWhere((s) => s['siteId'] == model.siteId);
     handle.state.cookies.remove(model.siteId);
+    ArchiveMembershipEngine.forget(handle.state.appTierMembership, model.siteId);
     slice.siteIds.remove(model.siteId);
     if (containerId != null) {
       slice.containerIds.remove(containerId);
@@ -3459,6 +3521,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     model.cookies = capturedCookies;
 
     await _saveWebViewModels();
+    await _saveWebspaces();
     if (mounted) {
       setState(() {});
       ScaffoldMessenger.of(context).showSnackBar(
@@ -3927,16 +3990,21 @@ class _WebSpacePageState extends State<WebSpacePage>
     });
   }
 
+  Set<String> get _archivedSiteIds => {
+        for (final m in _webViewModels)
+          if (m.isArchiveTier) m.siteId,
+      };
+
   Future<void> _saveWebspaces() async {
     if (isDemoMode) return; // Don't persist in demo mode
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    // Archive-tier collections live in `_webspaces` for rendering while
-    // open but must not enter app-tier persistence (their membership is
-    // carried in the archive's own encrypted state).
-    List<String> webspacesJson = _webspaces
-        .where((webspace) => !webspace.isArchiveTier)
-        .map((webspace) => jsonEncode(webspace.toJson()))
-        .toList();
+    // Archive-tier collections and archived siteIds live in `_webspaces`
+    // for rendering while open but must not enter app-tier persistence
+    // (the archive's own encrypted state carries them).
+    List<String> webspacesJson = ArchiveMembershipEngine.persistable(
+      _webspaces,
+      _archivedSiteIds,
+    ).map((webspace) => jsonEncode(webspace.toJson())).toList();
     await prefs.setStringList('webspaces', webspacesJson);
   }
 
@@ -6232,7 +6300,10 @@ class _WebSpacePageState extends State<WebSpacePage>
     await SettingsBackupService.exportAndSave(
       context,
       webViewModels: appTierModels,
-      webspaces: _webspaces,
+      webspaces: ArchiveMembershipEngine.persistable(
+        _webspaces,
+        _archivedSiteIds,
+      ),
       themeMode: _themeSettings.toStorageIndex(),
       globalPrefs: readExportedAppPrefs(prefs),
       selectedWebspaceId: _selectedWebspaceId,
@@ -7522,6 +7593,7 @@ class _WebSpacePageState extends State<WebSpacePage>
             size: 16,
             proxy: siteModel.outboundProxySettings,
             customIcon: siteModel.customIconPng,
+            persist: !siteModel.isArchiveTier,
           ),
           SizedBox(width: 6),
           Flexible(
@@ -8130,6 +8202,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                             url: model.initUrl,
                             size: 32,
                             proxy: model.outboundProxySettings,
+                            persist: !model.isArchiveTier,
                           ),
                   ),
                   SizedBox(width: 12),
@@ -8933,6 +9006,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                           size: 28,
                           proxy: _webViewModels[index].outboundProxySettings,
                           customIcon: _webViewModels[index].customIconPng,
+                          persist: !_webViewModels[index].isArchiveTier,
                         ),
                       ),
                     ),
@@ -8986,6 +9060,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                               size: 36,
                               proxy: _webViewModels[index].outboundProxySettings,
                               customIcon: _webViewModels[index].customIconPng,
+                              persist: !_webViewModels[index].isArchiveTier,
                             ),
                           ),
                         ),
@@ -9800,6 +9875,7 @@ class _DispatchPickerSheetState extends State<_DispatchPickerSheet> {
           size: 32,
           proxy: site.outboundProxySettings,
           customIcon: site.customIconPng,
+          persist: !site.isArchiveTier,
         ),
       );
 

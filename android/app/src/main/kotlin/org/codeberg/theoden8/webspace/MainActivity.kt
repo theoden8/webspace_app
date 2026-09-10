@@ -14,7 +14,6 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.FlutterShellArgs
 import io.flutter.plugin.common.MethodChannel
-import java.net.URL
 
 class MainActivity: FlutterActivity() {
     private val CHANNEL = "org.codeberg.theoden8.webspace/shortcuts"
@@ -221,23 +220,14 @@ class MainActivity: FlutterActivity() {
                 }
 
                 val appIcon = IconCompat.createWithResource(this, R.mipmap.ic_launcher)
-                // Prefer Dart-rasterized PNG bytes (handles SVG/ICO favicons that
-                // BitmapFactory.decodeStream can't). Fall back to downloading the
-                // raw iconUrl, then to the app icon.
+                // Dart rasterizes the favicon through the site's proxy; when that
+                // fails the shortcut gets the app icon (HS-003). Never fetch the
+                // page-chosen iconUrl here: this is a raw HttpURLConnection over
+                // the device IP, outside the proxy (LEAK-003).
                 val icon = when {
                     iconBytes != null -> {
                         val bmp = BitmapFactory.decodeByteArray(iconBytes, 0, iconBytes.size)
                         if (bmp != null) IconCompat.createWithBitmap(bmp) else appIcon
-                    }
-                    iconUrl != null -> {
-                        try {
-                            val stream = URL(iconUrl).openStream()
-                            val bitmap = BitmapFactory.decodeStream(stream)
-                            stream.close()
-                            if (bitmap != null) IconCompat.createWithBitmap(bitmap) else appIcon
-                        } catch (e: Exception) {
-                            appIcon
-                        }
                     }
                     else -> appIcon
                 }

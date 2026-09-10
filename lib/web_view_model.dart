@@ -29,6 +29,7 @@ import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
 import 'package:webspace/services/tab_bar_corner.dart';
 import 'package:webspace/services/user_agent_preset.dart';
 import 'package:webspace/services/webview.dart';
+import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/settings/camera.dart';
 import 'package:webspace/settings/screen_share.dart';
 import 'package:webspace/settings/microphone.dart';
@@ -1034,12 +1035,37 @@ class WebViewModel {
   bool isCookieBlocked(String name, String? domain) =>
       matchesBlockedCookie(blockedCookies, name, domain);
 
+  /// Completes with whether the proxy override was applied for the current
+  /// controller. The restore path awaits it before materialising, so no
+  /// navigation leaves before the Android/Linux override is in place.
+  Completer<bool>? _proxyReady;
+  Future<bool> get proxyReady => _proxyReady?.future ?? Future.value(true);
+
+  /// Set by [getWebView] when the platform view was built without an
+  /// initial load because the proxy override had to land first
+  /// (`deferInitialLoadForProxy`). One-shot: [setController] issues the load.
+  bool _initialLoadDeferredForProxy = false;
+
   Future<void> setController() async {
     if (controller == null) {
       return;
     }
+    // Read before the first await: onControllerCreated consumes the pending
+    // restore right after calling us, and that path issues its own load.
+    final restorePending = _pendingRestoreState != null;
+    final ready = Completer<bool>();
+    _proxyReady = ready;
     // Apply proxy settings first (before loading any URLs)
-    await _applyProxySettings();
+    final proxyApplied = await _applyProxySettings();
+    ready.complete(proxyApplied);
+    if (_initialLoadDeferredForProxy) {
+      _initialLoadDeferredForProxy = false;
+      if (proxyApplied && !restorePending) {
+        try {
+          await controller?.loadUrl(currentUrl);
+        } catch (_) {}
+      }
+    }
 
     // The controller can be disposed across these awaits — a memory-pressure
     // eviction, a site delete while `onControllerCreated` is still settling, or
@@ -1085,10 +1111,11 @@ class WebViewModel {
   /// `WKWebsiteDataStore` at WebView construction (via
   /// `inapp.InAppWebViewSettings.proxySettings`). To pick up a runtime
   /// change, the WebView must be rebuilt; see [updateProxySettings].
-  Future<void> _applyProxySettings() async {
+  Future<bool> _applyProxySettings() async {
     final proxyManager = ProxyManager();
     try {
       await proxyManager.setProxySettings(proxySettings);
+      return true;
     } catch (e) {
       LogService.instance.log(
         'WebView',
@@ -1103,13 +1130,17 @@ class WebViewModel {
       // refuse a direct fallback (relay bind failure, malformed host:port).
       // If the site expected a real proxy, swallowing the throw would let
       // the already-initialized page load over the device IP. Blank the
-      // load instead of leaking.
-      if (proxySettings.type != ProxyType.DEFAULT) {
+      // load instead of leaking. `setProxySettings` throws on the effective
+      // proxy, so a DEFAULT site inheriting an unusable global proxy blanks
+      // too (LEAK-003).
+      if (resolveEffectiveProxy(proxySettings, siteId: siteId).type !=
+          ProxyType.DEFAULT) {
         try {
           await controller?.stopLoading();
           await controller?.loadUrl('about:blank');
         } catch (_) {}
       }
+      return false;
     }
   }
 
@@ -1194,16 +1225,18 @@ class WebViewModel {
         onScreenShareDecision,
     List<UserScriptConfig> globalUserScripts = const [],
   }) {
-    // Fail closed while Tor is still bootstrapping (TOR-008). The stored
-    // `proxySettings.type` is the source of truth — resolving through the
-    // global-inherit path would keep DEFAULT sites off Tor, which is the
-    // documented decision for globally-inherited traffic (PROXY-011 last
-    // scenario). Constructing an InAppWebView here with a null proxy binds
-    // its WKWebsiteDataStore to no proxy for the life of the widget, so a
-    // later `Up` transition would silently leak — hence the widget-level
-    // gate rather than a proxy substitution.
-    final needsTor = proxySettings.type == ProxyType.TOR;
-    if (needsTor && !TorService.instance.status.isUp) {
+    // Fail closed while Tor is still bootstrapping (TOR-008), for explicit
+    // Tor sites and for DEFAULT sites inheriting a global Tor (PROXY-011).
+    // Constructing an InAppWebView here with a null proxy binds its
+    // WKWebsiteDataStore to no proxy for the life of the widget, so a later
+    // `Up` transition would silently leak — hence the widget-level gate
+    // rather than a proxy substitution.
+    final effectiveProxy = resolveEffectiveProxy(proxySettings, siteId: siteId);
+    if (waitsForTor(
+      proxySettings,
+      siteId: siteId,
+      torUp: TorService.instance.status.isUp,
+    )) {
       // Do not cache the placeholder in `webview` — the next getWebView call
       // after WebSpacePage's Tor listener disposes + setStates must fall
       // through to real construction.
@@ -1264,6 +1297,12 @@ class WebViewModel {
         isAndroid: hostIsAndroid,
         isFileImport: currentUrl.startsWith('file://'),
       );
+      final bool deferForProxy = deferInitialLoadForProxy(
+        proxyIsGlobal: hostIsAndroid || hostIsLinux,
+        effectiveNonDefault: effectiveProxy.type != ProxyType.DEFAULT,
+        overrideActive: ProxyManager.overrideActive,
+      );
+      _initialLoadDeferredForProxy = deferForProxy && !deferRestoreLoad;
       webview = WebViewFactory.createWebView(
         config: WebViewConfig(
           key: UniqueKey(), // Force new widget state when recreating
@@ -1278,7 +1317,7 @@ class WebViewModel {
           // there is no Flutter route-pop edge-swipe here, so opt into
           // WKWebView's native back/forward swipe. Nested screens don't (NAV-008).
           backForwardGestures: true,
-          deferInitialLoad: deferRestoreLoad,
+          deferInitialLoad: deferRestoreLoad || deferForProxy,
           language: effectiveLanguage, // Use WebViewModel's language, not parameter
           zoomPercent: zoomPercent,
           // Umbrella `trackingProtectionEnabled`: when on, the four
@@ -1699,6 +1738,9 @@ class WebViewModel {
             final materialize = deferRestoreLoad;
             final restoreUrl = currentUrl;
             unawaited(() async {
+              // The override must land before the restored entry loads;
+              // on a proxy failure stay blank (fail closed).
+              if (!await proxyReady) return;
               try {
                 final ok = await ctrl.restoreState(pending);
                 LogService.instance.log(

@@ -14,17 +14,24 @@ class ArchiveState {
     List<Map<String, dynamic>>? webspaces,
     List<Map<String, dynamic>>? sites,
     Map<String, List<Map<String, dynamic>>>? cookies,
+    Map<String, List<String>>? appTierMembership,
     this.selectedWebspaceId,
   })  : createdAt = createdAt ?? DateTime.now().toUtc(),
         webspaces = webspaces ?? <Map<String, dynamic>>[],
         sites = sites ?? <Map<String, dynamic>>[],
-        cookies = cookies ?? <String, List<Map<String, dynamic>>>{};
+        cookies = cookies ?? <String, List<Map<String, dynamic>>>{},
+        appTierMembership = appTierMembership ?? <String, List<String>>{};
 
   final int version;
   final DateTime createdAt;
   final List<Map<String, dynamic>> webspaces;
   final List<Map<String, dynamic>> sites;
   final Map<String, List<Map<String, dynamic>>> cookies;
+  /// Which app-tier webspaces each archived site belonged to before it was
+  /// archived (`{webspaceId: [siteId]}`). Lives here, not in the plaintext
+  /// `webspaces` pref, so a closed archive leaves no dangling ids behind
+  /// (ARCH-001); reopening re-attaches the sites to their collections.
+  final Map<String, List<String>> appTierMembership;
   String? selectedWebspaceId;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -33,6 +40,8 @@ class ArchiveState {
         'webspaces': webspaces,
         'sites': sites,
         'cookies': cookies,
+        if (appTierMembership.isNotEmpty)
+          'appTierMembership': appTierMembership,
         if (selectedWebspaceId != null)
           'selectedWebspaceId': selectedWebspaceId,
       };
@@ -63,6 +72,14 @@ class ArchiveState {
           .map((m) => Map<String, dynamic>.from(m))
           .toList(),
       cookies: cookies,
+      appTierMembership: {
+        for (final e
+            in (json['appTierMembership'] as Map<String, dynamic>? ??
+                    const <String, dynamic>{})
+                .entries)
+          if (e.value is List)
+            e.key: (e.value as List).whereType<String>().toList(),
+      },
       selectedWebspaceId: json['selectedWebspaceId'] as String?,
     );
   }

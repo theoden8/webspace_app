@@ -295,6 +295,12 @@ class ProxyManager {
   factory ProxyManager() => _instance;
   ProxyManager._internal();
 
+  /// Whether the process-global Android/Linux override currently names a
+  /// proxy. Read by `deferInitialLoadForProxy` so a DEFAULT site built while
+  /// another site's proxy is still in force does not issue its first request
+  /// through it.
+  static bool overrideActive = false;
+
   Future<void> setProxySettings(UserProxySettings settings) async {
     if (!PlatformInfo.isProxySupported) {
       LogService.instance.log(
@@ -340,6 +346,7 @@ class ProxyManager {
       );
       final sw = Stopwatch()..start();
       await controller.clearProxyOverride();
+      overrideActive = false;
       LogService.instance.log(
         'Proxy',
         'Cleared proxy override (native call took ${sw.elapsedMilliseconds}ms)',
@@ -425,6 +432,7 @@ class ProxyManager {
           bypassRules: ['<local>'],
         ),
       );
+      overrideActive = true;
       LogService.instance.log(
         'Proxy',
         'Applied proxy override via relay (native call took ${sw.elapsedMilliseconds}ms, '
@@ -459,6 +467,7 @@ class ProxyManager {
         bypassRules: ['<local>'],
       ),
     );
+    overrideActive = true;
     LogService.instance.log(
       'Proxy',
       'Applied proxy override (native call took ${sw.elapsedMilliseconds}ms, '
@@ -474,6 +483,7 @@ class ProxyManager {
     if (hostIsAndroid) await ProxyRelay.instance.stop();
     final sw = Stopwatch()..start();
     await inapp.ProxyController.instance().clearProxyOverride();
+    overrideActive = false;
     LogService.instance.log(
       'Proxy',
       'Cleared proxy override via clearProxy() (native call took ${sw.elapsedMilliseconds}ms)',
@@ -1104,6 +1114,19 @@ bool isEscapedPauseTimersAlert({
 /// ERR_FILE_NOT_FOUND — and back/forward history is meaningless for a static
 /// local page anyway, so they keep rendering their cached `initialData`.
 /// Only meaningful when nav-state bytes are actually pending for this build.
+/// Android and Linux apply the proxy as a process-global override from Dart
+/// after the platform view exists (`WebViewModel.setController`). A site whose
+/// effective proxy is non-DEFAULT must therefore carry no initial load, or its
+/// first request leaves before the override lands; the same holds for a
+/// DEFAULT site while the override still names another site's proxy.
+/// `setController` issues the first load once the override is in (LEAK-003).
+bool deferInitialLoadForProxy({
+  required bool proxyIsGlobal,
+  required bool effectiveNonDefault,
+  required bool overrideActive,
+}) =>
+    proxyIsGlobal && (effectiveNonDefault || overrideActive);
+
 bool deferInitialLoadForRestore({
   required bool hasPendingRestoreState,
   required bool isAndroid,
@@ -1799,19 +1822,20 @@ class WebViewFactory {
     // expose neither the cleartext archive siteId nor a count delta
     // that correlates 1:1 with archive contents.
     final containerSiteIdentifier = config.archiveContainerId ?? config.siteId;
-    // Never bind a persistent container for an incognito site. iOS/macOS/Linux
-    // ignore containerId under incognito (the fork short-circuits to an
-    // ephemeral store), but Android's androidx.webkit Profile is always
-    // on-disk and has no incognito guard, so passing containerId there binds a
-    // persistent profile whose localStorage/IDB/ServiceWorkers survive restart
-    // — defeating the ephemeral promise. Dropping it sends the incognito site
-    // to the default (non-persistent-semantics) store on Android; two
-    // same-base incognito sites then share it for the session, the correct
-    // tradeoff for honoring ephemerality (the fork exposes no per-site
-    // ephemeral profile).
+    // iOS/macOS/Linux ignore containerId under incognito: the fork
+    // short-circuits to an ephemeral store, so binding nothing is right
+    // there. Android has no ephemeral profile at all; the fork's
+    // setIncognito only wipes the default jar and disables the cache, and
+    // the androidx default Profile is persistent on disk. An unbound
+    // incognito or archive-tier site there would share `app_webview/Default`
+    // with every other such site and leave its storage behind after the
+    // archive closes (ARCH-006/ARCH-007). So Android always binds a named
+    // profile and relies on the existing teardown: incognito ids are deleted
+    // at startup and archive container ids at close.
+    final bindUnderIncognito = hostIsAndroid;
     final containerId = (ContainerNative.instance.cachedSupported &&
             containerSiteIdentifier != null &&
-            !config.incognito)
+            (!config.incognito || bindUnderIncognito))
         ? 'ws-$containerSiteIdentifier'
         : null;
 
@@ -3451,6 +3475,10 @@ class WebViewFactory {
     // originally tested), disabled in production Stable WebView.
     // Production users get the speed-up of cached first paint without
     // the dev-only crash.
+    final binding = _bindingFor(config);
+    final containerId = binding.containerId;
+    final inappProxy = binding.proxy;
+    final proxyUnavailable = binding.proxyUnavailable;
     final isFileImport = config.initialUrl.startsWith('file://');
     // When the cache is missing for a file import (incognito mode,
     // post-upgrade cache wipe, …) we feed initialData with a synthetic
@@ -3463,9 +3491,14 @@ class WebViewFactory {
     // cached-HTML reload-to-live machinery below also stays off — the
     // onControllerCreated restore handler owns the first navigation instead.
     final suppressInitialLoad = config.deferInitialLoad;
-    final renderInitialData =
-        (config.initialHtml != null || isFileImport) && !suppressInitialLoad;
-    final usesCachedHtml = config.initialHtml != null && !suppressInitialLoad;
+    // A cached snapshot rendered against a live baseUrl fetches its
+    // subresources; never do that for a site whose proxy is not bound
+    // (SEC-009).
+    final renderInitialData = (config.initialHtml != null || isFileImport) &&
+        !suppressInitialLoad &&
+        !proxyUnavailable;
+    final usesCachedHtml =
+        config.initialHtml != null && !suppressInitialLoad && !proxyUnavailable;
     // One-shot: when the cached HTML's first onLoadStop fires, do
     // exactly one controller.reload() to get a live page. Subsequent
     // onLoadStop events (post-reload, or for SPA navigations) leave
@@ -3526,10 +3559,6 @@ class WebViewFactory {
     // loop. See lib/services/ios_universal_link_bypass.dart.
     final iosUlBypass = IosUniversalLinkBypass();
 
-    final binding = _bindingFor(config);
-    final containerId = binding.containerId;
-    final inappProxy = binding.proxy;
-    final proxyUnavailable = binding.proxyUnavailable;
 
     LogService.instance.log(
       'DnsBlock',

@@ -149,3 +149,13 @@ abstract class OutboundHttpFactory {
   if (port == null || port <= 0 || port > 65535) return null;
   return (host, port);
 }
+
+/// TOR-008: whether a site's webview must wait for the Tor runtime. Resolves
+/// DEFAULT through the global proxy (PROXY-011), so a site that inherits a
+/// global Tor is gated exactly like one that opted into Tor itself.
+bool waitsForTor(
+  UserProxySettings perSite, {
+  String? siteId,
+  required bool torUp,
+}) =>
+    !torUp && resolveEffectiveProxy(perSite, siteId: siteId).type == ProxyType.TOR;

@@ -23,6 +23,7 @@ import 'package:webspace/services/surface_repaint_engine.dart';
 import 'package:webspace/services/surface_route_observer.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/webview.dart';
+import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/settings/camera.dart';
 import 'package:webspace/settings/microphone.dart';
 import 'package:webspace/settings/screen_share.dart';
@@ -365,8 +366,11 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     // it here binds its WKWebsiteDataStore to a null proxy for the widget's
     // lifetime, so a later Up transition would leak — the nested twin of the
     // gate in WebViewModel.getWebView.
-    if (widget.proxySettings.type == ProxyType.TOR &&
-        !TorService.instance.status.isUp) {
+    if (waitsForTor(
+      widget.proxySettings,
+      siteId: widget.siteId,
+      torUp: TorService.instance.status.isUp,
+    )) {
       _torStatusSub = TorService.instance.statusStream.listen((s) {
         if (s is TorUp && _webView == null && mounted) {
           setState(() => _webView = _createNestedInappWebView());
