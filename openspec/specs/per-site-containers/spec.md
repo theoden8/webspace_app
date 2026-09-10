@@ -32,8 +32,15 @@ The runtime check that decides Profile vs. legacy engine is in
   This catches the device + WebView combination correctly (e.g. an
   Android 6 device with an outdated System WebView returns false
   even though `androidx.webkit` is present in the build).
-- **iOS / macOS.** Native side checks
-  `if #available(iOS 17.0, macOS 14.0, *)`.
+- **iOS / macOS.** Dart side probes the running OS
+  (`appleOsMeetsFloor` over `Platform.operatingSystemVersion`: iOS 17,
+  macOS 14) on top of the fork's build-time `isClassSupported`. The
+  deployment floors are iOS 15 and macOS 10.15, and the fork's
+  `WKWebsiteDataStore(forIdentifier:)` bind no-ops below its
+  `#available(iOS 17.0, macOS 14.0, *)` guard, so without the probe every
+  site below the floor would share the default store while
+  `_useContainers` disabled the legacy mutex. Below the floor
+  `isSupported()` is false and the legacy engine runs.
 - **Linux.** Build-time check via
   `inapp.ContainerController.isClassSupported(platform: TargetPlatform.linux)`.
   The fork's CMakeLists already gates compilation on

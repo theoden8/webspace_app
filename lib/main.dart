@@ -2859,42 +2859,59 @@ class _WebSpacePageState extends State<WebSpacePage>
       }
       if (!mounted) return;
     }
-    await launchUrl(
-      a.url,
-      homeTitle: model.name,
-      siteId: model.siteId,
-      incognito: model.incognito,
-      thirdPartyCookiesEnabled: model.effectiveThirdPartyCookiesEnabled,
-      clearUrlEnabled: model.clearUrlEnabled,
-      dnsBlockEnabled: model.dnsBlockEnabled,
-      dnsBlockLevel: model.effectiveDnsBlockLevel,
-      contentBlockEnabled: model.contentBlockEnabled,
-      disabledFilterLists: model.effectiveDisabledFilterLists,
-      localCdnEnabled: model.effectiveLocalCdnEnabled,
-      contributesBlockStats: model.contributesBlockStats,
-      trackingProtectionEnabled: model.trackingProtectionEnabled,
-      letterboxEnabled: model.letterboxEnabled,
-      spoofWindowWidth: model.spoofWindowWidth,
-      spoofWindowHeight: model.spoofWindowHeight,
-      fingerprintResetNonce: model.fingerprintResetNonce,
-      language: model.language,
-      zoomPercent: model.zoomPercent,
-      locationMode: model.locationMode,
-      spoofLatitude: model.spoofLatitude,
-      spoofLongitude: model.spoofLongitude,
-      spoofAccuracy: model.spoofAccuracy,
-      spoofTimezone: model.spoofTimezone,
-      spoofTimezoneFromLocation: model.spoofTimezoneFromLocation,
-      liveLocationGranularity: model.liveLocationGranularity,
-      webRtcPolicy: model.webRtcPolicy,
-      userAgent: model.effectiveUserAgentOrNull,
-      javascriptEnabled: model.javascriptEnabled,
-      userScripts: model.combineUserScripts(_globalUserScripts),
-      proxySettings: model.outboundProxySettings,
-      notificationsEnabled: model.effectiveNotificationsEnabled,
-      externalLinksInBrowser: model.effectiveExternalLinksInBrowser,
-    );
+    await _launchNestedForModel(model, a.url);
   }
+
+  /// The one place a nested screen opens for an existing site from this
+  /// widget. Mirrors the `launchUrlFunc` call in `WebViewModel.getWebView`
+  /// so a share, deep link or URL-bar submission carries the same per-site
+  /// posture as a tapped link (NESTED-010); the parity test holds every
+  /// call of `launchUrl` in this file to the whole chain.
+  Future<void> _launchNestedForModel(WebViewModel model, String url) =>
+      launchUrl(
+        url,
+        homeTitle: model.name,
+        siteId: model.siteId,
+        incognito: model.effectiveIncognito,
+        thirdPartyCookiesEnabled: model.effectiveThirdPartyCookiesEnabled,
+        clearUrlEnabled: model.clearUrlEnabled,
+        dnsBlockEnabled: model.dnsBlockEnabled,
+        dnsBlockLevel: model.effectiveDnsBlockLevel,
+        contentBlockEnabled: model.contentBlockEnabled,
+        disabledFilterLists: model.effectiveDisabledFilterLists,
+        localCdnEnabled: model.effectiveLocalCdnEnabled,
+        contributesBlockStats: model.contributesBlockStats,
+        trackingProtectionEnabled: model.trackingProtectionEnabled,
+        letterboxEnabled: model.letterboxEnabled,
+        spoofWindowWidth: model.spoofWindowWidth,
+        spoofWindowHeight: model.spoofWindowHeight,
+        fingerprintResetNonce: model.fingerprintResetNonce,
+        language: model.language,
+        zoomPercent: model.zoomPercent,
+        locationMode: model.locationMode,
+        spoofLatitude: model.spoofLatitude,
+        spoofLongitude: model.spoofLongitude,
+        spoofAccuracy: model.spoofAccuracy,
+        spoofTimezone: model.spoofTimezone,
+        spoofTimezoneFromLocation: model.spoofTimezoneFromLocation,
+        liveLocationGranularity: model.liveLocationGranularity,
+        webRtcPolicy: model.webRtcPolicy,
+        userAgent: model.effectiveUserAgentOrNull,
+        javascriptEnabled: model.javascriptEnabled,
+        userScripts: model.combineUserScripts(_globalUserScripts),
+        proxySettings: model.outboundProxySettings,
+        notificationsEnabled: model.effectiveNotificationsEnabled,
+        externalLinksInBrowser: model.effectiveExternalLinksInBrowser,
+        blockAutoRedirects: model.blockAutoRedirects,
+        blockedCookies: model.blockedCookies,
+        cameraMode: model.effectiveCameraMode,
+        virtualCameraSource: model.virtualCameraSource,
+        microphoneMode: model.effectiveMicrophoneMode,
+        virtualMicrophoneSource: model.virtualMicrophoneSource,
+        screenShareMode: model.effectiveScreenShareMode,
+        virtualScreenSource: model.virtualScreenSource,
+        protectedContentAllowed: model.effectiveProtectedContentAllowed,
+      );
 
   /// LIR-009 + LIR-010 option 3: create a brand-new site rooted at the
   /// stripped home URL with a synthesized `baseDomain` claim, then
@@ -2934,24 +2951,53 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// LIR-012: an HTML file share short-circuits to "create new site"
   /// (only sensible action — opaque file content can't be claimed by an
   /// existing site). HTML lives in `HtmlImportStorage`, identical to the
-  /// in-app file-import flow.
+  /// in-app file-import flow. On Android any app can deliver this share
+  /// without the chooser, so the site is reviewed first and never put on
+  /// screen unasked.
   Future<void> _executeCreateSiteFromHtml(
     DispatchCreateSiteFromHtml a,
   ) async {
     final stateSetter = () { setState((){}); };
     final fileSiteUrl =
         'file:///webspace_import_${DateTime.now().microsecondsSinceEpoch}.html';
+    final title = a.suggestedTitle?.trim() ?? '';
+    final loc = AppLocalizations.of(context);
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(loc.homeQrReviewTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (title.isNotEmpty) Text(loc.homeQrReviewName(title)),
+            Text(loc.homeQrReviewUrl(fileSiteUrl)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(loc.commonCancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(loc.homeCreateAction),
+          ),
+        ],
+      ),
+    );
+    if (accepted != true || !mounted) return;
     final model = WebViewModel(
       initUrl: fileSiteUrl,
       stateSetterF: stateSetter,
     );
-    final title = a.suggestedTitle?.trim();
-    if (title != null && title.isNotEmpty) {
+    if (title.isNotEmpty) {
       model.name = title;
       model.pageTitle = title;
     }
     await HtmlImportStorage.instance.saveHtml(model.siteId, a.html, fileSiteUrl);
-    await _registerNewSite(model);
+    if (!mounted) return;
+    await _registerNewSite(model, activate: false);
   }
 
   /// Persist [a.claimAdditions] onto the chosen site (deduped against
@@ -7655,41 +7701,7 @@ class _WebSpacePageState extends State<WebSpacePage>
               // typing a URL behaves identically to tapping an outbound
               // link.
               if (getNormalizedDomain(url) != getNormalizedDomain(model.initUrl)) {
-                await launchUrl(
-                  url,
-                  homeTitle: model.name,
-                  siteId: model.siteId,
-                  incognito: model.incognito,
-                  thirdPartyCookiesEnabled: model.effectiveThirdPartyCookiesEnabled,
-                  clearUrlEnabled: model.clearUrlEnabled,
-                  dnsBlockEnabled: model.dnsBlockEnabled,
-                  dnsBlockLevel: model.effectiveDnsBlockLevel,
-                  contentBlockEnabled: model.contentBlockEnabled,
-                  disabledFilterLists: model.effectiveDisabledFilterLists,
-                  localCdnEnabled: model.localCdnEnabled,
-                  contributesBlockStats: model.contributesBlockStats,
-                  trackingProtectionEnabled: model.trackingProtectionEnabled,
-                  letterboxEnabled: model.letterboxEnabled,
-                  spoofWindowWidth: model.spoofWindowWidth,
-                  spoofWindowHeight: model.spoofWindowHeight,
-                  fingerprintResetNonce: model.fingerprintResetNonce,
-                  language: model.language,
-                  zoomPercent: model.zoomPercent,
-                  locationMode: model.locationMode,
-                  spoofLatitude: model.spoofLatitude,
-                  spoofLongitude: model.spoofLongitude,
-                  spoofAccuracy: model.spoofAccuracy,
-                  spoofTimezone: model.spoofTimezone,
-                  spoofTimezoneFromLocation: model.spoofTimezoneFromLocation,
-                  liveLocationGranularity: model.liveLocationGranularity,
-                  webRtcPolicy: model.webRtcPolicy,
-                  userAgent: model.effectiveUserAgentOrNull,
-                  javascriptEnabled: model.javascriptEnabled,
-                  userScripts: model.combineUserScripts(_globalUserScripts),
-                  proxySettings: model.outboundProxySettings,
-                  notificationsEnabled: model.notificationsEnabled,
-                  externalLinksInBrowser: model.effectiveExternalLinksInBrowser,
-                );
+                await _launchNestedForModel(model, url);
                 return;
               }
               final controller = model.getController(launchUrl, _cookieManager, _containerCookieManager, _saveWebViewModels, globalUserScripts: _globalUserScripts);
@@ -8060,18 +8072,15 @@ class _WebSpacePageState extends State<WebSpacePage>
     final loc = AppLocalizations.of(context);
     final url = qr['initUrl'] as String? ?? '';
     final name = (qr['name'] as String?) ?? extractDomain(url);
-    final proxyJson = qr['proxySettings'];
-    String? proxyAddress;
-    if (proxyJson is Map<String, dynamic>) {
-      final type = proxyJson['type'];
-      final address = proxyJson['address'];
-      if (type is int &&
-          type != ProxyType.DEFAULT.index &&
-          address is String &&
-          address.isNotEmpty) {
-        proxyAddress = address;
-      }
-    }
+    final proxy = SiteSettingsQrCodec.reviewProxy(qr);
+    final proxyAddress = proxy?.address ?? '';
+    final proxyLabel = proxy == null
+        ? null
+        : proxy.type == ProxyType.TOR
+            ? loc.torStatusTitle
+            : proxyAddress.isNotEmpty
+                ? proxyAddress
+                : proxy.type.name;
     bool turnsOff(String key) => qr[key] == false;
     bool turnsOn(String key) => qr[key] == true;
     final weakened = <String>[
@@ -8112,7 +8121,7 @@ class _WebSpacePageState extends State<WebSpacePage>
               SizedBox(height: 12),
               Text(loc.homeQrReviewUrl(url)),
               Text(loc.homeQrReviewName(name)),
-              if (proxyAddress != null) Text(loc.homeQrReviewProxy(proxyAddress)),
+              if (proxyLabel != null) Text(loc.homeQrReviewProxy(proxyLabel)),
               if (weakened.isNotEmpty) ...[
                 SizedBox(height: 12),
                 Text(loc.homeQrReviewTurnsOff(weakened.join(', '))),

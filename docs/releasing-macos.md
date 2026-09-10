@@ -131,10 +131,12 @@ and deletes it afterwards. Repository secrets:
 
 ## Known limits to state in the listing
 
-- Per-site containers and per-site proxy need macOS 14. On 10.15 to 13 the
-  app falls back to the legacy cookie-isolation engine, where sites sharing a
-  base domain cannot load at the same time. `LSMinimumSystemVersion` is still
-  10.15.
+- Per-site containers and per-site proxy need macOS 14 (probed at runtime
+  by `appleOsMeetsFloor`). On 10.15 to 13 the app falls back to the legacy
+  cookie-isolation engine, where sites sharing a base domain cannot load at
+  the same time, the proxy controls are hidden, and a proxy carried in by a
+  backup or QR fails closed (blank page) rather than loading over the
+  device IP. `LSMinimumSystemVersion` is still 10.15.
 - Self-signed and unknown-CA sites fail closed. macOS 15+ WKWebView ignores
   `URLCredential(trust:)` and the system trust store is out of reach from a
   sandboxed app, so the trust prompt is skipped on Apple platforms

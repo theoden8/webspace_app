@@ -1,6 +1,8 @@
 import 'dart:convert';
-import 'package:webspace/platform/host_platform.dart';
 import 'dart:typed_data';
+
+import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/settings/proxy.dart';
 
 /// Encode/decode the QR-shareable subset of a [WebViewModel] JSON dict.
 ///
@@ -184,11 +186,24 @@ class SiteSettingsQrCodec {
       // receiver's live proxy credentials.
       final proxy = out['proxySettings'];
       if (proxy is Map) {
-        out['proxySettings'] = <String, dynamic>{
+        final stripped = <String, dynamic>{
           for (final e in proxy.entries)
             if (e.key is String && e.key != 'password')
               e.key as String: e.value,
         };
+        // `UserProxySettings.fromJson` coerces a numeric-string `type`, so
+        // a value the review dialog could not classify would still apply.
+        // Hold the payload to exactly what our own encoder emits.
+        final type = stripped['type'];
+        if (type != null &&
+            (type is! int || type < 0 || type >= ProxyType.values.length)) {
+          return null;
+        }
+        for (final key in const ['address', 'username', 'torExitCountry']) {
+          final value = stripped[key];
+          if (value != null && value is! String) return null;
+        }
+        out['proxySettings'] = stripped;
       }
       if (out['initUrl'] is! String ||
           (out['initUrl'] as String).isEmpty) {
@@ -207,6 +222,19 @@ class SiteSettingsQrCodec {
     } catch (_) {
       return null;
     }
+  }
+
+  /// The proxy the apply path installs for a decoded payload, read through
+  /// the same `UserProxySettings.fromJson` so the review dialog cannot
+  /// disagree with it. Null when the payload sets no proxy.
+  static UserProxySettings? reviewProxy(Map<String, dynamic> qr) {
+    final json = qr['proxySettings'];
+    if (json is! Map) return null;
+    final proxy = UserProxySettings.fromJson(<String, dynamic>{
+      for (final e in json.entries)
+        if (e.key is String) e.key as String: e.value,
+    });
+    return proxy.type == ProxyType.DEFAULT ? null : proxy;
   }
 
   /// True if [input] looks like a webspace QR URI (any version).

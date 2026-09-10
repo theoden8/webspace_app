@@ -181,15 +181,17 @@ Proxy configuration UI SHALL only be displayed on supported platforms.
 
 #### Scenario: Show proxy UI on supported platforms
 
-**Given** the app is running on Android, iOS, macOS, or Linux
+**Given** the app is running on Android, iOS 17+, macOS 14+, or Linux
 **When** the user opens site settings
 **Then** the proxy type dropdown and address field are displayed
 
-`PlatformInfo.isProxySupported` returns true unconditionally on iOS and
-macOS — the version gate (`#available(iOS 17.0, macOS 14.0, *)`) lives
-inside the fork's native code. On older OS versions the per-site proxy
-block silently no-ops; the UI shows the controls but the site will route
-through system default.
+`PlatformInfo.isProxySupported` is true on iOS 17+ / macOS 14+ only
+(`appleOsMeetsFloor` over `Platform.operatingSystemVersion`); the fork's
+`proxyConfigurations` bind is `#available(iOS 17.0, macOS 14.0, *)` and
+no-ops below it. Below the floor the controls are hidden and a persisted
+non-DEFAULT proxy (from a backup, a QR, or the app-wide proxy) makes the
+webview fail closed (`proxyUnavailable`, blank load) instead of routing
+through the system default (LEAK-003).
 
 ---
 
@@ -375,8 +377,8 @@ flutter_inappwebview fork (github.com/theoden8/flutter_inappwebview)
 | Platform | Proxy Support | UI Visibility | Behavior |
 |----------|--------------|---------------|----------|
 | Android  | Full (per-site, serialised) | Shown (when `PROXY_OVERRIDE` feature present) | `inapp.ProxyController` singleton; data model is genuinely per-site, but mismatched-proxy sites cannot stay loaded concurrently — activation cold-starts the conflicting ones (PROXY-008) |
-| iOS      | Full (per-site, iOS 17+) | Shown unconditionally | WebSpace fork attaches `proxyConfigurations` to per-site `WKWebsiteDataStore`; iOS <17 silently routes through system default |
-| macOS    | Full (per-site, macOS 14+) | Shown unconditionally | Same pattern as iOS; macOS <14 silently routes through system default |
+| iOS      | Full (per-site, iOS 17+) | Shown on iOS 17+ | WebSpace fork attaches `proxyConfigurations` to per-site `WKWebsiteDataStore`; below iOS 17 the controls are hidden and a persisted non-DEFAULT proxy fails closed (blank load) |
+| macOS    | Full (per-site, macOS 14+) | Shown on macOS 14+ | Same pattern as iOS; below macOS 14 the controls are hidden and a persisted non-DEFAULT proxy fails closed |
 | Linux    | Full (global override, fan-out) | Shown unconditionally | WebSpace fork's `flutter_inappwebview_linux` ProxyManager applies `webkit_network_session_set_proxy_settings` to the default session AND every cached container session, so contained sites honor the global proxy too; per-site is still last-write-wins (no per-site proxy primitive on Linux) |
 | Windows  | Limited      | Conditional   | Shown only if `PROXY_OVERRIDE` supported |
 
@@ -429,8 +431,10 @@ flutter_inappwebview fork (github.com/theoden8/flutter_inappwebview)
 
 ### Older OS fallback
 
-1. Configure a non-DEFAULT proxy on iOS 16 or macOS 13.
-2. Page loads should succeed and route through system default — the
-   patched `#available(iOS 17.0, macOS 14.0, *)` block silently no-ops.
-3. The UI should still allow the configuration (no crash), matching
-   `PlatformInfo.isProxySupported = true`.
+1. Restore a backup carrying a non-DEFAULT per-site proxy onto iOS 16 or
+   macOS 13.
+2. Site settings show no proxy controls
+   (`PlatformInfo.isProxySupported` is false below the floor).
+3. The site renders blank rather than loading over the device IP
+   (`proxyUnavailable`); the same holds for every site while the app-wide
+   proxy is non-DEFAULT.

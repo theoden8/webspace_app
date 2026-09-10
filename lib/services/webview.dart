@@ -1,6 +1,7 @@
 import 'dart:collection';
 import 'dart:convert';
 import 'dart:math' as math;
+import 'package:webspace/platform/apple_os_floor.dart';
 import 'package:webspace/platform/host_platform.dart';
 
 import 'package:file_picker/file_picker.dart';
@@ -510,14 +511,20 @@ class PlatformInfo {
   static bool? _isProxySupportedCached;
 
   static Future<void> initialize() async {
-    if (hostIsIOS || hostIsMacOS || hostIsLinux) {
-      // iOS / macOS: native side gates per-version
-      // (`#available(iOS 17.0, macOS 14.0, *)`); surface the toggle
-      // unconditionally and let the per-site proxy block silently
-      // no-op on older OS releases.
-      // Linux: the fork's ProxyController binds via
-      // `webkit_network_session_set_proxy_settings`, available on
-      // every WebKitGTK / WPE build we support.
+    if (hostIsIOS || hostIsMacOS) {
+      // The fork writes the per-site proxy onto
+      // `WKWebsiteDataStore.proxyConfigurations`, which is
+      // `@available(iOS 17.0, macOS 14.0, *)`. Below the floor the field is
+      // ignored and the site would load over the device IP (LEAK-003), so
+      // report no support: the row is hidden and `_bindingFor` fails closed.
+      _isProxySupportedCached =
+          appleOsMeetsFloor(hostOperatingSystemVersion, isIOS: hostIsIOS);
+      return;
+    }
+    if (hostIsLinux) {
+      // The fork's ProxyController binds via
+      // `webkit_network_session_set_proxy_settings`, available on every
+      // WebKitGTK / WPE build we support.
       _isProxySupportedCached = true;
       return;
     }
@@ -1855,14 +1862,15 @@ class WebViewFactory {
             config.proxySettings != null
         ? resolveEffectiveProxy(config.proxySettings!, siteId: config.siteId)
         : null;
-    final inappProxy =
-        effectiveProxy != null ? _userProxyToInappProxy(effectiveProxy) : null;
+    final inappProxy = effectiveProxy != null && PlatformInfo.isProxySupported
+        ? _userProxyToInappProxy(effectiveProxy)
+        : null;
     // Fail closed: on iOS/macOS the per-site proxy is bound here via
     // `proxySettings`. If the site expects a non-DEFAULT proxy but the
     // address is malformed (e.g. a hand-edited backup that bypassed UI
-    // validation), `_userProxyToInappProxy` returns null and the webview
-    // would otherwise load over the device IP. Blank the initial load
-    // instead of leaking.
+    // validation), or the OS is below the `proxyConfigurations` floor,
+    // `inappProxy` is null and the webview would otherwise load over the
+    // device IP. Blank the initial load instead of leaking.
     final proxyUnavailable = effectiveProxy != null &&
         effectiveProxy.type != ProxyType.DEFAULT &&
         inappProxy == null;
