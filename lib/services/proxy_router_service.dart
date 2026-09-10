@@ -127,7 +127,8 @@ class ProxyRouterService {
     if (endpoint == null) {
       LogService.instance.log(
         'Proxy',
-        'Router relay failed to bind; falling back to serialised per-site proxy',
+        'Router relay failed to bind (${_relay.lastError ?? 'no reason reported'}); '
+            'falling back to serialised per-site proxy',
         level: LogLevel.error,
       );
       return null;

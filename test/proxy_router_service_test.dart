@@ -25,6 +25,9 @@ class FakeRelay implements ProxyRelayApi {
   /// When false, `startRouter` reports a bind failure.
   bool canBind = true;
 
+  @override
+  String? get lastError => canBind ? null : 'FAKE_BIND_FAILED: no';
+
   /// When false, `setRoutes` rejects the table.
   bool acceptsRoutes = true;
 

@@ -299,16 +299,30 @@ class ProxyRelay(
 
     private fun selfConnects(socket: ServerSocket): Boolean {
         val addr = InetSocketAddress(socket.inetAddress, socket.localPort)
-        return try {
-            Socket().use { probe ->
-                probe.connect(addr, SELF_TEST_TIMEOUT_MS)
-                // The accept loop is not running yet, but the kernel completes
-                // the handshake from the backlog, which is all this proves.
-                true
+        // Off the caller's thread, always. `start`/`startRouter` are reached
+        // from the method channel, which Flutter dispatches on the Android
+        // main thread, and a connect() there throws
+        // NetworkOnMainThreadException. Caught below it reads as "this
+        // address does not serve the device", so every candidate fails, the
+        // 127.0.0.1 fallback fails with it, and the relay never binds at all.
+        // Binding is permitted on the main thread; only the probe is not.
+        val reached = java.util.concurrent.atomic.AtomicBoolean(false)
+        val probe = Thread({
+            try {
+                Socket().use { p ->
+                    p.connect(addr, SELF_TEST_TIMEOUT_MS)
+                    // The accept loop is not running yet, but the kernel
+                    // completes the handshake from the backlog, which is all
+                    // this proves.
+                    reached.set(true)
+                }
+            } catch (e: Exception) {
+                reached.set(false)
             }
-        } catch (e: Exception) {
-            false
-        }
+        }, "proxy-relay-self-test").apply { isDaemon = true }
+        probe.start()
+        probe.join(SELF_TEST_TIMEOUT_MS + SELF_TEST_JOIN_SLACK_MS)
+        return reached.get()
     }
 
     private fun acceptLoop(socket: ServerSocket) {
@@ -775,6 +789,9 @@ class ProxyRelay(
         private const val BACKLOG = 64
         private const val LOOPBACK = "127.0.0.1"
         private const val SELF_TEST_TIMEOUT_MS = 2_000
+
+        /** Headroom over the connect timeout when joining the probe thread. */
+        private const val SELF_TEST_JOIN_SLACK_MS = 500L
 
         /**
          * A random address in 127/8, avoiding 127.0.0.1 itself and the .0/.255

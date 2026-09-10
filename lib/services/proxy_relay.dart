@@ -12,6 +12,12 @@ import 'package:webspace/settings/proxy.dart';
 /// split in CLAUDE.md.
 abstract interface class ProxyRelayApi {
   Future<({String host, int port})?> startRouter(String realm);
+
+  /// Why the last call failed, for the caller's log line. The relay's own
+  /// events are `LogSensitivity.sensitive` and so never reach a CI log,
+  /// which made a failed bind unattributable on the one tier that can
+  /// exercise it.
+  String? get lastError;
   Future<bool> setRoutes(Map<String, Map<String, Object?>> routes);
 
   /// Probe pairs the relay has observed: nonce -> the siteId whose
@@ -104,16 +110,25 @@ class ProxyRelay implements ProxyRelayApi {
   /// answers a challenge only when both host and realm match (see
   /// `ProxyRouterEngine.shouldAnswerChallenge`).
   @override
+  String? get lastError => _lastError;
+  String? _lastError;
+
+  @override
   Future<({String host, int port})?> startRouter(String realm) async {
     if (!hostIsAndroid) return null;
+    _lastError = null;
     try {
       final res = await _channel
           .invokeMethod<Map<dynamic, dynamic>>('startRouter', {'realm': realm});
       final host = res?['host'] as String?;
       final port = res?['port'] as int?;
-      if (host == null || port == null) return null;
+      if (host == null || port == null) {
+        _lastError = 'relay returned no endpoint';
+        return null;
+      }
       return (host: host, port: port);
-    } on PlatformException {
+    } on PlatformException catch (e) {
+      _lastError = '${e.code}: ${e.message}';
       return null;
     }
   }
