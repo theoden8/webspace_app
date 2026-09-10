@@ -15,6 +15,7 @@ import 'package:webspace/services/archive.dart';
 import 'package:webspace/services/archive_storage.dart';
 import 'package:webspace/services/webview_state_secure_storage.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/services/archive_membership_engine.dart';
 import 'package:webspace/webspace_model.dart';
 
 import 'cookie_isolation_integration_test.dart'
@@ -462,83 +463,114 @@ void main() {
   // `_webViewModels` on archive close; re-adding at the tail on open)
   // and assert webspace persistence is unchanged across the cycle.
   group('Webspace persistence is invariant across move-to-archive cycle', () {
-    test('flipping isArchiveTier on a webspace member does not change webspace.toJson', () {
+    test('runtime membership keeps an archived site while the archive is open', () {
+      final models = [_siteWithId('a'), _siteWithId('b'), _siteWithId('c')];
+      final ws = Webspace(name: 'Work', siteIds: ['a', 'b', 'c']);
+      _resolveWebspaceIndices([ws], models);
+      models[1].isArchiveTier = true;
+      _resolveWebspaceIndices([ws], models);
+      expect(ws.siteIds, equals(['a', 'b', 'c']));
+      expect(ws.siteIndices, equals([0, 1, 2]));
+    });
+
+    test('persisted form never names an archived site (ARCH-001)', () {
       final models = [
         _siteWithId('a'),
-        _siteWithId('b'),
+        _siteWithId('b', archive: true),
         _siteWithId('c'),
       ];
       final ws = Webspace(name: 'Work', siteIds: ['a', 'b', 'c']);
-      _resolveWebspaceIndices([ws], models);
-      final beforeJson = jsonEncode(ws.toJson());
-
-      // The runtime effect of "move site b to archive": flip its flag
-      // and re-resolve. The webspace.siteIds field must stay invariant
-      // — and so must its persisted JSON.
-      models[1].isArchiveTier = true;
-      _resolveWebspaceIndices([ws], models);
-
-      expect(ws.siteIds, equals(['a', 'b', 'c']));
-      expect(jsonEncode(ws.toJson()), equals(beforeJson));
-    });
-
-    test('closing an archive (removing its sites from _webViewModels) does not change webspace.toJson', () {
-      final a = _siteWithId('a');
-      final b = _siteWithId('b', archive: true);
-      final c = _siteWithId('c');
-      final models = [a, b, c];
-      final ws = Webspace(name: 'Work', siteIds: ['a', 'b', 'c']);
-      _resolveWebspaceIndices([ws], models);
-      final beforeJson = jsonEncode(ws.toJson());
-
-      // Close archive: archive-tier models drop out of the runtime
-      // list. Webspace.siteIndices loses 'b'; siteIds keeps it.
-      models.removeWhere((m) => m.isArchiveTier);
-      _resolveWebspaceIndices([ws], models);
-
-      expect(ws.siteIndices, equals([0, 1]),
-          reason: 'siteIndices runtime view loses the archive-only site');
+      final archived = {
+        for (final m in models)
+          if (m.isArchiveTier) m.siteId,
+      };
+      final persisted = ArchiveMembershipEngine.persistable([ws], archived);
+      final neverArchived =
+          Webspace(id: ws.id, name: 'Work', siteIds: ['a', 'c']);
+      expect(
+        jsonEncode(persisted.map((w) => w.toJson()).toList()),
+        equals(jsonEncode([neverArchived.toJson()])),
+        reason: 'plaintext form must be byte-identical to a device that '
+            'never held b in this webspace',
+      );
       expect(ws.siteIds, equals(['a', 'b', 'c']),
-          reason: 'siteIds persisted membership is invariant');
-      expect(jsonEncode(ws.toJson()), equals(beforeJson),
-          reason: 'archive close must not perturb webspace persistence');
+          reason: 'runtime list is untouched');
     });
 
-    test('archive close→open round-trip restores siteIndices position membership', () {
+    test('archive-tier collections never enter the persisted form', () {
+      final app = Webspace(name: 'Work', siteIds: ['a']);
+      final arch = Webspace(name: 'Hidden', siteIds: ['b'])
+        ..isArchiveTier = true;
+      final persisted =
+          ArchiveMembershipEngine.persistable([app, arch], {'b'});
+      expect(persisted.map((w) => w.id), equals([app.id]));
+    });
+
+    test('archive close detaches membership into archive state; reopen re-attaches', () {
       final a = _siteWithId('a');
       final b = _siteWithId('b', archive: true);
       final c = _siteWithId('c');
       final models = [a, b, c];
       final ws = Webspace(name: 'Work', siteIds: ['a', 'b', 'c']);
       _resolveWebspaceIndices([ws], models);
-      expect(ws.siteIndices, equals([0, 1, 2]));
 
-      // Close: archive sites leave _webViewModels.
+      // Close: the archived site leaves the runtime list and its
+      // membership moves into the archive's own encrypted state.
+      final membership = ArchiveMembershipEngine.detach([ws], {'b'});
       models.removeWhere((m) => m.isArchiveTier);
       _resolveWebspaceIndices([ws], models);
+      expect(membership, equals({ws.id: ['b']}));
+      expect(ws.siteIds, equals(['a', 'c']));
       expect(ws.siteIndices, equals([0, 1]));
+      expect(
+        jsonEncode(ws.toJson()),
+        equals(jsonEncode(
+            Webspace(id: ws.id, name: 'Work', siteIds: ['a', 'c']).toJson())),
+        reason: 'post-close JSON equals a webspace that never held b',
+      );
 
-      // Open: archive sites re-append at the tail (this is what
-      // _materialiseArchive does in main.dart).
+      // Open: the archive site re-appends at the tail and its
+      // membership comes back from the archive state.
       models.add(b);
+      ArchiveMembershipEngine.attach([ws], membership);
       _resolveWebspaceIndices([ws], models);
+      expect(ws.siteIds, equals(['a', 'c', 'b']));
+      expect(ws.siteIndices, equals([0, 1, 2]));
+    });
 
-      // siteIndices now [a=0, b=2 (tail), c=1] — order driven by
-      // siteIds, not _webViewModels position.
-      expect(ws.siteIndices, equals([0, 2, 1]));
+    test('attach skips ids already present and webspaces that are gone', () {
+      final ws = Webspace(id: 'w1', name: 'Work', siteIds: ['a', 'b']);
+      ArchiveMembershipEngine.attach([ws], {
+        'w1': ['b', 'c'],
+        'gone': ['z'],
+      });
       expect(ws.siteIds, equals(['a', 'b', 'c']));
+    });
+
+    test('record merges into existing membership without duplicates', () {
+      final ws = Webspace(id: 'w1', name: 'Work', siteIds: ['a', 'b']);
+      final m = ArchiveMembershipEngine.record(
+        [ws],
+        {'b'},
+        existing: {
+          'w1': ['b'],
+          'w9': ['z'],
+        },
+      );
+      expect(m, equals({'w1': ['b'], 'w9': ['z']}));
+      expect(ws.siteIds, equals(['a', 'b']), reason: 'record never mutates');
+    });
+
+    test('moving a site back out forgets it in the archive state', () {
+      final membership = {
+        'w1': ['b', 'x'],
+        'w2': ['b'],
+      };
+      ArchiveMembershipEngine.forget(membership, 'b');
+      expect(membership, equals({'w1': ['x']}));
     });
 
     test('closing an archive updates webspace.siteIndices.length (regression: stale per-webspace site counts after close)', () {
-      // A user moves a site that lives in a custom webspace into an
-      // archive. While the archive is open, the webspace shows the
-      // site at its position. After close, the site is gone from
-      // `_webViewModels` AND must be gone from the runtime
-      // `webspace.siteIndices` view that the home-screen renderer
-      // consults for its per-webspace site count. The bug this test
-      // catches: _closeArchive removed models from `_webViewModels`
-      // but did not re-resolve `siteIndices`, leaving stale positions
-      // in every webspace whose siteIds referenced the closed sites.
       final a = _siteWithId('a');
       final b = _siteWithId('b', archive: true);
       final c = _siteWithId('c');
@@ -548,39 +580,14 @@ void main() {
       expect(work.siteIndices.length, equals(3),
           reason: 'three members visible while archive is open');
 
-      // Simulate archive close: archive-tier models leave the list.
+      ArchiveMembershipEngine.detach([work], {'b'});
       models.removeWhere((m) => m.isArchiveTier);
       _resolveWebspaceIndices([work], models);
 
       expect(work.siteIndices.length, equals(2),
           reason: 'archive site must drop out of the runtime view');
-      expect(work.siteIds, equals(['a', 'b', 'c']),
-          reason: 'persisted membership still remembers b');
-    });
-
-    test('byte-equality across full add-site → move-to-archive → save → close → save cycle', () {
-      // The headline ARCH-001 contract: a user who adds a site to a
-      // named webspace and then archives it sees their webspaces.json
-      // unchanged when the archive is closed, regardless of whether
-      // the archive was ever touched.
-      final models = [_siteWithId('a'), _siteWithId('b'), _siteWithId('c')];
-      final webspaces = [
-        Webspace(name: 'Work', siteIds: ['a', 'b']),
-        Webspace(name: 'Personal', siteIds: ['c']),
-      ];
-      _resolveWebspaceIndices(webspaces, models);
-      final beforeJson =
-          jsonEncode(webspaces.map((w) => w.toJson()).toList());
-
-      // Simulate: move 'b' into an archive; close the archive.
-      models[1].isArchiveTier = true;
-      _resolveWebspaceIndices(webspaces, models);
-      models.removeWhere((m) => m.isArchiveTier); // archive close
-      _resolveWebspaceIndices(webspaces, models);
-
-      final afterJson =
-          jsonEncode(webspaces.map((w) => w.toJson()).toList());
-      expect(afterJson, equals(beforeJson));
+      expect(work.siteIds, equals(['a', 'c']),
+          reason: 'nothing app-tier remembers b once the archive is closed');
     });
   });
 

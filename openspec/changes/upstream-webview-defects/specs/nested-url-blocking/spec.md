@@ -138,6 +138,24 @@ platform half.
 - **THEN** it loads in place
 - **AND** it is not routed into a nested `InAppWebViewScreen`
 
+#### Scenario: An external scheme from an iframe
+
+- **GIVEN** a cross-origin ad iframe on `bank.example` that sets its location to
+  `intent://bank.example/logout#Intent;scheme=https;end` or
+  `x-safari-https://bank.example/logout`
+- **WHEN** `shouldOverrideUrlLoading` fires with `isForMainFrame == false`
+- **THEN** the navigation is cancelled before the scheme is resolved
+- **AND** the top document does not load the resolved URL
+
+#### Scenario: A script opens a window
+
+- **GIVEN** any frame that calls `window.open('https://bank.example/path')`
+  without a user gesture
+- **WHEN** `onCreateWindow` fires
+- **THEN** the top webview does not load the URL
+- **AND** a `target="_blank"` link the user taps still opens, through the
+  NESTED-008 rewrite or with the gesture `onCreateWindow` reports
+
 #### Scenario: The signal becomes trustworthy
 
 - **GIVEN** a platform that reports main-frame status from the engine rather than

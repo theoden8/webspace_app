@@ -1,6 +1,7 @@
 import 'dart:collection';
 import 'dart:convert';
 import 'dart:math' as math;
+import 'package:webspace/platform/apple_os_floor.dart';
 import 'package:webspace/platform/host_platform.dart';
 
 import 'package:file_picker/file_picker.dart';
@@ -295,6 +296,12 @@ class ProxyManager {
   factory ProxyManager() => _instance;
   ProxyManager._internal();
 
+  /// Whether the process-global Android/Linux override currently names a
+  /// proxy. Read by `deferInitialLoadForProxy` so a DEFAULT site built while
+  /// another site's proxy is still in force does not issue its first request
+  /// through it.
+  static bool overrideActive = false;
+
   Future<void> setProxySettings(UserProxySettings settings) async {
     if (!PlatformInfo.isProxySupported) {
       LogService.instance.log(
@@ -340,6 +347,7 @@ class ProxyManager {
       );
       final sw = Stopwatch()..start();
       await controller.clearProxyOverride();
+      overrideActive = false;
       LogService.instance.log(
         'Proxy',
         'Cleared proxy override (native call took ${sw.elapsedMilliseconds}ms)',
@@ -425,6 +433,7 @@ class ProxyManager {
           bypassRules: ['<local>'],
         ),
       );
+      overrideActive = true;
       LogService.instance.log(
         'Proxy',
         'Applied proxy override via relay (native call took ${sw.elapsedMilliseconds}ms, '
@@ -459,6 +468,7 @@ class ProxyManager {
         bypassRules: ['<local>'],
       ),
     );
+    overrideActive = true;
     LogService.instance.log(
       'Proxy',
       'Applied proxy override (native call took ${sw.elapsedMilliseconds}ms, '
@@ -474,6 +484,7 @@ class ProxyManager {
     if (hostIsAndroid) await ProxyRelay.instance.stop();
     final sw = Stopwatch()..start();
     await inapp.ProxyController.instance().clearProxyOverride();
+    overrideActive = false;
     LogService.instance.log(
       'Proxy',
       'Cleared proxy override via clearProxy() (native call took ${sw.elapsedMilliseconds}ms)',
@@ -500,14 +511,20 @@ class PlatformInfo {
   static bool? _isProxySupportedCached;
 
   static Future<void> initialize() async {
-    if (hostIsIOS || hostIsMacOS || hostIsLinux) {
-      // iOS / macOS: native side gates per-version
-      // (`#available(iOS 17.0, macOS 14.0, *)`); surface the toggle
-      // unconditionally and let the per-site proxy block silently
-      // no-op on older OS releases.
-      // Linux: the fork's ProxyController binds via
-      // `webkit_network_session_set_proxy_settings`, available on
-      // every WebKitGTK / WPE build we support.
+    if (hostIsIOS || hostIsMacOS) {
+      // The fork writes the per-site proxy onto
+      // `WKWebsiteDataStore.proxyConfigurations`, which is
+      // `@available(iOS 17.0, macOS 14.0, *)`. Below the floor the field is
+      // ignored and the site would load over the device IP (LEAK-003), so
+      // report no support: the row is hidden and `_bindingFor` fails closed.
+      _isProxySupportedCached =
+          appleOsMeetsFloor(hostOperatingSystemVersion, isIOS: hostIsIOS);
+      return;
+    }
+    if (hostIsLinux) {
+      // The fork's ProxyController binds via
+      // `webkit_network_session_set_proxy_settings`, available on every
+      // WebKitGTK / WPE build we support.
       _isProxySupportedCached = true;
       return;
     }
@@ -1104,6 +1121,19 @@ bool isEscapedPauseTimersAlert({
 /// ERR_FILE_NOT_FOUND — and back/forward history is meaningless for a static
 /// local page anyway, so they keep rendering their cached `initialData`.
 /// Only meaningful when nav-state bytes are actually pending for this build.
+/// Android and Linux apply the proxy as a process-global override from Dart
+/// after the platform view exists (`WebViewModel.setController`). A site whose
+/// effective proxy is non-DEFAULT must therefore carry no initial load, or its
+/// first request leaves before the override lands; the same holds for a
+/// DEFAULT site while the override still names another site's proxy.
+/// `setController` issues the first load once the override is in (LEAK-003).
+bool deferInitialLoadForProxy({
+  required bool proxyIsGlobal,
+  required bool effectiveNonDefault,
+  required bool overrideActive,
+}) =>
+    proxyIsGlobal && (effectiveNonDefault || overrideActive);
+
 bool deferInitialLoadForRestore({
   required bool hasPendingRestoreState,
   required bool isAndroid,
@@ -1749,8 +1779,20 @@ class WebViewFactory {
   static bool _matchesDomain(String host, String domain) =>
       host == domain || host.endsWith('.$domain');
 
+  /// Whether [host] is the site at [siteUrl] or one of its subdomains, or
+  /// the site is a subdomain of it.
+  static bool _sameSite(String host, String? siteUrl) {
+    final siteHost = siteUrl == null ? '' : (Uri.tryParse(siteUrl)?.host ?? '');
+    if (siteHost.isEmpty) return false;
+    return _matchesDomain(host, siteHost) || _matchesDomain(siteHost, host);
+  }
+
+  /// A captcha URL loads in place and may open the verification popup, so
+  /// the Cloudflare path markers, which any origin can put in a path, count
+  /// only on the site's own domain ([siteUrl]); Cloudflare serves the
+  /// interstitial from the protected origin itself (CAPTCHA-010).
   @visibleForTesting
-  static bool isCaptchaChallenge(String url) {
+  static bool isCaptchaChallenge(String url, {String? siteUrl}) {
     final uri = Uri.tryParse(url);
     if (uri == null) return false;
     final host = uri.host;
@@ -1758,12 +1800,12 @@ class WebViewFactory {
     // Exact captcha domains (hcaptcha, Cloudflare challenges, which is also
     // where the Turnstile widget iframe is served from).
     if (_captchaDomains.any((d) => _matchesDomain(host, d))) return true;
-    // Cloudflare serves the interstitial from the protected origin itself, so
-    // these two can't be pinned to a domain. Match the PATH only: a substring
-    // test on the whole URL let any origin claim a challenge with an
-    // attacker-chosen query or fragment (`https://evil.example/x?cf-turnstile`).
-    if (uri.path.contains('/cdn-cgi/challenge-platform') ||
-        uri.path.contains('cf-turnstile')) {
+    // Match the PATH only: a substring test on the whole URL let any origin
+    // claim a challenge with an attacker-chosen query or fragment
+    // (`https://evil.example/x?cf-turnstile`).
+    if ((uri.path.contains('/cdn-cgi/challenge-platform') ||
+            uri.path.contains('cf-turnstile')) &&
+        _sameSite(host, siteUrl)) {
       return true;
     }
     // reCAPTCHA: /recaptcha/ path only on known Google-owned domains
@@ -1799,19 +1841,20 @@ class WebViewFactory {
     // expose neither the cleartext archive siteId nor a count delta
     // that correlates 1:1 with archive contents.
     final containerSiteIdentifier = config.archiveContainerId ?? config.siteId;
-    // Never bind a persistent container for an incognito site. iOS/macOS/Linux
-    // ignore containerId under incognito (the fork short-circuits to an
-    // ephemeral store), but Android's androidx.webkit Profile is always
-    // on-disk and has no incognito guard, so passing containerId there binds a
-    // persistent profile whose localStorage/IDB/ServiceWorkers survive restart
-    // — defeating the ephemeral promise. Dropping it sends the incognito site
-    // to the default (non-persistent-semantics) store on Android; two
-    // same-base incognito sites then share it for the session, the correct
-    // tradeoff for honoring ephemerality (the fork exposes no per-site
-    // ephemeral profile).
+    // iOS/macOS/Linux ignore containerId under incognito: the fork
+    // short-circuits to an ephemeral store, so binding nothing is right
+    // there. Android has no ephemeral profile at all; the fork's
+    // setIncognito only wipes the default jar and disables the cache, and
+    // the androidx default Profile is persistent on disk. An unbound
+    // incognito or archive-tier site there would share `app_webview/Default`
+    // with every other such site and leave its storage behind after the
+    // archive closes (ARCH-006/ARCH-007). So Android always binds a named
+    // profile and relies on the existing teardown: incognito ids are deleted
+    // at startup and archive container ids at close.
+    final bindUnderIncognito = hostIsAndroid;
     final containerId = (ContainerNative.instance.cachedSupported &&
             containerSiteIdentifier != null &&
-            !config.incognito)
+            (!config.incognito || bindUnderIncognito))
         ? 'ws-$containerSiteIdentifier'
         : null;
 
@@ -1831,14 +1874,15 @@ class WebViewFactory {
             config.proxySettings != null
         ? resolveEffectiveProxy(config.proxySettings!, siteId: config.siteId)
         : null;
-    final inappProxy =
-        effectiveProxy != null ? _userProxyToInappProxy(effectiveProxy) : null;
+    final inappProxy = effectiveProxy != null && PlatformInfo.isProxySupported
+        ? _userProxyToInappProxy(effectiveProxy)
+        : null;
     // Fail closed: on iOS/macOS the per-site proxy is bound here via
     // `proxySettings`. If the site expects a non-DEFAULT proxy but the
     // address is malformed (e.g. a hand-edited backup that bypassed UI
-    // validation), `_userProxyToInappProxy` returns null and the webview
-    // would otherwise load over the device IP. Blank the initial load
-    // instead of leaking.
+    // validation), or the OS is below the `proxyConfigurations` floor,
+    // `inappProxy` is null and the webview would otherwise load over the
+    // device IP. Blank the initial load instead of leaking.
     final proxyUnavailable = effectiveProxy != null &&
         effectiveProxy.type != ProxyType.DEFAULT &&
         inappProxy == null;
@@ -1901,6 +1945,7 @@ class WebViewFactory {
         cacheEnabled: true,
         // Enable DevTools inspection in debug mode (chrome://inspect on Android)
         isInspectable: kDebugMode,
+        useShouldOverrideUrlLoading: true,
       ),
       initialUserScripts: UnmodifiableListView(page.userScripts),
       onWebViewCreated: (controller) {
@@ -1910,6 +1955,43 @@ class WebViewFactory {
           userScriptService: page.userScriptService,
           sourceUrl: () => parent.initialUrl,
         );
+      },
+      // The popup exists for one challenge: its documents pass the site's
+      // DNS and content-blocker checks, and its top document stays on a
+      // captcha host or the site's own domain (CAPTCHA-010).
+      shouldOverrideUrlLoading: (_, navigationAction) async {
+        final url = navigationAction.request.url?.toString() ?? '';
+        if (_shouldBlockUrl(url)) return inapp.NavigationActionPolicy.CANCEL;
+        if (url.startsWith('about:')) return inapp.NavigationActionPolicy.ALLOW;
+        if (parent.siteId != null && url.startsWith('http')) {
+          final blocked = DnsBlockService.instance
+              .isBlockedAtLevel(url, parent.effectiveDnsLevel);
+          DnsBlockService.instance.recordRequest(parent.siteId!, url, blocked,
+              source: blocked ? BlockSource.dns : null);
+          if (blocked) return inapp.NavigationActionPolicy.CANCEL;
+        }
+        if (parent.contentBlockEnabled &&
+            ContentBlockerService.instance.isBlocked(
+              url,
+              sourceUrl: parent.initialUrl,
+              requestType: 'document',
+            )) {
+          if (parent.siteId != null) {
+            DnsBlockService.instance.recordRequest(parent.siteId!, url, true,
+                source: BlockSource.abp);
+          }
+          return inapp.NavigationActionPolicy.CANCEL;
+        }
+        if (navigationAction.isForMainFrame == false) {
+          return inapp.NavigationActionPolicy.ALLOW;
+        }
+        final host = Uri.tryParse(url)?.host ?? '';
+        if (url.startsWith('http') &&
+            (isCaptchaChallenge(url, siteUrl: parent.initialUrl) ||
+                _sameSite(host, parent.initialUrl))) {
+          return inapp.NavigationActionPolicy.ALLOW;
+        }
+        return inapp.NavigationActionPolicy.CANCEL;
       },
       onCloseWindow: (controller) {
         onCloseWindow?.call();
@@ -2067,6 +2149,9 @@ class WebViewFactory {
     // ones (see worker_shim.dart). Window-only shims (desktop mode, viewport,
     // zoom, notifications) are deliberately absent.
     final workerScopeShims = <String>[];
+    if (config.trackingProtectionEnabled) {
+      workerScopeShims.add(webGlKillSwitchScript);
+    }
 
     final antiFpSource = buildAntiFingerprintingScriptSource(
       siteId: config.siteId,
@@ -2892,7 +2977,18 @@ class WebViewFactory {
               : LocationAccuracy.fine;
       controller.addJavaScriptHandler(
         handlerName: 'getRealLocation',
-        callback: (args) async {
+        callback: (inapp.JavaScriptHandlerFunctionData data) async {
+          // The shim reaches every frame, so a cross-origin iframe can call
+          // this directly and skip the engine's Permissions-Policy check.
+          // Serve it what an undelegated iframe sees in a browser (LOC-011);
+          // a same-origin frame keeps the default 'self' allowlist.
+          if (!data.isMainFrame) {
+            final top =
+                (await controller.getUrl())?.toString() ?? config.initialUrl;
+            if (!_sameOrigin(data.origin.toString(), top)) {
+              return {'status': 'permission_denied', 'message': 'subframe'};
+            }
+          }
           final res = await CurrentLocationService.getCurrentLocation(
             accuracy: requestAccuracy,
           );
@@ -3228,8 +3324,17 @@ class WebViewFactory {
     if (config.siteId != null && config.notificationsEnabled) {
       controller.addJavaScriptHandler(
         handlerName: 'webNotification',
-        callback: (args) async {
+        // The polyfill is in every frame. A cross-origin iframe posting
+        // under the site's identity is dropped here, on the frame identity
+        // the plugin supplies, not on anything the page says (NOTIF-010).
+        callback: (inapp.JavaScriptHandlerFunctionData call) async {
+          final args = call.args;
           if (args.isEmpty || args[0] is! Map) return null;
+          if (!call.isMainFrame) {
+            final top =
+                (await controller.getUrl())?.toString() ?? config.initialUrl;
+            if (!_sameOrigin(call.origin.toString(), top)) return null;
+          }
           final data = Map<String, dynamic>.from(args[0] as Map);
           final title = data['title'] as String? ?? '';
           final body = data['body'] as String? ?? '';
@@ -3451,6 +3556,10 @@ class WebViewFactory {
     // originally tested), disabled in production Stable WebView.
     // Production users get the speed-up of cached first paint without
     // the dev-only crash.
+    final binding = _bindingFor(config);
+    final containerId = binding.containerId;
+    final inappProxy = binding.proxy;
+    final proxyUnavailable = binding.proxyUnavailable;
     final isFileImport = config.initialUrl.startsWith('file://');
     // When the cache is missing for a file import (incognito mode,
     // post-upgrade cache wipe, …) we feed initialData with a synthetic
@@ -3463,9 +3572,14 @@ class WebViewFactory {
     // cached-HTML reload-to-live machinery below also stays off — the
     // onControllerCreated restore handler owns the first navigation instead.
     final suppressInitialLoad = config.deferInitialLoad;
-    final renderInitialData =
-        (config.initialHtml != null || isFileImport) && !suppressInitialLoad;
-    final usesCachedHtml = config.initialHtml != null && !suppressInitialLoad;
+    // A cached snapshot rendered against a live baseUrl fetches its
+    // subresources; never do that for a site whose proxy is not bound
+    // (SEC-009).
+    final renderInitialData = (config.initialHtml != null || isFileImport) &&
+        !suppressInitialLoad &&
+        !proxyUnavailable;
+    final usesCachedHtml =
+        config.initialHtml != null && !suppressInitialLoad && !proxyUnavailable;
     // One-shot: when the cached HTML's first onLoadStop fires, do
     // exactly one controller.reload() to get a live page. Subsequent
     // onLoadStop events (post-reload, or for SPA navigations) leave
@@ -3526,10 +3640,6 @@ class WebViewFactory {
     // loop. See lib/services/ios_universal_link_bypass.dart.
     final iosUlBypass = IosUniversalLinkBypass();
 
-    final binding = _bindingFor(config);
-    final containerId = binding.containerId;
-    final inappProxy = binding.proxy;
-    final proxyUnavailable = binding.proxyUnavailable;
 
     LogService.instance.log(
       'DnsBlock',
@@ -3914,6 +4024,12 @@ class WebViewFactory {
           // links, tel:) still hit the confirmation dialog.
           final resolved = ExternalUrlParser.toWebUrl(externalInfo);
           if (resolved != null) {
+            // The reissued load below lands on the top-frame controller, so
+            // a subframe must not reach it (NESTED-013): an ad iframe would
+            // otherwise steer the top document with the session attached.
+            if (navigationAction.isForMainFrame == false) {
+              return inapp.NavigationActionPolicy.CANCEL;
+            }
             final hasGesture = _hasUserGesture(navigationAction);
             // Loop guard (EXT-007): x.com re-fires its Safari bounce on
             // every page render — resolving it again would reload the
@@ -4070,7 +4186,9 @@ class WebViewFactory {
         // URL?" becomes a way to navigate the parent webview to any origin
         // with blockAutoRedirects, the gesture requirement and the
         // cross-domain nested route all skipped.
-        if (isCaptchaChallenge(url)) return inapp.NavigationActionPolicy.ALLOW;
+        if (isCaptchaChallenge(url, siteUrl: config.initialUrl)) {
+          return inapp.NavigationActionPolicy.ALLOW;
+        }
         // iOS Universal Link bypass. WKWebView auto-routes user-tap
         // navigations (and redirect chains rooted in a tap) to the
         // native app for URLs whose host matches an installed app's
@@ -4142,7 +4260,7 @@ class WebViewFactory {
         );
 
         // Show popup dialog for Cloudflare challenges (captcha verification).
-        if (isCaptchaChallenge(url)) {
+        if (isCaptchaChallenge(url, siteUrl: config.initialUrl)) {
           if (config.onWindowRequested != null && windowId != null) {
             // The host builds the popup widget out of a BuildContext that has
             // no site attached; hand it this webview's posture by windowId so
@@ -4193,7 +4311,10 @@ class WebViewFactory {
             if (config.shouldOverrideUrlLoading != null) {
               allow = config.shouldOverrideUrlLoading!(resolved, hasGesture);
             }
-            if (allow) {
+            // A window this webview did not ask for by gesture never loads
+            // into it (NESTED-013); a real target="_blank" tap is rewritten
+            // before it gets here (NESTED-008).
+            if (allow && hasGesture) {
               controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(resolved)));
             }
             return false;
@@ -4213,7 +4334,7 @@ class WebViewFactory {
         if (url.startsWith('http') && config.shouldOverrideUrlLoading != null) {
           final hasGesture = _hasUserGesture(createWindowAction);
           final allow = config.shouldOverrideUrlLoading!(url, hasGesture);
-          if (allow) {
+          if (allow && hasGesture) {
             // Same-domain target="_blank": load in current webview
             controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(url)));
           }
@@ -5154,6 +5275,15 @@ class WebViewFactory {
       final result = await engine.fetch(
         url: req.url.toString(),
         cookieHeader: cookieHeader,
+        cookieHeaderFor: (uri) async {
+          final hop = await inapp.CookieManager.instance().getCookies(
+            url: inapp.WebUri(uri.toString()),
+            webViewController: controller,
+          );
+          return DownloadEngine.buildCookieHeader(
+            hop.map((c) => MapEntry(c.name, c.value.toString())),
+          );
+        },
         userAgent: req.userAgent,
         referer: referer,
         suggestedFilename: req.suggestedFilename,

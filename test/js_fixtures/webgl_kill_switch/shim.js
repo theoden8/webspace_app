@@ -22,13 +22,13 @@
       patchGetContext(OffscreenCanvas.prototype);
     }
   } catch (_) {}
-  try { delete window.WebGLRenderingContext; } catch (_) {}
-  try { delete window.WebGL2RenderingContext; } catch (_) {}
+  try { delete globalThis.WebGLRenderingContext; } catch (_) {}
+  try { delete globalThis.WebGL2RenderingContext; } catch (_) {}
   var GPU_GONE = [
     'GPU', 'GPUAdapter', 'GPUDevice', 'GPUCanvasContext', 'GPUAdapterInfo'
   ];
   for (var i = 0; i < GPU_GONE.length; i++) {
-    try { delete window[GPU_GONE[i]]; } catch (_) {}
+    try { delete globalThis[GPU_GONE[i]]; } catch (_) {}
   }
   try {
     var NavProto = (typeof navigator !== 'undefined' && navigator)

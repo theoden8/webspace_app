@@ -341,7 +341,10 @@ void main() {
       );
       expect(r1, isNotNull);
       expect(r2, isNot(equals(r1)));
-      expect(r1, contains('"site-A:r1"'));
+      // The record id feeds the digest the page sees; it never appears
+      // itself (SEC-006).
+      expect(r1, contains('"${opaqueAntiFingerprintingSeed('site-A:r1')}"'));
+      expect(r1, isNot(contains('site-A')));
     });
 
     test('seed flows through buildAntiFingerprintingShim end-to-end', () {

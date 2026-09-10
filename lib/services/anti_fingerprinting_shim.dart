@@ -52,6 +52,8 @@
 
 import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
+
 /// Compute the seed string passed to [buildAntiFingerprintingShim].
 ///
 /// Non-incognito sites seed with `siteId` verbatim — the fingerprint stays
@@ -105,8 +107,18 @@ String? buildAntiFingerprintingScriptSource({
     launchNonce: launchNonce,
     resetNonce: resetNonce,
   );
-  return '${buildAntiFingerprintingShim(seed, letterbox: letterbox)}\n;null;';
+  return '${buildAntiFingerprintingShim(opaqueAntiFingerprintingSeed(seed), letterbox: letterbox)}\n;null;';
 }
+
+/// The seed the page actually sees. [computeAntiFingerprintingSeed] names
+/// the record (`siteId`, the reset nonce, the launch nonce) and the shim
+/// text is copied into the worker payload, where page script can read it
+/// back through `URL.createObjectURL`, so the identifiers are digested
+/// first: the same input still yields the same fingerprint, a reroll still
+/// rerolls, and two incognito sites in one launch share nothing a tracker
+/// can join on.
+String opaqueAntiFingerprintingSeed(String seed) =>
+    sha256.convert(utf8.encode('ws-afp:$seed')).toString();
 
 /// Build the per-site anti-fingerprinting shim seeded by [seed]. The seed
 /// is computed via [computeAntiFingerprintingSeed] — siteId-only for
@@ -265,19 +277,94 @@ String buildAntiFingerprintingShim(
   // media queries resolve against the REAL screen. A fingerprinter
   // binary-searching `(max-device-width: Npx)` recovers the true device
   // size and contradicts screen.width (CreepJS's "CSS Media Queries" leak).
-  // Intercept single-feature device-width/height queries and answer against
-  // the SAME dimensions screen.* reports: window.inner* in letterbox mode
-  // (the box is physically real), the pinned SCREEN_W/H otherwise.
+  // Rewrite every device-dimension feature in the query, whatever surrounds
+  // it (media type, `not`, `and`, comma lists, range syntax, em or cm
+  // lengths, device-aspect-ratio), and answer against the SAME dimensions
+  // screen.* reports: window.inner* in letterbox mode (the box is
+  // physically real), the pinned SCREEN_W/H otherwise. A single feature is
+  // answered here; a compound query has each feature replaced by a
+  // standard one that is always true or always false and is then handed to
+  // the engine, so its boolean structure is the engine's to evaluate.
   try {
     if (typeof globalThis.matchMedia === 'function') {
       var _origMatchMedia = globalThis.matchMedia.bind(globalThis);
-      var DEVICE_DIM_RE =
-        /^\\(\\s*(min-|max-)?device-(width|height)\\s*:\\s*([\\d.]+)px\\s*\\)\$/i;
+      var DEVICE_FEATURE_RE =
+        /\\(\\s*([^()]*device-(?:width|height|aspect-ratio)[^()]*)\\)/gi;
+      var SINGLE_FEATURE_RE = /^\\s*\\(\\s*([^()]*)\\)\\s*\$/;
+      var UNIT_PX = {
+        '': 1, px: 1, em: 16, rem: 16, 'in': 96, cm: 96 / 2.54, mm: 96 / 25.4,
+        q: 96 / 101.6, pt: 96 / 72, pc: 16,
+      };
       function _targetDim(which) {
         if (LETTERBOX) {
           return which === 'width' ? globalThis.innerWidth : globalThis.innerHeight;
         }
         return which === 'width' ? SCREEN_W : SCREEN_H;
+      }
+      function _actual(feature) {
+        if (feature === 'aspect-ratio') {
+          return _targetDim('width') / _targetDim('height');
+        }
+        return _targetDim(feature);
+      }
+      function _value(text, feature) {
+        text = text.trim();
+        if (feature === 'aspect-ratio') {
+          var r = /^([\\d.]+)\\s*(?:\\/\\s*([\\d.]+))?\$/.exec(text);
+          if (!r) return NaN;
+          return parseFloat(r[1]) / (r[2] ? parseFloat(r[2]) : 1);
+        }
+        var m = /^([\\d.]+)\\s*([a-z]*)\$/i.exec(text);
+        if (!m) return NaN;
+        var unit = UNIT_PX[m[2].toLowerCase()];
+        return unit === undefined ? NaN : parseFloat(m[1]) * unit;
+      }
+      function _cmp(a, op, b) {
+        if (op === '<') return a < b;
+        if (op === '<=') return a <= b;
+        if (op === '>') return a > b;
+        if (op === '>=') return a >= b;
+        return Math.abs(a - b) < 1e-6;
+      }
+      function _flip(op) {
+        return op === '<' ? '>' : op === '<=' ? '>=' :
+          op === '>' ? '<' : op === '>=' ? '<=' : op;
+      }
+      // The truth of one device feature against the spoofed screen, or null
+      // when the text is not something this parses (left to the engine).
+      function _evalDeviceFeature(inner) {
+        var m = /^\\s*(min-|max-)?device-(width|height|aspect-ratio)\\s*:\\s*(.+?)\\s*\$/i.exec(inner);
+        if (m) {
+          var feature = m[2].toLowerCase();
+          var v = _value(m[3], feature);
+          if (isNaN(v)) return null;
+          var prefix = (m[1] || '').toLowerCase();
+          return _cmp(_actual(feature),
+            prefix === 'min-' ? '>=' : (prefix === 'max-' ? '<=' : '='), v);
+        }
+        m = /^\\s*device-(width|height|aspect-ratio)\\s*\$/i.exec(inner);
+        if (m) return _actual(m[1].toLowerCase()) > 0;
+        m = /^\\s*device-(width|height|aspect-ratio)\\s*(<=|>=|<|>|=)\\s*(.+?)\\s*\$/i.exec(inner);
+        if (m) {
+          var f1 = m[1].toLowerCase();
+          var v1 = _value(m[3], f1);
+          return isNaN(v1) ? null : _cmp(_actual(f1), m[2], v1);
+        }
+        m = /^\\s*(.+?)\\s*(<=|>=|<|>|=)\\s*device-(width|height|aspect-ratio)\\s*(?:(<=|>=|<|>)\\s*(.+?))?\\s*\$/i.exec(inner);
+        if (m) {
+          var f2 = m[3].toLowerCase();
+          var actual = _actual(f2);
+          var lo = _value(m[1], f2);
+          if (isNaN(lo)) return null;
+          var ok = _cmp(actual, _flip(m[2]), lo);
+          if (m[4]) {
+            var hi = _value(m[5], f2);
+            if (isNaN(hi)) return null;
+            ok = ok && _cmp(actual, m[4], hi);
+          }
+          return ok;
+        }
+        return null;
       }
       function _syntheticMql(query, matches) {
         var listeners = [];
@@ -298,16 +385,22 @@ String buildAntiFingerprintingShim(
       }
       var _patchedMatchMedia = function matchMedia(query) {
         try {
-          if (typeof query === 'string') {
-            var m = DEVICE_DIM_RE.exec(query.trim());
-            if (m) {
-              var actual = _targetDim(m[2].toLowerCase());
-              var val = parseFloat(m[3]);
-              var prefix = (m[1] || '').toLowerCase();
-              var matches = prefix === 'min-'
-                ? actual >= val
-                : (prefix === 'max-' ? actual <= val : actual === val);
-              return _syntheticMql(query, matches);
+          if (typeof query === 'string' &&
+              /device-(width|height|aspect-ratio)/i.test(query)) {
+            var single = SINGLE_FEATURE_RE.exec(query);
+            if (single) {
+              var v = _evalDeviceFeature(single[1]);
+              if (v !== null) return _syntheticMql(query, v);
+            } else {
+              var complete = true;
+              var rewritten = query.replace(DEVICE_FEATURE_RE, function(whole, inner) {
+                var r = _evalDeviceFeature(inner);
+                if (r === null) { complete = false; return whole; }
+                return r ? '(min-width: 0px)' : '(min-width: 99999999px)';
+              });
+              if (complete) {
+                return _syntheticMql(query, !!_origMatchMedia(rewritten).matches);
+              }
             }
           }
         } catch (e) {}
@@ -529,34 +622,60 @@ String buildAntiFingerprintingShim(
         }, 'getImageData');
       }
     }
+    // An OffscreenCanvas reads the same way, in page and worker scope, and
+    // is where a page copies a covered canvas to read it clean.
+    if (typeof OffscreenCanvasRenderingContext2D !== 'undefined' &&
+        OffscreenCanvasRenderingContext2D.prototype) {
+      var oscProto = OffscreenCanvasRenderingContext2D.prototype;
+      var origOscGetImageData = oscProto.getImageData;
+      if (typeof origOscGetImageData === 'function') {
+        oscProto.getImageData = asNative(function getImageData(x, y, w, h) {
+          var data = origOscGetImageData.apply(this, arguments);
+          if (data && data.data) {
+            noisePixels(data.data, 'osc2d:gid:' + x + ':' + y + ':' + w + ':' + h);
+          }
+          return data;
+        }, 'getImageData');
+      }
+    }
+    // Once per canvas. The nudge paints a pixel ONTO the canvas, so running
+    // it again on the next read stacks a second pixel on the first: two
+    // reads of one canvas return different bytes and the per-site
+    // fingerprint drifts within a page, which is the averaging weakness the
+    // noise exists to resist.
+    var _nudged = new WeakSet();
+    var nudgeCanvas = function(canvas, salt) {
+      try {
+        if (_nudged.has(canvas)) return;
+        _nudged.add(canvas);
+        var ctx = canvas.getContext && canvas.getContext('2d');
+        if (!ctx || typeof ctx.fillRect !== 'function') return;
+        var rng = seededRng(salt);
+        var x = Math.floor(rng() * Math.max(1, canvas.width || 1));
+        var y = Math.floor(rng() * Math.max(1, canvas.height || 1));
+        var prev;
+        try { prev = ctx.fillStyle; } catch (e) {}
+        ctx.fillStyle = 'rgba(' +
+          (Math.floor(rng() * 256)) + ',' +
+          (Math.floor(rng() * 256)) + ',' +
+          (Math.floor(rng() * 256)) + ',0.005)';
+        ctx.fillRect(x, y, 1, 1);
+        try { if (prev !== undefined) ctx.fillStyle = prev; } catch (e) {}
+      } catch (e) {}
+    };
+    if (typeof OffscreenCanvas !== 'undefined' && OffscreenCanvas.prototype) {
+      var oscCanProto = OffscreenCanvas.prototype;
+      var origConvertToBlob = oscCanProto.convertToBlob;
+      if (typeof origConvertToBlob === 'function') {
+        oscCanProto.convertToBlob = asNative(function convertToBlob() {
+          nudgeCanvas(this, 'osc:convertToBlob');
+          return origConvertToBlob.apply(this, arguments);
+        }, 'convertToBlob');
+      }
+    }
     if (typeof HTMLCanvasElement !== 'undefined' &&
         HTMLCanvasElement.prototype) {
       var canProto = HTMLCanvasElement.prototype;
-      // Once per canvas. The nudge paints a pixel ONTO the canvas, so running
-      // it again on the next read stacks a second pixel on the first: two
-      // reads of one canvas return different bytes and the per-site
-      // fingerprint drifts within a page, which is the averaging weakness the
-      // noise exists to resist.
-      var _nudged = new WeakSet();
-      function nudgeCanvas(canvas, salt) {
-        try {
-          if (_nudged.has(canvas)) return;
-          _nudged.add(canvas);
-          var ctx = canvas.getContext && canvas.getContext('2d');
-          if (!ctx || typeof ctx.fillRect !== 'function') return;
-          var rng = seededRng(salt);
-          var x = Math.floor(rng() * Math.max(1, canvas.width || 1));
-          var y = Math.floor(rng() * Math.max(1, canvas.height || 1));
-          var prev;
-          try { prev = ctx.fillStyle; } catch (e) {}
-          ctx.fillStyle = 'rgba(' +
-            (Math.floor(rng() * 256)) + ',' +
-            (Math.floor(rng() * 256)) + ',' +
-            (Math.floor(rng() * 256)) + ',0.005)';
-          ctx.fillRect(x, y, 1, 1);
-          try { if (prev !== undefined) ctx.fillStyle = prev; } catch (e) {}
-        } catch (e) {}
-      }
       var origToDataURL = canProto.toDataURL;
       if (typeof origToDataURL === 'function') {
         canProto.toDataURL = asNative(function toDataURL() {

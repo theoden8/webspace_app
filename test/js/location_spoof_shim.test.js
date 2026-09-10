@@ -466,3 +466,79 @@ test('permissions.query passes non-geolocation descriptors through untouched', a
   const status = await dom.window.navigator.permissions.query({ name: 'camera' });
   assert.equal(status.state, 'prompt');
 });
+
+// --- the relay policy lives on the prototype (SEC-017) ---
+
+test('webrtc_relay: setConfiguration cannot lift the policy', () => {
+  const dom = loadShim('location_spoof/webrtc_relay.js');
+  const pc = new dom.window.RTCPeerConnection({ iceTransportPolicy: 'all' });
+  assert.equal(pc.__config.iceTransportPolicy, 'relay');
+  pc.setConfiguration({
+    iceServers: [{ urls: 'stun:stun.example:3478' }],
+    iceTransportPolicy: 'all',
+  });
+  assert.equal(pc.__config.iceTransportPolicy, 'relay');
+  assert.equal(pc.__config.iceServers[0].urls, 'stun:stun.example:3478');
+  assert.match(
+    dom.window.Function.prototype.toString.call(
+      dom.window.RTCPeerConnection.prototype.setConfiguration),
+    /\[native code\]/,
+  );
+});
+
+test('webrtc_relay: the SDP filter is the prototype method, so .call() cannot skip it',
+    async () => {
+  const dom = loadShim('location_spoof/webrtc_relay.js');
+  const pc = new dom.window.RTCPeerConnection();
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(pc, 'setLocalDescription'), false,
+    'an instance-level wrapper is what prototype.setLocalDescription.call skips');
+  const sdp = [
+    'v=0',
+    'a=candidate:1 1 UDP 2130706431 192.168.1.10 54400 typ host',
+    'a=candidate:3 1 UDP 41885439 198.51.100.20 54400 typ relay',
+  ].join('\r\n');
+  await dom.window.RTCPeerConnection.prototype.setLocalDescription.call(
+    pc, { type: 'offer', sdp });
+  assert.ok(!pc.__lastSdp.sdp.includes('typ host'));
+  assert.ok(pc.__lastSdp.sdp.includes('typ relay'));
+  assert.equal(pc.__lastSdp.type, 'offer');
+});
+
+test('webrtc_relay: the argument-less setLocalDescription still passes through',
+    async () => {
+  const dom = loadShim('location_spoof/webrtc_relay.js');
+  const pc = new dom.window.RTCPeerConnection();
+  await pc.setLocalDescription();
+  assert.equal(pc.__lastSdp, undefined);
+});
+
+test('webrtc_relay: the constructor does not write onto the caller\'s object', () => {
+  const dom = loadShim('location_spoof/webrtc_relay.js');
+  const config = { iceTransportPolicy: 'all' };
+  new dom.window.RTCPeerConnection(config);
+  assert.equal(config.iceTransportPolicy, 'all');
+});
+
+// --- toDateString / toTimeString (SEC-025) ---
+
+test('timezone_only_tokyo: toDateString and toTimeString report the spoofed zone', () => {
+  const dom = loadShim('location_spoof/timezone_only_tokyo.js');
+  const d = "new Date('2024-07-15T20:00:00Z')";
+  assert.equal(dom.window.eval(`${d}.toDateString()`), 'Tue Jul 16 2024');
+  assert.match(
+    dom.window.eval(`${d}.toTimeString()`),
+    /^05:00:00 GMT\+0900 \(Japan Standard Time\)$/,
+  );
+  assert.equal(
+    dom.window.eval(`${d}.toString()`),
+    dom.window.eval(`${d}.toDateString() + ' ' + ${d}.toTimeString()`),
+  );
+  for (const m of ['toDateString', 'toTimeString']) {
+    assert.match(
+      dom.window.eval(`Function.prototype.toString.call(Date.prototype.${m})`),
+      /\[native code\]/,
+    );
+  }
+  assert.equal(dom.window.eval('new Date(NaN).toTimeString()'), 'Invalid Date');
+});

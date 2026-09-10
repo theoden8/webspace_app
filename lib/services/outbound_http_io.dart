@@ -16,7 +16,10 @@ import 'package:webspace/settings/proxy.dart';
 /// Default factory backed by `dart:io`'s [HttpClient].
 ///
 /// - DEFAULT  → direct client (system proxy, if any, is honored by dart:io)
-/// - HTTP/HTTPS → [HttpClient.findProxy] override pointing at the host:port
+/// - HTTP     → [HttpClient.findProxy] override pointing at the host:port
+/// - HTTPS    → the same, over a TLS session to the proxy: `findProxy` alone
+///            makes dart:io write `CONNECT` and `Proxy-Authorization` on a
+///            plain socket before any handshake (LEAK-008)
 /// - SOCKS5  → connection factory tunnels every request via the
 ///            [socks5_proxy] package; the SOCKS5 server resolves the
 ///            destination hostname, so the user's local resolver never
@@ -46,21 +49,12 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
             'avoid leaking the device IP via a direct fallback.',
           );
         }
-        final inner = _newHttpClient();
-        inner.findProxy = (uri) {
-          final host = uri.host.toLowerCase();
-          if (_isLocalhost(host)) return 'DIRECT';
-          return 'PROXY $addr';
-        };
-        if (settings.hasCredentials) {
-          inner.addProxyCredentials(
-            hostPort.$1,
-            hostPort.$2,
-            '',
-            HttpClientBasicCredentials(settings.username!, settings.password!),
-          );
-        }
-        return OutboundClientReady(IOClient(inner));
+        return _httpProxyClient(
+          settings,
+          addr,
+          hostPort,
+          tls: settings.type == ProxyType.HTTPS,
+        );
 
       case ProxyType.TOR:
         // TOR carries no address of its own; it expands at use-time into
@@ -114,6 +108,55 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
     final client = HttpClient();
     client.badCertificateCallback = _isTrustedBadCert;
     return client;
+  }
+
+  /// [http.Client] routed through the HTTP proxy at [addr]. With [tls] the
+  /// hop to the proxy is a TLS session: the factory hands dart:io a
+  /// `SecureSocket` to the proxy, so `CONNECT` and the Basic credentials go
+  /// out inside it, and dart:io nests the origin's own TLS through the
+  /// tunnel as it would over a plain socket. The proxy's certificate is
+  /// checked against system trust, or a fingerprint the user pinned.
+  static OutboundClient _httpProxyClient(
+    UserProxySettings settings,
+    String addr,
+    (String, int) hostPort, {
+    required bool tls,
+  }) {
+    final inner = _newHttpClient();
+    inner.findProxy = (uri) {
+      final host = uri.host.toLowerCase();
+      if (_isLocalhost(host)) return 'DIRECT';
+      return 'PROXY $addr';
+    };
+    if (settings.hasCredentials) {
+      inner.addProxyCredentials(
+        hostPort.$1,
+        hostPort.$2,
+        '',
+        HttpClientBasicCredentials(settings.username!, settings.password!),
+      );
+    }
+    if (tls) {
+      inner.connectionFactory = (uri, proxyHost, proxyPort) {
+        if (proxyHost == null || proxyPort == null) {
+          return uri.scheme == 'https'
+              ? SecureSocket.startConnect(
+                  uri.host,
+                  uri.port,
+                  onBadCertificate: (cert) =>
+                      _isTrustedBadCert(cert, uri.host, uri.port),
+                )
+              : Socket.startConnect(uri.host, uri.port);
+        }
+        return SecureSocket.startConnect(
+          proxyHost,
+          proxyPort,
+          onBadCertificate: (cert) =>
+              _isTrustedBadCert(cert, proxyHost, proxyPort),
+        );
+      };
+    }
+    return OutboundClientReady(IOClient(inner));
   }
 
   static bool _isTrustedBadCert(X509Certificate cert, String host, int port) {

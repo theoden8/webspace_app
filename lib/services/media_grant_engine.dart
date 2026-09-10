@@ -106,3 +106,10 @@ class MediaGrantEngine<M, S, D> {
     return hit == null ? null : hit.$2;
   }
 }
+
+/// The mode a nested screen starts from. `real` is the one answer that opens
+/// the device, and the popup that produced it named the parent's top
+/// document; a page reached through a link is asked for itself
+/// (CAM-005 / MIC-005). Every other mode is inherited as it is.
+T nestedSeedMode<T>(T mode, {required T real, required T ask}) =>
+    mode == real ? ask : mode;

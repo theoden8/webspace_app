@@ -429,7 +429,7 @@ CLAUDE.md now forbids. Direct engine tests live in
 - `_shouldBlockUrl()` — blocks `about:` (except blank/srcdoc) and service worker patterns
 - `isCaptchaChallenge()` — detects captcha domains and paths; passed to `decideOnUrlChanged` as a callback
 - `shouldOverrideUrlLoading` callback passes `hasGesture` from `NavigationAction`
-- `onCreateWindow` — dismisses all `window.open()` except captcha challenges
+- `onCreateWindow` — dismisses all `window.open()` except captcha challenges; a same-domain target loads in place only with a user gesture (NESTED-013)
 - Registers `targetBlankRewriteScript` always-on at `AT_DOCUMENT_START`
 
 #### `lib/services/target_blank_rewrite.dart`

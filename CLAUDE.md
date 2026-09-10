@@ -151,6 +151,17 @@ silently — record it so the next person sees the whole lineage and the still-o
 GitHub issues/PRs track "what broke"; `docs/bugs/` tracks "every attempt and why each
 was incomplete"; OpenSpec tracks "the behavior we now require". Keep all three in sync.
 
+## Security reviews (`docs/security/`)
+
+Whole-app security reviews are expensive to run, so every run is persisted as
+`docs/security/NNNN-MM-DD-review.md` with stable `SEC-NNN` ids, a status column, and a
+**Verified safe** list of paths already checked. Before touching a bridge, shim, proxy
+path, import path or the archive, read the latest run's findings for that area; before
+starting a new review, read [docs/security/README.md](docs/security/README.md) for the
+method, the threat model, and the four recurring shapes to grep for first. Close a
+finding by editing its status row (cite the commit), never by deleting it; a finding that
+resurfaces through a new path becomes a `docs/bugs/` entry linked from the run file.
+
 ## Formal verification (`formal/`)
 
 Defense-in-depth pipeline; each layer absorbs a class of issue before the next:

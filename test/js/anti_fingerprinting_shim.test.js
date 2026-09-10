@@ -128,7 +128,35 @@ function installFpStubs(window) {
     return new window.TextMetrics(
       { width: 24, actualBoundingBoxAscent: 8, actualBoundingBoxDescent: 1 });
   };
+  OffscreenCanvasRenderingContext2D.prototype.getImageData = function(x, y, w, h) {
+    record('osc.getImageData', [x, y, w, h]);
+    const data = new Uint8ClampedArray(w * h * 4);
+    for (let i = 0; i < data.length; i++) data[i] = 100;
+    return { data, width: w, height: h, colorSpace: 'srgb' };
+  };
+  OffscreenCanvasRenderingContext2D.prototype.fillRect = function() {
+    record('osc.fillRect', [...arguments]);
+  };
+  Object.defineProperty(OffscreenCanvasRenderingContext2D.prototype, 'fillStyle', {
+    configurable: true,
+    get() { return this._fillStyle; },
+    set(v) { this._fillStyle = v; },
+  });
   window.OffscreenCanvasRenderingContext2D = OffscreenCanvasRenderingContext2D;
+  function OffscreenCanvas(w, h) { this.width = w || 300; this.height = h || 150; }
+  OffscreenCanvas.prototype.getContext = function(type) {
+    record('osc.getContext', [type]);
+    if (type === '2d') {
+      if (!this.__ctx) this.__ctx = new OffscreenCanvasRenderingContext2D();
+      return this.__ctx;
+    }
+    return null;
+  };
+  OffscreenCanvas.prototype.convertToBlob = function() {
+    record('osc.convertToBlob', []);
+    return Promise.resolve(new (window.Blob || function() {})(['stub']));
+  };
+  window.OffscreenCanvas = OffscreenCanvas;
 
   // --- Audio ---
   function AudioBuffer() {}
@@ -387,6 +415,41 @@ test('matchMedia delegates non-device queries to the real implementation', () =>
   assert.ok(delegated.length >= 1, 'non-device query was not delegated');
 });
 
+test('compound, range and ratio device queries are rewritten, never delegated raw (SEC-019)', () => {
+  const seen = [];
+  const dom = loadShim(ALPHA, undefined, (w) => {
+    // A stand-in engine that evaluates only the two sentinel features the
+    // rewrite emits, joined by `and`.
+    w.matchMedia = function matchMedia(q) {
+      seen.push(q);
+      return {
+        matches: !/99999999px/.test(q), media: q, onchange: null,
+        addListener() {}, removeListener() {},
+        addEventListener() {}, removeEventListener() {},
+        dispatchEvent() { return false; },
+      };
+    };
+  });
+  const mm = dom.window.matchMedia;
+  assert.equal(mm('(max-device-width: 1920px) and (min-width: 0px)').matches, true);
+  assert.equal(mm('(max-device-width: 1919px) and (min-width: 0px)').matches, false);
+  assert.equal(mm('screen and (max-device-width: 1919px)').matches, false);
+  assert.equal(mm('(device-width >= 1920px)').matches, true);
+  assert.equal(mm('(device-width < 1920px)').matches, false);
+  assert.equal(mm('(1000px <= device-width <= 2000px)').matches, true);
+  assert.equal(mm('(1000px <= device-width < 1920px)').matches, false);
+  assert.equal(mm('(device-aspect-ratio: 16/9)').matches, true);
+  assert.equal(mm('(min-device-aspect-ratio: 2/1)').matches, false);
+  assert.equal(mm('(max-device-width: 120em)').matches, true);
+  assert.equal(mm('(max-device-height: 67.4em)').matches, false);
+  const q = '(max-device-width: 1919px) and (min-width: 0px)';
+  assert.equal(mm(q).media, q);
+  for (const s of seen) {
+    assert.doesNotMatch(s, /device-(width|height|aspect-ratio)/i,
+      `a raw device query reached the engine: ${s}`);
+  }
+});
+
 test('patched matchMedia stringifies as [native code]', () => {
   const dom = loadShim(ALPHA);
   const s = dom.window.Function.prototype.toString.call(dom.window.matchMedia);
@@ -561,6 +624,31 @@ test('navigator overrides land on Navigator.prototype, not the instance', () => 
 });
 
 // --- Canvas 2D ---
+
+test('OffscreenCanvasRenderingContext2D.getImageData is noised like the on-screen one (SEC-018)', () => {
+  const read = (fixture) => {
+    const dom = loadShim(fixture);
+    const ctx = new dom.window.OffscreenCanvas(64, 64).getContext('2d');
+    return Array.from(ctx.getImageData(0, 0, 64, 64).data);
+  };
+  const a = read(ALPHA);
+  assert.ok(a.some((v, i) => i % 4 === 0 && v !== 100), 'no pixel was touched');
+  assert.deepEqual(a, read(ALPHA), 'the noise must be stable per site');
+  assert.notDeepEqual(a, read('anti_fingerprinting/shim_seed_beta.js'));
+});
+
+test('OffscreenCanvas.convertToBlob nudges the canvas once (SEC-018)', async () => {
+  const dom = loadShim(ALPHA);
+  const c = new dom.window.OffscreenCanvas(8, 8);
+  await c.convertToBlob();
+  await c.convertToBlob();
+  const fills = dom.window.__calls.filter(x => x.name === 'osc.fillRect');
+  assert.equal(fills.length, 1);
+  assert.match(
+    dom.window.Function.prototype.toString.call(dom.window.OffscreenCanvas.prototype.convertToBlob),
+    /\[native code\]/,
+  );
+});
 
 test('CanvasRenderingContext2D.prototype.getImageData calls original and returns ImageData', () => {
   const dom = loadShim(ALPHA);

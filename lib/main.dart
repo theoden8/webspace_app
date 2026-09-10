@@ -55,6 +55,7 @@ import 'package:webspace/services/diag_seed.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
 import 'package:webspace/services/archive.dart';
+import 'package:webspace/services/archive_membership_engine.dart';
 import 'package:webspace/services/archive_crypto.dart';
 import 'package:webspace/services/container_isolation_engine.dart';
 import 'package:webspace/services/container_native.dart';
@@ -1250,7 +1251,10 @@ class _WebSpacePageState extends State<WebSpacePage>
     _lastTorUp = nowUp;
     var anyTorSite = false;
     for (final m in _webViewModels) {
-      if (m.proxySettings.type != ProxyType.TOR) continue;
+      if (resolveEffectiveProxy(m.proxySettings, siteId: m.siteId).type !=
+          ProxyType.TOR) {
+        continue;
+      }
       anyTorSite = true;
       // A site whose webview is null is showing the placeholder — no
       // dispose needed there, but the setState below still swaps in the
@@ -1425,8 +1429,9 @@ class _WebSpacePageState extends State<WebSpacePage>
       // Rasterize the favicon to PNG here (HS-003): Android's BitmapFactory
       // can't decode SVG, so an SVG favicon would otherwise fall back to the
       // WebSpace app icon. exportIconAsPng also normalizes ICO/PNG and applies
-      // the site's proxy. iconUrl stays as a native-side fallback if it fails.
-      // A user-chosen icon is already normalized PNG and wins outright.
+      // the site's proxy; when it fails the native side uses the app icon.
+      // The page-chosen URL is never handed to native for a direct retry
+      // (LEAK-003). A user-chosen icon is already normalized PNG and wins.
       final iconBytes = model.customIconPng ??
           await exportIconAsPng(
             model.initUrl,
@@ -1438,7 +1443,6 @@ class _WebSpacePageState extends State<WebSpacePage>
         siteId: model.siteId,
         label: model.name,
         iconBytes: iconBytes,
-        iconUrl: iconBytes == null ? faviconUrl : null,
       );
       // HS-011: remember this id's url now so a later delete+recreate can be
       // routed by domain. _refreshPinnedSiteIds also reconciles on resume.
@@ -2818,42 +2822,96 @@ class _WebSpacePageState extends State<WebSpacePage>
     final model = _webViewModels[index];
     await _maybeSwitchToAllForSite(model, index);
     if (!mounted) return;
-    await launchUrl(
-      a.url,
-      homeTitle: model.name,
-      siteId: model.siteId,
-      incognito: model.incognito,
-      thirdPartyCookiesEnabled: model.effectiveThirdPartyCookiesEnabled,
-      clearUrlEnabled: model.clearUrlEnabled,
-      dnsBlockEnabled: model.dnsBlockEnabled,
-      dnsBlockLevel: model.effectiveDnsBlockLevel,
-      contentBlockEnabled: model.contentBlockEnabled,
-      disabledFilterLists: model.effectiveDisabledFilterLists,
-      localCdnEnabled: model.effectiveLocalCdnEnabled,
-      contributesBlockStats: model.contributesBlockStats,
-      trackingProtectionEnabled: model.trackingProtectionEnabled,
-      letterboxEnabled: model.letterboxEnabled,
-      spoofWindowWidth: model.spoofWindowWidth,
-      spoofWindowHeight: model.spoofWindowHeight,
-      fingerprintResetNonce: model.fingerprintResetNonce,
-      language: model.language,
-      zoomPercent: model.zoomPercent,
-      locationMode: model.locationMode,
-      spoofLatitude: model.spoofLatitude,
-      spoofLongitude: model.spoofLongitude,
-      spoofAccuracy: model.spoofAccuracy,
-      spoofTimezone: model.spoofTimezone,
-      spoofTimezoneFromLocation: model.spoofTimezoneFromLocation,
-      liveLocationGranularity: model.liveLocationGranularity,
-      webRtcPolicy: model.webRtcPolicy,
-      userAgent: model.effectiveUserAgentOrNull,
-      javascriptEnabled: model.javascriptEnabled,
-      userScripts: model.combineUserScripts(_globalUserScripts),
-      proxySettings: model.outboundProxySettings,
-      notificationsEnabled: model.effectiveNotificationsEnabled,
-      externalLinksInBrowser: model.effectiveExternalLinksInBrowser,
-    );
+    // Android/Linux: the proxy is a process-global override that only the
+    // activation path flips. The nested screen is for a site that is not
+    // being activated, so run the PROXY-008 sequence here or it would load
+    // through whatever the active site left behind, bound to this site's
+    // container (LEAK-003). Fail closed when the override cannot be applied.
+    if (hostIsAndroid || hostIsLinux) {
+      final mismatch = SiteUnloadEngine.indicesToUnloadForProxyMismatch(
+        targetIndex: index,
+        models: _webViewModels,
+        loadedIndices: _loadedIndices,
+        proxyIsGlobal: true,
+      );
+      for (final i in mismatch) {
+        await _unloadSiteForOtherReason(i);
+        if (!mounted) return;
+      }
+      try {
+        await ProxyManager().setProxySettings(model.proxySettings);
+      } catch (e) {
+        LogService.instance.log(
+          'Proxy',
+          'Nested open refused: proxy apply failed: $e',
+          level: LogLevel.error,
+          sensitivity: LogSensitivity.sensitive,
+        );
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context).siteSettingsProxyError('$e'),
+            ),
+          ),
+        );
+        return;
+      }
+      if (!mounted) return;
+    }
+    await _launchNestedForModel(model, a.url);
   }
+
+  /// The one place a nested screen opens for an existing site from this
+  /// widget. Mirrors the `launchUrlFunc` call in `WebViewModel.getWebView`
+  /// so a share, deep link or URL-bar submission carries the same per-site
+  /// posture as a tapped link (NESTED-010); the parity test holds every
+  /// call of `launchUrl` in this file to the whole chain.
+  Future<void> _launchNestedForModel(WebViewModel model, String url) =>
+      launchUrl(
+        url,
+        homeTitle: model.name,
+        siteId: model.siteId,
+        incognito: model.effectiveIncognito,
+        thirdPartyCookiesEnabled: model.effectiveThirdPartyCookiesEnabled,
+        clearUrlEnabled: model.clearUrlEnabled,
+        dnsBlockEnabled: model.dnsBlockEnabled,
+        dnsBlockLevel: model.effectiveDnsBlockLevel,
+        contentBlockEnabled: model.contentBlockEnabled,
+        disabledFilterLists: model.effectiveDisabledFilterLists,
+        localCdnEnabled: model.effectiveLocalCdnEnabled,
+        contributesBlockStats: model.contributesBlockStats,
+        trackingProtectionEnabled: model.trackingProtectionEnabled,
+        letterboxEnabled: model.letterboxEnabled,
+        spoofWindowWidth: model.spoofWindowWidth,
+        spoofWindowHeight: model.spoofWindowHeight,
+        fingerprintResetNonce: model.fingerprintResetNonce,
+        language: model.language,
+        zoomPercent: model.zoomPercent,
+        locationMode: model.locationMode,
+        spoofLatitude: model.spoofLatitude,
+        spoofLongitude: model.spoofLongitude,
+        spoofAccuracy: model.spoofAccuracy,
+        spoofTimezone: model.spoofTimezone,
+        spoofTimezoneFromLocation: model.spoofTimezoneFromLocation,
+        liveLocationGranularity: model.liveLocationGranularity,
+        webRtcPolicy: model.webRtcPolicy,
+        userAgent: model.effectiveUserAgentOrNull,
+        javascriptEnabled: model.javascriptEnabled,
+        userScripts: model.combineUserScripts(_globalUserScripts),
+        proxySettings: model.outboundProxySettings,
+        notificationsEnabled: model.effectiveNotificationsEnabled,
+        externalLinksInBrowser: model.effectiveExternalLinksInBrowser,
+        blockAutoRedirects: model.blockAutoRedirects,
+        blockedCookies: model.blockedCookies,
+        cameraMode: model.effectiveCameraMode,
+        virtualCameraSource: model.virtualCameraSource,
+        microphoneMode: model.effectiveMicrophoneMode,
+        virtualMicrophoneSource: model.virtualMicrophoneSource,
+        screenShareMode: model.effectiveScreenShareMode,
+        virtualScreenSource: model.virtualScreenSource,
+        protectedContentAllowed: model.effectiveProtectedContentAllowed,
+      );
 
   /// LIR-009 + LIR-010 option 3: create a brand-new site rooted at the
   /// stripped home URL with a synthesized `baseDomain` claim, then
@@ -2893,24 +2951,53 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// LIR-012: an HTML file share short-circuits to "create new site"
   /// (only sensible action — opaque file content can't be claimed by an
   /// existing site). HTML lives in `HtmlImportStorage`, identical to the
-  /// in-app file-import flow.
+  /// in-app file-import flow. On Android any app can deliver this share
+  /// without the chooser, so the site is reviewed first and never put on
+  /// screen unasked.
   Future<void> _executeCreateSiteFromHtml(
     DispatchCreateSiteFromHtml a,
   ) async {
     final stateSetter = () { setState((){}); };
     final fileSiteUrl =
         'file:///webspace_import_${DateTime.now().microsecondsSinceEpoch}.html';
+    final title = a.suggestedTitle?.trim() ?? '';
+    final loc = AppLocalizations.of(context);
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(loc.homeQrReviewTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (title.isNotEmpty) Text(loc.homeQrReviewName(title)),
+            Text(loc.homeQrReviewUrl(fileSiteUrl)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(loc.commonCancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(loc.homeCreateAction),
+          ),
+        ],
+      ),
+    );
+    if (accepted != true || !mounted) return;
     final model = WebViewModel(
       initUrl: fileSiteUrl,
       stateSetterF: stateSetter,
     );
-    final title = a.suggestedTitle?.trim();
-    if (title != null && title.isNotEmpty) {
+    if (title.isNotEmpty) {
       model.name = title;
       model.pageTitle = title;
     }
     await HtmlImportStorage.instance.saveHtml(model.siteId, a.html, fileSiteUrl);
-    await _registerNewSite(model);
+    if (!mounted) return;
+    await _registerNewSite(model, activate: false);
   }
 
   /// Persist [a.claimAdditions] onto the chosen site (deduped against
@@ -3141,6 +3228,9 @@ class _WebSpacePageState extends State<WebSpacePage>
       _webspaces.add(ws);
       webspaceIds.add(ws.id);
     }
+    // Put the archived sites back into the app-tier collections they were
+    // archived from. Runtime only: `_saveWebspaces` strips archive-tier ids.
+    ArchiveMembershipEngine.attach(_webspaces, handle.state.appTierMembership);
     _archiveSlices[handle] = _ArchiveSlice(
       siteIds: siteIds,
       webspaceIds: webspaceIds,
@@ -3202,29 +3292,52 @@ class _WebSpacePageState extends State<WebSpacePage>
       for (final m in _webViewModels)
         if (slice.siteIds.contains(m.siteId)) m,
     ];
-    handle.state.cookies
-      ..clear()
-      ..addEntries(
-        ownedSites.map(
-          (m) => MapEntry(
-            m.siteId,
-            m.cookies.map((c) => c.toJson()).toList(),
+    // Rows missing from the runtime mean something cleared the list under
+    // an open archive; sealing what is left would empty the archive. Keep
+    // the state as opened instead.
+    final intact = ownedSites.length >= slice.siteIds.length;
+    if (intact) {
+      handle.state.cookies
+        ..clear()
+        ..addEntries(
+          ownedSites.map(
+            (m) => MapEntry(
+              m.siteId,
+              m.cookies.map((c) => c.toJson()).toList(),
+            ),
           ),
-        ),
+        );
+      handle.state.sites
+        ..clear()
+        ..addAll(ownedSites.map((m) => m.toJson()));
+      // Capture this archive's collections back into its state so any
+      // rename / reorder / membership change made while open persists.
+      final ownedSpaces = [
+        for (final w in _webspaces)
+          if (slice.webspaceIds.contains(w.id)) w,
+      ];
+      handle.state.webspaces
+        ..clear()
+        ..addAll(ownedSpaces.map((w) => w.toJson()));
+    } else {
+      LogService.instance.log(
+        'Archive',
+        'close: ${slice.siteIds.length - ownedSites.length} archived sites '
+            'missing from the runtime; sealed state left as opened',
+        level: LogLevel.error,
       );
-    handle.state.sites
-      ..clear()
-      ..addAll(ownedSites.map((m) => m.toJson()));
-    // Capture this archive's collections back into its state so any
-    // rename / reorder / membership change made while open persists.
-    final ownedSpaces = [
-      for (final w in _webspaces)
-        if (slice.webspaceIds.contains(w.id)) w,
-    ];
-    handle.state.webspaces
-      ..clear()
-      ..addAll(ownedSpaces.map((w) => w.toJson()));
-    await _archive.save(handle);
+    }
+    // App-tier membership of the archived sites goes into the archive
+    // state and out of the runtime lists, so nothing names them once the
+    // archive is closed (ARCH-001).
+    final membership =
+        ArchiveMembershipEngine.detach(_webspaces, slice.siteIds);
+    if (intact) {
+      handle.state.appTierMembership
+        ..clear()
+        ..addAll(membership);
+      await _archive.save(handle);
+    }
     await _archive.close(handle);
     // Dispose webviews owned by this archive before removing them from
     // the list, so the IndexedStack rebuild doesn't try to render
@@ -3247,6 +3360,9 @@ class _WebSpacePageState extends State<WebSpacePage>
       await _stateStorage.removeState(sid);
       await _cookieSecureStorage.saveCookiesForSite(sid, const []);
       await HtmlCacheService.instance.deleteCache(sid);
+    }
+    for (final m in ownedSites) {
+      await FaviconUrlCache.invalidate(m.initUrl);
     }
     await _proxyPasswordStorage.mutate((draft) {
       for (final sid in slice.siteIds) {
@@ -3400,16 +3516,22 @@ class _WebSpacePageState extends State<WebSpacePage>
         capturedCookies.map((c) => c.toJson()).toList();
     _archiveSlices[target]!.siteIds.add(model.siteId);
     _archiveSlices[target]!.containerIds.add(model.archiveContainerId!);
+    // Remember which app-tier collections the site came from inside the
+    // archive; the runtime lists keep it while the archive is open and
+    // `_saveWebspaces` strips it from the persisted form (ARCH-001).
+    target.state.appTierMembership
+      ..clear()
+      ..addAll(ArchiveMembershipEngine.record(
+        _webspaces,
+        {model.siteId},
+        existing: target.state.appTierMembership,
+      ));
     await _archive.save(target);
+    await FaviconUrlCache.invalidate(model.initUrl);
 
-    // Webspace membership is keyed by siteId (not positional index), so
-    // no change is needed here — the runtime `siteIndices` projection
-    // will continue to surface this site under any webspace it
-    // belonged to whenever the archive is open. When the archive
-    // closes, the siteId stays in webspace.siteIds (persisted) but
-    // drops out of siteIndices (runtime view) automatically.
     _resolveWebspaceIndices();
     await _saveWebViewModels();
+    await _saveWebspaces();
     if (mounted) {
       setState(() {});
       ScaffoldMessenger.of(context).showSnackBar(
@@ -3445,6 +3567,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     // Pop the site out of the archive's state and slice.
     handle.state.sites.removeWhere((s) => s['siteId'] == model.siteId);
     handle.state.cookies.remove(model.siteId);
+    ArchiveMembershipEngine.forget(handle.state.appTierMembership, model.siteId);
     slice.siteIds.remove(model.siteId);
     if (containerId != null) {
       slice.containerIds.remove(containerId);
@@ -3459,6 +3582,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     model.cookies = capturedCookies;
 
     await _saveWebViewModels();
+    await _saveWebspaces();
     if (mounted) {
       setState(() {});
       ScaffoldMessenger.of(context).showSnackBar(
@@ -3927,16 +4051,21 @@ class _WebSpacePageState extends State<WebSpacePage>
     });
   }
 
+  Set<String> get _archivedSiteIds => {
+        for (final m in _webViewModels)
+          if (m.isArchiveTier) m.siteId,
+      };
+
   Future<void> _saveWebspaces() async {
     if (isDemoMode) return; // Don't persist in demo mode
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    // Archive-tier collections live in `_webspaces` for rendering while
-    // open but must not enter app-tier persistence (their membership is
-    // carried in the archive's own encrypted state).
-    List<String> webspacesJson = _webspaces
-        .where((webspace) => !webspace.isArchiveTier)
-        .map((webspace) => jsonEncode(webspace.toJson()))
-        .toList();
+    // Archive-tier collections and archived siteIds live in `_webspaces`
+    // for rendering while open but must not enter app-tier persistence
+    // (the archive's own encrypted state carries them).
+    List<String> webspacesJson = ArchiveMembershipEngine.persistable(
+      _webspaces,
+      _archivedSiteIds,
+    ).map((webspace) => jsonEncode(webspace.toJson())).toList();
     await prefs.setStringList('webspaces', webspacesJson);
   }
 
@@ -6232,7 +6361,10 @@ class _WebSpacePageState extends State<WebSpacePage>
     await SettingsBackupService.exportAndSave(
       context,
       webViewModels: appTierModels,
-      webspaces: _webspaces,
+      webspaces: ArchiveMembershipEngine.persistable(
+        _webspaces,
+        _archivedSiteIds,
+      ),
       themeMode: _themeSettings.toStorageIndex(),
       globalPrefs: readExportedAppPrefs(prefs),
       selectedWebspaceId: _selectedWebspaceId,
@@ -6379,6 +6511,13 @@ class _WebSpacePageState extends State<WebSpacePage>
       }
       return;
     }
+
+    // The clear below would drop an open archive's materialised rows while
+    // its handle stayed registered, and the next close would seal that
+    // emptiness over the slot (ARCH-010). Seal every open archive as it
+    // stands first.
+    await _closeAllArchives();
+    if (!mounted) return;
 
     // Apply the imported settings
     setState(() {
@@ -7522,6 +7661,7 @@ class _WebSpacePageState extends State<WebSpacePage>
             size: 16,
             proxy: siteModel.outboundProxySettings,
             customIcon: siteModel.customIconPng,
+            persist: !siteModel.isArchiveTier,
           ),
           SizedBox(width: 6),
           Flexible(
@@ -7583,41 +7723,7 @@ class _WebSpacePageState extends State<WebSpacePage>
               // typing a URL behaves identically to tapping an outbound
               // link.
               if (getNormalizedDomain(url) != getNormalizedDomain(model.initUrl)) {
-                await launchUrl(
-                  url,
-                  homeTitle: model.name,
-                  siteId: model.siteId,
-                  incognito: model.incognito,
-                  thirdPartyCookiesEnabled: model.effectiveThirdPartyCookiesEnabled,
-                  clearUrlEnabled: model.clearUrlEnabled,
-                  dnsBlockEnabled: model.dnsBlockEnabled,
-                  dnsBlockLevel: model.effectiveDnsBlockLevel,
-                  contentBlockEnabled: model.contentBlockEnabled,
-                  disabledFilterLists: model.effectiveDisabledFilterLists,
-                  localCdnEnabled: model.localCdnEnabled,
-                  contributesBlockStats: model.contributesBlockStats,
-                  trackingProtectionEnabled: model.trackingProtectionEnabled,
-                  letterboxEnabled: model.letterboxEnabled,
-                  spoofWindowWidth: model.spoofWindowWidth,
-                  spoofWindowHeight: model.spoofWindowHeight,
-                  fingerprintResetNonce: model.fingerprintResetNonce,
-                  language: model.language,
-                  zoomPercent: model.zoomPercent,
-                  locationMode: model.locationMode,
-                  spoofLatitude: model.spoofLatitude,
-                  spoofLongitude: model.spoofLongitude,
-                  spoofAccuracy: model.spoofAccuracy,
-                  spoofTimezone: model.spoofTimezone,
-                  spoofTimezoneFromLocation: model.spoofTimezoneFromLocation,
-                  liveLocationGranularity: model.liveLocationGranularity,
-                  webRtcPolicy: model.webRtcPolicy,
-                  userAgent: model.effectiveUserAgentOrNull,
-                  javascriptEnabled: model.javascriptEnabled,
-                  userScripts: model.combineUserScripts(_globalUserScripts),
-                  proxySettings: model.outboundProxySettings,
-                  notificationsEnabled: model.notificationsEnabled,
-                  externalLinksInBrowser: model.effectiveExternalLinksInBrowser,
-                );
+                await _launchNestedForModel(model, url);
                 return;
               }
               final controller = model.getController(launchUrl, _cookieManager, _containerCookieManager, _saveWebViewModels, globalUserScripts: _globalUserScripts);
@@ -7988,18 +8094,15 @@ class _WebSpacePageState extends State<WebSpacePage>
     final loc = AppLocalizations.of(context);
     final url = qr['initUrl'] as String? ?? '';
     final name = (qr['name'] as String?) ?? extractDomain(url);
-    final proxyJson = qr['proxySettings'];
-    String? proxyAddress;
-    if (proxyJson is Map<String, dynamic>) {
-      final type = proxyJson['type'];
-      final address = proxyJson['address'];
-      if (type is int &&
-          type != ProxyType.DEFAULT.index &&
-          address is String &&
-          address.isNotEmpty) {
-        proxyAddress = address;
-      }
-    }
+    final proxy = SiteSettingsQrCodec.reviewProxy(qr);
+    final proxyAddress = proxy?.address ?? '';
+    final proxyLabel = proxy == null
+        ? null
+        : proxy.type == ProxyType.TOR
+            ? loc.torStatusTitle
+            : proxyAddress.isNotEmpty
+                ? proxyAddress
+                : proxy.type.name;
     bool turnsOff(String key) => qr[key] == false;
     bool turnsOn(String key) => qr[key] == true;
     final weakened = <String>[
@@ -8040,7 +8143,7 @@ class _WebSpacePageState extends State<WebSpacePage>
               SizedBox(height: 12),
               Text(loc.homeQrReviewUrl(url)),
               Text(loc.homeQrReviewName(name)),
-              if (proxyAddress != null) Text(loc.homeQrReviewProxy(proxyAddress)),
+              if (proxyLabel != null) Text(loc.homeQrReviewProxy(proxyLabel)),
               if (weakened.isNotEmpty) ...[
                 SizedBox(height: 12),
                 Text(loc.homeQrReviewTurnsOff(weakened.join(', '))),
@@ -8130,6 +8233,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                             url: model.initUrl,
                             size: 32,
                             proxy: model.outboundProxySettings,
+                            persist: !model.isArchiveTier,
                           ),
                   ),
                   SizedBox(width: 12),
@@ -8933,6 +9037,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                           size: 28,
                           proxy: _webViewModels[index].outboundProxySettings,
                           customIcon: _webViewModels[index].customIconPng,
+                          persist: !_webViewModels[index].isArchiveTier,
                         ),
                       ),
                     ),
@@ -8986,6 +9091,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                               size: 36,
                               proxy: _webViewModels[index].outboundProxySettings,
                               customIcon: _webViewModels[index].customIconPng,
+                              persist: !_webViewModels[index].isArchiveTier,
                             ),
                           ),
                         ),
@@ -9800,6 +9906,7 @@ class _DispatchPickerSheetState extends State<_DispatchPickerSheet> {
           size: 32,
           proxy: site.outboundProxySettings,
           customIcon: site.customIconPng,
+          persist: !site.isArchiveTier,
         ),
       );
 

@@ -168,6 +168,26 @@ path — page/worker agreement in one flavour is not evidence for another.**
    directives, so an engine that reports only `violatedDirective` on a worker
    refusal now falls through to the rescue rather than pre-empting it.
 
+7. **2026-09-10 — the relay policy moves onto the prototype**
+   ([lib/services/location_spoof_service.dart](../../lib/services/location_spoof_service.dart)).
+   `relayOnly` forced `iceTransportPolicy` only in the constructor and filtered
+   SDP only through a wrapper written onto the instance.
+   `RTCPeerConnection.prototype.setConfiguration` is native and may change the
+   policy, `prototype.setLocalDescription.call(pc, ...)` skipped the instance
+   wrapper, and the argument-less `setLocalDescription()` never passed SDP
+   through it, so a page pinned to `relayOnly` behind a proxy could gather host
+   candidates and read its public IP off `onicecandidate`. Both methods are now
+   patched on the prototype (the policy is forced on every configuration, the
+   filter runs whichever way the method is reached) and the constructor no
+   longer writes onto the caller's object. *Why:* the same shape as attempt 4,
+   the native original reachable inside a scope the shim reaches, through the
+   prototype's methods rather than its `constructor`. *Why partial:* a reference
+   to the native prototype methods captured before the shim ran, or an iframe
+   realm the payload never reaches, still holds the original, and the shim has
+   no native enforcement behind it on any platform. Class-level guard:
+   `test/js/location_spoof_shim.test.js` (`setConfiguration`, the prototype
+   call, the argument-less call) and the LOC-004 scenario.
+
 ## Known open gaps
 
 - **Realms not yet compared against the document:** workers spawned by a

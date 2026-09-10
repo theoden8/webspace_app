@@ -96,12 +96,20 @@ class UnifiedFaviconImage extends StatefulWidget {
   /// render directly and no favicon is fetched for this widget.
   final Uint8List? customIcon;
 
+  /// Whether the resolved favicon URL (and SVG body) may be written to
+  /// plaintext SharedPreferences. False for archive-tier sites: a
+  /// `favicon_url_<initUrl>` key would name the archived site on disk
+  /// after the archive closes (ARCH-001). The in-memory caches still serve
+  /// the session either way.
+  final bool persist;
+
   const UnifiedFaviconImage({
     required this.url,
     required this.size,
     this.domain,
     this.proxy,
     this.customIcon,
+    this.persist = true,
   });
 
   @override
@@ -191,6 +199,7 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
       url,
       persistedContent: persisted,
       proxy: widget.proxy,
+      persist: widget.persist,
     );
     if (mounted) {
       setState(() {
@@ -209,8 +218,9 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
             _currentQuality = update.quality;
             if (update.isFinal) {
               _isLoading = false;
-              // Cache the final result
-              FaviconUrlCache.set(widget.url, update.url);
+              if (widget.persist) {
+                FaviconUrlCache.set(widget.url, update.url);
+              }
             }
           });
           if (_isSvgUrl(update.url)) {
@@ -223,8 +233,7 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
           setState(() {
             _isLoading = false;
           });
-          // Cache whatever we have
-          if (_currentIconUrl != null) {
+          if (_currentIconUrl != null && widget.persist) {
             FaviconUrlCache.set(widget.url, _currentIconUrl!);
           }
         }

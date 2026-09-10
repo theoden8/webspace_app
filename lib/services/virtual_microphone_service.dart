@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:webspace/services/media_metadata_strip.dart';
 import 'package:webspace/services/virtual_media_picker.dart';
 import 'package:webspace/settings/microphone.dart';
 
@@ -36,9 +37,10 @@ class VirtualMicrophoneService {
     if (outcome.error != null) {
       return VirtualMicrophonePickResult.error(outcome.error!);
     }
+    final bytes = stripContainerMetadata(outcome.bytes!, outcome.extension);
     final dataUrl =
         'data:${mimeForExtension(outcome.extension)};base64,'
-        '${base64Encode(outcome.bytes!)}';
+        '${base64Encode(bytes)}';
     return VirtualMicrophonePickResult.picked(VirtualMicrophoneSource(
       dataUrl: dataUrl,
       fileName: outcome.fileName,

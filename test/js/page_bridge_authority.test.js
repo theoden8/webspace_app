@@ -11,9 +11,11 @@
 //   openspec/specs/clearurls/spec.md            CURL-014, CURL-015
 //   openspec/specs/content-blocker/spec.md      CB-014
 //   openspec/specs/dns-blocklist/spec.md        DNS-018
-//   openspec/specs/captcha-support/spec.md      CAPTCHA-007/008/009
+//   openspec/specs/captcha-support/spec.md      CAPTCHA-007/008/009/010
 //   openspec/specs/web-camera-access/spec.md    CAM-013 / MIC-013
 //   openspec/specs/ip-leakage/spec.md           LEAK-002
+//   openspec/specs/per-site-location/spec.md    LOC-011
+//   openspec/changes/upstream-webview-defects/specs/nested-url-blocking/spec.md  NESTED-013
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -80,7 +82,7 @@ test('CURL-014/015 + CB-014: a rewrite target is scheme-checked before it is loa
 
 test('CAPTCHA-008: the captcha allow comes after the routing decision', () => {
   const override = NAV.indexOf('config.shouldOverrideUrlLoading!(url, hasGesture)');
-  const captcha = NAV.indexOf('isCaptchaChallenge(url)');
+  const captcha = NAV.indexOf('isCaptchaChallenge(url, siteUrl: config.initialUrl)');
   assert.notEqual(override, -1, 'the shouldOverrideUrlLoading call is gone');
   assert.notEqual(captcha, -1, 'the captcha allow is gone');
   assert.ok(captcha > override,
@@ -90,7 +92,7 @@ test('CAPTCHA-008: the captcha allow comes after the routing decision', () => {
 });
 
 test('CAPTCHA-007: the captcha markers Cloudflare serves per-origin are path-scoped', () => {
-  const body = blockAfter(WEBVIEW, 'static bool isCaptchaChallenge(String url) {',
+  const body = blockAfter(WEBVIEW, 'static bool isCaptchaChallenge(String url, {String? siteUrl}) {',
     undefined, 'webview.dart');
   assert.ok(!/url\.contains\(/.test(body),
     'a substring test on the whole URL lets any origin claim a challenge ' +
@@ -121,6 +123,89 @@ test('CAPTCHA-009: the popup webview inherits the parent site posture', () => {
   assert.ok(WEBVIEW.includes('_popupParentConfigs[windowId] = config;'),
     'onCreateWindow must record the requesting webview\'s config so the '
     + 'popup can inherit it');
+});
+
+// --- top-document steering from a subframe --------------------------------
+
+test('NESTED-013: a subframe cannot steer the top document through an external scheme', () => {
+  const at = WEBVIEW.indexOf("'External scheme intercepted: scheme=");
+  assert.notEqual(at, -1, 'the external-scheme branch is gone');
+  const body = WEBVIEW.slice(at, WEBVIEW.indexOf('onExternalSchemeUrl', at));
+  const gate = body.indexOf('navigationAction.isForMainFrame == false');
+  const load = body.indexOf('controller.loadUrl(');
+  assert.notEqual(gate, -1,
+    'the external branch must refuse a subframe: it resolves intent:// and '
+    + 'x-safari- targets onto the top-frame controller');
+  assert.ok(load === -1 || gate < load,
+    'the frame test must precede the reissued load');
+});
+
+test('NESTED-013: onCreateWindow loads into the top webview only on a gesture', () => {
+  const at = WEBVIEW.indexOf('onCreateWindow: (controller, createWindowAction)');
+  assert.notEqual(at, -1, 'onCreateWindow is gone');
+  const body = WEBVIEW.slice(at, WEBVIEW.indexOf('onProgressChanged:', at));
+  const loads = body.split('controller.loadUrl(').length - 1;
+  const gated = (body.match(/if \(allow && hasGesture\) \{/g) || []).length;
+  assert.ok(loads > 0, 'no loadUrl in onCreateWindow: the guard has nothing to gate');
+  assert.equal(gated, loads,
+    'every loadUrl in onCreateWindow must sit under `allow && hasGesture`: a '
+    + 'script-driven window.open() must not navigate the top document');
+});
+
+// --- web notifications ----------------------------------------------------
+
+test('NOTIF-010: a notification post from a cross-origin iframe is dropped', () => {
+  const at = WEBVIEW.indexOf("handlerName: 'webNotification'");
+  assert.notEqual(at, -1, 'webNotification registration is gone');
+  const body = WEBVIEW.slice(at, WEBVIEW.indexOf('addJavaScriptHandler', at + 1));
+  assert.ok(body.includes('inapp.JavaScriptHandlerFunctionData call'),
+    'webNotification must use the frame-aware callback: the polyfill is in '
+    + 'every frame and any frame can call the handler directly');
+  assert.ok(body.includes('if (!call.isMainFrame)'),
+    'webNotification must test the frame before posting under the site');
+  assert.ok(!body.includes('args[0][\'siteId\']') && !body.includes("data['siteId']"),
+    'the target site is never taken from the page');
+});
+
+// --- the verification popup -----------------------------------------------
+
+test('CAPTCHA-010: the popup webview runs the document checks and stays on the challenge', () => {
+  const at = WEBVIEW.indexOf('static Widget createPopupWebView({');
+  assert.notEqual(at, -1, 'createPopupWebView is gone');
+  const body = WEBVIEW.slice(at, WEBVIEW.indexOf('\n  }\n', at));
+  assert.ok(body.includes('useShouldOverrideUrlLoading: true'),
+    'the popup must opt into shouldOverrideUrlLoading or the callback never fires');
+  assert.ok(body.includes('shouldOverrideUrlLoading: (_, navigationAction) async {'),
+    'the popup had no navigation gate: after the first load it went anywhere');
+  for (const check of [
+    'DnsBlockService.instance',
+    "requestType: 'document'",
+    'navigationAction.isForMainFrame == false',
+    'isCaptchaChallenge(url, siteUrl: parent.initialUrl)',
+  ]) {
+    assert.ok(body.includes(check), `popup gate lacks ${check}`);
+  }
+  // The path markers only count on the site's own domain, at every caller.
+  const callers = WEBVIEW.match(/isCaptchaChallenge\(url\)/g) || [];
+  assert.equal(callers.length, 0,
+    'isCaptchaChallenge must be called with siteUrl: a bare path marker on any origin is a claim');
+});
+
+// --- the live location fix ------------------------------------------------
+
+test('LOC-011: a live fix is served to the top document only', () => {
+  const at = WEBVIEW.indexOf("handlerName: 'getRealLocation'");
+  assert.notEqual(at, -1, 'getRealLocation registration is gone');
+  const body = WEBVIEW.slice(at, WEBVIEW.indexOf('addJavaScriptHandler', at + 1));
+  assert.ok(body.includes('inapp.JavaScriptHandlerFunctionData data'),
+    'getRealLocation must use the frame-aware callback: the location shim is '
+    + 'injected forMainFrameOnly:false, so a cross-origin iframe can call it '
+    + 'directly and skip the Permissions-Policy check');
+  assert.ok(body.includes('if (!data.isMainFrame)'),
+    'getRealLocation must test the frame before reading the device');
+  assert.ok(body.includes("'status': 'permission_denied'"),
+    'a refused frame must see PERMISSION_DENIED, what an undelegated iframe '
+    + 'gets in a browser');
 });
 
 // --- the permission prompts ----------------------------------------------

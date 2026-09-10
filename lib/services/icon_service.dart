@@ -82,6 +82,7 @@ Future<String?> getSvgContent(
   String svgUrl, {
   String? persistedContent,
   UserProxySettings? proxy,
+  bool persist = true,
 }) async {
   if (_svgContentCache.containsKey(svgUrl)) {
     return _svgContentCache[svgUrl];
@@ -99,7 +100,7 @@ Future<String?> getSvgContent(
     );
     if (response.statusCode == 200) {
       _svgContentCache[svgUrl] = response.body;
-      onSvgContentCached?.call(svgUrl, response.body);
+      if (persist) onSvgContentCached?.call(svgUrl, response.body);
       return response.body;
     }
   } catch (e) {

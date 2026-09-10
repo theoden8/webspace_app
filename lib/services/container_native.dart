@@ -1,3 +1,4 @@
+import 'package:webspace/platform/apple_os_floor.dart';
 import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter/foundation.dart';
@@ -153,21 +154,20 @@ class _ContainerNative implements ContainerNative {
         final supported =
             await _androidProbe.invokeMethod<bool>('isSupported');
         _supportedCache = supported ?? false;
-      } else if (hostIsIOS || hostIsMacOS || hostIsLinux) {
-        // The fork's `isClassSupported` answers based on the build-time
-        // platform; for iOS / macOS the underlying `WKWebsiteDataStore
-        // (forIdentifier:)` API is `@available(iOS 17.0, macOS 14.0, *)`,
-        // and the fork's plugin no-ops below that — but a pure
-        // build-time check is enough here because iOS 17 / macOS 14 are
-        // our runtime floor too (set in the project pbxproj). If the
-        // floor changes, gate this behind an OS-version probe.
-        // On Linux the fork's `containerId` join requires WPE WebKit
-        // 2.40+ (where `webkit_network_session_new` exists); below
-        // that the fork transparently falls back to the default
-        // shared session, which is functionally equivalent to the
-        // legacy `CookieIsolationEngine` path. Build-time check is
-        // again sufficient — distros below 2.40 aren't supported by
-        // the fork's CMakeLists either.
+      } else if (hostIsIOS || hostIsMacOS) {
+        // `isClassSupported` is a build-time platform list. The fork's
+        // `WKWebsiteDataStore(forIdentifier:)` bind is
+        // `@available(iOS 17.0, macOS 14.0, *)` and no-ops below it, while
+        // the deployment floors are iOS 15 and macOS 10.15, so the OS has
+        // to be probed at runtime; below the floor the legacy engine runs.
+        _supportedCache = inapp.ContainerController.isClassSupported(
+              platform: defaultTargetPlatform,
+            ) &&
+            appleOsMeetsFloor(hostOperatingSystemVersion, isIOS: hostIsIOS);
+      } else if (hostIsLinux) {
+        // The fork's `containerId` join requires WPE WebKit 2.40+
+        // (`webkit_network_session_new`) and its CMakeLists refuses to
+        // build below that, so a build-time check is sufficient.
         _supportedCache = inapp.ContainerController.isClassSupported(
           platform: defaultTargetPlatform,
         );

@@ -331,8 +331,10 @@ The gate SHALL live in `_addSite`'s `qrSettings` branch so that **both**
 entry points cross it: the in-app scanner / paste dialog
 (`AddSiteScreen._addByQr` → `showSiteSettingsQrApplyDialog`) and the
 `webspace://qr/` deep link handled by `_handleShareIntent`. The dialog
-SHALL show the payload's `initUrl`, its `name`, its proxy address when the
-payload sets a non-DEFAULT proxy, the protections the payload switches off
+SHALL show the payload's `initUrl`, its `name`, its proxy (the address, or
+Tor) whenever the payload decodes to a non-DEFAULT proxy through the same
+`UserProxySettings.fromJson` the apply path uses
+(`SiteSettingsQrCodec.reviewProxy`), the protections the payload switches off
 (Tracking Protection, ClearURLs, DNS Blocklist, Content Blocker, LocalCDN,
 Block auto-redirects) and the permissions or modes it switches on
 (third-party cookies, Notifications, Background audio, Kiosk mode,
@@ -358,6 +360,16 @@ payload sets `trackingProtectionEnabled: false` and a SOCKS5 proxy
 **Then** a review dialog is shown naming the URL, the name, the proxy
 address, and "Tracking Protection" as a protection being turned off
 **And** no `WebViewModel` exists until the user accepts
+
+#### Scenario: The review sees the proxy the apply path installs
+
+**Given** a payload whose `proxySettings` is `{"type": 4}` (Tor, no address)
+**When** the review dialog is built
+**Then** it names Tor as the site's proxy
+**And** a payload whose `proxySettings.type` is the string `"1"` never
+reaches the dialog: `decode` returns null for a `type` that is not an int
+in range or an `address`, `username` or `torExitCountry` that is not a
+string, so a value `fromJson` would coerce cannot slip past the review
 
 #### Scenario: Declining the review creates nothing
 

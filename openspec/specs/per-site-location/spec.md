@@ -325,6 +325,7 @@ The system SHALL expose a per-site `spoofTimezone` (IANA name, nullable). When s
 - `Intl.DateTimeFormat(locales, options)` — when `options.timeZone` is absent, the configured zone is injected so `resolvedOptions().timeZone` reports it,
 - `Date.prototype.getTimezoneOffset` — returns the offset in the configured zone at the given Date instant (DST-correct via Intl),
 - `Date.prototype.toString` — returns a well-formed browser-style string with the spoofed GMT offset and long timezone name.
+- `Date.prototype.toDateString` and `Date.prototype.toTimeString` — the two halves of that string, rebuilt from the same parts; each is an independent builtin that would otherwise print the engine's real zone.
 
 #### Scenario: Intl reports spoofed zone
 
@@ -351,7 +352,7 @@ in turn
 
 **Given** `spoofTimezone = 'Asia/Tokyo'` and device real zone is `UTC`
 **When** a site calls `new Date().getHours()` and compares to `Intl.DateTimeFormat('en', { hour: 'numeric', timeZone: 'Asia/Tokyo' }).format(new Date())`
-**Then** the values disagree (real local vs spoofed). This is a known gap — the implementation deliberately does not override `Date` getters to keep the shim small; cross-referencing callers can detect the spoof.
+**Then** the values disagree (real local vs spoofed). This is a known gap — the implementation deliberately does not override `Date` getters to keep the shim small; cross-referencing callers can detect the spoof. The `Date()` call form (no `new`) returns the engine's own string too; the global constructor is not wrapped.
 
 **Rationale:** covering `getHours`/`getMinutes`/`getDate`/... requires shifting each call into the target zone, which is invasive and has DST-boundary edge cases. Most fingerprint libraries use `Intl` or `getTimezoneOffset`.
 
@@ -425,6 +426,13 @@ the per-site / app-global proxy precedence.
 **When** a site creates a new `RTCPeerConnection(config)` and calls `setLocalDescription(offer)`
 **Then** the effective config has `iceTransportPolicy = 'relay'`
 **And** the SDP passed to `setLocalDescription` has all non-`typ relay` candidate lines stripped
+
+#### Scenario: Relay-only survives setConfiguration and the prototype method
+
+**Given** `webRtcPolicy = relayOnly` and a connection the page created
+**When** the page calls `pc.setConfiguration({iceTransportPolicy: 'all'})`, or `RTCPeerConnection.prototype.setLocalDescription.call(pc, offer)`, or `pc.setLocalDescription()` with no argument
+**Then** the configuration the engine holds still has `iceTransportPolicy = 'relay'` (the policy is forced on `RTCPeerConnection.prototype.setConfiguration`)
+**And** the SDP filter is the prototype method itself, so there is no per-instance wrapper to skip
 
 #### Scenario: Relay-only survives the prototype constructor
 
@@ -595,6 +603,23 @@ Otherwise a site could defeat the spoof by linking to a detection page (e.g. bro
 **When** the iframe runs its detection script
 **Then** `navigator.geolocation` returns the spoofed coordinates
 **And** `RTCPeerConnection` is either neutered or relay-only per the parent site's policy
+
+### Requirement: LOC-011 - A live fix is served to the top document only
+
+The location shim is injected `forMainFrameOnly: false` (LOC-007) so a page's own frames see the same spoof, which also puts a cross-origin iframe on the `getRealLocation` handler. In `live` mode the handler SHALL read the frame identity the plugin's bridge preamble supplies (`JavaScriptHandlerFunctionData`, which page script can neither forge nor call around) and SHALL answer a frame whose origin differs from the top document's with `permission_denied`, which the shim maps to `PERMISSION_DENIED`: exactly what an iframe without `allow="geolocation"` sees in a browser. A same-origin frame keeps the engine's default `'self'` allowlist. Gated by `test/js/page_bridge_authority.test.js`.
+
+#### Scenario: A cross-origin iframe asks for the device fix
+
+**Given** site "Acme" has `locationMode = live`
+**When** a cross-origin iframe it embeds calls `navigator.geolocation.getCurrentPosition`, or calls the `getRealLocation` handler directly
+**Then** the error callback receives `PERMISSION_DENIED`
+**And** the device's location service is not consulted
+
+#### Scenario: The top document and its own frames still get a fix
+
+**Given** the same site
+**When** the top document, or a same-origin iframe, calls `getCurrentPosition`
+**Then** the snapped device fix is returned as before
 
 ---
 

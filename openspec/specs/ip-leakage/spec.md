@@ -369,10 +369,16 @@ spec violation.
 
 Any hop the app terminates to a *proxy* — as opposed to an origin — SHALL
 authenticate that proxy's identity before writing anything that identifies the
-user or their destination. On Android the credentialed-proxy relay is the only
-such hop the app terminates itself, and its TLS handshake to an HTTPS upstream
-MUST verify the certificate identity against the configured upstream hostname
-(the normative requirement is [PROXY-012](../proxy/spec.md)).
+user or their destination. The app terminates two such hops. On Android the
+credentialed-proxy relay's TLS handshake to an HTTPS upstream MUST verify the
+certificate identity against the configured upstream hostname (the normative
+requirement is [PROXY-012](../proxy/spec.md)). The Dart-side outbound client
+(`DefaultOutboundHttpFactory`, behind favicons, downloads, page-title probes,
+user-script and list downloads) MUST open a TLS session to an `HTTPS`-type
+proxy before it writes `CONNECT` or `Proxy-Authorization`, verified against
+system trust or a fingerprint the user pinned in `TrustedHostsService`;
+`findProxy` alone would have dart:io write both on a plain socket. Gated by
+`test/outbound_https_proxy_hop_test.dart` against real sockets.
 
 An unverified handshake there is a total compromise of the proxy's purpose,
 not a partial one: the impostor collects the proxy credentials, every
@@ -389,6 +395,14 @@ chain-valid certificate for a domain the attacker owns
 **And** the attacker observes no proxy credentials and no `CONNECT` target
 **And** the client receives `502` — the relay does not fall back to a direct
 connection
+
+#### Scenario: A Dart-side fetch under an HTTPS-type proxy
+
+**Given** a site whose proxy is `HTTPS` with Basic credentials
+**When** the favicon fetch or a download opens its connection to the proxy
+**Then** the first bytes on the wire are a TLS ClientHello
+**And** `CONNECT host:port` and the credentials are written only inside that session
+**And** the origin's own TLS handshake runs through the tunnel as before
 
 ---
 

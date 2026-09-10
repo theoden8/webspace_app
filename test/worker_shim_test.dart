@@ -7,6 +7,7 @@ import 'package:webspace/services/language_shim.dart';
 import 'package:webspace/services/location_spoof_service.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
 import 'package:webspace/services/user_agent_identity_shim.dart';
+import 'package:webspace/services/webgl_kill_switch_shim.dart';
 import 'package:webspace/services/worker_shim.dart';
 import 'package:webspace/settings/location.dart';
 
@@ -28,6 +29,7 @@ void main() {
       'ua_identity':
           buildUserAgentIdentityShim(buildFirefoxAndroidUserAgent('152.0'))!,
       'anti_fingerprinting': buildAntiFingerprintingShim('seed'),
+      'webgl_kill_switch': webGlKillSwitchScript,
       'location_timezone': LocationSpoofService.buildScript(
         locationMode: LocationMode.off,
         spoofLatitude: null,

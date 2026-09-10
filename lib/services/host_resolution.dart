@@ -13,7 +13,7 @@
 // dart:io, and this file sits under widgets/screens' import closure
 // (DESIGN-001). The web half reports "cannot resolve" rather than lying.
 
-import 'package:flutter/foundation.dart';
+import 'package:meta/meta.dart';
 
 import 'package:webspace/settings/proxy.dart';
 

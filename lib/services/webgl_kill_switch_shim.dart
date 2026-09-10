@@ -4,7 +4,8 @@
 // `partition_alloc_support.cc:770` on the Android System WebView build
 // our crash logs come from. Injected at DOCUMENT_START into every frame of
 // a tracking-protected site, on every platform (see
-// WebViewFactory._buildPageScripts).
+// WebViewFactory._buildPageScripts), and into every worker of it, where a
+// live OffscreenCanvas WebGL context would otherwise contradict the page.
 //
 // Coverage:
 //   - HTMLCanvasElement.prototype.getContext('webgl' | 'webgl2' |
@@ -42,13 +43,13 @@ const String webGlKillSwitchScript = r'''
       patchGetContext(OffscreenCanvas.prototype);
     }
   } catch (_) {}
-  try { delete window.WebGLRenderingContext; } catch (_) {}
-  try { delete window.WebGL2RenderingContext; } catch (_) {}
+  try { delete globalThis.WebGLRenderingContext; } catch (_) {}
+  try { delete globalThis.WebGL2RenderingContext; } catch (_) {}
   var GPU_GONE = [
     'GPU', 'GPUAdapter', 'GPUDevice', 'GPUCanvasContext', 'GPUAdapterInfo'
   ];
   for (var i = 0; i < GPU_GONE.length; i++) {
-    try { delete window[GPU_GONE[i]]; } catch (_) {}
+    try { delete globalThis[GPU_GONE[i]]; } catch (_) {}
   }
   try {
     var NavProto = (typeof navigator !== 'undefined' && navigator)

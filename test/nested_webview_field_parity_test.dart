@@ -80,6 +80,38 @@ void main() {
     );
   });
 
+  test('every launchUrl call in main.dart passes the whole chain', () {
+    // The share, deep-link and URL-bar paths used to open the nested screen
+    // with a hand-copied argument list that lagged the model's own call.
+    final code = host
+        .split('\n')
+        .where((l) => !l.trimLeft().startsWith('//'))
+        .join('\n');
+    final calls = <String>[];
+    for (final m in RegExp(r'\blaunchUrl\(').allMatches(code)) {
+      if (code.substring(0, m.start).endsWith('Future<void> ')) continue;
+      final start = m.end - 1;
+      var depth = 0;
+      var i = start;
+      for (; i < code.length; i++) {
+        if (code[i] == '(') depth++;
+        if (code[i] == ')' && --depth == 0) break;
+      }
+      expect(i, lessThan(code.length), reason: 'unbalanced launchUrl call');
+      calls.add(code.substring(start, i + 1));
+    }
+    expect(calls, isNotEmpty);
+    for (final call in calls) {
+      for (final field in chainFields) {
+        expect(
+          RegExp('\\b$field:').hasMatch(call),
+          isTrue,
+          reason: 'a launchUrl call in lib/main.dart omits "$field":\n$call',
+        );
+      }
+    }
+  });
+
   test('every chain field is a constructor parameter of InAppWebViewScreen', () {
     final ctor = _blockBetween(nested, 'InAppWebViewScreen({', '  })');
     for (final field in chainFields) {

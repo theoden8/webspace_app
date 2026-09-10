@@ -7,6 +7,7 @@
 // surface it is about first, which is what lets it fail.
 
 const test = require('node:test');
+const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const { makeDom, runInDom, readFixture } = require('./helpers/load_shim');
 
@@ -77,4 +78,25 @@ test('navigator.gpu is gone', () => {
   const dom = shimmed();
   assert.equal(dom.window.navigator.gpu, undefined);
   assert.equal(dom.window.eval("'gpu' in navigator"), false);
+});
+
+test('WORK-002: the kill switch installs in a worker scope, where there is no window (SEC-018)', () => {
+  class WebGLRenderingContext {}
+  class WebGL2RenderingContext {}
+  class OffscreenCanvas { getContext(type) { return { __type: type }; } }
+  class GPU {}
+  const navProto = {};
+  Object.defineProperty(navProto, 'gpu', { configurable: true, get: () => new GPU() });
+  const ctx = vm.createContext({
+    WebGLRenderingContext, WebGL2RenderingContext, OffscreenCanvas, GPU,
+    navigator: Object.create(navProto),
+    WorkerGlobalScope: class {},
+  });
+  assert.doesNotThrow(() => vm.runInContext(readFixture(SHIM), ctx));
+  assert.equal(vm.runInContext('typeof WebGLRenderingContext', ctx), 'undefined');
+  assert.equal(vm.runInContext('typeof GPU', ctx), 'undefined');
+  assert.equal(vm.runInContext("new OffscreenCanvas().getContext('webgl')", ctx), null);
+  assert.equal(vm.runInContext("new OffscreenCanvas().getContext('webgpu')", ctx), null);
+  assert.equal(vm.runInContext("new OffscreenCanvas().getContext('2d').__type", ctx), '2d');
+  assert.equal(vm.runInContext("'gpu' in navigator", ctx), false);
 });
