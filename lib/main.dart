@@ -5049,7 +5049,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     // every code path downstream can branch synchronously on
     // _useContainers (engine selection in _setCurrentIndex, deletion
     // path, save/restore). Returns false on Android System WebView
-    // <110, iOS <17, macOS <14, and unsupported platforms.
+    // reporting no MULTI_PROFILE, iOS <17, macOS <14, and unsupported
+    // platforms.
     _useContainers = await ContainerNative.instance.isSupported();
     _containerCookieManager =
         _useContainers ? ContainerCookieManager() : null;
