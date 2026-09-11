@@ -89,3 +89,11 @@
       on-device gate hunts for, and `Reach_MismatchedCoLoaded` is checked
       from both sides: reachable under the router, unreachable under
       serialisation.
+- [ ] 4.5 Lift the developer-mode gate. Router mode ships opt-in: the
+      default install stays on PROXY-008 because the PROXY-015 fallback
+      has only ever been exercised on WebView builds that pass the probe,
+      and the bind defect found in review was invisible to every test
+      tier. Closing this needs the fallback observed on a device that
+      fails attribution, after which `isSupportedWhen` drops its
+      `developerMode` term and `test/js/proxy_router_developer_gate.test.js`
+      goes with it.

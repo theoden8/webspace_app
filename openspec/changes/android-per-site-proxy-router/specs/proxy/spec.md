@@ -22,9 +22,30 @@ session every site would present the first site's credential. Where the
 gate fails, PROXY-008 applies unchanged. The gate is per device; whether a
 given site actually receives a profile is PROXY-018.
 
+Router mode SHALL additionally be gated on developer mode, so the shipped
+default on every device is PROXY-008. The premise the feature rests on is
+read off Chromium's source and proven at runtime by the PROXY-015 probe,
+but so far only on WebView builds that pass it: no device that fails the
+probe has exercised the fallback, and the one defect that made the relay
+never bind at all was invisible to every test tier. Both gates are read
+once, at activation, so flipping developer mode applies at next launch
+rather than tearing a bound relay out from under loaded sites. The gate is
+temporary and SHALL be lifted once the fallback has been exercised on
+hardware that fails the probe.
+
+#### Scenario: The default install does not engage router mode
+
+**Given** an Android device whose WebView reports `MULTI_PROFILE`
+**And** developer mode is off
+**When** the app starts
+**Then** router mode does not activate
+**And** no relay is bound
+**And** mismatched-proxy sites serialise under PROXY-008
+
 #### Scenario: Two same-domain sites with different proxies stay loaded
 
 **Given** container mode is active on Android
+**And** developer mode is on
 **And** Site A (`accountA.example.com`) uses SOCKS5 `127.0.0.1:9050`
 **And** Site B (`accountB.example.com`) uses HTTP `10.0.0.1:8080`
 **When** the user activates Site B while Site A is loaded

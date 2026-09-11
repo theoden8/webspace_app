@@ -1,4 +1,5 @@
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/proxy_relay.dart';
 import 'package:webspace/services/proxy_router_engine.dart';
@@ -77,8 +78,28 @@ class ProxyRouterService {
   /// Whether this platform + engine combination can run router mode.
   ///
   /// [useContainers] is the app's cached `ContainerNative.isSupported()`.
-  static bool isSupported({required bool useContainers}) =>
-      hostIsAndroid && useContainers;
+  ///
+  /// Also gated on developer mode, which is off by default, so the shipped
+  /// default stays PROXY-008 serialisation. The premise router mode rests
+  /// on has been proven on one WebView build by the PROXY-015 probe and
+  /// never on hardware that fails it; until that changes, the people who
+  /// run it are the ones who can read `LogService` when it misbehaves.
+  /// Read once at activation, so a flip takes effect at next launch.
+  static bool isSupported({required bool useContainers}) => isSupportedWhen(
+        isAndroid: hostIsAndroid,
+        useContainers: useContainers,
+        developerMode: DeveloperModeService.instance.enabled,
+      );
+
+  /// [isSupported]'s decision without the platform reads, so the negative
+  /// contract is assertable off Android — where `hostIsAndroid` alone
+  /// would answer false and make any further assertion vacuous.
+  static bool isSupportedWhen({
+    required bool isAndroid,
+    required bool useContainers,
+    required bool developerMode,
+  }) =>
+      isAndroid && useContainers && developerMode;
 
   /// The credential a site presents to the relay, or null when router
   /// mode is not running (in which case the WebView must not answer any

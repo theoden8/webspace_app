@@ -38,6 +38,7 @@ import 'package:webspace/demo_data.dart';
 import 'package:webspace/main.dart' as app;
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/container_native.dart';
+import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/proxy_router_service.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/web_view_model.dart';
@@ -137,6 +138,9 @@ void main() {
         jsonEncode(siteA.toJson()),
         jsonEncode(siteB.toJson()),
       ],
+      // Router mode ships behind developer mode; without this the app
+      // starts on PROXY-008 and there is no attribution to prove.
+      kDeveloperModeKey: true,
     });
   });
 

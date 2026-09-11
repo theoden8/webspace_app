@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/proxy_relay.dart';
 import 'package:webspace/services/proxy_router_engine.dart';
 import 'package:webspace/services/proxy_router_service.dart';
@@ -95,7 +96,10 @@ void main() {
     service.setRelayForTest(relay);
   });
 
-  tearDown(() => service.resetForTest());
+  tearDown(() {
+    service.resetForTest();
+    DeveloperModeService.instance.debugSet(false);
+  });
 
   group('activation', () {
     test('installs one route per site and reports the relay port', () async {
@@ -313,19 +317,48 @@ void main() {
       expect(service.realm, isNot(first));
     });
 
-    test('router mode is gated on Android AND container support', () {
-      // Two independent gates, and this is where the negative contract
+    test('router mode is gated on Android AND containers AND developer mode',
+        () {
+      // Three independent gates, and this is where the negative contract
       // lives now that the integration tier runs Android-only. Off
       // Android the engine cannot deliver a per-WebView proxy challenge
       // at all; on Android without MULTI_PROFILE every site shares one
-      // auth cache. Either way the app must stay on PROXY-008.
+      // auth cache; and developer mode is what keeps the shipped default
+      // on PROXY-008 while the premise is proven on one WebView build.
+      // Any one of them failing must leave the app on PROXY-008.
+      //
+      // Asserted on the decision rather than on `isSupported`, because
+      // this suite runs off Android: there `hostIsAndroid` answers false
+      // first and every further assertion passes without meaning it.
+      for (final useContainers in [true, false]) {
+        for (final developerMode in [true, false]) {
+          expect(
+            ProxyRouterService.isSupportedWhen(
+              isAndroid: true,
+              useContainers: useContainers,
+              developerMode: developerMode,
+            ),
+            useContainers && developerMode,
+            reason: 'containers=$useContainers developerMode=$developerMode',
+          );
+          expect(
+            ProxyRouterService.isSupportedWhen(
+              isAndroid: false,
+              useContainers: useContainers,
+              developerMode: developerMode,
+            ),
+            isFalse,
+            reason: 'router mode must not engage off Android',
+          );
+        }
+      }
+
+      // And the wiring: on this host the platform gate answers first, so
+      // this only pins that the composed call agrees where it can.
+      DeveloperModeService.instance.debugSet(true);
       expect(ProxyRouterService.isSupported(useContainers: false), isFalse);
       if (!hostIsAndroid) {
-        expect(
-          ProxyRouterService.isSupported(useContainers: true),
-          isFalse,
-          reason: 'router mode must not engage off Android',
-        );
+        expect(ProxyRouterService.isSupported(useContainers: true), isFalse);
       }
     });
   });
