@@ -32,6 +32,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:webspace/services/webview.dart';
+import 'fixture_server.dart';
 
 class _Req {
   _Req(this.path, this.xrw);
@@ -61,7 +62,7 @@ void main() {
   setUpAll(() async {
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     port = server.port;
-    server.listen((req) {
+    listenFixture(server, (req) {
       requests.add(_Req(req.uri.path, req.headers.value('x-requested-with')));
       final res = req.response..headers.contentType = ContentType.html;
       res.write('<!doctype html><html><head><title>fixture</title></head>'

@@ -67,6 +67,25 @@ UserProxySettings _torTagged(UserProxySettings s, String? siteId) {
   );
 }
 
+/// Split a `host:port` proxy address, or null if it is not one.
+///
+/// Splits on the LAST colon so a bracketed IPv6 literal (`[::1]:8080`)
+/// keeps its host. Both per-site proxy mechanisms parse addresses through
+/// here: the native per-WebView binding and the Android router's route
+/// table used to carry separate copies of this, and they disagreed on
+/// IPv6 -- the router routed it while the native path returned null and
+/// blocked the site. Parity is a property of there being one rule.
+({String host, int port})? splitProxyAddress(String? address) {
+  if (address == null || address.isEmpty) return null;
+  final separator = address.lastIndexOf(':');
+  if (separator <= 0) return null;
+  final host = address.substring(0, separator);
+  if (host.isEmpty) return null;
+  final port = int.tryParse(address.substring(separator + 1));
+  if (port == null || port < 1 || port > 65535) return null;
+  return (host: host, port: port);
+}
+
 /// Expands a tagged [ProxyType.TOR] into live SOCKS5 settings, or returns
 /// null when the runtime is not up.
 typedef TorProxyResolver = UserProxySettings? Function(String isolationTag);

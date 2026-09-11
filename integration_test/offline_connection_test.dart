@@ -43,6 +43,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/webview.dart';
+import 'fixture_server.dart';
 
 /// Marker baked into the snapshot handed to the webview as `initialHtml`.
 const String _cachedMarker = 'WS_CACHED_SNAPSHOT_MARKER';
@@ -90,7 +91,7 @@ void main() {
   setUpAll(() async {
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     port = server.port;
-    server.listen((req) async {
+    listenFixture(server, (req) async {
       requests.add(req.uri.path);
       switch (req.uri.path) {
         case '/slow':

@@ -1,0 +1,333 @@
+// Tier 2 — can page JavaScript get hold of, or forge, the per-site proxy
+// credential that the router (PROXY-013) uses to pick a site's upstream?
+//
+// This is the question the Dart tests cannot answer honestly. jsdom has
+// no proxy stack and no forbidden-header enforcement, so only a real
+// Chromium — the engine Android System WebView and WPE are built on —
+// shows what a hostile page can actually put on the wire.
+//
+// Three properties, each of which would be a cross-site proxy leak if it
+// failed:
+//
+//  1. A page cannot SET `Proxy-Authorization`. It is a forbidden header
+//     name, so `fetch` and `XHR` must drop it. If a page could set it, a
+//     script on site A could present site B's credential (once guessed
+//     or observed) and route itself through B's proxy.
+//  2. A page never SEES the credential Chromium uses. The proxy hop
+//     carries `Proxy-Authorization`; the origin request must not, so a
+//     hostile *site* cannot read another site's token out of the request
+//     it receives.
+//  3. A page cannot use the relay as an open proxy. Reaching the port is
+//     unavoidable on Android (every app shares loopback), so the relay's
+//     407 has to be what stops it — an unauthenticated request must not
+//     be tunnelled.
+//
+// The relay's side of (3) is proved against real sockets in
+// `ProxyRelayRouterTest.kt`; here it is proved from inside the engine.
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const http = require('node:http');
+const { startProxy, startOrigin } = require('./helpers/proxy_server');
+
+let puppeteer;
+try { puppeteer = require('puppeteer'); } catch (_) {}
+
+function requireBrowser(launchError, t) {
+  if (!launchError) return true;
+  const msg = `Puppeteer/Chromium not available: ${launchError.message}`;
+  if (process.env.CI === 'true') {
+    throw new Error(msg + ' (CI=true → hard fail)');
+  }
+  t.skip(msg);
+  return false;
+}
+
+const CREDENTIAL = { username: 'ws-site-a', password: 'token-a-0123456789abcdef' };
+
+// Chromium bypasses the proxy for loopback by default, and the fake
+// origin is on 127.0.0.1 — without `<-loopback>` the navigation goes
+// direct and every downstream assertion passes vacuously.
+function proxyArgs(port) {
+  return [`--proxy-server=127.0.0.1:${port}`, '--proxy-bypass-list=<-loopback>'];
+}
+
+async function withBrowser(args, body) {
+  let browser = null;
+  let launchError = null;
+  try {
+    browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', ...args],
+    });
+  } catch (e) {
+    launchError = e;
+  }
+  try {
+    return await body(browser, launchError);
+  } finally {
+    if (browser) await browser.close();
+  }
+}
+
+test('a dotless host is proxied, not sent direct', async (t) => {
+  // The app used to ship `bypassRules: ['<local>']`. Chromium reads that
+  // as "send simple, dotless hostnames direct", so a site at
+  // http://intranet/ left the device without touching the proxy at all --
+  // and under router mode, without touching the relay that decides which
+  // upstream a site is even allowed. The coverage contract is every byte.
+  //
+  // `<local>` was never what made the relay reachable: Chromium bypasses
+  // loopback on its own, which is why every test here passes
+  // `<-loopback>` to defeat it.
+  if (!puppeteer) return t.skip('puppeteer not installed');
+  const origin = await startOrigin({ body: '<html><body>lan</body></html>' });
+  const proxy = await startProxy();
+  try {
+    const args = [
+      `--proxy-server=127.0.0.1:${proxy.port}`,
+      // The shipped bypass list, whatever it is, must not exempt this host.
+      '--proxy-bypass-list=',
+      `--host-resolver-rules=MAP intranet 127.0.0.1:${origin.port}`,
+    ];
+    await withBrowser(args, async (browser, launchError) => {
+      if (!requireBrowser(launchError, t)) return;
+      const page = await browser.newPage();
+      await page.goto('http://intranet/', { timeout: 8000 }).catch(() => {});
+      const sawHost = proxy.log.some(
+        (e) => JSON.stringify(e).includes('intranet'),
+      );
+      assert.ok(
+        sawHost,
+        'the proxy never saw the dotless host; it went direct. '
+          + `proxy log: ${JSON.stringify(proxy.log)}`,
+      );
+    });
+  } finally {
+    await proxy.close();
+    await origin.close();
+  }
+});
+
+test('a page-supplied subresource on a dotless host is proxied', async (t) => {
+  // The exploitable half of the same finding. A single-label host is not
+  // something only the user can type: a page can name one in an <img>, a
+  // fetch, a subframe or a redirect, and the exemption is decided on the
+  // URL host before anything is resolved. What that host resolves to is
+  // chosen by the network the device is attached to, so with `<local>` a
+  // page could make the device open an unproxied connection to an address
+  // the local network picked (LEAK-011).
+  //
+  // The page is served from loopback because the fake proxy resolves
+  // destinations itself and cannot reach a made-up name; Chromium's
+  // implicit loopback bypass therefore fetches the page direct, which is
+  // an artifact of the harness. The subresource is the subject: it must
+  // reach the proxy.
+  if (!puppeteer) return t.skip('puppeteer not installed');
+  const origin = await startOrigin({
+    body: '<html><body><img src="http://beacon/pixel"></body></html>',
+  });
+  const proxy = await startProxy();
+  try {
+    const args = [
+      `--proxy-server=127.0.0.1:${proxy.port}`,
+      // The shipped bypass list, whatever it is, must not exempt this host.
+      '--proxy-bypass-list=',
+    ];
+    await withBrowser(args, async (browser, launchError) => {
+      if (!requireBrowser(launchError, t)) return;
+      const page = await browser.newPage();
+      await page.goto(origin.url, { waitUntil: 'domcontentloaded', timeout: 8000 });
+      const sawBeacon = () =>
+        proxy.log.some((e) => JSON.stringify(e).includes('beacon'));
+      const deadline = Date.now() + 5000;
+      while (Date.now() < deadline && !sawBeacon()) {
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      assert.ok(
+        sawBeacon(),
+        'the page-supplied dotless subresource went direct. '
+          + `proxy log: ${JSON.stringify(proxy.log)}`,
+      );
+    });
+  } finally {
+    await proxy.close();
+    await origin.close();
+  }
+});
+
+test('a page cannot put Proxy-Authorization on the wire', async (t) => {
+  if (!puppeteer) return t.skip('puppeteer not installed');
+  const origin = await startOrigin({ body: '<html><body>site</body></html>' });
+  try {
+    await withBrowser([], async (browser, launchError) => {
+      if (!requireBrowser(launchError, t)) return;
+      const page = await browser.newPage();
+      await page.goto(origin.url, { waitUntil: 'domcontentloaded' });
+      origin.clearLog();
+
+      const result = await page.evaluate(async (stolen) => {
+        const out = { fetchThrew: null, xhrThrew: null };
+        try {
+          await fetch('/probe-fetch', {
+            headers: { 'Proxy-Authorization': `Basic ${stolen}` },
+          });
+        } catch (e) {
+          out.fetchThrew = String(e);
+        }
+        try {
+          const xhr = new XMLHttpRequest();
+          xhr.open('GET', '/probe-xhr', false);
+          xhr.setRequestHeader('Proxy-Authorization', `Basic ${stolen}`);
+          xhr.send();
+        } catch (e) {
+          out.xhrThrew = String(e);
+        }
+        return out;
+      }, Buffer.from(`${CREDENTIAL.username}:${CREDENTIAL.password}`).toString('base64'));
+
+      // Whether the engine throws or silently drops is not the contract.
+      // What matters is that the header never reached the server.
+      const probes = origin.log.filter((r) => r.url.startsWith('/probe-'));
+      assert.ok(probes.length >= 1, `expected probe requests, saw ${JSON.stringify(origin.log.map((r) => r.url))}`);
+      for (const probe of probes) {
+        assert.equal(
+          probe.headers['proxy-authorization'],
+          undefined,
+          `page smuggled Proxy-Authorization onto ${probe.url} (${JSON.stringify(result)})`,
+        );
+      }
+    });
+  } finally {
+    await origin.close();
+  }
+});
+
+test('the proxy credential never reaches the origin the page can read', async (t) => {
+  if (!puppeteer) return t.skip('puppeteer not installed');
+  const origin = await startOrigin({ body: '<html><body>site</body></html>' });
+  const proxy = await startProxy({ auth: CREDENTIAL });
+  try {
+    await withBrowser(proxyArgs(proxy.port), async (browser, launchError) => {
+        if (!requireBrowser(launchError, t)) return;
+        const page = await browser.newPage();
+        await page.authenticate(CREDENTIAL);
+        const response = await page.goto(origin.url, { waitUntil: 'domcontentloaded' });
+        assert.equal(response.status(), 200, 'page should load through the proxy');
+
+        // Premise check: the proxy really did authenticate this request,
+        // so the absence downstream is meaningful rather than vacuous.
+        assert.ok(
+          proxy.log.some((e) => e.authedAs === CREDENTIAL.username),
+          `proxy never saw the credential: ${JSON.stringify(proxy.log)}`,
+        );
+
+        assert.ok(origin.log.length >= 1, 'origin should have been reached');
+        for (const entry of origin.log) {
+          assert.equal(
+            entry.headers['proxy-authorization'],
+            undefined,
+            'the proxy credential must not be forwarded to the origin',
+          );
+          const serialised = JSON.stringify(entry.headers);
+          assert.ok(
+            !serialised.includes(CREDENTIAL.password),
+            `origin saw the token in its headers: ${serialised}`,
+          );
+        }
+      });
+  } finally {
+    await proxy.close();
+    await origin.close();
+  }
+});
+
+test('a page cannot read the proxy credential back out of the engine', async (t) => {
+  if (!puppeteer) return t.skip('puppeteer not installed');
+  const origin = await startOrigin({ body: '<html><body>site</body></html>' });
+  const proxy = await startProxy({ auth: CREDENTIAL });
+  try {
+    await withBrowser(proxyArgs(proxy.port), async (browser, launchError) => {
+        if (!requireBrowser(launchError, t)) return;
+        const page = await browser.newPage();
+        await page.authenticate(CREDENTIAL);
+        await page.goto(origin.url, { waitUntil: 'domcontentloaded' });
+
+        // There is no web API for proxy credentials, so the assertion is
+        // that the obvious reflection surfaces stay clean.
+        const leaked = await page.evaluate((token) => {
+          const haystacks = [
+            document.documentElement.outerHTML,
+            JSON.stringify(performance.getEntriesByType('resource')),
+            JSON.stringify(performance.getEntriesByType('navigation')),
+            navigator.userAgent,
+            document.cookie,
+            String(localStorage.length),
+          ];
+          return haystacks.filter((h) => h && h.includes(token));
+        }, CREDENTIAL.password);
+
+        assert.deepEqual(leaked, [], 'the proxy token surfaced inside the page');
+      });
+  } finally {
+    await proxy.close();
+    await origin.close();
+  }
+});
+
+test('an unauthenticated request to the relay port is refused, not tunnelled',
+  async (t) => {
+    if (!puppeteer) return t.skip('puppeteer not installed');
+    // Models the relay's admission rule: a caller that reaches the
+    // loopback port without a known credential gets 407 and no tunnel.
+    // Any app on an Android device can reach that port, so this is the
+    // only admission control the socket has.
+    const tunnelled = [];
+    const relay = http.createServer((req, res) => {
+      const provided = req.headers['proxy-authorization'];
+      if (provided !== `Basic ${Buffer.from(`${CREDENTIAL.username}:${CREDENTIAL.password}`).toString('base64')}`) {
+        res.writeHead(407, {
+          'Proxy-Authenticate': 'Basic realm="deadbeefdeadbeefdeadbeefdeadbeef"',
+          'Content-Length': '0',
+          'Connection': 'close',
+        });
+        res.end();
+        return;
+      }
+      tunnelled.push(req.url);
+      res.writeHead(200, { 'Content-Type': 'text/plain', 'Content-Length': '2' });
+      res.end('ok');
+    });
+    await new Promise((r) => relay.listen(0, '127.0.0.1', r));
+    const relayPort = relay.address().port;
+
+    const origin = await startOrigin({ body: '<html><body>site</body></html>', cors: true });
+    try {
+      await withBrowser([], async (browser, launchError) => {
+        if (!requireBrowser(launchError, t)) return;
+        const page = await browser.newPage();
+        await page.goto(origin.url, { waitUntil: 'domcontentloaded' });
+
+        // A script that found the port and tries to use it directly. It
+        // cannot attach a credential (test 1), so the relay refuses.
+        const status = await page.evaluate(async (port) => {
+          try {
+            const res = await fetch(`http://127.0.0.1:${port}/borrowed`, {
+              headers: { 'Proxy-Authorization': 'Basic Zm9yZ2VkOmNyZWQ=' },
+            });
+            return res.status;
+          } catch (e) {
+            return `threw: ${e}`;
+          }
+        }, relayPort);
+
+        assert.deepEqual(
+          tunnelled, [],
+          `an unauthenticated page request was tunnelled: ${JSON.stringify(tunnelled)} (status ${status})`,
+        );
+      });
+    } finally {
+      await new Promise((r) => relay.close(r));
+      await origin.close();
+    }
+  });

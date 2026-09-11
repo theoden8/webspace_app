@@ -102,6 +102,9 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/proxy_conflict_engine.dart';
+import 'package:webspace/services/proxy_router_probe.dart';
+import 'package:webspace/services/proxy_router_engine.dart';
+import 'package:webspace/services/proxy_router_service.dart';
 import 'package:webspace/services/suggested_sites_service.dart' as suggested_sites;
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/settings/app_prefs.dart';
@@ -1011,7 +1014,7 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   /// Cached result of [ContainerNative.isSupported] resolved during
   /// `_restoreAppState`. When true, the app uses native per-site
-  /// containers (Android System WebView 110+, iOS 17+, macOS 14+);
+  /// containers (Android `MULTI_PROFILE`, iOS 17+, macOS 14+);
   /// same-base-domain sites can be loaded concurrently and the
   /// capture-nuke-restore cycle in [_restoreCookiesForSite] /
   /// [_unloadSiteForDomainSwitch] / preDelete cleanup is skipped. When
@@ -2827,12 +2830,23 @@ class _WebSpacePageState extends State<WebSpacePage>
     // being activated, so run the PROXY-008 sequence here or it would load
     // through whatever the active site left behind, bound to this site's
     // container (LEAK-003). Fail closed when the override cannot be applied.
+    //
+    // Under router mode there is nothing to flip: the rule points at the
+    // relay for every site and the nested screen presents this site's own
+    // credential, so `setProxySettings` no-ops and the eviction would only
+    // cold-start the siblings PROXY-013 exists to keep loaded. Same gating
+    // as the activation path, or a share intent quietly reserialises the app.
     if (hostIsAndroid || hostIsLinux) {
       final mismatch = SiteUnloadEngine.indicesToUnloadForProxyMismatch(
         targetIndex: index,
         models: _webViewModels,
         loadedIndices: _loadedIndices,
-        proxyIsGlobal: true,
+        proxyIsGlobal:
+            (hostIsAndroid && !ProxyRouterService.instance.isActive) ||
+                hostIsLinux,
+        sharesDefaultSession: ProxyRouterService.instance.isActive
+            ? (m) => !_ownsContainerProfile(m)
+            : null,
       );
       for (final i in mismatch) {
         await _unloadSiteForOtherReason(i);
@@ -3108,10 +3122,82 @@ class _WebSpacePageState extends State<WebSpacePage>
     );
   }
 
+  /// Whether [model] gets a container profile, and so a Chromium network
+  /// session, of its own.
+  bool _ownsContainerProfile(WebViewModel model) => siteOwnsContainerProfile(
+        containersSupported: _useContainers,
+        containerSiteIdentifier: model.archiveContainerId ?? model.siteId,
+        incognito: model.effectiveIncognito,
+      );
+
+  /// Per-site proxies as the router's route table sees them, keyed by
+  /// routing identity rather than by site.
+  ///
+  /// A site with its own container profile is its own identity. The rest
+  /// -- incognito, and archive-tier which is always incognito -- share the
+  /// default profile and therefore one cached proxy credential, so they
+  /// share one identity whose upstream follows whichever of them is
+  /// active. Giving them a credential each would let one cached by a site
+  /// that has since unloaded route the next site to load, straight through
+  /// the wrong upstream.
+  ///
+  /// Archive-tier sites are routed like any other: they render like one
+  /// and their traffic still has to reach the right upstream. Only their
+  /// *persistence* is partitioned (ARCH-001), and no route is written to
+  /// disk.
+  Map<String, UserProxySettings> _routerProxyTable({int? activeIndex}) =>
+      ProxyRouterEngine.routeTable(
+        sites: [
+          for (final m in _webViewModels)
+            RouterSite(
+              siteId: m.siteId,
+              proxy: m.proxySettings,
+              ownsContainer: _ownsContainerProfile(m),
+            ),
+        ],
+        sharedProfilePriority: [
+          ?activeIndex,
+          ?_currentIndex,
+          ..._loadedIndices,
+        ],
+      );
+
+  /// Bring up Android's per-site proxy router (PROXY-013).
+  ///
+  /// Failure at any step leaves `ProxyRouterService.isActive` false, which
+  /// puts every downstream branch back on the PROXY-008 serialisation —
+  /// the pre-router behaviour, which is correct, just slower on switch.
+  /// Nothing here may clear the proxy override on failure.
+  Future<void> _activateProxyRouter() async {
+    if (!ProxyRouterService.isSupported(useContainers: _useContainers)) return;
+    await ProxyRouterService.instance.activate(
+      perSiteProxies: _routerProxyTable(),
+      bindOverride: ProxyManager().applyRouterOverride,
+      // PROXY-015: never trust router mode without proving on THIS device
+      // that each container presents its own credential.
+      probe: runAttributionProbe,
+    );
+    // A null return stands the router down but never clears the override:
+    // the `_setCurrentIndex` that follows re-applies the site's PROXY-008
+    // proxy, and until it does a dead relay port fails closed.
+  }
+
+  /// Re-install routes after sites, proxies, or the global proxy changed.
+  ///
+  /// [activeIndex] names the site about to be activated, so the
+  /// shared-profile identity is repointed before that site's first
+  /// request rather than after it.
+  Future<void> _refreshProxyRoutes({int? activeIndex}) async {
+    if (!ProxyRouterService.instance.isActive) return;
+    await ProxyRouterService.instance.refreshRoutes(
+        perSiteProxies: _routerProxyTable(activeIndex: activeIndex));
+  }
+
   Future<void> _saveWebViewModels() async {
     // Before the demo-mode bail: the refcount tracks runtime intent, not
     // persistence, and a demo session that pinned Tor up would keep it up.
     await _syncTorHolders();
+    unawaited(_refreshProxyRoutes());
     if (isDemoMode) return; // Don't persist in demo mode
     SharedPreferences prefs = await SharedPreferences.getInstance();
 
@@ -4199,7 +4285,20 @@ class _WebSpacePageState extends State<WebSpacePage>
       // proxy (ProxyController fanned across sessions); a mismatched-proxy
       // sibling left loaded would route its next request through the wrong
       // proxy. iOS/macOS bind per-session, so no unload needed there.
-      proxyIsGlobal: hostIsAndroid || hostIsLinux,
+      //
+      // Under router mode the Android rule is no longer per-site: it
+      // points at the loopback router permanently and the router fans
+      // traffic out per credential, so mismatched sites can stay loaded
+      // together (PROXY-013). Linux has no equivalent and keeps the unload.
+      proxyIsGlobal: (hostIsAndroid && !ProxyRouterService.instance.isActive) ||
+          hostIsLinux,
+      // What buys that concurrency is the per-site container profile. A
+      // site without one runs in the default profile, whose single cached
+      // proxy credential every other such site presents too, so the group
+      // stays serialised exactly as PROXY-008 had it.
+      sharesDefaultSession: ProxyRouterService.instance.isActive
+          ? (m) => !_ownsContainerProfile(m)
+          : null,
     );
     for (final i in proxyMismatch) {
       LogService.instance.log(
@@ -4209,6 +4308,17 @@ class _WebSpacePageState extends State<WebSpacePage>
         sensitivity: LogSensitivity.sensitive,
       );
       await _unloadSiteForOtherReason(i);
+      if (version != _setCurrentIndexVersion) return;
+    }
+
+    // Repoint the shared-profile route before this site can issue a
+    // request, not after: the identity is shared, so until this lands the
+    // relay still holds the previous shared-profile site's upstream.
+    if (ProxyRouterService.instance.isActive &&
+        index >= 0 &&
+        index < _webViewModels.length &&
+        !_ownsContainerProfile(_webViewModels[index])) {
+      await _refreshProxyRoutes(activeIndex: index);
       if (version != _setCurrentIndexVersion) return;
     }
 
@@ -4939,7 +5049,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     // every code path downstream can branch synchronously on
     // _useContainers (engine selection in _setCurrentIndex, deletion
     // path, save/restore). Returns false on Android System WebView
-    // <110, iOS <17, macOS <14, and unsupported platforms.
+    // reporting no MULTI_PROFILE, iOS <17, macOS <14, and unsupported
+    // platforms.
     _useContainers = await ContainerNative.instance.isSupported();
     _containerCookieManager =
         _useContainers ? ContainerCookieManager() : null;
@@ -4949,6 +5060,8 @@ class _WebSpacePageState extends State<WebSpacePage>
           ? 'Container API supported — using ContainerIsolationEngine + ContainerCookieManager'
           : 'Container API not supported — using CookieIsolationEngine + (legacy) CookieManager',
     );
+
+    await _activateProxyRouter();
 
     // Startup GC. The container sweeps run here (before any WebView binds —
     // `deleteContainer` is only reliable in that unbound window). The
@@ -5446,6 +5559,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     final conflict = ProxyConflictEngine.firstConflict(
       targetProxy: target.proxySettings,
       otherEnabledProxies: others.map((m) => m.proxySettings),
+      routerActive: ProxyRouterService.instance.isActive,
     );
     if (conflict == null) return null;
     final blocker = _webViewModels.firstWhere(

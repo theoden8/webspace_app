@@ -25,6 +25,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:webspace/services/webview.dart';
+import 'fixture_server.dart';
 
 // Cell width in CSS px, and the box the webview is mounted in. The cell
 // is small enough that a zoom step moves the count by more than the
@@ -86,7 +87,7 @@ void main() {
 
   setUpAll(() async {
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-    server.listen((request) {
+    listenFixture(server, (request) {
       request.response
         ..headers.contentType = ContentType.html
         ..write(request.uri.path == _kRulerPath

@@ -243,8 +243,8 @@ test('viewport rewrite covers existing AND dynamically inserted metas',
     // document.documentElement exists; the shim's MutationObserver
     // setup is guarded on `if (document.documentElement)` and
     // therefore never attaches in that injection model. Real-engine
-    // WebViews (iOS WKUserScript atDocumentStart, Android Profile
-    // 110+, WPE WebKit DOCUMENT_START) inject after documentElement
+    // WebViews (iOS WKUserScript atDocumentStart, Android Profile,
+    // WPE WebKit DOCUMENT_START) inject after documentElement
     // is created, so the production timing differs from Puppeteer's.
     //
     // To test the rewrite logic itself in real Chromium, inject the

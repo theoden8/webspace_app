@@ -38,7 +38,7 @@ min_obligations() {
     jar_matches.tla)           echo 52 ;;
     jar_repopulated.tla)       echo 28 ;;
     no_lost_update.tla)        echo 23 ;;
-    proxy_coherent.tla)        echo 29 ;;
+    proxy_coherent.tla)        echo 39 ;;
     proxy_failclosed_safe.tla) echo 28 ;;
     repaint_liveness.tla)      echo 72 ;;
     retention_safety.tla)      echo 22 ;;

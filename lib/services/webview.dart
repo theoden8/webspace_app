@@ -17,6 +17,8 @@ import 'package:webspace/services/launch_nonce.dart';
 import 'package:webspace/services/letterbox.dart';
 import 'package:webspace/services/page_zoom_shim.dart';
 import 'package:webspace/services/proxy_relay.dart';
+import 'package:webspace/services/proxy_router_engine.dart';
+import 'package:webspace/services/proxy_router_service.dart';
 import 'package:webspace/services/pull_to_refresh_gate.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/target_blank_rewrite.dart';
@@ -82,7 +84,8 @@ typedef Cookie = inapp.Cookie;
 /// auth API in the public surface; the URL-embedded form is what the
 /// underlying `Network.framework` honors when the proxy server
 /// challenges with `407 Proxy Authentication Required`.
-inapp.ProxySettings? _userProxyToInappProxy(UserProxySettings settings) {
+@visibleForTesting
+inapp.ProxySettings? userProxyToInappProxy(UserProxySettings settings) {
   if (settings.type == ProxyType.DEFAULT) return null;
   if (settings.type == ProxyType.TOR) {
     // TOR has no address until the runtime is up. A null expansion means
@@ -91,15 +94,12 @@ inapp.ProxySettings? _userProxyToInappProxy(UserProxySettings settings) {
     // page over the device IP.
     final expanded = expandTorProxy(settings);
     if (expanded == null) return null;
-    return _userProxyToInappProxy(expanded);
+    return userProxyToInappProxy(expanded);
   }
-  final address = settings.address;
-  if (address == null || address.isEmpty) return null;
-  final parts = address.split(':');
-  if (parts.length != 2) return null;
-  final host = parts[0];
-  final port = int.tryParse(parts[1]);
-  if (host.isEmpty || port == null || port <= 0 || port > 65535) return null;
+  final parsed = splitProxyAddress(settings.address);
+  if (parsed == null) return null;
+  final host = parsed.host;
+  final port = parsed.port;
   final scheme = switch (settings.type) {
     ProxyType.HTTPS => 'https',
     ProxyType.SOCKS5 => 'socks5',
@@ -273,6 +273,105 @@ class FindMatchesResult {
 /// Theme preference for webviews
 enum WebViewTheme { light, dark, system }
 
+/// Answer the loopback proxy router's `407` with this site's credential
+/// (PROXY-013).
+///
+/// Chromium routes a proxy auth challenge to the `WebContents` that
+/// issued the request, so this callback is the one per-WebView channel
+/// Android gives us for saying *which site* a connection belongs to.
+///
+/// [identity] is the site's routing identity, not always its site id: a
+/// site with no container profile shares one identity with every other
+/// such site, because they share the network session whose auth cache
+/// holds the credential ([routerIdentityForSite]).
+///
+/// Returns null for anything that is not the relay's challenge, which is
+/// the platform's own default (cancel). That matters: Android's callback
+/// drops `is_proxy` and the port, so a site serving its own `401` lands
+/// here too, and proceeding would hand the page a token that admits its
+/// bearer to every site's route.
+///
+/// Attached on every platform, not just Android, and that is deliberate
+/// rather than an oversight: the fork's Linux plugin implements this
+/// callback too (pub.dev lists only Android/iOS/macOS). It stays inert
+/// there because WPE's `OnAuthenticate` already returns TRUE before Dart
+/// is consulted -- so WebKit's own dialog was never going to show -- and
+/// a null from here reaches the same `defaultBehaviour` that an
+/// unregistered handler does, which cancels. Registering the handler
+/// therefore changes nothing off Android. Anything that makes this
+/// function return non-null off Android would.
+Future<inapp.HttpAuthResponse?> answerProxyRouterChallenge(
+  String? identity,
+  inapp.HttpAuthenticationChallenge challenge,
+) async {
+  if (identity == null) return null;
+  final router = ProxyRouterService.instance;
+  final space = challenge.protectionSpace;
+  if (!router.ownsChallenge(host: space.host, realm: space.realm)) return null;
+  final token = router.tokenFor(identity);
+  if (token == null) return null;
+  return inapp.HttpAuthResponse(
+    action: inapp.HttpAuthResponseAction.PROCEED,
+    username: router.usernameFor(identity),
+    password: token,
+    // Never write the token to the platform's credential store: it is
+    // valid only for this run of the relay.
+    permanentPersistence: false,
+  );
+}
+
+/// The identity a site presents to the proxy router (PROXY-013).
+///
+/// Sites without a container profile share the default profile's cached
+/// proxy credential, so they share one identity; see
+/// [ProxyRouterEngine.sharedProfileIdentity].
+String routerIdentityForSite({
+  required String siteId,
+  String? archiveContainerId,
+  required bool incognito,
+}) =>
+    ProxyRouterEngine.identityFor(
+      siteId: siteId,
+      ownsContainer: siteOwnsContainerProfile(
+        containersSupported: ContainerNative.instance.cachedSupported,
+        containerSiteIdentifier: archiveContainerId ?? siteId,
+        incognito: incognito,
+      ),
+    );
+
+String? _routerIdentityForConfig(WebViewConfig config) {
+  final siteId = config.siteId;
+  if (siteId == null) return null;
+  return routerIdentityForSite(
+    siteId: siteId,
+    archiveContainerId: config.archiveContainerId,
+    incognito: config.incognito,
+  );
+}
+
+/// Whether a site gets a native container profile of its own.
+///
+/// The single source for the binding rule, because three other decisions
+/// have to agree with it: which routing identity the site presents to the
+/// proxy router, whether router mode still has to serialise it, and which
+/// profile the PROXY-015 probe measures. A site that is bound here has its
+/// own Chromium network session, and therefore its own cached proxy
+/// credential; one that is not shares the default profile with every other
+/// such site.
+bool siteOwnsContainerProfile({
+  required bool containersSupported,
+  required String? containerSiteIdentifier,
+  required bool incognito,
+}) =>
+    containersSupported &&
+    containerSiteIdentifier != null &&
+    // Android binds one even under incognito: it has no ephemeral profile,
+    // so an unbound site would share the default store with every other
+    // such site and leave its storage behind (ARCH-006/ARCH-007). The other
+    // platforms short-circuit to an ephemeral store instead, which is a
+    // session of its own and needs no name.
+    (!incognito || hostIsAndroid);
+
 /// Proxy manager singleton.
 ///
 /// Two delivery paths coexist behind a single API:
@@ -322,6 +421,19 @@ class ProxyManager {
       LogService.instance.log(
         'Proxy',
         'setProxySettings: iOS/macOS bind proxy at WebView construction; no-op here',
+        sensitivity: LogSensitivity.sensitive,
+      );
+      return;
+    }
+
+    // Router mode owns the process-wide rule: it already points at the
+    // loopback router for every site, and flipping it per activation is
+    // exactly the serialisation PROXY-013 removes. Per-site routing is
+    // refreshed through `ProxyRouterService`, not here.
+    if (ProxyRouterService.instance.isActive) {
+      LogService.instance.log(
+        'Proxy',
+        'setProxySettings: router mode active; process-wide rule unchanged',
         sensitivity: LogSensitivity.sensitive,
       );
       return;
@@ -430,7 +542,11 @@ class ProxyManager {
       await controller.setProxyOverride(
         settings: inapp.ProxySettings(
           proxyRules: [inapp.ProxyRule(url: 'http://${relay.host}:${relay.port}')],
-          bypassRules: ['<local>'],
+          // No `<local>`: it exempts dotless hosts (http://intranet/) from
+          // the proxy entirely, and the coverage contract is every byte.
+          // Loopback is bypassed by Chromium regardless, which is what
+          // keeps the relay itself reachable.
+          bypassRules: [],
         ),
       );
       overrideActive = true;
@@ -465,7 +581,7 @@ class ProxyManager {
     await controller.setProxyOverride(
       settings: inapp.ProxySettings(
         proxyRules: [inapp.ProxyRule(url: proxyUrl)],
-        bypassRules: ['<local>'],
+        bypassRules: [],
       ),
     );
     overrideActive = true;
@@ -476,6 +592,40 @@ class ProxyManager {
       level: LogLevel.info,
       sensitivity: LogSensitivity.sensitive,
     );
+  }
+
+  /// Point the process-wide rule at the loopback router on [host]:[port]
+  /// and leave it there (PROXY-013). The host is the random 127/8 address
+  /// the relay bound, not `127.0.0.1`.
+  ///
+  /// Returns false if the override could not be applied, in which case
+  /// the caller MUST NOT treat router mode as active — every site would
+  /// otherwise go direct while believing it was proxied.
+  Future<bool> applyRouterOverride(String host, int port) async {
+    if (!hostIsAndroid || !PlatformInfo.isProxySupported) return false;
+    try {
+      await inapp.ProxyController.instance().setProxyOverride(
+        settings: inapp.ProxySettings(
+          proxyRules: [inapp.ProxyRule(url: 'http://$host:$port')],
+          bypassRules: [],
+        ),
+      );
+      LogService.instance.log(
+        'Proxy',
+        'Applied router override -> $host:$port',
+        level: LogLevel.info,
+        sensitivity: LogSensitivity.sensitive,
+      );
+      return true;
+    } catch (e) {
+      LogService.instance.log(
+        'Proxy',
+        'Router override failed to apply: $e',
+        level: LogLevel.error,
+        sensitivity: LogSensitivity.sensitive,
+      );
+      return false;
+    }
   }
 
   Future<void> clearProxy() async {
@@ -1851,10 +2001,11 @@ class WebViewFactory {
     // archive closes (ARCH-006/ARCH-007). So Android always binds a named
     // profile and relies on the existing teardown: incognito ids are deleted
     // at startup and archive container ids at close.
-    final bindUnderIncognito = hostIsAndroid;
-    final containerId = (ContainerNative.instance.cachedSupported &&
-            containerSiteIdentifier != null &&
-            (!config.incognito || bindUnderIncognito))
+    final containerId = siteOwnsContainerProfile(
+      containersSupported: ContainerNative.instance.cachedSupported,
+      containerSiteIdentifier: containerSiteIdentifier,
+      incognito: config.incognito,
+    )
         ? 'ws-$containerSiteIdentifier'
         : null;
 
@@ -1875,7 +2026,7 @@ class WebViewFactory {
         ? resolveEffectiveProxy(config.proxySettings!, siteId: config.siteId)
         : null;
     final inappProxy = effectiveProxy != null && PlatformInfo.isProxySupported
-        ? _userProxyToInappProxy(effectiveProxy)
+        ? userProxyToInappProxy(effectiveProxy)
         : null;
     // Fail closed: on iOS/macOS the per-site proxy is bound here via
     // `proxySettings`. If the site expects a non-DEFAULT proxy but the
@@ -2003,6 +2154,10 @@ class WebViewFactory {
       // it falls back to.
       onReceivedServerTrustAuthRequest: (controller, challenge) =>
           _handleServerTrust(controller, challenge, null),
+      // A popup is the same site in a dialog, so it presents the same
+      // router credential (PROXY-013).
+      onReceivedHttpAuthRequest: (controller, challenge) =>
+          answerProxyRouterChallenge(_routerIdentityForConfig(parent), challenge),
     );
   }
 
@@ -4782,6 +4937,8 @@ class WebViewFactory {
       },
       onReceivedServerTrustAuthRequest: (controller, challenge) =>
           _handleServerTrust(controller, challenge, config.onUntrustedCertificate),
+      onReceivedHttpAuthRequest: (controller, challenge) =>
+          answerProxyRouterChallenge(_routerIdentityForConfig(config), challenge),
       // Android `WebView.onRenderProcessGone`: the OS can kill the renderer
       // process while the app is backgrounded to reclaim memory. Coming back
       // to a renderer-gone WebView shows a black surface because the view is

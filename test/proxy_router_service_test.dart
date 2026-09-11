@@ -1,0 +1,500 @@
+import 'dart:convert';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/services/developer_mode_service.dart';
+import 'package:webspace/services/proxy_relay.dart';
+import 'package:webspace/services/proxy_router_engine.dart';
+import 'package:webspace/services/proxy_router_service.dart';
+import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/settings/proxy.dart';
+
+/// Lifecycle contract of the per-site proxy router (PROXY-013): what gets
+/// installed in the relay, what happens when the relay refuses, and which
+/// challenges the service will answer.
+///
+/// Drives the real service through a fake relay that models the wire
+/// contract rather than stubbing it away — an unknown credential is a
+/// route the relay does not have, which is what makes the revocation and
+/// fail-closed assertions mean anything.
+class FakeRelay implements ProxyRelayApi {
+  Map<String, Map<String, Object?>> installed = {};
+  String? startedRealm;
+  int startCalls = 0;
+  int stopCalls = 0;
+
+  /// When false, `startRouter` reports a bind failure.
+  bool canBind = true;
+
+  @override
+  String? get lastError => canBind ? null : 'FAKE_BIND_FAILED: no';
+
+  /// When false, `setRoutes` rejects the table.
+  bool acceptsRoutes = true;
+
+  /// The address the fake reports binding. A random 127/8 one, as the
+  /// real relay picks, so nothing can quietly assume 127.0.0.1.
+  static const String boundHost = '127.63.9.212';
+
+  @override
+  Future<({String host, int port})?> startRouter(String realm) async {
+    startCalls++;
+    if (!canBind) return null;
+    startedRealm = realm;
+    return (host: boundHost, port: 43210);
+  }
+
+  @override
+  Future<bool> setRoutes(Map<String, Map<String, Object?>> routes) async {
+    if (!acceptsRoutes) return false;
+    installed = routes;
+    return true;
+  }
+
+  /// nonce -> siteId, as the relay would have observed it.
+  Map<String, String> probes = {};
+  int clearProbeCalls = 0;
+
+  @override
+  Future<Map<String, String>> probeResults() async => probes;
+
+  @override
+  Future<void> clearProbeResults() async {
+    clearProbeCalls++;
+    probes = {};
+  }
+
+  @override
+  Future<void> stop() async {
+    stopCalls++;
+    installed = {};
+    startedRealm = null;
+    probes = {};
+  }
+
+  /// The upstream the relay would pick for [credential], or null when the
+  /// connection would be answered 502.
+  Map<String, Object?>? resolve(String credential) => installed[credential];
+}
+
+void main() {
+  // ProxyRelay's singleton installs a method-call handler at
+  // construction, so the service's default field needs a binding.
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  late FakeRelay relay;
+  late ProxyRouterService service;
+
+  UserProxySettings proxy(ProxyType type, String? address) =>
+      UserProxySettings(type: type, address: address);
+
+  setUp(() {
+    GlobalOutboundProxy.setForTest(UserProxySettings(type: ProxyType.DEFAULT));
+    relay = FakeRelay();
+    service = ProxyRouterService.instance;
+    service.resetForTest();
+    service.setRelayForTest(relay);
+  });
+
+  tearDown(() {
+    service.resetForTest();
+    DeveloperModeService.instance.debugSet(false);
+  });
+
+  group('activation', () {
+    test('installs one route per site and reports the relay port', () async {
+      final port = await service.activate(perSiteProxies: {
+        'a': proxy(ProxyType.SOCKS5, '127.0.0.1:9050'),
+        'b': proxy(ProxyType.HTTP, '10.0.0.1:8080'),
+      });
+
+      expect(port, 43210);
+      expect(service.isActive, isTrue);
+      expect(relay.installed, hasLength(2));
+      expect(
+        relay.resolve(service.credentialFor('a')!)!['type'],
+        'socks5',
+      );
+      expect(relay.resolve(service.credentialFor('b')!)!['host'], '10.0.0.1');
+    });
+
+    test('the override is bound before the probe runs (PROXY-015)', () async {
+      // The probe's own traffic travels the process-wide proxy. Bound
+      // after the probe, it resolves its own hostname directly, never
+      // reaches the relay, and attribution fails on every device --
+      // router mode then can never activate anywhere.
+      final order = <String>[];
+      final port = await service.activate(
+        perSiteProxies: {'a': proxy(ProxyType.HTTP, '10.0.0.1:8080')},
+        bindOverride: (h, p) async {
+          order.add('bind');
+          return true;
+        },
+        probe: (urls) async {
+          order.add('probe');
+          for (final e in urls.entries) {
+            relay.probes[Uri.parse(e.value).host.split('.').first] = e.key;
+          }
+        },
+      );
+
+      expect(order, ['bind', 'probe']);
+      expect(port, isNotNull);
+      expect(service.isActive, isTrue);
+    });
+
+    test('a failed override bind leaves the service inactive', () async {
+      final port = await service.activate(
+        perSiteProxies: {'a': proxy(ProxyType.HTTP, '10.0.0.1:8080')},
+        bindOverride: (h, p) async => false,
+      );
+
+      expect(port, isNull);
+      expect(service.isActive, isFalse);
+    });
+
+    test('a bind failure leaves the service inactive', () async {
+      relay.canBind = false;
+      final port = await service.activate(
+        perSiteProxies: {'a': proxy(ProxyType.HTTP, '10.0.0.1:8080')},
+      );
+
+      // Null means "fall back to the PROXY-008 unload", never "clear the
+      // override" — an inactive router must not look active.
+      expect(port, isNull);
+      expect(service.isActive, isFalse);
+      expect(service.credentialFor('a'), isNull);
+    });
+
+    test('a rejected route table leaves the service inactive', () async {
+      relay.acceptsRoutes = false;
+      final port = await service.activate(
+        perSiteProxies: {'a': proxy(ProxyType.HTTP, '10.0.0.1:8080')},
+      );
+
+      expect(port, isNull);
+      expect(service.isActive, isFalse);
+    });
+
+    test('the realm handed to the relay is the one the service answers on',
+        () async {
+      await service.activate(perSiteProxies: const {});
+      expect(relay.startedRealm, isNotNull);
+      expect(relay.startedRealm, service.realm);
+      expect(
+        service.ownsChallenge(
+            host: FakeRelay.boundHost, realm: relay.startedRealm),
+        isTrue,
+      );
+      // Being on loopback is not enough. The relay binds a random address
+      // in 127/8 precisely so that naming it costs more than knowing the
+      // feature exists, and the answer is pinned to the one it bound.
+      expect(
+        service.ownsChallenge(host: '127.0.0.1', realm: relay.startedRealm),
+        isFalse,
+      );
+    });
+  });
+
+  group('challenge ownership', () {
+    test('refuses every challenge before activation', () {
+      expect(
+          service.ownsChallenge(host: FakeRelay.boundHost, realm: 'anything'),
+          isFalse);
+    });
+
+    test("refuses a site's own 401 once active", () async {
+      await service.activate(
+        perSiteProxies: {'a': proxy(ProxyType.HTTP, '10.0.0.1:8080')},
+      );
+      expect(
+        service.ownsChallenge(host: 'bank.example.com', realm: service.realm),
+        isFalse,
+      );
+    });
+
+    test('refuses every challenge again after deactivation', () async {
+      await service.activate(perSiteProxies: const {});
+      final realm = service.realm;
+      await service.deactivate();
+
+      expect(service.isActive, isFalse);
+      expect(service.ownsChallenge(host: '127.0.0.1', realm: realm), isFalse);
+      expect(relay.stopCalls, 1);
+    });
+  });
+
+  group('route refresh', () {
+    test('a deleted site loses its route', () async {
+      await service.activate(perSiteProxies: {
+        'a': proxy(ProxyType.HTTP, '10.0.0.1:8080'),
+        'b': proxy(ProxyType.HTTP, '10.0.0.2:8080'),
+      });
+      final credentialB = service.credentialFor('b')!;
+
+      await service.refreshRoutes(
+        perSiteProxies: {'a': proxy(ProxyType.HTTP, '10.0.0.1:8080')},
+      );
+
+      expect(relay.installed, hasLength(1));
+      expect(
+        relay.resolve(credentialB),
+        isNull,
+        reason: "a deleted site's credential must stop routing",
+      );
+    });
+
+    test('a changed proxy repoints the same credential', () async {
+      await service.activate(
+        perSiteProxies: {'a': proxy(ProxyType.HTTP, '10.0.0.1:8080')},
+      );
+      final credential = service.credentialFor('a')!;
+
+      await service.refreshRoutes(
+        perSiteProxies: {'a': proxy(ProxyType.SOCKS5, '127.0.0.1:9050')},
+      );
+
+      expect(service.credentialFor('a'), credential);
+      expect(relay.resolve(credential)!['type'], 'socks5');
+      expect(relay.resolve(credential)!['port'], 9050);
+    });
+
+    test('a site with a malformed proxy is dropped, never sent direct',
+        () async {
+      await service.activate(perSiteProxies: {
+        'good': proxy(ProxyType.HTTP, '10.0.0.1:8080'),
+        'broken': proxy(ProxyType.HTTP, 'no-port-here'),
+      });
+
+      expect(relay.resolve(service.credentialFor('good')!), isNotNull);
+      expect(
+        relay.resolve(service.credentialFor('broken')!),
+        isNull,
+        reason: 'a site whose proxy will not parse must fail closed',
+      );
+      expect(
+        relay.installed.values.any((r) => r['siteId'] == 'broken'),
+        isFalse,
+      );
+    });
+
+    test('refreshing before activation is a no-op', () async {
+      expect(
+        await service.refreshRoutes(
+          perSiteProxies: {'a': proxy(ProxyType.HTTP, '10.0.0.1:8080')},
+        ),
+        isFalse,
+      );
+      expect(relay.installed, isEmpty);
+    });
+  });
+
+  group('credential secrecy', () {
+    test('a credential is never reused across sites', () async {
+      await service.activate(perSiteProxies: {
+        for (var i = 0; i < 25; i++) 'site-$i': proxy(ProxyType.DEFAULT, null),
+      });
+      expect(relay.installed.keys.toSet(), hasLength(25));
+    });
+
+    test('the wire table carries no token beyond the map key', () async {
+      await service.activate(
+        perSiteProxies: {'a': proxy(ProxyType.HTTP, '10.0.0.1:8080')},
+      );
+      final credential = service.credentialFor('a')!;
+      final entry = relay.resolve(credential)!;
+      // The upstream half of the entry is the user's own proxy config.
+      // The site's token must not be duplicated into it, or an upstream
+      // that echoes its config would disclose it.
+      expect(entry.values.whereType<String>(), isNot(contains(credential)));
+    });
+
+    test('a fresh service run mints a different realm', () async {
+      await service.activate(perSiteProxies: const {});
+      final first = service.realm;
+      service.resetForTest();
+      await service.activate(perSiteProxies: const {});
+      expect(service.realm, isNot(first));
+    });
+
+    test('router mode is gated on Android AND containers AND developer mode',
+        () {
+      // Three independent gates, and this is where the negative contract
+      // lives now that the integration tier runs Android-only. Off
+      // Android the engine cannot deliver a per-WebView proxy challenge
+      // at all; on Android without MULTI_PROFILE every site shares one
+      // auth cache; and developer mode is what keeps the shipped default
+      // on PROXY-008 while the premise is proven on one WebView build.
+      // Any one of them failing must leave the app on PROXY-008.
+      //
+      // Asserted on the decision rather than on `isSupported`, because
+      // this suite runs off Android: there `hostIsAndroid` answers false
+      // first and every further assertion passes without meaning it.
+      for (final useContainers in [true, false]) {
+        for (final developerMode in [true, false]) {
+          expect(
+            ProxyRouterService.isSupportedWhen(
+              isAndroid: true,
+              useContainers: useContainers,
+              developerMode: developerMode,
+            ),
+            useContainers && developerMode,
+            reason: 'containers=$useContainers developerMode=$developerMode',
+          );
+          expect(
+            ProxyRouterService.isSupportedWhen(
+              isAndroid: false,
+              useContainers: useContainers,
+              developerMode: developerMode,
+            ),
+            isFalse,
+            reason: 'router mode must not engage off Android',
+          );
+        }
+      }
+
+      // And the wiring: on this host the platform gate answers first, so
+      // this only pins that the composed call agrees where it can.
+      DeveloperModeService.instance.debugSet(true);
+      expect(ProxyRouterService.isSupported(useContainers: false), isFalse);
+      if (!hostIsAndroid) {
+        expect(ProxyRouterService.isSupported(useContainers: true), isFalse);
+      }
+    });
+  });
+
+  test('the credential the service issues is the relay map key', () async {
+    await service.activate(
+      perSiteProxies: {'acme': proxy(ProxyType.DEFAULT, null)},
+    );
+    final credential = service.credentialFor('acme')!;
+    expect(relay.installed.containsKey(credential), isTrue);
+
+    final decoded = utf8.decode(base64.decode(credential));
+    expect(decoded, startsWith('ws-acme:'));
+    final token = decoded.substring('ws-acme:'.length);
+    expect(token, hasLength(32));
+    expect(
+      ProxyRouterEngine.credentialFor(siteId: 'acme', token: token),
+      credential,
+    );
+  });
+
+  group('attribution self-test (PROXY-015)', () {
+    /// A device that behaves: each container presents its own credential,
+    /// so every nonce comes back stamped with its own site.
+    ProxyAttributionProbe honestDevice() => (siteIdToProbeUrl) async {
+          for (final e in siteIdToProbeUrl.entries) {
+            relay.probes[_nonceOf(e.value)] = e.key;
+          }
+        };
+
+    /// The device this whole check exists for: one shared proxy auth
+    /// cache, so whichever site authenticated first has its credential
+    /// replayed for every container. Every nonce comes back stamped with
+    /// that one site, and nothing errors anywhere.
+    ProxyAttributionProbe sharedAuthCacheDevice(String winner) =>
+        (siteIdToProbeUrl) async {
+          for (final e in siteIdToProbeUrl.entries) {
+            relay.probes[_nonceOf(e.value)] = winner;
+          }
+        };
+
+    test('activates when every container presents its own credential',
+        () async {
+      final port = await service.activate(
+        perSiteProxies: {
+          'a': proxy(ProxyType.SOCKS5, '127.0.0.1:9050'),
+          'b': proxy(ProxyType.HTTP, '10.0.0.1:8080'),
+        },
+        probe: honestDevice(),
+      );
+
+      expect(port, 43210);
+      expect(service.isActive, isTrue);
+      expect(relay.clearProbeCalls, 1,
+          reason: 'stale observations must not satisfy a fresh check');
+    });
+
+    test('REFUSES to activate when the device mixes credentials up',
+        () async {
+      // This is the silent-leak device. Without the check it would look
+      // exactly like success: routes installed, relay bound, pages load.
+      final port = await service.activate(
+        perSiteProxies: {
+          'a': proxy(ProxyType.SOCKS5, '127.0.0.1:9050'),
+          'b': proxy(ProxyType.HTTP, '10.0.0.1:8080'),
+        },
+        probe: sharedAuthCacheDevice('a'),
+      );
+
+      expect(port, isNull);
+      expect(service.isActive, isFalse,
+          reason: 'a device that cannot attribute must fall back to PROXY-008');
+      expect(service.credentialFor('a'), isNull);
+      expect(relay.stopCalls, greaterThan(0),
+          reason: 'the relay must not be left listening after a failed check');
+    });
+
+    test('refuses when any site fails to report at all', () async {
+      final port = await service.activate(
+        perSiteProxies: {
+          'a': proxy(ProxyType.HTTP, '10.0.0.1:8080'),
+          'b': proxy(ProxyType.HTTP, '10.0.0.2:8080'),
+        },
+        // Only site a probes; b never arrives.
+        probe: (siteIdToProbeUrl) async {
+          final only = siteIdToProbeUrl.entries.first;
+          relay.probes[_nonceOf(only.value)] = only.key;
+        },
+      );
+
+      expect(port, isNull,
+          reason: 'an unproven site is treated exactly like a failed one');
+      expect(service.isActive, isFalse);
+    });
+
+    test('refuses when the probe itself throws', () async {
+      final port = await service.activate(
+        perSiteProxies: {'a': proxy(ProxyType.HTTP, '10.0.0.1:8080')},
+        probe: (_) async => throw StateError('no webview'),
+      );
+      expect(port, isNull);
+      expect(service.isActive, isFalse);
+    });
+
+    test('probe URLs are unique per site and use the reserved suffix',
+        () async {
+      final urls = <String>[];
+      await service.activate(
+        perSiteProxies: {
+          for (var i = 0; i < 5; i++) 'site-$i': proxy(ProxyType.DEFAULT, null),
+        },
+        probe: (siteIdToProbeUrl) async {
+          urls.addAll(siteIdToProbeUrl.values);
+          for (final e in siteIdToProbeUrl.entries) {
+            relay.probes[_nonceOf(e.value)] = e.key;
+          }
+        },
+      );
+      expect(urls.toSet(), hasLength(5));
+      for (final u in urls) {
+        expect(u, startsWith('http://'));
+        expect(u, contains(ProxyRouterEngine.probeSuffix));
+      }
+    });
+
+    test('no probe supplied means no check (the test-only path)', () async {
+      final port = await service.activate(
+        perSiteProxies: {'a': proxy(ProxyType.HTTP, '10.0.0.1:8080')},
+      );
+      expect(port, 43210);
+      expect(relay.clearProbeCalls, 0);
+    });
+  });
+}
+
+/// Recover the nonce from a probe URL, the way the relay does from the
+/// request host.
+String _nonceOf(String probeUrl) =>
+    Uri.parse(probeUrl).host.replaceAll(ProxyRouterEngine.probeSuffix, '');

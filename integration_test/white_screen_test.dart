@@ -63,6 +63,7 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/surface_diag_native.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
+import 'fixture_server.dart';
 
 const int _kDarkColor = 0xFF123524;
 const int _kMagentaColor = 0xFF8C1D5A;
@@ -96,7 +97,7 @@ void main() {
     server = await HttpServer.bind(InternetAddress.anyIPv4, 0);
     final port = server!.port;
     final altBase = 'http://127.0.0.2:$port';
-    server!.listen((request) async {
+    listenFixture(server!, (request) async {
       final page = switch (request.uri.path) {
         '/dark.html' => _solidPage('#123524'),
         '/white.html' => _solidPage('#ffffff'),
