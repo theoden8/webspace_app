@@ -378,7 +378,7 @@ Each site SHALL have a `contentBlockEnabled` setting (default: `true`) that cont
 
 ### Requirement: CB-007 - License Attribution
 
-The EasyList filter lists SHALL be credited under CC BY-SA 3.0, and `adblock-rust` plus its transitive dependencies SHALL be credited in the app's license page and README.
+The EasyList filter lists SHALL be credited under CC BY-SA 3.0, and `adblock-rust` plus its transitive dependencies SHALL be credited in the app's license page; the README names EasyList and `adblock-rust` in its feature list.
 
 #### Scenario: EasyList license visible
 
@@ -395,8 +395,8 @@ The EasyList filter lists SHALL be credited under CC BY-SA 3.0, and `adblock-rus
 #### Scenario: README attribution
 
 **Given** a user reads the README
-**Then** EasyList is listed in the Tech Stack section with license info
-**And** `adblock-rust` (Brave Software) is credited there too
+**Then** EasyList and `adblock-rust` are named in the Features list
+**And** the License section points at the in-app license page and the legal spec for the license details
 
 ---
 
