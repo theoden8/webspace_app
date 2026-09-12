@@ -155,4 +155,3 @@ graph.
 
 - **THEN** its licence text is bundled under `assets/licenses/` and registered
   in the custom-licence list in `lib/main.dart`
-- **AND** the README License section names it
