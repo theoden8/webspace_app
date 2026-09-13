@@ -18,6 +18,8 @@ import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/user_agent_identity.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/proxy_form_engine.dart';
+import 'package:webspace/services/proxy_test_service.dart';
 import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/timezone_location_service.dart';
 import 'package:webspace/services/timezone_spoof_policy.dart';
@@ -30,6 +32,8 @@ import 'package:webspace/screens/site_settings_qr.dart';
 import 'package:webspace/screens/user_scripts.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/widgets/hint_button.dart';
+import 'package:webspace/widgets/proxy_auth_section.dart';
+import 'package:webspace/widgets/proxy_test_tile.dart';
 import 'package:webspace/widgets/root_messenger.dart';
 
 // Supported languages for webview
@@ -148,9 +152,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   ScreenShareMode _screenShareMode = ScreenShareMode.ask;
   VirtualScreenSource? _virtualScreenSource;
   String? _selectedLanguage;
+  /// Bumped on every [_loadFromModel]. The credentials fold reads its open
+  /// state once, at construction, so re-keying it is what lets an applied QR
+  /// payload open a section the user has not touched.
+  int _formEpoch = 0;
   late int _zoomPercent;
-  bool _obscureProxyPassword = true;
-  bool _showProxyCredentials = false;
   late TextEditingController _latitudeController;
   late TextEditingController _longitudeController;
   late TextEditingController _accuracyController;
@@ -218,7 +224,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         'proxyAddress': _proxyAddressController.text,
         'proxyUsername': _proxyUsernameController.text,
         'proxyPassword': _proxyPasswordController.text,
-        'showProxyCredentials': _showProxyCredentials,
         'userAgent': _userAgentController.text,
         'javascriptEnabled': _javascriptEnabled,
         'thirdPartyCookiesEnabled': _thirdPartyCookiesEnabled,
@@ -486,7 +491,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _isLiveLocation = m.locationMode == LocationMode.live;
     _liveLocationGranularity = m.liveLocationGranularity;
     _webRtcPolicy = m.webRtcPolicy;
-    _showProxyCredentials = _proxySettings.hasCredentials;
+    _formEpoch++;
   }
 
   @override
@@ -501,6 +506,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _accuracyController.dispose();
     super.dispose();
   }
+
+  /// Tests exactly what a save would store, form edits included: the
+  /// question a user asks after typing an address is whether *that* one
+  /// works, and answering it about the persisted copy would be a different
+  /// question.
+  Widget _buildProxyTestTile() => ProxyTestTile(
+        settings: () => applyProxyForm(
+          stored: _proxySettings,
+          fields: ProxyFormFields(
+            type: _proxySettings.type,
+            address: _proxyAddressController.text,
+            username: _proxyUsernameController.text,
+            password: _proxyPasswordController.text,
+          ),
+        ),
+        target: proxyTestTarget(widget.webViewModel.initUrl),
+        siteId: widget.webViewModel.siteId,
+      );
 
   String? _validateProxyAddress(String? value) {
     final loc = AppLocalizations.of(context);
@@ -560,31 +583,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       // Update proxy settings only on supported platforms
       if (PlatformInfo.isProxySupported) {
-        // Under TOR the address and credential fields are hidden, so their
-        // controllers hold whatever was last rendered — writing them back
-        // would quietly destroy the manual SOCKS5 config the user expects
-        // to find again on switch-out (PROXY-010). Leave the stored values
-        // untouched instead.
-        final torSelected = _proxySettings.type == ProxyType.TOR;
-        if (!torSelected) {
-          _proxySettings.address = _proxyAddressController.text.isEmpty
-              ? null
-              : _proxyAddressController.text;
-        }
-        // Only save credentials if the checkbox is enabled
-        if (torSelected) {
-          // no-op: keep whatever is stored
-        } else if (_showProxyCredentials) {
-          _proxySettings.username = _proxyUsernameController.text.isEmpty
-              ? null
-              : _proxyUsernameController.text;
-          _proxySettings.password = _proxyPasswordController.text.isEmpty
-              ? null
-              : _proxyPasswordController.text;
-        } else {
-          _proxySettings.username = null;
-          _proxySettings.password = null;
-        }
+        _proxySettings = applyProxyForm(
+          stored: _proxySettings,
+          fields: ProxyFormFields(
+            type: _proxySettings.type,
+            address: _proxyAddressController.text,
+            username: _proxyUsernameController.text,
+            password: _proxyPasswordController.text,
+          ),
+        );
 
         widget.webViewModel.proxySettings = _proxySettings;
         LogService.instance.log(
@@ -1509,50 +1516,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   validator: _validateProxyAddress,
                 ),
               ),
-              CheckboxListTile(
-                title: Text(loc.siteSettingsProxyRequiresAuth),
-                value: _showProxyCredentials,
-                onChanged: (bool? value) {
-                  setState(() {
-                    _showProxyCredentials = value ?? false;
-                  });
-                },
-                controlAffinity: ListTileControlAffinity.leading,
+              ProxyAuthSection(
+                key: ValueKey('proxy-auth-$_formEpoch'),
+                usernameController: _proxyUsernameController,
+                passwordController: _proxyPasswordController,
               ),
-              if (_showProxyCredentials) ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                  child: TextFormField(
-                    controller: _proxyUsernameController,
-                    decoration: InputDecoration(
-                      labelText: loc.siteSettingsProxyUsername,
-                      border: const OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                  child: TextFormField(
-                    controller: _proxyPasswordController,
-                    obscureText: _obscureProxyPassword,
-                    decoration: InputDecoration(
-                      labelText: loc.siteSettingsProxyPassword,
-                      border: const OutlineInputBorder(),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscureProxyPassword ? Icons.visibility : Icons.visibility_off,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _obscureProxyPassword = !_obscureProxyPassword;
-                          });
-                        },
-                      ),
-                    ),
-                  ),
-                ),
-              ],
             ],
+            if (_proxySettings.type != ProxyType.DEFAULT) _buildProxyTestTile(),
           ],
           _buildWebRtcTile(),
           _sectionHeader(loc.siteSettingsSectionSite),

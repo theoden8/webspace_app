@@ -296,6 +296,74 @@ fail-closed semantics.
 
 ---
 
+### Requirement: PROXY-019 - Credentials are the fields, and the form can be tested
+
+The proxy credential pair SHALL be stored as the form holds it: a visible
+username or password field is written verbatim on save, and emptying a
+field is the only way to remove that credential. No separate flag SHALL
+gate whether credentials are saved.
+
+The rule for which fields are authoritative lives in one place,
+`applyProxyForm` in
+[lib/services/proxy_form_engine.dart](../../../lib/services/proxy_form_engine.dart),
+shared by the per-site and app-wide proxy forms. Fields hidden by the
+selected type (DEFAULT and TOR render neither address nor credentials)
+are NOT written back; their stored values carry over, per PROXY-010.
+
+The forms SHALL also offer a connection test that sends one request
+through the configuration currently in the form — not the persisted copy
+— and reports which of these happened: reachable, credentials rejected,
+or not reached. The test SHALL route through the same
+`resolveEffectiveProxy` / `outboundHttp` seam as any other Dart-side
+call, so a configuration that fails closed there (Tor not bootstrapped,
+malformed address) reports as not reached rather than silently probing
+over the device IP.
+
+The probe target is the site's own origin where there is one, and the
+fixed `https://example.com` otherwise. A site whose host is a private or
+loopback literal falls back to the fixed target: PROXY-007 exempts those
+from the proxy, so testing against one would report success without a
+byte having crossed it.
+
+#### Scenario: A password with no username survives a save
+
+**Given** a site's proxy is SOCKS5 with a password stored and no username
+**When** the user opens site settings and saves
+**Then** the credentials section is already expanded, showing the stored
+password
+**And** its subtitle says the pair is incomplete
+**And** the saved settings still carry the password
+
+#### Scenario: Clearing a field removes the credential
+
+**Given** a site's proxy has both a username and a password
+**When** the user clears both fields and saves
+**Then** the stored username and password are both null
+
+#### Scenario: Switching to TOR and back keeps the manual configuration
+
+**Given** a site's proxy is SOCKS5 `127.0.0.1:1080` with credentials
+**When** the user switches the type to TOR, saves, switches back to
+SOCKS5 and saves again
+**Then** the address and credentials are the original ones (PROXY-010)
+
+#### Scenario: The test names a rejected credential
+
+**Given** a proxy that answers with `407 Proxy Authentication Required`
+**When** the user taps Test connection
+**Then** the result reads as rejected credentials, not as an unreachable
+proxy
+
+#### Scenario: The test never falls back to a direct connection
+
+**Given** a site set to TOR while the Tor runtime is not bootstrapped
+**When** the user taps Test connection
+**Then** `outboundHttp.clientFor` returns blocked
+**And** the result reads as not reached, carrying the reason
+**And** no request leaves over the device IP
+
+---
+
 ## Data Model
 
 ### ProxyType Enum
@@ -388,6 +456,10 @@ flutter_inappwebview fork (github.com/theoden8/flutter_inappwebview)
 
 ### Created
 - `lib/settings/proxy.dart` - Proxy types and settings model
+- `lib/services/proxy_form_engine.dart` - the one form-to-settings rule (PROXY-019)
+- `lib/services/proxy_test_service.dart` - the connection test (PROXY-019)
+- `lib/widgets/proxy_auth_section.dart` - the credentials fold
+- `lib/widgets/proxy_test_tile.dart` - the test control and its result
 - `test/proxy_test.dart` - Unit tests
 - `test/proxy_integration_test.dart` - Integration tests
 - WebSpace fork of `flutter_inappwebview` (github.com/theoden8/flutter_inappwebview) -

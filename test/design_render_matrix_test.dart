@@ -17,7 +17,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/theme/design_tokens.dart';
+import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/widgets/hint_button.dart';
+import 'package:webspace/widgets/proxy_auth_section.dart';
+import 'package:webspace/widgets/proxy_test_tile.dart';
 import 'package:webspace/widgets/tab_bar_corner_button.dart';
 import 'package:webspace/widgets/url_bar.dart';
 
@@ -55,6 +58,21 @@ final Map<String, Widget Function()> _subjects = {
         onDragBegin: (_) {},
         onDragUpdate: (_) {},
         onDragEnd: () {},
+      ),
+  'proxy-auth (empty)': () => ProxyAuthSection(
+        usernameController: TextEditingController(),
+        passwordController: TextEditingController(),
+      ),
+  // Expanded, because a stored credential opens the fold: the two text
+  // fields and the reveal button are what has to fit.
+  'proxy-auth (filled)': () => ProxyAuthSection(
+        usernameController: TextEditingController(text: 'proxy-user'),
+        passwordController: TextEditingController(text: 'hunter2'),
+      ),
+  'proxy-test': () => ProxyTestTile(
+        settings: () =>
+            UserProxySettings(type: ProxyType.SOCKS5, address: '127.0.0.1:1080'),
+        target: Uri.parse('https://example.org/'),
       ),
 };
 

@@ -943,18 +943,6 @@
   "@appSettingsProxyAddressHelper": {
     "description": "Helper text for the proxy address field"
   },
-  "appSettingsProxyRequiresAuth": "Proxy requires authentication",
-  "@appSettingsProxyRequiresAuth": {
-    "description": "Checkbox label to enable proxy credentials"
-  },
-  "appSettingsProxyUsername": "Proxy Username",
-  "@appSettingsProxyUsername": {
-    "description": "Label for the proxy username field"
-  },
-  "appSettingsProxyPassword": "Proxy Password",
-  "@appSettingsProxyPassword": {
-    "description": "Label for the proxy password field"
-  },
   "appSettingsProxyAddressRequired": "Address is required",
   "@appSettingsProxyAddressRequired": {
     "description": "Validation error when the proxy address is empty"
@@ -1764,18 +1752,6 @@
   "siteSettingsProxyAddressHelper": "Format: host:port",
   "@siteSettingsProxyAddressHelper": {
     "description": "Helper text under the proxy address field."
-  },
-  "siteSettingsProxyRequiresAuth": "Proxy requires authentication",
-  "@siteSettingsProxyRequiresAuth": {
-    "description": "Checkbox label to reveal proxy credential fields."
-  },
-  "siteSettingsProxyUsername": "Proxy Username",
-  "@siteSettingsProxyUsername": {
-    "description": "Label for the proxy username field."
-  },
-  "siteSettingsProxyPassword": "Proxy Password",
-  "@siteSettingsProxyPassword": {
-    "description": "Label for the proxy password field."
   },
   "siteSettingsJavascriptEnabled": "JavaScript Enabled",
   "@siteSettingsJavascriptEnabled": {
@@ -4083,5 +4059,45 @@
   "torMoatErrorNoBridges": "The bridge service returned nothing this app can use.",
   "@torMoatErrorNoBridges": {
     "description": "Error when Moat returns only bridges for transports the app cannot run."
+  },
+  "proxyAuthTitle": "Proxy authentication",
+  "@proxyAuthTitle": {
+    "description": "Title of the expandable section holding the username and password sent to the proxy server. Shown in both per-site settings and app settings."
+  },
+  "proxyAuthNone": "Not configured",
+  "@proxyAuthNone": {
+    "description": "Subtitle of the proxy authentication section when neither a username nor a password is stored."
+  },
+  "proxyAuthIncomplete": "Needs both a username and a password",
+  "@proxyAuthIncomplete": {
+    "description": "Warning subtitle shown when only one of the proxy username and password is filled in. The app authenticates to a proxy only when both are present, so a half-filled pair would connect with no credentials at all."
+  },
+  "proxyAuthUsername": "Proxy username",
+  "@proxyAuthUsername": {
+    "description": "Label for the text field holding the username sent to the proxy server."
+  },
+  "proxyAuthPassword": "Proxy password",
+  "@proxyAuthPassword": {
+    "description": "Label for the text field holding the password sent to the proxy server."
+  },
+  "proxyTestRun": "Test connection",
+  "@proxyTestRun": {
+    "description": "Button that sends one request through the proxy being configured, to check that it works."
+  },
+  "proxyTestHint": "Sends one small request through this proxy and reports what comes back, so a wrong address or a rejected password can be told apart from a site that is simply down.",
+  "@proxyTestHint": {
+    "description": "Explanation shown behind the hint button next to the proxy connection test button."
+  },
+  "proxyTestOk": "The proxy works",
+  "@proxyTestOk": {
+    "description": "Result shown when the test request came back through the proxy successfully."
+  },
+  "proxyTestAuthRejected": "The proxy rejected these credentials",
+  "@proxyTestAuthRejected": {
+    "description": "Result shown when the proxy answered but refused the username and password."
+  },
+  "proxyTestUnreachable": "Could not reach the proxy",
+  "@proxyTestUnreachable": {
+    "description": "Result shown when the proxy could not be contacted at all: wrong address, nothing listening, or no answer before the deadline."
   }
 }

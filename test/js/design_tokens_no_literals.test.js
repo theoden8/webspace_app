@@ -29,6 +29,8 @@ const MIGRATED = [
   // Ambient layout state, no painting: nothing to tokenise.
   'lib/widgets/surface_nudge_scope.dart',
   'lib/widgets/tor_status_card.dart',
+  'lib/widgets/proxy_auth_section.dart',
+  'lib/widgets/proxy_test_tile.dart',
 ];
 
 const PENDING = [
