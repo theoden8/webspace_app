@@ -30,6 +30,7 @@ const CARDS = [
   { id: 'radius-scale', width: 520, height: 130 },
   { id: 'url-bar', width: 560, height: 140 },
   { id: 'hint-button', width: 360, height: 80 },
+  { id: 'proxy-auth', width: 400, height: 640 },
   { id: 'tab-corner-button', width: 260, height: 100 },
   { id: 'browser-chrome', width: 560, height: 380 },
 ];

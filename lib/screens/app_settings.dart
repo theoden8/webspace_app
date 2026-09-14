@@ -27,6 +27,10 @@ import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/services/proxy_form_engine.dart';
+import 'package:webspace/services/proxy_test_service.dart';
+import 'package:webspace/widgets/proxy_auth_section.dart';
+import 'package:webspace/widgets/proxy_test_tile.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/screens/user_scripts.dart';
 import 'package:webspace/widgets/firefox_version_tile.dart';
@@ -178,8 +182,6 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   late TextEditingController _outboundProxyAddressController;
   late TextEditingController _outboundProxyUsernameController;
   late TextEditingController _outboundProxyPasswordController;
-  bool _outboundProxyShowCredentials = false;
-  bool _outboundProxyObscurePassword = true;
   /// Snapshot of the outbound proxy fields at last persisted state. Most
   /// of this screen auto-applies on change, but the proxy text fields only
   /// flush via `onEditingComplete` / `onFieldSubmitted`, so a user who
@@ -236,7 +238,6 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     _outboundProxyPasswordController = TextEditingController(
       text: _outboundProxy.password ?? '',
     );
-    _outboundProxyShowCredentials = _outboundProxy.hasCredentials;
     _initialOutboundProxy = _currentOutboundProxySnapshot();
     _outboundProxyAddressController.addListener(_onProxyFieldChanged);
     _outboundProxyUsernameController.addListener(_onProxyFieldChanged);
@@ -334,26 +335,15 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
         return;
       }
     }
-    // Under TOR the manual fields are hidden, so their controllers hold
-    // whatever was last rendered; writing them back would destroy the
-    // config the user expects to find again on switch-out (PROXY-010).
-    final torSelected = _outboundProxy.type == ProxyType.TOR;
-    final previousSettings = GlobalOutboundProxy.current;
-    final manual = _outboundProxyShowCredentials &&
-        _outboundProxy.type != ProxyType.DEFAULT;
-    final settings = torSelected
-        ? UserProxySettings(
-            type: ProxyType.TOR,
-            address: previousSettings.address,
-            username: previousSettings.username,
-            password: previousSettings.password,
-          )
-        : UserProxySettings(
-            type: _outboundProxy.type,
-            address: _outboundProxy.type == ProxyType.DEFAULT ? null : address,
-            username: manual ? _outboundProxyUsernameController.text : null,
-            password: manual ? _outboundProxyPasswordController.text : null,
-          );
+    final settings = applyProxyForm(
+      stored: GlobalOutboundProxy.current,
+      fields: ProxyFormFields(
+        type: _outboundProxy.type,
+        address: address,
+        username: _outboundProxyUsernameController.text,
+        password: _outboundProxyPasswordController.text,
+      ),
+    );
     final previous = GlobalOutboundProxy.current;
     final changed = previous.type != settings.type ||
         previous.address != settings.address ||
@@ -395,6 +385,18 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     }
   }
 
+  /// Exactly what a save would store, so the test answers for the address
+  /// the user just typed rather than the one last saved.
+  UserProxySettings _currentOutboundProxyForTest() => applyProxyForm(
+        stored: GlobalOutboundProxy.current,
+        fields: ProxyFormFields(
+          type: _outboundProxy.type,
+          address: _outboundProxyAddressController.text,
+          username: _outboundProxyUsernameController.text,
+          password: _outboundProxyPasswordController.text,
+        ),
+      );
+
   void _onProxyFieldChanged() {
     if (mounted) setState(() {});
   }
@@ -404,7 +406,6 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
         'address': _outboundProxyAddressController.text,
         'username': _outboundProxyUsernameController.text,
         'password': _outboundProxyPasswordController.text,
-        'showCreds': _outboundProxyShowCredentials,
       };
 
   bool _isOutboundProxyDirty() {
@@ -1257,58 +1258,17 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                 onEditingComplete: _saveOutboundProxy,
               ),
             ),
-            CheckboxListTile(
-              title: Text(loc.appSettingsProxyRequiresAuth),
-              value: _outboundProxyShowCredentials,
-              onChanged: (v) {
-                setState(() {
-                  _outboundProxyShowCredentials = v ?? false;
-                });
-                _saveOutboundProxy();
-              },
-              controlAffinity: ListTileControlAffinity.leading,
+            ProxyAuthSection(
+              usernameController: _outboundProxyUsernameController,
+              passwordController: _outboundProxyPasswordController,
+              onEditingComplete: _saveOutboundProxy,
             ),
-            if (_outboundProxyShowCredentials) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16.0, vertical: 8.0),
-                child: TextFormField(
-                  controller: _outboundProxyUsernameController,
-                  decoration: InputDecoration(
-                    labelText: loc.appSettingsProxyUsername,
-                    border: const OutlineInputBorder(),
-                  ),
-                  onFieldSubmitted: (_) => _saveOutboundProxy(),
-                  onEditingComplete: _saveOutboundProxy,
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16.0, vertical: 8.0),
-                child: TextFormField(
-                  controller: _outboundProxyPasswordController,
-                  obscureText: _outboundProxyObscurePassword,
-                  decoration: InputDecoration(
-                    labelText: loc.appSettingsProxyPassword,
-                    border: const OutlineInputBorder(),
-                    suffixIcon: IconButton(
-                      icon: Icon(_outboundProxyObscurePassword
-                          ? Icons.visibility
-                          : Icons.visibility_off),
-                      onPressed: () {
-                        setState(() {
-                          _outboundProxyObscurePassword =
-                              !_outboundProxyObscurePassword;
-                        });
-                      },
-                    ),
-                  ),
-                  onFieldSubmitted: (_) => _saveOutboundProxy(),
-                  onEditingComplete: _saveOutboundProxy,
-                ),
-              ),
-            ],
           ],
+          if (_outboundProxy.type != ProxyType.DEFAULT)
+            ProxyTestTile(
+              settings: _currentOutboundProxyForTest,
+              target: kDefaultProxyTestTarget,
+            ),
 
           // Directly under the proxy block it reports on: the dropdown is
           // where TOR gets selected, and this is where the user finds out

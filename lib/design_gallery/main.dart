@@ -15,7 +15,10 @@ import 'package:http/http.dart' as http;
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/theme/design_tokens.dart';
+import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/widgets/hint_button.dart';
+import 'package:webspace/widgets/proxy_auth_section.dart';
+import 'package:webspace/widgets/proxy_test_tile.dart';
 import 'package:webspace/widgets/tab_bar_corner_button.dart';
 import 'package:webspace/demo_data.dart'
     show demoBlockStatsSiteNames, seedDemoBlockStats;
@@ -82,6 +85,7 @@ final List<GalleryCard> galleryCards = [
   GalleryCard(id: 'radius-scale', label: 'Corner radii', builder: (c) => const _RadiusScaleCard()),
   GalleryCard(id: 'url-bar', label: 'URL bar', builder: (c) => const _UrlBarCard()),
   GalleryCard(id: 'hint-button', label: 'Hint button', builder: (c) => const _HintButtonCard()),
+  GalleryCard(id: 'proxy-auth', label: 'Proxy authentication + test', builder: (c) => const _ProxyAuthCard()),
   GalleryCard(id: 'tab-corner-button', label: 'Tab corner button', builder: (c) => const _TabCornerCard()),
   GalleryCard(id: 'browser-chrome', label: 'Browser chrome', builder: (c) => const _BrowserChromeCard()),
 ];
@@ -517,6 +521,41 @@ class _AppSettingsCard extends StatelessWidget {
         linkHandlingEnabled: false,
         onLinkHandlingEnabledChanged: (_) {},
         onOpenLinkHandlingSettings: () {},
+      );
+}
+
+/// The proxy credentials fold and the connection test, as the network
+/// section of site settings draws them. All three states of the fold at
+/// once, because which one a user lands in is the whole point of it: it
+/// opens on whatever is stored, and says so when the pair is half-filled.
+class _ProxyAuthCard extends StatelessWidget {
+  const _ProxyAuthCard();
+
+  @override
+  Widget build(BuildContext context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ProxyAuthSection(
+            usernameController: TextEditingController(),
+            passwordController: TextEditingController(),
+          ),
+          ProxyAuthSection(
+            usernameController: TextEditingController(),
+            passwordController: TextEditingController(text: 'hunter2'),
+          ),
+          ProxyAuthSection(
+            usernameController: TextEditingController(text: 'proxy-user'),
+            passwordController: TextEditingController(text: 'hunter2'),
+          ),
+          ProxyTestTile(
+            settings: () => UserProxySettings(
+              type: ProxyType.SOCKS5,
+              address: '127.0.0.1:1080',
+            ),
+            target: Uri.parse('https://codeberg.org/'),
+          ),
+        ],
       );
 }
 

@@ -54,6 +54,11 @@ const EXEMPT = {
     'The LocalCDN bundle, fixed in the app.',
   'lib/services/timezone_location_service.dart':
     'A fixed timezone API endpoint.',
+  'lib/services/proxy_test_service.dart':
+    'The probe target is the site\'s own home URL (typed by the user, not '
+    + 'chosen by a loaded page) or the fixed example.com fallback, and '
+    + 'proxyTestTarget already rejects a private or loopback literal so the '
+    + 'test cannot be pointed at the LAN.',
   'lib/services/download_engine.dart':
     'The URL is page-supplied, but a download is user-confirmed and lands in '
     + 'a file rather than back in the page. Not audited against this '
