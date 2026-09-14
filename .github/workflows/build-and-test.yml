@@ -19,6 +19,11 @@ on:
         type: choice
         options: [debug, profile]
         default: debug
+      egress_guard:
+        description: 'Linux egress gate (INTEG-016). record reports what the suite sent off the runner; enforce fails on anything the allowlist does not cover; off leaves the network alone.'
+        type: choice
+        options: [record, enforce, off]
+        default: record
 
 # Supersede in-progress runs for the same ref: a new push cancels the
 # previous run instead of letting both consume runners. A hung job (e.g. a
@@ -594,6 +599,20 @@ jobs:
     # ubuntu-latest host runner — only Linux is in this container.
     container:
       image: debian:sid-slim
+      # CAP_NET_ADMIN is what lets the egress guard (INTEG-016) install its
+      # nftables ruleset. Not in Docker's default capability set, and
+      # without it the guard degrades to counting packets it cannot name.
+      # Scoped to this job's own container and network namespace.
+      options: --cap-add=NET_ADMIN
+    env:
+      # record: report what the suite sends off the runner, never fail.
+      # enforce: fail on anything scripts/egress_allowlist.txt does not
+      # cover. off: skip arming entirely.
+      WS_EGRESS_GUARD: ${{ inputs.egress_guard || 'record' }}
+      WS_EGRESS_STATE: /tmp/ws-egress
+      # The tool's own telemetry would otherwise be the guard's first
+      # finding, and a true one.
+      FLUTTER_SUPPRESS_ANALYTICS: "true"
     steps:
       - name: Install container base + Flutter Linux + WPE WebKit deps
         # debian:sid-slim ships nothing — Actions need git/curl/unzip
@@ -628,7 +647,8 @@ jobs:
             libegl1-mesa-dev libgles2-mesa-dev libgbm-dev mesa-vulkan-drivers \
             pass gpg pipx python3-gi gir1.2-glib-2.0 python3-dbus \
             python3-cairo python3-secretstorage \
-            libcairo2-dev python3-dev libgirepository-2.0-dev
+            libcairo2-dev python3-dev libgirepository-2.0-dev \
+            nftables iproute2
           rm -rf /var/lib/apt/lists/*
           pkg-config --modversion wpe-webkit-2.0 || echo "wpe-webkit-2.0 NOT FOUND"
           pkg-config --modversion wpe-platform-2.0 || echo "wpe-platform-2.0 NOT FOUND"
@@ -739,6 +759,36 @@ jobs:
         run: |
           fvm flutter build linux --release
           bash scripts/verify_adblock_shipped.sh linux
+
+      # Everything the integration step would otherwise fetch mid-suite,
+      # fetched here while the runner still has a network. The egress
+      # guard below cannot tell a toolchain download from an app leak, and
+      # should not have to: after this step a fetch is a finding.
+      #
+      # `flutter test -d linux` builds a debug runner on its first
+      # invocation, which is a different CMake tree from the release build
+      # above (fresh configure, and the cargo custom target re-runs even
+      # though it no-ops). Doing that here rather than inside the first
+      # test also stops the build eating into that test's 12m cap.
+      - name: Warm the toolchain before arming the egress guard
+        if: env.WS_EGRESS_GUARD != 'off'
+        run: |
+          set -x
+          fvm flutter precache --linux
+          fvm flutter build linux --debug
+
+      # Deny-by-default outbound for the duration of the suite: loopback
+      # stays reachable, everything else is recorded and dropped. This is
+      # the machine half of LEAK-007, whose enforcement was otherwise the
+      # sentence "the code review process SHALL fail".
+      - name: Arm egress guard
+        if: env.WS_EGRESS_GUARD != 'off'
+        # In record mode the guard is an observer, so a runner that cannot
+        # grant it CAP_NET_ADMIN must not take the Linux job down with it.
+        # In enforce mode failing to arm IS the failure: a suite nobody
+        # watched cannot be reported as clean.
+        continue-on-error: ${{ env.WS_EGRESS_GUARD == 'record' }}
+        run: bash scripts/egress_guard_arm.sh
 
       # Integration tests run after the production build so a clean
       # build is verified independently first. The integration_test
@@ -926,6 +976,27 @@ jobs:
           test_status=$?
           kill "$WESTON_PID" 2>/dev/null || true
           exit $test_status
+
+      # always(), and before anything else that needs a network: an armed
+      # guard takes the network away from every later step in the job,
+      # including the artifact upload below.
+      - name: Disarm egress guard and report
+        if: always() && env.WS_EGRESS_GUARD != 'off'
+        run: |
+          bash scripts/egress_guard_disarm.sh
+          python3 scripts/egress_report.py \
+            --log "$WS_EGRESS_STATE/egress.jsonl" \
+            --allowlist scripts/egress_allowlist.txt \
+            --state "$WS_EGRESS_STATE" \
+            --mode "$WS_EGRESS_GUARD"
+
+      - name: Upload egress recording
+        if: always() && env.WS_EGRESS_GUARD != 'off'
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-egress-recording
+          path: ${{ env.WS_EGRESS_STATE }}
+          if-no-files-found: ignore
 
   build-apple:
     name: Build iOS & macOS
