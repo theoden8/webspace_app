@@ -963,7 +963,13 @@ jobs:
                 # otherwise hang the job to the 6h runner limit. SIGTERM at
                 # 12m, SIGKILL 30s later. timeout exit 124 == hit the cap.
                 rc=0
-                timeout -k 30s 12m fvm flutter test "$t" -d linux || rc=$?
+                # --no-pub: `flutter test` runs `flutter pub get` first by
+                # default, and that resolve asks pub.dev for advisories on
+                # every invocation -- a live call, not a cache the warm
+                # step above can fill. Under the egress guard it is a
+                # blocked DNS lookup and exit 69 before any test body runs.
+                # The job already resolved dependencies in its own step.
+                timeout -k 30s 12m fvm flutter test --no-pub "$t" -d linux || rc=$?
                 if [ $rc -ne 0 ]; then
                   status=$rc
                   [ $rc -eq 124 ] && echo "::error::$t killed after 12m wall-clock cap (possible native deadlock)"

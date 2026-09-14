@@ -520,6 +520,14 @@ build of the app. From the moment it arms, a toolchain fetch is
 indistinguishable from an app leak, and should be: what the suite needs
 must already be on disk.
 
+Warming is not enough on its own, because some toolchain calls are per
+invocation rather than cacheable. `flutter test` resolves dependencies
+before every run and that resolve asks pub.dev for advisories, so the
+suite runs with `--no-pub` against the dependencies its own earlier step
+resolved. A tool call that cannot be satisfied from disk SHALL be turned
+off rather than allowlisted: an allowlist entry for a toolchain host is a
+hole an app leak can hide in.
+
 The allowlist SHALL be read as a coverage claim, not a mute button. Each
 entry carries a comment naming the code path that makes the request and
 why it may leave; an entry without one is a missing row in LEAK-007's
