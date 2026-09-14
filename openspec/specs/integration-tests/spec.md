@@ -484,6 +484,99 @@ Gate: [test/js/integration_fixture_errors.test.js](../../../test/js/integration_
 
 ---
 
+### Requirement: INTEG-016 — The Linux tier runs deny-by-default outbound
+
+The Linux integration step SHALL run under a deny-by-default egress guard:
+loopback reachable, every other destination recorded and dropped. A run
+SHALL produce a recording of every distinct target the suite tried to
+reach, and in `enforce` mode SHALL fail on any target that
+[`scripts/egress_allowlist.txt`](../../../scripts/egress_allowlist.txt)
+does not cover.
+
+This is the machine half of [LEAK-007](../ip-leakage/spec.md), whose
+enforcement was otherwise the sentence "the code review process SHALL
+fail", and the only place [LEAK-002](../ip-leakage/spec.md)'s single-seam
+claim is checked as a whole rather than one call site at a time. A
+recording proxy cannot do this job: the leak it exists to catch is traffic
+that ignores the proxy configuration, so the gate has to sit below it.
+
+Mechanism, in
+[`scripts/egress_guard_arm.sh`](../../../scripts/egress_guard_arm.sh):
+
+- An nftables `nat`/`output` hook returns on `127.0.0.0/8` and `::1`, and
+  redirects everything else to
+  [`scripts/egress_recorder.py`](../../../scripts/egress_recorder.py),
+  which reads `SO_ORIGINAL_DST` plus the first bytes — a TLS SNI or an
+  HTTP `Host:` names the host even when the request skipped the resolver.
+- `/etc/resolv.conf` points at the same recorder, which answers NXDOMAIN.
+  Names are therefore captured whether or not the nat hook is available.
+- Nothing is forwarded. A blocked request is a fast failure, not a hang:
+  the recorder closes immediately, and the degraded ruleset rejects with
+  `icmpx port-unreachable` rather than `tcp reset`, which in the output
+  hook never reaches the local socket and costs a full connect timeout.
+
+The guard SHALL arm only after every provisioning step, including a debug
+build of the app. From the moment it arms, a toolchain fetch is
+indistinguishable from an app leak, and should be: what the suite needs
+must already be on disk.
+
+Warming is not enough on its own, because some toolchain calls are per
+invocation rather than cacheable. `flutter test` resolves dependencies
+before every run and that resolve asks pub.dev for advisories, so the
+suite runs with `--no-pub` against the dependencies its own earlier step
+resolved. A tool call that cannot be satisfied from disk SHALL be turned
+off rather than allowlisted: an allowlist entry for a toolchain host is a
+hole an app leak can hide in.
+
+The allowlist SHALL be read as a coverage claim, not a mute button. Each
+entry carries a comment naming the code path that makes the request and
+why it may leave; an entry without one is a missing row in LEAK-007's
+matrix. It ships empty, because a hermetic suite contacts nothing.
+
+#### Scenario: The suite contacts a host nobody allowlisted
+
+**Given** the guard armed in `enforce` mode
+**When** any code under test resolves or connects to a destination outside
+  loopback that no allowlist entry covers
+**Then** the step fails
+**And** the report names the host (from the query, the SNI or the `Host:`
+  header) and the address and port it was headed for
+
+#### Scenario: A new outbound path skips the proxy seam
+
+**Given** a Dart-side call added outside `outboundHttp.clientFor(...)`
+**When** an integration scenario exercises it
+**Then** the guard records it, so the choice is to route it through the
+  seam with the right proxy, point it at a loopback fixture, or argue for
+  an allowlist entry — the same three outcomes LEAK-007 requires of review
+
+#### Scenario: Loopback fixtures are untouched
+
+**Given** a scenario serving pages from `integration_test/fixture_server.dart`,
+  or the Dart VM service, or the proxy relay
+**When** the guard is armed
+**Then** none of that traffic is redirected, recorded, or delayed
+
+#### Scenario: The nat hook is unavailable
+
+**Given** a runner where the nat chain cannot be created (no
+  `CAP_NET_ADMIN`, or the container cannot autoload the module)
+**When** the guard arms
+**Then** it degrades to rejecting with counters and says so
+**And** DNS names are still captured, through `/etc/resolv.conf`
+**And** in `enforce` mode any blocked packet fails the step — a run that
+  cannot see where traffic was going MUST NOT pass by reporting that it
+  saw nothing
+
+#### Scenario: The guard is disarmed whatever the suite did
+
+**Given** an integration step that failed, timed out, or was cancelled
+**When** the job continues
+**Then** the ruleset is removed and `/etc/resolv.conf` restored before any
+  later step, so an armed guard never fails an artifact upload
+
+---
+
 ### Requirement: INTEG-010 — Android white-screen pixel scenarios
 
 `integration_test/white_screen_test.dart` SHALL drive the
@@ -1039,6 +1132,23 @@ macOS runner exercises the failure assertions for real.
   reproduce a device-specific SurfaceFlinger race (Mali/Adreno). A
   green run means "no blank window on this compositor", not "BUG-001
   cannot happen"; a red run is a real, labeled reproduction.
+- **The egress guard covers the Linux tier only**: `build-android`'s
+  emulator scenarios and `build-apple`'s macOS loop run with an open
+  network. The mechanism does not port directly: the Android host runner
+  needs egress for Gradle mid-suite, so that tier wants Android's own
+  per-UID filter inside the emulator rather than a rule on the host, and
+  macOS would mean `pf` on a runner with no container to scope it to. A
+  path the Linux tier never exercises is therefore still unwatched.
+- **`record` is the shipped default**: the guard reports rather than
+  fails until a run's recording is clean and each surviving entry has been
+  argued into `scripts/egress_allowlist.txt`. Flipping
+  `WS_EGRESS_GUARD` to `enforce` in the workflow is the second half of
+  INTEG-016, and until then a new leak lands as a warning annotation.
+- **What the guard proves is "did not leave", not "was not built"**: it
+  sees the connection, not the intent. A request assembled with the user's
+  cookies and then blocked still counts as a finding, but the recording
+  shows only the destination — the body never reaches the recorder,
+  because nothing is forwarded.
 - **proot is for local dev only**: locally on a non-sid host (eg. a
   Debian bookworm dev container) the harness can run inside a sid
   chroot via `proot -r /var/lib/sid-chroot`, but proot 5.1.0 (bookworm)
@@ -1051,11 +1161,29 @@ macOS runner exercises the failure assertions for real.
 
 ## Files
 
+### Created
+- [`scripts/egress_guard_arm.sh`](../../../scripts/egress_guard_arm.sh) /
+  [`scripts/egress_guard_disarm.sh`](../../../scripts/egress_guard_disarm.sh)
+  — INTEG-016: install and remove the deny-by-default ruleset, start and
+  stop the recorder, swap and restore `/etc/resolv.conf`
+- [`scripts/egress_recorder.py`](../../../scripts/egress_recorder.py)
+  — INTEG-016: the sink every redirected connection lands in; attributes
+  by `SO_ORIGINAL_DST`, TLS SNI, HTTP `Host:` and DNS question
+- [`scripts/egress_report.py`](../../../scripts/egress_report.py)
+  — INTEG-016: matches the recording against the allowlist and decides the
+  verdict (exit 3 on unallowlisted egress in `enforce` mode)
+- [`scripts/egress_allowlist.txt`](../../../scripts/egress_allowlist.txt)
+  — INTEG-016: the destinations the suite may contact, each with the
+  reason. Ships empty.
+
 ### Modified
 - [`.github/workflows/build-and-test.yml`](../../../.github/workflows/build-and-test.yml)
   — `build-linux` job's `Install container base + Flutter Linux + WPE WebKit deps`,
   `Install pass-secret-service`, and `Run Linux integration tests` steps;
-  `build-apple` job's `Run macOS integration tests` step (`-d macos`).
+  its `--cap-add=NET_ADMIN`, `Warm the toolchain before arming the egress
+  guard`, `Arm egress guard` and `Disarm egress guard and report` steps
+  (INTEG-016); `build-apple` job's `Run macOS integration tests` step
+  (`-d macos`).
 
 ### Existing
 - [`integration_test/white_screen_test.dart`](../../../integration_test/white_screen_test.dart)

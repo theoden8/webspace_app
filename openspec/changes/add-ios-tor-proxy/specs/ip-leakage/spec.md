@@ -148,3 +148,15 @@ its `UserProxySettings` through `outboundHttp.clientFor` (which
 handles the Tor branch centrally)
 **And** the new seam appears in this coverage matrix under either
 "Per-site Tor traffic" or "App-global Tor traffic"
+
+#### Scenario: The matrix is checked by machine, not only by review
+
+**Given** the Linux integration tier running under the deny-by-default
+egress guard ([INTEG-016](../../../../specs/integration-tests/spec.md))
+**When** any scenario reaches a destination outside loopback that
+[`scripts/egress_allowlist.txt`](../../../../../scripts/egress_allowlist.txt)
+does not cover
+**Then** the run records the host and, in `enforce` mode, fails
+**And** the three outcomes above are the three ways to clear it — route it
+through the seam, point it at a loopback fixture, or add an argued
+allowlist entry alongside the matrix row
