@@ -124,12 +124,46 @@ file. A stub is also only as good as the header it was transcribed from: it can 
 with a call the real framework rejects. It narrows open gap 1 to its important half.
 
 
+### Attempt 5 — Every success was being read as a failure
+**Date:** 2026-09-15 · **Files:** `ios/Runner/TorControllerPlugin.swift`,
+`integration_test/tor_test.dart`, `test/js/tor_bootstrap_observability.test.js`,
+spec TOR-019 + TOR-021
+**What it did:** a device log arrived where tor *had* written its port file and its
+thread was running, and the attach still failed 60 times over 30 seconds, each with
+"The operation couldn't be completed. (Foundation._GenericObjCError error 0.)", and the
+orphan halt then failed 30 more times with the same string. Reading
+`TORController.m` at the pinned tag explains all of it:
+`initWithControlPortFile:` ends in `initWithSocketHost:port:`, which calls
+`[self connect:nil]` **inside the initializer**, and `connect:` opens with
+`if (_channel) { return NO; }` — a failure with no error written, which Swift raises as
+that `_GenericObjCError`. So the plugin's own `try controller.connect()` reported
+failure precisely when the framework had already connected. Both call sites now go
+through one funnel that asks `isConnected` and only calls `connect()` when the
+initializer did not already do it.
+**Why:** the same opaque error is also what an unparseable port file produces (in a
+release build both `NSAssert`s are compiled out, so a nil host reaches `connect:`'s
+final `return NO`), which is why attempt 3 read it as "tor never wrote its port file".
+One error string, two opposite causes, and the plugin was choosing the wrong one every
+time.
+**Why it was partial:** it fixes the reads this plugin makes. The framework will answer
+any other already-satisfied call the same way, and nothing here checks that class
+except the funnel gate. The macOS tier that would have caught it is still the only
+executor, and it had not completed a single run when this was written.
+
+
 ## Known open gaps
 
-1. **No tier runs the plugin on iOS.** `integration_test/tor_test.dart` runs the same
-   source on macOS and has never executed in CI (it landed with the branch that added it).
-   Every failure in this file was first observed on a user's device. `tool/swift_typecheck`
-   (attempt 4) covers only whether the file compiles; nothing executes a line of it.
+1. **No tier runs the plugin on iOS, and the macOS tier has never returned a verdict.**
+   `integration_test/tor_test.dart` runs the same source on macOS. Every run before
+   2026-09-15 17:28 UTC was cancelled by the next push (`cancel-in-progress`) or died
+   at `Build macOS` before reaching the step; the first run to get that far takes over
+   an hour. Every failure in this file was first observed on a user's device, hours
+   ahead of CI. `tool/swift_typecheck` (attempt 4) covers only whether the file
+   compiles; nothing executes a line of it.
+   Attempt 5 also found the tier would have let this failure through quietly on any run
+   without `WEBSPACE_TOR_NETWORK=1`: a `controlChannel` error was folded into "Tor did
+   not reach the network here" and marked as a skip. It now fails on every run, since
+   nothing about reaching tor's own control port depends on the network.
 2. **The policy is in the wrong layer.** Retry budgets, the orphan-halt schedule, the exit
    wait and the generation guard are all decisions, and they sit in Swift. Moving them
    into `TorEngine` — with the plugin reduced to `startThread` / `attachOnce` /

@@ -890,6 +890,23 @@ answer, after which it removes itself and `CIRCUIT_ESTABLISHED` is never
 delivered again. `CIRCUIT_ESTABLISHED` SHALL be handled in the plugin's
 own status observer instead.
 
+`TORController(controlPortFile:)` opens the connection inside its own
+initializer, and `connect()` answers an already-connected controller with a
+bare failure carrying no error — indistinguishable from a port file that did
+not parse. The plugin SHALL therefore open every control connection through
+one funnel that decides on `isConnected` rather than on the throw, and SHALL
+NOT call `connect()` on a controller that reports itself connected.
+
+#### Scenario: A control port that answered is not reported as unreachable
+
+- **GIVEN** tor has written its port file and is accepting on its control
+  port
+- **WHEN** the plugin opens a controller for that file
+- **THEN** it treats the connection the initializer already made as the
+  connection, and proceeds to authenticate
+- **AND** it never reports "could not reach the control port" for a tor that
+  answered
+
 #### Scenario: A bootstrap notice does not become the SOCKS listener
 
 - **GIVEN** tor is emitting notice-level log events
@@ -993,7 +1010,9 @@ The scenario SHALL assert, without depending on the Tor network:
 Reaching `up` needs the network to permit tor, so the scenario SHALL
 require it only where the run opted in (`WEBSPACE_TOR_NETWORK=1`, which
 the CI step sets) and SHALL otherwise degrade to a skip carrying the
-captured log.
+captured log. That relaxation covers the network and nothing else: a
+failure classified `controlChannel` SHALL fail the scenario on every run,
+since no part of reaching tor's own control port depends on the network.
 
 #### Scenario: The tier runs the real handshake
 
@@ -1002,6 +1021,12 @@ captured log.
 - **THEN** it observes a bootstrap phase, tor's log, and a successful
   restart
 - **AND** a failure names what tor said rather than a timeout
+
+#### Scenario: A broken handshake is not recorded as a missing network
+
+- **GIVEN** a run that did not opt into the Tor network
+- **WHEN** the runtime ends in a `controlChannel` failure
+- **THEN** the scenario fails carrying the transcript, rather than skipping
 
 #### Scenario: A build with no plugin behind the channels fails loudly
 
