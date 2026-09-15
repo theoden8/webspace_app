@@ -186,6 +186,10 @@ class TorControllerPlugin: NSObject {
   /// bridge. They are applied at start rather than by SETCONF because
   /// bridges have to be in force before bootstrap begins.
   private var pendingTorrcOptions: [(String, String)] = []
+  /// Whether tor also isolates streams by destination address, on top of the
+  /// per-site SOCKS credentials (TOR-003). Dart owns the setting; this is the
+  /// value the next launch will use.
+  private var pendingIsolateDestAddr = true
 
   private var state: String = "stopped"
   private var bootstrapPct: Int = 0
@@ -267,6 +271,13 @@ class TorControllerPlugin: NSObject {
       }
       stateQueue.async { [weak self] in
         self?.pendingTorrcOptions = pairs
+        DispatchQueue.main.async { result(nil) }
+      }
+    case "setSocksIsolation":
+      let isolate =
+        (call.arguments as? [String: Any])?["isolateDestAddr"] as? Bool ?? true
+      stateQueue.async { [weak self] in
+        self?.pendingIsolateDestAddr = isolate
         DispatchQueue.main.async { result(nil) }
       }
     case "startTransport":
@@ -484,8 +495,17 @@ class TorControllerPlugin: NSObject {
     // the isolation contract is legible here rather than inherited from
     // an upstream default that could change (TOR-003).
     //
+    // IsolateDestAddr splits circuits per destination *address* as well, so
+    // one site loading from two hosts exits from two relays. That is more
+    // isolation than per-site, and it shows: a page whose own API lives on a
+    // second host reports two different addresses while it loads, and a
+    // session that checks its client IP across hosts breaks. The user
+    // chooses; the default keeps it on.
+    let isolation =
+      pendingIsolateDestAddr
+        ? "IsolateSOCKSAuth IsolateDestAddr" : "IsolateSOCKSAuth"
     config.options = [
-      "SocksPort": "auto IsolateSOCKSAuth IsolateDestAddr",
+      "SocksPort": "auto \(isolation)",
       "SafeLogging": "1",
     ]
     // tor's own log, which `TORConfiguration` turns into

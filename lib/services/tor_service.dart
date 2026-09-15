@@ -18,6 +18,7 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/tor_bridge_secure_storage.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/app_prefs.dart';
 
 export 'package:webspace/services/tor_engine.dart'
     show
@@ -127,6 +128,14 @@ class MethodChannelTorRuntime implements TorRuntime {
       'options': [
         for (final (key, value) in options) [key, value],
       ],
+    });
+  }
+
+  @override
+  Future<void> setSocksIsolation({required bool isolateDestAddr}) async {
+    if (!isAvailable) return;
+    await _channel.invokeMethod<void>('setSocksIsolation', {
+      'isolateDestAddr': isolateDestAddr,
     });
   }
 
@@ -296,6 +305,7 @@ class TorService {
         // screen, so a pushed-only configuration was simply absent on every
         // relaunch (TOR-016).
         bridgeLoader: () => TorBridgeSecureStorage().load(),
+        isolateDestAddrLoader: readTorIsolateDestAddr,
       ));
 
   /// Swap in an engine backed by a fake runtime. Tests only.
