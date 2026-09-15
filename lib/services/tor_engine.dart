@@ -155,6 +155,12 @@ abstract class TorRuntime {
   /// a bootstrap attempt over the direct guards the user is trying to avoid.
   Future<void> setTorrcOptions(List<(String, String)> options);
 
+  /// Whether the next [start] also isolates circuits by destination address
+  /// (TOR-003). Per-site isolation comes from the SOCKS credentials and is
+  /// always on; this is the extra split, which costs a site one exit per
+  /// host it loads from.
+  Future<void> setSocksIsolation({required bool isolateDestAddr});
+
   /// Status pushed from the native side.
   Stream<TorStatus> get events;
 }
@@ -172,11 +178,13 @@ class TorEngine {
     Duration idleDebounce = kTorIdleDebounce,
     Duration bootstrapTimeout = kTorBootstrapTimeout,
     Future<TorBridgeConfig> Function()? bridgeLoader,
+    Future<bool> Function()? isolateDestAddrLoader,
   })  : _runtime = runtime,
         _sessionSecret = sessionSecret,
         _idleDebounce = idleDebounce,
         _bootstrapTimeout = bootstrapTimeout,
-        _bridgeLoader = bridgeLoader {
+        _bridgeLoader = bridgeLoader,
+        _isolateDestAddrLoader = isolateDestAddrLoader {
     // Second gate, belt to the runtime's braces: a runtime with no plugin
     // behind it has nothing to say, and subscribing to find that out is
     // what threw MissingPluginException on Android.
@@ -225,6 +233,10 @@ class TorEngine {
   /// [_applyBridgeConfig].
   final Future<TorBridgeConfig> Function()? _bridgeLoader;
 
+  /// Reads the app-wide "isolate by destination too" preference. Injected
+  /// rather than read here: an engine does not touch SharedPreferences.
+  final Future<bool> Function()? _isolateDestAddrLoader;
+
   /// Whether [_bridges] reflects storage yet. Set by the first load and by
   /// any [setBridges]: an explicit set is the user acting now, so it wins
   /// over a re-read and is not overwritten by one.
@@ -250,6 +262,7 @@ class TorEngine {
     _emit(const TorStarting());
     _armBootstrapTimeout();
     try {
+      await _applyIsolationConfig();
       await _applyBridgeConfig();
       await _runtime.start();
     } catch (e) {
@@ -341,6 +354,20 @@ class TorEngine {
   /// port 0, and [torBridgeOptions] then produces nothing rather than a
   /// configuration pointing at a dead port — tor would otherwise hang the
   /// whole bootstrap dialling it.
+  /// Hand the runtime the isolation the user asked for, before it starts.
+  ///
+  /// A failure to read the preference leaves the runtime on its own default,
+  /// which is the stricter of the two — never the weaker one.
+  Future<void> _applyIsolationConfig() async {
+    final loader = _isolateDestAddrLoader;
+    if (loader == null) return;
+    try {
+      await _runtime.setSocksIsolation(isolateDestAddr: await loader());
+    } catch (_) {
+      // Leave the runtime's default in place.
+    }
+  }
+
   Future<void> _applyBridgeConfig() async {
     await _hydrateBridges();
     final config = _bridges;
@@ -394,6 +421,7 @@ class TorEngine {
       // Re-applied on every start: a restart is the only way an edited
       // bridge configuration reaches tor, and the transport must be started
       // again to hand back a live port.
+      await _applyIsolationConfig();
       await _applyBridgeConfig();
       await _runtime.start();
     } catch (e) {

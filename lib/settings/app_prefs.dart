@@ -108,11 +108,18 @@ final Map<String, Object> kExportedAppPrefs = <String, Object>{
   // back silently when the host does not answer. On by default; chromium does
   // the same for ordinary navigations and Android WebView does not ship it.
   kHttpsUpgradeEnabledKey: true,
+  // TOR-003: whether tor also splits circuits by destination address. Per-site
+  // isolation is the SOCKS credentials and is never optional; this is the
+  // extra split, which gives a site one exit per host it loads from. On by
+  // default. Off is for sites that check the client IP across their own hosts,
+  // and for anyone who would rather read one address than two.
+  kTorIsolateDestAddrKey: true,
 };
 
 const String kBackForwardCacheEnabledKey = 'backForwardCacheEnabled';
 
 const String kHttpsUpgradeEnabledKey = 'httpsUpgradeEnabled';
+const String kTorIsolateDestAddrKey = 'torIsolateDestAddr';
 
 const String kBackOpensMenuKey = 'backOpensMenu';
 
@@ -191,4 +198,13 @@ Future<void> _writeTypedPref(
       'Unsupported pref type ${value.runtimeType} for key $key',
     );
   }
+}
+
+/// The isolation preference, for the Tor engine's loader. Defaults to the
+/// registry value, so a device that has never seen the setting keeps the
+/// stricter behaviour.
+Future<bool> readTorIsolateDestAddr() async {
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getBool(kTorIsolateDestAddrKey) ??
+      kExportedAppPrefs[kTorIsolateDestAddrKey]! as bool;
 }
