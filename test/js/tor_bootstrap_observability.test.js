@@ -437,3 +437,26 @@ test('both Apple targets register the plugin where the engine exists', () => {
   assert.match(ios, /torControllerPlugin = TorControllerPlugin\(/,
     'iOS must still register the plugin');
 });
+
+test('nothing reaches Tor.framework\'s asserts', () => {
+  // Two of them abort the process, and both fire on behaviour this app has
+  // on purpose: TORController(controlPortFile:) NSAsserts on a file that is
+  // not there yet, and TORThread NSAsserts on a second thread per process
+  // (its static is never cleared, so a restart trips it). Release compiles
+  // them out -- which is why the shipped app restarts fine -- and a debug
+  // build, which is every integration run, aborted ten seconds in.
+  const funnel = functionBody(swiftCode, 'connectedController');
+  assert.match(funnel, /parseControlPortFile\(portFile\)/,
+    `${swiftRel}: read the port file before handing it to the framework`);
+  const parser = functionBody(swiftCode, 'parseControlPortFile');
+  assert.match(parser, /UInt16\(parts\[1\]\)/,
+    `${swiftRel}: the parse must reject a half-written file, not just a missing one`);
+
+  for (const rel of ['ios/Podfile', 'macos/Podfile']) {
+    const podfile = fs.readFileSync(path.join(repoRoot, rel), 'utf8');
+    assert.match(podfile, /next unless target\.name == 'Tor'/,
+      `${rel} must single out the Tor pod`);
+    assert.match(podfile, /NS_BLOCK_ASSERTIONS=1/,
+      `${rel} must compile out the framework's asserts, which abort a debug build`);
+  }
+});
