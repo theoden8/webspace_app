@@ -44,16 +44,21 @@ const String kTorLogTag = 'Tor';
 /// can tell what the app decided from what tor said.
 const String kTorDaemonLogTag = 'TorLog';
 
-/// Whether this build has the native runtime behind the channels. Only iOS
-/// ships the plugin in this release (TOR-007); asking anywhere else must
-/// not touch a channel, or `receiveBroadcastStream().listen` throws
-/// MissingPluginException.
+/// Whether this build has the native runtime behind the channels.
+///
+/// The two Apple platforms ship it; nothing else does (TOR-007), and asking
+/// elsewhere must not touch a channel, or `receiveBroadcastStream().listen`
+/// throws MissingPluginException. This is capability, not permission:
+/// developer mode still decides whether anything may offer Tor, and that
+/// gate lives on [TorService].
 bool get _hasNativeTor =>
-    !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+    !kIsWeb &&
+    (defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.macOS);
 
 /// Method-channel implementation of [TorRuntime].
 ///
-/// Only iOS ships the plugin in this release (TOR-007). On every other
+/// The two Apple platforms ship the plugin (TOR-007). On every other
 /// platform [isAvailable] is false and the engine short-circuits, so no
 /// channel call is ever made and no `MissingPluginException` can surface.
 class MethodChannelTorRuntime implements TorRuntime {
@@ -127,7 +132,18 @@ class MethodChannelTorRuntime implements TorRuntime {
 
   @override
   Stream<TorStatus> get events => _decoded ??= isAvailable
-      ? _eventChannel.receiveBroadcastStream().map(decodeStatus)
+      ? _eventChannel.receiveBroadcastStream().transform(
+          StreamTransformer<Object?, TorStatus>.fromHandlers(
+            handleData: (raw, sink) => sink.add(decodeStatus(raw)),
+            // A channel error is a state, not the end of the stream. A
+            // plugin that failed to register answers this way, and letting
+            // the MissingPluginException through would be an unhandled
+            // async error at startup rather than something the UI can say
+            // out loud.
+            handleError: (error, stack, sink) =>
+                sink.add(TorErrored('No Tor runtime in this build: $error')),
+          ),
+        )
       : const Stream<TorStatus>.empty();
 
   /// Decode one native status payload. Unknown shapes degrade to an error

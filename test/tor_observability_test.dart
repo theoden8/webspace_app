@@ -177,6 +177,60 @@ void main() {
     });
   });
 
+  group('where the runtime is offered', () {
+    tearDown(() => debugDefaultTargetPlatformOverride = null);
+
+    test('both Apple platforms have a runtime', () {
+      // Capability, not permission: developer mode still decides whether
+      // anything offers Tor, and that gate is on TorService (TOR-007).
+      for (final platform in [TargetPlatform.iOS, TargetPlatform.macOS]) {
+        debugDefaultTargetPlatformOverride = platform;
+        expect(MethodChannelTorRuntime().isAvailable, isTrue,
+            reason: '$platform ships the plugin');
+      }
+    });
+
+    test('no other platform is offered a runtime', () {
+      for (final platform in [
+        TargetPlatform.android,
+        TargetPlatform.linux,
+        TargetPlatform.windows,
+      ]) {
+        debugDefaultTargetPlatformOverride = platform;
+        expect(MethodChannelTorRuntime().isAvailable, isFalse,
+            reason: '$platform has no plugin, so asking must not open a '
+                'channel (TOR-007)');
+      }
+    });
+
+    test('a channel with no plugin behind it becomes an error state',
+        () async {
+      // A channel that answers with an error rather than events: a plugin
+      // that failed to register, or a platform where one was never built.
+      // Letting that through raw would be an unhandled async error at
+      // startup instead of a state the UI can name.
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      const channel = EventChannel('test/tor/events/absent');
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockStreamHandler(
+        channel,
+        MockStreamHandler.inline(
+          onListen: (arguments, sink) =>
+              sink.error(code: 'channel-error', message: 'no plugin'),
+        ),
+      );
+      addTearDown(() {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockStreamHandler(channel, null);
+      });
+
+      final runtime = MethodChannelTorRuntime(events: channel);
+      final first = await runtime.events.first;
+      expect(first, isA<TorErrored>());
+      expect((first as TorErrored).message, contains('No Tor runtime'));
+    });
+  });
+
   group('the native log channel feeds the app log', () {
     const channelName = 'org.codeberg.theoden8.webspace/tor/logs';
     late TorLogBridge bridge;

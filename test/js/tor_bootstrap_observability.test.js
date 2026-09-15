@@ -14,7 +14,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const repoRoot = path.resolve(__dirname, '..', '..');
-const swiftRel = 'ios/Runner/TorControllerPlugin.swift';
+const swiftRel = 'darwin/TorControllerPlugin.swift';
 const dartRel = 'lib/services/tor_service.dart';
 const swift = fs.readFileSync(path.join(repoRoot, swiftRel), 'utf8');
 const dart = fs.readFileSync(path.join(repoRoot, dartRel), 'utf8');
@@ -157,4 +157,59 @@ test('every control-port read happens before events are subscribed', () => {
   const observe = functionBody(swiftCode, 'observeLocked');
   assert.ok(observe.lastIndexOf('info(forKeys:') < observe.indexOf('subscribeLocked('),
     'the reads must come before the SETEVENTS subscription, not after');
+});
+
+test('macOS carries the same pinned runtime as iOS', () => {
+  // The macOS runtime is what integration_test/tor_test.dart drives, so a
+  // version skew between the two platforms would mean testing something
+  // other than what iOS ships. Same pods, same pins, one floor.
+  const iosPods = fs.readFileSync(path.join(repoRoot, 'ios/Podfile'), 'utf8');
+  const macPods = fs.readFileSync(path.join(repoRoot, 'macos/Podfile'), 'utf8');
+  for (const pod of ['Tor', 'IPtProxy']) {
+    const pin = new RegExp(`pod '${pod}', '([0-9.]+)'`);
+    const ios = iosPods.match(pin);
+    const mac = macPods.match(pin);
+    assert.ok(ios, `ios/Podfile must pin ${pod}`);
+    assert.ok(mac, `macos/Podfile must pin ${pod}`);
+    assert.equal(mac[1], ios[1],
+      `${pod} is pinned to ${mac[1]} on macOS and ${ios[1]} on iOS`);
+  }
+
+  // The Tor pod is a macOS 11 pod; anything lower does not install, and a
+  // project floor below the Podfile's links a module built for a newer OS
+  // than the target it lands in.
+  assert.match(macPods, /platform :osx, '11\.0'/,
+    'macos/Podfile must declare the floor the Tor pod needs');
+  const macPbx = fs.readFileSync(
+    path.join(repoRoot, 'macos/Runner.xcodeproj/project.pbxproj'), 'utf8');
+  assert.ok(!/MACOSX_DEPLOYMENT_TARGET = 10\.15/.test(macPbx),
+    'a target still sits below the Podfile floor');
+
+  // Availability is capability; developer mode is permission, and it lives
+  // on TorService. Conflating them is what TOR-007 says not to do.
+  assert.match(dart, /defaultTargetPlatform == TargetPlatform\.macOS/,
+    `${dartRel} must report the macOS runtime as available`);
+});
+
+test('one plugin source, built by both Apple targets', () => {
+  // The macOS runtime is only worth testing because it is the same code as
+  // the iOS one. A copy would drift, and the bugs this file guards lived in
+  // exactly the part that would drift.
+  for (const project of ['ios/Runner.xcodeproj', 'macos/Runner.xcodeproj']) {
+    const pbx = fs.readFileSync(
+      path.join(repoRoot, project, 'project.pbxproj'), 'utf8');
+    assert.match(pbx, /path = \.\.\/darwin\/TorControllerPlugin\.swift/,
+      `${project} must build the shared darwin/ source`);
+    // Twice: the PBXBuildFile that defines it, and the Sources phase that
+    // lists it. Matching once would pass on a file that is defined and then
+    // never compiled.
+    const compiled =
+      (pbx.match(/TorControllerPlugin\.swift in Sources/g) || []).length;
+    assert.ok(compiled >= 2,
+      `${project} references the shared source but does not compile it`);
+  }
+  assert.ok(!fs.existsSync(path.join(repoRoot, 'ios/Runner/TorControllerPlugin.swift')),
+    'the iOS copy must be gone, not left behind to drift');
+  assert.match(swift, /#if canImport\(FlutterMacOS\)/,
+    'the shared source must pick its Flutter module per platform');
 });
