@@ -131,6 +131,27 @@ test('one tor per process, and a start waits for the last one to leave', () => {
     'stop must disconnect the controller, which is what asks tor to exit');
 });
 
+test('the control port gets a budget a phone can meet', () => {
+  // Three attempts inside 1.5s failed runs that would have been fine a
+  // second later, and left a tor behind that nothing could talk to. The
+  // budget is now a poll interval times a count, and the exit wait has to
+  // outlast the shutdown loop or it gives up mid-request.
+  const value = (name) => {
+    const m = swiftCode.match(new RegExp(`let ${name} = ([0-9.]+)`));
+    assert.ok(m, `${swiftRel} must declare ${name}`);
+    return Number(m[1]);
+  };
+  const attach = value('kTorAttachPoll') * value('kTorAttachAttempts');
+  assert.ok(attach >= 20,
+    `the control-port budget is ${attach}s; a cold start on a busy phone needs more`);
+  const halt = value('kTorHaltRetryDelay') * value('kTorHaltRetries');
+  const exit = value('kTorThreadExitPoll') * value('kTorThreadExitAttempts');
+  assert.ok(exit >= halt,
+    `the exit wait (${exit}s) gives up before the shutdown loop (${halt}s) is done`);
+  assert.match(functionBody(swiftCode, 'attachLocked'), /attempt < kTorAttachAttempts/,
+    'the attach loop must be bounded by that count');
+});
+
 test('a stop can reach a tor it never adopted a controller for', () => {
   // The stop path used to be `controller?.disconnect()`, which is a no-op
   // when no controller was ever adopted -- a runtime stopped before its
@@ -142,6 +163,11 @@ test('a stop can reach a tor it never adopted a controller for', () => {
     'the halt path must open its own control connection, not reuse one');
   assert.match(halt, /authenticate\(with: cookie\)/,
     'it must authenticate with the configuration cookie');
+  // Every way this can fail has to name itself: an orphan that will not die
+  // is the difference between Retry working and Retry being dead, and the
+  // log is the only place that difference is visible.
+  assert.ok((halt.match(/note\(/g) || []).length >= 4,
+    'each failure mode of the halt path must say why in the log');
   assert.match(halt, /"SIGNAL", arguments: \["HALT"\]/,
     'it must ask tor to quit');
 
@@ -160,7 +186,7 @@ test('a stop can reach a tor it never adopted a controller for', () => {
 test('an earlier run cannot speak for the current one', () => {
   // Generation guards: a handshake, catch-up read or failure from a run
   // that was already stopped must not resurrect or overwrite the live one.
-  for (const name of ['attachController', 'observeLocked', 'launchWhenFreeLocked']) {
+  for (const name of ['attachLocked', 'observeLocked', 'launchWhenFreeLocked']) {
     assert.match(functionBody(swiftCode, name), /generation == self\.generation|generation, generation == self\.generation/,
       `${name} must check the run generation before touching shared state`);
   }

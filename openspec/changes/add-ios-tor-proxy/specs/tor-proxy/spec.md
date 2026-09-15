@@ -780,6 +780,15 @@ alongside the percentage, and the bootstrap surfaces (TOR-004, TOR-008)
 SHALL render the summary beneath the progress bar whenever one is
 present.
 
+Reaching the control port SHALL be bounded by a budget a device can
+meet, not by a fixed handful of attempts: tor opens its port when the
+device lets it, and a cold start reading geoip on a busy phone takes
+seconds. A budget of about 1.5 seconds failed runs that would have
+succeeded a moment later and left an unreachable tor behind
+([BUG-013](../../../../../docs/bugs/013-tor-never-connects.md)). Each
+attempt SHALL re-check the run it belongs to, so a stop during the wait
+costs nothing, and the wait SHALL end immediately if tor's thread exits.
+
 On attaching to the control port the plugin SHALL read
 `GETINFO status/bootstrap-phase` and publish it, because bootstrap begins
 before the control port answers: without the catch-up read, a bootstrap
@@ -828,6 +837,13 @@ App Logs:
 - **THEN** tor's `NOTICE`/`WARN`/`ERR` lines are listed under their own
   tag, alongside the runtime's state transitions
 - **AND** with the toggle off, the state transitions are still listed
+
+#### Scenario: A control port that takes its time
+
+- **GIVEN** tor needs several seconds to open its control port
+- **WHEN** the plugin attaches
+- **THEN** it keeps trying for the budget rather than failing the run
+- **AND** the wait is visible in the log rather than silent
 
 #### Scenario: The log subscription is not silently dropped
 
