@@ -17,6 +17,7 @@ import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/tor_bridge_settings.dart';
+import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/tor_bridges.dart' show bridgesMayHelp;
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/theme/design_tokens.dart';
@@ -147,6 +148,8 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
             fontStyle: FontStyle.italic,
           ),
         ),
+        const SizedBox(height: Spacing.sm),
+        const _TorLogTail(),
         const SizedBox(height: Spacing.md),
         // Same pair as the status card, and for a stronger reason: this is
         // what a user actually sees when a TOR site will not load, while
@@ -206,6 +209,52 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
         value: percent == null ? null : percent / 100.0,
         minHeight: Spacing.xs,
       ),
+      const SizedBox(height: Spacing.md),
+      const _TorLogTail(),
     ]);
+  }
+}
+
+/// The last few things the runtime and tor said, live.
+///
+/// Starting Tor is 10 to 30 seconds of nothing on a good network and can be
+/// a minute of nothing on a bad one. A bar with no words leaves the user
+/// guessing at whether anything is happening at all, and leaves a bug
+/// report with nothing in it — which is how a device where tor never opened
+/// its control port went unexplained. These lines are not translated: they
+/// are diagnostics, the same raw material as the failure detail above.
+class _TorLogTail extends StatelessWidget {
+  const _TorLogTail();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return AnimatedBuilder(
+      animation: LogService.instance,
+      builder: (context, _) {
+        final lines = LogService.instance
+            .recent({kTorLogTag, kTorDaemonLogTag})
+            .map((e) => e.message)
+            .toList();
+        if (lines.isEmpty) return const SizedBox.shrink();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (final line in lines)
+              Padding(
+                padding: const EdgeInsets.only(bottom: Spacing.xs),
+                child: Text(
+                  line,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
   }
 }
