@@ -1017,6 +1017,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # First, because it is the cheapest thing in this job that can fail the
+      # Swift in it: no pods, no toolchains, seconds. The full build below
+      # catches the same errors forty minutes later, by which time a newer
+      # push has usually cancelled the run.
+      - name: Type-check the Tor plugin
+        run: ./tool/swift_typecheck/check.sh
+
       - name: Setup Dart
         uses: dart-lang/setup-dart@v1
 
