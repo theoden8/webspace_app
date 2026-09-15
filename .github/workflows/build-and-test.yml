@@ -1297,7 +1297,19 @@ jobs:
         timeout-minutes: 20
         env:
           WEBSPACE_TOR_NETWORK: '1'
-        run: fvm flutter test integration_test/tor_test.dart -d macos --ci
+        run: |
+          set -x
+          # `flutter test` exits 79 when nothing ran, which is what a file
+          # whose scenarios all skip looks like -- and a skip is how a tier
+          # that reaches nothing reports success. The run is red either way;
+          # this says which of the two happened without reading the log.
+          rc=0
+          fvm flutter test integration_test/tor_test.dart -d macos --ci || rc=$?
+          if [ $rc -eq 79 ]; then
+            echo "::error::the Tor scenarios did not run at all (exit 79); "\
+                 "see the [tor-test] trace lines above for which branch each took"
+          fi
+          exit $rc
 
       - name: Run macOS integration tests
         timeout-minutes: 45
