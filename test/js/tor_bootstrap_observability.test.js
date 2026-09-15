@@ -294,3 +294,38 @@ test('the interstitial shows what is happening, not a mute bar', () => {
   assert.ok((widget.match(/_TorLogTail\(\)/g) || []).length >= 3,
     'the tail belongs on the waiting screen and on the failure screen');
 });
+
+test('the plugin type-checks somewhere cheaper than a device build', () => {
+  // Two selector errors reached a device build: the file no Dart or Node
+  // tier compiles, in a job whose Swift is built forty minutes in and whose
+  // runs are routinely cancelled by the next push before it gets there.
+  // tool/swift_typecheck answers that in seconds against stub modules; it
+  // is only worth anything while something actually runs it.
+  const checkRel = 'tool/swift_typecheck/check.sh';
+  const workflow = fs.readFileSync(
+    path.join(repoRoot, '.github/workflows/build-and-test.yml'), 'utf8');
+  const apple = workflow.slice(workflow.indexOf('\n  build-apple:'));
+  assert.ok(apple.includes(checkRel),
+    `the build-apple job must run ${checkRel}`);
+  const steps = apple.slice(apple.indexOf('steps:'));
+  assert.ok(steps.indexOf(checkRel) < steps.indexOf('Build IPA'),
+    `${checkRel} must run before the build it front-runs`);
+  assert.ok(
+    fs.readFileSync(path.join(repoRoot, 'scripts/test_all.sh'), 'utf8')
+      .includes(checkRel),
+    `${checkRel} must also run in the local suite`);
+
+  // A stub transcribed from one version of a header type-checks the plugin
+  // against a pod that is no longer installed, and says nothing about it.
+  // The stubs name the version they came from; a pod bump has to land in
+  // both places or this fails.
+  const iosPods = fs.readFileSync(path.join(repoRoot, 'ios/Podfile'), 'utf8');
+  for (const pod of ['Tor', 'IPtProxy']) {
+    const version = iosPods.match(new RegExp(`pod '${pod}', '([0-9.]+)'`))[1];
+    const stubRel = `tool/swift_typecheck/stub_${pod}.swift`;
+    const stub = fs.readFileSync(path.join(repoRoot, stubRel), 'utf8');
+    assert.ok(stub.includes(`${pod} ${version}`),
+      `${stubRel} is transcribed from a header other than ${pod} ${version}; `
+      + 're-read the pinned one rather than adjusting the stub');
+  }
+});
