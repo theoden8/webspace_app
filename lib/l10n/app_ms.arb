@@ -863,5 +863,7 @@
   "unproxiedBlockProxySettings": "Tetapan proksi",
   "proxyTestOk": "Proksi berfungsi",
   "proxyTestAuthRejected": "Proksi menolak kelayakan ini",
-  "proxyTestUnreachable": "Tidak dapat menghubungi proksi"
+  "proxyTestUnreachable": "Tidak dapat menghubungi proksi",
+  "torIsolateDestAddrTitle": "Litar berasingan bagi setiap destinasi",
+  "torIsolateDestAddrHint": "Setiap tapak sentiasa mendapat litar Tor sendiri. Apabila ini dihidupkan, tapak juga mendapat litar berasingan bagi setiap hos yang dimuatkannya, jadi satu halaman boleh mencapai internet daripada dua atau lebih alamat keluar serentak — lebih banyak pengasingan, tetapi tapak yang menyemak alamat anda merentas hosnya sendiri mungkin melog keluar anda. Apabila dimatikan, tapak menggunakan satu alamat untuk semua yang dimuatkannya. Perubahan ini berkuat kuasa apabila anda membuka aplikasi kali berikutnya."
 }

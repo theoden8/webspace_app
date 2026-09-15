@@ -863,5 +863,7 @@
   "unproxiedBlockProxySettings": "Proxyinställningar",
   "proxyTestOk": "Proxyn fungerar",
   "proxyTestAuthRejected": "Proxyn avvisade dessa uppgifter",
-  "proxyTestUnreachable": "Det gick inte att nå proxyn"
+  "proxyTestUnreachable": "Det gick inte att nå proxyn",
+  "torIsolateDestAddrTitle": "Separat krets per destination",
+  "torIsolateDestAddrHint": "Varje webbplats får alltid en egen Tor-krets. När det här är på får webbplatsen dessutom en separat krets för varje värd den laddar från, så att en och samma sida kan nå internet från två eller flera utgångsadresser samtidigt — mer isolering, men en webbplats som kontrollerar din adress mellan sina egna värdar kan logga ut dig. Avstängt får webbplatsen en adress för allt den laddar. Ändringen börjar gälla nästa gång du öppnar appen."
 }

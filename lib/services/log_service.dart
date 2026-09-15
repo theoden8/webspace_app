@@ -74,6 +74,40 @@ class LogService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// The most recent entries carrying one of [tags], oldest first.
+  ///
+  /// Walks backwards through both rings instead of merging and sorting
+  /// them: this feeds a live view that rebuilds on every new entry, and
+  /// sorting 2000 of them per line is not that. [scan] bounds the walk so a
+  /// quiet tag cannot make the cost the size of the ring.
+  List<LogEntry> recent(Set<String> tags, {int limit = 6, int scan = 400}) {
+    final out = <LogEntry>[];
+    var i = _entries.length - 1;
+    var j = _sensitiveEntries.length - 1;
+    var seen = 0;
+    while (out.length < limit && seen < scan && (i >= 0 || j >= 0)) {
+      final a = i >= 0 ? _entries[i] : null;
+      final b = j >= 0 ? _sensitiveEntries[j] : null;
+      final LogEntry next;
+      if (a == null) {
+        next = b!;
+        j--;
+      } else if (b == null) {
+        next = a;
+        i--;
+      } else if (a.timestamp.isAfter(b.timestamp)) {
+        next = a;
+        i--;
+      } else {
+        next = b;
+        j--;
+      }
+      seen++;
+      if (tags.contains(next.tag)) out.add(next);
+    }
+    return out.reversed.toList();
+  }
+
   List<LogEntry> get entries => List.unmodifiable(_entries);
   List<LogEntry> get sensitiveEntries => List.unmodifiable(_sensitiveEntries);
 

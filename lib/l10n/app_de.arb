@@ -863,5 +863,7 @@
   "unproxiedBlockProxySettings": "Proxy-Einstellungen",
   "proxyTestOk": "Der Proxy funktioniert",
   "proxyTestAuthRejected": "Der Proxy hat diese Zugangsdaten abgelehnt",
-  "proxyTestUnreachable": "Proxy nicht erreichbar"
+  "proxyTestUnreachable": "Proxy nicht erreichbar",
+  "torIsolateDestAddrTitle": "Eigener Kanal pro Ziel",
+  "torIsolateDestAddrHint": "Jede Seite bekommt immer ihren eigenen Tor-Kanal. Ist dies aktiviert, erhält eine Seite zusätzlich einen eigenen Kanal für jeden Host, von dem sie lädt — eine Seite erreicht das Internet dann gleichzeitig über zwei oder mehr Ausgangsadressen. Mehr Trennung, aber eine Seite, die deine Adresse über ihre eigenen Hosts prüft, meldet dich womöglich ab. Ausgeschaltet nutzt die Seite eine Adresse für alles, was sie lädt. Diese Änderung wird beim nächsten Start der App wirksam."
 }

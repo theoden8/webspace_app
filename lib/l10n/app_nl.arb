@@ -863,5 +863,7 @@
   "unproxiedBlockProxySettings": "Proxy-instellingen",
   "proxyTestOk": "De proxy werkt",
   "proxyTestAuthRejected": "De proxy heeft deze gegevens geweigerd",
-  "proxyTestUnreachable": "Kon de proxy niet bereiken"
+  "proxyTestUnreachable": "Kon de proxy niet bereiken",
+  "torIsolateDestAddrTitle": "Apart circuit per bestemming",
+  "torIsolateDestAddrHint": "Elke site krijgt altijd zijn eigen Tor-circuit. Staat dit aan, dan krijgt een site ook een apart circuit voor elke host waarvan hij laadt, zodat één pagina tegelijk vanaf twee of meer uitgangsadressen op internet komt — meer isolatie, maar een site die je adres over zijn eigen hosts controleert, kan je uitloggen. Uit geeft de site één adres voor alles wat hij laadt. Deze wijziging gaat in de volgende keer dat je de app opent."
 }

@@ -17,6 +17,7 @@ import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/tor_bridge_settings.dart';
+import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/tor_bridges.dart' show bridgesMayHelp;
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/theme/design_tokens.dart';
@@ -88,22 +89,35 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
     final scheme = theme.colorScheme;
     final s = _status;
 
+    // Centred, but scrollable when the text does not fit: the error branch
+    // carries tor's own message at whatever length tor chose, and a large
+    // accessibility text scale multiplies it. A Column that overflows shows
+    // stripes and swallows the Retry button.
     Widget centered(List<Widget> children) => Container(
           color: scheme.surface,
-          alignment: Alignment.center,
           padding: const EdgeInsets.all(Spacing.xl),
-          child: SizedBox(
-            width: _columnWidth,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: children,
+          child: LayoutBuilder(
+            builder: (context, constraints) => SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Center(
+                  child: SizedBox(
+                    width: _columnWidth,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: children,
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
         );
 
     if (s is TorErrored) {
       final copy = torFailureCopy(loc, s.failure.kind);
+      final detail = s.failure.detail;
       return centered([
         Icon(torFailureIcon(s.failure.kind),
             size: _glyphSize, color: scheme.error),
@@ -120,6 +134,22 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
           style: theme.textTheme.bodySmall
               ?.copyWith(color: scheme.onSurfaceVariant),
         ),
+        const SizedBox(height: Spacing.sm),
+        // The raw message, as on the status card and for the same reason:
+        // the classified copy is a guess from patterns, and this is what
+        // makes a wrong guess visible. This screen is where a user is left
+        // when a site will not load, so "no idea why" has to end here and
+        // not only in Dev Tools.
+        Text(
+          detail,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: scheme.onSurfaceVariant,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+        const SizedBox(height: Spacing.sm),
+        const _TorLogTail(),
         const SizedBox(height: Spacing.md),
         // Same pair as the status card, and for a stronger reason: this is
         // what a user actually sees when a TOR site will not load, while
@@ -179,6 +209,52 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
         value: percent == null ? null : percent / 100.0,
         minHeight: Spacing.xs,
       ),
+      const SizedBox(height: Spacing.md),
+      const _TorLogTail(),
     ]);
+  }
+}
+
+/// The last few things the runtime and tor said, live.
+///
+/// Starting Tor is 10 to 30 seconds of nothing on a good network and can be
+/// a minute of nothing on a bad one. A bar with no words leaves the user
+/// guessing at whether anything is happening at all, and leaves a bug
+/// report with nothing in it — which is how a device where tor never opened
+/// its control port went unexplained. These lines are not translated: they
+/// are diagnostics, the same raw material as the failure detail above.
+class _TorLogTail extends StatelessWidget {
+  const _TorLogTail();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return AnimatedBuilder(
+      animation: LogService.instance,
+      builder: (context, _) {
+        final lines = LogService.instance
+            .recent({kTorLogTag, kTorDaemonLogTag})
+            .map((e) => e.message)
+            .toList();
+        if (lines.isEmpty) return const SizedBox.shrink();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (final line in lines)
+              Padding(
+                padding: const EdgeInsets.only(bottom: Spacing.xs),
+                child: Text(
+                  line,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
   }
 }

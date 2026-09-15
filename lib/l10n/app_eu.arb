@@ -863,5 +863,7 @@
   "unproxiedBlockProxySettings": "Proxyaren ezarpenak",
   "proxyTestOk": "Proxyak funtzionatzen du",
   "proxyTestAuthRejected": "Proxyak kredentzial hauek ukatu ditu",
-  "proxyTestUnreachable": "Ezin izan da proxyra iritsi"
+  "proxyTestUnreachable": "Ezin izan da proxyra iritsi",
+  "torIsolateDestAddrTitle": "Zirkuitu bereizia helmuga bakoitzeko",
+  "torIsolateDestAddrHint": "Gune bakoitzak beti du bere Tor zirkuitua. Hau piztuta dagoenean, guneak zirkuitu bereizia jasotzen du kargatzen duen ostalari bakoitzeko ere, beraz orri bakar bat bi irteera-helbide edo gehiagotatik irten daiteke aldi berean — isolamendu handiagoa, baina bere ostalarien artean zure helbidea egiaztatzen duen gune batek saioa itxi diezazuke. Itzalita, guneak helbide bakarra du kargatzen duen guztirako. Aldaketa hau aplikazioa hurrengoan irekitzean aplikatuko da."
 }

@@ -863,5 +863,7 @@
   "unproxiedBlockProxySettings": "Tarpinio serverio nustatymai",
   "proxyTestOk": "Įgaliotasis serveris veikia",
   "proxyTestAuthRejected": "Įgaliotasis serveris atmetė šiuos prisijungimo duomenis",
-  "proxyTestUnreachable": "Nepavyko pasiekti įgaliotojo serverio"
+  "proxyTestUnreachable": "Nepavyko pasiekti įgaliotojo serverio",
+  "torIsolateDestAddrTitle": "Atskira grandinė kiekvienai paskirties vietai",
+  "torIsolateDestAddrHint": "Kiekviena svetainė visada gauna savo Tor grandinę. Kai tai įjungta, svetainė gauna atskirą grandinę ir kiekvienam serveriui, iš kurio įkelia, tad vienas puslapis gali pasiekti internetą iš dviejų ar daugiau išėjimo adresų vienu metu — daugiau atskyrimo, bet svetainė, tikrinanti jūsų adresą tarp savo serverių, gali jus atjungti. Išjungus svetainė turi vieną adresą viskam, ką įkelia. Šis pakeitimas įsigalios kitą kartą atvėrus programą."
 }

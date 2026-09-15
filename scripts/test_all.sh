@@ -20,6 +20,10 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+echo "==> Swift type-check (tool/swift_typecheck)"
+./tool/swift_typecheck/check.sh
+
+echo
 echo "==> Dart tests (fvm flutter test)"
 fvm flutter test "$@"
 

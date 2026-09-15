@@ -16,8 +16,10 @@ projection ([formal/README.md](../../formal/README.md)); this class is guarded i
 **Tests:** [android/app/src/test/kotlin/.../AdblockEngineNativeTest.kt](../../android/app/src/test/kotlin/org/codeberg/theoden8/webspace/AdblockEngineNativeTest.kt)
 (concurrent readers/writers don't deadlock or throw) and
 [test/js/native_bgtask_completion_funnel.test.js](../../test/js/native_bgtask_completion_funnel.test.js)
-(structural gate: completion only through the funnel). The intercept cache (attempt 3) has
-no dedicated guard yet — see open gaps.
+(structural gate: completion only through the funnel) and
+[test/js/tor_bootstrap_observability.test.js](../../test/js/tor_bootstrap_observability.test.js)
+(structural gate: one `TorThread` per process, reached only through the exit wait). The
+intercept cache (attempt 3) has no dedicated guard yet — see open gaps.
 
 ## Symptom
 
@@ -157,6 +159,64 @@ about whether the runtime actually routes to the right jar (that still needs a d
 `MULTI_PROFILE` and two live profiles, untested at any tier). It covers only Android's
 `MyCookieManager`: gap 2 below, the same class in the same fork's Swift tree, remains
 unguarded and is the obvious next file to point this technique at.
+
+### Attempt 6 — Tor: a process-singleton restarted from a slot that was already cleared
+**Date:** 2026-09-15 · **Files:** `ios/Runner/TorControllerPlugin.swift` (the macOS Runner
+compiles the same file, so the tier that guards this runs the code iOS ships),
+`test/js/tor_bootstrap_observability.test.js`
+**What it did:** `stop()` set `self.thread = nil` and called `thread.cancel()`, then the next
+`start()` read `thread == nil` as "no tor is running" and constructed a second `TorThread`.
+Neither half holds: `cancel()` only sets `NSThread.isCancelled`, which tor's main loop never
+reads, and the running tor is a **process singleton** — `TORThread.init` asserts
+`There can only be one TORThread per process` against a `__weak` static (a debug build traps),
+and two `tor_run_main`s in one address space contend for the data-directory lock, which tor
+resolves by exiting the process it is linked into. The fix makes the resource identity-guarded
+rather than slot-guarded: `stop()` hands the thread to `exitingThread` and asks tor to exit
+over the control port (`disconnect()` sends `SIGNAL SHUTDOWN`, which a client tor obeys
+immediately), `start()` waits on `exitingThread.isFinished` before launching and fails with a
+named error rather than launching beside it, and a `generation` counter bumped by every start
+and stop makes an earlier run's handshake, catch-up read or failure a no-op instead of
+resurrecting or overwriting the current one.
+**Why:** every user-reachable path that stops Tor is followed by a start within seconds — the
+Retry button on the bootstrap interstitial (`TorEngine.restart`), the 60-second idle stop
+followed by reopening a Tor site, and the 90-second bootstrap timeout, which stops the runtime
+and leaves Retry as the only thing to do. Retry on a feature that was not connecting was
+therefore the most likely thing a user would tap, and the most likely thing to take the app
+down with it.
+**Why it was partial:** it covers the one native singleton this app owns and only the path
+where tor's control port answered — when the handshake never completes there is nothing left
+that can ask that tor to exit, so the process keeps it until it is killed, and every later
+start reports the named failure instead of connecting. The class-level gate is structural
+(a single `TorThread(` construction, reached only through the exit wait), not a concurrency
+test: no CI tier in this repo builds or runs Swift.
+
+
+### Attempt 7 — Tor: the stop could only reach a tor it had already adopted
+**Date:** 2026-09-15 · **Files:** `ios/Runner/TorControllerPlugin.swift`,
+`integration_test/tor_test.dart`, `test/js/tor_bootstrap_observability.test.js`
+**What it did:** attempt 6 made a start wait for the previous tor's thread and asked that
+tor to exit with `controller?.disconnect()`, which sends `SIGNAL SHUTDOWN`. That reaches
+nothing when `controller` is nil, and it is nil for exactly the runs that most need
+stopping: one stopped before the control-port handshake landed, and one whose handshake
+failed. The orphan then held the process's only tor slot until the app was killed, so the
+wait always expired and every later start reported "The previous Tor is still running".
+Now every retirement (stop *and* failure) hands the run to an exit watch that keeps a
+fresh control connection of its own — port file plus cookie from the retired
+configuration, `SIGNAL HALT`, retried while the thread is alive — and `failLocked` releases
+the slot rather than leaving an unusable tor in it. The give-up message names the one
+remedy left and is worded so `classifyTorFailure` reads it as a control-channel failure
+instead of "Tor stopped unexpectedly", which was the opposite of what had happened.
+**Why:** a user on TestFlight whose first bootstrap failed found Retry permanently dead:
+the failure path left a tor running, and the fix from attempt 6 then correctly refused to
+start a second one. Turning a crash into a refusal was progress; the refusal still had to
+stop being reachable.
+**Why it was partial:** it still assumes the orphan has a control port to answer on. A tor
+that died before opening one cannot be signalled, though it has also already exited, and a
+tor wedged before its control port opens stays wedged. The guard is structural plus one
+integration leg on macOS that restarts inside the handshake window; iOS, where this was
+observed, still has no tier that runs the plugin at all, so the first evidence remains a
+device.
+
 
 ## Known open gaps
 

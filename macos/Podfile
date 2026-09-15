@@ -1,4 +1,7 @@
-platform :osx, '10.15'
+# 11.0, not 10.15: the Tor pod's floor (TOR-007). It moved when Tor came to
+# macOS, so a Catalina machine no longer gets the app at all — the shipped
+# ShareExtension already required 11.0, so that half was moot there anyway.
+platform :osx, '11.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -53,6 +56,14 @@ target 'Runner' do
   flutter_install_all_macos_pods File.dirname(File.realpath(__FILE__))
   pod 'webspace_adblock', :path => '../rust/webspace_adblock/cocoapods'
 
+  # Same pods and same pins as ios/Podfile — see there for why the versions
+  # are exact rather than ranges. macOS carries the runtime for the same
+  # reason iOS does and behind the same developer-mode gate (TOR-007); it is
+  # also the only platform whose integration tier can run the real
+  # control-port handshake (TOR-021).
+  pod 'Tor', '409.11.2'
+  pod 'IPtProxy', '5.5.1'
+
   target 'RunnerTests' do
     inherit! :search_paths
   end
@@ -84,6 +95,25 @@ post_install do |installer|
   # phases / OTHER_LDFLAGS entries, plus injection of
   # -Wl,-needed_framework,webspace_adblock so Apple ld keeps the
   # framework in Runner's LC_LOAD_DYLIB.
+  # Tor.framework asserts two things this app does on purpose: that the
+  # control-port file exists whenever a TORController is built for it, and
+  # that only one TORThread is ever constructed per process. The file appears
+  # when tor's listener comes up, and a restart builds its thread after the
+  # previous tor exited -- the framework's static is simply never cleared.
+  # Release compiles both asserts out, which is why the shipped app restarts
+  # fine; a debug build raises and the process aborts, so every integration
+  # run died ten seconds in. Compile them out there too, in the pod only.
+  installer.pods_project.targets.each do |target|
+    next unless target.name == 'Tor'
+    target.build_configurations.each do |config|
+      defs = config.build_settings['GCC_PREPROCESSOR_DEFINITIONS']
+      defs = ['$(inherited)'] if defs.nil? || defs == ''
+      defs = [defs] unless defs.is_a?(Array)
+      defs << 'NS_BLOCK_ASSERTIONS=1' unless defs.include?('NS_BLOCK_ASSERTIONS=1')
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = defs
+    end
+  end
+
   installer.aggregate_targets.each do |aggregate|
     next unless aggregate.name.start_with?('Pods-Runner')
     aggregate.user_project.targets.each do |runner_target|
@@ -96,6 +126,12 @@ post_install do |installer|
       end
       runner_target.build_configurations.each do |config|
         ldflags = config.build_settings['OTHER_LDFLAGS']
+        # An empty string is truthy in Ruby, so the nil guard alone turned a
+        # committed `OTHER_LDFLAGS = ""` into [""] -- a target-level value
+        # that shadows the Pods xcconfig instead of inheriting it, and with
+        # it every flag a pod declares (IPtProxy's `s.libraries = 'resolv'`
+        # is why the macOS link failed on the Go runtime's res_9_* symbols).
+        ldflags = nil if ldflags.respond_to?(:empty?) && ldflags.empty?
         ldflags = ['$(inherited)'] unless ldflags
         ldflags = [ldflags] unless ldflags.is_a?(Array)
         ldflags = ldflags.each_with_index.reject { |f, i|
@@ -104,6 +140,7 @@ post_install do |installer|
             (f == '-force_load' && ldflags[i + 1].to_s.include?('libwebspace_adblock')) ||
             (f == '-u' && ldflags[i + 1].to_s.include?('_ws_engine_new'))
         }.map(&:first)
+        ldflags.unshift('$(inherited)') unless ldflags.include?('$(inherited)')
         needed = '-Wl,-needed_framework,webspace_adblock'
         ldflags << needed unless ldflags.include?(needed)
         config.build_settings['OTHER_LDFLAGS'] = ldflags

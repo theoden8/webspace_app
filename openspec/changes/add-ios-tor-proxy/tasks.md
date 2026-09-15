@@ -1,3 +1,66 @@
+# Status note (2026-09-20)
+
+Read this before working the boxes below: **the open items are not a to-do
+list in their current form.** Two design drifts and one CI decision happened
+after they were written, and the list did not follow.
+
+## The list is written against a `useTor` boolean that does not exist
+
+Every task phrased "when `useTor=true`" (5.2, 5.3, 7.1, 7.2, 8.2, 9.3, 10.1,
+10.2, 10.6, 10.7) describes a per-site boolean. The implementation has none:
+Tor rides the existing per-site `proxySettings` as `ProxyType.TOR`
+(`lib/web_view_model.dart`, `resolveEffectiveProxy`). `useTor` appears nowhere
+in `lib/`, nowhere in `test/`, and nowhere in this change's own
+`specs/tor-proxy/spec.md` -- the spec moved on and `tasks.md` did not.
+Rephrase against `proxySettings.type == ProxyType.TOR` before working any of
+them.
+
+## The bootstrap interstitial was replaced, not built
+
+5.2, 5.3 and 9.4 describe rewriting a pre-bootstrap navigation to
+`webspace://tor-bootstrap?next=...`. That scheme exists nowhere in `lib/`. The
+shipped mechanism is `deferInitialLoadForProxy`
+([lib/services/webview.dart](../../../lib/services/webview.dart)): the initial
+load is held until the proxy is usable, rather than redirected through an
+interstitial URL. These three describe a superseded approach.
+
+## Several "open" test tasks are done under other filenames
+
+`tasks.md` names three files that were never created, while 14 `test/tor_*.dart`
+files exist. Checked:
+
+| task | names | actually covered by | state |
+|------|-------|--------------------|-------|
+| 9.1 | `test/tor_service_test.dart` | `tor_engine_test.dart` -- TOR-002 lifecycle (first holder starts, second does not restart, same reason counts once, debounce cancel, `syncHolders`), TOR-013 bootstrap timeout, TOR-003 stream isolation | **done** |
+| 9.4 | `test/tor_bootstrap_interstitial_test.dart` | `tor_bootstrap_placeholder_test.dart`, `tor_ui_states_test.dart` -- against the defer mechanism, not the interstitial | **done, different design** |
+| 9.3 | `test/web_view_model_tor_propagation_test.dart` | nothing by that name; per-site field propagation is covered generically by `test/nested_webview_field_parity_test.dart` | **verify before closing** |
+| 11.4 | CLAUDE.md slug-table cross-link | [CLAUDE.md](../../../CLAUDE.md) line ~251 carries the `tor-proxy *(change)*` row | **done** |
+
+## One genuinely open gap, and it is a secrets gap
+
+**8.2 is not done.** `test/settings_backup_test.dart` contains no Tor coverage
+at all -- no `TOR-009`, no session-secret assertion, no control-cookie
+assertion. The rule in CLAUDE.md ("Adding a new credential / secret") wants a
+regression test asserting the secret never appears in
+`SettingsBackupService.exportToJson(...)`. Write it against
+`ProxyType.TOR` + `TorService`'s session secret, not against `useTor`.
+
+The 6b.10 and 10.x items are on-device/manual by construction and cannot close
+in CI.
+
+## The macOS proxy tier on the Tor PR is disabled, deliberately
+
+`integration_test/proxy_binding_test.dart`'s switch arm ("a second site
+switched to another proxy uses the new one") is `skip: true` on #597 by
+request, so the Tor work can land while BUG-014 is open. It is not a flake:
+in run 35513419116 the arm before it proxied in the same app process, so the
+second store going direct is a real reading of a real leak. The question stays
+under measurement on #603 (`proxy_matrix_test`). Re-enable when BUG-014 has a
+fix or the app fails closed (LEAK-003). Lineage:
+[docs/bugs/014-per-site-setting-dropped-at-the-native-seam.md](../../../docs/bugs/014-per-site-setting-dropped-at-the-native-seam.md).
+
+---
+
 ## 1. Native iOS plugin (Tor.framework integration)
 
 - [x] 1.1 Added `pod 'Tor', '409.11.2'` (exact version, not `~>`) to `ios/Podfile`. The podspec's `prepare_command` already verifies the downloaded `tor.xcframework` against pinned sha256 digests, so no extra CI checksum step is needed. Pod requires iOS 15.0, which the Podfile floor already is.
@@ -66,6 +129,31 @@ the nested-webview propagation chain. See PROXY-020 for the reasoning.
 - [x] 6b.8 `lib/screens/tor_bridge_settings.dart`: toggle, transport picker, verbatim line list, paste with per-error messages, Moat fetch with the LEAK-015 exposure stated above the button, restart-needed notice. Reached from the status card only where `bridgesMayHelp`.
 - [x] 6b.9 iOS native: `setTorrcOptions`, `startTransport` and `setExitCountry` handlers in `TorControllerPlugin.swift`; `IPtProxy` 5.5.1 in the Podfile; Go pinned in the Apple CI job, since that pod cross-compiles from source during `pod install`. Bridges reach tor through `TORConfiguration.arguments`, not `options` — the latter is a dictionary and would collapse repeated `Bridge` keys.
 - [ ] 6b.10 On-device: obfs4 and snowflake each bootstrap on a network that blocks tor directly. Not reachable from CI — no simulator can be censored, and the transports need a real hostile network to mean anything.
+
+## 6c. Bootstrap observability (TOR-018)
+
+- [x] 6c.1 iOS native: forward `TAG`/`SUMMARY` off every `BOOTSTRAP` status event, hold them beside the percentage, and publish them in the status payload. They were read and dropped before, so `classifyTorFailure`'s `torTag` was always null and every stalled bootstrap classified as a plain timeout.
+- [x] 6c.2 iOS native: read `GETINFO status/bootstrap-phase` on attach. Bootstrap starts before the control port answers; a bootstrap that finished during the handshake sends no further event, and the interstitial sat on "Starting" until the 90s timeout.
+- [x] 6c.3 iOS native: capture tor's `NOTICE`/`WARN`/`ERR` over the control port and relay them on `.../tor/logs`, with a small native ring so a late Dart subscriber still sees the first lines. `sendCommand` rather than `listenForEvents`, since the framework registers a raw-line observer only there — and `addObserver(forCircuitEstablished:)` is gone for the same reason: it re-sends SETEVENTS and would unsubscribe the log.
+- [x] 6c.4 iOS native: the plugin's own lifecycle notes (start, attach, authenticate, SOCKS listener, transports, stop, failures) on the same channel, covering the window tor's log cannot describe.
+- [x] 6c.5 `lib/services/tor_service.dart`: decode the phase, pipe the log channel into `LogService` (tor's output sensitive under its own tag, the plugin's notes ordinary), and log every state transition. The bridge is deliberately not on `TorRuntime` — it is not a decision, and every test fake would have to implement it.
+- [x] 6c.6 `test/tor_observability_test.dart` and the structural gate `test/js/tor_bootstrap_observability.test.js` (key parity across the seam, channel-name parity, no INFO/DEBUG, no log file on disk).
+- [x] 6c.7 iOS native (TOR-019): read `net/listeners/socks` and `status/bootstrap-phase` at attach, before SETEVENTS, and promote the endpoint when bootstrap finishes. Tor.framework hands replies and async events to one observer list, and its GETINFO observer answers the first line it sees: with events already flowing, a bootstrap notice answered the socks read as empty and a finished bootstrap reported "no usable SOCKS listener". The same shape removed the framework's own circuit-established observer, which is why a successful bootstrap could sit on the interstitial until the 90s timeout.
+- [x] 6c.8 iOS native (TOR-020, BUG-007 attempt 6): stop asks tor to exit over the control port and hands its thread to an exit watch; start waits for that thread to finish and fails by name rather than constructing a second `TorThread`. A `generation` counter bumped by every start and stop keeps an earlier run's handshake, read or failure from speaking for the current one. Retry, the idle stop and the bootstrap timeout all put a stop and a start seconds apart, and each of them was a crash.
+- [x] 6c.9 `ios/RunnerTests/TorControlParsingTests.swift`: the control-port parsers against tor's real output shapes, including the closing quote `getInfoForKeys` trims off a `SUMMARY`. Wired into the RunnerTests target; no CI tier here runs Swift, so it runs in Xcode.
+- [x] 6c.10 `lib/widgets/tor_bootstrap.dart`: show tor's raw message under the classified copy, as the status card already does, and let the column scroll instead of overflowing — the interstitial is where a user is left when a site will not load, and the classification is a guess from patterns.
+- [x] 6c.11 iOS native (TOR-020, BUG-007 attempt 7): every retirement -- stop and failure alike -- hands the run to an exit watch that asks tor to quit over a control connection it opens itself (port file + cookie + `SIGNAL HALT`, retried while the thread lives). `controller?.disconnect()` reaches nothing when no controller was adopted, which is the state a failed handshake leaves behind, and the orphan then held the process's only tor slot for good: on TestFlight, Retry answered "The previous Tor is still running" forever. `integration_test/tor_test.dart` restarts inside the handshake window to cover it.
+- [x] 6c.12 iOS native (TOR-019, BUG-013 attempt 2): the control-port attach is a bounded poll (0.5s x 60) scheduled from the state queue, not 1.0s plus three blocking retries. The old budget was about 1.5 seconds, which fails a cold start on a busy phone and was the first domino: the run failed, and before BUG-007 attempt 7 the tor it left behind made every later start refuse.
+- [x] 6c.13 iOS native + UI (TOR-018, BUG-013 attempt 3): tor writes `--Log notice file <dataDir>/tor.log` and the plugin tails it into the app log, replacing the control-port log subscription -- which cannot work on the device that prompted this, where tor never opens a control port at all. The attach notes now say whether the port file exists and whether the thread is executing, and the interstitial renders the last log lines live on both the waiting and the failure screen.
+
+## 6d. macOS runtime and the integration tier (TOR-021)
+
+- [x] 6d.1 Compile `ios/Runner/TorControllerPlugin.swift` from the macOS Runner too, with `#if canImport(FlutterMacOS)` picking the Flutter module. Shared rather than mirrored (which is how `ShortcutsPlugin` does it) because the tier is only worth running if it exercises the code iOS ships. The file stays under the iOS project rather than moving to a neutral directory: iOS is the shipping target, so the cross-directory reference is the macOS one.
+- [x] 6d.2 `macos/Podfile`: the same `Tor` and `IPtProxy` pins as iOS, and the macOS 11 floor the Tor pod needs. `MACOSX_DEPLOYMENT_TARGET` follows in the project, and `LSMinimumSystemVersion` derives from it, so 10.15 is no longer supported — stated in docs/releasing-macos.md. The ShareExtension already required 11.0.
+- [x] 6d.3 `macos/Runner/AppDelegate.swift` registers the plugin; `MethodChannelTorRuntime.isAvailable` covers both Apple platforms. Developer mode (DEVTOOLS-010) is still what decides whether anything offers Tor, on macOS exactly as on iOS.
+- [x] 6d.4 `integration_test/tor_test.dart`: handshake, phase, tor's log and a restart asserted unconditionally; reaching `up` required only under `WEBSPACE_TOR_NETWORK=1`, since that leg needs the Tor network. A failure prints the captured log rather than a timeout.
+- [x] 6d.5 CI runs the macOS integration tier with that variable set. Dropping it leaves every other assertion in place.
+- [x] 6d.6 Structural gates: same pod pins on both platforms, no target below the Podfile floor, and both Apple targets compiling the one shared source. Mutation-verified — a version skew, a target left at 10.15, and a target that references the file without compiling it each turn the gate red.
 
 ## 7. Background task integration
 
