@@ -368,12 +368,35 @@ void main() {
           expect(find.text('Tor appears to be blocked'), findsOneWidget);
           expect(find.textContaining('Bridges route around'), findsOneWidget);
           expect(find.text('Retry'), findsOneWidget);
+          // As on the status card: the classification is a guess, and the
+          // raw message is what exposes a wrong one. This screen is where
+          // a user is left when a TOR site will not load.
+          expect(find.textContaining('bootstrap stalled'), findsOneWidget);
           // The interstitial is what a user sees when a TOR site will not
           // load; naming bridges without a route to them is how the whole
           // feature was unreachable before.
           expect(find.text('Bridges'), findsOneWidget);
         },
         size: const Size(430, 430),
+      );
+    });
+
+    testWidgets('a long message scrolls rather than overflowing', (t) async {
+      // tor writes its own messages and the interstitial shows them
+      // verbatim, so their length is not ours to bound. An overflowing
+      // column shows stripes and swallows the Retry button below it.
+      await withState(
+        t,
+        'interstitial_long_detail',
+        const TorBootstrapPlaceholder(),
+        _errored('Tor exited before opening its control port: it rejected '
+            'its configuration. A bridge line is the usual cause. '
+            'Bootstrap stalled at 10% in conn_dir after 3 attempts.'),
+        () {
+          expect(find.byType(SingleChildScrollView), findsOneWidget);
+          expect(find.text('Retry'), findsOneWidget);
+        },
+        size: const Size(320, 260),
       );
     });
 
