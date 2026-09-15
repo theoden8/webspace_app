@@ -1,7 +1,8 @@
-// One source, both Apple Runners (TOR-021). The macOS build is what the
-// integration tier drives, so what it exercises is the code iOS ships
-// rather than a copy of it; the only thing that differs per platform is
-// which Flutter module the channels come from.
+// One source, both Apple Runners (TOR-021): the macOS project compiles this
+// file from here rather than keeping a copy, so what the integration tier
+// exercises is the code iOS ships. It lives under ios/ because iOS is the
+// shipping target and this is the path its project has always used; only
+// the Flutter module differs per platform.
 #if canImport(FlutterMacOS)
   import FlutterMacOS
 #else

@@ -5,9 +5,11 @@
 The system SHALL embed `iCepa/Tor.framework` on iOS and macOS and
 expose its SOCKS5 listener to the rest of the app via a Flutter method
 channel plugin. One source SHALL serve both
-(`darwin/TorControllerPlugin.swift`, compiled by the iOS and macOS
+(`ios/Runner/TorControllerPlugin.swift`, compiled by the iOS and macOS
 Runner targets), because the macOS build is what the integration tier
-drives (TOR-021) and a copy would drift from what iOS ships. The runtime SHALL bind only to the loopback interface
+drives (TOR-021) and a copy would drift from what iOS ships. It stays
+under the iOS project because iOS is the shipping target: the reference
+that may cross a directory boundary is the macOS one. The runtime SHALL bind only to the loopback interface
 (`127.0.0.1`), never to a routable interface, and SHALL pick a SOCKS5
 port dynamically via `SocksPort auto` rather than hardcoding `9050`.
 
@@ -928,7 +930,7 @@ carry an integration scenario that runs against the real plugin.
 
 It runs on macOS, because iOS has no integration tier here and macOS
 reuses the same harness natively (INTEG-009). The plugin source is
-shared (`darwin/TorControllerPlugin.swift`, compiled by both Apple
+shared (`ios/Runner/TorControllerPlugin.swift`, compiled by both Apple
 targets) rather than copied, so what the tier exercises is what iOS
 ships.
 

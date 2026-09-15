@@ -82,7 +82,7 @@ the nested-webview propagation chain. See PROXY-010 for the reasoning.
 
 ## 6d. macOS runtime and the integration tier (TOR-021)
 
-- [x] 6d.1 Move the plugin to `darwin/TorControllerPlugin.swift`, compiled by both Apple Runner targets, with `#if canImport(FlutterMacOS)` picking the Flutter module. Shared rather than mirrored (which is how `ShortcutsPlugin` does it) because the tier is only worth running if it exercises the code iOS ships.
+- [x] 6d.1 Compile `ios/Runner/TorControllerPlugin.swift` from the macOS Runner too, with `#if canImport(FlutterMacOS)` picking the Flutter module. Shared rather than mirrored (which is how `ShortcutsPlugin` does it) because the tier is only worth running if it exercises the code iOS ships. The file stays under the iOS project rather than moving to a neutral directory: iOS is the shipping target, so the cross-directory reference is the macOS one.
 - [x] 6d.2 `macos/Podfile`: the same `Tor` and `IPtProxy` pins as iOS, and the macOS 11 floor the Tor pod needs. `MACOSX_DEPLOYMENT_TARGET` follows in the project, and `LSMinimumSystemVersion` derives from it, so 10.15 is no longer supported — stated in docs/releasing-macos.md. The ShareExtension already required 11.0.
 - [x] 6d.3 `macos/Runner/AppDelegate.swift` registers the plugin; `MethodChannelTorRuntime.isAvailable` covers both Apple platforms. Developer mode (DEVTOOLS-010) is still what decides whether anything offers Tor, on macOS exactly as on iOS.
 - [x] 6d.4 `integration_test/tor_test.dart`: handshake, phase, tor's log and a restart asserted unconditionally; reaching `up` required only under `WEBSPACE_TOR_NETWORK=1`, since that leg needs the Tor network. A failure prints the captured log rather than a timeout.
