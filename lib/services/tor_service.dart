@@ -34,6 +34,22 @@ export 'package:webspace/services/tor_engine.dart'
 
 const String _kChannel = 'org.codeberg.theoden8.webspace/tor';
 const String _kEvents = 'org.codeberg.theoden8.webspace/tor/events';
+const String _kLogEvents = 'org.codeberg.theoden8.webspace/tor/logs';
+
+/// Log tag for the runtime's own lifecycle: state transitions and the
+/// plugin's notes about them.
+const String kTorLogTag = 'Tor';
+
+/// Log tag for tor's own output, kept apart from [kTorLogTag] so a reader
+/// can tell what the app decided from what tor said.
+const String kTorDaemonLogTag = 'TorLog';
+
+/// Whether this build has the native runtime behind the channels. Only iOS
+/// ships the plugin in this release (TOR-007); asking anywhere else must
+/// not touch a channel, or `receiveBroadcastStream().listen` throws
+/// MissingPluginException.
+bool get _hasNativeTor =>
+    !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
 /// Method-channel implementation of [TorRuntime].
 ///
@@ -52,7 +68,7 @@ class MethodChannelTorRuntime implements TorRuntime {
   Stream<TorStatus>? _decoded;
 
   @override
-  bool get isAvailable => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+  bool get isAvailable => _hasNativeTor;
 
   // Every channel touch below is gated on [isAvailable]. Without the gate,
   // simply *asking* whether Tor is available on Android builds the engine,
@@ -128,7 +144,13 @@ class MethodChannelTorRuntime implements TorRuntime {
         return const TorStarting();
       case 'bootstrapping':
         final pct = raw['bootstrapPct'];
-        return TorBootstrapping(pct is int ? pct : 0);
+        final tag = raw['bootstrapTag'];
+        final summary = raw['bootstrapSummary'];
+        return TorBootstrapping(
+          pct is int ? pct : 0,
+          tag: tag is String && tag.isNotEmpty ? tag : null,
+          summary: summary is String && summary.isNotEmpty ? summary : null,
+        );
       case 'up':
         final host = raw['socksHost'];
         final port = raw['socksPort'];
@@ -145,9 +167,106 @@ class MethodChannelTorRuntime implements TorRuntime {
   }
 }
 
+/// One line of tor's own log, or one of the plugin's lifecycle notes.
+class TorLogLine {
+  const TorLogLine({
+    required this.fromTor,
+    required this.level,
+    required this.message,
+  });
+
+  /// Whether tor wrote this. The plugin's own notes cover the window tor
+  /// cannot describe — before its control port answers, and after it goes.
+  final bool fromTor;
+  final LogLevel level;
+  final String message;
+}
+
+/// Pipes the native Tor log channel into [LogService] (TOR-018).
+///
+/// Deliberately not part of [TorRuntime]: nothing here is a decision, so
+/// the engine has no use for it, and adding it to that interface would make
+/// every test fake implement a stream it never reads.
+class TorLogBridge {
+  TorLogBridge({EventChannel? events})
+      : _channel = events ?? const EventChannel(_kLogEvents);
+
+  final EventChannel _channel;
+  StreamSubscription<Object?>? _sub;
+
+  void start() {
+    if (_sub != null || !_hasNativeTor) return;
+    _sub = _channel.receiveBroadcastStream().listen(
+      (raw) {
+        final line = decodeLogLine(raw);
+        if (line == null) return;
+        LogService.instance.log(
+          line.fromTor ? kTorDaemonLogTag : kTorLogTag,
+          line.message,
+          level: line.level,
+          // tor's own output is sensitive and the plugin's notes are not.
+          // A notice-level line can name the bridges this device dials
+          // (TOR-017) and the relays it picked, so it belongs in the
+          // memory-only ring that Dev Tools only shows on request; the
+          // plugin's notes carry nothing but its own state machine.
+          sensitivity:
+              line.fromTor ? LogSensitivity.sensitive : LogSensitivity.normal,
+        );
+      },
+      // An error on the channel must not tear the subscription down: this
+      // is the surface that explains a failing bootstrap, and losing it
+      // exactly when tor is unhappy is the case it exists for.
+      onError: (Object error) => LogService.instance.log(
+        kTorLogTag,
+        'Log channel error: $error',
+        level: LogLevel.warning,
+      ),
+      cancelOnError: false,
+    );
+  }
+
+  Future<void> dispose() async {
+    await _sub?.cancel();
+    _sub = null;
+  }
+
+  /// Decode one native log payload. Anything malformed is dropped rather
+  /// than logged as itself, which would turn a shape mismatch into noise
+  /// at whatever rate tor happens to be talking.
+  @visibleForTesting
+  static TorLogLine? decodeLogLine(Object? raw) {
+    if (raw is! Map) return null;
+    final message = raw['message'];
+    if (message is! String || message.isEmpty) return null;
+    return TorLogLine(
+      fromTor: raw['source'] == 'tor',
+      level: switch (raw['severity']) {
+        'err' => LogLevel.error,
+        'warn' => LogLevel.warning,
+        _ => LogLevel.info,
+      },
+      message: message,
+    );
+  }
+}
+
 /// Process-wide handle on the embedded Tor runtime.
 class TorService {
-  TorService._(this._engine);
+  TorService._(this._engine, {TorLogBridge? logs})
+      : _logs = logs ?? TorLogBridge() {
+    _logs.start();
+    // Every transition, in the app log. The runtime is a black box to the
+    // user otherwise: "Starting" with no percentage and no phase is what a
+    // bootstrap looks like from outside, whether it is 3 seconds in or 60
+    // (TOR-018).
+    _statusTap = _engine.statusStream.listen((s) {
+      LogService.instance.log(
+        kTorLogTag,
+        'State: $s',
+        level: s is TorErrored ? LogLevel.error : LogLevel.info,
+      );
+    });
+  }
 
   static TorService? _instance;
 
@@ -165,17 +284,22 @@ class TorService {
 
   /// Swap in an engine backed by a fake runtime. Tests only.
   @visibleForTesting
-  static void overrideEngine(TorEngine engine) {
-    _instance = TorService._(engine);
+  static void overrideEngine(TorEngine engine, {TorLogBridge? logs}) {
+    _instance?._statusTap?.cancel();
+    _instance = TorService._(engine, logs: logs);
   }
 
   @visibleForTesting
   static Future<void> reset() async {
+    await _instance?._statusTap?.cancel();
+    await _instance?._logs.dispose();
     await _instance?._engine.dispose();
     _instance = null;
   }
 
   final TorEngine _engine;
+  final TorLogBridge _logs;
+  StreamSubscription<TorStatus>? _statusTap;
 
   /// Whether anything may offer or start Tor.
   ///

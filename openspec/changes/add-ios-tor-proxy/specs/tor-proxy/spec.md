@@ -747,3 +747,157 @@ Logs SHALL NOT carry bridge lines: they reach bug reports.
 - **GIVEN** the keystore refuses the write
 - **WHEN** the user adds a bridge line
 - **THEN** the save reports failure and the UI does not claim it is set
+
+---
+
+### Requirement: TOR-018 - The bootstrap says which phase it is in, and tor's log is reachable
+
+A percentage is not a diagnosis. Tor reports `TAG` and `SUMMARY` on every
+`BOOTSTRAP` status event — the phase it is in, in its own words — and
+without them a bootstrap that stalls looks the same as one that is merely
+slow, both to the user and to the failure classifier (TOR-015), which
+reads `TAG` to tell a censored network from a timeout.
+
+The status published to Dart SHALL carry tor's `TAG` and `SUMMARY`
+alongside the percentage, and the bootstrap surfaces (TOR-004, TOR-008)
+SHALL render the summary beneath the progress bar whenever one is
+present.
+
+On attaching to the control port the plugin SHALL read
+`GETINFO status/bootstrap-phase` and publish it, because bootstrap begins
+before the control port answers: without the catch-up read, a bootstrap
+that finished during the handshake produces no further event and the
+interstitial stays on `starting` until the timeout.
+
+Tor's own log SHALL be readable inside the app, through Developer Tools →
+App Logs:
+
+- The runtime's state transitions SHALL be logged as ordinary entries.
+- Tor's `NOTICE`, `WARN` and `ERR` output SHALL be captured over the
+  control port and logged under its own tag, as **sensitive** entries — a
+  notice-level line can name a bridge (TOR-017) — so they stay in the
+  memory-only ring and appear only behind the Dev Tools toggle.
+- `INFO` and `DEBUG` SHALL NOT be subscribed to: they name every
+  connection tor makes.
+- Tor's log SHALL NOT be written to a file. The control port is the
+  capture surface precisely so nothing outlives the session on disk
+  (`TorConfiguration.logfile` unset; the `Log` line stays pointed at
+  `/dev/null`).
+- The plugin SHALL also log its own lifecycle (start, control-port
+  attach, authentication, SOCKS listener, transports, stop), which covers
+  the window before tor's control port answers and after it goes away.
+
+#### Scenario: The interstitial names the phase
+
+- **GIVEN** tor is at `BOOTSTRAP PROGRESS=45 TAG=loading_descriptors
+  SUMMARY="Loading relay descriptors"`
+- **WHEN** a TOR-bound site is opened
+- **THEN** the interstitial shows "Connecting… 45%" and the phase
+  "Loading relay descriptors" beneath it
+
+#### Scenario: A bootstrap that finished during the handshake
+
+- **GIVEN** tor reaches 100% before the control-port handshake completes
+- **WHEN** the plugin attaches
+- **THEN** it reads `status/bootstrap-phase`, publishes it, and proceeds
+  to read the SOCKS listener
+- **AND** the interstitial does not sit on "Starting" until the timeout
+
+#### Scenario: Tor's own log is in Dev Tools
+
+- **GIVEN** a bootstrap is under way
+- **WHEN** the user opens Developer Tools → App Logs and turns on the
+  sensitive-entries toggle
+- **THEN** tor's `NOTICE`/`WARN`/`ERR` lines are listed under their own
+  tag, alongside the runtime's state transitions
+- **AND** with the toggle off, the state transitions are still listed
+
+#### Scenario: The log subscription is not silently dropped
+
+- **GIVEN** the plugin has subscribed to `STATUS_CLIENT NOTICE WARN ERR`
+- **WHEN** any later code path re-sends `SETEVENTS` with a narrower list
+- **THEN** the structural gate
+  `test/js/tor_bootstrap_observability.test.js` fails, because tor keeps
+  only the most recent subscription and the log would go quiet with no
+  other symptom
+
+---
+
+### Requirement: TOR-019 - One control connection, read before subscribing
+
+`Tor.framework` routes command replies and asynchronous events through a
+single observer list, and its `GETINFO` observer answers whatever line it
+is handed first — an unrelated `650` event included, which it reports back
+to its caller as an empty result and then unregisters itself.
+
+Every control-port read the plugin needs SHALL therefore be issued before
+it subscribes to events, on a connection that is still quiet, and the
+values kept for later use. In particular the SOCKS endpoint SHALL be read
+at attach and published when bootstrap completes, rather than read at that
+moment.
+
+After subscribing, nothing SHALL send `SETEVENTS` again: tor keeps only
+the most recent subscription, so a narrower list silently takes tor's log
+away. `addObserver(forCircuitEstablished:)` SHALL NOT be used — it sends
+its own `SETEVENTS` and follows it with a `GETINFO` that an event can
+answer, after which it removes itself and `CIRCUIT_ESTABLISHED` is never
+delivered again. `CIRCUIT_ESTABLISHED` SHALL be handled in the plugin's
+own status observer instead.
+
+#### Scenario: A bootstrap notice does not become the SOCKS listener
+
+- **GIVEN** tor is emitting notice-level log events
+- **WHEN** bootstrap completes
+- **THEN** the plugin publishes `up` with the endpoint it read at attach
+- **AND** it issues no control-port read in that window, so no event can
+  be mistaken for the reply
+
+#### Scenario: A finished bootstrap is not left on the interstitial
+
+- **GIVEN** tor establishes its first circuit
+- **WHEN** the plugin's status observer sees `CIRCUIT_ESTABLISHED`, or a
+  `BOOTSTRAP` event reaching 100%
+- **THEN** the runtime reaches `up`
+- **AND** neither path depends on a `GETINFO` completing while events are
+  flowing
+
+---
+
+### Requirement: TOR-020 - One tor per process; a stop asks it to exit
+
+Tor is a process singleton: `TORThread` asserts a single instance, and two
+`tor_run_main`s in one address space contend for the data-directory lock,
+which tor resolves by exiting the process it is linked into — taking the
+app down. `NSThread.cancel()` does not stop tor, since its main loop never
+reads the flag.
+
+Stopping the runtime SHALL ask tor to exit over the control port
+(`disconnect()` sends `SIGNAL SHUTDOWN`, which a client tor obeys
+immediately) and SHALL hand the thread to an exit watch rather than
+forgetting it. Starting SHALL wait for that thread to finish, and where it
+does not finish within the bound SHALL fail with a named error rather than
+launching a second tor. A handshake, catch-up read or failure belonging to
+an earlier run SHALL be identified as such (a generation counter bumped by
+every start and stop) and SHALL NOT publish state for the current one.
+
+Restart, the idle stop, and the bootstrap timeout all put a stop and a
+start within seconds of each other, so this is the common path, not an
+edge case. Recorded as attempt 6 in
+[docs/bugs/007-native-shared-state-races.md](../../../../../docs/bugs/007-native-shared-state-races.md).
+
+#### Scenario: Retry after a failed bootstrap
+
+- **GIVEN** bootstrap failed and the interstitial offers Retry
+- **WHEN** the user taps it
+- **THEN** the plugin waits for the previous tor's thread to finish before
+  starting another
+- **AND** the app does not terminate
+
+#### Scenario: A stop before the control port answered
+
+- **GIVEN** the runtime is stopped while its control-port handshake is
+  still in flight
+- **WHEN** the handshake completes
+- **THEN** it is recognised as belonging to a previous run, and the
+  controller is disconnected rather than adopted
+- **AND** that disconnect is what asks the orphaned tor to exit
