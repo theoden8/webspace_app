@@ -161,7 +161,8 @@ about whether the runtime actually routes to the right jar (that still needs a d
 unguarded and is the obvious next file to point this technique at.
 
 ### Attempt 6 — Tor: a process-singleton restarted from a slot that was already cleared
-**Date:** 2026-09-15 · **Files:** `ios/Runner/TorControllerPlugin.swift`,
+**Date:** 2026-09-15 · **Files:** `darwin/TorControllerPlugin.swift` (was
+`ios/Runner/TorControllerPlugin.swift`; the macOS integration tier now builds the same file),
 `test/js/tor_bootstrap_observability.test.js`
 **What it did:** `stop()` set `self.thread = nil` and called `thread.cancel()`, then the next
 `start()` read `thread == nil` as "no tor is running" and constructed a second `TorThread`.

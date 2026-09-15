@@ -80,6 +80,15 @@ the nested-webview propagation chain. See PROXY-010 for the reasoning.
 - [x] 6c.9 `ios/RunnerTests/TorControlParsingTests.swift`: the control-port parsers against tor's real output shapes, including the closing quote `getInfoForKeys` trims off a `SUMMARY`. Wired into the RunnerTests target; no CI tier here runs Swift, so it runs in Xcode.
 - [x] 6c.10 `lib/widgets/tor_bootstrap.dart`: show tor's raw message under the classified copy, as the status card already does, and let the column scroll instead of overflowing — the interstitial is where a user is left when a site will not load, and the classification is a guess from patterns.
 
+## 6d. macOS runtime and the integration tier (TOR-021)
+
+- [x] 6d.1 Move the plugin to `darwin/TorControllerPlugin.swift`, compiled by both Apple Runner targets, with `#if canImport(FlutterMacOS)` picking the Flutter module. Shared rather than mirrored (which is how `ShortcutsPlugin` does it) because the tier is only worth running if it exercises the code iOS ships.
+- [x] 6d.2 `macos/Podfile`: the same `Tor` and `IPtProxy` pins as iOS, and the macOS 11 floor the Tor pod needs. `MACOSX_DEPLOYMENT_TARGET` follows in the project, and `LSMinimumSystemVersion` derives from it, so 10.15 is no longer supported — stated in docs/releasing-macos.md. The ShareExtension already required 11.0.
+- [x] 6d.3 `macos/Runner/AppDelegate.swift` registers the plugin; `MethodChannelTorRuntime.isAvailable` covers both Apple platforms. Developer mode (DEVTOOLS-010) is still what decides whether anything offers Tor, on macOS exactly as on iOS.
+- [x] 6d.4 `integration_test/tor_test.dart`: handshake, phase, tor's log and a restart asserted unconditionally; reaching `up` required only under `WEBSPACE_TOR_NETWORK=1`, since that leg needs the Tor network. A failure prints the captured log rather than a timeout.
+- [x] 6d.5 CI runs the macOS integration tier with that variable set. Dropping it leaves every other assertion in place.
+- [x] 6d.6 Structural gates: same pod pins on both platforms, no target below the Podfile floor, and both Apple targets compiling the one shared source. Mutation-verified — a version skew, a target left at 10.15, and a target that references the file without compiling it each turn the gate red.
+
 ## 7. Background task integration
 
 - [ ] 7.1 In [ios/Runner/BackgroundTaskPlugin.swift](../../../ios/Runner/BackgroundTaskPlugin.swift): when starting the `beginBackgroundTask` window for notification sites, query `TorControllerPlugin` for the list of `useTor` refcount holders; if any of them are notification sites, suppress `TorService` idle-stop until the window expires.

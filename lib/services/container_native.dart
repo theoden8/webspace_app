@@ -158,7 +158,7 @@ class _ContainerNative implements ContainerNative {
         // `isClassSupported` is a build-time platform list. The fork's
         // `WKWebsiteDataStore(forIdentifier:)` bind is
         // `@available(iOS 17.0, macOS 14.0, *)` and no-ops below it, while
-        // the deployment floors are iOS 15 and macOS 10.15, so the OS has
+        // the deployment floors are iOS 15 and macOS 11, so the OS has
         // to be probed at runtime; below the floor the legacy engine runs.
         _supportedCache = inapp.ContainerController.isClassSupported(
               platform: defaultTargetPlatform,
