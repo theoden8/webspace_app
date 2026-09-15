@@ -31,13 +31,24 @@ private let kTorControlEvents = ["STATUS_CLIENT", "NOTICE", "WARN", "ERR"]
 /// HALT, so this is a bound on a pathological case rather than the
 /// expected wait.
 private let kTorThreadExitPoll = 0.25
-private let kTorThreadExitAttempts = 80
+private let kTorThreadExitAttempts = 140
 
 /// How often the stop path re-asks a tor that is on its way out to exit,
 /// and how many times. It repeats because the control port may not be open
 /// yet when the stop lands.
-private let kTorHaltRetryDelay = 2.0
-private let kTorHaltRetries = 12
+private let kTorHaltRetryDelay = 1.0
+private let kTorHaltRetries = 30
+
+/// How long the plugin keeps trying to reach tor's control port, as a poll
+/// interval and a count.
+///
+/// How long tor takes to write its port file and accept a connection is a
+/// property of the device, not of this app: a cold start that reads geoip
+/// on a busy phone takes seconds. This budget was three attempts inside
+/// 1.5 seconds, which is what turned a slow start into "Could not reach the
+/// Tor control port" and left behind a tor nobody could talk to.
+private let kTorAttachPoll = 0.5
+private let kTorAttachAttempts = 60
 
 /// Event-channel side of the Tor log (TOR-018).
 ///
@@ -344,35 +355,51 @@ class TorControllerPlugin: NSObject {
       note("The previous tor has not exited after \(attempt) shutdown requests.")
       return
     }
-    attachQueue.async { TorControllerPlugin.halt(config) }
+    attachQueue.async { [weak self] in self?.halt(config) }
     stateQueue.asyncAfter(deadline: .now() + kTorHaltRetryDelay) { [weak self] in
       self?.haltExitingLocked(attempt: attempt + 1)
     }
   }
 
-  /// Connect to [config]'s control port and ask tor to quit. Best effort on
-  /// every step: a failure here means exactly what not trying would, and
-  /// the caller retries.
+  /// Connect to [config]'s control port and ask tor to quit.
+  ///
+  /// Best effort on every step, and every step says why it failed: an
+  /// orphan that will not die is the difference between Retry working and
+  /// Retry being dead for the rest of the process, and "it did not work"
+  /// is not something a bug report can act on.
   ///
   /// HALT (SIGTERM) rather than SHUTDOWN (SIGINT): SHUTDOWN waits
   /// `ShutdownWaitLength` when tor believes it is a server, HALT never
   /// does. The `disconnect()` after it sends SHUTDOWN as well, which covers
   /// a tor that does not recognise HALT.
-  private static func halt(_ config: TorConfiguration) {
-    guard let portFile = config.controlPortFile, let cookie = config.cookie else { return }
+  private func halt(_ config: TorConfiguration) {
+    guard let portFile = config.controlPortFile else {
+      note("The previous tor published no control port; it cannot be asked to quit.")
+      return
+    }
     let controller = TorController(controlPortFile: portFile)
     do {
       try controller.connect()
     } catch {
+      note("The previous tor's control port is not answering yet: \(error.localizedDescription)")
       return
     }
-    controller.authenticate(with: cookie) { success, _ in
+    guard let cookie = config.cookie else {
+      note("The previous tor's control cookie is unreadable; it cannot be asked to quit.")
+      controller.disconnect()
+      return
+    }
+    controller.authenticate(with: cookie) { [weak self] success, error in
       guard success else {
+        self?.note(
+          "The previous tor refused the control cookie: "
+            + (error?.localizedDescription ?? "no reason given"))
         controller.disconnect()
         return
       }
       controller.sendCommand("SIGNAL", arguments: ["HALT"], data: nil) { _, _, stop in
         stop.pointee = true
+        self?.note("Asked the previous tor to quit.")
         controller.disconnect()
         return true
       }
@@ -431,98 +458,105 @@ class TorControllerPlugin: NSObject {
         ? "Tor thread started with no bridges configured."
         : "Tor thread started with \(pendingTorrcOptions.count) extra torrc option(s).")
 
-    // tor needs a moment to write its control-port file before the
-    // controller can attach.
-    attachQueue.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-      self?.attachController(config, generation: generation)
-    }
+    attachLocked(config, thread: thread, generation: generation, attempt: 0)
   }
 
-  /// Runs on `attachQueue`, never on `stateQueue`: it sleeps between
-  /// retries. `config` is passed in rather than read back off the shared
-  /// property so this function touches no state it does not own.
-  private func attachController(_ config: TorConfiguration, generation: Int) {
+  /// One attempt to reach tor's control port, scheduled from the state
+  /// queue and carried out on `attachQueue`.
+  ///
+  /// A loop of short attempts rather than one blocking retry run: tor opens
+  /// its control port when the device lets it, and the previous budget
+  /// (three tries inside 1.5 seconds) failed runs that would have been fine
+  /// a second later. Each attempt re-checks the run it belongs to, so a
+  /// stop during the wait costs nothing and a later run is never queued
+  /// behind an abandoned one.
+  ///
+  /// [thread] is passed rather than read off the shared property: it is the
+  /// one piece of the run this queue may look at, and `isFinished` on an
+  /// NSThread is safe from any thread (BUG-007).
+  private func attachLocked(
+    _ config: TorConfiguration, thread: TorThread, generation: Int, attempt: Int
+  ) {
+    guard starting, generation == self.generation else { return }
+    guard !thread.isFinished else {
+      // A tor that is already gone did not refuse the connection, it
+      // rejected its own configuration and exited — which it does before
+      // the control port exists, so its reason is not on any surface this
+      // app can read. Naming the difference is the only diagnosis
+      // available, and a bad bridge line is what usually causes it.
+      failLocked(
+        "Tor exited before opening its control port: it rejected its configuration. "
+          + "A bridge line is the usual cause.",
+        generation: generation)
+      return
+    }
+    let waited = Double(attempt) * kTorAttachPoll
+    guard attempt < kTorAttachAttempts else {
+      failLocked(
+        "Could not reach the Tor control port after \(Int(waited)) seconds.",
+        generation: generation)
+      return
+    }
     guard let portFile = config.controlPortFile else {
-      stateQueue.async {
-        self.failLocked("Tor did not publish a control port.", generation: generation)
-      }
+      failLocked("Tor did not publish a control port.", generation: generation)
       return
     }
-    let controller = TorController(controlPortFile: portFile)
-
-    // Both of the next two steps are racy against a tor that has only just
-    // started: the control port refuses connections and the auth cookie
-    // reads back nil for a beat after the port file appears. Retry rather
-    // than fail the whole bootstrap on a timing artifact.
-    var connectError: Error?
-    for _ in 0..<3 {
-      do {
-        connectError = nil
-        try controller.connect()
-        break
-      } catch {
-        connectError = error
-        Thread.sleep(forTimeInterval: 0.25)
-      }
-    }
-    if let error = connectError {
-      stateQueue.async {
-        // A tor that is already gone did not refuse the connection, it
-        // rejected its own configuration and exited — which it does before
-        // the control port exists, so its reason is not on any surface this
-        // app can read. Naming the difference is the only diagnosis
-        // available, and a bad bridge line is what usually causes it.
-        let exited = self.thread?.isFinished ?? true
-        self.failLocked(
-          exited
-            ? "Tor exited before opening its control port: it rejected its configuration. "
-              + "A bridge line is the usual cause."
-            : "Could not reach the Tor control port: \(error.localizedDescription)",
-          generation: generation)
-      }
-      return
-    }
-    note("Control port attached.")
-
-    var cookie: Data?
-    for _ in 0..<3 {
-      cookie = config.cookie
-      if cookie != nil { break }
-      Thread.sleep(forTimeInterval: 0.25)
-    }
-    guard let cookie = cookie else {
-      stateQueue.async {
-        self.failLocked("Tor control cookie unreadable.", generation: generation)
-      }
-      return
+    if attempt > 0, attempt % 10 == 0 {
+      note("Still waiting for tor's control port (\(Int(waited))s).")
     }
 
-    controller.authenticate(with: cookie) { [weak self] _, error in
+    attachQueue.async { [weak self] in
       guard let self = self else { return }
-      self.stateQueue.async {
-        // A stop() may have landed while this handshake was in flight. Its
-        // teardown already ran, so adopting this controller now would leave
-        // a live control connection attached to a runtime nobody is
-        // tracking — the resurrection half of BUG-007.
-        //
-        // Disconnecting rather than merely dropping it: `disconnect()`
-        // sends SIGNAL SHUTDOWN, and for a tor that was stopped before its
-        // control port answered, this handshake is the only thing that can
-        // still ask it to exit.
-        guard self.starting, generation == self.generation else {
-          controller.disconnect()
-          return
+      let retry = {
+        self.stateQueue.asyncAfter(deadline: .now() + kTorAttachPoll) {
+          self.attachLocked(
+            config, thread: thread, generation: generation, attempt: attempt + 1)
         }
-        // Publishing the controller happens here, on the queue that owns it.
-        self.controller = controller
-        if let error = error {
-          self.failLocked(
-            "Tor control authentication failed: \(error.localizedDescription)",
-            generation: generation)
-          return
+      }
+      let controller = TorController(controlPortFile: portFile)
+      do {
+        try controller.connect()
+      } catch {
+        // Not a failure: the port file may not be written yet, or the
+        // listener may not be accepting. Both resolve themselves.
+        retry()
+        return
+      }
+      // The cookie lands with the port, not before it, so an unreadable one
+      // here is the same timing artifact as a refused connection.
+      guard let cookie = config.cookie else {
+        controller.disconnect()
+        retry()
+        return
+      }
+      self.note("Control port answered after \(Int(waited))s; authenticating.")
+      controller.authenticate(with: cookie) { [weak self] _, error in
+        guard let self = self else { return }
+        self.stateQueue.async {
+          // A stop() may have landed while this handshake was in flight. Its
+          // teardown already ran, so adopting this controller now would leave
+          // a live control connection attached to a runtime nobody is
+          // tracking — the resurrection half of BUG-007.
+          //
+          // Disconnecting rather than merely dropping it: `disconnect()`
+          // sends SIGNAL SHUTDOWN, and for a tor that was stopped before its
+          // control port answered, this handshake is the only thing that can
+          // still ask it to exit.
+          guard self.starting, generation == self.generation else {
+            controller.disconnect()
+            return
+          }
+          // Publishing the controller happens here, on the queue that owns it.
+          self.controller = controller
+          if let error = error {
+            self.failLocked(
+              "Tor control authentication failed: \(error.localizedDescription)",
+              generation: generation)
+            return
+          }
+          self.note("Control port authenticated.")
+          self.observeLocked(controller, generation: generation)
         }
-        self.note("Control port authenticated.")
-        self.observeLocked(controller, generation: generation)
       }
     }
   }
