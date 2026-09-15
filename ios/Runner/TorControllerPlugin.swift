@@ -387,7 +387,32 @@ class TorControllerPlugin: NSObject {
   /// parse. So connecting a second time turns every success into that
   /// error, and the two cases cannot be told apart from the throw. Ask
   /// `isConnected`, which means what it says (BUG-013).
+  /// `host:port` from tor's control-port file, or nil while it is absent,
+  /// empty or half-written.
+  ///
+  /// Mirrors the framework's own parse (split on `=`, then on `:`) so that
+  /// anything this accepts, its initializer also accepts.
+  static func parseControlPortFile(_ portFile: URL) -> (host: String, port: UInt16)? {
+    guard let content = try? String(contentsOf: portFile, encoding: .utf8) else {
+      return nil
+    }
+    let value = content.components(separatedBy: "=").last?
+      .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    let parts = value.components(separatedBy: ":")
+    guard parts.count == 2, !parts[0].isEmpty,
+          let port = UInt16(parts[1]), port > 0
+    else { return nil }
+    return (parts[0], port)
+  }
+
   private static func connectedController(to portFile: URL) -> TorController? {
+    // Read the file ourselves first. `TORController(controlPortFile:)` reads
+    // it inside its initializer and `NSAssert`s on one that is missing or
+    // does not parse. A release build compiles those out and hands back a
+    // controller with a nil host; a debug build -- which is every
+    // integration run -- raises and the process aborts. tor writes this file
+    // when its listener is up, so every attach before that would abort.
+    guard parseControlPortFile(portFile) != nil else { return nil }
     let controller = TorController(controlPortFile: portFile)
     if controller.isConnected { return controller }
     try? controller.connect()

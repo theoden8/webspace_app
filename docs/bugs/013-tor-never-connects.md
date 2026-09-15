@@ -193,6 +193,32 @@ early is still unknown, and the next run is what says it. "Failed to foreground 
 open returned 1" appears just before the launch and has not been ruled in or out.
 
 
+### Attempt 8 — The tier's app was aborting, not skipping
+**Date:** 2026-09-15 · **Files:** `ios/Runner/TorControllerPlugin.swift`,
+`ios/Podfile`, `macos/Podfile`, `test/js/tor_bootstrap_observability.test.js`
+**What it did:** the tier printed a macOS crash report this time: `Webspace`,
+`EXC_CRASH (SIGABRT)`, launched 19:49:35 and dead 19:49:46 — the app aborted ten
+seconds in, which is what "two ticks and no tests were found" was all along.
+Tor.framework asserts two things this app does deliberately:
+`NSAssert(host, @"Provided file doesn't seem to be a valid control port file...")`
+in `initWithControlPortFile:`, and `NSAssert(_thread == nil, @"There can only be one
+TORThread per process")` in `TORThread`, whose static is set once and never cleared.
+A release build compiles both out — which is why the shipped app attaches and
+restarts — and a debug build, which is every `flutter test -d macos`, raises and
+aborts. The plugin now reads and parses the port file itself before handing it to
+the framework (rejecting a missing, empty or half-written one), and both Podfiles
+compile the pod's assertions out with `NS_BLOCK_ASSERTIONS=1`, in the Tor target
+only.
+**Why:** the attach loop builds a controller on its first attempt, before tor has
+written anything, and the restart scenario builds a second thread by design. Neither
+is an error; the framework's asserts are simply stricter than its release behaviour,
+and the tier is the only place they are live.
+**Why it was partial:** it stops the abort. Whether the scenarios then pass is the
+next run's answer, and the asserts are compiled out rather than satisfied — a real
+second concurrent TORThread would now be silent in debug too, which is what the
+generation guard and exit watch (attempt 6 of BUG-007) exist to prevent.
+
+
 ## Known open gaps
 
 1. **No tier runs the plugin on iOS, and the macOS tier has never returned a verdict.**
