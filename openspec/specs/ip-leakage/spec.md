@@ -189,6 +189,21 @@ Webview navigation continues to use SOCKS5 via its native channel — the
 patched iOS / macOS plugins' `WKWebsiteDataStore.proxyConfigurations` and
 Android's `inapp.ProxyController` — independently of the Dart-side path.
 
+The native binding SHALL be verified by its effect rather than by the
+call that requests it: the plugin's settings parser discards a field it
+cannot see, so a webview can report a proxy it never bound (BUG-014). A
+site whose proxy refuses connections SHALL therefore never reach its
+origin.
+
+#### Scenario: A refused proxy does not become a direct load
+
+**Given** site "Acme" has proxy `SOCKS5 127.0.0.1:<closed port>`
+**And** the platform binds the proxy per WebView (iOS 17+ / macOS 14+)
+**When** the site loads a page served from a loopback origin
+**Then** the origin receives no request for it
+**And** an unproxied control load from the same harness does reach that
+origin, so a page that simply failed to load cannot pass for a bound proxy
+
 #### Scenario: SOCKS5 favicon fetch tunnels through the SOCKS5 server
 
 **Given** site "Acme" has proxy `SOCKS5 127.0.0.1:9050`
