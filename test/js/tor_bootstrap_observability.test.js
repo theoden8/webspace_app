@@ -329,3 +329,34 @@ test('the plugin type-checks somewhere cheaper than a device build', () => {
       + 're-read the pinned one rather than adjusting the stub');
   }
 });
+
+test('the macOS Runner inherits the pods\' linker flags', () => {
+  // IPtProxy declares `s.libraries = 'resolv'`, which reaches the app only
+  // through the Pods xcconfig. The macOS Runner carried
+  // `OTHER_LDFLAGS = ""` at target level, which shadows that xcconfig, and
+  // the Podfile hook that rewrites the setting kept the shadow: "" is truthy
+  // in Ruby, so its nil guard produced [""] rather than ["$(inherited)"].
+  // The macOS link then failed on the Go runtime's res_9_ninit / res_9_nsearch
+  // / res_9_nclose. iOS was spared only because its project sets no value at
+  // all.
+  const pbx = fs.readFileSync(
+    path.join(repoRoot, 'macos/Runner.xcodeproj/project.pbxproj'), 'utf8');
+  const assignments = pbx.match(/OTHER_LDFLAGS = [^;]*;/g) || [];
+  assert.ok(assignments.length > 0,
+    'macos/Runner.xcodeproj must set OTHER_LDFLAGS; a missing one inherits, '
+    + 'but this asserts the committed value rather than its absence');
+  for (const line of assignments) {
+    assert.ok(line.includes('$(inherited)'),
+      `macos/Runner.xcodeproj: ${line} drops the pods' linker flags`);
+  }
+
+  // Both hooks rewrite the same setting, so both have to survive a value
+  // that is present but empty.
+  for (const rel of ['ios/Podfile', 'macos/Podfile']) {
+    const podfile = fs.readFileSync(path.join(repoRoot, rel), 'utf8');
+    assert.match(podfile, /ldflags = nil if ldflags\.respond_to\?\(:empty\?\) && ldflags\.empty\?/,
+      `${rel} must treat an empty OTHER_LDFLAGS as unset`);
+    assert.match(podfile, /ldflags\.unshift\('\$\(inherited\)'\) unless ldflags\.include\?\('\$\(inherited\)'\)/,
+      `${rel} must keep $(inherited) in the flags it writes back`);
+  }
+});

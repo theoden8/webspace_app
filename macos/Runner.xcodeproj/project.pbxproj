@@ -691,7 +691,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				OTHER_LDFLAGS = "";
+				OTHER_LDFLAGS = "$(inherited)";
 				PROVISIONING_PROFILE_SPECIFIER = "$(WEBSPACE_PROVISIONING_PROFILE)";
 				SWIFT_VERSION = 5.0;
 			};
@@ -837,7 +837,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				OTHER_LDFLAGS = "";
+				OTHER_LDFLAGS = "$(inherited)";
 				PROVISIONING_PROFILE_SPECIFIER = "$(WEBSPACE_PROVISIONING_PROFILE)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -871,7 +871,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				OTHER_LDFLAGS = "";
+				OTHER_LDFLAGS = "$(inherited)";
 				PROVISIONING_PROFILE_SPECIFIER = "$(WEBSPACE_PROVISIONING_PROFILE)";
 				SWIFT_VERSION = 5.0;
 			};
