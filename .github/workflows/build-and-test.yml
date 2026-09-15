@@ -1311,7 +1311,11 @@ jobs:
           fi
           exit $rc
 
+      # Runs even when the Tor step above failed: that step is one file, and
+      # hiding the other eighteen -- the proxy-binding leak gate among them --
+      # behind it turns one red scenario into no coverage at all.
       - name: Run macOS integration tests
+        if: success() || failure()
         timeout-minutes: 45
         run: |
           set -x
