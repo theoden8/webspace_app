@@ -88,22 +88,35 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
     final scheme = theme.colorScheme;
     final s = _status;
 
+    // Centred, but scrollable when the text does not fit: the error branch
+    // carries tor's own message at whatever length tor chose, and a large
+    // accessibility text scale multiplies it. A Column that overflows shows
+    // stripes and swallows the Retry button.
     Widget centered(List<Widget> children) => Container(
           color: scheme.surface,
-          alignment: Alignment.center,
           padding: const EdgeInsets.all(Spacing.xl),
-          child: SizedBox(
-            width: _columnWidth,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: children,
+          child: LayoutBuilder(
+            builder: (context, constraints) => SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Center(
+                  child: SizedBox(
+                    width: _columnWidth,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: children,
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
         );
 
     if (s is TorErrored) {
       final copy = torFailureCopy(loc, s.failure.kind);
+      final detail = s.failure.detail;
       return centered([
         Icon(torFailureIcon(s.failure.kind),
             size: _glyphSize, color: scheme.error),
@@ -119,6 +132,20 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
           textAlign: TextAlign.center,
           style: theme.textTheme.bodySmall
               ?.copyWith(color: scheme.onSurfaceVariant),
+        ),
+        const SizedBox(height: Spacing.sm),
+        // The raw message, as on the status card and for the same reason:
+        // the classified copy is a guess from patterns, and this is what
+        // makes a wrong guess visible. This screen is where a user is left
+        // when a site will not load, so "no idea why" has to end here and
+        // not only in Dev Tools.
+        Text(
+          detail,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: scheme.onSurfaceVariant,
+            fontStyle: FontStyle.italic,
+          ),
         ),
         const SizedBox(height: Spacing.md),
         // Same pair as the status card, and for a stronger reason: this is

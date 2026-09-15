@@ -16,8 +16,10 @@ projection ([formal/README.md](../../formal/README.md)); this class is guarded i
 **Tests:** [android/app/src/test/kotlin/.../AdblockEngineNativeTest.kt](../../android/app/src/test/kotlin/org/codeberg/theoden8/webspace/AdblockEngineNativeTest.kt)
 (concurrent readers/writers don't deadlock or throw) and
 [test/js/native_bgtask_completion_funnel.test.js](../../test/js/native_bgtask_completion_funnel.test.js)
-(structural gate: completion only through the funnel). The intercept cache (attempt 3) has
-no dedicated guard yet — see open gaps.
+(structural gate: completion only through the funnel) and
+[test/js/tor_bootstrap_observability.test.js](../../test/js/tor_bootstrap_observability.test.js)
+(structural gate: one `TorThread` per process, reached only through the exit wait). The
+intercept cache (attempt 3) has no dedicated guard yet — see open gaps.
 
 ## Symptom
 
@@ -157,6 +159,36 @@ about whether the runtime actually routes to the right jar (that still needs a d
 `MULTI_PROFILE` and two live profiles, untested at any tier). It covers only Android's
 `MyCookieManager`: gap 2 below, the same class in the same fork's Swift tree, remains
 unguarded and is the obvious next file to point this technique at.
+
+### Attempt 6 — Tor: a process-singleton restarted from a slot that was already cleared
+**Date:** 2026-09-15 · **Files:** `ios/Runner/TorControllerPlugin.swift`,
+`test/js/tor_bootstrap_observability.test.js`
+**What it did:** `stop()` set `self.thread = nil` and called `thread.cancel()`, then the next
+`start()` read `thread == nil` as "no tor is running" and constructed a second `TorThread`.
+Neither half holds: `cancel()` only sets `NSThread.isCancelled`, which tor's main loop never
+reads, and the running tor is a **process singleton** — `TORThread.init` asserts
+`There can only be one TORThread per process` against a `__weak` static (a debug build traps),
+and two `tor_run_main`s in one address space contend for the data-directory lock, which tor
+resolves by exiting the process it is linked into. The fix makes the resource identity-guarded
+rather than slot-guarded: `stop()` hands the thread to `exitingThread` and asks tor to exit
+over the control port (`disconnect()` sends `SIGNAL SHUTDOWN`, which a client tor obeys
+immediately), `start()` waits on `exitingThread.isFinished` before launching and fails with a
+named error rather than launching beside it, and a `generation` counter bumped by every start
+and stop makes an earlier run's handshake, catch-up read or failure a no-op instead of
+resurrecting or overwriting the current one.
+**Why:** every user-reachable path that stops Tor is followed by a start within seconds — the
+Retry button on the bootstrap interstitial (`TorEngine.restart`), the 60-second idle stop
+followed by reopening a Tor site, and the 90-second bootstrap timeout, which stops the runtime
+and leaves Retry as the only thing to do. Retry on a feature that was not connecting was
+therefore the most likely thing a user would tap, and the most likely thing to take the app
+down with it.
+**Why it was partial:** it covers the one native singleton this app owns and only the path
+where tor's control port answered — when the handshake never completes there is nothing left
+that can ask that tor to exit, so the process keeps it until it is killed, and every later
+start reports the named failure instead of connecting. The class-level gate is structural
+(a single `TorThread(` construction, reached only through the exit wait), not a concurrency
+test: no CI tier in this repo builds or runs Swift.
+
 
 ## Known open gaps
 
