@@ -407,3 +407,33 @@ test('the Tor scenario reports before the tier spends its budget', () => {
   assert.match(step, /WEBSPACE_TOR_NETWORK: '1'/,
     'the Tor step must carry the network opt-in');
 });
+
+test('both Apple targets register the plugin where the engine exists', () => {
+  // The macOS registration sat behind
+  // `NSApplication.shared.windows.first` in the app delegate, which returns
+  // quietly when the window is not up yet -- and under `flutter test -d
+  // macos` it is not. The tier's first run answered every Tor call with
+  // MissingPluginException. It now registers beside RegisterGeneratedPlugins.
+  const mac = fs.readFileSync(
+    path.join(repoRoot, 'macos/Runner/MainFlutterWindow.swift'), 'utf8');
+  const generated = mac.indexOf('RegisterGeneratedPlugins(');
+  const tor = mac.indexOf('TorControllerPlugin(');
+  assert.ok(generated > 0 && tor > generated,
+    'macos/Runner/MainFlutterWindow.swift must register the Tor plugin after '
+    + 'the generated ones, where the engine is known to exist');
+  assert.match(mac, /private var torControllerPlugin/,
+    'the window must hold the plugin; a released one stops answering');
+
+  const delegate = fs.readFileSync(
+    path.join(repoRoot, 'macos/Runner/AppDelegate.swift'), 'utf8');
+  assert.ok(!delegate.includes('TorControllerPlugin'),
+    'macos/Runner/AppDelegate.swift must not register it a second time, '
+    + 'behind a window lookup that can silently skip');
+
+  // iOS keeps its own: there the delegate owns a window by the time
+  // didFinishLaunching returns, and it is the shipping path.
+  const ios = fs.readFileSync(
+    path.join(repoRoot, 'ios/Runner/AppDelegate.swift'), 'utf8');
+  assert.match(ios, /torControllerPlugin = TorControllerPlugin\(/,
+    'iOS must still register the plugin');
+});

@@ -6,9 +6,6 @@ import UserNotifications
 class AppDelegate: FlutterAppDelegate {
   private var pendingShareUrl: String?
   private var shortcutsPlugin: ShortcutsPlugin?
-  /// Same runtime as iOS, behind the same developer-mode gate (TOR-007),
-  /// and the one an integration tier can actually drive (TOR-021).
-  private var torControllerPlugin: TorControllerPlugin?
   private let shareChannelName = "org.codeberg.theoden8.webspace/share_intent"
 
   /// Mirrors `macos/ShareExtension/ShareViewController.swift`. macOS
@@ -59,7 +56,6 @@ class AppDelegate: FlutterAppDelegate {
       let controller = window.contentViewController as? FlutterViewController
     else { return }
     shortcutsPlugin = ShortcutsPlugin(messenger: controller.engine.binaryMessenger)
-    torControllerPlugin = TorControllerPlugin(messenger: controller.engine.binaryMessenger)
     let channel = FlutterMethodChannel(
       name: shareChannelName,
       binaryMessenger: controller.engine.binaryMessenger
