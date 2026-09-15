@@ -1,10 +1,13 @@
 ## ADDED Requirements
 
-### Requirement: TOR-001 - Embedded Tor runtime on iOS
+### Requirement: TOR-001 - Embedded Tor runtime on Apple platforms
 
-The system SHALL embed `iCepa/Tor.framework` on iOS and expose its
-SOCKS5 listener to the rest of the app via a Flutter method channel
-plugin. The runtime SHALL bind only to the loopback interface
+The system SHALL embed `iCepa/Tor.framework` on iOS and macOS and
+expose its SOCKS5 listener to the rest of the app via a Flutter method
+channel plugin. One source SHALL serve both
+(`darwin/TorControllerPlugin.swift`, compiled by the iOS and macOS
+Runner targets), because the macOS build is what the integration tier
+drives (TOR-021) and a copy would drift from what iOS ships. The runtime SHALL bind only to the loopback interface
 (`127.0.0.1`), never to a routable interface, and SHALL pick a SOCKS5
 port dynamically via `SocksPort auto` rather than hardcoding `9050`.
 
@@ -185,8 +188,8 @@ not forced to migrate.
 
 ### Requirement: TOR-007 - Platform and developer-mode gate
 
-`TorService` SHALL only operate on iOS in the first cut, **and only
-while developer mode is on**. `TorService.isAvailable` SHALL be the
+`TorService` SHALL operate on iOS and macOS, **and only while
+developer mode is on**. `TorService.isAvailable` SHALL be the
 conjunction of the two, and SHALL be the single reader both the
 per-site and app-global proxy-type dropdowns consult; with it false the
 `TOR` option SHALL be absent from both. Existing per-site SOCKS5
@@ -220,6 +223,18 @@ Turning developer mode off SHALL release the refcount holders already
 taken rather than leave the runtime pinned up for a feature the user
 can no longer reach.
 
+**macOS carries it on the same terms as iOS.** It is behind developer
+mode, it is not a promoted feature, and it is the platform whose
+integration tier can run the real control-port handshake (TOR-021).
+Both platforms SHALL pin the same pod versions: a skew would mean the
+tier tests something other than what iOS ships.
+
+The macOS floor moves with the pod. `Tor` is a macOS 11 pod, so
+`platform :osx`, `MACOSX_DEPLOYMENT_TARGET` and the
+`LSMinimumSystemVersion` that derives from it are 11.0, and macOS 10.15
+is no longer a supported floor — state it in the listing
+([docs/releasing-macos.md](../../../../../docs/releasing-macos.md)).
+
 #### Scenario: Tor is absent until developer mode is on
 
 - **GIVEN** the app is running on iOS with developer mode off
@@ -241,12 +256,12 @@ can no longer reach.
 - **THEN** the "Route through Tor" switch is not rendered
 - **AND** the manual proxy fields are rendered as before
 
-#### Scenario: macOS hides the Tor switch (initial release)
+#### Scenario: macOS hides the Tor switch until developer mode is on
 
-- **GIVEN** the app is running on macOS
+- **GIVEN** the app is running on macOS with developer mode off
 - **WHEN** the user opens a site's Proxy settings block
 - **THEN** the "Route through Tor" switch is not rendered
-- **AND** the manual proxy fields are rendered as before
+- **AND** turning developer mode on makes it available, as on iOS
 
 #### Scenario: iOS renders the Tor switch
 
@@ -901,3 +916,47 @@ edge case. Recorded as attempt 6 in
 - **THEN** it is recognised as belonging to a previous run, and the
   controller is disconnected rather than adopted
 - **AND** that disconnect is what asks the orphaned tor to exit
+
+---
+
+### Requirement: TOR-021 - The runtime is exercised by an integration tier
+
+Every other Tor test drives a fake `TorRuntime`, which cannot fail the
+way the real one does: TOR-019 and TOR-020 were both defects in the
+conversation with tor, and both shipped. The system SHALL therefore
+carry an integration scenario that runs against the real plugin.
+
+It runs on macOS, because iOS has no integration tier here and macOS
+reuses the same harness natively (INTEG-009). The plugin source is
+shared (`darwin/TorControllerPlugin.swift`, compiled by both Apple
+targets) rather than copied, so what the tier exercises is what iOS
+ships.
+
+The scenario SHALL assert, without depending on the Tor network:
+
+- the control-port handshake completes and the runtime leaves
+  `starting`,
+- a `bootstrapping` status carries tor's own phase (TOR-018),
+- tor's own log lines reach `LogService` under their own tag,
+- a restart returns the runtime to a live state rather than taking the
+  process down (TOR-020).
+
+Reaching `up` needs the network to permit tor, so the scenario SHALL
+require it only where the run opted in (`WEBSPACE_TOR_NETWORK=1`, which
+the CI step sets) and SHALL otherwise degrade to a skip carrying the
+captured log.
+
+#### Scenario: The tier runs the real handshake
+
+- **GIVEN** a macOS build whose pods carry tor
+- **WHEN** the integration scenario starts the runtime
+- **THEN** it observes a bootstrap phase, tor's log, and a successful
+  restart
+- **AND** a failure names what tor said rather than a timeout
+
+#### Scenario: A build with no plugin behind the channels fails loudly
+
+- **GIVEN** a build where the plugin did not register
+- **WHEN** the scenario runs
+- **THEN** it fails naming the missing runtime, rather than passing on a
+  runtime that was never there

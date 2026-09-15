@@ -1,4 +1,13 @@
-import Flutter
+// One source, both Apple Runners (TOR-021). The macOS build is what the
+// integration tier drives, so what it exercises is the code iOS ships
+// rather than a copy of it; the only thing that differs per platform is
+// which Flutter module the channels come from.
+#if canImport(FlutterMacOS)
+  import FlutterMacOS
+#else
+  import Flutter
+#endif
+
 import Foundation
 import IPtProxy
 import Tor

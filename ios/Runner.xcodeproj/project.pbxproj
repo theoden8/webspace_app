@@ -82,7 +82,7 @@
 		7AC100002ED2DC5600515811 /* LocationPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LocationPlugin.swift; sourceTree = "<group>"; };
 		7AC100022ED2DC5600515813 /* BackgroundTaskPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = BackgroundTaskPlugin.swift; sourceTree = "<group>"; };
 		7AC300002ED2DC5600515830 /* MediaSessionPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MediaSessionPlugin.swift; sourceTree = "<group>"; };
-		A11C0DE100000000000000T1 /* TorControllerPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TorControllerPlugin.swift; sourceTree = "<group>"; };
+		A11C0DE100000000000000T1 /* TorControllerPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = TorControllerPlugin.swift; path = ../darwin/TorControllerPlugin.swift; sourceTree = SOURCE_ROOT; };
 		7AC200002ED2DC5600515820 /* ShortcutsPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ShortcutsPlugin.swift; sourceTree = "<group>"; };
 		7AC200022ED2DC5600515821 /* WebSpaceAppIntents.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = WebSpaceAppIntents.swift; sourceTree = "<group>"; };
 		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Release.xcconfig; path = Flutter/Release.xcconfig; sourceTree = "<group>"; };
