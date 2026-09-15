@@ -45,6 +45,18 @@ String torTranscript() {
       : entries.join('\n');
 }
 
+/// The detail of a control-channel failure, or null for anything else.
+///
+/// The distinction this file turns on: tor not reaching the network is the
+/// run's environment, and tor not reaching its own control port is our bug.
+/// They arrive as the same `TorErrored`, and treating them alike is how a
+/// broken handshake passed as "no network here" (BUG-013).
+String? controlChannelFailure(TorStatus status) {
+  if (status is! TorErrored) return null;
+  final failure = classifyTorFailure(status.message);
+  return failure.kind == TorFailureKind.controlChannel ? status.message : null;
+}
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -103,6 +115,13 @@ void main() {
     expect(spoke, isTrue,
         reason: 'the plugin never left "starting", so the control-port '
             'handshake did not complete:\n${torTranscript()}');
+    // Leaving "starting" for an error is not completing the handshake. The
+    // wait above is satisfied by either, so the failure that this file was
+    // written for would otherwise travel on to the network assertions and
+    // be reported as a network problem, or skipped outright.
+    expect(controlChannelFailure(status), isNull,
+        reason: 'the plugin never reached tor over its control port:\n'
+            '${torTranscript()}');
 
     // TOR-018: the phase, not just a percentage. Before the fix TAG and
     // SUMMARY were read off the event and dropped at the platform seam, so
@@ -144,6 +163,9 @@ void main() {
       expect(TorService.instance.socksEndpoint, isNotNull);
       expect(TorService.instance.socksFor(siteId: 'site-1'), isNotNull,
           reason: 'a connected runtime must hand a site its SOCKS settings');
+    } else if (controlChannelFailure(outcome) != null) {
+      // Never a skip, on any run: nothing here depends on the network.
+      fail('Tor never answered on its control port:\n${torTranscript()}');
     } else if (torRequired) {
       fail('Tor did not connect on a run that required it:\n'
           '${torTranscript()}');
@@ -168,6 +190,9 @@ void main() {
         reason: 'the runtime never came back after a restart:\n'
             '${torTranscript()}');
     expect(TorService.instance.status, isNot(isA<TorStopped>()));
+    expect(controlChannelFailure(TorService.instance.status), isNull,
+        reason: 'the restarted runtime never reached tor\'s control port:\n'
+            '${torTranscript()}');
   }, timeout: const Timeout(Duration(minutes: 8)));
 
   testWidgets('a restart inside the handshake window still comes back',
