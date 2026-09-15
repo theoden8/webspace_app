@@ -1331,6 +1331,7 @@ jobs:
             TIMEOUT="$(command -v gtimeout || true)"
           fi
           status=0
+          failed=""
           for t in integration_test/*_test.dart; do
             [ "$(basename "$t")" = "screenshot_test.dart" ] && continue
             # Android-only window-PixelCopy suite; skip its no-op build here.
@@ -1348,13 +1349,25 @@ jobs:
             # the 45-minute cap this loop spends.
             [ "$(basename "$t")" = "tor_test.dart" ] && continue
             echo "::group::$t"
+            rc=0
             if [ -n "$TIMEOUT" ]; then
-              "$TIMEOUT" -k 30s 12m fvm flutter test "$t" -d macos --ci || status=$?
+              "$TIMEOUT" -k 30s 12m fvm flutter test "$t" -d macos --ci || rc=$?
             else
-              fvm flutter test "$t" -d macos --ci || status=$?
+              fvm flutter test "$t" -d macos --ci || rc=$?
+            fi
+            if [ $rc -ne 0 ]; then
+              status=$rc
+              failed="$failed $(basename "$t")"
             fi
             echo "::endgroup::"
           done
+          # Named, at the end, where the tail of the log is: nineteen files
+          # each print thousands of lines, so which one failed was otherwise
+          # only findable by paging back through the whole job.
+          if [ -n "$failed" ]; then
+            echo "::error::macOS tier failures:$failed"
+            echo "=== macOS tier failures:$failed ==="
+          fi
           if [ $status -ne 0 ]; then
             echo "=== recent macOS crash reports ==="
             ls -t "$HOME/Library/Logs/DiagnosticReports/" 2>/dev/null | head || true
