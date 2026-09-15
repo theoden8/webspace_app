@@ -118,6 +118,7 @@ import 'package:webspace/services/virtual_media_picker.dart';
 import 'package:webspace/services/virtual_microphone_service.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
@@ -1214,7 +1215,7 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   StreamSubscription<TrustedHostEntry>? _untrustSub;
   StreamSubscription<TorStatus>? _torStatusSub;
-  bool _lastTorUp = false;
+  TorStatus _lastTorStatus = const TorStopped();
 
   @override
   void initState() {
@@ -1238,20 +1239,21 @@ class _WebSpacePageState extends State<WebSpacePage>
     // this listener a webview built during bootstrap stays bound to a null
     // SOCKS endpoint for its whole lifetime, so a later Up transition
     // silently loads the site direct (the fail-open flavour of TOR-008).
-    // Dispose any TOR-bound webview when the runtime crosses Up in either
-    // direction; the next build fetches a fresh binding from
+    // Dispose any TOR-bound webview whenever the endpoint it would be bound
+    // to changes; the next build fetches a fresh binding from
     // TorService.socksFor, or falls back to the interstitial when Up gave
-    // way to error / stopped.
-    _lastTorUp = TorService.instance.status.isUp;
+    // way to error / stopped. Endpoint rather than up-ness: a restart comes
+    // back on a different loopback port, and a webview still pointing at the
+    // old one reaches nothing at all.
+    _lastTorStatus = TorService.instance.status;
     _torStatusSub =
         TorService.instance.statusStream.listen(_onTorStatusChanged);
   }
 
   void _onTorStatusChanged(TorStatus s) {
     if (!mounted) return;
-    final nowUp = s.isUp;
-    if (nowUp == _lastTorUp) return;
-    _lastTorUp = nowUp;
+    if (!torBindingChanged(_lastTorStatus, s)) return;
+    _lastTorStatus = s;
     var anyTorSite = false;
     for (final m in _webViewModels) {
       if (resolveEffectiveProxy(m.proxySettings, siteId: m.siteId).type !=

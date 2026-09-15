@@ -280,6 +280,22 @@ is no longer a supported floor — state it in the listing
 
 The system SHALL fail closed when a `TOR` request originates while `TorService.status != up`: Dart-side seams via `outboundHttp.clientFor` MUST return `OutboundClientBlocked` (never falling back to a direct connection), and webview navigation MUST be intercepted and rewritten to a Flutter-rendered bootstrap interstitial (`webspace://tor-bootstrap?next=<encoded>`) which auto-resumes navigation once `up`.
 
+On iOS and macOS the webview's proxy is bound once, at construction, so a
+binding that goes stale is as bad as one that was never made: tor picks its
+loopback port from the OS, a restart comes back on a different one, and a
+webview still pointing at the old port reaches nothing while failing closed.
+The system SHALL therefore rebuild every TOR-bound webview whenever the SOCKS
+endpoint changes — compared as an endpoint, not as "is the runtime up", since
+a restart is `up` on both sides of the change.
+
+#### Scenario: A restart on a new port rebinds the sites
+
+- **GIVEN** site A has `type = TOR` and a webview built while the runtime was
+  `up(127.0.0.1:50496)`
+- **WHEN** the runtime restarts and reports `up(127.0.0.1:50818)`
+- **THEN** site A's webview is disposed and rebuilt against the new endpoint
+- **AND** the user does not have to restart the app for the site to load
+
 #### Scenario: Pre-bootstrap favicon fetch fails closed
 
 - **GIVEN** site A has `type = TOR` and `TorService.status == bootstrapping(20)`
