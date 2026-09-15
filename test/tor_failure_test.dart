@@ -31,6 +31,13 @@ void main() {
         'Tor control cookie unreadable.',
         'Tor control authentication failed: bad cookie',
         'Tor reported no usable SOCKS listener.',
+        // The one failure where tor is still running rather than stopped:
+        // its control port ignored every shutdown request, so the process
+        // cannot start another (TOR-020). "Tor stopped unexpectedly" is the
+        // wrong thing to tell that user, and this is what keeps it out.
+        'The previous Tor is still running: its control port did not answer a '
+            'shutdown request, so a new one cannot start. Restarting the app '
+            'clears it.',
       ]) {
         expect(classifyTorFailure(m).kind, TorFailureKind.controlChannel,
             reason: '"$m" is a defect on our side of the channel');

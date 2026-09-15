@@ -169,4 +169,38 @@ void main() {
             '${torTranscript()}');
     expect(TorService.instance.status, isNot(isA<TorStopped>()));
   }, timeout: const Timeout(Duration(minutes: 8)));
+
+  testWidgets('a restart inside the handshake window still comes back',
+      (tester) async {
+    if (!TorService.instance.isAvailable) {
+      markTestSkipped('no Tor runtime on this platform (TOR-007)');
+      return;
+    }
+
+    // The case the first scenario cannot reach: a stop that lands before the
+    // control port answers. Nothing has adopted a controller yet, so the
+    // plugin has to ask that tor to quit over a connection it opens itself.
+    // Without that, the orphan holds the process's one tor slot and every
+    // later start refuses -- which is what the Retry button became on a
+    // device whose first bootstrap failed (TOR-020).
+    await TorService.instance.restart();
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    await TorService.instance.restart();
+
+    final recovered = await waitFor(
+      () => TorService.instance.status is TorBootstrapping ||
+          TorService.instance.status is TorUp,
+      const Duration(seconds: 90),
+    );
+    expect(recovered, isTrue,
+        reason: 'the runtime did not come back after a restart mid-handshake:'
+            '\n${torTranscript()}');
+    expect(
+      LogService.instance.allEntriesMerged
+          .any((e) => e.message.contains('still running')),
+      isFalse,
+      reason: 'a previous tor was left holding the process:\n'
+          '${torTranscript()}',
+    );
+  }, timeout: const Timeout(Duration(minutes: 5)));
 }

@@ -123,12 +123,38 @@ test('one tor per process, and a start waits for the last one to leave', () => {
     'start must go through the exit wait, not straight to a launch');
 
   const stop = functionBody(swiftCode, 'stop');
-  assert.match(stop, /exitingThread = thread/,
-    'stop must hand the running thread to the exit watch');
+  assert.match(functionBody(swiftCode, 'retireRunningLocked'), /exitingThread = thread/,
+    'a retired run must hand its thread to the exit watch');
   assert.ok(!/thread\?\.cancel\(\)/.test(stop),
     'NSThread.cancel() does not stop tor; SIGNAL SHUTDOWN over the control port does');
   assert.match(stop, /disconnect\(\)/,
     'stop must disconnect the controller, which is what asks tor to exit');
+});
+
+test('a stop can reach a tor it never adopted a controller for', () => {
+  // The stop path used to be `controller?.disconnect()`, which is a no-op
+  // when no controller was ever adopted -- a runtime stopped before its
+  // handshake landed, or one whose handshake failed. That tor then ran
+  // until the app was killed and every later start refused, because only
+  // one tor may run per process (TOR-020). BUG-007 attempt 7.
+  const halt = functionBody(swiftCode, 'halt');
+  assert.match(halt, /TorController\(controlPortFile:/,
+    'the halt path must open its own control connection, not reuse one');
+  assert.match(halt, /authenticate\(with: cookie\)/,
+    'it must authenticate with the configuration cookie');
+  assert.match(halt, /"SIGNAL", arguments: \["HALT"\]/,
+    'it must ask tor to quit');
+
+  const retire = functionBody(swiftCode, 'retireRunningLocked');
+  assert.match(retire, /exitingConfiguration = configuration/,
+    'the configuration must outlive the run: it is what reaches the orphan');
+  assert.match(retire, /haltExitingLocked\(attempt: 0\)/,
+    'retiring a run must start asking it to quit');
+
+  for (const caller of ['stop', 'failLocked']) {
+    assert.match(functionBody(swiftCode, caller), /retireRunningLocked\(\)/,
+      `${caller} must release the process's one tor slot`);
+  }
 });
 
 test('an earlier run cannot speak for the current one', () => {
