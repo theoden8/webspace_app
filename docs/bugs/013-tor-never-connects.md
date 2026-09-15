@@ -151,6 +151,27 @@ except the funnel gate. The macOS tier that would have caught it is still the on
 executor, and it had not completed a single run when this was written.
 
 
+### Attempt 6 — The tier's first verdict: nothing was listening on macOS
+**Date:** 2026-09-15 · **Files:** `macos/Runner/MainFlutterWindow.swift`,
+`macos/Runner/AppDelegate.swift`, `test/js/tor_bootstrap_observability.test.js`
+**What it did:** hoisted into its own step (see gap 1), `integration_test/tor_test.dart`
+returned a verdict for the first time since it was written, and failed both scenarios
+with `MissingPluginException(No implementation found for method setTorrcOptions on
+channel org.codeberg.theoden8.webspace/tor)`. The macOS registration lived in
+`AppDelegate.registerShareChannelOnMainWindow()`, behind
+`guard let window = NSApplication.shared.windows.first ... else { return }` — a lookup
+that returns quietly when the window is not up, which under `flutter test -d macos` it
+is not. It now registers in `MainFlutterWindow.awakeFromNib()`, on the line after
+`RegisterGeneratedPlugins`, where the engine is known to exist.
+**Why:** the tier is the only thing that runs this plugin, and it could not have passed
+in the state it was written in — the runtime it was meant to drive was never reachable
+from it. That is the cost of adding a tier and never watching it run.
+**Why it was partial:** it fixes the Tor channel. `ShortcutsPlugin` and the share
+channel register behind the same guard and are therefore equally absent under the
+harness; nothing there fails loudly, because every consumer treats a missing channel as
+"nothing pending". Out of this change's scope, and now written down.
+
+
 ## Known open gaps
 
 1. **No tier runs the plugin on iOS, and the macOS tier has never returned a verdict.**
