@@ -14,7 +14,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const repoRoot = path.resolve(__dirname, '..', '..');
-const swiftRel = 'darwin/TorControllerPlugin.swift';
+const swiftRel = 'ios/Runner/TorControllerPlugin.swift';
 const dartRel = 'lib/services/tor_service.dart';
 const swift = fs.readFileSync(path.join(repoRoot, swiftRel), 'utf8');
 const dart = fs.readFileSync(path.join(repoRoot, dartRel), 'utf8');
@@ -195,11 +195,17 @@ test('one plugin source, built by both Apple targets', () => {
   // The macOS runtime is only worth testing because it is the same code as
   // the iOS one. A copy would drift, and the bugs this file guards lived in
   // exactly the part that would drift.
-  for (const project of ['ios/Runner.xcodeproj', 'macos/Runner.xcodeproj']) {
+  const refs = {
+    // iOS keeps the plain in-group reference it has always had: it is the
+    // shipping target, so the reference that crosses a directory boundary
+    // is the macOS one, never this.
+    'ios/Runner.xcodeproj': /path = TorControllerPlugin\.swift; sourceTree = "<group>"/,
+    'macos/Runner.xcodeproj': /path = \.\.\/ios\/Runner\/TorControllerPlugin\.swift/,
+  };
+  for (const [project, expected] of Object.entries(refs)) {
     const pbx = fs.readFileSync(
       path.join(repoRoot, project, 'project.pbxproj'), 'utf8');
-    assert.match(pbx, /path = \.\.\/darwin\/TorControllerPlugin\.swift/,
-      `${project} must build the shared darwin/ source`);
+    assert.match(pbx, expected, `${project} must reference the one source`);
     // Twice: the PBXBuildFile that defines it, and the Sources phase that
     // lists it. Matching once would pass on a file that is defined and then
     // never compiled.
@@ -208,8 +214,11 @@ test('one plugin source, built by both Apple targets', () => {
     assert.ok(compiled >= 2,
       `${project} references the shared source but does not compile it`);
   }
-  assert.ok(!fs.existsSync(path.join(repoRoot, 'ios/Runner/TorControllerPlugin.swift')),
-    'the iOS copy must be gone, not left behind to drift');
+  for (const copy of ['darwin/TorControllerPlugin.swift',
+                      'macos/Runner/TorControllerPlugin.swift']) {
+    assert.ok(!fs.existsSync(path.join(repoRoot, copy)),
+      `${copy} is a second copy of the plugin, which will drift`);
+  }
   assert.match(swift, /#if canImport\(FlutterMacOS\)/,
     'the shared source must pick its Flutter module per platform');
 });

@@ -248,7 +248,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | site-permission-badges | drawer badges for location/camera/mic/background-audio grants; real device access vs simulated |
 | site-settings-qr | share a site's configuration as a QR / `webspace://qr/site/v1/` URL; never carries secrets, cookies, user scripts or imported HTML |
 | tls-trust-prompt | system + user CA trust by default; prompt only when the OS rejects a cert, then pin (host, port, sha256) so Dart-side clients match the webview |
-| tor-proxy *(change)* | embedded Tor on iOS + macOS (one source in `darwin/`), per-site SOCKS5 circuit isolation, developer-mode gated. The macOS build is the only tier that runs the real handshake, and its Tor pod is why the macOS floor is 11.0 |
+| tor-proxy *(change)* | embedded Tor on iOS + macOS (the macOS Runner compiles `ios/Runner/TorControllerPlugin.swift`), per-site SOCKS5 circuit isolation, developer-mode gated. The macOS build is the only tier that runs the real handshake, and its Tor pod is why the macOS floor is 11.0 |
 | tracking-protection | umbrella per-site ETP: forces ClearURLs/DNS/content blocker/LocalCDN + injects anti-fingerprinting shim (Canvas/WebGL/audio/fonts/screen/hardware/timing/clientrects) seeded by siteId |
 | user-agent-identity | engine-consistent navigator identity for the per-site UA (vendor/productSub/oscpu/buildID/platform/userAgentData); complements desktop-mode |
 | upstream-webview-defects *(change)* | defects found auditing the pinned flutter_inappwebview fork's upstream tracker: a declined `onCreateWindow` still navigating on iOS/macOS, UA client hints that half-spoof, the plugin's unmasked console wrappers, the real Linux WPE build floor |

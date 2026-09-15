@@ -1245,8 +1245,8 @@ jobs:
       # log, a restart -- runs either way, so if GitHub's macOS runners ever
       # stop being able to reach tor, drop this variable and the tier keeps
       # its teeth. This is the only automated tier that runs the real Tor
-      # plugin: iOS has no runtime tier here, and macOS builds the same
-      # source (darwin/TorControllerPlugin.swift).
+      # plugin: iOS has no runtime tier here, and macOS compiles the same
+      # source (ios/Runner/TorControllerPlugin.swift).
       - name: Run macOS integration tests
         timeout-minutes: 45
         env:
