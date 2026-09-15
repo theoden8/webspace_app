@@ -649,7 +649,7 @@ class TorControllerPlugin: NSObject {
     // asynchronous event can answer first, after which it removes itself
     // and CIRCUIT_ESTABLISHED is never delivered again (TOR-019). The
     // status observer below handles that action instead.
-    controller.listenForEvents(kTorControlEvents) { _, _ in }
+    controller.listen(forEvents: kTorControlEvents) { _, _ in }
 
     statusObserver = controller.addObserver(forStatusEvents: {
       [weak self] (type, _, action, arguments) -> Bool in
