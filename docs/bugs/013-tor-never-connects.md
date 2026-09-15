@@ -7,8 +7,9 @@ class stays open until a tier actually runs the plugin — see open gaps)
 TOR-018 (the bootstrap says what it is doing), TOR-019 (one control connection, read
 before subscribing), TOR-020 (one tor per process; a stop asks it to exit).
 **Tests:** `integration_test/tor_test.dart` (the only tier that runs the plugin, macOS
-only) and `test/js/tor_bootstrap_observability.test.js` (structural). Every other Tor
-test drives a fake `TorRuntime`.
+only), `test/js/tor_bootstrap_observability.test.js` (structural) and
+`tool/swift_typecheck/check.sh` (compiles it, runs nothing). Every other Tor test drives
+a fake `TorRuntime`.
 
 ## Symptom
 
@@ -101,11 +102,34 @@ carries tor's own words. The log file is also new state on disk, and the control
 subscription it replaces is gone, so a future change that wants both has to reconcile them.
 
 
+### Attempt 4 — The file nothing compiles
+**Date:** 2026-09-15 · **Files:** `ios/Runner/TorControllerPlugin.swift`,
+`tool/swift_typecheck/`, `.github/workflows/build-and-test.yml`, `scripts/test_all.sh`,
+`test/js/tor_bootstrap_observability.test.js`
+**What it did:** attempt 3 shipped `controller.listenForEvents(_:completion:)`, which
+Tor.framework renamed to `listen(forEvents:completion:)`; the user hit it in Xcode. A
+second selector error had reached a device build the same way. `tool/swift_typecheck/`
+type-checks the plugin against hand-transcribed stub modules (`Flutter`, `Tor`,
+`IPtProxy`) using any Swift 5 toolchain, in about a second; it is the first step of the
+Apple CI job and part of `scripts/test_all.sh`, and skips when no `swiftc` is installed.
+The gate asserts both call sites and that each stub still names the pod version the
+Podfile pins.
+**Why:** CI does build this file — forty minutes into the one job that compiles Swift,
+and `cancel-in-progress` means the next push cancels the run before it gets there. Every
+build-apple run on this branch was cancelled, so the error reached a person instead. The
+cost of a wrong selector should be seconds, not a TestFlight round trip.
+**Why it was partial:** type-checking is not execution — it catches selectors, labels and
+types, and nothing about timing, ordering or lifetime, which is every bug above it in this
+file. A stub is also only as good as the header it was transcribed from: it can agree
+with a call the real framework rejects. It narrows open gap 1 to its important half.
+
+
 ## Known open gaps
 
 1. **No tier runs the plugin on iOS.** `integration_test/tor_test.dart` runs the same
    source on macOS and has never executed in CI (it landed with the branch that added it).
-   Every failure in this file was first observed on a user's device.
+   Every failure in this file was first observed on a user's device. `tool/swift_typecheck`
+   (attempt 4) covers only whether the file compiles; nothing executes a line of it.
 2. **The policy is in the wrong layer.** Retry budgets, the orphan-halt schedule, the exit
    wait and the generation guard are all decisions, and they sit in Swift. Moving them
    into `TorEngine` — with the plugin reduced to `startThread` / `attachOnce` /
