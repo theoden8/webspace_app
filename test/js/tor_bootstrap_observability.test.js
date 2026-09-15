@@ -382,3 +382,28 @@ test('one funnel opens the control connection, and it asks isConnected', () => {
   assert.ok(body.includes('isConnected'),
     `${swiftRel}: connectedController must decide on isConnected, not on a throw`);
 });
+
+test('the Tor scenario reports before the tier spends its budget', () => {
+  // It rode the alphabetical loop, 17th of 19, inside a step capped at 45
+  // minutes that already spends ~36 on the other files -- and every push
+  // cancels the job before then. It therefore never returned a verdict on
+  // any of the bugs above: each one was reported from a device first. Its
+  // own step, run first, is what makes it a gate rather than a hope.
+  const workflow = fs.readFileSync(
+    path.join(repoRoot, '.github/workflows/build-and-test.yml'), 'utf8');
+  const apple = workflow.slice(workflow.indexOf('\n  build-apple:'));
+  const own = apple.indexOf('flutter test integration_test/tor_test.dart');
+  const loop = apple.indexOf('for t in integration_test/*_test.dart');
+  assert.ok(own > 0, 'the Tor scenario must have a step of its own');
+  assert.ok(loop > 0, 'the macOS tier loop must still be there');
+  assert.ok(own < loop, 'the Tor scenario must run before the tier loop');
+  assert.match(apple.slice(loop),
+    /\[ "\$\(basename "\$t"\)" = "tor_test\.dart" \] && continue/,
+    'the loop must skip what the step above already ran');
+
+  // The network opt-in belongs to that step: it is what turns "never
+  // reached the network" from a skip into a failure (TOR-021).
+  const step = apple.slice(apple.lastIndexOf('- name:', own), own);
+  assert.match(step, /WEBSPACE_TOR_NETWORK: '1'/,
+    'the Tor step must carry the network opt-in');
+});
