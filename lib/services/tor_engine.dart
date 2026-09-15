@@ -82,6 +82,23 @@ class TorUp extends TorStatus {
   String toString() => 'up($host:$port)';
 }
 
+/// The loopback endpoint a webview would be bound to for [status], or null
+/// when there is nothing to bind to.
+String? torSocksEndpoint(TorStatus status) =>
+    status is TorUp ? '${status.host}:${status.port}' : null;
+
+/// Whether a webview bound while the runtime was [previous] has to be rebuilt
+/// now that it is [next].
+///
+/// The binding is frozen at WebView construction on iOS and macOS, so the
+/// question is whether the endpoint changed — not whether the runtime is up.
+/// A restart hands out a fresh loopback port, and tor's own port is chosen by
+/// the OS, so Up -> Up is a different address more often than not. A webview
+/// left on the old one reaches nothing, and TOR-008 keeps it from falling
+/// back to direct, so the site simply never loads until the app is restarted.
+bool torBindingChanged(TorStatus previous, TorStatus next) =>
+    torSocksEndpoint(previous) != torSocksEndpoint(next);
+
 class TorErrored extends TorStatus {
   TorErrored(String message, {TorFailure? failure})
       : failure = failure ?? classifyTorFailure(message);
