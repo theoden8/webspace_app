@@ -161,7 +161,7 @@ test('a stop can reach a tor it never adopted a controller for', () => {
   // until the app was killed and every later start refused, because only
   // one tor may run per process (TOR-020). BUG-007 attempt 7.
   const halt = functionBody(swiftCode, 'halt');
-  assert.match(halt, /TorController\(controlPortFile:/,
+  assert.match(halt, /connectedController\(to: portFile\)/,
     'the halt path must open its own control connection, not reuse one');
   assert.match(halt, /authenticate\(with: cookie\)/,
     'it must authenticate with the configuration cookie');
@@ -359,4 +359,26 @@ test('the macOS Runner inherits the pods\' linker flags', () => {
     assert.match(podfile, /ldflags\.unshift\('\$\(inherited\)'\) unless ldflags\.include\?\('\$\(inherited\)'\)/,
       `${rel} must keep $(inherited) in the flags it writes back`);
   }
+});
+
+test('one funnel opens the control connection, and it asks isConnected', () => {
+  // TORController(controlPortFile:) connects inside its initializer, and
+  // connect() on an already-connected controller returns NO without writing
+  // an error -- which Swift raises as _GenericObjCError error 0. A second
+  // connect() therefore reports every success as that failure, which is what
+  // kept the runtime from ever reaching `up` on a device whose tor was
+  // running and listening the whole time. The rule is structural because no
+  // tier here runs the plugin: construct in one place, and decide there by
+  // isConnected rather than by a throw.
+  const body = functionBody(swiftCode, 'connectedController');
+  for (const call of ['TorController(controlPortFile:', '.connect()']) {
+    const inFile = swiftCode.split(call).length - 1;
+    const inFunnel = body.split(call).length - 1;
+    assert.equal(inFunnel, 1, `${swiftRel}: connectedController must ${call}`);
+    assert.equal(inFile, inFunnel,
+      `${swiftRel}: ${call} appears ${inFile - inFunnel} time(s) outside `
+      + 'connectedController; every control connection goes through it');
+  }
+  assert.ok(body.includes('isConnected'),
+    `${swiftRel}: connectedController must decide on isConnected, not on a throw`);
 });

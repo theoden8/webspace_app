@@ -377,6 +377,23 @@ class TorControllerPlugin: NSObject {
     }
   }
 
+  /// A live control connection to [portFile], or nil if there is none.
+  ///
+  /// `TORController(controlPortFile:)` opens the connection inside its own
+  /// initializer, and `connect()` answers an already-connected controller
+  /// with a bare NO and no error written — which Swift raises as
+  /// "The operation couldn't be completed. (Foundation._GenericObjCError
+  /// error 0.)", the same thing it raises for a port file that does not
+  /// parse. So connecting a second time turns every success into that
+  /// error, and the two cases cannot be told apart from the throw. Ask
+  /// `isConnected`, which means what it says (BUG-013).
+  private static func connectedController(to portFile: URL) -> TorController? {
+    let controller = TorController(controlPortFile: portFile)
+    if controller.isConnected { return controller }
+    try? controller.connect()
+    return controller.isConnected ? controller : nil
+  }
+
   /// Connect to [config]'s control port and ask tor to quit.
   ///
   /// Best effort on every step, and every step says why it failed: an
@@ -393,11 +410,8 @@ class TorControllerPlugin: NSObject {
       note("The previous tor published no control port; it cannot be asked to quit.")
       return
     }
-    let controller = TorController(controlPortFile: portFile)
-    do {
-      try controller.connect()
-    } catch {
-      note("The previous tor's control port is not answering yet: \(error.localizedDescription)")
+    guard let controller = Self.connectedController(to: portFile) else {
+      note("The previous tor's control port is not answering yet.")
       return
     }
     guard let cookie = config.cookie else {
@@ -544,12 +558,10 @@ class TorControllerPlugin: NSObject {
             config, thread: thread, generation: generation, attempt: attempt + 1)
         }
       }
-      let controller = TorController(controlPortFile: portFile)
-      do {
-        try controller.connect()
-      } catch {
-        // Not a failure: the port file may not be written yet, or the
-        // listener may not be accepting. Both resolve themselves.
+      // Not a failure when this comes back nil: the port file may not be
+      // written yet, or the listener may not be accepting. Both resolve
+      // themselves.
+      guard let controller = Self.connectedController(to: portFile) else {
         retry()
         return
       }
