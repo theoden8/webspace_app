@@ -799,16 +799,20 @@ Tor's own log SHALL be readable inside the app, through Developer Tools →
 App Logs:
 
 - The runtime's state transitions SHALL be logged as ordinary entries.
-- Tor's `NOTICE`, `WARN` and `ERR` output SHALL be captured over the
-  control port and logged under its own tag, as **sensitive** entries — a
-  notice-level line can name a bridge (TOR-017) — so they stay in the
-  memory-only ring and appear only behind the Dev Tools toggle.
-- `INFO` and `DEBUG` SHALL NOT be subscribed to: they name every
-  connection tor makes.
-- Tor's log SHALL NOT be written to a file. The control port is the
-  capture surface precisely so nothing outlives the session on disk
-  (`TorConfiguration.logfile` unset; the `Log` line stays pointed at
-  `/dev/null`).
+- Tor's own log SHALL be captured and logged under its own tag, as
+  **sensitive** entries — a notice-level line can name a bridge
+  (TOR-017) — so they stay in the memory-only ring and appear only behind
+  the Dev Tools toggle.
+- The capture SHALL come from tor's log file (`TorConfiguration.logfile`,
+  which compiles to `--Log notice file <path>`), not from the control
+  port. The control port carried it first, and that fails in the one case
+  that most needs explaining: a tor that never opens a control port.
+  Nothing was readable on a device where that happened (BUG-013). The
+  file lives in the run's data directory, is truncated at every start,
+  and is removed at stop, so it does not outlive the run that wrote it;
+  `SafeLogging 1` still scrubs it.
+- `INFO` and `DEBUG` SHALL NOT be captured: they name every connection
+  tor makes. `--Log notice` is the floor.
 - The plugin SHALL also log its own lifecycle (start, control-port
   attach, authentication, SOCKS listener, transports, stop), which covers
   the window before tor's control port answers and after it goes away.
@@ -828,6 +832,15 @@ App Logs:
 - **THEN** it reads `status/bootstrap-phase`, publishes it, and proceeds
   to read the SOCKS listener
 - **AND** the interstitial does not sit on "Starting" until the timeout
+
+#### Scenario: The waiting screen says what is happening
+
+- **GIVEN** a TOR-bound site is opening and the runtime is not up
+- **WHEN** the user looks at the interstitial
+- **THEN** it renders the most recent runtime and tor log lines, live,
+  beneath the progress bar
+- **AND** it renders them on the failure screen too, so what led there is
+  on the same screen as the failure
 
 #### Scenario: Tor's own log is in Dev Tools
 

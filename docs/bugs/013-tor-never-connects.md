@@ -75,6 +75,32 @@ measures what a real device needs. The failure it produces is still terminal for
 rather than a longer wait with the interstitial saying so. And it shares the class's open
 gap: no tier on iOS runs any of this.
 
+### Attempt 3 — Nothing could see what tor was doing
+**Date:** 2026-09-15 · **Files:** `ios/Runner/TorControllerPlugin.swift`,
+`lib/widgets/tor_bootstrap.dart`, `lib/services/log_service.dart`,
+`test/js/tor_bootstrap_observability.test.js`
+**What it did:** a device log finally arrived and said something neither of the first two
+attempts had considered: tor's thread starts, stays alive, and never writes its
+control-port file at all. Every diagnostic built so far reads the control port, so all of
+them were blind, and the framework makes it worse —
+`TORController(controlPortFile:)` parses the file *at init*, so a missing file yields a
+controller with a nil host whose `connect()` fails with an unset error, surfacing as
+"The operation couldn't be completed. (Foundation._GenericObjCError error 0.)" forever.
+tor now writes `--Log notice file <dataDir>/tor.log`, which the plugin tails into the app
+log; the attach notes say whether the port file was written and whether the thread is
+still executing; and the bootstrap interstitial renders the last few lines live, on both
+the waiting and the failure screen, instead of a mute bar.
+**Why:** the user could not tell a slow bootstrap from a dead one, and neither could I:
+three rounds of fixes were inferred from reading Tor.framework rather than from anything
+the device said. A log file is a deviation from TOR-018's "never on disk", taken
+deliberately: the control port cannot describe a tor that never opens one. It is
+truncated at start, removed at stop, and `SafeLogging 1` still applies.
+**Why it was partial:** it explains rather than fixes. tor still never opens its control
+port on that device and the cause is still unknown; this attempt exists so the next report
+carries tor's own words. The log file is also new state on disk, and the control-port log
+subscription it replaces is gone, so a future change that wants both has to reconcile them.
+
+
 ## Known open gaps
 
 1. **No tier runs the plugin on iOS.** `integration_test/tor_test.dart` runs the same

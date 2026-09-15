@@ -20,11 +20,10 @@ private let kTorLogRingCapacity = 300
 
 /// Control-port events the plugin subscribes to.
 ///
-/// `STATUS_CLIENT` drives the state machine; the three log severities are
-/// what makes a stalled bootstrap readable at all, rather than a percentage
-/// with no cause attached. `INFO` and `DEBUG` stay off deliberately: they
-/// are high-volume and name every connection tor makes.
-private let kTorControlEvents = ["STATUS_CLIENT", "NOTICE", "WARN", "ERR"]
+/// `STATUS_CLIENT` drives the state machine. tor's log used to come over
+/// this connection too; it comes from tor's log file now, because a tor
+/// that never opens a control port is precisely the one whose log matters.
+private let kTorControlEvents = ["STATUS_CLIENT"]
 
 /// How long a start waits for a previous tor to leave the process, as a
 /// poll interval and a count. A client tor exits immediately on SIGNAL
@@ -38,6 +37,17 @@ private let kTorThreadExitAttempts = 140
 /// yet when the stop lands.
 private let kTorHaltRetryDelay = 1.0
 private let kTorHaltRetries = 30
+
+/// Where tor writes its own log, inside the run's data directory, and how
+/// often the plugin forwards what is new.
+///
+/// The control port cannot carry tor's log when tor never opens one, which
+/// is the failure this exists for: on a device where the port never
+/// appeared, every surface in the app was blind and the only thing anyone
+/// could report was a spinner. The file is truncated at every start and
+/// removed at stop, and `SafeLogging 1` still scrubs it.
+private let kTorLogFileName = "tor.log"
+private let kTorLogPollInterval = 1.0
 
 /// How long the plugin keeps trying to reach tor's control port, as a poll
 /// interval and a count.
@@ -186,6 +196,12 @@ class TorControllerPlugin: NSObject {
   /// event carried, and so Dart can show it rather than a bare percentage.
   private var bootstrapTag: String?
   private var bootstrapSummary: String?
+
+  /// tor's own log file for the current run, and how much of it has been
+  /// forwarded already.
+  private var logFileURL: URL?
+  private var logFileOffset: UInt64 = 0
+  private var logPumpRunning = false
 
   /// The SOCKS endpoint as read at attach, promoted to [socksHost] /
   /// [socksPort] only once bootstrap finishes. Held apart so a status
@@ -429,15 +445,20 @@ class TorControllerPlugin: NSObject {
     // the isolation contract is legible here rather than inherited from
     // an upstream default that could change (TOR-003).
     //
-    // The `Log` line goes to /dev/null and stays there: what the app shows
-    // in Dev Tools comes off the control port (TOR-018), so tor's own
-    // output never lands in the container where it would outlive the
-    // session.
     config.options = [
       "SocksPort": "auto IsolateSOCKSAuth IsolateDestAddr",
-      "Log": "err file /dev/null",
       "SafeLogging": "1",
     ]
+    // tor's own log, which `TORConfiguration` turns into
+    // `--Log notice file <path>`. It goes to a file rather than to the
+    // control port because a tor that never opens a control port is exactly
+    // the case that needs explaining (TOR-018). Truncated here and removed
+    // on stop, so it never outlives the run that wrote it.
+    let logFile = base.appendingPathComponent(kTorLogFileName)
+    try? FileManager.default.removeItem(at: logFile)
+    config.logfile = logFile
+    logFileURL = logFile
+    logFileOffset = 0
     // Bridges go through `arguments`, not `options`: TORConfiguration
     // compiles `options` from a dictionary, so a repeated `Bridge` key
     // would collapse to whichever line hashed last. `arguments` is
@@ -457,6 +478,7 @@ class TorControllerPlugin: NSObject {
       pendingTorrcOptions.isEmpty
         ? "Tor thread started with no bridges configured."
         : "Tor thread started with \(pendingTorrcOptions.count) extra torrc option(s).")
+    startLogPumpLocked()
 
     attachLocked(config, thread: thread, generation: generation, attempt: 0)
   }
@@ -491,18 +513,27 @@ class TorControllerPlugin: NSObject {
       return
     }
     let waited = Double(attempt) * kTorAttachPoll
-    guard attempt < kTorAttachAttempts else {
-      failLocked(
-        "Could not reach the Tor control port after \(Int(waited)) seconds.",
-        generation: generation)
-      return
-    }
     guard let portFile = config.controlPortFile else {
       failLocked("Tor did not publish a control port.", generation: generation)
       return
     }
+    // Which side of the line we are on: tor has not written its port file
+    // (so it never reached its listeners), or it has and the port will not
+    // accept us. The framework cannot tell these apart — a missing file
+    // fails its connect the same opaque way — and they are different bugs.
+    let published = FileManager.default.fileExists(atPath: portFile.path)
+    guard attempt < kTorAttachAttempts else {
+      failLocked(
+        "Could not reach the Tor control port after \(Int(waited)) seconds "
+          + "(tor \(published ? "published one" : "never wrote its port file")).",
+        generation: generation)
+      return
+    }
     if attempt > 0, attempt % 10 == 0 {
-      note("Still waiting for tor's control port (\(Int(waited))s).")
+      note(
+        "Still waiting for tor's control port (\(Int(waited))s); port file "
+          + "\(published ? "written" : "not written yet"), thread "
+          + "\(thread.isExecuting ? "running" : "not running").")
     }
 
     attachQueue.async { [weak self] in
@@ -613,36 +644,12 @@ class TorControllerPlugin: NSObject {
   }
 
   private func subscribeLocked(_ controller: TorController) {
-    // Tor's own log, over the control port. tor keeps a callback log for
-    // controllers and adjusts its severity to whatever a controller asked
-    // for, so this works regardless of the `Log` line in the configuration
-    // — which points at /dev/null precisely so nothing lands on disk.
-    //
-    // `sendCommand` rather than `listenForEvents`, because the framework's
-    // public surface registers a raw-line observer only here, and its
-    // status-event observer drops every line that does not start with
-    // `STATUS_` — which is every log line. Never setting `stop` keeps the
-    // observer attached for the life of the connection; `disconnect()` on
-    // the stop path is what releases it.
-    //
-    // This also means nothing else may send SETEVENTS on this controller
-    // afterwards: tor keeps only the most recent subscription, so a
-    // narrower list silently takes the log away.
-    // `addObserver(forCircuitEstablished:)` does exactly that, which is one
-    // of two reasons CIRCUIT_ESTABLISHED is handled below instead; the
-    // other is that it follows its own SETEVENTS with a GETINFO, and drops
-    // itself for good when an event answers that read first.
-    controller.sendCommand(
-      "SETEVENTS", arguments: kTorControlEvents, data: nil
-    ) { [weak self] codes, lines, _ in
-      guard let self = self else { return false }
-      guard codes.first?.intValue == 650, let first = lines.first,
-        let line = String(data: first, encoding: .utf8),
-        let entry = TorControllerPlugin.parseLogEvent(line)
-      else { return false }
-      self.logRelay.emit(source: "tor", severity: entry.severity, message: entry.message)
-      return true
-    }
+    // `addObserver(forCircuitEstablished:)` is deliberately not used: it
+    // sends its own SETEVENTS and follows it with a GETINFO that an
+    // asynchronous event can answer first, after which it removes itself
+    // and CIRCUIT_ESTABLISHED is never delivered again (TOR-019). The
+    // status observer below handles that action instead.
+    controller.listenForEvents(kTorControlEvents) { _, _ in }
 
     statusObserver = controller.addObserver(forStatusEvents: {
       [weak self] (type, _, action, arguments) -> Bool in
@@ -786,6 +793,58 @@ class TorControllerPlugin: NSObject {
     return fields
   }
 
+  /// Forward whatever tor has written to its log since the last poll.
+  ///
+  /// A poll rather than a file-system event source: the file is written by
+  /// a thread in this process, a second is fine for reading a log a human
+  /// looks at, and there is nothing to leak if the run dies mid-line.
+  private func startLogPumpLocked() {
+    guard !logPumpRunning else { return }
+    logPumpRunning = true
+    pumpLogLocked()
+  }
+
+  private func pumpLogLocked() {
+    if let url = logFileURL, let handle = try? FileHandle(forReadingFrom: url) {
+      defer { try? handle.close() }
+      try? handle.seek(toOffset: logFileOffset)
+      if let data = try? handle.readToEnd(), !data.isEmpty {
+        logFileOffset += UInt64(data.count)
+        let text = String(decoding: data, as: UTF8.self)
+        for line in text.split(separator: "\n") where !line.isEmpty {
+          let entry = TorControllerPlugin.parseTorLogLine(String(line))
+          logRelay.emit(source: "tor", severity: entry.severity, message: entry.message)
+        }
+      }
+    }
+    guard state != "stopped" else {
+      logPumpRunning = false
+      return
+    }
+    stateQueue.asyncAfter(deadline: .now() + kTorLogPollInterval) { [weak self] in
+      self?.pumpLogLocked()
+    }
+  }
+
+  /// Split one of tor's log lines into a severity and its message.
+  ///
+  /// `Sep 15 16:29:42.123 [notice] Opening Socks listener on 127.0.0.1:0`.
+  /// The timestamp goes: every entry in the app log already carries one.
+  static func parseTorLogLine(_ line: String) -> (severity: String, message: String) {
+    guard let open = line.firstIndex(of: "["),
+      let close = line[open...].firstIndex(of: "]")
+    else { return ("notice", line) }
+    let level = String(line[line.index(after: open)..<close])
+    let rest = String(line[line.index(after: close)...])
+      .trimmingCharacters(in: .whitespaces)
+    let message = rest.isEmpty ? line : rest
+    switch level {
+    case "err": return ("err", message)
+    case "warn": return ("warn", message)
+    default: return ("notice", message)
+    }
+  }
+
   /// One line of the plugin's own lifecycle, for the window tor's log
   /// cannot describe: before the control port answers, and after it goes.
   private func note(_ message: String) {
@@ -828,6 +887,11 @@ class TorControllerPlugin: NSObject {
       self.socksPort = nil
       self.starting = false
       self.publishLocked(state: "stopped", pct: 0)
+      // After the last pump, so nothing tor wrote on its way out is lost.
+      self.pumpLogLocked()
+      if let url = self.logFileURL { try? FileManager.default.removeItem(at: url) }
+      self.logFileURL = nil
+      self.logFileOffset = 0
     }
   }
 
