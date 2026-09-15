@@ -54,6 +54,10 @@ public class TorThread: NSObject {
 }
 
 public class TorController: NSObject {
+  // Each of these connects inside the initializer ([self connect:nil]), and
+  // `connect()` on a connected controller returns NO without writing an
+  // error. The type checker cannot see either fact; it is recorded here
+  // because a stub read as a header is where the wrong assumption started.
   public init(socketURL url: URL) {}
   public init(socketHost host: String, port: UInt16) {}
   public init(controlPortFile file: URL) {}
