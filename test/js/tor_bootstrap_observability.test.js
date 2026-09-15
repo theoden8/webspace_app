@@ -61,43 +61,45 @@ test('both sides name the log channel identically', () => {
   assert.ok(dart.includes(`'${name}'`), `${dartRel} must subscribe to ${name}`);
 });
 
-test('the plugin subscribes to tor\'s own log severities', () => {
-  const events = swift.match(/kTorControlEvents = \[([^\]]*)\]/);
+test('tor\'s own log reaches the app, from a file it can always read', () => {
+  // It used to come over the control port. A tor that never opens one is
+  // exactly the tor whose log matters, and on a device where that happened
+  // every surface in the app was blind (BUG-013). tor writes to a file in
+  // the run's data directory now and the plugin tails it.
+  assert.match(swiftCode, /config\.logfile = logFile/,
+    `${swiftRel} must give tor a log file`);
+  assert.match(swiftCode, /removeItem\(at: logFile\)/,
+    'the file must be truncated at start, so a run never reads the last one');
+  const stopBody = functionBody(swiftCode, 'stop');
+  assert.match(stopBody, /removeItem\(at: url\)/,
+    'the file must not outlive the run that wrote it');
+  assert.match(stopBody, /pumpLogLocked\(\)/,
+    'the last thing tor wrote on its way out must be forwarded first');
+  assert.match(functionBody(swiftCode, 'pumpLogLocked'), /logRelay\.emit\(source: "tor"/,
+    'the tail must reach the app log');
+  assert.ok(!/"Log": "err file/.test(swiftCode),
+    'the /dev/null log target is gone; the file replaced it');
+});
+
+test('the event subscription stays as narrow as it needs to be', () => {
+  const events = swiftCode.match(/kTorControlEvents = \[([^\]]*)\]/);
   assert.ok(events, `${swiftRel} must declare the control-port event list`);
-  for (const event of ['STATUS_CLIENT', 'NOTICE', 'WARN', 'ERR']) {
-    assert.ok(events[1].includes(`"${event}"`),
-      `${swiftRel} must subscribe to ${event}`);
-  }
-  // INFO and DEBUG name every connection tor makes: high volume, and
-  // per-destination detail that has no business in an in-app log ring.
-  for (const event of ['INFO', 'DEBUG']) {
+  assert.ok(events[1].includes('"STATUS_CLIENT"'),
+    'STATUS_CLIENT drives the state machine');
+  // The log severities are no longer subscribed: they would duplicate the
+  // file tail. INFO and DEBUG never were and must not be, since they name
+  // every connection tor makes.
+  for (const event of ['NOTICE', 'WARN', 'ERR', 'INFO', 'DEBUG']) {
     assert.ok(!events[1].includes(`"${event}"`),
       `${swiftRel} must not subscribe to ${event}`);
   }
-});
-
-test('nothing re-sends SETEVENTS behind the log subscription', () => {
-  // `addObserver(forCircuitEstablished:)` and `listenForEvents` both send
-  // SETEVENTS with their own list, which drops NOTICE/WARN/ERR and leaves
-  // the log silently dead. CIRCUIT_ESTABLISHED is handled in the status
-  // observer instead.
-  for (const bad of [/forCircuitEstablished:/, /\.listenForEvents\(/]) {
-    assert.ok(!bad.test(swiftCode),
-      `${swiftRel} re-subscribes events (${bad}), unsubscribing tor's log`);
-  }
-  assert.match(swift, /case "CIRCUIT_ESTABLISHED":/,
+  assert.ok(!/forCircuitEstablished:/.test(swiftCode),
+    'that observer sends its own SETEVENTS and follows it with a GETINFO an '
+      + 'event can answer, after which it removes itself (TOR-019)');
+  assert.match(swiftCode, /case "CIRCUIT_ESTABLISHED":/,
     `${swiftRel} must handle CIRCUIT_ESTABLISHED in the status observer`);
 });
 
-test('tor\'s log still never lands on disk', () => {
-  // The control port is the log surface precisely so nothing is written to
-  // the app container, where it would outlive the session and name the
-  // bridges this device dials (TOR-017).
-  assert.match(swift, /"Log": "err file \/dev\/null"/,
-    `${swiftRel} must keep tor's file log pointed at /dev/null`);
-  assert.ok(!/\.logfile\s*=/.test(swiftCode),
-    `${swiftRel} must not set TorConfiguration.logfile`);
-});
 
 test('tor\'s own output is filed as sensitive', () => {
   // A notice-level line can name a bridge. Sensitive entries stay in the
@@ -273,4 +275,22 @@ test('one plugin source, built by both Apple targets', () => {
   }
   assert.match(swift, /#if canImport\(FlutterMacOS\)/,
     'the shared source must pick its Flutter module per platform');
+});
+
+test('the interstitial shows what is happening, not a mute bar', () => {
+  // Starting Tor is tens of seconds of nothing. A bar with no words leaves
+  // the user guessing and leaves a bug report empty, which is how a device
+  // where tor never opened its control port went unexplained (BUG-013).
+  const widget = fs.readFileSync(
+    path.join(repoRoot, 'lib/widgets/tor_bootstrap.dart'), 'utf8');
+  assert.match(widget, /class _TorLogTail/,
+    'the interstitial must render the recent Tor log lines');
+  assert.match(widget, /animation: LogService\.instance/,
+    'the tail must be live, not a snapshot taken once');
+  assert.match(widget, /recent\(\{kTorLogTag, kTorDaemonLogTag\}\)/,
+    'it must show the runtime transitions and what tor itself said');
+  // Both branches: a user staring at a stalled bootstrap and a user staring
+  // at a failure both need to see what led there.
+  assert.ok((widget.match(/_TorLogTail\(\)/g) || []).length >= 3,
+    'the tail belongs on the waiting screen and on the failure screen');
 });

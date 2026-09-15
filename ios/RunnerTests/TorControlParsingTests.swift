@@ -57,6 +57,31 @@ class TorControlParsingTests: XCTestCase {
     XCTAssertNil(TorControllerPlugin.parseLogEvent("NOTICEBOARD something"))
   }
 
+  func testTorLogLines() {
+    // What tor writes to its log file. The timestamp goes: every entry in
+    // the app log already carries one.
+    let notice = TorControllerPlugin.parseTorLogLine(
+      "Sep 15 16:29:42.123 [notice] Opening Socks listener on 127.0.0.1:0")
+    XCTAssertEqual(notice.severity, "notice")
+    XCTAssertEqual(notice.message, "Opening Socks listener on 127.0.0.1:0")
+
+    XCTAssertEqual(
+      TorControllerPlugin.parseTorLogLine("Sep 15 16:29:42.123 [warn] Nope").severity, "warn")
+    XCTAssertEqual(
+      TorControllerPlugin.parseTorLogLine("Sep 15 16:29:42.123 [err] Fatal").severity, "err")
+    XCTAssertEqual(
+      TorControllerPlugin.parseTorLogLine("Sep 15 16:29:42.123 [info] Chatty").severity, "notice")
+  }
+
+  func testTorLogLineWithoutASeverity() {
+    // A continuation line, or anything else tor decides to write: keep it
+    // whole rather than dropping it.
+    let line = "  (Closing stream)"
+    let parsed = TorControllerPlugin.parseTorLogLine(line)
+    XCTAssertEqual(parsed.severity, "notice")
+    XCTAssertEqual(parsed.message, line)
+  }
+
   func testSocksEndpoint() {
     let endpoint = TorControllerPlugin.parseSocksEndpoint("\"127.0.0.1:41337\"")
     XCTAssertEqual(endpoint?.host, "127.0.0.1")
