@@ -854,5 +854,7 @@
   "proxyTestHint": "Trimite o cerere mică prin acest proxy și arată ce se întoarce, pentru a deosebi o adresă greșită sau o parolă respinsă de un site care pur și simplu nu funcționează.",
   "proxyTestOk": "Proxy-ul funcționează",
   "proxyTestAuthRejected": "Proxy-ul a respins aceste date de autentificare",
-  "proxyTestUnreachable": "Nu s-a putut contacta proxy-ul"
+  "proxyTestUnreachable": "Nu s-a putut contacta proxy-ul",
+  "torIsolateDestAddrTitle": "Circuit separat pentru fiecare destinație",
+  "torIsolateDestAddrHint": "Fiecare site are întotdeauna propriul circuit Tor. Când această opțiune este activă, site-ul primește un circuit separat și pentru fiecare gazdă de la care încarcă, așa că o singură pagină poate ajunge pe internet de la două sau mai multe adrese de ieșire în același timp — mai multă izolare, dar un site care îți verifică adresa între propriile gazde te poate deconecta. Dezactivată, site-ul folosește o singură adresă pentru tot ce încarcă. Modificarea repornește Tor."
 }

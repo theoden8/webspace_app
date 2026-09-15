@@ -854,5 +854,7 @@
   "proxyTestHint": "Envia uma pequena requisição por este proxy e informa o que volta, para distinguir um endereço errado ou uma senha recusada de um site que está simplesmente fora do ar.",
   "proxyTestOk": "O proxy funciona",
   "proxyTestAuthRejected": "O proxy recusou estas credenciais",
-  "proxyTestUnreachable": "Não foi possível alcançar o proxy"
+  "proxyTestUnreachable": "Não foi possível alcançar o proxy",
+  "torIsolateDestAddrTitle": "Circuito separado por destino",
+  "torIsolateDestAddrHint": "Cada site sempre tem o seu próprio circuito Tor. Com isto ativado, o site também ganha um circuito separado para cada host de onde carrega, então uma mesma página pode chegar à internet a partir de dois ou mais endereços de saída ao mesmo tempo — mais isolamento, mas um site que confere o seu endereço entre os próprios hosts pode encerrar a sua sessão. Desativado, o site usa um único endereço para tudo o que carrega. Alterar isto reinicia o Tor."
 }
