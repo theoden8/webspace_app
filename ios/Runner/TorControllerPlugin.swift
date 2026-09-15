@@ -28,10 +28,16 @@ private let kTorControlEvents = ["STATUS_CLIENT", "NOTICE", "WARN", "ERR"]
 
 /// How long a start waits for a previous tor to leave the process, as a
 /// poll interval and a count. A client tor exits immediately on SIGNAL
-/// SHUTDOWN, so this is a bound on a pathological case rather than the
+/// HALT, so this is a bound on a pathological case rather than the
 /// expected wait.
 private let kTorThreadExitPoll = 0.25
-private let kTorThreadExitAttempts = 40
+private let kTorThreadExitAttempts = 80
+
+/// How often the stop path re-asks a tor that is on its way out to exit,
+/// and how many times. It repeats because the control port may not be open
+/// yet when the stop lands.
+private let kTorHaltRetryDelay = 2.0
+private let kTorHaltRetries = 12
 
 /// Event-channel side of the Tor log (TOR-018).
 ///
@@ -136,6 +142,10 @@ class TorControllerPlugin: NSObject {
   /// may run per process, so the next start waits on this rather than
   /// spawning beside it.
   private var exitingThread: TorThread?
+
+  /// That tor's configuration, kept until its thread is gone: its
+  /// control-port file and cookie are the only way left to ask it to quit.
+  private var exitingConfiguration: TorConfiguration?
 
   /// Bumped by every start and every stop. A control-port handshake, a
   /// catch-up read or a timer from an earlier run carries the generation it
@@ -272,11 +282,14 @@ class TorControllerPlugin: NSObject {
     guard starting, generation == self.generation else { return }
     if let exiting = exitingThread, !exiting.isFinished {
       guard attempt < kTorThreadExitAttempts else {
-        // Reached when the control port never attached: nothing else can
-        // ask that tor to exit, so this process cannot run another one.
-        // A named failure, rather than the crash that starting a second
-        // one would be.
-        failLocked("The previous Tor is still running and cannot be replaced.")
+        // Every shutdown request went unanswered, so this process cannot
+        // run another tor. A named failure with the one remedy left,
+        // rather than the crash that starting a second one would be. The
+        // wording keeps "control port" so it classifies as a control-
+        // channel failure rather than as tor having stopped.
+        failLocked(
+          "The previous Tor is still running: its control port did not answer a "
+            + "shutdown request, so a new one cannot start. Restarting the app clears it.")
         return
       }
       if attempt == 0 { note("Waiting for the previous tor to exit.") }
@@ -286,7 +299,84 @@ class TorControllerPlugin: NSObject {
       return
     }
     exitingThread = nil
+    exitingConfiguration = nil
     launchLocked(generation: generation)
+  }
+
+  /// Hand the running tor to the exit watch and start asking it to quit.
+  ///
+  /// Shared by the stop path and by a failure that leaves the runtime
+  /// unusable: a tor nobody can talk to must not keep sitting in the
+  /// process's one slot (TOR-020). Bumps the generation, so a handshake
+  /// still in flight for that run cannot adopt it afterwards.
+  private func retireRunningLocked() {
+    generation += 1
+    guard let thread = thread else {
+      configuration = nil
+      return
+    }
+    exitingThread = thread
+    exitingConfiguration = configuration
+    self.thread = nil
+    configuration = nil
+    haltExitingLocked(attempt: 0)
+  }
+
+  /// Keep asking the tor that is on its way out to quit, until its thread
+  /// is gone.
+  ///
+  /// The `disconnect()` on the stop path only reaches a tor whose control
+  /// port we adopted, and often we have none: a runtime stopped before the
+  /// handshake landed, or one whose handshake failed, never had a
+  /// controller, and nothing else in the process can ask that tor to quit.
+  /// It then runs until the app is killed, and because only one tor may run
+  /// per process every later start refuses (TOR-020) — which is what the
+  /// Retry button turned into for a user whose first bootstrap failed. A
+  /// fresh control connection works in both cases, and repeats because the
+  /// control port may not be open yet when the stop lands.
+  private func haltExitingLocked(attempt: Int) {
+    guard let thread = exitingThread, let config = exitingConfiguration else { return }
+    guard !thread.isFinished else {
+      exitingConfiguration = nil
+      return
+    }
+    guard attempt < kTorHaltRetries else {
+      note("The previous tor has not exited after \(attempt) shutdown requests.")
+      return
+    }
+    attachQueue.async { TorControllerPlugin.halt(config) }
+    stateQueue.asyncAfter(deadline: .now() + kTorHaltRetryDelay) { [weak self] in
+      self?.haltExitingLocked(attempt: attempt + 1)
+    }
+  }
+
+  /// Connect to [config]'s control port and ask tor to quit. Best effort on
+  /// every step: a failure here means exactly what not trying would, and
+  /// the caller retries.
+  ///
+  /// HALT (SIGTERM) rather than SHUTDOWN (SIGINT): SHUTDOWN waits
+  /// `ShutdownWaitLength` when tor believes it is a server, HALT never
+  /// does. The `disconnect()` after it sends SHUTDOWN as well, which covers
+  /// a tor that does not recognise HALT.
+  private static func halt(_ config: TorConfiguration) {
+    guard let portFile = config.controlPortFile, let cookie = config.cookie else { return }
+    let controller = TorController(controlPortFile: portFile)
+    do {
+      try controller.connect()
+    } catch {
+      return
+    }
+    controller.authenticate(with: cookie) { success, _ in
+      guard success else {
+        controller.disconnect()
+        return
+      }
+      controller.sendCommand("SIGNAL", arguments: ["HALT"], data: nil) { _, _, stop in
+        stop.pointee = true
+        controller.disconnect()
+        return true
+      }
+    }
   }
 
   private func launchLocked(generation: Int) {
@@ -685,20 +775,19 @@ class TorControllerPlugin: NSObject {
       if self.thread != nil {
         self.note(
           self.controller == nil
-            ? "Stopping tor before its control port answered; it will exit once the handshake completes."
+            ? "Stopping tor; its control port never answered, so the shutdown goes over a fresh connection."
             : "Stopping tor.")
       }
-      // `disconnect()` sends SIGNAL SHUTDOWN, which for a client makes tor
-      // exit immediately and its thread finish. That is the whole stop:
-      // `cancel()` on an NSThread only sets a flag that tor's main loop
-      // never reads, so the thread is handed to `exitingThread` and the
-      // next start waits for it rather than spawning a second tor.
+      // `disconnect()` sends SIGNAL SHUTDOWN over the controller we
+      // adopted, which for a client makes tor exit immediately. That is not
+      // the whole stop, because we often have no controller to send it
+      // over — see haltExitingLocked. `cancel()` is not part of it at all:
+      // on an NSThread it only sets a flag that tor's main loop never
+      // reads, so the thread is handed to `exitingThread` and the next
+      // start waits for it rather than spawning a second tor.
       self.controller?.disconnect()
       self.controller = nil
-      if let thread = self.thread { self.exitingThread = thread }
-      self.thread = nil
-      self.generation += 1
-      self.configuration = nil
+      self.retireRunningLocked()
       self.pendingSocksHost = nil
       self.pendingSocksPort = nil
       self.socksHost = nil
@@ -854,6 +943,16 @@ class TorControllerPlugin: NSObject {
     lastError = message
     starting = false
     logRelay.emit(source: "plugin", severity: "err", message: message)
+    // A run that failed is a run nobody can use, and leaving it alive costs
+    // the next start the whole process (TOR-020). Retry then gets a fresh
+    // tor rather than the "still running" dead end.
+    if let controller = controller {
+      if let observer = statusObserver { controller.removeObserver(observer) }
+      statusObserver = nil
+      controller.disconnect()
+      self.controller = nil
+    }
+    retireRunningLocked()
     publishLocked(state: "error", pct: bootstrapPct, tag: bootstrapTag, summary: bootstrapSummary)
   }
 
