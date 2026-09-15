@@ -971,6 +971,11 @@ jobs:
                 # BGAUDIO-009 needs a real media pipeline (WPE crash-loops on
                 # one here) and a real pauseTimers(); emulator job owns it.
                 [ "$(basename "$t")" = "background_audio_media_stop_test.dart" ] && continue
+                # The per-WebView proxy binding it checks is an iOS/macOS
+                # path -- the Linux fork binds on the session instead -- so
+                # here it would skip after paying for an app build, and this
+                # loop sits near its 45m cap.
+                [ "$(basename "$t")" = "proxy_binding_test.dart" ] && continue
                 echo "::group::$t"
                 # Hard per-test wall-clock cap: a WebView mount can deadlock
                 # the platform thread below Dart timeout layer, which would
