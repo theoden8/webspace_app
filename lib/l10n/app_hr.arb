@@ -863,5 +863,7 @@
   "unproxiedBlockProxySettings": "Postavke proxyja",
   "proxyTestOk": "Proxy radi",
   "proxyTestAuthRejected": "Proxy je odbio ove vjerodajnice",
-  "proxyTestUnreachable": "Nije moguće doseći proxy"
+  "proxyTestUnreachable": "Nije moguće doseći proxy",
+  "torIsolateDestAddrTitle": "Zaseban krug po odredištu",
+  "torIsolateDestAddrHint": "Svaka stranica uvijek dobiva vlastiti Tor krug. Kada je ovo uključeno, stranica dobiva zaseban krug i za svakog poslužitelja s kojeg učitava, pa jedna stranica može doći na internet s dvije ili više izlaznih adresa istodobno — više izolacije, ali stranica koja provjerava vašu adresu na svojim poslužiteljima može vas odjaviti. Isključeno, stranica ima jednu adresu za sve što učitava. Promjena ovoga ponovno pokreće Tor."
 }

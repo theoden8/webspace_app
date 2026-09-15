@@ -863,5 +863,7 @@
   "unproxiedBlockProxySettings": "Optiones procuratoris",
   "proxyTestOk": "Procurator operatur",
   "proxyTestAuthRejected": "Procurator has credentiales reiecit",
-  "proxyTestUnreachable": "Procurator adiri non potuit"
+  "proxyTestUnreachable": "Procurator adiri non potuit",
+  "torIsolateDestAddrTitle": "Circuitus separatus pro singulis destinationibus",
+  "torIsolateDestAddrHint": "Quaeque sedes semper proprium circuitum Tor habet. Hoc accenso, sedes etiam circuitum separatum accipit pro singulis hospitibus unde onerat, ita ut una pagina simul ex duabus pluribusve exitus inscriptionibus ad interrete perveniat — maior seiunctio, sed sedes quae inscriptionem tuam per hospites suos probat te expellere potest. Exstincto, sedes unam inscriptionem habet pro omnibus quae onerat. Haec mutatio Tor denuo incipit."
 }

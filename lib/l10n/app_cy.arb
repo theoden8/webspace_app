@@ -863,5 +863,7 @@
   "unproxiedBlockProxySettings": "Gosodiadau'r dirprwy",
   "proxyTestOk": "Mae'r dirprwy'n gweithio",
   "proxyTestAuthRejected": "Gwrthododd y dirprwy y manylion hyn",
-  "proxyTestUnreachable": "Methwyd cyrraedd y dirprwy"
+  "proxyTestUnreachable": "Methwyd cyrraedd y dirprwy",
+  "torIsolateDestAddrTitle": "Cylched ar wahân i bob cyrchfan",
+  "torIsolateDestAddrHint": "Mae pob gwefan bob amser yn cael ei chylched Tor ei hun. Gyda hyn ymlaen, mae gwefan hefyd yn cael cylched ar wahân ar gyfer pob gwesteiwr y mae'n llwytho ohono, felly gall un dudalen gyrraedd y rhyngrwyd o ddau gyfeiriad ymadael neu fwy ar yr un pryd — mwy o ynysu, ond gall gwefan sy'n gwirio dy gyfeiriad ar draws ei gwesteiwyr ei hun dy allgofnodi. Wedi'i ddiffodd, mae'r wefan yn cael un cyfeiriad ar gyfer popeth mae'n ei lwytho. Mae newid hyn yn ailgychwyn Tor."
 }
