@@ -74,6 +74,13 @@ class FakeTorRuntime implements TorRuntime {
     torrcOptions = options;
   }
 
+  @override
+  Future<void> setSocksIsolation({required bool isolateDestAddr}) async {
+    socksIsolation = isolateDestAddr;
+  }
+
+  bool? socksIsolation;
+
   void dispose() => _controller.close();
 }
 
@@ -83,12 +90,45 @@ void main() {
   setUp(() => runtime = FakeTorRuntime());
   tearDown(() => runtime.dispose());
 
-  TorEngine build({Duration? debounce, Duration? timeout}) => TorEngine(
+  TorEngine build({
+    Duration? debounce,
+    Duration? timeout,
+    Future<bool> Function()? isolateDestAddrLoader,
+  }) =>
+      TorEngine(
         runtime: runtime,
         sessionSecret: 'deadbeef',
         idleDebounce: debounce ?? kTorIdleDebounce,
         bootstrapTimeout: timeout ?? kTorBootstrapTimeout,
+        isolateDestAddrLoader: isolateDestAddrLoader,
       );
+
+  group('TOR-003 destination isolation is the user\'s choice', () {
+    test('the preference reaches the runtime before it starts', () async {
+      final e = build(isolateDestAddrLoader: () async => false);
+      await e.acquire('site-a');
+      await pumpEventQueue();
+      expect(runtime.socksIsolation, isFalse,
+          reason: 'the runtime must be told before tor is launched: the '
+              'SocksPort line is read once, at start');
+    });
+
+    test('on is carried just as explicitly as off', () async {
+      final e = build(isolateDestAddrLoader: () async => true);
+      await e.acquire('site-a');
+      await pumpEventQueue();
+      expect(runtime.socksIsolation, isTrue);
+    });
+
+    test('a loader that throws leaves the stricter default alone', () async {
+      final e = build(isolateDestAddrLoader: () async => throw 'no prefs');
+      await e.acquire('site-a');
+      await pumpEventQueue();
+      expect(runtime.socksIsolation, isNull,
+          reason: 'a failed read must never relax isolation');
+      expect(runtime.startCalls, 1, reason: 'and must not block the start');
+    });
+  });
 
   group('TOR-002 lifecycle', () {
     test('first holder starts the runtime', () async {

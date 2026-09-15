@@ -73,7 +73,16 @@ the timer and keep the runtime up.
 
 ### Requirement: TOR-003 - Per-site stream isolation via SOCKS auth
 
-`TorService.socksFor` SHALL materialize SOCKS5 settings whose username is the requesting site's `siteId` (or the reserved literal `__webspace_app_global__` for app-global Dart-side traffic) and whose password is a per-app-launch random secret. Tor SHALL be configured with `SocksPort … IsolateSOCKSAuth IsolateDestAddr` so distinct username/password tuples force distinct circuits.
+`TorService.socksFor` SHALL materialize SOCKS5 settings whose username is the requesting site's `siteId` (or the reserved literal `__webspace_app_global__` for app-global Dart-side traffic) and whose password is a per-app-launch random secret. Tor SHALL be configured with `SocksPort … IsolateSOCKSAuth` so distinct username/password tuples force distinct circuits.
+
+`IsolateDestAddr` SHALL additionally be applied by default, and SHALL be a
+user-visible setting. It splits circuits per destination *address* on top of
+the per-site split, so one page loading from two hosts exits from two relays:
+stronger isolation, at the cost of a site seeing the client arrive from two
+addresses — which a session that checks its own client IP across its hostnames
+reads as a hijack. The per-site isolation above is never optional; only this
+extra split is. The setting is read when tor launches, so changing it SHALL
+restart the runtime rather than take effect at some later start.
 
 #### Scenario: Two Tor sites get distinct exit IPs
 
@@ -275,6 +284,21 @@ is no longer a supported floor — state it in the listing
   inputs (the values persist underneath but are inert)
 
 ---
+
+#### Scenario: Turning destination isolation off gives a site one exit
+
+- **GIVEN** the app-wide "separate circuit per destination" setting is off
+- **WHEN** tor launches
+- **THEN** its `SocksPort` line carries `IsolateSOCKSAuth` and not
+  `IsolateDestAddr`
+- **AND** a site loading from several hosts reaches all of them over one
+  circuit, from one exit address
+
+#### Scenario: A failed read of the setting keeps the stricter behaviour
+
+- **GIVEN** the preference cannot be read
+- **WHEN** tor launches
+- **THEN** it launches with destination isolation on
 
 ### Requirement: TOR-008 - Fail-closed before bootstrap
 

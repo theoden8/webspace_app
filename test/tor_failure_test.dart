@@ -227,5 +227,12 @@ class _Runtime implements TorRuntime {
   @override
   Future<void> setTorrcOptions(List<(String, String)> options) async {}
 
+  @override
+  Future<void> setSocksIsolation({required bool isolateDestAddr}) async {
+    socksIsolation = isolateDestAddr;
+  }
+
+  bool? socksIsolation;
+
   void emit(TorStatus s) => _events.add(s);
 }
