@@ -448,8 +448,14 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      # packages: the action defaults to "tools platform-tools", and the
+      # obsolete "tools" package is gone from Google's repository, so the
+      # default install aborts the job with "Failed to find package 'tools'".
+      # Nothing here uses it; the emulator runner installs what it needs.
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
 
       - name: AVD snapshot cache
         id: avd-cache
