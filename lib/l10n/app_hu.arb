@@ -854,5 +854,7 @@
   "proxyTestHint": "Egyetlen kis kérést küld ezen a proxyn keresztül, és jelzi, mi érkezik vissza, így a rossz cím vagy az elutasított jelszó megkülönböztethető attól, hogy az oldal egyszerűen nem működik.",
   "proxyTestOk": "A proxy működik",
   "proxyTestAuthRejected": "A proxy elutasította ezeket az adatokat",
-  "proxyTestUnreachable": "A proxy nem érhető el"
+  "proxyTestUnreachable": "A proxy nem érhető el",
+  "torIsolateDestAddrTitle": "Külön áramkör célonként",
+  "torIsolateDestAddrHint": "Minden webhely mindig saját Tor-áramkört kap. Ha ez be van kapcsolva, a webhely külön áramkört kap minden kiszolgálóhoz is, amelyről betölt, így egyetlen oldal egyszerre két vagy több kilépési címről érheti el az internetet — erősebb elkülönítés, de az a webhely, amely a saját kiszolgálói között ellenőrzi a címedet, kiléptethet. Kikapcsolva a webhely egyetlen címet használ mindenhez, amit betölt. A módosítás újraindítja a Tort."
 }
