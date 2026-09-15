@@ -172,6 +172,27 @@ harness; nothing there fails loudly, because every consumer treats a missing cha
 "nothing pending". Out of this change's scope, and now written down.
 
 
+### Attempt 7 — The tier reached the runtime and reported nothing
+**Date:** 2026-09-15 · **Files:** `integration_test/tor_test.dart`,
+`.github/workflows/build-and-test.yml`
+**What it did:** with the plugin registered (attempt 6), the step got further than
+ever: the app launched, `[Tor/info] Starting tor.` reached the log — the runtime is
+reachable from the tier for the first time — and then both scenarios ticked green
+within 120ms of each other and `flutter test` ended with "No tests were found.",
+"0 tests passed" and exit 79. Neither body can complete in 120ms; both left through
+a branch. The file could not say which, so it now traces platform, availability,
+`torRequired` and the environment variable at `setUpAll`, marks the start and end of
+each scenario, and — the substantive change — **fails instead of skipping when the
+runtime reports unavailable on an Apple build**, where the plugin is supposed to
+exist. The step names an exit 79 for what it is.
+**Why:** a skip is how a tier that reaches nothing reports success, which is the
+failure mode this whole file is about. The previous availability check stood down
+politely on the one platform where standing down is the bug.
+**Why it was partial:** it is diagnosis, not a fix — the reason both scenarios left
+early is still unknown, and the next run is what says it. "Failed to foreground app;
+open returned 1" appears just before the launch and has not been ruled in or out.
+
+
 ## Known open gaps
 
 1. **No tier runs the plugin on iOS, and the macOS tier has never returned a verdict.**
