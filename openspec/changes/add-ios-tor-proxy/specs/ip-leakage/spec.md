@@ -126,7 +126,7 @@ traffic, and the Tor control port itself (loopback-only).
 | LocalCDN catalog download | LocalCDN cache populate | Global only | `LocalCdnService._downloadAndCache` |
 | Per-site Tor traffic (any of the above with `type = TOR`) | Same triggers as above | Tor SOCKS5 via `TorService.socksFor(siteId)` | `lib/services/tor_service.dart`, `lib/services/outbound_http.dart` (Tor branch), `lib/services/webview.dart` (`_userProxyToInappProxy` Tor branch) |
 | App-global Tor traffic (any "Global only" row with `globalOutboundProxy == TOR`) | Same triggers as above | Tor SOCKS5 via `TorService.socksFor("__webspace_app_global__")` | `lib/services/tor_service.dart`, `lib/services/outbound_http.dart` (Tor branch) |
-| Tor control port | Internal: bootstrap progress, `SIGNAL NEWNYM`, `GETINFO` | Loopback-only, no external traffic | `ios/Runner/TorControllerPlugin.swift` |
+| Tor control port | Internal: bootstrap progress, `SIGNAL NEWNYM`, `GETINFO` | Loopback-only, no external traffic | `darwin/TorControllerPlugin.swift` |
 | Moat bridge fetch | User taps "Get bridges" in Tor settings | **None — direct, deliberately** | `lib/services/tor_moat_client.dart` |
 
 #### Scenario: New outbound code path
