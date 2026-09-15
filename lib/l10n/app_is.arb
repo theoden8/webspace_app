@@ -852,5 +852,7 @@
   "proxyTestHint": "Sendir eina litla beiðni um þennan milliþjón og segir hvað kemur til baka, svo hægt sé að greina rangt vistfang eða hafnað lykilorð frá vef sem einfaldlega liggur niðri.",
   "proxyTestOk": "Milliþjónninn virkar",
   "proxyTestAuthRejected": "Milliþjónninn hafnaði þessum auðkennum",
-  "proxyTestUnreachable": "Náði ekki sambandi við milliþjóninn"
+  "proxyTestUnreachable": "Náði ekki sambandi við milliþjóninn",
+  "torIsolateDestAddrTitle": "Sérstök rás fyrir hvern áfangastað",
+  "torIsolateDestAddrHint": "Hver vefur fær alltaf sína eigin Tor-rás. Þegar þetta er kveikt fær vefurinn einnig sérstaka rás fyrir hvern hýsil sem hann hleður frá, svo ein síða getur náð til netsins frá tveimur eða fleiri útgönguvistföngum samtímis — meiri einangrun, en vefur sem athugar vistfangið þitt milli eigin hýsla getur skráð þig út. Slökkt fær vefurinn eitt vistfang fyrir allt sem hann hleður. Þessi breyting endurræsir Tor."
 }
