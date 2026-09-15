@@ -1294,6 +1294,7 @@ jobs:
       # plugin: iOS has no runtime tier here, and macOS compiles the same
       # source (ios/Runner/TorControllerPlugin.swift).
       - name: Run the Tor integration scenario
+        id: tor_scenario
         timeout-minutes: 20
         env:
           WEBSPACE_TOR_NETWORK: '1'
@@ -1350,10 +1351,17 @@ jobs:
             [ "$(basename "$t")" = "tor_test.dart" ] && continue
             echo "::group::$t"
             rc=0
+            # Kept per file so a failure can be re-printed at the end. Each
+            # file prints thousands of lines, so by the time the loop is over
+            # the one that failed is unreachable from the log's tail -- which
+            # is all an API reader gets.
+            out="${RUNNER_TEMP:-/tmp}/tier-$(basename "$t").log"
             if [ -n "$TIMEOUT" ]; then
-              "$TIMEOUT" -k 30s 12m fvm flutter test "$t" -d macos --ci || rc=$?
+              "$TIMEOUT" -k 30s 12m fvm flutter test "$t" -d macos --ci 2>&1 | tee "$out"
+              rc=${PIPESTATUS[0]}
             else
-              fvm flutter test "$t" -d macos --ci || rc=$?
+              fvm flutter test "$t" -d macos --ci 2>&1 | tee "$out"
+              rc=${PIPESTATUS[0]}
             fi
             if [ $rc -ne 0 ]; then
               status=$rc
@@ -1367,6 +1375,10 @@ jobs:
           if [ -n "$failed" ]; then
             echo "::error::macOS tier failures:$failed"
             echo "=== macOS tier failures:$failed ==="
+            for f in $failed; do
+              echo "=== $f: last 60 lines ==="
+              tail -60 "${RUNNER_TEMP:-/tmp}/tier-$f.log" || true
+            done
           fi
           if [ $status -ne 0 ]; then
             echo "=== recent macOS crash reports ==="
@@ -1377,6 +1389,13 @@ jobs:
             done
           fi
           exit $status
+
+      # Last, so the tail of the job log always says how the Tor scenario
+      # went. It runs long before the tier loop, and the loop buries it.
+      - name: Report the Tor scenario outcome
+        if: always()
+        run: |
+          echo "=== Tor scenario: ${{ steps.tor_scenario.outcome }} ==="
 
       - name: Create macOS ZIP archive
         run: |
