@@ -107,6 +107,12 @@ post_install do |installer|
       end
       runner_target.build_configurations.each do |config|
         ldflags = config.build_settings['OTHER_LDFLAGS']
+        # An empty string is truthy in Ruby, so the nil guard alone turned a
+        # committed `OTHER_LDFLAGS = ""` into [""] -- a target-level value
+        # that shadows the Pods xcconfig instead of inheriting it, and with
+        # it every flag a pod declares (IPtProxy's `s.libraries = 'resolv'`
+        # is why the macOS link failed on the Go runtime's res_9_* symbols).
+        ldflags = nil if ldflags.respond_to?(:empty?) && ldflags.empty?
         ldflags = ['$(inherited)'] unless ldflags
         ldflags = [ldflags] unless ldflags.is_a?(Array)
         ldflags = ldflags.each_with_index.reject { |f, i|
@@ -115,6 +121,7 @@ post_install do |installer|
             (f == '-force_load' && ldflags[i + 1].to_s.include?('libwebspace_adblock')) ||
             (f == '-u' && ldflags[i + 1].to_s.include?('_ws_engine_new'))
         }.map(&:first)
+        ldflags.unshift('$(inherited)') unless ldflags.include?('$(inherited)')
         needed = '-Wl,-needed_framework,webspace_adblock'
         ldflags << needed unless ldflags.include?(needed)
         config.build_settings['OTHER_LDFLAGS'] = ldflags
