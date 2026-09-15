@@ -164,6 +164,11 @@ executor, and it had not completed a single run when this was written.
    without `WEBSPACE_TOR_NETWORK=1`: a `controlChannel` error was folded into "Tor did
    not reach the network here" and marked as a skip. It now fails on every run, since
    nothing about reaching tor's own control port depends on the network.
+   And it could not have reported in time even uncancelled: the scenario rode an
+   alphabetical `for` loop over the tier's 19 files, where `tor_test.dart` sorts 17th,
+   inside a step capped at 45 minutes that already spends ~36 on the others, while its
+   own two scenarios can take 13. It now runs first, in a step of its own, so a Tor
+   regression reports minutes after the macOS build rather than after the whole tier.
 2. **The policy is in the wrong layer.** Retry budgets, the orphan-halt schedule, the exit
    wait and the generation guard are all decisions, and they sit in Swift. Moving them
    into `TorEngine` — with the plugin reduced to `startThread` / `attachOnce` /
