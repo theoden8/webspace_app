@@ -191,6 +191,33 @@ start reports the named failure instead of connecting. The class-level gate is s
 test: no CI tier in this repo builds or runs Swift.
 
 
+### Attempt 7 — Tor: the stop could only reach a tor it had already adopted
+**Date:** 2026-09-15 · **Files:** `ios/Runner/TorControllerPlugin.swift`,
+`integration_test/tor_test.dart`, `test/js/tor_bootstrap_observability.test.js`
+**What it did:** attempt 6 made a start wait for the previous tor's thread and asked that
+tor to exit with `controller?.disconnect()`, which sends `SIGNAL SHUTDOWN`. That reaches
+nothing when `controller` is nil, and it is nil for exactly the runs that most need
+stopping: one stopped before the control-port handshake landed, and one whose handshake
+failed. The orphan then held the process's only tor slot until the app was killed, so the
+wait always expired and every later start reported "The previous Tor is still running".
+Now every retirement (stop *and* failure) hands the run to an exit watch that keeps a
+fresh control connection of its own — port file plus cookie from the retired
+configuration, `SIGNAL HALT`, retried while the thread is alive — and `failLocked` releases
+the slot rather than leaving an unusable tor in it. The give-up message names the one
+remedy left and is worded so `classifyTorFailure` reads it as a control-channel failure
+instead of "Tor stopped unexpectedly", which was the opposite of what had happened.
+**Why:** a user on TestFlight whose first bootstrap failed found Retry permanently dead:
+the failure path left a tor running, and the fix from attempt 6 then correctly refused to
+start a second one. Turning a crash into a refusal was progress; the refusal still had to
+stop being reachable.
+**Why it was partial:** it still assumes the orphan has a control port to answer on. A tor
+that died before opening one cannot be signalled, though it has also already exited, and a
+tor wedged before its control port opens stays wedged. The guard is structural plus one
+integration leg on macOS that restarts inside the handshake window; iOS, where this was
+observed, still has no tier that runs the plugin at all, so the first evidence remains a
+device.
+
+
 ## Known open gaps
 
 1. **No universal structural guard.** Each instance got its own guard (or none, for the

@@ -888,10 +888,19 @@ which tor resolves by exiting the process it is linked into — taking the
 app down. `NSThread.cancel()` does not stop tor, since its main loop never
 reads the flag.
 
-Stopping the runtime SHALL ask tor to exit over the control port
-(`disconnect()` sends `SIGNAL SHUTDOWN`, which a client tor obeys
-immediately) and SHALL hand the thread to an exit watch rather than
-forgetting it. Starting SHALL wait for that thread to finish, and where it
+Stopping the runtime SHALL ask tor to exit over the control port and
+SHALL hand the thread to an exit watch rather than forgetting it. The
+request SHALL NOT depend on the controller the plugin adopted: a run
+stopped before its handshake landed, and a run whose handshake failed,
+never had one, and those are the runs most in need of stopping. The exit
+watch SHALL therefore open a control connection of its own from the
+retired run's port file and cookie, send `SIGNAL HALT`, and repeat while
+the thread is alive, since the control port may not be open yet when the
+stop lands.
+
+A run that fails SHALL be retired on the same path: a tor nobody can
+talk to must not keep the process's one slot, or Retry offers a restart
+that can never succeed. Starting SHALL wait for that thread to finish, and where it
 does not finish within the bound SHALL fail with a named error rather than
 launching a second tor. A handshake, catch-up read or failure belonging to
 an earlier run SHALL be identified as such (a generation counter bumped by
@@ -917,7 +926,16 @@ edge case. Recorded as attempt 6 in
 - **WHEN** the handshake completes
 - **THEN** it is recognised as belonging to a previous run, and the
   controller is disconnected rather than adopted
-- **AND** that disconnect is what asks the orphaned tor to exit
+- **AND** the exit watch asks that tor to quit over its own connection,
+  so the slot is free whether or not the handshake ever completed
+
+#### Scenario: Retry after a run that never reached its control port
+
+- **GIVEN** a run failed because its control port could not be reached
+- **WHEN** the user taps Retry
+- **THEN** the failed run has already been retired and asked to quit
+- **AND** the new run starts rather than reporting that the previous Tor
+  is still running
 
 ---
 
