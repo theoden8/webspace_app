@@ -23,6 +23,8 @@
 import 'dart:async';
 import 'dart:io' show Platform;
 
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
@@ -32,6 +34,11 @@ import 'package:webspace/services/tor_service.dart';
 
 /// Whether this run is the one that opted into the real Tor network.
 final bool torRequired = Platform.environment['WEBSPACE_TOR_NETWORK'] == '1';
+
+/// Where the plugin is supposed to exist, so its absence is a failure rather
+/// than a platform this file does not cover.
+final bool isApple = defaultTargetPlatform == TargetPlatform.iOS ||
+    defaultTargetPlatform == TargetPlatform.macOS;
 
 /// Everything the runtime and tor itself said, for a failure message that
 /// explains itself instead of naming a timeout.
@@ -63,9 +70,21 @@ void main() {
   late StreamSubscription<TorStatus> sub;
   final seen = <TorStatus>[];
 
+  /// Printed, not asserted: when this file reports nothing useful the log is
+  /// all there is, and the first run of it in CI reported two ticks and "no
+  /// tests were found" with no way to tell which branch each test took.
+  void trace(String message) {
+    // ignore: avoid_print
+    print('[tor-test] $message');
+  }
+
   setUpAll(() {
     DeveloperModeService.instance.debugSet(true);
     sub = TorService.instance.statusStream.listen(seen.add);
+    trace('platform=$defaultTargetPlatform '
+        'available=${TorService.instance.isAvailable} '
+        'torRequired=$torRequired '
+        'env=${Platform.environment['WEBSPACE_TOR_NETWORK']}');
   });
 
   tearDownAll(() async {
@@ -88,7 +107,15 @@ void main() {
 
   testWidgets('the runtime bootstraps, says what it is doing, and restarts',
       (tester) async {
+    trace('scenario 1 start');
     if (!TorService.instance.isAvailable) {
+      // On an Apple build the runtime is supposed to be there, so its
+      // absence is the finding rather than a reason to stand down: a skip
+      // here is how a tier that reaches nothing reports success.
+      if (isApple) {
+        fail('the Tor runtime reports unavailable on an Apple build: either '
+            'the plugin is not registered or developer mode did not take');
+      }
       // Android, Linux and the web have no plugin (TOR-007); this file is
       // driven by the macOS tier.
       expect(torRequired, isFalse,
@@ -193,11 +220,16 @@ void main() {
     expect(controlChannelFailure(TorService.instance.status), isNull,
         reason: 'the restarted runtime never reached tor\'s control port:\n'
             '${torTranscript()}');
+    trace('scenario 1 done');
   }, timeout: const Timeout(Duration(minutes: 8)));
 
   testWidgets('a restart inside the handshake window still comes back',
       (tester) async {
+    trace('scenario 2 start');
     if (!TorService.instance.isAvailable) {
+      if (isApple) {
+        fail('the Tor runtime reports unavailable on an Apple build');
+      }
       markTestSkipped('no Tor runtime on this platform (TOR-007)');
       return;
     }
