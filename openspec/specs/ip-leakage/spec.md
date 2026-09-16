@@ -195,22 +195,37 @@ cannot see, so a webview can report a proxy it never bound (BUG-014). A
 site whose proxy refuses connections SHALL therefore never reach its
 origin.
 
-On iOS and macOS a WebView binds its proxy only if it is created in the
-process's **first frame**. Every WebView built in that frame binds; a WebView
-built in any later turn does not, and nothing about its data store changes
-that — not arming the store before the network process comes up, not a fresh
-store, not a rebuilt one, not a process-wide `ProxyController` override
-(BUG-014 attempts 19-22 measure all four). Lazy WebView creation therefore
-proxies whichever site is opened first in a launch and leaves every later one
-on the device IP.
+On iOS and macOS, **only the network loads issued in the process's first
+frame are proxied.** Not the WebView, not the data store: the load. A WebView
+that used its proxy for its first load goes direct on its next navigation,
+whether its own page sets `location.href` or the app navigates it. Measured
+across attempts 19-26 of BUG-014: a store armed before the network process
+comes up changes nothing, a process-wide `ProxyController` override changes
+nothing, a WebView that merely exists in the first frame binds nothing, and
+two WebViews built together in a later frame bind nothing.
 
-Every site whose effective proxy is non-DEFAULT SHALL therefore have its
-WebView created in that first frame. A proxied site that cannot be
-(one added or re-proxied mid-session, an archive unlocked later, a Tor
-runtime that reports its SOCKS port after bootstrap) SHALL fail closed —
-blank the load rather than fetch it over the device IP — because a proxy the
-user configured and the app cannot honour is the leak this requirement
-exists to prevent.
+The measurement is not "the proxy was bound and failed". In the same run, a
+site whose proxy pointed at a closed port reached no origin at all, which is
+what a bound proxy does when it cannot connect. A load that *arrives* at the
+origin therefore had no proxy on it.
+
+The consequence is that `WKWebsiteDataStore.proxyConfigurations` cannot carry
+this feature. Proxying a site's landing page and leaking every link its user
+follows is worse than not offering the proxy, because the app reports the site
+as proxied while it is not. So on iOS and macOS the app SHALL NOT present a
+per-site proxy it can only honour for one load: a site whose effective proxy
+is non-DEFAULT SHALL fail closed — blank the load rather than fetch it over
+the device IP — until a delivery mechanism exists that survives navigation.
+
+This governs the Tor tier too. Per-site Tor on iOS and macOS rides the same
+`proxyConfigurations` path and inherits the same limit.
+
+#### Scenario: A proxied site does not leak on its second navigation
+
+**Given** site "Acme" carries `SOCKS5 127.0.0.1:<fixture>`
+**And** its first load went through that proxy
+**When** its page follows a link to a second origin
+**Then** that load does not reach the second origin directly
 
 #### Scenario: Two proxied sites in one launch each use their own proxy
 

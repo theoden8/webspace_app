@@ -1015,6 +1015,57 @@ measuring before the answer is either a fix or a statement that there cannot be
 one.
 
 
+### Attempt 26 — Both ways direct: the mechanism cannot carry the feature
+**Date:** 2026-09-16 · **Files:** `openspec/specs/ip-leakage/spec.md`
+**What it did:** measured persistence on both navigation paths, and the confound
+attempt 25 held open is closed:
+
+```
+verdict: containers=true, pair=2 of 2 proxied, direct=none,
+         refused=failed closed, persist-inpage=DIRECT, persist-loadurl=DIRECT,
+         later-pair=0 of 2 proxied, direct=a+b
+```
+
+`persist-inpage=DIRECT`. A page that navigated *itself* — `location.href` set
+from script inside the first-frame document, which is exactly what a user
+produces by clicking a link — went direct. So the earlier DIRECT was not an
+artifact of driving the webview from Dart.
+
+**The result cannot be read as "the proxy was bound and failed."** In the same
+run, `refused=failed closed`: a site whose proxy pointed at a closed port
+reached no origin at all. That is what a bound proxy does when it cannot
+connect — it fails the load, it does not fall back. A load that *arrives* at the
+origin therefore had no proxy on it. The two results together make the reading
+unambiguous.
+
+The rule in final form:
+
+> Only the network loads issued in the process's **first frame** are proxied.
+> Not the WebView, not the store: the load.
+
+And so `WKWebsiteDataStore.proxyConfigurations` cannot carry the per-site proxy.
+There is no arrangement of frames, stores, containers or process-wide overrides
+that gets past it — attempts 19-25 tried all of them. Building every proxied
+site in the first frame, which is what attempt 24 was heading towards, would
+proxy each site's landing page and leak every link after it, while the app
+reported those sites as proxied. That is worse than not offering the feature.
+
+`LEAK-003` now states the rule and requires the app to fail closed on iOS and
+macOS rather than present a proxy it can honour for one load. The Tor tier
+inherits the same limit, because per-site Tor rides the same path.
+
+One caveat kept deliberately: the verdict line appears twice in the job log
+because the tier re-prints a failing file's last sixty lines. It is one
+measurement, not a replication.
+**Why:** the conclusion removes a shipped feature on two platforms, so it had to
+survive the one explanation that would have overturned it, and be readable
+against an internal control in the same run rather than across runs.
+**Why it was partial:** the spec says fail closed; the code does not do it yet.
+Turning off a feature the user built is theirs to decide, not something to slip
+into a debugging branch — so this records the finding and puts the decision up,
+rather than shipping it.
+
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
@@ -1033,8 +1084,13 @@ one.
 3. **Reach is wider than the proxy.** The same parser carries the container id,
    the UA, the media gates and every other per-site field. Only the proxy has an
    effect-level test.
-4. **An Apple WebView built after the process's first frame cannot be
-   proxied.** Settled in attempt 22 across three arrangements. Nothing done to
+4. **On Apple, only loads issued in the process's first frame are proxied
+   (BUG-014 attempt 26), so the per-site proxy leaks on every navigation after
+   a site's first.** The app still presents the feature as working. Until it
+   fails closed, a user who pins a site to Tor or to a proxy gets one proxied
+   page and the device IP thereafter. Superseded detail, kept for lineage:
+   the earlier reading was that a WebView built after the first frame cannot be
+   proxied. Settled in attempt 22 across three arrangements. Nothing done to
    the data store beforehand changes it, and no public API reopens the window.
    So a site opened later in a session, a site whose proxy the user changes, an
    archive unlocked mid-session and a Tor site whose SOCKS port arrives after
