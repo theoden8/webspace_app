@@ -48,8 +48,16 @@ void main() {
   final applies = hostIsIOS || hostIsMacOS;
 
   late HttpServer server;
+  // Separate origins on separate ports: the fixture records CONNECT by
+  // `host:port`, so one origin per navigation is what makes a recorded
+  // CONNECT attributable. A second load to the *same* origin can also reuse
+  // the first connection, which would look like no proxy was asked at all.
+  late HttpServer deferredOrigin;
+  late HttpServer persistOrigin;
   late String originHost;
   late int port;
+  late int deferredPort;
+  late int persistPort;
   late int deadPort;
   late Socks5Fixture socks;
   InternetAddress? routable;
@@ -92,6 +100,22 @@ void main() {
       res.write('<!doctype html><html><body><p>origin</p></body></html>');
       await res.close();
     });
+    deferredOrigin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
+    deferredPort = deferredOrigin.port;
+    listenFixture(deferredOrigin, (req) async {
+      requests.add('deferred:${req.uri.path}');
+      final res = req.response..headers.contentType = ContentType.html;
+      res.write('<!doctype html><html><body><p>deferred</p></body></html>');
+      await res.close();
+    });
+    persistOrigin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
+    persistPort = persistOrigin.port;
+    listenFixture(persistOrigin, (req) async {
+      requests.add('persist:${req.uri.path}');
+      final res = req.response..headers.contentType = ContentType.html;
+      res.write('<!doctype html><html><body><p>persist</p></body></html>');
+      await res.close();
+    });
     socks = await Socks5Fixture.bind();
     // Claimed, then released: a connection there is refused rather than
     // filtered, so a bound proxy fails fast instead of timing out.
@@ -123,6 +147,8 @@ void main() {
     }
     await socks.close();
     await server.close(force: true);
+    await deferredOrigin.close(force: true);
+    await persistOrigin.close(force: true);
   });
 
   setUp(() {
@@ -150,7 +176,6 @@ void main() {
 
   var generation = 0;
   WebViewController? controller;
-  WebViewController? deferred;
 
   Future<void> mount(
     WidgetTester tester, {
@@ -226,30 +251,25 @@ void main() {
     return ok;
   }
 
-  testWidgets('every webview built in the first frame uses its proxy',
+  /// One run of this file costs an hour, and a scenario costs nothing. So
+  /// the factors get measured together rather than one per run: what the
+  /// rule is keyed to, whether a webview must load or only exist, whether a
+  /// binding survives navigation, and whether "first frame" or "any frame
+  /// with more than one webview" is the boundary. Four of the last five
+  /// runs each moved one variable, which is how attempt 20 came to be built
+  /// on a reading that one extra scenario would have refuted.
+  testWidgets('the first frame: what binds, and what a binding survives',
       (tester) async {
-    // The rule, and the only arrangement that satisfies it.
-    //
-    // Three runs with different arrangements agree (BUG-014 attempts 19-22):
-    // WebViews created in the process's first frame all bind their proxy;
-    // a WebView created in any later turn never does, whatever was done to
-    // its data store beforehand. Arming the store early is not what matters
-    // -- attempt 20 armed six stores in one call before anything touched the
-    // network and changed nothing. It is when the WKWebView is built.
-    //
-    // So this frame carries every proxied site the file uses: two on a live
-    // SOCKS5 fixture, one on a closed port, and one with nothing to load yet.
-    // The dead-proxy pane is a control in the positive direction -- a bound
-    // proxy that refuses cannot reach the origin, and a load that arrives
-    // there says the binding did not happen.
     if (!usable()) return;
     if (!PlatformInfo.isProxySupported) {
       markTestSkipped('below the proxyConfigurations floor');
       return;
     }
+    WebViewController? paneA;
+    WebViewController? paneD;
     Widget pane(String siteId, String url, UserProxySettings proxy) => SizedBox(
           width: 320,
-          height: 160,
+          height: 120,
           child: WebViewFactory.createWebView(
             config: WebViewConfig(
               siteId: siteId,
@@ -262,7 +282,8 @@ void main() {
               localCdnEnabled: false,
             ),
             onControllerCreated: (c) {
-              if (siteId == 'proxy-binding-deferred') deferred = c;
+              if (siteId == 'proxy-binding-pair-a') paneA = c;
+              if (siteId == 'proxy-binding-deferred') paneD = c;
             },
           ),
         );
@@ -284,15 +305,10 @@ void main() {
             child: pane('proxy-binding-refused',
                 'http://$originHost:$port/refused', refusedProxy()),
           ),
-          // Built here, given nothing to fetch. Whether a WebView has to
-          // *load* in the first frame to bind, or only exist, decides what
-          // the app fix costs: creating one empty WebView per proxied site
-          // at startup, or making every proxied site fetch its page at
-          // launch whether the user opens it or not.
+          // Built here, given nothing to fetch.
           KeyedSubtree(
             key: const ValueKey('deferred'),
-            child:
-                pane('proxy-binding-deferred', 'about:blank', liveProxy()),
+            child: pane('proxy-binding-deferred', 'about:blank', liveProxy()),
           ),
         ]),
       ),
@@ -300,6 +316,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pump(const Duration(milliseconds: 500));
 
+    // (1) Two proxied webviews in the process's first frame. Established
+    // over three runs; the floor for everything below.
     final both = await waitReal(
       tester,
       () => socks.targets.length >= 2,
@@ -320,11 +338,11 @@ void main() {
           'the binding',
     );
     expect(both, isTrue,
-        reason: 'a proxied webview built in the process\'s first frame did '
-            'not use its proxy, so nothing in this file holds');
+        reason: 'a proxied webview built in the first frame did not use its '
+            'proxy, so nothing else in this file holds');
 
-    // The refused pane shares the frame, so it is bound too; a bound proxy
-    // on a closed port cannot reach anything.
+    // (2) A bound proxy on a closed port cannot reach anything. The positive
+    // direction of the same claim: a load that arrives says no binding.
     await waitReal(tester, () => requests.contains('/refused'),
         label: 'refused load (must not arrive)',
         timeout: const Duration(seconds: 10));
@@ -336,46 +354,124 @@ void main() {
       reason: 'a site whose proxy refuses connections reached the origin '
           'anyway, which a bound proxy cannot do',
     );
+
+    // (3) Does a webview have to *load* in the first frame, or only exist in
+    // it? This one was built with `about:blank` and is navigated now. If
+    // existing is enough, the app can create one empty webview per proxied
+    // site at startup and keep lazy loading; if not, every proxied site has
+    // to fetch its page at launch.
+    expect(
+        await waitReal(tester, () => paneD != null,
+            label: 'deferred controller created'),
+        isTrue);
+    await tester.runAsync(() async {
+      await paneD!.nativeController.loadUrl(
+        urlRequest: inapp.URLRequest(
+          url: inapp.WebUri('http://$originHost:$deferredPort/d'),
+        ),
+      );
+    });
+    final deferredProxied = await waitReal(
+        tester, () => socks.targets.contains('$originHost:$deferredPort'),
+        label: 'deferred load through the proxy');
+    final deferredDirect = requests.contains('deferred:/d');
+    verdict.add('deferred=${deferredProxied ? "proxied" : deferredDirect ? "DIRECT" : "no load"}');
+    expect(
+      deferredDirect,
+      isFalse,
+      reason: 'a webview built in the first frame but navigated afterwards '
+          'went direct: existing in that frame is not enough, and it leaked '
+          'rather than failing closed',
+    );
+
+    // (4) Does a binding survive navigation? Every scenario so far has
+    // measured a webview's *first* load. If the proxy only covers that one,
+    // building every proxied site in the first frame fixes far less than it
+    // appears to. A separate origin on its own port, so the CONNECT the
+    // fixture records belongs to this navigation and not to a connection
+    // reused from the first load.
+    expect(
+        await waitReal(tester, () => paneA != null,
+            label: 'pair-a controller created'),
+        isTrue);
+    await tester.runAsync(() async {
+      await paneA!.nativeController.loadUrl(
+        urlRequest: inapp.URLRequest(
+          url: inapp.WebUri('http://$originHost:$persistPort/p'),
+        ),
+      );
+    });
+    final persisted = await waitReal(
+        tester, () => socks.targets.contains('$originHost:$persistPort'),
+        label: 'second navigation of a bound webview');
+    final persistDirect = requests.contains('persist:/p');
+    verdict.add('persist=${persisted ? "proxied" : persistDirect ? "DIRECT" : "no load"}');
+    expect(
+      persistDirect,
+      isFalse,
+      reason: 'a webview that used its proxy for its first load went direct '
+          'on its second, so the binding covers one navigation and the site '
+          'leaks on every link the user follows',
+    );
   });
 
-  testWidgets('a webview built empty in the first frame binds for a later load',
+  testWidgets('measurement: two proxied webviews in a later frame',
       (tester) async {
-    // Built in the frame above with `about:blank`, navigated now. If the
-    // binding survives, the app fix is cheap: create one empty WebView per
-    // proxied site at startup and let lazy loading carry on as it does. If
-    // it does not, binding needs a real load in the first frame, and every
-    // proxied site would have to fetch its page at launch.
+    // A measurement, not an assertion. "First frame" is how the rule reads
+    // after three runs, but every pair that bound was also the process's
+    // first mount, so "any frame carrying more than one webview" fits the
+    // same data. This separates them, and the answer changes what the app
+    // has to do: build every proxied site at startup, or merely build them
+    // together whenever they are built.
     if (!usable()) return;
     if (!PlatformInfo.isProxySupported) {
       markTestSkipped('below the proxyConfigurations floor');
       return;
     }
-    expect(await waitReal(tester, () => deferred != null,
-            label: 'deferred controller created'),
-        isTrue);
-    await tester.runAsync(() async {
-      await deferred!.nativeController.loadUrl(
-        urlRequest: inapp.URLRequest(
-          url: inapp.WebUri('http://$originHost:$port/deferred'),
-        ),
-      );
-    });
-    final used = await waitReal(
-        tester, () => socks.targets.any((t) => t == '$originHost:$port'),
-        label: 'deferred load through the proxy');
-    final arrivedDirect = requests.contains('/deferred');
-    verdict.add('deferred=${used && !arrivedDirect ? "proxied" : "DIRECT"}');
-    expect(
-      arrivedDirect,
-      isFalse,
-      reason: 'a webview built in the first frame but navigated later went '
-          'direct, so existing in that frame is not enough and binding needs '
-          'a load in it',
-    );
+    Widget pane(String siteId, String path) => SizedBox(
+          width: 320,
+          height: 160,
+          child: WebViewFactory.createWebView(
+            config: WebViewConfig(
+              siteId: siteId,
+              initialUrl: 'http://$originHost:$port$path',
+              proxySettings: liveProxy(),
+              clearUrlEnabled: false,
+              dnsBlockEnabled: false,
+              contentBlockEnabled: false,
+              trackingProtectionEnabled: false,
+              localCdnEnabled: false,
+            ),
+            onControllerCreated: (_) {},
+          ),
+        );
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Column(children: [
+          KeyedSubtree(
+              key: const ValueKey('late-a'),
+              child: pane('proxy-binding-late-a', '/late-a')),
+          KeyedSubtree(
+              key: const ValueKey('late-b'),
+              child: pane('proxy-binding-late-b', '/late-b')),
+        ]),
+      ),
+    ));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 500));
+    await waitReal(tester, () => socks.targets.length >= 2,
+        label: 'two proxied sites built in a later frame',
+        timeout: const Duration(seconds: 25));
+    final direct = [
+      if (requests.contains('/late-a')) 'a',
+      if (requests.contains('/late-b')) 'b',
+    ];
+    verdict.add('later-pair=${socks.targets.length} of 2 proxied, '
+        'direct=${direct.isEmpty ? "none" : direct.join("+")}');
   });
 
   testWidgets('the harness can see a load reach the origin', (tester) async {
-    // The control. Without it, the assertions above pass for any reason a
+    // The control. Without it, every assertion above passes for any reason a
     // page fails to load, which is most of them.
     if (!usable()) return;
     await mount(tester, siteId: 'proxy-binding-control', path: '/control');

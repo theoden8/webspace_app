@@ -876,6 +876,49 @@ for the sites that cannot make the frame. The deferred pane decides which
 shape.
 
 
+### Attempt 23 — Measure the factors together instead of one per run
+**Date:** 2026-09-16 · **Files:** `integration_test/proxy_binding_test.dart`
+**What it did:** changed the method rather than the product.
+
+Every run since attempt 15 has moved one variable and cost an hour, because the
+macOS tier is the only instrument. That is backwards: a *run* is expensive and a
+*scenario* is free. It is also how attempt 20 came to be built on a reading that
+one extra scenario would have refuted — `side-by-side=2 of 2` had two
+explanations, the source I had just read favoured one, and I implemented a fix
+on it instead of separating them first.
+
+So this run carries the open factors at once:
+
+* **`deferred`** — a webview built in the first frame with `about:blank` and
+  navigated afterwards. Decides whether a webview must *load* in that frame or
+  only *exist* in it, which is the difference between the app creating one empty
+  webview per proxied site at startup and every proxied site fetching its page
+  at launch.
+* **`persist`** — a webview that bound in the first frame, navigated to a second
+  origin. Every scenario in this file so far has measured a webview's *first*
+  load. If the binding covers only that one, building every proxied site in the
+  first frame fixes far less than it appears to, and a site leaks on the first
+  link its user follows. This factor should have been measured fifteen attempts
+  ago.
+* **`later-pair`** — two proxied webviews built together in a *later* frame.
+  "First frame" is how the rule reads, but every pair that bound was also the
+  process's first mount, so "any frame carrying more than one webview" fits the
+  same data. The two differ in what the app must do.
+
+The follow-up navigations run inside the same `testWidgets` as the mount, so the
+tree under test is still attached; across tests it would not be, and the result
+would be a timeout that reads like a missing binding. The two extra origins bind
+their own ports because the fixture records CONNECT by `host:port` — a second
+load to the same origin can reuse the first connection, which looks identical to
+no proxy being asked.
+**Why:** the remaining questions are independent of each other, and the cost
+structure rewards answering them in one run. Four of the last five runs moved one
+variable each.
+**Why it was partial:** it is still instrumentation. It does not fix anything —
+but it should be the last measuring run before the app change, because between
+them these three factors determine what that change has to be.
+
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
