@@ -32,6 +32,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:webspace/platform/host_platform.dart';
@@ -110,6 +111,7 @@ void main() {
   }
 
   var generation = 0;
+  WebViewController? controller;
 
   Future<void> mount(
     WidgetTester tester, {
@@ -121,6 +123,7 @@ void main() {
     // existing InAppWebView element, which keeps the platform view it
     // already had and never issues the new initial load.
     final key = ValueKey('webview-${generation++}');
+    controller = null;
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(
         body: Center(
@@ -140,7 +143,7 @@ void main() {
                   trackingProtectionEnabled: false,
                   localCdnEnabled: false,
                 ),
-                onControllerCreated: (_) {},
+                onControllerCreated: (c) => controller = c,
               ),
             ),
           ),
@@ -232,6 +235,41 @@ void main() {
       await waitReal(tester, () => requests.contains('/proxied'),
           label: 'proxied load (relayed to the origin)'),
       isTrue,
+    );
+  });
+
+  testWidgets('the engine received the proxy Dart sent it', (tester) async {
+    // Splits the seam the other scenarios can only see the far side of. The
+    // proxy is one field on `InAppWebViewSettings`, delivered over a method
+    // channel and parsed reflectively; `getSettings()` asks the engine what
+    // it actually holds. A null here means the field never crossed, which is
+    // a different bug from a field that crossed and was not applied -- and
+    // the load-level assertions cannot tell them apart.
+    if (!usable()) return;
+    if (!PlatformInfo.isProxySupported) {
+      markTestSkipped('below the proxyConfigurations floor');
+      return;
+    }
+    await mount(
+      tester,
+      siteId: 'proxy-binding-seam',
+      path: '/seam',
+      proxySettings: liveProxy(),
+    );
+    expect(await waitReal(tester, () => controller != null,
+            label: 'controller created'),
+        isTrue);
+    inapp.InAppWebViewSettings? live;
+    await tester.runAsync(() async {
+      live = await controller!.nativeController.getSettings();
+    });
+    log('native settings: proxySettings=${live?.proxySettings}');
+    expect(live, isNotNull, reason: 'the engine reported no settings at all');
+    expect(
+      live?.proxySettings?.proxyRules,
+      isNotEmpty,
+      reason: 'the engine holds no proxy: the field did not survive the '
+          'platform channel, so nothing downstream could have applied it',
     );
   });
 

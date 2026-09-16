@@ -117,6 +117,45 @@ next macOS tier says — attempt 3's verdict tells us nothing, because neither o
 scenarios was measuring what it claimed.
 
 
+### Attempt 5 — With a gate that can fail, no proxy is applied at all
+**Date:** 2026-09-16 · **Files:** `integration_test/proxy_binding_test.dart`
+**What it did:** the repaired gate (attempt 4) ran, and its verdict is unambiguous:
+**1 passed, 3 failed**. The control — an unproxied site on the routable fixture
+origin — reached the origin, so the harness works. All three proxied scenarios
+failed, and each fails in the direction that means "no proxy":
+
+  * a fresh site pointed at a *live* SOCKS5 server: the server was never asked
+    for anything (`rebound load (must arrive at the proxy) -> timeout`);
+  * a fresh site pointed at a *closed* port: the load reached the origin anyway,
+    which a bound proxy with `allowFailover` at its default cannot do;
+  * the rebind: `unproxied first load -> ok`, then the proxied one never
+    reached the proxy either.
+
+So it is not the cached container store (attempt 3's hypothesis), and it is not
+loopback (attempt 4's). The per-site proxy is not applied on a fresh webview at
+all, and `proxyUnavailable` proves the Dart side sent one: had `inappProxy` been
+null, the fail-closed branch would have rendered nothing and the *refused*
+scenario would have passed by never loading. It loaded.
+
+Ruled out by reading the pinned fork rather than guessing: the macOS plugin does
+carry the same `preWKWebViewConfiguration` proxy block as iOS (it is not an
+iOS-only feature), and `InAppWebViewSettings.toMap` does serialise
+`proxySettings` (line 3071 of the generated file), so the field is on the wire.
+That leaves the far side: `ISettings.parse` not taking the patched branch, or
+`ProxySettings.fromMap` returning nil, or the assignment not reaching the store
+the WebView ends up with.
+
+A fifth scenario now asks the engine directly — `getSettings()` on the native
+controller, asserting `proxySettings.proxyRules` is non-empty. That splits the
+seam the other four can only see the far side of: a null there means the field
+never crossed, non-null means it crossed and was not applied. The two are
+different bugs and the load-level assertions cannot tell them apart.
+**Why:** four scenarios agreeing on "no proxy" is a mechanism, but not a
+location. One `getSettings()` call is worth another cycle of hypotheses.
+**Why it was partial:** it still fixes nothing. It converts the next run from
+"which of three guesses" into a yes/no on one of them.
+
+
 ## Known open gaps
 
 1. **No general guard on the seam.** The plugin's settings parser fails open by
