@@ -854,5 +854,5 @@
   "proxyTestAuthRejected": "O proxy rexeitou estas credenciais",
   "proxyTestUnreachable": "Non se puido contactar co proxy",
   "torIsolateDestAddrTitle": "Circuíto separado por destino",
-  "torIsolateDestAddrHint": "Cada sitio ten sempre o seu propio circuíto de Tor. Con isto activado, un sitio obtén tamén un circuíto separado para cada servidor do que carga, así que unha mesma páxina pode saír a internet desde dous ou máis enderezos de saída á vez — máis illamento, pero un sitio que comproba o teu enderezo entre os seus servidores pode pecharche a sesión. Desactivado, o sitio usa un só enderezo para todo o que carga. Cambiar isto reinicia Tor."
+  "torIsolateDestAddrHint": "Cada sitio ten sempre o seu propio circuíto de Tor. Con isto activado, un sitio obtén tamén un circuíto separado para cada servidor do que carga, así que unha mesma páxina pode saír a internet desde dous ou máis enderezos de saída á vez — máis illamento, pero un sitio que comproba o teu enderezo entre os seus servidores pode pecharche a sesión. Desactivado, o sitio usa un só enderezo para todo o que carga. Este cambio aplicarase a próxima vez que abras a aplicación."
 }

@@ -854,5 +854,5 @@
   "proxyTestAuthRejected": "Dhiúltaigh an seachfhreastalaí na dintiúir seo",
   "proxyTestUnreachable": "Níorbh fhéidir teagmháil a dhéanamh leis an seachfhreastalaí",
   "torIsolateDestAddrTitle": "Ciorcad ar leith do gach ceann scríbe",
-  "torIsolateDestAddrHint": "Faigheann gach suíomh a chiorcad Tor féin i gcónaí. Nuair atá sé seo ann, faigheann suíomh ciorcad ar leith do gach óstach as a lódálann sé freisin, mar sin is féidir le leathanach amháin an t-idirlíon a bhaint amach ó dhá sheoladh scoir nó níos mó ag an am céanna — níos mó leithlisithe, ach d'fhéadfadh suíomh a sheiceálann do sheoladh trasna a óstach féin tú a logáil amach. Múchta, faigheann an suíomh seoladh amháin do gach rud a lódálann sé. Atosaíonn athrú air seo Tor."
+  "torIsolateDestAddrHint": "Faigheann gach suíomh a chiorcad Tor féin i gcónaí. Nuair atá sé seo ann, faigheann suíomh ciorcad ar leith do gach óstach as a lódálann sé freisin, mar sin is féidir le leathanach amháin an t-idirlíon a bhaint amach ó dhá sheoladh scoir nó níos mó ag an am céanna — níos mó leithlisithe, ach d'fhéadfadh suíomh a sheiceálann do sheoladh trasna a óstach féin tú a logáil amach. Múchta, faigheann an suíomh seoladh amháin do gach rud a lódálann sé. Tiocfaidh an t-athrú seo i bhfeidhm an chéad uair eile a osclóidh tú an aip."
 }

@@ -854,5 +854,5 @@
   "proxyTestAuthRejected": "El proxy rechazó estas credenciales",
   "proxyTestUnreachable": "No se pudo contactar con el proxy",
   "torIsolateDestAddrTitle": "Circuito independiente por destino",
-  "torIsolateDestAddrHint": "Cada sitio tiene siempre su propio circuito de Tor. Con esto activado, un sitio obtiene además un circuito separado para cada servidor del que carga, así que una misma página puede salir a internet desde dos o más direcciones de salida a la vez: más aislamiento, pero un sitio que comprueba tu dirección entre sus propios servidores puede cerrarte la sesión. Desactivado, el sitio usa una sola dirección para todo lo que carga. Cambiar esto reinicia Tor."
+  "torIsolateDestAddrHint": "Cada sitio tiene siempre su propio circuito de Tor. Con esto activado, un sitio obtiene además un circuito separado para cada servidor del que carga, así que una misma página puede salir a internet desde dos o más direcciones de salida a la vez: más aislamiento, pero un sitio que comprueba tu dirección entre sus propios servidores puede cerrarte la sesión. Desactivado, el sitio usa una sola dirección para todo lo que carga. Este cambio se aplicará la próxima vez que abras la aplicación."
 }

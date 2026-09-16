@@ -854,5 +854,5 @@
   "proxyTestAuthRejected": "Proxy je odbio ove podatke za prijavu",
   "proxyTestUnreachable": "Nije moguće doseći proxy",
   "torIsolateDestAddrTitle": "Zaseban krug po odredištu",
-  "torIsolateDestAddrHint": "Svaka stranica uvijek dobiva vlastiti Tor krug. Kada je ovo uključeno, stranica dobiva zaseban krug i za svaki host s kojeg učitava, pa jedna stranica može doći na internet s dvije ili više izlaznih adresa istovremeno — više izolacije, ali stranica koja provjerava vašu adresu na svojim hostovima može vas odjaviti. Isključeno, stranica ima jednu adresu za sve što učitava. Promjena ovoga ponovo pokreće Tor."
+  "torIsolateDestAddrHint": "Svaka stranica uvijek dobiva vlastiti Tor krug. Kada je ovo uključeno, stranica dobiva zaseban krug i za svaki host s kojeg učitava, pa jedna stranica može doći na internet s dvije ili više izlaznih adresa istovremeno — više izolacije, ali stranica koja provjerava vašu adresu na svojim hostovima može vas odjaviti. Isključeno, stranica ima jednu adresu za sve što učitava. Ova promjena stupa na snagu kada sljedeći put otvorite aplikaciju."
 }

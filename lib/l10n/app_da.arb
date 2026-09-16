@@ -854,5 +854,5 @@
   "proxyTestAuthRejected": "Proxyen afviste disse oplysninger",
   "proxyTestUnreachable": "Kunne ikke nå proxyen",
   "torIsolateDestAddrTitle": "Separat kredsløb pr. destination",
-  "torIsolateDestAddrHint": "Hvert websted får altid sit eget Tor-kredsløb. Når dette er slået til, får et websted også et separat kredsløb for hver vært, det henter fra, så én side kan nå internettet fra to eller flere udgangsadresser samtidig — mere isolation, men et websted, der tjekker din adresse på tværs af sine egne værter, kan logge dig ud. Slået fra får webstedet én adresse til alt, det henter. Ændringen genstarter Tor."
+  "torIsolateDestAddrHint": "Hvert websted får altid sit eget Tor-kredsløb. Når dette er slået til, får et websted også et separat kredsløb for hver vært, det henter fra, så én side kan nå internettet fra to eller flere udgangsadresser samtidig — mere isolation, men et websted, der tjekker din adresse på tværs af sine egne værter, kan logge dig ud. Slået fra får webstedet én adresse til alt, det henter. Ændringen træder i kraft, næste gang du åbner appen."
 }

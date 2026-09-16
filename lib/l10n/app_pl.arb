@@ -854,5 +854,5 @@
   "proxyTestAuthRejected": "Serwer proxy odrzucił te dane logowania",
   "proxyTestUnreachable": "Nie udało się połączyć z serwerem proxy",
   "torIsolateDestAddrTitle": "Osobny obwód dla każdego celu",
-  "torIsolateDestAddrHint": "Każda witryna zawsze ma własny obwód Tora. Gdy ta opcja jest włączona, witryna otrzymuje osobny obwód także dla każdego hosta, z którego ładuje, więc jedna strona może wychodzić do internetu z dwóch lub więcej adresów wyjściowych naraz — większa izolacja, ale witryna sprawdzająca twój adres pomiędzy własnymi hostami może cię wylogować. Wyłączona daje witrynie jeden adres dla wszystkiego, co ładuje. Zmiana tego ustawienia restartuje Tora."
+  "torIsolateDestAddrHint": "Każda witryna zawsze ma własny obwód Tora. Gdy ta opcja jest włączona, witryna otrzymuje osobny obwód także dla każdego hosta, z którego ładuje, więc jedna strona może wychodzić do internetu z dwóch lub więcej adresów wyjściowych naraz — większa izolacja, ale witryna sprawdzająca twój adres pomiędzy własnymi hostami może cię wylogować. Wyłączona daje witrynie jeden adres dla wszystkiego, co ładuje. Ta zmiana zacznie obowiązywać przy następnym uruchomieniu aplikacji."
 }

@@ -854,5 +854,5 @@
   "proxyTestAuthRejected": "Proksi imekataa vitambulisho hivi",
   "proxyTestUnreachable": "Imeshindwa kuifikia proksi",
   "torIsolateDestAddrTitle": "Saketi tofauti kwa kila lengwa",
-  "torIsolateDestAddrHint": "Kila tovuti daima hupata saketi yake ya Tor. Chaguo hili likiwashwa, tovuti hupata pia saketi tofauti kwa kila seva inayopakia kutoka kwake, hivyo ukurasa mmoja unaweza kufika mtandaoni kutoka anwani mbili au zaidi za kutokea kwa wakati mmoja — utengano zaidi, lakini tovuti inayokagua anwani yako kati ya seva zake inaweza kukutoa kwenye akaunti. Likizimwa, tovuti hutumia anwani moja kwa kila kitu inachopakia. Kubadilisha hili huanzisha upya Tor."
+  "torIsolateDestAddrHint": "Kila tovuti daima hupata saketi yake ya Tor. Chaguo hili likiwashwa, tovuti hupata pia saketi tofauti kwa kila seva inayopakia kutoka kwake, hivyo ukurasa mmoja unaweza kufika mtandaoni kutoka anwani mbili au zaidi za kutokea kwa wakati mmoja — utengano zaidi, lakini tovuti inayokagua anwani yako kati ya seva zake inaweza kukutoa kwenye akaunti. Likizimwa, tovuti hutumia anwani moja kwa kila kitu inachopakia. Mabadiliko haya yataanza kutumika wakati ujao utakapofungua programu."
 }
