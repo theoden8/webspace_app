@@ -1,7 +1,7 @@
 import 'dart:math';
 
 /// Process-lifetime random nonce used to randomize the anti-fingerprinting
-/// PRNG seed for `incognito` sites across launches (issue #327, ETP-019).
+/// PRNG seed for `incognito` sites across launches (issue #327, ETP-028).
 ///
 /// Generated lazily on first access via `Random.secure` and cached for the
 /// rest of the process. Cold restart → fresh nonce → fresh fingerprint.

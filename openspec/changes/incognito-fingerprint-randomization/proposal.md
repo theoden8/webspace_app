@@ -8,7 +8,7 @@ Issue #327: when both Tracking Protection and Incognito are enabled for a site, 
 - New `lib/services/launch_nonce.dart`: lazy `LaunchNonce.value` generated once per process via `Random.secure`, stable for the lifetime of the process so multiple reads within a session see the same fingerprint. Cold restart → fresh nonce → fresh fingerprint.
 - New pure helper `computeAntiFingerprintingSeed({siteId, incognito, launchNonce})` in `anti_fingerprinting_shim.dart` so the seed-derivation rule is unit-testable in isolation.
 - `WebViewFactory.createWebView` swaps `siteId!` for `computeAntiFingerprintingSeed(...)` at the existing shim-injection site.
-- Spec: amend ETP-004 to carve out the incognito case; add ETP-019 covering the launch-nonce contract.
+- Spec: amend ETP-004 to carve out the incognito case; add ETP-028 covering the launch-nonce contract.
 
 ## Scope
 

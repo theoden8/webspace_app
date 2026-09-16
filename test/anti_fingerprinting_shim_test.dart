@@ -188,7 +188,7 @@ void main() {
   });
 
   group('computeAntiFingerprintingSeed', () {
-    // Issue #327 / ETP-019: incognito sites must randomize their
+    // Issue #327 / ETP-028: incognito sites must randomize their
     // fingerprint per launch, while non-incognito sites keep the
     // ETP-004 stable-per-site posture.
 
@@ -435,7 +435,7 @@ void main() {
       expect(launch1, isNotNull);
       expect(launch2, isNot(equals(launch1)),
           reason: 'incognito + TP must reroll the fingerprint per launch '
-              '(issue #327 / ETP-019)');
+              '(issue #327 / ETP-028)');
     });
 
     test('incognito: fingerprint stable within one launch', () {

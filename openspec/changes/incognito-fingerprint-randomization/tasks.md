@@ -16,7 +16,7 @@
 
 ## 4. Spec
 
-- [ ] 4.1 Add `openspec/changes/incognito-fingerprint-randomization/specs/tracking-protection/spec.md` with MODIFIED ETP-004 (incognito carve-out) and ADDED ETP-019 (launch-nonce contract).
+- [ ] 4.1 Add `openspec/changes/incognito-fingerprint-randomization/specs/tracking-protection/spec.md` with MODIFIED ETP-004 (incognito carve-out) and ADDED ETP-028 (launch-nonce contract).
 
 ## 5. Tier 3 real-engine coverage
 

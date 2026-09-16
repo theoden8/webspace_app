@@ -188,7 +188,7 @@ Map<String, String> buildAllFixtures() {
   fixtures['anti_fingerprinting/shim_seed_alpha_letterbox.js'] =
       buildAntiFingerprintingShim('alpha-fixture-seed', letterbox: true);
 
-  // Issue #327 / ETP-019: two simulated incognito launches under the
+  // Issue #327 / ETP-028: two simulated incognito launches under the
   // SAME siteId but DIFFERENT process-lifetime nonces. The real-engine
   // tier asserts FingerprintJS sees distinct canvas/WebGL/audio
   // signatures across these, proving the per-launch reroll lands at
