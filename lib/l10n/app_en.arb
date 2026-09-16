@@ -1842,6 +1842,14 @@
   "@siteSettingsZoomIn": {
     "description": "Tooltip for the zoom-in button."
   },
+  "siteSettingsHttpsUpgrade": "HTTPS upgrade",
+  "@siteSettingsHttpsUpgrade": {
+    "description": "Switch label for retrying plain-http page loads over an encrypted https connection."
+  },
+  "siteSettingsHttpsUpgradeHint": "Loads pages over the encrypted https connection even when the address starts with http, so what you read and send cannot be watched or altered on the network. Sites that offer no encrypted connection still load, over plain http, and are not upgraded again. Turn it off only for a site that has none.",
+  "@siteSettingsHttpsUpgradeHint": {
+    "description": "Explanatory popup for the HTTPS upgrade switch: what it does, that a site without encryption still loads, and when to turn it off."
+  },
   "siteSettingsThirdPartyCookies": "Third-party cookies",
   "@siteSettingsThirdPartyCookies": {
     "description": "Switch label toggling third-party cookies."

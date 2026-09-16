@@ -104,9 +104,15 @@ final Map<String, Object> kExportedAppPrefs = <String, Object>{
   // to go back to. Off (default) keeps the gesture on webview history only;
   // on, it opens the drawer there and leaves the app on the next press.
   kBackOpensMenuKey: false,
+  // HTTPS-005: retry a plain-http main-frame navigation over https, falling
+  // back silently when the host does not answer. On by default; chromium does
+  // the same for ordinary navigations and Android WebView does not ship it.
+  kHttpsUpgradeEnabledKey: true,
 };
 
 const String kBackForwardCacheEnabledKey = 'backForwardCacheEnabled';
+
+const String kHttpsUpgradeEnabledKey = 'httpsUpgradeEnabled';
 
 const String kBackOpensMenuKey = 'backOpensMenu';
 

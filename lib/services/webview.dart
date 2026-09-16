@@ -12,6 +12,7 @@ import 'package:webspace/services/anti_fingerprinting_shim.dart';
 import 'package:webspace/services/blob_url_capture.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/do_not_track_shim.dart';
+import 'package:webspace/services/https_upgrade_engine.dart';
 import 'package:webspace/services/language_shim.dart';
 import 'package:webspace/services/launch_nonce.dart';
 import 'package:webspace/services/letterbox.dart';
@@ -710,6 +711,10 @@ class WebViewConfig {
   final String? userAgent;
   final bool thirdPartyCookiesEnabled;
   final bool incognito;
+  /// HTTPS-005: retry a plain-http main-frame navigation over https. Already
+  /// resolved by the caller (per-site override, app-wide default, or forced on
+  /// by Tracking Protection), so the factory just obeys it.
+  final bool httpsUpgradeEnabled;
   /// iOS/macOS only: enable WKWebView's native back/forward swipe gesture
   /// (`allowsBackForwardNavigationGestures`). Set only for the root site
   /// webview, which lives at the `MaterialApp` root route where no Flutter
@@ -1006,6 +1011,7 @@ class WebViewConfig {
     this.userAgent,
     this.thirdPartyCookiesEnabled = false,
     this.incognito = false,
+    this.httpsUpgradeEnabled = true,
     this.backForwardGestures = false,
     this.deferInitialLoad = false,
     this.language,
@@ -1734,6 +1740,16 @@ class WebViewFactory {
   /// after settings import. Applied verbatim to every WebView's native
   /// WebSettings; no-ops on platforms/providers without the feature.
   static bool backForwardCacheEnabled = true;
+
+  /// App-wide HTTPS upgrade default, mirrored from the `httpsUpgradeEnabled`
+  /// app pref (kExportedAppPrefs) at startup and after settings import. A site
+  /// with no override of its own follows this (HTTPS-005).
+  static bool httpsUpgradeEnabled = true;
+
+  /// One per process, shared by root and nested webviews: a host that answered
+  /// an upgrade with a failure in one must not be probed again by the other
+  /// (HTTPS-002).
+  static final HttpsUpgradeEngine httpsUpgrade = HttpsUpgradeEngine();
 
   /// System font scale → webview text zoom percent. Tracks the OS-level
   /// "font size" accessibility setting so web content matches the size
@@ -4340,6 +4356,24 @@ class WebViewFactory {
           final allow = config.shouldOverrideUrlLoading!(url, hasGesture);
           if (!allow) return inapp.NavigationActionPolicy.CANCEL;
         }
+        // HTTPS upgrade, decided AFTER the routing decision above for the same
+        // reason the captcha allow is (HTTPS-004): taken first, a scheme
+        // rewrite re-enters the pipeline with blockAutoRedirects, the gesture
+        // requirement and the cross-domain nested route already behind it.
+        // The reissued https navigation fires this callback again and is
+        // decided on its own merits.
+        final upgraded = WebViewFactory.httpsUpgrade
+            .upgradeFor(url, enabled: config.httpsUpgradeEnabled);
+        if (upgraded != null) {
+          LogService.instance.log(
+            'WebView',
+            '  -> CANCEL (https upgrade) $url',
+            sensitivity: LogSensitivity.sensitive,
+          );
+          controller.loadUrl(
+              urlRequest: inapp.URLRequest(url: inapp.WebUri(upgraded)));
+          return inapp.NavigationActionPolicy.CANCEL;
+        }
         // A captcha challenge loads in place. Decided AFTER the routing
         // decision above, never before it: taken first, "is this a captcha
         // URL?" becomes a way to navigate the parent webview to any origin
@@ -4601,6 +4635,13 @@ class WebViewFactory {
           'onLoadStop siteId=${config.siteId} url=$url',
           sensitivity: LogSensitivity.sensitive,
         );
+        // An upgrade that loaded is no longer in flight. Without this the
+        // engine's map grows by one per upgraded navigation, and a later
+        // unrelated failure on the same URL string reads as a fallback to an
+        // http load that finished long ago (HTTPS-002).
+        if (url != null) {
+          WebViewFactory.httpsUpgrade.recordUpgradeSuccess(url.toString());
+        }
         // End pull-to-refresh animation
         config.pullToRefreshController?.endRefreshing();
         // Notify the call site that this navigation finished loading
@@ -4775,6 +4816,25 @@ class WebViewFactory {
         config.onConsoleMessage?.call(consoleMessage.message, consoleMessage.messageLevel);
       },
       onReceivedError: (controller, request, error) async {
+        // An upgrade this engine issued that did not answer: load the original
+        // http URL and stop upgrading that host for the rest of the process
+        // (HTTPS-002). Ahead of every other recovery below, because those
+        // treat the failing URL as the one the site asked for, and this one
+        // is not — we substituted it.
+        final upgradeFallback = request.isForMainFrame == false
+            ? null
+            : WebViewFactory.httpsUpgrade
+                .fallbackFor(request.url.toString());
+        if (upgradeFallback != null) {
+          LogService.instance.log(
+            'WebView',
+            'https upgrade did not answer, falling back to $upgradeFallback',
+            sensitivity: LogSensitivity.sensitive,
+          );
+          controller.loadUrl(urlRequest: inapp.URLRequest(
+              url: inapp.WebUri(upgradeFallback)));
+          return;
+        }
         LogService.instance.log(
           'WebViewLifecycle',
           'onReceivedError siteId=${config.siteId} url=${request.url} '

@@ -406,6 +406,7 @@ typedef LaunchUrlFunc = void Function(
   required String? siteId,
   required bool incognito,
   required bool thirdPartyCookiesEnabled,
+  required bool httpsUpgradeEnabled,
   required bool clearUrlEnabled,
   required bool dnsBlockEnabled,
   int? dnsBlockLevel,
@@ -473,6 +474,9 @@ class WebViewModel {
   /// every site without a stored-string migration.
   UserAgentPreset? uaPreset;
   bool thirdPartyCookiesEnabled;
+  /// HTTPS-005: null follows the app-wide `httpsUpgradeEnabled` default. Set
+  /// explicitly only for a site the user has decided has no TLS.
+  bool? httpsUpgradeEnabled;
   bool incognito; // Private browsing mode - no cookies/cache persist
   /// When true, the site's currentUrl/pageTitle are not persisted: every
   /// app restart and every Android home-shortcut tap returns the site to
@@ -787,6 +791,15 @@ class WebViewModel {
   bool get effectiveThirdPartyCookiesEnabled =>
       trackingProtectionEnabled ? false : thirdPartyCookiesEnabled;
 
+  /// Effective HTTPS upgrade decision. Tracking Protection forces it on
+  /// (ETP-028); otherwise the site's own override, or the app-wide default
+  /// when it has none. Unlike ETP-002's subordinates this is NOT off when the
+  /// umbrella is off: turning the umbrella off to make a site work must not be
+  /// what moves a login page to cleartext.
+  bool get effectiveHttpsUpgradeEnabled => trackingProtectionEnabled
+      ? true
+      : (httpsUpgradeEnabled ?? WebViewFactory.httpsUpgradeEnabled);
+
   /// Effective protected-content (Widevine/EME) decision. Archive-tier
   /// sites never grant DRM regardless of stored value: a grant provisions
   /// a per-container Widevine device identifier on disk and the prompt is
@@ -948,6 +961,7 @@ class WebViewModel {
     this.userAgent = '',
     this.uaPreset,
     this.thirdPartyCookiesEnabled = false,
+    this.httpsUpgradeEnabled,
     this.incognito = false,
     this.alwaysOpenHome = false,
     this.kioskMode = false,
@@ -1312,6 +1326,7 @@ class WebViewModel {
           javascriptEnabled: javascriptEnabled,
           userAgent: effectiveUserAgentOrNull,
           thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled,
+          httpsUpgradeEnabled: effectiveHttpsUpgradeEnabled,
           incognito: effectiveIncognito,
           // Root site webview sits at the MaterialApp root route: on iOS/macOS
           // there is no Flutter route-pop edge-swipe here, so opt into
@@ -1469,7 +1484,7 @@ class WebViewModel {
                   '  -> CANCEL (opening nested webview)',
                   sensitivity: LogSensitivity.sensitive,
                 );
-                launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, dnsBlockLevel: effectiveDnsBlockLevel, contentBlockEnabled: contentBlockEnabled, disabledFilterLists: effectiveDisabledFilterLists, localCdnEnabled: effectiveLocalCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: outboundProxySettings, notificationsEnabled: effectiveNotificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser, blockAutoRedirects: blockAutoRedirects, blockedCookies: blockedCookies, cameraMode: effectiveCameraMode, virtualCameraSource: virtualCameraSource, microphoneMode: effectiveMicrophoneMode, virtualMicrophoneSource: virtualMicrophoneSource, screenShareMode: effectiveScreenShareMode, virtualScreenSource: virtualScreenSource, protectedContentAllowed: effectiveProtectedContentAllowed);
+                launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, httpsUpgradeEnabled: effectiveHttpsUpgradeEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, dnsBlockLevel: effectiveDnsBlockLevel, contentBlockEnabled: contentBlockEnabled, disabledFilterLists: effectiveDisabledFilterLists, localCdnEnabled: effectiveLocalCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: outboundProxySettings, notificationsEnabled: effectiveNotificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser, blockAutoRedirects: blockAutoRedirects, blockedCookies: blockedCookies, cameraMode: effectiveCameraMode, virtualCameraSource: virtualCameraSource, microphoneMode: effectiveMicrophoneMode, virtualMicrophoneSource: virtualMicrophoneSource, screenShareMode: effectiveScreenShareMode, virtualScreenSource: virtualScreenSource, protectedContentAllowed: effectiveProtectedContentAllowed);
                 return false;
               case NavigationDecision.blockOpenExternal:
                 LogService.instance.log(
@@ -1577,7 +1592,7 @@ class WebViewModel {
                     sensitivity: LogSensitivity.sensitive,
                   );
                   if (handled.launchNestedUrl != null) {
-                    launchUrlFunc(handled.launchNestedUrl!, homeTitle: name, siteId: siteId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, dnsBlockLevel: effectiveDnsBlockLevel, contentBlockEnabled: contentBlockEnabled, disabledFilterLists: effectiveDisabledFilterLists, localCdnEnabled: effectiveLocalCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: outboundProxySettings, notificationsEnabled: effectiveNotificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser, blockAutoRedirects: blockAutoRedirects, blockedCookies: blockedCookies, cameraMode: effectiveCameraMode, virtualCameraSource: virtualCameraSource, microphoneMode: effectiveMicrophoneMode, virtualMicrophoneSource: virtualMicrophoneSource, screenShareMode: effectiveScreenShareMode, virtualScreenSource: virtualScreenSource, protectedContentAllowed: effectiveProtectedContentAllowed);
+                    launchUrlFunc(handled.launchNestedUrl!, homeTitle: name, siteId: siteId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, httpsUpgradeEnabled: effectiveHttpsUpgradeEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, dnsBlockLevel: effectiveDnsBlockLevel, contentBlockEnabled: contentBlockEnabled, disabledFilterLists: effectiveDisabledFilterLists, localCdnEnabled: effectiveLocalCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: outboundProxySettings, notificationsEnabled: effectiveNotificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser, blockAutoRedirects: blockAutoRedirects, blockedCookies: blockedCookies, cameraMode: effectiveCameraMode, virtualCameraSource: virtualCameraSource, microphoneMode: effectiveMicrophoneMode, virtualMicrophoneSource: virtualMicrophoneSource, screenShareMode: effectiveScreenShareMode, virtualScreenSource: virtualScreenSource, protectedContentAllowed: effectiveProtectedContentAllowed);
                   }
                   return;
                 case NavigationDecision.blockOpenExternal:
@@ -2398,6 +2413,7 @@ class WebViewModel {
         'userAgent': userAgent,
         if (uaPreset != null) 'uaPreset': uaPreset!.name,
         'thirdPartyCookiesEnabled': thirdPartyCookiesEnabled,
+        'httpsUpgradeEnabled': httpsUpgradeEnabled,
         'incognito': incognito,
         'alwaysOpenHome': alwaysOpenHome,
         'kioskMode': kioskMode,
@@ -2514,6 +2530,7 @@ class WebViewModel {
       uaPreset: userAgentPresetFromName(json['uaPreset'] as String?) ??
           recognizeGeneratedUserAgent((json['userAgent'] as String?) ?? ''),
       thirdPartyCookiesEnabled: json['thirdPartyCookiesEnabled'],
+      httpsUpgradeEnabled: json['httpsUpgradeEnabled'] as bool?,
       incognito: isIncognito,
       alwaysOpenHome: isAlwaysOpenHome,
       kioskMode: json['kioskMode'] as bool? ?? false,

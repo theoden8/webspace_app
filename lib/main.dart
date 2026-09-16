@@ -2888,6 +2888,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         siteId: model.siteId,
         incognito: model.effectiveIncognito,
         thirdPartyCookiesEnabled: model.effectiveThirdPartyCookiesEnabled,
+        httpsUpgradeEnabled: model.effectiveHttpsUpgradeEnabled,
         clearUrlEnabled: model.clearUrlEnabled,
         dnsBlockEnabled: model.dnsBlockEnabled,
         dnsBlockLevel: model.effectiveDnsBlockLevel,
@@ -5018,6 +5019,8 @@ class _WebSpacePageState extends State<WebSpacePage>
       _showStatsBanner = prefs.getBool('showStatsBanner') ?? true;
       WebViewFactory.backForwardCacheEnabled =
           prefs.getBool(kBackForwardCacheEnabledKey) ?? true;
+      WebViewFactory.httpsUpgradeEnabled =
+          prefs.getBool(kHttpsUpgradeEnabledKey) ?? true;
       _linkHandlingEnabled = prefs.getBool(kLinkHandlingEnabledKey) ?? true;
       _linkHandlingClaimDomains =
           prefs.getBool(kLinkHandlingClaimDomainsKey) ?? false;
@@ -5718,6 +5721,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     required String? siteId,
     required bool incognito,
     required bool thirdPartyCookiesEnabled,
+    required bool httpsUpgradeEnabled,
     required bool clearUrlEnabled,
     required bool dnsBlockEnabled,
     int? dnsBlockLevel,
@@ -5765,6 +5769,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           siteId: siteId,
           incognito: incognito,
           thirdPartyCookiesEnabled: thirdPartyCookiesEnabled,
+          httpsUpgradeEnabled: httpsUpgradeEnabled,
           clearUrlEnabled: clearUrlEnabled,
           dnsBlockEnabled: dnsBlockEnabled,
           dnsBlockLevel: dnsBlockLevel,
@@ -6684,6 +6689,9 @@ class _WebSpacePageState extends State<WebSpacePage>
       WebViewFactory.backForwardCacheEnabled =
           backup.globalPrefs[kBackForwardCacheEnabledKey] as bool? ??
               WebViewFactory.backForwardCacheEnabled;
+      WebViewFactory.httpsUpgradeEnabled =
+          backup.globalPrefs[kHttpsUpgradeEnabledKey] as bool? ??
+              WebViewFactory.httpsUpgradeEnabled;
 
       // Restore selection state
       if (backup.selectedWebspaceId != null &&
@@ -7317,6 +7325,14 @@ class _WebSpacePageState extends State<WebSpacePage>
                         _showStatsBanner = value;
                       });
                       _saveShowStatsBanner();
+                    },
+                    httpsUpgradeEnabled: WebViewFactory.httpsUpgradeEnabled,
+                    onHttpsUpgradeEnabledChanged: (value) async {
+                      setState(() {
+                        WebViewFactory.httpsUpgradeEnabled = value;
+                      });
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.setBool(kHttpsUpgradeEnabledKey, value);
                     },
                     localeOverride: _localeOverride,
                     onLocaleOverrideChanged: (tag) async {

@@ -127,6 +127,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _proxyPasswordController;
   late bool _javascriptEnabled;
   late bool _thirdPartyCookiesEnabled;
+  late bool? _httpsUpgradeEnabled;
   late bool _incognito;
   late bool _alwaysOpenHome;
   late bool _kioskMode;
@@ -227,6 +228,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         'userAgent': _userAgentController.text,
         'javascriptEnabled': _javascriptEnabled,
         'thirdPartyCookiesEnabled': _thirdPartyCookiesEnabled,
+        'httpsUpgradeEnabled': _httpsUpgradeEnabled,
         'incognito': _incognito,
         'alwaysOpenHome': _alwaysOpenHome,
         'kioskMode': _kioskMode,
@@ -457,6 +459,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _proxyPasswordController.text = _proxySettings.password ?? '';
     _javascriptEnabled = m.javascriptEnabled;
     _thirdPartyCookiesEnabled = m.thirdPartyCookiesEnabled;
+    _httpsUpgradeEnabled = m.httpsUpgradeEnabled;
     _incognito = m.incognito;
     _alwaysOpenHome = m.alwaysOpenHome;
     _kioskMode = m.kioskMode;
@@ -625,6 +628,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.setUserAgent(_userAgentController.text);
       widget.webViewModel.javascriptEnabled = _javascriptEnabled;
       widget.webViewModel.thirdPartyCookiesEnabled = _thirdPartyCookiesEnabled;
+      widget.webViewModel.httpsUpgradeEnabled = _httpsUpgradeEnabled;
       widget.webViewModel.incognito = _incognito;
       widget.webViewModel.alwaysOpenHome = _alwaysOpenHome;
       widget.webViewModel.kioskMode = _kioskMode;
@@ -1087,6 +1091,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         disabledFilterLists: _disabledFilterLists,
         localCdnEnabled: _localCdnEnabled,
         thirdPartyCookiesEnabled: _thirdPartyCookiesEnabled,
+        httpsUpgradeEnabled: _httpsUpgradeEnabled,
         letterboxEnabled: _letterboxEnabled,
         incognito: _incognito,
       );
@@ -1154,6 +1159,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _disabledFilterLists = values.disabledFilterLists;
               _localCdnEnabled = values.localCdnEnabled;
               _thirdPartyCookiesEnabled = values.thirdPartyCookiesEnabled;
+              _httpsUpgradeEnabled = values.httpsUpgradeEnabled;
               _letterboxEnabled = values.letterboxEnabled;
               _incognito = values.incognito;
             });

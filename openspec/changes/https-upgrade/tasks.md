@@ -24,43 +24,43 @@
   successful upgrade drops its in-flight entry so a later failure on the same
   URL string cannot read as one.
 
-## 3. Wire it (not started)
+## 3. Wire it
 
-- [ ] 3.1 `lib/settings/app_prefs.dart`: register `httpsUpgradeEnabled: true`.
-- [ ] 3.2 `lib/web_view_model.dart`: the per-site field,
+- [x] 3.1 `lib/settings/app_prefs.dart`: register `httpsUpgradeEnabled: true`.
+- [x] 3.2 `lib/web_view_model.dart`: the per-site field,
   `effectiveHttpsUpgradeEnabled` (ETP-028), `toJson`/`fromJson`, the
   `WebViewConfig`, the `launchUrlFunc` typedef and both call sites.
-- [ ] 3.3 `lib/main.dart` `launchUrl` signature and
+- [x] 3.3 `lib/main.dart` `launchUrl` signature and
   `lib/screens/inappbrowser.dart` `InAppWebViewScreen` + its `WebViewConfig`,
   completing the five-step per-site checklist in CLAUDE.md. A nested webview
   still loading plaintext while its parent upgrades is exactly the silent
   bypass that checklist exists to prevent.
-- [ ] 3.4 `lib/services/webview.dart`: consult the engine in
+- [x] 3.4 `lib/services/webview.dart`: consult the engine in
   `shouldOverrideUrlLoading` AFTER `config.shouldOverrideUrlLoading` returns
   (HTTPS-004); cancel and load the upgraded URL; on `onReceivedError` for an
   upgraded main-frame URL, load `fallbackFor`; on a successful main-frame load,
   `recordUpgradeSuccess`.
-- [ ] 3.5 One engine instance per process, reachable from both the root and
+- [x] 3.5 One engine instance per process, reachable from both the root and
   nested webview paths, so a host learned http-only in one is not re-probed by
   the other.
 
-## 4. Surface it (not started)
+## 4. Surface it
 
-- [ ] 4.1 A global row in app settings, default on.
-- [ ] 4.2 A per-site row on the Privacy screen, locked with `value: true` while
+- [x] 4.1 A global row in app settings, default on.
+- [x] 4.2 A per-site row on the Privacy screen, locked with `value: true` while
   the umbrella is on (ETP-028) and captioned like the third-party-cookies row,
   since a forced-on security control is the direction a reader does not
   predict.
-- [ ] 4.3 `lib/l10n/app_en.arb`: title + hint keys, with descriptions. The hint
+- [x] 4.3 `lib/l10n/app_en.arb`: title + hint keys, with descriptions. The hint
   carries what the subtitle must not: that a site without TLS falls back on its
   own, and that turning it off means this site's traffic is readable on the
   network.
 - [ ] 4.4 The other 66 ARBs in their own commit, pushed with 4.3 (CLAUDE.md,
   Git).
 
-## 5. Verify (not started)
+## 5. Verify
 
-- [ ] 5.1 `test/settings_backup_test.dart` picks the new global pref up from the
+- [x] 5.1 `test/settings_backup_test.dart` picks the new global pref up from the
   registry with no edit; re-run it.
 - [ ] 5.2 A nested-webview test asserting the field reaches
   `InAppWebViewScreen`'s `WebViewConfig`, in the shape of the existing per-site
