@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "გვერდის მასშტაბი",
   "siteSettingsZoomOut": "დაშორება",
   "siteSettingsZoomIn": "მიახლოება",
+  "siteSettingsHttpsUpgrade": "HTTPS-ზე გადასვლა",
+  "siteSettingsHttpsUpgradeHint": "გვერდებს დაშიფრული https კავშირით ტვირთავს მაშინაც, როცა მისამართი http-ით იწყება, რათა წაკითხული და გაგზავნილი ინფორმაცია ქსელში ვერავინ დაინახოს ან შეცვალოს. საიტები, რომლებსაც დაშიფრული კავშირი არ აქვთ, კვლავ ჩვეულებრივი http-ით იტვირთება და ხელახლა აღარ გარდაიქმნება. გამორთეთ მხოლოდ იმ საიტისთვის, რომელსაც ასეთი კავშირი არ აქვს.",
   "siteSettingsThirdPartyCookies": "მესამე მხარის ქუქიები",
   "siteSettingsIncognito": "ინკოგნიტო რეჟიმი",
   "siteSettingsIncognitoSubtitle": "ქუქიები და ქეში არ ინახება",

@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "Aðdráttur síðu",
   "siteSettingsZoomOut": "Minnka aðdrátt",
   "siteSettingsZoomIn": "Auka aðdrátt",
+  "siteSettingsHttpsUpgrade": "Uppfærsla í HTTPS",
+  "siteSettingsHttpsUpgradeHint": "Hleður síðum um dulkóðaða https-tenginguna jafnvel þegar vistfangið byrjar á http, svo ekki sé hægt að fylgjast með eða breyta því sem þú lest og sendir á netinu. Vefir sem bjóða enga dulkóðaða tengingu hlaðast áfram um venjulegt http og eru ekki uppfærðir aftur. Slökktu á þessu aðeins fyrir vef sem hefur enga.",
   "siteSettingsThirdPartyCookies": "Vefkökur þriðja aðila",
   "siteSettingsIncognito": "Huliðsstilling",
   "siteSettingsIncognitoSubtitle": "Engar vefkökur eða skyndiminni varðveitast",

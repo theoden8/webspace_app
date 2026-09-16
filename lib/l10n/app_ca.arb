@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "Zoom de la pàgina",
   "siteSettingsZoomOut": "Allunya",
   "siteSettingsZoomIn": "Acosta",
+  "siteSettingsHttpsUpgrade": "Actualització a HTTPS",
+  "siteSettingsHttpsUpgradeHint": "Carrega les pàgines mitjançant la connexió https xifrada encara que l'adreça comenci per http, de manera que el que llegiu i envieu no es pugui vigilar ni alterar a la xarxa. Els llocs que no ofereixen cap connexió xifrada se segueixen carregant per http normal i no es tornen a actualitzar. Desactiveu-ho només per a un lloc que no en tingui.",
   "siteSettingsThirdPartyCookies": "Galetes de tercers",
   "siteSettingsIncognito": "Mode incògnit",
   "siteSettingsIncognitoSubtitle": "No es conserven galetes ni memòria cau",

@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "Sayfa yakınlaştırma",
   "siteSettingsZoomOut": "Uzaklaştır",
   "siteSettingsZoomIn": "Yakınlaştır",
+  "siteSettingsHttpsUpgrade": "HTTPS'ye yükseltme",
+  "siteSettingsHttpsUpgradeHint": "Adres http ile başlasa bile sayfaları şifreli https bağlantısı üzerinden yükler; böylece okuduklarınız ve gönderdikleriniz ağ üzerinde izlenemez veya değiştirilemez. Şifreli bağlantı sunmayan siteler yine düz http üzerinden yüklenir ve tekrar yükseltilmez. Bunu yalnızca böyle bir bağlantısı olmayan site için kapatın.",
   "siteSettingsThirdPartyCookies": "Üçüncü taraf çerezleri",
   "siteSettingsIncognito": "Gizli mod",
   "siteSettingsIncognitoSubtitle": "Çerezler veya önbellek kalıcı olmaz",

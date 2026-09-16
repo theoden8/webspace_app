@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "Přiblížení stránky",
   "siteSettingsZoomOut": "Oddálit",
   "siteSettingsZoomIn": "Přiblížit",
+  "siteSettingsHttpsUpgrade": "Přechod na HTTPS",
+  "siteSettingsHttpsUpgradeHint": "Načítá stránky přes šifrované připojení https i tehdy, když adresa začíná na http, takže to, co čtete a odesíláte, nelze v síti sledovat ani měnit. Weby, které šifrované připojení nenabízejí, se načtou i nadále přes běžné http a znovu se už nepřevádějí. Vypněte to jen u webu, který žádné nemá.",
   "siteSettingsThirdPartyCookies": "Cookies třetích stran",
   "siteSettingsIncognito": "Anonymní režim",
   "siteSettingsIncognitoSubtitle": "Žádné cookies ani mezipaměť nepřetrvávají",

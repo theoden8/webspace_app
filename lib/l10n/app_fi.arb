@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "Sivun zoomaus",
   "siteSettingsZoomOut": "Loitonna",
   "siteSettingsZoomIn": "Lähennä",
+  "siteSettingsHttpsUpgrade": "HTTPS-päivitys",
+  "siteSettingsHttpsUpgradeHint": "Lataa sivut salatun https-yhteyden kautta, vaikka osoite alkaisi http:llä, jotta lukemaasi ja lähettämääsi ei voi seurata tai muuttaa verkossa. Sivustot, jotka eivät tarjoa salattua yhteyttä, latautuvat edelleen tavallisella http:llä, eikä niitä päivitetä uudelleen. Poista tämä käytöstä vain sivustolla, jolla sitä ei ole.",
   "siteSettingsThirdPartyCookies": "Kolmannen osapuolen evästeet",
   "siteSettingsIncognito": "Incognito-tila",
   "siteSettingsIncognitoSubtitle": "Evästeitä tai välimuistia ei säilytetä",

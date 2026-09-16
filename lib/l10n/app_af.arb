@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "Bladsy-zoem",
   "siteSettingsZoomOut": "Zoem uit",
   "siteSettingsZoomIn": "Zoem in",
+  "siteSettingsHttpsUpgrade": "HTTPS-opgradering",
+  "siteSettingsHttpsUpgradeHint": "Laai bladsye oor die geënkripteerde https-verbinding, selfs wanneer die adres met http begin, sodat wat jy lees en stuur nie op die netwerk dopgehou of verander kan word nie. Werwe wat geen geënkripteerde verbinding bied nie, laai steeds oor gewone http en word nie weer opgegradeer nie. Skakel dit net af vir 'n werf wat geen het nie.",
   "siteSettingsThirdPartyCookies": "Derdeparty-koekies",
   "siteSettingsIncognito": "Incognito-modus",
   "siteSettingsIncognitoSubtitle": "Geen koekies of kas bly behoue nie",

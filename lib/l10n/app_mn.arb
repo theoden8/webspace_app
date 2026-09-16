@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "Хуудасны томруулалт",
   "siteSettingsZoomOut": "Жижигрүүлэх",
   "siteSettingsZoomIn": "Томруулах",
+  "siteSettingsHttpsUpgrade": "HTTPS рүү шилжүүлэх",
+  "siteSettingsHttpsUpgradeHint": "Хаяг нь http-ээр эхэлж байсан ч хуудсуудыг шифрлэгдсэн https холболтоор ачаалдаг тул таны уншиж, илгээж буй зүйлийг сүлжээнд ажиглах буюу өөрчлөх боломжгүй. Шифрлэгдсэн холболт санал болгодоггүй сайтууд энгийн http-ээр ачаалсаар байх бөгөөд дахин шилжүүлэхгүй. Үүнийг зөвхөн ийм холболтгүй сайтад унтраа.",
   "siteSettingsThirdPartyCookies": "Гуравдагч талын cookie",
   "siteSettingsIncognito": "Нууц горим",
   "siteSettingsIncognitoSubtitle": "Cookie болон кэш хадгалагдахгүй",

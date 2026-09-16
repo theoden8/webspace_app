@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "Масштаб сторінки",
   "siteSettingsZoomOut": "Зменшити",
   "siteSettingsZoomIn": "Збільшити",
+  "siteSettingsHttpsUpgrade": "Перехід на HTTPS",
+  "siteSettingsHttpsUpgradeHint": "Завантажує сторінки через зашифроване з'єднання https навіть тоді, коли адреса починається з http, щоб те, що ви читаєте й надсилаєте, не можна було переглянути чи змінити в мережі. Сайти, які не пропонують зашифрованого з'єднання, і надалі завантажуються звичайним http та більше не перемикаються. Вимикайте це лише для сайту, який його не має.",
   "siteSettingsThirdPartyCookies": "Сторонні cookie",
   "siteSettingsIncognito": "Режим інкогніто",
   "siteSettingsIncognitoSubtitle": "Cookie та кеш не зберігаються",

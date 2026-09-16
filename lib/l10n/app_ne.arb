@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "पृष्ठ जुम",
   "siteSettingsZoomOut": "जुम घटाउनुहोस्",
   "siteSettingsZoomIn": "जुम बढाउनुहोस्",
+  "siteSettingsHttpsUpgrade": "HTTPS अपग्रेड",
+  "siteSettingsHttpsUpgradeHint": "ठेगाना http बाट सुरु भए पनि पृष्ठहरू इन्क्रिप्ट गरिएको https जडानमार्फत लोड गर्छ, जसले गर्दा तपाईंले पढ्ने र पठाउने कुरा सञ्जालमा हेर्न वा बदल्न सकिँदैन। इन्क्रिप्ट गरिएको जडान नदिने साइटहरू सामान्य http मै लोड हुन्छन् र पुनः अपग्रेड हुँदैनन्। त्यो नभएको साइटका लागि मात्र यो बन्द गर्नुहोस्।",
   "siteSettingsThirdPartyCookies": "तेस्रो-पक्ष कुकीहरू",
   "siteSettingsIncognito": "गुप्त मोड",
   "siteSettingsIncognitoSubtitle": "कुनै कुकी वा क्यास रहँदैन",

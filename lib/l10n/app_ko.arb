@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "페이지 확대/축소",
   "siteSettingsZoomOut": "축소",
   "siteSettingsZoomIn": "확대",
+  "siteSettingsHttpsUpgrade": "HTTPS 업그레이드",
+  "siteSettingsHttpsUpgradeHint": "주소가 http로 시작하더라도 암호화된 https 연결로 페이지를 불러오므로, 읽고 보내는 내용을 네트워크에서 엿보거나 변조할 수 없습니다. 암호화 연결을 제공하지 않는 사이트는 일반 http로 계속 열리며 다시 업그레이드되지 않습니다. 암호화 연결이 없는 사이트에서만 끄십시오.",
   "siteSettingsThirdPartyCookies": "서드파티 쿠키",
   "siteSettingsIncognito": "시크릿 모드",
   "siteSettingsIncognitoSubtitle": "쿠키나 캐시가 유지되지 않습니다",

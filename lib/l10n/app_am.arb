@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "የገጽ ማጉላት",
   "siteSettingsZoomOut": "አሳንስ",
   "siteSettingsZoomIn": "አጉላ",
+  "siteSettingsHttpsUpgrade": "ወደ HTTPS ማሻሻል",
+  "siteSettingsHttpsUpgradeHint": "አድራሻው በ http ቢጀምርም ገጾችን በተመሰጠረው https ግንኙነት ይጭናል፣ ስለዚህ የሚያነቡት እና የሚልኩት በአውታረ መረቡ ላይ ሊታይ ወይም ሊቀየር አይችልም። የተመሰጠረ ግንኙነት የማይሰጡ ጣቢያዎች አሁንም በተራ http ይጫናሉ እና እንደገና አይሻሻሉም። የሌለው ጣቢያ ላይ ብቻ ያጥፉት።",
   "siteSettingsThirdPartyCookies": "የሶስተኛ ወገን ኩኪዎች",
   "siteSettingsIncognito": "ኢንኮግኒቶ ሁነታ",
   "siteSettingsIncognitoSubtitle": "ምንም ኩኪዎች ወይም መሸጎጫ አይቆዩም",

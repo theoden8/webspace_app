@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "Oldalnagyítás",
   "siteSettingsZoomOut": "Kicsinyítés",
   "siteSettingsZoomIn": "Nagyítás",
+  "siteSettingsHttpsUpgrade": "Váltás HTTPS-re",
+  "siteSettingsHttpsUpgradeHint": "Az oldalakat a titkosított https-kapcsolaton keresztül tölti be akkor is, ha a cím http-vel kezdődik, így amit olvas és küld, azt a hálózaton nem lehet megfigyelni vagy módosítani. A titkosított kapcsolatot nem kínáló oldalak továbbra is sima http-n töltődnek be, és nem kerülnek újra átváltásra. Csak olyan oldalnál kapcsolja ki, amelynek nincs ilyenje.",
   "siteSettingsThirdPartyCookies": "Harmadik féltől származó sütik",
   "siteSettingsIncognito": "Inkognitó mód",
   "siteSettingsIncognitoSubtitle": "Nem maradnak meg sütik vagy gyorsítótár",

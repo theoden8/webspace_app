@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "पृष्ठ झूम",
   "siteSettingsZoomOut": "झूम आउट",
   "siteSettingsZoomIn": "झूम इन",
+  "siteSettingsHttpsUpgrade": "HTTPS अपग्रेड",
+  "siteSettingsHttpsUpgradeHint": "पत्ता http ने सुरू होत असला तरीही पृष्ठे एनक्रिप्टेड https जोडणीवरून लोड करते, जेणेकरून तुम्ही जे वाचता आणि पाठवता ते नेटवर्कवर पाहता किंवा बदलता येणार नाही. एनक्रिप्टेड जोडणी न देणारी संकेतस्थळे सामान्य http वरूनच लोड होतात आणि पुन्हा अपग्रेड होत नाहीत. ती नसलेल्या संकेतस्थळासाठीच हे बंद करा.",
   "siteSettingsThirdPartyCookies": "तृतीय-पक्ष कुकीज",
   "siteSettingsIncognito": "इन्कॉग्निटो मोड",
   "siteSettingsIncognitoSubtitle": "कोणत्याही कुकीज किंवा कॅशे टिकत नाहीत",

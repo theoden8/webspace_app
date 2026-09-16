@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "ಪುಟ ಜೂಮ್",
   "siteSettingsZoomOut": "ಜೂಮ್ ಔಟ್",
   "siteSettingsZoomIn": "ಜೂಮ್ ಇನ್",
+  "siteSettingsHttpsUpgrade": "HTTPS ಅಪ್‌ಗ್ರೇಡ್",
+  "siteSettingsHttpsUpgradeHint": "ವಿಳಾಸವು http ಯಿಂದ ಆರಂಭವಾದರೂ ಪುಟಗಳನ್ನು ಗೂಢಲಿಪೀಕೃತ https ಸಂಪರ್ಕದ ಮೂಲಕ ಲೋಡ್ ಮಾಡುತ್ತದೆ, ಹೀಗಾಗಿ ನೀವು ಓದುವುದನ್ನು ಮತ್ತು ಕಳುಹಿಸುವುದನ್ನು ಜಾಲದಲ್ಲಿ ನೋಡಲು ಅಥವಾ ಬದಲಾಯಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ. ಗೂಢಲಿಪೀಕೃತ ಸಂಪರ್ಕ ನೀಡದ ತಾಣಗಳು ಸಾಮಾನ್ಯ http ಮೂಲಕವೇ ಲೋಡ್ ಆಗುತ್ತವೆ ಮತ್ತು ಮತ್ತೆ ಅಪ್‌ಗ್ರೇಡ್ ಆಗುವುದಿಲ್ಲ. ಅದು ಇಲ್ಲದ ತಾಣಕ್ಕೆ ಮಾತ್ರ ಇದನ್ನು ಆಫ್ ಮಾಡಿ.",
   "siteSettingsThirdPartyCookies": "ಮೂರನೇ ಪಕ್ಷದ ಕುಕೀಗಳು",
   "siteSettingsIncognito": "ಇನ್‌ಕಾಗ್ನಿಟೋ ಮೋಡ್",
   "siteSettingsIncognitoSubtitle": "ಯಾವುದೇ ಕುಕೀಗಳು ಅಥವಾ ಕ್ಯಾಶ್ ಉಳಿಯುವುದಿಲ್ಲ",

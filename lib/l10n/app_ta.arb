@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "பக்க பெரிதாக்கம்",
   "siteSettingsZoomOut": "சிறிதாக்கு",
   "siteSettingsZoomIn": "பெரிதாக்கு",
+  "siteSettingsHttpsUpgrade": "HTTPS மேம்படுத்தல்",
+  "siteSettingsHttpsUpgradeHint": "முகவரி http உடன் தொடங்கினாலும் பக்கங்களை மறையாக்கப்பட்ட https இணைப்பின் வழியாக ஏற்றுகிறது, எனவே நீங்கள் படிப்பதையும் அனுப்புவதையும் வலையமைப்பில் கண்காணிக்கவோ மாற்றவோ முடியாது. மறையாக்கப்பட்ட இணைப்பை வழங்காத தளங்கள் வழக்கமான http இலேயே ஏற்றப்படும், மீண்டும் மேம்படுத்தப்படாது. அது இல்லாத தளத்திற்கு மட்டுமே இதை அணைக்கவும்.",
   "siteSettingsThirdPartyCookies": "மூன்றாம் தரப்பு குக்கீகள்",
   "siteSettingsIncognito": "மறைநிலை முறை",
   "siteSettingsIncognitoSubtitle": "குக்கீகள் அல்லது தற்காலிக சேமிப்பு தொடராது",

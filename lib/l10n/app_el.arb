@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "Ζουμ σελίδας",
   "siteSettingsZoomOut": "Σμίκρυνση",
   "siteSettingsZoomIn": "Μεγέθυνση",
+  "siteSettingsHttpsUpgrade": "Αναβάθμιση σε HTTPS",
+  "siteSettingsHttpsUpgradeHint": "Φορτώνει τις σελίδες μέσω της κρυπτογραφημένης σύνδεσης https ακόμη και όταν η διεύθυνση ξεκινά με http, ώστε όσα διαβάζετε και στέλνετε να μην μπορούν να παρακολουθηθούν ή να αλλοιωθούν στο δίκτυο. Οι ιστότοποι που δεν προσφέρουν κρυπτογραφημένη σύνδεση εξακολουθούν να φορτώνουν μέσω απλού http και δεν αναβαθμίζονται ξανά. Απενεργοποιήστε το μόνο για ιστότοπο που δεν διαθέτει.",
   "siteSettingsThirdPartyCookies": "Cookies τρίτων",
   "siteSettingsIncognito": "Λειτουργία ανώνυμης περιήγησης",
   "siteSettingsIncognitoSubtitle": "Δεν διατηρούνται cookies ή κρυφή μνήμη",

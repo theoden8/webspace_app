@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "Ukuzaji wa ukurasa",
   "siteSettingsZoomOut": "Punguza ukuzaji",
   "siteSettingsZoomIn": "Ongeza ukuzaji",
+  "siteSettingsHttpsUpgrade": "Kupandisha hadi HTTPS",
+  "siteSettingsHttpsUpgradeHint": "Hupakia kurasa kupitia muunganisho wa https uliosimbwa hata anwani inapoanza na http, ili yale unayosoma na kutuma yasiweze kufuatiliwa au kubadilishwa kwenye mtandao. Tovuti zisizo na muunganisho uliosimbwa bado hupakia kwa http ya kawaida na hazipandishwi tena. Zima hii kwa tovuti isiyokuwa nayo pekee.",
   "siteSettingsThirdPartyCookies": "Vidakuzi vya wahusika wengine",
   "siteSettingsIncognito": "Hali ya faragha",
   "siteSettingsIncognitoSubtitle": "Hakuna vidakuzi wala akiba zinazodumu",

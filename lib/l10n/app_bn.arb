@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "পৃষ্ঠা জুম",
   "siteSettingsZoomOut": "জুম আউট",
   "siteSettingsZoomIn": "জুম ইন",
+  "siteSettingsHttpsUpgrade": "HTTPS আপগ্রেড",
+  "siteSettingsHttpsUpgradeHint": "ঠিকানা http দিয়ে শুরু হলেও পৃষ্ঠাগুলি এনক্রিপ্ট করা https সংযোগের মাধ্যমে লোড করে, যাতে আপনি যা পড়েন ও পাঠান তা নেটওয়ার্কে কেউ দেখতে বা বদলাতে না পারে। যেসব সাইটে এনক্রিপ্ট করা সংযোগ নেই সেগুলি সাধারণ http-তেই লোড হয় এবং আর আপগ্রেড করা হয় না। শুধু এমন সাইটের জন্যই এটি বন্ধ করুন যার কোনোটি নেই।",
   "siteSettingsThirdPartyCookies": "তৃতীয়-পক্ষের কুকি",
   "siteSettingsIncognito": "ছদ্মবেশী মোড",
   "siteSettingsIncognitoSubtitle": "কোনো কুকি বা ক্যাশ থাকে না",

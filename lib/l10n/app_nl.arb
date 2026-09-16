@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "Paginazoom",
   "siteSettingsZoomOut": "Uitzoomen",
   "siteSettingsZoomIn": "Inzoomen",
+  "siteSettingsHttpsUpgrade": "HTTPS-upgrade",
+  "siteSettingsHttpsUpgradeHint": "Laadt pagina's via de versleutelde https-verbinding, ook wanneer het adres met http begint, zodat wat u leest en verstuurt niet op het netwerk kan worden bekeken of gewijzigd. Sites zonder versleutelde verbinding worden nog steeds via gewoon http geladen en worden niet opnieuw omgezet. Schakel dit alleen uit voor een site die er geen heeft.",
   "siteSettingsThirdPartyCookies": "Cookies van derden",
   "siteSettingsIncognito": "Incognitomodus",
   "siteSettingsIncognitoSubtitle": "Geen cookies of cache blijven bewaard",

@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "Lehe suum",
   "siteSettingsZoomOut": "Vähenda",
   "siteSettingsZoomIn": "Suurenda",
+  "siteSettingsHttpsUpgrade": "HTTPS-ile üleminek",
+  "siteSettingsHttpsUpgradeHint": "Laadib lehed krüpteeritud https-ühenduse kaudu ka siis, kui aadress algab http-ga, nii et seda, mida loed ja saadad, ei saa võrgus jälgida ega muuta. Saidid, mis krüpteeritud ühendust ei paku, laaditakse endiselt tavalise http kaudu ja neid enam ümber ei suunata. Lülita see välja ainult saidi puhul, millel seda pole.",
   "siteSettingsThirdPartyCookies": "Kolmandate osapoolte küpsised",
   "siteSettingsIncognito": "Inkognito režiim",
   "siteSettingsIncognitoSubtitle": "Küpsiseid ega vahemälu ei säilitata",

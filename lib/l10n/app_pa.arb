@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "ਪੰਨਾ ਜ਼ੂਮ",
   "siteSettingsZoomOut": "ਜ਼ੂਮ ਆਊਟ",
   "siteSettingsZoomIn": "ਜ਼ੂਮ ਇਨ",
+  "siteSettingsHttpsUpgrade": "HTTPS ਅੱਪਗ੍ਰੇਡ",
+  "siteSettingsHttpsUpgradeHint": "ਪਤਾ http ਨਾਲ ਸ਼ੁਰੂ ਹੋਣ 'ਤੇ ਵੀ ਪੰਨੇ ਏਨਕ੍ਰਿਪਟ ਕੀਤੇ https ਕਨੈਕਸ਼ਨ ਰਾਹੀਂ ਲੋਡ ਕਰਦਾ ਹੈ, ਤਾਂ ਜੋ ਤੁਸੀਂ ਜੋ ਪੜ੍ਹਦੇ ਅਤੇ ਭੇਜਦੇ ਹੋ ਉਸ ਨੂੰ ਨੈੱਟਵਰਕ ਉੱਤੇ ਵੇਖਿਆ ਜਾਂ ਬਦਲਿਆ ਨਾ ਜਾ ਸਕੇ। ਜਿਹੜੀਆਂ ਸਾਈਟਾਂ ਏਨਕ੍ਰਿਪਟ ਕੀਤਾ ਕਨੈਕਸ਼ਨ ਨਹੀਂ ਦਿੰਦੀਆਂ, ਉਹ ਸਧਾਰਨ http ਰਾਹੀਂ ਹੀ ਲੋਡ ਹੁੰਦੀਆਂ ਹਨ ਅਤੇ ਮੁੜ ਅੱਪਗ੍ਰੇਡ ਨਹੀਂ ਹੁੰਦੀਆਂ। ਇਹ ਸਿਰਫ਼ ਉਸ ਸਾਈਟ ਲਈ ਬੰਦ ਕਰੋ ਜਿਸ ਕੋਲ ਇਹ ਨਹੀਂ ਹੈ।",
   "siteSettingsThirdPartyCookies": "ਤੀਜੀ-ਧਿਰ ਕੂਕੀਜ਼",
   "siteSettingsIncognito": "ਇਨਕੋਗਨੀਟੋ ਮੋਡ",
   "siteSettingsIncognitoSubtitle": "ਕੋਈ ਕੂਕੀ ਜਾਂ ਕੈਸ਼ ਬਣੀ ਨਹੀਂ ਰਹਿੰਦੀ",

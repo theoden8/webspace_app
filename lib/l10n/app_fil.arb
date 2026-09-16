@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "Zoom ng pahina",
   "siteSettingsZoomOut": "Mag-zoom out",
   "siteSettingsZoomIn": "Mag-zoom in",
+  "siteSettingsHttpsUpgrade": "Pag-upgrade sa HTTPS",
+  "siteSettingsHttpsUpgradeHint": "Nilo-load ang mga pahina sa naka-encrypt na koneksyong https kahit na nagsisimula sa http ang address, kaya hindi mababantayan o mababago sa network ang binabasa at ipinapadala mo. Ang mga site na walang naka-encrypt na koneksyon ay nilo-load pa rin sa payak na http at hindi na inuulit ang pag-upgrade. I-off lamang ito para sa site na wala nito.",
   "siteSettingsThirdPartyCookies": "Mga third-party na cookie",
   "siteSettingsIncognito": "Incognito mode",
   "siteSettingsIncognitoSubtitle": "Walang cookie o cache na natatago",

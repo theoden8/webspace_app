@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "Puslapio mastelis",
   "siteSettingsZoomOut": "Mažinti",
   "siteSettingsZoomIn": "Didinti",
+  "siteSettingsHttpsUpgrade": "Perjungimas į HTTPS",
+  "siteSettingsHttpsUpgradeHint": "Įkelia puslapius šifruotu https ryšiu net tada, kai adresas prasideda http, kad tinkle nebūtų galima stebėti ar pakeisti to, ką skaitote ir siunčiate. Svetainės, nesiūlančios šifruoto ryšio, ir toliau įkeliamos paprastu http ir pakartotinai neperjungiamos. Išjunkite tai tik tai svetainei, kuri jo neturi.",
   "siteSettingsThirdPartyCookies": "Trečiųjų šalių slapukai",
   "siteSettingsIncognito": "Inkognito veiksena",
   "siteSettingsIncognitoSubtitle": "Slapukai ir podėlis neišsaugomi",
