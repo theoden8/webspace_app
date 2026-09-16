@@ -164,6 +164,10 @@ class TorControllerPlugin: NSObject {
   /// spawning beside it.
   private var exitingThread: TorThread?
 
+  /// Whether `tor_run_main` has been entered in this process. One is the
+  /// ceiling, for the life of the app -- see launchWhenFreeLocked.
+  private var hasLaunched = false
+
   /// That tor's configuration, kept until its thread is gone: its
   /// control-port file and cookie are the only way left to ask it to quit.
   private var exitingConfiguration: TorConfiguration?
@@ -276,10 +280,7 @@ class TorControllerPlugin: NSObject {
     case "setSocksIsolation":
       let isolate =
         (call.arguments as? [String: Any])?["isolateDestAddr"] as? Bool ?? true
-      stateQueue.async { [weak self] in
-        self?.pendingIsolateDestAddr = isolate
-        DispatchQueue.main.async { result(nil) }
-      }
+      setSocksIsolation(isolate, result: result)
     case "startTransport":
       let name = (call.arguments as? [String: Any])?["transport"] as? String ?? ""
       startTransport(name, result: result)
@@ -338,6 +339,21 @@ class TorControllerPlugin: NSObject {
     }
     exitingThread = nil
     exitingConfiguration = nil
+    // Once per process, and once only. A previous tor that has exited frees
+    // the slot Tor.framework guards, but not tor's own global state: the
+    // second `tor_run_main` reaches `threadpool_new` with the pool already
+    // built, hits its BUG() and logs "Can't create worker thread pool", and
+    // the bootstrap that follows never progresses. Before this check that
+    // was a three-minute wait ending in `bootstrapTimeout`, which reads as
+    // "Tor could not reach the network" -- a failure the user would retry,
+    // burning the same dead path again.
+    guard !hasLaunched else {
+      failLocked(
+        "Tor has already run once in this app session and cannot be started "
+          + "again: tor keeps state that only exits with the process. "
+          + "Restarting the app makes Tor available again.")
+      return
+    }
     launchLocked(generation: generation)
   }
 
@@ -473,6 +489,7 @@ class TorControllerPlugin: NSObject {
   }
 
   private func launchLocked(generation: Int) {
+    hasLaunched = true
     let config = TorConfiguration()
     let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
       .appendingPathComponent("Tor", isDirectory: true)
@@ -486,26 +503,8 @@ class TorControllerPlugin: NSObject {
     config.clientOnly = true
     config.avoidDiskWrites = true
     config.ignoreMissingTorrc = true
-    // `auto` lets tor pick a free loopback port and report it back.
-    // Never 9050: another tor-embedding app (Onion Browser) may already
-    // own it, and binding a fixed port is how a user's traffic ends up at
-    // whatever else answers there.
-    //
-    // IsolateSOCKSAuth is on by default per tor(1), but written out so
-    // the isolation contract is legible here rather than inherited from
-    // an upstream default that could change (TOR-003).
-    //
-    // IsolateDestAddr splits circuits per destination *address* as well, so
-    // one site loading from two hosts exits from two relays. That is more
-    // isolation than per-site, and it shows: a page whose own API lives on a
-    // second host reports two different addresses while it loads, and a
-    // session that checks its client IP across hosts breaks. The user
-    // chooses; the default keeps it on.
-    let isolation =
-      pendingIsolateDestAddr
-        ? "IsolateSOCKSAuth IsolateDestAddr" : "IsolateSOCKSAuth"
     config.options = [
-      "SocksPort": "auto \(isolation)",
+      "SocksPort": Self.socksPortValue(isolateDestAddr: pendingIsolateDestAddr),
       "SafeLogging": "1",
     ]
     // tor's own log, which `TORConfiguration` turns into
@@ -1027,6 +1026,55 @@ class TorControllerPlugin: NSObject {
   /// Failure is reported to Dart rather than swallowed: the engine treats a
   /// throw as "the pin did not land", and a pin silently not in force would
   /// have the user believe traffic leaves from a country it does not.
+  /// tor's `SocksPort` line for [isolateDestAddr].
+  ///
+  /// `auto` lets tor pick a free loopback port and report it back. Never
+  /// 9050: another tor-embedding app (Onion Browser) may already own it,
+  /// and binding a fixed port is how a user's traffic ends up at whatever
+  /// else answers there.
+  ///
+  /// IsolateSOCKSAuth is on by default per tor(1), but written out so the
+  /// isolation contract is legible here rather than inherited from an
+  /// upstream default that could change (TOR-003).
+  ///
+  /// IsolateDestAddr splits circuits per destination *address* as well, so
+  /// one site loading from two hosts exits from two relays. That is more
+  /// isolation than per-site, and it shows: a page whose own API lives on a
+  /// second host reports two different addresses while it loads, and a
+  /// session that checks its client IP across hosts breaks. The user
+  /// chooses; the default keeps it on.
+  static func socksPortValue(isolateDestAddr: Bool) -> String {
+    isolateDestAddr
+      ? "auto IsolateSOCKSAuth IsolateDestAddr" : "auto IsolateSOCKSAuth"
+  }
+
+  /// Record the isolation the user chose. It reaches tor at the next start.
+  ///
+  /// Not a live `SETCONF`, and not a restart, because neither works:
+  ///
+  ///  * A restart is impossible. tor keeps process-global state its own
+  ///    `tor_run_main` does not reset, so a second launch dies in
+  ///    `threadpool_new` ("Can't create worker thread pool") and never
+  ///    bootstraps. Tor.framework says the same thing from the other side:
+  ///    `TORThread` asserts there can only be one per process.
+  ///  * `SETCONF SocksPort="auto ..."` is accepted and changes nothing. On a
+  ///    config transition tor runs `retry_listener_ports`, which treats a
+  ///    `CFG_AUTO_PORT` request as matching any existing listener on that
+  ///    address and keeps it ("This listener is already running"). The
+  ///    isolation flags live on the listener's `entry_cfg`, copied once in
+  ///    `connection_listener_new`, so a kept listener keeps the old flags
+  ///    and tor still answers 250 OK.
+  ///
+  /// So the honest contract is the next start, and the UI says so.
+  private func setSocksIsolation(
+    _ isolateDestAddr: Bool, result: @escaping FlutterResult
+  ) {
+    stateQueue.async { [weak self] in
+      self?.pendingIsolateDestAddr = isolateDestAddr
+      DispatchQueue.main.async { result(nil) }
+    }
+  }
+
   private func setExitCountry(_ exitNodes: String?, result: @escaping FlutterResult) {
     stateQueue.async { [weak self] in
       guard let self = self else { result(nil); return }

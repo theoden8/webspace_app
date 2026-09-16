@@ -388,6 +388,12 @@ class TorService {
     await _engine.restart();
   }
 
+  /// Apply the destination-isolation choice, live where Tor is already up.
+  Future<void> applySocksIsolation({required bool isolateDestAddr}) async {
+    if (!isAvailable) return;
+    await _engine.applySocksIsolation(isolateDestAddr: isolateDestAddr);
+  }
+
   /// Pin every circuit to a country (tor `ExitNodes` syntax) or clear it.
   /// Global to the runtime — see TOR-014 for why that makes per-site pins
   /// mutually exclusive.
