@@ -865,5 +865,5 @@
   "proxyTestAuthRejected": "El servidor intermediari ha rebutjat aquestes credencials",
   "proxyTestUnreachable": "No s'ha pogut arribar al servidor intermediari",
   "torIsolateDestAddrTitle": "Circuit separat per destinació",
-  "torIsolateDestAddrHint": "Cada lloc sempre té el seu propi circuit de Tor. Amb això activat, un lloc també obté un circuit separat per a cada amfitrió del qual carrega, de manera que una sola pàgina pot arribar a Internet des de dues o més adreces de sortida alhora: més aïllament, però un lloc que comprova la teva adreça entre els seus amfitrions pot tancar-te la sessió. Desactivat, el lloc té una sola adreça per a tot el que carrega. Canviar-ho reinicia Tor."
+  "torIsolateDestAddrHint": "Cada lloc sempre té el seu propi circuit de Tor. Amb això activat, un lloc també obté un circuit separat per a cada amfitrió del qual carrega, de manera que una sola pàgina pot arribar a Internet des de dues o més adreces de sortida alhora: més aïllament, però un lloc que comprova la teva adreça entre els seus amfitrions pot tancar-te la sessió. Desactivat, el lloc té una sola adreça per a tot el que carrega. Aquest canvi tindrà efecte el pròxim cop que obris l’aplicació."
 }

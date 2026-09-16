@@ -865,5 +865,5 @@
   "proxyTestAuthRejected": "Proxy-i i refuzoi këto kredenciale",
   "proxyTestUnreachable": "Nuk u arrit të lidhej me proxy-n",
   "torIsolateDestAddrTitle": "Qark i veçantë për çdo destinacion",
-  "torIsolateDestAddrHint": "Çdo sajt ka gjithmonë qarkun e vet Tor. Kur kjo është aktive, sajti merr edhe një qark të veçantë për çdo host prej të cilit ngarkon, kështu që një faqe e vetme mund të dalë në internet nga dy ose më shumë adresa dalëse njëherësh — më shumë izolim, por një sajt që kontrollon adresën tuaj mes hosteve të veta mund t'ju shkëputë. E çaktivizuar, sajti përdor një adresë të vetme për gjithçka që ngarkon. Ky ndryshim rinis Tor-in."
+  "torIsolateDestAddrHint": "Çdo sajt ka gjithmonë qarkun e vet Tor. Kur kjo është aktive, sajti merr edhe një qark të veçantë për çdo host prej të cilit ngarkon, kështu që një faqe e vetme mund të dalë në internet nga dy ose më shumë adresa dalëse njëherësh — më shumë izolim, por një sajt që kontrollon adresën tuaj mes hosteve të veta mund t'ju shkëputë. E çaktivizuar, sajti përdor një adresë të vetme për gjithçka që ngarkon. Ky ndryshim hyn në fuqi herën tjetër që hapni aplikacionin."
 }

@@ -865,5 +865,5 @@
   "proxyTestAuthRejected": "Proxy menolak kredensial ini",
   "proxyTestUnreachable": "Tidak dapat menghubungi proxy",
   "torIsolateDestAddrTitle": "Sirkuit terpisah per tujuan",
-  "torIsolateDestAddrHint": "Setiap situs selalu mendapat sirkuit Tor-nya sendiri. Bila ini aktif, situs juga mendapat sirkuit terpisah untuk setiap host yang dimuatnya, sehingga satu halaman bisa mencapai internet dari dua alamat keluar atau lebih sekaligus — isolasi lebih kuat, tetapi situs yang memeriksa alamat Anda di antara host-nya sendiri bisa mengeluarkan Anda. Bila nonaktif, situs memakai satu alamat untuk semua yang dimuatnya. Mengubah ini memulai ulang Tor."
+  "torIsolateDestAddrHint": "Setiap situs selalu mendapat sirkuit Tor-nya sendiri. Bila ini aktif, situs juga mendapat sirkuit terpisah untuk setiap host yang dimuatnya, sehingga satu halaman bisa mencapai internet dari dua alamat keluar atau lebih sekaligus — isolasi lebih kuat, tetapi situs yang memeriksa alamat Anda di antara host-nya sendiri bisa mengeluarkan Anda. Bila nonaktif, situs memakai satu alamat untuk semua yang dimuatnya. Perubahan ini berlaku saat Anda membuka aplikasi berikutnya."
 }

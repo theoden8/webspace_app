@@ -865,5 +865,5 @@
   "proxyTestAuthRejected": "Posredniški strežnik je zavrnil te poverilnice",
   "proxyTestUnreachable": "Posredniškega strežnika ni bilo mogoče doseči",
   "torIsolateDestAddrTitle": "Ločeno vezje za vsak cilj",
-  "torIsolateDestAddrHint": "Vsaka stran ima vedno svoje vezje Tor. Ko je to vklopljeno, stran dobi ločeno vezje tudi za vsakega gostitelja, s katerega nalaga, zato lahko ena stran doseže internet z dveh ali več izhodnih naslovov hkrati — več izolacije, vendar vas stran, ki preverja vaš naslov med svojimi gostitelji, lahko odjavi. Izklopljeno stran uporablja en naslov za vse, kar nalaga. Sprememba znova zažene Tor."
+  "torIsolateDestAddrHint": "Vsaka stran ima vedno svoje vezje Tor. Ko je to vklopljeno, stran dobi ločeno vezje tudi za vsakega gostitelja, s katerega nalaga, zato lahko ena stran doseže internet z dveh ali več izhodnih naslovov hkrati — več izolacije, vendar vas stran, ki preverja vaš naslov med svojimi gostitelji, lahko odjavi. Izklopljeno stran uporablja en naslov za vse, kar nalaga. Sprememba bo začela veljati ob naslednjem zagonu aplikacije."
 }

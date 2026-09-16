@@ -865,5 +865,5 @@
   "proxyTestAuthRejected": "A proxy elutasította ezeket az adatokat",
   "proxyTestUnreachable": "A proxy nem érhető el",
   "torIsolateDestAddrTitle": "Külön áramkör célonként",
-  "torIsolateDestAddrHint": "Minden webhely mindig saját Tor-áramkört kap. Ha ez be van kapcsolva, a webhely külön áramkört kap minden kiszolgálóhoz is, amelyről betölt, így egyetlen oldal egyszerre két vagy több kilépési címről érheti el az internetet — erősebb elkülönítés, de az a webhely, amely a saját kiszolgálói között ellenőrzi a címedet, kiléptethet. Kikapcsolva a webhely egyetlen címet használ mindenhez, amit betölt. A módosítás újraindítja a Tort."
+  "torIsolateDestAddrHint": "Minden webhely mindig saját Tor-áramkört kap. Ha ez be van kapcsolva, a webhely külön áramkört kap minden kiszolgálóhoz is, amelyről betölt, így egyetlen oldal egyszerre két vagy több kilépési címről érheti el az internetet — erősebb elkülönítés, de az a webhely, amely a saját kiszolgálói között ellenőrzi a címedet, kiléptethet. Kikapcsolva a webhely egyetlen címet használ mindenhez, amit betölt. A módosítás az alkalmazás következő megnyitásakor lép életbe."
 }

@@ -865,5 +865,5 @@
   "proxyTestAuthRejected": "Vekil sunucu bu kimlik bilgilerini reddetti",
   "proxyTestUnreachable": "Vekil sunucuya ulaşılamadı",
   "torIsolateDestAddrTitle": "Her hedef için ayrı devre",
-  "torIsolateDestAddrHint": "Her site her zaman kendi Tor devresini alır. Bu açıkken site, yüklediği her ana bilgisayar için de ayrı bir devre alır; böylece tek bir sayfa aynı anda iki veya daha fazla çıkış adresinden internete ulaşır — daha fazla yalıtım, ancak adresinizi kendi ana bilgisayarları arasında denetleyen bir site oturumunuzu kapatabilir. Kapalıyken site, yüklediği her şey için tek bir adres kullanır. Bunu değiştirmek Tor'u yeniden başlatır."
+  "torIsolateDestAddrHint": "Her site her zaman kendi Tor devresini alır. Bu açıkken site, yüklediği her ana bilgisayar için de ayrı bir devre alır; böylece tek bir sayfa aynı anda iki veya daha fazla çıkış adresinden internete ulaşır — daha fazla yalıtım, ancak adresinizi kendi ana bilgisayarları arasında denetleyen bir site oturumunuzu kapatabilir. Kapalıyken site, yüklediği her şey için tek bir adres kullanır. Bu değişiklik uygulamayı bir sonraki açışınızda geçerli olur."
 }
