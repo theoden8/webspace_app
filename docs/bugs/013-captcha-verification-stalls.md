@@ -186,9 +186,13 @@ wrapper, correctly.
      how the app built that webview. Worth reading `windowId` handover on
      Android against this.
 
-   Ruling between them needs one datum from the reporter: whether Site
-   behaviour, HTML caching is on for that site, and whether the error appears
-   before the verification popup opens or only after.
+   Ranked by the maintainer on 2026-09-16: `htmlCachingEnabled` is `false` in
+   the constructor and `?? false` on rehydrate, so the cached-HTML path is
+   unlikely to be what a default install hits, and the popup is the one to
+   read first. It is not ruled out, because the early return in `main.dart`
+   requires caching off **and** `lastKnownOnline` true, so a stale or false
+   connectivity reading at construction renders the snapshot whatever the
+   toggle says. Off by default is not never.
 
 2. **Third-party cookies are off by default and unreachable under Tracking
    Protection.** This is a real divergence from every browser the reporter
