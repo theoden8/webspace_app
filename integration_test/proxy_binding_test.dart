@@ -14,9 +14,20 @@
 // parser skipped it and no per-site proxy was ever applied on either Apple
 // platform.
 //
-// The assertion is the origin's own view: a site whose proxy cannot be
-// reached must not arrive at the origin. A direct load is exactly what a
-// dropped binding produces, and the fixture server sees it.
+// Two rules this file learned the hard way, both of which made it pass while
+// no proxy was bound at all:
+//
+//  * The origin must not be on loopback. Apple never proxies `127.0.0.1`,
+//    so a loopback fixture loads directly whichever way the binding went.
+//  * A second webview for the same site needs its own subtree key. Pumping
+//    the same widget position again updates the existing platform view
+//    instead of building a new one, so the second load is never issued and
+//    "the origin was not reached" holds for free.
+//
+// So the assertions here are positive wherever they can be: the fixture
+// SOCKS5 server must have been asked for the origin. A negative ("the
+// origin was not reached") is satisfied by any broken load, and every way
+// this file has been wrong so far broke the load.
 
 import 'dart:io';
 
@@ -27,6 +38,7 @@ import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'fixture_server.dart';
+import 'socks5_fixture.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -34,8 +46,11 @@ void main() {
   final applies = hostIsIOS || hostIsMacOS;
 
   late HttpServer server;
+  late String originHost;
   late int port;
   late int deadPort;
+  late Socks5Fixture socks;
+  InternetAddress? routable;
   final requests = <String>[];
 
   void log(String m) {
@@ -45,53 +60,88 @@ void main() {
 
   setUpAll(() async {
     await PlatformInfo.initialize();
-    server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    routable = await nonLoopbackIPv4();
+    server = await HttpServer.bind(InternetAddress.anyIPv4, 0);
     port = server.port;
+    originHost = (routable ?? InternetAddress.loopbackIPv4).address;
     listenFixture(server, (req) async {
       requests.add(req.uri.path);
       final res = req.response..headers.contentType = ContentType.html;
       res.write('<!doctype html><html><body><p>origin</p></body></html>');
       await res.close();
     });
+    socks = await Socks5Fixture.bind();
     // Claimed, then released: a connection there is refused rather than
     // filtered, so a bound proxy fails fast instead of timing out.
     final probe = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
     deadPort = probe.port;
     await probe.close();
-    log('origin on $port, dead proxy on $deadPort, '
+    log('origin on $originHost:$port, socks on ${socks.port}, '
+        'dead proxy on $deadPort, '
         'proxySupported=${PlatformInfo.isProxySupported}');
   });
 
   tearDownAll(() async {
+    await socks.close();
     await server.close(force: true);
   });
 
-  setUp(requests.clear);
+  setUp(() {
+    requests.clear();
+    socks.targets.clear();
+  });
+
+  /// Skips off-Apple, and fails rather than skips when the environment
+  /// cannot host the assertion. A silent skip is how this file spent its
+  /// whole life reporting green over an unbound proxy.
+  bool usable() {
+    if (!applies) {
+      markTestSkipped('per-WebView proxy binding is an Apple path');
+      return false;
+    }
+    expect(
+      routable,
+      isNotNull,
+      reason: 'no non-loopback IPv4 on this machine, and Apple never sends a '
+          'loopback destination through a proxy, so nothing here could '
+          'distinguish a bound proxy from an unbound one',
+    );
+    return true;
+  }
+
+  var generation = 0;
 
   Future<void> mount(
     WidgetTester tester, {
     required String siteId,
-    required String initialUrl,
+    required String path,
     UserProxySettings? proxySettings,
   }) async {
+    // A fresh key per mount. Without it the second mount updates the
+    // existing InAppWebView element, which keeps the platform view it
+    // already had and never issues the new initial load.
+    final key = ValueKey('webview-${generation++}');
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(
         body: Center(
           child: SizedBox(
             width: 320,
             height: 480,
-            child: WebViewFactory.createWebView(
-              config: WebViewConfig(
-                siteId: siteId,
-                initialUrl: initialUrl,
-                proxySettings: proxySettings,
-                clearUrlEnabled: false,
-                dnsBlockEnabled: false,
-                contentBlockEnabled: false,
-                trackingProtectionEnabled: false,
-                localCdnEnabled: false,
+            child: KeyedSubtree(
+              key: key,
+              child: WebViewFactory.createWebView(
+                config: WebViewConfig(
+                  siteId: siteId,
+                  initialUrl: 'http://$originHost:$port$path',
+                  proxySettings: proxySettings,
+                  clearUrlEnabled: false,
+                  dnsBlockEnabled: false,
+                  contentBlockEnabled: false,
+                  trackingProtectionEnabled: false,
+                  localCdnEnabled: false,
+                ),
+                onControllerCreated: (_) {},
               ),
-              onControllerCreated: (_) {},
             ),
           ),
         ),
@@ -100,6 +150,16 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pump(const Duration(milliseconds: 500));
   }
+
+  UserProxySettings liveProxy() => UserProxySettings(
+        type: ProxyType.SOCKS5,
+        address: '127.0.0.1:${socks.port}',
+      );
+
+  UserProxySettings refusedProxy() => UserProxySettings(
+        type: ProxyType.SOCKS5,
+        address: '127.0.0.1:$deadPort',
+      );
 
   /// Wall-clock wait: a live compositing platform view blocks `pump()`.
   Future<bool> waitReal(
@@ -125,15 +185,10 @@ void main() {
   }
 
   testWidgets('the harness can see a load reach the origin', (tester) async {
-    // The control. Without it, the assertion below passes for any reason a
+    // The control. Without it, the assertions below pass for any reason a
     // page fails to load, which is most of them.
-    if (!applies) {
-      markTestSkipped('per-WebView proxy binding is an Apple path');
-      return;
-    }
-    await mount(tester,
-        siteId: 'proxy-binding-control',
-        initialUrl: 'http://127.0.0.1:$port/control');
+    if (!usable()) return;
+    await mount(tester, siteId: 'proxy-binding-control', path: '/control');
     expect(
       await waitReal(tester, () => requests.contains('/control'),
           label: 'direct load'),
@@ -141,14 +196,13 @@ void main() {
       reason: 'an unproxied site never reached the fixture origin, so this '
           'file cannot tell a bound proxy from a broken harness',
     );
+    expect(socks.targets, isEmpty,
+        reason: 'an unproxied site went through the fixture proxy');
   });
 
-  testWidgets('a site whose proxy is refused never reaches the origin',
+  testWidgets("a fresh site's first webview loads through its proxy",
       (tester) async {
-    if (!applies) {
-      markTestSkipped('per-WebView proxy binding is an Apple path');
-      return;
-    }
+    if (!usable()) return;
     if (!PlatformInfo.isProxySupported) {
       // Below iOS 17 / macOS 14 the app blanks the load instead
       // (`proxyUnavailable`), which is a different contract with its own
@@ -162,28 +216,53 @@ void main() {
       // served a load: binding at construction is what this asserts, and
       // re-binding a store that is already in use is the scenario below.
       siteId: 'proxy-binding-fresh',
-      initialUrl: 'http://127.0.0.1:$port/proxied',
-      proxySettings: UserProxySettings(
-        type: ProxyType.SOCKS5,
-        address: '127.0.0.1:$deadPort',
-      ),
+      path: '/proxied',
+      proxySettings: liveProxy(),
     );
-    // Long enough for a direct load to have happened many times over; the
-    // proxied one cannot succeed at all.
-    await waitReal(tester, () => requests.contains('/proxied'),
-        label: 'proxied load (must not arrive)',
-        timeout: const Duration(seconds: 15));
     expect(
-      requests,
-      isNot(contains('/proxied')),
-      reason: 'the request reached the origin directly: the per-site proxy '
-          'was not bound to the engine, so every proxied site is loading '
-          'over the device IP',
+      await waitReal(tester, () => socks.targets.isNotEmpty,
+          label: 'proxied load (must arrive at the proxy)'),
+      isTrue,
+      reason: 'the fixture proxy was never asked for anything: the per-site '
+          'proxy was not bound to the engine, so every proxied site is '
+          'loading over the device IP',
+    );
+    expect(socks.targets.first, '$originHost:$port');
+    expect(
+      await waitReal(tester, () => requests.contains('/proxied'),
+          label: 'proxied load (relayed to the origin)'),
+      isTrue,
     );
   });
 
-  testWidgets('a site that gains a proxy stops reaching the origin',
+  testWidgets('a site whose proxy is refused never reaches the origin',
       (tester) async {
+    if (!usable()) return;
+    if (!PlatformInfo.isProxySupported) {
+      markTestSkipped('below the proxyConfigurations floor');
+      return;
+    }
+    await mount(
+      tester,
+      siteId: 'proxy-binding-refused',
+      path: '/refused',
+      proxySettings: refusedProxy(),
+    );
+    // Long enough for a direct load to have happened many times over; the
+    // proxied one cannot succeed at all.
+    await waitReal(tester, () => requests.contains('/refused'),
+        label: 'refused load (must not arrive)',
+        timeout: const Duration(seconds: 15));
+    expect(
+      requests,
+      isNot(contains('/refused')),
+      reason: 'the request reached the origin directly: a proxy that cannot '
+          'be connected to fell back to the device IP instead of failing '
+          'the load',
+    );
+  });
+
+  testWidgets('a site that gains a proxy stops going direct', (tester) async {
     // The reported symptom: "sometimes I have to restart the app for the Tor
     // proxy to start working". A site's container data store outlives its
     // webview -- the plugin caches one per container for the process -- so
@@ -191,17 +270,13 @@ void main() {
     // served a load. If that assignment does not take, the only thing that
     // ever binds a proxy is the first webview a site gets, and restarting
     // the app is the only way to change it.
-    if (!applies) {
-      markTestSkipped('per-WebView proxy binding is an Apple path');
-      return;
-    }
+    if (!usable()) return;
     if (!PlatformInfo.isProxySupported) {
       markTestSkipped('below the proxyConfigurations floor');
       return;
     }
     const siteId = 'proxy-binding-rebind';
-    await mount(tester,
-        siteId: siteId, initialUrl: 'http://127.0.0.1:$port/first');
+    await mount(tester, siteId: siteId, path: '/first');
     expect(
       await waitReal(tester, () => requests.contains('/first'),
           label: 'unproxied first load'),
@@ -213,22 +288,22 @@ void main() {
     await mount(
       tester,
       siteId: siteId,
-      initialUrl: 'http://127.0.0.1:$port/second',
-      proxySettings: UserProxySettings(
-        type: ProxyType.SOCKS5,
-        address: '127.0.0.1:$deadPort',
-      ),
+      path: '/second',
+      proxySettings: liveProxy(),
     );
-    await waitReal(tester, () => requests.contains('/second'),
-        label: 'rebound load (must not arrive)',
-        timeout: const Duration(seconds: 15));
     expect(
-      requests,
-      isNot(contains('/second')),
-      reason: 'the second load reached the origin directly: a proxy assigned '
-          'to a container store that has already served a load does not take '
-          'effect, so a site keeps whatever proxy its first webview was built '
-          'with until the app restarts',
+      await waitReal(tester, () => socks.targets.isNotEmpty,
+          label: 'rebound load (must arrive at the proxy)'),
+      isTrue,
+      reason: 'a proxy assigned to a container store that has already served '
+          'a load does not take effect, so a site keeps whatever proxy its '
+          'first webview was built with until the app restarts',
+    );
+    expect(socks.targets.last, '$originHost:$port');
+    expect(
+      await waitReal(tester, () => requests.contains('/second'),
+          label: 'rebound load (relayed to the origin)'),
+      isTrue,
     );
   });
 }
