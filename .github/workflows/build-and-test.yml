@@ -1297,7 +1297,12 @@ jobs:
           # that reaches nothing reports success. The run is red either way;
           # this says which of the two happened without reading the log.
           rc=0
-          fvm flutter test integration_test/tor_test.dart -d macos --ci || rc=$?
+          # Kept, because this step runs an hour before the end of the job and
+          # its output is unreachable from the log's tail by then; the report
+          # step at the end prints it back.
+          fvm flutter test integration_test/tor_test.dart -d macos --ci 2>&1 \
+            | tee "${RUNNER_TEMP:-/tmp}/tor-scenario.log"
+          rc=${PIPESTATUS[0]}
           if [ $rc -eq 79 ]; then
             echo "::error::the Tor scenarios did not run at all (exit 79); "\
                  "see the [tor-test] trace lines above for which branch each took"
@@ -1388,6 +1393,10 @@ jobs:
         if: always()
         run: |
           echo "=== Tor scenario: ${{ steps.tor_scenario.outcome }} ==="
+          if [ "${{ steps.tor_scenario.outcome }}" != "success" ]; then
+            echo "=== Tor scenario: last 80 lines ==="
+            tail -80 "${RUNNER_TEMP:-/tmp}/tor-scenario.log" || true
+          fi
 
       - name: Create macOS ZIP archive
         run: |
