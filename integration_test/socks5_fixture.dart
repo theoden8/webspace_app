@@ -11,6 +11,8 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'fixture_server.dart';
+
 /// Byte-oriented view of a socket: `read(n)` completes once n bytes have
 /// arrived, and [drain] hands back whatever was buffered past the handshake
 /// so the relay can forward it.
@@ -70,7 +72,11 @@ class Socks5Fixture {
   static Future<Socks5Fixture> bind() async {
     final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
     final fixture = Socks5Fixture._(server);
-    server.listen(fixture._serve, onError: (Object _) {});
+    // Through the shared helper: an error on this socket is otherwise an
+    // uncaught async error, which flutter_test reports against whichever
+    // test finished last -- here, "(setUpAll) failed after test completion",
+    // counted as a failure of its own.
+    listenFixture(server, fixture._serve);
     return fixture;
   }
 

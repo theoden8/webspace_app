@@ -262,6 +262,42 @@ nothing prevents it either. And the fix is unverified until the tier runs it: th
 `DIRECT` to `proxied`.
 
 
+### Attempt 9 — Only the first WebView in the process is ever proxied
+**Date:** 2026-09-16 · **Files:** fork @ `45f01cd`, `pubspec.yaml`,
+`integration_test/proxy_binding_test.dart`, `integration_test/socks5_fixture.dart`
+**What it did:** the `verdict:` line from attempt 7 reported for the first time, and it
+is not what attempt 8 fixed:
+
+```
+verdict: first-in-process=proxied, fresh-site=DIRECT, refused=DIRECT, rebind=DIRECT
+```
+
+Attempt 8's store rebuild is in (the fork compiles and ships; the Apple build and the
+Tor scenario both passed on that head), and a *fresh site with its own container* still
+loads direct. Only the very first WebView in the process uses its proxy. So the
+discriminator is not the store's history and not the container's cache — both of which
+attempt 8 addressed — but something that distinguishes the first WebView in a process
+from every one after it.
+
+The obvious candidate is WebKit's shared network process: `proxyConfigurations` may only
+be read when that process is launched, in which case no store-level fix can work and
+per-WebView proxies are simply unavailable after the first. That is a hypothesis, and
+three hypotheses have already been wrong here, so this attempt measures instead of
+arguing. The fork now prints, per WebView, whether `proxySettings` arrived and which
+`WKWebsiteDataStore` the configuration ended up with, and per container-store lookup
+whether it was built or reused and with how many proxy rules. The verdict line also
+carries `containers=`, because whether the test resolved containers at all is a
+precondition the truncated tier log did not show.
+
+Also fixed: `Socks5Fixture.bind` subscribed to its server socket directly, so a socket
+error at teardown surfaced as "(setUpAll) failed after test completion" and counted as
+a fourth failure. It goes through `listenFixture` now, which exists for exactly that.
+**Why:** the count said three hypotheses were wrong; only the plugin's own account of
+what it did can say which one to replace.
+**Why it was partial:** it is instrumentation. It fixes nothing, and if the network
+process is the mechanism then the fix is not in this repo or in the fork.
+
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**

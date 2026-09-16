@@ -99,7 +99,7 @@ void main() {
   final verdict = <String>[];
 
   tearDownAll(() async {
-    log('verdict: ${verdict.join(", ")}');
+    log('verdict: containers=$containers, ${verdict.join(", ")}');
     await socks.close();
     await server.close(force: true);
   });
