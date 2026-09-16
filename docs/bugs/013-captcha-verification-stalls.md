@@ -186,13 +186,31 @@ wrapper, correctly.
      how the app built that webview. Worth reading `windowId` handover on
      Android against this.
 
-   Ranked by the maintainer on 2026-09-16: `htmlCachingEnabled` is `false` in
-   the constructor and `?? false` on rehydrate, so the cached-HTML path is
-   unlikely to be what a default install hits, and the popup is the one to
-   read first. It is not ruled out, because the early return in `main.dart`
-   requires caching off **and** `lastKnownOnline` true, so a stale or false
-   connectivity reading at construction renders the snapshot whatever the
-   toggle says. Off by default is not never.
+   **Both were checked on 2026-09-16 and neither fits the report.**
+   `htmlCachingEnabled` is `false` in the constructor and `?? false` on
+   rehydrate, so a default install does not take the cached-HTML path (the
+   early return does need caching off **and** `lastKnownOnline` true, so a
+   stale connectivity reading still renders the snapshot; off by default is
+   not never, but it is not the common case either). The popup is not in this
+   flow at all: the report is the inline widget sitting on "Verifying…", and
+   the verification popup only opens from a click the reporter never made,
+   whereas the error repeats.
+
+   A third candidate, that the app's own injected code reads the cookie in a
+   frame that cannot hold one, is also out: no shim touches `document.cookie`,
+   and the only app code that does is the nested browser's clear-on-attach
+   script in `inappbrowser.dart`, which runs in the main frame of a nested
+   webview.
+
+   So **the console line is not attributed to an app path.** The table above
+   says what the wording means, not where this instance came from, and it
+   should not be read as the cause of the stall until something reproduces it.
+   The remaining possibility worth weighing is that it is Cloudflare's own
+   probe of a frame it created and is a red herring, the same way the SOP
+   error in the captcha spec was from 2026-01 to 2026-09. What settles it is a
+   `chrome://inspect` session against a debug build on the reporter's device,
+   reading which document the exception is thrown from. That is one step, and
+   it is not one that can be taken from here.
 
 2. **Third-party cookies are off by default and unreachable under Tracking
    Protection.** This is a real divergence from every browser the reporter
