@@ -1115,6 +1115,40 @@ file that measures the platform rather than the product.
 
 
 
+### Attempt 28 — The raw webview was built in the wrong frame
+**Date:** 2026-09-16 · **Files:** `integration_test/proxy_binding_test.dart`
+
+```
+verdict: … raw-first=DIRECT, raw-second=DIRECT …
+native:  built ws-proxy-binding-raw
+         webview proxySettings=true container=ws-proxy-binding-raw store=0x…aaed00
+```
+
+`raw-first=DIRECT`, and the trace shows the plugin did everything right: the
+settings crossed, the container store was created, the proxy was on it. The
+scenario still measured nothing, because it was written as its own
+`testWidgets` and therefore ran *after* the first-frame test — so its webview
+was built in a later frame, where by the rule established in attempts 22-24 it
+cannot bind whatever is on it. It measured construction, not persistence.
+
+That is the third harness error in this investigation, and they share a shape:
+**the first frame is a scarce resource, and every probe has to be inside it.**
+Sequenced assertions cost `persist` in attempt 24; measuring through
+`WebViewFactory` cost the whole conclusion in attempt 26; and a probe placed in
+its own test costs everything here. The raw webview is now a fourth pane in the
+first frame beside `pair-a`, `pair-b` and `refused`, with its second navigation
+taken inside the same test, and the comment beside it says why it cannot move.
+
+`raw-first` is the floor for `raw-second`: if the raw webview does not bind in
+the first frame, the second navigation says nothing either way. The factory's
+programmatic navigation also gets its own origin back, since it had been
+sharing a port with the raw one.
+**Why:** the retraction in attempt 27 is only worth something if the experiment
+that replaces it actually runs where it can produce a signal.
+**Why it was partial:** it is the same experiment, placed correctly. It still
+has to run.
+
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**

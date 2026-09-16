@@ -53,10 +53,12 @@ void main() {
   // CONNECT attributable. A second load to the *same* origin can also reuse
   // the first connection, which would look like no proxy was asked at all.
   late HttpServer deferredOrigin;
+  late HttpServer factoryOrigin;
   late HttpServer persistOrigin;
   late String originHost;
   late int port;
   late int deferredPort;
+  late int factoryPort;
   late int persistPort;
   late int deadPort;
   late Socks5Fixture socks;
@@ -119,6 +121,14 @@ void main() {
       }
       await res.close();
     });
+    factoryOrigin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
+    factoryPort = factoryOrigin.port;
+    listenFixture(factoryOrigin, (req) async {
+      requests.add('factory:${req.uri.path}');
+      final res = req.response..headers.contentType = ContentType.html;
+      res.write('<!doctype html><html><body><p>factory</p></body></html>');
+      await res.close();
+    });
     deferredOrigin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
     deferredPort = deferredOrigin.port;
     listenFixture(deferredOrigin, (req) async {
@@ -159,6 +169,7 @@ void main() {
     await socks.close();
     await server.close(force: true);
     await deferredOrigin.close(force: true);
+    await factoryOrigin.close(force: true);
     await persistOrigin.close(force: true);
   });
 
@@ -277,6 +288,7 @@ void main() {
       return;
     }
     WebViewController? paneB;
+    inapp.InAppWebViewController? raw;
     Widget pane(String siteId, String url, UserProxySettings proxy) => SizedBox(
           width: 320,
           height: 120,
@@ -313,6 +325,36 @@ void main() {
             key: const ValueKey('refused'),
             child: pane('proxy-binding-refused',
                 'http://$originHost:$port/refused', refusedProxy()),
+          ),
+          // Straight from the plugin: no `WebViewFactory`, so no
+          // `shouldOverrideUrlLoading`, no universal-link bypass, no
+          // per-site policy. Its second navigation is the only one in this
+          // file that is a plain WebKit navigation, which is what decides
+          // whether the leak is the platform's or this app's.
+          //
+          // It has to be in THIS frame. Built in any later one it cannot
+          // bind at all, and the scenario would measure construction
+          // instead of persistence -- which is exactly how the previous
+          // run's `raw-first=DIRECT` came about.
+          SizedBox(
+            width: 320,
+            height: 120,
+            child: inapp.InAppWebView(
+              key: const ValueKey('raw'),
+              initialUrlRequest: inapp.URLRequest(
+                url: inapp.WebUri('http://$originHost:$port/raw'),
+              ),
+              initialSettings: inapp.InAppWebViewSettings(
+                containerId: 'ws-proxy-binding-raw',
+                proxySettings: inapp.ProxySettings(
+                  proxyRules: [
+                    inapp.ProxyRule(url: 'socks5://127.0.0.1:${socks.port}'),
+                  ],
+                  bypassRules: [],
+                ),
+              ),
+              onWebViewCreated: (c) => raw = c,
+            ),
           ),
         ]),
       ),
@@ -376,18 +418,42 @@ void main() {
       await tester.runAsync(() async {
         await paneB!.nativeController.loadUrl(
           urlRequest: inapp.URLRequest(
-            url: inapp.WebUri('http://$originHost:$deferredPort/d'),
+            url: inapp.WebUri('http://$originHost:$factoryPort/d'),
+          ),
+        );
+      });
+      await waitReal(
+          tester, () => socks.targets.contains('$originHost:$factoryPort'),
+          label: 'programmatic navigation of a bound webview');
+    }
+    final loadUrlProxied =
+        socks.targets.contains('$originHost:$factoryPort');
+    final loadUrlDirect = requests.contains('factory:/d');
+    verdict.add('persist-loadurl=${!pairReady ? "no controller" : loadUrlProxied ? "proxied" : loadUrlDirect ? "DIRECT" : "no load"}');
+
+    // (5) The plain WebKit navigation. `raw-first` is the floor for it: if
+    // the raw webview did not bind in this frame, `raw-second` says nothing.
+    final rawFirst = await waitReal(
+        tester, () => requests.contains('/raw') || socks.targets.length >= 3,
+        label: 'raw webview first load', timeout: const Duration(seconds: 15));
+    final rawFirstDirect = requests.contains('/raw');
+    verdict.add('raw-first=${rawFirstDirect ? "DIRECT" : rawFirst ? "proxied" : "no load"}');
+    if (raw != null) {
+      await tester.runAsync(() async {
+        await raw!.loadUrl(
+          urlRequest: inapp.URLRequest(
+            url: inapp.WebUri('http://$originHost:$deferredPort/raw2'),
           ),
         );
       });
       await waitReal(
           tester, () => socks.targets.contains('$originHost:$deferredPort'),
-          label: 'programmatic navigation of a bound webview');
+          label: 'raw webview second load');
     }
-    final loadUrlProxied =
+    final rawSecondProxied =
         socks.targets.contains('$originHost:$deferredPort');
-    final loadUrlDirect = requests.contains('deferred:/d');
-    verdict.add('persist-loadurl=${!pairReady ? "no controller" : loadUrlProxied ? "proxied" : loadUrlDirect ? "DIRECT" : "no load"}');
+    final rawSecondDirect = requests.contains('deferred:/raw2');
+    verdict.add('raw-second=${raw == null ? "no controller" : rawSecondProxied ? "proxied" : rawSecondDirect ? "DIRECT" : "no load"}');
 
     // Now assert, floor first.
     expect(
@@ -417,82 +483,6 @@ void main() {
       isFalse,
       reason: 'the same second navigation, issued from Dart, went direct',
     );
-  });
-
-  testWidgets('measurement: a raw plugin webview, no app policy on it',
-      (tester) async {
-    // Isolates WebKit from this app.
-    //
-    // Every other scenario builds through `WebViewFactory`, which on Apple
-    // wraps a navigation layer: `ios-universal-link-bypass` cancels a
-    // main-frame link navigation and reissues it through `loadUrl`, and the
-    // per-site policy cancels cross-site ones outright. So a "second
-    // navigation" measured through the factory is not a plain WebKit
-    // navigation, and the previous run's `persist-inpage=DIRECT` may be
-    // measuring this app rather than the platform.
-    //
-    // That matters because WebKit's own source disagrees with the
-    // measurement: `NetworkSessionCocoa::applyProxyConfigurationToSession
-    // Configuration` puts the proxy on the `NSURLSessionConfiguration` when
-    // a session wrapper is created, which covers every load on that session,
-    // not the first. A session that binds should stay bound.
-    //
-    // This webview comes straight from the plugin with nothing on it but a
-    // container and a proxy. Both of its loads are issued in this frame's
-    // webview, the second after the first has completed.
-    if (!usable()) return;
-    if (!PlatformInfo.isProxySupported) {
-      markTestSkipped('below the proxyConfigurations floor');
-      return;
-    }
-    inapp.InAppWebViewController? raw;
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: SizedBox(
-          width: 320,
-          height: 240,
-          child: inapp.InAppWebView(
-            key: const ValueKey('raw'),
-            initialUrlRequest: inapp.URLRequest(
-              url: inapp.WebUri('http://$originHost:$port/raw'),
-            ),
-            initialSettings: inapp.InAppWebViewSettings(
-              containerId: 'ws-proxy-binding-raw',
-              proxySettings: inapp.ProxySettings(
-                proxyRules: [
-                  inapp.ProxyRule(url: 'socks5://127.0.0.1:${socks.port}'),
-                ],
-                bypassRules: [],
-              ),
-            ),
-            onWebViewCreated: (c) => raw = c,
-          ),
-        ),
-      ),
-    ));
-    await tester.pump(const Duration(milliseconds: 100));
-    await tester.pump(const Duration(milliseconds: 500));
-
-    final firstProxied = await waitReal(
-        tester, () => socks.targets.contains('$originHost:$port'),
-        label: 'raw webview first load');
-    verdict.add('raw-first=${firstProxied ? "proxied" : requests.contains('/raw') ? "DIRECT" : "no load"}');
-
-    if (raw != null) {
-      await tester.runAsync(() async {
-        await raw!.loadUrl(
-          urlRequest: inapp.URLRequest(
-            url: inapp.WebUri('http://$originHost:$persistPort/raw2'),
-          ),
-        );
-      });
-      await waitReal(
-          tester, () => socks.targets.contains('$originHost:$persistPort'),
-          label: 'raw webview second load');
-    }
-    final secondProxied =
-        socks.targets.contains('$originHost:$persistPort');
-    verdict.add('raw-second=${raw == null ? "no controller" : secondProxied ? "proxied" : requests.contains('persist:/raw2') ? "DIRECT" : "no load"}');
   });
 
   testWidgets('measurement: two proxied webviews in a later frame',
