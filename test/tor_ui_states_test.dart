@@ -26,6 +26,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/tor_engine.dart';
+import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/widgets/tor_bootstrap.dart';
 import 'package:webspace/widgets/tor_status_card.dart';
@@ -62,6 +63,13 @@ class _Runtime implements TorRuntime {
 
   @override
   Future<void> setTorrcOptions(List<(String, String)> options) async {}
+
+  @override
+  Future<void> setSocksIsolation({required bool isolateDestAddr}) async {
+    socksIsolation = isolateDestAddr;
+  }
+
+  bool? socksIsolation;
 
   void emit(TorStatus s) => _events.add(s);
 }
@@ -184,6 +192,10 @@ void main() {
     void Function() expectations, {
     Size size = const Size(430, 300),
   }) async {
+    // The interstitial renders the last few Tor log lines, and LogService
+    // is process-wide: without this, one case's tail carries the previous
+    // case's failure and the assertions read someone else's state.
+    LogService.instance.resetForTest();
     final runtime = installEngine();
     // Hold a refcount: the engine drops non-stopped statuses when nothing
     // holds it (the resurrection guard), so without this the emit below is
@@ -368,12 +380,43 @@ void main() {
           expect(find.text('Tor appears to be blocked'), findsOneWidget);
           expect(find.textContaining('Bridges route around'), findsOneWidget);
           expect(find.text('Retry'), findsOneWidget);
+          // As on the status card: the classification is a guess, and the
+          // raw message is what exposes a wrong one. This screen is where
+          // a user is left when a TOR site will not load. It appears twice
+          // now, once as the failure detail and once in the live tail
+          // below it, which is the point of the tail.
+          expect(find.textContaining('bootstrap stalled'), findsWidgets);
+          expect(
+            find.textContaining('State: error'),
+            findsOneWidget,
+            reason: 'the interstitial shows what the runtime last said, so '
+                'a user is not left guessing at a mute bar',
+          );
           // The interstitial is what a user sees when a TOR site will not
           // load; naming bridges without a route to them is how the whole
           // feature was unreachable before.
           expect(find.text('Bridges'), findsOneWidget);
         },
         size: const Size(430, 430),
+      );
+    });
+
+    testWidgets('a long message scrolls rather than overflowing', (t) async {
+      // tor writes its own messages and the interstitial shows them
+      // verbatim, so their length is not ours to bound. An overflowing
+      // column shows stripes and swallows the Retry button below it.
+      await withState(
+        t,
+        'interstitial_long_detail',
+        const TorBootstrapPlaceholder(),
+        _errored('Tor exited before opening its control port: it rejected '
+            'its configuration. A bridge line is the usual cause. '
+            'Bootstrap stalled at 10% in conn_dir after 3 attempts.'),
+        () {
+          expect(find.byType(SingleChildScrollView), findsOneWidget);
+          expect(find.text('Retry'), findsOneWidget);
+        },
+        size: const Size(320, 260),
       );
     });
 

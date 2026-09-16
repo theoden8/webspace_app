@@ -852,5 +852,7 @@
   "proxyTestHint": "Sender én liten forespørsel gjennom denne proxyen og viser hva som kommer tilbake, slik at en feil adresse eller et avvist passord kan skilles fra et nettsted som rett og slett er nede.",
   "proxyTestOk": "Proxyen virker",
   "proxyTestAuthRejected": "Proxyen avviste denne påloggingen",
-  "proxyTestUnreachable": "Kunne ikke nå proxyen"
+  "proxyTestUnreachable": "Kunne ikke nå proxyen",
+  "torIsolateDestAddrTitle": "Egen krets per destinasjon",
+  "torIsolateDestAddrHint": "Hvert nettsted får alltid sin egen Tor-krets. Når dette er på, får nettstedet også en egen krets for hver vert det laster fra, slik at én side kan nå internett fra to eller flere utgangsadresser samtidig — mer isolasjon, men et nettsted som sjekker adressen din på tvers av sine egne verter, kan logge deg ut. Slått av får nettstedet én adresse for alt det laster. Endringen trer i kraft neste gang du åpner appen."
 }

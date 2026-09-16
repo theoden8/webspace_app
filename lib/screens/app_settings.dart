@@ -156,6 +156,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   late bool _showStatsBanner;
   late TextEditingController _osmTileUrlController;
   bool _isDownloadingRules = false;
+  bool _torIsolateDestAddr = true;
   DateTime? _rulesLastUpdated;
 
   /// `version+build` from the platform package, null until it resolves.
@@ -223,6 +224,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     _loadAppVersion();
     _loadOsmTileUrl();
     _loadFirefoxAutoRefresh();
+    _loadTorIsolateDestAddr();
     _outboundProxy = UserProxySettings(
       type: GlobalOutboundProxy.current.type,
       address: GlobalOutboundProxy.current.address,
@@ -714,6 +716,25 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
         );
       }
     }
+  }
+
+  Future<void> _loadTorIsolateDestAddr() async {
+    final value = await readTorIsolateDestAddr();
+    if (!mounted) return;
+    setState(() => _torIsolateDestAddr = value);
+  }
+
+  /// Persist the isolation choice and rebuild tor around it.
+  ///
+  /// The `SocksPort` line is read once, when tor launches, so a running
+  /// runtime keeps the old isolation until it is restarted. Doing that here
+  /// is the difference between a setting that applies and one that applies
+  /// the next time the user happens to relaunch the app.
+  Future<void> _setTorIsolateDestAddr(bool value) async {
+    setState(() => _torIsolateDestAddr = value);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(kTorIsolateDestAddrKey, value);
+    await TorService.instance.applySocksIsolation(isolateDestAddr: value);
   }
 
   Future<void> _loadFirefoxAutoRefresh() async {
@@ -1275,6 +1296,23 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           // whether it actually came up. Renders nothing unless Tor is
           // available (platform + developer mode).
           const TorStatusCard(),
+          // Beside the card that reports the runtime, because this is a
+          // property of that runtime rather than of any one site, and because
+          // changing it restarts what the card is showing.
+          if (TorService.instance.isAvailable)
+            SwitchListTile(
+              title: Row(
+                children: [
+                  Flexible(child: Text(loc.torIsolateDestAddrTitle)),
+                  HintButton(
+                    title: loc.torIsolateDestAddrTitle,
+                    description: loc.torIsolateDestAddrHint,
+                  ),
+                ],
+              ),
+              value: _torIsolateDestAddr,
+              onChanged: _setTorIsolateDestAddr,
+            ),
 
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),

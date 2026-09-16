@@ -131,12 +131,18 @@ and deletes it afterwards. Repository secrets:
 
 ## Known limits to state in the listing
 
+- The floor is macOS 11 (Big Sur). It rose from 10.15 when the embedded
+  Tor runtime came to macOS (TOR-007): the `Tor` pod is a macOS 11 pod, so
+  `platform :osx` and `MACOSX_DEPLOYMENT_TARGET` are 11.0 and
+  `LSMinimumSystemVersion` follows them (it is
+  `$(MACOSX_DEPLOYMENT_TARGET)`). The ShareExtension already required 11.0,
+  so a Catalina user was getting a partial app before this.
 - Per-site containers and per-site proxy need macOS 14 (probed at runtime
-  by `appleOsMeetsFloor`). On 10.15 to 13 the app falls back to the legacy
+  by `appleOsMeetsFloor`). On 11 to 13 the app falls back to the legacy
   cookie-isolation engine, where sites sharing a base domain cannot load at
   the same time, the proxy controls are hidden, and a proxy carried in by a
   backup or QR fails closed (blank page) rather than loading over the
-  device IP. `LSMinimumSystemVersion` is still 10.15.
+  device IP.
 - Self-signed and unknown-CA sites fail closed. macOS 15+ WKWebView ignores
   `URLCredential(trust:)` and the system trust store is out of reach from a
   sandboxed app, so the trust prompt is skipped on Apple platforms

@@ -852,5 +852,7 @@
   "proxyTestHint": "Jibgħat talba żgħira waħda minn dan il-proxy u jgħid x'ġie lura, biex indirizz żbaljat jew password miċħuda jingħarfu minn sit li sempliċiment mhux jaħdem.",
   "proxyTestOk": "Il-proxy jaħdem",
   "proxyTestAuthRejected": "Il-proxy ċaħad dawn il-kredenzjali",
-  "proxyTestUnreachable": "Ma setax jintlaħaq il-proxy"
+  "proxyTestUnreachable": "Ma setax jintlaħaq il-proxy",
+  "torIsolateDestAddrTitle": "Ċirkwit separat għal kull destinazzjoni",
+  "torIsolateDestAddrHint": "Kull sit dejjem jieħu ċ-ċirkwit Tor tiegħu. Meta dan ikun mixgħul, is-sit jieħu wkoll ċirkwit separat għal kull host li jgħabbi minnu, u għalhekk paġna waħda tista' tilħaq l-internet minn żewġ indirizzi ta' ħruġ jew aktar fl-istess ħin — aktar iżolament, imma sit li jiċċekkja l-indirizz tiegħek fost il-hosts tiegħu jista' joħroġok mis-sessjoni. Meta jkun mitfi, is-sit juża indirizz wieħed għal kulma jgħabbi. Din il-bidla tidħol fis-seħħ id-darba li jmiss li tiftaħ l-app."
 }

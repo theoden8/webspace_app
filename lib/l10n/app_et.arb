@@ -852,5 +852,7 @@
   "proxyTestHint": "Saadab läbi selle puhverserveri ühe väikese päringu ja näitab, mis tagasi tuleb, et eristada vale aadressi või tagasi lükatud parooli saidist, mis lihtsalt ei tööta.",
   "proxyTestOk": "Puhverserver töötab",
   "proxyTestAuthRejected": "Puhverserver lükkas need andmed tagasi",
-  "proxyTestUnreachable": "Puhverserverini ei õnnestunud jõuda"
+  "proxyTestUnreachable": "Puhverserverini ei õnnestunud jõuda",
+  "torIsolateDestAddrTitle": "Eraldi ahel iga sihtkoha kohta",
+  "torIsolateDestAddrHint": "Igal saidil on alati oma Tori ahel. Kui see on sees, saab sait eraldi ahela ka iga hosti jaoks, millest ta laadib, nii et üks leht võib jõuda internetti korraga kahelt või enamalt väljumisaadressilt — rohkem eraldatust, kuid sait, mis kontrollib sinu aadressi oma hostide lõikes, võib su välja logida. Väljas annab see saidile ühe aadressi kõige jaoks, mida ta laadib. Muudatus jõustub rakenduse järgmisel avamisel."
 }

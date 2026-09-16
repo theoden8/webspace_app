@@ -25,9 +25,9 @@ export 'package:webspace/services/tor_failure.dart'
 /// fetches can't be correlated with any site's circuit (TOR-003).
 const String kTorAppGlobalTag = '__webspace_app_global__';
 
-/// How long the runtime stays up after the last client releases it. Long
-/// enough to cover a webspace switch or a quick toggle-off-toggle-on without
-/// paying another 10-30s bootstrap.
+/// How long a released runtime is still treated as claimed, so a webspace
+/// switch or a quick toggle-off-toggle-on does not look like an idle
+/// runtime. It no longer ends in a stop: see [TorEngine.release].
 const Duration kTorIdleDebounce = Duration(seconds: 60);
 
 /// How long `bootstrapping` may last before the engine gives up. Past this
@@ -81,6 +81,23 @@ class TorUp extends TorStatus {
   @override
   String toString() => 'up($host:$port)';
 }
+
+/// The loopback endpoint a webview would be bound to for [status], or null
+/// when there is nothing to bind to.
+String? torSocksEndpoint(TorStatus status) =>
+    status is TorUp ? '${status.host}:${status.port}' : null;
+
+/// Whether a webview bound while the runtime was [previous] has to be rebuilt
+/// now that it is [next].
+///
+/// The binding is frozen at WebView construction on iOS and macOS, so the
+/// question is whether the endpoint changed — not whether the runtime is up.
+/// A restart hands out a fresh loopback port, and tor's own port is chosen by
+/// the OS, so Up -> Up is a different address more often than not. A webview
+/// left on the old one reaches nothing, and TOR-008 keeps it from falling
+/// back to direct, so the site simply never loads until the app is restarted.
+bool torBindingChanged(TorStatus previous, TorStatus next) =>
+    torSocksEndpoint(previous) != torSocksEndpoint(next);
 
 class TorErrored extends TorStatus {
   TorErrored(String message, {TorFailure? failure})
@@ -138,6 +155,12 @@ abstract class TorRuntime {
   /// a bootstrap attempt over the direct guards the user is trying to avoid.
   Future<void> setTorrcOptions(List<(String, String)> options);
 
+  /// Whether the next [start] also isolates circuits by destination address
+  /// (TOR-003). Per-site isolation comes from the SOCKS credentials and is
+  /// always on; this is the extra split, which costs a site one exit per
+  /// host it loads from.
+  Future<void> setSocksIsolation({required bool isolateDestAddr});
+
   /// Status pushed from the native side.
   Stream<TorStatus> get events;
 }
@@ -155,11 +178,13 @@ class TorEngine {
     Duration idleDebounce = kTorIdleDebounce,
     Duration bootstrapTimeout = kTorBootstrapTimeout,
     Future<TorBridgeConfig> Function()? bridgeLoader,
+    Future<bool> Function()? isolateDestAddrLoader,
   })  : _runtime = runtime,
         _sessionSecret = sessionSecret,
         _idleDebounce = idleDebounce,
         _bootstrapTimeout = bootstrapTimeout,
-        _bridgeLoader = bridgeLoader {
+        _bridgeLoader = bridgeLoader,
+        _isolateDestAddrLoader = isolateDestAddrLoader {
     // Second gate, belt to the runtime's braces: a runtime with no plugin
     // behind it has nothing to say, and subscribing to find that out is
     // what threw MissingPluginException on Android.
@@ -178,6 +203,7 @@ class TorEngine {
       StreamController<TorStatus>.broadcast();
   StreamSubscription<TorStatus>? _sub;
   Timer? _idleTimer;
+  bool _disposed = false;
   Timer? _bootstrapTimer;
   TorStatus _status = const TorStopped();
   String? _exitNodes;
@@ -208,6 +234,10 @@ class TorEngine {
   /// [_applyBridgeConfig].
   final Future<TorBridgeConfig> Function()? _bridgeLoader;
 
+  /// Reads the app-wide "isolate by destination too" preference. Injected
+  /// rather than read here: an engine does not touch SharedPreferences.
+  final Future<bool> Function()? _isolateDestAddrLoader;
+
   /// Whether [_bridges] reflects storage yet. Set by the first load and by
   /// any [setBridges]: an explicit set is the user acting now, so it wins
   /// over a re-read and is not overwritten by one.
@@ -233,6 +263,7 @@ class TorEngine {
     _emit(const TorStarting());
     _armBootstrapTimeout();
     try {
+      await _applyIsolationConfig();
       await _applyBridgeConfig();
       await _runtime.start();
     } catch (e) {
@@ -241,23 +272,25 @@ class TorEngine {
     }
   }
 
-  /// Drop [reason]'s claim. On the last release the runtime stays up for
-  /// [kTorIdleDebounce] so a reactivation inside the window is free.
+  /// Drop [reason]'s claim.
+  ///
+  /// The runtime is not stopped. tor runs at most once per process — the
+  /// second `tor_run_main` dies in `threadpool_new` and never bootstraps
+  /// (BUG-013) — so an idle stop spends the app's only launch to save
+  /// nothing the user asked to save, and the next site pinned to Tor gets a
+  /// runtime that cannot come back. A stop is therefore only worth making
+  /// when the process is going away, which is [dispose].
+  ///
+  /// The debounce timer stays: it is what keeps a released-then-reacquired
+  /// runtime from re-arming a bootstrap timeout mid-flight, and
+  /// [_onRuntimeStatus] reads it to tell "nobody wants Tor" from "Tor was
+  /// never wanted".
   void release(String reason) {
     if (!_holders.remove(reason)) return;
     if (_holders.isNotEmpty) return;
     _idleTimer?.cancel();
     _idleTimer = Timer(_idleDebounce, () {
       _idleTimer = null;
-      // Re-check rather than trust the timer: a client may have acquired
-      // and released again while it was pending.
-      if (_holders.isNotEmpty) return;
-      _cancelBootstrapTimeout();
-      _runtime.stop().catchError((_) {});
-      // tor is gone, so whatever ExitNodes it held is gone with it; the pin
-      // must be re-applied to the next instance rather than assumed live.
-      _exitNodesApplied = false;
-      _emit(const TorStopped());
     });
   }
 
@@ -324,6 +357,20 @@ class TorEngine {
   /// port 0, and [torBridgeOptions] then produces nothing rather than a
   /// configuration pointing at a dead port — tor would otherwise hang the
   /// whole bootstrap dialling it.
+  /// Hand the runtime the isolation the user asked for, before it starts.
+  ///
+  /// A failure to read the preference leaves the runtime on its own default,
+  /// which is the stricter of the two — never the weaker one.
+  Future<void> _applyIsolationConfig() async {
+    final loader = _isolateDestAddrLoader;
+    if (loader == null) return;
+    try {
+      await _runtime.setSocksIsolation(isolateDestAddr: await loader());
+    } catch (_) {
+      // Leave the runtime's default in place.
+    }
+  }
+
   Future<void> _applyBridgeConfig() async {
     await _hydrateBridges();
     final config = _bridges;
@@ -353,35 +400,57 @@ class TorEngine {
   /// returns early whenever the holder set is already non-empty, which it
   /// always is for a site pinned to TOR, so retrying through it was a no-op
   /// and the button was left out of the first cut rather than shipped inert.
-  /// Stopping first also discards whatever half-state the failure left —
-  /// a control connection attached to a dead thread, a consensus that never
-  /// finished downloading — which a bare re-start would inherit.
+  /// It does not stop tor first. It cannot: the second `tor_run_main` in a
+  /// process dies in `threadpool_new` and never bootstraps (BUG-013), so a
+  /// stop here would turn a recoverable failure into a permanent one. A tor
+  /// that is still alive keeps retrying, and this re-arms the wait on it; a
+  /// tor that is really gone answers [TorRuntime.start] with the one remedy
+  /// left, which is to restart the app.
   Future<void> restart() async {
     if (!_runtime.isAvailable) return;
     if (_holders.isEmpty) return;
+    // Already connected: nothing to retry. And blanking the status to
+    // `starting` would strand it there — the runtime's `start()` is a no-op
+    // while tor is alive, so no event would ever move it back, and the
+    // bootstrap deadline would report a failure against a tor that is
+    // working. A Retry must never be able to break a running runtime.
+    if (_status is TorUp) return;
     _cancelBootstrapTimeout();
     _lastBootstrapPercent = null;
     _lastBootstrapTag = null;
     // The pin has to be re-applied to whatever instance comes back; the one
     // that dies takes its SETCONF with it.
     _exitNodesApplied = false;
-    try {
-      await _runtime.stop();
-    } catch (_) {
-      // A stop that fails on an already-dead runtime must not block the
-      // restart that is the entire point of this call.
-    }
     _emit(const TorStarting());
     _armBootstrapTimeout();
     try {
-      // Re-applied on every start: a restart is the only way an edited
-      // bridge configuration reaches tor, and the transport must be started
-      // again to hand back a live port.
+      // Still applied: `start()` is a no-op on a live tor, and on a dead one
+      // these are what the launch would need. Neither reaches a tor that is
+      // already running — that is what makes an edited bridge configuration
+      // an app restart rather than a Retry.
+      await _applyIsolationConfig();
       await _applyBridgeConfig();
       await _runtime.start();
     } catch (e) {
       _cancelBootstrapTimeout();
       _emit(TorErrored('$e'));
+    }
+  }
+
+  /// Apply the destination-isolation choice (TOR-003).
+  ///
+  /// Never a restart: tor cannot be run twice in one process, so a
+  /// stop-then-start for a settings change leaves the runtime dead until
+  /// the app itself is relaunched (BUG-013). The runtime applies this live
+  /// when it is up and stores it for the next start otherwise, so this is
+  /// the same call either way.
+  Future<void> applySocksIsolation({required bool isolateDestAddr}) async {
+    if (!_runtime.isAvailable) return;
+    try {
+      await _runtime.setSocksIsolation(isolateDestAddr: isolateDestAddr);
+    } catch (_) {
+      // A refused change leaves the isolation tor already has; the
+      // preference still stands and the next start carries it.
     }
   }
 
@@ -470,10 +539,11 @@ class TorEngine {
       _lastBootstrapTag = s.tag ?? _lastBootstrapTag;
     }
 
-    // A late status from a runtime we already shut down must not resurrect
-    // it; without this an in-flight bootstrap event racing `stop()` leaves
-    // the engine reporting `up` against a dead listener.
-    if (_holders.isEmpty && _idleTimer == null && s is! TorStopped) return;
+    // A late status from a runtime we already tore down must not resurrect
+    // it, and must not reach a closed stream. Holders no longer say anything
+    // about that: releasing the last one leaves tor running (see [release]),
+    // so the only shutdown left is this engine's own.
+    if (_disposed) return;
     _emit(s);
     // Only past the resurrection guard, and only once `_status` really is
     // up: a pin requested before bootstrap finished has been waiting for a
@@ -492,7 +562,11 @@ class TorEngine {
     _bootstrapTimer = Timer(_bootstrapTimeout, () {
       _bootstrapTimer = null;
       if (_status is TorUp) return;
-      _runtime.stop().catchError((_) {});
+      // tor is left running. It keeps trying on its own, and this process
+      // has no second launch to spend on stopping it (BUG-013): a stop here
+      // is what turned "the network was down for a minute" into "Tor is
+      // unavailable until you restart the app". The deadline is a report,
+      // not a teardown.
       // Where it stalled is the signal: a deadline hit in the directory
       // phase is what a censoring network looks like, while one past
       // circuit-building with a strict exit pin in force is the pin.
@@ -520,6 +594,7 @@ class TorEngine {
   }
 
   Future<void> dispose() async {
+    _disposed = true;
     _idleTimer?.cancel();
     _cancelBootstrapTimeout();
     await _sub?.cancel();
