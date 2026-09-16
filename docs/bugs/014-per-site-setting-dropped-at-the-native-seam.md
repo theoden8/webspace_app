@@ -386,6 +386,44 @@ anything loads, would work for sites whose proxy is known then — which exclude
 whose port is not known until the runtime is up.
 
 
+### Attempt 12 — Pin the fork's own tag, and measure what it does
+**Date:** 2026-09-16 · **Files:** `pubspec.yaml`
+**What it did:** the fork now carries a release tag, `v6.2.0-beta.3-privacy-v7`
+(`bf5fbc3`), and all six `dependency_overrides` pin it instead of a bare SHA — which
+is what [CLAUDE.md](../../CLAUDE.md) asks for ("tag it before each release") and closes
+the mutable-ref hazard the pin has carried all along.
+
+The tag is **not** on the lineage attempts 8-11 were built on. It carries its own
+`proxySettings` parse fix (`c002242`, same shape as the `d128d89` this branch pinned)
+plus work from a parallel session, of which one commit bears on this bug:
+`3c5a43f`, "[ios/macos] fan the process-wide proxy override out to container data
+stores" — `ProxyController.setProxyOverride` only ever touched
+`WKWebsiteDataStore.default()` and `.nonPersistent()`, so a container-bound WebView
+never saw it, and `getOrCreateDataStore` now replays a remembered override onto stores
+created later.
+
+What the tag does **not** carry is attempts 8-11: the store-at-creation proxy
+assignment, the store rebuild, and the file-based diagnostics. Losing the first two
+costs nothing measurable — attempt 11 showed the rebuild was a no-op
+(`WKWebsiteDataStore(forIdentifier:)` is cached by WebKit) and that assigning at
+creation binds no better than assigning after. Losing the diagnostics costs the
+measurement: the `[proxy-binding] native:` lines came from the fork, so this run
+reports only the Dart-side `verdict:` line.
+
+Note that `3c5a43f` fixes the *process-wide override* path, not the per-WebView
+`proxySettings` path that attempt 11 measured, and its own commit message says
+`preWKWebViewConfiguration` still assigns `proxySettings` to the store after the
+container bind returns — which is the assignment attempt 11 found is honoured only for
+the first WebView in a process. So the expectation is that `fresh-site` is still
+`DIRECT` on this tag; the run says whether that is right.
+**Why:** a tag is the pin the repo asks for, and the parallel fix is worth measuring
+before building anything further on top of it.
+**Why it was partial:** it changes the pin, not the mechanism. If the verdict is
+unchanged, the next step is a branch off the tag carrying only the diagnostics, and the
+question attempt 11 left open: is the rule "first store in the process" or "any store
+configured before the first network load"?
+
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
