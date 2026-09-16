@@ -4104,7 +4104,7 @@
   "@torIsolateDestAddrTitle": {
     "description": "Title of the switch in App Settings, under the Tor status card, controlling whether Tor also isolates circuits by destination address on top of the per-site isolation."
   },
-  "torIsolateDestAddrHint": "Each site always gets its own Tor circuit. With this on, a site also gets a separate circuit for every host it loads from, so one page can reach the internet from two or more exit addresses at once — more isolation, but a site that checks your address across its own hosts may log you out. Turning it off gives the site one address for everything it loads. Changing this restarts Tor.",
+  "torIsolateDestAddrHint": "Each site always gets its own Tor circuit. With this on, a site also gets a separate circuit for every host it loads from, so one page can reach the internet from two or more exit addresses at once — more isolation, but a site that checks your address across its own hosts may log you out. Turning it off gives the site one address for everything it loads. Changing this takes effect the next time you open the app.",
   "@torIsolateDestAddrHint": {
     "description": "Explanation shown in the hint dialog for the \"Separate circuit per destination\" switch. Mentions the trade-off: more isolation versus sites that verify the client's IP address across their own hostnames."
   }

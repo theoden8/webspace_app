@@ -31,16 +31,22 @@ port dynamically via `SocksPort auto` rather than hardcoding `9050`.
 
 ---
 
-### Requirement: TOR-002 - Lazy lifecycle with debounced idle stop
+### Requirement: TOR-002 - Lazy start, and no idle stop
 
 `TorService` SHALL maintain a refcount of clients that need Tor (the
 count of sites whose `proxySettings.type == TOR`, plus 1 if
 `globalOutboundProxy.type == TOR`).
-When the refcount transitions from 0 to >0 the runtime SHALL start;
-when it transitions from >0 to 0 a 60-second debounce timer SHALL
-start, and the runtime SHALL stop only when the timer fires with the
-refcount still at 0. Reactivation during the debounce SHALL cancel
-the timer and keep the runtime up.
+When the refcount transitions from 0 to >0 the runtime SHALL start.
+
+Releasing the last client SHALL NOT stop the runtime. The process gets one
+tor for its whole life (TOR-020), so an idle stop spends the app's only
+launch to reclaim a loopback listener nobody is using, and the next site
+pinned to Tor gets a runtime that cannot come back — which is what "I have
+to restart the app for Tor to work" is. The 60-second debounce timer SHALL
+still run, because it is what keeps a released-then-reacquired runtime from
+re-arming a bootstrap deadline mid-flight; it SHALL end in nothing.
+
+The runtime SHALL be stopped only where the process is going away.
 
 #### Scenario: First Tor site starts the runtime
 
@@ -53,13 +59,13 @@ the timer and keep the runtime up.
 - **AND** the SOCKS5 endpoint becomes available to webview and
   Dart-side callers
 
-#### Scenario: Clearing the last Tor site debounces shutdown
+#### Scenario: Clearing the last Tor site leaves the runtime up
 
 - **GIVEN** exactly one site has `type = TOR` and Tor is `up`
 - **WHEN** the user switches that site off `TOR`
-- **THEN** `TorService` schedules a 60-second debounce timer
-- **AND** the runtime remains `up` during the debounce
-- **AND** when the timer fires with no refcount, the runtime stops
+- **THEN** the runtime remains `up`, during the debounce and after it
+- **AND** re-pinning a site to `TOR` an hour later still routes, with no
+  second bootstrap and no app restart
 
 #### Scenario: Reactivation cancels debounce
 
@@ -81,8 +87,28 @@ the per-site split, so one page loading from two hosts exits from two relays:
 stronger isolation, at the cost of a site seeing the client arrive from two
 addresses — which a session that checks its own client IP across its hostnames
 reads as a hijack. The per-site isolation above is never optional; only this
-extra split is. The setting is read when tor launches, so changing it SHALL
-restart the runtime rather than take effect at some later start.
+extra split is.
+
+Changing the setting SHALL be applied to a running tor over the control port
+(`SETCONF SocksPort="auto IsolateSOCKSAuth [IsolateDestAddr]"`) and SHALL NOT
+stop and re-start the runtime: tor keeps process-global state that its own
+`tor_run_main` does not reset, so a second launch in one process dies in
+`threadpool_new` and never bootstraps (BUG-013). A `SocksPort` change is a
+legal runtime transition — `set_options` runs `options_act_reversible`, which
+re-parses the port configuration and calls `retry_all_listeners` — but the
+listener is on `auto`, so the rebind lands on a *different* port. The runtime
+SHALL re-read `net/listeners/socks` after the change and publish the new
+endpoint, and sites SHALL rebind to it (TOR-008). With tor not running, the
+setting SHALL ride the next start.
+
+#### Scenario: Changing destination isolation does not kill the runtime
+
+- **GIVEN** Tor is `up` with a SOCKS listener on port P
+- **WHEN** the user toggles the destination-isolation setting
+- **THEN** the runtime stays `up` — it is never stopped and re-started
+- **AND** tor accepts `SETCONF SocksPort=...` with the new isolation
+- **AND** the published SOCKS endpoint is re-read, so a listener that moved
+  to a new port replaces P rather than leaving every Tor site dialling it
 
 #### Scenario: Two Tor sites get distinct exit IPs
 
@@ -497,7 +523,10 @@ requirement rather than a policy one.
 
 The bootstrap interstitial (TOR-008) SHALL always resolve to either
 progress or a plain-language error within the 90-second timeout, and
-SHALL never present an unbounded spinner. The App Review notes
+SHALL never present an unbounded spinner. The deadline SHALL be a report
+and not a teardown: tor keeps trying on its own, and stopping it there
+spends the process's one launch (TOR-020) on a network outage that may
+already be over. The App Review notes
 submitted with the build SHALL explain that the toggle starts an
 embedded Tor client, that first bootstrap can take 10-30 seconds,
 and that a restrictive network surfaces an explicit error by design.
@@ -985,17 +1014,41 @@ the thread is alive, since the control port may not be open yet when the
 stop lands.
 
 A run that fails SHALL be retired on the same path: a tor nobody can
-talk to must not keep the process's one slot, or Retry offers a restart
-that can never succeed. Starting SHALL wait for that thread to finish, and where it
-does not finish within the bound SHALL fail with a named error rather than
-launching a second tor. A handshake, catch-up read or failure belonging to
-an earlier run SHALL be identified as such (a generation counter bumped by
-every start and stop) and SHALL NOT publish state for the current one.
+talk to must not keep the process's one slot. Starting SHALL wait for that
+thread to finish, and where it does not finish within the bound SHALL fail
+with a named error rather than launching a second tor. A handshake, catch-up
+read or failure belonging to an earlier run SHALL be identified as such (a
+generation counter bumped by every start and stop) and SHALL NOT publish
+state for the current one.
 
-Restart, the idle stop, and the bootstrap timeout all put a stop and a
-start within seconds of each other, so this is the common path, not an
-edge case. Recorded as attempt 6 in
-[docs/bugs/007-native-shared-state-races.md](../../../../../docs/bugs/007-native-shared-state-races.md).
+**One launch, not one at a time.** A freed slot is not a fresh process.
+tor's own global state outlives `tor_run_main`: the second entry reaches
+`threadpool_new` with the pool already built, hits its `BUG()` and logs
+"Can't create worker thread pool", and the bootstrap that follows never
+progresses. The plugin SHALL therefore refuse a second launch outright,
+with a named error naming the one remedy (restart the app), rather than
+starting a tor that will sit at 0% until the bootstrap deadline — which
+reads as "Tor could not reach the network", a failure the user retries,
+burning the same dead path again.
+
+Because the launch is spent once and for all, nothing SHALL stop the
+runtime speculatively. Releasing the last holder SHALL leave tor running
+(TOR-002), the bootstrap deadline SHALL report without tearing down
+(TOR-013), and Retry SHALL re-arm the wait rather than stop and re-start
+(TOR-005). Recorded as attempt 6 in
+[docs/bugs/007-native-shared-state-races.md](../../../../../docs/bugs/007-native-shared-state-races.md)
+and attempt 9 in
+[docs/bugs/013-tor-never-connects.md](../../../../../docs/bugs/013-tor-never-connects.md).
+
+#### Scenario: A second launch is refused, not attempted
+
+- **GIVEN** tor has already run once in this app session and its thread has
+  exited
+- **WHEN** something asks the runtime to start again
+- **THEN** the plugin publishes an error saying Tor cannot start again in
+  this session and that restarting the app makes it available
+- **AND** no second `tor_run_main` is entered
+- **AND** the user is not left waiting for the bootstrap deadline
 
 #### Scenario: Retry after a failed bootstrap
 
