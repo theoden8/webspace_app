@@ -777,6 +777,52 @@ a site's store was never armed, and pin Tor's SOCKS port at startup so Tor sites
 be armed in the batch like any other.
 
 
+### Attempt 21 — The fix did not work: the window is keyed to the WebView, not the store
+**Date:** 2026-09-16 · **Files:** `integration_test/proxy_binding_test.dart`
+**What it did:** ran attempt 20 and it failed. The pre-arm executed exactly as
+designed and changed nothing:
+
+```
+verdict: containers=true, prearmed=4, first=proxied, second=DIRECT,
+         refused=DIRECT, rebind=not attempted
+```
+
+```
+built ws-proxy-binding-first / -second / -seam / -refused
+prepared 4 container(s), 4 proxied
+reused ws-proxy-binding-first   webview proxySettings=true store=0x…fff200
+reused ws-proxy-binding-second  webview proxySettings=true store=0x…fff700
+```
+
+Four container stores created and armed inside one channel call, before anything
+in the process had touched the network, each `reused` afterwards by the WebView
+that wanted it — and only the first WebView bound. `refused` reaching the origin
+says the same thing from the other side.
+
+So attempt 18's reading was wrong where it counts. Arming a store early does not
+put it in the window; **the window is keyed to WKWebView creation.** Attempt 19's
+`side-by-side=2 of 2` was not "two stores armed in one turn", which is what this
+attempt built on — it was "two *WebViews* created in one turn", and the two
+readings only diverge in the experiment that has now been run.
+
+The correction matters for the shape of any fix. If the rule is the WebView, then
+nothing in `ContainerManager` can help, and the app-level answer is to build every
+proxied site's WebView in the first frame rather than lazily — which needs no fork
+change at all.
+
+Two variables changed between attempts 19 and 20 (the pre-arm was added, and the
+two WebViews moved into separate turns), so neither run attributes on its own. The
+file now holds the pre-arm and puts two of its sites back into one `pumpWidget`,
+first in the process. 2 of 2 means the pre-arm is harmless and the rule is WebView
+creation; 1 of 2 means the pre-arm itself closed the window by registering every
+store's session before any WebView existed, and it has to come out.
+**Why:** a fix that measured as a no-op is a wrong model, not a tuning problem, and
+the two candidate models differ by one scenario.
+**Why it was partial:** it un-ships nothing yet. The pre-arm stays on the branch
+until the next run says whether it is harmless or harmful, and the `prepareContainers`
+entry point in the fork stays with it.
+
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**

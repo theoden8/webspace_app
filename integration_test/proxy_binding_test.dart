@@ -116,6 +116,8 @@ void main() {
     // scenarios below would go direct with nothing to show for it.
     prearmed = await WebViewFactory.prearmProxiedContainers([
       for (final site in [
+        'proxy-binding-pair-a',
+        'proxy-binding-pair-b',
         'proxy-binding-first',
         'proxy-binding-second',
         'proxy-binding-seam',
@@ -263,11 +265,98 @@ void main() {
     return ok;
   }
 
+  testWidgets('two pre-armed sites mounted in one turn both use their proxy',
+      (tester) async {
+    // First in the file, and the question the last run forced.
+    //
+    // Pre-arming four stores in one call, before anything else in the
+    // process, changed nothing: `prepared 4 container(s), 4 proxied` and
+    // still only the first WebView bound. But two WebViews built in one
+    // `pumpWidget`, with no pre-arm at all, both bound (BUG-014 attempt 19).
+    // So the window is keyed to **WebView creation**, not to when the store
+    // was armed, and arming a store early does not put it in the window.
+    //
+    // Two variables changed between those runs -- the pre-arm was added and
+    // the two WebViews moved into separate turns -- so neither result
+    // attributes. This holds the pre-arm and puts the two WebViews back in
+    // one turn:
+    //
+    //  * 2 of 2 -> the pre-arm is harmless and the rule is WebView creation.
+    //    The app-level fix is then to build every proxied site's WebView in
+    //    the first frame, which needs no fork change at all.
+    //  * 1 of 2 -> the pre-arm itself closed the window, by registering
+    //    every store's session before any WebView existed. Then it has to
+    //    come out.
+    if (!usable()) return;
+    if (!PlatformInfo.isProxySupported) {
+      markTestSkipped('below the proxyConfigurations floor');
+      return;
+    }
+    Widget pane(String siteId, String path) => SizedBox(
+          width: 320,
+          height: 240,
+          child: WebViewFactory.createWebView(
+            config: WebViewConfig(
+              siteId: siteId,
+              initialUrl: 'http://$originHost:$port$path',
+              proxySettings: liveProxy(),
+              clearUrlEnabled: false,
+              dnsBlockEnabled: false,
+              contentBlockEnabled: false,
+              trackingProtectionEnabled: false,
+              localCdnEnabled: false,
+            ),
+            onControllerCreated: (_) {},
+          ),
+        );
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Column(children: [
+          KeyedSubtree(
+              key: const ValueKey('pair-a'),
+              child: pane('proxy-binding-pair-a', '/pair-a')),
+          KeyedSubtree(
+              key: const ValueKey('pair-b'),
+              child: pane('proxy-binding-pair-b', '/pair-b')),
+        ]),
+      ),
+    ));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    final both = await waitReal(
+      tester,
+      () => socks.targets.length >= 2,
+      label: 'two pre-armed sites mounted in one turn',
+      timeout: const Duration(seconds: 25),
+    );
+    final direct = [
+      if (requests.contains('/pair-a')) 'a',
+      if (requests.contains('/pair-b')) 'b',
+    ];
+    verdict.add('pair=${socks.targets.length} of 2 proxied, '
+        'direct=${direct.isEmpty ? "none" : direct.join("+")}');
+    expect(
+      socks.targets.length + direct.length,
+      2,
+      reason: 'the two panes issued ${socks.targets.length + direct.length} '
+          'loads between them, not 2, so this measured the mount rather than '
+          'the binding',
+    );
+    expect(
+      both,
+      isTrue,
+      reason: 'two pre-armed sites built in the same turn did not both bind, '
+          'so pre-arming their stores ahead of any WebView closed the window '
+          'rather than opening it',
+    );
+  });
+
   testWidgets('a pre-armed site loads through its proxy', (tester) async {
-    // The first WebView of the process. This has bound its proxy since the
-    // parse fix, because a store armed at WebView construction is honoured
-    // when it is the first the network process learns about. It is here as
-    // the floor: if this fails, nothing below is worth reading.
+    // No longer the process's first WebView -- the pair above is -- so under
+    // the WebView-creation rule this is expected to go direct now. It stays
+    // because the pair and this scenario together say whether the window is
+    // "the first turn" or "any turn with more than one WebView in it".
     if (!usable()) return;
     if (!PlatformInfo.isProxySupported) {
       markTestSkipped('below the proxyConfigurations floor');
@@ -293,7 +382,7 @@ void main() {
 
   testWidgets('a second pre-armed site, built later, also uses its proxy',
       (tester) async {
-    // This is the fix.
+    // The case the startup pre-arm was supposed to fix and did not.
     //
     // Its store was armed in the same batch as the first site's, before the
     // network process existed, and its WebView is built now -- after another
