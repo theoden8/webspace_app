@@ -509,6 +509,36 @@ memory and the fork shares one deliberately. If it does not work, the hypothesis
 and with it the last store-shaped idea.
 
 
+### Attempt 16 — The shared process pool was not it either
+**Date:** 2026-09-16 · **Files:** fork `448b3ce`, `pubspec.yaml`
+**What it did:** ran attempt 15's experiment and killed the hypothesis. The patch took
+effect — the trace shows a distinct pool per container, which is what it was supposed
+to produce:
+
+```
+webview proxySettings=true container=ws-proxy-binding-fresh   store=0x…6a4500 pool=0x…754600
+webview proxySettings=true container=ws-proxy-binding-seam    store=0x…75d400 pool=0x…755200
+webview proxySettings=true container=ws-proxy-binding-refused store=0x…6a4f00 pool=0x…754c00
+```
+
+Distinct pools, distinct stores, the field present, `proxyConfigurations` assigned —
+and the verdict is unchanged. The pool change is reverted; only the trace is kept.
+
+That exhausts every explanation of the shape "the WebViews share something they should
+not". What is left is the shape nobody has tested: **the app's own mount pattern**.
+Every scenario here replaces the whole widget tree, so the previous WebView is being
+disposed while the next is built, and "first in the process" may really be "the only
+one that was never built alongside a dying WebView". The next measurement is two
+proxied WebViews mounted *simultaneously*, side by side, which needs no fork change at
+all.
+**Why:** four store/pool-shaped hypotheses have now failed. Continuing to guess at that
+layer is the mistake this file keeps recording; the harness itself has never been a
+suspect and it is the one thing common to every failing run.
+**Why it was partial:** it removes a wrong answer. If simultaneous mounts both bind,
+the defect is in the dispose/rebuild cycle rather than in binding at all — and the
+user-visible bug would be narrower than feared.
+
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**

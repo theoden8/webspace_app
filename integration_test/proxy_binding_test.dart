@@ -253,6 +253,71 @@ void main() {
     expect(socks.targets.first, '$originHost:$port');
   });
 
+  testWidgets('two proxied sites mounted side by side both use their proxy',
+      (tester) async {
+    // Every other scenario replaces the whole tree, so the previous WebView
+    // is being disposed while the next is built -- and "the first WebView in
+    // the process" may really be "the only one never built alongside a dying
+    // one". Four store- and pool-shaped explanations have already failed; the
+    // harness itself has never been a suspect, and it is the one thing every
+    // failing run has in common.
+    //
+    // Both sites are live here, in one tree, never replaced. If both reach
+    // the fixture proxy, binding works and the defect is in the rebuild
+    // cycle.
+    if (!usable()) return;
+    if (!PlatformInfo.isProxySupported) {
+      markTestSkipped('below the proxyConfigurations floor');
+      return;
+    }
+    Widget pane(String siteId, String path) => SizedBox(
+          width: 320,
+          height: 240,
+          child: WebViewFactory.createWebView(
+            config: WebViewConfig(
+              siteId: siteId,
+              initialUrl: 'http://$originHost:$port$path',
+              proxySettings: liveProxy(),
+              clearUrlEnabled: false,
+              dnsBlockEnabled: false,
+              contentBlockEnabled: false,
+              trackingProtectionEnabled: false,
+              localCdnEnabled: false,
+            ),
+            onControllerCreated: (_) {},
+          ),
+        );
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Column(children: [
+          KeyedSubtree(
+              key: const ValueKey('side-a'),
+              child: pane('proxy-binding-side-a', '/side-a')),
+          KeyedSubtree(
+              key: const ValueKey('side-b'),
+              child: pane('proxy-binding-side-b', '/side-b')),
+        ]),
+      ),
+    ));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    final both = await waitReal(
+      tester,
+      () => socks.targets.length >= 2,
+      label: 'two simultaneous proxied loads',
+      timeout: const Duration(seconds: 25),
+    );
+    verdict.add('side-by-side=${socks.targets.length} of 2 proxied');
+    expect(
+      both,
+      isTrue,
+      reason: 'two sites live at once, each with its own container and the '
+          'same proxy, and the fixture proxy saw ${socks.targets.length} of '
+          'them: binding is not simply a property of being first',
+    );
+  });
+
   testWidgets('the harness can see a load reach the origin', (tester) async {
     // The control. Without it, the assertions below pass for any reason a
     // page fails to load, which is most of them.
