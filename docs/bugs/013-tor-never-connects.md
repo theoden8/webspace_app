@@ -219,6 +219,61 @@ second concurrent TORThread would now be silent in debug too, which is what the
 generation guard and exit watch (attempt 6 of BUG-007) exist to prevent.
 
 
+### Attempt 9 — tor runs once per process, and everything stopped it
+**Date:** 2026-09-16 · **Files:** `ios/Runner/TorControllerPlugin.swift`,
+`lib/services/tor_engine.dart`, `lib/screens/app_settings.dart`,
+`test/tor_engine_test.dart`, `test/js/tor_bootstrap_observability.test.js`,
+`lib/l10n/app_*.arb`
+**What it did:** the macOS tier finally ran the restart scenario, and tor answered
+for itself:
+
+```
+[Tor/info] Control port answered after 0s; authenticating.
+[TorLog/warning] Failed to confirm worker threads' start up after timeout.
+[TorLog/warning] tor_bug_occurred_: Bug: src/lib/evloop/workqueue.c:716:
+    threadpool_new: This line should not have been reached.
+    ... cpuworker_init + 112 / run_tor_main_loop + 204 / tor_run_main + 4660
+[TorLog/error] Can't create worker thread pool
+[Tor/error] State: error(bootstrapTimeout: Tor did not finish bootstrapping in time.)
+```
+
+The orphan-halt work of attempts 6-8 was right about the *slot*: the previous thread
+does exit and the data-directory lock is released. It was wrong about what that buys.
+tor's own global state outlives `tor_run_main`, so the second entry finds the
+cpuworker pool already built, trips its `BUG()`, and runs without workers — after
+which the bootstrap simply never progresses and the 90-second deadline calls it a
+network failure. `TORThread`'s own `NSAssert(_thread == nil, "There can only be one
+TORThread per process")` was saying the same thing from the other side; it was read
+as "not two at a time" when it means "not twice".
+
+Everything in the app stopped tor as a matter of routine: the 60-second idle debounce
+after the last Tor site was released, the bootstrap deadline, Retry, and (added
+earlier in this PR) a change to the destination-isolation setting. Each one burned the
+process's only launch and left a runtime that could never come back — which is
+precisely the reported *"sometimes I have to restart the app for the Tor proxy to
+start working"*. So: the plugin now refuses a second launch with a named error
+instead of entering `tor_run_main` again; releasing the last holder no longer stops
+the runtime; the bootstrap deadline reports without tearing down; Retry re-arms the
+wait instead of stop-then-start; and the isolation setting is recorded for the next
+start, with the hint saying so in all 67 locales.
+
+A live `SETCONF SocksPort="auto IsolateSOCKSAuth IsolateDestAddr"` was tried first and
+rejected on reading tor: `retry_listener_ports` treats a `CFG_AUTO_PORT` request as
+matching any existing listener on that address and keeps it ("This listener is already
+running"), and the isolation flags live on the listener's `entry_cfg`, copied once in
+`connection_listener_new`. tor answers `250 OK` and nothing changes. A SETCONF that
+looks applied is worse than one that is refused.
+**Why:** a failure the user can act on beats a three-minute wait that names the wrong
+cause. And a stop is only worth making when there is something to start afterwards.
+**Why it was partial:** the ceiling is upstream and stays. Tor is now unavailable for
+the rest of the session after any genuine teardown — a bootstrap that really cannot
+finish still leaves a tor running and retrying, and a bridge configuration edited
+mid-session still needs an app restart to apply. Neither is fixed here; both are now
+said out loud instead of hanging. `integration_test/tor_test.dart:252` ("a restart
+inside the handshake window still comes back") asserts the behaviour this attempt
+removes and is rewritten to assert the refusal instead.
+
+
 ## Known open gaps
 
 1. **No tier runs the plugin on iOS, and the macOS tier has never returned a verdict.**
@@ -243,6 +298,12 @@ generation guard and exit watch (attempt 6 of BUG-007) exist to prevent.
    `haltOrphan` / `isThreadFinished` — would put every one of them under the Dart tier
    that already runs 3187 tests, and would let a fake inject the cases that actually
    happen: a slow port, a refused cookie, a tor that will not exit.
-3. **Fault injection does not exist at any layer.** Even the macOS tier only exercises the
+3. **A session that loses tor cannot get it back.** Attempt 9 stops the app from
+   spending the one launch, but nothing recovers one that is genuinely spent: a
+   bridge edit, a `SIGNAL HALT` that lands, or a tor that exits on its own all
+   end the feature until the app is restarted. The only real fix is out of
+   process — tor in an XPC service or an extension — which iOS makes expensive
+   and macOS does not make free.
+4. **Fault injection does not exist at any layer.** Even the macOS tier only exercises the
    happy path plus a restart; nothing simulates a control port that opens late, which is
    the mechanism of attempt 2.

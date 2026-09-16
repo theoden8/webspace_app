@@ -118,10 +118,11 @@ void main() {
     await settle(t);
     await t.pump(const Duration(seconds: 91));
 
-    // Released rather than re-acquired on the way out: no second start, and
-    // the idle debounce was allowed to expire into a stop.
+    // Released rather than re-acquired on the way out: no second start. And
+    // no stop either — the process gets one tor, so an idle stop would end
+    // the feature for the session rather than save anything (BUG-013).
     expect(runtime.startCalls, 1);
-    expect(runtime.stopCalls, greaterThan(0),
-        reason: 'the last holder going away must let the runtime shut down');
+    expect(runtime.stopCalls, 0,
+        reason: 'the last holder going away must not spend the one launch');
   });
 }

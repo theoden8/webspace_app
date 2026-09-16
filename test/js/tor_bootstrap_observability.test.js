@@ -460,3 +460,48 @@ test('nothing reaches Tor.framework\'s asserts', () => {
       `${rel} must compile out the framework's asserts, which abort a debug build`);
   }
 });
+
+test('tor is launched at most once per process', () => {
+  // tor keeps process-global state its own tor_run_main does not reset: the
+  // second one reaches threadpool_new with the pool already built, logs
+  // "Can't create worker thread pool", and the bootstrap that follows never
+  // progresses. Tor.framework says the same from the other side -- TORThread
+  // asserts one per process. Before this the second start was a three-minute
+  // wait ending in bootstrapTimeout, which reads as "Tor could not reach the
+  // network": a failure the user retries, burning the same dead path again.
+  const gate = functionBody(swiftCode, 'launchWhenFreeLocked');
+  assert.match(gate, /guard !hasLaunched else \{/,
+    `${swiftRel}: launchWhenFreeLocked must refuse a second launch`);
+  assert.match(functionBody(swiftCode, 'launchLocked'), /hasLaunched = true/,
+    `${swiftRel}: the flag must be set where tor_run_main is entered`);
+  assert.ok(!/hasLaunched = false/.test(swiftCode.slice(swiftCode.indexOf('func launchLocked('))),
+    `${swiftRel}: nothing may clear it -- the ceiling is the process`);
+});
+
+test('a circuit-isolation change neither restarts tor nor pretends to apply', () => {
+  // A restart is impossible (above). SETCONF is worse than impossible: tor
+  // answers 250 OK and changes nothing, because retry_listener_ports treats
+  // a CFG_AUTO_PORT request as matching any existing listener on that
+  // address and keeps it, and the isolation flags live on the listener's
+  // entry_cfg, copied once in connection_listener_new. So the contract is
+  // the next start, and the UI has to say so rather than the code guess.
+  const body = functionBody(swiftCode, 'setSocksIsolation');
+  assert.match(body, /pendingIsolateDestAddr = isolateDestAddr/,
+    `${swiftRel}: the choice must be recorded for the next start`);
+  assert.ok(!/SETCONF|sendCommand|setConfs?\(/.test(body),
+    `${swiftRel}: a SETCONF here is accepted and silently ineffective`);
+  assert.ok(!/\bstop\(\)|launchLocked\(|retireRunningLocked\(/.test(body),
+    `${swiftRel}: it must not tear the runtime down to apply a setting`);
+  assert.match(functionBody(swiftCode, 'launchLocked'),
+    /socksPortValue\(isolateDestAddr: pendingIsolateDestAddr\)/,
+    `${swiftRel}: the recorded choice must reach the SocksPort line`);
+
+  const settings = fs.readFileSync(
+    path.join(repoRoot, 'lib/screens/app_settings.dart'), 'utf8');
+  assert.match(settings, /applySocksIsolation\(isolateDestAddr:/,
+    'lib/screens/app_settings.dart must record the change, not restart Tor');
+  assert.ok(!/TorService\.instance\.restart\(\)/.test(settings.slice(
+    settings.indexOf('_setTorIsolateDestAddr'),
+    settings.indexOf('_setTorIsolateDestAddr') + 500)),
+    'lib/screens/app_settings.dart must not restart Tor for a setting');
+});
