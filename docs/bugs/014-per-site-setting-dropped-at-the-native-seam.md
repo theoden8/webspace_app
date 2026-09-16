@@ -424,6 +424,34 @@ question attempt 11 left open: is the rule "first store in the process" or "any 
 configured before the first network load"?
 
 
+### Attempt 13 — The tag measures the same, on a second lineage
+**Date:** 2026-09-16 · **Files:** none (measurement)
+**What it did:** `v6.2.0-beta.3-privacy-v7` compiles and ships — the Apple builds and
+the Tor scenario are green on it — and the gate reports exactly what it did before:
+
+```
+verdict: containers=true, first-in-process=proxied, fresh-site=DIRECT,
+         refused=DIRECT, rebind=DIRECT
+native: no container-store trace was written
+```
+
+So the finding is not an artifact of one lineage. Two independently-written
+`proxySettings` parse fixes (`d128d89` and `c002242`), with and without the
+store-at-creation assignment, produce the same behaviour: the first WebView in the
+process is proxied and every later one loads direct. `3c5a43f` does not change it,
+which is consistent with its own description — it repairs the *process-wide override*
+reaching container stores, not the per-WebView `proxySettings` path.
+**Why:** before proposing a different architecture, the old one should be shown to fail
+on more than one implementation of it.
+**Why it was partial:** it closes the per-WebView approach without opening another.
+The live option is the one this app already runs on Android: drive the
+**process-wide** proxy (`ProxyController.setProxyOverride`, which v7 now fans out to
+container stores) and serialise sites whose proxies differ, the way PROXY-013 does
+for Android's mismatched-proxy sites. That trades simultaneous per-site proxies for
+proxies that work at all, and it is a user-visible trade, so it is not mine to make
+unilaterally.
+
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
