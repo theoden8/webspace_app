@@ -1,0 +1,99 @@
+// The per-site proxy gate has to be able to fail (LEAK-003, BUG-014).
+//
+// `integration_test/proxy_binding_test.dart` is the only tier that observes
+// whether a proxy reached the engine, and it reported green through two
+// separate reasons why it could not have observed anything:
+//
+//  1. Its origin was on `127.0.0.1`. Apple never sends a loopback
+//     destination through a proxy, so "the proxied load did not reach the
+//     origin" was true whether or not the proxy was bound.
+//  2. Its second mount reused the same widget position, so Flutter updated
+//     the existing `InAppWebView` instead of building a new one and the
+//     load under test was never issued.
+//
+// Both are invisible in the file: it reads like a test either way. This
+// gate is structural for the same reason the Tor one is — nothing in CI
+// compiles or runs the Apple path outside the macOS tier itself, and a tier
+// that cannot fail is worse than no tier, because it is counted.
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const repoRoot = path.resolve(__dirname, '..', '..');
+const testRel = 'integration_test/proxy_binding_test.dart';
+const fixtureRel = 'integration_test/socks5_fixture.dart';
+const source = fs.readFileSync(path.join(repoRoot, testRel), 'utf8');
+const fixture = fs.readFileSync(path.join(repoRoot, fixtureRel), 'utf8');
+
+/// Code only: the comments in the file under test name the very things
+/// these rules forbid.
+const code = source.replace(/^\s*\/\/.*$/gm, '');
+
+test('the fixture origin is not on loopback', () => {
+  assert.match(
+    code,
+    /nonLoopbackIPv4\(\)/,
+    `${testRel} must address its origin by a non-loopback interface`,
+  );
+  const urls = code.match(/'http:\/\/[^']*'/g) ?? [];
+  for (const url of urls) {
+    assert.doesNotMatch(
+      url,
+      /127\.0\.0\.1|localhost|\[::1\]/,
+      `${testRel} loads ${url}: Apple never proxies a loopback destination, ` +
+        'so an assertion about that load says nothing about the binding',
+    );
+  }
+  assert.ok(
+    urls.some((u) => u.includes('$originHost')),
+    `${testRel} must build its loads from the routable fixture address`,
+  );
+});
+
+test('a mount that is meant to rebuild the webview gets its own key', () => {
+  assert.match(
+    code,
+    /KeyedSubtree\(\s*\n?\s*key:/,
+    `${testRel} must key each mount, or a second pumpWidget updates the ` +
+      'existing platform view and never issues the load under test',
+  );
+  assert.match(
+    code,
+    /ValueKey\('webview-\$\{generation\+\+\}'\)/,
+    `${testRel} must derive that key from a counter, so two mounts in one ` +
+      'scenario are two different subtrees',
+  );
+});
+
+test('the proxied scenarios assert the proxy was used, not that a load failed', () => {
+  // A negative assertion is satisfied by every way a load can break, which
+  // is how both previous versions of this file passed while no proxy was
+  // bound. The fixture SOCKS5 server is what makes a positive one possible.
+  assert.match(
+    code,
+    /socks\.targets\.isNotEmpty/,
+    `${testRel} must assert the fixture proxy was asked for the origin`,
+  );
+  const negatives = code.match(/isNot\(contains\(/g) ?? [];
+  const positives = code.match(/socks\.targets\.isNotEmpty/g) ?? [];
+  assert.ok(
+    positives.length >= negatives.length,
+    `${testRel} has ${negatives.length} negative assertions and only ` +
+      `${positives.length} positive ones; a load that never happened ` +
+      'satisfies every negative',
+  );
+});
+
+test('the SOCKS5 fixture records what it was asked for before it connects', () => {
+  const connectAt = fixture.indexOf('Socket.connect(');
+  const recordAt = fixture.indexOf('targets.add(');
+  assert.ok(recordAt >= 0, `${fixtureRel} must record CONNECT targets`);
+  assert.ok(connectAt >= 0, `${fixtureRel} must relay to the target`);
+  assert.ok(
+    recordAt < connectAt,
+    `${fixtureRel} must record the target before dialling it, or an origin ` +
+      'that cannot be reached looks like a proxy that was never used',
+  );
+});

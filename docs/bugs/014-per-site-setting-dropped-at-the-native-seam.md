@@ -91,6 +91,32 @@ archive, so this is a hypothesis the next run decides, not a cited fact.
 real. It fixes neither.
 
 
+### Attempt 4 — The gate could never have caught it: Apple does not proxy loopback
+**Date:** 2026-09-16 · **Files:** `integration_test/proxy_binding_test.dart`,
+`integration_test/socks5_fixture.dart`, `test/js/proxy_binding_fixture.test.js`
+**What it did:** attempt 3's two scenarios disagreed — the fresh-site one failed and
+the rebind one passed — which is backwards for the cached-store hypothesis. Reading
+the fixture rather than the product explains both. The origin was on `127.0.0.1`,
+and Apple's networking stack never sends a loopback destination through a proxy:
+`localhost`, `127.0.0.1` and `::1` are direct whatever `ProxyConfiguration` says, and
+`kCFStreamPropertyProxyLocalBypass` does not change it. So the fresh-site scenario
+was asserting something that cannot hold, and the rebind scenario passed for a second
+reason: pumping the same widget position again *updates* the existing `InAppWebView`
+element, keeping the platform view it already had, so the second load was never issued
+and "the origin was not reached" held for free. Both scenarios were unfalsifiable.
+The fixture now serves the origin on a non-loopback interface address, every mount
+gets its own subtree key, and a real SOCKS5 server (`socks5_fixture.dart`) records the
+CONNECT it is asked for — so the assertions are positive ("the proxy was used") rather
+than negative ("the load did not arrive"), which every broken load satisfies.
+**Why:** a negative assertion over a load that cannot succeed proves nothing, and both
+ways this file has been wrong so far broke the load. A recorded CONNECT to the origin
+cannot be produced by a dropped binding.
+**Why it was partial:** it fixes the instrument, not the product. Whether the per-site
+proxy is bound on a fresh site, on a re-used container store, or at all, is what the
+next macOS tier says — attempt 3's verdict tells us nothing, because neither of its
+scenarios was measuring what it claimed.
+
+
 ## Known open gaps
 
 1. **No general guard on the seam.** The plugin's settings parser fails open by
@@ -103,3 +129,10 @@ real. It fixes neither.
 3. **Reach is wider than the proxy.** The same parser carries the container id,
    the UA, the media gates and every other per-site field. Only the proxy has an
    effect-level test.
+4. **An effect-level test can be unfalsifiable and look green.** Both of attempt
+   3's scenarios asserted "the origin was not reached", which any failure to load
+   satisfies — and one of them could not have reached it under any binding
+   (loopback), while the other never issued the load at all (widget reuse). The
+   structural gate added in attempt 4 covers those two specific shapes; the
+   general rule — an effect-level assertion needs a control that fails when the
+   instrument is broken — is not enforced anywhere.
