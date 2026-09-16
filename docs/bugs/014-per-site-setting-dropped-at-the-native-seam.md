@@ -481,6 +481,34 @@ where that work is happening.
 each release, so this needs re-pinning to `…-privacy-v8` once the branch is tagged.
 
 
+### Attempt 15 — Run the process-pool experiment here, because only here can it run
+**Date:** 2026-09-16 · **Files:** fork branch `claude/per-webview-proxy-process-pool`
+(`d39bc70`, off `privacy-v8-candidate`), `pubspec.yaml`
+**What it did:** the fork's own reproduction (`01c5348`) cannot be executed where it was
+written — the example app's integration suite needs a macOS host, Xcode and the node
+fixture server. This repo's `build-apple` job has all three and has been the only
+instrument in this investigation, so the experiment runs here.
+
+The hypothesis, and the last one standing after attempts 4-13: every WebView is handed
+`WKProcessPoolManager.sharedProcessPool` while carrying a *different*
+`WKWebsiteDataStore`, and a `WKProcessPool` has historically been bound to one network
+session. That would produce exactly the observed split — the first store's
+`proxyConfigurations` is honoured, later ones are ignored — without anything being
+wrong in WebKit, whose implementation is per-session on both delivery paths
+(`SetProxyConfigData(m_sessionID, …)` and `networkSessionParameters.proxyConfigData`).
+
+The branch gives a container-bound WebView its own pool, keyed by container id;
+incognito keeps the shared pool, having no container. It also restores the file-based
+container-store trace, now recording the *pool* identity alongside the store identity,
+so the next verdict says whether the pools actually differ.
+**Why:** it is the only untested explanation, it is cheap, and the agent working on the
+fork cannot measure it.
+**Why it was partial:** it is an experiment, not a design. If it works, whether a pool
+per container is the right permanent shape is a separate question — process pools cost
+memory and the fork shares one deliberately. If it does not work, the hypothesis dies
+and with it the last store-shaped idea.
+
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**

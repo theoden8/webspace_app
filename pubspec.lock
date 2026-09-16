@@ -327,8 +327,8 @@ packages:
     dependency: "direct main"
     description:
       path: flutter_inappwebview
-      ref: privacy-v8-candidate
-      resolved-ref: "6b91b27968a815cb2d111809ba967cf0ac5021c9"
+      ref: d39bc70
+      resolved-ref: d39bc7072493867bf931f734ed89c004bab80e3e
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "6.2.0-beta.3"
@@ -336,8 +336,8 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_android
-      ref: privacy-v8-candidate
-      resolved-ref: "6b91b27968a815cb2d111809ba967cf0ac5021c9"
+      ref: d39bc70
+      resolved-ref: d39bc7072493867bf931f734ed89c004bab80e3e
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.2.0-beta.3"
@@ -353,8 +353,8 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_ios
-      ref: privacy-v8-candidate
-      resolved-ref: "6b91b27968a815cb2d111809ba967cf0ac5021c9"
+      ref: d39bc70
+      resolved-ref: d39bc7072493867bf931f734ed89c004bab80e3e
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.2.0-beta.3"
@@ -362,8 +362,8 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_linux
-      ref: privacy-v8-candidate
-      resolved-ref: "6b91b27968a815cb2d111809ba967cf0ac5021c9"
+      ref: d39bc70
+      resolved-ref: d39bc7072493867bf931f734ed89c004bab80e3e
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "0.1.0-beta.2"
@@ -371,8 +371,8 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_macos
-      ref: privacy-v8-candidate
-      resolved-ref: "6b91b27968a815cb2d111809ba967cf0ac5021c9"
+      ref: d39bc70
+      resolved-ref: d39bc7072493867bf931f734ed89c004bab80e3e
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.2.0-beta.3"
@@ -380,8 +380,8 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_platform_interface
-      ref: privacy-v8-candidate
-      resolved-ref: "6b91b27968a815cb2d111809ba967cf0ac5021c9"
+      ref: d39bc70
+      resolved-ref: d39bc7072493867bf931f734ed89c004bab80e3e
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.4.0-beta.3"
