@@ -10,7 +10,7 @@ to. CAM-011 already denies a backgrounded site a fresh grant, so together the
 two mean a site that is not on screen cannot be capturing from the camera.
 
 Pausing is not what achieves this — a paused webview keeps media pipelines
-alive by design ([webview-pause-lifecycle](../../../../specs/webview-pause-lifecycle/spec.md)).
+alive by design ([webview-pause-lifecycle](../../../../../specs/webview-pause-lifecycle/spec.md)).
 The stop is an explicit `__wsStopRealCapture()` call into the page, which ends
 every track the shim handed over from a `real` grant or passed through from a
 platform-granted `getUserMedia` (the camera+microphone case of CAM-004), and

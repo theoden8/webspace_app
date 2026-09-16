@@ -331,14 +331,22 @@ The gate SHALL live in `_addSite`'s `qrSettings` branch so that **both**
 entry points cross it: the in-app scanner / paste dialog
 (`AddSiteScreen._addByQr` → `showSiteSettingsQrApplyDialog`) and the
 `webspace://qr/` deep link handled by `_handleShareIntent`. The dialog
-SHALL show the payload's `initUrl`, its `name`, its proxy (the address, or
-Tor) whenever the payload decodes to a non-DEFAULT proxy through the same
-`UserProxySettings.fromJson` the apply path uses
-(`SiteSettingsQrCodec.reviewProxy`), the protections the payload switches off
+SHALL show the payload's `initUrl`, its `name`, its proxy address when the
+payload sets a non-DEFAULT proxy, the protections the payload switches off
 (Tracking Protection, ClearURLs, DNS Blocklist, Content Blocker, LocalCDN,
 Block auto-redirects) and the permissions or modes it switches on
 (third-party cookies, Notifications, Background audio, Kiosk mode,
 Geolocation), and SHALL require an explicit accept.
+
+The blockers can also be weakened without either toggle moving, so the
+protections-switched-off list SHALL also name:
+
+- **Blocklist level**, when the payload's `dnsBlockLevel` is below the
+  app-wide level;
+- **Filter lists**, when the payload's `disabledFilterLists` is non-empty.
+
+Both are relaxations the payload's author chose for the receiver, and
+neither shows up in any boolean the dialog already reports.
 
 A site created from a deep link SHALL NOT be activated: `_registerNewSite`
 is called with `activate: false`, so the site is added to the list and
@@ -360,6 +368,15 @@ payload sets `trackingProtectionEnabled: false` and a SOCKS5 proxy
 **Then** a review dialog is shown naming the URL, the name, the proxy
 address, and "Tracking Protection" as a protection being turned off
 **And** no `WebViewModel` exists until the user accepts
+
+#### Scenario: A payload that only weakens the blockers is still named
+
+**Given** the app-wide DNS level is Pro
+**And** a payload leaves every protection toggle on but sets
+`dnsBlockLevel: 1` and `disabledFilterLists: ["easylist"]`
+**When** the review dialog is shown
+**Then** it names "Blocklist level" and "Filter lists" among the
+protections the payload turns off
 
 #### Scenario: The review sees the proxy the apply path installs
 

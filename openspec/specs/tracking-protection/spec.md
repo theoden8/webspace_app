@@ -941,8 +941,8 @@ closed tracking channel.
 
 HTML caching SHALL NOT appear here. It decides whether a page is redrawn
 from disk on a cold start, which is a behaviour of the app rather than
-something a site learns; it lives with the other behaviour switches on
-the settings screen.
+something a site learns; it lives with the other behaviour switches, on
+the Behaviour screen (BEHAV-001).
 
 The anti-fingerprinting note under the letterbox group SHALL render only
 while the umbrella is on, since with it off nothing is being randomised.
@@ -952,10 +952,10 @@ fields, the dirty-snapshot diff and the save path (BUG-006 / EDIT-009);
 the screen reads a `SitePrivacyValues` and reports whole values back
 through `onChanged`.
 
-The Privacy and Permissions rows SHALL sit at the foot of site settings
-under a "Site" heading, below the leaf switches, Privacy first. They are
-the two rows a reader visits deliberately; the switches above are what
-they scroll past on the way to something else.
+The Behaviour, Privacy and Permissions rows SHALL sit at the foot of site
+settings under a "Site" heading, below the leaf controls, in that order
+(BEHAV-002). They are the rows a reader visits deliberately; the
+controls above are what they scroll past on the way to something else.
 
 The Privacy row SHALL summarise the current posture without being opened:
 "Tracking Protection on" while the umbrella is on, otherwise the names of

@@ -1,12 +1,11 @@
-# Web Screen Sharing Specification
+# web-screen-sharing Specification
 
 ## Purpose
-
 Let a site that asks to share the screen get *something* usable without ever
 capturing the device. The user picks an image or a video; the page is served a
 `MediaStream` shaped like a shared screen and rendered from that file.
 
-The asymmetry with [web-camera-access](../../../../specs/web-camera-access/spec.md)
+The asymmetry with [web-camera-access](../web-camera-access/spec.md)
 is sharper than the microphone's. That feature has no real mode because no
 recording permission is worth the exposure; this one has no real mode because a
 real mode **cannot be scoped to the requesting site at all**. A display capture
@@ -21,13 +20,7 @@ The decision is `WebViewModel.screenShareMode` (`ask` / `virtual` / `block`),
 collected by a Block / Use-a-media-file popup on first request and adjustable
 later from per-site settings.
 
-## Status
-
-- **Status**: Completed
-
----
-
-## ADDED Requirements
+## Requirements
 
 ### Requirement: SHARE-001 — Per-site decision, with no real-screen mode
 
@@ -469,52 +462,3 @@ popup.
 **And** no popup is shown
 
 ---
-
-## Platform notes
-
-- **No native permission layer exists for this feature on any platform**, and
-  none is added: there is no Android manifest entry, no
-  `NSScreenCaptureUsageDescription`, no macOS screen-recording entitlement. The
-  substitution is pure JS (canvas `captureStream`), so nothing under it needs
-  one, and SHARE-003 gates the day the platform layer changes.
-- **Storage**: the picked source is inlined as a `data:` URL on the model (like
-  `customIconPng` and the virtual-camera source) so it rides settings backups
-  and lives inside the encrypted archive slice for archive-tier sites.
-  `VirtualScreenService` caps it at 24 MiB, sharing
-  `VirtualVisualMediaPicker.maxBytes` with the simulated camera.
-- **Element Capture, Region Capture and Captured Surface Control** operate on an
-  existing display-capture track (`cropTo`, `restrictTo`, scroll/zoom control).
-  Since no real one is ever handed out, they are inert here: the only track they
-  could reach is a canvas the user supplied.
-- **Autoplay**: Android WebView's `mediaPlaybackRequiresUserGesture = false`
-  (set for CAM-010) also governs the `<video>` element behind a video surface.
-- **No user-gesture gate** is enforced by the shim. Real browsers require
-  transient activation for `getDisplayMedia`, but the thing that gate protects
-  against — a silent capture — cannot happen here: the only surface a site can
-  ever get is a file the user picked, and SHARE-011 already denies a
-  backgrounded site.
-- Tracking Protection does not force-block screen sharing: nothing is captured
-  in any mode, so there is no tracking vector for the umbrella to close.
-
-## Test tiers
-
-- **Dart** — `test/screen_share_test.dart` (model, serialization, archive
-  override, QR exclusion, permission-state projection, drawer badge),
-  `test/screen_share_decision_engine_test.dart` (decide → coalesce → persist
-  against the real engine), `test/capture_request_wiring_test.dart` (the
-  model's own resolver, which is what `getWebView` installs),
-  `test/screen_share_native_denial_test.dart` (SHARE-003).
-- **Structural** — `test/js/screen_share_top_frame_only.test.js` (SHARE-005's
-  three mechanisms), `test/js/capture_active_gate.test.js` (SHARE-011's
-  predicate at every call site).
-- **jsdom** — `test/js/screen_share_shim.test.js`: the decision funnel, the
-  subframe deny (run inside a real jsdom iframe, since `window.top` is not
-  stubbable), the uncropped surface geometry, prototype-level override
-  placement, fail-closed paths. Canvas capture is stubbed; nothing about real
-  frames is claimed here.
-- **Real engine** — `test/browser/screen_share_real_engine.test.js`: Chromium
-  serves the page from `127.0.0.1` (`getDisplayMedia` needs a secure context)
-  and asserts the served frames carry the picked colour, that the track does not
-  read as a canvas capture, that Chromium's own `getDisplayMedia` is unreachable
-  once the shim is in (which is the assertion jsdom cannot make, having none),
-  and that a cross-origin iframe is refused without reaching the bridge.
