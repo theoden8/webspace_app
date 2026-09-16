@@ -82,7 +82,19 @@
   HTTPS-003 makes it awkward — loopback and single-label hosts are exactly the
   ones the engine refuses, so the fixture needs a resolvable name with a
   certificate.
-- [ ] 6.2 **The fallback path is the least covered.** `fallbackFor` is unit
-  tested, but the `onReceivedError` wiring that calls it has only the compiler
-  behind it. A host that answers https with a reset, a cert error, or a hang
-  each reach that handler differently, and none of those has been observed.
+- [x] 6.2 **A refused TLS port is now exercised for real.**
+  `test/https_upgrade_network_test.dart` drives the engine over loopback
+  sockets in the call site's order, so the fallback is taken on an actual
+  `SocketException` rather than by a test calling `fallbackFor`, and the
+  three-navigation sequencing is exercised rather than asserted a step at a
+  time.
+- [ ] 6.3 **TLS outcomes are still unobserved, and belong on a device.** A
+  rejected certificate and a stalled handshake were attempted in a Dart client
+  and dropped: whether either reaches `onReceivedError` at all, and how fast,
+  is chromium's behaviour, and a Dart `HttpClient` answers a different
+  question. (`HttpClient.connectionTimeout` bounds the connect but not the
+  response, so a port that accepts and never answers hangs that harness
+  indefinitely; that is a fact about `HttpClient`, not about the app.) The
+  stalled-handshake case is the one that matters for a default-on upgrade,
+  because a firewall that blackholes 443 is the shape a captive portal has,
+  and it needs the integration tier.
