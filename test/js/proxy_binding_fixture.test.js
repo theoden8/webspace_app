@@ -71,13 +71,16 @@ test('the proxied scenarios assert the proxy was used, not that a load failed', 
   // A negative assertion is satisfied by every way a load can break, which
   // is how both previous versions of this file passed while no proxy was
   // bound. The fixture SOCKS5 server is what makes a positive one possible.
+  // Any assertion over what the fixture proxy was *asked for* counts:
+  // `isNotEmpty`, a count, or a match on the target it recorded.
+  const positivePattern = /socks\.targets\.(isNotEmpty|length|any\()/g;
   assert.match(
     code,
-    /socks\.targets\.isNotEmpty/,
+    positivePattern,
     `${testRel} must assert the fixture proxy was asked for the origin`,
   );
   const negatives = code.match(/isNot\(contains\(/g) ?? [];
-  const positives = code.match(/socks\.targets\.isNotEmpty/g) ?? [];
+  const positives = code.match(positivePattern) ?? [];
   assert.ok(
     positives.length >= negatives.length,
     `${testRel} has ${negatives.length} negative assertions and only ` +

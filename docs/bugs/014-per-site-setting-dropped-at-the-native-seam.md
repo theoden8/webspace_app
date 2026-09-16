@@ -823,6 +823,59 @@ until the next run says whether it is harmless or harmful, and the `prepareConta
 entry point in the fork stays with it.
 
 
+### Attempt 22 — The rule is the first frame, and the pre-arm comes back out
+**Date:** 2026-09-16 · **Files:** `lib/main.dart`, `lib/services/webview.dart`,
+`pubspec.yaml`, `integration_test/proxy_binding_test.dart`,
+`test/js/proxy_binding_fixture.test.js`, `openspec/specs/ip-leakage/spec.md`
+(deleted: `test/js/proxy_prearm_ordering.test.js`)
+**What it did:** ran attempt 21's discriminator and got an unambiguous answer:
+
+```
+verdict: containers=true, prearmed=6, pair=2 of 2 proxied, direct=none,
+         first=DIRECT, second=DIRECT, refused=DIRECT
+```
+
+Two sites mounted in one `pumpWidget`, first in the process: both proxied, and
+`direct=none` says neither fell back. The same two single mounts that followed,
+on stores armed in the same batch, both went direct — including `first`, which
+was `proxied` in the previous run when *it* held the first frame. Nothing about
+those sites changed but which frame built them.
+
+So the rule is settled across three arrangements: **a WebView binds its proxy
+only if it is created in the process's first frame.** Every WebView in that
+frame binds; a WebView in any later turn does not. What is done to the data
+store beforehand is irrelevant — attempt 20 armed six stores in one call before
+anything touched the network and changed nothing, and attempt 19 bound two
+stores that were armed at WebView construction. Attempt 18 read the ordering
+hazard in `WebsiteDataStore::setProxyConfigData` correctly and drew the wrong
+boundary from it: `side-by-side=2 of 2` was two *WebViews* in one turn, not two
+*stores* armed in one turn, and those readings only diverge in the experiment
+attempt 21 ran.
+
+Attempt 20's fix is therefore removed rather than left in place: the startup
+pre-arm, its structural gate, and the `prepareContainers` pin. An API that
+measures as a no-op has no business in the app or in the fork, and leaving it
+would read to the next person as though the problem were handled. The
+`resolveStoreBinding` extraction stays — `_bindingFor` uses it and it is sound
+on its own.
+
+The integration file is rebuilt around the rule. One frame carries every
+proxied site it uses: two on the live SOCKS5 fixture (both must be proxied),
+one on a closed port (must fail closed — a bound proxy that refuses cannot
+reach the origin), and one created with `about:blank` and navigated afterwards.
+That last pane asks what the app fix costs: if a WebView only has to *exist* in
+the first frame, the app can create one empty WebView per proxied site at
+startup and keep lazy loading; if it has to *load* in that frame, every proxied
+site fetches its page at launch whether the user opens it or not.
+**Why:** three runs now agree on the rule, and the remaining question is the
+price of satisfying it, not what it is.
+**Why it was partial:** the app still builds WebViews lazily, so the bug is
+live. The fix is `_loadedIndices` at startup carrying every proxied site — the
+same mechanism that already auto-loads notification sites — plus failing closed
+for the sites that cannot make the frame. The deferred pane decides which
+shape.
+
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
@@ -841,17 +894,16 @@ entry point in the fork stays with it.
 3. **Reach is wider than the proxy.** The same parser carries the container id,
    the UA, the media gates and every other per-site field. Only the proxy has an
    effect-level test.
-4. **An Apple data store armed after the network process is up cannot be
-   proxied.** Established in attempt 19 by ordering: stores armed together
-   before it comes up all bind; any armed afterwards goes direct, whichever
-   store it is and whichever caller assigns it. Attempt 20 uses that window at
-   startup, which covers every proxy resolvable then. It leaves three cases
-   that are not: a site added or re-proxied mid-session, an archive opened
-   (its container id is derived when the archive unlocks), and a Tor site
-   whose SOCKS port is only reported after bootstrap. Each still loads over
-   the device IP rather than failing closed, and no public API reopens the
-   window. Two follow-ups, tracked here: fail closed when a proxied site's
-   store was never armed, and pin Tor's SOCKS port at startup.
+4. **An Apple WebView built after the process's first frame cannot be
+   proxied.** Settled in attempt 22 across three arrangements. Nothing done to
+   the data store beforehand changes it, and no public API reopens the window.
+   So a site opened later in a session, a site whose proxy the user changes, an
+   archive unlocked mid-session and a Tor site whose SOCKS port arrives after
+   bootstrap all miss it. Each currently loads over the device IP rather than
+   failing closed, which is the more urgent half: a leak is worse than a
+   feature that does not work. Follow-ups tracked here: build every proxied
+   site's WebView in the first frame, fail closed for the ones that cannot,
+   and pin Tor's SOCKS port at startup so Tor sites can make that frame.
 5. **An effect-level test can be unfalsifiable and look green.** Both of attempt
    3's scenarios asserted "the origin was not reached", which any failure to load
    satisfies — and one of them could not have reached it under any binding

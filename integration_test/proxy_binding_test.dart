@@ -61,7 +61,6 @@ void main() {
   }
 
   var containers = false;
-  var prearmed = 0;
 
   /// Where the plugin writes its account of what it bound. It writes to a
   /// file rather than stdout because `flutter test` does not capture the
@@ -104,44 +103,6 @@ void main() {
         'proxySupported=${PlatformInfo.isProxySupported} '
         'containers=$containers');
 
-    // What the app does at startup, and the whole fix: arm every proxied
-    // site's container store here, in one call, before anything in this
-    // process has registered a network session. A store armed later is
-    // silently unproxied (BUG-014), so a proxy assigned when a WebView is
-    // built only ever reached whichever site was opened first.
-    //
-    // Deliberately the app's own entry point rather than the channel: a
-    // pre-arm that resolved the container id or the proxy differently from
-    // `WebViewFactory` would arm a store no WebView ever uses, and the
-    // scenarios below would go direct with nothing to show for it.
-    prearmed = await WebViewFactory.prearmProxiedContainers([
-      for (final site in [
-        'proxy-binding-pair-a',
-        'proxy-binding-pair-b',
-        'proxy-binding-first',
-        'proxy-binding-second',
-        'proxy-binding-seam',
-      ])
-        (
-          siteId: site,
-          archiveContainerId: null,
-          incognito: false,
-          proxySettings: UserProxySettings(
-            type: ProxyType.SOCKS5,
-            address: '127.0.0.1:${socks.port}',
-          ),
-        ),
-      (
-        siteId: 'proxy-binding-refused',
-        archiveContainerId: null,
-        incognito: false,
-        proxySettings: UserProxySettings(
-          type: ProxyType.SOCKS5,
-          address: '127.0.0.1:$deadPort',
-        ),
-      ),
-    ]);
-    log('pre-armed $prearmed container store(s)');
   });
 
   /// Which scenarios saw the proxy, in one line at the end of the file's
@@ -151,8 +112,7 @@ void main() {
   final verdict = <String>[];
 
   tearDownAll(() async {
-    log('verdict: containers=$containers, prearmed=$prearmed, '
-        '${verdict.join(", ")}');
+    log('verdict: containers=$containers, ${verdict.join(", ")}');
     if (trace.existsSync()) {
       for (final line in trace.readAsLinesSync()) {
         log('native: $line');
@@ -190,6 +150,7 @@ void main() {
 
   var generation = 0;
   WebViewController? controller;
+  WebViewController? deferred;
 
   Future<void> mount(
     WidgetTester tester, {
@@ -265,59 +226,74 @@ void main() {
     return ok;
   }
 
-  testWidgets('two pre-armed sites mounted in one turn both use their proxy',
+  testWidgets('every webview built in the first frame uses its proxy',
       (tester) async {
-    // First in the file, and the question the last run forced.
+    // The rule, and the only arrangement that satisfies it.
     //
-    // Pre-arming four stores in one call, before anything else in the
-    // process, changed nothing: `prepared 4 container(s), 4 proxied` and
-    // still only the first WebView bound. But two WebViews built in one
-    // `pumpWidget`, with no pre-arm at all, both bound (BUG-014 attempt 19).
-    // So the window is keyed to **WebView creation**, not to when the store
-    // was armed, and arming a store early does not put it in the window.
+    // Three runs with different arrangements agree (BUG-014 attempts 19-22):
+    // WebViews created in the process's first frame all bind their proxy;
+    // a WebView created in any later turn never does, whatever was done to
+    // its data store beforehand. Arming the store early is not what matters
+    // -- attempt 20 armed six stores in one call before anything touched the
+    // network and changed nothing. It is when the WKWebView is built.
     //
-    // Two variables changed between those runs -- the pre-arm was added and
-    // the two WebViews moved into separate turns -- so neither result
-    // attributes. This holds the pre-arm and puts the two WebViews back in
-    // one turn:
-    //
-    //  * 2 of 2 -> the pre-arm is harmless and the rule is WebView creation.
-    //    The app-level fix is then to build every proxied site's WebView in
-    //    the first frame, which needs no fork change at all.
-    //  * 1 of 2 -> the pre-arm itself closed the window, by registering
-    //    every store's session before any WebView existed. Then it has to
-    //    come out.
+    // So this frame carries every proxied site the file uses: two on a live
+    // SOCKS5 fixture, one on a closed port, and one with nothing to load yet.
+    // The dead-proxy pane is a control in the positive direction -- a bound
+    // proxy that refuses cannot reach the origin, and a load that arrives
+    // there says the binding did not happen.
     if (!usable()) return;
     if (!PlatformInfo.isProxySupported) {
       markTestSkipped('below the proxyConfigurations floor');
       return;
     }
-    Widget pane(String siteId, String path) => SizedBox(
+    Widget pane(String siteId, String url, UserProxySettings proxy) => SizedBox(
           width: 320,
-          height: 240,
+          height: 160,
           child: WebViewFactory.createWebView(
             config: WebViewConfig(
               siteId: siteId,
-              initialUrl: 'http://$originHost:$port$path',
-              proxySettings: liveProxy(),
+              initialUrl: url,
+              proxySettings: proxy,
               clearUrlEnabled: false,
               dnsBlockEnabled: false,
               contentBlockEnabled: false,
               trackingProtectionEnabled: false,
               localCdnEnabled: false,
             ),
-            onControllerCreated: (_) {},
+            onControllerCreated: (c) {
+              if (siteId == 'proxy-binding-deferred') deferred = c;
+            },
           ),
         );
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(
         body: Column(children: [
           KeyedSubtree(
-              key: const ValueKey('pair-a'),
-              child: pane('proxy-binding-pair-a', '/pair-a')),
+            key: const ValueKey('pair-a'),
+            child: pane('proxy-binding-pair-a',
+                'http://$originHost:$port/pair-a', liveProxy()),
+          ),
           KeyedSubtree(
-              key: const ValueKey('pair-b'),
-              child: pane('proxy-binding-pair-b', '/pair-b')),
+            key: const ValueKey('pair-b'),
+            child: pane('proxy-binding-pair-b',
+                'http://$originHost:$port/pair-b', liveProxy()),
+          ),
+          KeyedSubtree(
+            key: const ValueKey('refused'),
+            child: pane('proxy-binding-refused',
+                'http://$originHost:$port/refused', refusedProxy()),
+          ),
+          // Built here, given nothing to fetch. Whether a WebView has to
+          // *load* in the first frame to bind, or only exist, decides what
+          // the app fix costs: creating one empty WebView per proxied site
+          // at startup, or making every proxied site fetch its page at
+          // launch whether the user opens it or not.
+          KeyedSubtree(
+            key: const ValueKey('deferred'),
+            child:
+                pane('proxy-binding-deferred', 'about:blank', liveProxy()),
+          ),
         ]),
       ),
     ));
@@ -327,7 +303,7 @@ void main() {
     final both = await waitReal(
       tester,
       () => socks.targets.length >= 2,
-      label: 'two pre-armed sites mounted in one turn',
+      label: 'two proxied sites built in the first frame',
       timeout: const Duration(seconds: 25),
     );
     final direct = [
@@ -343,88 +319,63 @@ void main() {
           'loads between them, not 2, so this measured the mount rather than '
           'the binding',
     );
+    expect(both, isTrue,
+        reason: 'a proxied webview built in the process\'s first frame did '
+            'not use its proxy, so nothing in this file holds');
+
+    // The refused pane shares the frame, so it is bound too; a bound proxy
+    // on a closed port cannot reach anything.
+    await waitReal(tester, () => requests.contains('/refused'),
+        label: 'refused load (must not arrive)',
+        timeout: const Duration(seconds: 10));
+    verdict.add(
+        'refused=${requests.contains('/refused') ? "DIRECT" : "failed closed"}');
     expect(
-      both,
-      isTrue,
-      reason: 'two pre-armed sites built in the same turn did not both bind, '
-          'so pre-arming their stores ahead of any WebView closed the window '
-          'rather than opening it',
+      requests,
+      isNot(contains('/refused')),
+      reason: 'a site whose proxy refuses connections reached the origin '
+          'anyway, which a bound proxy cannot do',
     );
   });
 
-  testWidgets('a pre-armed site loads through its proxy', (tester) async {
-    // No longer the process's first WebView -- the pair above is -- so under
-    // the WebView-creation rule this is expected to go direct now. It stays
-    // because the pair and this scenario together say whether the window is
-    // "the first turn" or "any turn with more than one WebView in it".
-    if (!usable()) return;
-    if (!PlatformInfo.isProxySupported) {
-      markTestSkipped('below the proxyConfigurations floor');
-      return;
-    }
-    expect(prearmed, greaterThan(0),
-        reason: 'no container store was pre-armed, so this file is measuring '
-            'the old behaviour and cannot say whether the fix works');
-    await mount(
-      tester,
-      siteId: 'proxy-binding-first',
-      path: '/first',
-      proxySettings: liveProxy(),
-    );
-    final used = await waitReal(tester, () => socks.targets.isNotEmpty,
-        label: 'first pre-armed site');
-    verdict.add('first=${used ? "proxied" : "DIRECT"}');
-    expect(used, isTrue,
-        reason: 'the fixture proxy was never asked for anything, so the '
-            'per-site proxy is not reaching the engine at all');
-    expect(socks.targets.first, '$originHost:$port');
-  });
-
-  testWidgets('a second pre-armed site, built later, also uses its proxy',
+  testWidgets('a webview built empty in the first frame binds for a later load',
       (tester) async {
-    // The case the startup pre-arm was supposed to fix and did not.
-    //
-    // Its store was armed in the same batch as the first site's, before the
-    // network process existed, and its WebView is built now -- after another
-    // site has already loaded through the network process. Every earlier
-    // version of this scenario went direct, because the store was armed when
-    // this WebView was built and by then WebKit ignores the assignment.
-    //
-    // "Two sites, one on Tor, both showing my direct IP" is exactly this
-    // WebView, and so is "sometimes I have to restart the app for the Tor
-    // proxy to start working" -- restarting made the Tor site the first one.
+    // Built in the frame above with `about:blank`, navigated now. If the
+    // binding survives, the app fix is cheap: create one empty WebView per
+    // proxied site at startup and let lazy loading carry on as it does. If
+    // it does not, binding needs a real load in the first frame, and every
+    // proxied site would have to fetch its page at launch.
     if (!usable()) return;
     if (!PlatformInfo.isProxySupported) {
       markTestSkipped('below the proxyConfigurations floor');
       return;
     }
-    await mount(
-      tester,
-      siteId: 'proxy-binding-second',
-      path: '/second',
-      proxySettings: liveProxy(),
-    );
-    final used = await waitReal(tester, () => socks.targets.isNotEmpty,
-        label: 'second pre-armed site, built after the first has loaded');
-    verdict.add('second=${used ? "proxied" : "DIRECT"}');
+    expect(await waitReal(tester, () => deferred != null,
+            label: 'deferred controller created'),
+        isTrue);
+    await tester.runAsync(() async {
+      await deferred!.nativeController.loadUrl(
+        urlRequest: inapp.URLRequest(
+          url: inapp.WebUri('http://$originHost:$port/deferred'),
+        ),
+      );
+    });
+    final used = await waitReal(
+        tester, () => socks.targets.any((t) => t == '$originHost:$port'),
+        label: 'deferred load through the proxy');
+    final arrivedDirect = requests.contains('/deferred');
+    verdict.add('deferred=${used && !arrivedDirect ? "proxied" : "DIRECT"}');
     expect(
-      used,
-      isTrue,
-      reason: 'a second site whose store was pre-armed with the first still '
-          'loaded over the device IP: pre-arming does not survive the '
-          'network process coming up, and only one proxied site per launch '
-          'works',
-    );
-    expect(socks.targets.first, '$originHost:$port');
-    expect(
-      await waitReal(tester, () => requests.contains('/second'),
-          label: 'second site relayed to the origin'),
-      isTrue,
+      arrivedDirect,
+      isFalse,
+      reason: 'a webview built in the first frame but navigated later went '
+          'direct, so existing in that frame is not enough and binding needs '
+          'a load in it',
     );
   });
 
   testWidgets('the harness can see a load reach the origin', (tester) async {
-    // The control. Without it, the assertions below pass for any reason a
+    // The control. Without it, the assertions above pass for any reason a
     // page fails to load, which is most of them.
     if (!usable()) return;
     await mount(tester, siteId: 'proxy-binding-control', path: '/control');
@@ -435,17 +386,18 @@ void main() {
       reason: 'an unproxied site never reached the fixture origin, so this '
           'file cannot tell a bound proxy from a broken harness',
     );
-    expect(socks.targets, isEmpty,
-        reason: 'an unproxied site went through the fixture proxy');
   });
 
   testWidgets('the engine received the proxy Dart sent it', (tester) async {
-    // Splits the seam the other scenarios can only see the far side of. The
-    // proxy is one field on `InAppWebViewSettings`, delivered over a method
-    // channel and parsed reflectively; `getSettings()` asks the engine what
-    // it actually holds. A null here means the field never crossed, which is
-    // a different bug from a field that crossed and was not applied -- and
-    // the load-level assertions cannot tell them apart.
+    // The original instance of this bug: `proxySettings` was typed
+    // `[String: Any?]?`, which Objective-C cannot represent, so the plugin's
+    // reflective settings parser skipped it and no per-site proxy was ever
+    // applied on either Apple platform. Nothing failed.
+    //
+    // `getSettings()` asks the engine what it actually holds, which splits
+    // the seam the load-level scenarios can only see the far side of: a null
+    // here means the field never crossed the channel, non-null means it
+    // crossed and was not applied. Those are different bugs.
     if (!usable()) return;
     if (!PlatformInfo.isProxySupported) {
       markTestSkipped('below the proxyConfigurations floor');
@@ -457,7 +409,8 @@ void main() {
       path: '/seam',
       proxySettings: liveProxy(),
     );
-    expect(await waitReal(tester, () => controller != null,
+    expect(
+        await waitReal(tester, () => controller != null,
             label: 'controller created'),
         isTrue);
     inapp.InAppWebViewSettings? live;
@@ -474,58 +427,27 @@ void main() {
     );
   });
 
-  testWidgets('a site whose proxy is refused never reaches the origin',
-      (tester) async {
-    if (!usable()) return;
-    if (!PlatformInfo.isProxySupported) {
-      markTestSkipped('below the proxyConfigurations floor');
-      return;
-    }
-    await mount(
-      tester,
-      siteId: 'proxy-binding-refused',
-      path: '/refused',
-      proxySettings: refusedProxy(),
-    );
-    // Long enough for a direct load to have happened many times over; the
-    // proxied one cannot succeed at all.
-    await waitReal(tester, () => requests.contains('/refused'),
-        label: 'refused load (must not arrive)',
-        timeout: const Duration(seconds: 15));
-    verdict.add(
-        'refused=${requests.contains('/refused') ? "DIRECT" : "failed closed"}');
-    expect(
-      requests,
-      isNot(contains('/refused')),
-      reason: 'the request reached the origin directly: a proxy that cannot '
-          'be connected to fell back to the device IP instead of failing '
-          'the load',
-    );
-  });
-
-  testWidgets('a site that gains a proxy mid-process', (tester) async {
-    // The case the fix does not reach, named rather than left to be
+  testWidgets('a webview built after the first frame', (tester) async {
+    // The case no arrangement reaches, named rather than left to be
     // rediscovered.
     //
-    // Pre-arming happens once, at startup, because that is the only window
-    // WebKit honours: a store armed after the network process is up is
-    // silently unproxied whoever assigns it and whichever store it is
-    // (BUG-014 attempt 19 measured all four combinations). A site that gains
-    // a proxy after startup -- a setting changed, a site added, an archive
-    // opened, a Tor runtime that reports its port late -- therefore cannot
-    // bind until the app is restarted, and nothing in Apple's public API
-    // reopens the window.
+    // A WebView created in any turn after the process's first never binds
+    // its proxy: not with its store armed beforehand (attempt 20), not with
+    // a process-wide override, not on a fresh store, not on a rebuilt one.
+    // So a site opened later in a session, a site whose proxy changes, an
+    // archive unlocked mid-session and a Tor runtime that reports its port
+    // after bootstrap all miss it, and Apple's public API offers no way back.
     //
     // Skipped rather than asserted either way: asserting the desired
     // behaviour leaves the tier permanently red, and asserting the actual
     // behaviour would be a test whose passing means a leak.
     if (!usable()) return;
     markTestSkipped(
-      'a proxy assigned after startup cannot bind on iOS/macOS; see '
-      'docs/bugs/014 gap 4. Making the app fail this closed, rather than '
-      'load over the device IP, is the follow-up.',
+      'a webview built after the first frame cannot bind a proxy on '
+      'iOS/macOS; see docs/bugs/014 gap 4. Making the app build every '
+      'proxied site in the first frame, and fail closed for the sites it '
+      'cannot, is the follow-up.',
     );
-    verdict.add('rebind=not attempted (BUG-014 gap 4)');
+    verdict.add('later-frame=not attempted (BUG-014 gap 4)');
   });
-
 }

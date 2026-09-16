@@ -195,42 +195,28 @@ cannot see, so a webview can report a proxy it never bound (BUG-014). A
 site whose proxy refuses connections SHALL therefore never reach its
 origin.
 
-On iOS and macOS every proxied site's data store SHALL be armed with its
-proxy in a **single** native call at startup, before anything else in the
-process registers a network session. A store's proxy reaches WebKit's
-network process either in the parameters that create the store's network
-session or as an update afterwards; `WebsiteDataStore::setProxyConfigData`
-clears the pending proxy before the call that registers the session, so the
-assignment that registers a store never carries it in that store's session
-parameters, and the update path is accepted and ignored. Only stores already
-armed when the network process comes up are proxied. Arming a store when its
-WebView is built therefore proxies whichever site happens to be opened first
-in a launch and leaves every later one loading over the device IP (BUG-014).
+On iOS and macOS a WebView binds its proxy only if it is created in the
+process's **first frame**. Every WebView built in that frame binds; a WebView
+built in any later turn does not, and nothing about its data store changes
+that — not arming the store before the network process comes up, not a fresh
+store, not a rebuilt one, not a process-wide `ProxyController` override
+(BUG-014 attempts 19-22 measure all four). Lazy WebView creation therefore
+proxies whichever site is opened first in a launch and leaves every later one
+on the device IP.
 
-The pre-arm SHALL carry every container in one call rather than one call per
-container: each call is a turn of the run loop, and every turn after the
-first misses the window. It SHALL run before the proxy router, the startup
-GC, the first cookie restore and the first WebView. Neither property is
-visible at the call site, so both are gated structurally by
-`test/js/proxy_prearm_ordering.test.js`.
+Every site whose effective proxy is non-DEFAULT SHALL therefore have its
+WebView created in that first frame. A proxied site that cannot be
+(one added or re-proxied mid-session, an archive unlocked later, a Tor
+runtime that reports its SOCKS port after bootstrap) SHALL fail closed —
+blank the load rather than fetch it over the device IP — because a proxy the
+user configured and the app cannot honour is the leak this requirement
+exists to prevent.
 
-A proxy that becomes known only after that window — a site added or its
-proxy changed mid-session, an archive opened, a Tor runtime that reports its
-SOCKS port late — cannot be bound for the rest of that launch, and Apple's
-public API offers no way to reopen it.
-
-The verification SHALL NOT place its origin on loopback, and SHALL assert
-that the proxy was *used* rather than that a load failed to arrive. Apple
-never routes a loopback destination through a proxy, and a negative
-assertion is satisfied by every way a load can break — two mistakes that
-each kept this gate green while no proxy was bound at all.
-
-#### Scenario: A second proxied site in the same launch uses its own proxy
+#### Scenario: Two proxied sites in one launch each use their own proxy
 
 **Given** sites "Acme" and "Beta" each carry `SOCKS5 127.0.0.1:<fixture>`
-**And** both container stores were armed in one call at startup, before any
-WebView existed
-**When** "Acme" loads a page from a routable origin, and then "Beta" loads one
+**And** both WebViews are created in the process's first frame
+**When** each loads a page from a routable origin
 **Then** the fixture proxy receives a CONNECT for each of them
 **And** neither load reaches the origin directly
 
