@@ -337,6 +337,55 @@ that WebKit only honours `proxyConfigurations` for the first store a process use
 trace names which.
 
 
+### Attempt 11 — The plugin's own account: it does everything right and the load goes direct
+**Date:** 2026-09-16 · **Files:** fork @ `d71cce7`, `pubspec.yaml`
+**What it did:** the file-based trace worked, and it ends the guessing. Per WebView, in
+order, with `containers=true`:
+
+```
+built ws-proxy-binding-fresh   proxyRules=1
+webview proxySettings=true containerId=ws-proxy-binding-fresh   store=0x…8418b8000
+built ws-proxy-binding-seam    proxyRules=1
+webview proxySettings=true containerId=ws-proxy-binding-seam    store=0x…8417aea80
+built ws-proxy-binding-refused proxyRules=1
+webview proxySettings=true containerId=ws-proxy-binding-refused store=0x…8418b9900
+built ws-proxy-binding-rebind  proxyRules=0
+webview proxySettings=false containerId=ws-proxy-binding-rebind store=0x…841683980
+built ws-proxy-binding-rebind  proxyRules=1
+webview proxySettings=true containerId=ws-proxy-binding-rebind store=0x…841683980
+```
+
+Every link in the chain checks out for `fresh-site`: the field crossed the channel
+(`proxySettings=true`), `ProxySettings.fromMap` produced a rule (`proxyRules=1`), the
+store is its own (a distinct `ObjectIdentifier`), it was **built** rather than reused,
+and `proxyConfigurations` was assigned at construction. The load went direct anyway.
+Only the first WebView in the process is ever proxied.
+
+And attempt 8 was a no-op on top of that: the two `ws-proxy-binding-rebind` lines carry
+the **same** `ObjectIdentifier` although the second says `built`.
+`WKWebsiteDataStore(forIdentifier:)` is itself cached by WebKit — the same UUID returns
+the same object — so "rebuild the store to get a clean one" cannot work, and the
+rebuild machinery is removed. What remains is applying the proxy where the store is
+first created, which is correct and is the only assignment WebKit honours.
+
+So the remaining explanation is the one that needs no code in this repo:
+`WKWebsiteDataStore.proxyConfigurations` is honoured for the first data store a
+process's networking uses and ignored for every one after it. Every store-shaped fix
+is dead, and so is every settings-parse-shaped fix.
+
+This also matches the report exactly. The app builds WebViews lazily, so whether a
+proxied site works depends on whether it happened to be the first WebView of the
+session — "sometimes I have to restart the app for the Tor proxy to start working",
+and "two sites, one on Tor, both showing my direct IP" when an unproxied one was built
+first.
+**Why:** four hypotheses were argued; this one is the plugin reporting what it did.
+**Why it was partial:** it identifies the wall, it does not get over it. The next
+measurement worth making is whether the rule is "first store" or "before the first
+load": if the latter, pre-creating every site's store with its proxy at startup, before
+anything loads, would work for sites whose proxy is known then — which excludes Tor,
+whose port is not known until the runtime is up.
+
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
