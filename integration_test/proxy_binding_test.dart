@@ -100,6 +100,18 @@ void main() {
 
   tearDownAll(() async {
     log('verdict: containers=$containers, ${verdict.join(", ")}');
+    // The plugin's own account of what it bound. It writes here rather than
+    // to stdout because `flutter test` does not capture the host app's.
+    final trace = File(
+        '${Directory.systemTemp.path}/webspace-container-store.log');
+    if (trace.existsSync()) {
+      for (final line in trace.readAsLinesSync()) {
+        log('native: $line');
+      }
+      trace.deleteSync();
+    } else {
+      log('native: no container-store trace was written');
+    }
     await socks.close();
     await server.close(force: true);
   });

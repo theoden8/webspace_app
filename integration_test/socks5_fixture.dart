@@ -61,6 +61,7 @@ class Socks5Fixture {
 
   final ServerSocket _server;
   final _clients = <Socket>[];
+  StreamSubscription<Socket>? _accepting;
 
   /// `host:port` of every CONNECT this server was asked for, in order.
   /// Recorded before the upstream connection is attempted, so a target that
@@ -76,11 +77,17 @@ class Socks5Fixture {
     // uncaught async error, which flutter_test reports against whichever
     // test finished last -- here, "(setUpAll) failed after test completion",
     // counted as a failure of its own.
-    listenFixture(server, fixture._serve);
+    fixture._accepting = listenFixture(server, fixture._serve);
     return fixture;
   }
 
   Future<void> close() async {
+    // Cancel before closing: a connection accepted between the two arrives
+    // on a subscription whose error handler has already gone, and surfaces
+    // as "(setUpAll) failed after test completion" against whichever test
+    // finished last. The onError on the subscription alone did not cover it.
+    await _accepting?.cancel();
+    _accepting = null;
     for (final client in _clients) {
       client.destroy();
     }

@@ -298,6 +298,45 @@ what it did can say which one to replace.
 process is the mechanism then the fix is not in this repo or in the fork.
 
 
+### Attempt 10 — Containers were on, and the diagnostics went nowhere
+**Date:** 2026-09-16 · **Files:** fork @ `49ee7c0`, `pubspec.yaml`,
+`integration_test/proxy_binding_test.dart`, `integration_test/socks5_fixture.dart`
+**What it did:** the verdict line answered the precondition and nothing else:
+
+```
+verdict: containers=true, first-in-process=proxied, fresh-site=DIRECT,
+         refused=DIRECT, rebind=DIRECT
+```
+
+`containers=true`, so attempt 8's store rebuild *was* exercised: each site had a
+container of its own, its store was built fresh with `proxyConfigurations` set at
+construction, and the load still went direct. That rules out both store-shaped
+explanations — the default-store singleton and the cached-store reuse.
+
+The native diagnostics added in attempt 9 produced **nothing**: `flutter test` does not
+capture the host app's stdout, so every `print()` from the plugin was discarded. An hour
+of CI bought one bit. They go to a file in `NSTemporaryDirectory()` now, which the test
+reads and prints from `tearDownAll` — the test runs inside the app process, so both
+sides see the same directory.
+
+What the two runs together do establish, without any native trace: it is not that the
+first WebView's configuration sticks process-wide. In the run whose first WebView was
+proxied, the later loads did not go through that proxy either — `socks.targets` is
+cleared per scenario and stayed empty. Later WebViews get *no* proxy, not the first
+one's.
+
+Also: `listenFixture` did not fix the "(setUpAll) failed after test completion" noise —
+the stack still points at the server socket's subscription. The fixture now cancels
+that subscription before closing the socket, so a connection accepted in between has
+nowhere to land.
+**Why:** three store-shaped hypotheses are now dead, and guessing a fourth without the
+plugin's own account of what it did would repeat the mistake this file keeps recording.
+**Why it was partial:** still instrumentation. The remaining candidates are that
+`preWKWebViewConfiguration` does not see `proxySettings` on later WebViews at all, or
+that WebKit only honours `proxyConfigurations` for the first store a process uses. The
+trace names which.
+
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
