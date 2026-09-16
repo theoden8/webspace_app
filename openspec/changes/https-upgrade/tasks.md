@@ -1,0 +1,68 @@
+## 1. Specify
+
+- [x] 1.1 Write `openspec/changes/https-upgrade/specs/https-upgrade/spec.md`
+  with HTTPS-001 (the upgrade), HTTPS-002 (silent fallback, remembered per host,
+  never persisted), HTTPS-003 (hosts that cannot serve TLS), HTTPS-004 (the
+  upgrade follows the navigation verdict) and HTTPS-005 (the global default-on
+  knob plus the per-site override).
+- [x] 1.2 Write the tracking-protection delta: ETP-028 forces the upgrade on
+  under the umbrella without making it a subordinate that only lives there.
+- [x] 1.3 Add the `https-upgrade` row to the OpenSpec table in `CLAUDE.md`,
+  marked *(change)* until archived.
+
+## 2. The engine
+
+- [x] 2.1 `lib/services/https_upgrade_engine.dart`: `upgradeFor`,
+  `fallbackFor`, `recordUpgradeSuccess`, `recordUpgradeFailure`,
+  `isKnownHttpOnly`, `reset`. Pure, no Flutter.
+- [x] 2.2 `test/https_upgrade_engine_test.dart` covering every scenario above,
+  including the two that are security properties rather than features: a
+  failure on a URL the engine never upgraded is not a fallback, and a
+  successful upgrade drops its in-flight entry so a later failure on the same
+  URL string cannot read as one.
+
+## 3. Wire it (not started)
+
+- [ ] 3.1 `lib/settings/app_prefs.dart`: register `httpsUpgradeEnabled: true`.
+- [ ] 3.2 `lib/web_view_model.dart`: the per-site field,
+  `effectiveHttpsUpgradeEnabled` (ETP-028), `toJson`/`fromJson`, the
+  `WebViewConfig`, the `launchUrlFunc` typedef and both call sites.
+- [ ] 3.3 `lib/main.dart` `launchUrl` signature and
+  `lib/screens/inappbrowser.dart` `InAppWebViewScreen` + its `WebViewConfig`,
+  completing the five-step per-site checklist in CLAUDE.md. A nested webview
+  still loading plaintext while its parent upgrades is exactly the silent
+  bypass that checklist exists to prevent.
+- [ ] 3.4 `lib/services/webview.dart`: consult the engine in
+  `shouldOverrideUrlLoading` AFTER `config.shouldOverrideUrlLoading` returns
+  (HTTPS-004); cancel and load the upgraded URL; on `onReceivedError` for an
+  upgraded main-frame URL, load `fallbackFor`; on a successful main-frame load,
+  `recordUpgradeSuccess`.
+- [ ] 3.5 One engine instance per process, reachable from both the root and
+  nested webview paths, so a host learned http-only in one is not re-probed by
+  the other.
+
+## 4. Surface it (not started)
+
+- [ ] 4.1 A global row in app settings, default on.
+- [ ] 4.2 A per-site row on the Privacy screen, locked with `value: true` while
+  the umbrella is on (ETP-028) and captioned like the third-party-cookies row,
+  since a forced-on security control is the direction a reader does not
+  predict.
+- [ ] 4.3 `lib/l10n/app_en.arb`: title + hint keys, with descriptions. The hint
+  carries what the subtitle must not: that a site without TLS falls back on its
+  own, and that turning it off means this site's traffic is readable on the
+  network.
+- [ ] 4.4 The other 66 ARBs in their own commit, pushed with 4.3 (CLAUDE.md,
+  Git).
+
+## 5. Verify (not started)
+
+- [ ] 5.1 `test/settings_backup_test.dart` picks the new global pref up from the
+  registry with no edit; re-run it.
+- [ ] 5.2 A nested-webview test asserting the field reaches
+  `InAppWebViewScreen`'s `WebViewConfig`, in the shape of the existing per-site
+  field tests.
+- [ ] 5.3 A browser-tier test is NOT the right place: the upgrade is a
+  navigation decision, and the engine owns it. The call-site ordering
+  (HTTPS-004) belongs in `test/js/page_bridge_authority.test.js`, which already
+  gates that exact ordering for the captcha allow.
