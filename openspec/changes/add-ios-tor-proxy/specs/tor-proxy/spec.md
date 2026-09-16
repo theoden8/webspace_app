@@ -1035,10 +1035,21 @@ Because the launch is spent once and for all, nothing SHALL stop the
 runtime speculatively. Releasing the last holder SHALL leave tor running
 (TOR-002), the bootstrap deadline SHALL report without tearing down
 (TOR-013), and Retry SHALL re-arm the wait rather than stop and re-start
-(TOR-005). Recorded as attempt 6 in
+(TOR-005). Retry on a runtime that is already `up` SHALL do nothing at
+all: the plugin's start is a no-op while tor is alive, so republishing
+`starting` would strand the status there until the bootstrap deadline
+reported a failure against a tor that was working. Recorded as attempt 6 in
 [docs/bugs/007-native-shared-state-races.md](../../../../../docs/bugs/007-native-shared-state-races.md)
 and attempt 9 in
 [docs/bugs/013-tor-never-connects.md](../../../../../docs/bugs/013-tor-never-connects.md).
+
+#### Scenario: Retry on a connected runtime changes nothing
+
+- **GIVEN** Tor is `up` with a SOCKS listener on port P
+- **WHEN** the user taps Retry, repeatedly
+- **THEN** the status stays `up` and the endpoint stays P
+- **AND** no bootstrap deadline is armed, so nothing later reports a
+  failure against a runtime that is working
 
 #### Scenario: A second launch is refused, not attempted
 
