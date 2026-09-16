@@ -55,17 +55,34 @@
   carries what the subtitle must not: that a site without TLS falls back on its
   own, and that turning it off means this site's traffic is readable on the
   network.
-- [ ] 4.4 The other 66 ARBs in their own commit, pushed with 4.3 (CLAUDE.md,
+- [x] 4.4 The other 66 ARBs in their own commit, pushed with 4.3 (CLAUDE.md,
   Git).
 
 ## 5. Verify
 
 - [x] 5.1 `test/settings_backup_test.dart` picks the new global pref up from the
   registry with no edit; re-run it.
-- [ ] 5.2 A nested-webview test asserting the field reaches
-  `InAppWebViewScreen`'s `WebViewConfig`, in the shape of the existing per-site
-  field tests.
-- [ ] 5.3 A browser-tier test is NOT the right place: the upgrade is a
+- [x] 5.2 Covered by construction: `nested_webview_field_parity_test.dart`
+  reads `LaunchUrlFunc`'s parameters and requires each to survive every step,
+  so adding the field to the typedef enrolled it. `nested_webview_posture_parity`
+  separately refused the new `WebViewConfig` field until it was classified.
+- [x] 5.3 A browser-tier test is NOT the right place: the upgrade is a
   navigation decision, and the engine owns it. The call-site ordering
-  (HTTPS-004) belongs in `test/js/page_bridge_authority.test.js`, which already
-  gates that exact ordering for the captcha allow.
+  (HTTPS-004) is gated in `test/js/page_bridge_authority.test.js` beside the
+  CAPTCHA-008 ordering it copies, plus a second case requiring the loaded URL
+  to be the engine's output. Both were checked against an inverted call site:
+  moving the upgrade above the verdict fails the first and not the second.
+
+## 6. Not verified
+
+- [ ] 6.1 **No end-to-end run.** Nothing here has driven a real webview: the
+  engine is unit-tested, the wiring is gated structurally, and neither proves
+  that an http navigation in a running app comes back https. The integration
+  tier (`integration_test/`, headless Linux) is where that would go, and
+  HTTPS-003 makes it awkward — loopback and single-label hosts are exactly the
+  ones the engine refuses, so the fixture needs a resolvable name with a
+  certificate.
+- [ ] 6.2 **The fallback path is the least covered.** `fallbackFor` is unit
+  tested, but the `onReceivedError` wiring that calls it has only the compiler
+  behind it. A host that answers https with a reset, a cert error, or a hang
+  each reach that handler differently, and none of those has been observed.
