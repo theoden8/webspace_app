@@ -94,10 +94,29 @@ void main() {
     server = await HttpServer.bind(InternetAddress.anyIPv4, 0);
     port = server.port;
     originHost = (routable ?? InternetAddress.loopbackIPv4).address;
+    persistOrigin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
+    persistPort = persistOrigin.port;
+    listenFixture(persistOrigin, (req) async {
+      requests.add('persist:${req.uri.path}');
+      final res = req.response..headers.contentType = ContentType.html;
+      res.write('<!doctype html><html><body><p>persist</p></body></html>');
+      await res.close();
+    });
     listenFixture(server, (req) async {
       requests.add(req.uri.path);
       final res = req.response..headers.contentType = ContentType.html;
-      res.write('<!doctype html><html><body><p>origin</p></body></html>');
+      // `/pair-a` navigates itself away after a moment. `persist` has to be
+      // measured on a navigation the *page* issues, not one Dart issues
+      // through the controller: those are different code paths in WebKit,
+      // and a user only ever produces the first kind.
+      if (req.uri.path == '/pair-a') {
+        res.write('<!doctype html><html><body><p>origin</p><script>'
+            'setTimeout(function(){'
+            "location.href='http://$originHost:$persistPort/p';"
+            '},5000);</script></body></html>');
+      } else {
+        res.write('<!doctype html><html><body><p>origin</p></body></html>');
+      }
       await res.close();
     });
     deferredOrigin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
@@ -106,14 +125,6 @@ void main() {
       requests.add('deferred:${req.uri.path}');
       final res = req.response..headers.contentType = ContentType.html;
       res.write('<!doctype html><html><body><p>deferred</p></body></html>');
-      await res.close();
-    });
-    persistOrigin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
-    persistPort = persistOrigin.port;
-    listenFixture(persistOrigin, (req) async {
-      requests.add('persist:${req.uri.path}');
-      final res = req.response..headers.contentType = ContentType.html;
-      res.write('<!doctype html><html><body><p>persist</p></body></html>');
       await res.close();
     });
     socks = await Socks5Fixture.bind();
@@ -265,8 +276,7 @@ void main() {
       markTestSkipped('below the proxyConfigurations floor');
       return;
     }
-    WebViewController? paneA;
-    WebViewController? paneD;
+    WebViewController? paneB;
     Widget pane(String siteId, String url, UserProxySettings proxy) => SizedBox(
           width: 320,
           height: 120,
@@ -282,8 +292,7 @@ void main() {
               localCdnEnabled: false,
             ),
             onControllerCreated: (c) {
-              if (siteId == 'proxy-binding-pair-a') paneA = c;
-              if (siteId == 'proxy-binding-deferred') paneD = c;
+              if (siteId == 'proxy-binding-pair-b') paneB = c;
             },
           ),
         );
@@ -304,11 +313,6 @@ void main() {
             key: const ValueKey('refused'),
             child: pane('proxy-binding-refused',
                 'http://$originHost:$port/refused', refusedProxy()),
-          ),
-          // Built here, given nothing to fetch.
-          KeyedSubtree(
-            key: const ValueKey('deferred'),
-            child: pane('proxy-binding-deferred', 'about:blank', liveProxy()),
           ),
         ]),
       ),
@@ -343,12 +347,34 @@ void main() {
     final refusedLeaked = requests.contains('/refused');
     verdict.add('refused=${refusedLeaked ? "DIRECT" : "failed closed"}');
 
-    // Does a webview have to *load* in the first frame, or only exist in it?
-    final deferredReady = await waitReal(tester, () => paneD != null,
-        label: 'deferred controller created');
-    if (deferredReady) {
+    // `persist` twice, by the two different kinds of navigation, because
+    // last run measured it only the programmatic way and came back DIRECT.
+    // That conclusion -- a binding covers one load, so the feature cannot be
+    // delivered at all -- is strong enough that it must not rest on a code
+    // path no user ever exercises. `nativeController.loadUrl` and a page
+    // setting `location.href` are different paths through WebKit, and only
+    // the second is what a user produces by following a link.
+    //
+    // It also sits badly with the report this bug came from: a user who saw
+    // only their first load proxied would have noticed immediately, not
+    // described it as "sometimes I have to restart the app".
+
+    // (3) In-page: /pair-a's own page navigates itself after 5s.
+    final inPageProxied = await waitReal(
+        tester, () => socks.targets.contains('$originHost:$persistPort'),
+        label: 'in-page navigation of a bound webview',
+        timeout: const Duration(seconds: 25));
+    final inPageDirect = requests.contains('persist:/p');
+    verdict.add('persist-inpage=${inPageProxied ? "proxied" : inPageDirect ? "DIRECT" : "no load"}');
+
+    // (4) Programmatic: the same second navigation, issued from Dart on the
+    // other bound webview. If this is DIRECT while (3) is proxied, last
+    // run's verdict was an artifact of the harness.
+    final pairReady = await waitReal(tester, () => paneB != null,
+        label: 'pair-b controller created');
+    if (pairReady) {
       await tester.runAsync(() async {
-        await paneD!.nativeController.loadUrl(
+        await paneB!.nativeController.loadUrl(
           urlRequest: inapp.URLRequest(
             url: inapp.WebUri('http://$originHost:$deferredPort/d'),
           ),
@@ -356,35 +382,12 @@ void main() {
       });
       await waitReal(
           tester, () => socks.targets.contains('$originHost:$deferredPort'),
-          label: 'deferred load through the proxy');
+          label: 'programmatic navigation of a bound webview');
     }
-    final deferredProxied =
+    final loadUrlProxied =
         socks.targets.contains('$originHost:$deferredPort');
-    final deferredDirect = requests.contains('deferred:/d');
-    verdict.add('deferred=${!deferredReady ? "no controller" : deferredProxied ? "proxied" : deferredDirect ? "DIRECT" : "no load"}');
-
-    // Does a binding survive navigation? Every other scenario measures a
-    // webview's *first* load. If the proxy covers only that one, a site
-    // leaks on the first link its user follows and no arrangement of frames
-    // fixes it. Its own origin on its own port, so the CONNECT belongs to
-    // this navigation rather than to a connection reused from the first.
-    final pairReady = await waitReal(tester, () => paneA != null,
-        label: 'pair-a controller created');
-    if (pairReady) {
-      await tester.runAsync(() async {
-        await paneA!.nativeController.loadUrl(
-          urlRequest: inapp.URLRequest(
-            url: inapp.WebUri('http://$originHost:$persistPort/p'),
-          ),
-        );
-      });
-      await waitReal(
-          tester, () => socks.targets.contains('$originHost:$persistPort'),
-          label: 'second navigation of a bound webview');
-    }
-    final persisted = socks.targets.contains('$originHost:$persistPort');
-    final persistDirect = requests.contains('persist:/p');
-    verdict.add('persist=${!pairReady ? "no controller" : persisted ? "proxied" : persistDirect ? "DIRECT" : "no load"}');
+    final loadUrlDirect = requests.contains('deferred:/d');
+    verdict.add('persist-loadurl=${!pairReady ? "no controller" : loadUrlProxied ? "proxied" : loadUrlDirect ? "DIRECT" : "no load"}');
 
     // Now assert, floor first.
     expect(
@@ -403,18 +406,16 @@ void main() {
           'anyway, which a bound proxy cannot do',
     );
     expect(
-      persistDirect,
+      inPageDirect,
       isFalse,
       reason: 'a webview that used its proxy for its first load went direct '
-          'on its second, so the binding covers one navigation and the site '
-          'leaks on every link the user follows',
+          'when its own page followed a link, so the binding covers one load '
+          'and the site leaks on everything the user clicks',
     );
     expect(
-      deferredDirect,
+      loadUrlDirect,
       isFalse,
-      reason: 'a webview built in the first frame but navigated afterwards '
-          'went direct: existing in that frame is not enough, and it leaked '
-          'rather than failing closed',
+      reason: 'the same second navigation, issued from Dart, went direct',
     );
   });
 

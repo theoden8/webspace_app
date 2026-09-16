@@ -962,6 +962,59 @@ missing one decides whether to build it at all.
 and it cost a run to a mistake in the instrument rather than in the hypothesis.
 
 
+### Attempt 25 — persist=DIRECT, and the one confound that could overturn it
+**Date:** 2026-09-16 · **Files:** `integration_test/proxy_binding_test.dart`
+**What it did:** the factorial came back complete:
+
+```
+verdict: containers=true, pair=2 of 2 proxied, direct=none,
+         refused=failed closed, deferred=DIRECT, persist=DIRECT,
+         later-pair=0 of 2 proxied, direct=a+b
+```
+
+**`persist=DIRECT`.** A webview that used its proxy for its first load went
+direct on its second, and the persist origin recorded the request, so the load
+happened and bypassed the proxy — not "no load". Every factor now points one
+way, and the rule is narrower than "the first frame" was:
+
+> Only the loads **issued in the process's first frame** are proxied. Not the
+> webview, not the store: the load.
+
+That fits all four results at once. `pair-a`/`pair-b`/`refused` loaded in the
+first frame and bound; `deferred` existed in that frame but loaded later and
+went direct; `later-pair` was created and loaded later and went direct; and a
+webview that bound went direct on its next navigation.
+
+If it holds, it is not a bug that can be worked around. Building every proxied
+site in the first frame would proxy each site's landing page and leak every link
+its user follows afterwards — worse than not shipping the feature, because the
+app would report those sites as proxied.
+
+**One confound has to be ruled out before that is stated as fact.** The
+persistence navigation was issued by `nativeController.loadUrl`, from Dart. A
+user never produces that; they click a link, and an in-page navigation is a
+different path through WebKit. A conclusion this consequential must not rest on
+a code path the product does not use.
+
+It also sits badly against the report this file exists for. A user whose proxy
+covered only the first load would have said "only the first page is proxied",
+not "sometimes I have to restart the app for the Tor proxy to start working".
+When a measurement and a field report disagree, one of them is measuring the
+wrong thing, and here the measurement is the newer and less trusted of the two.
+
+So `persist` is now measured twice in one run, on two webviews that both bound
+in the first frame: `persist-inpage`, where `/pair-a`'s own page sets
+`location.href` after five seconds, and `persist-loadurl`, the programmatic path
+that produced this run's DIRECT. If the in-page one is proxied, this attempt's
+conclusion is an artifact of the harness and the feature is deliverable. If both
+are direct, it stands, and the only honest response is to fail closed.
+**Why:** every other factor is settled; this is the one that decides whether
+there is anything to build, and it has a live alternative explanation.
+**Why it was partial:** it changes no product code. It is the last thing worth
+measuring before the answer is either a fix or a statement that there cannot be
+one.
+
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
