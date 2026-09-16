@@ -130,6 +130,19 @@ CAPTCHA-008 had to impose on the captcha allow after the fact.
 **And** its verdict is honored before the upgrade is considered
 **And** a blocked verdict means nothing is loaded, upgraded or not
 
+The captcha verification popup (CAPTCHA-004/009) is likewise out of scope. It
+is built as a fresh native webview attached to an `onCreateWindow` window id,
+where a `loadUrl` issued before the window handover completes is not safe on
+Android, and its own `shouldOverrideUrlLoading` already refuses any main-frame
+navigation that is neither a captcha URL nor the site's own domain. Both are
+https in practice.
+
+#### Scenario: The captcha popup is not upgraded
+
+**Given** a verification popup open for a challenge
+**When** it navigates its main frame
+**Then** the engine is not consulted, and CAPTCHA-010's allowlist decides
+
 #### Scenario: Sub-resources never reach the engine
 
 **Given** a page over https that loads `http://cdn.example/x.js`
