@@ -539,6 +539,58 @@ the defect is in the dispose/rebuild cycle rather than in binding at all — and
 user-visible bug would be narrower than feared.
 
 
+### Attempt 17 — Not the rebuild cycle: two live webviews, neither proxied
+**Date:** 2026-09-16 · **Files:** `integration_test/proxy_binding_test.dart`
+**What it did:** ran attempt 16's experiment and killed the harness hypothesis too:
+
+```
+verdict: containers=true, first-in-process=proxied, side-by-side=0 of 2 proxied,
+         fresh-site=DIRECT, refused=DIRECT, rebind=DIRECT
+```
+
+```
+built ws-proxy-binding-side-a
+webview proxySettings=true container=ws-proxy-binding-side-a store=0x…3c67ef80 pool=0x…99b2e00
+built ws-proxy-binding-side-b
+webview proxySettings=true container=ws-proxy-binding-side-b store=0x…3c014280 pool=0x…99b2e00
+```
+
+Two proxied webviews mounted in one tree, never replaced, each with its own
+container store, both carrying the field — and the fixture proxy saw neither. So
+"first in the process" is not "the only one never built alongside a dying webview":
+nothing about the dispose/rebuild cycle is involved. The harness is exonerated, and
+with it the last idea that did not require WebKit to be at fault.
+
+What every run since attempt 7 has measured, now with no alternative reading left:
+**only the first `WKWebsiteDataStore` in a process honours `proxyConfigurations`.**
+Not the first webview of a site, not a store that has not yet loaded, not a store
+that does not share a process pool — the first store, full stop. Five mechanisms
+have been measured and eliminated: the settings parse, the default-store singleton,
+cached-store reuse, rebuilding the store, and the shared `WKProcessPool`.
+
+Also fixed: the tier runs one file per app process into one trace path, and only
+`tearDownAll` deleted it, so the trace opened with webviews from earlier files'
+processes (`ws-plain`, `ws-proxy-1`, a dozen `container=<none>` lines). Their pool
+addresses differ from this file's, which is what made them separable by hand; the
+trace is cleared in `setUpAll` now so it does not have to be.
+
+A new scenario asks the one question that decides the design rather than the
+mechanism: does the **process-wide** override (`ProxyController.setProxyOverride`,
+which the pinned fork fans out to container stores) reach a webview built late in
+the process? That is the Android PROXY-013 shape, and it is the only architecture
+left. If it binds, per-site proxies survive as a setting and pay serialisation; if
+it does not, no proxy of any kind can be applied to a second data store in an Apple
+process, whoever assigns it.
+**Why:** four store- and pool-shaped hypotheses failed, and the fifth (the harness)
+has now failed too. Guessing at a sixth is the mistake this file exists to record.
+The remaining question is not *why* the per-webview path fails but *what to ship
+instead*, and that needs one fact about the alternative, not another theory about
+this one.
+**Why it was partial:** it fixes nothing, and it cannot: the choice it sets up is
+a user-visible trade (simultaneous per-site proxies, or proxies that work at all)
+and belongs to the user, not to this file.
+
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
@@ -557,7 +609,13 @@ user-visible bug would be narrower than feared.
 3. **Reach is wider than the proxy.** The same parser carries the container id,
    the UA, the media gates and every other per-site field. Only the proxy has an
    effect-level test.
-4. **An effect-level test can be unfalsifiable and look green.** Both of attempt
+4. **Only the first `WKWebsiteDataStore` in an Apple process is ever proxied.**
+   Measured across five runs and two fork lineages, with the parse, the default
+   store, store reuse, store rebuilding, the process pool and the harness's own
+   mount pattern each eliminated. Nothing in this repo or in the fork can route
+   a second proxied site in one app launch, and that is the whole per-site proxy
+   feature on iOS and macOS — Tor included.
+5. **An effect-level test can be unfalsifiable and look green.** Both of attempt
    3's scenarios asserted "the origin was not reached", which any failure to load
    satisfies — and one of them could not have reached it under any binding
    (loopback), while the other never issued the load at all (widget reuse). The

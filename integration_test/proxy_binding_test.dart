@@ -62,7 +62,19 @@ void main() {
 
   var containers = false;
 
+  /// Where the plugin writes its account of what it bound. It writes to a
+  /// file rather than stdout because `flutter test` does not capture the
+  /// host app's, and the test runs inside that app so both see the same
+  /// directory.
+  final trace =
+      File('${Directory.systemTemp.path}/webspace-container-store.log');
+
   setUpAll(() async {
+    // The tier runs one file per app process into the same path, so without
+    // this the trace carries entries from earlier files' processes -- which
+    // is how the last run's trace opened with webviews this file never
+    // built.
+    if (trace.existsSync()) trace.deleteSync();
     await PlatformInfo.initialize();
     // The app resolves this at startup and every proxied site it builds has
     // a container of its own as a result. Without it here each WebView got
@@ -100,10 +112,6 @@ void main() {
 
   tearDownAll(() async {
     log('verdict: containers=$containers, ${verdict.join(", ")}');
-    // The plugin's own account of what it bound. It writes here rather than
-    // to stdout because `flutter test` does not capture the host app's.
-    final trace = File(
-        '${Directory.systemTemp.path}/webspace-container-store.log');
     if (trace.existsSync()) {
       for (final line in trace.readAsLinesSync()) {
         log('native: $line');
@@ -480,6 +488,54 @@ void main() {
       await waitReal(tester, () => requests.contains('/second'),
           label: 'rebound load (relayed to the origin)'),
       isTrue,
+    );
+  });
+
+  testWidgets('a process-wide override reaches a webview built later',
+      (tester) async {
+    // Not another hypothesis about the per-site path: a feasibility check on
+    // the only design left if that path cannot be repaired. Android already
+    // runs it (PROXY-013) -- one process-wide rule, sites whose proxies
+    // differ serialised -- and the fork now fans `setProxyOverride` out to
+    // container data stores as well as the default one, so the same shape is
+    // expressible here.
+    //
+    // It is worth exactly one run because it is the same assignment
+    // (`store.proxyConfigurations = ...`) that the per-site path makes, only
+    // from a different caller. If it binds, per-site proxies survive as a
+    // setting and pay a serialisation cost. If it does not, nothing after
+    // the first data store in a process can be proxied at all, whoever
+    // assigns it, and the honest options are much narrower than that.
+    //
+    // Last in the file deliberately: it leaves process-wide state behind,
+    // and it needs to run on a webview that is nowhere near the first.
+    if (!usable()) return;
+    if (!PlatformInfo.isProxySupported) {
+      markTestSkipped('below the proxyConfigurations floor');
+      return;
+    }
+    await tester.runAsync(() async {
+      await inapp.ProxyController.instance().setProxyOverride(
+        settings: inapp.ProxySettings(
+          proxyRules: [inapp.ProxyRule(url: 'socks5://127.0.0.1:${socks.port}')],
+          bypassRules: [],
+        ),
+      );
+    });
+    // No per-site proxy: the override is the only thing that could route
+    // this load, so a CONNECT at the fixture can only have come from it.
+    await mount(tester, siteId: 'proxy-binding-global', path: '/global');
+    final used = await waitReal(tester, () => socks.targets.isNotEmpty,
+        label: 'process-wide override load');
+    verdict.add('global-override=${used ? "proxied" : "DIRECT"}');
+    await tester.runAsync(
+        () async => inapp.ProxyController.instance().clearProxyOverride());
+    expect(
+      used,
+      isTrue,
+      reason: 'the process-wide override did not reach a webview built after '
+          'the first one either, so no proxy of any kind can be applied to a '
+          'second data store in an Apple process',
     );
   });
 }
