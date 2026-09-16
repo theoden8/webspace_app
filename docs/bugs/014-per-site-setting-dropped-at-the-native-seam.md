@@ -452,6 +452,35 @@ proxies that work at all, and it is a user-visible trade, so it is not mine to m
 unilaterally.
 
 
+### Attempt 14 — Pin the v8 candidate, which reproduces the bug in the fork's own suite
+**Date:** 2026-09-16 · **Files:** `pubspec.yaml`
+**What it did:** repinned all six overrides to `privacy-v8-candidate` (`6b91b27`). Over
+the v7 tag it adds the Android settings work and, for this bug, `01c5348`
+"integration_test: reproduce *only the first WebView gets its proxy*" — the fork now
+carries its own reproduction:
+
+> The suite's proxy fixture answers every request with its own page rather than
+> forwarding, which proves *that* a proxy was used but not *which* one, so it cannot
+> see a second store silently falling back. […] The new test pins two container
+> WebViews to different proxies and asserts each reports its own id. A is checked
+> first so the failure is unambiguous: if only the first store in the process binds, A
+> passes and B comes back null.
+
+That is the same defect this file has been chasing, confirmed independently and from
+the other side of the seam, with the same discipline the gate here arrived at: a
+marker that only a correctly-bound proxy can produce, so a broken load cannot pass.
+The `proxySettings` parse is present in the pinned checkout on both platforms.
+
+No fix yet — `01c5348` reproduces, it does not repair — so the expectation is that the
+verdict is unchanged. What it buys is a second, smaller harness to bisect in: the
+fork's own example app, where the process-pool hypothesis can be tested without
+rebuilding this app.
+**Why:** the investigation has moved to the fork, and the app should be pinned to
+where that work is happening.
+**Why it was partial:** the pin is a mutable branch. `CLAUDE.md` asks for a tag before
+each release, so this needs re-pinning to `…-privacy-v8` once the branch is tagged.
+
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
