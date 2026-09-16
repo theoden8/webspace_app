@@ -187,6 +187,42 @@ void main() {
     return ok;
   }
 
+  testWidgets('the very first webview in the process honours its proxy',
+      (tester) async {
+    // First, deliberately, and that is the whole point. Without a container
+    // id every WebView here gets `WKWebsiteDataStore.default()`, which is a
+    // process singleton, and Apple's `proxyConfigurations` is documented to
+    // apply to a store before it is used for network loads. If this passes
+    // while the identical fresh-site scenario below fails, the difference is
+    // not the site and not the proxy: it is that by then the store has
+    // already served a load, and the assignment was ignored.
+    //
+    // That is also the shape of the report this file exists for: a site that
+    // loads once without a proxy keeps loading without one until the app is
+    // restarted.
+    if (!usable()) return;
+    if (!PlatformInfo.isProxySupported) {
+      markTestSkipped('below the proxyConfigurations floor');
+      return;
+    }
+    await mount(
+      tester,
+      siteId: 'proxy-binding-first',
+      path: '/first-in-process',
+      proxySettings: liveProxy(),
+    );
+    final used = await waitReal(tester, () => socks.targets.isNotEmpty,
+        label: 'first-in-process proxied load');
+    expect(
+      used,
+      isTrue,
+      reason: 'even the first WebView in this process did not use its proxy, '
+          'so the binding is broken outright rather than only stale on a '
+          'store that has already been used',
+    );
+    expect(socks.targets.first, '$originHost:$port');
+  });
+
   testWidgets('the harness can see a load reach the origin', (tester) async {
     // The control. Without it, the assertions below pass for any reason a
     // page fails to load, which is most of them.

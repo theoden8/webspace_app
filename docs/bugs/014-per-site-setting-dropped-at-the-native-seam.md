@@ -156,6 +156,48 @@ location. One `getSettings()` call is worth another cycle of hypotheses.
 "which of three guesses" into a yes/no on one of them.
 
 
+### Attempt 6 — The field crosses; the store it lands on has already been used
+**Date:** 2026-09-16 · **Files:** `integration_test/proxy_binding_test.dart`
+**What it did:** the seam scenario answered the question attempt 5 posed. Five tests,
+**two passed** — the control and the seam check — and the three load-level proxied
+scenarios failed. So `InAppWebViewSettings.proxySettings` *is* set on the native
+object: the patched `parse` works, and `getSettings()` reflects the Swift property
+through `Mirror` (`ISettings.toMap`), which is exactly what it reads back. The field
+crosses the channel. Nothing applies it.
+
+Reading the fork's creation path narrows where "nothing applies it" can be.
+`FlutterWebViewController` parses the settings and *then* calls
+`preWKWebViewConfiguration(settings:)`, so the proxy is present there; that function
+assigns `configuration.websiteDataStore.proxyConfigurations` and nothing later in it
+reassigns the store (the other `websiteDataStore` writes are in `setSettings`, the
+runtime-update path, which does not run at creation).
+
+Which leaves the store itself. With no container id — and this test never initialises
+`ContainerNative`, so `siteOwnsContainerProfile` yields none — every WebView gets
+`WKWebsiteDataStore.default()`, a process singleton. Apple's `proxyConfigurations`
+applies to a store *before* it is used for network loads. The control scenario runs
+first and loads through that store; every proxied scenario afterwards assigns a proxy
+to a store that has already served traffic, and is ignored. That single mechanism
+fits all five results, including the two that pass.
+
+It is also the shape of the user's report — a site that loads once without a proxy
+keeps loading without one until the app restarts — and it revives attempt 3's
+hypothesis, which attempt 4 appeared to refute only because the scenario testing it
+was vacuous.
+
+A sixth scenario now runs **first in the file**, proxied, before anything has touched
+the default store. If it passes while the identical fresh-site scenario later fails,
+the difference is not the site and not the proxy: it is that the store was clean.
+That is a decisive experiment and it needs no fork change.
+**Why:** three hypotheses have now been wrong because they were argued rather than
+measured. This one is measured by ordering alone.
+**Why it was partial:** it still fixes nothing, and if it is right the fix is
+fork-side and awkward: the proxy has to be bound when the container's
+`WKWebsiteDataStore` is created, not when a WebView is built on one, which means
+`ContainerManager`'s cache has to account for the proxy rather than only the
+container id.
+
+
 ## Known open gaps
 
 1. **No general guard on the seam.** The plugin's settings parser fails open by
