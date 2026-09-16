@@ -594,6 +594,83 @@ a user-visible trade (simultaneous per-site proxies, or proxies that work at all
 and belongs to the user, not to this file.
 
 
+### Attempt 18 — Read WebKit instead of guessing: it is registration order, not the store
+**Date:** 2026-09-16 · **Files:** `integration_test/proxy_binding_test.dart`
+**What it did:** stopped proposing mechanisms and traced `proxyConfigurations`
+through WebKit's own source, end to end. The path is short and it contains one
+ordering hazard that fits every measurement in this file.
+
+`WKWebsiteDataStore.setProxyConfigurations:` (`WKWebsiteDataStore.mm`) unpacks each
+`nw_proxy_config_t` and calls:
+
+```cpp
+// WebsiteDataStore.cpp
+void WebsiteDataStore::setProxyConfigData(Vector<...>&& data)
+{
+    m_proxyConfigData = std::nullopt;                                   // (1)
+    protect(networkProcess())->send(Messages::NetworkProcess::SetProxyConfigData(m_sessionID, data), 0);  // (2)
+    m_proxyConfigData = WTF::move(data);                                // (3)
+}
+```
+
+There are two ways the proxy can reach the network process, and they are not
+equivalent:
+
+* **In the session's creation parameters.** `WebsiteDataStore::parameters()` copies
+  `m_proxyConfigData` into `networkSessionParameters` (line 2348), and
+  `NetworkProcess::addWebsiteDataStore` builds the session from them eagerly
+  (`m_networkSessions.ensure(sessionID, ...)`). `NetworkSessionCocoa`'s constructor
+  ends with `if (parameters.proxyConfigData) setProxyConfigData(...)`.
+* **As an update afterwards**, the `SetProxyConfigData` message at (2), which lands
+  on an existing session and patches the live `nw_context_t` of each already-created
+  `SessionWrapper`.
+
+Step (2) is what *registers* a store the network process has not seen:
+`WebsiteDataStore::networkProcess()` calls `NetworkProcessProxy::addSession(*this,
+SendParametersToNetworkProcess::Yes)`, which sends `AddWebsiteDataStore {
+store.parameters() }` **right there** — with `m_proxyConfigData` still `nullopt`
+from (1). So the assignment that registers a session can never carry the proxy in
+that session's parameters. Only the update path is left for it.
+
+The one store that escapes is whichever is registered while the network process is
+still coming up: `NetworkProcessProxy`'s constructor snapshots every existing store
+(`parametersFromEachWebsiteDataStore()`), and that snapshot is read after
+`setProxyConfigData` has returned and put the data back at (3).
+
+That predicts exactly what six runs have shown, with no appeal to anything being
+broken: **the first store the network process learns about gets its proxy through
+the creation parameters and works; every later store has only the live-context
+update, which does not take.** It is registration order, not the store, not the
+pool, not the parse, not disposal — all of which this file eliminated one run at a
+time.
+
+The prediction is falsifiable in one run, so this attempt tests it rather than
+asserting it. Two scenarios now bracket the order:
+
+* **`global-early`** arms `ProxyController.setProxyOverride` before any container
+  store exists and loads a site with no container, so `WKWebsiteDataStore.default()`
+  is both the store serving the load and the first one registered.
+* **`second-container`** is the scenario that bound its proxy in every previous run,
+  unchanged except that it is no longer first.
+
+If arming the default store *steals* the binding — `global-early=proxied` and
+`second-container=DIRECT` — the rule is proven, because nothing about the second
+scenario's site, container or proxy changed. If both bind, registration order is not
+the rule and the diagnosis above is wrong. A third scenario (`global-override`, last
+in the file) arms the same override late, onto a container store created afterwards,
+to show the same path failing when it is not first.
+**Why:** five runs of eliminating mechanisms by experiment cost five hours and never
+produced a positive account of what *does* happen. The source produces one in an
+afternoon, and it names a rule that can be tested by ordering alone.
+**Why it was partial:** it is a diagnosis and its test, not a repair — and if the
+rule holds, there is no repair on the client side. `setProxyConfigData` clears the
+field before registering the session, so no sequence of public API calls can get a
+proxy into a second store's creation parameters. What follows is a design: route
+proxied sites through the one store armed before anything else and serialise sites
+whose proxies differ (PROXY-013, the shape Android already runs), or accept one
+proxied site per app launch.
+
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
