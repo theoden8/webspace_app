@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
@@ -172,6 +173,49 @@ void main() {
     test('builder appends no evaluator tail (the call site owns that)', () {
       final script = buildWorkerShimScript([buildLanguageShim('en')])!;
       expect(script.trimRight().endsWith('})();'), isTrue);
+    });
+  });
+
+  // WORK-006 again, at the call site this time. The location shim is built
+  // for every site in every mode, so feeding it to the payload unconditionally
+  // put the blob wrapper (and the CSP violation its first worker pays for) on
+  // every site — including ones whose worker half is a no-op. Only the
+  // timezone override survives worker scope, so only a site that has one is
+  // spoofing anything there.
+  group('WORK-006: the location shim reaches workers only for a timezone', () {
+    test('a zone-less site propagates nothing', () {
+      expect(LocationSpoofService.affectsWorkerScope(null), isFalse);
+      expect(LocationSpoofService.affectsWorkerScope(''), isFalse);
+      expect(LocationSpoofService.affectsWorkerScope('Europe/Paris'), isTrue);
+    });
+
+    test('the zone-less payload is inert in worker scope', () {
+      final shim = LocationSpoofService.buildScript(
+        locationMode: LocationMode.off,
+        spoofLatitude: null,
+        spoofLongitude: null,
+        spoofAccuracy: 50.0,
+        spoofTimezone: null,
+        webRtcPolicy: WebRtcPolicy.defaultPolicy,
+      );
+      expect(shim, contains('var TZ = null;'));
+      // Geolocation is absent from WorkerNavigator and WebRTC is gated on
+      // !IS_WORKER, so with TZ off nothing below applies there.
+      expect(shim, contains('if (TZ) {'));
+      expect(shim, contains('if (!IS_WORKER && WRTC'));
+      expect(shim, contains('&& navigator.geolocation) {'));
+    });
+
+    test('webview.dart gates the propagation on that', () {
+      final source = File('lib/services/webview.dart').readAsStringSync();
+      final flat = source.replaceAll(RegExp(r'\s+'), ' ');
+      expect(
+        flat,
+        contains('if (LocationSpoofService.affectsWorkerScope('
+            'effectiveSpoofTimezone)) { workerScopeShims.add(locationShim); }'),
+        reason: 'an unguarded add puts the blob wrapper on every site, which '
+            'WORK-006 forbids',
+      );
     });
   });
 }

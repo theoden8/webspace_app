@@ -2500,8 +2500,12 @@ class WebViewFactory {
       forMainFrameOnly: false,
     ));
     // Carries the timezone override, which workers re-read. The geolocation
-    // and WebRTC halves self-disable outside window scope.
-    workerScopeShims.add(locationShim);
+    // and WebRTC halves self-disable outside window scope, so with no zone
+    // set the payload is inert there and propagating it would install the
+    // blob wrapper on a site that has no spoofing to propagate (WORK-006).
+    if (LocationSpoofService.affectsWorkerScope(effectiveSpoofTimezone)) {
+      workerScopeShims.add(locationShim);
+    }
 
     // Inject content blocker CSS at DOCUMENT_START so elements are hidden
     // before they ever render, eliminating the flash of unstyled content.
