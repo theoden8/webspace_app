@@ -556,7 +556,10 @@ webview proxySettings=true container=ws-proxy-binding-side-b store=0x…3c014280
 ```
 
 Two proxied webviews mounted in one tree, never replaced, each with its own
-container store, both carrying the field — and the fixture proxy saw neither. So
+container store, both carrying the field — and the fixture proxy saw neither. The
+scenario now also records where the two loads went instead, because a count of zero
+otherwise has a second reading (neither load was issued at all) that says nothing
+about binding; the next run reports `direct=` alongside it. So
 "first in the process" is not "the only one never built alongside a dying webview":
 nothing about the dispose/rebuild cycle is involved. The harness is exonerated, and
 with it the last idea that did not require WebKit to be at fault.

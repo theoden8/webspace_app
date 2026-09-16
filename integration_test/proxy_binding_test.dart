@@ -316,7 +316,24 @@ void main() {
       label: 'two simultaneous proxied loads',
       timeout: const Duration(seconds: 25),
     );
-    verdict.add('side-by-side=${socks.targets.length} of 2 proxied');
+    // Where the two loads went if not through the proxy. Without this a
+    // count of zero has two readings -- both bound nothing and went direct,
+    // or neither load was ever issued because two platform views in one
+    // tree do not both come up -- and only the first says anything about
+    // binding.
+    final direct = [
+      if (requests.contains('/side-a')) 'a',
+      if (requests.contains('/side-b')) 'b',
+    ];
+    verdict.add('side-by-side=${socks.targets.length} of 2 proxied, '
+        'direct=${direct.isEmpty ? "none" : direct.join("+")}');
+    expect(
+      socks.targets.length + direct.length,
+      2,
+      reason: 'the two panes issued ${socks.targets.length + direct.length} '
+          'loads between them, not 2, so this scenario measured the mount '
+          'rather than the binding',
+    );
     expect(
       both,
       isTrue,
