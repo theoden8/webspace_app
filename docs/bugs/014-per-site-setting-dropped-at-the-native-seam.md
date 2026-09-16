@@ -1057,13 +1057,62 @@ inherits the same limit, because per-site Tor rides the same path.
 One caveat kept deliberately: the verdict line appears twice in the job log
 because the tier re-prints a failing file's last sixty lines. It is one
 measurement, not a replication.
+
+**Retracted the same evening, on the maintainer's challenge: does WebKit not
+support this, and did we not confirm it does?** Both halves are right, and the
+conclusion above was drawn too early.
+
+WebKit's source says a bound session stays bound.
+`NetworkSessionCocoa::applyProxyConfigurationToSessionConfiguration` puts the
+proxy on the `NSURLSessionConfiguration` as each session wrapper is created,
+which covers every load on that session rather than its first. Nothing in that
+path expires after one load. The contradiction between that and the measurement
+was noted several attempts ago ("trunk is symmetric; the shipping WebKit must
+differ") and then built on anyway, which is the same error as attempt 20.
+
+And the measurement does not isolate WebKit. Every scenario in this file builds
+through `WebViewFactory`, which on Apple carries a navigation layer:
+[ios-universal-link-bypass](../../openspec/specs/ios-universal-link-bypass/spec.md)
+**cancels a main-frame link navigation and reissues it** through
+`controller.loadUrl`, and the per-site policy cancels cross-site main-frame
+navigations outright. So `persist-inpage` and `persist-loadurl` may have
+collapsed into one path rather than being the two independent paths the
+experiment was built to compare — which would also explain why they returned
+identical results. A "second navigation" measured through the factory is not a
+plain WebKit navigation.
+
+It also fits the field report better than the retracted conclusion did: a proxy
+that survives within a site and fails when the app re-issues a navigation is
+what "sometimes I have to restart the app" sounds like.
 **Why:** the conclusion removes a shipped feature on two platforms, so it had to
-survive the one explanation that would have overturned it, and be readable
-against an internal control in the same run rather than across runs.
-**Why it was partial:** the spec says fail closed; the code does not do it yet.
-Turning off a feature the user built is theirs to decide, not something to slip
-into a debugging branch — so this records the finding and puts the decision up,
-rather than shipping it.
+survive the explanations that would overturn it. One of them was not tested.
+**Why it was partial:** it drew a product conclusion from an instrument that
+still had this app's navigation policy inside it.
+
+### Attempt 27 — Take the app out of the measurement
+**Date:** 2026-09-16 · **Files:** `integration_test/proxy_binding_test.dart`,
+`openspec/specs/ip-leakage/spec.md`
+**What it did:** added a scenario that builds an `inapp.InAppWebView` straight
+from the plugin, carrying nothing but a `containerId` and `proxySettings` — no
+`WebViewFactory`, no `shouldOverrideUrlLoading`, no universal-link bypass. It
+loads once in the first frame and then navigates to a second origin.
+
+`raw-first` / `raw-second` split the question the previous six attempts could
+not: if the raw webview's second load is proxied, WebKit behaves as its source
+says and the leak belongs to this app's navigation layer, where it is fixable.
+If it goes direct too, the platform really does drop the proxy after the first
+load and the earlier conclusion was right for the wrong reasons.
+
+`LEAK-003` is walked back to what is actually established — later loads have
+been measured going direct, and where that happens is not yet known — and no
+longer requires failing closed, which was a normative claim resting on the
+untested reading.
+**Why:** the maintainer pushed back on a conclusion that contradicted the
+source, and the pushback was correct.
+**Why it was partial:** one scenario, one run. But it is the first one in this
+file that measures the platform rather than the product.
+
+
 
 
 ## Known open gaps

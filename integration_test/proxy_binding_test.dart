@@ -419,6 +419,82 @@ void main() {
     );
   });
 
+  testWidgets('measurement: a raw plugin webview, no app policy on it',
+      (tester) async {
+    // Isolates WebKit from this app.
+    //
+    // Every other scenario builds through `WebViewFactory`, which on Apple
+    // wraps a navigation layer: `ios-universal-link-bypass` cancels a
+    // main-frame link navigation and reissues it through `loadUrl`, and the
+    // per-site policy cancels cross-site ones outright. So a "second
+    // navigation" measured through the factory is not a plain WebKit
+    // navigation, and the previous run's `persist-inpage=DIRECT` may be
+    // measuring this app rather than the platform.
+    //
+    // That matters because WebKit's own source disagrees with the
+    // measurement: `NetworkSessionCocoa::applyProxyConfigurationToSession
+    // Configuration` puts the proxy on the `NSURLSessionConfiguration` when
+    // a session wrapper is created, which covers every load on that session,
+    // not the first. A session that binds should stay bound.
+    //
+    // This webview comes straight from the plugin with nothing on it but a
+    // container and a proxy. Both of its loads are issued in this frame's
+    // webview, the second after the first has completed.
+    if (!usable()) return;
+    if (!PlatformInfo.isProxySupported) {
+      markTestSkipped('below the proxyConfigurations floor');
+      return;
+    }
+    inapp.InAppWebViewController? raw;
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: SizedBox(
+          width: 320,
+          height: 240,
+          child: inapp.InAppWebView(
+            key: const ValueKey('raw'),
+            initialUrlRequest: inapp.URLRequest(
+              url: inapp.WebUri('http://$originHost:$port/raw'),
+            ),
+            initialSettings: inapp.InAppWebViewSettings(
+              containerId: 'ws-proxy-binding-raw',
+              proxySettings: inapp.ProxySettings(
+                proxyRules: [
+                  inapp.ProxyRule(url: 'socks5://127.0.0.1:${socks.port}'),
+                ],
+                bypassRules: [],
+              ),
+            ),
+            onWebViewCreated: (c) => raw = c,
+          ),
+        ),
+      ),
+    ));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    final firstProxied = await waitReal(
+        tester, () => socks.targets.contains('$originHost:$port'),
+        label: 'raw webview first load');
+    verdict.add('raw-first=${firstProxied ? "proxied" : requests.contains('/raw') ? "DIRECT" : "no load"}');
+
+    if (raw != null) {
+      await tester.runAsync(() async {
+        await raw!.loadUrl(
+          urlRequest: inapp.URLRequest(
+            url: inapp.WebUri('http://$originHost:$persistPort/raw2'),
+          ),
+        );
+      });
+      await waitReal(
+          tester, () => socks.targets.contains('$originHost:$persistPort'),
+          label: 'raw webview second load');
+    }
+    final secondProxied =
+        socks.targets.contains('$originHost:$persistPort');
+    verdict.add('raw-second=${raw == null ? "no controller" : secondProxied ? "proxied" : requests.contains('persist:/raw2') ? "DIRECT" : "no load"}');
+  });
+
   testWidgets('measurement: two proxied webviews in a later frame',
       (tester) async {
     // A measurement, not an assertion. "First frame" is how the rule reads

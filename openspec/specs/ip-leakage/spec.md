@@ -195,30 +195,30 @@ cannot see, so a webview can report a proxy it never bound (BUG-014). A
 site whose proxy refuses connections SHALL therefore never reach its
 origin.
 
-On iOS and macOS, **only the network loads issued in the process's first
-frame are proxied.** Not the WebView, not the data store: the load. A WebView
-that used its proxy for its first load goes direct on its next navigation,
-whether its own page sets `location.href` or the app navigates it. Measured
-across attempts 19-26 of BUG-014: a store armed before the network process
-comes up changes nothing, a process-wide `ProxyController` override changes
-nothing, a WebView that merely exists in the first frame binds nothing, and
-two WebViews built together in a later frame bind nothing.
+On iOS and macOS, **a load issued in the process's first frame is proxied and
+a load issued later has been measured going direct** — a webview built later,
+a webview that merely existed in the first frame, and a second navigation of a
+webview that had bound (BUG-014 attempts 19-26). A store armed before the
+network process comes up changes nothing, and neither does a process-wide
+`ProxyController` override.
 
 The measurement is not "the proxy was bound and failed". In the same run, a
 site whose proxy pointed at a closed port reached no origin at all, which is
 what a bound proxy does when it cannot connect. A load that *arrives* at the
 origin therefore had no proxy on it.
 
-The consequence is that `WKWebsiteDataStore.proxyConfigurations` cannot carry
-this feature. Proxying a site's landing page and leaking every link its user
-follows is worse than not offering the proxy, because the app reports the site
-as proxied while it is not. So on iOS and macOS the app SHALL NOT present a
-per-site proxy it can only honour for one load: a site whose effective proxy
-is non-DEFAULT SHALL fail closed — blank the load rather than fetch it over
-the device IP — until a delivery mechanism exists that survives navigation.
-
-This governs the Tor tier too. Per-site Tor on iOS and macOS rides the same
-`proxyConfigurations` path and inherits the same limit.
+What is **not** yet established is where that happens. WebKit's own source
+applies `proxyConfigurations` to the `NSURLSessionConfiguration` when a session
+wrapper is created (`NetworkSessionCocoa::applyProxyConfigurationToSessionConfiguration`),
+which covers every load on that session rather than the first — so the source
+says a bound session stays bound, and the measurement says otherwise. Until
+that contradiction is resolved the app's own navigation layer is a suspect:
+this platform cancels and reissues main-frame navigations
+([ios-universal-link-bypass](../ios-universal-link-bypass/spec.md)), and the
+per-site policy cancels cross-site ones, so a "second navigation" measured
+through `WebViewFactory` is not a plain WebKit navigation. The isolating
+measurement is a webview built straight from the plugin, carrying only a
+container and a proxy, with no app policy on it.
 
 #### Scenario: A proxied site does not leak on its second navigation
 
