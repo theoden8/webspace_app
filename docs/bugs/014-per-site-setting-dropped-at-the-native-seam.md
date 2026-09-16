@@ -675,6 +675,57 @@ whose proxies differ (PROXY-013, the shape Android already runs), or accept one
 proxied site per app launch.
 
 
+### Attempt 19 — Confirmed by ordering: stores armed in one turn all bind
+**Date:** 2026-09-16 · **Files:** none (measurement)
+**What it did:** ran attempt 18's experiment. The verdict is the first positive
+result this file has produced:
+
+```
+verdict: containers=true, side-by-side=2 of 2 proxied, direct=none,
+         global-early=DIRECT, second-container=DIRECT, fresh-site=DIRECT,
+         refused=DIRECT, rebind=DIRECT, global-override=DIRECT
+```
+
+**`side-by-side=2 of 2`.** Two container stores, each with its own proxy, built in
+one `pumpWidget` before anything else in the process had touched the network: both
+loads arrived at the fixture SOCKS server, and `direct=none` says neither fell back.
+So more than one data store per Apple process *can* be proxied. Every earlier run
+said otherwise only because the stores were armed one at a time.
+
+**`second-container=DIRECT`.** This is the scenario that bound its proxy in all six
+previous runs, when it was the first store the process registered. It is unchanged —
+same site, same container, same proxy, same code — except that three stores are
+registered ahead of it now, and it goes direct. Registration order is the rule, and
+it is now established by ordering alone rather than by argument.
+
+That confirms attempt 18's reading of WebKit: the proxy reaches the network process
+either in the parameters that create a store's session or as a live update
+afterwards, `setProxyConfigData` clears the field before the call that registers the
+session, so the registering assignment can never carry it — and only the stores
+already armed when the network process finishes coming up get the parameters path.
+The live update does not take. `global-early` and `global-override` both being
+DIRECT closes the last loophole: it is not about *which* store (default or
+container) or *which* caller (per-WebView `proxySettings` or the process-wide
+`ProxyController` override), only about when.
+
+It also explains the report this file exists for, exactly. The app builds WebViews
+lazily, so each proxied site's store is armed when its WebView is first built —
+always after the network process is up, except for whichever site happened to be
+opened first. "Two sites, one on Tor, both showing my direct IP" is the second site;
+"sometimes I have to restart the app for the Tor proxy to start working" is the Tor
+site happening to be first.
+
+**The fix follows from the rule:** arm every proxied site's container store in one
+batch at startup, before anything touches the network process, instead of at WebView
+construction. That is attempt 20.
+**Why:** six runs eliminated mechanisms without ever producing a positive account.
+Reading Apple's source produced one, and it named an experiment that ordering alone
+decides.
+**Why it was partial:** it is the measurement, not the repair. It also bounds what
+the repair can cover: a site that gains a proxy *after* startup, or is added
+mid-session, still misses the window, and nothing in the public API reopens it.
+
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
@@ -693,12 +744,13 @@ proxied site per app launch.
 3. **Reach is wider than the proxy.** The same parser carries the container id,
    the UA, the media gates and every other per-site field. Only the proxy has an
    effect-level test.
-4. **Only the first `WKWebsiteDataStore` in an Apple process is ever proxied.**
-   Measured across five runs and two fork lineages, with the parse, the default
-   store, store reuse, store rebuilding, the process pool and the harness's own
-   mount pattern each eliminated. Nothing in this repo or in the fork can route
-   a second proxied site in one app launch, and that is the whole per-site proxy
-   feature on iOS and macOS — Tor included.
+4. **An Apple data store armed after the network process is up cannot be
+   proxied.** Established in attempt 19 by ordering: stores armed together
+   before it comes up all bind; any armed afterwards goes direct, whichever
+   store it is and whichever caller assigns it. So a site that gains a proxy
+   after startup — a new site, a changed setting, a Tor runtime that comes up
+   late — cannot bind until the app is restarted, and no public API reopens the
+   window.
 5. **An effect-level test can be unfalsifiable and look green.** Both of attempt
    3's scenarios asserted "the origin was not reached", which any failure to load
    satisfies — and one of them could not have reached it under any binding
