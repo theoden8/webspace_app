@@ -742,9 +742,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     setState(() => _torIsolateDestAddr = value);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(kTorIsolateDestAddrKey, value);
-    if (TorService.instance.status is! TorStopped) {
-      await TorService.instance.restart();
-    }
+    await TorService.instance.applySocksIsolation(isolateDestAddr: value);
   }
 
   Future<void> _loadFirefoxAutoRefresh() async {

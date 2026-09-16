@@ -76,10 +76,12 @@ class FakeTorRuntime implements TorRuntime {
 
   @override
   Future<void> setSocksIsolation({required bool isolateDestAddr}) async {
+    if (socksIsolationError != null) throw socksIsolationError!;
     socksIsolation = isolateDestAddr;
   }
 
   bool? socksIsolation;
+  Object? socksIsolationError;
 
   void dispose() => _controller.close();
 }
@@ -118,6 +120,35 @@ void main() {
       await e.acquire('site-a');
       await pumpEventQueue();
       expect(runtime.socksIsolation, isTrue);
+    });
+
+    test('changing it never restarts the runtime', () async {
+      // tor cannot be run twice in one process: the second tor_run_main dies
+      // in threadpool_new and never bootstraps (BUG-013). A settings change
+      // that restarts would leave Tor dead until the app is relaunched, so
+      // the change is recorded for the next start instead.
+      final e = build(isolateDestAddrLoader: () async => true);
+      await e.acquire('site-a');
+      await pumpEventQueue();
+      runtime.bootstrapTo(41337);
+      await pumpEventQueue();
+      final startsBefore = runtime.startCalls;
+
+      await e.applySocksIsolation(isolateDestAddr: false);
+      expect(runtime.socksIsolation, isFalse);
+      expect(runtime.stopCalls, 0, reason: 'a live change never stops tor');
+      expect(runtime.startCalls, startsBefore,
+          reason: 'nor starts a second one');
+    });
+
+    test('a runtime that refuses the change does not throw at the caller',
+        () async {
+      final e = build(isolateDestAddrLoader: () async => true);
+      runtime.socksIsolationError = 'tor refused';
+      await e.applySocksIsolation(isolateDestAddr: false);
+      expect(runtime.socksIsolation, isNull,
+          reason: 'tor keeps the isolation it has; the preference still '
+              'stands and rides the next start');
     });
 
     test('a loader that throws leaves the stricter default alone', () async {
@@ -170,7 +201,7 @@ void main() {
       await e.dispose();
     });
 
-    test('releasing the last holder debounces, then stops', () {
+    test('releasing the last holder never stops the runtime', () {
       fakeAsync((async) {
         final e = build(debounce: const Duration(seconds: 60));
         e.acquire('site-a');
@@ -184,9 +215,12 @@ void main() {
         expect(e.status, isA<TorUp>(), reason: 'still up during debounce');
         expect(runtime.stopCalls, 0);
 
+        // And still up afterwards. tor runs at most once per process
+        // (BUG-013), so an idle stop spends the app's only launch and the
+        // next site pinned to Tor gets a runtime that cannot come back.
         async.elapse(const Duration(seconds: 2));
-        expect(runtime.stopCalls, 1);
-        expect(e.status, isA<TorStopped>());
+        expect(runtime.stopCalls, 0);
+        expect(e.status, isA<TorUp>());
       });
     });
 
@@ -241,7 +275,7 @@ void main() {
   });
 
   group('TOR-013 bootstrap timeout', () {
-    test('bootstrap that never completes errors out and stops', () {
+    test('bootstrap that never completes errors out, tor left running', () {
       fakeAsync((async) {
         final e = build(timeout: const Duration(seconds: 90));
         e.acquire('site-a');
@@ -254,7 +288,9 @@ void main() {
 
         async.elapse(const Duration(seconds: 2));
         expect(e.status, isA<TorErrored>());
-        expect(runtime.stopCalls, 1, reason: 'the dead thread is torn down');
+        expect(runtime.stopCalls, 0,
+            reason: 'the deadline is a report, not a teardown: tor keeps '
+                'retrying and there is no second launch to spend');
       });
     });
 
@@ -370,25 +406,23 @@ void main() {
       await e.dispose();
     });
 
-    test('a status arriving after shutdown cannot resurrect the endpoint', () {
-      fakeAsync((async) {
-        final e = build(debounce: const Duration(seconds: 60));
-        e.acquire('a1');
-        async.flushMicrotasks();
-        runtime.bootstrapTo(9999);
-        async.flushMicrotasks();
+    test('a status arriving after teardown reaches nothing', () async {
+      // The stream is closed by then, so an in-flight native event would be
+      // an "add after close" thrown from a listener nobody owns. Holders no
+      // longer say anything about this: releasing the last one leaves tor
+      // running, so the engine's own teardown is the only shutdown left.
+      final e = build(debounce: const Duration(seconds: 60));
+      await e.acquire('a1');
+      await pumpEventQueue();
+      runtime.bootstrapTo(9999);
+      await pumpEventQueue();
+      expect(e.status, isA<TorUp>());
 
-        e.release('a1');
-        async.elapse(const Duration(seconds: 61));
-        expect(e.status, isA<TorStopped>());
-
-        // An in-flight native event racing the shutdown.
-        runtime.push(TorUp('127.0.0.1', 9999));
-        async.flushMicrotasks();
-
-        expect(e.status, isA<TorStopped>());
-        expect(e.socksFor('a1'), isNull);
-      });
+      await e.dispose();
+      runtime.push(TorErrored('control port died'));
+      await pumpEventQueue();
+      expect(e.status, isA<TorUp>(),
+          reason: 'a disposed engine no longer tracks the runtime');
     });
   });
 
@@ -472,8 +506,9 @@ void main() {
       await e.dispose();
     });
 
-    test('a restart re-applies the pin to the new instance', () {
-      // tor is gone, and the ExitNodes it held went with it.
+    test('a restart re-applies the pin to the instance that comes back', () {
+      // A restart cannot assume the pin survived: whatever tor answers, the
+      // SETCONF that carried it belonged to the run that failed.
       fakeAsync((async) {
         final e = build(debounce: const Duration(seconds: 60));
         e.acquire('a1');
@@ -484,12 +519,11 @@ void main() {
         async.flushMicrotasks();
         expect(runtime.appliedExitNodes, ['{de}']);
 
-        e.release('a1');
-        async.elapse(const Duration(seconds: 61));
-        expect(e.status, isA<TorStopped>());
-
-        e.acquire('a2');
+        e.restart();
         async.flushMicrotasks();
+        expect(runtime.stopCalls, 0,
+            reason: 'a restart never stops tor: the process has one launch '
+                'and a stop spends it (BUG-013)');
         runtime.bootstrapTo(9999);
         async.flushMicrotasks();
         async.flushMicrotasks();

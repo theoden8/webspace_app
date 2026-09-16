@@ -201,11 +201,12 @@ void main() {
           'handshake assertions still ran');
     }
 
-    // TOR-020: a restart is the Retry button, and it used to take the
-    // process with it — tor is a process singleton and the old stop cleared
-    // the slot without waiting for the thread. If this crashes, the test
-    // harness loses the app rather than failing an expectation, which is
-    // itself the signal.
+    // TOR-020: a restart is the Retry button, and it must not stop tor. The
+    // process gets one `tor_run_main`: the second dies in `threadpool_new`
+    // and never bootstraps, so a Retry that tore the runtime down would end
+    // the feature for the session (BUG-013 attempt 9). Retry re-arms the
+    // wait on the tor that is already there.
+    final before = TorService.instance.socksEndpoint;
     await TorService.instance.restart();
     final restarted = await waitFor(
       () => TorService.instance.status is TorUp ||
@@ -214,17 +215,27 @@ void main() {
       const Duration(seconds: 60),
     );
     expect(restarted, isTrue,
-        reason: 'the runtime never came back after a restart:\n'
+        reason: 'the runtime never reported after a restart:\n'
             '${torTranscript()}');
     expect(TorService.instance.status, isNot(isA<TorStopped>()));
     expect(controlChannelFailure(TorService.instance.status), isNull,
         reason: 'the restarted runtime never reached tor\'s control port:\n'
             '${torTranscript()}');
+    if (before != null) {
+      expect(TorService.instance.socksEndpoint, before,
+          reason: 'a Retry replaced the running tor instead of waiting on '
+              'it; this process has no second launch:\n${torTranscript()}');
+    }
+    expect(
+      LogService.instance.allEntriesMerged
+          .any((e) => e.message.contains('already run once')),
+      isFalse,
+      reason: 'a Retry tried to launch a second tor:\n${torTranscript()}',
+    );
     trace('scenario 1 done');
   }, timeout: const Timeout(Duration(minutes: 8)));
 
-  testWidgets('a restart inside the handshake window still comes back',
-      (tester) async {
+  testWidgets('repeated Retries never take the runtime down', (tester) async {
     trace('scenario 2 start');
     if (!TorService.instance.isAvailable) {
       if (isApple) {
@@ -234,14 +245,15 @@ void main() {
       return;
     }
 
-    // The case the first scenario cannot reach: a stop that lands before the
-    // control port answers. Nothing has adopted a controller yet, so the
-    // plugin has to ask that tor to quit over a connection it opens itself.
-    // Without that, the orphan holds the process's one tor slot and every
-    // later start refuses -- which is what the Retry button became on a
-    // device whose first bootstrap failed (TOR-020).
+    // Retry is the one control the failure interstitial offers, and a user
+    // whose first bootstrap is slow will use it more than once. Each one
+    // used to stop and re-start tor; the second launch dies in
+    // `threadpool_new` and never bootstraps, so two taps were enough to end
+    // Tor for the session (BUG-013 attempt 9, TOR-020). Three taps here,
+    // back to back, including one inside a handshake window.
     await TorService.instance.restart();
     await Future<void>.delayed(const Duration(milliseconds: 300));
+    await TorService.instance.restart();
     await TorService.instance.restart();
 
     final recovered = await waitFor(
@@ -250,8 +262,14 @@ void main() {
       const Duration(seconds: 90),
     );
     expect(recovered, isTrue,
-        reason: 'the runtime did not come back after a restart mid-handshake:'
+        reason: 'the runtime did not survive repeated Retries:'
             '\n${torTranscript()}');
+    expect(
+      LogService.instance.allEntriesMerged
+          .any((e) => e.message.contains('already run once')),
+      isFalse,
+      reason: 'a Retry tried to launch a second tor:\n${torTranscript()}',
+    );
     expect(
       LogService.instance.allEntriesMerged
           .any((e) => e.message.contains('still running')),
