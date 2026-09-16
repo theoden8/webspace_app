@@ -5066,6 +5066,28 @@ class _WebSpacePageState extends State<WebSpacePage>
           : 'Container API not supported — using CookieIsolationEngine + (legacy) CookieManager',
     );
 
+    // Arm every proxied site's container store now, in one call, before
+    // anything below registers a network session (LEAK-003, BUG-014).
+    //
+    // On iOS and macOS only the data stores already carrying a proxy when
+    // WebKit's network process comes up are proxied; a store armed later —
+    // which is what building a WebView does — is silently ignored. So this
+    // has to run here: after the models and the container decision, before
+    // the proxy router, the startup GC, the first cookie restore and the
+    // first WebView. Moving it below any of those puts every site but the
+    // first back on the device IP.
+    if (_useContainers) {
+      await WebViewFactory.prearmProxiedContainers([
+        for (final model in _webViewModels)
+          (
+            siteId: model.siteId,
+            archiveContainerId: model.archiveContainerId,
+            incognito: model.incognito,
+            proxySettings: model.proxySettings,
+          ),
+      ]);
+    }
+
     await _activateProxyRouter();
 
     // Startup GC. The container sweeps run here (before any WebView binds —

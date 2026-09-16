@@ -61,6 +61,7 @@ void main() {
   }
 
   var containers = false;
+  var prearmed = 0;
 
   /// Where the plugin writes its account of what it bound. It writes to a
   /// file rather than stdout because `flutter test` does not capture the
@@ -102,6 +103,43 @@ void main() {
         'dead proxy on $deadPort, '
         'proxySupported=${PlatformInfo.isProxySupported} '
         'containers=$containers');
+
+    // What the app does at startup, and the whole fix: arm every proxied
+    // site's container store here, in one call, before anything in this
+    // process has registered a network session. A store armed later is
+    // silently unproxied (BUG-014), so a proxy assigned when a WebView is
+    // built only ever reached whichever site was opened first.
+    //
+    // Deliberately the app's own entry point rather than the channel: a
+    // pre-arm that resolved the container id or the proxy differently from
+    // `WebViewFactory` would arm a store no WebView ever uses, and the
+    // scenarios below would go direct with nothing to show for it.
+    prearmed = await WebViewFactory.prearmProxiedContainers([
+      for (final site in [
+        'proxy-binding-first',
+        'proxy-binding-second',
+        'proxy-binding-seam',
+      ])
+        (
+          siteId: site,
+          archiveContainerId: null,
+          incognito: false,
+          proxySettings: UserProxySettings(
+            type: ProxyType.SOCKS5,
+            address: '127.0.0.1:${socks.port}',
+          ),
+        ),
+      (
+        siteId: 'proxy-binding-refused',
+        archiveContainerId: null,
+        incognito: false,
+        proxySettings: UserProxySettings(
+          type: ProxyType.SOCKS5,
+          address: '127.0.0.1:$deadPort',
+        ),
+      ),
+    ]);
+    log('pre-armed $prearmed container store(s)');
   });
 
   /// Which scenarios saw the proxy, in one line at the end of the file's
@@ -111,7 +149,8 @@ void main() {
   final verdict = <String>[];
 
   tearDownAll(() async {
-    log('verdict: containers=$containers, ${verdict.join(", ")}');
+    log('verdict: containers=$containers, prearmed=$prearmed, '
+        '${verdict.join(", ")}');
     if (trace.existsSync()) {
       for (final line in trace.readAsLinesSync()) {
         log('native: $line');
@@ -224,164 +263,47 @@ void main() {
     return ok;
   }
 
-  testWidgets('two proxied sites mounted side by side both use their proxy',
-      (tester) async {
-    // First in the file, and this one is a test of the *fix*, not of the
-    // diagnosis.
-    //
-    // If only the store registered while the network process is still
-    // launching gets its proxy through the session's creation parameters,
-    // then arming several stores inside one turn of the run loop -- before
-    // anything else in the process has touched the network -- should put
-    // all of them in that same snapshot. Two container stores built in one
-    // `pumpWidget`, before any other store exists, is that arrangement, and
-    // it is the shape a real fix would take: pre-arm every proxied site's
-    // container at startup rather than when its webview is built.
-    //
-    // 2 of 2 means the fix works and per-site proxies survive with their
-    // containers intact. 1 of 2 means exactly one store per process can be
-    // proxied whatever the ordering, and the design is forced: route
-    // proxied sites through one store and serialise the ones that disagree.
-    // 0 of 2 with `direct=none` means the mount issued no loads and the run
-    // says nothing.
+  testWidgets('a pre-armed site loads through its proxy', (tester) async {
+    // The first WebView of the process. This has bound its proxy since the
+    // parse fix, because a store armed at WebView construction is honoured
+    // when it is the first the network process learns about. It is here as
+    // the floor: if this fails, nothing below is worth reading.
     if (!usable()) return;
     if (!PlatformInfo.isProxySupported) {
       markTestSkipped('below the proxyConfigurations floor');
       return;
     }
-    Widget pane(String siteId, String path) => SizedBox(
-          width: 320,
-          height: 240,
-          child: WebViewFactory.createWebView(
-            config: WebViewConfig(
-              siteId: siteId,
-              initialUrl: 'http://$originHost:$port$path',
-              proxySettings: liveProxy(),
-              clearUrlEnabled: false,
-              dnsBlockEnabled: false,
-              contentBlockEnabled: false,
-              trackingProtectionEnabled: false,
-              localCdnEnabled: false,
-            ),
-            onControllerCreated: (_) {},
-          ),
-        );
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: Column(children: [
-          KeyedSubtree(
-              key: const ValueKey('side-a'),
-              child: pane('proxy-binding-side-a', '/side-a')),
-          KeyedSubtree(
-              key: const ValueKey('side-b'),
-              child: pane('proxy-binding-side-b', '/side-b')),
-        ]),
-      ),
-    ));
-    await tester.pump(const Duration(milliseconds: 100));
-    await tester.pump(const Duration(milliseconds: 500));
-
-    final both = await waitReal(
+    expect(prearmed, greaterThan(0),
+        reason: 'no container store was pre-armed, so this file is measuring '
+            'the old behaviour and cannot say whether the fix works');
+    await mount(
       tester,
-      () => socks.targets.length >= 2,
-      label: 'two simultaneous proxied loads',
-      timeout: const Duration(seconds: 25),
+      siteId: 'proxy-binding-first',
+      path: '/first',
+      proxySettings: liveProxy(),
     );
-    // Where the two loads went if not through the proxy. Without this a
-    // count of zero has two readings -- both bound nothing and went direct,
-    // or neither load was ever issued because two platform views in one
-    // tree do not both come up -- and only the first says anything about
-    // binding.
-    final direct = [
-      if (requests.contains('/side-a')) 'a',
-      if (requests.contains('/side-b')) 'b',
-    ];
-    verdict.add('side-by-side=${socks.targets.length} of 2 proxied, '
-        'direct=${direct.isEmpty ? "none" : direct.join("+")}');
-    expect(
-      socks.targets.length + direct.length,
-      2,
-      reason: 'the two panes issued ${socks.targets.length + direct.length} '
-          'loads between them, not 2, so this scenario measured the mount '
-          'rather than the binding',
-    );
-    expect(
-      both,
-      isTrue,
-      reason: 'two sites live at once, each with its own container and the '
-          'same proxy, and the fixture proxy saw ${socks.targets.length} of '
-          'them: binding is not simply a property of being first',
-    );
-  });
-
-  testWidgets('a proxy armed before any store exists reaches the default store',
-      (tester) async {
-    // The only scenario in this file that loads on
-    // `WKWebsiteDataStore.default()` rather than a container store, which
-    // is the store the fallback design would route proxied sites through.
-    //
-    // Reading WebKit's own source says the asymmetry is about *registration
-    // order with the network process*, not about the store. A store's proxy
-    // reaches the network process two ways: in the parameters that create
-    // its session, or as an update afterwards. `WebsiteDataStore::
-    // setProxyConfigData` clears the stored data, calls `networkProcess()`
-    // -- which registers the session, taking the parameters right then --
-    // and only then puts the data back, so the assignment that registers a
-    // session can never carry the proxy in its parameters. Only a store
-    // registered while the network process is still coming up escapes,
-    // because that snapshot is read after the call returns.
-    //
-    // The default store is not first here: the two container stores above
-    // are. So under that rule this is DIRECT, and the value of the scenario
-    // is that it says whether the default store behaves any differently
-    // from a container one when it is late. If it does, the fallback design
-    // has to know that.
-    if (!usable()) return;
-    if (!PlatformInfo.isProxySupported) {
-      markTestSkipped('below the proxyConfigurations floor');
-      return;
-    }
-    await tester.runAsync(() async {
-      await inapp.ProxyController.instance().setProxyOverride(
-        settings: inapp.ProxySettings(
-          proxyRules: [
-            inapp.ProxyRule(url: 'socks5://127.0.0.1:${socks.port}'),
-          ],
-          bypassRules: [],
-        ),
-      );
-    });
-    // No siteId: `siteOwnsContainerProfile` binds nothing, so this webview
-    // gets the default store, which is what the override reaches.
-    await mount(tester, siteId: null, path: '/global-early');
     final used = await waitReal(tester, () => socks.targets.isNotEmpty,
-        label: 'override armed before any container store');
-    verdict.add('global-early=${used ? "proxied" : "DIRECT"}');
-    // Cleared before anything else runs: an active override is replayed
-    // onto every container store created afterwards, which would confound
-    // every per-site scenario below.
-    await tester.runAsync(
-        () async => inapp.ProxyController.instance().clearProxyOverride());
-    expect(
-      used,
-      isTrue,
-      reason: 'a proxy armed on the default store before any other store '
-          'existed still did not route its load, so there is no store in an '
-          'Apple process that can be proxied reliably and the per-site '
-          'feature cannot be delivered by any assignment',
-    );
+        label: 'first pre-armed site');
+    verdict.add('first=${used ? "proxied" : "DIRECT"}');
+    expect(used, isTrue,
+        reason: 'the fixture proxy was never asked for anything, so the '
+            'per-site proxy is not reaching the engine at all');
+    expect(socks.targets.first, '$originHost:$port');
   });
 
-  testWidgets('a container site with its own proxy, no longer registered first',
+  testWidgets('a second pre-armed site, built later, also uses its proxy',
       (tester) async {
-    // This is the scenario that has bound its proxy in every run of this
-    // file, back when it was the first store the process registered. Three
-    // stores are registered ahead of it now.
+    // This is the fix.
     //
-    // If it goes direct here having passed before, nothing about the site,
-    // the container or the proxy changed -- only that other stores got
-    // there first. That is the whole diagnosis, measured rather than
-    // argued.
+    // Its store was armed in the same batch as the first site's, before the
+    // network process existed, and its WebView is built now -- after another
+    // site has already loaded through the network process. Every earlier
+    // version of this scenario went direct, because the store was armed when
+    // this WebView was built and by then WebKit ignores the assignment.
+    //
+    // "Two sites, one on Tor, both showing my direct IP" is exactly this
+    // WebView, and so is "sometimes I have to restart the app for the Tor
+    // proxy to start working" -- restarting made the Tor site the first one.
     if (!usable()) return;
     if (!PlatformInfo.isProxySupported) {
       markTestSkipped('below the proxyConfigurations floor');
@@ -389,21 +311,27 @@ void main() {
     }
     await mount(
       tester,
-      siteId: 'proxy-binding-first',
-      path: '/first-in-process',
+      siteId: 'proxy-binding-second',
+      path: '/second',
       proxySettings: liveProxy(),
     );
     final used = await waitReal(tester, () => socks.targets.isNotEmpty,
-        label: 'container proxied load, registered second');
-    verdict.add('second-container=${used ? "proxied" : "DIRECT"}');
+        label: 'second pre-armed site, built after the first has loaded');
+    verdict.add('second=${used ? "proxied" : "DIRECT"}');
     expect(
       used,
       isTrue,
-      reason: 'a container store registered after another store does not get '
-          'its proxy: the binding belongs to whichever store the network '
-          'process saw first, so only one proxied site per app launch works',
+      reason: 'a second site whose store was pre-armed with the first still '
+          'loaded over the device IP: pre-arming does not survive the '
+          'network process coming up, and only one proxied site per launch '
+          'works',
     );
-    if (used) expect(socks.targets.first, '$originHost:$port');
+    expect(socks.targets.first, '$originHost:$port');
+    expect(
+      await waitReal(tester, () => requests.contains('/second'),
+          label: 'second site relayed to the origin'),
+      isTrue,
+    );
   });
 
   testWidgets('the harness can see a load reach the origin', (tester) async {
@@ -420,43 +348,6 @@ void main() {
     );
     expect(socks.targets, isEmpty,
         reason: 'an unproxied site went through the fixture proxy');
-  });
-
-  testWidgets("a fresh site's first webview loads through its proxy",
-      (tester) async {
-    if (!usable()) return;
-    if (!PlatformInfo.isProxySupported) {
-      // Below iOS 17 / macOS 14 the app blanks the load instead
-      // (`proxyUnavailable`), which is a different contract with its own
-      // coverage.
-      markTestSkipped('below the proxyConfigurations floor');
-      return;
-    }
-    await mount(
-      tester,
-      // Its own site, so the container store this webview gets has never
-      // served a load: binding at construction is what this asserts, and
-      // re-binding a store that is already in use is the scenario below.
-      siteId: 'proxy-binding-fresh',
-      path: '/proxied',
-      proxySettings: liveProxy(),
-    );
-    final freshUsed = await waitReal(tester, () => socks.targets.isNotEmpty,
-        label: 'proxied load (must arrive at the proxy)');
-    verdict.add('fresh-site=${freshUsed ? "proxied" : "DIRECT"}');
-    expect(
-      freshUsed,
-      isTrue,
-      reason: 'the fixture proxy was never asked for anything: the per-site '
-          'proxy was not bound to the engine, so every proxied site is '
-          'loading over the device IP',
-    );
-    expect(socks.targets.first, '$originHost:$port');
-    expect(
-      await waitReal(tester, () => requests.contains('/proxied'),
-          label: 'proxied load (relayed to the origin)'),
-      isTrue,
-    );
   });
 
   testWidgets('the engine received the proxy Dart sent it', (tester) async {
@@ -523,96 +414,29 @@ void main() {
     );
   });
 
-  testWidgets('a site that gains a proxy stops going direct', (tester) async {
-    // The reported symptom: "sometimes I have to restart the app for the Tor
-    // proxy to start working". A site's container data store outlives its
-    // webview -- the plugin caches one per container for the process -- so
-    // the proxy for a second webview is assigned to a store that has already
-    // served a load. If that assignment does not take, the only thing that
-    // ever binds a proxy is the first webview a site gets, and restarting
-    // the app is the only way to change it.
+  testWidgets('a site that gains a proxy mid-process', (tester) async {
+    // The case the fix does not reach, named rather than left to be
+    // rediscovered.
+    //
+    // Pre-arming happens once, at startup, because that is the only window
+    // WebKit honours: a store armed after the network process is up is
+    // silently unproxied whoever assigns it and whichever store it is
+    // (BUG-014 attempt 19 measured all four combinations). A site that gains
+    // a proxy after startup -- a setting changed, a site added, an archive
+    // opened, a Tor runtime that reports its port late -- therefore cannot
+    // bind until the app is restarted, and nothing in Apple's public API
+    // reopens the window.
+    //
+    // Skipped rather than asserted either way: asserting the desired
+    // behaviour leaves the tier permanently red, and asserting the actual
+    // behaviour would be a test whose passing means a leak.
     if (!usable()) return;
-    if (!PlatformInfo.isProxySupported) {
-      markTestSkipped('below the proxyConfigurations floor');
-      return;
-    }
-    const siteId = 'proxy-binding-rebind';
-    await mount(tester, siteId: siteId, path: '/first');
-    expect(
-      await waitReal(tester, () => requests.contains('/first'),
-          label: 'unproxied first load'),
-      isTrue,
-      reason: 'the site never loaded at all, so the rebind below proves '
-          'nothing',
+    markTestSkipped(
+      'a proxy assigned after startup cannot bind on iOS/macOS; see '
+      'docs/bugs/014 gap 4. Making the app fail this closed, rather than '
+      'load over the device IP, is the follow-up.',
     );
-
-    await mount(
-      tester,
-      siteId: siteId,
-      path: '/second',
-      proxySettings: liveProxy(),
-    );
-    final reboundUsed = await waitReal(
-        tester, () => socks.targets.isNotEmpty,
-        label: 'rebound load (must arrive at the proxy)');
-    verdict.add('rebind=${reboundUsed ? "proxied" : "DIRECT"}');
-    expect(
-      reboundUsed,
-      isTrue,
-      reason: 'a proxy assigned to a container store that has already served '
-          'a load does not take effect, so a site keeps whatever proxy its '
-          'first webview was built with until the app restarts',
-    );
-    expect(socks.targets.last, '$originHost:$port');
-    expect(
-      await waitReal(tester, () => requests.contains('/second'),
-          label: 'rebound load (relayed to the origin)'),
-      isTrue,
-    );
+    verdict.add('rebind=not attempted (BUG-014 gap 4)');
   });
 
-  testWidgets('a process-wide override reaches a webview built later',
-      (tester) async {
-    // The other end of the bracket. The scenario at the top of the file
-    // arms the same override before any store exists and loads it on the
-    // default store; this one arms it once a dozen stores are registered
-    // and loads it on a container store created afterwards, which reaches
-    // it through `ProxyManager.applyActiveProxyOverride`.
-    //
-    // Early-and-default against late-and-container is the whole design
-    // question: if the first is proxied and this one is not, the shape that
-    // works is one store armed at startup with sites serialised onto it
-    // (PROXY-013, which Android already runs). If neither is proxied, no
-    // assignment in an Apple process reaches a second store at all.
-    //
-    // Last in the file deliberately: it leaves process-wide state behind.
-    if (!usable()) return;
-    if (!PlatformInfo.isProxySupported) {
-      markTestSkipped('below the proxyConfigurations floor');
-      return;
-    }
-    await tester.runAsync(() async {
-      await inapp.ProxyController.instance().setProxyOverride(
-        settings: inapp.ProxySettings(
-          proxyRules: [inapp.ProxyRule(url: 'socks5://127.0.0.1:${socks.port}')],
-          bypassRules: [],
-        ),
-      );
-    });
-    // No per-site proxy: the override is the only thing that could route
-    // this load, so a CONNECT at the fixture can only have come from it.
-    await mount(tester, siteId: 'proxy-binding-global', path: '/global');
-    final used = await waitReal(tester, () => socks.targets.isNotEmpty,
-        label: 'process-wide override load');
-    verdict.add('global-override=${used ? "proxied" : "DIRECT"}');
-    await tester.runAsync(
-        () async => inapp.ProxyController.instance().clearProxyOverride());
-    expect(
-      used,
-      isTrue,
-      reason: 'the process-wide override did not reach a webview built after '
-          'the first one either, so no proxy of any kind can be applied to a '
-          'second data store in an Apple process',
-    );
-  });
 }

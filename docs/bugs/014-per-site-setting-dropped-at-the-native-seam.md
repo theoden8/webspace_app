@@ -726,6 +726,57 @@ the repair can cover: a site that gains a proxy *after* startup, or is added
 mid-session, still misses the window, and nothing in the public API reopens it.
 
 
+### Attempt 20 — The fix: arm every proxied store at startup, in one call
+**Date:** 2026-09-16 · **Files:** fork
+`theoden8/flutter_inappwebview` @ `6705410` (`ContainerManager.swift` and the
+container-controller Dart plumbing, iOS + macOS), `pubspec.yaml`,
+`lib/services/webview.dart`, `lib/main.dart`,
+`integration_test/proxy_binding_test.dart`,
+`test/js/proxy_prearm_ordering.test.js`,
+`openspec/specs/ip-leakage/spec.md`
+**What it did:** acted on attempt 19's confirmed rule instead of assigning the
+proxy where the WebView is built.
+
+The fork gains `ContainerController.prepareContainers`, which takes a *list* of
+`(containerId, proxySettings)` and creates and arms every one of those stores
+synchronously inside one channel call. The app calls it once in
+`_restoreAppState`, immediately after the container decision and before the proxy
+router, the startup GC, the first cookie restore and the first WebView — the last
+moment at which nothing has registered a network session. `WebViewFactory`'s
+container and proxy resolution is extracted to `resolveStoreBinding` so the
+pre-arm arms exactly the store and proxy the WebView will later be built with; a
+pre-arm that disagreed would be worse than none, because the site would look
+proxied and load through something else.
+
+Two properties carry the fix and neither is visible at the call site, so both are
+gated structurally in `test/js/proxy_prearm_ordering.test.js` (mutation-checked:
+moving the call below `_activateProxyRouter` fails it). One call, because a call
+per container is a run-loop turn per container and every turn after the first
+misses the window. First, because anything that registers a session closes it.
+
+The integration file is rewritten around the fix rather than around the hunt. The
+scenarios that bisected the mechanism — side-by-side, the process-wide override at
+both ends of the process, the demoted container — are gone; their conclusions are
+attempts 15-19 and keeping them would be a wall of tests that now fail by
+construction. What is left is positive: `setUpAll` pre-arms four sites exactly as
+the app does, a first site loads through its proxy, and a **second site, built
+after the first has already loaded, does too**. That second scenario is the fix,
+and it is the exact shape of the report — "two sites, one on Tor, both showing my
+direct IP" is that second WebView, and "sometimes I have to restart the app for the
+Tor proxy to start working" is a restart making the Tor site the first one.
+**Why:** the rule attempt 19 established leaves exactly one window in which a proxy
+can be bound, and the app was not using it. Nothing else in the public API reaches
+that window.
+**Why it was partial:** it covers sites whose proxy is resolvable at startup, which
+is every per-site HTTP/HTTPS/SOCKS5 proxy and the app-global outbound proxy. It does
+not cover a proxy that becomes known later — a Tor runtime that reports its SOCKS
+port after bootstrap, a site added or edited mid-session, an archive opened. Those
+keep the old behaviour (bound only if opened first), and the honest next step is two
+separate ones: make the app **fail closed** rather than load over the device IP when
+a site's store was never armed, and pin Tor's SOCKS port at startup so Tor sites can
+be armed in the batch like any other.
+
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
@@ -747,10 +798,14 @@ mid-session, still misses the window, and nothing in the public API reopens it.
 4. **An Apple data store armed after the network process is up cannot be
    proxied.** Established in attempt 19 by ordering: stores armed together
    before it comes up all bind; any armed afterwards goes direct, whichever
-   store it is and whichever caller assigns it. So a site that gains a proxy
-   after startup — a new site, a changed setting, a Tor runtime that comes up
-   late — cannot bind until the app is restarted, and no public API reopens the
-   window.
+   store it is and whichever caller assigns it. Attempt 20 uses that window at
+   startup, which covers every proxy resolvable then. It leaves three cases
+   that are not: a site added or re-proxied mid-session, an archive opened
+   (its container id is derived when the archive unlocks), and a Tor site
+   whose SOCKS port is only reported after bootstrap. Each still loads over
+   the device IP rather than failing closed, and no public API reopens the
+   window. Two follow-ups, tracked here: fail closed when a proxied site's
+   store was never armed, and pin Tor's SOCKS port at startup.
 5. **An effect-level test can be unfalsifiable and look green.** Both of attempt
    3's scenarios asserted "the origin was not reached", which any failure to load
    satisfies — and one of them could not have reached it under any binding
