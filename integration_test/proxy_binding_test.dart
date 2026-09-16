@@ -318,6 +318,11 @@ void main() {
 
     // (1) Two proxied webviews in the process's first frame. Established
     // over three runs; the floor for everything below.
+    // Measure every factor first, record every one, and only then assert.
+    // Last run asserted between measurements and the `deferred` failure
+    // aborted the test before `persist` was reached -- so the factor that
+    // decides whether any fix is worth building was the one the factorial
+    // lost. Assertions at the end cannot suppress a measurement.
     final both = await waitReal(
       tester,
       () => socks.targets.length >= 2,
@@ -330,88 +335,86 @@ void main() {
     ];
     verdict.add('pair=${socks.targets.length} of 2 proxied, '
         'direct=${direct.isEmpty ? "none" : direct.join("+")}');
+    final pairLoads = socks.targets.length + direct.length;
+
+    await waitReal(tester, () => requests.contains('/refused'),
+        label: 'refused load (must not arrive)',
+        timeout: const Duration(seconds: 10));
+    final refusedLeaked = requests.contains('/refused');
+    verdict.add('refused=${refusedLeaked ? "DIRECT" : "failed closed"}');
+
+    // Does a webview have to *load* in the first frame, or only exist in it?
+    final deferredReady = await waitReal(tester, () => paneD != null,
+        label: 'deferred controller created');
+    if (deferredReady) {
+      await tester.runAsync(() async {
+        await paneD!.nativeController.loadUrl(
+          urlRequest: inapp.URLRequest(
+            url: inapp.WebUri('http://$originHost:$deferredPort/d'),
+          ),
+        );
+      });
+      await waitReal(
+          tester, () => socks.targets.contains('$originHost:$deferredPort'),
+          label: 'deferred load through the proxy');
+    }
+    final deferredProxied =
+        socks.targets.contains('$originHost:$deferredPort');
+    final deferredDirect = requests.contains('deferred:/d');
+    verdict.add('deferred=${!deferredReady ? "no controller" : deferredProxied ? "proxied" : deferredDirect ? "DIRECT" : "no load"}');
+
+    // Does a binding survive navigation? Every other scenario measures a
+    // webview's *first* load. If the proxy covers only that one, a site
+    // leaks on the first link its user follows and no arrangement of frames
+    // fixes it. Its own origin on its own port, so the CONNECT belongs to
+    // this navigation rather than to a connection reused from the first.
+    final pairReady = await waitReal(tester, () => paneA != null,
+        label: 'pair-a controller created');
+    if (pairReady) {
+      await tester.runAsync(() async {
+        await paneA!.nativeController.loadUrl(
+          urlRequest: inapp.URLRequest(
+            url: inapp.WebUri('http://$originHost:$persistPort/p'),
+          ),
+        );
+      });
+      await waitReal(
+          tester, () => socks.targets.contains('$originHost:$persistPort'),
+          label: 'second navigation of a bound webview');
+    }
+    final persisted = socks.targets.contains('$originHost:$persistPort');
+    final persistDirect = requests.contains('persist:/p');
+    verdict.add('persist=${!pairReady ? "no controller" : persisted ? "proxied" : persistDirect ? "DIRECT" : "no load"}');
+
+    // Now assert, floor first.
     expect(
-      socks.targets.length + direct.length,
+      pairLoads,
       2,
-      reason: 'the two panes issued ${socks.targets.length + direct.length} '
-          'loads between them, not 2, so this measured the mount rather than '
-          'the binding',
+      reason: 'the two panes issued $pairLoads loads between them, not 2, so '
+          'this measured the mount rather than the binding',
     );
     expect(both, isTrue,
         reason: 'a proxied webview built in the first frame did not use its '
             'proxy, so nothing else in this file holds');
-
-    // (2) A bound proxy on a closed port cannot reach anything. The positive
-    // direction of the same claim: a load that arrives says no binding.
-    await waitReal(tester, () => requests.contains('/refused'),
-        label: 'refused load (must not arrive)',
-        timeout: const Duration(seconds: 10));
-    verdict.add(
-        'refused=${requests.contains('/refused') ? "DIRECT" : "failed closed"}');
     expect(
-      requests,
-      isNot(contains('/refused')),
+      refusedLeaked,
+      isFalse,
       reason: 'a site whose proxy refuses connections reached the origin '
           'anyway, which a bound proxy cannot do',
     );
-
-    // (3) Does a webview have to *load* in the first frame, or only exist in
-    // it? This one was built with `about:blank` and is navigated now. If
-    // existing is enough, the app can create one empty webview per proxied
-    // site at startup and keep lazy loading; if not, every proxied site has
-    // to fetch its page at launch.
-    expect(
-        await waitReal(tester, () => paneD != null,
-            label: 'deferred controller created'),
-        isTrue);
-    await tester.runAsync(() async {
-      await paneD!.nativeController.loadUrl(
-        urlRequest: inapp.URLRequest(
-          url: inapp.WebUri('http://$originHost:$deferredPort/d'),
-        ),
-      );
-    });
-    final deferredProxied = await waitReal(
-        tester, () => socks.targets.contains('$originHost:$deferredPort'),
-        label: 'deferred load through the proxy');
-    final deferredDirect = requests.contains('deferred:/d');
-    verdict.add('deferred=${deferredProxied ? "proxied" : deferredDirect ? "DIRECT" : "no load"}');
-    expect(
-      deferredDirect,
-      isFalse,
-      reason: 'a webview built in the first frame but navigated afterwards '
-          'went direct: existing in that frame is not enough, and it leaked '
-          'rather than failing closed',
-    );
-
-    // (4) Does a binding survive navigation? Every scenario so far has
-    // measured a webview's *first* load. If the proxy only covers that one,
-    // building every proxied site in the first frame fixes far less than it
-    // appears to. A separate origin on its own port, so the CONNECT the
-    // fixture records belongs to this navigation and not to a connection
-    // reused from the first load.
-    expect(
-        await waitReal(tester, () => paneA != null,
-            label: 'pair-a controller created'),
-        isTrue);
-    await tester.runAsync(() async {
-      await paneA!.nativeController.loadUrl(
-        urlRequest: inapp.URLRequest(
-          url: inapp.WebUri('http://$originHost:$persistPort/p'),
-        ),
-      );
-    });
-    final persisted = await waitReal(
-        tester, () => socks.targets.contains('$originHost:$persistPort'),
-        label: 'second navigation of a bound webview');
-    final persistDirect = requests.contains('persist:/p');
-    verdict.add('persist=${persisted ? "proxied" : persistDirect ? "DIRECT" : "no load"}');
     expect(
       persistDirect,
       isFalse,
       reason: 'a webview that used its proxy for its first load went direct '
           'on its second, so the binding covers one navigation and the site '
           'leaks on every link the user follows',
+    );
+    expect(
+      deferredDirect,
+      isFalse,
+      reason: 'a webview built in the first frame but navigated afterwards '
+          'went direct: existing in that frame is not enough, and it leaked '
+          'rather than failing closed',
     );
   });
 

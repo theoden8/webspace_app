@@ -919,6 +919,49 @@ but it should be the last measuring run before the app change, because between
 them these three factors determine what that change has to be.
 
 
+### Attempt 24 — The boundary is the first frame, and a webview must load in it
+**Date:** 2026-09-16 · **Files:** `integration_test/proxy_binding_test.dart`
+**What it did:** ran the factorial. Three of the four factors came back, and one
+was lost to a flaw in how the factorial was written:
+
+```
+verdict: containers=true, pair=2 of 2 proxied, direct=none,
+         refused=failed closed, deferred=DIRECT,
+         later-pair=0 of 2 proxied, direct=a+b
+```
+
+* **`refused=failed closed`** — for the first time in this file, a site whose
+  proxy points at a closed port did *not* reach the origin. That is the
+  positive control: the proxy is genuinely bound, not merely reported.
+* **`later-pair=0 of 2, direct=a+b`** — two proxied webviews built *together* in
+  a later frame both went direct. So the boundary is the **first frame**, not
+  "any frame carrying more than one webview". Both readings fitted every
+  previous run; they do not fit this one.
+* **`deferred=DIRECT`** — a webview built in the first frame with `about:blank`
+  and navigated afterwards went direct. **Existing in the first frame is not
+  enough; the webview must load in it.** That sets the price of the app-side
+  fix: not one empty webview per proxied site at startup, but every proxied
+  site fetching its page at launch.
+
+**`persist=` is absent, and that is the methodological failure.** The factors
+were measured in sequence with an `expect` between them, so the `deferred`
+assertion threw and the test ended before the persistence navigation ran — and
+persistence is precisely the factor that decides whether any fix is worth
+building. A factorial whose factors can suppress one another is not a factorial.
+The file now records every factor first and asserts only at the end, where a
+failing assertion cannot cost a measurement.
+
+What persistence decides, so the next run is read correctly: if a binding covers
+only a webview's first load, then building every proxied site in the first frame
+leaks on the first link the user follows, no arrangement of frames repairs it,
+and failing closed is the only honest option left. If it covers the webview's
+life, the first-frame build is a real fix with a known cost.
+**Why:** two of the three answers narrow the fix and the third prices it; the
+missing one decides whether to build it at all.
+**Why it was partial:** it fixes the instrument again rather than the product,
+and it cost a run to a mistake in the instrument rather than in the hypothesis.
+
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
