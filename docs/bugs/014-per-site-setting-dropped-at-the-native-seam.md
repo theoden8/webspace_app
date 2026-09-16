@@ -645,20 +645,24 @@ pool, not the parse, not disposal — all of which this file eliminated one run 
 time.
 
 The prediction is falsifiable in one run, so this attempt tests it rather than
-asserting it. Two scenarios now bracket the order:
+asserting it — and the first scenario tests the *repair* rather than the diagnosis.
+The snapshot is taken when the network process is constructed, so whether two stores
+armed inside one turn of the run loop both land in it decides whether a repair
+exists at all:
 
-* **`global-early`** arms `ProxyController.setProxyOverride` before any container
-  store exists and loads a site with no container, so `WKWebsiteDataStore.default()`
-  is both the store serving the load and the first one registered.
+* **`side-by-side`** runs first now. Two container stores are built in one
+  `pumpWidget`, before anything else in the process has touched the network. 2 of 2
+  means the snapshot covers both, and the fix is to pre-arm every proxied site's
+  container at startup instead of when its webview is built — per-site proxies
+  survive with their containers intact. 1 of 2 means exactly one store per process
+  can ever be proxied, and no pre-arming helps.
 * **`second-container`** is the scenario that bound its proxy in every previous run,
-  unchanged except that it is no longer first.
-
-If arming the default store *steals* the binding — `global-early=proxied` and
-`second-container=DIRECT` — the rule is proven, because nothing about the second
-scenario's site, container or proxy changed. If both bind, registration order is not
-the rule and the diagnosis above is wrong. A third scenario (`global-override`, last
-in the file) arms the same override late, onto a container store created afterwards,
-to show the same path failing when it is not first.
+  unchanged except that stores are registered ahead of it now. If it goes direct
+  having passed before, registration order is the rule, measured rather than argued.
+* **`global-early`** and **`global-override`** arm `ProxyController.setProxyOverride`
+  on the default store and on a late container store respectively, because the
+  fallback design would route proxied sites through one store and the two need to
+  behave the same way when late.
 **Why:** five runs of eliminating mechanisms by experiment cost five hours and never
 produced a positive account of what *does* happen. The source produces one in an
 afternoon, and it names a rule that can be tested by ordering alone.

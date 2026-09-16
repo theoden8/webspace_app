@@ -224,113 +224,26 @@ void main() {
     return ok;
   }
 
-  testWidgets('a proxy armed before any store exists reaches the default store',
-      (tester) async {
-    // First in the file, and that is the experiment.
-    //
-    // Reading WebKit's own source says the asymmetry is about *registration
-    // order with the network process*, not about the store. A store's proxy
-    // reaches the network process two ways: in the parameters that create
-    // its session, or as an update afterwards. `WebsiteDataStore::
-    // setProxyConfigData` clears the stored data, calls `networkProcess()`
-    // -- which registers the session, taking the parameters right then --
-    // and only then puts the data back, so the assignment that registers a
-    // session can never carry the proxy in its parameters. The one store
-    // that escapes is whichever one is registered *while the network
-    // process is still launching*, because its parameters are read after
-    // the call returns.
-    //
-    // This arms a proxy on `WKWebsiteDataStore.default()` before any
-    // container store exists, and loads a site with no container so the
-    // default store is what serves it. If it works AND the container
-    // scenario below -- which has been the one that binds in every run so
-    // far -- now goes direct, the rule is proven: the first store to
-    // register wins and every later one is unproxied whoever assigns it.
-    //
-    // It is also the design question. Routing proxied sites through one
-    // store armed at startup is the only shape that survives that rule.
-    if (!usable()) return;
-    if (!PlatformInfo.isProxySupported) {
-      markTestSkipped('below the proxyConfigurations floor');
-      return;
-    }
-    await tester.runAsync(() async {
-      await inapp.ProxyController.instance().setProxyOverride(
-        settings: inapp.ProxySettings(
-          proxyRules: [
-            inapp.ProxyRule(url: 'socks5://127.0.0.1:${socks.port}'),
-          ],
-          bypassRules: [],
-        ),
-      );
-    });
-    // No siteId: `siteOwnsContainerProfile` binds nothing, so this webview
-    // gets the default store, which is what the override reaches.
-    await mount(tester, siteId: null, path: '/global-early');
-    final used = await waitReal(tester, () => socks.targets.isNotEmpty,
-        label: 'override armed before any container store');
-    verdict.add('global-early=${used ? "proxied" : "DIRECT"}');
-    // Cleared before anything else runs: an active override is replayed
-    // onto every container store created afterwards, which would confound
-    // every per-site scenario below.
-    await tester.runAsync(
-        () async => inapp.ProxyController.instance().clearProxyOverride());
-    expect(
-      used,
-      isTrue,
-      reason: 'a proxy armed on the default store before any other store '
-          'existed still did not route its load, so there is no store in an '
-          'Apple process that can be proxied reliably and the per-site '
-          'feature cannot be delivered by any assignment',
-    );
-  });
-
-  testWidgets('a container site with its own proxy, no longer registered first',
-      (tester) async {
-    // This is the scenario that has bound its proxy in every run of this
-    // file, back when it was the first store the process registered. It is
-    // second now, behind the default store the test above arms.
-    //
-    // If it goes direct here having passed before, nothing about the site,
-    // the container or the proxy changed -- only that another store got
-    // there first. That is the whole diagnosis, measured rather than
-    // argued.
-    if (!usable()) return;
-    if (!PlatformInfo.isProxySupported) {
-      markTestSkipped('below the proxyConfigurations floor');
-      return;
-    }
-    await mount(
-      tester,
-      siteId: 'proxy-binding-first',
-      path: '/first-in-process',
-      proxySettings: liveProxy(),
-    );
-    final used = await waitReal(tester, () => socks.targets.isNotEmpty,
-        label: 'container proxied load, registered second');
-    verdict.add('second-container=${used ? "proxied" : "DIRECT"}');
-    expect(
-      used,
-      isTrue,
-      reason: 'a container store registered after another store does not get '
-          'its proxy: the binding belongs to whichever store the network '
-          'process saw first, so only one proxied site per app launch works',
-    );
-    if (used) expect(socks.targets.first, '$originHost:$port');
-  });
-
   testWidgets('two proxied sites mounted side by side both use their proxy',
       (tester) async {
-    // Every other scenario replaces the whole tree, so the previous WebView
-    // is being disposed while the next is built -- and "the first WebView in
-    // the process" may really be "the only one never built alongside a dying
-    // one". Four store- and pool-shaped explanations have already failed; the
-    // harness itself has never been a suspect, and it is the one thing every
-    // failing run has in common.
+    // First in the file, and this one is a test of the *fix*, not of the
+    // diagnosis.
     //
-    // Both sites are live here, in one tree, never replaced. If both reach
-    // the fixture proxy, binding works and the defect is in the rebuild
-    // cycle.
+    // If only the store registered while the network process is still
+    // launching gets its proxy through the session's creation parameters,
+    // then arming several stores inside one turn of the run loop -- before
+    // anything else in the process has touched the network -- should put
+    // all of them in that same snapshot. Two container stores built in one
+    // `pumpWidget`, before any other store exists, is that arrangement, and
+    // it is the shape a real fix would take: pre-arm every proxied site's
+    // container at startup rather than when its webview is built.
+    //
+    // 2 of 2 means the fix works and per-site proxies survive with their
+    // containers intact. 1 of 2 means exactly one store per process can be
+    // proxied whatever the ordering, and the design is forced: route
+    // proxied sites through one store and serialise the ones that disagree.
+    // 0 of 2 with `direct=none` means the mount issued no loads and the run
+    // says nothing.
     if (!usable()) return;
     if (!PlatformInfo.isProxySupported) {
       markTestSkipped('below the proxyConfigurations floor');
@@ -399,6 +312,98 @@ void main() {
           'same proxy, and the fixture proxy saw ${socks.targets.length} of '
           'them: binding is not simply a property of being first',
     );
+  });
+
+  testWidgets('a proxy armed before any store exists reaches the default store',
+      (tester) async {
+    // The only scenario in this file that loads on
+    // `WKWebsiteDataStore.default()` rather than a container store, which
+    // is the store the fallback design would route proxied sites through.
+    //
+    // Reading WebKit's own source says the asymmetry is about *registration
+    // order with the network process*, not about the store. A store's proxy
+    // reaches the network process two ways: in the parameters that create
+    // its session, or as an update afterwards. `WebsiteDataStore::
+    // setProxyConfigData` clears the stored data, calls `networkProcess()`
+    // -- which registers the session, taking the parameters right then --
+    // and only then puts the data back, so the assignment that registers a
+    // session can never carry the proxy in its parameters. Only a store
+    // registered while the network process is still coming up escapes,
+    // because that snapshot is read after the call returns.
+    //
+    // The default store is not first here: the two container stores above
+    // are. So under that rule this is DIRECT, and the value of the scenario
+    // is that it says whether the default store behaves any differently
+    // from a container one when it is late. If it does, the fallback design
+    // has to know that.
+    if (!usable()) return;
+    if (!PlatformInfo.isProxySupported) {
+      markTestSkipped('below the proxyConfigurations floor');
+      return;
+    }
+    await tester.runAsync(() async {
+      await inapp.ProxyController.instance().setProxyOverride(
+        settings: inapp.ProxySettings(
+          proxyRules: [
+            inapp.ProxyRule(url: 'socks5://127.0.0.1:${socks.port}'),
+          ],
+          bypassRules: [],
+        ),
+      );
+    });
+    // No siteId: `siteOwnsContainerProfile` binds nothing, so this webview
+    // gets the default store, which is what the override reaches.
+    await mount(tester, siteId: null, path: '/global-early');
+    final used = await waitReal(tester, () => socks.targets.isNotEmpty,
+        label: 'override armed before any container store');
+    verdict.add('global-early=${used ? "proxied" : "DIRECT"}');
+    // Cleared before anything else runs: an active override is replayed
+    // onto every container store created afterwards, which would confound
+    // every per-site scenario below.
+    await tester.runAsync(
+        () async => inapp.ProxyController.instance().clearProxyOverride());
+    expect(
+      used,
+      isTrue,
+      reason: 'a proxy armed on the default store before any other store '
+          'existed still did not route its load, so there is no store in an '
+          'Apple process that can be proxied reliably and the per-site '
+          'feature cannot be delivered by any assignment',
+    );
+  });
+
+  testWidgets('a container site with its own proxy, no longer registered first',
+      (tester) async {
+    // This is the scenario that has bound its proxy in every run of this
+    // file, back when it was the first store the process registered. Three
+    // stores are registered ahead of it now.
+    //
+    // If it goes direct here having passed before, nothing about the site,
+    // the container or the proxy changed -- only that other stores got
+    // there first. That is the whole diagnosis, measured rather than
+    // argued.
+    if (!usable()) return;
+    if (!PlatformInfo.isProxySupported) {
+      markTestSkipped('below the proxyConfigurations floor');
+      return;
+    }
+    await mount(
+      tester,
+      siteId: 'proxy-binding-first',
+      path: '/first-in-process',
+      proxySettings: liveProxy(),
+    );
+    final used = await waitReal(tester, () => socks.targets.isNotEmpty,
+        label: 'container proxied load, registered second');
+    verdict.add('second-container=${used ? "proxied" : "DIRECT"}');
+    expect(
+      used,
+      isTrue,
+      reason: 'a container store registered after another store does not get '
+          'its proxy: the binding belongs to whichever store the network '
+          'process saw first, so only one proxied site per app launch works',
+    );
+    if (used) expect(socks.targets.first, '$originHost:$port');
   });
 
   testWidgets('the harness can see a load reach the origin', (tester) async {
