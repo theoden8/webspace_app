@@ -70,6 +70,7 @@ void main() {
 
   Future<void> mount(
     WidgetTester tester, {
+    required String siteId,
     required String initialUrl,
     UserProxySettings? proxySettings,
   }) async {
@@ -81,7 +82,7 @@ void main() {
             height: 480,
             child: WebViewFactory.createWebView(
               config: WebViewConfig(
-                siteId: 'proxy-binding',
+                siteId: siteId,
                 initialUrl: initialUrl,
                 proxySettings: proxySettings,
                 clearUrlEnabled: false,
@@ -130,7 +131,9 @@ void main() {
       markTestSkipped('per-WebView proxy binding is an Apple path');
       return;
     }
-    await mount(tester, initialUrl: 'http://127.0.0.1:$port/control');
+    await mount(tester,
+        siteId: 'proxy-binding-control',
+        initialUrl: 'http://127.0.0.1:$port/control');
     expect(
       await waitReal(tester, () => requests.contains('/control'),
           label: 'direct load'),
@@ -155,6 +158,10 @@ void main() {
     }
     await mount(
       tester,
+      // Its own site, so the container store this webview gets has never
+      // served a load: binding at construction is what this asserts, and
+      // re-binding a store that is already in use is the scenario below.
+      siteId: 'proxy-binding-fresh',
       initialUrl: 'http://127.0.0.1:$port/proxied',
       proxySettings: UserProxySettings(
         type: ProxyType.SOCKS5,
@@ -172,6 +179,56 @@ void main() {
       reason: 'the request reached the origin directly: the per-site proxy '
           'was not bound to the engine, so every proxied site is loading '
           'over the device IP',
+    );
+  });
+
+  testWidgets('a site that gains a proxy stops reaching the origin',
+      (tester) async {
+    // The reported symptom: "sometimes I have to restart the app for the Tor
+    // proxy to start working". A site's container data store outlives its
+    // webview -- the plugin caches one per container for the process -- so
+    // the proxy for a second webview is assigned to a store that has already
+    // served a load. If that assignment does not take, the only thing that
+    // ever binds a proxy is the first webview a site gets, and restarting
+    // the app is the only way to change it.
+    if (!applies) {
+      markTestSkipped('per-WebView proxy binding is an Apple path');
+      return;
+    }
+    if (!PlatformInfo.isProxySupported) {
+      markTestSkipped('below the proxyConfigurations floor');
+      return;
+    }
+    const siteId = 'proxy-binding-rebind';
+    await mount(tester,
+        siteId: siteId, initialUrl: 'http://127.0.0.1:$port/first');
+    expect(
+      await waitReal(tester, () => requests.contains('/first'),
+          label: 'unproxied first load'),
+      isTrue,
+      reason: 'the site never loaded at all, so the rebind below proves '
+          'nothing',
+    );
+
+    await mount(
+      tester,
+      siteId: siteId,
+      initialUrl: 'http://127.0.0.1:$port/second',
+      proxySettings: UserProxySettings(
+        type: ProxyType.SOCKS5,
+        address: '127.0.0.1:$deadPort',
+      ),
+    );
+    await waitReal(tester, () => requests.contains('/second'),
+        label: 'rebound load (must not arrive)',
+        timeout: const Duration(seconds: 15));
+    expect(
+      requests,
+      isNot(contains('/second')),
+      reason: 'the second load reached the origin directly: a proxy assigned '
+          'to a container store that has already served a load does not take '
+          'effect, so a site keeps whatever proxy its first webview was built '
+          'with until the app restarts',
     );
   });
 }

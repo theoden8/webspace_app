@@ -67,6 +67,30 @@ Dart log said `proxySettings=true` on the very webview that loaded direct.
 `InAppWebViewSettings` still rides the same reflective parser, and the new test
 observes the proxy only — a second setting dropped the same way is still silent.
 
+### Attempt 3 — The gate ran, and the proxied request still went direct
+**Date:** 2026-09-16 · **Files:** `integration_test/proxy_binding_test.dart`,
+`.github/workflows/build-and-test.yml`
+**What it did:** the macOS tier finally ran `proxy_binding_test.dart` end to end and
+it failed on the half that matters — the control load reached the fixture origin, and
+so did the load from a site whose SOCKS5 proxy pointed at a closed port:
+`Expected: not contains '/proxied' / Actual: ['/proxied']`, with
+`proxySupported=true`. So attempt 2's parse fix is not sufficient on its own.
+Reading the test back turned up a flaw that is also a candidate mechanism: both
+scenarios used one `siteId`, so the second webview was handed the **cached container
+data store the first had already used**, and the proxy was assigned to a store that
+was already in service. The scenarios now use separate sites, and a third one
+reproduces the reuse deliberately — an unproxied load, then a proxied one on the same
+site — which is the shape of the user's "sometimes I have to restart the app for the
+Tor proxy to start working".
+**Why:** a proxy assigned to a `WKWebsiteDataStore` that has already served a load may
+not apply to it; the store is cached per container for the life of the process, so if
+that is what happens, the only proxy a site ever gets is the one its first webview was
+built with. Apple's page for `proxyConfigurations` is not in the public documentation
+archive, so this is a hypothesis the next run decides, not a cited fact.
+**Why it was partial:** it splits the two mechanisms so the next run says which one is
+real. It fixes neither.
+
+
 ## Known open gaps
 
 1. **No general guard on the seam.** The plugin's settings parser fails open by
