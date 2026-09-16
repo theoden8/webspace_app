@@ -195,14 +195,40 @@ cannot see, so a webview can report a proxy it never bound (BUG-014). A
 site whose proxy refuses connections SHALL therefore never reach its
 origin.
 
+On iOS and macOS the proxy SHALL be applied where the WebView's
+`WKWebsiteDataStore` is **created**, never to one already in hand.
+`proxyConfigurations` takes effect only on a store that has not yet served
+a network load, and is accepted and ignored on one in service. A
+container's store is cached for the life of the process, so assigning the
+proxy at WebView construction bound only the first WebView in each
+container and left every later one loading over the device IP. Where a
+WebView asks for a proxy other than the one its container's cached store
+was built with, that store SHALL be rebuilt
+(`WKWebsiteDataStore(forIdentifier:)` returns a new wrapper over the same
+on-disk data, so the container keeps its cookies and storage).
+
+The verification SHALL NOT place its origin on loopback, and SHALL assert
+that the proxy was *used* rather than that a load failed to arrive. Apple
+never routes a loopback destination through a proxy, and a negative
+assertion is satisfied by every way a load can break — two mistakes that
+each kept this gate green while no proxy was bound at all.
+
 #### Scenario: A refused proxy does not become a direct load
 
 **Given** site "Acme" has proxy `SOCKS5 127.0.0.1:<closed port>`
 **And** the platform binds the proxy per WebView (iOS 17+ / macOS 14+)
-**When** the site loads a page served from a loopback origin
+**When** the site loads a page served from a routable (non-loopback) origin
 **Then** the origin receives no request for it
 **And** an unproxied control load from the same harness does reach that
 origin, so a page that simply failed to load cannot pass for a bound proxy
+
+#### Scenario: A site that gains a proxy stops going direct
+
+**Given** site "Acme" has loaded once with no proxy, so its container's
+data store is in service
+**When** the user gives it a proxy and the site's webview is rebuilt
+**Then** the load arrives at that proxy
+**And** the user does not have to restart the app for it to take effect
 
 #### Scenario: SOCKS5 favicon fetch tunnels through the SOCKS5 server
 

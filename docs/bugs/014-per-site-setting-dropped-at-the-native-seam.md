@@ -235,8 +235,41 @@ where the store is created, and evict the `sharedStores` entry when the proxy di
 from the one it was created with.
 
 
+### Attempt 8 — Bind the proxy where the store is made
+**Date:** 2026-09-16 · **Files:** fork `theoden8/flutter_inappwebview` @ `eecf62e`
+(`ContainerManager.swift` and `InAppWebView.swift`, both iOS and macOS),
+`pubspec.yaml`, `openspec/specs/ip-leakage/spec.md`
+**What it did:** acted on attempt 7's confirmed mechanism.
+`ContainerManager.getOrCreateDataStore` now takes the `ProxySettings` and applies
+`proxyConfigurations` where it constructs the store, and records which proxy each
+cached store was built with; a request for a different one gets a new store instead of
+the cached one. `preWKWebViewConfiguration` passes the proxy in rather than assigning
+it to whatever store it got back. `WKWebsiteDataStore(forIdentifier:)` returns a new
+wrapper over the same on-disk data, so a rebuilt store keeps the container's cookies
+and storage, and WebViews already running keep the wrapper — and the proxy — they were
+built with.
+**Why:** a store only honours `proxyConfigurations` before it has served a load, and
+the container's store is cached for the life of the process. Assigning at WebView
+construction could therefore only ever bind the first WebView in each container. This
+is the "restart the app" half of the report.
+**Why it was partial:** it fixes the container path, which is every proxied site in the
+app (containers and `proxyConfigurations` share the same iOS 17 / macOS 14 floor).
+A WebView with no container still gets `WKWebsiteDataStore.default()`, a process
+singleton that cannot be rebuilt — there the first load in the process wins and nothing
+can change it afterwards. The app does not take that path for a proxied site, but
+nothing prevents it either. And the fix is unverified until the tier runs it: the
+`verdict:` line added in attempt 7 is what will say whether `rebind` moved from
+`DIRECT` to `proxied`.
+
+
 ## Known open gaps
 
+0. **A store with no container cannot be given a proxy after its first load.**
+   `WKWebsiteDataStore.default()` is a process singleton; attempt 8 rebuilds a
+   container's store to get a clean one, and there is no equivalent for the
+   default store. Every proxied site in the app has a container (the two share
+   an iOS 17 / macOS 14 floor), so the path is unreachable today — but a future
+   caller that skips `siteOwnsContainerProfile` would leak silently.
 1. **No general guard on the seam.** The plugin's settings parser fails open by
    construction: an unrepresentable or misnamed field is a no-op. Nothing
    compares the map Dart sends against the properties the native side actually
