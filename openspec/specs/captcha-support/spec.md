@@ -239,15 +239,26 @@ tests can observe it — the verdict is a server-side judgement over a
 fingerprint. Lineage and open gaps:
 [docs/bugs/013-captcha-verification-stalls.md](../../../docs/bugs/013-captcha-verification-stalls.md).
 
-### Third-party cookies
-
-A challenge is a cross-site document the site embeds and waits on, so a
-third-party-cookie block applies to it. Chromium then refuses `document.cookie`
-in that frame:
+### Reading the console line
 
 ```
 Uncaught SecurityError: Failed to read the 'cookie' property from 'Document': Access is denied for this document.
 ```
+
+This is **not** the cookie policy. Blocking third-party cookies, or all cookies,
+makes `document.cookie` return `""` and throw nothing at all; chromium words the
+sandbox and `data:` cases differently again. The quoted string is the branch for
+a document whose *origin* cannot hold cookies, so it points at how that document
+was created, not at a setting. The five branches are pinned under a real engine
+by `test/browser/document_cookie_denied.test.js`; on Android the app's own way
+into this branch is the `loadDataWithBaseURL` first paint behind
+`usesCachedHtml`.
+
+### Third-party cookies
+
+A challenge is a cross-site document the site embeds and waits on, so a
+third-party-cookie block applies to it: the challenge's own storage is dropped,
+silently, with nothing raised for the site or the app to notice.
 
 `thirdPartyCookiesEnabled` is `false` for a new site, and
 `effectiveThirdPartyCookiesEnabled` forces it `false` while Tracking Protection

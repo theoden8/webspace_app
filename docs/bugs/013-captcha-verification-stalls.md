@@ -30,6 +30,22 @@ repeated, followed by knock-on `TypeError`s from the challenge's own code
 (`Cannot read properties of null (reading 'appendChild')`) as it continues past
 a step that did not complete.
 
+**That line does not mean "cookies are blocked for this site."** Chromium picks
+it in `Document::cookie()` only when the document's *origin* cannot hold cookies
+at all, and it has separate wording for the two cases a reader assumes first.
+Pinned by experiment in `test/browser/document_cookie_denied.test.js`:
+
+| condition | what `document.cookie` does |
+|---|---|
+| third-party cookies blocked, cross-site frame | returns `""`, **never throws** |
+| all cookies blocked | returns `""`, **never throws** |
+| sandboxed, no `allow-same-origin` | throws "…lacks the `allow-same-origin` flag." |
+| `data:` document | throws "Cookies are disabled inside `data:` URLs." |
+| origin that cannot hold cookies | throws **"Access is denied for this document."** |
+
+So the reporter's document had no cookie-capable origin. A cookie *policy*
+cannot produce that string.
+
 ## Root mechanism / invariant
 
 A captcha is a **third-party document the site deliberately embeds and then
@@ -39,10 +55,10 @@ form stays disabled until the widget posts a token back. Three things follow,
 and every fix attempt below has stepped on one of them:
 
 1. **It is cross-site, so every per-site restriction the app applies to
-   "third-party content" applies to it.** Blocking third-party cookies blocks
-   the challenge's own storage — chromium refuses `document.cookie` in that
-   frame with a `SecurityError`, which is the console line above. The frame is
-   not a tracker the user chose to lose; it is the gate they are trying to pass.
+   "third-party content" applies to it.** Blocking third-party cookies drops the
+   challenge's own storage silently, with no exception anywhere for the site or
+   the app to notice. The frame is not a tracker the user chose to lose; it is
+   the gate they are trying to pass.
 2. **It fingerprints the environment on purpose, and compares.** Canvas, WebGL,
    audio, hardware, timing, and the page-versus-worker agreement are all inputs.
    Per-call seeded noise is not a stable-but-wrong fingerprint; it is an
@@ -150,8 +166,35 @@ wrapper, correctly.
 
 ## Known open gaps
 
-1. **Third-party cookies are off by default and unreachable under Tracking
-   Protection.** `WebViewModel.thirdPartyCookiesEnabled` defaults to `false`,
+1. **A document with no cookie-capable origin, which is what the console line
+   reports.** Two app paths can produce one on Android, neither yet confirmed
+   against a device:
+   * **Cached-HTML first paint.** `htmlSourceFor` classifies every
+     non-incognito, non-archive URL site as `HtmlSource.cache`, and when the
+     per-site `htmlCachingEnabled` is on (or `lastKnownOnline` is false at
+     construction) the first paint is
+     `InAppWebViewInitialData(data, baseUrl: initialUrl)`, which on Android is
+     `loadDataWithBaseURL`. Such a document is denied cookie access by
+     WebView regardless of the base URL, which is this exact branch. A one-shot
+     `reload()` swaps to live afterwards, so the window is bounded — but any
+     script in the snapshot that reads a cookie throws inside it, on every load.
+   * **The captcha popup.** `createPopupWebView` builds a *new* native WebView
+     for the `onCreateWindow` id rather than letting the engine hand over an
+     opened window. A stock engine's `window.open('about:blank')` inherits the
+     opener's origin and its cookies (asserted in the browser test), so a popup
+     that cannot reach cookies is not an `about:blank` fact — it is a fact about
+     how the app built that webview. Worth reading `windowId` handover on
+     Android against this.
+
+   Ruling between them needs one datum from the reporter: whether Site
+   behaviour, HTML caching is on for that site, and whether the error appears
+   before the verification popup opens or only after.
+
+2. **Third-party cookies are off by default and unreachable under Tracking
+   Protection.** This is a real divergence from every browser the reporter
+   compared against, and a plausible cause of a stall on its own — it is just
+   not what the console line says.
+   `WebViewModel.thirdPartyCookiesEnabled` defaults to `false`,
    and `effectiveThirdPartyCookiesEnabled` returns `false` unconditionally while
    `trackingProtectionEnabled` is on. So the setting that fixes this is off for
    every new site, and a user who has ETP on cannot turn it on for the one site
@@ -163,7 +206,7 @@ wrapper, correctly.
    them back on for a site that breaks without them" — is only read by someone
    who already suspects cookies.
 
-2. **Tracking Protection is a pincer.** With ETP on, the anti-fingerprinting
+3. **Tracking Protection is a pincer.** With ETP on, the anti-fingerprinting
    shim salts Canvas/WebGL/audio readbacks *per call site*, so two reads of the
    same surface in one page disagree; that inconsistency is a stronger bot
    signal than any single spoofed value, and third-party cookies are forced off
@@ -172,7 +215,7 @@ wrapper, correctly.
    platform default. Neither position is one a captcha vendor expects, which is
    why toggling ETP changes nothing for the user.
 
-3. **A blocked sub-resource resolves as an empty 200, not a network error.**
+4. **A blocked sub-resource resolves as an empty 200, not a network error.**
    `FastSubresourceInterceptor.checkUrl` returns
    `WebResourceResponse("text/plain", "utf-8", <empty>)` for a DNS or ABP block.
    A challenge step that `fetch`es a blocked URL therefore gets a successful
@@ -180,16 +223,20 @@ wrapper, correctly.
    branches on `catch` never runs. Whether any list blocks a challenge host
    today is unverified; the failure *shape* is a silent stall either way.
 
-4. **No HTTPS upgrade.** Unrelated to the challenge itself but reported
+5. **No HTTPS upgrade.** Unrelated to the challenge itself but reported
    alongside it: chromium's HTTPS-Upgrades (Chrome 115+) silently retries a
    plain-http navigation over https and falls back on failure. Android WebView
    does not ship it and the app does not implement it, so an `http://` URL that
    enters the app from any source stays `http://` when the origin serves both
    schemes without a redirect or HSTS. See `tivipanel.net`.
 
-5. **The whole class is untestable from here.** Every tier the repo has — Dart
+6. **The whole class is mostly untestable from here.** Every tier the repo has — Dart
    unit, jsdom, Puppeteer, integration — can assert what the app *injects and
    allows*. None of them can assert what Cloudflare *concludes*, because the
    verdict is a server-side judgement over a fingerprint. A regression in this
    class will always be reported by a user, never by CI, which is the argument
-   for keeping this file rather than trusting the per-fix scenarios.
+   for keeping this file rather than trusting the per-fix scenarios. What the
+   browser tier *can* do is pin what a symptom means, so the next report is read
+   correctly the first time: `test/browser/document_cookie_denied.test.js` is
+   that, written after this file's first draft misread the console line as the
+   third-party-cookie block.
