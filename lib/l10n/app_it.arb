@@ -856,5 +856,5 @@
   "proxyTestAuthRejected": "Il proxy ha rifiutato queste credenziali",
   "proxyTestUnreachable": "Impossibile raggiungere il proxy",
   "torIsolateDestAddrTitle": "Circuito separato per destinazione",
-  "torIsolateDestAddrHint": "Ogni sito ha sempre il proprio circuito Tor. Con questa opzione attiva, un sito ottiene anche un circuito separato per ogni host da cui carica, quindi una singola pagina può raggiungere internet da due o più indirizzi di uscita contemporaneamente: più isolamento, ma un sito che verifica il tuo indirizzo tra i propri host può disconnetterti. Disattivata, il sito usa un solo indirizzo per tutto ciò che carica. Modificarla riavvia Tor."
+  "torIsolateDestAddrHint": "Ogni sito ha sempre il proprio circuito Tor. Con questa opzione attiva, un sito ottiene anche un circuito separato per ogni host da cui carica, quindi una singola pagina può raggiungere internet da due o più indirizzi di uscita contemporaneamente: più isolamento, ma un sito che verifica il tuo indirizzo tra i propri host può disconnetterti. Disattivata, il sito usa un solo indirizzo per tutto ciò che carica. Questa modifica avrà effetto al prossimo avvio dell’app."
 }

@@ -856,5 +856,5 @@
   "proxyTestAuthRejected": "Proxy tyto přihlašovací údaje odmítla",
   "proxyTestUnreachable": "Proxy se nepodařilo kontaktovat",
   "torIsolateDestAddrTitle": "Samostatný okruh pro každý cíl",
-  "torIsolateDestAddrHint": "Každý web má vždy vlastní okruh Tor. Když je tato volba zapnutá, získá web samostatný okruh i pro každého hostitele, ze kterého načítá, takže jedna stránka může vycházet do internetu ze dvou i více výstupních adres najednou — větší izolace, ale web, který ověřuje vaši adresu napříč svými hostiteli, vás může odhlásit. Vypnuto má web jednu adresu pro vše, co načítá. Změna nastavení restartuje Tor."
+  "torIsolateDestAddrHint": "Každý web má vždy vlastní okruh Tor. Když je tato volba zapnutá, získá web samostatný okruh i pro každého hostitele, ze kterého načítá, takže jedna stránka může vycházet do internetu ze dvou i více výstupních adres najednou — větší izolace, ale web, který ověřuje vaši adresu napříč svými hostiteli, vás může odhlásit. Vypnuto má web jednu adresu pro vše, co načítá. Tato změna se projeví při příštím spuštění aplikace."
 }

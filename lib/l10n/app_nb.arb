@@ -856,5 +856,5 @@
   "proxyTestAuthRejected": "Proxyen avviste denne påloggingen",
   "proxyTestUnreachable": "Kunne ikke nå proxyen",
   "torIsolateDestAddrTitle": "Egen krets per destinasjon",
-  "torIsolateDestAddrHint": "Hvert nettsted får alltid sin egen Tor-krets. Når dette er på, får nettstedet også en egen krets for hver vert det laster fra, slik at én side kan nå internett fra to eller flere utgangsadresser samtidig — mer isolasjon, men et nettsted som sjekker adressen din på tvers av sine egne verter, kan logge deg ut. Slått av får nettstedet én adresse for alt det laster. Endringen starter Tor på nytt."
+  "torIsolateDestAddrHint": "Hvert nettsted får alltid sin egen Tor-krets. Når dette er på, får nettstedet også en egen krets for hver vert det laster fra, slik at én side kan nå internett fra to eller flere utgangsadresser samtidig — mer isolasjon, men et nettsted som sjekker adressen din på tvers av sine egne verter, kan logge deg ut. Slått av får nettstedet én adresse for alt det laster. Endringen trer i kraft neste gang du åpner appen."
 }
