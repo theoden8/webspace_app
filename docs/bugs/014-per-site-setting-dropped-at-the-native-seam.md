@@ -198,6 +198,43 @@ fork-side and awkward: the proxy has to be bound when the container's
 container id.
 
 
+### Attempt 7 — Confirmed: the store has to be untouched
+**Date:** 2026-09-16 · **Files:** `integration_test/proxy_binding_test.dart`
+**What it did:** the ordered experiment from attempt 6 answered it. Six tests, **three
+passed**, and only one assignment of passes is consistent with that count: the
+first-in-process scenario passed, the control passed, the seam check passed, and the
+three later proxied scenarios failed. (The alternative — the proxy sticking to the
+default store and poisoning the control — works out to four passes and two failures,
+not three and three.)
+
+So `WKWebsiteDataStore.proxyConfigurations` **is** honoured, on a store that has not
+yet served a network load, and is silently ignored on one that has. The first WebView
+in the process went through the fixture SOCKS5 server; an identical WebView later in
+the same process, with the same proxy on a fresh `siteId`, went direct. Nothing about
+the site or the proxy differs between them. Only the store's history does.
+
+That also explains the report this file exists for. A site that loads once without a
+proxy keeps loading without one, because the proxy is assigned to a data store that
+is already in service, and only relaunching the app gives it a clean one.
+
+Two changes follow. The fixture now resolves `ContainerNative.isSupported()` in
+`setUpAll`, as the app does at startup: without it every WebView here shared
+`WKWebsiteDataStore.default()`, a process singleton, so the file was measuring a store
+shape the app never uses — in the app each site has a container store of its own. And
+each scenario records whether it saw the proxy, printed as one `verdict:` line from
+`tearDownAll`, because the tier re-prints only a failing file's last 60 lines and
+twice now the deciding scenario was further back than that.
+**Why:** three hypotheses were argued and wrong. This one was decided by ordering, and
+the count admits one reading.
+**Why it was partial:** it identifies the mechanism and fixes the instrument, not the
+product. With containers resolved, a fresh site should get a clean store and bind
+correctly; a site whose WebView is rebuilt with a different proxy still meets a cached
+store that is already in service. That case is the user's "restart the app" symptom
+and its fix is fork-side, in `ContainerManager.getOrCreateDataStore` — bind the proxy
+where the store is created, and evict the `sharedStores` entry when the proxy differs
+from the one it was created with.
+
+
 ## Known open gaps
 
 1. **No general guard on the seam.** The plugin's settings parser fails open by

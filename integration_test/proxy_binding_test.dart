@@ -36,6 +36,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'fixture_server.dart';
@@ -59,8 +60,16 @@ void main() {
     print('[proxy-binding] $m');
   }
 
+  var containers = false;
+
   setUpAll(() async {
     await PlatformInfo.initialize();
+    // The app resolves this at startup and every proxied site it builds has
+    // a container of its own as a result. Without it here each WebView got
+    // `WKWebsiteDataStore.default()` instead -- a process singleton that the
+    // first load puts into service -- so this file was measuring a store
+    // shape the app never uses.
+    containers = await ContainerNative.instance.isSupported();
     routable = await nonLoopbackIPv4();
     server = await HttpServer.bind(InternetAddress.anyIPv4, 0);
     port = server.port;
@@ -79,10 +88,18 @@ void main() {
     await probe.close();
     log('origin on $originHost:$port, socks on ${socks.port}, '
         'dead proxy on $deadPort, '
-        'proxySupported=${PlatformInfo.isProxySupported}');
+        'proxySupported=${PlatformInfo.isProxySupported} '
+        'containers=$containers');
   });
 
+  /// Which scenarios saw the proxy, in one line at the end of the file's
+  /// output. The tier re-prints only the last 60 lines of a failing file, and
+  /// twice now the scenario that decided the diagnosis was further back than
+  /// that -- leaving the verdict to be inferred from a pass/fail count.
+  final verdict = <String>[];
+
   tearDownAll(() async {
+    log('verdict: ${verdict.join(", ")}');
     await socks.close();
     await server.close(force: true);
   });
@@ -213,6 +230,7 @@ void main() {
     );
     final used = await waitReal(tester, () => socks.targets.isNotEmpty,
         label: 'first-in-process proxied load');
+    verdict.add('first-in-process=${used ? "proxied" : "DIRECT"}');
     expect(
       used,
       isTrue,
@@ -258,9 +276,11 @@ void main() {
       path: '/proxied',
       proxySettings: liveProxy(),
     );
+    final freshUsed = await waitReal(tester, () => socks.targets.isNotEmpty,
+        label: 'proxied load (must arrive at the proxy)');
+    verdict.add('fresh-site=${freshUsed ? "proxied" : "DIRECT"}');
     expect(
-      await waitReal(tester, () => socks.targets.isNotEmpty,
-          label: 'proxied load (must arrive at the proxy)'),
+      freshUsed,
       isTrue,
       reason: 'the fixture proxy was never asked for anything: the per-site '
           'proxy was not bound to the engine, so every proxied site is '
@@ -327,6 +347,8 @@ void main() {
     await waitReal(tester, () => requests.contains('/refused'),
         label: 'refused load (must not arrive)',
         timeout: const Duration(seconds: 15));
+    verdict.add(
+        'refused=${requests.contains('/refused') ? "DIRECT" : "failed closed"}');
     expect(
       requests,
       isNot(contains('/refused')),
@@ -365,9 +387,12 @@ void main() {
       path: '/second',
       proxySettings: liveProxy(),
     );
+    final reboundUsed = await waitReal(
+        tester, () => socks.targets.isNotEmpty,
+        label: 'rebound load (must arrive at the proxy)');
+    verdict.add('rebind=${reboundUsed ? "proxied" : "DIRECT"}');
     expect(
-      await waitReal(tester, () => socks.targets.isNotEmpty,
-          label: 'rebound load (must arrive at the proxy)'),
+      reboundUsed,
       isTrue,
       reason: 'a proxy assigned to a container store that has already served '
           'a load does not take effect, so a site keeps whatever proxy its '
