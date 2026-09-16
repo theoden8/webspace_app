@@ -294,6 +294,29 @@ void main() {
       });
     });
 
+    test('a Retry on a live runtime does not strand it in starting', () {
+      // The runtime's start() is a no-op while tor is alive, so a Retry that
+      // published `starting` and armed the deadline would sit there until it
+      // reported a bootstrap failure against a tor that was working.
+      fakeAsync((async) {
+        final e = build(timeout: const Duration(seconds: 90));
+        e.acquire('site-a');
+        async.flushMicrotasks();
+        runtime.bootstrapTo(9999);
+        async.flushMicrotasks();
+        expect(e.status, isA<TorUp>());
+
+        e.restart();
+        async.flushMicrotasks();
+        expect(e.status, isA<TorUp>(), reason: 'a Retry must not blank it');
+
+        async.elapse(const Duration(minutes: 5));
+        expect(e.status, isA<TorUp>(),
+            reason: 'and must not arm a deadline that then fails it');
+        expect(runtime.stopCalls, 0);
+      });
+    });
+
     test('reaching up cancels the timeout', () {
       fakeAsync((async) {
         final e = build(timeout: const Duration(seconds: 90));
@@ -518,6 +541,12 @@ void main() {
         e.setExitCountry('{de}');
         async.flushMicrotasks();
         expect(runtime.appliedExitNodes, ['{de}']);
+
+        // A Retry is a no-op on a live runtime, so drive the case it is
+        // actually for: tor reported a failure, and whatever comes back is a
+        // runtime whose ExitNodes nobody has set.
+        runtime.push(TorErrored('control port died'));
+        async.flushMicrotasks();
 
         e.restart();
         async.flushMicrotasks();

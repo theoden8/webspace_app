@@ -409,6 +409,12 @@ class TorEngine {
   Future<void> restart() async {
     if (!_runtime.isAvailable) return;
     if (_holders.isEmpty) return;
+    // Already connected: nothing to retry. And blanking the status to
+    // `starting` would strand it there — the runtime's `start()` is a no-op
+    // while tor is alive, so no event would ever move it back, and the
+    // bootstrap deadline would report a failure against a tor that is
+    // working. A Retry must never be able to break a running runtime.
+    if (_status is TorUp) return;
     _cancelBootstrapTimeout();
     _lastBootstrapPercent = null;
     _lastBootstrapTag = null;

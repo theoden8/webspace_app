@@ -265,6 +265,11 @@ running"), and the isolation flags live on the listener's `entry_cfg`, copied on
 looks applied is worse than one that is refused.
 **Why:** a failure the user can act on beats a three-minute wait that names the wrong
 cause. And a stop is only worth making when there is something to start afterwards.
+A first cut of this shipped a Retry that broke a working runtime: it published
+`starting` and armed the deadline before calling start, and start is a no-op
+while tor is alive, so nothing moved the status back and 90 seconds later the
+engine reported a bootstrap failure against a tor that was connected. The tier
+caught it in 149 seconds. Retry on an `up` runtime now does nothing at all.
 **Why it was partial:** the ceiling is upstream and stays. Tor is now unavailable for
 the rest of the session after any genuine teardown — a bootstrap that really cannot
 finish still leaves a tor running and retrying, and a bridge configuration edited
