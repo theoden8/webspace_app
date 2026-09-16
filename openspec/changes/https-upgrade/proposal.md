@@ -21,6 +21,31 @@ Android WebView does not carry that behaviour, so every WebView-based app has to
 implement it or go without. That is the whole difference the reporter observed
 between Chrome, Brave, Hermit and this app.
 
+### What the plugin already does, and where it stops
+
+`InAppWebViewSettings.upgradeKnownHostsToHTTPS` exists and defaults to `true`,
+and the app never sets it, so it has been on this whole time. It is not a
+substitute for this change, for two reasons that the pinned fork states
+outright:
+
+- **It is iOS 15.0+ and macOS 11.3+ only.** It maps to
+  `WKWebViewConfiguration.upgradeKnownHostsToHTTPS`, applied in the ios and
+  macos `InAppWebView.swift`. The android plugin does not mention the name
+  once. The report came from Android, where it is not merely off, it does not
+  exist.
+- **"Known hosts" means hosts already known to support https**, which is
+  WebKit's HSTS knowledge: the preload list, plus origins that have sent the
+  header before. `tivipanel.net` sends no `Strict-Transport-Security` on
+  either scheme, which is also a precondition for being preloaded, so it is
+  exactly the shape the flag cannot help. A host that has taught the engine it
+  is https-only did not need us anyway.
+
+So the flag covers the easy half on two of four platforms, and the case that
+produced the report is outside it on both counts. The engine is what covers a
+host nothing has vouched for yet, which is every host on Android and Linux and
+the unknown ones on Apple. HTTPS-006 keeps the flag on rather than
+re-implementing what it already does earlier and better.
+
 This is also the one item in [BUG-013](../../../docs/bugs/013-captcha-verification-stalls.md)
 that is not about captchas: gap 5, recorded there because it arrived with the
 same report.

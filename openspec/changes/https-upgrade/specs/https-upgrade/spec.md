@@ -10,7 +10,9 @@ host, port, path, query and fragment unchanged. The decision SHALL be made by
 `HttpsUpgradeEngine`, which is pure: no Flutter, no platform channel, no
 network.
 
-Sub-frames and sub-resources SHALL NOT be upgraded (see HTTPS-004).
+Sub-frames and sub-resources SHALL NOT be upgraded (see HTTPS-004). The engine
+is what covers a host nothing has vouched for: every host on Android and Linux,
+and the ones WebKit does not already know on iOS and macOS (see HTTPS-006).
 
 #### Scenario: A plain-http site loads over https
 
@@ -170,3 +172,37 @@ upgrades is the same silent bypass that checklist exists to prevent.
 **Given** `httpsUpgradeEnabled` is false app-wide
 **When** settings are exported and re-imported
 **Then** it is false after the import
+
+---
+
+### Requirement: HTTPS-006 - The platform's own known-host upgrade stays on
+
+`InAppWebViewSettings.upgradeKnownHostsToHTTPS` SHALL be left at its default
+`true`. The app SHALL NOT set it to false, and SHALL NOT reimplement what it
+does.
+
+It maps to `WKWebViewConfiguration.upgradeKnownHostsToHTTPS` (iOS 15.0+, macOS
+11.3+) and upgrades http requests to servers *already known to support https*,
+which is WebKit's HSTS knowledge: the preload list plus origins that have sent
+the header before. It acts inside the network layer, before any navigation
+callback, so an upgrade it performs never reaches `shouldOverrideUrlLoading` as
+http and the engine simply sees an https URL and returns null. The two do not
+race and do not double-upgrade.
+
+It is not a substitute for HTTPS-001 on either count: the android plugin has no
+implementation of it at all, and "known" excludes exactly the origin that
+prompted this change, which serves both schemes and sends no
+`Strict-Transport-Security`.
+
+#### Scenario: A known host is upgraded before the engine sees it
+
+**Given** an iOS or macOS site navigating to `http://known-hsts.example/`
+**When** WebKit upgrades it
+**Then** the navigation callback receives an https URL
+**And** the engine returns null for it, having nothing to do
+
+#### Scenario: Android has no such flag
+
+**Given** the same navigation on Android
+**Then** nothing upgrades it before the engine
+**And** HTTPS-001 is the only thing that will

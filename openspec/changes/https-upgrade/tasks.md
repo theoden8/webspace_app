@@ -5,7 +5,10 @@
   never persisted), HTTPS-003 (hosts that cannot serve TLS), HTTPS-004 (the
   upgrade follows the navigation verdict) and HTTPS-005 (the global default-on
   knob plus the per-site override).
-- [x] 1.2 Write the tracking-protection delta: ETP-028 forces the upgrade on
+- [x] 1.2 HTTPS-006: leave `upgradeKnownHostsToHTTPS` at its default. It is
+  iOS/macOS only and covers only hosts WebKit already knows are https, so it is
+  narrower than HTTPS-001 on both axes and cannot serve the reported case.
+- [x] 1.2b Write the tracking-protection delta: ETP-028 forces the upgrade on
   under the umbrella without making it a subordinate that only lives there.
 - [x] 1.3 Add the `https-upgrade` row to the OpenSpec table in `CLAUDE.md`,
   marked *(change)* until archived.
