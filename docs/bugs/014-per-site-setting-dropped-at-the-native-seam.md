@@ -1411,6 +1411,65 @@ fits all thirteen data points and is still untested; the leak is unchanged and
 the app still does not fail closed.
 
 
+### Attempt 33 — Read the whole proxy path in WebKit; the mechanism is not there
+
+**Date:** 2026-09-17
+**Commit:** (this one) — fork `2615203a6b9bfe9032f2f1982d8f4483bc637f4d`
+
+Attempt 32 proposed a mechanism and shipped an experiment for it. The
+mechanism is refuted by the source it was read from, and so is the repair it
+implied.
+
+`WebsiteDataStore::setProxyConfigData` does clear `m_proxyConfigData`, call
+`networkProcess()`, and restore it after. But `store.parameters()` is evaluated
+synchronously at the `send()` call site inside `NetworkProcessProxy::addSession`,
+which sits inside that window whether the network process is launching or
+already up: `AuxiliaryProcessProxy::canSendMessage()` is `state() != Terminated`,
+true during launch, and `sendMessage` queues into `m_pendingMessages` and
+flushes them in order. So `AddWebsiteDataStore` always carries
+`proxyConfigData == nullopt` and `SetProxyConfigData` always follows it on the
+same ordered connection, onto a session `NetworkProcess::addWebsiteDataStore`
+created eagerly. The `nullopt` is there to stop the proxy being applied twice,
+not to race anything. There is no launching-vs-running asymmetry, so arming
+every store before the network process comes up repairs nothing.
+
+What the rest of the path says, read end to end:
+
+* `NetworkSessionCocoa::setProxyConfigData` keeps the configs in
+  `m_nwProxyConfigs` and patches every live wrapper's `nw_context`.
+* `SessionWrapper::initialize` calls
+  `applyProxyConfigurationToSessionConfiguration`, replaying
+  `m_nwProxyConfigs` onto every `NSURLSession` made afterwards.
+* `forEachSessionWrapper` covers the default set, the per-page sets and the
+  per-parameters sets, including isolated sessions.
+* `WebsiteDataStore::dataStoreForIdentifier` returns the *same* store for a
+  UUID, so a container has one session and one stored proxy.
+* `m_networkSessions.ensure` never replaces a session that exists.
+
+So a store keeps its proxy for the life of its session, for every load, and
+exactly one call removes it: assigning an empty `proxyConfigurations`, which
+reaches `clearProxyConfigData`.
+
+The fork had that call. `ProxyManager.setProxyOverride` wrote the process-wide
+rule over every store in `ContainerManager.allCachedDataStores()` and
+`clearProxyOverride` wrote `[]` over them — a global override replacing a
+site's own proxy, and clearing the override dropping that site to the device
+IP. Fixed: a store a webview binds with its own `proxySettings` is pinned
+(weakly — a non-persistent store is transient) and skipped by the fan-out;
+`releasePerSiteProxy` hands it back when a webview binds it naming no proxy,
+so a site whose proxy was removed stops using the old one. Guarded by three
+tests in each platform's `RunnerTests`.
+
+**Why:** the finding had been challenged on the grounds that code and
+documentation should support it, and they do not. Reading the path to the end
+was the only way to find out which half was wrong.
+**Why it was partial:** it does not explain the measurement. The scenarios in
+`proxy_binding_test.dart` build webviews that never reach `ProxyManager`, so
+the clobber cannot be what they saw — it is a second defect on the same seam,
+found by the audit rather than by the test. The contradiction between the
+source and thirteen data points is still open, the leak is unchanged, and the
+app still does not fail closed.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
@@ -1437,9 +1496,14 @@ the app still does not fail closed.
    consecutive navigations, all direct, the first at 0 ms), not the load
    mechanism, and not a process-wide proxy the newest store overwrites.
    Superseded: attempt 29's "only the first load a webview issues" and attempt
-   31's "only a load in the first frame". The open question is whether the
-   frame matters at all or the window is closed by WebKit's network process
-   coming up — `proxy_window_test.dart` asks it. The app still presents the feature as working. Until it
+   31's "only a load in the first frame". The open question is what closes the
+   window, and attempt 33 narrowed it by elimination rather than by adding a
+   candidate: WebKit's proxy path, read end to end, has no such window in it —
+   a store keeps its proxy for every load on its session, and the one call that
+   takes a proxy off a live store (an empty `proxyConfigurations`) is on none
+   of these paths. `proxy_window_test.dart` still separates the widget frame
+   from the first network activity, but the network-process mechanism attempt
+   32 proposed for it is refuted, so neither branch has one behind it now. The app still presents the feature as working. Until it
    fails closed, a user who pins a site to Tor or to a proxy gets one proxied
    page and the device IP thereafter. Superseded detail, kept for lineage:
    the earlier reading was that a WebView built after the first frame cannot be

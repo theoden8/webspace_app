@@ -224,12 +224,29 @@ fixture proxy's own CONNECT log rather than from the origin's request log: the
 fixture relays a proxied load to the origin too, so a path arriving there says
 nothing about whether it was proxied.
 
-This contradicts WebKit's source, which applies `proxyConfigurations` to the
-`NSURLSessionConfiguration` as each session wrapper is created
-(`NetworkSessionCocoa::applyProxyConfigurationToSessionConfiguration`) and so
-should cover every load on that session. The shipping behaviour differs from
-trunk somewhere not visible from the source, and the observation is what
-governs.
+A full read of WebKit's proxy path says the opposite, in more than one place.
+`WKWebsiteDataStore.setProxyConfigurations:` hands the agent data to
+`WebsiteDataStore::setProxyConfigData`, which keeps it in `m_proxyConfigData`
+for the life of the store; `WebsiteDataStore::parameters()` carries it into the
+session's creation parameters; `NetworkSessionCocoa::setProxyConfigData` keeps
+it in `m_nwProxyConfigs` and patches every live session wrapper's `nw_context`;
+and `SessionWrapper::initialize` replays `m_nwProxyConfigs` onto the
+`NSURLSessionConfiguration` of every wrapper created afterwards.
+`WebsiteDataStore::dataStoreForIdentifier` returns the *same* store for a given
+UUID, so a container has one session and one stored proxy, and
+`NetworkProcess::addWebsiteDataStore` never replaces a session that exists.
+Exactly one path takes a proxy off a live store: assigning an empty
+`proxyConfigurations`, which reaches `clearProxyConfigData` and empties
+`m_nwProxyConfigs`.
+
+The fork had such a path. `ProxyManager.setProxyOverride` wrote the
+process-wide rule over every cached container store and `clearProxyOverride`
+wrote `[]` over them, so setting a global override swapped a site's own proxy
+for the global one and clearing it dropped that site to the device IP. A store
+a webview binds with its own `proxySettings` is now pinned and skipped by that
+fan-out. It does not account for the measurement above, which is taken with
+webviews that never reach `ProxyManager`, so the contradiction stands and the
+observation governs.
 
 The consequence is that `WKWebsiteDataStore.proxyConfigurations` cannot carry
 this feature. Proxying a site's landing page and leaking every link its user
