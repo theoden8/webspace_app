@@ -272,10 +272,20 @@ implementation of it at all, and "known" excludes exactly the origin that
 prompted this change, which serves both schemes and sends no
 `Strict-Transport-Security`.
 
-The app SHALL NOT keep an HSTS store of its own. Every engine it ships on
-already implements HSTS with the preload list, and a store here would be
-per-host state on disk, which HTTPS-002 refuses for the negative cache for the
-same reasons.
+The app SHALL NOT keep an HSTS store of its own. HSTS belongs to the network
+stack, and a store here would be per-host state on disk, which HTTPS-002
+refuses for the negative cache for the same reasons.
+
+How much HSTS each engine actually applies is NOT established. WKWebView's is
+reachable through the flag above. Android WebView is Chromium-based, so
+`TransportSecurityState` is presumably in the stack it uses, but that is an
+inference: the only account found is a secondary source describing the preload
+list being applied to *scheme-less* input, which is a different case from a
+navigation explicitly to `http://`, and it says nothing about dynamically set
+headers. Nobody has run it. Treat the Android answer as unknown until someone
+measures it on a device, and note that a weaker answer there argues for this
+capability rather than against it: it would mean the upgrade is the only thing
+moving those navigations to https.
 
 The engine's http-only record therefore SHALL be understood as declining to
 upgrade, never as forcing plaintext. It suppresses only the app's own
@@ -286,7 +296,8 @@ downgrade an https URL, because it only ever reverses an upgrade it made
 itself (HTTPS-002).
 
 Whether a given engine re-upgrades such a host is that engine's behaviour and
-is NOT measured here; nothing in this capability depends on it.
+is NOT measured here. Nothing in this capability depends on it, which is what
+makes the unknown above tolerable rather than blocking.
 
 #### Scenario: The negative cache cannot force plaintext
 
