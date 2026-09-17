@@ -1855,6 +1855,33 @@ is the fourth instrument in this file to report nothing and look like it
 reported something, and the first to do it to the arm written to settle the
 question.
 
+**Simultaneity is not the defect, and this run settles it.** Extracted from
+the same log after the fact, because the first pass read only the two arms
+that had been rewritten:
+
+```
+[proxy-simultaneous] verdict: containers=true,
+    first-frame=[p0->own(socks0) p1->own(socks0) p2->own(socks1) p3->own(socks2)],
+    later-frame=[l0->DIRECT l1->DIRECT]
+```
+
+Four data stores, three distinct SOCKS5 upstreams, all built in the process's
+first frame: every pane reached its own. Two stores sharing one proxy (p0, p1)
+and two stores holding different ones (p2, p3) work at the same time, and
+nothing crossed. This is the first reading of that file -- it was one of the
+two that skipped for the uninitialized `PlatformInfo` -- and it answers the
+question the whole line of work was pointed at: **per-data-store proxies do
+work simultaneously on macOS.** What fails is the frame, not the count. Every
+later-frame reading in the same run is DIRECT: `later-frame=[l0 l1]`,
+`later-pair=0 of 2`, `after-warmup=0 of 2`, and `proxied=0 of 8`.
+
+The one contrast left unexplained is that `[proxy-http-connect]` went DIRECT
+on all three panes **in the first frame**, with all three proxy fixtures
+empty, under the same containers and the same frame that SOCKS binds four of
+four in. Same arrangement, different proxy type, opposite result. That is
+attempt 37's prediction -- a CONNECT proxy declining a plaintext http
+destination -- and the https arm below is what tests it.
+
 **What this attempt did:** `integration_test/self_signed_cert.dart` mints an
 RSA-2048 / SHA-256 self-signed certificate in Dart -- pointycastle for the
 key, asn1lib for the DER -- carrying the routable address and `127.0.0.1` in
@@ -1903,7 +1930,9 @@ proxy late.
 4. **On Apple, a load is proxied only if the webview issues it as it is
    constructed and that webview is constructed in the process's first frame
    (BUG-014 attempt 32, measured with no app code on the webview), so the
-   per-site proxy leaks on everything a user does after a site's landing page.**
+   per-site proxy leaks on everything a user does after a site's landing page.** Narrowed in attempt 38: **simultaneity is not part of this.** Four stores
+   on three distinct SOCKS5 upstreams, all built in the first frame, each
+   reached its own and none crossed. The constraint is the frame alone.
    Settled along the way: it is not a race and not elapsed time (five
    consecutive navigations, all direct, the first at 0 ms), not the load
    mechanism, and not a process-wide proxy the newest store overwrites.
