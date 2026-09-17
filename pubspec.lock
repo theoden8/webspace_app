@@ -327,8 +327,8 @@ packages:
     dependency: "direct main"
     description:
       path: flutter_inappwebview
-      ref: "2615203a6b9bfe9032f2f1982d8f4483bc637f4d"
-      resolved-ref: "2615203a6b9bfe9032f2f1982d8f4483bc637f4d"
+      ref: d5298f4b6d2569592ebc0c2204bce570a2736ca9
+      resolved-ref: d5298f4b6d2569592ebc0c2204bce570a2736ca9
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "6.2.0-beta.3"
@@ -336,8 +336,8 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_android
-      ref: "2615203a6b9bfe9032f2f1982d8f4483bc637f4d"
-      resolved-ref: "2615203a6b9bfe9032f2f1982d8f4483bc637f4d"
+      ref: d5298f4b6d2569592ebc0c2204bce570a2736ca9
+      resolved-ref: d5298f4b6d2569592ebc0c2204bce570a2736ca9
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.2.0-beta.3"
@@ -353,8 +353,8 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_ios
-      ref: "2615203a6b9bfe9032f2f1982d8f4483bc637f4d"
-      resolved-ref: "2615203a6b9bfe9032f2f1982d8f4483bc637f4d"
+      ref: d5298f4b6d2569592ebc0c2204bce570a2736ca9
+      resolved-ref: d5298f4b6d2569592ebc0c2204bce570a2736ca9
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.2.0-beta.3"
@@ -362,8 +362,8 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_linux
-      ref: "2615203a6b9bfe9032f2f1982d8f4483bc637f4d"
-      resolved-ref: "2615203a6b9bfe9032f2f1982d8f4483bc637f4d"
+      ref: d5298f4b6d2569592ebc0c2204bce570a2736ca9
+      resolved-ref: d5298f4b6d2569592ebc0c2204bce570a2736ca9
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "0.1.0-beta.2"
@@ -371,8 +371,8 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_macos
-      ref: "2615203a6b9bfe9032f2f1982d8f4483bc637f4d"
-      resolved-ref: "2615203a6b9bfe9032f2f1982d8f4483bc637f4d"
+      ref: d5298f4b6d2569592ebc0c2204bce570a2736ca9
+      resolved-ref: d5298f4b6d2569592ebc0c2204bce570a2736ca9
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.2.0-beta.3"
@@ -380,8 +380,8 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_platform_interface
-      ref: "2615203a6b9bfe9032f2f1982d8f4483bc637f4d"
-      resolved-ref: "2615203a6b9bfe9032f2f1982d8f4483bc637f4d"
+      ref: d5298f4b6d2569592ebc0c2204bce570a2736ca9
+      resolved-ref: d5298f4b6d2569592ebc0c2204bce570a2736ca9
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.4.0-beta.3"
