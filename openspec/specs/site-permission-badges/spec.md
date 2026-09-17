@@ -48,6 +48,7 @@ order location, camera, microphone, screen sharing, background audio:
 | `spoofLocation` | `locationMode == LocationMode.spoof` |
 | `realCamera` | `effectiveCameraMode == CameraAccessMode.real` |
 | `virtualCamera` | `effectiveCameraMode == CameraAccessMode.virtual` |
+| `realMicrophone` | `effectiveMicrophoneMode == MicrophoneAccessMode.real` |
 | `virtualMicrophone` | `effectiveMicrophoneMode == MicrophoneAccessMode.virtual` |
 | `virtualScreenShare` | `effectiveScreenShareMode == ScreenShareMode.virtual` |
 | `backgroundAudio` | `effectiveBackgroundAudioEnabled` |
@@ -57,6 +58,13 @@ no badge: a badge means "this site has been granted something", never
 "this site once asked". The `effective*` getters are read, never the raw
 fields, so an archive-tier site (ARCH-006) shows no badge for a grant the
 archive fold disables while the stored intent survives underneath.
+
+`realMicrophone` SHALL be treated as real device access by
+`opensRealDevice`, so it renders in the theme's error colour alongside
+`realLocation` and `realCamera`. This badge is not decoration: MIC-014 lists
+visibility as one of the clauses that make holding the recording capability
+defensible, and the drawer is the only surface that shows a grant the user
+settled months ago without their opening the site's settings.
 
 There is no `realScreenShare` badge because there is no mode that produces
 one (SHARE-001): a display capture is whole-surface, so granting one would
@@ -77,13 +85,20 @@ grant on any platform.
 
 #### Scenario: Every grant is surfaced in a stable order
 
-**Given** a site with `locationMode == live`, `cameraMode == real`, `microphoneMode == virtual`, `screenShareMode == virtual` and background audio on
+**Given** a site with `locationMode == live`, `cameraMode == real`, `microphoneMode == real`, `screenShareMode == virtual` and background audio on
 **When** its drawer tile renders
 **Then** the badges read location, camera, microphone, screen sharing, background audio in that order
 
+#### Scenario: A real microphone reads as a device grant
+
+**Given** a site with `microphoneMode == real`
+**When** its drawer tile renders
+**Then** the microphone badge is drawn in the error colour
+**And** a site with `microphoneMode == virtual` draws its microphone badge muted
+
 #### Scenario: Archive-tier sites show no capture badge
 
-**Given** an archive-tier site whose stored `cameraMode == real`, `microphoneMode == virtual`, `screenShareMode == virtual` and background audio on
+**Given** an archive-tier site whose stored `cameraMode == real`, `microphoneMode == real`, `screenShareMode == virtual` and background audio on
 **When** its drawer tile renders
 **Then** no badge is drawn, because the effective modes are `block` / `block` / `block` / off
 **And** the stored modes are unchanged for when the site leaves the archive

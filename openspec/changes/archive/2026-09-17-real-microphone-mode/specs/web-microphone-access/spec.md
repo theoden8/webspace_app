@@ -2,48 +2,6 @@
 
 ## MODIFIED Requirements
 
-### Requirement: MIC-001 — Per-site decision, including a real-microphone mode
-
-`MicrophoneAccessMode` SHALL have exactly four values: `ask`, `real`,
-`virtual`, `block`. A `getUserMedia` that asks for audio SHALL resolve from
-the site's mode: `real` hands over the device microphone (MIC-014), `virtual`
-serves the picked clip (MIC-008), `block` denies, and `ask` shows a Block /
-Use-audio-file / Allow popup naming the requesting origin and records the
-answer.
-
-The feature no longer claims that no site is ever handed a microphone. It
-claims something narrower and enforceable: no site is handed one without the
-user saying so for that site, and no site holds one while it is off screen.
-The OS decides whether the app may record at all, which is the decision the
-app was previously making on the user's behalf by not declaring the
-capability.
-
-`microphoneAccessModeFromJson` SHALL parse `real` as `MicrophoneAccessMode.real`.
-An older build reading that JSON degrades it to `ask` (its parser has no such
-value and falls back), which is the correct direction for a downgrade: a grant
-becomes a prompt, never the reverse.
-
-#### Scenario: First request prompts and remembers
-
-**Given** a site with `microphoneMode == ask`
-**When** the page calls `getUserMedia({audio: true})`
-**Then** a Block / Use-audio-file / Allow popup names the requesting origin
-**And** the chosen mode is stored on the model and persisted via the host's save function
-**And** subsequent requests resolve silently from the stored mode
-
-#### Scenario: Burst requests share one popup
-
-**Given** a site with `microphoneMode == ask`
-**When** the page issues several audio requests before the user answers
-**Then** exactly one popup / file-pick is shown
-**And** every in-flight request resolves with the same answer
-
-#### Scenario: A stored grant survives a round trip
-
-**Given** persisted JSON whose `microphoneMode` reads `real`
-**When** the model is loaded
-**Then** the mode is `real` and the next request resolves without a popup
-
 ### Requirement: MIC-002 — Settings control
 
 Per-site settings SHALL expose the decision as a four-way control (Ask /
@@ -77,46 +35,6 @@ which is what draws the row and its badge in the error colour via
 **Given** the per-site permissions screen for a site
 **When** the user opens the Microphone access row
 **Then** the "Allowed" option is enabled and selecting it stores `real`
-
-### Requirement: MIC-003 — The native layer grants only an active real site
-
-The webview's `onPermissionRequest` SHALL respond to a request whose resources
-include `MICROPHONE`:
-
-- `GRANT`, when the requesting site's `effectiveMicrophoneMode` is `real`, the
-  site is the one on screen, and the app-level recording permission is held
-  (MIC-015);
-- `DENY` otherwise.
-
-It SHALL NOT fall through to `PROMPT` in either case. The fall-through is what
-the original requirement existed to close and the reason survives the mode:
-Android and Linux WPE map `PROMPT` to deny, but iOS 15+/macOS 12+ render it as
-WebKit's own per-site prompt, which is a second permission decision the app
-does not control and cannot reconcile with the per-site one it just made.
-
-A request reporting `CAMERA_AND_MICROPHONE` (the single resource iOS and macOS
-report for a combined capture) cannot be half-granted, so it SHALL be granted
-only when `effectiveCameraMode == real` **and** `effectiveMicrophoneMode ==
-real` and the site is active, and denied otherwise. MIC-004 covers what the
-page sees in the mixed pairings, which never reach this path.
-
-#### Scenario: An allowed site reaches the device
-
-**Given** an on-screen site with `microphoneMode == real` and the app-level permission held
-**When** the native permission request arrives for `MICROPHONE`
-**Then** it is granted
-
-#### Scenario: A backgrounded allowed site does not
-
-**Given** a site with `microphoneMode == real` that is not the one on screen
-**When** the native permission request arrives
-**Then** it is denied, with no WebKit or OS prompt
-
-#### Scenario: A half-granted combined request is refused
-
-**Given** a site with `microphoneMode == real` and `cameraMode == block`
-**When** a `CAMERA_AND_MICROPHONE` request arrives on iOS or macOS
-**Then** it is denied
 
 ### Requirement: MIC-004 — Composition with the camera
 
@@ -176,7 +94,7 @@ shim did not reach or a build without it, not the normal path.
 **Then** the request is rejected with `NotAllowedError`
 **And** no video-only request is issued to the platform
 
-#### Scenario: A failing video half does not strand the audio half
+#### Scenario: A failing video half does not strand the audio graph
 
 **Given** a site with `microphoneMode == virtual` whose camera decision denies
 **When** the page calls `getUserMedia({audio: true, video: true})`
@@ -415,7 +333,110 @@ believing audio is exempt, which is what this requirement used to say.
 **When** it stops being the site on screen
 **Then** its device audio capture ends even though `pauseWebView()` skips it
 
+## RENAMED Requirements
+
+- FROM: `### Requirement: MIC-004 — Composition with the virtual camera`
+- TO: `### Requirement: MIC-004 — Composition with the camera`
+
+- FROM: `### Requirement: MIC-012 — No deactivation stop, and the clip survives one`
+- TO: `### Requirement: MIC-012 — Deactivation ends device capture, and the clip survives it`
+
+## REMOVED Requirements
+
+- `### Requirement: MIC-001 — Per-site decision, with no real-microphone mode`
+- `### Requirement: MIC-003 — The native layer denies every microphone request`
+
+Both are replaced below. Each carried a scenario that a real-microphone mode
+makes false — "No mode grants the device" and "A microphone request never
+reaches the OS" — so they are withdrawn rather than edited.
+
 ## ADDED Requirements
+
+### Requirement: MIC-001 — Per-site decision, including a real-microphone mode
+
+`MicrophoneAccessMode` SHALL have exactly four values: `ask`, `real`,
+`virtual`, `block`. A `getUserMedia` that asks for audio SHALL resolve from
+the site's mode: `real` hands over the device microphone (MIC-014), `virtual`
+serves the picked clip (MIC-008), `block` denies, and `ask` shows a Block /
+Use-audio-file / Allow popup naming the requesting origin and records the
+answer.
+
+The feature no longer claims that no site is ever handed a microphone. It
+claims something narrower and enforceable: no site is handed one without the
+user saying so for that site, and no site holds one while it is off screen.
+The OS decides whether the app may record at all, which is the decision the
+app was previously making on the user's behalf by not declaring the
+capability.
+
+`microphoneAccessModeFromJson` SHALL parse `real` as `MicrophoneAccessMode.real`.
+An older build reading that JSON degrades it to `ask` (its parser has no such
+value and falls back), which is the correct direction for a downgrade: a grant
+becomes a prompt, never the reverse.
+
+#### Scenario: First request prompts and remembers
+
+**Given** a site with `microphoneMode == ask`
+**When** the page calls `getUserMedia({audio: true})`
+**Then** a Block / Use-audio-file / Allow popup names the requesting origin
+**And** the chosen mode is stored on the model and persisted via the host's save function
+**And** subsequent requests resolve silently from the stored mode
+
+#### Scenario: Burst requests share one popup
+
+**Given** a site with `microphoneMode == ask`
+**When** the page issues several audio requests before the user answers
+**Then** exactly one popup / file-pick is shown
+**And** every in-flight request resolves with the same answer
+
+#### Scenario: A stored grant survives a round trip
+
+**Given** persisted JSON whose `microphoneMode` reads `real`
+**When** the model is loaded
+**Then** the mode is `real` and the next request resolves without a popup
+
+---
+
+### Requirement: MIC-003 — The native layer grants only an active real site
+
+The webview's `onPermissionRequest` SHALL respond to a request whose resources
+include `MICROPHONE`:
+
+- `GRANT`, when the requesting site's `effectiveMicrophoneMode` is `real`, the
+  site is the one on screen, and the app-level recording permission is held
+  (MIC-015);
+- `DENY` otherwise.
+
+It SHALL NOT fall through to `PROMPT` in either case. The fall-through is what
+the original requirement existed to close and the reason survives the mode:
+Android and Linux WPE map `PROMPT` to deny, but iOS 15+/macOS 12+ render it as
+WebKit's own per-site prompt, which is a second permission decision the app
+does not control and cannot reconcile with the per-site one it just made.
+
+A request reporting `CAMERA_AND_MICROPHONE` (the single resource iOS and macOS
+report for a combined capture) cannot be half-granted, so it SHALL be granted
+only when `effectiveCameraMode == real` **and** `effectiveMicrophoneMode ==
+real` and the site is active, and denied otherwise. MIC-004 covers what the
+page sees in the mixed pairings, which never reach this path.
+
+#### Scenario: An allowed site reaches the device
+
+**Given** an on-screen site with `microphoneMode == real` and the app-level permission held
+**When** the native permission request arrives for `MICROPHONE`
+**Then** it is granted
+
+#### Scenario: A backgrounded allowed site does not
+
+**Given** a site with `microphoneMode == real` that is not the one on screen
+**When** the native permission request arrives
+**Then** it is denied, with no WebKit or OS prompt
+
+#### Scenario: A half-granted combined request is refused
+
+**Given** a site with `microphoneMode == real` and `cameraMode == block`
+**When** a `CAMERA_AND_MICROPHONE` request arrives on iOS or macOS
+**Then** it is denied
+
+---
 
 ### Requirement: MIC-014 — The containment contract for a real grant
 

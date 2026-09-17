@@ -23,7 +23,7 @@ requesting page by construction, exactly like the camera. What site A hears is
 the room, and the room contains nothing about site B.
 
 The cost of holding the capability is real and this change names it rather than
-eliding it. [`test/js/os_capability_declarations.test.js`](../../../test/js/os_capability_declarations.test.js)
+eliding it. [`test/js/os_capability_declarations.test.js`](../../../../test/js/os_capability_declarations.test.js)
 states it as the reason for the gate: widening a permission set means "a
 capability that was previously impossible becomes merely gated". Today a bug in
 the shim or in the `onPermissionRequest` branch leaks nothing, because the OS
@@ -60,7 +60,7 @@ and are reused rather than reinvented.
   `__wsStopRealCapture()` "would have an empty job". It now has one, which
   surfaces a hazard the current code is one shim away from: the hook is defined
   on `globalThis` by the camera shim alone
-  ([camera_stream_shim.dart:327](../../../lib/services/camera_stream_shim.dart)),
+  ([camera_stream_shim.dart:327](../../../../lib/services/camera_stream_shim.dart)),
   so a microphone shim defining its own would clobber it depending on injection
   order. The device-track registry becomes shared, mirroring the existing
   cross-shim registry, and `WebViewModel.stopRealCameraCapture` is
