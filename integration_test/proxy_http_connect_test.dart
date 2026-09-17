@@ -64,6 +64,10 @@ void main() {
     if (applies) {
       containers = await ContainerNative.instance.isSupported();
     }
+    // Without this `isProxySupported` is false and every scenario
+    // below skips, which is how the first run of these files
+    // reported green having measured nothing.
+    await PlatformInfo.initialize();
     routable = await nonLoopbackIPv4();
     originHost = routable?.address ?? '127.0.0.1';
 
@@ -118,6 +122,17 @@ void main() {
           'loopback destination through a proxy, so nothing here could '
           'distinguish a bound proxy from an unbound one',
     );
+    // Not a skip. Every Apple tier this runs on is past the
+    // proxyConfigurations floor, so a false here means PlatformInfo was
+    // never initialized rather than an old OS -- and skipping on it is
+    // indistinguishable, in the tier's output, from a file that ran.
+    expect(
+      PlatformInfo.isProxySupported,
+      isTrue,
+      reason: 'proxy support reads as unavailable on an Apple tier that is '
+          'past the iOS 17 / macOS 14 floor; PlatformInfo.initialize() was '
+          'most likely not awaited in setUpAll',
+    );
     return true;
   }
 
@@ -153,10 +168,6 @@ void main() {
   testWidgets('the first frame: three stores, three HTTP CONNECT proxies',
       (tester) async {
     if (!usable()) return;
-    if (!PlatformInfo.isProxySupported) {
-      markTestSkipped('below the proxyConfigurations floor');
-      return;
-    }
 
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(
@@ -223,10 +234,6 @@ void main() {
   testWidgets('a SOCKS5 pane in a later frame, for the contrast',
       (tester) async {
     if (!usable()) return;
-    if (!PlatformInfo.isProxySupported) {
-      markTestSkipped('below the proxyConfigurations floor');
-      return;
-    }
     // Deliberately one pane and one proxy: this is not a simultaneity
     // question, it is the control that says whether this process reaches a
     // proxy at all outside its first frame, so a null result above can be

@@ -1560,6 +1560,61 @@ anything but no.
 than repairs, and if HTTP CONNECT does carry simultaneous proxies then the
 delivery change still has to be designed for Tor, which speaks SOCKS5.
 
+### Attempt 35 — The instrument skipped; the window is not the widget frame
+
+**Date:** 2026-09-17
+**Commit:** (this one)
+
+Run 3084 on `ba55523`.
+
+**`proxy_window` reported, and it is a real reading:**
+`warm=loaded, after-warmup=0 of 2 proxied, arrived=a+b`. The process spent its
+first frame on an *unproxied* load, which arrived; the two proxied raw panes
+built in the second frame both went direct. So the first frame is not special
+because it is the first *frame* -- a frame spent on something else still
+closes the window. Attempt 32 had called this branch "the network process
+comes up", but attempt 33 refuted that mechanism from the source, so this
+narrows by elimination rather than naming a cause.
+
+Set beside `stair`, it sharpens the contradiction rather than resolving it.
+The stair pane's store was built in the first frame -- the native trace shows
+`built ws-proxy-binding-stair` there -- with its proxy on it, and all five of
+its later navigations went direct. Same store, same proxy, same session.
+WebKit's source says that cannot happen.
+
+**The two new files measured nothing.** Both printed `proxySupported=false`
+and skipped every scenario, because neither awaited `PlatformInfo.initialize()`
+in `setUpAll`; `isProxySupported` is false until it runs. `proxy_window` in the
+same run printed `proxySupported=true`, which is what gave it away. That is the
+fourth harness error of this investigation and the third of the same shape: a
+tier that cannot fail, reporting green. The tier prints a skip and a pass
+identically, so nothing downstream caught it -- it was found by reading the
+verdict lines by hand.
+
+Fixed three ways rather than one, since this shape keeps returning:
+`PlatformInfo.initialize()` is awaited in both files; the floor check is now an
+`expect(..., isTrue)` with a reason naming the likely cause, because on an
+Apple tier past the iOS 17 / macOS 14 floor a false reading means the
+initialize was missed and skipping on it hides that; and a structural gate in
+`test/js/proxy_binding_fixture.test.js` fails if any of the four Apple proxy
+files reads `isProxySupported` without initializing first, or reads it before
+the initialize. The gate was checked against the defect: removing the
+initialize call makes it fail.
+
+**`proxy_binding` is unchanged under the new fork pin**, as expected -- its
+panes never reach `ProxyManager`, so the fan-out fix could not have moved
+them: `stair=[0ms:DIRECT 3170ms 6258ms 9304ms 12358ms all DIRECT], pair=2 of 2
+proxied, refused=failed closed, persist-inpage=DIRECT, persist-loadurl=DIRECT,
+raw-first=proxied, raw-second=DIRECT, sameturn-loadurl=proxied, later-pair=0 of
+2, raw-late=DIRECT, alt-proxy=DIRECT, crossed=false`. The native trace also
+shows every container resolving to its own store and all of them sharing one
+process pool.
+
+**Why:** the simultaneity question and the HTTP CONNECT delivery question are
+still unanswered, and this run was supposed to answer both.
+**Why it was partial:** it answered neither. The only thing that moved is
+`proxy_window`, and the instrument is now fixed rather than the bug.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**

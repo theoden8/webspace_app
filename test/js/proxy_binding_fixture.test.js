@@ -243,3 +243,56 @@ test('the HTTP CONNECT file gives every pane its own proxy and asserts', () => {
       'distinguished from each other',
   );
 });
+
+// A file that reads PlatformInfo.isProxySupported without awaiting
+// PlatformInfo.initialize() gets false, skips every scenario, and reports
+// green having measured nothing -- which is exactly what the first run of
+// proxy_simultaneous and proxy_http_connect did. The tier prints a skip and
+// a pass identically, so nothing downstream catches it.
+test('every Apple proxy tier initializes PlatformInfo before reading it', () => {
+  const files = [
+    'integration_test/proxy_binding_test.dart',
+    'integration_test/proxy_window_test.dart',
+    'integration_test/proxy_simultaneous_test.dart',
+    'integration_test/proxy_http_connect_test.dart',
+  ];
+  for (const rel of files) {
+    const body = fs.readFileSync(path.join(repoRoot, rel), 'utf8');
+    if (!/PlatformInfo\.isProxySupported/.test(body)) continue;
+    assert.match(
+      body,
+      /await PlatformInfo\.initialize\(\)/,
+      `${rel} reads PlatformInfo.isProxySupported but never awaits ` +
+        'PlatformInfo.initialize(); it would skip every scenario and pass',
+    );
+    const initAt = body.indexOf('await PlatformInfo.initialize()');
+    const readAt = body.indexOf('PlatformInfo.isProxySupported');
+    assert.ok(
+      initAt < readAt,
+      `${rel} reads PlatformInfo.isProxySupported before initializing it`,
+    );
+  }
+});
+
+// The floor check must fail rather than skip on an Apple tier. A skip is
+// indistinguishable from a run in the tier output, so the two files that
+// skipped on it were only caught by reading their verdict lines by hand.
+test('the simultaneity files assert the proxy floor instead of skipping it', () => {
+  for (const rel of [
+    'integration_test/proxy_simultaneous_test.dart',
+    'integration_test/proxy_http_connect_test.dart',
+  ]) {
+    const body = fs.readFileSync(path.join(repoRoot, rel), 'utf8');
+    assert.doesNotMatch(
+      body,
+      /markTestSkipped\([^)]*floor/,
+      `${rel} skips on the proxyConfigurations floor; on these tiers that ` +
+        'means PlatformInfo was not initialized, so it must fail instead',
+    );
+    assert.match(
+      body,
+      /expect\(\s*\n?\s*PlatformInfo\.isProxySupported,\s*\n?\s*isTrue,/,
+      `${rel} must assert proxy support is available`,
+    );
+  }
+});
