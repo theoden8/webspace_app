@@ -231,7 +231,7 @@ field checklist: a nested webview that keeps loading plaintext while the parent
 upgrades is the same silent bypass that checklist exists to prevent.
 
 `effectiveHttpsUpgradeEnabled` SHALL be true when Tracking Protection is on
-(ETP-028), otherwise the per-site value.
+(ETP-030), otherwise the per-site value.
 
 #### Scenario: On by default
 

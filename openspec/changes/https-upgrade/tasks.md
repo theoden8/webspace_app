@@ -8,7 +8,7 @@
 - [x] 1.2 HTTPS-006: leave `upgradeKnownHostsToHTTPS` at its default. It is
   iOS/macOS only and covers only hosts WebKit already knows are https, so it is
   narrower than HTTPS-001 on both axes and cannot serve the reported case.
-- [x] 1.2b Write the tracking-protection delta: ETP-028 forces the upgrade on
+- [x] 1.2b Write the tracking-protection delta: ETP-030 forces the upgrade on
   under the umbrella without making it a subordinate that only lives there.
 - [x] 1.3 Add the `https-upgrade` row to the OpenSpec table in `CLAUDE.md`,
   marked *(change)* until archived.
@@ -28,7 +28,7 @@
 
 - [x] 3.1 `lib/settings/app_prefs.dart`: register `httpsUpgradeEnabled: true`.
 - [x] 3.2 `lib/web_view_model.dart`: the per-site field,
-  `effectiveHttpsUpgradeEnabled` (ETP-028), `toJson`/`fromJson`, the
+  `effectiveHttpsUpgradeEnabled` (ETP-030), `toJson`/`fromJson`, the
   `WebViewConfig`, the `launchUrlFunc` typedef and both call sites.
 - [x] 3.3 `lib/main.dart` `launchUrl` signature and
   `lib/screens/inappbrowser.dart` `InAppWebViewScreen` + its `WebViewConfig`,
@@ -48,7 +48,7 @@
 
 - [x] 4.1 A global row in app settings, default on.
 - [x] 4.2 A per-site row on the Privacy screen, locked with `value: true` while
-  the umbrella is on (ETP-028) and captioned like the third-party-cookies row,
+  the umbrella is on (ETP-030) and captioned like the third-party-cookies row,
   since a forced-on security control is the direction a reader does not
   predict.
 - [x] 4.3 `lib/l10n/app_en.arb`: title + hint keys, with descriptions. The hint
@@ -93,7 +93,7 @@ that passes either way is worse than none, because it reads as cover.
   registered default to `false`. Each fails exactly one gate.
 - [x] 6.b The ordering (HTTPS-004) in `page_bridge_authority.test.js`, checked
   by moving the upgrade above the navigation verdict.
-- [x] 6.c `HTTPS-005 / ETP-028 the effective decision` in
+- [x] 6.c `HTTPS-005 / ETP-030 the effective decision` in
   `https_upgrade_engine_test.dart`. Mutations checked: force the umbrella the
   other way (the shape of the getter directly above it), and drop the app-wide
   default so null reads as off. The first is the one to fear: nothing else in

@@ -272,13 +272,13 @@ void main() {
     });
   });
 
-  // HTTPS-005 + ETP-028. The resolution order is three-valued and the getter
+  // HTTPS-005 + ETP-030. The resolution order is three-valued and the getter
   // sits directly below `effectiveThirdPartyCookiesEnabled`, which the
   // umbrella forces the OTHER way. Copying that shape here would invert a
   // security default silently: nothing else in the suite reads this getter,
   // and a site would quietly go back to plaintext the moment its owner turned
   // Tracking Protection on.
-  group('HTTPS-005 / ETP-028 the effective decision', () {
+  group('HTTPS-005 / ETP-030 the effective decision', () {
     final appDefault = WebViewFactory.httpsUpgradeEnabled;
     tearDown(() => WebViewFactory.httpsUpgradeEnabled = appDefault);
 
@@ -306,7 +306,7 @@ void main() {
       WebViewFactory.httpsUpgradeEnabled = false;
       expect(site(override: false, umbrella: true).effectiveHttpsUpgradeEnabled,
           isTrue,
-          reason: 'ETP-028 forces the upgrade on; the third-party-cookie '
+          reason: 'ETP-030 forces the upgrade on; the third-party-cookie '
               'getter next to it forces OFF, and copying that shape here '
               'would move a site to cleartext for turning privacy ON');
     });

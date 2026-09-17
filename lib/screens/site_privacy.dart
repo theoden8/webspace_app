@@ -104,7 +104,7 @@ class SitePrivacyValues {
   bool get effectiveThirdPartyCookies =>
       thirdPartyCookiesEnabled && !trackingProtectionEnabled;
 
-  /// Forced on by the umbrella (ETP-028), otherwise this site's override or
+  /// Forced on by the umbrella (ETP-030), otherwise this site's override or
   /// the app-wide default it has not overridden.
   bool get effectiveHttpsUpgrade => trackingProtectionEnabled
       ? true

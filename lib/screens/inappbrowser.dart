@@ -412,7 +412,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         // their stored value. Third-party cookies is the one forced *off*.
         thirdPartyCookiesEnabled: widget.thirdPartyCookiesEnabled &&
             !widget.trackingProtectionEnabled,
-        // ETP-028 forces it on, and unlike the subordinates above the parent
+        // ETP-030 forces it on, and unlike the subordinates above the parent
         // already resolved the app-wide default into this flag.
         httpsUpgradeEnabled:
             widget.httpsUpgradeEnabled || widget.trackingProtectionEnabled,

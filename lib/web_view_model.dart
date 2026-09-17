@@ -792,7 +792,7 @@ class WebViewModel {
       trackingProtectionEnabled ? false : thirdPartyCookiesEnabled;
 
   /// Effective HTTPS upgrade decision. Tracking Protection forces it on
-  /// (ETP-028); otherwise the site's own override, or the app-wide default
+  /// (ETP-030); otherwise the site's own override, or the app-wide default
   /// when it has none. Unlike ETP-002's subordinates this is NOT off when the
   /// umbrella is off: turning the umbrella off to make a site work must not be
   /// what moves a login page to cleartext.

@@ -14,7 +14,7 @@
 //
 // Cross-links:
 //   openspec/changes/https-upgrade/specs/https-upgrade/spec.md  HTTPS-002/005/006/007
-//   openspec/changes/https-upgrade/specs/tracking-protection/spec.md  ETP-028
+//   openspec/changes/https-upgrade/specs/tracking-protection/spec.md  ETP-030
 //
 // The call-site ORDERING against the navigation verdict (HTTPS-004) lives in
 // page_bridge_authority.test.js, beside the CAPTCHA-008 ordering it copies.

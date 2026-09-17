@@ -2,7 +2,7 @@
 
 ## ADDED Requirements
 
-### Requirement: ETP-028 - HTTPS upgrade forced on under umbrella
+### Requirement: ETP-030 - HTTPS upgrade forced on under umbrella
 
 The umbrella SHALL force the HTTPS upgrade (HTTPS-001) to behave as on whenever
 `trackingProtectionEnabled` is true, regardless of the stored per-site value,

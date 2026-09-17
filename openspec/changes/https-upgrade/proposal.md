@@ -64,7 +64,7 @@ same report.
 - **A global knob, default ON.** `httpsUpgradeEnabled` in `kExportedAppPrefs`,
   defaulting to `true`, with a per-site `WebViewModel.httpsUpgradeEnabled`
   override for the site that genuinely has no TLS.
-- **Tracking Protection forces it on, but does not own it.** A new ETP-028
+- **Tracking Protection forces it on, but does not own it.** A new ETP-030
   in the shape of ETP-002: the umbrella forces the upgrade on and locks the
   row. It does NOT become a subordinate whose only home is the umbrella.
 
@@ -134,5 +134,5 @@ a parent-webview redirect primitive the whole time.
   triggers fallback.
 - `lib/screens/site_behaviour.dart` or the Privacy screen: the per-site row.
 - `lib/l10n/app_*.arb` (67 files): two keys, in their own commit.
-- `openspec/specs/tracking-protection/spec.md`: ETP-028.
+- `openspec/specs/tracking-protection/spec.md`: ETP-030.
 - `CLAUDE.md`: the `https-upgrade` row in the OpenSpec table, marked *(change)*.
