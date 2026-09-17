@@ -79,6 +79,11 @@ void main() {
   // source that produces this file's readings, and it is visible only with
   // two proxies to tell apart.
   late Socks5Fixture altSocks;
+  // One origin per staircase step, so each navigation's CONNECT is
+  // attributable and a reused connection cannot stand in for a missing one.
+  final stairOrigins = <HttpServer>[];
+  final stairPorts = <int>[];
+  const stairSteps = 5;
   InternetAddress? routable;
   final requests = <String>[];
 
@@ -192,6 +197,17 @@ void main() {
       res.write('<!doctype html><html><body><p>altproxy</p></body></html>');
       await res.close();
     });
+    for (var i = 0; i < stairSteps; i++) {
+      final origin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
+      stairOrigins.add(origin);
+      stairPorts.add(origin.port);
+      listenFixture(origin, (req) async {
+        requests.add('stair$i:${req.uri.path}');
+        final res = req.response..headers.contentType = ContentType.html;
+        res.write('<!doctype html><html><body><p>stair</p></body></html>');
+        await res.close();
+      });
+    }
     socks = await Socks5Fixture.bind();
     altSocks = await Socks5Fixture.bind();
     // Claimed, then released: a connection there is refused rather than
@@ -228,6 +244,9 @@ void main() {
     await sameTurnOrigin.close(force: true);
     await rawLateOrigin.close(force: true);
     await altProxyOrigin.close(force: true);
+    for (final origin in stairOrigins) {
+      await origin.close(force: true);
+    }
     await deferredOrigin.close(force: true);
     await rawOrigin.close(force: true);
     await factoryOrigin.close(force: true);
@@ -351,6 +370,7 @@ void main() {
     }
     WebViewController? paneB;
     inapp.InAppWebViewController? raw;
+    inapp.InAppWebViewController? stair;
     Widget pane(String siteId, String url, UserProxySettings proxy) => SizedBox(
           width: 320,
           height: 120,
@@ -446,11 +466,64 @@ void main() {
               },
             ),
           ),
+          // The staircase. One webview, navigated repeatedly at increasing
+          // delays, each step to an origin of its own. "First frame" is how
+          // every reading so far reads, but every reading is also one sample:
+          // a clean cutoff and a race that usually loses look identical when
+          // each scenario is measured once. A ragged pattern here -- proxied,
+          // direct, proxied -- is a race and nothing else, and a race is what
+          // the report this bug came from describes ("sometimes I have to
+          // restart the app for tor proxy to start working").
+          SizedBox(
+            width: 320,
+            height: 120,
+            child: inapp.InAppWebView(
+              key: const ValueKey('stair'),
+              initialSettings: inapp.InAppWebViewSettings(
+                containerId: 'ws-proxy-binding-stair',
+                proxySettings: inapp.ProxySettings(
+                  proxyRules: [
+                    inapp.ProxyRule(url: 'socks5://127.0.0.1:${socks.port}'),
+                  ],
+                  bypassRules: [],
+                ),
+              ),
+              onWebViewCreated: (c) => stair = c,
+            ),
+          ),
         ]),
       ),
     ));
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pump(const Duration(milliseconds: 500));
+
+    // (0) The staircase runs first: it is the only time-sensitive scenario in
+    // the file, and every `waitReal` below can burn twenty seconds. The others
+    // read `socks.targets`, which accumulates, so they lose nothing by being
+    // evaluated afterwards.
+    final stairResults = <String>[];
+    final started = DateTime.now();
+    for (var i = 0; i < stairSteps; i++) {
+      final at = DateTime.now().difference(started).inMilliseconds;
+      if (stair == null) {
+        stairResults.add('${at}ms:no controller');
+        break;
+      }
+      await tester.runAsync(() async {
+        await stair!.loadUrl(
+          urlRequest: inapp.URLRequest(
+            url: inapp.WebUri('http://$originHost:${stairPorts[i]}/s$i'),
+          ),
+        );
+      });
+      await waitReal(
+          tester, () => socks.targets.contains('$originHost:${stairPorts[i]}'),
+          label: 'staircase step $i (issued at ${at}ms)',
+          timeout: const Duration(seconds: 3));
+      final proxied = socks.targets.contains('$originHost:${stairPorts[i]}');
+      stairResults.add('${at}ms:${proxied ? "proxied" : requests.contains('stair$i:/s$i') ? "DIRECT" : "no load"}');
+    }
+    verdict.add('stair=[${stairResults.join(" ")}]');
 
     // (1) Two proxied webviews in the process's first frame. Established
     // over three runs; the floor for everything below.

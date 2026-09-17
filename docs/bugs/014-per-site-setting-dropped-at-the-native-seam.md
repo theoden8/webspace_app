@@ -1274,6 +1274,70 @@ reading of the data, and no run has yet distinguished the frame from the load
 or looked for a crossed proxy.
 
 
+### Attempt 31 — `sameturn-loadurl=proxied`: attempt 29's rule is refuted
+**Date:** 2026-09-17 · **Files:** `integration_test/proxy_binding_test.dart`,
+`openspec/specs/ip-leakage/spec.md`
+
+```
+verdict: containers=true, pair=2 of 2 proxied, refused=failed closed,
+         persist-inpage=DIRECT, persist-loadurl=DIRECT,
+         raw-first=proxied, raw-second=DIRECT,
+         sameturn-loadurl=proxied,
+         later-pair=0 of 2 proxied, arrived=a+b,
+         raw-late=DIRECT, alt-proxy=DIRECT, crossed=false
+```
+
+Three readings, three eliminations.
+
+**`sameturn-loadurl=proxied` refutes attempt 29.** A raw webview created in the
+first frame with no initial request, navigated by `loadUrl` from that frame's
+own turn, used its proxy. So "only the first load a webview issues is proxied"
+is wrong: that load is the webview's second act, issued the way every DIRECT
+reading in this file was issued. It is not the mechanism of the load and not a
+per-webview budget of one.
+
+**`crossed=false` excludes the process-wide clobber.** Two webviews carrying
+*different* proxies in one later frame both went direct, and neither one's
+destination arrived at the other's fixture. If WebKit's
+`nw_context_clear_proxies` / `nw_context_add_proxy` update ran on a context
+shared between stores, the newest store's proxy would be the process's only
+proxy and the crossover would show. It does not.
+
+**`raw-late=DIRECT` takes the app out of the late case.** `later-pair` was
+measured through `WebViewFactory`; this is the same frame with nothing on the
+webview but a container and a proxy, and it reads the same.
+
+What survives is attempt 26's rule, not attempt 29's narrowing of it: **only a
+load issued in the process's first frame is proxied — not the webview, not the
+store, the load.** `LEAK-003` is corrected to say that, and gains the
+`sameturn` scenario so the distinction cannot be lost again.
+
+But "first frame" is a description of five single samples, and a clean cutoff
+and a race that usually loses are indistinguishable when each scenario is
+measured once. A race also fits the report this bug came from, which is not
+"my first page is proxied and the rest are not" but *"sometimes I have to
+restart the app for tor proxy to start working"* — and nothing measured so far
+would tell the two apart.
+
+So this run adds a staircase: one webview in the first frame, navigated five
+times in succession, each step to an origin of its own, each recorded with the
+elapsed time at which it was issued. A clean cutoff says rule. A ragged
+pattern — proxied, direct, proxied — says race, and a race has a fix.
+It runs before every other scenario in that test, because it is the only
+time-sensitive one and the `waitReal` calls below it can burn twenty seconds
+each.
+
+**Why:** the finding was stated more narrowly than the evidence supported, and
+everything that followed rested on it -- "the mechanism cannot carry the
+feature" is a conclusion about the narrowed rule.
+Separating the frame from the load was the cheapest way to test it, and it
+came back against the narrowing.
+**Why it was partial:** the rule is now stated correctly but still unexplained
+— it contradicts WebKit's source, and no mechanism in that source survives the
+`crossed=false` reading. Whether it is even a rule rather than a race is the
+open question, and the staircase is the first measurement that can answer it.
+
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
@@ -1292,9 +1356,13 @@ or looked for a crossed proxy.
 3. **Reach is wider than the proxy.** The same parser carries the container id,
    the UA, the media gates and every other per-site field. Only the proxy has an
    effect-level test.
-4. **On Apple, only the first load a webview issues is proxied (BUG-014
-   attempt 29, measured with no app code on the webview), so the per-site proxy
-   leaks on every navigation after a site's first.** The app still presents the feature as working. Until it
+4. **On Apple, only a load issued in the process's first frame is proxied
+   (BUG-014 attempt 31, measured with no app code on the webview), so the
+   per-site proxy leaks on everything a user does after a site's landing page.**
+   Superseded: attempt 29 read this as "only the first load a webview issues",
+   which attempt 31's `sameturn-loadurl=proxied` refutes — a webview's *second*
+   load is proxied when it is issued in that frame. Whether "first frame" is a
+   rule or a race that usually loses is open. The app still presents the feature as working. Until it
    fails closed, a user who pins a site to Tor or to a proxy gets one proxied
    page and the device IP thereafter. Superseded detail, kept for lineage:
    the earlier reading was that a WebView built after the first frame cannot be

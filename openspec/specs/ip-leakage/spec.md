@@ -195,13 +195,22 @@ cannot see, so a webview can report a proxy it never bound (BUG-014). A
 site whose proxy refuses connections SHALL therefore never reach its
 origin.
 
-On iOS and macOS, **only the first load a webview issues is proxied.** The
-second navigation of a webview that used its proxy goes direct, and so does
-every load from a webview built after the process's first frame. Measured
-across BUG-014 attempts 19-29 with a webview constructed straight from the
-plugin, carrying nothing but a container id and a proxy — no
-`shouldOverrideUrlLoading`, no universal-link bypass, no per-site policy — so
-the behaviour is the platform's and not this app's.
+On iOS and macOS, **only a load issued in the process's first frame is
+proxied.** Not the webview and not the store — the load. A webview created in
+that frame and navigated by `loadUrl` in the same turn is proxied; the same
+webview navigated seconds later is not; a webview created in any later frame is
+not, whichever way its load is issued. Measured across BUG-014 attempts 19-31
+with webviews constructed straight from the plugin, carrying nothing but a
+container id and a proxy — no `shouldOverrideUrlLoading`, no universal-link
+bypass, no per-site policy — so the behaviour is the platform's and not this
+app's.
+
+Two narrower readings are excluded by measurement rather than by argument.
+It is not "the first load each webview issues" (attempt 31's
+`sameturn-loadurl` is a webview's second act and is proxied), and it is not a
+process-wide proxy that the newest store overwrites — two webviews carrying
+*different* proxies in one later frame both went direct, neither one's traffic
+arriving at the other's proxy.
 
 The measurement is not "the proxy was bound and failed". In the same run, a
 site whose proxy pointed at a closed port reached no origin at all, which is
@@ -233,6 +242,13 @@ path and inherits the same limit.
 **And** its first load went through that proxy
 **When** its page follows a link to a second origin
 **Then** that load does not reach the second origin directly
+
+#### Scenario: A proxied webview navigated in the same turn still uses its proxy
+
+**Given** a webview carrying `SOCKS5 127.0.0.1:<fixture>` is created in the
+process's first frame with no initial request
+**When** it is navigated by `loadUrl` from that frame's own turn
+**Then** the fixture proxy receives a CONNECT for that destination
 
 #### Scenario: Two proxied sites in one launch each use their own proxy
 
