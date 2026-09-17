@@ -100,3 +100,88 @@ test('the SOCKS5 fixture records what it was asked for before it connects', () =
       'that cannot be reached looks like a proxy that was never used',
   );
 });
+
+// `integration_test/proxy_simultaneous_test.dart` asks the one question the
+// sibling file confounded: whether two data stores can carry two *different*
+// proxies at once. It can only answer that while it has more than one
+// fixture to tell apart — with a single fixture, a load arriving at the
+// wrong site's proxy is indistinguishable from one that was proxied
+// correctly, which is how `crossed=false` came to be read as excluding a
+// shared proxy context when both panes had simply gone direct.
+const simulRel = 'integration_test/proxy_simultaneous_test.dart';
+const simulCode = fs
+  .readFileSync(path.join(repoRoot, simulRel), 'utf8')
+  .replace(/^\s*\/\/.*$/gm, '');
+
+test('the simultaneity file addresses its origins off loopback', () => {
+  assert.match(
+    simulCode,
+    /nonLoopbackIPv4\(\)/,
+    `${simulRel} must address its origins by a non-loopback interface`,
+  );
+  const urls = simulCode.match(/'http:\/\/[^']*'/g) ?? [];
+  assert.ok(urls.length > 0, `${simulRel} must load something`);
+  for (const url of urls) {
+    assert.doesNotMatch(
+      url,
+      /127\.0\.0\.1|localhost|\[::1\]/,
+      `${simulRel} loads ${url}: Apple never proxies a loopback destination`,
+    );
+  }
+});
+
+test('the simultaneity file keeps more than one proxy to tell apart', () => {
+  const fixtureCount = simulCode.match(/const fixtureCount = (\d+)/);
+  assert.ok(fixtureCount, `${simulRel} must declare fixtureCount`);
+  assert.ok(
+    Number(fixtureCount[1]) >= 2,
+    `${simulRel} declares fixtureCount=${fixtureCount[1]}; with fewer than ` +
+      'two fixtures a load arriving at a sibling site\'s proxy reads as a ' +
+      'correctly proxied one and the file measures nothing',
+  );
+  assert.match(
+    simulCode,
+    /CROSSED/,
+    `${simulRel} must classify a load that reached a sibling's proxy ` +
+      'separately from one that reached its own',
+  );
+  const distinct = new Set(
+    (simulCode.match(/const (fixtureOf|lateFixtureOf) = <int>\[[^\]]*\]/g) ?? [])
+      .flatMap((decl) => (decl.match(/\d+/g) ?? [])),
+  );
+  assert.ok(
+    distinct.size >= 2,
+    `${simulRel} must point its panes at different fixtures; pointing them ` +
+      'all at one is the confound this file exists to remove',
+  );
+});
+
+test('the simultaneity file asserts its panes used their own proxy', () => {
+  assert.match(
+    simulCode,
+    /socks\[f\]\.targets\.contains\(/,
+    `${simulRel} must read the verdict off what a fixture proxy was asked ` +
+      'for, not off the origin log: the fixture relays, so a proxied load ' +
+      'reaches the origin too',
+  );
+  assert.match(
+    simulCode,
+    /expect\(\s*own,\s*paneCount,/,
+    `${simulRel} must assert every first-frame pane used its own proxy; a ` +
+      'reported-only verdict is how this tier spent its life green',
+  );
+});
+
+test('every simultaneity pane builds under its own key', () => {
+  const keys = simulCode.match(/ValueKey\('[^']*\$\{?i\}?'\)/g) ?? [];
+  assert.ok(
+    keys.length >= 2,
+    `${simulRel} must key each pane by its index, or panes at the same ` +
+      'position update one platform view and the extra loads are never issued',
+  );
+  assert.equal(
+    new Set(keys).size,
+    keys.length,
+    `${simulRel} reuses a key between pane groups: ${keys.join(', ')}`,
+  );
+});
