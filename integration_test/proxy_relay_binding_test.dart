@@ -12,14 +12,16 @@
 //    WebKit does when a second store's proxy replaces the first cannot
 //    arise, and `pair=2 of 2 proxied` already showed stores sharing one
 //    proxy work.
-//  * **Durability.** An HTTP CONNECT configuration makes
-//    `nw_proxy_config_stack_requires_http_protocols` true, which sets
-//    `recreateSessions` in `NetworkSessionCocoa::setProxyConfigData`, which
-//    runs `recreateSessionWithUpdatedProxyConfigurations` -- the one route
-//    that writes the proxy onto a session's own
-//    `NSURLSessionConfiguration`. A SOCKS5 rule never reaches it, so on that
-//    rule the default wrapper is built with `@[ ]` and patched only on its
-//    live `nw_context` (BUG-014 attempt 36).
+//  * **Durability**, if one premise holds. An HTTP CONNECT configuration
+//    *should* make `nw_proxy_config_stack_requires_http_protocols` true,
+//    which sets `recreateSessions` in
+//    `NetworkSessionCocoa::setProxyConfigData` and runs
+//    `recreateSessionWithUpdatedProxyConfigurations` -- the one route that
+//    writes the proxy onto a session's own `NSURLSessionConfiguration`. A
+//    SOCKS5 rule never reaches it, so there the default wrapper is built with
+//    `@[ ]` and patched only on its live `nw_context` (BUG-014 attempt 36).
+//    Nobody has seen that function return a value; it is read off its name
+//    and WebKit's own comment, and it is the premise this arm tests.
 //
 // So the second test is the one that matters: it builds its panes in a LATER
 // frame, which is where every previous arrangement went direct.
@@ -53,6 +55,20 @@ void main() {
   /// that fixture's CONNECT log rather than off the origin.
   const siteCount = 4;
 
+  // A CONNECT proxy is a tunnel, and upstream WebKit only ever exercises one
+  // with a TLS destination (attempt 37's correction). The first version of
+  // this file used http origins and every proxy fixture came back empty, so
+  // the origins are https now and the certificate is minted at run time the
+  // way test/outbound_https_proxy_hop_test.dart does it.
+  final haveOpenssl = () {
+    try {
+      return Process.runSync('openssl', ['version']).exitCode == 0;
+    } catch (_) {
+      return false;
+    }
+  }();
+  Directory? certDir;
+
   final socks = <Socks5Fixture>[];
   final origins = <HttpServer>[];
   final ports = <int>[];
@@ -67,9 +83,8 @@ void main() {
   String tokenFor(int i) => 'token-$i-not-a-secret-in-a-test';
 
   setUpAll(() async {
-    if (applies) {
-      containers = await ContainerNative.instance.isSupported();
-    }
+    if (!applies || !haveOpenssl) return;
+    containers = await ContainerNative.instance.isSupported();
     // Without this `isProxySupported` is false and every scenario below
     // skips, which is how two files in this directory once reported green
     // having measured nothing.
@@ -77,8 +92,22 @@ void main() {
     routable = await nonLoopbackIPv4();
     originHost = routable?.address ?? '127.0.0.1';
 
+    certDir = await Directory.systemTemp.createTemp('webspace-relay-tls-');
+    final key = '${certDir!.path}/key.pem';
+    final cert = '${certDir!.path}/cert.pem';
+    final gen = await Process.run('openssl', [
+      'req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1',
+      '-keyout', key, '-out', cert, '-subj', '/CN=$originHost',
+      '-addext', 'subjectAltName=IP:$originHost,IP:127.0.0.1',
+    ]);
+    expect(gen.exitCode, 0, reason: gen.stderr.toString());
+    final ctx = SecurityContext()
+      ..useCertificateChain(cert)
+      ..usePrivateKey(key);
+
     for (var i = 0; i < siteCount; i++) {
-      final origin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
+      final origin =
+          await HttpServer.bindSecure(InternetAddress.anyIPv4, 0, ctx);
       origins.add(origin);
       ports.add(origin.port);
       listenFixture(origin, (req) async {
@@ -116,11 +145,13 @@ void main() {
   });
 
   tearDownAll(() async {
+    if (!applies || !haveOpenssl) return;
     for (var i = 0; i < socks.length; i++) {
       log('socks$i connects=${socks[i].targets}');
     }
     log('verdict: containers=$containers, ${verdict.join(", ")}');
     await relay.stop();
+    await certDir?.delete(recursive: true);
     for (final s in socks) {
       await s.close();
     }
@@ -132,6 +163,10 @@ void main() {
   bool usable() {
     if (!applies) {
       markTestSkipped('the per-WebView proxy is an Apple path');
+      return false;
+    }
+    if (!haveOpenssl) {
+      markTestSkipped('openssl is not installed; cannot serve an https origin');
       return false;
     }
     expect(
@@ -188,7 +223,7 @@ void main() {
         child: inapp.InAppWebView(
           key: ValueKey('relay$i'),
           initialUrlRequest: inapp.URLRequest(
-            url: inapp.WebUri('http://$originHost:${ports[i]}/s$i'),
+            url: inapp.WebUri('https://$originHost:${ports[i]}/s$i'),
           ),
           initialSettings: inapp.InAppWebViewSettings(
             containerId: 'ws-proxy-relay-$i',
@@ -202,6 +237,12 @@ void main() {
               ],
               bypassRules: [],
             ),
+          ),
+          // The origin certificate is self-signed and minted for this run, so
+          // the load only reaches it if this accepts it. Scoped to this file.
+          onReceivedServerTrustAuthRequest: (controller, challenge) async =>
+              inapp.ServerTrustAuthResponse(
+            action: inapp.ServerTrustAuthResponseAction.PROCEED,
           ),
         ),
       );
