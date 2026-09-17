@@ -1,0 +1,274 @@
+// The relay is the piece that would carry every per-site proxy on Apple, so
+// the leak properties matter more than the routing ones and are asserted
+// first: a tunnel it cannot attribute, and a tunnel whose upstream it cannot
+// reach, must both be refused rather than dialled directly (LEAK-003). A
+// direct dial here is the device IP reaching the origin the user picked a
+// proxy to hide it from, and it would look exactly like success.
+
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/local_proxy_relay.dart';
+import 'package:webspace/settings/proxy.dart';
+
+import '../integration_test/socks5_fixture.dart';
+
+/// One CONNECT through the relay, optionally presenting a credential.
+/// Returns everything the relay sent back, so the caller can tell a 200 from
+/// a 407 from a 502.
+Future<String> connectThroughRelay({
+  required String host,
+  required int port,
+  required String targetHost,
+  required int targetPort,
+  String? username,
+  String? token,
+  String request = '',
+}) async {
+  final socket = await Socket.connect(host, port);
+  socket.setOption(SocketOption.tcpNoDelay, true);
+  final seen = <int>[];
+  final done = socket.listen(seen.addAll).asFuture<void>();
+
+  final auth = username == null
+      ? ''
+      : 'Proxy-Authorization: Basic '
+          '${base64.encode(utf8.encode('$username:${token ?? ''}'))}\r\n';
+  socket.add(utf8.encode('CONNECT $targetHost:$targetPort HTTP/1.1\r\n'
+      'Host: $targetHost:$targetPort\r\n$auth\r\n'));
+  await socket.flush();
+  if (request.isNotEmpty) {
+    await Future<void>.delayed(const Duration(milliseconds: 60));
+    socket.add(utf8.encode(request));
+    await socket.flush();
+  }
+  await done.timeout(
+    const Duration(seconds: 6),
+    onTimeout: () => socket.destroy(),
+  );
+  return String.fromCharCodes(seen);
+}
+
+void main() {
+  late HttpServer origin;
+  late LocalProxyRelay relay;
+  late String originHost;
+
+  setUp(() async {
+    origin = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    originHost = InternetAddress.loopbackIPv4.address;
+    origin.listen((req) async {
+      final res = req.response..headers.contentType = ContentType.text;
+      res.write('served ${req.uri.path}');
+      await res.close();
+    });
+    relay = LocalProxyRelay(realm: 'webspace-test');
+    expect(await relay.start(), isTrue);
+  });
+
+  tearDown(() async {
+    await relay.stop();
+    await origin.close(force: true);
+  });
+
+  String get(String path) => 'GET $path HTTP/1.1\r\nHost: $originHost\r\n'
+      'Connection: close\r\n\r\n';
+
+  test('a tunnel with no credential is challenged, not relayed', () async {
+    relay.setRoutes({});
+    final reply = await connectThroughRelay(
+      host: relay.host!,
+      port: relay.port!,
+      targetHost: originHost,
+      targetPort: origin.port,
+    );
+    expect(reply, contains('407'));
+    expect(reply, contains('realm="webspace-test"'));
+    expect(
+      reply,
+      isNot(contains('200')),
+      reason: 'an unattributable tunnel has no site, so it has no proxy; '
+          'relaying it would be a direct fetch',
+    );
+  });
+
+  test('a credential the relay does not know is challenged', () async {
+    relay.setRoutes({
+      'ws-site-a': LocalProxyRoute(
+        siteId: 'site-a',
+        token: 'token-a',
+        upstream: UserProxySettings(type: ProxyType.DEFAULT),
+      ),
+    });
+    final reply = await connectThroughRelay(
+      host: relay.host!,
+      port: relay.port!,
+      targetHost: originHost,
+      targetPort: origin.port,
+      username: 'ws-site-unknown',
+      token: 'token-a',
+    );
+    expect(reply, contains('407'));
+  });
+
+  test('the right username with the wrong token is challenged', () async {
+    relay.setRoutes({
+      'ws-site-a': LocalProxyRoute(
+        siteId: 'site-a',
+        token: 'token-a',
+        upstream: UserProxySettings(type: ProxyType.DEFAULT),
+      ),
+    });
+    final reply = await connectThroughRelay(
+      host: relay.host!,
+      port: relay.port!,
+      targetHost: originHost,
+      targetPort: origin.port,
+      username: 'ws-site-a',
+      token: 'token-b',
+    );
+    expect(
+      reply,
+      contains('407'),
+      reason: 'the token is what stops one site presenting another site name '
+          'and taking its circuit',
+    );
+  });
+
+  test('a known credential on a direct route tunnels to the origin', () async {
+    relay.setRoutes({
+      'ws-site-a': LocalProxyRoute(
+        siteId: 'site-a',
+        token: 'token-a',
+        upstream: UserProxySettings(type: ProxyType.DEFAULT),
+      ),
+    });
+    final reply = await connectThroughRelay(
+      host: relay.host!,
+      port: relay.port!,
+      targetHost: originHost,
+      targetPort: origin.port,
+      username: 'ws-site-a',
+      token: 'token-a',
+      request: get('/direct'),
+    );
+    expect(reply, contains('200 Connection Established'));
+    expect(reply, contains('served /direct'));
+  });
+
+  test('a SOCKS5 route reaches the origin through the SOCKS server', () async {
+    final socks = await Socks5Fixture.bind();
+    addTearDown(socks.close);
+    relay.setRoutes({
+      'ws-site-tor': LocalProxyRoute(
+        siteId: 'site-tor',
+        token: 'token-tor',
+        upstream: UserProxySettings(
+          type: ProxyType.SOCKS5,
+          address: '${InternetAddress.loopbackIPv4.address}:${socks.port}',
+        ),
+      ),
+    });
+
+    final reply = await connectThroughRelay(
+      host: relay.host!,
+      port: relay.port!,
+      targetHost: originHost,
+      targetPort: origin.port,
+      username: 'ws-site-tor',
+      token: 'token-tor',
+      request: get('/through-socks'),
+    );
+    expect(reply, contains('200 Connection Established'));
+    expect(reply, contains('served /through-socks'));
+    expect(
+      socks.targets,
+      contains('$originHost:${origin.port}'),
+      reason: 'the SOCKS server must have been the one asked for the origin, '
+          'or the relay reached it directly',
+    );
+  });
+
+  test('an unreachable upstream refuses rather than going direct', () async {
+    final probe = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+    final deadPort = probe.port;
+    await probe.close();
+
+    relay.setRoutes({
+      'ws-site-a': LocalProxyRoute(
+        siteId: 'site-a',
+        token: 'token-a',
+        upstream: UserProxySettings(
+          type: ProxyType.SOCKS5,
+          address: '${InternetAddress.loopbackIPv4.address}:$deadPort',
+        ),
+      ),
+    });
+
+    final reply = await connectThroughRelay(
+      host: relay.host!,
+      port: relay.port!,
+      targetHost: originHost,
+      targetPort: origin.port,
+      username: 'ws-site-a',
+      token: 'token-a',
+      request: get('/should-not-arrive'),
+    );
+    expect(reply, contains('502'));
+    expect(
+      reply,
+      isNot(contains('served /should-not-arrive')),
+      reason: 'falling back to a direct dial when the site proxy is down is '
+          'the leak this whole relay exists to avoid',
+    );
+  });
+
+  test('two sites on two upstreams stay on their own', () async {
+    final socksA = await Socks5Fixture.bind();
+    final socksB = await Socks5Fixture.bind();
+    addTearDown(socksA.close);
+    addTearDown(socksB.close);
+    relay.setRoutes({
+      'ws-a': LocalProxyRoute(
+        siteId: 'a',
+        token: 'ta',
+        upstream: UserProxySettings(
+          type: ProxyType.SOCKS5,
+          address: '${InternetAddress.loopbackIPv4.address}:${socksA.port}',
+        ),
+      ),
+      'ws-b': LocalProxyRoute(
+        siteId: 'b',
+        token: 'tb',
+        upstream: UserProxySettings(
+          type: ProxyType.SOCKS5,
+          address: '${InternetAddress.loopbackIPv4.address}:${socksB.port}',
+        ),
+      ),
+    });
+
+    await connectThroughRelay(
+      host: relay.host!,
+      port: relay.port!,
+      targetHost: originHost,
+      targetPort: origin.port,
+      username: 'ws-a',
+      token: 'ta',
+      request: get('/a'),
+    );
+    await connectThroughRelay(
+      host: relay.host!,
+      port: relay.port!,
+      targetHost: originHost,
+      targetPort: origin.port,
+      username: 'ws-b',
+      token: 'tb',
+      request: get('/b'),
+    );
+
+    // The whole point of the relay: one endpoint, two circuits, no crossing.
+    expect(socksA.targets, hasLength(1));
+    expect(socksB.targets, hasLength(1));
+  });
+}

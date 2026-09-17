@@ -1672,6 +1672,30 @@ NSURLSession from a configuration that
 proxies while the SOCKS5 file does not, this chain is confirmed and the repair
 follows from it.
 
+Sharper still, on a second read of the ordering: the constructor calls
+`initializeNSURLSessionsInSet` at line 1258 and only reaches its
+`if (parameters.proxyConfigData)` at line 1273. So even in the case where
+`AddWebsiteDataStore` *does* carry a proxy, the default session set's wrapper
+has already been built from a configuration written with `@[ ]`, and the
+proxy still lands as a live-context patch. `initializeNSURLSessionsInSet` has
+exactly two callers -- that one, and line 1741 for a per-parameters session
+set created later, where `m_nwProxyConfigs` is populated by then and the
+proxy does go on durably. **The default wrapper, which is what an ordinary
+page load uses, never carries the proxy on its `NSURLSessionConfiguration`
+under any path.** `recreateSessionWithUpdatedProxyConfigurations` is the only
+route that puts one there, and only an HTTP-protocol proxy stack triggers it.
+
+The repair that follows is written and tested ahead of the verdict:
+`lib/services/local_proxy_relay.dart`, one loopback HTTP CONNECT endpoint
+that every store points at, fanning out per site by proxy-auth credential.
+Two sites on two SOCKS5 upstreams reach their own and do not cross
+(`test/local_proxy_relay_test.dart`), an unattributable tunnel is challenged
+rather than relayed, and an upstream that cannot be reached returns 502
+rather than dialling direct -- the two properties that decide whether this is
+a proxy or a leak. It is deliberately **not wired** to `WebViewFactory` yet;
+that waits on the HTTP CONNECT arm, because if WebKit turns out to honour
+SOCKS5 simultaneously after all then none of this is needed.
+
 **Why:** every previous mechanism here was proposed from a fragment of the
 path. This one is the whole path, in order.
 **Why it was partial:** untested until the HTTP CONNECT arm reports, and it
