@@ -272,6 +272,29 @@ implementation of it at all, and "known" excludes exactly the origin that
 prompted this change, which serves both schemes and sends no
 `Strict-Transport-Security`.
 
+The app SHALL NOT keep an HSTS store of its own. Every engine it ships on
+already implements HSTS with the preload list, and a store here would be
+per-host state on disk, which HTTPS-002 refuses for the negative cache for the
+same reasons.
+
+The engine's http-only record therefore SHALL be understood as declining to
+upgrade, never as forcing plaintext. It suppresses only the app's own
+substitution: the URL handed to the platform is the one the site asked for, and
+whatever the platform does with it — including upgrading an HSTS host the
+engine has stopped touching — is unchanged by this feature. The app cannot
+downgrade an https URL, because it only ever reverses an upgrade it made
+itself (HTTPS-002).
+
+Whether a given engine re-upgrades such a host is that engine's behaviour and
+is NOT measured here; nothing in this capability depends on it.
+
+#### Scenario: The negative cache cannot force plaintext
+
+**Given** a host recorded http-only after a failed upgrade
+**When** the site navigates to `http://host/`
+**Then** the engine returns null and the platform receives the URL the site
+asked for, exactly as it would with this feature switched off
+
 #### Scenario: A known host is upgraded before the engine sees it
 
 **Given** an iOS or macOS site navigating to `http://known-hsts.example/`
