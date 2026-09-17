@@ -195,30 +195,37 @@ cannot see, so a webview can report a proxy it never bound (BUG-014). A
 site whose proxy refuses connections SHALL therefore never reach its
 origin.
 
-On iOS and macOS, **a load issued in the process's first frame is proxied and
-a load issued later has been measured going direct** — a webview built later,
-a webview that merely existed in the first frame, and a second navigation of a
-webview that had bound (BUG-014 attempts 19-26). A store armed before the
-network process comes up changes nothing, and neither does a process-wide
-`ProxyController` override.
+On iOS and macOS, **only the first load a webview issues is proxied.** The
+second navigation of a webview that used its proxy goes direct, and so does
+every load from a webview built after the process's first frame. Measured
+across BUG-014 attempts 19-29 with a webview constructed straight from the
+plugin, carrying nothing but a container id and a proxy — no
+`shouldOverrideUrlLoading`, no universal-link bypass, no per-site policy — so
+the behaviour is the platform's and not this app's.
 
 The measurement is not "the proxy was bound and failed". In the same run, a
 site whose proxy pointed at a closed port reached no origin at all, which is
-what a bound proxy does when it cannot connect. A load that *arrives* at the
-origin therefore had no proxy on it.
+what a bound proxy does when it cannot connect. And it is read from the
+fixture proxy's own CONNECT log rather than from the origin's request log: the
+fixture relays a proxied load to the origin too, so a path arriving there says
+nothing about whether it was proxied.
 
-What is **not** yet established is where that happens. WebKit's own source
-applies `proxyConfigurations` to the `NSURLSessionConfiguration` when a session
-wrapper is created (`NetworkSessionCocoa::applyProxyConfigurationToSessionConfiguration`),
-which covers every load on that session rather than the first — so the source
-says a bound session stays bound, and the measurement says otherwise. Until
-that contradiction is resolved the app's own navigation layer is a suspect:
-this platform cancels and reissues main-frame navigations
-([ios-universal-link-bypass](../ios-universal-link-bypass/spec.md)), and the
-per-site policy cancels cross-site ones, so a "second navigation" measured
-through `WebViewFactory` is not a plain WebKit navigation. The isolating
-measurement is a webview built straight from the plugin, carrying only a
-container and a proxy, with no app policy on it.
+This contradicts WebKit's source, which applies `proxyConfigurations` to the
+`NSURLSessionConfiguration` as each session wrapper is created
+(`NetworkSessionCocoa::applyProxyConfigurationToSessionConfiguration`) and so
+should cover every load on that session. The shipping behaviour differs from
+trunk somewhere not visible from the source, and the observation is what
+governs.
+
+The consequence is that `WKWebsiteDataStore.proxyConfigurations` cannot carry
+this feature. Proxying a site's landing page and leaking every link its user
+follows is worse than not offering the proxy, because the app reports the site
+as proxied while it is not. So on iOS and macOS a site whose effective proxy is
+non-DEFAULT SHALL fail closed — blank the load rather than fetch it over the
+device IP — until a delivery mechanism exists that survives navigation.
+
+This governs the Tor tier too: per-site Tor on iOS and macOS rides the same
+path and inherits the same limit.
 
 #### Scenario: A proxied site does not leak on its second navigation
 

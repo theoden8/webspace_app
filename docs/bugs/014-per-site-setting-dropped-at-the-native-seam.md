@@ -1149,6 +1149,54 @@ that replaces it actually runs where it can produce a signal.
 has to run.
 
 
+### Attempt 29 — The app is exonerated; the platform drops the proxy after one load
+**Date:** 2026-09-17 · **Files:** `integration_test/proxy_binding_test.dart`,
+`openspec/specs/ip-leakage/spec.md`
+
+```
+verdict: … pair=3 of 2 proxied … raw-first=DIRECT, raw-second=DIRECT …
+         raw webview first load  -> ok
+         raw webview second load -> timeout
+```
+
+`pair=3 of 2` is the reading. Three panes in the first frame point at the main
+origin — `pair-a`, `pair-b` and the raw plugin webview — and the fixture proxy
+was asked for all three. **The raw webview's first load was proxied.** Its
+`raw-first=DIRECT` label was a classifier bug, not a result: it keyed "direct"
+off the origin recording `/raw`, and a *proxied* load reaches the origin too,
+because the fixture relays it. Only the fixture's CONNECT log distinguishes
+them, and only when each load has a target of its own.
+
+With that corrected the isolating measurement reads:
+
+> A webview built straight from the plugin — nothing on it but a container id
+> and a proxy, no `WebViewFactory`, no `shouldOverrideUrlLoading`, no
+> universal-link bypass, no per-site policy — bound its proxy for its first
+> load in the first frame, and went **direct** on its second navigation.
+
+So this app's navigation layer is exonerated. The retraction in attempt 27 was
+the right move on the evidence then available, and the conclusion it retracted
+turns out to have been correct: **only the first load a webview issues is
+proxied.** Attempt 26 is reinstated, now on evidence that has no app code in it.
+
+The harness is fixed rather than left to mislead the next reader: the raw pane
+gets its own origin, "proxied" is computed from CONNECT counts per destination,
+and the `direct=` field — which was never able to mean what it said — is gone
+from the pair and renamed `arrived=` on the later-pair.
+
+`LEAK-003` reinstates the fail-closed requirement with this as its evidence, and
+records that the behaviour contradicts WebKit's own source
+(`applyProxyConfigurationToSessionConfiguration` puts the proxy on the
+`NSURLSessionConfiguration` for every session wrapper, which should cover every
+load on that session). The shipping platform differs from trunk somewhere not
+visible from the source; the observation governs.
+**Why:** the question was whether the leak was ours or the platform's, and a
+webview with none of our code on it answers it.
+**Why it was partial:** the spec says fail closed and the code still does not.
+Removing a feature the user built on two platforms is their call — the finding
+is recorded and the decision is theirs.
+
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
@@ -1167,9 +1215,9 @@ has to run.
 3. **Reach is wider than the proxy.** The same parser carries the container id,
    the UA, the media gates and every other per-site field. Only the proxy has an
    effect-level test.
-4. **On Apple, only loads issued in the process's first frame are proxied
-   (BUG-014 attempt 26), so the per-site proxy leaks on every navigation after
-   a site's first.** The app still presents the feature as working. Until it
+4. **On Apple, only the first load a webview issues is proxied (BUG-014
+   attempt 29, measured with no app code on the webview), so the per-site proxy
+   leaks on every navigation after a site's first.** The app still presents the feature as working. Until it
    fails closed, a user who pins a site to Tor or to a proxy gets one proxied
    page and the device IP thereafter. Superseded detail, kept for lineage:
    the earlier reading was that a WebView built after the first frame cannot be

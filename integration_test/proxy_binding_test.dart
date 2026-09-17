@@ -52,11 +52,13 @@ void main() {
   // `host:port`, so one origin per navigation is what makes a recorded
   // CONNECT attributable. A second load to the *same* origin can also reuse
   // the first connection, which would look like no proxy was asked at all.
+  late HttpServer rawOrigin;
   late HttpServer deferredOrigin;
   late HttpServer factoryOrigin;
   late HttpServer persistOrigin;
   late String originHost;
   late int port;
+  late int rawPort;
   late int deferredPort;
   late int factoryPort;
   late int persistPort;
@@ -121,6 +123,20 @@ void main() {
       }
       await res.close();
     });
+    // Its own origin, so a CONNECT the fixture records attributes to the raw
+    // pane. Sharing the main origin with pair-a and pair-b is what made
+    // `raw-first` unreadable: a *proxied* load also reaches the origin -- the
+    // fixture relays it -- so "the origin logged this path" does not mean the
+    // load went direct. Only `socks.targets` distinguishes them, and only if
+    // each load has a target of its own.
+    rawOrigin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
+    rawPort = rawOrigin.port;
+    listenFixture(rawOrigin, (req) async {
+      requests.add('raw:${req.uri.path}');
+      final res = req.response..headers.contentType = ContentType.html;
+      res.write('<!doctype html><html><body><p>raw</p></body></html>');
+      await res.close();
+    });
     factoryOrigin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
     factoryPort = factoryOrigin.port;
     listenFixture(factoryOrigin, (req) async {
@@ -169,6 +185,7 @@ void main() {
     await socks.close();
     await server.close(force: true);
     await deferredOrigin.close(force: true);
+    await rawOrigin.close(force: true);
     await factoryOrigin.close(force: true);
     await persistOrigin.close(force: true);
   });
@@ -342,7 +359,7 @@ void main() {
             child: inapp.InAppWebView(
               key: const ValueKey('raw'),
               initialUrlRequest: inapp.URLRequest(
-                url: inapp.WebUri('http://$originHost:$port/raw'),
+                url: inapp.WebUri('http://$originHost:$rawPort/raw'),
               ),
               initialSettings: inapp.InAppWebViewSettings(
                 containerId: 'ws-proxy-binding-raw',
@@ -375,13 +392,12 @@ void main() {
       label: 'two proxied sites built in the first frame',
       timeout: const Duration(seconds: 25),
     );
-    final direct = [
-      if (requests.contains('/pair-a')) 'a',
-      if (requests.contains('/pair-b')) 'b',
-    ];
-    verdict.add('pair=${socks.targets.length} of 2 proxied, '
-        'direct=${direct.isEmpty ? "none" : direct.join("+")}');
-    final pairLoads = socks.targets.length + direct.length;
+    // Counted, not inferred from the origin log: the fixture relays a
+    // proxied load to the origin too, so a path appearing there says nothing
+    // about whether it was proxied.
+    final pairConnects =
+        socks.targets.where((t) => t == '$originHost:$port').length;
+    verdict.add('pair=$pairConnects of 2 proxied');
 
     await waitReal(tester, () => requests.contains('/refused'),
         label: 'refused load (must not arrive)',
@@ -433,11 +449,11 @@ void main() {
 
     // (5) The plain WebKit navigation. `raw-first` is the floor for it: if
     // the raw webview did not bind in this frame, `raw-second` says nothing.
-    final rawFirst = await waitReal(
-        tester, () => requests.contains('/raw') || socks.targets.length >= 3,
+    await waitReal(
+        tester, () => socks.targets.contains('$originHost:$rawPort'),
         label: 'raw webview first load', timeout: const Duration(seconds: 15));
-    final rawFirstDirect = requests.contains('/raw');
-    verdict.add('raw-first=${rawFirstDirect ? "DIRECT" : rawFirst ? "proxied" : "no load"}');
+    final rawFirstProxied = socks.targets.contains('$originHost:$rawPort');
+    verdict.add('raw-first=${rawFirstProxied ? "proxied" : requests.contains('raw:/raw') ? "DIRECT" : "no load"}');
     if (raw != null) {
       await tester.runAsync(() async {
         await raw!.loadUrl(
@@ -457,10 +473,11 @@ void main() {
 
     // Now assert, floor first.
     expect(
-      pairLoads,
-      2,
-      reason: 'the two panes issued $pairLoads loads between them, not 2, so '
-          'this measured the mount rather than the binding',
+      pairConnects,
+      greaterThanOrEqualTo(2),
+      reason: 'the fixture proxy was asked for $pairConnects loads, not the '
+          'two the first frame issued, so this measured the mount rather '
+          'than the binding',
     );
     expect(both, isTrue,
         reason: 'a proxied webview built in the first frame did not use its '
@@ -532,12 +549,11 @@ void main() {
     await waitReal(tester, () => socks.targets.length >= 2,
         label: 'two proxied sites built in a later frame',
         timeout: const Duration(seconds: 25));
-    final direct = [
+    verdict.add('later-pair=${socks.targets.length} of 2 proxied, '
+        'arrived=${[
       if (requests.contains('/late-a')) 'a',
       if (requests.contains('/late-b')) 'b',
-    ];
-    verdict.add('later-pair=${socks.targets.length} of 2 proxied, '
-        'direct=${direct.isEmpty ? "none" : direct.join("+")}');
+    ].join("+")}');
   });
 
   testWidgets('the harness can see a load reach the origin', (tester) async {
