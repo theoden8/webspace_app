@@ -79,7 +79,7 @@ changes modify the same requirement:
 - **MIC-012** (the mic side of the capture-stop contract) and **MIC-016** (the
   mic half of CAM-014) go to `real-microphone-mode`, which already holds the
   MODIFIED MIC-012 and introduces the `real` mode they constrain.
-- **PROXY-013** (relay peer ownership) goes to `android-auth-proxy-relay`,
+- **PROXY-023** (relay peer ownership) goes to `android-auth-proxy-relay`,
   since the relay does not exist outside it.
 
 Archiving any of the three in any order is therefore safe.

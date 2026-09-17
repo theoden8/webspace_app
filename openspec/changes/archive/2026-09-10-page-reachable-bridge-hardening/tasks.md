@@ -50,14 +50,14 @@ done and verified locally (Dart suite, JS tier, real-Chromium browser tier,
 - [x] 5.6 `test/js/page_steered_outbound_reach.test.js` — every `outboundHttp.clientFor` in `lib/` is either guarded or exempt-with-a-reason, and the range table lives in exactly one file. Verified to fail on each of the three regressions it exists for. Lineage in `docs/bugs/012-page-steered-outbound-reach.md`.
 - [x] 5.4 Flip the pinned `KNOWN GAP: a hostname is not checked against what it resolves to` into five passing defences (loopback, LAN, one private address among public, redirect hop, no-prompt), each verified to fail with the gate neutered, plus the remote-DNS exemption. `stubHostLookup` in the shared fakes keeps the rest of the suite off DNS.
 
-## 6. Relay peer ownership (PROXY-013, in `android-auth-proxy-relay`)
+## 6. Relay peer ownership (PROXY-023, in `android-auth-proxy-relay`)
 
 - [x] 6.1 `ProxyRelay.peerVerdict` — pure parse of `/proc/net/tcp{,6}` returning OWN / FOREIGN / UNKNOWN, discriminating on the row's UID (field 7) against this process's own. The port pair alone is the row *any* caller creates, so matching it and stopping classified everyone as OWN.
 - [x] 6.2 Gate each accepted connection before any upstream connect; log UNKNOWN once per relay, not per connection.
 - [x] 6.3 Injectable `peerCheck` so a JVM test can arrange the foreign case.
 - [x] 6.4 JVM tests for all three verdicts, the IPv6 table, a refused foreign peer, and a same-process peer served through the real check.
-- [x] 6.5 Correct the class doc and PROXY-013: `/proc/net` is denied outright from API 29, not filtered per-UID, so the check covers API 24-28 and is inert above it. No supported replacement exists.
-- [x] 6.6 What stands on API 29+ instead: bind a random 127/8 address, not `127.0.0.1` (PROXY-014, tasks in that change).
+- [x] 6.5 Correct the class doc and PROXY-023: `/proc/net` is denied outright from API 29, not filtered per-UID, so the check covers API 24-28 and is inert above it. No supported replacement exists.
+- [x] 6.6 What stands on API 29+ instead: bind a random 127/8 address, not `127.0.0.1` (PROXY-024, tasks in that change).
 
 ## 7. Incidental
 
