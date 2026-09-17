@@ -195,22 +195,27 @@ cannot see, so a webview can report a proxy it never bound (BUG-014). A
 site whose proxy refuses connections SHALL therefore never reach its
 origin.
 
-On iOS and macOS, **only a load issued in the process's first frame is
-proxied.** Not the webview and not the store — the load. A webview created in
-that frame and navigated by `loadUrl` in the same turn is proxied; the same
-webview navigated seconds later is not; a webview created in any later frame is
-not, whichever way its load is issued. Measured across BUG-014 attempts 19-31
-with webviews constructed straight from the plugin, carrying nothing but a
-container id and a proxy — no `shouldOverrideUrlLoading`, no universal-link
-bypass, no per-site policy — so the behaviour is the platform's and not this
-app's.
+On iOS and macOS, **a load is proxied only if the webview issues it as it is
+constructed, and only if that webview is constructed in the process's first
+frame.** Both halves are required. A first-frame webview navigated by
+`loadUrl` from inside `onWebViewCreated` is proxied; the same call on a
+sibling first-frame webview once the tree has settled is not; a webview
+constructed in any later frame is not, even by its `initialUrlRequest`.
+Measured across BUG-014 attempts 19-32 with webviews built straight from the
+plugin, carrying nothing but a container id and a proxy — no
+`shouldOverrideUrlLoading`, no universal-link bypass, no per-site policy — so
+the behaviour is the platform's and not this app's.
 
-Two narrower readings are excluded by measurement rather than by argument.
-It is not "the first load each webview issues" (attempt 31's
-`sameturn-loadurl` is a webview's second act and is proxied), and it is not a
-process-wide proxy that the newest store overwrites — two webviews carrying
-*different* proxies in one later frame both went direct, neither one's traffic
-arriving at the other's proxy.
+Three readings are excluded by measurement rather than by argument:
+
+* Not **elapsed time**, and not a **race**. One first-frame webview navigated
+  five times in succession went direct on every step, the first of them issued
+  at 0 ms.
+* Not **the load mechanism**. `loadUrl` is proxied inside `onWebViewCreated`
+  and direct afterwards.
+* Not a **process-wide proxy the newest store overwrites**. Two webviews
+  carrying *different* proxies in one later frame both went direct, neither
+  one's traffic arriving at the other's proxy.
 
 The measurement is not "the proxy was bound and failed". In the same run, a
 site whose proxy pointed at a closed port reached no origin at all, which is

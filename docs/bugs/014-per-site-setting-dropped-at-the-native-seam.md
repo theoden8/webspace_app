@@ -1338,6 +1338,79 @@ came back against the narrowing.
 open question, and the staircase is the first measurement that can answer it.
 
 
+### Attempt 32 — Not a race, and not the clock: the window closes on an event
+**Date:** 2026-09-17 · **Files:** `integration_test/proxy_window_test.dart`,
+`openspec/specs/ip-leakage/spec.md`
+
+```
+stair=[0ms:DIRECT 3025ms:DIRECT 6086ms:DIRECT 9128ms:DIRECT 12176ms:DIRECT]
+sameturn-loadurl=proxied
+```
+
+Five consecutive navigations of one first-frame webview, every one direct, the
+first at 0 ms. **So it is not a race** — a race that usually loses does not
+produce five clean losses with no scatter — and **it is not elapsed time**,
+because 0 ms is already on the wrong side of it.
+
+Which leaves `sameturn-loadurl=proxied` next to `stair[0]=DIRECT` to explain,
+and the difference between those two is the whole finding. Both are raw
+webviews with a container and a proxy and no initial request, in the same
+frame, navigated by `loadUrl`. The proxied one was navigated from inside
+`onWebViewCreated`, as it was constructed. The direct one was navigated after
+the tree had settled — by which time the four panes beside it had already
+loaded.
+
+So the rule is sharper than "the first frame", and `LEAK-003` now states it as
+measured: a load is proxied only if the webview issues it **as it is
+constructed**, and only if that webview is constructed in the process's first
+frame. Attempt 31's `sameturn` reading was right about the frame and wrong
+about what it isolated; this pins it.
+
+And that shape points at an event rather than a frame. WebKit's
+`WebsiteDataStore::setProxyConfigData` clears `m_proxyConfigData`, calls
+`networkProcess()` — which registers the session and reads its parameters
+right there — and only then restores the data:
+
+```cpp
+m_proxyConfigData = std::nullopt;
+protect(networkProcess())->send(Messages::NetworkProcess::SetProxyConfigData(m_sessionID, data), 0);
+m_proxyConfigData = WTF::move(data);
+```
+
+A store registered while that process is still launching has its parameters
+read later, once the connection is up, with the proxy back in place. A store
+registered against a process already running is read immediately, with the
+proxy missing. Under that reading the whole suite's "first frame" is a
+coincidence: the first frame is simply where the first load happens, and the
+first load is what brings the network process up.
+
+This is attempt 18's hazard, which attempts 19-22 discarded on the pre-arm's
+failure — and it also explains that failure. `WKWebsiteDataStore.
+proxyConfigurations =` calls `networkProcess()` itself, so the pre-arm's own
+first store launched the process and every store after it was on the far side
+of the window. `prearmed=4` was true and only the first of the four could have
+bound.
+
+`proxy_window_test.dart` separates the frame from the event, which nothing in
+`proxy_binding_test.dart` can: it spends its own first frame on an *unproxied*
+load, which brings the network process up and does nothing else, and builds
+the proxied pair in the second frame. One file per app process is what makes
+that possible.
+
+* **2 of 2 proxied** → the window is the widget frame and the network process
+  is not what closes it.
+* **0 of 2** → the window closes when WebKit's networking comes up, and arming
+  every proxied store before anything touches the network is a repair rather
+  than the no-op attempt 20 measured.
+
+**Why:** the staircase was built to tell a rule from a race, and it answered
+that and handed over the discriminator between two first-frame webviews that
+no scenario had ever put side by side.
+**Why it was partial:** the mechanism is a reading of WebKit's source that
+fits all thirteen data points and is still untested; the leak is unchanged and
+the app still does not fail closed.
+
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
@@ -1356,13 +1429,17 @@ open question, and the staircase is the first measurement that can answer it.
 3. **Reach is wider than the proxy.** The same parser carries the container id,
    the UA, the media gates and every other per-site field. Only the proxy has an
    effect-level test.
-4. **On Apple, only a load issued in the process's first frame is proxied
-   (BUG-014 attempt 31, measured with no app code on the webview), so the
+4. **On Apple, a load is proxied only if the webview issues it as it is
+   constructed and that webview is constructed in the process's first frame
+   (BUG-014 attempt 32, measured with no app code on the webview), so the
    per-site proxy leaks on everything a user does after a site's landing page.**
-   Superseded: attempt 29 read this as "only the first load a webview issues",
-   which attempt 31's `sameturn-loadurl=proxied` refutes — a webview's *second*
-   load is proxied when it is issued in that frame. Whether "first frame" is a
-   rule or a race that usually loses is open. The app still presents the feature as working. Until it
+   Settled along the way: it is not a race and not elapsed time (five
+   consecutive navigations, all direct, the first at 0 ms), not the load
+   mechanism, and not a process-wide proxy the newest store overwrites.
+   Superseded: attempt 29's "only the first load a webview issues" and attempt
+   31's "only a load in the first frame". The open question is whether the
+   frame matters at all or the window is closed by WebKit's network process
+   coming up — `proxy_window_test.dart` asks it. The app still presents the feature as working. Until it
    fails closed, a user who pins a site to Tor or to a proxy gets one proxied
    page and the device IP thereafter. Superseded detail, kept for lineage:
    the earlier reading was that a WebView built after the first frame cannot be
