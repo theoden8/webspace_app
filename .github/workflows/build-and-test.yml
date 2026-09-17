@@ -976,6 +976,14 @@ jobs:
                 # here it would skip after paying for an app build, and this
                 # loop sits near its 45m cap.
                 [ "$(basename "$t")" = "proxy_binding_test.dart" ] && continue
+                # Same for the files that bisect that binding. They measure
+                # proxyConfigurations, which the Linux fork does not use, so
+                # every test in them skips here -- after paying for a full
+                # app build each. Three of those builds is what took this
+                # loop past the cap.
+                [ "$(basename "$t")" = "proxy_window_test.dart" ] && continue
+                [ "$(basename "$t")" = "proxy_simultaneous_test.dart" ] && continue
+                [ "$(basename "$t")" = "proxy_http_connect_test.dart" ] && continue
                 echo "::group::$t"
                 # Hard per-test wall-clock cap: a WebView mount can deadlock
                 # the platform thread below Dart timeout layer, which would
