@@ -1909,6 +1909,60 @@ contacting any proxy for such a store, in which case attempt 36's chain is
 the whole story and the fix has to be a store that is never asked to take a
 proxy late.
 
+### Attempt 39 — The certificate serves; the gate on it asserted the wrong thing
+
+**Date:** 2026-09-17
+**Commit:** (this one). Run 35283273289 (3096) on `17f9485`.
+
+The run never reached the proxy arms. `fvm flutter test` -- the plain Dart
+tier, step 18 -- failed `3277 passed, 3 failed`, which skipped `Build macOS`,
+after which every integration file reported "Unable to start the app on the
+device" and the tier printed a failure list naming all nineteen. One
+unit-test failure, nineteen lines of noise, and no reading.
+
+All three failures were attempt 38's own, and all three were the same shape:
+
+```
+HandshakeException: Handshake error in client (OS Error:
+    CERTIFICATE_VERIFY_FAILED: application verification failure(handshake.cc:298))
+```
+
+**The certificate itself is fine, and the same run proves it.**
+`outbound_https_proxy_hop_test.dart` passed all three of its tests on macOS
+-- including the one that had never executed there, because it was the test
+`skip: skip` used to hide when `openssl` was missing. That file stands up a
+TLS CONNECT proxy and a nested TLS origin on this certificate. So a
+Dart-minted certificate serves TLS on the macOS tier, which is what the https
+proxy arms need.
+
+What failed was every test that handed the certificate to
+`setTrustedCertificatesBytes` and let the platform's trust policy decide.
+Apple's SSL policy refuses it as an anchor where BoringSSL accepts it; the
+tests that used `badCertificateCallback` passed on the same runner. The
+assertion was asserting something **no caller relies on**: the WebView panes
+answer `onReceivedServerTrustAuthRequest` with PROCEED, and the Dart-side
+clients pin by sha256. A gate that tests a path the product does not take,
+on one platform only, is a cost with no coverage behind it -- and this one
+cost the run it was gating.
+
+Fixed two ways. The generator now emits a real server leaf: `keyUsage`
+(critical), `extendedKeyUsage` serverAuth, subject and authority key
+identifiers alongside the basic constraints and the subjectAltName it
+already had. Apple requires serverAuth on a TLS server certificate and
+BoringSSL treats an absent `extendedKeyUsage` as any purpose, so its absence
+was invisible on Linux; `openssl verify -purpose sslserver` now passes.
+The tests assert identity instead of policy: the handshake completes and the
+certificate the peer was handed is byte-for-byte the one this run minted.
+
+**Why it was partial:** it is still not a reading. Three runs have now been
+spent without the goal arm executing once -- 3094 skipped it on a missing
+binary, 3095 was cancelled by the push that fixed that, 3096 died in the unit
+tier before the app was built. Twice now the thing that stopped it was the
+instrument rather than the subject. The one durable lesson is procedural and
+is why this entry exists: attempt 38 ran the files it touched and not
+`fvm flutter test`, which is what CI runs, and the whole suite takes under
+three minutes here.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**

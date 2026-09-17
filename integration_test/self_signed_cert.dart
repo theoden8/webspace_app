@@ -59,7 +59,11 @@ SelfSignedCert generateSelfSignedCert({
     ..add(_validity(validFor))
     ..add(_name(commonName))
     ..add(_publicKeyInfo(pub))
-    ..add(_extensions(ipAddresses: ipAddresses, dnsNames: dnsNames));
+    ..add(_extensions(
+      ipAddresses: ipAddresses,
+      dnsNames: dnsNames,
+      key: pub,
+    ));
 
   final signer = pc.Signer('SHA-256/RSA') as pc.RSASigner
     ..init(true, pc.PrivateKeyParameter<pc.RSAPrivateKey>(priv));
@@ -136,6 +140,7 @@ ASN1Object _publicKeyInfo(pc.RSAPublicKey key) {
 ASN1Object _extensions({
   required List<String> ipAddresses,
   required List<String> dnsNames,
+  required pc.RSAPublicKey key,
 }) {
   final names = ASN1Sequence();
   for (final dns in dnsNames) {
@@ -158,10 +163,50 @@ ASN1Object _extensions({
     ..add(ASN1ObjectIdentifier.fromComponentString('2.5.29.17'))
     ..add(ASN1OctetString(names.encodedBytes));
 
+  // digitalSignature | keyEncipherment | keyCertSign, six bits used.
+  final keyUsage = ASN1Sequence()
+    ..add(ASN1ObjectIdentifier.fromComponentString('2.5.29.15'))
+    ..add(ASN1Boolean(true))
+    ..add(ASN1OctetString(
+      ASN1BitString([0xA4], unusedbits: 2).encodedBytes,
+    ));
+  // Apple's SSL policy rejects a server certificate that does not name
+  // serverAuth here, which is invisible on Linux: BoringSSL treats an absent
+  // extendedKeyUsage as any purpose.
+  final extendedKeyUsage = ASN1Sequence()
+    ..add(ASN1ObjectIdentifier.fromComponentString('2.5.29.37'))
+    ..add(ASN1OctetString(
+      (ASN1Sequence()
+            ..add(ASN1ObjectIdentifier.fromComponentString(
+                '1.3.6.1.5.5.7.3.1')))
+          .encodedBytes,
+    ));
+
+  final keyId = _keyIdentifier(key);
+  final subjectKeyIdentifier = ASN1Sequence()
+    ..add(ASN1ObjectIdentifier.fromComponentString('2.5.29.14'))
+    ..add(ASN1OctetString(ASN1OctetString(keyId).encodedBytes));
+  final authorityKeyIdentifier = ASN1Sequence()
+    ..add(ASN1ObjectIdentifier.fromComponentString('2.5.29.35'))
+    ..add(ASN1OctetString(
+      (ASN1Sequence()..add(ASN1OctetString(keyId, tag: 0x80))).encodedBytes,
+    ));
+
   final all = ASN1Sequence()
     ..add(basicConstraints)
+    ..add(keyUsage)
+    ..add(extendedKeyUsage)
+    ..add(subjectKeyIdentifier)
+    ..add(authorityKeyIdentifier)
     ..add(subjectAltName);
   return ASN1Sequence(tag: 0xA3)..add(all);
+}
+
+Uint8List _keyIdentifier(pc.RSAPublicKey key) {
+  final bits = ASN1Sequence()
+    ..add(ASN1Integer(key.modulus!))
+    ..add(ASN1Integer(key.exponent!));
+  return pc.SHA1Digest().process(bits.encodedBytes);
 }
 
 ASN1Object _pkcs1(pc.RSAPrivateKey key) {

@@ -308,10 +308,13 @@ void main() {
       ),
     });
 
-    final client = HttpClient(
-      context: SecurityContext(withTrustedRoots: false)
-        ..setTrustedCertificatesBytes(utf8.encode(cert.certPem)),
-    )..findProxy = (_) => 'PROXY ${relay.host}:${relay.port}';
+    // The origin certificate is checked by identity rather than by the
+    // platform's trust policy: Apple refuses this one as an anchor where
+    // BoringSSL accepts it, and what this test is about is the tunnel.
+    final client = HttpClient()
+      ..badCertificateCallback = ((c, host, port) => c.der.toString() ==
+          cert.certDer.toString())
+      ..findProxy = (_) => 'PROXY ${relay.host}:${relay.port}';
     addTearDown(() => client.close(force: true));
     client.addProxyCredentials(
       relay.host!,
