@@ -1789,6 +1789,16 @@ measurement series has been single-sampling a random variable. The instrument
 needs repetition -- N draws per scenario and a rate in the verdict -- before
 any further mechanism is proposed, and the CONNECT arms need TLS.
 
+`proxy_rate_test.dart` is the first half of that, and it is the measurement
+this file should have had at attempt 3. One scenario, eight draws: a webview
+built in a later frame -- which is what the app is actually made of, since
+only the first site a user opens is in the first frame -- with its own
+container, proxy and origin each round, so no round can ride another's
+connection. The verdict is `proxied=k of 8` plus the per-round list. Eight is
+chosen so that a true rate of one in three misses every round less than 4% of
+the time. It asserts `k == 8`, and a partial rate fails: a proxy used four
+times in eight is not a proxy, and reporting it as one is the leak itself.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
