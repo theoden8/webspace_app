@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "Էջի մասշտաբ",
   "siteSettingsZoomOut": "Փոքրացնել",
   "siteSettingsZoomIn": "Մեծացնել",
+  "siteSettingsHttpsUpgrade": "Անցում HTTPS-ի",
+  "siteSettingsHttpsUpgradeHint": "Էջերը բեռնում է գաղտնագրված https կապով նույնիսկ այն դեպքում, երբ հասցեն սկսվում է http-ով, որպեսզի ձեր կարդացածն ու ուղարկածը ցանցում չկարողանան դիտել կամ փոփոխել։ Գաղտնագրված կապ չառաջարկող կայքերը շարունակում են բեռնվել սովորական http-ով և կրկին չեն փոխարկվում։ Անջատեք սա միայն այն կայքի համար, որը դա չունի։",
   "siteSettingsThirdPartyCookies": "Երրորդ կողմի cookie-ներ",
   "siteSettingsIncognito": "Ինկոգնիտո ռեժիմ",
   "siteSettingsIncognitoSubtitle": "Cookie-ներ կամ քեշ չեն պահվում",

@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "Zoom halaman",
   "siteSettingsZoomOut": "Perkecil",
   "siteSettingsZoomIn": "Perbesar",
+  "siteSettingsHttpsUpgrade": "Peningkatan ke HTTPS",
+  "siteSettingsHttpsUpgradeHint": "Memuat halaman melalui koneksi https terenkripsi meskipun alamatnya diawali http, sehingga apa yang Anda baca dan kirim tidak dapat diawasi atau diubah di jaringan. Situs yang tidak menyediakan koneksi terenkripsi tetap dimuat lewat http biasa dan tidak ditingkatkan lagi. Matikan ini hanya untuk situs yang memang tidak memilikinya.",
   "siteSettingsThirdPartyCookies": "Cookie pihak ketiga",
   "siteSettingsIncognito": "Mode penyamaran",
   "siteSettingsIncognitoSubtitle": "Tidak ada cookie atau tembolok yang bertahan",

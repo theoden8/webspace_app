@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "頁面縮放",
   "siteSettingsZoomOut": "縮小",
   "siteSettingsZoomIn": "放大",
+  "siteSettingsHttpsUpgrade": "HTTPS 升級",
+  "siteSettingsHttpsUpgradeHint": "即使網址以 http 開頭，也會透過加密的 https 連線載入頁面，因此您閱讀與傳送的內容無法在網路上被窺看或竄改。未提供加密連線的網站仍會以一般 http 載入，且不會再次升級。只有在網站確實沒有加密連線時才將其關閉。",
   "siteSettingsThirdPartyCookies": "第三方 Cookie",
   "siteSettingsIncognito": "無痕模式",
   "siteSettingsIncognitoSubtitle": "不保留 Cookie 或快取",

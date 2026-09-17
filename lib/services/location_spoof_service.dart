@@ -66,6 +66,14 @@ import 'package:webspace/settings/location.dart';
 /// - Coordinates are jittered per-call (~2m) so [watchPosition] does not
 ///   return byte-identical frames.
 class LocationSpoofService {
+  /// Whether [buildScript]'s output changes anything a worker global scope
+  /// can observe. Geolocation is absent from `WorkerNavigator` and the
+  /// WebRTC half is explicitly window-only, so the timezone override is the
+  /// only half that survives there. Propagating the shim without one buys a
+  /// worker nothing and costs the blob indirection (WORK-006).
+  static bool affectsWorkerScope(String? spoofTimezone) =>
+      spoofTimezone != null && spoofTimezone.isNotEmpty;
+
   /// Build the shim. Always returns a script: geolocation is mediated in
   /// every mode, including [LocationMode.off], which refuses the page rather
   /// than deferring to the platform.

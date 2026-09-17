@@ -7,6 +7,7 @@ import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/localcdn_service.dart';
+import 'package:webspace/services/webview.dart' show WebViewFactory;
 import 'package:webspace/widgets/hint_button.dart';
 import 'package:webspace/widgets/level_slider.dart';
 
@@ -27,6 +28,7 @@ class SitePrivacyValues {
     this.disabledFilterLists = const <String>{},
     required this.localCdnEnabled,
     required this.thirdPartyCookiesEnabled,
+    this.httpsUpgradeEnabled,
     required this.letterboxEnabled,
     required this.incognito,
   });
@@ -43,6 +45,9 @@ class SitePrivacyValues {
   final Set<String> disabledFilterLists;
   final bool localCdnEnabled;
   final bool thirdPartyCookiesEnabled;
+
+  /// Null follows the app-wide default, like [dnsBlockLevel] (HTTPS-005).
+  final bool? httpsUpgradeEnabled;
   final bool letterboxEnabled;
   final bool incognito;
 
@@ -56,6 +61,7 @@ class SitePrivacyValues {
     bool? clearUrlEnabled,
     bool? dnsBlockEnabled,
     Object? dnsBlockLevel = _keep,
+    Object? httpsUpgradeEnabled = _keep,
     bool? contentBlockEnabled,
     Set<String>? disabledFilterLists,
     bool? localCdnEnabled,
@@ -71,6 +77,9 @@ class SitePrivacyValues {
         dnsBlockLevel: identical(dnsBlockLevel, _keep)
             ? this.dnsBlockLevel
             : dnsBlockLevel as int?,
+        httpsUpgradeEnabled: identical(httpsUpgradeEnabled, _keep)
+            ? this.httpsUpgradeEnabled
+            : httpsUpgradeEnabled as bool?,
         contentBlockEnabled: contentBlockEnabled ?? this.contentBlockEnabled,
         disabledFilterLists: disabledFilterLists ?? this.disabledFilterLists,
         localCdnEnabled: localCdnEnabled ?? this.localCdnEnabled,
@@ -94,6 +103,12 @@ class SitePrivacyValues {
   /// tracking protection would be the umbrella's largest hole (ETP-024).
   bool get effectiveThirdPartyCookies =>
       thirdPartyCookiesEnabled && !trackingProtectionEnabled;
+
+  /// Forced on by the umbrella (ETP-030), otherwise this site's override or
+  /// the app-wide default it has not overridden.
+  bool get effectiveHttpsUpgrade => trackingProtectionEnabled
+      ? true
+      : (httpsUpgradeEnabled ?? WebViewFactory.httpsUpgradeEnabled);
 }
 
 /// Per-site privacy screen: the tracking-protection umbrella, the settings it
@@ -496,6 +511,16 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
                 _update(_values.copyWith(thirdPartyCookiesEnabled: value)),
       );
 
+  Widget _httpsUpgrade(AppLocalizations loc) => _tile(
+        title: loc.siteSettingsHttpsUpgrade,
+        hint: loc.siteSettingsHttpsUpgradeHint,
+        value: _values.effectiveHttpsUpgrade,
+        onChanged: _values.trackingProtectionEnabled
+            ? null
+            : (value) =>
+                _update(_values.copyWith(httpsUpgradeEnabled: value)),
+      );
+
   // --- Fingerprinting ------------------------------------------------------
 
   Widget _letterbox(AppLocalizations loc) => _tile(
@@ -617,6 +642,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
             _contentBlockerLists(loc),
           if (hostIsAndroid) _localCdn(loc),
           _thirdPartyCookies(loc),
+          _httpsUpgrade(loc),
           _groupHeader(loc.privacyGroupFingerprinting),
           _letterbox(loc),
           // Only while the umbrella is on: with it off nothing is being

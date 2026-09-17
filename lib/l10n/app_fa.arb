@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "بزرگ‌نمایی صفحه",
   "siteSettingsZoomOut": "کوچک‌نمایی",
   "siteSettingsZoomIn": "بزرگ‌نمایی",
+  "siteSettingsHttpsUpgrade": "ارتقا به HTTPS",
+  "siteSettingsHttpsUpgradeHint": "صفحه‌ها را از راه اتصال رمزگذاری‌شدهٔ https بارگذاری می‌کند، حتی وقتی نشانی با http آغاز می‌شود، تا آنچه می‌خوانید و می‌فرستید روی شبکه دیده یا دستکاری نشود. سایت‌هایی که اتصال رمزگذاری‌شده ندارند همچنان با http ساده بارگذاری می‌شوند و دوباره ارتقا نمی‌یابند. تنها برای سایتی که چنین اتصالی ندارد آن را خاموش کنید.",
   "siteSettingsThirdPartyCookies": "کوکی‌های شخص ثالث",
   "siteSettingsIncognito": "حالت ناشناس",
   "siteSettingsIncognitoSubtitle": "هیچ کوکی یا حافظهٔ نهانی پایدار نمی‌ماند",

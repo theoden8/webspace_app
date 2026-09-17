@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "પૃષ્ઠ ઝૂમ",
   "siteSettingsZoomOut": "ઝૂમ આઉટ",
   "siteSettingsZoomIn": "ઝૂમ ઇન",
+  "siteSettingsHttpsUpgrade": "HTTPS અપગ્રેડ",
+  "siteSettingsHttpsUpgradeHint": "સરનામું http થી શરૂ થાય ત્યારે પણ પાનાં એન્ક્રિપ્ટ કરેલા https જોડાણ પર લોડ કરે છે, જેથી તમે જે વાંચો અને મોકલો તે નેટવર્ક પર જોઈ કે બદલી ન શકાય. જે સાઇટ્સ એન્ક્રિપ્ટ કરેલું જોડાણ આપતી નથી તે સાદા http પર જ લોડ થાય છે અને ફરી અપગ્રેડ થતી નથી. જેની પાસે તે ન હોય તેવી સાઇટ માટે જ આ બંધ કરો.",
   "siteSettingsThirdPartyCookies": "તૃતીય-પક્ષ કૂકીઝ",
   "siteSettingsIncognito": "ઇન્કૉગ્નિટો મોડ",
   "siteSettingsIncognitoSubtitle": "કોઈ કૂકીઝ અથવા કૅશ ટકતું નથી",

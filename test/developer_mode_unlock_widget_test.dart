@@ -30,6 +30,8 @@ void main() {
           onFullscreenOnShortcutChanged: (_) {},
           backOpensMenu: false,
           onBackOpensMenuChanged: (_) {},
+          httpsUpgradeEnabled: true,
+          onHttpsUpgradeEnabledChanged: (_) {},
           tabBarButton: false,
           onTabBarButtonChanged: (_) {},
           tabMaxWidth: 140,

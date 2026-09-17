@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "Zúmáil leathanaigh",
   "siteSettingsZoomOut": "Zúmáil amach",
   "siteSettingsZoomIn": "Zúmáil isteach",
+  "siteSettingsHttpsUpgrade": "Uasghrádú go HTTPS",
+  "siteSettingsHttpsUpgradeHint": "Lódálann sé leathanaigh thar an nasc criptithe https fiú nuair a thosaíonn an seoladh le http, ionas nach féidir an méid a léann agus a sheolann tú a fhaire ná a athrú ar an líonra. Lódáiltear suíomhanna nach bhfuil nasc criptithe acu thar ghnáth-http i gcónaí, agus ní dhéantar iad a uasghrádú arís. Múch é do shuíomh nach bhfuil ceann ar bith aige amháin.",
   "siteSettingsThirdPartyCookies": "Fianáin tríú páirtí",
   "siteSettingsIncognito": "Mód incognito",
   "siteSettingsIncognitoSubtitle": "Ní mhaireann fianáin ná taisce",

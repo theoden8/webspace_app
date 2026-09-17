@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "Seitenzoom",
   "siteSettingsZoomOut": "Verkleinern",
   "siteSettingsZoomIn": "Vergrößern",
+  "siteSettingsHttpsUpgrade": "HTTPS-Upgrade",
+  "siteSettingsHttpsUpgradeHint": "Lädt Seiten über die verschlüsselte https-Verbindung, auch wenn die Adresse mit http beginnt, sodass niemand im Netzwerk mitlesen oder verändern kann, was Sie lesen und senden. Seiten ohne verschlüsselte Verbindung werden weiterhin über einfaches http geladen und nicht erneut umgestellt. Schalten Sie es nur für eine Seite aus, die keine hat.",
   "siteSettingsThirdPartyCookies": "Drittanbieter-Cookies",
   "siteSettingsIncognito": "Inkognito-Modus",
   "siteSettingsIncognitoSubtitle": "Es bleiben keine Cookies oder Cache erhalten",

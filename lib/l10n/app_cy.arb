@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "Chwyddo'r dudalen",
   "siteSettingsZoomOut": "Chwyddo allan",
   "siteSettingsZoomIn": "Chwyddo i mewn",
+  "siteSettingsHttpsUpgrade": "Uwchraddio i HTTPS",
+  "siteSettingsHttpsUpgradeHint": "Yn llwytho tudalennau dros y cysylltiad https wedi'i amgryptio hyd yn oed pan fo'r cyfeiriad yn dechrau â http, fel na ellir gwylio na newid yr hyn rydych yn ei ddarllen a'i anfon ar y rhwydwaith. Mae gwefannau nad ydynt yn cynnig cysylltiad wedi'i amgryptio yn dal i lwytho dros http cyffredin, ac nid ydynt yn cael eu huwchraddio eto. Diffoddwch hyn dim ond ar gyfer gwefan nad oes ganddi'r un.",
   "siteSettingsThirdPartyCookies": "Cwcis trydydd parti",
   "siteSettingsIncognito": "Modd incognito",
   "siteSettingsIncognitoSubtitle": "Nid yw unrhyw gwcis na storfa yn parhau",

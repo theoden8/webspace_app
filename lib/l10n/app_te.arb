@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "పేజీ జూమ్",
   "siteSettingsZoomOut": "జూమ్ అవుట్",
   "siteSettingsZoomIn": "జూమ్ ఇన్",
+  "siteSettingsHttpsUpgrade": "HTTPS అప్‌గ్రేడ్",
+  "siteSettingsHttpsUpgradeHint": "చిరునామా http తో మొదలైనా పేజీలను గుప్తీకరించిన https కనెక్షన్ ద్వారా లోడ్ చేస్తుంది, తద్వారా మీరు చదివేది మరియు పంపేది నెట్‌వర్క్‌లో చూడటానికి లేదా మార్చడానికి వీలుండదు. గుప్తీకరించిన కనెక్షన్ ఇవ్వని సైట్‌లు సాధారణ http లోనే లోడ్ అవుతాయి, మళ్లీ అప్‌గ్రేడ్ కావు. అది లేని సైట్ కోసం మాత్రమే దీన్ని ఆఫ్ చేయండి.",
   "siteSettingsThirdPartyCookies": "థర్డ్-పార్టీ కుకీలు",
   "siteSettingsIncognito": "అజ్ఞాత మోడ్",
   "siteSettingsIncognitoSubtitle": "ఏ కుకీలు లేదా కాష్ నిల్వ ఉండవు",

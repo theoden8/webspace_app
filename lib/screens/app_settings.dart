@@ -81,6 +81,10 @@ class AppSettingsScreen extends StatefulWidget {
   final ValueChanged<int> onTabMaxWidthChanged;
   final bool showStatsBanner;
   final ValueChanged<bool> onShowStatsBannerChanged;
+  /// HTTPS-005: app-wide default for retrying a plain-http navigation over
+  /// https. A site can override it; Tracking Protection forces it on.
+  final bool httpsUpgradeEnabled;
+  final ValueChanged<bool> onHttpsUpgradeEnabledChanged;
   /// Current UI language override as a locale tag ('' = follow system).
   final String localeOverride;
   final ValueChanged<String> onLocaleOverrideChanged;
@@ -130,6 +134,8 @@ class AppSettingsScreen extends StatefulWidget {
     required this.onTabMaxWidthChanged,
     required this.showStatsBanner,
     required this.onShowStatsBannerChanged,
+    required this.httpsUpgradeEnabled,
+    required this.onHttpsUpgradeEnabledChanged,
     required this.localeOverride,
     required this.onLocaleOverrideChanged,
     required this.linkHandlingEnabled,
@@ -151,6 +157,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   late bool _tabStripInFullscreen;
   late bool _fullscreenOnShortcut;
   late bool _backOpensMenu;
+  late bool _httpsUpgradeEnabled;
   late bool _tabBarButton;
   late double _tabMaxWidth;
   late bool _showStatsBanner;
@@ -219,6 +226,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     _tabBarButton = widget.tabBarButton;
     _tabMaxWidth = widget.tabMaxWidth.toDouble();
     _showStatsBanner = widget.showStatsBanner;
+    _httpsUpgradeEnabled = widget.httpsUpgradeEnabled;
     _osmTileUrlController = TextEditingController();
     _loadAppVersion();
     _loadOsmTileUrl();
@@ -1155,6 +1163,24 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                 widget.onBackOpensMenuChanged(value);
               },
             ),
+          SwitchListTile(
+            title: Row(
+              children: [
+                Flexible(child: Text(loc.siteSettingsHttpsUpgrade)),
+                HintButton(
+                  title: loc.siteSettingsHttpsUpgrade,
+                  description: loc.siteSettingsHttpsUpgradeHint,
+                ),
+              ],
+            ),
+            value: _httpsUpgradeEnabled,
+            onChanged: (value) {
+              setState(() {
+                _httpsUpgradeEnabled = value;
+              });
+              widget.onHttpsUpgradeEnabledChanged(value);
+            },
+          ),
           SwitchListTile(
             title: Text(loc.appSettingsStatsBar),
             subtitle: Text(loc.appSettingsStatsBarSubtitle),

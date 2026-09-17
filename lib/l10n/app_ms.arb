@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "Zum halaman",
   "siteSettingsZoomOut": "Zum keluar",
   "siteSettingsZoomIn": "Zum masuk",
+  "siteSettingsHttpsUpgrade": "Peningkatan ke HTTPS",
+  "siteSettingsHttpsUpgradeHint": "Memuatkan halaman melalui sambungan https yang disulitkan walaupun alamat bermula dengan http, supaya apa yang anda baca dan hantar tidak dapat diperhatikan atau diubah pada rangkaian. Laman yang tidak menawarkan sambungan disulitkan tetap dimuatkan melalui http biasa dan tidak ditingkatkan lagi. Matikan ini hanya untuk laman yang memang tiada.",
   "siteSettingsThirdPartyCookies": "Kuki pihak ketiga",
   "siteSettingsIncognito": "Mod inkognito",
   "siteSettingsIncognitoSubtitle": "Tiada kuki atau cache kekal",

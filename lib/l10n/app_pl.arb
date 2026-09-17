@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "Powiększenie strony",
   "siteSettingsZoomOut": "Pomniejsz",
   "siteSettingsZoomIn": "Powiększ",
+  "siteSettingsHttpsUpgrade": "Przejście na HTTPS",
+  "siteSettingsHttpsUpgradeHint": "Wczytuje strony przez szyfrowane połączenie https nawet wtedy, gdy adres zaczyna się od http, dzięki czemu tego, co czytasz i wysyłasz, nie da się podejrzeć ani zmienić w sieci. Witryny, które nie oferują szyfrowanego połączenia, nadal wczytują się przez zwykłe http i nie są ponownie przełączane. Wyłącz to tylko dla witryny, która takiego połączenia nie ma.",
   "siteSettingsThirdPartyCookies": "Pliki cookie stron trzecich",
   "siteSettingsIncognito": "Tryb incognito",
   "siteSettingsIncognitoSubtitle": "Pliki cookie ani pamięć podręczna nie są zachowywane",

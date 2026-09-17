@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "පිටු විශාලනය",
   "siteSettingsZoomOut": "කුඩා කරන්න",
   "siteSettingsZoomIn": "විශාල කරන්න",
+  "siteSettingsHttpsUpgrade": "HTTPS වෙත උත්ශ්‍රේණි කිරීම",
+  "siteSettingsHttpsUpgradeHint": "ලිපිනය http වලින් ආරම්භ වුවද පිටු සංකේතනය කළ https සම්බන්ධතාවය හරහා පූරණය කරයි, එමගින් ඔබ කියවන සහ යවන දේ ජාලය මත නිරීක්ෂණය කිරීමට හෝ වෙනස් කිරීමට නොහැකි වේ. සංකේතනය කළ සම්බන්ධතාවයක් නොදෙන අඩවි තවමත් සාමාන්‍ය http හරහා පූරණය වන අතර නැවත උත්ශ්‍රේණි නොකෙරේ. එය නොමැති අඩවියක් සඳහා පමණක් මෙය අක්‍රිය කරන්න.",
   "siteSettingsThirdPartyCookies": "තෙවන පාර්ශවීය කුකීස්",
   "siteSettingsIncognito": "Incognito ප්‍රකාරය",
   "siteSettingsIncognitoSubtitle": "කුකීස් හෝ හැඹිලි පවතින්නේ නැත",

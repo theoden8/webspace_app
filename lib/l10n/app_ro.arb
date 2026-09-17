@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "Zoom pagină",
   "siteSettingsZoomOut": "Micșorează",
   "siteSettingsZoomIn": "Mărește",
+  "siteSettingsHttpsUpgrade": "Trecerea la HTTPS",
+  "siteSettingsHttpsUpgradeHint": "Încarcă paginile prin conexiunea https criptată chiar și când adresa începe cu http, astfel încât ceea ce citiți și trimiteți să nu poată fi urmărit sau modificat în rețea. Site-urile care nu oferă o conexiune criptată se încarcă în continuare prin http simplu și nu mai sunt convertite. Dezactivați această opțiune doar pentru un site care nu are așa ceva.",
   "siteSettingsThirdPartyCookies": "Cookie-uri de la terți",
   "siteSettingsIncognito": "Mod incognito",
   "siteSettingsIncognitoSubtitle": "Nu se păstrează cookie-uri sau cache",

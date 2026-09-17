@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "Zoom de la page",
   "siteSettingsZoomOut": "Dézoomer",
   "siteSettingsZoomIn": "Zoomer",
+  "siteSettingsHttpsUpgrade": "Passage en HTTPS",
+  "siteSettingsHttpsUpgradeHint": "Charge les pages via la connexion https chiffrée même lorsque l'adresse commence par http, afin que ce que vous lisez et envoyez ne puisse être ni observé ni modifié sur le réseau. Les sites qui n'offrent aucune connexion chiffrée se chargent toujours en http simple et ne sont plus reconvertis. Ne le désactivez que pour un site qui n'en a pas.",
   "siteSettingsThirdPartyCookies": "Cookies tiers",
   "siteSettingsIncognito": "Mode incognito",
   "siteSettingsIncognitoSubtitle": "Aucun cookie ni cache n'est conservé",

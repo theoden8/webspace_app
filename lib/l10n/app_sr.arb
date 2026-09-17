@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "Увеличање странице",
   "siteSettingsZoomOut": "Умањи",
   "siteSettingsZoomIn": "Увећај",
+  "siteSettingsHttpsUpgrade": "Надоградња на HTTPS",
+  "siteSettingsHttpsUpgradeHint": "Учитава странице преко шифроване https везе чак и када адреса почиње са http, тако да оно што читате и шаљете не може да се прати нити мења на мрежи. Сајтови који не нуде шифровану везу и даље се учитавају преко обичног http-а и не надограђују се поново. Искључите ово само за сајт који је нема.",
   "siteSettingsThirdPartyCookies": "Колачићи трећих страна",
   "siteSettingsIncognito": "Инкогнито режим",
   "siteSettingsIncognitoSubtitle": "Колачићи и кеш се не чувају",

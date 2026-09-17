@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "Sidzoom",
   "siteSettingsZoomOut": "Zooma ut",
   "siteSettingsZoomIn": "Zooma in",
+  "siteSettingsHttpsUpgrade": "HTTPS-uppgradering",
+  "siteSettingsHttpsUpgradeHint": "Läser in sidor över den krypterade https-anslutningen även när adressen börjar med http, så att det du läser och skickar inte kan avlyssnas eller ändras på nätverket. Webbplatser som inte erbjuder någon krypterad anslutning läses fortfarande in över vanlig http och uppgraderas inte igen. Stäng bara av detta för en webbplats som saknar sådan.",
   "siteSettingsThirdPartyCookies": "Tredjepartscookies",
   "siteSettingsIncognito": "Inkognitoläge",
   "siteSettingsIncognitoSubtitle": "Inga cookies eller cache sparas",

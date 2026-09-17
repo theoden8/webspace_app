@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "ページのズーム",
   "siteSettingsZoomOut": "縮小",
   "siteSettingsZoomIn": "拡大",
+  "siteSettingsHttpsUpgrade": "HTTPS へのアップグレード",
+  "siteSettingsHttpsUpgradeHint": "アドレスが http で始まる場合でも、暗号化された https 接続でページを読み込みます。そのため、読んだ内容や送信した内容をネットワーク上で盗み見られたり改ざんされたりすることがありません。暗号化接続を提供していないサイトは通常の http のまま読み込まれ、再度アップグレードされることはありません。暗号化接続がないサイトの場合にのみオフにしてください。",
   "siteSettingsThirdPartyCookies": "サードパーティCookie",
   "siteSettingsIncognito": "シークレットモード",
   "siteSettingsIncognitoSubtitle": "Cookieやキャッシュは保持されません",

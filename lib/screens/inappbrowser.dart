@@ -55,6 +55,7 @@ class InAppWebViewScreen extends StatefulWidget {
   final String? siteId;
   final bool incognito;
   final bool thirdPartyCookiesEnabled;
+  final bool httpsUpgradeEnabled;
   final bool clearUrlEnabled;
   final bool dnsBlockEnabled;
   final int? dnsBlockLevel;
@@ -173,6 +174,7 @@ class InAppWebViewScreen extends StatefulWidget {
     this.siteId,
     required this.incognito,
     required this.thirdPartyCookiesEnabled,
+    required this.httpsUpgradeEnabled,
     required this.clearUrlEnabled,
     required this.dnsBlockEnabled,
     this.dnsBlockLevel,
@@ -410,6 +412,10 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         // their stored value. Third-party cookies is the one forced *off*.
         thirdPartyCookiesEnabled: widget.thirdPartyCookiesEnabled &&
             !widget.trackingProtectionEnabled,
+        // ETP-030 forces it on, and unlike the subordinates above the parent
+        // already resolved the app-wide default into this flag.
+        httpsUpgradeEnabled:
+            widget.httpsUpgradeEnabled || widget.trackingProtectionEnabled,
         clearUrlEnabled: widget.clearUrlEnabled || widget.trackingProtectionEnabled,
         dnsBlockEnabled: widget.dnsBlockEnabled || widget.trackingProtectionEnabled,
         dnsBlockLevel: widget.dnsBlockLevel,

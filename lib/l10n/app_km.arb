@@ -370,6 +370,8 @@
   "siteSettingsPageZoom": "ការ zoom ទំព័រ",
   "siteSettingsZoomOut": "Zoom out",
   "siteSettingsZoomIn": "Zoom in",
+  "siteSettingsHttpsUpgrade": "ការប្ដូរទៅ HTTPS",
+  "siteSettingsHttpsUpgradeHint": "ផ្ទុកទំព័រតាមការតភ្ជាប់ https ដែលបានអ៊ិនគ្រីប ទោះបីអាសយដ្ឋានចាប់ផ្ដើមដោយ http ក៏ដោយ ដូច្នេះអ្វីដែលអ្នកអាន និងផ្ញើមិនអាចត្រូវបានតាមដាន ឬកែប្រែនៅលើបណ្ដាញឡើយ។ គេហទំព័រដែលមិនផ្ដល់ការតភ្ជាប់អ៊ិនគ្រីប នៅតែផ្ទុកតាម http ធម្មតា ហើយមិនត្រូវបានប្ដូរម្ដងទៀតទេ។ បិទវាតែសម្រាប់គេហទំព័រដែលគ្មានប៉ុណ្ណោះ។",
   "siteSettingsThirdPartyCookies": "Cookie ភាគីទីបី",
   "siteSettingsIncognito": "Incognito mode",
   "siteSettingsIncognitoSubtitle": "គ្មាន cookie ឬ cache ត្រូវបានរក្សាទុក",

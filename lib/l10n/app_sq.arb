@@ -370,6 +370,8 @@
   "siteSettingsPageZoom": "Zmadhimi i faqes",
   "siteSettingsZoomOut": "Zvogëlo",
   "siteSettingsZoomIn": "Zmadho",
+  "siteSettingsHttpsUpgrade": "Kalimi në HTTPS",
+  "siteSettingsHttpsUpgradeHint": "I ngarkon faqet përmes lidhjes së enkriptuar https edhe kur adresa fillon me http, në mënyrë që ajo që lexoni dhe dërgoni të mos mund të vëzhgohet ose ndryshohet në rrjet. Faqet që nuk ofrojnë lidhje të enkriptuar ngarkohen përsëri me http të thjeshtë dhe nuk kalohen sërish. Çaktivizojeni këtë vetëm për një faqe që nuk e ka.",
   "siteSettingsThirdPartyCookies": "Cookie të palëve të treta",
   "siteSettingsIncognito": "Modaliteti incognito",
   "siteSettingsIncognitoSubtitle": "Nuk ruhen cookie ose cache",

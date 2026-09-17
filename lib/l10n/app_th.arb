@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "การซูมหน้า",
   "siteSettingsZoomOut": "ซูมออก",
   "siteSettingsZoomIn": "ซูมเข้า",
+  "siteSettingsHttpsUpgrade": "การอัปเกรดเป็น HTTPS",
+  "siteSettingsHttpsUpgradeHint": "โหลดหน้าเว็บผ่านการเชื่อมต่อ https ที่เข้ารหัสแม้ว่าที่อยู่จะขึ้นต้นด้วย http เพื่อไม่ให้สิ่งที่คุณอ่านและส่งถูกดักดูหรือแก้ไขบนเครือข่าย เว็บไซต์ที่ไม่มีการเชื่อมต่อแบบเข้ารหัสจะยังคงโหลดผ่าน http ธรรมดาและจะไม่ถูกอัปเกรดอีก ปิดใช้งานเฉพาะกับเว็บไซต์ที่ไม่มีเท่านั้น",
   "siteSettingsThirdPartyCookies": "คุกกี้ของบุคคลที่สาม",
   "siteSettingsIncognito": "โหมดไม่ระบุตัวตน",
   "siteSettingsIncognitoSubtitle": "ไม่เก็บคุกกี้หรือแคช",

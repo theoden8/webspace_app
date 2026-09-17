@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "صفحہ زوم",
   "siteSettingsZoomOut": "زوم آؤٹ",
   "siteSettingsZoomIn": "زوم اِن",
+  "siteSettingsHttpsUpgrade": "HTTPS پر اپ گریڈ",
+  "siteSettingsHttpsUpgradeHint": "پتہ http سے شروع ہونے کے باوجود صفحات کو خفیہ کردہ https کنکشن کے ذریعے لوڈ کرتا ہے، تاکہ آپ جو پڑھتے اور بھیجتے ہیں اسے نیٹ ورک پر دیکھا یا بدلا نہ جا سکے۔ جو سائٹیں خفیہ کردہ کنکشن فراہم نہیں کرتیں وہ سادہ http پر ہی لوڈ ہوتی ہیں اور دوبارہ اپ گریڈ نہیں کی جاتیں۔ اسے صرف اس سائٹ کے لیے بند کریں جس کے پاس یہ نہیں ہے۔",
   "siteSettingsThirdPartyCookies": "تھرڈ پارٹی کوکیز",
   "siteSettingsIncognito": "اِنکوگنیٹو موڈ",
   "siteSettingsIncognitoSubtitle": "کوئی کوکیز یا کیش برقرار نہیں رہتے",

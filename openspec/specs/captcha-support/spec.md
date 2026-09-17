@@ -232,20 +232,64 @@ own domain; anything else is cancelled. Gated by
 
 ## Known Limitations
 
-### Cloudflare Turnstile Cross-Origin Access
+Everything below is a *posture* limitation: the challenge loads and runs, and
+then withholds its token. The symptom is always the same indefinite
+"Verifying…", it never reaches an error handler, and no tier of this repo's
+tests can observe it — the verdict is a server-side judgement over a
+fingerprint. Lineage and open gaps:
+[docs/bugs/013-captcha-verification-stalls.md](../../../docs/bugs/013-captcha-verification-stalls.md).
 
-Some Cloudflare Turnstile implementations attempt **direct cross-origin frame access** which is blocked by the browser's Same-Origin Policy. This is a fundamental browser security feature that:
+### Reading the console line
 
-1. **Cannot be bypassed** via WebView settings
-2. **Affects all WebView-based browsers** (not just this app)
-3. **Is intentional** - preventing cross-origin frame access is a core security feature
+```
+Uncaught SecurityError: Failed to read the 'cookie' property from 'Document': Access is denied for this document.
+```
 
-**Error message:**
+This is **not** the cookie policy. Blocking third-party cookies, or all cookies,
+makes `document.cookie` return `""` and throw nothing at all; chromium words the
+sandbox and `data:` cases differently again. The quoted string is the branch for
+a document whose *origin* cannot hold cookies, so it points at how that document
+was created, not at a setting. The five branches are pinned under a real engine
+by `test/browser/document_cookie_denied.test.js`; on Android the app's own way
+into this branch is the `loadDataWithBaseURL` first paint behind
+`usesCachedHtml`.
+
+### Third-party cookies
+
+A challenge is a cross-site document the site embeds and waits on, so a
+third-party-cookie block applies to it: the challenge's own storage is dropped,
+silently, with nothing raised for the site or the app to notice.
+
+`thirdPartyCookiesEnabled` is `false` for a new site, and
+`effectiveThirdPartyCookiesEnabled` forces it `false` while Tracking Protection
+is on — so the setting that fixes this is both off by default and unreachable
+without turning ETP off for the site first. Chrome, Brave and Hermit all admit
+these cookies; Brave carries an explicit storage exception for Cloudflare
+challenge frames.
+
+**Workaround:** Tracking Protection off for the site, then Third-party cookies
+on.
+
+### Anti-fingerprinting noise
+
+The ETP shim salts Canvas / WebGL / audio readbacks **per call site**, so two
+reads of one surface in the same document disagree. A captcha vendor reads that
+inconsistency as a stronger signal than any single spoofed value. There is no
+per-site escape short of turning ETP off.
+
+### Same-origin policy
+
+A challenge frame reaching for its parent's document is refused by SOP, and the
+console says so:
+
 ```
 Blocked a frame with origin "https://challenges.cloudflare.com" from accessing a frame with origin "https://example.com"
 ```
 
-**Workaround:** Users can try enabling third-party cookies for the affected site.
+This is normal, every vendor's code handles it, and it happens in a stock
+browser too. It is **not** a cause of a stall and MUST NOT be read as one — it
+was recorded as the cause here from 2026-01 to 2026-09 and sent four rounds of
+fixes at the navigation path while the failure was in the storage path.
 
 ---
 

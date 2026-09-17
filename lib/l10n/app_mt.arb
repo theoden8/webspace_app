@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "Zoom tal-paġna",
   "siteSettingsZoomOut": "Naqqas iż-zoom",
   "siteSettingsZoomIn": "Żid iż-zoom",
+  "siteSettingsHttpsUpgrade": "Titjib għal HTTPS",
+  "siteSettingsHttpsUpgradeHint": "Jgħabbi l-paġni permezz tal-konnessjoni https kriptata anke meta l-indirizz jibda bi http, biex dak li taqra u tibgħat ma jkunx jista' jiġi osservat jew mibdul fuq in-netwerk. Is-siti li ma joffru l-ebda konnessjoni kriptata xorta jitgħabbew permezz ta' http sempliċi u ma jerġgħux jittejbu. Itfi dan biss għal sit li m'għandu ebda waħda.",
   "siteSettingsThirdPartyCookies": "Cookies ta' partijiet terzi",
   "siteSettingsIncognito": "Mod inkognitu",
   "siteSettingsIncognitoSubtitle": "L-ebda cookies jew cache ma jibqgħu",

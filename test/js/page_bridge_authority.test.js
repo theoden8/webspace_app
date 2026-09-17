@@ -91,6 +91,30 @@ test('CAPTCHA-008: the captcha allow comes after the routing decision', () => {
     'and the cross-domain nested route all skipped');
 });
 
+test('HTTPS-004: the https upgrade comes after the routing decision', () => {
+  const override = NAV.indexOf('config.shouldOverrideUrlLoading!(url, hasGesture)');
+  const upgrade = NAV.indexOf('WebViewFactory.httpsUpgrade');
+  assert.notEqual(override, -1, 'the shouldOverrideUrlLoading call is gone');
+  assert.notEqual(upgrade, -1, 'the https upgrade is gone');
+  assert.ok(upgrade > override,
+    'taken first, a scheme rewrite re-enters the navigation pipeline with ' +
+    'blockAutoRedirects, the gesture requirement and the cross-domain nested ' +
+    'route already behind it — the same hole CAPTCHA-008 had to close');
+});
+
+// The upgrade cancels and reissues, so it is the shape the guard above the
+// ClearURLs / $removeparam rewrites exists for: the URL it hands to loadUrl
+// must be one the engine produced from the navigation's own URL, never one a
+// page supplied.
+test('HTTPS-004: the upgraded URL is the engine\'s, not the page\'s', () => {
+  assert.match(NAV, /onNavigation\(url, enabled: config\.httpsUpgradeEnabled\)/,
+    'the engine must be asked about the navigation URL itself, and about the ' +
+    'site\'s own setting');
+  const upgrade = NAV.indexOf('WebViewFactory.httpsUpgrade');
+  const load = NAV.indexOf('inapp.WebUri(upgrade.load!)');
+  assert.ok(load > upgrade, 'loadUrl must consume what the engine returned');
+});
+
 test('CAPTCHA-007: the captcha markers Cloudflare serves per-origin are path-scoped', () => {
   const body = blockAfter(WEBVIEW, 'static bool isCaptchaChallenge(String url, {String? siteUrl}) {',
     undefined, 'webview.dart');

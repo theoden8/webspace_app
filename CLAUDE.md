@@ -5,6 +5,10 @@ WebSpace: Flutter app managing multiple websites with per-site cookie isolation 
 ## Style (output, code, commits)
 
 - No preamble, no closing fluff, no em-dashes, no emoji.
+- **End a long answer with a TL;DR.** Long is roughly more than a screen, or
+  more than two sections. It is the one closing section that is not fluff, so
+  it carries facts a reader can act on (what changed, what it means, what is
+  still open), never a recap of the headings above it. Short answers get none.
 - Don't use the phrase "load-bearing".
 - Code first; explain only the non-obvious.
 - Default to **no code comments**. Only add when the *why* is non-obvious (hidden constraint, workaround for a specific bug, surprising behavior). Never restate what the code does. Never reference the current task or PR.
@@ -215,6 +219,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | file-import-sites | local HTML via HtmlCacheService |
 | fullscreen-mode | hide app bar/tab strip/system UI; per-site auto |
 | home-shortcut | Android pinned shortcuts; iOS/macOS expose an "Open Site" App Intent through Shortcuts instead (no pin API) |
+| https-upgrade *(change)* | plain-http main-frame navigations retried over https, silent per-host fallback; default-on knob, forced on by Tracking Protection |
 | icon-fetching | progressive favicon w/ fallbacks |
 | incognito-mode | per-site: nothing the site stores survives an app restart (cookies, localStorage, IDB, SW, cache, last URL/title); typed configuration does |
 | ios-universal-link-bypass | cancel+reissue gesture http(s) navs to dodge AASA |

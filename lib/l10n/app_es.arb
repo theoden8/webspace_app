@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "Zoom de página",
   "siteSettingsZoomOut": "Alejar",
   "siteSettingsZoomIn": "Acercar",
+  "siteSettingsHttpsUpgrade": "Actualización a HTTPS",
+  "siteSettingsHttpsUpgradeHint": "Carga las páginas mediante la conexión https cifrada incluso cuando la dirección empieza por http, de modo que lo que lees y envías no pueda vigilarse ni alterarse en la red. Los sitios que no ofrecen conexión cifrada se siguen cargando por http normal y no se vuelven a actualizar. Desactívalo solo para un sitio que no la tenga.",
   "siteSettingsThirdPartyCookies": "Cookies de terceros",
   "siteSettingsIncognito": "Modo incógnito",
   "siteSettingsIncognitoSubtitle": "No persisten cookies ni caché",

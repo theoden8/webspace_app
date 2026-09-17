@@ -135,6 +135,7 @@ function launchUrlParams(src) {
 
 const POSTURE = new Set([
   'siteId', 'javascriptEnabled', 'userAgent', 'thirdPartyCookiesEnabled',
+  'httpsUpgradeEnabled',
   'incognito', 'language', 'zoomPercent', 'clearUrlEnabled', 'dnsBlockEnabled',
   'dnsBlockLevel', 'contentBlockEnabled', 'disabledFilterLists',
   'trackingProtectionEnabled', 'spoofWindowWidth',

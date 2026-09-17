@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "Мащаб на страницата",
   "siteSettingsZoomOut": "Намали",
   "siteSettingsZoomIn": "Увеличи",
+  "siteSettingsHttpsUpgrade": "Надграждане до HTTPS",
+  "siteSettingsHttpsUpgradeHint": "Зарежда страниците през шифрованата https връзка дори когато адресът започва с http, така че това, което четете и изпращате, не може да бъде наблюдавано или променяно в мрежата. Сайтовете без шифрована връзка пак се зареждат през обикновен http и не се надграждат отново. Изключете го само за сайт, който няма такава.",
   "siteSettingsThirdPartyCookies": "Бисквитки от трети страни",
   "siteSettingsIncognito": "Режим инкогнито",
   "siteSettingsIncognitoSubtitle": "Не се запазват бисквитки или кеш",

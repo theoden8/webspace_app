@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "تكبير الصفحة",
   "siteSettingsZoomOut": "تصغير",
   "siteSettingsZoomIn": "تكبير",
+  "siteSettingsHttpsUpgrade": "الترقية إلى HTTPS",
+  "siteSettingsHttpsUpgradeHint": "يحمّل الصفحات عبر اتصال https المشفّر حتى عندما يبدأ العنوان بـ http، بحيث لا يمكن مراقبة ما تقرأه وترسله أو تعديله على الشبكة. المواقع التي لا توفّر اتصالاً مشفّراً تظل تُحمّل عبر http العادي ولا تُرقّى مرة أخرى. أوقفه فقط لموقع لا يوفّر ذلك.",
   "siteSettingsThirdPartyCookies": "ملفات تعريف الارتباط من الطرف الثالث",
   "siteSettingsIncognito": "وضع التصفح المتخفي",
   "siteSettingsIncognitoSubtitle": "لا تبقى أي ملفات تعريف ارتباط أو ذاكرة تخزين مؤقت",

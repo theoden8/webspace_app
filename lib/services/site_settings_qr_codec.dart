@@ -37,6 +37,7 @@ class SiteSettingsQrCodec {
     'javascriptEnabled',
     'userAgent',
     'thirdPartyCookiesEnabled',
+    'httpsUpgradeEnabled',
     'incognito',
     'alwaysOpenHome',
     'kioskMode',

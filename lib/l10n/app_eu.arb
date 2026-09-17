@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "Orriaren zooma",
   "siteSettingsZoomOut": "Txikiagotu",
   "siteSettingsZoomIn": "Handiagotu",
+  "siteSettingsHttpsUpgrade": "HTTPSra bihurtzea",
+  "siteSettingsHttpsUpgradeHint": "Orriak https konexio zifratuaren bidez kargatzen ditu helbidea http-rekin hasten denean ere, irakurtzen eta bidaltzen duzuna sarean ikusi edo aldatu ezin izan dadin. Konexio zifraturik eskaintzen ez duten guneak http arruntaren bidez kargatzen dira oraindik, eta ez dira berriro bihurtzen. Itzali ezazu hori ez duen gune batean bakarrik.",
   "siteSettingsThirdPartyCookies": "Hirugarrenen cookieak",
   "siteSettingsIncognito": "Isilpeko modua",
   "siteSettingsIncognitoSubtitle": "Ez da cookierik edo cacherik mantentzen",

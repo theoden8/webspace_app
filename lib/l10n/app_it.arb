@@ -368,6 +368,8 @@
   "siteSettingsPageZoom": "Zoom pagina",
   "siteSettingsZoomOut": "Riduci zoom",
   "siteSettingsZoomIn": "Aumenta zoom",
+  "siteSettingsHttpsUpgrade": "Passaggio a HTTPS",
+  "siteSettingsHttpsUpgradeHint": "Carica le pagine tramite la connessione https cifrata anche quando l'indirizzo inizia con http, così ciò che leggi e invii non può essere osservato né alterato sulla rete. I siti che non offrono alcuna connessione cifrata continuano a caricarsi in http semplice e non vengono più convertiti. Disattivalo solo per un sito che non ne ha una.",
   "siteSettingsThirdPartyCookies": "Cookie di terze parti",
   "siteSettingsIncognito": "Modalità incognito",
   "siteSettingsIncognitoSubtitle": "Nessun cookie o cache viene conservato",
