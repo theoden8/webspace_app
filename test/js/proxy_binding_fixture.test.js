@@ -299,3 +299,62 @@ test('the simultaneity files assert the proxy floor instead of skipping it', () 
     );
   }
 });
+
+// Both https arms skipped on the macOS tier with "openssl is not installed":
+// that tier runs a built app bundle, where `Process.runSync` has no shell and
+// no PATH to find one on. The arm the whole investigation turns on therefore
+// never executed, and printed nothing at all -- a skip and a run look the
+// same from outside. The certificate is minted in Dart now, and no tier may
+// go back to gating a TLS origin on a binary being installed.
+test('no proxy tier serves TLS by shelling out to a binary', () => {
+  const dirs = ['integration_test', 'test'];
+  for (const dir of dirs) {
+    for (const name of fs.readdirSync(path.join(repoRoot, dir))) {
+      if (!name.endsWith('.dart')) continue;
+      const rel = `${dir}/${name}`;
+      const body = fs
+        .readFileSync(path.join(repoRoot, rel), 'utf8')
+        .replace(/^\s*\/\/.*$/gm, '');
+      assert.doesNotMatch(
+        body,
+        /Process\.(run|runSync|start)\(\s*\n?\s*'openssl'/,
+        `${rel} shells out to openssl; the macOS integration tier has no ` +
+          'such binary, so the file would skip and report green having ' +
+          'measured nothing. Use generateSelfSignedCert instead',
+      );
+    }
+  }
+});
+
+test('the https proxy arms mint their own certificate and serve it', () => {
+  for (const rel of [
+    'integration_test/proxy_connect_https_test.dart',
+    'integration_test/proxy_relay_binding_test.dart',
+  ]) {
+    const body = fs
+      .readFileSync(path.join(repoRoot, rel), 'utf8')
+      .replace(/^\s*\/\/.*$/gm, '');
+    assert.match(
+      body,
+      /generateSelfSignedCert\(/,
+      `${rel} must mint its certificate in Dart`,
+    );
+    assert.match(
+      body,
+      /HttpServer\.bindSecure\(/,
+      `${rel} exists to put TLS on the destination; a plaintext origin is ` +
+        'the arm it was written to replace',
+    );
+    const urls = body.match(/'https:\/\/[^']*'/g) ?? [];
+    assert.ok(
+      urls.length > 0 && urls.every((u) => u.includes('$originHost')),
+      `${rel} must load https origins built from the routable address, got ` +
+        `[${urls.join(' ')}]`,
+    );
+    assert.doesNotMatch(
+      body,
+      /markTestSkipped\([^)]*openssl/,
+      `${rel} still skips on openssl`,
+    );
+  }
+});

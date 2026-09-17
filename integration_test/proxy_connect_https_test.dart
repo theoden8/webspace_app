@@ -18,9 +18,9 @@
 // belongs to the tunnelled destination. So the proxy stays plaintext here and
 // the **origins** get TLS, which is the one variable that differed.
 //
-// The certificate is generated at run time with `openssl`, the way
-// `test/outbound_https_proxy_hop_test.dart` already does it, so no private
-// key is committed.
+// The certificate is minted in Dart at run time (`self_signed_cert.dart`), so
+// no private key is committed and the arm does not depend on a binary the
+// macOS tier does not have.
 
 import 'dart:io';
 
@@ -33,6 +33,7 @@ import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/webview.dart';
 import 'fixture_server.dart';
 import 'http_connect_fixture.dart';
+import 'self_signed_cert.dart';
 import 'socks5_fixture.dart';
 
 void main() {
@@ -45,45 +46,28 @@ void main() {
     print('[proxy-connect-https] $m');
   }
 
-  final haveOpenssl = () {
-    try {
-      return Process.runSync('openssl', ['version']).exitCode == 0;
-    } catch (_) {
-      return false;
-    }
-  }();
-
   const paneCount = 3;
 
   final proxies = <HttpConnectFixture>[];
   final origins = <HttpServer>[];
   final ports = <int>[];
   final requests = <String>[];
-  Directory? certDir;
   InternetAddress? routable;
   var originHost = '127.0.0.1';
   var containers = false;
   final verdict = <String>[];
 
   setUpAll(() async {
-    if (!applies || !haveOpenssl) return;
+    if (!applies) return;
     containers = await ContainerNative.instance.isSupported();
     await PlatformInfo.initialize();
     routable = await nonLoopbackIPv4();
     originHost = routable?.address ?? '127.0.0.1';
 
-    certDir = await Directory.systemTemp.createTemp('webspace-proxy-tls-');
-    final key = '${certDir!.path}/key.pem';
-    final cert = '${certDir!.path}/cert.pem';
-    final gen = await Process.run('openssl', [
-      'req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1',
-      '-keyout', key, '-out', cert, '-subj', '/CN=$originHost',
-      '-addext', 'subjectAltName=IP:$originHost,IP:127.0.0.1',
-    ]);
-    expect(gen.exitCode, 0, reason: gen.stderr.toString());
-    final ctx = SecurityContext()
-      ..useCertificateChain(cert)
-      ..usePrivateKey(key);
+    final ctx = generateSelfSignedCert(
+      commonName: originHost,
+      ipAddresses: {originHost, '127.0.0.1'}.toList(),
+    ).serverContext();
 
     for (var i = 0; i < paneCount; i++) {
       final origin =
@@ -105,7 +89,7 @@ void main() {
   });
 
   tearDownAll(() async {
-    if (!applies || !haveOpenssl) return;
+    if (!applies) return;
     for (var f = 0; f < proxies.length; f++) {
       log('proxy$f connects=${proxies[f].targets}');
     }
@@ -116,16 +100,11 @@ void main() {
     for (final o in origins) {
       await o.close(force: true);
     }
-    await certDir?.delete(recursive: true);
   });
 
   bool usable() {
     if (!applies) {
       markTestSkipped('the per-WebView proxy is an Apple path');
-      return false;
-    }
-    if (!haveOpenssl) {
-      markTestSkipped('openssl is not installed; cannot serve an https origin');
       return false;
     }
     expect(routable, isNotNull,

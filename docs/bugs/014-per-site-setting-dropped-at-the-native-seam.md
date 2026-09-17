@@ -1813,6 +1813,75 @@ chosen so that a true rate of one in three misses every round less than 4% of
 the time. It asserts `k == 8`, and a partial rate fails: a proxy used four
 times in eight is not a proxy, and reporting it as one is the leak itself.
 
+### Attempt 38 — The later-frame case is deterministic; the goal arm has still never run
+
+**Date:** 2026-09-17
+**Commit:** (this one). Run 35275274157 on `523798e`.
+
+Two verdicts landed, and they are the first repeated measurements in this
+file:
+
+```
+[proxy-rate] verdict: containers=true, proxied=0 of 8,
+    rounds=[DIRECT DIRECT DIRECT DIRECT DIRECT DIRECT DIRECT DIRECT]
+[proxy-rate] socks connects=[]
+[proxy-http-connect] verdict: containers=true,
+    http-connect=[h0->DIRECT h1->DIRECT h2->DIRECT],
+    later-socks-control=DIRECT
+```
+
+both with `proxySupported=true` and `containers=true`.
+
+**`0 of 8` is not a rate.** A webview built in a later frame, with its own
+container, its own proxy and its own origin each round, went direct eight
+times out of eight, and the SOCKS fixtures logged no connection at all. A
+proxy that exists only as an asynchronous patch to a live `nw_context`,
+racing the load, would have proxied some rounds. So attempt 37's
+nondeterminism is real but narrower than it looked: it belongs to the
+scenarios `proxy_binding_test.dart` measures (`raw-late`, `alt-proxy`), which
+still need their own rate file, and not to the plain later-frame case, which
+fails deterministically. That case is what the app is made of -- only the
+first site a user opens is in the first frame.
+
+**The two https arms produced no output at all.** The loop entered both files
+-- the group markers are in the log -- and the log carries three occurrences
+of `openssl is not installed; cannot serve an https origin`. Both skipped on
+the guard I wrote. The macOS integration tier runs a built app bundle:
+`Process.runSync('openssl', ...)` there has no shell and no PATH to find a
+binary on. Tor's own log in the same run reports "We compiled with OpenSSL
+30600030: OpenSSL 3.6.3", so the library is present and only the CLI is out
+of reach. A skip and a run are indistinguishable in the tier's output; this
+is the fourth instrument in this file to report nothing and look like it
+reported something, and the first to do it to the arm written to settle the
+question.
+
+**What this attempt did:** `integration_test/self_signed_cert.dart` mints an
+RSA-2048 / SHA-256 self-signed certificate in Dart -- pointycastle for the
+key, asn1lib for the DER -- carrying the routable address and `127.0.0.1` in
+its subjectAltName. `test/self_signed_cert_test.dart` is its gate, and it
+asserts the property the arms need rather than that a certificate parses: a
+client trusting only that certificate completes a handshake by IP and by
+name, an ordinary client is refused, and a client that overrides the check
+gets through, which is the panes' own posture. Both https arms and
+`test/outbound_https_proxy_hop_test.dart` now use it and no longer skip.
+Two structural rules in `test/js/proxy_binding_fixture.test.js`, each checked
+by mutating the file under test until it failed: nothing under `test/` or
+`integration_test/` may `Process.run('openssl', ...)`, and the two https arms
+must mint a certificate, serve it through `HttpServer.bindSecure`, and load
+`https://` origins built from the routable address.
+
+**Why it was partial:** the arm that decides the goal still has not executed
+once. `proxy_relay_binding_test.dart` -- four sites, four upstream SOCKS
+fixtures, one `LocalProxyRelay` CONNECT endpoint, one credential each -- has
+been written, rewritten for TLS, and skipped. Everything here removes a
+reason it could not run; none of it is a reading. The `0 of 8` does narrow
+the ground it will land on: for a later-frame store the failure is total, so
+the next run either shows the CONNECT route reaching the relay, in which case
+the repair works and the delivery was the variable, or shows WebKit not
+contacting any proxy for such a store, in which case attempt 36's chain is
+the whole story and the fix has to be a store that is never asked to take a
+proxy late.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
@@ -1865,4 +1934,8 @@ times in eight is not a proxy, and reporting it as one is the leak itself.
    (loopback), while the other never issued the load at all (widget reuse). The
    structural gate added in attempt 4 covers those two specific shapes; the
    general rule — an effect-level assertion needs a control that fails when the
-   instrument is broken — is not enforced anywhere.
+   instrument is broken — is not enforced anywhere. The sibling shape — a test that
+   **skips** and is counted as a run — has now happened four times (attempts
+   35, 37 and twice in 38). Each was gated afterwards by name: the
+   `PlatformInfo.initialize()` rule, the floor-assert rule, and the
+   no-`openssl` rule. Nothing gates the class.

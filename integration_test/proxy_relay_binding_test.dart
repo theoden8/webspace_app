@@ -38,6 +38,7 @@ import 'package:webspace/services/local_proxy_relay.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'fixture_server.dart';
+import 'self_signed_cert.dart';
 import 'socks5_fixture.dart';
 
 void main() {
@@ -58,16 +59,7 @@ void main() {
   // A CONNECT proxy is a tunnel, and upstream WebKit only ever exercises one
   // with a TLS destination (attempt 37's correction). The first version of
   // this file used http origins and every proxy fixture came back empty, so
-  // the origins are https now and the certificate is minted at run time the
-  // way test/outbound_https_proxy_hop_test.dart does it.
-  final haveOpenssl = () {
-    try {
-      return Process.runSync('openssl', ['version']).exitCode == 0;
-    } catch (_) {
-      return false;
-    }
-  }();
-  Directory? certDir;
+  // the origins are https.
 
   final socks = <Socks5Fixture>[];
   final origins = <HttpServer>[];
@@ -83,7 +75,7 @@ void main() {
   String tokenFor(int i) => 'token-$i-not-a-secret-in-a-test';
 
   setUpAll(() async {
-    if (!applies || !haveOpenssl) return;
+    if (!applies) return;
     containers = await ContainerNative.instance.isSupported();
     // Without this `isProxySupported` is false and every scenario below
     // skips, which is how two files in this directory once reported green
@@ -92,18 +84,10 @@ void main() {
     routable = await nonLoopbackIPv4();
     originHost = routable?.address ?? '127.0.0.1';
 
-    certDir = await Directory.systemTemp.createTemp('webspace-relay-tls-');
-    final key = '${certDir!.path}/key.pem';
-    final cert = '${certDir!.path}/cert.pem';
-    final gen = await Process.run('openssl', [
-      'req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1',
-      '-keyout', key, '-out', cert, '-subj', '/CN=$originHost',
-      '-addext', 'subjectAltName=IP:$originHost,IP:127.0.0.1',
-    ]);
-    expect(gen.exitCode, 0, reason: gen.stderr.toString());
-    final ctx = SecurityContext()
-      ..useCertificateChain(cert)
-      ..usePrivateKey(key);
+    final ctx = generateSelfSignedCert(
+      commonName: originHost,
+      ipAddresses: {originHost, '127.0.0.1'}.toList(),
+    ).serverContext();
 
     for (var i = 0; i < siteCount; i++) {
       final origin =
@@ -145,13 +129,12 @@ void main() {
   });
 
   tearDownAll(() async {
-    if (!applies || !haveOpenssl) return;
+    if (!applies) return;
     for (var i = 0; i < socks.length; i++) {
       log('socks$i connects=${socks[i].targets}');
     }
     log('verdict: containers=$containers, ${verdict.join(", ")}');
     await relay.stop();
-    await certDir?.delete(recursive: true);
     for (final s in socks) {
       await s.close();
     }
@@ -163,10 +146,6 @@ void main() {
   bool usable() {
     if (!applies) {
       markTestSkipped('the per-WebView proxy is an Apple path');
-      return false;
-    }
-    if (!haveOpenssl) {
-      markTestSkipped('openssl is not installed; cannot serve an https origin');
       return false;
     }
     expect(

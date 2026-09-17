@@ -87,6 +87,11 @@ dev_dependencies:
   # transitively via flutter_test); declared direct for the surface-repaint
   # nudge-loop race test.
   fake_async: ^1.3.3
+  # The https arms of the proxy tiers mint their own certificate: the macOS
+  # integration tier runs an app bundle, where no `openssl` binary is on PATH.
+  # Both are already locked transitively.
+  asn1lib: ^1.6.5
+  pointycastle: ^3.9.1
 
 # Per-site container isolation requires APIs not present in upstream
 # flutter_inappwebview. We maintain a fork that adds a first-class
