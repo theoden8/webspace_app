@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
 import 'dart:math' as math;
@@ -4370,6 +4371,31 @@ class WebViewFactory {
             '  -> CANCEL (https upgrade) $url',
             sensitivity: LogSensitivity.sensitive,
           );
+          // A refused port errors straight away, but one that accepts and then
+          // says nothing produces no error at all, and the page sits there on
+          // a site that would have loaded instantly over http. Arm the
+          // deadline HTTPS-002 promises.
+          //
+          // Firing late is safe by construction rather than by cancellation:
+          // `fallbackForTimeout` is `fallbackFor`, so once onLoadStop has
+          // recorded the success there is no in-flight entry left and this is
+          // a no-op. The generation check is the second half — without it a
+          // deadline armed for a navigation the user has since left would pull
+          // them back to the http URL.
+          final genAtUpgrade = navigationGen;
+          Timer(WebViewFactory.httpsUpgrade.deadline, () {
+            if (navigationGen != genAtUpgrade) return;
+            final fallback =
+                WebViewFactory.httpsUpgrade.fallbackForTimeout(upgraded);
+            if (fallback == null) return;
+            LogService.instance.log(
+              'WebView',
+              'https upgrade timed out, falling back to $fallback',
+              sensitivity: LogSensitivity.sensitive,
+            );
+            controller.loadUrl(
+                urlRequest: inapp.URLRequest(url: inapp.WebUri(fallback)));
+          });
           controller.loadUrl(
               urlRequest: inapp.URLRequest(url: inapp.WebUri(upgraded)));
           return inapp.NavigationActionPolicy.CANCEL;

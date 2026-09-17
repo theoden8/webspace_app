@@ -22,7 +22,22 @@ library;
 /// about, and a wrong entry would outlive its cause with nothing in the UI to
 /// show or clear it.
 class HttpsUpgradeEngine {
-  HttpsUpgradeEngine();
+  HttpsUpgradeEngine({this.deadline = const Duration(seconds: 8)});
+
+  /// How long an upgraded navigation may go without a verdict before the call
+  /// site treats it as failed (HTTPS-002).
+  ///
+  /// A refused port errors immediately, but a port that accepts and then says
+  /// nothing — a firewall blackholing 443, which is the shape of a captive
+  /// portal — produces no error at all for as long as the engine's own
+  /// timeouts allow. Without a deadline the page just sits there, on a site
+  /// that would have loaded instantly over http, and the fallback this
+  /// requirement promises never runs.
+  ///
+  /// Eight seconds: long enough that a slow-but-live TLS host is not cut off
+  /// (a handshake over a bad mobile link is well under this), short enough
+  /// that a blackhole costs a pause rather than a hang.
+  final Duration deadline;
 
   /// Hosts that answered an upgrade attempt with a failure, lowercased.
   final Set<String> _httpOnlyHosts = <String>{};
@@ -72,6 +87,15 @@ class HttpsUpgradeEngine {
     if (host != null && host.isNotEmpty) _httpOnlyHosts.add(host.toLowerCase());
     return original;
   }
+
+  /// The fallback for an upgrade whose deadline passed with no verdict.
+  ///
+  /// Deliberately the same call as [fallbackFor] rather than a path of its
+  /// own: a deadline that fires after the load already succeeded MUST be a
+  /// no-op, and the in-flight entry [recordUpgradeSuccess] removes is what
+  /// makes it one. A separate path that re-derived the http URL would happily
+  /// downgrade a page that is already up over https.
+  String? fallbackForTimeout(String upgradedUrl) => fallbackFor(upgradedUrl);
 
   /// Note that [upgradedUrl] loaded successfully, dropping its in-flight entry.
   /// Without this the map grows by one per upgraded navigation for the life of

@@ -134,6 +134,30 @@ void main() {
       expect(up('http://intranet.example/'), isNull);
     });
 
+    test('a timeout fallback IS the failure fallback', () {
+      // Not an alias for tidiness: it is what makes a late-firing deadline
+      // harmless. A separate path that re-derived the http URL would downgrade
+      // a page that had already come up over https in the meantime.
+      final upgraded = up('http://intranet.example/a')!;
+      expect(engine.fallbackForTimeout(upgraded), 'http://intranet.example/a');
+      expect(engine.isKnownHttpOnly('intranet.example'), isTrue);
+    });
+
+    test('a deadline firing after the load succeeded does nothing', () {
+      final upgraded = up('http://example.com/a')!;
+      engine.recordUpgradeSuccess(upgraded);
+      expect(engine.fallbackForTimeout(upgraded), isNull);
+      expect(engine.isKnownHttpOnly('example.com'), isFalse,
+          reason: 'a live https host must not be marked http-only by a timer '
+              'that fired after its page was already up');
+    });
+
+    test('the deadline is a value the call site reads, with a sane default', () {
+      expect(HttpsUpgradeEngine().deadline, const Duration(seconds: 8));
+      expect(HttpsUpgradeEngine(deadline: const Duration(seconds: 2)).deadline,
+          const Duration(seconds: 2));
+    });
+
     test('reset forgets both sets', () {
       final upgraded = up('http://intranet.example/a')!;
       engine.fallbackFor(upgraded);

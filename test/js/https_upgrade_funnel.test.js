@@ -86,6 +86,44 @@ test('HTTPS-002: the engine is one shared instance, not per webview', () => {
     'a second HttpsUpgradeEngine() means two hosts-seen sets that never agree');
 });
 
+// HTTPS-002, the deadline. A refused port errors and reaches onReceivedError;
+// a port that accepts and then says nothing produces no event at all, so the
+// only thing that can rescue that navigation is a timer armed when the upgrade
+// was issued. Delete it and the page hangs on a site that would have loaded
+// instantly over http, with every other test still green.
+test('HTTPS-002: issuing an upgrade arms the deadline', () => {
+  const nav = blockAfter(WEBVIEW,
+    'shouldOverrideUrlLoading: (controller, navigationAction) async {',
+    undefined, 'webview.dart');
+  assert.match(nav, /Timer\(WebViewFactory\.httpsUpgrade\.deadline,/,
+    'the deadline must come from the engine, not a literal at the call site');
+  const timer = nav.indexOf('Timer(WebViewFactory.httpsUpgrade.deadline,');
+  const load = nav.indexOf('inapp.WebUri(upgraded)');
+  assert.ok(timer !== -1 && load !== -1 && timer < load,
+    'arm the deadline before issuing the load it is meant to rescue');
+});
+
+// The two things that make a late timer harmless. Without the engine call it
+// would re-derive an http URL and downgrade a page that is already up over
+// https; without the generation check it would yank a user back to http on a
+// navigation they have since left.
+test('HTTPS-002: the deadline goes through the engine and checks generation',
+  () => {
+    const nav = blockAfter(WEBVIEW,
+      'shouldOverrideUrlLoading: (controller, navigationAction) async {',
+      undefined, 'webview.dart');
+    const timer = nav.indexOf('Timer(WebViewFactory.httpsUpgrade.deadline,');
+    const body = nav.slice(timer);
+    const gen = body.indexOf('if (navigationGen != genAtUpgrade) return;');
+    const ask = body.indexOf('fallbackForTimeout(upgraded)');
+    assert.ok(gen !== -1,
+      'a deadline armed for a navigation the user has left must not fire');
+    assert.ok(ask !== -1,
+      'the timeout fallback must be the engine\'s: it is fallbackFor, so a ' +
+      'load that already succeeded left no in-flight entry to reverse');
+    assert.ok(gen < ask, 'check the generation before touching engine state');
+  });
+
 // HTTPS-006. The plugin's own known-host upgrade is iOS/macOS only and covers
 // strictly less, but it acts earlier and costs nothing; turning it off would
 // be a silent downgrade on the two platforms that have it.

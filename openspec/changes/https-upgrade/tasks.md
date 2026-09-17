@@ -107,13 +107,16 @@ that passes either way is worse than none, because it reads as cover.
   `SocketException` rather than by a test calling `fallbackFor`, and the
   three-navigation sequencing is exercised rather than asserted a step at a
   time.
-- [ ] 7.3 **TLS outcomes are still unobserved, and belong on a device.** A
-  rejected certificate and a stalled handshake were attempted in a Dart client
-  and dropped: whether either reaches `onReceivedError` at all, and how fast,
-  is chromium's behaviour, and a Dart `HttpClient` answers a different
-  question. (`HttpClient.connectionTimeout` bounds the connect but not the
-  response, so a port that accepts and never answers hangs that harness
-  indefinitely; that is a fact about `HttpClient`, not about the app.) The
-  stalled-handshake case is the one that matters for a default-on upgrade,
-  because a firewall that blackholes 443 is the shape a captive portal has,
-  and it needs the integration tier.
+- [x] 7.3 **The stalled port is fixed and covered.** It had no error to catch,
+  so nothing fell back and the page hung: the engine now carries a `deadline`
+  (8s) and the call site arms a timer with it when it issues the upgrade.
+  Verified against a real socket that accepts and never answers
+  (`https_upgrade_network_test.dart`, 600ms deadline, falls back in well under
+  a second), and gated four ways: delete the timer, drop the generation guard,
+  bypass the engine, or hardcode the duration, and a gate fails for each.
+- [ ] 7.4 **A rejected certificate is still unobserved.** Whether it reaches
+  `onReceivedError`, and how fast, is chromium's behaviour, and a Dart
+  `HttpClient` answers a different question, so it was dropped rather than
+  faked. The deadline bounds it in the worst case — a cert error that somehow
+  raised nothing would still fall back at 8s — which is why this is the
+  remaining gap rather than the dangerous one.

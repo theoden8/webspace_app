@@ -43,6 +43,22 @@ An upgraded navigation that fails to load SHALL fall back to the original
 `http://` URL. The failure SHALL NOT surface an interstitial, a prompt, or an
 error page of the app's own.
 
+An upgraded navigation that produces no verdict at all within the engine's
+`deadline` SHALL be treated the same way. A refused port errors and reaches
+`onReceivedError`; a port that accepts the connection and then says nothing
+raises nothing, for as long as the engine's own timeouts allow, so a deadline
+armed when the upgrade is issued is the only thing that can rescue it. That is
+the shape a firewall blackholing 443 has, which is the shape of a captive
+portal, and without the deadline the page hangs on a site that would have
+loaded instantly over http.
+
+A deadline that fires after the navigation resolved SHALL be a no-op. It SHALL
+reach the fallback through the same call the error path uses, so the in-flight
+entry a success removes is what makes it one; a path that re-derived the http
+URL would downgrade a page already up over https. It SHALL additionally be
+scoped to the navigation that armed it, so a deadline outliving a navigation
+the user has left cannot pull them back.
+
 The host SHALL then be recorded as http-only for the remainder of the process,
 and no later navigation to that host SHALL be upgraded, so a host without TLS
 costs one failed connection per launch rather than one per navigation.
@@ -58,6 +74,27 @@ with nothing in the UI to show or clear it.
 **When** the https attempt fails
 **Then** the engine returns `http://intranet.example/` to load
 **And** a later navigation to `http://intranet.example/other` is not upgraded
+
+#### Scenario: A TLS port that accepts and never answers
+
+**Given** the upgrade is enabled and `http://stalled.example/a` was upgraded
+**And** the https port accepts the connection and sends nothing
+**When** the deadline passes with no load and no error
+**Then** the engine returns `http://stalled.example/a` to load
+**And** the host is recorded http-only, so the next navigation does not stall
+
+#### Scenario: A deadline that fires late does nothing
+
+**Given** an upgraded navigation that has already loaded over https
+**When** its deadline fires
+**Then** the engine returns null, the page is left alone, and the host is not
+recorded http-only
+
+#### Scenario: A deadline does not outlive its navigation
+
+**Given** an upgraded navigation whose deadline is still armed
+**When** the user navigates somewhere else before it fires
+**Then** the fallback is not loaded
 
 #### Scenario: The fallback is not itself upgraded
 

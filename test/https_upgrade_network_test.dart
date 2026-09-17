@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -13,15 +14,19 @@ import 'package:webspace/services/https_upgrade_engine.dart';
 /// than a test calling `fallbackFor` directly, and the sequencing across three
 /// navigations is exercised rather than asserted a step at a time.
 ///
+/// The stalled-port case is here too, because it is the one with no error to
+/// catch: a socket that accepts and then says nothing reaches the deadline
+/// rather than any handler, and that is engine behaviour rather than
+/// chromium's.
+///
 /// **What it does not cover, and cannot.** The app's loads run on chromium's
 /// network stack inside a webview, not on `HttpClient`, so this is the engine
-/// composing with *a* client, not with the one that ships. TLS outcomes are
-/// deliberately absent for the same reason: whether a rejected certificate or
-/// a stalled handshake reaches `onReceivedError` at all, and how fast, is
-/// chromium's behaviour and a Dart client answers a different question. Those
-/// need the integration tier and a device. The `shouldOverrideUrlLoading` and
+/// composing with *a* client, not with the one that ships. A rejected
+/// certificate is absent for that reason: whether it reaches
+/// `onReceivedError`, and how fast, is chromium's, and a Dart client answers a
+/// different question. The `shouldOverrideUrlLoading`, deadline and
 /// `onReceivedError` wiring is gated structurally in
-/// `test/js/page_bridge_authority.test.js`.
+/// `test/js/https_upgrade_funnel.test.js`.
 ///
 /// Hermetic: no `/etc/hosts`, no DNS, no external network.
 /// `HttpClient.connectionFactory` sends the socket to loopback while the URL
@@ -43,24 +48,40 @@ void main() {
       };
   }
 
-  Future<({String loaded, bool fellBack})> navigate(
+  /// The call site's loop: upgrade, attempt under the engine's deadline, and
+  /// on either an error or the deadline ask the engine what to load instead.
+  /// `.timeout` stands in for the `Timer` the webview arms, because both
+  /// abandon an attempt that has produced no verdict and then take the same
+  /// `fallbackForTimeout` branch.
+  Future<({String loaded, bool fellBack, bool timedOut})> navigate(
     HttpsUpgradeEngine engine,
     HttpClient client,
     String url,
   ) async {
     final upgraded = engine.upgradeFor(url, enabled: true);
     final target = upgraded ?? url;
+    var timedOut = false;
+    Future<void> attempt(String at) async {
+      final res = await (await client.getUrl(Uri.parse(at))).close();
+      await res.drain<void>();
+    }
+
     try {
-      final res = await (await client.getUrl(Uri.parse(target))).close();
-      await res.drain<void>();
+      // The whole attempt is under the deadline, not one phase of it: the
+      // Timer the call site arms does not know or care where a stall happens.
+      await attempt(target).timeout(engine.deadline, onTimeout: () {
+        timedOut = true;
+        throw TimeoutException('no verdict', engine.deadline);
+      });
       engine.recordUpgradeSuccess(target);
-      return (loaded: target, fellBack: false);
+      return (loaded: target, fellBack: false, timedOut: false);
     } catch (_) {
-      final fallback = engine.fallbackFor(target);
+      final fallback = timedOut
+          ? engine.fallbackForTimeout(target)
+          : engine.fallbackFor(target);
       if (fallback == null) rethrow;
-      final res = await (await client.getUrl(Uri.parse(fallback))).close();
-      await res.drain<void>();
-      return (loaded: fallback, fellBack: true);
+      await attempt(fallback);
+      return (loaded: fallback, fellBack: true, timedOut: timedOut);
     }
   }
 
@@ -134,6 +155,71 @@ void main() {
       expect(r.loaded, 'http://app.test:8080/health');
       expect(r.fellBack, isFalse);
       expect(engine.isKnownHttpOnly('app.test'), isFalse);
+    } finally {
+      client.close(force: true);
+      await origin.close(force: true);
+    }
+  });
+
+  // The case that has no error to catch, and the reason the deadline exists.
+  // A port that accepts the connection and then says nothing is what a
+  // firewall blackholing 443 looks like, which is the shape of a captive
+  // portal; chromium produces no `onReceivedError` for it until its own
+  // timeouts expire, so without a deadline the page just sits there on a site
+  // that would have loaded instantly over http.
+  test('a TLS port that accepts and never answers falls back on the deadline',
+      () async {
+    final origin = await plainServer();
+    // Accepts and holds. No handshake, no reset, no response.
+    final blackhole = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+    final held = <Socket>[];
+    blackhole.listen(held.add);
+    final engine =
+        HttpsUpgradeEngine(deadline: const Duration(milliseconds: 600));
+    final client =
+        clientFor({'stalled.test': origin.port}, {'stalled.test': blackhole.port});
+    try {
+      final started = DateTime.now();
+      final r = await navigate(engine, client, 'http://stalled.test/a');
+      final took = DateTime.now().difference(started);
+
+      expect(r.timedOut, isTrue, reason: 'nothing errored; the deadline fired');
+      expect(r.loaded, 'http://stalled.test/a');
+      expect(r.fellBack, isTrue);
+      expect(engine.isKnownHttpOnly('stalled.test'), isTrue);
+      expect(took, lessThan(const Duration(seconds: 5)),
+          reason: 'the whole point is that the user does not wait');
+
+      // And the host is remembered, so the second navigation does not stall
+      // again.
+      final second = await navigate(engine, client, 'http://stalled.test/b');
+      expect(second.loaded, 'http://stalled.test/b');
+      expect(second.timedOut, isFalse);
+    } finally {
+      client.close(force: true);
+      for (final s in held) {
+        s.destroy();
+      }
+      await blackhole.close();
+      await origin.close(force: true);
+    }
+  });
+
+  // The safety half of the deadline. A timer that fires after the page is
+  // already up over https must not pull it back to http, and what makes that
+  // true is that `fallbackForTimeout` IS `fallbackFor`: the success already
+  // removed the in-flight entry, so there is nothing to reverse.
+  test('a deadline that fires after the load succeeded is a no-op', () async {
+    final origin = await plainServer();
+    final engine = HttpsUpgradeEngine();
+    final client = clientFor({'late.test': origin.port}, {});
+    try {
+      final upgraded = engine.upgradeFor('http://late.test/a', enabled: true)!;
+      engine.recordUpgradeSuccess(upgraded);
+      expect(engine.fallbackForTimeout(upgraded), isNull,
+          reason: 'a late deadline must not downgrade a page already loaded '
+              'over https');
+      expect(engine.isKnownHttpOnly('late.test'), isFalse);
     } finally {
       client.close(force: true);
       await origin.close(force: true);
