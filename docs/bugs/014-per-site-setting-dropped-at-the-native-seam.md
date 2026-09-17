@@ -1770,11 +1770,25 @@ likely reason is that both present a **plaintext** HTTP CONNECT proxy, and
 every HTTP-proxy test in WebKit's own `Proxy.mm` uses
 `HTTPServer::Protocol::HttpsProxy`, a TLS-wrapped proxy; there is no plaintext
 CONNECT proxy test upstream. It is not `requiresSecureHTTPSProxyConnection`,
-which defaults to `false` (`WebsiteDataStoreConfiguration.h:364`), so the
-mechanism is not that flag, but the absence of any upstream coverage for a
-plaintext CONNECT proxy is its own warning. `ProxyRule` already maps an
-`https` scheme to `ProxyConfiguration(httpCONNECTProxy:tlsOptions:)`, so the
-fair version of this arm is a TLS fixture.
+which defaults to `false` (`WebsiteDataStoreConfiguration.h:364`).
+
+Corrected before it cost a cycle: `Protocol::HttpsProxy` is **not** a
+TLS-wrapped proxy. `HTTPServerCore.swift:252` builds `NWParameters(tls: nil)`
+-- plaintext TCP -- then inserts the `HTTPSProxyFramer`, then inserts `tls()`
+*above* it in the application protocol stack. So it is a plaintext CONNECT
+proxy whose TLS belongs to the tunnelled destination. The fixture here is the
+right shape and a TLS fixture would have been another invalid arm.
+
+What actually differs is the **destination scheme**.
+`ProxyAfterNetworkProcessCrash` loads `https://example.com/` through its
+CONNECT proxy, and `SOCKS5API` loads plain `http://example.com/` through its
+SOCKS proxy and is used. Upstream exercises a CONNECT proxy only with a TLS
+destination, and both arms here load `http://`. A transport-level proxy
+config might well decline to tunnel plaintext http, where the convention is an
+absolute-URI request rather than CONNECT -- and `connects=[]` says WebKit
+made neither. So the fair version of these arms needs an **https origin**,
+which means a self-signed certificate and a webview accepting it through
+`onReceivedServerTrustAuthRequest`, not a TLS proxy.
 
 Worth noting separately: a proxy configuration WebKit will not use appears to
 produce a **direct** load rather than a failure. SOCKS5 pointed at a closed
