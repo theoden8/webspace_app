@@ -1693,8 +1693,20 @@ Two sites on two SOCKS5 upstreams reach their own and do not cross
 rather than relayed, and an upstream that cannot be reached returns 502
 rather than dialling direct -- the two properties that decide whether this is
 a proxy or a leak. It is deliberately **not wired** to `WebViewFactory` yet;
-that waits on the HTTP CONNECT arm, because if WebKit turns out to honour
-SOCKS5 simultaneously after all then none of this is needed.
+wiring every Apple proxy through a relay on a prediction, before the
+prediction is tested, is the wrong order on a leak path.
+
+`proxy_relay_binding_test.dart` tests it through WebKit without changing app
+behaviour: raw plugin webviews point their own `proxySettings` straight at
+the relay, four sites, four upstream SOCKS fixtures, one endpoint, one
+credential each. Two panes in the first frame and -- the reading this bug
+turns on -- two in a **later** frame, which is where every previous
+arrangement went direct. `ProxyRule` already carries `username`/`password`
+and the fork maps them to `applyCredential`, so no plugin change is needed to
+run it. If the later-frame pair each reach their own upstream, both halves of
+the defect are answered at once: the proxies are simultaneous *and* they
+survive past the first frame, because the delivery now takes the durable
+route.
 
 **Why:** every previous mechanism here was proposed from a fragment of the
 path. This one is the whole path, in order.
