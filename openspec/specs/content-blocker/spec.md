@@ -657,7 +657,7 @@ naming it here does nothing.
 The mask SHALL be carried by the rules, not by the decision path. At engine
 build time each masked list's text is rewritten with adblock-rust's own domain
 scoping by
-[`scopeRulesAwayFromHosts`](../../../../../lib/services/filter_list_mask.dart):
+[`scopeRulesAwayFromHosts`](../../../lib/services/filter_list_mask.dart):
 
 - network rules gain `$domain=~<host>`, merged into an existing `domain=` or
   `from=` option rather than appended as a second one, which would replace it;

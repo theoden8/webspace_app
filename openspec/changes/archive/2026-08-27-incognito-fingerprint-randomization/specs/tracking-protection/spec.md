@@ -4,7 +4,7 @@
 
 ### Requirement: ETP-004 - Per-site stability and cross-site uniqueness
 
-The shim's randomized values SHALL be deterministic per `siteId` so a non-incognito site sees the same fingerprint across launches, but distinct seeds SHALL produce distinct shim sources so two sites differ. When the site has `incognito` set, the seed SHALL additionally mix in the per-launch nonce defined by ETP-028, so the fingerprint is stable within a single app session but randomizes across cold restarts. The shim builder itself remains a pure function of its seed string — the seed-derivation rule lives in `computeAntiFingerprintingSeed` ([lib/services/anti_fingerprinting_shim.dart](../../../../../lib/services/anti_fingerprinting_shim.dart)).
+The shim's randomized values SHALL be deterministic per `siteId` so a non-incognito site sees the same fingerprint across launches, but distinct seeds SHALL produce distinct shim sources so two sites differ. When the site has `incognito` set, the seed SHALL additionally mix in the per-launch nonce defined by ETP-028, so the fingerprint is stable within a single app session but randomizes across cold restarts. The shim builder itself remains a pure function of its seed string — the seed-derivation rule lives in `computeAntiFingerprintingSeed` ([lib/services/anti_fingerprinting_shim.dart](../../../../../../lib/services/anti_fingerprinting_shim.dart)).
 
 #### Scenario: Same seed reproduces the same shim
 
@@ -47,7 +47,7 @@ The shim's randomized values SHALL be deterministic per `siteId` so a non-incogn
 
 ### Requirement: ETP-028 - Per-launch nonce for incognito fingerprint randomization
 
-The system SHALL maintain a process-lifetime random nonce, exposed as `LaunchNonce.value` in [lib/services/launch_nonce.dart](../../../../../lib/services/launch_nonce.dart). The nonce SHALL be generated lazily on first read using `dart:math` `Random.secure` and SHALL remain identical for every subsequent read within the same process. The nonce SHALL NOT be persisted to disk: a new process start (cold launch, OS-killed restore, debug hot-restart) SHALL produce a fresh nonce. App resume from background is NOT a new launch and SHALL NOT regenerate the nonce. The nonce SHALL be mixed into the anti-fingerprinting seed only when the site has `incognito: true` (per ETP-004).
+The system SHALL maintain a process-lifetime random nonce, exposed as `LaunchNonce.value` in [lib/services/launch_nonce.dart](../../../../../../lib/services/launch_nonce.dart). The nonce SHALL be generated lazily on first read using `dart:math` `Random.secure` and SHALL remain identical for every subsequent read within the same process. The nonce SHALL NOT be persisted to disk: a new process start (cold launch, OS-killed restore, debug hot-restart) SHALL produce a fresh nonce. App resume from background is NOT a new launch and SHALL NOT regenerate the nonce. The nonce SHALL be mixed into the anti-fingerprinting seed only when the site has `incognito: true` (per ETP-004).
 
 #### Scenario: Stable across reads within a process
 

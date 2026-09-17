@@ -15,7 +15,7 @@ different kind of text:
   changes with the world: a value, a count, `Not configured`, `System`,
   `Forced off by Tracking Protection`. It MAY be absent.
 - **Hint dialog** — what the setting does, what it costs, when to want it.
-  Reached by a `HintButton` ([lib/widgets/hint_button.dart](../../../../../lib/widgets/hint_button.dart))
+  Reached by a `HintButton` ([lib/widgets/hint_button.dart](../../../lib/widgets/hint_button.dart))
   sitting next to the title, and free to run as long as the explanation needs.
 
 A row MAY keep a short fixed caption in its subtitle where that caption is what

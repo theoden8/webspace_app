@@ -213,7 +213,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | external-scheme-handling | intent:// auto-resolves to http(s) fallback (silent route); prompt only when no web equivalent |
 | file-import-sites | local HTML via HtmlCacheService |
 | fullscreen-mode | hide app bar/tab strip/system UI; per-site auto |
-| home-shortcut | Android pinned shortcuts |
+| home-shortcut | Android pinned shortcuts; iOS/macOS expose an "Open Site" App Intent through Shortcuts instead (no pin API) |
 | icon-fetching | progressive favicon w/ fallbacks |
 | ios-universal-link-bypass | cancel+reissue gesture http(s) navs to dodge AASA |
 | ip-leakage | proxy coverage contract; fail-closed on SOCKS5; WebRTC + DNS |

@@ -5,7 +5,7 @@
 ### Requirement: PERMBADGE-001 — Badge Set Derives From Effective Per-Site State
 
 `sitePermissionBadges(WebViewModel)`
-([lib/widgets/site_permission_badges.dart](../../../lib/widgets/site_permission_badges.dart))
+([lib/widgets/site_permission_badges.dart](../../../../../../lib/widgets/site_permission_badges.dart))
 SHALL return exactly the grants the site currently holds, in the fixed
 order location, camera, microphone, screen sharing, background audio:
 

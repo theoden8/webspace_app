@@ -23,7 +23,7 @@ flat set of that union costs — and one downloaded level is one group, which is
 where an install that never sets a per-site level stays. Measured on the real
 lists: Pro alone is 225,134 domains in 1 group; Pro plus Light is 229,939 in 3.
 
-Groups are built by [`DnsLevelSetsBuilder`](../../../../../lib/services/dns_level_mask_engine.dart),
+Groups are built by [`DnsLevelSetsBuilder`](../../../../../../lib/services/dns_level_mask_engine.dart),
 which is fed one domain at a time. A level's raw parsed list SHALL NOT be
 materialised as a set alongside the groups it is being folded into — that is
 the one place this structure could cost more memory than the flat set it

@@ -23,7 +23,7 @@ screen, not of a stretch of a longer list.
 ## What Changes
 
 - **A Behaviour screen.** New `SiteBehaviourScreen`
-  ([lib/screens/site_behaviour.dart](../../../lib/screens/site_behaviour.dart)),
+  ([lib/screens/site_behaviour.dart](../../../../lib/screens/site_behaviour.dart)),
   built like its two siblings: a value object in, whole values out through
   `onChanged`, no persistent state of its own. Two groups — "Opening and
   display" (Always open Home, Kiosk mode, Full screen mode, HTML caching) and

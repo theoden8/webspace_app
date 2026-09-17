@@ -29,7 +29,7 @@ configuration, and a subset is a mask, not a copy.
   site caused a lower level to be downloaded. Domains are grouped by mask, so
   the entry count is exactly the union and one downloaded level is one group.
   New pure-Dart engine
-  [`dns_level_mask_engine.dart`](../../../lib/services/dns_level_mask_engine.dart)
+  [`dns_level_mask_engine.dart`](../../../../lib/services/dns_level_mask_engine.dart)
   (DNS-019).
 - **Per-site DNS level.** `WebViewModel.dnsBlockLevel` (null = follow the
   app-wide level). The per-host decision cache stores the host's *level mask*
