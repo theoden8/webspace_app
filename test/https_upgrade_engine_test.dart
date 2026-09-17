@@ -1,6 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:webspace/services/https_upgrade_engine.dart';
+import 'package:webspace/services/webview.dart' show WebViewFactory;
+import 'package:webspace/settings/app_prefs.dart';
+import 'package:webspace/web_view_model.dart';
 
 void main() {
   late HttpsUpgradeEngine engine;
@@ -137,6 +140,66 @@ void main() {
       engine.reset();
       expect(engine.isKnownHttpOnly('intranet.example'), isFalse);
       expect(up('http://intranet.example/a'), isNotNull);
+    });
+  });
+
+  // HTTPS-005 + ETP-028. The resolution order is three-valued and the getter
+  // sits directly below `effectiveThirdPartyCookiesEnabled`, which the
+  // umbrella forces the OTHER way. Copying that shape here would invert a
+  // security default silently: nothing else in the suite reads this getter,
+  // and a site would quietly go back to plaintext the moment its owner turned
+  // Tracking Protection on.
+  group('HTTPS-005 / ETP-028 the effective decision', () {
+    final appDefault = WebViewFactory.httpsUpgradeEnabled;
+    tearDown(() => WebViewFactory.httpsUpgradeEnabled = appDefault);
+
+    WebViewModel site({bool? override, bool umbrella = false}) => WebViewModel(
+          initUrl: 'https://example.com',
+          httpsUpgradeEnabled: override,
+          trackingProtectionEnabled: umbrella,
+        );
+
+    test('a site with no override follows the app-wide default', () {
+      WebViewFactory.httpsUpgradeEnabled = true;
+      expect(site().effectiveHttpsUpgradeEnabled, isTrue);
+      WebViewFactory.httpsUpgradeEnabled = false;
+      expect(site().effectiveHttpsUpgradeEnabled, isFalse);
+    });
+
+    test('an override wins over the app-wide default, both ways', () {
+      WebViewFactory.httpsUpgradeEnabled = false;
+      expect(site(override: true).effectiveHttpsUpgradeEnabled, isTrue);
+      WebViewFactory.httpsUpgradeEnabled = true;
+      expect(site(override: false).effectiveHttpsUpgradeEnabled, isFalse);
+    });
+
+    test('the umbrella forces it ON, never off', () {
+      WebViewFactory.httpsUpgradeEnabled = false;
+      expect(site(override: false, umbrella: true).effectiveHttpsUpgradeEnabled,
+          isTrue,
+          reason: 'ETP-028 forces the upgrade on; the third-party-cookie '
+              'getter next to it forces OFF, and copying that shape here '
+              'would move a site to cleartext for turning privacy ON');
+    });
+
+    test('turning the umbrella off restores the stored value, not false', () {
+      WebViewFactory.httpsUpgradeEnabled = true;
+      expect(site(override: true, umbrella: false).effectiveHttpsUpgradeEnabled,
+          isTrue,
+          reason: 'turning Tracking Protection off to debug a site must not '
+              'be what moves it to plaintext');
+    });
+
+    test('the pref the default comes from is registered and on', () {
+      expect(kExportedAppPrefs[kHttpsUpgradeEnabledKey], isTrue);
+    });
+
+    test('the per-site override round-trips through JSON', () {
+      for (final v in [true, false, null]) {
+        final json = site(override: v).toJson();
+        expect(json['httpsUpgradeEnabled'], v);
+        expect(WebViewModel.fromJson(json, null).httpsUpgradeEnabled, v);
+      }
     });
   });
 }

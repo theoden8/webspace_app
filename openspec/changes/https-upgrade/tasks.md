@@ -73,22 +73,41 @@
   to be the engine's output. Both were checked against an inverted call site:
   moving the upgrade above the verdict fails the first and not the second.
 
-## 6. Not verified
+## 6. Regression gates
 
-- [ ] 6.1 **No end-to-end run.** Nothing here has driven a real webview: the
+Every gate below was checked against the mutation it exists to catch. A gate
+that passes either way is worse than none, because it reads as cover.
+
+- [x] 6.a `test/js/https_upgrade_funnel.test.js`, five properties of the
+  call-site wiring that no Dart test reaches. Mutations checked: delete the
+  `onReceivedError` fallback; delete `recordUpgradeSuccess`; add a second
+  `HttpsUpgradeEngine()`; set `upgradeKnownHostsToHTTPS = false`; flip the
+  registered default to `false`. Each fails exactly one gate.
+- [x] 6.b The ordering (HTTPS-004) in `page_bridge_authority.test.js`, checked
+  by moving the upgrade above the navigation verdict.
+- [x] 6.c `HTTPS-005 / ETP-028 the effective decision` in
+  `https_upgrade_engine_test.dart`. Mutations checked: force the umbrella the
+  other way (the shape of the getter directly above it), and drop the app-wide
+  default so null reads as off. The first is the one to fear: nothing else in
+  the suite reads that getter, so inverting it would move a site to plaintext
+  for turning privacy on, silently.
+
+## 7. Not verified
+
+- [ ] 7.1 **No end-to-end run.** Nothing here has driven a real webview: the
   engine is unit-tested, the wiring is gated structurally, and neither proves
   that an http navigation in a running app comes back https. The integration
   tier (`integration_test/`, headless Linux) is where that would go, and
   HTTPS-003 makes it awkward — loopback and single-label hosts are exactly the
   ones the engine refuses, so the fixture needs a resolvable name with a
   certificate.
-- [x] 6.2 **A refused TLS port is now exercised for real.**
+- [x] 7.2 **A refused TLS port is now exercised for real.**
   `test/https_upgrade_network_test.dart` drives the engine over loopback
   sockets in the call site's order, so the fallback is taken on an actual
   `SocketException` rather than by a test calling `fallbackFor`, and the
   three-navigation sequencing is exercised rather than asserted a step at a
   time.
-- [ ] 6.3 **TLS outcomes are still unobserved, and belong on a device.** A
+- [ ] 7.3 **TLS outcomes are still unobserved, and belong on a device.** A
   rejected certificate and a stalled handshake were attempted in a Dart client
   and dropped: whether either reaches `onReceivedError` at all, and how fast,
   is chromium's behaviour, and a Dart `HttpClient` answers a different
