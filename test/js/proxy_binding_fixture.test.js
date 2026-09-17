@@ -185,3 +185,61 @@ test('every simultaneity pane builds under its own key', () => {
     `${simulRel} reuses a key between pane groups: ${keys.join(', ')}`,
   );
 });
+
+// `integration_test/proxy_http_connect_test.dart` is the same simultaneity
+// question asked of the other delivery route WebKit has for a store's
+// proxy. It only means anything while it stays an HTTP CONNECT proxy: a
+// SOCKS5 rule takes the live-nw_context path, which is the one under
+// suspicion, so rewriting these rules to socks5:// would silently turn the
+// file into a duplicate of its sibling.
+const httpcRel = 'integration_test/proxy_http_connect_test.dart';
+const httpcCode = fs
+  .readFileSync(path.join(repoRoot, httpcRel), 'utf8')
+  .replace(/^\s*\/\/.*$/gm, '');
+
+test('the HTTP CONNECT file keeps its panes on HTTP CONNECT proxies', () => {
+  const firstFrame = httpcCode.slice(
+    0,
+    httpcCode.indexOf('for the contrast') >= 0
+      ? httpcCode.indexOf('for the contrast')
+      : httpcCode.length,
+  );
+  assert.match(
+    firstFrame,
+    /ProxyRule\(\s*\n?\s*url: 'http:\/\/127\.0\.0\.1:\$\{proxies\[i\]\.port\}'/,
+    `${httpcRel} must point its first-frame panes at HTTP CONNECT proxies; ` +
+      'a socks5:// rule takes the live-context path and measures nothing new',
+  );
+  assert.match(
+    httpcCode,
+    /HttpConnectFixture/,
+    `${httpcRel} must use the HTTP CONNECT fixture`,
+  );
+});
+
+test('the HTTP CONNECT file gives every pane its own proxy and asserts', () => {
+  assert.match(
+    httpcCode,
+    /proxies\[f\]\.targets\.contains\(/,
+    `${httpcRel} must read its verdict off what a proxy was asked for`,
+  );
+  assert.match(
+    httpcCode,
+    /CROSSED/,
+    `${httpcRel} must tell a load that reached a sibling's proxy apart ` +
+      'from one that reached its own',
+  );
+  assert.match(
+    httpcCode,
+    /expect\(\s*own,\s*paneCount,/,
+    `${httpcRel} must assert, not just report`,
+  );
+  const paneCount = httpcCode.match(/const paneCount = (\d+)/);
+  assert.ok(paneCount && Number(paneCount[1]) >= 2, `${httpcRel} needs >= 2 panes`);
+  assert.match(
+    httpcCode,
+    /proxies\.add\(await HttpConnectFixture\.bind\(\)\)/,
+    `${httpcRel} must bind one proxy per pane, or the panes cannot be ` +
+      'distinguished from each other',
+  );
+});

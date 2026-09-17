@@ -49,10 +49,18 @@ void main() {
   }
 
   /// Panes in the first frame, and which fixture each one's proxy points at.
-  /// Pane 3 shares pane 0's fixture on purpose: it is the control that
-  /// reproduces the known-good "two stores, one proxy" case beside the
-  /// unknown "two stores, two proxies" one.
-  const fixtureOf = <int>[0, 1, 2, 0];
+  ///
+  /// Panes 0 and 1 share a fixture on purpose: that is the known-good "two
+  /// stores, one proxy" case (`pair=2 of 2 proxied`) sitting beside the
+  /// unknown one, in the same frame.
+  ///
+  /// The sharing pair is at the front so the result is not ambiguous. The
+  /// first store built is pane 0 on fixture 0 and the last is pane 3 on
+  /// fixture 2, so "everything landed on fixture 0" reads as the first store
+  /// keeping the process and "everything landed on fixture 2" as the last one
+  /// taking it. With the shared pane last, both would have named fixture 0
+  /// and neither could be told from the other.
+  const fixtureOf = <int>[0, 0, 1, 2];
   const paneCount = 4;
   const fixtureCount = 3;
 

@@ -12,6 +12,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'fixture_server.dart';
+import 'socket_relay.dart';
 
 /// Byte-oriented view of a socket: `read(n)` completes once n bytes have
 /// arrived, and [drain] hands back whatever was buffered past the handshake
@@ -143,54 +144,8 @@ class Socks5Fixture {
       unawaited(upstream.done.catchError((Object _) => upstream!));
       client.add(const [5, 0, 0, 1, 0, 0, 0, 0, 0, 0]);
 
-      final relay = upstream;
-      final finished = Completer<void>();
-      void finish() {
-        if (!finished.isCompleted) finished.complete();
-      }
-
-      // Writing to a socket the other end has already dropped throws rather
-      // than ending the relay; the half that is still open has to keep
-      // going until its own close arrives.
-      void forward(Socket to, List<int> data) {
-        try {
-          to.add(data);
-        } on Object {
-          to.destroy();
-        }
-      }
-
       final pending = buffer.drain();
-      if (pending.isNotEmpty) forward(relay, pending);
-      incoming
-        ..onData((data) => forward(relay, data))
-        ..onError((Object _) {
-          relay.destroy();
-          finish();
-        })
-        ..onDone(() {
-          relay.destroy();
-          finish();
-        });
-      // Not `asFuture()`: it replaces the subscription's own `onDone` and
-      // `onError`, so the teardown passed to `listen` never runs. This
-      // fixture relayed correctly with it and then left every client socket
-      // open forever, because `client.destroy` was silently discarded --
-      // a self-test of the fixture hung waiting for a close that could not
-      // come, while the integration file it serves never waits for one and
-      // so never showed it.
-      relay.listen(
-        (data) => forward(client, data),
-        onError: (Object _) {
-          client.destroy();
-          finish();
-        },
-        onDone: () {
-          client.destroy();
-          finish();
-        },
-      );
-      await finished.future;
+      await relaySockets(client, incoming, upstream, pending: pending);
     } on Object {
       client.destroy();
       upstream?.destroy();

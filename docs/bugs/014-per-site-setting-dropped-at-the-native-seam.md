@@ -1470,6 +1470,64 @@ found by the audit rather than by the test. The contradiction between the
 source and thirteen data points is still open, the leak is unchanged, and the
 app still does not fail closed.
 
+### Attempt 34 — Bisect simultaneity, and test the other delivery route
+
+**Date:** 2026-09-17
+**Commit:** (this one)
+
+Two confounds, both of this file's own making.
+
+**"Two proxies at once" was only ever measured where one proxy does not
+work.** `crossed=false` in attempt 31 was read as excluding a process-wide
+proxy that the newest store overwrites. It excluded nothing: both of those
+panes were in a later frame, where a single proxy goes direct anyway, so the
+reading was of the frame. The arrangement that does bind -- a raw plugin
+webview built in the process's first frame with an `initialUrlRequest` -- had
+never been given a sibling carrying a different proxy.
+`proxy_simultaneous_test.dart` puts four in that frame: panes 0 and 1 share
+one SOCKS fixture, panes 2 and 3 get their own, so "two stores, one proxy"
+(which `pair=2 of 2 proxied` already showed works) sits beside "two stores,
+two proxies" in the same frame. The shared pair is first so the reading is
+unambiguous: the first store built is pane 0 on fixture 0 and the last is pane
+3 on fixture 2, so everything landing on fixture 0 means the first store kept
+the process and everything landing on fixture 2 means the last one took it. Each pane has its own origin and every
+fixture is checked for every origin, so a load landing on a sibling's proxy is
+distinguishable from one that was never proxied. One fixture cannot make that
+distinction, which is why the earlier reading could not have seen it.
+
+**Every reading in this investigation was taken through a SOCKS5 proxy, and
+SOCKS5 takes the fragile one of WebKit's two delivery routes.**
+`NetworkSessionCocoa::setProxyConfigData` asks
+`nw_proxy_config_stack_requires_http_protocols` about each configuration. If
+any says yes it destroys and rebuilds every NSURLSession with the proxy on
+that session's own `NSURLSessionConfiguration`
+(`SessionWrapper::recreateSessionWithUpdatedProxyConfigurations`) -- per
+session, nothing shared. If none does it patches the live `nw_context`
+instead, clearing that context's proxies first, and it gathers those contexts
+into an `NSMutableSet` across session wrappers, which is only worth doing if
+two wrappers can hand back the same one. A SOCKS5 rule never takes the first
+route. An HTTP CONNECT rule is the only way to ask for it from outside WebKit,
+so `proxy_http_connect_test.dart` runs the same three-stores-three-proxies
+shape over `HttpConnectFixture`.
+
+Both instruments are tested before they are trusted, which is the lesson of
+attempts 3, 28 and 29: `test/http_connect_fixture_test.dart` drives ten
+sequential tunnels, five overlapping ones, a refused destination and an
+absolute-URI request (a fixture that understood only CONNECT would record
+nothing if WebKit ever sent the forward-proxy form, which reads exactly like a
+proxy that was never asked). The relay both fixtures share is now one function
+in `socket_relay.dart`, carrying the `asFuture()` fix from attempt 30 in one
+place. Structural gates cover both new files: more than one proxy to tell
+apart, a separate classification for a crossed load, a positive assertion
+rather than a report, and the HTTP file's rules staying HTTP.
+
+**Why:** the question the goal turns on -- can two data stores hold two
+different proxies at once -- had never been asked where the answer could be
+anything but no.
+**Why it was partial:** written before the run reports; it measures rather
+than repairs, and if HTTP CONNECT does carry simultaneous proxies then the
+delivery change still has to be designed for Tor, which speaks SOCKS5.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
