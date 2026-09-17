@@ -4361,46 +4361,39 @@ class WebViewFactory {
         // reason the captcha allow is (HTTPS-004): taken first, a scheme
         // rewrite re-enters the pipeline with blockAutoRedirects, the gesture
         // requirement and the cross-domain nested route already behind it.
-        // The reissued https navigation fires this callback again and is
-        // decided on its own merits.
-        final upgraded = WebViewFactory.httpsUpgrade
-            .upgradeFor(url, enabled: config.httpsUpgradeEnabled);
-        if (upgraded != null) {
+        final upgrade = WebViewFactory.httpsUpgrade
+            .onNavigation(url, enabled: config.httpsUpgradeEnabled);
+        if (upgrade.armDeadlineFor != null) {
+          final armed = upgrade.armDeadlineFor!;
+          final genAtUpgrade = navigationGen;
+          Timer(WebViewFactory.httpsUpgrade.deadline, () {
+            final out = WebViewFactory.httpsUpgrade.onDeadline(
+              armed,
+              generationAtArm: genAtUpgrade,
+              currentGeneration: () => navigationGen,
+            );
+            if (out.load != null) {
+              LogService.instance.log(
+                'WebView',
+                'https upgrade timed out, falling back to ${out.load}',
+                sensitivity: LogSensitivity.sensitive,
+              );
+              controller.loadUrl(
+                  urlRequest: inapp.URLRequest(url: inapp.WebUri(out.load!)));
+            }
+          });
+        }
+        if (upgrade.load != null) {
           LogService.instance.log(
             'WebView',
             '  -> CANCEL (https upgrade) $url',
             sensitivity: LogSensitivity.sensitive,
           );
-          // A refused port errors straight away, but one that accepts and then
-          // says nothing produces no error at all, and the page sits there on
-          // a site that would have loaded instantly over http. Arm the
-          // deadline HTTPS-002 promises.
-          //
-          // Firing late is safe by construction rather than by cancellation:
-          // `fallbackForTimeout` is `fallbackFor`, so once onLoadStop has
-          // recorded the success there is no in-flight entry left and this is
-          // a no-op. The generation check is the second half — without it a
-          // deadline armed for a navigation the user has since left would pull
-          // them back to the http URL.
-          final genAtUpgrade = navigationGen;
-          Timer(WebViewFactory.httpsUpgrade.deadline, () {
-            if (navigationGen != genAtUpgrade) return;
-            final fallback =
-                WebViewFactory.httpsUpgrade.fallbackForTimeout(upgraded);
-            if (fallback == null) return;
-            LogService.instance.log(
-              'WebView',
-              'https upgrade timed out, falling back to $fallback',
-              sensitivity: LogSensitivity.sensitive,
-            );
-            controller.loadUrl(
-                urlRequest: inapp.URLRequest(url: inapp.WebUri(fallback)));
-          });
           controller.loadUrl(
-              urlRequest: inapp.URLRequest(url: inapp.WebUri(upgraded)));
-          return inapp.NavigationActionPolicy.CANCEL;
+              urlRequest: inapp.URLRequest(url: inapp.WebUri(upgrade.load!)));
         }
-        // A captcha challenge loads in place. Decided AFTER the routing
+        if (upgrade.cancel) return inapp.NavigationActionPolicy.CANCEL;
+                // A captcha challenge loads in place. Decided AFTER the routing
         // decision above, never before it: taken first, "is this a captcha
         // URL?" becomes a way to navigate the parent webview to any origin
         // with blockAutoRedirects, the gesture requirement and the
@@ -4590,7 +4583,7 @@ class WebViewFactory {
         // working https host on a bad link and records it http-only for the
         // rest of the session (HTTPS-002).
         if (url != null) {
-          WebViewFactory.httpsUpgrade.noteUpgradeResponded(url.toString());
+          WebViewFactory.httpsUpgrade.onLoadStarted(url.toString());
         }
         // Notify the call site that a navigation just started so the
         // Refresh button can swap to a Stop button while loading.
@@ -4674,7 +4667,7 @@ class WebViewFactory {
         // unrelated failure on the same URL string reads as a fallback to an
         // http load that finished long ago (HTTPS-002).
         if (url != null) {
-          WebViewFactory.httpsUpgrade.recordUpgradeSuccess(url.toString());
+          WebViewFactory.httpsUpgrade.onLoadFinished(url.toString());
         }
         // End pull-to-refresh animation
         config.pullToRefreshController?.endRefreshing();
@@ -4855,21 +4848,21 @@ class WebViewFactory {
         // (HTTPS-002). Ahead of every other recovery below, because those
         // treat the failing URL as the one the site asked for, and this one
         // is not — we substituted it.
-        final upgradeFallback = request.isForMainFrame == false
-            ? null
-            : WebViewFactory.httpsUpgrade
-                .fallbackFor(request.url.toString());
-        if (upgradeFallback != null) {
+        final upgradeFailure = WebViewFactory.httpsUpgrade.onLoadFailed(
+            request.url.toString(),
+            isMainFrame: request.isForMainFrame ?? true);
+        if (upgradeFailure.load != null) {
           LogService.instance.log(
             'WebView',
-            'https upgrade did not answer, falling back to $upgradeFallback',
+            'https upgrade did not answer, falling back to '
+                '${upgradeFailure.load}',
             sensitivity: LogSensitivity.sensitive,
           );
           controller.loadUrl(urlRequest: inapp.URLRequest(
-              url: inapp.WebUri(upgradeFallback)));
+              url: inapp.WebUri(upgradeFailure.load!)));
           return;
         }
-        LogService.instance.log(
+                LogService.instance.log(
           'WebViewLifecycle',
           'onReceivedError siteId=${config.siteId} url=${request.url} '
               'type=${error.type} desc=${error.description}',
@@ -5220,20 +5213,24 @@ class WebViewFactory {
     // they never typed, and TLS-002's approval PINS the certificate for good.
     // Fall back to the http they actually asked for instead: same shape as the
     // loopback-sinkhole carve-out above, never prompt, never pin.
-    final upgradeFallback = WebViewFactory.httpsUpgrade.fallbackForHost(host);
-    if (upgradeFallback != null) {
+    final upgradeCert =
+        WebViewFactory.httpsUpgrade.onCertificateRejected(host);
+    if (upgradeCert.load != null) {
       LogService.instance.log(
         'TLS',
         'untrusted cert on an https upgrade for $host:$port — cancelling '
-            'silently and falling back to $upgradeFallback (no prompt, no pin)',
+            'silently and falling back to ${upgradeCert.load} (no prompt, '
+            'no pin)',
         sensitivity: LogSensitivity.sensitive,
       );
       controller.loadUrl(
-          urlRequest: inapp.URLRequest(url: inapp.WebUri(upgradeFallback)));
+          urlRequest: inapp.URLRequest(url: inapp.WebUri(upgradeCert.load!)));
+    }
+    if (upgradeCert.cancel) {
       return inapp.ServerTrustAuthResponse(
           action: inapp.ServerTrustAuthResponseAction.CANCEL);
     }
-    // Post-failure platforms (Android, Linux): the OS already rejected
+        // Post-failure platforms (Android, Linux): the OS already rejected
     // the chain. Prompt the user now.
     if (prompt == null) {
       LogService.instance.log(

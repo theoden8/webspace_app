@@ -75,6 +75,14 @@
 
 ## 6. Regression gates
 
+- [x] 6.0 HTTPS-008: the decisions moved into the engine's event surface and
+  the call site became forwarding-only, so the orderings are unit tests
+  (`https_upgrade_events_test.dart`, 16 of them) rather than assertions about
+  which line of Dart comes first. What stays structural is what the engine
+  cannot own: forwarding, the armed deadline, and two positions. Checked by
+  moving a decision back into a closure, by wrapping a primitive call across
+  lines (the false-pass the old gates had), and by silencing a handler.
+
 Every gate below was checked against the mutation it exists to catch. A gate
 that passes either way is worse than none, because it reads as cover.
 

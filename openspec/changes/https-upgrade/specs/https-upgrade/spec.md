@@ -331,3 +331,42 @@ later callback reverse one of them over the top of the page that replaced it.
 **When** its certificate does not validate
 **Then** the engine reverses nothing
 **And** the ordinary TLS-002 prompt is shown, as before this change
+
+---
+
+### Requirement: HTTPS-008 - The engine decides, the call site forwards
+
+Every decision about an upgrade SHALL live in `HttpsUpgradeEngine`. The webview
+SHALL call only its event surface — `onNavigation`, `onLoadStarted`,
+`onLoadFinished`, `onLoadFailed`, `onCertificateRejected`, `onDeadline` — and
+SHALL apply the returned outcome without branching on engine state. The
+navigation-generation check SHALL be passed to `onDeadline` as
+`(generationAtArm, currentGeneration)`, the repo's race-protection signature,
+rather than tested at the call site.
+
+Five platform callbacks can resolve one upgrade, none of which knows about the
+others, so every hazard in this feature is an ordering. While those orderings
+lived in webview closures the only available cover was asserting which line of
+source came before which: that catches a deletion, breaks on reformatting, and
+passes on code that is equivalently shaped and wrong. With the decisions in the
+engine an ordering is a few lines of a unit test, so the interesting ones can
+be enumerated instead of argued about.
+
+What stays structural is what the engine cannot own: that each callback
+forwards at all, that the deadline is armed with the engine's own duration and
+a generation, and the two positions relative to code the engine cannot see —
+the upgrade after the navigation verdict (HTTPS-004) and the certificate
+carve-out before the trust prompt (HTTPS-007).
+
+#### Scenario: A decision moves back into a callback
+
+**Given** a callback that calls a primitive such as `fallbackFor` directly
+**When** the structural gate runs
+**Then** it fails, naming the primitive and the callback
+
+#### Scenario: Orderings are enumerable
+
+**Given** the engine's event surface
+**When** a test drives navigate / start / finish / fail / certificate /
+deadline in any order
+**Then** the outcome is asserted without a webview, a socket or a timer

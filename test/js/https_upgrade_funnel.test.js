@@ -1,23 +1,23 @@
 // Structural gates for the HTTPS upgrade's call-site wiring.
 //
-// The engine is unit-tested and driven over real sockets, but the ~20 lines
-// that connect it to the webview are the part no Dart test reaches: delete the
-// `onReceivedError` fallback and every other test in this repo still passes,
-// while a default-on upgrade silently stops falling back and every http-only
-// site in the world becomes an error page. Same for the success bookkeeping,
-// for the single shared engine, and for the platform flag HTTPS-006 says to
-// leave alone.
+// These assert the two things a Dart test cannot: that the call site FORWARDS
+// rather than decides, and that its handlers sit where they must relative to
+// code the engine knows nothing about.
 //
-// Each assertion below was checked against the mutation it is meant to catch
-// (delete the call, move it, flip the flag); a gate that passes either way is
-// worse than no gate, because it reads as cover.
+// Everything else moved. The orderings this file used to assert as "line X
+// before line Y" are now `test/https_upgrade_events_test.dart`, which drives
+// the engine event by event: a text-order assertion catches a deletion and
+// nothing else, breaks on reformatting, and passes happily on
+// equivalent-but-wrong code. The one rule worth holding structurally is that
+// no decision lives in a webview closure in the first place, because a
+// decision that lives there is one no test can reach.
 //
 // Cross-links:
-//   openspec/changes/https-upgrade/specs/https-upgrade/spec.md  HTTPS-002/005/006
+//   openspec/changes/https-upgrade/specs/https-upgrade/spec.md  HTTPS-002/005/006/007
 //   openspec/changes/https-upgrade/specs/tracking-protection/spec.md  ETP-028
 //
-// The call-site ORDERING (HTTPS-004) lives in page_bridge_authority.test.js,
-// beside the CAPTCHA-008 ordering it copies.
+// The call-site ORDERING against the navigation verdict (HTTPS-004) lives in
+// page_bridge_authority.test.js, beside the CAPTCHA-008 ordering it copies.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -33,50 +33,73 @@ const stripComments = (src) =>
 
 const WEBVIEW = stripComments(readRaw('lib/services/webview.dart'));
 
-// HTTPS-002. The fallback is what keeps a default-on upgrade from turning
-// every http-only host into an error page, and it is one `if` block deep in a
-// handler that has five other recovery branches.
-test('HTTPS-002: onReceivedError asks the engine for a fallback', () => {
-  const body = blockAfter(WEBVIEW,
-    'onReceivedError: (controller, request, error) async {',
-    undefined, 'webview.dart');
-  assert.match(body, /httpsUpgrade\s*\n?\s*\.fallbackFor\(/,
-    'without this, an upgraded navigation to a host with no TLS ends as an ' +
-    'error page instead of loading over http');
-  const ask = body.search(/httpsUpgrade\s*\n?\s*\.fallbackFor\(/);
-  const load = body.indexOf('inapp.WebUri(upgradeFallback)');
-  assert.ok(load > ask, 'the fallback URL must be the one the engine returned');
-});
+// Dart wraps a long call between the receiver and the method, so every check
+// below matches across whitespace. Matching the literal text would make the
+// no-decision rule silently miss a wrapped primitive call, which is a false
+// PASS in the one gate that must not have one.
+const calls = (src, method) =>
+  new RegExp(`httpsUpgrade\\s*\\.\\s*${method}\\s*\\(`).test(src);
 
-// The other branches of that handler treat the failing URL as the one the site
-// asked for. For an upgraded navigation that is false — we substituted it — so
-// the fallback has to be reached before any of them can act on it.
-test('HTTPS-002: the fallback runs before the handler\'s other recoveries', () => {
-  const body = blockAfter(WEBVIEW,
-    'onReceivedError: (controller, request, error) async {',
-    undefined, 'webview.dart');
-  const fallback = body.search(/httpsUpgrade\s*\n?\s*\.fallbackFor\(/);
-  for (const later of ['LogService.instance.log(', 'ExternalUrlParser', 'reload(']) {
-    const at = body.indexOf(later);
-    if (at === -1) continue;
-    assert.ok(fallback < at,
-      `the upgrade fallback must precede "${later}": that branch reads the ` +
-      'failing URL as the site\'s own, and an upgraded one is not');
+// The rule that keeps the state machine testable. Every decision belongs to
+// the engine, so the call site may only call its event surface; reaching for a
+// primitive means a branch has moved back into a closure where the only
+// possible cover is a regex like the ones this file used to carry.
+const EVENTS = [
+  'onNavigation', 'onLoadStarted', 'onLoadFinished', 'onLoadFailed',
+  'onCertificateRejected', 'onDeadline',
+];
+const PRIMITIVES = [
+  'upgradeFor', 'fallbackFor', 'fallbackForHost', 'fallbackForTimeout',
+  'recordUpgradeSuccess', 'recordUpgradeFailure', 'noteUpgradeResponded',
+];
+
+test('the call site forwards events and never decides', () => {
+  for (const p of PRIMITIVES) {
+    assert.ok(!calls(WEBVIEW, p),
+      `webview.dart calls httpsUpgrade.${p}() directly. That is a decision ` +
+      'in a closure no Dart test can drive — put it behind an event on the ' +
+      'engine and forward, the way the other five handlers do.');
   }
 });
 
-// Without this the in-flight map grows by one per upgraded navigation for the
-// life of the process, and a later unrelated failure on the same URL string
-// reads as a fallback to a load that finished long ago.
-test('HTTPS-002: a completed load clears its in-flight upgrade', () => {
-  const body = blockAfter(WEBVIEW, 'onLoadStop: (controller, url) async {',
+// Each platform event that can resolve an upgrade must actually reach the
+// engine. Presence, not position: where the outcome is applied is the call
+// site's business, what it means is the engine's.
+const HANDLERS = [
+  ['shouldOverrideUrlLoading: (controller, navigationAction) async {', 'onNavigation', undefined],
+  ['onLoadStart: (controller, url) async {', 'onLoadStarted', undefined],
+  ['onLoadStop: (controller, url) async {', 'onLoadFinished', undefined],
+  ['onReceivedError: (controller, request, error) async {', 'onLoadFailed', undefined],
+  ['static Future<inapp.ServerTrustAuthResponse?> _handleServerTrust(', 'onCertificateRejected', ') async {'],
+];
+
+for (const [marker, event, openAt] of HANDLERS) {
+  test(`${event} is forwarded from its handler`, () => {
+    const body = blockAfter(WEBVIEW, marker, openAt, 'webview.dart');
+    assert.ok(calls(body, event),
+      `${marker.split(':')[0]} no longer tells the engine about ${event}; ` +
+      'that event silently stops resolving upgrades');
+  });
+}
+
+// The deadline is the one outcome the call site has to schedule rather than
+// apply, so its arming is structural. The generation it passes is what lets
+// the engine refuse a navigation the user has left (asserted behaviourally in
+// https_upgrade_events_test.dart).
+test('HTTPS-002: the deadline is armed from the engine, with a generation', () => {
+  const nav = blockAfter(WEBVIEW,
+    'shouldOverrideUrlLoading: (controller, navigationAction) async {',
     undefined, 'webview.dart');
-  assert.match(body, /httpsUpgrade\.recordUpgradeSuccess\(/,
-    'onLoadStop must tell the engine the upgrade landed');
+  assert.match(nav, /Timer\(WebViewFactory\.httpsUpgrade\.deadline,/,
+    'the duration must be the engine\'s, not a literal at the call site');
+  assert.match(nav, /generationAtArm: genAtUpgrade/,
+    'without a generation the engine cannot tell a stale deadline from a live one');
+  assert.match(nav, /currentGeneration: \(\) => navigationGen/,
+    'the engine needs the CURRENT generation, read when the timer fires');
 });
 
-// HTTPS-002 again: one engine per process. A per-webview instance would let a
-// host learned http-only in the site's webview be probed again by every nested
+// HTTPS-002: one engine per process. A per-webview instance would let a host
+// learned http-only in the site's webview be probed again by every nested
 // webview, which is the cost the record exists to avoid.
 test('HTTPS-002: the engine is one shared instance, not per webview', () => {
   assert.match(WEBVIEW, /static final HttpsUpgradeEngine httpsUpgrade = HttpsUpgradeEngine\(\);/,
@@ -86,95 +109,36 @@ test('HTTPS-002: the engine is one shared instance, not per webview', () => {
     'a second HttpsUpgradeEngine() means two hosts-seen sets that never agree');
 });
 
-// HTTPS-002, the deadline. A refused port errors and reaches onReceivedError;
-// a port that accepts and then says nothing produces no event at all, so the
-// only thing that can rescue that navigation is a timer armed when the upgrade
-// was issued. Delete it and the page hangs on a site that would have loaded
-// instantly over http, with every other test still green.
-test('HTTPS-002: issuing an upgrade arms the deadline', () => {
-  const nav = blockAfter(WEBVIEW,
-    'shouldOverrideUrlLoading: (controller, navigationAction) async {',
-    undefined, 'webview.dart');
-  assert.match(nav, /Timer\(WebViewFactory\.httpsUpgrade\.deadline,/,
-    'the deadline must come from the engine, not a literal at the call site');
-  const timer = nav.indexOf('Timer(WebViewFactory.httpsUpgrade.deadline,');
-  const load = nav.indexOf('inapp.WebUri(upgraded)');
-  assert.ok(timer !== -1 && load !== -1 && timer < load,
-    'arm the deadline before issuing the load it is meant to rescue');
-});
-
-// The two things that make a late timer harmless. Without the engine call it
-// would re-derive an http URL and downgrade a page that is already up over
-// https; without the generation check it would yank a user back to http on a
-// navigation they have since left.
-test('HTTPS-002: the deadline goes through the engine and checks generation',
-  () => {
-    const nav = blockAfter(WEBVIEW,
-      'shouldOverrideUrlLoading: (controller, navigationAction) async {',
-      undefined, 'webview.dart');
-    const timer = nav.indexOf('Timer(WebViewFactory.httpsUpgrade.deadline,');
-    const body = nav.slice(timer);
-    const gen = body.indexOf('if (navigationGen != genAtUpgrade) return;');
-    const ask = body.indexOf('fallbackForTimeout(upgraded)');
-    assert.ok(gen !== -1,
-      'a deadline armed for a navigation the user has left must not fire');
-    assert.ok(ask !== -1,
-      'the timeout fallback must be the engine\'s: it is fallbackFor, so a ' +
-      'load that already succeeded left no in-flight entry to reverse');
-    assert.ok(gen < ask, 'check the generation before touching engine state');
-  });
-
-// The other half of the deadline, and the reason it is not just a timer: the
-// call site has to tell the engine when a connection is alive, or an https
-// host that is merely slow gets abandoned and recorded http-only for the rest
-// of the session.
-test('HTTPS-002: onLoadStart tells the engine the server answered', () => {
-  const body = blockAfter(WEBVIEW, 'onLoadStart: (controller, url) async {',
-    undefined, 'webview.dart');
-  assert.match(body, /httpsUpgrade\.noteUpgradeResponded\(/,
-    'without this the deadline cannot tell a stalled connection from a slow ' +
-    'page, and downgrades the slow one');
-});
-
-// HTTPS-007. A certificate failure does not reach onReceivedError on
-// Android/Linux — it reaches the trust callback, which PROMPTS and pins on
-// approval (TLS-002/007). Without this carve-out a default-on upgrade asks the
-// user to vouch for a connection the app invented, about a URL they never
-// typed, and a yes pins a bad certificate for good.
-test('HTTPS-007: an upgrade never reaches the certificate prompt', () => {
+// HTTPS-007's position, which the engine cannot own: past the prompt the
+// carve-out cannot stop the dialog, and stopping the dialog is the point.
+test('HTTPS-007: the certificate carve-out precedes the prompt and any pin', () => {
   const body = blockAfter(WEBVIEW,
     'static Future<inapp.ServerTrustAuthResponse?> _handleServerTrust(',
     ') async {', 'webview.dart');
-  const carve = body.indexOf('httpsUpgrade.fallbackForHost(host)');
-  assert.notEqual(carve, -1,
-    'the trust handler must ask whether this host is an upgrade of ours');
-
+  const carve = body.search(/httpsUpgrade\s*\.\s*onCertificateRejected\s*\(/);
   const prompt = body.indexOf('await prompt(host, port, cert)');
+  const pin = body.indexOf('TrustedHostsService.instance.trust(');
+  assert.notEqual(carve, -1, 'the carve-out is gone');
   assert.notEqual(prompt, -1, 'the user prompt is gone');
   assert.ok(carve < prompt,
-    'the carve-out must come first: past the prompt it cannot stop the ' +
-    'dialog, which is the entire point');
-
-  const pin = body.indexOf('TrustedHostsService.instance.trust(');
+    'past the prompt it cannot stop the dialog, which is the entire point');
   assert.ok(pin === -1 || carve < pin, 'and it must come before any pin');
 });
 
-// Cancelling without loading the http URL would leave the user on an error
-// page for a navigation they did not make; loading without cancelling would
-// leave the rejected connection live.
-test('HTTPS-007: the carve-out loads the fallback and cancels the challenge',
-  () => {
-    const body = blockAfter(WEBVIEW,
-      'static Future<inapp.ServerTrustAuthResponse?> _handleServerTrust(',
-      ') async {', 'webview.dart');
-    const carve = body.indexOf('httpsUpgrade.fallbackForHost(host)');
-    const after = body.slice(carve);
-    const load = after.indexOf('inapp.WebUri(upgradeFallback)');
-    const cancel = after.indexOf('ServerTrustAuthResponseAction.CANCEL');
-    assert.ok(load !== -1, 'the http URL the user actually asked for is not loaded');
-    assert.ok(cancel !== -1 && cancel > load,
-      'the challenge must be cancelled, after handing back the http load');
-  });
+// HTTPS-002's position: the other branches of the error handler read the
+// failing URL as the one the site asked for, and an upgraded one is not.
+test('HTTPS-002: the failure forward precedes the handler\'s other recoveries', () => {
+  const body = blockAfter(WEBVIEW,
+    'onReceivedError: (controller, request, error) async {',
+    undefined, 'webview.dart');
+  const forward = body.search(/httpsUpgrade\s*\.\s*onLoadFailed\s*\(/);
+  for (const later of ['ExternalUrlParser', 'reload(']) {
+    const at = body.indexOf(later);
+    if (at === -1) continue;
+    assert.ok(forward < at,
+      `the upgrade failure must be forwarded before "${later}"`);
+  }
+});
 
 // HTTPS-006. The plugin's own known-host upgrade is iOS/macOS only and covers
 // strictly less, but it acts earlier and costs nothing; turning it off would

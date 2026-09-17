@@ -13,6 +13,19 @@
 /// host does not pay the same timeout.
 library;
 
+/// What the call site must do about an event. Every field is an instruction to
+/// a native API, never a decision: `load` is a URL to hand `loadUrl`, `cancel`
+/// answers `shouldOverrideUrlLoading` / the trust challenge, and
+/// `armDeadlineFor` is the upgraded URL a timer must be set for.
+///
+/// The point of returning this rather than acting is that the whole state
+/// machine then runs in a plain Dart test, event by event, in any order the
+/// platform might deliver them. A call site that branches on engine state
+/// instead of forwarding is a decision no test can reach.
+typedef UpgradeOutcome = ({String? load, bool cancel, String? armDeadlineFor});
+
+const UpgradeOutcome _nothing = (load: null, cancel: false, armDeadlineFor: null);
+
 /// Decides whether a main-frame navigation should be retried over https, and
 /// what to do when that retry fails.
 ///
@@ -171,6 +184,68 @@ class HttpsUpgradeEngine {
     _httpOnlyHosts.clear();
     _inFlight.clear();
     _responded.clear();
+  }
+
+  // --- Event surface -------------------------------------------------------
+  //
+  // The four platform events that can resolve an upgrade, plus the deadline.
+  // The call site forwards each one and obeys the outcome; it holds no state
+  // and makes no choice of its own, so every ordering below is reachable from
+  // a unit test rather than only from a device.
+
+  /// A main-frame navigation the routing decision has already allowed
+  /// (HTTPS-004).
+  UpgradeOutcome onNavigation(String url, {required bool enabled}) {
+    final upgraded = upgradeFor(url, enabled: enabled);
+    if (upgraded == null) return _nothing;
+    return (load: upgraded, cancel: true, armDeadlineFor: upgraded);
+  }
+
+  /// The main frame began loading [url]: for an upgrade of ours that is the
+  /// server answering, which takes it out of the deadline's reach.
+  UpgradeOutcome onLoadStarted(String url) {
+    noteUpgradeResponded(url);
+    return _nothing;
+  }
+
+  /// The main frame finished loading [url].
+  UpgradeOutcome onLoadFinished(String url) {
+    recordUpgradeSuccess(url);
+    return _nothing;
+  }
+
+  /// [url] failed to load. Sub-frame failures are not ours: the engine only
+  /// ever upgrades the main frame (HTTPS-004).
+  UpgradeOutcome onLoadFailed(String url, {required bool isMainFrame}) {
+    if (!isMainFrame) return _nothing;
+    final fallback = fallbackFor(url);
+    if (fallback == null) return _nothing;
+    return (load: fallback, cancel: false, armDeadlineFor: null);
+  }
+
+  /// The platform rejected [host]'s certificate (HTTPS-007). Cancels the
+  /// challenge so no prompt is shown and nothing is pinned.
+  UpgradeOutcome onCertificateRejected(String host) {
+    final fallback = fallbackForHost(host);
+    if (fallback == null) return _nothing;
+    return (load: fallback, cancel: true, armDeadlineFor: null);
+  }
+
+  /// The deadline armed for [upgradedUrl] fired.
+  ///
+  /// [generationAtArm] and [currentGeneration] are the repo's race-protection
+  /// signature: the engine bails on a navigation the user has since left
+  /// without knowing what a navigation generation is, and the check is a unit
+  /// test rather than a line of call-site code no test can see.
+  UpgradeOutcome onDeadline(
+    String upgradedUrl, {
+    required int generationAtArm,
+    required int Function() currentGeneration,
+  }) {
+    if (currentGeneration() != generationAtArm) return _nothing;
+    final fallback = fallbackForTimeout(upgradedUrl);
+    if (fallback == null) return _nothing;
+    return (load: fallback, cancel: false, armDeadlineFor: null);
   }
 
   /// Whether a certificate could plausibly validate for [host] (HTTPS-003).

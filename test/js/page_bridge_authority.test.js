@@ -107,10 +107,11 @@ test('HTTPS-004: the https upgrade comes after the routing decision', () => {
 // must be one the engine produced from the navigation's own URL, never one a
 // page supplied.
 test('HTTPS-004: the upgraded URL is the engine\'s, not the page\'s', () => {
-  assert.match(NAV, /upgradeFor\(url, enabled: config\.httpsUpgradeEnabled\)/,
-    'the engine must be asked about the navigation URL itself');
+  assert.match(NAV, /onNavigation\(url, enabled: config\.httpsUpgradeEnabled\)/,
+    'the engine must be asked about the navigation URL itself, and about the ' +
+    'site\'s own setting');
   const upgrade = NAV.indexOf('WebViewFactory.httpsUpgrade');
-  const load = NAV.indexOf('inapp.WebUri(upgraded)');
+  const load = NAV.indexOf('inapp.WebUri(upgrade.load!)');
   assert.ok(load > upgrade, 'loadUrl must consume what the engine returned');
 });
 
