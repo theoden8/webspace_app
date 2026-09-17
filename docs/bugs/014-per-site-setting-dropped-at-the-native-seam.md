@@ -1521,6 +1521,38 @@ place. Structural gates cover both new files: more than one proxy to tell
 apart, a separate classification for a crossed load, a positive assertion
 rather than a report, and the HTTP file's rules staying HTTP.
 
+Two things found in WebKit's own tests while the run was building, both
+worth having on record.
+
+**Nothing upstream tests two stores with two proxies.**
+`Tools/TestWebKitAPI/Tests/WebKit/WKWebView/Proxy.mm` has `HTTPSProxyAPI`,
+`SOCKS5API`, `ProxyAfterNetworkProcessCrash`, `ProxyConfigurationAuthentication`
+and the rest, and every one of them uses a single data store. That does not
+prove the multi-store case is broken, but it does mean it is untested
+territory upstream, which is consistent with what this tier keeps seeing.
+
+**There is a second, durable per-store proxy path, and it is not
+`proxyConfigurations`.** `NetworkSessionCocoa`'s constructor sets
+`configuration.connectionProxyDictionary` from
+`parameters.proxyConfiguration` (line 1216), and the ephemeral stateless
+wrapper copies it off the credential-storage wrapper (line 1340), so it
+reaches every session in the store. It is public `NSURLSessionConfiguration`
+API, per session configuration, carried in `AddWebsiteDataStore` from the
+start rather than arriving after the session exists -- no `nw_context`,
+nothing shared. WebKit's own proxy-authentication tests use it, through
+`_WKWebsiteDataStoreConfiguration`, which can carry both
+`initWithIdentifier:` (the container) and `proxyConfiguration` (the dict), so
+a store could have container isolation and its own proxy on that path.
+
+It is not tested here, for a reason: `_WKWebsiteDataStoreConfiguration` and
+`_initWithConfiguration:` are SPI, and the HTTP CONNECT arm above already
+reaches the same destination without any -- `recreateSessionWithUpdated
+ProxyConfigurations` puts the proxy on the session's own
+`NSURLSessionConfiguration` too. So this is the fallback if HTTP CONNECT
+turns out to carry simultaneous proxies and SOCKS5 is still needed natively
+for Tor; an in-app HTTP CONNECT to SOCKS5 shim would answer that without SPI
+either.
+
 **Why:** the question the goal turns on -- can two data stores hold two
 different proxies at once -- had never been asked where the answer could be
 anything but no.
