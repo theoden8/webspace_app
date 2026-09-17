@@ -124,6 +124,18 @@ test('HTTPS-002: the deadline goes through the engine and checks generation',
     assert.ok(gen < ask, 'check the generation before touching engine state');
   });
 
+// The other half of the deadline, and the reason it is not just a timer: the
+// call site has to tell the engine when a connection is alive, or an https
+// host that is merely slow gets abandoned and recorded http-only for the rest
+// of the session.
+test('HTTPS-002: onLoadStart tells the engine the server answered', () => {
+  const body = blockAfter(WEBVIEW, 'onLoadStart: (controller, url) async {',
+    undefined, 'webview.dart');
+  assert.match(body, /httpsUpgrade\.noteUpgradeResponded\(/,
+    'without this the deadline cannot tell a stalled connection from a slow ' +
+    'page, and downgrades the slow one');
+});
+
 // HTTPS-007. A certificate failure does not reach onReceivedError on
 // Android/Linux — it reaches the trust callback, which PROMPTS and pins on
 // approval (TLS-002/007). Without this carve-out a default-on upgrade asks the

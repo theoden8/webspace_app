@@ -52,6 +52,14 @@ the shape a firewall blackholing 443 has, which is the shape of a captive
 portal, and without the deadline the page hangs on a site that would have
 loaded instantly over http.
 
+The deadline SHALL apply only to a connection that has produced nothing. Once
+the server has answered for an upgraded navigation, the call site SHALL tell
+the engine, and the deadline SHALL stop applying to it: a page that is slow to
+finish is not a connection that never got going, and abandoning one downgrades
+a working https host for being slow and records it http-only for the rest of
+the session. A failure *after* a response is still a failure and SHALL still
+fall back.
+
 A deadline that fires after the navigation resolved SHALL be a no-op. It SHALL
 reach the fallback through the same call the error path uses, so the in-flight
 entry a success removes is what makes it one; a path that re-derived the http
@@ -82,6 +90,26 @@ with nothing in the UI to show or clear it.
 **When** the deadline passes with no load and no error
 **Then** the engine returns `http://stalled.example/a` to load
 **And** the host is recorded http-only, so the next navigation does not stall
+
+#### Scenario: A slow https host is not downgraded for being slow
+
+**Given** an upgraded navigation whose server has answered
+**And** the page has not finished loading when the deadline passes
+**When** the deadline fires
+**Then** nothing is loaded, and the host is not recorded http-only
+
+#### Scenario: A failure after a response is still a failure
+
+**Given** an upgraded navigation whose server answered and then failed
+**When** the error arrives
+**Then** the fallback is taken as usual
+
+#### Scenario: Two upgrades to one host, one certificate failure
+
+**Given** upgrades to `https://h/first` and `https://h/second` both in flight
+**When** the trust callback fires for `h`
+**Then** `http://h/second` is loaded, being the one the user is waiting on
+**And** no upgrade to `h` is left in flight for a later callback to reverse
 
 #### Scenario: A deadline that fires late does nothing
 
@@ -281,7 +309,12 @@ Apple platforms reach the same outcome through the ordinary error path, because
 that handler's SSL branch.
 
 The lookup SHALL be by host: the platform hands the callback a protection space
-(host and port), never the URL that asked for it.
+(host and port), never the URL that asked for it. Where more than one upgrade
+to that host is in flight — the root webview and its nested webviews share one
+engine (HTTPS-002), so this is reachable — it SHALL reverse the most recent and
+clear the rest. Taking whichever the bookkeeping happened to hold first could
+load a URL the user has already left, and leaving siblings in flight lets a
+later callback reverse one of them over the top of the page that replaced it.
 
 #### Scenario: A self-signed certificate on an upgraded navigation
 

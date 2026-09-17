@@ -44,8 +44,14 @@ class HttpsUpgradeEngine {
 
   /// Upgraded URL currently in flight -> the http URL it came from. An entry
   /// lives from the moment the call site issues the upgrade until that
-  /// navigation succeeds or fails.
+  /// navigation succeeds or fails. Insertion-ordered, which [fallbackForHost]
+  /// relies on.
   final Map<String, String> _inFlight = <String, String>{};
+
+  /// In-flight upgrades whose server has answered. The deadline is about a
+  /// connection that never got going, not a page that is slow to finish, and
+  /// the difference is not one a timer can see on its own.
+  final Set<String> _responded = <String>{};
 
   /// The https URL to load instead of [url], or null to leave the navigation
   /// alone. [enabled] is the site's effective setting, so a disabled site
@@ -81,6 +87,7 @@ class HttpsUpgradeEngine {
   /// failure on an https URL nobody upgraded returns null and the failure
   /// stays the user's to see.
   String? fallbackFor(String failedUrl) {
+    _responded.remove(failedUrl);
     final original = _inFlight.remove(failedUrl);
     if (original == null) return null;
     final host = Uri.tryParse(failedUrl)?.host;
@@ -88,14 +95,28 @@ class HttpsUpgradeEngine {
     return original;
   }
 
+  /// Note that the server has answered for [upgradedUrl], so the deadline no
+  /// longer applies to it.
+  ///
+  /// Without this the deadline cannot tell a connection that never got going
+  /// from a page that is merely slow, and an https host on a bad link gets
+  /// downgraded for being slow — and recorded http-only for the rest of the
+  /// session, which is the feature doing the exact opposite of its job.
+  void noteUpgradeResponded(String upgradedUrl) {
+    if (_inFlight.containsKey(upgradedUrl)) _responded.add(upgradedUrl);
+  }
+
   /// The fallback for an upgrade whose deadline passed with no verdict.
   ///
-  /// Deliberately the same call as [fallbackFor] rather than a path of its
-  /// own: a deadline that fires after the load already succeeded MUST be a
-  /// no-op, and the in-flight entry [recordUpgradeSuccess] removes is what
-  /// makes it one. A separate path that re-derived the http URL would happily
-  /// downgrade a page that is already up over https.
-  String? fallbackForTimeout(String upgradedUrl) => fallbackFor(upgradedUrl);
+  /// Two ways this returns null, and both matter. A deadline that fires after
+  /// the load already succeeded finds no in-flight entry, because
+  /// [recordUpgradeSuccess] removed it. A deadline that fires while the server
+  /// is answering finds one, but the connection is alive and abandoning it
+  /// would downgrade a working host for being slow.
+  String? fallbackForTimeout(String upgradedUrl) {
+    if (_responded.contains(upgradedUrl)) return null;
+    return fallbackFor(upgradedUrl);
+  }
 
   /// The http URL to fall back to for an in-flight upgrade to [host], or null
   /// when this engine has no upgrade in flight there.
@@ -106,15 +127,24 @@ class HttpsUpgradeEngine {
   /// [fallbackFor] otherwise.
   String? fallbackForHost(String host) {
     final wanted = host.toLowerCase();
-    for (final entry in _inFlight.entries) {
-      if ((Uri.tryParse(entry.key)?.host ?? '').toLowerCase() != wanted) {
-        continue;
-      }
-      _inFlight.remove(entry.key);
-      _httpOnlyHosts.add(wanted);
-      return entry.value;
+    final matching = _inFlight.keys
+        .where((k) => (Uri.tryParse(k)?.host ?? '').toLowerCase() == wanted)
+        .toList(growable: false);
+    if (matching.isEmpty) return null;
+    // Every upgrade to this host is doomed by the same certificate, so clear
+    // them all rather than leaving siblings in flight for a later callback to
+    // reverse. The URL handed back is the most recent, which is the one the
+    // user is waiting on: the root webview and its nested webviews share one
+    // engine (HTTPS-002), so two upgrades to a host can be in flight at once,
+    // and taking whichever the map happened to hold first could send the user
+    // to a page they had already left.
+    final original = _inFlight[matching.last]!;
+    for (final k in matching) {
+      _inFlight.remove(k);
+      _responded.remove(k);
     }
-    return null;
+    _httpOnlyHosts.add(wanted);
+    return original;
   }
 
   /// Note that [upgradedUrl] loaded successfully, dropping its in-flight entry.
@@ -123,6 +153,7 @@ class HttpsUpgradeEngine {
   /// read as a fallback long after the fact.
   void recordUpgradeSuccess(String upgradedUrl) {
     _inFlight.remove(upgradedUrl);
+    _responded.remove(upgradedUrl);
   }
 
   /// Mark [host] http-only without having an in-flight upgrade to reverse.
@@ -139,6 +170,7 @@ class HttpsUpgradeEngine {
   void reset() {
     _httpOnlyHosts.clear();
     _inFlight.clear();
+    _responded.clear();
   }
 
   /// Whether a certificate could plausibly validate for [host] (HTTPS-003).

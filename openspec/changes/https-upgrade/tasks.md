@@ -124,7 +124,21 @@ that passes either way is worse than none, because it reads as cover.
   carve-out beside it. Gated three ways (remove it, move it past the prompt,
   cancel without loading the fallback) and unit-tested for the host-keyed
   reversal the platform callback forces.
-- [ ] 7.5 **Still no end-to-end run**, unchanged from 7.1: everything above is
-  the engine plus structural gates on the wiring. Chromium's own timing (how
-  long before a stalled handshake produces an event of its own, whether the
-  deadline or the platform wins the race) is device work.
+- [x] 7.5 **The deadline's race with a live connection is closed.** It could
+  not tell a connection that never got going from a page that was slow to
+  finish, so an https host on a bad link was downgraded for being slow and
+  recorded http-only for the session. `onLoadStart` now tells the engine the
+  server answered, and the deadline stops applying; a failure after a response
+  still falls back. Checked by reverting the guard (2 tests fail) and by
+  deleting the call site's note (1 gate fails).
+- [x] 7.6 **The host-keyed reversal is deterministic.** Root and nested
+  webviews share one engine, so two upgrades to a host can be in flight; a
+  first-match lookup could hand back a navigation the user had left. It now
+  reverses the most recent and clears the siblings. Checked by reverting to
+  first-match (1 test fails).
+- [ ] 7.7 **Still no end-to-end run**, unchanged from 7.1. What remains is
+  chromium's own timing: how long before a stalled handshake produces an event
+  of its own, and therefore whether the 8s deadline or the platform's timeout
+  gets there first. Both now lead to the same fallback, so the order is a
+  latency question rather than a correctness one — but it is still unmeasured,
+  and 8s is a guess until someone measures it on a device.

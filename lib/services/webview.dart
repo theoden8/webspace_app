@@ -4584,6 +4584,14 @@ class WebViewFactory {
         final myGen = navigationGen;
         bool stillCurrent() => navigationGen == myGen;
 
+        // The server answered for an upgrade of ours, so the deadline stops
+        // applying to it: a page that is slow to finish is not a connection
+        // that never got going, and treating the two alike downgrades a
+        // working https host on a bad link and records it http-only for the
+        // rest of the session (HTTPS-002).
+        if (url != null) {
+          WebViewFactory.httpsUpgrade.noteUpgradeResponded(url.toString());
+        }
         // Notify the call site that a navigation just started so the
         // Refresh button can swap to a Stop button while loading.
         config.onLoadingChanged?.call(true);

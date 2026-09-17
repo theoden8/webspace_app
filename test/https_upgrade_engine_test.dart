@@ -188,6 +188,75 @@ void main() {
           reason: 'the host lookup must remove only its own entry');
     });
 
+    // Race 1. The root webview and its nested webviews share one engine
+    // (HTTPS-002), so two upgrades to the same host can be in flight at once.
+    // The certificate callback knows only the host, so a first-match lookup
+    // could hand back a navigation the user had already left.
+    test('two in-flight upgrades to one host resolve to the most recent', () {
+      up('http://cert.example/first');
+      up('http://cert.example/second');
+      expect(engine.fallbackForHost('cert.example'),
+          'http://cert.example/second',
+          reason: 'the user is waiting on the newer navigation');
+    });
+
+    test('reversing a host clears every upgrade it had in flight', () {
+      final first = up('http://cert.example/first')!;
+      up('http://cert.example/second');
+      engine.fallbackForHost('cert.example');
+      expect(engine.fallbackFor(first), isNull,
+          reason: 'a sibling left in flight would be reversed again by a '
+              'later callback, loading a stale URL over the top');
+    });
+
+    // Race 2. The deadline cannot see the difference between a connection
+    // that never got going and a page that is slow to finish, and getting it
+    // wrong downgrades a working https host for being slow — then records it
+    // http-only for the rest of the session.
+    test('a deadline does not abandon a connection the server answered', () {
+      final upgraded = up('http://slow.example/a')!;
+      engine.noteUpgradeResponded(upgraded);
+      expect(engine.fallbackForTimeout(upgraded), isNull,
+          reason: 'slow is not dead: abandoning here downgrades a host that '
+              'was about to load over https');
+      expect(engine.isKnownHttpOnly('slow.example'), isFalse,
+          reason: 'and it must not be remembered as http-only either');
+    });
+
+    test('a deadline still fires when nothing answered', () {
+      final upgraded = up('http://dead.example/a')!;
+      expect(engine.fallbackForTimeout(upgraded), 'http://dead.example/a');
+      expect(engine.isKnownHttpOnly('dead.example'), isTrue);
+    });
+
+    test('a response on one upgrade does not shield another', () {
+      final alive = up('http://alive.example/a')!;
+      final dead = up('http://dead.example/a')!;
+      engine.noteUpgradeResponded(alive);
+      expect(engine.fallbackForTimeout(dead), 'http://dead.example/a');
+      expect(engine.fallbackForTimeout(alive), isNull);
+    });
+
+    test('noting a response for an upgrade not in flight is ignored', () {
+      // The call site notes every main-frame load start, most of which are
+      // ordinary navigations. None of them may create state here.
+      engine.noteUpgradeResponded('https://never-upgraded.example/a');
+      final upgraded = up('http://never-upgraded.example/a')!;
+      expect(engine.fallbackForTimeout(upgraded),
+          'http://never-upgraded.example/a',
+          reason: 'a stale note must not shield a later upgrade');
+    });
+
+    test('an error after a response still falls back', () {
+      // Answering and then failing (reset mid-body, TLS alert after headers)
+      // is a real failure, and the error path must not be shielded the way
+      // the deadline is.
+      final upgraded = up('http://flaky.example/a')!;
+      engine.noteUpgradeResponded(upgraded);
+      expect(engine.fallbackFor(upgraded), 'http://flaky.example/a');
+      expect(engine.isKnownHttpOnly('flaky.example'), isTrue);
+    });
+
     test('the deadline is a value the call site reads, with a sane default', () {
       expect(HttpsUpgradeEngine().deadline, const Duration(seconds: 8));
       expect(HttpsUpgradeEngine(deadline: const Duration(seconds: 2)).deadline,
