@@ -1662,8 +1662,19 @@ frame does not help -- the store is fine, the session configuration under it
 is what is empty -- and why `proxy_window` saw `after-warmup=0 of 2` even
 though its first frame held an unproxied load.
 
-It predicts the arm already in flight. An HTTP CONNECT configuration does make
-`requiresHTTPProtocols` true, which sets `recreateSessions`, which runs
+Apple's own test suite is arranged the same way, which is worth more than it
+looks. `Proxy.mm`'s durability test -- `ProxyAfterNetworkProcessCrash`, which
+kills the network process, waits for a new one and asserts the proxy still
+works -- is written with `nw_proxy_config_create_http_connect`. The SOCKS5
+test beside it, `SOCKS5API`, issues exactly one load and never checks that the
+proxy survives anything. So upstream exercises persistence only on the HTTP
+CONNECT path and exercises SOCKS5 only for a single request, which is exactly
+the split this chain predicts. It is corroboration rather than proof: nobody
+has seen `nw_proxy_config_stack_requires_http_protocols` return a value here,
+and that one unobserved bool is what the whole prediction rests on.
+
+It predicts the arm already in flight. An HTTP CONNECT configuration should
+make `requiresHTTPProtocols` true, which sets `recreateSessions`, which runs
 `recreateSessionWithUpdatedProxyConfigurations`: that rebuilds each
 NSURLSession from a configuration that
 `applyProxyConfigurationToSessionConfiguration` has just written
@@ -1723,6 +1734,60 @@ path. This one is the whole path, in order.
 **Why it was partial:** untested until the HTTP CONNECT arm reports, and it
 names no fix by itself -- the delivery has to change, since nothing outside
 WebKit can make a SOCKS5 rule take the other route.
+
+### Attempt 37 — The readings are not deterministic, and two arms were unfair
+
+**Date:** 2026-09-17
+**Commit:** (this one). Run 3089 on `97e902c`.
+
+**The headline invalidates a lot of this file.** `proxy_binding_test.dart` is
+byte-identical across the runs on `0a444e7`, `ba55523` and `97e902c` -- so is
+`socks5_fixture.dart`, and so is the fork pin -- and its verdict changed:
+
+* `ba55523`: `... raw-late=DIRECT, alt-proxy=DIRECT, crossed=false`
+* `97e902c`: `... raw-late=proxied, alt-proxy=proxied, crossed=false`
+
+Same code, same runner image, same everything, opposite results on two
+scenarios. **These measurements are nondeterministic**, and every rule in this
+file was drawn from one sample per scenario. "Only a load issued as the
+webview is constructed is proxied" and its predecessors were read off single
+draws; at least two scenarios demonstrably draw both ways. Attempt 31 worried
+about exactly this ("a clean cutoff and a race that usually loses look alike
+when each scenario is measured once") and the staircase was built to settle
+it -- but the staircase only ever varied time within one run, never repeated a
+scenario across runs.
+
+This does not refute attempt 36's chain; it fits it. A proxy that exists only
+as a patch applied to a live `nw_context`, after the session already exists,
+is applied asynchronously and races the load that follows it. A live-context
+patch is exactly the shape that produces a rate rather than a rule. What is
+refuted is the idea that any of these single readings names a boundary.
+
+**Two of the three new arms were not fair tests.** `proxy_http_connect` and
+`proxy_relay_binding` both came back with every pane DIRECT and every proxy
+fixture showing `connects=[]` -- WebKit never contacted them at all. The
+likely reason is that both present a **plaintext** HTTP CONNECT proxy, and
+every HTTP-proxy test in WebKit's own `Proxy.mm` uses
+`HTTPServer::Protocol::HttpsProxy`, a TLS-wrapped proxy; there is no plaintext
+CONNECT proxy test upstream. It is not `requiresSecureHTTPSProxyConnection`,
+which defaults to `false` (`WebsiteDataStoreConfiguration.h:364`), so the
+mechanism is not that flag, but the absence of any upstream coverage for a
+plaintext CONNECT proxy is its own warning. `ProxyRule` already maps an
+`https` scheme to `ProxyConfiguration(httpCONNECTProxy:tlsOptions:)`, so the
+fair version of this arm is a TLS fixture.
+
+Worth noting separately: a proxy configuration WebKit will not use appears to
+produce a **direct** load rather than a failure. SOCKS5 pointed at a closed
+port still gives `refused=failed closed`, so failover is off there; an
+unusable HTTP CONNECT configuration went direct instead. If that holds it is a
+leak in its own right.
+
+**Why:** the run was supposed to decide between two deliveries.
+**Why it was partial:** it decided nothing. One arm is invalid (plaintext
+proxy), one inherits that invalidity, and the control proved the whole
+measurement series has been single-sampling a random variable. The instrument
+needs repetition -- N draws per scenario and a rate in the verdict -- before
+any further mechanism is proposed, and the CONNECT arms need TLS.
 
 ## Known open gaps
 

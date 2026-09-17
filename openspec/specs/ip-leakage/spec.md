@@ -195,9 +195,18 @@ cannot see, so a webview can report a proxy it never bound (BUG-014). A
 site whose proxy refuses connections SHALL therefore never reach its
 origin.
 
-On iOS and macOS, **a load is proxied only if the webview issues it as it is
-constructed, and only if that webview is constructed in the process's first
-frame.** Both halves are required. A first-frame webview navigated by
+On iOS and macOS, **whether a load is proxied is not deterministic.** The same
+scenario, from byte-identical test code against an unchanged plugin pin, has
+been observed both proxied and direct across runs (BUG-014 attempt 37:
+`raw-late` and `alt-proxy` read DIRECT on one run and proxied on the next).
+Every earlier rule stated here was drawn from a single sample per scenario and
+none of them survives that. What is established is that some loads carrying a
+per-site proxy go out over the device IP, often enough to have been measured
+repeatedly, and that the app cannot currently tell which.
+
+The superseded reading, kept because the scenarios behind it are still the
+ones worth repeating: a load appeared to be proxied only if the webview issued
+it as it was constructed, in the process's first frame. A first-frame webview navigated by
 `loadUrl` from inside `onWebViewCreated` is proxied; the same call on a
 sibling first-frame webview once the tree has settled is not; a webview
 constructed in any later frame is not, even by its `initialUrlRequest`.
