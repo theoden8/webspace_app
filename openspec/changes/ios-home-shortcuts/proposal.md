@@ -1,3 +1,14 @@
+## Status
+
+The spec delta is gone: every requirement it carried now ships in
+`openspec/specs/home-shortcut/spec.md`, in a more developed form than this
+change drafted. Its iOS App Intent, App Group sync and "Add to Home Screen"
+dialog were published as HS-008, HS-009 and HS-010 (this change numbered them
+HS-006..HS-008, which main had meanwhile given to unrelated requirements), and
+main's text also covers macOS 13+, the tombstone fallback and the per-launch
+sync guard. The HS-004 and HS-005 edits landed too. What remains open is the
+task list below, against requirements that already exist.
+
 ## Why
 
 The Home Shortcut feature (HS-001..HS-005) is currently Android-only — HS-004 hides the menu item on iOS because iOS has no public API equivalent to `ShortcutManager.requestPinShortcut()`. Users have asked for a comparable iOS path. Apple's answer for "discoverable app-defined actions a user can drop on the home screen" is **App Intents** (iOS 16+): we expose `OpenSiteIntent` with a `SiteEntity` parameter; iOS surfaces it in Shortcuts.app, Spotlight, and Siri; the user creates a Shortcut for the desired site and taps "Add to Home Screen" from the Shortcuts.app share sheet.

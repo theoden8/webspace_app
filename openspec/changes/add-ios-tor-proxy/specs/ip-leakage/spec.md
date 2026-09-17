@@ -1,6 +1,6 @@
 ## ADDED Requirements
 
-### Requirement: LEAK-008 - Tor stream isolation contract
+### Requirement: LEAK-013 - Tor stream isolation contract
 
 The system SHALL route per-site `ProxyType.TOR` traffic and `globalOutboundProxy.type == TOR` traffic through the embedded Tor runtime's SOCKS5 endpoint, using a SOCKS5 username that gives Tor's `IsolateSOCKSAuth IsolateDestAddr` semantics a stable per-context isolation tag: per-site traffic MUST use the site's `siteId`, app-global traffic MUST use the reserved literal `__webspace_app_global__`, and the system MUST NOT share a single SOCKS username across distinct sites or re-use a site's username for app-global traffic.
 
@@ -34,7 +34,7 @@ fail-closed sentinel
 
 ---
 
-### Requirement: LEAK-009 - Tor control port is loopback-only
+### Requirement: LEAK-014 - Tor control port is loopback-only
 
 The Tor control port used by `TorService` SHALL bind to loopback
 only and SHALL use cookie authentication (Tor.framework's default).
@@ -66,7 +66,7 @@ asserts this property
 
 ---
 
-### Requirement: LEAK-010 - The Moat bridge fetch is exempt, and says so
+### Requirement: LEAK-015 - The Moat bridge fetch is exempt, and says so
 
 Fetching bridges from BridgeDB over Moat SHALL go direct rather than
 through any proxy, and the UI offering it SHALL say that the request

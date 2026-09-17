@@ -22,7 +22,7 @@ The "always-isolate-each-site" goal that surfaced during scoping is **already sa
 - **macOS Share Extension**: equivalent of iOS.
 - **Global routing overview UI**: a settings screen listing every claimed domain pattern → site, conflict warnings, and a master "Handle shared links" switch.
 - **Back-to-referring-app behavior**: on Android, the `ACTION_SEND` activity inherits its task from the referrer (no `FLAG_ACTIVITY_NEW_TASK`); on iOS/macOS the OS-provided status-bar back breadcrumb returns the user to source.
-- **WEBSPACE-011 (new requirement)**: when an intent-routed URL targets a site outside the current webspace, the system switches to the default "All" webspace before activating the site.
+- **WEBSPACE-012 (new requirement)**: when an intent-routed URL targets a site outside the current webspace, the system switches to the default "All" webspace before activating the site.
 - Unit tests for the routing resolver (ranking, ties, no-match, wildcard semantics) and domain-claim conflict validation. Manual test matrix per platform.
 
 ### Explicitly out of scope (deferred to a future change)
@@ -38,7 +38,7 @@ The "always-isolate-each-site" goal that surfaced during scoping is **already sa
 - `link-intent-routing`: per-site domain-claim list (exact / wildcard-subdomain / base-domain), URL-to-site resolver with most-specific-match ranking, three-option dispatch picker (router default / bind domain to existing site / create new site with stripped path), share-intent entry points (Android `ACTION_SEND`, iOS/macOS Share Extension), `webspace://open?url=...` cross-platform URL scheme, global routing overview settings screen, back-to-referring-app behavior.
 
 ### Modified Capabilities
-- `webspaces`: add WEBSPACE-011 — intent-routed URL targeting a site outside the current webspace switches to "All" before activation.
+- `webspaces`: add WEBSPACE-012 — intent-routed URL targeting a site outside the current webspace switches to "All" before activation.
 
 ## Impact
 
@@ -52,7 +52,7 @@ The "always-isolate-each-site" goal that surfaced during scoping is **already sa
   - `lib/services/`: new `link_routing_service.dart` (resolver + claim conflict validation) and `link_intent_service.dart` (platform-channel wrapper, also handles `webspace://open?url=...` parsing).
   - Site editor UI: domain-claim list editor, validation errors.
   - Settings: new "Link handling" screen (master toggle + routing overview).
-- **Specs touched**: `webspaces/spec.md` (delta — adds WEBSPACE-011). Neither `per-site-cookie-isolation` nor `per-site-containers` is modified by this change.
+- **Specs touched**: `webspaces/spec.md` (delta — adds WEBSPACE-012). Neither `per-site-cookie-isolation` nor `per-site-containers` is modified by this change.
 - **Dependencies**: none new expected; `flutter_inappwebview` already covers rendering. Platform channels via existing plumbing.
 - **Migration**: existing `WebViewModel`s auto-synthesize a single `baseDomain` claim on first load; no user action required. Serialization omits `domainClaims` when it equals the synthesized default to keep on-disk output stable for users who never touch the feature.
 - **Security**: Share Extension App Group keys are WebSpace-scoped. `webspace://` URLs only carry user-initiated target URLs and are validated (must parse to a `Uri`, must be `http`/`https`).

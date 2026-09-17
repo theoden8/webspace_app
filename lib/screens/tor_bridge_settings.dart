@@ -5,7 +5,7 @@
 // hardest: paste a line obtained elsewhere, fetch from the Tor Project over
 // Moat, or pick snowflake and configure nothing. The Moat route is disclosed
 // rather than silent — that request goes direct and tells the local network
-// you are asking for bridges (LEAK-010).
+// you are asking for bridges (LEAK-015).
 //
 // Editing does not restart Tor. Bridges are read only at bootstrap, so an
 // edit while Tor is up is inert until a restart; the screen says so and
@@ -433,7 +433,7 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // LEAK-010: the exposure is stated before the button, not after
+            // LEAK-015: the exposure is stated before the button, not after
             // it and not in a hint the user has to open.
             Text(
               loc.torBridgesFetchExposure,

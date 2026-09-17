@@ -1,12 +1,12 @@
 ## ADDED Requirements
 
-### Requirement: LEAK-008 - Android webview auth-proxy fail-closed
+### Requirement: LEAK-012 - Android webview auth-proxy fail-closed
 
 On Android, applying a credentialed proxy to the WebView SHALL NOT degrade
 to a direct connection on failure. Credentials SHALL NOT be embedded in the
 `inapp.ProxyController` proxy rule (Chromium rejects userinfo and silently
 goes direct); they SHALL instead be injected by the native loopback relay
-(see PROXY-010 / PROXY-011), which only ever connects to the configured
+(see PROXY-021 / PROXY-022), which only ever connects to the configured
 upstream. Credentials SHALL travel to the relay only over the loopback
 method channel and SHALL NOT appear in any `ProxyController` rule or on any
 non-loopback socket from the app. If the relay cannot be established, the

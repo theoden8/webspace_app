@@ -1,7 +1,7 @@
-// TOR-016 / LEAK-010: the bridge settings screen.
+// TOR-016 / LEAK-015: the bridge settings screen.
 //
 // Two contracts matter most here. The disclosure — the Moat fetch is the one
-// outbound seam that deliberately bypasses the proxy, and LEAK-010 requires
+// outbound seam that deliberately bypasses the proxy, and LEAK-015 requires
 // the screen to say so where it is offered rather than bury it in a hint.
 // And the paste errors — a bridge line is copied by hand under pressure, so
 // a half-copied one must name the missing half instead of "invalid bridge".
@@ -98,7 +98,7 @@ void main() {
 
   testWidgets('the Moat exposure is stated on the screen, not hidden',
       (t) async {
-    // LEAK-010: this is the one seam that bypasses the proxy by design, and
+    // LEAK-015: this is the one seam that bypasses the proxy by design, and
     // the requirement is that the user is told where the button is — not in
     // a hint they must open, and not after the fact.
     await t.pumpWidget(host(TorBridgeSettingsScreen(

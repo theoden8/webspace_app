@@ -653,7 +653,7 @@ transport-defined and tor is the authority on it, so the app validates
 shape only and never re-serialises from parsed parts.
 
 Storage is covered by TOR-017; the exposure of fetching bridges over Moat
-is covered by LEAK-010.
+is covered by LEAK-015.
 
 #### Scenario: An enabled configuration reaches tor
 

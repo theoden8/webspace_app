@@ -195,7 +195,7 @@ No change to `per-site-cookie-isolation` or `per-site-containers` specs.
 - **[Risk] Resolver drift between platforms** → Mitigation: resolver lives entirely in pure Dart; platform channel only delivers a `Uri` (or `String`). Single source of truth tested in `test/link_routing_test.dart`.
 - **[Risk] User enables `webspace://` opener, taps a malformed URL, app crashes** → Mitigation: `parseWebspaceUri` returns `null` for any invalid input and surfaces a snackbar; never throws.
 - **[Risk] Linux `.desktop` registration fragmenting across distros** → Mitigation: install at `~/.local/share/applications/webspace.desktop` via the runner's installer; document `update-desktop-database` invocation in build script.
-- **[Risk] Routing into a site that's outside the current named webspace surprises the user** → Mitigation: WEBSPACE-011 forces a switch to "All" with a snackbar ("Switched to All to open <url> in <site>"), preserving discoverability.
+- **[Risk] Routing into a site that's outside the current named webspace surprises the user** → Mitigation: WEBSPACE-012 forces a switch to "All" with a snackbar ("Switched to All to open <url> in <site>"), preserving discoverability.
 - **[Trade-off] Without https `ACTION_VIEW` (deferred), users tapping a plain twitter.com link in another app still need to use Share → WebSpace.** Acceptable; the libre-mirrors change will close the gap.
 - **[Trade-off] `webspace://` is novel; users won't intuit it.** Surfaced via in-app help text and the routing-overview footer ("Authoring a link to open in WebSpace? Use `webspace://open?url=<your-link>`").
 
@@ -206,7 +206,7 @@ No change to `per-site-cookie-isolation` or `per-site-containers` specs.
 3. Android `ACTION_SEND` handler.
 4. iOS/macOS Share Extensions.
 5. "Link handling" settings screen, domain-claim editor, picker, no-match bottom sheet.
-6. WEBSPACE-011 (auto-switch to "All" when matched site isn't in current webspace).
+6. WEBSPACE-012 (auto-switch to "All" when matched site isn't in current webspace).
 
 Each step is independent. Rollback: disable the master "Handle shared links" switch; the resolver and model changes are backward-compatible because the migration shim synthesizes the legacy claim.
 

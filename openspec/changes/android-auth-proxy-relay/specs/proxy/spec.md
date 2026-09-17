@@ -1,6 +1,6 @@
 ## ADDED Requirements
 
-### Requirement: PROXY-010 - Android authenticated proxy via local relay
+### Requirement: PROXY-021 - Android authenticated proxy via local relay
 
 On Android, a proxy whose effective settings carry credentials SHALL be
 served through a native loopback relay rather than by embedding credentials
@@ -13,7 +13,7 @@ configured upstream, and inject the upstream credentials — HTTP
 `Proxy-Authorization: Basic` for HTTP/HTTPS upstreams, the RFC 1929
 username/password handshake for SOCKS5. WebView SHALL be pointed at
 `http://<loopback address>:<port>` with no credentials in the rule; the
-address is the one PROXY-014 binds, not a fixed `127.0.0.1`.
+address is the one PROXY-024 binds, not a fixed `127.0.0.1`.
 
 The relay SHALL bind a fresh random ephemeral port chosen by the OS on every
 (re)start, SHALL bind to the loopback interface only, and SHALL NOT persist
@@ -54,7 +54,7 @@ and SHALL NOT start the relay.
 
 ---
 
-### Requirement: PROXY-013 - The relay serves only this app
+### Requirement: PROXY-023 - The relay serves only this app
 
 Loopback keeps the listener off the network but not away from the device:
 every other app holding `INTERNET` can reach `127.0.0.1:<port>`, and the relay
@@ -79,7 +79,7 @@ covers API 24-28 and nothing above. No supported replacement exists —
 `ConnectivityManager.getConnectionOwnerUid` answers only for the caller's own
 `VpnService` tunnel, and TCP has no `SO_PEERCRED` — so on API 29+ no peer
 lookup can answer. What stands there instead is the listener's address, not
-this check: see PROXY-014.
+this check: see PROXY-024.
 
 Page script cannot reach the relay in the first place: `fetch` sends an
 origin-form request line, which carries no host to forward and is answered with
@@ -113,9 +113,9 @@ origin-form request line, which carries no host to forward and is answered with
 
 ---
 
-### Requirement: PROXY-014 - The relay's loopback address is unguessable
+### Requirement: PROXY-024 - The relay's loopback address is unguessable
 
-On API 29+ no peer lookup can answer (PROXY-013), so the only thing between a
+On API 29+ no peer lookup can answer (PROXY-023), so the only thing between a
 local app with `INTERNET` and the user's upstream credentials is the cost of
 finding the listener. An ephemeral port alone is about 15 bits and a local
 process scans that range in seconds.
@@ -130,7 +130,7 @@ attacker must guess and not a decoration on the port.
 The address SHALL be verified reachable from this process before it is used:
 the relay connects to its own listener and falls back to `127.0.0.1` if that
 fails. A device that will not route the random address loses the extra bits,
-never proxying — and losing proxying is the IP leak PROXY-011 exists to
+never proxying — and losing proxying is the IP leak PROXY-022 exists to
 prevent.
 
 #### Scenario: The listener is not on 127.0.0.1
@@ -154,7 +154,7 @@ prevent.
 
 ---
 
-### Requirement: PROXY-011 - Auth proxy relay fails closed
+### Requirement: PROXY-022 - Auth proxy relay fails closed
 
 The Android authenticated-proxy relay SHALL never open a direct connection
 to an origin on behalf of a client; it SHALL only connect to the configured
@@ -193,7 +193,7 @@ writes are the user's `Proxy-Authorization: Basic` credentials followed by the
 answered at that address.
 
 When the handshake fails the relay SHALL close the socket and fail the
-connection under PROXY-011 (`502` to the client). It SHALL NOT retry without
+connection under PROXY-022 (`502` to the client). It SHALL NOT retry without
 verification, downgrade to a plaintext hop, or fall back to a direct
 connection.
 

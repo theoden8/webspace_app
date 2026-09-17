@@ -26,13 +26,13 @@
 
 ## 5. Specs
 
-- [x] 5.1 PROXY-010 / PROXY-011 / PROXY-013 / PROXY-014, LEAK-008 deltas.
+- [x] 5.1 PROXY-021 / PROXY-022 / PROXY-023 / PROXY-024, LEAK-012 deltas.
 - [x] 5.2 `openspec validate android-auth-proxy-relay --no-interactive` clean.
 - [ ] 5.3 On apply: fold the relay note into `openspec/specs/proxy/spec.md` Android row and the `ProxyManager` docstring (done in code) + ip-leakage coverage matrix.
 
-## 6. Unguessable listener address (PROXY-014)
+## 6. Unguessable listener address (PROXY-024)
 
-- [x] 6.1 `randomLoopbackHost()` — a SecureRandom address in 127/8, skipping `127.0.0.1` and the `.0`/`.255` last octets. On API 29+ `/proc/net` is denied, so PROXY-013 rejects nothing and the port alone (~15 bits) was the whole barrier.
-- [x] 6.2 `bindLoopback(ip)` proves the address serves this process (`selfConnects`) and falls back to `127.0.0.1` rather than losing proxying, which would be the IP leak PROXY-011 exists to prevent.
+- [x] 6.1 `randomLoopbackHost()` — a SecureRandom address in 127/8, skipping `127.0.0.1` and the `.0`/`.255` last octets. On API 29+ `/proc/net` is denied, so PROXY-023 rejects nothing and the port alone (~15 bits) was the whole barrier.
+- [x] 6.2 `bindLoopback(ip)` proves the address serves this process (`selfConnects`) and falls back to `127.0.0.1` rather than losing proxying, which would be the IP leak PROXY-022 exists to prevent.
 - [x] 6.3 Return `{host, port}` from the plugin's `start`; `ProxyRelay.start` in Dart returns a record and `ProxyManager` builds the rule from both.
 - [x] 6.4 JVM tests: the listener is not on `127.0.0.1`, and the same port on another 127/8 address is refused (the address is entropy, not an alias).
