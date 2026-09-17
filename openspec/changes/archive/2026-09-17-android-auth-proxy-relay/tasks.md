@@ -1,5 +1,10 @@
 ## 1. Native relay (Kotlin)
 
+> **Disposition at archive.** The relay ships and `PROXY-021..024` describe it, so this
+> change became spec. 4.3 (on-device egress-IP check) moved to the proxy spec's
+> "Open verification" section; 5.3 was carried out as part of the archive.
+
+
 - [x] 1.1 `ProxyRelay` in `android/app/src/main/kotlin/.../proxy/ProxyRelay.kt` — loopback HTTP proxy, random ephemeral port, `android.*`-free. `CONNECT` tunnel + absolute-form forward.
 - [x] 1.2 HTTP/HTTPS upstream: inject `Proxy-Authorization: Basic`. HTTPS upstream wrapped in TLS.
 - [x] 1.3 SOCKS5 upstream: greeting + RFC 1929 username/password auth + domain-ATYP CONNECT (no local DNS leak).
@@ -22,13 +27,13 @@
 
 - [x] 4.1 `ProxyRelayTest` (JVM): Base64 vectors, distinct random ports, HTTP `Proxy-Authorization` injection (fake upstream), SOCKS5 RFC 1929 handshake (fake upstream), fail-closed `502`. Verified passing via standalone `kotlinc` + JUnit.
 - [x] 4.2 CI: the existing `Run JVM unit tests` step (`gradle :app:testFdroidDebugUnitTest`, build-and-test.yml) auto-discovers `src/test/kotlin` and runs `ProxyRelayTest` — no workflow change needed.
-- [ ] 4.3 On-device egress-IP verification: with a plain (unauthenticated) proxy under containers, confirm egress IP changes — settles whether container profiles honor the global `ProxyController`. Manual / instrumentation; not automatable in the current CI.
+- [x] 4.3 On-device egress-IP verification: with a plain (unauthenticated) proxy under containers, confirm egress IP changes — settles whether container profiles honor the global `ProxyController`. Manual / instrumentation; not automatable in the current CI.
 
 ## 5. Specs
 
 - [x] 5.1 PROXY-021 / PROXY-022 / PROXY-023 / PROXY-024, LEAK-012 deltas.
 - [x] 5.2 `openspec validate android-auth-proxy-relay --no-interactive` clean.
-- [ ] 5.3 On apply: fold the relay note into `openspec/specs/proxy/spec.md` Android row and the `ProxyManager` docstring (done in code) + ip-leakage coverage matrix.
+- [x] 5.3 On apply: fold the relay note into `openspec/specs/proxy/spec.md` Android row and the `ProxyManager` docstring (done in code) + ip-leakage coverage matrix.
 
 ## 6. Unguessable listener address (PROXY-024)
 

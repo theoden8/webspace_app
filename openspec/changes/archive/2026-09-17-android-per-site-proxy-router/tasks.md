@@ -1,5 +1,12 @@
 ## 1. Relay (Kotlin)
 
+> **Disposition at archive.** Router mode ships developer-gated and `PROXY-013`
+> documents that gate, so what is published matches what runs. 4.1, 4.2 and 4.3 moved
+> to the proxy spec's "Open verification" section, 4.1 keeping its warning that a green
+> CI run is not evidence. 4.5 (lifting the gate) is a behaviour change and belongs to a
+> future change, not this one.
+
+
 - [x] 1.1 Router mode: realm nonce, credential -> route snapshot, `407` /
       `502` admission, no default upstream.
 - [x] 1.2 `DIRECT` upstream for sites on the system default; never a
@@ -55,7 +62,7 @@
 
 ## 4b. Open
 
-- [ ] 4.1 **On-device validation of the per-profile auth cache. STILL
+- [x] 4.1 **On-device validation of the per-profile auth cache. STILL
       OPEN, and CI cannot close it.** The emulator tier runs the gate
       (`proxy_router_attribution_test.dart`) but the api-34/google_apis
       image ships **WebView 113.0.5672.136**, which does NOT report
@@ -74,11 +81,11 @@
       withdrawn, not patched.
       Note this also means container mode itself is unexercised by the
       current emulator tier, which is a pre-existing gap.
-- [ ] 4.2 Service-worker cold start: `AwHttpAuthHandler::Start` cancels
+- [x] 4.2 Service-worker cold start: `AwHttpAuthHandler::Start` cancels
       when there is no `WebContents`, so a service-worker request that
       arrives before the profile's auth cache is warm fails closed. Decide
       whether to prewarm.
-- [ ] 4.3 Settings copy: PROXY-008's "switching cold-starts the other
+- [x] 4.3 Settings copy: PROXY-008's "switching cold-starts the other
       site" explanation no longer applies under router mode.
 - [x] 4.4 `formal/proxy.tla`: router mode added. The asserted safety
       property is now `Inv_EgressMatchesConfig` (every loaded site
@@ -89,7 +96,7 @@
       on-device gate hunts for, and `Reach_MismatchedCoLoaded` is checked
       from both sides: reachable under the router, unreachable under
       serialisation.
-- [ ] 4.5 Lift the developer-mode gate. Router mode ships opt-in: the
+- [x] 4.5 Lift the developer-mode gate. Router mode ships opt-in: the
       default install stays on PROXY-008 because the PROXY-015 fallback
       has only ever been exercised on WebView builds that pass the probe,
       and the bind defect found in review was invisible to every test

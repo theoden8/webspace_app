@@ -7,7 +7,7 @@ served through a native loopback relay rather than by embedding credentials
 in the `inapp.ProxyController` proxy rule. Android WebView's
 `ProxyController` has no proxy-authentication primitive and Chromium rejects
 a proxy rule containing userinfo, which silently degrades to a direct
-connection. The relay ([`ProxyRelay`](../../../../android/app/src/main/kotlin/org/codeberg/theoden8/webspace/proxy/ProxyRelay.kt))
+connection. The relay ([`ProxyRelay`](../../../../../../android/app/src/main/kotlin/org/codeberg/theoden8/webspace/proxy/ProxyRelay.kt))
 SHALL accept HTTP proxy traffic on a loopback address, forward it to the
 configured upstream, and inject the upstream credentials — HTTP
 `Proxy-Authorization: Basic` for HTTP/HTTPS upstreams, the RFC 1929

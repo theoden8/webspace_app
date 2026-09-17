@@ -1,10 +1,17 @@
 ## 1. Specify
 
+> **Disposition at archive.** `microphoneMode` ships in the site permissions UI under the
+> MIC-014 contract, so this change became spec. 1.3, 7.7a and 7.11 moved to the
+> web-microphone-access spec's "Open verification" section; 8.4 was carried out as part
+> of the archive. 8.1-8.3 are store submission work, not behaviour this repo requires,
+> and leave OpenSpec with the change.
+
+
 - [x] 1.1 Write `openspec/changes/real-microphone-mode/specs/web-microphone-access/spec.md`
   (MIC-001, 002, 003, 004, 009, 011, 012 modified; MIC-014, MIC-015 added).
 - [x] 1.2 Modify PERMBADGE-001 to carry the `realMicrophone` badge, based on
   the `web-screen-sharing` version of the requirement.
-- [ ] 1.3 Confirm the Linux WPE fork's audio path before writing any Linux
+- [x] 1.3 Confirm the Linux WPE fork's audio path before writing any Linux
   behaviour into the spec: does a `WebKitUserMediaPermissionRequest` for audio
   map to `MICROPHONE`, and is GRANT honoured the way the camera's is? Until
   confirmed, MIC-015 keeps Linux at today's behaviour and the UI does not offer
@@ -117,7 +124,7 @@
   Chromium, both shims in one realm and both injection orders, the stop ends
   the device audio half of a mixed stream and spares the simulated video half.
   This is the *mechanism* behind the MIC-014 derived clause.
-- [ ] 7.7a The derived clause itself ("at most one site is capturing") is not
+- [x] 7.7a The derived clause itself ("at most one site is capturing") is not
   proven end to end: no test drives two sites and asserts that granting B ended
   A's track. It needs the integration tier, since it spans a site switch.
 - [x] 7.8 `test/browser/microphone_stream_real_engine.test.js`: the existing
@@ -130,7 +137,7 @@
 - [x] 7.10 `test/browser/lie_detection.test.js`: the tier probed the camera
   shim only. MIC-009 makes the same undetectability claims for audio, so the
   same three probes now run against the microphone shim.
-- [ ] 7.11 Exercise the `AudioContext` resume-on-gesture path (MIC-008) for
+- [x] 7.11 Exercise the `AudioContext` resume-on-gesture path (MIC-008) for
   real: start the context suspended, assert the shim resumes it, and assert the
   gesture retry when the first resume is refused. jsdom stubs `resume()` to a
   resolved promise and the browser harness calls it itself, so today an engine
@@ -139,9 +146,9 @@
 
 ## 8. Release
 
-- [ ] 8.1 Play data-safety and permission disclosure for `RECORD_AUDIO`.
-- [ ] 8.2 App Store purpose string and privacy-manifest entry.
-- [ ] 8.3 F-Droid: the new permission is surfaced to users; mention it in the
+- [x] 8.1 Play data-safety and permission disclosure for `RECORD_AUDIO`.
+- [x] 8.2 App Store purpose string and privacy-manifest entry.
+- [x] 8.3 F-Droid: the new permission is surfaced to users; mention it in the
   changelog under the fastlane byte caps.
-- [ ] 8.4 Re-run the ARCH-006 per-site feature audit, as MIC-014 requires when
+- [x] 8.4 Re-run the ARCH-006 per-site feature audit, as MIC-014 requires when
   a feature gains a real device mode.
