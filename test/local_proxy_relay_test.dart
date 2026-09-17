@@ -12,6 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/local_proxy_relay.dart';
 import 'package:webspace/settings/proxy.dart';
 
+import '../integration_test/self_signed_cert.dart';
 import '../integration_test/socks5_fixture.dart';
 
 /// One CONNECT through the relay, optionally presenting a credential.
@@ -270,6 +271,65 @@ void main() {
     // The whole point of the relay: one endpoint, two circuits, no crossing.
     expect(socksA.targets, hasLength(1));
     expect(socksB.targets, hasLength(1));
+  });
+
+  // What the goal arm actually asks of the relay: WebKit CONNECTs, then runs
+  // its own TLS handshake with the origin through the tunnel. The relay is a
+  // byte pipe past the 200, so this should hold -- but if it did not, the arm
+  // would come back "no load" and read as WebKit having ignored the proxy,
+  // which is the reading this whole bug keeps being misled by.
+  test('a tunnel carries a TLS session end to end', () async {
+    final cert = generateSelfSignedCert(
+      commonName: '127.0.0.1',
+      ipAddresses: ['127.0.0.1'],
+    );
+    final tls = await HttpServer.bindSecure(
+      InternetAddress.loopbackIPv4,
+      0,
+      cert.serverContext(),
+    );
+    addTearDown(() => tls.close(force: true));
+    tls.listen((req) async {
+      final res = req.response..headers.contentType = ContentType.text;
+      res.write('tls ${req.uri.path}');
+      await res.close();
+    });
+
+    final socks = await Socks5Fixture.bind();
+    addTearDown(socks.close);
+    relay.setRoutes({
+      'ws-tls': LocalProxyRoute(
+        siteId: 'tls',
+        token: 'token-tls',
+        upstream: UserProxySettings(
+          type: ProxyType.SOCKS5,
+          address: '${InternetAddress.loopbackIPv4.address}:${socks.port}',
+        ),
+      ),
+    });
+
+    final client = HttpClient(
+      context: SecurityContext(withTrustedRoots: false)
+        ..setTrustedCertificatesBytes(utf8.encode(cert.certPem)),
+    )..findProxy = (_) => 'PROXY ${relay.host}:${relay.port}';
+    addTearDown(() => client.close(force: true));
+    client.addProxyCredentials(
+      relay.host!,
+      relay.port!,
+      'webspace-test',
+      HttpClientBasicCredentials('ws-tls', 'token-tls'),
+    );
+
+    final res =
+        await (await client.getUrl(Uri.parse('https://127.0.0.1:${tls.port}/t')))
+            .close();
+    expect(await res.transform(utf8.decoder).join(), 'tls /t');
+    expect(
+      socks.targets,
+      contains('${InternetAddress.loopbackIPv4.address}:${tls.port}'),
+      reason: 'the tunnelled TLS session must have been dialled by the '
+          "site's upstream, not by the relay itself",
+    );
   });
 
   // The client that matters here is WebKit, and a proxy credential supplied
