@@ -224,7 +224,26 @@ fixture proxy's own CONNECT log rather than from the origin's request log: the
 fixture relays a proxied load to the origin too, so a path arriving there says
 nothing about whether it was proxied.
 
-A full read of WebKit's proxy path says the opposite, in more than one place.
+The mechanism, read end to end from WebKit's source (BUG-014 attempt 36), is
+that the proxy never reaches an `NSURLSessionConfiguration` at all.
+`WebsiteDataStore::setProxyConfigData` nulls `m_proxyConfigData` before
+calling `networkProcess()`, and `parameters()` is read inside that call, so
+`AddWebsiteDataStore` always carries no proxy. The `NetworkSessionCocoa`
+constructor then calls `initializeNSURLSessionsInSet` eagerly, and
+`applyProxyConfigurationToSessionConfiguration` runs with `m_nwProxyConfigs`
+empty and writes `proxyConfigurations = @[ ]` onto the session configuration.
+The proxy arrives afterwards, as its own message, by which time the wrappers
+have sessions -- so it lands as a patch on a live `nw_context`
+(`nw_context_clear_proxies` then `nw_context_add_proxy`) rather than on the
+session. A SOCKS5 configuration never makes
+`nw_proxy_config_stack_requires_http_protocols` true, so it never takes
+`recreateSessionWithUpdatedProxyConfigurations`, which is the one route that
+would put the proxy on the session's own configuration durably.
+
+That is consistent with every reading: a load issued while the patch is fresh
+is proxied, and anything after it is not.
+
+The rest of the path says a bound proxy should persist, in more than one place.
 `WKWebsiteDataStore.setProxyConfigurations:` hands the agent data to
 `WebsiteDataStore::setProxyConfigData`, which keeps it in `m_proxyConfigData`
 for the life of the store; `WebsiteDataStore::parameters()` carries it into the

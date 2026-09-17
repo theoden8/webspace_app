@@ -1615,6 +1615,69 @@ still unanswered, and this run was supposed to answer both.
 **Why it was partial:** it answered neither. The only thing that moved is
 `proxy_window`, and the instrument is now fixed rather than the bug.
 
+### Attempt 36 — The chain, end to end: the proxy never reaches a session configuration
+
+**Date:** 2026-09-17
+**Commit:** (this one)
+
+Reading `NetworkSessionCocoa`'s constructor to the end closes the gap between
+what the source appeared to promise and what this tier keeps measuring. The
+promise was read off `SessionWrapper::initialize`, which replays
+`m_nwProxyConfigs` onto every NSURLSession it builds. The order is what
+matters, and it runs the wrong way round:
+
+1. `WebsiteDataStore::setProxyConfigData` sets `m_proxyConfigData` to
+   `std::nullopt`, *then* calls `networkProcess()`. `parameters()` is read
+   inside that call, so `AddWebsiteDataStore` always carries
+   `proxyConfigData == nullopt` (attempt 33). The nullopt is deliberate --
+   it stops the proxy being applied twice -- but it means the session is
+   always created without one.
+2. The `NetworkSessionCocoa` constructor calls
+   `initializeNSURLSessionsInSet` (line 1258), which calls
+   `SessionWrapper::initialize` **eagerly**. That calls
+   `applyProxyConfigurationToSessionConfiguration` while `m_nwProxyConfigs`
+   is still empty, so it takes the else branch and sets
+   `configuration.proxyConfigurations = @[ ]`. The NSURLSession is built with
+   no proxy.
+3. The constructor's own `if (parameters.proxyConfigData) setProxyConfigData(...)`
+   (line 1273) never fires, for the reason in (1).
+4. The proxy arrives afterwards as its own `SetProxyConfigData` message. By
+   then the wrappers exist and have sessions, so `forEachSessionWrapper`
+   finds them and takes the **live `nw_context` patch** --
+   `nw_context_clear_proxies` then `nw_context_add_proxy` -- because a SOCKS5
+   configuration never makes `nw_proxy_config_stack_requires_http_protocols`
+   true and so never sets `recreateSessions`.
+
+So for every container store this app creates, the proxy exists **only** as a
+patch on a live `nw_context`, and never in an `NSURLSessionConfiguration`. The
+durable path that `SessionWrapper::initialize` provides is real, and nothing
+here ever reaches it.
+
+That is the first mechanism in this file that fits every reading rather than
+some of them: a load issued while the patch is fresh is proxied (pair-a,
+pair-b, refused, raw-first, sameturn), and anything later is not (stair at
+0 ms and after, persist-inpage, persist-loadurl, raw-second, later-pair,
+raw-late, alt-proxy). It also explains why the store being built in the first
+frame does not help -- the store is fine, the session configuration under it
+is what is empty -- and why `proxy_window` saw `after-warmup=0 of 2` even
+though its first frame held an unproxied load.
+
+It predicts the arm already in flight. An HTTP CONNECT configuration does make
+`requiresHTTPProtocols` true, which sets `recreateSessions`, which runs
+`recreateSessionWithUpdatedProxyConfigurations`: that rebuilds each
+NSURLSession from a configuration that
+`applyProxyConfigurationToSessionConfiguration` has just written
+`m_nwProxyConfigs` into. Durable, per session, nothing shared. If
+`proxy_http_connect_test.dart` comes back with its three panes on their own
+proxies while the SOCKS5 file does not, this chain is confirmed and the repair
+follows from it.
+
+**Why:** every previous mechanism here was proposed from a fragment of the
+path. This one is the whole path, in order.
+**Why it was partial:** untested until the HTTP CONNECT arm reports, and it
+names no fix by itself -- the delivery has to change, since nothing outside
+WebKit can make a SOCKS5 rule take the other route.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
