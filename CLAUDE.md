@@ -199,22 +199,24 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 
 | Slug | One-liner (when not obvious) |
 |------|------|
+| always-open-home | per-site: navigation URL reverts to `initUrl` on cold start and shortcut tap, cookies and other stored state survive; site switches and a transient background are not resets |
 | captcha-support | |
 | clearurls | tracking-param removal, per-site toggle |
 | legal | App Store encryption declaration + licence composition of the shipped work |
 | configurable-suggested-sites | empty default for fdroid |
-| content-blocker | ABP filter lists via adblock-rust (network, cosmetic, procedural, $redirect/$csp/$removeparam) |
+| content-blocker | ABP filter lists via adblock-rust (network, cosmetic, procedural, $redirect/$csp/$removeparam); per-site list selection is a mask over the app-wide set |
 | cookie-secure-storage | encrypted cookie persistence |
 | design-gallery | designer works in Dart on web; web-clean, token-validity, render-matrix and card gates |
 | desktop-mode | per-site UA → JS shim (userAgentData, maxTouchPoints, viewport rewrite) |
 | developer-tools | JS console, cookie inspector, HTML export, app logs |
-| dns-blocklist | Hagezi list, severity levels, per-site toggle |
+| dns-blocklist | Hagezi list, severity levels, per-site toggle; per-site level is a mask over the app level (the levels do not nest, so each domain carries a bit per level) |
 | downloads | http/https/data/blob, streamed progress + save dialog |
 | external-scheme-handling | intent:// auto-resolves to http(s) fallback (silent route); prompt only when no web equivalent |
 | file-import-sites | local HTML via HtmlCacheService |
 | fullscreen-mode | hide app bar/tab strip/system UI; per-site auto |
-| home-shortcut | Android pinned shortcuts |
+| home-shortcut | Android pinned shortcuts; iOS/macOS expose an "Open Site" App Intent through Shortcuts instead (no pin API) |
 | icon-fetching | progressive favicon w/ fallbacks |
+| incognito-mode | per-site: nothing the site stores survives an app restart (cookies, localStorage, IDB, SW, cache, last URL/title); typed configuration does |
 | ios-universal-link-bypass | cancel+reissue gesture http(s) navs to dodge AASA |
 | ip-leakage | proxy coverage contract; fail-closed on SOCKS5; WebRTC + DNS |
 | js-shim-tests | jsdom + node:test, with Dart drift check |
@@ -227,7 +229,6 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | navigation | back gesture, drawer swipe, refresh, race guards |
 | nested-url-blocking | nested InAppBrowser, gesture auto-redirect block |
 | page-zoom | per-site zoom; viewport meta on mobile (Android pins the layout width), CSS `zoom` on desktop |
-| per-site-blocker-masks *(change)* | per-site DNS severity level and filter-list selection, as masks over the app-wide configuration: each domain carries a bit per level that names it (the levels do not nest), and a list a site switches off is scoped away with `$domain=~host` |
 | per-site-cookie-isolation | legacy engine (fallback) |
 | per-site-containers | native containers (preferred when supported) |
 | per-site-location | geo + IANA tz override + WebRTC lockdown |
@@ -236,17 +237,19 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | proxy-password-secure-storage | secrets in flutter_secure_storage; never in JSON |
 | screenshots | integration-test driven |
 | settings-backup | JSON import/export |
-| settings-hints *(change)* | where a settings row's text goes: state in the subtitle, explanation behind the hint button; fixed-string subtitles capped across all locales |
-| site-behaviour *(change)* | per-site Behaviour screen: how the app hosts the site (opening + display, link handling), reached from one row under "Site" |
+| settings-hints | where a settings row's text goes: state in the subtitle, explanation behind the hint button; fixed-string subtitles capped across all locales |
+| site-behaviour | per-site Behaviour screen: how the app hosts the site (opening + display, link handling), reached from one row under "Site" |
 | site-editing | URL + custom name |
 | site-permission-badges | drawer badges for location/camera/mic/background-audio grants; real device access vs simulated |
+| site-settings-qr | share a site's configuration as a QR / `webspace://qr/site/v1/` URL; never carries secrets, cookies, user scripts or imported HTML |
+| tls-trust-prompt | system + user CA trust by default; prompt only when the OS rejects a cert, then pin (host, port, sha256) so Dart-side clients match the webview |
 | tracking-protection | umbrella per-site ETP: forces ClearURLs/DNS/content blocker/LocalCDN + injects anti-fingerprinting shim (Canvas/WebGL/audio/fonts/screen/hardware/timing/clientrects) seeded by siteId |
 | user-agent-identity | engine-consistent navigator identity for the per-site UA (vendor/productSub/oscpu/buildID/platform/userAgentData); complements desktop-mode |
 | upstream-webview-defects *(change)* | defects found auditing the pinned flutter_inappwebview fork's upstream tracker: a declined `onCreateWindow` still navigating on iOS/macOS, UA client hints that half-spoof, the plugin's unmasked console wrappers, the real Linux WPE build floor |
 | user-scripts | per-site JS injection w/ timing control |
 | web-camera-access | per-site camera for camera-only getUserMedia (banking QR flows); `cameraMode` ask/real/virtual/block. Virtual serves a user-picked image/looped video via a canvas `captureStream` shim (no real camera, no OS prompt); real grant ensures Android CAMERA perm |
 | web-microphone-access *(change)* | per-site audio capture; `microphoneMode` ask/real/virtual/block. Real hands over the device mic under the MIC-014 containment contract (on-screen site only, ends on deactivation, badged, never archived); virtual loops a user-picked clip through WebAudio into a `MediaStreamAudioDestinationNode`. Audio+video requests are split in every mode, so the platform's combined CAMERA_AND_MICROPHONE resource never arises from a shimmed page |
-| web-screen-sharing *(change)* | per-site `getDisplayMedia`: no real-screen mode on any platform (a capture is whole-surface, so it would carry every other site); `screenShareMode` ask/virtual/block serves a picked image/video as the shared surface, top-frame only, never an audio track |
+| web-screen-sharing | per-site `getDisplayMedia`: no real-screen mode on any platform (a capture is whole-surface, so it would carry every other site); `screenShareMode` ask/virtual/block serves a picked image/video as the shared surface, top-frame only, never an audio track |
 | web-push-notifications *(change)* | per-site `notificationsEnabled` toggle: JS Notification polyfill → flutter_local_notifications, auto-loads + skips per-instance pause for notif sites, iOS `beginBackgroundTask` grace + `BGAppRefreshTask` reload, Android mirrors via `WorkManager` periodic refresh (no foreground service) |
 | archive | passphrase-gated archived webspaces in a fixed slot pool; active state stays byte-identical when no archive is open |
 | background-audio | per-site toggle: skips per-instance pause + app-background global JS pause (any-loaded veto), iOS `.playback` AVAudioSession + `audio` background mode; Android `mediaPlayback` foreground service + MediaStyle notification (BGAUDIO-006) driven by a page-JS media-session bridge; CI-tested via lifecycle injection + beaconing HTML fixture, plus a 3-tier notification gate (BGAUDIO-007: real-Chromium shim, channel contract, emulator assert on `getActiveNotifications()`) |
@@ -288,7 +291,7 @@ User-facing global pref persisted to SharedPreferences MUST round-trip through t
 
 ## Settings rows: state in the subtitle, explanation in the hint
 
-Spec: [openspec/changes/settings-hints/specs/settings-hints/spec.md](openspec/changes/settings-hints/specs/settings-hints/spec.md).
+Spec: [openspec/specs/settings-hints/spec.md](openspec/specs/settings-hints/spec.md).
 A settings row has three places text can go and they are not interchangeable.
 
 - **Title** — what the setting is.

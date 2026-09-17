@@ -3030,7 +3030,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     await _executeDispatchAction(a.followUp, null);
   }
 
-  /// WEBSPACE-011 helper: switch the active webspace to "All" if [model]
+  /// WEBSPACE-012 helper: switch the active webspace to "All" if [model]
   /// isn't a member of the current named webspace, with a snackbar.
   Future<void> _maybeSwitchToAllForSite(WebViewModel model, int index) async {
     if (_selectedWebspaceId == null ||

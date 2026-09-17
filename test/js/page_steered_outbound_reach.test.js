@@ -15,8 +15,7 @@
 //
 // Cross-links:
 //   docs/bugs/012-page-steered-outbound-reach.md
-//   openspec/specs/user-scripts/spec.md                 US-006
-//   openspec/changes/page-reachable-bridge-hardening/   US-DR-007
+//   openspec/specs/user-scripts/spec.md                 US-006, US-DR-007
 
 const test = require('node:test');
 const assert = require('node:assert');

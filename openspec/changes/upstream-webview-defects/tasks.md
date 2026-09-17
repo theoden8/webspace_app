@@ -63,7 +63,7 @@
   `allowFileAccessFromFileURLs` to false explicitly rather than inheriting the
   plugin defaults. We run untrusted imported HTML at a `file://` origin, so an
   upstream default flip would be immediately exploitable.
-- [ ] 6.3 Register the five `console` methods into the masking funnel (ETP-025).
+- [ ] 6.3 Register the five `console` methods into the masking funnel (ETP-029).
 - [ ] 6.4 Correct the Linux row of the Platform Support Matrix in
   `openspec/specs/per-site-containers/spec.md` per CONT-009, and give
   `linux/CMakeLists.txt` a configure-time version check.

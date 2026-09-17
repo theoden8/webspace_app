@@ -65,7 +65,7 @@ import 'package:crypto/crypto.dart';
 /// but randomizes across cold restarts. The `incognito` flag already implies
 /// the user wants a fresh-visitor posture each launch; reusing the same
 /// fingerprint across launches would itself be a stable cross-session
-/// identifier (issue #327, ETP-019).
+/// identifier (issue #327, ETP-028).
 ///
 /// [resetNonce], when non-empty, is a per-site value regenerated whenever the
 /// user clears the site's data (ETP-022). Folding it into the seed rerolls

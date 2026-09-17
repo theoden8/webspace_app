@@ -63,7 +63,7 @@
 - [x] 8.5 LIR-010 dispatch picker: single bottom sheet with up to three option groups — (1) one row per resolver winner ("Match router default" fast-pathed when there is exactly one), (2) "Send <host> (and subdomains) to a site" → site picker → append `claimsToAdoptHost(host)` (deduped) and activate, (3) "Create new site for <host>" → `WebViewModel(initUrl: strippedHomeUrl(url), domainClaims: [baseDomain(...)])`, then navigate the new webview to the full inbound URL on first activation.
 - [x] 8.6 "Test routing" entry in `LinkHandlingSettingsScreen` re-runs the `LinkIntentDispatchEngine` for an arbitrary URL the user types, which surfaces the LIR-010 picker on demand even when a single resolver match exists. Disabled when the master switch is off.
 
-## 9. WEBSPACE-011 wiring
+## 9. WEBSPACE-012 wiring
 
 - [x] 9.1 `_maybeSwitchToAllForSite` runs at the top of every executor (`_executeOpenInMain`, `_executeOpenNested`, `_executeBindAndOpen`, `_executeCreateSite`, `_executeCreateSiteFromHtml` via `_registerNewSite`) — when the matched site is outside the current named webspace, the active webspace switches to "All" with a snackbar before activation.
 - [ ] 9.2 Widget test asserting the auto-switch + snackbar. Engine-level coverage is provided by `test/link_intent_dispatch_engine_test.dart`; a full widget test of `_WebSpacePageState` is heavy because the dispatcher is currently embedded there. Track as follow-up alongside 3.4 once the dispatcher widget is extracted.
@@ -88,5 +88,5 @@
 - [ ] 11.9 Linux: `xdg-open 'webspace://open?url=...'` after install.
 - [ ] 11.10 Picker resolves ties.
 - [ ] 11.11 No-match offers site creation.
-- [ ] 11.12 WEBSPACE-011 auto-switch to "All" when matched site outside current webspace.
+- [ ] 11.12 WEBSPACE-012 auto-switch to "All" when matched site outside current webspace.
 - [ ] 11.13 Master switch off — Android share, `webspace://`, iOS share all become no-ops.

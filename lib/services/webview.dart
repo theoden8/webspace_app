@@ -2293,7 +2293,7 @@ class WebViewFactory {
     // different ones. Must run before site scripts capture the unpatched
     // references and must reach iframes.
     //
-    // Incognito carve-out (issue #327, ETP-019): when the site is incognito
+    // Incognito carve-out (issue #327, ETP-028): when the site is incognito
     // the seed mixes in `LaunchNonce.value` so the fingerprint randomizes
     // across cold restarts. Within one process the nonce is constant, so
     // every iframe / nested webview / tab switch in the same launch sees

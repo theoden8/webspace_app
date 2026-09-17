@@ -1,6 +1,6 @@
 ## ADDED Requirements
 
-### Requirement: WEBSPACE-011 - Link Intent Routes into Current Webspace
+### Requirement: WEBSPACE-012 - Link Intent Routes into Current Webspace
 
 When a URL arrives via share/open intent or `webspace://open?url=...` (see `link-intent-routing`), the matched site SHALL be activated within the currently selected webspace if it is a member; otherwise the system SHALL switch the active webspace to the default "All" webspace and then activate the matched site, surfacing a snackbar that explains the switch.
 

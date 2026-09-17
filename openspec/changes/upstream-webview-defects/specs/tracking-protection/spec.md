@@ -2,7 +2,7 @@
 
 ## ADDED Requirements
 
-### Requirement: ETP-025 - The Plugin's Console Wrappers Are Masked Like Ours
+### Requirement: ETP-029 - The Plugin's Console Wrappers Are Masked Like Ours
 
 The anti-fingerprinting shim masks every function it installs so
 `Function.prototype.toString` reports `[native code]`, because an overridden

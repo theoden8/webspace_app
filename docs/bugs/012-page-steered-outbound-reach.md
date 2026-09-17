@@ -4,8 +4,7 @@ Status: open (each path found so far is closed; the class stays open until every
 Dart-side fetch whose URL a page can choose is enumerated and covered)
 
 **Spec:** [openspec/specs/user-scripts/spec.md](../../openspec/specs/user-scripts/spec.md)
-— `US-006`; `US-DR-007` in
-[openspec/changes/page-reachable-bridge-hardening](../../openspec/changes/page-reachable-bridge-hardening/specs/user-scripts/spec.md).
+— `US-006` and `US-DR-007`.
 Related: [openspec/specs/background-audio/spec.md](../../openspec/specs/background-audio/spec.md)
 (the media-session artwork URL).
 

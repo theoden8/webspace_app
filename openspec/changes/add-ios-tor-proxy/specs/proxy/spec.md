@@ -47,7 +47,7 @@ Orbot or a similar local SOCKS5 server
 
 ## ADDED Requirements
 
-### Requirement: PROXY-010 - Per-site Tor is the proxy type, not a second flag
+### Requirement: PROXY-020 - Per-site Tor is the proxy type, not a second flag
 
 A site opts into Tor by setting `proxySettings.type` to
 `ProxyType.TOR`. There SHALL NOT be a separate per-site `useTor`

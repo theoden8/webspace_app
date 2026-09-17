@@ -220,7 +220,7 @@ test('FingerprintJS: non-incognito (siteId-only seed) differs from ' +
   async (t) => {
     // The user's opt-in to Incognito must visibly change what a real
     // fingerprinter sees, otherwise the toggle is cosmetic. Same
-    // siteId, ETP-004 stable seed vs ETP-019 nonced seed.
+    // siteId, ETP-004 stable seed vs ETP-028 nonced seed.
     const stable = await fingerprintWith(t, ANTI_FP_STABLE);
     const ephemeral = await fingerprintWith(t, ANTI_FP_LAUNCH_ONE);
     if (!stable || !ephemeral) return;

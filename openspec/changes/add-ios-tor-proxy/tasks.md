@@ -23,7 +23,7 @@
 
 Superseded: the original plan added a parallel `useTor` bool. It encoded
 the same state as `ProxyType.TOR` and would have needed its own copy of
-the nested-webview propagation chain. See PROXY-010 for the reasoning.
+the nested-webview propagation chain. See PROXY-020 for the reasoning.
 
 - [x] 3.1 Append `ProxyType.TOR` to the enum; `UserProxySettings.fromJson` decodes an unknown index to `DEFAULT` instead of throwing (rollback safety).
 - [x] 3.2 `WebViewModel.outboundProxySettings` returns a `siteId`-tagged *copy* under TOR, leaving the stored manual address/credentials intact. Every per-site outbound seam (9 call sites in `main.dart`, the `WebViewConfig`, both nested `launchUrlFunc` calls) passes the tagged copy, so nested webviews inherit isolation without a second propagation chain.
@@ -48,7 +48,7 @@ the nested-webview propagation chain. See PROXY-010 for the reasoning.
 
 - [x] 6.0 Gate the whole feature behind developer mode (DEVTOOLS-010) until TOR-013's bootstrap surface lands: `TorService.isAvailable` is the conjunction of the platform gate and `DeveloperModeService.instance.enabled`, every start path re-checks it, `socksFor` returns null with it shut, and turning the flag off releases the holders already taken. The gate deliberately sits on `TorService` rather than the runtime or engine, which stay pure platform questions for their fake-backed tests.
 
-- [x] 6.1 In [lib/screens/settings.dart](../../../lib/screens/settings.dart) per-site Proxy block: offer `ProxyType.TOR` in the proxy type dropdown, gated on `TorService.isAvailable`, and hide the manual address/credential fields under it without overwriting what they hold. Shipped as a dropdown value rather than the planned separate switch — PROXY-010 records why a second flag was dropped.
+- [x] 6.1 In [lib/screens/settings.dart](../../../lib/screens/settings.dart) per-site Proxy block: offer `ProxyType.TOR` in the proxy type dropdown, gated on `TorService.isAvailable`, and hide the manual address/credential fields under it without overwriting what they hold. Shipped as a dropdown value rather than the planned separate switch — PROXY-020 records why a second flag was dropped.
 - [x] 6.2a In [lib/screens/app_settings.dart](../../../lib/screens/app_settings.dart): add `ProxyType.TOR` to the global outbound proxy dropdown, on the same `TorService.isAvailable` gate, with the address validator exempting it.
 - [x] 6.2b Add a "Tor status" card subscribing to `TorService.statusStream`: bootstrap progress bar, current state, "Rebuild circuits" button. Nothing renders `TorStatus` today — `bootstrapPct`, the SOCKS endpoint and `lastError` all reach `TorEngine` and stop there. Pairs with the 5.x interstitial as the TOR-013 surface.
 - [x] 6.2c Exit-country **picker** for TOR-014. A shortlist of the countries that carry a durable share of exit capacity, not all of ISO 3166: `StrictNodes` makes a pin with no usable exit a dead end, so offering every code would be offering mostly dead ends. Names are endonyms in a const Dart map, the same trick `kLanguageNativeNames` uses for the language picker, which keeps ~40 country names out of 67 ARB files; the ISO code rides alongside so an unfamiliar endonym is still identifiable. A stored pin outside the shortlist keeps its bare code rather than reading as unpinned.
@@ -63,7 +63,7 @@ the nested-webview propagation chain. See PROXY-010 for the reasoning.
 - [x] 6b.5 Built-in snowflake line. IPtProxy's `Controller` defaults every snowflake rendezvous field to empty, so `UseBridges 1` with no `Bridge` line leaves tor with nothing to dial rather than reaching a default.
 - [x] 6b.6 `lib/services/tor_bridge_secure_storage.dart` (TOR-017): keystore-backed, outside the export registry by construction. A failed write reports failure rather than claiming saved.
 - [x] 6b.7 `lib/services/tor_moat_client.dart`: BridgeDB over Moat, empty solution first so the common case needs no captcha. Wire format verified against the live service — `transport` is a list, the image is JPEG, `challenge` is the transport name.
-- [x] 6b.8 `lib/screens/tor_bridge_settings.dart`: toggle, transport picker, verbatim line list, paste with per-error messages, Moat fetch with the LEAK-010 exposure stated above the button, restart-needed notice. Reached from the status card only where `bridgesMayHelp`.
+- [x] 6b.8 `lib/screens/tor_bridge_settings.dart`: toggle, transport picker, verbatim line list, paste with per-error messages, Moat fetch with the LEAK-015 exposure stated above the button, restart-needed notice. Reached from the status card only where `bridgesMayHelp`.
 - [x] 6b.9 iOS native: `setTorrcOptions`, `startTransport` and `setExitCountry` handlers in `TorControllerPlugin.swift`; `IPtProxy` 5.5.1 in the Podfile; Go pinned in the Apple CI job, since that pod cross-compiles from source during `pod install`. Bridges reach tor through `TORConfiguration.arguments`, not `options` — the latter is a dictionary and would collapse repeated `Bridge` keys.
 - [ ] 6b.10 On-device: obfs4 and snowflake each bootstrap on a network that blocks tor directly. Not reachable from CI — no simulator can be censored, and the transports need a real hostile network to mean anything.
 

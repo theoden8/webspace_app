@@ -50,7 +50,7 @@ WebView lacks `WebViewFeature.USER_AGENT_METADATA`.
   synthesize a brand list matching the engine the UA claims, or suppress the
   metadata override entirely. Never leave the real brand list standing under a
   spoofed platform.
-- **The console shim is masked like every other wrapper** (ETP-025). The
+- **The console shim is masked like every other wrapper** (ETP-029). The
   plugin's `ConsoleLogJS` installs five non-native `console` methods at document
   start. We mask every other injected wrapper as `[native code]`; these were
   missed, so `console.log.toString()` is a free "this is flutter_inappwebview"
