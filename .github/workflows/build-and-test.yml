@@ -1363,6 +1363,13 @@ jobs:
             [ "$(basename "$t")" = "background_audio_media_notification_test.dart" ] && continue
             # Android-only BGAUDIO-009 media-stop tier; emulator job.
             [ "$(basename "$t")" = "background_audio_media_stop_test.dart" ] && continue
+            # PROXY-013 router is Android-only, so here these skip after
+            # paying for an app build each, and this loop now carries the
+            # proxy bisection files that do measure something.
+            # test/proxy_router_service_test.dart covers the negative in
+            # milliseconds; the emulator job runs them for real.
+            [ "$(basename "$t")" = "proxy_router_test.dart" ] && continue
+            [ "$(basename "$t")" = "proxy_router_attribution_test.dart" ] && continue
             # Ran on its own above, first, so its verdict does not depend on
             # the 45-minute cap this loop spends.
             [ "$(basename "$t")" = "tor_test.dart" ] && continue
