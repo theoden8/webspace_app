@@ -61,6 +61,7 @@ class Socks5Fixture {
 
   final ServerSocket _server;
   final _clients = <Socket>[];
+  final _upstreams = <Socket>[];
   StreamSubscription<Socket>? _accepting;
 
   /// `host:port` of every CONNECT this server was asked for, in order.
@@ -92,6 +93,10 @@ class Socks5Fixture {
       client.destroy();
     }
     _clients.clear();
+    for (final upstream in _upstreams) {
+      upstream.destroy();
+    }
+    _upstreams.clear();
     await _server.close();
   }
 
@@ -104,6 +109,10 @@ class Socks5Fixture {
       onError: (Object _) => buffer.close(),
       onDone: buffer.close,
     );
+    // A socket whose peer vanishes reports it on `done`, and nothing else
+    // here awaits that; unawaited it is an uncaught async error, which
+    // `flutter_test` charges to whichever test finished last.
+    unawaited(client.done.catchError((Object _) => client));
     Socket? upstream;
     try {
       final greeting = await buffer.read(2);
@@ -129,21 +138,59 @@ class Socks5Fixture {
 
       upstream =
           await Socket.connect(host, destPort, timeout: const Duration(seconds: 5));
+      _upstreams.add(upstream);
       upstream.setOption(SocketOption.tcpNoDelay, true);
+      unawaited(upstream.done.catchError((Object _) => upstream!));
       client.add(const [5, 0, 0, 1, 0, 0, 0, 0, 0, 0]);
 
-      final pending = buffer.drain();
-      if (pending.isNotEmpty) upstream.add(pending);
       final relay = upstream;
+      final finished = Completer<void>();
+      void finish() {
+        if (!finished.isCompleted) finished.complete();
+      }
+
+      // Writing to a socket the other end has already dropped throws rather
+      // than ending the relay; the half that is still open has to keep
+      // going until its own close arrives.
+      void forward(Socket to, List<int> data) {
+        try {
+          to.add(data);
+        } on Object {
+          to.destroy();
+        }
+      }
+
+      final pending = buffer.drain();
+      if (pending.isNotEmpty) forward(relay, pending);
       incoming
-        ..onData(relay.add)
-        ..onError((Object _) => relay.destroy())
-        ..onDone(relay.destroy);
-      await relay.listen(
-        client.add,
-        onError: (Object _) {},
-        onDone: client.destroy,
-      ).asFuture<void>();
+        ..onData((data) => forward(relay, data))
+        ..onError((Object _) {
+          relay.destroy();
+          finish();
+        })
+        ..onDone(() {
+          relay.destroy();
+          finish();
+        });
+      // Not `asFuture()`: it replaces the subscription's own `onDone` and
+      // `onError`, so the teardown passed to `listen` never runs. This
+      // fixture relayed correctly with it and then left every client socket
+      // open forever, because `client.destroy` was silently discarded --
+      // a self-test of the fixture hung waiting for a close that could not
+      // come, while the integration file it serves never waits for one and
+      // so never showed it.
+      relay.listen(
+        (data) => forward(client, data),
+        onError: (Object _) {
+          client.destroy();
+          finish();
+        },
+        onDone: () {
+          client.destroy();
+          finish();
+        },
+      );
+      await finished.future;
     } on Object {
       client.destroy();
       upstream?.destroy();
