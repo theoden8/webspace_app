@@ -103,22 +103,31 @@ class LocalProxyRelay {
     unawaited(client.done.catchError((Object _) => client));
     Socket? upstream;
     try {
-      final request = await head.read();
-      if (request == null) return;
-      final target = _connectTarget(request.head);
-      if (target == null) {
-        client.add(_response(400, 'Bad Request'));
-        await client.flush();
-        client.destroy();
-        return;
-      }
-      final route = _routeFor(request.head);
-      if (route == null) {
+      LocalProxyRoute? route;
+      ({String host, int port})? target;
+      // A client that is challenged retries on the same connection, so the
+      // 407 cannot close it: doing that turns "answer the challenge" into a
+      // dead load, which reads as the proxy having been ignored rather than
+      // refused. Bounded, so an unauthenticated client cannot sit here.
+      for (var attempt = 0; attempt < 4; attempt++) {
+        final requestHead = await head.readHead();
+        if (requestHead == null) return;
+        target = _connectTarget(requestHead);
+        if (target == null) {
+          client.add(_response(400, 'Bad Request'));
+          await client.flush();
+          client.destroy();
+          return;
+        }
+        route = _routeFor(requestHead);
+        if (route != null) break;
         // No credential, or one this relay does not know. Challenge rather
         // than relay: an unattributable tunnel has no site, so it has no
         // proxy, so letting it through would be a direct fetch.
         client.add(_challenge());
         await client.flush();
+      }
+      if (route == null || target == null) {
         client.destroy();
         return;
       }
@@ -136,7 +145,7 @@ class LocalProxyRelay {
       upstream.setOption(SocketOption.tcpNoDelay, true);
       unawaited(upstream.done.catchError((Object _) => upstream!));
       client.add(_response(200, 'Connection Established'));
-      await _relay(client, incoming, upstream, pending: request.rest);
+      await _relay(client, incoming, upstream, pending: head.drain());
     } on Object {
       client.destroy();
       upstream?.destroy();
@@ -205,9 +214,9 @@ class LocalProxyRelay {
     final head = _HeadBuffer();
     final sub = socket.listen(head.add,
         onError: (Object _) => head.close(), onDone: head.close);
-    final reply = await head.read();
+    final reply = await head.readHead();
     await sub.cancel();
-    if (reply == null || !reply.head.startsWith('HTTP/1.1 200')) {
+    if (reply == null || !reply.startsWith('HTTP/1.1 200')) {
       socket.destroy();
       return null;
     }
@@ -365,20 +374,28 @@ class _HeadBuffer {
     w?.complete();
   }
 
-  Future<({String head, List<int> rest})?> read() async {
+  /// Consumes one head and leaves whatever followed it in the buffer, so a
+  /// client that is challenged can send its next request on the same
+  /// connection.
+  Future<String?> readHead() async {
     while (true) {
       final end = _end();
       if (end != null) {
         final head = String.fromCharCodes(_bytes.sublist(0, end));
-        final rest = List<int>.of(_bytes.sublist(end + 4));
-        _bytes.clear();
-        return (head: head, rest: rest);
+        _bytes.removeRange(0, end + 4);
+        return head;
       }
       if (_closed) return null;
       if (_bytes.length > 64 * 1024) return null;
       _waiter = Completer<void>();
       await _waiter!.future;
     }
+  }
+
+  List<int> drain() {
+    final out = List<int>.of(_bytes);
+    _bytes.clear();
+    return out;
   }
 
   int? _end() {

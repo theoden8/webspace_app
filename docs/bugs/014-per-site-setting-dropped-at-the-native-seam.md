@@ -1708,6 +1708,16 @@ the defect are answered at once: the proxies are simultaneous *and* they
 survive past the first frame, because the delivery now takes the durable
 route.
 
+One false negative was removed from that instrument before it ran. The relay
+closed the connection after its `407`, which is fine for a client that
+reconnects and wrong for one that retries in place -- and a credential
+supplied through `applyCredential` may only be sent once challenged. That
+would have produced a dead load, which this file reads as `no load` and which
+would have been written up as WebKit ignoring the proxy rather than the relay
+hanging up on it. The challenge is now a bounded loop on the same connection,
+with a test that presents no credential, takes the 407, and retries on the
+same socket.
+
 **Why:** every previous mechanism here was proposed from a fragment of the
 path. This one is the whole path, in order.
 **Why it was partial:** untested until the HTTP CONNECT arm reports, and it

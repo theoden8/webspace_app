@@ -271,4 +271,53 @@ void main() {
     expect(socksA.targets, hasLength(1));
     expect(socksB.targets, hasLength(1));
   });
+
+  // The client that matters here is WebKit, and a proxy credential supplied
+  // through `applyCredential` may only be sent after a challenge. Closing the
+  // connection on the 407 would turn "answer the challenge" into a dead load
+  // -- which reads as the proxy having been ignored, not refused, and would
+  // have been diagnosed as WebKit dropping the proxy.
+  test('a challenged client may retry on the same connection', () async {
+    relay.setRoutes({
+      'ws-site-a': LocalProxyRoute(
+        siteId: 'site-a',
+        token: 'token-a',
+        upstream: UserProxySettings(type: ProxyType.DEFAULT),
+      ),
+    });
+
+    final socket = await Socket.connect(relay.host!, relay.port!);
+    socket.setOption(SocketOption.tcpNoDelay, true);
+    final seen = <int>[];
+    final done = socket.listen(seen.addAll).asFuture<void>();
+
+    // First attempt carries no credential.
+    socket.add(utf8.encode('CONNECT $originHost:${origin.port} HTTP/1.1\r\n'
+        'Host: $originHost:${origin.port}\r\n\r\n'));
+    await socket.flush();
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+    expect(
+      String.fromCharCodes(seen),
+      contains('407'),
+      reason: 'the unauthenticated attempt must be challenged',
+    );
+
+    // Second attempt, same socket, now with the credential.
+    final auth = base64.encode(utf8.encode('ws-site-a:token-a'));
+    socket.add(utf8.encode('CONNECT $originHost:${origin.port} HTTP/1.1\r\n'
+        'Host: $originHost:${origin.port}\r\n'
+        'Proxy-Authorization: Basic $auth\r\n\r\n'));
+    await socket.flush();
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+    socket.add(utf8.encode(get('/after-challenge')));
+    await socket.flush();
+
+    await done.timeout(
+      const Duration(seconds: 6),
+      onTimeout: () => socket.destroy(),
+    );
+    final reply = String.fromCharCodes(seen);
+    expect(reply, contains('200 Connection Established'));
+    expect(reply, contains('served /after-challenge'));
+  });
 }
