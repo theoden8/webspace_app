@@ -256,3 +256,45 @@ prompted this change, which serves both schemes and sends no
 **Given** the same navigation on Android
 **Then** nothing upgrades it before the engine
 **And** HTTPS-001 is the only thing that will
+
+---
+
+### Requirement: HTTPS-007 - An upgrade never asks the user to vouch for a certificate
+
+When an upgraded navigation's certificate does not validate, the app SHALL
+cancel the challenge silently, load the original `http://` URL, and record the
+host http-only. It SHALL NOT show the untrusted-certificate prompt (TLS-002)
+and SHALL NOT pin anything (TLS-007).
+
+A certificate failure does not arrive as a load error on Android or Linux: it
+arrives at `onReceivedServerTrustAuthRequest`, whose normal answer is a dialog
+asking the user whether to trust the certificate, and whose approval pins it
+permanently. For a navigation the *user* made that is the right question. For
+one the app substituted it is not a question they can answer: they asked for
+`http://host`, never saw an https URL, and have no way to know which of the two
+the dialog is about. A yes would pin a certificate the OS rejected, for a host
+the user never chose to reach over TLS.
+
+Apple platforms reach the same outcome through the ordinary error path, because
+`_handleServerTrust` defers to the OS there and the rejection returns as an SSL
+`onReceivedError` — which HTTPS-002's fallback already answers first, ahead of
+that handler's SSL branch.
+
+The lookup SHALL be by host: the platform hands the callback a protection space
+(host and port), never the URL that asked for it.
+
+#### Scenario: A self-signed certificate on an upgraded navigation
+
+**Given** a site at `http://selfsigned.example/a` with the upgrade enabled
+**And** its https certificate does not validate
+**When** the trust callback fires for `selfsigned.example`
+**Then** no prompt is shown and nothing is pinned
+**And** `http://selfsigned.example/a` is loaded
+**And** the host is recorded http-only, so it is not upgraded again
+
+#### Scenario: A certificate failure the user's own navigation caused
+
+**Given** a site the user navigated to over https directly
+**When** its certificate does not validate
+**Then** the engine reverses nothing
+**And** the ordinary TLS-002 prompt is shown, as before this change

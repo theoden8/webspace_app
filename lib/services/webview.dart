@@ -5206,6 +5206,25 @@ class WebViewFactory {
       return inapp.ServerTrustAuthResponse(
           action: inapp.ServerTrustAuthResponseAction.CANCEL);
     }
+    // An upgrade of ours (HTTPS-007). The user asked for http; we substituted
+    // https on their behalf, and its certificate did not validate. Prompting
+    // here would ask them to judge a connection they never made, about a URL
+    // they never typed, and TLS-002's approval PINS the certificate for good.
+    // Fall back to the http they actually asked for instead: same shape as the
+    // loopback-sinkhole carve-out above, never prompt, never pin.
+    final upgradeFallback = WebViewFactory.httpsUpgrade.fallbackForHost(host);
+    if (upgradeFallback != null) {
+      LogService.instance.log(
+        'TLS',
+        'untrusted cert on an https upgrade for $host:$port — cancelling '
+            'silently and falling back to $upgradeFallback (no prompt, no pin)',
+        sensitivity: LogSensitivity.sensitive,
+      );
+      controller.loadUrl(
+          urlRequest: inapp.URLRequest(url: inapp.WebUri(upgradeFallback)));
+      return inapp.ServerTrustAuthResponse(
+          action: inapp.ServerTrustAuthResponseAction.CANCEL);
+    }
     // Post-failure platforms (Android, Linux): the OS already rejected
     // the chain. Prompt the user now.
     if (prompt == null) {

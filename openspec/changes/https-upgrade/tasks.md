@@ -114,9 +114,17 @@ that passes either way is worse than none, because it reads as cover.
   (`https_upgrade_network_test.dart`, 600ms deadline, falls back in well under
   a second), and gated four ways: delete the timer, drop the generation guard,
   bypass the engine, or hardcode the duration, and a gate fails for each.
-- [ ] 7.4 **A rejected certificate is still unobserved.** Whether it reaches
-  `onReceivedError`, and how fast, is chromium's behaviour, and a Dart
-  `HttpClient` answers a different question, so it was dropped rather than
-  faked. The deadline bounds it in the worst case — a cert error that somehow
-  raised nothing would still fall back at 8s — which is why this is the
-  remaining gap rather than the dangerous one.
+- [x] 7.4 **A rejected certificate was not an unobserved case, it was a
+  defect.** It does not reach `onReceivedError` on Android or Linux at all: it
+  reaches `onReceivedServerTrustAuthRequest`, which prompts the user to trust
+  the certificate and pins it on approval (TLS-002/007). A default-on upgrade
+  therefore asked the user to vouch for a connection the app invented, about a
+  URL they never typed. HTTPS-007 carves it out — cancel silently, load the
+  http they asked for, record the host — in the shape of the loopback-sinkhole
+  carve-out beside it. Gated three ways (remove it, move it past the prompt,
+  cancel without loading the fallback) and unit-tested for the host-keyed
+  reversal the platform callback forces.
+- [ ] 7.5 **Still no end-to-end run**, unchanged from 7.1: everything above is
+  the engine plus structural gates on the wiring. Chromium's own timing (how
+  long before a stalled handshake produces an event of its own, whether the
+  deadline or the platform wins the race) is device work.

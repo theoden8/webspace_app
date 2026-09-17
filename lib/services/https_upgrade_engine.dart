@@ -97,6 +97,26 @@ class HttpsUpgradeEngine {
   /// downgrade a page that is already up over https.
   String? fallbackForTimeout(String upgradedUrl) => fallbackFor(upgradedUrl);
 
+  /// The http URL to fall back to for an in-flight upgrade to [host], or null
+  /// when this engine has no upgrade in flight there.
+  ///
+  /// Keyed by host rather than URL because the platform's certificate callback
+  /// identifies a protection space, not a navigation: it knows the host and
+  /// port that failed, never the URL that asked. Same bookkeeping as
+  /// [fallbackFor] otherwise.
+  String? fallbackForHost(String host) {
+    final wanted = host.toLowerCase();
+    for (final entry in _inFlight.entries) {
+      if ((Uri.tryParse(entry.key)?.host ?? '').toLowerCase() != wanted) {
+        continue;
+      }
+      _inFlight.remove(entry.key);
+      _httpOnlyHosts.add(wanted);
+      return entry.value;
+    }
+    return null;
+  }
+
   /// Note that [upgradedUrl] loaded successfully, dropping its in-flight entry.
   /// Without this the map grows by one per upgraded navigation for the life of
   /// the process, and a later unrelated failure on the same URL string would

@@ -152,6 +152,42 @@ void main() {
               'that fired after its page was already up');
     });
 
+    // HTTPS-007. The platform's certificate callback knows a host and port, not
+    // a URL, so the lookup has to be by host or the carve-out cannot find the
+    // upgrade it is meant to reverse — and the user gets a trust prompt for a
+    // connection the app invented.
+    test('an in-flight upgrade can be reversed by host alone', () {
+      final upgraded = up('http://cert.example/login?a=1')!;
+      expect(upgraded, 'https://cert.example/login?a=1');
+      expect(engine.fallbackForHost('cert.example'),
+          'http://cert.example/login?a=1');
+      expect(engine.isKnownHttpOnly('cert.example'), isTrue,
+          reason: 'a host whose certificate we could not validate must not be '
+              'upgraded again this session');
+    });
+
+    test('the host lookup is case-insensitive and one-shot', () {
+      up('http://cert.example/a');
+      expect(engine.fallbackForHost('CERT.EXAMPLE'), 'http://cert.example/a');
+      expect(engine.fallbackForHost('cert.example'), isNull);
+    });
+
+    test('a host with no upgrade in flight is not reversed or marked', () {
+      // The site navigated to https itself and its cert failed. That prompt is
+      // the user's to answer; inventing an http fallback would be a downgrade
+      // we made up.
+      expect(engine.fallbackForHost('nothing.example'), isNull);
+      expect(engine.isKnownHttpOnly('nothing.example'), isFalse);
+    });
+
+    test('reversing one host leaves another host\'s upgrade in flight', () {
+      final a = up('http://one.example/a')!;
+      up('http://two.example/b');
+      expect(engine.fallbackForHost('two.example'), 'http://two.example/b');
+      expect(engine.fallbackFor(a), 'http://one.example/a',
+          reason: 'the host lookup must remove only its own entry');
+    });
+
     test('the deadline is a value the call site reads, with a sane default', () {
       expect(HttpsUpgradeEngine().deadline, const Duration(seconds: 8));
       expect(HttpsUpgradeEngine(deadline: const Duration(seconds: 2)).deadline,

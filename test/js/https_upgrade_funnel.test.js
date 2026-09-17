@@ -124,6 +124,46 @@ test('HTTPS-002: the deadline goes through the engine and checks generation',
     assert.ok(gen < ask, 'check the generation before touching engine state');
   });
 
+// HTTPS-007. A certificate failure does not reach onReceivedError on
+// Android/Linux — it reaches the trust callback, which PROMPTS and pins on
+// approval (TLS-002/007). Without this carve-out a default-on upgrade asks the
+// user to vouch for a connection the app invented, about a URL they never
+// typed, and a yes pins a bad certificate for good.
+test('HTTPS-007: an upgrade never reaches the certificate prompt', () => {
+  const body = blockAfter(WEBVIEW,
+    'static Future<inapp.ServerTrustAuthResponse?> _handleServerTrust(',
+    ') async {', 'webview.dart');
+  const carve = body.indexOf('httpsUpgrade.fallbackForHost(host)');
+  assert.notEqual(carve, -1,
+    'the trust handler must ask whether this host is an upgrade of ours');
+
+  const prompt = body.indexOf('await prompt(host, port, cert)');
+  assert.notEqual(prompt, -1, 'the user prompt is gone');
+  assert.ok(carve < prompt,
+    'the carve-out must come first: past the prompt it cannot stop the ' +
+    'dialog, which is the entire point');
+
+  const pin = body.indexOf('TrustedHostsService.instance.trust(');
+  assert.ok(pin === -1 || carve < pin, 'and it must come before any pin');
+});
+
+// Cancelling without loading the http URL would leave the user on an error
+// page for a navigation they did not make; loading without cancelling would
+// leave the rejected connection live.
+test('HTTPS-007: the carve-out loads the fallback and cancels the challenge',
+  () => {
+    const body = blockAfter(WEBVIEW,
+      'static Future<inapp.ServerTrustAuthResponse?> _handleServerTrust(',
+      ') async {', 'webview.dart');
+    const carve = body.indexOf('httpsUpgrade.fallbackForHost(host)');
+    const after = body.slice(carve);
+    const load = after.indexOf('inapp.WebUri(upgradeFallback)');
+    const cancel = after.indexOf('ServerTrustAuthResponseAction.CANCEL');
+    assert.ok(load !== -1, 'the http URL the user actually asked for is not loaded');
+    assert.ok(cancel !== -1 && cancel > load,
+      'the challenge must be cancelled, after handing back the http load');
+  });
+
 // HTTPS-006. The plugin's own known-host upgrade is iOS/macOS only and covers
 // strictly less, but it acts earlier and costs nothing; turning it off would
 // be a silent downgrade on the two platforms that have it.
