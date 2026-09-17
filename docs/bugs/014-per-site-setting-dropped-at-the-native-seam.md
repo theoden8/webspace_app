@@ -1197,6 +1197,83 @@ Removing a feature the user built on two platforms is their call — the finding
 is recorded and the decision is theirs.
 
 
+### Attempt 30 — Test the instrument; then read the code the finding contradicts
+**Date:** 2026-09-17 · **Files:** `integration_test/socks5_fixture.dart`,
+`test/socks5_fixture_test.dart`, `integration_test/proxy_binding_test.dart`
+
+Attempt 29's finding contradicts WebKit's source and contradicts published
+audits of the same API ([Mysk, 2026-08][mysk] tested
+`WKWebsiteDataStore.proxyConfigurations` for leaks and found only side channels
+outside normal page loading — DNS prefetch, WebAuthn related-origin fetches,
+WebTransport — not "everything after the first request"). A measurement that
+disagrees with both is the thing to check, and every DIRECT reading in this
+file came *later in the run* than a proxied one: an instrument that stops
+partway through produces the whole result on its own.
+
+[mysk]: https://mysk.blog/2026/08/04/webkit-proxy-icloud-private-relay-ip-leak/
+
+So the SOCKS5 fixture is tested for the first time: ten sequential CONNECTs,
+five overlapping ones, and one to a destination that refuses. **It records and
+relays all of them.** The instrument does not lose CONNECTs, and the DIRECT
+readings are not an artifact of it.
+
+It did have a defect, and a bad one. The relay awaited
+`upstream.listen(…).asFuture<void>()`, and `asFuture` *replaces* the
+subscription's `onDone` and `onError` — so the `client.destroy` passed to
+`listen` was discarded and every client socket was left open forever. The
+integration file never waits for a close, which is why it never showed; the
+self-test hangs on it immediately. Fixed by driving teardown from an explicit
+completer.
+
+Re-reading the WebKit side with the trace in hand, the shipping behaviour and
+the source do not have a seam where attempt 29's rule could live:
+
+* `WKWebsiteDataStore.setProxyConfigurations:` is unconditional
+  (`WKWebsiteDataStore.mm`) and forwards to `WebsiteDataStore::setProxyConfigData`.
+* That sends `SetProxyConfigData` after `networkProcess()` has registered the
+  session, and restores `m_proxyConfigData` so any *later* session creation
+  carries it in its parameters (`WebsiteDataStore.cpp:2348`). Attempt 18's
+  ordering hazard is real in shape but closed in effect.
+* In the network process, `NetworkSessionCocoa::setProxyConfigData` applies to
+  every wrapper that exists, and `SessionWrapper::initialize` applies
+  `applyProxyConfigurationToSessionConfiguration` to every wrapper created
+  afterwards. Both directions are covered.
+
+And the tier's own native trace says the plugin did its part for the panes that
+went direct: `webview proxySettings=true container=ws-proxy-binding-late-a
+store=ObjectIdentifier(0x…)`, a distinct store per pane, proxy assigned to each.
+
+One mechanism in that source could still produce these readings: the live-update
+path is `nw_context_clear_proxies` followed by `nw_context_add_proxy`, run over
+the contexts of a session's wrappers. If that context is shared between stores
+rather than owned by one, the newest store's proxy would be the process's only
+proxy and every store configured before it would read as direct. A single proxy
+fixture cannot see that — the signature is a load arriving at the *wrong*
+fixture.
+
+The next run therefore carries three new scenarios, all raw plugin webviews
+with no app code on them:
+
+* `sameturn-loadurl` — created in the first frame, loaded from that frame's own
+  turn by `loadUrl`. Separates "the load must be issued in the first frame"
+  from "the webview must be created in it"; those have never been separated.
+* `raw-late` — created in a later frame with an initial request. `later-pair`
+  was measured through `WebViewFactory`, and although its universal-link bypass
+  is `hostIsIOS` and the tier is macOS, twice now a reading that looked like the
+  platform turned out to be the app.
+* `alt-proxy` — a second SOCKS fixture in that same later frame, with
+  `crossed=` reporting whether either pane's destination arrived at the other's
+  proxy.
+
+**Why:** the user's objection was that a finding like this should be supported
+by documentation and code, and it is contradicted by both. That makes the
+harness the suspect, and the one component never tested was the instrument.
+**Why it was partial:** the fixture is exonerated as a recorder but the
+contradiction is unresolved — attempt 29's rule still stands as the only
+reading of the data, and no run has yet distinguished the frame from the load
+or looked for a crossed proxy.
+
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**

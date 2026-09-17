@@ -62,8 +62,23 @@ void main() {
   late int deferredPort;
   late int factoryPort;
   late int persistPort;
+  late HttpServer sameTurnOrigin;
+  late HttpServer rawLateOrigin;
+  late HttpServer altProxyOrigin;
+  late int sameTurnPort;
+  late int rawLatePort;
+  late int altProxyPort;
   late int deadPort;
   late Socks5Fixture socks;
+  // A second proxy, so a late load that is proxied to the *wrong* fixture is
+  // distinguishable from one that is not proxied at all. WebKit updates a
+  // live session's proxy through `nw_context_add_proxy`, which clears the
+  // context's proxies first; if that context turns out to be shared between
+  // stores, the last store to be configured would own the process and every
+  // earlier one would read as direct. That is the one mechanism in WebKit's
+  // source that produces this file's readings, and it is visible only with
+  // two proxies to tell apart.
+  late Socks5Fixture altSocks;
   InternetAddress? routable;
   final requests = <String>[];
 
@@ -153,14 +168,39 @@ void main() {
       res.write('<!doctype html><html><body><p>deferred</p></body></html>');
       await res.close();
     });
+    sameTurnOrigin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
+    sameTurnPort = sameTurnOrigin.port;
+    listenFixture(sameTurnOrigin, (req) async {
+      requests.add('sameturn:${req.uri.path}');
+      final res = req.response..headers.contentType = ContentType.html;
+      res.write('<!doctype html><html><body><p>sameturn</p></body></html>');
+      await res.close();
+    });
+    rawLateOrigin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
+    rawLatePort = rawLateOrigin.port;
+    listenFixture(rawLateOrigin, (req) async {
+      requests.add('rawlate:${req.uri.path}');
+      final res = req.response..headers.contentType = ContentType.html;
+      res.write('<!doctype html><html><body><p>rawlate</p></body></html>');
+      await res.close();
+    });
+    altProxyOrigin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
+    altProxyPort = altProxyOrigin.port;
+    listenFixture(altProxyOrigin, (req) async {
+      requests.add('altproxy:${req.uri.path}');
+      final res = req.response..headers.contentType = ContentType.html;
+      res.write('<!doctype html><html><body><p>altproxy</p></body></html>');
+      await res.close();
+    });
     socks = await Socks5Fixture.bind();
+    altSocks = await Socks5Fixture.bind();
     // Claimed, then released: a connection there is refused rather than
     // filtered, so a bound proxy fails fast instead of timing out.
     final probe = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
     deadPort = probe.port;
     await probe.close();
     log('origin on $originHost:$port, socks on ${socks.port}, '
-        'dead proxy on $deadPort, '
+        'alt socks on ${altSocks.port}, dead proxy on $deadPort, '
         'proxySupported=${PlatformInfo.isProxySupported} '
         'containers=$containers');
 
@@ -183,7 +223,11 @@ void main() {
       log('native: no container-store trace was written');
     }
     await socks.close();
+    await altSocks.close();
     await server.close(force: true);
+    await sameTurnOrigin.close(force: true);
+    await rawLateOrigin.close(force: true);
+    await altProxyOrigin.close(force: true);
     await deferredOrigin.close(force: true);
     await rawOrigin.close(force: true);
     await factoryOrigin.close(force: true);
@@ -193,6 +237,7 @@ void main() {
   setUp(() {
     requests.clear();
     socks.targets.clear();
+    altSocks.targets.clear();
   });
 
   /// Skips off-Apple, and fails rather than skips when the environment
@@ -373,6 +418,34 @@ void main() {
               onWebViewCreated: (c) => raw = c,
             ),
           ),
+          // Created in the first frame, loaded from that frame's own turn,
+          // but by `loadUrl` rather than by the configuration's initial
+          // request. Every DIRECT reading so far is either a later frame or
+          // a later load, and the two have never been separated: this pane
+          // holds the frame fixed and moves only how the load is issued.
+          SizedBox(
+            width: 320,
+            height: 120,
+            child: inapp.InAppWebView(
+              key: const ValueKey('sameturn'),
+              initialSettings: inapp.InAppWebViewSettings(
+                containerId: 'ws-proxy-binding-sameturn',
+                proxySettings: inapp.ProxySettings(
+                  proxyRules: [
+                    inapp.ProxyRule(url: 'socks5://127.0.0.1:${socks.port}'),
+                  ],
+                  bypassRules: [],
+                ),
+              ),
+              onWebViewCreated: (c) {
+                c.loadUrl(
+                  urlRequest: inapp.URLRequest(
+                    url: inapp.WebUri('http://$originHost:$sameTurnPort/st'),
+                  ),
+                );
+              },
+            ),
+          ),
         ]),
       ),
     ));
@@ -471,6 +544,15 @@ void main() {
     final rawSecondDirect = requests.contains('deferred:/raw2');
     verdict.add('raw-second=${raw == null ? "no controller" : rawSecondProxied ? "proxied" : rawSecondDirect ? "DIRECT" : "no load"}');
 
+    // (6) Same frame, same turn, issued by loadUrl.
+    await waitReal(
+        tester, () => socks.targets.contains('$originHost:$sameTurnPort'),
+        label: 'first-frame webview loaded by loadUrl',
+        timeout: const Duration(seconds: 15));
+    final sameTurnProxied =
+        socks.targets.contains('$originHost:$sameTurnPort');
+    verdict.add('sameturn-loadurl=${sameTurnProxied ? "proxied" : requests.contains('sameturn:/st') ? "DIRECT" : "no load"}');
+
     // Now assert, floor first.
     expect(
       pairConnects,
@@ -554,6 +636,75 @@ void main() {
       if (requests.contains('/late-a')) 'a',
       if (requests.contains('/late-b')) 'b',
     ].join("+")}');
+  });
+
+  testWidgets('measurement: a later frame, with no app code in it',
+      (tester) async {
+    // `later-pair` was measured through `WebViewFactory`. Its Apple
+    // navigation policy does not cancel anything on macOS -- the
+    // universal-link bypass is `hostIsIOS` -- but twice now a reading that
+    // looked like the platform turned out to be the app, and the cheapest
+    // way not to make that mistake a third time is to take the app out.
+    //
+    // The second pane carries a different proxy. WebKit updates a live
+    // session's proxies with `nw_context_clear_proxies` followed by
+    // `nw_context_add_proxy`; if the context those calls run on is shared
+    // between stores rather than owned by one, the newest store's proxy is
+    // the process's only proxy and every store configured before it reads
+    // as direct. That is the single mechanism in WebKit's source that
+    // produces the readings in this file, and one proxy cannot see it: a
+    // load arriving at the *first* fixture from a webview configured for
+    // the second is the signature.
+    if (!usable()) return;
+    if (!PlatformInfo.isProxySupported) {
+      markTestSkipped('below the proxyConfigurations floor');
+      return;
+    }
+    Widget rawPane(String containerId, int proxyPort, String url) => SizedBox(
+          width: 320,
+          height: 120,
+          child: inapp.InAppWebView(
+            key: ValueKey(containerId),
+            initialUrlRequest: inapp.URLRequest(url: inapp.WebUri(url)),
+            initialSettings: inapp.InAppWebViewSettings(
+              containerId: containerId,
+              proxySettings: inapp.ProxySettings(
+                proxyRules: [
+                  inapp.ProxyRule(url: 'socks5://127.0.0.1:$proxyPort'),
+                ],
+                bypassRules: [],
+              ),
+            ),
+          ),
+        );
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Column(children: [
+          rawPane('ws-proxy-binding-rawlate', socks.port,
+              'http://$originHost:$rawLatePort/rl'),
+          rawPane('ws-proxy-binding-altproxy', altSocks.port,
+              'http://$originHost:$altProxyPort/ap'),
+        ]),
+      ),
+    ));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 500));
+    await waitReal(
+        tester,
+        () =>
+            socks.targets.contains('$originHost:$rawLatePort') &&
+            altSocks.targets.contains('$originHost:$altProxyPort'),
+        label: 'two raw proxied webviews built in a later frame',
+        timeout: const Duration(seconds: 25));
+    final rawLateProxied = socks.targets.contains('$originHost:$rawLatePort');
+    final altProxied = altSocks.targets.contains('$originHost:$altProxyPort');
+    // The crossover: the alt pane's destination arriving at the *first*
+    // fixture, or the rawlate pane's at the second.
+    final crossed = socks.targets.contains('$originHost:$altProxyPort') ||
+        altSocks.targets.contains('$originHost:$rawLatePort');
+    verdict.add('raw-late=${rawLateProxied ? "proxied" : requests.contains('rawlate:/rl') ? "DIRECT" : "no load"}, '
+        'alt-proxy=${altProxied ? "proxied" : requests.contains('altproxy:/ap') ? "DIRECT" : "no load"}, '
+        'crossed=$crossed');
   });
 
   testWidgets('the harness can see a load reach the origin', (tester) async {
