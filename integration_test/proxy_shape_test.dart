@@ -64,22 +64,21 @@ void main() {
   /// delete. The other seven each deleted three first and all seven went
   /// direct. That is either a coincidence or the sweep itself, and the sweep
   /// is code this investigation added.
-  /// `on` lists the stored containers and deletes them, `list` lists them and
-  /// deletes nothing, `off` does neither. Three values rather than two
-  /// because across runs 3106, 3108 and 3109 every launch that bound had
-  /// listed and found none, and every launch that did not had either skipped
-  /// the listing or found some. The listing is one channel round trip into
-  /// `WKWebsiteDataStore.fetchAllDataStoreIdentifiers`, so `list` separates
-  /// enumerating the stores from removing them.
+  /// `on` deletes the stored containers, `list` and `off` do not. Every mode
+  /// now lists them, because a launch that cannot say what it started with
+  /// cannot be read afterwards (attempt 52): the listing is one channel round
+  /// trip into `WKWebsiteDataStore.fetchAllDataStoreIdentifiers`, and runs
+  /// 3106 through 3111 give no sign that it changes what binds.
   final sweepMode = Platform.environment['WEBSPACE_SHAPE_SWEEP'] ?? 'on';
   final lists = sweepMode != '0' && sweepMode != 'off';
   final deletes = lists && sweepMode != 'list';
 
   /// `purge` deletes every stored container and mounts nothing, so the next
-  /// process starts with none. Run 3110 had every launch that began with no
-  /// stored containers bind and every launch that began with some go direct,
-  /// deleting them at startup included -- so the state has to be cleared by
-  /// a *previous* process for the next one to be a fair test of it.
+  /// process starts with none. It was built to test the count a process
+  /// starts with, which attempt 52 refuted; what it is still good for is
+  /// putting a launch that binds and a launch that does not one minute
+  /// apart in the same run, which is the comparison the assignment trace
+  /// wants.
   final purges = sweepMode == 'purge';
 
   late Socks5Fixture socks;
@@ -90,23 +89,39 @@ void main() {
   var originHost = '127.0.0.1';
   var containers = false;
   var swept = -1;
+
+  /// How many stored containers this process found at launch, measured on
+  /// every launch whatever the sweep does. Attempt 52 could not tell whether
+  /// `probe1-b` really started with none because only the sweeping modes
+  /// looked, and a purge never checked its own work. Both are measured now.
+  var started = -1;
+  var left = -1;
+
+  /// Where the plugin writes its account of every `proxyConfigurations`
+  /// assignment. A file because `flutter test` does not capture the host
+  /// app's stdout and the test runs inside that app.
+  final trace =
+      File('${Directory.systemTemp.path}/webspace-container-store.log');
   final results = <String>[];
 
   setUpAll(() async {
     if (!applies) return;
     // This order is the point: proxy_binding initializes PlatformInfo first
     // and is the only arm that binds.
+    // One file per app process into the same path, so without this the
+    // trace carries entries from an earlier file's process.
+    if (trace.existsSync()) trace.deleteSync();
     await PlatformInfo.initialize();
     containers = await ContainerNative.instance.isSupported();
 
-    if (lists) {
-      final stale = await ContainerNative.instance.listContainers();
-      if (deletes) {
-        for (final siteId in stale) {
-          await ContainerNative.instance.deleteContainer(siteId);
-        }
+    final stale = await ContainerNative.instance.listContainers();
+    started = stale.length;
+    if (deletes) {
+      for (final siteId in stale) {
+        await ContainerNative.instance.deleteContainer(siteId);
       }
       swept = stale.length;
+      left = (await ContainerNative.instance.listContainers()).length;
     }
 
     routable = await nonLoopbackIPv4();
@@ -124,7 +139,8 @@ void main() {
         await res.close();
       });
     }
-    log('position=$position, sweep=$sweepMode, swept=$swept, '
+    log('position=$position, sweep=$sweepMode, started=$started, '
+        'swept=$swept, left=$left, '
         'origins ${ports.join(",")} on $originHost, socks ${socks.port}, '
         'proxySupported=${PlatformInfo.isProxySupported} '
         'containers=$containers');
@@ -133,8 +149,16 @@ void main() {
   tearDownAll(() async {
     if (!applies) return;
     log('socks connects=${socks.targets}');
+    if (trace.existsSync()) {
+      for (final line in trace.readAsLinesSync()) {
+        log('native: $line');
+      }
+      trace.deleteSync();
+    } else {
+      log('native: no container-store trace was written');
+    }
     log('verdict: containers=$containers, position=$position, '
-        'sweep=$sweepMode, swept=$swept, '
+        'sweep=$sweepMode, started=$started, swept=$swept, left=$left, '
         'shape=[${results.join(" ")}]');
     await socks.close();
     for (final o in origins) {
@@ -164,7 +188,8 @@ void main() {
   testWidgets('three shapes, one frame, one endpoint', (tester) async {
     if (!usable()) return;
     if (purges) {
-      log('purged $swept container(s); mounting nothing');
+      log('purged $swept of $started container(s), $left left; '
+          'mounting nothing');
       return;
     }
 

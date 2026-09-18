@@ -2681,6 +2681,85 @@ the counterexample from run 3105 is unexplained, and nothing here says *why*
 an existing store stops a new store's proxy from applying. That question is
 for WebKit's source once the rule survives its own test.
 
+### Attempt 52 — The container count is refuted, and the first source-level lead
+
+**Date:** 2026-09-18
+**Commit:** (this one). Run 35362259792 (3111) on `16b7bef`.
+
+```
+position=first  sweep=on     swept=0   -> proxied proxied proxied
+position=glob   sweep=on     swept=35  -> DIRECT DIRECT DIRECT
+purge-a         sweep=purge  swept=0   -> (mounted nothing)
+probe1-a        sweep=off    swept=-1  -> proxied proxied proxied
+probe2-a        sweep=off    swept=-1  -> DIRECT DIRECT DIRECT
+purge-b         sweep=purge  swept=6   -> (mounted nothing)
+probe1-b        sweep=off    swept=-1  -> DIRECT DIRECT DIRECT
+probe2-b        sweep=off    swept=-1  -> DIRECT DIRECT DIRECT
+```
+
+The two pairs disagree. `probe1-a` and `probe1-b` are the same launch under
+the same knobs after the same purge, and one bound while the other did not.
+**The rule of attempt 51 is refuted.** Zero stored containers at launch is not
+sufficient, so it is not the carrier either.
+
+One loose end, and it does not save the rule. The purge stage does not verify
+its own work: it deletes and reports a count, and nothing re-lists afterwards,
+so `probe1-b` starting at zero is inferred rather than measured. The inference
+is strong -- `glob` deleted 35 in-process and `purge-a`, the next launch,
+found none, so a delete does reach disk across processes -- but `purge-b`
+differs from `purge-a` in exactly one way: it had six to delete and `purge-a`
+had none. A residue of deletion, rather than a residue of existence, is the
+only reading the data still permits, and it is a different claim from the one
+being tested.
+
+**What this attempt did:** added a `purge` mode that deletes every stored
+container and mounts nothing, so the clearing happens in a *previous* process,
+then ran two purge/probe/probe rounds. It was a clean test and it returned a
+clean negative.
+
+**The first source-level evidence in this file.** Everything above attempt 52
+is behaviour measured through the tier. Reading WebKit's own source (main,
+`Source/WebKit`) gives a mechanism that no black-box run would have found:
+
+- `WKWebsiteDataStore.mm:561` -- assigning `nil` or `[]` to
+  `proxyConfigurations` is not "no proxy for this store". It calls
+  `clearProxyConfigData()`, which reaches
+  `NetworkSessionCocoa::clearProxyConfigData()` (`NetworkSessionCocoa.mm:2061`)
+  and calls `nw_context_clear_proxies()` on the `nw_context_t` of every live
+  session. `setProxyConfigData` (`:2080`) does the same clear before adding.
+- The pinned fork assigns `[]` in two places: `ProxyManager.releasePerSiteProxy`
+  (`activeProxyConfigurations ?? []`) and `clearProxyOverride()` ->
+  `fanOutToFollowingStores([])`, which walks the default store, a fresh
+  non-persistent store, **and every cached container store**.
+- Whether one `nw_context_t` is shared across data stores is not answerable
+  from WebKit's source: `_networkContext` is CFNetwork SPI. WebKit collects
+  the contexts into an `NSMutableSet` before clearing, which is what deduping
+  a shared object looks like, but a single `NetworkSessionCocoa` owns several
+  session wrappers and that alone explains the set.
+- `NetworkProcessCocoa.mm:307` -- `setProxyConfigData` returns silently when
+  the session does not exist yet. The UI process caches the value and re-sends
+  it through `NetworkSessionCreationParameters` (`WebsiteDataStore.cpp:2348`),
+  so the early path is covered, but only through that one channel.
+- `Tools/TestWebKitAPI/Tests/WebKit/WKWebView/Proxy.mm` and
+  `WebsiteDataStoreCustomPaths.mm`: every upstream `proxyConfigurations` test
+  uses **one** data store, mostly the default one. There is no upstream test
+  anywhere with two identified data stores carrying different proxies at once.
+  The configuration this bug is about is untested in WebKit.
+- Apple's documentation for the property is the WebKit header
+  (`WKWebsiteDataStore.h`); the developer.apple.com page 404s. It says only
+  that changing the configurations may interrupt current networking, "so it is
+  encouraged to finish setting the proxy configurations before starting any
+  page loads".
+
+**Why it was partial:** the refutation is solid but names no cause, and the
+source findings are unmeasured -- nothing yet shows an empty assignment
+actually happening between a per-site set and a load, and nothing shows the
+context is shared. The next instrument is a trace on every
+`proxyConfigurations` assignment (store identity, count, caller), which turns
+the WebKit reading into an observation instead of a hypothesis. The purge
+stage should also re-list after deleting, so a probe's starting state is
+measured rather than inferred.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
