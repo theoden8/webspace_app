@@ -2514,6 +2514,66 @@ sweep-on nought of four, the effect is the delete call and the next question
 is why it poisons the process. If both modes agree, the sweep is innocent and
 `rep-1` differed for a reason still unnamed.
 
+### Attempt 49 — The sweep is innocent; the batch position reproduces
+
+**Date:** 2026-09-18
+**Commit:** (this one). Run 35338516240 (3108) on `58eb57c`.
+
+Eight launches alternating the sweep knob:
+
+```
+position=first,  sweep=on,  swept=0  -> proxied proxied proxied
+position=glob,   sweep=on,  swept=35 -> DIRECT DIRECT DIRECT
+rep1-on,         sweep=on,  swept=0  -> proxied proxied proxied
+rep1-off,        sweep=off, swept=-1 -> DIRECT DIRECT DIRECT
+rep2-on,         sweep=on,  swept=6  -> DIRECT DIRECT DIRECT
+rep2-off,        sweep=off, swept=-1 -> DIRECT DIRECT DIRECT
+rep3-on,         sweep=on,  swept=6  -> DIRECT DIRECT DIRECT
+rep3-off,        sweep=off, swept=-1 -> DIRECT DIRECT DIRECT
+rep4-on,         sweep=on,  swept=6  -> DIRECT DIRECT DIRECT
+rep4-off,        sweep=off, swept=-1 -> DIRECT DIRECT DIRECT
+```
+
+**Sweep off bound nought of four.** Attempt 48's candidate -- that calling
+`WKWebsiteDataStore.remove(forIdentifier:)` before creating a store poisons
+the process -- is refuted. Turning the call off does not restore binding, and
+`swept=-1` confirms the knob took effect. The instrument this investigation
+added in attempt 44 is not the treatment.
+
+**What did reproduce, exactly, is the batch position.** Run 3106: the first
+of eight launches bound, the other seven did not. Run 3108: the first of
+eight bound, the other seven did not. Two runs, same shape, and in 3108 the
+knob was alternating underneath it, so the pattern is indifferent to the
+sweep.
+
+The launch timestamps say what separates them, and it is not much:
+
+```
+12:21:31  webspace_site_membership_test.dart   (loop's last file, ~110s)
+12:23:41  rep1-on    -> proxied     ~20s idle since the previous app exited
+12:24:23  rep1-off   -> DIRECT      ~7s idle
+12:25:04  rep2-on    -> DIRECT      ~7s idle
+...       every later launch ~40-60s apart, ~7s idle
+```
+
+Two candidates fit: the length of the idle gap before the app starts, or the
+identity of the process that ran before it (a different test file versus
+`proxy_shape` itself). `position=first` fits both -- it follows the Tor
+scenario, a different file, after a step boundary.
+
+**What this attempt did:** varied the gap and nothing else. Three lengths --
+0, 45 and 180 seconds of idle before launch -- two draws each, alternating so
+drift through the batch cannot stand in for the gap, with the sweep off
+throughout since it is not the variable. If a long enough gap binds, the
+mechanism is something the previous process holds and releases on a timer,
+and the next question is what. If no gap binds, the gap is out and the
+preceding file's identity is the remaining candidate.
+
+**Why it was partial:** two draws per gap is thin, and this file's history is
+mostly conclusions drawn from few draws. The reading to trust is a gap that
+binds twice while zero binds neither, or the reverse; one of each says only
+that the noise is back.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**

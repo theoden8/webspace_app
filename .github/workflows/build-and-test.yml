@@ -1488,33 +1488,34 @@ jobs:
             fi
             echo "::endgroup::"
           done
-          # Does deleting stored data stores poison the process that does it?
+          # How long the process has to wait before it can bind a proxy.
           #
-          # Run 3106 ran the arm eight times back to back. The one launch that
-          # bound a proxy was the one that found no stored containers to
-          # delete; the seven that each deleted three all went direct, with
-          # no other difference between them. The sweep is code this
-          # investigation added in attempt 44, so it is a candidate cause
-          # rather than a neutral setup step, and it calls
-          # WKWebsiteDataStore.remove(forIdentifier:) before the run creates
-          # any store of its own.
+          # Run 3108 cleared the sweep: off bound nought of four, on bound one
+          # of four, so deleting stored data stores is not what stops a proxy
+          # binding. What reproduced exactly across runs 3106 and 3108 is the
+          # shape -- the first launch of the batch binds and every launch
+          # after it does not. The timestamps put roughly 20 seconds of idle
+          # between the previous app exiting and the launch that bound, and
+          # roughly 7 between the ones that did not.
           #
-          # Eight launches, alternating so ordering cannot stand in for the
-          # knob, and the arm gives each process its own container ids so a
-          # sweep-off launch is not reusing the previous one's stores.
-          for rep in 1 2 3 4; do
-            for mode in on off; do
-              if [ "$mode" = off ]; then sweep=0; else sweep=1; fi
-              echo "::group::integration_test/proxy_shape_test.dart (rep$rep-$mode)"
+          # So this varies the one thing those two differ in: how long the
+          # machine sits idle before the app starts. Three gaps, two draws
+          # each, alternating so drift through the batch cannot stand in for
+          # the gap. The sweep stays off throughout, since it is not the
+          # variable.
+          for round in a b; do
+            for gap in 0 45 180; do
+              [ "$gap" -gt 0 ] && sleep "$gap"
+              echo "::group::integration_test/proxy_shape_test.dart (gap$gap-$round)"
               if [ -n "$TIMEOUT" ]; then
-                WEBSPACE_TIER_POSITION="rep$rep-$mode" WEBSPACE_SHAPE_SWEEP="$sweep" \
+                WEBSPACE_TIER_POSITION="gap$gap-$round" WEBSPACE_SHAPE_SWEEP=0 \
                   "$TIMEOUT" -k 30s 12m \
                   fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
-                  | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_rep$rep-$mode.log" || true
+                  | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_gap$gap-$round.log" || true
               else
-                WEBSPACE_TIER_POSITION="rep$rep-$mode" WEBSPACE_SHAPE_SWEEP="$sweep" \
+                WEBSPACE_TIER_POSITION="gap$gap-$round" WEBSPACE_SHAPE_SWEEP=0 \
                   fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
-                  | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_rep$rep-$mode.log" || true
+                  | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_gap$gap-$round.log" || true
               fi
               echo "::endgroup::"
             done
