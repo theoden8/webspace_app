@@ -75,6 +75,13 @@ void main() {
   final lists = sweepMode != '0' && sweepMode != 'off';
   final deletes = lists && sweepMode != 'list';
 
+  /// `purge` deletes every stored container and mounts nothing, so the next
+  /// process starts with none. Run 3110 had every launch that began with no
+  /// stored containers bind and every launch that began with some go direct,
+  /// deleting them at startup included -- so the state has to be cleared by
+  /// a *previous* process for the next one to be a fair test of it.
+  final purges = sweepMode == 'purge';
+
   late Socks5Fixture socks;
   final origins = <HttpServer>[];
   final ports = <int>[];
@@ -156,6 +163,10 @@ void main() {
 
   testWidgets('three shapes, one frame, one endpoint', (tester) async {
     if (!usable()) return;
+    if (purges) {
+      log('purged $swept container(s); mounting nothing');
+      return;
+    }
 
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(

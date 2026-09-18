@@ -2626,6 +2626,61 @@ else again. Three modes, two draws each, alternating.
 the fact from runs that varied other things. The reading to trust is a mode
 that binds twice while another binds neither.
 
+### Attempt 51 — It is the container count the process starts with
+
+**Date:** 2026-09-18
+**Commit:** (this one). Run 35354557619 (3110) on `413b8de`.
+
+```
+position=first  sweep=on    swept=0   -> proxied proxied proxied
+position=glob   sweep=on    swept=35  -> DIRECT DIRECT DIRECT
+on-a            sweep=on    swept=0   -> proxied proxied proxied
+list-a          sweep=list  swept=3   -> DIRECT DIRECT DIRECT
+off-a           sweep=off   swept=-1  -> DIRECT DIRECT DIRECT
+on-b            sweep=on    swept=9   -> DIRECT DIRECT DIRECT
+list-b          sweep=list  swept=3   -> DIRECT DIRECT DIRECT
+off-b           sweep=off   swept=-1  -> DIRECT DIRECT DIRECT
+```
+
+Listing is not it and deleting is not it: `list` went direct twice, `on-b`
+deleted all nine it found and went direct, and `off` went direct without
+touching the registry at all. What separates the two launches that bound from
+the six that did not is the number they started with. **Zero binds; anything
+above zero does not, and deleting them at startup does not undo it.**
+
+The same rule fits every launch in the two runs before it -- run 3106's
+`rep-1` (0, bound) against `rep-2..8` (3 each, none bound), run 3108's
+`rep1-on` (0, bound) against the rest -- and `position=first` in five
+consecutive runs, which by construction starts before any proxy file has run.
+That is 24 launches with one rule and one counterexample: run 3105's glob
+position listed 30 and bound.
+
+**This is the shape attempt 43 and attempt 45 were circling and attempt 44
+mis-eliminated.** Attempt 44 deleted all 35 stored containers at startup, saw
+no change, and concluded the containers were not the carrier. The deletion was
+real and the conclusion was wrong in a specific way: deleting them inside the
+process is too late. The process has already started with them present.
+
+**Why it matters beyond the tier.** If it holds, a WebSpace process binds a
+per-site proxy only when no per-site container exists on disk when it
+launches -- which for a user means the feature works on a fresh install and
+stops working once any site has ever been opened. That is a much larger claim
+than anything in this file so far, and it is exactly why the next run tests
+it rather than this one asserting it.
+
+**What this attempt did:** added a `purge` mode that deletes every stored
+container and mounts nothing, so the clearing happens in a *previous*
+process. Each pair is then a probe that starts with none and a second probe
+that starts with the three the first made, both with the sweep off so nothing
+inside the process touches the registry. Two pairs. First of each pair binds
+and second does not means the rule holds and the variable is the state at
+launch.
+
+**Why it was partial:** it is still a correlation over one tier's hardware,
+the counterexample from run 3105 is unexplained, and nothing here says *why*
+an existing store stops a new store's proxy from applying. That question is
+for WebKit's source once the rule survives its own test.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**

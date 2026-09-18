@@ -1488,32 +1488,37 @@ jobs:
             fi
             echo "::endgroup::"
           done
-          # Enumerating the stores, or removing them?
+          # Does a process bind only when it starts with no stored containers?
           #
-          # Run 3109 refuted the idle gap: six launches at 0, 45 and 180
-          # seconds of idle, none bound. It also broke "the first launch of
-          # the batch binds" -- with the sweep off, the batch's first launch
-          # went direct like the rest. What is left fits every launch across
-          # runs 3106, 3108 and 3109: the ones that bound had listed the
-          # stored containers and found none, and the ones that did not had
-          # either skipped the listing or found some. One counterexample
-          # stands, run 3105's glob position, which listed 30 and bound.
+          # Run 3110 separated listing from deleting and neither was it. What
+          # every launch in runs 3106, 3108 and 3110 fits instead is the count
+          # the process finds at startup: swept=0 bound, swept>0 did not, and
+          # deleting them made no difference -- on-b removed nine and still
+          # went direct. So the state has to be cleared by a PREVIOUS process.
           #
-          # The listing is one channel round trip into
-          # WKWebsiteDataStore.fetchAllDataStoreIdentifiers, so `list` runs it
-          # and deletes nothing. Three modes, two draws each, alternating.
+          # purge deletes every stored container and mounts nothing. Each pair
+          # is then: a probe right after a purge, which starts with none, and
+          # a second probe, which starts with the three the first one made.
+          # Two pairs. If the first of each pair binds and the second does
+          # not, the rule is "a process binds only if no per-site container
+          # existed when it started", which is a statement about the product
+          # and not about this tier.
           for round in a b; do
-            for mode in on list off; do
-              echo "::group::integration_test/proxy_shape_test.dart ($mode-$round)"
+            for stage in purge probe1 probe2; do
+              case "$stage" in
+                purge) mode=purge ;;
+                *) mode=off ;;
+              esac
+              echo "::group::integration_test/proxy_shape_test.dart ($stage-$round)"
               if [ -n "$TIMEOUT" ]; then
-                WEBSPACE_TIER_POSITION="$mode-$round" WEBSPACE_SHAPE_SWEEP="$mode" \
+                WEBSPACE_TIER_POSITION="$stage-$round" WEBSPACE_SHAPE_SWEEP="$mode" \
                   "$TIMEOUT" -k 30s 12m \
                   fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
-                  | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_$mode-$round.log" || true
+                  | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_$stage-$round.log" || true
               else
-                WEBSPACE_TIER_POSITION="$mode-$round" WEBSPACE_SHAPE_SWEEP="$mode" \
+                WEBSPACE_TIER_POSITION="$stage-$round" WEBSPACE_SHAPE_SWEEP="$mode" \
                   fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
-                  | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_$mode-$round.log" || true
+                  | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_$stage-$round.log" || true
               fi
               echo "::endgroup::"
             done
