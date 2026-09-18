@@ -109,11 +109,12 @@ void main() {
 
   setUpAll(() async {
     if (!applies) return;
-    containers = await ContainerNative.instance.isSupported();
     // Without this `isProxySupported` is false and every scenario below
     // skips, which is how two files in this directory once reported green
-    // having measured nothing.
+    // having measured nothing. Ordered before the container query the way
+    // proxy_binding orders it, which is the only arm that binds a proxy.
     await PlatformInfo.initialize();
+    containers = await ContainerNative.instance.isSupported();
     routable = await nonLoopbackIPv4();
     originHost = routable?.address ?? '127.0.0.1';
 

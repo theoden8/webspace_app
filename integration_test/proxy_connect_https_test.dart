@@ -70,8 +70,11 @@ void main() {
 
   setUpAll(() async {
     if (!applies) return;
-    containers = await ContainerNative.instance.isSupported();
+    // Ordered the way proxy_binding orders it, which is the only arm that
+    // binds a proxy. Whether that matters is unmeasured; removing the
+    // difference costs nothing and leaves one fewer variable.
     await PlatformInfo.initialize();
+    containers = await ContainerNative.instance.isSupported();
     routable = await nonLoopbackIPv4();
     originHost = routable?.address ?? '127.0.0.1';
 

@@ -986,6 +986,7 @@ jobs:
                 [ "$(basename "$t")" = "proxy_http_connect_test.dart" ] && continue
                 [ "$(basename "$t")" = "proxy_relay_binding_test.dart" ] && continue
                 [ "$(basename "$t")" = "proxy_rate_test.dart" ] && continue
+                [ "$(basename "$t")" = "proxy_shape_test.dart" ] && continue
                 [ "$(basename "$t")" = "proxy_connect_https_test.dart" ] && continue
                 echo "::group::$t"
                 # Hard per-test wall-clock cap: a WebView mount can deadlock

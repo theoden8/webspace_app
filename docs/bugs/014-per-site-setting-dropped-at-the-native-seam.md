@@ -2038,6 +2038,67 @@ one delivery that has ever bound a proxy here is SOCKS5, which is what the
 relay deliberately does not speak. Nothing in this attempt is a fix; it is
 the reading that says which direction the fix cannot be.
 
+### Attempt 41 — The controls void three arms and name the real variable
+
+**Date:** 2026-09-18
+**Commit:** (this one). Run 35293313430 (3098) on `e01b8ad`.
+
+The positive controls added in attempt 40 answered on their first run, and
+what they say is that three arms have been reporting nothing:
+
+```
+[proxy-rate]          first-frame-control=DIRECT, proxied=0 of 8
+[proxy-relay]         first-frame-socks-control=DIRECT,
+                      first-frame=[s0->DIRECT s1->DIRECT],
+                      later-frame=[s2->DIRECT s3->DIRECT]
+[proxy-connect-https] first-frame-socks-control=DIRECT,
+                      connect-https=[c0->DIRECT c1->DIRECT c2->DIRECT]
+[proxy-binding]       pair=2 of 2 proxied, raw-first=proxied,
+                      sameturn-loadurl=proxied, stair=[DIRECT x5],
+                      later-pair=0 of 2, raw-late=DIRECT, alt-proxy=DIRECT
+```
+
+A control is one SOCKS5 pane in its own process's first frame -- the
+arrangement `proxy_binding` binds in every run. All three read DIRECT. So
+`proxied=0 of 8` is not a measurement of later frames, the relay's four
+direct panes are not a measurement of relays, and the CONNECT arm's three
+direct panes are not a measurement of CONNECT. **Every null result this file
+has recorded from those arms is withdrawn**, including attempt 40's "no HTTP
+CONNECT proxy has ever been contacted": that may still be true, but no arm
+that could have shown it was in a state to show anything.
+
+**What the controls establish instead is sharper than what they voided.** In
+one run, on one machine, `proxy_binding`'s process bound a proxy three
+different ways while three other processes bound none at all -- and run 3097
+reads the same both ways. That is not a race across runs. Something differs
+between `proxy_binding`'s app process and every other arm's, and it
+reproduces.
+
+Two further readings inside `proxy_binding` are worth keeping because they
+cut against the rule this file has carried since attempt 32. Its `stair`
+scenario is mounted **in the first frame** and every one of its five
+navigations reads DIRECT, while `pair`, `raw-first` and `sameturn-loadurl`,
+mounted in that same frame, proxy. So "built in the first frame" is not
+sufficient; what those three share and the staircase does not is that the
+load is issued as the webview is constructed, from that frame's own turn.
+
+**What this attempt did:** `integration_test/proxy_shape_test.dart` puts the
+three enumerable differences in one first frame, on one shared SOCKS5
+endpoint, so a single run separates them -- a raw plugin webview loading from
+`initialUrlRequest` (proxy_rate's control, which reads DIRECT), the same site
+through `WebViewFactory.createWebView` (what `proxy_binding`'s pair panes and
+the app itself use), and a raw webview loaded by `loadUrl` from
+`onWebViewCreated` (`proxy_binding`'s `sameturn`). The fourth difference is
+removed rather than measured: every arm now awaits `PlatformInfo.initialize()`
+before asking about containers, which is the order `proxy_binding` uses and
+the only arm that binds.
+
+**Why it was partial:** it is an instrument, not a fix, and the four
+differences it separates are the ones visible from reading the files. If the
+verdict comes back with all three shapes direct, the variable is somewhere
+this attempt did not look, and the next step is to bisect
+`proxy_binding_test.dart` itself rather than to add another arm beside it.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**

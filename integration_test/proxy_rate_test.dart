@@ -67,10 +67,13 @@ void main() {
   final outcomes = <String>[];
 
   setUpAll(() async {
+    // Ordered the way proxy_binding orders it, which is the only arm that
+    // binds a proxy. Whether that matters is unmeasured; removing the
+    // difference costs nothing and leaves one fewer variable.
+    await PlatformInfo.initialize();
     if (applies) {
       containers = await ContainerNative.instance.isSupported();
     }
-    await PlatformInfo.initialize();
     routable = await nonLoopbackIPv4();
     originHost = routable?.address ?? '127.0.0.1';
     socks = await Socks5Fixture.bind();

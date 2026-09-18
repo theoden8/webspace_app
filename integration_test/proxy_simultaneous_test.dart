@@ -86,13 +86,15 @@ void main() {
     // One file per app process into the same path, so a stale trace would
     // otherwise open with webviews this file never built.
     if (trace.existsSync()) trace.deleteSync();
+    // Without this `isProxySupported` is false and every scenario
+    // below skips, which is how the first run of these files
+    // reported green having measured nothing. Ordered before the container
+    // query the way proxy_binding orders it, which is the only arm that
+    // binds a proxy.
+    await PlatformInfo.initialize();
     if (applies) {
       containers = await ContainerNative.instance.isSupported();
     }
-    // Without this `isProxySupported` is false and every scenario
-    // below skips, which is how the first run of these files
-    // reported green having measured nothing.
-    await PlatformInfo.initialize();
     routable = await nonLoopbackIPv4();
     originHost = routable?.address ?? '127.0.0.1';
 

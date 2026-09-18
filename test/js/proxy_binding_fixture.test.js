@@ -258,6 +258,7 @@ test('every Apple proxy tier initializes PlatformInfo before reading it', () => 
     'integration_test/proxy_relay_binding_test.dart',
     'integration_test/proxy_rate_test.dart',
     'integration_test/proxy_connect_https_test.dart',
+    'integration_test/proxy_shape_test.dart',
   ];
   for (const rel of files) {
     const body = fs.readFileSync(path.join(repoRoot, rel), 'utf8');
