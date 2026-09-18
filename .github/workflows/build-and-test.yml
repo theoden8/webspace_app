@@ -1418,6 +1418,26 @@ jobs:
             fi
             echo "::endgroup::"
           done
+          # Third and last invocation of the same arm. Run 3102 excluded the
+          # stored containers: the glob-position run deleted 35 of them at
+          # startup and still bound nothing, while the same file ahead of the
+          # tier bound all three shapes. What is left that survives between
+          # app processes is the rest of the sandbox container -- prefs,
+          # WebKit caches, HTTP storage, the default data store. Wiping it
+          # asks whether any of that is the carry-over. Remove this once the
+          # answer is in.
+          echo "::group::integration_test/proxy_shape_test.dart (wiped)"
+          rm -rf "$HOME/Library/Containers/org.codeberg.theoden8.webspace"
+          if [ -n "$TIMEOUT" ]; then
+            WEBSPACE_TIER_POSITION=wiped "$TIMEOUT" -k 30s 12m \
+              fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
+              | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_wiped.log" || true
+          else
+            WEBSPACE_TIER_POSITION=wiped \
+              fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
+              | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_wiped.log" || true
+          fi
+          echo "::endgroup::"
           # Named, at the end, where the tail of the log is: nineteen files
           # each print thousands of lines, so which one failed was otherwise
           # only findable by paging back through the whole job.

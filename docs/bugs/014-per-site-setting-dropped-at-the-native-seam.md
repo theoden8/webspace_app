@@ -2236,6 +2236,55 @@ is something else and the on-disk containers are excluded.
 every quantitative reading this file has recorded since attempt 32 now has to
 be taken again from a valid position before any of it can be believed.
 
+### Attempt 44 — The stored containers are not the carry-over
+
+**Date:** 2026-09-18
+**Commit:** (this one). Run 35307142863 (3102) on `25618b6`.
+
+```
+[proxy-shape] verdict: position=first, swept=0,
+    shape=[raw-initial->proxied factory->proxied raw-loadurl->proxied]
+    socks connects=[192.168.64.17:49943, :49944, :49945]
+[proxy-shape] verdict: position=glob, swept=35,
+    shape=[raw-initial->DIRECT factory->DIRECT raw-loadurl->DIRECT]
+    socks connects=[]
+```
+
+Attempt 43's position effect reproduces exactly on a second run, so it is not
+itself a draw. The new information is the sweep: in its glob position the arm
+found **35 stored containers, deleted every one of them**, and then bound
+nothing. Ahead of the tier it found none and bound all three.
+
+The deletion was real rather than reported: `safari_navigation_test.dart`,
+which runs after every proxy file and sweeps whatever is left, collected 12
+orphan containers this run against 47 on run 3100, and 35 + 12 = 47. So the
+arm removed exactly what it said it did, and binding did not come back.
+
+**Stored `WKWebsiteDataStore` containers are excluded.** That was the
+mechanism attempt 43 proposed, on the evidence that they accumulate across
+app processes, and it is wrong. The count of stores on disk is not what
+decides whether a later process binds a proxy.
+
+What is still standing: something survives between app processes on this
+machine, and the first process to ask for a proxy gets one. Everything else
+in the app's sandbox container is still a candidate -- prefs, the WebKit
+caches under `Library/WebKit/`, `Library/HTTPStorages/`, the default data
+store -- and so is state outside it entirely (a system daemon, the runner
+warming up, elapsed time).
+
+**What this attempt did:** the tier now runs the same arm a third time, last,
+after `rm -rf "$HOME/Library/Containers/org.codeberg.theoden8.webspace"`, as
+`position=wiped`. One run then reads: ahead of the tier (binds), in place
+(does not), and in place with the whole app container gone. If wiped binds,
+the carry-over is disk state and the next step bisects which subdirectory. If
+wiped does not bind, no app-owned disk state explains it and the search moves
+off the app entirely.
+
+**Why it was partial:** it eliminates a candidate rather than finding the
+cause, and the elimination is only as good as `deleteContainer`, which the
+sweep arithmetic corroborates but does not prove removes every byte the store
+owned.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
