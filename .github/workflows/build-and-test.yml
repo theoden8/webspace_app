@@ -598,11 +598,19 @@ jobs:
     # webkit_navigation_action_is_for_main_frame (added in 2.50) and
     # webkit_web_view_get_theme_color (also 2.50). Trixie ships 2.48
     # which is too old; Ubuntu Noble has no WPE packages at all; Jammy
-    # is 2.36. Sid has 2.52.3. Sid is technically "unstable" but the
+    # is 2.36. Sid has 2.54.0. Sid is technically "unstable" but the
     # WPE WebKit toolchain there has been the most stable path; if
     # anything else in the apt set breaks we'll surface the package
     # name and pin if needed. The Android job stays untouched on the
     # ubuntu-latest host runner — only Linux is in this container.
+    #
+    # Sid's 2.54.0-1 is the first Debian wpewebkit to ship
+    # wpe-platform-2.0.pc, so the plugin's CMake now picks WPEPlatform
+    # over the legacy WPEBackend-FDO path it used through 2.52 — the
+    # weston/Wayland scaffolding further down is FDO's requirement, not
+    # WPEPlatform's. 2.54 also renamed WPE_SETTING_DISABLE_ANIMATIONS to
+    # WPE_SETTING_REDUCED_MOTION, which the pinned fork now resolves at
+    # compile time.
     container:
       image: debian:sid-slim
       # CAP_NET_ADMIN is what lets the egress guard (INTEG-016) install its
