@@ -2157,6 +2157,85 @@ processes in sequence; if position turns out to be the variable, the tier has
 been measuring itself and the real defect still needs an instrument that
 looks like the app.
 
+### Attempt 43 — Position in the tier is the variable, and it retracts the central rule
+
+**Date:** 2026-09-18
+**Commit:** (this one). Run 35302350398 (3101) on `52015a4`.
+
+One file, one machine, one run, two positions:
+
+```
+[proxy-shape] position=first, ... socks 49951
+[proxy-shape] raw-initial -> proxied
+[proxy-shape] factory     -> proxied
+[proxy-shape] raw-loadurl -> proxied
+[proxy-shape] socks connects=[192.168.64.9:49952, :49953, :49954]
+[proxy-shape] verdict: position=first,
+    shape=[raw-initial->proxied factory->proxied raw-loadurl->proxied]
+
+[proxy-shape] position=glob, ... socks 50247
+[proxy-shape] raw-initial -> DIRECT
+[proxy-shape] factory     -> DIRECT
+[proxy-shape] raw-loadurl -> DIRECT
+[proxy-shape] socks connects=[]
+[proxy-shape] verdict: position=glob,
+    shape=[raw-initial->DIRECT factory->DIRECT raw-loadurl->DIRECT]
+```
+
+`proxy_shape_test.dart` is one file. It ran twice in this run, once ahead of
+every other integration file and once in its alphabetical place. Ahead of
+them all three shapes bound a proxy and the SOCKS fixture logged all three
+origins. In its own place none of them did and the fixture was idle. Nothing
+about the file, the frame, the widget shape, the delivery or the destination
+changed between those two runs. **Only its position in the tier did.**
+
+**What this retracts.** This file's central claim since attempt 32 -- that on
+Apple a load is proxied only if the webview is constructed in the process's
+first frame, and that everything after it leaks -- was measured by running
+nine proxy files in a row and reading the ones behind the first. The first
+one binds. The rest do not, whatever they do. So:
+
+* "Only the first frame binds" is **withdrawn**. It was never separated from
+  "only the first proxy file in the tier binds".
+* `proxy_rate`'s `proxied=0 of 8`, `proxy_relay`'s four direct panes,
+  `proxy_connect_https`'s three, `proxy_simultaneous`'s later frame and
+  `proxy_window`'s `after-warmup=0 of 2` are all readings taken from that
+  position and say nothing about their scenarios.
+* `proxy_binding` binds because it is the first proxy file the glob reaches,
+  not because of anything it does.
+
+**The carry-over is outside the process, and the container directory is the
+candidate.** Each file is its own app process, so the state that survives is
+on disk. Attributing every `[Container/...]` line in run 3100's log to its
+enclosing `::group::` file shows it accumulating: `proxy_auth_test.dart` swept
+1 orphan container at startup, and `safari_navigation_test.dart` -- which runs
+after every proxy file -- swept **47**. By the time the later proxy arms run,
+dozens of stale `WKWebsiteDataStore` directories sit under
+`~/Library/Containers/org.codeberg.theoden8.webspace/Data/`. No leaked-process
+evidence was found: run 3100 logs no `Terminate orphan process` line.
+
+The same mechanism would also explain the pattern *inside* `proxy_binding`.
+Its first frame creates six stores at once and three of them bind; every
+scenario after that frame -- `stair`, `later-pair`, `raw-late`, `alt-proxy` --
+runs with those six already in existence and reads DIRECT.
+
+If it holds, it also fits the report this bug started from: a user who
+restarts the app gets a process whose store count starts over, which is
+exactly "sometimes I have to restart the app for the Tor proxy to start
+working".
+
+**What this attempt did:** `proxy_shape_test.dart` now lists every existing
+container at startup, deletes them all, and reports `swept=N` in its verdict.
+It still runs twice. If `position=glob` binds once the directory is empty, the
+carry-over is the stored containers and the next step is a threshold
+measurement -- how many stores a process can create before one stops taking a
+proxy. If it still goes direct with `swept` greater than zero, the carry-over
+is something else and the on-disk containers are excluded.
+
+**Why it was partial:** it names the variable but not the mechanism, and
+every quantitative reading this file has recorded since attempt 32 now has to
+be taken again from a valid position before any of it can be believed.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
@@ -2175,10 +2254,17 @@ looks like the app.
 3. **Reach is wider than the proxy.** The same parser carries the container id,
    the UA, the media gates and every other per-site field. Only the proxy has an
    effect-level test.
-4. **On Apple, a load is proxied only if the webview issues it as it is
+4. **WITHDRAWN in attempt 43 -- position in the test tier, not the frame.**
+   One file run twice in one run bound a proxy ahead of the other integration
+   files and bound none in its alphabetical place. Everything below was
+   measured from the losing position and has to be taken again. Kept for
+   lineage, not as a statement of behaviour.
+
+   ~~**On Apple, a load is proxied only if the webview issues it as it is
    constructed and that webview is constructed in the process's first frame
    (BUG-014 attempt 32, measured with no app code on the webview), so the
-   per-site proxy leaks on everything a user does after a site's landing page.** Narrowed in attempt 38: **simultaneity is not part of this.** Four stores
+   per-site proxy leaks on everything a user does after a site's landing
+   page.**~~ Narrowed in attempt 38: **simultaneity is not part of this.** Four stores
    on three distinct SOCKS5 upstreams, all built in the first frame, each
    reached its own and none crossed. The constraint is the frame alone. **Retracted in attempt 40:** that was one draw. The same
    file, byte-identical, read all four DIRECT on the next run, and in that

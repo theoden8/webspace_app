@@ -65,6 +65,7 @@ void main() {
   InternetAddress? routable;
   var originHost = '127.0.0.1';
   var containers = false;
+  var swept = -1;
   final results = <String>[];
 
   setUpAll(() async {
@@ -73,6 +74,19 @@ void main() {
     // and is the only arm that binds.
     await PlatformInfo.initialize();
     containers = await ContainerNative.instance.isSupported();
+
+    // Position in the tier decides whether this file binds a proxy at all
+    // (run 3101: position=first proxied all three shapes, position=glob none
+    // of them, same file, same run). The container directory is the state
+    // that survives between app processes -- a later file in run 3100 swept
+    // 47 leftovers -- so the sweep here asks whether that is the carry-over.
+    // If position=glob binds once the directory is empty, it is.
+    final stale = await ContainerNative.instance.listContainers();
+    for (final siteId in stale) {
+      await ContainerNative.instance.deleteContainer(siteId);
+    }
+    swept = stale.length;
+
     routable = await nonLoopbackIPv4();
     originHost = routable?.address ?? '127.0.0.1';
     socks = await Socks5Fixture.bind();
@@ -88,8 +102,8 @@ void main() {
         await res.close();
       });
     }
-    log('position=$position, origins ${ports.join(",")} on $originHost, '
-        'socks ${socks.port}, '
+    log('position=$position, swept=$swept, '
+        'origins ${ports.join(",")} on $originHost, socks ${socks.port}, '
         'proxySupported=${PlatformInfo.isProxySupported} '
         'containers=$containers');
   });
@@ -98,7 +112,7 @@ void main() {
     if (!applies) return;
     log('socks connects=${socks.targets}');
     log('verdict: containers=$containers, position=$position, '
-        'shape=[${results.join(" ")}]');
+        'swept=$swept, shape=[${results.join(" ")}]');
     await socks.close();
     for (final o in origins) {
       await o.close(force: true);
