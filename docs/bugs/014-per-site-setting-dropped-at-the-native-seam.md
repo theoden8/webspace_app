@@ -2829,6 +2829,70 @@ empty (something reset it), the readback is 1 and the traffic is still direct
 (WebKit is declining to use it), or the identity differs (the WebView is not
 on the store that was configured).
 
+### Attempt 54 — WebKit holds the proxy and does not use it
+
+**Date:** 2026-09-18
+**Commit:** (this one). Run 35390136913 (3118) on `f43cda2`, fork `f34ba3c3`.
+
+The WebView is now asked what its store's proxy is, twice: right after
+construction and when a load starts.
+
+```
+launch      result    assigned  same store   same store   count
+                                at prepare   at navstart
+first       proxied   3         3            -            1
+glob        DIRECT    3         3            3            1
+probe1-a    DIRECT    3         3            3            1
+probe2-a    DIRECT    3         3            3            1
+probe1-b    DIRECT    3         3            3            1
+probe2-b    DIRECT    3         3            3            1
+```
+
+**In every launch that went direct, all three WebViews are on exactly the
+store that was configured, and that store still reports one proxy
+configuration when the navigation starts.** The store identity matches the
+`proxy-assign` line's, at both points, every time. Nothing is reset, nothing
+is swapped.
+
+The instrument is not reading a constant: `ws-proxy-binding-control`, the
+WebView built with `proxySettings=false`, reads `count=0` at both points in
+the same run. Zero and one are both reachable; the proxied sites report one.
+
+`position=first` has no `at=navstart` line because the trace file is read at
+`tearDownAll` and a proxied load has not started one by then. That is the
+dump's timing, not a difference in behaviour -- its `at=prepare` readback is
+identical to every other launch's.
+
+**This is the end of what the UI process can be asked.** The app sends the
+proxy, the plugin assigns it once and never clears it (attempt 53), the
+WebView holds the store it was given, and that store's public API reports the
+configuration intact at the moment the load begins. The traffic goes direct
+anyway. Whatever drops it is below `WKWebsiteDataStore.proxyConfigurations`,
+in the network process, where nothing in this repository can observe it.
+
+**What follows from that:**
+
+- The remaining work is not bisection in this repo. It is a minimal repro
+  against WebKit: one `WKWebsiteDataStore(forIdentifier:)`, one
+  `nw_proxy_config_create_socksv5`, one load, in a loop across process
+  launches -- and a bug report. Attempt 53 already established there is no
+  upstream test with two identified data stores carrying different proxies;
+  this shows that even *one* identified store is unreliable.
+- `_WKWebsiteDataStoreConfiguration.proxyConfiguration` (the CFNetwork
+  `connectionProxyDictionary` path, which WebKit's own `TEST(WebKit, SOCKS5)`
+  exercises per data store) is the control that would separate "the
+  `nw_proxy_config` path is broken" from "per-store proxying is broken". It is
+  SPI, so it can answer the question and cannot ship.
+- One in-repo fact still has no explanation and is now sharper for it:
+  `position=first` binds in seven consecutive runs and no other launch binds
+  twice. Since the plugin's behaviour and the store's state are now measured
+  identical between the two, whatever separates them is process-level and
+  outside the data store.
+
+**Why it was partial:** it locates the defect without naming its mechanism,
+and the mechanism sits in code this project does not build. The next artefact
+is a repro and a bug report, not another instrument.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
