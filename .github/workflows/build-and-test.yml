@@ -40,9 +40,71 @@ env:
   CARGO_NDK_VERSION: "4.1.2"
 
 jobs:
+  # Which jobs this commit actually needs. A bisection that only reads the
+  # macOS tier otherwise pays for Linux, Android, design and validate as
+  # well, and those runners are what the next iteration queues behind.
+  #
+  # Put `[ci-only: apple]` in the commit message -- or several, as
+  # `[ci-only: apple,validate]` -- and everything else skips. Tokens are the
+  # job ids below: validate, design, android, linux, apple.
+  #
+  # Honoured on pull_request only. The marker stays in the message after a
+  # merge, so on master and on workflow_dispatch every job runs regardless
+  # and the branch everyone reads cannot be silenced by a commit that was
+  # written for one experiment.
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    outputs:
+      validate: ${{ steps.pick.outputs.validate }}
+      design: ${{ steps.pick.outputs.design }}
+      android: ${{ steps.pick.outputs.android }}
+      linux: ${{ steps.pick.outputs.linux }}
+      apple: ${{ steps.pick.outputs.apple }}
+      only: ${{ steps.pick.outputs.only }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The pull_request ref is a merge commit whose message is
+          # "Merge A into B", so read the branch head instead.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - id: pick
+        run: |
+          set -eu
+          only=""
+          if [ "${{ github.event_name }}" = pull_request ]; then
+            only="$(git log -1 --pretty=%B \
+              | sed -n 's/.*\[ci-only:[[:space:]]*\([^]]*\)\].*/\1/p' \
+              | head -1 | tr -d '[:space:]')"
+          fi
+          pick() {
+            if [ -z "$only" ]; then
+              echo "$1=true"
+              return
+            fi
+            case ",$only," in
+              *",$1,"*) echo "$1=true" ;;
+              *) echo "$1=false" ;;
+            esac
+          }
+          {
+            pick validate
+            pick design
+            pick android
+            pick linux
+            pick apple
+            echo "only=$only"
+          } >> "$GITHUB_OUTPUT"
+          if [ -n "$only" ]; then
+            echo "::notice::ci-only=$only -- every other job is skipped for this commit"
+          fi
+
   validate:
     name: Validate Fastlane + OpenSpec + proofs
     runs-on: ubuntu-latest
+    needs: plan
+    if: needs.plan.outputs.validate == 'true'
     steps:
       - uses: actions/checkout@v4
       - name: Validate Fastlane metadata
@@ -151,6 +213,8 @@ jobs:
   design-web:
     name: Design gallery + designer app
     runs-on: ubuntu-latest
+    needs: plan
+    if: needs.plan.outputs.design == 'true'
     steps:
       - uses: actions/checkout@v4
       - name: Setup Node
@@ -227,6 +291,8 @@ jobs:
   build-android:
     name: Build Android
     runs-on: ubuntu-latest
+    needs: plan
+    if: needs.plan.outputs.android == 'true'
     env:
       GRADLE_OPTS: -Xmx4g -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError
     steps:
@@ -593,6 +659,8 @@ jobs:
   build-linux:
     name: Build Linux
     runs-on: ubuntu-latest
+    needs: plan
+    if: needs.plan.outputs.linux == 'true'
     # Run inside Debian Sid because libwpewebkit-2.0-dev needs to be at
     # least 2.50: flutter_inappwebview_linux 0.1.0-beta.1 calls
     # webkit_navigation_action_is_for_main_frame (added in 2.50) and
@@ -1038,6 +1106,8 @@ jobs:
   build-apple:
     name: Build iOS & macOS
     runs-on: macos-latest
+    needs: plan
+    if: needs.plan.outputs.apple == 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
