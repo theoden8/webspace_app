@@ -2454,6 +2454,66 @@ it does so on CI hardware whose behaviour may not be the user's. But no
 mechanism can be read off single draws of a variable that moves on its own,
 which is what the last six attempts have been doing.
 
+### Attempt 48 — A rate at last, and it points at this investigation's own code
+
+**Date:** 2026-09-18
+**Commit:** (this one). Run 35329793142 (3106) on `c7a9b4c`.
+
+Eight launches of one arm, back to back, nothing touched between them:
+
+```
+position=first, swept=0  -> proxied proxied proxied
+position=glob,  swept=35 -> DIRECT DIRECT DIRECT
+rep-1,          swept=0  -> proxied proxied proxied
+rep-2,          swept=3  -> DIRECT DIRECT DIRECT
+rep-3,          swept=3  -> DIRECT DIRECT DIRECT
+rep-4,          swept=3  -> DIRECT DIRECT DIRECT
+rep-5,          swept=3  -> DIRECT DIRECT DIRECT
+rep-6,          swept=3  -> DIRECT DIRECT DIRECT
+rep-7,          swept=3  -> DIRECT DIRECT DIRECT
+rep-8,          swept=3  -> DIRECT DIRECT DIRECT
+```
+
+**One of eight.** But the eight were not identical, and the field that says
+so was already in the verdict: `rep-1` found no stored containers to delete,
+and `rep-2` through `rep-8` each found and deleted three -- the three the
+previous launch had created. Among the seven genuinely identical launches the
+answer was perfectly consistent: nought of seven. So this is not per-launch
+randomness after all. Something separates rep-1 from the rest, and the only
+thing that does is whether the process deleted data stores before creating
+its own.
+
+**That candidate is code this investigation added.** The sweep went in at
+attempt 44, to test whether stored containers were the carry-over; it calls
+`WKWebsiteDataStore.remove(forIdentifier:)` for each stale id before the arm
+creates any store. So the instrument may have been the treatment. Checking
+the whole dataset against it: every `swept=0` launch that bound
+(`position=first` in five runs, `wiped` on 3103, `rep-1` here) had no delete
+call, and every `swept>0` launch went direct -- with **one counterexample**,
+run 3105's glob position, which reported `swept=30` and bound all three. One
+counterexample in a dataset this noisy is not a refutation, but it is the
+reason this entry proposes nothing and measures instead.
+
+It would also re-explain the earlier flips without any of the mechanisms this
+file has withdrawn. `position=first` sweeps nothing because the tier has not
+run yet. The post-loop `wiped` and `cleared-*` trials sweep nothing because
+the container was just deleted -- and those went direct, which is the
+awkward half, unless deleting the container from the shell and deleting
+stores through the API differ.
+
+**What this attempt did:** made the sweep a knob (`WEBSPACE_SHAPE_SWEEP=0`
+skips `listContainers` and `deleteContainer` entirely) and gave every process
+its own container ids, so a sweep-off launch creates fresh stores instead of
+reusing the previous launch's. The tier runs eight launches alternating
+sweep-on and sweep-off, so ordering cannot stand in for the knob. Four of
+each, one count per mode.
+
+**Why it was partial:** it tests one candidate, and that candidate has a
+counterexample already in the data. If sweep-off binds four of four and
+sweep-on nought of four, the effect is the delete call and the next question
+is why it poisons the process. If both modes agree, the sweep is innocent and
+`rep-1` differed for a reason still unnamed.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**

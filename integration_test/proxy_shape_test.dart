@@ -58,6 +58,14 @@ void main() {
   /// -- is the only arm that binds and every arm behind it does not.
   final position = Platform.environment['WEBSPACE_TIER_POSITION'] ?? 'glob';
 
+  /// Whether to delete the stored containers before creating this run's own.
+  /// Run 3106 is the reason it is a knob: eight launches back to back, and
+  /// the only one that bound a proxy was the one that found nothing to
+  /// delete. The other seven each deleted three first and all seven went
+  /// direct. That is either a coincidence or the sweep itself, and the sweep
+  /// is code this investigation added.
+  final sweeps = Platform.environment['WEBSPACE_SHAPE_SWEEP'] != '0';
+
   late Socks5Fixture socks;
   final origins = <HttpServer>[];
   final ports = <int>[];
@@ -75,17 +83,13 @@ void main() {
     await PlatformInfo.initialize();
     containers = await ContainerNative.instance.isSupported();
 
-    // Position in the tier decides whether this file binds a proxy at all
-    // (run 3101: position=first proxied all three shapes, position=glob none
-    // of them, same file, same run). The container directory is the state
-    // that survives between app processes -- a later file in run 3100 swept
-    // 47 leftovers -- so the sweep here asks whether that is the carry-over.
-    // If position=glob binds once the directory is empty, it is.
-    final stale = await ContainerNative.instance.listContainers();
-    for (final siteId in stale) {
-      await ContainerNative.instance.deleteContainer(siteId);
+    if (sweeps) {
+      final stale = await ContainerNative.instance.listContainers();
+      for (final siteId in stale) {
+        await ContainerNative.instance.deleteContainer(siteId);
+      }
+      swept = stale.length;
     }
-    swept = stale.length;
 
     routable = await nonLoopbackIPv4();
     originHost = routable?.address ?? '127.0.0.1';
@@ -102,7 +106,7 @@ void main() {
         await res.close();
       });
     }
-    log('position=$position, swept=$swept, '
+    log('position=$position, sweep=${sweeps ? "on" : "off"}, swept=$swept, '
         'origins ${ports.join(",")} on $originHost, socks ${socks.port}, '
         'proxySupported=${PlatformInfo.isProxySupported} '
         'containers=$containers');
@@ -112,7 +116,8 @@ void main() {
     if (!applies) return;
     log('socks connects=${socks.targets}');
     log('verdict: containers=$containers, position=$position, '
-        'swept=$swept, shape=[${results.join(" ")}]');
+        'sweep=${sweeps ? "on" : "off"}, swept=$swept, '
+        'shape=[${results.join(" ")}]');
     await socks.close();
     for (final o in origins) {
       await o.close(force: true);
@@ -153,7 +158,7 @@ void main() {
                 url: inapp.WebUri('http://$originHost:${ports[0]}/s0'),
               ),
               initialSettings: inapp.InAppWebViewSettings(
-                containerId: 'ws-proxy-shape-0',
+                containerId: 'ws-proxy-shape-0-$position',
                 proxySettings: rawProxy(),
               ),
             ),
@@ -165,7 +170,7 @@ void main() {
               height: 110,
               child: WebViewFactory.createWebView(
                 config: WebViewConfig(
-                  siteId: 'proxy-shape-1',
+                  siteId: 'proxy-shape-1-$position',
                   initialUrl: 'http://$originHost:${ports[1]}/s1',
                   proxySettings: UserProxySettings(
                     type: ProxyType.SOCKS5,
@@ -187,7 +192,7 @@ void main() {
             child: inapp.InAppWebView(
               key: const ValueKey('shape-raw-loadurl'),
               initialSettings: inapp.InAppWebViewSettings(
-                containerId: 'ws-proxy-shape-2',
+                containerId: 'ws-proxy-shape-2-$position',
                 proxySettings: rawProxy(),
               ),
               onWebViewCreated: (c) {

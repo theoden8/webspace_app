@@ -1418,28 +1418,36 @@ jobs:
             fi
             echo "::endgroup::"
           done
-          # No manipulation at all: the same arm, eight times, back to back.
+          # Does deleting stored data stores poison the process that does it?
           #
-          # Four runs read the glob position as direct and run 3105 read it as
-          # proxied, with the arm byte-identical. Run 3103 had a full wipe bind
-          # and runs 3104 and 3105 had the same wipe go direct. So neither the
-          # position nor the container is a rule, and every trial that assumed
-          # one was reading a random variable once. This measures the variable
-          # instead: one fixed condition, eight app launches, a count. A rate
-          # between zero and eight is a race and names no cause; eight or zero
-          # would make the condition worth bisecting again.
-          for rep in 1 2 3 4 5 6 7 8; do
-            echo "::group::integration_test/proxy_shape_test.dart (rep-$rep)"
-            if [ -n "$TIMEOUT" ]; then
-              WEBSPACE_TIER_POSITION="rep-$rep" "$TIMEOUT" -k 30s 12m \
-                fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
-                | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_rep$rep.log" || true
-            else
-              WEBSPACE_TIER_POSITION="rep-$rep" \
-                fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
-                | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_rep$rep.log" || true
-            fi
-            echo "::endgroup::"
+          # Run 3106 ran the arm eight times back to back. The one launch that
+          # bound a proxy was the one that found no stored containers to
+          # delete; the seven that each deleted three all went direct, with
+          # no other difference between them. The sweep is code this
+          # investigation added in attempt 44, so it is a candidate cause
+          # rather than a neutral setup step, and it calls
+          # WKWebsiteDataStore.remove(forIdentifier:) before the run creates
+          # any store of its own.
+          #
+          # Eight launches, alternating so ordering cannot stand in for the
+          # knob, and the arm gives each process its own container ids so a
+          # sweep-off launch is not reusing the previous one's stores.
+          for rep in 1 2 3 4; do
+            for mode in on off; do
+              if [ "$mode" = off ]; then sweep=0; else sweep=1; fi
+              echo "::group::integration_test/proxy_shape_test.dart (rep$rep-$mode)"
+              if [ -n "$TIMEOUT" ]; then
+                WEBSPACE_TIER_POSITION="rep$rep-$mode" WEBSPACE_SHAPE_SWEEP="$sweep" \
+                  "$TIMEOUT" -k 30s 12m \
+                  fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
+                  | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_rep$rep-$mode.log" || true
+              else
+                WEBSPACE_TIER_POSITION="rep$rep-$mode" WEBSPACE_SHAPE_SWEEP="$sweep" \
+                  fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
+                  | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_rep$rep-$mode.log" || true
+              fi
+              echo "::endgroup::"
+            done
           done
           # Named, at the end, where the tail of the log is: nineteen files
           # each print thousands of lines, so which one failed was otherwise
