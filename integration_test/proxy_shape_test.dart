@@ -52,6 +52,12 @@ void main() {
 
   const shapes = ['raw-initial', 'factory', 'raw-loadurl'];
 
+  /// Where in the tier this process ran. The loop runs this file twice, once
+  /// ahead of every other integration file and once in its alphabetical
+  /// position, because proxy_binding -- the first proxy file the glob reaches
+  /// -- is the only arm that binds and every arm behind it does not.
+  final position = Platform.environment['WEBSPACE_TIER_POSITION'] ?? 'glob';
+
   late Socks5Fixture socks;
   final origins = <HttpServer>[];
   final ports = <int>[];
@@ -82,7 +88,8 @@ void main() {
         await res.close();
       });
     }
-    log('origins ${ports.join(",")} on $originHost, socks ${socks.port}, '
+    log('position=$position, origins ${ports.join(",")} on $originHost, '
+        'socks ${socks.port}, '
         'proxySupported=${PlatformInfo.isProxySupported} '
         'containers=$containers');
   });
@@ -90,7 +97,8 @@ void main() {
   tearDownAll(() async {
     if (!applies) return;
     log('socks connects=${socks.targets}');
-    log('verdict: containers=$containers, shape=[${results.join(" ")}]');
+    log('verdict: containers=$containers, position=$position, '
+        'shape=[${results.join(" ")}]');
     await socks.close();
     for (final o in origins) {
       await o.close(force: true);

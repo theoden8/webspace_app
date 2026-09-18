@@ -1354,6 +1354,27 @@ jobs:
           fi
           status=0
           failed=""
+          # BUG-014 bisection. Every proxy arm that runs after
+          # proxy_binding_test.dart fails to bind a proxy, and proxy_binding
+          # is the first proxy file this glob reaches -- three different
+          # webview shapes in one first frame all went direct behind it. So
+          # the same arm runs twice, once ahead of everything and once in its
+          # glob position, and prints which it was. Two different verdicts
+          # from one file in one run would mean position in the tier is the
+          # variable, and that no reading this tier has produced about frames
+          # means anything. Remove both this block and the position line in
+          # the arm once that is settled.
+          echo "::group::integration_test/proxy_shape_test.dart (first)"
+          if [ -n "$TIMEOUT" ]; then
+            WEBSPACE_TIER_POSITION=first "$TIMEOUT" -k 30s 12m \
+              fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
+              | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_first.log" || true
+          else
+            WEBSPACE_TIER_POSITION=first \
+              fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
+              | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_first.log" || true
+          fi
+          echo "::endgroup::"
           for t in integration_test/*_test.dart; do
             [ "$(basename "$t")" = "screenshot_test.dart" ] && continue
             # Android-only window-PixelCopy suite; skip its no-op build here.

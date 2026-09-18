@@ -2099,6 +2099,64 @@ verdict comes back with all three shapes direct, the variable is somewhere
 this attempt did not look, and the next step is to bisect
 `proxy_binding_test.dart` itself rather than to add another arm beside it.
 
+### Attempt 42 — Not the shape, and the tier's own file order is a suspect
+
+**Date:** 2026-09-18
+**Commit:** (this one). Run 35297986025 (3100) on `3e6d2e5`.
+
+```
+[proxy-shape] verdict: containers=true,
+    shape=[raw-initial->DIRECT factory->DIRECT raw-loadurl->DIRECT]
+[proxy-rate]  first-frame-control=DIRECT, proxied=0 of 8
+[proxy-relay] first-frame-socks-control=DIRECT, all four panes DIRECT
+[proxy-connect-https] first-frame-socks-control=DIRECT, all three DIRECT
+[proxy-binding] pair=2 of 2 proxied, raw-first=proxied,
+                sameturn-loadurl=proxied, stair=[DIRECT x5]
+```
+
+Three webview shapes in one first frame on one shared SOCKS5 endpoint --
+the raw plugin widget loading from `initialUrlRequest`, the same site
+through `WebViewFactory.createWebView`, and a raw widget loaded by `loadUrl`
+from `onWebViewCreated` -- and all three went direct. Normalizing every arm's
+`setUpAll` to await `PlatformInfo.initialize()` before querying containers,
+the order `proxy_binding` uses, changed nothing either. So none of the four
+differences enumerable from reading the files is the variable, and
+`proxy_binding` still bound a proxy three ways in the same run.
+
+**The file order is the thing nobody has looked at.** The tier walks
+`integration_test/*_test.dart` in glob order, so the sequence is
+`... privacy_settings, proxy_auth, proxy_binding, proxy_connect_https,
+proxy_http_connect, proxy_rate, proxy_relay_binding, proxy_shape,
+proxy_simultaneous, proxy_window`. `proxy_binding` is the **first** file in
+that list that asks for a proxy, it binds, and **every proxy file behind it
+fails** -- across runs 3097, 3098 and 3100, whatever the frame, the delivery,
+the destination scheme or the widget shape. Each file is its own app process,
+so whatever carries over is outside the process: the app's sandbox container
+on disk, a leaked `Webspace` process (the job's cleanup step has reported
+`Terminate orphan process: pid (N) (Webspace)`), or something else the tier
+does not control.
+
+If that is right, this file's central rule -- that a proxy binds only in the
+process's first frame -- is an artifact of measuring nine proxy files in a
+row, not a property of WebKit. Run 3094 is the one reading that does not fit:
+`proxy_simultaneous` bound 4 of 4 there while sitting behind `proxy_binding`,
+so the carry-over is not absolute.
+
+**What this attempt did:** the tier now runs `proxy_shape_test.dart` twice in
+one run, once ahead of every other integration file and once in its
+alphabetical position, and the arm prints `position=first` or `position=glob`
+in its verdict. One file, one run, one machine, two positions. If the
+verdicts differ, position is the variable and no reading this tier has
+produced about frames means anything. If they are the same, the carry-over
+theory is dead and the next step is to bisect `proxy_binding_test.dart`
+itself by deleting scenarios until `pair` stops binding.
+
+**Why it was partial:** it is still an instrument. It also does not explain
+the user's report, which is about one app in normal use rather than nine app
+processes in sequence; if position turns out to be the variable, the tier has
+been measuring itself and the real defect still needs an instrument that
+looks like the app.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
