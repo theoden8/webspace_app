@@ -2760,6 +2760,75 @@ the WebKit reading into an observation instead of a hypothesis. The purge
 stage should also re-list after deleting, so a probe's starting state is
 measured rather than inferred.
 
+### Attempt 53 — The plugin is exonerated; the divergence is inside WebKit
+
+**Date:** 2026-09-18
+**Commit:** (this one). Run 35370986685 (3112) on `27f07d3`.
+
+Every write to `WKWebsiteDataStore.proxyConfigurations` now goes through one
+traced choke point. Across the **whole** macOS integration tier:
+
+```
+57 assignments, every one of them:  reason=per-site  count=1  pinned=false
+ 0 assignments with count=0
+ 0 assignments with reason=fanout-default / fanout-ephemeral / fanout-container
+ 0 assignments with reason=replay or reason=release
+```
+
+```
+position=first  started=0  -> 3x per-site count=1 -> proxied proxied proxied
+position=glob   started=35 -> 3x per-site count=1 -> DIRECT DIRECT DIRECT
+purge-a         started=0   swept=0  left=0
+probe1-a        started=0  -> 3x per-site count=1 -> DIRECT DIRECT DIRECT
+probe2-a        started=3  -> 3x per-site count=1 -> DIRECT DIRECT DIRECT
+purge-b         started=6   swept=6  left=0
+probe1-b        started=0  -> 3x per-site count=1 -> DIRECT DIRECT DIRECT
+probe2-b        started=3  -> 3x per-site count=1 -> DIRECT DIRECT DIRECT
+```
+
+**The clearing hypothesis from attempt 52 is dead.** An empty array is never
+assigned in this tier, so `clearProxyConfigData` and `nw_context_clear_proxies`
+are never reached. The process-wide fan-out never runs either: no test here
+sets a global override, so `setProxyOverride`, `applyActiveProxyOverride` and
+`releasePerSiteProxy` contribute nothing. WebKit's source reading was correct
+about what an empty assignment does and irrelevant to what is happening here.
+
+**What is left is sharper than anything before it.** The launch that binds and
+the launches that do not are *identical at the seam*: one store, one
+assignment, one config, same reason, same count, same order, same code path.
+Whatever decides the outcome is downstream of
+`store.proxyConfigurations = [config]` -- inside WebKit, not in the plugin and
+not in the app. Fifty-two attempts of black-box bisection were searching a
+space the answer is not in.
+
+**Attempt 52's refutation is now measured rather than inferred.** `started=`
+reports the stored-container count on every launch and a purge reports what it
+left. `probe1-a` and `probe1-b` both started at **0** and both went direct,
+while `position=first` also started at 0 and bound. The purges verified
+themselves (`swept=6 left=0`). The count a process starts with is not the
+variable, and this time nothing about it is an inference.
+
+**The one durable positive, six runs running:** `position=first` -- the
+proxy_shape launch that runs ahead of every other integration file -- binds
+every time. In run 3111 `probe1-a` bound too; in 3112 it did not. Nothing
+else binds twice.
+
+**Not a regression from the instrumentation:** the Tor scenario failed in this
+run with `Tor did not finish bootstrapping in time. tag=loading_descriptors
+at=60%`, an external bootstrap timeout on the runner. It is not the trace
+write, which was the first suspect because it happens inside
+`getOrCreateDataStore` under `sharedStoresLock`.
+
+**Why it was partial:** it says where the mechanism is *not*. The next
+instrument has to read WebKit's own answer rather than the plugin's intent:
+read `configuration.websiteDataStore.proxyConfigurations?.count` back
+immediately after the WebView is constructed and again when the navigation
+starts, and compare the store identity the WebView ends up holding against the
+one that was assigned. Three outcomes, all informative -- the readback is
+empty (something reset it), the readback is 1 and the traffic is still direct
+(WebKit is declining to use it), or the identity differs (the WebView is not
+on the store that was configured).
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
