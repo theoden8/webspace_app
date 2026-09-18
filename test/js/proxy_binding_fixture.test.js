@@ -358,3 +358,45 @@ test('the https proxy arms mint their own certificate and serve it', () => {
     );
   }
 });
+
+// The general rule behind three of the specific gates above, and the one
+// BUG-014 gap 5 said was enforced nowhere: an effect-level assertion needs a
+// control that fails when the instrument is broken. Run 3097 produced a whole
+// app process that proxied nothing at all, including its first frame, while a
+// different process in the same run proxied its first-frame pair. Against a
+// process in that state "no pane reached its proxy" measures the process, and
+// is indistinguishable from the finding it would be reported as.
+//
+// So every arm whose verdict can be a null result carries a positive control:
+// a pane in the same process, on the arrangement that has bound a proxy in
+// every run it was measured in (SOCKS5, first frame), asserted before the
+// arm's own result is believed.
+test('every proxy arm that can read null carries a positive control', () => {
+  const arms = [
+    'integration_test/proxy_rate_test.dart',
+    'integration_test/proxy_connect_https_test.dart',
+    'integration_test/proxy_relay_binding_test.dart',
+  ];
+  for (const rel of arms) {
+    const body = fs
+      .readFileSync(path.join(repoRoot, rel), 'utf8')
+      .replace(/^\s*\/\/.*$/gm, '');
+    assert.match(
+      body,
+      /socks5:\/\/127\.0\.0\.1:\$\{controlSocks\.port\}|containerId: 'ws-proxy-rate-control'/,
+      `${rel} has no SOCKS control pane; a null verdict from it cannot be ` +
+        'told apart from a process that proxied nothing',
+    );
+    assert.match(
+      body,
+      /expect\(\s*\n?\s*control,\s*\n?\s*'proxied',/,
+      `${rel} does not assert its control, so a dead process still reports ` +
+        'a verdict that reads like a finding',
+    );
+    assert.match(
+      body,
+      /control(-|=)/,
+      `${rel} must carry the control into its verdict line`,
+    );
+  }
+});

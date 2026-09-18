@@ -71,6 +71,39 @@ void main() {
   var containers = false;
   final verdict = <String>[];
 
+
+  // A positive control in the same frame, and it is what turns a null reading
+  // here into a statement. Every CONNECT arm across every run has read DIRECT
+  // with an idle fixture, and run 3097 also produced a whole process that
+  // proxied nothing at all -- the two are indistinguishable from the outside.
+  // A SOCKS pane beside the CONNECT panes, in the same first frame of the
+  // same process, separates them: if it binds and they do not, the delivery
+  // is the variable.
+  late Socks5Fixture controlSocks;
+  late HttpServer controlOrigin;
+  var controlPort = 0;
+  var control = 'not run';
+
+  Widget controlPane() => SizedBox(
+        width: 200,
+        height: 90,
+        child: inapp.InAppWebView(
+          key: const ValueKey('socks-control'),
+          initialUrlRequest: inapp.URLRequest(
+            url: inapp.WebUri('http://$originHost:$controlPort/ctl'),
+          ),
+          initialSettings: inapp.InAppWebViewSettings(
+            containerId: 'ws-proxy-socks-control',
+            proxySettings: inapp.ProxySettings(
+              proxyRules: [
+                inapp.ProxyRule(url: 'socks5://127.0.0.1:${controlSocks.port}'),
+              ],
+              bypassRules: [],
+            ),
+          ),
+        ),
+      );
+
   String userFor(int i) => 'ws-relay-site-$i';
   String tokenFor(int i) => 'token-$i-not-a-secret-in-a-test';
 
@@ -103,6 +136,16 @@ void main() {
       socks.add(await Socks5Fixture.bind());
     }
 
+    controlSocks = await Socks5Fixture.bind();
+    controlOrigin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
+    controlPort = controlOrigin.port;
+    listenFixture(controlOrigin, (req) async {
+      requests.add('ctl:${req.uri.path}');
+      final res = req.response..headers.contentType = ContentType.html;
+      res.write('<!doctype html><html><body><p>ctl</p></body></html>');
+      await res.close();
+    });
+
     relay = LocalProxyRelay(realm: 'webspace-relay-test');
     expect(
       await relay.start(),
@@ -133,8 +176,12 @@ void main() {
     for (var i = 0; i < socks.length; i++) {
       log('socks$i connects=${socks[i].targets}');
     }
-    log('verdict: containers=$containers, ${verdict.join(", ")}');
+    log('socks-control connects=${controlSocks.targets}');
+    log('verdict: containers=$containers, first-frame-socks-control=$control, '
+        '${verdict.join(", ")}');
     await relay.stop();
+    await controlSocks.close();
+    await controlOrigin.close(force: true);
     for (final s in socks) {
       await s.close();
     }
@@ -237,9 +284,15 @@ void main() {
     WidgetTester tester,
     List<int> panes, {
     required String label,
+    bool withControl = false,
   }) async {
     await tester.pumpWidget(MaterialApp(
-      home: Scaffold(body: Column(children: [for (final i in panes) pane(i)])),
+      home: Scaffold(
+        body: Column(children: [
+          for (final i in panes) pane(i),
+          if (withControl) controlPane(),
+        ]),
+      ),
     ));
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pump(const Duration(milliseconds: 500));
@@ -255,8 +308,25 @@ void main() {
   testWidgets('the first frame: two sites, two upstreams, one relay',
       (tester) async {
     if (!usable()) return;
-    final results = await run(tester, [0, 1], label: 'first-frame panes');
+    final results =
+        await run(tester, [0, 1], label: 'first-frame panes', withControl: true);
     verdict.add('first-frame=[${results.join(" ")}]');
+
+    control = controlSocks.targets.contains('$originHost:$controlPort')
+        ? 'proxied'
+        : requests.contains('ctl:/ctl')
+            ? 'DIRECT'
+            : 'no load';
+    log('first-frame socks control -> $control');
+
+    expect(
+      control,
+      'proxied',
+      reason: 'the SOCKS pane in this same first frame went $control. A '
+          'process that proxies nothing reads exactly like a delivery that '
+          'is never used, and the relay result below cannot be told apart '
+          'from the first without this',
+    );
     expect(
       results.where((r) => r.contains('own(')).length,
       2,

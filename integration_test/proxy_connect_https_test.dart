@@ -57,6 +57,17 @@ void main() {
   var containers = false;
   final verdict = <String>[];
 
+  // A SOCKS pane in the same first frame of the same process. Every CONNECT
+  // arm has read DIRECT with an idle fixture in every run, and run 3097 also
+  // produced a process that proxied nothing at all; from outside the two look
+  // the same. If this binds and the CONNECT panes beside it do not, the
+  // delivery is the variable rather than the process.
+  late Socks5Fixture controlSocks;
+  late HttpServer controlOrigin;
+  var controlPort = 0;
+  var control = 'not run';
+
+
   setUpAll(() async {
     if (!applies) return;
     containers = await ContainerNative.instance.isSupported();
@@ -82,6 +93,16 @@ void main() {
       });
       proxies.add(await HttpConnectFixture.bind());
     }
+    controlSocks = await Socks5Fixture.bind();
+    controlOrigin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
+    controlPort = controlOrigin.port;
+    listenFixture(controlOrigin, (req) async {
+      requests.add('ctl:${req.uri.path}');
+      final res = req.response..headers.contentType = ContentType.html;
+      res.write('<!doctype html><html><body><p>ctl</p></body></html>');
+      await res.close();
+    });
+
     log('https origins ${ports.join(",")} on $originHost, '
         'connect proxies ${proxies.map((p) => p.port).join(",")}, '
         'proxySupported=${PlatformInfo.isProxySupported} '
@@ -93,7 +114,11 @@ void main() {
     for (var f = 0; f < proxies.length; f++) {
       log('proxy$f connects=${proxies[f].targets}');
     }
-    log('verdict: containers=$containers, ${verdict.join(", ")}');
+    log('socks-control connects=${controlSocks.targets}');
+    log('verdict: containers=$containers, first-frame-socks-control=$control, '
+        '${verdict.join(", ")}');
+    await controlSocks.close();
+    await controlOrigin.close(force: true);
     for (final p in proxies) {
       await p.close();
     }
@@ -159,6 +184,27 @@ void main() {
                 ),
               ),
             ),
+          SizedBox(
+            width: 200,
+            height: 90,
+            child: inapp.InAppWebView(
+              key: const ValueKey('socks-control'),
+              initialUrlRequest: inapp.URLRequest(
+                url: inapp.WebUri('http://$originHost:$controlPort/ctl'),
+              ),
+              initialSettings: inapp.InAppWebViewSettings(
+                containerId: 'ws-proxy-connect-https-control',
+                proxySettings: inapp.ProxySettings(
+                  proxyRules: [
+                    inapp.ProxyRule(
+                      url: 'socks5://127.0.0.1:${controlSocks.port}',
+                    ),
+                  ],
+                  bypassRules: [],
+                ),
+              ),
+            ),
+          ),
         ]),
       ),
     ));
@@ -186,6 +232,19 @@ void main() {
     final own = results.where((r) => r.contains('own(')).length;
     log('$own of $paneCount panes used their own CONNECT proxy');
 
+    control = controlSocks.targets.contains('$originHost:$controlPort')
+        ? 'proxied'
+        : requests.contains('ctl:/ctl')
+            ? 'DIRECT'
+            : 'no load';
+    log('first-frame socks control -> $control');
+    expect(
+      control,
+      'proxied',
+      reason: 'the SOCKS pane in this same first frame went $control, so this '
+          'process proxied nothing and the CONNECT result below says nothing '
+          'about CONNECT',
+    );
     expect(
       own,
       paneCount,
