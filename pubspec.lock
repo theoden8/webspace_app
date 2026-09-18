@@ -327,7 +327,7 @@ packages:
     dependency: "direct main"
     description:
       path: flutter_inappwebview
-      ref: "privacy-v6.1-candidate"
+      ref: "v6.2.0-beta.3-privacy-v6.1"
       resolved-ref: "026635e90ec1310bd8daac6c39e81f9a1210ef45"
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
@@ -336,7 +336,7 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_android
-      ref: "privacy-v6.1-candidate"
+      ref: "v6.2.0-beta.3-privacy-v6.1"
       resolved-ref: "026635e90ec1310bd8daac6c39e81f9a1210ef45"
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
@@ -353,7 +353,7 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_ios
-      ref: "privacy-v6.1-candidate"
+      ref: "v6.2.0-beta.3-privacy-v6.1"
       resolved-ref: "026635e90ec1310bd8daac6c39e81f9a1210ef45"
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
@@ -362,7 +362,7 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_linux
-      ref: "privacy-v6.1-candidate"
+      ref: "v6.2.0-beta.3-privacy-v6.1"
       resolved-ref: "026635e90ec1310bd8daac6c39e81f9a1210ef45"
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
@@ -371,7 +371,7 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_macos
-      ref: "privacy-v6.1-candidate"
+      ref: "v6.2.0-beta.3-privacy-v6.1"
       resolved-ref: "026635e90ec1310bd8daac6c39e81f9a1210ef45"
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
@@ -380,7 +380,7 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_platform_interface
-      ref: "privacy-v6.1-candidate"
+      ref: "v6.2.0-beta.3-privacy-v6.1"
       resolved-ref: "026635e90ec1310bd8daac6c39e81f9a1210ef45"
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
