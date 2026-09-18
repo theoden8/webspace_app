@@ -2400,6 +2400,60 @@ that a single app launch rebuilds fast enough would be missed -- though run
 3103's `position=first` argues against that, since one launch's worth of state
 binds fine.
 
+### Attempt 47 — The position effect is refuted, and so is the disk-state one
+
+**Date:** 2026-09-18
+**Commit:** (this one). Run 35322823210 (3105) on `b350d28`.
+
+```
+position=first,                    swept=0  -> proxied proxied proxied
+position=glob,                     swept=30 -> proxied proxied proxied
+cleared-Data-Library-Caches,       swept=0  -> DIRECT DIRECT DIRECT
+cleared-Data-Library-WebKit,       swept=0  -> DIRECT DIRECT DIRECT
+cleared-Data-Library-Preferences,  swept=0  -> DIRECT DIRECT DIRECT
+cleared-Data-Documents,            swept=3  -> DIRECT DIRECT DIRECT
+cleared-all,                       swept=0  -> DIRECT DIRECT DIRECT
+```
+
+**The glob position bound this time.** Runs 3101, 3102, 3103 and 3104 all
+read it direct; here it reads proxied, with `proxy_shape_test.dart`
+byte-identical across all five. So "the first proxy file binds and the rest
+do not" is not a rule either -- it was four draws that happened to agree, and
+the fifth disagreed.
+
+**And `cleared-all` failed again**, as it did on run 3104. A full
+`rm -rf` of the sandbox container followed by the arm bound all three shapes
+once, on run 3103, and has gone direct on both runs since. So attempt 45's
+conclusion -- that the carrier is app-owned disk state, because removing the
+container restores binding -- rests on a single observation that has not
+reproduced. **It is withdrawn**, along with the reasoning built on it: that
+position, elapsed time and prior-launch count were excluded. They were
+excluded by that one draw and nothing else.
+
+That is the third time in this file a conclusion has been drawn from a small
+number of agreeing draws and refuted by the next run (attempt 38 → 40,
+attempt 43 → 45, attempt 45 → here), and the pattern is the finding: **at the
+app-process level, whether a per-site proxy binds is a random variable, and
+no condition anyone has varied has moved it reliably.**
+
+What is left standing, because it has repeated every time it was measured:
+`proxy_binding`'s `pair`, `raw-first` and `sameturn-loadurl` bind in every
+run. Nothing else does reliably.
+
+**What this attempt did:** stopped varying conditions. The tier now runs the
+same arm eight times back to back with nothing between the launches -- no
+wiping, no snapshots, no reordering -- and the verdicts are labelled
+`rep-1` through `rep-8`. One fixed condition, eight app launches, a count.
+Anything strictly between zero and eight is a race, and says that every
+single-draw comparison in attempts 42 through 46 was measuring noise. Zero or
+eight would make the condition worth bisecting again, and would be the first
+repeated result this line of work has produced.
+
+**Why it was partial:** it measures the noise rather than the mechanism, and
+it does so on CI hardware whose behaviour may not be the user's. But no
+mechanism can be read off single draws of a variable that moves on its own,
+which is what the last six attempts have been doing.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
@@ -2418,11 +2472,15 @@ binds fine.
 3. **Reach is wider than the proxy.** The same parser carries the container id,
    the UA, the media gates and every other per-site field. Only the proxy has an
    effect-level test.
-4. **WITHDRAWN in attempt 43 -- position in the test tier, not the frame.**
-   One file run twice in one run bound a proxy ahead of the other integration
-   files and bound none in its alphabetical place. Everything below was
-   measured from the losing position and has to be taken again. Kept for
-   lineage, not as a statement of behaviour.
+4. **WITHDRAWN in attempt 43, and the replacement withdrawn in attempt 47.**
+   The frame rule went first: one file run twice in one run bound a proxy
+   ahead of the other integration files and bound none in its alphabetical
+   place. Then the position rule went too -- run 3105 read that same
+   alphabetical position as proxied, and the container wipe that had restored
+   binding once failed on the two runs after it. What survives is that
+   binding is a random variable at the app-process level with no condition
+   yet shown to move it. Everything below was measured one draw at a time and
+   has to be taken again. Kept for lineage, not as a statement of behaviour.
 
    ~~**On Apple, a load is proxied only if the webview issues it as it is
    constructed and that webview is constructed in the process's first frame
