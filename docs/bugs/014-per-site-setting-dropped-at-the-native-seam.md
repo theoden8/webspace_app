@@ -2339,6 +2339,67 @@ from the macOS sandbox layout rather than read off this app.
 the layout. If none of the four flips it, the listing printed alongside them
 says what else is in there.
 
+### Attempt 46 — The bisection was void; its own control said so
+
+**Date:** 2026-09-18
+**Commit:** (this one). Run 35316377697 (3104) on `ac610dc`.
+
+```
+position=first                          -> proxied proxied proxied
+position=glob,  swept=35                -> DIRECT DIRECT DIRECT
+wiped-Data-Library-Preferences,  swept=0 -> DIRECT DIRECT DIRECT
+wiped-Data-Library-WebKit,       swept=0 -> DIRECT DIRECT DIRECT
+wiped-Data-Library-HTTPStorages, swept=0 -> DIRECT DIRECT DIRECT
+wiped-Data-Library-Caches,       swept=0 -> DIRECT DIRECT DIRECT
+wiped-all,                       swept=0 -> DIRECT DIRECT DIRECT
+```
+
+**`wiped-all` is the control and it failed.** On run 3103 the same
+`rm -rf "$HOME/Library/Containers/org.codeberg.theoden8.webspace"` followed by
+the same arm bound all three shapes. Here it bound none, so nothing after the
+loop in this run can be read, and the four subset trials say nothing about
+their subdirectories.
+
+The instrument broke it, and the instrument said so in a field that was there
+for exactly this: `swept=0` on every trial. Each subset trial restored a
+`cp -a` snapshot of the accumulated container before deleting its one path,
+so the trials that kept both the preferences and the stores should have found
+the 35 containers again and reported `swept=35`. They found none. The restore
+silently did nothing -- and its stderr was routed to `/dev/null` by the same
+commit that depended on it, which is the second time in this file an
+instrument has been built with its own failure mode hidden. Copying a live
+macOS sandbox container is evidently not a restore, and it left the container
+in a state the following `rm -rf` did not recover from.
+
+Useful anyway: the layout dump printed what is actually under the container.
+
+```
+Data/Library/Preferences
+Data/Library/WebKit/{WebsiteDataStore,WebsiteData}
+Data/Library/Caches/{WebKit,flutter_engine,Tor}
+Data/Documents/{html_imports,html_cache,block_stats,webview_state,localcdn_cache}
+Data/Library/{Application Support,Saved Application State,Application Scripts,Images,Logs}
+Data/tmp/WebKit/{MediaCache,JavaScriptCoreDebug,ModelElement}
+```
+
+There is no `Data/Library/HTTPStorages`, so that trial deleted nothing and was
+never a test of anything.
+
+**What this attempt did:** dropped the snapshot entirely. The trials now
+remove strictly more each time -- `Data/Library/Caches`, then
+`Data/Library/WebKit`, then `Data/Library/Preferences`, then `Data/Documents`,
+then the whole container -- so the first one that binds names the path that
+was carrying it, and the full wipe stays last as the control that must bind.
+No copying, nothing suppressed: the `find` and `du` run without
+`2>/dev/null`, so a path that does not exist shows up as an error rather than
+as a silent pass.
+
+**Why it was partial:** it is the same measurement as attempt 45, retried with
+an instrument that can fail loudly. The monotone ordering also means a carrier
+that a single app launch rebuilds fast enough would be missed -- though run
+3103's `position=first` argues against that, since one launch's worth of state
+binds fine.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**

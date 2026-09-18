@@ -1422,32 +1422,37 @@ jobs:
           # settled that it is app-owned disk state: the same arm run LAST in
           # the tier bound all three shapes once the container was removed,
           # while the glob-position run bound none even after deleting all 35
-          # stored containers. Each subset trial restores the same accumulated
-          # snapshot first, so every one of them sees the state the tier
-          # actually built rather than what the previous trial left behind.
-          # The empty entry is the full-wipe control and must bind.
+          # stored containers.
+          #
+          # Run 3104 tried this by snapshotting the container and restoring it
+          # before each trial. The restore silently did nothing -- every trial
+          # reported swept=0 where the restored registry should have held 35 --
+          # and it left the container in a state where even the full-wipe
+          # control went direct, which had bound on 3103. So no copying: the
+          # trials remove strictly more each time, and the first one that binds
+          # names the path that was carrying it. The full wipe stays last as
+          # the control and must bind, or the whole sequence is void again.
+          # Paths are the ones the layout dump above actually shows; there is
+          # no HTTPStorages under this container.
           CONTAINER="$HOME/Library/Containers/org.codeberg.theoden8.webspace"
-          SNAP="${RUNNER_TEMP:-/tmp}/webspace-container-snapshot"
           echo "::group::container layout"
-          find "$CONTAINER" -maxdepth 4 -type d 2>/dev/null | head -60 || true
-          du -sk "$CONTAINER" 2>/dev/null || true
+          find "$CONTAINER" -maxdepth 4 -type d | head -60 || true
+          du -sk "$CONTAINER" || true
           echo "::endgroup::"
-          rm -rf "$SNAP"
-          cp -a "$CONTAINER" "$SNAP" 2>/dev/null || true
-          for sub in Data/Library/Preferences Data/Library/WebKit Data/Library/HTTPStorages Data/Library/Caches ""; do
+          for sub in Data/Library/Caches Data/Library/WebKit Data/Library/Preferences Data/Documents ""; do
             label="$(echo "${sub:-all}" | tr '/' '-')"
-            rm -rf "$CONTAINER"
             if [ -n "$sub" ]; then
-              cp -a "$SNAP" "$CONTAINER" 2>/dev/null || true
               rm -rf "$CONTAINER/$sub"
+            else
+              rm -rf "$CONTAINER"
             fi
-            echo "::group::integration_test/proxy_shape_test.dart (wiped-$label)"
+            echo "::group::integration_test/proxy_shape_test.dart (cleared-$label)"
             if [ -n "$TIMEOUT" ]; then
-              WEBSPACE_TIER_POSITION="wiped-$label" "$TIMEOUT" -k 30s 12m \
+              WEBSPACE_TIER_POSITION="cleared-$label" "$TIMEOUT" -k 30s 12m \
                 fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
                 | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_$label.log" || true
             else
-              WEBSPACE_TIER_POSITION="wiped-$label" \
+              WEBSPACE_TIER_POSITION="cleared-$label" \
                 fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
                 | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_$label.log" || true
             fi
