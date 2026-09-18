@@ -1418,26 +1418,41 @@ jobs:
             fi
             echo "::endgroup::"
           done
-          # Third and last invocation of the same arm. Run 3102 excluded the
-          # stored containers: the glob-position run deleted 35 of them at
-          # startup and still bound nothing, while the same file ahead of the
-          # tier bound all three shapes. What is left that survives between
-          # app processes is the rest of the sandbox container -- prefs,
-          # WebKit caches, HTTP storage, the default data store. Wiping it
-          # asks whether any of that is the carry-over. Remove this once the
-          # answer is in.
-          echo "::group::integration_test/proxy_shape_test.dart (wiped)"
-          rm -rf "$HOME/Library/Containers/org.codeberg.theoden8.webspace"
-          if [ -n "$TIMEOUT" ]; then
-            WEBSPACE_TIER_POSITION=wiped "$TIMEOUT" -k 30s 12m \
-              fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
-              | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_wiped.log" || true
-          else
-            WEBSPACE_TIER_POSITION=wiped \
-              fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
-              | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_wiped.log" || true
-          fi
+          # Which part of the app's sandbox container carries it. Run 3103
+          # settled that it is app-owned disk state: the same arm run LAST in
+          # the tier bound all three shapes once the container was removed,
+          # while the glob-position run bound none even after deleting all 35
+          # stored containers. Each subset trial restores the same accumulated
+          # snapshot first, so every one of them sees the state the tier
+          # actually built rather than what the previous trial left behind.
+          # The empty entry is the full-wipe control and must bind.
+          CONTAINER="$HOME/Library/Containers/org.codeberg.theoden8.webspace"
+          SNAP="${RUNNER_TEMP:-/tmp}/webspace-container-snapshot"
+          echo "::group::container layout"
+          find "$CONTAINER" -maxdepth 4 -type d 2>/dev/null | head -60 || true
+          du -sk "$CONTAINER" 2>/dev/null || true
           echo "::endgroup::"
+          rm -rf "$SNAP"
+          cp -a "$CONTAINER" "$SNAP" 2>/dev/null || true
+          for sub in Data/Library/Preferences Data/Library/WebKit Data/Library/HTTPStorages Data/Library/Caches ""; do
+            label="$(echo "${sub:-all}" | tr '/' '-')"
+            rm -rf "$CONTAINER"
+            if [ -n "$sub" ]; then
+              cp -a "$SNAP" "$CONTAINER" 2>/dev/null || true
+              rm -rf "$CONTAINER/$sub"
+            fi
+            echo "::group::integration_test/proxy_shape_test.dart (wiped-$label)"
+            if [ -n "$TIMEOUT" ]; then
+              WEBSPACE_TIER_POSITION="wiped-$label" "$TIMEOUT" -k 30s 12m \
+                fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
+                | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_$label.log" || true
+            else
+              WEBSPACE_TIER_POSITION="wiped-$label" \
+                fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
+                | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_$label.log" || true
+            fi
+            echo "::endgroup::"
+          done
           # Named, at the end, where the tail of the log is: nineteen files
           # each print thousands of lines, so which one failed was otherwise
           # only findable by paging back through the whole job.

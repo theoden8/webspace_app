@@ -2285,6 +2285,60 @@ cause, and the elimination is only as good as `deleteContainer`, which the
 sweep arithmetic corroborates but does not prove removes every byte the store
 owned.
 
+### Attempt 45 — It is app-owned disk state, and it is not position
+
+**Date:** 2026-09-18
+**Commit:** (this one). Run 35311297744 (3103) on `0935a2d`.
+
+The same arm, three times in one run:
+
+```
+position=first, swept=0  -> [raw-initial->proxied factory->proxied raw-loadurl->proxied]
+position=glob,  swept=35 -> [raw-initial->DIRECT  factory->DIRECT  raw-loadurl->DIRECT]
+position=wiped, swept=0  -> [raw-initial->proxied factory->proxied raw-loadurl->proxied]
+```
+
+`position=wiped` is the **last** app launch of the tier: roughly twenty
+launches and thirty-five minutes after the first one, with only
+`rm -rf "$HOME/Library/Containers/org.codeberg.theoden8.webspace"` between it
+and the glob run that bound nothing. It bound all three shapes.
+
+**That narrows it twice over.** Position in the tier is not the variable
+after all -- attempt 43 named it correctly as a correlate and wrongly as the
+cause. Neither is elapsed time in the job, nor the number of app processes
+already launched, nor anything about the runner warming up: the last launch
+of the run behaves like the first once the container is gone. What decides it
+is **state the app owns on disk**, and removing that state restores binding
+at any point in the tier.
+
+It is also not the stored data stores, which attempt 44 excluded by deleting
+all 35 of them with no effect. So the carrier is something else under the
+sandbox container: the preferences plist, `Library/WebKit/`,
+`Library/HTTPStorages/`, `Library/Caches/`, the default `WKWebsiteDataStore`,
+or the plugin's own container id map.
+
+This is the first mechanism in this file that would also reach a real user.
+Nothing about it needs nine test files in a row: it needs one app that has
+been used, and a proxy asked for afterwards. It fits the report the bug
+opened with -- "sometimes I have to restart the app for the Tor proxy to
+start working" -- except that a restart alone is not enough here, which is
+worth saying plainly: in the tier a fresh process with the old container
+still fails.
+
+**What this attempt did:** the tier snapshots the accumulated container, then
+runs the arm once per candidate subdirectory, each time restoring the
+snapshot and deleting only that one -- `Data/Library/Preferences`,
+`Data/Library/WebKit`, `Data/Library/HTTPStorages`, `Data/Library/Caches` --
+and finally once with the whole container removed as the control. Restoring
+the snapshot each time is the point: without it the second trial would be
+measuring what the first trial's launch rebuilt. The step also prints the
+container's directory tree and size, because the paths above are inferred
+from the macOS sandbox layout rather than read off this app.
+
+**Why it was partial:** four candidates and a control, chosen by guessing at
+the layout. If none of the four flips it, the listing printed alongside them
+says what else is in there.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
