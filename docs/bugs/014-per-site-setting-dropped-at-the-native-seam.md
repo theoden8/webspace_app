@@ -2574,6 +2574,58 @@ mostly conclusions drawn from few draws. The reading to trust is a gap that
 binds twice while zero binds neither, or the reverse; one of each says only
 that the noise is back.
 
+### Attempt 50 — The idle gap is out, and the batch-position reading with it
+
+**Date:** 2026-09-18
+**Commit:** (this one). Run 35345472065 (3109) on `fe0f719`.
+
+```
+position=first, sweep=on,  swept=0  -> proxied proxied proxied
+position=glob,  sweep=on,  swept=35 -> DIRECT DIRECT DIRECT
+gap0-a,         sweep=off, swept=-1 -> DIRECT DIRECT DIRECT
+gap45-a,        sweep=off, swept=-1 -> DIRECT DIRECT DIRECT
+gap180-a,       sweep=off, swept=-1 -> DIRECT DIRECT DIRECT
+gap0-b,         sweep=off, swept=-1 -> DIRECT DIRECT DIRECT
+gap45-b,        sweep=off, swept=-1 -> DIRECT DIRECT DIRECT
+gap180-b,       sweep=off, swept=-1 -> DIRECT DIRECT DIRECT
+```
+
+**Nought of six.** Three minutes of idle before launch binds nothing, so the
+candidate attempt 49 raised -- something the previous process holds and
+releases on a timer -- is refuted.
+
+**It also refutes attempt 49's other half.** "The batch's first launch binds
+and no later one does" held across runs 3106 and 3108; here the batch's first
+launch (`gap0-a`) went direct like the rest. The difference is that in this
+run every batch launch had the sweep **off**, and in the earlier two the
+first one had it **on**. So batch position was never the variable either.
+
+**What fits every launch in all three runs.** Every launch that bound had
+listed the stored containers and found **none** (`sweep=on, swept=0`); every
+launch that did not had either skipped the listing (`sweep=off`) or listed
+and found some (`swept>0`). That covers `position=first` in three runs,
+`rep-1` on 3106, `rep1-on` on 3108, and all eighteen negatives. One
+counterexample stands: run 3105's glob position listed 30 and bound.
+
+This is a correlation, not a mechanism, and it is confounded twice over --
+`swept=0` means both "the process enumerated the stores" and "there were none
+to find", and the sweep also deletes what it finds. Attempt 44 already showed
+that deleting 35 stores does not restore binding, which separates deleting
+from the rest; what is left to separate is enumerating from the state.
+
+**What this attempt did:** split the knob three ways. `on` lists and deletes,
+`list` lists and deletes nothing, `off` does neither. The listing is a single
+channel round trip into `WKWebsiteDataStore.fetchAllDataStoreIdentifiers`, so
+if `list` binds like `on` the enumeration is what matters -- which would be a
+concrete WebKit-level statement: asking for the data store identifiers before
+creating a store changes whether that store's proxy applies. If only `on`
+binds, the empty state does. If neither, the earlier binds were something
+else again. Three modes, two draws each, alternating.
+
+**Why it was partial:** two draws per mode, and a correlation assembled after
+the fact from runs that varied other things. The reading to trust is a mode
+that binds twice while another binds neither.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**

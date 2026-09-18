@@ -64,7 +64,16 @@ void main() {
   /// delete. The other seven each deleted three first and all seven went
   /// direct. That is either a coincidence or the sweep itself, and the sweep
   /// is code this investigation added.
-  final sweeps = Platform.environment['WEBSPACE_SHAPE_SWEEP'] != '0';
+  /// `on` lists the stored containers and deletes them, `list` lists them and
+  /// deletes nothing, `off` does neither. Three values rather than two
+  /// because across runs 3106, 3108 and 3109 every launch that bound had
+  /// listed and found none, and every launch that did not had either skipped
+  /// the listing or found some. The listing is one channel round trip into
+  /// `WKWebsiteDataStore.fetchAllDataStoreIdentifiers`, so `list` separates
+  /// enumerating the stores from removing them.
+  final sweepMode = Platform.environment['WEBSPACE_SHAPE_SWEEP'] ?? 'on';
+  final lists = sweepMode != '0' && sweepMode != 'off';
+  final deletes = lists && sweepMode != 'list';
 
   late Socks5Fixture socks;
   final origins = <HttpServer>[];
@@ -83,10 +92,12 @@ void main() {
     await PlatformInfo.initialize();
     containers = await ContainerNative.instance.isSupported();
 
-    if (sweeps) {
+    if (lists) {
       final stale = await ContainerNative.instance.listContainers();
-      for (final siteId in stale) {
-        await ContainerNative.instance.deleteContainer(siteId);
+      if (deletes) {
+        for (final siteId in stale) {
+          await ContainerNative.instance.deleteContainer(siteId);
+        }
       }
       swept = stale.length;
     }
@@ -106,7 +117,7 @@ void main() {
         await res.close();
       });
     }
-    log('position=$position, sweep=${sweeps ? "on" : "off"}, swept=$swept, '
+    log('position=$position, sweep=$sweepMode, swept=$swept, '
         'origins ${ports.join(",")} on $originHost, socks ${socks.port}, '
         'proxySupported=${PlatformInfo.isProxySupported} '
         'containers=$containers');
@@ -116,7 +127,7 @@ void main() {
     if (!applies) return;
     log('socks connects=${socks.targets}');
     log('verdict: containers=$containers, position=$position, '
-        'sweep=${sweeps ? "on" : "off"}, swept=$swept, '
+        'sweep=$sweepMode, swept=$swept, '
         'shape=[${results.join(" ")}]');
     await socks.close();
     for (final o in origins) {

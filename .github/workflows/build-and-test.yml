@@ -1488,34 +1488,32 @@ jobs:
             fi
             echo "::endgroup::"
           done
-          # How long the process has to wait before it can bind a proxy.
+          # Enumerating the stores, or removing them?
           #
-          # Run 3108 cleared the sweep: off bound nought of four, on bound one
-          # of four, so deleting stored data stores is not what stops a proxy
-          # binding. What reproduced exactly across runs 3106 and 3108 is the
-          # shape -- the first launch of the batch binds and every launch
-          # after it does not. The timestamps put roughly 20 seconds of idle
-          # between the previous app exiting and the launch that bound, and
-          # roughly 7 between the ones that did not.
+          # Run 3109 refuted the idle gap: six launches at 0, 45 and 180
+          # seconds of idle, none bound. It also broke "the first launch of
+          # the batch binds" -- with the sweep off, the batch's first launch
+          # went direct like the rest. What is left fits every launch across
+          # runs 3106, 3108 and 3109: the ones that bound had listed the
+          # stored containers and found none, and the ones that did not had
+          # either skipped the listing or found some. One counterexample
+          # stands, run 3105's glob position, which listed 30 and bound.
           #
-          # So this varies the one thing those two differ in: how long the
-          # machine sits idle before the app starts. Three gaps, two draws
-          # each, alternating so drift through the batch cannot stand in for
-          # the gap. The sweep stays off throughout, since it is not the
-          # variable.
+          # The listing is one channel round trip into
+          # WKWebsiteDataStore.fetchAllDataStoreIdentifiers, so `list` runs it
+          # and deletes nothing. Three modes, two draws each, alternating.
           for round in a b; do
-            for gap in 0 45 180; do
-              [ "$gap" -gt 0 ] && sleep "$gap"
-              echo "::group::integration_test/proxy_shape_test.dart (gap$gap-$round)"
+            for mode in on list off; do
+              echo "::group::integration_test/proxy_shape_test.dart ($mode-$round)"
               if [ -n "$TIMEOUT" ]; then
-                WEBSPACE_TIER_POSITION="gap$gap-$round" WEBSPACE_SHAPE_SWEEP=0 \
+                WEBSPACE_TIER_POSITION="$mode-$round" WEBSPACE_SHAPE_SWEEP="$mode" \
                   "$TIMEOUT" -k 30s 12m \
                   fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
-                  | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_gap$gap-$round.log" || true
+                  | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_$mode-$round.log" || true
               else
-                WEBSPACE_TIER_POSITION="gap$gap-$round" WEBSPACE_SHAPE_SWEEP=0 \
+                WEBSPACE_TIER_POSITION="$mode-$round" WEBSPACE_SHAPE_SWEEP="$mode" \
                   fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
-                  | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_gap$gap-$round.log" || true
+                  | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_$mode-$round.log" || true
               fi
               echo "::endgroup::"
             done
