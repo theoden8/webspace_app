@@ -1963,6 +1963,81 @@ is why this entry exists: attempt 38 ran the files it touched and not
 `fvm flutter test`, which is what CI runs, and the whole suite takes under
 three minutes here.
 
+### Attempt 40 — Simultaneity is not established; it drew the other way
+
+**Date:** 2026-09-18
+**Commit:** (this one). Run 35288165002 (3097) on `8394683`.
+
+Every arm executed. Step 18 passed, both builds passed, the Tor scenario
+passed, Android passed, and the macOS integration tier ran all nineteen
+files. The verdicts:
+
+```
+[proxy-binding]      pair=2 of 2 proxied, raw-first=proxied,
+                     sameturn-loadurl=proxied, later-pair=0 of 2,
+                     raw-late=DIRECT, alt-proxy=DIRECT, crossed=false
+[proxy-simultaneous] first-frame=[p0->DIRECT p1->DIRECT p2->DIRECT p3->DIRECT],
+                     later-frame=[l0->DIRECT l1->DIRECT], socks0..2 connects=[]
+[proxy-rate]         proxied=0 of 8, socks connects=[]
+[proxy-http-connect] http-connect=[h0->DIRECT h1->DIRECT h2->DIRECT],
+                     proxy0..2 connects=[], later-socks-control=DIRECT
+[proxy-connect-https] connect-https=[c0->DIRECT c1->DIRECT c2->DIRECT],
+                     proxy0..2 connects=[]
+[proxy-relay]        first-frame=[s0->DIRECT s1->DIRECT],
+                     later-frame=[s2->DIRECT s3->DIRECT], socks0..3 connects=[]
+[proxy-window]       after-warmup=0 of 2 proxied
+```
+
+**Attempt 38's headline is refuted.** `proxy_simultaneous_test.dart` read
+`first-frame=[p0->own(socks0) p1->own(socks0) p2->own(socks1) p3->own(socks2)]`
+on run 3094 and `[DIRECT DIRECT DIRECT DIRECT]` here, and
+`git diff 523798e..8394683` touches neither that file nor
+`proxy_binding_test.dart`, `socks5_fixture.dart` or `fixture_server.dart` --
+only `pubspec.yaml`, for two dev dependencies. So "per-data-store proxies do
+work simultaneously on macOS" was one draw, recorded as settled, and the next
+run drew the other way. That is the same error attempt 37 named, committed
+again two attempts later, and it is the reason this entry leads with it.
+
+**The nondeterminism is per process, not per run.** In *this* run
+`proxy_binding`'s first-frame pair proxied 2 of 2 while `proxy_simultaneous`'s
+first frame proxied 0 of 4. Each integration file is its own app process, so
+two processes in one run disagreed about the same nominal condition.
+
+**What survives both runs, stated as a tally rather than a rule:**
+
+* Proxied at least once: `pair` (two stores, **one** proxy, first frame),
+  `raw-first`, `sameturn-loadurl`, and `proxy_simultaneous`'s first frame on
+  3094 (four stores, **three** proxies).
+* Never proxied in any run: everything after the first frame
+  (`later-pair`, `later-frame`, `after-warmup`, `proxied=0 of 8`).
+* **Never proxied, ever, in any arm: an HTTP CONNECT proxy.** Three separate
+  arms across two runs -- `proxy_http_connect` (http destinations),
+  `proxy_connect_https` (https destinations) and `proxy_relay` (https
+  destinations through the relay) -- every pane DIRECT, every proxy fixture
+  `connects=[]`, first frame and later frame alike. The origins' own request
+  logs fired, so the loads went straight out; WebKit contacted no CONNECT
+  proxy at any point.
+
+**That kills two hypotheses at once.** Attempt 37 proposed the destination
+scheme as the variable, because upstream WebKit only exercises a CONNECT
+proxy with a TLS destination. The https arm exists to test it and reads
+identically to the http arm, so the scheme is not it. And attempt 36's repair
+rested on an explicitly unverified premise -- that an HTTP CONNECT
+configuration makes `nw_proxy_config_stack_requires_http_protocols` true and
+so takes `recreateSessions`, the one route that writes the proxy onto a
+session's own `NSURLSessionConfiguration`. The relay is built entirely on
+that premise. Whatever the function returns, a CONNECT configuration set
+through `proxySettings` does not reach WebKit's network stack on this path at
+all, so the premise cannot be relied on.
+
+**Why it was partial:** the goal arm finally ran and the repair does not
+work. `proxy_relay` is the cleanest refutation available -- four stores, one
+endpoint, one credential each, the shared-configuration shape that `pair`
+succeeds with -- and all four panes went direct with every upstream idle. The
+one delivery that has ever bound a proxy here is SOCKS5, which is what the
+relay deliberately does not speak. Nothing in this attempt is a fix; it is
+the reading that says which direction the fix cannot be.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
@@ -1986,7 +2061,11 @@ three minutes here.
    (BUG-014 attempt 32, measured with no app code on the webview), so the
    per-site proxy leaks on everything a user does after a site's landing page.** Narrowed in attempt 38: **simultaneity is not part of this.** Four stores
    on three distinct SOCKS5 upstreams, all built in the first frame, each
-   reached its own and none crossed. The constraint is the frame alone.
+   reached its own and none crossed. The constraint is the frame alone. **Retracted in attempt 40:** that was one draw. The same
+   file, byte-identical, read all four DIRECT on the next run, and in that
+   run a different process proxied its first-frame pair. Simultaneity is
+   not established either way, and the first frame is not a reliable
+   boundary -- only a more likely one.
    Settled along the way: it is not a race and not elapsed time (five
    consecutive navigations, all direct, the first at 0 ms), not the load
    mechanism, and not a process-wide proxy the newest store overwrites.
