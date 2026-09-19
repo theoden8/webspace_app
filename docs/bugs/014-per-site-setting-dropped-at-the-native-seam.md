@@ -3385,6 +3385,57 @@ gap, and two of them matter.
    data store creation, as this fork does. No mention of a failure, which is
    what one would expect if only the first proxied WebView is ever exercised.
 
+### Attempt 62 — Not the containers, not the enumeration: it is a leftover app process
+
+**2026-09-19**, PR #597, run 3132, `0594ec4`.
+
+**What it did.** Four launches, every one with a proxied first arm so each
+measures its own slot, separating the three candidates attempt 61 left
+confounded:
+
+| launch | sweep | started | first arm |
+|--------|-------|---------|-----------|
+| 1 `first`  | off    | 0  | **proxied** |
+| 2 `second` | nolist | -1 (never enumerated) | DIRECT |
+| 3 `purge`  | purge  | 6 -> 0 | no arms |
+| 4 `fourth` | off    | **0** | DIRECT |
+
+**Both survivors are out.** Launch 2 never called
+`fetchAllDataStoreIdentifiers` and went direct anyway, so bringing the network
+process up by enumerating is not it. Launch 4 started with *zero* containers on
+disk, the purge having wiped all six, and went direct anyway, so the stored
+containers are not it. With the sweep already gone in attempt 61, every
+container-shaped explanation this investigation has carried since attempt 44 is
+now refuted under a positive control.
+
+What is left is the one thing all three failing launches share and the binding
+one does not: **they are not the first app launch.**
+
+**The mechanism candidate, from the job's own cleanup.** GitHub's runner
+prints `Terminate orphan process: pid (71024) (Webspace)` at job end: Flutter's
+macOS test runner does not always take the app down with it. Attempt 61
+established from WebKit source that `NetworkProcessProxy` is one lazily-created
+singleton per app. If that singleton is an XPC service keyed to the app
+*bundle* rather than the app *process*, a leftover Webspace keeps it alive and
+the next launch attaches to a network process whose proxy slot the previous
+launch's first WebView already spent. That composes with the burn (attempt
+59b) into one rule rather than two, and it predicts what the next run tests.
+
+**Why it was partial.** Untested. The next run kills any leftover `Webspace`
+before one launch and not before the next, and records `pgrep -x Webspace`
+ahead of each so a reader can tell what was alive rather than infer it:
+
+|   | leftover killed first | prediction if the orphan is the cause |
+|---|---|---|
+| 1 | n/a (control) | proxied |
+| 2 | yes | proxied |
+| 3 | no  | DIRECT |
+
+If launch 2 binds, the launch effect is an artifact of the test harness rather
+than a property of the app, and the real-device bug reduces to the burn alone
+-- the first WebView in a process takes the only slot. If launch 2 goes direct,
+the leftover is innocent and what accrues per launch is still unnamed.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**

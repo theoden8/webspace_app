@@ -1433,45 +1433,56 @@ jobs:
           fi
           status=0
           failed=""
-          # BUG-014, what closes a launch's proxy slot. Run 3131 exonerated
-          # the sweep: a launch that found three stored containers and
-          # deleted none went direct exactly like one that deleted all six,
-          # while the launch that found none bound. Deleting is not it.
+          # BUG-014, what closes a launch's proxy slot. Run 3132 refuted the
+          # last two container-shaped explanations under a positive control:
+          # a launch that never enumerated the stored containers went direct,
+          # and so did one that started with none at all after a purge. Only
+          # the first launch binds.
           #
-          # Three candidates remain and each pair of them is confounded in
-          # every run so far, because a launch that finds nothing stored is
-          # also the first launch and also enumerates an empty list. Four
-          # launches, each with a proxied first arm so it measures its own
-          # slot, separate all three:
+          # The runner's own cleanup names the candidate -- it prints
+          # "Terminate orphan process: (Webspace)", so flutter test does not
+          # always take the app down. WebKit runs one lazily-created network
+          # process per app (NetworkProcessProxy::defaultNetworkProcess, a
+          # NeverDestroyed singleton); if it is keyed to the app bundle
+          # rather than the app process, a leftover Webspace keeps it alive
+          # and the next launch inherits a slot the previous launch spent.
           #
-          #   1 first   nothing stored, enumerates    (control; must bind)
-          #   2 second  stored, NEVER enumerated
-          #   3 purge   wipes, mounts nothing, no arms
-          #   4 fourth  nothing stored, enumerates, but the fourth launch
+          #   1 first   control, nothing killed   (must bind)
+          #   2 second  leftover killed first
+          #   3 third   leftover left alone
           #
-          # 2 binds  -> the enumeration brings the network process up, not
-          #             the containers on disk.
-          # 2 direct, 4 binds  -> the stored containers are it.
-          # 2 direct, 4 direct -> it is being a later app launch, and the
-          #             containers are innocent.
-          for launch in "first:off:proxied" "second:nolist:proxied" \
-                        "purge:purge:proxied" "fourth:off:proxied"; do
+          # 2 binds and 3 does not -> the launch effect is an artifact of
+          # this harness, and the real bug is the burn alone. 2 direct ->
+          # the leftover is innocent and what accrues is still unnamed.
+          # pgrep runs before every launch so the log says what was alive
+          # rather than leaving it to be inferred.
+          for launch in "first:nokill" "second:kill" "third:nokill"; do
             pos="${launch%%:*}"
-            rest="${launch#*:}"
-            sweep="${rest%%:*}"
-            arm="${rest##*:}"
-            echo "::group::integration_test/proxy_shape_test.dart ($pos, sweep=$sweep, first=$arm)"
+            kill="${launch##*:}"
+            echo "::group::integration_test/proxy_shape_test.dart ($pos, $kill)"
+            log="${RUNNER_TEMP:-/tmp}/tier-proxy_shape_$pos.log"
+            before="$(pgrep -x Webspace | wc -l | tr -d ' ')"
+            if [ "$kill" = "kill" ]; then
+              pkill -x Webspace 2>/dev/null || true
+              sleep 3
+            fi
+            after="$(pgrep -x Webspace | wc -l | tr -d ' ')"
+            # Into the per-launch log, because the verdict re-print at the
+            # end of this step reads these files and nothing else survives
+            # to the tail.
+            echo "BUG-014-leftover $pos: $kill, alive before=$before after=$after" \
+              | tee "$log"
             if [ -n "$TIMEOUT" ]; then
-              WEBSPACE_TIER_POSITION="$pos" WEBSPACE_SHAPE_SWEEP="$sweep" \
-                WEBSPACE_SHAPE_FIRSTARM="$arm" \
+              WEBSPACE_TIER_POSITION="$pos" WEBSPACE_SHAPE_SWEEP=off \
+                WEBSPACE_SHAPE_FIRSTARM=proxied \
                 "$TIMEOUT" -k 30s 12m \
                 fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
-                | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_$pos.log" || true
+                | tee -a "$log" || true
             else
-              WEBSPACE_TIER_POSITION="$pos" WEBSPACE_SHAPE_SWEEP="$sweep" \
-                WEBSPACE_SHAPE_FIRSTARM="$arm" \
+              WEBSPACE_TIER_POSITION="$pos" WEBSPACE_SHAPE_SWEEP=off \
+                WEBSPACE_SHAPE_FIRSTARM=proxied \
                 fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
-                | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_$pos.log" || true
+                | tee -a "$log" || true
             fi
             echo "::endgroup::"
           done
@@ -1538,8 +1549,8 @@ jobs:
           # reading the run and refetching half a megabyte of it. The
           # launches pass, so nothing else puts them in the tail.
           echo "=== BUG-014 launch verdicts ==="
-          for pos in first second purge fourth; do
-            grep -h "proxy-shape\] verdict" \
+          for pos in first second third; do
+            grep -h -e "^BUG-014-leftover" -e "proxy-shape\] verdict" \
               "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_$pos.log" 2>/dev/null \
               || echo "$pos: no verdict line"
           done
