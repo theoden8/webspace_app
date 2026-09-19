@@ -1452,13 +1452,25 @@ jobs:
           # applyCredential in WebKit, which DTS called a bug -- but those
           # reports are from 2023/24 and this measures current macOS.
           #
-          # The arm has to be FIRST in the FIRST launch, because only the
-          # first WebView of the first launch binds at all, and a proxy that
-          # is never reached produces no 407 to answer. It is its own
-          # control: a CONNECT recorded by the fixture means binding worked,
-          # and then the question is whether the 407 comes back as a
-          # navigation-delegate challenge or as a failed load.
-          for launch in "first:connectauth" "second:proxied"; do
+          # Route 2's credential question is answered (no
+          # Proxy-Authorization is ever sent, n=2), so the arm now asks the
+          # question WebKit's own source raises instead.
+          # NetworkSessionCocoa::setProxyConfigData has TWO mechanisms behind
+          # one API: a SOCKS5 config is patched onto a live, possibly shared
+          # nw_context with clearProxies+addProxy, while anything passing
+          # nw_proxy_config_stack_requires_http_protocols -- an HTTP CONNECT
+          # proxy -- instead goes through
+          # recreateSessionWithUpdatedProxyConfigurations, which rebuilds the
+          # NSURLSession with the configuration applied.
+          #
+          # Every failing measurement in this investigation used SOCKS5, and
+          # the one arm where two proxies coexisted had a CONNECT proxy
+          # first. So `connectpair` puts two distinct CONNECT proxies in the
+          # first launch, with a SOCKS5 third arm as the known-direct
+          # control. Both CONNECT arms reaching their own proxy would mean
+          # per-site proxies are achievable on macOS after all -- through
+          # the HTTP path rather than the SOCKS one.
+          for launch in "first:connectpair" "second:proxied"; do
             pos="${launch%%:*}"
             arm="${launch##*:}"
             echo "::group::integration_test/proxy_shape_test.dart ($pos, first=$arm)"

@@ -111,6 +111,15 @@ void main() {
   /// This is route 2's mechanism (BUG-014 attempt 58): one endpoint for every
   /// store, each site identified by its own proxy-auth credential.
   late HttpConnectFixture connect;
+  /// A second CONNECT proxy on its own port. Two distinct HTTP CONNECT
+  /// endpoints is the arrangement WebKit routes differently from SOCKS5:
+  /// `NetworkSessionCocoa::setProxyConfigData` patches a live (possibly
+  /// shared) `nw_context` for SOCKS5, but an HTTP proxy passes
+  /// `nw_proxy_config_stack_requires_http_protocols` and takes
+  /// `recreateSessionWithUpdatedProxyConfigurations` instead, which rebuilds
+  /// the NSURLSession with the configuration applied. Every failing
+  /// measurement in this file so far used SOCKS5.
+  late HttpConnectFixture connectB;
   const connectUser = 'ws';
   const connectPass = 'relay';
   final origins = <HttpServer>[];
@@ -162,8 +171,13 @@ void main() {
     socks = await Socks5Fixture.bind();
     socksB = await Socks5Fixture.bind();
     connect = await HttpConnectFixture.bind();
-    connect.requiredCredential =
-        'Basic ${base64Encode(utf8.encode('$connectUser:$connectPass'))}';
+    connectB = await HttpConnectFixture.bind();
+    // Only the credential arm wants a 407; the pair arm needs loads that
+    // finish, so it leaves both proxies open.
+    if (firstArm == 'connectauth') {
+      connect.requiredCredential =
+          'Basic ${base64Encode(utf8.encode('$connectUser:$connectPass'))}';
+    }
 
     for (var i = 0; i < shapes.length; i++) {
       final origin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
@@ -190,6 +204,7 @@ void main() {
     log('socks connects=${socks.targets}, socksB connects=${socksB.targets}');
     log('connect targets=${connect.targets}, challenges=${connect.challenges}, '
         'credentials=${connect.credentials}');
+    log('connectB targets=${connectB.targets}');
     if (trace.existsSync()) {
       for (final line in trace.readAsLinesSync()) {
         log('native: $line');
@@ -205,6 +220,7 @@ void main() {
     await socks.close();
     await socksB.close();
     await connect.close();
+    await connectB.close();
     for (final o in origins) {
       await o.close(force: true);
     }
@@ -270,11 +286,13 @@ void main() {
         bool attach = false,
         bool proxy = true,
         bool viaConnect = false,
+        HttpConnectFixture? connectVia,
         Socks5Fixture? via}) async {
       if (!hostIsMacOS) return;
       final fixture = via ?? socks;
+      final cfix = connectVia ?? connect;
       final before =
-          viaConnect ? connect.targets.length : fixture.targets.length;
+          viaConnect ? cfix.targets.length : fixture.targets.length;
       final origin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
       listenFixture(origin, (req) async {
         final res = req.response..headers.contentType = ContentType.html;
@@ -289,18 +307,19 @@ void main() {
         final reply = await const MethodChannel('webspace/proxy_probe')
             .invokeMapMethod<String, dynamic>('probe', {
           'socksHost': '127.0.0.1',
-          'socksPort': viaConnect ? connect.port : fixture.port,
+          'socksPort': viaConnect ? cfix.port : fixture.port,
           'kind': viaConnect ? 'connect' : 'socks5',
-          if (viaConnect) 'username': connectUser,
-          if (viaConnect) 'password': connectPass,
+          if (viaConnect && cfix.requiredCredential != null)
+            'username': connectUser,
+          if (viaConnect && cfix.requiredCredential != null)
+            'password': connectPass,
           'url': 'http://$originHost:${origin.port}/',
           'identified': identified,
           'identifier': '8f1d5c4e-0000-4000-8000-0000000000${identified ? 11 : 12}',
           'attach': attach,
           'proxy': proxy,
         }).timeout(const Duration(seconds: 30));
-        final now =
-            viaConnect ? connect.targets.length : fixture.targets.length;
+        final now = viaConnect ? cfix.targets.length : fixture.targets.length;
         final outcome = now > before ? 'proxied' : 'DIRECT';
         results.add('$label->$outcome');
         log('$label -> $outcome (ok=${reply?['ok']} '
@@ -311,8 +330,7 @@ void main() {
       } catch (e) {
         // Still worth a reading: the SOCKS fixture records a CONNECT when it
         // happens, whatever the reply did.
-        final now =
-            viaConnect ? connect.targets.length : fixture.targets.length;
+        final now = viaConnect ? cfix.targets.length : fixture.targets.length;
         final outcome = now > before ? 'proxied' : 'DIRECT';
         results.add('$label->$outcome');
         log('$label -> $outcome, probe did not report: $e');
@@ -321,9 +339,19 @@ void main() {
       }
     }
 
+    final connectFirst =
+        firstArm == 'connectauth' || firstArm == 'connectpair';
     await tester.runAsync(() => probe('first-$firstArm',
-        proxy: firstArm != 'noproxy', viaConnect: firstArm == 'connectauth'));
-    await tester.runAsync(() => probe('second-proxy-A'));
+        proxy: firstArm != 'noproxy', viaConnect: connectFirst));
+    // `connectpair` is the question WebKit's own source raises: two distinct
+    // HTTP CONNECT proxies, which take the session-recreate path, where two
+    // distinct SOCKS5 proxies (live-context patch) have never both bound.
+    if (firstArm == 'connectpair') {
+      await tester.runAsync(() =>
+          probe('second-connectB', viaConnect: true, connectVia: connectB));
+    } else {
+      await tester.runAsync(() => probe('second-proxy-A'));
+    }
     await tester.runAsync(() => probe('third-proxy-B', via: socksB));
 
     await tester.pumpWidget(MaterialApp(

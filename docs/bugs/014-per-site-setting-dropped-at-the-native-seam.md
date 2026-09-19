@@ -3764,6 +3764,56 @@ holds on current macOS.
 failing job (Apple), so the Linux tier completed inside 55 minutes with
 `proxy_simultaneous` in it.
 
+### Attempt 69 — WebKit's source names a second mechanism, and every failure so far used the other one
+
+**2026-09-19**, PR #597, `b8ef651`.
+
+**What the source says.** `NetworkSessionCocoa::setProxyConfigData`
+(`Source/WebKit/NetworkProcess/cocoa/NetworkSessionCocoa.mm:2080`) has two
+entirely different mechanisms behind one API:
+
+```cpp
+// If any of the proxies pass the `nw_proxy_config_stack_requires_http_protocols` check,
+// then we cannot set the proxy on the live nw_context_t and instead must destroy and
+// recreate the NSURLSession
+if (requiresHTTPProtocols(nwProxyConfig.get()))
+    recreateSessions = true;
+```
+
+- **SOCKS5** fails that check, so it takes the fragile path: collect the
+  `_networkContext` of every already-created `NSURLSession`, then
+  `clearProxies(context)` followed by `addProxy(context, ...)` on each.
+- **HTTP CONNECT** passes it, so it takes
+  `recreateSessionWithUpdatedProxyConfigurations`, which invalidates the
+  session and rebuilds it with `configuration.proxyConfigurations` set.
+
+**Why that matters here.** Every arm this investigation has ever failed used
+SOCKS5, and the single arm where two proxies coexisted in one process
+(attempts 67-68, n=2) had a **CONNECT** proxy first. That is consistent with
+the two paths behaving differently rather than with a single per-process
+slot.
+
+Also checked and refuted before it could become a theory: sessions created
+*after* the proxy is set are not orphaned. `SessionWrapper::initialize` calls
+`applyProxyConfigurationToSessionConfiguration` (line 1129), so a lazily
+created session does receive the stored configs. The live-context patch is
+not the only delivery.
+
+**The arm.** `firstArm=connectpair` puts two distinct HTTP CONNECT proxies,
+on separate loopback ports and with no credentials so both loads finish, as
+the first two WebViews of the first launch, with a SOCKS5 third arm as the
+known-direct control.
+
+If both CONNECT arms reach their own proxy, **per-site proxies are achievable
+on macOS** through the HTTP path, and the product answer follows directly: a
+local relay listening on one port per site, each site's store pointed at its
+own port. Attribution is by port, so no proxy credential is involved and bug
+264309 never arises -- the defect that closed route 2 as originally designed.
+
+**Why it was partial.** Not yet run. And if it works, SOCKS5 sites (Tor's
+native protocol) would still need the relay to speak SOCKS upstream while
+presenting CONNECT to WebKit, which `LocalProxyRelay` already does.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
