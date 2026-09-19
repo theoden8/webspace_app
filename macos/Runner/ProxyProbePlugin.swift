@@ -23,6 +23,13 @@ import WebKit
 /// A split between them is the answer; agreement moves the question to
 /// `_WKWebsiteDataStoreConfiguration`'s CFNetwork path, which is the
 /// follow-up and needs SPI.
+///
+/// `proxy` exists because attempt 58 showed only the first WebView in a
+/// process is proxied, and could not say what "first" keys on: the first
+/// WebView, the first load, or the first store handed a proxy. An arm that
+/// builds and loads a WebView with no proxy at all separates them in one
+/// run -- if a later proxied arm still binds, an unproxied first load is
+/// harmless and the slot belongs to the first *assignment*.
 class ProxyProbePlugin: NSObject {
   static let channelName = "webspace/proxy_probe"
 
@@ -58,6 +65,7 @@ class ProxyProbePlugin: NSObject {
     }
     let identified = (args["identified"] as? Bool) ?? false
     let identifier = (args["identifier"] as? String).flatMap { UUID(uuidString: $0) }
+    let wantsProxy = (args["proxy"] as? Bool) ?? true
     // The app's WebViews live in the window; this one never did. That is one
     // of the few structural differences left between the shape that proxies
     // and the shape that does not, so it is a knob rather than an assumption.
@@ -67,9 +75,13 @@ class ProxyProbePlugin: NSObject {
       result(["ok": false, "detail": "below the proxyConfigurations floor"])
       return
     }
-    guard let endpoint = socksEndpoint(host: socksHost, port: socksPort) else {
-      result(["ok": false, "detail": "bad socks endpoint"])
-      return
+    var endpoint: NWEndpoint?
+    if wantsProxy {
+      guard let resolved = socksEndpoint(host: socksHost, port: socksPort) else {
+        result(["ok": false, "detail": "bad socks endpoint"])
+        return
+      }
+      endpoint = resolved
     }
 
     let store: WKWebsiteDataStore
@@ -78,7 +90,9 @@ class ProxyProbePlugin: NSObject {
     } else {
       store = WKWebsiteDataStore.nonPersistent()
     }
-    store.proxyConfigurations = [ProxyConfiguration(socksv5Proxy: endpoint)]
+    if let endpoint = endpoint {
+      store.proxyConfigurations = [ProxyConfiguration(socksv5Proxy: endpoint)]
+    }
 
     let configuration = WKWebViewConfiguration()
     configuration.websiteDataStore = store
@@ -97,6 +111,7 @@ class ProxyProbePlugin: NSObject {
         "ok": true,
         "identified": identified,
         "attached": attach,
+        "proxy": wantsProxy,
         "configured": store.proxyConfigurations.count,
         "detail": detail,
       ])

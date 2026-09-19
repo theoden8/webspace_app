@@ -1,31 +1,30 @@
-// Which shape binds a proxy, measured against the one that reliably does.
+// What "only the first WebView in the process is proxied" keys on (BUG-014).
 //
-// Run 3098 gave every arm a positive control -- a SOCKS pane in the same
-// process's own first frame -- and all three controls read DIRECT, which
-// voids those arms' results. In the same run `proxy_binding` read
-// `pair=2 of 2 proxied`, `raw-first=proxied`, `sameturn-loadurl=proxied`.
-// Run 3097 was the same both ways. So the variable is not the frame, not the
-// destination scheme and not the number of distinct proxies: it is something
-// that differs between `proxy_binding`'s process and every other arm's, and
-// it reproduces.
+// This file started as a three-shape comparison and that question is closed:
+// run 3125 put one bare WKWebView ahead of the frame and it bound while the
+// three app-built shapes behind it went direct, the same three that bound in
+// runs 3123/3124 when nothing ran ahead of them. Construction is not the
+// variable. Order is.
 //
-// Three differences are enumerable from the files, and this arm puts all
-// three in one first frame so one run separates them:
+// What order means is still three claims stuck together, because that arm was
+// the first WebView, the first load and the first store handed a proxy at
+// once. The arms ahead of the frame now take them apart: an unproxied first
+// WebView, then a proxied one, then a proxied one through a second SOCKS
+// endpoint -- the first time two distinct endpoints are asked for in one
+// process, which is what a Tor site and a plain proxy site are.
+//
+// The three original shapes stay, now as a control on the other side of the
+// slot: whatever the arms ahead of them do, they must still load.
 //
 //  A  a raw plugin webview with its proxy on `initialSettings` and its load
-//     on `initialUrlRequest` -- proxy_rate's control, which read DIRECT.
-//  B  the same site through `WebViewFactory.createWebView`, which is what
-//     `proxy_binding`'s pair panes use and what the app itself uses.
+//     on `initialUrlRequest`.
+//  B  the same site through `WebViewFactory.createWebView`, which is what the
+//     app itself uses.
 //  C  a raw webview with no initial request, loaded by `loadUrl` from
-//     `onWebViewCreated` -- proxy_binding's `sameturn` pane, which proxied.
+//     `onWebViewCreated`.
 //
-// The fourth difference, setUpAll ordering, is removed rather than measured:
-// this file awaits `PlatformInfo.initialize()` before asking about
-// containers, the order `proxy_binding` uses and the other arms do not.
-//
-// One shared SOCKS5 endpoint for all three, so nothing here depends on
-// whether distinct proxy configurations can coexist. Separate origins, so a
-// recorded CONNECT is attributable to one pane.
+// Separate origins throughout, so a recorded CONNECT is attributable to one
+// arm.
 
 import 'dart:io';
 
@@ -83,6 +82,11 @@ void main() {
   final purges = sweepMode == 'purge';
 
   late Socks5Fixture socks;
+  /// A second, distinct SOCKS5 endpoint. Attempt 59 needs one because
+  /// every arm after the first in run 3125 shared *one* endpoint and went
+  /// direct, so "one proxy per process" and "one endpoint per process"
+  /// are still the same reading.
+  late Socks5Fixture socksB;
   final origins = <HttpServer>[];
   final ports = <int>[];
   final requests = <String>[];
@@ -128,6 +132,7 @@ void main() {
     routable = await nonLoopbackIPv4();
     originHost = routable?.address ?? '127.0.0.1';
     socks = await Socks5Fixture.bind();
+    socksB = await Socks5Fixture.bind();
 
     for (var i = 0; i < shapes.length; i++) {
       final origin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
@@ -142,14 +147,15 @@ void main() {
     }
     log('position=$position, sweep=$sweepMode, started=$started, '
         'swept=$swept, left=$left, '
-        'origins ${ports.join(",")} on $originHost, socks ${socks.port}, '
+        'origins ${ports.join(",")} on $originHost, '
+        'socks ${socks.port}/${socksB.port}, '
         'proxySupported=${PlatformInfo.isProxySupported} '
         'containers=$containers');
   });
 
   tearDownAll(() async {
     if (!applies) return;
-    log('socks connects=${socks.targets}');
+    log('socks connects=${socks.targets}, socksB connects=${socksB.targets}');
     if (trace.existsSync()) {
       for (final line in trace.readAsLinesSync()) {
         log('native: $line');
@@ -162,6 +168,7 @@ void main() {
         'sweep=$sweepMode, started=$started, swept=$swept, left=$left, '
         'shape=[${results.join(" ")}]');
     await socks.close();
+    await socksB.close();
     for (final o in origins) {
       await o.close(force: true);
     }
@@ -194,23 +201,38 @@ void main() {
       return;
     }
 
-    // Attempt 56 put one bare WKWebView beside the three app-built ones and
-    // it split: the app's proxied, the bare one did not, in one process.
-    // Attempt 57 then showed the store shape and the view hierarchy are both
-    // innocent. What that left unseparated is this file's own doing: the
-    // bare arms ran *after* the three app WebViews had already loaded, so
-    // they differed in when they ran as well as in how they were built, and
-    // "the first one binds" has shadowed this bug since attempt 43.
+    // Attempt 58 settled that only the first WebView in a WebKit process is
+    // proxied: `bare-first` bound and the three app shapes behind it went
+    // direct, the same three that bound in runs 3123/3124 when nothing ran
+    // ahead of them. What it could not say is what "first" keys on, because
+    // that arm was the first WebView, the first load and the first store
+    // handed a proxy all at once.
     //
-    // So one arm now runs before the frame is mounted, making it the first
-    // WebView in the process. If `bare-first` proxies and the later bare
-    // arms do not, the variable is order, not construction, and every
-    // construction reading above is void. If it goes direct while the app's
-    // three proxy, construction survives as the answer.
+    // Three arms ahead of the frame separate them, and the split is the
+    // product answer as much as the mechanism:
+    //
+    //  first-noproxy  a WebView on a store with no proxy at all, built and
+    //                 loaded before anything else. It takes the "first
+    //                 WebView" and "first load" slots without taking the
+    //                 "first proxy assignment" one.
+    //  second-proxy-A the next WebView, proxied through endpoint A. If it
+    //                 binds, an unproxied first load is harmless and the
+    //                 slot belongs to the first assignment. If it goes
+    //                 direct, the first WebView in the process burns the
+    //                 slot whatever it carries -- which is what a user sees
+    //                 as "sometimes I have to restart the app for Tor".
+    //  third-proxy-B  a third WebView through a *different* endpoint. Every
+    //                 arm that went direct so far shared one endpoint with
+    //                 the arm that bound, so "one proxy per process" and
+    //                 "one endpoint per process" have never been apart.
     Future<void> probe(String label,
-        {bool identified = false, bool attach = false}) async {
+        {bool identified = false,
+        bool attach = false,
+        bool proxy = true,
+        Socks5Fixture? via}) async {
       if (!hostIsMacOS) return;
-      final before = socks.targets.length;
+      final fixture = via ?? socks;
+      final before = fixture.targets.length;
       final origin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
       listenFixture(origin, (req) async {
         final res = req.response..headers.contentType = ContentType.html;
@@ -225,20 +247,21 @@ void main() {
         final reply = await const MethodChannel('webspace/proxy_probe')
             .invokeMapMethod<String, dynamic>('probe', {
           'socksHost': '127.0.0.1',
-          'socksPort': socks.port,
+          'socksPort': fixture.port,
           'url': 'http://$originHost:${origin.port}/',
           'identified': identified,
           'identifier': '8f1d5c4e-0000-4000-8000-0000000000${identified ? 11 : 12}',
           'attach': attach,
+          'proxy': proxy,
         }).timeout(const Duration(seconds: 30));
-        final outcome = socks.targets.length > before ? 'proxied' : 'DIRECT';
+        final outcome = fixture.targets.length > before ? 'proxied' : 'DIRECT';
         results.add('$label->$outcome');
         log('$label -> $outcome (ok=${reply?['ok']} '
             'configured=${reply?['configured']} detail=${reply?['detail']})');
       } catch (e) {
         // Still worth a reading: the SOCKS fixture records a CONNECT when it
         // happens, whatever the reply did.
-        final outcome = socks.targets.length > before ? 'proxied' : 'DIRECT';
+        final outcome = fixture.targets.length > before ? 'proxied' : 'DIRECT';
         results.add('$label->$outcome');
         log('$label -> $outcome, probe did not report: $e');
       } finally {
@@ -246,7 +269,9 @@ void main() {
       }
     }
 
-    await tester.runAsync(() => probe('bare-first'));
+    await tester.runAsync(() => probe('first-noproxy', proxy: false));
+    await tester.runAsync(() => probe('second-proxy-A'));
+    await tester.runAsync(() => probe('third-proxy-B', via: socksB));
 
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(
@@ -334,31 +359,33 @@ void main() {
       log('${shapes[i]} -> $outcome');
     }
 
-    // The same question asked of a WKWebView that carries none of the app:
-    // no plugin, no container, no settings parser, not even a view hierarchy.
-    // Same process, same frame, same SOCKS endpoint as the three above, so a
-    // split cannot be a difference in tier position, container state or
-    // machine -- the three things that have voided every earlier reading.
-    //
-    // Run 3121 had this bare shape go DIRECT twice while proxy_shape's own
-    // webviews proxied in both tier positions, but those were separate
-    // processes. This makes it one.
+    // Tail controls. Run 3125 had all three read DIRECT behind an arm that
+    // bound, which is how attempt 58 was established; they stay so that a run
+    // where the slot reopens -- after a frame, after a store is torn down,
+    // after anything -- shows up here rather than being assumed away.
     await probe('bare');
     await probe('bare-ident', identified: true);
     await probe('bare-window', attach: true);
 
-    final proxied = results
-        .where((r) => r.startsWith(RegExp('raw-|factory')))
-        .where((r) => r.endsWith('proxied'))
-        .length;
+    // What this file can still assert is the tier, not the bug. Attempt 58
+    // showed the three app shapes bind or not according to whether something
+    // ran ahead of them, so "every shape binds" is a claim about arm order,
+    // not about the code under test, and a probe now always runs first. The
+    // finding lives in the verdict line; what must not regress is that every
+    // arm reached a terminal outcome -- a `no-load` or a missing probe means
+    // the fixture, the origin server or the channel broke, and then the whole
+    // reading is noise rather than a result.
+    final loaded = results.where((r) => !r.endsWith('no-load')).length;
     expect(
-      proxied,
-      shapes.length,
-      reason: 'every shape in one first frame on one endpoint must bind. Got '
-          '[${results.join(" ")}]. A split here names the variable: only '
-          'factory means the app path is what binds, only raw-loadurl means '
-          'the load must be issued after creation, none means the difference '
-          'is elsewhere in proxy_binding process',
+      loaded,
+      results.length,
+      reason: 'an arm never reached a terminal outcome, so this run measures '
+          'nothing. Got [${results.join(" ")}]',
+    );
+    expect(
+      results.length,
+      shapes.length + (hostIsMacOS ? 6 : 0),
+      reason: 'an arm did not report at all. Got [${results.join(" ")}]',
     );
   });
 }
