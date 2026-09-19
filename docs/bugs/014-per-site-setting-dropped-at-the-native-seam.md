@@ -3577,6 +3577,16 @@ proxies do not bind (the burn), and one shared endpoint cannot attribute a
 connection to a site without proxy auth. The remaining move is then the WebKit
 report, whose repro does not depend on any of the launch-effect machinery.
 
+#### Route 1 drafted
+
+[014-webkit-report.md](014-webkit-report.md) now holds the WebKit report in
+draft: title, environment, a ~20-line repro with no app, expected/actual, the
+six things ruled out under positive control, and the two Apple defects that
+close the credential workaround. **Not filed** -- that is the user's call, and
+two placeholders (OS and WebKit version) need filling in from the machine that
+reproduces it. Drafting it now costs nothing and does not depend on how the
+route-2 arm reads: the burn is a WebKit defect either way.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
