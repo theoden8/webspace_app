@@ -26,6 +26,7 @@
 // Separate origins throughout, so a recorded CONNECT is attributable to one
 // arm.
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -38,6 +39,7 @@ import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'fixture_server.dart';
+import 'http_connect_fixture.dart';
 import 'socks5_fixture.dart';
 
 void main() {
@@ -104,6 +106,13 @@ void main() {
   /// direct, so "one proxy per process" and "one endpoint per process"
   /// are still the same reading.
   late Socks5Fixture socksB;
+
+  /// An HTTP CONNECT proxy that answers 407 until it is given a credential.
+  /// This is route 2's mechanism (BUG-014 attempt 58): one endpoint for every
+  /// store, each site identified by its own proxy-auth credential.
+  late HttpConnectFixture connect;
+  const connectUser = 'ws';
+  const connectPass = 'relay';
   final origins = <HttpServer>[];
   final ports = <int>[];
   final requests = <String>[];
@@ -152,6 +161,9 @@ void main() {
     originHost = routable?.address ?? '127.0.0.1';
     socks = await Socks5Fixture.bind();
     socksB = await Socks5Fixture.bind();
+    connect = await HttpConnectFixture.bind();
+    connect.requiredCredential =
+        'Basic ${base64Encode(utf8.encode('$connectUser:$connectPass'))}';
 
     for (var i = 0; i < shapes.length; i++) {
       final origin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
@@ -176,6 +188,8 @@ void main() {
   tearDownAll(() async {
     if (!applies) return;
     log('socks connects=${socks.targets}, socksB connects=${socksB.targets}');
+    log('connect targets=${connect.targets}, challenges=${connect.challenges}, '
+        'credentials=${connect.credentials}');
     if (trace.existsSync()) {
       for (final line in trace.readAsLinesSync()) {
         log('native: $line');
@@ -190,6 +204,7 @@ void main() {
         'shape=[${results.join(" ")}]');
     await socks.close();
     await socksB.close();
+    await connect.close();
     for (final o in origins) {
       await o.close(force: true);
     }
@@ -254,10 +269,12 @@ void main() {
         {bool identified = false,
         bool attach = false,
         bool proxy = true,
+        bool viaConnect = false,
         Socks5Fixture? via}) async {
       if (!hostIsMacOS) return;
       final fixture = via ?? socks;
-      final before = fixture.targets.length;
+      final before =
+          viaConnect ? connect.targets.length : fixture.targets.length;
       final origin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
       listenFixture(origin, (req) async {
         final res = req.response..headers.contentType = ContentType.html;
@@ -272,21 +289,31 @@ void main() {
         final reply = await const MethodChannel('webspace/proxy_probe')
             .invokeMapMethod<String, dynamic>('probe', {
           'socksHost': '127.0.0.1',
-          'socksPort': fixture.port,
+          'socksPort': viaConnect ? connect.port : fixture.port,
+          'kind': viaConnect ? 'connect' : 'socks5',
+          if (viaConnect) 'username': connectUser,
+          if (viaConnect) 'password': connectPass,
           'url': 'http://$originHost:${origin.port}/',
           'identified': identified,
           'identifier': '8f1d5c4e-0000-4000-8000-0000000000${identified ? 11 : 12}',
           'attach': attach,
           'proxy': proxy,
         }).timeout(const Duration(seconds: 30));
-        final outcome = fixture.targets.length > before ? 'proxied' : 'DIRECT';
+        final now =
+            viaConnect ? connect.targets.length : fixture.targets.length;
+        final outcome = now > before ? 'proxied' : 'DIRECT';
         results.add('$label->$outcome');
         log('$label -> $outcome (ok=${reply?['ok']} '
-            'configured=${reply?['configured']} detail=${reply?['detail']})');
+            'configured=${reply?['configured']} detail=${reply?['detail']} '
+            'challenges=${reply?['challenges']} '
+            'proxyChallenges=${reply?['proxyChallenges']} '
+            'methods=${reply?['challengeMethods']})');
       } catch (e) {
         // Still worth a reading: the SOCKS fixture records a CONNECT when it
         // happens, whatever the reply did.
-        final outcome = fixture.targets.length > before ? 'proxied' : 'DIRECT';
+        final now =
+            viaConnect ? connect.targets.length : fixture.targets.length;
+        final outcome = now > before ? 'proxied' : 'DIRECT';
         results.add('$label->$outcome');
         log('$label -> $outcome, probe did not report: $e');
       } finally {
@@ -294,8 +321,8 @@ void main() {
       }
     }
 
-    await tester.runAsync(
-        () => probe('first-$firstArm', proxy: firstArm != 'noproxy'));
+    await tester.runAsync(() => probe('first-$firstArm',
+        proxy: firstArm != 'noproxy', viaConnect: firstArm == 'connectauth'));
     await tester.runAsync(() => probe('second-proxy-A'));
     await tester.runAsync(() => probe('third-proxy-B', via: socksB));
 

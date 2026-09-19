@@ -38,6 +38,20 @@ class HttpConnectFixture {
   /// `host:port` of every CONNECT this proxy was asked for, in order.
   final targets = <String>[];
 
+  /// When set, a CONNECT without a matching `Proxy-Authorization` is answered
+  /// `407` with a `Proxy-Authenticate: Basic` challenge instead of being
+  /// tunnelled (BUG-014 route 2). WebKit bug 264309 says the header is never
+  /// sent for a proxy configured through `proxyConfigurations`, not even
+  /// after a 407; it does not say whether the 407 reaches the navigation
+  /// delegate as an auth challenge, and those have opposite consequences for
+  /// the relay design. This is the half of that question the fixture can
+  /// answer.
+  String? requiredCredential;
+
+  /// How many `407`s this proxy sent, and every credential it was given.
+  var challenges = 0;
+  final credentials = <String>[];
+
   int get port => _server.port;
 
   static Future<HttpConnectFixture> bind() async {
@@ -84,6 +98,21 @@ class HttpConnectFixture {
       }
       targets.add('${parsed.host}:${parsed.port}');
 
+      final required = requiredCredential;
+      if (required != null) {
+        final offered = _proxyAuthorization(request.head);
+        if (offered != null) credentials.add(offered);
+        if (offered != required) {
+          challenges++;
+          client.add(('HTTP/1.1 407 Proxy Authentication Required\r\n'
+                  'Proxy-Authenticate: Basic realm="webspace-relay"\r\n'
+                  'Content-Length: 0\r\n'
+                  'Proxy-Connection: keep-alive\r\n\r\n')
+              .codeUnits);
+          return;
+        }
+      }
+
       upstream = await Socket.connect(
         parsed.host,
         parsed.port,
@@ -109,6 +138,19 @@ class HttpConnectFixture {
       client.destroy();
       upstream?.destroy();
     }
+  }
+
+  /// The `Proxy-Authorization` value a request head carries, if any.
+  static String? _proxyAuthorization(String head) {
+    for (final line in head.split('\r\n').skip(1)) {
+      final colon = line.indexOf(':');
+      if (colon <= 0) continue;
+      if (line.substring(0, colon).toLowerCase() != 'proxy-authorization') {
+        continue;
+      }
+      return line.substring(colon + 1).trim();
+    }
+    return null;
   }
 
   /// Either `CONNECT host:port HTTP/1.1` (tunnel) or an absolute-URI

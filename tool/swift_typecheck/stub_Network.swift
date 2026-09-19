@@ -30,7 +30,13 @@ public enum NWEndpoint {
   case hostPort(host: Host, port: Port)
 }
 
+// Mirrors the real Network framework surface, which is why `applyCredential`
+// is non-mutating: Apple's own sample calls it on a `let` binding
+// (developer.apple.com/forums/thread/734679). That method is reported broken
+// in WebKit by DTS (FB13350370, r.113346270); the stub exists to type-check
+// the call, not to promise it works.
 public struct ProxyConfiguration {
   public init(socksv5Proxy: NWEndpoint) {}
   public init(httpCONNECTProxy: NWEndpoint, tlsOptions: Int?) {}
+  public func applyCredential(username: String, password: String) {}
 }

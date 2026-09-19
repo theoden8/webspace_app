@@ -1433,55 +1433,41 @@ jobs:
           fi
           status=0
           failed=""
-          # BUG-014, what closes a launch's proxy slot. Run 3134 refuted the
-          # leftover app process, and the counts prove the arm worked: the
-          # kill took Webspace from 1 to 0 and that launch still went direct,
-          # while the launch with none alive went direct too and the one
-          # that bound had one alive the whole time. Orthogonal both ways.
+          # BUG-014 route 2. Run 3136 closed the launch-effect bisection:
+          # net=0->0 on every launch, so no WebKit networking process ever
+          # existed between launches to carry a spent slot, exactly as
+          # AuxiliaryProcess::didClose says. Five mechanisms are refuted
+          # under control now and there is no sixth candidate, so the
+          # machine-state bisection stops here.
           #
-          # It also showed the wrong process was being killed. WebKit runs
-          # its networking in a separate XPC process, and
-          # NetworkProcessProxy::defaultNetworkProcess is the singleton that
-          # hands a data store its proxy. If that process outlives the app
-          # that started it, the next launch inherits a slot the previous
-          # launch spent -- and nothing measured so far has looked at it.
+          # What is answerable is whether the relay route exists at all.
+          # Apple's own tracker says probably not -- bug 264309 for the
+          # missing Proxy-Authorization and FB13350370 / r.113346270 for
+          # applyCredential in WebKit, which DTS called a bug -- but those
+          # reports are from 2023/24 and this measures current macOS.
           #
-          #   1 first   control, nothing killed   (must bind)
-          #   2 second  WebKit networking process killed first
-          #   3 third   left alone
-          #
-          # 2 binds and 3 does not -> the network process is the carrier,
-          # which names the mechanism and suggests an in-app recovery.
-          # 2 direct -> it is innocent too, and what accrues per launch is
-          # still unnamed; do not guess another candidate without an arm.
-          for launch in "first:nokill" "second:netkill" "third:nokill"; do
+          # The arm has to be FIRST in the FIRST launch, because only the
+          # first WebView of the first launch binds at all, and a proxy that
+          # is never reached produces no 407 to answer. It is its own
+          # control: a CONNECT recorded by the fixture means binding worked,
+          # and then the question is whether the 407 comes back as a
+          # navigation-delegate challenge or as a failed load.
+          for launch in "first:connectauth" "second:proxied"; do
             pos="${launch%%:*}"
-            kill="${launch##*:}"
-            echo "::group::integration_test/proxy_shape_test.dart ($pos, $kill)"
+            arm="${launch##*:}"
+            echo "::group::integration_test/proxy_shape_test.dart ($pos, first=$arm)"
             log="${RUNNER_TEMP:-/tmp}/tier-proxy_shape_$pos.log"
-            appb="$(pgrep -x Webspace | wc -l | tr -d ' ')"
-            netb="$(pgrep -f 'WebKit.Networking' | wc -l | tr -d ' ')"
-            if [ "$kill" = "netkill" ]; then
-              pkill -f 'WebKit.Networking' 2>/dev/null || true
-              sleep 3
-            fi
-            appa="$(pgrep -x Webspace | wc -l | tr -d ' ')"
-            neta="$(pgrep -f 'WebKit.Networking' | wc -l | tr -d ' ')"
-            # Into the per-launch log: the verdict re-print at the end of
-            # this step reads these files and nothing else reaches the tail.
-            echo "BUG-014-procs $pos: $kill, app=$appb->$appa net=$netb->$neta" \
-              | tee "$log"
             if [ -n "$TIMEOUT" ]; then
               WEBSPACE_TIER_POSITION="$pos" WEBSPACE_SHAPE_SWEEP=off \
-                WEBSPACE_SHAPE_FIRSTARM=proxied \
+                WEBSPACE_SHAPE_FIRSTARM="$arm" \
                 "$TIMEOUT" -k 30s 12m \
                 fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
-                | tee -a "$log" || true
+                | tee "$log" || true
             else
               WEBSPACE_TIER_POSITION="$pos" WEBSPACE_SHAPE_SWEEP=off \
-                WEBSPACE_SHAPE_FIRSTARM=proxied \
+                WEBSPACE_SHAPE_FIRSTARM="$arm" \
                 fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
-                | tee -a "$log" || true
+                | tee "$log" || true
             fi
             echo "::endgroup::"
           done
@@ -1548,8 +1534,9 @@ jobs:
           # reading the run and refetching half a megabyte of it. The
           # launches pass, so nothing else puts them in the tail.
           echo "=== BUG-014 launch verdicts ==="
-          for pos in first second third; do
-            grep -h -e "^BUG-014-procs" -e "proxy-shape\] verdict" \
+          for pos in first second; do
+            grep -h -e "proxy-shape\] connect targets" \
+              -e "first-connectauth" -e "proxy-shape\] verdict" \
               "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_$pos.log" 2>/dev/null \
               || echo "$pos: no verdict line"
           done

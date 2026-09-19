@@ -3512,6 +3512,71 @@ process; attempt 62 then reached for the app process because that is what the
 runner's cleanup line happened to mention. The log line suggested the
 experiment instead of the source doing it.
 
+### Attempt 64 — The network process is innocent too, and route 2 has Apple's own verdict
+
+**2026-09-19**, PR #597, run 3136, `9ca5680`.
+
+**The prediction held.** Before the run reported, WebKit source said this arm
+would come back empty: `NetworkProcess::shouldTerminate()` returns false only
+"as long as UI process connection is alive", and
+`AuxiliaryProcess::didClose` calls `terminateProcess(EXIT_SUCCESS)` on Cocoa,
+so the networking process dies with its app and cannot carry anything into the
+next launch. The counts say exactly that:
+
+```
+second: netkill, app=1->1 net=0->0  -> first-proxied -> DIRECT
+third:  nokill,  app=1->1 net=0->0  -> first-proxied -> DIRECT
+```
+
+`net=0->0` throughout: there was never a `com.apple.WebKit.Networking` alive
+between launches to kill. The kill was a no-op, and that is the answer rather
+than a failed arm -- the process does not exist in the gap, so it cannot be
+the carrier.
+
+**The machine-state bisection stops here.** Five named mechanisms are now
+refuted under a positive control: stored containers (61, 62), the
+enumeration (62), the sweep (61), the leftover app process (63), and the
+networking process (64). There is no sixth candidate, and inventing one would
+be guessing at ~70 minutes a guess. What remains true and is not in doubt is
+the finding that reaches a user's device: **inside a process that binds at
+all, the first WebView takes the only proxy slot and every later one loads
+direct.**
+
+**Route 2, answered by Apple rather than by a run.** Searching the trackers
+for `applyCredential` (which attempt 61 should have done at the same time as
+bug 264309) turns up Apple DTS on WebKit proxy authentication:
+
+> "I looked into this as part of a recent DTS incident. My conclusion was that
+> this was a bug. We've made some progress on fixing it in the latest betas
+> (r. 113346270) but AFAIK things aren't yet working as expected
+> (FB13350370)."
+> -- Quinn "The Eskimo!", Apple Developer Technical Support
+
+and a reporter on the same thread describing the failure mode:
+
+> "I get the error: The operation couldn't be completed. Authentication error
+> in the **didFailProvisionalNavigation** WKNavigationDelegate function."
+
+So the 407 does not arrive as a delegate challenge to be answered; the
+navigation fails. That is two separately tracked Apple defects on route 2's
+exact mechanism -- 264309 for the missing `Proxy-Authorization` header and
+FB13350370 / r.113346270 for `applyCredential` in WebKit.
+
+Those reports are from 2023/24, so this run measures current macOS rather than
+taking them as settled. The arm is `first-connectauth`, and it must be the
+first probe of the first launch: only that WebView binds, and a proxy that is
+never reached produces no 407 to answer. It is self-controlled -- a CONNECT
+recorded by the fixture proves binding, after which the reading is whether
+`proxyChallenges` is non-zero or the load failed with an authentication error.
+`HttpConnectFixture` gained a `requiredCredential` mode that answers 407 with
+`Proxy-Authenticate: Basic` and records every credential it is given.
+
+**Why it was partial.** The arm has not run yet. And if it confirms Apple's
+reports, both proposed routes out of BUG-014 are closed: distinct per-store
+proxies do not bind (the burn), and one shared endpoint cannot attribute a
+connection to a site without proxy auth. The remaining move is then the WebKit
+report, whose repro does not depend on any of the launch-effect machinery.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**

@@ -66,6 +66,14 @@ class ProxyProbePlugin: NSObject {
     let identified = (args["identified"] as? Bool) ?? false
     let identifier = (args["identifier"] as? String).flatMap { UUID(uuidString: $0) }
     let wantsProxy = (args["proxy"] as? Bool) ?? true
+    // `connect` asks WebKit for an HTTP CONNECT proxy with a credential,
+    // which is what the LocalProxyRelay route needs and what WebKit bug
+    // 264309 reports broken. The question this arm settles is narrower than
+    // that bug: not whether Proxy-Authorization is sent, but whether the 407
+    // reaches the navigation delegate as an auth challenge at all.
+    let kind = (args["kind"] as? String) ?? "socks5"
+    let username = args["username"] as? String
+    let password = args["password"] as? String
     // The app's WebViews live in the window; this one never did. That is one
     // of the few structural differences left between the shape that proxies
     // and the shape that does not, so it is a knob rather than an assumption.
@@ -91,7 +99,16 @@ class ProxyProbePlugin: NSObject {
       store = WKWebsiteDataStore.nonPersistent()
     }
     if let endpoint = endpoint {
-      store.proxyConfigurations = [ProxyConfiguration(socksv5Proxy: endpoint)]
+      // `var` deliberately: applyCredential mutates, and ProxyConfiguration
+      // being a value type would make it unavailable on a `let`.
+      var config = ProxyConfiguration(socksv5Proxy: endpoint)
+      if kind == "connect" {
+        config = ProxyConfiguration(httpCONNECTProxy: endpoint, tlsOptions: nil)
+        if let username = username, let password = password {
+          config.applyCredential(username: username, password: password)
+        }
+      }
+      store.proxyConfigurations = [config]
     }
 
     let configuration = WKWebViewConfiguration()
@@ -101,7 +118,12 @@ class ProxyProbePlugin: NSObject {
     if attach, let contentView = NSApplication.shared.keyWindow?.contentView {
       contentView.addSubview(view)
     }
-    let navDelegate = ProbeNavigationDelegate { [weak self] detail in
+    var navDelegate: ProbeNavigationDelegate?
+    navDelegate = ProbeNavigationDelegate(
+      credential: (username != nil && password != nil)
+        ? URLCredential(user: username!, password: password!, persistence: .forSession)
+        : nil
+    ) { [weak self] detail in
       if attach {
         self?.webView?.removeFromSuperview()
       }
@@ -112,8 +134,12 @@ class ProxyProbePlugin: NSObject {
         "identified": identified,
         "attached": attach,
         "proxy": wantsProxy,
+        "kind": kind,
         "configured": store.proxyConfigurations.count,
         "detail": detail,
+        "challenges": navDelegate?.challenges ?? 0,
+        "proxyChallenges": navDelegate?.proxyChallenges ?? 0,
+        "challengeMethods": navDelegate?.challengeMethods.joined(separator: ",") ?? "",
       ])
     }
     view.navigationDelegate = navDelegate
@@ -138,10 +164,35 @@ class ProxyProbePlugin: NSObject {
 /// often enough to matter.
 class ProbeNavigationDelegate: NSObject, WKNavigationDelegate {
   private var report: ((String) -> Void)?
+  private let credential: URLCredential?
 
-  init(onSettled: @escaping (String) -> Void) {
+  /// Every auth challenge this load saw, and how many named a proxy
+  /// protection space. A proxy 407 that never reaches here is the finding
+  /// (BUG-014 route 2), so absence has to be recorded as carefully as
+  /// presence.
+  private(set) var challenges = 0
+  private(set) var proxyChallenges = 0
+  private(set) var challengeMethods: [String] = []
+
+  init(credential: URLCredential? = nil,
+       onSettled: @escaping (String) -> Void) {
+    self.credential = credential
     report = onSettled
     super.init()
+  }
+
+  func webView(_ webView: WKWebView,
+               didReceive challenge: URLAuthenticationChallenge,
+               completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
+    challenges += 1
+    let space = challenge.protectionSpace
+    challengeMethods.append(space.authenticationMethod)
+    if space.isProxy() { proxyChallenges += 1 }
+    if space.isProxy(), let credential = credential {
+      completionHandler(.useCredential, credential)
+      return
+    }
+    completionHandler(.performDefaultHandling, nil)
   }
 
   private func settle(_ detail: String) {
