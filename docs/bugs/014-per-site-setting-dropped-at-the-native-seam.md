@@ -3235,6 +3235,19 @@ means attempt 58's "the second site is never first" understates it -- the
 *first* site is not reliably first either, because anything the app loads
 before it takes the slot.
 
+**What the app's first WebView actually is, read from the code rather than
+assumed.** On Apple nothing creates one ahead of the user. The only startup
+paths that could are the notification auto-load, which in container mode runs
+*after* the launched site paints (`DeferredStartupEngine.autoLoadNotificationSites`,
+[lib/main.dart](../../lib/main.dart)), and `runAttributionProbe`'s headless
+view, which is behind `ProxyRouterService.isSupported` and so Android-only.
+`VirtualSourcePreview` needs a settings screen open. So the first WebView in
+an Apple process is the first site the user activates: a shortcut launch
+straight into the Tor site makes it first, and a cold launch where the user
+taps a plain site first does not. That is the same split the report
+describes, and it means the burn -- if the control run confirms it -- is
+reachable without any second proxied site being involved.
+
 **Why it was partial.** Two things.
 
 1. **The launch-level effect is untouched, and I confounded it.** Attempt 59
