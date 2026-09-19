@@ -297,6 +297,12 @@ void main() {
         res.write('<!doctype html><html><body><p>bare</p></body></html>');
         await res.close();
       });
+      // Bounded and total: this arm is a diagnostic riding along in a test
+      // that measures something else. A probe that throws, or one whose
+      // WebView never reaches a terminal navigation callback so the reply
+      // never comes, must not take the three shapes down with it -- the
+      // latter would otherwise hang this file until the tier's 12-minute
+      // kill.
       try {
         final reply = await const MethodChannel('webspace/proxy_probe')
             .invokeMapMethod<String, dynamic>('probe', {
@@ -304,14 +310,18 @@ void main() {
           'socksPort': socks.port,
           'url': 'http://$originHost:${origin.port}/',
           'identified': false,
-        });
+        }).timeout(const Duration(seconds: 30));
         final outcome =
             socks.targets.length > before ? 'proxied' : 'DIRECT';
         results.add('bare-wkwebview->$outcome');
         log('bare-wkwebview -> $outcome (ok=${reply?['ok']} '
             'configured=${reply?['configured']} detail=${reply?['detail']})');
-      } on MissingPluginException {
-        log('bare-wkwebview -> unavailable (probe plugin not registered)');
+      } catch (e) {
+        // Still worth a reading: the SOCKS fixture records a CONNECT when it
+        // happens, whatever the reply did.
+        final outcome = socks.targets.length > before ? 'proxied' : 'DIRECT';
+        results.add('bare-wkwebview->$outcome');
+        log('bare-wkwebview -> $outcome, probe did not report: $e');
       } finally {
         await origin.close(force: true);
       }
