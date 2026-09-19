@@ -32,7 +32,13 @@ typedef ProxyRouterOverrideBinder = Future<bool> Function(
 /// `ProxyController` still carries one process-wide rule, but that rule
 /// now points at the relay for the whole app, and the relay fans traffic
 /// out per site. Sites with different proxies can therefore stay loaded
-/// at the same time, as they already do on iOS 17+ / macOS 14+.
+/// at the same time.
+///
+/// This used to add "as they already do on iOS 17+ / macOS 14+". That was
+/// never measured: every Apple reading of two proxies at once was taken in
+/// a frame where one proxy does not bind either, so it said nothing (BUG-014
+/// attempt 34). Whether `WKWebsiteDataStore.proxyConfigurations` carries two
+/// different proxies at once is open.
 ///
 /// Gated on container mode. Chromium caches a proxy credential per
 /// `HttpNetworkSession`, and proxy entries are deliberately not

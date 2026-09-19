@@ -854,5 +854,7 @@
   "proxyTestHint": "Stuur een klein versoek deur hierdie instaanbediener en rapporteer wat terugkom, sodat 'n verkeerde adres of 'n afgekeurde wagwoord onderskei kan word van 'n werf wat eenvoudig af is.",
   "proxyTestOk": "Die instaanbediener werk",
   "proxyTestAuthRejected": "Die instaanbediener het hierdie geloofsbriewe verwerp",
-  "proxyTestUnreachable": "Kon nie die instaanbediener bereik nie"
+  "proxyTestUnreachable": "Kon nie die instaanbediener bereik nie",
+  "torIsolateDestAddrTitle": "Aparte kring per bestemming",
+  "torIsolateDestAddrHint": "Elke werf kry altyd sy eie Tor-kring. Hiermee aan kry 'n werf ook 'n aparte kring vir elke gasheer waarvan dit laai, sodat een bladsy gelyktydig vanaf twee of meer uitgangsadresse kan uitkom — meer isolasie, maar 'n werf wat jou adres oor sy eie gashere nagaan, kan jou uitteken. As jy dit afskakel, kry die werf een adres vir alles wat dit laai. Hierdie verandering tree in werking die volgende keer wat jy die program oopmaak."
 }

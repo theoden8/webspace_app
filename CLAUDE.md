@@ -42,6 +42,15 @@ in the Xcode project. Spec: PLATFORM-006.
   is the accepted cost of the split.
 - **A replay never changes who wrote a commit.** `git rebase` and `git cherry-pick -x` keep the author; nothing that replays commits may rewrite it. No `--reset-author`, no `git commit -s`, no `git rebase --signoff`, and no re-picking without `-x`. A commit carries at most one `Co-Authored-By:` per identity and no `Signed-off-by:` at all, so replaying a branch cannot grow its trailer block. Taking someone else's commit (a fork, another branch): keep their `--author`, write your own message for what the change does *here*, and cite the origin with one `Cherry-picked-from: <sha> (<repo>)`. Gate: [`scripts/check_commit_attribution.sh`](scripts/check_commit_attribution.sh), run in CI's `validate` job.
 - After a rebase across a commit that touched `lib/l10n/*.arb`, run `fvm flutter gen-l10n` before trusting the test run: `lib/l10n/gen/` is gitignored, so a stale copy fails to compile against the new keys and the failures look like the rebase broke something.
+- **`[ci-only: <jobs>]` narrows a CI run.** A commit message carrying it runs only
+  the jobs it names and skips the rest; tokens are `validate`, `design`, `android`,
+  `linux`, `apple`, comma-separated (`[ci-only: apple,validate]`). For a bisection
+  that reads one tier this is the difference between one runner and five. It is
+  honoured on `pull_request` only, so a marker that survives a merge cannot silence
+  master, and the guardrails are gated by
+  [`test/js/workflow_shell_syntax.test.js`](test/js/workflow_shell_syntax.test.js).
+  Don't use it on a commit whose change could break another platform.
+
 - **Don't commit derivatives.** If a file is the output of a script, parser, compiler, dumper, or any build step that reads from elsewhere — it doesn't belong in the repo. Commit the inputs (sources you author, pinned upstream refs) and the *runner* (build.rs, scripts, Cargo features); regenerate the output at build time into `$OUT_DIR`/`build/`/`target/`. Same applies to vendored third-party source: if a script can fetch + assemble it from upstream at a pinned ref, don't check the upstream tree in. Concrete check before staging: "could I delete this file and reproduce it by running one command from a clean clone?" — if yes, it's a derivative; ignore it. See `rust/webspace_adblock/build.rs` for an example.
 
 ## Sandbox bootstrap
@@ -248,6 +257,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | site-permission-badges | drawer badges for location/camera/mic/background-audio grants; real device access vs simulated |
 | site-settings-qr | share a site's configuration as a QR / `webspace://qr/site/v1/` URL; never carries secrets, cookies, user scripts or imported HTML |
 | tls-trust-prompt | system + user CA trust by default; prompt only when the OS rejects a cert, then pin (host, port, sha256) so Dart-side clients match the webview |
+| tor-proxy *(change)* | embedded Tor on iOS + macOS (the macOS Runner compiles `ios/Runner/TorControllerPlugin.swift`), per-site SOCKS5 circuit isolation, developer-mode gated. The macOS build is the only tier that runs the real handshake, and its Tor pod is why the macOS floor is 11.0 |
 | tracking-protection | umbrella per-site ETP: forces ClearURLs/DNS/content blocker/LocalCDN + injects anti-fingerprinting shim (Canvas/WebGL/audio/fonts/screen/hardware/timing/clientrects) seeded by siteId |
 | user-agent-identity | engine-consistent navigator identity for the per-site UA (vendor/productSub/oscpu/buildID/platform/userAgentData); complements desktop-mode |
 | upstream-webview-defects *(change)* | defects found auditing the pinned flutter_inappwebview fork's upstream tracker: a declined `onCreateWindow` still navigating on iOS/macOS, UA client hints that half-spoof, the plugin's unmasked console wrappers, the real Linux WPE build floor |

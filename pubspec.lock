@@ -18,7 +18,7 @@ packages:
     source: hosted
     version: "2.7.0"
   asn1lib:
-    dependency: transitive
+    dependency: "direct dev"
     description:
       name: asn1lib
       sha256: "9a8f69025044eb466b9b60ef3bc3ac99b4dc6c158ae9c56d25eeccf5bc56d024"
@@ -327,8 +327,8 @@ packages:
     dependency: "direct main"
     description:
       path: flutter_inappwebview
-      ref: "v6.2.0-beta.3-privacy-v6.1"
-      resolved-ref: "026635e90ec1310bd8daac6c39e81f9a1210ef45"
+      ref: "925a27982e5e7ce0a65449a13a605315470c59d7"
+      resolved-ref: "925a27982e5e7ce0a65449a13a605315470c59d7"
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "6.2.0-beta.3"
@@ -336,8 +336,8 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_android
-      ref: "v6.2.0-beta.3-privacy-v6.1"
-      resolved-ref: "026635e90ec1310bd8daac6c39e81f9a1210ef45"
+      ref: "925a27982e5e7ce0a65449a13a605315470c59d7"
+      resolved-ref: "925a27982e5e7ce0a65449a13a605315470c59d7"
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.2.0-beta.3"
@@ -353,8 +353,8 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_ios
-      ref: "v6.2.0-beta.3-privacy-v6.1"
-      resolved-ref: "026635e90ec1310bd8daac6c39e81f9a1210ef45"
+      ref: "925a27982e5e7ce0a65449a13a605315470c59d7"
+      resolved-ref: "925a27982e5e7ce0a65449a13a605315470c59d7"
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.2.0-beta.3"
@@ -362,8 +362,8 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_linux
-      ref: "v6.2.0-beta.3-privacy-v6.1"
-      resolved-ref: "026635e90ec1310bd8daac6c39e81f9a1210ef45"
+      ref: "925a27982e5e7ce0a65449a13a605315470c59d7"
+      resolved-ref: "925a27982e5e7ce0a65449a13a605315470c59d7"
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "0.1.0-beta.2"
@@ -371,8 +371,8 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_macos
-      ref: "v6.2.0-beta.3-privacy-v6.1"
-      resolved-ref: "026635e90ec1310bd8daac6c39e81f9a1210ef45"
+      ref: "925a27982e5e7ce0a65449a13a605315470c59d7"
+      resolved-ref: "925a27982e5e7ce0a65449a13a605315470c59d7"
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.2.0-beta.3"
@@ -380,8 +380,8 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_platform_interface
-      ref: "v6.2.0-beta.3-privacy-v6.1"
-      resolved-ref: "026635e90ec1310bd8daac6c39e81f9a1210ef45"
+      ref: "925a27982e5e7ce0a65449a13a605315470c59d7"
+      resolved-ref: "925a27982e5e7ce0a65449a13a605315470c59d7"
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.4.0-beta.3"
@@ -939,7 +939,7 @@ packages:
     source: hosted
     version: "2.1.8"
   pointycastle:
-    dependency: transitive
+    dependency: "direct dev"
     description:
       name: pointycastle
       sha256: "4be0097fcf3fd3e8449e53730c631200ebc7b88016acecab2b0da2f0149222fe"

@@ -189,6 +189,142 @@ Webview navigation continues to use SOCKS5 via its native channel — the
 patched iOS / macOS plugins' `WKWebsiteDataStore.proxyConfigurations` and
 Android's `inapp.ProxyController` — independently of the Dart-side path.
 
+The native binding SHALL be verified by its effect rather than by the
+call that requests it: the plugin's settings parser discards a field it
+cannot see, so a webview can report a proxy it never bound (BUG-014). A
+site whose proxy refuses connections SHALL therefore never reach its
+origin.
+
+On iOS and macOS, **whether a load is proxied is not deterministic.** The same
+scenario, from byte-identical test code against an unchanged plugin pin, has
+been observed both proxied and direct across runs (BUG-014 attempt 37:
+`raw-late` and `alt-proxy` read DIRECT on one run and proxied on the next).
+Every earlier rule stated here was drawn from a single sample per scenario and
+none of them survives that. What is established is that some loads carrying a
+per-site proxy go out over the device IP, often enough to have been measured
+repeatedly, and that the app cannot currently tell which.
+
+The superseded reading, kept because the scenarios behind it are still the
+ones worth repeating: a load appeared to be proxied only if the webview issued
+it as it was constructed, in the process's first frame. A first-frame webview navigated by
+`loadUrl` from inside `onWebViewCreated` is proxied; the same call on a
+sibling first-frame webview once the tree has settled is not; a webview
+constructed in any later frame is not, even by its `initialUrlRequest`.
+Measured across BUG-014 attempts 19-32 with webviews built straight from the
+plugin, carrying nothing but a container id and a proxy — no
+`shouldOverrideUrlLoading`, no universal-link bypass, no per-site policy — so
+the behaviour is the platform's and not this app's.
+
+Three readings are excluded by measurement rather than by argument:
+
+* Not **elapsed time**, and not a **race**. One first-frame webview navigated
+  five times in succession went direct on every step, the first of them issued
+  at 0 ms.
+* Not **the load mechanism**. `loadUrl` is proxied inside `onWebViewCreated`
+  and direct afterwards.
+* Not a **process-wide proxy the newest store overwrites**. Two webviews
+  carrying *different* proxies in one later frame both went direct, neither
+  one's traffic arriving at the other's proxy.
+
+The measurement is not "the proxy was bound and failed". In the same run, a
+site whose proxy pointed at a closed port reached no origin at all, which is
+what a bound proxy does when it cannot connect. And it is read from the
+fixture proxy's own CONNECT log rather than from the origin's request log: the
+fixture relays a proxied load to the origin too, so a path arriving there says
+nothing about whether it was proxied.
+
+The mechanism, read end to end from WebKit's source (BUG-014 attempt 36), is
+that the proxy never reaches an `NSURLSessionConfiguration` at all.
+`WebsiteDataStore::setProxyConfigData` nulls `m_proxyConfigData` before
+calling `networkProcess()`, and `parameters()` is read inside that call, so
+`AddWebsiteDataStore` always carries no proxy. The `NetworkSessionCocoa`
+constructor then calls `initializeNSURLSessionsInSet` eagerly, and
+`applyProxyConfigurationToSessionConfiguration` runs with `m_nwProxyConfigs`
+empty and writes `proxyConfigurations = @[ ]` onto the session configuration.
+The proxy arrives afterwards, as its own message, by which time the wrappers
+have sessions -- so it lands as a patch on a live `nw_context`
+(`nw_context_clear_proxies` then `nw_context_add_proxy`) rather than on the
+session. A SOCKS5 configuration never makes
+`nw_proxy_config_stack_requires_http_protocols` true, so it never takes
+`recreateSessionWithUpdatedProxyConfigurations`, which is the one route that
+would put the proxy on the session's own configuration durably.
+
+That is consistent with every reading: a load issued while the patch is fresh
+is proxied, and anything after it is not.
+
+The rest of the path says a bound proxy should persist, in more than one place.
+`WKWebsiteDataStore.setProxyConfigurations:` hands the agent data to
+`WebsiteDataStore::setProxyConfigData`, which keeps it in `m_proxyConfigData`
+for the life of the store; `WebsiteDataStore::parameters()` carries it into the
+session's creation parameters; `NetworkSessionCocoa::setProxyConfigData` keeps
+it in `m_nwProxyConfigs` and patches every live session wrapper's `nw_context`;
+and `SessionWrapper::initialize` replays `m_nwProxyConfigs` onto the
+`NSURLSessionConfiguration` of every wrapper created afterwards.
+`WebsiteDataStore::dataStoreForIdentifier` returns the *same* store for a given
+UUID, so a container has one session and one stored proxy, and
+`NetworkProcess::addWebsiteDataStore` never replaces a session that exists.
+Exactly one path takes a proxy off a live store: assigning an empty
+`proxyConfigurations`, which reaches `clearProxyConfigData` and empties
+`m_nwProxyConfigs`.
+
+The fork had such a path. `ProxyManager.setProxyOverride` wrote the
+process-wide rule over every cached container store and `clearProxyOverride`
+wrote `[]` over them, so setting a global override swapped a site's own proxy
+for the global one and clearing it dropped that site to the device IP. A store
+a webview binds with its own `proxySettings` is now pinned and skipped by that
+fan-out. It does not account for the measurement above, which is taken with
+webviews that never reach `ProxyManager`, so the contradiction stands and the
+observation governs.
+
+The consequence is that `WKWebsiteDataStore.proxyConfigurations` cannot carry
+this feature. Proxying a site's landing page and leaking every link its user
+follows is worse than not offering the proxy, because the app reports the site
+as proxied while it is not. So on iOS and macOS a site whose effective proxy is
+non-DEFAULT SHALL fail closed — blank the load rather than fetch it over the
+device IP — until a delivery mechanism exists that survives navigation.
+
+This governs the Tor tier too: per-site Tor on iOS and macOS rides the same
+path and inherits the same limit.
+
+#### Scenario: A proxied site does not leak on its second navigation
+
+**Given** site "Acme" carries `SOCKS5 127.0.0.1:<fixture>`
+**And** its first load went through that proxy
+**When** its page follows a link to a second origin
+**Then** that load does not reach the second origin directly
+
+#### Scenario: A proxied webview navigated in the same turn still uses its proxy
+
+**Given** a webview carrying `SOCKS5 127.0.0.1:<fixture>` is created in the
+process's first frame with no initial request
+**When** it is navigated by `loadUrl` from that frame's own turn
+**Then** the fixture proxy receives a CONNECT for that destination
+
+#### Scenario: Two proxied sites in one launch each use their own proxy
+
+**Given** sites "Acme" and "Beta" each carry `SOCKS5 127.0.0.1:<fixture>`
+**And** both WebViews are created in the process's first frame
+**When** each loads a page from a routable origin
+**Then** the fixture proxy receives a CONNECT for each of them
+**And** neither load reaches the origin directly
+
+#### Scenario: A refused proxy does not become a direct load
+
+**Given** site "Acme" has proxy `SOCKS5 127.0.0.1:<closed port>`
+**And** the platform binds the proxy per WebView (iOS 17+ / macOS 14+)
+**When** the site loads a page served from a routable (non-loopback) origin
+**Then** the origin receives no request for it
+**And** an unproxied control load from the same harness does reach that
+origin, so a page that simply failed to load cannot pass for a bound proxy
+
+#### Scenario: A site that gains a proxy stops going direct
+
+**Given** site "Acme" has loaded once with no proxy, so its container's
+data store is in service
+**When** the user gives it a proxy and the site's webview is rebuilt
+**Then** the load arrives at that proxy
+**And** the user does not have to restart the app for it to take effect
+
 #### Scenario: SOCKS5 favicon fetch tunnels through the SOCKS5 server
 
 **Given** site "Acme" has proxy `SOCKS5 127.0.0.1:9050`

@@ -854,5 +854,7 @@
   "proxyTestHint": "Nosūta vienu nelielu pieprasījumu caur šo starpniekserveri un parāda, kas atnāk atpakaļ, lai nepareizu adresi vai noraidītu paroli varētu atšķirt no vietnes, kas vienkārši nedarbojas.",
   "proxyTestOk": "Starpniekserveris darbojas",
   "proxyTestAuthRejected": "Starpniekserveris noraidīja šos pieteikšanās datus",
-  "proxyTestUnreachable": "Neizdevās sasniegt starpniekserveri"
+  "proxyTestUnreachable": "Neizdevās sasniegt starpniekserveri",
+  "torIsolateDestAddrTitle": "Atsevišķa ķēde katram galamērķim",
+  "torIsolateDestAddrHint": "Katrai vietnei vienmēr ir sava Tor ķēde. Kad tas ir ieslēgts, vietne saņem atsevišķu ķēdi arī katram resursdatoram, no kura tā ielādē, tāpēc viena lapa var sasniegt internetu vienlaikus no divām vai vairākām izejas adresēm — vairāk izolācijas, taču vietne, kas pārbauda jūsu adresi savu resursdatoru starpā, var jūs izrakstīt. Izslēgtā stāvoklī vietnei ir viena adrese visam, ko tā ielādē. Šīs izmaiņas stāsies spēkā, kad nākamreiz atvērsiet lietotni."
 }

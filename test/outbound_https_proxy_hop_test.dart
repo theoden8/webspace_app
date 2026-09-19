@@ -11,6 +11,8 @@ import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/settings/proxy.dart';
 
+import '../integration_test/self_signed_cert.dart';
+
 /// An `HTTPS`-type proxy is a TLS session to the proxy. `findProxy` alone
 /// makes dart:io open a plain socket and write `CONNECT host:port` plus the
 /// Basic credentials before any handshake, so every Dart-side fetch under
@@ -94,45 +96,19 @@ Future<({ServerSocket server, BytesBuilder seen})> _plainSink() async {
 }
 
 void main() {
-  final haveOpenssl = () {
-    try {
-      return Process.runSync('openssl', ['version']).exitCode == 0;
-    } catch (_) {
-      return false;
-    }
-  }();
-  final skip = haveOpenssl ? null : 'openssl is not installed';
-
-  late Directory dir;
   late SecurityContext ctx;
   late String fingerprint;
   const factory = DefaultOutboundHttpFactory();
 
   setUpAll(() async {
-    if (!haveOpenssl) return;
-    dir = await Directory.systemTemp.createTemp('webspace-tls-');
-    final key = '${dir.path}/key.pem';
-    final cert = '${dir.path}/cert.pem';
-    final gen = await Process.run('openssl', [
-      'req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1',
-      '-keyout', key, '-out', cert, '-subj', '/CN=localhost',
-      '-addext', 'subjectAltName=DNS:localhost,IP:127.0.0.1',
-    ]);
-    expect(gen.exitCode, 0, reason: gen.stderr.toString());
-    final der = await Process.run(
-      'openssl',
-      ['x509', '-in', cert, '-outform', 'DER'],
-      stdoutEncoding: null,
+    final cert = generateSelfSignedCert(
+      commonName: 'localhost',
+      dnsNames: ['localhost'],
+      ipAddresses: ['127.0.0.1'],
     );
-    fingerprint = sha256.convert(der.stdout as List<int>).toString();
-    ctx = SecurityContext()
-      ..useCertificateChain(cert)
-      ..usePrivateKey(key);
+    fingerprint = sha256.convert(cert.certDer).toString();
+    ctx = cert.serverContext();
     SharedPreferences.setMockInitialValues({});
-  });
-
-  tearDownAll(() async {
-    if (haveOpenssl) await dir.delete(recursive: true);
   });
 
   test('an HTTPS-type proxy never receives plaintext (LEAK-008)', () async {
@@ -217,5 +193,5 @@ void main() {
     final basic = base64Encode(utf8.encode('user:hunter2'));
     expect(authed.first.toLowerCase(),
         contains('proxy-authorization: basic ${basic.toLowerCase()}'));
-  }, skip: skip);
+  });
 }

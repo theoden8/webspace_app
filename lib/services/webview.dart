@@ -1990,7 +1990,34 @@ class WebViewFactory {
     String? containerId,
     inapp.ProxySettings? proxy,
     bool proxyUnavailable,
-  }) _bindingFor(WebViewConfig config) {
+  }) _bindingFor(WebViewConfig config) => resolveStoreBinding(
+        siteId: config.siteId,
+        archiveContainerId: config.archiveContainerId,
+        incognito: config.incognito,
+        proxySettings: config.proxySettings,
+      );
+
+  /// The same binding, from the four fields it actually depends on, so the
+  /// startup pre-arm ([prearmProxiedContainers]) arms exactly the store and
+  /// proxy the WebView will later be built with. A pre-arm that disagreed
+  /// with the WebView would be worse than none: the site would look proxied
+  /// and load through something else.
+  static ({
+    String? containerId,
+    inapp.ProxySettings? proxy,
+    bool proxyUnavailable,
+  }) resolveStoreBinding({
+    required String? siteId,
+    required String? archiveContainerId,
+    required bool incognito,
+    required UserProxySettings? proxySettings,
+  }) {
+    final config = (
+      siteId: siteId,
+      archiveContainerId: archiveContainerId,
+      incognito: incognito,
+      proxySettings: proxySettings,
+    );
     // Container API binding. Stock flutter_inappwebview's `prepare()`
     // does session-bound ops (addJavascriptInterface,
     // addDocumentStartJavaScript, setAcceptThirdPartyCookies) BEFORE
@@ -2026,26 +2053,40 @@ class WebViewFactory {
         ? 'ws-$containerSiteIdentifier'
         : null;
 
-    // Per-site proxy delivery: only iOS 17+ / macOS 14+ honor the
-    // per-WebView `proxySettings` field (which the fork's
-    // `preWKWebViewConfiguration` writes onto
-    // `WKWebsiteDataStore.proxyConfigurations`). On Android the global
-    // `inapp.ProxyController` path runs from
-    // `WebViewModel._applyProxySettings` instead, so leave
-    // `proxySettings` null and avoid sending a no-op object to the
-    // native side. resolveEffectiveProxy keeps the iOS/macOS WebView in
-    // sync with the Dart-side and Android paths: per-site DEFAULT falls
-    // through to the app-global outbound proxy, so a site the user
-    // hasn't customized still inherits a global Tor / corporate proxy.
-    // Explicit per-site values win.
-    final effectiveProxy = (hostIsIOS || hostIsMacOS) &&
-            config.proxySettings != null
+    // Per-site proxy delivery, on the platforms that bind it to the
+    // WebView's own network store rather than process-wide:
+    //
+    //   iOS 17+ / macOS 14+ — the fork's `preWKWebViewConfiguration` writes
+    //     it onto `WKWebsiteDataStore.proxyConfigurations`. Honoured only for
+    //     the first WebView in the process (BUG-014), which is why a second
+    //     proxied site there still goes direct.
+    //   Linux (WPE) — the fork pins it to the container's own
+    //     `WebKitNetworkSession` via
+    //     `webkit_network_session_set_proxy_settings`. Proxies are per
+    //     session there, so two containers hold two different proxies at
+    //     once. This is the tier that shows the divergence is Apple's, not
+    //     the app's.
+    //
+    // A Linux site with no container has no session to pin, so it stays on
+    // the process-wide override path below, as it always has.
+    //
+    // On Android the global `inapp.ProxyController` path runs from
+    // `WebViewModel._applyProxySettings` instead, so leave `proxySettings`
+    // null and avoid sending a no-op object to the native side.
+    // resolveEffectiveProxy keeps these WebViews in sync with the Dart-side
+    // and Android paths: per-site DEFAULT falls through to the app-global
+    // outbound proxy, so a site the user hasn't customized still inherits a
+    // global Tor / corporate proxy. Explicit per-site values win.
+    final bindsProxyPerSite = hostIsIOS ||
+        hostIsMacOS ||
+        (hostIsLinux && containerId != null);
+    final effectiveProxy = bindsProxyPerSite && config.proxySettings != null
         ? resolveEffectiveProxy(config.proxySettings!, siteId: config.siteId)
         : null;
     final inappProxy = effectiveProxy != null && PlatformInfo.isProxySupported
         ? userProxyToInappProxy(effectiveProxy)
         : null;
-    // Fail closed: on iOS/macOS the per-site proxy is bound here via
+    // Fail closed: on iOS/macOS/Linux the per-site proxy is bound here via
     // `proxySettings`. If the site expects a non-DEFAULT proxy but the
     // address is malformed (e.g. a hand-edited backup that bypassed UI
     // validation), or the OS is below the `proxyConfigurations` floor,

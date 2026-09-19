@@ -40,9 +40,71 @@ env:
   CARGO_NDK_VERSION: "4.1.2"
 
 jobs:
+  # Which jobs this commit actually needs. A bisection that only reads the
+  # macOS tier otherwise pays for Linux, Android, design and validate as
+  # well, and those runners are what the next iteration queues behind.
+  #
+  # Put `[ci-only: apple]` in the commit message -- or several, as
+  # `[ci-only: apple,validate]` -- and everything else skips. Tokens are the
+  # job ids below: validate, design, android, linux, apple.
+  #
+  # Honoured on pull_request only. The marker stays in the message after a
+  # merge, so on master and on workflow_dispatch every job runs regardless
+  # and the branch everyone reads cannot be silenced by a commit that was
+  # written for one experiment.
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    outputs:
+      validate: ${{ steps.pick.outputs.validate }}
+      design: ${{ steps.pick.outputs.design }}
+      android: ${{ steps.pick.outputs.android }}
+      linux: ${{ steps.pick.outputs.linux }}
+      apple: ${{ steps.pick.outputs.apple }}
+      only: ${{ steps.pick.outputs.only }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The pull_request ref is a merge commit whose message is
+          # "Merge A into B", so read the branch head instead.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - id: pick
+        run: |
+          set -eu
+          only=""
+          if [ "${{ github.event_name }}" = pull_request ]; then
+            only="$(git log -1 --pretty=%B \
+              | sed -n 's/.*\[ci-only:[[:space:]]*\([^]]*\)\].*/\1/p' \
+              | head -1 | tr -d '[:space:]')"
+          fi
+          pick() {
+            if [ -z "$only" ]; then
+              echo "$1=true"
+              return
+            fi
+            case ",$only," in
+              *",$1,"*) echo "$1=true" ;;
+              *) echo "$1=false" ;;
+            esac
+          }
+          {
+            pick validate
+            pick design
+            pick android
+            pick linux
+            pick apple
+            echo "only=$only"
+          } >> "$GITHUB_OUTPUT"
+          if [ -n "$only" ]; then
+            echo "::notice::ci-only=$only -- every other job is skipped for this commit"
+          fi
+
   validate:
     name: Validate Fastlane + OpenSpec + proofs
     runs-on: ubuntu-latest
+    needs: plan
+    if: needs.plan.outputs.validate == 'true'
     steps:
       - uses: actions/checkout@v4
       - name: Validate Fastlane metadata
@@ -151,6 +213,8 @@ jobs:
   design-web:
     name: Design gallery + designer app
     runs-on: ubuntu-latest
+    needs: plan
+    if: needs.plan.outputs.design == 'true'
     steps:
       - uses: actions/checkout@v4
       - name: Setup Node
@@ -227,6 +291,8 @@ jobs:
   build-android:
     name: Build Android
     runs-on: ubuntu-latest
+    needs: plan
+    if: needs.plan.outputs.android == 'true'
     env:
       GRADLE_OPTS: -Xmx4g -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError
     steps:
@@ -593,6 +659,8 @@ jobs:
   build-linux:
     name: Build Linux
     runs-on: ubuntu-latest
+    needs: plan
+    if: needs.plan.outputs.linux == 'true'
     # Run inside Debian Sid because libwpewebkit-2.0-dev needs to be at
     # least 2.50: flutter_inappwebview_linux 0.1.0-beta.1 calls
     # webkit_navigation_action_is_for_main_frame (added in 2.50) and
@@ -971,6 +1039,26 @@ jobs:
                 # BGAUDIO-009 needs a real media pipeline (WPE crash-loops on
                 # one here) and a real pauseTimers(); emulator job owns it.
                 [ "$(basename "$t")" = "background_audio_media_stop_test.dart" ] && continue
+                # The per-WebView proxy binding it checks is an iOS/macOS
+                # path -- the Linux fork binds on the session instead -- so
+                # here it would skip after paying for an app build, and this
+                # loop sits near its 45m cap.
+                [ "$(basename "$t")" = "proxy_binding_test.dart" ] && continue
+                # Same for the files that bisect that binding. They measure
+                # proxyConfigurations, which the Linux fork does not use, so
+                # every test in them skips here -- after paying for a full
+                # app build each. Three of those builds is what took this
+                # loop past the cap.
+                [ "$(basename "$t")" = "proxy_window_test.dart" ] && continue
+                # NOT skipped: WPE binds the proxy per network session, so
+                # this is the tier where two sites really can hold two
+                # proxies at once. It is the control that shows BUG-014
+                # belongs to Apple rather than to this app.
+                [ "$(basename "$t")" = "proxy_http_connect_test.dart" ] && continue
+                [ "$(basename "$t")" = "proxy_relay_binding_test.dart" ] && continue
+                [ "$(basename "$t")" = "proxy_rate_test.dart" ] && continue
+                [ "$(basename "$t")" = "proxy_shape_test.dart" ] && continue
+                [ "$(basename "$t")" = "proxy_connect_https_test.dart" ] && continue
                 echo "::group::$t"
                 # Hard per-test wall-clock cap: a WebView mount can deadlock
                 # the platform thread below Dart timeout layer, which would
@@ -1021,9 +1109,18 @@ jobs:
   build-apple:
     name: Build iOS & macOS
     runs-on: macos-latest
+    needs: plan
+    if: needs.plan.outputs.apple == 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      # First, because it is the cheapest thing in this job that can fail the
+      # Swift in it: no pods, no toolchains, seconds. The full build below
+      # catches the same errors forty minutes later, by which time a newer
+      # push has usually cancelled the run.
+      - name: Type-check the Tor plugin
+        run: ./tool/swift_typecheck/check.sh
 
       - name: Setup Dart
         uses: dart-lang/setup-dart@v1
@@ -1238,8 +1335,10 @@ jobs:
       # generator; a non-zero exit from any file is remembered and re-raised
       # so one failure doesn't mask the rest. On failure, dump the macOS
       # crash report so a launch-time SIGKILL explains itself.
-      - name: Run macOS integration tests
-        timeout-minutes: 45
+      # Shared by both steps below: the debug build needs the sandbox
+      # exceptions the tier's servers and the Tor runtime use, and the
+      # keychain has to be open for flutter_secure_storage.
+      - name: Prepare the macOS test run
         run: |
           set -x
           security unlock-keychain -p "" "$HOME/Library/Keychains/login.keychain-db" || true
@@ -1261,6 +1360,69 @@ jobs:
           </dict>
           </plist>
           EOF
+
+      # First, alone, and before the 19-file loop below.
+      #
+      # It used to ride that loop, where "tor" sorts 17th: its verdict landed
+      # ~40 minutes into a step capped at 45, on a job every push cancels. In
+      # practice it never returned one at all -- the device reported each of
+      # these bugs first, hours earlier. Its own two scenarios can take 13
+      # minutes, which never fit in what the loop left.
+      #
+      # WEBSPACE_TOR_NETWORK opts this job into needing the Tor network:
+      # integration_test/tor_test.dart then treats "never reached the
+      # network" as a failure rather than a skip. Everything else that file
+      # asserts -- the control-port handshake, the bootstrap phase, tor's own
+      # log, a restart -- runs either way, so if GitHub's macOS runners ever
+      # stop being able to reach tor, drop this variable and the tier keeps
+      # its teeth. This is the only automated tier that runs the real Tor
+      # plugin: iOS has no runtime tier here, and macOS compiles the same
+      # source (ios/Runner/TorControllerPlugin.swift).
+      - name: Run the Tor integration scenario
+        id: tor_scenario
+        timeout-minutes: 20
+        env:
+          WEBSPACE_TOR_NETWORK: '1'
+        run: |
+          set -x
+          # `flutter test` exits 79 when nothing ran, which is what a file
+          # whose scenarios all skip looks like -- and a skip is how a tier
+          # that reaches nothing reports success. The run is red either way;
+          # this says which of the two happened without reading the log.
+          rc=0
+          # Kept, because this step runs an hour before the end of the job and
+          # its output is unreachable from the log's tail by then; the report
+          # step at the end prints it back.
+          fvm flutter test integration_test/tor_test.dart -d macos --ci 2>&1 \
+            | tee "${RUNNER_TEMP:-/tmp}/tor-scenario.log"
+          rc=${PIPESTATUS[0]}
+          if [ $rc -eq 79 ]; then
+            echo "::error::the Tor scenarios did not run at all (exit 79); "\
+                 "see the [tor-test] trace lines above for which branch each took"
+          fi
+          exit $rc
+
+      # Runs even when the Tor step above failed: that step is one file, and
+      # hiding the other eighteen -- the proxy-binding leak gate among them --
+      # behind it turns one red scenario into no coverage at all.
+      - name: Run macOS integration tests
+        if: success() || failure()
+        # The loop last used 39 of 45 minutes across nineteen files, and the
+        # proxy files sort late enough that the cap would cut exactly the
+        # ones a run is usually for. Per-file timeouts below still bound a
+        # deadlocked WebView.
+        timeout-minutes: 60
+        run: |
+          set -x
+          # This step runs on failure too, so it is reached when an earlier
+          # step died and the Flutter setup was skipped with it. Without this
+          # every file then "fails" with `fvm: No such file or directory` and
+          # the real error is twenty-five entries further up.
+          if ! command -v fvm >/dev/null 2>&1; then
+            echo "::error::fvm is not installed; an earlier step failed and \
+          the macOS tier never ran. Fix that failure, not these tests."
+            exit 1
+          fi
           # Hard per-test wall-clock cap (see Build Linux): bound any single
           # test so a native WebView deadlock can't hang the job to the 6h
           # runner limit. macOS ships BSD utils; GNU timeout arrives as
@@ -1273,6 +1435,45 @@ jobs:
             TIMEOUT="$(command -v gtimeout || true)"
           fi
           status=0
+          failed=""
+          # BUG-014 route 2. Run 3136 closed the launch-effect bisection:
+          # net=0->0 on every launch, so no WebKit networking process ever
+          # existed between launches to carry a spent slot, exactly as
+          # AuxiliaryProcess::didClose says. Five mechanisms are refuted
+          # under control now and there is no sixth candidate, so the
+          # machine-state bisection stops here.
+          #
+          # What is answerable is whether the relay route exists at all.
+          # Apple's own tracker says probably not -- bug 264309 for the
+          # missing Proxy-Authorization and FB13350370 / r.113346270 for
+          # applyCredential in WebKit, which DTS called a bug -- but those
+          # reports are from 2023/24 and this measures current macOS.
+          #
+          # The arm has to be FIRST in the FIRST launch, because only the
+          # first WebView of the first launch binds at all, and a proxy that
+          # is never reached produces no 407 to answer. It is its own
+          # control: a CONNECT recorded by the fixture means binding worked,
+          # and then the question is whether the 407 comes back as a
+          # navigation-delegate challenge or as a failed load.
+          for launch in "first:connectauth" "second:proxied"; do
+            pos="${launch%%:*}"
+            arm="${launch##*:}"
+            echo "::group::integration_test/proxy_shape_test.dart ($pos, first=$arm)"
+            log="${RUNNER_TEMP:-/tmp}/tier-proxy_shape_$pos.log"
+            if [ -n "$TIMEOUT" ]; then
+              WEBSPACE_TIER_POSITION="$pos" WEBSPACE_SHAPE_SWEEP=off \
+                WEBSPACE_SHAPE_FIRSTARM="$arm" \
+                "$TIMEOUT" -k 30s 12m \
+                fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
+                | tee "$log" || true
+            else
+              WEBSPACE_TIER_POSITION="$pos" WEBSPACE_SHAPE_SWEEP=off \
+                WEBSPACE_SHAPE_FIRSTARM="$arm" \
+                fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
+                | tee "$log" || true
+            fi
+            echo "::endgroup::"
+          done
           for t in integration_test/*_test.dart; do
             [ "$(basename "$t")" = "screenshot_test.dart" ] && continue
             # Android-only window-PixelCopy suite; skip its no-op build here.
@@ -1286,13 +1487,61 @@ jobs:
             [ "$(basename "$t")" = "background_audio_media_notification_test.dart" ] && continue
             # Android-only BGAUDIO-009 media-stop tier; emulator job.
             [ "$(basename "$t")" = "background_audio_media_stop_test.dart" ] && continue
+            # PROXY-013 router is Android-only, so here these skip after
+            # paying for an app build each, and this loop now carries the
+            # proxy bisection files that do measure something.
+            # test/proxy_router_service_test.dart covers the negative in
+            # milliseconds; the emulator job runs them for real.
+            [ "$(basename "$t")" = "proxy_router_test.dart" ] && continue
+            [ "$(basename "$t")" = "proxy_router_attribution_test.dart" ] && continue
+            # Ran on its own above, first, so its verdict does not depend on
+            # the 45-minute cap this loop spends.
+            [ "$(basename "$t")" = "tor_test.dart" ] && continue
+            # Three controlled launches of it run above. A fourth here would
+            # only repeat the third's condition on a tireder machine, and
+            # this loop pays a full app build for every launch.
+            [ "$(basename "$t")" = "proxy_shape_test.dart" ] && continue
             echo "::group::$t"
+            rc=0
+            # Kept per file so a failure can be re-printed at the end. Each
+            # file prints thousands of lines, so by the time the loop is over
+            # the one that failed is unreachable from the log's tail -- which
+            # is all an API reader gets.
+            out="${RUNNER_TEMP:-/tmp}/tier-$(basename "$t").log"
             if [ -n "$TIMEOUT" ]; then
-              "$TIMEOUT" -k 30s 12m fvm flutter test "$t" -d macos --ci || status=$?
+              "$TIMEOUT" -k 30s 12m fvm flutter test "$t" -d macos --ci 2>&1 | tee "$out"
+              rc=${PIPESTATUS[0]}
             else
-              fvm flutter test "$t" -d macos --ci || status=$?
+              fvm flutter test "$t" -d macos --ci 2>&1 | tee "$out"
+              rc=${PIPESTATUS[0]}
+            fi
+            if [ $rc -ne 0 ]; then
+              status=$rc
+              failed="$failed $(basename "$t")"
             fi
             echo "::endgroup::"
+          done
+          # Named, at the end, where the tail of the log is: nineteen files
+          # each print thousands of lines, so which one failed was otherwise
+          # only findable by paging back through the whole job.
+          if [ -n "$failed" ]; then
+            echo "::error::macOS tier failures:$failed"
+            echo "=== macOS tier failures:$failed ==="
+            for f in $failed; do
+              echo "=== $f: last 60 lines ==="
+              tail -60 "${RUNNER_TEMP:-/tmp}/tier-$f.log" || true
+            done
+          fi
+          # Last, because the failure dumps above are ~60 lines each and a
+          # log tail that stops short of these is the difference between
+          # reading the run and refetching half a megabyte of it. The
+          # launches pass, so nothing else puts them in the tail.
+          echo "=== BUG-014 launch verdicts ==="
+          for pos in first second; do
+            grep -h -e "proxy-shape\] connect targets" \
+              -e "first-connectauth" -e "proxy-shape\] verdict" \
+              "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_$pos.log" 2>/dev/null \
+              || echo "$pos: no verdict line"
           done
           if [ $status -ne 0 ]; then
             echo "=== recent macOS crash reports ==="
@@ -1303,6 +1552,17 @@ jobs:
             done
           fi
           exit $status
+
+      # Last, so the tail of the job log always says how the Tor scenario
+      # went. It runs long before the tier loop, and the loop buries it.
+      - name: Report the Tor scenario outcome
+        if: always()
+        run: |
+          echo "=== Tor scenario: ${{ steps.tor_scenario.outcome }} ==="
+          if [ "${{ steps.tor_scenario.outcome }}" != "success" ]; then
+            echo "=== Tor scenario: last 80 lines ==="
+            tail -80 "${RUNNER_TEMP:-/tmp}/tor-scenario.log" || true
+          fi
 
       - name: Create macOS ZIP archive
         run: |
