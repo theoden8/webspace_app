@@ -91,6 +91,16 @@ navigations report `didFinish`.
 The same happens when both stores point at the *same* proxy endpoint, so it is
 not a limit of one distinct upstream per process.
 
+It is also independent of the proxy type, which matters because the two types
+take different paths inside `NetworkSessionCocoa::setProxyConfigData`: a
+SOCKS5 configuration is applied by patching the live `nw_context`
+(`nw_context_clear_proxies` then `nw_context_add_proxy`), while an HTTP
+CONNECT configuration passes
+`nw_proxy_config_stack_requires_http_protocols` and instead goes through
+`recreateSessionWithUpdatedProxyConfigurations`. Two CONNECT proxies on
+separate ports behave exactly like two SOCKS5 proxies: the first store's load
+is proxied and the second store's is not.
+
 ## What this is not
 
 Each of these was tested with a positive control in the same process, meaning

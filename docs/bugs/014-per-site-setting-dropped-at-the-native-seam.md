@@ -3814,6 +3814,59 @@ own port. Attribution is by port, so no proxy credential is involved and bug
 native protocol) would still need the relay to speak SOCKS upstream while
 presenting CONNECT to WebKit, which `LocalProxyRelay` already does.
 
+### Attempt 70 — The HTTP path is no better, and the completion rule holds across both
+
+**2026-09-19**, PR #597, run 3143, `80d5d42`.
+
+**The two-mechanism lead is refuted.** Two distinct HTTP CONNECT proxies, on
+separate loopback ports, no credentials so both loads finish, as the first two
+WebViews of the first launch:
+
+```
+shape=[first-connectpair->proxied second-connectB->DIRECT third-proxy-B->DIRECT ...]
+connect targets=[192.168.64.5:49972], challenges=0, credentials=[]
+```
+
+`challenges=0` confirms the first load completed rather than hanging. The
+second CONNECT store went direct exactly as a second SOCKS5 store does. So
+`recreateSessionWithUpdatedProxyConfigurations` -- the path an HTTP proxy
+takes, which rebuilds the NSURLSession rather than patching a live
+`nw_context` -- does not give a second store its proxy either. Attempt 69's
+reading of the source was correct about the two paths and wrong about what
+follows from them.
+
+**What it does establish.** The completion rule now holds across both delivery
+mechanisms:
+
+| run | arm 1 | arm 1 finished? | arm 2 |
+|-----|-------|-----------------|-------|
+| 3130 | SOCKS5 | completed | DIRECT |
+| 3138 | CONNECT+auth | **hung** | **proxied** (SOCKS5) |
+| 3141 | CONNECT+auth | **hung** | **proxied** (SOCKS5) |
+| 3143 | CONNECT | completed | DIRECT (CONNECT) |
+
+The proxy type is irrelevant. The first load to *complete* takes the single
+slot, and nothing after it is proxied.
+
+**Where that leaves macOS.** Through `proxyConfigurations`, an app can have
+**one** proxied site per process, and only if that site's load completes before
+any other proxied store's. Two sites on two different proxies is not reachable
+by this API on Apple, by any combination tried: SOCKS5 or CONNECT, persistent
+or non-persistent store, in or out of the view hierarchy, first frame or later,
+same endpoint or different.
+
+That is not nothing. The single-proxied-site case is the common one -- one
+site pinned to Tor -- and it is currently broken by accident rather than by
+this limit: whichever site the user happens to open first takes the slot. An
+app that loads the proxied site first, and fails closed for any second proxied
+site rather than letting it out over the device IP, would make the common case
+work reliably and the impossible case safe. That is a product change and is
+not being made without the user.
+
+**Why it was partial.** The mitigation above is proposed, not built. And the
+verdict re-print's grep pattern still named `first-connectauth`, so the
+`connectB` line never reached the tail; fixed here.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**

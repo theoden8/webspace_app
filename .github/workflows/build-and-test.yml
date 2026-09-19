@@ -1553,8 +1553,8 @@ jobs:
           # launches pass, so nothing else puts them in the tail.
           echo "=== BUG-014 launch verdicts ==="
           for pos in first second; do
-            grep -h -e "proxy-shape\] connect targets" \
-              -e "first-connectauth" -e "proxy-shape\] verdict" \
+            grep -h -e "proxy-shape\] connect" -e "first-connect" \
+              -e "proxy-shape\] verdict" \
               "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_$pos.log" 2>/dev/null \
               || echo "$pos: no verdict line"
           done
