@@ -3694,6 +3694,17 @@ as written in this file is too strong, and the WebKit report must describe
 what was measured rather than the rule. n=1; it needs an arm that deliberately
 hangs the first load before it can be stated.
 
+**Confirmed on a second run** (3139, `615acf9`, a markdown-only commit):
+identical verdict, `4/4 own` in the first frame and `2/2 own` in the later
+one. The pin is stable, not a lucky draw.
+
+That run also exposed a regression of mine in the tier rather than in the
+code: un-skipping `proxy_simultaneous_test.dart` added a full app build to a
+loop whose own comment said three such builds had already taken it past its
+cap, and the step hit its 45-minute timeout with files still unrun. The cap is
+now 55. The lesson is narrow and worth keeping: a skip list that explains why
+it exists is a budget, and adding to it spends the budget.
+
 **Why it was partial.** The Linux result covers simultaneity only: that tier
 still skips every other proxy file. And a Linux container site whose proxy is
 DEFAULT takes no pin, so it still follows whatever process-wide override is
