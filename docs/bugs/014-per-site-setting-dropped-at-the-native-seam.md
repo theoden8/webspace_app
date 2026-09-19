@@ -3587,6 +3587,55 @@ two placeholders (OS and WebKit version) need filling in from the machine that
 reproduces it. Drafting it now costs nothing and does not depend on how the
 route-2 arm reads: the burn is a WebKit defect either way.
 
+### Attempt 66 — Linux binds per session, and now the app uses it
+
+**2026-09-19**, PR #597, fork `925a2798`.
+
+**What it did.** Made the per-site proxy actually per-site on Linux, to scope
+the divergence: if two containers hold two proxies at once on WPE and cannot on
+Apple, the defect is Apple's rather than this app's.
+
+WPE applies a proxy to one `WebKitNetworkSession`
+(`webkit_network_session_set_proxy_settings`), and the fork already gives every
+container its own session. But the plugin only ever fanned a single
+process-wide override across every session, so the last site activated decided
+everyone's proxy and the per-site UI was, on Linux, a global switch. The app's
+Dart side matched: `_bindingFor` computed `proxySettings` only for
+`hostIsIOS || hostIsMacOS`, so Linux never received a per-site value at all.
+
+Fork (`flutter_inappwebview_linux`):
+- `InAppWebViewSettings` parses `proxySettings`.
+- `pin_container_proxy(id, settings)` records a container's own proxy and
+  applies it to that session, including to a session that already exists (a
+  second WebView on the same site, or a proxy the user just changed).
+- `get_or_create_container_session` applies the pin if there is one and the
+  process-wide override otherwise, so the proxy is set before the container's
+  first request.
+- `setProxyOverride` / `clearProxyOverride` skip pinned containers. Without
+  that the global fan-out would overwrite exactly what the pin established.
+
+App: `_bindingFor` sends the per-site proxy on Linux too, but only for a site
+that owns a container -- without one there is no session to pin, and that site
+stays on the process-wide path it has always used.
+
+`proxy_simultaneous_test.dart` now applies on Linux as well, and the Linux CI
+job no longer skips it. That file is the goal test: four stores, three distinct
+SOCKS5 upstreams, every pane required to reach its own origin through its own
+proxy, with a CROSSED verdict for a pane that used a sibling's proxy.
+
+**Why it was partial.** Not yet run: WPE headers are not available in this
+sandbox, so the native change is verified by review and by CI rather than by a
+local build. The expected result is Linux green and Apple red on the same file,
+which is the whole point of running it on both.
+
+Two gaps stay open and are not regressions, since both predate this:
+- A container site whose proxy is DEFAULT takes no pin, so it still follows
+  whatever process-wide override is active -- which on Linux is the last
+  site's proxy. Pinning DEFAULT sites to "no proxy" needs a native mode for
+  it.
+- The Linux tier still skips every other proxy file, so only simultaneity is
+  measured there.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**

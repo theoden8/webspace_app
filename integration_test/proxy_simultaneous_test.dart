@@ -41,7 +41,13 @@ import 'socks5_fixture.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  final applies = hostIsIOS || hostIsMacOS;
+  // Linux (WPE) binds the proxy to the container's own WebKitNetworkSession,
+  // where proxies are per session, so it is the tier that can actually pass
+  // this. Apple binds to WKWebsiteDataStore.proxyConfigurations, which is
+  // honoured only for the process's first WebView (BUG-014), so it is
+  // expected to fail here until that is fixed upstream. Running both is the
+  // point: one file, two platforms, and the difference is the finding.
+  final applies = hostIsIOS || hostIsMacOS || hostIsLinux;
 
   void log(String m) {
     // ignore: avoid_print
@@ -155,25 +161,26 @@ void main() {
 
   bool usable() {
     if (!applies) {
-      markTestSkipped('per-WebView proxy binding is an Apple path');
+      markTestSkipped('per-WebView proxy binding is an Apple / WPE path');
       return false;
     }
     expect(
       routable,
       isNotNull,
-      reason: 'no non-loopback IPv4 on this machine, and Apple never sends a '
-          'loopback destination through a proxy, so nothing here could '
+      reason: 'no non-loopback IPv4 on this machine, and a loopback '
+          'destination is not sent through a proxy, so nothing here could '
           'distinguish a bound proxy from an unbound one',
     );
-    // Not a skip. Every Apple tier this runs on is past the
-    // proxyConfigurations floor, so a false here means PlatformInfo was
-    // never initialized rather than an old OS -- and skipping on it is
+    // Not a skip. Every tier this runs on supports the per-site proxy --
+    // Apple past the proxyConfigurations floor, Linux on every WPE build the
+    // fork targets -- so a false here means PlatformInfo was never
+    // initialized rather than an old OS, and skipping on it is
     // indistinguishable, in the tier's output, from a file that ran.
     expect(
       PlatformInfo.isProxySupported,
       isTrue,
-      reason: 'proxy support reads as unavailable on an Apple tier that is '
-          'past the iOS 17 / macOS 14 floor; PlatformInfo.initialize() was '
+      reason: 'proxy support reads as unavailable on a tier that is past the '
+          'iOS 17 / macOS 14 floor or on WPE; PlatformInfo.initialize() was '
           'most likely not awaited in setUpAll',
     );
     return true;

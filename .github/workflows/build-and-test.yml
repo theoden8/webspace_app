@@ -1050,7 +1050,10 @@ jobs:
                 # app build each. Three of those builds is what took this
                 # loop past the cap.
                 [ "$(basename "$t")" = "proxy_window_test.dart" ] && continue
-                [ "$(basename "$t")" = "proxy_simultaneous_test.dart" ] && continue
+                # NOT skipped: WPE binds the proxy per network session, so
+                # this is the tier where two sites really can hold two
+                # proxies at once. It is the control that shows BUG-014
+                # belongs to Apple rather than to this app.
                 [ "$(basename "$t")" = "proxy_http_connect_test.dart" ] && continue
                 [ "$(basename "$t")" = "proxy_relay_binding_test.dart" ] && continue
                 [ "$(basename "$t")" = "proxy_rate_test.dart" ] && continue
