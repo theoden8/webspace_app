@@ -3007,6 +3007,59 @@ shape the app's containers use, rather than a non-persistent one), and
 `bare-window` (added to the app's window, as a real platform view is). The
 first of those to proxy names the variable.
 
+### Attempt 57 — Not the store shape, not the view hierarchy, and my own arms were confounded
+
+**Date:** 2026-09-19
+**Commit:** (this one). Run 35420716772 (3124) on `29f01e3`.
+
+Three arms, each one variable away from attempt 56's bare baseline:
+
+```
+position=first  started=0
+  raw-initial->proxied  factory->proxied  raw-loadurl->proxied
+  bare->DIRECT  bare-ident->DIRECT  bare-window->DIRECT
+
+position=glob   started=35
+  everything DIRECT
+```
+
+All three bare arms reported `ok=true configured=1 detail=didFinish`.
+
+**The split reproduced, which is the first thing worth saying.** Attempt 56's
+result was one run; this is a second, independently. Three app-built WebViews
+proxy and bare ones do not, in one process, one frame, one endpoint.
+
+**Neither candidate is the variable.** `bare-ident` used
+`WKWebsiteDataStore(forIdentifier:)`, the store shape the app's containers
+use, and went direct. `bare-window` was added to the app's key window's
+content view, and went direct. So the store shape is not it and being in the
+view hierarchy is not it.
+
+**And the arms were confounded, by this file's own construction.** All three
+ran *after* the three app WebViews had already loaded and the frame had
+settled. They therefore differ from the app's WebViews in when they ran as
+well as in how they were built -- and "the first one binds, later ones do
+not" has shadowed this bug since attempt 43, withdrawn but never cleanly
+separated inside a single process. Nothing above distinguishes "a bare
+WebView cannot proxy" from "the fourth WebView in a process cannot proxy".
+
+That is a defect in the experiment, not in the reading of it, and it is
+mine: attempt 56 declared a construction difference on evidence that also
+permits an ordering one.
+
+**What this attempt did:** added the two one-variable arms and found both
+innocent, then found the confound they share.
+
+**Why it was partial:** it cannot name the variable while order and
+construction are still tied together. The next attempt unties them with a
+`bare-first` arm that runs *before* the frame is mounted, making it the first
+WebView in the process:
+  - `bare-first` proxies while the later bare arms do not -> the variable is
+    order, and every construction reading here and in attempt 56 is void.
+  - `bare-first` goes direct while the app's three proxy -> construction
+    survives, and the remaining differences are the plugin's shared
+    `WKProcessPool` and the rest of its `WKWebViewConfiguration`.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**

@@ -194,6 +194,60 @@ void main() {
       return;
     }
 
+    // Attempt 56 put one bare WKWebView beside the three app-built ones and
+    // it split: the app's proxied, the bare one did not, in one process.
+    // Attempt 57 then showed the store shape and the view hierarchy are both
+    // innocent. What that left unseparated is this file's own doing: the
+    // bare arms ran *after* the three app WebViews had already loaded, so
+    // they differed in when they ran as well as in how they were built, and
+    // "the first one binds" has shadowed this bug since attempt 43.
+    //
+    // So one arm now runs before the frame is mounted, making it the first
+    // WebView in the process. If `bare-first` proxies and the later bare
+    // arms do not, the variable is order, not construction, and every
+    // construction reading above is void. If it goes direct while the app's
+    // three proxy, construction survives as the answer.
+    Future<void> probe(String label,
+        {bool identified = false, bool attach = false}) async {
+      if (!hostIsMacOS) return;
+      final before = socks.targets.length;
+      final origin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
+      listenFixture(origin, (req) async {
+        final res = req.response..headers.contentType = ContentType.html;
+        res.write('<!doctype html><html><body><p>$label</p></body></html>');
+        await res.close();
+      });
+      // Bounded and total: these are diagnostics riding along in a test that
+      // measures something else. A probe that throws, or whose WebView never
+      // reaches a terminal navigation callback so the reply never comes,
+      // must not take the three shapes down with it.
+      try {
+        final reply = await const MethodChannel('webspace/proxy_probe')
+            .invokeMapMethod<String, dynamic>('probe', {
+          'socksHost': '127.0.0.1',
+          'socksPort': socks.port,
+          'url': 'http://$originHost:${origin.port}/',
+          'identified': identified,
+          'identifier': '8f1d5c4e-0000-4000-8000-0000000000${identified ? 11 : 12}',
+          'attach': attach,
+        }).timeout(const Duration(seconds: 30));
+        final outcome = socks.targets.length > before ? 'proxied' : 'DIRECT';
+        results.add('$label->$outcome');
+        log('$label -> $outcome (ok=${reply?['ok']} '
+            'configured=${reply?['configured']} detail=${reply?['detail']})');
+      } catch (e) {
+        // Still worth a reading: the SOCKS fixture records a CONNECT when it
+        // happens, whatever the reply did.
+        final outcome = socks.targets.length > before ? 'proxied' : 'DIRECT';
+        results.add('$label->$outcome');
+        log('$label -> $outcome, probe did not report: $e');
+      } finally {
+        await origin.close(force: true);
+      }
+    }
+
+    await tester.runAsync(() => probe('bare-first'));
+
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(
         body: Column(children: [
@@ -289,59 +343,9 @@ void main() {
     // Run 3121 had this bare shape go DIRECT twice while proxy_shape's own
     // webviews proxied in both tier positions, but those were separate
     // processes. This makes it one.
-    // Attempt 56 put one bare WKWebView beside the three app-built ones and
-    // it split: the app's proxied, the bare one did not, in one process. So
-    // the difference is in how the WebView is built, and these arms walk it
-    // one variable at a time. Each differs from `bare` in exactly one way.
-    //
-    //   bare        nonPersistent store, never in the view hierarchy
-    //   bare-ident  the identified store shape the app's containers use
-    //   bare-window added to the app's window, as a real platform view is
-    //
-    // The first of these to proxy names the variable.
-    if (hostIsMacOS) {
-      for (final arm in const [
-        ('bare', false, false),
-        ('bare-ident', true, false),
-        ('bare-window', false, true),
-      ]) {
-        final (label, identified, attach) = arm;
-        final before = socks.targets.length;
-        final origin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
-        listenFixture(origin, (req) async {
-          final res = req.response..headers.contentType = ContentType.html;
-          res.write('<!doctype html><html><body><p>$label</p></body></html>');
-          await res.close();
-        });
-        // Bounded and total: these are diagnostics riding along in a test
-        // that measures something else. A probe that throws, or whose
-        // WebView never reaches a terminal navigation callback so the reply
-        // never comes, must not take the three shapes down with it.
-        try {
-          final reply = await const MethodChannel('webspace/proxy_probe')
-              .invokeMapMethod<String, dynamic>('probe', {
-            'socksHost': '127.0.0.1',
-            'socksPort': socks.port,
-            'url': 'http://$originHost:${origin.port}/',
-            'identified': identified,
-            'identifier': '8f1d5c4e-0000-4000-8000-0000000000${identified ? 11 : 12}',
-            'attach': attach,
-          }).timeout(const Duration(seconds: 30));
-          final outcome = socks.targets.length > before ? 'proxied' : 'DIRECT';
-          results.add('$label->$outcome');
-          log('$label -> $outcome (ok=${reply?['ok']} '
-              'configured=${reply?['configured']} detail=${reply?['detail']})');
-        } catch (e) {
-          // Still worth a reading: the SOCKS fixture records a CONNECT when
-          // it happens, whatever the reply did.
-          final outcome = socks.targets.length > before ? 'proxied' : 'DIRECT';
-          results.add('$label->$outcome');
-          log('$label -> $outcome, probe did not report: $e');
-        } finally {
-          await origin.close(force: true);
-        }
-      }
-    }
+    await probe('bare');
+    await probe('bare-ident', identified: true);
+    await probe('bare-window', attach: true);
 
     final proxied = results
         .where((r) => r.startsWith(RegExp('raw-|factory')))
