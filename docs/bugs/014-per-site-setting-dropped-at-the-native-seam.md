@@ -3315,6 +3315,76 @@ their output sat thousands of lines above the tail and no API reader could
 reach it -- this run's data needed a 566 KB fetch to recover. The step now
 repeats the three verdict lines at the end.
 
+### Attempt 61 — The sweep is out, and the first tracker search this bug has had
+
+**2026-09-19**, PR #597, run 3131, `08687f2`.
+
+**What it did.** Held the first arm at `proxied` in all three launches and
+varied only what the launch found and did with stored containers:
+
+| launch | started | swept | first arm |
+|--------|---------|-------|-----------|
+| 1 `first`  | 0 | none | **proxied** |
+| 2 `second` | 3 | none | DIRECT |
+| 3 `third`  | 6 | 6    | DIRECT |
+
+Launch 1 and launch 2 delete nothing and differ only in whether three
+container directories exist on disk. **The sweep is exonerated**, and launch 3
+agrees: deleting all six changes nothing. Attempt 49 said the sweep was
+innocent without a positive control; it now has one.
+
+**Why it was partial.** Launch 1 is the launch that finds nothing stored, the
+launch that enumerates an empty list, *and* the first launch. Three candidates,
+every pair confounded. The next run puts a `nolist` mode (never calls
+`fetchAllDataStoreIdentifiers`) and a purge launch between them so all three
+separate: stored-but-never-enumerated, and nothing-stored-but-the-fourth-launch.
+
+---
+
+**Upstream, read for the first time.** This file carried thirty citations of
+WebKit source and none of any tracker. Four things came out of closing that
+gap, and two of them matter.
+
+1. **One network process per app, and the first WebView spawns it.**
+   `NetworkProcessProxy::defaultNetworkProcess()`
+   (`Source/WebKit/UIProcess/Network/NetworkProcessProxy.cpp:151`) is a
+   `NeverDestroyed<WeakPtr<NetworkProcessProxy>>` static;
+   `ensureDefaultNetworkProcess()` creates it lazily and every data store
+   afterwards attaches to the same one. That is the mechanism shape for a
+   single per-process proxy slot, it makes "which WebView is first" the thing
+   that decides who spawns it, and because the static lives in the UI process
+   an app restart gets a fresh one -- which is what the original report
+   describes. The `WeakPtr` also means a network-process termination nulls it
+   and the next `ensure` builds a new one, so there may be an in-app reclaim
+   path. Untested.
+
+2. **WebKit bug 264309 undercuts route 2's premise.** "HTTP Connect proxy
+   authorization header is not sent when using proxyConfigurations API",
+   RESOLVED/MOVED to `rdar://118028838`, `FB13343450`. Alexey Proskuryakov:
+   *"This ended up being tracked as an issue below WebKit. Please continue
+   communicating about this via Feedback Assistant."* `Proxy-Authorization` is
+   never sent for a CONNECT proxy configured with
+   `nw_proxy_config_set_username_and_password`, not even after a 407.
+   `proxy_relay_binding_test.dart`'s design gives every store the same
+   loopback CONNECT endpoint and its own proxy-auth credential so the relay
+   can attribute a connection to a site. That is the broken path. Before
+   trusting `LocalProxyRelay`, establish whether `onReceivedHttpAuthRequest`
+   fires for a proxy 407 on Apple. PROXY-015's attribution probe already
+   refuses router mode without proof of per-container credentials, but it is
+   gated on `hostIsAndroid`.
+
+3. **Nothing documents a per-process slot.** `WKWebsiteDataStore.h:125-127`
+   says only that changing the configurations "might interupt current
+   networking operations in any WKWebView that use this WKWebsiteDataStore, so
+   it is encouraged to finish setting the proxy configurations before starting
+   any page loads" -- per store, about interruption. What this tier measures is
+   undocumented behaviour, not misuse.
+
+4. **Another fork does the same thing and reports no failure.**
+   `arrrrny/zikzak_inappwebview` PR #308 applies a per-profile proxy at custom
+   data store creation, as this fork does. No mention of a failure, which is
+   what one would expect if only the first proxied WebView is ever exercised.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**

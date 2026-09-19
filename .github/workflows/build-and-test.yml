@@ -1433,25 +1433,29 @@ jobs:
           fi
           status=0
           failed=""
-          # BUG-014, the launch effect. Run 3130 held the first arm fixed at
-          # `proxied` across two launches 70 seconds apart in this job: the
-          # one that found no stored containers bound, the one that found
-          # three did not. So a launch either has a working proxy slot or it
-          # does not, and that decides every other reading in this tier.
+          # BUG-014, what closes a launch's proxy slot. Run 3131 exonerated
+          # the sweep: a launch that found three stored containers and
+          # deleted none went direct exactly like one that deleted all six,
+          # while the launch that found none bound. Deleting is not it.
           #
-          # What launch 1 differed in was confounded twice over, because a
-          # launch with nothing stored also has nothing to sweep. These three
-          # take it apart, every one of them with a proxied first arm so each
-          # launch measures only its own slot:
+          # Three candidates remain and each pair of them is confounded in
+          # every run so far, because a launch that finds nothing stored is
+          # also the first launch and also enumerates an empty list. Four
+          # launches, each with a proxied first arm so it measures its own
+          # slot, separate all three:
           #
-          #   1 first   nothing stored          (control; must bind)
-          #   2 second  stored, NOT swept
-          #   3 third   stored, swept
+          #   1 first   nothing stored, enumerates    (control; must bind)
+          #   2 second  stored, NEVER enumerated
+          #   3 purge   wipes, mounts nothing, no arms
+          #   4 fourth  nothing stored, enumerates, but the fourth launch
           #
-          # 1 vs 2 is whether stored containers alone close the slot; 2 vs 3
-          # is whether deleting them does. Both binding would move the
-          # variable to something that accrues per app launch.
-          for launch in "first:off:proxied" "second:off:proxied" "third:on:proxied"; do
+          # 2 binds  -> the enumeration brings the network process up, not
+          #             the containers on disk.
+          # 2 direct, 4 binds  -> the stored containers are it.
+          # 2 direct, 4 direct -> it is being a later app launch, and the
+          #             containers are innocent.
+          for launch in "first:off:proxied" "second:nolist:proxied" \
+                        "purge:purge:proxied" "fourth:off:proxied"; do
             pos="${launch%%:*}"
             rest="${launch#*:}"
             sweep="${rest%%:*}"
@@ -1518,16 +1522,6 @@ jobs:
             fi
             echo "::endgroup::"
           done
-          # The proxy_shape launches run before this loop and pass, so their
-          # output sits thousands of lines above the tail and an API reader
-          # never sees it. Their verdict lines are the whole point of the
-          # launches, so repeat them here.
-          echo "=== BUG-014 launch verdicts ==="
-          for pos in first second third; do
-            grep -h "proxy-shape\] verdict" \
-              "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_$pos.log" 2>/dev/null \
-              || echo "$pos: no verdict line"
-          done
           # Named, at the end, where the tail of the log is: nineteen files
           # each print thousands of lines, so which one failed was otherwise
           # only findable by paging back through the whole job.
@@ -1539,6 +1533,16 @@ jobs:
               tail -60 "${RUNNER_TEMP:-/tmp}/tier-$f.log" || true
             done
           fi
+          # Last, because the failure dumps above are ~60 lines each and a
+          # log tail that stops short of these is the difference between
+          # reading the run and refetching half a megabyte of it. The
+          # launches pass, so nothing else puts them in the tail.
+          echo "=== BUG-014 launch verdicts ==="
+          for pos in first second purge fourth; do
+            grep -h "proxy-shape\] verdict" \
+              "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_$pos.log" 2>/dev/null \
+              || echo "$pos: no verdict line"
+          done
           if [ $status -ne 0 ]; then
             echo "=== recent macOS crash reports ==="
             ls -t "$HOME/Library/Logs/DiagnosticReports/" 2>/dev/null | head || true

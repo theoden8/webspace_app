@@ -70,8 +70,17 @@ void main() {
   /// trip into `WKWebsiteDataStore.fetchAllDataStoreIdentifiers`, and runs
   /// 3106 through 3111 give no sign that it changes what binds.
   final sweepMode = Platform.environment['WEBSPACE_SHAPE_SWEEP'] ?? 'on';
-  final lists = sweepMode != '0' && sweepMode != 'off';
-  final deletes = lists && sweepMode != 'list';
+
+  /// `nolist` never asks the platform what is stored. Run 3131 exonerated the
+  /// sweep -- a launch that found three containers and deleted none went
+  /// direct exactly like one that deleted all of them -- which leaves the
+  /// enumeration itself as a suspect the sweep modes cannot separate:
+  /// `fetchAllDataStoreIdentifiers` returning rows may be what brings the
+  /// network process up before any WebView exists, and a launch that finds
+  /// nothing has nothing to bring it up for.
+  final enumerates = sweepMode != 'nolist';
+  final deletes =
+      enumerates && (sweepMode == 'on' || sweepMode == 'purge');
 
   /// `purge` deletes every stored container and mounts nothing, so the next
   /// process starts with none. It was built to test the count a process
@@ -127,14 +136,16 @@ void main() {
     await PlatformInfo.initialize();
     containers = await ContainerNative.instance.isSupported();
 
-    final stale = await ContainerNative.instance.listContainers();
-    started = stale.length;
-    if (deletes) {
-      for (final siteId in stale) {
-        await ContainerNative.instance.deleteContainer(siteId);
+    if (enumerates) {
+      final stale = await ContainerNative.instance.listContainers();
+      started = stale.length;
+      if (deletes) {
+        for (final siteId in stale) {
+          await ContainerNative.instance.deleteContainer(siteId);
+        }
+        swept = stale.length;
+        left = (await ContainerNative.instance.listContainers()).length;
       }
-      swept = stale.length;
-      left = (await ContainerNative.instance.listContainers()).length;
     }
 
     routable = await nonLoopbackIPv4();
