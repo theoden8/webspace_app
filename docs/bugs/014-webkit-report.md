@@ -28,12 +28,13 @@ A process may create several `WKWebsiteDataStore`s, give each its own
 such load is proxied. A second store's load reaches the origin **directly**,
 with no error and no indication that the proxy was dropped.
 
-Stated as what was measured rather than as a rule: across more than ten runs,
-a second proxied store never used its proxy once the first store's load had
-completed normally. One run, where the first load hung instead of completing,
-did proxy a second store -- so the trigger may be a *completed* load rather
-than the creation of a WebView. Either way a second site is not proxied in
-ordinary use.
+What decides it is **completion**, not creation. Across more than ten runs, a
+second proxied store never used its proxy once the first store's load had
+completed. In two runs where the first load hung instead of completing, the
+second store *was* proxied and a third was not -- so a load still in flight
+has not yet taken the slot, and the next load to complete takes it. Either
+way a second site is not proxied in ordinary use, where the first load
+finishes.
 
 In every failing case the store still reports its configuration:
 `store.proxyConfigurations.count == 1` immediately before the load, and the

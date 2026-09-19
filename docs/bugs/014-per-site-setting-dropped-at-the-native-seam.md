@@ -3710,6 +3710,52 @@ still skips every other proxy file. And a Linux container site whose proxy is
 DEFAULT takes no pin, so it still follows whatever process-wide override is
 active -- unchanged from before, but now the odd one out.
 
+### Attempt 68 — The rule was wrong: the slot goes to the first load that *completes*
+
+**2026-09-19**, PR #597, run 3141, `3d099e6`.
+
+**The anomaly reproduced exactly (n=2).** Byte-for-byte the same shape as run
+3138, on a different commit and a different runner:
+
+```
+first-connectauth -> proxied, probe did not report: TimeoutException after 0:00:30
+connect targets=[192.168.64.9:49977], challenges=1, credentials=[]
+shape=[first-connectauth->proxied second-proxy-A->proxied third-proxy-B->DIRECT ...]
+```
+
+Two stores bound in one process, twice. **"Only the first WebView in a process
+is proxied" (attempts 59b-64) is wrong as stated** and is withdrawn.
+
+**The replacement fits every run this investigation has, including the ones
+that produced the old rule.** The slot is taken by the first load that
+*completes*; a load still in flight has not taken it.
+
+| run | arm 1 | arm 2 | arm 3 |
+|-----|-------|-------|-------|
+| 3130 | proxied, **completed** | DIRECT | DIRECT |
+| 3138 | proxied, **hung** | **proxied** | DIRECT |
+| 3141 | proxied, **hung** | **proxied** | DIRECT |
+
+When arm 1 finishes, it owns the slot and everything after goes direct. When
+arm 1 hangs it never claims the slot, so arm 2 completes and claims it, and
+arm 3 -- now genuinely second -- goes direct. Nothing in the earlier data
+contradicts this; the earlier arms simply all completed, so the two rules were
+indistinguishable until an arm hung.
+
+This is why the rule mattered: a WebKit report asserting "only the first
+WebView" would have been closed by the first person who tried it with a slow
+first load. `docs/bugs/014-webkit-report.md` was already narrowed to the
+measured claim in `615acf9`; it now states the completion rule with n=2 behind
+it rather than hedging.
+
+**Route 2 confirmed closed (n=2).** `credentials=[]` again: the CONNECT proxy
+is reached, answers 407, and no `Proxy-Authorization` ever follows. Bug 264309
+holds on current macOS.
+
+**The Linux cap fix is verified**, not assumed: run 3141 has exactly one
+failing job (Apple), so the Linux tier completed inside 55 minutes with
+`proxy_simultaneous` in it.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
