@@ -3199,6 +3199,61 @@ running ahead of them. It now asserts instrument health -- every arm reached a
 terminal outcome -- because the finding is in the verdict line, not in a
 threshold.
 
+### Attempt 59b — The slot is spent by the first WebView, proxy or no proxy
+
+**2026-09-19**, PR #597, run 3127, `313d3d9`.
+
+**What it did.** Ran the three arms ahead of the frame. Every arm in every
+launch went direct:
+
+```
+position=first,  sweep=on,  started=0, swept=0:
+  first-noproxy->DIRECT (configured=0) second-proxy-A->DIRECT (configured=1)
+  third-proxy-B->DIRECT (configured=1) ... all nine DIRECT
+position=second, sweep=off, started=3:   all nine DIRECT
+position=third,  sweep=on,  started=6, swept=6: all nine DIRECT
+```
+
+Every proxied arm reported `configured=1 detail=didFinish`: the store held one
+proxy configuration and the load completed.
+
+**Why this is the answer and not another null run.** Run 3127's first launch
+matched run 3125's first launch in every condition the file records --
+`position=first`, `started=0`, `swept=0`, same job, same runner image -- and
+differed in exactly one thing: its first WebView carried no proxy.
+`bare-first` in 3125 was a non-persistent store + a SOCKS5 configuration + a
+load, and it proxied. `second-proxy-A` in 3127 is the same three things, one
+place later, and it went direct. The only edit between them is that an
+unproxied WebView loaded first.
+
+**So the process's proxy slot is claimed by the first WebView regardless of
+what it carries, and an unproxied first load spends it.** That is the shape of
+the original report: *"sometimes I have to restart the app for tor proxy to
+start working."* A session whose first site is unproxied has no proxy for any
+site, and a restart that happens to load the Tor site first works. It also
+means attempt 58's "the second site is never first" understates it -- the
+*first* site is not reliably first either, because anything the app loads
+before it takes the slot.
+
+**Why it was partial.** Two things.
+
+1. **The launch-level effect is untouched, and I confounded it.** Attempt 59
+   put the burn arms and the sweep bisection in the same file, and the burn
+   arm runs first, so all three launches went direct for the same reason and
+   said nothing about the sweep, the stale containers or being the machine's
+   first app launch. Run 3125's glob position went direct on a *proxied*
+   first arm, which no ordering rule explains; that is still open.
+2. **Nothing here had a positive control, and that is why one run of nine
+   DIRECT arms took a second run to read.** A launch with no working slot and
+   a launch whose slot was spent produce identical logs. The first arm is now
+   a knob (`WEBSPACE_SHAPE_FIRSTARM`), and the launches run
+   `proxied / noproxy / proxied`: launches 1 and 3 must bind or the run is
+   void, 1 vs 3 isolates the launch effect with the first arm fixed, and 2 vs
+   3 isolates the burn with the launch fixed.
+
+Still unaddressed: whether the slot is per-process or per-network-process,
+which decides whether an app restart reclaims it.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**

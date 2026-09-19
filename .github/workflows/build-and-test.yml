@@ -1433,39 +1433,44 @@ jobs:
           fi
           status=0
           failed=""
-          # BUG-014 bisection. Run 3125 split one file's verdict by launch:
-          # the same proxy_shape arm proxied its first WebView when it ran
-          # ahead of the tier (started=0, nothing swept) and went direct in
-          # its glob position (started=35, all swept), with configured=1 and
-          # a finished load both times. So "only the first WebView in a
-          # process binds" is necessary and not sufficient -- something about
-          # the launch decides whether that slot works at all, and the two
-          # launches differed in more than one way.
+          # BUG-014 bisection, two questions in three launches.
           #
-          # Three launches back to back separate them. Only the first is the
-          # machine's first app launch; launches 2 and 3 differ from each
-          # other in exactly one thing, whether the stale containers are
-          # deleted before any WebView exists:
+          # Run 3127 answered the first one by accident: its first launch
+          # matched run 3125's in every recorded condition and differed only
+          # in that its first WebView carried no proxy. 3125 proxied that
+          # arm; 3127 went direct on all nine arms, each with the store
+          # reporting one proxy configuration and the load finishing. The
+          # slot is spent by the first WebView in the process whatever it
+          # carries.
           #
-          #   first   started=0, sweeps nothing   (the launch that binds)
-          #   second  started>0, sweeps nothing
-          #   third   started>0, sweeps them all
+          # That leaves the launch effect, which run 3125 showed and 3127
+          # could not test: a *proxied* first arm went direct in the glob
+          # position. So the three launches now vary one thing at a time.
           #
-          # second binds and third does not -> the sweep is the variable.
-          # Both bind -> it is being a late launch on a tired machine, and
-          # every glob-position reading in this tier is noise. Neither binds
-          # -> it is being the machine's first app launch.
-          for launch in "first:on" "second:off" "third:on"; do
+          #   1 first   proxied first arm, no stale containers
+          #   2 second  UNPROXIED first arm, stale containers swept
+          #   3 third   proxied first arm, stale containers swept
+          #
+          # 1 vs 3 is the launch effect with the first arm held fixed; 2 vs 3
+          # is the burn with the launch held fixed. 1 and 3 are also the
+          # positive controls: a launch where the proxied first arm goes
+          # direct measures nothing, and every all-direct reading before this
+          # one had no way to say so.
+          for launch in "first:on:proxied" "second:on:noproxy" "third:on:proxied"; do
             pos="${launch%%:*}"
-            sweep="${launch##*:}"
-            echo "::group::integration_test/proxy_shape_test.dart ($pos, sweep=$sweep)"
+            rest="${launch#*:}"
+            sweep="${rest%%:*}"
+            arm="${rest##*:}"
+            echo "::group::integration_test/proxy_shape_test.dart ($pos, sweep=$sweep, first=$arm)"
             if [ -n "$TIMEOUT" ]; then
               WEBSPACE_TIER_POSITION="$pos" WEBSPACE_SHAPE_SWEEP="$sweep" \
+                WEBSPACE_SHAPE_FIRSTARM="$arm" \
                 "$TIMEOUT" -k 30s 12m \
                 fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
                 | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_$pos.log" || true
             else
               WEBSPACE_TIER_POSITION="$pos" WEBSPACE_SHAPE_SWEEP="$sweep" \
+                WEBSPACE_SHAPE_FIRSTARM="$arm" \
                 fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
                 | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_$pos.log" || true
             fi

@@ -81,6 +81,14 @@ void main() {
   /// wants.
   final purges = sweepMode == 'purge';
 
+  /// What the process's FIRST WebView carries. Run 3127 is the reason it is a
+  /// knob: its first launch was byte-identical in conditions to run 3125's
+  /// (position=first, started=0, nothing swept) and differed only in that its
+  /// first WebView carried no proxy. Run 3125 proxied; 3127 went direct on
+  /// every arm, the proxied ones included. `proxied` restores 3125's arm and
+  /// is the positive control; `noproxy` is the intervention.
+  final firstArm = Platform.environment['WEBSPACE_SHAPE_FIRSTARM'] ?? 'proxied';
+
   late Socks5Fixture socks;
   /// A second, distinct SOCKS5 endpoint. Attempt 59 needs one because
   /// every arm after the first in run 3125 shared *one* endpoint and went
@@ -145,7 +153,8 @@ void main() {
         await res.close();
       });
     }
-    log('position=$position, sweep=$sweepMode, started=$started, '
+    log('position=$position, sweep=$sweepMode, firstArm=$firstArm, '
+        'started=$started, '
         'swept=$swept, left=$left, '
         'origins ${ports.join(",")} on $originHost, '
         'socks ${socks.port}/${socksB.port}, '
@@ -165,7 +174,8 @@ void main() {
       log('native: no container-store trace was written');
     }
     log('verdict: containers=$containers, position=$position, '
-        'sweep=$sweepMode, started=$started, swept=$swept, left=$left, '
+        'sweep=$sweepMode, firstArm=$firstArm, '
+        'started=$started, swept=$swept, left=$left, '
         'shape=[${results.join(" ")}]');
     await socks.close();
     await socksB.close();
@@ -201,26 +211,30 @@ void main() {
       return;
     }
 
-    // Attempt 58 settled that only the first WebView in a WebKit process is
-    // proxied: `bare-first` bound and the three app shapes behind it went
-    // direct, the same three that bound in runs 3123/3124 when nothing ran
-    // ahead of them. What it could not say is what "first" keys on, because
-    // that arm was the first WebView, the first load and the first store
-    // handed a proxy all at once.
+    // Run 3127 answered what "first" keys on, by accident and decisively.
+    // Its first launch matched run 3125's in every condition the file
+    // records -- position=first, started=0, nothing swept -- and differed in
+    // one thing: its first WebView carried no proxy. 3125 proxied its first
+    // arm; 3127 went direct on all nine, the proxied ones included, each
+    // reporting configured=1 and a finished load.
     //
-    // Three arms ahead of the frame separate them, and the split is the
-    // product answer as much as the mechanism:
+    // So the slot is claimed by the first WebView in the process whether or
+    // not it carries a proxy, and an unproxied first load spends it. That is
+    // the shape of "sometimes I have to restart the app for Tor to work": a
+    // session whose first site is not proxied has no proxy for any site.
     //
-    //  first-noproxy  a WebView on a store with no proxy at all, built and
-    //                 loaded before anything else. It takes the "first
-    //                 WebView" and "first load" slots without taking the
-    //                 "first proxy assignment" one.
-    //  second-proxy-A the next WebView, proxied through endpoint A. If it
-    //                 binds, an unproxied first load is harmless and the
-    //                 slot belongs to the first assignment. If it goes
-    //                 direct, the first WebView in the process burns the
-    //                 slot whatever it carries -- which is what a user sees
-    //                 as "sometimes I have to restart the app for Tor".
+    // The arms now carry a positive control for it, because a run where
+    // nothing proxies is also what a dead launch looks like (run 3125's glob
+    // position went direct on a *proxied* first arm, which no ordering rule
+    // explains and which is still open):
+    //
+    //  first-<mode>   `proxied` restores 3125's arm and must bind, which is
+    //                 what makes the rest of the launch readable at all;
+    //                 `noproxy` is the intervention.
+    //  second-proxy-A the next WebView, proxied. Direct behind a proxied
+    //                 first arm is the one-slot rule; direct behind an
+    //                 unproxied one is the slot being spent by a load that
+    //                 wanted nothing.
     //  third-proxy-B  a third WebView through a *different* endpoint. Every
     //                 arm that went direct so far shared one endpoint with
     //                 the arm that bound, so "one proxy per process" and
@@ -269,7 +283,8 @@ void main() {
       }
     }
 
-    await tester.runAsync(() => probe('first-noproxy', proxy: false));
+    await tester.runAsync(
+        () => probe('first-$firstArm', proxy: firstArm != 'noproxy'));
     await tester.runAsync(() => probe('second-proxy-A'));
     await tester.runAsync(() => probe('third-proxy-B', via: socksB));
 
