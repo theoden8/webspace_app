@@ -3910,6 +3910,29 @@ not be filed until the claim is re-measured with stores that stay alive.
 had written on the property -- "Held for the life of the probe" -- shows the
 lifetime question was in front of me when I scoped it wrongly.
 
+### Attempt 71a -- the fixed probe's first run was destroyed before it reported
+
+**2026-09-19**, run 3147 (`be23c6b`).
+
+**No reading was taken.** The Apple job carrying the first fixed-probe
+measurement was cancelled 66 minutes in, at 23:42:29, by a force-push to
+`claude/ios-tor-startup-logs-lo2ao5`. The workflow's concurrency group is
+`${{ github.workflow }}-${{ github.ref }}` and a `pull_request` run's ref is
+`refs/pull/<N>/merge`, so any push to that PR's head cancels whatever Apple
+job is mid-flight on it. The push was mine, it was the branch trim, and the
+same mistake had already cost an Apple run earlier in this investigation.
+
+**Why it is recorded rather than quietly retried.** Attempt 71's fix is
+*unverified* as of this entry. It is easy to read attempt 71 as "the probe was
+fixed, so the readings after it are sound" -- there are no readings after it.
+Anything citing `liveStores` must cite a run that actually produced the line.
+
+**What it changes procedurally.** The probe and its arms now live on
+`claude/bug-014-apple-proxy-investigation` (PR #603), not on the Tor branch,
+so a push to the Tor PR can no longer take the measurement down with it. The
+two PRs are in different concurrency groups. `docs/bugs/014-webkit-report.md`
+stays blocked, for the same reason as attempt 71 and not a new one.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
