@@ -323,7 +323,8 @@ void main() {
         final outcome = now > before ? 'proxied' : 'DIRECT';
         results.add('$label->$outcome');
         log('$label -> $outcome (ok=${reply?['ok']} '
-            'configured=${reply?['configured']} detail=${reply?['detail']} '
+            'configured=${reply?['configured']} '
+            'liveStores=${reply?['liveStores']} detail=${reply?['detail']} '
             'challenges=${reply?['challenges']} '
             'proxyChallenges=${reply?['proxyChallenges']} '
             'methods=${reply?['challengeMethods']})');

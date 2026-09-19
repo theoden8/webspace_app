@@ -1,6 +1,10 @@
 # Draft: WebKit bug report for the per-process proxy slot
 
-Status: **draft, not filed.** Filing is the user's call. Cross-linked from
+Status: **draft, NOT FILED, and currently BLOCKED.** Filing is the user's
+call, and it should not happen yet: attempt 71 found that the bare-WKWebView
+probe released each store before the next arm ran, so the two-store readings
+below describe sequential use rather than coexistence. The claim needs
+re-measuring with stores that stay alive before this goes to anyone. Cross-linked from
 [014-per-site-setting-dropped-at-the-native-seam.md](014-per-site-setting-dropped-at-the-native-seam.md)
 (attempt 58 proposed it; attempts 59-64 are the evidence).
 

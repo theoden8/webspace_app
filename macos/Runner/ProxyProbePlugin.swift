@@ -35,11 +35,20 @@ class ProxyProbePlugin: NSObject {
 
   private let channel: FlutterMethodChannel
 
-  /// Held for the life of the probe: a `WKWebView` that goes out of scope
-  /// mid-load reports nothing at all, which reads exactly like a proxy that
-  /// was never used.
-  private var webView: WKWebView?
-  private var delegate: ProbeNavigationDelegate?
+  /// Held for the life of the PLUGIN, not of one probe.
+  ///
+  /// These were single properties, and each arm overwrote the previous one.
+  /// The delegate's closure is the only strong reference to that arm's
+  /// `WKWebsiteDataStore`, so starting arm 2 deallocated arm 1's WebView and
+  /// its store. Every "a second store is not proxied" reading taken through
+  /// this probe was therefore taken with the first store already gone, which
+  /// is sequential use rather than the coexistence the app actually has.
+  ///
+  /// Arrays now, with stores retained explicitly, so every store a run
+  /// creates is still alive while later arms load.
+  private var webViews: [WKWebView] = []
+  private var delegates: [ProbeNavigationDelegate] = []
+  private var stores: [WKWebsiteDataStore] = []
 
   init(messenger: FlutterBinaryMessenger) {
     channel = FlutterMethodChannel(name: ProxyProbePlugin.channelName,
@@ -118,17 +127,20 @@ class ProxyProbePlugin: NSObject {
     if attach, let contentView = NSApplication.shared.keyWindow?.contentView {
       contentView.addSubview(view)
     }
+    // Read before the closure runs, so the reply reports how many stores were
+    // alive when THIS arm loaded, not at reply time.
+    let liveStores = stores.count + 1
     var navDelegate: ProbeNavigationDelegate?
     navDelegate = ProbeNavigationDelegate(
       credential: (username != nil && password != nil)
         ? URLCredential(user: username!, password: password!, persistence: .forSession)
         : nil
-    ) { [weak self] detail in
+    ) { detail in
+      // Deliberately keeps the WebView, delegate and store alive: an earlier
+      // arm staying alive while a later one loads is the whole point.
       if attach {
-        self?.webView?.removeFromSuperview()
+        view.removeFromSuperview()
       }
-      self?.webView = nil
-      self?.delegate = nil
       result([
         "ok": true,
         "identified": identified,
@@ -136,6 +148,7 @@ class ProxyProbePlugin: NSObject {
         "proxy": wantsProxy,
         "kind": kind,
         "configured": store.proxyConfigurations.count,
+        "liveStores": liveStores,
         "detail": detail,
         "challenges": navDelegate?.challenges ?? 0,
         "proxyChallenges": navDelegate?.proxyChallenges ?? 0,
@@ -143,8 +156,9 @@ class ProxyProbePlugin: NSObject {
       ])
     }
     view.navigationDelegate = navDelegate
-    webView = view
-    delegate = navDelegate
+    webViews.append(view)
+    if let navDelegate = navDelegate { delegates.append(navDelegate) }
+    stores.append(store)
     view.load(URLRequest(url: url))
   }
 

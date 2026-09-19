@@ -3867,6 +3867,49 @@ not being made without the user.
 verdict re-print's grep pattern still named `first-connectauth`, so the
 `connectB` line never reached the tail; fixed here.
 
+### Attempt 71 — The probe was freeing each store before the next arm ran
+
+**2026-09-19**, PR #597.
+
+**The instrument was wrong, and it invalidates a class of readings.**
+`ProxyProbePlugin` held a single `webView` and a single `delegate` property.
+Each arm overwrote both. The delegate's closure holds the only strong
+reference to that arm's `WKWebsiteDataStore`, so starting arm 2 deallocated
+arm 1's WebView *and its store*.
+
+So this probe never measured two stores coexisting. It measured them
+sequentially, with the earlier one destroyed -- which is not what the app
+does, where every site's store is alive at once. Every "a second store does
+not get its proxy" reading taken through the bare probe is therefore about
+sequential use and does not, on its own, support the claim the WebKit report
+makes.
+
+It also gives the hung-arm anomaly (attempts 67, 68, 70) a second
+explanation that the data cannot currently separate: arm 2 bound either
+because arm 1 never completed, or because arm 1's store was released at the
+moment arm 2 was constructed.
+
+**What survives.** `proxy_simultaneous_test.dart` builds its four panes as
+widgets in one frame, so their stores genuinely coexist, and all four read
+DIRECT on Apple. That result is unaffected. What it has never had is a
+positive control in the same process, which is exactly what the bare probe
+was supposed to supply.
+
+**The fix.** The plugin now retains every WebView, delegate and store for the
+life of the plugin rather than the life of one probe, and each arm reports
+`liveStores`, the number alive when it loaded. A reading where `liveStores`
+is 1 for every arm is a sequential test and must not be read as a
+coexistence test.
+
+**What this changes in the report.** The completion rule stated in attempt 68
+and carried into `docs/bugs/014-webkit-report.md` rests on arms whose earlier
+store was being freed. It is suspended pending a re-run, and the report must
+not be filed until the claim is re-measured with stores that stay alive.
+
+**Credit where due:** this was the user's catch, not mine, and the comment I
+had written on the property -- "Held for the life of the probe" -- shows the
+lifetime question was in front of me when I scoped it wrongly.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
