@@ -1445,6 +1445,21 @@ jobs:
               | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_first.log" || true
           fi
           echo "::endgroup::"
+          # Same first/glob pairing for the bare-WebKit probe (BUG-014
+          # attempt 55). It carries none of the app's machinery, so if it
+          # proxies where the app's webviews do not, the machinery is
+          # implicated; if it goes direct in both positions, WebKit is.
+          echo "::group::integration_test/proxy_probe_test.dart (first)"
+          if [ -n "$TIMEOUT" ]; then
+            WEBSPACE_TIER_POSITION=first "$TIMEOUT" -k 30s 12m \
+              fvm flutter test integration_test/proxy_probe_test.dart -d macos --ci 2>&1 \
+              | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_probe_first.log" || true
+          else
+            WEBSPACE_TIER_POSITION=first \
+              fvm flutter test integration_test/proxy_probe_test.dart -d macos --ci 2>&1 \
+              | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_probe_first.log" || true
+          fi
+          echo "::endgroup::"
           for t in integration_test/*_test.dart; do
             [ "$(basename "$t")" = "screenshot_test.dart" ] && continue
             # Android-only window-PixelCopy suite; skip its no-op build here.
@@ -1487,41 +1502,6 @@ jobs:
               failed="$failed $(basename "$t")"
             fi
             echo "::endgroup::"
-          done
-          # Does a process bind only when it starts with no stored containers?
-          #
-          # Run 3110 separated listing from deleting and neither was it. What
-          # every launch in runs 3106, 3108 and 3110 fits instead is the count
-          # the process finds at startup: swept=0 bound, swept>0 did not, and
-          # deleting them made no difference -- on-b removed nine and still
-          # went direct. So the state has to be cleared by a PREVIOUS process.
-          #
-          # purge deletes every stored container and mounts nothing. Each pair
-          # is then: a probe right after a purge, which starts with none, and
-          # a second probe, which starts with the three the first one made.
-          # Two pairs. If the first of each pair binds and the second does
-          # not, the rule is "a process binds only if no per-site container
-          # existed when it started", which is a statement about the product
-          # and not about this tier.
-          for round in a b; do
-            for stage in purge probe1 probe2; do
-              case "$stage" in
-                purge) mode=purge ;;
-                *) mode=off ;;
-              esac
-              echo "::group::integration_test/proxy_shape_test.dart ($stage-$round)"
-              if [ -n "$TIMEOUT" ]; then
-                WEBSPACE_TIER_POSITION="$stage-$round" WEBSPACE_SHAPE_SWEEP="$mode" \
-                  "$TIMEOUT" -k 30s 12m \
-                  fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
-                  | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_$stage-$round.log" || true
-              else
-                WEBSPACE_TIER_POSITION="$stage-$round" WEBSPACE_SHAPE_SWEEP="$mode" \
-                  fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
-                  | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_$stage-$round.log" || true
-              fi
-              echo "::endgroup::"
-            done
           done
           # Named, at the end, where the tail of the log is: nineteen files
           # each print thousands of lines, so which one failed was otherwise

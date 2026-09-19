@@ -21,8 +21,8 @@ fi
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-for module in Flutter Tor IPtProxy; do
-  "$swiftc" -emit-module -module-name "$module" -swift-version 5 \
+for module in Flutter Tor IPtProxy Cocoa FlutterMacOS Network WebKit; do
+  "$swiftc" -emit-module -module-name "$module" -swift-version 5 -I "$work" \
     -emit-module-path "$work/$module.swiftmodule" "$here/stub_$module.swift"
 done
 
@@ -33,3 +33,10 @@ sed 's/#if canImport(FlutterMacOS)/#if false/' \
 
 "$swiftc" -typecheck -swift-version 5 -I "$work" "$work/plugin.swift"
 echo "swift_typecheck: TorControllerPlugin.swift type-checks"
+
+# macos/Runner/ProxyProbePlugin.swift: the BUG-014 probe. It is compiled
+# only by the Apple job, and a Swift error in it costs a 40-minute round
+# trip -- which is how `proxyConfigurations?.count` reached CI once.
+"$swiftc" -typecheck -swift-version 5 -I "$work" \
+  "$root/macos/Runner/ProxyProbePlugin.swift"
+echo "swift_typecheck: ProxyProbePlugin.swift type-checks"
