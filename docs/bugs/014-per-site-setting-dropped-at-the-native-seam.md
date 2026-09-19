@@ -3650,10 +3650,18 @@ one commit, two WebKit ports:
 
 Linux: 4 of 4 panes reached their origin through their own proxy, no pane
 CROSSED onto a sibling's, and the later-frame pair passed as well -- a case
-Apple has never passed even with a single proxy. **Two sites really do hold two
-different proxies at the same time, on WebKit, with this app's code.** What
-fails on Apple is therefore Apple's `proxyConfigurations` path, not the app's
-per-site plumbing and not WebKit as a project.
+Apple has never passed even with a single proxy.
+
+**What this does and does not establish.** It establishes that the app's
+per-site plumbing is sound, which the bare-WKWebView probe had already shown
+from the other direction. It does *not* establish that Apple's port is broken
+relative to WebKit generally: the two ports share no code on this path.
+`NetworkSessionSoup::setProxySettings` goes to libsoup per `SoupSession`;
+`NetworkSessionCocoa::setProxyConfigData` goes to Network.framework via
+`nw_context_add_proxy`. Two independent implementations of a similar-sounding
+feature, so one working is a contrast rather than a control. The honest
+summary is a product one: per-site proxies are deliverable on Linux and are
+not deliverable on Apple through this API.
 
 The native change also compiled first time against real WPE headers, which was
 the risk in writing it blind.

@@ -17,7 +17,9 @@ loads direct while the store still reports its configuration
 
 ## Environment
 
-- macOS `<OS>`, Safari/WebKit `<SAFARI>`, arm64
+- macOS `<OS>`, WebKit `<WEBKIT>`, arm64
+- `WKWebView` embedding API. Nothing here was measured in Safari, which does
+  not expose per-store proxy configurations to a host application.
 - Reproduced on GitHub Actions `macos-latest` runners across 10+ runs
 - Also observed on iOS 17+ through the same API
 
@@ -109,25 +111,43 @@ discarded rather than read.
   stored stores behaves the same as one that starts with six, and deleting
   them changes nothing.
 
-## Not reproducible on WPE WebKit
+## A contrast worth stating carefully
 
-The same application code passes an equivalent test on WPE WebKit, where the
-proxy is bound per `WebKitNetworkSession`
-(`webkit_network_session_set_proxy_settings`) rather than through
-`WKWebsiteDataStore.proxyConfigurations`. Four data stores on three distinct
-SOCKS5 upstreams in one process each reached their origin through their own
-proxy, and a second pair built in a *later* frame did too:
+The same application, on WPE WebKit, routes four data stores through three
+distinct SOCKS5 upstreams in one process, and a further pair built in a later
+frame:
 
 ```
 first-frame=[p0->own(socks0) p1->own(socks0) p2->own(socks1) p3->own(socks2)]
 later-frame=[l0->own(socks0) l1->own(socks1)]
 ```
 
-On Apple the same file, in the same commit, reads `DIRECT` for all six.
+**This is not evidence that the Apple port regressed against its sibling, and
+it is not offered as such.** The two ports do not share this code:
+`NetworkSessionSoup::setProxySettings` goes to libsoup per `SoupSession`,
+while `NetworkSessionCocoa::setProxyConfigData` goes to Network.framework via
+`nw_context_add_proxy`. They are independent implementations of a
+similar-sounding feature, so one working says nothing about what the other is
+specified to do.
 
-So this is not a limitation of per-store proxying in WebKit generally, and not
-a mistake in how the application configures it: the same configuration works
-on another port of the same engine.
+What the contrast does establish is narrower and still useful: an application
+wanting one proxy per storage partition is expressing something a WebKit port
+can support, and the shape of the request is not inherently unreasonable.
+
+## Is this a defect or an undocumented limit?
+
+Stated honestly, because the answer changes what should be done about it.
+`WKWebsiteDataStore.h` says only that changing the configurations "might
+interupt current networking operations in any WKWebView that use this
+WKWebsiteDataStore, so it is encouraged to finish setting the proxy
+configurations before starting any page loads". That is a per-store caution
+about interruption, but it is also consistent with an API designed around one
+set of proxy configurations per network session lifetime, in which case the
+behaviour below is a documentation gap rather than a bug.
+
+Either way the observable result is the same and is worth reporting: the
+second store reports its configuration, the load completes, and the proxy is
+silently not used.
 
 ## Why it matters
 
