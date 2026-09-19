@@ -30,6 +30,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -279,7 +280,47 @@ void main() {
       log('${shapes[i]} -> $outcome');
     }
 
-    final proxied = results.where((r) => r.endsWith('proxied')).length;
+    // The same question asked of a WKWebView that carries none of the app:
+    // no plugin, no container, no settings parser, not even a view hierarchy.
+    // Same process, same frame, same SOCKS endpoint as the three above, so a
+    // split cannot be a difference in tier position, container state or
+    // machine -- the three things that have voided every earlier reading.
+    //
+    // Run 3121 had this bare shape go DIRECT twice while proxy_shape's own
+    // webviews proxied in both tier positions, but those were separate
+    // processes. This makes it one.
+    if (hostIsMacOS) {
+      final before = socks.targets.length;
+      final origin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
+      listenFixture(origin, (req) async {
+        final res = req.response..headers.contentType = ContentType.html;
+        res.write('<!doctype html><html><body><p>bare</p></body></html>');
+        await res.close();
+      });
+      try {
+        final reply = await const MethodChannel('webspace/proxy_probe')
+            .invokeMapMethod<String, dynamic>('probe', {
+          'socksHost': '127.0.0.1',
+          'socksPort': socks.port,
+          'url': 'http://$originHost:${origin.port}/',
+          'identified': false,
+        });
+        final outcome =
+            socks.targets.length > before ? 'proxied' : 'DIRECT';
+        results.add('bare-wkwebview->$outcome');
+        log('bare-wkwebview -> $outcome (ok=${reply?['ok']} '
+            'configured=${reply?['configured']} detail=${reply?['detail']})');
+      } on MissingPluginException {
+        log('bare-wkwebview -> unavailable (probe plugin not registered)');
+      } finally {
+        await origin.close(force: true);
+      }
+    }
+
+    final proxied = results
+        .where((r) => r.startsWith(RegExp('raw-|factory')))
+        .where((r) => r.endsWith('proxied'))
+        .length;
     expect(
       proxied,
       shapes.length,

@@ -2893,6 +2893,70 @@ in the network process, where nothing in this repository can observe it.
 and the mechanism sits in code this project does not build. The next artefact
 is a repro and a bug report, not another instrument.
 
+### Attempt 55 — A bare WKWebView does not proxy, and the tier's roles swapped
+
+**Date:** 2026-09-19
+**Commit:** (this one). Run 35409929833 (3121) on `e23458e`.
+
+A native probe with none of the app in it -- one `WKWebsiteDataStore`, one
+`nw_proxy_config_create_socksv5`, one bare `WKWebView`, one load, no plugin,
+no container registry, no settings parser, no Flutter webview widget -- run
+in both tier positions, in two store shapes:
+
+```
+proxy_probe  first  nonPersistent -> DIRECT   (ok=true configured=1 detail=didFinish)
+proxy_probe  first  identified    -> DIRECT   (ok=true configured=1 detail=didFinish)
+proxy_probe  glob   nonPersistent -> DIRECT
+proxy_probe  glob   identified    -> DIRECT
+```
+
+`configured=1` is read back off the store, so the configuration is present;
+`didFinish` says the load succeeded, over the direct route. The
+non-persistent shape is the one WebKit's own `TEST(WebKit, SOCKS5API)`
+proxies upstream, and it does not proxy here.
+
+**But the same run inverts what that would otherwise mean.** In the same
+tier, on the same runner:
+
+```
+proxy_shape  first  -> proxied proxied proxied
+proxy_shape  glob   -> proxied proxied proxied   (started=35)
+proxy_binding       -> pair=0 of 2, stair all DIRECT
+proxy_connect_https, proxy_http_connect, proxy_rate,
+proxy_relay, proxy_simultaneous, proxy_window -> DIRECT
+```
+
+Two things here have never happened before. `proxy_shape` proxied in its
+**glob** position, which has gone direct in every previous run, and with 35
+stored containers at launch. And `proxy_binding`, the one file that proxied
+reliably from attempt 40 onward, went direct in every arm. The two swapped
+roles.
+
+**So the honest reading is narrower than the probe's result looks.** A bare
+WKWebView went direct twice, which does rule out the app's machinery as the
+*cause* -- nothing the plugin does is required to fail. It does not
+establish that WebKit always fails, because six app-built webviews proxied
+in the same run. And a tier whose two proxy files can trade places between
+runs is not yet a tier whose single readings mean anything, which is the
+error that voided attempts 40 through 53.
+
+**What this attempt actually settles:** the probe exists, runs, reads its own
+store back, and reports. It is now an instrument that can be pointed at the
+question rather than a hypothesis about it.
+
+**Why it was partial:** the probe and the app's webviews ran in *separate
+processes*, so a split between them can still be process-to-process variation
+rather than a difference between the two shapes. The next attempt removes
+that: the bare probe now runs inside `proxy_shape`'s own process, in the same
+frame, against the same SOCKS endpoint, so one verdict line carries three
+app-built webviews and one bare one. A split there cannot be tier position,
+container state or machine.
+
+**Not this PR's, noted once:** `page_zoom_test.dart` appeared in the failing
+set with `(setUpAll) (failed after test completion)`, the uncaught
+async-error-on-a-fixture-socket shape the fixtures already document. One
+occurrence, unrelated to the proxy path.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
