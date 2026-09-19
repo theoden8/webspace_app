@@ -3060,6 +3060,72 @@ WebView in the process:
     survives, and the remaining differences are the plugin's shared
     `WKProcessPool` and the rest of its `WKWebViewConfiguration`.
 
+### Attempt 58 — It is order. Only the first WebView in a process is proxied
+
+**Date:** 2026-09-19
+**Commit:** (this one). Run 35424236835 (3125) on `1d0e170`.
+
+```
+position=first  started=0
+  bare-first->proxied
+  raw-initial->DIRECT  factory->DIRECT  raw-loadurl->DIRECT
+  bare->DIRECT  bare-ident->DIRECT  bare-window->DIRECT
+```
+
+Every arm reported `ok=true configured=1 detail=didFinish`: each store held
+exactly one proxy configuration and every load completed.
+
+**This is an intervention, not a correlation.** `bare-first` is a bare
+`WKWebView` created before the frame is mounted, so it took the first slot in
+the process. The app's three WebViews -- which proxied in runs 3123 and 3124,
+when they *were* first -- went direct the moment something else was first.
+Nothing about how they are built changed between those runs and this one.
+Only their position in the process did, and the outcome followed it.
+
+Within the bare arms alone the same rule holds with construction held
+constant: `bare-first` (first) proxied, `bare` (second, identical
+construction) went direct, and so did the third and fourth.
+
+**The rule: in a WebKit process, only the first WebView gets its store's
+proxy. Every later one loads direct, whatever its store says.**
+
+**This voids the construction readings in attempts 56 and 57.** The split
+they measured was real but misattributed: the app's WebViews were not
+proxying because of how the plugin builds them, they were proxying because
+they were first. Neither the store shape nor the view hierarchy was ever
+relevant, and neither was the plugin. Those attempts stand as recorded --
+the observations were sound, the conclusion drawn from them was not.
+
+**It also explains the whole file above it.** `position=first` binding in
+seven consecutive runs; `proxy_binding`'s `pair=2 of 2` and its later arms
+going direct; every "later frame" arm in every proxy file; the tier's
+apparent bistability, which was two files competing for one slot. Attempt
+43's first-frame rule was right in substance and was withdrawn only because
+it was tested across processes, where it could never be seen.
+
+**What it means for the goal.** Two per-site proxies cannot both work on
+macOS through `WKWebsiteDataStore.proxyConfigurations`, because the second
+site is never first. That is not a bug in this app and no amount of
+per-site plumbing fixes it. Two routes follow:
+
+1. A WebKit bug report with a five-line repro: two data stores, two
+   `nw_proxy_config_create_socksv5`, two loads, in one process -- only the
+   first is proxied.
+2. A product path that does not need two: give WebKit one proxy
+   configuration pointing at a local relay, and let the relay dispatch
+   per-site to Tor, to a SOCKS upstream or direct. `LocalProxyRelay`
+   (`lib/services/local_proxy_relay.dart`, nine green tests including
+   TLS-through-tunnel) was built for this and has been sitting unwired.
+
+**Why it was partial:** "first" is not yet pinned down. First WebView, first
+load, first store handed a proxy, or a window of time -- the run cannot
+separate those, because the first arm was all four at once. The next probe
+holds construction fixed and varies only what "first" means: create two
+stores before either loads, then load them in order; and create one WebView,
+let it finish, then create a second. It also does not say whether the first
+slot is per-process or per-network-process, which decides whether an app
+restart can reclaim it.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
