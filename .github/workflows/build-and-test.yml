@@ -1433,44 +1433,43 @@ jobs:
           fi
           status=0
           failed=""
-          # BUG-014, what closes a launch's proxy slot. Run 3132 refuted the
-          # last two container-shaped explanations under a positive control:
-          # a launch that never enumerated the stored containers went direct,
-          # and so did one that started with none at all after a purge. Only
-          # the first launch binds.
+          # BUG-014, what closes a launch's proxy slot. Run 3134 refuted the
+          # leftover app process, and the counts prove the arm worked: the
+          # kill took Webspace from 1 to 0 and that launch still went direct,
+          # while the launch with none alive went direct too and the one
+          # that bound had one alive the whole time. Orthogonal both ways.
           #
-          # The runner's own cleanup names the candidate -- it prints
-          # "Terminate orphan process: (Webspace)", so flutter test does not
-          # always take the app down. WebKit runs one lazily-created network
-          # process per app (NetworkProcessProxy::defaultNetworkProcess, a
-          # NeverDestroyed singleton); if it is keyed to the app bundle
-          # rather than the app process, a leftover Webspace keeps it alive
-          # and the next launch inherits a slot the previous launch spent.
+          # It also showed the wrong process was being killed. WebKit runs
+          # its networking in a separate XPC process, and
+          # NetworkProcessProxy::defaultNetworkProcess is the singleton that
+          # hands a data store its proxy. If that process outlives the app
+          # that started it, the next launch inherits a slot the previous
+          # launch spent -- and nothing measured so far has looked at it.
           #
           #   1 first   control, nothing killed   (must bind)
-          #   2 second  leftover killed first
-          #   3 third   leftover left alone
+          #   2 second  WebKit networking process killed first
+          #   3 third   left alone
           #
-          # 2 binds and 3 does not -> the launch effect is an artifact of
-          # this harness, and the real bug is the burn alone. 2 direct ->
-          # the leftover is innocent and what accrues is still unnamed.
-          # pgrep runs before every launch so the log says what was alive
-          # rather than leaving it to be inferred.
-          for launch in "first:nokill" "second:kill" "third:nokill"; do
+          # 2 binds and 3 does not -> the network process is the carrier,
+          # which names the mechanism and suggests an in-app recovery.
+          # 2 direct -> it is innocent too, and what accrues per launch is
+          # still unnamed; do not guess another candidate without an arm.
+          for launch in "first:nokill" "second:netkill" "third:nokill"; do
             pos="${launch%%:*}"
             kill="${launch##*:}"
             echo "::group::integration_test/proxy_shape_test.dart ($pos, $kill)"
             log="${RUNNER_TEMP:-/tmp}/tier-proxy_shape_$pos.log"
-            before="$(pgrep -x Webspace | wc -l | tr -d ' ')"
-            if [ "$kill" = "kill" ]; then
-              pkill -x Webspace 2>/dev/null || true
+            appb="$(pgrep -x Webspace | wc -l | tr -d ' ')"
+            netb="$(pgrep -f 'WebKit.Networking' | wc -l | tr -d ' ')"
+            if [ "$kill" = "netkill" ]; then
+              pkill -f 'WebKit.Networking' 2>/dev/null || true
               sleep 3
             fi
-            after="$(pgrep -x Webspace | wc -l | tr -d ' ')"
-            # Into the per-launch log, because the verdict re-print at the
-            # end of this step reads these files and nothing else survives
-            # to the tail.
-            echo "BUG-014-leftover $pos: $kill, alive before=$before after=$after" \
+            appa="$(pgrep -x Webspace | wc -l | tr -d ' ')"
+            neta="$(pgrep -f 'WebKit.Networking' | wc -l | tr -d ' ')"
+            # Into the per-launch log: the verdict re-print at the end of
+            # this step reads these files and nothing else reaches the tail.
+            echo "BUG-014-procs $pos: $kill, app=$appb->$appa net=$netb->$neta" \
               | tee "$log"
             if [ -n "$TIMEOUT" ]; then
               WEBSPACE_TIER_POSITION="$pos" WEBSPACE_SHAPE_SWEEP=off \
@@ -1550,7 +1549,7 @@ jobs:
           # launches pass, so nothing else puts them in the tail.
           echo "=== BUG-014 launch verdicts ==="
           for pos in first second third; do
-            grep -h -e "^BUG-014-leftover" -e "proxy-shape\] verdict" \
+            grep -h -e "^BUG-014-procs" -e "proxy-shape\] verdict" \
               "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_$pos.log" 2>/dev/null \
               || echo "$pos: no verdict line"
           done

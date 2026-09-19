@@ -3474,6 +3474,44 @@ Do not wire `LocalProxyRelay` on Apple before this is answered, and do not
 start it at all without the user: it is a product behaviour change, not a
 diagnostic.
 
+### Attempt 63 — The leftover app process is innocent, and it was the wrong process
+
+**2026-09-19**, PR #597, run 3134, `67d456b`.
+
+**What it did.** Killed any leftover `Webspace` before one launch and not the
+others, recording `pgrep` counts either side of the kill so the arm could be
+told apart from a no-op:
+
+```
+first:  nokill, alive before=1 after=1  -> first-proxied -> proxied
+second: kill,   alive before=1 after=0  -> first-proxied -> DIRECT
+third:  nokill, alive before=0 after=0  -> first-proxied -> DIRECT
+```
+
+**The arm worked and the hypothesis is dead.** The kill took the count from 1
+to 0 and that launch still went direct. Launch 3 had none alive at all and went
+direct. Launch 1, the one that bound, had one alive the entire time. A leftover
+app process neither prevents binding nor enables it.
+
+**Why it was partial: the wrong process was killed.** WebKit does not do
+networking in the app process. `NetworkProcessProxy` (attempt 61) is a proxy
+*for* a separate XPC process, and that is where a data store's proxy
+configuration actually lands. Killing `Webspace` says nothing about whether
+`com.apple.WebKit.Networking` outlived it, and nothing measured in sixty-three
+attempts has ever looked at that process. If it survives its client and the next
+launch attaches to it, the next launch inherits a slot the previous one spent --
+which is the same shape as the burn, one level down.
+
+The next run measures both process families either side of the kill and kills
+the networking one instead.
+
+**A note on method.** This arm cost a run because the measurement was aimed one
+level above the mechanism the previous attempt had already identified from
+source. Attempt 61 named `NetworkProcessProxy` as a proxy for a separate
+process; attempt 62 then reached for the app process because that is what the
+runner's cleanup line happened to mention. The log line suggested the
+experiment instead of the source doing it.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
