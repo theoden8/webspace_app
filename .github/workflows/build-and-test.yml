@@ -1433,42 +1433,44 @@ jobs:
           fi
           status=0
           failed=""
-          # BUG-014 bisection. Every proxy arm that runs after
-          # proxy_binding_test.dart fails to bind a proxy, and proxy_binding
-          # is the first proxy file this glob reaches -- three different
-          # webview shapes in one first frame all went direct behind it. So
-          # the same arm runs twice, once ahead of everything and once in its
-          # glob position, and prints which it was. Two different verdicts
-          # from one file in one run would mean position in the tier is the
-          # variable, and that no reading this tier has produced about frames
-          # means anything. Remove both this block and the position line in
-          # the arm once that is settled.
-          echo "::group::integration_test/proxy_shape_test.dart (first)"
-          if [ -n "$TIMEOUT" ]; then
-            WEBSPACE_TIER_POSITION=first "$TIMEOUT" -k 30s 12m \
-              fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
-              | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_first.log" || true
-          else
-            WEBSPACE_TIER_POSITION=first \
-              fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
-              | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_first.log" || true
-          fi
-          echo "::endgroup::"
-          # Same first/glob pairing for the bare-WebKit probe (BUG-014
-          # attempt 55). It carries none of the app's machinery, so if it
-          # proxies where the app's webviews do not, the machinery is
-          # implicated; if it goes direct in both positions, WebKit is.
-          echo "::group::integration_test/proxy_probe_test.dart (first)"
-          if [ -n "$TIMEOUT" ]; then
-            WEBSPACE_TIER_POSITION=first "$TIMEOUT" -k 30s 12m \
-              fvm flutter test integration_test/proxy_probe_test.dart -d macos --ci 2>&1 \
-              | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_probe_first.log" || true
-          else
-            WEBSPACE_TIER_POSITION=first \
-              fvm flutter test integration_test/proxy_probe_test.dart -d macos --ci 2>&1 \
-              | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_probe_first.log" || true
-          fi
-          echo "::endgroup::"
+          # BUG-014 bisection. Run 3125 split one file's verdict by launch:
+          # the same proxy_shape arm proxied its first WebView when it ran
+          # ahead of the tier (started=0, nothing swept) and went direct in
+          # its glob position (started=35, all swept), with configured=1 and
+          # a finished load both times. So "only the first WebView in a
+          # process binds" is necessary and not sufficient -- something about
+          # the launch decides whether that slot works at all, and the two
+          # launches differed in more than one way.
+          #
+          # Three launches back to back separate them. Only the first is the
+          # machine's first app launch; launches 2 and 3 differ from each
+          # other in exactly one thing, whether the stale containers are
+          # deleted before any WebView exists:
+          #
+          #   first   started=0, sweeps nothing   (the launch that binds)
+          #   second  started>0, sweeps nothing
+          #   third   started>0, sweeps them all
+          #
+          # second binds and third does not -> the sweep is the variable.
+          # Both bind -> it is being a late launch on a tired machine, and
+          # every glob-position reading in this tier is noise. Neither binds
+          # -> it is being the machine's first app launch.
+          for launch in "first:on" "second:off" "third:on"; do
+            pos="${launch%%:*}"
+            sweep="${launch##*:}"
+            echo "::group::integration_test/proxy_shape_test.dart ($pos, sweep=$sweep)"
+            if [ -n "$TIMEOUT" ]; then
+              WEBSPACE_TIER_POSITION="$pos" WEBSPACE_SHAPE_SWEEP="$sweep" \
+                "$TIMEOUT" -k 30s 12m \
+                fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
+                | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_$pos.log" || true
+            else
+              WEBSPACE_TIER_POSITION="$pos" WEBSPACE_SHAPE_SWEEP="$sweep" \
+                fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
+                | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_$pos.log" || true
+            fi
+            echo "::endgroup::"
+          done
           for t in integration_test/*_test.dart; do
             [ "$(basename "$t")" = "screenshot_test.dart" ] && continue
             # Android-only window-PixelCopy suite; skip its no-op build here.
@@ -1492,6 +1494,10 @@ jobs:
             # Ran on its own above, first, so its verdict does not depend on
             # the 45-minute cap this loop spends.
             [ "$(basename "$t")" = "tor_test.dart" ] && continue
+            # Three controlled launches of it run above. A fourth here would
+            # only repeat the third's condition on a tireder machine, and
+            # this loop pays a full app build for every launch.
+            [ "$(basename "$t")" = "proxy_shape_test.dart" ] && continue
             echo "::group::$t"
             rc=0
             # Kept per file so a failure can be re-printed at the end. Each

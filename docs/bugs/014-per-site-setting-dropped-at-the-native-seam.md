@@ -3126,6 +3126,79 @@ let it finish, then create a second. It also does not say whether the first
 slot is per-process or per-network-process, which decides whether an app
 restart can reclaim it.
 
+### Attempt 59 — Being first is necessary, not sufficient: the same file split by launch
+
+**2026-09-19**, PR #597, run 3125, `1aaf404`.
+
+**What it did.** Read run 3125's *other* launch. Attempt 58 was written from
+the `position=first` process and stopped there; the same file, byte-identical,
+ran again in its glob position in the same job, and its verdict was different
+in the one place that matters:
+
+```
+position=first, started=0,  swept=0:
+  bare-first->proxied  raw-initial->DIRECT factory->DIRECT raw-loadurl->DIRECT
+  bare->DIRECT bare-ident->DIRECT bare-window->DIRECT
+
+position=glob,  started=35, swept=35:
+  bare-first->DIRECT   raw-initial->DIRECT factory->DIRECT raw-loadurl->DIRECT
+  bare->DIRECT bare-ident->DIRECT bare-window->DIRECT
+```
+
+Both `bare-first` arms reported `ok=true configured=1 detail=didFinish`: the
+store held exactly one proxy configuration and the load completed. In the
+glob-position process the *first* WebView went direct.
+
+`proxy_relay_binding` read the same way and is worth recording, because it is
+the only file that tests route 2 of attempt 58: its own plain-SOCKS control
+read DIRECT, so its four relay panes reading DIRECT says nothing about the
+relay. That process had no working proxy at all.
+
+**Why.** Attempt 58's rule is an ordering rule and an ordering rule cannot
+produce two verdicts for the same first WebView. So it is necessary and not
+sufficient: something about the *launch* decides whether the first slot works,
+and the two launches differed in more than one way at once -- one was the
+machine's first app launch, and one swept 35 stored containers before any
+WebView existed while the other found nothing to sweep.
+
+Three launches back to back now separate those, each differing from the next
+in one thing:
+
+| launch | first app launch | stale containers | sweeps them |
+|--------|------------------|------------------|-------------|
+| first  | yes              | none             | nothing     |
+| second | no               | yes              | no          |
+| third  | no               | yes              | yes         |
+
+`second` binds and `third` does not names the sweep. Both bind names the tired
+machine, and voids every glob-position reading this tier has produced. Neither
+binds names being the machine's first app launch.
+
+In the same commit, three arms ahead of the frame take apart what "first"
+means, since attempt 58's arm was the first WebView, the first load and the
+first store handed a proxy at once: an unproxied WebView that loads, then a
+proxied one, then a proxied one through a *second* SOCKS endpoint -- the first
+time one process has been asked for two distinct upstreams, which is what a
+Tor site beside a plain-proxy site is.
+
+**Why it was partial.** No result yet; this records the reading that corrects
+attempt 58 and the two experiments it forced. It also leaves attempt 58's
+conclusion for the goal standing but unproven in the direction that matters:
+if the answer is the sweep, or anything else about the launch, then "the
+second site is never first" is not the whole constraint and the WebKit bug
+report in attempt 58 would describe a repro that does not reproduce. The
+`LocalProxyRelay` route is untested for the same reason -- the only run that
+exercised it had a dead control.
+
+Two readings this run does not address: whether the slot is per-process or
+per-network-process (which decides whether an app restart reclaims it, and is
+the one that would explain the original "sometimes I have to restart the app
+for Tor"), and `proxy_shape_test.dart`'s own assertion, which asserted the
+three app shapes bind and became unsatisfiable the moment a probe started
+running ahead of them. It now asserts instrument health -- every arm reached a
+terminal outcome -- because the finding is in the verdict line, not in a
+threshold.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
