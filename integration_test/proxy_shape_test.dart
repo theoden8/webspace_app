@@ -339,8 +339,9 @@ void main() {
       }
     }
 
-    final connectFirst =
-        firstArm == 'connectauth' || firstArm == 'connectpair';
+    final connectFirst = firstArm == 'connectauth' ||
+        firstArm == 'connectpair' ||
+        firstArm == 'connectsame';
     await tester.runAsync(() => probe('first-$firstArm',
         proxy: firstArm != 'noproxy', viaConnect: connectFirst));
     // `connectpair` is the question WebKit's own source raises: two distinct
@@ -349,6 +350,15 @@ void main() {
     if (firstArm == 'connectpair') {
       await tester.runAsync(() =>
           probe('second-connectB', viaConnect: true, connectVia: connectB));
+    } else if (firstArm == 'connectsame') {
+      // The one arrangement never tested cleanly on Apple: a second store on
+      // the SAME endpoint as the first. Two stores carrying *different*
+      // proxies is refuted every way it has been asked (attempt 70). If two
+      // stores carrying the *same* proxy both bind, then every proxied site
+      // can share one local relay endpoint and the product question becomes
+      // attribution inside the relay rather than binding in WebKit.
+      await tester.runAsync(() =>
+          probe('second-connectSAME', viaConnect: true, connectVia: connect));
     } else {
       await tester.runAsync(() => probe('second-proxy-A'));
     }

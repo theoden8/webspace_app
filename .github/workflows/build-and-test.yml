@@ -1463,14 +1463,19 @@ jobs:
           # recreateSessionWithUpdatedProxyConfigurations, which rebuilds the
           # NSURLSession with the configuration applied.
           #
-          # Every failing measurement in this investigation used SOCKS5, and
-          # the one arm where two proxies coexisted had a CONNECT proxy
-          # first. So `connectpair` puts two distinct CONNECT proxies in the
-          # first launch, with a SOCKS5 third arm as the known-direct
-          # control. Both CONNECT arms reaching their own proxy would mean
-          # per-site proxies are achievable on macOS after all -- through
-          # the HTTP path rather than the SOCKS one.
-          for launch in "first:connectpair" "second:proxied"; do
+          # `connectpair` refuted that (attempt 70): two distinct CONNECT
+          # proxies behave exactly like two distinct SOCKS5 ones, so the
+          # delivery mechanism is not the variable and DIFFERENT proxies on
+          # two stores is closed every way it has been asked.
+          #
+          # `connectsame` asks the one arrangement never tested cleanly: a
+          # second store on the SAME endpoint as the first. If two stores
+          # sharing one proxy both bind, then every proxied site can point
+          # at one local relay and the remaining problem is attribution
+          # inside that relay rather than binding inside WebKit -- which
+          # would make Tor-for-several-sites reachable on macOS. A SOCKS5
+          # third arm stays as the known-direct control.
+          for launch in "first:connectsame" "second:proxied"; do
             pos="${launch%%:*}"
             arm="${launch##*:}"
             echo "::group::integration_test/proxy_shape_test.dart ($pos, first=$arm)"
