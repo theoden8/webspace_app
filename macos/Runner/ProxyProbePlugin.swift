@@ -58,6 +58,10 @@ class ProxyProbePlugin: NSObject {
     }
     let identified = (args["identified"] as? Bool) ?? false
     let identifier = (args["identifier"] as? String).flatMap { UUID(uuidString: $0) }
+    // The app's WebViews live in the window; this one never did. That is one
+    // of the few structural differences left between the shape that proxies
+    // and the shape that does not, so it is a knob rather than an assumption.
+    let attach = (args["attach"] as? Bool) ?? false
 
     guard #available(macOS 14.0, *) else {
       result(["ok": false, "detail": "below the proxyConfigurations floor"])
@@ -80,12 +84,19 @@ class ProxyProbePlugin: NSObject {
     configuration.websiteDataStore = store
     let view = WKWebView(frame: NSRect(x: 0, y: 0, width: 320, height: 200),
                          configuration: configuration)
+    if attach, let contentView = NSApplication.shared.keyWindow?.contentView {
+      contentView.addSubview(view)
+    }
     let navDelegate = ProbeNavigationDelegate { [weak self] detail in
+      if attach {
+        self?.webView?.removeFromSuperview()
+      }
       self?.webView = nil
       self?.delegate = nil
       result([
         "ok": true,
         "identified": identified,
+        "attached": attach,
         "configured": store.proxyConfigurations.count,
         "detail": detail,
       ])

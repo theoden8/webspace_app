@@ -2957,6 +2957,56 @@ set with `(setUpAll) (failed after test completion)`, the uncaught
 async-error-on-a-fixture-socket shape the fixtures already document. One
 occurrence, unrelated to the proxy path.
 
+### Attempt 56 — The split, in one process: the app's WebViews proxy, a bare one does not
+
+**Date:** 2026-09-19
+**Commit:** (this one). Run 35417469455 (3123) on `27c51aa`.
+
+The bare `WKWebView` now runs inside `proxy_shape`'s own process, in the same
+frame, against the same SOCKS endpoint as the three app-built WebViews.
+
+```
+position=first  started=0
+  raw-initial->proxied  factory->proxied  raw-loadurl->proxied  bare-wkwebview->DIRECT
+
+position=glob   started=35
+  raw-initial->DIRECT   factory->DIRECT   raw-loadurl->DIRECT   bare-wkwebview->DIRECT
+```
+
+**The first line is the result.** Three WebViews the app built proxied while
+a bare one went direct, in the same process, the same frame and the same
+endpoint. That split cannot be tier position, container state or machine --
+the three confounds that voided every reading from attempt 40 to attempt 53.
+`configured=1` on the bare one, so its store held the configuration and
+WebKit did not use it.
+
+**This is the first known-good side this investigation has had.** Everything
+until now compared a failing thing to another failing thing, or to itself in
+another process. There is now a WebView that proxies and a WebView that does
+not, side by side, and the difference between them is a short list of
+construction details rather than a hypothesis about Apple.
+
+It also corrects attempt 55's reading. The bare probe going direct there was
+not "WebKit is broken outright"; it is one side of a split that only becomes
+visible next to a working control.
+
+**What the second line means and does not mean.** In the glob position
+everything went direct, the bare arm included. That is the tier's usual
+state and says nothing on its own -- it is the first line that carries the
+information. Attempt 55 already showed the two positions can trade places
+between runs, so neither line is a claim about position.
+
+**What this attempt did:** moved the probe into the arm that had a positive
+control, which is the whole of it. Everything else was already built.
+
+**Why it was partial:** it names *that* the construction differs without
+naming *which* difference. The bare arm differs from the app's WebViews in at
+least three ways at once, so the next attempt splits it into arms that each
+differ in exactly one: `bare` (unchanged), `bare-ident` (the identified store
+shape the app's containers use, rather than a non-persistent one), and
+`bare-window` (added to the app's window, as a real platform view is). The
+first of those to proxy names the variable.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**

@@ -289,41 +289,57 @@ void main() {
     // Run 3121 had this bare shape go DIRECT twice while proxy_shape's own
     // webviews proxied in both tier positions, but those were separate
     // processes. This makes it one.
+    // Attempt 56 put one bare WKWebView beside the three app-built ones and
+    // it split: the app's proxied, the bare one did not, in one process. So
+    // the difference is in how the WebView is built, and these arms walk it
+    // one variable at a time. Each differs from `bare` in exactly one way.
+    //
+    //   bare        nonPersistent store, never in the view hierarchy
+    //   bare-ident  the identified store shape the app's containers use
+    //   bare-window added to the app's window, as a real platform view is
+    //
+    // The first of these to proxy names the variable.
     if (hostIsMacOS) {
-      final before = socks.targets.length;
-      final origin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
-      listenFixture(origin, (req) async {
-        final res = req.response..headers.contentType = ContentType.html;
-        res.write('<!doctype html><html><body><p>bare</p></body></html>');
-        await res.close();
-      });
-      // Bounded and total: this arm is a diagnostic riding along in a test
-      // that measures something else. A probe that throws, or one whose
-      // WebView never reaches a terminal navigation callback so the reply
-      // never comes, must not take the three shapes down with it -- the
-      // latter would otherwise hang this file until the tier's 12-minute
-      // kill.
-      try {
-        final reply = await const MethodChannel('webspace/proxy_probe')
-            .invokeMapMethod<String, dynamic>('probe', {
-          'socksHost': '127.0.0.1',
-          'socksPort': socks.port,
-          'url': 'http://$originHost:${origin.port}/',
-          'identified': false,
-        }).timeout(const Duration(seconds: 30));
-        final outcome =
-            socks.targets.length > before ? 'proxied' : 'DIRECT';
-        results.add('bare-wkwebview->$outcome');
-        log('bare-wkwebview -> $outcome (ok=${reply?['ok']} '
-            'configured=${reply?['configured']} detail=${reply?['detail']})');
-      } catch (e) {
-        // Still worth a reading: the SOCKS fixture records a CONNECT when it
-        // happens, whatever the reply did.
-        final outcome = socks.targets.length > before ? 'proxied' : 'DIRECT';
-        results.add('bare-wkwebview->$outcome');
-        log('bare-wkwebview -> $outcome, probe did not report: $e');
-      } finally {
-        await origin.close(force: true);
+      for (final arm in const [
+        ('bare', false, false),
+        ('bare-ident', true, false),
+        ('bare-window', false, true),
+      ]) {
+        final (label, identified, attach) = arm;
+        final before = socks.targets.length;
+        final origin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
+        listenFixture(origin, (req) async {
+          final res = req.response..headers.contentType = ContentType.html;
+          res.write('<!doctype html><html><body><p>$label</p></body></html>');
+          await res.close();
+        });
+        // Bounded and total: these are diagnostics riding along in a test
+        // that measures something else. A probe that throws, or whose
+        // WebView never reaches a terminal navigation callback so the reply
+        // never comes, must not take the three shapes down with it.
+        try {
+          final reply = await const MethodChannel('webspace/proxy_probe')
+              .invokeMapMethod<String, dynamic>('probe', {
+            'socksHost': '127.0.0.1',
+            'socksPort': socks.port,
+            'url': 'http://$originHost:${origin.port}/',
+            'identified': identified,
+            'identifier': '8f1d5c4e-0000-4000-8000-0000000000${identified ? 11 : 12}',
+            'attach': attach,
+          }).timeout(const Duration(seconds: 30));
+          final outcome = socks.targets.length > before ? 'proxied' : 'DIRECT';
+          results.add('$label->$outcome');
+          log('$label -> $outcome (ok=${reply?['ok']} '
+              'configured=${reply?['configured']} detail=${reply?['detail']})');
+        } catch (e) {
+          // Still worth a reading: the SOCKS fixture records a CONNECT when
+          // it happens, whatever the reply did.
+          final outcome = socks.targets.length > before ? 'proxied' : 'DIRECT';
+          results.add('$label->$outcome');
+          log('$label -> $outcome, probe did not report: $e');
+        } finally {
+          await origin.close(force: true);
+        }
       }
     }
 

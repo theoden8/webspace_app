@@ -18,6 +18,7 @@ import Foundation
 import FoundationNetworking
 #endif
 import Network
+import Cocoa
 
 public class WKNavigation: NSObject {}
 
@@ -39,7 +40,7 @@ public protocol WKNavigationDelegate: AnyObject {
                withError error: Error)
 }
 
-public class WKWebView: NSObject {
+public class WKWebView: NSView {
   public init(frame: NSRect, configuration: WKWebViewConfiguration) {}
   public weak var navigationDelegate: WKNavigationDelegate?
   @discardableResult
