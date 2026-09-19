@@ -1433,30 +1433,25 @@ jobs:
           fi
           status=0
           failed=""
-          # BUG-014 bisection, two questions in three launches.
+          # BUG-014, the launch effect. Run 3130 held the first arm fixed at
+          # `proxied` across two launches 70 seconds apart in this job: the
+          # one that found no stored containers bound, the one that found
+          # three did not. So a launch either has a working proxy slot or it
+          # does not, and that decides every other reading in this tier.
           #
-          # Run 3127 answered the first one by accident: its first launch
-          # matched run 3125's in every recorded condition and differed only
-          # in that its first WebView carried no proxy. 3125 proxied that
-          # arm; 3127 went direct on all nine arms, each with the store
-          # reporting one proxy configuration and the load finishing. The
-          # slot is spent by the first WebView in the process whatever it
-          # carries.
+          # What launch 1 differed in was confounded twice over, because a
+          # launch with nothing stored also has nothing to sweep. These three
+          # take it apart, every one of them with a proxied first arm so each
+          # launch measures only its own slot:
           #
-          # That leaves the launch effect, which run 3125 showed and 3127
-          # could not test: a *proxied* first arm went direct in the glob
-          # position. So the three launches now vary one thing at a time.
+          #   1 first   nothing stored          (control; must bind)
+          #   2 second  stored, NOT swept
+          #   3 third   stored, swept
           #
-          #   1 first   proxied first arm, no stale containers
-          #   2 second  UNPROXIED first arm, stale containers swept
-          #   3 third   proxied first arm, stale containers swept
-          #
-          # 1 vs 3 is the launch effect with the first arm held fixed; 2 vs 3
-          # is the burn with the launch held fixed. 1 and 3 are also the
-          # positive controls: a launch where the proxied first arm goes
-          # direct measures nothing, and every all-direct reading before this
-          # one had no way to say so.
-          for launch in "first:on:proxied" "second:on:noproxy" "third:on:proxied"; do
+          # 1 vs 2 is whether stored containers alone close the slot; 2 vs 3
+          # is whether deleting them does. Both binding would move the
+          # variable to something that accrues per app launch.
+          for launch in "first:off:proxied" "second:off:proxied" "third:on:proxied"; do
             pos="${launch%%:*}"
             rest="${launch#*:}"
             sweep="${rest%%:*}"
@@ -1522,6 +1517,16 @@ jobs:
               failed="$failed $(basename "$t")"
             fi
             echo "::endgroup::"
+          done
+          # The proxy_shape launches run before this loop and pass, so their
+          # output sits thousands of lines above the tail and an API reader
+          # never sees it. Their verdict lines are the whole point of the
+          # launches, so repeat them here.
+          echo "=== BUG-014 launch verdicts ==="
+          for pos in first second third; do
+            grep -h "proxy-shape\] verdict" \
+              "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_$pos.log" 2>/dev/null \
+              || echo "$pos: no verdict line"
           done
           # Named, at the end, where the tail of the log is: nineteen files
           # each print thousands of lines, so which one failed was otherwise

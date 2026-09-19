@@ -3267,6 +3267,54 @@ reachable without any second proxied site being involved.
 Still unaddressed: whether the slot is per-process or per-network-process,
 which decides whether an app restart reclaims it.
 
+### Attempt 60 — The launch effect is real, and it is not the first arm
+
+**2026-09-19**, PR #597, run 3130, `6734e4b`.
+
+**What it did.** Gave the arms a positive control and ran three launches
+seventy seconds apart in one job, each with its own first arm named:
+
+| launch | first arm | started | swept | first arm |
+|--------|-----------|---------|-------|-----------|
+| 1 `first`  | proxied | 0 | 0 | **proxied** |
+| 2 `second` | noproxy | 3 | 3 | DIRECT |
+| 3 `third`  | proxied | 3 | 3 | **DIRECT** |
+
+Every later arm in every launch went direct, all reporting `configured=1
+detail=didFinish`.
+
+**Launch 1 vs 3 is the finding.** Same first arm, same file, same job, same
+runner, seventy seconds apart: one bound, the other did not. **A launch either
+has a working proxy slot or it does not**, and that decides every reading this
+tier produces. It is no longer inferable from a cross-run comparison --
+attempt 59's version of it leaned on run 3125's glob position, which was forty
+minutes and twenty app launches away.
+
+**Launch 2 is void, and so is the burn test it was for.** Launch 3 shows a
+late launch has no slot whatever its first arm carries, so launch 2 going
+direct says nothing about the unproxied first arm. The burn (attempt 59b) is
+still supported and still not confirmed: at `position=first`, run 3125
+(proxied first arm) bound, 3127 (unproxied) did not, 3130 (proxied) bound --
+three consistent points, but the intervention is across runs. It can only be
+tested inside a launch that has a slot, and so far that is only the job's
+first.
+
+**Why it was partial.** The launch variable is confounded again, and by the
+same accident: a launch that finds nothing stored also has nothing to sweep,
+so launch 1 differs from 2 and 3 in *both*. The next three launches all carry
+a proxied first arm and vary only that -- nothing stored, stored and not
+swept, stored and swept -- which separates "stored containers close the slot"
+from "deleting them closes it", and sends the answer elsewhere if both bind.
+
+Attempt 51 read this as the container count and attempt 52 refuted it; both
+predate any positive control, so neither reading survives to rule the
+question out.
+
+**Also fixed here:** the launches run before the failure loop and pass, so
+their output sat thousands of lines above the tail and no API reader could
+reach it -- this run's data needed a 566 KB fetch to recover. The step now
+repeats the three verdict lines at the end.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
