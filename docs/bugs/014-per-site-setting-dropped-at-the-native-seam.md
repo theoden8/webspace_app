@@ -3436,6 +3436,44 @@ than a property of the app, and the real-device bug reduces to the burn alone
 -- the first WebView in a process takes the only slot. If launch 2 goes direct,
 the leftover is innocent and what accrues per launch is still unnamed.
 
+#### Route 2's credential path, read while run 3133 was in flight
+
+Attempt 58 proposed `LocalProxyRelay` as the product route: one loopback HTTP
+CONNECT endpoint for every store, each site presenting its own proxy-auth
+credential so the relay can dial that site's real upstream. Attempt 61 found
+the filed defect under it (bug 264309, `Proxy-Authorization` never sent for a
+CONNECT proxy configured via `nw_proxy_config_set_username_and_password`, not
+even after a 407). Two things follow, one settled and one not.
+
+**Settled: the containment that route needs already exists.**
+`answerProxyRouterChallenge` ([lib/services/webview.dart](../../lib/services/webview.dart))
+answers only when `ProxyRouterService.ownsChallenge(host, realm)` passes, which
+matches the challenge's host *and* realm against the relay's own and requires
+the router to be active. A site returning 401 Basic from its own host cannot
+collect another site's relay credential. This is worth recording rather than
+assuming, because the fork's `didReceive challenge` handler
+(`flutter_inappwebview_{ios,macos}/.../InAppWebView.swift`) passes host,
+protocol, realm and port to Dart but **not** whether the protection space is a
+proxy. Host+realm matching is the only discriminator on this path; anyone
+extending it must keep it.
+
+**Open, and it needs an arm rather than a reading:** does the
+`WKNavigationDelegate` auth challenge fire at all for a proxy 407 on macOS? Bug
+264309 says the header is not sent; it does not say whether the challenge is
+delivered, and those have opposite consequences.
+
+- Challenge fires: route 2 answers it through the path above and 264309 is
+  survivable.
+- Challenge does not fire: CONNECT-with-credentials cannot attribute a
+  connection to a site at all. The obvious alternative, one loopback port per
+  site, reintroduces distinct proxy configurations per store -- the thing this
+  bug says does not work -- so route 2 would be closed at both ends and the
+  WebKit report becomes the only remaining move.
+
+Do not wire `LocalProxyRelay` on Apple before this is answered, and do not
+start it at all without the user: it is a product behaviour change, not a
+diagnostic.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
