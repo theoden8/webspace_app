@@ -12,8 +12,8 @@ been reported since.
 
 ## Title
 
-`WKWebsiteDataStore.proxyConfigurations` is honoured only for the first
-WKWebView in a process; later views with their own data stores load direct
+A second `WKWebsiteDataStore`'s `proxyConfigurations` is not used: the WebView
+loads direct while the store still reports its configuration
 
 ## Environment
 
@@ -24,10 +24,16 @@ WKWebView in a process; later views with their own data stores load direct
 ## Summary
 
 A process may create several `WKWebsiteDataStore`s, give each its own
-`ProxyConfiguration`, and load a page in a `WKWebView` bound to each. Only the
-**first** WebView created in the process has its store's proxy honoured. Every
-later one reaches the origin directly, with no error and no indication that the
-proxy was dropped.
+`ProxyConfiguration`, and load a page in a `WKWebView` bound to each. The first
+such load is proxied. A second store's load reaches the origin **directly**,
+with no error and no indication that the proxy was dropped.
+
+Stated as what was measured rather than as a rule: across more than ten runs,
+a second proxied store never used its proxy once the first store's load had
+completed normally. One run, where the first load hung instead of completing,
+did proxy a second store -- so the trigger may be a *completed* load rather
+than the creation of a WebView. Either way a second site is not proxied in
+ordinary use.
 
 In every failing case the store still reports its configuration:
 `store.proxyConfigurations.count == 1` immediately before the load, and the
