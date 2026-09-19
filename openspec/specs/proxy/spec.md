@@ -21,14 +21,18 @@ for their web views on supported platforms. Three delivery paths coexist:
   the global proxy too. Per-site is still last-write-wins (no per-site
   proxy primitive on Linux), but contained sites no longer silently
   bypass it.
-- **iOS 17+ / macOS 14+** — true concurrent per-site override via
-  `WKWebsiteDataStore.proxyConfigurations`, set on the per-site data store
-  created by the WebSpace fork's `preWKWebViewConfiguration` hook
-  (resolved via `dependency_overrides` in
-  [`pubspec.yaml`](../../../pubspec.yaml)).
+- **iOS 17+ / macOS 14+** — process-wide override via
+  `inapp.ProxyController`, which the WebSpace fork's `setProxyOverride`
+  fans out across the default store, the non-persistent store and every
+  cached container store, plus PROXY-008 serialisation on top. The
+  per-store `WKWebsiteDataStore.proxyConfigurations` binding that would
+  give true concurrency exists and is set by the fork's
+  `preWKWebViewConfiguration` hook, but is honoured for only one store per
+  process (BUG-014), so it sits behind developer mode; see
+  [PROXY-020](#requirement-proxy-020---the-binding-is-a-property-of-the-engine-not-the-platform-name).
 
-The Android serialisation vs. iOS/macOS concurrency difference is
-observable to the user; see
+Whether a platform serialises mismatched-proxy sites or runs them
+concurrently is observable to the user; see
 [PROXY-008](#requirement-proxy-008---android--ios-concurrency-asymmetry).
 
 The integrity contract for which traffic actually flows through the
@@ -224,22 +228,42 @@ CONNECT and SOCKS5 proxies).
 ### Requirement: PROXY-008 - Android / iOS Concurrency Asymmetry
 
 The system SHALL preserve per-site proxy semantics on every supported
-platform. The runtime mechanism differs: iOS 17+ / macOS 14+ MUST run
-distinct-proxy sites concurrently; Android MUST serialise them by
-disposing any loaded site whose effective proxy differs before the
-process-wide override flips, **unless PROXY-013 router mode is active**,
-in which case Android MUST NOT dispose them and MUST route each site
-concurrently through the relay.
+platform. The runtime mechanism differs by binding (PROXY-020), not by
+platform name: under the process-wide binding the app MUST serialise
+distinct-proxy sites by disposing any loaded site whose effective proxy
+differs before the override flips; under the per-site binding it MUST run
+them concurrently and MUST NOT dispose them. Android under PROXY-013
+router mode is process-wide but MUST NOT dispose either, because the rule
+names the relay rather than any site's proxy and each site reaches its own
+upstream through its own credential.
 
-#### Scenario: iOS / macOS — concurrent per-site proxy
+The shipped default on Android, iOS and macOS is the serialising one.
+Linux runs the per-site binding for any site that owns a container.
+
+#### Scenario: iOS / macOS — mismatched sites serialise
+
+**Given** Site A is loaded on macOS with HTTP proxy P1
+**And** Site B is configured with SOCKS5 proxy P2
+**And** developer mode is off, so the process-wide binding is in force
+**When** the user activates Site B
+**Then** every loaded site whose effective proxy differs from Site B
+(including Site A) is disposed *before* the override applies P2
+**And** the data model preserves Site A's P1 setting
+**Because** only one store's `proxyConfigurations` is honoured per
+process (BUG-014), so leaving Site A loaded would send it over the device
+IP while its settings still read P1
+
+#### Scenario: iOS / macOS — concurrent per-site proxy under developer mode
 
 **Given** container mode is active on iOS 17+ / macOS 14+
+**And** developer mode is on, selecting the per-store binding
 **And** Site A (`accountA.example.com`) and Site B (`accountB.example.com`)
 are both loaded
 **When** Site A is configured with proxy P1 and Site B with proxy P2
-**Then** each site genuinely uses its own proxy at the same time
-**Because** the proxy is attached to the per-site `WKWebsiteDataStore`,
-which is partitioned per `siteId`
+**Then** the proxy is attached to each site's own `WKWebsiteDataStore`,
+partitioned per `siteId`
+**And** BUG-014 means at most one of them is honoured, which is why this
+is not the shipped default
 
 #### Scenario: Android — proxy-mismatch unload on activation
 
@@ -869,6 +893,64 @@ with nothing raised anywhere.
 
 ---
 
+### Requirement: PROXY-020 - The binding is a property of the engine, not the platform name
+
+The system SHALL decide where a per-site proxy is enforced from one named
+binding rather than from a platform test at each call site, and every path
+that serialises sites, defers a first load, or sends the per-WebView
+`proxySettings` field SHALL read that one binding.
+
+The binding SHALL be `processWide` by default on every platform. It SHALL
+be `perSite` on iOS and macOS only while developer mode is enabled, and
+SHALL be read once per process so a mid-session flip cannot leave WebViews
+built under one binding while the other drives activation.
+
+A credentialed proxy SHALL be refused on iOS and macOS. The fork's
+`ProxyRule.toProxyConfiguration` reads only host and port off the rule
+URL, so inline userinfo is dropped, and `ProxyConfiguration.applyCredential`
+does not put a `Proxy-Authorization` on the wire. Connecting
+unauthenticated instead is not an option: the caller MUST fail closed
+(LEAK-003) rather than let the request leave without the credential the
+user configured.
+
+#### Scenario: A release never picks the per-store binding by itself
+
+**Given** a build with developer mode off
+**When** the binding is resolved on iOS or macOS
+**Then** it is `processWide`
+**Because** the per-store binding is honoured for one store per process
+(BUG-014), so a second proxied site would load over the device IP while
+its settings still named a proxy
+
+#### Scenario: Developer mode selects the per-store binding
+
+**Given** developer mode is enabled on iOS or macOS
+**When** the binding is resolved
+**Then** it is `perSite`
+**And** `WebViewFactory` sends the per-WebView `proxySettings` field
+**And** `ProxyManager.setProxySettings` no-ops, the proxy being bound at
+WebView construction
+
+#### Scenario: Developer mode does not move any other platform
+
+**Given** developer mode is enabled on Android or Linux
+**When** the binding is resolved
+**Then** it is `processWide`, exactly as with developer mode off
+**Because** Android's concurrency comes from PROXY-013 router mode and
+Linux's from the container's own network session; neither reads this gate
+
+#### Scenario: A credentialed proxy on Apple is refused, not downgraded
+
+**Given** a site on macOS whose effective proxy carries a username and
+password
+**And** the process-wide binding is in force
+**When** the app applies it
+**Then** `setProxySettings` throws
+**And** the caller blanks the load
+**And** no request leaves through the proxy without the credential
+
+---
+
 ## Data Model
 
 ### ProxyType Enum
@@ -950,8 +1032,8 @@ flutter_inappwebview fork (github.com/theoden8/flutter_inappwebview)
 | Platform | Proxy Support | UI Visibility | Behavior |
 |----------|--------------|---------------|----------|
 | Android  | Full (per-site, serialised) | Shown (when `PROXY_OVERRIDE` feature present) | `inapp.ProxyController` singleton; data model is genuinely per-site, but mismatched-proxy sites cannot stay loaded concurrently — activation cold-starts the conflicting ones (PROXY-008) |
-| iOS      | Full (per-site, iOS 17+) | Shown on iOS 17+ | WebSpace fork attaches `proxyConfigurations` to per-site `WKWebsiteDataStore`; below iOS 17 the controls are hidden and a persisted non-DEFAULT proxy fails closed (blank load) |
-| macOS    | Full (per-site, macOS 14+) | Shown on macOS 14+ | Same pattern as iOS; below macOS 14 the controls are hidden and a persisted non-DEFAULT proxy fails closed |
+| iOS      | Full (per-site, serialised, iOS 17+) | Shown on iOS 17+ | Process-wide `setProxyOverride` fanned across the default, non-persistent and every container store, with PROXY-008 serialisation; the per-store `proxyConfigurations` binding is developer-mode only (BUG-014). Credentialed proxies are refused (PROXY-020). Below iOS 17 the controls are hidden and a persisted non-DEFAULT proxy fails closed (blank load) |
+| macOS    | Full (per-site, serialised, macOS 14+) | Shown on macOS 14+ | Same pattern as iOS; below macOS 14 the controls are hidden and a persisted non-DEFAULT proxy fails closed |
 | Linux    | Full (global override, fan-out) | Shown unconditionally | WebSpace fork's `flutter_inappwebview_linux` ProxyManager applies `webkit_network_session_set_proxy_settings` to the default session AND every cached container session, so contained sites honor the global proxy too; per-site is still last-write-wins (no per-site proxy primitive on Linux) |
 | Windows  | Limited      | Conditional   | Shown only if `PROXY_OVERRIDE` supported |
 

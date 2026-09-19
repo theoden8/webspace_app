@@ -104,6 +104,7 @@ import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/proxy_conflict_engine.dart';
 import 'package:webspace/services/proxy_router_probe.dart';
 import 'package:webspace/services/proxy_router_engine.dart';
+import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/proxy_router_service.dart';
 import 'package:webspace/services/suggested_sites_service.dart' as suggested_sites;
 import 'package:webspace/screens/dev_tools.dart';
@@ -2825,7 +2826,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     final model = _webViewModels[index];
     await _maybeSwitchToAllForSite(model, index);
     if (!mounted) return;
-    // Android/Linux: the proxy is a process-global override that only the
+    // Under the process-wide binding the proxy is an override that only the
     // activation path flips. The nested screen is for a site that is not
     // being activated, so run the PROXY-008 sequence here or it would load
     // through whatever the active site left behind, bound to this site's
@@ -2836,14 +2837,12 @@ class _WebSpacePageState extends State<WebSpacePage>
     // credential, so `setProxySettings` no-ops and the eviction would only
     // cold-start the siblings PROXY-013 exists to keep loaded. Same gating
     // as the activation path, or a share intent quietly reserialises the app.
-    if (hostIsAndroid || hostIsLinux) {
+    if (ProxyManager.binding == ProxyBinding.processWide) {
       final mismatch = SiteUnloadEngine.indicesToUnloadForProxyMismatch(
         targetIndex: index,
         models: _webViewModels,
         loadedIndices: _loadedIndices,
-        proxyIsGlobal:
-            (hostIsAndroid && !ProxyRouterService.instance.isActive) ||
-                hostIsLinux,
+        proxyIsGlobal: !ProxyRouterService.instance.isActive,
         sharesDefaultSession: ProxyRouterService.instance.isActive
             ? (m) => !_ownsContainerProfile(m)
             : null,
@@ -4273,26 +4272,22 @@ class _WebSpacePageState extends State<WebSpacePage>
       }
     }
 
-    // Proxy-mismatch unload (Android only). The WebView proxy is
-    // process-global on Android (`inapp.ProxyController` last-write-wins);
-    // activating a site whose effective proxy differs from a currently-
-    // loaded site would silently re-route that site's next request through
-    // the new proxy. Unload conflicting sites so they can't leak.
+    // Proxy-mismatch unload. Under the process-wide binding the WebView
+    // proxy is a last-write-wins override, so activating a site whose
+    // effective proxy differs from a currently-loaded one would silently
+    // re-route that site's next request through the new proxy. Unload the
+    // conflicting sites so they can't leak.
     final proxyMismatch = SiteUnloadEngine.indicesToUnloadForProxyMismatch(
       targetIndex: index,
       models: _webViewModels,
       loadedIndices: _loadedIndices,
-      // Both Android and Linux drive a process-global, last-write-wins
-      // proxy (ProxyController fanned across sessions); a mismatched-proxy
-      // sibling left loaded would route its next request through the wrong
-      // proxy. iOS/macOS bind per-session, so no unload needed there.
-      //
       // Under router mode the Android rule is no longer per-site: it
       // points at the loopback router permanently and the router fans
       // traffic out per credential, so mismatched sites can stay loaded
-      // together (PROXY-013). Linux has no equivalent and keeps the unload.
-      proxyIsGlobal: (hostIsAndroid && !ProxyRouterService.instance.isActive) ||
-          hostIsLinux,
+      // together (PROXY-013). No other platform has an equivalent, so
+      // they keep the unload.
+      proxyIsGlobal: ProxyManager.binding == ProxyBinding.processWide &&
+          !ProxyRouterService.instance.isActive,
       // What buys that concurrency is the per-site container profile. A
       // site without one runs in the default profile, whose single cached
       // proxy credential every other such site presents too, so the group

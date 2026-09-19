@@ -20,6 +20,7 @@ import 'package:webspace/services/media_session_service.dart';
 import 'package:webspace/services/media_session_shim.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/camera_decision_engine.dart';
+import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/screen_share_decision_engine.dart';
 import 'package:webspace/services/microphone_decision_engine.dart';
 import 'package:webspace/services/pull_to_refresh_gate.dart';
@@ -1118,13 +1119,14 @@ class WebViewModel {
 
   /// Apply proxy settings to the webview.
   ///
-  /// Android: routes through the global `inapp.ProxyController`. Takes
-  /// effect on next request without reload.
+  /// Under the process-wide binding (PROXY-020, the shipped default
+  /// everywhere): routes through the global `inapp.ProxyController`, which
+  /// takes effect on the next request without a reload.
   ///
-  /// iOS / macOS: no-op — the per-site proxy is bound to the per-site
-  /// `WKWebsiteDataStore` at WebView construction (via
+  /// Under the per-store binding: no-op — the per-site proxy is bound to
+  /// the site's own `WKWebsiteDataStore` at WebView construction (via
   /// `inapp.InAppWebViewSettings.proxySettings`). To pick up a runtime
-  /// change, the WebView must be rebuilt; see [updateProxySettings].
+  /// change the WebView must be rebuilt; see [updateProxySettings].
   Future<bool> _applyProxySettings() async {
     final proxyManager = ProxyManager();
     try {
@@ -1203,7 +1205,8 @@ class WebViewModel {
   /// `setState`) so the IndexedStack actually re-creates the slot.
   Future<void> updateProxySettings(UserProxySettings newSettings) async {
     proxySettings = newSettings;
-    if (hostIsIOS || hostIsMacOS) {
+    if ((hostIsIOS || hostIsMacOS) &&
+        ProxyManager.binding == ProxyBinding.perSite) {
       disposeWebView();
       return;
     }
@@ -1312,7 +1315,7 @@ class WebViewModel {
         isFileImport: currentUrl.startsWith('file://'),
       );
       final bool deferForProxy = deferInitialLoadForProxy(
-        proxyIsGlobal: hostIsAndroid || hostIsLinux,
+        proxyIsGlobal: ProxyManager.binding == ProxyBinding.processWide,
         effectiveNonDefault: effectiveProxy.type != ProxyType.DEFAULT,
         overrideActive: ProxyManager.overrideActive,
       );

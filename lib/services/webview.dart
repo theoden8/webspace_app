@@ -12,12 +12,14 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/anti_fingerprinting_shim.dart';
 import 'package:webspace/services/blob_url_capture.dart';
 import 'package:webspace/services/clearurl_service.dart';
+import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/do_not_track_shim.dart';
 import 'package:webspace/services/https_upgrade_engine.dart';
 import 'package:webspace/services/language_shim.dart';
 import 'package:webspace/services/launch_nonce.dart';
 import 'package:webspace/services/letterbox.dart';
 import 'package:webspace/services/page_zoom_shim.dart';
+import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/proxy_relay.dart';
 import 'package:webspace/services/proxy_router_engine.dart';
 import 'package:webspace/services/proxy_router_service.dart';
@@ -403,6 +405,23 @@ class ProxyManager {
   /// through it.
   static bool overrideActive = false;
 
+  static ProxyBinding? _binding;
+
+  /// How this process enforces a per-site proxy (PROXY-020).
+  ///
+  /// Latched on first read. Developer mode selects the per-store binding on
+  /// Apple, and a mid-session flip would otherwise leave WebViews built
+  /// under one binding while the other one drives activation. Takes effect
+  /// at next launch, as router mode's gate does.
+  static ProxyBinding get binding => _binding ??= ProxyBindingEngine.bindingWhen(
+        isIOS: hostIsIOS,
+        isMacOS: hostIsMacOS,
+        developerMode: DeveloperModeService.instance.enabled,
+      );
+
+  /// Tests only.
+  static void setBindingForTest(ProxyBinding? value) => _binding = value;
+
   Future<void> setProxySettings(UserProxySettings settings) async {
     if (!PlatformInfo.isProxySupported) {
       LogService.instance.log(
@@ -413,13 +432,13 @@ class ProxyManager {
       return;
     }
 
-    // iOS / macOS: proxy travels through the fork's
-    // `inapp.InAppWebViewSettings.proxySettings` field at WebView
-    // construction. Nothing to do at the global ProxyController level —
-    // `inapp.ProxyController` is Android-only. Runtime updates of the
-    // per-site proxy require the WebView to be rebuilt by the caller (see
-    // [WebViewModel.updateProxySettings]).
-    if (hostIsIOS || hostIsMacOS) {
+    // iOS / macOS under the per-store binding: the proxy travels through the
+    // fork's `inapp.InAppWebViewSettings.proxySettings` field at WebView
+    // construction, so there is nothing to flip here. Runtime updates
+    // require the WebView to be rebuilt by the caller (see
+    // [WebViewModel.updateProxySettings]). Off that binding Apple takes the
+    // process-wide path below, which the fork fans out to every data store.
+    if ((hostIsIOS || hostIsMacOS) && binding == ProxyBinding.perSite) {
       LogService.instance.log(
         'Proxy',
         'setProxySettings: iOS/macOS bind proxy at WebView construction; no-op here',
@@ -513,13 +532,33 @@ class ProxyManager {
       _ => 'http',
     };
 
+    // Apple has no way to authenticate to a proxy that works. The fork's
+    // `ProxyRule.toProxyConfiguration` reads only host and port off the
+    // URL, so inline `user:pass@` userinfo is dropped on the floor, and
+    // the `applyCredential` API that would carry it never puts a
+    // `Proxy-Authorization` on the wire (measured; WebKit 264309). The
+    // loopback relay that rescues this on Android is Kotlin and does not
+    // run here. Refuse rather than connect unauthenticated: the caller
+    // blanks the load (LEAK-003) instead of the page failing with a 407 the
+    // user cannot act on.
+    if ((hostIsIOS || hostIsMacOS) && effective.hasCredentials) {
+      LogService.instance.log(
+        'Proxy',
+        'Refusing a credentialed proxy on this platform: it cannot '
+            'authenticate. Effective: ${effective.describeForLogs()}',
+        level: LogLevel.error,
+        sensitivity: LogSensitivity.sensitive,
+      );
+      throw Exception('Proxy credentials are not supported on this platform');
+    }
+
     // Android's ProxyController has no proxy-auth primitive: a rule with
     // embedded `user:pass@` userinfo is rejected by Chromium and the
     // WebView silently goes direct (leaking the real IP). Route a
     // credentialed upstream through the native loopback relay and point
     // WebView at it with NO credentials; the relay injects them upstream.
-    // iOS/macOS never reach here; Linux/WebKit accepts a credentialed
-    // proxy URI directly, so it keeps the inline-credential path below.
+    // Linux/WebKit accepts a credentialed proxy URI directly, so it keeps
+    // the inline-credential path below.
     if (hostIsAndroid && effective.hasCredentials) {
       final relay = await ProxyRelay.instance.start(effective);
       if (relay == null) {
@@ -2026,28 +2065,29 @@ class WebViewFactory {
         ? 'ws-$containerSiteIdentifier'
         : null;
 
-    // Per-site proxy delivery: only iOS 17+ / macOS 14+ honor the
-    // per-WebView `proxySettings` field (which the fork's
-    // `preWKWebViewConfiguration` writes onto
-    // `WKWebsiteDataStore.proxyConfigurations`). On Android the global
-    // `inapp.ProxyController` path runs from
-    // `WebViewModel._applyProxySettings` instead, so leave
-    // `proxySettings` null and avoid sending a no-op object to the
-    // native side. resolveEffectiveProxy keeps the iOS/macOS WebView in
-    // sync with the Dart-side and Android paths: per-site DEFAULT falls
-    // through to the app-global outbound proxy, so a site the user
-    // hasn't customized still inherits a global Tor / corporate proxy.
-    // Explicit per-site values win.
-    final effectiveProxy = (hostIsIOS || hostIsMacOS) &&
-            config.proxySettings != null
+    // Per-site proxy delivery, only under the per-store binding
+    // (PROXY-020): the fork's `preWKWebViewConfiguration` writes this
+    // field onto `WKWebsiteDataStore.proxyConfigurations`, and only one
+    // store's is honoured per process (BUG-014). Off that binding — the
+    // shipped default — every platform takes the process-wide rule from
+    // `WebViewModel._applyProxySettings`, so leave `proxySettings` null
+    // and avoid sending a no-op object to the native side.
+    // resolveEffectiveProxy keeps the WebView in sync with the Dart-side
+    // and process-wide paths: per-site DEFAULT falls through to the
+    // app-global outbound proxy, so a site the user hasn't customized
+    // still inherits a global Tor / corporate proxy. Explicit per-site
+    // values win.
+    final bindsProxyPerSite =
+        (hostIsIOS || hostIsMacOS) && ProxyManager.binding == ProxyBinding.perSite;
+    final effectiveProxy = bindsProxyPerSite && config.proxySettings != null
         ? resolveEffectiveProxy(config.proxySettings!, siteId: config.siteId)
         : null;
     final inappProxy = effectiveProxy != null && PlatformInfo.isProxySupported
         ? userProxyToInappProxy(effectiveProxy)
         : null;
-    // Fail closed: on iOS/macOS the per-site proxy is bound here via
-    // `proxySettings`. If the site expects a non-DEFAULT proxy but the
-    // address is malformed (e.g. a hand-edited backup that bypassed UI
+    // Fail closed: under the per-store binding the per-site proxy is bound
+    // here via `proxySettings`. If the site expects a non-DEFAULT proxy but
+    // the address is malformed (e.g. a hand-edited backup that bypassed UI
     // validation), or the OS is below the `proxyConfigurations` floor,
     // `inappProxy` is null and the webview would otherwise load over the
     // device IP. Blank the initial load instead of leaking.
