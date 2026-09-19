@@ -21,7 +21,19 @@ fi
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-for module in Flutter Tor IPtProxy Cocoa FlutterMacOS Network WebKit; do
+modules="Flutter Tor IPtProxy"
+# The macos/Runner stubs are Linux-only. On macOS the real Cocoa, WebKit and
+# Network frameworks are present, so stub modules under those names are at
+# best ambiguous against them -- and the Xcode build compiles that Runner
+# file for real later in the same job, so checking it here buys nothing.
+# Elsewhere there is no SDK at all, and this is the only gate it gets.
+if [ "$(uname -s)" != "Darwin" ]; then
+  # Network before WebKit: the WebKit stub types proxyConfigurations in
+  # Network's terms, exactly as the SDK has it.
+  modules="$modules Cocoa FlutterMacOS Network WebKit"
+fi
+
+for module in $modules; do
   "$swiftc" -emit-module -module-name "$module" -swift-version 5 -I "$work" \
     -emit-module-path "$work/$module.swiftmodule" "$here/stub_$module.swift"
 done
@@ -36,7 +48,10 @@ echo "swift_typecheck: TorControllerPlugin.swift type-checks"
 
 # macos/Runner/ProxyProbePlugin.swift: the BUG-014 probe. It is compiled
 # only by the Apple job, and a Swift error in it costs a 40-minute round
-# trip -- which is how `proxyConfigurations?.count` reached CI once.
-"$swiftc" -typecheck -swift-version 5 -I "$work" \
-  "$root/macos/Runner/ProxyProbePlugin.swift"
-echo "swift_typecheck: ProxyProbePlugin.swift type-checks"
+# trip -- which is how `proxyConfigurations?.count` reached CI once. Skipped
+# on macOS for the reason above: Xcode compiles it there for real.
+if [ "$(uname -s)" != "Darwin" ]; then
+  "$swiftc" -typecheck -swift-version 5 -I "$work" \
+    "$root/macos/Runner/ProxyProbePlugin.swift"
+  echo "swift_typecheck: ProxyProbePlugin.swift type-checks"
+fi

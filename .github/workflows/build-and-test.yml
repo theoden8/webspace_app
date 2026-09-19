@@ -1411,6 +1411,15 @@ jobs:
         timeout-minutes: 60
         run: |
           set -x
+          # This step runs on failure too, so it is reached when an earlier
+          # step died and the Flutter setup was skipped with it. Without this
+          # every file then "fails" with `fvm: No such file or directory` and
+          # the real error is twenty-five entries further up.
+          if ! command -v fvm >/dev/null 2>&1; then
+            echo "::error::fvm is not installed; an earlier step failed and \
+          the macOS tier never ran. Fix that failure, not these tests."
+            exit 1
+          fi
           # Hard per-test wall-clock cap (see Build Linux): bound any single
           # test so a native WebView deadlock can't hang the job to the 6h
           # runner limit. macOS ships BSD utils; GNU timeout arrives as
