@@ -102,6 +102,26 @@ discarded rather than read.
   stored stores behaves the same as one that starts with six, and deleting
   them changes nothing.
 
+## Not reproducible on WPE WebKit
+
+The same application code passes an equivalent test on WPE WebKit, where the
+proxy is bound per `WebKitNetworkSession`
+(`webkit_network_session_set_proxy_settings`) rather than through
+`WKWebsiteDataStore.proxyConfigurations`. Four data stores on three distinct
+SOCKS5 upstreams in one process each reached their origin through their own
+proxy, and a second pair built in a *later* frame did too:
+
+```
+first-frame=[p0->own(socks0) p1->own(socks0) p2->own(socks1) p3->own(socks2)]
+later-frame=[l0->own(socks0) l1->own(socks1)]
+```
+
+On Apple the same file, in the same commit, reads `DIRECT` for all six.
+
+So this is not a limitation of per-store proxying in WebKit generally, and not
+a mistake in how the application configures it: the same configuration works
+on another port of the same engine.
+
 ## Why it matters
 
 An application that isolates sites by data store -- one store per site, each
@@ -119,4 +139,7 @@ isolation was lost.
   confirmed a bug by DTS
 
 Those two close the obvious workaround: a single shared proxy endpoint that
-tells sites apart by per-site proxy credentials.
+tells sites apart by per-site proxy credentials. Measured on current macOS
+rather than taken from those reports: a CONNECT proxy configured this way is
+reached and answers `407`, no `Proxy-Authorization` is ever sent in response,
+and the navigation then hangs rather than failing.

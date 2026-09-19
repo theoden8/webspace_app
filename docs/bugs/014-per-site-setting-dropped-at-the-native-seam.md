@@ -3636,6 +3636,69 @@ Two gaps stay open and are not regressions, since both predate this:
 - The Linux tier still skips every other proxy file, so only simultaneity is
   measured there.
 
+### Attempt 67 — Linux passes the goal test; Apple fails it on the same commit
+
+**2026-09-19**, PR #597, run 3138, `f775a43`.
+
+**The divergence, measured rather than inferred.** One file, one app,
+one commit, two WebKit ports:
+
+| | first frame (4 stores, 3 upstreams) | later frame (2 stores, 2 upstreams) |
+|---|---|---|
+| **Linux / WPE** | `p0->own(socks0) p1->own(socks0) p2->own(socks1) p3->own(socks2)` | `l0->own(socks0) l1->own(socks1)` |
+| **Apple** | `p0->DIRECT p1->DIRECT p2->DIRECT p3->DIRECT` | `l0->DIRECT l1->DIRECT` |
+
+Linux: 4 of 4 panes reached their origin through their own proxy, no pane
+CROSSED onto a sibling's, and the later-frame pair passed as well -- a case
+Apple has never passed even with a single proxy. **Two sites really do hold two
+different proxies at the same time, on WebKit, with this app's code.** What
+fails on Apple is therefore Apple's `proxyConfigurations` path, not the app's
+per-site plumbing and not WebKit as a project.
+
+The native change also compiled first time against real WPE headers, which was
+the risk in writing it blind.
+
+**Route 2 is dead, and the fixture says so precisely.** The `connectauth` arm
+finally ran:
+
+```
+first-connectauth -> proxied, probe did not report: TimeoutException after 0:00:30
+connect targets=[192.168.64.9:50084], challenges=1, credentials=[]
+```
+
+The CONNECT proxy was reached, so the arm is valid rather than void. The
+fixture sent its 407. **No `Proxy-Authorization` ever arrived** -- WebKit did
+not retry with a credential -- and the navigation then hung to the probe's 30s
+timeout instead of failing. Bug 264309 still holds on current macOS, three
+years after it was filed. A relay that tells sites apart by per-site proxy
+credentials cannot work here, so `LocalProxyRelay` is not an escape from
+BUG-014 and should not be wired.
+
+**An anomaly that contradicts the burn as stated, recorded rather than
+smoothed over.** The same launch reads:
+
+```
+shape=[first-connectauth->proxied second-proxy-A->proxied third-proxy-B->DIRECT ...]
+```
+
+Two arms bound in one process. Attempts 59b-64 had the rule as "only the first
+WebView in a process is proxied", and this is the first arm to break it. The
+one thing different about it: the first WebView's navigation never completed,
+it hung. So the slot may be consumed by a *completed* load rather than by
+creating a WebView, which no earlier arm could separate because every earlier
+first arm finished. The third arm, on a third endpoint, still went direct.
+
+This does not change what reaches a user -- a second proxied site still goes
+direct in every arrangement where the first one loads normally -- but the rule
+as written in this file is too strong, and the WebKit report must describe
+what was measured rather than the rule. n=1; it needs an arm that deliberately
+hangs the first load before it can be stated.
+
+**Why it was partial.** The Linux result covers simultaneity only: that tier
+still skips every other proxy file. And a Linux container site whose proxy is
+DEFAULT takes no pin, so it still follows whatever process-wide override is
+active -- unchanged from before, but now the odd one out.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
