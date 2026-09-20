@@ -1,12 +1,15 @@
 # Draft: WebKit bug report for the per-process proxy slot
 
-Status: **draft, NOT FILED, and currently BLOCKED.** Filing is the user's
-call, and it should not happen yet: attempt 71 found that the bare-WKWebView
-probe released each store before the next arm ran, so the two-store readings
-below describe sequential use rather than coexistence. The claim needs
-re-measuring with stores that stay alive before this goes to anyone. Cross-linked from
+Status: **draft, NOT FILED. No longer blocked.** Filing is the user's call.
+Attempt 71 blocked this because the probe released each store before the next
+arm ran, so the readings described sequential use rather than coexistence.
+Attempt 72 re-measured it with every store alive -- `liveStores` reads 1 to 6
+across the arms -- and the result stands: arms 2 through 6 went direct with
+arms 1 through 5 alive throughout. The mechanism was never deallocation.
+Cross-linked from
 [014-per-site-setting-dropped-at-the-native-seam.md](014-per-site-setting-dropped-at-the-native-seam.md)
-(attempt 58 proposed it; attempts 59-64 are the evidence).
+(attempt 58 proposed it; attempts 59-64 are the evidence, 72 is the
+coexistence measurement).
 
 Before filing, fill in the two placeholders below (`<OS>`, `<SAFARI>`) from the
 machine that reproduces it, and search bugs.webkit.org once more in case it has
@@ -34,10 +37,16 @@ A process may create several `WKWebsiteDataStore`s, give each its own
 such load is proxied. A second store's load reaches the origin **directly**,
 with no error and no indication that the proxy was dropped.
 
-What decides it is **completion**, not creation. Across more than ten runs, a
-second proxied store never used its proxy once the first store's load had
-completed. In two runs where the first load hung instead of completing, the
-second store *was* proxied and a third was not -- so a load still in flight
+Pointing the second store at **the same proxy endpoint** as the first does not
+help: it loads direct too, and the proxy records a single CONNECT, from the
+first store only. So the limit is one proxied *store* per process, not one
+proxy per process.
+
+What decides it may be **completion** rather than creation, though the two are
+not yet separable. Across more than ten runs, a second proxied store never used
+its proxy once the first store's load had completed. In two runs where the first
+load hung instead of completing, the second store *was* proxied and a third was
+not -- so a load still in flight
 has not yet taken the slot, and the next load to complete takes it. Either
 way a second site is not proxied in ordinary use, where the first load
 finishes.

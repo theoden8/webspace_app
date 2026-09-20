@@ -3933,6 +3933,57 @@ so a push to the Tor PR can no longer take the measurement down with it. The
 two PRs are in different concurrency groups. `docs/bugs/014-webkit-report.md`
 stays blocked, for the same reason as attempt 71 and not a new one.
 
+### Attempt 72 -- coexistence measured with every store alive; it still fails
+
+**2026-09-20**, run 3151 (`b0222d9`, PR #603), dispatched on
+`claude/bug-014-apple-proxy-investigation` after attempt 71a.
+
+**The instrument is now sound.** Every arm reports `liveStores`, and the first
+launch reads 1, 2, 3, 4, 5, 6 across its six arms. The stores coexist; nothing
+is being freed between arms. This is the first reading in this investigation
+that measures what it claims to.
+
+**The arrangement.** Store A carries HTTP CONNECT proxy A and loads through it.
+Store B is then constructed, pointed at *the same* proxy A, and loaded. Store C
+carries a different proxy. All three stay alive.
+
+```
+first-connectsame  -> proxied (configured=1 liveStores=1 detail=didFinish)
+second-connectSAME -> DIRECT  (configured=1 liveStores=2 detail=didFinish)
+third-proxy-B      -> DIRECT  (configured=1 liveStores=3 detail=didFinish)
+bare               -> DIRECT  (configured=1 liveStores=4 detail=didFinish)
+bare-ident         -> DIRECT  (configured=1 liveStores=5 detail=didFinish)
+bare-window        -> DIRECT  (configured=1 liveStores=6 detail=didFinish)
+connect  targets=[192.168.64.9:50149]
+connectB targets=[]
+```
+
+**What it settles.** Two coexisting stores cannot carry a proxy at once, and
+*sharing one proxy does not help*: store B pointed at the very same endpoint as
+store A went direct, and the fixture recorded exactly one CONNECT, from arm 1.
+So the ceiling is one proxied store per process, not one proxy per process.
+
+That closes the shared-relay route for Apple, which attempt 71a still listed as
+open. Pointing every proxied site at a single local relay would have made the
+binding problem tractable and left only attribution; it does not, because the
+second site is not proxied *at all*, whatever endpoint it names.
+
+**What it does not settle.** `configured=1` on every arm: the store accepts the
+configuration and reports holding it while loading direct. And the creation-vs-
+completion question is still open -- every arm here finished (`detail=didFinish`),
+so "first to bind" and "first to complete" remain indistinguishable in this run.
+The hung-arm anomaly did not recur.
+
+**Why attempt 71's suspension lifts.** The claim that a second store's load goes
+direct rested on arms whose predecessor had been deallocated. It no longer does:
+arms 2 through 6 went direct with arms 1 through 5 alive throughout. The
+mechanism was never deallocation.
+
+**The second launch** (`firstArm=proxied`, position=second) read
+`first-proxied -> DIRECT`, so even the first arm of a later launch in the same
+job is unproxied. That is the launch-position effect this file has recorded
+since attempt 59 and it is untouched by the probe fix.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
