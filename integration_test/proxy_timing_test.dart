@@ -174,12 +174,18 @@ void main() {
     return true;
   }
 
-  /// Everything below is meaningless unless pane A proxied in frame 1.
-  var baselineProxied = false;
-
-  testWidgets('frame 1: pane A must proxy, or this process measured nothing',
-      (tester) async {
+  // One test, not four. `testWidgets` tears the widget tree down between
+  // tests, so pane A's platform view is gone by the next one and its
+  // controller is stale -- which is exactly how the first run of this file
+  // read `same-store-2nd-nav=no-load`: the loadUrl no-opped against a
+  // disposed WebView. Keeping the arms in one test is what lets the SAME
+  // WebView, not merely the same container, issue the second navigation.
+  testWidgets('when a per-site proxy stops applying', (tester) async {
     if (!usable()) return;
+
+    // Frame 1. Both the positive control and the baseline: if this does not
+    // proxy, the process is one of the poisoned ones (BUG-014 gap -2) and
+    // nothing below means anything.
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(body: Column(children: [pane(0, socksIndex: 0)])),
     ));
@@ -187,77 +193,70 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
     await waitReal(tester, () => settled(0), label: 'frame-1 pane A');
     verdict['baseline'] = classify(0, 0);
-    baselineProxied = verdict['baseline'] == 'own';
+    final baselineProxied = verdict['baseline'] == 'own';
     log('baseline=${verdict["baseline"]}');
-  });
 
-  testWidgets('the same store, navigated a second time in a later frame',
-      (tester) async {
-    if (!usable()) return;
     if (!baselineProxied) {
-      verdict['same-store-2nd-nav'] = 'void';
-      markTestSkipped('pane A never proxied; this process cannot measure');
-      return;
-    }
-    final controller = paneA;
-    expect(controller, isNotNull,
-        reason: 'pane A reported no controller, so its second navigation '
-            'could not be issued');
-    await tester.runAsync(() async {
-      await controller!
-          .loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(urlFor(1))));
-    });
-    await waitReal(tester, () => settled(1), label: 'pane A second navigation');
-    verdict['same-store-2nd-nav'] = classify(1, 0);
-    log('same-store-2nd-nav=${verdict["same-store-2nd-nav"]}');
-  });
+      for (final k in const [
+        'same-store-2nd-nav',
+        'new-store-later',
+        'new-store-after-idle'
+      ]) {
+        verdict[k] = 'void';
+      }
+    } else {
+      // The question the matrix could not answer: the very WebView that just
+      // proxied, navigating again, no rebuild in between.
+      final controller = paneA;
+      expect(controller, isNotNull,
+          reason: 'pane A reported no controller, so its second navigation '
+              'could not be issued');
+      await tester.runAsync(() async {
+        await controller!.loadUrl(
+            urlRequest: inapp.URLRequest(url: inapp.WebUri(urlFor(1))));
+      });
+      await waitReal(tester, () => settled(1),
+          label: 'pane A second navigation');
+      verdict['same-store-2nd-nav'] = classify(1, 0);
+      log('same-store-2nd-nav=${verdict["same-store-2nd-nav"]}');
 
-  testWidgets('a brand-new store in a later frame', (tester) async {
-    if (!usable()) return;
-    if (!baselineProxied) {
-      verdict['new-store-later'] = 'void';
-      markTestSkipped('pane A never proxied; this process cannot measure');
-      return;
-    }
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: Column(children: [pane(0, socksIndex: 0, url: urlFor(1)), pane(2, socksIndex: 2)]),
-      ),
-    ));
-    await tester.pump(const Duration(milliseconds: 100));
-    await tester.pump(const Duration(milliseconds: 500));
-    await waitReal(tester, () => settled(2), label: 'new store, later frame');
-    verdict['new-store-later'] = classify(2, 2);
-    log('new-store-later=${verdict["new-store-later"]}');
-  });
+      // A brand-new store in a later frame. Pane A stays in the tree so its
+      // WebView is not torn down under the new one.
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: Column(children: [
+            pane(0, socksIndex: 0, url: urlFor(1)),
+            pane(2, socksIndex: 2),
+          ]),
+        ),
+      ));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 500));
+      await waitReal(tester, () => settled(2), label: 'new store, later frame');
+      verdict['new-store-later'] = classify(2, 2);
+      log('new-store-later=${verdict["new-store-later"]}');
 
-  testWidgets('a brand-new store after an idle period', (tester) async {
-    if (!usable()) return;
-    if (!baselineProxied) {
-      verdict['new-store-after-idle'] = 'void';
-      markTestSkipped('pane A never proxied; this process cannot measure');
-      return;
+      await tester
+          .runAsync(() => Future<void>.delayed(const Duration(seconds: 6)));
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: Column(children: [
+            pane(0, socksIndex: 0, url: urlFor(1)),
+            pane(2, socksIndex: 2),
+            pane(3, socksIndex: 3),
+          ]),
+        ),
+      ));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 500));
+      await waitReal(tester, () => settled(3), label: 'new store after idle');
+      verdict['new-store-after-idle'] = classify(3, 3);
+      log('new-store-after-idle=${verdict["new-store-after-idle"]}');
     }
-    await tester.runAsync(() => Future<void>.delayed(const Duration(seconds: 6)));
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: Column(children: [
-          pane(0, socksIndex: 0, url: urlFor(1)),
-          pane(2, socksIndex: 2),
-          pane(3, socksIndex: 3),
-        ]),
-      ),
-    ));
-    await tester.pump(const Duration(milliseconds: 100));
-    await tester.pump(const Duration(milliseconds: 500));
-    await waitReal(tester, () => settled(3), label: 'new store after idle');
-    verdict['new-store-after-idle'] = classify(3, 3);
-    log('new-store-after-idle=${verdict["new-store-after-idle"]}');
 
-    // Reported, not asserted: every cell here is the open question, and a
-    // process that could not proxy at all produces the same nulls as a
-    // platform that drops the proxy. The baseline is what separates them,
-    // and it is asserted below.
+    // Reported, not asserted: every arm above is the open question, and a
+    // process that could not proxy produces the same nulls as a platform
+    // that drops the proxy. The baseline is what separates them.
     expect(verdict['baseline'], 'own',
         reason: 'pane A did not proxy in frame 1, so no verdict in this file '
             'is evidence about timing');

@@ -4468,6 +4468,51 @@ can ever be proxied. Every arm that asks it must now run FIRST in the tier or
 it measures nothing -- which is the single most useful thing this attempt
 produces for whoever runs the next one.
 
+### Attempt 81 -- a new store in a later frame goes direct, with a live control; the key arm did not run
+
+**2026-09-20**, PR #603 (`152a5cb`), run 35535507089, macOS job 106143713867.
+`proxy_timing_test`, launched first in the tier per gap -2.
+
+```
+run=first verdict: containers=true baseline=own
+                   same-store-2nd-nav=no-load
+                   new-store-later=DIRECT
+                   new-store-after-idle=DIRECT
+socks0 connects=[192.168.64.9:50037]   socks1..3 connects=[]
+```
+
+**`baseline=own`, so this process could proxy** and the two new-store arms are
+evidence rather than noise. That is the first time the later-frame reading has
+been taken with a positive control in the same process:
+
+* a brand-new store built in a later frame -> DIRECT
+* a brand-new store built after a six-second idle -> DIRECT
+
+Idle time is not the boundary; both behave the same.
+
+**The arm that mattered did not execute.** `same-store-2nd-nav=no-load` means
+neither the origin nor any fixture saw a request -- not that the load went
+direct. `flutter_test` tears the widget tree down between `testWidgets`, so
+pane A's platform view was already disposed when the second test ran and the
+captured controller was stale; `loadUrl` no-opped. The file's four-test
+structure could never have measured what it was for.
+
+**And it corrects attempt 80's description of `prebound`.** That arm was
+written up as "a store created and configured in frame 1, navigated later".
+What it actually measured is weaker: the later test re-pumped the pane, so a
+*new* `InAppWebView` joined the *same* container (`ContainerManager`'s cache
+keyed by container id). The store was reused; the WebView was not. So attempt
+80 showed that reusing a store does not carry the proxy to a WebView built
+later -- which is still a real finding, and still kills the
+hidden-WebView-at-startup fix -- but it never tested the WebView that had
+itself proxied.
+
+**Why it was partial.** The open question is unchanged: does the very WebView
+that proxied keep proxying across its own navigations? That decides whether
+the leak is one-per-site-activation or one-per-click. `proxy_timing_test` now
+runs its arms inside a single `testWidgets` so the tree and the controller
+survive between them.
+
 ## Known open gaps
 
 -2. **Any arm that asks about the Apple proxy MUST run first in the macOS tier
@@ -4479,13 +4524,19 @@ produces for whoever runs the next one.
    arm that is not first is measuring a poisoned process. Most DIRECT readings
    in this file predate knowing this.
 
--1. **A navigation issued after the first frame has never taken a proxy
-   (attempts 77, 78, 80).** Measured in a process with a live control
-   (`control=proxied`): `prebound` created and configured its store in frame 1,
-   navigated later via `controller.loadUrl`, and went direct with the origin
-   receiving the request. So binding early is not the fix -- the navigation
-   itself has to be in frame 1, which kills the hidden-WebView-at-startup idea
-   attempt 77 floated. A site switch always navigates later, so PROXY-008
+-1. **A WebView built after the first frame has never taken a proxy
+   (attempts 77, 78, 80, 81).** Measured twice with a live positive control in
+   the same process. Reusing an already-proxied *store* does not help: attempt
+   80's `prebound` and attempt 81's new-store arms both joined or rebuilt under
+   a store bound in frame 1 and still went direct, at once and after a six
+   second idle alike. So binding early is not the fix, which kills the
+   hidden-WebView-at-startup idea attempt 77 floated, and elapsed time is not
+   the boundary.
+
+   **Not yet measured:** whether the very WebView that proxied keeps proxying
+   across its own later navigations. Attempt 81's arm for it did not run (the
+   controller was stale across `testWidgets` boundaries). That answer decides
+   whether the leak is one per site activation or one per link click. A site switch always navigates later, so PROXY-008
    serialisation leaks by construction.
 
    **Simultaneity is no longer part of this gap.** Attempt 80 read four stores
