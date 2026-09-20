@@ -4031,6 +4031,56 @@ to the process-wide override, where the fan-out covers `.default()` too, so the
 next run measures a different thing again -- worth keeping the two apart when
 reading it.
 
+### Attempt 74 -- the process-wide override is ignored on the default store too
+
+**2026-09-20**, PR #597 (`16bf457`), run 35504387241.
+
+**The arrangement.** `proxy_binding_test`, rewritten to the PROXY-020 contract:
+apply the override first via `ProxyManager().setProxySettings(SOCKS5 dead)` --
+which on Apple now reaches `ProxyController.setProxyOverride`, so the fork's
+`fanOutToFollowingStores` assigns `proxyConfigurations` to `.default()`, to
+`.nonPersistent()` and to every cached container store -- then mount a WebView
+and see whether the dead proxy stops the load.
+
+```
+[proxy-binding] origin on 49954, dead proxy on 49955, proxySupported=true
+[proxy-binding] proxied load (must not arrive) -> ok
+Expected: not contains '/proxied'
+  Actual: ['/proxied']
+[proxy-binding] direct load -> ok
+```
+
+**The load arrived.** A dead SOCKS5 proxy, assigned process-wide before any
+load, did not stop it.
+
+**What it settles.** Per attempt 73 this file lands on
+`WKWebsiteDataStore.default()`, and the fan-out covers that store. So the
+result is about the default store, and it is decisive for it: `.default()`
+ignores `proxyConfigurations` whether the assignment arrives through the
+per-WebView binding or through the process-wide fan-out. Those are the same
+statement in the end -- both are `store.proxyConfigurations = configs` -- which
+is why the two delivery paths read identically here.
+
+Open gap 0 said the default store cannot be given a proxy *after its first
+load*. Two runs now say it cannot be given one at all: `930ed22` assigned at
+configuration time on the process's first WebView, `16bf457` assigned
+process-wide before any WebView existed. Both went direct.
+
+**What it does NOT settle, and the correction that matters.** This is not
+evidence that PROXY-020 fails. #604's path applies the override to *container*
+stores, which is what every proxied site in the app owns, and no arm here
+exercised one -- the file never initialised container support. Reading this run
+as "the process-wide override does not work" would repeat attempt 73's error
+one layer up.
+
+**Why it was partial.** The experiment that separates them was not run. The
+file now awaits `ContainerNative.instance.isSupported()` in `setUpAll` and logs
+`containers=`, so the next run binds a container store and the store identity
+is in the output instead of inferred. If a container store stops the load while
+`.default()` does not, the app is safe and open gap 0 is the whole defect; if
+it does not, PROXY-020 has no working delivery path on Apple and #604's premise
+falls.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
