@@ -1,23 +1,17 @@
 // Per-site proxy with embedded authentication credentials (PROXY-001 +
-// PWD-005), and what happens where those credentials cannot be delivered
-// (PROXY-020).
+// PWD-005), and what happens where they cannot be carried (PROXY-020).
 //
-// Two seeded sites, activated in order:
+// Pre-seeds a single site with an HTTP proxy whose username + password
+// must materialise in the URL passed to the platform `ProxyController`.
+// PWD-005 forbids serialising the password through `toJson`, so the
+// password is written into `flutter_secure_storage` directly (the same
+// libsecret/pass_secret_service path used in production on Linux).
 //
-//   Proxy Site B -- no credentials. Its address must reach the platform
-//     `ProxyController`. This is the positive control: without it, a
-//     regression that stopped delivering any proxy at all on a platform
-//     would satisfy every assertion the credentialed site makes.
-//   Proxy Site -- username + password, the password read back out of
-//     `flutter_secure_storage` because PWD-005 forbids `toJson` carrying
-//     it. Where the platform can carry credentials the URL must embed
-//     them; on iOS/macOS it cannot, and the contract is that the app
-//     refuses rather than connecting unauthenticated.
-//
-// The `flutter_inappwebview_proxycontroller` channel is mocked so the exact
-// `setProxyOverride` arguments are capturable without a live network stack;
-// it is the same channel on every platform. Activating a site triggers
-// `setController` -> `_applyProxySettings` -> `ProxyController`.
+// The Linux `flutter_inappwebview_proxycontroller` channel is mocked so
+// the test can capture the exact `setProxyOverride` arguments without
+// depending on a live WPE WebKit network stack. Activating the site
+// triggers `setController` -> `_applyProxySettings` ->
+// `ProxyController.setProxyOverride`, which routes through that channel.
 
 import 'dart:convert';
 import 'dart:io' show Platform;
@@ -69,23 +63,8 @@ void main() {
         username: 'puser',
       ),
     );
-    final plainSite = WebViewModel(
-      siteId: 'proxy-2',
-      initUrl: 'http://192.0.2.2/',
-      name: 'Proxy Site B',
-      proxySettings: UserProxySettings(
-        type: ProxyType.HTTP,
-        address: '198.51.100.2:8080',
-      ),
-    );
-    // Credential-free site first: the app activates index 0 at startup, so
-    // the positive control below costs no drawer interaction and the one
-    // that remains is the last thing the test does.
     SharedPreferences.setMockInitialValues({
-      'webViewModels': [
-        jsonEncode(plainSite.toJson()),
-        jsonEncode(site.toJson()),
-      ],
+      'webViewModels': [jsonEncode(site.toJson())],
     });
 
     // PWD-005: password lives in secure storage, never in JSON. Seed it
@@ -109,8 +88,8 @@ void main() {
     await secure.delete(key: 'proxy_passwords');
   });
 
-  testWidgets('per-site proxy delivery, and refusal where it cannot carry '
-      'credentials', (tester) async {
+  testWidgets('per-site proxy override carries embedded credentials',
+      (tester) async {
     app.main();
     await tester.pumpAndSettle(const Duration(seconds: 30));
 
@@ -123,119 +102,96 @@ void main() {
       }).take(40).toList()}');
     }
 
-    /// Drive the engine long enough for a WebView to mount and fire
-    /// onControllerCreated. pumpAndSettle deadlocks on a live WebView, so
-    /// pump fixed slices instead.
-    Future<void> settle() async {
-      for (var i = 0; i < 30; i++) {
-        await tester.pump(const Duration(milliseconds: 500));
-      }
+    // Open the drawer via the All-webspace tile (the same-id branch in
+    // _selectWebspace calls openDrawer when tapping the already-active
+    // webspace).
+    final allTile = find.byKey(const ValueKey(kAllWebspaceId));
+    expect(allTile, findsOneWidget);
+    await tester.tap(allTile);
+    await tester.pumpAndSettle(const Duration(seconds: 5));
+
+    final siteTile = find.text('Proxy Site');
+    if (siteTile.evaluate().isEmpty) {
+      dumpTexts('drawer open');
+    }
+    expect(siteTile, findsOneWidget,
+        reason: 'seeded proxy site should appear in the drawer');
+
+    // Activating the site triggers WebView creation -> onControllerCreated
+    // -> setController -> _applyProxySettings -> ProxyController.setProxyOverride.
+    await tester.tap(siteTile);
+    // Drive the engine for long enough that the WebView fully mounts and
+    // its controller fires onControllerCreated. pumpAndSettle deadlocks
+    // on a live WebView, so pump in fixed slices instead.
+    for (var i = 0; i < 30; i++) {
+      await tester.pump(const Duration(milliseconds: 500));
     }
 
-    /// Open the drawer and activate [name].
-    ///
-    /// Tapping the already-active webspace tile is the same-id branch in
-    /// `_selectWebspace`, which opens the drawer. Called once, and last:
-    /// re-opening the drawer after a site has been activated does not find
-    /// the tile again.
-    Future<void> activate(String name) async {
-      final allTile = find.byKey(const ValueKey(kAllWebspaceId));
-      expect(allTile, findsOneWidget);
-      await tester.tap(allTile);
-      await tester.pumpAndSettle(const Duration(seconds: 5));
-
-      final siteTile = find.text(name);
-      if (siteTile.evaluate().isEmpty) {
-        dumpTexts('drawer open for $name');
-      }
-      expect(siteTile, findsOneWidget,
-          reason: 'seeded site "$name" should appear in the drawer');
-
-      await tester.tap(siteTile);
-      await settle();
-    }
-
-    /// Every `setProxyOverride` whose rule URL mentions [needle].
-    List<String> overrideUrlsFor(String needle) {
-      final urls = <String>[];
-      for (final call in capturedCalls) {
-        if (call.method != 'setProxyOverride') continue;
+    // PWD-005: the per-site proxy carries the embedded credentials (the
+    // password loaded from secure storage) to whichever mechanism this
+    // platform uses, or is refused where none of them can carry it.
+    if (Platform.isIOS || Platform.isMacOS) {
+      // PROXY-020: refused, not downgraded. `ProxyRule.toProxyConfiguration`
+      // reads only host and port off the rule URL, so inline userinfo is
+      // dropped, and `applyCredential` never puts a Proxy-Authorization on
+      // the wire. Connecting anyway would send the request unauthenticated,
+      // so nothing for this site reaches the platform at all.
+      String? ruleUrlOf(MethodCall call) {
         final args = call.arguments as Map?;
         final settings = (args?['settings'] as Map?)?.cast<String, dynamic>();
         final rules = settings?['proxyRules'] as List?;
-        if (rules == null || rules.isEmpty) continue;
-        final url = (rules.first as Map)['url'] as String?;
-        if (url != null && url.contains(needle)) urls.add(url);
+        if (rules == null || rules.isEmpty) return null;
+        return (rules.first as Map)['url'] as String?;
       }
-      return urls;
-    }
 
-    /// The per-site proxy baked into the mounted WebView's
-    /// `initialSettings`, or null when the platform did not use that path.
-    List<inapp.ProxyRule>? mountedWebViewRules() {
+      final overrides = capturedCalls
+          .where((c) => c.method == 'setProxyOverride')
+          .map(ruleUrlOf)
+          .whereType<String>()
+          .toList();
+      for (final needle in ['198.51.100.1', 'puser', 'sekret-pass']) {
+        expect(overrides.where((u) => u.contains(needle)), isEmpty,
+            reason: 'a credentialed proxy must not reach the platform on a '
+                'tier that cannot authenticate to it');
+      }
+      // Nor through the per-WebView field: that binding is developer-mode
+      // only under PROXY-020, and this tier runs with it off.
       final webviewFinder = find.byType(inapp.InAppWebView);
       expect(webviewFinder, findsWidgets,
-          reason: 'activating a site should mount its WebView');
-      return tester
-          .widget<inapp.InAppWebView>(webviewFinder.first)
-          .platform
-          .params
-          .initialSettings
-          ?.proxySettings
-          ?.proxyRules;
-    }
-
-    // Positive control, on the site the app activated at startup. A proxy
-    // with nothing to authenticate reaches the platform on every tier this
-    // file runs on, including the Apple one where the credentialed case
-    // below is refused.
-    await settle();
-    final plain = overrideUrlsFor('198.51.100.2:8080');
-    if (plain.isEmpty) {
-      // ignore: avoid_print
-      print('captured channel calls: '
-          '${capturedCalls.map((c) => c.method).toList()}');
-    }
-    expect(plain, isNotEmpty,
-        reason: 'a credential-free per-site proxy should reach '
-            'ProxyController.setProxyOverride');
-    expect(plain.last, startsWith('http://'),
-        reason: 'HTTP proxy type should produce http:// scheme');
-
-    await activate('Proxy Site');
-
-    if (Platform.isIOS || Platform.isMacOS) {
-      // PROXY-020. `ProxyRule.toProxyConfiguration` reads only host and
-      // port off the rule URL, so inline userinfo is dropped, and
-      // `applyCredential` never puts a Proxy-Authorization on the wire.
-      // Connecting anyway would send the request unauthenticated, so the
-      // app refuses: nothing reaches the platform for this site.
-      expect(overrideUrlsFor('198.51.100.1'), isEmpty,
-          reason: 'a credentialed proxy must not reach the platform on a '
-              'tier that cannot authenticate to it');
-      expect(overrideUrlsFor('puser'), isEmpty);
-      expect(overrideUrlsFor('sekret-pass'), isEmpty,
-          reason: 'the password must never reach a proxy rule that would '
-              'drop it');
-      // And not through the per-WebView field either: that binding is
-      // developer-mode only, and this tier runs with it off.
-      expect(mountedWebViewRules(), isNull,
-          reason: 'the per-store binding is developer-mode only, so the '
-              'WebView carries no proxySettings here');
+          reason: 'activating the site should mount its WebView');
+      expect(
+        tester
+            .widget<inapp.InAppWebView>(webviewFinder.first)
+            .platform
+            .params
+            .initialSettings
+            ?.proxySettings,
+        isNull,
+        reason: 'the per-store binding is developer-mode only, so the '
+            'WebView carries no proxySettings here',
+      );
     } else {
-      // Android/Linux: credentials ride the proxy URL through
-      // ProxyController.setProxyOverride.
-      final creds = overrideUrlsFor('198.51.100.1:8080');
-      if (creds.isEmpty) {
+      // Android/Linux: proxy delivered via inapp.ProxyController.setProxyOverride.
+      final overrides =
+          capturedCalls.where((c) => c.method == 'setProxyOverride').toList();
+      if (overrides.isEmpty) {
         // ignore: avoid_print
         print('captured channel calls: '
             '${capturedCalls.map((c) => c.method).toList()}');
       }
-      expect(creds, isNotEmpty,
+      expect(overrides, isNotEmpty,
           reason: 'setProxyOverride should fire after site activation');
-      final url = creds.last;
+
+      final args = overrides.last.arguments as Map?;
+      final settings = (args?['settings'] as Map?)?.cast<String, dynamic>();
+      final rules = (settings?['proxyRules'] as List?);
+      expect(rules, isNotNull);
+      final url = (rules!.first as Map)['url'] as String?;
+      expect(url, isNotNull, reason: 'proxy rule should carry a url');
       expect(url, startsWith('http://'),
           reason: 'HTTP proxy type should produce http:// scheme');
+      expect(url, contains('198.51.100.1:8080'),
+          reason: 'proxy URL should carry the configured host:port');
       expect(url, contains('puser'),
           reason: 'proxy URL should embed the per-site username');
       expect(url, contains('sekret-pass'),
