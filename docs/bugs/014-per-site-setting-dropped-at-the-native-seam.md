@@ -4330,6 +4330,65 @@ hold a slot -- because there is no slot -- then evicting one frees nothing, and
 the candidate fix it named is unlikely to be one. Still unmeasured, but no
 longer the promising route it was written up as.
 
+### Attempt 79 -- the matrix ran three times and measured nothing; the variable is the process
+
+**2026-09-20**, PR #603 (`9155204`), run 35524583218, macOS job 106114431504.
+
+**The experiment.** `proxy_matrix_test` crosses the three things every earlier
+arm varied at once: delivery (credentialed HTTP CONNECT to `LocalProxyRelay`
+vs direct SOCKS5), destination scheme (https vs http), and timing (bound and
+navigated in frame 1 / bound in frame 1 and navigated later / built and
+navigated later). Three launches, since frame 1 happens once per process.
+
+**All three are void.** Every cell DIRECT, and `control=DIRECT` in all three,
+which by the file's own exclusion rule means those processes proxied nothing
+at all and their lines are not evidence:
+
+```
+run=first  verdict: containers=true control=DIRECT  ... all cells DIRECT
+run=2      verdict: containers=true control=DIRECT  ... all cells DIRECT
+run=3      verdict: containers=true control=DIRECT  ... all cells DIRECT
+```
+
+**The diagnostic that matters is the rest of the same run.**
+
+```
+proxy-shape  position=first : first-connectsame->proxied      <- the only bind
+proxy-relay  : control=DIRECT, first-frame=[s0->DIRECT s1->DIRECT]
+proxy-rate   : control=DIRECT, proxied=0 of 8
+proxy-simultaneous / connect-https / http-connect : all DIRECT
+```
+
+`proxy_relay_binding` is the same file that read
+`first-frame=[s0->own(socks0) s1->own(socks1)]` with `control=proxied` one run
+earlier. Same bytes, same machine image, opposite result. `proxy_rate` went
+from 2-of-8 to 0-of-8.
+
+So the variable is none of the three the matrix crossed. It is **whether an app
+process can proxy at all**, which is exactly what gap 4 has said since attempt
+47 and is now the only thing standing between this bug and a yes or no.
+
+**The one stable signal across both runs** is `proxy_shape` position=first --
+the first proxy-measuring process the tier launches -- which proxied its first
+arm in every run it has been measured in. The matrix ran third, fourth and
+fifth.
+
+**What this invalidates in my own instruments.** `proxy_binding_test` on #597
+has a control that asserts an *unproxied* load reaches the origin. A void
+process satisfies that control perfectly, so the switch arm's DIRECT reading
+(attempt 77) cannot be told apart from a process that could not proxy anything.
+Attempt 77 is therefore **not established**; it needs a positive proxy control
+in the same process before its reading counts. The same objection does not
+touch attempt 76, whose proxied arm is itself a positive bind.
+
+**Why it was partial.** It rules out three hypotheses by showing they were
+never the variable, and it names the real one without answering it. The next
+run puts the same file at three tier positions -- first of all, mid, and after
+every other file has had its process -- in one run. If `first` proxies and
+`last` does not, ordinality is the variable, the app is the good case (one
+process per launch on a user's device), and every DIRECT reading in this file
+is a CI artifact rather than a product defect.
+
 ## Known open gaps
 
 -1. **A store created after the first frame has never taken a proxy (attempts 77, 78).**

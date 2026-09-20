@@ -1439,6 +1439,35 @@ jobs:
           fi
           status=0
           failed=""
+          matrix_launch() {
+            echo "::group::integration_test/proxy_matrix_test.dart ($1)"
+            log="${RUNNER_TEMP:-/tmp}/tier-proxy_matrix_$1.log"
+            if [ -n "$TIMEOUT" ]; then
+              WEBSPACE_MATRIX_RUN="$1" "$TIMEOUT" -k 30s 12m \
+                fvm flutter test integration_test/proxy_matrix_test.dart -d macos --ci 2>&1 \
+                | tee "$log" || true
+            else
+              WEBSPACE_MATRIX_RUN="$1" \
+                fvm flutter test integration_test/proxy_matrix_test.dart -d macos --ci 2>&1 \
+                | tee "$log" || true
+            fi
+            echo "::endgroup::"
+          }
+          # Run 3168 read every matrix cell DIRECT with the control DIRECT
+          # too, in all three launches -- three void processes. The same run
+          # had proxy_relay_binding, which bound two sites to two upstreams
+          # one run earlier, read DIRECT as well, while proxy_shape's first
+          # launch proxied as it has in every run. So the variable under test
+          # is not delivery or frame, it is which app process can proxy at
+          # all, and the only stable signal is being early in the tier.
+          #
+          # Same file, three positions, one run: first of all, mid, and after
+          # every other file has had its process. If `first` proxies and the
+          # others do not, ordinality is the variable and the app -- one
+          # process on a user's device -- is in the good state, which would
+          # make every DIRECT here a CI artifact.
+          matrix_launch first
+
           # BUG-014 route 2. Run 3136 closed the launch-effect bisection:
           # net=0->0 on every launch, so no WebKit networking process ever
           # existed between launches to carry a spent slot, exactly as
@@ -1494,23 +1523,7 @@ jobs:
             fi
             echo "::endgroup::"
           done
-          # BUG-014's decision matrix. Frame 1 happens once per process and
-          # binding has differed between processes inside one run, so a
-          # single verdict line is one draw. Three launches, three processes.
-          for run in 1 2 3; do
-            echo "::group::integration_test/proxy_matrix_test.dart (run $run)"
-            log="${RUNNER_TEMP:-/tmp}/tier-proxy_matrix_$run.log"
-            if [ -n "$TIMEOUT" ]; then
-              WEBSPACE_MATRIX_RUN="$run" "$TIMEOUT" -k 30s 12m \
-                fvm flutter test integration_test/proxy_matrix_test.dart -d macos --ci 2>&1 \
-                | tee "$log" || true
-            else
-              WEBSPACE_MATRIX_RUN="$run" \
-                fvm flutter test integration_test/proxy_matrix_test.dart -d macos --ci 2>&1 \
-                | tee "$log" || true
-            fi
-            echo "::endgroup::"
-          done
+          matrix_launch mid
           for t in integration_test/*_test.dart; do
             [ "$(basename "$t")" = "screenshot_test.dart" ] && continue
             # Android-only window-PixelCopy suite; skip its no-op build here.
@@ -1576,6 +1589,9 @@ jobs:
           # log tail that stops short of these is the difference between
           # reading the run and refetching half a megabyte of it. The
           # launches pass, so nothing else puts them in the tail.
+          # After every other file has had its app process. The comparison
+          # with `first` is the whole point: same file, same machine, one run.
+          matrix_launch last
           echo "=== BUG-014 launch verdicts ==="
           for pos in first second; do
             grep -h -e "proxy-shape\] connect" -e "first-connect" \
@@ -1587,11 +1603,10 @@ jobs:
           # on Apple, so its three verdict lines go in the tail beside the
           # shape ones rather than a megabyte back in the log.
           echo "=== BUG-014 matrix verdicts ==="
-          for run in 1 2 3; do
-            grep -h -e "proxy-matrix\] run=" -e "proxy-matrix\] frame-1:" \
-              -e "proxy-matrix\] later-frame:" \
+          for run in first mid last; do
+            grep -h -e "proxy-matrix\] run=$run verdict" \
               "${RUNNER_TEMP:-/tmp}/tier-proxy_matrix_$run.log" 2>/dev/null \
-              || echo "run $run: no verdict line"
+              || echo "$run: no verdict line"
           done
           if [ $status -ne 0 ]; then
             echo "=== recent macOS crash reports ==="
