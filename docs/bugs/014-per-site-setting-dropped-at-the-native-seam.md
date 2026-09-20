@@ -4470,18 +4470,31 @@ produces for whoever runs the next one.
 
 ## Known open gaps
 
--1. **A store created after the first frame has never taken a proxy (attempts 77, 78).**
-   Measured end to end on the arrangement PROXY-008 produces: first site
-   unmounted, override flipped, second site on its own container. The new proxy
-   was never asked, the old one was not either, and the origin saw the load.
-   Neither delivery mechanism changes it, and a site switch always builds its
-   store in a later frame, so PROXY-008 serialisation leaks by construction.
-   Attempt 78 withdraws the "one slot per process" reading of this: three
-   stores carried three different proxies at once in one process, so store
-   eviction is unlikely to be the fix it looked like. What is left is failing
-   closed per LEAK-003, which is a spec change. Until something lands, Apple
-   ships a per-site proxy that holds for at most the first frame of a launch,
-   and not reliably even then.
+-2. **Any arm that asks about the Apple proxy MUST run first in the macOS tier
+   (attempt 80).** Only the tier's first app process can proxy; every later one
+   reads DIRECT with a dead control. Proven by swap, not correlation: moving
+   the matrix ahead of `proxy_shape` moved the slot with it, and `proxy_shape`
+   -- which had bound in every run it was ever measured in -- went dark. An arm
+   without a positive proxy control in its own process is not evidence, and an
+   arm that is not first is measuring a poisoned process. Most DIRECT readings
+   in this file predate knowing this.
+
+-1. **A navigation issued after the first frame has never taken a proxy
+   (attempts 77, 78, 80).** Measured in a process with a live control
+   (`control=proxied`): `prebound` created and configured its store in frame 1,
+   navigated later via `controller.loadUrl`, and went direct with the origin
+   receiving the request. So binding early is not the fix -- the navigation
+   itself has to be in frame 1, which kills the hidden-WebView-at-startup idea
+   attempt 77 floated. A site switch always navigates later, so PROXY-008
+   serialisation leaks by construction.
+
+   **Simultaneity is no longer part of this gap.** Attempt 80 read four stores
+   reaching four distinct upstreams at once -- two through one relay endpoint
+   told apart only by `Proxy-Authorization`, two through separate SOCKS5, both
+   https and http destinations. Delivery, destination scheme and
+   one-slot-per-process are all dead as explanations. What remains is timing
+   alone, and failing closed per LEAK-003 is still the only proposed answer
+   that does not require WebKit to change.
 
 0. **A store with no container cannot be given a proxy after its first load.**
    `WKWebsiteDataStore.default()` is a process singleton; attempt 8 rebuilds a
