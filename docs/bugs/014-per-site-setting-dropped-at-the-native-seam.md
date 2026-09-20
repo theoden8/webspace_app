@@ -4142,6 +4142,61 @@ is the mechanism -- a gate and the code it guards removed in one commit, which
 no gate can catch by construction. Nothing checks that a structural gate is
 still present when the file it names is rewritten.
 
+### Attempt 76 -- the process-wide override does reach a container store on Apple
+
+**2026-09-20**, PR #597 (`921d0b0`), run 35509959311, macOS job 106076058085.
+
+**First measurement this file has taken with an instrument that could have
+said otherwise.** Routable origin, live SOCKS5 fixture, positive assertion,
+container bound.
+
+```
+[proxy-binding] origin host 192.168.64.14, proxied on 50090, control on 50091,
+                socks on 50089, proxySupported=true containers=true
+[OK] a proxied site reaches its origin through the proxy
+     proxied load (must arrive at the proxy) -> ok
+[OK] an unproxied site reaches the origin and not the proxy
+     direct load -> ok
+```
+
+`containers=true`, so the WebView bound `ws-proxy-binding-proxied` rather than
+`WKWebsiteDataStore.default()`. The fixture recorded a CONNECT for
+`192.168.64.14:50090`, which only a load that went through it can produce. The
+whole macOS tier passed.
+
+**What it settles.** `ProxyController.setProxyOverride` -> the fork's
+`fanOutToFollowingStores` -> `ContainerManager.applyActiveProxyOverride` on a
+store created afterwards is a delivery path that works on macOS. PROXY-020's
+premise, and #604's, holds for this arrangement. The Apple defect is therefore
+narrower than the per-store readings suggested: it is the per-store
+`proxySettings` binding that does not survive, not `proxyConfigurations` as
+such.
+
+**What it does not settle, and it is the half that leaks.** The arm measured
+the process's *first* proxied load -- the arrangement that has bound in more
+runs than any other, and the one a first-frame rule would predict. PROXY-008
+serialisation does not produce it past a session's first proxied site: every
+activation flips the override, so the shipped case is a *second* container
+store, created later, taking a *different* proxy while the first store is
+alive and has already loaded through its own. Attempt 72 measured exactly that
+shape through the per-store API and it went DIRECT. Whether the fan-out
+reaches it is unmeasured, and a null there means every site switch after the
+first proxied load goes out over the device IP while the UI reports a proxy.
+
+n=1. The control (a DEFAULT site going direct and touching no fixture) rules
+out a harness that records CONNECTs for free, but says nothing about whether
+clearing the override is what made it direct.
+
+**Why it was partial.** `5c45a82` adds the switch arm: a second
+`Socks5Fixture`, a third origin, and a site mounted under a different override
+after the first has loaded. It asserts the new proxy was asked for the origin
+*and* that the first proxy was not -- one fixture cannot tell "switched
+correctly" from "still riding the previous site's circuit", and the second is
+worse than no proxy at all. The gate gains a rule requiring that arm and both
+fixtures, checked against dropping the arm, aliasing the two fixtures,
+removing the crossed-proxy assertion, a loopback origin, and a negative-only
+assertion.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
