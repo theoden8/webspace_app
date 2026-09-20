@@ -1,6 +1,40 @@
 # Draft: WebKit bug report for the per-process proxy slot
 
-Status: **draft, NOT FILED. No longer blocked.** Filing is the user's call.
+Status: **draft, NOT FILED. BLOCKED AGAIN as of attempt 78 (2026-09-20).**
+Its central claim -- a single per-process proxy slot -- is refuted by the
+evidence below, and filing it as written would get it closed by the first
+person who reproduces three proxied stores at once. Do not file until the
+claim is restated around something that survives. What is written below is
+kept as the record of what was believed, not as a document to send.
+
+**What refutes it** (run 35516286156, `proxy_relay_binding_test`, containers=true):
+
+```
+verdict: first-frame-socks-control=proxied,
+         first-frame=[s0->own(socks0) s1->own(socks1)],
+         later-frame=[s2->DIRECT s3->DIRECT]
+socks0 connects=[192.168.64.4:50374]
+socks1 connects=[192.168.64.4:50376]
+```
+
+Two stores reached two *different* SOCKS upstreams simultaneously, with a third
+proxied control in the same process. Three proxied stores at once, so there is
+no slot to contend for. `proxy_rate_test` refutes the completion-ordering half
+in the same run: `rounds=[DIRECT DIRECT DIRECT DIRECT DIRECT DIRECT proxied
+proxied]` -- the same repeated load went direct six times and then bound twice.
+
+**What survives and is not yet sharp enough to file.** A store built after the
+first frame has gone DIRECT in every arrangement that measured one, and
+first-frame binding varies per app process (in that same run
+`proxy_simultaneous` read its whole first frame DIRECT). The one reading that
+sharpened rather than fell is the `count=1` readback: a store reports exactly
+one `proxyConfigurations` entry at navstart and loads direct anyway, so the
+drop is downstream of the store's own property. That is the observation a
+future report should be built on.
+
+---
+
+Earlier status, superseded: draft, no longer blocked. Filing is the user's call.
 Attempt 71 blocked this because the probe released each store before the next
 arm ran, so the readings described sequential use rather than coexistence.
 Attempt 72 re-measured it with every store alive -- `liveStores` reads 1 to 6
