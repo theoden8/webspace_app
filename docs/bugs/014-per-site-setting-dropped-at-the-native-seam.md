@@ -4261,17 +4261,89 @@ either answer.
 are a store eviction on unload (no spec change, unmeasured) and failing closed
 per LEAK-003 (a spec change, and the user's call, not mine).
 
+### Attempt 78 -- attempt 77's rule restated one gap 4 had already withdrawn
+
+**2026-09-20**, PR #603 (`f8eef69`), run 35516286156, macOS job 106092736688.
+Found by reading the probe tier that ran alongside attempt 77's commit, not by
+a new experiment.
+
+**What attempt 77 claimed.** "One proxied store per process; the first to load
+takes the slot and nothing after it gets one." That is wrong, and gap 4 had
+already retracted its whole family -- the frame rule in attempt 43, the
+position rule in attempt 47 -- leaving only "binding is a random variable at
+the app-process level with no condition yet shown to move it." I restated a
+withdrawn rule as though it were the finding.
+
+**The same run refutes it directly.** `proxy_relay_binding_test`:
+
+```
+verdict: containers=true, first-frame-socks-control=proxied,
+         first-frame=[s0->own(socks0) s1->own(socks1)],
+         later-frame=[s2->DIRECT s3->DIRECT]
+socks0 connects=[192.168.64.4:50374]
+socks1 connects=[192.168.64.4:50376]
+```
+
+Two stores, two *different* SOCKS upstreams, each reaching its own, plus a
+third proxied control in the same process. Three proxied stores at once. There
+is no single slot.
+
+`proxy_rate_test` refutes the ordering half as well: `rounds=[DIRECT DIRECT
+DIRECT DIRECT DIRECT DIRECT proxied proxied]`. The same repeated proxied load
+went direct six times and then bound twice, so "the first to load takes it" is
+not the ordering either.
+
+And the per-process lottery is visible across one run: `proxy_relay_binding`
+proxied its first frame while `proxy_simultaneous` in the same run read
+`first-frame=[p0->DIRECT p1->DIRECT p2->DIRECT p3->DIRECT]`, and
+`proxy_shape` read `position=first` as proxied and `position=second` as
+entirely direct.
+
+**What actually survives, and it is weaker than attempt 77 said.** A store
+built in a *later* frame has gone DIRECT in every arrangement that has
+measured one -- `later-frame=[s2->DIRECT s3->DIRECT]`,
+`later-frame=[l0->DIRECT l1->DIRECT]`, and attempt 77's switch arm. First-frame
+stores are a coin toss at process level. So the correct statement for #604 is
+not that a second site loses a contended slot; it is that **a store created
+after the first frame has never been observed to take a proxy, and a site
+switch creates one.** The merge recommendation is unchanged; the reason for it
+is not the one attempt 77 gave.
+
+**The `count=1` anomaly is now pinned to navstart.** The probe's native trace
+reports, for stores that then load direct:
+
+```
+proxy-assign   reason=per-site store=ObjectIdentifier(0x...) count=1 pinned=false
+proxy-readback at=prepare  store=ObjectIdentifier(0x...) count=1
+proxy-readback at=navstart store=ObjectIdentifier(0x...) count=1
+```
+
+The store still holds exactly one `proxyConfigurations` entry at the moment
+navigation starts, and the load goes direct anyway. Whatever drops it is
+downstream of the store's own property, which rules out every "the assignment
+did not stick" hypothesis, including the one attempt 77 implied by blaming a
+cached store holding a slot.
+
+**Why it was partial.** It corrects the record and narrows nothing new. The
+eviction question attempt 77 raised is also weakened: if a live store does not
+hold a slot -- because there is no slot -- then evicting one frees nothing, and
+the candidate fix it named is unlikely to be one. Still unmeasured, but no
+longer the promising route it was written up as.
+
 ## Known open gaps
 
--1. **The session's second proxied site loads over the device IP (attempt 77).**
+-1. **A store created after the first frame has never taken a proxy (attempts 77, 78).**
    Measured end to end on the arrangement PROXY-008 produces: first site
    unmounted, override flipped, second site on its own container. The new proxy
    was never asked, the old one was not either, and the origin saw the load.
-   Neither delivery mechanism changes it. Two routes out, both open: evict the
-   first site's `WKWebsiteDataStore` on unload (`ContainerManager.evictDataStore`
-   exists and is never called; unmeasured whether it frees the slot), or fail
-   closed per LEAK-003. Until one lands, Apple ships a per-site proxy that holds
-   for one site per launch.
+   Neither delivery mechanism changes it, and a site switch always builds its
+   store in a later frame, so PROXY-008 serialisation leaks by construction.
+   Attempt 78 withdraws the "one slot per process" reading of this: three
+   stores carried three different proxies at once in one process, so store
+   eviction is unlikely to be the fix it looked like. What is left is failing
+   closed per LEAK-003, which is a spec change. Until something lands, Apple
+   ships a per-site proxy that holds for at most the first frame of a launch,
+   and not reliably even then.
 
 0. **A store with no container cannot be given a proxy after its first load.**
    `WKWebsiteDataStore.default()` is a process singleton; attempt 8 rebuilds a
