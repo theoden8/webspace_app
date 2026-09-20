@@ -3984,6 +3984,53 @@ mechanism was never deallocation.
 job is unproxied. That is the launch-position effect this file has recorded
 since attempt 59 and it is untouched by the probe fix.
 
+### Attempt 73 -- proxy_binding_test was measuring the default store, not a container
+
+**2026-09-20**, PR #597 (`930ed22`), found by reading rather than running.
+
+**The file never initialises container support.** Its `setUpAll` awaits
+`PlatformInfo.initialize()` and binds its fixtures, and that is all. It never
+calls `ContainerNative.instance.isSupported()`, which
+`proxy_simultaneous_test` does explicitly.
+
+`ContainerNative.cachedSupported` is `_supportedCache ?? false`, so without
+that call it reads false. `siteOwnsContainerProfile` then returns false,
+`WebViewFactory` passes no `containerId`, and the fork's
+`preWKWebViewConfiguration` falls through to
+
+```swift
+} else if settings.cacheEnabled {
+    configuration.websiteDataStore = WKWebsiteDataStore.default()
+}
+```
+
+before assigning `proxyConfigurations` to whatever store it ended up with.
+
+**So every reading this file has produced is about `WKWebsiteDataStore.default()`,
+the process singleton -- not the per-site container store the app actually
+uses.** Open gap 0 in this file named that path and called it unreachable
+because every proxied site in the app owns a container. The test is the
+caller that reaches it.
+
+**What this invalidates.** The conclusion posted on #597
+(issuecomment-5746875431) -- "does the per-site proxy bind through the plugin
+path at all on macOS, even for the process's first WebView? This run says no"
+-- does not follow. The run exercised the default store. Whether the plugin
+path binds a *container* store is not measured by this file and remains open.
+
+**What it does sharpen.** Open gap 0 said a store with no container cannot be
+given a proxy *after its first load*. In `930ed22` the proxied case ran first,
+on the process's first WebView, with the proxy assigned at configuration time
+before any load, and still went direct. On that arrangement the default store
+did not take a proxy at all, not merely too late.
+
+**Why it was partial.** Reading, not measurement: the container-store question
+it reopens needs a run with `isSupported()` awaited in `setUpAll` so the store
+identity is in the log rather than inferred. The rewrite on #597 moved the file
+to the process-wide override, where the fan-out covers `.default()` too, so the
+next run measures a different thing again -- worth keeping the two apart when
+reading it.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
