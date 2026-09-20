@@ -4197,7 +4197,81 @@ fixtures, checked against dropping the arm, aliasing the two fixtures,
 removing the crossed-proxy assertion, a loopback origin, and a negative-only
 assertion.
 
+### Attempt 77 -- the second proxied site of a session goes direct, override or not
+
+**2026-09-20**, PR #597 (`5c45a82`), run 35513419116, macOS job 106085203572.
+
+**The arrangement PROXY-008 actually produces.** Site A mounted under a
+process-wide override naming SOCKS A, loads through it. Site A is then
+unmounted -- `mount` pumps a tree holding exactly one WebView, so a different
+`siteId` means a different `ValueKey`, the previous `KeyedSubtree` element is
+unmounted and its `InAppWebView` disposed. The override flips to SOCKS B. Site
+B mounts on a container of its own.
+
+```
+[proxy-binding] origin host 192.168.64.10, proxied on 49907, switched on 49908,
+                control on 49909, socks on 49905, altSocks on 49906,
+                proxySupported=true containers=true
+[OK]   proxied load (must arrive at the proxy)     -> ok
+[FAIL] switched load (must arrive at the new proxy) -> timeout
+       Expected: contains '192.168.64.10:49908'
+         Actual: []
+       first proxy saw: [192.168.64.10:49907]
+       Origin saw: [/switched]
+[OK]   direct load -> ok
+```
+
+**Three readings, and together they close it.** `altSocks.targets` is empty, so
+the new proxy was never asked. `socks.targets` holds only site A's origin, so
+site B did not ride A's circuit either. And `requests` holds `/switched`, so
+**the origin received site B's load directly, over the device IP**, while Dart
+held an override naming SOCKS B and the UI would report site B as proxied.
+
+That is BUG-014's original report reproduced in CI: two sites, one proxied, and
+the second showing the device's own address.
+
+**What it settles.** The process-wide fan-out does not rescue the second store.
+Combined with attempt 76 (first store, same run shape, proxied) the rule is the
+one attempt 72 reached through the per-store API and it is not
+mechanism-specific: **one proxied store per process; the first to load takes
+the slot and nothing after it gets one.** Per-store `proxySettings` and
+`ProxyController.setProxyOverride` are the same statement in the end -- both
+end in `store.proxyConfigurations = configs` -- which is why they read alike.
+
+So PROXY-020's binding choice is not what decides this. #604 ships process-wide
+delivery plus PROXY-008 serialisation on the belief that the override reaches
+whichever site is active; it reaches the first one only. **Its premise falls
+for every site switch after a session's first proxied load, and the failure
+mode is a silent leak rather than a blank page, which LEAK-003 forbids.**
+
+**What is still untested, and it is the one candidate fix that needs no spec
+change.** Site A's WebView was disposed, but the fork keeps
+`ContainerManager.sharedStores[uuid]` alive for reuse, so A's
+`WKWebsiteDataStore` outlived its WebView and still held the slot.
+`ContainerManager.evictDataStore` exists and is not called on unload. Whether
+evicting A's store frees the slot for B is unmeasured; if it does, the fix is
+an eviction on unload rather than failing closed.
+
+n=1 for this arrangement. It agrees with attempt 72 rather than contradicting
+it, so it is confirmation of a standing rule rather than a new one on a single
+draw -- but the eviction question deserves its own run before anyone builds on
+either answer.
+
+**Why it was partial.** It measures and does not fix. The two routes it leaves
+are a store eviction on unload (no spec change, unmeasured) and failing closed
+per LEAK-003 (a spec change, and the user's call, not mine).
+
 ## Known open gaps
+
+-1. **The session's second proxied site loads over the device IP (attempt 77).**
+   Measured end to end on the arrangement PROXY-008 produces: first site
+   unmounted, override flipped, second site on its own container. The new proxy
+   was never asked, the old one was not either, and the origin saw the load.
+   Neither delivery mechanism changes it. Two routes out, both open: evict the
+   first site's `WKWebsiteDataStore` on unload (`ContainerManager.evictDataStore`
+   exists and is never called; unmeasured whether it frees the slot), or fail
+   closed per LEAK-003. Until one lands, Apple ships a per-site proxy that holds
+   for one site per launch.
 
 0. **A store with no container cannot be given a proxy after its first load.**
    `WKWebsiteDataStore.default()` is a process singleton; attempt 8 rebuilds a
