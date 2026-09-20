@@ -70,6 +70,7 @@ void main() {
 
   Future<void> mount(
     WidgetTester tester, {
+    required String siteId,
     required String initialUrl,
     UserProxySettings? proxySettings,
   }) async {
@@ -81,7 +82,7 @@ void main() {
             height: 480,
             child: WebViewFactory.createWebView(
               config: WebViewConfig(
-                siteId: 'proxy-binding',
+                siteId: siteId,
                 initialUrl: initialUrl,
                 proxySettings: proxySettings,
                 clearUrlEnabled: false,
@@ -123,23 +124,14 @@ void main() {
     return ok;
   }
 
-  testWidgets('the harness can see a load reach the origin', (tester) async {
-    // The control. Without it, the assertion below passes for any reason a
-    // page fails to load, which is most of them.
-    if (!applies) {
-      markTestSkipped('per-WebView proxy binding is an Apple path');
-      return;
-    }
-    await mount(tester, initialUrl: 'http://127.0.0.1:$port/control');
-    expect(
-      await waitReal(tester, () => requests.contains('/control'),
-          label: 'direct load'),
-      isTrue,
-      reason: 'an unproxied site never reached the fixture origin, so this '
-          'file cannot tell a bound proxy from a broken harness',
-    );
-  });
-
+  // Ordering is not cosmetic. Both cases below live in one app process, and
+  // a proxy assigned to a `WKWebsiteDataStore` whose session has already
+  // carried a load does not take effect there (BUG-014) -- so a control that
+  // loads first defeats the assertion it exists to support, which is what it
+  // did until this was reordered. The proxied case therefore runs first, on
+  // the process's first WebView and a store of its own, and the control runs
+  // after. The control's meaning is unchanged by the order: it says the
+  // fixture can see a load at all.
   testWidgets('a site whose proxy is refused never reaches the origin',
       (tester) async {
     if (!applies) {
@@ -155,6 +147,7 @@ void main() {
     }
     await mount(
       tester,
+      siteId: 'proxy-binding-proxied',
       initialUrl: 'http://127.0.0.1:$port/proxied',
       proxySettings: UserProxySettings(
         type: ProxyType.SOCKS5,
@@ -172,6 +165,25 @@ void main() {
       reason: 'the request reached the origin directly: the per-site proxy '
           'was not bound to the engine, so every proxied site is loading '
           'over the device IP',
+    );
+  });
+
+  testWidgets('the harness can see a load reach the origin', (tester) async {
+    // The control. Without it, the assertion above passes for any reason a
+    // page fails to load, which is most of them.
+    if (!applies) {
+      markTestSkipped('per-WebView proxy binding is an Apple path');
+      return;
+    }
+    await mount(tester,
+        siteId: 'proxy-binding-control',
+        initialUrl: 'http://127.0.0.1:$port/control');
+    expect(
+      await waitReal(tester, () => requests.contains('/control'),
+          label: 'direct load'),
+      isTrue,
+      reason: 'an unproxied site never reached the fixture origin, so this '
+          'file cannot tell a bound proxy from a broken harness',
     );
   });
 }
