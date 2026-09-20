@@ -5,8 +5,8 @@ Status: open (one instance fixed, one class-level gate; the seam has no general 
 **Spec:** [ip-leakage](../../openspec/specs/ip-leakage/spec.md) LEAK-003,
 [proxy](../../openspec/specs/proxy/spec.md) PROXY-011,
 [tor-proxy](../../openspec/changes/add-ios-tor-proxy/specs/tor-proxy/spec.md) TOR-018
-**Tests:** `integration_test/proxy_binding_test.dart` (the origin's own view of
-whether a proxied load arrived), `test/js/tor_bootstrap_observability.test.js`
+**Tests:** `integration_test/proxy_binding_test.dart` (the proxy fixture's own
+record of the CONNECT it was asked for), `test/js/tor_bootstrap_observability.test.js`
 (structural, for the Tor half).
 
 ## Symptom
