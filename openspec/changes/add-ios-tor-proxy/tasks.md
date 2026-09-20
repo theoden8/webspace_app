@@ -1,3 +1,66 @@
+# Status note (2026-09-20)
+
+Read this before working the boxes below: **the open items are not a to-do
+list in their current form.** Two design drifts and one CI decision happened
+after they were written, and the list did not follow.
+
+## The list is written against a `useTor` boolean that does not exist
+
+Every task phrased "when `useTor=true`" (5.2, 5.3, 7.1, 7.2, 8.2, 9.3, 10.1,
+10.2, 10.6, 10.7) describes a per-site boolean. The implementation has none:
+Tor rides the existing per-site `proxySettings` as `ProxyType.TOR`
+(`lib/web_view_model.dart`, `resolveEffectiveProxy`). `useTor` appears nowhere
+in `lib/`, nowhere in `test/`, and nowhere in this change's own
+`specs/tor-proxy/spec.md` -- the spec moved on and `tasks.md` did not.
+Rephrase against `proxySettings.type == ProxyType.TOR` before working any of
+them.
+
+## The bootstrap interstitial was replaced, not built
+
+5.2, 5.3 and 9.4 describe rewriting a pre-bootstrap navigation to
+`webspace://tor-bootstrap?next=...`. That scheme exists nowhere in `lib/`. The
+shipped mechanism is `deferInitialLoadForProxy`
+([lib/services/webview.dart](../../../lib/services/webview.dart)): the initial
+load is held until the proxy is usable, rather than redirected through an
+interstitial URL. These three describe a superseded approach.
+
+## Several "open" test tasks are done under other filenames
+
+`tasks.md` names three files that were never created, while 14 `test/tor_*.dart`
+files exist. Checked:
+
+| task | names | actually covered by | state |
+|------|-------|--------------------|-------|
+| 9.1 | `test/tor_service_test.dart` | `tor_engine_test.dart` -- TOR-002 lifecycle (first holder starts, second does not restart, same reason counts once, debounce cancel, `syncHolders`), TOR-013 bootstrap timeout, TOR-003 stream isolation | **done** |
+| 9.4 | `test/tor_bootstrap_interstitial_test.dart` | `tor_bootstrap_placeholder_test.dart`, `tor_ui_states_test.dart` -- against the defer mechanism, not the interstitial | **done, different design** |
+| 9.3 | `test/web_view_model_tor_propagation_test.dart` | nothing by that name; per-site field propagation is covered generically by `test/nested_webview_field_parity_test.dart` | **verify before closing** |
+| 11.4 | CLAUDE.md slug-table cross-link | [CLAUDE.md](../../../CLAUDE.md) line ~251 carries the `tor-proxy *(change)*` row | **done** |
+
+## One genuinely open gap, and it is a secrets gap
+
+**8.2 is not done.** `test/settings_backup_test.dart` contains no Tor coverage
+at all -- no `TOR-009`, no session-secret assertion, no control-cookie
+assertion. The rule in CLAUDE.md ("Adding a new credential / secret") wants a
+regression test asserting the secret never appears in
+`SettingsBackupService.exportToJson(...)`. Write it against
+`ProxyType.TOR` + `TorService`'s session secret, not against `useTor`.
+
+The 6b.10 and 10.x items are on-device/manual by construction and cannot close
+in CI.
+
+## The macOS proxy tier on the Tor PR is disabled, deliberately
+
+`integration_test/proxy_binding_test.dart`'s switch arm ("a second site
+switched to another proxy uses the new one") is `skip: true` on #597 by
+request, so the Tor work can land while BUG-014 is open. It is not a flake:
+in run 35513419116 the arm before it proxied in the same app process, so the
+second store going direct is a real reading of a real leak. The question stays
+under measurement on #603 (`proxy_matrix_test`). Re-enable when BUG-014 has a
+fix or the app fails closed (LEAK-003). Lineage:
+[docs/bugs/014-per-site-setting-dropped-at-the-native-seam.md](../../../docs/bugs/014-per-site-setting-dropped-at-the-native-seam.md).
+
+---
+
 ## 1. Native iOS plugin (Tor.framework integration)
 
 - [x] 1.1 Added `pod 'Tor', '409.11.2'` (exact version, not `~>`) to `ios/Podfile`. The podspec's `prepare_command` already verifies the downloaded `tor.xcframework` against pinned sha256 digests, so no extra CI checksum step is needed. Pod requires iOS 15.0, which the Podfile floor already is.

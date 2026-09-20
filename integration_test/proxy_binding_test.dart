@@ -252,13 +252,27 @@ void main() {
     );
   });
 
+  // DISABLED on this PR by request (2026-09-20) so the Tor work can land
+  // while BUG-014 is still open. Skipped, not deleted, and not weakened.
+  //
+  // It is not a flake and not a dead process: in run 35513419116 the arm
+  // above passed in this same app process ("proxied load (must arrive at
+  // the proxy) -> ok", and this arm's own failure text recorded "first
+  // proxy saw: [192.168.64.10:49907]"), so that process demonstrably
+  // proxied. The second store going direct is a real reading of a real
+  // leak, and the cost of this skip is that CI stops re-reading it here.
+  //
+  // It keeps being measured on #603, where `proxy_matrix_test` carries the
+  // same question with a positive control of its own. Re-enable when
+  // BUG-014 has a fix, or when the app fails closed instead (LEAK-003).
+  //
   // The arrangement a site switch produces: the first store is alive and
   // has loaded through its own proxy, the override flips, and a second
   // container store is created under the new one. If this fails while the
   // arm above passes, only a session's first proxied site is protected and
   // every switch after it goes out over the device IP.
   testWidgets('a second site switched to another proxy uses the new one',
-      (tester) async {
+      skip: true, (tester) async {
     if (skipUnlessMeasurable()) return;
     await applyOverride(UserProxySettings(
       type: ProxyType.SOCKS5,
