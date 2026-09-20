@@ -1,6 +1,6 @@
 # BUG-014 — A per-site setting the Dart side sends and the native side drops
 
-Status: open (one instance fixed, one class-level gate; the seam has no general guard)
+Status: open (the Apple per-site proxy is answered as of attempt 82 and unfixed; one instance fixed, one class-level gate; the seam has no general guard)
 
 **Spec:** [ip-leakage](../../openspec/specs/ip-leakage/spec.md) LEAK-003,
 [proxy](../../openspec/specs/proxy/spec.md) PROXY-011,
@@ -4513,6 +4513,69 @@ the leak is one-per-site-activation or one-per-click. `proxy_timing_test` now
 runs its arms inside a single `testWidgets` so the tree and the controller
 survive between them.
 
+### Attempt 82 -- ANSWERED: one proxied load per WebView. Everything after it leaks
+
+**2026-09-20**, PR #603 (`129fb36`), run 35539713177, macOS job 106155080542.
+`proxy_timing_test`, all arms inside one `testWidgets` so the same WebView and
+controller survive between them, launched first in the tier per gap -2.
+
+```
+run=first verdict: containers=true baseline=own
+                   same-store-2nd-nav=DIRECT
+                   new-store-later=DIRECT
+                   new-store-after-idle=DIRECT
+socks0 connects=[192.168.64.3:50099]     socks1..3 connects=[]
+```
+
+**`baseline=own`**, so the process could proxy and every cell is evidence.
+**`pane A second navigation -> ok`**, so the load was issued and completed --
+this is not attempt 81's `no-load`.
+
+**The WebView that had just proxied did not proxy its next navigation.**
+`socks0` recorded exactly one CONNECT, for the first origin, and never the
+second; the second origin's server received the request directly. Same
+`InAppWebView`, same container, same `proxySettings`, no rebuild in between.
+
+**The rule that now fits every reading.** A proxied load requires *both*: the
+WebView was built in the process's first frame, *and* it is that WebView's
+first load. Drop either and the load goes direct.
+
+| arrangement | result |
+|---|---|
+| frame 1, first load (x4 stores, attempt 80) | proxied |
+| frame 1 WebView, **second** load | **DIRECT** |
+| later-frame WebView, first load | DIRECT |
+| later-frame WebView after a 6s idle, first load | DIRECT |
+
+So `proxyConfigurations` is honoured once per WebView and then stops being
+consulted. That subsumes open gap 0, which guessed at "a store that has served
+a load", and it explains why simultaneity always looked fine (every frame-1
+cell was a first load) while everything else looked broken.
+
+**What it means for the product, plainly.** On Apple the per-site proxy covers
+a site's landing page and nothing else. Every link click, redirect, form post
+and XHR-driven navigation afterwards leaves over the device IP while the UI
+reports the site as proxied. That is not a partial feature; it is a feature
+that silently stops working after one page, which is worse than one that never
+worked, because the user sees the first page arrive through Tor and reasonably
+concludes it is on.
+
+**What does not follow.** The proxy still governs *sub-resources* of the first
+load for all this file knows -- it only measured main-frame navigations. And
+`proxy_rate`'s `rounds=[DIRECT x6, proxied, proxied]` is still unexplained by
+this rule or any other.
+
+n=1 for this arm, in one valid process, and the second navigation was issued
+by `controller.loadUrl` rather than by a user gesture on a link. A gesture
+navigation goes through the same network session, so the result should hold,
+but it is one substitution away from the real thing.
+
+**Why it was partial.** It answers the question and fixes nothing. The routes
+are: fail closed per LEAK-003 after the first load (a spec change, and the
+honest one), rebuild the WebView per navigation (loses page state, absurd), or
+a WebKit fix. It also does not close gap 0, which should now be rewritten
+around "per WebView, per load" rather than "per store".
+
 ## Known open gaps
 
 -2. **Any arm that asks about the Apple proxy MUST run first in the macOS tier
@@ -4524,30 +4587,31 @@ survive between them.
    arm that is not first is measuring a poisoned process. Most DIRECT readings
    in this file predate knowing this.
 
--1. **A WebView built after the first frame has never taken a proxy
-   (attempts 77, 78, 80, 81).** Measured twice with a live positive control in
-   the same process. Reusing an already-proxied *store* does not help: attempt
-   80's `prebound` and attempt 81's new-store arms both joined or rebuilt under
-   a store bound in frame 1 and still went direct, at once and after a six
-   second idle alike. So binding early is not the fix, which kills the
-   hidden-WebView-at-startup idea attempt 77 floated, and elapsed time is not
-   the boundary.
+-1. **ANSWERED (attempt 82): a proxied load needs the WebView to be built in
+   the process's first frame AND it to be that WebView's first load.** Drop
+   either and the load goes direct. Measured with `baseline=own` in the same
+   process: the WebView that had just proxied went DIRECT on its next
+   navigation, `socks0` recording exactly one CONNECT ever. Later-frame
+   WebViews go direct on their first load too, at once and after a six second
+   idle alike.
 
-   **Not yet measured:** whether the very WebView that proxied keeps proxying
-   across its own later navigations. Attempt 81's arm for it did not run (the
-   controller was stale across `testWidgets` boundaries). That answer decides
-   whether the leak is one per site activation or one per link click. A site switch always navigates later, so PROXY-008
-   serialisation leaks by construction.
+   Product consequence: on Apple the per-site proxy covers a site's landing
+   page and nothing after it. Every subsequent navigation leaves over the
+   device IP while the UI reports the site as proxied. Simultaneity is fine
+   (attempt 80: four stores, four upstreams) because every one of those was a
+   first load.
 
-   **Simultaneity is no longer part of this gap.** Attempt 80 read four stores
-   reaching four distinct upstreams at once -- two through one relay endpoint
-   told apart only by `Proxy-Authorization`, two through separate SOCKS5, both
-   https and http destinations. Delivery, destination scheme and
-   one-slot-per-process are all dead as explanations. What remains is timing
-   alone, and failing closed per LEAK-003 is still the only proposed answer
-   that does not require WebKit to change.
+   Open routes, none of them free: fail closed per LEAK-003 once a WebView has
+   spent its one proxied load (a spec change and the honest option); rebuild
+   the WebView per navigation (loses page state); or a WebKit fix. Not yet
+   measured: whether sub-resources of that first load stay proxied.
 
-0. **A store with no container cannot be given a proxy after its first load.**
+0. **SUBSUMED by gap -1 (attempt 82).** This guessed the boundary was a store
+   that had served a load; it is per WebView and per load, and applies to
+   container stores as much as to `WKWebsiteDataStore.default()`. Kept for
+   lineage. Original text follows.
+
+0b. **A store with no container cannot be given a proxy after its first load.**
    `WKWebsiteDataStore.default()` is a process singleton; attempt 8 rebuilds a
    container's store to get a clean one, and there is no equivalent for the
    default store. Every proxied site in the app has a container (the two share
