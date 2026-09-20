@@ -1439,6 +1439,26 @@ jobs:
           fi
           status=0
           failed=""
+          # Gap -2: only the tier's first app process can proxy, so the file
+          # that asks the timing question goes ahead of everything, including
+          # the matrix. Its own baseline arm says whether the process was
+          # usable, so a dead one is visible rather than silent.
+          timing_launch() {
+            echo "::group::integration_test/proxy_timing_test.dart ($1)"
+            log="${RUNNER_TEMP:-/tmp}/tier-proxy_timing_$1.log"
+            if [ -n "$TIMEOUT" ]; then
+              WEBSPACE_TIMING_RUN="$1" "$TIMEOUT" -k 30s 12m \
+                fvm flutter test integration_test/proxy_timing_test.dart -d macos --ci 2>&1 \
+                | tee "$log" || true
+            else
+              WEBSPACE_TIMING_RUN="$1" \
+                fvm flutter test integration_test/proxy_timing_test.dart -d macos --ci 2>&1 \
+                | tee "$log" || true
+            fi
+            echo "::endgroup::"
+          }
+          timing_launch first
+
           matrix_launch() {
             echo "::group::integration_test/proxy_matrix_test.dart ($1)"
             log="${RUNNER_TEMP:-/tmp}/tier-proxy_matrix_$1.log"
@@ -1554,6 +1574,9 @@ jobs:
             # Three controlled launches above; a fourth here would repeat the
             # third's condition and pay another full app build for it.
             [ "$(basename "$t")" = "proxy_matrix_test.dart" ] && continue
+            # Runs first in the tier above; only the first app process can
+            # proxy, so a launch here would measure a dead one.
+            [ "$(basename "$t")" = "proxy_timing_test.dart" ] && continue
             echo "::group::$t"
             rc=0
             # Kept per file so a failure can be re-printed at the end. Each
@@ -1602,6 +1625,11 @@ jobs:
           # The matrix decides whether a per-site proxy is reachable at all
           # on Apple, so its three verdict lines go in the tail beside the
           # shape ones rather than a megabyte back in the log.
+          echo "=== BUG-014 timing verdicts ==="
+          grep -h -e "proxy-timing\] run=.* verdict" -e "proxy-timing\] baseline=" \
+            -e "proxy-timing\] same-store" -e "proxy-timing\] new-store" \
+            "${RUNNER_TEMP:-/tmp}/tier-proxy_timing_first.log" 2>/dev/null \
+            || echo "timing: no verdict line"
           echo "=== BUG-014 matrix verdicts ==="
           for run in first mid last; do
             grep -h -e "proxy-matrix\] run=$run verdict" \
