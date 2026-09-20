@@ -4389,6 +4389,85 @@ every other file has had its process -- in one run. If `first` proxies and
 process per launch on a user's device), and every DIRECT reading in this file
 is a CI artifact rather than a product defect.
 
+### Attempt 80 -- YES: multiple per-site proxies work on Apple. The tier was poisoning its own processes
+
+**2026-09-20**, PR #603 (`98969cf`), run 35528693687, macOS job 106125323308.
+
+**Same file, three tier positions, one run.**
+
+```
+run=first  control=proxied  f1-connect-https-a=own  f1-connect-https-b=own
+                            f1-socks-https=own      f1-socks-http=own
+                            prebound=DIRECT  late-connect-https=DIRECT  late-socks-https=DIRECT
+run=mid    control=DIRECT   every cell DIRECT
+run=last   control=DIRECT   every cell DIRECT
+```
+
+**Ordinality is the variable, and the swap proves it rather than correlating
+with it.** `proxy_shape` position=first had bound its first arm in every run it
+was ever measured in. This run the matrix was moved ahead of it, and
+`proxy_shape` read `first-connectsame->DIRECT` while the matrix read
+`control=proxied`. The slot followed the position. Everything after the first
+app process of the tier -- `proxy_relay`, `proxy_rate`, `proxy_simultaneous`,
+`proxy_shape`, matrix mid and last -- read DIRECT with a dead control.
+
+So the great majority of DIRECT readings in this file were measuring a poisoned
+process, not the product. ~15 app processes run back to back on one runner;
+only the first can proxy. A user's device runs one.
+
+**The user's question is answered: YES.** In the one valid process, four
+stores reached four distinct upstreams at once:
+
+| cell | delivery | destination | verdict |
+|------|----------|-------------|---------|
+| f1-connect-https-a | credentialed CONNECT relay | https | **own** |
+| f1-connect-https-b | credentialed CONNECT relay, different credential | https | **own** |
+| f1-socks-https | direct SOCKS5 | https | **own** |
+| f1-socks-http | direct SOCKS5 | **http** | **own** |
+
+Two of them shared one relay endpoint and were told apart only by
+`Proxy-Authorization` (`LocalProxyRelay._routeFor` routes on that header
+alone, exact user+token, else 407), so WebKit does send per-store proxy
+credentials. This is the second independent confirmation: run 35516286156's
+`proxy_relay_binding` read `first-frame=[s0->own(socks0) s1->own(socks1)]`
+with `control=proxied`.
+
+**Three hypotheses die here.** Delivery is not the variable (CONNECT and SOCKS5
+both bound). Destination scheme is not the variable (**http bound too**, so the
+https-only reading was a coincidence of which processes were alive). And "one
+proxied store per process" is dead for good -- four at once.
+
+**What genuinely fails, measured in a process with a live control.** All three
+later-frame cells went DIRECT:
+
+* `late-connect-https`, `late-socks-https` -- store built and navigated after
+  frame 1.
+* `prebound-connect-https` -- **store created and configured in frame 1,
+  navigated later via `controller.loadUrl`**. It still went direct, and the
+  origin received the request, so the navigation happened.
+
+That kills the fix attempt 77 proposed. Pre-creating a hidden WebView per
+proxied site at startup does not help: binding early is not enough, the
+*navigation* has to be issued in frame 1.
+
+**What this means for the product, stated as what the data supports.** In an
+app process that can proxy at all, a navigation issued in the first frame is
+proxied, by any delivery, to any scheme, for several sites at once. A
+navigation issued later is not. The app builds a site's WebView when the site
+is activated, which is frame 1 only for the site restored at startup -- which
+is exactly attempts 76 and 77: first proxied site binds, second does not.
+
+n=1 for the later-frame half, in one valid process. It agrees with every
+earlier later-frame reading that had a live control, but `proxy_rate` once read
+`rounds=[DIRECT x6 proxied proxied]`, which no frame rule explains, so the
+later-frame half is not closed to the same standard as the simultaneity half.
+
+**Why it was partial.** It answers simultaneity to a hard yes and it explains
+the noise, but it leaves the shipping question open: whether a later navigation
+can ever be proxied. Every arm that asks it must now run FIRST in the tier or
+it measures nothing -- which is the single most useful thing this attempt
+produces for whoever runs the next one.
+
 ## Known open gaps
 
 -1. **A store created after the first frame has never taken a proxy (attempts 77, 78).**
