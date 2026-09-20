@@ -1,22 +1,40 @@
-// The per-site proxy is actually bound to the engine (LEAK-003, PROXY-011).
+// The per-site proxy actually governs what leaves the engine (LEAK-003,
+// PROXY-011, PROXY-020).
 //
 // Everything else about the per-site proxy is decided in Dart and tested
 // there: which proxy a site resolves to, whether a Tor site waits for the
 // runtime, whether a malformed address fails closed. None of that can see
-// the one thing that matters -- whether the engine received the proxy at
-// all. On iOS and macOS it is delivered as one field on
-// `InAppWebViewSettings`, parsed natively, and a parse that drops it is
-// silent: the Dart side reports a proxy, the page loads over the device IP,
-// and only the site being visited can tell the difference.
+// the one thing that matters -- whether the engine honoured the proxy at
+// all. A dropped proxy is silent: the Dart side reports one, the page loads
+// over the device IP, and only the site being visited can tell.
 //
-// That is not hypothetical. `proxySettings` was typed `[String: Any?]?`,
-// which Objective-C cannot represent, so the plugin's reflective settings
-// parser skipped it and no per-site proxy was ever applied on either Apple
-// platform.
+// Under PROXY-020 the delivery on Apple is the process-wide override
+// (`ProxyController.setProxyOverride`), which the fork fans out across the
+// default store, the non-persistent store and every cached container store,
+// replaying it onto stores created later. The per-store `proxySettings`
+// field is developer-mode only, so a WebView built here carries none and
+// the override is the only thing that can route the load. This file applies
+// the override itself, the way an activation's `_applyProxySettings` does.
 //
-// The assertion is the origin's own view: a site whose proxy cannot be
-// reached must not arrive at the origin. A direct load is exactly what a
-// dropped binding produces, and the fixture server sees it.
+// Three rules this file learned the hard way, each of which made it pass or
+// fail for reasons that had nothing to do with the binding:
+//
+//  * The origin must not be on loopback. Apple never sends `localhost`,
+//    `127.0.0.1` or `::1` through a proxy whatever `ProxyConfiguration`
+//    says, so a loopback fixture loads directly whichever way the binding
+//    went. BUG-014 attempt 4 established this; the branch trim reverted the
+//    fix and attempts 73 and 74 then read a loopback origin as evidence.
+//  * A second webview needs its own subtree key. Pumping the same widget
+//    position again updates the existing platform view instead of building
+//    a new one, so the second load is never issued and "the origin was not
+//    reached" holds for free.
+//  * The assertion must be positive. A refused proxy only ever supports
+//    "the origin was not reached", which any broken load satisfies -- and
+//    every way this file has been wrong so far broke the load.
+//
+// So the proxy here is a live SOCKS5 server that records the CONNECT it is
+// asked for. A recorded CONNECT to the origin cannot be produced by an
+// override that was dropped.
 
 import 'dart:io';
 
@@ -28,15 +46,24 @@ import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'fixture_server.dart';
+import 'socks5_fixture.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   final applies = hostIsIOS || hostIsMacOS;
 
-  late HttpServer server;
-  late int port;
-  late int deadPort;
+  // One origin per arm, on its own port. The fixture records CONNECT by
+  // `host:port`, so a separate origin is what makes a recorded CONNECT
+  // attributable to the arm that caused it; two loads to one origin can
+  // also share a connection, which reads as a CONNECT that never happened.
+  late HttpServer proxiedOrigin;
+  late HttpServer controlOrigin;
+  late int proxiedPort;
+  late int controlPort;
+  late String originHost;
+  InternetAddress? routable;
+  late Socks5Fixture socks;
   final requests = <String>[];
 
   void log(String m) {
@@ -46,33 +73,45 @@ void main() {
 
   var containers = false;
 
-  setUpAll(() async {
-    await PlatformInfo.initialize();
-    // Without this `cachedSupported` is false, `siteOwnsContainerProfile`
-    // returns false, no containerId is sent, and the fork falls through to
-    // `WKWebsiteDataStore.default()` -- so the file measures the process
-    // singleton rather than the per-site store the app actually uses.
-    containers = await ContainerNative.instance.isSupported();
-    server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-    port = server.port;
+  Future<HttpServer> serveOrigin(String label) async {
+    // anyIPv4, not loopbackIPv4: the WebView reaches this through the
+    // routable interface address, which a loopback-bound socket does not
+    // answer on.
+    final server = await HttpServer.bind(InternetAddress.anyIPv4, 0);
     listenFixture(server, (req) async {
       requests.add(req.uri.path);
       final res = req.response..headers.contentType = ContentType.html;
-      res.write('<!doctype html><html><body><p>origin</p></body></html>');
+      res.write('<!doctype html><html><body><p>$label</p></body></html>');
       await res.close();
     });
-    // Claimed, then released: a connection there is refused rather than
-    // filtered, so a bound proxy fails fast instead of timing out.
-    final probe = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
-    deadPort = probe.port;
-    await probe.close();
-    log('origin on $port, dead proxy on $deadPort, '
+    return server;
+  }
+
+  setUpAll(() async {
+    await PlatformInfo.initialize();
+    // The app resolves this at startup, and every site it builds gets a
+    // container of its own as a result. Without it `cachedSupported` is
+    // false, `siteOwnsContainerProfile` returns false, no containerId is
+    // sent, and the fork falls through to `WKWebsiteDataStore.default()` --
+    // a store shape the app does not use for sites.
+    containers = await ContainerNative.instance.isSupported();
+    routable = await nonLoopbackIPv4();
+    socks = await Socks5Fixture.bind();
+    proxiedOrigin = await serveOrigin('proxied');
+    controlOrigin = await serveOrigin('control');
+    proxiedPort = proxiedOrigin.port;
+    controlPort = controlOrigin.port;
+    originHost = (routable ?? InternetAddress.loopbackIPv4).address;
+    log('origin host $originHost, proxied on $proxiedPort, '
+        'control on $controlPort, socks on ${socks.port}, '
         'proxySupported=${PlatformInfo.isProxySupported} '
         'containers=$containers');
   });
 
   tearDownAll(() async {
-    await server.close(force: true);
+    await socks.close();
+    await proxiedOrigin.close(force: true);
+    await controlOrigin.close(force: true);
   });
 
   setUp(requests.clear);
@@ -81,7 +120,6 @@ void main() {
     WidgetTester tester, {
     required String siteId,
     required String initialUrl,
-    UserProxySettings? proxySettings,
   }) async {
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(
@@ -89,18 +127,22 @@ void main() {
           child: SizedBox(
             width: 320,
             height: 480,
-            child: WebViewFactory.createWebView(
-              config: WebViewConfig(
-                siteId: siteId,
-                initialUrl: initialUrl,
-                proxySettings: proxySettings,
-                clearUrlEnabled: false,
-                dnsBlockEnabled: false,
-                contentBlockEnabled: false,
-                trackingProtectionEnabled: false,
-                localCdnEnabled: false,
+            // Keyed by siteId: without it the second arm reuses the first
+            // arm's platform view and never issues its load.
+            child: KeyedSubtree(
+              key: ValueKey('webview-$siteId'),
+              child: WebViewFactory.createWebView(
+                config: WebViewConfig(
+                  siteId: siteId,
+                  initialUrl: initialUrl,
+                  clearUrlEnabled: false,
+                  dnsBlockEnabled: false,
+                  contentBlockEnabled: false,
+                  trackingProtectionEnabled: false,
+                  localCdnEnabled: false,
+                ),
+                onControllerCreated: (_) {},
               ),
-              onControllerCreated: (_) {},
             ),
           ),
         ),
@@ -133,66 +175,84 @@ void main() {
     return ok;
   }
 
-  // Ordering is not cosmetic. Both cases below live in one app process, and
-  // a proxy assigned to a `WKWebsiteDataStore` whose session has already
-  // carried a load does not take effect there (BUG-014) -- so a control that
-  // loads first defeats the assertion it exists to support, which is what it
-  // did until this was reordered. The proxied case therefore runs first, on
-  // the process's first WebView and a store of its own, and the control runs
-  // after. The control's meaning is unchanged by the order: it says the
-  // fixture can see a load at all.
-  testWidgets('a site whose proxy is refused never reaches the origin',
-      (tester) async {
+  /// Put [settings] in force process-wide, the way `_applyProxySettings`
+  /// does on a real activation.
+  Future<void> applyOverride(UserProxySettings settings) =>
+      ProxyManager().setProxySettings(settings);
+
+  bool skipUnlessMeasurable() {
     if (!applies) {
-      markTestSkipped('per-WebView proxy binding is an Apple path');
-      return;
+      markTestSkipped('this file covers the Apple proxy delivery');
+      return true;
     }
     if (!PlatformInfo.isProxySupported) {
       // Below iOS 17 / macOS 14 the app blanks the load instead
       // (`proxyUnavailable`), which is a different contract with its own
       // coverage.
       markTestSkipped('below the proxyConfigurations floor');
-      return;
+      return true;
     }
+    if (routable == null) {
+      // Not a pass. A loopback origin is never proxied on Apple, so with no
+      // routable interface this file cannot tell a bound proxy from a
+      // dropped one and must not claim to have.
+      markTestSkipped('no non-loopback IPv4 interface to serve the origin on');
+      return true;
+    }
+    return false;
+  }
+
+  // The proxied arm runs first, on the process's first WebView: only the
+  // first store in a process has ever been observed to carry a proxy
+  // (BUG-014), so putting the arm that must be proxied anywhere else would
+  // assert against a store that cannot be.
+  testWidgets('a proxied site reaches its origin through the proxy',
+      (tester) async {
+    if (skipUnlessMeasurable()) return;
+    await applyOverride(UserProxySettings(
+      type: ProxyType.SOCKS5,
+      address: '127.0.0.1:${socks.port}',
+    ));
     await mount(
       tester,
       siteId: 'proxy-binding-proxied',
-      initialUrl: 'http://127.0.0.1:$port/proxied',
-      proxySettings: UserProxySettings(
-        type: ProxyType.SOCKS5,
-        address: '127.0.0.1:$deadPort',
-      ),
+      initialUrl: 'http://$originHost:$proxiedPort/proxied',
     );
-    // Long enough for a direct load to have happened many times over; the
-    // proxied one cannot succeed at all.
-    await waitReal(tester, () => requests.contains('/proxied'),
-        label: 'proxied load (must not arrive)',
-        timeout: const Duration(seconds: 15));
+    final target = '$originHost:$proxiedPort';
+    await waitReal(tester, () => socks.targets.contains(target),
+        label: 'proxied load (must arrive at the proxy)');
     expect(
-      requests,
-      isNot(contains('/proxied')),
-      reason: 'the request reached the origin directly: the per-site proxy '
-          'was not bound to the engine, so every proxied site is loading '
-          'over the device IP',
+      socks.targets,
+      contains(target),
+      reason: 'the proxy was never asked for the origin, so the process-wide '
+          'override did not reach the load: every proxied site is going out '
+          'over the device IP. Origin saw: $requests',
     );
   });
 
-  testWidgets('the harness can see a load reach the origin', (tester) async {
-    // The control. Without it, the assertion above passes for any reason a
-    // page fails to load, which is most of them.
-    if (!applies) {
-      markTestSkipped('per-WebView proxy binding is an Apple path');
-      return;
-    }
+  testWidgets('an unproxied site reaches the origin and not the proxy',
+      (tester) async {
+    // The control. Without it the assertion above fails for any reason a
+    // page fails to load, which is most of them, and passes for any reason
+    // the fixture records a stray CONNECT.
+    if (skipUnlessMeasurable()) return;
+    await applyOverride(UserProxySettings(type: ProxyType.DEFAULT));
+    final before = List<String>.of(socks.targets);
     await mount(tester,
         siteId: 'proxy-binding-control',
-        initialUrl: 'http://127.0.0.1:$port/control');
+        initialUrl: 'http://$originHost:$controlPort/control');
     expect(
       await waitReal(tester, () => requests.contains('/control'),
           label: 'direct load'),
       isTrue,
       reason: 'an unproxied site never reached the fixture origin, so this '
-          'file cannot tell a bound proxy from a broken harness',
+          'file cannot tell an honoured override from a broken harness',
+    );
+    expect(
+      socks.targets.sublist(before.length),
+      isNot(contains('$originHost:$controlPort')),
+      reason: 'a site with no proxy in force still went through the proxy '
+          'fixture, so the arm above proves nothing about the override',
     );
   });
 }
