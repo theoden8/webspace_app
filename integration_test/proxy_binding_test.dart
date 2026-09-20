@@ -35,6 +35,15 @@
 // So the proxy here is a live SOCKS5 server that records the CONNECT it is
 // asked for. A recorded CONNECT to the origin cannot be produced by an
 // override that was dropped.
+//
+// Two proxied arms, not one. The first is the process's first proxied load,
+// which is the arrangement most likely to bind (BUG-014). The second is the
+// one PROXY-008 serialisation actually produces on every site switch: a
+// container store created later, taking a *different* proxy, while the
+// first store is alive and has already loaded through its own. Under the
+// per-store API that second store never took a proxy (attempt 72); whether
+// the process-wide fan-out reaches it is the question that decides whether
+// PROXY-020 holds for anything past a session's first proxied site.
 
 import 'dart:io';
 
@@ -58,12 +67,19 @@ void main() {
   // attributable to the arm that caused it; two loads to one origin can
   // also share a connection, which reads as a CONNECT that never happened.
   late HttpServer proxiedOrigin;
+  late HttpServer switchedOrigin;
   late HttpServer controlOrigin;
   late int proxiedPort;
+  late int switchedPort;
   late int controlPort;
   late String originHost;
   InternetAddress? routable;
   late Socks5Fixture socks;
+  // A second proxy, so the switched arm can distinguish "went through the
+  // new proxy" from "still going through the old one" -- which one fixture
+  // cannot tell apart, and which is the difference between a working switch
+  // and a site riding its predecessor's circuit.
+  late Socks5Fixture altSocks;
   final requests = <String>[];
 
   void log(String m) {
@@ -97,20 +113,26 @@ void main() {
     containers = await ContainerNative.instance.isSupported();
     routable = await nonLoopbackIPv4();
     socks = await Socks5Fixture.bind();
+    altSocks = await Socks5Fixture.bind();
     proxiedOrigin = await serveOrigin('proxied');
+    switchedOrigin = await serveOrigin('switched');
     controlOrigin = await serveOrigin('control');
     proxiedPort = proxiedOrigin.port;
+    switchedPort = switchedOrigin.port;
     controlPort = controlOrigin.port;
     originHost = (routable ?? InternetAddress.loopbackIPv4).address;
     log('origin host $originHost, proxied on $proxiedPort, '
-        'control on $controlPort, socks on ${socks.port}, '
+        'switched on $switchedPort, control on $controlPort, '
+        'socks on ${socks.port}, altSocks on ${altSocks.port}, '
         'proxySupported=${PlatformInfo.isProxySupported} '
         'containers=$containers');
   });
 
   tearDownAll(() async {
     await socks.close();
+    await altSocks.close();
     await proxiedOrigin.close(force: true);
+    await switchedOrigin.close(force: true);
     await controlOrigin.close(force: true);
   });
 
@@ -230,6 +252,44 @@ void main() {
     );
   });
 
+  // The arrangement a site switch produces: the first store is alive and
+  // has loaded through its own proxy, the override flips, and a second
+  // container store is created under the new one. If this fails while the
+  // arm above passes, only a session's first proxied site is protected and
+  // every switch after it goes out over the device IP.
+  testWidgets('a second site switched to another proxy uses the new one',
+      (tester) async {
+    if (skipUnlessMeasurable()) return;
+    await applyOverride(UserProxySettings(
+      type: ProxyType.SOCKS5,
+      address: '127.0.0.1:${altSocks.port}',
+    ));
+    await mount(
+      tester,
+      siteId: 'proxy-binding-switched',
+      initialUrl: 'http://$originHost:$switchedPort/switched',
+    );
+    final target = '$originHost:$switchedPort';
+    await waitReal(tester, () => altSocks.targets.contains(target),
+        label: 'switched load (must arrive at the new proxy)');
+    expect(
+      altSocks.targets,
+      contains(target),
+      reason: 'the second site never reached the proxy it was switched to. '
+          'Either it went direct, or it is still on the first proxy '
+          '(first proxy saw: ${socks.targets}). Under PROXY-008 the override '
+          'flips on every activation, so this is every site switch after the '
+          "session's first proxied load. Origin saw: $requests",
+    );
+    expect(
+      socks.targets,
+      isNot(contains(target)),
+      reason: "the second site's traffic left through the first site's "
+          'proxy, which is worse than no proxy at all: it attributes one '
+          "site's browsing to another's circuit",
+    );
+  });
+
   testWidgets('an unproxied site reaches the origin and not the proxy',
       (tester) async {
     // The control. Without it the assertion above fails for any reason a
@@ -238,6 +298,7 @@ void main() {
     if (skipUnlessMeasurable()) return;
     await applyOverride(UserProxySettings(type: ProxyType.DEFAULT));
     final before = List<String>.of(socks.targets);
+    final altBefore = List<String>.of(altSocks.targets);
     await mount(tester,
         siteId: 'proxy-binding-control',
         initialUrl: 'http://$originHost:$controlPort/control');
@@ -249,10 +310,13 @@ void main() {
           'file cannot tell an honoured override from a broken harness',
     );
     expect(
-      socks.targets.sublist(before.length),
+      [
+        ...socks.targets.sublist(before.length),
+        ...altSocks.targets.sublist(altBefore.length),
+      ],
       isNot(contains('$originHost:$controlPort')),
-      reason: 'a site with no proxy in force still went through the proxy '
-          'fixture, so the arm above proves nothing about the override',
+      reason: 'a site with no proxy in force still went through a proxy '
+          'fixture, so the arms above prove nothing about the override',
     );
   });
 }

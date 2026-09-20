@@ -126,6 +126,38 @@ test('the proxied scenario asserts the proxy was used, not that a load failed', 
   );
 });
 
+test('the tier measures a site switch, not only the first proxied load', () => {
+  // A session's first proxied load is the arrangement most likely to bind.
+  // PROXY-008 flips the override on every activation, so the case that
+  // leaks is the second store under a new proxy -- and it is invisible if
+  // the file only ever measures the first.
+  const arms = code.split(/testWidgets\(/).slice(1);
+  const switched = arms.find((a) => /must arrive at the new proxy/.test(a));
+  assert.ok(
+    switched,
+    `${testRel} must carry an arm that switches a second site to a ` +
+      'different proxy while the first store is alive',
+  );
+  assert.match(
+    switched,
+    /expect\(\s*\n?\s*altSocks\.targets,\s*\n?\s*contains\(/,
+    `${testRel}'s switch arm must assert the NEW proxy was asked for the ` +
+      'origin',
+  );
+  assert.match(
+    switched,
+    /expect\(\s*\n?\s*socks\.targets,\s*\n?\s*isNot\(contains\(/,
+    `${testRel}'s switch arm must also rule out the first proxy: a load ` +
+      "leaving through the previous site's circuit is worse than an " +
+      'unproxied one, and one fixture cannot tell the two apart',
+  );
+  assert.ok(
+    /Socks5Fixture\.bind\(\)[\s\S]*Socks5Fixture\.bind\(\)/.test(code),
+    `${testRel} must bind two proxy fixtures, or "went through the new ` +
+      'proxy" and "still on the old one" are the same observation',
+  );
+});
+
 test('the file refuses to report a verdict with no routable address', () => {
   // Falling back to loopback silently would restore the exact confound
   // above on any host without a second interface.
