@@ -24,6 +24,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'fixture_server.dart';
@@ -43,8 +44,15 @@ void main() {
     print('[proxy-binding] $m');
   }
 
+  var containers = false;
+
   setUpAll(() async {
     await PlatformInfo.initialize();
+    // Without this `cachedSupported` is false, `siteOwnsContainerProfile`
+    // returns false, no containerId is sent, and the fork falls through to
+    // `WKWebsiteDataStore.default()` -- so the file measures the process
+    // singleton rather than the per-site store the app actually uses.
+    containers = await ContainerNative.instance.isSupported();
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     port = server.port;
     listenFixture(server, (req) async {
@@ -59,7 +67,8 @@ void main() {
     deadPort = probe.port;
     await probe.close();
     log('origin on $port, dead proxy on $deadPort, '
-        'proxySupported=${PlatformInfo.isProxySupported}');
+        'proxySupported=${PlatformInfo.isProxySupported} '
+        'containers=$containers');
   });
 
   tearDownAll(() async {

@@ -162,10 +162,17 @@ void main() {
             '${seen.join(", ")}\n${torTranscript()}');
 
     // TOR-018: tor's own output reaches the app log, under its own tag and
-    // in the sensitive ring.
+    // in the sensitive ring. Waited for, not asserted outright: the phase
+    // check above is satisfied by the initial 0% status, which carries a
+    // summary before tor has emitted a single NOTICE, so a bare expect here
+    // races the control port's first log line.
+    final loggedTorOutput = await waitFor(
+      () => LogService.instance.sensitiveEntries.any((e) => e.tag == 'TorLog'),
+      const Duration(seconds: 30),
+    );
     expect(
-      LogService.instance.sensitiveEntries.where((e) => e.tag == 'TorLog'),
-      isNotEmpty,
+      loggedTorOutput,
+      isTrue,
       reason: 'tor said nothing the app could show:\n${torTranscript()}',
     );
     expect(
