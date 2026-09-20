@@ -4081,6 +4081,67 @@ is in the output instead of inferred. If a container store stops the load while
 it does not, PROXY-020 has no working delivery path on Apple and #604's premise
 falls.
 
+### Attempt 75 -- attempts 73 and 74 read a loopback origin; the trim had reverted attempt 4
+
+**2026-09-20**, PR #597 (`9aa2a47`, `921d0b0`), found by reading the sibling
+branch's fixture rather than by running anything.
+
+**The instrument was the pre-attempt-4 one.** `proxy_binding_test` served its
+origin on `InternetAddress.loopbackIPv4` and loaded `http://127.0.0.1:$port/`.
+Apple never sends a loopback destination through a proxy: `localhost`,
+`127.0.0.1` and `::1` are direct whatever `ProxyConfiguration` says, and
+`kCFStreamPropertyProxyLocalBypass` does not change it. Attempt 4 established
+that on 2026-09-16, rewrote the file around a routable origin and a live SOCKS5
+fixture, and added `test/js/proxy_binding_fixture.test.js` to stop it coming
+back.
+
+The branch trim on 2026-09-19 restored the file to `b53e057`, which predates
+that rewrite, **and dropped the gate in the same move**. So the one check that
+exists to fail when this file stops measuring was removed together with the
+thing it guards, and nothing said so.
+
+**What is withdrawn.**
+
+* **Attempt 74 falls entirely.** "`.default()` ignores `proxyConfigurations`
+  whether the assignment arrives through the per-WebView binding or through the
+  process-wide fan-out" is not supported by that run. The arm asserted that a
+  load to `127.0.0.1` would not arrive; it arrives whether or not the override
+  bound, so the result was fixed before the override was. Two runs read that
+  way (`930ed22`, `16bf457`), and neither carries information about the store.
+* **Attempt 73's reading survives; its inference does not.** That the file
+  lands on `WKWebsiteDataStore.default()` is a fact about `cachedSupported` and
+  holds. Its "what it does sharpen" paragraph -- that on that arrangement the
+  default store did not take a proxy at all -- does not: the loopback
+  destination explains the direct load with no claim about the store needed.
+* Open gap 0 is therefore **not** strengthened by either. It stands where
+  attempt 8 left it.
+
+**What was done.** The file is back to an instrument that can fail for the
+reason it names: origins bound on `anyIPv4` and addressed through
+`nonLoopbackIPv4()`, a live `Socks5Fixture` that records the CONNECT it is
+asked for, a positive assertion (`socks.targets` contains the origin) in the
+proxied arm, one origin port and one subtree key per arm, a skip rather than a
+verdict when no routable interface exists, and `ContainerNative.isSupported()`
+awaited in `setUpAll` so the site binds a container the way the app does.
+
+The gate is back too, trimmed to the files #597 ships, and checked against each
+regression it exists for rather than assumed: loopback origin, a reused
+`siteId` behind the subtree key, a proxied arm whose only assertion is a
+negative, a default store instead of a container, and a silent loopback
+fallback. Each fails it; the real file passes.
+
+**Why it was partial.** It repairs the instrument, not the product, and it
+answers nothing. The question attempt 74 claimed to be approaching -- whether
+the process-wide override reaches a **container** store on Apple, which is
+#604's premise -- is exactly as open as it was before attempts 73 and 74 were
+written. The difference is that the next run can answer it.
+
+**The class this belongs to.** Gap 5 already named it: an effect-level test can
+be unfalsifiable and look green. This is its second instance, and the new part
+is the mechanism -- a gate and the code it guards removed in one commit, which
+no gate can catch by construction. Nothing checks that a structural gate is
+still present when the file it names is rewritten.
+
 ## Known open gaps
 
 0. **A store with no container cannot be given a proxy after its first load.**
@@ -4155,3 +4216,20 @@ falls.
    35, 37 and twice in 38). Each was gated afterwards by name: the
    `PlatformInfo.initialize()` rule, the floor-assert rule, and the
    no-`openssl` rule. Nothing gates the class.
+
+   **Second instance, attempt 75, with a mechanism no gate can catch.** The
+   branch trim reverted `proxy_binding_test.dart` to its pre-attempt-4 shape
+   *and* deleted `test/js/proxy_binding_fixture.test.js` in the same commit.
+   A structural gate only fails while it is present, so removing it alongside
+   the code it guards is silent by construction, and two attempts (73, 74)
+   were then written from readings the instrument could not have produced.
+   What is missing is a check that a gate named in this file still exists --
+   the gates guard the tests, and nothing guards the gates.
+
+6. **This biography exists in two divergent copies.** The trim left #597 with a
+   stub carrying attempts 1 and 2 under their own numbering, while the full
+   record (1 through 75) lives on the investigation branch. CLAUDE.md's rule is
+   one file per bug, appended, never restarted, and two numbered histories of
+   the same bug is what it forbids. Whichever branch merges first defines
+   master's copy, and the other's numbering then collides with it. Resolve
+   before either lands: the full record is the one to keep.
