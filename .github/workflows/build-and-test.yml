@@ -1494,6 +1494,23 @@ jobs:
             fi
             echo "::endgroup::"
           done
+          # BUG-014's decision matrix. Frame 1 happens once per process and
+          # binding has differed between processes inside one run, so a
+          # single verdict line is one draw. Three launches, three processes.
+          for run in 1 2 3; do
+            echo "::group::integration_test/proxy_matrix_test.dart (run $run)"
+            log="${RUNNER_TEMP:-/tmp}/tier-proxy_matrix_$run.log"
+            if [ -n "$TIMEOUT" ]; then
+              WEBSPACE_MATRIX_RUN="$run" "$TIMEOUT" -k 30s 12m \
+                fvm flutter test integration_test/proxy_matrix_test.dart -d macos --ci 2>&1 \
+                | tee "$log" || true
+            else
+              WEBSPACE_MATRIX_RUN="$run" \
+                fvm flutter test integration_test/proxy_matrix_test.dart -d macos --ci 2>&1 \
+                | tee "$log" || true
+            fi
+            echo "::endgroup::"
+          done
           for t in integration_test/*_test.dart; do
             [ "$(basename "$t")" = "screenshot_test.dart" ] && continue
             # Android-only window-PixelCopy suite; skip its no-op build here.
@@ -1521,6 +1538,9 @@ jobs:
             # only repeat the third's condition on a tireder machine, and
             # this loop pays a full app build for every launch.
             [ "$(basename "$t")" = "proxy_shape_test.dart" ] && continue
+            # Three controlled launches above; a fourth here would repeat the
+            # third's condition and pay another full app build for it.
+            [ "$(basename "$t")" = "proxy_matrix_test.dart" ] && continue
             echo "::group::$t"
             rc=0
             # Kept per file so a failure can be re-printed at the end. Each
@@ -1562,6 +1582,16 @@ jobs:
               -e "proxy-shape\] verdict" \
               "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_$pos.log" 2>/dev/null \
               || echo "$pos: no verdict line"
+          done
+          # The matrix decides whether a per-site proxy is reachable at all
+          # on Apple, so its three verdict lines go in the tail beside the
+          # shape ones rather than a megabyte back in the log.
+          echo "=== BUG-014 matrix verdicts ==="
+          for run in 1 2 3; do
+            grep -h -e "proxy-matrix\] run=" -e "proxy-matrix\] frame-1:" \
+              -e "proxy-matrix\] later-frame:" \
+              "${RUNNER_TEMP:-/tmp}/tier-proxy_matrix_$run.log" 2>/dev/null \
+              || echo "run $run: no verdict line"
           done
           if [ $status -ne 0 ]; then
             echo "=== recent macOS crash reports ==="
