@@ -78,10 +78,13 @@ void main() {
         address: '198.51.100.2:8080',
       ),
     );
+    // Credential-free site first: the app activates index 0 at startup, so
+    // the positive control below costs no drawer interaction and the one
+    // that remains is the last thing the test does.
     SharedPreferences.setMockInitialValues({
       'webViewModels': [
-        jsonEncode(site.toJson()),
         jsonEncode(plainSite.toJson()),
+        jsonEncode(site.toJson()),
       ],
     });
 
@@ -120,10 +123,21 @@ void main() {
       }).take(40).toList()}');
     }
 
+    /// Drive the engine long enough for a WebView to mount and fire
+    /// onControllerCreated. pumpAndSettle deadlocks on a live WebView, so
+    /// pump fixed slices instead.
+    Future<void> settle() async {
+      for (var i = 0; i < 30; i++) {
+        await tester.pump(const Duration(milliseconds: 500));
+      }
+    }
+
     /// Open the drawer and activate [name].
     ///
     /// Tapping the already-active webspace tile is the same-id branch in
-    /// `_selectWebspace`, which opens the drawer.
+    /// `_selectWebspace`, which opens the drawer. Called once, and last:
+    /// re-opening the drawer after a site has been activated does not find
+    /// the tile again.
     Future<void> activate(String name) async {
       final allTile = find.byKey(const ValueKey(kAllWebspaceId));
       expect(allTile, findsOneWidget);
@@ -138,12 +152,7 @@ void main() {
           reason: 'seeded site "$name" should appear in the drawer');
 
       await tester.tap(siteTile);
-      // Drive the engine long enough for the WebView to mount and fire
-      // onControllerCreated. pumpAndSettle deadlocks on a live WebView, so
-      // pump fixed slices instead.
-      for (var i = 0; i < 30; i++) {
-        await tester.pump(const Duration(milliseconds: 500));
-      }
+      await settle();
     }
 
     /// Every `setProxyOverride` whose rule URL mentions [needle].
@@ -176,10 +185,11 @@ void main() {
           ?.proxyRules;
     }
 
-    // Positive control. A proxy with nothing to authenticate reaches the
-    // platform on every tier this file runs on, including the Apple one
-    // where the credentialed case below is refused.
-    await activate('Proxy Site B');
+    // Positive control, on the site the app activated at startup. A proxy
+    // with nothing to authenticate reaches the platform on every tier this
+    // file runs on, including the Apple one where the credentialed case
+    // below is refused.
+    await settle();
     final plain = overrideUrlsFor('198.51.100.2:8080');
     if (plain.isEmpty) {
       // ignore: avoid_print
