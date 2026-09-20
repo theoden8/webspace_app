@@ -399,10 +399,9 @@ class ProxyManager {
   factory ProxyManager() => _instance;
   ProxyManager._internal();
 
-  /// Whether the process-global Android/Linux override currently names a
-  /// proxy. Read by `deferInitialLoadForProxy` so a DEFAULT site built while
-  /// another site's proxy is still in force does not issue its first request
-  /// through it.
+  /// Whether the process-wide override currently names a proxy. Read by
+  /// `deferInitialLoadForProxy` so a DEFAULT site built while another site's
+  /// proxy is still in force does not issue its first request through it.
   static bool overrideActive = false;
 
   static ProxyBinding? _binding;
@@ -1317,12 +1316,12 @@ bool isEscapedPauseTimersAlert({
 /// ERR_FILE_NOT_FOUND — and back/forward history is meaningless for a static
 /// local page anyway, so they keep rendering their cached `initialData`.
 /// Only meaningful when nav-state bytes are actually pending for this build.
-/// Android and Linux apply the proxy as a process-global override from Dart
-/// after the platform view exists (`WebViewModel.setController`). A site whose
-/// effective proxy is non-DEFAULT must therefore carry no initial load, or its
-/// first request leaves before the override lands; the same holds for a
-/// DEFAULT site while the override still names another site's proxy.
-/// `setController` issues the first load once the override is in (LEAK-003).
+/// Under the process-wide binding the proxy is applied from Dart after the
+/// platform view exists (`WebViewModel.setController`). A site whose effective
+/// proxy is non-DEFAULT must therefore carry no initial load, or its first
+/// request leaves before the override lands; the same holds for a DEFAULT site
+/// while the override still names another site's proxy. `setController` issues
+/// the first load once the override is in (LEAK-003).
 bool deferInitialLoadForProxy({
   required bool proxyIsGlobal,
   required bool effectiveNonDefault,
