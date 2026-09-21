@@ -1,6 +1,9 @@
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/developer_mode_service.dart';
-import 'package:webspace/services/local_proxy_relay_api.dart';
+// Conditional so a UI file that reaches this service still compiles for
+// web: the real adapter owns a `ServerSocket` (DESIGN-001).
+import 'package:webspace/services/local_proxy_relay_api_web.dart'
+    if (dart.library.io) 'package:webspace/services/local_proxy_relay_api.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/proxy_relay.dart';
 import 'package:webspace/services/proxy_router_engine.dart';
