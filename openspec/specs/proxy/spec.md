@@ -869,6 +869,67 @@ with nothing raised anywhere.
 
 ---
 
+### Requirement: PROXY-027 - Where a proxy is enforced is named, not re-derived
+
+The app SHALL decide once per process whether a per-site proxy is carried
+by the site's own network store or by a single process-wide rule, and every
+path that binds a store, flips a process-wide override, or tears one down
+SHALL read that decision rather than test the platform again.
+
+Linux is the one documented exception, and it is a per-SITE condition
+rather than a second process-level answer: WPE scopes a proxy to a
+`WebKitNetworkSession`, only a container owns one, and a site without a
+container has no session to pin (PROXY-018). No value decided once per
+process can express that, so the call site that binds a store tests it
+alongside the named binding. Nothing else may.
+
+The decision SHALL be a pure function of the platform, evaluated through a
+seam that takes the platform as arguments, so the cases are assertable on a
+host that is not the one they describe. It SHALL be latched on first read:
+a WebView built under one binding must not be driven by the other for the
+rest of the run.
+
+Router mode (PROXY-013) SHALL NOT be a third value. It changes what the
+rule *names* -- the loopback relay rather than the site's upstream -- and
+not where the rule lives, so it rides whichever binding is in force.
+Modelling it as a binding would conflate two axes and make the binding
+depend on runtime state.
+
+The Apple decision SHALL NOT be gated on developer mode or any other
+opt-in. An earlier form of it was, on the belief that only one
+`WKWebsiteDataStore`'s `proxyConfigurations` is honoured per process;
+BUG-014 attempts 80 and 90 measured several stores reaching several
+distinct upstreams at once, so the gate guarded nothing and would cost
+every Apple user their per-site proxy.
+
+#### Scenario: Apple
+
+**Given** the host is iOS or macOS
+**Then** the binding is per store
+**And** it is per store whatever else is configured
+
+#### Scenario: Every other platform
+
+**Given** the host is neither iOS nor macOS
+**Then** the binding is process-wide
+
+#### Scenario: Linux with a container
+
+**Given** the host is Linux
+**And** the site owns a container
+**Then** the named binding is still process-wide
+**And** the store is nonetheless bound per site, on the container's own
+network session
+
+#### Scenario: One decision, not many tests
+
+**Given** a path that binds a store, flips a process-wide override, or
+tears one down
+**Then** it reads the named binding
+**And** it does not test the platform itself
+
+---
+
 ## Data Model
 
 ### ProxyType Enum
