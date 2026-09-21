@@ -1,6 +1,6 @@
 # BUG-014 — A per-site setting the Dart side sends and the native side drops
 
-Status: open (the Apple per-site proxy covers a site's first load only - attempt 90; one instance fixed, one class-level gate; the seam has no general guard)
+Status: open (on Apple a per-site proxy covers only a navigation issued in the frame that mounts the WebView, whether it is delivered by SOCKS5 or by CONNECT - attempts 90, 91; one instance fixed, one class-level gate; the seam has no general guard)
 
 **Spec:** [ip-leakage](../../openspec/specs/ip-leakage/spec.md) LEAK-003,
 [proxy](../../openspec/specs/proxy/spec.md) PROXY-011,
@@ -5049,33 +5049,158 @@ reading the source; what is left is the live `nw_context` half of
 across wrappers.
 
 
+### Attempt 91 -- ANSWERED: CONNECT bypasses too, and the boundary is the navigation's frame, not the store's first load
+
+**2026-09-21**, PR #603 (`c1d6271`), run 35629531072, macOS job 106432104581.
+
+Attempt 90 left one question that decides whether the Apple relay router
+(#605) fixes the bypass or inherits it. Every reading behind attempt 90 used
+SOCKS5, and `NetworkSessionCocoa::setProxyConfigData` takes one of two
+routes: when `nw_proxy_config_stack_requires_http_protocols` holds for any
+config it rebuilds each `NSURLSession` with the proxy on its own
+configuration, and otherwise it patches the live `nw_context`, which it
+clears before it adds and de-duplicates across wrappers. A SOCKS5 rule only
+ever takes the second. CONNECT forces the first. If the bypass lived in the
+`nw_context` half, CONNECT would survive it.
+
+**It does not.**
+
+`proxy_matrix` crosses delivery (CONNECT to a credentialed relay / SOCKS5
+direct) against destination (https / http) against timing, in one process,
+behind a control that says whether the process proxied anything at all. It
+ran three times this job. `run=first` and `run=mid` read `control=DIRECT`,
+which the file's own guard calls a null reading. `run=last` is the one arm
+in the entire job with a live control:
+
+```
+[proxy-matrix] run=last verdict: containers=true control=proxied
+  f1-connect-https-a=own  f1-connect-https-b=own
+  f1-socks-https=own      f1-socks-http=own
+  prebound-connect-https=DIRECT
+  late-connect-https=DIRECT
+  late-socks-https=DIRECT
+```
+
+**1. CONNECT and SOCKS5 fail identically on a later frame.**
+`late-connect-https` and `late-socks-https` differ in nothing but delivery
+and both went DIRECT. The `nw_proxy_config_stack_requires_http_protocols`
+escape is closed: **a relay that speaks CONNECT inherits the bypass rather
+than dodging it.** #605 does not fix BUG-014, and its PR body's one reason
+to hope it might is now spent.
+
+**2. The boundary is the frame the navigation is issued in, not the store's
+age and not its first load.** `prebound-connect-https` had its store created
+and its `proxyConfigurations` set in frame 1, in the same `pumpWidget` as the
+four cells that worked; only its navigation was deferred, by one frame and
+about 600ms. It went DIRECT, and it went DIRECT on what was its own first
+real load. So attempt 90's "a site's landing page and nothing after it" is
+not quite the rule: a store can be correctly configured, never navigated, and
+still lose the proxy for the first navigation it is given.
+
+This kills the workaround the file was written to test. Pre-creating a hidden
+WebView per proxied site at startup and navigating it lazily does **not**
+keep the proxy, so the app cannot buy its way out of this by moving store
+creation earlier.
+
+**3. Four simultaneous per-site proxies, two of them separated only by a
+credential.** All four frame-1 cells read `own`, meaning each reached its own
+upstream fixture and no other. `f1-connect-https-a` and `f1-connect-https-b`
+share one relay endpoint and differ by nothing but `Proxy-Authorization:
+Basic`. That is attempt 80 reconfirmed at n=4, and it is the first end-to-end
+measurement that Apple sends the credential at all -- PROXY-025, the fix in
+#605, confirmed at the WebKit layer rather than at the Dart seam.
+
+**4. `URLSession` is subject to the same process-level denial.**
+
+```
+[proxy-urlsession] reply={configuredBefore: 1, configuredAfter: 1,
+    outcomes: [0:http200, 1:http200], ok: true}
+[proxy-urlsession] socks CONNECTs for 192.168.64.9:50063 = 0,
+    relayed ports [], origin saw [/a:direct, /a:direct]
+```
+
+The same file gave `proxied=2 of 2 ... connects=1` in attempt 90. Here both
+requests went direct while the session reported the configuration held. This
+does not refute attempt 90 -- there the comparison was between two processes
+that each had the slot -- but it removes the idea that a pure-`URLSession`
+process is immune to whatever the slot is. "It is WebKit's, not
+Network.framework's" rests on attempt 90's readings alone and gets no support
+here.
+
+**5. The slot moved to the end of the tier, and the Tor scenario is why.**
+Attempt 90's tier change put `proxy_timing` first. This job runs
+`tor_test.dart` ahead of everything, in its own step (17:25:18-17:27:04), and
+tor binds a SOCKS proxy. Nothing after it proxied until `proxy_matrix (last)`
+at the very end, roughly 35 minutes later. So the reordering did not help:
+whatever holds the slot, the dedicated Tor step now takes it before the first
+proxy arm runs.
+
+This is also why the job is red. `proxy_binding`, `proxy_connect_https`,
+`proxy_http_connect`, `proxy_rate` and `proxy_relay_binding` all assert
+delivery, and all five ran without the slot. `proxy_binding` read `pair=0 of
+2 proxied` with `arrived=a+b` -- a void reading, not a contradiction of
+attempt 90's `pair=2 of 2`.
+
+**Why it was partial.** It answers the CONNECT question and sharpens the
+boundary, and it does so on **one** slot-holding process. The later-frame
+result agrees with attempts 81 and 90, so it is not isolated, but this run
+contributes n=1 to it and the arms built to corroborate it measured nothing.
+The slot is now the dominant confound rather than a footnote: which arm
+answers anything depends on when a resource nothing in this repo controls
+happens to free, and the mechanism behind it is still unnamed. Until the tier
+can guarantee a slot to the arm that needs one, every run costs 40 minutes to
+produce a single usable line.
+
+
 ## Known open gaps
 
 -2. **One app process at a time can proxy, and the next one waits (attempts 80,
-   90).** The first formulation was "only the tier's first app process"; attempt
-   90 refuted it. `proxy_binding` proxied twenty-six minutes and a dozen
+   90, 91).** The first formulation was "only the tier's first app process";
+   attempt 90 refuted it. `proxy_binding` proxied twenty-six minutes and a dozen
    unrelated app processes after the slot was lost, so the resource is held and
    released late rather than spent for the run. It is also not WebKit's: a
    process running nothing but `URLSession` both takes the slot and, one
    process later, is denied it while holding a `ProxyConfiguration` nothing
-   else had touched.
+   else had touched -- and in attempt 91 a pure-`URLSession` process went
+   direct on both of its requests, so `URLSession` is not a way around it.
+
+   Attempt 91 also refuted the scheduling fix. Putting `proxy_timing` first was
+   not enough, because the dedicated Tor step runs ahead of every proxy arm and
+   tor binds a SOCKS proxy; in that job the slot did not come back until the
+   last arm, about 35 minutes later, and one arm out of roughly twenty measured
+   anything. **The next tier change to try is moving the Tor scenario after the
+   proxy arms, or giving the arm that must answer a question the last slot
+   rather than the first.**
 
    The operational rule is unchanged and still governs every arm here: an arm
-   without a positive proxy control **in its own process** is not evidence, and
-   the arm that must answer a question has to be the first proxy arm to ask
-   after a quiet period. Most DIRECT readings in this file predate knowing
-   this.
+   without a positive proxy control **in its own process** is not evidence.
+   Most DIRECT readings in this file predate knowing this.
 
--1. **ANSWERED (attempt 90).** A `WKWebView`'s first load is proxied; its next
-   navigation is not, by either route (`location.href` from the page,
-   `loadUrl` from Dart), and it reaches the origin rather than failing. Read
-   with `pair=2 of 2 proxied` as a live control in the same process and with
+-1. **ANSWERED (attempts 90, 91).** A per-site proxy on Apple covers a
+   navigation issued in the frame that mounts the WebView and nothing after
+   it, by either route (`location.href` from the page, `loadUrl` from Dart),
+   and the later navigation reaches the origin rather than failing. Read with
+   a live control in the same process (`pair=2 of 2 proxied` in attempt 90,
+   `control=proxied` with four cells at `own` in attempt 91) and with
    per-request attribution, so neither a dead process nor a reused connection
-   can account for it. `URLSession` on the same `ProxyConfiguration` API
-   proxies every load, so the defect is WebKit's. The mechanism is not named:
-   the remaining candidate is the live `nw_context` half of
-   `setProxyConfigData`, which clears before it adds and de-duplicates
-   contexts across session wrappers. Original text follows.
+   can account for it.
+
+   Attempt 91 settled the two sub-questions attempt 90 left. **Delivery does
+   not matter:** CONNECT to a credentialed relay and SOCKS5 direct both go
+   DIRECT on a later frame, so the `nw_proxy_config_stack_requires_http_protocols`
+   route through `setProxyConfigData` is not an escape and the relay router
+   inherits the bypass. **The store's age does not matter:** a store created
+   and configured in frame 1, navigated one frame later, is not proxied on
+   what is its own first load, so pre-creating hidden WebViews at startup
+   does not buy the proxy back.
+
+   Two things remain unnamed. The mechanism: the surviving candidate is the
+   live `nw_context` half of `setProxyConfigData`, which clears before it adds
+   and de-duplicates contexts across session wrappers. And the layer: attempt
+   90 concluded WebKit rather than Network.framework because `URLSession`
+   proxied every load, but attempt 91 saw `URLSession` go direct on both
+   requests in a process without the slot, so that conclusion rests on attempt
+   90's readings alone. Original text follows.
 
    The observations
    stand: with `baseline=own` in one process, pane A's second navigation
