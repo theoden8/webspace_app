@@ -1,6 +1,6 @@
 # BUG-014 — A per-site setting the Dart side sends and the native side drops
 
-Status: open (on Apple a per-site proxy covers only a navigation issued in the frame that mounts the WebView, whether it is delivered by SOCKS5 or by CONNECT - attempts 90, 91; one instance fixed, one class-level gate; the seam has no general guard)
+Status: open (on Apple a per-site proxy covers only a navigation issued in the turn that mounts the WebView, whether it is delivered by SOCKS5 or by CONNECT - attempts 90, 91, 92, reproduced with a live control in two runs; one instance fixed, one class-level gate; the seam has no general guard)
 
 **Spec:** [ip-leakage](../../openspec/specs/ip-leakage/spec.md) LEAK-003,
 [proxy](../../openspec/specs/proxy/spec.md) PROXY-011,
@@ -5105,18 +5105,23 @@ than dodging it.** #605 does not fix BUG-014, and its PR body's one reason
 to hope it might is now spent.
 
 **2. The boundary is the frame the navigation is issued in, not the store's
-age and not its first load.** `prebound-connect-https` had its store created
-and its `proxyConfigurations` set in frame 1, in the same `pumpWidget` as the
-four cells that worked; only its navigation was deferred, by one frame and
-about 600ms. It went DIRECT, and it went DIRECT on what was its own first
-real load. So attempt 90's "a site's landing page and nothing after it" is
-not quite the rule: a store can be correctly configured, never navigated, and
-still lose the proxy for the first navigation it is given.
+age and not its first load.** The cells that establish this are
+`late-connect-https` and `late-socks-https`: both were built **and**
+navigated in the later frame, so the DIRECT reading is on their own first
+load. Attempt 90's "a site's landing page and nothing after it" predicts
+proxied there and does not get it.
 
-This kills the workaround the file was written to test. Pre-creating a hidden
-WebView per proxied site at startup and navigating it lazily does **not**
-keep the proxy, so the app cannot buy its way out of this by moving store
-creation earlier.
+`prebound-connect-https` does **not** establish it, and the first version of
+this entry wrongly rested the argument on that cell. It was mounted in frame
+1 at `about:blank` and navigated later, so if `about:blank` counts as the
+store's first load its real navigation is its second and attempt 90's rule
+predicts DIRECT too. The cell cannot separate the two rules. Whether an
+`about:blank` load consumes the window is itself unmeasured and worth an arm.
+
+What the prebound cell does establish is the practical result, which holds
+under either rule: pre-creating a hidden WebView per proxied site at startup
+and navigating it lazily does **not** keep the proxy, so the app cannot buy
+its way out of this by moving store creation earlier.
 
 **3. Four simultaneous per-site proxies, two of them separated only by a
 credential.** All four frame-1 cells read `own`, meaning each reached its own
@@ -5168,6 +5173,73 @@ can guarantee a slot to the arm that needs one, every run costs 40 minutes to
 produce a single usable line.
 
 
+### Attempt 92 -- the bypass reproduces at n=2 with a control; the tier reorder did not free the slot
+
+**2026-09-21**, PR #603 (`f203bbc`), run 35639742136, macOS job 106466126266.
+
+**1. `proxy_binding` reproduced attempt 90 independently.**
+
+```
+pair=2 of 2 proxied        raw-first=proxied       sameturn-loadurl=proxied
+persist-inpage=DIRECT      persist-loadurl=DIRECT  raw-second=DIRECT
+later-pair=0 of 2 proxied  stair=[0ms:DIRECT 3122ms:DIRECT 6170ms:DIRECT
+                                  9226ms:DIRECT 12268ms:DIRECT]
+arrived=a+b                refused=failed closed
+```
+
+`pair=2 of 2` is the live control: this process could proxy, and it proxied two
+stores at once. The same WebView's next navigation then went direct by both
+routes, and the origin received those loads. So the later-navigation bypass is
+not a single reading -- attempts 90 and 92, two runs, each with its own control.
+
+The sharpest single pair in this file is here: `sameturn-loadurl=proxied`
+against `persist-loadurl=DIRECT`. Identical `loadUrl` call on the same
+controller, proxied when issued in the turn that mounted the WebView, direct
+when issued later.
+
+**This arm carries no CONNECT and no TLS proxy**, so WebKit 264307 -- CONNECT
+with TLS crashing the network process, after which the configuration is
+ignored -- does not account for it. That bug remains a live candidate for the
+*slot*, and for arms that do use a TLS relay, but not for this sequence.
+
+**2. `proxy_window` cannot currently answer the question it exists for, and a
+reading of it was briefly taken as an answer.** Its verdict was
+`warm=loaded, after-warmup=0 of 2 proxied, arrived=a+b`, and the file's own
+rule says zero means the network process rather than the widget frame. That
+rule has a precondition the verdict does not establish: its only control is
+`warm=loaded`, an **unproxied** warm-up load that shows the network process
+came up and nothing about whether this process could proxy at all. In this run
+almost every arm read DIRECT with a dead control (`matrix` x3
+`control=DIRECT`, `rate` `first-frame-control=DIRECT`, `relay` and
+`connect-https` `first-frame-socks-control=DIRECT`), so `0 of 2` is
+indistinguishable from starvation.
+
+`proxy_window` needs a positive proxy control in its own process before its
+answer counts. Until it has one, the network-process hypothesis it was built
+to test is neither supported nor refuted by it.
+
+**3. The tier reorder failed.** Attempt 91 moved the Tor scenario after the
+loop on the reasoning that tor binds a SOCKS proxy and takes the slot ahead of
+every proxy arm. The reorder is confirmed live -- step 24 ran the loop, step 25
+the Tor scenario -- and the slot did not open. Exactly one arm proxied, as
+before; only the identity changed, from `matrix run=last` to `proxy_binding`.
+So whatever holds the resource, the Tor step was not it, or not only it.
+
+**4. One gain.** `refused=failed closed`: the refused-proxy arm no longer
+reaches its origin, which is LEAK-003's regression scenario passing.
+
+**Why it was partial.** It raises the bypass to n=2 with controls and clears
+264307 away from that sequence, and it names the instrument defect that made
+attempt 91's retraction wrong. It does not name the mechanism, it does not
+explain the slot, and it leaves the one arm aimed at the mechanism unable to
+report. It also stands against outside evidence not yet reconciled: an August
+2026 audit of this API (Mysk) enumerated three features that bypass
+`proxyConfigurations` -- DNS prefetching, WebAuthn Related Origin Requests and
+WebTransport -- and reported no bypass of ordinary main-frame navigation or its
+subresources. Two controlled in-process readings say otherwise for this app.
+Something distinguishes the two settings and nothing here says what.
+
+
 ## Known open gaps
 
 -2. **One app process at a time can proxy, and the next one waits (attempts 80,
@@ -5205,10 +5277,10 @@ produce a single usable line.
    not matter:** CONNECT to a credentialed relay and SOCKS5 direct both go
    DIRECT on a later frame, so the `nw_proxy_config_stack_requires_http_protocols`
    route through `setProxyConfigData` is not an escape and the relay router
-   inherits the bypass. **The store's age does not matter:** a store created
-   and configured in frame 1, navigated one frame later, is not proxied on
-   what is its own first load, so pre-creating hidden WebViews at startup
-   does not buy the proxy back.
+   inherits the bypass. **The store's age does not matter:** a WebView built
+   and navigated in a later frame is not proxied on its own first load
+   (`late-connect-https`, `late-socks-https`), and pre-creating hidden
+   WebViews at startup does not buy the proxy back either.
 
    Two things remain unnamed. The mechanism: the surviving candidate is the
    live `nw_context` half of `setProxyConfigData`, which clears before it adds
