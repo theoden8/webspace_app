@@ -193,6 +193,10 @@ class TorControllerPlugin: NSObject {
   /// Whether tor also isolates streams by destination address, on top of the
   /// per-site SOCKS credentials (TOR-003). Dart owns the setting; this is the
   /// value the next launch will use.
+  ///
+  /// `true` here is NOT the user-facing default, which is off. It is what a
+  /// launch falls back to when Dart never got to send the preference -- a
+  /// failed read leaves isolation stricter rather than weaker.
   private var pendingIsolateDestAddr = true
 
   private var state: String = "stopped"
@@ -1041,8 +1045,14 @@ class TorControllerPlugin: NSObject {
   /// one site loading from two hosts exits from two relays. That is more
   /// isolation than per-site, and it shows: a page whose own API lives on a
   /// second host reports two different addresses while it loads, and a
-  /// session that checks its client IP across hosts breaks. The user
-  /// chooses; the default keeps it on.
+  /// session that checks its client IP across hosts breaks. It also costs a
+  /// circuit build per host, which a page pulling from a dozen of them pays
+  /// on first load.
+  ///
+  /// Off by default. Per-site isolation is the contract and IsolateSOCKSAuth
+  /// alone delivers it; this extra split buys only that no single exit sees a
+  /// whole page load, and it hid BUG-014's dropped credential by keeping some
+  /// isolation alive when the per-site key was gone.
   static func socksPortValue(isolateDestAddr: Bool) -> String {
     isolateDestAddr
       ? "auto IsolateSOCKSAuth IsolateDestAddr" : "auto IsolateSOCKSAuth"
