@@ -4902,6 +4902,55 @@ its own object and still goes direct -- so it is a candidate, not a finding.
 **Why it was partial.** It removes a wrong claim and adds no mechanism.
 
 
+### Attempt 89 -- corroboration outside the harness: four open WebKit bugs on this API
+
+**2026-09-21**, PR #603, source and upstream tracker only.
+
+Everything in this file up to here was measured by our own fixtures or read
+out of WebKit's source. `bugs.webkit.org` has four open reports against
+`proxyConfigurations` itself, none of them resolved:
+
+| bug | filed | status | what it says |
+|---|---|---|---|
+| [264307](https://bugs.webkit.org/show_bug.cgi?id=264307) | 2023-11-07 | NEW | HTTP CONNECT **with TLS**: `nw_proxy_config_create_with_agent_data` logs `No protocol definition registered for "tls"`, the network process crashes and the configuration is ignored |
+| [277293](https://bugs.webkit.org/show_bug.cgi?id=277293) | 2024-07-29 | NEW | WebKit's own `TestWebKitAPI.WebKit.ProxyConfigurationAuthentication` "landed broken on macOS queues" and is a constant timeout |
+| [293611](https://bugs.webkit.org/show_bug.cgi?id=293611) | 2025-05-27 | NEW | a proxy's certificate cannot be validated and no client auth credential can be supplied, where the same code through `NSURLSession` works |
+| [316948](https://bugs.webkit.org/show_bug.cgi?id=316948) | 2026-06-11 | NEW | `WKWebsiteDataStore` reuses its connection pool after `proxyConfigurations` changes, bypassing the proxy (`FB23079465`, `rdar://180073556`) |
+
+**316948 is this bug's symptom, reported by someone else.** Its words:
+assigning `proxyConfigurations` to a store that is already in use "does not
+take effect for hosts the network process has already opened connections to";
+recreating the `WKWebView` on the same store does not help because "the
+connection pool appears to be tied to the data store, not the web view"; and
+"navigating to a different IP-reporting host (one with no pooled connection)
+does route through the proxy correctly". Its workaround is a **brand-new**
+`WKWebsiteDataStore` created with `proxyConfigurations` already set.
+
+That is attempt 7 ("the store has to be untouched") arrived at independently,
+from the other side, on a different app. It also explains the original device
+report exactly: two sites on *one* host (`whatsmyipaddress.com`), one pooled
+direct connection between them, and both reporting the device address. And the
+workaround it names is what this app's container engine already does -- a fresh
+store per `siteId` with the proxy set before first use -- which is why attempt
+80's four stores each reached their own upstream.
+
+**It is not the second-navigation sequence, and saying it was would be attempt
+82 again.** In that arm pane A's only earlier load was itself proxied, so the
+pool held no direct connection to reuse, and a SOCKS5 tunnel is opened per
+destination -- a connection carrying `host:portA` cannot serve `host:portB`.
+Pool reuse has nothing to reuse there.
+
+**Why 277293 matters more than it looks.** The proxy-authentication path this
+app's relay design depends on has had no passing upstream macOS coverage since
+the test landed in 2024. An API whose own test suite times out on the platform
+is one where undocumented behaviour is the expected condition, which is the
+structural reason this file is 89 entries long.
+
+**Why it was partial.** It corroborates the class, the original report and the
+engine's design choice from outside this repo, and it leaves the open sequence
+where it was.
+
+
 ## Known open gaps
 
 -2. **Any arm that asks about the Apple proxy MUST run first in the macOS tier
