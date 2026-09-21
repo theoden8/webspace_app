@@ -817,6 +817,47 @@ resolver must never mean "connect anyway".
 
 ---
 
+### Requirement: PROXY-025 - A proxy credential reaches the platform's auth API
+
+Where a per-site proxy carries credentials, the app SHALL deliver them in
+every form the target platform reads, not only the one the URL carries.
+
+`ProxyRule` exposes `url`, `username` and `password`. Linux's WPE binding
+reads `url` alone, so credentials SHALL remain embedded as
+`scheme://user:pass@host:port` userinfo. Apple's binding builds its
+`ProxyConfiguration` endpoint from `URL.host` and `URL.port`, which
+discards userinfo, and takes the credential from `username`/`password` to
+hand to `ProxyConfiguration.applyCredential`; those fields SHALL therefore
+be set whenever credentials exist.
+
+A credentialed proxy delivered by URL alone authenticates with nothing on
+Apple. The proxy answers `407`, the page fails, and the settings screen
+still reports the proxy as configured -- the same "configured and not in
+force" shape as BUG-014, arrived at from the app's side rather than the
+platform's.
+
+The app SHALL NOT refuse a credentialed proxy on Apple on the grounds that
+the platform cannot authenticate. It can: BUG-014 attempt 80 measured two
+container stores reaching two different upstreams through one relay
+endpoint, told apart only by the credential each presented. WebKit bug
+264309, which reported the header never being sent, is RESOLVED/MOVED and
+was filed against a build two years older.
+
+#### Scenario: A credentialed proxy is bound to a site
+
+**Given** a site's proxy carries a username and password
+**When** the per-WebView proxy settings are built
+**Then** the rule's `username` and `password` fields carry them
+**And** the rule's URL still carries them as userinfo
+
+#### Scenario: An uncredentialed proxy
+
+**Given** a site's proxy carries no credentials
+**When** the per-WebView proxy settings are built
+**Then** the rule's `username` and `password` fields are absent
+
+---
+
 ### Requirement: PROXY-015 - Router mode verifies attribution on the device
 
 Before router mode is treated as active, the app SHALL prove on the
