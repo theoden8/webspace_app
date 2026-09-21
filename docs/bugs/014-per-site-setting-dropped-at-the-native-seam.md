@@ -5469,6 +5469,69 @@ this OS, or the patched `nw_context` is not the one the second navigation
 used, and nothing here separates those.
 
 
+### Attempt 96 -- NO on the other path either: recreateSessions does not reopen the window
+
+**2026-09-21**, PR #603 (`9fcff3b`), run 35659213308, macOS job 106530220795.
+
+Attempt 95 found that `NetworkSessionCocoa::setProxyConfigData` branches: a
+config for which `nw_proxy_config_stack_requires_http_protocols` holds sends
+it down `recreateSessionWithUpdatedProxyConfigurations`, destroying and
+rebuilding every `NSURLSession`; anything else only patches the live
+`nw_context` of wrappers that already have one. CONNECT takes the first,
+SOCKS5 the second. Attempt 94 measured the second and found re-assignment
+does not restore the proxy. This measured the first.
+
+```
+[proxy-reassign] verdict: kind=connect reassign=true baseline=proxied second=DIRECT
+[proxy-reassign] ok=true reassigned=true configured=1 detail1=didFinish secondDetail=didFinish
+[proxy-reassign] connect targets=[192.168.64.2:49970]
+[proxy-reassign] verdict: kind=socks5 reassign=true baseline=DIRECT second=DIRECT
+```
+
+The CONNECT launch had the slot: `baseline=proxied`, and the relay fixture
+recorded origin A and only origin A. The configuration was assigned again
+(`reassigned=true`), both navigations reached a terminal callback
+(`detail1=didFinish secondDetail=didFinish`), and the second still went
+direct. The socks5 launch behind it was starved, as expected -- CONNECT ran
+first and took the slot.
+
+**The instrument reported properly this time.** Attempt 94's reply came back
+all-null because `ProbeNavigationDelegate.settle` nils its callback and the
+second navigation ran with nothing listening. The `rearm` added in `9fcff3b`
+fixed it, and `ok=true` with both details present is what a working two-phase
+probe looks like. So attempt 94's fixture-derived reading now has a
+reply-derived twin agreeing with it on the other path.
+
+**What this eliminates.** Re-assignment is dead as a repair, on both branches
+of the function -- patching a live context and rebuilding every session alike.
+Together with attempt 95's source read, that closes the whole
+"assign it again once the session exists" direction that attempts 93-95 were
+built on.
+
+**What it does not explain.** `recreateSessions` rebuilds each `NSURLSession`
+through `SessionWrapper::initialize`, which calls
+`applyProxyConfigurationToSessionConfiguration` and sets
+`configuration.proxyConfigurations` from `m_nwProxyConfigs`. If that ran with
+a populated `m_nwProxyConfigs`, the rebuilt sessions carry the proxy and the
+second navigation should have been proxied. It was not. So either
+`m_nwProxyConfigs` was empty at rebuild time, or the navigation is served by
+something that is not one of the wrappers `forEachSessionWrapper` walks.
+Attempt 95 established that list is exhaustive for a `SessionSet`, so the
+first is the surviving possibility and it points back at the clear in
+`WebsiteDataStore::setProxyConfigData` -- which is where attempt 93 started.
+
+**Why it was partial.** Two more paths closed, no mechanism named, and the
+investigation is now out of things it can ask from the app side: every lever
+this repo owns (bind earlier, bind again, bind by a different delivery,
+rebuild the WebView, rebuild the store) has been measured and none restores a
+later navigation. What is left needs either instrumentation inside WebKit --
+a local build, or a log from `com.apple.WebKit.Networking` that this tier
+cannot currently capture, since it globs only `Webspace*` and `Runner*` in
+`DiagnosticReports` -- or an upstream report against the API, which
+`docs/bugs/014-webkit-report.md` drafts and which now has four independent
+readings behind it (attempts 90, 92, 94, 96).
+
+
 ## Known open gaps
 
 -2. **One app process at a time can proxy, and the next one waits (attempts 80,
