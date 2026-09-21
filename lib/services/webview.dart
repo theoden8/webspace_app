@@ -129,6 +129,55 @@ inapp.ProxySettings? userProxyToInappProxy(UserProxySettings settings) {
   );
 }
 
+/// The proxy an Apple container store carries while router mode is active
+/// (PROXY-026), or null when it is not.
+///
+/// Android points one process-wide `ProxyController` rule at the relay;
+/// there is no such rule on Apple, so each store names the relay itself and
+/// the site is told apart by the credential it presents. Every store gets
+/// one, including a site whose own proxy is DEFAULT: the relay dials those
+/// straight out, and a store left unproxied would miss the PROXY-015
+/// attribution probe entirely and stand router mode down.
+///
+/// The credential goes in `ProxyRule.username`/`password`, never as URL
+/// userinfo: the fork builds its `ProxyConfiguration` endpoint from
+/// `URL.host` and `URL.port` alone, so userinfo never reaches
+/// `applyCredential` (PROXY-025).
+inapp.ProxySettings? routerRelayProxyFor({
+  required String? siteId,
+  required bool ownsContainer,
+}) {
+  // Apple only. Android carries the router on one `ProxyController` rule,
+  // and a per-WebView `proxySettings` there would be a second, conflicting
+  // source of truth for the same traffic.
+  if (!hostIsIOS && !hostIsMacOS) return null;
+  final router = ProxyRouterService.instance;
+  if (!router.isActive) return null;
+  // No site id means no row in the route table, and the shared identity
+  // belongs to a group this webview is not part of. Routing it there would
+  // put it on another site's circuit, so fall back to its own rule.
+  if (siteId == null || siteId.isEmpty) return null;
+  final host = router.host;
+  final port = router.port;
+  if (host == null || port == null) return null;
+  final identity = ProxyRouterEngine.identityFor(
+    siteId: siteId,
+    ownsContainer: ownsContainer,
+  );
+  final token = router.tokenFor(identity);
+  if (token == null) return null;
+  return inapp.ProxySettings(
+    proxyRules: [
+      inapp.ProxyRule(
+        url: 'http://$host:$port',
+        username: router.usernameFor(identity),
+        password: token,
+      )
+    ],
+    bypassRules: [],
+  );
+}
+
 /// Extension to add JSON serialization to inapp.Cookie
 extension CookieJson on inapp.Cookie {
   Map<String, dynamic> toJson() => {
@@ -2096,9 +2145,18 @@ class WebViewFactory {
         ? null
         : resolveEffectiveProxy(config.proxySettings!, siteId: config.siteId);
     final effectiveProxy = bindsProxyPerSite ? claimedProxy : null;
-    final inappProxy = effectiveProxy != null && PlatformInfo.isProxySupported
-        ? userProxyToInappProxy(effectiveProxy)
+    // Router mode wins over the site's own rule: under it every Apple store
+    // points at the relay and the per-site choice is made there. Not gated
+    // on the site having a proxy, because a store that is not pointed at the
+    // relay cannot answer the PROXY-015 probe.
+    final relayProxy = PlatformInfo.isProxySupported
+        ? routerRelayProxyFor(
+            siteId: config.siteId, ownsContainer: containerId != null)
         : null;
+    final inappProxy = relayProxy ??
+        (effectiveProxy != null && PlatformInfo.isProxySupported
+            ? userProxyToInappProxy(effectiveProxy)
+            : null);
     // Fail closed: on iOS/macOS/Linux the per-site proxy is bound here via
     // `proxySettings`. If the site expects a non-DEFAULT proxy but the
     // address is malformed (e.g. a hand-edited backup that bypassed UI

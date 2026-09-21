@@ -1,5 +1,6 @@
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/developer_mode_service.dart';
+import 'package:webspace/services/local_proxy_relay_api.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/proxy_relay.dart';
 import 'package:webspace/services/proxy_router_engine.dart';
@@ -24,15 +25,28 @@ typedef ProxyAttributionProbe = Future<void> Function(
 typedef ProxyRouterOverrideBinder = Future<bool> Function(
     String host, int port);
 
-/// Owns Android's per-site proxy router (PROXY-013): the relay lifecycle,
-/// the per-site credentials, and the one question the WebView layer asks
-/// it at runtime ("is this auth challenge yours, and what do I answer?").
+/// Owns the per-site proxy router (PROXY-013): the relay lifecycle, the
+/// per-site credentials, and the one question the WebView layer asks it at
+/// runtime ("is this auth challenge yours, and what do I answer?").
 ///
 /// Router mode replaces the serialisation Android needed under PROXY-008.
 /// `ProxyController` still carries one process-wide rule, but that rule
 /// now points at the relay for the whole app, and the relay fans traffic
 /// out per site. Sites with different proxies can therefore stay loaded
-/// at the same time, as they already do on iOS 17+ / macOS 14+.
+/// at the same time.
+///
+/// **Apple takes the same router with a different delivery** (PROXY-026).
+/// There is no process-wide rule to point: each container store carries its
+/// own `proxyConfigurations` naming the relay, and the site's credential
+/// rides `ProxyConfiguration.applyCredential` preemptively rather than
+/// answering a `407`. The relay itself is the in-process
+/// [`LocalProxyRelay`] instead of the Kotlin plugin.
+///
+/// This used to add that whether `WKWebsiteDataStore.proxyConfigurations`
+/// carries two different proxies at once was open. It is not: BUG-014
+/// attempt 80 measured four container stores reaching four distinct
+/// upstreams in one frame, two of them separated only by the credential
+/// they presented to one relay endpoint, which is this design end to end.
 ///
 /// Gated on container mode. Chromium caches a proxy credential per
 /// `HttpNetworkSession`, and proxy entries are deliberately not
@@ -45,14 +59,20 @@ class ProxyRouterService {
   static final ProxyRouterService instance = ProxyRouterService._();
   ProxyRouterService._();
 
-  ProxyRelayApi _relay = ProxyRelay.instance;
+  ProxyRelayApi? _relayOverride;
+
+  /// Android drives the Kotlin relay plugin; everywhere else the relay is
+  /// an in-process Dart socket. Resolved lazily so a test can substitute
+  /// one before the platform is ever read.
+  ProxyRelayApi get _relay =>
+      _relayOverride ??= hostIsAndroid ? ProxyRelay.instance : LocalProxyRelayApi();
   ProxyRouterState? _state;
   String? _host;
   int? _port;
 
   /// Test seam: swap the platform-channel relay for a fake.
   void setRelayForTest(ProxyRelayApi relay) {
-    _relay = relay;
+    _relayOverride = relay;
   }
 
   /// Reset to the pre-activation state. Tests only.
@@ -69,7 +89,9 @@ class ProxyRouterService {
   /// so it is not interchangeable with `127.0.0.1`.
   String? get host => _host;
 
-  /// Loopback port `ProxyController` should be pointed at, or null.
+  /// Loopback port the WebView layer should be pointed at, or null.
+  /// Android points its one `ProxyController` rule here; Apple points each
+  /// container store's `proxyConfigurations` here instead.
   int? get port => _port;
 
   /// Realm the relay names in its `407`, or null when inactive.
@@ -87,19 +109,25 @@ class ProxyRouterService {
   /// Read once at activation, so a flip takes effect at next launch.
   static bool isSupported({required bool useContainers}) => isSupportedWhen(
         isAndroid: hostIsAndroid,
+        isApple: hostIsIOS || hostIsMacOS,
         useContainers: useContainers,
         developerMode: DeveloperModeService.instance.enabled,
       );
 
   /// [isSupported]'s decision without the platform reads, so the negative
-  /// contract is assertable off Android — where `hostIsAndroid` alone
+  /// contract is assertable on any host — where the platform test alone
   /// would answer false and make any further assertion vacuous.
+  ///
+  /// [isApple] defaults false so the Android contract this started as is
+  /// still written the same way, and a caller that has not thought about
+  /// Apple cannot widen the gate by omission.
   static bool isSupportedWhen({
     required bool isAndroid,
     required bool useContainers,
     required bool developerMode,
+    bool isApple = false,
   }) =>
-      isAndroid && useContainers && developerMode;
+      (isAndroid || isApple) && useContainers && developerMode;
 
   /// The credential a site presents to the relay, or null when router
   /// mode is not running (in which case the WebView must not answer any

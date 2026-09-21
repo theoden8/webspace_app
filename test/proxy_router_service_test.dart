@@ -341,6 +341,20 @@ void main() {
             useContainers && developerMode,
             reason: 'containers=$useContainers developerMode=$developerMode',
           );
+          // Apple runs the same router with a different delivery: no
+          // process-wide rule, each container store names the relay
+          // itself (PROXY-026). The other two conditions still gate it.
+          expect(
+            ProxyRouterService.isSupportedWhen(
+              isAndroid: false,
+              isApple: true,
+              useContainers: useContainers,
+              developerMode: developerMode,
+            ),
+            useContainers && developerMode,
+            reason: 'apple: containers=$useContainers '
+                'developerMode=$developerMode',
+          );
           expect(
             ProxyRouterService.isSupportedWhen(
               isAndroid: false,
@@ -348,7 +362,9 @@ void main() {
               developerMode: developerMode,
             ),
             isFalse,
-            reason: 'router mode must not engage off Android',
+            reason: 'router mode must not engage on a platform that is '
+                'neither Android nor Apple, and omitting isApple must not '
+                'widen the gate',
           );
         }
       }

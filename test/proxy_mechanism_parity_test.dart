@@ -135,6 +135,34 @@ void main() {
     });
   });
 
+  group('with the Tor runtime up', () {
+    setUp(() {
+      // What the app installs at runtime: TOR expands to the loopback
+      // SOCKS5 listener, carrying the isolation tag as the SOCKS username.
+      torProxyResolver = (tag) => UserProxySettings(
+            type: ProxyType.SOCKS5,
+            address: '127.0.0.1:19050',
+            username: tag,
+          );
+    });
+
+    test('a Tor site egresses through the loopback SOCKS5 port on both', () {
+      // The router used to drop every TOR route outright, on the reasoning
+      // that it was Android-only while the Tor runtime was Apple-only. The
+      // router runs on Apple now (PROXY-026), so that drop would have sent
+      // a Tor site to a 502 while the native path proxied it correctly.
+      final site = proxy(ProxyType.TOR, '203.0.113.9:9050');
+      expect(routerEgress(site), nativeEgress(site));
+      expect(routerEgress(site)?.port, 19050);
+      expect(routerEgress(site)?.scheme, 'socks5');
+    });
+
+    test('a stale manual address never becomes the upstream', () {
+      final site = proxy(ProxyType.TOR, '203.0.113.9:9050');
+      expect(routerEgress(site)?.host, isNot('203.0.113.9'));
+    });
+  });
+
   test('an explicit per-site proxy still wins over a global on both', () {
     GlobalOutboundProxy.setForTest(proxy(ProxyType.HTTP, '10.0.0.1:8080'));
     final site = proxy(ProxyType.SOCKS5, '127.0.0.1:9050');
