@@ -859,7 +859,6 @@
   "unproxiedBlockBody": "{site} è impostato per usare un proxy, ma l'app non ha potuto stabilire che questa richiesta vi sarebbe passata. Effettuarla comunque avrebbe mostrato l'indirizzo IP del tuo dispositivo all'altro capo, perciò non è stata effettuata.",
   "unproxiedBlockDestination": "Destinazione: {host}",
   "unproxiedBlockWhy": "Un proxy impostato per un sito copre la richiesta con cui si apre una pagina. Questa è arrivata dopo, dall'interno della pagina, e qui non c'è modo di dimostrare che passerebbe anch'essa per il proxy.",
-  "unproxiedBlockReopen": "Riapri attraverso il proxy",
   "unproxiedBlockBack": "Indietro",
   "unproxiedBlockProxySettings": "Impostazioni del proxy",
   "proxyTestOk": "Il proxy funziona",

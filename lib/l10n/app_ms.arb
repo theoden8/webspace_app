@@ -859,7 +859,6 @@
   "unproxiedBlockBody": "{site} ditetapkan untuk menggunakan proksi, tetapi apl tidak dapat memastikan bahawa permintaan ini akan melaluinya. Menghantarnya juga akan menunjukkan alamat IP peranti anda kepada pihak seberang, jadi ia tidak dihantar.",
   "unproxiedBlockDestination": "Destinasi: {host}",
   "unproxiedBlockWhy": "Proksi yang ditetapkan untuk sesebuah laman melindungi permintaan pembuka sesuatu halaman. Permintaan ini datang selepas itu, dari dalam halaman, dan di sini tiada cara untuk menunjukkan bahawa ia juga akan melalui proksi.",
-  "unproxiedBlockReopen": "Buka semula melalui proksi",
   "unproxiedBlockBack": "Kembali",
   "unproxiedBlockProxySettings": "Tetapan proksi",
   "proxyTestOk": "Proksi berfungsi",

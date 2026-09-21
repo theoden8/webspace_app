@@ -859,7 +859,6 @@
   "unproxiedBlockBody": "{site} està configurat per fer servir un servidor intermediari, però l'aplicació no ha pogut establir que aquesta petició hi passaria. Fer-la igualment hauria mostrat l'adreça IP del vostre dispositiu a l'altre extrem, així que no s'ha fet.",
   "unproxiedBlockDestination": "Destinació: {host}",
   "unproxiedBlockWhy": "Un servidor intermediari configurat per a un lloc cobreix la petició amb què s'obre una pàgina. Aquesta ha arribat després, des de dins de la pàgina, i aquí no hi ha manera de demostrar que també hi passaria.",
-  "unproxiedBlockReopen": "Torna a obrir a través del servidor intermediari",
   "unproxiedBlockBack": "Enrere",
   "unproxiedBlockProxySettings": "Configuració del servidor intermediari",
   "proxyTestOk": "El servidor intermediari funciona",

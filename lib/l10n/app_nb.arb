@@ -859,7 +859,6 @@
   "unproxiedBlockBody": "{site} er satt opp til å bruke en mellomtjener, men appen kunne ikke fastslå at denne forespørselen ville gå gjennom den. Å sende den likevel ville vist enhetens IP-adresse til den andre enden, så den ble ikke sendt.",
   "unproxiedBlockDestination": "Mål: {host}",
   "unproxiedBlockWhy": "En mellomtjener satt opp for et nettsted dekker forespørselen en side åpnes med. Denne kom etterpå, innenfra siden, og her finnes ingen måte å vise at den også ville gå gjennom mellomtjeneren.",
-  "unproxiedBlockReopen": "Åpne på nytt gjennom mellomtjeneren",
   "unproxiedBlockBack": "Tilbake",
   "unproxiedBlockProxySettings": "Innstillinger for mellomtjener",
   "proxyTestOk": "Proxyen virker",

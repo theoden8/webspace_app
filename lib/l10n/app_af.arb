@@ -859,7 +859,6 @@
   "unproxiedBlockBody": "{site} is gestel om 'n instaanbediener te gebruik, maar die program kon nie vasstel dat hierdie versoek daardeur sou gaan nie. Om die versoek in elk geval te maak, sou jou toestel se IP-adres aan die ander kant gewys het, en daarom is dit nie gemaak nie.",
   "unproxiedBlockDestination": "Bestemming: {host}",
   "unproxiedBlockWhy": "'n Instaanbediener wat vir 'n werf gestel is, dek die versoek waarmee 'n bladsy oopgemaak word. Hierdie een het daarna gekom, van binne die bladsy af, en hier is daar geen manier om te wys dat dit ook deur die instaanbediener sou gaan nie.",
-  "unproxiedBlockReopen": "Heropen deur die instaanbediener",
   "unproxiedBlockBack": "Gaan terug",
   "unproxiedBlockProxySettings": "Instaanbediener-instellings",
   "proxyTestOk": "Die instaanbediener werk",

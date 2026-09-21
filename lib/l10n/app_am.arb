@@ -859,7 +859,6 @@
   "unproxiedBlockBody": "{site} ወኪል እንዲጠቀም ተዋቅሯል፣ ነገር ግን መተግበሪያው ይህ ጥያቄ በእሱ በኩል እንደሚያልፍ ማረጋገጥ አልቻለም። ቢሆንም መላኩ የመሣሪያዎን የIP አድራሻ ለሌላኛው ወገን ያሳይ ነበር፣ ስለዚህ አልተላከም።",
   "unproxiedBlockDestination": "መድረሻ፦ {host}",
   "unproxiedBlockWhy": "ለጣቢያ የተዋቀረ ወኪል ገጽ የሚከፈትበትን ጥያቄ ይሸፍናል። ይህ ከዚያ በኋላ፣ ከገጹ ውስጥ መጣ፤ እና እሱም በወኪሉ በኩል እንደሚያልፍ ማሳየት የሚቻልበት መንገድ እዚህ የለም።",
-  "unproxiedBlockReopen": "በወኪሉ በኩል እንደገና ክፈት",
   "unproxiedBlockBack": "ተመለስ",
   "unproxiedBlockProxySettings": "የወኪል ቅንብሮች",
   "proxyTestOk": "ወኪሉ ይሠራል",

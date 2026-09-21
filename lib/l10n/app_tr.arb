@@ -859,7 +859,6 @@
   "unproxiedBlockBody": "{site} bir vekil sunucu kullanacak şekilde ayarlanmış, ancak uygulama bu isteğin onun üzerinden geçeceğini saptayamadı. Yine de gönderilmesi cihazınızın IP adresini karşı tarafa gösterirdi, bu yüzden gönderilmedi.",
   "unproxiedBlockDestination": "Hedef: {host}",
   "unproxiedBlockWhy": "Bir site için ayarlanan vekil sunucu, bir sayfanın açıldığı isteği kapsar. Bu istek sonradan, sayfanın içinden geldi ve burada onun da vekil sunucudan geçeceğini gösterecek bir yol yok.",
-  "unproxiedBlockReopen": "Vekil sunucu üzerinden yeniden aç",
   "unproxiedBlockBack": "Geri dön",
   "unproxiedBlockProxySettings": "Vekil sunucu ayarları",
   "proxyTestOk": "Vekil sunucu çalışıyor",

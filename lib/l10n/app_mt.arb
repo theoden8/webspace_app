@@ -859,7 +859,6 @@
   "unproxiedBlockBody": "{site} huwa mqiegħed biex juża proxy, iżda l-app ma setgħetx tistabbilixxi li din it-talba kienet tgħaddi minnu. Li ssir xorta waħda kienet turi l-indirizz IP tal-apparat tiegħek lin-naħa l-oħra, għalhekk ma saritx.",
   "unproxiedBlockDestination": "Destinazzjoni: {host}",
   "unproxiedBlockWhy": "Proxy imqiegħed għal sit ikopri t-talba li biha tinfetaħ paġna. Din waslet wara, minn ġewwa l-paġna, u hawn m'hemm l-ebda mod kif jintwera li kienet tgħaddi wkoll mill-proxy.",
-  "unproxiedBlockReopen": "Iftaħ mill-ġdid permezz tal-proxy",
   "unproxiedBlockBack": "Lura",
   "unproxiedBlockProxySettings": "Settings tal-proxy",
   "proxyTestOk": "Il-proxy jaħdem",

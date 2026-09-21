@@ -859,7 +859,6 @@
   "unproxiedBlockBody": "Za {site} je postavljen proxy, ali aplikacija nije mogla utvrditi da bi ovaj zahtjev prošao kroz njega. Da ga je ipak poslala, pokazala bi IP adresu vašeg uređaja drugoj strani, pa ga nije poslala.",
   "unproxiedBlockDestination": "Odredište: {host}",
   "unproxiedBlockWhy": "Proxy postavljen za stranicu pokriva zahtjev kojim se stranica otvara. Ovaj je došao poslije, iz same stranice, i ovdje nema načina pokazati da bi i on prošao kroz proxy.",
-  "unproxiedBlockReopen": "Ponovno otvori kroz proxy",
   "unproxiedBlockBack": "Natrag",
   "unproxiedBlockProxySettings": "Postavke proxyja",
   "proxyTestOk": "Proxy radi",

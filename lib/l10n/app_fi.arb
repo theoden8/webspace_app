@@ -859,7 +859,6 @@
   "unproxiedBlockBody": "Sivustolle {site} on asetettu välityspalvelin, mutta sovellus ei voinut todeta, että tämä pyyntö kulkisi sen kautta. Pyynnön tekeminen silti olisi näyttänyt laitteesi IP-osoitteen toiselle osapuolelle, joten sitä ei tehty.",
   "unproxiedBlockDestination": "Kohde: {host}",
   "unproxiedBlockWhy": "Sivustolle asetettu välityspalvelin kattaa pyynnön, jolla sivu avataan. Tämä tuli sen jälkeen, sivun sisältä, eikä täällä ole tapaa osoittaa, että sekin kulkisi välityspalvelimen kautta.",
-  "unproxiedBlockReopen": "Avaa uudelleen välityspalvelimen kautta",
   "unproxiedBlockBack": "Takaisin",
   "unproxiedBlockProxySettings": "Välityspalvelimen asetukset",
   "proxyTestOk": "Välityspalvelin toimii",

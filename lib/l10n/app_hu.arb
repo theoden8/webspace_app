@@ -859,7 +859,6 @@
   "unproxiedBlockBody": "A(z) {site} proxy használatára van beállítva, de az alkalmazás nem tudta megállapítani, hogy ez a kérés azon haladna át. Ha mégis elküldte volna, az megmutatta volna az eszközöd IP-címét a túloldalnak, ezért nem küldte el.",
   "unproxiedBlockDestination": "Cél: {host}",
   "unproxiedBlockWhy": "Egy oldalhoz beállított proxy azt a kérést fedi le, amellyel egy lap megnyílik. Ez a kérés utána érkezett, a lapon belülről, és itt nincs mód kimutatni, hogy az is a proxyn haladna át.",
-  "unproxiedBlockReopen": "Újranyitás a proxyn keresztül",
   "unproxiedBlockBack": "Vissza",
   "unproxiedBlockProxySettings": "Proxybeállítások",
   "proxyTestOk": "A proxy működik",

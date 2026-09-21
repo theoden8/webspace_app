@@ -859,7 +859,6 @@
   "unproxiedBlockBody": "Stránka {site} má nastavené používanie proxy, ale aplikácia nedokázala preukázať, že táto požiadavka cezeň prejde. Keby ju aj tak odoslala, ukázala by druhej strane IP adresu vášho zariadenia, preto ju neodoslala.",
   "unproxiedBlockDestination": "Cieľ: {host}",
   "unproxiedBlockWhy": "Proxy nastavené pre stránku pokrýva požiadavku, ktorou sa stránka otvára. Táto prišla až potom, zvnútra stránky, a tu sa nedá preukázať, že by prešla aj cez proxy.",
-  "unproxiedBlockReopen": "Znova otvoriť cez proxy",
   "unproxiedBlockBack": "Späť",
   "unproxiedBlockProxySettings": "Nastavenia proxy",
   "proxyTestOk": "Proxy funguje",

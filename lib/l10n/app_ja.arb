@@ -859,7 +859,6 @@
   "unproxiedBlockBody": "{site} にはプロキシが設定されていますが、このリクエストがプロキシを通ることをアプリは確かめられませんでした。それでも送信すればお使いの端末のIPアドレスが相手側に伝わるため、送信していません。",
   "unproxiedBlockDestination": "宛先: {host}",
   "unproxiedBlockWhy": "サイトに設定したプロキシは、ページを開くときのリクエストを通します。今回のものはその後に、ページの中から出たもので、これもプロキシを通ると示す手立てはここにはありません。",
-  "unproxiedBlockReopen": "プロキシ経由で開き直す",
   "unproxiedBlockBack": "戻る",
   "unproxiedBlockProxySettings": "プロキシ設定",
   "proxyTestOk": "プロキシは動作しています",

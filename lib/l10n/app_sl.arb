@@ -859,7 +859,6 @@
   "unproxiedBlockBody": "Za {site} je nastavljen posredniški strežnik, vendar aplikacija ni mogla ugotoviti, da bi ta zahteva šla skozenj. Če bi jo vseeno poslala, bi drugi strani pokazala naslov IP vaše naprave, zato je ni poslala.",
   "unproxiedBlockDestination": "Cilj: {host}",
   "unproxiedBlockWhy": "Posredniški strežnik, nastavljen za mesto, pokriva zahtevo, s katero se stran odpre. Ta je prišla pozneje, iz same strani, in tu ni načina, da bi pokazali, da bi tudi ona šla skozi posredniški strežnik.",
-  "unproxiedBlockReopen": "Znova odpri prek posredniškega strežnika",
   "unproxiedBlockBack": "Nazaj",
   "unproxiedBlockProxySettings": "Nastavitve posredniškega strežnika",
   "proxyTestOk": "Posredniški strežnik deluje",

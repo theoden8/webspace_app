@@ -859,7 +859,6 @@
   "unproxiedBlockBody": "{site} er stillt á að nota milliþjón, en forritið gat ekki staðfest að þessi beiðni færi um hann. Að senda hana samt hefði sýnt IP-tölu tækisins þíns hinum enda, svo hún var ekki send.",
   "unproxiedBlockDestination": "Áfangastaður: {host}",
   "unproxiedBlockWhy": "Milliþjónn sem stilltur er fyrir vef nær yfir beiðnina sem síða opnast með. Þessi kom á eftir, innan úr síðunni, og hér er engin leið til að sýna að hún færi líka um milliþjóninn.",
-  "unproxiedBlockReopen": "Opna aftur um milliþjóninn",
   "unproxiedBlockBack": "Til baka",
   "unproxiedBlockProxySettings": "Stillingar milliþjóns",
   "proxyTestOk": "Milliþjónninn virkar",
