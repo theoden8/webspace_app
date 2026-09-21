@@ -1489,9 +1489,15 @@ jobs:
               "$wklog" 2>/dev/null | head -20 || true
             echo "::endgroup::"
           }
-          # Ahead of the timing file: it is the arm that says whether the
-          # component under suspicion is even WebKit, and gap -2 applies to it
-          # like everything else.
+          # First in the tier, because it is the arm whose verdict depends on
+          # having the proxy slot and nothing else here can answer its
+          # question (BUG-014 gap -2).
+          timing_launch first
+
+          # AFTER the timing file, not before it. Both of these take the
+          # proxy slot (attempt 90: a process running nothing but URLSession
+          # both takes it and is later denied it), and with them in front
+          # timing read baseline=DIRECT and every arm in it went void.
           echo "::group::integration_test/proxy_urlsession_test.dart"
           if [ -n "$TIMEOUT" ]; then
             "$TIMEOUT" -k 30s 12m \
@@ -1517,7 +1523,6 @@ jobs:
           fi
           echo "::endgroup::"
 
-          timing_launch first
 
           matrix_launch() {
             echo "::group::integration_test/proxy_matrix_test.dart ($1)"

@@ -1,6 +1,6 @@
 # BUG-014 — A per-site setting the Dart side sends and the native side drops
 
-Status: open (the Apple per-site proxy is NOT answered - attempt 83 withdrew attempt 82; one instance fixed, one class-level gate; the seam has no general guard)
+Status: open (the Apple per-site proxy covers a site's first load only - attempt 90; one instance fixed, one class-level gate; the seam has no general guard)
 
 **Spec:** [ip-leakage](../../openspec/specs/ip-leakage/spec.md) LEAK-003,
 [proxy](../../openspec/specs/proxy/spec.md) PROXY-011,
@@ -4951,18 +4951,133 @@ engine's design choice from outside this repo, and it leaves the open sequence
 where it was.
 
 
+### Attempt 90 -- ANSWERED: the second navigation bypasses the proxy, and it is WebKit's
+
+**2026-09-21**, PR #603 (`4f4c0e2`), run 35601872325, macOS job 106340051228.
+
+**1. `URLSession` proxies every load on a session. The layer under WebKit is
+sound.**
+
+```
+[proxy-urlsession] VERDICT urlsession-sequential proxied=2 of 2
+    requests=[/a:proxied, /a:proxied] connects=1
+    outcomes=[0:http200, 1:http200] configuredAfter=1
+```
+
+Same `ProxyConfiguration` type, same SOCKS5 endpoint, same URL twice, cache
+off. Both requests reached the origin from a port the fixture had dialled.
+`ProxyConfiguration` does not stop applying, and attempt 86's second reading
+-- "WebKit is blameless" -- is excluded.
+
+**`connects=1` is attempt 87's confound, caught in the act.** Two proxied
+requests, one CONNECT, because the second rode the connection the first
+opened. The instrument this file used until today would have read that as
+`1 of 2` and concluded `ProxyConfiguration` is single-use. The fix did not
+sharpen the answer, it reversed it.
+
+**2. A WebView's first load is proxied and its next navigation is not, with a
+live control in the same process.**
+
+`proxy_binding_test`, from the generic loop:
+
+```
+pair=2 of 2 proxied      raw-first=proxied      sameturn-loadurl=proxied
+persist-inpage=DIRECT    persist-loadurl=DIRECT raw-second=DIRECT
+later-pair=0 of 2 proxied  arrived=a+b  refused=failed closed  crossed=false
+```
+
+Everything the earlier arms could not hold down at once is here:
+
+* `pair=2 of 2 proxied` is the positive control. This process could proxy,
+  and it proxied **two** stores at the same time -- attempt 80 again,
+  independently.
+* `raw-first=proxied` then `raw-second=DIRECT`: one `WKWebView`, one store,
+  two loads. The first is proxied, the second is not.
+* Both routes to a second navigation agree: `persist-inpage` (the page's own
+  `location.href`) and `persist-loadurl` (Dart calling `loadUrl` on the bound
+  controller) are both DIRECT.
+* `arrived=a+b` -- the origin received those loads. They were not failures
+  with `allowFailover` off; they were bypasses.
+
+So the rule attempt 82 proposed and attempt 83 withdrew for lack of support is
+back, now with the control and the instrument it never had: **on Apple a
+per-site proxy covers a site's landing page and nothing after it, while the UI
+still reports the site as proxied.** The withdrawal was correct at the time --
+the evidence then could not tell a bypass from a reused connection -- and what
+restores it is a reading taken with a control, not a better argument.
+
+**3. Gap -2 is not "the tier's first app process", and it is not WebKit's.**
+
+The order this run ran in, with what each got:
+
+| time | arm | control |
+|---|---|---|
+| 13:25 | `proxy_urlsession` (URLSession only) | **proxied** |
+| 13:26 | `proxy_persession` (URLSession only) | DIRECT x3, including a freshly minted `ProxyConfiguration` |
+| 13:27 | `proxy_timing` | baseline DIRECT, every arm void |
+| 13:28-13:31 | matrix, shape x2, matrix | DIRECT |
+| 13:52 | `proxy_binding` | **proxied**, `pair=2 of 2` |
+| 13:52-13:56 | connect-https, http-connect, probe, rate, relay, simultaneous | DIRECT |
+
+Two things follow, and both matter more than the ordering rule they replace.
+
+The second process was **pure `URLSession`** -- no `WKWebView`, no data store,
+no container -- and it went direct on three sessions, one of them holding a
+`ProxyConfiguration` no other session had touched. Whatever this is, it is
+below WebKit, and "the object is consumed by its first user" (attempt 88's
+candidate) is dead: a fresh object in a fresh session fared no better.
+
+And the slot **came back**. Twenty-six minutes and a dozen unrelated app
+processes after it was lost, `proxy_binding` proxied again. So it is not one
+slot per tier; it is a resource one process holds and releases late, and the
+first proxy arm to ask after a quiet period gets it.
+
+**What this changes in the tier.** Running the arm that must answer a question
+first is still necessary, but the arms that do not need a control must stop
+sitting in front of it. `proxy_timing` was third here and read nothing;
+`proxy_urlsession` and `proxy_persession` took the slot ahead of it. Timing
+runs first again.
+
+**Why it was partial.** It names the boundary (first load, per WebView) and
+the layer (WebKit, since `URLSession` on the same API does not do it), and it
+does not name the mechanism. `NetworkSessionCocoa` applies the proxy to the
+`NSURLSessionConfiguration` once per session and keeps it, so the second
+navigation is either served by a session wrapper built without it or by a
+context something cleared. Attempt 88 closed the wrapper-paths candidate by
+reading the source; what is left is the live `nw_context` half of
+`setProxyConfigData`, which clears before it adds and de-duplicates contexts
+across wrappers.
+
+
 ## Known open gaps
 
--2. **Any arm that asks about the Apple proxy MUST run first in the macOS tier
-   (attempt 80).** Only the tier's first app process can proxy; every later one
-   reads DIRECT with a dead control. Proven by swap, not correlation: moving
-   the matrix ahead of `proxy_shape` moved the slot with it, and `proxy_shape`
-   -- which had bound in every run it was ever measured in -- went dark. An arm
-   without a positive proxy control in its own process is not evidence, and an
-   arm that is not first is measuring a poisoned process. Most DIRECT readings
-   in this file predate knowing this.
+-2. **One app process at a time can proxy, and the next one waits (attempts 80,
+   90).** The first formulation was "only the tier's first app process"; attempt
+   90 refuted it. `proxy_binding` proxied twenty-six minutes and a dozen
+   unrelated app processes after the slot was lost, so the resource is held and
+   released late rather than spent for the run. It is also not WebKit's: a
+   process running nothing but `URLSession` both takes the slot and, one
+   process later, is denied it while holding a `ProxyConfiguration` nothing
+   else had touched.
 
--1. **OPEN again (attempt 83 withdrew attempt 82's answer).** The observations
+   The operational rule is unchanged and still governs every arm here: an arm
+   without a positive proxy control **in its own process** is not evidence, and
+   the arm that must answer a question has to be the first proxy arm to ask
+   after a quiet period. Most DIRECT readings in this file predate knowing
+   this.
+
+-1. **ANSWERED (attempt 90).** A `WKWebView`'s first load is proxied; its next
+   navigation is not, by either route (`location.href` from the page,
+   `loadUrl` from Dart), and it reaches the origin rather than failing. Read
+   with `pair=2 of 2 proxied` as a live control in the same process and with
+   per-request attribution, so neither a dead process nor a reused connection
+   can account for it. `URLSession` on the same `ProxyConfiguration` API
+   proxies every load, so the defect is WebKit's. The mechanism is not named:
+   the remaining candidate is the live `nw_context` half of
+   `setProxyConfigData`, which clears before it adds and de-duplicates
+   contexts across session wrappers. Original text follows.
+
+   The observations
    stand: with `baseline=own` in one process, pane A's second navigation
    reached its origin with no second CONNECT at the fixture, and later-frame
    WebViews go direct on their first load too, immediately and after a six
