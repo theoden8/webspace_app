@@ -911,8 +911,8 @@ jobs:
       # so they can land as follow-up tests without re-litigating CI.
       - name: Run Linux integration tests
         # 55, not 45: this tier gained a real proxy file when WPE started
-        # binding per-site proxies (proxy_simultaneous no longer skips here),
-        # and one more full app build is what took the loop past the old cap.
+        # binding per-site proxies (proxy_simultaneous runs here), and one
+        # more full app build is what took the loop past the old cap.
         timeout-minutes: 55
         run: |
           set -x

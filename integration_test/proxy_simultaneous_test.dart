@@ -1,30 +1,37 @@
-// Can two data stores carry two *different* proxies at the same time?
+// Two sites, two different proxies, both loaded at once.
 //
-// Every reading on that question so far was taken in a later frame, where a
-// single proxy does not bind either -- so it measured the frame and said
-// nothing about simultaneity. `crossed=false` in particular: two webviews
-// carrying different proxies both went direct, which is exactly what the
-// frame alone produces, so it excluded nothing. The one arrangement that
-// does bind -- a raw plugin webview built in the process's first frame with
-// an `initialUrlRequest` -- has never been given a sibling carrying a
-// different proxy.
+// WPE applies a proxy to a `WebKitNetworkSession` and every container owns
+// one, so this is a property the platform can actually hold: each container
+// keeps its own proxy no matter how many others are up. Before the fork
+// pinned the proxy to the container's session, the plugin fanned a single
+// process-wide override across every session, so the last site activated
+// decided everyone's proxy and a site pinned to Tor could silently ride a
+// neighbour's exit -- or the device IP.
 //
-// Four panes go up in that frame. Three carry three separate SOCKS
-// fixtures; the fourth shares the first fixture, so "two stores, one proxy"
-// (the arrangement `pair=2 of 2 proxied` already showed works) sits beside
-// "two stores, two proxies" in the same run and the same frame.
+// Four panes go up in the process's first frame. Three carry three separate
+// SOCKS fixtures; the fourth shares the first fixture, so "two containers,
+// one proxy" sits beside "two containers, two proxies" in the same run.
+// The sharing pair is at the front on purpose: the first container built is
+// pane 0 on fixture 0 and the last is pane 3 on fixture 2, so a single
+// process-wide proxy reads as "everything landed on fixture 0" (first
+// container kept it) or "everything landed on fixture 2" (last one took
+// it), and the two are distinguishable. With the shared pane last, both
+// would have named fixture 0.
+//
+// A second frame repeats it with two fresh panes, because a container
+// created after the first frame takes a different code path into the
+// session cache than one created with it.
 //
 // Every pane has its own origin, so a recorded CONNECT names the pane that
 // issued it, and every fixture is checked for every pane's origin. A load
-// arriving at a *sibling's* proxy is the signature of one process-wide
-// proxy that the newest store overwrites -- `nw_context_add_proxy` clears
-// the context's proxies before adding, and if that context is shared
-// between stores the last one configured owns the process. One fixture
-// cannot see that, which is why there are three.
+// arriving at a *sibling's* proxy is reported as CROSSED rather than folded
+// into a pass/fail, because one site's traffic leaving through another
+// site's proxy is a worse outcome than no proxy at all and should not read
+// the same in a log.
 //
-// The verdict prints each fixture's raw CONNECT list rather than only a
-// classification. Twice in this investigation the classifier was the thing
-// that was wrong, not the platform.
+// Apple is excluded: it binds to `WKWebsiteDataStore.proxyConfigurations`,
+// which does not hold for more than one store in a process (BUG-014).
+// Tracked separately; this file is the WPE contract.
 
 import 'dart:io';
 
@@ -41,13 +48,7 @@ import 'socks5_fixture.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  // Linux (WPE) binds the proxy to the container's own WebKitNetworkSession,
-  // where proxies are per session, so it is the tier that can actually pass
-  // this. Apple binds to WKWebsiteDataStore.proxyConfigurations, which is
-  // honoured only for the process's first WebView (BUG-014), so it is
-  // expected to fail here until that is fixed upstream. Running both is the
-  // point: one file, two platforms, and the difference is the finding.
-  final applies = hostIsIOS || hostIsMacOS || hostIsLinux;
+  final applies = hostIsLinux;
 
   void log(String m) {
     // ignore: avoid_print
@@ -55,17 +56,8 @@ void main() {
   }
 
   /// Panes in the first frame, and which fixture each one's proxy points at.
-  ///
-  /// Panes 0 and 1 share a fixture on purpose: that is the known-good "two
-  /// stores, one proxy" case (`pair=2 of 2 proxied`) sitting beside the
-  /// unknown one, in the same frame.
-  ///
-  /// The sharing pair is at the front so the result is not ambiguous. The
-  /// first store built is pane 0 on fixture 0 and the last is pane 3 on
-  /// fixture 2, so "everything landed on fixture 0" reads as the first store
-  /// keeping the process and "everything landed on fixture 2" as the last one
-  /// taking it. With the shared pane last, both would have named fixture 0
-  /// and neither could be told from the other.
+  /// Panes 0 and 1 share a fixture so "two containers, one proxy" is covered
+  /// in the same run.
   const fixtureOf = <int>[0, 0, 1, 2];
   const paneCount = 4;
   const fixtureCount = 3;
@@ -161,7 +153,7 @@ void main() {
 
   bool usable() {
     if (!applies) {
-      markTestSkipped('per-WebView proxy binding is an Apple / WPE path');
+      markTestSkipped('per-container proxy binding is a WPE path');
       return false;
     }
     expect(
@@ -171,17 +163,15 @@ void main() {
           'destination is not sent through a proxy, so nothing here could '
           'distinguish a bound proxy from an unbound one',
     );
-    // Not a skip. Every tier this runs on supports the per-site proxy --
-    // Apple past the proxyConfigurations floor, Linux on every WPE build the
-    // fork targets -- so a false here means PlatformInfo was never
-    // initialized rather than an old OS, and skipping on it is
-    // indistinguishable, in the tier's output, from a file that ran.
+    // Not a skip. Every WPE build the fork targets supports the per-site
+    // proxy, so a false here means PlatformInfo was never initialized rather
+    // than an old platform -- and skipping on it is indistinguishable, in
+    // the tier's output, from a file that ran.
     expect(
       PlatformInfo.isProxySupported,
       isTrue,
-      reason: 'proxy support reads as unavailable on a tier that is past the '
-          'iOS 17 / macOS 14 floor or on WPE; PlatformInfo.initialize() was '
-          'most likely not awaited in setUpAll',
+      reason: 'proxy support reads as unavailable on WPE; '
+          'PlatformInfo.initialize() was most likely not awaited in setUpAll',
     );
     return true;
   }
@@ -241,7 +231,7 @@ void main() {
         ),
       );
 
-  testWidgets('the first frame: four stores, three separate proxies',
+  testWidgets('the first frame: four containers, three separate proxies',
       (tester) async {
     if (!usable()) return;
 
@@ -291,20 +281,20 @@ void main() {
     final own = results.where((r) => r.contains('own(')).length;
     log('first frame: $own of $paneCount panes used their own proxy');
 
-    // Positive assertion, and the one the goal turns on. A pane that went
-    // direct here leaked the device IP to its origin while the Dart side
-    // believed it had a proxy; a pane that CROSSED sent its traffic through
-    // a *different site's* proxy, which is worse than either.
+    // A pane that went direct here reached its origin from the device IP
+    // while the Dart side believed it had a proxy; a pane that CROSSED sent
+    // its traffic through a different site's proxy, which is worse than
+    // either.
     expect(
       own,
       paneCount,
-      reason: 'four stores in the first frame, three distinct proxies '
+      reason: 'four containers in the first frame, three distinct proxies '
           'between them: every pane must reach its origin through its own '
           'proxy. Got [${results.join(" ")}]',
     );
   });
 
-  testWidgets('a later frame: two stores, two separate proxies',
+  testWidgets('a later frame: two containers, two separate proxies',
       (tester) async {
     if (!usable()) return;
 
@@ -350,9 +340,14 @@ void main() {
       )}');
     }
     verdict.add('later-frame=[${results.join(" ")}]');
-    // Reported, not asserted: the later frame is the known-broken half and
-    // failing it here would only mask the first-frame reading above, which
-    // is the one the goal turns on.
-    log('later frame: ${results.join(" ")}');
+
+    final own = results.where((r) => r.contains('own(')).length;
+    expect(
+      own,
+      lateFixtureOf.length,
+      reason: 'two containers created after the first frame, two distinct '
+          'proxies between them: each must reach its origin through its own '
+          'proxy. Got [${results.join(" ")}]',
+    );
   });
 }
