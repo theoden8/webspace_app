@@ -859,7 +859,6 @@
   "unproxiedBlockBody": "Tá {site} socraithe chun seachfhreastalaí a úsáid, ach níorbh fhéidir leis an bhfeidhmchlár a dheimhniú go rachadh an t-iarratas seo tríd. Dá ndéanfaí é ar aon nós, thaispeánfadh sé seoladh IP do ghléis don taobh eile, mar sin níor rinneadh é.",
   "unproxiedBlockDestination": "Ceann scríbe: {host}",
   "unproxiedBlockWhy": "Clúdaíonn seachfhreastalaí atá socraithe do shuíomh an t-iarratas a osclaítear leathanach leis. Tháinig an ceann seo ina dhiaidh sin, ó laistigh den leathanach, agus níl aon bhealach anseo chun a thaispeáint go rachadh sé tríd an seachfhreastalaí freisin.",
-  "unproxiedBlockReopen": "Athoscail tríd an seachfhreastalaí",
   "unproxiedBlockBack": "Ar ais",
   "unproxiedBlockProxySettings": "Socruithe an tseachfhreastalaí",
   "proxyTestOk": "Tá an seachfhreastalaí ag obair",

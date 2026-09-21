@@ -859,7 +859,6 @@
   "unproxiedBlockBody": "{site} disetel memakai proksi, tetapi aplikasi tidak dapat memastikan bahwa permintaan ini akan melewatinya. Tetap mengirimnya akan menunjukkan alamat IP perangkat Anda kepada pihak seberang, jadi permintaan itu tidak dikirim.",
   "unproxiedBlockDestination": "Tujuan: {host}",
   "unproxiedBlockWhy": "Proksi yang disetel untuk sebuah situs mencakup permintaan pembuka sebuah halaman. Permintaan ini datang sesudahnya, dari dalam halaman, dan di sini tidak ada cara untuk menunjukkan bahwa ia juga akan melewati proksi.",
-  "unproxiedBlockReopen": "Buka ulang lewat proksi",
   "unproxiedBlockBack": "Kembali",
   "unproxiedBlockProxySettings": "Pengaturan proksi",
   "proxyTestOk": "Proxy berfungsi",

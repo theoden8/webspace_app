@@ -859,7 +859,6 @@
   "unproxiedBlockBody": "{site} má nastaveno použití proxy, ale aplikace nedokázala doložit, že tento požadavek jí projde. Kdyby ho přesto odeslala, ukázala by druhé straně IP adresu vašeho zařízení, a proto ho neodeslala.",
   "unproxiedBlockDestination": "Cíl: {host}",
   "unproxiedBlockWhy": "Proxy nastavená pro web pokrývá požadavek, kterým se stránka otevírá. Tento přišel až potom, zevnitř stránky, a zde není jak doložit, že by prošel také přes proxy.",
-  "unproxiedBlockReopen": "Otevřít znovu přes proxy",
   "unproxiedBlockBack": "Zpět",
   "unproxiedBlockProxySettings": "Nastavení proxy",
   "proxyTestOk": "Proxy funguje",

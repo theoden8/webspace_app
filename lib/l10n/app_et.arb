@@ -859,7 +859,6 @@
   "unproxiedBlockBody": "Saidile {site} on määratud puhverserver, kuid rakendus ei suutnud tuvastada, et see päring sealt läbi läheks. Selle siiski tegemine oleks näidanud sinu seadme IP-aadressi teisele poolele, seega jäi see tegemata.",
   "unproxiedBlockDestination": "Sihtkoht: {host}",
   "unproxiedBlockWhy": "Saidile määratud puhverserver katab päringu, millega leht avatakse. See päring tuli hiljem, lehe seest, ja siin ei saa kuidagi näidata, et ka see läheks puhverserverist läbi.",
-  "unproxiedBlockReopen": "Ava uuesti puhverserveri kaudu",
   "unproxiedBlockBack": "Tagasi",
   "unproxiedBlockProxySettings": "Puhverserveri seaded",
   "proxyTestOk": "Puhverserver töötab",

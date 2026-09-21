@@ -859,7 +859,6 @@
   "unproxiedBlockBody": "{site} er sat til at bruge en proxy, men appen kunne ikke fastslå, at denne anmodning ville gå gennem den. Havde den sendt anmodningen alligevel, ville den have vist din enheds IP-adresse til modparten, så den blev ikke sendt.",
   "unproxiedBlockDestination": "Destination: {host}",
   "unproxiedBlockWhy": "En proxy, der er sat op for et websted, dækker den anmodning, en side åbnes med. Denne kom bagefter, inde fra siden, og her er der ingen måde at vise, at den også ville gå gennem proxyen.",
-  "unproxiedBlockReopen": "Åbn igen gennem proxyen",
   "unproxiedBlockBack": "Tilbage",
   "unproxiedBlockProxySettings": "Proxyindstillinger",
   "proxyTestOk": "Proxyen virker",

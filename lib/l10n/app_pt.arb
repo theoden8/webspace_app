@@ -859,7 +859,6 @@
   "unproxiedBlockBody": "{site} está definido para usar um proxy, mas a aplicação não conseguiu determinar que este pedido passaria por ele. Fazê-lo mesmo assim teria mostrado o endereço IP do seu dispositivo à outra ponta, por isso não foi feito.",
   "unproxiedBlockDestination": "Destino: {host}",
   "unproxiedBlockWhy": "Um proxy definido para um site abrange o pedido com que uma página é aberta. Este veio depois, de dentro da página, e aqui não há forma de demonstrar que também passaria pelo proxy.",
-  "unproxiedBlockReopen": "Reabrir através do proxy",
   "unproxiedBlockBack": "Voltar",
   "unproxiedBlockProxySettings": "Definições do proxy",
   "proxyTestOk": "O proxy funciona",

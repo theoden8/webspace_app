@@ -859,7 +859,6 @@
   "unproxiedBlockBody": "Nakatakda ang {site} na gumamit ng proxy, ngunit hindi matiyak ng app na dadaan doon ang kahilingang ito. Kung ginawa pa rin ito, maipapakita nito ang IP address ng iyong device sa kabilang dulo, kaya hindi ito ginawa.",
   "unproxiedBlockDestination": "Patutunguhan: {host}",
   "unproxiedBlockWhy": "Sakop ng proxy na itinakda para sa isang site ang kahilingang pambukas ng isang pahina. Dumating ito pagkatapos, mula sa loob ng pahina, at walang paraan dito para ipakitang dadaan din ito sa proxy.",
-  "unproxiedBlockReopen": "Buksang muli sa pamamagitan ng proxy",
   "unproxiedBlockBack": "Bumalik",
   "unproxiedBlockProxySettings": "Mga setting ng proxy",
   "proxyTestOk": "Gumagana ang proxy",

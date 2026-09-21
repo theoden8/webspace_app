@@ -859,7 +859,6 @@
   "unproxiedBlockBody": "Witryna {site} ma ustawione proxy, ale aplikacja nie mogła ustalić, że to żądanie przez nie przejdzie. Wysłanie go mimo to pokazałoby drugiej stronie adres IP Twojego urządzenia, więc nie zostało wysłane.",
   "unproxiedBlockDestination": "Cel: {host}",
   "unproxiedBlockWhy": "Proxy ustawione dla witryny obejmuje żądanie, którym otwierana jest strona. To pojawiło się później, z wnętrza strony, i nie ma tu sposobu, by wykazać, że również przeszłoby przez proxy.",
-  "unproxiedBlockReopen": "Otwórz ponownie przez proxy",
   "unproxiedBlockBack": "Wstecz",
   "unproxiedBlockProxySettings": "Ustawienia proxy",
   "proxyTestOk": "Serwer proxy działa",

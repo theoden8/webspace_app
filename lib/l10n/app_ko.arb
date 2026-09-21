@@ -859,7 +859,6 @@
   "unproxiedBlockBody": "{site}에는 프록시가 설정되어 있지만, 이 요청이 프록시를 거친다는 것을 앱이 확인할 수 없었습니다. 그래도 보냈다면 기기의 IP 주소가 상대편에 드러났을 것이므로 보내지 않았습니다.",
   "unproxiedBlockDestination": "대상: {host}",
   "unproxiedBlockWhy": "사이트에 설정한 프록시는 페이지를 여는 요청을 거칩니다. 이 요청은 그 뒤에 페이지 안에서 나온 것이며, 이것도 프록시를 거친다고 보일 방법이 여기에는 없습니다.",
-  "unproxiedBlockReopen": "프록시를 거쳐 다시 열기",
   "unproxiedBlockBack": "뒤로 가기",
   "unproxiedBlockProxySettings": "프록시 설정",
   "proxyTestOk": "프록시가 작동합니다",

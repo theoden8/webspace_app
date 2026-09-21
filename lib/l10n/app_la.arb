@@ -859,7 +859,6 @@
   "unproxiedBlockBody": "{site} procuratore uti constitutus est, sed applicatio confirmare non potuit hanc petitionem per eum transituram esse. Si nihilominus missa esset, inscriptionem IP instrumenti tui alteri parti ostendisset, ideo missa non est.",
   "unproxiedBlockDestination": "Destinatio: {host}",
   "unproxiedBlockWhy": "Procurator situi constitutus petitionem qua pagina aperitur tegit. Haec postea venit, ex ipsa pagina, neque hic ulla ratio est ostendendi eam quoque per procuratorem transituram esse.",
-  "unproxiedBlockReopen": "Per procuratorem iterum aperire",
   "unproxiedBlockBack": "Redire",
   "unproxiedBlockProxySettings": "Optiones procuratoris",
   "proxyTestOk": "Procurator operatur",

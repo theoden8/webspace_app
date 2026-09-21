@@ -859,7 +859,6 @@
   "unproxiedBlockBody": "{site} está configurado para usar un proxy, pero a aplicación non puido establecer que esta petición pasaría por el. Facela igualmente amosaría o enderezo IP do teu dispositivo ao outro extremo, así que non se fixo.",
   "unproxiedBlockDestination": "Destino: {host}",
   "unproxiedBlockWhy": "Un proxy configurado para un sitio cobre a petición coa que se abre unha páxina. Esta chegou despois, desde dentro da páxina, e aquí non hai maneira de demostrar que tamén pasaría polo proxy.",
-  "unproxiedBlockReopen": "Abrir de novo a través do proxy",
   "unproxiedBlockBack": "Volver",
   "unproxiedBlockProxySettings": "Configuración do proxy",
   "proxyTestOk": "O proxy funciona",

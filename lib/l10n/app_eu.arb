@@ -859,7 +859,6 @@
   "unproxiedBlockBody": "{site} proxy bat erabiltzeko ezarrita dago, baina aplikazioak ezin izan du egiaztatu eskaera hau handik igaroko zenik. Hala ere egiteak zure gailuaren IP helbidea erakutsiko zion beste muturrari, eta, beraz, ez da egin.",
   "unproxiedBlockDestination": "Helmuga: {host}",
   "unproxiedBlockWhy": "Gune baterako ezarritako proxy batek orri bat irekitzen den eskaera estaltzen du. Hau geroago etorri da, orriaren barrutik, eta hemen ez dago modurik erakusteko hori ere proxytik igaroko zenik.",
-  "unproxiedBlockReopen": "Ireki berriro proxyaren bidez",
   "unproxiedBlockBack": "Itzuli",
   "unproxiedBlockProxySettings": "Proxyaren ezarpenak",
   "proxyTestOk": "Proxyak funtzionatzen du",

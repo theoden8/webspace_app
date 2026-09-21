@@ -859,7 +859,6 @@
   "unproxiedBlockBody": "{site} este setat să folosească un proxy, dar aplicația nu a putut stabili că această cerere ar trece prin el. Trimiterea ei oricum ar fi arătat adresa IP a dispozitivului tău celuilalt capăt, așa că nu a fost trimisă.",
   "unproxiedBlockDestination": "Destinație: {host}",
   "unproxiedBlockWhy": "Un proxy setat pentru un site acoperă cererea cu care se deschide o pagină. Aceasta a venit după aceea, din interiorul paginii, iar aici nu există nicio modalitate de a arăta că ar trece și ea prin proxy.",
-  "unproxiedBlockReopen": "Redeschide prin proxy",
   "unproxiedBlockBack": "Înapoi",
   "unproxiedBlockProxySettings": "Setările proxyului",
   "proxyTestOk": "Proxy-ul funcționează",

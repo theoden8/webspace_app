@@ -859,7 +859,6 @@
   "unproxiedBlockBody": "{site} imewekwa kutumia seva mbadala, lakini programu haikuweza kuthibitisha kwamba ombi hili lingepita humo. Kulituma hata hivyo kungeonyesha anwani ya IP ya kifaa chako kwa upande wa pili, hivyo halikutumwa.",
   "unproxiedBlockDestination": "Lengwa: {host}",
   "unproxiedBlockWhy": "Seva mbadala iliyowekwa kwa tovuti hufunika ombi linalofungua ukurasa. Hili lilikuja baadaye, kutoka ndani ya ukurasa, na hapa hakuna njia ya kuonyesha kwamba nalo lingepita kwenye seva mbadala.",
-  "unproxiedBlockReopen": "Fungua upya kupitia seva mbadala",
   "unproxiedBlockBack": "Rudi nyuma",
   "unproxiedBlockProxySettings": "Mipangilio ya seva mbadala",
   "proxyTestOk": "Proksi inafanya kazi",

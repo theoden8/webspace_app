@@ -859,7 +859,6 @@
   "unproxiedBlockBody": "Svetainei {site} nustatyta naudoti tarpinį serverį, tačiau programa negalėjo nustatyti, kad ši užklausa eis per jį. Vis tiek ją išsiuntus, kitai pusei būtų parodytas jūsų įrenginio IP adresas, todėl ji nebuvo išsiųsta.",
   "unproxiedBlockDestination": "Paskirties vieta: {host}",
   "unproxiedBlockWhy": "Svetainei nustatytas tarpinis serveris apima užklausą, kuria atveriamas puslapis. Ši atsirado vėliau, iš paties puslapio, ir čia nėra kaip parodyti, kad ir ji eitų per tarpinį serverį.",
-  "unproxiedBlockReopen": "Atverti iš naujo per tarpinį serverį",
   "unproxiedBlockBack": "Atgal",
   "unproxiedBlockProxySettings": "Tarpinio serverio nustatymai",
   "proxyTestOk": "Įgaliotasis serveris veikia",

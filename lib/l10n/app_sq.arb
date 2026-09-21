@@ -859,7 +859,6 @@
   "unproxiedBlockBody": "{site} është vendosur të përdorë një ndërmjetës, por aplikacioni nuk mundi të vërtetonte se kjo kërkesë do të kalonte përmes tij. Nëse do të bëhej gjithsesi, do t'i tregonte adresën IP të pajisjes suaj anës tjetër, prandaj nuk u bë.",
   "unproxiedBlockDestination": "Destinacioni: {host}",
   "unproxiedBlockWhy": "Një ndërmjetës i vendosur për një faqe mbulon kërkesën me të cilën hapet një faqe. Kjo erdhi më pas, nga brenda faqes, dhe këtu nuk ka mënyrë të tregohet se edhe ajo do të kalonte përmes ndërmjetësit.",
-  "unproxiedBlockReopen": "Rihap përmes ndërmjetësit",
   "unproxiedBlockBack": "Kthehu",
   "unproxiedBlockProxySettings": "Cilësimet e ndërmjetësit",
   "proxyTestOk": "Proxy-i funksionon",

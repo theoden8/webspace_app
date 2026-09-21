@@ -859,7 +859,6 @@
   "unproxiedBlockBody": "Mae {site} wedi'i osod i ddefnyddio dirprwy, ond ni allai'r ap sefydlu y byddai'r cais hwn yn mynd drwyddo. Byddai gwneud y cais beth bynnag wedi dangos cyfeiriad IP eich dyfais i'r pen arall, felly ni chafodd ei wneud.",
   "unproxiedBlockDestination": "Cyrchfan: {host}",
   "unproxiedBlockWhy": "Mae dirprwy a osodwyd ar gyfer gwefan yn cwmpasu'r cais y mae tudalen yn agor ag ef. Daeth hwn wedyn, o'r tu mewn i'r dudalen, ac nid oes modd yma ddangos y byddai yntau'n mynd drwy'r dirprwy.",
-  "unproxiedBlockReopen": "Ailagor drwy'r dirprwy",
   "unproxiedBlockBack": "Yn ôl",
   "unproxiedBlockProxySettings": "Gosodiadau'r dirprwy",
   "proxyTestOk": "Mae'r dirprwy'n gweithio",

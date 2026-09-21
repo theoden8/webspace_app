@@ -859,7 +859,6 @@
   "unproxiedBlockBody": "{site} 已設定使用代理伺服器，但應用程式無法確認這個請求會經過它。即使照樣送出，也會把你裝置的 IP 位址透露給另一端，因此並未送出。",
   "unproxiedBlockDestination": "目的地：{host}",
   "unproxiedBlockWhy": "為網站設定的代理伺服器涵蓋頁面開啟時的那個請求。這一個是之後才出現的，來自頁面內部，而在這裡無法證明它也會經過代理伺服器。",
-  "unproxiedBlockReopen": "透過代理伺服器重新開啟",
   "unproxiedBlockBack": "返回",
   "unproxiedBlockProxySettings": "代理伺服器設定",
   "proxyTestOk": "代理伺服器可正常運作",
