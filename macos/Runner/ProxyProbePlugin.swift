@@ -64,6 +64,10 @@ class ProxyProbePlugin: NSObject {
       handleURLSessionSequential(call, result: result)
       return
     }
+    if call.method == "urlSessionPerSession" {
+      handleURLSessionPerSession(call, result: result)
+      return
+    }
     guard call.method == "probe" else {
       result(FlutterMethodNotImplemented)
       return
@@ -222,6 +226,111 @@ class ProxyProbePlugin: NSObject {
       ])
       session.invalidateAndCancel()
     }
+  }
+
+  /// One load each on three `URLSession`s: the first two share a single
+  /// `ProxyConfiguration` instance, the third mints its own for the same
+  /// endpoint.
+  ///
+  /// `NetworkSessionCocoa::applyProxyConfigurationToSessionConfiguration`
+  /// puts the SAME `nw_proxy_config_t` instances from `m_nwProxyConfigs` into
+  /// every session configuration it touches, so "the object is consumed by
+  /// its first user" is a shape the source permits. Sessions 1 and 2 test
+  /// exactly that; session 3 is the control that separates a consumed object
+  /// from something process-wide, and all three run where the code can be
+  /// traced.
+  ///
+  /// | reading | meaning |
+  /// |---|---|
+  /// | 1 proxied, 2 direct, 3 proxied | the config object is single-use |
+  /// | 1 proxied, 2 and 3 direct | one proxied session per process |
+  /// | all three proxied | the layer under WebKit is sound for this too |
+  private func handleURLSessionPerSession(_ call: FlutterMethodCall,
+                                          result: @escaping FlutterResult) {
+    guard let args = call.arguments as? [String: Any],
+          let socksHost = args["socksHost"] as? String,
+          let socksPort = args["socksPort"] as? Int,
+          let urlString = args["url"] as? String,
+          let url = URL(string: urlString) else {
+      result(["ok": false, "detail": "bad arguments"])
+      return
+    }
+    guard #available(macOS 14.0, *) else {
+      result(["ok": false, "detail": "below the proxyConfigurations floor"])
+      return
+    }
+    guard let endpoint = socksEndpoint(host: socksHost, port: socksPort) else {
+      result(["ok": false, "detail": "bad socks endpoint"])
+      return
+    }
+
+    let shared = ProxyConfiguration(socksv5Proxy: endpoint)
+    let arms: [(String, ProxyConfiguration)] = [
+      ("s1-shared-object", shared),
+      ("s2-shared-object", shared),
+      ("s3-fresh-object", ProxyConfiguration(socksv5Proxy: endpoint)),
+    ]
+    var sessions: [URLSession] = []
+    for (label, proxy) in arms {
+      let configuration = URLSessionConfiguration.ephemeral
+      configuration.proxyConfigurations = [proxy]
+      configuration.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+      configuration.urlCache = nil
+      sessions.append(URLSession(configuration: configuration))
+      NSLog("[proxy-probe] persession \(label) proxies=\(configuration.proxyConfigurations.count)")
+    }
+
+    runOnEach(sessions: sessions,
+              labels: arms.map { $0.0 },
+              url: url,
+              index: 0,
+              outcomes: []) { outcomes in
+      NSLog("[proxy-probe] persession done outcomes=\(outcomes.joined(separator: " "))")
+      result([
+        "ok": true,
+        "labels": arms.map { $0.0 },
+        "outcomes": outcomes,
+      ])
+      for session in sessions {
+        session.invalidateAndCancel()
+      }
+    }
+  }
+
+  private func runOnEach(sessions: [URLSession],
+                         labels: [String],
+                         url: URL,
+                         index: Int,
+                         outcomes: [String],
+                         done: @escaping ([String]) -> Void) {
+    if index >= sessions.count {
+      done(outcomes)
+      return
+    }
+    let started = Date()
+    NSLog("[proxy-probe] persession load \(labels[index]) -> \(url.absoluteString)")
+    let task = sessions[index].dataTask(with: url) { [weak self] _, response, error in
+      var outcome = "none"
+      if let http = response as? HTTPURLResponse {
+        outcome = "http\(http.statusCode)"
+      } else if let error = error {
+        outcome = "error\((error as NSError).code)"
+      }
+      let ms = Int(Date().timeIntervalSince(started) * 1000)
+      NSLog("[proxy-probe] persession load \(labels[index]) settled \(outcome) in \(ms)ms")
+      let next = outcomes + ["\(labels[index]):\(outcome)"]
+      guard let self = self else {
+        done(next)
+        return
+      }
+      self.runOnEach(sessions: sessions,
+                     labels: labels,
+                     url: url,
+                     index: index + 1,
+                     outcomes: next,
+                     done: done)
+    }
+    task.resume()
   }
 
   private func runSequential(session: URLSession,

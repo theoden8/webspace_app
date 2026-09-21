@@ -4838,6 +4838,70 @@ stops a future arm there from repeating an origin and inheriting the same
 blind spot.
 
 
+### Attempt 88 -- WITHDRAWN: attempt 84's "three wrapper paths skip the proxy" is not in the source
+
+**2026-09-21**, PR #603, source reading only.
+
+**What attempt 84 claimed.** That only the default `sessionWithCredentialStorage`
+is built through `configurationForSessionID()` and gets
+`applyProxyConfigurationToSessionConfiguration()`, and that
+`initializeEphemeralStatelessSessionIfNeeded`, `isolatedSession` and
+`appBoundSession` copy a configuration instead, so a load served by any of them
+goes direct while the store still reports its `proxyConfigurations`.
+
+**What `NetworkSessionCocoa.mm` actually does.** All three call
+`SessionWrapper::initialize`, and `initialize` applies the modern proxy list
+itself, before the `NSURLSession` is built:
+
+```
+void SessionWrapper::initialize(NSURLSessionConfiguration *configuration, NetworkSessionCocoa& networkSession, ...)
+{
+    ...
+#if HAVE(NW_PROXY_CONFIG)
+    networkSession.applyProxyConfigurationToSessionConfiguration(configuration);
+#endif
+    delegate = adoptNS([[WKNetworkSessionDelegate alloc] initWithNetworkSession:networkSession wrapper:*this ...]);
+    session = [NSURLSession sessionWithConfiguration:configuration delegate:delegate.get() ...];
+}
+```
+
+`isolatedSession` passes a copy of the default wrapper's configuration to it,
+`appBoundSession` the same, and the ephemeral-stateless path builds a fresh
+`ephemeralSessionConfiguration`, copies `connectionProxyDictionary` off the
+existing one and then hands it to the same `initialize`. The
+`connectionProxyDictionary` copy that attempt 84 read as "only the legacy
+dictionary" is carrying the *legacy* setting across; the modern list arrives a
+few lines later through `initialize`. There is no wrapper path in this file
+that reaches `[NSURLSession sessionWithConfiguration:]` without
+`applyProxyConfigurationToSessionConfiguration` having run on that
+configuration.
+
+**Why it matters.** Attempt 84 already declined to attribute this file's
+sequence to that gap, so no conclusion rests on it. But it was recorded as a
+real upstream defect worth reporting, and it is not one. Reporting it would
+have been wrong, and leaving it here would have sent the next reader down a
+path the source closes.
+
+**What the source does say about wrapper choice.** `sessionWrapperForTask`
+routes on `shouldBlockThirdPartyCookiesButKeepFirstPartyCookiesFor(
+RegistrableDomain(request.firstPartyForCookies()))`, then on app-bound status,
+then on `storedCredentialsPolicy` -- none of them order-dependent, and every
+destination in these tests shares one registrable domain. Wrapper choice still
+cannot explain a second load going direct, and now there is no wrapper that
+would go direct if it were chosen.
+
+**One detail worth keeping.** `applyProxyConfigurationToSessionConfiguration`
+puts the *same* `nw_proxy_config_t` instances from `m_nwProxyConfigs` into
+every session configuration it touches, and `setProxyConfigData` adds those
+same instances to each live `nw_context_t`. Instance sharing across sessions is
+real, so "the object is consumed by its first user" is a candidate the source
+permits. It does not fit the evidence on its own -- attempt 80's four stores
+each held a distinct object and all four worked, and a later-frame store gets
+its own object and still goes direct -- so it is a candidate, not a finding.
+
+**Why it was partial.** It removes a wrong claim and adds no mechanism.
+
+
 ## Known open gaps
 
 -2. **Any arm that asks about the Apple proxy MUST run first in the macOS tier

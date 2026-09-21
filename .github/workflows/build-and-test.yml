@@ -1503,6 +1503,20 @@ jobs:
           fi
           echo "::endgroup::"
 
+          # Same process, one more question the WKWebView arms cannot ask:
+          # whether a second URLSession can use a proxy config object the
+          # first one already used, and whether a fresh object fares better.
+          echo "::group::integration_test/proxy_persession_test.dart"
+          if [ -n "$TIMEOUT" ]; then
+            "$TIMEOUT" -k 30s 12m \
+              fvm flutter test integration_test/proxy_persession_test.dart -d macos --ci 2>&1 \
+              | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_persession.log" || true
+          else
+            fvm flutter test integration_test/proxy_persession_test.dart -d macos --ci 2>&1 \
+              | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_persession.log" || true
+          fi
+          echo "::endgroup::"
+
           timing_launch first
 
           matrix_launch() {
@@ -1625,6 +1639,7 @@ jobs:
             [ "$(basename "$t")" = "proxy_timing_test.dart" ] && continue
             # Ran first above, for the same reason.
             [ "$(basename "$t")" = "proxy_urlsession_test.dart" ] && continue
+            [ "$(basename "$t")" = "proxy_persession_test.dart" ] && continue
             echo "::group::$t"
             rc=0
             # Kept per file so a failure can be re-printed at the end. Each

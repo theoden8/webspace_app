@@ -437,6 +437,7 @@ test('an arm that reloads one origin attributes requests, not connections', () =
   const arms = [
     'integration_test/proxy_timing_test.dart',
     'integration_test/proxy_urlsession_test.dart',
+    'integration_test/proxy_persession_test.dart',
   ];
   for (const rel of arms) {
     const body = fs.readFileSync(path.join(repoRoot, rel), 'utf8');
