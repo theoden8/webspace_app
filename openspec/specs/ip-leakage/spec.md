@@ -217,6 +217,151 @@ tunnel
 
 ---
 
+### Requirement: LEAK-010 - An unprovable navigation is cancelled and said so
+
+A site whose effective proxy is not `DEFAULT` SHALL NOT issue a main-frame
+request the app cannot establish is proxied. Where coverage cannot be
+established the navigation SHALL be cancelled before any byte leaves the
+device, and the cancellation SHALL be made legible rather than left as a page
+that silently did not load.
+
+Coverage is decided by a pure engine
+([`ProxyCoverageEngine`](../../../lib/services/proxy_coverage_engine.dart))
+over the named binding of PROXY-027, never by a platform test at the call
+site. Under `ProxyBinding.processWide` the rule sits outside the WebView and
+catches every request it makes, so coverage is established for every
+navigation. Under `ProxyBinding.perSite` the proxy is written onto
+`WKWebsiteDataStore.proxyConfigurations` when the view is constructed, and
+BUG-014 attempts 90 and 91 measured against a live control that it covers the
+navigation that mounted the view and nothing after it — for SOCKS5 and for
+HTTP CONNECT alike, so a loopback relay does not escape it. Linux is not a
+case here: it carries the proxy on a `WebKitNetworkSession` the container
+owns, which the whole session's traffic goes through, and PROXY-027 already
+calls that binding process-wide.
+
+The mount slot SHALL be tracked per mounted platform view, not per widget: a
+remount builds a fresh network store and so gets a fresh mounting navigation.
+It SHALL be spent on the first navigation the gate is asked about, whether or
+not that navigation is the mounting one, so a platform that does not report
+the mounting navigation through this seam cannot hand the slot to whatever
+the page navigated to first.
+
+The interstitial SHALL name the site, state that the navigation was blocked
+to avoid revealing the device IP, and name the destination it did not
+request. It SHALL offer exactly three actions: go back, reopen the
+destination through the proxy, and open this site's proxy settings. It SHALL
+NOT offer any way to make the request unproxied, and no setting, gesture or
+menu elsewhere may provide one. "Reopen through the proxy" rebuilds the
+WebView on the destination, which makes that request the mounting navigation
+and so a covered one; it is not an exemption, and a destination that still
+cannot be covered is refused again.
+
+Copy SHALL NOT describe the proxy as having failed or the site as
+unreachable. Nothing was attempted: what the app could not do is establish
+that the request would be proxied, and so it did not make it. The gate is
+enforced by `test/unproxied_block_test.dart`.
+
+Every surface that advertises proxied status SHALL distinguish "a proxy is
+configured" from "this request went through it". The per-site proxy row
+carries the platform's coverage in its subtitle and the explanation behind
+its `HintButton`, per
+[settings-hints](../settings-hints/spec.md). No other surface in the app
+claims proxied status today; one added later inherits this requirement.
+
+Each block SHALL write one `LogService` entry under the `Proxy` tag at
+`LogSensitivity.sensitive`, the level proxy events already use, so it is
+visible in Developer Tools and never written to disk or to a shared export.
+
+Known gaps, tracked rather than hidden: the gate covers main-frame
+navigations, which are what an interstitial can stand in for. Sub-resource
+and subframe requests issued by an already-loaded page, and the captcha popup
+of CAPTCHA-010, are not gated by it; the popup mounts its own view, so its own
+first navigation is covered, and its later ones are not.
+
+A server redirect out of the mounting navigation is treated as post-mount and
+so as unprovable, which is the conservative reading and the costly one: a
+proxied site that redirects its landing page shows the interstitial on first
+open, and reopening through the proxy lands on the redirect target. Whether
+the platform's store carries the proxy across a redirect hop is a measurement
+BUG-014 has not made. It belongs to the coverage decision, not to this UI:
+when it is made, `isMountNavigation` is the one input that changes.
+
+#### Scenario: A navigation that cannot be shown to be proxied is cancelled
+
+**Given** site "Acme" has proxy `SOCKS5 127.0.0.1:1080`
+**And** the platform's binding is per store
+**And** Acme's webview has already made its mounting navigation
+**When** the page navigates to `https://tracker.example.org/`
+**Then** the navigation is cancelled
+**And** `tracker.example.org` receives no connection, no TLS handshake and
+no DNS lookup from the device
+**And** the interstitial is rendered over the page, naming "Acme" and
+`tracker.example.org`
+**And** one `Proxy` log entry records the block
+
+#### Scenario: The interstitial offers no way to proceed unproxied
+
+**Given** the interstitial is on screen for a blocked destination
+**Then** it offers going back, reopening through the proxy, and this site's
+proxy settings
+**And** it offers nothing else
+**And** dismissing it returns to the page the user was already on, which
+never navigated
+
+#### Scenario: Reopening through the proxy is a covered request
+
+**Given** the interstitial is on screen for `https://tracker.example.org/`
+**When** the user reopens it through the proxy
+**Then** the webview is rebuilt with that destination as its initial URL
+**And** the request is the mounting navigation, which the store's proxy
+covers
+**And** the request goes to `tracker.example.org` through the proxy
+
+#### Scenario: A nested webview blocks identically
+
+**Given** a cross-domain link on "Acme" opened a nested `InAppWebViewScreen`
+**And** that screen has made its mounting navigation
+**When** the nested page navigates onwards
+**Then** the nested screen cancels it and renders the same interstitial
+**And** its proxy-settings action opens the parent site's proxy settings
+
+#### Scenario: Routing to a nested webview is not itself a block
+
+**Given** site "Acme" has a non-DEFAULT proxy
+**When** a cross-domain link is followed and the routing decision hands it to
+a nested webview
+**Then** no interstitial is shown
+**And** the nested webview mounts on that destination, which its own proxy
+binding covers
+
+#### Scenario: A site on DEFAULT is unaffected
+
+**Given** site "Acme" has proxy `DEFAULT`
+**And** no app-global outbound proxy is set
+**When** the page navigates anywhere
+**Then** coverage is `notClaimed`
+**And** nothing is blocked and no interstitial is shown
+
+#### Scenario: A process-wide rule blocks nothing
+
+**Given** site "Acme" has proxy `SOCKS5 127.0.0.1:1080`
+**And** the platform's binding is process-wide
+**When** the page navigates anywhere, before or after the mounting
+navigation
+**Then** coverage is `established`
+**And** the navigation proceeds through the proxy
+
+#### Scenario: The proxy row does not claim more than the platform gives
+
+**Given** site "Acme" has a non-DEFAULT proxy
+**When** the user opens its proxy row in site settings
+**Then** the subtitle says whether the proxy covers every request or only the
+one each page is opened with
+**And** the explanation of what that means is behind the row's hint button,
+not in the subtitle
+
+---
+
 ### Requirement: LEAK-004 - Global outbound proxy persistence
 
 The app-global outbound proxy SHALL be persisted under the SharedPreferences

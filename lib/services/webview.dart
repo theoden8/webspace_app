@@ -19,6 +19,7 @@ import 'package:webspace/services/launch_nonce.dart';
 import 'package:webspace/services/letterbox.dart';
 import 'package:webspace/services/page_zoom_shim.dart';
 import 'package:webspace/services/proxy_binding_engine.dart';
+import 'package:webspace/services/proxy_coverage_engine.dart';
 import 'package:webspace/services/proxy_relay.dart';
 import 'package:webspace/services/proxy_router_engine.dart';
 import 'package:webspace/services/proxy_router_service.dart';
@@ -776,6 +777,11 @@ class WebViewConfig {
   final String? cookieSiteId;
   final Function(int activeMatch, int totalMatches)? onFindResult;
   final Function(String url, bool hasGesture)? shouldOverrideUrlLoading;
+  /// Fires when a main-frame navigation was cancelled because the app could
+  /// not establish that it would go through this site's proxy (LEAK-010).
+  /// Carries the destination that was not requested, so the host can render
+  /// the interstitial that says so.
+  final void Function(String url)? onUnproxiedNavigationBlocked;
   /// Fires when the page enters or exits a loading state. Driven by
   /// `onLoadStart` (true) and `onLoadStop` (false). The call site can
   /// use this to swap a Refresh button with a Stop button while a
@@ -1056,6 +1062,7 @@ class WebViewConfig {
     this.cookieSiteId,
     this.onFindResult,
     this.shouldOverrideUrlLoading,
+    this.onUnproxiedNavigationBlocked,
     this.onWindowRequested,
     this.onHtmlLoaded,
     this.shouldFetchHtml,
@@ -2006,6 +2013,7 @@ class WebViewFactory {
     String? containerId,
     inapp.ProxySettings? proxy,
     bool proxyUnavailable,
+    bool proxyConfigured,
   }) _bindingFor(WebViewConfig config) {
     // Container API binding. Stock flutter_inappwebview's `prepare()`
     // does session-bound ops (addJavascriptInterface,
@@ -2070,9 +2078,13 @@ class WebViewFactory {
     // without one has no session to pin -- so that half stays a test here.
     final bindsProxyPerSite = ProxyManager.binding == ProxyBinding.perSite ||
         (hostIsLinux && containerId != null);
-    final effectiveProxy = bindsProxyPerSite && config.proxySettings != null
-        ? resolveEffectiveProxy(config.proxySettings!, siteId: config.siteId)
-        : null;
+    // What this site claims, resolved once: a per-site DEFAULT falls through
+    // to the app-global outbound proxy, so a site the user has not customized
+    // still inherits a global Tor / corporate proxy (PROXY-011).
+    final claimedProxy = config.proxySettings == null
+        ? null
+        : resolveEffectiveProxy(config.proxySettings!, siteId: config.siteId);
+    final effectiveProxy = bindsProxyPerSite ? claimedProxy : null;
     final inappProxy = effectiveProxy != null && PlatformInfo.isProxySupported
         ? userProxyToInappProxy(effectiveProxy)
         : null;
@@ -2089,6 +2101,8 @@ class WebViewFactory {
       containerId: containerId,
       proxy: inappProxy,
       proxyUnavailable: proxyUnavailable,
+      proxyConfigured:
+          claimedProxy != null && claimedProxy.type != ProxyType.DEFAULT,
     );
   }
 
@@ -3841,6 +3855,18 @@ class WebViewFactory {
     // that this branch has been chasing.
     var navigationGen = 0;
 
+    // One gate per mounted WebView, because the mounting navigation it tracks
+    // is a property of the platform view and not of the site (LEAK-010).
+    // Rebuilt in `onWebViewCreated` rather than only here: a remount that
+    // reuses this Widget (the renderer-gone `KeyedSubtree` bump) builds a
+    // fresh WKWebView, which gets a fresh mounting navigation, and a gate
+    // still holding the old view's spent slot would refuse it.
+    var coverageGate = ProxyCoverageGate(
+      binding: ProxyManager.binding,
+      proxyConfigured: binding.proxyConfigured,
+      mountUrl: config.initialUrl,
+    );
+
     // iOS Universal Link bypass state (per-WebView). Tracks URLs we
     // just cancelled-and-reissued so the second-pass shouldOverrideUrlLoading
     // call (the reissued programmatic load landing here again) doesn't
@@ -4150,6 +4176,11 @@ class WebViewFactory {
         return inapp.JsAlertResponse(handledByClient: true);
       },
       onWebViewCreated: (controller) async {
+        coverageGate = ProxyCoverageGate(
+          binding: ProxyManager.binding,
+          proxyConfigured: binding.proxyConfigured,
+          mountUrl: config.initialUrl,
+        );
         final wrappedController =
             _WebViewController(controller, pauseHack: pauseHack);
         onControllerCreated(wrappedController);
@@ -4387,6 +4418,26 @@ class WebViewFactory {
           final hasGesture = _hasUserGesture(navigationAction);
           final allow = config.shouldOverrideUrlLoading!(url, hasGesture);
           if (!allow) return inapp.NavigationActionPolicy.CANCEL;
+        }
+        // Fail closed where the platform cannot be shown to put this request
+        // through the site's proxy (LEAK-010). Below the routing decision
+        // above, because a navigation that decision hands to a nested webview
+        // or the system browser is not a request this webview makes: the
+        // nested one mounts on it, and a mounting navigation is the one the
+        // store's proxy does cover. The rewrites above reach here on their
+        // reissued pass, so a cleaned URL is judged on its own merits rather
+        // than riding the original's decision.
+        if (url.startsWith('http') &&
+            coverageGate.evaluate(url) == ProxyCoverage.unprovable) {
+          LogService.instance.log(
+            'Proxy',
+            'Navigation blocked: proxy coverage not established for $url '
+                '(siteId=${config.siteId})',
+            level: LogLevel.warning,
+            sensitivity: LogSensitivity.sensitive,
+          );
+          config.onUnproxiedNavigationBlocked?.call(url);
+          return inapp.NavigationActionPolicy.CANCEL;
         }
         // HTTPS upgrade, decided AFTER the routing decision above for the same
         // reason the captcha allow is (HTTPS-004): taken first, a scheme

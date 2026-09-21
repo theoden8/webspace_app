@@ -18,6 +18,7 @@ import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/user_agent_identity.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/proxy_form_engine.dart';
 import 'package:webspace/services/proxy_test_service.dart';
 import 'package:webspace/services/notification_service.dart';
@@ -1472,7 +1473,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             ListTile(
-              title: Text(loc.siteSettingsProxyType),
+              title: Row(
+                children: [
+                  Flexible(child: Text(loc.siteSettingsProxyType)),
+                  HintButton(
+                    title: loc.siteSettingsProxyType,
+                    description: loc.siteSettingsProxyCoverageHint,
+                  ),
+                ],
+              ),
+              // What a configured proxy actually covers here, which is not
+              // the same claim as "a proxy is configured" (LEAK-010). Absent
+              // on DEFAULT, where the row claims nothing.
+              subtitle: _proxySettings.type == ProxyType.DEFAULT
+                  ? null
+                  : Text(ProxyManager.binding == ProxyBinding.perSite
+                      ? loc.siteSettingsProxyCoverageFirstOnly
+                      : loc.siteSettingsProxyCoverageAll),
               trailing: DropdownButton<ProxyType>(
                 value: _proxySettings.type,
                 onChanged: (ProxyType? newValue) {

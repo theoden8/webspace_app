@@ -22,6 +22,7 @@ import 'package:webspace/widgets/hint_button.dart';
 import 'package:webspace/widgets/proxy_auth_section.dart';
 import 'package:webspace/widgets/proxy_test_tile.dart';
 import 'package:webspace/widgets/tab_bar_corner_button.dart';
+import 'package:webspace/widgets/unproxied_block.dart';
 import 'package:webspace/widgets/url_bar.dart';
 
 /// Narrow is a small phone in portrait; wide is a tablet pane. Both are real
@@ -68,6 +69,15 @@ final Map<String, Widget Function()> _subjects = {
   'proxy-auth (filled)': () => ProxyAuthSection(
         usernameController: TextEditingController(text: 'proxy-user'),
         passwordController: TextEditingController(text: 'hunter2'),
+      ),
+  // Three buttons and four paragraphs on one surface: the cell that fails
+  // first is 320pt at 2.0, which is also the one a user in that setting sees.
+  'unproxied-block': () => UnproxiedNavigationBlock(
+        siteName: 'Acme Bank',
+        blockedUrl: 'https://tracker.example.org/a/b',
+        onGoBack: () {},
+        onRetry: () {},
+        onOpenProxySettings: () {},
       ),
   'proxy-test': () => ProxyTestTile(
         settings: () =>

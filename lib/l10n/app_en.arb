@@ -2400,6 +2400,18 @@
   "@siteSettingsProxyInvalidPort": {
     "description": "Validation error for an out-of-range proxy port."
   },
+  "siteSettingsProxyCoverageAll": "Covers every request this site makes",
+  "@siteSettingsProxyCoverageAll": {
+    "description": "Subtitle under the per-site proxy row, shown when the system applies the proxy as its own rule so all of the site's traffic goes through it."
+  },
+  "siteSettingsProxyCoverageFirstOnly": "Covers the request each page is opened with",
+  "@siteSettingsProxyCoverageFirstOnly": {
+    "description": "Subtitle under the per-site proxy row, shown when the system attaches the proxy to a page as it opens, so only that first request can be shown to go through it. Later requests are blocked rather than sent without the proxy."
+  },
+  "siteSettingsProxyCoverageHint": "Where the system applies the proxy as its own rule, every request this site makes goes through it. Where it instead attaches the proxy to a page as the page opens, only the request the page is opened with can be shown to go through it, and anything the page navigates to afterwards is blocked and offered to you as a fresh page. It is blocked because sending it would show your device's IP address to the other end.",
+  "@siteSettingsProxyCoverageHint": {
+    "description": "Hint dialog text on the per-site proxy row. Explains the two ways a system can apply a proxy, and what the app does when it cannot establish that a request would go through the proxy. Written for a reader who cannot see the screen: this row is where a site is put behind a proxy."
+  },
   "siteSettingsProxyError": "Proxy error: {error}",
   "@siteSettingsProxyError": {
     "description": "Snackbar shown when saving fails proxy validation.",
@@ -4095,6 +4107,44 @@
   "proxyTestHint": "Sends one small request through this proxy and reports what comes back, so a wrong address or a rejected password can be told apart from a site that is simply down.",
   "@proxyTestHint": {
     "description": "Explanation shown behind the hint button next to the proxy connection test button."
+  },
+  "unproxiedBlockTitle": "Request not sent",
+  "@unproxiedBlockTitle": {
+    "description": "Heading of the screen shown in place of a page after the app cancelled a navigation because it could not establish that the request would go through the site's proxy. It is not an error about the proxy or the network: nothing was sent."
+  },
+  "unproxiedBlockBody": "{site} is set to use a proxy, but the app could not establish that this request would go through it. Making the request anyway would have shown your device IP address to the other end, so it was not made.",
+  "@unproxiedBlockBody": {
+    "description": "Body of the blocked-navigation screen. {site} is the name the user gave the site. Do not render this as the proxy having failed or the site being unreachable: the request was never sent.",
+    "placeholders": {
+      "site": {
+        "type": "String"
+      }
+    }
+  },
+  "unproxiedBlockDestination": "Destination: {host}",
+  "@unproxiedBlockDestination": {
+    "description": "Names the host the cancelled navigation was headed to, on the blocked-navigation screen. {host} is a hostname such as example.org.",
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "unproxiedBlockWhy": "A proxy set for a site covers the request a page is opened with. This one came afterwards, from inside the page, and there is no way here to show that it would be proxied too.",
+  "@unproxiedBlockWhy": {
+    "description": "Second paragraph of the blocked-navigation screen, explaining why only some requests can be shown to go through the proxy. Keep it about what can be established, not about the proxy working or failing."
+  },
+  "unproxiedBlockReopen": "Reopen through the proxy",
+  "@unproxiedBlockReopen": {
+    "description": "Button on the blocked-navigation screen. It opens the blocked destination as a freshly opened page, which is the request the proxy does cover. It is not a way to continue without the proxy."
+  },
+  "unproxiedBlockBack": "Go back",
+  "@unproxiedBlockBack": {
+    "description": "Button on the blocked-navigation screen that returns to the page the user was already on."
+  },
+  "unproxiedBlockProxySettings": "Proxy settings",
+  "@unproxiedBlockProxySettings": {
+    "description": "Button on the blocked-navigation screen that opens this site's own proxy settings."
   },
   "proxyTestOk": "The proxy works",
   "@proxyTestOk": {

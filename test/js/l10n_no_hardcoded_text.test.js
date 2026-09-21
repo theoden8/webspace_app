@@ -55,6 +55,7 @@ const migrated = new Set([
   'lib/widgets/tab_bar_corner_button.dart',
   'lib/widgets/tor_bootstrap.dart',
   'lib/widgets/tor_status_card.dart',
+  'lib/widgets/unproxied_block.dart',
   'lib/widgets/untrusted_cert_prompt.dart',
   'lib/widgets/url_bar.dart',
   'lib/widgets/virtual_source_preview.dart',

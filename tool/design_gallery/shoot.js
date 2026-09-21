@@ -21,6 +21,7 @@ const CARDS = [
   { id: 'protection-report', width: 400, height: 740 },
   { id: 'protection-report-category', width: 400, height: 740 },
   { id: 'add-site', width: 400, height: 740 },
+  { id: 'unproxied-block', width: 400, height: 740 },
   { id: 'user-scripts', width: 400, height: 740 },
   { id: 'trusted-certificates', width: 400, height: 560 },
   { id: 'location-picker', width: 400, height: 740 },
