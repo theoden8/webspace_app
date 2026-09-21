@@ -1472,22 +1472,28 @@ jobs:
           # in-process control for the same shape rather than a comparison
           # against a different run.
           reassign_launch() {
-            echo "::group::integration_test/proxy_reassign_test.dart (reassign=$1)"
-            log="${RUNNER_TEMP:-/tmp}/tier-proxy_reassign_$1.log"
+            echo "::group::integration_test/proxy_reassign_test.dart ($2 reassign=$1)"
+            log="${RUNNER_TEMP:-/tmp}/tier-proxy_reassign_$2_$1.log"
             if [ -n "$TIMEOUT" ]; then
               "$TIMEOUT" -k 30s 12m \
                 fvm flutter test integration_test/proxy_reassign_test.dart \
-                  --dart-define=WEBSPACE_REASSIGN=$1 -d macos --ci 2>&1 \
+                  --dart-define=WEBSPACE_REASSIGN=$1 \
+                  --dart-define=WEBSPACE_REASSIGN_KIND=$2 -d macos --ci 2>&1 \
                 | tee "$log" || true
             else
               fvm flutter test integration_test/proxy_reassign_test.dart \
-                --dart-define=WEBSPACE_REASSIGN=$1 -d macos --ci 2>&1 \
+                --dart-define=WEBSPACE_REASSIGN=$1 \
+                --dart-define=WEBSPACE_REASSIGN_KIND=$2 -d macos --ci 2>&1 \
                 | tee "$log" || true
             fi
             echo "::endgroup::"
           }
-          reassign_launch true
-          reassign_launch false
+          # CONNECT first: it is the only one of the two that takes
+          # setProxyConfigData's recreateSessions path, and the slot goes to
+          # whoever asks first (gap -2). Attempt 94 spent the slot on socks5
+          # and measured the weak path.
+          reassign_launch true connect
+          reassign_launch true socks5
 
           timing_launch first
 
@@ -1694,10 +1700,10 @@ jobs:
           # on Apple, so its three verdict lines go in the tail beside the
           # shape ones rather than a megabyte back in the log.
           echo "=== BUG-014 proxyConfigurations re-assignment verdict ==="
-          for r in true false; do
+          for k in connect socks5; do
             grep -h -e "proxy-reassign\] verdict" \
-              "${RUNNER_TEMP:-/tmp}/tier-proxy_reassign_$r.log" 2>/dev/null \
-              || echo "reassign=$r: no verdict line"
+              "${RUNNER_TEMP:-/tmp}/tier-proxy_reassign_${k}_true.log" 2>/dev/null \
+              || echo "$k: no verdict line"
           done
           echo "=== BUG-014 URLSession-vs-WebKit verdict ==="
           grep -h -e "proxy-urlsession\]" \

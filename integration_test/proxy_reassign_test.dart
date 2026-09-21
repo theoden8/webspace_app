@@ -48,15 +48,29 @@ import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/webview.dart';
 
 import 'fixture_server.dart';
+import 'http_connect_fixture.dart';
 import 'socks5_fixture.dart';
 
 const bool kReassign =
     bool.fromEnvironment('WEBSPACE_REASSIGN', defaultValue: false);
 
+/// `socks5` or `connect`.
+///
+/// The two take different paths through `NetworkSessionCocoa::
+/// setProxyConfigData`. A config for which
+/// `nw_proxy_config_stack_requires_http_protocols` holds -- CONNECT does,
+/// SOCKS5 does not -- makes it destroy and rebuild every `NSURLSession`
+/// via `recreateSessionWithUpdatedProxyConfigurations`; otherwise it only
+/// patches the proxy onto the live `nw_context` of wrappers that already
+/// have a session. Attempt 94 measured the weak path only.
+const String kKind =
+    String.fromEnvironment('WEBSPACE_REASSIGN_KIND', defaultValue: 'socks5');
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   late Socks5Fixture socks;
+  late HttpConnectFixture connect;
   late HttpServer originA;
   late HttpServer originB;
   InternetAddress? routable;
@@ -75,6 +89,7 @@ void main() {
     routable = await nonLoopbackIPv4();
     originHost = routable?.address ?? '127.0.0.1';
     socks = await Socks5Fixture.bind();
+    connect = await HttpConnectFixture.bind();
     originA = await HttpServer.bind(InternetAddress.anyIPv4, 0);
     originB = await HttpServer.bind(InternetAddress.anyIPv4, 0);
     for (final entry in {'a': originA, 'b': originB}.entries) {
@@ -86,13 +101,15 @@ void main() {
       });
     }
     log('host=$originHost originA=${originA.port} originB=${originB.port} '
-        'socks=${socks.port} reassign=$kReassign '
+        'socks=${socks.port} connect=${connect.port} '
+        'kind=$kKind reassign=$kReassign '
         'proxySupported=${PlatformInfo.isProxySupported} '
         'routable=${routable != null}');
   });
 
   tearDownAll(() async {
     await socks.close();
+    await connect.close();
     await originA.close(force: true);
     await originB.close(force: true);
   });
@@ -114,8 +131,8 @@ void main() {
       reply = await const MethodChannel('webspace/proxy_probe')
           .invokeMapMethod<String, dynamic>('probe', {
         'socksHost': '127.0.0.1',
-        'socksPort': socks.port,
-        'kind': 'socks5',
+        'socksPort': kKind == 'connect' ? connect.port : socks.port,
+        'kind': kKind,
         'url': 'http://$originHost:${originA.port}/a',
         'secondUrl': 'http://$originHost:${originB.port}/b',
         'reassign': kReassign,
@@ -126,8 +143,9 @@ void main() {
       }).timeout(const Duration(seconds: 60));
     });
 
+    final proxyTargets = kKind == 'connect' ? connect.targets : socks.targets;
     String verdictFor(int port) =>
-        socks.targets.contains('$originHost:$port')
+        proxyTargets.contains('$originHost:$port')
             ? 'proxied'
             : requests.any((r) => r.startsWith(port == originA.port ? 'a:' : 'b:'))
                 ? 'DIRECT'
@@ -138,8 +156,9 @@ void main() {
     log('ok=${reply?['ok']} reassigned=${reply?['reassigned']} '
         'configured=${reply?['configured']} '
         'detail1=${reply?['detail1']} secondDetail=${reply?['secondDetail']}');
-    log('socks targets=${socks.targets}');
-    log('verdict: reassign=$kReassign baseline=$baseline second=$second');
+    log('$kKind targets=$proxyTargets');
+    log('verdict: kind=$kKind reassign=$kReassign '
+        'baseline=$baseline second=$second');
 
     // Reported, not asserted. A process without the slot produces the same
     // reading as a mechanism that does not work, and only `baseline` can

@@ -5383,6 +5383,92 @@ from the source rather than by another 70-minute tier run, which is where this
 should go next.
 
 
+### Attempt 95 -- the whole path read from source; three silent drops, and one path attempt 94 never took
+
+**2026-09-21**, PR #603, source only; the arm has not run yet.
+
+`NetworkSessionCocoa.mm`, `NetworkProcessCocoa.mm` and `NetworkSessionCocoa.h`
+read end to end. What the path actually does:
+
+**1. The message is dropped when there is no session yet.**
+
+```cpp
+void NetworkProcess::setProxyConfigData(PAL::SessionID sessionID, Vector<...>&& proxyConfigurations)
+{
+    CheckedPtr session = networkSession(sessionID);
+    if (!session)
+        return;
+    session->setProxyConfigData(WTF::move(proxyConfigurations));
+}
+```
+
+No queue, no error, no retry. Combined with attempt 93's finding -- that
+`WebsiteDataStore::setProxyConfigData` nulls `m_proxyConfigData` *before*
+calling the network process, and `parameters()` builds the session from that
+member -- a store whose session is created during that call gets a session
+with no proxy AND drops the message that would have supplied one.
+
+**2. The whole apply is skipped when a soft-linked symbol is missing.**
+`NetworkSessionCocoa::setProxyConfigData` resolves four pointers
+(`nw_context_clear_proxies`, `nw_context_add_proxy`,
+`nw_proxy_config_create_with_agent_data`,
+`nw_proxy_config_stack_requires_http_protocols`) and returns silently if any
+is null.
+
+**3. An empty config list positively unproxies.**
+
+```cpp
+if (!m_nwProxyConfigs.isEmpty()) { ... configuration.proxyConfigurations = nwProxyConfigurations.get(); }
+else configuration.proxyConfigurations = @[ ];
+```
+
+`SessionWrapper::initialize` calls this, so a wrapper created while
+`m_nwProxyConfigs` is empty is not merely left alone -- it is explicitly set
+to no proxy.
+
+**Two hypotheses this read kills.** A wrapper created after the apply still
+gets the configs, because `initialize` calls
+`applyProxyConfigurationToSessionConfiguration`; so "late wrapper misses out"
+is wrong. And no wrapper class is unreachable: `forEachSessionWrapper` covers
+`m_defaultSessionSet`, `m_perPageSessionSets` and `m_perParametersSessionSets`,
+each over `sessionWithCredentialStorage`, `ephemeralStatelessSession`,
+`appBoundSession` and every entry of `isolatedSessions` -- and `IsolatedSession`
+holds exactly one wrapper. So "some wrapper never gets patched" is wrong too.
+
+**What attempt 94 did not test.** The function has two paths:
+
+```cpp
+if (requiresHTTPProtocols(nwProxyConfig.get()))
+    recreateSessions = true;
+...
+if (recreateSessions) {
+    forEachSessionWrapper([this](SessionWrapper& sessionWrapper) {
+        if (sessionWrapper.session)
+            sessionWrapper.recreateSessionWithUpdatedProxyConfigurations(*this);
+    });
+    return;
+}
+// otherwise: patch the live nw_context of each existing wrapper
+```
+
+A CONNECT configuration satisfies
+`nw_proxy_config_stack_requires_http_protocols`; a SOCKS5 one does not.
+Attempt 94 assigned SOCKS5, so it exercised only the weak path -- patching a
+live `nw_context` -- and concluded re-assignment does not work. It has not
+been asked whether the strong path, which **destroys and rebuilds every
+`NSURLSession`**, reopens the window.
+
+The arm now takes a `kind`, and CONNECT runs first in the tier because the
+slot goes to whoever asks first.
+
+**Why it was partial.** It is a source read, not a measurement, and the one
+thing it predicts is untested. It also still does not explain attempt 94's
+result on its own terms: at re-assignment the session existed, so gate 1 did
+not fire, and every wrapper should have been patched. Either gate 2 fires on
+this OS, or the patched `nw_context` is not the one the second navigation
+used, and nothing here separates those.
+
+
 ## Known open gaps
 
 -2. **One app process at a time can proxy, and the next one waits (attempts 80,
