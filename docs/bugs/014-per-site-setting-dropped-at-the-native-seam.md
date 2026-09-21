@@ -4633,6 +4633,67 @@ direct, the proxy was configured all along and the leak is failover -- which
 LEAK-003 can close with one field rather than a spec change. If it still goes
 direct, failover is excluded and candidate 2 is the whole problem.
 
+### Attempt 84 -- failover excluded; a real proxy gap found in WebKit's source, but it is not this one
+
+**2026-09-21**, PR #603 (`75c1d84`), run 35585771755, macOS job 106288691787.
+
+**Failover is dead as a candidate.** Same file with `allowFailover: false`
+pinned on every rule:
+
+```
+run=first verdict: containers=true baseline=own
+                   same-store-2nd-nav=DIRECT
+                   new-store-later=DIRECT
+                   new-store-after-idle=DIRECT
+socks0 connects=[192.168.64.17:49967]
+```
+
+Byte-identical verdict to the run before it. With failover off a load that
+cannot use its proxy must *fail*; this one reached its origin. So the proxy was
+not in force for that load, rather than being tried and abandoned. The
+observation is now n=2, two runs, two runners, both with `baseline=own`.
+
+**Reading the source turned up a genuine defect, independent of this
+investigation.** In `NetworkSessionCocoa.mm`, only the default
+`sessionWithCredentialStorage` is built through `configurationForSessionID()`
+and gets `applyProxyConfigurationToSessionConfiguration()`. Three other
+session-wrapper paths copy an existing configuration instead:
+
+* `SessionSet::initializeEphemeralStatelessSessionIfNeeded()` copies only
+  `configuration.connectionProxyDictionary` -- the legacy CFNetwork dictionary
+  -- and never applies the modern `ProxyConfiguration` list.
+* `SessionSet::isolatedSession()` initializes from
+  `sessionWithCredentialStorage->session.get().configuration`.
+* `NetworkSessionCocoa::appBoundSession()` does the same.
+
+A load served by any of those wrappers would go direct while the store still
+reports its `proxyConfigurations`, which is exactly the shape every DIRECT
+reading in this file has. It is worth reporting upstream on its own merits, and
+it sits next to the three leaks Mysk documented on 2026-08-04.
+
+**It does not explain this file's sequence, and saying it did would be the same
+mistake as attempt 82.** `sessionWrapperForTask` routes to an isolated session
+on `storageSession->shouldBlockThirdPartyCookiesButKeepFirstPartyCookiesFor(
+WebCore::RegistrableDomain(request.firstPartyForCookies()))` -- a storage-policy
+test on the registrable domain, with no dependence on load order. Every origin
+in `proxy_timing_test` is a port on one IP host, so both loads carry the same
+registrable domain and would take the same wrapper. Load ordering cannot select
+between them.
+
+**Where that leaves the contradiction.** The store reports `count=1` at
+navstart (the probe's readback, run 35516286156), failover is off, and the
+source keeps the proxy on the session for its lifetime -- yet load 2 reaches
+its origin unproxied with no connection to the fixture. The configuration is on
+the *store* and not on the *session serving that load*. Which wrapper serves it
+is now the question, and none of the three gaps above can be it.
+
+**Why it was partial.** It eliminates failover, finds a real bug that is not
+this bug, and leaves the sequence unexplained. Two things would settle it and
+neither is guesswork: issue load 2 to the **identical** origin (same host *and*
+port) so no per-origin or per-domain routing can differ, and take a native
+readback at load 2's navstart from `ProxyProbePlugin` so the store's state at
+that moment is recorded rather than inferred from an earlier run.
+
 ## Known open gaps
 
 -2. **Any arm that asks about the Apple proxy MUST run first in the macOS tier

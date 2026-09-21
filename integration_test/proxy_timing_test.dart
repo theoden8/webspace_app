@@ -56,7 +56,11 @@ void main() {
   }
 
   // 0 pane A's frame-1 load (the control and the baseline)
-  // 1 pane A's SECOND navigation, same store, same proxy, later frame
+  // 1 unused as an origin: pane A's second navigation goes back to origin 0,
+  //   so host, port, registrable domain and storage policy are identical to
+  //   the load that WAS proxied. sessionWrapperForTask routes on
+  //   RegistrableDomain(firstPartyForCookies), so nothing about the request
+  //   can select a different session wrapper (attempt 84).
   // 2 a brand-new store in a later frame
   // 3 a brand-new store after an idle period
   const originCount = 4;
@@ -227,13 +231,28 @@ void main() {
       expect(controller, isNotNull,
           reason: 'pane A reported no controller, so its second navigation '
               'could not be issued');
+      // Back to the very origin that was just proxied. A second CONNECT for
+      // it at socks0 is the only way this can read `own`, and the fixture
+      // records targets before dialling, so a missing one means the proxy was
+      // never contacted.
+      final firstTarget = '$originHost:${ports[0]}';
+      final connectsBefore =
+          socks[0].targets.where((t) => t == firstTarget).length;
       await tester.runAsync(() async {
         await controller!.loadUrl(
-            urlRequest: inapp.URLRequest(url: inapp.WebUri(urlFor(1))));
+            urlRequest: inapp.URLRequest(url: inapp.WebUri(urlFor(0))));
       });
-      await waitReal(tester, () => settled(1),
-          label: 'pane A second navigation');
-      verdict['same-store-2nd-nav'] = classify(1, 0);
+      await waitReal(
+          tester,
+          () =>
+              socks[0].targets.where((t) => t == firstTarget).length >
+              connectsBefore,
+          label: 'pane A second navigation (identical origin)');
+      final connectsAfter =
+          socks[0].targets.where((t) => t == firstTarget).length;
+      verdict['same-store-2nd-nav'] =
+          connectsAfter > connectsBefore ? 'own' : 'DIRECT-or-cached';
+      log('same-origin CONNECTs before=$connectsBefore after=$connectsAfter');
       log('same-store-2nd-nav=${verdict["same-store-2nd-nav"]}');
 
       // A brand-new store in a later frame. Pane A stays in the tree so its
