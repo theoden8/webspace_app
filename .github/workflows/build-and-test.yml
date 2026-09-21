@@ -1464,6 +1464,31 @@ jobs:
           # First in the tier, because it is the arm whose verdict depends on
           # having the proxy slot and nothing else here can answer its
           # question (BUG-014 gap -2).
+          # Ahead of everything, including timing: this is the only arm that
+          # can answer whether the clear-then-restore window in
+          # WebsiteDataStore::setProxyConfigData is what closes the proxy
+          # window, and the answer is worthless in a process that never had
+          # the slot (gap -2). Twice, so the no-reassign launch is the
+          # in-process control for the same shape rather than a comparison
+          # against a different run.
+          reassign_launch() {
+            echo "::group::integration_test/proxy_reassign_test.dart (reassign=$1)"
+            log="${RUNNER_TEMP:-/tmp}/tier-proxy_reassign_$1.log"
+            if [ -n "$TIMEOUT" ]; then
+              "$TIMEOUT" -k 30s 12m \
+                fvm flutter test integration_test/proxy_reassign_test.dart \
+                  --dart-define=WEBSPACE_REASSIGN=$1 -d macos --ci 2>&1 \
+                | tee "$log" || true
+            else
+              fvm flutter test integration_test/proxy_reassign_test.dart \
+                --dart-define=WEBSPACE_REASSIGN=$1 -d macos --ci 2>&1 \
+                | tee "$log" || true
+            fi
+            echo "::endgroup::"
+          }
+          reassign_launch true
+          reassign_launch false
+
           timing_launch first
 
           # AFTER the timing file, not before it. Both of these take the
@@ -1617,6 +1642,9 @@ jobs:
             # Ran first above, for the same reason.
             [ "$(basename "$t")" = "proxy_urlsession_test.dart" ] && continue
             [ "$(basename "$t")" = "proxy_persession_test.dart" ] && continue
+            # Two controlled launches at the very top of the tier; a third
+            # here would run in a process the arms above have already spent.
+            [ "$(basename "$t")" = "proxy_reassign_test.dart" ] && continue
             echo "::group::$t"
             rc=0
             # Kept per file so a failure can be re-printed at the end. Each
@@ -1665,6 +1693,12 @@ jobs:
           # The matrix decides whether a per-site proxy is reachable at all
           # on Apple, so its three verdict lines go in the tail beside the
           # shape ones rather than a megabyte back in the log.
+          echo "=== BUG-014 proxyConfigurations re-assignment verdict ==="
+          for r in true false; do
+            grep -h -e "proxy-reassign\] verdict" \
+              "${RUNNER_TEMP:-/tmp}/tier-proxy_reassign_$r.log" 2>/dev/null \
+              || echo "reassign=$r: no verdict line"
+          done
           echo "=== BUG-014 URLSession-vs-WebKit verdict ==="
           grep -h -e "proxy-urlsession\]" \
             "${RUNNER_TEMP:-/tmp}/tier-proxy_urlsession.log" 2>/dev/null \

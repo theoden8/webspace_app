@@ -5240,6 +5240,89 @@ subresources. Two controlled in-process readings say otherwise for this app.
 Something distinguishes the two settings and nothing here says what.
 
 
+### Attempt 93 -- the mechanism, read out of WebKit's source, and the arm that tests it
+
+**2026-09-21**, PR #603, source and upstream only; the arm has not run yet.
+
+**1. `setProxyConfigData` clears the member the session is built from, then
+calls the network process, then restores it.** From WebKit commit
+`eb352590` (274287@main, "Proxy configuration should apply after a network
+process crash", bug 268952):
+
+```cpp
+void WebsiteDataStore::setProxyConfigData(
+  Vector<std::pair<Vector<uint8_t>, WTF::UUID>>&& data)
+{
+    m_proxyConfigData = std::nullopt;
+    protectedNetworkProcess()->send(
+      Messages::NetworkProcess::SetProxyConfigData(m_sessionID, data), 0);
+    m_proxyConfigData = WTFMove(data);
+}
+```
+
+and, in the same change, `parameters()` gained
+`networkSessionParameters.proxyConfigData = m_proxyConfigData;`.
+
+So a network session built from `parameters()` between the first and last
+line of that function gets `std::nullopt` -- no proxy. `protectedNetworkProcess()`
+sits inside the window and launches the process when it is not already up.
+This is the candidate `proxy_window_test`'s header inferred; it is now read
+off the source rather than reasoned about.
+
+**2. The readback was never evidence.** `WKWebsiteDataStore`'s getter is a
+UI-process cache:
+
+```objc
+- (NSArray<nw_proxy_config_t> *)proxyConfigurations { return _proxyConfigurations.get(); }
+```
+
+It never asks the network process. Every `configured=1` in this file -- and
+the `count=1` readback attempt 72 called "the observation a future report
+should be built on" -- proves only that the UI process remembers what was
+assigned. The network process's actual state has never been observed here.
+
+**3. The arm.** `integration_test/proxy_reassign_test.dart` with a
+`secondUrl` / `reassign` pair added to `ProxyProbePlugin`: one store, one
+WebView, two navigations to two different origins, and the configuration
+assigned a second time before the second navigation. Two different origins so
+the fixture attributes by the port asked for, which keeps attempt 87's
+reused-connection confound out. It runs twice, with and without the second
+assignment, at the very top of the tier, because an answer from a process
+without the slot is not an answer.
+
+```
+baseline=DIRECT                    no slot; the run says nothing
+baseline=proxied second=DIRECT     the bypass, reproduced
+baseline=proxied second=proxied    re-assignment reopens the window
+```
+
+The last line would move BUG-014 from a WebKit wall to an ordering bug the
+fork can fix, by assigning after the session exists rather than during its
+creation.
+
+**4. Unreconciled, and it cuts against this file.** An August 2026 audit of
+this exact API (Mysk, covering Onion Browser, Psylo and iCloud Private Relay)
+enumerates three bypasses -- DNS prefetching, WebAuthn Related Origin
+Requests, WebTransport -- and reports **no** bypass of ordinary main-frame
+navigation or its subresources. Two controlled readings here say otherwise.
+Either their setting differs from this app's in a way nobody has named, or
+this app does something to its stores that they do not. That question is worth
+more than another tier run.
+
+Those three bypasses are also unmitigated in this app and untested by any arm
+here. Psylo blocks `dns-prefetch` hints and disables WebTransport and WebAuthn
+by default.
+
+**Why it was partial.** It names a mechanism from source and builds the arm
+that would confirm or kill it, and it has not run. It also does not explain
+the slot: nothing in `setProxyConfigData` is per-process-exclusive, so
+whatever makes one app process in twenty able to proxy is still unaccounted
+for. WebKit 264307 (CONNECT with TLS crashes the network process, after which
+the configuration is ignored) remains the best candidate there, and this
+repo's crash capture cannot see it -- it globs `Webspace*` and `Runner*` in
+`DiagnosticReports`, never `com.apple.WebKit.Networking`.
+
+
 ## Known open gaps
 
 -2. **One app process at a time can proxy, and the next one waits (attempts 80,

@@ -95,11 +95,25 @@ class ProxyProbePlugin: NSObject {
     // of the few structural differences left between the shape that proxies
     // and the shape that does not, so it is a knob rather than an assumption.
     let attach = (args["attach"] as? Bool) ?? false
+    // A second navigation on the SAME store and WebView, and whether to
+    // re-assign `proxyConfigurations` before issuing it.
+    //
+    // `WebsiteDataStore::setProxyConfigData` sets `m_proxyConfigData` to
+    // nullopt, calls the network process, and only restores the value
+    // afterwards, while `parameters()` builds a session's configuration from
+    // that same member. Anything that reads it inside that window sees no
+    // proxy. If that is what closes the window, assigning again once the
+    // process is certainly up should reopen it, and the second navigation
+    // proxies. If it stays direct, the clear-then-restore window is not the
+    // mechanism (BUG-014).
+    let secondUrl = (args["secondUrl"] as? String).flatMap { URL(string: $0) }
+    let reassign = (args["reassign"] as? Bool) ?? false
 
     guard #available(macOS 14.0, *) else {
       result(["ok": false, "detail": "below the proxyConfigurations floor"])
       return
     }
+    var appliedConfigs: [ProxyConfiguration] = []
     var endpoint: NWEndpoint?
     if wantsProxy {
       guard let resolved = socksEndpoint(host: socksHost, port: socksPort) else {
@@ -126,6 +140,7 @@ class ProxyProbePlugin: NSObject {
         }
       }
       store.proxyConfigurations = [config]
+      appliedConfigs = [config]
     }
 
     let configuration = WKWebViewConfiguration()
@@ -139,11 +154,25 @@ class ProxyProbePlugin: NSObject {
     // alive when THIS arm loaded, not at reply time.
     let liveStores = stores.count + 1
     var navDelegate: ProbeNavigationDelegate?
+    // Phase 0 is the mount-turn navigation. Phase 1 exists only when the
+    // caller asked for a second one; the delegate fires per navigation, so
+    // the closure has to say which it is looking at.
+    var phase = 0
+    var firstDetail = ""
     navDelegate = ProbeNavigationDelegate(
       credential: (username != nil && password != nil)
         ? URLCredential(user: username!, password: password!, persistence: .forSession)
         : nil
     ) { detail in
+      if phase == 0, let secondUrl = secondUrl {
+        phase = 1
+        firstDetail = detail
+        if reassign && !appliedConfigs.isEmpty {
+          store.proxyConfigurations = appliedConfigs
+        }
+        view.load(URLRequest(url: secondUrl))
+        return
+      }
       // Deliberately keeps the WebView, delegate and store alive: an earlier
       // arm staying alive while a later one loads is the whole point.
       if attach {
@@ -151,6 +180,9 @@ class ProxyProbePlugin: NSObject {
       }
       result([
         "ok": true,
+        "reassigned": reassign && phase == 1,
+        "secondDetail": phase == 1 ? detail : "",
+        "detail1": phase == 1 ? firstDetail : detail,
         "identified": identified,
         "attached": attach,
         "proxy": wantsProxy,
