@@ -6,7 +6,8 @@ Status: open (the Apple per-site proxy is NOT answered - attempt 83 withdrew att
 [proxy](../../openspec/specs/proxy/spec.md) PROXY-011,
 [tor-proxy](../../openspec/changes/add-ios-tor-proxy/specs/tor-proxy/spec.md) TOR-018
 **Tests:** `integration_test/proxy_binding_test.dart` (the origin's own view of
-whether a proxied load arrived), `test/js/tor_bootstrap_observability.test.js`
+whether a proxied load arrived, attributed per request by the peer port it was
+reached from), `test/js/tor_bootstrap_observability.test.js`
 (structural, for the Tor half).
 
 ## Symptom
@@ -4957,10 +4958,19 @@ blind spot.
    What is missing is a check that a gate named in this file still exists --
    the gates guard the tests, and nothing guards the gates.
 
-6. **This biography exists in two divergent copies.** The trim left #597 with a
-   stub carrying attempts 1 and 2 under their own numbering, while the full
-   record (1 through 75) lives on the investigation branch. CLAUDE.md's rule is
-   one file per bug, appended, never restarted, and two numbered histories of
-   the same bug is what it forbids. Whichever branch merges first defines
-   master's copy, and the other's numbering then collides with it. Resolve
-   before either lands: the full record is the one to keep.
+6. **This biography exists in two divergent copies.** The trim left #597 with an
+   81-line stub carrying attempts 1 and 2, while the full record (1 through 88)
+   lives on the investigation branch, #603. CLAUDE.md's rule is one file per
+   bug, appended, never restarted, and two numbered histories of the same bug
+   is what it forbids. Whichever branch merges first defines master's copy.
+
+   The divergence is three places and nothing else, measured rather than
+   assumed: the `Status:` line, the `**Tests:**` sentence, and the tail -- the
+   stub closes with a `## Known open gaps` section holding gaps 1, 2 and 3
+   verbatim where the full record continues with attempt 3 and carries the same
+   three gaps further down. Everything above that is byte-identical.
+
+   So the resolution is not a merge, it is a choice: **take #603's copy
+   wholesale** at all three. The stub's gaps 1-3 are already in it, unchanged,
+   and its `Tests:` sentence describes the CONNECT-counting readout that
+   attempt 87 retired.
