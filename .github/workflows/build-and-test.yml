@@ -712,7 +712,18 @@ jobs:
         # installs — no Dart bootstrap needed.
         run: |
           set -x
-          curl -fsSL https://fvm.app/install.sh | bash
+          # Retried: install.sh pulls the fvm binary from a GitHub release,
+          # and a single 504 from that CDN fails the whole Linux job before
+          # anything is built. The retry lives here rather than on a curl
+          # flag because the failing fetch is inside their script.
+          for attempt in 1 2 3 4; do
+            if curl -fsSL https://fvm.app/install.sh | bash; then break; fi
+            if [ "$attempt" = 4 ]; then
+              echo "fvm install failed after $attempt attempts" >&2
+              exit 1
+            fi
+            sleep $((attempt * 5))
+          done
           ls -la "$HOME/fvm/bin/"
           echo "$HOME/fvm/bin" >> "$GITHUB_PATH"
           "$HOME/fvm/bin/fvm" --version
