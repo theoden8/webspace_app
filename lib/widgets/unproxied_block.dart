@@ -6,8 +6,13 @@
 // render an error into, and the webview underneath still holds the document
 // the user was on.
 //
-// There is deliberately no affordance to continue: the whole point of the
-// block is that the request would have carried the device IP.
+// There is deliberately no affordance to continue, and none to retry: the
+// whole point of the block is that the request would have carried the device
+// IP, and BUG-014 attempts 90-92 measured a WebView built after the app's
+// first frame going direct on its own first load (`later-pair=0 of 2
+// proxied`, against a live `pair=2 of 2` control in the same process). So
+// reopening the destination on a fresh view cannot be offered as the proxied
+// way to reach it. The way out is back, or the setting that caused it.
 //
 // Spec: openspec/specs/ip-leakage/spec.md.
 
@@ -30,7 +35,6 @@ class UnproxiedNavigationBlock extends StatelessWidget {
     required this.siteName,
     required this.blockedUrl,
     required this.onGoBack,
-    required this.onRetry,
     required this.onOpenProxySettings,
   });
 
@@ -41,11 +45,6 @@ class UnproxiedNavigationBlock extends StatelessWidget {
   final String blockedUrl;
 
   final VoidCallback onGoBack;
-
-  /// Reopens the site at [blockedUrl] on a fresh WebView, which makes the
-  /// destination the mounting navigation and so the one the store's proxy
-  /// covers. Not a bypass: the request still goes through the proxy.
-  final VoidCallback onRetry;
 
   final VoidCallback onOpenProxySettings;
 
@@ -104,11 +103,6 @@ class UnproxiedNavigationBlock extends StatelessWidget {
                   runSpacing: Spacing.xs,
                   children: [
                     FilledButton.icon(
-                      onPressed: onRetry,
-                      icon: const Icon(Icons.refresh, size: IconSizes.action),
-                      label: Text(loc.unproxiedBlockReopen),
-                    ),
-                    TextButton.icon(
                       onPressed: onGoBack,
                       icon: const Icon(Icons.arrow_back,
                           size: IconSizes.action),

@@ -232,12 +232,14 @@ site. Under `ProxyBinding.processWide` the rule sits outside the WebView and
 catches every request it makes, so coverage is established for every
 navigation. Under `ProxyBinding.perSite` the proxy is written onto
 `WKWebsiteDataStore.proxyConfigurations` when the view is constructed, and
-BUG-014 attempts 90 and 91 measured against a live control that it covers the
-navigation that mounted the view and nothing after it — for SOCKS5 and for
-HTTP CONNECT alike, so a loopback relay does not escape it. Linux is not a
-case here: it carries the proxy on a `WebKitNetworkSession` the container
-owns, which the whole session's traffic goes through, and PROXY-027 already
-calls that binding process-wide.
+BUG-014 attempts 90 and 92 measured — twice, each against a live control in
+the same process — that it covers the navigation issued in the turn that
+mounted the view and nothing after it (`sameturn-loadurl=proxied` against
+`persist-loadurl=DIRECT`, the same `loadUrl` on the same controller).
+Attempt 91 adds that CONNECT fails identically to SOCKS5, so a loopback
+relay does not escape it. Linux is not a case here: it carries the proxy on
+a `WebKitNetworkSession` the container owns, which the whole session's
+traffic goes through, and PROXY-027 already calls that binding process-wide.
 
 The mount slot SHALL be tracked per mounted platform view, not per widget: a
 remount builds a fresh network store and so gets a fresh mounting navigation.
@@ -248,13 +250,21 @@ the page navigated to first.
 
 The interstitial SHALL name the site, state that the navigation was blocked
 to avoid revealing the device IP, and name the destination it did not
-request. It SHALL offer exactly three actions: go back, reopen the
-destination through the proxy, and open this site's proxy settings. It SHALL
-NOT offer any way to make the request unproxied, and no setting, gesture or
-menu elsewhere may provide one. "Reopen through the proxy" rebuilds the
-WebView on the destination, which makes that request the mounting navigation
-and so a covered one; it is not an exemption, and a destination that still
-cannot be covered is refused again.
+request. It SHALL offer exactly two actions: go back, and open this site's
+proxy settings. It SHALL NOT offer any way to make the request unproxied,
+and no setting, gesture or menu elsewhere may provide one.
+
+It SHALL NOT offer a retry either, and this is the same rule rather than a
+second one. Reopening the destination on a fresh WebView looks like the
+proxied way to reach it, and is not: the runs that establish the mount rule
+read `later-pair=0 of 2 proxied` for stores built after the app's first
+frame, against their own live `pair=2 of 2` control. An action that issues a
+direct request while naming the proxy is worse than no action, so the way
+out is back, or the setting that caused the block.
+
+`ProxyCoverage.established` for a mounting navigation is the claim the app
+already makes when it binds a store (PROXY-027) and not a stronger one made
+here. No affordance may be built on top of it.
 
 Copy SHALL NOT describe the proxy as having failed or the site as
 unreachable. Nothing was attempted: what the app could not do is establish
@@ -281,10 +291,18 @@ first navigation is covered, and its later ones are not.
 A server redirect out of the mounting navigation is treated as post-mount and
 so as unprovable, which is the conservative reading and the costly one: a
 proxied site that redirects its landing page shows the interstitial on first
-open, and reopening through the proxy lands on the redirect target. Whether
-the platform's store carries the proxy across a redirect hop is a measurement
-BUG-014 has not made. It belongs to the coverage decision, not to this UI:
-when it is made, `isMountNavigation` is the one input that changes.
+open. Whether the platform's store carries the proxy across a redirect hop is
+a measurement BUG-014 has not made. It belongs to the coverage decision, not
+to this UI: when it is made, `isMountNavigation` is the one input that
+changes.
+
+The larger gap is on the other side of that input. BUG-014 attempts 90 and 92
+read `later-pair=0 of 2 proxied` for stores built after the app's first frame,
+in the same processes whose controls proxied two stores at once. If that holds,
+a mounting navigation is not covered either, and everything this requirement
+treats as `established` on the per-store binding is unprovable — which makes a
+per-site proxy on Apple unusable rather than partial. That is a product call on
+the feature, not a UI one, and it is the coverage decision's to settle.
 
 #### Scenario: A navigation that cannot be shown to be proxied is cancelled
 
@@ -302,20 +320,10 @@ no DNS lookup from the device
 #### Scenario: The interstitial offers no way to proceed unproxied
 
 **Given** the interstitial is on screen for a blocked destination
-**Then** it offers going back, reopening through the proxy, and this site's
-proxy settings
-**And** it offers nothing else
+**Then** it offers going back and this site's proxy settings
+**And** it offers nothing else, a retry included
 **And** dismissing it returns to the page the user was already on, which
 never navigated
-
-#### Scenario: Reopening through the proxy is a covered request
-
-**Given** the interstitial is on screen for `https://tracker.example.org/`
-**When** the user reopens it through the proxy
-**Then** the webview is rebuilt with that destination as its initial URL
-**And** the request is the mounting navigation, which the store's proxy
-covers
-**And** the request goes to `tracker.example.org` through the proxy
 
 #### Scenario: A nested webview blocks identically
 
@@ -324,6 +332,7 @@ covers
 **When** the nested page navigates onwards
 **Then** the nested screen cancels it and renders the same interstitial
 **And** its proxy-settings action opens the parent site's proxy settings
+**And** it offers no retry there either
 
 #### Scenario: Routing to a nested webview is not itself a block
 

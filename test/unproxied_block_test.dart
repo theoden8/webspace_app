@@ -1,9 +1,9 @@
 // What the blocked-navigation interstitial says and offers (LEAK-010).
 //
 // The two assertions that matter are negative: it never offers a way to make
-// the request anyway, and it never reads as the proxy having failed or the
-// site being unreachable. Those are the two things the copy exists to keep
-// apart.
+// the request anyway -- a retry included, which BUG-014 measured as a direct
+// load -- and it never reads as the proxy having failed or the site being
+// unreachable. Those are the two things the copy exists to keep apart.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -33,7 +33,6 @@ void main() {
       siteName: 'Acme Bank',
       blockedUrl: 'https://tracker.example.org/a/b?c=1',
       onGoBack: () {},
-      onRetry: () {},
       onOpenProxySettings: () {},
     )));
 
@@ -41,25 +40,21 @@ void main() {
     expect(find.textContaining('tracker.example.org'), findsOneWidget);
   });
 
-  testWidgets('offers going back, reopening through the proxy, and the '
-      'setting that caused it', (t) async {
+  testWidgets('offers going back and the setting that caused it', (t) async {
     _tallView(t);
     var back = 0;
-    var retry = 0;
     var settings = 0;
     await t.pumpWidget(_host(UnproxiedNavigationBlock(
       siteName: 'Acme',
       blockedUrl: 'https://example.org/',
       onGoBack: () => back++,
-      onRetry: () => retry++,
       onOpenProxySettings: () => settings++,
     )));
 
     final loc = await AppLocalizations.delegate.load(const Locale('en'));
     await t.tap(find.text(loc.unproxiedBlockBack));
-    await t.tap(find.text(loc.unproxiedBlockReopen));
     await t.tap(find.text(loc.unproxiedBlockProxySettings));
-    expect([back, retry, settings], [1, 1, 1]);
+    expect([back, settings], [1, 1]);
   });
 
   testWidgets('offers nothing that makes the request anyway', (t) async {
@@ -68,15 +63,16 @@ void main() {
       siteName: 'Acme',
       blockedUrl: 'https://example.org/',
       onGoBack: () {},
-      onRetry: () {},
       onOpenProxySettings: () {},
     )));
 
-    // Three actions, and each one is either a way out or a way to do it
-    // properly. A fourth button on this screen is how a bypass would arrive.
+    // Two actions, and neither reaches the destination. A third button on
+    // this screen is how a bypass would arrive -- including a retry, which
+    // BUG-014 attempts 90-92 measured as a direct load rather than a
+    // proxied one.
     expect(
       find.byWidgetPredicate((w) => w is ButtonStyleButton),
-      findsNWidgets(3),
+      findsNWidgets(2),
     );
   });
 
@@ -86,7 +82,6 @@ void main() {
       loc.unproxiedBlockTitle,
       loc.unproxiedBlockBody('Acme'),
       loc.unproxiedBlockWhy,
-      loc.unproxiedBlockReopen,
     ].join(' ').toLowerCase();
 
     for (final forbidden in [

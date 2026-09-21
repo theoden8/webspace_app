@@ -220,7 +220,6 @@ class _UnproxiedBlockCard extends StatelessWidget {
       siteName: 'Acme Bank',
       blockedUrl: 'https://analytics.tracker.example.org/collect?id=42',
       onGoBack: _noop,
-      onRetry: _noop,
       onOpenProxySettings: _noop,
     );
   }
