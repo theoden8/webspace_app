@@ -18,6 +18,7 @@ import 'package:webspace/services/language_shim.dart';
 import 'package:webspace/services/launch_nonce.dart';
 import 'package:webspace/services/letterbox.dart';
 import 'package:webspace/services/page_zoom_shim.dart';
+import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/proxy_relay.dart';
 import 'package:webspace/services/proxy_router_engine.dart';
 import 'package:webspace/services/proxy_router_service.dart';
@@ -403,6 +404,20 @@ class ProxyManager {
   /// through it.
   static bool overrideActive = false;
 
+  static ProxyBinding? _binding;
+
+  /// Where this process enforces a per-site proxy (PROXY-027).
+  ///
+  /// Latched on first read, so a WebView built under one binding cannot be
+  /// driven by the other for the rest of the run.
+  static ProxyBinding get binding => _binding ??= ProxyBindingEngine.bindingWhen(
+        isIOS: hostIsIOS,
+        isMacOS: hostIsMacOS,
+      );
+
+  /// Tests only.
+  static void setBindingForTest(ProxyBinding? value) => _binding = value;
+
   Future<void> setProxySettings(UserProxySettings settings) async {
     if (!PlatformInfo.isProxySupported) {
       LogService.instance.log(
@@ -413,13 +428,13 @@ class ProxyManager {
       return;
     }
 
-    // iOS / macOS: proxy travels through the fork's
+    // Under the per-store binding the proxy travels through the fork's
     // `inapp.InAppWebViewSettings.proxySettings` field at WebView
-    // construction. Nothing to do at the global ProxyController level —
+    // construction, so there is nothing to flip here —
     // `inapp.ProxyController` is Android-only. Runtime updates of the
     // per-site proxy require the WebView to be rebuilt by the caller (see
     // [WebViewModel.updateProxySettings]).
-    if (hostIsIOS || hostIsMacOS) {
+    if (binding == ProxyBinding.perSite) {
       LogService.instance.log(
         'Proxy',
         'setProxySettings: iOS/macOS bind proxy at WebView construction; no-op here',
@@ -632,7 +647,8 @@ class ProxyManager {
 
   Future<void> clearProxy() async {
     if (!PlatformInfo.isProxySupported) return;
-    if (hostIsIOS || hostIsMacOS) return;
+    // Nothing process-wide to clear when each store carries its own rule.
+    if (binding == ProxyBinding.perSite) return;
     if (hostIsAndroid) await ProxyRelay.instance.stop();
     final sw = Stopwatch()..start();
     await inapp.ProxyController.instance().clearProxyOverride();
@@ -2047,8 +2063,12 @@ class WebViewFactory {
     // and Android paths: per-site DEFAULT falls through to the app-global
     // outbound proxy, so a site the user hasn't customized still inherits a
     // global Tor / corporate proxy. Explicit per-site values win.
-    final bindsProxyPerSite = hostIsIOS ||
-        hostIsMacOS ||
+    // The named binding (PROXY-027) answers the process-level half: Apple
+    // carries a proxy on the store, everything else on one process rule.
+    // Linux adds a per-SITE condition on top that no process-level value
+    // can express -- a container owns a `WebKitNetworkSession` and a site
+    // without one has no session to pin -- so that half stays a test here.
+    final bindsProxyPerSite = ProxyManager.binding == ProxyBinding.perSite ||
         (hostIsLinux && containerId != null);
     final effectiveProxy = bindsProxyPerSite && config.proxySettings != null
         ? resolveEffectiveProxy(config.proxySettings!, siteId: config.siteId)
