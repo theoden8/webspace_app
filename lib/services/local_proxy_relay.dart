@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:socks5_proxy/socks_client.dart' as socks5;
+import 'package:webspace/services/proxy_router_engine.dart';
 import 'package:webspace/settings/proxy.dart';
 
 /// A loopback HTTP CONNECT proxy that fans one endpoint out to one upstream
@@ -42,6 +43,21 @@ class LocalProxyRelay {
   /// username carries no secret; the token half is the map's other key.
   var _routes = <String, LocalProxyRoute>{};
 
+  /// Nonce -> the site whose credential carried it (PROXY-015).
+  ///
+  /// The relay answers probe hosts itself and never dials an upstream for
+  /// one, so a probe cannot egress even if the route table is wrong. What
+  /// it certifies is the only thing worth certifying here: that each
+  /// container presented its OWN credential on this device.
+  final _probeResults = <String, String>{};
+
+  /// Why the last [start] failed, for the caller's log line.
+  String? lastError;
+
+  Map<String, String> get probeResults => Map.unmodifiable(_probeResults);
+
+  void clearProbeResults() => _probeResults.clear();
+
   String? get host => _server?.address.address;
   int? get port => _server?.port;
   bool get isRunning => _server != null;
@@ -60,9 +76,11 @@ class LocalProxyRelay {
         _serve,
         onError: (Object _) {},
       );
+      lastError = null;
       return true;
-    } on Object {
+    } on Object catch (e) {
       _server = null;
+      lastError = '$e';
       return false;
     }
   }
@@ -112,14 +130,28 @@ class LocalProxyRelay {
       for (var attempt = 0; attempt < 4; attempt++) {
         final requestHead = await head.readHead();
         if (requestHead == null) return;
+        final nonce = _probeNonce(requestHead);
         target = _connectTarget(requestHead);
-        if (target == null) {
+        if (nonce == null && target == null) {
           client.add(_response(400, 'Bad Request'));
           await client.flush();
           client.destroy();
           return;
         }
         route = _routeFor(requestHead);
+        if (route != null && nonce != null) {
+          // Answered here, never dialled: the probe's whole purpose is to
+          // name the credential that carried it, and a probe that could
+          // reach the network would be a request the user did not make.
+          _probeResults[nonce] = route.siteId;
+          client.add(utf8.encode('HTTP/1.1 200 OK\r\n'
+              'Content-Type: text/plain\r\n'
+              'Content-Length: 2\r\n'
+              'Connection: close\r\n\r\nok'));
+          await client.flush();
+          client.destroy();
+          return;
+        }
         if (route != null) break;
         // No credential, or one this relay does not know. Challenge rather
         // than relay: an unattributable tunnel has no site, so it has no
@@ -262,6 +294,25 @@ class LocalProxyRelay {
       }
     }
     return null;
+  }
+
+  /// The nonce of a PROXY-015 attribution probe, or null for anything else.
+  ///
+  /// The probe URL is plain `http`, so a proxied client sends it in
+  /// absolute form (`GET http://<nonce>.webspace-probe.invalid/ HTTP/1.1`)
+  /// rather than as a CONNECT. `.invalid` is RFC 2606 reserved, so even a
+  /// request that escaped this branch could not resolve.
+  static String? _probeNonce(String head) {
+    final parts = head.split('\r\n').first.split(' ');
+    if (parts.length < 2 || parts[0].toUpperCase() == 'CONNECT') return null;
+    final uri = Uri.tryParse(parts[1]);
+    final host = uri?.host;
+    if (host == null || !host.endsWith(ProxyRouterEngine.probeSuffix)) {
+      return null;
+    }
+    final nonce =
+        host.substring(0, host.length - ProxyRouterEngine.probeSuffix.length);
+    return nonce.isEmpty ? null : nonce;
   }
 
   static ({String host, int port})? _connectTarget(String head) {

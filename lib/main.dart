@@ -3165,7 +3165,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         ],
       );
 
-  /// Bring up Android's per-site proxy router (PROXY-013).
+  /// Bring up the per-site proxy router (PROXY-013).
   ///
   /// Failure at any step leaves `ProxyRouterService.isActive` false, which
   /// puts every downstream branch back on the PROXY-008 serialisation —
@@ -3173,9 +3173,16 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// Nothing here may clear the proxy override on failure.
   Future<void> _activateProxyRouter() async {
     if (!ProxyRouterService.isSupported(useContainers: _useContainers)) return;
+    // Apple has no process-wide rule to bind: each container store names the
+    // relay through its own `proxyConfigurations` when the WebView is built
+    // (PROXY-026), which is already true by the time the probe runs because
+    // `activate` publishes the endpoint before probing. Passing a binder
+    // that answers false off Android would stand router mode down on the one
+    // platform that does not need one.
+    final bindsProcessWide = hostIsAndroid;
     await ProxyRouterService.instance.activate(
       perSiteProxies: _routerProxyTable(),
-      bindOverride: ProxyManager().applyRouterOverride,
+      bindOverride: bindsProcessWide ? ProxyManager().applyRouterOverride : null,
       // PROXY-015: never trust router mode without proving on THIS device
       // that each container presents its own credential.
       probe: runAttributionProbe,

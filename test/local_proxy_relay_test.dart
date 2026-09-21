@@ -51,6 +51,34 @@ Future<String> connectThroughRelay({
   return String.fromCharCodes(seen);
 }
 
+/// One absolute-form GET through the relay, as a proxied client sends a
+/// plain-http URL. The PROXY-015 probe is exactly this.
+Future<String> getThroughRelay({
+  required String host,
+  required int port,
+  required String url,
+  String? username,
+  String? token,
+}) async {
+  final socket = await Socket.connect(host, port);
+  socket.setOption(SocketOption.tcpNoDelay, true);
+  final seen = <int>[];
+  final done = socket.listen(seen.addAll).asFuture<void>();
+  final auth = username == null
+      ? ''
+      : 'Proxy-Authorization: Basic '
+          '${base64.encode(utf8.encode('$username:${token ?? ''}'))}\r\n';
+  socket.add(utf8.encode('GET $url HTTP/1.1\r\n'
+      'Host: ${Uri.parse(url).host}\r\n$auth'
+      'Connection: close\r\n\r\n'));
+  await socket.flush();
+  await done.timeout(
+    const Duration(seconds: 6),
+    onTimeout: () => socket.destroy(),
+  );
+  return String.fromCharCodes(seen);
+}
+
 void main() {
   late HttpServer origin;
   late LocalProxyRelay relay;
@@ -382,5 +410,97 @@ void main() {
     final reply = String.fromCharCodes(seen);
     expect(reply, contains('200 Connection Established'));
     expect(reply, contains('served /after-challenge'));
+  });
+
+  // PROXY-015 on the relay side. The router refuses to engage unless each
+  // container proves, on this device, that it presents its OWN credential.
+  group('the attribution probe', () {
+    const probeUrl = 'http://deadbeef.webspace-probe.invalid/';
+
+    setUp(() {
+      relay.setRoutes({
+        'ws-site-a': LocalProxyRoute(
+          siteId: 'site-a',
+          token: 'tok-a',
+          upstream: UserProxySettings(type: ProxyType.DEFAULT),
+        ),
+        'ws-site-b': LocalProxyRoute(
+          siteId: 'site-b',
+          token: 'tok-b',
+          upstream: UserProxySettings(type: ProxyType.DEFAULT),
+        ),
+      });
+    });
+
+    test('records the nonce against the credential that carried it', () async {
+      final reply = await getThroughRelay(
+        host: relay.host!,
+        port: relay.port!,
+        url: probeUrl,
+        username: 'ws-site-a',
+        token: 'tok-a',
+      );
+      expect(reply, contains('200'));
+      expect(relay.probeResults, {'deadbeef': 'site-a'});
+    });
+
+    test('a second site is recorded under its own id, not the first', () async {
+      await getThroughRelay(
+        host: relay.host!,
+        port: relay.port!,
+        url: probeUrl,
+        username: 'ws-site-a',
+        token: 'tok-a',
+      );
+      await getThroughRelay(
+        host: relay.host!,
+        port: relay.port!,
+        url: 'http://feedface.webspace-probe.invalid/',
+        username: 'ws-site-b',
+        token: 'tok-b',
+      );
+      expect(relay.probeResults,
+          {'deadbeef': 'site-a', 'feedface': 'site-b'});
+    });
+
+    test('an unattributable probe is challenged and recorded nowhere',
+        () async {
+      final reply = await getThroughRelay(
+        host: relay.host!,
+        port: relay.port!,
+        url: probeUrl,
+      );
+      expect(reply, contains('407'));
+      expect(relay.probeResults, isEmpty,
+          reason: 'a probe with no credential names no site, so recording it '
+              'would certify an attribution nobody made');
+    });
+
+    test('clearProbeResults empties the record between runs', () async {
+      await getThroughRelay(
+        host: relay.host!,
+        port: relay.port!,
+        url: probeUrl,
+        username: 'ws-site-a',
+        token: 'tok-a',
+      );
+      relay.clearProbeResults();
+      expect(relay.probeResults, isEmpty);
+    });
+
+    test('a non-probe absolute-form request is refused, not relayed', () async {
+      // The relay speaks CONNECT. Answering an ordinary proxied GET would
+      // mean serving page bytes from a socket that never reached an
+      // upstream, which is a direct fetch wearing the proxy's name.
+      final reply = await getThroughRelay(
+        host: relay.host!,
+        port: relay.port!,
+        url: 'http://$originHost:${origin.port}/p',
+        username: 'ws-site-a',
+        token: 'tok-a',
+      );
+      expect(reply, contains('400'));
+      expect(reply, isNot(contains('served')));
+    });
   });
 }
