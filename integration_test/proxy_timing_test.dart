@@ -24,6 +24,13 @@
 // Gap -2: this file MUST run first in the macOS tier. Only the tier's first
 // app process can proxy; anywhere else it measures a dead process and says
 // so via the control.
+//
+// Every rule pins `allowFailover: false`. WebKit applies a proxy to the
+// NSURLSessionConfiguration once per session and keeps it for every load
+// (NetworkSessionCocoa.mm), so a load that reaches its origin unproxied is
+// either a config that was never installed or a failover. Pinning the field
+// separates them: with failover off, the second case becomes a failed load
+// rather than a silent direct one.
 
 import 'dart:io';
 
@@ -149,7 +156,16 @@ void main() {
             containerId: 'ws-timing-$runLabel-$i',
             proxySettings: inapp.ProxySettings(
               proxyRules: [
-                inapp.ProxyRule(url: 'socks5://127.0.0.1:${socks[socksIndex].port}')
+                // Pinned, not left to Apple's default, which the docs do not
+                // state. With failover permitted, a proxy that cannot serve a
+                // request yields a silent direct load -- indistinguishable
+                // from a proxy that was never consulted, which is exactly the
+                // reading attempt 82 mistook for a rule. False turns that
+                // case into a failed load instead.
+                inapp.ProxyRule(
+                  url: 'socks5://127.0.0.1:${socks[socksIndex].port}',
+                  allowFailover: false,
+                )
               ],
               bypassRules: [],
             ),

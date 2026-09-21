@@ -1,6 +1,6 @@
 # BUG-014 — A per-site setting the Dart side sends and the native side drops
 
-Status: open (the Apple per-site proxy is answered as of attempt 82 and unfixed; one instance fixed, one class-level gate; the seam has no general guard)
+Status: open (the Apple per-site proxy is NOT answered - attempt 83 withdrew attempt 82; one instance fixed, one class-level gate; the seam has no general guard)
 
 **Spec:** [ip-leakage](../../openspec/specs/ip-leakage/spec.md) LEAK-003,
 [proxy](../../openspec/specs/proxy/spec.md) PROXY-011,
@@ -4576,6 +4576,63 @@ honest one), rebuild the WebView per navigation (loses page state, absurd), or
 a WebKit fix. It also does not close gap 0, which should now be rewritten
 around "per WebView, per load" rather than "per store".
 
+### Attempt 83 -- WITHDRAWN: attempt 82's rule has no support outside the harness
+
+**2026-09-21**, no new run. Found by checking the claim against WebKit's source,
+Apple's documentation and the upstream record, which attempt 82 did not do.
+
+**The rule is contradicted by WebKit's own code.** Fetched
+`Source/WebKit/NetworkProcess/cocoa/NetworkSessionCocoa.mm` from
+WebKit/WebKit@main and read the proxy path: the configuration is applied to the
+`NSURLSessionConfiguration` in `SessionWrapper::initialize` via
+`applyProxyConfigurationToSessionConfiguration`, retained on the session, and
+changed only by `recreateSessionWithUpdatedProxyConfigurations` rebuilding the
+whole session. **There is no per-load or one-shot consumption of the proxy
+config anywhere in that file.** That matches what this file already recorded at
+the end-to-end reading: "a store keeps its proxy for the life of its session,
+for every load, and exactly one call removes it: assigning an empty
+`proxyConfigurations`". Attempt 82 contradicted a source-level finding already
+in its own biography and did not notice.
+
+**Nothing else supports it either.** Apple's documentation describes no such
+limit. The one piece of independent research in this area (Mysk, 2026-08-04,
+on `WKWebsiteDataStore.proxyConfigurations` leaks) documents three specific
+side channels -- `<link rel="dns-prefetch">`, WebAuthn related-origin requests
+handed to the OS credential service, and `WebTransport` opening QUIC directly
+-- none of which is a main-frame navigation going direct on a store's second
+load. No upstream bug says it. A web search appeared to corroborate it and did
+not: its top hit was this repo's own PR #604 and the summary it produced was
+this investigation's text read back, which is not evidence.
+
+**So the rule is withdrawn.** What survives is the raw observation: in one
+process with `baseline=own`, pane A's second navigation reached its origin and
+`socks0` recorded no second CONNECT. That happened. "A proxied load needs the
+WebView's first load" is an explanation invented to fit it, from n=1, with no
+mechanism behind it.
+
+**The observation has a sharper reading than the rule did.** `socks0.targets`
+appends *before* `Socket.connect`, so any CONNECT that reached the fixture is
+recorded. None was. The proxy was therefore never dialled for load 2 -- this is
+not a proxy that was tried and failed. Two candidates remain:
+
+1. **Failover.** `ProxyConfiguration.allowFailover` is never set by this app or
+   its fixtures, so it takes Apple's default, which I could not verify from the
+   documentation. If it permits falling back to direct, a proxy that cannot
+   serve a request yields exactly this reading. It should not produce a
+   *silent* skip with no connection attempt, which argues against it, but it
+   has never been excluded.
+2. **Something clears the live `nw_context`.** Per the source, SOCKS5 updates
+   run `nw_context_clear_proxies` then `nw_context_add_proxy` on the live
+   context. Only `setProxyConfigData` reaches that, and nothing in
+   `proxy_timing_test` calls `setProxyOverride`. Unexplained.
+
+**Why it was partial.** It removes a wrong answer and restores the question.
+The next arm sets `allowFailover: false` explicitly on every rule, which
+collapses candidate 1 either way: if load 2 then *fails* instead of going
+direct, the proxy was configured all along and the leak is failover -- which
+LEAK-003 can close with one field rather than a spec change. If it still goes
+direct, failover is excluded and candidate 2 is the whole problem.
+
 ## Known open gaps
 
 -2. **Any arm that asks about the Apple proxy MUST run first in the macOS tier
@@ -4587,24 +4644,22 @@ around "per WebView, per load" rather than "per store".
    arm that is not first is measuring a poisoned process. Most DIRECT readings
    in this file predate knowing this.
 
--1. **ANSWERED (attempt 82): a proxied load needs the WebView to be built in
-   the process's first frame AND it to be that WebView's first load.** Drop
-   either and the load goes direct. Measured with `baseline=own` in the same
-   process: the WebView that had just proxied went DIRECT on its next
-   navigation, `socks0` recording exactly one CONNECT ever. Later-frame
-   WebViews go direct on their first load too, at once and after a six second
-   idle alike.
+-1. **OPEN again (attempt 83 withdrew attempt 82's answer).** The observations
+   stand: with `baseline=own` in one process, pane A's second navigation
+   reached its origin with no second CONNECT at the fixture, and later-frame
+   WebViews go direct on their first load too, immediately and after a six
+   second idle alike. The *rule* built from them -- "a proxied load needs the
+   first frame and that WebView's first load" -- is withdrawn: WebKit's source
+   applies the proxy to the `NSURLSessionConfiguration` once per session and
+   retains it for every load, with no per-load consumption anywhere, and no
+   documentation or upstream report says otherwise.
 
-   Product consequence: on Apple the per-site proxy covers a site's landing
-   page and nothing after it. Every subsequent navigation leaves over the
-   device IP while the UI reports the site as proxied. Simultaneity is fine
-   (attempt 80: four stores, four upstreams) because every one of those was a
-   first load.
-
-   Open routes, none of them free: fail closed per LEAK-003 once a WebView has
-   spent its one proxied load (a spec change and the honest option); rebuild
-   the WebView per navigation (loses page state); or a WebKit fix. Not yet
-   measured: whether sub-resources of that first load stay proxied.
+   Sharpest surviving fact: the fixture records CONNECT targets *before*
+   dialling, and recorded none for load 2, so the proxy was never contacted.
+   Two candidates, neither excluded: `allowFailover` (never set by this app,
+   Apple's default unverified) and something clearing the live `nw_context`.
+   Next arm sets `allowFailover: false` explicitly, which decides candidate 1
+   either way.
 
 0. **SUBSUMED by gap -1 (attempt 82).** This guessed the boundary was a store
    that had served a load; it is per WebView and per load, and applies to
