@@ -82,12 +82,17 @@ typedef Cookie = inapp.Cookie;
 /// native side leaves any previously-set proxy in place; callers that
 /// need to *clear* a proxy should pass an empty `ProxySettings`.
 ///
-/// Credentials, when present, are embedded in the proxy URL
-/// (`scheme://user:pass@host:port`). Apple's
-/// `WKWebsiteDataStore.proxyConfigurations` does not expose a separate
-/// auth API in the public surface; the URL-embedded form is what the
-/// underlying `Network.framework` honors when the proxy server
-/// challenges with `407 Proxy Authentication Required`.
+/// Credentials, when present, ride BOTH forms, because the two platforms
+/// that read this field read different ones (PROXY-025).
+///
+/// Linux's `ProxyRule` carries only `url` and `schemeFilter`, so WPE gets
+/// them as `scheme://user:pass@host:port` userinfo. Apple's
+/// `ProxyRule.toProxyConfiguration` builds its endpoint from `URL.host` and
+/// `URL.port` alone, which drops userinfo on the floor, and takes the
+/// credential from the separate `username`/`password` fields instead --
+/// they are what reach `ProxyConfiguration.applyCredential`. Sending only
+/// the URL form is why a credentialed proxy on iOS/macOS authenticated with
+/// nothing and drew a `407` the user could not act on.
 @visibleForTesting
 inapp.ProxySettings? userProxyToInappProxy(UserProxySettings settings) {
   if (settings.type == ProxyType.DEFAULT) return null;
@@ -114,7 +119,13 @@ inapp.ProxySettings? userProxyToInappProxy(UserProxySettings settings) {
           '${Uri.encodeComponent(settings.password!)}@'
       : '';
   return inapp.ProxySettings(
-    proxyRules: [inapp.ProxyRule(url: '$scheme://$auth$host:$port')],
+    proxyRules: [
+      inapp.ProxyRule(
+        url: '$scheme://$auth$host:$port',
+        username: settings.hasCredentials ? settings.username : null,
+        password: settings.hasCredentials ? settings.password : null,
+      )
+    ],
   );
 }
 
