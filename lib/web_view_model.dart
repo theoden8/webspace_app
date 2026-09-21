@@ -40,6 +40,7 @@ import 'package:webspace/utils/url_utils.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/widgets/external_url_prompt.dart' show launchUrlInSystemBrowser;
 import 'package:webspace/widgets/tor_bootstrap.dart';
+import 'package:webspace/widgets/unproxied_block.dart';
 
 export 'package:webspace/settings/location.dart'
     show LocationMode, LocationGranularity, WebRtcPolicy;
@@ -463,6 +464,12 @@ class WebViewModel {
   String? pageTitle; // Current page title from webview
   List<Cookie> cookies;
   Widget? webview;
+  /// Destination of the last main-frame navigation this site's webview
+  /// refused to make because the app could not establish that it would go
+  /// through the site's proxy (LEAK-010). Drives the interstitial over the
+  /// page; deliberately not persisted, since it describes one navigation and
+  /// not the site.
+  String? blockedNavigationUrl;
   WebViewController? controller;
   UserProxySettings proxySettings;
   bool javascriptEnabled;
@@ -1238,6 +1245,8 @@ class WebViewModel {
             String origin, ScreenShareMode current)?
         onScreenShareDecision,
     List<UserScriptConfig> globalUserScripts = const [],
+    VoidCallback? onNavigationBlockChanged,
+    VoidCallback? onOpenProxySettings,
   }) {
     // Fail closed while Tor is still bootstrapping (TOR-008), for explicit
     // Tor sites and for DEFAULT sites inheriting a global Tor (PROXY-011).
@@ -1429,6 +1438,10 @@ class WebViewModel {
           pullToRefreshController: pullToRefreshGate?.controller,
           pullToRefreshGate: pullToRefreshGate,
           onWindowRequested: onWindowRequested,
+          onUnproxiedNavigationBlocked: (blocked) {
+            blockedNavigationUrl = blocked;
+            onNavigationBlockChanged?.call();
+          },
           shouldOverrideUrlLoading: (url, hasGesture) {
             LogService.instance.log(
               'WebView',
@@ -1797,7 +1810,33 @@ class WebViewModel {
         },
       );
     }
-    return webview!;
+    final blocked = blockedNavigationUrl;
+    // Always the same Stack, whether or not the interstitial is in it: a
+    // widget swapped in at this slot would unmount the platform view and
+    // take the page the user is still on with it. `StackFit.expand` keeps
+    // the webview's constraints exactly what they were without it.
+    //
+    // Over the webview rather than instead of it, because the navigation was
+    // cancelled: the document underneath is live, and dismissing the
+    // interstitial is what "go back" means here.
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        webview!,
+        if (blocked != null)
+          Positioned.fill(
+            child: UnproxiedNavigationBlock(
+              siteName: name,
+              blockedUrl: blocked,
+              onGoBack: () {
+                blockedNavigationUrl = null;
+                onNavigationBlockChanged?.call();
+              },
+              onOpenProxySettings: () => onOpenProxySettings?.call(),
+            ),
+          ),
+      ],
+    );
   }
 
   WebViewController? getController(

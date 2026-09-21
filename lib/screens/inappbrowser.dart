@@ -41,6 +41,7 @@ import 'package:webspace/widgets/download_button.dart';
 import 'package:webspace/widgets/external_url_prompt.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
 import 'package:webspace/widgets/tor_bootstrap.dart';
+import 'package:webspace/widgets/unproxied_block.dart';
 import 'package:webspace/widgets/untrusted_cert_prompt.dart';
 import 'package:webspace/widgets/url_bar.dart';
 
@@ -91,6 +92,11 @@ class InAppWebViewScreen extends StatefulWidget {
   final String? userAgent;
   final bool javascriptEnabled;
   final Future<bool> Function(String url)? onConfirmScriptFetch;
+  /// Opens the parent site's own proxy settings, for the blocked-navigation
+  /// interstitial (LEAK-010). A nested screen has no persisted model of its
+  /// own, so the route back to the setting that caused the block has to come
+  /// from the host.
+  final VoidCallback? onOpenProxySettings;
   /// Protected-content (Widevine/EME) permission popup, forwarded from the
   /// parent so a DRM site followed through an outbound link prompts the
   /// same way. The decision is remembered in-memory for this screen only
@@ -202,6 +208,7 @@ class InAppWebViewScreen extends StatefulWidget {
     this.userAgent,
     this.javascriptEnabled = true,
     this.onConfirmScriptFetch,
+    this.onOpenProxySettings,
     this.onProtectedMediaRequest,
     this.onCameraDecision,
     this.onMicrophoneDecision,
@@ -303,6 +310,10 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   /// invocation is still awaiting `goBack()` / URL diff, which would
   /// double-pop the route or fire `goBack()` twice. Cleared in `finally`.
   bool _isBackHandling = false;
+
+  /// Destination this screen refused to navigate to because the app could not
+  /// establish that it would go through the site's proxy (LEAK-010).
+  String? _blockedNavigationUrl;
 
   /// Same-domain gesture timestamp feeding `NavigationDecisionEngine`'s
   /// 10s propagation window, mirroring the parent webview's closure state.
@@ -453,6 +464,10 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         proxySettings: widget.proxySettings,
         userScripts: widget.userScripts,
         onConfirmScriptFetch: widget.onConfirmScriptFetch,
+        onUnproxiedNavigationBlocked: (blocked) {
+          if (!mounted) return;
+          setState(() => _blockedNavigationUrl = blocked);
+        },
         onProtectedMediaRequest: widget.onProtectedMediaRequest == null
             ? null
             : (origin) async {
@@ -1265,7 +1280,27 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
               // InAppWebView after a renderer death (BUG-002 gap #1).
               child: KeyedSubtree(
                 key: ValueKey(_rendererGen),
-                child: _webView ?? const TorBootstrapPlaceholder(),
+                // Always the same Stack, for the reason the root surface
+                // gives: swapping the child at this slot would unmount the
+                // platform view under the interstitial (LEAK-010).
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    _webView ?? const TorBootstrapPlaceholder(),
+                    if (_blockedNavigationUrl != null)
+                      Positioned.fill(
+                        child: UnproxiedNavigationBlock(
+                          siteName:
+                              widget.homeTitle ?? extractDomain(_currentUrl),
+                          blockedUrl: _blockedNavigationUrl!,
+                          onGoBack: () =>
+                              setState(() => _blockedNavigationUrl = null),
+                          onOpenProxySettings: () =>
+                              widget.onOpenProxySettings?.call(),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),

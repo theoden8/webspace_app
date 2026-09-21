@@ -20,6 +20,7 @@ import 'package:webspace/widgets/hint_button.dart';
 import 'package:webspace/widgets/proxy_auth_section.dart';
 import 'package:webspace/widgets/proxy_test_tile.dart';
 import 'package:webspace/widgets/tab_bar_corner_button.dart';
+import 'package:webspace/widgets/unproxied_block.dart';
 import 'package:webspace/demo_data.dart'
     show demoBlockStatsSiteNames, seedDemoBlockStats;
 import 'package:webspace/main.dart' show AppThemeSettings, AccentColor;
@@ -80,6 +81,7 @@ final List<GalleryCard> galleryCards = [
   GalleryCard(id: 'protection-report', label: 'Protection report screen', fullBleed: true, builder: (c) => const _ProtectionReportCard()),
   GalleryCard(id: 'protection-report-category', label: 'Protection report category', fullBleed: true, builder: (c) => const _ProtectionCategoryCard()),
   GalleryCard(id: 'add-site', label: 'Add site screen', fullBleed: true, builder: (c) => const _AddSiteCard()),
+  GalleryCard(id: 'unproxied-block', label: 'Blocked navigation interstitial', fullBleed: true, builder: (c) => const _UnproxiedBlockCard()),
   GalleryCard(id: 'color-roles', label: 'Color roles', builder: (c) => const _ColorRolesCard()),
   GalleryCard(id: 'type-scale', label: 'Type scale', builder: (c) => const _TypeScaleCard()),
   GalleryCard(id: 'radius-scale', label: 'Corner radii', builder: (c) => const _RadiusScaleCard()),
@@ -208,6 +210,22 @@ class _GalleryIndex extends StatelessWidget {
     );
   }
 }
+
+class _UnproxiedBlockCard extends StatelessWidget {
+  const _UnproxiedBlockCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return const UnproxiedNavigationBlock(
+      siteName: 'Acme Bank',
+      blockedUrl: 'https://analytics.tracker.example.org/collect?id=42',
+      onGoBack: _noop,
+      onOpenProxySettings: _noop,
+    );
+  }
+}
+
+void _noop() {}
 
 class _ColorRolesCard extends StatelessWidget {
   const _ColorRolesCard();

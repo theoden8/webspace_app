@@ -178,6 +178,12 @@ const PLUMBING = new Set([
   // copied as a value. Both were invisible to this gate until the field parser
   // learned to read a declaration whose type wraps onto a second line.
   'onScreenShareDecision', 'onUntrustedCertificate',
+  // Host callback for a navigation refused because proxy coverage could not
+  // be established (LEAK-010). Both surfaces wire it to their own
+  // interstitial: the root to the overlay WebViewModel.getWebView renders,
+  // the nested screen to its own. The posture it acts on is `proxySettings`,
+  // which is already a POSTURE field and so already asserted threaded.
+  'onUnproxiedNavigationBlocked',
 ]);
 
 // Posture-ish but not yet threaded to nested webviews. An archive-tier site
