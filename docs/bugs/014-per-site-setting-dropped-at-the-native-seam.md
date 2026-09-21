@@ -4747,6 +4747,54 @@ went, but says nothing about which code path sent it.
 **Why it was partial.** It adds an instrument and answers nothing on its own.
 Its first reading arrives with the same-origin arm.
 
+### Attempt 86 -- ask the layer under WebKit, in a process we can trace
+
+**2026-09-21**, PR #603, no verdict yet.
+
+**What every arm so far shares, and why it kept producing retractions.**
+Attempts 74, 77, 78 and 82 all asked `WKWebView` a question, watched a fixture,
+and invented a mechanism to fit the answer. None of them could see inside the
+component they were blaming, and each was withdrawn when the inside was finally
+consulted -- 78 by the probe's own trace, 83 by WebKit's source. The method was
+the defect, not any single reading.
+
+**The arm that removes WebKit from the experiment.**
+`proxyConfigurations` is the same `Network.framework` type on
+`URLSessionConfiguration` as on `WKWebsiteDataStore`, and a `URLSession` runs
+in the app's own process. `ProxyProbePlugin.urlSessionSequential` builds one
+`ProxyConfiguration(socksv5Proxy:)`, puts it on an ephemeral
+`URLSessionConfiguration`, and loads the **same URL twice** in sequence,
+`NSLog`-ing the configured proxy count, each load's start, and each load's
+outcome and duration. The URL cache is nil and the policy is
+`reloadIgnoringLocalAndRemoteCacheData`, so a repeat GET cannot be answered
+without a connection and misread as a skipped proxy.
+
+Two loads of one URL: nothing about the request differs between them, so
+wrapper selection, registrable domain and storage policy are all held fixed --
+the confounds attempt 84 had to reason around.
+
+| reading | meaning |
+|---|---|
+| both loads reach the SOCKS fixture | the second-load failure is **WebKit's**; the layer under it is sound, and that is the upstream report |
+| only the first reaches it | `ProxyConfiguration` stops applying by itself; **WebKit is blameless** and every WKWebView arm in this file was measuring the wrong component |
+
+`integration_test/proxy_urlsession_test.dart` drives it and asserts only that
+the arm ran -- both loads settled, and the fixture was reachable at all -- so a
+silent no-op cannot be read as a finding. Which way the split goes is reported.
+It runs first in the tier, gap -2 applying to it like everything else.
+
+**A CI gap found while doing this, and fixed.** `tool/swift_typecheck/check.sh`
+type-checks `ProxyProbePlugin.swift` only when `uname -s != Darwin`, and the
+only workflow step that ran the script was on the Apple job, which is Darwin.
+The guard written after "`proxyConfigurations?.count` reached CI once" had
+therefore never run anywhere. `validate` now runs the script on Linux, where
+that branch is live, so a Swift error in the probe costs seconds instead of a
+macOS build.
+
+**Why it was partial.** It is an instrument, and it reports rather than
+asserts. But unlike every earlier arm it can exonerate the component it is
+pointed at, which is the thing this investigation has never been able to do.
+
 ## Known open gaps
 
 -2. **Any arm that asks about the Apple proxy MUST run first in the macOS tier

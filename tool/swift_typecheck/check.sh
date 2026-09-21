@@ -50,6 +50,11 @@ echo "swift_typecheck: TorControllerPlugin.swift type-checks"
 # only by the Apple job, and a Swift error in it costs a 40-minute round
 # trip -- which is how `proxyConfigurations?.count` reached CI once. Skipped
 # on macOS for the reason above: Xcode compiles it there for real.
+#
+# That skip made this guard unreachable: the only CI step that runs this
+# script is on the Apple job, which is Darwin. So the file it was written to
+# protect was never checked anywhere. `validate` now runs the script too, on
+# Linux, where this branch is live.
 if [ "$(uname -s)" != "Darwin" ]; then
   "$swiftc" -typecheck -swift-version 5 -I "$work" \
     "$root/macos/Runner/ProxyProbePlugin.swift"

@@ -146,6 +146,13 @@ jobs:
       # a platform build; runs early to fail fast.
       - name: Run JS shim tests
         run: npm run test:js
+      - name: Set up Swift for the plugin type-check
+        uses: swift-actions/setup-swift@v2
+        continue-on-error: true
+
+      - name: Type-check the Apple plugins
+        run: ./tool/swift_typecheck/check.sh
+
       - name: Validate OpenSpec
         run: npx openspec validate --no-interactive --all
       # Formal verification kernel (TLA+/TLC). Checks the cross-spec state
@@ -1482,6 +1489,20 @@ jobs:
               "$wklog" 2>/dev/null | head -20 || true
             echo "::endgroup::"
           }
+          # Ahead of the timing file: it is the arm that says whether the
+          # component under suspicion is even WebKit, and gap -2 applies to it
+          # like everything else.
+          echo "::group::integration_test/proxy_urlsession_test.dart"
+          if [ -n "$TIMEOUT" ]; then
+            "$TIMEOUT" -k 30s 12m \
+              fvm flutter test integration_test/proxy_urlsession_test.dart -d macos --ci 2>&1 \
+              | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_urlsession.log" || true
+          else
+            fvm flutter test integration_test/proxy_urlsession_test.dart -d macos --ci 2>&1 \
+              | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_urlsession.log" || true
+          fi
+          echo "::endgroup::"
+
           timing_launch first
 
           matrix_launch() {
@@ -1602,6 +1623,8 @@ jobs:
             # Runs first in the tier above; only the first app process can
             # proxy, so a launch here would measure a dead one.
             [ "$(basename "$t")" = "proxy_timing_test.dart" ] && continue
+            # Ran first above, for the same reason.
+            [ "$(basename "$t")" = "proxy_urlsession_test.dart" ] && continue
             echo "::group::$t"
             rc=0
             # Kept per file so a failure can be re-printed at the end. Each
@@ -1650,6 +1673,10 @@ jobs:
           # The matrix decides whether a per-site proxy is reachable at all
           # on Apple, so its three verdict lines go in the tail beside the
           # shape ones rather than a megabyte back in the log.
+          echo "=== BUG-014 URLSession-vs-WebKit verdict ==="
+          grep -h -e "proxy-urlsession\]" \
+            "${RUNNER_TEMP:-/tmp}/tier-proxy_urlsession.log" 2>/dev/null \
+            || echo "urlsession: no verdict line"
           echo "=== BUG-014 timing verdicts ==="
           grep -h -e "proxy-timing\] run=.* verdict" -e "proxy-timing\] baseline=" \
             -e "proxy-timing\] same-store" -e "proxy-timing\] new-store" \
