@@ -58,6 +58,15 @@ fvm install
 curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
 export NVM_DIR="$HOME/.nvm"; [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 nvm install --lts
+
+# Swift — only to run tool/swift_typecheck/check.sh, which type-checks the two
+# Apple plugins no other tier compiles. It exits 0 with "no swiftc on PATH,
+# skipping" when Swift is absent, so without this the gate is silently not a
+# gate, which is how `proxyConfigurations?.count` reached CI once.
+curl -fsSLO https://download.swift.org/swiftly/linux/swiftly-$(uname -m).tar.gz
+tar zxf swiftly-$(uname -m).tar.gz
+./swiftly init --quiet-shell-followup --assume-yes
+. "${SWIFTLY_HOME_DIR:-$HOME/.local/share/swiftly}/env.sh"
 ```
 
 ## Commands
