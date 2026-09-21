@@ -4134,10 +4134,6 @@
   "@unproxiedBlockWhy": {
     "description": "Second paragraph of the blocked-navigation screen, explaining why only some requests can be shown to go through the proxy. Keep it about what can be established, not about the proxy working or failing."
   },
-  "unproxiedBlockReopen": "Reopen through the proxy",
-  "@unproxiedBlockReopen": {
-    "description": "Button on the blocked-navigation screen. It opens the blocked destination as a freshly opened page, which is the request the proxy does cover. It is not a way to continue without the proxy."
-  },
   "unproxiedBlockBack": "Go back",
   "@unproxiedBlockBack": {
     "description": "Button on the blocked-navigation screen that returns to the page the user was already on."

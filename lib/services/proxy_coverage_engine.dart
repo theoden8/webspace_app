@@ -27,9 +27,19 @@ class ProxyCoverageEngine {
   /// catches every request it makes, so mount and post-mount navigations are
   /// alike. Under [ProxyBinding.perSite] the proxy is written onto
   /// `WKWebsiteDataStore.proxyConfigurations` at construction, and BUG-014
-  /// attempts 90 and 91 measured, against a live control, that it covers the
-  /// mounting navigation and nothing after it -- for SOCKS5 and for HTTP
-  /// CONNECT alike, so a loopback relay does not escape it.
+  /// attempts 90 and 92 measured, twice and each against a live control in
+  /// the same process, that it covers the navigation issued in the turn that
+  /// mounted the WebView and nothing after it (`sameturn-loadurl=proxied`
+  /// against `persist-loadurl=DIRECT`, the same `loadUrl` on the same
+  /// controller). Attempt 91 adds that CONNECT fails identically to SOCKS5,
+  /// so a loopback relay does not escape it.
+  ///
+  /// [ProxyCoverage.established] for a mounting navigation is the claim the
+  /// app already makes when it binds a store (PROXY-027), not a stronger one
+  /// made here: those same runs read `later-pair=0 of 2 proxied` for stores
+  /// built after the app's first frame. Nothing may be built on top of it --
+  /// in particular, reopening a refused destination on a fresh view is not a
+  /// proxied path and is not offered as one.
   ///
   /// Linux is per-site in the other sense and is deliberately not a case
   /// here: it carries the proxy on a `WebKitNetworkSession` the container

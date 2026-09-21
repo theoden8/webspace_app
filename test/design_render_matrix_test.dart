@@ -76,7 +76,6 @@ final Map<String, Widget Function()> _subjects = {
         siteName: 'Acme Bank',
         blockedUrl: 'https://tracker.example.org/a/b',
         onGoBack: () {},
-        onRetry: () {},
         onOpenProxySettings: () {},
       ),
   'proxy-test': () => ProxyTestTile(

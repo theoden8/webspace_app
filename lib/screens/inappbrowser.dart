@@ -312,11 +312,8 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   bool _isBackHandling = false;
 
   /// Destination this screen refused to navigate to because the app could not
-  /// establish that it would go through the site's proxy (LEAK-010), and the
-  /// URL a remount reopens on. `_mountUrl` starts at the entry URL and moves
-  /// only when the user reopens a blocked destination through the proxy.
+  /// establish that it would go through the site's proxy (LEAK-010).
   String? _blockedNavigationUrl;
-  late String _mountUrl;
 
   /// Same-domain gesture timestamp feeding `NavigationDecisionEngine`'s
   /// 10s propagation window, mirroring the parent webview's closure state.
@@ -363,7 +360,6 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     // Use home site title if provided
     title = widget.homeTitle;
     _currentUrl = widget.url;
-    _mountUrl = widget.url;
     _showUrlBar = widget.showUrlBar;
     _cameraMode = nestedSeedMode(widget.cameraMode,
         real: CameraAccessMode.real, ask: CameraAccessMode.ask);
@@ -409,7 +405,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     return WebViewFactory.createWebView(
       config: WebViewConfig(
         siteId: widget.siteId,
-        initialUrl: _mountUrl,
+        initialUrl: widget.url,
         // BUG-002 gap #1: the OS can kill this nested webview's renderer
         // (memory reclaim while backgrounded, or a page-induced crash),
         // leaving a dead black surface. Destroy-and-rebuild on the event,
@@ -890,23 +886,6 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     }
   }
 
-  /// Reopen the refused destination on a fresh webview, which makes it the
-  /// mounting navigation and so the one the store's proxy covers (LEAK-010).
-  /// Rebuilds the widget rather than only bumping the remount key: the
-  /// destination is the new webview's `initialUrl`.
-  void _reopenBlockedNavigation() {
-    final target = _blockedNavigationUrl;
-    if (target == null) return;
-    setState(() {
-      _blockedNavigationUrl = null;
-      _mountUrl = target;
-      _currentUrl = target;
-      _controller = null;
-      _webView = _createNestedInappWebView();
-      _rendererGen++;
-    });
-  }
-
   /// Destroy-and-rebuild this nested webview after its renderer process is gone
   /// (BUG-002 gap #1). Bumping `_rendererGen` remounts a fresh `InAppWebView`;
   /// the dead controller is dropped (a fresh one arrives via onControllerCreated).
@@ -1316,7 +1295,6 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                           blockedUrl: _blockedNavigationUrl!,
                           onGoBack: () =>
                               setState(() => _blockedNavigationUrl = null),
-                          onRetry: _reopenBlockedNavigation,
                           onOpenProxySettings: () =>
                               widget.onOpenProxySettings?.call(),
                         ),

@@ -1832,27 +1832,11 @@ class WebViewModel {
                 blockedNavigationUrl = null;
                 onNavigationBlockChanged?.call();
               },
-              onRetry: () {
-                reopenBlockedNavigation();
-                onNavigationBlockChanged?.call();
-              },
               onOpenProxySettings: () => onOpenProxySettings?.call(),
             ),
           ),
       ],
     );
-  }
-
-  /// Rebuild this site's webview on the destination that was refused, so the
-  /// request becomes the mounting navigation and the store's proxy covers it
-  /// (LEAK-010). Not a way past the block: the request still goes through the
-  /// proxy, and if it cannot, it is refused again.
-  void reopenBlockedNavigation() {
-    final target = blockedNavigationUrl;
-    if (target == null) return;
-    blockedNavigationUrl = null;
-    currentUrl = target;
-    disposeWebView();
   }
 
   WebViewController? getController(
