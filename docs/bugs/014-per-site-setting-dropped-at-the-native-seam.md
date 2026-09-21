@@ -4795,6 +4795,48 @@ macOS build.
 asserts. But unlike every earlier arm it can exonerate the component it is
 pointed at, which is the thing this investigation has never been able to do.
 
+### Attempt 87 -- the instrument could not tell a reused connection from a bypass
+
+**2026-09-21**, PR #603, no verdict yet.
+
+**What was wrong with the arm attempt 84 built.** Attempt 84 pointed pane A's
+second navigation back at the *identical* origin so that host, port,
+registrable domain and storage policy could not select a different session
+wrapper. That closed one confound and opened a worse one. The verdict was
+`connectsAfter > connectsBefore ? own : DIRECT-or-cached` -- a count of SOCKS5
+CONNECTs at the fixture. A second request to the same `host:port` over the
+connection the first load already opened adds **no** CONNECT and is **fully
+proxied**. HTTP/1.1 keep-alive is the default on both ends here (Dart's
+`HttpServer` never sends `Connection: close`, and WebKit and `URLSession` both
+pool connections), so for the identical-origin arm "no new CONNECT" is exactly
+what a *working* proxy produces. The arm could not have distinguished the two
+hypotheses it was built to separate, whichever way it came out. The same
+counting sat in `proxy_urlsession_test.dart` (attempt 86), where both loads go
+to one URL by design, so that arm was unreadable too.
+
+**What this does not touch.** Attempt 82's observation was made when the second
+navigation went to a *different* origin port. A different `host:port` is a
+different connection pool key, so a proxied load there must issue its own
+CONNECT, and none was recorded. Reuse cannot explain that reading; gap -1's
+surviving fact stands.
+
+**The fix: attribute each request, do not count connections.** `Socks5Fixture`
+and `HttpConnectFixture` now record `relayedPorts` -- the local port of every
+upstream socket they dial -- and each origin records
+`connectionInfo.remotePort` per request. A request is proxied iff the peer the
+origin saw is a port its fixture dialled from. Reuse is then harmless: a
+navigation served over a proxied connection is still attributed to that proxy,
+and a direct load arrives from a peer no fixture owns. `classify` reads the
+same way, so a crossed circuit is still named, and `asked-not-delivered` (the
+proxy was asked and the relay never completed) is now distinct from `no-load`.
+
+**Why it was partial.** It fixes the readout, not the question. It also does
+not yet cover `proxy_binding_test.dart` or `proxy_matrix_test.dart`, whose arms
+use a distinct origin each and so are not exposed to reuse today -- but nothing
+stops a future arm there from repeating an origin and inheriting the same
+blind spot.
+
+
 ## Known open gaps
 
 -2. **Any arm that asks about the Apple proxy MUST run first in the macOS tier
@@ -4816,12 +4858,17 @@ pointed at, which is the thing this investigation has never been able to do.
    retains it for every load, with no per-load consumption anywhere, and no
    documentation or upstream report says otherwise.
 
-   Sharpest surviving fact: the fixture records CONNECT targets *before*
-   dialling, and recorded none for load 2, so the proxy was never contacted.
-   Two candidates, neither excluded: `allowFailover` (never set by this app,
-   Apple's default unverified) and something clearing the live `nw_context`.
-   Next arm sets `allowFailover: false` explicitly, which decides candidate 1
-   either way.
+   Sharpest surviving fact: with load 2 aimed at a *different* origin port,
+   the fixture -- which records CONNECT targets *before* dialling -- recorded
+   none for it, so the proxy was never contacted. A different `host:port`
+   cannot reuse the first load's connection, so attempt 87's confound does not
+   reach this reading.
+
+   `allowFailover` is excluded (attempt 84: pinning it false gave a
+   byte-identical verdict). What remains is something clearing the live
+   `nw_context`, and the arm that would settle it -- the same WebView
+   navigating twice to the identical origin -- produced nothing usable until
+   attempt 87 replaced CONNECT counting with per-request attribution.
 
 0. **SUBSUMED by gap -1 (attempt 82).** This guessed the boundary was a store
    that had served a load; it is per WebView and per load, and applies to

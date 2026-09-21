@@ -21,6 +21,14 @@
 // never off the origin, because the fixture relays and a proxied load reaches
 // the origin too.
 //
+// Every verdict is attributed PER REQUEST, from the peer port the origin
+// saw against the ports its fixture dialled upstream from. The earlier
+// version compared CONNECT counts, which cannot see a request served over a
+// kept-alive connection: once the second navigation was pointed back at the
+// very origin that had just been proxied (to hold session-wrapper routing
+// fixed), "no new CONNECT" became exactly what a WORKING proxy produces,
+// and the arm could no longer tell that from a bypass.
+//
 // Gap -2: this file MUST run first in the macOS tier. Only the tier's first
 // app process can proxy; anywhere else it measures a dead process and says
 // so via the control.
@@ -72,7 +80,7 @@ void main() {
   final origins = <HttpServer>[];
   final ports = <int>[];
   final socks = <Socks5Fixture>[];
-  final requests = <String>[];
+  final requests = <({String origin, int port})>[];
   InternetAddress? routable;
   var originHost = '127.0.0.1';
   var containers = false;
@@ -90,7 +98,10 @@ void main() {
       origins.add(origin);
       ports.add(origin.port);
       listenFixture(origin, (req) async {
-        requests.add('o$i');
+        requests.add((
+          origin: 'o$i',
+          port: req.connectionInfo?.remotePort ?? -1,
+        ));
         final res = req.response..headers.contentType = ContentType.html;
         res.write('<!doctype html><html><body><p>o$i</p></body></html>');
         await res.close();
@@ -105,8 +116,10 @@ void main() {
   tearDownAll(() async {
     if (!applies) return;
     for (var i = 0; i < socks.length; i++) {
-      log('socks$i connects=${socks[i].targets}');
+      log('socks$i connects=${socks[i].targets} '
+          'relayed=${socks[i].relayedPorts.toList()..sort()}');
     }
+    log('origin arrivals=${requests.map((r) => "${r.origin}@${r.port}").toList()}');
     log('run=$runLabel verdict: containers=$containers '
         '${verdict.entries.map((e) => "${e.key}=${e.value}").join(" ")}');
     for (final s in socks) {
@@ -119,21 +132,38 @@ void main() {
 
   String urlFor(int i) => 'http://$originHost:${ports[i]}/o$i';
 
-  /// Did the fixture that is supposed to carry origin [i] actually get asked
-  /// for it? Checked against every fixture so a crossed circuit is named.
-  String classify(int i, int expectedSocks) {
-    final target = '$originHost:${ports[i]}';
+  /// Which fixture, if any, relayed the request the origin actually saw.
+  /// Null when the origin was reached from a peer no fixture dialled from,
+  /// i.e. the app went straight there.
+  int? relayOf(int remotePort) {
     for (var s = 0; s < socks.length; s++) {
-      if (socks[s].targets.contains(target)) {
-        return s == expectedSocks ? 'own' : 'CROSSED(socks$s)';
-      }
+      if (socks[s].relayedPorts.contains(remotePort)) return s;
     }
-    return requests.contains('o$i') ? 'DIRECT' : 'no-load';
+    return null;
+  }
+
+  /// Did origin [i] get its request through the fixture that is supposed to
+  /// carry it? Read off the last request the origin saw, attributed by peer
+  /// port, so a crossed circuit is named and a reused connection still counts
+  /// as the proxied one it belongs to.
+  String classify(int i, int expectedSocks) {
+    final hits = requests.where((r) => r.origin == 'o$i').toList();
+    if (hits.isEmpty) {
+      // The proxy was asked and the relay never delivered: still evidence the
+      // proxy was in force, and distinct from a load that never happened.
+      return socks.any((s) => s.targets.contains('$originHost:${ports[i]}'))
+          ? 'asked-not-delivered'
+          : 'no-load';
+    }
+    final relay = relayOf(hits.last.port);
+    if (relay == null) return 'DIRECT';
+    return relay == expectedSocks ? 'own' : 'CROSSED(socks$relay)';
   }
 
   bool settled(int i) {
     final target = '$originHost:${ports[i]}';
-    return socks.any((s) => s.targets.contains(target)) || requests.contains('o$i');
+    return socks.any((s) => s.targets.contains(target)) ||
+        requests.any((r) => r.origin == 'o$i');
   }
 
   Future<void> waitReal(WidgetTester tester, bool Function() done,
@@ -236,28 +266,36 @@ void main() {
       expect(controller, isNotNull,
           reason: 'pane A reported no controller, so its second navigation '
               'could not be issued');
-      // Back to the very origin that was just proxied. A second CONNECT for
-      // it at socks0 is the only way this can read `own`, and the fixture
-      // records targets before dialling, so a missing one means the proxy was
-      // never contacted.
-      final firstTarget = '$originHost:${ports[0]}';
-      final connectsBefore =
-          socks[0].targets.where((t) => t == firstTarget).length;
+      // Back to the very origin that was just proxied, so host, port,
+      // registrable domain and storage policy are identical to the load that
+      // WAS proxied. The arrival is attributed by peer port, not by a new
+      // CONNECT: a navigation served over the connection the first load
+      // opened is still a proxied one, and counting CONNECTs would have
+      // called it a bypass.
+      final hitsBefore = requests.where((r) => r.origin == 'o0').length;
       await tester.runAsync(() async {
         await controller!.loadUrl(
             urlRequest: inapp.URLRequest(url: inapp.WebUri(urlFor(0))));
       });
       await waitReal(
           tester,
-          () =>
-              socks[0].targets.where((t) => t == firstTarget).length >
-              connectsBefore,
+          () => requests.where((r) => r.origin == 'o0').length > hitsBefore,
           label: 'pane A second navigation (identical origin)');
-      final connectsAfter =
-          socks[0].targets.where((t) => t == firstTarget).length;
-      verdict['same-store-2nd-nav'] =
-          connectsAfter > connectsBefore ? 'own' : 'DIRECT-or-cached';
-      log('same-origin CONNECTs before=$connectsBefore after=$connectsAfter');
+      final hitsAfter = requests.where((r) => r.origin == 'o0').toList();
+      if (hitsAfter.length <= hitsBefore) {
+        // With allowFailover pinned false, a proxy that is no longer in force
+        // fails the load rather than quietly going direct, so this is the
+        // shape a dropped configuration takes here.
+        verdict['same-store-2nd-nav'] = 'no-arrival';
+      } else {
+        final relay = relayOf(hitsAfter.last.port);
+        verdict['same-store-2nd-nav'] = relay == null
+            ? 'DIRECT'
+            : (relay == 0 ? 'own' : 'CROSSED(socks$relay)');
+      }
+      log('pane A origin-0 arrivals before=$hitsBefore '
+          'after=${hitsAfter.length} peers=${hitsAfter.map((r) => r.port).toList()} '
+          'socks0 relayed=${socks[0].relayedPorts.toList()..sort()}');
       log('same-store-2nd-nav=${verdict["same-store-2nd-nav"]}');
 
       // A brand-new store in a later frame. Pane A stays in the tree so its

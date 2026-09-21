@@ -401,3 +401,64 @@ test('every proxy arm that can read null carries a positive control', () => {
     );
   }
 });
+
+// A verdict read from a count of proxy connections cannot see a request that
+// was served over one already open (BUG-014 attempt 87).
+//
+// Once an arm sends its second load back to the origin that was just proxied
+// -- which is what holds session-wrapper routing fixed -- HTTP/1.1 keep-alive
+// means the proxy is asked for no new CONNECT. "No new CONNECT" is then what a
+// WORKING proxy produces, identical to a bypass. The readable form attributes
+// each request: the fixture records the local port of every upstream socket it
+// dials, the origin records the peer port of every request it serves, and the
+// two are matched.
+test('both proxy fixtures expose the ports they relayed from', () => {
+  for (const rel of [
+    'integration_test/socks5_fixture.dart',
+    'integration_test/http_connect_fixture.dart',
+  ]) {
+    const body = fs.readFileSync(path.join(repoRoot, rel), 'utf8');
+    assert.match(
+      body,
+      /final relayedPorts = <int>\{\};/,
+      `${rel} must expose relayedPorts, or an arm has nothing to attribute ` +
+        'a request against',
+    );
+    assert.match(
+      body,
+      /relayedPorts\.add\(upstream\.port\);/,
+      `${rel} declares relayedPorts without recording the upstream socket it ` +
+        'dialled, so the set is always empty and every request reads direct',
+    );
+  }
+});
+
+test('an arm that reloads one origin attributes requests, not connections', () => {
+  const arms = [
+    'integration_test/proxy_timing_test.dart',
+    'integration_test/proxy_urlsession_test.dart',
+  ];
+  for (const rel of arms) {
+    const body = fs.readFileSync(path.join(repoRoot, rel), 'utf8');
+    const armCode = body.replace(/^\s*\/\/.*$/gm, '');
+    assert.match(
+      armCode,
+      /connectionInfo\?\.remotePort/,
+      `${rel} loads one origin more than once, so its origin must record the ` +
+        'peer each request arrived from',
+    );
+    assert.match(
+      armCode,
+      /relayedPorts/,
+      `${rel} must reach its verdict through the fixture's relayed ports; ` +
+        'anything else cannot tell a reused connection from a bypass',
+    );
+    for (const line of armCode.split('\n')) {
+      assert.doesNotMatch(
+        line,
+        /targets\b.*\.length\s*[<>]/,
+        `${rel} compares a count of CONNECTs to reach a verdict: ${line.trim()}`,
+      );
+    }
+  }
+});

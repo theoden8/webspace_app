@@ -8,15 +8,21 @@
 //
 // Same proxy, same origin, two sequential loads:
 //
-//  * both reach the fixture -> the second-load failure is WebKit's, and the
+//  * both arrive proxied -> the second-load failure is WebKit's, and the
 //    layer under it is fine. That is what to report upstream.
-//  * only the first reaches it -> `ProxyConfiguration` itself stops applying,
+//  * only the first does -> `ProxyConfiguration` itself stops applying,
 //    WebKit is blameless, and every WKWebView reading here was measuring the
 //    wrong component.
 //
 // The native side disables the URL cache and forces
 // `reloadIgnoringLocalAndRemoteCacheData`, so a repeated GET cannot be
 // answered without a connection and read as a skipped proxy.
+//
+// The split is read per request, from the peer port the origin saw against
+// the ports the fixture dialled upstream from. Counting CONNECTs cannot do
+// it: a second request on a kept-alive connection adds no CONNECT and is
+// fully proxied, so "one CONNECT for two loads" is what a working proxy
+// looks like as much as a broken one.
 
 import 'dart:io';
 
@@ -37,7 +43,7 @@ void main() {
   late HttpServer origin;
   late Socks5Fixture socks;
   late String originHost;
-  final requests = <String>[];
+  final requests = <({String path, int port})>[];
   InternetAddress? routable;
 
   void log(String m) {
@@ -53,7 +59,7 @@ void main() {
     socks = await Socks5Fixture.bind();
     origin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
     listenFixture(origin, (req) async {
-      requests.add(req.uri.path);
+      requests.add((path: req.uri.path, port: req.connectionInfo?.remotePort ?? -1));
       final res = req.response..headers.contentType = ContentType.html;
       res.write('<!doctype html><html><body><p>o</p></body></html>');
       await res.close();
@@ -94,8 +100,13 @@ void main() {
     });
 
     final connects = socks.targets.where((t) => t == target).length;
+    final seen = requests
+        .map((r) => '${r.path}:${socks.relayedPorts.contains(r.port) ? "proxied" : "direct"}')
+        .toList();
+    final proxied = seen.where((s) => s.endsWith(':proxied')).length;
     log('reply=$reply');
-    log('socks CONNECTs for $target = $connects, origin saw $requests');
+    log('socks CONNECTs for $target = $connects, relayed ports '
+        '${socks.relayedPorts.toList()..sort()}, origin saw $seen');
 
     expect(reply, isNotNull, reason: 'the probe plugin did not answer');
     expect(reply!['ok'], isTrue,
@@ -108,12 +119,16 @@ void main() {
     expect(outcomes.length, 2,
         reason: 'both loads must settle for the comparison to mean anything, '
             'got $outcomes');
-    expect(connects, greaterThan(0),
-        reason: 'the first URLSession load did not reach the proxy fixture '
-            'either, so this process could not proxy at all and the split '
-            'below says nothing');
+    // Not asserted: a second load that FAILS rather than going direct leaves
+    // the origin with one request, and that is a finding too (it is what
+    // allowFailover:false turns a silent bypass into).
+    expect(proxied, greaterThan(0),
+        reason: 'the first URLSession load did not reach the origin through '
+            'the fixture either, so this process could not proxy at all and '
+            'the split below says nothing');
 
-    log('VERDICT urlsession-sequential connects=$connects of 2 '
-        'outcomes=$outcomes configuredAfter=${reply!['configuredAfter']}');
+    log('VERDICT urlsession-sequential proxied=$proxied of ${requests.length} '
+        'requests=$seen connects=$connects outcomes=$outcomes '
+        'configuredAfter=${reply!['configuredAfter']}');
   });
 }

@@ -38,6 +38,12 @@ class HttpConnectFixture {
   /// `host:port` of every CONNECT this proxy was asked for, in order.
   final targets = <String>[];
 
+  /// Local port of every upstream socket this proxy dialled, which is the
+  /// port the origin sees as its peer for anything relayed through here.
+  /// Lets an origin attribute each request individually instead of comparing
+  /// CONNECT counts, which cannot see a reused persistent connection.
+  final relayedPorts = <int>{};
+
   /// When set, a CONNECT without a matching `Proxy-Authorization` is answered
   /// `407` with a `Proxy-Authenticate: Basic` challenge instead of being
   /// tunnelled (BUG-014 route 2). WebKit bug 264309 says the header is never
@@ -119,6 +125,7 @@ class HttpConnectFixture {
         timeout: const Duration(seconds: 5),
       );
       _upstreams.add(upstream);
+      relayedPorts.add(upstream.port);
       upstream.setOption(SocketOption.tcpNoDelay, true);
       unawaited(upstream.done.catchError((Object _) => upstream!));
 
