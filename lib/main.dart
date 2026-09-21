@@ -1030,6 +1030,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   static const double _loadingBarHeight = 3.0;
 
   bool _isBackHandling = false;
+  bool _isOpeningSiteSettings = false;
   bool _isFindVisible = false;
   bool _isFullscreen = false; // Runtime fullscreen state (hides appBar, tabStrip, system UI)
   // Toggled by _nudgeSurfaceRepaint to apply a transient 1px inset that
@@ -1422,6 +1423,55 @@ class _WebSpacePageState extends State<WebSpacePage>
       return _appIntentsSupported;
     }
     return false;
+  }
+
+  /// Push the per-site settings screen for the site at [index].
+  ///
+  /// Three call sites want it: the two overflow menus, and the
+  /// blocked-navigation interstitial, which has to reach the proxy row of
+  /// the site it is covering (LEAK-010).
+  Future<void> _openSiteSettings(int index) async {
+    if (_isOpeningSiteSettings) return;
+    if (index < 0 || index >= _webViewModels.length) return;
+    _isOpeningSiteSettings = true;
+    try {
+      final model = _webViewModels[index];
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => SettingsScreen(
+            webViewModel: model,
+            otherSites: _webViewModels
+                .where((m) => m.siteId != model.siteId)
+                .toList(growable: false),
+            useContainers: _useContainers,
+            notificationsBlockedBySite: _notificationsBlockedBySite(model),
+            globalUserScripts: _globalUserScripts,
+            onGlobalUserScriptsChanged: (scripts) {
+              _globalUserScripts = scripts;
+              _saveGlobalUserScripts();
+              _resetAllWebViews();
+            },
+            onScriptsChanged: _resetCurrentSiteWebView,
+            onClearCookies: () => _clearSiteData(index),
+            onSettingsSaved: _handlePerSiteSettingsSaved,
+          ),
+        ),
+      );
+      if (!mounted) return;
+      await _saveWebViewModels();
+    } finally {
+      _isOpeningSiteSettings = false;
+    }
+  }
+
+  /// [_openSiteSettings] for the site [siteId] names, for call sites that
+  /// carry the id rather than the index (the nested webview screen).
+  Future<void> _openSiteSettingsById(String? siteId) async {
+    if (siteId == null) return;
+    final index = _webViewModels.indexWhere((m) => m.siteId == siteId);
+    if (index == -1) return;
+    await _openSiteSettings(index);
   }
 
   /// Routes the "Home Shortcut" menu tap. Android pins directly; iOS shows
@@ -5797,6 +5847,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           javascriptEnabled: javascriptEnabled,
           userScripts: userScripts,
           onConfirmScriptFetch: _confirmScriptFetch,
+          onOpenProxySettings: () => _openSiteSettingsById(siteId),
           onProtectedMediaRequest: _promptProtectedMedia,
           onCameraDecision: _resolveCameraDecision,
           onMicrophoneDecision: _resolveMicrophoneDecision,
@@ -7520,29 +7571,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                   _repaintCurrentSurface();
                 break;
                 case 'settings':
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => SettingsScreen(
-                        webViewModel: _webViewModels[_currentIndex!],
-                        otherSites: _webViewModels
-                            .where((m) => m.siteId != _webViewModels[_currentIndex!].siteId)
-                            .toList(growable: false),
-                        useContainers: _useContainers,
-                        notificationsBlockedBySite: _notificationsBlockedBySite(_webViewModels[_currentIndex!]),
-                        globalUserScripts: _globalUserScripts,
-                        onGlobalUserScriptsChanged: (scripts) {
-                          _globalUserScripts = scripts;
-                          _saveGlobalUserScripts();
-                          _resetAllWebViews();
-                        },
-                        onScriptsChanged: _resetCurrentSiteWebView,
-                        onClearCookies: () => _clearSiteData(_currentIndex!),
-                        onSettingsSaved: _handlePerSiteSettingsSaved,
-                      ),
-                    ),
-                  );
-                  await _saveWebViewModels();
+                  await _openSiteSettings(_currentIndex!);
                 break;
                 case 'toggleUrlBar':
                   setState(() {
@@ -8054,29 +8083,7 @@ class _WebSpacePageState extends State<WebSpacePage>
             _repaintCurrentSurface();
           break;
           case 'settings':
-            await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => SettingsScreen(
-                  webViewModel: _webViewModels[_currentIndex!],
-                  otherSites: _webViewModels
-                      .where((m) => m.siteId != _webViewModels[_currentIndex!].siteId)
-                      .toList(growable: false),
-                  useContainers: _useContainers,
-                  notificationsBlockedBySite: _notificationsBlockedBySite(_webViewModels[_currentIndex!]),
-                  globalUserScripts: _globalUserScripts,
-                  onGlobalUserScriptsChanged: (scripts) {
-                    _globalUserScripts = scripts;
-                    _saveGlobalUserScripts();
-                    _resetAllWebViews();
-                  },
-                  onScriptsChanged: _resetCurrentSiteWebView,
-                  onClearCookies: () => _clearSiteData(_currentIndex!),
-                  onSettingsSaved: _handlePerSiteSettingsSaved,
-                ),
-              ),
-            );
-            await _saveWebViewModels();
+            await _openSiteSettings(_currentIndex!);
           break;
           case 'toggleUrlBar':
             setState(() {
@@ -9425,6 +9432,12 @@ class _WebSpacePageState extends State<WebSpacePage>
                                   _containerCookieManager,
                                   _saveWebViewModels,
                                   onWindowRequested: _showPopupWindow,
+                                  onNavigationBlockChanged: () {
+                                    if (!mounted) return;
+                                    setState(() {});
+                                  },
+                                  onOpenProxySettings: () =>
+                                      _openSiteSettingsById(webViewModel.siteId),
                                   language: webViewModel.language,
                                   globalUserScripts: _globalUserScripts,
                                   // file:// imports are user data (only copy on device), not
