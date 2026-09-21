@@ -159,17 +159,15 @@ class ProxyProbePlugin: NSObject {
     // the closure has to say which it is looking at.
     var phase = 0
     var firstDetail = ""
-    navDelegate = ProbeNavigationDelegate(
-      credential: (username != nil && password != nil)
-        ? URLCredential(user: username!, password: password!, persistence: .forSession)
-        : nil
-    ) { detail in
+    var onSettled: ((String) -> Void)!
+    onSettled = { detail in
       if phase == 0, let secondUrl = secondUrl {
         phase = 1
         firstDetail = detail
         if reassign && !appliedConfigs.isEmpty {
           store.proxyConfigurations = appliedConfigs
         }
+        navDelegate?.rearm(onSettled)
         view.load(URLRequest(url: secondUrl))
         return
       }
@@ -195,6 +193,12 @@ class ProxyProbePlugin: NSObject {
         "challengeMethods": navDelegate?.challengeMethods.joined(separator: ",") ?? "",
       ])
     }
+    navDelegate = ProbeNavigationDelegate(
+      credential: (username != nil && password != nil)
+        ? URLCredential(user: username!, password: password!, persistence: .forSession)
+        : nil,
+      onSettled: onSettled
+    )
     view.navigationDelegate = navDelegate
     webViews.append(view)
     if let navDelegate = navDelegate { delegates.append(navDelegate) }
@@ -429,6 +433,16 @@ class ProbeNavigationDelegate: NSObject, WKNavigationDelegate {
     self.credential = credential
     report = onSettled
     super.init()
+  }
+
+  /// Arm the delegate for one more navigation.
+  ///
+  /// `settle` is one-shot -- it nils the callback so a load that reaches
+  /// two terminal callbacks reports once. A probe that navigates twice has
+  /// to say so explicitly, or its second navigation runs with nothing
+  /// listening and the Dart side waits out its timeout.
+  func rearm(_ onSettled: @escaping (String) -> Void) {
+    report = onSettled
   }
 
   func webView(_ webView: WKWebView,

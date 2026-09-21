@@ -5323,6 +5323,66 @@ repo's crash capture cannot see it -- it globs `Webspace*` and `Runner*` in
 `DiagnosticReports`, never `com.apple.WebKit.Networking`.
 
 
+### Attempt 94 -- NO: assigning proxyConfigurations again does not reopen the window
+
+**2026-09-21**, PR #603 (`9ab5ea8`), run 35650198541, macOS job 106500472071.
+
+Attempt 93 read `WebsiteDataStore::setProxyConfigData` out of WebKit's source
+-- it clears `m_proxyConfigData`, calls `protectedNetworkProcess()`, and only
+then restores it, while `parameters()` builds a session's configuration from
+that same member -- and proposed the obvious consequence: if a session created
+inside that window has no proxy, assigning the configuration a second time,
+once the process is certainly up and the session certainly exists, should
+install it.
+
+It does not.
+
+```
+[proxy-reassign] verdict: reassign=true  baseline=proxied second=DIRECT
+[proxy-reassign] verdict: reassign=false baseline=DIRECT  second=DIRECT
+[proxy-reassign] socks targets=[192.168.64.10:49974]
+```
+
+The `reassign=true` launch had the slot: `baseline=proxied`, and the SOCKS
+fixture recorded origin A and only origin A. The same store, the same
+`WKWebView`, the same configuration assigned again, and the second navigation
+reached origin B directly. So the clear-then-restore window is not a
+re-assignable state, and **the fix attempt 93 proposed is dead**.
+
+The `reassign=false` launch is void -- `baseline=DIRECT`, no slot -- so the
+in-process control the arm was designed to provide did not materialise. It ran
+second, and the slot was already gone (gap -2 again, costing the comparison).
+
+**The arm has an instrument bug, and the reading survives it.**
+`ProbeNavigationDelegate.settle` is one-shot by construction:
+
+```swift
+private func settle(_ detail: String) {
+  guard let report = report else { return }
+  self.report = nil
+  report(detail)
+}
+```
+
+so the second navigation ran with nothing listening, `result()` was never
+called, and the Dart side timed out after 60s -- which is why every field of
+the reply reads null and the arm is marked failed. What it does *not* touch is
+the verdict, which is derived from the fixtures rather than the reply: the
+SOCKS fixture saw origin A, origin B's own server recorded its request (hence
+`DIRECT` rather than `no-load`), and the re-assignment executed before
+`view.load(secondUrl)`, which must have run for origin B to be reached at all.
+The delegate now has a `rearm` so the next run reports properly.
+
+**Why it was partial.** It kills one mechanism-derived fix and leaves the
+mechanism itself standing -- the source ordering in attempt 93 is still the
+best account of *why* a session comes up unproxied, but nothing here says why
+a later assignment cannot repair it. Candidates it does not separate: the
+session's proxy is read once at creation and never re-read; or the message
+lands on a session that is not the one the WebView uses. Both are checkable
+from the source rather than by another 70-minute tier run, which is where this
+should go next.
+
+
 ## Known open gaps
 
 -2. **One app process at a time can proxy, and the next one waits (attempts 80,
