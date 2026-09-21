@@ -16,10 +16,26 @@ A per-site setting is configured, the app reports it as applied, every Dart-side
 test agrees, and the behaviour the user asked for does not happen. The setting
 crossed the platform channel and was discarded on the far side without a word.
 
-Instances so far: the per-site proxy was never bound to the WebView on iOS or
-macOS (a site pinned to Tor loaded over the device IP), and tor's bootstrap
-phase was read off the control event and dropped before it reached Dart (the
-interstitial showed a bare percentage).
+Instances so far:
+
+1. The per-site proxy was never bound to the WebView on iOS or macOS -- a site
+   pinned to Tor loaded over the device IP.
+2. Tor's bootstrap phase was read off the control event and dropped before it
+   reached Dart -- the interstitial showed a bare percentage.
+3. **The proxy credential was dropped on Apple, and Tor's per-site circuit
+   isolation degraded silently to per-destination.** The app wrote the
+   credential only as URL userinfo (`socks5://user:pass@host:port`); the
+   fork's `ProxyRule.toProxyConfiguration` builds its endpoint from
+   `URL.host`/`URL.port` and takes the credential from the separate
+   `username`/`password` fields, so the userinfo was discarded. Nothing
+   failed: tor's `SocksPort` is configured `auto IsolateSOCKSAuth
+   IsolateDestAddr` and requires no authentication, so the connection was
+   accepted and circuits fell back to being keyed by destination alone. Every
+   Tor site carries a credential (the site tag as username, a per-launch
+   derived secret as password), and `IsolateSOCKSAuth` keys a circuit on that
+   whole tuple -- so with the tuple gone, two different sites reaching the
+   same host shared one circuit while the UI reported each as isolated. Found
+   while reading attempt 91's credential result; fixed as PROXY-025 in #605.
 
 ## Root mechanism (the invariant behind every instance)
 
