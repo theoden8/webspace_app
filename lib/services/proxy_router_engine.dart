@@ -238,11 +238,17 @@ class ProxyRouterEngine {
       };
     }
     // A TOR setting keeps the user's previous manual proxy address so
-    // switching back restores it (PROXY-010), and the router is Android-only
-    // while the Tor runtime is iOS-only. Encoding that leftover address would
-    // route a Tor site through an unrelated proxy in clear, so drop the route
-    // and let the relay answer 502 instead (TOR-008).
-    if (proxy.type == ProxyType.TOR) return null;
+    // switching back restores it (PROXY-010). Encoding that leftover address
+    // would route a Tor site through an unrelated proxy in clear, so expand
+    // TOR into the loopback SOCKS5 endpoint the runtime is actually serving,
+    // carrying this site's isolation tag as the SOCKS username. A null
+    // expansion means the runtime is not up: drop the route and let the
+    // relay answer 502 rather than send the site anywhere else (TOR-008).
+    if (proxy.type == ProxyType.TOR) {
+      final expanded = expandTorProxy(proxy);
+      if (expanded == null) return null;
+      return _encodeUpstream(ProxyRoute(siteId: route.siteId, upstream: expanded));
+    }
     final parsed = splitProxyAddress(proxy.address);
     if (parsed == null) return null;
     final host = parsed.host;

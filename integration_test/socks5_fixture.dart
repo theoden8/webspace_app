@@ -70,6 +70,16 @@ class Socks5Fixture {
   /// cannot be reached still shows that the proxy was the one asked.
   final targets = <String>[];
 
+  /// Local port of every upstream socket this server dialled, which is the
+  /// port the origin sees as its peer for anything relayed through here.
+  ///
+  /// Counting CONNECTs cannot tell a second request that reused a persistent
+  /// connection from one that bypassed the proxy: both add no entry to
+  /// [targets]. An origin that records `connectionInfo.remotePort` per
+  /// request and matches it against this set attributes each request
+  /// individually, reuse included.
+  final relayedPorts = <int>{};
+
   int get port => _server.port;
 
   static Future<Socks5Fixture> bind() async {
@@ -140,6 +150,7 @@ class Socks5Fixture {
       upstream =
           await Socket.connect(host, destPort, timeout: const Duration(seconds: 5));
       _upstreams.add(upstream);
+      relayedPorts.add(upstream.port);
       upstream.setOption(SocketOption.tcpNoDelay, true);
       unawaited(upstream.done.catchError((Object _) => upstream!));
       client.add(const [5, 0, 0, 1, 0, 0, 0, 0, 0, 0]);

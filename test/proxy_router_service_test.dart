@@ -341,6 +341,20 @@ void main() {
             useContainers && developerMode,
             reason: 'containers=$useContainers developerMode=$developerMode',
           );
+          // Apple runs the same router with a different delivery: no
+          // process-wide rule, each container store names the relay
+          // itself (PROXY-026). The other two conditions still gate it.
+          expect(
+            ProxyRouterService.isSupportedWhen(
+              isAndroid: false,
+              isApple: true,
+              useContainers: useContainers,
+              developerMode: developerMode,
+            ),
+            useContainers && developerMode,
+            reason: 'apple: containers=$useContainers '
+                'developerMode=$developerMode',
+          );
           expect(
             ProxyRouterService.isSupportedWhen(
               isAndroid: false,
@@ -348,18 +362,33 @@ void main() {
               developerMode: developerMode,
             ),
             isFalse,
-            reason: 'router mode must not engage off Android',
+            reason: 'router mode must not engage on a platform that is '
+                'neither Android nor Apple, and omitting isApple must not '
+                'widen the gate',
           );
         }
       }
 
-      // And the wiring: on this host the platform gate answers first, so
-      // this only pins that the composed call agrees where it can.
+      // And the wiring: the composed call must agree with the decision on
+      // whatever host this runs on. Written against the decision rather
+      // than against a platform, because the earlier form asserted "off
+      // Android, unsupported" and that was only ever true while the gate
+      // was Android-only -- it passed on Linux and failed on the macOS
+      // runner the moment Apple joined (PROXY-026).
       DeveloperModeService.instance.debugSet(true);
-      expect(ProxyRouterService.isSupported(useContainers: false), isFalse);
-      if (!hostIsAndroid) {
-        expect(ProxyRouterService.isSupported(useContainers: true), isFalse);
-      }
+      expect(ProxyRouterService.isSupported(useContainers: false), isFalse,
+          reason: 'containers are ANDed in, so no containers is no router '
+              'on every platform');
+      expect(
+        ProxyRouterService.isSupported(useContainers: true),
+        ProxyRouterService.isSupportedWhen(
+          isAndroid: hostIsAndroid,
+          isApple: hostIsIOS || hostIsMacOS,
+          useContainers: true,
+          developerMode: true,
+        ),
+        reason: 'the live gate disagrees with its own decision on this host',
+      );
     });
   });
 

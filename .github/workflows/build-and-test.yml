@@ -1347,6 +1347,55 @@ jobs:
           fi
           status=0
           failed=""
+
+          # One build for the whole tier, then every file reuses it.
+          #
+          # `flutter test -d macos` rebuilds the app on every invocation and
+          # has no flag to skip it. Measured on the BUG-014 branch, whose
+          # tier launches the same app more often than this one: 38 builds,
+          # about 29 of the step's 60 minutes, all of the same bundle. Each
+          # file still gets its own app process -- some suites depend on
+          # that, and a shared process would hide per-launch state -- which
+          # `flutter drive` gives while taking a prebuilt bundle.
+          #
+          # `--no-build` is deprecated and its help steers to
+          # `--use-application-binary`, which does not support desktop, so
+          # whether drive honours it here is not documented either way. `arm`
+          # falls back to `flutter test` rather than betting the tier on it,
+          # and says in the log which path it took.
+          DRIVE_OK=1
+          fvm flutter build macos --debug 2>&1 | tail -5 || DRIVE_OK=0
+
+          # arm <target> <logfile> [extra flutter args...] -> run's exit code
+          arm() {
+            target="$1"; log="$2"; shift 2
+            rc=0
+            if [ "$DRIVE_OK" = "1" ]; then
+              if [ -n "$TIMEOUT" ]; then
+                "$TIMEOUT" -k 30s 12m fvm flutter drive \
+                  --driver=test_driver/plain_driver.dart --target="$target" \
+                  -d macos --no-build "$@" 2>&1 | tee "$log"
+              else
+                fvm flutter drive \
+                  --driver=test_driver/plain_driver.dart --target="$target" \
+                  -d macos --no-build "$@" 2>&1 | tee "$log"
+              fi
+              rc=${PIPESTATUS[0]}
+              if [ $rc -ne 0 ] && grep -qiE 'use-application-binary|not supported|Could not find|No such file or directory' "$log"; then
+                echo "::warning::flutter drive --no-build did not take the prebuilt bundle; falling back to flutter test for the rest of the tier"
+                DRIVE_OK=0
+              else
+                return $rc
+              fi
+            fi
+            if [ -n "$TIMEOUT" ]; then
+              "$TIMEOUT" -k 30s 12m fvm flutter test "$target" -d macos --ci "$@" 2>&1 | tee "$log"
+            else
+              fvm flutter test "$target" -d macos --ci "$@" 2>&1 | tee "$log"
+            fi
+            return ${PIPESTATUS[0]}
+          }
+
           for t in integration_test/*_test.dart; do
             [ "$(basename "$t")" = "screenshot_test.dart" ] && continue
             # Android-only window-PixelCopy suite; skip its no-op build here.
@@ -1370,13 +1419,8 @@ jobs:
             # the one that failed is unreachable from the log's tail -- which
             # is all an API reader gets.
             out="${RUNNER_TEMP:-/tmp}/tier-$(basename "$t").log"
-            if [ -n "$TIMEOUT" ]; then
-              "$TIMEOUT" -k 30s 12m fvm flutter test "$t" -d macos --ci 2>&1 | tee "$out"
-              rc=${PIPESTATUS[0]}
-            else
-              fvm flutter test "$t" -d macos --ci 2>&1 | tee "$out"
-              rc=${PIPESTATUS[0]}
-            fi
+            arm "$t" "$out"
+            rc=$?
             if [ $rc -ne 0 ]; then
               status=$rc
               failed="$failed $(basename "$t")"

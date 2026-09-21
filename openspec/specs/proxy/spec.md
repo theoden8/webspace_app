@@ -576,11 +576,11 @@ connection.
 - **THEN** the handshake completes
 - **AND** the relay writes the `CONNECT` line and the `Proxy-Authorization: Basic` header over the encrypted socket
 
-### Requirement: PROXY-013 - Android per-site proxy router
+### Requirement: PROXY-013 - Per-site proxy router
 
-Where container mode is available, Android SHALL route each site through
+Where container mode is available, the app SHALL route each site through
 its own upstream proxy concurrently, rather than serialising mismatched
-sites under PROXY-008.
+sites under PROXY-008. Android's delivery is below; Apple's is PROXY-026.
 
 `ProxyController` SHALL be pointed once at a loopback relay
 (`http://<127/8 host>:<ephemeral>`, no bypass entries -- LEAK-011) and
@@ -789,22 +789,41 @@ shared rule rather than a copy on each side.
 ### Requirement: PROXY-016 - A Tor site is blocked, never downgraded
 
 The route table SHALL NOT encode a `ProxyType.TOR` site as any other
-proxy type. A site whose effective proxy is TOR SHALL receive no route,
-so the relay answers `502` and the site cannot reach the network.
+proxy type, and SHALL NOT encode the address such a site carries. A TOR
+route SHALL be the loopback SOCKS5 endpoint the Tor runtime is actually
+serving, carrying that site's isolation tag as the SOCKS username -- the
+same expansion the native per-WebView path applies, so PROXY-017 holds.
+Where the runtime is not up the expansion yields nothing and the site
+SHALL receive no route, so the relay answers `502` and the site cannot
+reach the network.
 
 Selecting TOR deliberately preserves the previous manual proxy address so
 switching back restores it (PROXY-010), so a TOR setting normally carries
-a stale address belonging to an unrelated proxy. The Tor runtime is
-iOS-only and the router is Android-only, so on the router's platform
-there is no endpoint that address could correctly resolve to. Encoding it
-as a plain proxy would send a site the user put on Tor through an
-unrelated host in clear, which is the failure TOR-008 forbids: a missing
-resolver must never mean "connect anyway".
+a stale address belonging to an unrelated proxy. Encoding it as a plain
+proxy would send a site the user put on Tor through an unrelated host in
+clear, which is the failure TOR-008 forbids: a missing resolver must never
+mean "connect anyway".
+
+This requirement used to say a TOR site receives no route at all, on the
+grounds that the Tor runtime was Apple-only while the router was
+Android-only. PROXY-026 puts the router on Apple, so that reasoning now
+describes the one platform where a Tor site is the common case, and
+dropping the route would send it to a `502` while the native path proxied
+it correctly.
 
 #### Scenario: A per-site Tor setting reaches the router
 
 **Given** router mode is active
+**And** the Tor runtime is up on a loopback SOCKS5 port
 **And** a site's proxy type is TOR carrying a leftover manual address
+**Then** the route table sends that site to the loopback SOCKS5 port
+**And** the leftover manual address is not the upstream of any route
+
+#### Scenario: The Tor runtime is not up
+
+**Given** router mode is active
+**And** a site's proxy type is TOR
+**And** the Tor runtime is not serving a SOCKS5 endpoint
 **Then** the route table contains no entry for that site
 **And** the relay answers `502` for its traffic
 
@@ -812,8 +831,111 @@ resolver must never mean "connect anyway".
 
 **Given** router mode is active
 **And** the app-global outbound proxy is TOR
+**And** the Tor runtime is not up
 **And** a site is left on DEFAULT
 **Then** the route table contains no entry for that site
+
+---
+
+### Requirement: PROXY-025 - A proxy credential reaches the platform's auth API
+
+Where a per-site proxy carries credentials, the app SHALL deliver them in
+every form the target platform reads, not only the one the URL carries.
+
+`ProxyRule` exposes `url`, `username` and `password`. Linux's WPE binding
+reads `url` alone, so credentials SHALL remain embedded as
+`scheme://user:pass@host:port` userinfo. Apple's binding builds its
+`ProxyConfiguration` endpoint from `URL.host` and `URL.port`, which
+discards userinfo, and takes the credential from `username`/`password` to
+hand to `ProxyConfiguration.applyCredential`; those fields SHALL therefore
+be set whenever credentials exist.
+
+A credentialed proxy delivered by URL alone authenticates with nothing on
+Apple. The proxy answers `407`, the page fails, and the settings screen
+still reports the proxy as configured -- the same "configured and not in
+force" shape as BUG-014, arrived at from the app's side rather than the
+platform's.
+
+The app SHALL NOT refuse a credentialed proxy on Apple on the grounds that
+the platform cannot authenticate. It can: BUG-014 attempt 80 measured two
+container stores reaching two different upstreams through one relay
+endpoint, told apart only by the credential each presented. WebKit bug
+264309, which reported the header never being sent, is RESOLVED/MOVED and
+was filed against a build two years older.
+
+#### Scenario: A credentialed proxy is bound to a site
+
+**Given** a site's proxy carries a username and password
+**When** the per-WebView proxy settings are built
+**Then** the rule's `username` and `password` fields carry them
+**And** the rule's URL still carries them as userinfo
+
+#### Scenario: An uncredentialed proxy
+
+**Given** a site's proxy carries no credentials
+**When** the per-WebView proxy settings are built
+**Then** the rule's `username` and `password` fields are absent
+
+---
+
+### Requirement: PROXY-026 - Apple delivers the router per store, not per process
+
+Where router mode is active on iOS or macOS, each site's container data
+store SHALL carry `proxyConfigurations` naming the relay, with that site's
+routing credential in `ProxyRule.username`/`password` (PROXY-025). There
+SHALL be no process-wide rule: Apple has no `ProxyController`, and a single
+rule could carry only one credential, which would give every site the same
+routing identity and fail the PROXY-015 probe.
+
+Every store SHALL be pointed at the relay, including a site whose own
+effective proxy is DEFAULT. A store left unproxied would miss the
+attribution probe and stand router mode down for every site; the relay
+dials DEFAULT routes straight out.
+
+The credential SHALL be presented preemptively via `applyCredential`
+rather than in answer to a `407`. Android answers the challenge through
+`onReceivedHttpAuthRequest`; WebKit exposes no equivalent for a proxy
+challenge, and the relay's `407` is what an unattributable tunnel receives
+rather than a step in the normal path.
+
+A WebView the app cannot name a site for SHALL NOT be routed. It has no
+row in the route table, and the shared-profile identity belongs to a group
+it is not part of, so routing it there would put it on another site's
+circuit; it keeps its own rule instead.
+
+The relay on this platform SHALL be the in-process `LocalProxyRelay`
+rather than the Android relay plugin, and SHALL speak HTTP CONNECT even
+where the upstream is SOCKS5.
+
+#### Scenario: Two sites with different proxies stay loaded
+
+**Given** router mode is active on macOS
+**And** two sites have different upstream proxies
+**When** both are loaded at once
+**Then** each store's proxy configuration names the relay
+**And** each presents its own credential
+**And** neither site is unloaded for a proxy mismatch
+
+#### Scenario: A site left on the system default
+
+**Given** router mode is active on macOS
+**And** a site's effective proxy is DEFAULT
+**Then** that site's store is still pointed at the relay
+**And** the relay dials its origin directly
+
+#### Scenario: A webview with no site identity
+
+**Given** router mode is active on macOS
+**And** a webview is built without a site id
+**Then** its store is not pointed at the relay
+**And** it carries its own proxy rule instead
+
+#### Scenario: The attribution probe travels the relay
+
+**Given** router mode is activating on macOS
+**When** the PROXY-015 probe drives a site's container
+**Then** the probe's webview carries that site's relay credential
+**And** the relay records the probe nonce against that site
 
 ---
 
