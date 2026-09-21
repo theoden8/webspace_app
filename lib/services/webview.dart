@@ -147,10 +147,11 @@ inapp.ProxySettings? routerRelayProxyFor({
   required String? siteId,
   required bool ownsContainer,
 }) {
-  // Apple only. Android carries the router on one `ProxyController` rule,
-  // and a per-WebView `proxySettings` there would be a second, conflicting
-  // source of truth for the same traffic.
-  if (!hostIsIOS && !hostIsMacOS) return null;
+  // Only where the proxy is bound per store (PROXY-027). Under the
+  // process-wide binding the router already rides that one rule -- Android's
+  // `ProxyController` -- and a per-WebView `proxySettings` there would be a
+  // second, conflicting source of truth for the same traffic.
+  if (ProxyManager.binding != ProxyBinding.perSite) return null;
   final router = ProxyRouterService.instance;
   if (!router.isActive) return null;
   // No site id means no row in the route table, and the shared identity

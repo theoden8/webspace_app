@@ -73,14 +73,21 @@ test('the relay rule is not gated on the site having a proxy', () => {
   );
 });
 
-test('the relay rule is Apple-only', () => {
+test('the relay rule rides the named binding, not a platform test', () => {
   const fn = body(webview, 'inapp.ProxySettings? routerRelayProxyFor(');
   assert.match(
     fn,
-    /if \(!hostIsIOS && !hostIsMacOS\) return null;/,
+    /ProxyManager\.binding != ProxyBinding\.perSite/,
     `${webviewRel}: Android carries the router on one ProxyController rule, `
       + 'so a per-WebView rule there is a second source of truth for the '
-      + 'same traffic',
+      + 'same traffic. PROXY-027 says which platforms those are, and this '
+      + 'path must read that decision rather than re-derive it',
+  );
+  assert.doesNotMatch(
+    fn,
+    /hostIsIOS|hostIsMacOS/,
+    `${webviewRel}: PROXY-027 names the binding once; a platform test here `
+      + 'is a fourth place for it to drift',
   );
 });
 
