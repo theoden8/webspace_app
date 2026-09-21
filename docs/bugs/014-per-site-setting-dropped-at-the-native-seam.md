@@ -4694,6 +4694,59 @@ port) so no per-origin or per-domain routing can differ, and take a native
 readback at load 2's navstart from `ProxyProbePlugin` so the store's state at
 that moment is recorded rather than inferred from an earlier run.
 
+### Attempt 85 -- stop inferring the code path; make WebKit say which one it took
+
+**2026-09-21**, PR #603 (`77e789e` + this), no verdict yet.
+
+**The gap this closes in method.** Every reading in this file so far infers
+WebKit's behaviour from the outside: a fixture saw a CONNECT or it did not. The
+conclusions that had to be withdrawn -- 74, 77, 78, 82 -- all failed at the
+same point, inventing a mechanism to fit an outside observation. Nothing has
+ever checked that the code path being blamed actually executed.
+
+**What is observable without building WebKit.** A release build compiles out
+the `LOG()` channels but keeps `RELEASE_LOG`, which goes to `os_log` under
+subsystem `com.apple.WebKit`. In `NetworkSessionCocoa.mm` the release logs sit
+on exactly the path that applies the proxy:
+
+* `initializeNSURLSessionsInSet` -> "Created NetworkSession with
+  cookieAcceptPolicy %lu"
+* `configurationForSessionID` -> "Setting logging level for %{public}s session
+  %llu to %{public}s"
+
+and `SessionSet::isolatedSession`, `initializeEphemeralStatelessSessionIfNeeded`
+and `appBoundSession` log **nothing**. So the presence or absence of those two
+messages around a load discriminates a proxy-applying session from a
+copy-path wrapper, which is the question attempt 84 left open, and it needs no
+custom build.
+
+The macOS tier now runs `log stream --level debug --predicate 'subsystem ==
+"com.apple.WebKit"'` across the timing launch and reports the hit counts, and
+`proxy_timing_test` timestamps every verdict line in UTC so the two can be
+aligned. Both are best-effort: a runner that refuses the stream must not fail
+the tier.
+
+**What this cannot show, stated so it is not over-read.** `%{private}` values
+are redacted unless a logging profile is installed, so this gives which
+messages fired, not their arguments. There is no release log inside
+`setProxyConfigData`, `sessionWrapperForTask` or the three copy-paths, so their
+execution is inferred from the *absence* of the two that do log -- weaker than
+a direct trace.
+
+**The heavier options, and why they are not this.** Apple ships no debug
+WebKit. Building it (`Tools/Scripts/build-webkit --debug`) is hours and tens of
+gigabytes, beyond the tier's budget, and would not help by itself: a
+`WKWebView` in this app binds the *system* framework, so a locally built
+WebKit is only reachable through WebKit's own MiniBrowser under
+`Tools/Scripts/run-minibrowser`. That is a real route for a one-off local
+investigation -- an instrumented WebKit driving `proxyConfigurations` directly
+-- and it is the right next escalation if os_log proves too coarse. Separately,
+`tcpdump`/`nettop` would give independent ground truth on where a connection
+went, but says nothing about which code path sent it.
+
+**Why it was partial.** It adds an instrument and answers nothing on its own.
+Its first reading arrives with the same-origin arm.
+
 ## Known open gaps
 
 -2. **Any arm that asks about the Apple proxy MUST run first in the macOS tier

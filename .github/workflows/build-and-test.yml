@@ -1446,6 +1446,21 @@ jobs:
           timing_launch() {
             echo "::group::integration_test/proxy_timing_test.dart ($1)"
             log="${RUNNER_TEMP:-/tmp}/tier-proxy_timing_$1.log"
+            # WebKit's own account of which session-creation path ran. In a
+            # release build only RELEASE_LOG survives, and in
+            # NetworkSessionCocoa that is initializeNSURLSessionsInSet
+            # ("Created NetworkSession with cookieAcceptPolicy") and
+            # configurationForSessionID ("Setting logging level for ... session
+            # ...") -- both on the path that APPLIES the proxy. isolatedSession,
+            # the ephemeral stateless session and appBoundSession copy a
+            # configuration and log nothing, so their absence is the signal.
+            # Best effort: a runner that refuses the stream must not fail the
+            # tier.
+            wklog="${RUNNER_TEMP:-/tmp}/webkit-oslog-$1.log"
+            log stream --style compact --level debug \
+              --predicate 'subsystem == "com.apple.WebKit"' \
+              > "$wklog" 2>/dev/null &
+            wkpid=$!
             if [ -n "$TIMEOUT" ]; then
               WEBSPACE_TIMING_RUN="$1" "$TIMEOUT" -k 30s 12m \
                 fvm flutter test integration_test/proxy_timing_test.dart -d macos --ci 2>&1 \
@@ -1455,6 +1470,16 @@ jobs:
                 fvm flutter test integration_test/proxy_timing_test.dart -d macos --ci 2>&1 \
                 | tee "$log" || true
             fi
+            kill "$wkpid" 2>/dev/null || true
+            wait "$wkpid" 2>/dev/null || true
+            echo "--- WebKit os_log: proxy-applying session paths ---"
+            echo "lines captured: $(wc -l < "$wklog" 2>/dev/null || echo 0)"
+            grep -c "Created NetworkSession" "$wklog" 2>/dev/null \
+              | sed 's/^/initializeNSURLSessionsInSet hits: /' || true
+            grep -c "Setting logging level for" "$wklog" 2>/dev/null \
+              | sed 's/^/configurationForSessionID hits: /' || true
+            grep -n -e "Created NetworkSession" -e "Setting logging level for" \
+              "$wklog" 2>/dev/null | head -20 || true
             echo "::endgroup::"
           }
           timing_launch first

@@ -51,8 +51,13 @@ void main() {
   final runLabel = Platform.environment['WEBSPACE_TIMING_RUN'] ?? '1';
 
   void log(String m) {
+    // Timestamped so the verdict lines can be aligned against WebKit's own
+    // os_log stream, which is the only view of which session-creation path
+    // actually ran (NetworkSessionCocoa RELEASE_LOGs from
+    // initializeNSURLSessionsInSet and configurationForSessionID; the
+    // isolated / ephemeral / app-bound copy-paths log nothing).
     // ignore: avoid_print
-    print('[proxy-timing] $m');
+    print('[proxy-timing] ${DateTime.now().toUtc().toIso8601String()} $m');
   }
 
   // 0 pane A's frame-1 load (the control and the baseline)
