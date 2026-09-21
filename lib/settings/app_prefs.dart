@@ -113,7 +113,7 @@ final Map<String, Object> kExportedAppPrefs = <String, Object>{
   // extra split, which gives a site one exit per host it loads from. On by
   // default. Off is for sites that check the client IP across their own hosts,
   // and for anyone who would rather read one address than two.
-  kTorIsolateDestAddrKey: true,
+  kTorIsolateDestAddrKey: false,
 };
 
 const String kBackForwardCacheEnabledKey = 'backForwardCacheEnabled';

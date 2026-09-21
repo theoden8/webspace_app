@@ -81,13 +81,28 @@ The runtime SHALL be stopped only where the process is going away.
 
 `TorService.socksFor` SHALL materialize SOCKS5 settings whose username is the requesting site's `siteId` (or the reserved literal `__webspace_app_global__` for app-global Dart-side traffic) and whose password is a per-app-launch random secret. Tor SHALL be configured with `SocksPort … IsolateSOCKSAuth` so distinct username/password tuples force distinct circuits.
 
-`IsolateDestAddr` SHALL additionally be applied by default, and SHALL be a
-user-visible setting. It splits circuits per destination *address* on top of
-the per-site split, so one page loading from two hosts exits from two relays:
-stronger isolation, at the cost of a site seeing the client arrive from two
-addresses — which a session that checks its own client IP across its hostnames
-reads as a hijack. The per-site isolation above is never optional; only this
-extra split is.
+`IsolateDestAddr` SHALL be a user-visible setting and SHALL default to
+**off**. It splits circuits per destination *address* on top of the per-site
+split, so one page loading from two hosts exits from two relays: stronger
+isolation, at the cost of a site seeing the client arrive from two addresses —
+which a session that checks its own client IP across its hostnames reads as a
+hijack — and of one circuit build per host, which a page pulling from a dozen
+of them pays on first load. The per-site isolation above is never optional;
+only this extra split is.
+
+It defaults off because the per-site contract does not need it: the circuit
+key is the SOCKS credential tuple, so `IsolateSOCKSAuth` alone already gives
+each site its own circuit, and that is what TOR-003 promises. What the extra
+split buys is narrower — no single exit relay sees a whole page load — and it
+is bought with the breakage above. It also masked a real defect: while the
+credential was being discarded on Apple (BUG-014, instance 3), this flag kept
+circuits isolated by destination, so per-site isolation could be entirely
+absent while still looking alive. A default that conceals the failure of the
+mechanism it sits on top of is the wrong default.
+
+A failed read of the preference is the one case that resolves the other way:
+the runtime falls back to applying `IsolateDestAddr`, so an unreadable
+preference leaves isolation stricter rather than weaker.
 
 Changing the setting SHALL be applied to a running tor over the control port
 (`SETCONF SocksPort="auto IsolateSOCKSAuth [IsolateDestAddr]"`) and SHALL NOT

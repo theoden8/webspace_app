@@ -163,7 +163,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   late bool _showStatsBanner;
   late TextEditingController _osmTileUrlController;
   bool _isDownloadingRules = false;
-  bool _torIsolateDestAddr = true;
+  bool _torIsolateDestAddr = false;
   DateTime? _rulesLastUpdated;
 
   /// `version+build` from the platform package, null until it resolves.
