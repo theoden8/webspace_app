@@ -142,6 +142,7 @@ void main() {
     WidgetTester tester, {
     required String siteId,
     required String initialUrl,
+    UserProxySettings? proxySettings,
   }) async {
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(
@@ -157,6 +158,12 @@ void main() {
                 config: WebViewConfig(
                   siteId: siteId,
                   initialUrl: initialUrl,
+                  // Named on the site, not only on the process-wide
+                  // override: Apple binds a proxy to the WebView's own data
+                  // store at construction and `setProxySettings` is a
+                  // documented no-op there, so an arm that sets only the
+                  // override tests a path that platform never takes.
+                  proxySettings: proxySettings,
                   clearUrlEnabled: false,
                   dnsBlockEnabled: false,
                   contentBlockEnabled: false,
@@ -231,14 +238,16 @@ void main() {
   testWidgets('a proxied site reaches its origin through the proxy',
       (tester) async {
     if (skipUnlessMeasurable()) return;
-    await applyOverride(UserProxySettings(
+    final proxy = UserProxySettings(
       type: ProxyType.SOCKS5,
       address: '127.0.0.1:${socks.port}',
-    ));
+    );
+    await applyOverride(proxy);
     await mount(
       tester,
       siteId: 'proxy-binding-proxied',
       initialUrl: 'http://$originHost:$proxiedPort/proxied',
+      proxySettings: proxy,
     );
     final target = '$originHost:$proxiedPort';
     await waitReal(tester, () => socks.targets.contains(target),
@@ -246,9 +255,10 @@ void main() {
     expect(
       socks.targets,
       contains(target),
-      reason: 'the proxy was never asked for the origin, so the process-wide '
-          'override did not reach the load: every proxied site is going out '
-          'over the device IP. Origin saw: $requests',
+      reason: 'the proxy was never asked for the origin, so neither binding '
+          'reached the load -- the per-store one Apple uses nor the '
+          'process-wide one Android and Linux use: every proxied site is '
+          'going out over the device IP. Origin saw: $requests',
     );
   });
 
