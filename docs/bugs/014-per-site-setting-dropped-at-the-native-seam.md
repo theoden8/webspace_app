@@ -7,7 +7,10 @@ was reading a broken instrument; what it produced worth keeping is the
 cautions below, not its route. Two instances of the seam's real defect are
 fixed, a third was fixed in the fork, and the seam now has a general guard:
 `settings_seam_test.dart` compares every per-site field Dart sends against
-what the engine actually holds, which is the comparison nothing was making.
+what the engine actually holds -- the comparison nothing was making -- on
+every platform whose engine answers `getSettings()`, not just the one the
+investigation started on. A fourth instance of the same shape is open on
+Android, where an empty rule list unproxies the whole process (instance 6).
 
 **Spec:** [ip-leakage](../../openspec/specs/ip-leakage/spec.md) LEAK-003,
 [proxy](../../openspec/specs/proxy/spec.md) PROXY-011,
@@ -18,8 +21,14 @@ is not shared between sites), `proxy_frame_ladder` (it holds at any distance
 from the first frame), `proxy_http_connect` and `proxy_connect_https`
 (delivery over CONNECT, plaintext and TLS), `proxy_simultaneous` (Linux, per
 container), `proxy_apple_relay_parity` (the relay Apple keeps but does not
-take), `proxy_fail_closed` (Linux, caution 11).
+take), `proxy_fail_closed` (Linux, caution 13).
 `test/js/proxy_binding_fixture.test.js` gates their shape.
+Two more sit beside them: `proxy_malformed_rule` (Apple, same instrument --
+an unusable rule must not clear the store the last one bound) and
+`settings_seam` (iOS, macOS, Android, Linux -- no destination at all, it
+compares every per-site field against what the engine holds).
+`test/js/proxy_override_rules_nonempty.test.js` gates the Android shape of
+the same defect.
 
 ## Symptom
 
@@ -79,6 +88,28 @@ silently. Only something that observes the *effect* can catch it.
    assigning an empty array. The app reached it by re-resolving the pin: the
    `v6.2.0-beta.3-privacy-v8` tag was moved onto the fix, and `pubspec.lock`
    still named the commit it had resolved to before that.
+
+6. **An empty proxy rule list unproxies every WebView in the process
+   (Android).** `ProxyManager.setProxyOverride` loops `addProxyRule` over the
+   rules it was handed and installs the result unconditionally. A rule
+   Chromium cannot parse is the loud case: `AwProxyController.setProxyOverride`
+   throws `IllegalArgumentException` carrying the native error before anything
+   is installed, so the previous override stands and the throw crosses the
+   channel as a `PlatformException` (Flutter's `MethodChannel` catches a
+   `RuntimeException` from a handler and replies with an error envelope). An
+   EMPTY list is the silent one: a zero-length array is not an error, the
+   native call installs an override carrying no rules at all, the listener
+   reports success, and every WebView in the process goes direct while the
+   Dart side logs "Applied proxy override". That is instance 5's shape
+   (`setProxyConfigurations:` routing `[]` to `clearProxyConfigData`) arriving
+   through a different door, on the platform where the rule is process-wide
+   rather than per-store, so it unproxies every site at once rather than one.
+   **Not reachable from the app today** -- caution 12 again: all three call
+   sites build exactly one rule from a `host:port` each validates first.
+   Gated by `test/js/proxy_override_rules_nonempty.test.js`, which fails a
+   call site that computes its rule list instead of naming one. The fork-side
+   fix is the symmetric one: refuse the override when the list comes out
+   empty, the way the Apple call sites now leave the store's proxy alone.
 
 ## What the platform actually does
 
@@ -209,6 +240,38 @@ Not a record of what was tried. A record of what bit, so it bites once.
     bridge network; Apple has no equivalent, because service containers need
     Docker and macOS runners have none.
 
+14. **The readback does not see the same fields on every platform, and one of
+    them cannot see the field this bug is named after.** `getRealSettings` is
+    four implementations:
+    * **Android** starts from `toMap()`, every parsed field, then overwrites
+      `userAgent`, `javaScriptEnabled` and friends from the live
+      `WebSettings`.
+    * **macOS** builds `toMap()` with `Mirror(reflecting:)`, so Swift-only
+      properties are in it, `proxySettings` included.
+    * **iOS** builds `toMap()` with `class_copyPropertyList`: Objective-C
+      properties only. `proxySettings` is typed `[String: Any?]?`, which has
+      no ObjC representation, so it is *invisible* in an iOS readback even
+      when it was parsed and applied. The property the parser could not see is
+      the property the readback cannot see, for the same reason.
+    * **Linux** does not start from `toMap()` at all. It returns eight keys
+      read off `WebKitSettings`, so every other field is absent rather than
+      wrong.
+    Comparing a field the local readback cannot see reports a loss that is not
+    one. `settings_seam_test.dart` carries the platforms per field and prints
+    what it skipped, with the reason.
+
+15. **The same symptom has a different cause on each side of the port, so a
+    guard written against one mechanism misses the other.** Apple's
+    `ISettings.parse` is reflective and fails open: a property the ObjC
+    runtime cannot see is skipped. Android's `InAppWebViewSettings.java`
+    parses an explicit `switch`, so nothing is invisible there -- but a field
+    no arm names is dropped just as silently, and that is the likelier Android
+    defect: a field nobody wired rather than one the runtime could not see.
+    Same map, same channel, same symptom. The comparison -- what Dart sent
+    against what the engine holds -- is the only thing that catches both,
+    which is why it runs on every platform whose engine answers
+    `getSettings()` rather than on Apple alone.
+
 ## Open
 
 1. **Fail-closed on Apple: closed as not measurable in CI.** The guarantee is
@@ -235,14 +298,41 @@ Not a record of what was tried. A record of what bit, so it bites once.
    reach the fixture, or nothing the arm says afterwards is evidence. See
    caution 12 for why it builds the rule by hand.
 
-3. **The general guard on the seam: closed.** `settings_seam_test.dart` sends
-   every per-site field with a value that is not its default, asks the engine
-   what it holds through `getSettings()`, and fails naming any that did not
-   survive -- the comparison nothing was making, which is what let instance 1
-   ship. Its control is effect-level and runs before the comparison is read:
-   the page's own `navigator.userAgent` must report the string the test sent,
-   because an engine that echoed the map it was handed would satisfy a
-   readback alone (caution 2). Currently covers `userAgent`, `incognito`,
-   `thirdPartyCookiesEnabled`, `containerId` and `proxySettings`. **Extend it
-   when you add a per-site field** -- that is the point of it, and a field not
-   in its table is a field nothing compares.
+   **The same question on Android: answered, and it splits in two.** A rule
+   Chromium cannot parse does not degrade there -- it throws before anything
+   is installed, so the previous override stands. An empty rule list does
+   degrade, silently and process-wide, which is instance 6. The app cannot
+   produce one today and `test/js/proxy_override_rules_nonempty.test.js` is
+   what keeps that true; the fork-side refusal is still owed.
+
+3. **The general guard on the seam: closed, on every platform that can
+   answer.** `settings_seam_test.dart` sends each per-site field with a value
+   that is not the engine's default, asks the engine what it holds through
+   `getSettings()`, and fails naming any that did not survive -- the
+   comparison nothing was making, which is what let instance 1 ship. Its
+   control is effect-level and runs before the comparison is read: the page's
+   own `navigator.userAgent` must report the string the test sent, because an
+   engine that echoed the map it was handed would satisfy a readback alone
+   (caution 2).
+
+   It is not Apple-only, because the defect is not (caution 15): it runs on
+   iOS, macOS, Android and Linux, and each field names the platforms where
+   comparing it means something (caution 14). `userAgent` and
+   `javaScriptEnabled` are compared everywhere and read off the live view;
+   `preferredContentMode` everywhere but Linux; `containerId` and `incognito`
+   on the three that report them, container binding permitting;
+   `thirdPartyCookiesEnabled` on Android, the only side that has the field;
+   `proxySettings` on macOS, the only readback that can see it. A field that
+   skips itself is printed with the reason, and the run fails if nothing was
+   compared or if nothing compared was read off the live view -- a gate that
+   can only skip is not a gate (caution 8).
+
+   Where it runs: the macOS tier's integration loop, the Linux loop (WPE
+   answers with the live `userAgent` and `javaScriptEnabled`, so it asserts
+   rather than skipping), and the emulator job through
+   `scripts/run_android_settings_seam_test.sh`, which prints the System
+   WebView version because the `containerId` half depends on that image
+   reporting MULTI_PROFILE.
+
+   **Extend it when you add a per-site field** -- that is the point of it, and
+   a field not in its table is a field nothing compares.

@@ -575,6 +575,10 @@ jobs:
       #   BUG-008 page zoom — the per-site zoom contract against the real
       #     Android System WebView, the one engine with the wide-viewport
       #     quirk (the Linux/macOS jobs run the same file on WPE/WKWebView);
+      #   BUG-014 settings seam — every per-site field Dart sends, compared
+      #     against what a real System WebView holds. Android parses settings
+      #     with an explicit switch, so a field nobody wired is dropped as
+      #     silently as one Apple's reflective parser cannot see;
       #   INTEG-011/012 lifecycle + background refresh, adb-driven.
       - name: Run emulator integration scenarios
         uses: reactivecircus/android-emulator-runner@v2
@@ -608,6 +612,7 @@ jobs:
             bash scripts/run_android_camera_tests.sh
             bash scripts/run_android_page_zoom_tests.sh
             bash scripts/run_android_proxy_router_tests.sh
+            bash scripts/run_android_settings_seam_test.sh
             WS_RUN_NATIVE_REPAINT_PROBE=1 WS_RUN_BLANK_CONTROL=${{ inputs.blank_control && '1' || '0' }} WS_LIFECYCLE_BUILD_MODE=${{ inputs.lifecycle_build_mode || 'debug' }} bash scripts/run_android_lifecycle_tests.sh
 
       # always(), not failure(): the tier now dumps the platform view's
@@ -1113,6 +1118,13 @@ jobs:
                 # app build each. Three of those builds is what took this
                 # loop past the cap.
                 [ "$(basename "$t")" = "proxy_window_test.dart" ] && continue
+                # Same again: it drives the Apple fork contract that an
+                # unparseable rule must not clear the store, and the Linux
+                # fork has no such assignment.
+                [ "$(basename "$t")" = "proxy_malformed_rule_test.dart" ] && continue
+                # NOT skipped: settings_seam_test.dart. WPE answers
+                # getRealSettings with the live userAgent and javaScriptEnabled,
+                # so the comparison asserts here rather than skipping.
                 # NOT skipped: WPE binds the proxy per network session, so
                 # this is the tier where two sites really can hold two
                 # proxies at once. It is the control that shows BUG-014
