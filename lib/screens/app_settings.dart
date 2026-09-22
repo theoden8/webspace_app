@@ -52,6 +52,14 @@ const Map<AccentColor, Color> _accentColors = {
 
 class AppSettingsScreen extends StatefulWidget {
   final AppThemeSettings currentSettings;
+
+  /// How many sites currently carry `ProxyType.TOR`, asked at the moment the
+  /// developer-mode switch is flipped rather than captured at construction:
+  /// the screen outlives an edit made from the drawer behind it.
+  ///
+  /// A callback rather than the models themselves, so the settings screen
+  /// does not gain a second copy of the site list to keep in step.
+  final int Function()? torPinnedSiteCount;
   final Function(AppThemeSettings) onSettingsChanged;
   final VoidCallback onExportSettings;
   final VoidCallback onImportSettings;
@@ -113,6 +121,7 @@ class AppSettingsScreen extends StatefulWidget {
   const AppSettingsScreen({
     super.key,
     required this.currentSettings,
+    this.torPinnedSiteCount,
     this.siteNames = const {},
     required this.onSettingsChanged,
     required this.onExportSettings,
@@ -664,7 +673,46 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
       );
   }
 
+  /// Turning developer mode off shuts the TOR-007 gate, and every site
+  /// pinned to Tor is blocked from that moment (TOR-008 keeps it blocked
+  /// rather than sending it over the device IP). Nothing used to say so, and
+  /// the damage surfaces sessions later as a site sitting on "Not running" —
+  /// which reads as a Tor that will not start rather than a setting that
+  /// turned it off. Confirm rather than snackbar: by the time a one-second
+  /// snackbar is missed, the next reminder is a blocked site with no
+  /// obvious cause.
+  Future<bool> _confirmTorSitesWillBlock() async {
+    final count = widget.torPinnedSiteCount?.call() ?? 0;
+    if (count == 0) return true;
+    final loc = AppLocalizations.of(context);
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(loc.appSettingsDeveloperModeTorWarningTitle),
+        content: Text(loc.appSettingsDeveloperModeTorWarningBody(count)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(loc.commonCancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(loc.appSettingsDeveloperModeTorWarningConfirm),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
   Future<void> _setDeveloperMode(bool value) async {
+    if (!value && !await _confirmTorSitesWillBlock()) {
+      // Cancelled: leave the switch where it was rather than flipping it
+      // back after a rebuild, which reads as the toggle fighting the user.
+      if (mounted) setState(() {});
+      return;
+    }
+    if (!mounted) return;
     await DeveloperModeService.instance.setEnabled(value);
     if (!mounted) return;
     setState(() {
