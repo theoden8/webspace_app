@@ -26,15 +26,15 @@ if [ -z "$device_id" ]; then
   exit 1
 fi
 
-# Record the System WebView version. Router mode needs MULTI_PROFILE, and
-# the emulator images ship whatever WebView was current when the image was
-# cut -- api-34/google_apis measures 113.0.5672.136, which does NOT report
-# the feature, so the gate SKIPS and the job still goes green. Printing the
-# version means a future reader can tell "the gate passed" from "the gate
-# never ran", and can see at a glance whether a newer image would help.
-echo "── System WebView on device ──"
-adb -s "$device_id" shell dumpsys package com.google.android.webview \
-  | grep -m1 versionName || echo "  (version not reported)"
+# Record the System WebView version. Router mode needs MULTI_PROFILE, and an
+# emulator image ships whatever WebView was current when the image was cut, so
+# the image decides whether this tier measures anything. The workflow pins
+# api-35 / target `default`, which carries it; an older image (api-34
+# google_apis shipped 113.0.5672.136) does NOT report the feature, and on one
+# of those the gate SKIPS and the job still goes green. Printing the version
+# means a future reader can tell "the gate passed" from "the gate never ran"
+# rather than inferring it from a green tick.
+bash "$(dirname "$0")/print_android_webview_version.sh" "$device_id"
 
 # Hard wall-clock cap: a webview mount can deadlock below the Dart timeout
 # layer (same rationale as the white-screen tier).

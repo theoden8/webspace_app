@@ -8,7 +8,7 @@
 //
 // There is deliberately no affordance to continue, and none to retry: the
 // whole point of the block is that the request would have carried the device
-// IP, and BUG-014 attempts 90-92 measured a WebView built after the app's
+// IP, and BUG-014 once measured a WebView built after the app's
 // first frame going direct on its own first load (`later-pair=0 of 2
 // proxied`, against a live `pair=2 of 2` control in the same process). So
 // reopening the destination on a fresh view cannot be offered as the proxied

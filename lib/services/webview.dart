@@ -2146,10 +2146,14 @@ class WebViewFactory {
         ? null
         : resolveEffectiveProxy(config.proxySettings!, siteId: config.siteId);
     final effectiveProxy = bindsProxyPerSite ? claimedProxy : null;
-    // Router mode wins over the site's own rule: under it every Apple store
-    // points at the relay and the per-site choice is made there. Not gated
-    // on the site having a proxy, because a store that is not pointed at the
-    // relay cannot answer the PROXY-015 probe.
+    // Router mode wins over the site's own rule: under it every store points
+    // at the relay and the per-site choice is made there. Not gated on the
+    // site having a proxy, because a store that is not pointed at the relay
+    // cannot answer the PROXY-015 probe.
+    //
+    // Null on Apple unless a parity test opted in: the relay is Android's
+    // answer to having one process-wide rule, and an Apple store binds its
+    // real upstream itself. See ProxyRouterService.appleRelayEnabled.
     final relayProxy = PlatformInfo.isProxySupported
         ? routerRelayProxyFor(
             siteId: config.siteId, ownsContainer: containerId != null)
