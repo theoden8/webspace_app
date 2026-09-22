@@ -332,13 +332,9 @@ test('the HTTP CONNECT file gives every pane its own proxy and asserts', () => {
 test('every Apple proxy tier initializes PlatformInfo before reading it', () => {
   const files = [
     'integration_test/proxy_binding_test.dart',
-    'integration_test/proxy_window_test.dart',
     'integration_test/proxy_simultaneous_test.dart',
     'integration_test/proxy_http_connect_test.dart',
-    'integration_test/proxy_relay_binding_test.dart',
-    'integration_test/proxy_rate_test.dart',
     'integration_test/proxy_connect_https_test.dart',
-    'integration_test/proxy_shape_test.dart',
   ];
   for (const rel of files) {
     const body = fs.readFileSync(path.join(repoRoot, rel), 'utf8');
@@ -410,7 +406,6 @@ test('no proxy tier serves TLS by shelling out to a binary', () => {
 test('the https proxy arms mint their own certificate and serve it', () => {
   for (const rel of [
     'integration_test/proxy_connect_https_test.dart',
-    'integration_test/proxy_relay_binding_test.dart',
   ]) {
     const body = fs
       .readFileSync(path.join(repoRoot, rel), 'utf8')
@@ -458,9 +453,7 @@ test('the https proxy arms mint their own certificate and serve it', () => {
 // arm's own result is believed.
 test('every proxy arm that can read null carries a positive control', () => {
   const arms = [
-    'integration_test/proxy_rate_test.dart',
     'integration_test/proxy_connect_https_test.dart',
-    'integration_test/proxy_relay_binding_test.dart',
   ];
   for (const rel of arms) {
     const body = fs
@@ -526,27 +519,22 @@ test('an arm that reloads one destination attributes requests, not connections',
   // kept-alive connection, which is what the peer-port reading was for.
   // What still has to be forbidden is reaching a verdict by counting
   // CONNECTs, which cannot tell a reused connection from a bypass.
-  const arms = [
-    'integration_test/proxy_timing_test.dart',
-    'integration_test/proxy_urlsession_test.dart',
-    'integration_test/proxy_persession_test.dart',
-  ];
-  for (const rel of arms) {
-    const armCode = fs
-      .readFileSync(path.join(repoRoot, rel), 'utf8')
-      .replace(/^\s*\/\/.*$/gm, '');
-    assert.match(
-      armCode,
-      /syntheticPaths|servedSynthetic/,
-      `${rel} loads one destination more than once, so it must read the ` +
-        "fixture's per-request record rather than a connection count",
+  // proxy_binding is the arm that navigates one store repeatedly: landing
+  // page, the link its own page follows, then a loadUrl from Dart.
+  const armCode = fs
+    .readFileSync(path.join(repoRoot, testRel), 'utf8')
+    .replace(/^\s*\/\/.*$/gm, '');
+  const dests = armCode.match(/const \w*Dest = \d+;/g) ?? [];
+  assert.ok(
+    dests.length >= 3,
+    `${testRel} must give each navigation its own destination, or a reused ` +
+      `connection hides a bypass. Found ${dests.length}`,
+  );
+  for (const line of armCode.split('\n')) {
+    assert.doesNotMatch(
+      line,
+      /targets\b.*\.length\s*[<>]/,
+      `${testRel} compares a count of CONNECTs to reach a verdict: ${line.trim()}`,
     );
-    for (const line of armCode.split('\n')) {
-      assert.doesNotMatch(
-        line,
-        /targets\b.*\.length\s*[<>]/,
-        `${rel} compares a count of CONNECTs to reach a verdict: ${line.trim()}`,
-      );
-    }
   }
 });

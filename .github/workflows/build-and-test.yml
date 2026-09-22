@@ -1601,246 +1601,35 @@ jobs:
             return ${PIPESTATUS[0]}
           }
 
-          # Gap -2: only the tier's first app process can proxy, so the file
-          # that asks the timing question goes ahead of everything, including
-          # the matrix. Its own baseline arm says whether the process was
-          # usable, so a dead one is visible rather than silent.
-          timing_launch() {
-            echo "::group::integration_test/proxy_timing_test.dart ($1)"
-            log="${RUNNER_TEMP:-/tmp}/tier-proxy_timing_$1.log"
-            # WebKit's own account of which session-creation path ran. In a
-            # release build only RELEASE_LOG survives, and in
-            # NetworkSessionCocoa that is initializeNSURLSessionsInSet
-            # ("Created NetworkSession with cookieAcceptPolicy") and
-            # configurationForSessionID ("Setting logging level for ... session
-            # ...") -- both on the path that APPLIES the proxy. isolatedSession,
-            # the ephemeral stateless session and appBoundSession copy a
-            # configuration and log nothing, so their absence is the signal.
-            # Best effort: a runner that refuses the stream must not fail the
-            # tier.
-            reap_app "timing run $1"
-            wklog="${RUNNER_TEMP:-/tmp}/webkit-oslog-$1.log"
-            log stream --style compact --level debug \
-              --predicate 'subsystem == "com.apple.WebKit"' \
-              > "$wklog" 2>/dev/null &
-            wkpid=$!
-            if [ -n "$TIMEOUT" ]; then
-              WEBSPACE_TIMING_RUN="$1" "$TIMEOUT" -k 30s 12m \
-                fvm flutter test integration_test/proxy_timing_test.dart -d macos --ci 2>&1 \
-                | tee "$log" || true
-            else
-              WEBSPACE_TIMING_RUN="$1" \
-                fvm flutter test integration_test/proxy_timing_test.dart -d macos --ci 2>&1 \
-                | tee "$log" || true
-            fi
-            kill "$wkpid" 2>/dev/null || true
-            wait "$wkpid" 2>/dev/null || true
-            echo "--- WebKit os_log: proxy-applying session paths ---"
-            echo "lines captured: $(wc -l < "$wklog" 2>/dev/null || echo 0)"
-            grep -c "Created NetworkSession" "$wklog" 2>/dev/null \
-              | sed 's/^/initializeNSURLSessionsInSet hits: /' || true
-            grep -c "Setting logging level for" "$wklog" 2>/dev/null \
-              | sed 's/^/configurationForSessionID hits: /' || true
-            grep -n -e "Created NetworkSession" -e "Setting logging level for" \
-              "$wklog" 2>/dev/null | head -20 || true
-            echo "::endgroup::"
-          }
-          # First in the tier, because it is the arm whose verdict depends on
-          # having the proxy slot and nothing else here can answer its
-          # question (BUG-014 gap -2).
-          # Ahead of everything, including timing: this is the only arm that
-          # can answer whether the clear-then-restore window in
-          # WebsiteDataStore::setProxyConfigData is what closes the proxy
-          # window, and the answer is worthless in a process that never had
-          # the slot (gap -2). Twice, so the no-reassign launch is the
-          # in-process control for the same shape rather than a comparison
-          # against a different run.
-          reassign_launch() {
-            echo "::group::integration_test/proxy_reassign_test.dart ($2 reassign=$1)"
-            log="${RUNNER_TEMP:-/tmp}/tier-proxy_reassign_$2_$1.log"
+          # The proxy arms, in no particular order: there is no "proxy slot"
+          # and no frame boundary, so nothing here has to go first to be
+          # readable. Each asserts, and each reaps the previous app process so
+          # a hung WebView cannot be charged to the next file.
+          #
+          # The arms that bisected the boundary are gone with it. What is left
+          # is one arm per guarantee: the binding survives navigation, it is
+          # not shared between sites, it holds at any distance from the first
+          # frame, it works over CONNECT and over CONNECT+TLS, and the relay
+          # path Apple keeps but does not take still routes by credential.
+          proxy_arm() {
+            reap_app "$(basename "$1" .dart)"
+            echo "::group::integration_test/$1"
             if [ -n "$TIMEOUT" ]; then
               "$TIMEOUT" -k 30s 12m \
-                fvm flutter test integration_test/proxy_reassign_test.dart \
-                  --dart-define=WEBSPACE_REASSIGN=$1 \
-                  --dart-define=WEBSPACE_REASSIGN_KIND=$2 -d macos --ci 2>&1 \
-                | tee "$log" || true
+                fvm flutter test "integration_test/$1" -d macos --ci 2>&1 \
+                | tee "${RUNNER_TEMP:-/tmp}/tier-$(basename "$1" .dart).log" || true
             else
-              fvm flutter test integration_test/proxy_reassign_test.dart \
-                --dart-define=WEBSPACE_REASSIGN=$1 \
-                --dart-define=WEBSPACE_REASSIGN_KIND=$2 -d macos --ci 2>&1 \
-                | tee "$log" || true
+              fvm flutter test "integration_test/$1" -d macos --ci 2>&1 \
+                | tee "${RUNNER_TEMP:-/tmp}/tier-$(basename "$1" .dart).log" || true
             fi
             echo "::endgroup::"
           }
-          # THE LADDER TAKES THE FIRST SLOT NOW.
-          #
-          # The reassign arms below answered their question: attempt 94 said
-          # no on the live-nw_context path and attempt 96 said no on the
-          # recreateSessions path, so re-assignment is dead either way and
-          # neither arm needs the slot any more. What is still open is where
-          # the boundary sits. Every reading says frame 1 proxies and later
-          # does not, and nothing has measured the near side: a boundary at
-          # tens of milliseconds is a race against the network process launch
-          # and the fork can fix it, while one that bites a single frame later
-          # is structural and only a WebKit build goes further.
-          #
-          # The arms behind this one will mostly read nothing. That is what
-          # gap -2 costs, and it is worth paying here.
-          # The Apple relay path the app does not take (PROXY-026), kept for
-          # parity with Android's router and run so it cannot rot unnoticed.
-          # It is the only thing that turns appleRelayEnabled on.
-          reap_app "proxy_apple_relay_parity"
-          echo "::group::integration_test/proxy_apple_relay_parity_test.dart"
-          if [ -n "$TIMEOUT" ]; then
-            "$TIMEOUT" -k 30s 12m \
-              fvm flutter test integration_test/proxy_apple_relay_parity_test.dart \
-                -d macos --ci 2>&1 \
-              | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_apple_relay_parity.log" || true
-          else
-            fvm flutter test integration_test/proxy_apple_relay_parity_test.dart \
-              -d macos --ci 2>&1 \
-              | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_apple_relay_parity.log" || true
-          fi
-          echo "::endgroup::"
 
-          reap_app "proxy_frame_ladder"
-          echo "::group::integration_test/proxy_frame_ladder_test.dart"
-          if [ -n "$TIMEOUT" ]; then
-            WEBSPACE_LADDER_RUN=first "$TIMEOUT" -k 30s 12m \
-              fvm flutter test integration_test/proxy_frame_ladder_test.dart \
-                -d macos --ci 2>&1 \
-              | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_frame_ladder.log" || true
-          else
-            WEBSPACE_LADDER_RUN=first \
-              fvm flutter test integration_test/proxy_frame_ladder_test.dart \
-                -d macos --ci 2>&1 \
-              | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_frame_ladder.log" || true
-          fi
-          echo "::endgroup::"
-
-          # CONNECT first of the two: it is the only one that takes
-          # setProxyConfigData's recreateSessions path, and the slot goes to
-          # whoever asks first (gap -2).
-          reassign_launch true connect
-          reassign_launch true socks5
-
-          timing_launch first
-
-          # AFTER the timing file, not before it. Both of these take the
-          # proxy slot (attempt 90: a process running nothing but URLSession
-          # both takes it and is later denied it), and with them in front
-          # timing read baseline=DIRECT and every arm in it went void.
-          echo "::group::integration_test/proxy_urlsession_test.dart"
-          if [ -n "$TIMEOUT" ]; then
-            "$TIMEOUT" -k 30s 12m \
-              fvm flutter test integration_test/proxy_urlsession_test.dart -d macos --ci 2>&1 \
-              | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_urlsession.log" || true
-          else
-            fvm flutter test integration_test/proxy_urlsession_test.dart -d macos --ci 2>&1 \
-              | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_urlsession.log" || true
-          fi
-          echo "::endgroup::"
-
-          # Same process, one more question the WKWebView arms cannot ask:
-          # whether a second URLSession can use a proxy config object the
-          # first one already used, and whether a fresh object fares better.
-          echo "::group::integration_test/proxy_persession_test.dart"
-          if [ -n "$TIMEOUT" ]; then
-            "$TIMEOUT" -k 30s 12m \
-              fvm flutter test integration_test/proxy_persession_test.dart -d macos --ci 2>&1 \
-              | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_persession.log" || true
-          else
-            fvm flutter test integration_test/proxy_persession_test.dart -d macos --ci 2>&1 \
-              | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_persession.log" || true
-          fi
-          echo "::endgroup::"
-
-
-          matrix_launch() {
-            echo "::group::integration_test/proxy_matrix_test.dart ($1)"
-            log="${RUNNER_TEMP:-/tmp}/tier-proxy_matrix_$1.log"
-            if [ -n "$TIMEOUT" ]; then
-              WEBSPACE_MATRIX_RUN="$1" "$TIMEOUT" -k 30s 12m \
-                fvm flutter test integration_test/proxy_matrix_test.dart -d macos --ci 2>&1 \
-                | tee "$log" || true
-            else
-              WEBSPACE_MATRIX_RUN="$1" \
-                fvm flutter test integration_test/proxy_matrix_test.dart -d macos --ci 2>&1 \
-                | tee "$log" || true
-            fi
-            echo "::endgroup::"
-          }
-          # Run 3168 read every matrix cell DIRECT with the control DIRECT
-          # too, in all three launches -- three void processes. The same run
-          # had proxy_relay_binding, which bound two sites to two upstreams
-          # one run earlier, read DIRECT as well, while proxy_shape's first
-          # launch proxied as it has in every run. So the variable under test
-          # is not delivery or frame, it is which app process can proxy at
-          # all, and the only stable signal is being early in the tier.
-          #
-          # Same file, three positions, one run: first of all, mid, and after
-          # every other file has had its process. If `first` proxies and the
-          # others do not, ordinality is the variable and the app -- one
-          # process on a user's device -- is in the good state, which would
-          # make every DIRECT here a CI artifact.
-          matrix_launch first
-
-          # BUG-014 route 2. Run 3136 closed the launch-effect bisection:
-          # net=0->0 on every launch, so no WebKit networking process ever
-          # existed between launches to carry a spent slot, exactly as
-          # AuxiliaryProcess::didClose says. Five mechanisms are refuted
-          # under control now and there is no sixth candidate, so the
-          # machine-state bisection stops here.
-          #
-          # What is answerable is whether the relay route exists at all.
-          # Apple's own tracker says probably not -- bug 264309 for the
-          # missing Proxy-Authorization and FB13350370 / r.113346270 for
-          # applyCredential in WebKit, which DTS called a bug -- but those
-          # reports are from 2023/24 and this measures current macOS.
-          #
-          # Route 2's credential question is answered (no
-          # Proxy-Authorization is ever sent, n=2), so the arm now asks the
-          # question WebKit's own source raises instead.
-          # NetworkSessionCocoa::setProxyConfigData has TWO mechanisms behind
-          # one API: a SOCKS5 config is patched onto a live, possibly shared
-          # nw_context with clearProxies+addProxy, while anything passing
-          # nw_proxy_config_stack_requires_http_protocols -- an HTTP CONNECT
-          # proxy -- instead goes through
-          # recreateSessionWithUpdatedProxyConfigurations, which rebuilds the
-          # NSURLSession with the configuration applied.
-          #
-          # `connectpair` refuted that (attempt 70): two distinct CONNECT
-          # proxies behave exactly like two distinct SOCKS5 ones, so the
-          # delivery mechanism is not the variable and DIFFERENT proxies on
-          # two stores is closed every way it has been asked.
-          #
-          # `connectsame` asks the one arrangement never tested cleanly: a
-          # second store on the SAME endpoint as the first. If two stores
-          # sharing one proxy both bind, then every proxied site can point
-          # at one local relay and the remaining problem is attribution
-          # inside that relay rather than binding inside WebKit -- which
-          # would make Tor-for-several-sites reachable on macOS. A SOCKS5
-          # third arm stays as the known-direct control.
-          for launch in "first:connectsame" "second:proxied"; do
-            pos="${launch%%:*}"
-            arm="${launch##*:}"
-            echo "::group::integration_test/proxy_shape_test.dart ($pos, first=$arm)"
-            log="${RUNNER_TEMP:-/tmp}/tier-proxy_shape_$pos.log"
-            if [ -n "$TIMEOUT" ]; then
-              WEBSPACE_TIER_POSITION="$pos" WEBSPACE_SHAPE_SWEEP=off \
-                WEBSPACE_SHAPE_FIRSTARM="$arm" \
-                "$TIMEOUT" -k 30s 12m \
-                fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
-                | tee "$log" || true
-            else
-              WEBSPACE_TIER_POSITION="$pos" WEBSPACE_SHAPE_SWEEP=off \
-                WEBSPACE_SHAPE_FIRSTARM="$arm" \
-                fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
-                | tee "$log" || true
-            fi
-            echo "::endgroup::"
-          done
-          matrix_launch mid
+          proxy_arm proxy_binding_test.dart
+          proxy_arm proxy_frame_ladder_test.dart
+          proxy_arm proxy_http_connect_test.dart
+          proxy_arm proxy_connect_https_test.dart
+          proxy_arm proxy_apple_relay_parity_test.dart
           for t in integration_test/*_test.dart; do
             [ "$(basename "$t")" = "screenshot_test.dart" ] && continue
             # Android-only window-PixelCopy suite; skip its no-op build here.
@@ -1864,24 +1653,16 @@ jobs:
             # Ran on its own above, first, so its verdict does not depend on
             # the 45-minute cap this loop spends.
             [ "$(basename "$t")" = "tor_test.dart" ] && continue
-            # Three controlled launches of it run above. A fourth here would
-            # only repeat the third's condition on a tireder machine, and
-            # this loop pays a full app build for every launch.
-            [ "$(basename "$t")" = "proxy_shape_test.dart" ] && continue
-            # Three controlled launches above; a fourth here would repeat the
-            # third's condition and pay another full app build for it.
-            [ "$(basename "$t")" = "proxy_matrix_test.dart" ] && continue
-            # Runs first in the tier above; only the first app process can
-            # proxy, so a launch here would measure a dead one.
-            [ "$(basename "$t")" = "proxy_timing_test.dart" ] && continue
-            # Ran first above, for the same reason.
-            [ "$(basename "$t")" = "proxy_urlsession_test.dart" ] && continue
-            [ "$(basename "$t")" = "proxy_persession_test.dart" ] && continue
-            # Two controlled launches at the very top of the tier; a third
-            # here would run in a process the arms above have already spent.
-            [ "$(basename "$t")" = "proxy_reassign_test.dart" ] && continue
-            # Ran at the very top, where the slot is.
-            [ "$(basename "$t")" = "proxy_frame_ladder_test.dart" ] && continue
+            # Every proxy arm runs above, each reaped from the last. A second
+            # launch here would pay another full app build to repeat it.
+            case "$(basename "$t")" in
+              proxy_binding_test.dart|proxy_frame_ladder_test.dart) continue ;;
+              proxy_http_connect_test.dart|proxy_connect_https_test.dart) continue ;;
+              proxy_apple_relay_parity_test.dart) continue ;;
+            esac
+            # Needs an origin on a host this machine does not own, which only
+            # the Linux job has (a service container). Skips here anyway.
+            [ "$(basename "$t")" = "proxy_fail_closed_test.dart" ] && continue
             reap_app "$(basename "$t")"
             echo "::group::$t"
             rc=0

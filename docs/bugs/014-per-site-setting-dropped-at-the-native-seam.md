@@ -11,9 +11,14 @@ guard.
 **Spec:** [ip-leakage](../../openspec/specs/ip-leakage/spec.md) LEAK-003,
 [proxy](../../openspec/specs/proxy/spec.md) PROXY-011,
 [tor-proxy](../../openspec/changes/add-ios-tor-proxy/specs/tor-proxy/spec.md) TOR-018
-**Tests:** `integration_test/proxy_frame_ladder_test.dart` and the other
-`proxy_*` arms, which read the verdict off a destination only a proxy can
-reach; `test/js/proxy_binding_fixture.test.js` gates their shape.
+**Tests:** one arm per guarantee, each reading its verdict off a destination
+only a proxy can reach: `proxy_binding` (the binding survives navigation and
+is not shared between sites), `proxy_frame_ladder` (it holds at any distance
+from the first frame), `proxy_http_connect` and `proxy_connect_https`
+(delivery over CONNECT, plaintext and TLS), `proxy_simultaneous` (Linux, per
+container), `proxy_apple_relay_parity` (the relay Apple keeps but does not
+take), `proxy_fail_closed` (Linux, caution 11).
+`test/js/proxy_binding_fixture.test.js` gates their shape.
 
 ## Symptom
 

@@ -13,10 +13,6 @@ class MainFlutterWindow: NSWindow {
   /// on the line above.
   private var torControllerPlugin: TorControllerPlugin?
 
-  /// BUG-014's probe. Registered the same way and for the same reason: the
-  /// integration tier drives it, and nothing reaches it otherwise.
-  private var proxyProbePlugin: ProxyProbePlugin?
-
   override func awakeFromNib() {
     let flutterViewController = FlutterViewController()
     let windowFrame = self.frame
@@ -25,8 +21,6 @@ class MainFlutterWindow: NSWindow {
 
     RegisterGeneratedPlugins(registry: flutterViewController)
     torControllerPlugin = TorControllerPlugin(
-      messenger: flutterViewController.engine.binaryMessenger)
-    proxyProbePlugin = ProxyProbePlugin(
       messenger: flutterViewController.engine.binaryMessenger)
 
     super.awakeFromNib()
