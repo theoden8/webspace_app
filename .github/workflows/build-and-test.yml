@@ -1080,6 +1080,8 @@ jobs:
                 [ "$(basename "$t")" = "proxy_rate_test.dart" ] && continue
                 [ "$(basename "$t")" = "proxy_shape_test.dart" ] && continue
                 [ "$(basename "$t")" = "proxy_connect_https_test.dart" ] && continue
+                # The Apple relay path, which Linux does not have.
+                [ "$(basename "$t")" = "proxy_apple_relay_parity_test.dart" ] && continue
                 echo "::group::$t"
                 # Hard per-test wall-clock cap: a WebView mount can deadlock
                 # the platform thread below Dart timeout layer, which would
@@ -1644,6 +1646,23 @@ jobs:
           #
           # The arms behind this one will mostly read nothing. That is what
           # gap -2 costs, and it is worth paying here.
+          # The Apple relay path the app does not take (PROXY-026), kept for
+          # parity with Android's router and run so it cannot rot unnoticed.
+          # It is the only thing that turns appleRelayEnabled on.
+          reap_app "proxy_apple_relay_parity"
+          echo "::group::integration_test/proxy_apple_relay_parity_test.dart"
+          if [ -n "$TIMEOUT" ]; then
+            "$TIMEOUT" -k 30s 12m \
+              fvm flutter test integration_test/proxy_apple_relay_parity_test.dart \
+                -d macos --ci 2>&1 \
+              | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_apple_relay_parity.log" || true
+          else
+            fvm flutter test integration_test/proxy_apple_relay_parity_test.dart \
+              -d macos --ci 2>&1 \
+              | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_apple_relay_parity.log" || true
+          fi
+          echo "::endgroup::"
+
           reap_app "proxy_frame_ladder"
           echo "::group::integration_test/proxy_frame_ladder_test.dart"
           if [ -n "$TIMEOUT" ]; then

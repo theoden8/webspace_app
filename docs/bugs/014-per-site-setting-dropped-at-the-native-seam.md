@@ -100,7 +100,12 @@ credential per `HttpNetworkSession` without partitioning it. Apple has neither
 problem, so each store binds its real upstream directly and the relay is a hop
 that buys nothing while adding the credential-forwarding step instance 3 was a
 defect in. Disabled on Apple behind
-`ProxyRouterService.appleRelayEnabled`, which stays for parity testing.
+`ProxyRouterService.appleRelayEnabled`, which stays for parity testing and is
+turned on by exactly one arm, `proxy_apple_relay_parity_test.dart`: two sites
+through one relay endpoint, told apart only by the credential each presents,
+each asserted to come out of its own upstream. That is Android's attribution
+assertion, so the two platforms' routers stay comparable and the kept
+implementation cannot rot unnoticed.
 
 ## Why 101 attempts read the opposite
 
