@@ -16,6 +16,13 @@
 # why it may leave. An entry without one is an unreviewed row missing from
 # the ip-leakage coverage matrix (LEAK-007), not a permission.
 #
+# One address is exempted in the ruleset rather than listed here: the
+# `leak-origin` service container, resolved at arm time into
+# WS_EGRESS_EXEMPT. It is not egress -- it sits on this job's own bridge
+# network and never leaves the CI host -- but it cannot be loopback either,
+# because proxy_fail_closed_test.dart needs a destination this job does not
+# own (BUG-014 gap 2). Recording it would break that arm's controls.
+#
 # Deliberately empty. A hermetic suite contacts nothing: a test that needs
 # a server should stand one up on loopback (see integration_test/
 # fixture_server.dart), and a production path that reaches out during a

@@ -31,6 +31,22 @@ UDP_PORT="${WS_EGRESS_UDP_PORT:-19532}"
 DNS_PORT=53
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# One address that is neither loopback nor egress: the fail-closed origin
+# (BUG-014 gap 2). That arm needs a destination this job does not own but
+# which never leaves the CI host -- a service container on the job's bridge
+# network. Steering it into the recorder would break the arm's own controls
+# and it would fail rather than measure. Narrow on purpose: one address the
+# workflow resolved, not the whole 172.16/12 bridge space, so nothing else
+# that happens to be on that network gets a pass.
+EXEMPT="${WS_EGRESS_EXEMPT:-}"
+exempt_rule=""
+if [ -n "$EXEMPT" ]; then
+  case "$EXEMPT" in
+    *[!0-9./]*) echo "egress-guard: ignoring non-IPv4 WS_EGRESS_EXEMPT" >&2 ;;
+    *) exempt_rule="ip daddr $EXEMPT return" ;;
+  esac
+fi
+
 if [ "$(id -u)" != "0" ]; then
   echo "egress-guard: needs root (CAP_NET_ADMIN) to install the ruleset" >&2
   exit 1
@@ -72,6 +88,7 @@ table ip ws_egress {
   chain output {
     type nat hook output priority dstnat; policy accept;
     ip daddr 127.0.0.0/8 return
+    $exempt_rule
     meta l4proto udp udp dport 53 redirect to :$DNS_PORT
     meta l4proto tcp redirect to :$TCP_PORT
     meta l4proto udp redirect to :$UDP_PORT
@@ -97,7 +114,8 @@ NFT
 }
 
 nft_reject() {
-  nft -f - <<'NFT'
+  # Unquoted heredoc so $exempt_rule expands. Nothing else in here uses $.
+  nft -f - <<NFT
 table inet ws_egress_filter
 delete table inet ws_egress_filter
 table inet ws_egress_filter {
@@ -107,6 +125,7 @@ table inet ws_egress_filter {
     type filter hook output priority filter; policy accept;
     ip daddr 127.0.0.0/8 return
     ip6 daddr ::1 return
+    $exempt_rule
     # icmpx, not `reject with tcp reset`: a reset generated in the output
     # hook is aimed at the remote and never reaches the local socket, so
     # the connect sits there until its own timeout (measured: 4s vs 10ms).

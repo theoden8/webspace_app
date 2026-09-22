@@ -693,6 +693,17 @@ jobs:
       # without it the guard degrades to counting packets it cannot name.
       # Scoped to this job's own container and network namespace.
       options: --cap-add=NET_ADMIN
+    # The one origin no single machine can provide (BUG-014 gap 2). Answering
+    # "does a refused proxy leak to the origin" needs a destination that is
+    # both proxyable -- so not an address this job owns, which is routed
+    # locally and never proxied -- and reachable directly, so a leak is
+    # visible. This job runs in a container, so a service beside it answers on
+    # the bridge network at an address the job does not own, which is both.
+    # Apple has no equivalent: service containers need Docker and macOS
+    # runners have none, so the Apple half of gap 2 stays open.
+    services:
+      leak-origin:
+        image: nginx:alpine
     env:
       # record: report what the suite sends off the runner, never fail.
       # enforce: fail on anything scripts/egress_allowlist.txt does not
@@ -888,7 +899,15 @@ jobs:
         # In enforce mode failing to arm IS the failure: a suite nobody
         # watched cannot be reported as clean.
         continue-on-error: ${{ env.WS_EGRESS_GUARD == 'record' }}
-        run: bash scripts/egress_guard_arm.sh
+        # The fail-closed origin is exempt: it is a service container on this
+        # job's own bridge network, so it never leaves the CI host, and
+        # steering it into the recorder would break that arm's controls
+        # instead of measuring anything. One resolved address, not the
+        # bridge's whole range.
+        run: |
+          leak_ip="$(getent hosts leak-origin | head -1)"
+          leak_ip="${leak_ip%%[[:space:]]*}"
+          WS_EGRESS_EXEMPT="$leak_ip" bash scripts/egress_guard_arm.sh
 
       # Integration tests run after the production build so a clean
       # build is verified independently first. The integration_test
@@ -1000,6 +1019,25 @@ jobs:
             sleep 1
           done
 
+          # The fail-closed origin, by address rather than by name: a dotless
+          # hostname risks a local-bypass in the network stack, which would
+          # send the load straight out and read as a leak that never happened.
+          # Unset leaves proxy_fail_closed_test.dart skipping with its reason
+          # rather than asserting against an origin that is not there.
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            leak_ip="$(getent hosts leak-origin | head -1)"
+            leak_ip="${leak_ip%%[[:space:]]*}"
+            [ -n "$leak_ip" ] && break
+            sleep 1
+          done
+          if [ -n "${leak_ip:-}" ] \
+            && curl -fsS -m 5 -o /dev/null "http://$leak_ip/"; then
+            export WEBSPACE_LEAK_ORIGIN="$leak_ip"
+            echo "fail-closed origin: $WEBSPACE_LEAK_ORIGIN"
+          else
+            echo "no fail-closed origin; that arm will skip (BUG-014 gap 2)"
+          fi
+
           # xvfb-run + dbus-run-session: the GTK app still needs an X
           # display for the host frame, and pass-secret-service needs a
           # session bus to claim org.freedesktop.secrets on. Inside the
@@ -1054,6 +1092,10 @@ jobs:
                 # that asserts nothing is not worth the budget.
                 [ "$(basename "$t")" = "proxy_router_test.dart" ] && continue
                 [ "$(basename "$t")" = "proxy_router_attribution_test.dart" ] && continue
+                # NOT skipped: proxy_fail_closed_test.dart. This is the only
+                # tier with a second host, so it is the only tier where that
+                # arm can assert rather than skip.
+                [ "$(basename "$t")" = "proxy_apple_relay_parity_test.dart" ] && continue
                 # BGAUDIO-006 media notification is an Android foreground
                 # service; the emulator job owns it.
                 [ "$(basename "$t")" = "background_audio_media_notification_test.dart" ] && continue
@@ -1080,8 +1122,6 @@ jobs:
                 [ "$(basename "$t")" = "proxy_rate_test.dart" ] && continue
                 [ "$(basename "$t")" = "proxy_shape_test.dart" ] && continue
                 [ "$(basename "$t")" = "proxy_connect_https_test.dart" ] && continue
-                # The Apple relay path, which Linux does not have.
-                [ "$(basename "$t")" = "proxy_apple_relay_parity_test.dart" ] && continue
                 echo "::group::$t"
                 # Hard per-test wall-clock cap: a WebView mount can deadlock
                 # the platform thread below Dart timeout layer, which would
