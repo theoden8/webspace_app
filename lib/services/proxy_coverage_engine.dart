@@ -21,25 +21,21 @@ enum ProxyCoverage {
 /// Linux test host -- the mistake PROXY-027 was written to stop.
 class ProxyCoverageEngine {
   /// [isMountNavigation] is the navigation issued in the frame that mounts
-  /// the WebView, which is the one the store's proxy is applied to.
+  /// the WebView. It no longer changes the answer, and is kept so a platform
+  /// that turns out to need the distinction has somewhere to put it.
   ///
-  /// Under [ProxyBinding.processWide] the rule sits outside the WebView and
-  /// catches every request it makes, so mount and post-mount navigations are
-  /// alike. Under [ProxyBinding.perSite] the proxy is written onto
-  /// `WKWebsiteDataStore.proxyConfigurations` at construction, and BUG-014
-  /// attempts 90 and 92 measured, twice and each against a live control in
-  /// the same process, that it covers the navigation issued in the turn that
-  /// mounted the WebView and nothing after it (`sameturn-loadurl=proxied`
-  /// against `persist-loadurl=DIRECT`, the same `loadUrl` on the same
-  /// controller). Attempt 91 adds that CONNECT fails identically to SOCKS5,
-  /// so a loopback relay does not escape it.
-  ///
-  /// [ProxyCoverage.established] for a mounting navigation is the claim the
-  /// app already makes when it binds a store (PROXY-027), not a stronger one
-  /// made here: those same runs read `later-pair=0 of 2 proxied` for stores
-  /// built after the app's first frame. Nothing may be built on top of it --
-  /// in particular, reopening a refused destination on a fresh view is not a
-  /// proxied path and is not offered as one.
+  /// It used to: under [ProxyBinding.perSite] every post-mount navigation was
+  /// [ProxyCoverage.unprovable], on the strength of BUG-014 attempts 90 and
+  /// 92. **Those readings are void.** Every proxy arm behind them pointed its
+  /// origins at an address of the test machine itself, which macOS routes
+  /// over `lo0` and never proxies, so they read DIRECT whether or not the
+  /// proxy was bound. Attempt 102 remeasured against a destination the
+  /// machine does not own: a store's proxy covers every navigation on it, at
+  /// any distance from the first frame, on `nonPersistent()` and
+  /// `forIdentifier:` alike, and on a second navigation to a different
+  /// origin. So a per-site binding establishes coverage exactly as a
+  /// process-wide one does, and cancelling post-mount navigations was
+  /// blocking traffic the proxy was already carrying.
   ///
   /// Linux is per-site in the other sense and is deliberately not a case
   /// here: it carries the proxy on a `WebKitNetworkSession` the container
@@ -51,10 +47,7 @@ class ProxyCoverageEngine {
     required bool isMountNavigation,
   }) {
     if (!proxyConfigured) return ProxyCoverage.notClaimed;
-    if (binding == ProxyBinding.processWide) return ProxyCoverage.established;
-    return isMountNavigation
-        ? ProxyCoverage.established
-        : ProxyCoverage.unprovable;
+    return ProxyCoverage.established;
   }
 }
 
