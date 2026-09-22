@@ -1702,44 +1702,10 @@ jobs:
               tail -60 "${RUNNER_TEMP:-/tmp}/tier-$f.log" || true
             done
           fi
-          # Last, because the failure dumps above are ~60 lines each and a
-          # log tail that stops short of these is the difference between
-          # reading the run and refetching half a megabyte of it. The
-          # launches pass, so nothing else puts them in the tail.
-          # After every other file has had its app process. The comparison
-          # with `first` is the whole point: same file, same machine, one run.
-          matrix_launch last
-          echo "=== BUG-014 launch verdicts ==="
-          for pos in first second; do
-            grep -h -e "proxy-shape\] connect" -e "first-connect" \
-              -e "proxy-shape\] verdict" \
-              "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_$pos.log" 2>/dev/null \
-              || echo "$pos: no verdict line"
-          done
-          # The matrix decides whether a per-site proxy is reachable at all
-          # on Apple, so its three verdict lines go in the tail beside the
-          # shape ones rather than a megabyte back in the log.
-          echo "=== BUG-014 proxyConfigurations re-assignment verdict ==="
-          for k in connect socks5; do
-            grep -h -e "proxy-reassign\] verdict" \
-              "${RUNNER_TEMP:-/tmp}/tier-proxy_reassign_${k}_true.log" 2>/dev/null \
-              || echo "$k: no verdict line"
-          done
-          echo "=== BUG-014 URLSession-vs-WebKit verdict ==="
-          grep -h -e "proxy-urlsession\]" \
-            "${RUNNER_TEMP:-/tmp}/tier-proxy_urlsession.log" 2>/dev/null \
-            || echo "urlsession: no verdict line"
-          echo "=== BUG-014 timing verdicts ==="
-          grep -h -e "proxy-timing\] run=.* verdict" -e "proxy-timing\] baseline=" \
-            -e "proxy-timing\] same-store" -e "proxy-timing\] new-store" \
-            "${RUNNER_TEMP:-/tmp}/tier-proxy_timing_first.log" 2>/dev/null \
-            || echo "timing: no verdict line"
-          echo "=== BUG-014 matrix verdicts ==="
-          for run in first mid last; do
-            grep -h -e "proxy-matrix\] run=$run verdict" \
-              "${RUNNER_TEMP:-/tmp}/tier-proxy_matrix_$run.log" 2>/dev/null \
-              || echo "$run: no verdict line"
-          done
+          # The verdict block that stood here read logs the bisection arms
+          # wrote, and called `matrix_launch`, which went with them. Under
+          # `set -e` that call ended the step at 127 before the instruments
+          # were even read: the arms all passed and the tier went red.
           kill "$WEBKIT_OSLOG_PID" 2>/dev/null || true
 
           exit $status
@@ -1750,12 +1716,11 @@ jobs:
       # ~40 minutes into a step capped at 45, on a job every push cancels. A
       # step of its own with its own cap fixes that without running first.
       #
-      # Running first is what BUG-014 attempt 91 measured as the cost. Only
-      # one app process at a time on this runner can proxy (gap -2); tor binds
-      # a SOCKS proxy, so ahead of the loop it takes that slot and every proxy
-      # arm behind it reads DIRECT. In run 35629531072 exactly one arm out of
-      # ~20 measured anything, and it was the last one, ~35 minutes after this
-      # step finished.
+      # The reason this once carried -- that only one app process on the
+      # runner can proxy, so tor ahead of the loop took the slot and every
+      # arm behind it read DIRECT -- was the void instrument, not the runner
+      # (BUG-014 caution 1). There is no slot. The cap argument above is the
+      # whole reason it sits here.
       #
       # WEBSPACE_TOR_NETWORK opts this job into needing the Tor network:
       # integration_test/tor_test.dart then treats "never reached the
