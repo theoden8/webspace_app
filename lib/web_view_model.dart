@@ -30,6 +30,8 @@ import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/site_icon_engine.dart';
 import 'package:webspace/services/site_icon_store.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
+import 'package:webspace/services/site_tab.dart';
+import 'package:webspace/services/tab_lifecycle_engine.dart';
 import 'package:webspace/services/tab_bar_corner.dart';
 import 'package:webspace/services/user_agent_preset.dart';
 import 'package:webspace/services/webview.dart';
@@ -473,9 +475,44 @@ bool rendererProbeIndicatesGone(Object? probeResult) => probeResult == null;
 class WebViewModel {
   final String siteId; // Unique ID for per-site cookie isolation
   String initUrl; // Made non-final to allow URL editing
-  String currentUrl;
+
+  /// This site's tabs, in tree order (a child follows its parent). Never
+  /// empty. Exactly one of them — [activeTabId] — is bound to the site's
+  /// single webview; the rest are parked and hold no renderer. See
+  /// [lib/services/site_tab.dart] and TAB-001/TAB-002.
+  late List<SiteTab> tabs;
+
+  /// The tab the site's webview is showing. Always names a member of [tabs].
+  late String activeTabId;
+
+  SiteTab get activeTab =>
+      tabs.firstWhere((t) => t.id == activeTabId, orElse: () => tabs.first);
+
+  /// The URL this site is showing: the active tab's. A setter rather than a
+  /// field so every existing `model.currentUrl = …` writer keeps working and
+  /// writes to whichever tab is on screen.
+  String get currentUrl => activeTab.url;
+  set currentUrl(String value) => activeTab.url = value;
+
+  String? get pageTitle => activeTab.title;
+  set pageTitle(String? value) => activeTab.title = value;
+
+  /// Storage key for the active tab's `controller.saveState()` bytes. State is
+  /// per tab, not per site: switching tabs captures under the outgoing tab's
+  /// key and restores from the incoming one's (TAB-003).
+  String get activeStateKey => webViewStateKey(siteId, activeTabId);
+
+  String stateKeyForTab(String tabId) => webViewStateKey(siteId, tabId);
+
+  /// Whether [tabs] is still exactly what a site that never opened a second
+  /// tab carries. Serialisation omits the list while this holds, so on-disk
+  /// output is unchanged for those users (same rule as `domainClaims`).
+  bool get tabsAreDefault =>
+      tabs.length == 1 &&
+      tabs.single.id == kPrimaryTabId &&
+      tabs.single.parentId == null;
+
   String name; // Custom name for the site
-  String? pageTitle; // Current page title from webview
   List<Cookie> cookies;
   Widget? webview;
   /// Destination of the last main-frame navigation this site's webview
@@ -1001,6 +1038,8 @@ class WebViewModel {
     String? siteId,
     required this.initUrl,
     String? currentUrl,
+    List<SiteTab>? tabs,
+    String? activeTabId,
     String? name,
     this.cookies = const [],
     UserProxySettings? proxySettings,
@@ -1061,9 +1100,22 @@ class WebViewModel {
         enabledGlobalScriptIds = enabledGlobalScriptIds ?? {},
         blockedCookies = blockedCookies ?? {},
         siteId = siteId ?? _generateSiteId(),
-        currentUrl = currentUrl ?? initUrl,
         name = name ?? extractDomain(initUrl),
-        proxySettings = proxySettings ?? UserProxySettings(type: ProxyType.DEFAULT);
+        proxySettings = proxySettings ?? UserProxySettings(type: ProxyType.DEFAULT) {
+    // A site always has at least one tab, so `currentUrl` always has somewhere
+    // to live. The engine also repairs a list that arrived from an imported
+    // backup: duplicate ids, a parent that names a tab that is not here, a
+    // parent cycle.
+    // `currentUrl` here is the constructor parameter, not the getter above it:
+    // the getter reads `tabs`, which this call is what fills in.
+    final seeded = TabLifecycleEngine.normalize(
+      tabs,
+      activeTabId,
+      currentUrl ?? initUrl,
+    );
+    this.tabs = seeded.tabs;
+    this.activeTabId = seeded.activeTabId;
+  }
 
   /// This site's proxy as outbound seams should see it.
   ///
@@ -1279,6 +1331,7 @@ class WebViewModel {
     )? onUntrustedCertificate,
     HttpAuthPrompt? onHttpAuthRequest,
     Future<void> Function(String url, ExternalUrlInfo info)? onExternalSchemeUrl,
+    void Function(String url)? onLinkLongPress,
     Future<bool> Function(String origin)? onProtectedMediaRequest,
     Future<CameraDecision> Function(String origin, CameraAccessMode current)?
         onCameraDecision,
@@ -1434,6 +1487,7 @@ class WebViewModel {
           onHttpAuthRequest: onHttpAuthRequest,
           httpAuthMemory: effectiveHttpAuthMemory,
           onExternalSchemeUrl: onExternalSchemeUrl,
+          onLinkLongPress: onLinkLongPress,
           onProtectedMediaRequest: onProtectedMediaRequest == null
               ? null
               : (origin) async {
@@ -2511,11 +2565,18 @@ class WebViewModel {
     // session — issue #298) or alwaysOpenHome (URL-only ephemeral, cookies
     // persist) is set. Cookies are dropped only by incognito; alwaysOpenHome
     // banking-style sites keep their login state.
+    // The same flag drops the tab list, for the same reason it drops the one
+    // URL: a site whose navigation URL is not allowed to reach disk must not
+    // put five of them there instead. An incognito or always-home site comes
+    // back with a single tab at `initUrl` (TAB-009).
     final dropUrl = incognito || alwaysOpenHome;
     return {
         'siteId': siteId,
         'initUrl': initUrl,
         if (!dropUrl) 'currentUrl': currentUrl,
+        if (!dropUrl && !tabsAreDefault)
+          'tabs': tabs.map((t) => t.toJson()).toList(),
+        if (!dropUrl && !tabsAreDefault) 'activeTabId': activeTabId,
         'name': name,
         if (!dropUrl) 'pageTitle': pageTitle,
         'cookies': incognito
@@ -2641,6 +2702,18 @@ class WebViewModel {
       currentUrl: dropUrl || currentUrl == null
           ? null
           : migrateLegacyFileImportUrl(currentUrl),
+      // JSON without `tabs` is a site written before tabs existed, or one that
+      // never opened a second tab: the constructor synthesises the primary tab
+      // from `currentUrl`. Entries that cannot name a tab are dropped rather
+      // than sinking the site.
+      tabs: dropUrl
+          ? null
+          : field<List<dynamic>>('tabs')
+              ?.map(SiteTab.fromJson)
+              .whereType<SiteTab>()
+              .map((t) => t..url = migrateLegacyFileImportUrl(t.url))
+              .toList(),
+      activeTabId: dropUrl ? null : sanitizedTabId(json['activeTabId']),
       name: field<String>('name'),
       cookies: isIncognito
           ? const <Cookie>[]

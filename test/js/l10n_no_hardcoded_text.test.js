@@ -56,6 +56,7 @@ const migrated = new Set([
   // Ambient layout state for the repaint nudge: no user-facing strings.
   'lib/widgets/surface_nudge_scope.dart',
   'lib/widgets/tab_bar_corner_button.dart',
+  'lib/widgets/tabs_sheet.dart',
   'lib/widgets/tor_bootstrap.dart',
   'lib/widgets/tor_status_card.dart',
   'lib/widgets/unproxied_block.dart',
