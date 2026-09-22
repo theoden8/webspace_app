@@ -5,8 +5,9 @@ hardware, every store binds its own upstream and its own credential, at any
 frame and on later navigations. The long investigation that said otherwise
 was reading a broken instrument; what it produced worth keeping is the
 cautions below, not its route. Two instances of the seam's real defect are
-fixed, a third was fixed in the fork, and the seam still has no general
-guard.
+fixed, a third was fixed in the fork, and the seam now has a general guard:
+`settings_seam_test.dart` compares every per-site field Dart sends against
+what the engine actually holds, which is the comparison nothing was making.
 
 **Spec:** [ip-leakage](../../openspec/specs/ip-leakage/spec.md) LEAK-003,
 [proxy](../../openspec/specs/proxy/spec.md) PROXY-011,
@@ -181,7 +182,28 @@ Not a record of what was tried. A record of what bit, so it bites once.
     note described an image the workflow had stopped pinning, and reading it
     instead of the workflow produced a wrong conclusion about CI coverage.
 
-11. **Fail-closed cannot be measured on one machine.** It needs a destination
+11. **Not every readback is worthless.** Caution 5 is about
+    `WKWebsiteDataStore.proxyConfigurations`, a UI-process cache. The plugin's
+    `getSettings()` is a different call: it returns
+    `settings.getRealSettings(obj: self)`, which starts from the parsed
+    settings object and then overwrites specific keys by reading the live
+    `WKWebView` -- `userAgent` from `webView.customUserAgent`,
+    `javaScriptEnabled` from `configuration.defaultWebpagePreferences`. A
+    field in that overwrite set is read off the real view; a field outside it
+    reflects the parser only, which is still the level caution 7 is about.
+    Distinguish the two before calling a readback evidence, in either
+    direction.
+
+12. **A guard in front of a guard hides which one is holding.** The app cannot
+    emit a malformed proxy rule at all: `splitProxyAddress` rejects the address
+    and `userProxyToInappProxy` returns null, which trips the
+    `proxyUnavailable` fail-closed branch. So instance 5's fork fix is a second
+    line of defence that the app's own path never reaches, and an arm that
+    drives it through `WebViewConfig` would pass whether or not the fork was
+    fixed. `proxy_malformed_rule_test.dart` builds `inapp.ProxySettings` by
+    hand for that reason.
+
+13. **Fail-closed cannot be measured on one machine.** It needs a destination
     both proxyable (so not host-owned) and reachable directly (so a leak is
     visible). The Linux tier gets one from a CI service container on its own
     bridge network; Apple has no equivalent, because service containers need
@@ -189,12 +211,38 @@ Not a record of what was tried. A record of what bit, so it bites once.
 
 ## Open
 
-1. **Instance 5 on Apple.** Fixed in the fork and in the pin. No arm covers it:
-   nothing asserts that a malformed rule leaves a store's existing proxy
-   alone rather than clearing it.
-2. **Fail-closed on Apple.** Caution 11. `proxy_fail_closed_test.dart` asserts
-   it on Linux and skips elsewhere with its reason.
-3. **No general guard on the seam.** Caution 7 is the root mechanism and only
-   the proxy has an effect-level test; the same parser carries the container
-   id, the UA, the media gates and every other per-site field.
-   `getRealSettings` could answer it for a live WebView.
+1. **Fail-closed on Apple: closed as not measurable in CI.** The guarantee is
+   real and it is asserted, on Linux, by `proxy_fail_closed_test.dart` against
+   a CI service container on the job's bridge network. Apple has no equivalent
+   and this is not a gap that waits on effort: the assertion needs a
+   destination both proxyable (so not an address the machine owns, caution 1)
+   and reachable directly (so a leak is visible), and one machine cannot be
+   both. Service containers need Docker, which macOS runners do not have; a
+   `feth` pair does not help because both ends belong to the same host
+   (caution 1); a second job is on its own network; and an external host is
+   what the egress guard exists to forbid. A nested VM on the runner is the
+   only remaining shape and it buys one platform's copy of a guarantee already
+   held on another, which is not worth a virtualization dependency in the
+   Apple tier. **The platform question behind it is answered** -- the binding
+   itself is measured on Apple by the arms above -- so what is unmeasured is
+   the refusal path, on one platform, for a mechanism shown to work. Revisit
+   only if macOS runners gain containers.
+
+2. **Instance 5 on Apple: closed.** `proxy_malformed_rule_test.dart` binds a
+   store with a well-formed rule, re-mounts the same container with a rule the
+   fork cannot parse, and asserts the store's navigation still reaches the
+   fixture. Its control runs first and is asserted: a well-formed rule must
+   reach the fixture, or nothing the arm says afterwards is evidence. See
+   caution 12 for why it builds the rule by hand.
+
+3. **The general guard on the seam: closed.** `settings_seam_test.dart` sends
+   every per-site field with a value that is not its default, asks the engine
+   what it holds through `getSettings()`, and fails naming any that did not
+   survive -- the comparison nothing was making, which is what let instance 1
+   ship. Its control is effect-level and runs before the comparison is read:
+   the page's own `navigator.userAgent` must report the string the test sent,
+   because an engine that echoed the map it was handed would satisfy a
+   readback alone (caution 2). Currently covers `userAgent`, `incognito`,
+   `thirdPartyCookiesEnabled`, `containerId` and `proxySettings`. **Extend it
+   when you add a per-site field** -- that is the point of it, and a field not
+   in its table is a field nothing compares.
