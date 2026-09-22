@@ -59,3 +59,36 @@ test('the guard is not vacuous', () => {
         hostIsAndroid && useContainers;`;
   assert.doesNotMatch(ungated, /DeveloperModeService\.instance\.enabled/);
 });
+
+test('the Apple relay branch is off unless a caller opts in', () => {
+  // Apple does not need the relay: each container store carries its own
+  // proxyConfigurations, and BUG-014 attempt 102 measured that delivering
+  // distinct upstreams AND distinct credentials per store on both SOCKS5
+  // and HTTP CONNECT. The implementation stays for parity testing, so the
+  // branch has to be reachable -- and off by default, or it comes back by
+  // omission the way `isApple` nearly did.
+  const body = declaration(src, 'isSupportedWhen');
+  assert.match(
+    body,
+    /isApple\s*&&\s*appleRelayEnabled/,
+    'the Apple branch must be ANDed with appleRelayEnabled, or Apple runs '
+      + 'the relay again',
+  );
+  assert.match(
+    body,
+    /bool appleRelayEnabled = false/,
+    'appleRelayEnabled must default false, so a caller that has not thought '
+      + 'about Apple cannot widen the gate by omission',
+  );
+  assert.match(
+    src,
+    /static bool appleRelayEnabled = false;/,
+    'the live flag must ship off',
+  );
+  assert.match(
+    declaration(src, 'isSupported'),
+    /appleRelayEnabled: appleRelayEnabled/,
+    'the live gate must feed the flag into the decision, or the decision is '
+      + 'gated and the app is not',
+  );
+});

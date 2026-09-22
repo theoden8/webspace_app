@@ -341,9 +341,12 @@ void main() {
             useContainers && developerMode,
             reason: 'containers=$useContainers developerMode=$developerMode',
           );
-          // Apple runs the same router with a different delivery: no
-          // process-wide rule, each container store names the relay
-          // itself (PROXY-026). The other two conditions still gate it.
+          // Apple does not run the relay. Each container store binds its
+          // real upstream directly, which BUG-014 attempt 102 measured
+          // delivering distinct upstreams and distinct credentials per
+          // store, so the relay would be a hop that buys nothing. The
+          // implementation stays reachable for parity testing and nothing
+          // else, so the Apple branch is off unless a test opts in.
           expect(
             ProxyRouterService.isSupportedWhen(
               isAndroid: false,
@@ -351,8 +354,22 @@ void main() {
               useContainers: useContainers,
               developerMode: developerMode,
             ),
+            isFalse,
+            reason: 'apple must not run the relay by default: '
+                'containers=$useContainers developerMode=$developerMode',
+          );
+          // Opted in, it is the Android decision again, so the parity path
+          // is still exercisable and the other two conditions still gate it.
+          expect(
+            ProxyRouterService.isSupportedWhen(
+              isAndroid: false,
+              isApple: true,
+              appleRelayEnabled: true,
+              useContainers: useContainers,
+              developerMode: developerMode,
+            ),
             useContainers && developerMode,
-            reason: 'apple: containers=$useContainers '
+            reason: 'apple parity path: containers=$useContainers '
                 'developerMode=$developerMode',
           );
           expect(
@@ -384,11 +401,16 @@ void main() {
         ProxyRouterService.isSupportedWhen(
           isAndroid: hostIsAndroid,
           isApple: hostIsIOS || hostIsMacOS,
+          appleRelayEnabled: ProxyRouterService.appleRelayEnabled,
           useContainers: true,
           developerMode: true,
         ),
         reason: 'the live gate disagrees with its own decision on this host',
       );
+      expect(ProxyRouterService.appleRelayEnabled, isFalse,
+          reason: 'the Apple relay ships off; a test that flips it must put '
+              'it back, or every later assertion here is about a path the '
+              'app does not take');
     });
   });
 

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 // Conditional so a UI file that reaches this service still compiles for
@@ -100,6 +101,31 @@ class ProxyRouterService {
   /// Realm the relay names in its `407`, or null when inactive.
   String? get realm => _state?.realm;
 
+  /// Whether the Apple relay path runs at all. Off, and off by default.
+  ///
+  /// The relay exists because Android has exactly one process-wide
+  /// `ProxyController` rule and Chromium caches a proxy credential per
+  /// `HttpNetworkSession` without partitioning it, so per-site proxies there
+  /// need something in front of them to fan out. Apple has neither problem:
+  /// each container store carries its own `proxyConfigurations`, and
+  /// BUG-014 attempt 102 measured that shape delivering distinct upstreams
+  /// AND distinct credentials per store, on SOCKS5 and on HTTP CONNECT, at
+  /// any frame and on later navigations. So on Apple the relay is a local
+  /// TCP hop that buys nothing, while adding the credential-forwarding step
+  /// that instance 3 of BUG-014 was a defect in. Apple binds its real
+  /// upstream to the store directly instead (`userProxyToInappProxy`).
+  ///
+  /// For Tor that is also the stronger route: `IsolateSOCKSAuth` keys a
+  /// circuit on the SOCKS credential tuple, and binding the site's own tuple
+  /// to the store hands tor the real per-site identity rather than depending
+  /// on the relay to re-present it upstream.
+  ///
+  /// The implementation stays for feature-parity testing: a test that has to
+  /// drive the Apple relay path sets this true, so the two platforms' router
+  /// behaviour can still be compared without a device.
+  @visibleForTesting
+  static bool appleRelayEnabled = false;
+
   /// Whether this platform + engine combination can run router mode.
   ///
   /// [useContainers] is the app's cached `ContainerNative.isSupported()`.
@@ -115,6 +141,7 @@ class ProxyRouterService {
         isApple: hostIsIOS || hostIsMacOS,
         useContainers: useContainers,
         developerMode: DeveloperModeService.instance.enabled,
+        appleRelayEnabled: appleRelayEnabled,
       );
 
   /// [isSupported]'s decision without the platform reads, so the negative
@@ -124,13 +151,19 @@ class ProxyRouterService {
   /// [isApple] defaults false so the Android contract this started as is
   /// still written the same way, and a caller that has not thought about
   /// Apple cannot widen the gate by omission.
+  /// [appleRelayEnabled] defaults false for the same reason [isApple] does:
+  /// the Apple relay is off, and a caller that has not thought about it
+  /// cannot widen the gate by omission. See [ProxyRouterService.appleRelayEnabled].
   static bool isSupportedWhen({
     required bool isAndroid,
     required bool useContainers,
     required bool developerMode,
     bool isApple = false,
+    bool appleRelayEnabled = false,
   }) =>
-      (isAndroid || isApple) && useContainers && developerMode;
+      (isAndroid || (isApple && appleRelayEnabled)) &&
+      useContainers &&
+      developerMode;
 
   /// The credential a site presents to the relay, or null when router
   /// mode is not running (in which case the WebView must not answer any
