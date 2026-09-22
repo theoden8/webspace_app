@@ -29,9 +29,7 @@ fi
 # `containers=` either way (caution 8); this prints what decided it, so a
 # reader can tell "the field was compared" from "the field was skipped"
 # without inferring it from a green tick.
-echo "── System WebView on device ──"
-adb -s "$device_id" shell dumpsys package com.google.android.webview \
-  | grep -m1 versionName || echo "  (version not reported)"
+bash "$(dirname "$0")/print_android_webview_version.sh" "$device_id"
 
 # Hard wall-clock cap: a webview mount can deadlock below the Dart timeout
 # layer (same rationale as the white-screen tier).

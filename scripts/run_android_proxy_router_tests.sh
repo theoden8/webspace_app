@@ -34,9 +34,7 @@ fi
 # of those the gate SKIPS and the job still goes green. Printing the version
 # means a future reader can tell "the gate passed" from "the gate never ran"
 # rather than inferring it from a green tick.
-echo "── System WebView on device ──"
-adb -s "$device_id" shell dumpsys package com.google.android.webview \
-  | grep -m1 versionName || echo "  (version not reported)"
+bash "$(dirname "$0")/print_android_webview_version.sh" "$device_id"
 
 # Hard wall-clock cap: a webview mount can deadlock below the Dart timeout
 # layer (same rationale as the white-screen tier).
