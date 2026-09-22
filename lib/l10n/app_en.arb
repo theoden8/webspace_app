@@ -3911,6 +3911,22 @@
       }
     }
   },
+  "torUnavailableTitle": "Tor is not available on this device",
+  "@torUnavailableTitle": {
+    "description": "Heading shown in place of a site that is set to use Tor, on a device with no built-in Tor client."
+  },
+  "torUnavailableBody": "The built-in Tor client runs on iOS and macOS only. This site is set to use Tor, so it stays blocked rather than loading over your real IP address. Change its proxy in the site's settings to open it here.",
+  "@torUnavailableBody": {
+    "description": "Explains why a site set to use Tor shows nothing on a platform without a Tor client, and what the user can do about it."
+  },
+  "torDeveloperGateTitle": "Tor is turned off",
+  "@torDeveloperGateTitle": {
+    "description": "Heading shown in place of a site that is set to use Tor while Developer mode, which Tor is behind, is off."
+  },
+  "torDeveloperGateBody": "Tor runs only while Developer mode is on. This site is set to use Tor, so it stays blocked rather than loading over your real IP address. Turn Developer mode on in App settings, or change the site's proxy.",
+  "@torDeveloperGateBody": {
+    "description": "Explains why a site set to use Tor shows nothing while Developer mode is off, and what the user can do about it."
+  },
   "torFailOfflineTitle": "No network",
   "@torFailOfflineTitle": {
     "description": "Tor failure heading: nothing on the network answered."

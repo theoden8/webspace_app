@@ -28,6 +28,8 @@ export 'package:webspace/services/tor_engine.dart'
         TorBootstrapping,
         TorUp,
         TorErrored,
+        TorGate,
+        torGateFor,
         TorFailure,
         TorFailureKind,
         classifyTorFailure,
@@ -344,6 +346,14 @@ class TorService {
   /// the caller having asked first.
   bool get isAvailable =>
       _engine.isAvailable && DeveloperModeService.instance.enabled;
+
+  /// The capability half of [isAvailable]: whether this build has a Tor to
+  /// talk to at all. Split out because a screen in front of a Tor-bound site
+  /// has to tell "no Tor on this platform" from "Tor is behind developer
+  /// mode" — the same status, `stopped`, with different things for the user
+  /// to do about it (TOR-007, TOR-022).
+  bool get hasNativeRuntime => _engine.isAvailable;
+
 
   TorStatus get status => _engine.status;
   Stream<TorStatus> get statusStream => _engine.statusStream;
