@@ -21,6 +21,7 @@ import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/theme/accent_theme.dart';
+import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/screens/add_site.dart' show AddSiteScreen, UnifiedFaviconImage, FaviconUrlCache, SiteSuggestion;
 import 'package:webspace/screens/settings.dart';
@@ -37,6 +38,7 @@ import 'package:webspace/services/tab_bar_corner.dart';
 import 'package:webspace/widgets/stats_banner.dart';
 import 'package:webspace/widgets/tab_bar_corner_button.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
+import 'package:webspace/widgets/tabs_sheet.dart';
 import 'package:webspace/widgets/site_info_sheet.dart';
 import 'package:webspace/widgets/url_bar.dart';
 import 'package:webspace/demo_data.dart' show seedDemoData, isDemoMode;
@@ -74,6 +76,8 @@ import 'package:webspace/services/site_data_clear_engine.dart';
 import 'package:webspace/services/site_lifecycle_engine.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
 import 'package:webspace/services/site_retention_priority.dart';
+import 'package:webspace/services/site_tab.dart';
+import 'package:webspace/services/tab_lifecycle_engine.dart';
 import 'package:webspace/services/orphan_sweep_engine.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/site_unload_engine.dart';
@@ -3663,7 +3667,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     // entries written by builds that predate the override — and
     // entries that any future code path forgets to gate).
     for (final sid in slice.siteIds) {
-      await _stateStorage.removeState(sid);
+      await _stateStorage.removeStatesForSite(sid);
       await _cookieSecureStorage.saveCookiesForSite(sid, const []);
       await HtmlCacheService.instance.deleteCache(sid);
     }
@@ -4460,7 +4464,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     // that never persist nav state — incognito (ephemeral) and
     // archive-tier (ARCH-006: state lives only in the slot ciphertext).
     if (!_loadedIndices.contains(index) && target.persistsNavState) {
-      final bytes = await _stateStorage.loadState(target.siteId);
+      final bytes = await _stateStorage.loadState(target.activeStateKey);
       if (version != _setCurrentIndexVersion) return;
       if (bytes != null) {
         target.schedulePendingRestoreState(bytes);
@@ -4824,15 +4828,28 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// are *only* opportunistically persisting (go-home,
   /// app-background) should leave the state at [SiteLifecycleState.resident]
   /// since the webview is still in memory.
+  /// Every navigation-state key that should survive a sweep, for the sites in
+  /// [siteIds]. State is per tab, so a site contributes one key per tab it
+  /// still has: closing a tab makes its file an orphan, and deleting a site
+  /// makes all of them orphans. The engine that drives the sweep speaks in
+  /// sites (it has no reason to know about tabs); expanding a site to its keys
+  /// belongs here, where the models are.
+  Set<String> _liveStateKeys(Set<String> siteIds) => <String>{
+        for (final m in _webViewModels)
+          if (siteIds.contains(m.siteId))
+            for (final t in m.tabs) m.stateKeyForTab(t.id),
+      };
+
   Future<bool> _captureStateBytes(WebViewModel model) async {
     // Archive-tier (ARCH-006) and incognito sites never persist nav state.
     if (!model.persistsNavState) return false;
     final bytes = await model.captureNavigationState();
     if (bytes == null) return false;
-    await _stateStorage.saveState(model.siteId, bytes);
+    await _stateStorage.saveState(model.activeStateKey, bytes);
     LogService.instance.log(
       'WebViewState',
-      'Captured ${bytes.length} bytes for "${model.name}" (siteId: ${model.siteId})',
+      'Captured ${bytes.length} bytes for "${model.name}" '
+          '(state key: ${model.activeStateKey})',
       sensitivity: LogSensitivity.sensitive,
     );
     return true;
@@ -5673,7 +5690,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     // A live controller can't consume queued bytes — restoreState only
     // applies to a freshly-created one.
     if (!model.persistsNavState || model.controller != null) return;
-    final bytes = await _stateStorage.loadState(siteId);
+    final bytes = await _stateStorage.loadState(model.activeStateKey);
     if (bytes == null) return;
     // Re-resolve after the disk read: the site may have been deleted.
     if (_modelForSiteId(siteId) == null) return;
@@ -7077,6 +7094,16 @@ class _WebSpacePageState extends State<WebSpacePage>
         atHistoryStart: _backAtHistoryStart,
         canExitApp: hostIsAndroid,
       );
+      // At the start of the page history the gesture is still spendable: a
+      // tab the user opened from another tab closes and hands back to it
+      // (TAB-007). Only then does NAV-001 / NAV-009 get the gesture.
+      if ((action == BackGestureAction.ignore ||
+              action == BackGestureAction.openDrawer) &&
+          controller != null &&
+          !drawerOpen) {
+        if (await _closeChildTabOnBack()) return;
+        if (!mounted) return;
+      }
       switch (action) {
         case BackGestureAction.ignore:
           LogService.instance.log('Navigation', 'Back gesture: nothing to do, ignoring');
@@ -7120,6 +7147,13 @@ class _WebSpacePageState extends State<WebSpacePage>
                 : 'Back gesture: URL unchanged ($urlAfter)',
             sensitivity: LogSensitivity.sensitive,
           );
+          if (!urlChanged) {
+            // Same rule as the Android branch above, reached the only way
+            // Apple can reach it: the URL did not move, so the tab is at the
+            // start of its own history.
+            if (await _closeChildTabOnBack()) return;
+            if (!mounted) return;
+          }
           final next = decideAfterAttemptedGoBack(
             urlChanged: urlChanged,
             drawerAvailable: !_kioskLocked,
@@ -7208,7 +7242,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     // defeating the fingerprint reroll above (ETP-022). The encrypted HTML
     // snapshot is the same story for the page body.
     _navStateDebouncer.cancel(model.siteId);
-    await _stateStorage.removeState(model.siteId);
+    await _stateStorage.removeStatesForSite(model.siteId);
     await HtmlCacheService.instance.deleteCache(model.siteId);
     await _saveWebViewModels();
     if (!mounted) return;
@@ -7263,6 +7297,357 @@ class _WebSpacePageState extends State<WebSpacePage>
     }
   }
 
+  // ---- Tabs ---------------------------------------------------------------
+  //
+  // A site holds one container and one webview; its tabs share both. The
+  // active tab is the one bound to the webview, and every other tab of every
+  // site is a record plus, when it has a back stack worth keeping, one
+  // encrypted state file. So a tab switch is the savedForRestore walk applied
+  // per tab — capture, dispose, queue, rebuild — and the number of live
+  // webviews never moves. Spec: TAB-002..TAB-007.
+
+  /// Re-entrancy guard for the tab handlers. Each of them awaits a capture and
+  /// a disk read before it mutates `tabs`; a second tap arriving in that window
+  /// would capture the outgoing tab's stack twice and bind the wrong one.
+  bool _isTabHandling = false;
+
+  /// Move [model]'s webview from whatever tab it is on to [targetTabId].
+  ///
+  /// [captureOutgoing] is false only when the tab being left is being closed —
+  /// its stack is going away with it, so capturing it would write a file the
+  /// caller then has to delete.
+  Future<void> _switchActiveTab(
+    WebViewModel model,
+    String targetTabId, {
+    bool captureOutgoing = true,
+  }) async {
+    if (!model.tabs.any((t) => t.id == targetTabId)) return;
+    if (captureOutgoing) {
+      // A capture already queued for this site would fire against the webview
+      // we are about to dispose and write under whichever key is current by
+      // then; this one is the authoritative one.
+      _navStateDebouncer.cancel(model.siteId);
+      await _captureStateBytes(model);
+      if (!mounted) return;
+      if (!model.tabs.any((t) => t.id == targetTabId)) return;
+    }
+    model.activeTabId = targetTabId;
+    model.activeTab.lastActiveAt = DateTime.now();
+    // Queue before the dispose: `restoreState` only applies to a freshly
+    // created controller, and `disposeWebView` is what makes the next build
+    // create one. Nothing queued means the rebuild loads the tab's URL with an
+    // empty history, which is what a brand-new tab wants.
+    if (model.persistsNavState) {
+      final bytes = await _stateStorage.loadState(model.activeStateKey);
+      if (!mounted) return;
+      if (bytes != null && model.activeTabId == targetTabId) {
+        model.schedulePendingRestoreState(bytes);
+      }
+    }
+    // The cached HTML snapshot is per site, so it holds the page the *other*
+    // tab was on; leaving it would flash that page into this tab's first
+    // frame. Offline it is the only thing renderable, so it stays.
+    _evictCacheIfOnline(model.siteId);
+    model.disposeWebView();
+    if (!mounted) return;
+    setState(() {});
+    if (model.fullscreenMode) _enterFullscreen();
+    LogService.instance.log(
+      'Tabs',
+      'Bound "${model.name}" to tab $targetTabId (${model.tabs.length} tabs)',
+      sensitivity: LogSensitivity.sensitive,
+    );
+    await _saveWebViewModels();
+  }
+
+  /// Show [tabId] of the site at [index]. Used by the tab list.
+  Future<void> _openTab(int index, String tabId) async {
+    if (_isTabHandling) return;
+    _isTabHandling = true;
+    try {
+      if (index < 0 || index >= _webViewModels.length) return;
+      final model = _webViewModels[index];
+      if (index == _currentIndex) {
+        if (model.activeTabId == tabId) return;
+        await _switchActiveTab(model, tabId);
+        return;
+      }
+      // The site is not on screen. When it has no webview either, moving the
+      // pointer before activating means the activation builds the right tab
+      // directly — no load of the tab the site happened to be on, and no
+      // dispose right after it.
+      if (model.activeTabId != tabId && model.tabs.any((t) => t.id == tabId)) {
+        if (_loadedIndices.contains(index)) {
+          await _switchActiveTab(model, tabId);
+          if (!mounted) return;
+        } else {
+          model.activeTabId = tabId;
+          model.activeTab.lastActiveAt = DateTime.now();
+          unawaited(_saveWebViewModels());
+        }
+      }
+      await _setCurrentIndex(index);
+      if (!mounted) return;
+      setState(() {});
+    } finally {
+      _isTabHandling = false;
+    }
+  }
+
+  /// Open a new tab at the site's home page (TAB-005). The tab the user was on
+  /// is kept: it parks, with its back stack captured.
+  Future<void> _newTab(int index) async {
+    if (_isTabHandling) return;
+    _isTabHandling = true;
+    try {
+      if (index < 0 || index >= _webViewModels.length) return;
+      final model = _webViewModels[index];
+      final tab = SiteTab(url: model.initUrl);
+      model.tabs = [...model.tabs, tab];
+      if (index != _currentIndex) {
+        model.activeTabId = tab.id;
+        await _setCurrentIndex(index);
+        if (!mounted) return;
+        setState(() {});
+        await _saveWebViewModels();
+        return;
+      }
+      await _switchActiveTab(model, tab.id);
+    } finally {
+      _isTabHandling = false;
+    }
+  }
+
+  /// Open a long-pressed link in a background tab under the tab it came from
+  /// (TAB-006). Costs nothing until it is first opened: no webview is built
+  /// and no state file is written.
+  Future<void> _openLinkInNewTab(int index, String url) async {
+    if (index < 0 || index >= _webViewModels.length) return;
+    final model = _webViewModels[index];
+    final tab = SiteTab(url: url, parentId: model.activeTabId);
+    setState(() {
+      model.tabs = TabLifecycleEngine.insertChild(model.tabs, tab);
+    });
+    LogService.instance.log(
+      'Tabs',
+      'Opened a background tab under ${model.activeTabId} in "${model.name}"',
+      sensitivity: LogSensitivity.sensitive,
+    );
+    await _saveWebViewModels();
+    if (!mounted) return;
+    final loc = AppLocalizations.of(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(loc.tabsOpenedInNewTab),
+        action: SnackBarAction(
+          label: loc.tabsSwitchAction,
+          onPressed: () => unawaited(_openTab(index, tab.id)),
+        ),
+      ),
+    );
+  }
+
+  /// Apply a close the engine has already decided, dropping the saved state of
+  /// every tab that went and re-binding the webview when the one on screen was
+  /// among them.
+  Future<void> _applyTabClose(
+    int index,
+    WebViewModel model,
+    TabCloseResult result,
+  ) async {
+    if (result.closedIds.isEmpty) return;
+    for (final id in result.closedIds) {
+      await _stateStorage.removeState(model.stateKeyForTab(id));
+    }
+    if (!mounted) return;
+    model.tabs = result.tabs;
+    LogService.instance.log(
+      'Tabs',
+      'Closed ${result.closedIds.length} tab(s) in "${model.name}"; '
+          '${model.tabs.length} left',
+      sensitivity: LogSensitivity.sensitive,
+    );
+    if (result.tabs.isEmpty) {
+      // A site always has a tab to show. Closing the last one lands it back on
+      // its home page rather than leaving the site blank.
+      final home = SiteTab.primary(url: model.initUrl);
+      model.tabs = [home];
+      model.activeTabId = home.id;
+      if (index == _currentIndex) {
+        _evictCacheIfOnline(model.siteId);
+        model.disposeWebView();
+      }
+      if (!mounted) return;
+      setState(() {});
+      await _saveWebViewModels();
+      return;
+    }
+    final next = result.nextActiveId;
+    if (result.activeChanged && next != null) {
+      if (index == _currentIndex || _loadedIndices.contains(index)) {
+        await _switchActiveTab(model, next, captureOutgoing: false);
+        return;
+      }
+      model.activeTabId = next;
+    }
+    if (!mounted) return;
+    setState(() {});
+    await _saveWebViewModels();
+  }
+
+  Future<void> _closeTab(int index, String tabId, {bool subtree = false}) async {
+    if (_isTabHandling) return;
+    _isTabHandling = true;
+    try {
+      if (index < 0 || index >= _webViewModels.length) return;
+      final model = _webViewModels[index];
+      final result = subtree
+          ? TabLifecycleEngine.closeSubtree(model.tabs, model.activeTabId, tabId)
+          : TabLifecycleEngine.closeTab(model.tabs, model.activeTabId, tabId);
+      await _applyTabClose(index, model, result);
+    } finally {
+      _isTabHandling = false;
+    }
+  }
+
+  Future<void> _closeParkedTabs(int index) async {
+    if (_isTabHandling) return;
+    _isTabHandling = true;
+    try {
+      if (index < 0 || index >= _webViewModels.length) return;
+      final model = _webViewModels[index];
+      await _applyTabClose(
+        index,
+        model,
+        TabLifecycleEngine.closeParked(model.tabs, model.activeTabId),
+      );
+    } finally {
+      _isTabHandling = false;
+    }
+  }
+
+  /// A back gesture that ran out of page history. Returns true when it was
+  /// spent closing a tab the user had opened from another one, which is what a
+  /// browser does with a tab opened from a link (TAB-007). A root tab falls
+  /// through to NAV-001 and whatever the NAV-009 setting says.
+  Future<bool> _closeChildTabOnBack() async {
+    // A close already running owns the tab list; reporting the gesture as
+    // spent here would swallow it for nothing.
+    if (_isTabHandling) return false;
+    if (_currentIndex == null || _currentIndex! >= _webViewModels.length) {
+      return false;
+    }
+    final index = _currentIndex!;
+    final model = _webViewModels[index];
+    if (TabLifecycleEngine.backAtHistoryStart(model.tabs, model.activeTabId) !=
+        TabBackAction.closeAndActivateParent) {
+      return false;
+    }
+    LogService.instance.log(
+      'Navigation',
+      'Back gesture: at history start in a tab opened from another; closing it',
+    );
+    await _closeTab(index, model.activeTabId);
+    return true;
+  }
+
+  /// Every site the tab list should show, in the order the drawer shows them.
+  List<TabsSheetSite> _tabsSheetSites() => [
+        for (final i in _getFilteredSiteIndices())
+          if (i >= 0 && i < _webViewModels.length)
+            TabsSheetSite(
+              index: i,
+              model: _webViewModels[i],
+              isCurrent: i == _currentIndex,
+            ),
+      ];
+
+  Future<void> _showTabsSheet() async {
+    if (_kioskLocked) return;
+    final sites = _tabsSheetSites();
+    final at = sites.indexWhere((s) => s.index == _currentIndex);
+    if (at < 0) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => TabsSheet(
+        sites: sites,
+        currentIndex: at,
+        onOpenTab: (i, id) => unawaited(_openTab(i, id)),
+        onNewTab: (i) => unawaited(_newTab(i)),
+        onCloseTab: (i, id) => unawaited(_closeTab(i, id)),
+        onCloseSubtree: (i, id) => unawaited(_closeTab(i, id, subtree: true)),
+        onCloseParked: (i) => unawaited(_closeParkedTabs(i)),
+      ),
+    );
+  }
+
+  /// A long press that landed on a link. In-domain links can become a tab of
+  /// this site; anything else keeps today's behaviour, and the sheet says why
+  /// rather than silently offering nothing.
+  Future<void> _showLinkLongPressMenu(int index, String url) async {
+    if (_kioskLocked) return;
+    if (index < 0 || index >= _webViewModels.length) return;
+    if (index != _currentIndex) return;
+    final model = _webViewModels[index];
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    final inDomain =
+        getNormalizedDomain(url) == getNormalizedDomain(model.initUrl);
+    final loc = AppLocalizations.of(context);
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Text(
+                url,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(ctx).textTheme.bodySmall,
+              ),
+            ),
+            ListTile(
+              enabled: inDomain,
+              leading: const Icon(Icons.tab),
+              title: Text(loc.tabsOpenInNewTab),
+              subtitle:
+                  inDomain ? null : Text(loc.tabsLinkOutsideSite(uri.host)),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                unawaited(_openLinkInNewTab(index, url));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.open_in_new),
+              title: Text(loc.commonOpen),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                unawaited(_webViewModels[index]
+                    .getController(launchUrl, _cookieManager,
+                        _containerCookieManager, _saveWebViewModels,
+                        globalUserScripts: _globalUserScripts)
+                    ?.loadUrl(url));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.copy),
+              title: Text(loc.commonCopy),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                Clipboard.setData(ClipboardData(text: url));
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _goHome() {
     if (_currentIndex == null || _currentIndex! >= _webViewModels.length) return;
     final model = _webViewModels[_currentIndex!];
@@ -7308,6 +7693,35 @@ class _WebSpacePageState extends State<WebSpacePage>
             : 'Dark';
     final colorName = _themeSettings.accentColor == AccentColor.blue ? 'Blue' : 'Green';
     return '$modeName $colorName';
+  }
+
+  /// The browser's square-with-a-number: how many tabs this site has, and the
+  /// way into the tab list (TAB-008).
+  Widget _buildTabsButton(WebViewModel model, AppLocalizations loc) {
+    final count = model.tabs.length;
+    final theme = Theme.of(context);
+    return IconButton(
+      tooltip: loc.tabsTooltip,
+      onPressed: () => unawaited(_showTabsSheet()),
+      icon: Container(
+        width: IconSizes.floating,
+        height: IconSizes.floating,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          border: Border.all(color: theme.colorScheme.onSurface, width: 2),
+          borderRadius: BorderRadius.circular(Radii.md),
+        ),
+        child: Text(
+          // Past two digits the glyph stops being a number and becomes noise.
+          count > 99 ? '99+' : '$count',
+          style: theme.textTheme.labelSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: theme.colorScheme.onSurface,
+            fontSize: count > 99 ? 8 : null,
+          ),
+        ),
+      ),
+    );
   }
 
   AppBar _buildAppBar() {
@@ -7358,6 +7772,9 @@ class _WebSpacePageState extends State<WebSpacePage>
               : loc.homeNoWebspaceSelected),
       // KIOSK-002: no app-bar actions (download, theme, settings) when locked.
       actions: _kioskLocked ? const <Widget>[] : [
+        // Tab count for the site on screen. Present whenever a site is shown,
+        // even at one tab, because it is also how a new tab is opened.
+        if (currentModel != null) _buildTabsButton(currentModel, loc),
         const DownloadButton(),
         IconButton(
           icon: Icon(_getThemeIcon()),
@@ -7841,6 +8258,13 @@ class _WebSpacePageState extends State<WebSpacePage>
     final content = _buildTabStripItemContent(siteModel, isActive, theme, isDark);
 
     void handleTap() {
+      // Tapping the chip of the site already on screen opens its tab list —
+      // the strip switches sites, and within a site the tabs are what is left
+      // to switch between (TAB-008). It was a no-op before.
+      if (isActive) {
+        unawaited(_showTabsSheet());
+        return;
+      }
       () async {
         await _setCurrentIndex(siteIndex);
         if (!mounted) return;
@@ -7953,7 +8377,38 @@ class _WebSpacePageState extends State<WebSpacePage>
               ),
             ),
           ),
+          // Tab count, only once there is more than one: a site with a single
+          // tab looks exactly as it did before tabs existed (TAB-008).
+          if (siteModel.tabs.length > 1) _tabCountPill(siteModel, isActive, theme),
         ],
+      ),
+    );
+  }
+
+  /// The "N" beside a site's name wherever sites are listed.
+  Widget _tabCountPill(WebViewModel model, bool isActive, ThemeData theme) {
+    final count = model.tabs.length;
+    return Padding(
+      padding: const EdgeInsets.only(left: Spacing.xs),
+      child: Container(
+        constraints: const BoxConstraints(minWidth: IconSizes.inline),
+        padding: const EdgeInsets.symmetric(horizontal: Spacing.xs),
+        decoration: BoxDecoration(
+          color: isActive
+              ? theme.colorScheme.primary
+              : theme.colorScheme.onSurfaceVariant,
+          borderRadius: BorderRadius.circular(Radii.lg),
+        ),
+        child: Text(
+          count > 99 ? '99+' : '$count',
+          textAlign: TextAlign.center,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: isActive
+                ? theme.colorScheme.onPrimary
+                : theme.colorScheme.surface,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
     );
   }
@@ -8943,7 +9398,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     await HttpAuthSecureStorage.instance.removeOrphaned(activeSiteIds);
     await HtmlCacheService.instance.removeOrphanedCaches(activeSiteIds);
     await HtmlImportStorage.instance.removeOrphanedImports(activeSiteIds);
-    await _stateStorage.removeOrphans(activeSiteIds);
+    await _stateStorage.removeOrphans(_liveStateKeys(activeSiteIds));
     await BlockStatsService.instance.removeOrphanedSites(activeSiteIds);
     await SiteIconStore.instance.removeOrphans(_siteIconUrlsToKeep());
 
@@ -9348,6 +9803,8 @@ class _WebSpacePageState extends State<WebSpacePage>
                         ),
                       ),
                     ),
+                    if (_webViewModels[index].tabs.length > 1)
+                      _tabCountPill(_webViewModels[index], isSelected, theme),
                   ],
                 )
               : Column(
@@ -9390,6 +9847,16 @@ class _WebSpacePageState extends State<WebSpacePage>
                             ),
                           ),
                         ),
+                        // Tab count rides the favicon's top corner: the tile
+                        // has no spare row, and the permission badges already
+                        // own the bottom edge.
+                        if (_webViewModels[index].tabs.length > 1)
+                          Positioned(
+                            top: -2,
+                            right: -2,
+                            child: _tabCountPill(
+                                _webViewModels[index], isSelected, theme),
+                          ),
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -9661,6 +10128,19 @@ class _WebSpacePageState extends State<WebSpacePage>
                                       info,
                                       loadInWebView: webViewModel.controller,
                                     );
+                                  },
+                                  // Android / iOS only (the plugin has no
+                                  // macOS or Linux long-press signal): a long
+                                  // press on a link is how a child tab is
+                                  // created (TAB-006). Identity check, not
+                                  // index: the list can have been reordered by
+                                  // the time the native event lands.
+                                  onLinkLongPress: (url) {
+                                    final at =
+                                        _webViewModels.indexOf(webViewModel);
+                                    if (at < 0) return;
+                                    unawaited(
+                                        _showLinkLongPressMenu(at, url));
                                   },
                                 ),
                               ),
@@ -10166,7 +10646,8 @@ class _OrphanSweepTargets implements OrphanSweepTargets {
 
   @override
   Future<void> removeOrphanedWebViewState(Set<String> nonIncognitoSiteIds) =>
-      state._stateStorage.removeOrphans(nonIncognitoSiteIds);
+      state._stateStorage.removeOrphans(
+          state._liveStateKeys(nonIncognitoSiteIds));
 
   @override
   Future<void> removeOrphanedBlockStatsSites(Set<String> nonIncognitoSiteIds) =>

@@ -15,7 +15,7 @@ import 'package:webspace/services/webview_state_storage.dart';
 /// Models the [HtmlCacheService] pattern: a 256-bit AES-CBC key lives
 /// in [FlutterSecureStorage] (platform keychain / keystore), the
 /// per-site state bytes are encrypted with a fixed IV derived from
-/// that key and written to `<docs>/webview_state/<siteId>.enc`.
+/// that key and written to `<docs>/webview_state/<siteId>.<tabId>.enc`.
 ///
 /// State survives cold starts. On app upgrade the cache directory is
 /// nuked (key is rotated alongside it) — the back/forward stack from
@@ -178,10 +178,16 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
     }
   }
 
-  String _fileNameFor(String siteId) => '$siteId.enc';
+  String _fileNameFor(String key) => '$key.enc';
+
+  /// Strip the extension by length, not by [String.replaceAll]: a state key
+  /// contains a `.` of its own, and a tab an imported backup named `enc`
+  /// would otherwise have its whole name eaten.
+  String _keyForFileName(String name) =>
+      name.substring(0, name.length - '.enc'.length);
 
   @override
-  Future<void> saveState(String siteId, Uint8List state) async {
+  Future<void> saveState(String key, Uint8List state) async {
     if (state.isEmpty) return;
     if (!_initialized) await initialize();
     final store = _store;
@@ -193,16 +199,16 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
       final wire = Uint8List(iv.bytes.length + enc.bytes.length)
         ..setRange(0, iv.bytes.length, iv.bytes)
         ..setRange(iv.bytes.length, iv.bytes.length + enc.bytes.length, enc.bytes);
-      await store.writeText(_fileNameFor(siteId), base64.encode(wire));
+      await store.writeText(_fileNameFor(key), base64.encode(wire));
       LogService.instance.log(
         'WebViewState',
-        'Saved ${state.length} bytes for site $siteId (encrypted)',
+        'Saved \${state.length} bytes for \$key (encrypted)',
         sensitivity: LogSensitivity.sensitive,
       );
     } catch (e) {
       LogService.instance.log(
         'WebViewState',
-        'Error saving state for $siteId: $e',
+        'Error saving state for \$key: \$e',
         level: LogLevel.error,
         sensitivity: LogSensitivity.sensitive,
       );
@@ -210,14 +216,14 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
   }
 
   @override
-  Future<Uint8List?> loadState(String siteId) async {
+  Future<Uint8List?> loadState(String key) async {
     if (!_initialized) await initialize();
     final store = _store;
     if (store == null || _encrypter == null) {
       return null;
     }
     try {
-      final raw = await store.readText(_fileNameFor(siteId));
+      final raw = await store.readText(_fileNameFor(key));
       if (raw == null) return null;
       final wire = base64.decode(raw);
       // 12-byte nonce + 16-byte minimum GCM tag; legacy fixed-IV CBC blobs
@@ -231,30 +237,30 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
     } catch (e) {
       LogService.instance.log(
         'WebViewState',
-        'Error loading state for $siteId: $e',
+        'Error loading state for \$key: \$e',
         level: LogLevel.error,
         sensitivity: LogSensitivity.sensitive,
       );
       // Corrupt entry — defensive: remove so a re-save can succeed
       // and we don't keep failing loads in a hot loop.
       try {
-        await store.delete(_fileNameFor(siteId));
+        await store.delete(_fileNameFor(key));
       } catch (_) {}
       return null;
     }
   }
 
   @override
-  Future<void> removeState(String siteId) async {
+  Future<void> removeState(String key) async {
     if (!_initialized) await initialize();
     final store = _store;
     if (store == null) return;
     try {
-      await store.delete(_fileNameFor(siteId));
+      await store.delete(_fileNameFor(key));
     } catch (e) {
       LogService.instance.log(
         'WebViewState',
-        'Error deleting state for $siteId: $e',
+        'Error deleting state for \$key: \$e',
         level: LogLevel.error,
         sensitivity: LogSensitivity.sensitive,
       );
@@ -262,7 +268,31 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
   }
 
   @override
-  Future<int> removeOrphans(Set<String> activeSiteIds) async {
+  Future<int> removeStatesForSite(String siteId) async {
+    if (!_initialized) await initialize();
+    final store = _store;
+    if (store == null) return 0;
+    final prefix = '$siteId.';
+    var removed = 0;
+    try {
+      for (final name in await store.list()) {
+        if (!name.endsWith('.enc')) continue;
+        if (!_keyForFileName(name).startsWith(prefix)) continue;
+        await store.delete(name);
+        removed++;
+      }
+    } catch (e) {
+      LogService.instance.log(
+        'WebViewState',
+        'Error removing state files for a site: $e',
+        level: LogLevel.error,
+      );
+    }
+    return removed;
+  }
+
+  @override
+  Future<int> removeOrphans(Set<String> activeKeys) async {
     if (!_initialized) await initialize();
     final store = _store;
     if (store == null) {
@@ -273,8 +303,7 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
       final entries = await store.list();
       for (final name in entries) {
         if (!name.endsWith('.enc')) continue;
-        final siteId = name.replaceAll('.enc', '');
-        if (!activeSiteIds.contains(siteId)) {
+        if (!activeKeys.contains(_keyForFileName(name))) {
           await store.delete(name);
           removed++;
         }
@@ -307,7 +336,7 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
       final entries = await store.list();
       for (final name in entries) {
         if (!name.endsWith('.enc')) continue;
-        result.add(name.replaceAll('.enc', ''));
+        result.add(_keyForFileName(name));
       }
     } catch (_) {
       // Best effort.

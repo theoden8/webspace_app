@@ -1029,6 +1029,13 @@ class WebViewConfig {
   /// webview always cancels such navigations; the host UI decides
   /// whether to launch the target app after confirming with the user.
   final Future<void> Function(String url, ExternalUrlInfo info)? onExternalSchemeUrl;
+  /// A long-press that landed on a link (`SRC_ANCHOR_TYPE`). The host opens
+  /// its link menu, whose "Open in new tab" is how a child tab is created
+  /// (TAB-006). Android and iOS only: the plugin backs this with
+  /// `View.setOnLongClickListener` / `UILongPressGestureRecognizer`, and there
+  /// is no macOS or Linux equivalent, so those platforms reach the same
+  /// actions from the tab list instead.
+  final void Function(String url)? onLinkLongPress;
   /// Prompt for an untrusted (typically self-signed) TLS certificate
   /// surfaced by the platform's `onReceivedServerTrustAuthRequest`. The
   /// host UI shows a confirmation dialog; returning `true` adds the
@@ -1219,6 +1226,7 @@ class WebViewConfig {
     this.userScripts = const [],
     this.onConfirmScriptFetch,
     this.onExternalSchemeUrl,
+    this.onLinkLongPress,
     this.onUntrustedCertificate,
     this.onHttpAuthRequest,
     this.httpAuthMemory = HttpAuthMemory.off,
@@ -4801,6 +4809,23 @@ class WebViewFactory {
           );
         }
         return inapp.NavigationActionPolicy.ALLOW;
+      },
+      onLongPressHitTestResult: (controller, hitTestResult) {
+        if (config.onLinkLongPress == null) return;
+        // Only a link. An image or a phone number long-press has nothing to
+        // open in a tab, and `extra` for those is not a URL.
+        if (hitTestResult.type != inapp.InAppWebViewHitTestResultType.SRC_ANCHOR_TYPE &&
+            hitTestResult.type !=
+                inapp.InAppWebViewHitTestResultType.SRC_IMAGE_ANCHOR_TYPE) {
+          return;
+        }
+        final extra = hitTestResult.extra;
+        if (extra == null || extra.isEmpty) return;
+        final uri = Uri.tryParse(extra);
+        if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) {
+          return;
+        }
+        config.onLinkLongPress!(extra);
       },
       onCreateWindow: (controller, createWindowAction) async {
         final url = createWindowAction.request.url?.toString() ?? '';

@@ -133,6 +133,14 @@ state bytes SHALL exist for the child until it is first activated. For a link
 outside the site's domain the row SHALL be shown disabled with the reason, and
 a tap on such a link SHALL keep opening the nested screen as today.
 
+The long press is delivered by the plugin's `onLongPressHitTestResult`
+(`View.setOnLongClickListener` on Android, `UILongPressGestureRecognizer` on
+iOS) filtered to `SRC_ANCHOR_TYPE` / `SRC_IMAGE_ANCHOR_TYPE` and to http(s)
+targets. The plugin exposes no macOS or Linux equivalent, so on those platforms
+a tab is created from the tab list's "New tab" instead; this is a platform
+reach gap, not a behaviour difference in the model. The nested screen passes no
+handler: it has no tab list of its own to add to.
+
 #### Scenario: Open in new tab
 
 - **GIVEN** the user is on GitHub's pull request list
@@ -176,13 +184,19 @@ parent.
 ### Requirement: TAB-008 - The tree
 
 The Tabs sheet SHALL be reachable from the app bar square showing the site's
-tab count and by tapping the active site's chip in the strip, SHALL offer "This
-site" and "All sites" scopes, "New tab" and "Close N parked", and SHALL list
-tabs as a tree in creation order, indented by depth, with a collapse chevron on
-nodes that have children, the active tab highlighted, and close and
-close-subtree actions. Each drawer site row SHALL expand to the same tree.
-Strip chips and drawer tiles SHALL show a count pill when a site has more than
-one tab. A locked kiosk shell (KIOSK-002) SHALL hide all of these.
+tab count and by tapping the active site's chip in the strip, SHALL offer "New
+tab" and "Close N parked", and SHALL list tabs as a tree in creation order,
+indented by depth, with a collapse chevron on nodes that have children, the tab
+bound to the webview marked, and close and close-subtree actions. Collapsing a
+tab SHALL hide its whole subtree and SHALL say how many tabs that is.
+
+Where more than one site is shown, the sheet SHALL also offer an "All sites"
+scope listing every site's tree under its own heading. That scope is the
+whole-app tab view; the drawer, which lays sites out as a grid of tiles rather
+than a list of rows, SHALL carry only the count. Strip chips and drawer tiles
+SHALL show a count pill when a site has more than one tab, and nothing when it
+has one, so a user who never opens a second tab sees no new chrome. A locked
+kiosk shell (KIOSK-002) SHALL hide all of these.
 
 #### Scenario: Count pill
 
@@ -191,19 +205,33 @@ one tab. A locked kiosk shell (KIOSK-002) SHALL hide all of these.
 
 #### Scenario: Collapse a subtree
 
-- **GIVEN** tab A has three children
+- **GIVEN** tab A has one child, which itself has one child
 - **WHEN** the user taps A's chevron
-- **THEN** the children are hidden and A's row notes "3 hidden"
+- **THEN** both descendants are hidden, not just the direct child
+- **AND** A's row says two tabs are hidden
 - **AND** the tabs themselves are unchanged
+
+#### Scenario: Only one tab anywhere is loaded
+
+- **GIVEN** two sites, each with tabs, and the sheet in its "All sites" scope
+- **THEN** exactly one row is marked as loaded: the active tab of the site on
+  screen
+- **AND** no tab of a backgrounded site is marked, because a site that is not
+  on screen may hold a paused webview but the sheet reports what is bound now
 
 ---
 
 ### Requirement: TAB-009 - Tabs under per-site features
 
-Tabs SHALL follow the owning site's feature posture: an incognito site's tabs
-never reach disk and only a home tab survives relaunch (INC-002/003); an
-Always open Home site reverts its active tab to `initUrl` in place on cold
-start and shortcut tap and keeps parked tabs (AOH-001); an archive-tier site's
+Tabs SHALL follow the owning site's feature posture. The flag that drops a
+site's `currentUrl` from serialisation SHALL drop its tab list with it, for the
+same reason: a site whose one navigation URL is not allowed on disk must not
+put five of them there instead. So an incognito site's tabs never reach disk
+and it relaunches with one tab at `initUrl` (INC-002/003), and an Always open
+Home site does the same rather than keeping parked tabs — a deliberate
+narrowing of what that toggle preserves, taken because the alternative writes
+the deep URLs of a banking-style site into plaintext preferences (AOH-001). An
+archive-tier site's
 tabs ride the archive's encrypted state with no state bytes on disk, and
 app-tier persistence is byte-identical whether or not archives hold tabs
 (ARCH-001/006); the site QR share never carries tabs; settings backup carries
@@ -220,5 +248,5 @@ app-tier persistence is byte-identical whether or not archives hold tabs
 
 - **GIVEN** a Mastodon site with Always open Home, active on a post, with one parked tab
 - **WHEN** the app is cold-started
-- **THEN** Mastodon's active tab shows `initUrl` with no history
-- **AND** the parked tab is still listed
+- **THEN** Mastodon has one tab, showing `initUrl` with no history
+- **AND** neither the post nor the parked tab's URL appears in the persisted JSON

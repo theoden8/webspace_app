@@ -29,9 +29,12 @@ void main() {
     clearSiteData = source.substring(start, end);
   });
 
-  test('the clear drops the saved navigation state', () {
+  test('the clear drops the saved navigation state of every tab', () {
+    // Site-wide, not `removeState(<one key>)`: state is keyed per tab now, so
+    // dropping only the active tab's bytes would leave every parked tab of the
+    // site holding its pre-clear URL, ready to be restored on the next switch.
     expect(
-      clearSiteData.contains('_stateStorage.removeState('),
+      clearSiteData.contains('_stateStorage.removeStatesForSite('),
       isTrue,
       reason: 'restored saveState() bytes carry the pre-clear URL, which is '
           'the page\'s own identifier when it put one there',
@@ -62,7 +65,7 @@ void main() {
     // container wipe to lean on at all. A statement at the method's own
     // indent sits outside every `if (plan...)` block.
     expect(
-      clearSiteData.contains('\n    await _stateStorage.removeState('),
+      clearSiteData.contains('\n    await _stateStorage.removeStatesForSite('),
       isTrue,
     );
     expect(

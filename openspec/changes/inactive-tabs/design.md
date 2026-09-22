@@ -78,10 +78,10 @@ are the whole feature.
    you never scrolled and backed out of leaves no residue; a tab you left to
    do something else waits for you.
 6. **The tree is free.** "Open in new tab" knows the tab it came from, so a
-   tab records `parentId`. The drawer already lists sites; expanding a site
-   shows its tabs indented by depth, which is tree-style tabs without a new
-   screen. Closing a parent re-parents its children to the grandparent, so
-   nothing is orphaned by a close.
+   tab records `parentId`, and one sheet renders every site's tabs indented by
+   depth — tree-style tabs for the cost of a traversal. Closing a parent
+   re-parents its children to the grandparent, so nothing is orphaned by a
+   close.
 
 ## Goals / Non-Goals
 
@@ -198,6 +198,12 @@ named future tier if it turns out to matter.
   current tab) and shows a snackbar with "Switch". No webview and no bytes
   are created until it is first activated. A cross-domain link's menu shows
   the row disabled with the reason; its tap keeps opening the nested screen.
+  The long press comes from the plugin's `onLongPressHitTestResult`, which is
+  Android and iOS only — there is no macOS or Linux signal for it — so on
+  desktop a tab comes from "New tab" and the tree stays flat. A JS
+  `contextmenu` shim would cover all four and is the obvious follow-up if
+  desktop turns out to matter; it was not worth a new shim, its jsdom tests
+  and its drift fixtures for this round.
 - **Home** (NAV-004): the active tab goes to `initUrl` with history cleared.
   No new tab.
 
@@ -221,22 +227,23 @@ nobody trusts.
 - A node with children shows a collapse chevron; collapsed state is UI-only.
 - Row actions: switch, close, close tab and its children. Closing re-parents
   children to the closed tab's parent.
+- Collapsing a tab hides its whole subtree, and the row says how many tabs
+  that is — the direct-child count would under-report a chain.
 - Surfaces: the Tabs sheet (app bar square with the site's tab count; tapping
-  the active site's strip chip, which is a no-op today) with "This site" and
-  "All sites" scopes, "New tab", and "Close N parked"; the drawer, where each
-  site row expands to the same tree plus "New tab". Strip chips and drawer
-  tiles show a count pill when a site has more than one tab.
-- A crumb under the app bar on a child tab reads "opened from <parent>" and
-  switches to the parent (parking the child) when tapped.
-- A locked kiosk shell (KIOSK-002) hides the sheet, the drawer tree and the
-  link menu.
+  the active site's strip chip, which is a no-op today) with "New tab", "Close
+  N parked" and, once more than one site is shown, an "All sites" scope. Strip
+  chips and drawer tiles carry a count pill when a site has more than one tab,
+  and nothing when it has one, so a user who never opens a second tab sees no
+  new chrome. The drawer lays sites out as a grid of tiles, not rows, so the
+  tree does not fit there; the "All sites" scope is the whole-app tree view.
+- A locked kiosk shell (KIOSK-002) hides the sheet and the link menu.
 
 ### D7. Per-site feature audit for tabs
 
 | Feature | Rule for tabs |
 |---|---|
 | Incognito (INC-002/003) | Tabs exist in memory only; no state bytes, `tabs` omitted from JSON. Relaunch keeps one home tab. |
-| Always open Home (AOH-001) | The active tab reverts to `initUrl` in place on cold start and shortcut tap, history cleared, as today; parked tabs are untouched and persist. |
+| Always open Home (AOH-001) | Drops the tab list on serialise, exactly as it drops `currentUrl`: the site comes back with one tab at `initUrl`. Keeping parked tabs would write a banking-style site's deep URLs into plaintext preferences, which is the thing the toggle exists to avoid. One rule, not two. |
 | Kiosk (KIOSK-002) | Locked shell hides the Tabs sheet, the drawer tree and the link menu. Back on a child tab still follows D5. |
 | Archive tier (ARCH-001/006) | `tabs` ride the archive's encrypted state; no state bytes are written (`persistsNavState` false); app-tier prefs are byte-identical whether archives hold tabs or not. |
 | Notifications / background audio | Only the active tab runs JS; a parked tab cannot fire a notification or play. Retention tiers unchanged. |
@@ -267,9 +274,16 @@ nobody trusts.
 
 ## Open Questions (the prototype's knobs)
 
-1. Back at the start of a child tab: close (proposed), park, or nothing?
-2. Opening a site from the strip or drawer: resume its active tab (proposed)
-   or start a new tab at home?
+Both are settled in the code as proposed; they stay listed because the
+prototype can still be used to feel the alternatives.
+
+1. Back at the start of a child tab: close (implemented), park, or nothing?
+2. Opening a site from the strip or drawer: resume its active tab
+   (implemented) or start a new tab at home?
+
+Deferred from this round, listed so they are not lost: a crumb under the app
+bar naming the tab a child was opened from; a `contextmenu` shim so desktop
+gets the long-press menu; a warm second webview per site.
 
 ## Migration Plan
 
@@ -281,7 +295,7 @@ nobody trusts.
    back-at-start / tree order) with in-memory fakes modelling the state store.
 3. Tabs sheet, strip pill, "New tab", link long-press "Open in new tab",
    back-at-start rule. Ships the accumulation loop.
-4. Drawer tree, crumb, kiosk and archive gates.
+4. Drawer and strip counts, kiosk and archive gates.
 
 Each step is independently shippable; the compatibility getter means step 1
 alone changes nothing a user can see.

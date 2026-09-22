@@ -4489,6 +4489,97 @@
   "@torIsolateDestAddrHint": {
     "description": "Explanation shown in the hint dialog for the \"Separate circuit per destination\" switch. Mentions the trade-off: more isolation versus sites that verify the client's IP address across their own hostnames."
   },
+  "tabsTooltip": "Tabs",
+  "@tabsTooltip": {
+    "description": "Tooltip on the app-bar button that shows how many tabs the current site has and opens the tab list."
+  },
+  "tabsSheetTitle": "{name} · {count, plural, =1{1 tab} other{{count} tabs}}",
+  "@tabsSheetTitle": {
+    "description": "Heading of the tab list: the site's name and how many tabs it holds. The middle dot separates them.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "tabsNewTab": "New tab",
+  "@tabsNewTab": {
+    "description": "Button that opens a new tab at the site's home page. The tab the user was on is kept and parked."
+  },
+  "tabsThisSite": "This site",
+  "@tabsThisSite": {
+    "description": "Tab-list filter showing only the current site's tabs."
+  },
+  "tabsAllSites": "All sites",
+  "@tabsAllSites": {
+    "description": "Tab-list filter showing the tabs of every site."
+  },
+  "tabsOneWebview": "Only the open tab uses memory",
+  "@tabsOneWebview": {
+    "description": "Footer of the tab list explaining that the other tabs of a site are stored, not running, so a long list costs nothing."
+  },
+  "tabsCloseParked": "{count, plural, =1{Close 1 parked tab} other{Close {count} parked tabs}}",
+  "@tabsCloseParked": {
+    "description": "Button that closes every tab of the site except the one currently open.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "tabsCloseTab": "Close tab",
+  "@tabsCloseTab": {
+    "description": "Tooltip on the button that closes one tab. Any tabs opened from it move up to its own parent."
+  },
+  "tabsCloseSubtree": "Close tab and the tabs opened from it",
+  "@tabsCloseSubtree": {
+    "description": "Tooltip on the button that closes a tab together with every tab opened from it."
+  },
+  "tabsLive": "open",
+  "@tabsLive": {
+    "description": "Marker beside the one tab of the current site that is actually loaded and on screen. The others are stored."
+  },
+  "tabsExpand": "Show the tabs opened from this one",
+  "@tabsExpand": {
+    "description": "Tooltip on the control that reveals a tab's children in the list."
+  },
+  "tabsCollapse": "Hide the tabs opened from this one",
+  "@tabsCollapse": {
+    "description": "Tooltip on the control that hides a tab's children in the list."
+  },
+  "tabsHiddenChildren": "{count, plural, =1{1 tab hidden} other{{count} tabs hidden}}",
+  "@tabsHiddenChildren": {
+    "description": "Shown under a collapsed tab, saying how many tabs opened from it are hidden.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "tabsOpenInNewTab": "Open in new tab",
+  "@tabsOpenInNewTab": {
+    "description": "Menu item shown after a long press on a link: opens it in a new tab in the background, leaving the current page on screen."
+  },
+  "tabsOpenedInNewTab": "Opened in a new tab",
+  "@tabsOpenedInNewTab": {
+    "description": "Confirmation shown after a link was opened in a background tab."
+  },
+  "tabsSwitchAction": "Switch",
+  "@tabsSwitchAction": {
+    "description": "Action on the confirmation that opens the tab that was just created in the background."
+  },
+  "tabsLinkOutsideSite": "{host} belongs to another site, so it opens on top of this one instead of in a tab",
+  "@tabsLinkOutsideSite": {
+    "description": "Explains why a long-pressed link cannot become a tab: a tab always stays within its own site.",
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
   "httpAuthTitle": "Sign in",
   "@httpAuthTitle": {
     "description": "Title of the dialog shown when a website's server requires a username and password before it will show the page (HTTP authentication, for example a folder protected by an htpasswd file)."
