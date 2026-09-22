@@ -40,9 +40,71 @@ env:
   CARGO_NDK_VERSION: "4.1.2"
 
 jobs:
+  # Which jobs this commit actually needs. A bisection that only reads the
+  # macOS tier otherwise pays for Linux, Android, design and validate as
+  # well, and those runners are what the next iteration queues behind.
+  #
+  # Put `[ci-only: apple]` in the commit message -- or several, as
+  # `[ci-only: apple,validate]` -- and everything else skips. Tokens are the
+  # job ids below: validate, design, android, linux, apple.
+  #
+  # Honoured on pull_request only. The marker stays in the message after a
+  # merge, so on master and on workflow_dispatch every job runs regardless
+  # and the branch everyone reads cannot be silenced by a commit that was
+  # written for one experiment.
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    outputs:
+      validate: ${{ steps.pick.outputs.validate }}
+      design: ${{ steps.pick.outputs.design }}
+      android: ${{ steps.pick.outputs.android }}
+      linux: ${{ steps.pick.outputs.linux }}
+      apple: ${{ steps.pick.outputs.apple }}
+      only: ${{ steps.pick.outputs.only }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The pull_request ref is a merge commit whose message is
+          # "Merge A into B", so read the branch head instead.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - id: pick
+        run: |
+          set -eu
+          only=""
+          if [ "${{ github.event_name }}" = pull_request ]; then
+            only="$(git log -1 --pretty=%B \
+              | sed -n 's/.*\[ci-only:[[:space:]]*\([^]]*\)\].*/\1/p' \
+              | head -1 | tr -d '[:space:]')"
+          fi
+          pick() {
+            if [ -z "$only" ]; then
+              echo "$1=true"
+              return
+            fi
+            case ",$only," in
+              *",$1,"*) echo "$1=true" ;;
+              *) echo "$1=false" ;;
+            esac
+          }
+          {
+            pick validate
+            pick design
+            pick android
+            pick linux
+            pick apple
+            echo "only=$only"
+          } >> "$GITHUB_OUTPUT"
+          if [ -n "$only" ]; then
+            echo "::notice::ci-only=$only -- every other job is skipped for this commit"
+          fi
+
   validate:
     name: Validate Fastlane + OpenSpec + proofs
     runs-on: ubuntu-latest
+    needs: plan
+    if: needs.plan.outputs.validate == 'true'
     steps:
       - uses: actions/checkout@v4
       - name: Validate Fastlane metadata
@@ -84,6 +146,13 @@ jobs:
       # a platform build; runs early to fail fast.
       - name: Run JS shim tests
         run: npm run test:js
+      - name: Set up Swift for the plugin type-check
+        uses: swift-actions/setup-swift@v2
+        continue-on-error: true
+
+      - name: Type-check the Apple plugins
+        run: ./tool/swift_typecheck/check.sh
+
       - name: Validate OpenSpec
         run: npx openspec validate --no-interactive --all
       # Formal verification kernel (TLA+/TLC). Checks the cross-spec state
@@ -151,6 +220,8 @@ jobs:
   design-web:
     name: Design gallery + designer app
     runs-on: ubuntu-latest
+    needs: plan
+    if: needs.plan.outputs.design == 'true'
     steps:
       - uses: actions/checkout@v4
       - name: Setup Node
@@ -227,6 +298,8 @@ jobs:
   build-android:
     name: Build Android
     runs-on: ubuntu-latest
+    needs: plan
+    if: needs.plan.outputs.android == 'true'
     env:
       GRADLE_OPTS: -Xmx4g -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError
     steps:
@@ -593,6 +666,8 @@ jobs:
   build-linux:
     name: Build Linux
     runs-on: ubuntu-latest
+    needs: plan
+    if: needs.plan.outputs.linux == 'true'
     # Run inside Debian Sid because libwpewebkit-2.0-dev needs to be at
     # least 2.50: flutter_inappwebview_linux 0.1.0-beta.1 calls
     # webkit_navigation_action_is_for_main_frame (added in 2.50) and
@@ -990,6 +1065,21 @@ jobs:
                 # here it would skip after paying for an app build, and this
                 # loop sits near its 45m cap.
                 [ "$(basename "$t")" = "proxy_binding_test.dart" ] && continue
+                # Same for the files that bisect that binding. They measure
+                # proxyConfigurations, which the Linux fork does not use, so
+                # every test in them skips here -- after paying for a full
+                # app build each. Three of those builds is what took this
+                # loop past the cap.
+                [ "$(basename "$t")" = "proxy_window_test.dart" ] && continue
+                # NOT skipped: WPE binds the proxy per network session, so
+                # this is the tier where two sites really can hold two
+                # proxies at once. It is the control that shows BUG-014
+                # belongs to Apple rather than to this app.
+                [ "$(basename "$t")" = "proxy_http_connect_test.dart" ] && continue
+                [ "$(basename "$t")" = "proxy_relay_binding_test.dart" ] && continue
+                [ "$(basename "$t")" = "proxy_rate_test.dart" ] && continue
+                [ "$(basename "$t")" = "proxy_shape_test.dart" ] && continue
+                [ "$(basename "$t")" = "proxy_connect_https_test.dart" ] && continue
                 echo "::group::$t"
                 # Hard per-test wall-clock cap: a WebView mount can deadlock
                 # the platform thread below Dart timeout layer, which would
@@ -1040,6 +1130,8 @@ jobs:
   build-apple:
     name: Build iOS & macOS
     runs-on: macos-latest
+    needs: plan
+    if: needs.plan.outputs.apple == 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -1290,45 +1382,11 @@ jobs:
           </plist>
           EOF
 
-      # First, alone, and before the 19-file loop below.
-      #
-      # It used to ride that loop, where "tor" sorts 17th: its verdict landed
-      # ~40 minutes into a step capped at 45, on a job every push cancels. In
-      # practice it never returned one at all -- the device reported each of
-      # these bugs first, hours earlier. Its own two scenarios can take 13
-      # minutes, which never fit in what the loop left.
-      #
-      # WEBSPACE_TOR_NETWORK opts this job into needing the Tor network:
-      # integration_test/tor_test.dart then treats "never reached the
-      # network" as a failure rather than a skip. Everything else that file
-      # asserts -- the control-port handshake, the bootstrap phase, tor's own
-      # log, a restart -- runs either way, so if GitHub's macOS runners ever
-      # stop being able to reach tor, drop this variable and the tier keeps
-      # its teeth. This is the only automated tier that runs the real Tor
-      # plugin: iOS has no runtime tier here, and macOS compiles the same
-      # source (ios/Runner/TorControllerPlugin.swift).
-      - name: Run the Tor integration scenario
-        id: tor_scenario
-        timeout-minutes: 20
-        env:
-          WEBSPACE_TOR_NETWORK: '1'
-        run: |
-          set -x
-          # `flutter test` exits 79 when nothing ran, which is what a file
-          # whose scenarios all skip looks like -- and a skip is how a tier
-          # that reaches nothing reports success. The run is red either way;
-          # this says which of the two happened without reading the log.
-          rc=0
-          fvm flutter test integration_test/tor_test.dart -d macos --ci || rc=$?
-          if [ $rc -eq 79 ]; then
-            echo "::error::the Tor scenarios did not run at all (exit 79); "\
-                 "see the [tor-test] trace lines above for which branch each took"
-          fi
-          exit $rc
 
-      # Runs even when the Tor step above failed: that step is one file, and
-      # hiding the other eighteen -- the proxy-binding leak gate among them --
-      # behind it turns one red scenario into no coverage at all.
+      # Runs even when an earlier step failed, and runs ahead of the Tor
+      # scenario: that scenario is one file, and hiding the other eighteen --
+      # the proxy-binding leak gate among them -- behind it turns one red
+      # scenario into no coverage at all.
       - name: Run macOS integration tests
         if: success() || failure()
         # 60, not 45. The tier is ~35m on a good runner and the cap was nine
@@ -1340,6 +1398,15 @@ jobs:
         timeout-minutes: 60
         run: |
           set -x
+          # This step runs on failure too, so it is reached when an earlier
+          # step died and the Flutter setup was skipped with it. Without this
+          # every file then "fails" with `fvm: No such file or directory` and
+          # the real error is twenty-five entries further up.
+          if ! command -v fvm >/dev/null 2>&1; then
+            echo "::error::fvm is not installed; an earlier step failed and \
+          the macOS tier never ran. Fix that failure, not these tests."
+            exit 1
+          fi
           # Hard per-test wall-clock cap (see Build Linux): bound any single
           # test so a native WebView deadlock can't hang the job to the 6h
           # runner limit. macOS ships BSD utils; GNU timeout arrives as
@@ -1351,6 +1418,96 @@ jobs:
             brew install coreutils >/dev/null 2>&1 || true
             TIMEOUT="$(command -v gtimeout || true)"
           fi
+          # Does the network process survive the tier? The timing launches
+          # below already stream os_log around themselves for the session
+          # paths; what no arm can see is a network process that died and
+          # came back, which WebKit 264307 does and which reads as a run of
+          # DIRECT verdicts rather than as a failure.
+          #
+          # syslog style so the PID is printed: a second PID for
+          # com.apple.WebKit.Networking is the restart, and its timestamp
+          # dates it against the arms' own UTC verdict lines.
+          #
+          # Best effort and capped: a runner that refuses the stream must
+          # cost a missing file, not a red tier, and this tier already runs
+          # close to its disk allowance. head exiting closes the pipe.
+          WEBKIT_OSLOG="${RUNNER_TEMP:-/tmp}/webkit-networkproc-oslog.txt"
+          # NOT a pipeline: $! after one gives the LAST element's pid, so the
+          # first version killed `head` and left `log stream` alive to be
+          # reaped by the runner's own cleanup. One process, one pid.
+          log stream --style syslog --color none \
+            --predicate 'process == "com.apple.WebKit.Networking"' \
+            > "$WEBKIT_OSLOG" 2>&1 &
+          WEBKIT_OSLOG_PID=$!
+
+          # The step runs under `bash -e`: anything above that exits
+          # non-zero skips straight past a report sitting here, which is how
+          # the first run of these instruments printed nothing at all. On the
+          # EXIT trap they report whether the tier passed, failed or aborted.
+          report_instruments() {
+            kill "$WEBKIT_OSLOG_PID" 2>/dev/null || true
+            echo "=== network process lifetime (os_log) ==="
+            if [ -s "$WEBKIT_OSLOG" ]; then
+              # ONE PID PER ARM is normal: each arm launches its own app
+              # process and each of those spawns its own networking process.
+              # The crash signature is TWO pids inside ONE arm's window, which
+              # is what the timestamps below are for. Run 35681413603 read 18
+              # pids across 21 arm groups (three arms are pure URLSession and
+              # spawn none), no arm holding two, and no crash report -- so
+              # WebKit 264307 is not what gap -2 is.
+              echo "--- distinct PIDs, with the first line each was seen on ---"
+              sed -n 's/.*com\.apple\.WebKit\.Networking\[\([0-9]*\)\].*/\1/p' \
+                "$WEBKIT_OSLOG" | awk '!seen[$0]++' | while read -r pid; do
+                printf '%s  ' "$pid"
+                grep -m1 "com\.apple\.WebKit\.Networking\[$pid\]" "$WEBKIT_OSLOG" \
+                  | cut -c1-120
+              done
+              echo "--- lines captured: $(wc -l < "$WEBKIT_OSLOG") ---"
+            else
+              echo "networkproc oslog: stream produced nothing (a runner may refuse it)"
+            fi
+
+            # Unconditional: WebKit 264307 kills the network process and the
+            # proxy configuration is ignored from then on, which reads as a
+            # DIRECT verdict rather than a failed step. Gating this on $status
+            # is how BUG-014 went 96 attempts without once looking at it.
+            echo "=== network process crash reports (WebKit 264307) ==="
+            set -- "$HOME/Library/Logs/DiagnosticReports/"com.apple.WebKit.Networking*
+            if [ -f "$1" ]; then
+              for f in "$@"; do
+                echo "--- $f ---"; sed -n '1,45p' "$f"
+              done
+            else
+              echo "networking: none"
+            fi
+            if [ $status -ne 0 ]; then
+              echo "=== recent macOS crash reports ==="
+              ls -t "$HOME/Library/Logs/DiagnosticReports/" 2>/dev/null | head || true
+              for f in "$HOME/Library/Logs/DiagnosticReports/"Webspace* \
+                       "$HOME/Library/Logs/DiagnosticReports/"Runner*; do
+                [ -f "$f" ] && { echo "--- $f ---"; sed -n '1,45p' "$f"; }
+              done
+            fi
+          }
+          trap report_instruments EXIT
+          # Gap -2 says one app process at a time can proxy and the next
+          # one waits, with the slot coming back much later. The runner's
+          # own cleanup ends each job by terminating an orphan Webspace
+          # process, so an app outliving its arm is not hypothetical, and a
+          # process still holding a proxy agent is a candidate for what the
+          # next arm waits on. Reaping before each arm makes the arms
+          # independent whether or not that is the mechanism, and the count
+          # is itself a reading: if it is non-zero before most arms, the
+          # stragglers are real.
+          reap_app() {
+            n=$(pgrep -x Webspace 2>/dev/null | wc -l | tr -d ' ')
+            if [ "${n:-0}" -gt 0 ]; then
+              echo "reap: $n stale Webspace process(es) before $1"
+              pkill -x Webspace 2>/dev/null || true
+              sleep 2
+              pkill -9 -x Webspace 2>/dev/null || true
+            fi
+          }
           status=0
           failed=""
 
@@ -1402,6 +1559,229 @@ jobs:
             return ${PIPESTATUS[0]}
           }
 
+          # Gap -2: only the tier's first app process can proxy, so the file
+          # that asks the timing question goes ahead of everything, including
+          # the matrix. Its own baseline arm says whether the process was
+          # usable, so a dead one is visible rather than silent.
+          timing_launch() {
+            echo "::group::integration_test/proxy_timing_test.dart ($1)"
+            log="${RUNNER_TEMP:-/tmp}/tier-proxy_timing_$1.log"
+            # WebKit's own account of which session-creation path ran. In a
+            # release build only RELEASE_LOG survives, and in
+            # NetworkSessionCocoa that is initializeNSURLSessionsInSet
+            # ("Created NetworkSession with cookieAcceptPolicy") and
+            # configurationForSessionID ("Setting logging level for ... session
+            # ...") -- both on the path that APPLIES the proxy. isolatedSession,
+            # the ephemeral stateless session and appBoundSession copy a
+            # configuration and log nothing, so their absence is the signal.
+            # Best effort: a runner that refuses the stream must not fail the
+            # tier.
+            reap_app "timing run $1"
+            wklog="${RUNNER_TEMP:-/tmp}/webkit-oslog-$1.log"
+            log stream --style compact --level debug \
+              --predicate 'subsystem == "com.apple.WebKit"' \
+              > "$wklog" 2>/dev/null &
+            wkpid=$!
+            if [ -n "$TIMEOUT" ]; then
+              WEBSPACE_TIMING_RUN="$1" "$TIMEOUT" -k 30s 12m \
+                fvm flutter test integration_test/proxy_timing_test.dart -d macos --ci 2>&1 \
+                | tee "$log" || true
+            else
+              WEBSPACE_TIMING_RUN="$1" \
+                fvm flutter test integration_test/proxy_timing_test.dart -d macos --ci 2>&1 \
+                | tee "$log" || true
+            fi
+            kill "$wkpid" 2>/dev/null || true
+            wait "$wkpid" 2>/dev/null || true
+            echo "--- WebKit os_log: proxy-applying session paths ---"
+            echo "lines captured: $(wc -l < "$wklog" 2>/dev/null || echo 0)"
+            grep -c "Created NetworkSession" "$wklog" 2>/dev/null \
+              | sed 's/^/initializeNSURLSessionsInSet hits: /' || true
+            grep -c "Setting logging level for" "$wklog" 2>/dev/null \
+              | sed 's/^/configurationForSessionID hits: /' || true
+            grep -n -e "Created NetworkSession" -e "Setting logging level for" \
+              "$wklog" 2>/dev/null | head -20 || true
+            echo "::endgroup::"
+          }
+          # First in the tier, because it is the arm whose verdict depends on
+          # having the proxy slot and nothing else here can answer its
+          # question (BUG-014 gap -2).
+          # Ahead of everything, including timing: this is the only arm that
+          # can answer whether the clear-then-restore window in
+          # WebsiteDataStore::setProxyConfigData is what closes the proxy
+          # window, and the answer is worthless in a process that never had
+          # the slot (gap -2). Twice, so the no-reassign launch is the
+          # in-process control for the same shape rather than a comparison
+          # against a different run.
+          reassign_launch() {
+            echo "::group::integration_test/proxy_reassign_test.dart ($2 reassign=$1)"
+            log="${RUNNER_TEMP:-/tmp}/tier-proxy_reassign_$2_$1.log"
+            if [ -n "$TIMEOUT" ]; then
+              "$TIMEOUT" -k 30s 12m \
+                fvm flutter test integration_test/proxy_reassign_test.dart \
+                  --dart-define=WEBSPACE_REASSIGN=$1 \
+                  --dart-define=WEBSPACE_REASSIGN_KIND=$2 -d macos --ci 2>&1 \
+                | tee "$log" || true
+            else
+              fvm flutter test integration_test/proxy_reassign_test.dart \
+                --dart-define=WEBSPACE_REASSIGN=$1 \
+                --dart-define=WEBSPACE_REASSIGN_KIND=$2 -d macos --ci 2>&1 \
+                | tee "$log" || true
+            fi
+            echo "::endgroup::"
+          }
+          # THE LADDER TAKES THE FIRST SLOT NOW.
+          #
+          # The reassign arms below answered their question: attempt 94 said
+          # no on the live-nw_context path and attempt 96 said no on the
+          # recreateSessions path, so re-assignment is dead either way and
+          # neither arm needs the slot any more. What is still open is where
+          # the boundary sits. Every reading says frame 1 proxies and later
+          # does not, and nothing has measured the near side: a boundary at
+          # tens of milliseconds is a race against the network process launch
+          # and the fork can fix it, while one that bites a single frame later
+          # is structural and only a WebKit build goes further.
+          #
+          # The arms behind this one will mostly read nothing. That is what
+          # gap -2 costs, and it is worth paying here.
+          reap_app "proxy_frame_ladder"
+          echo "::group::integration_test/proxy_frame_ladder_test.dart"
+          if [ -n "$TIMEOUT" ]; then
+            WEBSPACE_LADDER_RUN=first "$TIMEOUT" -k 30s 12m \
+              fvm flutter test integration_test/proxy_frame_ladder_test.dart \
+                -d macos --ci 2>&1 \
+              | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_frame_ladder.log" || true
+          else
+            WEBSPACE_LADDER_RUN=first \
+              fvm flutter test integration_test/proxy_frame_ladder_test.dart \
+                -d macos --ci 2>&1 \
+              | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_frame_ladder.log" || true
+          fi
+          echo "::endgroup::"
+
+          # CONNECT first of the two: it is the only one that takes
+          # setProxyConfigData's recreateSessions path, and the slot goes to
+          # whoever asks first (gap -2).
+          reassign_launch true connect
+          reassign_launch true socks5
+
+          timing_launch first
+
+          # AFTER the timing file, not before it. Both of these take the
+          # proxy slot (attempt 90: a process running nothing but URLSession
+          # both takes it and is later denied it), and with them in front
+          # timing read baseline=DIRECT and every arm in it went void.
+          echo "::group::integration_test/proxy_urlsession_test.dart"
+          if [ -n "$TIMEOUT" ]; then
+            "$TIMEOUT" -k 30s 12m \
+              fvm flutter test integration_test/proxy_urlsession_test.dart -d macos --ci 2>&1 \
+              | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_urlsession.log" || true
+          else
+            fvm flutter test integration_test/proxy_urlsession_test.dart -d macos --ci 2>&1 \
+              | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_urlsession.log" || true
+          fi
+          echo "::endgroup::"
+
+          # Same process, one more question the WKWebView arms cannot ask:
+          # whether a second URLSession can use a proxy config object the
+          # first one already used, and whether a fresh object fares better.
+          echo "::group::integration_test/proxy_persession_test.dart"
+          if [ -n "$TIMEOUT" ]; then
+            "$TIMEOUT" -k 30s 12m \
+              fvm flutter test integration_test/proxy_persession_test.dart -d macos --ci 2>&1 \
+              | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_persession.log" || true
+          else
+            fvm flutter test integration_test/proxy_persession_test.dart -d macos --ci 2>&1 \
+              | tee "${RUNNER_TEMP:-/tmp}/tier-proxy_persession.log" || true
+          fi
+          echo "::endgroup::"
+
+
+          matrix_launch() {
+            echo "::group::integration_test/proxy_matrix_test.dart ($1)"
+            log="${RUNNER_TEMP:-/tmp}/tier-proxy_matrix_$1.log"
+            if [ -n "$TIMEOUT" ]; then
+              WEBSPACE_MATRIX_RUN="$1" "$TIMEOUT" -k 30s 12m \
+                fvm flutter test integration_test/proxy_matrix_test.dart -d macos --ci 2>&1 \
+                | tee "$log" || true
+            else
+              WEBSPACE_MATRIX_RUN="$1" \
+                fvm flutter test integration_test/proxy_matrix_test.dart -d macos --ci 2>&1 \
+                | tee "$log" || true
+            fi
+            echo "::endgroup::"
+          }
+          # Run 3168 read every matrix cell DIRECT with the control DIRECT
+          # too, in all three launches -- three void processes. The same run
+          # had proxy_relay_binding, which bound two sites to two upstreams
+          # one run earlier, read DIRECT as well, while proxy_shape's first
+          # launch proxied as it has in every run. So the variable under test
+          # is not delivery or frame, it is which app process can proxy at
+          # all, and the only stable signal is being early in the tier.
+          #
+          # Same file, three positions, one run: first of all, mid, and after
+          # every other file has had its process. If `first` proxies and the
+          # others do not, ordinality is the variable and the app -- one
+          # process on a user's device -- is in the good state, which would
+          # make every DIRECT here a CI artifact.
+          matrix_launch first
+
+          # BUG-014 route 2. Run 3136 closed the launch-effect bisection:
+          # net=0->0 on every launch, so no WebKit networking process ever
+          # existed between launches to carry a spent slot, exactly as
+          # AuxiliaryProcess::didClose says. Five mechanisms are refuted
+          # under control now and there is no sixth candidate, so the
+          # machine-state bisection stops here.
+          #
+          # What is answerable is whether the relay route exists at all.
+          # Apple's own tracker says probably not -- bug 264309 for the
+          # missing Proxy-Authorization and FB13350370 / r.113346270 for
+          # applyCredential in WebKit, which DTS called a bug -- but those
+          # reports are from 2023/24 and this measures current macOS.
+          #
+          # Route 2's credential question is answered (no
+          # Proxy-Authorization is ever sent, n=2), so the arm now asks the
+          # question WebKit's own source raises instead.
+          # NetworkSessionCocoa::setProxyConfigData has TWO mechanisms behind
+          # one API: a SOCKS5 config is patched onto a live, possibly shared
+          # nw_context with clearProxies+addProxy, while anything passing
+          # nw_proxy_config_stack_requires_http_protocols -- an HTTP CONNECT
+          # proxy -- instead goes through
+          # recreateSessionWithUpdatedProxyConfigurations, which rebuilds the
+          # NSURLSession with the configuration applied.
+          #
+          # `connectpair` refuted that (attempt 70): two distinct CONNECT
+          # proxies behave exactly like two distinct SOCKS5 ones, so the
+          # delivery mechanism is not the variable and DIFFERENT proxies on
+          # two stores is closed every way it has been asked.
+          #
+          # `connectsame` asks the one arrangement never tested cleanly: a
+          # second store on the SAME endpoint as the first. If two stores
+          # sharing one proxy both bind, then every proxied site can point
+          # at one local relay and the remaining problem is attribution
+          # inside that relay rather than binding inside WebKit -- which
+          # would make Tor-for-several-sites reachable on macOS. A SOCKS5
+          # third arm stays as the known-direct control.
+          for launch in "first:connectsame" "second:proxied"; do
+            pos="${launch%%:*}"
+            arm="${launch##*:}"
+            echo "::group::integration_test/proxy_shape_test.dart ($pos, first=$arm)"
+            log="${RUNNER_TEMP:-/tmp}/tier-proxy_shape_$pos.log"
+            if [ -n "$TIMEOUT" ]; then
+              WEBSPACE_TIER_POSITION="$pos" WEBSPACE_SHAPE_SWEEP=off \
+                WEBSPACE_SHAPE_FIRSTARM="$arm" \
+                "$TIMEOUT" -k 30s 12m \
+                fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
+                | tee "$log" || true
+            else
+              WEBSPACE_TIER_POSITION="$pos" WEBSPACE_SHAPE_SWEEP=off \
+                WEBSPACE_SHAPE_FIRSTARM="$arm" \
+                fvm flutter test integration_test/proxy_shape_test.dart -d macos --ci 2>&1 \
+                | tee "$log" || true
+            fi
+            echo "::endgroup::"
+          done
+          matrix_launch mid
           for t in integration_test/*_test.dart; do
             [ "$(basename "$t")" = "screenshot_test.dart" ] && continue
             # Android-only window-PixelCopy suite; skip its no-op build here.
@@ -1415,9 +1795,35 @@ jobs:
             [ "$(basename "$t")" = "background_audio_media_notification_test.dart" ] && continue
             # Android-only BGAUDIO-009 media-stop tier; emulator job.
             [ "$(basename "$t")" = "background_audio_media_stop_test.dart" ] && continue
+            # PROXY-013 router is Android-only, so here these skip after
+            # paying for an app build each, and this loop now carries the
+            # proxy bisection files that do measure something.
+            # test/proxy_router_service_test.dart covers the negative in
+            # milliseconds; the emulator job runs them for real.
+            [ "$(basename "$t")" = "proxy_router_test.dart" ] && continue
+            [ "$(basename "$t")" = "proxy_router_attribution_test.dart" ] && continue
             # Ran on its own above, first, so its verdict does not depend on
             # the 45-minute cap this loop spends.
             [ "$(basename "$t")" = "tor_test.dart" ] && continue
+            # Three controlled launches of it run above. A fourth here would
+            # only repeat the third's condition on a tireder machine, and
+            # this loop pays a full app build for every launch.
+            [ "$(basename "$t")" = "proxy_shape_test.dart" ] && continue
+            # Three controlled launches above; a fourth here would repeat the
+            # third's condition and pay another full app build for it.
+            [ "$(basename "$t")" = "proxy_matrix_test.dart" ] && continue
+            # Runs first in the tier above; only the first app process can
+            # proxy, so a launch here would measure a dead one.
+            [ "$(basename "$t")" = "proxy_timing_test.dart" ] && continue
+            # Ran first above, for the same reason.
+            [ "$(basename "$t")" = "proxy_urlsession_test.dart" ] && continue
+            [ "$(basename "$t")" = "proxy_persession_test.dart" ] && continue
+            # Two controlled launches at the very top of the tier; a third
+            # here would run in a process the arms above have already spent.
+            [ "$(basename "$t")" = "proxy_reassign_test.dart" ] && continue
+            # Ran at the very top, where the slot is.
+            [ "$(basename "$t")" = "proxy_frame_ladder_test.dart" ] && continue
+            reap_app "$(basename "$t")"
             echo "::group::$t"
             rc=0
             # Kept per file so a failure can be re-printed at the end. Each
@@ -1444,22 +1850,105 @@ jobs:
               tail -60 "${RUNNER_TEMP:-/tmp}/tier-$f.log" || true
             done
           fi
-          if [ $status -ne 0 ]; then
-            echo "=== recent macOS crash reports ==="
-            ls -t "$HOME/Library/Logs/DiagnosticReports/" 2>/dev/null | head || true
-            for f in "$HOME/Library/Logs/DiagnosticReports/"Webspace* \
-                     "$HOME/Library/Logs/DiagnosticReports/"Runner*; do
-              [ -f "$f" ] && { echo "--- $f ---"; sed -n '1,45p' "$f"; }
-            done
-          fi
+          # Last, because the failure dumps above are ~60 lines each and a
+          # log tail that stops short of these is the difference between
+          # reading the run and refetching half a megabyte of it. The
+          # launches pass, so nothing else puts them in the tail.
+          # After every other file has had its app process. The comparison
+          # with `first` is the whole point: same file, same machine, one run.
+          matrix_launch last
+          echo "=== BUG-014 launch verdicts ==="
+          for pos in first second; do
+            grep -h -e "proxy-shape\] connect" -e "first-connect" \
+              -e "proxy-shape\] verdict" \
+              "${RUNNER_TEMP:-/tmp}/tier-proxy_shape_$pos.log" 2>/dev/null \
+              || echo "$pos: no verdict line"
+          done
+          # The matrix decides whether a per-site proxy is reachable at all
+          # on Apple, so its three verdict lines go in the tail beside the
+          # shape ones rather than a megabyte back in the log.
+          echo "=== BUG-014 proxyConfigurations re-assignment verdict ==="
+          for k in connect socks5; do
+            grep -h -e "proxy-reassign\] verdict" \
+              "${RUNNER_TEMP:-/tmp}/tier-proxy_reassign_${k}_true.log" 2>/dev/null \
+              || echo "$k: no verdict line"
+          done
+          echo "=== BUG-014 URLSession-vs-WebKit verdict ==="
+          grep -h -e "proxy-urlsession\]" \
+            "${RUNNER_TEMP:-/tmp}/tier-proxy_urlsession.log" 2>/dev/null \
+            || echo "urlsession: no verdict line"
+          echo "=== BUG-014 timing verdicts ==="
+          grep -h -e "proxy-timing\] run=.* verdict" -e "proxy-timing\] baseline=" \
+            -e "proxy-timing\] same-store" -e "proxy-timing\] new-store" \
+            "${RUNNER_TEMP:-/tmp}/tier-proxy_timing_first.log" 2>/dev/null \
+            || echo "timing: no verdict line"
+          echo "=== BUG-014 matrix verdicts ==="
+          for run in first mid last; do
+            grep -h -e "proxy-matrix\] run=$run verdict" \
+              "${RUNNER_TEMP:-/tmp}/tier-proxy_matrix_$run.log" 2>/dev/null \
+              || echo "$run: no verdict line"
+          done
+          kill "$WEBKIT_OSLOG_PID" 2>/dev/null || true
+
           exit $status
 
+      # After the 19-file loop, not before it.
+      #
+      # It used to ride that loop, where "tor" sorts 17th: its verdict landed
+      # ~40 minutes into a step capped at 45, on a job every push cancels. A
+      # step of its own with its own cap fixes that without running first.
+      #
+      # Running first is what BUG-014 attempt 91 measured as the cost. Only
+      # one app process at a time on this runner can proxy (gap -2); tor binds
+      # a SOCKS proxy, so ahead of the loop it takes that slot and every proxy
+      # arm behind it reads DIRECT. In run 35629531072 exactly one arm out of
+      # ~20 measured anything, and it was the last one, ~35 minutes after this
+      # step finished.
+      #
+      # WEBSPACE_TOR_NETWORK opts this job into needing the Tor network:
+      # integration_test/tor_test.dart then treats "never reached the
+      # network" as a failure rather than a skip. Everything else that file
+      # asserts -- the control-port handshake, the bootstrap phase, tor's own
+      # log, a restart -- runs either way, so if GitHub's macOS runners ever
+      # stop being able to reach tor, drop this variable and the tier keeps
+      # its teeth. This is the only automated tier that runs the real Tor
+      # plugin: iOS has no runtime tier here, and macOS compiles the same
+      # source (ios/Runner/TorControllerPlugin.swift).
+      - name: Run the Tor integration scenario
+        id: tor_scenario
+        if: success() || failure()
+        timeout-minutes: 20
+        env:
+          WEBSPACE_TOR_NETWORK: '1'
+        run: |
+          set -x
+          # `flutter test` exits 79 when nothing ran, which is what a file
+          # whose scenarios all skip looks like -- and a skip is how a tier
+          # that reaches nothing reports success. The run is red either way;
+          # this says which of the two happened without reading the log.
+          rc=0
+          # Kept, because this step runs an hour before the end of the job and
+          # its output is unreachable from the log's tail by then; the report
+          # step at the end prints it back.
+          fvm flutter test integration_test/tor_test.dart -d macos --ci 2>&1 \
+            | tee "${RUNNER_TEMP:-/tmp}/tor-scenario.log"
+          rc=${PIPESTATUS[0]}
+          if [ $rc -eq 79 ]; then
+            echo "::error::the Tor scenarios did not run at all (exit 79); "\
+                 "see the [tor-test] trace lines above for which branch each took"
+          fi
+          exit $rc
+
       # Last, so the tail of the job log always says how the Tor scenario
-      # went. It runs long before the tier loop, and the loop buries it.
+      # went even when its own step scrolled past behind the tier's summary.
       - name: Report the Tor scenario outcome
         if: always()
         run: |
           echo "=== Tor scenario: ${{ steps.tor_scenario.outcome }} ==="
+          if [ "${{ steps.tor_scenario.outcome }}" != "success" ]; then
+            echo "=== Tor scenario: last 80 lines ==="
+            tail -80 "${RUNNER_TEMP:-/tmp}/tor-scenario.log" || true
+          fi
 
       - name: Create macOS ZIP archive
         run: |

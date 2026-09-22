@@ -383,12 +383,20 @@ test('one funnel opens the control connection, and it asks isConnected', () => {
     `${swiftRel}: connectedController must decide on isConnected, not on a throw`);
 });
 
-test('the Tor scenario reports before the tier spends its budget', () => {
+test('the Tor scenario cannot be starved by the tier loop', () => {
   // It rode the alphabetical loop, 17th of 19, inside a step capped at 45
   // minutes that already spends ~36 on the other files -- and every push
   // cancels the job before then. It therefore never returned a verdict on
-  // any of the bugs above: each one was reported from a device first. Its
-  // own step, run first, is what makes it a gate rather than a hope.
+  // any of the bugs above: each one was reported from a device first.
+  //
+  // What fixed that is a step of its own with a cap of its own, not the
+  // position. The position is deliberately NOT pinned here: BUG-014 gap -2
+  // has one app process at a time able to proxy on a macOS runner, and tor
+  // binds a SOCKS proxy, so running this first costs every proxy arm behind
+  // it its slot (attempt 91: one arm in ~20 measured anything). Which end of
+  // the tier it sits at is a branch's call. What must hold either way is
+  // that the loop cannot eat its budget and its verdict still reaches the
+  // tail of the log.
   const workflow = fs.readFileSync(
     path.join(repoRoot, '.github/workflows/build-and-test.yml'), 'utf8');
   const apple = workflow.slice(workflow.indexOf('\n  build-apple:'));
@@ -396,16 +404,29 @@ test('the Tor scenario reports before the tier spends its budget', () => {
   const loop = apple.indexOf('for t in integration_test/*_test.dart');
   assert.ok(own > 0, 'the Tor scenario must have a step of its own');
   assert.ok(loop > 0, 'the macOS tier loop must still be there');
-  assert.ok(own < loop, 'the Tor scenario must run before the tier loop');
   assert.match(apple.slice(loop),
     /\[ "\$\(basename "\$t"\)" = "tor_test\.dart" \] && continue/,
-    'the loop must skip what the step above already ran');
+    'the loop must skip what the dedicated step runs');
 
+  const step = apple.slice(apple.lastIndexOf('- name:', own), own);
+  // Its own cap is the whole point: inside the loop it inherited whatever
+  // the other eighteen files left.
+  assert.match(step, /timeout-minutes: \d+/,
+    'the Tor step must carry a timeout of its own, not the loop leftovers');
   // The network opt-in belongs to that step: it is what turns "never
   // reached the network" from a skip into a failure (TOR-021).
-  const step = apple.slice(apple.lastIndexOf('- name:', own), own);
   assert.match(step, /WEBSPACE_TOR_NETWORK: '1'/,
     'the Tor step must carry the network opt-in');
+  // It must run even when the tier ahead of it went red, or ordering it
+  // after the loop would silently drop it whenever a proxy arm fails.
+  assert.match(step, /if: success\(\) \|\| failure\(\)/,
+    'the Tor step must run even when an earlier step failed');
+
+  // And the verdict must still land in the tail of the log whichever end it
+  // ran at.
+  const report = apple.indexOf('Report the Tor scenario outcome');
+  assert.ok(report > loop && report > own,
+    'the Tor outcome must be reported after both the loop and the scenario');
 });
 
 test('both Apple targets register the plugin where the engine exists', () => {

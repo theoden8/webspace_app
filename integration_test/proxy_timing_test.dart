@@ -1,0 +1,447 @@
+// When does a per-site proxy stop applying on Apple? (BUG-014, LEAK-003)
+//
+// Attempt 80 settled that several per-site proxies work at once: four stores
+// reached four distinct upstreams in one frame, across both deliveries and
+// both URL schemes. What it could not settle is timing. Its `prebound` arm
+// sat at about:blank in frame 1 and went direct when navigated later, but a
+// store that never proxied anything cannot distinguish "lost it" from "never
+// had it".
+//
+// That distinction is the whole product question:
+//
+//  * If a store that HAS proxied keeps proxying, the leak is per-store and a
+//    site's own browsing is safe once its first load binds. Only a newly
+//    activated site is exposed.
+//  * If it stops after one load, every link click on a proxied site leaves
+//    over the device IP, and the feature is unusable rather than partial.
+//
+// So pane A is proxied in frame 1 -- that is both the positive control and
+// the baseline -- and then the arms vary only WHEN and HOW the next
+// navigation is issued. Every verdict is read off the fixture's CONNECT log,
+// never off the origin, because the fixture relays and a proxied load reaches
+// the origin too.
+//
+// Every verdict is attributed PER REQUEST, from the peer port the origin
+// saw against the ports its fixture dialled upstream from. The earlier
+// version compared CONNECT counts, which cannot see a request served over a
+// kept-alive connection: once the second navigation was pointed back at the
+// very origin that had just been proxied (to hold session-wrapper routing
+// fixed), "no new CONNECT" became exactly what a WORKING proxy produces,
+// and the arm could no longer tell that from a bypass.
+//
+// Gap -2: this file MUST run first in the macOS tier. Only the tier's first
+// app process can proxy; anywhere else it measures a dead process and says
+// so via the control.
+//
+// Every rule pins `allowFailover: false`. WebKit applies a proxy to the
+// NSURLSessionConfiguration once per session and keeps it for every load
+// (NetworkSessionCocoa.mm), so a load that reaches its origin unproxied is
+// either a config that was never installed or a failover. Pinning the field
+// separates them: with failover off, the second case becomes a failed load
+// rather than a silent direct one.
+
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
+import 'package:flutter_test/flutter_test.dart';
+import 'package:integration_test/integration_test.dart';
+import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/services/container_native.dart';
+import 'package:webspace/services/local_proxy_relay.dart';
+import 'package:webspace/services/webview.dart';
+import 'package:webspace/settings/proxy.dart';
+import 'fixture_server.dart';
+import 'socks5_fixture.dart';
+
+void main() {
+  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+
+  final applies = hostIsIOS || hostIsMacOS;
+  final runLabel = Platform.environment['WEBSPACE_TIMING_RUN'] ?? '1';
+
+  void log(String m) {
+    // Timestamped so the verdict lines can be aligned against WebKit's own
+    // os_log stream, which is the only view of which session-creation path
+    // actually ran (NetworkSessionCocoa RELEASE_LOGs from
+    // initializeNSURLSessionsInSet and configurationForSessionID; the
+    // isolated / ephemeral / app-bound copy-paths log nothing).
+    // ignore: avoid_print
+    print('[proxy-timing] ${DateTime.now().toUtc().toIso8601String()} $m');
+  }
+
+  // WebKit installs a store's proxy by one of two routes and the caller does
+  // not choose: `NetworkSessionCocoa::setProxyConfigData` rebuilds each
+  // NSURLSession with the proxy on its own NSURLSessionConfiguration when
+  // `nw_proxy_config_stack_requires_http_protocols` holds for any
+  // configuration, and otherwise patches the live `nw_context` -- which it
+  // clears before it adds, and de-duplicates across session wrappers. A
+  // SOCKS5 rule only ever takes the second.
+  //
+  // Every reading behind attempt 90's answer was taken on SOCKS5, so on the
+  // patch route only. Pane C runs the identical two-navigation sequence
+  // through a loopback CONNECT relay, which forces the rebuild route. If C's
+  // second navigation is proxied where A's is not, the bypass belongs to the
+  // live-`nw_context` half and delivery is the fix; if both bypass, the route
+  // is not the variable and the relay buys nothing here.
+  //
+  // 0 pane A's frame-1 load (the control and the baseline)
+  // 1 unused as an origin: pane A's second navigation goes back to origin 0,
+  //   so host, port, registrable domain and storage policy are identical to
+  //   the load that WAS proxied. sessionWrapperForTask routes on
+  //   RegistrableDomain(firstPartyForCookies), so nothing about the request
+  //   can select a different session wrapper (attempt 84).
+  // 2 a brand-new store in a later frame
+  // 3 a brand-new store after an idle period
+  const originCount = 5;
+  final origins = <HttpServer>[];
+  final ports = <int>[];
+  final socks = <Socks5Fixture>[];
+  late LocalProxyRelay relay;
+  const relayUser = 'ws-timing-c';
+  const relayToken = 'timing-c-token';
+  inapp.InAppWebViewController? paneC;
+  final requests = <({String origin, int port})>[];
+  InternetAddress? routable;
+  var originHost = '127.0.0.1';
+  var containers = false;
+  inapp.InAppWebViewController? paneA;
+  final verdict = <String, String>{};
+
+  setUpAll(() async {
+    if (!applies) return;
+    await PlatformInfo.initialize();
+    containers = await ContainerNative.instance.isSupported();
+    routable = await nonLoopbackIPv4();
+    originHost = routable?.address ?? '127.0.0.1';
+    for (var i = 0; i < originCount; i++) {
+      final origin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
+      origins.add(origin);
+      ports.add(origin.port);
+      listenFixture(origin, (req) async {
+        requests.add((
+          origin: 'o$i',
+          port: req.connectionInfo?.remotePort ?? -1,
+        ));
+        final res = req.response..headers.contentType = ContentType.html;
+        res.write('<!doctype html><html><body><p>o$i</p></body></html>');
+        await res.close();
+      });
+      socks.add(await Socks5Fixture.bind());
+    }
+    // Pane C's upstream is socks[4]; the relay in front of it is what makes
+    // the rule a CONNECT one.
+    relay = LocalProxyRelay(realm: 'webspace-timing');
+    expect(await relay.start(), isTrue,
+        reason: 'the CONNECT arm needs its relay; without it pane C says '
+            'nothing about the delivery route');
+    relay.setRoutes({
+      relayUser: LocalProxyRoute(
+        siteId: 'timing-c',
+        token: relayToken,
+        upstream: UserProxySettings(
+          type: ProxyType.SOCKS5,
+          address: '127.0.0.1:${socks[4].port}',
+        ),
+      ),
+    });
+    log('run=$runLabel host=$originHost origins=${ports.join(",")} '
+        'socks=${socks.map((s) => s.port).join(",")} '
+        'proxySupported=${PlatformInfo.isProxySupported} containers=$containers');
+  });
+
+  tearDownAll(() async {
+    if (!applies) return;
+    for (var i = 0; i < socks.length; i++) {
+      log('socks$i connects=${socks[i].targets} '
+          'relayed=${socks[i].relayedPorts.toList()..sort()}');
+    }
+    log('origin arrivals=${requests.map((r) => "${r.origin}@${r.port}").toList()}');
+    log('run=$runLabel verdict: containers=$containers '
+        '${verdict.entries.map((e) => "${e.key}=${e.value}").join(" ")}');
+    await relay.stop();
+    for (final s in socks) {
+      await s.close();
+    }
+    for (final o in origins) {
+      await o.close(force: true);
+    }
+  });
+
+  String urlFor(int i) => 'http://$originHost:${ports[i]}/o$i';
+
+  /// Which fixture, if any, relayed the request the origin actually saw.
+  /// Null when the origin was reached from a peer no fixture dialled from,
+  /// i.e. the app went straight there.
+  int? relayOf(int remotePort) {
+    for (var s = 0; s < socks.length; s++) {
+      if (socks[s].relayedPorts.contains(remotePort)) return s;
+    }
+    return null;
+  }
+
+  /// Did origin [i] get its request through the fixture that is supposed to
+  /// carry it? Read off the last request the origin saw, attributed by peer
+  /// port, so a crossed circuit is named and a reused connection still counts
+  /// as the proxied one it belongs to.
+  String classify(int i, int expectedSocks) {
+    final hits = requests.where((r) => r.origin == 'o$i').toList();
+    if (hits.isEmpty) {
+      // The proxy was asked and the relay never delivered: still evidence the
+      // proxy was in force, and distinct from a load that never happened.
+      return socks.any((s) => s.targets.contains('$originHost:${ports[i]}'))
+          ? 'asked-not-delivered'
+          : 'no-load';
+    }
+    final relay = relayOf(hits.last.port);
+    if (relay == null) return 'DIRECT';
+    return relay == expectedSocks ? 'own' : 'CROSSED(socks$relay)';
+  }
+
+  bool settled(int i) {
+    final target = '$originHost:${ports[i]}';
+    return socks.any((s) => s.targets.contains(target)) ||
+        requests.any((r) => r.origin == 'o$i');
+  }
+
+  Future<void> waitReal(WidgetTester tester, bool Function() done,
+      {required String label,
+      Duration timeout = const Duration(seconds: 25)}) async {
+    var ok = false;
+    await tester.runAsync(() async {
+      final deadline = DateTime.now().add(timeout);
+      while (DateTime.now().isBefore(deadline)) {
+        if (done()) {
+          ok = true;
+          return;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 250));
+      }
+      ok = done();
+    });
+    log('$label -> ${ok ? "ok" : "timeout"}');
+  }
+
+  Widget pane(int i, {required int socksIndex, String? url}) => SizedBox(
+        width: 160,
+        height: 60,
+        child: inapp.InAppWebView(
+          key: ValueKey('timing-$i'),
+          initialUrlRequest:
+              inapp.URLRequest(url: inapp.WebUri(url ?? urlFor(i))),
+          initialSettings: inapp.InAppWebViewSettings(
+            containerId: 'ws-timing-$runLabel-$i',
+            proxySettings: inapp.ProxySettings(
+              proxyRules: [
+                // Pinned, not left to Apple's default, which the docs do not
+                // state. With failover permitted, a proxy that cannot serve a
+                // request yields a silent direct load -- indistinguishable
+                // from a proxy that was never consulted, which is exactly the
+                // reading attempt 82 mistook for a rule. False turns that
+                // case into a failed load instead.
+                inapp.ProxyRule(
+                  url: 'socks5://127.0.0.1:${socks[socksIndex].port}',
+                  allowFailover: false,
+                )
+              ],
+              bypassRules: [],
+            ),
+          ),
+          onWebViewCreated: (c) {
+            if (i == 0) paneA = c;
+          },
+        ),
+      );
+
+  /// Pane C: same store shape as pane A, but its rule names the loopback
+  /// CONNECT relay and carries the credential the relay routes on. The
+  /// upstream behind it is socks[4], so `classify(4, 4)` reads it the same
+  /// way every other arm is read.
+  Widget paneConnect() => SizedBox(
+        width: 160,
+        height: 60,
+        child: inapp.InAppWebView(
+          key: const ValueKey('timing-connect'),
+          initialUrlRequest: inapp.URLRequest(url: inapp.WebUri(urlFor(4))),
+          initialSettings: inapp.InAppWebViewSettings(
+            containerId: 'ws-timing-$runLabel-c',
+            proxySettings: inapp.ProxySettings(
+              proxyRules: [
+                inapp.ProxyRule(
+                  url: 'http://${relay.host}:${relay.port}',
+                  // The fields, not URL userinfo: toProxyConfiguration builds
+                  // its endpoint from URL.host/port and drops userinfo, so
+                  // only these reach applyCredential (PROXY-025).
+                  username: relayUser,
+                  password: relayToken,
+                  allowFailover: false,
+                )
+              ],
+              bypassRules: [],
+            ),
+          ),
+          onWebViewCreated: (c) => paneC = c,
+        ),
+      );
+
+  bool usable() {
+    if (!applies) {
+      markTestSkipped('the per-WebView proxy is an Apple path');
+      return false;
+    }
+    expect(routable, isNotNull,
+        reason: 'no non-loopback IPv4 here, and Apple never proxies a loopback '
+            'destination, so nothing could be distinguished');
+    expect(PlatformInfo.isProxySupported, isTrue,
+        reason: 'proxy support reads unavailable past the floor; '
+            'PlatformInfo.initialize() was most likely not awaited');
+    return true;
+  }
+
+  // One test, not four. `testWidgets` tears the widget tree down between
+  // tests, so pane A's platform view is gone by the next one and its
+  // controller is stale -- which is exactly how the first run of this file
+  // read `same-store-2nd-nav=no-load`: the loadUrl no-opped against a
+  // disposed WebView. Keeping the arms in one test is what lets the SAME
+  // WebView, not merely the same container, issue the second navigation.
+  testWidgets('when a per-site proxy stops applying', (tester) async {
+    if (!usable()) return;
+
+    // Frame 1. Both the positive control and the baseline: if this does not
+    // proxy, the process is one of the poisoned ones (BUG-014 gap -2) and
+    // nothing below means anything.
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Column(children: [pane(0, socksIndex: 0), paneConnect()]),
+      ),
+    ));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 500));
+    await waitReal(tester, () => settled(0), label: 'frame-1 pane A');
+    verdict['baseline'] = classify(0, 0);
+    final baselineProxied = verdict['baseline'] == 'own';
+    log('baseline=${verdict["baseline"]}');
+
+    if (!baselineProxied) {
+      for (final k in const [
+        'same-store-2nd-nav',
+        'connect-baseline',
+        'connect-2nd-nav',
+        'new-store-later',
+        'new-store-after-idle'
+      ]) {
+        verdict[k] = 'void';
+      }
+    } else {
+      // The question the matrix could not answer: the very WebView that just
+      // proxied, navigating again, no rebuild in between.
+      final controller = paneA;
+      expect(controller, isNotNull,
+          reason: 'pane A reported no controller, so its second navigation '
+              'could not be issued');
+      // Back to the very origin that was just proxied, so host, port,
+      // registrable domain and storage policy are identical to the load that
+      // WAS proxied. The arrival is attributed by peer port, not by a new
+      // CONNECT: a navigation served over the connection the first load
+      // opened is still a proxied one, and counting CONNECTs would have
+      // called it a bypass.
+      final hitsBefore = requests.where((r) => r.origin == 'o0').length;
+      await tester.runAsync(() async {
+        await controller!.loadUrl(
+            urlRequest: inapp.URLRequest(url: inapp.WebUri(urlFor(0))));
+      });
+      await waitReal(
+          tester,
+          () => requests.where((r) => r.origin == 'o0').length > hitsBefore,
+          label: 'pane A second navigation (identical origin)');
+      final hitsAfter = requests.where((r) => r.origin == 'o0').toList();
+      if (hitsAfter.length <= hitsBefore) {
+        // With allowFailover pinned false, a proxy that is no longer in force
+        // fails the load rather than quietly going direct, so this is the
+        // shape a dropped configuration takes here.
+        verdict['same-store-2nd-nav'] = 'no-arrival';
+      } else {
+        final relay = relayOf(hitsAfter.last.port);
+        verdict['same-store-2nd-nav'] = relay == null
+            ? 'DIRECT'
+            : (relay == 0 ? 'own' : 'CROSSED(socks$relay)');
+      }
+      log('pane A origin-0 arrivals before=$hitsBefore '
+          'after=${hitsAfter.length} peers=${hitsAfter.map((r) => r.port).toList()} '
+          'socks0 relayed=${socks[0].relayedPorts.toList()..sort()}');
+      log('same-store-2nd-nav=${verdict["same-store-2nd-nav"]}');
+
+      // The same sequence on the other delivery route, in this same
+      // process and frame, so the only thing that differs from pane A is
+      // whether the rule is a CONNECT one.
+      await waitReal(tester, () => settled(4), label: 'frame-1 pane C');
+      verdict['connect-baseline'] = classify(4, 4);
+      if (verdict['connect-baseline'] == 'own') {
+        final hitsBeforeC = requests.where((r) => r.origin == 'o4').length;
+        await tester.runAsync(() async {
+          await paneC!.loadUrl(
+              urlRequest: inapp.URLRequest(url: inapp.WebUri(urlFor(4))));
+        });
+        await waitReal(
+            tester,
+            () => requests.where((r) => r.origin == 'o4').length > hitsBeforeC,
+            label: 'pane C second navigation (identical origin, CONNECT)');
+        final hitsAfterC =
+            requests.where((r) => r.origin == 'o4').toList();
+        if (hitsAfterC.length <= hitsBeforeC) {
+          verdict['connect-2nd-nav'] = 'no-arrival';
+        } else {
+          final relayed = relayOf(hitsAfterC.last.port);
+          verdict['connect-2nd-nav'] =
+              relayed == null ? 'DIRECT' : (relayed == 4 ? 'own' : 'CROSSED(socks$relayed)');
+        }
+      } else {
+        verdict['connect-2nd-nav'] = 'void';
+      }
+      log('connect-baseline=${verdict["connect-baseline"]} '
+          'connect-2nd-nav=${verdict["connect-2nd-nav"]}');
+
+      // A brand-new store in a later frame. Pane A stays in the tree so its
+      // WebView is not torn down under the new one.
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: Column(children: [
+            pane(0, socksIndex: 0, url: urlFor(1)),
+            paneConnect(),
+            pane(2, socksIndex: 2),
+          ]),
+        ),
+      ));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 500));
+      await waitReal(tester, () => settled(2), label: 'new store, later frame');
+      verdict['new-store-later'] = classify(2, 2);
+      log('new-store-later=${verdict["new-store-later"]}');
+
+      await tester
+          .runAsync(() => Future<void>.delayed(const Duration(seconds: 6)));
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: Column(children: [
+            pane(0, socksIndex: 0, url: urlFor(1)),
+            paneConnect(),
+            pane(2, socksIndex: 2),
+            pane(3, socksIndex: 3),
+          ]),
+        ),
+      ));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 500));
+      await waitReal(tester, () => settled(3), label: 'new store after idle');
+      verdict['new-store-after-idle'] = classify(3, 3);
+      log('new-store-after-idle=${verdict["new-store-after-idle"]}');
+    }
+
+    // Reported, not asserted: every arm above is the open question, and a
+    // process that could not proxy produces the same nulls as a platform
+    // that drops the proxy. The baseline is what separates them.
+    expect(verdict['baseline'], 'own',
+        reason: 'pane A did not proxy in frame 1, so no verdict in this file '
+            'is evidence about timing');
+  });
+}

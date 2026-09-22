@@ -76,3 +76,54 @@ for (const block of blocks) {
     }
   });
 }
+
+// The `[ci-only: ...]` marker exists so a bisection that reads one tier does
+// not pay for the other four. Its failure modes are asymmetric: a job that
+// wrongly runs costs runner minutes, a job that wrongly skips costs coverage
+// silently, and a marker left in a merged commit could silence master
+// forever. So the guardrails are gated rather than trusted.
+test('every heavy job is gated on the plan job', () => {
+  const text = fs.readFileSync(path.join(repoRoot, WORKFLOW), 'utf8');
+  for (const [job, output] of [
+    ['validate', 'validate'],
+    ['design-web', 'design'],
+    ['build-android', 'android'],
+    ['build-linux', 'linux'],
+    ['build-apple', 'apple'],
+  ]) {
+    const header = text.slice(text.indexOf(`\n  ${job}:\n`));
+    const block = header.slice(0, header.indexOf('\n    steps:'));
+    assert.match(
+      block,
+      /\n    needs: plan\n/,
+      `${job} does not depend on the plan job, so its guard cannot be read`,
+    );
+    assert.match(
+      block,
+      new RegExp(`if: needs\\.plan\\.outputs\\.${output} === ?'true'`.replace('===', '==')),
+      `${job} is not gated on needs.plan.outputs.${output}`,
+    );
+  }
+});
+
+test('the ci-only marker is honoured on pull requests only', () => {
+  const text = fs.readFileSync(path.join(repoRoot, WORKFLOW), 'utf8');
+  const plan = text.slice(text.indexOf('\n  plan:\n'), text.indexOf('\n  validate:\n'));
+  assert.match(
+    plan,
+    /if \[ "\$\{\{ github\.event_name \}\}" = pull_request \]; then/,
+    'the plan job reads the marker outside a pull_request guard; a marker ' +
+      'that survives a merge would then silence master',
+  );
+  assert.match(
+    plan,
+    /ci-only/,
+    'the plan job no longer parses a ci-only marker',
+  );
+  // Comma-delimited matching, so `apple` cannot be enabled by `pineapple`.
+  assert.match(
+    plan,
+    /case ",\$only," in/,
+    'token matching is not comma-delimited, so one token can enable another',
+  );
+});
