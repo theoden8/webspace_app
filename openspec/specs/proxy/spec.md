@@ -889,7 +889,7 @@ The relay exists because Android has exactly one process-wide
 `HttpNetworkSession` without partitioning it, so per-site proxies there need
 something in front of them to fan out. Apple has neither problem:
 `WKWebsiteDataStore` carries one proxy configuration per store, and BUG-014
-attempt 102 measured that delivering distinct upstreams AND distinct
+BUG-014's remeasurement measured that delivering distinct upstreams AND distinct
 credentials per store, on SOCKS5 (RFC 1929) and HTTP CONNECT (Basic) alike,
 at any frame and on later navigations. A relay on Apple is therefore a local
 hop that buys nothing while adding the credential-forwarding step PROXY-025

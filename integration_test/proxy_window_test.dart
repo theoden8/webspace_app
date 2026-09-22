@@ -24,7 +24,7 @@ void main() {
   // Destinations, not origins on this machine: macOS routes an address the
   // host owns over `lo0` and Apple never proxies a loopback-routed
   // destination, so an origin bound here reads DIRECT whether or not the
-  // proxy was bound (BUG-014 attempt 102). Nothing routes to a
+  // proxy was bound (BUG-014 caution 1). Nothing routes to a
   // `syntheticOrigin`, so the fixture answers it and an arrival IS the proof.
   const warmDest = 0;
   const destA = 1;

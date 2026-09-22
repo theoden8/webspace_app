@@ -342,7 +342,7 @@ void main() {
             reason: 'containers=$useContainers developerMode=$developerMode',
           );
           // Apple does not run the relay. Each container store binds its
-          // real upstream directly, which BUG-014 attempt 102 measured
+          // real upstream directly, which BUG-014 measured
           // delivering distinct upstreams and distinct credentials per
           // store, so the relay would be a hop that buys nothing. The
           // implementation stays reachable for parity testing and nothing

@@ -2,7 +2,7 @@
 //
 // Nine stores, each with its own SOCKS5 upstream and its own destination,
 // mounted at measured distances from frame 1, none waiting for an earlier one
-// to settle. BUG-014 attempt 102 reads all nine `own`: there is no frame
+// to settle. BUG-014 reads all nine `own`: there is no frame
 // boundary. The arm stays as the regression test for that.
 //
 // Destinations are `syntheticOrigin()` addresses. An address this machine owns

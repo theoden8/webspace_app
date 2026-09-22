@@ -46,7 +46,7 @@ void main() {
   // clears before it adds, and de-duplicates across session wrappers. A
   // SOCKS5 rule only ever takes the second.
   //
-  // Every reading behind attempt 90's answer was taken on SOCKS5, so on the
+  // Every reading behind that answer was taken on SOCKS5, so on the
   // patch route only. Pane C runs the identical two-navigation sequence
   // through a loopback CONNECT relay, which forces the rebuild route. If C's
   // second navigation is proxied where A's is not, the bypass belongs to the
@@ -65,7 +65,7 @@ void main() {
   // Destinations, not origins on this machine: macOS routes an address the
   // host owns over `lo0` and Apple never proxies a loopback-routed
   // destination, so an origin bound here reads DIRECT whether or not the
-  // proxy was bound (BUG-014 attempt 102). Nothing routes to a
+  // proxy was bound (BUG-014 caution 1). Nothing routes to a
   // `syntheticOrigin`, so the fixture answers it and an arrival IS the proof.
   final socks = <Socks5Fixture>[];
   late LocalProxyRelay relay;

@@ -10,7 +10,7 @@
 //     moved the origin to `nonLoopbackIPv4()` and did not fix it: macOS
 //     routes traffic aimed at ANY address the host owns over `lo0`, so the
 //     machine's own LAN address is exactly as unproxyable as `127.0.0.1`.
-//     That cost the investigation ninety-odd attempts (BUG-014 attempt 102).
+//     That cost the investigation ninety-odd attempts (BUG-014 caution 1).
 //     The destination has to be one this machine does not own.
 //  2. Its second mount reused the same widget position, so Flutter updated
 //     the existing `InAppWebView` instead of building a new one and the
@@ -73,7 +73,7 @@ test('no proxy arm builds a destination this machine owns', () => {
         'nonLoopbackIPv4(). That address belongs to THIS machine, macOS ' +
         'routes it over lo0, and Apple never proxies a loopback-routed ' +
         'destination -- so the arm reads DIRECT whether or not the proxy ' +
-        'was bound. Use syntheticOrigin() (BUG-014 attempt 102)',
+        'was bound. Use syntheticOrigin() (BUG-014 caution 1)',
     );
     for (const [, url] of armCode.matchAll(DESTINATION)) {
       if (!/^https?:\/\//.test(url)) continue;

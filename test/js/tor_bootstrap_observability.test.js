@@ -393,7 +393,7 @@ test('the Tor scenario cannot be starved by the tier loop', () => {
   // position. The position is deliberately NOT pinned here: BUG-014 gap -2
   // has one app process at a time able to proxy on a macOS runner, and tor
   // binds a SOCKS proxy, so running this first costs every proxy arm behind
-  // it its slot (attempt 91: one arm in ~20 measured anything). Which end of
+  // it its slot (one arm in ~20 measured anything). Which end of
   // the tier it sits at is a branch's call. What must hold either way is
   // that the loop cannot eat its budget and its verdict still reaches the
   // tail of the log.

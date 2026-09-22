@@ -68,7 +68,7 @@ void main() {
 
     // Two actions, and neither reaches the destination. A third button on
     // this screen is how a bypass would arrive -- including a retry, which
-    // BUG-014 attempts 90-92 measured as a direct load rather than a
+    // BUG-014 once measured as a direct load rather than a
     // proxied one.
     expect(
       find.byWidgetPredicate((w) => w is ButtonStyleButton),

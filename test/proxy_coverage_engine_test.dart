@@ -50,7 +50,7 @@ void main() {
             isMountNavigation: mounting,
           ),
           ProxyCoverage.established,
-          reason: 'BUG-014 attempt 102 measured a store carrying its proxy on '
+          reason: 'BUG-014 measured a store carrying its proxy on '
               'every navigation, at any distance from the first frame and on '
               'a second navigation to a different origin. The readings that '
               'said otherwise pointed their origins at an address of the test '
@@ -72,7 +72,7 @@ void main() {
     test('a proxied site is covered on the mount navigation and after it', () {
       // The gate used to spend a one-shot slot on the mounting URL and call
       // everything after it unprovable, which cancelled the navigations a
-      // user actually makes. BUG-014 attempt 102 measured the store carrying
+      // user actually makes. BUG-014 measured the store carrying
       // its proxy throughout, so nothing here is blocked any more.
       final g = gate(ProxyBinding.perSite);
       expect(g.evaluate('https://a/'), ProxyCoverage.established);

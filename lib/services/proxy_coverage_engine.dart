@@ -25,11 +25,11 @@ class ProxyCoverageEngine {
   /// that turns out to need the distinction has somewhere to put it.
   ///
   /// It used to: under [ProxyBinding.perSite] every post-mount navigation was
-  /// [ProxyCoverage.unprovable], on the strength of BUG-014 attempts 90 and
-  /// 92. **Those readings are void.** Every proxy arm behind them pointed its
+  /// [ProxyCoverage.unprovable], on a measurement that could not have
+  /// read anything else (BUG-014 caution 2). **Those readings are void.** Every proxy arm behind them pointed its
   /// origins at an address of the test machine itself, which macOS routes
   /// over `lo0` and never proxies, so they read DIRECT whether or not the
-  /// proxy was bound. Attempt 102 remeasured against a destination the
+  /// proxy was bound. The remeasurement against a destination the
   /// machine does not own: a store's proxy covers every navigation on it, at
   /// any distance from the first frame, on `nonPersistent()` and
   /// `forIdentifier:` alike, and on a second navigation to a different

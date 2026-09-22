@@ -2,8 +2,9 @@
 
 Status: **open, narrowed.** The per-site proxy on Apple works: measured on real
 hardware, every store binds its own upstream and its own credential, at any
-frame and on later navigations. The 101 attempts that said otherwise were
-reading a broken instrument. Two instances of the seam's real defect are
+frame and on later navigations. The long investigation that said otherwise
+was reading a broken instrument; what it produced worth keeping is the
+cautions below, not its route. Two instances of the seam's real defect are
 fixed, a third was fixed in the fork, and the seam still has no general
 guard.
 
@@ -49,7 +50,8 @@ silently. Only something that observes the *effect* can catch it.
 4. **The app's own mitigation cancelled the navigations the user makes.**
    `ProxyCoverageEngine` called every post-mount navigation on a per-site
    binding `unprovable` and `onNavigationAction` returned `CANCEL` for it
-   (LEAK-010). Built entirely on attempts 90 and 92, so it was blocking
+   (LEAK-010). Built on a measurement that could not have read
+   anything else, so it was blocking
    traffic the store's proxy was already carrying: a proxied site loaded its
    landing page and then refused every link on it. **Fixed** — a configured
    proxy now establishes coverage on both bindings. This is the reason the
@@ -107,70 +109,87 @@ each asserted to come out of its own upstream. That is Android's attribution
 assertion, so the two platforms' routers stay comparable and the kept
 implementation cannot rot unnoticed.
 
-## Why 101 attempts read the opposite
+## Cautions
 
-**Every proxy arm pointed its destinations at an address of the test machine
-itself**, via `nonLoopbackIPv4()`. macOS routes traffic aimed at any address
-the host owns over `lo0`, and Apple never proxies a loopback-routed
-destination. So the arms read DIRECT whether or not the proxy was bound. The
-helper's own doc comment named the rule (`127.0.0.1` is never proxied) and
-misjudged its reach: the machine's LAN address is loopback-routed too.
+Not a record of what was tried. A record of what bit, so it bites once.
 
-The control, one process, interleaved, only the destination varying:
+1. **A destination this machine owns is never proxied.** macOS routes traffic
+   aimed at any address the host holds over `lo0`, and Apple never proxies a
+   loopback-routed destination. That is broader than `127.0.0.1`: the
+   machine's own LAN address is just as unproxyable, which is what
+   `nonLoopbackIPv4()` returned and what every arm pointed at. Measured in one
+   process, interleaved, only the destination varying:
 
-```
-rung0[host-own-IP]=DIRECT  rung1[other-host-same-/24]=own  rung2[off-subnet]=own
-rung3[host-own-IP]=DIRECT  rung4[other-host-same-/24]=own  rung5[off-subnet]=own
-```
+   ```
+   rung0[host-own-IP]=DIRECT  rung1[other-host-same-/24]=own  rung2[off-subnet]=own
+   ```
 
-The exclusion is the host's *own* address, not private addressing and not the
-local subnet, so adding an interface to the same machine does not escape it.
+   The exclusion is the host's *own* address, not private addressing and not
+   the local subnet. Adding an interface does not escape it: a `feth` pair
+   belongs to the same host at both ends. Use `syntheticOrigin()`.
 
-Withdrawn with it: the "navigation is proxied only in the process's first
-frame" claim, the "structural boundary, app side closed" conclusion, the "one
-app process at a time can proxy" gap, and the upstream WebKit report drafted
-from them, which was never filed and must not be. The attempt-by-attempt
-record lives in this file's git history and in PR #603; it is not reproduced
-here because every DIRECT reading in it is void.
+2. **An effect-level test can be unfalsifiable and look red.** The famous
+   shape is green-by-vacuity, and this file has that too (assertions any
+   broken load satisfies). The one that cost most was the mirror: readings of
+   DIRECT the instrument would have produced whether or not the feature
+   worked. A control has to be in the same process as the claim and has to
+   fail when the instrument breaks, not merely differ from the claim.
 
-## How to measure this, now and in future
+3. **A mitigation built on a wrong diagnosis becomes the bug.** The coverage
+   gate cancelled every post-mount navigation on a proxied site to avoid a
+   leak that was not happening, so the feature refused the traffic its own
+   proxy was carrying. A fail-closed guard is only as good as the measurement
+   under it.
 
-A proxy arm's destination must be one **this machine does not own**, and the
-fixture must be the only thing that can serve it. `syntheticOrigin(i)` returns
-`10.99.99.<i+1>`, which has no route off the box; `Socks5Fixture` and
-`HttpConnectFixture` answer it themselves rather than relaying, terminating TLS
-with `syntheticTls` when the arm is `https://`. A request arriving at a fixture
-is then the proof, with no origin-side port attribution and no second machine,
-and a bypassed request cannot arrive anywhere by accident.
+4. **A moved tag does not reach a locked build.** The fork is pinned by tag and
+   `pubspec.lock` pins the commit that tag resolved to, so moving a tag onto a
+   fix leaves every build on the old commit. A defect can read as open long
+   after it is fixed. Re-resolve, do not assume.
 
-`test/js/proxy_binding_fixture.test.js` fails any arm that builds a
-destination from `nonLoopbackIPv4()`.
+5. **The readback is not evidence.** `WKWebsiteDataStore.proxyConfigurations`
+   is a UI-process cache that never asks the network process, so `configured=1`
+   proves only that the UI process remembers what was assigned.
 
-## Known open gaps
+6. **An empty array is a clear, not a no-op.** Assigning `[]` to
+   `proxyConfigurations` routes to `clearProxyConfigData()` and strips the
+   proxy off the live session. An embedder that filters unparseable rules out
+   of its array turns "set this site's proxy" into "remove it".
 
-1. **A moved tag does not reach a locked build.** The fork is pinned by tag,
-   and `pubspec.lock` pins the commit that tag resolved to, so moving a tag
-   onto a fix leaves every build on the old commit until someone re-resolves
-   it. That is how instance 5 read as unfixed here long after it was fixed.
-   Nothing compares the two.
-2. **Fail-closed is unmeasured.** "A refused proxy must not leak to the origin"
-   needs a destination that is both proxyable (so not host-owned) and
-   observable when reached directly (so not synthetic). No single machine can
-   be both; it needs a second host, which is why the origin is moving to a CI
-   service container.
-3. **No general guard on the seam.** The plugin's settings parser fails open by
-   construction and nothing compares the map Dart sends against the properties
-   the native side set. `getRealSettings` could answer that for a live WebView.
-4. **Reach is wider than the proxy.** The same parser carries the container id,
-   the UA, the media gates and every other per-site field. Only the proxy has
-   an effect-level test.
-5. **An effect-level test can be unfalsifiable and look green — or look red.**
-   Both failure modes have now happened here: assertions satisfied by any
-   broken load, and ninety-odd attempts of DIRECT that the instrument would
-   have produced regardless. The rule that survives is that an effect-level
-   assertion needs a control which fails when the instrument is broken, **in
-   the same process as the claim**. Nothing enforces the class.
-6. **The readback is not evidence.** `WKWebsiteDataStore`'s
-   `proxyConfigurations` getter is a UI-process cache that never asks the
-   network process, so `configured=1` proves only that the UI process
-   remembers what was assigned.
+7. **A parser that fails open is silent by construction.** `ISettings.parse`
+   sets values reflectively behind `responds(to:)`; a property the ObjC runtime
+   cannot see is skipped with no error. A Swift-only type is invisible. The
+   Dart side logs what it sent, the native side acts on what it parsed, and
+   nothing compares them.
+
+8. **A skipped test is counted as a run.** A gate that can only skip is not a
+   gate: a missing `openssl`, an unawaited `PlatformInfo.initialize()`, a
+   platform check that answers false first, or an emulator image whose System
+   WebView lacks `MULTI_PROFILE` all produce a green tick over nothing. Print
+   what the gate depended on, so a reader can tell a pass from an absence.
+
+9. **Nothing guards the gates.** Removing a structural gate in the same commit
+   as the code it guarded is silent by definition, and it happened here: two
+   attempts were then written from readings the instrument could not have
+   produced.
+
+10. **A comment outlives the thing it describes.** The Android router tier's
+    note described an image the workflow had stopped pinning, and reading it
+    instead of the workflow produced a wrong conclusion about CI coverage.
+
+11. **Fail-closed cannot be measured on one machine.** It needs a destination
+    both proxyable (so not host-owned) and reachable directly (so a leak is
+    visible). The Linux tier gets one from a CI service container on its own
+    bridge network; Apple has no equivalent, because service containers need
+    Docker and macOS runners have none.
+
+## Open
+
+1. **Instance 5 on Apple.** Fixed in the fork and in the pin. No arm covers it:
+   nothing asserts that a malformed rule leaves a store's existing proxy
+   alone rather than clearing it.
+2. **Fail-closed on Apple.** Caution 11. `proxy_fail_closed_test.dart` asserts
+   it on Linux and skips elsewhere with its reason.
+3. **No general guard on the seam.** Caution 7 is the root mechanism and only
+   the proxy has an effect-level test; the same parser carries the container
+   id, the UA, the media gates and every other per-site field.
+   `getRealSettings` could answer it for a live WebView.

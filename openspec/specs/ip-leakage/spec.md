@@ -252,8 +252,8 @@ main-frame navigation**, and no navigation is cancelled by this requirement
 today.
 
 This used to distinguish them: under `perSite`, every post-mount navigation
-was unprovable and was cancelled, on the strength of BUG-014 attempts 90 and
-92. Those readings are void. Every proxy arm behind them pointed its origins
+was unprovable and was cancelled, on a measurement that could not have
+read anything else (BUG-014 caution 2). Those readings are void. Every proxy arm behind them pointed its origins
 at an address of the test machine, which macOS routes over `lo0` and never
 proxies, so they read DIRECT whether or not the proxy was bound. Attempt 102
 remeasured against a destination the machine does not own and found the
@@ -315,11 +315,11 @@ to this UI: when it is made, `isMountNavigation` is the one input that
 changes.
 
 That gap used to be stated far more widely, on the strength of BUG-014
-attempts 90 and 92 reading `later-pair=0 of 2 proxied` for stores built after
+a reading of `later-pair=0 of 2 proxied` for stores built after
 the app's first frame. Those readings are void: every proxy arm pointed its
 origins at an address of the test machine, which macOS routes over `lo0` and
 never proxies, so they read DIRECT whether or not the proxy was bound.
-Attempt 102 remeasured against a destination the machine does not own and
+The remeasurement against a destination the machine does not own and
 found the per-store binding covers every navigation, at any frame, on both
 store shapes. A mounting navigation is covered, and so is what follows it.
 

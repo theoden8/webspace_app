@@ -1,7 +1,7 @@
 // The Apple relay path, which the app does not take (PROXY-026).
 //
 // Apple binds each store's real upstream directly: WKWebsiteDataStore carries
-// one proxy configuration per store, and BUG-014 attempt 102 measured that
+// one proxy configuration per store, and BUG-014 measured that
 // delivering distinct upstreams AND distinct credentials per store, so the
 // relay is a local hop that buys nothing there. `appleRelayEnabled` defaults
 // false and this arm is the only thing that turns it on.

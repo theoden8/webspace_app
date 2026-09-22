@@ -27,7 +27,7 @@ void main() {
   // any address the host owns over `lo0`, and Apple never proxies a
   // loopback-routed destination, so an origin bound here reads DIRECT
   // whether or not the proxy was bound -- the defect that voided ninety-odd
-  // BUG-014 attempts (attempt 102). Nothing routes to a `syntheticOrigin`,
+  // BUG-014 caution 1. Nothing routes to a `syntheticOrigin`,
   // so the fixture answers it itself and an arrival there IS the proof.
   const dest = 0;
   late Socks5Fixture socks;

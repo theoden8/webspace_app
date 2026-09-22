@@ -62,7 +62,7 @@ test('the guard is not vacuous', () => {
 
 test('the Apple relay branch is off unless a caller opts in', () => {
   // Apple does not need the relay: each container store carries its own
-  // proxyConfigurations, and BUG-014 attempt 102 measured that delivering
+  // proxyConfigurations, and BUG-014 measured that delivering
   // distinct upstreams AND distinct credentials per store on both SOCKS5
   // and HTTP CONNECT. The implementation stays for parity testing, so the
   // branch has to be reachable -- and off by default, or it comes back by

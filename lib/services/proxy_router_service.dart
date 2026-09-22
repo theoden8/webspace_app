@@ -108,7 +108,7 @@ class ProxyRouterService {
   /// `HttpNetworkSession` without partitioning it, so per-site proxies there
   /// need something in front of them to fan out. Apple has neither problem:
   /// each container store carries its own `proxyConfigurations`, and
-  /// BUG-014 attempt 102 measured that shape delivering distinct upstreams
+  /// BUG-014 measured that shape delivering distinct upstreams
   /// AND distinct credentials per store, on SOCKS5 and on HTTP CONNECT, at
   /// any frame and on later navigations. So on Apple the relay is a local
   /// TCP hop that buys nothing, while adding the credential-forwarding step
