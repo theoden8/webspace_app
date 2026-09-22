@@ -14,6 +14,7 @@ PODS:
   - flutter_zxing (0.0.1):
     - FlutterMacOS
   - FlutterMacOS (1.0.0)
+  - IPtProxy (5.5.1)
   - OrderedSet (6.0.3)
   - package_info_plus (0.0.1):
     - FlutterMacOS
@@ -25,6 +26,11 @@ PODS:
   - sqflite_darwin (0.0.4):
     - Flutter
     - FlutterMacOS
+  - Tor (409.11.2):
+    - Tor/CTor (= 409.11.2)
+  - Tor/Core (409.11.2)
+  - Tor/CTor (409.11.2):
+    - Tor/Core
   - url_launcher_macos (0.0.1):
     - FlutterMacOS
   - webspace_adblock (0.1.0)
@@ -37,16 +43,20 @@ DEPENDENCIES:
   - flutter_secure_storage_darwin (from `Flutter/ephemeral/.symlinks/plugins/flutter_secure_storage_darwin/darwin`)
   - flutter_zxing (from `Flutter/ephemeral/.symlinks/plugins/flutter_zxing/macos`)
   - FlutterMacOS (from `Flutter/ephemeral`)
+  - IPtProxy (= 5.5.1)
   - package_info_plus (from `Flutter/ephemeral/.symlinks/plugins/package_info_plus/macos`)
   - share_plus (from `Flutter/ephemeral/.symlinks/plugins/share_plus/macos`)
   - shared_preferences_foundation (from `Flutter/ephemeral/.symlinks/plugins/shared_preferences_foundation/darwin`)
   - sqflite_darwin (from `Flutter/ephemeral/.symlinks/plugins/sqflite_darwin/darwin`)
+  - Tor (= 409.11.2)
   - url_launcher_macos (from `Flutter/ephemeral/.symlinks/plugins/url_launcher_macos/macos`)
   - webspace_adblock (from `../rust/webspace_adblock/cocoapods`)
 
 SPEC REPOS:
   trunk:
+    - IPtProxy
     - OrderedSet
+    - Tor
 
 EXTERNAL SOURCES:
   file_picker:
@@ -84,14 +94,16 @@ SPEC CHECKSUMS:
   flutter_secure_storage_darwin: acdb3f316ed05a3e68f856e0353b133eec373a23
   flutter_zxing: 91e9d17c79c60860450e8879cced0ec54f6a2601
   FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1
+  IPtProxy: c4c20975d2c793222b7a9e0dc3855818b5f1181f
   OrderedSet: e539b66b644ff081c73a262d24ad552a69be3a94
   package_info_plus: f0052d280d17aa382b932f399edf32507174e870
   share_plus: 510bf0af1a42cd602274b4629920c9649c52f4cc
   shared_preferences_foundation: 7036424c3d8ec98dfe75ff1667cb0cd531ec82bb
   sqflite_darwin: 20b2a3a3b70e43edae938624ce550a3cbf66a3d0
+  Tor: 6162631fd67a5e69113eacdc552757a1d7944e63
   url_launcher_macos: f87a979182d112f911de6820aefddaf56ee9fbfd
   webspace_adblock: 47488f869cce24ee20d883329710409ff77f099b
 
-PODFILE CHECKSUM: 70ae4f41f98c0dd67366dcd460c15f909a66dd40
+PODFILE CHECKSUM: be59e40fe5a7b619044cbd0a87ecec50f40d0e85
 
 COCOAPODS: 1.17.0
