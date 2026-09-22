@@ -1,0 +1,10 @@
+✨ New Features:
+• Per-site proxies on Android
+
+🔧 Improvements:
+• Stronger tracking protection
+• DNS blocking level slider
+
+🐛 Bug Fixes:
+• Security hardening
+• Background refresh reloading the open site
