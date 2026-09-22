@@ -580,7 +580,8 @@ connection.
 
 Where container mode is available, the app SHALL route each site through
 its own upstream proxy concurrently, rather than serialising mismatched
-sites under PROXY-008. Android's delivery is below; Apple's is PROXY-026.
+sites under PROXY-008. Android's delivery is below. Apple does not run the
+router at all: it binds each store's own upstream (PROXY-026).
 
 `ProxyController` SHALL be pointed once at a loopback relay
 (`http://<127/8 host>:<ephemeral>`, no bypass entries -- LEAK-011) and
@@ -806,10 +807,9 @@ mean "connect anyway".
 
 This requirement used to say a TOR site receives no route at all, on the
 grounds that the Tor runtime was Apple-only while the router was
-Android-only. PROXY-026 puts the router on Apple, so that reasoning now
-describes the one platform where a Tor site is the common case, and
-dropping the route would send it to a `502` while the native path proxied
-it correctly.
+Android-only, which is where the router runs. On Apple a Tor site's store
+binds tor's SOCKS5 port directly with the site's own credential (PROXY-026),
+so the route table is not in its path.
 
 #### Scenario: A per-site Tor setting reaches the router
 
@@ -878,14 +878,30 @@ was filed against a build two years older.
 
 ---
 
-### Requirement: PROXY-026 - Apple delivers the router per store, not per process
+### Requirement: PROXY-026 - Apple binds each store's real upstream, not a relay
 
-Where router mode is active on iOS or macOS, each site's container data
-store SHALL carry `proxyConfigurations` naming the relay, with that site's
-routing credential in `ProxyRule.username`/`password` (PROXY-025). There
-SHALL be no process-wide rule: Apple has no `ProxyController`, and a single
-rule could carry only one credential, which would give every site the same
-routing identity and fail the PROXY-015 probe.
+Apple SHALL NOT run router mode. Each site's container data store SHALL
+carry `proxyConfigurations` naming that site's **own upstream**, with its
+credential in `ProxyRule.username`/`password` (PROXY-025).
+
+The relay exists because Android has exactly one process-wide
+`ProxyController` rule and Chromium caches a proxy credential per
+`HttpNetworkSession` without partitioning it, so per-site proxies there need
+something in front of them to fan out. Apple has neither problem:
+`WKWebsiteDataStore` carries one proxy configuration per store, and BUG-014
+attempt 102 measured that delivering distinct upstreams AND distinct
+credentials per store, on SOCKS5 (RFC 1929) and HTTP CONNECT (Basic) alike,
+at any frame and on later navigations. A relay on Apple is therefore a local
+hop that buys nothing while adding the credential-forwarding step PROXY-025
+was a defect in. For Tor it is also strictly worse: `IsolateSOCKSAuth` keys a
+circuit on the SOCKS credential tuple, and binding the site's own tuple to
+the store hands tor the real per-site identity rather than depending on the
+relay to re-present it upstream.
+
+The implementation SHALL remain reachable behind
+`ProxyRouterService.appleRelayEnabled`, which SHALL default false, so the two
+platforms' router behaviour stays comparable in tests without a device. The
+paragraphs below describe that path and apply only when it is enabled.
 
 Every store SHALL be pointed at the relay, including a site whose own
 effective proxy is DEFAULT. A store left unproxied would miss the
@@ -909,10 +925,9 @@ where the upstream is SOCKS5.
 
 #### Scenario: Two sites with different proxies stay loaded
 
-**Given** router mode is active on macOS
-**And** two sites have different upstream proxies
+**Given** two sites on macOS have different upstream proxies
 **When** both are loaded at once
-**Then** each store's proxy configuration names the relay
+**Then** each store's proxy configuration names that site's own upstream
 **And** each presents its own credential
 **And** neither site is unloaded for a proxy mismatch
 

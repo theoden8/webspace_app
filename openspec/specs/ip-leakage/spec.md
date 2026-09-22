@@ -244,24 +244,27 @@ Coverage is decided by a pure engine
 ([`ProxyCoverageEngine`](../../../lib/services/proxy_coverage_engine.dart))
 over the named binding of PROXY-027, never by a platform test at the call
 site. Under `ProxyBinding.processWide` the rule sits outside the WebView and
-catches every request it makes, so coverage is established for every
-navigation. Under `ProxyBinding.perSite` the proxy is written onto
-`WKWebsiteDataStore.proxyConfigurations` when the view is constructed, and
-BUG-014 attempts 90 and 92 measured — twice, each against a live control in
-the same process — that it covers the navigation issued in the turn that
-mounted the view and nothing after it (`sameturn-loadurl=proxied` against
-`persist-loadurl=DIRECT`, the same `loadUrl` on the same controller).
-Attempt 91 adds that CONNECT fails identically to SOCKS5, so a loopback
-relay does not escape it. Linux is not a case here: it carries the proxy on
-a `WebKitNetworkSession` the container owns, which the whole session's
-traffic goes through, and PROXY-027 already calls that binding process-wide.
+catches every request it makes. Under `ProxyBinding.perSite` the proxy is
+written onto `WKWebsiteDataStore.proxyConfigurations` when the view is
+constructed and covers every navigation that store makes thereafter. **On
+both bindings, therefore, a configured proxy establishes coverage for every
+main-frame navigation**, and no navigation is cancelled by this requirement
+today.
 
-The mount slot SHALL be tracked per mounted platform view, not per widget: a
-remount builds a fresh network store and so gets a fresh mounting navigation.
-It SHALL be spent on the first navigation the gate is asked about, whether or
-not that navigation is the mounting one, so a platform that does not report
-the mounting navigation through this seam cannot hand the slot to whatever
-the page navigated to first.
+This used to distinguish them: under `perSite`, every post-mount navigation
+was unprovable and was cancelled, on the strength of BUG-014 attempts 90 and
+92. Those readings are void. Every proxy arm behind them pointed its origins
+at an address of the test machine, which macOS routes over `lo0` and never
+proxies, so they read DIRECT whether or not the proxy was bound. Attempt 102
+remeasured against a destination the machine does not own and found the
+binding covers every navigation, at any distance from the first frame, on
+both store shapes and on a second navigation to a different origin. The gate
+was cancelling traffic the proxy was already carrying.
+
+The requirement is kept rather than withdrawn because the guarantee it states
+is the one that matters and the engine is where a future platform's answer
+belongs: if any binding is ever shown not to cover a navigation, this is the
+seam that fails it closed.
 
 The interstitial SHALL name the site, state that the navigation was blocked
 to avoid revealing the device IP, and name the destination it did not
@@ -311,13 +314,14 @@ a measurement BUG-014 has not made. It belongs to the coverage decision, not
 to this UI: when it is made, `isMountNavigation` is the one input that
 changes.
 
-The larger gap is on the other side of that input. BUG-014 attempts 90 and 92
-read `later-pair=0 of 2 proxied` for stores built after the app's first frame,
-in the same processes whose controls proxied two stores at once. If that holds,
-a mounting navigation is not covered either, and everything this requirement
-treats as `established` on the per-store binding is unprovable — which makes a
-per-site proxy on Apple unusable rather than partial. That is a product call on
-the feature, not a UI one, and it is the coverage decision's to settle.
+That gap used to be stated far more widely, on the strength of BUG-014
+attempts 90 and 92 reading `later-pair=0 of 2 proxied` for stores built after
+the app's first frame. Those readings are void: every proxy arm pointed its
+origins at an address of the test machine, which macOS routes over `lo0` and
+never proxies, so they read DIRECT whether or not the proxy was bound.
+Attempt 102 remeasured against a destination the machine does not own and
+found the per-store binding covers every navigation, at any frame, on both
+store shapes. A mounting navigation is covered, and so is what follows it.
 
 #### Scenario: A navigation that cannot be shown to be proxied is cancelled
 
