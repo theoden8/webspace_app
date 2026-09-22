@@ -3,86 +3,92 @@
 WebSpace gives a site its own cookies and settings, but only one page. Open a
 second page from GitHub and either the first one is gone (in-domain navigation
 replaces `currentUrl`) or the second one is (a cross-domain hop lives in a
-nested `InAppWebViewScreen` and dies on back). Nothing accumulates. That is the
-one thing a browser does that this app does not, and it is the reason saved-for-
-later products fail: inactive tabs are the reading list, in place, with the
-session that opened them.
+nested `InAppWebViewScreen` and dies on back). Nothing accumulates, which is
+the one thing a browser does that this app does not, and the reason
+save-for-later products fail: inactive tabs are the reading list, in place,
+with the session that opened them.
 
-Link-intent routing (`link-intent-routing`, LIR-001..LIR-012) was a first step:
-it decides which site an inbound URL belongs to. It then either replaces the
-site's page or opens a nested screen. It never keeps anything. This change gives
-the resolver somewhere to put a URL.
+The first draft of this change also folded in share arrivals, links that
+another site claims, and cross-domain sub-pages. Those flows are harder and
+are cut from this round. What remains is the part a browser cannot do without:
+tabs inside a site, a tree to see them in, and a memory model that never
+costs a second renderer.
 
 ## What Changes
 
-- A site owns a list of **pages**. A page is a URL, a title, the page it was
-  opened from, and the site's saved navigation state for it. Exactly one page
-  per site is **active** (bound to the site's single resident webview); every
-  other page is **parked** and costs no renderer.
-- **Sideways leaves park, backwards leaves close.** Switching to another page,
-  opening a link in the background, sharing a URL in, or leaving the app parks
-  the page. The system back gesture at the start of a child page's history
-  closes it and returns to its parent, as Chrome does.
-- Four ways a page accumulates: long-press a link and open it in the
-  background; park the page you are on; a shared URL lands in its site's list
-  without stealing the screen; a cross-domain hop kept by switching away.
-- Pages form a **tree** under their site (parent = the page that opened it),
-  shown in the drawer under each site and in a per-site Pages sheet reached
-  from the tab strip and the app bar.
-- The link-intent dispatcher grows an "add to <site>" outcome next to its
-  existing "open in <site>", and in-app taps on links another site claims get
-  the same picker, so a GitHub link tapped on Mastodon can open in GitHub's
-  container with GitHub's login.
-- Per-site hygiene on the Behaviour screen: keep parked pages until closed, or
-  sweep them after a day, a week, or a month; pinned pages are exempt.
-- The per-site feature audit (ARCH-006 shape) for pages: incognito pages never
-  reach disk, Always open Home reverts only the active page, kiosk hides the
-  page UI, archive-tier pages live under the archive key, the QR share never
-  carries pages.
+- A site owns a list of **tabs**. A tab is a URL inside the site's own domain,
+  a title, the tab it was opened from, and the site's saved navigation state
+  for it. Exactly one tab per site is **active** and bound to the site's single
+  resident webview; every other tab is **parked** and holds no renderer.
+- **All tabs of a site share the site's container** (`ws-<siteId>`): cookies,
+  localStorage, IndexedDB, ServiceWorkers, HTTP cache. Nothing is per tab on
+  the native side.
+- **Switching tabs inside a site is the existing `savedForRestore` walk, per
+  tab**: capture the active tab's state, dispose the webview, rebuild it with
+  the target's state queued. The number of live webviews never changes.
+- **Opening a site never creates a tab**: it resumes the site's active tab.
+  Only "New tab" creates a root tab (at `initUrl`, parking the current one),
+  and only "Open in new tab" on an in-domain link creates a child tab (in the
+  background, under the tab it came from).
+- **System back at the start of a child tab closes it** and returns to its
+  parent, as Chrome does. Root tabs keep NAV-001's no-op.
+- The **tree**: a per-site Tabs sheet (app bar square with the count, tap on
+  the active site's chip) and the same tree under each site in the drawer;
+  collapse, close, close subtree; closing a tab re-parents its children.
+- The per-site feature audit (ARCH-006 shape) for tabs: incognito tabs never
+  reach disk, Always open Home reverts only the active tab, kiosk hides the
+  tab UI, archive-tier tabs live under the archive key, the QR share never
+  carries tabs, memory pressure and the LRU cap keep the site as their unit.
+
+## Out of scope this round
+
+- Share-sheet and `webspace://` arrivals landing as tabs (they replace the
+  site's page or open nested, exactly as today).
+- A picker for in-app taps on links another site claims.
+- Cross-domain pages as tabs: a cross-domain tap still opens the ephemeral
+  nested screen. A tab is always in its site's domain, so the container
+  question has one answer.
+- Keep limits, pins, sweeping. "Close N parked" is the only hygiene.
+- A warm second webview per site.
 
 ## Status
 
 Design stage. The flow is captured in `design.md` and in a clickable
-prototype (a static HTML simulator of the phone, the tab strip, the drawer
-tree, the Pages sheet, the link menu, the share arrival and the policy knobs).
-The delta spec under `specs/` holds the requirements the prototype embodies;
-the knobs it exposes are listed as open questions in `design.md` and are not
-yet normative. No code has been written against this change.
+prototype (a static HTML simulator of the phone, the site strip, the drawer
+tree, the Tabs sheet, the link menu, a memory panel with OS-pressure and
+relaunch buttons, and an engine log). The delta spec under `specs/` holds the
+requirements the prototype embodies. No code has been written against this
+change.
 
 ## Capabilities
 
 ### New Capabilities
-- `inactive-tabs`: per-site page list with one active page and N parked pages,
-  a parent tree, four accumulation paths, sideways/backwards lifecycle rule,
-  Pages sheet and drawer tree, per-site keep limit, and the cross-site routing
-  picker for in-app link taps.
+- `inactive-tabs`: per-site tab list with one active tab and N parked tabs, a
+  parent tree, the new-tab and open-in-new-tab mechanisms, the
+  capture/dispose/rebuild switch, the back-at-start rule, the Tabs sheet and
+  drawer tree.
 
 ### Modified Capabilities
-- `link-intent-routing`: `DispatchOpenInMain` gains a parked variant; the
-  LIR-010 picker gains "Add to <site>" rows.
-- `nested-url-blocking`: a nested screen becomes the viewer for a child page;
-  its back-at-history-start pop is the "backwards closes" rule.
-- `webview-pause-lifecycle`: `WebViewStateStorage` is keyed by page, not site;
-  PAUSE-009 capture points write the active page's bytes.
-- `site-behaviour`: "Keep parked pages" row.
+- `webview-pause-lifecycle`: `WebViewStateStorage` is keyed by
+  `<siteId>/<tabId>`; PAUSE-009 capture points write the active tab's bytes.
+- `navigation`: NAV-004 Home acts on the active tab; NAV-001 gains the
+  child-tab close rule.
+- `lazy-webview-loading`: the `IndexedStack` child for a site is additionally
+  keyed by its active tab so a switch remounts the webview.
 - `always-open-home`, `incognito-mode`, `kiosk-mode`, `archive`,
-  `site-settings-qr`, `settings-backup`: one scenario each for what a page
-  does under that feature (see the audit table in `design.md`).
+  `site-settings-qr`, `settings-backup`: one scenario each for what a tab does
+  under that feature (see the audit table in `design.md`).
 
 ## Impact
 
-- `WebViewModel`: `pages`, `activePageId`; `currentUrl`/`pageTitle` become the
-  active page's fields (getter-compatible, JSON migration synthesises one page
+- `WebViewModel`: `tabs`, `activeTabId`; `currentUrl`/`pageTitle` become the
+  active tab's fields (getter-compatible, JSON migration synthesises one tab
   from a legacy `currentUrl`).
-- New pure-Dart engine `lib/services/page_lifecycle_engine.dart` (activate,
-  park, close-with-reparent, back-at-start, sweep).
-- `SecureWebViewStateStorage` keyed by `<siteId>/<pageId>`; orphan sweep runs
-  per page.
-- `LinkIntentDispatchEngine`: `DispatchOpenInMain.activate: false` and a
-  `DispatchAddToSite` follow-up from the picker.
-- UI: page count pill on tab-strip chips and drawer tiles, Pages sheet, drawer
-  tree rows, link long-press menu, `_DispatchPickerSheet` rows.
+- New pure-Dart engine `lib/services/tab_lifecycle_engine.dart` (activate,
+  park, new tab, close-with-reparent, back-at-start, tree order).
+- `SecureWebViewStateStorage` keyed by `<siteId>/<tabId>`; orphan sweep per
+  tab; site delete removes the site's directory.
+- UI: count pill on strip chips and drawer tiles, Tabs sheet, drawer tree
+  rows, link long-press menu, "New tab" in the overflow.
 - Kernel model: the `loaded` set and `Inv_CurrentLoaded` are unchanged (one
-  webview per site); the page list is state beside it, not inside it. If the
-  activate/park actions touch shared runtime state, run the mix gate in
-  `formal/`.
+  webview per site). The tab list is state beside it, not inside it.

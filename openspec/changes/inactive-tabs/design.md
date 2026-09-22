@@ -4,283 +4,284 @@ What exists today, in the terms this design has to fit:
 
 - A **site** (`WebViewModel`) is one identity: a container `ws-<siteId>` (or
   the legacy shared jar), per-site settings, and one `currentUrl`/`pageTitle`.
-  One `InAppWebView` per site, created lazily (`lazy-webview-loading`
-  LAZY-002), kept resident across site switches (LAZY-004), capped at
-  `kMaxLoadedSites` (20) with a resident comfort limit of `kMaxResidentSites`
-  (10) beyond which `SiteLifecyclePromotionEngine` walks a site
+  One `InAppWebView` per site, created lazily (LAZY-002), kept resident across
+  site switches (LAZY-004), capped at `kMaxLoadedSites` (20) with a resident
+  comfort limit of `kMaxResidentSites` (10) beyond which
+  `SiteLifecyclePromotionEngine` walks a site
   `resident -> cacheCleared -> savedForRestore`.
 - `savedForRestore` already is an inactive tab in everything but name: the
   webview is disposed, `controller.saveState()` bytes sit AES-encrypted in
-  `<docs>/webview_state/<siteId>.enc` (`SecureWebViewStateStorage`), and the
-  next activation rebuilds the webview and calls `restoreState`. The capture
-  points are PAUSE-009 (go-home, app-background, navigation with a 3 s trailing
-  debounce) and the pairing rule is BUG-003's invariant: every path that keeps a
-  webview across a restart pairs a capture before death with a restore queue
-  before first build.
+  `<docs>/webview_state/<siteId>.enc` (`SecureWebViewStateStorage`, PAUSE-008),
+  and the next activation rebuilds the webview and calls `restoreState`.
+  Restore only applies to a freshly created webview: `queueNavStateRestore`
+  refuses a live controller, and `getWebView` consumes the queued bytes in
+  `onControllerCreated`. On Android the initial load is deferred so the bytes
+  land on a pristine back/forward list and the top entry is then reloaded; on
+  Apple the initial request runs and `interactionState` replaces the stack in
+  place.
+- NAV-004 Home already disposes and recreates the site's webview to get a
+  clean history. The dispose-and-rebuild cost is a known, accepted one.
+- The capture points are PAUSE-009 (go-home, app-background, navigation with a
+  3 s trailing debounce) and the pairing rule is BUG-003's invariant: every
+  path that keeps a webview across a restart pairs a capture before death with
+  a restore queue before first build.
 - A **cross-domain hop** with a gesture opens a nested `InAppWebViewScreen`
-  (NESTED-004) that shares the site's container and carries its whole posture
-  (NESTED-010). It has no `WebViewModel`, persists nothing, and pops when its
-  own history runs out (`inappbrowser.dart` PopScope) or when the app bar back
-  arrow is tapped. Closing the app kills it.
-- **Link-intent routing** resolves an inbound URL to a site (LIR-002) and then
-  `LinkIntentDispatchEngine` emits `DispatchOpenInMain` (replace the site's
-  page, with LIR-011's reset flags for incognito / always-home sites) or
-  `DispatchOpenNested` (out-of-domain: nested screen). The LIR-010 picker
-  offers "open in <site>", "add the domain to a site" (opt-in claim, default
-  off per discussion #439) and "create site". Nothing it does survives the
-  next navigation.
-- The user model on screen: the drawer grid and the bottom tab strip list
-  **sites**, one chip each (WEBSPACE-011 reorder). There is no place a second
-  page of a site could appear.
+  (NESTED-004) that shares the site's container, carries its whole posture
+  (NESTED-010), persists nothing, and pops when its own history runs out. It
+  stays exactly like this in this round.
+- On screen, the drawer grid and the bottom strip list **sites**, one chip
+  each. There is no place a second page of a site could appear.
 
-So the app has a per-site *memory* tier that looks exactly like a discarded
-tab, and a per-site *routing* brain that knows which site a URL belongs to,
-and neither has a list to put a page in. That list is the whole feature.
+So the app has a per-site memory tier that looks exactly like a discarded tab
+and no list to put a tab in. That list, and the two gestures that add to it,
+are the whole feature.
 
 ## Derivation
 
-Start from the browser feature and apply the app's constraints one at a time.
-
-1. **A tab must belong to a container.** In a browser a tab is a global
-   object. Here every page renders inside one site's container and posture,
-   so a page belongs to a site. The site is the tab group. This is the Firefox
-   Multi-Account Containers shape: a container has tabs; a tab is in exactly
-   one container.
+1. **A tab belongs to a site and stays in its domain.** Every page renders
+   inside one site's container and posture, so a tab belongs to a site. A tab
+   is also restricted to the site's own domain (what `NavigationDecisionEngine`
+   already allows in place, NESTED-007), so every tab of a site is in the same
+   container by construction and the persisted `currentUrl` invariant (never a
+   cross-origin URL, NESTED-005) holds for every tab. Cross-domain hops keep
+   using the nested screen.
 2. **One resident webview per site stays.** N live webviews per site would
    multiply renderer processes under a cap that is already tuned per site,
-   would re-open the same-base-domain conflicts the legacy engine serialises
-   (ISO-001), and would need a second copy of every lifecycle engine. Instead
-   a site's pages share its one webview: exactly one page is **active** and
-   bound to it; the rest are **parked**, which is `savedForRestore` keyed by
-   page. Mobile browsers discard background tabs anyway; the honest name for
-   an inactive tab is "url, title, and a state blob".
-3. **Switching pages within a site is the existing tier walk.** Activate P2
-   while P1 is active: `saveState(P1) -> store[site/P1]`, then `loadUrl(P2)` or
-   `restoreState(store[site/P2])` in the same webview. Switching *sites* does
-   not touch pages: each site keeps its own active page, exactly as today.
-4. **What survives is decided by direction.** Two exits from a page exist:
-   - *sideways*: the user switches to another page or site, opens a link in
-     the background, shares a URL in, backgrounds the app. The page parks.
-   - *backwards*: the system back gesture at the start of a child page's
-     history. The page closes and its parent takes over. This is exactly what
-     the nested screen does today when its history runs out, and it is
-     Chrome's rule for a tab opened from another tab. Root pages at history
-     start stay a no-op (NAV-001).
-   A page you never scrolled and backed out of leaves no residue; a page you
-   left to do something else waits for you. That rule is the whole answer to
-   "why did this tab appear" and "where did my tab go".
-5. **Accumulation paths fall out of the exits.**
-   - Long-press a link, "Open in new page": a parked child of the current
-     page (the browser's open-in-background).
-   - "Park this page" from the overflow (or "New page at home"): the page you
-     are on parks, and its parent or the site home takes the webview.
-   - A shared URL resolves to a site and lands parked in its list, with a
-     snackbar to open it. The share no longer replaces the page the site was
-     on, which also removes the reason LIR-011 had to dispose and wipe a live
-     webview: a parked page touches no webview at all.
-   - A cross-domain hop kept by switching away instead of backing out.
-6. **The tree is free.** Every path above knows the page it started from, so a
-   page records `parentId`. The drawer already lists sites; expanding a site
-   shows its pages indented by depth, which is tree-style tabs without a new
-   surface. Closing a parent re-parents its children to the grandparent, as
-   Tree Style Tab does, so nothing is orphaned by a close.
-7. **The routing brain gets a second verb.** LIR already answers "which site
-   does this URL belong to". With a list to put a page in, the dispatcher can
-   *add* as well as *open*. And the same resolver can answer an in-app tap: a
-   GitHub link tapped on Mastodon today opens nested inside Mastodon's
-   container, without GitHub's login. With the picker it can open in GitHub,
-   or be added to GitHub for later, or open here as before.
-8. **Hygiene is a per-site knob, not a global inbox.** Safari's "close tabs
-   after a day / week / month" and Chrome's 21-day archive both exist because
-   lists grow. A per-site keep limit on the Behaviour screen, pinned pages
-   exempt, swept at launch. Default "until closed" so the list is trusted.
+   re-open the same-base-domain conflicts the legacy engine serialises
+   (ISO-001), and need a second copy of every lifecycle engine. Instead a
+   site's tabs share its one webview: exactly one tab is active and bound to
+   it; the rest are parked, which is `savedForRestore` keyed by tab. A parked
+   tab is a record in prefs and one small file. Zero renderer, zero native
+   objects.
+3. **A tab switch is the tier walk, forced.** Activate T2 while T1 is active:
+   `captureNavigationState()` for T1 into `store[site/T1]`, `disposeWebView()`,
+   queue `store[site/T2]` (if any) via `schedulePendingRestoreState`, rebuild.
+   Restore cannot be applied to a live controller, and Android's
+   `restoreState` needs a pristine list, so the rebuild is not optional; it is
+   also what Home already does. Peak footprint during a switch is zero
+   webviews for that site, never two.
+4. **Opening a site is not a tab event.** Tapping a site in the strip or the
+   drawer, cold start, a shortcut, a share arrival: the site resumes its
+   active tab, as a browser resumes the tab you were on. The alternative
+   (start fresh every time) is what the app does today and turns every visit
+   into one more tab. Two things create tabs, and both are explicit:
+   - **New tab** (Tabs sheet header, overflow menu, long-press on the active
+     site's chip): a root tab at `initUrl`, the current tab parks.
+   - **Open in new tab** (long-press an in-domain link): a child tab of the
+     current one, opened in the background with a snackbar to switch.
+   Home (NAV-004) is the same tab going to `initUrl` with its history cleared.
+5. **What survives is decided by direction.** Leaving a tab sideways (another
+   tab, another site, the app itself) parks it. Leaving a child tab backwards,
+   the system back gesture at the start of its history, closes it and returns
+   to its parent. This is Chrome's rule for a tab opened from another tab, and
+   it is the nested screen's rule today. Root tabs keep NAV-001's no-op. A tab
+   you never scrolled and backed out of leaves no residue; a tab you left to
+   do something else waits for you.
+6. **The tree is free.** "Open in new tab" knows the tab it came from, so a
+   tab records `parentId`. The drawer already lists sites; expanding a site
+   shows its tabs indented by depth, which is tree-style tabs without a new
+   screen. Closing a parent re-parents its children to the grandparent, so
+   nothing is orphaned by a close.
 
 ## Goals / Non-Goals
 
 **Goals**
 
-- A site accumulates pages without losing the one it is on.
-- A page survives sideways exits and app restarts; a backed-out child page
+- A site accumulates tabs without losing the one it is on.
+- A tab survives sideways exits and app restarts; a backed-out child tab
   does not.
-- One resident webview per site, unchanged eviction and memory-pressure rules.
-- Reuse: `SecureWebViewStateStorage`, `SiteLifecyclePromotionEngine`,
-  `LinkIntentDispatchEngine`, the `_DispatchPickerSheet`, the nested screen.
+- One container and one resident webview per site; eviction, LRU and
+  memory-pressure rules unchanged and unaware of tabs.
+- Reuse: `SecureWebViewStateStorage`, the `savedForRestore` walk, the
+  `onControllerCreated` restore queue, the NAV-004 rebuild.
 - Every per-site feature that touches `currentUrl` or on-disk state gets an
-  explicit answer for pages (audit table below).
+  explicit answer for tabs (audit table below).
 
-**Non-Goals**
+**Non-Goals (this round)**
 
-- Multiple live webviews per site (a warm second page). Could be a later tier.
-- Cross-site trees: a page opened from another site's page is a root in its
-  own site with an `origin` note, never a child across containers.
-- A global "all tabs" screen as the primary surface. The drawer tree and the
-  per-site sheet with an "All sites" scope cover it.
-- Changing what the legacy cookie engine serialises (ISO-001).
-- Sync or cloud anything.
+- Share arrivals and `webspace://` opens as tabs.
+- In-app taps on links another site claims.
+- Cross-domain tabs or a nested screen backed by a tab.
+- Keep limits, pins, sweeping.
+- A warm second webview per site (the tab just switched from staying live
+  for a few seconds). Could be a later tier behind the same model.
+- Cross-site trees.
 
 ## Decisions
 
-### D1. Page model on the site
+### D1. Tab model on the site
 
 ```dart
-class SitePage {
+class SiteTab {
   final String id;          // path-safe token, same pattern as siteId
-  String url;
+  String url;               // always inside the site's domain
   String? title;
-  String? parentId;         // page it was opened from, same site only
+  String? parentId;         // tab it was opened from, same site only
   DateTime createdAt;
   DateTime lastActiveAt;
-  bool pinned;
 }
 // WebViewModel
-List<SitePage> pages;       // display order = tree order
-String activePageId;
-String get currentUrl => activePage.url;   // compatibility getter
+List<SiteTab> tabs;         // creation order; tree is derived from parentId
+String activeTabId;
+String get currentUrl => activeTab.url;   // compatibility getter
 ```
 
-`currentUrl` and `pageTitle` stay as getters over the active page so the
+`currentUrl` and `pageTitle` stay as getters over the active tab so the
 existing persistence, always-home and incognito code keeps reading the same
-names. Migration: JSON without `pages` synthesises one root page from
-`currentUrl` (or `initUrl`) and makes it active; serialisation omits `pages`
-while it holds exactly that synthesised page, so on-disk output is stable for
-users who never open a second page (same rule as LIR-001's `domainClaims`).
+names. Migration: JSON without `tabs` synthesises one root tab from
+`currentUrl` (or `initUrl`) and makes it active; serialisation omits `tabs`
+while it holds exactly that synthesised tab, so on-disk output is stable for
+users who never open a second tab (same rule as LIR-001's `domainClaims`).
 
 Alternative: global `Tab` objects with a `siteId`. Rejected: every consumer of
 "the site's page" would have to look up the tab, and the archive tier's
-byte-identity rule (ARCH-001) is far easier to hold when pages ride the site's
+byte-identity rule (ARCH-001) is far easier to hold when tabs ride the site's
 own serialisation.
 
-### D2. One active page, parked pages are state blobs
+### D2. Memory contract: one container, one webview, parked tabs are bytes
 
-Invariant, per site: `pages.where(active).length == 1` and only the active
-page can have a controller. `SecureWebViewStateStorage` is keyed by
-`<siteId>/<pageId>` (`webview_state/<siteId>/<pageId>.enc`). The
-`removeOrphans` sweep takes the set of live page keys. `persistsNavState`
-(false for incognito and archive-tier) gates the write exactly as it does now.
+Per site, always:
 
-Switching pages inside a site is a `PageLifecycleEngine.activate` that emits
-`[capture(prev), bind(next, restore: hasState)]`; the call site runs the
-capture through the existing `_captureStateBytes` path and the bind through the
-existing `schedulePendingRestoreState -> onControllerCreated -> restoreState`
-queue, so BUG-003's pairing invariant holds without a new path.
+| Thing | Count | Where it lives |
+|---|---|---|
+| Container `ws-<siteId>` | 1 | native; shared by every tab of the site |
+| `InAppWebView` + renderer | 0 or 1 | bound to the active tab; 0 when the site is unloaded or evicted |
+| Active tab | 1 | `WebViewModel.activeTabId` |
+| Parked tabs | N | `SiteTab` in prefs (~200 B each) + `webview_state/<siteId>/<tabId>.enc` (1 to 50 KB, only when the tab has history to keep) |
 
-### D3. Sideways parks, backwards closes
+Invariants:
 
-`PageLifecycleEngine.onBackAtHistoryStart(page)`:
+- Tabs never change the number of live webviews. `kMaxLoadedSites`,
+  `kMaxResidentSites`, `SiteUnloadEngine` and
+  `SiteLifecyclePromotionEngine` keep the site as their unit and do not
+  learn about tabs. Evicting a site captures its active tab's bytes (as
+  today, now keyed by tab) and leaves parked tabs untouched: there is nothing
+  in memory to evict.
+- `persistsNavState` (false for incognito and archive-tier) gates every write
+  exactly as it does now, so those sites' parked tabs are records only.
+- Disk is bounded by tab count. Closing a tab removes its file; deleting a
+  site removes `webview_state/<siteId>/`; the startup orphan sweep takes the
+  set of live `<siteId>/<tabId>` keys.
 
-- child page (has `parentId`) -> `close(page)`, activate parent.
-- page opened from another site (`origin`) -> `close(page)`, switch to the
-  origin site and its page.
-- root page -> no-op (NAV-001).
+### D3. A tab switch is capture, dispose, rebuild, restore
 
-The nested `InAppWebViewScreen` remains the viewer for a child page whose
-origin is outside the site's domain (a "foreign" page): it already implements
-the pop-at-history-start rule and carries the posture (NESTED-010). What
-changes is that the screen is now backed by a `SitePage`, so a sideways exit
-from it (tabs button, app background) parks it instead of losing it, and its
-URL/title reach persistence.
+`TabLifecycleEngine.activate(site, targetTabId)` emits, in order:
 
-Open knob: "park instead of close on back" (the prototype's first policy).
-Default close, because a list that grows on every back is a list nobody
-trusts.
+1. `capture(activeTab)` when the site's webview is live (skipped when
+   `persistsNavState` is false).
+2. `park(activeTab)`.
+3. `dispose()`.
+4. `queueRestore(target)` when bytes exist for the target.
+5. `bind(target)`: rebuild the webview. The `IndexedStack` child for the site
+   keeps its `ValueKey(siteId)` slot (WEBSPACE-011) and wraps the webview in a
+   `KeyedSubtree` keyed by `activeTabId`, so the framework remounts it. The
+   existing `onControllerCreated` consumes the queued bytes: deferred initial
+   load plus reload on Android, `interactionState` on Apple.
 
-### D4. Accumulation via the dispatcher, not new call sites
+Steps 1 and 4 are the two halves of BUG-003's invariant, so the pairing holds
+without a new path. Step 3 is the reason a switch never holds two webviews.
 
-`LinkIntentDispatchEngine` gains:
+Cost: one renderer respawn per switch, the same as returning to an evicted
+site or pressing Home. Accepted for this round; a warm second webview is the
+named future tier if it turns out to matter.
 
-- `DispatchOpenInMain.activate: false` (parked root page in the site, no
-  webview touched, no LIR-011 reset needed).
-- picker rows `Add to <site>` for each winner and for the secondary site list;
-  the existing `sendToSite(claimDomain:)` rule decides whether a claim is
-  recorded, unchanged.
-- an in-app entry point: `NavigationDecisionEngine` already returns
-  `blockOpenNested` for a gesture cross-domain tap; when the target resolves
-  to another site (`LinkRoutingService.resolve` single winner that is not this
-  site) the call site shows the same picker with "Open in <site>", "Add to
-  <site>", "Open here". `blockSilent` and `blockSuppressed` are untouched, so
-  a gesture-less redirect never reaches the picker.
+### D4. New tab and open in new tab
 
-The long-press menu on a link calls the same engine entry points with
-`activate: false`. No new decision logic lives in the view.
+- **Opening a site** (strip, drawer, cold start, shortcut, share arrival)
+  SHALL resume the site's active tab and SHALL NOT create one.
+- **New tab**: root tab at `initUrl`, becomes active; the previous active tab
+  parks (D3). Reached from the Tabs sheet header, the overflow menu, and a
+  long-press on the active site's chip in the strip. The rebuild is the
+  NAV-004 shape, so the new tab starts with an empty history.
+- **Open in new tab**: offered on a link's long-press menu only when the link
+  is inside the site's domain. Creates a parked child tab (`parentId` = the
+  current tab) and shows a snackbar with "Switch". No webview and no bytes
+  are created until it is first activated. A cross-domain link's menu shows
+  the row disabled with the reason; its tap keeps opening the nested screen.
+- **Home** (NAV-004): the active tab goes to `initUrl` with history cleared.
+  No new tab.
 
-### D5. Surfaces
+The prototype exposes "opening a site starts a new tab" as a knob so the
+alternative can be felt; the proposal is resume.
 
-- **Tab strip chip / drawer tile**: count pill when a site has more than one
-  page. Tapping the *active* site's chip opens the Pages sheet (today it is a
-  no-op).
-- **App bar**: the browser's square-with-a-number opens the Pages sheet.
-- **Pages sheet**: scope "This site / All sites"; tree rows (favicon, title,
-  host, age, pin, close); "New page at home"; "Close N parked".
-- **Drawer**: each site row expands to its tree. This is the tree-style-tabs
-  view and needs no new screen.
-- **Crumb** under the app bar on a child page: "opened from <parent>"; on a
-  foreign page: "foreign page in <site>'s container" (the nested screen's
-  identity today, made visible).
+### D5. Back at the start of a child tab
 
-### D6. Hygiene
+`TabLifecycleEngine.onBackAtHistoryStart(tab)`:
 
-`keepParkedPages: never | 1d | 7d | 30d` per site on the Behaviour screen
-(BEHAV-001 "Opening and display" group). Swept at launch and on foreground
-resume by `PageLifecycleEngine.sweep(now)`: parked, unpinned, `lastActiveAt`
-older than the limit. Default `never`.
+- child tab (has `parentId`) -> `close(tab)`, activate the parent.
+- root tab -> no-op (NAV-001).
 
-### D7. Per-site feature audit for pages
+The prototype offers "park instead of close" and "do nothing" as knobs.
+Proposed default: close, because a list that grows on every back is a list
+nobody trusts.
 
-| Feature | Rule for pages |
+### D6. The tree
+
+- Order is creation order; the active tab is highlighted, never moved.
+- A node with children shows a collapse chevron; collapsed state is UI-only.
+- Row actions: switch, close, close tab and its children. Closing re-parents
+  children to the closed tab's parent.
+- Surfaces: the Tabs sheet (app bar square with the site's tab count; tapping
+  the active site's strip chip, which is a no-op today) with "This site" and
+  "All sites" scopes, "New tab", and "Close N parked"; the drawer, where each
+  site row expands to the same tree plus "New tab". Strip chips and drawer
+  tiles show a count pill when a site has more than one tab.
+- A crumb under the app bar on a child tab reads "opened from <parent>" and
+  switches to the parent (parking the child) when tapped.
+- A locked kiosk shell (KIOSK-002) hides the sheet, the drawer tree and the
+  link menu.
+
+### D7. Per-site feature audit for tabs
+
+| Feature | Rule for tabs |
 |---|---|
-| Incognito (INC-002/003) | Pages exist in memory only; no state bytes, `pages` omitted from JSON. Relaunch drops every parked page and reverts the active one to home. |
-| Always open Home (AOH-001) | Only the *active* page reverts to home on cold start and shortcut tap; parked pages persist. The reverted page parks so nothing is lost. |
-| Kiosk (KIOSK-002) | Locked shell hides the Pages sheet, the drawer tree and the link menu. A child page still opens and closes by the back rule. |
-| Archive tier (ARCH-001/006) | `pages` ride the archive's encrypted state; state bytes are never written (`persistsNavState` false); app-tier prefs are byte-identical whether archives hold pages or not. |
-| Notifications / background audio | Only the active page runs JS; parked pages cannot fire notifications. The retention tier is unchanged. |
-| Memory pressure / LRU cap | Unchanged: the unit is still the site's one webview. Parking is cheaper than eviction, never dearer. |
-| Settings backup | `pages` ride `WebViewModel.toJson`; state bytes do not (same as the HTML cache). |
-| Site QR share | Never carries pages (they are session, not configuration). |
-| Site delete / `SiteTeardownEngine` | Removes every `<siteId>/*.enc` state file. |
-| Nested screen posture (NESTED-010) | Unchanged; the screen now also reports url/title to its `SitePage`. |
-| Legacy cookie engine (ISO-001) | Untouched: page switches inside one site never change the site's domain, so no capture-nuke-restore runs. |
+| Incognito (INC-002/003) | Tabs exist in memory only; no state bytes, `tabs` omitted from JSON. Relaunch keeps one home tab. |
+| Always open Home (AOH-001) | The active tab reverts to `initUrl` in place on cold start and shortcut tap, history cleared, as today; parked tabs are untouched and persist. |
+| Kiosk (KIOSK-002) | Locked shell hides the Tabs sheet, the drawer tree and the link menu. Back on a child tab still follows D5. |
+| Archive tier (ARCH-001/006) | `tabs` ride the archive's encrypted state; no state bytes are written (`persistsNavState` false); app-tier prefs are byte-identical whether archives hold tabs or not. |
+| Notifications / background audio | Only the active tab runs JS; a parked tab cannot fire a notification or play. Retention tiers unchanged. |
+| Memory pressure / LRU cap | Unchanged: the unit is the site's one webview. A parked tab is never in memory. |
+| Settings backup | `tabs` ride `WebViewModel.toJson`; state bytes do not (same as the HTML cache). |
+| Site QR share | Never carries tabs (session, not configuration). |
+| Site delete / `SiteTeardownEngine` | Removes `webview_state/<siteId>/`. |
+| Nested screen (NESTED-010) | Unchanged. It is opened from the active tab and is not a tab. |
+| Legacy cookie engine (ISO-001) | Untouched: a tab switch never changes the site's domain, so no capture-nuke-restore runs. |
+| Home shortcut (HS-006) | Resets the active tab, as it resets `currentUrl` today. |
 
 ## Risks / Trade-offs
 
-- **Lists grow.** Mitigated by the backwards-closes rule, the keep limit and
-  the "Close N parked" action. The share default ("add to list") is the one
-  path that adds without the user looking; the snackbar's "Open" keeps it
-  visible.
-- **State blobs per page multiply disk use.** Bounded: one blob per parked
-  page, tens of KB each, swept with the page. Incognito and archive write none.
-- **Two viewers for a page** (main webview for in-domain pages, nested screen
-  for foreign pages). Accepted for v1 because the nested screen already has the
-  posture threading and the pop rule; collapsing to one viewer is a later
-  refactor that can happen behind the same `SitePage` model.
+- **A switch costs a renderer respawn.** Same cost as Home or as returning to
+  an evicted site; the cheapest correct option on Android, where restore needs
+  a pristine list. Measured, not assumed: the first implementation step
+  instruments switch latency in `LogService` so the warm-webview tier is a
+  decision made on numbers.
 - **`currentUrl` as a getter** touches many call sites in `main.dart`. The
-  compatibility getter keeps reads working; writes (`currentUrl = ...`) move to
-  `activePage.url = ...`, which is a mechanical change gated by the analyzer.
+  compatibility getter keeps reads working; writes move to
+  `activeTab.url = ...`, a mechanical change gated by the analyzer.
+- **Lists grow.** Mitigated by the backwards-closes rule, "Close N parked",
+  and the fact that opening a site never adds a tab. Sweeping is a later
+  round.
+- **Naming.** The bottom strip is the "site tab strip" and its chips are
+  sites. The new objects are "tabs" of a site. Copy in the sheet always says
+  whose tabs they are ("GitHub, 4 tabs").
 
 ## Open Questions (the prototype's knobs)
 
-1. Back at the start of a child page: close (proposed) or park?
-2. A shared URL that resolves to one site: add to its list (proposed) or open
-   now (today's behaviour)?
-3. An in-app tap on a link another site claims: ask (proposed), always route to
-   that site, or always open here (today)?
-4. Keep-limit default: until closed (proposed) or one month?
-5. Should the crumb on a child page be tappable (returns to the parent, parking
-   the child) or informational only?
+1. Back at the start of a child tab: close (proposed), park, or nothing?
+2. Opening a site from the strip or drawer: resume its active tab (proposed)
+   or start a new tab at home?
 
 ## Migration Plan
 
-1. `SitePage` model on `WebViewModel`, JSON migration, `currentUrl` getter;
-   state storage keyed by page; orphan sweep per page. No UI. Tests: model
-   round-trip, migration, storage keys, audit rows for incognito and archive.
-2. `PageLifecycleEngine` (activate / park / close-with-reparent /
-   back-at-start / sweep) with in-memory fakes modelling the state store.
-3. Pages sheet, tab-strip pill, "New page at home", "Park this page", link
-   long-press "Open in new page". Ships the in-site accumulation loop.
-4. Share arrival: `activate: false` path in the dispatcher and the picker's
-   "Add to <site>" rows.
-5. Nested screen backed by a `SitePage`; sideways exits from it park.
-6. In-app cross-site picker on `blockOpenNested`.
-7. Drawer tree, keep limit on the Behaviour screen, kiosk and archive gates.
+1. `SiteTab` model on `WebViewModel`, JSON migration, `currentUrl` getter;
+   state storage keyed by tab; orphan sweep per tab; switch-latency logging.
+   No UI. Tests: model round-trip, migration, storage keys, audit rows for
+   incognito and archive.
+2. `TabLifecycleEngine` (activate / park / new tab / close-with-reparent /
+   back-at-start / tree order) with in-memory fakes modelling the state store.
+3. Tabs sheet, strip pill, "New tab", link long-press "Open in new tab",
+   back-at-start rule. Ships the accumulation loop.
+4. Drawer tree, crumb, kiosk and archive gates.
 
 Each step is independently shippable; the compatibility getter means step 1
 alone changes nothing a user can see.
