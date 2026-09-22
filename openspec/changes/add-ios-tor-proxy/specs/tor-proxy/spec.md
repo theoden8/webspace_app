@@ -249,17 +249,34 @@ configuration (manual `host:port`, with or without credentials) SHALL
 remain available on every platform that supports proxies today, so
 Android users can still point at Orbot's SOCKS5 endpoint manually.
 
-**Why developer mode and not release.** The bootstrap interstitial and
-status card (TOR-004/TOR-008/TOR-013) are not built. Without them a
-site set to `TOR` sits on the fail-closed blank page for the length of
-a bootstrap with nothing on screen explaining why, which is a support
-burden and a Guideline 2.1 completeness risk. Reusing DEVTOOLS-010
-rather than adding a second flag keeps one answer to "is this feature
+**Why developer mode and not release.** Reusing DEVTOOLS-010 rather
+than adding a second flag keeps one answer to "is this feature
 reachable", and it is deliberately reachable on release builds: the
 users who can exercise an embedded tor on real hardware are the ones
 who would report on it, and a debug-build gate would exclude them.
-This gate comes off when TOR-013's surface lands, not when the code
-merges.
+
+The original reason was that the bootstrap interstitial and status card
+(TOR-004/TOR-008/TOR-013) did not exist, and this said the gate comes
+off when that surface lands. **The surface has landed and the gate has
+not come off**, so that sentence is withdrawn rather than left standing
+as a promise nothing intends to keep. `TorBootstrapPlaceholder` now
+resolves to determinate progress, a named failure with Retry, or a
+screen saying why Tor cannot run here; `TorStatusCard` exists.
+
+**What holds the gate now** is BUG-013 gap 3: tor runs at most once per
+process (TOR-020), so a session that genuinely loses it — a landed
+`SIGNAL HALT`, a bridge edit, a tor that exits on its own — cannot get
+it back until the app restarts, and the only real fix is out of process.
+Shipping that to someone who has not opted into diagnostics means a
+feature that works until it doesn't and then tells them to relaunch. The
+second condition is evidence: no tier has ever run the plugin on iOS,
+which is the platform every instance of BUG-013 was first observed on.
+
+So the gate comes off when a tier returns an iOS device verdict and gap
+3 has an answer, not when the surface lands. Whoever takes it off
+removes `TorGate.developerModeOff` and its strings with it: with
+`isAvailable` no longer reading developer mode, that state is
+unreachable and the interstitial's exhaustive switch will say so.
 
 **Where the gate lives.** On `TorService`, not on
 `MethodChannelTorRuntime` or `TorEngine`. Those answer the narrower
@@ -1153,3 +1170,57 @@ since no part of reaching tor's own control port depends on the network.
 - **WHEN** the scenario runs
 - **THEN** it fails naming the missing runtime, rather than passing on a
   runtime that was never there
+
+---
+
+### Requirement: TOR-022 - A gate that cannot open SHALL say so
+
+TOR-013 requires that a bootstrap resolve to progress or an error. There
+is a third outcome it does not cover: the runtime that never starts at
+all. `TorService.maybeStart` returns at the TOR-007 gate before
+`TorEngine.acquire` emits `TorStarting`, so the status stays `stopped`
+and the interstitial renders the same screen it shows while waiting --
+an indeterminate bar under "Not running", with no Retry (that button
+lives in the failure branch) and nothing naming what would fix it. It is
+the unbounded spinner TOR-013 exists to forbid, arrived at from the other
+side, and it is reachable: the per-site dropdown keeps `TOR` selectable
+on a site that already carries it, so a configuration imported from an
+Apple device (settings backup, site QR) leaves an Android or Linux site
+pinned to a runtime that platform does not have.
+
+The interstitial SHALL distinguish the three, and the decision SHALL be a
+pure function of (status, platform capability, developer mode) rather
+than of the status alone:
+
+- **working** - Tor can come up here and is on its way. The progress bar
+  means something.
+- **errored** - tor failed. Retry, and bridges where they help.
+- **unsupported** - this build has no Tor. The screen SHALL say so and
+  SHALL name the site's own proxy setting as the thing to change.
+- **developerModeOff** - Tor is here but behind the flag. The screen
+  SHALL name the flag.
+
+Availability SHALL be read before the status. An errored runtime behind a
+shut gate SHALL render as gated rather than as a failure, because
+`restart()` returns at the same gate and a Retry button there does
+nothing.
+
+The site SHALL stay blocked in every one of these states: naming a
+missing runtime is a change to what the user is told, never to what
+TOR-008 permits on the wire.
+
+#### Scenario: A Tor site on a platform with no Tor
+
+- **GIVEN** a site carrying `ProxyType.TOR`, imported onto Android
+- **WHEN** the user opens it
+- **THEN** the interstitial says Tor is not available on this device
+- **AND** it names the site's proxy setting as what to change
+- **AND** no progress bar is shown
+- **AND** the site is not loaded over the device IP
+
+#### Scenario: A Tor site with developer mode off
+
+- **GIVEN** an iOS build with developer mode off and a site set to `TOR`
+- **WHEN** the user opens it
+- **THEN** the interstitial names developer mode
+- **AND** it does not offer a Retry that cannot start anything

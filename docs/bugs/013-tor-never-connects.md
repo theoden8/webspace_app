@@ -1,8 +1,14 @@
 # BUG-013: Tor never reaches `up`, and the runtime is unusable afterwards
 
-**Status:** open (two mechanisms fixed, neither observed fixed on a device yet; the
-class stays open until a tier actually runs the plugin — see open gaps)
-**Platform:** iOS (the plugin also builds for macOS, where the integration tier runs it).
+**Status:** open on iOS. **Closed on macOS as of attempt 10:** the tier runs the
+plugin and tor bootstraps to 100% and reaches `up`, in CI and on local hardware.
+Every mechanism in this file was inferred from reading Tor.framework's source and
+first observed on a phone; none has been watched on one. The class stays open until
+something runs the plugin on iOS — see open gaps.
+**Platform:** iOS. The same source builds for macOS, where the integration tier runs
+it and it works; the two differ in data-dir sandboxing, app-lifecycle suspension,
+memory pressure and release-vs-debug assert behaviour, so a macOS pass is evidence
+about the control-port conversation and not about the phone.
 **Spec:** [tor-proxy](../../openspec/changes/add-ios-tor-proxy/specs/tor-proxy/spec.md)
 TOR-018 (the bootstrap says what it is doing), TOR-019 (one control connection, read
 before subscribing), TOR-020 (one tor per process; a stop asks it to exit).
@@ -279,9 +285,44 @@ inside the handshake window still comes back") asserts the behaviour this attemp
 removes and is rewritten to assert the refusal instead.
 
 
+### Attempt 10 — The macOS tier returned a verdict, and it is `up`
+**Date:** 2026-09-22 · **Commit:** (this one) · **Files:** none — a measurement, not a fix.
+
+Gap 1 said the macOS tier had never returned a verdict and that every failure here was
+first seen on a device. That half is now answered. CI run 35729775900 ran
+`the runtime bootstraps, says what it is doing, and restarts` with
+`WEBSPACE_TOR_NETWORK=1` and passed, and the same scenario was then run on local Apple
+hardware (macOS 15.7.3, arm64, debug build) with the same result:
+
+```
+[Tor/info] Control port authenticated.
+[Tor/info] Bootstrap was at 0% when the control port attached.
+[Tor/info] State: bootstrapping(5%, conn) ... (75%, enough_dirinfo)
+[Tor/info] State: bootstrapping(90%, ap_handshake_done)
+[Tor/info] State: bootstrapping(100%, done)
+[Tor/info] Connected. SOCKS listener on 127.0.0.1:51952.
+[Tor/info] State: up(127.0.0.1:51952)
+```
+
+Both scenarios passed, the restart included. So on macOS the control-port sequence,
+the attach funnel, `NS_BLOCK_ASSERTIONS=1` on the pod and the log tail are good
+enough, and attempts 1, 2, 5, 8 and 9 are confirmed on that platform rather than
+merely argued.
+
+**Why it is partial, and it is the important half.** It says nothing about iOS, which
+is the platform this bug is about and where every one of its instances was first seen.
+macOS and iOS compile the same `TorControllerPlugin.swift` but differ in data-dir
+sandboxing, lifecycle suspension, memory pressure and whether `NSAssert` aborts. The
+control-port budget attempt 2 set is still a number nobody has measured against a real
+phone, on cellular or cold.
+
+It also exercises only the happy path plus a restart. A control port that opens late —
+the mechanism of attempt 2 — is still simulated nowhere (gap 4).
+
 ## Known open gaps
 
-1. **No tier runs the plugin on iOS, and the macOS tier has never returned a verdict.**
+1. **No tier runs the plugin on iOS.** The macOS half of this gap is closed by
+   attempt 10; the iOS half is untouched and is the one that matters.
    `integration_test/tor_test.dart` runs the same source on macOS. Every run before
    2026-09-15 17:28 UTC was cancelled by the next push (`cancel-in-progress`) or died
    at `Build macOS` before reaching the step; the first run to get that far takes over

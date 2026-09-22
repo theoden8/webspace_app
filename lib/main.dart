@@ -7306,6 +7306,12 @@ class _WebSpacePageState extends State<WebSpacePage>
                 MaterialPageRoute(
                   builder: (context) => AppSettingsScreen(
                     currentSettings: _themeSettings,
+                    // Asked when the developer-mode switch is flipped, not
+                    // now: a site can be pinned to Tor from the drawer while
+                    // this screen is open.
+                    torPinnedSiteCount: () => _webViewModels
+                        .where((m) => m.proxySettings.type == ProxyType.TOR)
+                        .length,
                     siteNames: _siteNames(),
                     onSettingsChanged: (AppThemeSettings newSettings) async {
                       setState(() {

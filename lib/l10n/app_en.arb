@@ -1392,6 +1392,23 @@
   "@appSettingsDeveloperModeEnabled": {
     "description": "Confirmation shown after the seventh tap on the version row turns developer mode on"
   },
+  "appSettingsDeveloperModeTorWarningTitle": "Turn Developer mode off?",
+  "@appSettingsDeveloperModeTorWarningTitle": {
+    "description": "Title of the dialog shown when the user turns Developer mode off while one or more sites are set to use Tor. Tor only runs while Developer mode is on, so those sites become blocked."
+  },
+  "appSettingsDeveloperModeTorWarningBody": "{count, plural, one{One site is set to use Tor. It will stay blocked until you turn Developer mode back on, rather than loading over your real IP address.} other{{count} sites are set to use Tor. They will stay blocked until you turn Developer mode back on, rather than loading over your real IP address.}}",
+  "@appSettingsDeveloperModeTorWarningBody": {
+    "description": "Body of the dialog warning that turning Developer mode off blocks every site pinned to Tor. Explains the sites are blocked rather than sent out unproxied.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "appSettingsDeveloperModeTorWarningConfirm": "Turn off",
+  "@appSettingsDeveloperModeTorWarningConfirm": {
+    "description": "Button that confirms turning Developer mode off even though it will block sites set to use Tor."
+  },
   "appSettingsDeveloperModeAlreadyOn": "Developer mode is already on",
   "@appSettingsDeveloperModeAlreadyOn": {
     "description": "Shown when the user taps the version row while developer mode is already enabled"
@@ -3910,6 +3927,22 @@
         "type": "String"
       }
     }
+  },
+  "torUnavailableTitle": "Tor is not available on this device",
+  "@torUnavailableTitle": {
+    "description": "Heading shown in place of a site that is set to use Tor, on a device with no built-in Tor client."
+  },
+  "torUnavailableBody": "The built-in Tor client runs on iOS and macOS only. This site is set to use Tor, so it stays blocked rather than loading over your real IP address. Change its proxy in the site's settings to open it here.",
+  "@torUnavailableBody": {
+    "description": "Explains why a site set to use Tor shows nothing on a platform without a Tor client, and what the user can do about it."
+  },
+  "torDeveloperGateTitle": "Tor is turned off",
+  "@torDeveloperGateTitle": {
+    "description": "Heading shown in place of a site that is set to use Tor while Developer mode, which Tor is behind, is off."
+  },
+  "torDeveloperGateBody": "Tor runs only while Developer mode is on. This site is set to use Tor, so it stays blocked rather than loading over your real IP address. Turn Developer mode on in App settings, or change the site's proxy.",
+  "@torDeveloperGateBody": {
+    "description": "Explains why a site set to use Tor shows nothing while Developer mode is off, and what the user can do about it."
   },
   "torFailOfflineTitle": "No network",
   "@torFailOfflineTitle": {

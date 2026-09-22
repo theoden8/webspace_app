@@ -99,6 +99,47 @@ String? torSocksEndpoint(TorStatus status) =>
 bool torBindingChanged(TorStatus previous, TorStatus next) =>
     torSocksEndpoint(previous) != torSocksEndpoint(next);
 
+/// What the interstitial in front of a Tor-bound site has to say, which the
+/// runtime's own [TorStatus] cannot answer on its own.
+///
+/// `stopped` is a moment inside a start-up where Tor can run, and forever
+/// where it cannot: the platform has no plugin (TOR-007), or developer mode
+/// is off, and in both cases every start path returns before the engine
+/// emits [TorStarting]. A screen that reads the status alone shows a
+/// progress bar for a wait that never ends.
+enum TorGate {
+  /// The runtime can come up and is on its way; a progress bar means
+  /// something.
+  working,
+
+  /// Tor failed. The interstitial offers Retry and, where they help,
+  /// bridges.
+  errored,
+
+  /// No embedded Tor on this platform. Nothing the user does on this screen
+  /// will start one; the site's proxy is what has to change.
+  unsupported,
+
+  /// Tor exists here but developer mode is off (TOR-007).
+  developerModeOff,
+}
+
+/// Which [TorGate] a site is sitting behind.
+///
+/// Availability is read before [status] on purpose: an errored runtime that
+/// has since become unreachable must not show Retry, because `restart()`
+/// returns at the same gate and the button would do nothing.
+TorGate torGateFor({
+  required TorStatus status,
+  required bool hasNativeTor,
+  required bool developerModeEnabled,
+}) {
+  if (!hasNativeTor) return TorGate.unsupported;
+  if (!developerModeEnabled) return TorGate.developerModeOff;
+  if (status is TorErrored) return TorGate.errored;
+  return TorGate.working;
+}
+
 class TorErrored extends TorStatus {
   TorErrored(String message, {TorFailure? failure})
       : failure = failure ?? classifyTorFailure(message);

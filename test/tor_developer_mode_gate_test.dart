@@ -152,4 +152,68 @@ void main() {
     expect(resolved.type, ProxyType.SOCKS5);
     expect(resolved.username, 'site-a');
   });
+
+  // TOR-022: what the screen in front of a blocked site is allowed to say.
+  // The status alone cannot answer it -- `stopped` is a moment inside a
+  // start-up where Tor can run, and forever where it cannot.
+  group('torGateFor', () {
+    test('a platform without tor is unsupported however the flag sits', () {
+      for (final dev in [true, false]) {
+        expect(
+          torGateFor(
+              status: const TorStopped(),
+              hasNativeTor: false,
+              developerModeEnabled: dev),
+          TorGate.unsupported,
+          reason: 'developer mode cannot conjure a runtime that is not in '
+              'the build',
+        );
+      }
+    });
+
+    test('tor present but the flag off names the flag', () {
+      expect(
+        torGateFor(
+            status: const TorStopped(),
+            hasNativeTor: true,
+            developerModeEnabled: false),
+        TorGate.developerModeOff,
+      );
+    });
+
+    test('an error that can no longer be retried is not reported as one', () {
+      // Every start path re-checks the gate, so `restart()` behind a shut
+      // gate returns without doing anything. Reporting `errored` would put a
+      // Retry button on screen that cannot do what it says.
+      expect(
+        torGateFor(
+            status: TorErrored('bootstrap stalled'),
+            hasNativeTor: true,
+            developerModeEnabled: false),
+        TorGate.developerModeOff,
+      );
+      expect(
+        torGateFor(
+            status: TorErrored('bootstrap stalled'),
+            hasNativeTor: true,
+            developerModeEnabled: true),
+        TorGate.errored,
+      );
+    });
+
+    test('a runtime that can come up is working, whatever it is doing', () {
+      for (final s in <TorStatus>[
+        const TorStopped(),
+        const TorStarting(),
+        const TorBootstrapping(40),
+        const TorUp('127.0.0.1', 41337),
+      ]) {
+        expect(
+          torGateFor(
+              status: s, hasNativeTor: true, developerModeEnabled: true),
+          TorGate.working,
+        );
+      }
+    });
+  });
 }

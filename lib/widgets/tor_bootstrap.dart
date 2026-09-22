@@ -17,6 +17,7 @@ import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/tor_bridge_settings.dart';
+import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/tor_bridges.dart' show bridgesMayHelp;
 import 'package:webspace/services/tor_service.dart';
@@ -94,33 +95,71 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
     // accessibility text scale multiplies it. A Column that overflows shows
     // stripes and swallows the Retry button.
     Widget centered(List<Widget> children) => Container(
-          color: scheme.surface,
-          padding: const EdgeInsets.all(Spacing.xl),
-          child: LayoutBuilder(
-            builder: (context, constraints) => SingleChildScrollView(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                child: Center(
-                  child: SizedBox(
-                    width: _columnWidth,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: children,
-                    ),
-                  ),
+      color: scheme.surface,
+      padding: const EdgeInsets.all(Spacing.xl),
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Center(
+              child: SizedBox(
+                width: _columnWidth,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: children,
                 ),
               ),
             ),
           ),
-        );
+        ),
+      ),
+    );
 
-    if (s is TorErrored) {
+    // Where Tor cannot run at all, `stopped` is not a moment in a start-up,
+    // it is the end state (TOR-022): a progress bar for a wait that never
+    // finishes, with no Retry (that button is in the failure branch) and no
+    // hint that the site's own proxy is the thing to change.
+    //
+    // Derived from the status this widget is holding, not from the service's
+    // live one, so the branch and the state it renders cannot disagree.
+    final gate = torGateFor(
+      status: s,
+      hasNativeTor: TorService.instance.hasNativeRuntime,
+      developerModeEnabled: DeveloperModeService.instance.enabled,
+    );
+
+    Widget gated({required bool unsupported}) => centered([
+      Icon(
+        Icons.do_not_disturb_on_outlined,
+        size: _glyphSize,
+        color: scheme.onSurfaceVariant,
+      ),
+      const SizedBox(height: Spacing.lg),
+      Text(
+        unsupported ? loc.torUnavailableTitle : loc.torDeveloperGateTitle,
+        textAlign: TextAlign.center,
+        style: theme.textTheme.titleMedium,
+      ),
+      const SizedBox(height: Spacing.sm),
+      Text(
+        unsupported ? loc.torUnavailableBody : loc.torDeveloperGateBody,
+        textAlign: TextAlign.center,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: scheme.onSurfaceVariant,
+        ),
+      ),
+    ]);
+
+    Widget failure(TorErrored s) {
       final copy = torFailureCopy(loc, s.failure.kind);
       final detail = s.failure.detail;
       return centered([
-        Icon(torFailureIcon(s.failure.kind),
-            size: _glyphSize, color: scheme.error),
+        Icon(
+          torFailureIcon(s.failure.kind),
+          size: _glyphSize,
+          color: scheme.error,
+        ),
         const SizedBox(height: Spacing.lg),
         Text(
           copy.title,
@@ -131,8 +170,9 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
         Text(
           copy.body,
           textAlign: TextAlign.center,
-          style: theme.textTheme.bodySmall
-              ?.copyWith(color: scheme.onSurfaceVariant),
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: scheme.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: Spacing.sm),
         // The raw message, as on the status card and for the same reason:
@@ -169,10 +209,10 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
                 onPressed: _retrying
                     ? null
                     : () => Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => const TorBridgeSettingsScreen(),
-                          ),
+                        MaterialPageRoute<void>(
+                          builder: (_) => const TorBridgeSettingsScreen(),
                         ),
+                      ),
                 icon: const Icon(Icons.alt_route, size: IconSizes.action),
                 label: Text(loc.torBridgesTitle),
               ),
@@ -181,37 +221,61 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
       ]);
     }
 
-    final int? percent = s is TorBootstrapping ? s.percent.clamp(0, 100) : null;
-    final String label = switch (s) {
-      TorBootstrapping(:final percent) => loc.torStatusBootstrapping(percent),
-      TorStarting() => loc.torStatusStarting,
-      _ => loc.torStatusStopped,
-    };
-    final String? phase = s is TorBootstrapping ? s.summary : null;
+    Widget progress() {
+      final int? percent = s is TorBootstrapping
+          ? s.percent.clamp(0, 100)
+          : null;
+      final String label = switch (s) {
+        TorBootstrapping(:final percent) => loc.torStatusBootstrapping(percent),
+        TorStarting() => loc.torStatusStarting,
+        _ => loc.torStatusStopped,
+      };
+      final String? phase = s is TorBootstrapping ? s.summary : null;
 
-    return centered([
-      Icon(Icons.privacy_tip_outlined,
-          size: _glyphSize, color: scheme.primary.withValues(alpha: 0.7)),
-      const SizedBox(height: Spacing.lg),
-      Text(label,
-          textAlign: TextAlign.center, style: theme.textTheme.titleMedium),
-      if (phase != null && phase.isNotEmpty) ...[
-        const SizedBox(height: Spacing.xs),
-        Text(
-          loc.torStatusPhase(phase),
-          textAlign: TextAlign.center,
-          style: theme.textTheme.bodySmall
-              ?.copyWith(color: scheme.onSurfaceVariant),
+      return centered([
+        Icon(
+          Icons.privacy_tip_outlined,
+          size: _glyphSize,
+          color: scheme.primary.withValues(alpha: 0.7),
         ),
-      ],
-      const SizedBox(height: Spacing.lg),
-      LinearProgressIndicator(
-        value: percent == null ? null : percent / 100.0,
-        minHeight: Spacing.xs,
-      ),
-      const SizedBox(height: Spacing.md),
-      const _TorLogTail(),
-    ]);
+        const SizedBox(height: Spacing.lg),
+        Text(
+          label,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.titleMedium,
+        ),
+        if (phase != null && phase.isNotEmpty) ...[
+          const SizedBox(height: Spacing.xs),
+          Text(
+            loc.torStatusPhase(phase),
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+        const SizedBox(height: Spacing.lg),
+        LinearProgressIndicator(
+          value: percent == null ? null : percent / 100.0,
+          minHeight: Spacing.xs,
+        ),
+        const SizedBox(height: Spacing.md),
+        const _TorLogTail(),
+      ]);
+    }
+
+    // Exhaustive over the gate, with no default arm: a new TorGate value
+    // will not compile until this says what it looks like. The status alone
+    // could not carry that obligation -- `stopped` is two different screens
+    // depending on whether anything can start (TOR-022).
+    return switch (gate) {
+      TorGate.unsupported => gated(unsupported: true),
+      TorGate.developerModeOff => gated(unsupported: false),
+      // Sound by construction: torGateFor returns `errored` only for a
+      // TorErrored status, and both read the same `s`.
+      TorGate.errored => failure(s as TorErrored),
+      TorGate.working => progress(),
+    };
   }
 }
 

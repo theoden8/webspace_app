@@ -28,6 +28,8 @@ export 'package:webspace/services/tor_engine.dart'
         TorBootstrapping,
         TorUp,
         TorErrored,
+        TorGate,
+        torGateFor,
         TorFailure,
         TorFailureKind,
         classifyTorFailure,
@@ -331,11 +333,14 @@ class TorService {
   ///
   /// Two conditions, and both are gates rather than one being a detail of
   /// the other. The platform must actually have the runtime (TOR-007), and
-  /// developer mode must be on (DEVTOOLS-010): the bootstrap interstitial
-  /// and status card are not built, so a site set to TOR sits on the
-  /// fail-closed blank page with nothing explaining why. That is a support
-  /// burden and an App Store completeness risk, and neither is something to
-  /// hand an ordinary user before the surface exists.
+  /// developer mode must be on (DEVTOOLS-010).
+  ///
+  /// Developer mode used to be held by the interstitial not existing. It
+  /// exists now, and the gate stays for a different reason: tor runs at most
+  /// once per process (TOR-020, BUG-013 gap 3), so a session that loses it
+  /// cannot get it back until the app restarts — a feature that works until
+  /// it doesn't and then asks for a relaunch. That, plus no tier having ever
+  /// run the plugin on iOS, is what holds it. Not the surface.
   ///
   /// The gate lives here rather than in [MethodChannelTorRuntime] or
   /// [TorEngine], which answer the narrower question "does this build have
@@ -344,6 +349,14 @@ class TorService {
   /// the caller having asked first.
   bool get isAvailable =>
       _engine.isAvailable && DeveloperModeService.instance.enabled;
+
+  /// The capability half of [isAvailable]: whether this build has a Tor to
+  /// talk to at all. Split out because a screen in front of a Tor-bound site
+  /// has to tell "no Tor on this platform" from "Tor is behind developer
+  /// mode" — the same status, `stopped`, with different things for the user
+  /// to do about it (TOR-007, TOR-022).
+  bool get hasNativeRuntime => _engine.isAvailable;
+
 
   TorStatus get status => _engine.status;
   Stream<TorStatus> get statusStream => _engine.statusStream;

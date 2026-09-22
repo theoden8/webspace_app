@@ -38,10 +38,14 @@ final bool _writePngs = Platform.environment['WS_TOR_UI_PNG'] == '1';
 bool _fontsLoaded = false;
 
 class _Runtime implements TorRuntime {
+  _Runtime({this.isAvailable = true});
+
   final _events = StreamController<TorStatus>.broadcast();
 
+  /// Settable so a test can be the platform that ships no Tor at all, which
+  /// is a different screen from one where Tor is merely off (TOR-022).
   @override
-  bool get isAvailable => true;
+  final bool isAvailable;
 
   @override
   Stream<TorStatus> get events => _events.stream;
@@ -436,6 +440,50 @@ void main() {
         },
         size: const Size(430, 430),
       );
+    });
+  });
+
+  // TOR-022. `stopped` is a moment inside a start-up where Tor can run and
+  // the end of the road where it cannot, and the interstitial used to render
+  // both the same way: "Not running" over an indeterminate bar, with no
+  // Retry (that lives in the errored branch) and nothing naming the one
+  // thing that would fix it. A site imported from an Apple device sat there
+  // forever.
+  group('the interstitial where Tor cannot come up', () {
+    testWidgets('developer mode off says so, with no progress bar', (t) async {
+      installEngine();
+      DeveloperModeService.instance.debugSet(false);
+      await t.pumpWidget(
+          host(const TorBootstrapPlaceholder(), const Size(430, 430)));
+      await settle(t);
+
+      expect(find.text('Tor is turned off'), findsOneWidget);
+      expect(find.textContaining('Turn Developer mode on'), findsOneWidget);
+      expect(find.text('Not running'), findsNothing,
+          reason: 'the runtime status is true and useless here: what the '
+              'user needs to know is that nothing will change it');
+      expect(find.byType(LinearProgressIndicator), findsNothing,
+          reason: 'a bar for a wait that never ends');
+    });
+
+    testWidgets('no runtime on this platform points at the site proxy',
+        (t) async {
+      TorService.overrideEngine(
+        TorEngine(runtime: _Runtime(isAvailable: false), sessionSecret: 's'),
+      );
+      // On purpose: developer mode is ON, so the only thing missing is the
+      // platform. The two states must not be confusable.
+      DeveloperModeService.instance.debugSet(true);
+      await t.pumpWidget(
+          host(const TorBootstrapPlaceholder(), const Size(430, 430)));
+      await settle(t);
+
+      expect(find.text('Tor is not available on this device'), findsOneWidget);
+      expect(find.textContaining('iOS and macOS only'), findsOneWidget);
+      expect(find.text('Tor is turned off'), findsNothing,
+          reason: 'developer mode is on here; naming it would send the user '
+              'to a switch that is already where it needs to be');
+      expect(find.byType(LinearProgressIndicator), findsNothing);
     });
   });
 }
