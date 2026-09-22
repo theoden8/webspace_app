@@ -7404,7 +7404,11 @@ class _WebSpacePageState extends State<WebSpacePage>
       final model = _webViewModels[index];
       final tab = SiteTab(url: model.initUrl);
       model.tabs = [...model.tabs, tab];
-      if (index != _currentIndex) {
+      // A site with a live webview has to go through the switch even when it
+      // is offscreen: moving `activeTabId` on its own would leave that webview
+      // showing the tab it was on while the model says otherwise, and the
+      // outgoing tab's back stack would never be captured.
+      if (index != _currentIndex && !_loadedIndices.contains(index)) {
         model.activeTabId = tab.id;
         await _setCurrentIndex(index);
         if (!mounted) return;
@@ -7413,6 +7417,8 @@ class _WebSpacePageState extends State<WebSpacePage>
         return;
       }
       await _switchActiveTab(model, tab.id);
+      if (!mounted) return;
+      if (index != _currentIndex) await _setCurrentIndex(index);
     } finally {
       _isTabHandling = false;
     }
@@ -7469,17 +7475,13 @@ class _WebSpacePageState extends State<WebSpacePage>
     );
     if (result.tabs.isEmpty) {
       // A site always has a tab to show. Closing the last one lands it back on
-      // its home page rather than leaving the site blank.
+      // its home page rather than leaving the site blank. Through the same
+      // switch as every other re-bind, so a site holding a webview for the tab
+      // that was just closed cannot be left rendering it; there is nothing to
+      // capture, since that tab is gone.
       final home = SiteTab.primary(url: model.initUrl);
       model.tabs = [home];
-      model.activeTabId = home.id;
-      if (index == _currentIndex) {
-        _evictCacheIfOnline(model.siteId);
-        model.disposeWebView();
-      }
-      if (!mounted) return;
-      setState(() {});
-      await _saveWebViewModels();
+      await _switchActiveTab(model, home.id, captureOutgoing: false);
       return;
     }
     final next = result.nextActiveId;
