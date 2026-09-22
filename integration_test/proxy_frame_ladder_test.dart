@@ -1,55 +1,16 @@
-// How far past the first frame does a per-site proxy survive? (BUG-014, LEAK-003)
+// Does a per-site proxy survive past the frame that mounted its store?
 //
-// Attempts 90, 91, 92, 94 and 96 all say the same thing: a navigation issued
-// in the app process's first frame is proxied and one issued later is not,
-// whatever store or WebView it belongs to. `proxy_timing_test.dart` brackets
-// that from above -- a store built after the baseline has settled (seconds)
-// and one built after a further six second idle both go direct. Nothing has
-// ever measured the other side of the boundary.
+// Nine stores, each with its own SOCKS5 upstream and its own destination,
+// mounted at measured distances from frame 1, none waiting for an earlier one
+// to settle. BUG-014 attempt 102 reads all nine `own`: there is no frame
+// boundary. The arm stays as the regression test for that.
 //
-// That gap decides which kind of bug this is, and the two answers want
-// different fixes:
-//
-//  * If a store mounted one frame later, or fifty milliseconds later, still
-//    proxies and the boundary only bites at hundreds of milliseconds, this
-//    is a RACE -- most plausibly against the network process launch that
-//    `WebsiteDataStore::setProxyConfigData` triggers inside the window where
-//    it has nulled `m_proxyConfigData`. A race is fixable from the fork:
-//    wait for the process, then assign.
-//  * If every rung past frame 1 goes direct, including the one sixteen
-//    milliseconds later, no amount of waiting helps and what is left is
-//    instrumentation inside WebKit.
-//
-// So every rung mounts its own store, with its own upstream fixture and its
-// own origin, at a measured distance from frame 1, and NOTHING waits for an
-// earlier rung to settle first -- waiting is what would collapse the ladder
-// back onto `proxy_timing`'s coarse end. The control is that SOME rung
-// proxied: a process that could not proxy at all produces the same nulls as
-// a platform that drops the proxy, and only a rung reaching its own upstream
-// separates them. Which rung that is, is the measurement.
-//
-// Read per request, off the peer port the origin saw against the ports each
-// fixture dialled upstream from, so a request served over a kept-alive
-// connection still counts for the proxy that carries it (attempt 87).
-//
-// Gap -2 applies here as everywhere: without a slot this file measures a
-// dead process and says so through rung 0.
-//
-// ONE CAVEAT ON READING THE RUNGS. "Frame 1" here is the first frame of the
-// TEST, not of the process. The app has already run its startup by then --
-// the tier's own logs put `main() pre-runApp init` at roughly 800ms and the
-// first setState a few hundred milliseconds after that -- so rung 0 is
-// already a second or two into the process's life. If the boundary were a
-// race against a network process launched during that startup, every rung
-// here would sit on the far side of it and they would all read DIRECT,
-// including rung 0. Rung 0 reading `own` is therefore evidence that the
-// boundary is NOT simply "the first milliseconds of the process", and the
-// rungs measure distance from the first WebView, not from launch.
-//
-// A ladder that starts before app startup would need a different harness
-// than integration_test; the absolute UTC stamps on every line here are
-// what allow these rungs to be aligned against the startup log and the
-// network process's own os_log after the fact.
+// Destinations are `syntheticOrigin()` addresses. An address this machine owns
+// is routed over `lo0` and Apple never proxies a loopback-routed destination,
+// so an origin bound here reads DIRECT whether or not the proxy was bound --
+// the defect that voided BUG-014's first 101 attempts. Nothing routes to a
+// synthetic destination, so the fixture answers it and an arrival there is the
+// proof.
 
 import 'dart:io';
 
@@ -60,7 +21,6 @@ import 'package:integration_test/integration_test.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/webview.dart';
-import 'fixture_server.dart';
 import 'socks5_fixture.dart';
 
 /// One rung: how long after frame 1 its store is mounted and navigated.
@@ -113,37 +73,20 @@ void main() {
     print('[proxy-ladder] ${DateTime.now().toUtc().toIso8601String()} $m');
   }
 
-  final origins = <HttpServer>[];
-  final ports = <int>[];
   final socks = <Socks5Fixture>[];
-  final requests = <({String origin, int port})>[];
   final verdict = <String, String>{};
-  InternetAddress? routable;
-  var originHost = '127.0.0.1';
   var containers = false;
 
   setUpAll(() async {
     if (!applies) return;
     await PlatformInfo.initialize();
     containers = await ContainerNative.instance.isSupported();
-    routable = await nonLoopbackIPv4();
-    originHost = routable?.address ?? '127.0.0.1';
     for (var i = 0; i < rungs.length; i++) {
-      final origin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
-      origins.add(origin);
-      ports.add(origin.port);
-      listenFixture(origin, (req) async {
-        requests.add((
-          origin: 'o$i',
-          port: req.connectionInfo?.remotePort ?? -1,
-        ));
-        final res = req.response..headers.contentType = ContentType.html;
-        res.write('<!doctype html><html><body><p>o$i</p></body></html>');
-        await res.close();
-      });
       socks.add(await Socks5Fixture.bind());
     }
-    log('run=$runLabel host=$originHost origins=${ports.join(",")} '
+    log('run=$runLabel origins=${[
+      for (var i = 0; i < rungs.length; i++) syntheticOrigin(i)
+    ].join(",")} '
         'socks=${socks.map((s) => s.port).join(",")} '
         'proxySupported=${PlatformInfo.isProxySupported} containers=$containers');
   });
@@ -152,47 +95,34 @@ void main() {
     if (!applies) return;
     for (var i = 0; i < socks.length; i++) {
       log('socks$i(${rungs[i].name}) connects=${socks[i].targets} '
-          'relayed=${socks[i].relayedPorts.toList()..sort()}');
+          'served=${socks[i].servedSynthetic}');
     }
-    log('origin arrivals=${requests.map((r) => "${r.origin}@${r.port}").toList()}');
     log('run=$runLabel verdict: containers=$containers '
         '${rungs.map((r) => "${r.name}=${verdict[r.name] ?? "unrun"}").join(" ")}');
     for (final s in socks) {
       await s.close();
     }
-    for (final o in origins) {
-      await o.close(force: true);
-    }
   });
 
-  String urlFor(int i) => 'http://$originHost:${ports[i]}/o$i';
+  String urlFor(int i) => 'http://${syntheticOrigin(i)}/o$i';
 
-  bool settled(int i) {
-    final target = '$originHost:${ports[i]}';
-    return socks.any((s) => s.targets.contains(target)) ||
-        requests.any((r) => r.origin == 'o$i');
-  }
+  bool settled(int i) => socks.any((s) => s.targets.any(
+      (t) => t.startsWith('${syntheticOrigin(i)}:')));
 
-  int? relayOf(int remotePort) {
-    for (var s = 0; s < socks.length; s++) {
-      if (socks[s].relayedPorts.contains(remotePort)) return s;
-    }
-    return null;
-  }
-
-  /// Did rung [i] reach its origin through its own fixture? Read off the last
-  /// request that origin saw and attributed by peer port, so a crossed
-  /// circuit is named rather than counted as a pass.
+  /// Did rung [i] reach its destination through its own fixture?
+  ///
+  /// [syntheticOrigin] has no route off this machine, so a request that
+  /// arrives at ANY fixture arrived through a proxy; which fixture saw it
+  /// names the circuit, and no fixture seeing it means the load went direct
+  /// and could not have succeeded.
   String classify(int i) {
-    final hits = requests.where((r) => r.origin == 'o$i').toList();
-    if (hits.isEmpty) {
-      return socks.any((s) => s.targets.contains('$originHost:${ports[i]}'))
-          ? 'asked-not-delivered'
-          : 'no-load';
+    final want = '${syntheticOrigin(i)}:';
+    for (var s = 0; s < socks.length; s++) {
+      if (socks[s].targets.any((t) => t.startsWith(want))) {
+        return s == i ? 'own' : 'CROSSED(socks$s)';
+      }
     }
-    final via = relayOf(hits.last.port);
-    if (via == null) return 'DIRECT';
-    return via == i ? 'own' : 'CROSSED(socks$via)';
+    return 'DIRECT';
   }
 
   Widget pane(int i) => SizedBox(
@@ -245,9 +175,6 @@ void main() {
       markTestSkipped('the per-WebView proxy is an Apple path');
       return;
     }
-    expect(routable, isNotNull,
-        reason: 'no non-loopback IPv4 here, and Apple never proxies a '
-            'loopback destination, so no rung could be distinguished');
     expect(PlatformInfo.isProxySupported, isTrue,
         reason: 'proxy support reads unavailable past the floor; '
             'PlatformInfo.initialize() was most likely not awaited');

@@ -1,26 +1,12 @@
-// The same simultaneity question as `proxy_simultaneous_test.dart`, asked
-// of an HTTP CONNECT proxy instead of a SOCKS5 one.
+// Three containers over three distinct HTTP CONNECT proxies, plain-http
+// destinations, plus a later-frame SOCKS control in the same process.
 //
-// This is not a variation for its own sake. WebKit installs a data store's
-// proxy by one of two routes and the caller does not choose:
-// `NetworkSessionCocoa::setProxyConfigData` asks
-// `nw_proxy_config_stack_requires_http_protocols` about each configuration.
-// If any answers yes it rebuilds every NSURLSession with the proxy on that
-// session's own `NSURLSessionConfiguration`
-// (`SessionWrapper::recreateSessionWithUpdatedProxyConfigurations`) -- per
-// session, nothing shared. If none does it instead patches the live
-// `nw_context`, clearing that context's proxies first, and it collects
-// those contexts into an `NSMutableSet` across session wrappers, which is
-// only worth doing if two wrappers can hand back the same one.
-//
-// A SOCKS5 proxy takes the patching route. Every reading in BUG-014 was
-// taken through a SOCKS5 proxy. If a shared context is what makes the
-// second store's proxy replace the first, an HTTP CONNECT proxy should not
-// show it, because it takes the other route -- and that is not an argument
-// anyone can settle by reading more source, so it is measured here.
-//
-// Three panes, three separate proxies, all in the process's first frame,
-// which is the one arrangement where a single proxy is known to bind.
+// Destinations are `syntheticOrigin()` addresses. An address this machine owns
+// is routed over `lo0` and Apple never proxies a loopback-routed destination,
+// so an origin bound here reads DIRECT whether or not the proxy was bound --
+// the defect that voided BUG-014's first 101 attempts. Nothing routes to a
+// synthetic destination, so the fixture answers it and an arrival there is the
+// proof.
 
 import 'dart:io';
 
@@ -31,7 +17,6 @@ import 'package:integration_test/integration_test.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/webview.dart';
-import 'fixture_server.dart';
 import 'http_connect_fixture.dart';
 import 'socks5_fixture.dart';
 
@@ -48,11 +33,11 @@ void main() {
   const paneCount = 3;
 
   final proxies = <HttpConnectFixture>[];
-  final origins = <HttpServer>[];
-  final ports = <int>[];
-  final requests = <String>[];
-  InternetAddress? routable;
-  var originHost = '127.0.0.1';
+  // Destinations, not origins on this machine: macOS routes an address the
+  // host owns over `lo0` and Apple never proxies a loopback-routed
+  // destination, so an origin bound here reads DIRECT whether or not the
+  // proxy was bound (BUG-014 attempt 102). Nothing routes to a
+  // `syntheticOrigin`, so the fixture answers it and an arrival IS the proof.
   var containers = false;
 
   final trace =
@@ -70,22 +55,11 @@ void main() {
     if (applies) {
       containers = await ContainerNative.instance.isSupported();
     }
-    routable = await nonLoopbackIPv4();
-    originHost = routable?.address ?? '127.0.0.1';
 
     for (var i = 0; i < paneCount; i++) {
-      final origin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
-      origins.add(origin);
-      ports.add(origin.port);
-      listenFixture(origin, (req) async {
-        requests.add('h$i:${req.uri.path}');
-        final res = req.response..headers.contentType = ContentType.html;
-        res.write('<!doctype html><html><body><p>h$i</p></body></html>');
-        await res.close();
-      });
       proxies.add(await HttpConnectFixture.bind());
     }
-    log('origins ${ports.join(",")} on $originHost, '
+    log('destinations ${List.generate(paneCount, syntheticOrigin).join(",")}, '
         'http proxies ${proxies.map((p) => p.port).join(",")}, '
         'proxySupported=${PlatformInfo.isProxySupported} '
         'containers=$containers');
@@ -107,9 +81,6 @@ void main() {
     for (final p in proxies) {
       await p.close();
     }
-    for (final o in origins) {
-      await o.close(force: true);
-    }
   });
 
   bool usable() {
@@ -117,13 +88,6 @@ void main() {
       markTestSkipped('per-WebView proxy binding is an Apple path');
       return false;
     }
-    expect(
-      routable,
-      isNotNull,
-      reason: 'no non-loopback IPv4 on this machine, and Apple never sends a '
-          'loopback destination through a proxy, so nothing here could '
-          'distinguish a bound proxy from an unbound one',
-    );
     // Not a skip. Every Apple tier this runs on is past the
     // proxyConfigurations floor, so a false here means PlatformInfo was
     // never initialized rather than an old OS -- and skipping on it is
@@ -162,7 +126,7 @@ void main() {
 
   int? proxyThatSaw(String target) {
     for (var f = 0; f < proxies.length; f++) {
-      if (proxies[f].targets.contains(target)) return f;
+      if (proxies[f].targets.any((t) => t.startsWith('$target:'))) return f;
     }
     return null;
   }
@@ -181,7 +145,7 @@ void main() {
               child: inapp.InAppWebView(
                 key: ValueKey('httpc$i'),
                 initialUrlRequest: inapp.URLRequest(
-                  url: inapp.WebUri('http://$originHost:${ports[i]}/h$i'),
+                  url: inapp.WebUri('http://${syntheticOrigin(i)}/h$i'),
                 ),
                 initialSettings: inapp.InAppWebViewSettings(
                   containerId: 'ws-proxy-httpc-$i',
@@ -203,8 +167,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
 
     bool settled(int i) =>
-        proxyThatSaw('$originHost:${ports[i]}') != null ||
-        requests.contains('h$i:/h$i');
+        proxyThatSaw(syntheticOrigin(i)) != null;
 
     await waitReal(
       tester,
@@ -214,8 +177,10 @@ void main() {
 
     final results = <String>[];
     for (var i = 0; i < paneCount; i++) {
-      final saw = proxyThatSaw('$originHost:${ports[i]}');
-      results.add('h$i->${saw == i ? 'own(proxy$saw)' : saw != null ? 'CROSSED(proxy$saw)' : requests.contains('h$i:/h$i') ? 'DIRECT' : 'no load'}');
+      final saw = proxyThatSaw(syntheticOrigin(i));
+      // Nothing routes to a synthetic destination, so a pane that reached no
+      // proxy went direct and could not have loaded.
+      results.add('h$i->${saw == i ? 'own(proxy$saw)' : saw != null ? 'CROSSED(proxy$saw)' : 'DIRECT-or-failed'}');
     }
     verdict.add('http-connect=[${results.join(" ")}]');
 
@@ -241,13 +206,6 @@ void main() {
     // proxy at all outside its first frame, so a null result above can be
     // told apart from a process that had stopped proxying anything.
     final socks = await Socks5Fixture.bind();
-    final origin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
-    listenFixture(origin, (req) async {
-      requests.add('ctl:${req.uri.path}');
-      final res = req.response..headers.contentType = ContentType.html;
-      res.write('<!doctype html><html><body><p>ctl</p></body></html>');
-      await res.close();
-    });
 
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(
@@ -257,7 +215,7 @@ void main() {
           child: inapp.InAppWebView(
             key: const ValueKey('httpc-control'),
             initialUrlRequest: inapp.URLRequest(
-              url: inapp.WebUri('http://$originHost:${origin.port}/ctl'),
+              url: inapp.WebUri('http://${syntheticOrigin(paneCount)}/ctl'),
             ),
             initialSettings: inapp.InAppWebViewSettings(
               containerId: 'ws-proxy-httpc-control',
@@ -275,15 +233,15 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pump(const Duration(milliseconds: 500));
 
-    final target = '$originHost:${origin.port}';
+    final target = '${syntheticOrigin(paneCount)}:';
     await waitReal(
       tester,
-      () => socks.targets.contains(target) || requests.contains('ctl:/ctl'),
+      () => socks.targets.any((t) => t.startsWith(target)),
       label: 'later-frame SOCKS control settled',
     );
-    verdict.add('later-socks-control=${socks.targets.contains(target) ? "proxied" : requests.contains('ctl:/ctl') ? "DIRECT" : "no load"}');
+    verdict.add('later-socks-control='
+        '${socks.targets.any((t) => t.startsWith(target)) ? "proxied" : "DIRECT-or-failed"}');
 
     await socks.close();
-    await origin.close(force: true);
   });
 }

@@ -8,6 +8,7 @@
 // test has seen the request arrive *through* the proxy.
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -80,6 +81,32 @@ class Socks5Fixture {
   /// individually, reuse included.
   final relayedPorts = <int>{};
 
+  /// Every synthetic destination this server answered itself, in order.
+  ///
+  /// Distinct from [targets], which also holds destinations that were
+  /// relayed: a synthetic hit is proof the proxy carried the request, with
+  /// no origin-side attribution needed.
+  final servedSynthetic = <String>[];
+
+  /// Every `<host><path>` a synthetic destination was asked for, in order.
+  final syntheticPaths = <String>[];
+
+  /// Body to answer a synthetic destination with, by destination host and
+  /// request path. Null falls back to a plain marker page.
+  ///
+  /// An arm that needs the page to do something -- navigate itself away, say
+  /// -- supplies it here, because a synthetic destination has no origin
+  /// server behind it to serve from.
+  String? Function(String host, String path)? syntheticBody;
+
+  /// Certificate to answer a synthetic destination's TLS handshake with.
+  ///
+  /// Nothing routes to a synthetic destination, so for an `https://` arm the
+  /// fixture is the only thing that can terminate the connection: it
+  /// completes the SOCKS reply, secures its own client socket with this
+  /// context, and serves the request inside. Null leaves it plaintext.
+  SecurityContext? syntheticTls;
+
   int get port => _server.port;
 
   static Future<Socks5Fixture> bind() async {
@@ -147,6 +174,60 @@ class Socks5Fixture {
       final destPort = (rawPort[0] << 8) | rawPort[1];
       targets.add('$host:$destPort');
 
+      // A destination inside the reserved block is answered here rather than
+      // relayed. See [syntheticOrigin]: nothing routes to it, so a request
+      // that arrives proves the proxy carried it, and a bypassed request
+      // cannot reach it by any other path.
+      if (isSyntheticOrigin(host)) {
+        servedSynthetic.add('$host:$destPort');
+        client.add(const [5, 0, 0, 1, 0, 0, 0, 0, 0, 0]);
+        await client.flush();
+
+        /// Reads one request line and answers it, over whichever socket the
+        /// connection ended up on.
+        Future<void> answer(Socket sink, Future<List<int>?> Function() read) async {
+          final head = <int>[];
+          while (!String.fromCharCodes(head).contains('\r\n')) {
+            final next = await read();
+            if (next == null) break;
+            head.addAll(next);
+          }
+          final path = RegExp(r'^\S+ (\S+)')
+                  .firstMatch(String.fromCharCodes(head))
+                  ?.group(1) ??
+              '/';
+          syntheticPaths.add('$host$path');
+          final body = syntheticBody?.call(host, path) ??
+              '<!doctype html><html><body><p>$host</p></body></html>';
+          sink.add(const AsciiEncoder().convert('HTTP/1.1 200 OK\r\n'
+              'Content-Type: text/html\r\n'
+              'Connection: close\r\n'
+              'Content-Length: '));
+          sink.add(const AsciiEncoder().convert('${body.length}\r\n\r\n$body'));
+          await sink.flush();
+        }
+
+        final tls = syntheticTls;
+        if (tls != null) {
+          // The ClientHello only follows the SOCKS reply, so it normally
+          // lands after this cancel; `drain` covers the case where it beat
+          // us, since those bytes are already off the socket.
+          await incoming.cancel();
+          final secure = await SecureSocket.secureServer(client, tls,
+              bufferedData: buffer.drain());
+          final inner = _ByteBuffer();
+          final reading = secure.listen(inner.add,
+              onError: (Object _) => inner.close(), onDone: inner.close);
+          await answer(secure, () => inner.read(1));
+          await reading.cancel();
+          await secure.close();
+          return;
+        }
+        await answer(client, () => buffer.read(1));
+        await client.close();
+        return;
+      }
+
       upstream =
           await Socket.connect(host, destPort, timeout: const Duration(seconds: 5));
       _upstreams.add(upstream);
@@ -186,23 +267,23 @@ class Socks5Fixture {
   }
 }
 
-/// An IPv4 address of this machine that is not loopback.
+/// A destination that is reachable only through a proxy fixture.
 ///
-/// Apple's networking stack never sends a loopback destination through a
-/// proxy: `localhost`, `127.0.0.1` and `::1` are always direct, and
-/// `ProxyConfiguration` has no switch that changes it. A fixture origin on
-/// `127.0.0.1` therefore loads directly whether or not the per-site proxy
-/// was bound, which is exactly the defect these tests exist to catch.
-Future<InternetAddress?> nonLoopbackIPv4() async {
-  final interfaces = await NetworkInterface.list(
-    includeLoopback: false,
-    includeLinkLocal: false,
-    type: InternetAddressType.IPv4,
-  );
-  for (final interface in interfaces) {
-    for (final address in interface.addresses) {
-      if (!address.isLoopback) return address;
-    }
-  }
-  return null;
-}
+/// Apple never sends a *loopback-routed* destination through a proxy, and
+/// "loopback-routed" is broader than `127.0.0.1`: macOS routes traffic aimed
+/// at any address the host itself owns over `lo0`. The machine's own LAN
+/// address is therefore just as unproxyable, which is what every proxy arm
+/// used to point its origins at and what voided BUG-014's first 101 attempts.
+/// Measured in one process, interleaved, with only the destination varying:
+///
+///     rung0[host-own-IP]=DIRECT  rung1[other-host-same-/24]=own
+///     rung2[off-subnet]=own      rung3[host-own-IP]=DIRECT
+///
+/// Nothing routes to this block, so [Socks5Fixture] and [HttpConnectFixture]
+/// answer it themselves instead of relaying: a request arriving at a fixture
+/// IS the proof the proxy carried it, with no origin-side port attribution
+/// and no second machine, and a bypassed request cannot arrive by accident.
+String syntheticOrigin(int index) => '10.99.99.${index + 1}';
+
+/// Whether [host] is one of [syntheticOrigin]'s destinations.
+bool isSyntheticOrigin(String host) => host.startsWith('10.99.99.');

@@ -1,44 +1,13 @@
-// When does a per-site proxy stop applying on Apple? (BUG-014, LEAK-003)
+// A per-site proxy across a store's life: a second navigation on the same
+// store, the CONNECT route beside the SOCKS one in the same process, a store
+// built in a later frame, and one built after an idle period.
 //
-// Attempt 80 settled that several per-site proxies work at once: four stores
-// reached four distinct upstreams in one frame, across both deliveries and
-// both URL schemes. What it could not settle is timing. Its `prebound` arm
-// sat at about:blank in frame 1 and went direct when navigated later, but a
-// store that never proxied anything cannot distinguish "lost it" from "never
-// had it".
-//
-// That distinction is the whole product question:
-//
-//  * If a store that HAS proxied keeps proxying, the leak is per-store and a
-//    site's own browsing is safe once its first load binds. Only a newly
-//    activated site is exposed.
-//  * If it stops after one load, every link click on a proxied site leaves
-//    over the device IP, and the feature is unusable rather than partial.
-//
-// So pane A is proxied in frame 1 -- that is both the positive control and
-// the baseline -- and then the arms vary only WHEN and HOW the next
-// navigation is issued. Every verdict is read off the fixture's CONNECT log,
-// never off the origin, because the fixture relays and a proxied load reaches
-// the origin too.
-//
-// Every verdict is attributed PER REQUEST, from the peer port the origin
-// saw against the ports its fixture dialled upstream from. The earlier
-// version compared CONNECT counts, which cannot see a request served over a
-// kept-alive connection: once the second navigation was pointed back at the
-// very origin that had just been proxied (to hold session-wrapper routing
-// fixed), "no new CONNECT" became exactly what a WORKING proxy produces,
-// and the arm could no longer tell that from a bypass.
-//
-// Gap -2: this file MUST run first in the macOS tier. Only the tier's first
-// app process can proxy; anywhere else it measures a dead process and says
-// so via the control.
-//
-// Every rule pins `allowFailover: false`. WebKit applies a proxy to the
-// NSURLSessionConfiguration once per session and keeps it for every load
-// (NetworkSessionCocoa.mm), so a load that reaches its origin unproxied is
-// either a config that was never installed or a failover. Pinning the field
-// separates them: with failover off, the second case becomes a failed load
-// rather than a silent direct one.
+// Destinations are `syntheticOrigin()` addresses. An address this machine owns
+// is routed over `lo0` and Apple never proxies a loopback-routed destination,
+// so an origin bound here reads DIRECT whether or not the proxy was bound --
+// the defect that voided BUG-014's first 101 attempts. Nothing routes to a
+// synthetic destination, so the fixture answers it and an arrival there is the
+// proof.
 
 import 'dart:io';
 
@@ -51,7 +20,6 @@ import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/local_proxy_relay.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
-import 'fixture_server.dart';
 import 'socks5_fixture.dart';
 
 void main() {
@@ -94,16 +62,16 @@ void main() {
   // 2 a brand-new store in a later frame
   // 3 a brand-new store after an idle period
   const originCount = 5;
-  final origins = <HttpServer>[];
-  final ports = <int>[];
+  // Destinations, not origins on this machine: macOS routes an address the
+  // host owns over `lo0` and Apple never proxies a loopback-routed
+  // destination, so an origin bound here reads DIRECT whether or not the
+  // proxy was bound (BUG-014 attempt 102). Nothing routes to a
+  // `syntheticOrigin`, so the fixture answers it and an arrival IS the proof.
   final socks = <Socks5Fixture>[];
   late LocalProxyRelay relay;
   const relayUser = 'ws-timing-c';
   const relayToken = 'timing-c-token';
   inapp.InAppWebViewController? paneC;
-  final requests = <({String origin, int port})>[];
-  InternetAddress? routable;
-  var originHost = '127.0.0.1';
   var containers = false;
   inapp.InAppWebViewController? paneA;
   final verdict = <String, String>{};
@@ -112,21 +80,7 @@ void main() {
     if (!applies) return;
     await PlatformInfo.initialize();
     containers = await ContainerNative.instance.isSupported();
-    routable = await nonLoopbackIPv4();
-    originHost = routable?.address ?? '127.0.0.1';
     for (var i = 0; i < originCount; i++) {
-      final origin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
-      origins.add(origin);
-      ports.add(origin.port);
-      listenFixture(origin, (req) async {
-        requests.add((
-          origin: 'o$i',
-          port: req.connectionInfo?.remotePort ?? -1,
-        ));
-        final res = req.response..headers.contentType = ContentType.html;
-        res.write('<!doctype html><html><body><p>o$i</p></body></html>');
-        await res.close();
-      });
       socks.add(await Socks5Fixture.bind());
     }
     // Pane C's upstream is socks[4]; the relay in front of it is what makes
@@ -145,7 +99,9 @@ void main() {
         ),
       ),
     });
-    log('run=$runLabel host=$originHost origins=${ports.join(",")} '
+    log('run=$runLabel destinations=${[
+      for (var i = 0; i < originCount; i++) syntheticOrigin(i)
+    ].join(",")} '
         'socks=${socks.map((s) => s.port).join(",")} '
         'proxySupported=${PlatformInfo.isProxySupported} containers=$containers');
   });
@@ -154,55 +110,50 @@ void main() {
     if (!applies) return;
     for (var i = 0; i < socks.length; i++) {
       log('socks$i connects=${socks[i].targets} '
-          'relayed=${socks[i].relayedPorts.toList()..sort()}');
+          'served=${socks[i].servedSynthetic}');
     }
-    log('origin arrivals=${requests.map((r) => "${r.origin}@${r.port}").toList()}');
     log('run=$runLabel verdict: containers=$containers '
         '${verdict.entries.map((e) => "${e.key}=${e.value}").join(" ")}');
     await relay.stop();
     for (final s in socks) {
       await s.close();
     }
-    for (final o in origins) {
-      await o.close(force: true);
-    }
   });
 
-  String urlFor(int i) => 'http://$originHost:${ports[i]}/o$i';
+  String urlFor(int i) => 'http://${syntheticOrigin(i)}/o$i';
 
-  /// Which fixture, if any, relayed the request the origin actually saw.
-  /// Null when the origin was reached from a peer no fixture dialled from,
-  /// i.e. the app went straight there.
-  int? relayOf(int remotePort) {
-    for (var s = 0; s < socks.length; s++) {
-      if (socks[s].relayedPorts.contains(remotePort)) return s;
+  /// Which fixture last carried destination [i], or -1 if none did.
+  int lastCircuit(int i) {
+    for (var s = socks.length - 1; s >= 0; s--) {
+      if (socks[s].targets.any((t) => t.startsWith('${syntheticOrigin(i)}:'))) {
+        return s;
+      }
     }
-    return null;
+    return -1;
   }
 
-  /// Did origin [i] get its request through the fixture that is supposed to
-  /// carry it? Read off the last request the origin saw, attributed by peer
-  /// port, so a crossed circuit is named and a reused connection still counts
-  /// as the proxied one it belongs to.
+  /// How many times destination [i] has arrived at any fixture.
+  int arrivalsFor(int i) => socks
+      .expand((s) => s.syntheticPaths)
+      .where((t) => t.startsWith(syntheticOrigin(i)))
+      .length;
+
+  /// Did destination [i] arrive through the fixture that is supposed to carry
+  /// it? Nothing routes to a synthetic destination, so an arrival at ANY
+  /// fixture went through a proxy, the fixture that saw it names the circuit,
+  /// and no arrival means the load went direct and could not have succeeded.
   String classify(int i, int expectedSocks) {
-    final hits = requests.where((r) => r.origin == 'o$i').toList();
-    if (hits.isEmpty) {
-      // The proxy was asked and the relay never delivered: still evidence the
-      // proxy was in force, and distinct from a load that never happened.
-      return socks.any((s) => s.targets.contains('$originHost:${ports[i]}'))
-          ? 'asked-not-delivered'
-          : 'no-load';
+    final want = '${syntheticOrigin(i)}:';
+    for (var s = 0; s < socks.length; s++) {
+      if (socks[s].targets.any((t) => t.startsWith(want))) {
+        return s == expectedSocks ? 'own' : 'CROSSED(socks$s)';
+      }
     }
-    final relay = relayOf(hits.last.port);
-    if (relay == null) return 'DIRECT';
-    return relay == expectedSocks ? 'own' : 'CROSSED(socks$relay)';
+    return 'DIRECT';
   }
 
-  bool settled(int i) {
-    final target = '$originHost:${ports[i]}';
-    return socks.any((s) => s.targets.contains(target)) ||
-        requests.any((r) => r.origin == 'o$i');
-  }
+  bool settled(int i) =>
+      socks.any((s) => s.targets.any((t) => t.startsWith('${syntheticOrigin(i)}:')));
 
   Future<void> waitReal(WidgetTester tester, bool Function() done,
       {required String label,
@@ -289,9 +240,6 @@ void main() {
       markTestSkipped('the per-WebView proxy is an Apple path');
       return false;
     }
-    expect(routable, isNotNull,
-        reason: 'no non-loopback IPv4 here, and Apple never proxies a loopback '
-            'destination, so nothing could be distinguished');
     expect(PlatformInfo.isProxySupported, isTrue,
         reason: 'proxy support reads unavailable past the floor; '
             'PlatformInfo.initialize() was most likely not awaited');
@@ -345,30 +293,29 @@ void main() {
       // CONNECT: a navigation served over the connection the first load
       // opened is still a proxied one, and counting CONNECTs would have
       // called it a bypass.
-      final hitsBefore = requests.where((r) => r.origin == 'o0').length;
+      final hitsBefore = arrivalsFor(0);
       await tester.runAsync(() async {
         await controller!.loadUrl(
             urlRequest: inapp.URLRequest(url: inapp.WebUri(urlFor(0))));
       });
       await waitReal(
           tester,
-          () => requests.where((r) => r.origin == 'o0').length > hitsBefore,
+          () => arrivalsFor(0) > hitsBefore,
           label: 'pane A second navigation (identical origin)');
-      final hitsAfter = requests.where((r) => r.origin == 'o0').toList();
-      if (hitsAfter.length <= hitsBefore) {
-        // With allowFailover pinned false, a proxy that is no longer in force
-        // fails the load rather than quietly going direct, so this is the
-        // shape a dropped configuration takes here.
-        verdict['same-store-2nd-nav'] = 'no-arrival';
+      final hitsAfter = arrivalsFor(0);
+      if (hitsAfter <= hitsBefore) {
+        // Nothing routes to a synthetic destination, so a second navigation
+        // that did not arrive at a fixture went direct and failed. With
+        // allowFailover pinned false that is also what a dropped
+        // configuration looks like, and the two are the same reading here.
+        verdict['same-store-2nd-nav'] = 'DIRECT-or-failed';
       } else {
-        final relay = relayOf(hitsAfter.last.port);
-        verdict['same-store-2nd-nav'] = relay == null
-            ? 'DIRECT'
-            : (relay == 0 ? 'own' : 'CROSSED(socks$relay)');
+        verdict['same-store-2nd-nav'] = lastCircuit(0) == 0
+            ? 'own'
+            : 'CROSSED(socks${lastCircuit(0)})';
       }
-      log('pane A origin-0 arrivals before=$hitsBefore '
-          'after=${hitsAfter.length} peers=${hitsAfter.map((r) => r.port).toList()} '
-          'socks0 relayed=${socks[0].relayedPorts.toList()..sort()}');
+      log('pane A destination-0 arrivals before=$hitsBefore after=$hitsAfter '
+          'socks0 served=${socks[0].servedSynthetic}');
       log('same-store-2nd-nav=${verdict["same-store-2nd-nav"]}');
 
       // The same sequence on the other delivery route, in this same
@@ -377,23 +324,22 @@ void main() {
       await waitReal(tester, () => settled(4), label: 'frame-1 pane C');
       verdict['connect-baseline'] = classify(4, 4);
       if (verdict['connect-baseline'] == 'own') {
-        final hitsBeforeC = requests.where((r) => r.origin == 'o4').length;
+        final hitsBeforeC = arrivalsFor(4);
         await tester.runAsync(() async {
           await paneC!.loadUrl(
               urlRequest: inapp.URLRequest(url: inapp.WebUri(urlFor(4))));
         });
         await waitReal(
             tester,
-            () => requests.where((r) => r.origin == 'o4').length > hitsBeforeC,
+            () => arrivalsFor(4) > hitsBeforeC,
             label: 'pane C second navigation (identical origin, CONNECT)');
-        final hitsAfterC =
-            requests.where((r) => r.origin == 'o4').toList();
-        if (hitsAfterC.length <= hitsBeforeC) {
-          verdict['connect-2nd-nav'] = 'no-arrival';
+        final hitsAfterC = arrivalsFor(4);
+        if (hitsAfterC <= hitsBeforeC) {
+          verdict['connect-2nd-nav'] = 'DIRECT-or-failed';
         } else {
-          final relayed = relayOf(hitsAfterC.last.port);
-          verdict['connect-2nd-nav'] =
-              relayed == null ? 'DIRECT' : (relayed == 4 ? 'own' : 'CROSSED(socks$relayed)');
+          verdict['connect-2nd-nav'] = lastCircuit(4) == 4
+              ? 'own'
+              : 'CROSSED(socks${lastCircuit(4)})';
         }
       } else {
         verdict['connect-2nd-nav'] = 'void';

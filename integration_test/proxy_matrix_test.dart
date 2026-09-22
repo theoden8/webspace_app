@@ -1,36 +1,14 @@
-// A hard yes or no on the per-site proxy on Apple (BUG-014, LEAK-003).
+// Delivery crossed against destination scheme: direct SOCKS5 and a
+// credentialed CONNECT relay, each against http and https destinations, plus
+// a pre-bound store navigated later. One cell per combination, one upstream
+// each, so a crossed circuit is named rather than counted.
 //
-// Every earlier arm varied more than one thing at a time, so the readings
-// could not be compared. `proxy_relay_binding` used HTTP CONNECT to a
-// credentialed loopback relay with https origins and its first frame bound
-// two sites to two upstreams; `proxy_simultaneous` used SOCKS5 with http
-// origins and its first frame bound nothing. Those two differ in delivery,
-// in destination scheme, and in relay-vs-direct at once.
-//
-// This file crosses the three, in one process, with a control that says
-// whether the process proxied anything at all:
-//
-//   delivery     CONNECT (credentialed relay)  |  SOCKS5 (direct)
-//   destination  https                         |  http
-//   timing       bound and navigated in frame 1
-//                bound in frame 1, navigated in a later frame
-//                bound and navigated in a later frame
-//
-// The third timing row is the product question. The app creates a site's
-// WebView when the site is activated, which is never frame 1, so if only
-// frame 1 can bind then per-site proxies are unreachable as the app is
-// built. If a store BOUND in frame 1 still proxies a navigation issued
-// later, then pre-creating a hidden WebView per proxied site at startup is
-// a fix that keeps lazy navigation.
-//
-// Attribution is the relay's: `LocalProxyRelay._routeFor` reads only
-// `Proxy-Authorization: Basic`, requires an exact user+token match, and
-// otherwise answers 407. A pane reaching its own upstream therefore proves
-// WebKit sent that store's credential.
-//
-// Run it more than once per tier: "frame 1" happens once per process, and
-// binding has varied between processes in the same run, so a single verdict
-// line is one draw.
+// Destinations are `syntheticOrigin()` addresses. An address this machine owns
+// is routed over `lo0` and Apple never proxies a loopback-routed destination,
+// so an origin bound here reads DIRECT whether or not the proxy was bound --
+// the defect that voided BUG-014's first 101 attempts. Nothing routes to a
+// synthetic destination, so the fixture answers it and an arrival there is the
+// proof.
 
 import 'dart:io';
 
@@ -43,7 +21,6 @@ import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/local_proxy_relay.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
-import 'fixture_server.dart';
 import 'self_signed_cert.dart';
 import 'socks5_fixture.dart';
 
@@ -86,23 +63,22 @@ void main() {
   const preboundIndex = 4;
 
   final socks = <Socks5Fixture>[];
-  final origins = <HttpServer>[];
-  final ports = <int>[];
-  final requests = <String>[];
+  // Destinations, not origins on this machine: macOS routes an address the
+  // host owns over `lo0` and Apple never proxies a loopback-routed
+  // destination, so an origin bound here reads DIRECT whether or not the
+  // proxy was bound (BUG-014 attempt 102). Nothing routes to a
+  // `syntheticOrigin`, and the upstream fixture terminates TLS for the https
+  // cells itself, so an arrival there IS the proof.
   late LocalProxyRelay relay;
   late Socks5Fixture controlSocks;
-  late HttpServer controlOrigin;
-  var controlPort = 0;
   var control = 'not run';
-  InternetAddress? routable;
-  var originHost = '127.0.0.1';
   var containers = false;
   inapp.InAppWebViewController? preboundController;
 
   String userFor(int i) => 'ws-matrix-site-$i';
   String tokenFor(int i) => 'token-$i-not-a-secret-in-a-test';
   String urlFor(int i) =>
-      '${cells[i].https ? "https" : "http"}://$originHost:${ports[i]}/s$i';
+      '${cells[i].https ? "https" : "http"}://${syntheticOrigin(i)}/s$i';
 
   setUpAll(() async {
     if (!applies) return;
@@ -110,38 +86,21 @@ void main() {
     // reports green having measured nothing.
     await PlatformInfo.initialize();
     containers = await ContainerNative.instance.isSupported();
-    routable = await nonLoopbackIPv4();
-    originHost = routable?.address ?? '127.0.0.1';
-
     final ctx = generateSelfSignedCert(
-      commonName: originHost,
-      ipAddresses: {originHost, '127.0.0.1'}.toList(),
+      commonName: syntheticOrigin(0),
+      ipAddresses: [
+        for (var i = 0; i <= cells.length; i++) syntheticOrigin(i),
+        '127.0.0.1',
+      ],
     ).serverContext();
 
     for (var i = 0; i < cells.length; i++) {
-      final origin = cells[i].https
-          ? await HttpServer.bindSecure(InternetAddress.anyIPv4, 0, ctx)
-          : await HttpServer.bind(InternetAddress.anyIPv4, 0);
-      origins.add(origin);
-      ports.add(origin.port);
-      listenFixture(origin, (req) async {
-        requests.add('s$i:${req.uri.path}');
-        final res = req.response..headers.contentType = ContentType.html;
-        res.write('<!doctype html><html><body><p>s$i</p></body></html>');
-        await res.close();
-      });
-      socks.add(await Socks5Fixture.bind());
+      final fixture = await Socks5Fixture.bind();
+      if (cells[i].https) fixture.syntheticTls = ctx;
+      socks.add(fixture);
     }
 
     controlSocks = await Socks5Fixture.bind();
-    controlOrigin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
-    controlPort = controlOrigin.port;
-    listenFixture(controlOrigin, (req) async {
-      requests.add('ctl:${req.uri.path}');
-      final res = req.response..headers.contentType = ContentType.html;
-      res.write('<!doctype html><html><body><p>ctl</p></body></html>');
-      await res.close();
-    });
 
     relay = LocalProxyRelay(realm: 'webspace-matrix');
     expect(await relay.start(), isTrue,
@@ -159,9 +118,10 @@ void main() {
         ),
     });
 
-    log('run=$runLabel relay=${relay.host}:${relay.port} host=$originHost '
-        'origins=${ports.join(",")} socks=${socks.map((s) => s.port).join(",")} '
-        'control=$controlPort/${controlSocks.port} '
+    log('run=$runLabel relay=${relay.host}:${relay.port} '
+        'destinations=${List.generate(cells.length, syntheticOrigin).join(",")} '
+        'socks=${socks.map((s) => s.port).join(",")} '
+        'control=${syntheticOrigin(cells.length)}/${controlSocks.port} '
         'proxySupported=${PlatformInfo.isProxySupported} containers=$containers');
   });
 
@@ -174,12 +134,8 @@ void main() {
         '${[for (final c in cells) "${c.name}=${c.verdict}"].join(" ")}');
     await relay.stop();
     await controlSocks.close();
-    await controlOrigin.close(force: true);
     for (final s in socks) {
       await s.close();
-    }
-    for (final o in origins) {
-      await o.close(force: true);
     }
   });
 
@@ -222,7 +178,7 @@ void main() {
         child: inapp.InAppWebView(
           key: const ValueKey('matrix-control'),
           initialUrlRequest: inapp.URLRequest(
-              url: inapp.WebUri('http://$originHost:$controlPort/ctl')),
+              url: inapp.WebUri('http://${syntheticOrigin(cells.length)}/ctl')),
           initialSettings: inapp.InAppWebViewSettings(
             containerId: 'ws-matrix-$runLabel-control',
             proxySettings: inapp.ProxySettings(
@@ -237,21 +193,21 @@ void main() {
 
   int? upstreamThatSaw(String target) {
     for (var i = 0; i < socks.length; i++) {
-      if (socks[i].targets.contains(target)) return i;
+      if (socks[i].targets.any((t) => t.startsWith('$target:'))) return i;
     }
     return null;
   }
 
+  /// Nothing routes to a synthetic destination, so a cell that reached no
+  /// upstream went direct and could not have loaded.
   String classify(int i) {
-    final saw = upstreamThatSaw('$originHost:${ports[i]}');
+    final saw = upstreamThatSaw(syntheticOrigin(i));
     if (saw == i) return 'own';
     if (saw != null) return 'CROSSED(socks$saw)';
-    return requests.any((r) => r.startsWith('s$i:')) ? 'DIRECT' : 'no-load';
+    return 'DIRECT-or-failed';
   }
 
-  bool settled(int i) =>
-      upstreamThatSaw('$originHost:${ports[i]}') != null ||
-      requests.any((r) => r.startsWith('s$i:'));
+  bool settled(int i) => upstreamThatSaw(syntheticOrigin(i)) != null;
 
   Future<void> waitReal(WidgetTester tester, bool Function() done,
       {required String label, Duration timeout = const Duration(seconds: 25)}) async {
@@ -275,9 +231,6 @@ void main() {
       markTestSkipped('the per-WebView proxy is an Apple path');
       return false;
     }
-    expect(routable, isNotNull,
-        reason: 'no non-loopback IPv4 here, and Apple never sends a loopback '
-            'destination through a proxy, so nothing could be distinguished');
     expect(PlatformInfo.isProxySupported, isTrue,
         reason: 'proxy support reads unavailable past the floor; '
             'PlatformInfo.initialize() was most likely not awaited');
@@ -310,11 +263,10 @@ void main() {
     for (final i in [0, 1, 2, 3]) {
       cells[i].verdict = classify(i);
     }
-    control = controlSocks.targets.contains('$originHost:$controlPort')
+    control = controlSocks.targets
+            .any((t) => t.startsWith('${syntheticOrigin(cells.length)}:'))
         ? 'proxied'
-        : requests.contains('ctl:/ctl')
-            ? 'DIRECT'
-            : 'no-load';
+        : 'DIRECT-or-failed';
     log('frame-1: control=$control '
         '${[for (final i in [0, 1, 2, 3]) "${cells[i].name}=${cells[i].verdict}"].join(" ")}');
   });

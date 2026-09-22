@@ -6,7 +6,12 @@
 //
 //  1. Its origin was on `127.0.0.1`. Apple never sends a loopback
 //     destination through a proxy, so "the proxied load did not reach the
-//     origin" was true whether or not the proxy was bound.
+//     origin" was true whether or not the proxy was bound. The first repair
+//     moved the origin to `nonLoopbackIPv4()` and did not fix it: macOS
+//     routes traffic aimed at ANY address the host owns over `lo0`, so the
+//     machine's own LAN address is exactly as unproxyable as `127.0.0.1`.
+//     That cost the investigation ninety-odd attempts (BUG-014 attempt 102).
+//     The destination has to be one this machine does not own.
 //  2. Its second mount reused the same widget position, so Flutter updated
 //     the existing `InAppWebView` instead of building a new one and the
 //     load under test was never issued.
@@ -31,24 +36,93 @@ const fixture = fs.readFileSync(path.join(repoRoot, fixtureRel), 'utf8');
 /// these rules forbid.
 const code = source.replace(/^\s*\/\/.*$/gm, '');
 
-test('the fixture origin is not on loopback', () => {
-  assert.match(
-    code,
-    /nonLoopbackIPv4\(\)/,
-    `${testRel} must address its origin by a non-loopback interface`,
-  );
-  const urls = code.match(/'http:\/\/[^']*'/g) ?? [];
-  for (const url of urls) {
+// Every proxy arm now builds its destinations from syntheticOrigin(). The
+// quarantine that listed the ones still on the old instrument is empty, and
+// the gate below guards all of them: an address this machine owns is
+// loopback-routed and never proxied, so an arm that uses one reads DIRECT
+// whether or not the proxy was bound.
+//
+// `proxy_binding_test.dart`'s fail-closed arm is skipped rather than
+// converted: it asks "when the proxy is unreachable, does the load go direct
+// instead", which needs a destination that is both proxyable (so not
+// host-owned) and observable when reached directly (so not synthetic).
+// Nothing on a single machine is both; it needs a second host.
+const VOID_INSTRUMENT_ARMS = new Set([]);
+
+test('no proxy arm builds a destination this machine owns', () => {
+  const dir = path.join(repoRoot, 'integration_test');
+  const arms = fs
+    .readdirSync(dir)
+    .filter((f) => f.startsWith('proxy_') && f.endsWith('_test.dart'));
+  assert.ok(arms.length > 0, 'no proxy arms found');
+
+  // Destinations only. A proxy ENDPOINT is always on loopback and that is
+  // correct, so scanning every URL literal would flag the thing the arms are
+  // supposed to do.
+  const DESTINATION = /(?:WebUri\(|initialUrl:\s*|'(?:url|secondUrl)':\s*)'([^']+)'/g;
+
+  for (const arm of arms) {
+    if (VOID_INSTRUMENT_ARMS.has(arm)) continue;
+    const armCode = fs
+      .readFileSync(path.join(dir, arm), 'utf8')
+      .replace(/^\s*\/\/.*$/gm, '');
     assert.doesNotMatch(
-      url,
-      /127\.0\.0\.1|localhost|\[::1\]/,
-      `${testRel} loads ${url}: Apple never proxies a loopback destination, ` +
-        'so an assertion about that load says nothing about the binding',
+      armCode,
+      /nonLoopbackIPv4\(\)/,
+      `integration_test/${arm} builds a proxy destination from ` +
+        'nonLoopbackIPv4(). That address belongs to THIS machine, macOS ' +
+        'routes it over lo0, and Apple never proxies a loopback-routed ' +
+        'destination -- so the arm reads DIRECT whether or not the proxy ' +
+        'was bound. Use syntheticOrigin() (BUG-014 attempt 102)',
+    );
+    for (const [, url] of armCode.matchAll(DESTINATION)) {
+      if (!/^https?:\/\//.test(url)) continue;
+      assert.doesNotMatch(
+        url,
+        /127\.0\.0\.1|localhost|\[::1\]/,
+        `integration_test/${arm} loads ${url}: Apple never proxies a ` +
+          'loopback destination',
+      );
+      assert.doesNotMatch(
+        url,
+        /\$originHost|\$\{originHost\}/,
+        `integration_test/${arm} loads ${url}: originHost is an address of ` +
+          'THIS machine, which is loopback-routed and never proxied',
+      );
+    }
+  }
+});
+
+test('every arm named as void is still present', () => {
+  // A quarantined arm that is deleted or renamed must drop out of the list
+  // above rather than leave a stale entry that silently exempts nothing.
+  for (const arm of VOID_INSTRUMENT_ARMS) {
+    assert.ok(
+      fs.existsSync(path.join(repoRoot, 'integration_test', arm)),
+      `${arm} is listed as running on the void instrument but does not ` +
+        'exist. Remove it from VOID_INSTRUMENT_ARMS',
     );
   }
-  assert.ok(
-    urls.some((u) => u.includes('$originHost')),
-    `${testRel} must build its loads from the routable fixture address`,
+});
+
+test('the fixture answers its synthetic destinations instead of relaying', () => {
+  assert.match(
+    fixture,
+    /bool isSyntheticOrigin\(String host\)/,
+    `${fixtureRel} must name the synthetic block`,
+  );
+  assert.match(
+    fixture,
+    /if \(isSyntheticOrigin\(host\)\)/,
+    `${fixtureRel} must answer a synthetic destination itself: nothing ` +
+      'routes to it, so relaying would hang instead of proving the proxy ' +
+      'carried the request',
+  );
+  assert.match(
+    fixture,
+    /servedSynthetic/,
+    `${fixtureRel} must record what it served synthetically, so an arm can ` +
+      'assert positively rather than by origin-side port attribution',
   );
 });
 
@@ -73,7 +147,7 @@ test('the proxied scenarios assert the proxy was used, not that a load failed', 
   // bound. The fixture SOCKS5 server is what makes a positive one possible.
   // Any assertion over what the fixture proxy was *asked for* counts:
   // `isNotEmpty`, a count, or a match on the target it recorded.
-  const positivePattern = /socks\.targets\.(isNotEmpty|length|any\()/g;
+  const positivePattern = /\.targets\.(isNotEmpty|length|any\()/g;
   assert.match(
     code,
     positivePattern,
@@ -113,11 +187,12 @@ const simulCode = fs
   .readFileSync(path.join(repoRoot, simulRel), 'utf8')
   .replace(/^\s*\/\/.*$/gm, '');
 
-test('the simultaneity file addresses its origins off loopback', () => {
+test('the simultaneity file addresses destinations this machine does not own', () => {
   assert.match(
     simulCode,
-    /nonLoopbackIPv4\(\)/,
-    `${simulRel} must address its origins by a non-loopback interface`,
+    /syntheticOrigin\(/,
+    `${simulRel} must address its destinations by syntheticOrigin(): an ` +
+      "address this host owns is loopback-routed and never proxied",
   );
   const urls = simulCode.match(/'http:\/\/[^']*'/g) ?? [];
   assert.ok(urls.length > 0, `${simulRel} must load something`);
@@ -159,10 +234,10 @@ test('the simultaneity file keeps more than one proxy to tell apart', () => {
 test('the simultaneity file asserts its panes used their own proxy', () => {
   assert.match(
     simulCode,
-    /socks\[f\]\.targets\.contains\(/,
+    /socks\[f\]\.targets\.any\(/,
     `${simulRel} must read the verdict off what a fixture proxy was asked ` +
-      'for, not off the origin log: the fixture relays, so a proxied load ' +
-      'reaches the origin too',
+      'for, which for a synthetic destination is the only thing that can ' +
+      'have served it',
   );
   assert.match(
     simulCode,
@@ -220,7 +295,7 @@ test('the HTTP CONNECT file keeps its panes on HTTP CONNECT proxies', () => {
 test('the HTTP CONNECT file gives every pane its own proxy and asserts', () => {
   assert.match(
     httpcCode,
-    /proxies\[f\]\.targets\.contains\(/,
+    /proxies\[f\]\.targets\.any\(/,
     `${httpcRel} must read its verdict off what a proxy was asked for`,
   );
   assert.match(
@@ -241,6 +316,11 @@ test('the HTTP CONNECT file gives every pane its own proxy and asserts', () => {
     /proxies\.add\(await HttpConnectFixture\.bind\(\)\)/,
     `${httpcRel} must bind one proxy per pane, or the panes cannot be ` +
       'distinguished from each other',
+  );
+  assert.match(
+    httpcCode,
+    /syntheticOrigin\(/,
+    `${httpcRel} must address its destinations by syntheticOrigin()`,
   );
 });
 
@@ -340,17 +420,21 @@ test('the https proxy arms mint their own certificate and serve it', () => {
       /generateSelfSignedCert\(/,
       `${rel} must mint its certificate in Dart`,
     );
+    // TLS terminates at the fixture now, not at an origin server: nothing
+    // routes to a synthetic destination, so the proxy is the only thing that
+    // can answer its handshake. `syntheticTls` is what puts TLS on the
+    // destination, and a plaintext destination is the arm this replaced.
     assert.match(
       body,
-      /HttpServer\.bindSecure\(/,
-      `${rel} exists to put TLS on the destination; a plaintext origin is ` +
-        'the arm it was written to replace',
+      /syntheticTls = /,
+      `${rel} exists to put TLS on the destination, so its fixture must be ` +
+        'handed a certificate to terminate with',
     );
     const urls = body.match(/'https:\/\/[^']*'/g) ?? [];
     assert.ok(
-      urls.length > 0 && urls.every((u) => u.includes('$originHost')),
-      `${rel} must load https origins built from the routable address, got ` +
-        `[${urls.join(' ')}]`,
+      urls.length > 0 && urls.every((u) => u.includes('syntheticOrigin(')),
+      `${rel} must load https destinations built from syntheticOrigin(), ` +
+        `got [${urls.join(' ')}]`,
     );
     assert.doesNotMatch(
       body,
@@ -433,26 +517,29 @@ test('both proxy fixtures expose the ports they relayed from', () => {
   }
 });
 
-test('an arm that reloads one origin attributes requests, not connections', () => {
+test('an arm that reloads one destination attributes requests, not connections', () => {
+  // Peer-port attribution existed because a real origin is reachable both
+  // through the proxy and around it, so "the origin saw it" did not say
+  // which. A synthetic destination has no route off this machine, so the
+  // fixture is the only thing that can have served it and every arrival
+  // there is attributed by construction -- including a request carried on a
+  // kept-alive connection, which is what the peer-port reading was for.
+  // What still has to be forbidden is reaching a verdict by counting
+  // CONNECTs, which cannot tell a reused connection from a bypass.
   const arms = [
     'integration_test/proxy_timing_test.dart',
     'integration_test/proxy_urlsession_test.dart',
     'integration_test/proxy_persession_test.dart',
   ];
   for (const rel of arms) {
-    const body = fs.readFileSync(path.join(repoRoot, rel), 'utf8');
-    const armCode = body.replace(/^\s*\/\/.*$/gm, '');
+    const armCode = fs
+      .readFileSync(path.join(repoRoot, rel), 'utf8')
+      .replace(/^\s*\/\/.*$/gm, '');
     assert.match(
       armCode,
-      /connectionInfo\?\.remotePort/,
-      `${rel} loads one origin more than once, so its origin must record the ` +
-        'peer each request arrived from',
-    );
-    assert.match(
-      armCode,
-      /relayedPorts/,
-      `${rel} must reach its verdict through the fixture's relayed ports; ` +
-        'anything else cannot tell a reused connection from a bypass',
+      /syntheticPaths|servedSynthetic/,
+      `${rel} loads one destination more than once, so it must read the ` +
+        "fixture's per-request record rather than a connection count",
     );
     for (const line of armCode.split('\n')) {
       assert.doesNotMatch(

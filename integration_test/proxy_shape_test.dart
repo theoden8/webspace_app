@@ -38,7 +38,6 @@ import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
-import 'fixture_server.dart';
 import 'http_connect_fixture.dart';
 import 'socks5_fixture.dart';
 
@@ -122,11 +121,13 @@ void main() {
   late HttpConnectFixture connectB;
   const connectUser = 'ws';
   const connectPass = 'relay';
-  final origins = <HttpServer>[];
-  final ports = <int>[];
-  final requests = <String>[];
-  InternetAddress? routable;
-  var originHost = '127.0.0.1';
+  // Destinations, not origins on this machine: macOS routes an address the
+  // host owns over `lo0` and Apple never proxies a loopback-routed
+  // destination, so an origin bound here reads DIRECT whether or not the
+  // proxy was bound (BUG-014 attempt 102). Nothing routes to a
+  // `syntheticOrigin`, so the fixture answers it and an arrival IS the proof.
+  // The probe arms take the block after the shapes.
+  var probeDest = 0;
   var containers = false;
   var swept = -1;
 
@@ -166,8 +167,6 @@ void main() {
       }
     }
 
-    routable = await nonLoopbackIPv4();
-    originHost = routable?.address ?? '127.0.0.1';
     socks = await Socks5Fixture.bind();
     socksB = await Socks5Fixture.bind();
     connect = await HttpConnectFixture.bind();
@@ -179,21 +178,10 @@ void main() {
           'Basic ${base64Encode(utf8.encode('$connectUser:$connectPass'))}';
     }
 
-    for (var i = 0; i < shapes.length; i++) {
-      final origin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
-      origins.add(origin);
-      ports.add(origin.port);
-      listenFixture(origin, (req) async {
-        requests.add('s$i:${req.uri.path}');
-        final res = req.response..headers.contentType = ContentType.html;
-        res.write('<!doctype html><html><body><p>s$i</p></body></html>');
-        await res.close();
-      });
-    }
     log('position=$position, sweep=$sweepMode, firstArm=$firstArm, '
         'started=$started, '
         'swept=$swept, left=$left, '
-        'origins ${ports.join(",")} on $originHost, '
+        'destinations ${List.generate(shapes.length, syntheticOrigin).join(",")}, '
         'socks ${socks.port}/${socksB.port}, '
         'proxySupported=${PlatformInfo.isProxySupported} '
         'containers=$containers');
@@ -221,9 +209,6 @@ void main() {
     await socksB.close();
     await connect.close();
     await connectB.close();
-    for (final o in origins) {
-      await o.close(force: true);
-    }
   });
 
   bool usable() {
@@ -231,9 +216,6 @@ void main() {
       markTestSkipped('the per-WebView proxy is an Apple path');
       return false;
     }
-    expect(routable, isNotNull,
-        reason: 'no non-loopback IPv4; Apple never proxies a loopback '
-            'destination, so nothing here could be distinguished');
     expect(PlatformInfo.isProxySupported, isTrue,
         reason: 'proxy support reads unavailable on an Apple tier past the '
             'floor; PlatformInfo.initialize() was most likely not awaited');
@@ -293,12 +275,7 @@ void main() {
       final cfix = connectVia ?? connect;
       final before =
           viaConnect ? cfix.targets.length : fixture.targets.length;
-      final origin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
-      listenFixture(origin, (req) async {
-        final res = req.response..headers.contentType = ContentType.html;
-        res.write('<!doctype html><html><body><p>$label</p></body></html>');
-        await res.close();
-      });
+      final dest = syntheticOrigin(shapes.length + probeDest++);
       // Bounded and total: these are diagnostics riding along in a test that
       // measures something else. A probe that throws, or whose WebView never
       // reaches a terminal navigation callback so the reply never comes,
@@ -313,7 +290,7 @@ void main() {
             'username': connectUser,
           if (viaConnect && cfix.requiredCredential != null)
             'password': connectPass,
-          'url': 'http://$originHost:${origin.port}/',
+          'url': 'http://$dest/',
           'identified': identified,
           'identifier': '8f1d5c4e-0000-4000-8000-0000000000${identified ? 11 : 12}',
           'attach': attach,
@@ -335,8 +312,6 @@ void main() {
         final outcome = now > before ? 'proxied' : 'DIRECT';
         results.add('$label->$outcome');
         log('$label -> $outcome, probe did not report: $e');
-      } finally {
-        await origin.close(force: true);
       }
     }
 
@@ -374,7 +349,7 @@ void main() {
             child: inapp.InAppWebView(
               key: const ValueKey('shape-raw-initial'),
               initialUrlRequest: inapp.URLRequest(
-                url: inapp.WebUri('http://$originHost:${ports[0]}/s0'),
+                url: inapp.WebUri('http://${syntheticOrigin(0)}/s0'),
               ),
               initialSettings: inapp.InAppWebViewSettings(
                 containerId: 'ws-proxy-shape-0-$position',
@@ -390,7 +365,7 @@ void main() {
               child: WebViewFactory.createWebView(
                 config: WebViewConfig(
                   siteId: 'proxy-shape-1-$position',
-                  initialUrl: 'http://$originHost:${ports[1]}/s1',
+                  initialUrl: 'http://${syntheticOrigin(1)}/s1',
                   proxySettings: UserProxySettings(
                     type: ProxyType.SOCKS5,
                     address: '127.0.0.1:${socks.port}',
@@ -417,7 +392,7 @@ void main() {
               onWebViewCreated: (c) {
                 c.loadUrl(
                   urlRequest: inapp.URLRequest(
-                    url: inapp.WebUri('http://$originHost:${ports[2]}/s2'),
+                    url: inapp.WebUri('http://${syntheticOrigin(2)}/s2'),
                   ),
                 );
               },
@@ -430,8 +405,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
 
     bool settled(int i) =>
-        socks.targets.contains('$originHost:${ports[i]}') ||
-        requests.contains('s$i:/s$i');
+        socks.targets.any((t) => t.startsWith('${syntheticOrigin(i)}:'));
 
     await tester.runAsync(() async {
       final deadline = DateTime.now().add(const Duration(seconds: 30));
@@ -442,11 +416,11 @@ void main() {
     });
 
     for (var i = 0; i < shapes.length; i++) {
-      final outcome = socks.targets.contains('$originHost:${ports[i]}')
+      // Nothing routes to a synthetic destination, so a shape that reached
+      // no fixture went direct and could not have loaded.
+      final outcome = socks.targets.any((t) => t.startsWith('${syntheticOrigin(i)}:'))
           ? 'proxied'
-          : requests.contains('s$i:/s$i')
-              ? 'DIRECT'
-              : 'no-load';
+          : 'DIRECT-or-failed';
       results.add('${shapes[i]}->$outcome');
       log('${shapes[i]} -> $outcome');
     }

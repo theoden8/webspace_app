@@ -26,6 +26,7 @@ import 'dart:io';
 
 import 'fixture_server.dart';
 import 'socket_relay.dart';
+import 'socks5_fixture.dart';
 
 class HttpConnectFixture {
   HttpConnectFixture._(this._server);
@@ -57,6 +58,28 @@ class HttpConnectFixture {
   /// How many `407`s this proxy sent, and every credential it was given.
   var challenges = 0;
   final credentials = <String>[];
+
+  /// Every synthetic destination this proxy answered itself, and every
+  /// `<host><path>` it was asked for there.
+  ///
+  /// See [syntheticOrigin]: nothing routes to these, so relaying would hang.
+  /// A request arriving here proves the proxy carried it, with no
+  /// origin-side attribution.
+  final servedSynthetic = <String>[];
+  final syntheticPaths = <String>[];
+
+  /// Body to answer a synthetic destination with, by destination host and
+  /// request path. Unset, or returning null, falls back to a marker page.
+  String? Function(String host, String path)? syntheticBody;
+
+  /// Certificate to answer a synthetic destination's TLS handshake with.
+  ///
+  /// A CONNECT proxy is a tunnel, so an `https://` arm needs something at
+  /// the far end to terminate TLS. Nothing routes to a synthetic
+  /// destination, so that something has to be the proxy: it completes the
+  /// tunnel, then secures its own client socket with this context and serves
+  /// the request inside. Null leaves the tunnel plaintext.
+  SecurityContext? syntheticTls;
 
   int get port => _server.port;
 
@@ -117,6 +140,63 @@ class HttpConnectFixture {
               .codeUnits);
           return;
         }
+      }
+
+      if (isSyntheticOrigin(parsed.host)) {
+        servedSynthetic.add('${parsed.host}:${parsed.port}');
+        if (parsed.tunnel) {
+          client.add('HTTP/1.1 200 Connection Established\r\n\r\n'.codeUnits);
+          await client.flush();
+        }
+        final tls = syntheticTls;
+        if (tls != null && parsed.tunnel) {
+          // The ClientHello only follows the tunnel's 200, so it normally
+          // lands after this cancel. `drain` covers the case where it beat
+          // us: those bytes are already off the socket and secureServer
+          // would otherwise never see them.
+          await incoming.cancel();
+          final secure = await SecureSocket.secureServer(
+            client,
+            tls,
+            bufferedData: [...request.rest, ...header.drain()],
+          );
+          final inner = _HeaderBuffer();
+          final reading = secure.listen(inner.add,
+              onError: (Object _) => inner.close(), onDone: inner.close);
+          final head = await inner.readHeader();
+          final path = head == null
+              ? '/'
+              : (RegExp(r'^\S+ (\S+)').firstMatch(head.head)?.group(1) ?? '/');
+          syntheticPaths.add('${parsed.host}$path');
+          final body = syntheticBody?.call(parsed.host, path) ??
+              '<!doctype html><html><body><p>${parsed.host}</p></body></html>';
+          secure.add(('HTTP/1.1 200 OK\r\n'
+                  'Content-Type: text/html\r\n'
+                  'Connection: close\r\n'
+                  'Content-Length: ${body.length}\r\n\r\n$body')
+              .codeUnits);
+          await secure.flush();
+          await reading.cancel();
+          await secure.close();
+          return;
+        }
+        final inner = parsed.tunnel
+            ? await header.readHeader()
+            : (head: parsed.forwarded!, rest: const <int>[]);
+        final path = inner == null
+            ? '/'
+            : (RegExp(r'^\S+ (\S+)').firstMatch(inner.head)?.group(1) ?? '/');
+        syntheticPaths.add('${parsed.host}$path');
+        final body = syntheticBody?.call(parsed.host, path) ??
+            '<!doctype html><html><body><p>${parsed.host}</p></body></html>';
+        client.add(('HTTP/1.1 200 OK\r\n'
+                'Content-Type: text/html\r\n'
+                'Connection: close\r\n'
+                'Content-Length: ${body.length}\r\n\r\n$body')
+            .codeUnits);
+        await client.flush();
+        await client.close();
+        return;
       }
 
       upstream = await Socket.connect(
@@ -218,6 +298,13 @@ class _HeaderBuffer {
   void close() {
     _closed = true;
     _wake();
+  }
+
+  /// Whatever has arrived and not been read yet.
+  List<int> drain() {
+    final out = List<int>.of(_bytes);
+    _bytes.clear();
+    return out;
   }
 
   void _wake() {

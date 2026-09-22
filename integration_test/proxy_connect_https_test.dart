@@ -1,28 +1,16 @@
-// The CONNECT arm, made fair.
+// Three containers over three distinct HTTP CONNECT proxies with `https://`
+// destinations, plus a SOCKS control in the same first frame.
 //
-// `proxy_http_connect_test.dart` came back with every proxy fixture showing
-// `connects=[]` -- WebKit contacted none of them -- and that was read as "an
-// HTTP CONNECT proxy does not help". It measured nothing of the sort. The
-// arm loaded `http://` origins, and a CONNECT proxy is a tunnel: upstream,
-// every CONNECT-proxy test in WebKit's own `Proxy.mm` loads an **https**
-// destination through it (`ProxyAfterNetworkProcessCrash`), while the SOCKS5
-// test beside it loads plain `http://` and its proxy *is* used. A
-// transport-level proxy config plausibly declines to tunnel plaintext http,
-// where the convention is an absolute-URI request rather than CONNECT -- and
-// the fixture here records both forms, so `connects=[]` means neither was
-// sent.
+// A CONNECT proxy is a tunnel, so the destination's TLS has to terminate
+// somewhere; nothing routes to a synthetic destination, so the fixture
+// terminates it (`syntheticTls`).
 //
-// Corrected too: `Protocol::HttpsProxy` upstream is NOT a TLS-wrapped proxy.
-// `HTTPServerCore.swift:252` builds `NWParameters(tls: nil)`, inserts the
-// CONNECT framer, then inserts TLS *above* it -- a plaintext proxy whose TLS
-// belongs to the tunnelled destination. So the proxy stays plaintext here and
-// the **origins** get TLS, which is the one variable that differed.
-//
-// The certificate is minted in Dart at run time (`self_signed_cert.dart`), so
-// no private key is committed and the arm does not depend on a binary the
-// macOS tier does not have.
-
-import 'dart:io';
+// Destinations are `syntheticOrigin()` addresses. An address this machine owns
+// is routed over `lo0` and Apple never proxies a loopback-routed destination,
+// so an origin bound here reads DIRECT whether or not the proxy was bound --
+// the defect that voided BUG-014's first 101 attempts. Nothing routes to a
+// synthetic destination, so the fixture answers it and an arrival there is the
+// proof.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
@@ -31,7 +19,6 @@ import 'package:integration_test/integration_test.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/webview.dart';
-import 'fixture_server.dart';
 import 'http_connect_fixture.dart';
 import 'self_signed_cert.dart';
 import 'socks5_fixture.dart';
@@ -49,11 +36,12 @@ void main() {
   const paneCount = 3;
 
   final proxies = <HttpConnectFixture>[];
-  final origins = <HttpServer>[];
-  final ports = <int>[];
-  final requests = <String>[];
-  InternetAddress? routable;
-  var originHost = '127.0.0.1';
+  // Destinations, not origins on this machine: macOS routes an address the
+  // host owns over `lo0` and Apple never proxies a loopback-routed
+  // destination, so an origin bound here reads DIRECT whether or not the
+  // proxy was bound (BUG-014 attempt 102). Nothing routes to a
+  // `syntheticOrigin`, and for https the CONNECT fixture terminates the
+  // tunnel's TLS itself, so an arrival there IS the proof.
   var containers = false;
   final verdict = <String>[];
 
@@ -63,8 +51,6 @@ void main() {
   // the same. If this binds and the CONNECT panes beside it do not, the
   // delivery is the variable rather than the process.
   late Socks5Fixture controlSocks;
-  late HttpServer controlOrigin;
-  var controlPort = 0;
   var control = 'not run';
 
 
@@ -75,38 +61,25 @@ void main() {
     // difference costs nothing and leaves one fewer variable.
     await PlatformInfo.initialize();
     containers = await ContainerNative.instance.isSupported();
-    routable = await nonLoopbackIPv4();
-    originHost = routable?.address ?? '127.0.0.1';
-
+    // Minted for the synthetic destinations, because the CONNECT fixture is
+    // what answers their handshake now: nothing routes to them, so there is
+    // no origin server behind the tunnel to terminate TLS.
     final ctx = generateSelfSignedCert(
-      commonName: originHost,
-      ipAddresses: {originHost, '127.0.0.1'}.toList(),
+      commonName: syntheticOrigin(0),
+      ipAddresses: [
+        for (var i = 0; i <= paneCount; i++) syntheticOrigin(i),
+        '127.0.0.1',
+      ],
     ).serverContext();
 
     for (var i = 0; i < paneCount; i++) {
-      final origin =
-          await HttpServer.bindSecure(InternetAddress.anyIPv4, 0, ctx);
-      origins.add(origin);
-      ports.add(origin.port);
-      listenFixture(origin, (req) async {
-        requests.add('c$i:${req.uri.path}');
-        final res = req.response..headers.contentType = ContentType.html;
-        res.write('<!doctype html><html><body><p>c$i</p></body></html>');
-        await res.close();
-      });
-      proxies.add(await HttpConnectFixture.bind());
+      final proxy = await HttpConnectFixture.bind();
+      proxy.syntheticTls = ctx;
+      proxies.add(proxy);
     }
     controlSocks = await Socks5Fixture.bind();
-    controlOrigin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
-    controlPort = controlOrigin.port;
-    listenFixture(controlOrigin, (req) async {
-      requests.add('ctl:${req.uri.path}');
-      final res = req.response..headers.contentType = ContentType.html;
-      res.write('<!doctype html><html><body><p>ctl</p></body></html>');
-      await res.close();
-    });
 
-    log('https origins ${ports.join(",")} on $originHost, '
+    log('https destinations ${List.generate(paneCount, syntheticOrigin).join(",")}, '
         'connect proxies ${proxies.map((p) => p.port).join(",")}, '
         'proxySupported=${PlatformInfo.isProxySupported} '
         'containers=$containers');
@@ -121,12 +94,8 @@ void main() {
     log('verdict: containers=$containers, first-frame-socks-control=$control, '
         '${verdict.join(", ")}');
     await controlSocks.close();
-    await controlOrigin.close(force: true);
     for (final p in proxies) {
       await p.close();
-    }
-    for (final o in origins) {
-      await o.close(force: true);
     }
   });
 
@@ -135,9 +104,6 @@ void main() {
       markTestSkipped('the per-WebView proxy is an Apple path');
       return false;
     }
-    expect(routable, isNotNull,
-        reason: 'no non-loopback IPv4; Apple never proxies a loopback '
-            'destination, so nothing here could be distinguished');
     expect(PlatformInfo.isProxySupported, isTrue,
         reason: 'proxy support reads unavailable on an Apple tier past the '
             'floor; PlatformInfo.initialize() was most likely not awaited');
@@ -146,7 +112,7 @@ void main() {
 
   int? proxyThatSaw(String target) {
     for (var f = 0; f < proxies.length; f++) {
-      if (proxies[f].targets.contains(target)) return f;
+      if (proxies[f].targets.any((t) => t.startsWith('$target:'))) return f;
     }
     return null;
   }
@@ -165,7 +131,7 @@ void main() {
               child: inapp.InAppWebView(
                 key: ValueKey('connecths$i'),
                 initialUrlRequest: inapp.URLRequest(
-                  url: inapp.WebUri('https://$originHost:${ports[i]}/c$i'),
+                  url: inapp.WebUri('https://${syntheticOrigin(i)}/c$i'),
                 ),
                 initialSettings: inapp.InAppWebViewSettings(
                   containerId: 'ws-proxy-connect-https-$i',
@@ -193,7 +159,7 @@ void main() {
             child: inapp.InAppWebView(
               key: const ValueKey('socks-control'),
               initialUrlRequest: inapp.URLRequest(
-                url: inapp.WebUri('http://$originHost:$controlPort/ctl'),
+                url: inapp.WebUri('http://${syntheticOrigin(paneCount)}/ctl'),
               ),
               initialSettings: inapp.InAppWebViewSettings(
                 containerId: 'ws-proxy-connect-https-control',
@@ -214,9 +180,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pump(const Duration(milliseconds: 500));
 
-    bool settled(int i) =>
-        proxyThatSaw('$originHost:${ports[i]}') != null ||
-        requests.contains('c$i:/c$i');
+    bool settled(int i) => proxyThatSaw(syntheticOrigin(i)) != null;
 
     await tester.runAsync(() async {
       final deadline = DateTime.now().add(const Duration(seconds: 30));
@@ -228,18 +192,17 @@ void main() {
 
     final results = <String>[];
     for (var i = 0; i < paneCount; i++) {
-      final saw = proxyThatSaw('$originHost:${ports[i]}');
-      results.add('c$i->${saw == i ? 'own(proxy$saw)' : saw != null ? 'CROSSED(proxy$saw)' : requests.contains('c$i:/c$i') ? 'DIRECT' : 'no load'}');
+      final saw = proxyThatSaw(syntheticOrigin(i));
+      results.add('c$i->${saw == i ? 'own(proxy$saw)' : saw != null ? 'CROSSED(proxy$saw)' : 'DIRECT-or-failed'}');
     }
     verdict.add('connect-https=[${results.join(" ")}]');
     final own = results.where((r) => r.contains('own(')).length;
     log('$own of $paneCount panes used their own CONNECT proxy');
 
-    control = controlSocks.targets.contains('$originHost:$controlPort')
+    control = controlSocks.targets
+            .any((t) => t.startsWith('${syntheticOrigin(paneCount)}:'))
         ? 'proxied'
-        : requests.contains('ctl:/ctl')
-            ? 'DIRECT'
-            : 'no load';
+        : 'DIRECT-or-failed';
     log('first-frame socks control -> $control');
     expect(
       control,

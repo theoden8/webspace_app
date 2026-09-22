@@ -1,37 +1,20 @@
-// Is it WebKit, or the layer underneath it? (BUG-014)
+// The same `ProxyConfiguration` handed to `URLSession` instead of
+// `WKWebsiteDataStore`, loading one destination twice on one session. Reads
+// whether a second load on a live session keeps the proxy, in a process where
+// every step can be traced.
 //
-// Every arm in this investigation has asked WKWebView and inferred the rest.
-// `proxyConfigurations` is the same Network.framework type on
-// `URLSessionConfiguration` as on `WKWebsiteDataStore`, and a `URLSession`
-// runs in the app's own process, where the native side can trace every step
-// instead of guessing from whether a fixture saw a CONNECT.
-//
-// Same proxy, same origin, two sequential loads:
-//
-//  * both arrive proxied -> the second-load failure is WebKit's, and the
-//    layer under it is fine. That is what to report upstream.
-//  * only the first does -> `ProxyConfiguration` itself stops applying,
-//    WebKit is blameless, and every WKWebView reading here was measuring the
-//    wrong component.
-//
-// The native side disables the URL cache and forces
-// `reloadIgnoringLocalAndRemoteCacheData`, so a repeated GET cannot be
-// answered without a connection and read as a skipped proxy.
-//
-// The split is read per request, from the peer port the origin saw against
-// the ports the fixture dialled upstream from. Counting CONNECTs cannot do
-// it: a second request on a kept-alive connection adds no CONNECT and is
-// fully proxied, so "one CONNECT for two loads" is what a working proxy
-// looks like as much as a broken one.
-
-import 'dart:io';
+// Destinations are `syntheticOrigin()` addresses. An address this machine owns
+// is routed over `lo0` and Apple never proxies a loopback-routed destination,
+// so an origin bound here reads DIRECT whether or not the proxy was bound --
+// the defect that voided BUG-014's first 101 attempts. Nothing routes to a
+// synthetic destination, so the fixture answers it and an arrival there is the
+// proof.
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/webview.dart';
-import 'fixture_server.dart';
 import 'socks5_fixture.dart';
 
 void main() {
@@ -40,11 +23,14 @@ void main() {
   const channel = MethodChannel('webspace/proxy_probe');
   final applies = hostIsMacOS;
 
-  late HttpServer origin;
+  // Destinations, not origins on this machine. macOS routes traffic aimed at
+  // any address the host owns over `lo0`, and Apple never proxies a
+  // loopback-routed destination, so an origin bound here reads DIRECT
+  // whether or not the proxy was bound -- the defect that voided ninety-odd
+  // BUG-014 attempts (attempt 102). Nothing routes to a `syntheticOrigin`,
+  // so the fixture answers it itself and an arrival there IS the proof.
+  const dest = 0;
   late Socks5Fixture socks;
-  late String originHost;
-  final requests = <({String path, int port})>[];
-  InternetAddress? routable;
 
   void log(String m) {
     // ignore: avoid_print
@@ -54,23 +40,13 @@ void main() {
   setUpAll(() async {
     if (!applies) return;
     await PlatformInfo.initialize();
-    routable = await nonLoopbackIPv4();
-    originHost = routable?.address ?? '127.0.0.1';
     socks = await Socks5Fixture.bind();
-    origin = await HttpServer.bind(InternetAddress.anyIPv4, 0);
-    listenFixture(origin, (req) async {
-      requests.add((path: req.uri.path, port: req.connectionInfo?.remotePort ?? -1));
-      final res = req.response..headers.contentType = ContentType.html;
-      res.write('<!doctype html><html><body><p>o</p></body></html>');
-      await res.close();
-    });
-    log('host $originHost origin ${origin.port} socks ${socks.port}');
+    log('destination ${syntheticOrigin(dest)} socks ${socks.port}');
   });
 
   tearDownAll(() async {
     if (!applies) return;
     await socks.close();
-    await origin.close(force: true);
   });
 
   testWidgets('two sequential URLSession loads through one proxy config',
@@ -79,11 +55,8 @@ void main() {
       markTestSkipped('the probe plugin is macOS only');
       return;
     }
-    expect(routable, isNotNull,
-        reason: 'no non-loopback IPv4 here, and Apple never proxies a '
-            'loopback destination, so nothing could be distinguished');
 
-    final target = '$originHost:${origin.port}';
+    final target = '${syntheticOrigin(dest)}:80';
     Map<Object?, Object?>? reply;
     await tester.runAsync(() async {
       reply = await channel.invokeMethod<Map<Object?, Object?>>(
@@ -94,19 +67,23 @@ void main() {
           // Same URL twice on purpose: nothing about the request can differ
           // between the loads, so wrapper or domain routing cannot explain a
           // split.
-          'urls': ['http://$target/a', 'http://$target/a'],
+          'urls': [
+            'http://${syntheticOrigin(dest)}/a',
+            'http://${syntheticOrigin(dest)}/a',
+          ],
         },
       );
     });
 
     final connects = socks.targets.where((t) => t == target).length;
-    final seen = requests
-        .map((r) => '${r.path}:${socks.relayedPorts.contains(r.port) ? "proxied" : "direct"}')
-        .toList();
-    final proxied = seen.where((s) => s.endsWith(':proxied')).length;
+    // Nothing routes to a synthetic destination, so every arrival at the
+    // fixture went through the proxy and a load that bypassed it arrives
+    // nowhere at all.
+    final seen = socks.syntheticPaths;
+    final proxied = seen.length;
     log('reply=$reply');
     log('socks CONNECTs for $target = $connects, relayed ports '
-        '${socks.relayedPorts.toList()..sort()}, origin saw $seen');
+        '${socks.relayedPorts.toList()..sort()}, fixture served $seen');
 
     expect(reply, isNotNull, reason: 'the probe plugin did not answer');
     expect(reply!['ok'], isTrue,
@@ -123,11 +100,10 @@ void main() {
     // the origin with one request, and that is a finding too (it is what
     // allowFailover:false turns a silent bypass into).
     expect(proxied, greaterThan(0),
-        reason: 'the first URLSession load did not reach the origin through '
-            'the fixture either, so this process could not proxy at all and '
-            'the split below says nothing');
+        reason: 'no URLSession load reached the fixture, so this process '
+            'could not proxy at all and the split below says nothing');
 
-    log('VERDICT urlsession-sequential proxied=$proxied of ${requests.length} '
+    log('VERDICT urlsession-sequential proxied=$proxied '
         'requests=$seen connects=$connects outcomes=$outcomes '
         'configuredAfter=${reply!['configuredAfter']}');
   });
