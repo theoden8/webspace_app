@@ -1,0 +1,9 @@
+✨ New Features:
+• Real microphone access per site
+• Per-site DNS blocking level
+
+🔧 Improvements:
+• Stronger tracking protection
+
+🐛 Bug Fixes:
+• Security hardening

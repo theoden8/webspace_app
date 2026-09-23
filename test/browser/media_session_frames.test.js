@@ -69,7 +69,12 @@ test('a frame with no media of its own never reports', async (t) => {
     });
     assert.equal(frames, null);
 
-    const got = await waitForReports(page, (r) => r.length >= 1);
+    // Wait for playing:true, not the first report: the reconciler can report
+    // playing:false before the element starts, and returning on that fails
+    // the playing assertion below on a slow runner.
+    const got = await waitForReports(page, (r) =>
+      r.some((x) => x.payload.playing === true),
+    );
     assert.ok(got.length >= 1, 'the main frame must still report');
 
     // This is the BGAUDIO-008 invariant: exactly one frame speaks for the
