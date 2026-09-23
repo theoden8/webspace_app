@@ -196,21 +196,36 @@ test('an earlier run cannot speak for the current one', () => {
     'start and stop must bump the generation');
 });
 
-test('every control-port read happens before events are subscribed', () => {
+test('every control-port read happens on a quiet connection', () => {
   // Tor.framework routes replies and asynchronous events through one
   // observer list, and its GETINFO observer answers the first line it is
   // handed — an unrelated event included, which it reports as an empty
   // result. A read taken once NOTICE/BOOTSTRAP events are flowing is the
   // bug that made a finished bootstrap report "no usable SOCKS listener".
-  const reads = (swiftCode.match(/info\(forKeys:/g) || []).length;
-  const inObserve = (functionBody(swiftCode, 'observeLocked').match(/info\(forKeys:/g) || []).length;
-  assert.equal(reads, inObserve,
-    `${swiftRel} reads the control port outside observeLocked's quiet window`);
-  assert.ok(reads > 0, 'observeLocked must still read the phase and the SOCKS listener');
+  //
+  // Two windows are quiet: observeLocked before it subscribes, and after
+  // finishLocked has dropped the subscription. The exit-country path reads
+  // in the second (TOR-014), and runs only once the runtime is up.
+  const count = (src) => (src.match(/info\(forKeys:/g) || []).length;
+  const quiet = ['observeLocked', 'closeExitCircuits', 'geoipAvailable']
+    .reduce((n, name) => n + count(functionBody(swiftCode, name)), 0);
+  assert.equal(count(swiftCode), quiet,
+    `${swiftRel} reads the control port outside a quiet window`);
+  assert.ok(count(functionBody(swiftCode, 'observeLocked')) > 0,
+    'observeLocked must still read the phase and the SOCKS listener');
 
   const observe = functionBody(swiftCode, 'observeLocked');
   assert.ok(observe.lastIndexOf('info(forKeys:') < observe.indexOf('subscribeLocked('),
     'the reads must come before the SETEVENTS subscription, not after');
+
+  const finish = functionBody(swiftCode, 'finishLocked');
+  const drop = finish.indexOf('listen(forEvents: [])');
+  assert.ok(drop >= 0,
+    'finishLocked must drop the event subscription once bootstrap is over');
+  assert.ok(drop < finish.indexOf('publishLocked(state: "up"'),
+    'dropped before up is published, so no read after up can meet an event');
+  assert.match(functionBody(swiftCode, 'setExitCountry'), /self\.state == "up"/,
+    'the exit-country reads must only run once the runtime is up');
 });
 
 test('macOS carries the same pinned runtime as iOS', () => {

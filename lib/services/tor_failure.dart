@@ -31,6 +31,11 @@ enum TorFailureKind {
   /// usable. `StrictNodes 1` makes this fatal rather than a fallback.
   exitPolicy,
 
+  /// An exit-country pin is wanted and tor has no GeoIP table to resolve it
+  /// against: the download the pin needs did not finish, or tor would not
+  /// load what arrived. Not the country's fault, so not [exitPolicy].
+  exitCountryData,
+
   /// The plugin could not attach to, authenticate with, or read the port
   /// file of tor's control channel. A defect on our side, not the user's.
   controlChannel,
@@ -143,6 +148,13 @@ TorFailure classifyTorFailure(
       m.contains('control authentication') ||
       m.contains('no usable socks listener')) {
     return of(TorFailureKind.controlChannel);
+  }
+
+  // Before the pin branch: a pin that never landed for want of GeoIP says
+  // "exit-country" too, and blaming the country sends the user to pick
+  // another one, which fails the same way.
+  if (m.contains('geoip')) {
+    return of(TorFailureKind.exitCountryData);
   }
 
   // An exit pin in force turns an otherwise ordinary circuit failure into a

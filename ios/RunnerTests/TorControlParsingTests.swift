@@ -90,4 +90,22 @@ class TorControlParsingTests: XCTestCase {
     XCTAssertNil(TorControllerPlugin.parseSocksEndpoint(nil))
     XCTAssertNil(TorControllerPlugin.parseSocksEndpoint("127.0.0.1:0"))
   }
+
+  func testExitCircuitIds() {
+    // `GETINFO circuit-status`, one circuit per line (control-spec 4.1.1).
+    let status = [
+      "5 BUILT $AAAA~guard,$BBBB~middle,$CCCC~exit BUILD_FLAGS=NEED_CAPACITY "
+        + "PURPOSE=GENERAL TIME_CREATED=2026-09-23T22:43:33.140529",
+      "9 BUILT $AAAA~guard,$DDDD~middle BUILD_FLAGS=IS_INTERNAL,NEED_CAPACITY "
+        + "PURPOSE=HS_CLIENT_REND HS_STATE=HSCR_JOINED",
+      "12 LAUNCHED BUILD_FLAGS=NEED_CAPACITY PURPOSE=CONFLUX_UNLINKED",
+      "13 EXTENDED $AAAA~guard,$EEEE~middle PURPOSE=CONFLUX_LINKED",
+      "14 FAILED $AAAA~guard PURPOSE=GENERAL REASON=TIMEOUT",
+      "15 BUILT $AAAA~guard,$FFFF~middle,$GGGG~exit",
+      "",
+    ].joined(separator: "\r\n")
+    XCTAssertEqual(
+      TorControllerPlugin.exitCircuitIds(fromCircuitStatus: status), ["5", "12", "13", "15"])
+    XCTAssertEqual(TorControllerPlugin.exitCircuitIds(fromCircuitStatus: ""), [])
+  }
 }

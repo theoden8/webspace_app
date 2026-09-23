@@ -60,7 +60,7 @@ class _Runtime implements TorRuntime {
   Future<void> rebuildCircuits() async {}
 
   @override
-  Future<void> applyExitCountry(String? exitNodes) async {}
+  Future<void> applyExitCountry(String? exitNodes, {String? geoipFile}) async {}
 
   @override
   Future<int> startTransport(String transport) async => 0;
@@ -311,6 +311,13 @@ void main() {
             pin: true),
         'No usable exit in that country',
         'Pick another country',
+      ),
+      'exit_country_data': (
+        _errored('Could not download the GeoIP table an exit-country pin '
+            'needs, so the pin was not applied.',
+            pin: true),
+        'Country list unavailable',
+        'set the exit country back to any country',
       ),
       'control_channel': (
         _errored('Tor control authentication failed: bad cookie'),

@@ -37,7 +37,7 @@ class _AvailableRuntime implements TorRuntime {
   Future<void> rebuildCircuits() async {}
 
   @override
-  Future<void> applyExitCountry(String? exitNodes) async =>
+  Future<void> applyExitCountry(String? exitNodes, {String? geoipFile}) async =>
       applied.add(exitNodes);
 
   @override

@@ -37,7 +37,7 @@ class _Runtime implements TorRuntime {
   Future<void> rebuildCircuits() async {}
 
   @override
-  Future<void> applyExitCountry(String? exitNodes) async {}
+  Future<void> applyExitCountry(String? exitNodes, {String? geoipFile}) async {}
 
   @override
   Future<int> startTransport(String transport) async => 0;

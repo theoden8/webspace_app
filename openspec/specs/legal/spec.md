@@ -134,6 +134,15 @@ this repo or bundled into a release artifact.
 - **THEN** the service fetches it from upstream at runtime
 - **AND** no copy of the list enters `assets/` or the APK/IPA
 
+#### Scenario: A dependency offers to bundle the data
+
+- **GIVEN** a pod or package ships copyleft data as an optional part, such as
+  Tor.framework's `Tor/GeoIP` subspec (IPFire Location Database, CC BY-SA 4.0)
+- **THEN** that part is not used, and the device fetches the data at runtime
+  instead (TOR-014)
+- **AND** a structural test fails CI if the part is named in a build file
+  (`test/js/tor_geoip_not_bundled.test.js`)
+
 ---
 
 ### LICENSE-003 - Attribution is collected, not hand-written

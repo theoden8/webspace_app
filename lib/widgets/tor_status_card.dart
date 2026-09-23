@@ -41,6 +41,10 @@ import 'package:webspace/widgets/hint_button.dart';
       (title: loc.torFailClockSkewTitle, body: loc.torFailClockSkewBody),
     TorFailureKind.exitPolicy =>
       (title: loc.torFailExitPolicyTitle, body: loc.torFailExitPolicyBody),
+    TorFailureKind.exitCountryData => (
+        title: loc.torFailExitCountryDataTitle,
+        body: loc.torFailExitCountryDataBody
+      ),
     TorFailureKind.controlChannel => (
         title: loc.torFailControlChannelTitle,
         body: loc.torFailControlChannelBody
@@ -60,6 +64,7 @@ IconData torFailureIcon(TorFailureKind kind) => switch (kind) {
       TorFailureKind.censored => Icons.block_outlined,
       TorFailureKind.clockSkew => Icons.schedule_outlined,
       TorFailureKind.exitPolicy => Icons.public_off_outlined,
+      TorFailureKind.exitCountryData => Icons.cloud_off_outlined,
       TorFailureKind.controlChannel => Icons.bug_report_outlined,
       TorFailureKind.bootstrapTimeout => Icons.hourglass_empty_outlined,
       TorFailureKind.runtime => Icons.error_outline,

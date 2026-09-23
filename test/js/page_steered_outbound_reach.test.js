@@ -53,6 +53,9 @@ const EXEMPT = {
     'The LocalCDN bundle, fixed in the app.',
   'lib/services/timezone_location_service.dart':
     'A fixed timezone API endpoint.',
+  'lib/services/tor_geoip_io.dart':
+    'tor\'s GeoIP table from the Tor Project URLs fixed in kTorGeoIpUrls, '
+    + 'through Tor.',
   'lib/services/proxy_test_service.dart':
     'The probe target is the site\'s own home URL (typed by the user, not '
     + 'chosen by a loaded page) or the fixed example.com fallback, and '

@@ -17,6 +17,8 @@ import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/tor_bridge_secure_storage.dart';
 import 'package:webspace/services/tor_engine.dart';
+import 'package:webspace/services/tor_geoip_web.dart'
+    if (dart.library.io) 'package:webspace/services/tor_geoip_io.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/app_prefs.dart';
 
@@ -103,9 +105,12 @@ class MethodChannelTorRuntime implements TorRuntime {
   }
 
   @override
-  Future<void> applyExitCountry(String? exitNodes) async {
+  Future<void> applyExitCountry(String? exitNodes, {String? geoipFile}) async {
     if (!isAvailable) return;
-    await _channel.invokeMethod<void>('setExitCountry', {'exitNodes': exitNodes});
+    await _channel.invokeMethod<void>('setExitCountry', {
+      'exitNodes': exitNodes,
+      'geoipFile': geoipFile,
+    });
   }
 
   @override
@@ -308,6 +313,8 @@ class TorService {
         // relaunch (TOR-016).
         bridgeLoader: () => TorBridgeSecureStorage().load(),
         isolateDestAddrLoader: readTorIsolateDestAddr,
+        // Downloaded on the device, never shipped (LICENSE-002).
+        geoIpStore: createTorGeoIpStore(),
       ));
 
   /// Swap in an engine backed by a fake runtime. Tests only.
@@ -410,9 +417,10 @@ class TorService {
   /// Pin every circuit to a country (tor `ExitNodes` syntax) or clear it.
   /// Global to the runtime — see TOR-014 for why that makes per-site pins
   /// mutually exclusive.
-  Future<void> setExitCountry(String? exitNodes) async {
+  Future<void> setExitCountry(String? exitNodes,
+      {bool mayFetchGeoIp = true}) async {
     if (!isAvailable) return;
-    await _engine.setExitCountry(exitNodes);
+    await _engine.setExitCountry(exitNodes, mayFetchGeoIp: mayFetchGeoIp);
   }
 
   String? get exitNodes => _engine.exitNodes;

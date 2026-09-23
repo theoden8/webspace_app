@@ -289,8 +289,11 @@ class TorControllerPlugin: NSObject {
       let name = (call.arguments as? [String: Any])?["transport"] as? String ?? ""
       startTransport(name, result: result)
     case "setExitCountry":
-      let exitNodes = (call.arguments as? [String: Any])?["exitNodes"] as? String
-      setExitCountry(exitNodes, result: result)
+      let args = call.arguments as? [String: Any]
+      setExitCountry(
+        args?["exitNodes"] as? String,
+        geoipFile: args?["geoipFile"] as? String,
+        result: result)
     default:
       result(FlutterMethodNotImplemented)
     }
@@ -753,11 +756,14 @@ class TorControllerPlugin: NSObject {
       failLocked("Tor reported no usable SOCKS listener.")
       return
     }
-    // Bootstrap is over; the status observer has nothing left to say. The
-    // log observer stays: what tor says after it is connected is how a user
-    // finds out it stopped being connected.
+    // Bootstrap is over; the status observer has nothing left to say, and
+    // the subscription goes with it (TOR-019). That makes the connection
+    // quiet again, which is what lets an exit-country change read from it
+    // later: with events flowing, one can land in a GETINFO's reply slot.
+    // tor's log comes from its file, so nothing else rides the events.
     if let observer = statusObserver { controller?.removeObserver(observer) }
     statusObserver = nil
+    controller?.listen(forEvents: []) { _, _ in }
 
     socksHost = host
     socksPort = port
@@ -1025,11 +1031,6 @@ class TorControllerPlugin: NSObject {
 
   // MARK: - Exit country
 
-  /// Apply or clear the `ExitNodes` pin (TOR-009).
-  ///
-  /// Failure is reported to Dart rather than swallowed: the engine treats a
-  /// throw as "the pin did not land", and a pin silently not in force would
-  /// have the user believe traffic leaves from a country it does not.
   /// tor's `SocksPort` line for [isolateDestAddr].
   ///
   /// `auto` lets tor pick a free loopback port and report it back. Never
@@ -1085,7 +1086,20 @@ class TorControllerPlugin: NSObject {
     }
   }
 
-  private func setExitCountry(_ exitNodes: String?, result: @escaping FlutterResult) {
+  /// Apply or clear the `ExitNodes` pin (TOR-014).
+  ///
+  /// Failure is reported to Dart rather than swallowed: the engine treats a
+  /// throw as "the pin did not land", and a pin silently not in force would
+  /// have the user believe traffic leaves from a country it does not.
+  ///
+  /// A country pin needs GeoIP, which this app does not ship (LICENSE-002):
+  /// Dart downloads it and hands over [geoipFile]. tor resolves `{cc}` only
+  /// against a loaded GeoIP table, and without one the pin matches no relay
+  /// at all. So the file goes in first, and the pin only once tor reports
+  /// the table loaded; tor's `ExitNodes` is never a country it cannot read.
+  private func setExitCountry(
+    _ exitNodes: String?, geoipFile: String?, result: @escaping FlutterResult
+  ) {
     stateQueue.async { [weak self] in
       guard let self = self else { result(nil); return }
       guard let controller = self.controller, self.state == "up" else {
@@ -1097,44 +1111,166 @@ class TorControllerPlugin: NSObject {
         }
         return
       }
-      let done: (Bool, Error?) -> Void = { success, error in
-        DispatchQueue.main.async {
-          if success {
-            result(nil)
-          } else {
-            result(FlutterError(
-              code: "setconf_failed",
-              message: error?.localizedDescription ?? "Tor refused the exit-country pin.",
-              details: nil))
-          }
-        }
+      Task {
+        let error = await self.applyExitCountry(
+          exitNodes, geoipFile: geoipFile, controller: controller)
+        DispatchQueue.main.async { result(error) }
       }
+    }
+  }
 
-      guard let exitNodes = exitNodes, !exitNodes.isEmpty else {
-        // Clearing takes two commands: RESETCONF puts ExitNodes back to no
-        // pin at all, and StrictNodes has to be turned off separately or
-        // tor keeps enforcing an empty set.
-        //
-        // StrictNodes goes through setConfs rather than the single-key
-        // setter: `setConfForKey:withValue:` starts with `set`, so Swift
-        // imports it whole rather than splitting off `forKey:`, and the
-        // split spelling does not exist. setConfs needs no such guess.
-        controller.resetConf(forKey: "ExitNodes") { success, error in
-          guard success else { done(false, error); return }
-          controller.setConfs(
-            [["key": "StrictNodes", "value": "0"]], completion: done)
-        }
-        return
+  /// The pin itself, as one sequence. Nil on success.
+  private func applyExitCountry(
+    _ exitNodes: String?, geoipFile: String?, controller: TorController
+  ) async -> FlutterError? {
+    func refused(_ error: Error?) -> FlutterError {
+      FlutterError(
+        code: "setconf_failed",
+        message: error?.localizedDescription ?? "Tor refused the exit-country pin.",
+        details: nil)
+    }
+
+    guard let exitNodes = exitNodes, !exitNodes.isEmpty else {
+      // Clearing takes two commands: RESETCONF puts ExitNodes back to no
+      // pin at all, and StrictNodes has to be turned off separately or
+      // tor keeps enforcing an empty set.
+      //
+      // StrictNodes goes through setConfs rather than the single-key
+      // setter: `setConfForKey:withValue:` starts with `set`, so Swift
+      // imports it whole rather than splitting off `forKey:`, and the
+      // split spelling does not exist. setConfs needs no such guess.
+      let (reset, resetError) = await Self.resetConf(controller, key: "ExitNodes")
+      guard reset else { return refused(resetError) }
+      let (unset, unsetError) = await Self.setConfs(
+        controller, [["key": "StrictNodes", "value": "0"]])
+      guard unset else { return refused(unsetError) }
+      await closeExitCircuits(controller)
+      return nil
+    }
+
+    // Loading is tor's own: a SETCONF to a path it has not read yet makes
+    // it parse the file and re-resolve every relay's country. A path it
+    // already read is not re-read, which is why Dart names each download
+    // afresh rather than overwriting one file.
+    if let geoipFile = geoipFile, !geoipFile.isEmpty {
+      let (loaded, loadError) = await Self.setConfs(
+        controller, [["key": "GeoIPFile", "value": geoipFile]])
+      guard loaded else { return refused(loadError) }
+    }
+    guard await Self.geoipAvailable(controller) else {
+      return FlutterError(
+        code: "geoip_unavailable",
+        message: "Tor has no GeoIP data loaded, so the exit-country pin cannot "
+          + "resolve a country. The pin was not applied.",
+        details: nil)
+    }
+
+    // StrictNodes 1 alongside: without it tor treats ExitNodes as a
+    // preference and silently leaves through another country when the
+    // pinned one has no usable exit.
+    let (pinned, pinError) = await Self.setConfs(
+      controller,
+      [
+        ["key": "ExitNodes", "value": exitNodes],
+        ["key": "StrictNodes", "value": "1"],
+      ])
+    guard pinned else { return refused(pinError) }
+    await closeExitCircuits(controller)
+    // tor also wants an IPv6 table once a country pin is in force, and warns
+    // on every config change that it has none. Exit countries are decided by
+    // a relay's IPv4 address alone (`node_set_country`), so the IPv4 table
+    // is all a pin needs; the warning is noise, and this line says so where
+    // the warning lands.
+    note("Exit-country pin applied. tor's missing-geoip6 warning is expected: "
+      + "exit countries are matched by IPv4.")
+    return nil
+  }
+
+  /// Close every circuit that can carry exit traffic.
+  ///
+  /// A change to `ExitNodes` stops tor attaching *new* streams to circuits
+  /// built before it, and that is all it does: a stream already open stays
+  /// on its old circuit for as long as the client keeps the connection. The
+  /// webview's network layer pools its connections per data store, not per
+  /// WKWebView, so a site recreated for its new pin went straight back out
+  /// through the connection it had before, from the old exit. Closing the
+  /// circuits ends those streams, and whatever the client opens next is
+  /// built under the pin now in force.
+  ///
+  /// Onion-service and other internal circuits are left alone; the pin says
+  /// nothing about them.
+  private func closeExitCircuits(_ controller: TorController) async {
+    var status = await controller.info(forKeys: ["circuit-status"])
+    // An empty answer, as opposed to an empty value, is Tor.framework's
+    // reply observer having been handed an unrelated event first.
+    if status.isEmpty { status = await controller.info(forKeys: ["circuit-status"]) }
+    guard let raw = status.first else {
+      note("Could not read tor's circuits after an exit-country change.")
+      return
+    }
+    let ids = Self.exitCircuitIds(fromCircuitStatus: raw)
+    guard !ids.isEmpty else { return }
+    let closed = await withCheckedContinuation { (done: CheckedContinuation<Bool, Never>) in
+      controller.closeCircuits(byIds: ids) { success in done.resume(returning: success) }
+    }
+    note(
+      closed
+        ? "Closed \(ids.count) circuit(s) opened before the exit-country change."
+        : "Some of \(ids.count) circuit(s) opened before the exit-country change "
+          + "were already gone.")
+  }
+
+  /// Circuit purposes that carry streams out through an exit. Conflux legs
+  /// are exit circuits too, joined for throughput.
+  static let exitCapablePurposes: Set<String> = [
+    "GENERAL", "CONFLUX_LINKED", "CONFLUX_UNLINKED",
+  ]
+
+  /// IDs of the circuits a `GETINFO circuit-status` value lists as able to
+  /// carry exit traffic: one circuit per line, `ID STATUS [PATH] KEY=value…`.
+  /// A line with no `PURPOSE` is kept, since an old tor that omits it is
+  /// describing a general circuit. Closed and failed circuits are skipped.
+  static func exitCircuitIds(fromCircuitStatus raw: String) -> [String] {
+    raw.components(separatedBy: .newlines).compactMap { line in
+      let words = line.split(separator: " ").map(String.init)
+      guard words.count >= 2,
+            words[0].allSatisfy({ $0.isLetter || $0.isNumber }),
+            words[1] != "CLOSED", words[1] != "FAILED"
+      else { return nil }
+      if let purpose = parseKeyValues(line)["PURPOSE"],
+         !exitCapablePurposes.contains(purpose) {
+        return nil
       }
-      // StrictNodes 1 alongside: without it tor treats ExitNodes as a
-      // preference and silently leaves through another country when the
-      // pinned one has no usable exit.
-      controller.setConfs(
-        [
-          ["key": "ExitNodes", "value": exitNodes],
-          ["key": "StrictNodes", "value": "1"],
-        ],
-        completion: done)
+      return words[0]
+    }
+  }
+
+  /// Whether tor has an IPv4 GeoIP table loaded. Asked twice at most, for
+  /// the same unrelated-event reason as [closeExitCircuits]; anything but a
+  /// clear "1" reads as no, since the pin is refused on a no.
+  private static func geoipAvailable(_ controller: TorController) async -> Bool {
+    for _ in 0..<2 {
+      let answer = await controller.info(forKeys: ["ip-to-country/ipv4-available"])
+      if let value = answer.first { return value == "1" }
+    }
+    return false
+  }
+
+  private static func setConfs(
+    _ controller: TorController, _ confs: [[AnyHashable: Any]]
+  ) async -> (Bool, Error?) {
+    await withCheckedContinuation { (done: CheckedContinuation<(Bool, Error?), Never>) in
+      controller.setConfs(confs) { success, error in done.resume(returning: (success, error)) }
+    }
+  }
+
+  private static func resetConf(
+    _ controller: TorController, key: String
+  ) async -> (Bool, Error?) {
+    await withCheckedContinuation { (done: CheckedContinuation<(Bool, Error?), Never>) in
+      controller.resetConf(forKey: key) { success, error in
+        done.resume(returning: (success, error))
+      }
     }
   }
 

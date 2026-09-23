@@ -744,6 +744,10 @@ void main() async {
     ),
     (['cdnjs (LocalCDN resource data)'], 'assets/licenses/cdnjs.txt'),
     (['OpenStreetMap (map data and tiles)'], 'assets/licenses/openstreetmap.txt'),
+    (
+      ['IPFire Location Database (Tor exit-country data)'],
+      'assets/licenses/ipfire_location.txt'
+    ),
   ];
   for (final (packages, assetPath) in customLicenses) {
     LicenseRegistry.addLicense(() async* {
@@ -3147,11 +3151,11 @@ class _WebSpacePageState extends State<WebSpacePage>
     // Clearing a site's pin in settings never re-activates it, so without
     // this the country the user just removed would stay applied until the
     // next site switch.
+    final pinned = <int>{?_currentIndex, ..._loadedIndices};
     await TorService.instance.setExitCountry(
-      SiteUnloadEngine.torExitNodesFor(
-        indices: <int>{?_currentIndex, ..._loadedIndices},
-        models: _webViewModels,
-      ),
+      SiteUnloadEngine.torExitNodesFor(indices: pinned, models: _webViewModels),
+      mayFetchGeoIp: !SiteUnloadEngine.torExitPinIsArchiveOnly(
+          indices: pinned, models: _webViewModels),
     );
   }
 
@@ -4388,11 +4392,12 @@ class _WebSpacePageState extends State<WebSpacePage>
       // Only once the disagreeing siblings are gone: SETCONF takes effect
       // for the whole runtime the moment it lands, so applying it first
       // would route their next request through the new country.
+      final pinned = <int>{index, ..._loadedIndices};
       await TorService.instance.setExitCountry(
         SiteUnloadEngine.torExitNodesFor(
-          indices: <int>{index, ..._loadedIndices},
-          models: _webViewModels,
-        ),
+            indices: pinned, models: _webViewModels),
+        mayFetchGeoIp: !SiteUnloadEngine.torExitPinIsArchiveOnly(
+            indices: pinned, models: _webViewModels),
       );
       if (version != _setCurrentIndexVersion) return;
     }

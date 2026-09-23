@@ -454,6 +454,7 @@ void main() {
       for (final k in const [
         TorFailureKind.clockSkew,
         TorFailureKind.exitPolicy,
+        TorFailureKind.exitCountryData,
         TorFailureKind.controlChannel,
         TorFailureKind.offline,
         TorFailureKind.runtime,

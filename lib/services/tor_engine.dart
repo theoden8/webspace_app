@@ -13,6 +13,7 @@ import 'package:crypto/crypto.dart';
 
 import 'package:webspace/services/tor_bridges.dart';
 import 'package:webspace/services/tor_failure.dart';
+import 'package:webspace/services/tor_geoip.dart';
 import 'package:webspace/settings/proxy.dart';
 
 export 'package:webspace/services/tor_bridges.dart'
@@ -35,6 +36,16 @@ const Duration kTorIdleDebounce = Duration(seconds: 60);
 /// unreachable; an unbounded wait would read to the user (and to App Review)
 /// as a frozen feature. See TOR-013.
 const Duration kTorBootstrapTimeout = Duration(seconds: 90);
+
+/// Bootstrap tag the engine publishes while tor is up but a requested exit
+/// pin has not landed yet. tor is connected; the sites are not allowed to
+/// use it until their country is in force (TOR-014).
+const String kTorExitPinTag = 'exit_country';
+
+/// How long tor gets to load a GeoIP table and take a pin. A control
+/// connection that dropped mid-command never answers, and every later pin
+/// change queues behind this one.
+const Duration kTorExitPinApplyTimeout = Duration(seconds: 30);
 
 /// Observable state of the runtime.
 sealed class TorStatus {
@@ -176,7 +187,12 @@ abstract class TorRuntime {
   /// `StrictNodes 1`, or clear both when null. Global to the tor instance:
   /// the caller is responsible for ensuring no site that disagrees is
   /// loaded (TOR-014).
-  Future<void> applyExitCountry(String? exitNodes);
+  ///
+  /// [geoipFile] is loaded first. A country pin is refused, and throws,
+  /// unless tor then has a GeoIP table. Either way every circuit that
+  /// carried exit traffic before the change is closed, so no open
+  /// connection keeps leaving from the old country.
+  Future<void> applyExitCountry(String? exitNodes, {String? geoipFile});
 
   /// Start the pluggable transport named [transport] and return the loopback
   /// port its SOCKS listener bound to, or 0 when it failed to start.
@@ -220,12 +236,16 @@ class TorEngine {
     Duration bootstrapTimeout = kTorBootstrapTimeout,
     Future<TorBridgeConfig> Function()? bridgeLoader,
     Future<bool> Function()? isolateDestAddrLoader,
+    TorGeoIpStore? geoIpStore,
+    DateTime Function()? clock,
   })  : _runtime = runtime,
         _sessionSecret = sessionSecret,
         _idleDebounce = idleDebounce,
         _bootstrapTimeout = bootstrapTimeout,
         _bridgeLoader = bridgeLoader,
-        _isolateDestAddrLoader = isolateDestAddrLoader {
+        _isolateDestAddrLoader = isolateDestAddrLoader,
+        _geoIpStore = geoIpStore,
+        _clock = clock ?? DateTime.now {
     // Second gate, belt to the runtime's braces: a runtime with no plugin
     // behind it has nothing to say, and subscribing to find that out is
     // what threw MissingPluginException on Android.
@@ -249,6 +269,25 @@ class TorEngine {
   TorStatus _status = const TorStopped();
   String? _exitNodes;
   bool _exitNodesApplied = false;
+
+  /// The runtime's own last `up`, whatever the engine has published since.
+  /// Differs from [_status] while a pin is pending or has failed: tor is
+  /// connected, and the sites are held off it.
+  TorUp? _runtimeUp;
+
+  /// Pin changes, one at a time. Two in flight could land in tor out of
+  /// order and leave the older one in force.
+  Future<void> _pinQueue = Future<void>.value();
+
+  /// Where the GeoIP table for a country pin comes from. Null where the
+  /// runtime is expected to have its own.
+  final TorGeoIpStore? _geoIpStore;
+  final DateTime Function() _clock;
+
+  bool get _pinPending => _exitNodes != null && !_exitNodesApplied;
+
+  /// False while every site wanting the pin is archive-tier (ARCH-006).
+  bool _mayFetchGeoIp = true;
 
   /// Last bootstrap progress seen, kept past the transition out of
   /// [TorBootstrapping] so a timeout can say where it stalled. Where it
@@ -300,7 +339,9 @@ class TorEngine {
     _idleTimer?.cancel();
     _idleTimer = null;
     if (!wasEmpty) return;
-    if (_status is TorUp || _status is TorStarting) return;
+    // A tor that is up behind a pending or failed pin is still up: starting
+    // it again would publish `starting` over a runtime that never answers.
+    if (_runtimeUp != null || _status is TorStarting) return;
     _emit(const TorStarting());
     _armBootstrapTimeout();
     try {
@@ -456,6 +497,13 @@ class TorEngine {
     // bootstrap deadline would report a failure against a tor that is
     // working. A Retry must never be able to break a running runtime.
     if (_status is TorUp) return;
+    // tor itself is up and only the exit pin is not: retry the pin. A stop
+    // and start could not help, and the start would be a no-op that left
+    // the status on `starting` for good.
+    if (_runtimeUp != null) {
+      await _flushExitCountry();
+      return;
+    }
     _cancelBootstrapTimeout();
     _lastBootstrapPercent = null;
     _lastBootstrapTag = null;
@@ -504,23 +552,73 @@ class TorEngine {
   /// and a pin set before then would be silently dropped. `_exitNodesApplied`
   /// tracks whether the value in `_exitNodes` has actually reached tor, so
   /// the deferred apply on reaching `up` is not mistaken for a no-op.
-  Future<void> setExitCountry(String? exitNodes) async {
+  ///
+  /// Until a country pin is in force the engine does not publish `up`: every
+  /// Tor-bound site waits behind the interstitial and Dart-side fetches
+  /// block, so nothing leaves through a country the user did not pick.
+  ///
+  /// With [mayFetchGeoIp] false the pin uses a GeoIP table already on the
+  /// device and never downloads one; without one it fails closed.
+  Future<void> setExitCountry(String? exitNodes,
+      {bool mayFetchGeoIp = true}) async {
     if (!_runtime.isAvailable) return;
+    _mayFetchGeoIp = mayFetchGeoIp;
     if (_exitNodes == exitNodes && _exitNodesApplied) return;
+    // The same pin again after it failed is not a retry. This is called on
+    // every save, and a retry means a 10 MB download; Retry is the
+    // interstitial's button, which reaches [restart].
+    if (_exitNodes == exitNodes && _status is TorErrored) return;
     _exitNodes = exitNodes;
     _exitNodesApplied = false;
     await _flushExitCountry();
   }
 
-  Future<void> _flushExitCountry() async {
-    if (!_status.isUp) return;
+  Future<void> _flushExitCountry() {
+    final next = _pinQueue.then((_) => _applyPin());
+    _pinQueue = next.catchError((Object _) {});
+    return next;
+  }
+
+  Future<void> _applyPin() async {
+    final up = _runtimeUp;
+    if (up == null || _disposed) return;
+    if (_exitNodesApplied) {
+      if (!identical(_status, up)) _emit(up);
+      return;
+    }
+    final pin = _exitNodes;
+    bool superseded() =>
+        _disposed || _exitNodes != pin || !identical(_runtimeUp, up);
+
+    String? geoipFile;
+    if (pin != null) {
+      _emit(const TorBootstrapping(100, tag: kTorExitPinTag));
+      final store = _geoIpStore;
+      if (store != null) {
+        geoipFile = await _geoIpTable(store, up);
+        if (superseded()) return;
+        if (geoipFile == null) {
+          final message = _mayFetchGeoIp
+              ? 'Could not download the GeoIP table an exit-country pin '
+                  'needs, so the pin was not applied.'
+              : 'No GeoIP table is kept on this device, and a site in an '
+                  'archived webspace never downloads one, so the exit-country '
+                  'pin was not applied.';
+          _emit(TorErrored(message,
+              failure: classifyTorFailure(message, hadExitPin: true)));
+          return;
+        }
+      }
+    }
+
     try {
-      await _runtime.applyExitCountry(_exitNodes);
-      _exitNodesApplied = true;
+      await _runtime
+          .applyExitCountry(pin, geoipFile: geoipFile)
+          .timeout(kTorExitPinApplyTimeout);
     } catch (e) {
+      if (superseded()) return;
       // A pin that did not land must not be reported as in force: the user
       // would believe traffic is leaving from a country it is not.
-      _exitNodesApplied = false;
       _emit(TorErrored(
         'Could not apply the exit-country pin: $e',
         failure: classifyTorFailure(
@@ -528,7 +626,32 @@ class TorEngine {
           hadExitPin: true,
         ),
       ));
+      return;
     }
+    if (superseded()) return;
+    _exitNodesApplied = true;
+    if (!identical(_status, up)) _emit(up);
+  }
+
+  /// A GeoIP table for tor to load, downloading one when none is kept.
+  ///
+  /// The download rides Tor on its own isolation tag. It cannot go through
+  /// [socksFor], which refuses every tag while a pin is pending; it has to
+  /// happen *before* the pin, since a country tor cannot resolve leaves it
+  /// no exit to download through. A kept table past [kTorGeoIpMaxAge] is
+  /// used as it is and refreshed behind it, for the next pin to pick up.
+  Future<String?> _geoIpTable(TorGeoIpStore store, TorUp up) async {
+    final via = _socksAt(up, kTorGeoIpTag);
+    final kept = await store.newest().catchError((Object _) => null);
+    if (kept != null) {
+      if (_mayFetchGeoIp && kept.isStale(_clock())) {
+        unawaited(store.download(via).catchError((Object _) => null));
+      }
+      return kept.path;
+    }
+    if (!_mayFetchGeoIp) return null;
+    final fetched = await store.download(via).catchError((Object _) => null);
+    return fetched?.path;
   }
 
   /// Materialize the SOCKS5 settings [reason] should dial (TOR-003).
@@ -539,13 +662,15 @@ class TorEngine {
   UserProxySettings? socksFor(String reason) {
     final s = _status;
     if (s is! TorUp) return null;
-    return UserProxySettings(
-      type: ProxyType.SOCKS5,
-      address: '${s.host}:${s.port}',
-      username: reason,
-      password: _passwordFor(reason),
-    );
+    return _socksAt(s, reason);
   }
+
+  UserProxySettings _socksAt(TorUp up, String reason) => UserProxySettings(
+        type: ProxyType.SOCKS5,
+        address: '${up.host}:${up.port}',
+        username: reason,
+        password: _passwordFor(reason),
+      );
 
   /// Per-reason SOCKS password, derived rather than shared.
   ///
@@ -580,22 +705,34 @@ class TorEngine {
       _lastBootstrapTag = s.tag ?? _lastBootstrapTag;
     }
 
+    if (s is TorUp) {
+      _runtimeUp = s;
+      // A fresh tor has no ExitNodes, so "no pin" is already in force.
+      // Clearing it again would close every circuit, cutting the first
+      // loads of whatever Tor sites are starting up.
+      if (_exitNodes == null) _exitNodesApplied = true;
+    } else if (s is TorStopped || s is TorErrored || s is TorStarting) {
+      _runtimeUp = null;
+      // The pin was a SETCONF on that run; whatever comes back has none.
+      _exitNodesApplied = false;
+    }
+
     // A late status from a runtime we already tore down must not resurrect
     // it, and must not reach a closed stream. Holders no longer say anything
     // about that: releasing the last one leaves tor running (see [release]),
     // so the only shutdown left is this engine's own.
     if (_disposed) return;
-    _emit(s);
-    // Only past the resurrection guard, and only once `_status` really is
-    // up: a pin requested before bootstrap finished has been waiting for a
-    // control port, and now there is one. Assigning `_status` here directly
-    // would step around the guard above and revive a shut-down runtime.
-    // Only when there is a pin to (re-)establish. A fresh tor has no
-    // ExitNodes of its own, so pushing a reset on every bootstrap would be
-    // a SETCONF round trip that changes nothing.
-    if (s is TorUp && _exitNodes != null && !_exitNodesApplied) {
-      Future.microtask(_flushExitCountry);
+    // A pin requested before bootstrap finished has been waiting for a
+    // control port, and now there is one. `up` is not published until it
+    // lands. Only when there is a pin to establish: a fresh tor has no
+    // ExitNodes of its own, so a reset on every bootstrap would be a SETCONF
+    // round trip that changes nothing.
+    if (s is TorUp && _pinPending) {
+      _emit(const TorBootstrapping(100, tag: kTorExitPinTag));
+      unawaited(_flushExitCountry());
+      return;
     }
+    _emit(s);
   }
 
   void _armBootstrapTimeout() {

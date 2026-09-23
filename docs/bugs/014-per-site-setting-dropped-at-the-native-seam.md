@@ -111,6 +111,26 @@ silently. Only something that observes the *effect* can catch it.
    fix is the symmetric one: refuse the override when the list comes out
    empty, the way the Apple call sites now leave the store's proxy alone.
 
+7. **The Tor exit-country pin was accepted and never in force (iOS, macOS).**
+   Reported 2026-09-23: a site pinned to Brazil kept reporting a Dutch exit.
+   `SETCONF ExitNodes={br} StrictNodes=1` answered 250 OK, the engine marked
+   the pin applied, and tor logged `Failed to open GEOIP file` (a path on the
+   machine that built `tor.xcframework`) followed by "0% of exit bw". tor
+   resolves `{cc}` against its IPv4 GeoIP table and the app never gave it one
+   (`pod 'Tor'` resolves to `Tor/CTor`, which ships none), so the pin named no
+   relay at all. The page still loaded, from the Netherlands: a change to
+   `ExitNodes` only stops tor attaching *new* streams to older circuits, and
+   the recreated webview reused a pooled connection opened before the pin.
+   Two failures, each hiding the other: without the pooled connection the
+   site would have hung, which reads as a dead country, not a missing table.
+   **Fixed 2026-09-23** in TOR-014: the table is downloaded on the device
+   through Tor, never bundled (LICENSE-002 rules out `Tor/GeoIP`, whose data
+   is CC BY-SA 4.0); the plugin loads it with `SETCONF GeoIPFile`, confirms
+   `ip-to-country/ipv4-available`, and only then sets `ExitNodes`; every
+   exit-capable circuit is closed after a pin change; and the engine holds
+   `up` back until the pin lands. Gated by `test/tor_engine_test.dart`
+   (TOR-014 GeoIP group) and `test/js/tor_geoip_not_bundled.test.js`.
+
 ## What the platform actually does
 
 Measured 2026-09-22 on macOS 15.7.3 (24G419) arm64, in a standalone
@@ -272,6 +292,12 @@ Not a record of what was tried. A record of what bit, so it bites once.
     which is why it runs on every platform whose engine answers
     `getSettings()` rather than on Apple alone.
 
+16. **tor's 250 OK is not the setting in force.** tor accepts `ExitNodes`
+    naming a country it cannot resolve, and answers 250 OK to a change that
+    leaves every open stream on its old circuit. The acknowledgement says the
+    option was stored; what it does to traffic has to be asked separately
+    (`ip-to-country/ipv4-available`) or forced (closing the circuits).
+
 ## Open
 
 1. **Fail-closed on Apple: closed as not measurable in CI.** The guarantee is
@@ -336,3 +362,12 @@ Not a record of what was tried. A record of what bit, so it bites once.
 
    **Extend it when you add a per-site field** -- that is the point of it, and
    a field not in its table is a field nothing compares.
+
+4. **Instance 7 on a device: not yet measured.** The control-port sequence
+   was checked against a local tor 0.4.8.10 with the network disabled: a
+   country pin before any table leaves `ipv4-available=0`, `SETCONF
+   GeoIPFile` loads a table at runtime, the same path is not re-read and a new
+   one is. No tier here reaches the Tor network, so the onion-service download
+   and the Brazilian exit after closing the Dutch circuit have not been run
+   end to end. The clearnet URL is the fallback if the onion answers with
+   anything but the table.

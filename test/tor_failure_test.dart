@@ -50,6 +50,22 @@ void main() {
       expect(f.kind, TorFailureKind.exitPolicy);
     });
 
+    test('a pin that never landed for want of GeoIP is missing data', () {
+      // Checked before the pin branch: these messages say "exit-country"
+      // too, and blaming the country sends the user to pick another one,
+      // which fails the same way.
+      for (final m in const [
+        'Could not download the GeoIP table an exit-country pin needs, so '
+            'the pin was not applied.',
+        'Could not apply the exit-country pin: PlatformException('
+            'geoip_unavailable, Tor has no GeoIP data loaded, null, null)',
+      ]) {
+        expect(classifyTorFailure(m, hadExitPin: true).kind,
+            TorFailureKind.exitCountryData,
+            reason: m);
+      }
+    });
+
     test('a strict pin stalling late is the pin, not the network', () {
       // StrictNodes makes an unusable exit country fatal, and it fails
       // where circuits are built rather than where directories are fetched.
@@ -219,7 +235,7 @@ class _Runtime implements TorRuntime {
   Future<void> rebuildCircuits() async {}
 
   @override
-  Future<void> applyExitCountry(String? exitNodes) async {}
+  Future<void> applyExitCountry(String? exitNodes, {String? geoipFile}) async {}
 
   @override
   Future<int> startTransport(String transport) async => 0;
