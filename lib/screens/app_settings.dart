@@ -625,6 +625,76 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     urlController.dispose();
   }
 
+  Future<void> _showLocalListDialog({FilterList? existing}) async {
+    final nameController = TextEditingController(text: existing?.name);
+    final rulesController = TextEditingController(text: existing?.rules);
+
+    final loc = AppLocalizations.of(context);
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(existing == null
+            ? loc.appSettingsAddLocalListTitle
+            : loc.appSettingsEditLocalListTitle),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: InputDecoration(
+                  labelText: loc.appSettingsCustomListNameLabel,
+                  hintText: loc.appSettingsCustomListNameHint,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: rulesController,
+                decoration: InputDecoration(
+                  labelText: loc.appSettingsLocalListRulesLabel,
+                  hintText: loc.appSettingsLocalListRulesHint,
+                  alignLabelWithHint: true,
+                  border: const OutlineInputBorder(),
+                ),
+                style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+                keyboardType: TextInputType.multiline,
+                autocorrect: false,
+                enableSuggestions: false,
+                minLines: 6,
+                maxLines: 14,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(loc.commonCancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(existing == null ? loc.commonAdd : loc.commonSave),
+          ),
+        ],
+      ),
+    );
+
+    final name = nameController.text.trim();
+    final rules = rulesController.text;
+    nameController.dispose();
+    rulesController.dispose();
+    if (result != true || name.isEmpty) return;
+
+    if (existing == null) {
+      await ContentBlockerService.instance.addLocalList(name, rules);
+    } else {
+      await ContentBlockerService.instance
+          .updateLocalList(existing.id, name, rules);
+    }
+    if (mounted) setState(() {});
+  }
+
   String _formatNumber(int n) {
     if (n >= 1000) {
       return '${(n / 1000).toStringAsFixed(n % 1000 == 0 ? 0 : 1)}K';
@@ -1867,6 +1937,14 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                       height: 24,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
+                  else if (list.isLocal)
+                    IconButton(
+                      icon: const Icon(Icons.edit_outlined),
+                      tooltip: loc.commonEdit,
+                      onPressed: _downloadingListId != null
+                          ? null
+                          : () => _showLocalListDialog(existing: list),
+                    )
                   else
                     IconButton(
                       icon: Icon(
@@ -1896,11 +1974,25 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           Padding(
             padding:
                 const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: OutlinedButton.icon(
-              onPressed:
-                  _downloadingListId != null ? null : _showAddCustomListDialog,
-              icon: const Icon(Icons.add),
-              label: Text(loc.appSettingsAddCustomList),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _downloadingListId != null
+                      ? null
+                      : _showAddCustomListDialog,
+                  icon: const Icon(Icons.add),
+                  label: Text(loc.appSettingsAddCustomList),
+                ),
+                OutlinedButton.icon(
+                  onPressed: _downloadingListId != null
+                      ? null
+                      : () => _showLocalListDialog(),
+                  icon: const Icon(Icons.edit_note),
+                  label: Text(loc.appSettingsAddLocalList),
+                ),
+              ],
             ),
           ),
           // uBO resources toggle. When off, $redirect= rules become

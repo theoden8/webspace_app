@@ -118,6 +118,8 @@ Users SHALL be able to manage multiple filter lists with download, enable/disabl
 **When** they enter a name and URL
 **Then** the custom list is added to the lists registry
 **And** it can be downloaded, enabled/disabled, and removed like default lists
+**And** a list whose rules are written in the app instead of downloaded is
+covered by CB-016
 
 #### Scenario: Remove a custom list
 
@@ -753,6 +755,62 @@ it
 
 **Given** the sites are saved with no change to any site's list selection
 **Then** the engine is not rebuilt
+
+---
+
+### Requirement: CB-016 - Local Filter Lists
+
+Users SHALL be able to write a filter list in the app instead of pointing at a
+URL, for rules one site or platform needs that no published list carries. A
+local list is a `FilterList` whose `rules` field is non-null; its `url` is
+empty.
+
+- `addLocalList(name, rules)` creates it enabled and rebuilds the engine at
+  once; there is nothing to download.
+- `updateLocalList(id, name, rules)` edits it in place.
+- `downloadList` returns false for it and `downloadAllLists` skips it.
+- `_rebuildEngineInner` takes its text from `rules`, not the cache directory,
+  so it passes through the same CB-015 mask rewrite as any other list.
+- The rules persist inside the `content_blocker_lists` entry, not as a cache
+  file: they are user intent, and nothing can re-fetch them.
+
+This amends CB-011: a local list's export entry SHALL also carry `rules`, and
+`importListSelection` SHALL restore it as a local list. Download lists still
+export `{id, name, url, enabled}` only.
+
+List ids are minted from the current millisecond; minting SHALL step past an
+id already in the registry, since two lists added within one millisecond
+would otherwise share an id and one cache file.
+
+#### Scenario: Write a local list
+
+**Given** the user taps "Write Local List" and enters a name and
+`||ads.example^`
+**When** they tap Add
+**Then** the list appears enabled with its rule count
+**And** `ads.example` is blocked without any download
+
+#### Scenario: Edit a local list
+
+**Given** a local list exists
+**When** the user edits its rules and saves
+**Then** the engine is rebuilt from the new text
+**And** rules removed from the text no longer block
+
+#### Scenario: A local list survives a backup
+
+**Given** a local list and a download list
+**When** settings are exported and imported on another device
+**Then** the local list is restored with its rules and blocks immediately
+**And** the download list's entry carries no rules
+
+#### Scenario: A site masks a local list
+
+**Given** a local list is enabled
+**When** a site switches it off in its Content Blocker settings
+**Then** its rules do not apply on that site (CB-015)
+
+---
 
 ## Implementation Details
 

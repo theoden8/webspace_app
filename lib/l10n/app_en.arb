@@ -1348,6 +1348,26 @@
   "@appSettingsAddCustomList": {
     "description": "Button label to add a custom filter list"
   },
+  "appSettingsAddLocalList": "Write Local List",
+  "@appSettingsAddLocalList": {
+    "description": "Button label to create a content blocker filter list whose rules the user types in the app, instead of downloading one from a URL"
+  },
+  "appSettingsAddLocalListTitle": "New Local List",
+  "@appSettingsAddLocalListTitle": {
+    "description": "Title of the dialog where the user names and types the rules of a new locally written content blocker filter list"
+  },
+  "appSettingsEditLocalListTitle": "Edit Local List",
+  "@appSettingsEditLocalListTitle": {
+    "description": "Title of the dialog where the user changes the name and rules of an existing locally written content blocker filter list"
+  },
+  "appSettingsLocalListRulesLabel": "Rules",
+  "@appSettingsLocalListRulesLabel": {
+    "description": "Label of the multi-line field holding the ad-blocking rules of a locally written filter list"
+  },
+  "appSettingsLocalListRulesHint": "One Adblock Plus rule per line",
+  "@appSettingsLocalListRulesHint": {
+    "description": "Placeholder in the empty rules field of a locally written filter list, explaining the expected format (Adblock Plus is a product name, keep it)"
+  },
   "appSettingsUboRedirectStubs": "Serve uBO redirect stubs",
   "@appSettingsUboRedirectStubs": {
     "description": "Toggle title for serving uBO redirect stub bodies"

@@ -29,6 +29,13 @@ class FilterList {
   int ruleCount;
   int skippedCount;
 
+  /// Rules the user wrote in the app. Non-null marks a local list: it has no
+  /// URL, is never downloaded, and its text is user intent rather than a
+  /// cached blob, so it persists and exports with the list entry.
+  String? rules;
+
+  bool get isLocal => rules != null;
+
   FilterList({
     required this.id,
     required this.name,
@@ -37,6 +44,7 @@ class FilterList {
     this.lastUpdated,
     this.ruleCount = 0,
     this.skippedCount = 0,
+    this.rules,
   });
 
   Map<String, dynamic> toJson() => {
@@ -47,6 +55,7 @@ class FilterList {
         'lastUpdated': lastUpdated?.toIso8601String(),
         'ruleCount': ruleCount,
         'skippedCount': skippedCount,
+        if (rules != null) 'rules': rules,
       };
 
   factory FilterList.fromJson(Map<String, dynamic> json) => FilterList(
@@ -59,6 +68,7 @@ class FilterList {
             : null,
         ruleCount: json['ruleCount'] ?? 0,
         skippedCount: json['skippedCount'] ?? 0,
+        rules: json['rules'] is String ? json['rules'] as String : null,
       );
 }
 
@@ -718,6 +728,7 @@ class ContentBlockerService {
   Future<bool> downloadList(String id) async {
     final list = _lists.firstWhere((l) => l.id == id,
         orElse: () => throw Exception('List not found: $id'));
+    if (list.isLocal) return false;
 
     final clientResult = outboundHttp.clientFor(GlobalOutboundProxy.current);
     if (clientResult is OutboundClientBlocked) {
@@ -770,7 +781,7 @@ class ContentBlockerService {
   Future<int> downloadAllLists() async {
     int success = 0;
     for (final list in _lists) {
-      if (list.enabled) {
+      if (list.enabled && !list.isLocal) {
         if (await downloadList(list.id)) {
           success++;
         }
@@ -781,11 +792,47 @@ class ContentBlockerService {
 
   /// Add a custom filter list. Returns the new list's ID.
   Future<String> addCustomList(String name, String url) async {
-    final id =
-        'custom_${DateTime.now().millisecondsSinceEpoch.toRadixString(36)}';
+    final id = _newCustomId();
     _lists.add(FilterList(id: id, name: name, url: url));
     await _saveLists();
     return id;
+  }
+
+  String _newCustomId() {
+    var stamp = DateTime.now().millisecondsSinceEpoch;
+    while (_lists.any((l) => l.id == 'custom_${stamp.toRadixString(36)}')) {
+      stamp++;
+    }
+    return 'custom_${stamp.toRadixString(36)}';
+  }
+
+  /// Add a list whose rules the user writes in the app. It is enabled and
+  /// compiled into the engine immediately. Returns the new list's ID.
+  Future<String> addLocalList(String name, String rules) async {
+    final id = _newCustomId();
+    _lists.add(FilterList(
+      id: id,
+      name: name,
+      url: '',
+      enabled: true,
+      rules: rules,
+      ruleCount: _approximateRuleCount(rules),
+      lastUpdated: DateTime.now(),
+    ));
+    await _saveLists();
+    await _rebuildEngine();
+    return id;
+  }
+
+  /// Replace a local list's name and rules in place.
+  Future<void> updateLocalList(String id, String name, String rules) async {
+    final list = _lists.firstWhere((l) => l.id == id && l.isLocal);
+    list.name = name;
+    list.rules = rules;
+    list.ruleCount = _approximateRuleCount(rules);
+    list.lastUpdated = DateTime.now();
+    await _saveLists();
+    if (list.enabled) await _rebuildEngine();
   }
 
   /// Remove a filter list by ID.
@@ -836,7 +883,8 @@ class ContentBlockerService {
     for (final list in _lists) {
       if (!list.enabled) continue;
       try {
-        final cached = await _store.readText(_cacheName(list.id));
+        final cached =
+            list.rules ?? await _store.readText(_cacheName(list.id));
         if (cached != null) {
           // Sites that switched this list off get it scoped away here, so
           // the engine carries the mask instead of every decision site.
@@ -947,13 +995,15 @@ class ContentBlockerService {
   /// export: which lists exist, their source URLs, and whether they're
   /// enabled. Download-side metadata (rule counts, last-updated, skipped
   /// counts) is deliberately omitted — it's machine state tied to a blob
-  /// the backup doesn't carry. See content-blocker spec CB-011.
+  /// the backup doesn't carry. A local list's rules are exported: nothing
+  /// can re-download them. See content-blocker spec CB-011.
   List<Map<String, dynamic>> exportListSelection() => _lists
       .map((l) => <String, dynamic>{
             'id': l.id,
             'name': l.name,
             'url': l.url,
             'enabled': l.enabled,
+            if (l.rules != null) 'rules': l.rules,
           })
       .toList();
 
@@ -977,6 +1027,19 @@ class ContentBlockerService {
       if (!_kListIdPattern.hasMatch(id)) {
         LogService.instance.log('ContentBlocker',
             'Skipped imported list with unsafe id', level: LogLevel.warning);
+        continue;
+      }
+      final rules = e['rules'];
+      if (rules is String) {
+        restored.add(FilterList(
+          id: id,
+          name: name,
+          url: url,
+          enabled: e['enabled'] == true,
+          rules: rules,
+          ruleCount: _approximateRuleCount(rules),
+          lastUpdated: DateTime.now(),
+        ));
         continue;
       }
       final prior = priorById[id];
