@@ -235,9 +235,21 @@ live state, and SHALL:
   effective gate.
 - set `enabled = false` on every per-site script, and on every restored
   global script.
+- reset every grant that hands the page a real device or capability to the
+  state that asks again: `cameraMode` and `microphoneMode` `real` to `ask`,
+  `protectedContentAllowed` `true` to null (ask), and, for the capabilities
+  with no first-use prompt, `locationMode` `live` to `off`,
+  `notificationsEnabled` and `backgroundAudioEnabled` to false. A grant is
+  consent the user gave on the exporting device; the backup's author, not
+  the user, chose it. Simulated (`virtual`, `spoof`) and blocked states
+  grant nothing and are kept.
+- give every site after the first that repeats a `siteId` a fresh one. Two
+  sites sharing an id would share one container, so one cookie jar and one
+  storage partition.
 
 The user re-enables scripts from the per-site user-scripts screen, which is
-where they can read the source first.
+where they can read the source first, and re-grants a permission from the
+site's settings or at the page's next request.
 
 #### Scenario: Hand-written proxy password is dropped
 
@@ -255,6 +267,65 @@ where they can read the source first.
 **Then** the site's script has `enabled == false`
 **And** `enabledGlobalScriptIds` is empty
 **And** `combineUserScripts` injects neither
+
+#### Scenario: Restored permission grants ask again
+
+**Given** a backup whose site has `cameraMode: real`, `microphoneMode: real`,
+`locationMode: live`, `notificationsEnabled: true`,
+`backgroundAudioEnabled: true` and `protectedContentAllowed: true`
+**When** the import restores it
+**Then** the site has `cameraMode == ask`, `microphoneMode == ask`,
+`locationMode == off`, notifications and background audio off, and
+`protectedContentAllowed == null`
+**And** no drawer permission badge is drawn for it (PERMBADGE-001)
+
+#### Scenario: A repeated siteId does not merge two sites
+
+**Given** a backup with two sites that both carry `siteId: "dup"`
+**When** the import restores them
+**Then** the first keeps `"dup"` and the second has a fresh id
+**And** webspace membership naming `"dup"` stays with the first
+
+---
+
+### Requirement: BACKUP-013 - An Import Is Decided Before It Is Applied
+
+`planSettingsImport` ([lib/services/settings_import_engine.dart](../../../lib/services/settings_import_engine.dart))
+SHALL parse and check the whole backup before `_importSettings` touches
+live state, and `_importSettings` SHALL read only the resulting plan after
+it clears the site list. A backup that cannot be applied whole is refused
+whole, with the user's sites untouched.
+
+- `sites` and `webspaces` are the backup. A site that does not parse
+  rejects the file.
+- Every other field is optional. A value of the wrong type reads as absent;
+  an entry of an optional list (`suggestedSites`, `globalUserScripts`,
+  `contentBlockerLists`, `extraSections`) that does not parse is dropped.
+- A `globalPrefs` value is applied under the registry's type, never the
+  file's: a String stored under a key read with `getBool` would throw on
+  every later read. An integral double is accepted for an int. Otherwise
+  the default applies.
+- The in-memory value and the persisted value of a pref come from the same
+  resolved map, so a pref the backup does not name reads the same before
+  and after a restart.
+- A leading UTF-8 byte-order mark is ignored.
+
+#### Scenario: A bad optional entry no longer half-applies an import
+
+**Given** a backup whose sites are valid and whose `globalUserScripts`
+has an entry with a numeric `id`
+**When** the import runs
+**Then** the sites, webspaces and prefs are applied
+**And** the malformed script is dropped while the valid ones are restored
+switched off
+
+#### Scenario: A mistyped pref takes its default
+
+**Given** a backup with `globalPrefs.showUrlBar: "true"` and
+`globalPrefs.tabMaxWidth: 180.0`
+**When** the import runs
+**Then** `showUrlBar` is written as the bool default and `tabMaxWidth` as
+the int 180
 
 ---
 

@@ -94,6 +94,10 @@ class SettingsBackup {
           'extraSections': extraSections,
       };
 
+  /// `sites` and `webspaces` are the backup; a malformed entry in either
+  /// throws and the file is rejected whole. Everything else is optional and
+  /// read defensively: a value of the wrong type (a hand-edited file, a
+  /// newer build's shape) reads as absent rather than sinking the import.
   factory SettingsBackup.fromJson(Map<String, dynamic> json) {
     final rawPrefs = json['globalPrefs'];
     final prefs = rawPrefs is Map
@@ -105,34 +109,35 @@ class SettingsBackup {
         prefs[key] = json[key];
       }
     }
+    List<Map<String, dynamic>>? optionalMaps(Object? raw) => raw is List
+        ? [for (final e in raw) if (e is Map) Map<String, dynamic>.from(e)]
+        : null;
+    final exportedAt = json['exportedAt'];
     return SettingsBackup(
-      version: json['version'] ?? 1,
+      version: json['version'] is int ? json['version'] as int : 1,
       sites: (json['sites'] as List<dynamic>)
-          .map((e) => e as Map<String, dynamic>)
+          .map((e) => Map<String, dynamic>.from(e as Map))
           .toList(),
       webspaces: (json['webspaces'] as List<dynamic>)
-          .map((e) => e as Map<String, dynamic>)
+          .map((e) => Map<String, dynamic>.from(e as Map))
           .toList(),
-      themeMode: json['themeMode'] ?? 0,
+      themeMode: json['themeMode'] is int ? json['themeMode'] as int : 0,
       globalPrefs: prefs,
-      selectedWebspaceId: json['selectedWebspaceId'],
-      currentIndex: json['currentIndex'],
-      exportedAt: json['exportedAt'] != null
-          ? DateTime.parse(json['exportedAt'])
-          : DateTime.now(),
-      suggestedSites: (json['suggestedSites'] as List<dynamic>?)
-          ?.map((e) => e as Map<String, dynamic>)
-          .toList(),
-      globalUserScripts: (json['globalUserScripts'] as List<dynamic>?)
-          ?.map((e) => e as Map<String, dynamic>)
-          .toList(),
-      dnsBlockLevel: json['dnsBlockLevel'] as int?,
-      contentBlockerLists: (json['contentBlockerLists'] as List<dynamic>?)
-          ?.map((e) => Map<String, dynamic>.from(e as Map))
-          .toList(),
-      extraSections: (json['extraSections'] as List<dynamic>?)
-          ?.map((e) => e as String)
-          .toList(),
+      selectedWebspaceId: json['selectedWebspaceId'] is String
+          ? json['selectedWebspaceId'] as String
+          : null,
+      currentIndex:
+          json['currentIndex'] is int ? json['currentIndex'] as int : null,
+      exportedAt: (exportedAt is String ? DateTime.tryParse(exportedAt) : null) ??
+          DateTime.now(),
+      suggestedSites: optionalMaps(json['suggestedSites']),
+      globalUserScripts: optionalMaps(json['globalUserScripts']),
+      dnsBlockLevel:
+          json['dnsBlockLevel'] is int ? json['dnsBlockLevel'] as int : null,
+      contentBlockerLists: optionalMaps(json['contentBlockerLists']),
+      extraSections: json['extraSections'] is List
+          ? (json['extraSections'] as List).whereType<String>().toList()
+          : null,
     );
   }
 
@@ -309,7 +314,12 @@ class SettingsBackupService {
   /// Import settings from JSON string
   static SettingsBackup? importFromJson(String jsonString) {
     try {
-      final json = jsonDecode(jsonString) as Map<String, dynamic>;
+      // A file saved back out of a Windows editor starts with a BOM, which
+      // `jsonDecode` rejects.
+      final text = jsonString.startsWith('﻿')
+          ? jsonString.substring(1)
+          : jsonString;
+      final json = jsonDecode(text) as Map<String, dynamic>;
       return SettingsBackup.fromJson(json);
     } catch (e) {
       return null;

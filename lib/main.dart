@@ -46,6 +46,7 @@ import 'package:webspace/services/deferred_startup_engine.dart';
 import 'package:webspace/services/timezone_spoof_policy.dart';
 import 'package:webspace/services/html_import_storage.dart';
 import 'package:webspace/services/settings_backup.dart';
+import 'package:webspace/services/settings_import_engine.dart';
 import 'package:webspace/services/cookie_isolation.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/surface_diag_native.dart';
@@ -523,29 +524,6 @@ Future<String?> getPageTitle(String url, {UserProxySettings? proxy}) async {
 
   _pageTitleCache[url] = null;
   return null;
-}
-
-/// Strip what a backup file must not be able to hand a restored site.
-///
-/// A backup is a plain JSON file the user was given, so everything in it is
-/// attacker-authorable:
-///   * a proxy password never rides an export (PWD-005) and so can only have
-///     been hand-written in — restoring it would point the site's traffic at
-///     someone else's authenticated proxy;
-///   * a user script injects at document start with full page privileges, on
-///     whatever site the same file chose. Nothing restored runs before the
-///     user has opened it and said yes. Global scripts are gated by per-site
-///     opt-in rather than their own `enabled` flag (`combineUserScripts`
-///     forces that true), so the opt-in set is what has to be dropped.
-@visibleForTesting
-void sanitizeImportedSites(List<WebViewModel> sites) {
-  for (final site in sites) {
-    site.proxySettings.password = null;
-    site.enabledGlobalScriptIds.clear();
-    for (final script in site.userScripts) {
-      script.enabled = false;
-    }
-  }
 }
 
 /// One-shot migration: copy file-import HTML out of [HtmlCacheService]
@@ -4869,20 +4847,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// back as siteIds. Idempotent: webspaces that already have siteIds
   /// skip the conversion.
   Future<void> _migrateLegacyWebspaceIndices() async {
-    var migrated = false;
-    for (final ws in _webspaces) {
-      if (ws.isAll) continue;
-      if (ws.siteIds.isNotEmpty || ws.siteIndices.isEmpty) continue;
-      final ids = <String>[];
-      for (final idx in ws.siteIndices) {
-        if (idx >= 0 && idx < _webViewModels.length) {
-          ids.add(_webViewModels[idx].siteId);
-        }
-      }
-      ws.siteIds = ids;
-      migrated = true;
-    }
-    if (migrated) {
+    if (promoteLegacySiteIndices(_webspaces, _webViewModels)) {
       await _saveWebspaces();
     }
   }
@@ -6564,35 +6529,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     );
   }
 
-  /// `host:port` of the app-wide outbound proxy a backup would install, or
-  /// null when it sets none. Read from the backup, not live state, so the
-  /// dialog describes what is about to happen.
-  static String? _backupGlobalProxyAddress(SettingsBackup backup) {
-    try {
-      final raw = backup.globalPrefs[kGlobalOutboundProxyKey];
-      if (raw is! String || raw.isEmpty) return null;
-      final decoded = jsonDecode(raw);
-      if (decoded is! Map<String, dynamic>) return null;
-      final type = decoded['type'];
-      final address = decoded['address'];
-      if (type is! int || type == ProxyType.DEFAULT.index) return null;
-      if (address is! String || address.isEmpty) return null;
-      return address;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  /// How many user scripts a backup would install, global plus per-site.
-  static int _backupUserScriptCount(SettingsBackup backup) {
-    var count = backup.globalUserScripts?.length ?? 0;
-    for (final site in backup.sites) {
-      final scripts = site['userScripts'];
-      if (scripts is List) count += scripts.length;
-    }
-    return count;
-  }
-
   // Import settings from a file
   Future<void> _importSettings() async {
     final backup = await SettingsBackupService.pickAndImport(context);
@@ -6611,8 +6547,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     // app-wide proxy captures every DEFAULT site including webview traffic,
     // and a user script runs at document start with full page privileges.
     // Neither is visible in a site list, so the dialog has to name them.
-    final incomingGlobalProxy = _backupGlobalProxyAddress(backup);
-    final incomingScriptCount = _backupUserScriptCount(backup);
+    final incomingGlobalProxy = backupGlobalProxyAddress(backup);
+    final incomingScriptCount = backupUserScriptCount(backup);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -6664,18 +6600,15 @@ class _WebSpacePageState extends State<WebSpacePage>
       return;
     }
 
-    // Parse the whole backup into concrete models BEFORE touching live
-    // state: `WebViewModel.fromJson` throws on a site entry missing a
-    // required field, and a malformed/hostile backup would otherwise leave
-    // the user with their sites already cleared and the restore half-done.
-    final List<WebViewModel> restoredSites;
-    final List<Webspace> restoredWebspaces;
+    // Decide the whole import BEFORE touching live state: a site entry that
+    // does not parse throws here, and a malformed/hostile backup would
+    // otherwise leave the user with their sites already cleared and the
+    // restore half-done.
+    final SettingsImportPlan plan;
     try {
-      restoredSites = SettingsBackupService.restoreSites(backup, () {
+      plan = planSettingsImport(backup, stateSetterF: () {
         setState(() {});
       });
-      sanitizeImportedSites(restoredSites);
-      restoredWebspaces = SettingsBackupService.restoreWebspaces(backup);
     } catch (e) {
       LogService.instance.log(
         'Import',
@@ -6698,83 +6631,44 @@ class _WebSpacePageState extends State<WebSpacePage>
     await _closeAllArchives();
     if (!mounted) return;
 
-    // Apply the imported settings
+    // The same resolved values are applied here and persisted below, so a
+    // pref the backup does not name reads the same before and after a
+    // restart.
+    final prefs = plan.appPrefs;
     setState(() {
       // Invalidate any in-flight `_setCurrentIndex`/`_selectWebspace` that
       // captured the pre-import list: the clear+replace below shifts every
       // index out from under them.
       ++_setCurrentIndexVersion;
-      // Clear existing data
       _webViewModels.clear();
       _webspaces.clear();
       _loadedIndices.clear(); // Clear lazy loading state
+      _webViewModels.addAll(plan.sites);
+      _webspaces.addAll(plan.webspaces);
 
-      // Restore sites (already parsed above).
-      _webViewModels.addAll(restoredSites);
-
-      // Restore webspaces. Legacy backups carry `siteIndices`-shaped
-      // webspaces; promote those to siteIds against the just-restored
-      // models and seed the runtime projection.
-      _webspaces.addAll(restoredWebspaces);
-
-      // Restore other settings - handle both new and legacy formats.
-      // Every boolean/int/string global toggle is routed through the
-      // kExportedAppPrefs registry, so adding a new one requires zero
-      // additional code here.
-      _themeSettings = AppThemeSettings.fromStorageIndex(backup.themeMode);
-      _showUrlBar =
-          backup.globalPrefs['showUrlBar'] as bool? ?? _showUrlBar;
-      _showTabStrip =
-          backup.globalPrefs['showTabStrip'] as bool? ?? _showTabStrip;
-      _tabStripInFullscreen =
-          backup.globalPrefs['tabStripInFullscreen'] as bool? ?? _tabStripInFullscreen;
-      _tabBarButton =
-          backup.globalPrefs['tabBarButton'] as bool? ??
-          backup.globalPrefs['tabBarButtonInFullscreen'] as bool? ??
-          _tabBarButton;
-      _tabBarButtonOnRight =
-          backup.globalPrefs['tabBarButtonOnRight'] as bool? ?? _tabBarButtonOnRight;
-      _fullscreenOnShortcut =
-          backup.globalPrefs['fullscreenOnShortcut'] as bool? ?? _fullscreenOnShortcut;
-      final backOpensMenu = backup.globalPrefs[kBackOpensMenuKey] as bool?;
-      if (backOpensMenu != null) {
-        _backAtHistoryStart = backOpensMenu && _backAtHistoryStartOffered
-            ? BackAtHistoryStart.openMenu
-            : BackAtHistoryStart.ignore;
-      }
-      _tabMaxWidth =
-          backup.globalPrefs['tabMaxWidth'] as int? ?? _tabMaxWidth;
-      _showStatsBanner =
-          backup.globalPrefs['showStatsBanner'] as bool? ?? _showStatsBanner;
+      _themeSettings = AppThemeSettings.fromStorageIndex(plan.themeStorageIndex);
+      _showUrlBar = prefs['showUrlBar'] as bool;
+      _showTabStrip = prefs['showTabStrip'] as bool;
+      _tabStripInFullscreen = prefs['tabStripInFullscreen'] as bool;
+      _tabBarButton = prefs['tabBarButton'] as bool;
+      _tabBarButtonOnRight = prefs['tabBarButtonOnRight'] as bool;
+      _fullscreenOnShortcut = prefs['fullscreenOnShortcut'] as bool;
+      _backAtHistoryStart =
+          prefs[kBackOpensMenuKey] as bool && _backAtHistoryStartOffered
+              ? BackAtHistoryStart.openMenu
+              : BackAtHistoryStart.ignore;
+      _tabMaxWidth = prefs['tabMaxWidth'] as int;
+      _showStatsBanner = prefs['showStatsBanner'] as bool;
       WebViewFactory.backForwardCacheEnabled =
-          backup.globalPrefs[kBackForwardCacheEnabledKey] as bool? ??
-              WebViewFactory.backForwardCacheEnabled;
+          prefs[kBackForwardCacheEnabledKey] as bool;
       WebViewFactory.httpsUpgradeEnabled =
-          backup.globalPrefs[kHttpsUpgradeEnabledKey] as bool? ??
-              WebViewFactory.httpsUpgradeEnabled;
+          prefs[kHttpsUpgradeEnabledKey] as bool;
 
-      // Restore selection state
-      if (backup.selectedWebspaceId != null &&
-          _webspaces.any((ws) => ws.id == backup.selectedWebspaceId)) {
-        _selectedWebspaceId = backup.selectedWebspaceId;
-      } else {
-        _selectedWebspaceId = kAllWebspaceId;
-      }
+      _selectedWebspaceId = plan.selectedWebspaceId;
     });
-
-    // Same boot dance: legacy `siteIndices`-shaped webspaces in the
-    // backup need to be promoted to siteIds, then the runtime
-    // projection has to be seeded from the (now-restored) models.
-    await _migrateLegacyWebspaceIndices();
     _resolveWebspaceIndices();
 
-    // Restore current index if valid (async for cookie handling)
-    int? indexToRestore;
-    if (backup.currentIndex != null &&
-        backup.currentIndex! >= 0 &&
-        backup.currentIndex! < _webViewModels.length) {
-      indexToRestore = backup.currentIndex;
-    }
+    final indexToRestore = plan.currentIndex;
     // If no site is activated, _setCurrentIndex returns without routing
     // through _restoreCookiesForSite — which means pre-import cookies from
     // the previously-active site remain in the native jar. Nuke explicitly.
@@ -6790,18 +6684,12 @@ class _WebSpacePageState extends State<WebSpacePage>
     // Apply theme to app
     widget.onThemeSettingsChanged(_themeSettings);
 
-    // Save all settings. Global UI toggles go through the registry so
-    // new entries in kExportedAppPrefs are automatically persisted.
     // Per PWD-005 the backup file does not carry proxy passwords, so
     // there's nothing to route into secure storage here — the user will
     // re-enter passwords on the proxy settings screen, just like they
     // re-log into sites whose secure cookies were stripped.
     final prefsToWrite = await SharedPreferences.getInstance();
-    await writeExportedAppPrefs(prefsToWrite, backup.globalPrefs);
-    // Persist the migrated tab-bar-button value: a pre-rename backup carries
-    // only the legacy `tabBarButtonInFullscreen` field, which the registry
-    // writer above ignores (it would otherwise reset the new key to default).
-    await prefsToWrite.setBool('tabBarButton', _tabBarButton);
+    await writeExportedAppPrefs(prefsToWrite, prefs);
     // The registry write above set the raw key; the service caches it.
     await DeveloperModeService.instance.reload();
     // Hydrate the in-memory GlobalOutboundProxy from the (password-less)
@@ -6812,12 +6700,12 @@ class _WebSpacePageState extends State<WebSpacePage>
     // Restore the downloaded-data blockers' user intent. Both carry only
     // the selection (DNS level / list URLs + enabled), never the blob —
     // the user re-downloads from App Settings to activate blocking.
-    if (backup.dnsBlockLevel != null) {
-      await DnsBlockService.instance.applyImportedLevel(backup.dnsBlockLevel!);
+    if (plan.dnsBlockLevel != null) {
+      await DnsBlockService.instance.applyImportedLevel(plan.dnsBlockLevel!);
     }
-    if (backup.contentBlockerLists != null) {
+    if (plan.contentBlockerLists != null) {
       await ContentBlockerService.instance
-          .importListSelection(backup.contentBlockerLists!);
+          .importListSelection(plan.contentBlockerLists!);
     }
     await _saveWebViewModels();
     await _saveWebspaces();
@@ -6825,23 +6713,16 @@ class _WebSpacePageState extends State<WebSpacePage>
     await _saveSelectedWebspaceId();
     await _saveCurrentIndex();
 
-    // Restore global user scripts if present in backup
-    if (backup.globalUserScripts != null) {
-      _globalUserScripts = backup.globalUserScripts!
-          .map((e) => UserScriptConfig.fromJson(e)..enabled = false)
-          .toList();
+    if (plan.globalUserScripts != null) {
+      _globalUserScripts = plan.globalUserScripts!;
     }
     await _saveGlobalUserScripts();
 
-    // Restore suggested sites if present in backup
-    if (backup.suggestedSites != null) {
-      _suggestedSites = backup.suggestedSites!
-          .map((e) => SiteSuggestion(
-                name: e['name'] as String,
-                url: e['url'] as String,
-                domain: e['domain'] as String,
-              ))
-          .toList();
+    if (plan.suggestedSites != null) {
+      _suggestedSites = [
+        for (final s in plan.suggestedSites!)
+          SiteSuggestion(name: s.name, url: s.url, domain: s.domain),
+      ];
       await suggested_sites.saveSuggestedSites(_suggestedSites);
     }
 
@@ -6867,38 +6748,9 @@ class _WebSpacePageState extends State<WebSpacePage>
 
     if (mounted) {
       final loc = AppLocalizations.of(context);
-      // Surface the strip-from-export contract (PWD-005) when the source
-      // device had a proxy username configured — a strong proxy for "had
-      // a proxy password too" (since the username is meaningless without
-      // one). Detected from the imported backup, not the live state, so
-      // the hint fires even if hydration from secure storage hasn't
-      // finished yet.
-      bool hasProxyUsername(Map<String, dynamic>? proxy) =>
-          proxy != null &&
-          proxy['username'] is String &&
-          (proxy['username'] as String).isNotEmpty;
-      final perSiteProxyAuth = backup.sites
-          .any((s) => hasProxyUsername(s['proxySettings'] as Map<String, dynamic>?));
-      Map<String, dynamic>? globalProxyJson;
-      try {
-        final raw = backup.globalPrefs[kGlobalOutboundProxyKey];
-        if (raw is String && raw.isNotEmpty) {
-          final decoded = jsonDecode(raw);
-          if (decoded is Map<String, dynamic>) globalProxyJson = decoded;
-        }
-      } catch (_) {/* malformed global proxy entry → no hint */}
-      final globalProxyAuth = hasProxyUsername(globalProxyJson);
-      final stripped = perSiteProxyAuth || globalProxyAuth;
-      // Blocklist/filter-list blobs aren't in the backup — only the
-      // selection. Hint the user to re-download if they had either set.
-      final needsBlocklistRedownload =
-          (backup.dnsBlockLevel ?? 0) > 0 ||
-              (backup.contentBlockerLists
-                      ?.any((e) => e['enabled'] == true) ??
-                  false);
       final hints = <String>[
-        if (stripped) loc.homeImportProxyPasswordsHint,
-        if (needsBlocklistRedownload) loc.homeImportBlocklistRedownloadHint,
+        if (plan.proxyPasswordsNeeded) loc.homeImportProxyPasswordsHint,
+        if (plan.blocklistsNeedDownload) loc.homeImportBlocklistRedownloadHint,
       ];
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -6914,9 +6766,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     // by passphrase. Each prompt restores the section(s) matching the
     // entered passphrase; remaining ones can be restored by entering
     // another passphrase, or skipped by cancelling.
-    final sections = backup.extraSections;
-    if (sections != null && sections.isNotEmpty && mounted) {
-      await _restoreBackupSections(sections);
+    if (plan.extraSections.isNotEmpty && mounted) {
+      await _restoreBackupSections(plan.extraSections);
     }
   }
 

@@ -204,6 +204,14 @@ is serialised via `exportToJson`
 **Then** `globalPrefs[kGlobalOutboundProxyKey]` decodes to a JSON object
 that does NOT contain a `password` key
 
+#### Scenario: Import drops an app-wide password the file carries
+
+**Given** a backup whose `globalPrefs[kGlobalOutboundProxyKey]` decodes to
+an object with a `password` (v0.2.2 wrote one; any file can)
+**When** `resolveExportedAppPrefs` applies it
+**Then** the stored value has no `password` key
+**And** `GlobalOutboundProxy.update` receives no password to save
+
 #### Scenario: Import does not write a password to secure storage
 
 **Given** the import path runs on a backup that has no proxy passwords
