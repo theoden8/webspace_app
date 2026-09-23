@@ -1690,6 +1690,11 @@ class _WebSpacePageState extends State<WebSpacePage>
           // _captureStateForRestore inside that helper is what
           // updates the lifecycleState to savedForRestore.
           await _unloadSiteForOtherReason(victim);
+          // The pin in force follows the loaded sites (TOR-014). Left for
+          // the next activation, the pin of a site evicted here was cleared
+          // at whatever moment that came, often after a long suspension had
+          // cost the control socket.
+          _syncTorExitPin(<int>{?_currentIndex, ..._loadedIndices});
         case SiteLifecycleState.resident:
           // Promotion can never go back to live — defensive.
           break;
@@ -3151,12 +3156,24 @@ class _WebSpacePageState extends State<WebSpacePage>
     // Clearing a site's pin in settings never re-activates it, so without
     // this the country the user just removed would stay applied until the
     // next site switch.
-    final pinned = <int>{?_currentIndex, ..._loadedIndices};
-    await TorService.instance.setExitCountry(
+    _syncTorExitPin(<int>{?_currentIndex, ..._loadedIndices});
+  }
+
+  /// Put in force the exit pin the sites in [pinned] want (TOR-014),
+  /// without waiting for it.
+  ///
+  /// Nothing here may wait: the change is a control-port round trip, and a
+  /// control socket iOS reclaimed while the app slept never answers. When
+  /// the activation path awaited it, every tap on a site did nothing
+  /// (BUG-015). Waiting is not needed either: the engine holds every
+  /// Tor-bound site behind the interstitial from this call until the pin
+  /// lands, and bounds the round trip itself.
+  void _syncTorExitPin(Set<int> pinned) {
+    unawaited(TorService.instance.setExitCountry(
       SiteUnloadEngine.torExitNodesFor(indices: pinned, models: _webViewModels),
       mayFetchGeoIp: !SiteUnloadEngine.torExitPinIsArchiveOnly(
           indices: pinned, models: _webViewModels),
-    );
+    ));
   }
 
   /// Whether [model] gets a container profile, and so a Chromium network
@@ -4391,15 +4408,11 @@ class _WebSpacePageState extends State<WebSpacePage>
       }
       // Only once the disagreeing siblings are gone: SETCONF takes effect
       // for the whole runtime the moment it lands, so applying it first
-      // would route their next request through the new country.
-      final pinned = <int>{index, ..._loadedIndices};
-      await TorService.instance.setExitCountry(
-        SiteUnloadEngine.torExitNodesFor(
-            indices: pinned, models: _webViewModels),
-        mayFetchGeoIp: !SiteUnloadEngine.torExitPinIsArchiveOnly(
-            indices: pinned, models: _webViewModels),
-      );
-      if (version != _setCurrentIndexVersion) return;
+      // would route their next request through the new country. Not
+      // awaited: the target, if it uses Tor, is held behind the
+      // interstitial until the pin lands, and a target that does not use
+      // Tor has no reason to wait on tor at all.
+      _syncTorExitPin(<int>{index, ..._loadedIndices});
     }
 
     // LRU cap. Bound the number of concurrently loaded webviews; under

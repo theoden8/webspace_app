@@ -553,9 +553,13 @@ class TorEngine {
   /// tracks whether the value in `_exitNodes` has actually reached tor, so
   /// the deferred apply on reaching `up` is not mistaken for a no-op.
   ///
-  /// Until a country pin is in force the engine does not publish `up`: every
-  /// Tor-bound site waits behind the interstitial and Dart-side fetches
-  /// block, so nothing leaves through a country the user did not pick.
+  /// From this call until the change is in force the engine does not
+  /// publish `up`: every Tor-bound site waits behind the interstitial and
+  /// Dart-side Tor fetches block, so nothing leaves through a country the
+  /// user did not pick. The hold is published before this returns its
+  /// future, which is what lets a caller not wait on it: the change is a
+  /// control-port round trip, and one that never answers must not hold up
+  /// anything but the Tor sites it concerns (BUG-015).
   ///
   /// With [mayFetchGeoIp] false the pin uses a GeoIP table already on the
   /// device and never downloads one; without one it fails closed.
@@ -570,8 +574,16 @@ class TorEngine {
     if (_exitNodes == exitNodes && _status is TorErrored) return;
     _exitNodes = exitNodes;
     _exitNodesApplied = false;
+    if (_runtimeUp != null && !_disposed) _holdForPin();
     await _flushExitCountry();
   }
+
+  void _holdForPin() {
+    if (!identical(_status, _pinHold)) _emit(_pinHold);
+  }
+
+  static const TorStatus _pinHold =
+      TorBootstrapping(100, tag: kTorExitPinTag);
 
   Future<void> _flushExitCountry() {
     final next = _pinQueue.then((_) => _applyPin());
@@ -590,9 +602,9 @@ class TorEngine {
     bool superseded() =>
         _disposed || _exitNodes != pin || !identical(_runtimeUp, up);
 
+    _holdForPin();
     String? geoipFile;
     if (pin != null) {
-      _emit(const TorBootstrapping(100, tag: kTorExitPinTag));
       final store = _geoIpStore;
       if (store != null) {
         geoipFile = await _geoIpTable(store, up);
@@ -615,6 +627,16 @@ class TorEngine {
       await _runtime
           .applyExitCountry(pin, geoipFile: geoipFile)
           .timeout(kTorExitPinApplyTimeout);
+    } on TimeoutException {
+      if (superseded()) return;
+      // A control socket iOS reclaimed while the app was suspended takes
+      // the command and never answers (BUG-015). The change is not in
+      // force, so this fails closed like any other refusal.
+      const message = 'Tor did not answer on its control port while the exit '
+          'country was being changed, so the change is not in force.';
+      _emit(TorErrored(message,
+          failure: classifyTorFailure(message, hadExitPin: pin != null)));
+      return;
     } catch (e) {
       if (superseded()) return;
       // A pin that did not land must not be reported as in force: the user
@@ -728,7 +750,7 @@ class TorEngine {
     // ExitNodes of its own, so a reset on every bootstrap would be a SETCONF
     // round trip that changes nothing.
     if (s is TorUp && _pinPending) {
-      _emit(const TorBootstrapping(100, tag: kTorExitPinTag));
+      _holdForPin();
       unawaited(_flushExitCountry());
       return;
     }

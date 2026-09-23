@@ -706,6 +706,30 @@ data store, so a site recreated for its new pin can reuse a connection
 opened under the old one. Every exit-capable circuit (`GENERAL`,
 `CONFLUX_*`) SHALL therefore be closed after each pin change.
 
+**A pin change holds up nothing but the Tor sites it concerns** (BUG-015).
+The change is a control-port round trip, and a control connection can go
+silent without failing: Tor.framework drops a command's completion when the
+write to a dead socket fails, and still reports the controller connected. The
+engine SHALL publish its hold before a caller could wait on the change, and no
+UI transition SHALL await it. The round trip SHALL be bounded, and on no
+answer SHALL fail closed as a control-channel failure with Retry. The native
+side SHALL answer every call exactly once, bound every command, and replace a
+control connection that stops answering with a fresh one, never with
+`disconnect()`, which sends SIGNAL SHUTDOWN. The pin SHALL be recomputed when
+memory pressure evicts a site, not left for the next activation.
+
+#### Scenario: A silent control port does not stop a site switch
+
+- **GIVEN** `{br}` is in force for a site memory pressure has since evicted
+- **AND** tor's control socket stopped answering while the app was suspended
+- **WHEN** the user activates a site that does not use Tor
+- **THEN** the switch completes without waiting on tor
+- **AND** the clear is attempted off the activation path, fails within its
+  bound, and is reported as a control-channel failure with Retry
+- **AND** no Tor-bound site loads until a change lands, and later taps do not
+  re-send the clear
+- **AND** Retry re-attaches a fresh control connection and applies the clear
+
 #### Scenario: A pinned site never reuses the exit it had before
 
 - **GIVEN** site A is loaded through Tor and exits from the Netherlands

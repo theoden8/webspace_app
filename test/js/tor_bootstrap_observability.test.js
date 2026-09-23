@@ -204,15 +204,24 @@ test('every control-port read happens on a quiet connection', () => {
   // bug that made a finished bootstrap report "no usable SOCKS listener".
   //
   // Two windows are quiet: observeLocked before it subscribes, and after
-  // finishLocked has dropped the subscription. The exit-country path reads
-  // in the second (TOR-014), and runs only once the runtime is up.
-  const count = (src) => (src.match(/info\(forKeys:/g) || []).length;
-  const quiet = ['observeLocked', 'closeExitCircuits', 'geoipAvailable']
-    .reduce((n, name) => n + count(functionBody(swiftCode, name)), 0);
-  assert.equal(count(swiftCode), quiet,
+  // finishLocked has dropped the subscription. Reads in the second go
+  // through controlRead, which also bounds them (BUG-015), and only the
+  // exit-country path calls it, which runs only once the runtime is up.
+  const count = (src, re) => (src.match(re) || []).length;
+  const raw = /info\(forKeys:/g;
+  const rawQuiet = ['observeLocked', 'controlRead']
+    .reduce((n, name) => n + count(functionBody(swiftCode, name), raw), 0);
+  assert.equal(count(swiftCode, raw), rawQuiet,
     `${swiftRel} reads the control port outside a quiet window`);
-  assert.ok(count(functionBody(swiftCode, 'observeLocked')) > 0,
+  assert.ok(count(functionBody(swiftCode, 'observeLocked'), raw) > 0,
     'observeLocked must still read the phase and the SOCKS listener');
+
+  const bounded = /controlRead\(\s*controller/g;
+  const boundedQuiet = ['closeExitCircuits', 'geoipAvailable', 'liveController']
+    .reduce((n, name) => n + count(functionBody(swiftCode, name), bounded), 0);
+  assert.equal(count(swiftCode, bounded), boundedQuiet,
+    'a post-bootstrap read outside the exit-country path');
+  assert.ok(boundedQuiet > 0, 'the exit-country path must read through controlRead');
 
   const observe = functionBody(swiftCode, 'observeLocked');
   assert.ok(observe.lastIndexOf('info(forKeys:') < observe.indexOf('subscribeLocked('),
@@ -226,6 +235,44 @@ test('every control-port read happens on a quiet connection', () => {
     'dropped before up is published, so no read after up can meet an event');
   assert.match(functionBody(swiftCode, 'setExitCountry'), /self\.state == "up"/,
     'the exit-country reads must only run once the runtime is up');
+});
+
+test('a replaced control connection is swapped on the queue that owns it', () => {
+  // BUG-007: `controller` belongs to stateQueue. A re-attach is decided off
+  // it, so the swap must go back to it, for the run that asked, and only
+  // over the controller that stopped answering.
+  const live = functionBody(swiftCode, 'liveController');
+  const swap = live.indexOf('self.controller = fresh');
+  assert.ok(swap > 0, 'liveController must publish the fresh controller');
+  assert.ok(live.lastIndexOf('stateQueue.async', swap) > 0,
+    'the swap must happen on stateQueue');
+  assert.match(live, /generation == self\.generation/,
+    'a re-attach from an earlier run must not replace the current controller');
+  assert.match(live, /self\.controller === controller/,
+    'only the controller that stopped answering may be replaced');
+  assert.ok(!/\.disconnect\(\)/.test(live),
+    'disconnect() sends SIGNAL SHUTDOWN; a slow socket would carry it to tor');
+  assert.match(live, /controlRead\(controller, \["version"\]/,
+    'isConnected cannot see a dead socket; liveness is a question tor answers');
+
+  const claim = functionBody(swiftCode, 'claim');
+  assert.ok(claim.indexOf('lock.lock()') >= 0 && claim.indexOf('lock.lock()') < claim.indexOf('open'),
+    'the once-gate reads and writes its flag only under its lock');
+});
+
+test('the exit-country call always answers', () => {
+  // BUG-015: a command written to a dead control socket never completes.
+  const set = functionBody(swiftCode, 'setExitCountry');
+  assert.match(set, /OneShotResult\(result\)/,
+    'the method-channel result must be answered once, whoever gets there first');
+  assert.match(set, /asyncAfter\(deadline: \.now\(\) \+ kTorExitCountryTimeout\)/,
+    'the call needs a deadline of its own');
+  assert.ok(!/\bresult\(/.test(set.replace(/OneShotResult\(result\)/g, '')),
+    'every answer goes through the one-shot, never the raw result');
+  for (const step of ['setConfs', 'resetConf']) {
+    assert.match(functionBody(swiftCode, step), /reply\(within:/,
+      `${step} must bound its wait on the framework's completion`);
+  }
 });
 
 test('macOS carries the same pinned runtime as iOS', () => {

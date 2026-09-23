@@ -67,8 +67,12 @@ class FakeTorRuntime implements TorRuntime {
   /// Set to model a control connection that dropped: the call never returns.
   bool exitCountryHangs = false;
 
+  /// Every call that reached the runtime, answered or not.
+  int applyCalls = 0;
+
   @override
   Future<void> applyExitCountry(String? exitNodes, {String? geoipFile}) async {
+    applyCalls++;
     if (exitCountryHangs) return Completer<void>().future;
     if (exitCountryError != null) throw exitCountryError!;
     appliedExitNodes.add(exitNodes);
@@ -798,6 +802,64 @@ void main() {
         async.flushMicrotasks();
         expect(runtime.appliedExitNodes, ['{de}']);
         expect(e.status, isA<TorUp>());
+      });
+    });
+
+    test('a change holds Tor sites before the caller could wait on it', () {
+      // What lets activation stop awaiting the pin: the hold is in place
+      // the moment the change is asked for, not once tor answers.
+      fakeAsync((async) {
+        final e = build(geoIpStore: FakeGeoIpStore()..kept = table);
+        e.acquire('site-a');
+        runtime.bootstrapTo(9999);
+        async.flushMicrotasks();
+
+        runtime.exitCountryHangs = true;
+        e.setExitCountry('{br}');
+        expect(e.status, isA<TorBootstrapping>());
+        expect(e.socksFor('site-a'), isNull);
+        async.elapse(kTorExitPinApplyTimeout);
+      });
+    });
+
+    test('BUG-015: a clear tor never answers fails closed, once', () {
+      // The reported hang. A pin was in force, the app slept long enough
+      // for iOS to reclaim the control socket, and the next site switch
+      // cleared the pin: the RESETCONF went nowhere, and every later tap
+      // re-sent it and waited again.
+      fakeAsync((async) {
+        final e = build(geoIpStore: FakeGeoIpStore()..kept = table);
+        e.acquire('site-a');
+        runtime.bootstrapTo(9999);
+        async.flushMicrotasks();
+        e.setExitCountry('{br}');
+        async.flushMicrotasks();
+        expect(e.status, isA<TorUp>());
+
+        runtime.exitCountryHangs = true;
+        final calls = runtime.applyCalls;
+        var settled = false;
+        e.setExitCountry(null).then((_) => settled = true);
+        async.elapse(kTorExitPinApplyTimeout);
+        expect(settled, isTrue, reason: 'the change is bounded');
+        final status = e.status;
+        expect(status, isA<TorErrored>());
+        expect((status as TorErrored).kind, TorFailureKind.controlChannel,
+            reason: 'a silent control port is not a dead country');
+        expect(e.socksFor('site-a'), isNull, reason: 'fails closed');
+
+        for (var tap = 0; tap < 3; tap++) {
+          e.setExitCountry(null);
+          async.flushMicrotasks();
+        }
+        expect(runtime.applyCalls, calls + 1,
+            reason: 'a tap after the failure does not re-send and wait again');
+
+        runtime.exitCountryHangs = false;
+        e.restart();
+        async.flushMicrotasks();
+        expect(runtime.appliedExitNodes.last, isNull);
+        expect(e.status, isA<TorUp>(), reason: 'Retry re-applies the clear');
       });
     });
 

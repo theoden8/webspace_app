@@ -60,6 +60,45 @@ private let kTorLogPollInterval = 1.0
 private let kTorAttachPoll = 0.5
 private let kTorAttachAttempts = 60
 
+/// How long one control command may go unanswered, how long the liveness
+/// probe may, and how long the whole exit-country change may. A command
+/// written to a dead control socket never completes (BUG-015).
+private let kTorControlReplyTimeout = 8.0
+private let kTorControlProbeTimeout = 3.0
+private let kTorExitCountryTimeout = 20.0
+
+/// Lets one of several racing callers through. `open` is read and written
+/// only under `lock` (BUG-007).
+final class OnceGate {
+  private let lock = NSLock()
+  private var open = true
+
+  func claim() -> Bool {
+    lock.lock()
+    defer { lock.unlock() }
+    guard open else { return false }
+    open = false
+    return true
+  }
+}
+
+/// A FlutterResult answered once, by whichever of the reply and a deadline
+/// comes first. Answering twice is an error; never answering leaves the
+/// Dart side waiting forever, which is what BUG-015 was.
+final class OneShotResult {
+  private let gate = OnceGate()
+  private let result: FlutterResult
+
+  init(_ result: @escaping FlutterResult) {
+    self.result = result
+  }
+
+  func send(_ value: Any?) {
+    guard gate.claim() else { return }
+    DispatchQueue.main.async { self.result(value) }
+  }
+}
+
 /// Event-channel side of the Tor log (TOR-018).
 ///
 /// A class of its own rather than a second `FlutterStreamHandler`
@@ -1097,24 +1136,106 @@ class TorControllerPlugin: NSObject {
   /// against a loaded GeoIP table, and without one the pin matches no relay
   /// at all. So the file goes in first, and the pin only once tor reports
   /// the table loaded; tor's `ExitNodes` is never a country it cannot read.
+  ///
+  /// Always answers, and exactly once (BUG-015). Tor.framework registers a
+  /// command's reply observer only after a clean write, so a command written
+  /// to a dead control socket never completes, and the Dart side used to
+  /// wait on it for good. Every step here is bounded, the whole call has a
+  /// deadline, and a control connection that stopped answering is replaced
+  /// before the change is attempted.
   private func setExitCountry(
     _ exitNodes: String?, geoipFile: String?, result: @escaping FlutterResult
   ) {
+    let answer = OneShotResult(result)
+    DispatchQueue.global().asyncAfter(deadline: .now() + kTorExitCountryTimeout) {
+      answer.send(FlutterError(
+        code: "control_timeout",
+        message: "Tor's control port did not answer the exit-country change within "
+          + "\(Int(kTorExitCountryTimeout)) seconds, so it is not in force.",
+        details: nil))
+    }
     stateQueue.async { [weak self] in
-      guard let self = self else { result(nil); return }
-      guard let controller = self.controller, self.state == "up" else {
-        DispatchQueue.main.async {
-          result(FlutterError(
-            code: "tor_not_up",
-            message: "Tor is not connected, so the exit-country pin was not applied.",
-            details: nil))
-        }
+      guard let self = self else {
+        answer.send(FlutterError(code: "tor_not_up", message: "Tor is gone.", details: nil))
         return
       }
+      guard let controller = self.controller, self.state == "up" else {
+        answer.send(FlutterError(
+          code: "tor_not_up",
+          message: "Tor is not connected, so the exit-country pin was not applied.",
+          details: nil))
+        return
+      }
+      let generation = self.generation
       Task {
-        let error = await self.applyExitCountry(
-          exitNodes, geoipFile: geoipFile, controller: controller)
-        DispatchQueue.main.async { result(error) }
+        guard let live = await self.liveController(controller, generation: generation) else {
+          answer.send(FlutterError(
+            code: "control_unreachable",
+            message: "Tor's control port stopped answering and could not be re-attached, "
+              + "so the exit-country change is not in force.",
+            details: nil))
+          return
+        }
+        answer.send(await self.applyExitCountry(
+          exitNodes, geoipFile: geoipFile, controller: live))
+      }
+    }
+  }
+
+  /// A controller that answers: [controller] if it does, otherwise a fresh
+  /// connection that replaces it. Nil when neither will.
+  ///
+  /// `isConnected` cannot say. TORController drops its channel only when the
+  /// channel is closed, and nothing closes it when the socket dies, so a
+  /// socket iOS reclaimed while the app was suspended still reads as
+  /// connected. Asking is the only test. The old controller is dropped,
+  /// never `disconnect()`ed: that sends SIGNAL SHUTDOWN, and a socket that
+  /// was only slow would carry it to tor. tor takes no ownership from its
+  /// control connections, so losing one leaves it running.
+  ///
+  /// The swap happens on `stateQueue` and only for the run that asked, and
+  /// only if nothing replaced the controller first (BUG-007).
+  private func liveController(
+    _ controller: TorController, generation: Int
+  ) async -> TorController? {
+    if await Self.controlRead(controller, ["version"], within: kTorControlProbeTimeout) != nil {
+      return controller
+    }
+    note("Tor's control port stopped answering; re-attaching.")
+    let config: TorConfiguration? = await withCheckedContinuation { done in
+      stateQueue.async {
+        done.resume(returning: generation == self.generation ? self.configuration : nil)
+      }
+    }
+    guard let portFile = config?.controlPortFile, let cookie = config?.cookie else {
+      return nil
+    }
+    let fresh: TorController? = await withCheckedContinuation { done in
+      attachQueue.async { done.resume(returning: Self.connectedController(to: portFile)) }
+    }
+    guard let fresh = fresh else {
+      note("Tor's control port did not accept a new connection.")
+      return nil
+    }
+    let authenticated = await Self.reply(within: kTorControlReplyTimeout) {
+      (answer: @escaping (Bool) -> Void) in
+      fresh.authenticate(with: cookie) { success, _ in answer(success) }
+    }
+    guard authenticated == true else {
+      note("Tor refused the control cookie on re-attach.")
+      return nil
+    }
+    return await withCheckedContinuation { done in
+      stateQueue.async {
+        guard generation == self.generation, self.state == "up" else {
+          done.resume(returning: nil)
+          return
+        }
+        if self.controller === controller {
+          self.controller = fresh
+          self.note("Re-attached to Tor's control port.")
+        }
+        done.resume(returning: self.controller)
       }
     }
   }
@@ -1123,8 +1244,17 @@ class TorControllerPlugin: NSObject {
   private func applyExitCountry(
     _ exitNodes: String?, geoipFile: String?, controller: TorController
   ) async -> FlutterError? {
-    func refused(_ error: Error?) -> FlutterError {
-      FlutterError(
+    func check(_ outcome: (Bool, Error?)?) -> FlutterError? {
+      guard let outcome = outcome else {
+        return FlutterError(
+          code: "control_timeout",
+          message: "Tor's control port did not answer a command of the exit-country "
+            + "change, so it is not in force.",
+          details: nil)
+      }
+      let (success, error) = outcome
+      if success { return nil }
+      return FlutterError(
         code: "setconf_failed",
         message: error?.localizedDescription ?? "Tor refused the exit-country pin.",
         details: nil)
@@ -1139,11 +1269,14 @@ class TorControllerPlugin: NSObject {
       // setter: `setConfForKey:withValue:` starts with `set`, so Swift
       // imports it whole rather than splitting off `forKey:`, and the
       // split spelling does not exist. setConfs needs no such guess.
-      let (reset, resetError) = await Self.resetConf(controller, key: "ExitNodes")
-      guard reset else { return refused(resetError) }
-      let (unset, unsetError) = await Self.setConfs(
-        controller, [["key": "StrictNodes", "value": "0"]])
-      guard unset else { return refused(unsetError) }
+      if let failed = check(await Self.resetConf(controller, key: "ExitNodes")) {
+        return failed
+      }
+      if let failed = check(
+        await Self.setConfs(controller, [["key": "StrictNodes", "value": "0"]]))
+      {
+        return failed
+      }
       await closeExitCircuits(controller)
       return nil
     }
@@ -1152,10 +1285,11 @@ class TorControllerPlugin: NSObject {
     // it parse the file and re-resolve every relay's country. A path it
     // already read is not re-read, which is why Dart names each download
     // afresh rather than overwriting one file.
-    if let geoipFile = geoipFile, !geoipFile.isEmpty {
-      let (loaded, loadError) = await Self.setConfs(
-        controller, [["key": "GeoIPFile", "value": geoipFile]])
-      guard loaded else { return refused(loadError) }
+    if let geoipFile = geoipFile, !geoipFile.isEmpty,
+       let failed = check(
+         await Self.setConfs(controller, [["key": "GeoIPFile", "value": geoipFile]]))
+    {
+      return failed
     }
     guard await Self.geoipAvailable(controller) else {
       return FlutterError(
@@ -1168,13 +1302,16 @@ class TorControllerPlugin: NSObject {
     // StrictNodes 1 alongside: without it tor treats ExitNodes as a
     // preference and silently leaves through another country when the
     // pinned one has no usable exit.
-    let (pinned, pinError) = await Self.setConfs(
-      controller,
-      [
-        ["key": "ExitNodes", "value": exitNodes],
-        ["key": "StrictNodes", "value": "1"],
-      ])
-    guard pinned else { return refused(pinError) }
+    if let failed = check(
+      await Self.setConfs(
+        controller,
+        [
+          ["key": "ExitNodes", "value": exitNodes],
+          ["key": "StrictNodes", "value": "1"],
+        ]))
+    {
+      return failed
+    }
     await closeExitCircuits(controller)
     // tor also wants an IPv6 table once a country pin is in force, and warns
     // on every config change that it has none. Exit countries are decided by
@@ -1200,21 +1337,26 @@ class TorControllerPlugin: NSObject {
   /// Onion-service and other internal circuits are left alone; the pin says
   /// nothing about them.
   private func closeExitCircuits(_ controller: TorController) async {
-    var status = await controller.info(forKeys: ["circuit-status"])
+    var status = await Self.controlRead(
+      controller, ["circuit-status"], within: kTorControlReplyTimeout)
     // An empty answer, as opposed to an empty value, is Tor.framework's
     // reply observer having been handed an unrelated event first.
-    if status.isEmpty { status = await controller.info(forKeys: ["circuit-status"]) }
-    guard let raw = status.first else {
+    if status?.isEmpty == true {
+      status = await Self.controlRead(
+        controller, ["circuit-status"], within: kTorControlReplyTimeout)
+    }
+    guard let raw = status?.first else {
       note("Could not read tor's circuits after an exit-country change.")
       return
     }
     let ids = Self.exitCircuitIds(fromCircuitStatus: raw)
     guard !ids.isEmpty else { return }
-    let closed = await withCheckedContinuation { (done: CheckedContinuation<Bool, Never>) in
-      controller.closeCircuits(byIds: ids) { success in done.resume(returning: success) }
+    let closed = await Self.reply(within: kTorControlReplyTimeout) {
+      (answer: @escaping (Bool) -> Void) in
+      controller.closeCircuits(byIds: ids) { success in answer(success) }
     }
     note(
-      closed
+      closed == true
         ? "Closed \(ids.count) circuit(s) opened before the exit-country change."
         : "Some of \(ids.count) circuit(s) opened before the exit-country change "
           + "were already gone.")
@@ -1250,26 +1392,59 @@ class TorControllerPlugin: NSObject {
   /// clear "1" reads as no, since the pin is refused on a no.
   private static func geoipAvailable(_ controller: TorController) async -> Bool {
     for _ in 0..<2 {
-      let answer = await controller.info(forKeys: ["ip-to-country/ipv4-available"])
+      let answer = await controlRead(
+        controller, ["ip-to-country/ipv4-available"], within: kTorControlReplyTimeout)
+      guard let answer = answer else { return false }
       if let value = answer.first { return value == "1" }
     }
     return false
   }
 
+  /// `GETINFO [keys]`, or nil when tor has not answered within [seconds].
+  ///
+  /// The one place the plugin reads the control port after bootstrap, and
+  /// it only runs once `finishLocked` has dropped the event subscription
+  /// (TOR-019). The framework's async `info(forKeys:)` has no end of its
+  /// own; the read it starts is abandoned at the deadline, not cancelled.
+  private static func controlRead(
+    _ controller: TorController, _ keys: [String], within seconds: Double
+  ) async -> [String]? {
+    await reply(within: seconds) { (answer: @escaping ([String]) -> Void) in
+      Task { answer(await controller.info(forKeys: keys)) }
+    }
+  }
+
   private static func setConfs(
     _ controller: TorController, _ confs: [[AnyHashable: Any]]
-  ) async -> (Bool, Error?) {
-    await withCheckedContinuation { (done: CheckedContinuation<(Bool, Error?), Never>) in
-      controller.setConfs(confs) { success, error in done.resume(returning: (success, error)) }
+  ) async -> (Bool, Error?)? {
+    await reply(within: kTorControlReplyTimeout) {
+      (answer: @escaping ((Bool, Error?)) -> Void) in
+      controller.setConfs(confs) { success, error in answer((success, error)) }
     }
   }
 
   private static func resetConf(
     _ controller: TorController, key: String
-  ) async -> (Bool, Error?) {
-    await withCheckedContinuation { (done: CheckedContinuation<(Bool, Error?), Never>) in
-      controller.resetConf(forKey: key) { success, error in
-        done.resume(returning: (success, error))
+  ) async -> (Bool, Error?)? {
+    await reply(within: kTorControlReplyTimeout) {
+      (answer: @escaping ((Bool, Error?)) -> Void) in
+      controller.resetConf(forKey: key) { success, error in answer((success, error)) }
+    }
+  }
+
+  /// Whatever [send]'s completion delivers, or nil at [seconds], whichever
+  /// comes first. Tor.framework drops a command's completion when the write
+  /// fails, so no wait on it may be open-ended (BUG-015).
+  private static func reply<T>(
+    within seconds: Double, _ send: (@escaping (T) -> Void) -> Void
+  ) async -> T? {
+    await withCheckedContinuation { (done: CheckedContinuation<T?, Never>) in
+      let gate = OnceGate()
+      DispatchQueue.global().asyncAfter(deadline: .now() + seconds) {
+        if gate.claim() { done.resume(returning: nil) }
+      }
+      send { value in
+        if gate.claim() { done.resume(returning: value) }
       }
     }
   }
