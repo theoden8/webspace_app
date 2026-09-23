@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "sites": [
+    {
+      "siteId": "hmkoy91149-47ff",
+      "initUrl": "https://minimal.example/",
+      "currentUrl": "https://minimal.example/",
+      "name": "minimal.example",
+      "pageTitle": null,
+      "cookies": [],
+      "proxySettings": {
+        "type": 0,
+        "address": null,
+        "username": null,
+        "password": null
+      },
+      "javascriptEnabled": true,
+      "userAgent": "",
+      "thirdPartyCookiesEnabled": false,
+      "incognito": false,
+      "language": null
+    }
+  ],
+  "webspaces": [],
+  "themeMode": 0,
+  "showUrlBar": false,
+  "selectedWebspaceId": null,
+  "currentIndex": null,
+  "exportedAt": "2026-09-23T23:14:38.401899"
+}

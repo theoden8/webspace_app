@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "sites": [
+    {
+      "siteId": "hmkp46cjhg-pv2",
+      "initUrl": "https://minimal.example/",
+      "currentUrl": "https://minimal.example/",
+      "name": "minimal.example",
+      "pageTitle": null,
+      "cookies": [],
+      "proxySettings": {
+        "type": 0,
+        "address": null,
+        "username": null
+      },
+      "javascriptEnabled": true,
+      "userAgent": "",
+      "thirdPartyCookiesEnabled": false,
+      "incognito": false,
+      "alwaysOpenHome": false,
+      "language": null,
+      "clearUrlEnabled": true,
+      "dnsBlockEnabled": true,
+      "contentBlockEnabled": true,
+      "trackingProtectionEnabled": true,
+      "localCdnEnabled": true,
+      "blockAutoRedirects": true,
+      "fullscreenMode": false,
+      "htmlCachingEnabled": false,
+      "notificationsEnabled": false,
+      "userScripts": [],
+      "locationMode": "off",
+      "spoofAccuracy": 50.0,
+      "webRtcPolicy": "defaultPolicy"
+    }
+  ],
+  "webspaces": [],
+  "themeMode": 0,
+  "globalPrefs": {
+    "showUrlBar": false,
+    "showTabStrip": false,
+    "tabStripInFullscreen": false,
+    "showStatsBanner": true,
+    "osmTileUrl": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+    "globalOutboundProxy": "{\"type\":0,\"address\":null,\"username\":null}",
+    "linkHandlingEnabled": true,
+    "trustedHosts": [],
+    "useUboResources": true,
+    "appLocaleOverride": ""
+  },
+  "selectedWebspaceId": null,
+  "currentIndex": null,
+  "exportedAt": "2026-09-23T23:20:36.696642"
+}

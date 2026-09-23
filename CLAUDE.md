@@ -52,6 +52,9 @@ in the Xcode project. Spec: PLATFORM-006.
   [`test/js/workflow_shell_syntax.test.js`](test/js/workflow_shell_syntax.test.js).
   Don't use it on a commit whose change could break another platform.
 - **Don't commit derivatives.** If a file is the output of a script, parser, compiler, dumper, or any build step that reads from elsewhere — it doesn't belong in the repo. Commit the inputs (sources you author, pinned upstream refs) and the *runner* (build.rs, scripts, Cargo features); regenerate the output at build time into `$OUT_DIR`/`build/`/`target/`. Same applies to vendored third-party source: if a script can fetch + assemble it from upstream at a pinned ref, don't check the upstream tree in. Concrete check before staging: "could I delete this file and reproduce it by running one command from a clean clone?" — if yes, it's a derivative; ignore it. See `rust/webspace_adblock/build.rs` for an example.
+  One exception: `test/fixtures/backup_compat/<tag>/` is what a shipped release exported. A
+  release's output never changes, and rebuilding it means checking out and `pub get`-ing
+  every old tag, so the corpus is committed; `tool/backup_compat/generate.sh` is its runner.
 
 ## Sandbox bootstrap
 
@@ -259,7 +262,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | proxy | per-site HTTP/HTTPS/SOCKS5; Android serialises mismatched-proxy sites |
 | proxy-password-secure-storage | secrets in flutter_secure_storage; never in JSON |
 | screenshots | integration-test driven |
-| settings-backup | JSON import/export |
+| settings-backup | JSON import/export; every released format still imports (per-release fixture corpus), and an import is planned whole before it is applied |
 | settings-hints | where a settings row's text goes: state in the subtitle, explanation behind the hint button; fixed-string subtitles capped across all locales |
 | site-behaviour | per-site Behaviour screen: how the app hosts the site (opening + display, link handling), reached from one row under "Site" |
 | site-editing | URL + custom name |
@@ -311,7 +314,9 @@ User-facing global pref persisted to SharedPreferences MUST round-trip through t
 - Don't add per-pref params to `SettingsBackupService.createBackup`; main.dart already does `readExportedAppPrefs` / `writeExportedAppPrefs`.
 - Don't register: migration flags, download timestamps, cache indices, machine state from downloaded data (DNS blocklist, content blocker, localcdn).
 - Per-site settings ride `WebViewModel.toJson` automatically — keep them on the model.
-- Touched export/import? Re-run `flutter test test/settings_backup_test.dart`.
+- Touched export/import? Re-run `flutter test test/settings_backup_test.dart test/settings_backup_compat_test.dart`.
+- Import logic lives in `planSettingsImport` ([settings_import_engine.dart](lib/services/settings_import_engine.dart)); `_importSettings` only applies the plan (BACKUP-013). A key you rename or drop keeps its old spelling readable in `fromJson`, and the compat test fails until some fixture carries it (BACKUP-012).
+- On release day (version bumped in `pubspec.yaml`), run `tool/backup_compat/generate.sh HEAD` and commit the new `test/fixtures/backup_compat/v<version>/`; the compat test fails without it.
 
 ## Settings rows: state in the subtitle, explanation in the hint
 

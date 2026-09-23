@@ -288,6 +288,69 @@ site's settings or at the page's next request.
 
 ---
 
+### Requirement: BACKUP-012 - Every Released Backup Format Imports
+
+A backup written by any release SHALL import, and importing it SHALL hold
+BACKUP-011 and PWD-005 exactly as importing a current one does. A key the
+release did not write SHALL import as a freshly added site's default. The
+same holds for the other formats a release hands out: a site-settings QR
+link (`webspace://qr/site/v1/`, SITEQR) SHALL still decode, and every
+`webspace://open?url=` link a release accepted SHALL unwrap to the same URL.
+
+`version` has been 1 in every release, so a legacy shape is recognised
+from the data:
+
+| Shape | Written by | Read as |
+|---|---|---|
+| `themeMode` as `ThemeMode.index` | v0.0.4, v0.0.5 | `themeMode * 10` (blue accent). Told apart from the current `mode * 10 + accent` by no site carrying `language`, which every export since v0.1.0 writes |
+| flat `showUrlBar` beside the sites | v0.0.4 to v0.2.1 | `globalPrefs.showUrlBar` |
+| webspace `siteIndices` | v0.0.4 to v0.2.3 | `siteIds` resolved against the backup's site order |
+| no `siteId` | v0.0.4 | a fresh id |
+| user scripts without `id` | v0.1.6 to v0.2.0 | a fresh id |
+| `file://name.html` (imported HTML) | v0.2.1, v0.2.2 | `file:///name.html` |
+| plaintext proxy passwords | v0.0.4 to v0.2.2 (per site), v0.2.2 (app-wide) | dropped |
+| `trustedHosts` in `globalPrefs` | v0.2.4 to v0.3.1 | ignored (BACKUP-010) |
+
+Every key that `fromJson` still reads but the current `toJson` no longer
+writes is a migration and SHALL be carried by at least one fixture.
+
+The corpus lives in `test/fixtures/backup_compat/<tag>/`: what each release
+exported for the inputs in `tool/backup_compat/superset.json`, produced by
+running that release's own serializers (`tool/backup_compat/generate.sh`,
+which checks out each tag and swaps in a shim for any API the release
+predates). The version in `pubspec.yaml` SHALL have fixtures, so a release
+cannot ship without its format joining the corpus.
+
+#### Scenario: A v0.0.5 backup keeps its dark theme
+
+**Given** the v0.0.5 fixture, which wrote `themeMode: 2` for dark
+**When** it is imported
+**Then** the theme is dark with the blue accent, not system with purple
+
+#### Scenario: A v0.2.2 backup cannot restore its proxy passwords
+
+**Given** the v0.2.2 fixture, whose site and app-wide proxies carry
+plaintext passwords
+**When** it is imported
+**Then** neither password reaches a model, `globalPrefs`, or a re-export
+
+#### Scenario: A release's link still opens
+
+**Given** `links.json` of any release from v0.2.3
+**When** each link is parsed at HEAD
+**Then** it unwraps to the URL that release unwrapped, or is rejected as
+that release rejected it
+**And** no link makes the parser throw
+
+#### Scenario: A release without fixtures fails the build
+
+**Given** `pubspec.yaml` names a version with no
+`test/fixtures/backup_compat/v<version>/`
+**When** `test/settings_backup_compat_test.dart` runs
+**Then** it fails, naming `tool/backup_compat/generate.sh HEAD`
+
+---
+
 ### Requirement: BACKUP-013 - An Import Is Decided Before It Is Applied
 
 `planSettingsImport` ([lib/services/settings_import_engine.dart](../../../lib/services/settings_import_engine.dart))

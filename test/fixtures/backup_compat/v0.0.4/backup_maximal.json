@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "sites": [
+    {
+      "initUrl": "https://mail.example.com/",
+      "currentUrl": "https://mail.example.com/inbox",
+      "name": "Mail",
+      "pageTitle": "Inbox",
+      "cookies": [],
+      "proxySettings": {
+        "type": 3,
+        "address": "127.0.0.1:1080",
+        "username": "proxyuser",
+        "password": "site-proxy-password-needle-a41c"
+      },
+      "javascriptEnabled": false,
+      "userAgent": "Mozilla/5.0 (X11; Linux x86_64) BackupCompatFixture/1.0",
+      "thirdPartyCookiesEnabled": true
+    },
+    {
+      "initUrl": "https://private.example.net/",
+      "currentUrl": "https://private.example.net/secret-path",
+      "name": "Private",
+      "pageTitle": "Private page",
+      "cookies": [],
+      "proxySettings": {
+        "type": 1,
+        "address": "http-proxy.example:3128",
+        "username": null,
+        "password": null
+      },
+      "javascriptEnabled": true,
+      "userAgent": "",
+      "thirdPartyCookiesEnabled": false
+    },
+    {
+      "initUrl": "http://localhost:8080/",
+      "currentUrl": "http://localhost:8080/dashboard",
+      "name": "Dashboard",
+      "pageTitle": "Dashboard",
+      "cookies": [],
+      "proxySettings": {
+        "type": 0,
+        "address": null,
+        "username": null,
+        "password": null
+      },
+      "javascriptEnabled": true,
+      "userAgent": "",
+      "thirdPartyCookiesEnabled": false
+    },
+    {
+      "initUrl": "file://notes.html",
+      "currentUrl": "file://notes.html",
+      "name": "notes",
+      "pageTitle": "notes",
+      "cookies": [],
+      "proxySettings": {
+        "type": 0,
+        "address": null,
+        "username": null,
+        "password": null
+      },
+      "javascriptEnabled": true,
+      "userAgent": "",
+      "thirdPartyCookiesEnabled": false
+    }
+  ],
+  "webspaces": [
+    {
+      "id": "ws-compat-work",
+      "name": "Work",
+      "siteIndices": [
+        0,
+        2,
+        3
+      ]
+    },
+    {
+      "id": "ws-compat-private",
+      "name": "Private",
+      "siteIndices": [
+        1
+      ]
+    }
+  ],
+  "themeMode": 2,
+  "showUrlBar": true,
+  "selectedWebspaceId": "ws-compat-work",
+  "currentIndex": 2,
+  "exportedAt": "2026-09-23T23:13:43.087043"
+}
