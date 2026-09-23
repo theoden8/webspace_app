@@ -841,6 +841,8 @@
   "torFailClockSkewBody": "Tor nuk ndërton qarqe përderisa ora ka shmangie të madhe. Korrigjoni datën dhe orën, pastaj provoni sërish.",
   "torFailExitPolicyTitle": "Asnjë dalje e përdorshme në atë vend",
   "torFailExitPolicyBody": "Vendi i daljes është caktuar rreptësisht, prandaj Tor nuk do të dalë gjetkë. Zgjidhni një vend tjetër ose kthehuni te çdo vend.",
+  "torFailExitCountryDataTitle": "Lista e vendeve nuk është e disponueshme",
+  "torFailExitCountryDataBody": "Caktimi i një vendi daljeje kërkon një listë se cilët rele ndodhen në cilin vend. Ajo shkarkohet përmes Tor në përdorimin e parë, dhe ai shkarkim dështoi. Provoni përsëri ose kthejeni vendin e daljes te çdo vend.",
   "torFailControlChannelTitle": "Nuk u arrit komunikimi me Tor",
   "torFailControlChannelBody": "Aplikacioni nuk arriti te kanali i kontrollit i Tor, ndaj nuk mund të dijë nëse trafiku është i mbrojtur. Ky është një defekt i aplikacionit, jo diçka për t'u konfiguruar; hollësitë janë te Mjetet e zhvilluesit.",
   "torFailTimeoutTitle": "Tor zgjati shumë",

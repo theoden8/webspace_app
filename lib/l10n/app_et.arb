@@ -841,6 +841,8 @@
   "torFailClockSkewBody": "Tor ei ehita ahelaid, kuni kell liiga palju erineb. Parandage kuupäev ja kellaaeg ning proovige uuesti.",
   "torFailExitPolicyTitle": "Selles riigis pole kasutatavat väljundit",
   "torFailExitPolicyBody": "Väljumisriik on rangelt määratud, seega Tor ei välju mujalt. Valige teine riik või seadke tagasi mis tahes riigile.",
+  "torFailExitCountryDataTitle": "Riikide loend pole saadaval",
+  "torFailExitCountryDataBody": "Väljumisriigi määramiseks on vaja loendit, millised releed millises riigis asuvad. See laaditakse esimesel kasutamisel Tori kaudu alla ja see allalaadimine ebaõnnestus. Proovige uuesti või seadke väljumisriik tagasi mis tahes riigile.",
   "torFailControlChannelTitle": "Toriga ei õnnestunud suhelda",
   "torFailControlChannelBody": "Rakendus ei jõudnud Tori juhtkanalini ega saa seetõttu teada, kas liiklus on kaitstud. See on rakenduse viga, mitte seadistus; üksikasjad on Arendaja tööriistades.",
   "torFailTimeoutTitle": "Tor võttis liiga kaua aega",

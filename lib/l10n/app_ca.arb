@@ -841,6 +841,8 @@
   "torFailClockSkewBody": "El Tor no construeix circuits mentre el rellotge estigui massa desviat. Corregiu la data i l'hora i torneu-ho a provar.",
   "torFailExitPolicyTitle": "Cap sortida utilitzable en aquest país",
   "torFailExitPolicyBody": "El país de sortida està fixat estrictament, de manera que el Tor no sortirà d'enlloc més. Trieu un altre país o torneu a qualsevol país.",
+  "torFailExitCountryDataTitle": "La llista de països no està disponible",
+  "torFailExitCountryDataBody": "Per fixar un país de sortida cal una llista de quins repetidors són a cada país. Es baixa a través del Tor el primer cop que s'usa, i aquesta baixada ha fallat. Torneu-ho a provar o torneu el país de sortida a qualsevol país.",
   "torFailControlChannelTitle": "No s'ha pogut comunicar amb el Tor",
   "torFailControlChannelBody": "L'aplicació no ha pogut arribar al canal de control del Tor, així que no pot saber si el trànsit està protegit. És un defecte de l'aplicació, no una cosa a configurar; els detalls són a les Eines per a desenvolupadors.",
   "torFailTimeoutTitle": "El Tor ha trigat massa",

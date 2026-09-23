@@ -841,6 +841,8 @@
   "torFailClockSkewBody": "Tor circuitus non aedificat dum horologium nimis discrepat. Diem et horam corrige, deinde iterum conare.",
   "torFailExitPolicyTitle": "Nullus exitus utilis in illa terra",
   "torFailExitPolicyBody": "Terra exitus stricte fixa est, itaque Tor aliunde non exibit. Aliam terram elige aut ad quamlibet terram redi.",
+  "torFailExitCountryDataTitle": "Index terrarum non praesto est",
+  "torFailExitCountryDataBody": "Ad terram exitus figendam index opus est, qui ostendit quae stationes in qua terra sint. Primo usu per Tor demittitur, et ea demissio defecit. Iterum conare, aut terram exitus ad quamlibet terram redde.",
   "torFailControlChannelTitle": "Cum Tor colloqui non licuit",
   "torFailControlChannelBody": "Applicatio canalem moderandi Tor attingere non potuit, ideo scire non potest num commeatus tutus sit. Hoc vitium applicationis est, non res componenda; particulae in Instrumentis Elaboratoris sunt.",
   "torFailTimeoutTitle": "Tor nimis diu moratus est",

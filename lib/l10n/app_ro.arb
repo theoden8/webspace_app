@@ -841,6 +841,8 @@
   "torFailClockSkewBody": "Tor refuză să construiască circuite cât timp ceasul este prea decalat. Corectați data și ora, apoi încercați din nou.",
   "torFailExitPolicyTitle": "Nicio ieșire utilizabilă în acea țară",
   "torFailExitPolicyBody": "Țara de ieșire este fixată strict, așa că Tor nu va ieși din altă parte. Alegeți altă țară sau reveniți la orice țară.",
+  "torFailExitCountryDataTitle": "Lista țărilor nu este disponibilă",
+  "torFailExitCountryDataBody": "Fixarea unei țări de ieșire necesită o listă cu releele din fiecare țară. Aceasta se descarcă prin Tor la prima utilizare, iar descărcarea a eșuat. Încercați din nou sau readuceți țara de ieșire la orice țară.",
   "torFailControlChannelTitle": "Nu s-a putut comunica cu Tor",
   "torFailControlChannelBody": "Aplicația nu a putut ajunge la canalul de control al Tor, deci nu poate ști dacă traficul este protejat. Este un defect al aplicației, nu ceva de configurat; detaliile se află în Instrumentele pentru dezvoltatori.",
   "torFailTimeoutTitle": "Tor a durat prea mult",

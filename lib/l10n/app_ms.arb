@@ -841,6 +841,8 @@
   "torFailClockSkewBody": "Tor enggan membina litar selagi jamnya terlalu menyimpang. Betulkan tarikh dan masa, kemudian cuba lagi.",
   "torFailExitPolicyTitle": "Tiada keluaran yang boleh digunakan di negara itu",
   "torFailExitPolicyBody": "Negara keluar ditetapkan secara ketat, jadi Tor tidak akan keluar dari tempat lain. Pilih negara lain atau tetapkan semula kepada mana-mana negara.",
+  "torFailExitCountryDataTitle": "Senarai negara tidak tersedia",
+  "torFailExitCountryDataBody": "Menetapkan negara keluar memerlukan senarai geganti yang berada di setiap negara. Senarai ini dimuat turun melalui Tor pada penggunaan pertama, dan muat turun itu gagal. Cuba lagi, atau tetapkan semula negara keluar kepada mana-mana negara.",
   "torFailControlChannelTitle": "Tidak dapat berhubung dengan Tor",
   "torFailControlChannelBody": "Aplikasi tidak dapat mencapai saluran kawalan Tor, jadi ia tidak dapat mengetahui sama ada trafik dilindungi. Ini kecacatan aplikasi, bukan sesuatu untuk ditetapkan; butirannya ada dalam Alat pembangun.",
   "torFailTimeoutTitle": "Tor mengambil masa terlalu lama",

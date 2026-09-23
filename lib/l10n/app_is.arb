@@ -841,6 +841,8 @@
   "torFailClockSkewBody": "Tor byggir ekki rásir á meðan klukkan skeikar of miklu. Leiðréttu dagsetningu og tíma og reyndu aftur.",
   "torFailExitPolicyTitle": "Enginn nothæfur útgangur í því landi",
   "torFailExitPolicyBody": "Útgöngulandið er fast bundið, svo Tor fer ekki út annars staðar. Veldu annað land eða stilltu aftur á hvaða land sem er.",
+  "torFailExitCountryDataTitle": "Landalistinn er ekki tiltækur",
+  "torFailExitCountryDataBody": "Til að festa útgönguland þarf lista yfir hvaða endurvarpar eru í hvaða landi. Hann er sóttur um Tor í fyrsta sinn sem hann er notaður, og sú niðurhleðsla mistókst. Reyndu aftur eða stilltu útgöngulandið aftur á hvaða land sem er.",
   "torFailControlChannelTitle": "Náði ekki sambandi við Tor",
   "torFailControlChannelBody": "Forritið náði ekki stjórnrás Tor og getur því ekki sagt til um hvort umferðin sé varin. Þetta er galli í forritinu, ekki stilling; nánari upplýsingar eru í Þróunartólum.",
   "torFailTimeoutTitle": "Tor tók of langan tíma",

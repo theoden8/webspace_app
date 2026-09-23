@@ -841,6 +841,8 @@
   "torFailClockSkewBody": "Tor nie buduje obwodów, dopóki zegar jest zbyt przesunięty. Popraw datę i godzinę, a potem spróbuj ponownie.",
   "torFailExitPolicyTitle": "Brak działającego węzła wyjściowego w tym kraju",
   "torFailExitPolicyBody": "Kraj wyjścia jest ustawiony sztywno, więc Tor nie wyjdzie nigdzie indziej. Wybierz inny kraj albo wróć do dowolnego kraju.",
+  "torFailExitCountryDataTitle": "Lista krajów niedostępna",
+  "torFailExitCountryDataBody": "Ustawienie kraju wyjścia wymaga listy, które przekaźniki są w którym kraju. Pobiera się ją przez Tor przy pierwszym użyciu i to pobieranie się nie powiodło. Spróbuj ponownie albo przywróć dowolny kraj wyjścia.",
   "torFailControlChannelTitle": "Nie można porozumieć się z Torem",
   "torFailControlChannelBody": "Aplikacja nie zdołała połączyć się z kanałem sterującym Tora, więc nie wie, czy ruch jest chroniony. To usterka aplikacji, a nie kwestia ustawień; szczegóły są w Narzędziach programisty.",
   "torFailTimeoutTitle": "Tor potrzebował zbyt wiele czasu",

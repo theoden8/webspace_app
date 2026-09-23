@@ -841,6 +841,8 @@
   "torFailClockSkewBody": "Tor odmieta zostavovať okruhy, kým sú hodiny príliš posunuté. Opravte dátum a čas a skúste to znova.",
   "torFailExitPolicyTitle": "V tejto krajine nie je použiteľný výstupný uzol",
   "torFailExitPolicyBody": "Krajina výstupu je pevne určená, takže Tor nevystúpi nikde inde. Zvoľte inú krajinu alebo sa vráťte k ľubovoľnej krajine.",
+  "torFailExitCountryDataTitle": "Zoznam krajín nie je k dispozícii",
+  "torFailExitCountryDataBody": "Určenie krajiny výstupu vyžaduje zoznam, ktoré relé sú v ktorej krajine. Sťahuje sa cez Tor pri prvom použití a toto stiahnutie zlyhalo. Skúste to znova alebo vráťte krajinu výstupu na ľubovoľnú krajinu.",
   "torFailControlChannelTitle": "S Torom sa nepodarilo dohovoriť",
   "torFailControlChannelBody": "Aplikácia sa nedostala k riadiacemu kanálu Toru, takže nevie zistiť, či je prevádzka chránená. Ide o chybu aplikácie, nie o nastavenie; podrobnosti nájdete vo Vývojárskych nástrojoch.",
   "torFailTimeoutTitle": "Tor trval príliš dlho",

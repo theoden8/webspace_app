@@ -841,6 +841,8 @@
   "torFailClockSkewBody": "ሰዓቱ በጣም እስከተለያየ ድረስ Tor ዑደቶችን አይገነባም። ቀኑንና ሰዓቱን ያስተካክሉ፣ ከዚያ እንደገና ይሞክሩ።",
   "torFailExitPolicyTitle": "በዚያ አገር ጥቅም ላይ የሚውል መውጫ የለም",
   "torFailExitPolicyBody": "የመውጫው አገር በጥብቅ ተወስኗል፣ ስለዚህ Tor ከሌላ ቦታ አይወጣም። ሌላ አገር ይምረጡ ወይም ወደ ማንኛውም አገር ይመለሱ።",
+  "torFailExitCountryDataTitle": "የአገሮች ዝርዝር አይገኝም",
+  "torFailExitCountryDataBody": "የመውጫ አገርን ለመወሰን የትኞቹ ሪሌዎች በየትኛው አገር እንዳሉ የሚያሳይ ዝርዝር ያስፈልጋል። በመጀመሪያው አጠቃቀም በTor በኩል ይወርዳል፣ ያ ማውረድ ግን አልተሳካም። እንደገና ይሞክሩ ወይም የመውጫውን አገር ወደ ማንኛውም አገር ይመልሱ።",
   "torFailControlChannelTitle": "ከTor ጋር መነጋገር አልተቻለም",
   "torFailControlChannelBody": "መተግበሪያው የTor መቆጣጠሪያ ሰርጥ ላይ መድረስ አልቻለም፣ ስለዚህ ትራፊኩ የተጠበቀ መሆኑን ማወቅ አይችልም። ይህ የቅንብር ጉዳይ ሳይሆን የመተግበሪያው ጉድለት ነው፤ ዝርዝሮቹ በገንቢ መሣሪያዎች ውስጥ ናቸው።",
   "torFailTimeoutTitle": "Tor በጣም ረጅም ጊዜ ወሰደ",

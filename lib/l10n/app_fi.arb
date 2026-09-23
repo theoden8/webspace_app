@@ -841,6 +841,8 @@
   "torFailClockSkewBody": "Tor ei rakenna piirejä, kun kello on liian väärässä. Korjaa päivämäärä ja kellonaika ja yritä uudelleen.",
   "torFailExitPolicyTitle": "Tässä maassa ei ole käyttökelpoista poistumissolmua",
   "torFailExitPolicyBody": "Poistumismaa on lukittu tiukasti, joten Tor ei poistu muualta. Valitse toinen maa tai palauta asetukseksi mikä tahansa maa.",
+  "torFailExitCountryDataTitle": "Maaluettelo ei ole saatavilla",
+  "torFailExitCountryDataBody": "Poistumismaan lukitseminen vaatii luettelon siitä, mitkä välityspalvelimet ovat missäkin maassa. Se ladataan Torin kautta ensimmäisellä käyttökerralla, ja lataus epäonnistui. Yritä uudelleen tai palauta poistumismaaksi mikä tahansa maa.",
   "torFailControlChannelTitle": "Toriin ei saatu yhteyttä",
   "torFailControlChannelBody": "Sovellus ei tavoittanut Torin hallintakanavaa, joten se ei voi tietää, onko liikenne suojattu. Tämä on sovelluksen vika eikä asetus; tiedot löytyvät Kehittäjän työkaluista.",
   "torFailTimeoutTitle": "Tor kesti liian kauan",

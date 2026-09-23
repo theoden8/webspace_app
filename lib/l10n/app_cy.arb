@@ -841,6 +841,8 @@
   "torFailClockSkewBody": "Nid yw Tor yn adeiladu cylchedau tra bo'r cloc yn rhy bell allan ohoni. Cywirwch y dyddiad a'r amser, yna rhowch gynnig arall arni.",
   "torFailExitPolicyTitle": "Dim allanfa ddefnyddiadwy yn y wlad honno",
   "torFailExitPolicyBody": "Mae'r wlad ymadael wedi'i gosod yn llym, felly ni fydd Tor yn gadael o unman arall. Dewiswch wlad arall neu ewch yn ôl i unrhyw wlad.",
+  "torFailExitCountryDataTitle": "Nid yw'r rhestr gwledydd ar gael",
+  "torFailExitCountryDataBody": "Mae gosod gwlad ymadael yn gofyn am restr o ba drosglwyddyddion sydd ym mha wlad. Caiff ei llwytho i lawr drwy Tor y tro cyntaf, a methodd y llwytho i lawr hwnnw. Rhowch gynnig arall arni, neu gosodwch y wlad ymadael yn ôl i unrhyw wlad.",
   "torFailControlChannelTitle": "Methu siarad â Tor",
   "torFailControlChannelBody": "Ni lwyddodd yr ap i gyrraedd sianel reoli Tor, felly ni all ddweud a yw'r traffig wedi'i ddiogelu. Nam yn yr ap yw hyn, nid rhywbeth i'w osod; mae'r manylion yn yr Offer Datblygwr.",
   "torFailTimeoutTitle": "Cymerodd Tor ormod o amser",

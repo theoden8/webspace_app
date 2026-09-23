@@ -841,6 +841,8 @@
   "torFailClockSkewBody": "Tor odbija graditi krugove dok sat previše odstupa. Ispravite datum i vrijeme pa pokušajte ponovo.",
   "torFailExitPolicyTitle": "Nema upotrebljivog izlaza u toj državi",
   "torFailExitPolicyBody": "Država izlaza strogo je zadata, pa Tor neće izaći nigdje drugdje. Odaberite drugu državu ili se vratite na bilo koju državu.",
+  "torFailExitCountryDataTitle": "Spisak država nije dostupan",
+  "torFailExitCountryDataBody": "Za zadavanje države izlaza potreban je spisak koji releji su u kojoj državi. Preuzima se preko Tora pri prvoj upotrebi, a to preuzimanje nije uspjelo. Pokušajte ponovo ili vratite državu izlaza na bilo koju državu.",
   "torFailControlChannelTitle": "Nije moguće komunicirati s Torom",
   "torFailControlChannelBody": "Aplikacija nije uspjela dosegnuti Torov upravljački kanal, pa ne može utvrditi je li saobraćaj zaštićen. To je nedostatak aplikacije, a ne postavka; detalji su u Razvojnim alatima.",
   "torFailTimeoutTitle": "Tor je trajao predugo",

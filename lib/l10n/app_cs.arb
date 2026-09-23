@@ -841,6 +841,8 @@
   "torFailClockSkewBody": "Tor odmítá sestavovat okruhy, dokud jsou hodiny příliš rozejité. Opravte datum a čas a zkuste to znovu.",
   "torFailExitPolicyTitle": "V této zemi není použitelný výstupní uzel",
   "torFailExitPolicyBody": "Země výstupu je pevně určena, takže Tor nevystoupí nikde jinde. Zvolte jinou zemi, nebo se vraťte k libovolné zemi.",
+  "torFailExitCountryDataTitle": "Seznam zemí není k dispozici",
+  "torFailExitCountryDataBody": "Určení země výstupu vyžaduje seznam, která relé jsou v které zemi. Stahuje se přes Tor při prvním použití a toto stažení selhalo. Zkuste to znovu, nebo vraťte zemi výstupu na libovolnou zemi.",
   "torFailControlChannelTitle": "S Torem se nepodařilo domluvit",
   "torFailControlChannelBody": "Aplikace se nedostala k řídicímu kanálu Toru, a nemůže tedy zjistit, zda je provoz chráněn. Jde o chybu aplikace, ne o nastavení; podrobnosti najdete ve Vývojářských nástrojích.",
   "torFailTimeoutTitle": "Tor trval příliš dlouho",

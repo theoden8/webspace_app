@@ -841,6 +841,8 @@
   "torFailClockSkewBody": "Tor si rifiuta di costruire circuiti finché l'orologio è troppo sfasato. Correggi data e ora, poi riprova.",
   "torFailExitPolicyTitle": "Nessuna uscita utilizzabile in quel Paese",
   "torFailExitPolicyBody": "Il Paese di uscita è vincolato in modo rigido, quindi Tor non uscirà da nessun'altra parte. Scegli un altro Paese oppure torna a un Paese qualsiasi.",
+  "torFailExitCountryDataTitle": "Elenco dei Paesi non disponibile",
+  "torFailExitCountryDataBody": "Per vincolare il Paese di uscita serve un elenco che indichi in quale Paese si trova ogni relay. Viene scaricato tramite Tor al primo utilizzo, e quel download non è riuscito. Riprova oppure riporta il Paese di uscita a un Paese qualsiasi.",
   "torFailControlChannelTitle": "Impossibile comunicare con Tor",
   "torFailControlChannelBody": "L'app non è riuscita a raggiungere il canale di controllo di Tor, quindi non può sapere se il traffico è protetto. È un difetto dell'app, non qualcosa da configurare; i dettagli sono negli Strumenti per sviluppatori.",
   "torFailTimeoutTitle": "Tor ha impiegato troppo tempo",
