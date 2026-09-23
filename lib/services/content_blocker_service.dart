@@ -8,6 +8,7 @@ import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/adblock_engine.dart';
 import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/filter_list_mask.dart';
+import 'package:webspace/services/filter_list_preparser.dart';
 import 'package:webspace/services/bloom_filter.dart';
 import 'package:webspace/services/content_blocker_shim.dart';
 import 'package:webspace/services/host_lookup.dart';
@@ -129,6 +130,13 @@ class ContentBlockerService {
   ContentBlockerService._();
 
   List<FilterList> _lists = [];
+
+  static final Set<String> _preparserEnv = preparserEnv(
+    android: hostIsAndroid,
+    ios: hostIsIOS,
+    macos: hostIsMacOS,
+    linux: hostIsLinux,
+  );
 
   /// Per-site content-blocker mask: list id -> hosts of the sites that
   /// switched that list off. Pushed by the app whenever the site set or a
@@ -751,14 +759,21 @@ class ContentBlockerService {
         return false;
       }
 
-      await _store.writeText(_cacheName(id), response.body);
+      final body = await expandFilterListIncludes(
+          response.body, list.url, _preparserEnv, (subUrl) async {
+        final sub = await client
+            .get(Uri.parse(subUrl))
+            .timeout(const Duration(seconds: 30));
+        return sub.statusCode == 200 ? sub.body : null;
+      });
+      await _store.writeText(_cacheName(id), body);
 
       // adblock-rust counts rules at parse time inside the engine — we
       // don't have a parse-only API on this side, so the displayed
       // ruleCount becomes a coarse proxy (line count of the raw list,
       // including comments). Better than the previous Dart parser's
       // per-rule count, which had its own classification quirks.
-      list.ruleCount = _approximateRuleCount(response.body);
+      list.ruleCount = _approximateRuleCount(body);
       list.skippedCount = 0;
       list.lastUpdated = DateTime.now();
       list.enabled = true;
@@ -889,7 +904,8 @@ class ContentBlockerService {
           // Sites that switched this list off get it scoped away here, so
           // the engine carries the mask instead of every decision site.
           buf.writeln(scopeRulesAwayFromHosts(
-              cached, _listMasks[list.id] ?? const <String>{}));
+              pruneFilterList(cached, _preparserEnv),
+              _listMasks[list.id] ?? const <String>{}));
           listCount++;
         }
       } catch (_) {}

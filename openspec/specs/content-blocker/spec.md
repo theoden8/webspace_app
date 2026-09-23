@@ -812,6 +812,62 @@ would otherwise share an id and one cache file.
 
 ---
 
+### Requirement: CB-017 - uBO Pre-Parser Directives
+
+adblock-rust 0.12 reads every line starting with `!` as a comment, so it
+implements neither `!#include` nor `!#if`. uBlock Origin's own lists depend
+on both: `filters.txt` holds a quarter of its rules and pulls the rest in from
+ten sublists. The app SHALL resolve both directives before the engine sees a
+list, in [`filter_list_preparser.dart`](../../../lib/services/filter_list_preparser.dart),
+matching uBO's `utils.preparser` and `assets.fetchFilterList`:
+
+- **`!#if` / `!#else` / `!#endif`** use uBO's token table and expression
+  grammar (`!`, `&&`, `||`, one pair of parentheses). A block whose expression
+  uBO would not recognise is kept, as uBO keeps it. An unknown `cap_` token is
+  false.
+- **The environment** names the engine the rules run in: `ublock` always
+  (the engine takes uBO syntax and scriptlets), `chromium` on Android,
+  `safari` on the WebKit hosts (iOS, macOS, Linux WPE), `mobile` on Android
+  and iOS.
+- **Pruning** happens at engine build time, before the CB-015 mask rewrite, so
+  a list is stored whole and the environment is applied where it runs.
+- **`!#include`** is expanded at download time, recursively, each path
+  resolved against the directory of the list that names it. As in uBO, an
+  include inside a false `!#if` is not fetched, an absolute URL or a path
+  containing `..` is refused, and a sublist is fetched at most once. A
+  percent-encoded dot and a backslash are refused as well, since a server may
+  decode either into a climb out of the directory.
+- **A sublist that cannot be fetched fails the whole download**, as in uBO:
+  nothing is cached and the list keeps its previous state. A list may name at
+  most 64 sublists.
+
+#### Scenario: uBO's main list arrives whole
+
+**Given** the user adds `https://ublockorigin.github.io/uAssets/filters/filters.txt`
+**When** it is downloaded
+**Then** its ten `!#include` sublists are fetched from the same directory
+**And** their rules reach the engine
+
+#### Scenario: A branch for another browser is dropped
+
+**Given** a list carries `!#if env_firefox` ... `!#else` ... `!#endif`
+**When** the engine is built on Android
+**Then** the `!#else` branch is compiled and the Firefox branch is not
+
+#### Scenario: An include that leaves the directory is refused
+
+**Given** a list carries `!#include ../other.txt` or an absolute URL
+**When** it is downloaded
+**Then** the path is not fetched
+
+#### Scenario: A missing sublist fails the list
+
+**Given** a list includes a sublist that answers 404
+**When** it is downloaded
+**Then** the download reports failure and no partial list is cached
+
+---
+
 ## Implementation Details
 
 ### Architecture: Why Not flutter_inappwebview ContentBlocker
