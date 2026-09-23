@@ -78,7 +78,7 @@ class InMemoryWebViewStateStorage implements WebViewStateStorage {
 
   @override
   Future<int> removeStatesForSite(String siteId) async {
-    final prefix = '\$siteId.';
+    final prefix = '$siteId.';
     final doomed = _store.keys.where((k) => k.startsWith(prefix)).toList();
     for (final k in doomed) {
       _store.remove(k);
