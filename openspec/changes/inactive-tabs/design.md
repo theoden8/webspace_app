@@ -65,8 +65,11 @@ are the whole feature.
    active tab, as a browser resumes the tab you were on. The alternative
    (start fresh every time) is what the app does today and turns every visit
    into one more tab. Two things create tabs, and both are explicit:
-   - **New tab** (Tabs sheet header, overflow menu, long-press on the active
-     site's chip): a root tab at `initUrl`, the current tab parks.
+   - **New tab** (Tabs sheet header, both overflow menus): a root tab at
+     `initUrl`, the current tab parks. A strip chip's long press is taken by
+     the reorder drag, so it is not an entry point.
+   - **Duplicate tab** (both overflow menus, long press on refresh): a parked
+     copy of the current tab next to it, back stack included.
    - **Open in new tab** (long-press an in-domain link): a child tab of the
      current one, opened in the background with a snackbar to switch.
    Home (NAV-004) is the same tab going to `initUrl` with its history cleared.
@@ -147,7 +150,7 @@ Per site, always:
 | Container `ws-<siteId>` | 1 | native; shared by every tab of the site |
 | `InAppWebView` + renderer | 0 or 1 | bound to the active tab; 0 when the site is unloaded or evicted |
 | Active tab | 1 | `WebViewModel.activeTabId` |
-| Parked tabs | N | `SiteTab` in prefs (~200 B each) + `webview_state/<siteId>/<tabId>.enc` (1 to 50 KB, only when the tab has history to keep) |
+| Parked tabs | N | `SiteTab` in prefs (~200 B each) + `webview_state/<siteId>.<tabId>.enc` (1 to 50 KB, only when the tab has history to keep) |
 
 Invariants:
 
@@ -160,8 +163,8 @@ Invariants:
 - `persistsNavState` (false for incognito and archive-tier) gates every write
   exactly as it does now, so those sites' parked tabs are records only.
 - Disk is bounded by tab count. Closing a tab removes its file; deleting a
-  site removes `webview_state/<siteId>/`; the startup orphan sweep takes the
-  set of live `<siteId>/<tabId>` keys.
+  site removes every `webview_state/<siteId>.*.enc`; the startup orphan sweep takes the
+  set of live `<siteId>.<tabId>` keys.
 
 ### D3. A tab switch is capture, dispose, rebuild, restore
 
@@ -190,9 +193,11 @@ named future tier if it turns out to matter.
 - **Opening a site** (strip, drawer, cold start, shortcut, share arrival)
   SHALL resume the site's active tab and SHALL NOT create one.
 - **New tab**: root tab at `initUrl`, becomes active; the previous active tab
-  parks (D3). Reached from the Tabs sheet header, the overflow menu, and a
-  long-press on the active site's chip in the strip. The rebuild is the
-  NAV-004 shape, so the new tab starts with an empty history.
+  parks (D3). Reached from the Tabs sheet header and both overflow menus. The
+  rebuild is the NAV-004 shape, so the new tab starts with an empty history.
+- **Duplicate tab** (TAB-010): the active tab's record and back stack copied
+  into a parked sibling. Reached from both overflow menus and a long press on
+  either refresh button; opens in the background like "Open in new tab".
 - **Open in new tab**: offered on a link's long-press menu only when the link
   is inside the site's domain. Creates a parked child tab (`parentId` = the
   current tab) and shows a snackbar with "Switch". No webview and no bytes
@@ -250,7 +255,7 @@ nobody trusts.
 | Memory pressure / LRU cap | Unchanged: the unit is the site's one webview. A parked tab is never in memory. |
 | Settings backup | `tabs` ride `WebViewModel.toJson`; state bytes do not (same as the HTML cache). |
 | Site QR share | Never carries tabs (session, not configuration). |
-| Site delete / `SiteTeardownEngine` | Removes `webview_state/<siteId>/`. |
+| Site delete / `SiteTeardownEngine` | Removes every `webview_state/<siteId>.*.enc`. |
 | Nested screen (NESTED-010) | Unchanged. It is opened from the active tab and is not a tab. |
 | Legacy cookie engine (ISO-001) | Untouched: a tab switch never changes the site's domain, so no capture-nuke-restore runs. |
 | Home shortcut (HS-006) | Resets the active tab, as it resets `currentUrl` today. |

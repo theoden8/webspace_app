@@ -118,6 +118,22 @@ void main() {
       );
     });
 
+    test('insertAfter lands after the anchor\'s whole subtree', () {
+      var tabs = [tab('a'), tab('b', parent: 'a'), tab('c')];
+      tabs = TabLifecycleEngine.insertAfter(tabs, 'a', tab('d'));
+      expect(ids(tabs), ['a', 'b', 'd', 'c']);
+    });
+
+    test('a duplicate of a child stays a sibling under the same parent', () {
+      var tabs = [tab('a'), tab('b', parent: 'a'), tab('c', parent: 'a')];
+      tabs = TabLifecycleEngine.insertAfter(tabs, 'b', tab('b2', parent: 'a'));
+      expect(ids(tabs), ['a', 'b', 'b2', 'c']);
+      expect(
+        TabLifecycleEngine.treeOrder(tabs).map((r) => r.depth).toList(),
+        [0, 1, 1, 1],
+      );
+    });
+
     test('a root tab goes to the end', () {
       final out = TabLifecycleEngine.insertChild([tab('a')], tab('z'));
       expect(ids(out), ['a', 'z']);

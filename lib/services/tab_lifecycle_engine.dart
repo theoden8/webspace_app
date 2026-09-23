@@ -173,13 +173,23 @@ class TabLifecycleEngine {
   static List<SiteTab> insertChild(List<SiteTab> tabs, SiteTab tab) {
     final parentId = tab.parentId;
     if (parentId == null) return [...tabs, tab];
-    final parentIndex = tabs.indexWhere((t) => t.id == parentId);
-    if (parentIndex < 0) return [...tabs, tab];
+    return insertAfter(tabs, parentId, tab);
+  }
+
+  /// Insert [tab] directly after [anchorId] and everything under it, which is
+  /// where a duplicate of the anchor belongs: its next sibling (TAB-010).
+  static List<SiteTab> insertAfter(
+    List<SiteTab> tabs,
+    String anchorId,
+    SiteTab tab,
+  ) {
+    final anchorIndex = tabs.indexWhere((t) => t.id == anchorId);
+    if (anchorIndex < 0) return [...tabs, tab];
     final subtree = {
-      parentId,
-      ...descendants(tabs, parentId).map((t) => t.id),
+      anchorId,
+      ...descendants(tabs, anchorId).map((t) => t.id),
     };
-    var at = parentIndex + 1;
+    var at = anchorIndex + 1;
     while (at < tabs.length && subtree.contains(tabs[at].id)) {
       at++;
     }

@@ -7405,6 +7405,12 @@ class _WebSpacePageState extends State<WebSpacePage>
     // frame. Offline it is the only thing renderable, so it stays.
     _evictCacheIfOnline(model.siteId);
     model.disposeWebView();
+    // The rebuild is a fresh webview, so the site is back at the policy's
+    // lowest tier whatever the pressure cascade had done to the one it
+    // replaces. A site with no webview keeps the tier it was unloaded at.
+    if (_loadedIndices.contains(_webViewModels.indexOf(model))) {
+      model.lifecycleState = SiteLifecycleState.resident;
+    }
     if (!mounted) return;
     setState(() {});
     if (model.fullscreenMode) _enterFullscreen();
@@ -7475,6 +7481,61 @@ class _WebSpacePageState extends State<WebSpacePage>
       await _switchActiveTab(model, tab.id);
       if (!mounted) return;
       if (index != _currentIndex) await _setCurrentIndex(index);
+    } finally {
+      _isTabHandling = false;
+    }
+  }
+
+  /// Copy the site's current tab, back stack included, into a new tab beside
+  /// it (TAB-010). The copy opens parked, so the page on screen stays put and
+  /// the copy costs a record plus a state file until it is first opened.
+  Future<void> _duplicateTab(int index) async {
+    if (_isTabHandling) return;
+    _isTabHandling = true;
+    try {
+      if (index < 0 || index >= _webViewModels.length) return;
+      final model = _webViewModels[index];
+      final source = model.activeTab;
+      final copy = SiteTab(
+        url: source.url,
+        title: source.title,
+        parentId: source.parentId,
+      );
+      final copyKey = model.stateKeyForTab(copy.id);
+      if (model.persistsNavState) {
+        // A loaded webview's back stack is newer than whatever was last saved
+        // for it; an unloaded site's saved bytes are all there is.
+        final bytes = _loadedIndices.contains(index)
+            ? await model.captureNavigationState()
+            : await _stateStorage.loadState(model.activeStateKey);
+        if (bytes != null) await _stateStorage.saveState(copyKey, bytes);
+      }
+      if (!mounted) return;
+      if (!_webViewModels.contains(model) ||
+          !model.tabs.any((t) => t.id == source.id)) {
+        unawaited(_stateStorage.removeState(copyKey));
+        return;
+      }
+      setState(() {
+        model.tabs = TabLifecycleEngine.insertAfter(model.tabs, source.id, copy);
+      });
+      LogService.instance.log(
+        'Tabs',
+        'Duplicated ${source.id} as ${copy.id} in "${model.name}"',
+        sensitivity: LogSensitivity.sensitive,
+      );
+      await _saveWebViewModels();
+      if (!mounted) return;
+      final loc = AppLocalizations.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(loc.tabsOpenedInNewTab),
+          action: SnackBarAction(
+            label: loc.tabsSwitchAction,
+            onPressed: () => unawaited(_openTab(index, copy.id)),
+          ),
+        ),
+      );
     } finally {
       _isTabHandling = false;
     }
@@ -7617,6 +7678,7 @@ class _WebSpacePageState extends State<WebSpacePage>
               index: i,
               model: _webViewModels[i],
               isCurrent: i == _currentIndex,
+              isLoaded: _loadedIndices.contains(i),
             ),
       ];
 
@@ -8079,6 +8141,11 @@ class _WebSpacePageState extends State<WebSpacePage>
                         return IconButton(
                           icon: Icon(loading ? Icons.close : Icons.refresh),
                           tooltip: loading ? loc.homeStopTooltip : loc.homeRefreshTooltip,
+                          onLongPress: () {
+                            Navigator.pop(context);
+                            final index = _currentIndex;
+                            if (index != null) unawaited(_duplicateTab(index));
+                          },
                           onPressed: () {
                             Navigator.pop(context);
                             if (loading) {
@@ -8093,6 +8160,26 @@ class _WebSpacePageState extends State<WebSpacePage>
                   ),
                 ),
                 PopupMenuDivider(),
+                PopupMenuItem<String>(
+                  value: "newTab",
+                  child: Row(
+                    children: [
+                      Icon(Icons.add),
+                      SizedBox(width: 8),
+                      Text(loc.tabsNewTab),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<String>(
+                  value: "duplicateTab",
+                  child: Row(
+                    children: [
+                      Icon(Icons.copy_all),
+                      SizedBox(width: 8),
+                      Text(loc.tabsDuplicateTab),
+                    ],
+                  ),
+                ),
                 PopupMenuItem<String>(
                   value: "search",
                   child: Row(
@@ -8177,6 +8264,12 @@ class _WebSpacePageState extends State<WebSpacePage>
             },
             onSelected: (String value) async {
               switch(value) {
+                case 'newTab':
+                  await _newTab(_currentIndex!);
+                break;
+                case 'duplicateTab':
+                  await _duplicateTab(_currentIndex!);
+                break;
                 case 'search':
                   _toggleFind();
                 break;
@@ -8625,6 +8718,11 @@ class _WebSpacePageState extends State<WebSpacePage>
                   return IconButton(
                     icon: Icon(loading ? Icons.close : Icons.refresh),
                     tooltip: loading ? loc.homeStopTooltip : loc.homeRefreshTooltip,
+                    onLongPress: () {
+                      Navigator.pop(context);
+                      final index = _currentIndex;
+                      if (index != null) unawaited(_duplicateTab(index));
+                    },
                     onPressed: () {
                       Navigator.pop(context);
                       if (loading) {
@@ -8639,6 +8737,26 @@ class _WebSpacePageState extends State<WebSpacePage>
             ),
           ),
           PopupMenuDivider(),
+          PopupMenuItem<String>(
+            value: "newTab",
+            child: Row(
+              children: [
+                Icon(Icons.add),
+                SizedBox(width: 8),
+                Text(loc.tabsNewTab),
+              ],
+            ),
+          ),
+          PopupMenuItem<String>(
+            value: "duplicateTab",
+            child: Row(
+              children: [
+                Icon(Icons.copy_all),
+                SizedBox(width: 8),
+                Text(loc.tabsDuplicateTab),
+              ],
+            ),
+          ),
           PopupMenuItem<String>(
             value: "backToWebspaces",
             child: Row(
@@ -8739,6 +8857,12 @@ class _WebSpacePageState extends State<WebSpacePage>
             setState(() {});
             await _saveSelectedWebspaceId();
             await _saveCurrentIndex();
+          break;
+          case 'newTab':
+            await _newTab(_currentIndex!);
+          break;
+          case 'duplicateTab':
+            await _duplicateTab(_currentIndex!);
           break;
           case 'search':
             _toggleFind();
