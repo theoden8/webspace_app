@@ -70,7 +70,7 @@ change.
 
 ### Modified Capabilities
 - `webview-pause-lifecycle`: `WebViewStateStorage` is keyed by
-  `<siteId>/<tabId>`; PAUSE-009 capture points write the active tab's bytes.
+  `<siteId>.<tabId>`; PAUSE-009 capture points write the active tab's bytes.
 - `navigation`: NAV-004 Home acts on the active tab; NAV-001 gains the
   child-tab close rule.
 - `lazy-webview-loading`: the `IndexedStack` child for a site is additionally
@@ -86,7 +86,7 @@ change.
   from a legacy `currentUrl`).
 - New pure-Dart engine `lib/services/tab_lifecycle_engine.dart` (activate,
   park, new tab, close-with-reparent, back-at-start, tree order).
-- `SecureWebViewStateStorage` keyed by `<siteId>/<tabId>`; orphan sweep per
+- `SecureWebViewStateStorage` keyed by `<siteId>.<tabId>`; orphan sweep per
   tab; site delete removes the site's directory.
 - UI: count pill on strip chips and drawer tiles, Tabs sheet, drawer tree
   rows, link long-press menu, "New tab" in the overflow.

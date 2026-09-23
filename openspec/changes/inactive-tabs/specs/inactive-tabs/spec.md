@@ -34,8 +34,8 @@ Every tab of a site SHALL share the site's container and per-site posture. A
 site SHALL have at most one live webview, bound to its active tab. A parked
 tab SHALL hold no controller, no renderer and no native object; it SHALL
 consist of its `SiteTab` record and, when it has navigation state worth
-keeping and `persistsNavState` is true, one file under
-`webview_state/<siteId>/<tabId>.enc`. Tabs SHALL NOT change the number of live
+keeping and `persistsNavState` is true, one file
+`webview_state/<siteId>.<tabId>.enc`. Tabs SHALL NOT change the number of live
 webviews, and `SiteUnloadEngine` and `SiteLifecyclePromotionEngine` SHALL keep
 the site as their unit.
 
@@ -59,7 +59,7 @@ the site as their unit.
 ### Requirement: TAB-003 - A tab switch is capture, dispose, rebuild, restore
 
 Activating a parked tab while another tab of the same site is active SHALL, in
-order: capture the active tab's navigation state to `<siteId>/<activeTabId>`
+order: capture the active tab's navigation state to `<siteId>.<activeTabId>`
 when `persistsNavState` is true; park it; dispose the site's webview; queue
 the target's saved bytes for `onControllerCreated` when they exist; rebuild
 the webview. At no point SHALL two webviews exist for the site. Switching sites
@@ -69,7 +69,7 @@ SHALL NOT change any site's active tab.
 
 - **GIVEN** GitHub's active tab T1 with history and parked tab T2 with saved state
 - **WHEN** the user picks T2 in the Tabs sheet
-- **THEN** T1's state is captured under `gh/T1` and T1 is parked
+- **THEN** T1's state is captured under `gh.T1` and T1 is parked
 - **AND** GitHub's webview is disposed and rebuilt with T2's bytes queued
 - **AND** the rebuilt webview restores T2's back stack
 - **AND** the number of live webviews is unchanged before and after
@@ -87,8 +87,8 @@ SHALL NOT change any site's active tab.
 
 Tapping a site in the strip or drawer, a cold start, a home-shortcut tap and
 a share arrival SHALL resume the site's active tab and SHALL NOT create a tab.
-A tab SHALL be created only by "New tab" (TAB-005) and "Open in new tab"
-(TAB-006). Home (NAV-004) SHALL act on the active tab: `initUrl` with history
+A tab SHALL be created only by "New tab" (TAB-005), "Open in new tab"
+(TAB-006) and "Duplicate tab" (TAB-010). Home (NAV-004) SHALL act on the active tab: `initUrl` with history
 cleared, no new tab.
 
 #### Scenario: Reopening a site resumes
@@ -111,8 +111,10 @@ cleared, no new tab.
 
 "New tab" SHALL create a root tab at the site's `initUrl`, make it active with
 an empty history, and park the previous active tab per TAB-003. It SHALL be
-reachable from the Tabs sheet header, the overflow menu, a long-press on the
-active site's chip in the strip, and each site row in the drawer.
+reachable from the Tabs sheet header and from the overflow menu, meaning both
+of them: the app bar's, and the bottom bar's when the tab strip is shown. A
+long press on a strip chip is not an entry point: it already starts the drag
+that reorders sites.
 
 #### Scenario: New tab from a deep page
 
@@ -200,8 +202,8 @@ parent.
 The Tabs sheet SHALL be reachable from the app bar square showing the site's
 tab count and by tapping the active site's chip in the strip, SHALL offer "New
 tab" and "Close N parked", and SHALL list tabs as a tree in creation order,
-indented by depth, with a collapse chevron on nodes that have children, the tab
-bound to the webview marked, and close and close-subtree actions. Collapsing a
+indented by depth, with a collapse chevron on nodes that have children, each
+tab's load state shown per TAB-011, and close and close-subtree actions. Collapsing a
 tab SHALL hide its whole subtree and SHALL say how many tabs that is.
 
 Where more than one site is shown, the sheet SHALL also offer an "All sites"
@@ -225,13 +227,11 @@ kiosk shell (KIOSK-002) SHALL hide all of these.
 - **AND** A's row says two tabs are hidden
 - **AND** the tabs themselves are unchanged
 
-#### Scenario: Only one tab anywhere is loaded
+#### Scenario: One loaded tab per loaded site
 
-- **GIVEN** two sites, each with tabs, and the sheet in its "All sites" scope
-- **THEN** exactly one row is marked as loaded: the active tab of the site on
-  screen
-- **AND** no tab of a backgrounded site is marked, because a site that is not
-  on screen may hold a paused webview but the sheet reports what is bound now
+- **GIVEN** two loaded sites, each with tabs, and the sheet in its "All sites" scope
+- **THEN** exactly one row per site is marked, its active tab
+- **AND** every other row reads as stored (TAB-011)
 
 ---
 
@@ -249,14 +249,15 @@ archive-tier site's
 tabs ride the archive's encrypted state with no state bytes on disk, and
 app-tier persistence is byte-identical whether or not archives hold tabs
 (ARCH-001/006); the site QR share never carries tabs; settings backup carries
-`tabs` but never state bytes; deleting a site removes `webview_state/<siteId>/`.
+`tabs` but never state bytes; deleting a site removes every
+`webview_state/<siteId>.*.enc`.
 
 #### Scenario: Incognito relaunch
 
 - **GIVEN** an incognito Wikipedia site with two parked tabs
 - **WHEN** the app is killed and relaunched
 - **THEN** Wikipedia has one tab, at `initUrl`
-- **AND** no file exists under `webview_state/<siteId>/`
+- **AND** no `webview_state/<siteId>.*.enc` file exists
 
 #### Scenario: Always open Home relaunch
 
@@ -264,3 +265,59 @@ app-tier persistence is byte-identical whether or not archives hold tabs
 - **WHEN** the app is cold-started
 - **THEN** Mastodon has one tab, showing `initUrl` with no history
 - **AND** neither the post nor the parked tab's URL appears in the persisted JSON
+
+---
+
+### Requirement: TAB-010 - Duplicate tab
+
+"Duplicate tab" SHALL copy the site's active tab into a new tab placed directly
+after it and its subtree, with the same `url`, `title` and `parentId`, so the
+copy is the source's next sibling. When the site persists navigation state,
+the copy SHALL receive the source's back/forward state under its own key: the
+live webview's capture when the site is loaded, else the source's saved bytes.
+The copy SHALL open parked, as "Open in new tab" does (TAB-006): the page on
+screen stays, no webview is built or disposed, and a snackbar offers "Switch".
+It SHALL be reachable from both overflow menus and from a long press on either
+refresh button.
+
+#### Scenario: Branching off a page
+
+- **GIVEN** GitHub's active tab is three pages into a pull request
+- **WHEN** the user long-presses refresh
+- **THEN** a parked tab for the same page appears right after it in the tree
+- **AND** the pull request stays on screen with no reload
+- **AND** opening the copy restores the same three-page history, after which the two tabs navigate independently
+
+#### Scenario: Incognito copy has no history
+
+- **GIVEN** an incognito site
+- **WHEN** the user duplicates its tab
+- **THEN** the copy has the same URL and no state file is written
+
+---
+
+### Requirement: TAB-011 - Tab load state follows the site load policy
+
+Whether a tab is loaded SHALL be decided by the existing site load policy
+(lazy loading, the `kMaxLoadedSites` LRU cap, the memory-pressure cascade of
+`SiteLifecyclePromotionEngine`, retention priorities), with the site as its
+unit per TAB-002: a tab is loaded exactly when it is the active tab of a site
+that holds a webview. No rule specific to tabs SHALL load or unload anything.
+The tab list SHALL show that state on every row: the loaded tab of the site on
+screen marked "open", the loaded tab of a backgrounded site marked "loaded"
+(its webview is resident but paused), and every other tab read muted, since
+opening it reloads its page. A tab switch on a loaded site SHALL return the
+site to the `resident` tier, because the rebuilt webview is fresh.
+
+#### Scenario: The policy unloads, the list shows it
+
+- **GIVEN** Mastodon is loaded in the background and its active tab is marked "loaded"
+- **WHEN** memory pressure disposes Mastodon's webview
+- **THEN** the next time the tab list opens, every Mastodon tab reads muted
+- **AND** no tab of any other site changes state
+
+#### Scenario: A switch resets the tier
+
+- **GIVEN** GitHub is on screen at the `cacheCleared` tier
+- **WHEN** the user switches to another of its tabs
+- **THEN** GitHub is at the `resident` tier with one webview

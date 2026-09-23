@@ -4509,6 +4509,10 @@
   "@tabsNewTab": {
     "description": "Button that opens a new tab at the site's home page. The tab the user was on is kept and parked."
   },
+  "tabsDuplicateTab": "Duplicate tab",
+  "@tabsDuplicateTab": {
+    "description": "Menu item (also a long press on the refresh button) that copies the current tab, with its back history, into a new tab next to it. The current page stays on screen."
+  },
   "tabsThisSite": "This site",
   "@tabsThisSite": {
     "description": "Tab-list filter showing only the current site's tabs."
@@ -4517,9 +4521,9 @@
   "@tabsAllSites": {
     "description": "Tab-list filter showing the tabs of every site."
   },
-  "tabsOneWebview": "Only the open tab uses memory",
-  "@tabsOneWebview": {
-    "description": "Footer of the tab list explaining that the other tabs of a site are stored, not running, so a long list costs nothing."
+  "tabsMemoryNote": "One tab per site stays loaded; the others reload when opened",
+  "@tabsMemoryNote": {
+    "description": "Footer of the tab list. Each site keeps at most one tab loaded in memory (the one it is showing); every other tab is stored and its page loads again when the user opens it, so a long list costs little memory."
   },
   "tabsCloseParked": "{count, plural, =1{Close 1 parked tab} other{Close {count} parked tabs}}",
   "@tabsCloseParked": {
@@ -4541,6 +4545,10 @@
   "tabsLive": "open",
   "@tabsLive": {
     "description": "Marker beside the one tab of the current site that is actually loaded and on screen. The others are stored."
+  },
+  "tabsLoaded": "loaded",
+  "@tabsLoaded": {
+    "description": "Short lowercase marker beside a tab whose page is loaded in memory but paused, because its site is not the one on screen. Sits where the marker for the tab on screen would be."
   },
   "tabsExpand": "Show the tabs opened from this one",
   "@tabsExpand": {

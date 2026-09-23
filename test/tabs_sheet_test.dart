@@ -59,7 +59,7 @@ void main() {
         'https://github.com/pull/601',
       ]);
       await pumpSheet(tester, [
-        TabsSheetSite(index: 0, model: site, isCurrent: true),
+        TabsSheetSite(index: 0, model: site, isCurrent: true, isLoaded: true),
       ]);
 
       expect(find.textContaining('github.com'), findsWidgets);
@@ -72,7 +72,7 @@ void main() {
     testWidgets('a site on one tab says so in the singular', (tester) async {
       final site = siteWithChain('Mastodon', ['https://mastodon.social/']);
       await pumpSheet(tester, [
-        TabsSheetSite(index: 0, model: site, isCurrent: true),
+        TabsSheetSite(index: 0, model: site, isCurrent: true, isLoaded: true),
       ]);
       expect(find.text('Mastodon · 1 tab'), findsOneWidget);
     });
@@ -85,7 +85,7 @@ void main() {
         'https://github.com/pull/601',
       ]);
       await pumpSheet(tester, [
-        TabsSheetSite(index: 0, model: site, isCurrent: true),
+        TabsSheetSite(index: 0, model: site, isCurrent: true, isLoaded: true),
       ]);
       expect(find.byIcon(Icons.keyboard_arrow_down), findsNWidgets(2));
 
@@ -103,7 +103,7 @@ void main() {
       final site = siteWithChain('GitHub', ['https://github.com/']);
       await pumpSheet(
         tester,
-        [TabsSheetSite(index: 7, model: site, isCurrent: true)],
+        [TabsSheetSite(index: 7, model: site, isCurrent: true, isLoaded: true)],
         onNewTab: (i) => opened = i,
       );
       await tester.tap(find.text('New tab'));
@@ -119,7 +119,7 @@ void main() {
       ]);
       await pumpSheet(
         tester,
-        [TabsSheetSite(index: 0, model: site, isCurrent: true)],
+        [TabsSheetSite(index: 0, model: site, isCurrent: true, isLoaded: true)],
         onCloseTab: (_, id) => closed = id,
       );
       await tester.tap(find.byIcon(Icons.close).last);
@@ -136,7 +136,7 @@ void main() {
       ]);
       await pumpSheet(
         tester,
-        [TabsSheetSite(index: 0, model: site, isCurrent: true)],
+        [TabsSheetSite(index: 0, model: site, isCurrent: true, isLoaded: true)],
         onCloseSubtree: (_, id) => closed = id,
       );
       // Only the parent row has the control: the leaf has nothing under it.
@@ -150,7 +150,7 @@ void main() {
         (tester) async {
       final one = siteWithChain('Solo', ['https://solo.test/']);
       await pumpSheet(tester, [
-        TabsSheetSite(index: 0, model: one, isCurrent: true),
+        TabsSheetSite(index: 0, model: one, isCurrent: true, isLoaded: true),
       ]);
       expect(find.textContaining('parked'), findsNothing);
 
@@ -160,7 +160,7 @@ void main() {
         'https://github.com/issues',
       ]);
       await pumpSheet(tester, [
-        TabsSheetSite(index: 0, model: many, isCurrent: true),
+        TabsSheetSite(index: 0, model: many, isCurrent: true, isLoaded: true),
       ]);
       expect(find.text('Close 2 parked tabs'), findsOneWidget);
     });
@@ -169,14 +169,14 @@ void main() {
         (tester) async {
       final a = siteWithChain('GitHub', ['https://github.com/']);
       await pumpSheet(tester, [
-        TabsSheetSite(index: 0, model: a, isCurrent: true),
+        TabsSheetSite(index: 0, model: a, isCurrent: true, isLoaded: true),
       ]);
       expect(find.text('All sites'), findsNothing);
 
       final b = siteWithChain('Mastodon', ['https://mastodon.social/']);
       await pumpSheet(tester, [
-        TabsSheetSite(index: 0, model: a, isCurrent: true),
-        TabsSheetSite(index: 1, model: b, isCurrent: false),
+        TabsSheetSite(index: 0, model: a, isCurrent: true, isLoaded: true),
+        TabsSheetSite(index: 1, model: b, isCurrent: false, isLoaded: false),
       ]);
       expect(find.text('All sites'), findsOneWidget);
       expect(find.text('This site'), findsOneWidget);
@@ -188,22 +188,50 @@ void main() {
       expect(find.text('Mastodon · 1 tab'), findsOneWidget);
     });
 
-    testWidgets('no tab of a backgrounded site is marked as loaded',
+    testWidgets('TAB-011 — a tab is marked by what the load policy holds',
         (tester) async {
-      final a = siteWithChain('GitHub', ['https://github.com/']);
+      final a = siteWithChain('GitHub', [
+        'https://github.com/',
+        'https://github.com/pulls',
+      ]);
       final b = siteWithChain('Mastodon', [
         'https://mastodon.social/',
         'https://mastodon.social/@a',
       ]);
+      final c = siteWithChain('Wikipedia', ['https://en.wikipedia.org/']);
       await pumpSheet(tester, [
-        TabsSheetSite(index: 0, model: a, isCurrent: true),
-        TabsSheetSite(index: 1, model: b, isCurrent: false),
+        TabsSheetSite(index: 0, model: a, isCurrent: true, isLoaded: true),
+        // Backgrounded but still resident: its active tab keeps a paused
+        // webview until the policy evicts the site.
+        TabsSheetSite(index: 1, model: b, isCurrent: false, isLoaded: true),
+        // Unloaded by the policy: nothing of it is in memory.
+        TabsSheetSite(index: 2, model: c, isCurrent: false, isLoaded: false),
       ]);
       await tester.tap(find.text('All sites'));
       await tester.pump();
-      // Only one webview exists across every site, and it belongs to the site
-      // on screen (TAB-002).
+      // One tab per loaded site holds a webview, never more (TAB-002).
       expect(find.text('open'), findsOneWidget);
+      expect(find.text('loaded'), findsOneWidget);
+      // Each site's other tabs, and every tab of the unloaded site, are
+      // stored and read muted.
+      final muted = Theme.of(tester.element(find.byType(TabsSheet)))
+          .colorScheme
+          .onSurfaceVariant;
+      final parked = tester.widget<Text>(find.text('https://github.com/pulls'));
+      expect(parked.style?.color, muted);
+      final unloaded =
+          tester.widget<Text>(find.text('https://en.wikipedia.org/').first);
+      expect(unloaded.style?.color, muted);
+    });
+
+    testWidgets('the site on screen but not yet built marks nothing',
+        (tester) async {
+      final a = siteWithChain('GitHub', ['https://github.com/']);
+      await pumpSheet(tester, [
+        TabsSheetSite(index: 0, model: a, isCurrent: true, isLoaded: false),
+      ]);
+      expect(find.text('open'), findsNothing);
+      expect(find.text('loaded'), findsNothing);
     });
   });
 }

@@ -3,8 +3,8 @@
 /// Spec: `openspec/changes/inactive-tabs/specs/inactive-tabs/spec.md`
 /// (TAB-008). Reached from the app bar's tab-count button and from a tap on
 /// the active site's chip in the strip. Rows render in tree order — a tab sits
-/// under the tab it was opened from — with the active tab marked, because it
-/// is the only one of them holding a webview.
+/// under the tab it was opened from — and say which tabs hold a webview: the
+/// active tab of a loaded site does, every other tab is stored (TAB-011).
 ///
 /// The widget owns no state beyond which subtrees are collapsed: the tab list
 /// lives on the `WebViewModel`s and every mutation goes back to the host
@@ -27,14 +27,19 @@ class TabsSheetSite {
     required this.index,
     required this.model,
     required this.isCurrent,
+    required this.isLoaded,
   });
 
   final int index;
   final WebViewModel model;
 
-  /// Whether this site is the one on screen. Only its active tab holds a
-  /// webview; every other tab of every site is parked.
+  /// Whether this site is the one on screen.
   final bool isCurrent;
+
+  /// Whether the site holds a webview right now. The site load policy decides
+  /// that (lazy loading, the LRU cap, memory pressure), not the tab list; when
+  /// it does, the webview is its active tab's and every other tab is stored.
+  final bool isLoaded;
 }
 
 class TabsSheet extends StatefulWidget {
@@ -135,7 +140,7 @@ class _TabsSheetState extends State<TabsSheet> {
                 children: [
                   Expanded(
                     child: Text(
-                      loc.tabsOneWebview,
+                      loc.tabsMemoryNote,
                       style: theme.textTheme.bodySmall,
                     ),
                   ),
@@ -224,10 +229,12 @@ class _TabsSheetState extends State<TabsSheet> {
       ThemeData theme) {
     final tab = row.tab;
     final isActive = tab.id == site.model.activeTabId;
-    // "Live" means this tab holds the webview: it is the active tab of the
-    // site on screen. Every other row is a record plus a state file.
-    final isLive = isActive && site.isCurrent;
+    final isLoaded = isActive && site.isLoaded;
+    final isOnScreen = isLoaded && site.isCurrent;
     final collapsed = _collapsed.contains(tab.id);
+    final titleStyle = isActive
+        ? theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)
+        : theme.textTheme.bodyMedium;
     return InkWell(
       onTap: () {
         Navigator.of(context).pop();
@@ -275,10 +282,12 @@ class _TabsSheetState extends State<TabsSheet> {
                     tab.title?.isNotEmpty == true ? tab.title! : tab.url,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: isActive
-                        ? theme.textTheme.bodyMedium
-                            ?.copyWith(fontWeight: FontWeight.w600)
-                        : theme.textTheme.bodyMedium,
+                    // A stored tab reads muted, as a browser greys an unloaded
+                    // tab: opening it reloads the page.
+                    style: isLoaded
+                        ? titleStyle
+                        : titleStyle?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant),
                   ),
                   Text(
                     // The whole subtree goes when a tab is collapsed, not just
@@ -297,13 +306,16 @@ class _TabsSheetState extends State<TabsSheet> {
                 ],
               ),
             ),
-            if (isLive)
+            if (isLoaded)
               Padding(
                 padding: const EdgeInsets.only(right: Spacing.xs),
                 child: Text(
-                  loc.tabsLive,
-                  style: theme.textTheme.labelSmall
-                      ?.copyWith(color: theme.colorScheme.primary),
+                  isOnScreen ? loc.tabsLive : loc.tabsLoaded,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: isOnScreen
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
             if (row.childCount > 0)
