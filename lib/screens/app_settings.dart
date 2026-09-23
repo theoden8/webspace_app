@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter/material.dart';
@@ -12,7 +14,9 @@ import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/screens/trusted_certificates.dart';
 import 'package:webspace/services/back_gesture_engine.dart';
 import 'package:webspace/services/clearurl_service.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:webspace/services/content_blocker_service.dart';
+import 'package:webspace/services/ubo_backup_import.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/developer_unlock_engine.dart';
 import 'package:webspace/services/dns_block_service.dart';
@@ -63,6 +67,13 @@ class AppSettingsScreen extends StatefulWidget {
   final Function(AppThemeSettings) onSettingsChanged;
   final VoidCallback onExportSettings;
   final VoidCallback onImportSettings;
+
+  /// Finds the app-tier sites a uBlock Origin backup trusts (content
+  /// blocker on, not held on by Tracking Protection) and, with `apply`,
+  /// switches their content blocker off and saves. A callback for the same
+  /// reason as [torPinnedSiteCount]: the sites stay owned by the page.
+  final Future<List<UboTrustedSite>> Function(Set<String> hosts,
+      {required bool apply})? onTrustUboHosts;
   /// Prompt the user for a passphrase and open or create the matching
   /// archive (spec `openspec/specs/archive/spec.md`). Wired by the
   /// parent so the dialog runs in the main-page navigator (matching the
@@ -126,6 +137,7 @@ class AppSettingsScreen extends StatefulWidget {
     required this.onSettingsChanged,
     required this.onExportSettings,
     required this.onImportSettings,
+    this.onTrustUboHosts,
     this.onRestoreArchive,
     this.hasOpenArchives = false,
     this.onCloseAllArchives,
@@ -693,6 +705,132 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           .updateLocalList(existing.id, name, rules);
     }
     if (mounted) setState(() {});
+  }
+
+  Future<void> _importUboBackup() async {
+    final loc = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    String? text;
+    try {
+      final picked = await FilePicker.pickFiles(allowMultiple: false);
+      final file = picked?.files.firstOrNull;
+      if (file == null) return;
+      if (file.bytes != null) {
+        text = utf8.decode(file.bytes!, allowMalformed: true);
+      } else if (file.path != null) {
+        text = await hostReadFileText(file.path!);
+      }
+    } catch (e) {
+      LogService.instance.log('ContentBlocker', 'uBO backup read failed: $e',
+          level: LogLevel.warning);
+    }
+    final backup = text == null ? null : UboBackup.parse(text);
+    if (backup == null) {
+      messenger.showSnackBar(
+          SnackBar(content: Text(loc.appSettingsUboNotABackup)));
+      return;
+    }
+    if (!mounted) return;
+
+    setState(() => _downloadingListId = '__all__');
+    final service = ContentBlockerService.instance;
+    final registry = await service.fetchUboAssetRegistry();
+    final plan = planUboImport(backup,
+        existing: service.existingForImport, registry: registry);
+    final sites = plan.trustedHosts.isEmpty || widget.onTrustUboHosts == null
+        ? const <UboTrustedSite>[]
+        : await widget.onTrustUboHosts!(plan.trustedHosts, apply: false);
+    if (!mounted) return;
+    setState(() => _downloadingListId = null);
+
+    if (plan.isEmpty) {
+      messenger.showSnackBar(
+          SnackBar(content: Text(loc.appSettingsUboImportNothing)));
+      return;
+    }
+
+    final unappliedHosts = plan.trustedHosts
+        .where((h) => !sites.any((s) => hostTrustedBy(s.host, {h})))
+        .length;
+    final listCount = plan.enableIds.length + plan.addLists.length;
+    final userRuleCount = plan.userFilters == null
+        ? 0
+        : const LineSplitter()
+            .convert(plan.userFilters!)
+            .where((l) => l.trim().isNotEmpty && !l.trim().startsWith('!'))
+            .length;
+    final siteNames = sites.map((s) => s.name).join(', ');
+    final skipped = <String>[
+      if (plan.unresolvedKeys.isNotEmpty)
+        loc.appSettingsUboImportUnresolved(plan.unresolvedKeys.length),
+      if (plan.unsupportedTrusted.isNotEmpty)
+        loc.appSettingsUboImportUnsupportedTrusted(
+            plan.unsupportedTrusted.length),
+      if (unappliedHosts > 0)
+        loc.appSettingsUboImportUnappliedTrusted(unappliedHosts),
+      if (plan.droppedRuleCount > 0)
+        loc.appSettingsUboImportDroppedRules(plan.droppedRuleCount),
+    ];
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(loc.appSettingsUboImportTitle),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (listCount > 0) Text(loc.appSettingsUboImportLists(listCount)),
+              if (plan.userFilters != null) ...[
+                const SizedBox(height: 8),
+                Text(loc.appSettingsUboImportUserFilters(userRuleCount)),
+              ],
+              if (sites.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(loc.appSettingsUboImportTrustedSites(siteNames)),
+              ],
+              if (skipped.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Text(loc.appSettingsUboImportSkippedHeader,
+                    style: Theme.of(context).textTheme.titleSmall),
+                for (final line in skipped) ...[
+                  const SizedBox(height: 4),
+                  Text(line, style: Theme.of(context).textTheme.bodySmall),
+                ],
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(loc.commonCancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(loc.homeImportAction),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _downloadingListId = '__all__');
+    final toDownload = await service.applyUboImport(plan,
+        userFiltersName: loc.appSettingsUboUserFiltersName);
+    if (sites.isNotEmpty) {
+      await widget.onTrustUboHosts!(plan.trustedHosts, apply: true);
+    }
+    var downloaded = 0;
+    for (final id in toDownload) {
+      if (await service.downloadList(id)) downloaded++;
+    }
+    if (!mounted) return;
+    setState(() => _downloadingListId = null);
+    messenger.showSnackBar(SnackBar(
+        content: Text(
+            loc.appSettingsUboImportDone(downloaded, toDownload.length))));
   }
 
   String _formatNumber(int n) {
@@ -1991,6 +2129,12 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                       : () => _showLocalListDialog(),
                   icon: const Icon(Icons.edit_note),
                   label: Text(loc.appSettingsAddLocalList),
+                ),
+                OutlinedButton.icon(
+                  onPressed:
+                      _downloadingListId != null ? null : _importUboBackup,
+                  icon: const Icon(Icons.file_open_outlined),
+                  label: Text(loc.appSettingsImportUboBackup),
                 ),
               ],
             ),

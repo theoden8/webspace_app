@@ -1368,6 +1368,105 @@
   "@appSettingsLocalListRulesHint": {
     "description": "Placeholder in the empty rules field of a locally written filter list, explaining the expected format (Adblock Plus is a product name, keep it)"
   },
+  "appSettingsImportUboBackup": "Import uBlock Origin",
+  "@appSettingsImportUboBackup": {
+    "description": "Button label in the content blocker settings that reads a backup file saved by the uBlock Origin browser extension and imports its filter lists, the user's own filters and trusted sites. uBlock Origin is a product name, keep it"
+  },
+  "appSettingsUboNotABackup": "That file is not a uBlock Origin backup",
+  "@appSettingsUboNotABackup": {
+    "description": "Snackbar shown when the file the user picked to import is not a backup saved by the uBlock Origin browser extension"
+  },
+  "appSettingsUboImportTitle": "Import uBlock Origin backup",
+  "@appSettingsUboImportTitle": {
+    "description": "Title of the dialog that lists what a uBlock Origin backup file will change before the user confirms the import"
+  },
+  "appSettingsUboImportLists": "Filter lists: {count}",
+  "@appSettingsUboImportLists": {
+    "description": "Line in the uBlock Origin import dialog: how many content blocker filter lists the import will switch on or add",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "appSettingsUboImportUserFilters": "Your own filters: {count} rules",
+  "@appSettingsUboImportUserFilters": {
+    "description": "Line in the uBlock Origin import dialog: the rules the user wrote in uBlock Origin, which are imported as one locally written filter list",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "appSettingsUboImportTrustedSites": "Content blocker off on: {sites}",
+  "@appSettingsUboImportTrustedSites": {
+    "description": "Line in the uBlock Origin import dialog naming the sites the user trusted in uBlock Origin; the import switches this app's content blocker off on them. {sites} is a comma-separated list of site names",
+    "placeholders": {
+      "sites": {
+        "type": "String"
+      }
+    }
+  },
+  "appSettingsUboImportSkippedHeader": "Not imported",
+  "@appSettingsUboImportSkippedHeader": {
+    "description": "Heading in the uBlock Origin import dialog above the parts of the backup this app has no equivalent for"
+  },
+  "appSettingsUboImportUnresolved": "Filter lists this app could not find: {count}",
+  "@appSettingsUboImportUnresolved": {
+    "description": "Line under 'Not imported' in the uBlock Origin import dialog: lists named in the backup whose download address could not be looked up",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "appSettingsUboImportUnsupportedTrusted": "Trusted-site rules narrower than a whole site: {count}",
+  "@appSettingsUboImportUnsupportedTrusted": {
+    "description": "Line under 'Not imported' in the uBlock Origin import dialog: trusted-site rules that name a page or a pattern rather than a whole site, which a per-site switch cannot express",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "appSettingsUboImportUnappliedTrusted": "Trusted sites with no matching site here, or kept on by Tracking Protection: {count}",
+  "@appSettingsUboImportUnappliedTrusted": {
+    "description": "Line under 'Not imported' in the uBlock Origin import dialog: sites trusted in uBlock Origin that the user has not added to this app, or whose Tracking Protection setting keeps the content blocker on",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "appSettingsUboImportDroppedRules": "Firewall and per-site switch rules, which this app has no equivalent for: {count}",
+  "@appSettingsUboImportDroppedRules": {
+    "description": "Line under 'Not imported' in the uBlock Origin import dialog: uBlock Origin's dynamic filtering (firewall) and per-site switches such as blocking scripts, which this app cannot express",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "appSettingsUboImportNothing": "Nothing in this backup can be imported",
+  "@appSettingsUboImportNothing": {
+    "description": "Snackbar when a uBlock Origin backup carries no filter lists, own filters or trusted sites this app can use"
+  },
+  "appSettingsUboImportDone": "uBlock Origin backup imported. Downloaded {done} of {total} filter lists",
+  "@appSettingsUboImportDone": {
+    "description": "Snackbar after a uBlock Origin import finished; the new filter lists were downloaded, {done} of them successfully",
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "appSettingsUboUserFiltersName": "uBlock Origin: My filters",
+  "@appSettingsUboUserFiltersName": {
+    "description": "Name given to the locally written filter list that holds the rules the user wrote in uBlock Origin ('My filters' is the name of that tab in uBlock Origin)"
+  },
   "appSettingsUboRedirectStubs": "Serve uBO redirect stubs",
   "@appSettingsUboRedirectStubs": {
     "description": "Toggle title for serving uBO redirect stub bodies"

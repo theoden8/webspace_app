@@ -13,6 +13,7 @@ import 'package:webspace/services/bloom_filter.dart';
 import 'package:webspace/services/content_blocker_shim.dart';
 import 'package:webspace/services/host_lookup.dart';
 import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/services/ubo_backup_import.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
@@ -849,6 +850,81 @@ class ContentBlockerService {
     await _saveLists();
     if (list.enabled) await _rebuildEngine();
   }
+
+  /// uBO's asset registry, for resolving the list keys in a uBO backup.
+  /// Empty when it cannot be fetched; the plan then reports those keys as
+  /// unresolved instead of failing the import.
+  Future<Map<String, UboAsset>> fetchUboAssetRegistry() async {
+    final clientResult = outboundHttp.clientFor(GlobalOutboundProxy.current);
+    if (clientResult is! OutboundClientReady) return const {};
+    final client = clientResult.client;
+    try {
+      final response = await client
+          .get(Uri.parse(kUboAssetRegistryUrl))
+          .timeout(const Duration(seconds: 30));
+      if (response.statusCode != 200) return const {};
+      return parseUboAssetRegistry(response.body);
+    } catch (e) {
+      LogService.instance.log('ContentBlocker',
+          'uBO asset registry fetch failed: $e', level: LogLevel.warning);
+      return const {};
+    } finally {
+      client.close();
+    }
+  }
+
+  /// Applies the list half of a uBO import: enables the selected lists the
+  /// app has, adds the rest, and stores the user's own filters as a local
+  /// list named [userFiltersName] (replacing one of that name, so a second
+  /// import does not duplicate it). Returns the ids that still need a
+  /// download.
+  Future<List<String>> applyUboImport(UboImportPlan plan,
+      {required String userFiltersName}) async {
+    for (final id in plan.enableIds) {
+      final list = _lists.where((l) => l.id == id).firstOrNull;
+      if (list != null) list.enabled = true;
+    }
+    final added = <String>[];
+    for (final planned in plan.addLists) {
+      final id = _newCustomId();
+      _lists.add(FilterList(
+          id: id, name: planned.name, url: planned.url, enabled: true));
+      added.add(id);
+    }
+    final rules = plan.userFilters;
+    if (rules != null) {
+      final prior = _lists
+          .where((l) => l.isLocal && l.name == userFiltersName)
+          .firstOrNull;
+      if (prior != null) {
+        prior.rules = rules;
+        prior.ruleCount = _approximateRuleCount(rules);
+        prior.lastUpdated = DateTime.now();
+        prior.enabled = plan.userFiltersEnabled;
+      } else {
+        _lists.add(FilterList(
+          id: _newCustomId(),
+          name: userFiltersName,
+          url: '',
+          enabled: plan.userFiltersEnabled,
+          rules: rules,
+          ruleCount: _approximateRuleCount(rules),
+          lastUpdated: DateTime.now(),
+        ));
+      }
+    }
+    await _saveLists();
+    await _rebuildEngine();
+    return [
+      ...added,
+      for (final id in plan.enableIds)
+        if (_lists.any((l) => l.id == id && l.lastUpdated == null)) id,
+    ];
+  }
+
+  /// The app's lists, in the shape [planUboImport] reads.
+  List<ExistingFilterList> get existingForImport =>
+      [for (final l in _lists) ExistingFilterList(l.id, l.url)];
 
   /// Remove a filter list by ID.
   Future<void> removeList(String id) async {

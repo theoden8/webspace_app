@@ -868,6 +868,68 @@ matching uBO's `utils.preparser` and `assets.fetchFilterList`:
 
 ---
 
+### Requirement: CB-018 - uBlock Origin Backup Import
+
+The user SHALL be able to import the backup file uBlock Origin's dashboard
+saves (`my-ublock-backup_*.txt`), from App Settings > Content Blocker. The
+file is accepted on the same test uBO's own restore applies: an object with
+`userSettings`, a trusted-site list (`whitelist` array or the older
+`netWhitelist` string) and a list selection (`selectedFilterLists` or the
+older `filterLists` map). The parser and planner are pure Dart, in
+[`ubo_backup_import.dart`](../../../lib/services/ubo_backup_import.dart).
+
+What maps:
+
+- **Filter lists.** A key the app already has as a list id (`easylist`,
+  `easyprivacy`, `fanboy-social`) enables that list rather than adding uBO's
+  mirror of it. Other keys resolve to a URL through uBO's `assets.json`,
+  fetched through the outbound proxy at import time and never committed. A
+  URL entry (a list the user imported into uBO) is added as is. A key that
+  cannot be resolved, because the registry is unreachable or uBO retired it,
+  is reported, not guessed.
+- **My filters** (`userFilters`) become one CB-016 local list, named "uBlock
+  Origin: My filters" in the UI locale, enabled when the backup selects
+  `user-filters`. A later import replaces that list's rules instead of adding
+  a second one.
+- **Trusted sites** that name a whole host (`example.com`,
+  `https://example.com/*`) switch the content blocker off on the app-tier
+  sites on that host or its subdomains, as uBO's hostname directive covers
+  subdomains. A site whose Tracking Protection holds the blocker on is left
+  alone, and so is every archive-tier site (ARCH-006). The affected
+  webviews are recreated so the change applies at once.
+
+What does not map, and is counted in the confirmation dialog: trusted-site
+directives narrower or wider than a host (a path, a regex), trusted hosts
+with no matching site here, and uBO's dynamic filtering, URL rules and
+per-site switches beyond uBO's own defaults.
+
+Nothing is applied until the user confirms a dialog that lists all of the
+above. After confirming, every list the import added or enabled that has no
+download yet is downloaded, with CB-017 applied.
+
+#### Scenario: Moving from uBO
+
+**Given** a uBO backup selecting `user-filters`, `ublock-filters`, `easylist`
+and one imported URL, with `news.example` trusted
+**When** the user imports it and confirms
+**Then** EasyList is enabled, uBlock filters and the URL are added and
+downloaded, the user's filters become an enabled local list
+**And** the content blocker is off on the News site
+
+#### Scenario: A narrower trust is reported, not widened
+
+**Given** a backup trusting `https://docs.example/private/page`
+**Then** the dialog counts it under "Not imported"
+**And** no site's content blocker changes because of it
+
+#### Scenario: Not a uBO backup
+
+**Given** the user picks a WebSpace settings backup or any other file
+**Then** a snackbar says the file is not a uBlock Origin backup
+**And** nothing changes
+
+---
+
 ## Implementation Details
 
 ### Architecture: Why Not flutter_inappwebview ContentBlocker

@@ -80,6 +80,7 @@ import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/adblock_engine.dart';
 import 'package:webspace/services/content_blocker_service.dart';
+import 'package:webspace/services/ubo_backup_import.dart' show UboTrustedSite, hostTrustedBy;
 import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/dns_level_mask_engine.dart';
@@ -6594,6 +6595,35 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   // Import settings from a file
+  /// uBO trusts a site by switching all filtering off on it; the per-site
+  /// content-blocker toggle is the equivalent here. Archive-tier sites are
+  /// left alone (ARCH-006), and so are sites whose Tracking Protection
+  /// would hold the blocker on regardless.
+  Future<List<UboTrustedSite>> _trustUboHosts(Set<String> hosts,
+      {required bool apply}) async {
+    final matched = <WebViewModel>[];
+    for (final m in _webViewModels) {
+      if (m.isArchiveTier || !m.contentBlockEnabled) continue;
+      if (m.trackingProtectionEnabled) continue;
+      final host = Uri.tryParse(m.initUrl)?.host ?? '';
+      if (host.isNotEmpty && hostTrustedBy(host, hosts)) matched.add(m);
+    }
+    final result = [
+      for (final m in matched)
+        UboTrustedSite(m.getDisplayName(), Uri.parse(m.initUrl).host)
+    ];
+    if (apply && matched.isNotEmpty) {
+      setState(() {
+        for (final m in matched) {
+          m.contentBlockEnabled = false;
+          m.disposeWebView();
+        }
+      });
+      await _saveWebViewModels();
+    }
+    return result;
+  }
+
   Future<void> _importSettings() async {
     final backup = await SettingsBackupService.pickAndImport(context);
     if (backup == null) {
@@ -7328,6 +7358,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                     },
                     onExportSettings: _exportSettings,
                     onImportSettings: _importSettings,
+                    onTrustUboHosts: _trustUboHosts,
                     onRestoreArchive: _promptRestoreArchive,
                     hasOpenArchives: _archiveSlices.isNotEmpty,
                     onCloseAllArchives: () async {
