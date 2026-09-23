@@ -202,13 +202,13 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
       await store.writeText(_fileNameFor(key), base64.encode(wire));
       LogService.instance.log(
         'WebViewState',
-        'Saved \${state.length} bytes for \$key (encrypted)',
+        'Saved ${state.length} bytes for $key (encrypted)',
         sensitivity: LogSensitivity.sensitive,
       );
     } catch (e) {
       LogService.instance.log(
         'WebViewState',
-        'Error saving state for \$key: \$e',
+        'Error saving state for $key: $e',
         level: LogLevel.error,
         sensitivity: LogSensitivity.sensitive,
       );
@@ -237,7 +237,7 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
     } catch (e) {
       LogService.instance.log(
         'WebViewState',
-        'Error loading state for \$key: \$e',
+        'Error loading state for $key: $e',
         level: LogLevel.error,
         sensitivity: LogSensitivity.sensitive,
       );
@@ -260,7 +260,7 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
     } catch (e) {
       LogService.instance.log(
         'WebViewState',
-        'Error deleting state for \$key: \$e',
+        'Error deleting state for $key: $e',
         level: LogLevel.error,
         sensitivity: LogSensitivity.sensitive,
       );
