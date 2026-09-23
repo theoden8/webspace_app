@@ -761,6 +761,35 @@ class WebViewModel {
     return [DomainClaim.baseDomain(base)];
   }
 
+  /// True when [url] is covered by one of this site's domain claims. Every
+  /// external-link mode keeps claimed cross-domain links in a nested webview;
+  /// only unclaimed ones go to the browser or are blocked.
+  bool matchesSiteClaim(String url) {
+    final uri = Uri.tryParse(url);
+    return uri != null &&
+        LinkRoutingService.urlMatchesAnyClaim(uri, effectiveDomainClaims);
+  }
+
+  /// Where a link the user explicitly chose to open goes, decided exactly as
+  /// a tap on it in this site's on-screen webview would be. For callers that
+  /// open a link without the webview's own navigation hook running, such as
+  /// the long-press menu: a programmatic `loadUrl` skips
+  /// `shouldOverrideUrlLoading` on Android, so a cross-domain URL would
+  /// otherwise load inside the site's container. [isActive] is whether the
+  /// site is still the one on screen.
+  NavigationDecision decideUserOpenedLink(String url,
+          {required bool isActive}) =>
+      NavigationDecisionEngine.decideShouldOverrideUrlLoading(
+        targetUrl: url,
+        initUrl: initUrl,
+        hasGesture: true,
+        isSiteActive: isActive,
+        lastSameDomainGestureTime: null,
+        now: DateTime.now(),
+        externalLinkMode: effectiveExternalLinkMode,
+        matchesSiteClaim: matchesSiteClaim,
+      ).decision;
+
   /// Whether the webview is currently mid-navigation. Set true on
   /// `onLoadStart`, false on `onLoadStop`. Driven by the
   /// `WebViewConfig.onLoadingChanged` callback wired in [getWebView].
@@ -1400,14 +1429,6 @@ class WebViewModel {
       // + 2× evaluateJavascript IPCs per navigation, doubling the
       // race-window count for the chromium dangling-raw_ptr crash.
       String? lastNotifiedUrl;
-      // True when `u` is covered by one of this site's domain claims. Every
-      // external-link mode keeps claimed cross-domain links in a nested
-      // webview; only unclaimed ones go to the browser or are blocked.
-      bool matchesSiteClaim(String u) {
-        final uri = Uri.tryParse(u);
-        return uri != null &&
-            LinkRoutingService.urlMatchesAnyClaim(uri, effectiveDomainClaims);
-      }
       // Android restore ordering: when nav-state bytes are queued for this
       // build, the webview must apply restoreState to a pristine back/forward
       // list. Suppress the initial load on Android and materialize the

@@ -133,6 +133,13 @@ state bytes SHALL exist for the child until it is first activated. For a link
 outside the site's domain the row SHALL be shown disabled with the reason, and
 a tap on such a link SHALL keep opening the nested screen as today.
 
+The menu's "Open" row SHALL route the link exactly as a tap on it would: in
+place when it is inside the site's domain, otherwise in the nested screen, or
+the system browser when `externalLinksInBrowser` applies and no domain claim
+covers it. It SHALL NOT load a cross-domain URL into the site's own webview:
+Android does not run `shouldOverrideUrlLoading` for a programmatic `loadUrl`,
+so a bare load there would put the foreign page inside the site's container.
+
 The long press is delivered by the plugin's `onLongPressHitTestResult`
 (`View.setOnLongClickListener` on Android, `UILongPressGestureRecognizer` on
 iOS) filtered to `SRC_ANCHOR_TYPE` / `SRC_IMAGE_ANCHOR_TYPE` and to http(s)
@@ -155,6 +162,13 @@ handler: it has no tab list of its own to add to.
 - **WHEN** the user long-presses that link
 - **THEN** "Open in new tab" is disabled and explains the link is outside GitHub's domain
 - **AND** tapping the link opens the nested screen
+
+#### Scenario: Open from the menu routes like a tap
+
+- **GIVEN** a GitHub page links to `wpewebkit.org` and GitHub does not send external links to the browser
+- **WHEN** the user long-presses that link and chooses "Open"
+- **THEN** `wpewebkit.org` opens in the nested screen
+- **AND** GitHub's webview stays on the page it was showing
 
 ---
 

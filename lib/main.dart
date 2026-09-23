@@ -104,6 +104,7 @@ import 'package:webspace/services/background_task_service.dart';
 import 'package:webspace/services/media_session_service.dart';
 import 'package:webspace/services/share_intent_service.dart';
 import 'package:webspace/services/link_routing_service.dart';
+import 'package:webspace/services/navigation_decision_engine.dart' show NavigationDecision;
 import 'package:webspace/services/link_intent_dispatch_engine.dart';
 import 'package:webspace/services/navigation_decision_engine.dart' show NavigationDecision;
 import 'package:webspace/services/nested_open_engine.dart';
@@ -7629,11 +7630,7 @@ class _WebSpacePageState extends State<WebSpacePage>
               title: Text(loc.commonOpen),
               onTap: () {
                 Navigator.of(ctx).pop();
-                unawaited(_webViewModels[index]
-                    .getController(launchUrl, _cookieManager,
-                        _containerCookieManager, _saveWebViewModels,
-                        globalUserScripts: _globalUserScripts)
-                    ?.loadUrl(url));
+                unawaited(_openLinkAsTapped(index, url));
               },
             ),
             ListTile(
@@ -7648,6 +7645,34 @@ class _WebSpacePageState extends State<WebSpacePage>
         ),
       ),
     );
+  }
+
+  /// Open [url] from the long-press menu the way tapping the link would have:
+  /// in place when it is this site's, otherwise nested or in the system
+  /// browser (NESTED-010). A bare `loadUrl` would put a foreign page inside
+  /// the site's container, because Android does not run
+  /// `shouldOverrideUrlLoading` for a programmatic load.
+  Future<void> _openLinkAsTapped(int index, String url) async {
+    if (index < 0 || index >= _webViewModels.length) return;
+    final model = _webViewModels[index];
+    final active = index == _currentIndex;
+    switch (model.decideUserOpenedLink(url, isActive: active)) {
+      case NavigationDecision.allow:
+        await model
+            .getController(launchUrl, _cookieManager, _containerCookieManager,
+                _saveWebViewModels,
+                globalUserScripts: _globalUserScripts)
+            ?.loadUrl(url, language: model.language);
+      case NavigationDecision.blockOpenNested:
+        await _launchNestedForModel(model, url);
+      case NavigationDecision.blockOpenExternal:
+        await launchUrlInSystemBrowser(url);
+      case NavigationDecision.blockOutbound:
+        _routeOutboundLink(model, url, NavigationDecision.blockOutbound, true);
+      case NavigationDecision.blockSilent:
+      case NavigationDecision.blockSuppressed:
+        break;
+    }
   }
 
   void _goHome() {
