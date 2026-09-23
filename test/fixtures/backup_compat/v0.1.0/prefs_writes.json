@@ -1,0 +1,26 @@
+{
+  "cookies_fallback": [
+    "String"
+  ],
+  "cookies_migrated_to_secure": [
+    "Bool"
+  ],
+  "currentIndex": [
+    "Int"
+  ],
+  "selectedWebspaceId": [
+    "String"
+  ],
+  "showUrlBar": [
+    "Bool"
+  ],
+  "themeSettings": [
+    "Int"
+  ],
+  "webViewModels": [
+    "StringList"
+  ],
+  "webspaces": [
+    "StringList"
+  ]
+}

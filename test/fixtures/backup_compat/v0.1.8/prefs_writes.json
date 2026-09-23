@@ -1,0 +1,53 @@
+{
+  "clearurl_last_updated": [
+    "String"
+  ],
+  "content_blocker_lists": [
+    "String"
+  ],
+  "cookies_fallback": [
+    "String"
+  ],
+  "cookies_migrated_to_secure": [
+    "Bool"
+  ],
+  "currentIndex": [
+    "Int"
+  ],
+  "dns_block_last_updated": [
+    "String"
+  ],
+  "dns_block_level": [
+    "Int"
+  ],
+  "html_cache_version": [
+    "String"
+  ],
+  "image_cache_version": [
+    "String"
+  ],
+  "localcdn_cache_index": [
+    "String"
+  ],
+  "localcdn_last_updated": [
+    "String"
+  ],
+  "selectedWebspaceId": [
+    "String"
+  ],
+  "showUrlBar": [
+    "Bool"
+  ],
+  "suggested_sites": [
+    "String"
+  ],
+  "themeSettings": [
+    "Int"
+  ],
+  "webViewModels": [
+    "StringList"
+  ],
+  "webspaces": [
+    "StringList"
+  ]
+}

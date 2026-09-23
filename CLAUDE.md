@@ -315,7 +315,9 @@ User-facing global pref persisted to SharedPreferences MUST round-trip through t
 - Don't register: migration flags, download timestamps, cache indices, machine state from downloaded data (DNS blocklist, content blocker, localcdn).
 - Per-site settings ride `WebViewModel.toJson` automatically — keep them on the model.
 - Touched export/import? Re-run `flutter test test/settings_backup_test.dart test/settings_backup_compat_test.dart`.
-- Import logic lives in `planSettingsImport` ([settings_import_engine.dart](lib/services/settings_import_engine.dart)); `_importSettings` only applies the plan (BACKUP-013). A key you rename or drop keeps its old spelling readable in `fromJson`, and the compat test fails until some fixture carries it (BACKUP-012).
+- Import logic lives in `planSettingsImport` ([settings_import_engine.dart](lib/services/settings_import_engine.dart)); `_importSettings` only applies the plan (BACKUP-013).
+- Renaming a persisted key (site JSON, backup field, SharedPreferences key) keeps reading the old name and carries the value over; dropping one is declared with its reason (`_renamedKeys` / `_retiredKeys` in the compat test, `RETIRED` in `test/js/prefs_key_history.test.js`). Both tests hold every release's writes against today's reads (BACKUP-012, BACKUP-014).
+- A new `fromJson` field reads a wrong-typed value as absent, never with a bare cast: a site whose JSON throws is dropped at startup and deleted by the next save. Read a `kExportedAppPrefs` key with `readPrefAs<T>`, never `prefs.getBool` and friends (gated).
 - On release day (version bumped in `pubspec.yaml`), run `tool/backup_compat/generate.sh HEAD` and commit the new `test/fixtures/backup_compat/v<version>/`; the compat test fails without it.
 
 ## Settings rows: state in the subtitle, explanation in the hint

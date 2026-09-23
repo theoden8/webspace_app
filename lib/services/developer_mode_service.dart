@@ -1,4 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/pref_read.dart';
 
 import 'package:webspace/services/log_service.dart';
 
@@ -25,7 +26,7 @@ class DeveloperModeService {
 
   Future<void> initialize() async {
     final prefs = await SharedPreferences.getInstance();
-    _enabled = prefs.getBool(kDeveloperModeKey) ?? false;
+    _enabled = readPrefAs<bool>(prefs, kDeveloperModeKey) ?? false;
   }
 
   /// Re-read the flag from disk. Called after a settings import, which

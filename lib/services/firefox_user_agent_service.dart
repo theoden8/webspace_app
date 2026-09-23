@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/pref_read.dart';
 
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
@@ -161,7 +162,7 @@ class FirefoxUserAgentService {
   Future<void> maybeAutoRefresh() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      if (!(prefs.getBool(kFirefoxUaAutoRefreshKey) ?? false)) return;
+      if (!(readPrefAs<bool>(prefs, kFirefoxUaAutoRefreshKey) ?? false)) return;
     } catch (_) {
       return;
     }

@@ -48,6 +48,8 @@ const FORCED_OFF_OK = [
   /!\s*(?:widget\.)?trackingProtectionEnabled/,
   // Deserialization: reading the stored value back is not a call site.
   /^\s*json\[/,
+  // The same read through `WebViewModel.fromJson`'s tolerant field reader.
+  /^\s*field<bool>\(\s*'thirdPartyCookiesEnabled'\s*\)/,
 ];
 
 // `launchUrl` in main.dart forwards its own same-named parameter onward; the

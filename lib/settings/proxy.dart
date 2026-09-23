@@ -67,13 +67,20 @@ class UserProxySettings {
         if (torExitCountry != null) 'torExitCountry': torExitCountry,
       };
 
-  factory UserProxySettings.fromJson(Map<String, dynamic> json) => UserProxySettings(
-        type: _typeFromIndex(json['type']),
-        address: json['address'],
-        username: json['username'],
-        password: json['password'],
-        torExitCountry: json['torExitCountry'] as String?,
-      );
+  factory UserProxySettings.fromJson(Map<String, dynamic> json) {
+    String? text(String key) {
+      final value = json[key];
+      return value is String ? value : null;
+    }
+
+    return UserProxySettings(
+      type: _typeFromIndex(json['type']),
+      address: text('address'),
+      username: text('username'),
+      password: text('password'),
+      torExitCountry: text('torExitCountry'),
+    );
+  }
 
   /// Decode a persisted [ProxyType] index defensively.
   ///

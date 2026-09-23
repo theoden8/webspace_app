@@ -290,12 +290,19 @@ site's settings or at the page's next request.
 
 ### Requirement: BACKUP-012 - Every Released Backup Format Imports
 
-A backup written by any release SHALL import, and importing it SHALL hold
-BACKUP-011 and PWD-005 exactly as importing a current one does. A key the
-release did not write SHALL import as a freshly added site's default. The
-same holds for the other formats a release hands out: a site-settings QR
-link (`webspace://qr/site/v1/`, SITEQR) SHALL still decode, and every
-`webspace://open?url=` link a release accepted SHALL unwrap to the same URL.
+A backup written by any release SHALL import without throwing and without
+losing a setting: every key the release wrote SHALL still be read, and its
+value SHALL come back. A key the release did not write SHALL import as a
+freshly added site's default. The same holds for the other formats a
+release hands out: a site-settings QR link (`webspace://qr/site/v1/`,
+SITEQR) SHALL still decode, and every `webspace://open?url=` link a release
+accepted SHALL unwrap to the same URL.
+
+Renaming a persisted key SHALL keep reading the old name and carry its
+value over (declared in the test's `_renamedKeys`); dropping one SHALL be
+declared with its reason (`_retiredKeys`). The security rules of an import
+(BACKUP-011, BACKUP-010, PWD-005) hold for any input whoever wrote it and
+are tested against hostile input, not per release.
 
 `version` has been 1 in every release, so a legacy shape is recognised
 from the data:
@@ -327,12 +334,12 @@ cannot ship without its format joining the corpus.
 **When** it is imported
 **Then** the theme is dark with the blue accent, not system with purple
 
-#### Scenario: A v0.2.2 backup cannot restore its proxy passwords
+#### Scenario: A rename that forgets the old key fails the build
 
-**Given** the v0.2.2 fixture, whose site and app-wide proxies carry
-plaintext passwords
-**When** it is imported
-**Then** neither password reaches a model, `globalPrefs`, or a re-export
+**Given** `kioskMode` is renamed in `toJson` and `fromJson` without reading
+the old name
+**When** `test/settings_backup_compat_test.dart` runs
+**Then** every release from v0.2.7 fails "every key it wrote is still read"
 
 #### Scenario: A release's link still opens
 
@@ -351,6 +358,52 @@ that release rejected it
 
 ---
 
+### Requirement: BACKUP-014 - Stored Settings Are Read Field By Field
+
+What an upgrade or an import reads SHALL survive any single odd value.
+
+- `WebViewModel.fromJson` SHALL require only `initUrl`. Every other field of
+  the wrong type reads as absent, and a malformed entry of a list (a cookie,
+  a user script, a blocked cookie, a domain claim) is dropped while the
+  rest are kept. The startup loader skips a site whose JSON throws and the
+  next save deletes it, so a strict field turned one odd value into a lost
+  site. `UserScriptConfig`, `UserProxySettings` and `Webspace` read the same
+  way.
+- A `kExportedAppPrefs` key SHALL be read through `readPrefAs`
+  (`lib/settings/pref_read.dart`) or `readExportedAppPrefs`, never a typed
+  `SharedPreferences` getter. Those throw on a stored value of another type,
+  and v0.2.2 through v0.3.1 imports stored `globalPrefs` values under the
+  file's JSON type; thrown inside `_restoreAppState`, it stopped the sites
+  from loading.
+- Every SharedPreferences key a release wrote (recorded per release in
+  `prefs_writes.json`) SHALL still be read with the type it was written as,
+  or be listed as retired with the reason
+  (`test/js/prefs_key_history.test.js`).
+
+#### Scenario: A mistyped field keeps its site
+
+**Given** a site JSON (stored, or in a backup) whose `javascriptEnabled` is
+`"yes"` and whose `cookies` list holds one string among valid cookies
+**When** `WebViewModel.fromJson` reads it
+**Then** the site loads with `javascriptEnabled` at its default and the
+valid cookies, and every other field as written
+
+#### Scenario: A QR link naming only a URL creates a site
+
+**Given** a `webspace://qr/site/v1/` payload whose JSON is only
+`{"initUrl": "https://qr.example/"}`
+**When** the user accepts it in the review
+**Then** a site for that URL is created with default settings, instead of
+`fromJson` throwing on the absent `proxySettings`
+
+#### Scenario: A mistyped stored pref does not stop startup
+
+**Given** `showUrlBar` is stored as the String `"true"`
+**When** the app starts
+**Then** `showUrlBar` reads as its default and the sites load
+
+---
+
 ### Requirement: BACKUP-013 - An Import Is Decided Before It Is Applied
 
 `planSettingsImport` ([lib/services/settings_import_engine.dart](../../../lib/services/settings_import_engine.dart))
@@ -359,8 +412,9 @@ live state, and `_importSettings` SHALL read only the resulting plan after
 it clears the site list. A backup that cannot be applied whole is refused
 whole, with the user's sites untouched.
 
-- `sites` and `webspaces` are the backup. A site that does not parse
-  rejects the file.
+- `sites` and `webspaces` are the backup. A site without a string
+  `initUrl`, or an entry of either list that is not an object, rejects the
+  file.
 - Every other field is optional. A value of the wrong type reads as absent;
   an entry of an optional list (`suggestedSites`, `globalUserScripts`,
   `contentBlockerLists`, `extraSections`) that does not parse is dropped.

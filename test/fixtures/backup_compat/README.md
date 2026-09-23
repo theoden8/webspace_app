@@ -8,6 +8,9 @@ One directory per release, holding what that release wrote for the inputs in
 - `qr_maximal.txt` (v0.2.3+): the first site's `webspace://qr/site/v1/` link.
 - `links.json` (v0.2.3+): how the release unwrapped each `webspace://` link in
   the superset's corpus (`null` rejected, `!throws` raised).
+- `prefs_writes.json`: every SharedPreferences key the release's `lib/` writes
+  and the type it writes it as (`tool/backup_compat/prefs_keys.js`), which is
+  what an upgrade from that release finds on the device.
 
 The files are produced by the release's own code, not written by hand:
 `tool/backup_compat/generate.sh <tag>` checks the tag out, swaps in a shim for

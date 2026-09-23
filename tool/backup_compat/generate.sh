@@ -8,8 +8,9 @@
 #   tool/backup_compat/generate.sh HEAD         the committed tree, named after
 #                                               pubspec.yaml's version (release day)
 #
-# Needs network for `pub get` in each old tree. FLUTTER overrides the
-# `fvm flutter` default; WORK_DIR keeps the worktrees somewhere specific.
+# Needs network for `pub get` in each old tree, and node for prefs_keys.js.
+# FLUTTER overrides the `fvm flutter` default; WORK_DIR keeps the worktrees
+# somewhere specific.
 set -euo pipefail
 
 repo="$(git rev-parse --show-toplevel)"
@@ -68,6 +69,7 @@ for ref in "${refs[@]}"; do
       --dart-define=BACKUP_COMPAT_OUT="$staging" \
       --dart-define=BACKUP_COMPAT_SUPERSET="$here/superset.json"
   )
+  node "$here/prefs_keys.js" "$wt/lib" > "$staging/prefs_writes.json"
   rm -rf "${out_root:?}/$name"
   mkdir -p "$out_root"
   mv "$staging" "$out_root/$name"

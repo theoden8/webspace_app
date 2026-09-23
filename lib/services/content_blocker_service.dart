@@ -18,6 +18,7 @@ import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/procedural_action_backfill.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/pref_read.dart';
 
 /// A filter list entry with metadata.
 class FilterList {
@@ -679,7 +680,7 @@ class ContentBlockerService {
   Future<void> initialize() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      _useUboResources = prefs.getBool(kUseUboResourcesKey) ?? true;
+      _useUboResources = readPrefAs<bool>(prefs, kUseUboResourcesKey) ?? true;
       if (hostIsAndroid) {
         _rustEngineSupported =
             await WebInterceptNative.isAdblockEngineSupported();

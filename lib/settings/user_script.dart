@@ -173,26 +173,33 @@ class UserScriptConfig {
     'bypassSitePolicy': bypassSitePolicy,
   };
 
+  /// A field of the wrong type reads as absent, so a script the user wrote
+  /// is not lost to one odd value beside it.
   factory UserScriptConfig.fromJson(Map<String, dynamic> json) {
+    T? field<T>(String key) {
+      final value = json[key];
+      return value is T ? value : null;
+    }
+
+    final url = field<String>('url');
+    final urlSource = field<String>('urlSource');
     return UserScriptConfig(
-      id: json['id'] as String?,
-      name: json['name'] ?? 'Untitled',
-      source: json['source'] ?? '',
-      url: json['url'],
-      urlSource: json['urlSource'],
+      id: field<String>('id'),
+      name: field<String>('name') ?? 'Untitled',
+      source: field<String>('source') ?? '',
+      url: url,
+      urlSource: urlSource,
       injectionTime: json['injectionTime'] == 0
           ? UserScriptInjectionTime.atDocumentStart
           : UserScriptInjectionTime.atDocumentEnd,
-      enabled: json['enabled'] ?? true,
+      enabled: field<bool>('enabled') ?? true,
       // Migration: the bridge used to be installed for any site with any user
       // script. A script written before this flag existed and backed by a
       // fetched library is the case it was built for (US-DR-001), so keep it
       // working; a plain script keeps the site's CSP instead of silently
       // having lost it all along.
-      bypassSitePolicy:
-          json['bypassSitePolicy'] as bool? ??
-          ((json['url'] as String?)?.isNotEmpty ?? false) ||
-              ((json['urlSource'] as String?)?.isNotEmpty ?? false),
+      bypassSitePolicy: field<bool>('bypassSitePolicy') ??
+          ((url?.isNotEmpty ?? false) || (urlSource?.isNotEmpty ?? false)),
     );
   }
 }

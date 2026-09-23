@@ -109,6 +109,7 @@ import 'package:webspace/services/proxy_router_service.dart';
 import 'package:webspace/services/suggested_sites_service.dart' as suggested_sites;
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/settings/app_prefs.dart';
+import 'package:webspace/settings/pref_read.dart';
 import 'package:webspace/settings/app_locale.dart';
 import 'package:webspace/settings/camera.dart';
 import 'package:webspace/settings/screen_share.dart';
@@ -4999,17 +5000,17 @@ class _WebSpacePageState extends State<WebSpacePage>
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
       // Load theme settings, with migration from old formats
-      final savedThemeSettings = prefs.getInt('themeSettings');
+      final savedThemeSettings = readPrefAs<int>(prefs, 'themeSettings');
       if (savedThemeSettings != null) {
         _themeSettings = AppThemeSettings.fromStorageIndex(savedThemeSettings);
       } else {
         // Try to migrate from old appTheme format
-        final savedAppTheme = prefs.getInt('appTheme');
+        final savedAppTheme = readPrefAs<int>(prefs, 'appTheme');
         if (savedAppTheme != null && savedAppTheme < AppTheme.values.length) {
           _themeSettings = _legacyAppThemeToSettings(AppTheme.values[savedAppTheme]);
         } else {
           // Migrate from old themeMode if exists
-          final oldThemeMode = prefs.getInt('themeMode');
+          final oldThemeMode = readPrefAs<int>(prefs, 'themeMode');
           if (oldThemeMode != null) {
             // Map old ThemeMode to new settings (assuming green was the old color)
             switch (oldThemeMode) {
@@ -5028,27 +5029,27 @@ class _WebSpacePageState extends State<WebSpacePage>
           }
         }
       }
-      _showUrlBar = prefs.getBool('showUrlBar') ?? false;
-      _showTabStrip = prefs.getBool('showTabStrip') ?? false;
-      _tabStripInFullscreen = prefs.getBool('tabStripInFullscreen') ?? false;
+      _showUrlBar = readPrefAs<bool>(prefs, 'showUrlBar') ?? false;
+      _showTabStrip = readPrefAs<bool>(prefs, 'showTabStrip') ?? false;
+      _tabStripInFullscreen = readPrefAs<bool>(prefs, 'tabStripInFullscreen') ?? false;
       _tabBarButton =
-          prefs.getBool('tabBarButton') ?? prefs.getBool('tabBarButtonInFullscreen') ?? false;
-      _tabBarButtonOnRight = prefs.getBool('tabBarButtonOnRight') ?? true;
-      _fullscreenOnShortcut = prefs.getBool('fullscreenOnShortcut') ?? true;
+          readPrefAs<bool>(prefs, 'tabBarButton') ?? readPrefAs<bool>(prefs, 'tabBarButtonInFullscreen') ?? false;
+      _tabBarButtonOnRight = readPrefAs<bool>(prefs, 'tabBarButtonOnRight') ?? true;
+      _fullscreenOnShortcut = readPrefAs<bool>(prefs, 'fullscreenOnShortcut') ?? true;
       _backAtHistoryStart =
-          _backAtHistoryStartOffered && (prefs.getBool(kBackOpensMenuKey) ?? false)
+          _backAtHistoryStartOffered && (readPrefAs<bool>(prefs, kBackOpensMenuKey) ?? false)
               ? BackAtHistoryStart.openMenu
               : BackAtHistoryStart.ignore;
-      _tabMaxWidth = prefs.getInt('tabMaxWidth') ?? 140;
-      _showStatsBanner = prefs.getBool('showStatsBanner') ?? true;
+      _tabMaxWidth = readPrefAs<int>(prefs, 'tabMaxWidth') ?? 140;
+      _showStatsBanner = readPrefAs<bool>(prefs, 'showStatsBanner') ?? true;
       WebViewFactory.backForwardCacheEnabled =
-          prefs.getBool(kBackForwardCacheEnabledKey) ?? true;
+          readPrefAs<bool>(prefs, kBackForwardCacheEnabledKey) ?? true;
       WebViewFactory.httpsUpgradeEnabled =
-          prefs.getBool(kHttpsUpgradeEnabledKey) ?? true;
-      _linkHandlingEnabled = prefs.getBool(kLinkHandlingEnabledKey) ?? true;
+          readPrefAs<bool>(prefs, kHttpsUpgradeEnabledKey) ?? true;
+      _linkHandlingEnabled = readPrefAs<bool>(prefs, kLinkHandlingEnabledKey) ?? true;
       _linkHandlingClaimDomains =
-          prefs.getBool(kLinkHandlingClaimDomainsKey) ?? false;
-      _localeOverride = prefs.getString(kAppLocaleOverrideKey) ?? '';
+          readPrefAs<bool>(prefs, kLinkHandlingClaimDomainsKey) ?? false;
+      _localeOverride = readPrefAs<String>(prefs, kAppLocaleOverrideKey) ?? '';
       _loadShortcutRemap(prefs);
       widget.onThemeSettingsChanged(_themeSettings);
       widget.onLocaleOverrideChanged(localeFromTag(_localeOverride));

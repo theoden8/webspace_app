@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/main.dart' show AccentColor, AppThemeSettings;
 import 'package:webspace/services/link_routing_service.dart';
 import 'package:webspace/services/settings_backup.dart';
@@ -13,18 +14,24 @@ import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/camera.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/settings/microphone.dart';
+import 'package:webspace/settings/pref_read.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/utils/url_utils.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 
-/// BACKUP-012: every released backup format still imports, and importing it
-/// holds the same security contract as importing a current one.
+/// BACKUP-012 and BACKUP-014: what an older release wrote still loads, without
+/// throwing and without losing a setting.
 ///
 /// `test/fixtures/backup_compat/<tag>/` is what each release really wrote:
 /// `tool/backup_compat/generate.sh` ran the release's own serializers over
-/// `tool/backup_compat/superset.json`. A key the release did not know is
-/// absent from its fixture, and must import as a fresh site's default.
+/// `tool/backup_compat/superset.json`. Every key a release wrote must still be
+/// read, and its value must come back; a key the release did not know is
+/// absent from its fixture and must import as a fresh site's default.
+///
+/// The import's security rules (BACKUP-011, PWD-005, BACKUP-010) hold for any
+/// input whoever wrote it, so they are tested once, against hostile input,
+/// in the last groups rather than per release.
 
 const _fixtureRoot = 'test/fixtures/backup_compat';
 
@@ -80,9 +87,9 @@ Map<String, dynamic> _freshSiteJson(String initUrl) {
   return fresh.single.toJson();
 }
 
-/// What the importer must turn a superset value into. The reset of every
-/// real-device grant and of both script gates is the security contract of
-/// BACKUP-011; everything else must survive as written.
+/// The values an import deliberately does not keep (BACKUP-011: real-device
+/// grants and the global-script opt-in reset on every import, whoever wrote
+/// the file). Everything else must survive as written.
 Object? _expectedImported(String key, Object? value) => switch (key) {
       'cameraMode' || 'microphoneMode' =>
         value == 'real' || value == 'ask' ? null : value,
@@ -95,6 +102,20 @@ Object? _expectedImported(String key, Object? value) => switch (key) {
       _ => value,
     };
 
+/// A key a release wrote under a name HEAD no longer uses, and the name its
+/// value lives under now. `fromJson` must read the old name and carry the
+/// value over; add the pair here when you rename a persisted key.
+const Map<String, String> _renamedKeys = {
+  // Per-site `tabBarButtonOnRight` (never in a release) became
+  // `tabBarButtonCorner`; kept here as the worked example once one ships.
+};
+
+/// A key a release wrote that HEAD deliberately stops reading, and why losing
+/// it is intended. Anything else a release wrote must still be read.
+const Map<String, String> _retiredKeys = {
+  'trustedHosts': 'BACKUP-010: a TLS pin never rides a backup',
+};
+
 /// Keys checked by hand below rather than by the generic oracle.
 const _specialKeys = {
   'siteId',
@@ -104,6 +125,56 @@ const _specialKeys = {
   'cookies',
   'proxySettings',
   'userScripts',
+};
+
+Set<String> _matches(String text, String pattern) =>
+    {for (final m in RegExp(pattern).allMatches(text)) m.group(1)!};
+
+String _region(String path, String from, String to) {
+  final src = File(path).readAsStringSync();
+  final start = src.indexOf(from);
+  if (start < 0) throw StateError('no "$from" in $path');
+  final end = src.indexOf(to, start + from.length);
+  return src.substring(start, end < 0 ? src.length : end);
+}
+
+/// A key read out of a JSON map, in any of the spellings the parsers use.
+const _readPattern =
+    r"(?:\b(?:json|e|values)\[\s*'(\w+)'\s*\]|\b(?:field<[^>]*>|finite|text)\(\s*'(\w+)')";
+
+Set<String> _readKeys(String text) => {
+      for (final m in RegExp(_readPattern).allMatches(text))
+        (m.group(1) ?? m.group(2))!,
+    };
+
+/// Every JSON key the backup, site, webspace and nested parsers read, taken
+/// from their source so a rename that forgets the old name shows up.
+final Set<String> _keysRead = {
+  for (final f in const [
+    'lib/web_view_model.dart',
+    'lib/webspace_model.dart',
+    'lib/services/settings_backup.dart',
+    'lib/services/settings_import_engine.dart',
+    'lib/services/domain_claim.dart',
+    'lib/settings/proxy.dart',
+    'lib/settings/user_script.dart',
+    'lib/settings/virtual_visual_source.dart',
+    'lib/settings/camera.dart',
+    'lib/settings/microphone.dart',
+    'lib/settings/screen_share.dart',
+  ])
+    ..._readKeys(File(f).readAsStringSync()),
+  ..._readKeys(_region('lib/services/webview.dart', 'Cookie cookieFromJson(', ');\n')),
+  ..._matches(
+      _region('lib/services/settings_backup.dart', 'for (final key in const [', ']'),
+      r"'(\w+)'"),
+};
+
+/// `globalPrefs` keys an import applies: the registry plus the old names
+/// `resolveExportedAppPrefs` still reads.
+final Set<String> _prefKeysRead = {
+  ...kExportedAppPrefs.keys,
+  ..._readKeys(File('lib/settings/app_prefs.dart').readAsStringSync()),
 };
 
 SettingsBackup _reexport(SettingsImportPlan plan) =>
@@ -200,8 +271,39 @@ void main() {
       });
       if (backup == null || plan == null) return;
 
-      test('holds the import security contract', () {
-        _expectSanitised(plan, reason: tag);
+      test('every key it wrote is still read', () {
+        final unread = <String>[];
+        void walk(Object? node, String at) {
+          if (node is List) {
+            for (var i = 0; i < node.length; i++) {
+              walk(node[i], '$at[$i]');
+            }
+          } else if (node is Map) {
+            for (final e in node.entries) {
+              final key = e.key as String;
+              final where = at.isEmpty ? key : '$at.$key';
+              if (_retiredKeys.containsKey(key)) continue;
+              if (at.endsWith('globalPrefs')) {
+                if (!_prefKeysRead.contains(key)) unread.add(where);
+                if (key == kGlobalOutboundProxyKey && e.value is String) {
+                  walk(jsonDecode(e.value as String), where);
+                }
+                continue;
+              }
+              if (!_keysRead.contains(key) && !_renamedKeys.containsKey(key)) {
+                unread.add(where);
+              }
+              walk(e.value, where);
+            }
+          }
+        }
+
+        walk(jsonDecode(raw), '');
+        expect(unread, isEmpty,
+            reason: '$tag wrote these and HEAD never reads them, so an import '
+                'or upgrade from $tag drops them. Read the old name in '
+                'fromJson (and add it to _renamedKeys), or list it in '
+                '_retiredKeys with the reason.');
       });
 
       test('sites keep every field the release wrote', () {
@@ -270,12 +372,18 @@ void main() {
 
           for (final key in want.keys) {
             if (_specialKeys.contains(key)) continue;
-            final expected = written.containsKey(key)
+            final writtenAs = written.containsKey(key)
+                ? key
+                : [
+                    for (final e in _renamedKeys.entries)
+                      if (e.value == key && written.containsKey(e.key)) e.key,
+                  ].firstOrNull;
+            final expected = writtenAs != null
                 ? _expectedImported(key, want[key])
                 : fresh[key];
             expect(got[key], expected,
-                reason: written.containsKey(key)
-                    ? '$where: "$key" did not survive import'
+                reason: writtenAs != null
+                    ? '$where: "$writtenAs" did not survive import as "$key"'
                     : '$where: "$key" is absent from $tag and must import '
                         'as a fresh site\'s default');
           }
@@ -354,15 +462,10 @@ void main() {
         expect(plan.extraSections, isEmpty);
       });
 
-      test('re-export carries no secret and reaches a fixpoint', () {
+      test('export then import again changes nothing', () {
         final first = SettingsBackupService.exportToJson(_reexport(plan));
-        for (final needle in _needles) {
-          expect(first.contains(needle), isFalse,
-              reason: '$tag: "$needle" rode the re-export');
-        }
         final again = planSettingsImport(
             SettingsBackupService.importFromJson(first)!);
-        _expectSanitised(again, reason: '$tag after one round trip');
         expect([for (final s in again.sites) s.toJson()],
             [for (final s in plan.sites) s.toJson()]);
         expect(again.appPrefs, plan.appPrefs);
@@ -374,7 +477,6 @@ void main() {
       test('minimal backup imports as a fresh site', () {
         final minimal = planSettingsImport(SettingsBackupService.importFromJson(
             _read(tag, 'backup_minimal.json'))!);
-        _expectSanitised(minimal, reason: '$tag minimal');
         final got = minimal.sites.single.toJson()..remove('siteId');
         final fresh = _freshSiteJson('https://minimal.example/')
           ..remove('siteId');
@@ -390,10 +492,6 @@ void main() {
           final qr = _read(tag, 'qr_maximal.txt').trim();
           final decoded = SiteSettingsQrCodec.decode(qr);
           expect(decoded, isNotNull, reason: '$tag QR no longer decodes');
-          final text = jsonEncode(decoded);
-          for (final needle in _needles) {
-            expect(text.contains(needle), isFalse, reason: needle);
-          }
           expect(SiteSettingsQrCodec.includedKeys.containsAll(decoded!.keys),
               isTrue);
           final want = _supersetSites.first;
@@ -570,8 +668,6 @@ void main() {
       for (final (name, bad) in [
         ('a site without initUrl', site()..remove('initUrl')),
         ('a numeric initUrl', site({'initUrl': 42})),
-        ('javascriptEnabled that is not a bool', site({'javascriptEnabled': 'yes'})),
-        ('a cookie that is not an object', site({'cookies': ['sid=1']})),
       ]) {
         test(name, () {
           final backup = SettingsBackupService.importFromJson(
@@ -766,8 +862,10 @@ void main() {
         ],
       }));
       expect(p.suggestedSites!.map((s) => s.name), ['ok']);
-      expect(p.globalUserScripts!.map((s) => s.id), ['ok']);
-      expect(p.globalUserScripts!.single.enabled, isFalse);
+      expect(p.globalUserScripts!.map((s) => s.name), ['ok', 'bad id'],
+          reason: 'a script with a mistyped id is kept under a fresh one');
+      expect(p.globalUserScripts![1].id, isNot('5'));
+      expect(p.globalUserScripts!.where((s) => s.enabled), isEmpty);
       expect(p.contentBlockerLists![0]['id'], isNull);
       expect(p.contentBlockerLists![0]['enabled'], isFalse);
       expect(p.contentBlockerLists![1]['enabled'], isTrue);
@@ -832,6 +930,228 @@ void main() {
     });
   });
 
+  group('one odd value never costs a site', () {
+    // At startup a site whose JSON throws is skipped and the next save
+    // deletes it; on import it rejects the whole file. So every field but
+    // initUrl must survive any value, and must not take its neighbours
+    // with it.
+    const junk = <Object?>[
+      null, true, false, 0, 7, -1, 1.5, '', 'x', <Object?>[], <Object?>[1],
+      <String, Object?>{}, <String, Object?>{'a': 1},
+    ];
+    final base = WebViewModel.fromJson(
+            jsonDecode(jsonEncode(_supersetSites.first)) as Map<String, dynamic>,
+            null)
+        .toJson();
+    final baseline = WebViewModel.fromJson(
+            jsonDecode(jsonEncode(base)) as Map<String, dynamic>, null)
+        .toJson();
+
+    Map<String, dynamic> loaded(Map<String, dynamic> json) =>
+        WebViewModel.fromJson(
+                jsonDecode(jsonEncode(json)) as Map<String, dynamic>, null)
+            .toJson();
+
+    test('the baseline round-trips', () {
+      expect(baseline, base);
+    });
+
+    for (final key in base.keys.where((k) => k != 'initUrl')) {
+      test('"$key" of any type', () {
+        for (final value in [...junk, #absent]) {
+          if (value != #absent &&
+              value != null &&
+              value.runtimeType == base[key].runtimeType) {
+            continue;
+          }
+          final json = Map<String, dynamic>.from(base);
+          if (value == #absent) {
+            json.remove(key);
+          } else {
+            json[key] = value;
+          }
+          final Map<String, dynamic> out;
+          try {
+            out = loaded(json);
+          } catch (e) {
+            fail('"$key": $value threw $e');
+          }
+          expect(() => jsonEncode(out), returnsNormally);
+          for (final other in baseline.keys) {
+            if (other == key || other == 'siteId') continue;
+            expect(out[other], baseline[other],
+                reason: '"$key": $value changed "$other"');
+          }
+        }
+      });
+    }
+
+    test('initUrl is the one required field', () {
+      for (final value in [...junk.where((v) => v is! String), #absent]) {
+        final json = Map<String, dynamic>.from(base);
+        if (value == #absent) {
+          json.remove('initUrl');
+        } else {
+          json['initUrl'] = value;
+        }
+        expect(() => WebViewModel.fromJson(json, null), throwsA(anything),
+            reason: 'initUrl $value');
+      }
+    });
+
+    test('a bad entry in a list keeps the others', () {
+      final json = Map<String, dynamic>.from(base);
+      for (final key in ['cookies', 'userScripts', 'blockedCookies', 'domainClaims']) {
+        json[key] = [...junk, ...(base[key] as List)];
+      }
+      final out = loaded(json);
+      for (final key in ['cookies', 'blockedCookies', 'domainClaims']) {
+        expect(out[key], baseline[key], reason: key);
+      }
+      final scripts = out['userScripts'] as List;
+      expect(scripts.last, (baseline['userScripts'] as List).single);
+    });
+
+    test('a proxy field of any type', () {
+      final proxy = base['proxySettings'] as Map<String, dynamic>;
+      for (final key in [...proxy.keys, 'password', 'torExitCountry']) {
+        for (final value in junk) {
+          final json = Map<String, dynamic>.from(base)
+            ..['proxySettings'] = {...proxy, key: value};
+          final Map<String, dynamic> out;
+          try {
+            out = loaded(json);
+          } catch (e) {
+            fail('proxySettings.$key: $value threw $e');
+          }
+          for (final other in baseline.keys) {
+            if (other == 'proxySettings' || other == 'siteId') continue;
+            expect(out[other], baseline[other],
+                reason: 'proxySettings.$key: $value changed "$other"');
+          }
+        }
+      }
+    });
+
+    test('a user-script field of any type keeps the script', () {
+      final script = (base['userScripts'] as List).single as Map<String, dynamic>;
+      for (final key in [...script.keys, 'url', 'urlSource']) {
+        for (final value in junk) {
+          final json = Map<String, dynamic>.from(base)
+            ..['userScripts'] = [
+              {...script, key: value},
+            ];
+          final scripts = loaded(json)['userScripts'] as List;
+          expect(scripts, hasLength(1), reason: 'userScripts.$key: $value');
+          if (key != 'source') {
+            expect((scripts.single as Map)['source'], script['source'],
+                reason: 'userScripts.$key: $value lost the source');
+          }
+        }
+      }
+    });
+
+    test('a QR link naming only a URL creates a site', () {
+      // `decode` requires only initUrl, so a hand-built webspace://qr/ link
+      // can omit everything else; applying it used to throw on the
+      // non-nullable javascriptEnabled.
+      final link = SiteSettingsQrCodec.encode({'initUrl': 'https://qr.example/'});
+      final decoded = SiteSettingsQrCodec.decode(link)!;
+      final model = WebViewModel.fromJson(
+          SiteSettingsQrCodec.hydrateForFromJson(decoded), null);
+      expect(model.initUrl, 'https://qr.example/');
+      expect(model.javascriptEnabled, isTrue);
+      expect(model.proxySettings.type, ProxyType.DEFAULT);
+    });
+
+    test('a webspace field of any type', () {
+      for (final key in ['id', 'name', 'siteIds', 'siteIndices']) {
+        for (final value in junk) {
+          expect(
+            () => Webspace.fromJson({
+              'id': 'w',
+              'name': 'Work',
+              'siteIds': ['a'],
+              key: value,
+            }),
+            returnsNormally,
+            reason: 'webspace $key: $value',
+          );
+        }
+      }
+    });
+  });
+
+  group('stored prefs of the wrong type', () {
+    // v0.2.2 to v0.3.1 imports stored globalPrefs values under the file's
+    // JSON type. The typed getters throw on those; startup must not.
+    setUp(() {
+      SharedPreferences.setMockInitialValues({
+        for (final e in kExportedAppPrefs.entries)
+          e.key: e.value is String ? 42 : 'not-${e.value.runtimeType}',
+      });
+    });
+
+    test('readExportedAppPrefs falls back to every default', () async {
+      final prefs = await SharedPreferences.getInstance();
+      expect(readExportedAppPrefs(prefs), kExportedAppPrefs);
+    });
+
+    test('readPrefAs never throws', () async {
+      final prefs = await SharedPreferences.getInstance();
+      for (final key in kExportedAppPrefs.keys) {
+        expect(readPrefAs<bool>(prefs, key), isNull);
+        expect(readPrefAs<int>(prefs, key), anyOf(isNull, 42));
+      }
+    });
+
+    test('startup reads exported prefs only through readPrefAs', () {
+      final restore = _region('lib/main.dart',
+          'Future<void> _restoreAppState() async {', 'await _loadWebspaces();');
+      expect(
+        RegExp(r'prefs\.get(Bool|Int|Double|String|StringList)\(').hasMatch(restore),
+        isFalse,
+        reason: 'a typed getter throws on a mistyped stored value',
+      );
+    });
+  });
+
+  test('a backup carrying every secret imports clean', () {
+    // Security holds for any input; this is the current format with every
+    // secret and grant the rules exist for, rather than one per release.
+    final sites = [
+      for (final s in _supersetSites)
+        WebViewModel.fromJson(jsonDecode(jsonEncode(s)) as Map<String, dynamic>, null),
+    ];
+    final json = jsonDecode(SettingsBackupService.exportToJson(
+        SettingsBackupService.createBackup(
+      webViewModels: sites,
+      webspaces: [Webspace.all()],
+      themeMode: 0,
+      globalPrefs: {
+        kGlobalOutboundProxyKey: jsonEncode(
+            (_superset['globalPrefs'] as Map)[kGlobalOutboundProxyKey]),
+        kTrustedHostsKey: (_superset['globalPrefs'] as Map)[kTrustedHostsKey],
+      },
+      globalUserScripts: [
+        for (final s in _superset['globalUserScripts'] as List)
+          s as Map<String, dynamic>,
+      ],
+    ))) as Map<String, dynamic>;
+    for (var i = 0; i < _supersetSites.length; i++) {
+      final site = json['sites'][i] as Map<String, dynamic>;
+      site['cookies'] = _supersetSites[i]['cookies'];
+      site['proxySettings'] = _supersetSites[i]['proxySettings'];
+    }
+    final plan = _planFromJson(json);
+    _expectSanitised(plan, reason: 'maximal hostile backup');
+    final text = SettingsBackupService.exportToJson(_reexport(plan)) +
+        jsonEncode(plan.appPrefs);
+    for (final needle in _needles) {
+      expect(text.contains(needle), isFalse, reason: '"$needle" survived');
+    }
+  });
+
   group('gates', () {
     test('the version in pubspec.yaml has release fixtures', () {
       final pubspec = File('pubspec.yaml').readAsStringSync();
@@ -863,48 +1183,30 @@ void main() {
       // A key `fromJson` still reads but the current `toJson` no longer
       // writes is a migration. Each one must appear in some fixture, or the
       // migration is untested code waiting to rot.
-      String region(String path, String from, String to) {
-        final src = File(path).readAsStringSync();
-        final start = src.indexOf(from);
-        expect(start, greaterThan(-1), reason: 'no "$from" in $path');
-        final end = src.indexOf(to, start + from.length);
-        return src.substring(start, end < 0 ? src.length : end);
-      }
-
-      Set<String> matches(String text, String pattern) =>
-          {for (final m in RegExp(pattern).allMatches(text)) m.group(1)!};
-
       final reads = {
-        ...matches(
-            region('lib/web_view_model.dart', 'factory WebViewModel.fromJson(',
-                '\n  }\n'),
-            r"json\['(\w+)'\]"),
-        ...matches(
-            region('lib/services/settings_backup.dart',
-                'factory SettingsBackup.fromJson(', '\n  }\n'),
-            r"json\['(\w+)'\]"),
-        ...matches(
-            region('lib/services/settings_backup.dart',
+        ..._readKeys(_region('lib/web_view_model.dart',
+            'factory WebViewModel.fromJson(', '\n  }\n')),
+        ..._readKeys(_region('lib/services/settings_backup.dart',
+            'factory SettingsBackup.fromJson(', '\n  }\n')),
+        ..._matches(
+            _region('lib/services/settings_backup.dart',
                 "for (final key in const [", ']'),
             r"'(\w+)'"),
-        ...matches(
-            region('lib/webspace_model.dart', 'factory Webspace.fromJson(',
-                '\n  }\n'),
-            r"json\['(\w+)'\]"),
-        ...matches(File('lib/settings/app_prefs.dart').readAsStringSync(),
-            r"values\['(\w+)'\]"),
+        ..._readKeys(_region(
+            'lib/webspace_model.dart', 'factory Webspace.fromJson(', '\n  }\n')),
+        ..._readKeys(File('lib/settings/app_prefs.dart').readAsStringSync()),
       };
       final writes = {
-        ...matches(
-            region('lib/web_view_model.dart', "'siteId': siteId",
+        ..._matches(
+            _region('lib/web_view_model.dart', "'siteId': siteId",
                 'factory WebViewModel.fromJson('),
             r"'(\w+)':"),
-        ...matches(
-            region('lib/services/settings_backup.dart',
+        ..._matches(
+            _region('lib/services/settings_backup.dart',
                 'Map<String, dynamic> toJson() => {', '};'),
             r"'(\w+)':"),
-        ...matches(
-            region('lib/webspace_model.dart', 'Map<String, dynamic> toJson()',
+        ..._matches(
+            _region('lib/webspace_model.dart', 'Map<String, dynamic> toJson()',
                 '};'),
             r"'(\w+)':"),
         ...kExportedAppPrefs.keys,

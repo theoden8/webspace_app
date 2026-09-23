@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/services/developer_mode_service.dart';
+import 'package:webspace/settings/pref_read.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 
 /// Registry of global app-level preferences that are round-tripped through
@@ -218,26 +219,8 @@ Object? _withoutProxyPassword(Object? raw) {
   return jsonEncode(Map<String, dynamic>.from(decoded)..remove('password'));
 }
 
-Object? _readTypedPref(SharedPreferences prefs, String key, Object defaultValue) {
-  if (defaultValue is bool) {
-    return prefs.getBool(key) ?? defaultValue;
-  }
-  if (defaultValue is int) {
-    return prefs.getInt(key) ?? defaultValue;
-  }
-  if (defaultValue is double) {
-    return prefs.getDouble(key) ?? defaultValue;
-  }
-  if (defaultValue is String) {
-    return prefs.getString(key) ?? defaultValue;
-  }
-  if (defaultValue is List<String>) {
-    return prefs.getStringList(key) ?? defaultValue;
-  }
-  throw UnsupportedError(
-    'Unsupported pref type ${defaultValue.runtimeType} for key $key',
-  );
-}
+Object? _readTypedPref(SharedPreferences prefs, String key, Object defaultValue) =>
+    _coerceToRegistryType(prefs.get(key), defaultValue) ?? defaultValue;
 
 Future<void> _writeTypedPref(
   SharedPreferences prefs,
@@ -266,6 +249,6 @@ Future<void> _writeTypedPref(
 /// stricter behaviour.
 Future<bool> readTorIsolateDestAddr() async {
   final prefs = await SharedPreferences.getInstance();
-  return prefs.getBool(kTorIsolateDestAddrKey) ??
+  return readPrefAs<bool>(prefs, kTorIsolateDestAddrKey) ??
       kExportedAppPrefs[kTorIsolateDestAddrKey]! as bool;
 }
