@@ -205,7 +205,7 @@ and both disables the control and guards `onRefresh`.
 
 ### Requirement: NAV-007 - URL Bar Sync
 
-The URL bar SHALL stay in sync with the current webview URL across all navigation types, including BFCache restorations.
+The URL bar SHALL stay in sync with the current webview URL across all navigation types, including BFCache restorations. Outside an active edit, its text SHALL be the site's current URL; a submit SHALL NOT leave the typed text behind. Lineage: [docs/bugs/015-url-bar-shows-another-url.md](../../../docs/bugs/015-url-bar-shows-another-url.md).
 
 #### Scenario: Standard navigation
 
@@ -219,6 +219,24 @@ The URL bar SHALL stay in sync with the current webview URL across all navigatio
 **When** `onLoadStop` does NOT fire
 **Then** `onUpdateVisitedHistory` fires instead
 **And** the URL bar updates to the restored URL
+
+#### Scenario: Timing of the update after back
+
+**Given** a webview has a previous history entry
+**When** the user goes back
+**Then** the URL bar changes when the webview reports the new history entry, not when back is tapped
+**And** on iOS, macOS and Linux that is at once, because the engine reports the pending URL as the navigation starts
+**And** on Android it is when the entry commits, together with the page itself
+
+#### Scenario: A URL bar submit that does not navigate this webview
+
+**Given** the URL bar shows the site's current URL
+**When** the user submits a cross-domain URL, which opens in a nested webview
+**And** closes the nested webview with its back button
+**Then** the URL bar shows the site's current URL again, not the submitted text
+**And** the padlock and the text describe the same URL
+
+Test: [test/url_bar_sync_test.dart](../../../test/url_bar_sync_test.dart)
 
 ---
 
@@ -525,6 +543,10 @@ Home button pressed
 - `drawerEdgeDragWidth` — `0` whenever a webview is visible (drawer edge swipe disabled on all platforms); `null` otherwise
 - Back button `IconButton` (portrait ~line 1685, landscape ~line 2047)
 - Home button `IconButton` (portrait ~line 1701, landscape ~line 2063)
+
+#### `lib/widgets/url_bar.dart`
+- `_handleSubmit()` — awaits `onUrlSubmitted`, then shows `currentUrl` again; a submit that leaves `currentUrl` unchanged would otherwise leave the typed text behind (NAV-007)
+- `didUpdateWidget` — follows `currentUrl` except while the user is editing
 
 #### `lib/web_view_model.dart`
 - `stateSetterF` callback — injected closure that calls `setState`
