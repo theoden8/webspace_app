@@ -1,5 +1,5 @@
 ✨ New Features:
-• Per-site proxies on Android
+• Real microphone access per site
 
 🔧 Improvements:
 • Stronger tracking protection
@@ -7,4 +7,3 @@
 
 🐛 Bug Fixes:
 • Security hardening
-• Background refresh reloading the open site
