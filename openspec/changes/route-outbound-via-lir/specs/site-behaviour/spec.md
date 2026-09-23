@@ -1,0 +1,47 @@
+## ADDED Requirements
+
+### Requirement: BEHAV-003 - Outbound routing rows in the Link handling group
+
+The Behaviour screen's "Link handling" group (BEHAV-001) SHALL hold, between Block auto-redirects and Open external links in browser, a "Route links to my sites" switch (`routeOutboundLinks`, link-intent-routing LIR-013) and, while that switch is on, a "Routing preferences" row that opens a screen listing the site's outbound preferences. The rows follow resolution order: a routed destination wins over the system browser (LIR-014), so routing reads before the external-links switch, and the domain-claim editor stays last, directly under the switch whose hint names it.
+
+The switch SHALL carry its explanation in a `HintButton` on its title row (HINT-001), not in a subtitle. Its subtitle SHALL name state only: while the legacy cookie engine is active the switch SHALL be disabled (`onChanged: null`) and subtitled "Needs per-site containers", since LIR-014 does not route there; otherwise it SHALL have no subtitle. The preferences row's subtitle SHALL be state-derived: the preference count, or "Global routing only" when the list is empty.
+
+`routeOutboundLinks` and `outboundPreferences` SHALL ride `SiteBehaviourValues`, so both are in the settings screen's dirty-snapshot diff and are saved with the rest of site settings (BUG-006, EDIT-009). The domain-claim editor remains the only control on the screen that writes straight to the model. The preferences screen's target choices SHALL be the site's LIR-014 candidates other than the site itself.
+
+The Behaviour row's summary (BEHAV-002) SHALL name the routing switch when it is on, like any other switch.
+
+#### Scenario: Routing sits between the redirect and external-link switches
+
+- **GIVEN** the Behaviour screen is open
+- **THEN** the "Link handling" group reads, in order: Block auto-redirects, Route links to my sites, Open external links in browser, the domain-claim editor
+- **AND** the Routing preferences row appears under the routing switch only while the switch is on
+
+#### Scenario: Explanation lives behind the hint
+
+- **GIVEN** the Behaviour screen on a device with container support
+- **THEN** the routing switch has a `HintButton` whose title is the switch's own title
+- **AND** the switch has no subtitle
+
+#### Scenario: The legacy engine disables the switch
+
+- **GIVEN** the device runs the legacy cookie engine
+- **THEN** the routing switch has `onChanged: null`
+- **AND** its subtitle reads "Needs per-site containers"
+
+#### Scenario: A routing edit is part of the unsaved-changes check
+
+- **GIVEN** the user turns Route links to my sites on and goes back to site settings
+- **WHEN** they leave site settings without saving
+- **THEN** the discard prompt appears, as for any other behaviour switch
+
+#### Scenario: Preference targets stay on the site's side of the archive boundary
+
+- **GIVEN** an app-tier site while an archive is open
+- **WHEN** the user adds a routing preference
+- **THEN** the target list offers every other app-tier site
+- **AND** it offers neither the site itself nor any archive-tier site
+
+#### Scenario: The Behaviour row names the routing switch
+
+- **GIVEN** a site with only Route links to my sites on
+- **THEN** the Behaviour row in site settings reads "Route links to my sites"

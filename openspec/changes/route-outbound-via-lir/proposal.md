@@ -1,57 +1,55 @@
 ## Why
 
-Today, when the user clicks a cross-domain link inside a site (e.g. a GitHub link in DuckDuckGo's search results), `NavigationDecisionEngine` returns `blockOpenNested` and `web_view_model.dart` pushes an `InAppWebViewScreen` carrying the **source** site's settings — DDG's cookies, DDG's container, DDG's user scripts. The user lands on GitHub signed out, with a session scoped to DDG, even though they already have a configured GitHub site with their login.
+When the user taps a cross-domain link inside a site (a GitHub link in DuckDuckGo's results), `NavigationDecisionEngine` returns `blockOpenNested` and `web_view_model.dart` pushes an `InAppWebViewScreen` with the **source** site's posture: DuckDuckGo's container, cookies, user scripts and proxy. With `externalLinksInBrowser` on, the link leaves for the system browser instead. Either way the user lands on GitHub signed out, although they already keep a GitHub site with their login.
 
-LIR (`link-intent-routing`) already classifies an arbitrary URL against per-site `domainClaims` for inbound shares; the same resolver could decide which existing site is the *right* container for an outbound link. This change wires the resolver into the cross-domain nested-open path so a click from a launcher-style site (DDG, Google, Kagi, HN frontpage) lands inside the user's claimed destination site instead of trapping in the source's session.
+LIR (`link-intent-routing`) already classifies an arbitrary URL against per-site `domainClaims` for inbound shares. The same resolver can decide which existing site is the right container for an outbound link. This change runs it on the outbound path, so a tap from a launcher-style site (DuckDuckGo, Google, Kagi, an HN front page) lands in the user's own site for that domain.
 
-UX has to be opt-in per source: nesting today is silent and back-gesture-reversible, so adding a mid-browse picker or even a snackbar on every outbound link would regress launcher-style flows. The toggle stays off by default; flipping it on DDG/Google is a one-time act.
+It is opt-in per source. Nesting today is silent and back-reversible; a picker or even a snackbar on every outbound link would regress launcher-style browsing. The toggle is off by default; turning it on for DuckDuckGo is a one-time act.
 
 ## What Changes
 
-- **Per-site outbound-routing toggle** (`WebViewModel.routeOutboundLinks`, default `false`). When `true`, cross-domain navigations originating from this site run through LIR before the existing nested-open path is invoked.
-- **Per-site outbound preferences** (`WebViewModel.outboundPreferences: List<OutboundPreference>`, where each entry is `(DomainClaim claim, String targetSiteId)`). Lets a source site override the global LIR resolver when the user has multiple sites that could match the same destination (e.g. work-GitHub vs personal-GitHub). Source preference wins over global LIR per the resolution order below.
-- **Outbound dispatch path on `LinkIntentDispatchEngine`** mirroring the inbound shape: a new entry point `dispatchOutbound({source, targetUrl, sites})` returns one of:
-  - `DispatchOpenNested(targetSiteId, url, sourceIsParent: true)` — silent hijack to the destination site's container, opened as a nested `InAppWebViewScreen` so back-gesture still returns to the source.
-  - `DispatchShowPicker(...)` — for ambiguous resolver results, only when the source has launcher mode on; reuses the LIR-010 sheet, gains a "Always use this from {source}" checkbox that writes back into source's `outboundPreferences`.
-  - `DispatchNestedFallback()` — the source site's existing nested launch, unchanged. Used for no-match, self-match (target resolves to source), and when launcher mode is off.
-- **Resolution order** when launcher mode is on:
-  1. Source's `outboundPreferences`, highest-specificity claim first (`exactHost` > `wildcardSubdomain` > `baseDomain`).
-  2. Global `LinkRoutingService.resolve(targetUrl, allSites)` — accepts only `RoutingSingle`.
-  3. Ambiguous → picker (with remember checkbox).
-  4. No match, or any match equal to the source site itself → `DispatchNestedFallback`.
-- **Picker writeback**: when the user picks "Open in {Site}" from the launcher-mode picker with the remember box ticked, an `OutboundPreference(claim: exactHost(host) + wildcardSubdomain(baseDomain), targetSiteId: site.siteId)` is appended to the source's prefs (deduplicated). The picker's "bind to site" and "create new site" options are suppressed in the outbound flow — outbound is not the right moment to mutate the destination site's claims or to spawn a brand-new site.
-- **No webspace switch on outbound hijack**: unlike inbound (WEBSPACE-011), an outbound hijack opens the destination as a nested screen without activating its webspace. Back-gesture returns the user to the source site in the webspace they started in.
-- **GC** of dangling `targetSiteId` entries in `outboundPreferences` at the three existing cleanup sites (`_deleteSite`, post-import settings, app startup). Mirrors the cookie-secure-storage orphan pattern.
-- **Per-site settings UI**: under each site, a "Outbound link routing" section with the master toggle and a `OutboundPreferencesEditor` (claim pattern via the existing `DomainClaimsEditor` widget + a target-site dropdown).
-- **Settings backup**: `routeOutboundLinks` and `outboundPreferences` ride `WebViewModel.toJson` automatically; no new entries in `kExportedAppPrefs`.
+- **Per-site toggle** `WebViewModel.routeOutboundLinks` (default `false`). While it is off, outbound taps take exactly today's path.
+- **Per-site preferences** `WebViewModel.outboundPreferences: List<OutboundPreference>`, each `(DomainClaim claim, String targetSiteId)`, so a source can settle which of several matching sites wins (work GitHub vs personal GitHub). A preference beats the global resolver.
+- **When routing runs**: only for a `blockOpenNested` or `blockOpenExternal` decision in the source's own webview, only for a navigation that carried a user gesture, and only on the container engine. `NavigationDecisionEngine` starts returning the gesture it already computes; its decisions do not change.
+- **Resolution order**: source preferences (most specific claim first), then the global resolver over the candidates, with any result naming the source itself collapsing to "no destination". Candidates are the sites on the source's side of the archive boundary.
+- **Composition with `externalLinksInBrowser`**: a resolved destination wins over the system browser; a link no candidate claims keeps the navigation engine's decision (nested with the source's posture, or the system browser).
+- **Outbound dispatch** on `LinkIntentDispatchEngine`, `dispatchOutbound(...)`:
+  - `DispatchOpenNested(siteId, url, sourceIsParent: true)`: open the destination nested through the existing `_executeOpenNested` path (PROXY-008 on Android and Linux, the NESTED-010 funnel), without switching webspace.
+  - `DispatchShowPicker(...)` on a tie: the LIR-010 sheet in outbound mode, with an "Open without routing" row and a remember checkbox that writes a preference back to the source.
+  - `DispatchNestedFallback` / `DispatchOpenExternal`: the call site's current behaviour, untouched.
+- **Proxy on return**: when opening the destination flipped the process-global proxy (Android without router mode, Linux), back from its screen re-runs the source's activation before the source is shown.
+- **GC** of preferences whose target is gone or across the archive boundary: at startup, after a delete, after an import, and on a move into or out of an archive.
+- **Per-site UI** on the Behaviour screen's "Link handling" group: a "Route links to my sites" switch with its explanation behind a hint, and a "Routing preferences" row opening an editor. Disabled on the legacy engine.
+- **Backup and QR**: both fields ride `WebViewModel.toJson` into backups; the QR share carries the toggle and never the preferences, which name device-local site ids.
 
 ### Explicitly out of scope
 
-- Auto-detecting launcher sites by `?q=`/`?query=` heuristics — the per-site toggle is honest and zero-config-after-flip.
-- Hijacking `window.open` / `target=_blank` / popup-window paths in `inappbrowser.dart`. v1 confines outbound hijacking to `NavigationDecisionEngine`'s `blockOpenNested` decisions (gesture-driven cross-domain) and the cross-domain `onUrlChanged` redirect path; everything else falls through to today's behaviour.
-- Auto-creating a new site for unmatched outbound URLs (LIR-010 option 3). Auto-spawning sites from a search-result click is surprising; the existing inbound flow remains the only path to create.
-- Per-host disable list ("hijack everything except this host"). The pref list already supports negative routing by claim specificity if the user really needs it.
+- Detecting launcher sites heuristically (`?q=`, `?query=`); the per-site toggle is honest and zero-config once set.
+- Routing inside a nested screen: it navigates in place (NESTED-010). Script `window.open` is not a path either: `onCreateWindow` dismisses everything except captcha challenges (NESTED-013). `target="_blank"` anchors are covered, because NESTED-008 rewrites them into ordinary taps.
+- Auto-creating a site for an unmatched outbound URL (LIR-010 option 3).
+- A per-host exclusion list.
 
 ## Capabilities
 
 ### Modified Capabilities
 
-- `link-intent-routing`: adds LIR-013 (per-site outbound toggle + preferences), LIR-014 (outbound resolution order), LIR-015 (outbound dispatch executes as nested using destination settings, no webspace switch), LIR-016 (picker remember checkbox writes outbound preference back to source), LIR-017 (outbound preference GC on delete / import).
+- `link-intent-routing`: adds LIR-013 (per-site toggle and preferences), LIR-014 (when routing runs, candidates, resolution order, composition with external links), LIR-015 (routed open as nested with the destination's posture, no webspace switch, proxy restored on return), LIR-016 (picker in outbound mode, remember writeback, open without routing), LIR-017 (preference GC).
+- `site-behaviour`: adds BEHAV-003 (the routing rows in the Link handling group).
 
-No other capabilities are touched. `nested-url-blocking` is unaffected — `NavigationDecisionEngine` still owns the "should this be a nested open at all" decision; LIR only chooses *which* site the nested view is bound to.
+`nested-url-blocking` keeps its requirements: `NavigationDecisionEngine` still owns whether a navigation leaves the source at all, and LIR only chooses where it lands.
 
 ## Impact
 
 - **Flutter code**:
-  - `WebViewModel`: new `routeOutboundLinks: bool` and `outboundPreferences: List<OutboundPreference>` fields. JSON round-trip omits both when false / empty (legacy stable).
-  - `lib/services/outbound_preference.dart`: new pure-Dart value type `(DomainClaim claim, String targetSiteId)` with canonical serialization.
-  - `lib/services/link_intent_dispatch_engine.dart`: new static `dispatchOutbound(...)` plus result variants. Existing inbound entry points untouched.
-  - `lib/services/link_routing_service.dart`: new `resolveOutbound(targetUrl, sourcePrefs, allSites)` that layers source prefs over the existing `resolve`.
-  - `lib/web_view_model.dart`: the two `launchUrlFunc(...)` sites (`shouldOverrideUrlLoading` → `blockOpenNested` and `onUrlChanged` cross-domain redirect) call `dispatchOutbound` first; executor lives in `_WebSpacePageState` (`_executeOutboundDispatch`).
-  - Per-site settings screen: new `OutboundRoutingSection` widget composed of `SwitchListTile` + `OutboundPreferencesEditor`.
-  - `_WebSpacePageState`: GC routine extended to drop dangling `targetSiteId` entries.
-- **Specs touched**: only `link-intent-routing` (delta). No changes to `webspaces`, `nested-url-blocking`, `per-site-cookie-isolation`, or `per-site-containers`.
-- **Migration**: existing sites deserialize with `routeOutboundLinks=false` and empty `outboundPreferences`; serialization omits both. No user-visible change until the user flips the toggle.
-- **Tests**: unit tests for `resolveOutbound` (source-pref priority, self-match fall-through, ambiguity), engine tests for `dispatchOutbound` variants, widget test for picker writeback, GC test.
-- **Security**: outbound preferences carry only `siteId` references; no URLs, cookies, or secrets. Backup round-trips through normal `WebViewModel` JSON.
-- **Performance**: one extra resolver call per cross-domain navigation gesture. Resolver is O(claims × sites); negligible for typical site counts.
+  - `WebViewModel`: `routeOutboundLinks`, `outboundPreferences`; an optional `onOutboundLink` hook consulted by the four `blockOpenNested` / `blockOpenExternal` branches in `getWebView`.
+  - `lib/services/outbound_preference.dart`: the value type.
+  - `lib/services/navigation_decision_engine.dart`: `hadGesture` on its results.
+  - `lib/services/link_routing_service.dart`: `resolveOutbound`, `outboundCandidates`.
+  - `lib/services/link_intent_dispatch_engine.dart`: `dispatchOutbound`, `DispatchNestedFallback`, `DispatchOpenExternal`, `sourceIsParent`, picker `source` / `fallback`.
+  - `_WebSpacePageState`: the hook, `_executeOutboundDispatch`, the proxy return path, the picker's outbound mode, the prune at four points.
+  - `lib/screens/site_behaviour.dart`, `lib/screens/settings.dart`, `lib/screens/link_handling_settings.dart`: the switch, the preferences row and `OutboundPreferencesScreen`.
+  - `lib/services/site_settings_qr_codec.dart`: classification of the two keys.
+- **Migration**: existing sites load with the toggle off and no preferences; serialization omits both. Nothing changes until the user turns the toggle on.
+- **Tests**: resolver, dispatch engine, navigation gesture, model JSON, QR, GC, Behaviour screen, picker; a structural funnel test for the four branches.
+- **Security**: routing needs a gesture, so a page cannot load a URL into another site's signed-in container by script. Preferences carry only `siteId` references and never cross the archive boundary.
+- **Performance**: one resolver pass per routed gesture, O(claims x sites).
