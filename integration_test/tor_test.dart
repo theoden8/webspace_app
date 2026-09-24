@@ -29,6 +29,7 @@ import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatf
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:integration_test/integration_test.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:socks5_proxy/socks_client.dart' as socks5;
 
 import 'package:webspace/services/developer_mode_service.dart';
@@ -119,6 +120,141 @@ Future<Duration> whenEnded(Socket stream) {
 
   stream.listen((_) {}, onDone: end, onError: end, cancelOnError: true);
   return ended.future;
+}
+
+/// tor's own account, over a control connection of the test's own.
+///
+/// What the web sees says whether a pin held; this says why not: which
+/// circuit a stream rode, when that circuit was built, and which country tor
+/// puts its exit in. The plugin's connection is out of Dart's reach, and tor
+/// takes a second one without complaint.
+class TorProbe {
+  TorProbe._(this._socket, this._lines);
+
+  final Socket _socket;
+  final StreamIterator<String> _lines;
+
+  static final _ipv4 = RegExp(r'^\d+\.\d+\.\d+\.\d+$');
+
+  static Future<TorProbe> open() async {
+    // `<Caches>/Tor`, the plugin's data directory, beside path_provider's
+    // `<Caches>/<bundle id>`.
+    final tor = '${(await getApplicationCacheDirectory()).parent.path}/Tor';
+    final port = RegExp(r'PORT=([\d.]+):(\d+)')
+        .firstMatch(await File('$tor/controlport').readAsString());
+    if (port == null) throw StateError('no control port in $tor/controlport');
+    final socket = await Socket.connect(port[1]!, int.parse(port[2]!));
+    final probe = TorProbe._(
+      socket,
+      StreamIterator(utf8.decoder.bind(socket).transform(const LineSplitter())),
+    );
+    final cookie = await File('$tor/control_auth_cookie').readAsBytes();
+    await probe._send('AUTHENTICATE '
+        '${cookie.map((b) => b.toRadixString(16).padLeft(2, '0')).join()}');
+    return probe;
+  }
+
+  void close() => _socket.destroy();
+
+  /// Reply lines with their status prefix cut, data blocks inline.
+  Future<List<String>> _send(String command) async {
+    final verb = command.split(' ').first;
+    _socket.write('$command\r\n');
+    final reply = <String>[];
+    var inData = false;
+    while (await _lines.moveNext().timeout(const Duration(seconds: 10))) {
+      final line = _lines.current;
+      if (inData) {
+        if (line == '.') {
+          inData = false;
+        } else {
+          reply.add(line);
+        }
+        continue;
+      }
+      if (line.length < 4 || !line.startsWith('2')) {
+        throw StateError('$verb: $line');
+      }
+      reply.add(line.substring(4));
+      if (line[3] == '+') inData = true;
+      if (line[3] == ' ') return reply;
+    }
+    throw StateError('$verb: the control connection closed');
+  }
+
+  Future<String> info(String key) async {
+    final body = (await _send('GETINFO $key'))..removeLast();
+    final first = body.first;
+    return [first.substring(first.indexOf('=') + 1), ...body.skip(1)]
+        .where((l) => l.isNotEmpty)
+        .join('\n');
+  }
+
+  Future<String> config() async =>
+      (await _send('GETCONF ExitNodes StrictNodes GeoIPFile')).join(', ');
+
+  /// circuit-status lines by circuit id, closed and failed ones left out.
+  Future<Map<String, String>> circuits() async {
+    final lines = (await info('circuit-status')).split('\n');
+    return {
+      for (final l in lines)
+        if (l.split(' ').length > 1 &&
+            !const {'CLOSED', 'FAILED'}.contains(l.split(' ')[1]))
+          l.split(' ')[0]: l,
+    };
+  }
+
+  /// Circuit id of every open stream to [host], by stream id.
+  Future<Map<String, String>> streamsTo(String host) async {
+    final lines = (await info('stream-status')).split('\n');
+    return {
+      for (final l in lines.map((l) => l.split(' ')))
+        if (l.length > 3 && l[3].startsWith('$host:')) l[0]: l[2],
+    };
+  }
+
+  /// A circuit-status line as purpose, age and exit, with tor's country for
+  /// the exit's address.
+  Future<String> describe(String line) async {
+    final parts = line.split(' ');
+    final fields = {
+      for (final p in parts.skip(2))
+        if (p.contains('=')) p.substring(0, p.indexOf('=')): p.substring(p.indexOf('=') + 1),
+    };
+    var exit = 'no exit yet';
+    if (parts.length > 2 && parts[2].startsWith(r'$')) {
+      final hop = parts[2].split(',').last.substring(1);
+      final fingerprint = hop.split(RegExp('[~=]')).first;
+      String ip = '?';
+      try {
+        final r = (await info('ns/id/$fingerprint'))
+            .split('\n')
+            .firstWhere((l) => l.startsWith('r '), orElse: () => '');
+        ip = r.split(' ').firstWhere(_ipv4.hasMatch, orElse: () => '?');
+      } catch (_) {}
+      final cc = ip == '?' ? '?' : await info('ip-to-country/$ip');
+      exit = 'exit $hop at $ip ($cc)';
+    }
+    return 'circuit ${parts[0]} ${parts[1]} ${fields['PURPOSE']} '
+        'created ${fields['TIME_CREATED']}: $exit';
+  }
+
+  /// Every live circuit, described.
+  Future<String> snapshot() async {
+    final all = await circuits();
+    return [for (final line in all.values) await describe(line)].join('\n');
+  }
+
+  /// The circuit each open stream to [host] rides, described.
+  Future<String> ridden(String host) async {
+    final all = await circuits();
+    final streams = await streamsTo(host);
+    if (streams.isEmpty) return 'no open stream to $host';
+    return [
+      for (final e in streams.entries)
+        'stream ${e.key}: ${all[e.value] == null ? 'circuit ${e.value}, gone' : await describe(all[e.value]!)}',
+    ].join('\n');
+  }
 }
 
 void main() {
@@ -379,6 +515,27 @@ void main() {
     // One client throughout, the way a webview keeps one pool.
     final client = route.client;
 
+    TorProbe? probe;
+    try {
+      probe = await TorProbe.open();
+    } catch (e) {
+      trace('no control probe: $e');
+    }
+    Future<String> askTor(Future<String> Function(TorProbe) ask) async {
+      final p = probe;
+      if (p == null) return '(no control probe)';
+      try {
+        return await ask(p);
+      } catch (e) {
+        return '(probe failed: $e)';
+      }
+    }
+
+    /// What tor says the check stream rode, and where tor puts [ip].
+    Future<String> torView(String ip) => askTor((p) async =>
+        'tor places $ip in ${await p.info('ip-to-country/$ip')}; '
+        '${await p.config()}\n${await p.ridden(exitCheck.host)}');
+
     // Longer than tor's own patience with a stream (SocksTimeout, two
     // minutes). Until tor has timed 100 circuits it gives a stalled build
     // 60 s before trying another, so a fresh tor can spend a minute on the
@@ -424,12 +581,15 @@ void main() {
           reason: 'pinning $nodes did not land ($status):\n${torTranscript()}');
       expect(TorService.instance.exitNodes, nodes);
       trace('$nodes in force after ${clock.elapsed.inSeconds}s');
+      trace('circuits once $nodes landed:\n'
+          '${await askTor((p) async => '${await p.config()}\n${await p.snapshot()}')}');
     }
 
     Socket? held;
     Socket? control;
     try {
       final unpinned = await exitAddress('unpinned');
+      trace('unpinned: ${await torView(unpinned)}');
 
       // The first pin fetches the table through Tor before tor can resolve
       // any country, so its time is the download's.
@@ -442,9 +602,12 @@ void main() {
       trace('unpinned exit $unpinned is in ${countryIn(table, unpinned)}');
 
       final de = await exitAddress('under {de}');
+      final deView = await torView(de);
+      trace('under {de}: $deView');
       expect(countryIn(table, de), 'DE',
           reason: 'pinned {de}, and check.torproject.org saw $de, which the '
-              'table places in ${countryIn(table, de)}:\n${torTranscript()}');
+              'table places in ${countryIn(table, de)}. $deView\n'
+              '${torTranscript()}');
 
       // A stream opened on the German circuit and left silent. Until the
       // server's own timeout, nothing but that circuit closing ends it.
@@ -460,9 +623,12 @@ void main() {
               'leaving from Germany:\n${torTranscript()}');
 
       final us = await exitAddress('under {us}');
+      final usView = await torView(us);
+      trace('under {us}: $usView');
       expect(countryIn(table, us), 'US',
           reason: 'pinned {us}, and check.torproject.org saw $us, which the '
-              'table places in ${countryIn(table, us)}:\n${torTranscript()}');
+              'table places in ${countryIn(table, us)}. $usView\n'
+              '${torTranscript()}');
 
       // The control: a stream no change touches, left silent for longer
       // than the held one lasted. If the server ends it too, the held stream
@@ -483,6 +649,7 @@ void main() {
       held?.destroy();
       control?.destroy();
       client.close();
+      probe?.close();
     }
 
     // Clearing is its own round trip, RESETCONF and the same circuit close.
@@ -492,4 +659,59 @@ void main() {
     expect(TorService.instance.exitNodes, isNull);
     trace('scenario 3 done');
   }, timeout: const Timeout(Duration(minutes: 15)));
+
+  testWidgets('two sites at once never share a circuit', (tester) async {
+    trace('scenario 4 start');
+    if (!TorService.instance.isAvailable) {
+      if (isApple) {
+        fail('the Tor runtime reports unavailable on an Apple build');
+      }
+      markTestSkipped('no Tor runtime on this platform (TOR-007)');
+      return;
+    }
+
+    // TOR-003 against a real tor. Every other isolation test checks that
+    // each site hands tor its own credentials; only tor can say it kept them
+    // apart. What is promised is two circuits, not two exits: a circuit's
+    // exit is drawn by bandwidth, so two circuits can end at one relay, and
+    // a country pin narrows the draw further.
+    final up = await waitFor(
+      () => TorService.instance.status is TorUp,
+      const Duration(seconds: 120),
+    );
+    if (!up) {
+      if (torRequired) {
+        fail('Tor was not up to open two sites:\n${torTranscript()}');
+      }
+      markTestSkipped('Tor did not reach the network here');
+      return;
+    }
+
+    // A host no other scenario dials, so every stream to it is one of these.
+    final target = Uri.parse('https://www.torproject.org/');
+    final probe = await TorProbe.open();
+    final streams = <Socket>[];
+    try {
+      for (final site in ['site-a', 'site-b']) {
+        streams.add(await openStream(
+            TorService.instance.socksFor(siteId: site)!, target)
+            .timeout(const Duration(seconds: 150)));
+      }
+      final rode = await probe.streamsTo(target.host);
+      final seen = await probe.ridden(target.host);
+      trace('two sites:\n$seen');
+      expect(rode, hasLength(2),
+          reason: 'tor lists ${rode.length} open streams to ${target.host}, '
+              'not the two just opened:\n$seen');
+      expect(rode.values.toSet(), hasLength(2),
+          reason: 'site-a and site-b ride one circuit, so per-site isolation '
+              'is not in force:\n$seen');
+    } finally {
+      for (final s in streams) {
+        s.destroy();
+      }
+      probe.close();
+    }
+    trace('scenario 4 done');
+  }, timeout: const Timeout(Duration(minutes: 5)));
 }
