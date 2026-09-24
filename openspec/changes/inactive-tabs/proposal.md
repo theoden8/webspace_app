@@ -40,25 +40,37 @@ costs a second renderer.
   tab UI, archive-tier tabs live under the archive key, the QR share never
   carries tabs, memory pressure and the LRU cap keep the site as their unit.
 
+## Hosted tabs and reattach (specified, not implemented yet)
+
+This change builds on outbound routing (`route-outbound-via-lir`, PR #345), which sends a link a site opens to the site that claims it. Once a site has tabs, the same routing can decide what a tab runs as:
+
+- **Hosted tabs.** `SiteTab.hostSiteId`: a tab owned by site A (listed, closed and backed out of in A's tree) that runs as site B (B's container, cookies, and every per-site setting). No extra webview: activating it rebuilds A's one slot with B's identity, which is what a tab switch already does. Container engine only; neither side archive-tier; the host must own a persistent container, so not incognito.
+- **Creating one.** Long-press a cross-domain link and "Open in new tab as {site}", where TAB-006 shows a disabled row; or "Keep as tab" on a nested screen, which turns the transient window into a child of the tab it came from. Plain taps stay as LIR-015 nests them.
+- **State.** Navigation bytes are keyed by the host, so wiping or deleting the host takes them along, and moving a tab between owners needs no rename. The record persists only when both the owner and the host would persist their URLs.
+- **Host gone.** Deleting, archiving or turning incognito on for a host closes the tabs it hosts, before its container is deleted. They do not fall back to the owner, which would silently switch identity.
+- **Proxy.** The process-global proxy rules read the identity a slot runs as. This changes shared runtime state, so it goes through the formal mix gate (proxy, containers) before any code.
+- **Reattach instruments** in the tab list: "Move to site..." moves a tab and its subtree to another site's tree, keeping each tab's identity and its state; "Move under..." re-parents within a site; "Run as..." changes a tab's host and drops its state, because restoring one identity's saved state (Apple `interactionState` holds typed form data) into another's container would carry it across. Each is a pure `TabLifecycleEngine` operation.
+
+LIR-018 to LIR-027 land after the tab model above (`tasks.md`). TAB-001, TAB-002 and TAB-006 name their one exception each: a hosted tab's URL is in its host's domain, it shares its host's container and posture, and the disabled cross-domain row gains "as {site}" rows. The ids stay in the LIR range, since the requirements extend `link-intent-routing`.
+
 ## Out of scope this round
 
 - Share-sheet and `webspace://` arrivals landing as tabs (they replace the
   site's page or open nested, exactly as today).
-- A picker for in-app taps on links another site claims.
-- Cross-domain pages as tabs: a cross-domain tap still opens the ephemeral
-  nested screen. A tab is always in its site's domain, so the container
-  question has one answer.
+- Cross-domain pages as tabs, other than hosted tabs above: a cross-domain
+  tap still opens the ephemeral nested screen, or routes to the site that
+  claims it (`route-outbound-via-lir`). A tab that is not hosted is always in
+  its site's domain, so the container question has one answer.
 - Keep limits, pins, sweeping. "Close N parked" is the only hygiene.
 - A warm second webview per site.
 
 ## Status
 
-Design stage. The flow is captured in `design.md` and in a clickable
-prototype (a static HTML simulator of the phone, the site strip, the drawer
-tree, the Tabs sheet, the link menu, a memory panel with OS-pressure and
-relaunch buttons, and an engine log). The delta spec under `specs/` holds the
-requirements the prototype embodies. No code has been written against this
-change.
+The tab model (TAB-001 to TAB-011) is implemented. Hosted tabs and reattach
+(LIR-018 to LIR-027) are specified and not implemented; `tasks.md` tracks them.
+The flow is also captured in a clickable prototype (a static HTML simulator of
+the phone, the site strip, the drawer tree, the Tabs sheet, the link menu, a
+memory panel with OS-pressure and relaunch buttons, and an engine log).
 
 ## Capabilities
 
@@ -69,6 +81,7 @@ change.
   drawer tree.
 
 ### Modified Capabilities
+- `link-intent-routing`: hosted tabs and reattach, LIR-018 (owned by one site, runs as another), LIR-019 (who may host), LIR-020 (open in new tab as another site), LIR-021 (keep a nested screen as a tab), LIR-022 (persistence and host-keyed state), LIR-023 (host deleted, cleared, archived or ineligible), LIR-024 (the process-global proxy follows the running identity), LIR-025 (move to site), LIR-026 (move under), LIR-027 (run as).
 - `webview-pause-lifecycle`: `WebViewStateStorage` is keyed by
   `<siteId>.<tabId>`; PAUSE-009 capture points write the active tab's bytes.
 - `navigation`: NAV-004 Home acts on the active tab; NAV-001 gains the
@@ -92,3 +105,5 @@ change.
   rows, link long-press menu, "New tab" in the overflow.
 - Kernel model: the `loaded` set and `Inv_CurrentLoaded` are unchanged (one
   webview per site). The tab list is state beside it, not inside it.
+- Hosted tabs: `SiteTab.hostSiteId`; the running-identity view in `WebViewModel.getWebView`; host-keyed state keys and `WebViewStateStorage.renameState`; `TabLifecycleEngine.moveSubtree`, `reparent`, `changeHost`; `identityOf` in `SiteUnloadEngine`; the long-press rows, `InAppWebViewScreen.onKeepAsTab`, and the tab-list actions.
+- **Formal**: the mix gate for hosted tabs against `formal/proxy.tla` and `formal/containers.tla` (and `formal/kernel.tla` if the tab switch is modelled there), before implementation.

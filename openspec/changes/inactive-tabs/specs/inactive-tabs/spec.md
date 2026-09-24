@@ -3,7 +3,8 @@
 ### Requirement: TAB-001 - A site owns its tabs
 
 Each site SHALL carry an ordered list of tabs. A tab has a path-safe `id`, a
-`url` inside the site's own domain, a `title`, an optional `parentId` naming
+`url` inside the site's own domain (a hosted tab's is inside its host's,
+LIR-018), a `title`, an optional `parentId` naming
 the tab it was opened from (always a tab of the same site), `createdAt` and
 `lastActiveAt`. Exactly one tab per site SHALL be active at any time;
 `WebViewModel.currentUrl` and `pageTitle` SHALL resolve to the active tab's
@@ -36,7 +37,8 @@ leaves the site on one tab at its `currentUrl`.
 
 ### Requirement: TAB-002 - One container and one webview per site
 
-Every tab of a site SHALL share the site's container and per-site posture. A
+Every tab of a site SHALL share the site's container and per-site posture,
+except a hosted tab, which runs as its host (LIR-018). A
 site SHALL have at most one live webview, bound to its active tab. A parked
 tab SHALL hold no controller, no renderer and no native object; it SHALL
 consist of its `SiteTab` record and, when it has navigation state worth
@@ -138,13 +140,15 @@ A long-press on a link whose URL is inside the site's domain SHALL offer "Open
 in new tab", which creates a parked child tab (`parentId` = the current tab)
 without navigating, and shows a snackbar offering "Switch". No webview and no
 state bytes SHALL exist for the child until it is first activated. For a link
-outside the site's domain the row SHALL be shown disabled with the reason, and
-a tap on such a link SHALL keep opening the nested screen as today.
+outside the site's domain the row SHALL be shown disabled with the reason
+unless LIR-020 offers "Open in new tab as {site}" rows for it, and a tap on
+such a link SHALL keep opening the nested screen as today.
 
 The menu's "Open" row SHALL route the link exactly as a tap on it would: in
 place when it is inside the site's domain, otherwise in the nested screen, or
 the system browser when `externalLinksInBrowser` applies and no domain claim
-covers it. It SHALL NOT load a cross-domain URL into the site's own webview:
+covers it. Choosing "Open" is a user gesture, so a site with outbound routing
+on (LIR-013) SHALL route it first, as it routes a tap (LIR-014). It SHALL NOT load a cross-domain URL into the site's own webview:
 Android does not run `shouldOverrideUrlLoading` for a programmatic `loadUrl`,
 so a bare load there would put the foreign page inside the site's container.
 
@@ -177,6 +181,12 @@ handler: it has no tab list of its own to add to.
 - **WHEN** the user long-presses that link and chooses "Open"
 - **THEN** `wpewebkit.org` opens in the nested screen
 - **AND** GitHub's webview stays on the page it was showing
+
+#### Scenario: Open from the menu is routed like a tap
+
+- **GIVEN** a DuckDuckGo site with outbound routing on, and a GitHub site that is the single match for `github.com`
+- **WHEN** the user long-presses a `github.com` result and chooses "Open"
+- **THEN** the link opens nested with the GitHub site's posture, as a tap on it would (LIR-015)
 
 ---
 
