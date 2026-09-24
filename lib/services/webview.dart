@@ -1390,14 +1390,24 @@ class _WebViewController implements WebViewController {
   /// know that this controller issued an alert-hack pause (PAUSE-030).
   final PauseTimersHackState _pauseHack;
 
-  _WebViewController(this._c, {required PauseTimersHackState pauseHack})
-      : _pauseHack = pauseHack;
+  final FileImportDocument? _import;
+
+  _WebViewController(
+    this._c, {
+    required PauseTimersHackState pauseHack,
+    FileImportDocument? fileImport,
+  })  : _pauseHack = pauseHack,
+        _import = fileImport;
 
   @override
   inapp.InAppWebViewController get nativeController => _c;
 
   @override
   Future<void> loadUrl(String url, {String? language}) {
+    final fileImport = _import;
+    if (fileImport != null && fileImport.isLoadOf(url)) {
+      return loadHtmlString(fileImport.html, baseUrl: fileImport.url);
+    }
     final headers = <String, String>{};
     // HTTP headers are only meaningful for http(s) schemes. Attaching them to
     // non-HTTP URLs (chrome://, about:, file://, data:, javascript:) routes
@@ -1430,7 +1440,14 @@ class _WebViewController implements WebViewController {
   }
 
   @override
-  Future<void> reload() => _c.reload();
+  Future<void> reload() {
+    final fileImport = _import;
+    if (fileImport != null &&
+        FileImportDocument.rendersOnReload(isAndroid: hostIsAndroid)) {
+      return loadHtmlString(fileImport.html, baseUrl: fileImport.url);
+    }
+    return _c.reload();
+  }
 
   @override
   Future<Uri?> getUrl() => _c.getUrl();
@@ -1815,6 +1832,48 @@ persist, and the cache is cleared on app upgrade).</p>
 </body>
 </html>
 ''';
+}
+
+/// The document a file-import webview renders in place of its URL
+/// (IMPORT-005, BUG-017).
+///
+/// The import's `file:///<name>` URL is a synthetic handle with nothing
+/// behind it, so the engine must never be asked to fetch it. The controller
+/// renders [html] instead when a load targets [url] (the deferred first load
+/// of LEAK-003, the resume reissue of PAUSE-022) and, on WebKit, on every
+/// reload: `FrameLoader::reload` re-requests the document's URL and drops the
+/// bytes the page was rendered from, fails provisionally, and never reaches
+/// the `onLoadStop` that ends the pull-to-refresh indicator and the loading
+/// bar. Chromium keeps those bytes on the navigation entry, so its reload
+/// stays native there; re-rendering would push a history entry per refresh.
+class FileImportDocument {
+  const FileImportDocument({required this.url, required this.html});
+
+  /// Null unless [initialUrl] is a file import. [initialHtml] is the stored
+  /// import; the "unavailable" page stands in when it is missing.
+  static FileImportDocument? of({
+    required String initialUrl,
+    String? initialHtml,
+  }) {
+    if (!initialUrl.startsWith('file://')) return null;
+    return FileImportDocument(
+      url: initialUrl,
+      html: initialHtml ?? buildFileImportFallbackHtml(initialUrl),
+    );
+  }
+
+  final String url;
+  final String html;
+
+  bool isLoadOf(String target) =>
+      _withoutFragment(target) == _withoutFragment(url);
+
+  static bool rendersOnReload({required bool isAndroid}) => !isAndroid;
+
+  static String _withoutFragment(String u) {
+    final i = u.indexOf('#');
+    return i < 0 ? u : u.substring(0, i);
+  }
 }
 
 
@@ -3855,7 +3914,11 @@ class WebViewFactory {
     final containerId = binding.containerId;
     final inappProxy = binding.proxy;
     final proxyUnavailable = binding.proxyUnavailable;
-    final isFileImport = config.initialUrl.startsWith('file://');
+    final fileImport = FileImportDocument.of(
+      initialUrl: config.initialUrl,
+      initialHtml: config.initialHtml,
+    );
+    final isFileImport = fileImport != null;
     // When the cache is missing for a file import (incognito mode,
     // post-upgrade cache wipe, …) we feed initialData with a synthetic
     // "content unavailable" page rather than letting chromium attempt
@@ -4066,7 +4129,7 @@ class WebViewFactory {
         headers: proxyUnavailable || headers.isEmpty ? null : headers,
       ),
       initialData: renderInitialData ? inapp.InAppWebViewInitialData(
-        data: config.initialHtml ?? buildFileImportFallbackHtml(config.initialUrl),
+        data: fileImport?.html ?? config.initialHtml!,
         mimeType: 'text/html',
         encoding: 'utf-8',
         baseUrl: inapp.WebUri(config.initialUrl),
@@ -4255,8 +4318,11 @@ class WebViewFactory {
           proxyConfigured: binding.proxyConfigured,
           mountUrl: config.initialUrl,
         );
-        final wrappedController =
-            _WebViewController(controller, pauseHack: pauseHack);
+        final wrappedController = _WebViewController(
+          controller,
+          pauseHack: pauseHack,
+          fileImport: fileImport,
+        );
         onControllerCreated(wrappedController);
         _registerPageHandlers(
           controller,
