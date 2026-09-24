@@ -95,11 +95,23 @@ class SiteTab {
     return SiteTab(
       id: id,
       url: url,
-      title: json['title'] as String?,
+      title: json['title'] is String ? json['title'] as String : null,
       parentId: sanitizedTabId(json['parentId']),
       createdAt: _time(json['createdAt']),
       lastActiveAt: _time(json['lastActiveAt']),
     );
+  }
+
+  /// The id of the entry a serialised tab list marks `active`, if any. The
+  /// mark lives in the list rather than beside it, so a list that is dropped
+  /// on load takes its active tab with it and leaves no other key changed.
+  static String? activeIdIn(List<dynamic>? raw) {
+    for (final entry in raw ?? const <dynamic>[]) {
+      if (entry is Map && entry['active'] == true) {
+        return sanitizedTabId(entry['id']);
+      }
+    }
+    return null;
   }
 
   static DateTime? _time(Object? raw) => raw is int

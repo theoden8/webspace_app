@@ -9,7 +9,13 @@ the tab it was opened from (always a tab of the same site), `createdAt` and
 `WebViewModel.currentUrl` and `pageTitle` SHALL resolve to the active tab's
 fields. JSON without a `tabs` list SHALL synthesise one active root tab from
 the legacy `currentUrl` (or `initUrl`), and serialisation SHALL omit `tabs`
-while the list holds exactly that synthesised tab.
+while the list holds exactly that synthesised tab. The active tab SHALL be
+marked inside the list (`"active": true` on its entry) rather than in a key
+beside it, and a list that is present SHALL be authoritative over the
+site-level `currentUrl` and `pageTitle`, which are written only for builds that
+predate tabs. So one field of the wrong type drops that field alone
+(BACKUP-014): an odd `pageTitle` does not retitle a tab, and an odd `tabs`
+leaves the site on one tab at its `currentUrl`.
 
 #### Scenario: Legacy site migrates to one tab
 
