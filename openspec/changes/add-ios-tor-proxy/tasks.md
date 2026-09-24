@@ -190,6 +190,7 @@ the nested-webview propagation chain. See PROXY-020 for the reasoning.
 - [x] 6d.4 `integration_test/tor_test.dart`: handshake, phase, tor's log and a restart asserted unconditionally; reaching `up` required only under `WEBSPACE_TOR_NETWORK=1`, since that leg needs the Tor network. A failure prints the captured log rather than a timeout.
 - [x] 6d.5 CI runs the macOS integration tier with that variable set. Dropping it leaves every other assertion in place.
 - [x] 6d.6 Structural gates: same pod pins on both platforms, no target below the Podfile floor, and both Apple targets compiling the one shared source. Mutation-verified — a version skew, a target left at 10.15, and a target that references the file without compiling it each turn the gate red.
+- [x] 6d.7 `integration_test/tor_test.dart` pins `{de}`, then `{us}`, on the real tor (TOR-014). The address check.torproject.org sees must fall in the pinned country by the table the pin downloaded, and a silent stream opened under `{de}` must end once `{us}` is in force, while a control stream opened after it outlives the time that took. Required under `WEBSPACE_TOR_NETWORK=1`, like reaching `up`.
 
 ## 7. Background task integration
 

@@ -1743,10 +1743,13 @@ jobs:
       # its teeth. This is the only automated tier that runs the real Tor
       # plugin: iOS has no runtime tier here, and macOS compiles the same
       # source (ios/Runner/TorControllerPlugin.swift).
+      #
+      # The cap leaves room for the exit-country scenario, whose first pin
+      # downloads tor's GeoIP table (about 10 MB) through Tor.
       - name: Run the Tor integration scenario
         id: tor_scenario
         if: success() || failure()
-        timeout-minutes: 20
+        timeout-minutes: 30
         env:
           WEBSPACE_TOR_NETWORK: '1'
         run: |
@@ -1774,6 +1777,8 @@ jobs:
         if: always()
         run: |
           echo "=== Tor scenario: ${{ steps.tor_scenario.outcome }} ==="
+          # Which exit each pin got and how long it took to land, pass or fail.
+          grep -F '[tor-test]' "${RUNNER_TEMP:-/tmp}/tor-scenario.log" || true
           if [ "${{ steps.tor_scenario.outcome }}" != "success" ]; then
             echo "=== Tor scenario: last 80 lines ==="
             tail -80 "${RUNNER_TEMP:-/tmp}/tor-scenario.log" || true

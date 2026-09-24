@@ -1,5 +1,5 @@
-// The embedded Tor runtime, against the real plugin (TOR-018, TOR-019,
-// TOR-020).
+// The embedded Tor runtime, against the real plugin (TOR-014, TOR-018,
+// TOR-019, TOR-020).
 //
 // Every other Tor test in this repo drives a fake `TorRuntime` that answers
 // `TorUp` when told to, which is exactly why a control-port protocol bug and
@@ -21,16 +21,22 @@
 //     attached, so a developer on a censored network is not stuck.
 
 import 'dart:async';
-import 'dart:io' show Platform;
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:integration_test/integration_test.dart';
+import 'package:socks5_proxy/socks_client.dart' as socks5;
 
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/services/tor_geoip_io.dart';
 import 'package:webspace/services/tor_service.dart';
+import 'package:webspace/settings/proxy.dart';
 
 /// Whether this run is the one that opted into the real Tor network.
 final bool torRequired = Platform.environment['WEBSPACE_TOR_NETWORK'] == '1';
@@ -44,7 +50,7 @@ final bool isApple = defaultTargetPlatform == TargetPlatform.iOS ||
 /// explains itself instead of naming a timeout.
 String torTranscript() {
   final entries = LogService.instance.allEntriesMerged
-      .where((e) => e.tag == 'Tor' || e.tag == 'TorLog')
+      .where((e) => e.tag == 'Tor' || e.tag == 'TorLog' || e.tag == 'TorGeoIP')
       .map((e) => '[${e.tag}/${e.level.name}] ${e.message}')
       .toList();
   return entries.isEmpty
@@ -62,6 +68,57 @@ String? controlChannelFailure(TorStatus status) {
   if (status is! TorErrored) return null;
   final failure = classifyTorFailure(status.message);
   return failure.kind == TorFailureKind.controlChannel ? status.message : null;
+}
+
+/// The Tor Project's own answer to "which address reached me".
+final Uri exitCheck = Uri.parse('https://check.torproject.org/api/ip');
+
+/// Country of [ipv4] in a tor GeoIP [table], or null when no row covers it.
+///
+/// The table is the one tor resolved the pin against. What it is applied to
+/// is the address the far side saw, so the witness is the web, not tor's
+/// account of which relay it picked.
+String? countryIn(String table, String ipv4) {
+  final n = ipv4.split('.').map(int.parse).fold<int>(0, (a, o) => a * 256 + o);
+  for (final line in const LineSplitter().convert(table)) {
+    if (line.isEmpty || line.startsWith('#')) continue;
+    final row = line.split(',');
+    if (int.parse(row[0]) <= n && n <= int.parse(row[1])) return row[2];
+  }
+  return null;
+}
+
+/// A raw stream through [via] to [to], outside any HTTP client.
+Future<Socket> openStream(UserProxySettings via, Uri to) {
+  final address = via.address!;
+  final colon = address.lastIndexOf(':');
+  return socks5.SocksTCPClient.connect(
+    [
+      socks5.ProxySettings(
+        InternetAddress(address.substring(0, colon)),
+        int.parse(address.substring(colon + 1)),
+        username: via.username,
+        password: via.password,
+      ),
+    ],
+    InternetAddress(to.host, type: InternetAddressType.unix),
+    to.port,
+  );
+}
+
+/// How long [stream] stayed open, from now until the far end ended it.
+///
+/// `done` is not the signal: it tracks the write side, and nothing here
+/// writes. A read that ends is what tor closing the stream looks like.
+Future<Duration> whenEnded(Socket stream) {
+  final clock = Stopwatch()..start();
+  final ended = Completer<Duration>();
+  void end([Object? _]) {
+    if (!ended.isCompleted) ended.complete(clock.elapsed);
+  }
+
+  stream.listen((_) {}, onDone: end, onError: end, cancelOnError: true);
+  return ended.future;
 }
 
 void main() {
@@ -285,4 +342,142 @@ void main() {
           '${torTranscript()}',
     );
   }, timeout: const Timeout(Duration(minutes: 5)));
+
+  testWidgets('an exit-country pin is the country the web sees',
+      (tester) async {
+    trace('scenario 3 start');
+    if (!TorService.instance.isAvailable) {
+      if (isApple) {
+        fail('the Tor runtime reports unavailable on an Apple build');
+      }
+      markTestSkipped('no Tor runtime on this platform (TOR-007)');
+      return;
+    }
+
+    // TOR-014. A pin to Brazil once left a page leaving from the
+    // Netherlands twice over: tor had no GeoIP table, so `{br}` matched no
+    // relay, and a connection the webview kept alive from before the pin
+    // stayed on its Dutch circuit. Every fake in test/ answers the pin with
+    // OK, so only a real tor can say whether either is fixed.
+    final up = await waitFor(
+      () => TorService.instance.status is TorUp,
+      const Duration(seconds: 120),
+    );
+    if (!up) {
+      if (torRequired) {
+        fail('Tor was not up to take a pin:\n${torTranscript()}');
+      }
+      markTestSkipped('Tor did not reach the network here; nothing to pin');
+      return;
+    }
+
+    // Read while up: a pending pin withholds SOCKS settings, and a tag keeps
+    // its credentials for the whole launch.
+    final via = TorService.instance.socksFor(siteId: 'exit-pin')!;
+    final route = outboundHttp.clientFor(via);
+    if (route is! OutboundClientReady) fail('no route through Tor: $route');
+    // One client throughout, the way a webview keeps one pool.
+    final client = route.client;
+
+    Future<String> exitAddress() async {
+      Future<http.Response> ask() =>
+          client.get(exitCheck).timeout(const Duration(seconds: 60));
+      http.Response response;
+      try {
+        response = await ask();
+      } on http.ClientException catch (e) {
+        // A kept-alive connection tor has just ended can fail the request
+        // that races the close. The retry cannot hide a stale exit: that
+        // answers, it does not fail.
+        trace('check request failed once: $e');
+        response = await ask();
+      }
+      expect(response.statusCode, 200,
+          reason: 'check.torproject.org answered ${response.statusCode}: '
+              '${response.body}');
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      trace('check.torproject.org saw $body');
+      final ip = body['IP'] as String;
+      expect(InternetAddress.tryParse(ip)?.type, InternetAddressType.IPv4,
+          reason: 'the exit reached the check from $ip, and the table tor '
+              'loads is IPv4 only');
+      return ip;
+    }
+
+    Future<void> pin(String nodes) async {
+      final clock = Stopwatch()..start();
+      await TorService.instance.setExitCountry(nodes);
+      final status = TorService.instance.status;
+      expect(status, isA<TorUp>(),
+          reason: 'pinning $nodes did not land ($status):\n${torTranscript()}');
+      expect(TorService.instance.exitNodes, nodes);
+      trace('$nodes in force after ${clock.elapsed.inSeconds}s');
+    }
+
+    Socket? held;
+    Socket? control;
+    try {
+      final unpinned = await exitAddress();
+
+      // The first pin fetches the table through Tor before tor can resolve
+      // any country, so its time is the download's.
+      await pin('{de}');
+      final kept = await createTorGeoIpStore()!.newest();
+      expect(kept, isNotNull,
+          reason: 'a pin landed with no GeoIP table on the device:\n'
+              '${torTranscript()}');
+      final table = await File(kept!.path).readAsString();
+      trace('unpinned exit $unpinned is in ${countryIn(table, unpinned)}');
+
+      final de = await exitAddress();
+      expect(countryIn(table, de), 'DE',
+          reason: 'pinned {de}, and check.torproject.org saw $de, which the '
+              'table places in ${countryIn(table, de)}:\n${torTranscript()}');
+
+      // A stream opened on the German circuit and left silent. Until the
+      // server's own timeout, nothing but that circuit closing ends it.
+      held = await openStream(via, exitCheck);
+      final heldEnded = whenEnded(held);
+      await pin('{us}');
+      final heldLasted = await heldEnded
+          .then<Duration?>((d) => d)
+          .timeout(const Duration(seconds: 15), onTimeout: () => null);
+      expect(heldLasted, isNotNull,
+          reason: 'a stream opened under {de} was still open 15 s after {us} '
+              'was in force, so a connection a page keeps alive goes on '
+              'leaving from Germany:\n${torTranscript()}');
+
+      final us = await exitAddress();
+      expect(countryIn(table, us), 'US',
+          reason: 'pinned {us}, and check.torproject.org saw $us, which the '
+              'table places in ${countryIn(table, us)}:\n${torTranscript()}');
+
+      // The control: a stream no change touches, left silent for longer
+      // than the held one lasted. If the server ends it too, the held stream
+      // measured the server, not tor.
+      control = await openStream(via, exitCheck);
+      final controlLasted = await whenEnded(control)
+          .then<Duration?>((d) => d)
+          .timeout(heldLasted! + const Duration(seconds: 5),
+              onTimeout: () => null);
+      expect(controlLasted, isNull,
+          reason: 'the server ended a silent stream after $controlLasted, '
+              'within the $heldLasted the held one lasted, so the held '
+              'stream says nothing about tor');
+      trace('exits: unpinned $unpinned, {de} $de, {us} $us; the stream '
+          'opened under {de} ended ${heldLasted.inMilliseconds} ms after it '
+          'opened');
+    } finally {
+      held?.destroy();
+      control?.destroy();
+      client.close();
+    }
+
+    // Clearing is its own round trip, RESETCONF and the same circuit close.
+    await TorService.instance.setExitCountry(null);
+    expect(TorService.instance.status, isA<TorUp>(),
+        reason: 'clearing the pin did not land:\n${torTranscript()}');
+    expect(TorService.instance.exitNodes, isNull);
+    trace('scenario 3 done');
+  }, timeout: const Timeout(Duration(minutes: 10)));
 }
