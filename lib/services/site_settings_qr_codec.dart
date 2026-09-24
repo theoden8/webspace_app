@@ -63,6 +63,7 @@ class SiteSettingsQrCodec {
     'spoofTimezoneFromLocation',
     'liveLocationGranularity',
     'webRtcPolicy',
+    'routeOutboundLinks',
   };
 
   /// Per-site keys deliberately stripped on share. Listed so the drift
@@ -88,6 +89,22 @@ class SiteSettingsQrCodec {
     // Base64 PNG bytes: would blow QR capacity, and an icon is
     // device-local cosmetics, not shareable configuration.
     'customIconPng',
+    // Each entry names a device-local siteId, which the receiver's sites
+    // do not have (QR-003).
+    'outboundPreferences',
+    // A scanned code must not make a site claim domains: claims decide
+    // where other sites' links and shared URLs go.
+    'domainClaims',
+    // The seed that makes this site's fingerprint differ from every other
+    // device's.
+    'fingerprintResetNonce',
+    // Never shared so far. Sharing one of these is its own decision, not a
+    // side effect of the drift check reaching them.
+    'externalLinksInBrowser',
+    'tabBarButtonCorner',
+    'letterboxEnabled',
+    'spoofWindowWidth',
+    'spoofWindowHeight',
   };
 
   /// Strip a full `WebViewModel.toJson()` to the QR-shareable subset.

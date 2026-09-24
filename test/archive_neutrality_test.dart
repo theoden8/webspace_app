@@ -10,6 +10,8 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/cookie_isolation.dart';
+import 'package:webspace/services/domain_claim.dart';
+import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/services/file_store_io.dart';
 import 'package:webspace/services/archive.dart';
 import 'package:webspace/services/archive_storage.dart';
@@ -365,6 +367,44 @@ void main() {
           .toList();
 
       expect(withArchive, equals(withoutArchive));
+    });
+
+    test('an app-tier site routes to no archive-tier site (LIR-017)', () {
+      WebViewModel ddg() => WebViewModel(
+            siteId: 'ddg',
+            initUrl: 'https://duckduckgo.com',
+            routeOutboundLinks: true,
+            outboundPreferences: [
+              OutboundPreference(
+                claim: DomainClaim.exactHost('github.com'),
+                targetSiteId: 'gh',
+              ),
+            ],
+          );
+      bool prune(List<WebViewModel> sites, Map<String, String> archives) =>
+          OutboundPreferenceGc.pruneAcrossBoundary<WebViewModel>(
+            sites,
+            siteIdOf: (m) => m.siteId,
+            isArchiveTier: (m) => m.isArchiveTier,
+            archiveOf: (m) => archives[m.siteId],
+            prefsOf: (m) => m.outboundPreferences,
+            setPrefs: (m, prefs) => m.outboundPreferences = prefs,
+          );
+
+      // The target moved into an open archive.
+      final open = ddg();
+      expect(
+        prune([
+          open,
+          WebViewModel(
+              siteId: 'gh', initUrl: 'https://github.com', isArchiveTier: true),
+        ], {'gh': 'slot'}),
+        isTrue,
+      );
+      // The same archive, closed: its sites are not in the runtime at all.
+      final closed = ddg();
+      prune([closed], const {});
+      expect(jsonEncode(open.toJson()), jsonEncode(closed.toJson()));
     });
   });
 

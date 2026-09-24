@@ -1,4 +1,5 @@
 import 'package:webspace/services/domain_claim.dart';
+import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/web_view_model.dart' show extractDomain, getBaseDomain;
 
 export 'package:webspace/services/domain_claim.dart' show DomainClaim, DomainClaimKind;
@@ -25,6 +26,34 @@ class RoutingAmbiguous extends RoutingMatch {
 
 class RoutingNone extends RoutingMatch {
   const RoutingNone();
+}
+
+/// Where an outbound link resolves (LIR-014).
+sealed class OutboundResolution {
+  const OutboundResolution();
+
+  const factory OutboundResolution.preference(RoutableSite site) =
+      OutboundByPreference;
+  const factory OutboundResolution.global(RoutingMatch match) =
+      OutboundByClaims;
+  const factory OutboundResolution.selfMatch() = OutboundSelfMatch;
+}
+
+/// One of the source's own preferences named [site].
+class OutboundByPreference extends OutboundResolution {
+  final RoutableSite site;
+  const OutboundByPreference(this.site);
+}
+
+/// No preference matched; [match] is the global claim resolution.
+class OutboundByClaims extends OutboundResolution {
+  final RoutingMatch match;
+  const OutboundByClaims(this.match);
+}
+
+/// The resolution named the source itself, so the link keeps today's path.
+class OutboundSelfMatch extends OutboundResolution {
+  const OutboundSelfMatch();
 }
 
 enum ClaimConflictKind { hijack, overlap }
@@ -131,6 +160,54 @@ class LinkRoutingService {
     if (winners.isEmpty) return const RoutingNone();
     if (winners.length == 1) return RoutingSingle(winners.single);
     return RoutingAmbiguous(List.unmodifiable(winners));
+  }
+
+  /// Resolve a link the source site opens against its own preferences first,
+  /// then the claims of [candidates] (LIR-014). A preference whose target is
+  /// not a candidate is ignored, which covers a deleted or cross-boundary
+  /// target before its cleanup runs (LIR-017). Among preferences the highest
+  /// score wins and the earlier entry breaks a tie. Anything naming the
+  /// source collapses to [OutboundResolution.selfMatch].
+  static OutboundResolution resolveOutbound(
+    Uri url,
+    String sourceSiteId,
+    List<OutboundPreference> sourcePrefs,
+    List<RoutableSite> candidates,
+  ) {
+    if (url.scheme != 'http' && url.scheme != 'https' || url.host.isEmpty) {
+      return const OutboundResolution.global(RoutingNone());
+    }
+    final host = url.host.toLowerCase();
+    final base = getBaseDomain(host);
+    final hostKey = hostAuthority(url);
+    final defaultPort = !url.hasPort;
+    final byId = {for (final c in candidates) c.siteId: c};
+    RoutableSite? preferred;
+    var best = 0;
+    for (final pref in sourcePrefs) {
+      final target = byId[pref.targetSiteId];
+      if (target == null) continue;
+      final score = _score(pref.claim, hostKey, host, base, defaultPort);
+      if (score > best) {
+        best = score;
+        preferred = target;
+      }
+    }
+    if (preferred != null) {
+      return preferred.siteId == sourceSiteId
+          ? const OutboundResolution.selfMatch()
+          : OutboundResolution.preference(preferred);
+    }
+    final match = resolve(url, candidates);
+    final namesSource = switch (match) {
+      RoutingSingle(:final site) => site.siteId == sourceSiteId,
+      RoutingAmbiguous(:final sites) =>
+        sites.any((s) => s.siteId == sourceSiteId),
+      RoutingNone() => false,
+    };
+    return namesSource
+        ? const OutboundResolution.selfMatch()
+        : OutboundResolution.global(match);
   }
 
   static String? strippedHomeUrl(Uri url) {

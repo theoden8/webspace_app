@@ -39,6 +39,7 @@ const migrated = new Set([
   'lib/screens/user_scripts.dart',
   'lib/screens/webspace_detail.dart',
   'lib/screens/webspaces_list.dart',
+  'lib/widgets/dispatch_picker_sheet.dart',
   'lib/widgets/download_button.dart',
   'lib/widgets/external_url_prompt.dart',
   'lib/widgets/find_toolbar.dart',

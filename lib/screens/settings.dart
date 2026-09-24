@@ -19,6 +19,7 @@ import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/user_agent_identity.dart';
 import 'package:webspace/services/http_auth_secure_storage.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/proxy_form_engine.dart';
 import 'package:webspace/services/proxy_test_service.dart';
@@ -105,6 +106,10 @@ class SettingsScreen extends StatefulWidget {
   /// (LIR-008 task 8.4) for hijack/overlap detection.
   final List<WebViewModel> otherSites;
 
+  /// The sites an outbound routing preference may name (LIR-014): this
+  /// site's candidates on its side of the archive boundary, minus itself.
+  final List<WebViewModel> routingTargets;
+
   SettingsScreen({
     required this.webViewModel,
     this.onSettingsSaved,
@@ -115,6 +120,7 @@ class SettingsScreen extends StatefulWidget {
     this.useContainers = false,
     this.notificationsBlockedBySite,
     this.otherSites = const [],
+    this.routingTargets = const [],
   });
 
   @override
@@ -143,6 +149,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _localCdnEnabled;
   late bool _blockAutoRedirects;
   late bool _externalLinksInBrowser;
+  late bool _routeOutboundLinks;
+  late List<OutboundPreference> _outboundPreferences;
   late bool _fullscreenMode;
   late bool _htmlCachingEnabled;
   late bool _notificationsEnabled;
@@ -245,6 +253,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         'localCdnEnabled': _localCdnEnabled,
         'blockAutoRedirects': _blockAutoRedirects,
         'externalLinksInBrowser': _externalLinksInBrowser,
+        'routeOutboundLinks': _routeOutboundLinks,
+        'outboundPreferences': _outboundPreferences.join(','),
         'fullscreenMode': _fullscreenMode,
         'htmlCachingEnabled': _htmlCachingEnabled,
         'notificationsEnabled': _notificationsEnabled,
@@ -476,6 +486,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _localCdnEnabled = m.localCdnEnabled;
     _blockAutoRedirects = m.blockAutoRedirects;
     _externalLinksInBrowser = m.externalLinksInBrowser;
+    _routeOutboundLinks = m.routeOutboundLinks;
+    _outboundPreferences = [...m.outboundPreferences];
     _fullscreenMode = m.fullscreenMode;
     _htmlCachingEnabled = m.htmlCachingEnabled;
     _notificationsEnabled = m.notificationsEnabled;
@@ -645,6 +657,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.localCdnEnabled = _localCdnEnabled;
       widget.webViewModel.blockAutoRedirects = _blockAutoRedirects;
       widget.webViewModel.externalLinksInBrowser = _externalLinksInBrowser;
+      widget.webViewModel.routeOutboundLinks = _routeOutboundLinks;
+      widget.webViewModel.outboundPreferences = [..._outboundPreferences];
       widget.webViewModel.fullscreenMode = _fullscreenMode;
       widget.webViewModel.htmlCachingEnabled = _htmlCachingEnabled;
       widget.webViewModel.notificationsEnabled = _notificationsEnabled;
@@ -1011,6 +1025,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         htmlCachingEnabled: _htmlCachingEnabled,
         blockAutoRedirects: _blockAutoRedirects,
         externalLinksInBrowser: _externalLinksInBrowser,
+        routeOutboundLinks: _routeOutboundLinks,
+        outboundPreferences: _outboundPreferences,
       );
 
   /// One of the three rows that open a screen of their own. Behaviour is what
@@ -1025,6 +1041,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (v.fullscreenMode) loc.siteSettingsFullscreen,
       if (v.htmlCachingEnabled) loc.siteSettingsHtmlCaching,
       if (v.blockAutoRedirects) loc.siteSettingsBlockAutoRedirects,
+      if (v.routeOutboundLinks) loc.siteSettingsRouteOutboundLinks,
       if (v.externalLinksInBrowser) loc.siteSettingsExternalLinksInBrowser,
     ];
 
@@ -1059,6 +1076,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           host: widget.webViewModel.currentUrl,
           incognito: _incognito,
           values: _behaviourValues,
+          containersActive: widget.useContainers,
+          routingTargets: widget.routingTargets,
           // Writes straight to the model, like it did inline: domain claims
           // are not part of the dirty snapshot and are saved as they are
           // edited.
@@ -1077,6 +1096,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _htmlCachingEnabled = values.htmlCachingEnabled;
               _blockAutoRedirects = values.blockAutoRedirects;
               _externalLinksInBrowser = values.externalLinksInBrowser;
+              _routeOutboundLinks = values.routeOutboundLinks;
+              _outboundPreferences = values.outboundPreferences;
             });
           },
         ),

@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io' show gzip;
+import 'dart:io' show File, gzip;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
@@ -227,21 +227,32 @@ void main() {
     test('every WebViewModel.toJson key is classified', () {
       // Drift guard: when a new per-site field is added to WebViewModel,
       // the dev MUST decide whether it rides a shared QR. This test fails
-      // if a `toJson` key isn't in either set.
-      final fullToJson = WebViewModel(
-        initUrl: 'https://example.com',
-        spoofLatitude: 1.0,
-        spoofLongitude: 1.0,
-        spoofTimezone: 'UTC',
-        spoofTimezoneFromLocation: true,
-      ).toJson();
+      // if a `toJson` key isn't in either set. A default model omits every
+      // field that sits at its default, so the backup-compat superset (every
+      // key a release has written, set to non-default values) is what makes
+      // those fields reach the check.
+      final superset = jsonDecode(
+        File('tool/backup_compat/superset.json').readAsStringSync(),
+      ) as Map<String, dynamic>;
+      final keys = <String>{
+        ...WebViewModel(
+          initUrl: 'https://example.com',
+          spoofLatitude: 1.0,
+          spoofLongitude: 1.0,
+          spoofTimezone: 'UTC',
+          spoofTimezoneFromLocation: true,
+        ).toJson().keys,
+        for (final site in superset['sites'] as List)
+          ...WebViewModel.fromJson(site as Map<String, dynamic>, null)
+              .toJson()
+              .keys,
+      };
 
       final classified = {
         ...SiteSettingsQrCodec.includedKeys,
         ...SiteSettingsQrCodec.excludedKeys,
       };
-      final unknown =
-          fullToJson.keys.where((k) => !classified.contains(k)).toList();
+      final unknown = keys.where((k) => !classified.contains(k)).toList();
 
       expect(unknown, isEmpty,
           reason:

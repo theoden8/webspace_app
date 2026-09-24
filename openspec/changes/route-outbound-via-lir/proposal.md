@@ -42,11 +42,13 @@ It is opt-in per source. Nesting today is silent and back-reversible; a picker o
 
 - **Flutter code**:
   - `WebViewModel`: `routeOutboundLinks`, `outboundPreferences`; an optional `onOutboundLink` hook consulted by the four `blockOpenNested` / `blockOpenExternal` branches in `getWebView`.
-  - `lib/services/outbound_preference.dart`: the value type.
+  - `lib/services/outbound_preference.dart`: the value type, the archive-boundary candidate rule (`OutboundBoundary`) and the prune (`OutboundPreferenceGc`).
   - `lib/services/navigation_decision_engine.dart`: `hadGesture` on its results.
-  - `lib/services/link_routing_service.dart`: `resolveOutbound`, `outboundCandidates`.
+  - `lib/services/link_routing_service.dart`: `resolveOutbound`.
   - `lib/services/link_intent_dispatch_engine.dart`: `dispatchOutbound`, `DispatchNestedFallback`, `DispatchOpenExternal`, `sourceIsParent`, picker `source` / `fallback`.
-  - `_WebSpacePageState`: the hook, `_executeOutboundDispatch`, the proxy return path, the picker's outbound mode, the prune at four points.
+  - `_WebSpacePageState`: the hook, `_executeOutboundDispatch`, the proxy return path, the picker's outbound mode, the prune at startup, delete and archive moves.
+  - `lib/services/settings_import_engine.dart`: the prune on import, inside the plan.
+  - `lib/widgets/dispatch_picker_sheet.dart`: the LIR-010 sheet, moved out of `main.dart` so its outbound mode can be widget-tested.
   - `lib/screens/site_behaviour.dart`, `lib/screens/settings.dart`, `lib/screens/link_handling_settings.dart`: the switch, the preferences row and `OutboundPreferencesScreen`.
   - `lib/services/site_settings_qr_codec.dart`: classification of the two keys.
 - **Migration**: existing sites load with the toggle off and no preferences; serialization omits both. Nothing changes until the user turns the toggle on.

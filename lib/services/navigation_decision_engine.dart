@@ -50,7 +50,16 @@ class NavigationDecisionResult {
   /// `lastSameDomainGestureTime` variable. `null` means "leave it alone".
   final GestureStateUpdate? gestureUpdate;
 
-  const NavigationDecisionResult(this.decision, [this.gestureUpdate]);
+  /// Whether a cross-domain decision carried an effective user gesture: the
+  /// navigation's own, or one propagated from a recent same-domain tap.
+  /// Outbound routing (LIR-014) acts only on navigations the user caused.
+  final bool hadGesture;
+
+  const NavigationDecisionResult(
+    this.decision, [
+    this.gestureUpdate,
+    this.hadGesture = false,
+  ]);
 }
 
 /// State owned by the onUrlChanged call site. Immutable; the engine returns
@@ -121,6 +130,9 @@ class OnUrlChangedHandled {
   final OnUrlChangedState state;
   final GestureStateUpdate? gestureUpdate;
 
+  /// See [NavigationDecisionResult.hadGesture].
+  final bool hadGesture;
+
   const OnUrlChangedHandled({
     required this.decision,
     required this.navigateBackTo,
@@ -128,6 +140,7 @@ class OnUrlChangedHandled {
     this.launchExternalUrl,
     required this.state,
     required this.gestureUpdate,
+    this.hadGesture = false,
   });
 }
 
@@ -206,15 +219,19 @@ class NavigationDecisionEngine {
     }
 
     if (blockAutoRedirects && !effectiveGesture) {
-      return NavigationDecisionResult(NavigationDecision.blockSilent, gestureUpdate);
+      return NavigationDecisionResult(
+          NavigationDecision.blockSilent, gestureUpdate, effectiveGesture);
     }
     if (!isSiteActive) {
-      return NavigationDecisionResult(NavigationDecision.blockSuppressed, gestureUpdate);
+      return NavigationDecisionResult(
+          NavigationDecision.blockSuppressed, gestureUpdate, effectiveGesture);
     }
     if (externalLinksInBrowser && !(matchesSiteClaim?.call(targetUrl) ?? false)) {
-      return NavigationDecisionResult(NavigationDecision.blockOpenExternal, gestureUpdate);
+      return NavigationDecisionResult(
+          NavigationDecision.blockOpenExternal, gestureUpdate, effectiveGesture);
     }
-    return NavigationDecisionResult(NavigationDecision.blockOpenNested, gestureUpdate);
+    return NavigationDecisionResult(
+        NavigationDecision.blockOpenNested, gestureUpdate, effectiveGesture);
   }
 
   /// Decision for `onUrlChanged` — detects server-side 3xx redirects that
@@ -270,7 +287,8 @@ class NavigationDecisionEngine {
     }
 
     if (blockAutoRedirects && !hasRecentGesture) {
-      return NavigationDecisionResult(NavigationDecision.blockSilent, gestureUpdate);
+      return NavigationDecisionResult(
+          NavigationDecision.blockSilent, gestureUpdate, hasRecentGesture);
     }
     // Only rescues a navigation the checks above already let through. Ahead
     // of them it was a bypass: `isCaptchaChallenge` matches a URL *shape*,
@@ -278,15 +296,19 @@ class NavigationDecisionEngine {
     // with no gesture, which then renders in place, inside the site's own
     // container, and commits as `currentUrl`.
     if (isCaptchaChallenge(newUrl)) {
-      return NavigationDecisionResult(NavigationDecision.allow, gestureUpdate);
+      return NavigationDecisionResult(
+          NavigationDecision.allow, gestureUpdate, hasRecentGesture);
     }
     if (!isSiteActive) {
-      return NavigationDecisionResult(NavigationDecision.blockSuppressed, gestureUpdate);
+      return NavigationDecisionResult(
+          NavigationDecision.blockSuppressed, gestureUpdate, hasRecentGesture);
     }
     if (externalLinksInBrowser && !(matchesSiteClaim?.call(newUrl) ?? false)) {
-      return NavigationDecisionResult(NavigationDecision.blockOpenExternal, gestureUpdate);
+      return NavigationDecisionResult(
+          NavigationDecision.blockOpenExternal, gestureUpdate, hasRecentGesture);
     }
-    return NavigationDecisionResult(NavigationDecision.blockOpenNested, gestureUpdate);
+    return NavigationDecisionResult(
+        NavigationDecision.blockOpenNested, gestureUpdate, hasRecentGesture);
   }
 
   /// Full onUrlChanged flow: runs [decideOnUrlChanged] against the caller's
@@ -346,6 +368,7 @@ class NavigationDecisionEngine {
           launchExternalUrl: launchExternalUrl,
           state: state.copyWith(redirectHandled: true),
           gestureUpdate: result.gestureUpdate,
+          hadGesture: result.hadGesture,
         );
       }
       // decision == allow; fall through to the commit path below.

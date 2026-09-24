@@ -20,6 +20,7 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/media_session_service.dart';
 import 'package:webspace/services/media_session_shim.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
+import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/services/camera_decision_engine.dart';
 import 'package:webspace/services/screen_share_decision_engine.dart';
 import 'package:webspace/services/microphone_decision_engine.dart';
@@ -398,6 +399,13 @@ bool matchesBlockedCookie(
               b.domain.endsWith('.$domain'))));
 }
 
+/// Outbound routing's hook into a site's own navigation (LIR-014): called
+/// with a link the navigation engine decided to nest or send to the system
+/// browser. True means the host took the link over and the caller must not
+/// also launch it; false means the caller's own path runs.
+typedef OutboundLinkHandler = bool Function(
+    String url, NavigationDecision decision, bool hadGesture);
+
 /// Opens [url] in a nested `InAppWebViewScreen` carrying the opening site's
 /// posture. Implemented by `_WebSpacePageState.launchUrl`.
 ///
@@ -684,6 +692,15 @@ class WebViewModel {
   /// default). Serialised only when non-null so on-disk JSON for users who
   /// never touch the feature stays byte-identical.
   List<DomainClaim>? domainClaims;
+
+  /// Outbound routing (LIR-013): a cross-domain link this site opens goes to
+  /// the site that claims it, with that site's container and settings,
+  /// instead of a nested screen with this site's own. Off by default.
+  bool routeOutboundLinks;
+
+  /// This site's own routing rules, consulted before the global claims
+  /// (LIR-014). At most one entry per claim.
+  List<OutboundPreference> outboundPreferences;
 
   /// View used by the resolver — always non-empty: returns the explicit
   /// `domainClaims` if the user has set them, otherwise the synthesized
@@ -1024,9 +1041,12 @@ class WebViewModel {
     this.fingerprintResetNonce,
     this.customIconPng,
     this.domainClaims,
+    this.routeOutboundLinks = false,
+    List<OutboundPreference>? outboundPreferences,
     this.stateSetterF,
     this.isArchiveTier = false,
   })  : userScripts = userScripts ?? [],
+        outboundPreferences = outboundPreferences ?? [],
         enabledGlobalScriptIds = enabledGlobalScriptIds ?? {},
         blockedCookies = blockedCookies ?? {},
         siteId = siteId ?? _generateSiteId(),
@@ -1260,6 +1280,7 @@ class WebViewModel {
     List<UserScriptConfig> globalUserScripts = const [],
     VoidCallback? onNavigationBlockChanged,
     VoidCallback? onOpenProxySettings,
+    OutboundLinkHandler? onOutboundLink,
   }) {
     // Fail closed while Tor is still bootstrapping (TOR-008), for explicit
     // Tor sites and for DEFAULT sites inheriting a global Tor (PROXY-011).
@@ -1513,6 +1534,7 @@ class WebViewModel {
                   '  -> CANCEL (opening nested webview)',
                   sensitivity: LogSensitivity.sensitive,
                 );
+                if (onOutboundLink?.call(url, result.decision, result.hadGesture) ?? false) return false;
                 launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, httpsUpgradeEnabled: effectiveHttpsUpgradeEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, dnsBlockLevel: effectiveDnsBlockLevel, contentBlockEnabled: contentBlockEnabled, disabledFilterLists: effectiveDisabledFilterLists, localCdnEnabled: effectiveLocalCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: outboundProxySettings, notificationsEnabled: effectiveNotificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser, blockAutoRedirects: blockAutoRedirects, blockedCookies: blockedCookies, cameraMode: effectiveCameraMode, virtualCameraSource: virtualCameraSource, microphoneMode: effectiveMicrophoneMode, virtualMicrophoneSource: virtualMicrophoneSource, screenShareMode: effectiveScreenShareMode, virtualScreenSource: virtualScreenSource, protectedContentAllowed: effectiveProtectedContentAllowed, httpAuthMemory: effectiveHttpAuthMemory);
                 return false;
               case NavigationDecision.blockOpenExternal:
@@ -1521,6 +1543,7 @@ class WebViewModel {
                   '  -> CANCEL (opening system browser)',
                   sensitivity: LogSensitivity.sensitive,
                 );
+                if (onOutboundLink?.call(url, result.decision, result.hadGesture) ?? false) return false;
                 launchUrlInSystemBrowser(url);
                 return false;
             }
@@ -1621,6 +1644,7 @@ class WebViewModel {
                     sensitivity: LogSensitivity.sensitive,
                   );
                   if (handled.launchNestedUrl != null) {
+                    if (onOutboundLink?.call(handled.launchNestedUrl!, NavigationDecision.blockOpenNested, handled.hadGesture) ?? false) return;
                     launchUrlFunc(handled.launchNestedUrl!, homeTitle: name, siteId: siteId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, httpsUpgradeEnabled: effectiveHttpsUpgradeEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, dnsBlockLevel: effectiveDnsBlockLevel, contentBlockEnabled: contentBlockEnabled, disabledFilterLists: effectiveDisabledFilterLists, localCdnEnabled: effectiveLocalCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: outboundProxySettings, notificationsEnabled: effectiveNotificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser, blockAutoRedirects: blockAutoRedirects, blockedCookies: blockedCookies, cameraMode: effectiveCameraMode, virtualCameraSource: virtualCameraSource, microphoneMode: effectiveMicrophoneMode, virtualMicrophoneSource: virtualMicrophoneSource, screenShareMode: effectiveScreenShareMode, virtualScreenSource: virtualScreenSource, protectedContentAllowed: effectiveProtectedContentAllowed, httpAuthMemory: effectiveHttpAuthMemory);
                   }
                   return;
@@ -1631,6 +1655,7 @@ class WebViewModel {
                     sensitivity: LogSensitivity.sensitive,
                   );
                   if (handled.launchExternalUrl != null) {
+                    if (onOutboundLink?.call(handled.launchExternalUrl!, NavigationDecision.blockOpenExternal, handled.hadGesture) ?? false) return;
                     launchUrlInSystemBrowser(handled.launchExternalUrl!);
                   }
                   return;
@@ -1868,10 +1893,11 @@ class WebViewModel {
     ContainerCookieManager? containerCookieManager,
     Function saveFunc, {
     List<UserScriptConfig> globalUserScripts = const [],
+    OutboundLinkHandler? onOutboundLink,
   }) {
     if (webview == null) {
       // Create webview with current language setting
-      webview = getWebView(launchUrlFunc, cookieManager, containerCookieManager, saveFunc, language: language, globalUserScripts: globalUserScripts);
+      webview = getWebView(launchUrlFunc, cookieManager, containerCookieManager, saveFunc, language: language, globalUserScripts: globalUserScripts, onOutboundLink: onOutboundLink);
     }
     if (controller != null) {
       setController();
@@ -2536,6 +2562,10 @@ class WebViewModel {
           'customIconPng': base64Encode(customIconPng!),
         if (domainClaims != null && domainClaims!.isNotEmpty)
           'domainClaims': domainClaims!.map((c) => c.toJson()).toList(),
+        if (routeOutboundLinks) 'routeOutboundLinks': true,
+        if (outboundPreferences.isNotEmpty)
+          'outboundPreferences':
+              outboundPreferences.map((p) => p.toJson()).toList(),
       };
   }
 
@@ -2689,6 +2719,12 @@ class WebViewModel {
                 if (claim.value.isNotEmpty) claim,
             ]
           : null,
+      routeOutboundLinks: field<bool>('routeOutboundLinks') ?? false,
+      outboundPreferences: OutboundPreference.dedupedByClaim(
+        (field<List<dynamic>>('outboundPreferences') ?? const [])
+            .map(OutboundPreference.fromJson)
+            .whereType<OutboundPreference>(),
+      ),
       stateSetterF: stateSetterF,
       isArchiveTier: isArchiveTier,
     )..pageTitle = dropUrl ? null : field<String>('pageTitle');

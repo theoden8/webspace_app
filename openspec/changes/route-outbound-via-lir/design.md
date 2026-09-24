@@ -83,6 +83,7 @@ Routing runs only when every gate holds (LIR-014):
 2. `NavigationDecisionEngine` returned `blockOpenNested` or `blockOpenExternal` for the source's own webview.
 3. The navigation carried an effective gesture. `decideShouldOverrideUrlLoading` computes `effectiveGesture` and `decideOnUrlChanged` computes `hasRecentGesture`; both are dropped today. `NavigationDecisionResult` and `OnUrlChangedHandled` gain `hadGesture` so the caller can read it without re-deriving the propagation window. Without this gate, a page on a site with `blockAutoRedirects` off could script-navigate to `https://github.com/settings/...` and have it load in the user's signed-in GitHub container with no click. Today the same navigation lands in the source's own container.
 4. The container engine is active (D10).
+5. The kiosk shell is not locked. KIOSK-002 keeps a locked shell from reaching any other site, and a routed open is exactly that: another site's signed-in identity. The hook returns `false` and the link takes the source-posture path it takes today.
 
 Candidates are the sites on the source's side of the archive boundary (D11).
 
@@ -119,10 +120,10 @@ The fallback action is `DispatchNestedFallback()` for `OutboundFallback.nested` 
 `_showDispatchPicker` passes the sheet `offerBind`, `offerCreate` (today it passes only `canCreate` and decides the bind row itself), `source` and `fallback`. In outbound mode the sheet:
 
 1. Lists one "Open in {site}" row per winner.
-2. Adds "Open without routing", which returns `_DispatchChoiceFallback` and runs the fallback action.
+2. Adds "Open without routing", which returns `DispatchChoiceFallback` and runs the fallback action.
 3. Hides the send-or-open-to-a-site row (`offerBind == false`) and the create row (`offerCreate == false`). Mid-browse is not the moment to change a destination's claims or spawn a site.
 4. Shows "Always use this when opening links from {sourceName}" beneath the winners, checked by default: the user already chose a winner, and remembering is what stops the picker recurring.
-5. Returns `_DispatchChoiceOpen(site, remember: bool)`. Dismissal returns null, and null opens nothing, the same as the inbound sheet.
+5. Returns `DispatchChoiceOpen(site, remember: bool)`. Dismissal returns null, and null opens nothing, the same as the inbound sheet.
 
 On `remember`, the executor appends `OutboundPreference(claim, site.siteId)` for each claim of `claimsToAdoptUrl(targetUrl)` that the source does not already hold (by claim, whatever the target), persists with `_saveWebViewModels`, then executes `DispatchOpenNested(sourceIsParent: true)`. `claimsToAdoptUrl` rather than `claimsToAdoptHost`, so a `host:port` URL yields its one port-bearing `exactHost` as the inbound bind does.
 
@@ -146,7 +147,7 @@ The hook reads the source's live `routeOutboundLinks` (settings edits apply with
 
 `_executeOutboundDispatch`:
 - `DispatchOpenNested(sourceIsParent: true)`: `_executeOpenNested` without `_maybeSwitchToAllForSite`, plus the return path in D6.
-- `DispatchShowPicker(source: ...)`: `_showDispatchPicker`; on a winner, optional writeback (D4) then the routed open; on "Open without routing", `_launchNestedForModel(source, url)` or `launchUrlInSystemBrowser(url)`. This is the one place the fallback runs from `main.dart`, and it goes through the NESTED-010 funnel.
+- `DispatchShowPicker(source: ...)`: `_showOutboundPicker`; on a winner, optional writeback (D4) then the routed open; on "Open without routing", `_launchNestedForModel(source, url)` or `launchUrlInSystemBrowser(url)`. This is the one place the fallback runs from `main.dart`, and it goes through the NESTED-010 funnel.
 
 ### D6. Webspace and proxy on the way back
 
@@ -160,7 +161,7 @@ An entry is an orphan when its target is not an LIR-014 candidate of its source:
 
 - **Startup**: pruned in memory inside `_loadWebViewModels`, which then sets `_needsMigrationResave`, so the post-paint `DeferredStartupEngine.runPostPaintMaintenance` persists it with the rest of the load-time migration. No extra prefs write on the first-frame path.
 - **`_deleteSite`**: pruned on the survivors before its existing `_saveWebViewModels`, so a delete stays one persist.
-- **`_importSettings`**: pruned on `restoredSites` before they replace the live list. Import is all-or-nothing now (the whole backup is parsed before live state is touched), so a dangling entry comes from the backup itself: a hand-edited file, or a site that pointed at a deleted one before the prune ran.
+- **Import**: pruned in `planSettingsImport`, on the restored sites, before `_importSettings` replaces the live list with them (BACKUP-013: the plan decides, `_importSettings` applies). Import is all-or-nothing now (the whole backup is parsed before live state is touched), so a dangling entry comes from the backup itself: a hand-edited file, or a site that pointed at a deleted one before the prune ran.
 - **Archive moves**: `_moveSiteToArchive` and `_moveSiteOutOfArchive` drop the entries the move leaves pointing across the boundary, in both directions. Without this, the app-tier list would name an archive-tier site while the archive is open and not after it closes, which is an ARCH-001 break.
 
 No user notification: an orphaned preference is silent state, not configuration the user should be alerted about. `resolveOutbound` ignores targets that are not in its live `candidates` argument anyway, which covers the window before a prune runs.
@@ -188,18 +189,22 @@ New strings go through `app_en.arb` with descriptions; the 66 translations ride 
 
 ### D9. Tests
 
-Pure Dart, fast:
+Pure Dart, fast, in `test/outbound_routing_test.dart`:
 
-- `test/link_routing_test.dart`: `resolveOutbound`: preference beats global single; preference skipped when its target is not a candidate; equal-score preferences resolve by list order; global single and ambiguous pass through; self-match through a preference and through a claim; port-bearing URLs score like `resolve`.
-- `test/link_intent_dispatch_engine_test.dart`: `dispatchOutbound`: every table row in D3, including no-gesture and legacy-engine fallbacks and both fallback kinds.
-- `test/navigation_decision_engine_test.dart`: `hadGesture` on both decisions: a direct gesture, a propagated one inside the window, none outside it.
-- `test/web_view_model_test.dart`: JSON round-trip of both fields, omission at default, legacy load.
-- `test/site_settings_qr_codec_test.dart`: the toggle is shared, the list is not; the drift test gains a model with non-default outbound fields.
-- `test/outbound_preference_gc_test.dart` (new): the prune as a pure function over `(sites, candidatesOf)`, exercised for startup, delete, import and both archive moves; untouched entries stay.
-- `test/site_behaviour_screen_test.dart`: row order, hint without subtitle, legacy-engine disable, preferences row visibility, dirty-snapshot round-trip.
-- Picker: outbound mode hides bind and create, shows "Open without routing", the checkbox drives `remember`, dismissal returns null.
+- `resolveOutbound`: preference beats global single; preference skipped when its target is not a candidate; equal-score preferences resolve by list order; global single and ambiguous pass through; self-match through a preference and through a claim; port-bearing URLs score like `resolve`.
+- `dispatchOutbound`: every table row in D3, including no-gesture and legacy-engine fallbacks and both fallback kinds; `preferencesToRemember`.
+- `hadGesture` on both decisions: a direct gesture, a propagated one inside the window, none outside it.
+- JSON round-trip of both fields, omission at default, legacy load, odd entries dropped.
+- The boundary rule and the prune as pure functions, and the prune inside `planSettingsImport`.
 
-Structural: `test/nested_webview_field_parity_test.dart` already holds every `launchUrl(` in `main.dart` to the whole chain, and the routed open adds no new one. A new `test/js/outbound_link_funnel.test.js` asserts each of the four `blockOpenNested` / `blockOpenExternal` branches in `web_view_model.dart` consults `onOutboundLink` before launching, so a fifth branch cannot skip routing silently.
+Elsewhere:
+
+- `test/site_settings_qr_codec_test.dart`: the toggle is shared, the list is not; the drift test also classifies every site key of `tool/backup_compat/superset.json`, which sets both fields.
+- `test/archive_neutrality_test.dart`: an app-tier preference naming a site moved into an archive is pruned to the bytes it has once the archive is closed.
+- `test/site_behaviour_screen_test.dart`: row order, hint without subtitle, legacy-engine disable, preferences row visibility and count, adding a preference, refusing a taken claim.
+- `test/dispatch_picker_sheet_test.dart`: outbound mode hides bind and create, shows "Open without routing", the checkbox drives `remember`, dismissal returns null; inbound mode unchanged.
+
+Structural: `test/nested_webview_field_parity_test.dart` already holds every `launchUrl(` in `main.dart` to the whole chain, and the routed open adds no new one. A new `test/js/outbound_link_funnel.test.js` asserts each of the four `blockOpenNested` / `blockOpenExternal` branches in `web_view_model.dart` consults `onOutboundLink` before launching, so a fifth branch cannot skip routing silently; that every site webview `main.dart` builds, through `getWebView` or `getController`, carries the hook; and that routing checks the toggle, the kiosk lock, the gesture, the engine and the boundary.
 
 Manual: DuckDuckGo with routing on, on Android: a GitHub result lands in the GitHub site signed in; back returns to DuckDuckGo in the same webspace; with mismatched proxies, DuckDuckGo comes back under its own proxy.
 

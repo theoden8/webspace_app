@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/link_routing_service.dart';
+import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/hint_button.dart';
 
@@ -451,8 +452,107 @@ class _ClaimRow extends StatelessWidget {
   }
 }
 
+/// A site's outbound routing preferences (LIR-013, BEHAV-003): each names the
+/// site a link covered by its claim opens as when this site opens it. Edits a
+/// copy and hands every change to [onChanged], so the caller keeps the list in
+/// its dirty snapshot and saves it with the rest of the site.
+class OutboundPreferencesScreen extends StatefulWidget {
+  final List<OutboundPreference> preferences;
+
+  /// The sites a preference may name: the site's LIR-014 candidates other
+  /// than itself.
+  final List<WebViewModel> targets;
+  final ValueChanged<List<OutboundPreference>> onChanged;
+
+  const OutboundPreferencesScreen({
+    super.key,
+    required this.preferences,
+    required this.targets,
+    required this.onChanged,
+  });
+
+  @override
+  State<OutboundPreferencesScreen> createState() =>
+      _OutboundPreferencesScreenState();
+}
+
+class _OutboundPreferencesScreenState extends State<OutboundPreferencesScreen> {
+  late List<OutboundPreference> _prefs = [...widget.preferences];
+
+  void _commit(List<OutboundPreference> next) {
+    setState(() => _prefs = next);
+    widget.onChanged(next);
+  }
+
+  Future<void> _add() async {
+    final result = await showDialog<OutboundPreference>(
+      context: context,
+      builder: (_) => _AddClaimDialog(
+        targets: widget.targets,
+        existing: _prefs,
+      ),
+    );
+    if (result == null) return;
+    // The dialog refuses a claim that already routes to a listed site; one
+    // that names a site no longer listed is replaced, not duplicated.
+    _commit([
+      for (final p in _prefs)
+        if (p.claim != result.claim) p,
+      result,
+    ]);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
+    final byId = {for (final t in widget.targets) t.siteId: t};
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(loc.outboundPreferencesTitle),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            tooltip: loc.outboundPreferenceAdd,
+            onPressed: widget.targets.isEmpty ? null : _add,
+          ),
+        ],
+      ),
+      body: _prefs.isEmpty
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(loc.outboundPreferencesGlobalOnly),
+              ),
+            )
+          : ListView(
+              children: [
+                for (var i = 0; i < _prefs.length; i++)
+                  if (byId[_prefs[i].targetSiteId] case final target?)
+                    ListTile(
+                      title: Text(_claimLabel(loc, _prefs[i].claim)),
+                      subtitle: Text(
+                        loc.outboundPreferenceOpensAs(target.getDisplayName()),
+                      ),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete_outline),
+                        onPressed: () => _commit([..._prefs]..removeAt(i)),
+                      ),
+                    ),
+              ],
+            ),
+    );
+  }
+}
+
+/// Adds a [DomainClaim] or, with [targets] set, an [OutboundPreference] for
+/// the claim and one of [targets].
 class _AddClaimDialog extends StatefulWidget {
-  const _AddClaimDialog();
+  const _AddClaimDialog({this.targets, this.existing = const []});
+
+  final List<WebViewModel>? targets;
+
+  /// The preferences already held, so a claim routes to one site only.
+  final List<OutboundPreference> existing;
 
   @override
   State<_AddClaimDialog> createState() => _AddClaimDialogState();
@@ -461,6 +561,32 @@ class _AddClaimDialog extends StatefulWidget {
 class _AddClaimDialogState extends State<_AddClaimDialog> {
   DomainClaimKind _kind = DomainClaimKind.exactHost;
   final _controller = TextEditingController();
+  late String? _targetId = widget.targets?.firstOrNull?.siteId;
+  String? _takenBy;
+
+  void _submit() {
+    final v = _controller.text.trim();
+    if (v.isEmpty) return;
+    final claim = DomainClaim(_kind, v);
+    final targets = widget.targets;
+    if (targets == null) {
+      Navigator.of(context).pop(claim);
+      return;
+    }
+    final targetId = _targetId;
+    if (targetId == null) return;
+    for (final p in widget.existing) {
+      if (p.claim != claim) continue;
+      final holder =
+          targets.where((t) => t.siteId == p.targetSiteId).firstOrNull;
+      if (holder != null) {
+        setState(() => _takenBy = holder.getDisplayName());
+        return;
+      }
+    }
+    Navigator.of(context)
+        .pop(OutboundPreference(claim: claim, targetSiteId: targetId));
+  }
 
   @override
   void dispose() {
@@ -471,8 +597,12 @@ class _AddClaimDialogState extends State<_AddClaimDialog> {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
+    final targets = widget.targets;
+    final takenBy = _takenBy;
     return AlertDialog(
-      title: Text(loc.linkHandlingAddClaimDialogTitle),
+      title: Text(targets == null
+          ? loc.linkHandlingAddClaimDialogTitle
+          : loc.outboundPreferenceAdd),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -481,7 +611,12 @@ class _AddClaimDialogState extends State<_AddClaimDialog> {
             value: _kind,
             isExpanded: true,
             onChanged: (v) {
-              if (v != null) setState(() => _kind = v);
+              if (v != null) {
+                setState(() {
+                  _kind = v;
+                  _takenBy = null;
+                });
+              }
             },
             items: [
               DropdownMenuItem(
@@ -501,10 +636,37 @@ class _AddClaimDialogState extends State<_AddClaimDialog> {
               labelText: loc.linkHandlingHostnameLabel,
               border: const OutlineInputBorder(),
               hintText: loc.linkHandlingHostnameHint,
+              errorText:
+                  takenBy == null ? null : loc.outboundPreferenceClaimTaken(takenBy),
             ),
             keyboardType: TextInputType.url,
             autofocus: true,
+            onChanged: (_) {
+              if (_takenBy != null) setState(() => _takenBy = null);
+            },
           ),
+          if (targets != null) ...[
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: _targetId,
+              isExpanded: true,
+              decoration: InputDecoration(
+                labelText: loc.outboundPreferenceTargetLabel,
+                border: const OutlineInputBorder(),
+              ),
+              onChanged: (v) => setState(() => _targetId = v),
+              items: [
+                for (final t in targets)
+                  DropdownMenuItem(
+                    value: t.siteId,
+                    child: Text(
+                      t.getDisplayName(),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+              ],
+            ),
+          ],
         ],
       ),
       actions: [
@@ -513,11 +675,7 @@ class _AddClaimDialogState extends State<_AddClaimDialog> {
           child: Text(loc.commonCancel),
         ),
         ElevatedButton(
-          onPressed: () {
-            final v = _controller.text.trim();
-            if (v.isEmpty) return;
-            Navigator.of(context).pop(DomainClaim(_kind, v));
-          },
+          onPressed: _submit,
           child: Text(loc.commonAdd),
         ),
       ],
