@@ -14,6 +14,7 @@ import 'package:webspace/services/file_store_io.dart';
 import 'package:webspace/services/archive.dart';
 import 'package:webspace/services/archive_storage.dart';
 import 'package:webspace/services/webview_state_secure_storage.dart';
+import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/services/archive_membership_engine.dart';
 import 'package:webspace/services/settings_import_engine.dart';
@@ -131,6 +132,28 @@ void main() {
     test('persistsNavState is true for a plain app-tier site', () {
       final m = WebViewModel(initUrl: 'https://a.test');
       expect(m.persistsNavState, isTrue);
+    });
+
+    // Saved sign-ins live in app-tier secure storage keyed by the cleartext
+    // siteId, so an archive-tier site must neither read nor write them.
+    test('effectiveHttpAuthMemory is off for archive-tier sites', () {
+      expect(
+        WebViewModel(initUrl: 'https://a.test', isArchiveTier: true)
+            .effectiveHttpAuthMemory,
+        HttpAuthMemory.off,
+      );
+    });
+
+    test('effectiveHttpAuthMemory is read-only for incognito sites', () {
+      expect(
+        WebViewModel(initUrl: 'https://a.test', incognito: true)
+            .effectiveHttpAuthMemory,
+        HttpAuthMemory.readOnly,
+      );
+      expect(
+        WebViewModel(initUrl: 'https://a.test').effectiveHttpAuthMemory,
+        HttpAuthMemory.readWrite,
+      );
     });
   });
 

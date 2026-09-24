@@ -4321,5 +4321,64 @@
   "torIsolateDestAddrHint": "Each site always gets its own Tor circuit. With this on, a site also gets a separate circuit for every host it loads from, so one page can reach the internet from two or more exit addresses at once — more isolation, but a site that checks your address across its own hosts may log you out. Turning it off gives the site one address for everything it loads. Changing this takes effect the next time you open the app.",
   "@torIsolateDestAddrHint": {
     "description": "Explanation shown in the hint dialog for the \"Separate circuit per destination\" switch. Mentions the trade-off: more isolation versus sites that verify the client's IP address across their own hostnames."
+  },
+  "httpAuthTitle": "Sign in",
+  "@httpAuthTitle": {
+    "description": "Title of the dialog shown when a website's server requires a username and password before it will show the page (HTTP authentication, for example a folder protected by an htpasswd file)."
+  },
+  "httpAuthBody": "{host} is asking for a username and password.",
+  "@httpAuthBody": {
+    "description": "Body of the HTTP authentication sign-in dialog, naming the server that asked for credentials.",
+    "placeholders": {
+      "host": {
+        "type": "String",
+        "example": "nas.example.com"
+      }
+    }
+  },
+  "httpAuthRejected": "That username and password were not accepted.",
+  "@httpAuthRejected": {
+    "description": "Error line in the HTTP authentication sign-in dialog when it reopens because the server refused the username and password that were sent last time."
+  },
+  "httpAuthUsername": "Username",
+  "@httpAuthUsername": {
+    "description": "Label of the username text field in the HTTP authentication sign-in dialog."
+  },
+  "httpAuthPassword": "Password",
+  "@httpAuthPassword": {
+    "description": "Label of the password text field in the HTTP authentication sign-in dialog."
+  },
+  "httpAuthRemember": "Remember for this site",
+  "@httpAuthRemember": {
+    "description": "Checkbox in the HTTP authentication sign-in dialog. When ticked, the username and password are saved on this device so the site signs in by itself next time."
+  },
+  "httpAuthSignIn": "Sign in",
+  "@httpAuthSignIn": {
+    "description": "Button in the HTTP authentication sign-in dialog that sends the typed username and password to the server."
+  },
+  "siteSettingsSavedSignIns": "Saved sign-ins",
+  "@siteSettingsSavedSignIns": {
+    "description": "Title of the site settings row listing usernames and passwords saved from the HTTP authentication sign-in dialog for this site."
+  },
+  "siteSettingsSavedSignInsCount": "{count, plural, =1{1 saved} other{{count} saved}}",
+  "@siteSettingsSavedSignInsCount": {
+    "description": "Subtitle of the Saved sign-ins row in site settings: how many username and password pairs are saved for this site. Never shown for zero; siteSettingsSavedSignInsNone is shown instead.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "siteSettingsSavedSignInsNone": "None",
+  "@siteSettingsSavedSignInsNone": {
+    "description": "Subtitle of the Saved sign-ins row in site settings when no username and password is saved for this site."
+  },
+  "siteSettingsSavedSignInsHint": "When this site's server asks for a username and password (HTTP authentication, such as a folder protected by an htpasswd file), a sign-in dialog opens. Ticking \"Remember for this site\" keeps that sign-in in this device's secure storage, where only this site can use it. Saved sign-ins are never included in settings backups or shared QR codes. Clearing them does not sign out a page that is already open.",
+  "@siteSettingsSavedSignInsHint": {
+    "description": "Explanation shown in the hint dialog of the Saved sign-ins row in site settings. Explains when the sign-in dialog appears, where remembered usernames and passwords are kept, that backups never contain them, and that clearing them does not end a session already open."
+  },
+  "siteSettingsSavedSignInsClearTitle": "Forget saved sign-ins for this site?",
+  "@siteSettingsSavedSignInsClearTitle": {
+    "description": "Title of the confirmation dialog shown before deleting every username and password saved for this site from the HTTP authentication sign-in dialog."
   }
 }

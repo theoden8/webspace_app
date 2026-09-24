@@ -44,6 +44,7 @@ const migrated = new Set([
   'lib/widgets/find_toolbar.dart',
   'lib/widgets/firefox_version_tile.dart',
   'lib/widgets/hint_button.dart',
+  'lib/widgets/http_auth_prompt.dart',
   'lib/widgets/proxy_auth_section.dart',
   'lib/widgets/proxy_test_tile.dart',
   'lib/widgets/level_slider.dart',

@@ -14,6 +14,7 @@ import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/html_cache_service.dart';
+import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/link_routing_service.dart' show LinkRoutingService;
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/media_session_service.dart';
@@ -445,6 +446,7 @@ typedef LaunchUrlFunc = void Function(
   ScreenShareMode screenShareMode,
   VirtualScreenSource? virtualScreenSource,
   bool? protectedContentAllowed,
+  HttpAuthMemory httpAuthMemory,
 });
 
 /// Interpret a renderer-health probe result. The probe reads
@@ -788,6 +790,14 @@ class WebViewModel {
   /// session beyond cookies." The stored value is preserved for when the
   /// site is moved back out of the archive.
   bool get effectiveIncognito => isArchiveTier ? true : incognito;
+
+  /// What the site may do with sign-ins typed into the HTTP authentication
+  /// prompt (HTTPAUTH-004). Archive-tier sites neither read nor save: the
+  /// store is app-tier secure storage keyed by `siteId` (ARCH-006).
+  /// Incognito sites use a saved sign-in but never save a new one.
+  HttpAuthMemory get effectiveHttpAuthMemory => isArchiveTier
+      ? HttpAuthMemory.off
+      : (incognito ? HttpAuthMemory.readOnly : HttpAuthMemory.readWrite);
 
   /// Effective third-party cookie enable. Tracking Protection forces it off
   /// (ETP-024): third-party cookies are the oldest cross-site tracking
@@ -1234,6 +1244,7 @@ class WebViewModel {
       int port,
       inapp.SslCertificate? certificate,
     )? onUntrustedCertificate,
+    HttpAuthPrompt? onHttpAuthRequest,
     Future<void> Function(String url, ExternalUrlInfo info)? onExternalSchemeUrl,
     Future<bool> Function(String origin)? onProtectedMediaRequest,
     Future<CameraDecision> Function(String origin, CameraAccessMode current)?
@@ -1385,6 +1396,8 @@ class WebViewModel {
           userScripts: combineUserScripts(globalUserScripts),
           onConfirmScriptFetch: onConfirmScriptFetch,
           onUntrustedCertificate: onUntrustedCertificate,
+          onHttpAuthRequest: onHttpAuthRequest,
+          httpAuthMemory: effectiveHttpAuthMemory,
           onExternalSchemeUrl: onExternalSchemeUrl,
           onProtectedMediaRequest: onProtectedMediaRequest == null
               ? null
@@ -1497,7 +1510,7 @@ class WebViewModel {
                   '  -> CANCEL (opening nested webview)',
                   sensitivity: LogSensitivity.sensitive,
                 );
-                launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, httpsUpgradeEnabled: effectiveHttpsUpgradeEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, dnsBlockLevel: effectiveDnsBlockLevel, contentBlockEnabled: contentBlockEnabled, disabledFilterLists: effectiveDisabledFilterLists, localCdnEnabled: effectiveLocalCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: outboundProxySettings, notificationsEnabled: effectiveNotificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser, blockAutoRedirects: blockAutoRedirects, blockedCookies: blockedCookies, cameraMode: effectiveCameraMode, virtualCameraSource: virtualCameraSource, microphoneMode: effectiveMicrophoneMode, virtualMicrophoneSource: virtualMicrophoneSource, screenShareMode: effectiveScreenShareMode, virtualScreenSource: virtualScreenSource, protectedContentAllowed: effectiveProtectedContentAllowed);
+                launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, httpsUpgradeEnabled: effectiveHttpsUpgradeEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, dnsBlockLevel: effectiveDnsBlockLevel, contentBlockEnabled: contentBlockEnabled, disabledFilterLists: effectiveDisabledFilterLists, localCdnEnabled: effectiveLocalCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: outboundProxySettings, notificationsEnabled: effectiveNotificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser, blockAutoRedirects: blockAutoRedirects, blockedCookies: blockedCookies, cameraMode: effectiveCameraMode, virtualCameraSource: virtualCameraSource, microphoneMode: effectiveMicrophoneMode, virtualMicrophoneSource: virtualMicrophoneSource, screenShareMode: effectiveScreenShareMode, virtualScreenSource: virtualScreenSource, protectedContentAllowed: effectiveProtectedContentAllowed, httpAuthMemory: effectiveHttpAuthMemory);
                 return false;
               case NavigationDecision.blockOpenExternal:
                 LogService.instance.log(
@@ -1605,7 +1618,7 @@ class WebViewModel {
                     sensitivity: LogSensitivity.sensitive,
                   );
                   if (handled.launchNestedUrl != null) {
-                    launchUrlFunc(handled.launchNestedUrl!, homeTitle: name, siteId: siteId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, httpsUpgradeEnabled: effectiveHttpsUpgradeEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, dnsBlockLevel: effectiveDnsBlockLevel, contentBlockEnabled: contentBlockEnabled, disabledFilterLists: effectiveDisabledFilterLists, localCdnEnabled: effectiveLocalCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: outboundProxySettings, notificationsEnabled: effectiveNotificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser, blockAutoRedirects: blockAutoRedirects, blockedCookies: blockedCookies, cameraMode: effectiveCameraMode, virtualCameraSource: virtualCameraSource, microphoneMode: effectiveMicrophoneMode, virtualMicrophoneSource: virtualMicrophoneSource, screenShareMode: effectiveScreenShareMode, virtualScreenSource: virtualScreenSource, protectedContentAllowed: effectiveProtectedContentAllowed);
+                    launchUrlFunc(handled.launchNestedUrl!, homeTitle: name, siteId: siteId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, httpsUpgradeEnabled: effectiveHttpsUpgradeEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, dnsBlockLevel: effectiveDnsBlockLevel, contentBlockEnabled: contentBlockEnabled, disabledFilterLists: effectiveDisabledFilterLists, localCdnEnabled: effectiveLocalCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: outboundProxySettings, notificationsEnabled: effectiveNotificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser, blockAutoRedirects: blockAutoRedirects, blockedCookies: blockedCookies, cameraMode: effectiveCameraMode, virtualCameraSource: virtualCameraSource, microphoneMode: effectiveMicrophoneMode, virtualMicrophoneSource: virtualMicrophoneSource, screenShareMode: effectiveScreenShareMode, virtualScreenSource: virtualScreenSource, protectedContentAllowed: effectiveProtectedContentAllowed, httpAuthMemory: effectiveHttpAuthMemory);
                   }
                   return;
                 case NavigationDecision.blockOpenExternal:

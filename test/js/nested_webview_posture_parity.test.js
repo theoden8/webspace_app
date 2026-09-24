@@ -144,6 +144,10 @@ const POSTURE = new Set([
   'spoofLongitude', 'spoofAccuracy', 'spoofTimezone', 'spoofTimezoneFromLocation',
   'liveLocationGranularity', 'webRtcPolicy', 'proxySettings',
   'notificationsEnabled', 'contributesBlockStats',
+  // Off for archive-tier, read-only for incognito (HTTPAUTH-004): a nested
+  // webview answering from saved sign-ins, or saving one, has to hold the
+  // opening site to the same rule.
+  'httpAuthMemory',
 ]);
 
 const PLUMBING = new Set([
@@ -177,7 +181,7 @@ const PLUMBING = new Set([
   // Host callbacks, wired by each surface to its own resolver rather than
   // copied as a value. Both were invisible to this gate until the field parser
   // learned to read a declaration whose type wraps onto a second line.
-  'onScreenShareDecision', 'onUntrustedCertificate',
+  'onScreenShareDecision', 'onUntrustedCertificate', 'onHttpAuthRequest',
   // Host callback for a navigation refused because proxy coverage could not
   // be established (LEAK-010). Both surfaces wire it to their own
   // interstitial: the root to the overlay WebViewModel.getWebView renders,

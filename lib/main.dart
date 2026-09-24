@@ -41,6 +41,8 @@ import 'package:webspace/widgets/url_bar.dart';
 import 'package:webspace/demo_data.dart' show seedDemoData, isDemoMode;
 import 'package:webspace/services/image_cache_service.dart';
 import 'package:webspace/services/html_cache_service.dart';
+import 'package:webspace/services/http_auth_engine.dart';
+import 'package:webspace/services/http_auth_secure_storage.dart';
 import 'package:webspace/services/html_source.dart';
 import 'package:webspace/services/deferred_startup_engine.dart';
 import 'package:webspace/services/timezone_spoof_policy.dart';
@@ -132,6 +134,7 @@ import 'package:webspace/widgets/external_url_prompt.dart';
 import 'package:webspace/widgets/root_messenger.dart';
 import 'package:webspace/widgets/site_permission_badges.dart';
 import 'package:webspace/widgets/surface_nudge_scope.dart';
+import 'package:webspace/widgets/http_auth_prompt.dart';
 import 'package:webspace/widgets/untrusted_cert_prompt.dart';
 
 // Accent color enum
@@ -2967,6 +2970,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         screenShareMode: model.effectiveScreenShareMode,
         virtualScreenSource: model.virtualScreenSource,
         protectedContentAllowed: model.effectiveProtectedContentAllowed,
+        httpAuthMemory: model.effectiveHttpAuthMemory,
       );
 
   /// LIR-009 + LIR-010 option 3: create a brand-new site rooted at the
@@ -5803,6 +5807,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     ScreenShareMode screenShareMode = ScreenShareMode.ask,
     VirtualScreenSource? virtualScreenSource,
     bool? protectedContentAllowed,
+    HttpAuthMemory httpAuthMemory = HttpAuthMemory.off,
   }) async {
     await Navigator.push(
       context,
@@ -5867,6 +5872,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           screenShareMode: screenShareMode,
           virtualScreenSource: virtualScreenSource,
           protectedContentAllowed: protectedContentAllowed,
+          httpAuthMemory: httpAuthMemory,
         ),
       ),
     );
@@ -5889,6 +5895,13 @@ class _WebSpacePageState extends State<WebSpacePage>
       port: port,
       certificate: certificate,
     );
+  }
+
+  /// Stable callback for the HTTP authentication sign-in prompt, shared by
+  /// parent and nested webviews (HTTPAUTH-003).
+  Future<HttpAuthPromptResult?> _promptHttpAuth(HttpAuthPromptRequest request) {
+    if (!mounted) return Future.value(null);
+    return promptHttpAuth(context, request);
   }
 
   /// Stable callback for the user-script fetch-from-URL confirmation prompt.
@@ -6785,6 +6798,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         .toSet();
     await _cookieSecureStorage.removeOrphanedCookies(activeSiteIds);
     await _proxyPasswordStorage.removeOrphaned(activeSiteIds);
+    await HttpAuthSecureStorage.instance.removeOrphaned(activeSiteIds);
     await HtmlCacheService.instance.removeOrphanedCaches(activeSiteIds);
     await HtmlImportStorage.instance.removeOrphanedImports(activeSiteIds);
     await BlockStatsService.instance.removeOrphanedSites(activeSiteIds);
@@ -8727,6 +8741,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     final activeSiteIds = _webViewModels.map((m) => m.siteId).toSet();
     await _cookieSecureStorage.removeOrphanedCookies(activeSiteIds);
     await _proxyPasswordStorage.removeOrphaned(activeSiteIds);
+    await HttpAuthSecureStorage.instance.removeOrphaned(activeSiteIds);
     await HtmlCacheService.instance.removeOrphanedCaches(activeSiteIds);
     await HtmlImportStorage.instance.removeOrphanedImports(activeSiteIds);
     await _stateStorage.removeOrphans(activeSiteIds);
@@ -9436,6 +9451,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                                   onScreenShareDecision:
                                       _resolveScreenShareDecision,
                                   onUntrustedCertificate: _promptUntrustedCertificate,
+                                  onHttpAuthRequest: _promptHttpAuth,
                                   onExternalSchemeUrl: (url, info) async {
                                     if (!mounted) return;
                                     await confirmAndLaunchExternalUrl(
@@ -9842,6 +9858,10 @@ class _OrphanSweepTargets implements OrphanSweepTargets {
   @override
   Future<void> removeOrphanedProxyPasswords(Set<String> activeSiteIds) =>
       state._proxyPasswordStorage.removeOrphaned(activeSiteIds);
+
+  @override
+  Future<void> removeOrphanedHttpAuthCredentials(Set<String> activeSiteIds) =>
+      HttpAuthSecureStorage.instance.removeOrphaned(activeSiteIds);
 
   @override
   Future<void> removeOrphanedHtmlCaches(Set<String> nonIncognitoSiteIds) =>
