@@ -893,5 +893,17 @@
   "proxyTestAuthRejected": "Välityspalvelin hylkäsi nämä tunnukset",
   "proxyTestUnreachable": "Välityspalvelinta ei tavoitettu",
   "torIsolateDestAddrTitle": "Erillinen piiri kohdetta kohden",
-  "torIsolateDestAddrHint": "Jokainen sivusto saa aina oman Tor-piirinsä. Kun tämä on käytössä, sivusto saa erillisen piirin myös jokaiselle palvelimelle, josta se lataa, joten yksi sivu voi näkyä internetiin kahdesta tai useammasta poistumisosoitteesta yhtä aikaa — enemmän eristystä, mutta sivusto, joka tarkistaa osoitteesi omien palvelimiensa välillä, voi kirjata sinut ulos. Pois päältä sivusto saa yhden osoitteen kaikelle lataamalleen. Muutos tulee voimaan, kun avaat sovelluksen seuraavan kerran."
+  "torIsolateDestAddrHint": "Jokainen sivusto saa aina oman Tor-piirinsä. Kun tämä on käytössä, sivusto saa erillisen piirin myös jokaiselle palvelimelle, josta se lataa, joten yksi sivu voi näkyä internetiin kahdesta tai useammasta poistumisosoitteesta yhtä aikaa — enemmän eristystä, mutta sivusto, joka tarkistaa osoitteesi omien palvelimiensa välillä, voi kirjata sinut ulos. Pois päältä sivusto saa yhden osoitteen kaikelle lataamalleen. Muutos tulee voimaan, kun avaat sovelluksen seuraavan kerran.",
+  "httpAuthTitle": "Kirjautuminen",
+  "httpAuthBody": "{host} pyytää käyttäjätunnusta ja salasanaa.",
+  "httpAuthRejected": "Käyttäjätunnusta ja salasanaa ei hyväksytty.",
+  "httpAuthUsername": "Käyttäjätunnus",
+  "httpAuthPassword": "Salasana",
+  "httpAuthRemember": "Muista tällä sivustolla",
+  "httpAuthSignIn": "Kirjaudu sisään",
+  "siteSettingsSavedSignIns": "Tallennetut kirjautumiset",
+  "siteSettingsSavedSignInsCount": "{count, plural, =1{1 tallennettu} other{{count} tallennettu}}",
+  "siteSettingsSavedSignInsNone": "Ei yhtään",
+  "siteSettingsSavedSignInsHint": "Kun tämän sivuston palvelin pyytää käyttäjätunnusta ja salasanaa (HTTP-todennus, esimerkiksi htpasswd-tiedostolla suojattu kansio), avautuu kirjautumisikkuna. Jos valitset \"Muista tällä sivustolla\", kirjautuminen säilytetään tämän laitteen suojatussa tallennustilassa, jossa vain tämä sivusto voi käyttää sitä. Tallennettuja kirjautumisia ei koskaan sisällytetä asetusten varmuuskopioihin eikä jaettuihin QR-koodeihin. Niiden tyhjentäminen ei kirjaa ulos jo avoinna olevaa sivua.",
+  "siteSettingsSavedSignInsClearTitle": "Unohdetaanko tämän sivuston tallennetut kirjautumiset?"
 }

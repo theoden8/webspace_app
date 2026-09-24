@@ -893,5 +893,17 @@
   "proxyTestAuthRejected": "Proxy je odbio ove podatke za prijavu",
   "proxyTestUnreachable": "Nije moguće doseći proxy",
   "torIsolateDestAddrTitle": "Zaseban krug po odredištu",
-  "torIsolateDestAddrHint": "Svaka stranica uvijek dobiva vlastiti Tor krug. Kada je ovo uključeno, stranica dobiva zaseban krug i za svaki host s kojeg učitava, pa jedna stranica može doći na internet s dvije ili više izlaznih adresa istovremeno — više izolacije, ali stranica koja provjerava vašu adresu na svojim hostovima može vas odjaviti. Isključeno, stranica ima jednu adresu za sve što učitava. Ova promjena stupa na snagu kada sljedeći put otvorite aplikaciju."
+  "torIsolateDestAddrHint": "Svaka stranica uvijek dobiva vlastiti Tor krug. Kada je ovo uključeno, stranica dobiva zaseban krug i za svaki host s kojeg učitava, pa jedna stranica može doći na internet s dvije ili više izlaznih adresa istovremeno — više izolacije, ali stranica koja provjerava vašu adresu na svojim hostovima može vas odjaviti. Isključeno, stranica ima jednu adresu za sve što učitava. Ova promjena stupa na snagu kada sljedeći put otvorite aplikaciju.",
+  "httpAuthTitle": "Prijava",
+  "httpAuthBody": "{host} traži korisničko ime i lozinku.",
+  "httpAuthRejected": "To korisničko ime i lozinka nisu prihvaćeni.",
+  "httpAuthUsername": "Korisničko ime",
+  "httpAuthPassword": "Lozinka",
+  "httpAuthRemember": "Zapamti za ovu stranicu",
+  "httpAuthSignIn": "Prijavi se",
+  "siteSettingsSavedSignIns": "Sačuvane prijave",
+  "siteSettingsSavedSignInsCount": "{count, plural, one{{count} sačuvana} few{{count} sačuvane} other{{count} sačuvanih}}",
+  "siteSettingsSavedSignInsNone": "Nema",
+  "siteSettingsSavedSignInsHint": "Kada server ove stranice zatraži korisničko ime i lozinku (HTTP autentifikacija, npr. folder zaštićen datotekom htpasswd), otvara se dijalog za prijavu. Ako označite \"Zapamti za ovu stranicu\", ta prijava se čuva u sigurnoj pohrani ovog uređaja, gdje je može koristiti samo ova stranica. Sačuvane prijave nikada nisu uključene u sigurnosne kopije postavki niti u dijeljene QR kodove. Njihovo brisanje ne odjavljuje stranicu koja je već otvorena.",
+  "siteSettingsSavedSignInsClearTitle": "Zaboraviti sačuvane prijave za ovu stranicu?"
 }

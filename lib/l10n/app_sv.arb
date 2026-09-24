@@ -893,5 +893,17 @@
   "proxyTestAuthRejected": "Proxyn avvisade dessa uppgifter",
   "proxyTestUnreachable": "Det gick inte att nå proxyn",
   "torIsolateDestAddrTitle": "Separat krets per destination",
-  "torIsolateDestAddrHint": "Varje webbplats får alltid en egen Tor-krets. När det här är på får webbplatsen dessutom en separat krets för varje värd den laddar från, så att en och samma sida kan nå internet från två eller flera utgångsadresser samtidigt — mer isolering, men en webbplats som kontrollerar din adress mellan sina egna värdar kan logga ut dig. Avstängt får webbplatsen en adress för allt den laddar. Ändringen börjar gälla nästa gång du öppnar appen."
+  "torIsolateDestAddrHint": "Varje webbplats får alltid en egen Tor-krets. När det här är på får webbplatsen dessutom en separat krets för varje värd den laddar från, så att en och samma sida kan nå internet från två eller flera utgångsadresser samtidigt — mer isolering, men en webbplats som kontrollerar din adress mellan sina egna värdar kan logga ut dig. Avstängt får webbplatsen en adress för allt den laddar. Ändringen börjar gälla nästa gång du öppnar appen.",
+  "httpAuthTitle": "Logga in",
+  "httpAuthBody": "{host} begär ett användarnamn och ett lösenord.",
+  "httpAuthRejected": "Användarnamnet och lösenordet godtogs inte.",
+  "httpAuthUsername": "Användarnamn",
+  "httpAuthPassword": "Lösenord",
+  "httpAuthRemember": "Kom ihåg för den här webbplatsen",
+  "httpAuthSignIn": "Logga in",
+  "siteSettingsSavedSignIns": "Sparade inloggningar",
+  "siteSettingsSavedSignInsCount": "{count, plural, =1{1 sparad} other{{count} sparade}}",
+  "siteSettingsSavedSignInsNone": "Inga",
+  "siteSettingsSavedSignInsHint": "När den här webbplatsens server begär ett användarnamn och ett lösenord (HTTP-autentisering, till exempel en mapp som skyddas av en htpasswd-fil) öppnas en inloggningsruta. Om du markerar \"Kom ihåg för den här webbplatsen\" sparas inloggningen i enhetens säkra lagring, där bara den här webbplatsen kan använda den. Sparade inloggningar ingår aldrig i säkerhetskopior av inställningarna eller i delade QR-koder. Att rensa dem loggar inte ut dig från en sida som redan är öppen.",
+  "siteSettingsSavedSignInsClearTitle": "Glömma sparade inloggningar för den här webbplatsen?"
 }

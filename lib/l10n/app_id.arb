@@ -893,5 +893,17 @@
   "proxyTestAuthRejected": "Proxy menolak kredensial ini",
   "proxyTestUnreachable": "Tidak dapat menghubungi proxy",
   "torIsolateDestAddrTitle": "Sirkuit terpisah per tujuan",
-  "torIsolateDestAddrHint": "Setiap situs selalu mendapat sirkuit Tor-nya sendiri. Bila ini aktif, situs juga mendapat sirkuit terpisah untuk setiap host yang dimuatnya, sehingga satu halaman bisa mencapai internet dari dua alamat keluar atau lebih sekaligus — isolasi lebih kuat, tetapi situs yang memeriksa alamat Anda di antara host-nya sendiri bisa mengeluarkan Anda. Bila nonaktif, situs memakai satu alamat untuk semua yang dimuatnya. Perubahan ini berlaku saat Anda membuka aplikasi berikutnya."
+  "torIsolateDestAddrHint": "Setiap situs selalu mendapat sirkuit Tor-nya sendiri. Bila ini aktif, situs juga mendapat sirkuit terpisah untuk setiap host yang dimuatnya, sehingga satu halaman bisa mencapai internet dari dua alamat keluar atau lebih sekaligus — isolasi lebih kuat, tetapi situs yang memeriksa alamat Anda di antara host-nya sendiri bisa mengeluarkan Anda. Bila nonaktif, situs memakai satu alamat untuk semua yang dimuatnya. Perubahan ini berlaku saat Anda membuka aplikasi berikutnya.",
+  "httpAuthTitle": "Masuk",
+  "httpAuthBody": "{host} meminta nama pengguna dan kata sandi.",
+  "httpAuthRejected": "Nama pengguna dan kata sandi tersebut tidak diterima.",
+  "httpAuthUsername": "Nama pengguna",
+  "httpAuthPassword": "Kata sandi",
+  "httpAuthRemember": "Ingat untuk situs ini",
+  "httpAuthSignIn": "Masuk",
+  "siteSettingsSavedSignIns": "Info masuk tersimpan",
+  "siteSettingsSavedSignInsCount": "{count, plural, =1{1 tersimpan} other{{count} tersimpan}}",
+  "siteSettingsSavedSignInsNone": "Tidak ada",
+  "siteSettingsSavedSignInsHint": "Saat server situs ini meminta nama pengguna dan kata sandi (autentikasi HTTP, seperti folder yang dilindungi berkas htpasswd), dialog masuk akan terbuka. Jika Anda mencentang \"Ingat untuk situs ini\", info masuk tersebut disimpan di penyimpanan aman perangkat ini, dan hanya situs ini yang dapat menggunakannya. Info masuk tersimpan tidak pernah disertakan dalam cadangan pengaturan maupun kode QR yang dibagikan. Menghapusnya tidak membuat halaman yang sudah terbuka keluar dari akun.",
+  "siteSettingsSavedSignInsClearTitle": "Lupakan info masuk tersimpan untuk situs ini?"
 }

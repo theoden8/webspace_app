@@ -893,5 +893,17 @@
   "proxyTestAuthRejected": "Dhiúltaigh an seachfhreastalaí na dintiúir seo",
   "proxyTestUnreachable": "Níorbh fhéidir teagmháil a dhéanamh leis an seachfhreastalaí",
   "torIsolateDestAddrTitle": "Ciorcad ar leith do gach ceann scríbe",
-  "torIsolateDestAddrHint": "Faigheann gach suíomh a chiorcad Tor féin i gcónaí. Nuair atá sé seo ann, faigheann suíomh ciorcad ar leith do gach óstach as a lódálann sé freisin, mar sin is féidir le leathanach amháin an t-idirlíon a bhaint amach ó dhá sheoladh scoir nó níos mó ag an am céanna — níos mó leithlisithe, ach d'fhéadfadh suíomh a sheiceálann do sheoladh trasna a óstach féin tú a logáil amach. Múchta, faigheann an suíomh seoladh amháin do gach rud a lódálann sé. Tiocfaidh an t-athrú seo i bhfeidhm an chéad uair eile a osclóidh tú an aip."
+  "torIsolateDestAddrHint": "Faigheann gach suíomh a chiorcad Tor féin i gcónaí. Nuair atá sé seo ann, faigheann suíomh ciorcad ar leith do gach óstach as a lódálann sé freisin, mar sin is féidir le leathanach amháin an t-idirlíon a bhaint amach ó dhá sheoladh scoir nó níos mó ag an am céanna — níos mó leithlisithe, ach d'fhéadfadh suíomh a sheiceálann do sheoladh trasna a óstach féin tú a logáil amach. Múchta, faigheann an suíomh seoladh amháin do gach rud a lódálann sé. Tiocfaidh an t-athrú seo i bhfeidhm an chéad uair eile a osclóidh tú an aip.",
+  "httpAuthTitle": "Síniú isteach",
+  "httpAuthBody": "Tá {host} ag iarraidh ainm úsáideora agus pasfhocail.",
+  "httpAuthRejected": "Níor glacadh leis an ainm úsáideora agus leis an bpasfhocal sin.",
+  "httpAuthUsername": "Ainm úsáideora",
+  "httpAuthPassword": "Pasfhocal",
+  "httpAuthRemember": "Cuimhnigh don suíomh seo",
+  "httpAuthSignIn": "Sínigh isteach",
+  "siteSettingsSavedSignIns": "Sonraí sínithe isteach sábháilte",
+  "siteSettingsSavedSignInsCount": "{count, plural, =1{1 sábháilte} other{{count} sábháilte}}",
+  "siteSettingsSavedSignInsNone": "Níl aon cheann",
+  "siteSettingsSavedSignInsHint": "Nuair a iarrann freastalaí an tsuímh seo ainm úsáideora agus pasfhocal (fíordheimhniú HTTP, mar shampla fillteán atá cosanta ag comhad htpasswd), osclaítear bosca dialóige chun síniú isteach. Má chuireann tú tic le \"Cuimhnigh don suíomh seo\", coinnítear na sonraí sínithe isteach sin i stóras slán an ghléis seo, áit nach féidir ach leis an suíomh seo iad a úsáid. Ní chuirtear sonraí sínithe isteach sábháilte san áireamh riamh i gcúltacaí socruithe ná i gcóid QR comhroinnte. Má ghlantar iad, ní shínítear amach leathanach atá oscailte cheana féin.",
+  "siteSettingsSavedSignInsClearTitle": "Déan dearmad ar na sonraí sínithe isteach atá sábháilte don suíomh seo?"
 }

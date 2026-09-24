@@ -893,5 +893,17 @@
   "proxyTestAuthRejected": "Proxy tyto přihlašovací údaje odmítla",
   "proxyTestUnreachable": "Proxy se nepodařilo kontaktovat",
   "torIsolateDestAddrTitle": "Samostatný okruh pro každý cíl",
-  "torIsolateDestAddrHint": "Každý web má vždy vlastní okruh Tor. Když je tato volba zapnutá, získá web samostatný okruh i pro každého hostitele, ze kterého načítá, takže jedna stránka může vycházet do internetu ze dvou i více výstupních adres najednou — větší izolace, ale web, který ověřuje vaši adresu napříč svými hostiteli, vás může odhlásit. Vypnuto má web jednu adresu pro vše, co načítá. Tato změna se projeví při příštím spuštění aplikace."
+  "torIsolateDestAddrHint": "Každý web má vždy vlastní okruh Tor. Když je tato volba zapnutá, získá web samostatný okruh i pro každého hostitele, ze kterého načítá, takže jedna stránka může vycházet do internetu ze dvou i více výstupních adres najednou — větší izolace, ale web, který ověřuje vaši adresu napříč svými hostiteli, vás může odhlásit. Vypnuto má web jednu adresu pro vše, co načítá. Tato změna se projeví při příštím spuštění aplikace.",
+  "httpAuthTitle": "Přihlášení",
+  "httpAuthBody": "{host} žádá o uživatelské jméno a heslo.",
+  "httpAuthRejected": "Zadané uživatelské jméno a heslo nebyly přijaty.",
+  "httpAuthUsername": "Uživatelské jméno",
+  "httpAuthPassword": "Heslo",
+  "httpAuthRemember": "Zapamatovat pro tuto stránku",
+  "httpAuthSignIn": "Přihlásit",
+  "siteSettingsSavedSignIns": "Uložená přihlášení",
+  "siteSettingsSavedSignInsCount": "{count, plural, =1{1 uložené} few{{count} uložená} other{{count} uložených}}",
+  "siteSettingsSavedSignInsNone": "Žádná",
+  "siteSettingsSavedSignInsHint": "Když server této stránky požádá o uživatelské jméno a heslo (ověřování HTTP, například u složky chráněné souborem htpasswd), otevře se přihlašovací dialog. Zaškrtnutím „Zapamatovat pro tuto stránku“ se toto přihlášení uloží do zabezpečeného úložiště tohoto zařízení, kde ho může použít pouze tato stránka. Uložená přihlášení nikdy nejsou součástí záloh nastavení ani sdílených QR kódů. Jejich vymazání neodhlásí stránku, která je již otevřená.",
+  "siteSettingsSavedSignInsClearTitle": "Zapomenout uložená přihlášení pro tuto stránku?"
 }

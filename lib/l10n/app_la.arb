@@ -893,5 +893,17 @@
   "proxyTestAuthRejected": "Procurator has credentiales reiecit",
   "proxyTestUnreachable": "Procurator adiri non potuit",
   "torIsolateDestAddrTitle": "Circuitus separatus pro singulis destinationibus",
-  "torIsolateDestAddrHint": "Quaeque sedes semper proprium circuitum Tor habet. Hoc accenso, sedes etiam circuitum separatum accipit pro singulis hospitibus unde onerat, ita ut una pagina simul ex duabus pluribusve exitus inscriptionibus ad interrete perveniat — maior seiunctio, sed sedes quae inscriptionem tuam per hospites suos probat te expellere potest. Exstincto, sedes unam inscriptionem habet pro omnibus quae onerat. Haec mutatio valebit cum applicationem proxime aperies."
+  "torIsolateDestAddrHint": "Quaeque sedes semper proprium circuitum Tor habet. Hoc accenso, sedes etiam circuitum separatum accipit pro singulis hospitibus unde onerat, ita ut una pagina simul ex duabus pluribusve exitus inscriptionibus ad interrete perveniat — maior seiunctio, sed sedes quae inscriptionem tuam per hospites suos probat te expellere potest. Exstincto, sedes unam inscriptionem habet pro omnibus quae onerat. Haec mutatio valebit cum applicationem proxime aperies.",
+  "httpAuthTitle": "Aditus",
+  "httpAuthBody": "{host} nomen usoris et tesseram poscit.",
+  "httpAuthRejected": "Nomen usoris et tessera illa non sunt accepta.",
+  "httpAuthUsername": "Nomen usoris",
+  "httpAuthPassword": "Tessera",
+  "httpAuthRemember": "Pro hoc loco meminisse",
+  "httpAuthSignIn": "Inire",
+  "siteSettingsSavedSignIns": "Aditus servati",
+  "siteSettingsSavedSignInsCount": "{count, plural, =1{1 servatus} other{{count} servati}}",
+  "siteSettingsSavedSignInsNone": "Nullus",
+  "siteSettingsSavedSignInsHint": "Cum servator huius loci nomen usoris et tesseram poscit (authenticatio HTTP, ut directorium fasciculo htpasswd munitum), dialogus aditus aperitur. Si \"Pro hoc loco meminisse\" signas, ille aditus in memoria tuta huius instrumenti servatur, ubi solus hic locus eo uti potest. Aditus servati numquam in subsidiis institutionum neque in codicibus QR communicatis includuntur. Eos purgare aditum paginae iam apertae non finit.",
+  "siteSettingsSavedSignInsClearTitle": "Aditus servatos huius loci oblivisci?"
 }

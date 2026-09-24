@@ -893,5 +893,17 @@
   "proxyTestAuthRejected": "Die instaanbediener het hierdie geloofsbriewe verwerp",
   "proxyTestUnreachable": "Kon nie die instaanbediener bereik nie",
   "torIsolateDestAddrTitle": "Aparte kring per bestemming",
-  "torIsolateDestAddrHint": "Elke werf kry altyd sy eie Tor-kring. Hiermee aan kry 'n werf ook 'n aparte kring vir elke gasheer waarvan dit laai, sodat een bladsy gelyktydig vanaf twee of meer uitgangsadresse kan uitkom — meer isolasie, maar 'n werf wat jou adres oor sy eie gashere nagaan, kan jou uitteken. As jy dit afskakel, kry die werf een adres vir alles wat dit laai. Hierdie verandering tree in werking die volgende keer wat jy die program oopmaak."
+  "torIsolateDestAddrHint": "Elke werf kry altyd sy eie Tor-kring. Hiermee aan kry 'n werf ook 'n aparte kring vir elke gasheer waarvan dit laai, sodat een bladsy gelyktydig vanaf twee of meer uitgangsadresse kan uitkom — meer isolasie, maar 'n werf wat jou adres oor sy eie gashere nagaan, kan jou uitteken. As jy dit afskakel, kry die werf een adres vir alles wat dit laai. Hierdie verandering tree in werking die volgende keer wat jy die program oopmaak.",
+  "httpAuthTitle": "Meld aan",
+  "httpAuthBody": "{host} vra vir 'n gebruikersnaam en wagwoord.",
+  "httpAuthRejected": "Daardie gebruikersnaam en wagwoord is nie aanvaar nie.",
+  "httpAuthUsername": "Gebruikersnaam",
+  "httpAuthPassword": "Wagwoord",
+  "httpAuthRemember": "Onthou vir hierdie webwerf",
+  "httpAuthSignIn": "Meld aan",
+  "siteSettingsSavedSignIns": "Gestoorde aanmeldings",
+  "siteSettingsSavedSignInsCount": "{count, plural, =1{1 gestoor} other{{count} gestoor}}",
+  "siteSettingsSavedSignInsNone": "Geen",
+  "siteSettingsSavedSignInsHint": "Wanneer hierdie webwerf se bediener vir 'n gebruikersnaam en wagwoord vra (HTTP-verifikasie, soos 'n gids wat deur 'n htpasswd-lêer beskerm word), verskyn 'n aanmelddialoog. As jy \"Onthou vir hierdie webwerf\" merk, word daardie aanmelding in hierdie toestel se veilige berging gehou, waar slegs hierdie webwerf dit kan gebruik. Gestoorde aanmeldings word nooit by instellingsrugsteune of gedeelde QR-kodes ingesluit nie. As jy hulle skoonmaak, word 'n bladsy wat reeds oop is nie afgemeld nie.",
+  "siteSettingsSavedSignInsClearTitle": "Vergeet gestoorde aanmeldings vir hierdie webwerf?"
 }

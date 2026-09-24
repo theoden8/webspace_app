@@ -893,5 +893,17 @@
   "proxyTestAuthRejected": "Le proxy a refusé ces identifiants",
   "proxyTestUnreachable": "Impossible de joindre le proxy",
   "torIsolateDestAddrTitle": "Circuit distinct par destination",
-  "torIsolateDestAddrHint": "Chaque site dispose toujours de son propre circuit Tor. Avec cette option activée, un site obtient en plus un circuit distinct pour chaque hôte depuis lequel il charge : une même page atteint alors internet depuis deux adresses de sortie ou plus en même temps — davantage d'isolement, mais un site qui vérifie votre adresse entre ses propres hôtes peut vous déconnecter. Désactivée, le site utilise une seule adresse pour tout ce qu'il charge. Ce changement prendra effet au prochain démarrage de l’application."
+  "torIsolateDestAddrHint": "Chaque site dispose toujours de son propre circuit Tor. Avec cette option activée, un site obtient en plus un circuit distinct pour chaque hôte depuis lequel il charge : une même page atteint alors internet depuis deux adresses de sortie ou plus en même temps — davantage d'isolement, mais un site qui vérifie votre adresse entre ses propres hôtes peut vous déconnecter. Désactivée, le site utilise une seule adresse pour tout ce qu'il charge. Ce changement prendra effet au prochain démarrage de l’application.",
+  "httpAuthTitle": "Connexion",
+  "httpAuthBody": "{host} demande un nom d'utilisateur et un mot de passe.",
+  "httpAuthRejected": "Ce nom d'utilisateur et ce mot de passe n'ont pas été acceptés.",
+  "httpAuthUsername": "Nom d'utilisateur",
+  "httpAuthPassword": "Mot de passe",
+  "httpAuthRemember": "Mémoriser pour ce site",
+  "httpAuthSignIn": "Se connecter",
+  "siteSettingsSavedSignIns": "Identifiants enregistrés",
+  "siteSettingsSavedSignInsCount": "{count, plural, =1{1 enregistré} other{{count} enregistrés}}",
+  "siteSettingsSavedSignInsNone": "Aucun",
+  "siteSettingsSavedSignInsHint": "Lorsque le serveur de ce site demande un nom d'utilisateur et un mot de passe (authentification HTTP, par exemple un dossier protégé par un fichier htpasswd), une boîte de dialogue de connexion s'ouvre. Cocher « Mémoriser pour ce site » conserve ces identifiants dans le stockage sécurisé de cet appareil, où seul ce site peut les utiliser. Les identifiants enregistrés ne sont jamais inclus dans les sauvegardes des paramètres ni dans les codes QR partagés. Les effacer ne déconnecte pas une page déjà ouverte.",
+  "siteSettingsSavedSignInsClearTitle": "Oublier les identifiants enregistrés pour ce site ?"
 }

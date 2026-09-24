@@ -893,5 +893,17 @@
   "proxyTestAuthRejected": "O proxy rexeitou estas credenciais",
   "proxyTestUnreachable": "Non se puido contactar co proxy",
   "torIsolateDestAddrTitle": "Circuíto separado por destino",
-  "torIsolateDestAddrHint": "Cada sitio ten sempre o seu propio circuíto de Tor. Con isto activado, un sitio obtén tamén un circuíto separado para cada servidor do que carga, así que unha mesma páxina pode saír a internet desde dous ou máis enderezos de saída á vez — máis illamento, pero un sitio que comproba o teu enderezo entre os seus servidores pode pecharche a sesión. Desactivado, o sitio usa un só enderezo para todo o que carga. Este cambio aplicarase a próxima vez que abras a aplicación."
+  "torIsolateDestAddrHint": "Cada sitio ten sempre o seu propio circuíto de Tor. Con isto activado, un sitio obtén tamén un circuíto separado para cada servidor do que carga, así que unha mesma páxina pode saír a internet desde dous ou máis enderezos de saída á vez — máis illamento, pero un sitio que comproba o teu enderezo entre os seus servidores pode pecharche a sesión. Desactivado, o sitio usa un só enderezo para todo o que carga. Este cambio aplicarase a próxima vez que abras a aplicación.",
+  "httpAuthTitle": "Iniciar sesión",
+  "httpAuthBody": "{host} pide un nome de usuario e un contrasinal.",
+  "httpAuthRejected": "Non se aceptaron ese nome de usuario e ese contrasinal.",
+  "httpAuthUsername": "Nome de usuario",
+  "httpAuthPassword": "Contrasinal",
+  "httpAuthRemember": "Lembrar para este sitio",
+  "httpAuthSignIn": "Iniciar sesión",
+  "siteSettingsSavedSignIns": "Inicios de sesión gardados",
+  "siteSettingsSavedSignInsCount": "{count, plural, =1{1 gardado} other{{count} gardados}}",
+  "siteSettingsSavedSignInsNone": "Ningún",
+  "siteSettingsSavedSignInsHint": "Cando o servidor deste sitio pide un nome de usuario e un contrasinal (autenticación HTTP, como un cartafol protexido por un ficheiro htpasswd), ábrese un diálogo de inicio de sesión. Se marcas \"Lembrar para este sitio\", ese inicio de sesión gárdase no almacenamento seguro deste dispositivo, onde só este sitio pode usalo. Os inicios de sesión gardados nunca se inclúen nas copias de seguranza dos axustes nin nos códigos QR compartidos. Borralos non pecha a sesión dunha páxina que xa estea aberta.",
+  "siteSettingsSavedSignInsClearTitle": "Esquecer os inicios de sesión gardados deste sitio?"
 }

@@ -893,5 +893,17 @@
   "proxyTestAuthRejected": "Įgaliotasis serveris atmetė šiuos prisijungimo duomenis",
   "proxyTestUnreachable": "Nepavyko pasiekti įgaliotojo serverio",
   "torIsolateDestAddrTitle": "Atskira grandinė kiekvienai paskirties vietai",
-  "torIsolateDestAddrHint": "Kiekviena svetainė visada gauna savo Tor grandinę. Kai tai įjungta, svetainė gauna atskirą grandinę ir kiekvienam serveriui, iš kurio įkelia, tad vienas puslapis gali pasiekti internetą iš dviejų ar daugiau išėjimo adresų vienu metu — daugiau atskyrimo, bet svetainė, tikrinanti jūsų adresą tarp savo serverių, gali jus atjungti. Išjungus svetainė turi vieną adresą viskam, ką įkelia. Šis pakeitimas įsigalios kitą kartą atvėrus programą."
+  "torIsolateDestAddrHint": "Kiekviena svetainė visada gauna savo Tor grandinę. Kai tai įjungta, svetainė gauna atskirą grandinę ir kiekvienam serveriui, iš kurio įkelia, tad vienas puslapis gali pasiekti internetą iš dviejų ar daugiau išėjimo adresų vienu metu — daugiau atskyrimo, bet svetainė, tikrinanti jūsų adresą tarp savo serverių, gali jus atjungti. Išjungus svetainė turi vieną adresą viskam, ką įkelia. Šis pakeitimas įsigalios kitą kartą atvėrus programą.",
+  "httpAuthTitle": "Prisijungimas",
+  "httpAuthBody": "{host} prašo naudotojo vardo ir slaptažodžio.",
+  "httpAuthRejected": "Šis naudotojo vardas ir slaptažodis nebuvo priimti.",
+  "httpAuthUsername": "Naudotojo vardas",
+  "httpAuthPassword": "Slaptažodis",
+  "httpAuthRemember": "Įsiminti šiai svetainei",
+  "httpAuthSignIn": "Prisijungti",
+  "siteSettingsSavedSignIns": "Išsaugoti prisijungimai",
+  "siteSettingsSavedSignInsCount": "{count, plural, one{{count} išsaugotas} few{{count} išsaugoti} many{{count} išsaugotų} other{{count} išsaugotų}}",
+  "siteSettingsSavedSignInsNone": "Nėra",
+  "siteSettingsSavedSignInsHint": "Kai šios svetainės serveris paprašo naudotojo vardo ir slaptažodžio (HTTP tapatumo nustatymas, pavyzdžiui, htpasswd failu apsaugotas aplankas), atsidaro prisijungimo langas. Pažymėjus „Įsiminti šiai svetainei“, tas prisijungimas saugomas šio įrenginio saugioje saugykloje, kur jį gali naudoti tik ši svetainė. Išsaugoti prisijungimai niekada neįtraukiami į nustatymų atsargines kopijas ar bendrinamus QR kodus. Juos išvalius, jau atidarytame puslapyje neatsijungiama.",
+  "siteSettingsSavedSignInsClearTitle": "Pamiršti išsaugotus šios svetainės prisijungimus?"
 }

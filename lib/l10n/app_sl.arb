@@ -893,5 +893,17 @@
   "proxyTestAuthRejected": "Posredniški strežnik je zavrnil te poverilnice",
   "proxyTestUnreachable": "Posredniškega strežnika ni bilo mogoče doseči",
   "torIsolateDestAddrTitle": "Ločeno vezje za vsak cilj",
-  "torIsolateDestAddrHint": "Vsaka stran ima vedno svoje vezje Tor. Ko je to vklopljeno, stran dobi ločeno vezje tudi za vsakega gostitelja, s katerega nalaga, zato lahko ena stran doseže internet z dveh ali več izhodnih naslovov hkrati — več izolacije, vendar vas stran, ki preverja vaš naslov med svojimi gostitelji, lahko odjavi. Izklopljeno stran uporablja en naslov za vse, kar nalaga. Sprememba bo začela veljati ob naslednjem zagonu aplikacije."
+  "torIsolateDestAddrHint": "Vsaka stran ima vedno svoje vezje Tor. Ko je to vklopljeno, stran dobi ločeno vezje tudi za vsakega gostitelja, s katerega nalaga, zato lahko ena stran doseže internet z dveh ali več izhodnih naslovov hkrati — več izolacije, vendar vas stran, ki preverja vaš naslov med svojimi gostitelji, lahko odjavi. Izklopljeno stran uporablja en naslov za vse, kar nalaga. Sprememba bo začela veljati ob naslednjem zagonu aplikacije.",
+  "httpAuthTitle": "Prijava",
+  "httpAuthBody": "{host} zahteva uporabniško ime in geslo.",
+  "httpAuthRejected": "To uporabniško ime in geslo nista bila sprejeta.",
+  "httpAuthUsername": "Uporabniško ime",
+  "httpAuthPassword": "Geslo",
+  "httpAuthRemember": "Zapomni si za to stran",
+  "httpAuthSignIn": "Prijavi se",
+  "siteSettingsSavedSignIns": "Shranjene prijave",
+  "siteSettingsSavedSignInsCount": "{count, plural, =1{{count} shranjena} two{{count} shranjeni} few{{count} shranjene} other{{count} shranjenih}}",
+  "siteSettingsSavedSignInsNone": "Nobena",
+  "siteSettingsSavedSignInsHint": "Ko strežnik te strani zahteva uporabniško ime in geslo (preverjanje pristnosti HTTP, na primer mapa, zaščitena z datoteko htpasswd), se odpre okno za prijavo. Če označite »Zapomni si za to stran«, se ta prijava shrani v varno shrambo te naprave, kjer jo lahko uporablja samo ta stran. Shranjene prijave nikoli niso vključene v varnostne kopije nastavitev ali v deljene kode QR. Če jih počistite, vas to ne odjavi s strani, ki je že odprta.",
+  "siteSettingsSavedSignInsClearTitle": "Pozabim shranjene prijave za to stran?"
 }

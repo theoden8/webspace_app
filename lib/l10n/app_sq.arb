@@ -893,5 +893,17 @@
   "proxyTestAuthRejected": "Proxy-i i refuzoi këto kredenciale",
   "proxyTestUnreachable": "Nuk u arrit të lidhej me proxy-n",
   "torIsolateDestAddrTitle": "Qark i veçantë për çdo destinacion",
-  "torIsolateDestAddrHint": "Çdo sajt ka gjithmonë qarkun e vet Tor. Kur kjo është aktive, sajti merr edhe një qark të veçantë për çdo host prej të cilit ngarkon, kështu që një faqe e vetme mund të dalë në internet nga dy ose më shumë adresa dalëse njëherësh — më shumë izolim, por një sajt që kontrollon adresën tuaj mes hosteve të veta mund t'ju shkëputë. E çaktivizuar, sajti përdor një adresë të vetme për gjithçka që ngarkon. Ky ndryshim hyn në fuqi herën tjetër që hapni aplikacionin."
+  "torIsolateDestAddrHint": "Çdo sajt ka gjithmonë qarkun e vet Tor. Kur kjo është aktive, sajti merr edhe një qark të veçantë për çdo host prej të cilit ngarkon, kështu që një faqe e vetme mund të dalë në internet nga dy ose më shumë adresa dalëse njëherësh — më shumë izolim, por një sajt që kontrollon adresën tuaj mes hosteve të veta mund t'ju shkëputë. E çaktivizuar, sajti përdor një adresë të vetme për gjithçka që ngarkon. Ky ndryshim hyn në fuqi herën tjetër që hapni aplikacionin.",
+  "httpAuthTitle": "Hyrje",
+  "httpAuthBody": "{host} po kërkon një emër përdoruesi dhe një fjalëkalim.",
+  "httpAuthRejected": "Ky emër përdoruesi dhe ky fjalëkalim nuk u pranuan.",
+  "httpAuthUsername": "Emri i përdoruesit",
+  "httpAuthPassword": "Fjalëkalimi",
+  "httpAuthRemember": "Mbaje mend për këtë faqe",
+  "httpAuthSignIn": "Hyr",
+  "siteSettingsSavedSignIns": "Hyrjet e ruajtura",
+  "siteSettingsSavedSignInsCount": "{count, plural, =1{1 e ruajtur} other{{count} të ruajtura}}",
+  "siteSettingsSavedSignInsNone": "Asnjë",
+  "siteSettingsSavedSignInsHint": "Kur serveri i kësaj faqeje kërkon një emër përdoruesi dhe një fjalëkalim (vërtetim HTTP, si p.sh. një dosje e mbrojtur nga një skedar htpasswd), hapet një dritare hyrjeje. Nëse shënoni \"Mbaje mend për këtë faqe\", ajo hyrje ruhet në hapësirën e sigurt të ruajtjes së kësaj pajisjeje, ku vetëm kjo faqe mund ta përdorë. Hyrjet e ruajtura nuk përfshihen kurrë në rezervat e cilësimeve ose në kodet QR të ndara. Pastrimi i tyre nuk ju nxjerr nga një faqe që është tashmë e hapur.",
+  "siteSettingsSavedSignInsClearTitle": "Të harrohen hyrjet e ruajtura për këtë faqe?"
 }

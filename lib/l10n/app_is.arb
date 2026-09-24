@@ -893,5 +893,17 @@
   "proxyTestAuthRejected": "Milliþjónninn hafnaði þessum auðkennum",
   "proxyTestUnreachable": "Náði ekki sambandi við milliþjóninn",
   "torIsolateDestAddrTitle": "Sérstök rás fyrir hvern áfangastað",
-  "torIsolateDestAddrHint": "Hver vefur fær alltaf sína eigin Tor-rás. Þegar þetta er kveikt fær vefurinn einnig sérstaka rás fyrir hvern hýsil sem hann hleður frá, svo ein síða getur náð til netsins frá tveimur eða fleiri útgönguvistföngum samtímis — meiri einangrun, en vefur sem athugar vistfangið þitt milli eigin hýsla getur skráð þig út. Slökkt fær vefurinn eitt vistfang fyrir allt sem hann hleður. Þessi breyting tekur gildi næst þegar þú opnar forritið."
+  "torIsolateDestAddrHint": "Hver vefur fær alltaf sína eigin Tor-rás. Þegar þetta er kveikt fær vefurinn einnig sérstaka rás fyrir hvern hýsil sem hann hleður frá, svo ein síða getur náð til netsins frá tveimur eða fleiri útgönguvistföngum samtímis — meiri einangrun, en vefur sem athugar vistfangið þitt milli eigin hýsla getur skráð þig út. Slökkt fær vefurinn eitt vistfang fyrir allt sem hann hleður. Þessi breyting tekur gildi næst þegar þú opnar forritið.",
+  "httpAuthTitle": "Innskráning",
+  "httpAuthBody": "{host} biður um notandanafn og lykilorð.",
+  "httpAuthRejected": "Þetta notandanafn og lykilorð voru ekki samþykkt.",
+  "httpAuthUsername": "Notandanafn",
+  "httpAuthPassword": "Lykilorð",
+  "httpAuthRemember": "Muna fyrir þetta svæði",
+  "httpAuthSignIn": "Skrá inn",
+  "siteSettingsSavedSignIns": "Vistaðar innskráningar",
+  "siteSettingsSavedSignInsCount": "{count, plural, =1{{count} vistuð} other{{count} vistaðar}}",
+  "siteSettingsSavedSignInsNone": "Engin",
+  "siteSettingsSavedSignInsHint": "Þegar vefþjónn þessa svæðis biður um notandanafn og lykilorð (HTTP-auðkenning, til dæmis mappa sem varin er með htpasswd-skrá) opnast innskráningargluggi. Ef hakað er við „Muna fyrir þetta svæði“ er innskráningin geymd í öruggri geymslu þessa tækis, þar sem aðeins þetta svæði getur notað hana. Vistaðar innskráningar eru aldrei hafðar með í afritum af stillingum eða í deildum QR-kóðum. Að hreinsa þær skráir ekki út síðu sem er þegar opin.",
+  "siteSettingsSavedSignInsClearTitle": "Gleyma vistuðum innskráningum fyrir þetta svæði?"
 }

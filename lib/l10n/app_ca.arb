@@ -893,5 +893,17 @@
   "proxyTestAuthRejected": "El servidor intermediari ha rebutjat aquestes credencials",
   "proxyTestUnreachable": "No s'ha pogut arribar al servidor intermediari",
   "torIsolateDestAddrTitle": "Circuit separat per destinació",
-  "torIsolateDestAddrHint": "Cada lloc sempre té el seu propi circuit de Tor. Amb això activat, un lloc també obté un circuit separat per a cada amfitrió del qual carrega, de manera que una sola pàgina pot arribar a Internet des de dues o més adreces de sortida alhora: més aïllament, però un lloc que comprova la teva adreça entre els seus amfitrions pot tancar-te la sessió. Desactivat, el lloc té una sola adreça per a tot el que carrega. Aquest canvi tindrà efecte el pròxim cop que obris l’aplicació."
+  "torIsolateDestAddrHint": "Cada lloc sempre té el seu propi circuit de Tor. Amb això activat, un lloc també obté un circuit separat per a cada amfitrió del qual carrega, de manera que una sola pàgina pot arribar a Internet des de dues o més adreces de sortida alhora: més aïllament, però un lloc que comprova la teva adreça entre els seus amfitrions pot tancar-te la sessió. Desactivat, el lloc té una sola adreça per a tot el que carrega. Aquest canvi tindrà efecte el pròxim cop que obris l’aplicació.",
+  "httpAuthTitle": "Inici de sessió",
+  "httpAuthBody": "{host} demana un nom d'usuari i una contrasenya.",
+  "httpAuthRejected": "No s'han acceptat aquest nom d'usuari i aquesta contrasenya.",
+  "httpAuthUsername": "Nom d'usuari",
+  "httpAuthPassword": "Contrasenya",
+  "httpAuthRemember": "Recorda-ho per a aquest lloc",
+  "httpAuthSignIn": "Inicia la sessió",
+  "siteSettingsSavedSignIns": "Inicis de sessió desats",
+  "siteSettingsSavedSignInsCount": "{count, plural, =1{1 desat} other{{count} desats}}",
+  "siteSettingsSavedSignInsNone": "Cap",
+  "siteSettingsSavedSignInsHint": "Quan el servidor d'aquest lloc demana un nom d'usuari i una contrasenya (autenticació HTTP, com ara una carpeta protegida per un fitxer htpasswd), s'obre un diàleg d'inici de sessió. Si marqueu \"Recorda-ho per a aquest lloc\", aquest inici de sessió es desa a l'emmagatzematge segur d'aquest dispositiu, on només aquest lloc el pot utilitzar. Els inicis de sessió desats no s'inclouen mai a les còpies de seguretat de la configuració ni als codis QR compartits. Esborrar-los no tanca la sessió d'una pàgina que ja estigui oberta.",
+  "siteSettingsSavedSignInsClearTitle": "Voleu oblidar els inicis de sessió desats d'aquest lloc?"
 }

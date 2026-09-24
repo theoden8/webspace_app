@@ -893,5 +893,17 @@
   "proxyTestAuthRejected": "Der Proxy hat diese Zugangsdaten abgelehnt",
   "proxyTestUnreachable": "Proxy nicht erreichbar",
   "torIsolateDestAddrTitle": "Eigener Kanal pro Ziel",
-  "torIsolateDestAddrHint": "Jede Seite bekommt immer ihren eigenen Tor-Kanal. Ist dies aktiviert, erhält eine Seite zusätzlich einen eigenen Kanal für jeden Host, von dem sie lädt — eine Seite erreicht das Internet dann gleichzeitig über zwei oder mehr Ausgangsadressen. Mehr Trennung, aber eine Seite, die deine Adresse über ihre eigenen Hosts prüft, meldet dich womöglich ab. Ausgeschaltet nutzt die Seite eine Adresse für alles, was sie lädt. Diese Änderung wird beim nächsten Start der App wirksam."
+  "torIsolateDestAddrHint": "Jede Seite bekommt immer ihren eigenen Tor-Kanal. Ist dies aktiviert, erhält eine Seite zusätzlich einen eigenen Kanal für jeden Host, von dem sie lädt — eine Seite erreicht das Internet dann gleichzeitig über zwei oder mehr Ausgangsadressen. Mehr Trennung, aber eine Seite, die deine Adresse über ihre eigenen Hosts prüft, meldet dich womöglich ab. Ausgeschaltet nutzt die Seite eine Adresse für alles, was sie lädt. Diese Änderung wird beim nächsten Start der App wirksam.",
+  "httpAuthTitle": "Anmelden",
+  "httpAuthBody": "{host} fragt nach einem Benutzernamen und Passwort.",
+  "httpAuthRejected": "Dieser Benutzername und dieses Passwort wurden nicht akzeptiert.",
+  "httpAuthUsername": "Benutzername",
+  "httpAuthPassword": "Passwort",
+  "httpAuthRemember": "Für diese Seite merken",
+  "httpAuthSignIn": "Anmelden",
+  "siteSettingsSavedSignIns": "Gespeicherte Anmeldungen",
+  "siteSettingsSavedSignInsCount": "{count, plural, =1{1 gespeichert} other{{count} gespeichert}}",
+  "siteSettingsSavedSignInsNone": "Keine",
+  "siteSettingsSavedSignInsHint": "Wenn der Server dieser Seite nach einem Benutzernamen und Passwort fragt (HTTP-Authentifizierung, etwa bei einem Ordner, der durch eine htpasswd-Datei geschützt ist), öffnet sich ein Anmeldedialog. Wenn Sie „Für diese Seite merken“ ankreuzen, wird diese Anmeldung im sicheren Speicher dieses Geräts abgelegt, wo nur diese Seite sie verwenden kann. Gespeicherte Anmeldungen sind nie in Einstellungssicherungen oder geteilten QR-Codes enthalten. Das Löschen meldet eine bereits geöffnete Seite nicht ab.",
+  "siteSettingsSavedSignInsClearTitle": "Gespeicherte Anmeldungen für diese Seite vergessen?"
 }

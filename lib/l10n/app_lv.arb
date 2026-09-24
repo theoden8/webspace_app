@@ -893,5 +893,17 @@
   "proxyTestAuthRejected": "Starpniekserveris noraidīja šos pieteikšanās datus",
   "proxyTestUnreachable": "Neizdevās sasniegt starpniekserveri",
   "torIsolateDestAddrTitle": "Atsevišķa ķēde katram galamērķim",
-  "torIsolateDestAddrHint": "Katrai vietnei vienmēr ir sava Tor ķēde. Kad tas ir ieslēgts, vietne saņem atsevišķu ķēdi arī katram resursdatoram, no kura tā ielādē, tāpēc viena lapa var sasniegt internetu vienlaikus no divām vai vairākām izejas adresēm — vairāk izolācijas, taču vietne, kas pārbauda jūsu adresi savu resursdatoru starpā, var jūs izrakstīt. Izslēgtā stāvoklī vietnei ir viena adrese visam, ko tā ielādē. Šīs izmaiņas stāsies spēkā, kad nākamreiz atvērsiet lietotni."
+  "torIsolateDestAddrHint": "Katrai vietnei vienmēr ir sava Tor ķēde. Kad tas ir ieslēgts, vietne saņem atsevišķu ķēdi arī katram resursdatoram, no kura tā ielādē, tāpēc viena lapa var sasniegt internetu vienlaikus no divām vai vairākām izejas adresēm — vairāk izolācijas, taču vietne, kas pārbauda jūsu adresi savu resursdatoru starpā, var jūs izrakstīt. Izslēgtā stāvoklī vietnei ir viena adrese visam, ko tā ielādē. Šīs izmaiņas stāsies spēkā, kad nākamreiz atvērsiet lietotni.",
+  "httpAuthTitle": "Pierakstīšanās",
+  "httpAuthBody": "{host} pieprasa lietotājvārdu un paroli.",
+  "httpAuthRejected": "Šis lietotājvārds un parole netika pieņemti.",
+  "httpAuthUsername": "Lietotājvārds",
+  "httpAuthPassword": "Parole",
+  "httpAuthRemember": "Atcerēties šai vietnei",
+  "httpAuthSignIn": "Pierakstīties",
+  "siteSettingsSavedSignIns": "Saglabātie pierakstīšanās dati",
+  "siteSettingsSavedSignInsCount": "{count, plural, zero{{count} saglabāti} one{{count} saglabāts} other{{count} saglabāti}}",
+  "siteSettingsSavedSignInsNone": "Nav",
+  "siteSettingsSavedSignInsHint": "Kad šīs vietnes serveris pieprasa lietotājvārdu un paroli (HTTP autentifikācija, piemēram, ar htpasswd failu aizsargāta mape), atveras pierakstīšanās logs. Atzīmējot \"Atcerēties šai vietnei\", šie pierakstīšanās dati tiek glabāti šīs ierīces drošajā krātuvē, kur tos var izmantot tikai šī vietne. Saglabātie pierakstīšanās dati nekad netiek iekļauti iestatījumu dublējumkopijās vai kopīgotos QR kodos. Pēc to notīrīšanas jau atvērta lapa paliek pierakstīta.",
+  "siteSettingsSavedSignInsClearTitle": "Aizmirst šīs vietnes saglabātos pierakstīšanās datus?"
 }
