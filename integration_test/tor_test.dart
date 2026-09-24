@@ -260,13 +260,30 @@ class TorProbe {
     return [for (final line in all.values) await describe(line)].join('\n');
   }
 
+  /// STREAM events until [enough] holds for all of them, or [budget] runs
+  /// out. tor queues control events and flushes them on a later pass of its
+  /// loop than the reply to a command, so one read can come back short.
+  Future<List<String>> streamEventsUntil(
+    bool Function(List<String>) enough, {
+    Duration budget = const Duration(seconds: 10),
+  }) async {
+    final all = <String>[];
+    final deadline = DateTime.now().add(budget);
+    while (true) {
+      all.addAll(await streamEvents());
+      if (enough(all) || DateTime.now().isAfter(deadline)) return all;
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    }
+  }
+
   /// Circuit id of each stream to [host] that tor attached, by stream id,
-  /// from [events].
+  /// from [events]. A stream tor retries is attached again, so the last
+  /// SENTCONNECT or SUCCEEDED names the circuit that carried it.
   static Map<String, String> attached(List<String> events, String host) => {
         for (final e in events.map((e) => e.split(' ')))
           if (e.length > 4 &&
               e[0] == 'STREAM' &&
-              e[2] == 'SUCCEEDED' &&
+              (e[2] == 'SENTCONNECT' || e[2] == 'SUCCEEDED') &&
               e[4].startsWith('$host:'))
             e[1]: e[3],
       };
@@ -562,7 +579,9 @@ void main() {
 
     /// What tor says the check stream rode, and where tor puts [ip].
     Future<String> torView(String ip) => askTor((p) async {
-          final events = await p.streamEvents();
+          final events = await p.streamEventsUntil(
+              (ev) => TorProbe.attached(ev, exitCheck.host).isNotEmpty,
+              budget: const Duration(seconds: 5));
           String where;
           try {
             where = await p.info('ip-to-country/$ip');
@@ -650,8 +669,15 @@ void main() {
 
       // A stream opened on the German circuit and left silent. Until the
       // server's own timeout, nothing but that circuit closing ends it.
+      await askTor((p) async => '${(await p.streamEvents()).length}');
       held = await openStream(via, exitCheck);
       final heldEnded = whenEnded(held);
+      var heldGone = false;
+      unawaited(heldEnded.then((_) => heldGone = true));
+      // Alive before the change, so its end below is the change's doing.
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      expect(heldGone, isFalse,
+          reason: 'the stream opened under {de} ended before any pin change');
       await pin('{us}');
       final heldLasted = await heldEnded
           .then<Duration?>((d) => d)
@@ -660,6 +686,14 @@ void main() {
           reason: 'a stream opened under {de} was still open 15 s after {us} '
               'was in force, so a connection a page keeps alive goes on '
               'leaving from Germany:\n${torTranscript()}');
+      final heldClose = await askTor((p) async {
+        bool onCheck(String e) => e.contains(' ${exitCheck.host}:');
+        final events = await p.streamEventsUntil(
+            (ev) => ev.any((e) => onCheck(e) && e.contains(' CLOSED ')),
+            budget: const Duration(seconds: 5));
+        return events.where(onCheck).join('\n');
+      });
+      trace('how tor ended the stream held under {de}:\n$heldClose');
 
       final us = await exitAddress('under {us}');
       final usView = await torView(us);
@@ -737,7 +771,8 @@ void main() {
             TorService.instance.socksFor(siteId: site)!, target)
             .timeout(const Duration(seconds: 150)));
       }
-      final events = await probe.streamEvents();
+      final events = await probe.streamEventsUntil(
+          (ev) => TorProbe.attached(ev, target.host).length >= 2);
       final rode = TorProbe.attached(events, target.host);
       final seen = await probe.rode(events, target.host);
       trace('two sites:\n$seen');
