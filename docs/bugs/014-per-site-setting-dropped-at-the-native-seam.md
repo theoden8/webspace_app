@@ -151,7 +151,11 @@ silently. Only something that observes the *effect* can catch it.
    `test/js/tor_exit_pin_conflux.test.js` and the XCTest
    `testExitPinTurnsConfluxOffAndClearingRestoresIt`; measured by the same
    integration scenario, which now reads tor's circuit and stream tables
-   over a control connection of its own.
+   over a control connection of its own. Measured the same day with conflux
+   off: `{de}` left from 185.220.101.4 and `{us}` from 204.8.96.108, which
+   tor places in Germany and the United States, and the circuit table after
+   each pin held no conflux leg, only the onion-service circuits of the
+   table download.
 
 ## What the platform actually does
 
@@ -395,8 +399,9 @@ Not a record of what was tried. A record of what bit, so it bites once.
    not yet on an iOS device.** `integration_test/tor_test.dart` pins `{de}`
    then `{us}` on the real tor and places the address check.torproject.org
    sees with the table the pin downloaded. Measured 2026-09-24: the onion
-   download works and takes about 11 s, and a connection kept open under one
-   pin ends when the next lands. The exit following the pin is what found the
-   conflux gap above; the run after that fix is the measurement of it. The
-   macOS tier runs the same plugin source as iOS, but not the iOS suspension
-   and resume that BUG-018 came from.
+   download works and takes 11-18 s, a connection kept open under one pin
+   ends when the next lands, and with conflux off the exit follows the pin
+   (`{de}` from Germany, `{us}` from the United States, by the web's view and
+   by tor's). The macOS tier runs the same plugin source as iOS, but not the
+   iOS suspension and resume that BUG-018 came from, so a device run is
+   still the last word for the field report.
