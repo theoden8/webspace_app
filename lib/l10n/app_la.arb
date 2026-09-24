@@ -310,6 +310,8 @@
   "appSettingsExperimentalHint": "Facultates quae emittuntur antequam perfectae sint. Unaquaeque Modum fabri et suum commutatorem hic requirit. Modo fabri exstincto omnes exstinguuntur; commutatores earum situm suum servant in tempus quo iterum accendetur.",
   "appSettingsExperimentalTor": "Tor insitus",
   "appSettingsExperimentalTorHint": "Sinit locos cliente Tor applicationi insito uti. Experimentale est quia Tor non plus quam semel in quoque applicationis initio currit: si consistit, applicatio iterum incipienda est ut restituatur. Hoc exstincto, omnis locus ad Tor utendum constitutus impeditur potius quam per veram inscriptionem IP tuam oneretur.",
+  "appSettingsExperimentalLinkRouting": "Itineratio nexuum inter locos",
+  "appSettingsExperimentalLinkRoutingHint": "Sinit locum nexum quem tangis aperire ut alium ex locis tuis qui eum sibi vindicat, iam ingressum, cum crustulis et institutionibus eius loci propriis. Quisque locus hoc accendit commutatore \"Nexus ad locos meos itinerare\" sub \"Mores\". Experimentale est: nondum late in instrumentis probatum est. Hoc exstincto, commutator et praeferentiae itinerationis cuiusque loci servantur, et itineratio cessat donec iterum accendatur.",
   "appSettingsExperimentalTorOffTitle": "Tor insitum exstinguere?",
   "appSettingsExperimentalTorOffBody": "{count, plural, one{Unus locus ad Tor utendum constitutus est. Impeditus manebit donec Tor insitum iterum accendas, potius quam per veram inscriptionem IP tuam oneretur.} other{{count} loci ad Tor utendum constituti sunt. Impediti manebunt donec Tor insitum iterum accendas, potius quam per veram inscriptionem IP tuam onerentur.}}",
   "appSettingsExperimentalProxyRouter": "Director procuratorum",

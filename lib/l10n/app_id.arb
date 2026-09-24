@@ -308,6 +308,8 @@
   "appSettingsExperimentalHint": "Fitur yang dirilis sebelum selesai. Masing-masing memerlukan Mode pengembang dan sakelarnya sendiri di sini. Menonaktifkan Mode pengembang akan menonaktifkan semuanya; sakelarnya tetap di posisinya untuk saat mode itu diaktifkan kembali.",
   "appSettingsExperimentalTor": "Tor bawaan",
   "appSettingsExperimentalTorHint": "Memungkinkan situs memakai klien Tor bawaan aplikasi. Bersifat eksperimental karena Tor berjalan paling banyak sekali setiap kali aplikasi dibuka: jika berhenti, aplikasi harus dimulai ulang untuk menjalankannya kembali. Menonaktifkan ini akan memblokir setiap situs yang disetel untuk memakai Tor, alih-alih memuatnya lewat alamat IP asli Anda.",
+  "appSettingsExperimentalLinkRouting": "Perutean tautan antarsitus",
+  "appSettingsExperimentalLinkRoutingHint": "Memungkinkan situs membuka tautan yang Anda ketuk sebagai situs Anda yang lain yang mengklaimnya, dalam keadaan masuk, dengan cookie dan pengaturan situs tersebut. Setiap situs mengaktifkannya lewat sakelar \"Rutekan tautan ke situs saya\" di \"Perilaku\". Eksperimental: fitur ini belum banyak dicoba di perangkat. Menonaktifkan ini tetap menyimpan sakelar perutean dan preferensi perutean setiap situs, serta menghentikan perutean hingga diaktifkan kembali.",
   "appSettingsExperimentalTorOffTitle": "Nonaktifkan Tor bawaan?",
   "appSettingsExperimentalTorOffBody": "{count, plural, other{{count} situs disetel untuk memakai Tor. Situs tersebut akan tetap diblokir hingga Anda mengaktifkan kembali Tor bawaan, bukan dimuat melalui alamat IP Anda yang sebenarnya.}}",
   "appSettingsExperimentalProxyRouter": "Router proxy",

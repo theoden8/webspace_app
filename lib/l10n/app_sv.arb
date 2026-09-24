@@ -308,6 +308,8 @@
   "appSettingsExperimentalHint": "Funktioner som släpps innan de är färdiga. Var och en kräver Utvecklarläge och ett eget reglage här. Om du stänger av Utvecklarläge stängs alla av; deras reglage behåller sitt läge tills det slås på igen.",
   "appSettingsExperimentalTor": "Inbyggd Tor",
   "appSettingsExperimentalTorHint": "Låter webbplatser använda Tor-klienten som är inbyggd i appen. Den är experimentell eftersom Tor körs högst en gång per start: om den stoppas måste appen startas om för att få tillbaka den. Om du stänger av detta blockeras alla webbplatser som är inställda på att använda Tor i stället för att laddas via din riktiga IP-adress.",
+  "appSettingsExperimentalLinkRouting": "Länkroutning mellan webbplatser",
+  "appSettingsExperimentalLinkRoutingHint": "Låter en länk du trycker på på en webbplats öppnas som en annan av dina webbplatser som gör anspråk på den: inloggad och med den webbplatsens egna cookies och inställningar. Det slås på per webbplats under Beteende, ”Routa länkar till mina webbplatser”. Experimentellt: det har ännu inte provats brett på enheter. Om du stänger av detta behålls varje webbplats routningsinställning och sparade val, och routningen stoppas tills det slås på igen.",
   "appSettingsExperimentalTorOffTitle": "Stänga av Inbyggd Tor?",
   "appSettingsExperimentalTorOffBody": "{count, plural, one{En webbplats är inställd på att använda Tor. Den förblir blockerad tills du slår på Inbyggd Tor igen, i stället för att laddas via din riktiga IP-adress.} other{{count} webbplatser är inställda på att använda Tor. De förblir blockerade tills du slår på Inbyggd Tor igen, i stället för att laddas via din riktiga IP-adress.}}",
   "appSettingsExperimentalProxyRouter": "Proxyrouter",

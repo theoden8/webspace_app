@@ -308,6 +308,8 @@
   "appSettingsExperimentalHint": "Vipengele vinavyotolewa kabla ya kukamilika. Kila kimoja kinahitaji Hali ya msanidi na swichi yake yenyewe hapa. Kuzima Hali ya msanidi huvizima vyote; swichi zake hubaki katika nafasi zilizokuwa, tayari kwa itakapowashwa tena.",
   "appSettingsExperimentalTor": "Tor iliyojengwa ndani",
   "appSettingsExperimentalTorHint": "Huruhusu tovuti kutumia kliyenti ya Tor iliyojengwa ndani ya programu. Ni ya majaribio kwa sababu Tor huendeshwa mara moja tu kwa kila uzinduzi: ikisimama, programu inabidi iwashwe upya ili kuirejesha. Kuzima hii huzuia kila tovuti iliyowekwa kutumia Tor badala ya kuipakia kupitia anwani yako halisi ya IP.",
+  "appSettingsExperimentalLinkRouting": "Uelekezaji wa viungo kati ya tovuti",
+  "appSettingsExperimentalLinkRoutingHint": "Huruhusu kiungo unachogusa kwenye tovuti moja kifunguke kama tovuti yako nyingine inayokidai: ukiwa tayari umeingia, pamoja na vidakuzi na mipangilio ya tovuti hiyo yenyewe. Huwashwa kwa kila tovuti chini ya Tabia, “Elekeza viungo kwenye tovuti zangu”. Ni cha majaribio: bado hakijajaribiwa kwa upana kwenye vifaa. Kuzima hii huhifadhi mpangilio wa uelekezaji na machaguo yaliyokumbukwa ya kila tovuti, na husimamisha uelekezaji hadi kiwashwe tena.",
   "appSettingsExperimentalTorOffTitle": "Uzime Tor iliyojengwa ndani?",
   "appSettingsExperimentalTorOffBody": "{count, plural, one{Tovuti moja imewekwa kutumia Tor. Itaendelea kuzuiwa hadi uwashe Tor iliyojengwa ndani tena, badala ya kupakia kupitia anwani yako halisi ya IP.} other{Tovuti {count} zimewekwa kutumia Tor. Zitaendelea kuzuiwa hadi uwashe Tor iliyojengwa ndani tena, badala ya kupakia kupitia anwani yako halisi ya IP.}}",
   "appSettingsExperimentalProxyRouter": "Kipanga njia cha proksi",
