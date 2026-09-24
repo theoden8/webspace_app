@@ -706,7 +706,7 @@ data store, so a site recreated for its new pin can reuse a connection
 opened under the old one. Every exit-capable circuit (`GENERAL`,
 `CONFLUX_*`) SHALL therefore be closed after each pin change.
 
-**A pin change holds up nothing but the Tor sites it concerns** (BUG-015).
+**A pin change holds up nothing but the Tor sites it concerns** (BUG-018).
 The change is a control-port round trip, and a control connection can go
 silent without failing: Tor.framework drops a command's completion when the
 write to a dead socket fails, and still reports the controller connected. The

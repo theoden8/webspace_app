@@ -1,4 +1,4 @@
-# BUG-015 — A UI transition waits on a native call that never answers
+# BUG-018 — A UI transition waits on a native call that never answers
 
 Status: **open.** The activation path is gated; other transitions are not.
 
@@ -8,7 +8,7 @@ TOR-014, TOR-019
 **Tests:** `test/js/go_home_commit_funnel.test.js`,
 `test/js/activation_awaits_classified.test.js`,
 `test/site_teardown_engine_test.dart`, `test/tor_engine_test.dart`
-("BUG-015: a clear tor never answers fails closed, once")
+("BUG-018: a clear tor never answers fails closed, once")
 
 ## Symptom
 

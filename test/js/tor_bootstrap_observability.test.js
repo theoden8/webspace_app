@@ -205,7 +205,7 @@ test('every control-port read happens on a quiet connection', () => {
   //
   // Two windows are quiet: observeLocked before it subscribes, and after
   // finishLocked has dropped the subscription. Reads in the second go
-  // through controlRead, which also bounds them (BUG-015), and only the
+  // through controlRead, which also bounds them (BUG-018), and only the
   // exit-country path calls it, which runs only once the runtime is up.
   const count = (src, re) => (src.match(re) || []).length;
   const raw = /info\(forKeys:/g;
@@ -261,7 +261,7 @@ test('a replaced control connection is swapped on the queue that owns it', () =>
 });
 
 test('the exit-country call always answers', () => {
-  // BUG-015: a command written to a dead control socket never completes.
+  // BUG-018: a command written to a dead control socket never completes.
   const set = functionBody(swiftCode, 'setExitCountry');
   assert.match(set, /OneShotResult\(result\)/,
     'the method-channel result must be answered once, whoever gets there first');

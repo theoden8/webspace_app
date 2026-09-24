@@ -3165,7 +3165,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// Nothing here may wait: the change is a control-port round trip, and a
   /// control socket iOS reclaimed while the app slept never answers. When
   /// the activation path awaited it, every tap on a site did nothing
-  /// (BUG-015). Waiting is not needed either: the engine holds every
+  /// (BUG-018). Waiting is not needed either: the engine holds every
   /// Tor-bound site behind the interstitial from this call until the pin
   /// lands, and bounds the round trip itself.
   void _syncTorExitPin(Set<int> pinned) {

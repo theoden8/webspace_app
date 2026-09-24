@@ -559,7 +559,7 @@ class TorEngine {
   /// user did not pick. The hold is published before this returns its
   /// future, which is what lets a caller not wait on it: the change is a
   /// control-port round trip, and one that never answers must not hold up
-  /// anything but the Tor sites it concerns (BUG-015).
+  /// anything but the Tor sites it concerns (BUG-018).
   ///
   /// With [mayFetchGeoIp] false the pin uses a GeoIP table already on the
   /// device and never downloads one; without one it fails closed.
@@ -630,7 +630,7 @@ class TorEngine {
     } on TimeoutException {
       if (superseded()) return;
       // A control socket iOS reclaimed while the app was suspended takes
-      // the command and never answers (BUG-015). The change is not in
+      // the command and never answers (BUG-018). The change is not in
       // force, so this fails closed like any other refusal.
       const message = 'Tor did not answer on its control port while the exit '
           'country was being changed, so the change is not in force.';

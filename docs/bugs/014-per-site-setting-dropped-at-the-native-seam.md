@@ -131,7 +131,7 @@ silently. Only something that observes the *effect* can catch it.
    `up` back until the pin lands. Gated by `test/tor_engine_test.dart`
    (TOR-014 GeoIP group) and `test/js/tor_geoip_not_bundled.test.js`.
    The activation hang the same field report ended in, a clear awaited on a
-   control socket that no longer answered, is BUG-015.
+   control socket that no longer answered, is BUG-018.
 
 ## What the platform actually does
 

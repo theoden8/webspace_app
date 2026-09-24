@@ -1,11 +1,11 @@
-// Activation-path await gate (BUG-015, NAV-010).
+// Activation-path await gate (BUG-018, NAV-010).
 //
 // A site switch that awaits something which never answers does nothing: no
 // error, no spinner, just a tap that is ignored, and every later tap queues
 // behind a newer version that waits on the same thing. It has happened twice.
 // The go-home teardown waited on a page an earlier pause had frozen (#551,
 // NAV-010), and the Tor exit-country change waited on a control socket iOS
-// reclaimed while the app slept (BUG-015).
+// reclaimed while the app slept (BUG-018).
 //
 // So this gate does not decide which awaits are safe. It makes someone decide:
 // every await in `_setCurrentIndex` is listed here with the reason it cannot

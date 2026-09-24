@@ -822,7 +822,7 @@ void main() {
       });
     });
 
-    test('BUG-015: a clear tor never answers fails closed, once', () {
+    test('BUG-018: a clear tor never answers fails closed, once', () {
       // The reported hang. A pin was in force, the app slept long enough
       // for iOS to reclaim the control socket, and the next site switch
       // cleared the pin: the RESETCONF went nowhere, and every later tap

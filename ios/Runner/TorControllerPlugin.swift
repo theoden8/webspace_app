@@ -62,7 +62,7 @@ private let kTorAttachAttempts = 60
 
 /// How long one control command may go unanswered, how long the liveness
 /// probe may, and how long the whole exit-country change may. A command
-/// written to a dead control socket never completes (BUG-015).
+/// written to a dead control socket never completes (BUG-018).
 private let kTorControlReplyTimeout = 8.0
 private let kTorControlProbeTimeout = 3.0
 private let kTorExitCountryTimeout = 20.0
@@ -84,7 +84,7 @@ final class OnceGate {
 
 /// A FlutterResult answered once, by whichever of the reply and a deadline
 /// comes first. Answering twice is an error; never answering leaves the
-/// Dart side waiting forever, which is what BUG-015 was.
+/// Dart side waiting forever, which is what BUG-018 was.
 final class OneShotResult {
   private let gate = OnceGate()
   private let result: FlutterResult
@@ -1137,7 +1137,7 @@ class TorControllerPlugin: NSObject {
   /// at all. So the file goes in first, and the pin only once tor reports
   /// the table loaded; tor's `ExitNodes` is never a country it cannot read.
   ///
-  /// Always answers, and exactly once (BUG-015). Tor.framework registers a
+  /// Always answers, and exactly once (BUG-018). Tor.framework registers a
   /// command's reply observer only after a clean write, so a command written
   /// to a dead control socket never completes, and the Dart side used to
   /// wait on it for good. Every step here is bounded, the whole call has a
@@ -1434,7 +1434,7 @@ class TorControllerPlugin: NSObject {
 
   /// Whatever [send]'s completion delivers, or nil at [seconds], whichever
   /// comes first. Tor.framework drops a command's completion when the write
-  /// fails, so no wait on it may be open-ended (BUG-015).
+  /// fails, so no wait on it may be open-ended (BUG-018).
   private static func reply<T>(
     within seconds: Double, _ send: (@escaping (T) -> Void) -> Void
   ) async -> T? {
