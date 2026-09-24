@@ -133,6 +133,7 @@ class TorProbe {
 
   final Socket _socket;
   final StreamIterator<String> _lines;
+  final _events = <String>[];
 
   static final _ipv4 = RegExp(r'^\d+\.\d+\.\d+\.\d+$');
 
@@ -172,6 +173,11 @@ class TorProbe {
         }
         continue;
       }
+      if (line.startsWith('650')) {
+        // Asynchronous: a STREAM event interleaved with the reply.
+        _events.add(line.substring(4));
+        continue;
+      }
       if (line.length < 4 || !line.startsWith('2')) {
         throw StateError('$verb: $line');
       }
@@ -191,7 +197,25 @@ class TorProbe {
   }
 
   Future<String> config() async =>
-      (await _send('GETCONF ExitNodes StrictNodes GeoIPFile')).join(', ');
+      (await _send('GETCONF ExitNodes StrictNodes ConfluxEnabled GeoIPFile'))
+          .join(', ');
+
+  /// Start recording STREAM events: where each stream attached, and why it
+  /// closed. Asking `stream-status` afterwards misses any stream that is
+  /// already gone, which a check request's connection usually is.
+  Future<void> watchStreams() => _send('SETEVENTS STREAM');
+
+  /// STREAM events since the last call, the per-launch SOCKS password cut.
+  Future<List<String>> streamEvents() async {
+    // A reply comes after every event tor wrote before it.
+    await _send('GETINFO version');
+    final out = [
+      for (final e in _events)
+        e.replaceAll(RegExp(r' SOCKS_PASSWORD=("[^"]*"|\S+)'), ''),
+    ];
+    _events.clear();
+    return out;
+  }
 
   /// circuit-status lines by circuit id, closed and failed ones left out.
   Future<Map<String, String>> circuits() async {
@@ -201,15 +225,6 @@ class TorProbe {
         if (l.split(' ').length > 1 &&
             !const {'CLOSED', 'FAILED'}.contains(l.split(' ')[1]))
           l.split(' ')[0]: l,
-    };
-  }
-
-  /// Circuit id of every open stream to [host], by stream id.
-  Future<Map<String, String>> streamsTo(String host) async {
-    final lines = (await info('stream-status')).split('\n');
-    return {
-      for (final l in lines.map((l) => l.split(' ')))
-        if (l.length > 3 && l[3].startsWith('$host:')) l[0]: l[2],
     };
   }
 
@@ -245,15 +260,28 @@ class TorProbe {
     return [for (final line in all.values) await describe(line)].join('\n');
   }
 
-  /// The circuit each open stream to [host] rides, described.
-  Future<String> ridden(String host) async {
+  /// Circuit id of each stream to [host] that tor attached, by stream id,
+  /// from [events].
+  static Map<String, String> attached(List<String> events, String host) => {
+        for (final e in events.map((e) => e.split(' ')))
+          if (e.length > 4 &&
+              e[0] == 'STREAM' &&
+              e[2] == 'SUCCEEDED' &&
+              e[4].startsWith('$host:'))
+            e[1]: e[3],
+      };
+
+  /// The circuit each stream to [host] in [events] rode, described, with
+  /// the events themselves for anything that closed early.
+  Future<String> rode(List<String> events, String host) async {
     final all = await circuits();
-    final streams = await streamsTo(host);
-    if (streams.isEmpty) return 'no open stream to $host';
-    return [
+    final streams = attached(events, host);
+    final lines = [
       for (final e in streams.entries)
-        'stream ${e.key}: ${all[e.value] == null ? 'circuit ${e.value}, gone' : await describe(all[e.value]!)}',
-    ].join('\n');
+        'stream ${e.key}: ${all[e.value] == null ? 'circuit ${e.value}, closed since' : await describe(all[e.value]!)}',
+      ...events.where((e) => e.contains(' $host:')),
+    ];
+    return lines.isEmpty ? 'no stream to $host' : lines.join('\n');
   }
 }
 
@@ -518,6 +546,7 @@ void main() {
     TorProbe? probe;
     try {
       probe = await TorProbe.open();
+      await probe.watchStreams();
     } catch (e) {
       trace('no control probe: $e');
     }
@@ -532,9 +561,17 @@ void main() {
     }
 
     /// What tor says the check stream rode, and where tor puts [ip].
-    Future<String> torView(String ip) => askTor((p) async =>
-        'tor places $ip in ${await p.info('ip-to-country/$ip')}; '
-        '${await p.config()}\n${await p.ridden(exitCheck.host)}');
+    Future<String> torView(String ip) => askTor((p) async {
+          final events = await p.streamEvents();
+          String where;
+          try {
+            where = await p.info('ip-to-country/$ip');
+          } catch (e) {
+            where = '? ($e)';
+          }
+          return 'tor places $ip in $where; ${await p.config()}\n'
+              '${await p.rode(events, exitCheck.host)}';
+        });
 
     // Longer than tor's own patience with a stream (SocksTimeout, two
     // minutes). Until tor has timed 100 circuits it gives a stalled build
@@ -543,6 +580,8 @@ void main() {
     const patience = Duration(seconds: 150);
 
     Future<String> exitAddress(String when) async {
+      // Only this request's streams in the events torView reads next.
+      await askTor((p) async => '${(await p.streamEvents()).length}');
       final clock = Stopwatch()..start();
       Future<http.Response> ask() => client.get(exitCheck).timeout(patience);
       http.Response response;
@@ -690,6 +729,7 @@ void main() {
     // A host no other scenario dials, so every stream to it is one of these.
     final target = Uri.parse('https://www.torproject.org/');
     final probe = await TorProbe.open();
+    await probe.watchStreams();
     final streams = <Socket>[];
     try {
       for (final site in ['site-a', 'site-b']) {
@@ -697,11 +737,12 @@ void main() {
             TorService.instance.socksFor(siteId: site)!, target)
             .timeout(const Duration(seconds: 150)));
       }
-      final rode = await probe.streamsTo(target.host);
-      final seen = await probe.ridden(target.host);
+      final events = await probe.streamEvents();
+      final rode = TorProbe.attached(events, target.host);
+      final seen = await probe.rode(events, target.host);
       trace('two sites:\n$seen');
       expect(rode, hasLength(2),
-          reason: 'tor lists ${rode.length} open streams to ${target.host}, '
+          reason: 'tor attached ${rode.length} streams to ${target.host}, '
               'not the two just opened:\n$seen');
       expect(rode.values.toSet(), hasLength(2),
           reason: 'site-a and site-b ride one circuit, so per-site isolation '
