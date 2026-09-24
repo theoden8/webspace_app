@@ -226,108 +226,94 @@ void main() {
     });
   });
 
-  group('fitSitePermissionBadges (PERMBADGE-005)', () {
-    const all = [
-      SitePermissionBadge.spoofLocation,
-      SitePermissionBadge.realCamera,
-      SitePermissionBadge.virtualMicrophone,
-      SitePermissionBadge.notifications,
-      SitePermissionBadge.backgroundAudio,
-    ];
-
-    test('everything is shown when it fits', () {
-      final fit = fitSitePermissionBadges(all, all.length);
-      expect(fit.shown, all);
-      expect(fit.hidden, isEmpty);
-    });
-
-    test('real device grants are kept ahead of simulated ones', () {
-      final fit = fitSitePermissionBadges(all, 2);
-      expect(fit.shown,
-          [SitePermissionBadge.realCamera, SitePermissionBadge.notifications]);
-      expect(fit.hidden, [
-        SitePermissionBadge.spoofLocation,
-        SitePermissionBadge.virtualMicrophone,
-        SitePermissionBadge.backgroundAudio,
-      ]);
-    });
-
-    test('shown badges keep the display order', () {
-      final fit = fitSitePermissionBadges(all, 3);
-      expect(fit.shown, [
-        SitePermissionBadge.spoofLocation,
-        SitePermissionBadge.realCamera,
-        SitePermissionBadge.notifications,
-      ]);
-    });
-
-    test('no room folds everything into the counter', () {
-      expect(fitSitePermissionBadges(all, 0).shown, isEmpty);
-      expect(fitSitePermissionBadges(all, -1).hidden, all);
-    });
-  });
-
   group('SitePermissionBadges in a tile (PERMBADGE-005)', () {
-    Widget boxed(WebViewModel model, double width, {bool overlay = false}) =>
-        MaterialApp(
+    Widget boxed(Widget strip) => MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: Center(
-              child: SizedBox(
-                width: width,
-                child: Center(
-                  child: SitePermissionBadges(
-                    model: model,
-                    iconSize: overlay ? 9 : 12,
-                    overlay: overlay,
-                  ),
-                ),
-              ),
-            ),
-          ),
+          home: Scaffold(body: Center(child: strip)),
         );
 
-    testWidgets('a crowded strip folds into a counter inside its bounds',
+    int rows(WidgetTester tester) => tester
+        .widgetList<Icon>(find.byType(Icon))
+        .map((icon) => tester.getRect(find.byWidget(icon)).top)
+        .toSet()
+        .length;
+
+    void expectInside(WidgetTester tester, Rect bounds) {
+      for (final icon in tester.widgetList<Icon>(find.byType(Icon))) {
+        final rect = tester.getRect(find.byWidget(icon));
+        expect(bounds.contains(rect.topLeft), isTrue);
+        expect(bounds.contains(rect.bottomRight - const Offset(0.01, 0.01)),
+            isTrue);
+      }
+    }
+
+    final allBadges =
+        sitePermissionBadges(everyGrant(), protectedContentApplies: true);
+
+    testWidgets('every grant wraps inside the favicon overlay',
         (tester) async {
       // The narrow drawer tile's favicon is 48 wide.
-      await tester.pumpWidget(boxed(everyGrant(), 48, overlay: true));
+      await tester.pumpWidget(boxed(SizedBox(
+        width: 48,
+        child: Center(
+          child: SitePermissionBadges(
+            model: everyGrant(),
+            iconSize: 9,
+            overlay: true,
+            protectedContentApplies: true,
+          ),
+        ),
+      )));
       expect(tester.takeException(), isNull);
+      expect(find.byType(Icon), findsNWidgets(allBadges.length));
+      expect(find.byType(Text), findsNothing);
       final strip = tester.getRect(find.byType(SitePermissionBadges));
       expect(strip.width, lessThanOrEqualTo(48));
-      for (final element in find.byType(Icon).evaluate()) {
-        final rect = tester.getRect(find.byWidget(element.widget));
-        expect(rect.left, greaterThanOrEqualTo(strip.left));
-        expect(rect.right, lessThanOrEqualTo(strip.right));
-      }
-      final shown = find.byType(Icon).evaluate().length;
-      final badges = sitePermissionBadges(everyGrant());
-      expect(shown, lessThan(badges.length));
-      expect(find.text('+${badges.length - shown}'), findsOneWidget);
+      expect(rows(tester), 2);
+      expectInside(tester, strip);
     });
 
-    testWidgets('the counter names the folded grants for screen readers',
+    testWidgets('every grant fits beside the name in the narrowest wide tile',
         (tester) async {
-      await tester.pumpWidget(boxed(everyGrant(), 48, overlay: true));
-      final context = tester.element(find.byType(SitePermissionBadges));
-      final loc = AppLocalizations.of(context);
-      final counter = tester.widget<Text>(find.textContaining('+'));
-      final shownIcons = tester
-          .widgetList<Icon>(find.byType(Icon))
-          .map((i) => i.icon)
-          .toSet();
-      final folded = sitePermissionBadges(everyGrant())
-          .where((b) => !shownIcons.contains(sitePermissionBadgeIcon(b)));
-      expect(counter.semanticsLabel,
-          folded.map((b) => sitePermissionBadgeLabel(loc, b)).join(', '));
+      // A tile is wide once it is 1.5 x 88 = 132 across. Less padding (24),
+      // favicon (36) and gap (12), that leaves 60 beside the favicon, of
+      // which the strip gets half, in a content height of 80.
+      await tester.pumpWidget(boxed(SizedBox(
+        height: 80,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 30),
+            child: SitePermissionBadges(
+              model: everyGrant(),
+              iconSize: 12,
+              protectedContentApplies: true,
+            ),
+          ),
+        ),
+      )));
+      expect(tester.takeException(), isNull);
+      expect(find.byType(Icon), findsNWidgets(allBadges.length));
+      final strip = tester.getRect(find.byType(SitePermissionBadges));
+      expect(strip.width, lessThanOrEqualTo(30));
+      expect(strip.height, lessThanOrEqualTo(80));
+      expectInside(tester, strip);
     });
 
-    testWidgets('a strip with room shows every badge and no counter',
+    testWidgets('a strip with room keeps every badge on one row',
         (tester) async {
-      await tester.pumpWidget(boxed(everyGrant(), 400));
-      expect(find.byType(Icon),
-          findsNWidgets(sitePermissionBadges(everyGrant()).length));
-      expect(find.textContaining('+'), findsNothing);
+      await tester.pumpWidget(boxed(SizedBox(
+        width: 400,
+        child: Center(
+          child: SitePermissionBadges(
+            model: everyGrant(),
+            iconSize: 12,
+            protectedContentApplies: true,
+          ),
+        ),
+      )));
+      expect(find.byType(Icon), findsNWidgets(allBadges.length));
+      expect(rows(tester), 1);
     });
   });
 }

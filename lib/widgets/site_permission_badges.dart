@@ -101,7 +101,7 @@ List<SitePermissionBadge> sitePermissionBadges(
 /// site, as opposed to a synthetic stream or a background-playback exemption.
 /// Matches the Permissions row, which draws the same grants in the error
 /// colour.
-bool isRealDeviceAccess(SitePermissionBadge badge) => switch (badge) {
+bool _isRealDeviceAccess(SitePermissionBadge badge) => switch (badge) {
       SitePermissionBadge.realLocation ||
       SitePermissionBadge.realCamera ||
       SitePermissionBadge.realMicrophone ||
@@ -115,24 +115,6 @@ bool isRealDeviceAccess(SitePermissionBadge badge) => switch (badge) {
       SitePermissionBadge.backgroundAudio =>
         false,
     };
-
-/// Splits [badges] into those drawn and those folded into a "+N" counter when
-/// only [maxIcons] icons fit. Real device grants are kept ahead of simulated
-/// ones, since they are what the strip exists to reveal (MIC-014); the drawn
-/// badges keep their display order.
-({List<SitePermissionBadge> shown, List<SitePermissionBadge> hidden})
-    fitSitePermissionBadges(List<SitePermissionBadge> badges, int maxIcons) {
-  if (badges.length <= maxIcons) return (shown: badges, hidden: const []);
-  final keep = maxIcons < 0 ? 0 : maxIcons;
-  final kept = {
-    ...badges.where(isRealDeviceAccess),
-    ...badges.where((b) => !isRealDeviceAccess(b)),
-  }.take(keep).toSet();
-  return (
-    shown: badges.where(kept.contains).toList(),
-    hidden: badges.where((b) => !kept.contains(b)).toList(),
-  );
-}
 
 /// Filled glyph for a real device, outlined for a synthetic stream.
 IconData sitePermissionBadgeIcon(SitePermissionBadge badge) => switch (badge) {
@@ -176,111 +158,61 @@ String sitePermissionBadgeLabel(AppLocalizations loc, SitePermissionBadge badge)
   };
 }
 
-/// Row of permission badges for [model], or an empty box when the site holds
-/// none. Sized for the drawer's site tiles: [iconSize] defaults to the
-/// smallest legible glyph, and [overlay] paints a scrim so the strip stays
-/// readable on top of a favicon. The strip never grows past the width its
-/// parent allows: badges that do not fit fold into a "+N" counter, so a grant
-/// is summarised rather than painted off the tile.
+/// Permission badges for [model], or an empty box when the site holds none.
+/// Sized for the drawer's site tiles: [iconSize] defaults to the smallest
+/// legible glyph, and [overlay] paints a scrim so the strip stays readable on
+/// top of a favicon. Badges wrap onto another row rather than grow past the
+/// width the parent allows, so every grant stays visible.
 class SitePermissionBadges extends StatelessWidget {
   const SitePermissionBadges({
     super.key,
     required this.model,
     this.iconSize = 10,
     this.overlay = false,
+    this.protectedContentApplies,
   });
 
   final WebViewModel model;
   final double iconSize;
   final bool overlay;
 
+  /// See [sitePermissionBadges]; null uses the host check.
+  final bool? protectedContentApplies;
+
   @override
   Widget build(BuildContext context) {
-    final badges = sitePermissionBadges(model);
+    final badges = sitePermissionBadges(model,
+        protectedContentApplies: protectedContentApplies);
     if (badges.isEmpty) return const SizedBox.shrink();
-    return LayoutBuilder(
-      builder: (context, constraints) =>
-          _buildStrip(context, badges, constraints.maxWidth),
-    );
-  }
 
-  Widget _buildStrip(
-    BuildContext context,
-    List<SitePermissionBadge> badges,
-    double maxWidth,
-  ) {
     final theme = Theme.of(context);
     final loc = AppLocalizations.of(context);
-    final gap = iconSize * 0.05;
-    final slot = iconSize + 2 * gap;
-    final scrimPadding = iconSize * 0.2;
-    final available = maxWidth - (overlay ? 2 * scrimPadding : 0);
-
-    Color tint(bool real) =>
-        real ? theme.colorScheme.error : theme.colorScheme.onSurfaceVariant;
-    TextStyle counterStyle(bool real) => TextStyle(
-          fontSize: iconSize,
-          height: 1,
-          fontWeight: FontWeight.w600,
-          color: tint(real),
-        );
-
-    var fit = (shown: badges, hidden: const <SitePermissionBadge>[]);
-    if (available.isFinite && badges.length * slot > available) {
-      // Reserve the widest counter this strip could need before deciding how
-      // many icons stay.
-      final widest = TextPainter(
-        text: TextSpan(text: '+${badges.length}', style: counterStyle(false)),
-        textDirection: Directionality.of(context),
-        textScaler: TextScaler.noScaling,
-        maxLines: 1,
-      )..layout();
-      final iconRoom = available - widest.width - 2 * gap;
-      fit = fitSitePermissionBadges(badges, (iconRoom / slot).floor());
-      widest.dispose();
-    }
-
-    final hiddenReal = fit.hidden.any(isRealDeviceAccess);
-    final counter = '+${fit.hidden.length}';
-    final hiddenLabel =
-        fit.hidden.map((b) => sitePermissionBadgeLabel(loc, b)).join(', ');
-    final strip = Row(
-      mainAxisSize: MainAxisSize.min,
+    final strip = Wrap(
+      alignment: WrapAlignment.center,
+      spacing: iconSize * 0.1,
+      runSpacing: iconSize * 0.1,
       children: [
         // No Tooltip: the strip sits inside the drawer tile's long-press
         // gestures (context menu, drag-to-reorder) and must not compete for
         // them. The label rides `semanticLabel` instead.
-        for (final badge in fit.shown)
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: gap),
-            child: Icon(
-              sitePermissionBadgeIcon(badge),
-              size: iconSize,
-              semanticLabel: sitePermissionBadgeLabel(loc, badge),
-              color: tint(isRealDeviceAccess(badge)),
-            ),
-          ),
-        if (fit.hidden.isNotEmpty)
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: gap),
-            child: Text(
-              counter,
-              maxLines: 1,
-              softWrap: false,
-              textScaler: TextScaler.noScaling,
-              semanticsLabel: hiddenLabel,
-              style: counterStyle(hiddenReal),
-            ),
+        for (final badge in badges)
+          Icon(
+            sitePermissionBadgeIcon(badge),
+            size: iconSize,
+            semanticLabel: sitePermissionBadgeLabel(loc, badge),
+            color: _isRealDeviceAccess(badge)
+                ? theme.colorScheme.error
+                : theme.colorScheme.onSurfaceVariant,
           ),
       ],
     );
 
     if (!overlay) return strip;
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: scrimPadding, vertical: 1),
+      padding: EdgeInsets.symmetric(horizontal: iconSize * 0.2, vertical: 1),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface.withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(iconSize),
+        borderRadius: BorderRadius.circular(iconSize * 0.6),
       ),
       child: strip,
     );

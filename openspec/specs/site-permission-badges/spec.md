@@ -72,8 +72,8 @@ is badged only on Android, the only host that consults the setting, matching
 the Permissions row, which shows it only there. Notifications carry no engine
 gate: the polyfill answers `granted` whenever the flag is on.
 
-`realMicrophone` SHALL be treated as real device access by
-`isRealDeviceAccess`, so it renders in the theme's error colour alongside
+`realMicrophone` SHALL be treated as real device access by the badge's
+`_isRealDeviceAccess`, so it renders in the theme's error colour alongside
 `realLocation` and `realCamera`. This badge is not decoration: MIC-014 lists
 visibility as one of the clauses that make holding the recording capability
 defensible, and the drawer is the only surface that shows a grant the user
@@ -173,34 +173,31 @@ the only place with room; the tile's height is unchanged by the badges.
 **When** the drawer renders a site holding a camera grant
 **Then** its badge is drawn, exactly as in a non-reorderable webspace
 
-### Requirement: PERMBADGE-005 — The Strip Stays Inside Its Tile
+### Requirement: PERMBADGE-005 — Every Grant Stays Visible Inside Its Tile
 
-The badge strip SHALL never draw outside the width its tile gives it, and
-SHALL never squeeze the site's name to nothing. In the wide layout the strip
-gets at most half of the width beside the favicon, so the name keeps the
-other half; in the narrow layout it is bounded by the favicon's width.
+The badge strip SHALL draw every badge the site holds, SHALL never draw
+outside the width its tile gives it, and SHALL never squeeze the site's name
+to nothing. Badges that do not fit on one row wrap onto another; none is
+elided, counted or summarised. In the wide layout the strip gets at most
+half of the width beside the favicon, so the name keeps the other half, and
+its rows stack beside the name. In the narrow layout it is bounded by the
+favicon's width and a second row grows up over the favicon.
 
-When the badges do not all fit, the strip SHALL draw as many as fit and
-fold the rest into a `+N` counter, choosing real device grants
-(`isRealDeviceAccess`) ahead of simulated ones and keeping the drawn badges
-in display order. The counter SHALL render in `ColorScheme.error` when any
-folded badge is a real device grant, and SHALL carry the folded badges'
-labels as its semantics label, so no grant disappears silently, visually or
-for a screen reader. `fitSitePermissionBadges` in
-[lib/widgets/site_permission_badges.dart](../../../lib/widgets/site_permission_badges.dart)
-owns the choice.
+Both layouts SHALL have room for every badge the app can grant at once: the
+narrowest wide tile (132 across, 60 of it beside the favicon, 80 of content
+height) holds the full set in two-badge rows, and a 48-wide favicon holds it
+in two rows.
 
-#### Scenario: More grants than room fold into a counter
+#### Scenario: More grants than one row holds wrap
 
-**Given** a site holding more grants than fit beside its favicon
+**Given** a site holding more grants than fit on one row beside its favicon
 **When** its drawer tile renders
-**Then** the strip stays within the tile
-**And** the grants that do not fit are counted as `+N`
+**Then** the badges wrap onto another row within the tile
+**And** every badge is drawn
 **And** the name keeps at least half the width beside the favicon
 
-#### Scenario: A folded real grant still reads as one
+#### Scenario: The full set fits the tightest tiles
 
-**Given** a crowded strip whose folded badges include a real device grant
-**When** its drawer tile renders
-**Then** the `+N` counter is drawn in the error colour
-**And** a screen reader reads the folded grants' labels from the counter
+**Given** a site on Android holding every grant the app offers
+**When** it renders in the narrowest wide tile, or over a 48-wide favicon
+**Then** all seven badges are drawn inside the strip's bounds

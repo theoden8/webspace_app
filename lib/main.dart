@@ -9219,7 +9219,8 @@ class _WebSpacePageState extends State<WebSpacePage>
                               ),
                             ),
                             // The name keeps at least half the room; grants
-                            // past that fold into the strip's counter.
+                            // past that wrap onto another row, which the
+                            // tile's height has room for.
                             ConstrainedBox(
                               constraints: BoxConstraints(maxWidth: textArea.maxWidth / 2),
                               child: SitePermissionBadges(
@@ -9238,9 +9239,9 @@ class _WebSpacePageState extends State<WebSpacePage>
                   children: [
                     Stack(
                       // The badge strip is anchored to the favicon's bottom
-                      // edge, which it overhangs, and is bounded by the
-                      // favicon's width; the tile has no spare vertical room
-                      // to stack it below the name.
+                      // edge and bounded by its width, so a second row of
+                      // badges grows up over the favicon; the tile has no
+                      // spare vertical room to stack it below the name.
                       clipBehavior: Clip.none,
                       children: [
                         Container(
