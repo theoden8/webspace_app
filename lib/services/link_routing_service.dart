@@ -148,7 +148,14 @@ class LinkRoutingService {
     final isOpen = host == 'open' ||
         (host.isEmpty && (path == 'open' || path == '/open'));
     if (!isOpen) return null;
-    final encoded = raw.queryParameters['url'];
+    // `Uri.parse` accepts a malformed percent-escape in the query and only
+    // `queryParameters` rejects it, by throwing.
+    final String? encoded;
+    try {
+      encoded = raw.queryParameters['url'];
+    } on FormatException {
+      return null;
+    }
     if (encoded == null || encoded.isEmpty) return null;
     final inner = Uri.tryParse(encoded);
     if (inner == null) return null;

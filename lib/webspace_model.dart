@@ -42,8 +42,9 @@ class Webspace {
       };
 
   factory Webspace.fromJson(Map<String, dynamic> json) {
-    final rawSiteIds = json['siteIds'] as List<dynamic>?;
-    final legacyIndices = json['siteIndices'] as List<dynamic>?;
+    final rawSiteIds = json['siteIds'] is List ? json['siteIds'] as List : null;
+    final legacyIndices =
+        json['siteIndices'] is List ? json['siteIndices'] as List : null;
     // Legacy migration: old persisted form used positional `siteIndices`
     // (master schema). New form uses `siteIds` as source of truth. We
     // tolerate either or neither — `_loadWebspaces` wraps this in try/
@@ -53,8 +54,8 @@ class Webspace {
     // `_migrateLegacyWebspaceIndices` in main.dart promotes it to
     // siteIds once `_webViewModels` is loaded.
     return Webspace(
-      id: json['id'] as String?,
-      name: json['name'] as String? ?? 'Untitled',
+      id: json['id'] is String ? json['id'] as String : null,
+      name: json['name'] is String ? json['name'] as String : 'Untitled',
       siteIds: rawSiteIds?.whereType<String>().toList(),
       siteIndices: legacyIndices?.whereType<int>().toList(),
     );

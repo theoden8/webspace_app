@@ -3,6 +3,7 @@ import 'package:webspace/platform/host_platform.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/pref_read.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/settings/app_locale.dart';
@@ -723,7 +724,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
 
   Future<void> _loadOsmTileUrl() async {
     final prefs = await SharedPreferences.getInstance();
-    final url = prefs.getString('osmTileUrl') ??
+    final url = readPrefAs<String>(prefs, 'osmTileUrl') ??
         'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
     if (!mounted) return;
     _osmTileUrlController.text = url;
@@ -797,7 +798,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
     setState(() {
-      _firefoxAutoRefresh = prefs.getBool(kFirefoxUaAutoRefreshKey) ?? false;
+      _firefoxAutoRefresh = readPrefAs<bool>(prefs, kFirefoxUaAutoRefreshKey) ?? false;
     });
   }
 

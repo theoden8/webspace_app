@@ -16,6 +16,7 @@ import 'package:webspace/services/archive_storage.dart';
 import 'package:webspace/services/webview_state_secure_storage.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/services/archive_membership_engine.dart';
+import 'package:webspace/services/settings_import_engine.dart';
 import 'package:webspace/webspace_model.dart';
 
 import 'cookie_isolation_integration_test.dart'
@@ -592,8 +593,8 @@ void main() {
   });
 
   // Legacy-data migration: webspaces persisted before the siteId
-  // refactor stored positional `siteIndices` in JSON. The migration
-  // step in main.dart resolves those indices against the loaded
+  // refactor stored positional `siteIndices` in JSON.
+  // `promoteLegacySiteIndices` resolves those indices against the loaded
   // _webViewModels to populate siteIds. These tests pin the
   // migration's behaviour so a future change to load order or
   // resolution rules can't silently drop pre-existing webspace
@@ -608,14 +609,8 @@ void main() {
       expect(ws.siteIds, isEmpty);
       expect(ws.siteIndices, equals([0, 2]));
 
-      // Mirror of _migrateLegacyWebspaceIndices in main.dart.
       final models = [_siteWithId('a'), _siteWithId('b'), _siteWithId('c')];
-      if (ws.siteIds.isEmpty && ws.siteIndices.isNotEmpty) {
-        ws.siteIds = [
-          for (final idx in ws.siteIndices)
-            if (idx >= 0 && idx < models.length) models[idx].siteId,
-        ];
-      }
+      promoteLegacySiteIndices([ws], models);
       _resolveWebspaceIndices([ws], models);
 
       expect(ws.siteIds, equals(['a', 'c']));
@@ -635,12 +630,7 @@ void main() {
       final beforeIds = List<String>.from(ws.siteIds);
       final models = [_siteWithId('a'), _siteWithId('b')];
       // Migration short-circuits when siteIds is already populated.
-      if (ws.siteIds.isEmpty && ws.siteIndices.isNotEmpty) {
-        ws.siteIds = [
-          for (final idx in ws.siteIndices)
-            if (idx >= 0 && idx < models.length) models[idx].siteId,
-        ];
-      }
+      promoteLegacySiteIndices([ws], models);
       expect(ws.siteIds, equals(beforeIds));
     });
 
@@ -654,12 +644,7 @@ void main() {
         'siteIndices': [0, 5, 10],
       });
       final models = [_siteWithId('a'), _siteWithId('b'), _siteWithId('c')];
-      if (ws.siteIds.isEmpty && ws.siteIndices.isNotEmpty) {
-        ws.siteIds = [
-          for (final idx in ws.siteIndices)
-            if (idx >= 0 && idx < models.length) models[idx].siteId,
-        ];
-      }
+      promoteLegacySiteIndices([ws], models);
       expect(ws.siteIds, equals(['a']));
     });
   });

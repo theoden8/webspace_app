@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/pref_read.dart';
 
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
@@ -110,7 +111,7 @@ class GlobalOutboundProxy {
 /// password lives in secure storage and is merged in by
 /// [GlobalOutboundProxy.initialize].
 UserProxySettings readGlobalOutboundProxy(SharedPreferences prefs) {
-  final raw = prefs.getString(kGlobalOutboundProxyKey);
+  final raw = readPrefAs<String>(prefs, kGlobalOutboundProxyKey);
   if (raw == null || raw.isEmpty) {
     return UserProxySettings(type: ProxyType.DEFAULT);
   }

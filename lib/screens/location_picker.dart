@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/pref_read.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../services/current_location_service.dart';
@@ -96,7 +97,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
 
   Future<void> _loadTileUrl() async {
     final prefs = await SharedPreferences.getInstance();
-    final url = prefs.getString('osmTileUrl') ?? _tileUrl;
+    final url = readPrefAs<String>(prefs, 'osmTileUrl') ?? _tileUrl;
     String ua = _tileUserAgent;
     try {
       final info = await PackageInfo.fromPlatform();

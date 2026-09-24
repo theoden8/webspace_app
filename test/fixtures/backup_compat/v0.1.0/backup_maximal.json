@@ -1,0 +1,128 @@
+{
+  "version": 1,
+  "sites": [
+    {
+      "siteId": "compat-site-a",
+      "initUrl": "https://mail.example.com/",
+      "currentUrl": "https://mail.example.com/inbox",
+      "name": "Mail",
+      "pageTitle": "Inbox",
+      "cookies": [
+        {
+          "domain": ".example.com",
+          "expiresDate": 1893456000000,
+          "isHttpOnly": false,
+          "isSecure": false,
+          "isSessionOnly": false,
+          "name": "prefs",
+          "path": "/",
+          "sameSite": "Lax",
+          "value": "plain-cookie-value"
+        }
+      ],
+      "proxySettings": {
+        "type": 3,
+        "address": "127.0.0.1:1080",
+        "username": "proxyuser",
+        "password": "site-proxy-password-needle-a41c"
+      },
+      "javascriptEnabled": false,
+      "userAgent": "Mozilla/5.0 (X11; Linux x86_64) BackupCompatFixture/1.0",
+      "thirdPartyCookiesEnabled": true,
+      "incognito": false,
+      "language": "de"
+    },
+    {
+      "siteId": "compat-site-b",
+      "initUrl": "https://private.example.net/",
+      "currentUrl": "https://private.example.net/secret-path",
+      "name": "Private",
+      "pageTitle": "Private page",
+      "cookies": [
+        {
+          "domain": "private.example.net",
+          "expiresDate": 1893456000000,
+          "isHttpOnly": false,
+          "isSecure": false,
+          "isSessionOnly": false,
+          "name": "incognito-cookie",
+          "path": "/",
+          "sameSite": null,
+          "value": "incognito-cookie-needle-77b0"
+        }
+      ],
+      "proxySettings": {
+        "type": 1,
+        "address": "http-proxy.example:3128",
+        "username": null,
+        "password": null
+      },
+      "javascriptEnabled": true,
+      "userAgent": "",
+      "thirdPartyCookiesEnabled": false,
+      "incognito": true,
+      "language": "fr"
+    },
+    {
+      "siteId": "compat-site-c",
+      "initUrl": "http://localhost:8080/",
+      "currentUrl": "http://localhost:8080/dashboard",
+      "name": "Dashboard",
+      "pageTitle": "Dashboard",
+      "cookies": [],
+      "proxySettings": {
+        "type": 0,
+        "address": null,
+        "username": null,
+        "password": null
+      },
+      "javascriptEnabled": true,
+      "userAgent": "",
+      "thirdPartyCookiesEnabled": false,
+      "incognito": false,
+      "language": null
+    },
+    {
+      "siteId": "compat-site-d",
+      "initUrl": "file://notes.html",
+      "currentUrl": "file://notes.html",
+      "name": "notes",
+      "pageTitle": "notes",
+      "cookies": [],
+      "proxySettings": {
+        "type": 0,
+        "address": null,
+        "username": null,
+        "password": null
+      },
+      "javascriptEnabled": true,
+      "userAgent": "",
+      "thirdPartyCookiesEnabled": false,
+      "incognito": false,
+      "language": null
+    }
+  ],
+  "webspaces": [
+    {
+      "id": "ws-compat-work",
+      "name": "Work",
+      "siteIndices": [
+        0,
+        2,
+        3
+      ]
+    },
+    {
+      "id": "ws-compat-private",
+      "name": "Private",
+      "siteIndices": [
+        1
+      ]
+    }
+  ],
+  "themeMode": 26,
+  "showUrlBar": true,
+  "selectedWebspaceId": "ws-compat-work",
+  "currentIndex": 2,
+  "exportedAt": "2026-09-23T23:14:16.246221"
+}

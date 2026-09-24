@@ -2525,88 +2525,99 @@ class WebViewModel {
     return raw;
   }
 
+  /// Only `initUrl` is required. Every other field of the wrong type reads
+  /// as absent: the startup loader drops a site whose JSON throws and the
+  /// next save deletes it, so one odd value (a hand-edited backup, a partial
+  /// QR payload, a field a later build retyped) must not cost the whole site.
   factory WebViewModel.fromJson(
     Map<String, dynamic> json,
     Function? stateSetterF, {
     bool isArchiveTier = false,
   }) {
-    final isIncognito = json['incognito'] as bool? ?? false;
-    final isAlwaysOpenHome = json['alwaysOpenHome'] as bool? ?? false;
+    T? field<T>(String key) {
+      final value = json[key];
+      return value is T ? value : null;
+    }
+
+    num? finite(String key) {
+      final value = json[key];
+      return value is num && value.isFinite ? value : null;
+    }
+
+    final isIncognito = field<bool>('incognito') ?? false;
+    final isAlwaysOpenHome = field<bool>('alwaysOpenHome') ?? false;
     // Either flag drops persisted currentUrl/pageTitle on rehydrate; only
     // incognito additionally clears cookies. Defends against legacy JSON
     // written by older builds that didn't strip on toJson.
     final dropUrl = isIncognito || isAlwaysOpenHome;
+    final currentUrl = field<String>('currentUrl');
+    final userAgent = field<String>('userAgent') ?? '';
+    final proxy = json['proxySettings'];
     return WebViewModel(
       // Validate against path-safe format: a crafted backup could otherwise
       // set siteId to `../…` and escape the cache/import/storage keyspace.
       // null (missing or unsafe) auto-generates a fresh id.
       siteId: sanitizedSiteId(json['siteId']),
       initUrl: migrateLegacyFileImportUrl(json['initUrl'] as String),
-      currentUrl: dropUrl || json['currentUrl'] == null
+      currentUrl: dropUrl || currentUrl == null
           ? null
-          : migrateLegacyFileImportUrl(json['currentUrl'] as String),
-      name: json['name'],
+          : migrateLegacyFileImportUrl(currentUrl),
+      name: field<String>('name'),
       cookies: isIncognito
           ? const <Cookie>[]
-          : (json['cookies'] as List<dynamic>?)
-                  ?.map((dynamic e) => cookieFromJson(e))
-                  .toList() ??
-              const <Cookie>[],
-      proxySettings: UserProxySettings.fromJson(json['proxySettings']),
-      javascriptEnabled: json['javascriptEnabled'],
+          : _jsonEntries(json['cookies'], cookieFromJson),
+      proxySettings: proxy is Map
+          ? UserProxySettings.fromJson(Map<String, dynamic>.from(proxy))
+          : null,
+      javascriptEnabled: field<bool>('javascriptEnabled') ?? true,
       // Migration: a stored string that is a stock webview-default shape is
       // a frozen snapshot of the device default (old settings-screen builds
       // pre-filled the field with the default and persisted it on save).
       // Drop the override so the site tracks the live default again.
-      userAgent: isStockWebViewDefaultUserAgent(
-              (json['userAgent'] as String?) ?? '')
-          ? ''
-          : json['userAgent'],
+      userAgent: isStockWebViewDefaultUserAgent(userAgent) ? '' : userAgent,
       // Migration: legacy data carries only the rendered string. A string
       // matching a generated shape (including shapes old buggy builds
       // emitted) gets its preset back here, so stale persisted UAs heal on
       // load instead of rotting until a site breaks on them.
-      uaPreset: userAgentPresetFromName(json['uaPreset'] as String?) ??
-          recognizeGeneratedUserAgent((json['userAgent'] as String?) ?? ''),
-      thirdPartyCookiesEnabled: json['thirdPartyCookiesEnabled'],
-      httpsUpgradeEnabled: json['httpsUpgradeEnabled'] as bool?,
+      uaPreset: userAgentPresetFromName(field<String>('uaPreset')) ??
+          recognizeGeneratedUserAgent(userAgent),
+      thirdPartyCookiesEnabled: field<bool>('thirdPartyCookiesEnabled') ?? false,
+      httpsUpgradeEnabled: field<bool>('httpsUpgradeEnabled'),
       incognito: isIncognito,
       alwaysOpenHome: isAlwaysOpenHome,
-      kioskMode: json['kioskMode'] as bool? ?? false,
+      kioskMode: field<bool>('kioskMode') ?? false,
       language: sanitizedLanguageTag(json['language']),
       zoomPercent: clampZoomPercent(
-          (json['zoomPercent'] as num?)?.toInt() ?? kDefaultZoomPercent),
-      clearUrlEnabled: json['clearUrlEnabled'] ?? true,
-      dnsBlockEnabled: json['dnsBlockEnabled'] ?? true,
+          finite('zoomPercent')?.toInt() ?? kDefaultZoomPercent),
+      clearUrlEnabled: field<bool>('clearUrlEnabled') ?? true,
+      dnsBlockEnabled: field<bool>('dnsBlockEnabled') ?? true,
       dnsBlockLevel: _readDnsBlockLevel(json['dnsBlockLevel']),
-      disabledFilterLists: json['disabledFilterLists'] is List
-          ? {
-              for (final id in json['disabledFilterLists'] as List)
-                if (id is String) id
-            }
-          : const <String>{},
-      contentBlockEnabled: json['contentBlockEnabled'] ?? true,
-      trackingProtectionEnabled: json['trackingProtectionEnabled'] ?? true,
-      localCdnEnabled: json['localCdnEnabled'] ?? true,
-      blockAutoRedirects: json['blockAutoRedirects'] ?? true,
-      externalLinksInBrowser: json['externalLinksInBrowser'] as bool? ?? false,
-      fullscreenMode: json['fullscreenMode'] ?? false,
+      disabledFilterLists: {
+        for (final id in field<List>('disabledFilterLists') ?? const [])
+          if (id is String) id
+      },
+      contentBlockEnabled: field<bool>('contentBlockEnabled') ?? true,
+      trackingProtectionEnabled:
+          field<bool>('trackingProtectionEnabled') ?? true,
+      localCdnEnabled: field<bool>('localCdnEnabled') ?? true,
+      blockAutoRedirects: field<bool>('blockAutoRedirects') ?? true,
+      externalLinksInBrowser: field<bool>('externalLinksInBrowser') ?? false,
+      fullscreenMode: field<bool>('fullscreenMode') ?? false,
       // `tabBarButtonOnRight` is the short-lived bool predecessor of the
       // four-corner field; map it so early builds rehydrate cleanly.
       tabBarButtonCorner:
-          tabBarCornerFromName(json['tabBarButtonCorner'] as String?) ??
-              switch (json['tabBarButtonOnRight'] as bool?) {
+          tabBarCornerFromName(field<String>('tabBarButtonCorner')) ??
+              switch (field<bool>('tabBarButtonOnRight')) {
                 null => null,
                 true => TabBarCorner.bottomRight,
                 false => TabBarCorner.bottomLeft,
               },
-      htmlCachingEnabled: json['htmlCachingEnabled'] as bool? ?? false,
-      notificationsEnabled:
-          (json['notificationsEnabled'] as bool?) ??
-              (json['backgroundPoll'] as bool?) ??
-              false,
-      backgroundAudioEnabled: json['backgroundAudioEnabled'] as bool? ?? false,
-      protectedContentAllowed: json['protectedContentAllowed'] as bool?,
+      htmlCachingEnabled: field<bool>('htmlCachingEnabled') ?? false,
+      notificationsEnabled: field<bool>('notificationsEnabled') ??
+          field<bool>('backgroundPoll') ??
+          false,
+      backgroundAudioEnabled: field<bool>('backgroundAudioEnabled') ?? false,
+      protectedContentAllowed: field<bool>('protectedContentAllowed'),
       // `cameraAllowed` is the legacy boolean this field replaced; migrate it.
       cameraMode:
           cameraAccessModeFromJson(json['cameraMode'], json['cameraAllowed']),
@@ -2618,43 +2629,66 @@ class WebViewModel {
       screenShareMode: screenShareModeFromJson(json['screenShareMode']),
       virtualScreenSource:
           VirtualScreenSource.fromJson(json['virtualScreenSource']),
-      userScripts: (json['userScripts'] as List<dynamic>?)
-          ?.map((e) => UserScriptConfig.fromJson(e as Map<String, dynamic>))
-          .toList(),
-      enabledGlobalScriptIds: (json['enabledGlobalScriptIds'] as List<dynamic>?)
-          ?.map((e) => e as String)
-          .toSet(),
-      blockedCookies: (json['blockedCookies'] as List<dynamic>?)
-          ?.map((e) => BlockedCookie.fromJson(e as Map<String, dynamic>))
-          .toSet(),
+      userScripts:
+          _jsonEntries(json['userScripts'], UserScriptConfig.fromJson),
+      enabledGlobalScriptIds: {
+        for (final id in field<List>('enabledGlobalScriptIds') ?? const [])
+          if (id is String) id
+      },
+      blockedCookies:
+          _jsonEntries(json['blockedCookies'], BlockedCookie.fromJson).toSet(),
       locationMode: LocationMode.values.firstWhere(
         (m) => m.name == json['locationMode'],
         orElse: () => LocationMode.off,
       ),
-      spoofLatitude: (json['spoofLatitude'] as num?)?.toDouble(),
-      spoofLongitude: (json['spoofLongitude'] as num?)?.toDouble(),
-      spoofAccuracy: (json['spoofAccuracy'] as num?)?.toDouble() ?? 50.0,
-      spoofTimezone: json['spoofTimezone'] as String?,
+      spoofLatitude: finite('spoofLatitude')?.toDouble(),
+      spoofLongitude: finite('spoofLongitude')?.toDouble(),
+      spoofAccuracy: finite('spoofAccuracy')?.toDouble() ?? 50.0,
+      spoofTimezone: field<String>('spoofTimezone'),
       spoofTimezoneFromLocation:
-          json['spoofTimezoneFromLocation'] as bool? ?? false,
+          field<bool>('spoofTimezoneFromLocation') ?? false,
       liveLocationGranularity: _decodeLiveLocationGranularity(
           json['liveLocationGranularity']),
       webRtcPolicy: WebRtcPolicy.values.firstWhere(
         (p) => p.name == json['webRtcPolicy'],
         orElse: () => WebRtcPolicy.defaultPolicy,
       ),
-      letterboxEnabled: json['letterboxEnabled'] as bool? ?? false,
-      spoofWindowWidth: (json['spoofWindowWidth'] as num?)?.toInt(),
-      spoofWindowHeight: (json['spoofWindowHeight'] as num?)?.toInt(),
-      fingerprintResetNonce: json['fingerprintResetNonce'] as String?,
+      letterboxEnabled: field<bool>('letterboxEnabled') ?? false,
+      spoofWindowWidth: finite('spoofWindowWidth')?.toInt(),
+      spoofWindowHeight: finite('spoofWindowHeight')?.toInt(),
+      fingerprintResetNonce: field<String>('fingerprintResetNonce'),
       customIconPng: _decodeCustomIconPng(json['customIconPng']),
-      domainClaims: (json['domainClaims'] as List<dynamic>?)
-          ?.map((e) => DomainClaim.fromJson(e as Map<String, dynamic>))
-          .toList(),
+      // Absent stays null: no claims configured, as opposed to an emptied list.
+      domainClaims: json['domainClaims'] is List
+          ? [
+              for (final claim
+                  in _jsonEntries(json['domainClaims'], DomainClaim.fromJson))
+                if (claim.value.isNotEmpty) claim,
+            ]
+          : null,
       stateSetterF: stateSetterF,
       isArchiveTier: isArchiveTier,
-    )..pageTitle = dropUrl ? null : json['pageTitle'];
+    )..pageTitle = dropUrl ? null : field<String>('pageTitle');
   }
+}
+
+/// The entries of a JSON list that [parse] accepts. A malformed entry (a
+/// cookie, a script, a claim) is dropped rather than failing its site.
+List<T> _jsonEntries<T>(
+  Object? raw,
+  T Function(Map<String, dynamic>) parse,
+) {
+  if (raw is! List) return <T>[];
+  final out = <T>[];
+  for (final entry in raw) {
+    if (entry is! Map) continue;
+    try {
+      out.add(parse(Map<String, dynamic>.from(entry)));
+    } catch (_) {
+      continue;
+    }
+  }
+  return out;
 }
 
 Uint8List? _decodeCustomIconPng(Object? raw) {

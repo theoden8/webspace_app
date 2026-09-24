@@ -24,6 +24,19 @@ void main() {
     expect(close, lessThan(clear));
   });
 
+  test('an import decides everything before it clears the list', () {
+    // BACKUP-013: a file value that fails to parse must reject the import
+    // while live state is intact, so after the clear only the plan is read.
+    final import = body('Future<void> _importSettings() async {');
+    final plan = import.indexOf('planSettingsImport(');
+    final clear = import.indexOf('_webViewModels.clear();');
+    expect(plan, greaterThan(-1), reason: 'the import no longer plans');
+    expect(plan, lessThan(clear));
+    final applied = import.substring(clear);
+    expect(applied, isNot(contains('fromJson(')));
+    expect(applied, isNot(contains('backup.')));
+  });
+
   test('a close never seals fewer rows than the archive opened with', () {
     final close = body('Future<void> _closeArchive(ArchiveHandle handle) async {');
     final guard = close.indexOf(

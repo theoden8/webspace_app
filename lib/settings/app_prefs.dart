@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/services/developer_mode_service.dart';
+import 'package:webspace/settings/pref_read.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 
 /// Registry of global app-level preferences that are round-tripped through
@@ -142,41 +145,82 @@ Map<String, Object?> readExportedAppPrefs(SharedPreferences prefs) {
   return result;
 }
 
-/// Write every registered pref from [values] back into [prefs]. Keys absent
-/// from [values] fall back to the registry default; unknown keys in [values]
-/// are ignored (forward compatibility).
+/// Write every registered pref from [values] back into [prefs], through
+/// [resolveExportedAppPrefs].
 Future<void> writeExportedAppPrefs(
   SharedPreferences prefs,
   Map<String, Object?> values,
 ) async {
-  for (final entry in kExportedAppPrefs.entries) {
-    final key = entry.key;
-    final defaultValue = entry.value;
-    final raw = values.containsKey(key) ? values[key] : defaultValue;
-    await _writeTypedPref(prefs, key, raw ?? defaultValue);
+  for (final entry in resolveExportedAppPrefs(values).entries) {
+    await _writeTypedPref(prefs, entry.key, entry.value);
   }
 }
 
-Object? _readTypedPref(SharedPreferences prefs, String key, Object defaultValue) {
-  if (defaultValue is bool) {
-    return prefs.getBool(key) ?? defaultValue;
+/// The value every registered pref takes when [values] (a backup's
+/// `globalPrefs`) is applied. Keys absent from [values] take the registry
+/// default; unknown keys are ignored (forward compatibility).
+///
+/// A value is written under the registry's type, never the file's: storing a
+/// String under a key the app reads with `getBool` would throw on every later
+/// read. An integral double is accepted for an int key (and an int for a
+/// double key); any other mismatch falls back to the default.
+Map<String, Object> resolveExportedAppPrefs(Map<String, Object?> values) {
+  final result = <String, Object>{};
+  for (final entry in kExportedAppPrefs.entries) {
+    final key = entry.key;
+    var raw = values[key];
+    // Superseded by `tabBarButton` in v0.2.7; a backup written by a build in
+    // between names only the old key.
+    if (raw == null && key == 'tabBarButton') {
+      raw = values['tabBarButtonInFullscreen'];
+    }
+    if (key == kGlobalOutboundProxyKey) raw = _withoutProxyPassword(raw);
+    result[key] = _coerceToRegistryType(raw, entry.value) ?? entry.value;
   }
-  if (defaultValue is int) {
-    return prefs.getInt(key) ?? defaultValue;
-  }
-  if (defaultValue is double) {
-    return prefs.getDouble(key) ?? defaultValue;
-  }
-  if (defaultValue is String) {
-    return prefs.getString(key) ?? defaultValue;
-  }
-  if (defaultValue is List<String>) {
-    return prefs.getStringList(key) ?? defaultValue;
-  }
-  throw UnsupportedError(
-    'Unsupported pref type ${defaultValue.runtimeType} for key $key',
-  );
+  return result;
 }
+
+Object? _coerceToRegistryType(Object? raw, Object defaultValue) {
+  if (defaultValue is bool) return raw is bool ? raw : null;
+  if (defaultValue is int) {
+    if (raw is int) return raw;
+    if (raw is double && raw.isFinite && raw == raw.truncateToDouble()) {
+      return raw.toInt();
+    }
+    return null;
+  }
+  if (defaultValue is double) return raw is num ? raw.toDouble() : null;
+  if (defaultValue is String) return raw is String ? raw : null;
+  if (defaultValue is List<String>) {
+    return raw is List && raw.every((e) => e is String)
+        ? List<String>.from(raw)
+        : null;
+  }
+  return null;
+}
+
+/// The app-wide proxy rides the registry as a JSON-encoded
+/// `UserProxySettings`. v0.2.2 encoded its password too, and
+/// `UserProxySettings.fromJson` reads one back, so a password in the file
+/// would reach secure storage through `GlobalOutboundProxy.update`. Exports
+/// are password-less by contract (PWD-005); drop it. Anything that is not a
+/// JSON object passes through: `readGlobalOutboundProxy` reads it as no proxy.
+Object? _withoutProxyPassword(Object? raw) {
+  if (raw is! String) return raw;
+  final Object? decoded;
+  try {
+    decoded = jsonDecode(raw);
+  } on FormatException {
+    return raw;
+  }
+  if (decoded is! Map<String, dynamic> || !decoded.containsKey('password')) {
+    return raw;
+  }
+  return jsonEncode(Map<String, dynamic>.from(decoded)..remove('password'));
+}
+
+Object? _readTypedPref(SharedPreferences prefs, String key, Object defaultValue) =>
+    _coerceToRegistryType(prefs.get(key), defaultValue) ?? defaultValue;
 
 Future<void> _writeTypedPref(
   SharedPreferences prefs,
@@ -205,6 +249,6 @@ Future<void> _writeTypedPref(
 /// stricter behaviour.
 Future<bool> readTorIsolateDestAddr() async {
   final prefs = await SharedPreferences.getInstance();
-  return prefs.getBool(kTorIsolateDestAddrKey) ??
+  return readPrefAs<bool>(prefs, kTorIsolateDestAddrKey) ??
       kExportedAppPrefs[kTorIsolateDestAddrKey]! as bool;
 }
