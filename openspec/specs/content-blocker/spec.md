@@ -118,6 +118,8 @@ Users SHALL be able to manage multiple filter lists with download, enable/disabl
 **When** they enter a name and URL
 **Then** the custom list is added to the lists registry
 **And** it can be downloaded, enabled/disabled, and removed like default lists
+**And** a list whose rules are written in the app instead of downloaded is
+covered by CB-016
 
 #### Scenario: Remove a custom list
 
@@ -753,6 +755,180 @@ it
 
 **Given** the sites are saved with no change to any site's list selection
 **Then** the engine is not rebuilt
+
+---
+
+### Requirement: CB-016 - Local Filter Lists
+
+Users SHALL be able to write a filter list in the app instead of pointing at a
+URL, for rules one site or platform needs that no published list carries. A
+local list is a `FilterList` whose `rules` field is non-null; its `url` is
+empty.
+
+- `addLocalList(name, rules)` creates it enabled and rebuilds the engine at
+  once; there is nothing to download.
+- `updateLocalList(id, name, rules)` edits it in place.
+- `downloadList` returns false for it and `downloadAllLists` skips it.
+- `_rebuildEngineInner` takes its text from `rules`, not the cache directory,
+  so it passes through the same CB-015 mask rewrite as any other list.
+- The rules persist inside the `content_blocker_lists` entry, not as a cache
+  file: they are user intent, and nothing can re-fetch them.
+
+This amends CB-011: a local list's export entry SHALL also carry `rules`, and
+`importListSelection` SHALL restore it as a local list. Download lists still
+export `{id, name, url, enabled}` only.
+
+List ids are minted from the current millisecond; minting SHALL step past an
+id already in the registry, since two lists added within one millisecond
+would otherwise share an id and one cache file.
+
+#### Scenario: Write a local list
+
+**Given** the user taps "Write Local List" and enters a name and
+`||ads.example^`
+**When** they tap Add
+**Then** the list appears enabled with its rule count
+**And** `ads.example` is blocked without any download
+
+#### Scenario: Edit a local list
+
+**Given** a local list exists
+**When** the user edits its rules and saves
+**Then** the engine is rebuilt from the new text
+**And** rules removed from the text no longer block
+
+#### Scenario: A local list survives a backup
+
+**Given** a local list and a download list
+**When** settings are exported and imported on another device
+**Then** the local list is restored with its rules and blocks immediately
+**And** the download list's entry carries no rules
+
+#### Scenario: A site masks a local list
+
+**Given** a local list is enabled
+**When** a site switches it off in its Content Blocker settings
+**Then** its rules do not apply on that site (CB-015)
+
+---
+
+### Requirement: CB-017 - uBO Pre-Parser Directives
+
+adblock-rust 0.12 reads every line starting with `!` as a comment, so it
+implements neither `!#include` nor `!#if`. uBlock Origin's own lists depend
+on both: `filters.txt` holds a quarter of its rules and pulls the rest in from
+ten sublists. The app SHALL resolve both directives before the engine sees a
+list, in [`filter_list_preparser.dart`](../../../lib/services/filter_list_preparser.dart),
+matching uBO's `utils.preparser` and `assets.fetchFilterList`:
+
+- **`!#if` / `!#else` / `!#endif`** use uBO's token table and expression
+  grammar (`!`, `&&`, `||`, one pair of parentheses). A block whose expression
+  uBO would not recognise is kept, as uBO keeps it. An unknown `cap_` token is
+  false.
+- **The environment** names the engine the rules run in: `ublock` always
+  (the engine takes uBO syntax and scriptlets), `chromium` on Android,
+  `safari` on the WebKit hosts (iOS, macOS, Linux WPE), `mobile` on Android
+  and iOS.
+- **Pruning** happens at engine build time, before the CB-015 mask rewrite, so
+  a list is stored whole and the environment is applied where it runs.
+- **`!#include`** is expanded at download time, recursively, each path
+  resolved against the directory of the list that names it. As in uBO, an
+  include inside a false `!#if` is not fetched, an absolute URL or a path
+  containing `..` is refused, and a sublist is fetched at most once. A
+  percent-encoded dot and a backslash are refused as well, since a server may
+  decode either into a climb out of the directory.
+- **A sublist that cannot be fetched fails the whole download**, as in uBO:
+  nothing is cached and the list keeps its previous state. A list may name at
+  most 64 sublists.
+
+#### Scenario: uBO's main list arrives whole
+
+**Given** the user adds `https://ublockorigin.github.io/uAssets/filters/filters.txt`
+**When** it is downloaded
+**Then** its ten `!#include` sublists are fetched from the same directory
+**And** their rules reach the engine
+
+#### Scenario: A branch for another browser is dropped
+
+**Given** a list carries `!#if env_firefox` ... `!#else` ... `!#endif`
+**When** the engine is built on Android
+**Then** the `!#else` branch is compiled and the Firefox branch is not
+
+#### Scenario: An include that leaves the directory is refused
+
+**Given** a list carries `!#include ../other.txt` or an absolute URL
+**When** it is downloaded
+**Then** the path is not fetched
+
+#### Scenario: A missing sublist fails the list
+
+**Given** a list includes a sublist that answers 404
+**When** it is downloaded
+**Then** the download reports failure and no partial list is cached
+
+---
+
+### Requirement: CB-018 - uBlock Origin Backup Import
+
+The user SHALL be able to import the backup file uBlock Origin's dashboard
+saves (`my-ublock-backup_*.txt`), from App Settings > Content Blocker. The
+file is accepted on the same test uBO's own restore applies: an object with
+`userSettings`, a trusted-site list (`whitelist` array or the older
+`netWhitelist` string) and a list selection (`selectedFilterLists` or the
+older `filterLists` map). The parser and planner are pure Dart, in
+[`ubo_backup_import.dart`](../../../lib/services/ubo_backup_import.dart).
+
+What maps:
+
+- **Filter lists.** A key the app already has as a list id (`easylist`,
+  `easyprivacy`, `fanboy-social`) enables that list rather than adding uBO's
+  mirror of it. Other keys resolve to a URL through uBO's `assets.json`,
+  fetched through the outbound proxy at import time and never committed. A
+  URL entry (a list the user imported into uBO) is added as is. A key that
+  cannot be resolved, because the registry is unreachable or uBO retired it,
+  is reported, not guessed.
+- **My filters** (`userFilters`) become one CB-016 local list, named "uBlock
+  Origin: My filters" in the UI locale, enabled when the backup selects
+  `user-filters`. A later import replaces that list's rules instead of adding
+  a second one.
+- **Trusted sites** that name a whole host (`example.com`,
+  `https://example.com/*`) switch the content blocker off on the app-tier
+  sites on that host or its subdomains, as uBO's hostname directive covers
+  subdomains. A site whose Tracking Protection holds the blocker on is left
+  alone, and so is every archive-tier site (ARCH-006). The affected
+  webviews are recreated so the change applies at once.
+
+What does not map, and is counted in the confirmation dialog: trusted-site
+directives narrower or wider than a host (a path, a regex), trusted hosts
+with no matching site here, and uBO's dynamic filtering, URL rules and
+per-site switches beyond uBO's own defaults.
+
+Nothing is applied until the user confirms a dialog that lists all of the
+above. After confirming, every list the import added or enabled that has no
+download yet is downloaded, with CB-017 applied.
+
+#### Scenario: Moving from uBO
+
+**Given** a uBO backup selecting `user-filters`, `ublock-filters`, `easylist`
+and one imported URL, with `news.example` trusted
+**When** the user imports it and confirms
+**Then** EasyList is enabled, uBlock filters and the URL are added and
+downloaded, the user's filters become an enabled local list
+**And** the content blocker is off on the News site
+
+#### Scenario: A narrower trust is reported, not widened
+
+**Given** a backup trusting `https://docs.example/private/page`
+**Then** the dialog counts it under "Not imported"
+**And** no site's content blocker changes because of it
+
+#### Scenario: Not a uBO backup
+
+**Given** the user picks a WebSpace settings backup or any other file
+**Then** a snackbar says the file is not a uBlock Origin backup
+**And** nothing changes
+
+---
 
 ## Implementation Details
 

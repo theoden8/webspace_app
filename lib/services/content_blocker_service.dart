@@ -8,10 +8,12 @@ import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/adblock_engine.dart';
 import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/filter_list_mask.dart';
+import 'package:webspace/services/filter_list_preparser.dart';
 import 'package:webspace/services/bloom_filter.dart';
 import 'package:webspace/services/content_blocker_shim.dart';
 import 'package:webspace/services/host_lookup.dart';
 import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/services/ubo_backup_import.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
@@ -30,6 +32,13 @@ class FilterList {
   int ruleCount;
   int skippedCount;
 
+  /// Rules the user wrote in the app. Non-null marks a local list: it has no
+  /// URL, is never downloaded, and its text is user intent rather than a
+  /// cached blob, so it persists and exports with the list entry.
+  String? rules;
+
+  bool get isLocal => rules != null;
+
   FilterList({
     required this.id,
     required this.name,
@@ -38,6 +47,7 @@ class FilterList {
     this.lastUpdated,
     this.ruleCount = 0,
     this.skippedCount = 0,
+    this.rules,
   });
 
   Map<String, dynamic> toJson() => {
@@ -48,6 +58,7 @@ class FilterList {
         'lastUpdated': lastUpdated?.toIso8601String(),
         'ruleCount': ruleCount,
         'skippedCount': skippedCount,
+        if (rules != null) 'rules': rules,
       };
 
   factory FilterList.fromJson(Map<String, dynamic> json) => FilterList(
@@ -60,6 +71,7 @@ class FilterList {
             : null,
         ruleCount: json['ruleCount'] ?? 0,
         skippedCount: json['skippedCount'] ?? 0,
+        rules: json['rules'] is String ? json['rules'] as String : null,
       );
 }
 
@@ -120,6 +132,13 @@ class ContentBlockerService {
   ContentBlockerService._();
 
   List<FilterList> _lists = [];
+
+  static final Set<String> _preparserEnv = preparserEnv(
+    android: hostIsAndroid,
+    ios: hostIsIOS,
+    macos: hostIsMacOS,
+    linux: hostIsLinux,
+  );
 
   /// Per-site content-blocker mask: list id -> hosts of the sites that
   /// switched that list off. Pushed by the app whenever the site set or a
@@ -719,6 +738,7 @@ class ContentBlockerService {
   Future<bool> downloadList(String id) async {
     final list = _lists.firstWhere((l) => l.id == id,
         orElse: () => throw Exception('List not found: $id'));
+    if (list.isLocal) return false;
 
     final clientResult = outboundHttp.clientFor(GlobalOutboundProxy.current);
     if (clientResult is OutboundClientBlocked) {
@@ -741,14 +761,21 @@ class ContentBlockerService {
         return false;
       }
 
-      await _store.writeText(_cacheName(id), response.body);
+      final body = await expandFilterListIncludes(
+          response.body, list.url, _preparserEnv, (subUrl) async {
+        final sub = await client
+            .get(Uri.parse(subUrl))
+            .timeout(const Duration(seconds: 30));
+        return sub.statusCode == 200 ? sub.body : null;
+      });
+      await _store.writeText(_cacheName(id), body);
 
       // adblock-rust counts rules at parse time inside the engine — we
       // don't have a parse-only API on this side, so the displayed
       // ruleCount becomes a coarse proxy (line count of the raw list,
       // including comments). Better than the previous Dart parser's
       // per-rule count, which had its own classification quirks.
-      list.ruleCount = _approximateRuleCount(response.body);
+      list.ruleCount = _approximateRuleCount(body);
       list.skippedCount = 0;
       list.lastUpdated = DateTime.now();
       list.enabled = true;
@@ -771,7 +798,7 @@ class ContentBlockerService {
   Future<int> downloadAllLists() async {
     int success = 0;
     for (final list in _lists) {
-      if (list.enabled) {
+      if (list.enabled && !list.isLocal) {
         if (await downloadList(list.id)) {
           success++;
         }
@@ -782,12 +809,123 @@ class ContentBlockerService {
 
   /// Add a custom filter list. Returns the new list's ID.
   Future<String> addCustomList(String name, String url) async {
-    final id =
-        'custom_${DateTime.now().millisecondsSinceEpoch.toRadixString(36)}';
+    final id = _newCustomId();
     _lists.add(FilterList(id: id, name: name, url: url));
     await _saveLists();
     return id;
   }
+
+  String _newCustomId() {
+    var stamp = DateTime.now().millisecondsSinceEpoch;
+    while (_lists.any((l) => l.id == 'custom_${stamp.toRadixString(36)}')) {
+      stamp++;
+    }
+    return 'custom_${stamp.toRadixString(36)}';
+  }
+
+  /// Add a list whose rules the user writes in the app. It is enabled and
+  /// compiled into the engine immediately. Returns the new list's ID.
+  Future<String> addLocalList(String name, String rules) async {
+    final id = _newCustomId();
+    _lists.add(FilterList(
+      id: id,
+      name: name,
+      url: '',
+      enabled: true,
+      rules: rules,
+      ruleCount: _approximateRuleCount(rules),
+      lastUpdated: DateTime.now(),
+    ));
+    await _saveLists();
+    await _rebuildEngine();
+    return id;
+  }
+
+  /// Replace a local list's name and rules in place.
+  Future<void> updateLocalList(String id, String name, String rules) async {
+    final list = _lists.firstWhere((l) => l.id == id && l.isLocal);
+    list.name = name;
+    list.rules = rules;
+    list.ruleCount = _approximateRuleCount(rules);
+    list.lastUpdated = DateTime.now();
+    await _saveLists();
+    if (list.enabled) await _rebuildEngine();
+  }
+
+  /// uBO's asset registry, for resolving the list keys in a uBO backup.
+  /// Empty when it cannot be fetched; the plan then reports those keys as
+  /// unresolved instead of failing the import.
+  Future<Map<String, UboAsset>> fetchUboAssetRegistry() async {
+    final clientResult = outboundHttp.clientFor(GlobalOutboundProxy.current);
+    if (clientResult is! OutboundClientReady) return const {};
+    final client = clientResult.client;
+    try {
+      final response = await client
+          .get(Uri.parse(kUboAssetRegistryUrl))
+          .timeout(const Duration(seconds: 30));
+      if (response.statusCode != 200) return const {};
+      return parseUboAssetRegistry(response.body);
+    } catch (e) {
+      LogService.instance.log('ContentBlocker',
+          'uBO asset registry fetch failed: $e', level: LogLevel.warning);
+      return const {};
+    } finally {
+      client.close();
+    }
+  }
+
+  /// Applies the list half of a uBO import: enables the selected lists the
+  /// app has, adds the rest, and stores the user's own filters as a local
+  /// list named [userFiltersName] (replacing one of that name, so a second
+  /// import does not duplicate it). Returns the ids that still need a
+  /// download.
+  Future<List<String>> applyUboImport(UboImportPlan plan,
+      {required String userFiltersName}) async {
+    for (final id in plan.enableIds) {
+      final list = _lists.where((l) => l.id == id).firstOrNull;
+      if (list != null) list.enabled = true;
+    }
+    final added = <String>[];
+    for (final planned in plan.addLists) {
+      final id = _newCustomId();
+      _lists.add(FilterList(
+          id: id, name: planned.name, url: planned.url, enabled: true));
+      added.add(id);
+    }
+    final rules = plan.userFilters;
+    if (rules != null) {
+      final prior = _lists
+          .where((l) => l.isLocal && l.name == userFiltersName)
+          .firstOrNull;
+      if (prior != null) {
+        prior.rules = rules;
+        prior.ruleCount = _approximateRuleCount(rules);
+        prior.lastUpdated = DateTime.now();
+        prior.enabled = plan.userFiltersEnabled;
+      } else {
+        _lists.add(FilterList(
+          id: _newCustomId(),
+          name: userFiltersName,
+          url: '',
+          enabled: plan.userFiltersEnabled,
+          rules: rules,
+          ruleCount: _approximateRuleCount(rules),
+          lastUpdated: DateTime.now(),
+        ));
+      }
+    }
+    await _saveLists();
+    await _rebuildEngine();
+    return [
+      ...added,
+      for (final id in plan.enableIds)
+        if (_lists.any((l) => l.id == id && l.lastUpdated == null)) id,
+    ];
+  }
+
+  /// The app's lists, in the shape [planUboImport] reads.
+  List<ExistingFilterList> get existingForImport =>
+      [for (final l in _lists) ExistingFilterList(l.id, l.url)];
 
   /// Remove a filter list by ID.
   Future<void> removeList(String id) async {
@@ -837,12 +975,14 @@ class ContentBlockerService {
     for (final list in _lists) {
       if (!list.enabled) continue;
       try {
-        final cached = await _store.readText(_cacheName(list.id));
+        final cached =
+            list.rules ?? await _store.readText(_cacheName(list.id));
         if (cached != null) {
           // Sites that switched this list off get it scoped away here, so
           // the engine carries the mask instead of every decision site.
           buf.writeln(scopeRulesAwayFromHosts(
-              cached, _listMasks[list.id] ?? const <String>{}));
+              pruneFilterList(cached, _preparserEnv),
+              _listMasks[list.id] ?? const <String>{}));
           listCount++;
         }
       } catch (_) {}
@@ -948,13 +1088,15 @@ class ContentBlockerService {
   /// export: which lists exist, their source URLs, and whether they're
   /// enabled. Download-side metadata (rule counts, last-updated, skipped
   /// counts) is deliberately omitted — it's machine state tied to a blob
-  /// the backup doesn't carry. See content-blocker spec CB-011.
+  /// the backup doesn't carry. A local list's rules are exported: nothing
+  /// can re-download them. See content-blocker spec CB-011.
   List<Map<String, dynamic>> exportListSelection() => _lists
       .map((l) => <String, dynamic>{
             'id': l.id,
             'name': l.name,
             'url': l.url,
             'enabled': l.enabled,
+            if (l.rules != null) 'rules': l.rules,
           })
       .toList();
 
@@ -978,6 +1120,19 @@ class ContentBlockerService {
       if (!_kListIdPattern.hasMatch(id)) {
         LogService.instance.log('ContentBlocker',
             'Skipped imported list with unsafe id', level: LogLevel.warning);
+        continue;
+      }
+      final rules = e['rules'];
+      if (rules is String) {
+        restored.add(FilterList(
+          id: id,
+          name: name,
+          url: url,
+          enabled: e['enabled'] == true,
+          rules: rules,
+          ruleCount: _approximateRuleCount(rules),
+          lastUpdated: DateTime.now(),
+        ));
         continue;
       }
       final prior = priorById[id];
