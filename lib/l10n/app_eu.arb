@@ -841,6 +841,8 @@
   "torFailClockSkewBody": "Tor-ek ez du zirkuiturik eraikitzen ordularia gehiegi desbideratuta dagoen bitartean. Zuzendu data eta ordua, eta saiatu berriro.",
   "torFailExitPolicyTitle": "Ez dago irteera erabilgarririk herrialde horretan",
   "torFailExitPolicyBody": "Irteerako herrialdea zorrotz finkatuta dago, beraz Tor ez da beste inondik aterako. Aukeratu beste herrialde bat edo itzuli edozein herrialdera.",
+  "torFailExitCountryDataTitle": "Herrialdeen zerrenda ez dago erabilgarri",
+  "torFailExitCountryDataBody": "Irteerako herrialde bat finkatzeko, errele bakoitza zein herrialdetan dagoen adierazten duen zerrenda behar da. Lehen erabileran Tor bidez deskargatzen da, eta deskarga horrek huts egin du. Saiatu berriro, edo itzuli irteerako herrialdea edozein herrialdera.",
   "torFailControlChannelTitle": "Ezin izan da Tor-ekin hitz egin",
   "torFailControlChannelBody": "Aplikazioak ezin izan du Tor-en kontrol kanalera iritsi, beraz ezin du jakin trafikoa babestuta dagoen. Aplikazioaren akats bat da, ez konfiguratzeko zerbait; xehetasunak Garatzailearen tresnetan daude.",
   "torFailTimeoutTitle": "Tor-ek luzeegi behar izan du",

@@ -841,6 +841,8 @@
   "torFailClockSkewBody": "Ní thógann Tor ciorcaid fad is atá an clog rófhada as alt. Ceartaigh an dáta agus an t-am, ansin bain triail eile as.",
   "torFailExitPolicyTitle": "Níl aon bhealach amach inúsáidte sa tír sin",
   "torFailExitPolicyBody": "Tá an tír imeachta socraithe go docht, mar sin ní rachaidh Tor amach in aon áit eile. Roghnaigh tír eile nó fill ar aon tír.",
+  "torFailExitCountryDataTitle": "Níl liosta na dtíortha ar fáil",
+  "torFailExitCountryDataBody": "Chun tír imeachta a shocrú, teastaíonn liosta de na hathsheachadáin atá i ngach tír. Íoslódáiltear é trí Tor an chéad uair, agus theip ar an íoslódáil sin. Bain triail eile as, nó fill an tír imeachta ar aon tír.",
   "torFailControlChannelTitle": "Níorbh fhéidir labhairt le Tor",
   "torFailControlChannelBody": "Níor éirigh leis an aip teacht ar chainéal rialaithe Tor, mar sin ní féidir léi a rá an bhfuil an trácht cosanta. Locht san aip atá ann, ní rud le socrú; tá na sonraí sna hUirlisí Forbróra.",
   "torFailTimeoutTitle": "Thóg Tor rófhada",

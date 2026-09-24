@@ -826,6 +826,32 @@ void main() {
       );
     });
 
+    test('a pin only archived sites want may not download GeoIP', () {
+      // ARCH-006: the table would be a trace outside the archive.
+      final archived = _site('https://a.example.com', proxy: tor(country: 'de'))
+        ..isArchiveTier = true;
+      final active = _site('https://b.example.com', proxy: tor(country: 'de'));
+      final direct = _site('https://c.example.com');
+      final models = [archived, active, direct];
+      expect(
+        SiteUnloadEngine.torExitPinIsArchiveOnly(indices: {0}, models: models),
+        isTrue,
+      );
+      expect(
+        SiteUnloadEngine.torExitPinIsArchiveOnly(indices: {0, 2}, models: models),
+        isTrue,
+        reason: 'a site not on Tor has no say in the pin',
+      );
+      expect(
+        SiteUnloadEngine.torExitPinIsArchiveOnly(indices: {0, 1}, models: models),
+        isFalse,
+      );
+      expect(
+        SiteUnloadEngine.torExitPinIsArchiveOnly(indices: {2}, models: models),
+        isFalse,
+      );
+    });
+
     test('the pin ignores out-of-range indices', () {
       final models = [_site('https://a.example.com', proxy: tor(country: 'de'))];
       expect(

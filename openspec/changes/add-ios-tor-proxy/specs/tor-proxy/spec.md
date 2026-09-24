@@ -679,6 +679,106 @@ site is gone, must not linger and apply itself to whatever loads next.
 - **THEN** the request fails and the failure is surfaced to the user
 - **AND** the traffic does NOT leave from another country instead
 
+**A pin is only in force once tor can resolve it** (BUG-014 instance 7).
+tor matches `{cc}`
+against its IPv4 GeoIP table, and with no table loaded the pin names no
+relay at all. That table SHALL NOT ship with the app: it is the IPFire
+Location Database under CC BY-SA 4.0 (LICENSE-002), which rules out
+Tor.framework's `Tor/GeoIP` subspec. The device SHALL download tor's own
+`src/config/geoip` from the Tor Project, through Tor on an isolation tag of
+its own, from the GitLab onion service first and the clearnet host second.
+It SHALL be kept verbatim, licence header included, in the app's cache
+directory, and refused unless its header declares CC BY-SA 4.0. tor has no
+updater and re-reads `GeoIPFile` only when the path changes, so every
+download SHALL land under a new file name. A table older than 30 days SHALL
+be used as it is and refreshed in the background for the next pin. A pin
+that only archive-tier sites want SHALL use a kept table and SHALL NOT
+download or refresh one (ARCH-006); with none kept it fails closed.
+
+The native side SHALL load the table, confirm `ip-to-country/ipv4-available`,
+and only then set `ExitNodes`, so tor never holds a country it cannot read.
+Until the pin lands, the engine SHALL NOT publish `up`: every Tor-bound site
+waits behind the interstitial and Dart-side Tor fetches block.
+
+A change to `ExitNodes` stops tor attaching new streams to older circuits,
+and does nothing to streams already open. The webview pools connections per
+data store, so a site recreated for its new pin can reuse a connection
+opened under the old one. Every exit-capable circuit (`GENERAL`,
+`CONFLUX_*`) SHALL therefore be closed after each pin change.
+
+Closing them is not enough while conflux is on. A conflux set outlives the
+change: when one of its legs closes, by tor's own cleanup or ours, tor
+launches a recovery leg with the exit its other legs already use, and a new
+stream takes any linked set whose exit is not *excluded*, which a pre-pin exit
+never is. On a real tor this sent a `{de}` pin out through the Netherlands and
+a `{us}` pin out through Germany. A pin SHALL therefore set `ConfluxEnabled 0`
+in the same `SETCONF` as `ExitNodes`, before any circuit is closed, and
+clearing the pin SHALL return `ConfluxEnabled` to `auto`. With conflux off no
+leg can link, so no stream rides a set built before the pin.
+
+**A pin change holds up nothing but the Tor sites it concerns** (BUG-018).
+The change is a control-port round trip, and a control connection can go
+silent without failing: Tor.framework drops a command's completion when the
+write to a dead socket fails, and still reports the controller connected. The
+engine SHALL publish its hold before a caller could wait on the change, and no
+UI transition SHALL await it. The round trip SHALL be bounded, and on no
+answer SHALL fail closed as a control-channel failure with Retry. The native
+side SHALL answer every call exactly once, bound every command, and replace a
+control connection that stops answering with a fresh one, never with
+`disconnect()`, which sends SIGNAL SHUTDOWN. The pin SHALL be recomputed when
+memory pressure evicts a site, not left for the next activation.
+
+#### Scenario: A silent control port does not stop a site switch
+
+- **GIVEN** `{br}` is in force for a site memory pressure has since evicted
+- **AND** tor's control socket stopped answering while the app was suspended
+- **WHEN** the user activates a site that does not use Tor
+- **THEN** the switch completes without waiting on tor
+- **AND** the clear is attempted off the activation path, fails within its
+  bound, and is reported as a control-channel failure with Retry
+- **AND** no Tor-bound site loads until a change lands, and later taps do not
+  re-send the clear
+- **AND** Retry re-attaches a fresh control connection and applies the clear
+
+#### Scenario: A pinned site never reuses the exit it had before
+
+- **GIVEN** site A is loaded through Tor and exits from the Netherlands
+- **WHEN** the user pins A to Brazil in its settings
+- **THEN** A waits behind the interstitial until `ExitNodes` is `{br}`
+- **AND** every circuit that carried exit traffic before the change is closed
+- **AND** A's next request leaves from a Brazilian exit, not over a pooled
+  connection to the Dutch one
+
+#### Scenario: A conflux set built before a pin carries none of its traffic
+
+- **GIVEN** tor holds linked conflux sets whose exit is in the Netherlands
+- **WHEN** site A is pinned to `{de}`
+- **THEN** `ConfluxEnabled` is `0` in the same `SETCONF` as `ExitNodes`,
+  before any circuit is closed
+- **AND** a recovery leg tor launches for one of those sets never links
+- **AND** the address the far side sees for A's next request is in Germany
+  by the table the pin loaded
+
+#### Scenario: Country data is fetched on the device, through Tor
+
+- **GIVEN** no GeoIP table is kept on the device
+- **WHEN** a site's pin is applied
+- **THEN** the table is downloaded through Tor's SOCKS port on its own tag,
+  never directly and never on a site's circuit
+- **AND** it is stored unmodified and handed to tor as `GeoIPFile`
+- **AND** the release artifact contains no GeoIP data (gated by
+  `test/js/tor_geoip_not_bundled.test.js`)
+
+#### Scenario: Missing country data fails visibly and names the data
+
+- **GIVEN** the table cannot be downloaded, or tor will not load it
+- **WHEN** a site's pin is applied
+- **THEN** `ExitNodes` is not changed and the site stays blocked
+- **AND** the failure is classified `exitCountryData`, whose remedy is Retry
+  or clearing the pin, not picking another country
+- **AND** the same pin set again by an ordinary save does not start another
+  download; Retry does
+
 ---
 
 ### Requirement: TOR-015 - Every failure names itself and its remedy
@@ -983,9 +1083,12 @@ values kept for later use. In particular the SOCKS endpoint SHALL be read
 at attach and published when bootstrap completes, rather than read at that
 moment.
 
-After subscribing, nothing SHALL send `SETEVENTS` again: tor keeps only
-the most recent subscription, so a narrower list silently takes tor's log
-away. `addObserver(forCircuitEstablished:)` SHALL NOT be used — it sends
+Once bootstrap completes nothing observes `STATUS_CLIENT`, and the plugin
+SHALL drop the subscription (`SETEVENTS` with no events) before publishing
+`up`. The connection is then quiet again, and a read needed after bootstrap
+(an exit-country change, TOR-014) SHALL be issued only in that window. tor's
+log comes from its log file (TOR-018), so dropping the subscription takes
+nothing away. `addObserver(forCircuitEstablished:)` SHALL NOT be used — it sends
 its own `SETEVENTS` and follows it with a `GETINFO` that an event can
 answer, after which it removes itself and `CIRCUIT_ESTABLISHED` is never
 delivered again. `CIRCUIT_ESTABLISHED` SHALL be handled in the plugin's

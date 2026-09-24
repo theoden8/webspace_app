@@ -841,6 +841,8 @@
   "torFailClockSkewBody": "Tor menolak membangun sirkuit selama jamnya terlalu meleset. Perbaiki tanggal dan waktu, lalu coba lagi.",
   "torFailExitPolicyTitle": "Tidak ada keluaran yang dapat dipakai di negara itu",
   "torFailExitPolicyBody": "Negara keluar dikunci secara ketat, sehingga Tor tidak akan keluar dari tempat lain. Pilih negara lain atau kembalikan ke negara mana saja.",
+  "torFailExitCountryDataTitle": "Daftar negara tidak tersedia",
+  "torFailExitCountryDataBody": "Mengunci negara keluar memerlukan daftar relai mana yang berada di negara mana. Daftar ini diunduh melalui Tor saat pertama kali dipakai, dan unduhan itu gagal. Coba lagi, atau kembalikan negara keluar ke negara mana saja.",
   "torFailControlChannelTitle": "Tidak dapat berkomunikasi dengan Tor",
   "torFailControlChannelBody": "Aplikasi tidak dapat menjangkau saluran kendali Tor, sehingga tidak dapat mengetahui apakah lalu lintas terlindungi. Ini cacat pada aplikasi, bukan sesuatu yang perlu diatur; rinciannya ada di Alat pengembang.",
   "torFailTimeoutTitle": "Tor terlalu lama",

@@ -841,6 +841,8 @@
   "torFailClockSkewBody": "Tor bou nie stroombane terwyl die horlosie te ver uit is nie. Stel die datum en tyd reg en probeer weer.",
   "torFailExitPolicyTitle": "Geen bruikbare uitgang in daardie land nie",
   "torFailExitPolicyBody": "Die uitgangsland is streng vasgestel, dus sal Tor nêrens anders uitgaan nie. Kies 'n ander land of stel terug na enige land.",
+  "torFailExitCountryDataTitle": "Landelys nie beskikbaar nie",
+  "torFailExitCountryDataBody": "Om 'n uitgangsland vas te stel, is 'n lys nodig van watter relais in watter land is. Dit word met die eerste gebruik deur Tor afgelaai, en daardie aflaai het misluk. Probeer weer, of stel die uitgangsland terug na enige land.",
   "torFailControlChannelTitle": "Kon nie met Tor praat nie",
   "torFailControlChannelBody": "Die toepassing kon nie Tor se beheerkanaal bereik nie en kan dus nie weet of die verkeer beskerm is nie. Dit is 'n gebrek in die toepassing, nie iets om op te stel nie; die besonderhede is in Ontwikkelaarnutsgoed.",
   "torFailTimeoutTitle": "Tor het te lank geneem",

@@ -841,6 +841,8 @@
   "torFailClockSkewBody": "Tor baut keine Kanäle auf, solange die Uhr zu weit abweicht. Korrigiere Datum und Uhrzeit und versuche es erneut.",
   "torFailExitPolicyTitle": "Kein nutzbarer Ausgang in diesem Land",
   "torFailExitPolicyBody": "Das Ausgangsland ist strikt festgelegt, daher verlässt Tor das Netz nirgendwo sonst. Wähle ein anderes Land oder stelle wieder auf beliebiges Land um.",
+  "torFailExitCountryDataTitle": "Länderliste nicht verfügbar",
+  "torFailExitCountryDataBody": "Um ein Ausgangsland festzulegen, braucht Tor eine Liste, welche Relays in welchem Land stehen. Sie wird bei der ersten Nutzung über Tor heruntergeladen, und dieser Download ist fehlgeschlagen. Versuche es erneut oder stelle das Ausgangsland wieder auf beliebiges Land um.",
   "torFailControlChannelTitle": "Keine Verbindung zu Tor möglich",
   "torFailControlChannelBody": "Die App konnte den Steuerkanal von Tor nicht erreichen und kann daher nicht feststellen, ob der Datenverkehr geschützt ist. Das ist ein Fehler in der App und keine Einstellungssache; Einzelheiten stehen in den Entwicklerwerkzeugen.",
   "torFailTimeoutTitle": "Tor hat zu lange gebraucht",

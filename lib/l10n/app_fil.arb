@@ -841,6 +841,8 @@
   "torFailClockSkewBody": "Hindi gumagawa ng circuit ang Tor habang masyadong mali ang orasan. Itama ang petsa at oras, pagkatapos ay subukan muli.",
   "torFailExitPolicyTitle": "Walang magagamit na labasan sa bansang iyon",
   "torFailExitPolicyBody": "Mahigpit na nakatakda ang bansang labasan, kaya hindi lalabas ang Tor saanman pa. Pumili ng ibang bansa o ibalik sa kahit anong bansa.",
+  "torFailExitCountryDataTitle": "Hindi makuha ang listahan ng mga bansa",
+  "torFailExitCountryDataBody": "Para itakda ang bansang labasan, kailangan ang listahan kung aling mga relay ang nasa aling bansa. Dina-download ito sa pamamagitan ng Tor sa unang paggamit, at nabigo ang pag-download na iyon. Subukang muli, o ibalik ang bansang labasan sa kahit anong bansa.",
   "torFailControlChannelTitle": "Hindi makausap ang Tor",
   "torFailControlChannelBody": "Hindi naabot ng app ang control channel ng Tor, kaya hindi nito masabi kung protektado ang trapiko. Depekto ito ng app, hindi isang bagay na itatakda; nasa Developer Tools ang mga detalye.",
   "torFailTimeoutTitle": "Masyadong matagal ang Tor",

@@ -111,6 +111,52 @@ silently. Only something that observes the *effect* can catch it.
    fix is the symmetric one: refuse the override when the list comes out
    empty, the way the Apple call sites now leave the store's proxy alone.
 
+7. **The Tor exit-country pin was accepted and never in force (iOS, macOS).**
+   Reported 2026-09-23: a site pinned to Brazil kept reporting a Dutch exit.
+   `SETCONF ExitNodes={br} StrictNodes=1` answered 250 OK, the engine marked
+   the pin applied, and tor logged `Failed to open GEOIP file` (a path on the
+   machine that built `tor.xcframework`) followed by "0% of exit bw". tor
+   resolves `{cc}` against its IPv4 GeoIP table and the app never gave it one
+   (`pod 'Tor'` resolves to `Tor/CTor`, which ships none), so the pin named no
+   relay at all. The page still loaded, from the Netherlands: a change to
+   `ExitNodes` only stops tor attaching *new* streams to older circuits, and
+   the recreated webview reused a pooled connection opened before the pin.
+   Two failures, each hiding the other: without the pooled connection the
+   site would have hung, which reads as a dead country, not a missing table.
+   **Fixed 2026-09-23** in TOR-014: the table is downloaded on the device
+   through Tor, never bundled (LICENSE-002 rules out `Tor/GeoIP`, whose data
+   is CC BY-SA 4.0); the plugin loads it with `SETCONF GeoIPFile`, confirms
+   `ip-to-country/ipv4-available`, and only then sets `ExitNodes`; every
+   exit-capable circuit is closed after a pin change; and the engine holds
+   `up` back until the pin lands. Gated by `test/tor_engine_test.dart`
+   (TOR-014 GeoIP group) and `test/js/tor_geoip_not_bundled.test.js`.
+   The activation hang the same field report ended in, a clear awaited on a
+   control socket that no longer answered, is BUG-018.
+   **Partial, found 2026-09-24** (#619) by the first run of the pin against
+   the real network, `integration_test/tor_test.dart` on the macOS tier. The
+   table came from the onion service (9,725,448 bytes, pin in force 11-12 s
+   after it was set), and a stream held open under one pin ended when the
+   next landed, but the exit did not follow the pin: under `{us}` the check
+   left from 185.220.101.20 (DE), and under `{de}` from 5.255.119.254, which
+   tor's own table and the relay directory both put in the Netherlands, with
+   `ExitNodes={de}` and `StrictNodes=1` in force. Closing the circuits
+   covered `GENERAL` ones and not conflux. Closing a conflux leg makes tor
+   launch a recovery leg with the exit its set already uses
+   (`unlinked_circuit_closed`, `get_exit_for_nonce`), and a stream takes any
+   linked set whose exit is not *excluded* (`conflux_get_circ_for_conn`,
+   `circuit_is_acceptable`), which no pre-pin exit is. **Second fix
+   2026-09-24**: the pin sets `ConfluxEnabled 0` in the same SETCONF as
+   `ExitNodes`, before closing anything, so no leg can link and no stream
+   rides a set built before the pin; clearing it restores `auto`. Gated by
+   `test/js/tor_exit_pin_conflux.test.js` and the XCTest
+   `testExitPinTurnsConfluxOffAndClearingRestoresIt`; measured by the same
+   integration scenario, which now reads tor's circuit and stream tables
+   over a control connection of its own. Measured the same day with conflux
+   off: `{de}` left from 185.220.101.4 and `{us}` from 204.8.96.108, which
+   tor places in Germany and the United States, and the circuit table after
+   each pin held no conflux leg, only the onion-service circuits of the
+   table download.
+
 ## What the platform actually does
 
 Measured 2026-09-22 on macOS 15.7.3 (24G419) arm64, in a standalone
@@ -272,6 +318,18 @@ Not a record of what was tried. A record of what bit, so it bites once.
     which is why it runs on every platform whose engine answers
     `getSettings()` rather than on Apple alone.
 
+16. **tor's 250 OK is not the setting in force.** tor accepts `ExitNodes`
+    naming a country it cannot resolve, and answers 250 OK to a change that
+    leaves every open stream on its old circuit. The acknowledgement says the
+    option was stored; what it does to traffic has to be asked separately
+    (`ip-to-country/ipv4-available`) or forced (closing the circuits).
+17. **Closing a circuit can rebuild it.** A conflux set treats a closed leg
+    as damage and relaunches it with the set's own exit, chosen before
+    whatever change prompted the close. Closing every exit circuit after a
+    pin therefore regrew the pre-pin sets, and the circuit table right after
+    the pin showed only fresh `CONFLUX_UNLINKED` legs. Whether an exit
+    follows a setting is answered by the traffic, not by what was closed.
+
 ## Open
 
 1. **Fail-closed on Apple: closed as not measurable in CI.** The guarantee is
@@ -336,3 +394,14 @@ Not a record of what was tried. A record of what bit, so it bites once.
 
    **Extend it when you add a per-site field** -- that is the point of it, and
    a field not in its table is a field nothing compares.
+
+4. **Instance 7 against the real network: measured on the macOS tier,
+   not yet on an iOS device.** `integration_test/tor_test.dart` pins `{de}`
+   then `{us}` on the real tor and places the address check.torproject.org
+   sees with the table the pin downloaded. Measured 2026-09-24: the onion
+   download works and takes 11-18 s, a connection kept open under one pin
+   ends when the next lands, and with conflux off the exit follows the pin
+   (`{de}` from Germany, `{us}` from the United States, by the web's view and
+   by tor's). The macOS tier runs the same plugin source as iOS, but not the
+   iOS suspension and resume that BUG-018 came from, so a device run is
+   still the last word for the field report.

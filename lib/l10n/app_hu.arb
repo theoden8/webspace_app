@@ -841,6 +841,8 @@
   "torFailClockSkewBody": "A Tor nem épít áramköröket, amíg az óra túlságosan eltér. Javítsa a dátumot és az időt, majd próbálja újra.",
   "torFailExitPolicyTitle": "Nincs használható kilépő abban az országban",
   "torFailExitPolicyBody": "A kilépési ország szigorúan rögzített, ezért a Tor sehol máshol nem lép ki. Válasszon másik országot, vagy állítsa vissza bármely országra.",
+  "torFailExitCountryDataTitle": "Az országlista nem érhető el",
+  "torFailExitCountryDataBody": "A kilépési ország rögzítéséhez szükség van egy listára arról, melyik továbbító melyik országban van. Ez az első használatkor Toron keresztül töltődik le, és ez a letöltés nem sikerült. Próbálja újra, vagy állítsa vissza a kilépési országot bármely országra.",
   "torFailControlChannelTitle": "Nem sikerült kommunikálni a Torral",
   "torFailControlChannelBody": "Az alkalmazás nem érte el a Tor vezérlőcsatornáját, ezért nem tudja megállapítani, hogy a forgalom védett-e. Ez az alkalmazás hibája, nem beállítás kérdése; a részletek a Fejlesztői eszközökben találhatók.",
   "torFailTimeoutTitle": "A Tor túl sokáig tartott",

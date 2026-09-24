@@ -841,6 +841,8 @@
   "torFailClockSkewBody": "時計のずれが大きい間、Tor は回線を構築しません。日付と時刻を修正してから、もう一度お試しください。",
   "torFailExitPolicyTitle": "その国に利用できる出口がありません",
   "torFailExitPolicyBody": "出口の国が厳密に固定されているため、Tor は他の国からは出ません。別の国を選ぶか、任意の国に戻してください。",
+  "torFailExitCountryDataTitle": "国の一覧を取得できません",
+  "torFailExitCountryDataBody": "出口の国を固定するには、どのリレーがどの国にあるかを示す一覧が必要です。初回使用時に Tor 経由でダウンロードされますが、そのダウンロードに失敗しました。もう一度試すか、出口の国を任意の国に戻してください。",
   "torFailControlChannelTitle": "Tor と通信できませんでした",
   "torFailControlChannelBody": "アプリが Tor の制御チャネルに到達できなかったため、通信が保護されているか判断できません。これは設定の問題ではなくアプリの不具合です。詳細は開発者ツールにあります。",
   "torFailTimeoutTitle": "Tor に時間がかかりすぎました",

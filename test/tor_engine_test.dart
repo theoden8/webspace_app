@@ -10,7 +10,28 @@ import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:webspace/services/tor_engine.dart';
+import 'package:webspace/services/tor_geoip.dart';
 import 'package:webspace/settings/proxy.dart';
+
+/// In-memory [TorGeoIpStore]: one kept table at most, and a download the
+/// test answers by completing [nextDownload].
+class FakeGeoIpStore implements TorGeoIpStore {
+  TorGeoIpTable? kept;
+  final downloads = <UserProxySettings>[];
+  Completer<TorGeoIpTable?>? nextDownload;
+
+  @override
+  Future<TorGeoIpTable?> newest() async => kept;
+
+  @override
+  Future<TorGeoIpTable?> download(UserProxySettings via) async {
+    downloads.add(via);
+    final table = await (nextDownload ??= Completer<TorGeoIpTable?>()).future;
+    nextDownload = null;
+    if (table != null) kept = table;
+    return table;
+  }
+}
 
 class FakeTorRuntime implements TorRuntime {
   FakeTorRuntime({this.isAvailable = true});
@@ -41,10 +62,21 @@ class FakeTorRuntime implements TorRuntime {
   @override
   Future<void> rebuildCircuits() async => rebuildCalls++;
 
+  final appliedGeoIpFiles = <String?>[];
+
+  /// Set to model a control connection that dropped: the call never returns.
+  bool exitCountryHangs = false;
+
+  /// Every call that reached the runtime, answered or not.
+  int applyCalls = 0;
+
   @override
-  Future<void> applyExitCountry(String? exitNodes) async {
+  Future<void> applyExitCountry(String? exitNodes, {String? geoipFile}) async {
+    applyCalls++;
+    if (exitCountryHangs) return Completer<void>().future;
     if (exitCountryError != null) throw exitCountryError!;
     appliedExitNodes.add(exitNodes);
+    appliedGeoIpFiles.add(geoipFile);
   }
 
   /// Push a status the way the native event channel would.
@@ -96,6 +128,8 @@ void main() {
     Duration? debounce,
     Duration? timeout,
     Future<bool> Function()? isolateDestAddrLoader,
+    TorGeoIpStore? geoIpStore,
+    DateTime Function()? clock,
   }) =>
       TorEngine(
         runtime: runtime,
@@ -103,6 +137,8 @@ void main() {
         idleDebounce: debounce ?? kTorIdleDebounce,
         bootstrapTimeout: timeout ?? kTorBootstrapTimeout,
         isolateDestAddrLoader: isolateDestAddrLoader,
+        geoIpStore: geoIpStore,
+        clock: clock,
       );
 
   group('TOR-003 destination isolation is the user\'s choice', () {
@@ -566,6 +602,276 @@ void main() {
       final e = build();
       await e.setExitCountry('{de}');
       expect(runtime.appliedExitNodes, isEmpty);
+      await e.dispose();
+    });
+  });
+
+  group('TOR-014 exit-country GeoIP', () {
+    final fetchedAt = DateTime.utc(2026, 9, 1);
+    final table = TorGeoIpTable('/cache/tor_geoip/geoip-1', fetchedAt);
+
+    Future<TorEngine> upWith(FakeGeoIpStore store, {DateTime? now}) async {
+      final e = build(geoIpStore: store, clock: () => now ?? fetchedAt);
+      await e.acquire('site-a');
+      runtime.bootstrapTo(9999);
+      await pumpEventQueue();
+      return e;
+    }
+
+    test('sites are held off Tor until the pin lands', () async {
+      // The reported bug: a site pinned to Brazil kept loading through the
+      // Dutch exit it had before. Nothing may use Tor between the request
+      // for a country and tor having it.
+      final store = FakeGeoIpStore();
+      final e = await upWith(store);
+      expect(e.socksFor('site-a'), isNotNull);
+
+      final pinning = e.setExitCountry('{br}');
+      await pumpEventQueue();
+      expect(e.status, isA<TorBootstrapping>());
+      expect((e.status as TorBootstrapping).tag, kTorExitPinTag);
+      expect(e.socksFor('site-a'), isNull, reason: 'held while pending');
+      expect(runtime.appliedExitNodes, isEmpty,
+          reason: 'no pin before tor can resolve it');
+
+      store.nextDownload!.complete(table);
+      await pinning;
+      expect(runtime.appliedExitNodes, ['{br}']);
+      expect(runtime.appliedGeoIpFiles, [table.path]);
+      expect(e.status, isA<TorUp>());
+      expect(e.socksFor('site-a'), isNotNull);
+      await e.dispose();
+    });
+
+    test('the download rides Tor on its own circuit', () async {
+      final store = FakeGeoIpStore();
+      final e = await upWith(store);
+      final pinning = e.setExitCountry('{br}');
+      await pumpEventQueue();
+
+      final via = store.downloads.single;
+      expect(via.type, ProxyType.SOCKS5);
+      expect(via.address, '127.0.0.1:9999');
+      expect(via.username, kTorGeoIpTag);
+      expect(via.password, isNot(e.socksFor('site-a')?.password));
+      store.nextDownload!.complete(table);
+      await pinning;
+      await e.dispose();
+    });
+
+    test('a kept table is used without a download', () async {
+      final store = FakeGeoIpStore()..kept = table;
+      final e = await upWith(store);
+      await e.setExitCountry('{br}');
+      expect(store.downloads, isEmpty);
+      expect(runtime.appliedGeoIpFiles, [table.path]);
+      expect(e.status, isA<TorUp>());
+      await e.dispose();
+    });
+
+    test('a stale table is used now and refreshed behind it', () async {
+      final store = FakeGeoIpStore()..kept = table;
+      final e = await upWith(store,
+          now: fetchedAt.add(kTorGeoIpMaxAge + const Duration(days: 1)));
+      await e.setExitCountry('{br}');
+      expect(runtime.appliedGeoIpFiles, [table.path]);
+      expect(e.status, isA<TorUp>(), reason: 'a refresh never holds a site');
+      expect(store.downloads, hasLength(1));
+      store.nextDownload!.complete(null);
+      await e.dispose();
+    });
+
+    test('no table, no pin: the failure names the data, not the country',
+        () async {
+      final store = FakeGeoIpStore();
+      final e = await upWith(store);
+      final pinning = e.setExitCountry('{br}');
+      await pumpEventQueue();
+      store.nextDownload!.complete(null);
+      await pinning;
+
+      expect(runtime.appliedExitNodes, isEmpty);
+      expect(e.status, isA<TorErrored>());
+      expect((e.status as TorErrored).kind, TorFailureKind.exitCountryData);
+      expect(e.socksFor('site-a'), isNull, reason: 'fails closed');
+      await e.dispose();
+    });
+
+    test('the same pin after a failure waits for Retry', () async {
+      final store = FakeGeoIpStore();
+      final e = await upWith(store);
+      final pinning = e.setExitCountry('{br}');
+      await pumpEventQueue();
+      store.nextDownload!.complete(null);
+      await pinning;
+
+      await e.setExitCountry('{br}');
+      expect(store.downloads, hasLength(1),
+          reason: 'every save calls this; a retry is a 10 MB download');
+
+      final retry = e.restart();
+      await pumpEventQueue();
+      expect(runtime.startCalls, 1, reason: 'tor is up; only the pin retries');
+      store.nextDownload!.complete(table);
+      await retry;
+      expect(runtime.appliedExitNodes, ['{br}']);
+      expect(e.status, isA<TorUp>());
+      await e.dispose();
+    });
+
+    test('an archived site uses a kept table and never downloads one',
+        () async {
+      // ARCH-006: a table downloaded for an archived site would be a trace
+      // of it outside the archive.
+      final store = FakeGeoIpStore();
+      final e = await upWith(store);
+      await e.setExitCountry('{br}', mayFetchGeoIp: false);
+      expect(store.downloads, isEmpty);
+      expect(runtime.appliedExitNodes, isEmpty);
+      expect((e.status as TorErrored).kind, TorFailureKind.exitCountryData);
+      expect(e.socksFor('site-a'), isNull, reason: 'fails closed, pin kept');
+      await e.dispose();
+
+      runtime = FakeTorRuntime();
+      final stale = FakeGeoIpStore()..kept = table;
+      final f = await upWith(stale,
+          now: fetchedAt.add(kTorGeoIpMaxAge + const Duration(days: 1)));
+      await f.setExitCountry('{br}', mayFetchGeoIp: false);
+      expect(runtime.appliedGeoIpFiles, [table.path]);
+      expect(stale.downloads, isEmpty, reason: 'not even a refresh');
+      await f.dispose();
+    });
+
+    test('a fresh tor with no pin is left alone', () async {
+      // Clearing closes every exit circuit, so a no-op clear on a cold start
+      // would cut the first page loads of every Tor site.
+      final store = FakeGeoIpStore();
+      final e = await upWith(store);
+      await e.setExitCountry(null);
+      expect(runtime.appliedExitNodes, isEmpty);
+      expect(e.status, isA<TorUp>());
+      await e.dispose();
+    });
+
+    test('clearing a pin needs no table', () async {
+      final store = FakeGeoIpStore()..kept = table;
+      final e = await upWith(store);
+      await e.setExitCountry('{br}');
+      store.kept = null;
+      await e.setExitCountry(null);
+      expect(store.downloads, isEmpty);
+      expect(runtime.appliedExitNodes, ['{br}', null]);
+      expect(runtime.appliedGeoIpFiles.last, isNull);
+      expect(e.status, isA<TorUp>());
+      await e.dispose();
+    });
+
+    test('a newer pin wins over one still downloading', () async {
+      final store = FakeGeoIpStore();
+      final e = await upWith(store);
+      final first = e.setExitCountry('{br}');
+      await pumpEventQueue();
+      final second = e.setExitCountry('{de}');
+      store.nextDownload!.complete(table);
+      await first;
+      await second;
+
+      expect(runtime.appliedExitNodes, ['{de}'],
+          reason: 'the superseded pin never reaches tor');
+      expect(e.exitNodes, '{de}');
+      expect(e.status, isA<TorUp>());
+      await e.dispose();
+    });
+
+    test('a pin tor never answers does not block the next one', () {
+      fakeAsync((async) {
+        final store = FakeGeoIpStore()..kept = table;
+        final e = build(geoIpStore: store, clock: () => fetchedAt);
+        e.acquire('site-a');
+        runtime.bootstrapTo(9999);
+        async.flushMicrotasks();
+
+        runtime.exitCountryHangs = true;
+        e.setExitCountry('{br}');
+        async.elapse(kTorExitPinApplyTimeout);
+        expect(e.status, isA<TorErrored>(),
+            reason: 'a hung control connection is a failure, not a wait');
+
+        runtime.exitCountryHangs = false;
+        e.setExitCountry('{de}');
+        async.flushMicrotasks();
+        expect(runtime.appliedExitNodes, ['{de}']);
+        expect(e.status, isA<TorUp>());
+      });
+    });
+
+    test('a change holds Tor sites before the caller could wait on it', () {
+      // What lets activation stop awaiting the pin: the hold is in place
+      // the moment the change is asked for, not once tor answers.
+      fakeAsync((async) {
+        final e = build(geoIpStore: FakeGeoIpStore()..kept = table);
+        e.acquire('site-a');
+        runtime.bootstrapTo(9999);
+        async.flushMicrotasks();
+
+        runtime.exitCountryHangs = true;
+        e.setExitCountry('{br}');
+        expect(e.status, isA<TorBootstrapping>());
+        expect(e.socksFor('site-a'), isNull);
+        async.elapse(kTorExitPinApplyTimeout);
+      });
+    });
+
+    test('BUG-018: a clear tor never answers fails closed, once', () {
+      // The reported hang. A pin was in force, the app slept long enough
+      // for iOS to reclaim the control socket, and the next site switch
+      // cleared the pin: the RESETCONF went nowhere, and every later tap
+      // re-sent it and waited again.
+      fakeAsync((async) {
+        final e = build(geoIpStore: FakeGeoIpStore()..kept = table);
+        e.acquire('site-a');
+        runtime.bootstrapTo(9999);
+        async.flushMicrotasks();
+        e.setExitCountry('{br}');
+        async.flushMicrotasks();
+        expect(e.status, isA<TorUp>());
+
+        runtime.exitCountryHangs = true;
+        final calls = runtime.applyCalls;
+        var settled = false;
+        e.setExitCountry(null).then((_) => settled = true);
+        async.elapse(kTorExitPinApplyTimeout);
+        expect(settled, isTrue, reason: 'the change is bounded');
+        final status = e.status;
+        expect(status, isA<TorErrored>());
+        expect((status as TorErrored).kind, TorFailureKind.controlChannel,
+            reason: 'a silent control port is not a dead country');
+        expect(e.socksFor('site-a'), isNull, reason: 'fails closed');
+
+        for (var tap = 0; tap < 3; tap++) {
+          e.setExitCountry(null);
+          async.flushMicrotasks();
+        }
+        expect(runtime.applyCalls, calls + 1,
+            reason: 'a tap after the failure does not re-send and wait again');
+
+        runtime.exitCountryHangs = false;
+        e.restart();
+        async.flushMicrotasks();
+        expect(runtime.appliedExitNodes.last, isNull);
+        expect(e.status, isA<TorUp>(), reason: 'Retry re-applies the clear');
+      });
+    });
+
+    test('tor refusing the pin for want of GeoIP reads as missing data',
+        () async {
+      final store = FakeGeoIpStore()..kept = table;
+      final e = await upWith(store);
+      runtime.exitCountryError = StateError(
+          'PlatformException(geoip_unavailable, Tor has no GeoIP data '
+          'loaded, null, null)');
+      await e.setExitCountry('{br}');
+      expect((e.status as TorErrored).kind, TorFailureKind.exitCountryData);
       await e.dispose();
     });
   });

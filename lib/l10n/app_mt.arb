@@ -841,6 +841,8 @@
   "torFailClockSkewBody": "Tor ma jibnix ċirkwiti sakemm l-arloġġ ikun wisq barra. Ikkoreġi d-data u l-ħin, imbagħad erġa' pprova.",
   "torFailExitPolicyTitle": "L-ebda ħruġ użabbli f'dak il-pajjiż",
   "torFailExitPolicyBody": "Il-pajjiż tal-ħruġ huwa stabbilit b'mod strett, għalhekk Tor mhux se joħroġ minn imkien ieħor. Agħżel pajjiż ieħor jew erġa' lura għal kwalunkwe pajjiż.",
+  "torFailExitCountryDataTitle": "Il-lista tal-pajjiżi mhix disponibbli",
+  "torFailExitCountryDataBody": "Biex tistabbilixxi pajjiż tal-ħruġ, hemm bżonn lista ta' liema relè jinsabu f'liema pajjiż. Titniżżel permezz ta' Tor l-ewwel darba li tintuża, u dak it-tniżżil falla. Erġa' pprova, jew erġa' lura għal kwalunkwe pajjiż tal-ħruġ.",
   "torFailControlChannelTitle": "Ma setax jitkellem ma' Tor",
   "torFailControlChannelBody": "L-app ma setgħetx tilħaq il-kanal ta' kontroll ta' Tor, għalhekk ma tistax tkun taf jekk it-traffiku huwiex protett. Dan huwa difett fl-app, mhux xi ħaġa x'tissettja; id-dettalji jinsabu fl-Għodod tal-Iżviluppatur.",
   "torFailTimeoutTitle": "Tor dam wisq",

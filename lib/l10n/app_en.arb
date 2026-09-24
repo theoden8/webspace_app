@@ -4095,6 +4095,14 @@
   "@torFailExitPolicyBody": {
     "description": "Tor failure explanation and remedy for a strict exit-country pin."
   },
+  "torFailExitCountryDataTitle": "Country list unavailable",
+  "@torFailExitCountryDataTitle": {
+    "description": "Tor failure heading: a site pins the country its Tor traffic exits from, and the list mapping Tor relays to countries could not be downloaded, so the pin could not be applied."
+  },
+  "torFailExitCountryDataBody": "Pinning an exit country needs a list of which relays are in which country. It is downloaded through Tor on first use, and that download failed. Try again, or set the exit country back to any country.",
+  "@torFailExitCountryDataBody": {
+    "description": "Tor failure explanation and remedy when the relay-to-country list (downloaded through Tor the first time a site pins an exit country) could not be fetched. Retry is offered on the same screen."
+  },
   "torFailControlChannelTitle": "Could not talk to Tor",
   "@torFailControlChannelTitle": {
     "description": "Tor failure heading: the app failed to reach Tor's control channel."

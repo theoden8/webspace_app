@@ -841,6 +841,8 @@
   "torFailClockSkewBody": "Tor haijengi saketi wakati saa imepotoka sana. Sahihisha tarehe na saa, kisha ujaribu tena.",
   "torFailExitPolicyTitle": "Hakuna njia ya kutokea inayotumika katika nchi hiyo",
   "torFailExitPolicyBody": "Nchi ya kutokea imewekwa kwa ukali, kwa hivyo Tor haitatoka mahali pengine popote. Chagua nchi nyingine au rudi kwa nchi yoyote.",
+  "torFailExitCountryDataTitle": "Orodha ya nchi haipatikani",
+  "torFailExitCountryDataBody": "Kuweka nchi ya kutokea kunahitaji orodha ya relei zilizo katika kila nchi. Inapakuliwa kupitia Tor mara ya kwanza, na upakuaji huo umeshindwa. Jaribu tena, au rudisha nchi ya kutokea kwa nchi yoyote.",
   "torFailControlChannelTitle": "Haikuweza kuwasiliana na Tor",
   "torFailControlChannelBody": "Programu haikuweza kufikia njia ya udhibiti ya Tor, kwa hivyo haiwezi kujua kama trafiki inalindwa. Hili ni dosari ya programu, si jambo la kusanidi; maelezo yamo katika Zana za msanidi.",
   "torFailTimeoutTitle": "Tor ilichukua muda mrefu mno",

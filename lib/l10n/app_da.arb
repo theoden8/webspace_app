@@ -841,6 +841,8 @@
   "torFailClockSkewBody": "Tor bygger ikke kredsløb, så længe uret afviger for meget. Ret dato og klokkeslæt, og prøv igen.",
   "torFailExitPolicyTitle": "Ingen brugbar udgang i det land",
   "torFailExitPolicyBody": "Udgangslandet er låst fast, så Tor går ikke ud andre steder. Vælg et andet land, eller stil tilbage til et hvilket som helst land.",
+  "torFailExitCountryDataTitle": "Landelisten er ikke tilgængelig",
+  "torFailExitCountryDataBody": "For at låse et udgangsland skal der bruges en liste over, hvilke relæer der ligger i hvilket land. Den hentes via Tor første gang, og den hentning mislykkedes. Prøv igen, eller stil udgangslandet tilbage til et hvilket som helst land.",
   "torFailControlChannelTitle": "Kunne ikke tale med Tor",
   "torFailControlChannelBody": "Appen kunne ikke nå Tors kontrolkanal og kan derfor ikke afgøre, om trafikken er beskyttet. Det er en fejl i appen, ikke noget der skal indstilles; detaljerne findes i Udviklerværktøjer.",
   "torFailTimeoutTitle": "Tor tog for lang tid",

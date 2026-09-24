@@ -841,6 +841,8 @@
   "torFailClockSkewBody": "Tor bouwt geen circuits op zolang de klok te ver afwijkt. Corrigeer de datum en tijd en probeer het opnieuw.",
   "torFailExitPolicyTitle": "Geen bruikbare uitgang in dat land",
   "torFailExitPolicyBody": "Het uitgangsland ligt strikt vast, dus Tor gaat nergens anders naar buiten. Kies een ander land of zet het terug op elk land.",
+  "torFailExitCountryDataTitle": "Landenlijst niet beschikbaar",
+  "torFailExitCountryDataBody": "Voor een vast uitgangsland is een lijst nodig van welke relays in welk land staan. Die wordt bij het eerste gebruik via Tor gedownload, en dat is mislukt. Probeer het opnieuw of zet het uitgangsland terug op elk land.",
   "torFailControlChannelTitle": "Kon niet met Tor communiceren",
   "torFailControlChannelBody": "De app kon het besturingskanaal van Tor niet bereiken en kan dus niet vaststellen of het verkeer beschermd is. Dit is een fout in de app, niet iets om in te stellen; de details staan in Ontwikkelaarshulpprogramma's.",
   "torFailTimeoutTitle": "Tor deed er te lang over",

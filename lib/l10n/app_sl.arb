@@ -841,6 +841,8 @@
   "torFailClockSkewBody": "Tor ne gradi tokokrogov, dokler ura preveč odstopa. Popravite datum in uro ter poskusite znova.",
   "torFailExitPolicyTitle": "V tej državi ni uporabnega izhoda",
   "torFailExitPolicyBody": "Država izhoda je strogo določena, zato Tor ne bo izstopil drugje. Izberite drugo državo ali se vrnite na katero koli državo.",
+  "torFailExitCountryDataTitle": "Seznam držav ni na voljo",
+  "torFailExitCountryDataBody": "Za določitev države izhoda je potreben seznam, kateri releji so v kateri državi. Ob prvi uporabi se prenese prek Tora in ta prenos ni uspel. Poskusite znova ali vrnite državo izhoda na katero koli državo.",
   "torFailControlChannelTitle": "S Torom ni bilo mogoče komunicirati",
   "torFailControlChannelBody": "Aplikacija ni mogla doseči Torovega nadzornega kanala, zato ne more ugotoviti, ali je promet zaščiten. To je napaka aplikacije in ne nastavitev; podrobnosti so v Razvijalskih orodjih.",
   "torFailTimeoutTitle": "Tor je trajal predolgo",

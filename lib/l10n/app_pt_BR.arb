@@ -841,6 +841,8 @@
   "torFailClockSkewBody": "O Tor se recusa a construir circuitos enquanto o relógio estiver muito desajustado. Corrija a data e a hora e tente novamente.",
   "torFailExitPolicyTitle": "Nenhuma saída utilizável nesse país",
   "torFailExitPolicyBody": "O país de saída está fixado de forma estrita, então o Tor não sairá por nenhum outro. Escolha outro país ou volte para qualquer país.",
+  "torFailExitCountryDataTitle": "Lista de países indisponível",
+  "torFailExitCountryDataBody": "Fixar um país de saída exige uma lista de quais retransmissores estão em cada país. Ela é baixada pelo Tor no primeiro uso, e esse download falhou. Tente novamente ou volte o país de saída para qualquer país.",
   "torFailControlChannelTitle": "Não foi possível falar com o Tor",
   "torFailControlChannelBody": "O aplicativo não conseguiu alcançar o canal de controle do Tor, então não tem como saber se o tráfego está protegido. Isso é um defeito do aplicativo, não algo a configurar; os detalhes estão nas Ferramentas do desenvolvedor.",
   "torFailTimeoutTitle": "O Tor demorou demais",

@@ -841,6 +841,8 @@
   "torFailClockSkewBody": "Saat çok fazla kaydığı sürece Tor devre kurmaz. Tarih ve saati düzeltip yeniden deneyin.",
   "torFailExitPolicyTitle": "O ülkede kullanılabilir çıkış yok",
   "torFailExitPolicyBody": "Çıkış ülkesi katı biçimde sabitlenmiş, bu yüzden Tor başka hiçbir yerden çıkmaz. Başka bir ülke seçin ya da herhangi bir ülkeye geri dönün.",
+  "torFailExitCountryDataTitle": "Ülke listesi kullanılamıyor",
+  "torFailExitCountryDataBody": "Bir çıkış ülkesi sabitlemek, hangi aktarıcının hangi ülkede olduğunu gösteren bir liste gerektirir. Bu liste ilk kullanımda Tor üzerinden indirilir ve bu indirme başarısız oldu. Yeniden deneyin ya da çıkış ülkesini herhangi bir ülkeye geri alın.",
   "torFailControlChannelTitle": "Tor ile iletişim kurulamadı",
   "torFailControlChannelBody": "Uygulama Tor'un denetim kanalına ulaşamadı, bu yüzden trafiğin korunup korunmadığını bilemiyor. Bu bir ayar sorunu değil, uygulamadaki bir kusurdur; ayrıntılar Geliştirici Araçları'nda.",
   "torFailTimeoutTitle": "Tor çok uzun sürdü",

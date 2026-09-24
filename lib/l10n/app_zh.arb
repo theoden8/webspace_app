@@ -841,6 +841,8 @@
   "torFailClockSkewBody": "時鐘偏差過大時，Tor 不會建立線路。請更正日期與時間後再試一次。",
   "torFailExitPolicyTitle": "該國家沒有可用的出口",
   "torFailExitPolicyBody": "出口國家已嚴格鎖定，因此 Tor 不會從其他地方離開。請選擇其他國家，或改回任何國家。",
+  "torFailExitCountryDataTitle": "無法取得國家清單",
+  "torFailExitCountryDataBody": "鎖定出口國家需要一份標示各中繼站所在國家的清單。這份清單會在首次使用時透過 Tor 下載，而該次下載失敗。請再試一次，或將出口國家改回任何國家。",
   "torFailControlChannelTitle": "無法與 Tor 通訊",
   "torFailControlChannelBody": "應用程式無法連上 Tor 的控制通道，因此無從得知流量是否受到保護。這是應用程式的缺陷，而非設定問題；詳情請見開發者工具。",
   "torFailTimeoutTitle": "Tor 花費太久",

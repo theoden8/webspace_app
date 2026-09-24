@@ -90,4 +90,40 @@ class TorControlParsingTests: XCTestCase {
     XCTAssertNil(TorControllerPlugin.parseSocksEndpoint(nil))
     XCTAssertNil(TorControllerPlugin.parseSocksEndpoint("127.0.0.1:0"))
   }
+
+  func testExitCircuitIds() {
+    // `GETINFO circuit-status`, one circuit per line (control-spec 4.1.1).
+    let status = [
+      "5 BUILT $AAAA~guard,$BBBB~middle,$CCCC~exit BUILD_FLAGS=NEED_CAPACITY "
+        + "PURPOSE=GENERAL TIME_CREATED=2026-09-23T22:43:33.140529",
+      "9 BUILT $AAAA~guard,$DDDD~middle BUILD_FLAGS=IS_INTERNAL,NEED_CAPACITY "
+        + "PURPOSE=HS_CLIENT_REND HS_STATE=HSCR_JOINED",
+      "12 LAUNCHED BUILD_FLAGS=NEED_CAPACITY PURPOSE=CONFLUX_UNLINKED",
+      "13 EXTENDED $AAAA~guard,$EEEE~middle PURPOSE=CONFLUX_LINKED",
+      "14 FAILED $AAAA~guard PURPOSE=GENERAL REASON=TIMEOUT",
+      "15 BUILT $AAAA~guard,$FFFF~middle,$GGGG~exit",
+      "",
+    ].joined(separator: "\r\n")
+    XCTAssertEqual(
+      TorControllerPlugin.exitCircuitIds(fromCircuitStatus: status), ["5", "12", "13", "15"])
+    XCTAssertEqual(TorControllerPlugin.exitCircuitIds(fromCircuitStatus: ""), [])
+  }
+
+  func testExitPinTurnsConfluxOffAndClearingRestoresIt() {
+    func settings(_ confs: [[AnyHashable: Any]]) -> [String: String] {
+      var out: [String: String] = [:]
+      for conf in confs {
+        out[conf["key"] as! String] = (conf["value"] as! String)
+      }
+      return out
+    }
+    // One SETCONF: a conflux set recovering a closed leg keeps its pre-pin
+    // exit, so the pin is not in force until conflux is off with it.
+    XCTAssertEqual(
+      settings(TorControllerPlugin.exitPinConfigs("{br}")),
+      ["ExitNodes": "{br}", "StrictNodes": "1", "ConfluxEnabled": "0"])
+    XCTAssertEqual(
+      settings(TorControllerPlugin.exitPinClearConfigs),
+      ["StrictNodes": "0", "ConfluxEnabled": "auto"])
+  }
 }

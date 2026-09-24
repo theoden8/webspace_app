@@ -74,13 +74,14 @@ public class TorController: NSObject {
   public func resetConf(forKey key: String, completion: ((Bool, Error?) -> Void)?) {}
   public func setConf(forKey key: String, withValue value: String,
                       completion: ((Bool, Error?) -> Void)?) {}
-  public func setConfs(_ configs: [[String: String]], completion: ((Bool, Error?) -> Void)?) {}
+  public func setConfs(_ configs: [[AnyHashable: Any]], completion: ((Bool, Error?) -> Void)?) {}
   public func listen(forEvents events: [String], completion: ((Bool, Error?) -> Void)?) {}
   public func info(forKeys keys: [String]) async -> [String] { [] }
   public func getSessionConfiguration(_ completion: @escaping (URLSessionConfiguration?) -> Void) {}
   public func sendCommand(_ command: String, arguments: [String]?, data: Data?,
                           observer: @escaping TORObserverBlock) {}
   public func resetConnection(_ completion: ((Bool) -> Void)?) {}
+  public func closeCircuits(byIds circuitIds: [String], completion: ((Bool) -> Void)?) {}
 
   public func addObserver(forCircuitEstablished block: @escaping (Bool) -> Void) -> Any {
     NSObject()

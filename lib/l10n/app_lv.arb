@@ -841,6 +841,8 @@
   "torFailClockSkewBody": "Tor neveido ķēdes, kamēr pulkstenis pārāk atšķiras. Izlabojiet datumu un laiku un mēģiniet vēlreiz.",
   "torFailExitPolicyTitle": "Šajā valstī nav izmantojamas izejas",
   "torFailExitPolicyBody": "Izejas valsts ir stingri noteikta, tāpēc Tor neizies nekur citur. Izvēlieties citu valsti vai atgriezieties pie jebkuras valsts.",
+  "torFailExitCountryDataTitle": "Valstu saraksts nav pieejams",
+  "torFailExitCountryDataBody": "Lai noteiktu izejas valsti, vajadzīgs saraksts, kuri releji atrodas kurā valstī. Tas tiek lejupielādēts caur Tor pirmajā lietošanas reizē, un šī lejupielāde neizdevās. Mēģiniet vēlreiz vai atjaunojiet izejas valsti uz jebkuru valsti.",
   "torFailControlChannelTitle": "Neizdevās sazināties ar Tor",
   "torFailControlChannelBody": "Lietotne nesasniedza Tor vadības kanālu, tāpēc nevar noteikt, vai datplūsma ir aizsargāta. Tā ir lietotnes kļūda, nevis iestatījums; sīkāka informācija ir Izstrādātāja rīkos.",
   "torFailTimeoutTitle": "Tor aizņēma pārāk ilgu laiku",

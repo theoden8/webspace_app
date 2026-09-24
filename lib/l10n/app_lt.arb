@@ -841,6 +841,8 @@
   "torFailClockSkewBody": "Tor nekuria grandinių, kol laikrodis per daug nukrypęs. Pataisykite datą ir laiką ir bandykite dar kartą.",
   "torFailExitPolicyTitle": "Toje šalyje nėra tinkamo išėjimo",
   "torFailExitPolicyBody": "Išėjimo šalis nustatyta griežtai, todėl Tor neišeis niekur kitur. Pasirinkite kitą šalį arba grįžkite prie bet kurios šalies.",
+  "torFailExitCountryDataTitle": "Šalių sąrašas nepasiekiamas",
+  "torFailExitCountryDataBody": "Norint nustatyti išėjimo šalį, reikia sąrašo, kurie retransliatoriai yra kurioje šalyje. Jis atsisiunčiamas per Tor pirmą kartą naudojant, ir šis atsisiuntimas nepavyko. Bandykite dar kartą arba grąžinkite išėjimo šalį į bet kurią šalį.",
   "torFailControlChannelTitle": "Nepavyko susisiekti su Tor",
   "torFailControlChannelBody": "Programa nepasiekė Tor valdymo kanalo, todėl negali nustatyti, ar srautas apsaugotas. Tai programos trūkumas, o ne nustatymas; išsamiau – Kūrėjo įrankiuose.",
   "torFailTimeoutTitle": "Tor užtruko per ilgai",

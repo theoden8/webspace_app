@@ -1,0 +1,24 @@
+Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)
+
+IPFire Location Database, as converted into Tor's GeoIP table by the
+Tor Project.
+
+The data is distributed by the IPFire Project under the Creative Commons
+Attribution-ShareAlike 4.0 International licence. The Tor Project converts
+it with geoip-db-tool into the table at src/config/geoip in the tor source
+tree, under the same licence.
+
+Webspace does not ship this data. When a site pins the country its Tor
+traffic exits from, the device downloads the table from the Tor Project
+through Tor, keeps it unmodified in the app's cache, and hands it to the
+embedded Tor client so it can tell which relays are in which country.
+A table that does not declare this licence in its own header is refused.
+
+You are free to share and adapt the material, provided you give
+appropriate credit, provide a link to the license, and indicate if
+changes were made. If you remix, transform, or build upon the material,
+you must distribute your contributions under the same license.
+
+Full license: https://creativecommons.org/licenses/by-sa/4.0/
+Data source: https://location.ipfire.org/
+Converted table: https://gitlab.torproject.org/tpo/core/tor/-/blob/main/src/config/geoip

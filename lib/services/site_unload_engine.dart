@@ -158,6 +158,26 @@ class SiteUnloadEngine {
     return null;
   }
 
+  /// Whether the Tor sites among [indices] are all archive-tier.
+  ///
+  /// Such a pin may use a GeoIP table already on the device but must not
+  /// download one (ARCH-006): the file would be a trace outside the
+  /// archive's keyspace, and with no app-tier site pinned, its presence
+  /// would say an archived site was. False when no Tor site is among them.
+  static bool torExitPinIsArchiveOnly({
+    required Iterable<int> indices,
+    required List<WebViewModel> models,
+  }) {
+    var any = false;
+    for (final i in indices) {
+      if (i < 0 || i >= models.length) continue;
+      if (_torExitPin(models[i]) == null) continue;
+      if (!models[i].isArchiveTier) return false;
+      any = true;
+    }
+    return any;
+  }
+
   /// Stands in for a Tor site that pins no country. Distinct from null,
   /// which means the site does not use Tor and so is indifferent to
   /// `ExitNodes` entirely. Not a legal `ExitNodes` value, so it cannot
