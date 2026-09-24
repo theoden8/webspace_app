@@ -9195,28 +9195,42 @@ class _WebSpacePageState extends State<WebSpacePage>
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _webViewModels[index].getDisplayName(),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 13),
-                          ),
-                          Text(
-                            extractDomain(_webViewModels[index].initUrl),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 11, color: Colors.grey),
-                          ),
-                        ],
+                      child: LayoutBuilder(
+                        builder: (context, textArea) => Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _webViewModels[index].getDisplayName(),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(fontSize: 13),
+                                  ),
+                                  Text(
+                                    extractDomain(_webViewModels[index].initUrl),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // The name keeps at least half the room; grants
+                            // past that wrap onto another row, which the
+                            // tile's height has room for.
+                            ConstrainedBox(
+                              constraints: BoxConstraints(maxWidth: textArea.maxWidth / 2),
+                              child: SitePermissionBadges(
+                                model: _webViewModels[index],
+                                iconSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    SitePermissionBadges(
-                      model: _webViewModels[index],
-                      iconSize: 12,
                     ),
                   ],
                 )
@@ -9225,8 +9239,9 @@ class _WebSpacePageState extends State<WebSpacePage>
                   children: [
                     Stack(
                       // The badge strip is anchored to the favicon's bottom
-                      // edge and can be wider than it; the tile has no spare
-                      // vertical room to stack it below the name.
+                      // edge and bounded by its width, so a second row of
+                      // badges grows up over the favicon; the tile has no
+                      // spare vertical room to stack it below the name.
                       clipBehavior: Clip.none,
                       children: [
                         Container(
