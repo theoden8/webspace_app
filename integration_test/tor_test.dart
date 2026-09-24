@@ -379,19 +379,31 @@ void main() {
     // One client throughout, the way a webview keeps one pool.
     final client = route.client;
 
-    Future<String> exitAddress() async {
-      Future<http.Response> ask() =>
-          client.get(exitCheck).timeout(const Duration(seconds: 60));
+    // Longer than tor's own patience with a stream (SocksTimeout, two
+    // minutes). Until tor has timed 100 circuits it gives a stalled build
+    // 60 s before trying another, so a fresh tor can spend a minute on the
+    // first circuit after a pin change and still answer.
+    const patience = Duration(seconds: 150);
+
+    Future<String> exitAddress(String when) async {
+      final clock = Stopwatch()..start();
+      Future<http.Response> ask() => client.get(exitCheck).timeout(patience);
       http.Response response;
       try {
-        response = await ask();
-      } on http.ClientException catch (e) {
-        // A kept-alive connection tor has just ended can fail the request
-        // that races the close. The retry cannot hide a stale exit: that
-        // answers, it does not fail.
-        trace('check request failed once: $e');
-        response = await ask();
+        try {
+          response = await ask();
+        } on http.ClientException catch (e) {
+          // A kept-alive connection tor has just ended can fail the request
+          // that races the close. The retry cannot hide a stale exit: that
+          // answers, it does not fail.
+          trace('check request $when failed once: $e');
+          response = await ask();
+        }
+      } catch (e) {
+        fail('the check $when got no answer in ${clock.elapsed.inSeconds}s '
+            '($e):\n${torTranscript()}');
       }
+      trace('check $when answered in ${clock.elapsed.inSeconds}s');
       expect(response.statusCode, 200,
           reason: 'check.torproject.org answered ${response.statusCode}: '
               '${response.body}');
@@ -417,7 +429,7 @@ void main() {
     Socket? held;
     Socket? control;
     try {
-      final unpinned = await exitAddress();
+      final unpinned = await exitAddress('unpinned');
 
       // The first pin fetches the table through Tor before tor can resolve
       // any country, so its time is the download's.
@@ -429,7 +441,7 @@ void main() {
       final table = await File(kept!.path).readAsString();
       trace('unpinned exit $unpinned is in ${countryIn(table, unpinned)}');
 
-      final de = await exitAddress();
+      final de = await exitAddress('under {de}');
       expect(countryIn(table, de), 'DE',
           reason: 'pinned {de}, and check.torproject.org saw $de, which the '
               'table places in ${countryIn(table, de)}:\n${torTranscript()}');
@@ -447,7 +459,7 @@ void main() {
               'was in force, so a connection a page keeps alive goes on '
               'leaving from Germany:\n${torTranscript()}');
 
-      final us = await exitAddress();
+      final us = await exitAddress('under {us}');
       expect(countryIn(table, us), 'US',
           reason: 'pinned {us}, and check.torproject.org saw $us, which the '
               'table places in ${countryIn(table, us)}:\n${torTranscript()}');
@@ -479,5 +491,5 @@ void main() {
         reason: 'clearing the pin did not land:\n${torTranscript()}');
     expect(TorService.instance.exitNodes, isNull);
     trace('scenario 3 done');
-  }, timeout: const Timeout(Duration(minutes: 10)));
+  }, timeout: const Timeout(Duration(minutes: 15)));
 }
