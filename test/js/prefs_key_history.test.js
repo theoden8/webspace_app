@@ -20,6 +20,9 @@ const fixtures = path.join(root, 'test', 'fixtures', 'backup_compat');
 const RETIRED = {
   currentIndex:
     'written on every switch, never read since #134 made every launch open on the home screen',
+  dns_block_downloaded_levels:
+    'written since it was added, never read: initialize() rebuilds the level set from '
+    + "dns_blocklist_levels.txt's #<mask-hex> sections",
 };
 
 const head = scan(path.join(root, 'lib'));
