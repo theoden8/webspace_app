@@ -17,6 +17,9 @@ import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/widgets/hint_button.dart';
+import 'package:webspace/widgets/http_auth_prompt.dart';
+import 'package:webspace/services/http_auth_engine.dart';
+import 'package:webspace/services/http_auth_secure_storage.dart';
 import 'package:webspace/widgets/proxy_auth_section.dart';
 import 'package:webspace/widgets/proxy_test_tile.dart';
 import 'package:webspace/widgets/tab_bar_corner_button.dart';
@@ -77,6 +80,7 @@ final List<GalleryCard> galleryCards = [
   GalleryCard(id: 'webspaces', label: 'Webspaces screen', fullBleed: true, builder: (c) => const _WebspacesCard()),
   GalleryCard(id: 'webspace-detail', label: 'Webspace detail screen', fullBleed: true, builder: (c) => const _WebspaceDetailCard()),
   GalleryCard(id: 'site-settings', label: 'Site settings screen', fullBleed: true, builder: (c) => const _SiteSettingsCard()),
+  GalleryCard(id: 'site-settings-signins', label: 'Site settings, saved sign-ins', fullBleed: true, builder: (c) => const _SiteSettingsSignInsCard()),
   GalleryCard(id: 'app-settings', label: 'App settings screen', fullBleed: true, builder: (c) => const _AppSettingsCard()),
   GalleryCard(id: 'protection-report', label: 'Protection report screen', fullBleed: true, builder: (c) => const _ProtectionReportCard()),
   GalleryCard(id: 'protection-report-category', label: 'Protection report category', fullBleed: true, builder: (c) => const _ProtectionCategoryCard()),
@@ -88,6 +92,7 @@ final List<GalleryCard> galleryCards = [
   GalleryCard(id: 'url-bar', label: 'URL bar', builder: (c) => const _UrlBarCard()),
   GalleryCard(id: 'hint-button', label: 'Hint button', builder: (c) => const _HintButtonCard()),
   GalleryCard(id: 'proxy-auth', label: 'Proxy authentication + test', builder: (c) => const _ProxyAuthCard()),
+  GalleryCard(id: 'http-auth', label: 'HTTP authentication sign-in', builder: (c) => const _HttpAuthCard()),
   GalleryCard(id: 'tab-corner-button', label: 'Tab corner button', builder: (c) => const _TabCornerCard()),
   GalleryCard(id: 'browser-chrome', label: 'Browser chrome', builder: (c) => const _BrowserChromeCard()),
 ];
@@ -576,6 +581,64 @@ class _ProxyAuthCard extends StatelessWidget {
             target: Uri.parse('https://codeberg.org/'),
           ),
         ],
+      );
+}
+
+/// The HTTP authentication sign-in dialog, first attempt and after a refused
+/// password.
+class _HttpAuthCard extends StatelessWidget {
+  const _HttpAuthCard();
+
+  @override
+  Widget build(BuildContext context) => const Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          HttpAuthDialog(
+            request: HttpAuthPromptRequest(
+              host: 'nas.example.com',
+              isRetry: false,
+              canRemember: true,
+            ),
+          ),
+          HttpAuthDialog(
+            request: HttpAuthPromptRequest(
+              host: 'nas.example.com',
+              isRetry: true,
+              canRemember: true,
+              initialUsername: 'alice',
+              rememberByDefault: true,
+            ),
+          ),
+        ],
+      );
+}
+
+/// The real SettingsScreen for a site with two saved sign-ins, so the Saved
+/// sign-ins row shows its count and an enabled Clear.
+class _SiteSettingsSignInsCard extends StatefulWidget {
+  const _SiteSettingsSignInsCard();
+
+  @override
+  State<_SiteSettingsSignInsCard> createState() =>
+      _SiteSettingsSignInsCardState();
+}
+
+class _SiteSettingsSignInsCardState extends State<_SiteSettingsSignInsCard> {
+  final model = WebViewModel(initUrl: 'https://nas.example.com/', name: 'NAS');
+  late final Future<void> _seeded = () async {
+    const c = HttpAuthCredential(username: 'alice', password: 's3cret');
+    await HttpAuthSecureStorage.instance
+        .save(model.siteId, 'nas.example.com', 'Files', c);
+    await HttpAuthSecureStorage.instance
+        .save(model.siteId, 'nas.example.com', 'Admin', c);
+  }();
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<void>(
+        future: _seeded,
+        builder: (context, snap) => snap.connectionState == ConnectionState.done
+            ? SettingsScreen(webViewModel: model, useContainers: true)
+            : const SizedBox.shrink(),
       );
 }
 
