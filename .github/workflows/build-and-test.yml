@@ -576,6 +576,9 @@ jobs:
       #   BUG-008 page zoom — the per-site zoom contract against the real
       #     Android System WebView, the one engine with the wide-viewport
       #     quirk (the Linux/macOS jobs run the same file on WPE/WKWebView);
+      #   ICON-009/010/011 site icon — which page icon onReceivedIcon hands
+      #     over and which the app takes (largest, own host, no late badge);
+      #     no other engine has the callback;
       #   BUG-014 settings seam — every per-site field Dart sends, compared
       #     against what a real System WebView holds. Android parses settings
       #     with an explicit switch, so a field nobody wired is dropped as
@@ -612,6 +615,7 @@ jobs:
             bash scripts/run_android_background_audio_tests.sh
             bash scripts/run_android_camera_tests.sh
             bash scripts/run_android_page_zoom_tests.sh
+            bash scripts/run_android_site_icon_tests.sh
             bash scripts/run_android_proxy_router_tests.sh
             bash scripts/run_android_settings_seam_test.sh
             WS_RUN_NATIVE_REPAINT_PROBE=1 WS_RUN_BLANK_CONTROL=${{ inputs.blank_control && '1' || '0' }} WS_LIFECYCLE_BUILD_MODE=${{ inputs.lifecycle_build_mode || 'debug' }} bash scripts/run_android_lifecycle_tests.sh
@@ -1089,6 +1093,9 @@ jobs:
                 # state and delete prompt are Platform.isAndroid-gated).
                 [ "$(basename "$t")" = "shortcut_behavior_test.dart" ] && continue
                 [ "$(basename "$t")" = "camera_test.dart" ] && continue
+                # ICON-009 page icons come from Android WebView onReceivedIcon
+                # only; the emulator job runs this file.
+                [ "$(basename "$t")" = "site_icon_test.dart" ] && continue
                 # PROXY-013 router is Android-only: the attribution test
                 # skips immediately here and the router test only asserts
                 # that router mode does NOT engage, which
@@ -1663,6 +1670,8 @@ jobs:
             # Android-only WebView media-gate suite (CAM-010); runs in the
             # emulator job.
             [ "$(basename "$t")" = "camera_test.dart" ] && continue
+            # Android-only ICON-009 onReceivedIcon tier; emulator job.
+            [ "$(basename "$t")" = "site_icon_test.dart" ] && continue
             # Android-only BGAUDIO-006 media foreground service; emulator job.
             [ "$(basename "$t")" = "background_audio_media_notification_test.dart" ] && continue
             # Android-only BGAUDIO-009 media-stop tier; emulator job.

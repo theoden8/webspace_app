@@ -184,6 +184,10 @@ const PLUMBING = new Set([
   // the nested screen to its own. The posture it acts on is `proxySettings`,
   // which is already a POSTURE field and so already asserted threaded.
   'onUnproxiedNavigationBlocked',
+  // Deliberate root-only (ICON-009): where the root webview reports the
+  // site's own page icon. A nested screen shows another page, usually on
+  // another host, and must not repaint the site's icon.
+  'siteIcon',
 ]);
 
 // Posture-ish but not yet threaded to nested webviews. An archive-tier site

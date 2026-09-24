@@ -12,6 +12,7 @@ import '../main.dart' show extractDomain;
 import 'favicon_image.dart';
 import '../services/icon_service.dart' show getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, faviconInvalidations, IconUpdate;
 import '../services/outbound_http.dart' show resolveEffectiveProxy;
+import '../services/site_icon_store.dart';
 import '../settings/proxy.dart';
 import '../utils/url_utils.dart';
 import 'site_settings_qr.dart';
@@ -46,13 +47,17 @@ class FaviconUrlCache {
     await _prefs?.setString('$_svgPrefix$faviconUrl', svgContent);
   }
 
-  /// Invalidate cached favicon for a site, triggering re-fetch
-  static Future<void> invalidate(String siteUrl) async {
+  /// Invalidate cached favicon for a site, triggering re-fetch. The icon the
+  /// site's own webview reported goes too unless [keepSiteIcon]: a TLS pin
+  /// re-fetches the fetched candidates, it says nothing about the page icon.
+  static Future<void> invalidate(String siteUrl,
+      {bool keepSiteIcon = false}) async {
     final oldUrl = _prefs?.getString('$_prefix$siteUrl');
     await _prefs?.remove('$_prefix$siteUrl');
     if (oldUrl != null) {
       await _prefs?.remove('$_svgPrefix$oldUrl');
     }
+    if (!keepSiteIcon) await SiteIconStore.instance.remove(siteUrl);
     // Also clear in-memory caches
     invalidateFaviconFor(siteUrl);
   }
@@ -83,6 +88,8 @@ class SiteSuggestion {
 // 1. DuckDuckGo (fast, ~64px) - shows first
 // 2. Google Favicons (128px, 256px) - upgrades the icon
 // 3. Site-specific high-res icons via HTML parsing - final upgrade
+// The icon the site's own webview reported (ICON-009) outranks all three and,
+// while present, stops the fetch.
 class UnifiedFaviconImage extends StatefulWidget {
   final String url;
   final double size;
@@ -123,6 +130,7 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
   bool _isLoading = true;
   Stream<IconUpdate>? _iconStream;
   StreamSubscription<String>? _invalidationSub;
+  StreamSubscription<String?>? _siteIconSub;
 
   bool _isSvgUrl(String url) {
     return url.toLowerCase().endsWith('.svg') || url.contains('.svg?');
@@ -136,8 +144,18 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
     // for invalidations targeting our URL and reset.
     _invalidationSub = faviconInvalidations.listen((invalidatedUrl) {
       if (invalidatedUrl == widget.url && mounted && widget.customIcon == null) {
-        FaviconUrlCache.invalidate(widget.url);
+        FaviconUrlCache.invalidate(widget.url, keepSiteIcon: true);
         _resetAndLoad();
+      }
+    });
+    _siteIconSub = SiteIconStore.instance.changes.listen((siteUrl) {
+      if (!mounted || (siteUrl != null && siteUrl != widget.url)) return;
+      if (widget.customIcon != null) return;
+      if (SiteIconStore.instance.get(widget.url) != null) {
+        setState(() {});
+      } else if (_currentIconUrl == null && _iconStream == null) {
+        _resetAndLoad();
+        setState(() {});
       }
     });
     if (widget.customIcon == null) {
@@ -150,6 +168,7 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
   @override
   void dispose() {
     _invalidationSub?.cancel();
+    _siteIconSub?.cancel();
     super.dispose();
   }
 
@@ -170,10 +189,16 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
     _svgContent = null;
     _currentQuality = 0;
     _isLoading = true;
+    _iconStream = null;
     _loadIcon();
   }
 
   void _loadIcon() {
+    if (SiteIconStore.instance.get(widget.url) != null) {
+      _isLoading = false;
+      return;
+    }
+
     // Check persistent cache first
     final cachedUrl = FaviconUrlCache.get(widget.url);
     if (cachedUrl != null) {
@@ -254,6 +279,23 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
     if (customIcon != null) {
       return Image.memory(
         customIcon,
+        width: widget.size,
+        height: widget.size,
+        fit: BoxFit.contain,
+        filterQuality: FilterQuality.high,
+        gaplessPlayback: true,
+        errorBuilder: (context, error, stackTrace) => Icon(
+          Icons.language,
+          size: widget.size,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+      );
+    }
+
+    final siteIcon = SiteIconStore.instance.get(widget.url);
+    if (siteIcon != null) {
+      return Image.memory(
+        siteIcon,
         width: widget.size,
         height: widget.size,
         fit: BoxFit.contain,

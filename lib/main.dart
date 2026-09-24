@@ -63,6 +63,7 @@ import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/services/site_activation_engine.dart';
+import 'package:webspace/services/site_icon_store.dart';
 import 'package:webspace/services/site_teardown_engine.dart';
 import 'package:webspace/services/app_lifecycle_engine.dart';
 import 'package:webspace/services/back_gesture_engine.dart';
@@ -1462,6 +1463,13 @@ class _WebSpacePageState extends State<WebSpacePage>
     await _openSiteSettings(index);
   }
 
+  /// Home URLs whose page icon may stay on disk (ICON-009): every site not
+  /// incognito, where archive tier counts as incognito.
+  Set<String> _siteIconUrlsToKeep() => {
+        for (final m in _webViewModels)
+          if (!m.effectiveIncognito) m.initUrl,
+      };
+
   /// Routes the "Home Shortcut" menu tap. Android pins directly; iOS shows
   /// the HS-008 instructional dialog then deep-links to Shortcuts.app.
   Future<void> _handleAddToHome(WebViewModel model) async {
@@ -1474,6 +1482,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       // The page-chosen URL is never handed to native for a direct retry
       // (LEAK-003). A user-chosen icon is already normalized PNG and wins.
       final iconBytes = model.customIconPng ??
+          SiteIconStore.instance.get(model.initUrl) ??
           await exportIconAsPng(
             model.initUrl,
             resolvedIconUrl: faviconUrl,
@@ -5167,6 +5176,12 @@ class _WebSpacePageState extends State<WebSpacePage>
     for (final siteId in incognitoSiteIds) {
       await _containerIsolation.onSiteDeleted(siteId);
     }
+    // Chained inside the store, so the sweep runs on what was loaded. Left
+    // uninitialised in demo mode, which keeps the store memory-only there.
+    if (!isDemoMode) {
+      unawaited(SiteIconStore.instance.initialize());
+      unawaited(SiteIconStore.instance.removeOrphans(_siteIconUrlsToKeep()));
+    }
 
     // Always start at home screen on launch - only restore index if launched via shortcut
     final launch = await ShortcutService.getLaunch();
@@ -6791,6 +6806,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     await HtmlCacheService.instance.removeOrphanedCaches(activeSiteIds);
     await HtmlImportStorage.instance.removeOrphanedImports(activeSiteIds);
     await BlockStatsService.instance.removeOrphanedSites(activeSiteIds);
+    await SiteIconStore.instance.removeOrphans(_siteIconUrlsToKeep());
 
     // Apply theme to all webviews
     final webViewTheme = _themeModeToWebViewTheme(_themeSettings.themeMode);
@@ -8736,6 +8752,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     await HtmlImportStorage.instance.removeOrphanedImports(activeSiteIds);
     await _stateStorage.removeOrphans(activeSiteIds);
     await BlockStatsService.instance.removeOrphanedSites(activeSiteIds);
+    await SiteIconStore.instance.removeOrphans(_siteIconUrlsToKeep());
 
     // Deletion may have just removed the last notification site; tear
     // down the background refresh schedule if so. No-op on other

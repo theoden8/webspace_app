@@ -25,6 +25,8 @@ import 'package:webspace/services/microphone_decision_engine.dart';
 import 'package:webspace/services/pull_to_refresh_gate.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
+import 'package:webspace/services/site_icon_engine.dart';
+import 'package:webspace/services/site_icon_store.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
 import 'package:webspace/services/tab_bar_corner.dart';
 import 'package:webspace/services/user_agent_preset.dart';
@@ -1326,6 +1328,7 @@ class WebViewModel {
         overrideActive: ProxyManager.overrideActive,
       );
       _initialLoadDeferredForProxy = deferForProxy && !deferRestoreLoad;
+      final iconSiteUrl = initUrl;
       webview = WebViewFactory.createWebView(
         config: WebViewConfig(
           key: UniqueKey(), // Force new widget state when recreating
@@ -1720,6 +1723,13 @@ class WebViewModel {
           initialHtml: initialHtml,
           onRendererGone: (didCrash) => handleRendererGone(didCrash: didCrash),
           onPageCommitVisible: () => onPageCommitVisible?.call(),
+          siteIcon: SiteIconTarget(
+            siteUrl: iconSiteUrl,
+            // Incognito and archive-tier icons stay in memory: an icon the
+            // site served (an unread badge) is state it must not leave on disk.
+            onIcon: (icon) => unawaited(SiteIconStore.instance
+                .offer(iconSiteUrl, icon, persist: !effectiveIncognito)),
+          ),
           onConsoleMessage: (message, level) {
             consoleLogs.add(ConsoleLogEntry(
               timestamp: DateTime.now(),

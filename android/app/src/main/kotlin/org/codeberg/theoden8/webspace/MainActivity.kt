@@ -27,6 +27,7 @@ class MainActivity: FlutterActivity() {
     private var backgroundTaskPlugin: BackgroundTaskAndroidPlugin? = null
     private var mediaSessionPlugin: MediaSessionPlugin? = null
     private var proxyRelayPlugin: ProxyRelayPlugin? = null
+    private var siteIconPlugin: SiteIconPlugin? = null
     private var pendingShareUrl: String? = null
     private var pendingShareHtml: HtmlPayload? = null
 
@@ -73,6 +74,7 @@ class MainActivity: FlutterActivity() {
         backgroundTaskPlugin = BackgroundTaskAndroidPlugin(applicationContext, flutterEngine)
         mediaSessionPlugin = MediaSessionPlugin(applicationContext, flutterEngine)
         proxyRelayPlugin = ProxyRelayPlugin(flutterEngine)
+        siteIconPlugin = SiteIconPlugin(applicationContext, flutterEngine)
         captureSharePayload(intent)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SHARE_CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
