@@ -298,6 +298,8 @@
   "appSettingsExperimentalTorHint": "Lässt Websites den in die App eingebauten Tor-Client nutzen. Experimentell, weil Tor höchstens einmal pro App-Start läuft: Hält es an, muss die App neu gestartet werden, um es zurückzubekommen. Schaltest du dies aus, werden alle auf Tor eingestellten Websites blockiert, statt über deine echte IP-Adresse zu laden.",
   "appSettingsExperimentalTorOffTitle": "Eingebautes Tor ausschalten?",
   "appSettingsExperimentalTorOffBody": "{count, plural, one{Eine Website ist auf Tor eingestellt. Sie bleibt blockiert, bis du „Eingebautes Tor“ wieder einschaltest, statt über deine echte IP-Adresse zu laden.} other{{count} Websites sind auf Tor eingestellt. Sie bleiben blockiert, bis du „Eingebautes Tor“ wieder einschaltest, statt über deine echte IP-Adresse zu laden.}}",
+  "appSettingsExperimentalProxyRouter": "Proxy-Router",
+  "appSettingsExperimentalProxyRouterHint": "Unter Android gilt eine Proxy-Einstellung für die ganze App, daher schließt das Öffnen einer Website mit einem anderen Proxy die Websites, die einen anderen Proxy nutzen. Der Router hält sie alle offen: Ein Relay in der App schickt den Datenverkehr jeder Website an deren eigenen Proxy. Bei jedem Start prüft er auf diesem Gerät, ob sich der Datenverkehr der einzelnen Websites auseinanderhalten lässt, und schließt Websites wie bisher, wenn die Prüfung fehlschlägt. Experimentell: Er wurde erst auf wenigen Geräten getestet. Wirkt ab dem nächsten App-Start.",
   "appSettingsDeveloperModeTorWarningConfirm": "Ausschalten",
   "appSettingsDeveloperModeAlreadyOn": "Entwicklermodus ist bereits an",
   "appSettingsDeveloperModeStepsAway": "Noch {count} Tippen bis zum Entwicklermodus",

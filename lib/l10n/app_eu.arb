@@ -298,6 +298,8 @@
   "appSettingsExperimentalTorHint": "Guneei aplikazioaren barneko Tor bezeroa erabiltzen uzten die. Esperimentala da Tor gehienez behin exekutatzen delako aplikazioa abiarazten den bakoitzean: gelditzen bada, aplikazioa berrabiarazi behar da berreskuratzeko. Hau desaktibatzean, Tor erabiltzeko konfiguratutako gune guztiak blokeatzen dira, zure benetako IP helbidearekin kargatu beharrean.",
   "appSettingsExperimentalTorOffTitle": "Barneko Tor desaktibatu?",
   "appSettingsExperimentalTorOffBody": "{count, plural, one{Gune bat Tor erabiltzeko konfiguratuta dago. Blokeatuta jarraituko du Barneko Tor berriro aktibatu arte, zure benetako IP helbidearekin kargatu beharrean.} other{{count} gune Tor erabiltzeko konfiguratuta daude. Blokeatuta jarraituko dute Barneko Tor berriro aktibatu arte, zure benetako IP helbidearekin kargatu beharrean.}}",
+  "appSettingsExperimentalProxyRouter": "Proxy-bideratzailea",
+  "appSettingsExperimentalProxyRouterHint": "Android-en proxy-ezarpen bakarrak aplikazio osoa hartzen du; beraz, proxy desberdina duen gune bat irekitzeak beste proxy bat erabiltzen duten guneak ixten ditu. Bideratzaileak denak irekita mantentzen ditu: aplikazioaren barneko errele batek gune bakoitzaren trafikoa gune horren beraren proxyra bidaltzen du. Abiarazte bakoitzean, gailu honetan egiaztatzen du gune bakoitzaren trafikoa bereiz daitekeela, eta egiaztapenak huts egiten badu, guneak lehen bezala ixten ditu. Esperimentala da: gailu gutxitan probatu da. Aplikazioa hurrengo aldiz abiarazten denean hartuko du eragina.",
   "appSettingsDeveloperModeTorWarningConfirm": "Desaktibatu",
   "appSettingsDeveloperModeAlreadyOn": "Garatzaile modua piztuta dago jada",
   "appSettingsDeveloperModeStepsAway": "{count} sakatze gehiago garatzaile modua pizteko",

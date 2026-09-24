@@ -298,6 +298,8 @@
   "appSettingsExperimentalTorHint": "Sitelerin uygulamaya yerleşik Tor istemcisini kullanmasını sağlar. Deneyseldir, çünkü Tor her açılışta en fazla bir kez çalışır: durursa, geri getirmek için uygulamanın yeniden başlatılması gerekir. Bunu kapatmak, Tor kullanacak şekilde ayarlanmış her siteyi gerçek IP adresinizle yüklemek yerine engeller.",
   "appSettingsExperimentalTorOffTitle": "Yerleşik Tor kapatılsın mı?",
   "appSettingsExperimentalTorOffBody": "{count, plural, one{Bir site Tor kullanacak şekilde ayarlanmış. Yerleşik Tor'u yeniden açana kadar, gerçek IP adresinizle yüklenmek yerine engellenmiş kalacak.} other{{count} site Tor kullanacak şekilde ayarlanmış. Yerleşik Tor'u yeniden açana kadar, gerçek IP adresinizle yüklenmek yerine engellenmiş kalacaklar.}}",
+  "appSettingsExperimentalProxyRouter": "Proxy yönlendirici",
+  "appSettingsExperimentalProxyRouterHint": "Android'de tek bir proxy ayarı tüm uygulamayı kapsar, bu nedenle farklı proxy'ye sahip bir siteyi açmak başka bir proxy kullanan siteleri kapatır. Yönlendirici hepsini açık tutar: uygulamanın içindeki bir aktarıcı, her sitenin trafiğini o sitenin kendi proxy'sine gönderir. Her açılışta, her sitenin trafiğinin birbirinden ayırt edilebildiğini bu cihazda denetler ve denetim başarısız olursa siteleri eskisi gibi kapatır. Deneyseldir: yalnızca az sayıda cihazda denenmiştir. Uygulama bir sonraki başlatıldığında geçerli olur.",
   "appSettingsDeveloperModeTorWarningConfirm": "Kapat",
   "appSettingsDeveloperModeAlreadyOn": "Geliştirici modu zaten açık",
   "appSettingsDeveloperModeStepsAway": "Geliştirici modunu açmak için {count} dokunuş daha",

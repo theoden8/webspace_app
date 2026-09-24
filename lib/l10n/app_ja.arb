@@ -298,6 +298,8 @@
   "appSettingsExperimentalTorHint": "アプリに内蔵された Tor クライアントをサイトで使えるようにします。Tor は 1 回の起動につき最大 1 回しか実行できないため、試験運用となっています。停止した場合、元に戻すにはアプリを再起動する必要があります。オフにすると、Tor を使う設定のサイトはすべて、実際の IP アドレスで読み込まれる代わりにブロックされます。",
   "appSettingsExperimentalTorOffTitle": "内蔵 Tor をオフにしますか？",
   "appSettingsExperimentalTorOffBody": "{count, plural, other{{count} 件のサイトが Tor を使う設定になっています。内蔵 Tor を再びオンにするまで、実際の IP アドレスで読み込まれる代わりにブロックされたままになります。}}",
+  "appSettingsExperimentalProxyRouter": "プロキシルーター",
+  "appSettingsExperimentalProxyRouterHint": "Android ではプロキシ設定がアプリ全体で 1 つしかないため、別のプロキシを使うサイトを開くと、それとは異なるプロキシを使っているサイトが閉じられます。ルーターはそれらをすべて開いたままにします。アプリ内のリレーが、各サイトの通信をそのサイト自身のプロキシへ送ります。起動するたびに、このデバイス上で各サイトの通信が区別されていることを確認し、確認に失敗した場合は従来どおりサイトを閉じます。試験運用: まだ少数のデバイスでしか試されていません。次回アプリを起動したときに有効になります。",
   "appSettingsDeveloperModeTorWarningConfirm": "オフにする",
   "appSettingsDeveloperModeAlreadyOn": "開発者モードはすでにオンです",
   "appSettingsDeveloperModeStepsAway": "開発者モードをオンにするまであと {count} 回タップ",

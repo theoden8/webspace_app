@@ -298,6 +298,8 @@
   "appSettingsExperimentalTorHint": "Permite que os sitios usen o cliente Tor integrado na aplicación. É experimental porque Tor se executa como máximo unha vez por inicio da aplicación: se se detén, hai que reiniciar a aplicación para recuperalo. Ao desactivalo bloquéanse todos os sitios configurados para usar Tor en vez de cargalos co teu enderezo IP real.",
   "appSettingsExperimentalTorOffTitle": "Desactivar o Tor integrado?",
   "appSettingsExperimentalTorOffBody": "{count, plural, one{Hai un sitio configurado para usar Tor. Permanecerá bloqueado ata que volvas activar o Tor integrado, en lugar de cargarse co teu enderezo IP real.} other{Hai {count} sitios configurados para usar Tor. Permanecerán bloqueados ata que volvas activar o Tor integrado, en lugar de cargarse co teu enderezo IP real.}}",
+  "appSettingsExperimentalProxyRouter": "Enrutador de proxy",
+  "appSettingsExperimentalProxyRouterHint": "En Android un único axuste de proxy aplícase a toda a aplicación, así que abrir un sitio cun proxy diferente pecha os sitios que usan outro. O enrutador mantenos todos abertos: un retransmisor dentro da aplicación envía o tráfico de cada sitio ao proxy propio dese sitio. En cada inicio comproba neste dispositivo que o tráfico de cada sitio se pode distinguir, e se a comprobación falla, pecha sitios coma antes. É experimental: probouse en poucos dispositivos. Aplícase a próxima vez que se inicie a aplicación.",
   "appSettingsDeveloperModeTorWarningConfirm": "Desactivar",
   "appSettingsDeveloperModeAlreadyOn": "O modo de desenvolvedor xa está activado",
   "appSettingsDeveloperModeStepsAway": "Faltan {count} toques para activar o modo de desenvolvedor",

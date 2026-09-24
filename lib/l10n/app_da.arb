@@ -298,6 +298,8 @@
   "appSettingsExperimentalTorHint": "Lader websteder bruge den Tor-klient, der er indbygget i appen. Eksperimentelt, fordi Tor højst kører én gang pr. opstart af appen: hvis den stopper, skal appen genstartes for at få den tilbage. Hvis du slår dette fra, blokeres alle websteder, der er indstillet til at bruge Tor, i stedet for at blive indlæst via din rigtige IP-adresse.",
   "appSettingsExperimentalTorOffTitle": "Slå Indbygget Tor fra?",
   "appSettingsExperimentalTorOffBody": "{count, plural, one{Ét websted er indstillet til at bruge Tor. Det forbliver blokeret, indtil du slår Indbygget Tor til igen, i stedet for at indlæse via din rigtige IP-adresse.} other{{count} websteder er indstillet til at bruge Tor. De forbliver blokeret, indtil du slår Indbygget Tor til igen, i stedet for at indlæse via din rigtige IP-adresse.}}",
+  "appSettingsExperimentalProxyRouter": "Proxyrouter",
+  "appSettingsExperimentalProxyRouterHint": "På Android gælder én proxyindstilling for hele appen, så når du åbner et websted med en anden proxy, lukkes de websteder, der bruger en anden proxy. Routeren holder dem alle åbne: et relæ inde i appen sender hvert websteds trafik til webstedets egen proxy. Ved hver opstart kontrollerer den på denne enhed, at de enkelte websteders trafik kan skelnes fra hinanden, og lukker websteder som før, hvis kontrollen mislykkes. Eksperimentel: routeren er kun afprøvet på få enheder. Træder i kraft næste gang appen starter.",
   "appSettingsDeveloperModeTorWarningConfirm": "Slå fra",
   "appSettingsDeveloperModeAlreadyOn": "Udviklertilstand er allerede slået til",
   "appSettingsDeveloperModeStepsAway": "{count} tryk mere for at slå udviklertilstand til",

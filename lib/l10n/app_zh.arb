@@ -298,6 +298,8 @@
   "appSettingsExperimentalTorHint": "讓網站使用應用程式內建的 Tor 用戶端。之所以列為實驗性功能，是因為每次啟動應用程式時 Tor 最多只能執行一次：如果它停止，必須重新啟動應用程式才能恢復。關閉此項會封鎖所有設定為使用 Tor 的網站，而不會以你的真實 IP 位址載入它們。",
   "appSettingsExperimentalTorOffTitle": "要關閉內建 Tor 嗎？",
   "appSettingsExperimentalTorOffBody": "{count, plural, other{有 {count} 個網站設定為使用 Tor。在你重新開啟內建 Tor 之前，上述網站會維持封鎖狀態，而不會以你的真實 IP 位址載入。}}",
+  "appSettingsExperimentalProxyRouter": "代理路由器",
+  "appSettingsExperimentalProxyRouterHint": "在 Android 上，一項代理設定會套用到整個應用程式，因此開啟使用不同代理的網站時，會關閉使用其他代理的網站。路由器能讓它們全部保持開啟：應用程式內的中繼會將每個網站的流量送往該網站自己的代理。每次啟動時，它會在這部裝置上檢查能否區分各網站的流量；若檢查失敗，則照舊關閉網站。此為實驗性功能：目前僅在少數裝置上試用過。下次啟動應用程式時生效。",
   "appSettingsDeveloperModeTorWarningConfirm": "關閉",
   "appSettingsDeveloperModeAlreadyOn": "開發者模式已經開啟",
   "appSettingsDeveloperModeStepsAway": "再輕觸 {count} 次即可開啟開發者模式",

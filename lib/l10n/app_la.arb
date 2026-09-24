@@ -300,6 +300,8 @@
   "appSettingsExperimentalTorHint": "Sinit locos cliente Tor applicationi insito uti. Experimentale est quia Tor non plus quam semel in quoque applicationis initio currit: si consistit, applicatio iterum incipienda est ut restituatur. Hoc exstincto, omnis locus ad Tor utendum constitutus impeditur potius quam per veram inscriptionem IP tuam oneretur.",
   "appSettingsExperimentalTorOffTitle": "Tor insitum exstinguere?",
   "appSettingsExperimentalTorOffBody": "{count, plural, one{Unus locus ad Tor utendum constitutus est. Impeditus manebit donec Tor insitum iterum accendas, potius quam per veram inscriptionem IP tuam oneretur.} other{{count} loci ad Tor utendum constituti sunt. Impediti manebunt donec Tor insitum iterum accendas, potius quam per veram inscriptionem IP tuam onerentur.}}",
+  "appSettingsExperimentalProxyRouter": "Director procuratorum",
+  "appSettingsExperimentalProxyRouterHint": "In systemate Android una procuratoris institutio totam applicationem tegit, itaque locus cum alio procuratore apertus locos claudit qui alium adhibent. Director omnes apertos servat: internuntius intra applicationem commercium cuiusque loci ad procuratorem illius loci proprium mittit. Singulis initiis in hoc instrumento probat num commercium cuiusque loci ab aliis discerni possit, et si probatio deficit, locos ut antea claudit. Experimentale est: in paucis tantum instrumentis temptatum est. Valebit proximo applicationis initio.",
   "appSettingsDeveloperModeTorWarningConfirm": "Exstinguere",
   "appSettingsDeveloperModeAlreadyOn": "Modus fabri iam accensus est",
   "appSettingsDeveloperModeStepsAway": "{count} tactus adhuc ut modus fabri accendatur",

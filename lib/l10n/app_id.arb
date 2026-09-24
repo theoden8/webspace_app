@@ -298,6 +298,8 @@
   "appSettingsExperimentalTorHint": "Memungkinkan situs memakai klien Tor bawaan aplikasi. Bersifat eksperimental karena Tor berjalan paling banyak sekali setiap kali aplikasi dibuka: jika berhenti, aplikasi harus dimulai ulang untuk menjalankannya kembali. Menonaktifkan ini akan memblokir setiap situs yang disetel untuk memakai Tor, alih-alih memuatnya lewat alamat IP asli Anda.",
   "appSettingsExperimentalTorOffTitle": "Nonaktifkan Tor bawaan?",
   "appSettingsExperimentalTorOffBody": "{count, plural, other{{count} situs disetel untuk memakai Tor. Situs tersebut akan tetap diblokir hingga Anda mengaktifkan kembali Tor bawaan, bukan dimuat melalui alamat IP Anda yang sebenarnya.}}",
+  "appSettingsExperimentalProxyRouter": "Router proxy",
+  "appSettingsExperimentalProxyRouterHint": "Di Android, satu pengaturan proxy berlaku untuk seluruh aplikasi, sehingga membuka situs dengan proxy berbeda akan menutup situs yang memakai proxy lain. Router menjaga semuanya tetap terbuka: sebuah relai di dalam aplikasi mengirim lalu lintas setiap situs ke proxy milik situs itu sendiri. Setiap kali aplikasi dimulai, router memeriksa di perangkat ini bahwa lalu lintas setiap situs dapat dibedakan satu sama lain, dan menutup situs seperti sebelumnya jika pemeriksaan gagal. Eksperimental: baru dicoba di sedikit perangkat. Berlaku saat aplikasi dimulai berikutnya.",
   "appSettingsDeveloperModeTorWarningConfirm": "Nonaktifkan",
   "appSettingsDeveloperModeAlreadyOn": "Mode pengembang sudah aktif",
   "appSettingsDeveloperModeStepsAway": "{count} ketukan lagi untuk mengaktifkan mode pengembang",

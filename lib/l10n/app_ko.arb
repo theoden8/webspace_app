@@ -298,6 +298,8 @@
   "appSettingsExperimentalTorHint": "앱에 내장된 Tor 클라이언트를 사이트에서 사용할 수 있게 합니다. Tor는 앱을 한 번 실행할 때 최대 한 번만 실행되므로 실험 기능입니다. Tor가 멈추면 앱을 다시 시작해야 다시 사용할 수 있습니다. 이 항목을 끄면 Tor를 사용하도록 설정된 모든 사이트가 실제 IP 주소로 로드되는 대신 차단됩니다.",
   "appSettingsExperimentalTorOffTitle": "내장 Tor를 끌까요?",
   "appSettingsExperimentalTorOffBody": "{count, plural, other{사이트 {count}개가 Tor를 사용하도록 설정되어 있습니다. 내장 Tor를 다시 켤 때까지 실제 IP 주소로 로드되는 대신 차단된 상태로 유지됩니다.}}",
+  "appSettingsExperimentalProxyRouter": "프록시 라우터",
+  "appSettingsExperimentalProxyRouterHint": "Android에서는 프록시 설정 하나가 앱 전체에 적용되므로, 프록시가 다른 사이트를 열면 그와 다른 프록시를 쓰는 사이트가 닫힙니다. 라우터는 이 사이트들을 모두 열린 상태로 유지합니다. 앱 안의 릴레이가 각 사이트의 트래픽을 그 사이트 자체의 프록시로 보냅니다. 앱을 시작할 때마다 이 기기에서 각 사이트의 트래픽이 서로 구분되는지 확인하고, 확인에 실패하면 이전처럼 사이트를 닫습니다. 실험 기능: 아직 소수의 기기에서만 시험했습니다. 다음에 앱을 시작할 때 적용됩니다.",
   "appSettingsDeveloperModeTorWarningConfirm": "끄기",
   "appSettingsDeveloperModeAlreadyOn": "개발자 모드가 이미 켜져 있습니다",
   "appSettingsDeveloperModeStepsAway": "개발자 모드를 켜려면 {count}번 더 탭하세요",

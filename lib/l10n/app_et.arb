@@ -298,6 +298,8 @@
   "appSettingsExperimentalTorHint": "Lubab saitidel kasutada rakendusse sisseehitatud Tori klienti. Katseline, sest Tor saab ühe rakenduse käivituse jooksul töötada kõige rohkem ühe korra: kui see seiskub, tuleb rakendus selle taastamiseks taaskäivitada. Selle väljalülitamine blokeerib kõik Tori kasutama seatud saidid, selle asemel et need laaditaks sinu tegeliku IP-aadressiga.",
   "appSettingsExperimentalTorOffTitle": "Kas lülitada Sisseehitatud Tor välja?",
   "appSettingsExperimentalTorOffBody": "{count, plural, one{Üks sait on seatud kasutama Tori. See jääb blokeerituks, kuni lülitate Sisseehitatud Tori uuesti sisse, selle asemel et laadida teie tegeliku IP-aadressiga.} other{{count} saiti on seatud kasutama Tori. Need jäävad blokeerituks, kuni lülitate Sisseehitatud Tori uuesti sisse, selle asemel et laadida teie tegeliku IP-aadressiga.}}",
+  "appSettingsExperimentalProxyRouter": "Proksiruuter",
+  "appSettingsExperimentalProxyRouterHint": "Androidis kehtib üks proksiseade kogu rakendusele, seega erineva proksiga saidi avamine sulgeb saidid, mis kasutavad mõnda muud proksit. Ruuter hoiab need kõik avatuna: rakendusesisene vahendaja saadab iga saidi liikluse selle saidi enda proksisse. Igal käivitusel kontrollib see selles seadmes, et saitide liiklust saab üksteisest eristada, ja kui kontroll ebaõnnestub, sulgeb saite nagu varem. Katseline: seda on proovitud vaid vähestes seadmetes. Jõustub rakenduse järgmisel käivitusel.",
   "appSettingsDeveloperModeTorWarningConfirm": "Lülita välja",
   "appSettingsDeveloperModeAlreadyOn": "Arendajarežiim on juba sees",
   "appSettingsDeveloperModeStepsAway": "Veel {count} puudutust arendajarežiimi sisselülitamiseks",

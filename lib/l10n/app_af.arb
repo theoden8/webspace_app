@@ -298,6 +298,8 @@
   "appSettingsExperimentalTorHint": "Laat werwe toe om die Tor-kliënt te gebruik wat in die toepassing ingebou is. Eksperimenteel omdat Tor hoogstens een keer loop elke keer dat die toepassing begin: as dit stop, moet die toepassing herbegin word om dit terug te kry. As jy dit afskakel, word elke werf wat gestel is om Tor te gebruik geblokkeer eerder as om oor jou werklike IP-adres te laai.",
   "appSettingsExperimentalTorOffTitle": "Skakel Ingeboude Tor af?",
   "appSettingsExperimentalTorOffBody": "{count, plural, one{Een werf is ingestel om Tor te gebruik. Dit bly geblokkeer totdat jy Ingeboude Tor weer aanskakel, eerder as om oor jou werklike IP-adres te laai.} other{{count} werwe is ingestel om Tor te gebruik. Hulle bly geblokkeer totdat jy Ingeboude Tor weer aanskakel, eerder as om oor jou werklike IP-adres te laai.}}",
+  "appSettingsExperimentalProxyRouter": "Proxy-roeteerder",
+  "appSettingsExperimentalProxyRouterHint": "Op Android geld een proxy-instelling vir die hele toepassing, so as jy 'n werf met 'n ander proxy oopmaak, word die werwe wat 'n ander proxy gebruik, toegemaak. Die roeteerder hou hulle almal oop: 'n tussenganger binne die toepassing stuur elke werf se verkeer na daardie werf se eie proxy. By elke begin kontroleer dit op hierdie toestel dat elke werf se verkeer onderskei kan word, en maak werwe soos voorheen toe as die kontrole misluk. Eksperimenteel: dit is nog net op min toestelle getoets. Tree in werking die volgende keer dat die toepassing begin.",
   "appSettingsDeveloperModeTorWarningConfirm": "Skakel af",
   "appSettingsDeveloperModeAlreadyOn": "Ontwikkelaarmodus is reeds aan",
   "appSettingsDeveloperModeStepsAway": "Nog {count} tikke om ontwikkelaarmodus aan te skakel",

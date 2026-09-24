@@ -298,6 +298,8 @@
   "appSettingsExperimentalTorHint": "Laat sites de Tor-client gebruiken die in de app is ingebouwd. Dit is experimenteel omdat Tor hooguit één keer per start draait: stopt het, dan moet de app opnieuw worden gestart om het terug te krijgen. Zet je dit uit, dan wordt elke site die op Tor is ingesteld geblokkeerd in plaats van via je echte IP-adres te laden.",
   "appSettingsExperimentalTorOffTitle": "Ingebouwde Tor uitschakelen?",
   "appSettingsExperimentalTorOffBody": "{count, plural, one{Eén site is ingesteld om Tor te gebruiken. Die blijft geblokkeerd totdat je Ingebouwde Tor weer inschakelt, in plaats van te laden via je echte IP-adres.} other{{count} sites zijn ingesteld om Tor te gebruiken. Die blijven geblokkeerd totdat je Ingebouwde Tor weer inschakelt, in plaats van te laden via je echte IP-adres.}}",
+  "appSettingsExperimentalProxyRouter": "Proxyrouter",
+  "appSettingsExperimentalProxyRouterHint": "Op Android geldt één proxy-instelling voor de hele app, dus als je een site met een andere proxy opent, worden de sites gesloten die een andere gebruiken. De router houdt ze allemaal open: een relay in de app stuurt het verkeer van elke site naar de eigen proxy van die site. Bij elke start controleert hij op dit apparaat of het verkeer van elke site uit elkaar wordt gehouden, en sluit hij sites zoals voorheen als die controle mislukt. Dit is experimenteel: het is op weinig apparaten geprobeerd. Gaat in bij de volgende start van de app.",
   "appSettingsDeveloperModeTorWarningConfirm": "Uitschakelen",
   "appSettingsDeveloperModeAlreadyOn": "Ontwikkelaarsmodus staat al aan",
   "appSettingsDeveloperModeStepsAway": "Nog {count} tikken om de ontwikkelaarsmodus aan te zetten",
