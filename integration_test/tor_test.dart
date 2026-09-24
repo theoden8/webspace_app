@@ -247,7 +247,14 @@ class TorProbe {
             .firstWhere((l) => l.startsWith('r '), orElse: () => '');
         ip = r.split(' ').firstWhere(_ipv4.hasMatch, orElse: () => '?');
       } catch (_) {}
-      final cc = ip == '?' ? '?' : await info('ip-to-country/$ip');
+      String cc = '?';
+      if (ip != '?') {
+        try {
+          cc = await info('ip-to-country/$ip');
+        } catch (_) {
+          // tor has no table until a pin has downloaded one.
+        }
+      }
       exit = 'exit $hop at $ip ($cc)';
     }
     return 'circuit ${parts[0]} ${parts[1]} ${fields['PURPOSE']} '
