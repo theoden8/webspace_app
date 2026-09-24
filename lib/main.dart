@@ -100,6 +100,7 @@ import 'package:webspace/services/share_intent_service.dart';
 import 'package:webspace/services/link_routing_service.dart';
 import 'package:webspace/services/link_intent_dispatch_engine.dart';
 import 'package:webspace/services/navigation_decision_engine.dart' show NavigationDecision;
+import 'package:webspace/services/nested_open_engine.dart';
 import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/widgets/dispatch_picker_sheet.dart';
 import 'package:webspace/screens/link_handling_settings.dart';
@@ -2825,37 +2826,28 @@ class _WebSpacePageState extends State<WebSpacePage>
     NavigationDecision decision,
     bool hadGesture,
   ) {
-    // A locked kiosk shell reaches no other site (KIOSK-002), and a routed
-    // open is another site's signed-in identity.
-    if (!source.routeOutboundLinks || _kioskLocked || !mounted) return false;
-    final target = Uri.tryParse(url);
-    if (target == null) return false;
-    final fallback = switch (decision) {
-      NavigationDecision.blockOpenNested => OutboundFallback.nested,
-      NavigationDecision.blockOpenExternal => OutboundFallback.external,
-      _ => null,
-    };
-    if (fallback == null) return false;
-    final action = LinkIntentDispatchEngine.dispatchOutbound(
-      targetUrl: target,
-      source: _SiteRouteAdapter(source),
-      sourcePrefs: source.outboundPreferences,
-      candidates: [
-        for (final m in _outboundCandidates(source)) _SiteRouteAdapter(m),
-      ],
-      fallback: fallback,
+    if (!mounted) return false;
+    final action = LinkIntentDispatchEngine.routeOutbound(
+      url: url,
+      decision: decision,
+      routeOutboundLinks: source.routeOutboundLinks,
+      developerMode: DeveloperModeService.instance.enabled,
+      kioskLocked: _kioskLocked,
       hadGesture: hadGesture,
       containersActive: _useContainers,
+      source: _SiteRouteAdapter(source),
+      sourcePrefs: source.outboundPreferences,
+      candidates: () => [
+        for (final m in _outboundCandidates(source)) _SiteRouteAdapter(m),
+      ],
     );
+    if (action == null) return false;
     LogService.instance.log(
       'LinkIntent',
       'outbound $url from ${source.siteId} -> ${_describeDispatchAction(action)}',
       sensitivity: LogSensitivity.sensitive,
     );
-    if (action is DispatchNestedFallback || action is DispatchOpenExternal) {
-      return false;
-    }
-    unawaited(_executeOutboundDispatch(source, action, target));
+    unawaited(_executeOutboundDispatch(source, action, Uri.parse(url)));
     return true;
   }
 
@@ -2911,28 +2903,18 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (!mounted || choice == null) return;
     switch (choice) {
       case DispatchChoiceOpen(:final site, :final remember):
-        if (remember) {
-          final additions = LinkIntentDispatchEngine.preferencesToRemember(
-            url: url,
-            targetSiteId: site.siteId,
-            existing: source.outboundPreferences,
-          );
-          if (additions.isNotEmpty) {
-            source.outboundPreferences = [
-              ...source.outboundPreferences,
-              ...additions,
-            ];
-            await _saveWebViewModels();
-            if (!mounted) return;
-          }
-        }
-        await _executeOpenNested(
-          LinkIntentDispatchEngine.openOutbound(
-            url: url,
-            site: _SiteRouteAdapter(site),
-          ),
-          source: source,
+        final pick = LinkIntentDispatchEngine.pickOutbound(
+          url: url,
+          site: _SiteRouteAdapter(site),
+          remember: remember,
+          existing: source.outboundPreferences,
         );
+        if (pick.preferences case final preferences?) {
+          source.outboundPreferences = preferences;
+          await _saveWebViewModels();
+          if (!mounted) return;
+        }
+        await _executeOpenNested(pick.action, source: source);
       case DispatchChoiceFallback():
         final fallback = action.fallback;
         if (fallback == null) return;
@@ -3067,7 +3049,7 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   /// LIR-011: open as a nested webview using the chosen site's settings.
   /// LIR-015: a routed outbound link opens the same way over [source], the
-  /// site it came from, without a webspace switch.
+  /// site it came from. The ordering lives in [NestedOpenEngine].
   Future<void> _executeOpenNested(
     DispatchOpenNested a, {
     WebViewModel? source,
@@ -3075,74 +3057,12 @@ class _WebSpacePageState extends State<WebSpacePage>
     final index =
         _webViewModels.indexWhere((m) => m.siteId == a.siteId);
     if (index < 0) return;
-    final model = _webViewModels[index];
-    if (!a.sourceIsParent) {
-      await _maybeSwitchToAllForSite(model, index);
-      if (!mounted) return;
-    }
-    // Set when the proxy sequence below unloaded [source]: it must come back
-    // through its own activation, which applies its proxy before rebuilding
-    // it, never under the destination's (LIR-015).
-    var sourceUnloaded = false;
-    Future<void> returnToSource() async {
-      if (!sourceUnloaded || !mounted || source == null) return;
-      final sourceIndex = _webViewModels.indexOf(source);
-      if (sourceIndex < 0 || sourceIndex != _currentIndex) return;
-      await _setCurrentIndex(sourceIndex);
-    }
-    // Android/Linux: the proxy is a process-global override that only the
-    // activation path flips. The nested screen is for a site that is not
-    // being activated, so run the PROXY-008 sequence here or it would load
-    // through whatever the active site left behind, bound to this site's
-    // container (LEAK-003). Fail closed when the override cannot be applied.
-    //
-    // Under router mode there is nothing to flip: the rule points at the
-    // relay for every site and the nested screen presents this site's own
-    // credential, so `setProxySettings` no-ops and the eviction would only
-    // cold-start the siblings PROXY-013 exists to keep loaded. Same gating
-    // as the activation path, or a share intent quietly reserialises the app.
-    if (hostIsAndroid || hostIsLinux) {
-      final mismatch = SiteUnloadEngine.indicesToUnloadForProxyMismatch(
-        targetIndex: index,
-        models: _webViewModels,
-        loadedIndices: _loadedIndices,
-        proxyIsGlobal:
-            (hostIsAndroid && !ProxyRouterService.instance.isActive) ||
-                hostIsLinux,
-        sharesDefaultSession: ProxyRouterService.instance.isActive
-            ? (m) => !_ownsContainerProfile(m)
-            : null,
-      );
-      final sourceIndex = source == null ? -1 : _webViewModels.indexOf(source);
-      sourceUnloaded = mismatch.contains(sourceIndex);
-      for (final i in mismatch) {
-        await _unloadSiteForOtherReason(i);
-        if (!mounted) return;
-      }
-      try {
-        await ProxyManager().setProxySettings(model.proxySettings);
-      } catch (e) {
-        LogService.instance.log(
-          'Proxy',
-          'Nested open refused: proxy apply failed: $e',
-          level: LogLevel.error,
-          sensitivity: LogSensitivity.sensitive,
-        );
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              AppLocalizations.of(context).siteSettingsProxyError('$e'),
-            ),
-          ),
-        );
-        await returnToSource();
-        return;
-      }
-      if (!mounted) return;
-    }
-    await _launchNestedForModel(model, a.url);
-    await returnToSource();
+    await NestedOpenEngine.run<WebViewModel>(
+      _NestedOpenHost(this),
+      target: _webViewModels[index],
+      url: a.url,
+      source: a.sourceIsParent ? source : null,
+    );
   }
 
   /// The one place a nested screen opens for an existing site from this
@@ -10087,6 +10007,87 @@ class _SiteRouteAdapter implements DispatchableSite {
 
   @override
   String get navigationDomain => getNormalizedDomain(model.initUrl);
+}
+
+/// Binds [NestedOpenEngine] to the page state.
+class _NestedOpenHost implements NestedOpenHost<WebViewModel> {
+  final _WebSpacePageState state;
+  const _NestedOpenHost(this.state);
+
+  @override
+  bool get mounted => state.mounted;
+
+  // Android/Linux: the proxy is a process-global override that only the
+  // activation path flips. The nested screen is for a site that is not
+  // being activated, so the PROXY-008 sequence runs for it here or it would
+  // load through whatever the active site left behind, bound to this site's
+  // container (LEAK-003).
+  //
+  // Under router mode the eviction set is computed router-aware below: the
+  // rule points at the relay for every site and the nested screen presents
+  // this site's own credential, so `setProxySettings` no-ops and evicting
+  // siblings would only cold-start what PROXY-013 keeps loaded.
+  @override
+  bool get proxyIsProcessGlobal => hostIsAndroid || hostIsLinux;
+
+  @override
+  int indexOf(WebViewModel site) => state._webViewModels.indexOf(site);
+
+  @override
+  int? get currentIndex => state._currentIndex;
+
+  @override
+  Future<void> switchWebspaceFor(WebViewModel target) async {
+    final index = state._webViewModels.indexOf(target);
+    if (index < 0) return;
+    await state._maybeSwitchToAllForSite(target, index);
+  }
+
+  @override
+  Set<int> mismatchedWith(WebViewModel target) =>
+      SiteUnloadEngine.indicesToUnloadForProxyMismatch(
+        targetIndex: state._webViewModels.indexOf(target),
+        models: state._webViewModels,
+        loadedIndices: state._loadedIndices,
+        proxyIsGlobal:
+            (hostIsAndroid && !ProxyRouterService.instance.isActive) ||
+                hostIsLinux,
+        sharesDefaultSession: ProxyRouterService.instance.isActive
+            ? (m) => !state._ownsContainerProfile(m)
+            : null,
+      );
+
+  @override
+  Future<void> unload(int index) => state._unloadSiteForOtherReason(index);
+
+  @override
+  Future<void> applyProxyOf(WebViewModel target) =>
+      ProxyManager().setProxySettings(target.proxySettings);
+
+  @override
+  void reportProxyFailure(Object error) {
+    LogService.instance.log(
+      'Proxy',
+      'Nested open refused: proxy apply failed: $error',
+      level: LogLevel.error,
+      sensitivity: LogSensitivity.sensitive,
+    );
+    if (!state.mounted) return;
+    ScaffoldMessenger.of(state.context).showSnackBar(
+      SnackBar(
+        content: Text(
+          AppLocalizations.of(state.context).siteSettingsProxyError('$error'),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Future<void> launchNested(WebViewModel target, String url) =>
+      state._launchNestedForModel(target, url);
+
+  @override
+  Future<void> activate(int index) => state._setCurrentIndex(index);
 }
 
 /// Binds [OrphanSweepEngine]'s targets to the concrete storage services.

@@ -36,6 +36,7 @@ Future<void> _pump(
   ValueChanged<SiteBehaviourValues>? onChanged,
   bool containersActive = true,
   List<WebViewModel> routingTargets = const [],
+  bool showOutboundRouting = true,
 }) async {
   // Tall surface so every row is laid out: the screen is one list and the
   // assertions below compare rows that sit at opposite ends of it.
@@ -54,6 +55,7 @@ Future<void> _pump(
       onChanged: onChanged ?? (_) {},
       containersActive: containersActive,
       routingTargets: routingTargets,
+      showOutboundRouting: showOutboundRouting,
     ),
   ));
   await tester.pumpAndSettle();
@@ -167,6 +169,19 @@ void main() {
         find.descendant(of: tile, matching: find.byType(HintButton)),
         findsOneWidget,
       );
+    });
+
+    testWidgets('developer mode off hides both rows', (tester) async {
+      await _pump(
+        tester,
+        values: _values(routeOutboundLinks: true, outboundPreferences: [pref]),
+        routingTargets: [gh],
+        showOutboundRouting: false,
+      );
+      expect(find.text('Route links to my sites'), findsNothing);
+      expect(find.text('Routing preferences'), findsNothing);
+      expect(_switchTitled(tester, 'Open external links in browser').onChanged,
+          isNotNull);
     });
 
     testWidgets('the legacy engine disables it with the reason',

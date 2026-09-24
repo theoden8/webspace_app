@@ -10,7 +10,7 @@ It is opt-in per source. Nesting today is silent and back-reversible; a picker o
 
 - **Per-site toggle** `WebViewModel.routeOutboundLinks` (default `false`). While it is off, outbound taps take exactly today's path.
 - **Per-site preferences** `WebViewModel.outboundPreferences: List<OutboundPreference>`, each `(DomainClaim claim, String targetSiteId)`, so a source can settle which of several matching sites wins (work GitHub vs personal GitHub). A preference beats the global resolver.
-- **When routing runs**: only for a `blockOpenNested` or `blockOpenExternal` decision in the source's own webview, only for a navigation that carried a user gesture, and only on the container engine. `NavigationDecisionEngine` starts returning the gesture it already computes; its decisions do not change.
+- **When routing runs**: only with developer mode on, only for a `blockOpenNested` or `blockOpenExternal` decision in the source's own webview, only for a navigation that carried a user gesture, and only on the container engine. `NavigationDecisionEngine` starts returning the gesture it already computes; its decisions do not change.
 - **Resolution order**: source preferences (most specific claim first), then the global resolver over the candidates, with any result naming the source itself collapsing to "no destination". Candidates are the sites on the source's side of the archive boundary.
 - **Composition with `externalLinksInBrowser`**: a resolved destination wins over the system browser; a link no candidate claims keeps the navigation engine's decision (nested with the source's posture, or the system browser).
 - **Outbound dispatch** on `LinkIntentDispatchEngine`, `dispatchOutbound(...)`:
@@ -45,7 +45,8 @@ It is opt-in per source. Nesting today is silent and back-reversible; a picker o
   - `lib/services/outbound_preference.dart`: the value type, the archive-boundary candidate rule (`OutboundBoundary`) and the prune (`OutboundPreferenceGc`).
   - `lib/services/navigation_decision_engine.dart`: `hadGesture` on its results.
   - `lib/services/link_routing_service.dart`: `resolveOutbound`.
-  - `lib/services/link_intent_dispatch_engine.dart`: `dispatchOutbound`, `DispatchNestedFallback`, `DispatchOpenExternal`, `sourceIsParent`, picker `source` / `fallback`.
+  - `lib/services/link_intent_dispatch_engine.dart`: `routeOutbound` (the gates), `dispatchOutbound`, `pickOutbound`, `DispatchNestedFallback`, `DispatchOpenExternal`, `sourceIsParent`, picker `source` / `fallback`.
+  - `lib/services/nested_open_engine.dart`: the proxy sequence and the return to the source around a nested open, shared with the inbound open.
   - `_WebSpacePageState`: the hook, `_executeOutboundDispatch`, the proxy return path, the picker's outbound mode, the prune at startup, delete and archive moves.
   - `lib/services/settings_import_engine.dart`: the prune on import, inside the plan.
   - `lib/widgets/dispatch_picker_sheet.dart`: the LIR-010 sheet, moved out of `main.dart` so its outbound mode can be widget-tested.

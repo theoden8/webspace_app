@@ -36,6 +36,9 @@
 - [x] 5.5 Proxy return path (D6): when the routed open changed the process-global proxy (Android without router mode, Linux), await the route and re-run the source's activation before it is interactive. Keep the source out of `_loadedIndices` until then.
 - [x] 5.6 `test/js/outbound_link_funnel.test.js`: every `blockOpenNested` / `blockOpenExternal` branch in `lib/web_view_model.dart` consults `onOutboundLink` before launching. Add it to the runner `npm run test:js` picks up.
 
+- [x] 5.7 Developer-mode gate (LIR-014 gate 5): `routeOutbound` takes `developerMode`, fed from `DeveloperModeService.instance.enabled`; the Behaviour rows and the summary entry hide while it is off.
+- [x] 5.8 Engines for what was inline in `_WebSpacePageState`: the gates and the decision mapping in `LinkIntentDispatchEngine.routeOutbound`, applying a pick in `pickOutbound`, the nested-open ordering in `NestedOpenEngine` behind a `NestedOpenHost`. Tests in `test/outbound_routing_test.dart` and `test/nested_open_engine_test.dart`; the funnel test also holds every prune call site.
+
 ## 6. Picker outbound mode
 
 - [x] 6.1 `_showDispatchPicker` passes `offerBind` and `offerCreate` to the sheet, and `_showOutboundPicker` opens it for a `DispatchShowPicker` with `source` set, naming the source; the sheet hides the send-or-open-to-a-site row when `offerBind` is false (it shows it whenever a site exists today) and the create row when `offerCreate` is false.

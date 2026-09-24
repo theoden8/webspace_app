@@ -18,6 +18,7 @@ import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/user_agent_identity.dart';
 import 'package:webspace/services/http_auth_secure_storage.dart';
+import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/services/proxy_binding_engine.dart';
@@ -1041,7 +1042,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (v.fullscreenMode) loc.siteSettingsFullscreen,
       if (v.htmlCachingEnabled) loc.siteSettingsHtmlCaching,
       if (v.blockAutoRedirects) loc.siteSettingsBlockAutoRedirects,
-      if (v.routeOutboundLinks) loc.siteSettingsRouteOutboundLinks,
+      if (v.routeOutboundLinks && DeveloperModeService.instance.enabled)
+        loc.siteSettingsRouteOutboundLinks,
       if (v.externalLinksInBrowser) loc.siteSettingsExternalLinksInBrowser,
     ];
 
@@ -1078,6 +1080,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           values: _behaviourValues,
           containersActive: widget.useContainers,
           routingTargets: widget.routingTargets,
+          showOutboundRouting: DeveloperModeService.instance.enabled,
           // Writes straight to the model, like it did inline: domain claims
           // are not part of the dirty snapshot and are saved as they are
           // edited.

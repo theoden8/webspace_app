@@ -7,6 +7,8 @@
 library;
 
 import 'package:webspace/services/link_routing_service.dart';
+import 'package:webspace/services/navigation_decision_engine.dart'
+    show NavigationDecision;
 import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/web_view_model.dart' show getBaseDomain, getNormalizedDomain;
 
@@ -230,6 +232,48 @@ class LinkIntentDispatchEngine {
     );
   }
 
+  /// Whether routing takes a link [source]'s own webview is about to launch
+  /// under [decision] (LIR-014). Null means it does not, and the webview's
+  /// own launch runs: routing is off for the source, developer mode is off
+  /// (DEVTOOLS-010), the kiosk shell is locked (KIOSK-002), the decision is
+  /// not a nested or external launch, or [dispatchOutbound] names no
+  /// destination. [candidates] is read only once the cheap gates pass.
+  static DispatchAction? routeOutbound({
+    required String url,
+    required NavigationDecision decision,
+    required bool routeOutboundLinks,
+    required bool developerMode,
+    required bool kioskLocked,
+    required bool hadGesture,
+    required bool containersActive,
+    required DispatchableSite source,
+    required List<OutboundPreference> sourcePrefs,
+    required List<DispatchableSite> Function() candidates,
+  }) {
+    if (!routeOutboundLinks || !developerMode || kioskLocked) return null;
+    final fallback = switch (decision) {
+      NavigationDecision.blockOpenNested => OutboundFallback.nested,
+      NavigationDecision.blockOpenExternal => OutboundFallback.external,
+      _ => null,
+    };
+    if (fallback == null) return null;
+    final target = Uri.tryParse(url);
+    if (target == null) return null;
+    final action = dispatchOutbound(
+      targetUrl: target,
+      source: source,
+      sourcePrefs: sourcePrefs,
+      candidates: candidates(),
+      fallback: fallback,
+      hadGesture: hadGesture,
+      containersActive: containersActive,
+    );
+    return switch (action) {
+      DispatchNestedFallback() || DispatchOpenExternal() => null,
+      _ => action,
+    };
+  }
+
   /// A link the source site opens, which the navigation engine decided to
   /// nest or send to the system browser (LIR-014, LIR-015). The caller has
   /// already checked `routeOutboundLinks`. Routing needs a gesture and the
@@ -294,6 +338,30 @@ class LinkIntentDispatchEngine {
         url: url.toString(),
         sourceIsParent: true,
       );
+
+  /// The user picked [site] in the outbound picker (LIR-016): the routed
+  /// open, and with [remember] the source's preference list grown by
+  /// [preferencesToRemember]. `preferences` is null when the list does not
+  /// change, so the caller persists only on a change.
+  static ({List<OutboundPreference>? preferences, DispatchOpenNested action})
+      pickOutbound({
+    required Uri url,
+    required RoutableSite site,
+    required bool remember,
+    required List<OutboundPreference> existing,
+  }) {
+    final additions = remember
+        ? preferencesToRemember(
+            url: url,
+            targetSiteId: site.siteId,
+            existing: existing,
+          )
+        : const <OutboundPreference>[];
+    return (
+      preferences: additions.isEmpty ? null : [...existing, ...additions],
+      action: openOutbound(url: url, site: site),
+    );
+  }
 
   /// The preferences a remembered outbound pick adds to the source
   /// (LIR-016): one per claim of [url] the source does not hold yet, whatever

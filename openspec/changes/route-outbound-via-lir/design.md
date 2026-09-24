@@ -83,7 +83,8 @@ Routing runs only when every gate holds (LIR-014):
 2. `NavigationDecisionEngine` returned `blockOpenNested` or `blockOpenExternal` for the source's own webview.
 3. The navigation carried an effective gesture. `decideShouldOverrideUrlLoading` computes `effectiveGesture` and `decideOnUrlChanged` computes `hasRecentGesture`; both are dropped today. `NavigationDecisionResult` and `OnUrlChangedHandled` gain `hadGesture` so the caller can read it without re-deriving the propagation window. Without this gate, a page on a site with `blockAutoRedirects` off could script-navigate to `https://github.com/settings/...` and have it load in the user's signed-in GitHub container with no click. Today the same navigation lands in the source's own container.
 4. The container engine is active (D10).
-5. The kiosk shell is not locked. KIOSK-002 keeps a locked shell from reaching any other site, and a routed open is exactly that: another site's signed-in identity. The hook returns `false` and the link takes the source-posture path it takes today.
+5. Developer mode is on (DEVTOOLS-010). Routing has run only in tests; until it has run on devices it waits behind the same gate as router mode (PROXY-013), where the people who turn it on are the ones who can read `LogService` when it misbehaves. Turning developer mode off keeps both fields and stops routing.
+6. The kiosk shell is not locked. KIOSK-002 keeps a locked shell from reaching any other site, and a routed open is exactly that: another site's signed-in identity. The hook returns `false` and the link takes the source-posture path it takes today.
 
 Candidates are the sites on the source's side of the archive boundary (D11).
 
@@ -143,15 +144,17 @@ if (onOutboundLink?.call(url, result.decision, hadGesture) ?? false) return fals
 launchUrlFunc(url, /* whole chain, unchanged */);
 ```
 
-The hook reads the source's live `routeOutboundLinks` (settings edits apply without a webview rebuild), applies the gates and runs the pure `dispatchOutbound` synchronously. For `DispatchNestedFallback` and `DispatchOpenExternal` it returns `false`, so the call site does exactly what it does today and the fallback needs no second copy of the launch chain. For `DispatchOpenNested` and `DispatchShowPicker` it schedules `_executeOutboundDispatch` and returns `true`. With the toggle off, no resolver runs and no new code path is taken.
+The hook passes the live values (the source's `routeOutboundLinks`, developer mode, the kiosk lock, the gesture, the engine) to the pure `LinkIntentDispatchEngine.routeOutbound`, which applies the D2 gates, maps the navigation decision to its fallback and runs `dispatchOutbound`, all synchronously. Null (a gate closed, or no destination) makes the hook return `false`, so the call site does exactly what it does today and the fallback needs no second copy of the launch chain. For `DispatchOpenNested` and `DispatchShowPicker` it schedules `_executeOutboundDispatch` and returns `true`. With the toggle or developer mode off, no resolver runs and no new code path is taken.
 
 `_executeOutboundDispatch`:
 - `DispatchOpenNested(sourceIsParent: true)`: `_executeOpenNested` without `_maybeSwitchToAllForSite`, plus the return path in D6.
-- `DispatchShowPicker(source: ...)`: `_showOutboundPicker`; on a winner, optional writeback (D4) then the routed open; on "Open without routing", `_launchNestedForModel(source, url)` or `launchUrlInSystemBrowser(url)`. This is the one place the fallback runs from `main.dart`, and it goes through the NESTED-010 funnel.
+- `DispatchShowPicker(source: ...)`: `_showOutboundPicker`; on a winner, `LinkIntentDispatchEngine.pickOutbound` returns the preference list to store (null when unchanged, D4) and the routed open; on "Open without routing", `_launchNestedForModel(source, url)` or `launchUrlInSystemBrowser(url)`. This is the one place the fallback runs from `main.dart`, and it goes through the NESTED-010 funnel.
 
 ### D6. Webspace and proxy on the way back
 
 `sourceIsParent: true` skips `_maybeSwitchToAllForSite`. The user is mid-browse in webspace X; routing must not relocate them. This intentionally differs from inbound LIR-011, where the user came from outside the app and the "Switched to All" snackbar makes the destination discoverable.
+
+The ordering below lives in the pure `NestedOpenEngine` (`lib/services/nested_open_engine.dart`), which inbound and outbound opens share; `_WebSpacePageState` supplies the IO through a `NestedOpenHost`. The engine is tested against a fake host that models the loaded set and the one process-global proxy, and fails the moment a loaded site runs under another site's proxy.
 
 The proxy is the part that does not come back by itself. On Android without router mode, and on Linux, `_executeOpenNested` unloads every loaded site whose effective proxy differs from the destination's, which includes the source whenever the two differ, and applies the destination's proxy. `launchUrl` awaits the route, and nothing after the pop re-applies anything. So the executor awaits the push and, when it changed the process-global proxy, re-runs the source's activation (`_setCurrentIndex` for the source's index, which runs the PROXY-008 sequence and rebuilds it with its captured state queued) before the source is interactive. The capture in `_unloadSiteForOtherReason` is what makes the source's back stack survive. Until that re-activation the source stays out of `_loadedIndices`, so nothing is built under the wrong proxy. The inbound LIR-011 open has the same shape and may want the same return path (Open Question 4).
 
@@ -184,6 +187,7 @@ Link handling
 - The preferences row's subtitle is state-derived: `loc.outboundPreferencesCount(n)`, or "Global routing only" when `n == 0`. It opens `OutboundPreferencesScreen`, which lists `claim -> target` rows. Adding a row reuses `_AddClaimDialog` and `_claimLabel` from `lib/screens/link_handling_settings.dart`, so the new editor lives in that file beside `DomainClaimsEditor` (both are private there today). The target dropdown lists the site's LIR-014 candidates minus the site itself.
 - Both fields ride `SiteBehaviourValues` and the settings screen's dirty snapshot (BUG-006, EDIT-009). The claims editor stays the one control that writes straight to the model.
 - `_buildBehaviourRow` adds the switch to its "names of what is on" summary (BEHAV-002).
+- Both rows, and the summary entry, show only while developer mode is on (D2). `SiteBehaviourScreen` takes `showOutboundRouting`, which the settings screen reads from `DeveloperModeService`.
 
 New strings go through `app_en.arb` with descriptions; the 66 translations ride their own commit (CLAUDE.md).
 
@@ -192,19 +196,21 @@ New strings go through `app_en.arb` with descriptions; the 66 translations ride 
 Pure Dart, fast, in `test/outbound_routing_test.dart`:
 
 - `resolveOutbound`: preference beats global single; preference skipped when its target is not a candidate; equal-score preferences resolve by list order; global single and ambiguous pass through; self-match through a preference and through a claim; port-bearing URLs score like `resolve`.
-- `dispatchOutbound`: every table row in D3, including no-gesture and legacy-engine fallbacks and both fallback kinds; `preferencesToRemember`.
+- `routeOutbound`: each D2 gate (toggle, developer mode, kiosk lock, decision kind, gesture, engine) hands the link back, and candidates are not built until the cheap gates pass.
+- `dispatchOutbound`: every table row in D3, including no-gesture and legacy-engine fallbacks and both fallback kinds; `preferencesToRemember` and `pickOutbound`.
 - `hadGesture` on both decisions: a direct gesture, a propagated one inside the window, none outside it.
 - JSON round-trip of both fields, omission at default, legacy load, odd entries dropped.
 - The boundary rule and the prune as pure functions, and the prune inside `planSettingsImport`.
 
 Elsewhere:
 
+- `test/nested_open_engine_test.dart`: the D6 ordering against a fake host that models the process-global proxy. A mismatched source is unloaded, the destination's proxy applied, the screen opened, and the source re-activated after the pop. A same-proxy source is left alone, a refused proxy opens nothing and brings the source back, and a user who moved on (or a deleted source) is not pulled back. The inbound open switches webspace and re-activates nothing.
 - `test/site_settings_qr_codec_test.dart`: the toggle is shared, the list is not; the drift test also classifies every site key of `tool/backup_compat/superset.json`, which sets both fields.
 - `test/archive_neutrality_test.dart`: an app-tier preference naming a site moved into an archive is pruned to the bytes it has once the archive is closed.
-- `test/site_behaviour_screen_test.dart`: row order, hint without subtitle, legacy-engine disable, preferences row visibility and count, adding a preference, refusing a taken claim.
+- `test/site_behaviour_screen_test.dart`: row order, hint without subtitle, legacy-engine disable, both rows hidden while developer mode is off, preferences row visibility and count, adding a preference, refusing a taken claim.
 - `test/dispatch_picker_sheet_test.dart`: outbound mode hides bind and create, shows "Open without routing", the checkbox drives `remember`, dismissal returns null; inbound mode unchanged.
 
-Structural: `test/nested_webview_field_parity_test.dart` already holds every `launchUrl(` in `main.dart` to the whole chain, and the routed open adds no new one. A new `test/js/outbound_link_funnel.test.js` asserts each of the four `blockOpenNested` / `blockOpenExternal` branches in `web_view_model.dart` consults `onOutboundLink` before launching, so a fifth branch cannot skip routing silently; that every site webview `main.dart` builds, through `getWebView` or `getController`, carries the hook; and that routing checks the toggle, the kiosk lock, the gesture, the engine and the boundary.
+Structural: `test/nested_webview_field_parity_test.dart` already holds every `launchUrl(` in `main.dart` to the whole chain, and the routed open adds no new one. A new `test/js/outbound_link_funnel.test.js` asserts each of the four `blockOpenNested` / `blockOpenExternal` branches in `web_view_model.dart` consults `onOutboundLink` before launching, so a fifth branch cannot skip routing silently; that every site webview `main.dart` builds, through `getWebView` or `getController`, carries the hook; that the hook hands every gate's live value to `routeOutbound`; that `_executeOpenNested` delegates to `NestedOpenEngine` with its source only for a routed open, and the host re-activates through `_setCurrentIndex`; and that every orphaning point (startup, delete, both archive moves, the import plan) prunes.
 
 Manual: DuckDuckGo with routing on, on Android: a GitHub result lands in the GitHub site signed in; back returns to DuckDuckGo in the same webspace; with mismatched proxies, DuckDuckGo comes back under its own proxy.
 

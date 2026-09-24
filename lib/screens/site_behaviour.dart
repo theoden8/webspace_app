@@ -77,6 +77,7 @@ class SiteBehaviourScreen extends StatefulWidget {
     this.domainClaims,
     this.containersActive = true,
     this.routingTargets = const [],
+    this.showOutboundRouting = false,
   });
 
   final String host;
@@ -101,6 +102,10 @@ class SiteBehaviourScreen extends StatefulWidget {
   /// The sites a routing preference may name: this site's LIR-014 candidates
   /// other than itself.
   final List<WebViewModel> routingTargets;
+
+  /// Outbound routing sits behind developer mode (DEVTOOLS-010); while it is
+  /// off its rows are hidden and the stored values are kept.
+  final bool showOutboundRouting;
 
   @override
   State<SiteBehaviourScreen> createState() => _SiteBehaviourScreenState();
@@ -265,8 +270,10 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
           _htmlCaching(loc),
           _groupHeader(loc.linkHandlingScreenTitle),
           _blockAutoRedirects(loc),
-          _routeOutboundLinks(loc),
-          if (_values.routeOutboundLinks) _outboundPreferences(loc),
+          if (widget.showOutboundRouting) ...[
+            _routeOutboundLinks(loc),
+            if (_values.routeOutboundLinks) _outboundPreferences(loc),
+          ],
           _externalLinks(loc),
           if (widget.domainClaims != null) widget.domainClaims!,
           const SizedBox(height: 24),

@@ -74,26 +74,56 @@ test('every site webview main.dart builds carries the hook', () => {
   }
 });
 
-test('routing is gated on the gesture, the container engine and the boundary', () => {
+test('routing hands every gate to the engine, with the live values', () => {
   const route = blockAfter(main, '  bool _routeOutboundLink(', ') {', mainRel);
-  assert.match(route, /if \(!source\.routeOutboundLinks/,
-    'routing must stay off unless the source opted in (LIR-013)');
-  assert.match(route, /_kioskLocked/,
-    'a locked kiosk shell must not reach another site through routing (KIOSK-002)');
-  assert.match(route, /hadGesture: hadGesture/);
-  assert.match(route, /containersActive: _useContainers/);
-  assert.match(route, /_outboundCandidates\(source\)/,
-    'candidates must come from the source side of the archive boundary');
+  assert.match(route, /LinkIntentDispatchEngine\.routeOutbound\(/,
+    'the gates live in the engine, where they are unit-tested');
+  for (const [arg, why] of [
+    [/routeOutboundLinks: source\.routeOutboundLinks/, 'the source opted in (LIR-013)'],
+    [/developerMode: DeveloperModeService\.instance\.enabled/, 'developer mode (DEVTOOLS-010)'],
+    [/kioskLocked: _kioskLocked/, 'a locked kiosk reaches no other site (KIOSK-002)'],
+    [/hadGesture: hadGesture/, 'only a user gesture is routed'],
+    [/containersActive: _useContainers/, 'the legacy engine does not route'],
+    [/_outboundCandidates\(source\)/, 'candidates stay on the source side of the archive boundary'],
+  ]) {
+    assert.match(route, arg, `routeOutbound must be given ${why}`);
+  }
 });
 
-test('a routed open stays in the webspace and hands the source back', () => {
+test('a nested open runs through the engine, over the source only when routed', () => {
   const open = blockAfter(main, '  Future<void> _executeOpenNested(', '}) async {', mainRel);
-  const guard = open.indexOf('if (!a.sourceIsParent)');
-  const switchAll = open.indexOf('_maybeSwitchToAllForSite(');
-  assert.ok(guard !== -1 && guard < switchAll,
-    'a routed open must not switch webspace (LIR-015)');
-  const launch = open.indexOf('await _launchNestedForModel(model, a.url);');
-  assert.notEqual(launch, -1);
-  assert.match(open.slice(launch), /^await _launchNestedForModel\(model, a\.url\);\s*await returnToSource\(\);/,
-    'the source must be re-activated under its own proxy after the pop');
+  assert.match(open, /NestedOpenEngine\.run</,
+    'the proxy sequence and the return to the source live in NestedOpenEngine');
+  assert.match(open, /source: a\.sourceIsParent \? source : null/,
+    'only a routed open skips the webspace switch and brings its source back');
+  const host = blockAfter(main, 'class _NestedOpenHost implements NestedOpenHost<WebViewModel> {', null, mainRel);
+  assert.match(host, /Future<void> activate\(int index\) => state\._setCurrentIndex\(index\);/,
+    'the source must come back through the full activation, which applies its proxy first');
+  assert.match(host, /Future<void> launchNested\([^)]*\)\s*=>\s*state\._launchNestedForModel\(/,
+    'the screen opens through the NESTED-010 funnel');
+});
+
+test('every point that can orphan a preference prunes it (LIR-017)', () => {
+  const prunes = (body) => /_pruneOutboundPreferences\(\)/.test(body);
+  const load = blockAfter(main, '  Future<void> _loadWebViewModels() async {', null, mainRel);
+  assert.ok(prunes(load), 'startup must prune');
+  const del = blockAfter(main, '  Future<void> _deleteSite(', ') async {', mainRel);
+  const pruneAt = del.indexOf('_pruneOutboundPreferences()');
+  assert.ok(pruneAt !== -1 && pruneAt < del.indexOf('await _saveWebViewModels()'),
+    'a delete must prune before it saves');
+  const toArchive = blockAfter(main, '  Future<void> _moveSiteToArchive(', ') async {', mainRel);
+  const at = toArchive.indexOf('_pruneOutboundPreferences()');
+  assert.ok(at !== -1 && at < toArchive.indexOf('target.state.sites.add(model.toJson())'),
+    'a move into an archive must prune before the archived copy is taken');
+  const outOf = blockAfter(main, '  Future<void> _moveSiteOutOfArchive(', ') async {', mainRel);
+  const flip = outOf.indexOf('model.isArchiveTier = false;');
+  const after = outOf.indexOf('_pruneOutboundPreferences()');
+  assert.ok(flip !== -1 && after > flip,
+    'a move out of an archive must prune after the tier flip');
+  const importRel = 'lib/services/settings_import_engine.dart';
+  const plan = blockAfter(
+    fs.readFileSync(path.join(repoRoot, importRel), 'utf8'),
+    'SettingsImportPlan planSettingsImport(', '}) {', importRel);
+  assert.match(plan, /OutboundPreferenceGc\.pruneAll/,
+    'an import must prune inside the plan (BACKUP-013)');
 });

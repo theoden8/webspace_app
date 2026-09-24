@@ -218,6 +218,124 @@ void main() {
     });
   });
 
+  group('LIR-014 routeOutbound gates', () {
+    const url = 'https://github.com/x';
+    var candidateReads = 0;
+
+    DispatchAction? route({
+      NavigationDecision decision = NavigationDecision.blockOpenNested,
+      bool routeOutboundLinks = true,
+      bool developerMode = true,
+      bool kioskLocked = false,
+      bool hadGesture = true,
+      bool containersActive = true,
+      String link = url,
+    }) =>
+        LinkIntentDispatchEngine.routeOutbound(
+          url: link,
+          decision: decision,
+          routeOutboundLinks: routeOutboundLinks,
+          developerMode: developerMode,
+          kioskLocked: kioskLocked,
+          hadGesture: hadGesture,
+          containersActive: containersActive,
+          source: ddg,
+          sourcePrefs: const [],
+          candidates: () {
+            candidateReads++;
+            return [ddg, workGh];
+          },
+        );
+
+    setUp(() => candidateReads = 0);
+
+    test('every gate open: a claimed link is routed', () {
+      final a = route() as DispatchOpenNested;
+      expect(a.siteId, 'work-gh');
+      expect(a.sourceIsParent, isTrue);
+      final ext =
+          route(decision: NavigationDecision.blockOpenExternal)!;
+      expect(ext, isA<DispatchOpenNested>());
+    });
+
+    test('routing off, developer mode off or a locked kiosk hand it back', () {
+      expect(route(routeOutboundLinks: false), isNull);
+      expect(route(developerMode: false), isNull);
+      expect(route(kioskLocked: true), isNull);
+      expect(candidateReads, 0,
+          reason: 'candidates are only built once the cheap gates pass');
+    });
+
+    test('only a nested or external launch is routed', () {
+      for (final d in [
+        NavigationDecision.allow,
+        NavigationDecision.blockSilent,
+        NavigationDecision.blockSuppressed,
+      ]) {
+        expect(route(decision: d), isNull, reason: '$d');
+      }
+    });
+
+    test('no gesture, the legacy engine or no claim hand it back', () {
+      expect(route(hadGesture: false), isNull);
+      expect(route(containersActive: false), isNull);
+      expect(route(link: 'https://blog.example/post'), isNull);
+      expect(
+        route(
+          link: 'https://blog.example/post',
+          decision: NavigationDecision.blockOpenExternal,
+        ),
+        isNull,
+        reason: 'an unrouted external link goes to the browser as before',
+      );
+    });
+  });
+
+  group('LIR-016 pickOutbound', () {
+    final gh = Uri.parse('https://github.com/x');
+
+    test('a remembered pick adds the claims and opens over the source', () {
+      final pick = LinkIntentDispatchEngine.pickOutbound(
+        url: gh,
+        site: workGh,
+        remember: true,
+        existing: [pref(DomainClaim.exactHost('gitlab.com'), 'lab')],
+      );
+      expect(pick.preferences, [
+        pref(DomainClaim.exactHost('gitlab.com'), 'lab'),
+        pref(DomainClaim.exactHost('github.com'), 'work-gh'),
+        pref(DomainClaim.wildcardSubdomain('github.com'), 'work-gh'),
+      ]);
+      expect(pick.action.siteId, 'work-gh');
+      expect(pick.action.url, gh.toString());
+      expect(pick.action.sourceIsParent, isTrue);
+    });
+
+    test('an unticked box, or claims already held, change nothing', () {
+      expect(
+        LinkIntentDispatchEngine.pickOutbound(
+          url: gh,
+          site: workGh,
+          remember: false,
+          existing: const [],
+        ).preferences,
+        isNull,
+      );
+      final held = [
+        pref(DomainClaim.exactHost('github.com'), 'personal-gh'),
+        pref(DomainClaim.wildcardSubdomain('github.com'), 'personal-gh'),
+      ];
+      final pick = LinkIntentDispatchEngine.pickOutbound(
+        url: gh,
+        site: workGh,
+        remember: true,
+        existing: held,
+      );
+      expect(pick.preferences, isNull);
+      expect(pick.action.siteId, 'work-gh');
+    });
+  });
+
   group('LIR-016 preferencesToRemember', () {
     test('adds one entry per claim of the URL', () {
       final added = LinkIntentDispatchEngine.preferencesToRemember(
