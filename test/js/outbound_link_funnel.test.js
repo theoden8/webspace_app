@@ -89,6 +89,18 @@ test('every site webview main.dart builds carries the hook', () => {
   }
 });
 
+test("the link menu's Open routes as a tap would", () => {
+  const open = blockAfter(main, '  Future<void> _openLinkAsTapped(', ') async {', mainRel);
+  const launches = [...open.matchAll(/await (_launchNestedForModel|launchUrlInSystemBrowser)\(/g)];
+  assert.equal(launches.length, 2, 'expected a nested and an external launch');
+  for (const m of launches) {
+    const before = open.slice(0, m.index);
+    const lastCase = before.lastIndexOf('case NavigationDecision.');
+    assert.match(before.slice(lastCase), /_routeOutboundLink\(/,
+      `${m[1]} in _openLinkAsTapped runs without asking outbound routing first`);
+  }
+});
+
 test('routing hands every gate to the engine, with the live values', () => {
   const route = blockAfter(main, '  bool _routeOutboundLink(', ') {', mainRel);
   assert.doesNotMatch(route, /ExperimentalFeature/,
