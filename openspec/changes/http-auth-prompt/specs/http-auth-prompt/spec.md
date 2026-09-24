@@ -149,8 +149,9 @@ challenges
 
 When a protection space is challenged again after this webview answered it,
 or the platform reports an earlier failure, the dialog SHALL say the username
-and password were not accepted, SHALL prefill the username, and SHALL tick
-Remember when a saved sign-in exists. A saved sign-in SHALL be offered at most
+and password were not accepted, SHALL prefill the saved username or else the
+one last sent for that protection space (whether or not it was saved; the
+password is never kept), and SHALL tick Remember when a saved sign-in exists. A saved sign-in SHALL be offered at most
 once per protection space per webview, so a refused one cannot loop against
 the server. Unticking Remember on that dialog SHALL forget the saved sign-in.
 
@@ -160,7 +161,7 @@ there; the session's own record of what it answered is.
 
 #### Scenario: A wrong password
 
-**Given** the user typed a wrong password
+**Given** the user typed a wrong password, with Remember unticked
 **When** the server challenges again
 **Then** the dialog reopens with "That username and password were not
 accepted."

@@ -154,6 +154,10 @@ class HttpAuthSession {
   final Set<String> _supplied = <String>{};
   final Map<String, Future<HttpAuthCredential?>> _inFlight = {};
 
+  /// The username last sent for each protection space, so a refused sign-in
+  /// reopens with it even when it was not saved. Never the password.
+  final Map<String, String> _lastUsername = {};
+
   static String _normalizeHost(String host) {
     var h = host.trim().toLowerCase();
     if (h.startsWith('[') && h.endsWith(']')) {
@@ -227,7 +231,7 @@ class HttpAuthSession {
       host: space.host,
       isRetry: retry,
       canRemember: canRemember,
-      initialUsername: saved?.username,
+      initialUsername: saved?.username ?? _lastUsername[key],
       rememberByDefault: saved != null,
     ));
     if (result == null) {
@@ -240,6 +244,7 @@ class HttpAuthSession {
       password: result.password,
     );
     _supplied.add(key);
+    _lastUsername[key] = result.username;
     if (canRemember) {
       if (result.remember) {
         await store.save(owner, space.host, space.realm, credential);

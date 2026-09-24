@@ -239,6 +239,9 @@ void main() {
       await session.answer(_challenge());
       expect(await session.answer(_challenge()), _alice);
       expect(prompt.requests.map((r) => r.isRetry), [false, true]);
+      expect(prompt.requests.map((r) => r.initialUsername), [null, 'alice'],
+          reason: 'the retry keeps the username that was sent, even unsaved');
+      expect(prompt.requests[1].rememberByDefault, isFalse);
     });
 
     test('after a cancel the next challenge is a fresh attempt', () async {
