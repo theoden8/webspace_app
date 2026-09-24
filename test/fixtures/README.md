@@ -125,6 +125,20 @@ opens inside the app to observe engine behavior while investigating a bug.
   that stays `< 1` reproduces the stuck bug. The panel logs viewport geometry
   over the life of the load.
 
+### `diagnostics/http_auth_probe.html` + `http_auth_probe_server.js`
+- **Feature**: HTTP authentication sign-in prompt (issue #623, HTTPAUTH-001..007).
+- **Usage**: `node test/fixtures/diagnostics/http_auth_probe_server.js
+  [--port 8765] [--user alice] [--pass s3cret]`, then add the printed
+  `http://<address>:8765/protected/` as a site. The server puts the probe behind
+  Basic authentication like an nginx `auth_basic` / htpasswd folder, serves a
+  second realm under `/protected2/`, and logs every challenge (never the password).
+  On a plain-http address the HTTPS upgrade tries https first and falls back.
+- **Expected**: one sign-in dialog on first load; the image, `fetch()` and iframe
+  rows turn PASS with no further dialog; a wrong password reopens the dialog marked
+  as not accepted with the username kept; the second-realm button raises exactly one
+  new dialog and the other-site button raises none. The page lists the rest
+  (Remember across a cold start, Saved sign-ins, incognito).
+
 ## Usage in Tests
 
 ```dart

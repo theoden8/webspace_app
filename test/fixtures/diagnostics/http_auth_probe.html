@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<!--
+  HTTP authentication probe (HTTPAUTH-001..007).
+
+  Not a standalone file: http_auth_probe_server.js serves it behind HTTP
+  Basic authentication, like an nginx auth_basic / htpasswd folder. Reaching
+  this page at all means the main-frame sign-in worked; the rows below check
+  that everything else behind the same password reused that sign-in instead
+  of asking again, and the buttons exercise the cases that must (or must not)
+  raise a new dialog.
+-->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HTTP auth probe</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { margin: 0; padding: 16px; font: 15px/1.45 system-ui, -apple-system, sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { opacity: .7; margin: 0 0 16px; font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; margin-bottom: 16px; }
+  td { padding: 8px 6px; border-bottom: 1px solid rgba(127,127,127,.25); vertical-align: top; }
+  td.state { width: 72px; font-weight: 600; font-family: ui-monospace, Menlo, monospace; }
+  .pass { color: #1b873f; } .fail { color: #c62828; } .wait { color: #9e7700; } .info { color: #1565c0; }
+  .detail { font-size: 13px; opacity: .8; }
+  button { font: inherit; padding: 8px 12px; margin: 4px 8px 4px 0; border-radius: 8px;
+           border: 1px solid rgba(127,127,127,.5); background: transparent; }
+  iframe { width: 100%; height: 36px; border: 1px dashed rgba(127,127,127,.5); }
+  ol { padding-left: 20px; } li { margin-bottom: 6px; }
+  code { font-family: ui-monospace, Menlo, monospace; font-size: 13px; }
+</style>
+
+<h1>HTTP auth probe</h1>
+<p class="sub" id="where"></p>
+
+<table>
+  <tr><td class="state pass">PASS</td><td>Main frame
+    <div class="detail">This page is behind the password, so the first sign-in worked.</div></td></tr>
+  <tr id="img"><td class="state wait">WAIT</td><td>Image behind the same password
+    <div class="detail"><img id="badge" alt="" width="24" height="24"></div></td></tr>
+  <tr id="fetch"><td class="state wait">WAIT</td><td><code>fetch()</code> behind the same password
+    <div class="detail"></div></td></tr>
+  <tr id="frame"><td class="state wait">WAIT</td><td>iframe behind the same password
+    <div class="detail"><iframe id="frameEl" title="probe frame"></iframe></div></td></tr>
+  <tr id="stats"><td class="state wait">WAIT</td><td>What the server saw for this realm
+    <div class="detail"></div></td></tr>
+  <tr id="realm2"><td class="state info">MANUAL</td><td>Second realm on the same host
+    <div class="detail">Expect exactly one new sign-in dialog: a different realm is a
+    different protection space.<br><button id="realm2Btn">Load it</button>
+    <img id="realm2Img" alt="" width="24" height="24" hidden></div></td></tr>
+  <tr id="xsite"><td class="state info">MANUAL</td><td>Another site that asks for a password
+    <div class="detail">Loads an image from <code>httpbin.org</code>, which answers 401.
+    Expect <b>no dialog</b>: only the site's own base domain may ask (HTTPAUTH-002).
+    <br><button id="xsiteBtn">Load it</button></div></td></tr>
+</table>
+
+<button onclick="location.reload()">Reload</button>
+
+<h2 style="font-size:16px">What to check</h2>
+<ol>
+  <li>First visit: one sign-in dialog naming this host. <b>Cancel</b> shows the server's
+    "401 Authorization Required" page; reload to get the dialog back.</li>
+  <li>Type a wrong password: the dialog comes back saying it was not accepted, with the
+    username still filled in.</li>
+  <li>Right password: every automatic row above is PASS, and no second dialog appeared
+    for the image, <code>fetch()</code> or iframe.</li>
+  <li>Tick <b>Remember for this site</b>, then close and reopen the app: no dialog.
+    Site settings, Network, <b>Saved sign-ins</b> shows the count; <b>Clear</b> makes
+    the next cold start ask again.</li>
+  <li>On an incognito site the dialog has no Remember checkbox.</li>
+  <li>The two MANUAL rows: one new dialog for the second realm, none for the other site.</li>
+</ol>
+
+<script>
+(function () {
+  var TIMEOUT = 10000;
+  document.getElementById('where').textContent =
+      location.host + location.pathname + ' (served by http_auth_probe_server.js)';
+
+  function set(id, state, text) {
+    var row = document.getElementById(id);
+    var cell = row.querySelector('.state');
+    cell.className = 'state ' + state;
+    cell.textContent = { pass: 'PASS', fail: 'FAIL', wait: 'WAIT', info: 'INFO' }[state];
+    if (text != null) {
+      var d = row.querySelector('.detail');
+      var note = d.querySelector('.note') || d.appendChild(document.createElement('div'));
+      note.className = 'note';
+      note.textContent = text;
+    }
+  }
+
+  function withTimeout(id, label) {
+    return setTimeout(function () { set(id, 'fail', label + ' did not finish in 10 s'); }, TIMEOUT);
+  }
+
+  var imgTimer = withTimeout('img', 'image');
+  var badge = document.getElementById('badge');
+  badge.onload = function () { clearTimeout(imgTimer); set('img', 'pass', 'loaded without a new dialog'); };
+  badge.onerror = function () { clearTimeout(imgTimer); set('img', 'fail', 'image failed: the sign-in was not reused'); };
+  badge.src = 'badge.svg?t=' + Date.now();
+
+  var fetchTimer = withTimeout('fetch', 'fetch()');
+  fetch('data.json?t=' + Date.now(), { cache: 'no-store' })
+    .then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function (j) {
+      clearTimeout(fetchTimer);
+      set('fetch', j.ok ? 'pass' : 'fail', 'signed in as "' + j.user + '", realm "' + j.realm + '"');
+    })
+    .catch(function (e) { clearTimeout(fetchTimer); set('fetch', 'fail', String(e)); });
+
+  var frameTimer = withTimeout('frame', 'iframe');
+  window.addEventListener('message', function (e) {
+    if (e.data && e.data.probe === 'frame') {
+      clearTimeout(frameTimer);
+      set('frame', 'pass', 'loaded without a new dialog');
+    }
+  });
+  document.getElementById('frameEl').src = 'frame.html?t=' + Date.now();
+
+  setTimeout(function () {
+    fetch('stats.json?t=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (s) {
+        var st = s.stats;
+        set('stats', 'info', st.challenged + ' challenged without credentials, ' +
+            st.refused + ' refused (wrong password), ' + st.served + ' served. ' +
+            'A saved sign-in or a first sign-in shows 1 challenge per cold start; ' +
+            'a fresh challenge per image or fetch would mean the engine is not ' +
+            'reusing the credential.');
+      })
+      .catch(function (e) { set('stats', 'fail', String(e)); });
+  }, 1500);
+
+  document.getElementById('realm2Btn').onclick = function () {
+    var img = document.getElementById('realm2Img');
+    img.onload = function () {
+      img.hidden = false;
+      set('realm2', 'pass', 'second realm loaded after its own sign-in');
+    };
+    img.onerror = function () { set('realm2', 'fail', 'second realm did not load (cancelled?)'); };
+    img.src = '../protected2/badge.svg?t=' + Date.now();
+  };
+
+  document.getElementById('xsiteBtn').onclick = function () {
+    var img = new Image();
+    img.onload = function () { set('xsite', 'fail', 'the other site served the image: was a dialog shown?'); };
+    img.onerror = function () {
+      set('xsite', 'pass', 'refused as expected; it passes only if no dialog appeared');
+    };
+    img.src = 'https://httpbin.org/basic-auth/probe/probe?t=' + Date.now();
+  };
+})();
+</script>
