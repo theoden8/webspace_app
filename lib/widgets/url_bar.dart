@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
@@ -5,7 +7,7 @@ import '../utils/url_utils.dart';
 
 class UrlBar extends StatefulWidget {
   final String currentUrl;
-  final Function(String) onUrlSubmitted;
+  final FutureOr<void> Function(String) onUrlSubmitted;
 
   const UrlBar({
     Key? key,
@@ -54,17 +56,24 @@ class _UrlBarState extends State<UrlBar> {
     super.dispose();
   }
 
-  void _handleSubmit() {
+  Future<void> _handleSubmit() async {
     String url = _urlController.text.trim();
 
     // Infer protocol if not specified
     url = ensureUrlScheme(url);
 
-    widget.onUrlSubmitted(url);
     _focusNode.unfocus();
     setState(() {
       _isEditing = false;
     });
+    // A submit that does not navigate this webview (a cross-domain URL opens
+    // a nested screen) leaves currentUrl unchanged, so didUpdateWidget never
+    // fires and the typed text would outlive the nested screen.
+    try {
+      await widget.onUrlSubmitted(url);
+    } finally {
+      if (mounted && !_isEditing) _urlController.text = widget.currentUrl;
+    }
   }
 
   @override
