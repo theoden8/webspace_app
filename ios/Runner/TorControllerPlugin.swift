@@ -1263,7 +1263,8 @@ class TorControllerPlugin: NSObject {
     guard let exitNodes = exitNodes, !exitNodes.isEmpty else {
       // Clearing takes two commands: RESETCONF puts ExitNodes back to no
       // pin at all, and StrictNodes has to be turned off separately or
-      // tor keeps enforcing an empty set.
+      // tor keeps enforcing an empty set. Conflux goes back to tor's own
+      // default with it.
       //
       // StrictNodes goes through setConfs rather than the single-key
       // setter: `setConfForKey:withValue:` starts with `set`, so Swift
@@ -1272,9 +1273,7 @@ class TorControllerPlugin: NSObject {
       if let failed = check(await Self.resetConf(controller, key: "ExitNodes")) {
         return failed
       }
-      if let failed = check(
-        await Self.setConfs(controller, [["key": "StrictNodes", "value": "0"]]))
-      {
+      if let failed = check(await Self.setConfs(controller, Self.exitPinClearConfigs)) {
         return failed
       }
       await closeExitCircuits(controller)
@@ -1299,17 +1298,7 @@ class TorControllerPlugin: NSObject {
         details: nil)
     }
 
-    // StrictNodes 1 alongside: without it tor treats ExitNodes as a
-    // preference and silently leaves through another country when the
-    // pinned one has no usable exit.
-    if let failed = check(
-      await Self.setConfs(
-        controller,
-        [
-          ["key": "ExitNodes", "value": exitNodes],
-          ["key": "StrictNodes", "value": "1"],
-        ]))
-    {
+    if let failed = check(await Self.setConfs(controller, Self.exitPinConfigs(exitNodes))) {
       return failed
     }
     await closeExitCircuits(controller)
@@ -1366,6 +1355,34 @@ class TorControllerPlugin: NSObject {
   /// are exit circuits too, joined for throughput.
   static let exitCapablePurposes: Set<String> = [
     "GENERAL", "CONFLUX_LINKED", "CONFLUX_UNLINKED",
+  ]
+
+  /// The SETCONF that puts a country pin in force.
+  ///
+  /// StrictNodes 1: without it tor treats ExitNodes as a preference and
+  /// silently leaves through another country when the pinned one has no
+  /// usable exit.
+  ///
+  /// ConfluxEnabled 0, in the same command: a conflux set outlives the pin.
+  /// When one of its legs closes, whether by tor's own cleanup of an
+  /// ExitNodes change or by `closeExitCircuits`, tor launches a recovery leg
+  /// with the exit the surviving legs already use (`get_exit_for_nonce`),
+  /// and a stream takes any linked set whose exit is not *excluded*
+  /// (`conflux_get_circ_for_conn`), which a pre-pin exit never is. With
+  /// conflux off no leg can link, so those recovery legs never carry a
+  /// stream and every stream goes out on a circuit built under the pin.
+  static func exitPinConfigs(_ exitNodes: String) -> [[AnyHashable: Any]] {
+    [
+      ["key": "ExitNodes", "value": exitNodes],
+      ["key": "StrictNodes", "value": "1"],
+      ["key": "ConfluxEnabled", "value": "0"],
+    ]
+  }
+
+  /// What clearing a pin sets back, alongside RESETCONF ExitNodes.
+  static let exitPinClearConfigs: [[AnyHashable: Any]] = [
+    ["key": "StrictNodes", "value": "0"],
+    ["key": "ConfluxEnabled", "value": "auto"],
   ]
 
   /// IDs of the circuits a `GETINFO circuit-status` value lists as able to

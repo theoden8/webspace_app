@@ -706,6 +706,16 @@ data store, so a site recreated for its new pin can reuse a connection
 opened under the old one. Every exit-capable circuit (`GENERAL`,
 `CONFLUX_*`) SHALL therefore be closed after each pin change.
 
+Closing them is not enough while conflux is on. A conflux set outlives the
+change: when one of its legs closes, by tor's own cleanup or ours, tor
+launches a recovery leg with the exit its other legs already use, and a new
+stream takes any linked set whose exit is not *excluded*, which a pre-pin exit
+never is. On a real tor this sent a `{de}` pin out through the Netherlands and
+a `{us}` pin out through Germany. A pin SHALL therefore set `ConfluxEnabled 0`
+in the same `SETCONF` as `ExitNodes`, before any circuit is closed, and
+clearing the pin SHALL return `ConfluxEnabled` to `auto`. With conflux off no
+leg can link, so no stream rides a set built before the pin.
+
 **A pin change holds up nothing but the Tor sites it concerns** (BUG-018).
 The change is a control-port round trip, and a control connection can go
 silent without failing: Tor.framework drops a command's completion when the
@@ -738,6 +748,16 @@ memory pressure evicts a site, not left for the next activation.
 - **AND** every circuit that carried exit traffic before the change is closed
 - **AND** A's next request leaves from a Brazilian exit, not over a pooled
   connection to the Dutch one
+
+#### Scenario: A conflux set built before a pin carries none of its traffic
+
+- **GIVEN** tor holds linked conflux sets whose exit is in the Netherlands
+- **WHEN** site A is pinned to `{de}`
+- **THEN** `ConfluxEnabled` is `0` in the same `SETCONF` as `ExitNodes`,
+  before any circuit is closed
+- **AND** a recovery leg tor launches for one of those sets never links
+- **AND** the address the far side sees for A's next request is in Germany
+  by the table the pin loaded
 
 #### Scenario: Country data is fetched on the device, through Tor
 

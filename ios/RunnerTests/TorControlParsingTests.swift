@@ -108,4 +108,22 @@ class TorControlParsingTests: XCTestCase {
       TorControllerPlugin.exitCircuitIds(fromCircuitStatus: status), ["5", "12", "13", "15"])
     XCTAssertEqual(TorControllerPlugin.exitCircuitIds(fromCircuitStatus: ""), [])
   }
+
+  func testExitPinTurnsConfluxOffAndClearingRestoresIt() {
+    func settings(_ confs: [[AnyHashable: Any]]) -> [String: String] {
+      var out: [String: String] = [:]
+      for conf in confs {
+        out[conf["key"] as! String] = (conf["value"] as! String)
+      }
+      return out
+    }
+    // One SETCONF: a conflux set recovering a closed leg keeps its pre-pin
+    // exit, so the pin is not in force until conflux is off with it.
+    XCTAssertEqual(
+      settings(TorControllerPlugin.exitPinConfigs("{br}")),
+      ["ExitNodes": "{br}", "StrictNodes": "1", "ConfluxEnabled": "0"])
+    XCTAssertEqual(
+      settings(TorControllerPlugin.exitPinClearConfigs),
+      ["StrictNodes": "0", "ConfluxEnabled": "auto"])
+  }
 }
