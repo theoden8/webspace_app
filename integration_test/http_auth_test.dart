@@ -254,13 +254,16 @@ void main() {
     await HttpAuthSecureStorage.instance.removeSite(siteId);
     final navigator = GlobalKey<NavigatorState>();
     WebViewController? controller;
+    var prompts = 0;
     await tester.pumpWidget(host(
       navigator: navigator,
       config: configFor(
         siteId: siteId,
         url: '$base/b/',
-        prompt: (request) =>
-            promptHttpAuth(navigator.currentContext!, request),
+        prompt: (request) {
+          prompts++;
+          return promptHttpAuth(navigator.currentContext!, request);
+        },
       ),
       onController: (c) => controller = c,
     ));
@@ -302,13 +305,20 @@ void main() {
     await tester.tap(find.byType(Checkbox));
     await tester.pump();
     await tester.tap(find.widgetWithText(TextButton, 'Sign in'));
-    await tester.pump();
+    // The probe runs in runAsync, which pumps no frames, so the dialog's exit
+    // animation would still be in the tree when it returns.
+    await pumpUntil(
+      tester,
+      () => dialog.evaluate().isEmpty,
+      description: 'the dialog to close after signing in',
+    );
 
     final result = await probe(tester, () => controller);
-    log('typed: probe=$result unauthorized=$unauthorized '
+    log('typed: probe=$result prompts=$prompts unauthorized=$unauthorized '
         'authorized=$authorized');
-    expect(dialog, findsNothing,
-        reason: 'the image and fetch() must reuse the credential, not ask');
+    expect(prompts, 2,
+        reason: 'one prompt, one retry; the image and fetch() must reuse the '
+            'credential, not ask');
     expect(result?['ok'], isTrue, reason: 'page must load: $result');
     expect(result?['img'], greaterThan(0),
         reason: 'the image behind the same htpasswd must load: $result');
