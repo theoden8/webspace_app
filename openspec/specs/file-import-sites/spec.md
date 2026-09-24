@@ -156,6 +156,50 @@ The imported HTML content SHALL render correctly in the webview.
 
 ---
 
+### Requirement: IMPORT-005 - The Synthetic URL Is Never Loaded
+
+A file import's `file:///<filename>` URL is a handle with nothing behind it.
+The engine SHALL NOT be asked to fetch it: wherever the site's controller would
+load or reload that URL, it SHALL render the stored import (or the
+"imported file unavailable" page when it is missing) instead. The rule lives in
+the controller wrapper (`_WebViewController`, fed a `FileImportDocument` by
+`WebViewFactory.createWebView`), the one seam model code loads through, so a
+new reload or load path is covered without knowing about imports. History:
+[BUG-017](../../../docs/bugs/017-file-import-synthetic-url-load.md).
+
+#### Scenario: Pull to refresh on an imported file (WebKit)
+
+**Given** a file-import site is open on iOS, macOS or Linux
+**When** the user pulls to refresh or taps Refresh
+**Then** the import is rendered again under the same URL
+**And** `onLoadStop` fires, so the refresh indicator and the loading bar stop
+
+WebKit's `FrameLoader::reload` re-requests the document's URL and drops the
+bytes it was rendered from. For an import that request is `file:///<filename>`,
+which fails provisionally; WebKit reports the failure without an `onLoadStop`,
+and `onLoadStop` is the only thing that ends the indicator (NAV-006) and clears
+`isLoading`, so both spun forever.
+
+#### Scenario: Pull to refresh on an imported file (Android)
+
+**Given** a file-import site is open on Android
+**When** the user pulls to refresh
+**Then** the native reload runs
+
+Chromium keeps the rendered bytes on the navigation entry and reloads them.
+Re-rendering there would add a history entry per refresh, since a load issued
+through the API is never converted into a reload.
+
+#### Scenario: A deferred or reissued first load
+
+**Given** a file-import site whose initial load was deferred until the
+process-global proxy override landed (LEAK-003), or whose load is reissued on
+resume (PAUSE-022)
+**When** the controller is asked to load the site's URL
+**Then** the import is rendered, not fetched
+
+---
+
 ## Data Model
 
 No new data models. Imported HTML sites use the existing `WebViewModel` with:
@@ -180,7 +224,11 @@ No new data models. Imported HTML sites use the existing `WebViewModel` with:
 - `lib/services/html_cache_service.dart` - `initialize()` accepts a `beforeUpgradeWipe` callback that runs after key load but before the wipe, used to migrate file imports out
 - `lib/utils/url_utils.dart` - Added `migrateLegacyFileImportUrl` for legacy two-slash imports
 - `lib/web_view_model.dart` - Applies migration in `WebViewModel.fromJson` for `initUrl`/`currentUrl`
-- `lib/services/webview.dart` - Renders `buildFileImportFallbackHtml` when no import is on disk for a file-import site
+- `lib/services/webview.dart` - Renders `buildFileImportFallbackHtml` when no import is on disk for a file-import site; `FileImportDocument` makes the controller wrapper render the import instead of loading or (on WebKit) reloading its synthetic URL (IMPORT-005)
+
+### Tests
+- `test/file_import_sites_test.dart` - fallback wording, `FileImportDocument` matching and the per-engine reload decision
+- `test/js/file_import_synthetic_url_funnel.test.js` - structural gate: the wrapper's `reload()` and `loadUrl()` consult the import document before the engine, the wrapper handed to the model carries it, and no model code loads through the raw native controller
 
 ---
 
@@ -198,6 +246,12 @@ No new data models. Imported HTML sites use the existing `WebViewModel` with:
 2. Open the site's per-site settings, toggle incognito on, save
 3. Reopen the site
 4. **Expected**: HTML still renders — the import is in `HtmlImportStorage`
+
+### Test: Refresh an imported file (IMPORT-005)
+1. Import an HTML file and open the site on iOS
+2. Pull down to refresh, then tap Refresh in the menu
+3. **Expected**: the page re-renders, the refresh indicator and the loading
+   bar stop, and the action button returns from Stop to Refresh
    and incognito doesn't retroactively unpersist it
 
 ### Test: Cancel file picker

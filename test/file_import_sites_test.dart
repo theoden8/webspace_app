@@ -132,6 +132,45 @@ void main() {
     });
   });
 
+  group('Import document stands in for the synthetic URL (IMPORT-005)', () {
+    test('only a file import has one', () {
+      expect(
+        FileImportDocument.of(
+            initialUrl: 'https://example.com', initialHtml: '<p>cached</p>'),
+        isNull,
+      );
+      expect(FileImportDocument.of(initialUrl: 'file:///a.html'), isNotNull);
+    });
+
+    test('renders the stored import', () {
+      final doc = FileImportDocument.of(
+          initialUrl: 'file:///a.html', initialHtml: '<p>mine</p>')!;
+      expect(doc.html, '<p>mine</p>');
+      expect(doc.url, 'file:///a.html');
+    });
+
+    test('renders the unavailable page when the import is missing', () {
+      final doc = FileImportDocument.of(initialUrl: 'file:///a.html')!;
+      expect(doc.html, buildFileImportFallbackHtml('file:///a.html'));
+    });
+
+    test('a load of its own URL renders it, fragment or not', () {
+      final doc = FileImportDocument.of(initialUrl: 'file:///a.html#top')!;
+      expect(doc.isLoadOf('file:///a.html'), isTrue);
+      expect(doc.isLoadOf('file:///a.html#other'), isTrue);
+      expect(doc.isLoadOf('file:///b.html'), isFalse);
+      expect(doc.isLoadOf('https://example.com/a.html'), isFalse);
+      expect(doc.isLoadOf('about:blank'), isFalse);
+    });
+
+    test('reload re-renders on WebKit and stays native on Chromium', () {
+      // WebKit's reload re-requests file:///<name> and fails without an
+      // onLoadStop, stranding the refresh indicator and loading bar.
+      expect(FileImportDocument.rendersOnReload(isAndroid: false), isTrue);
+      expect(FileImportDocument.rendersOnReload(isAndroid: true), isFalse);
+    });
+  });
+
   group('URL type detection', () {
     test('file:// URLs are distinguishable from http(s)', () {
       expect('file:///page.html'.startsWith('file://'), isTrue);
