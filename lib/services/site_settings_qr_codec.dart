@@ -72,6 +72,8 @@ class SiteSettingsQrCodec {
     'siteId',
     'currentUrl',
     'pageTitle',
+    // Session, not configuration (TAB-009).
+    'tabs',
     'cookies',
     'userScripts',
     'enabledGlobalScriptIds',
