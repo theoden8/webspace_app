@@ -7718,16 +7718,26 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (index < 0 || index >= _webViewModels.length) return;
     final model = _webViewModels[index];
     final active = index == _currentIndex;
+    // Choosing Open is a user gesture, so routing (LIR-014) sees it as a tap.
     switch (model.decideUserOpenedLink(url, isActive: active)) {
       case NavigationDecision.allow:
         await model
             .getController(launchUrl, _cookieManager, _containerCookieManager,
                 _saveWebViewModels,
-                globalUserScripts: _globalUserScripts)
+                globalUserScripts: _globalUserScripts,
+                onOutboundLink: _outboundLinkHookFor(model))
             ?.loadUrl(url, language: model.language);
       case NavigationDecision.blockOpenNested:
+        if (_routeOutboundLink(
+            model, url, NavigationDecision.blockOpenNested, true)) {
+          return;
+        }
         await _launchNestedForModel(model, url);
       case NavigationDecision.blockOpenExternal:
+        if (_routeOutboundLink(
+            model, url, NavigationDecision.blockOpenExternal, true)) {
+          return;
+        }
         await launchUrlInSystemBrowser(url);
       case NavigationDecision.blockOutbound:
         _routeOutboundLink(model, url, NavigationDecision.blockOutbound, true);
