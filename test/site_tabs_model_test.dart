@@ -39,8 +39,7 @@ void main() {
       ).toJson()
         ..['currentUrl'] = 'https://github.com/notifications'
         ..['pageTitle'] = 'Notifications'
-        ..remove('tabs')
-        ..remove('activeTabId');
+        ..remove('tabs');
       final m = WebViewModel.fromJson(json, null);
       expect(m.tabs, hasLength(1));
       expect(m.activeTabId, kPrimaryTabId);
@@ -49,7 +48,6 @@ void main() {
       // …and serialising it again omits the list entirely, so on-disk output
       // is unchanged for a user who never opened a second tab.
       expect(m.toJson().containsKey('tabs'), isFalse);
-      expect(m.toJson().containsKey('activeTabId'), isFalse);
       expect(m.toJson()['currentUrl'], 'https://github.com/notifications');
     });
 
@@ -83,6 +81,47 @@ void main() {
       expect(back.currentUrl, 'https://github.com/pulls');
     });
 
+    test('the active tab is marked inside the list, not beside it', () {
+      final m = WebViewModel(initUrl: 'https://github.com/');
+      final child = SiteTab(url: 'https://github.com/pulls');
+      m.tabs = [...m.tabs, child];
+      m.activeTabId = child.id;
+      final json = m.toJson();
+      expect(json.containsKey('activeTabId'), isFalse);
+      final entries = (json['tabs'] as List).cast<Map<String, dynamic>>();
+      expect(entries.where((e) => e['active'] == true).map((e) => e['id']),
+          [child.id]);
+    });
+
+    test('a present tab list wins over the site-level copy of its fields', () {
+      // `currentUrl` and `pageTitle` are written beside the list only for
+      // builds that predate tabs; an odd or missing copy must not rewrite the
+      // tabs it duplicates.
+      final m = WebViewModel(initUrl: 'https://github.com/');
+      m.pageTitle = 'Home';
+      final child = SiteTab(url: 'https://github.com/pulls', title: 'Pulls');
+      m.tabs = [...m.tabs, child];
+      final json = m.toJson()
+        ..['currentUrl'] = 42
+        ..remove('pageTitle');
+      final back = WebViewModel.fromJson(json, null);
+      expect(back.tabs.first.title, 'Home');
+      expect(back.tabs.last.title, 'Pulls');
+      expect(back.currentUrl, 'https://github.com/');
+    });
+
+    test('a tab entry with an odd title keeps the tab and the site', () {
+      final json = WebViewModel(initUrl: 'https://github.com/').toJson()
+        ..['tabs'] = [
+          {'id': 'main', 'url': 'https://github.com/', 'title': 7},
+          {'id': 'tb', 'url': 'https://github.com/pulls', 'active': true},
+        ];
+      final back = WebViewModel.fromJson(json, null);
+      expect(back.tabs.map((t) => t.id), ['main', 'tb']);
+      expect(back.tabs.first.title, isNull);
+      expect(back.activeTabId, 'tb');
+    });
+
     test('a tab entry that cannot name a tab is dropped, not fatal', () {
       final m = WebViewModel(initUrl: 'https://github.com/');
       final json = m.toJson()
@@ -90,8 +129,7 @@ void main() {
           {'id': 'main', 'url': 'https://github.com/'},
           {'id': '../escape', 'url': 'https://evil.test/'},
           {'id': 'ok', 'title': 'no url'},
-        ]
-        ..['activeTabId'] = 'main';
+        ];
       final back = WebViewModel.fromJson(json, null);
       expect(back.tabs.map((t) => t.id).toList(), ['main']);
     });
@@ -153,9 +191,8 @@ void main() {
         ..['incognito'] = true
         ..['tabs'] = [
           {'id': 'main', 'url': 'https://en.wikipedia.org/'},
-          {'id': 'tb', 'url': 'https://en.wikipedia.org/wiki/Secret'},
-        ]
-        ..['activeTabId'] = 'tb';
+          {'id': 'tb', 'url': 'https://en.wikipedia.org/wiki/Secret', 'active': true},
+        ];
       final m = WebViewModel.fromJson(json, null);
       expect(m.tabs, hasLength(1));
       expect(m.currentUrl, 'https://en.wikipedia.org/');

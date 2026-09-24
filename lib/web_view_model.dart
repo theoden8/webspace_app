@@ -2596,8 +2596,10 @@ class WebViewModel {
         'initUrl': initUrl,
         if (!dropUrl) 'currentUrl': currentUrl,
         if (!dropUrl && !tabsAreDefault)
-          'tabs': tabs.map((t) => t.toJson()).toList(),
-        if (!dropUrl && !tabsAreDefault) 'activeTabId': activeTabId,
+          'tabs': [
+            for (final t in tabs)
+              {...t.toJson(), if (t.id == activeTabId) 'active': true},
+          ],
         'name': name,
         if (!dropUrl) 'pageTitle': pageTitle,
         'cookies': incognito
@@ -2712,6 +2714,7 @@ class WebViewModel {
     // written by older builds that didn't strip on toJson.
     final dropUrl = isIncognito || isAlwaysOpenHome;
     final currentUrl = field<String>('currentUrl');
+    final rawTabs = dropUrl ? null : field<List<dynamic>>('tabs');
     final userAgent = field<String>('userAgent') ?? '';
     final proxy = json['proxySettings'];
     return WebViewModel(
@@ -2725,16 +2728,15 @@ class WebViewModel {
           : migrateLegacyFileImportUrl(currentUrl),
       // JSON without `tabs` is a site written before tabs existed, or one that
       // never opened a second tab: the constructor synthesises the primary tab
-      // from `currentUrl`. Entries that cannot name a tab are dropped rather
-      // than sinking the site.
-      tabs: dropUrl
-          ? null
-          : field<List<dynamic>>('tabs')
-              ?.map(SiteTab.fromJson)
-              .whereType<SiteTab>()
-              .map((t) => t..url = migrateLegacyFileImportUrl(t.url))
-              .toList(),
-      activeTabId: dropUrl ? null : sanitizedTabId(json['activeTabId']),
+      // from `currentUrl`. A list that is present is authoritative, and
+      // `currentUrl`/`pageTitle` beside it are only the copy older builds read.
+      // Entries that cannot name a tab are dropped rather than sinking the site.
+      tabs: rawTabs
+          ?.map(SiteTab.fromJson)
+          .whereType<SiteTab>()
+          .map((t) => t..url = migrateLegacyFileImportUrl(t.url))
+          .toList(),
+      activeTabId: SiteTab.activeIdIn(rawTabs),
       name: field<String>('name'),
       cookies: isIncognito
           ? const <Cookie>[]
@@ -2849,7 +2851,7 @@ class WebViewModel {
       ),
       stateSetterF: stateSetterF,
       isArchiveTier: isArchiveTier,
-    )..pageTitle = dropUrl ? null : field<String>('pageTitle');
+    )..pageTitle ??= dropUrl ? null : field<String>('pageTitle');
   }
 }
 
