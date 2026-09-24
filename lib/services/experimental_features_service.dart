@@ -5,6 +5,7 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/settings/pref_read.dart';
 
 const String kExperimentalTorKey = 'experimentalTor';
+const String kExperimentalProxyRouterKey = 'experimentalProxyRouter';
 
 /// A feature that ships before it is finished (DEVTOOLS-011): reachable only
 /// with developer mode on and its own switch on in App Settings'
@@ -13,7 +14,11 @@ enum ExperimentalFeature {
   /// The embedded Tor client (TOR-007). On by default: before this switch
   /// existed developer mode alone opened Tor, and a user who had it on must
   /// not find their Tor sites blocked by an upgrade.
-  tor(kExperimentalTorKey, defaultOn: true);
+  tor(kExperimentalTorKey, defaultOn: true),
+
+  /// Android's per-site proxy router (PROXY-013). On by default for the same
+  /// reason as [tor]: developer mode alone ran it before this switch existed.
+  proxyRouter(kExperimentalProxyRouterKey, defaultOn: true);
 
   const ExperimentalFeature(this.prefKey, {required this.defaultOn});
 

@@ -40,6 +40,16 @@ void main() {
         isTrue);
   });
 
+  test('the proxy router defaults on, so developer mode alone keeps it',
+      () async {
+    await ExperimentalFeaturesService.instance.initialize();
+    DeveloperModeService.instance.debugSet(true);
+    expect(
+        ExperimentalFeaturesService.instance
+            .isEnabled(ExperimentalFeature.proxyRouter),
+        isTrue);
+  });
+
   test('a switch persists and is read back', () async {
     await ExperimentalFeaturesService.instance
         .setSwitch(ExperimentalFeature.tor, false);

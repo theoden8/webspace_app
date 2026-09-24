@@ -66,6 +66,11 @@ class AppSettingsScreen extends StatefulWidget {
   /// A callback rather than the models themselves, so the settings screen
   /// does not gain a second copy of the site list to keep in step.
   final int Function()? torPinnedSiteCount;
+
+  /// Whether this device could run the per-site proxy router, so the
+  /// Experimental group lists its switch (DEVTOOLS-011). Passed in because
+  /// the answer needs the container engine the app resolved at startup.
+  final bool proxyRouterRunsHere;
   final Function(AppThemeSettings) onSettingsChanged;
   final VoidCallback onExportSettings;
   final VoidCallback onImportSettings;
@@ -135,6 +140,7 @@ class AppSettingsScreen extends StatefulWidget {
     super.key,
     required this.currentSettings,
     this.torPinnedSiteCount,
+    this.proxyRouterRunsHere = false,
     this.siteNames = const {},
     required this.onSettingsChanged,
     required this.onExportSettings,
@@ -196,6 +202,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   bool _developerMode = DeveloperModeService.instance.enabled;
   bool _torSwitch =
       ExperimentalFeaturesService.instance.switchOn(ExperimentalFeature.tor);
+  bool _proxyRouterSwitch = ExperimentalFeaturesService.instance
+      .switchOn(ExperimentalFeature.proxyRouter);
 
   bool _isUpdatingFirefoxVersion = false;
   bool _firefoxAutoRefresh = false;
@@ -954,6 +962,13 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
         .setSwitch(ExperimentalFeature.tor, value);
     if (!mounted) return;
     setState(() => _torSwitch = value);
+  }
+
+  Future<void> _setProxyRouterSwitch(bool value) async {
+    await ExperimentalFeaturesService.instance
+        .setSwitch(ExperimentalFeature.proxyRouter, value);
+    if (!mounted) return;
+    setState(() => _proxyRouterSwitch = value);
   }
 
   Future<void> _loadOsmTileUrl() async {
@@ -2223,7 +2238,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               value: _developerMode,
               onChanged: (value) => _setDeveloperMode(value),
             ),
-          if (_developerMode && TorService.instance.hasNativeRuntime) ...[
+          if (_developerMode &&
+              (TorService.instance.hasNativeRuntime ||
+                  widget.proxyRouterRunsHere)) ...[
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
               child: Row(
@@ -2241,20 +2258,37 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                 ],
               ),
             ),
-            SwitchListTile(
-              title: Row(
-                children: [
-                  Flexible(child: Text(loc.appSettingsExperimentalTor)),
-                  HintButton(
-                    title: loc.appSettingsExperimentalTor,
-                    description: loc.appSettingsExperimentalTorHint,
-                  ),
-                ],
+            if (TorService.instance.hasNativeRuntime)
+              SwitchListTile(
+                title: Row(
+                  children: [
+                    Flexible(child: Text(loc.appSettingsExperimentalTor)),
+                    HintButton(
+                      title: loc.appSettingsExperimentalTor,
+                      description: loc.appSettingsExperimentalTorHint,
+                    ),
+                  ],
+                ),
+                secondary: const Icon(Icons.science_outlined),
+                value: _torSwitch,
+                onChanged: (value) => _setTorSwitch(value),
               ),
-              secondary: const Icon(Icons.science_outlined),
-              value: _torSwitch,
-              onChanged: (value) => _setTorSwitch(value),
-            ),
+            if (widget.proxyRouterRunsHere)
+              SwitchListTile(
+                title: Row(
+                  children: [
+                    Flexible(
+                        child: Text(loc.appSettingsExperimentalProxyRouter)),
+                    HintButton(
+                      title: loc.appSettingsExperimentalProxyRouter,
+                      description: loc.appSettingsExperimentalProxyRouterHint,
+                    ),
+                  ],
+                ),
+                secondary: const Icon(Icons.hub_outlined),
+                value: _proxyRouterSwitch,
+                onChanged: (value) => _setProxyRouterSwitch(value),
+              ),
           ],
           ListTile(
             leading: const Icon(Icons.article_outlined),

@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:webspace/platform/host_platform.dart';
-import 'package:webspace/services/developer_mode_service.dart';
+import 'package:webspace/services/experimental_features_service.dart';
 // Conditional so a UI file that reaches this service still compiles for
 // web: the real adapter owns a `ServerSocket` (DESIGN-001).
 import 'package:webspace/services/local_proxy_relay_api_web.dart'
@@ -130,17 +130,29 @@ class ProxyRouterService {
   ///
   /// [useContainers] is the app's cached `ContainerNative.isSupported()`.
   ///
-  /// Also gated on developer mode, which is off by default, so the shipped
-  /// default stays PROXY-008 serialisation. The premise router mode rests
-  /// on has been proven on one WebView build by the PROXY-015 probe and
-  /// never on hardware that fails it; until that changes, the people who
-  /// run it are the ones who can read `LogService` when it misbehaves.
-  /// Read once at activation, so a flip takes effect at next launch.
+  /// Also gated on its experimental switch (DEVTOOLS-011), which needs
+  /// developer mode, off by default, so the shipped default stays PROXY-008
+  /// serialisation. The premise router mode rests on has been proven on one
+  /// WebView build by the PROXY-015 probe and never on hardware that fails
+  /// it; until that changes, the people who run it are the ones who can read
+  /// `LogService` when it misbehaves. Read once at activation, so a flip
+  /// takes effect at next launch.
   static bool isSupported({required bool useContainers}) => isSupportedWhen(
         isAndroid: hostIsAndroid,
         isApple: hostIsIOS || hostIsMacOS,
         useContainers: useContainers,
-        developerMode: DeveloperModeService.instance.enabled,
+        experimentEnabled: ExperimentalFeaturesService.instance
+            .isEnabled(ExperimentalFeature.proxyRouter),
+        appleRelayEnabled: appleRelayEnabled,
+      );
+
+  /// Whether router mode could run here with its switch on: the
+  /// Experimental group lists the switch only where this is true.
+  static bool canRunHere({required bool useContainers}) => isSupportedWhen(
+        isAndroid: hostIsAndroid,
+        isApple: hostIsIOS || hostIsMacOS,
+        useContainers: useContainers,
+        experimentEnabled: true,
         appleRelayEnabled: appleRelayEnabled,
       );
 
@@ -157,13 +169,13 @@ class ProxyRouterService {
   static bool isSupportedWhen({
     required bool isAndroid,
     required bool useContainers,
-    required bool developerMode,
+    required bool experimentEnabled,
     bool isApple = false,
     bool appleRelayEnabled = false,
   }) =>
       (isAndroid || (isApple && appleRelayEnabled)) &&
       useContainers &&
-      developerMode;
+      experimentEnabled;
 
   /// The credential a site presents to the relay, or null when router
   /// mode is not running (in which case the WebView must not answer any

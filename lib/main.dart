@@ -7215,6 +7215,8 @@ class _WebSpacePageState extends State<WebSpacePage>
                     torPinnedSiteCount: () => _webViewModels
                         .where((m) => m.proxySettings.type == ProxyType.TOR)
                         .length,
+                    proxyRouterRunsHere: ProxyRouterService.canRunHere(
+                        useContainers: _useContainers),
                     siteNames: _siteNames(),
                     onSettingsChanged: (AppThemeSettings newSettings) async {
                       setState(() {

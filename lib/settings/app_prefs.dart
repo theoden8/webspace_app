@@ -79,6 +79,9 @@ final Map<String, Object> kExportedAppPrefs = <String, Object>{
   // client. On by default, so developer mode alone keeps opening Tor for a
   // user who had it before the switch existed.
   kExperimentalTorKey: true,
+  // DEVTOOLS-011: the switch for Android's per-site proxy router, on by
+  // default for the same reason.
+  kExperimentalProxyRouterKey: true,
   'linkHandlingEnabled': true,
   // LIR-010 / discussion #439: when the user sends a shared link to an
   // existing site via the dispatch picker, also append exactHost +

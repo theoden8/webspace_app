@@ -23,8 +23,13 @@ way to turn one off without losing the rest.
   (TOR-023), exactly as turning developer mode off does, and releases the
   runtime's holders. The interstitial's `TorGate.developerModeOff` becomes
   `switchedOff`, and its text names both switches.
+- **Router mode** (PROXY-013) is the second. `ProxyRouterService.isSupported`
+  reads the service instead of developer mode, still once at launch, so the
+  switch applies at next start. It defaults on for the same reason as Tor.
+  App settings lists it only where the router could run (Android with
+  `MULTI_PROFILE`), which `ProxyRouterService.canRunHere` answers.
 - Outbound link routing joins the group in #345, which is stacked on this
-  change. Router mode stays on developer mode alone for now.
+  change.
 
 ## Capabilities
 
@@ -36,6 +41,7 @@ way to turn one off without losing the rest.
 
 - `developer-tools`: adds DEVTOOLS-011 (the Experimental group). DEVTOOLS-010's
   text in `add-ios-tor-proxy` now points at it.
+- `proxy`: PROXY-013's developer-mode gate becomes the Proxy router switch.
 - `tor-proxy` (in `add-ios-tor-proxy`, not archived): TOR-007, TOR-022 and
   TOR-023 read the Built-in Tor switch alongside developer mode. Edited in place,
   since that change is where those requirements live today.
@@ -45,10 +51,13 @@ way to turn one off without losing the rest.
 - `lib/services/experimental_features_service.dart` (new),
   `lib/settings/app_prefs.dart`, `lib/main.dart` (initialize, reload after
   import), `lib/services/tor_service.dart`, `lib/services/tor_engine.dart`,
-  `lib/widgets/tor_bootstrap.dart`, `lib/screens/app_settings.dart`.
-- Strings: the group heading, its hint, the Tor switch and hint, and the switch's
-  confirmation. `torDeveloperGateBody` changes to name both switches.
+  `lib/widgets/tor_bootstrap.dart`, `lib/screens/app_settings.dart`,
+  `lib/services/proxy_router_service.dart`.
+- Strings: the group heading, its hint, the Tor switch and hint, the Tor switch's
+  confirmation, and the Proxy router switch and hint. `torDeveloperGateBody` changes to name both switches.
 - Tests: the gate's truth table, persistence and defaults
   (`test/experimental_features_service_test.dart`); the Tor gate
   (`test/tor_developer_mode_gate_test.dart`); the App settings group and its
-  confirmation (`test/tor_developer_mode_confirm_test.dart`).
+  confirmation (`test/tor_developer_mode_confirm_test.dart`); the router gate
+  (`test/proxy_router_service_test.dart`,
+  `test/js/proxy_router_developer_gate.test.js`).

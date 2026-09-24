@@ -53,12 +53,13 @@ void main() {
   /// site after the screen is built.
   var torSites = 0;
 
-  Widget host() => MaterialApp(
+  Widget host({bool routerRunsHere = false}) => MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: AppSettingsScreen(
           currentSettings: AppThemeSettings(),
           torPinnedSiteCount: () => torSites,
+          proxyRouterRunsHere: routerRunsHere,
           onSettingsChanged: (_) {},
           onExportSettings: () {},
           onImportSettings: () {},
@@ -104,8 +105,9 @@ void main() {
 
   tearDown(() async {
     DeveloperModeService.instance.debugSet(false);
-    ExperimentalFeaturesService.instance
-        .debugSet(ExperimentalFeature.tor, true);
+    for (final f in ExperimentalFeature.values) {
+      ExperimentalFeaturesService.instance.debugSet(f, f.defaultOn);
+    }
     await TorService.reset();
   });
 
@@ -268,6 +270,34 @@ void main() {
       expect(prefs.getBool(kExperimentalTorKey), isFalse);
       expect(TorService.instance.isAvailable, isFalse,
           reason: 'the switch shuts the TOR-007 gate with developer mode on');
+    });
+
+    testWidgets('offers the Proxy router where it could run, on by default',
+        (tester) async {
+      await tester.pumpWidget(host(routerRunsHere: true));
+      await tester.pumpAndSettle();
+      final title = find.text('Proxy router');
+      await tester.scrollUntilVisible(title, 400,
+          scrollable: find.byType(Scrollable).first);
+      await tester.pumpAndSettle();
+      expect(find.text('Experimental'), findsOneWidget);
+      expect(find.text('Built-in Tor'), findsNothing,
+          reason: 'Tor has no runtime on this host, so only the router shows');
+
+      final tile =
+          find.ancestor(of: title, matching: find.byType(SwitchListTile));
+      expect(tester.widget<SwitchListTile>(tile).value, isTrue,
+          reason: 'developer mode alone ran the router before the switch');
+      await tester.tap(tile);
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsNothing,
+          reason: 'turning it off only brings back PROXY-008 at next launch');
+      expect(
+          ExperimentalFeaturesService.instance
+              .switchOn(ExperimentalFeature.proxyRouter),
+          isFalse);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getBool(kExperimentalProxyRouterKey), isFalse);
     });
 
     testWidgets('with Tor already off, developer mode turns off silently',

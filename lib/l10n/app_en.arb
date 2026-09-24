@@ -1553,6 +1553,14 @@
       }
     }
   },
+  "appSettingsExperimentalProxyRouter": "Proxy router",
+  "@appSettingsExperimentalProxyRouter": {
+    "description": "Switch in App settings > Developer > Experimental, shown on Android only, that allows the per-site proxy router: sites set to different proxies can stay open at the same time."
+  },
+  "appSettingsExperimentalProxyRouterHint": "On Android one proxy setting covers the whole app, so opening a site with a different proxy closes the sites that use another one. The router keeps them all open: a relay inside the app sends each site's traffic to that site's own proxy. At every start it checks on this device that each site's traffic is told apart, and closes sites as before if the check fails. Experimental: it has been tried on few devices. Takes effect the next time the app starts.",
+  "@appSettingsExperimentalProxyRouterHint": {
+    "description": "Explanation behind the hint button of the Proxy router switch in App settings > Developer > Experimental. 'Closes the sites' means the app unloads those sites' pages."
+  },
   "appSettingsDeveloperModeTorWarningConfirm": "Turn off",
   "@appSettingsDeveloperModeTorWarningConfirm": {
     "description": "Button that confirms turning Developer mode off even though it will block sites set to use Tor."

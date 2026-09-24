@@ -16,6 +16,7 @@ The features are:
 | Feature | Switch | Default | Gate |
 |---|---|---|---|
 | Embedded Tor client (`tor-proxy` TOR-007) | Built-in Tor | on | `TorService.isAvailable` |
+| Android's per-site proxy router (`proxy` PROXY-013) | Proxy router | on | `ProxyRouterService.isSupported`, read once at launch |
 
 #### Scenario: A feature needs both
 
@@ -38,11 +39,25 @@ The features are:
 - **THEN** there is no Experimental group
 - **AND** after unlocking developer mode the Developer section shows it, with Built-in Tor on
 
+#### Scenario: Only what this platform can run
+
+- **GIVEN** an Android build whose WebView reports `MULTI_PROFILE`, with developer mode on
+- **WHEN** the user opens App settings
+- **THEN** the Experimental group lists Proxy router, on
+- **AND** it does not list Built-in Tor, which has no runtime on Android
+
 #### Scenario: Nothing to offer on this platform
 
-- **GIVEN** an Android build with developer mode on
+- **GIVEN** a Linux build with developer mode on
 - **WHEN** the user opens App settings
-- **THEN** the Developer section shows no Experimental group, since Tor has no runtime there
+- **THEN** the Developer section shows no Experimental group, since neither Tor nor the proxy router runs there
+
+#### Scenario: The proxy router switch applies at next launch
+
+- **GIVEN** router mode is running on Android
+- **WHEN** the user turns the Proxy router switch off
+- **THEN** the relay stays bound until the app restarts
+- **AND** after the restart mismatched-proxy sites serialise under PROXY-008
 
 #### Scenario: Switches survive a backup round trip
 
