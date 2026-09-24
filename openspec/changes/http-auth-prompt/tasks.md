@@ -4,7 +4,7 @@
   HTTPAUTH-002 (site hosts only), HTTPAUTH-003 (the dialog), HTTPAUTH-004
   (remembered per site; incognito read-only, archive-tier off), HTTPAUTH-005
   (retry), HTTPAUTH-006 (never leaves the device), HTTPAUTH-007 (real-engine
-  tier, Linux gap).
+  tier on every platform).
 - [x] 1.2 `specs/archive/spec.md`: the ARCH-006 matrix row.
 - [x] 1.3 The `http-auth-prompt` row in the CLAUDE.md OpenSpec table, marked
   *(change)* until archived.
@@ -35,8 +35,9 @@
 
 - [x] 4.1 `integration_test/http_auth_test.dart`, run on macOS by discovery
   and on the Android emulator by `scripts/run_android_http_auth_tests.sh`.
-- [ ] 4.2 Fork: send `previousFailureCount` from the WPE plugin as an integer
-  (`isRetry ? 1 : 0`), bump the pinned ref, drop the Linux skip.
+- [x] 4.2 Fork: send `previousFailureCount` from the WPE plugin as an integer
+  (`isRetry ? 1 : 0`), bump the pinned ref, drop the Linux skip. Pinned to the
+  `privacy-v10-candidate` commit until `v6.2.0-beta.3-privacy-v10` is tagged.
 
 ## 5. Localization
 

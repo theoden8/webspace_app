@@ -77,8 +77,9 @@ class HttpAuthChallengeInfo {
   final String host;
   final String? realm;
 
-  /// A `407` from a proxy. Only Apple and Linux can say so; Android drops
-  /// `is_proxy`, which is why the router check has to run first.
+  /// A `407` from a proxy. Only Apple can say so: Android drops `is_proxy`,
+  /// which is why the router check has to run first, and Linux sends it under
+  /// a key the shared Dart type does not read.
   final bool isProxy;
 
   /// The platform reports an earlier credential for this protection space

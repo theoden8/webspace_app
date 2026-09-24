@@ -10,10 +10,8 @@
 // Each case uses its own realm and folder, so a credential one case left in
 // a shared network session cannot answer the other's challenge.
 //
-// Runs on the macOS integration job by file discovery, and on the Android
-// emulator via scripts/run_android_http_auth_tests.sh. Skipped on Linux: the
-// pinned fork's WPE plugin sends `previousFailureCount` as null, the shared
-// Dart type declares it `int`, and the challenge never reaches the app.
+// Runs on the Linux and macOS integration jobs by file discovery, and on the
+// Android emulator via scripts/run_android_http_auth_tests.sh.
 
 import 'dart:convert';
 import 'dart:io';
@@ -245,7 +243,7 @@ void main() {
         reason: 'the image behind the same htpasswd must load: $result');
     expect(result?['xhr'], 'ok',
         reason: 'fetch() behind the same htpasswd must succeed: $result');
-  }, skip: Platform.isLinux, timeout: const Timeout(Duration(minutes: 4)));
+  }, timeout: const Timeout(Duration(minutes: 4)));
 
   testWidgets(
       'the prompt signs in, says when a password is refused, and remembers',
@@ -332,5 +330,5 @@ void main() {
     });
     expect(saved?.username, _user);
     expect(saved?.password, _password);
-  }, skip: Platform.isLinux, timeout: const Timeout(Duration(minutes: 4)));
+  }, timeout: const Timeout(Duration(minutes: 4)));
 }

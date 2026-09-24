@@ -4,8 +4,8 @@
 # carries no port and no is_proxy and so shares a path with the proxy
 # router's 407.
 #
-# The macOS integration job runs the same file against WKWebView. Linux
-# skips it until the fork's WPE plugin sends previousFailureCount as an int.
+# The Linux and macOS integration jobs run the same file against WPE WebKit
+# and WKWebView.
 #
 # Single entry point for the same reason as the white-screen tier:
 # reactivecircus/android-emulator-runner executes each script line as a

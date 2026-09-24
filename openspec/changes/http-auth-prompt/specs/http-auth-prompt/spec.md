@@ -203,16 +203,17 @@ row with the count and a Clear action, hidden for archive-tier sites.
 from loopback and SHALL assert, against the real engine, that a saved sign-in
 answers without a dialog, that the dialog signs in after a refused password,
 and that the page's image and `fetch()` load in both cases. It SHALL run on
-the Android emulator (`scripts/run_android_http_auth_tests.sh`) and the macOS
-integration job.
+the Android emulator (`scripts/run_android_http_auth_tests.sh`) and the Linux
+and macOS integration jobs, with no platform skipped.
 
-Linux SHALL be skipped until the fork's WPE plugin sends
-`previousFailureCount` as an integer. Today it sends null, the shared Dart
-`HttpAuthenticationChallenge.fromMap` throws on it, and the platform cancels
-before the app's handler runs.
+The pinned fork SHALL send `previousFailureCount` as an integer on every
+platform. The shared Dart `HttpAuthenticationChallenge.fromMap` throws on a
+null there, and a throw in the plugin's handler reaches the platform as a
+cancel, so a site's challenge would never reach the app. WPE reports only
+whether a challenge is a retry, so Linux sends 0 or 1.
 
-#### Scenario: Linux gap is visible, not silent
+#### Scenario: Every platform runs the real-engine tier
 
-**Given** the Linux integration job
-**When** it reaches `http_auth_test.dart`
-**Then** both cases report as skipped
+**Given** the Linux, macOS and Android emulator integration jobs
+**When** each reaches `http_auth_test.dart`
+**Then** both cases run and pass, and neither reports as skipped

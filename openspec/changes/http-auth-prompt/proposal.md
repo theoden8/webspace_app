@@ -58,11 +58,12 @@ engine leaves those to the platform, which cancels, as before.
 (PROXY-019), and Android cannot tell a proxy challenge from a server one, which
 is why HTTPAUTH-002 is host-scoped rather than flag-scoped.
 
-**Out, open gap.** Linux. The pinned fork's WPE plugin sends
-`previousFailureCount` as null and the shared Dart type declares it `int`, so
-`HttpAuthenticationChallenge.fromMap` throws before the app's handler runs and
-the platform cancels. The fix is in the fork (set it from `isRetry`); the app
-side needs no change when it lands.
+**Fork.** Linux needed a fork fix. Its WPE plugin sent `previousFailureCount`
+as null, which the shared Dart type declares `int`, so
+`HttpAuthenticationChallenge.fromMap` threw before the app's handler ran and
+the platform cancelled; it also had no Linux native values for
+`HttpAuthResponseAction`. Both are fixed in `privacy-v10-candidate` (sent from
+`isRetry`), which this change pins.
 
 ## Impact
 
