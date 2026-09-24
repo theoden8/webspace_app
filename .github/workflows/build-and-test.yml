@@ -503,6 +503,7 @@ jobs:
         with:
           name: android-apks
           path: build/app/outputs/flutter-apk/*.apk
+          if-no-files-found: error
 
       # Android Screenshots (conditional)
       - name: Install ImageMagick (AppImage for magick command)
@@ -1311,6 +1312,17 @@ jobs:
         run: |
           fvm flutter build ipa --release --no-codesign
           bash scripts/verify_adblock_shipped.sh ios
+          # --no-codesign builds the archive and then skips the export
+          # ("Codesigning disabled with --no-codesign, skipping IPA"), so
+          # build/ios/ipa never existed: the upload below found nothing on
+          # every run and only warned, and the release summary reported an
+          # IPA anyway. An unsigned IPA is the .app under Payload/, zipped.
+          app=build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app
+          test -d "$app"
+          mkdir -p build/ios/ipa/Payload
+          ditto "$app" build/ios/ipa/Payload/Runner.app
+          (cd build/ios/ipa && zip -qry webspace-unsigned.ipa Payload && rm -rf Payload)
+          ls -l build/ios/ipa
 
       # The ad-hoc re-sign is what makes the artifact launchable. CI has no
       # signing identity, so the build resolves $(AppIdentifierPrefix) to
@@ -1777,12 +1789,14 @@ jobs:
         with:
           name: ios-ipa
           path: build/ios/ipa/*.ipa
+          if-no-files-found: error
 
       - name: Upload macOS build
         uses: actions/upload-artifact@v4
         with:
           name: macos-app
           path: webspace-macos.zip
+          if-no-files-found: error
 
       # iOS Screenshots (conditional)
       - name: List available simulators
@@ -1845,19 +1859,59 @@ jobs:
     runs-on: ubuntu-latest
     if: success()
     steps:
-      - name: Download all artifacts
+      # By name, and only these three: a named download fails when the
+      # artifact is absent, and the rest of what the run uploads (screenshots,
+      # diagnostics, the egress recording) is nothing this job reports on.
+      - name: Download the Android build
         uses: actions/download-artifact@v4
+        with:
+          name: android-apks
+          path: artifacts/android
+      - name: Download the iOS build
+        uses: actions/download-artifact@v4
+        with:
+          name: ios-ipa
+          path: artifacts/ios
+      - name: Download the macOS build
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-app
+          path: artifacts/macos
 
-      - name: Display structure
-        run: ls -R
-
-      - name: Create release summary
+      # What was actually built, and how big it is. The previous summary
+      # printed a fixed list of checkmarks that nothing verified: it claimed
+      # an IPA CI never produced, a Linux build CI never uploads, and ABI
+      # splits that pull requests do not build. Sizes are the useful part --
+      # the Tor pods' footprint on the IPA is a number, not an estimate.
+      - name: Report the artifacts
         run: |
-          echo "## Build Artifacts Generated" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Android APKs (fdroid flavor, split by ABI)" >> $GITHUB_STEP_SUMMARY
-          echo "✅ iOS IPA (unsigned)" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Linux x64 build" >> $GITHUB_STEP_SUMMARY
-          echo "✅ macOS app bundle (ad-hoc signed, developer build)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "All platform builds completed successfully!" >> $GITHUB_STEP_SUMMARY
+          set -eu
+          # Rows first, so an empty artifact fails on stdout, where the
+          # runner reads ::error:: -- not inside the summary redirect.
+          rows=""
+          for dir in android ios macos; do
+            found=0
+            for f in artifacts/$dir/*; do
+              [ -f "$f" ] || continue
+              found=1
+              bytes=$(stat -c %s "$f")
+              mb=$(awk "BEGIN { printf \"%.1f MB\", $bytes / 1048576 }")
+              rows="$rows| $dir | \`$(basename "$f")\` | $mb |
+          "
+            done
+            if [ "$found" -eq 0 ]; then
+              echo "::error::the $dir artifact downloaded but holds no file"
+              exit 1
+            fi
+          done
+          {
+            echo "## Build artifacts"
+            echo ""
+            echo "| platform | file | size |"
+            echo "|---|---|---|"
+            printf '%s' "$rows"
+            echo ""
+            echo "Linux is built and its integration tier runs, but no Linux"
+            echo "bundle is uploaded as an artifact."
+          } >> "$GITHUB_STEP_SUMMARY"
+          cat "$GITHUB_STEP_SUMMARY"

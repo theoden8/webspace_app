@@ -4,6 +4,41 @@ Read this before working the boxes below: **the open items are not a to-do
 list in their current form.** Two design drifts and one CI decision happened
 after they were written, and the list did not follow.
 
+## Update (2026-09-23): the note above has been worked, not just written
+
+Everything the 09-20 note diagnosed is now applied to the boxes rather than
+described above them. What changed:
+
+* **8.2 is closed**, and it was the one genuine gap.
+  [test/tor_secrets_export_test.dart](../../../test/tor_secrets_export_test.dart)
+  proves the session secret and the per-site SOCKS credential are reachable
+  through `socksFor`, then asserts a backup carries neither, nor tor's
+  loopback port.
+* **9.1, 9.3, 9.4 and 11.4 are ticked** against the files that actually cover
+  them. 9.3 was marked "verify before closing": verified — the nested chain is
+  gated generically over `LaunchUrlFunc`'s parameter list, and `proxySettings`
+  is named in the posture set, so Tor is covered by construction rather than
+  by a Tor-specific copy.
+* **5.2 and 5.3 are struck as superseded**, not left looking pending. The
+  interstitial-URL design they describe was replaced by `deferInitialLoadForProxy`
+  and the widget-level placeholder.
+* **`useTor` is gone from the wording** of 7.1, 7.2, 8.1, 9.2 and 10.x. They
+  now say `proxySettings.type == ProxyType.TOR`, which is the field that
+  exists.
+
+What is left is 17 items and none of them is a code gap CI can close: 6.3
+(exit-country hint), 7.1/7.2 (background refresh under Tor), 6b.10 and
+9.5/10.x (on-device and manual by construction), and 11.1a–11.3 (release
+paperwork).
+
+**The macOS proxy-tier section below is spent.** The skipped switch arm it
+describes no longer exists: #603 rewrote that file to one arm per guarantee,
+and BUG-014's conclusion is that per-site proxies on Apple work — the void
+instrument was the arms' destination, not the binding. What remains of the
+Tor runtime's own trouble is on iOS, in
+[docs/bugs/013-tor-never-connects.md](../../../docs/bugs/013-tor-never-connects.md),
+where the macOS tier now bootstraps to 100% and the iOS half is unmeasured.
+
 ## The list is written against a `useTor` boolean that does not exist
 
 Every task phrased "when `useTor=true`" (5.2, 5.3, 7.1, 7.2, 8.2, 9.3, 10.1,
@@ -104,8 +139,8 @@ the nested-webview propagation chain. See PROXY-020 for the reasoning.
 ## 5. Bootstrap interstitial
 
 - [x] 5.1 Add a Flutter screen `lib/screens/tor_bootstrap.dart` that subscribes to `TorService.statusStream`, renders a determinate progress bar (`Bootstrapping(pct)`), an error + Retry button (`Errored`), and on `Up` calls `Navigator.pushReplacement` with the `next` URL.
-- [ ] 5.2 In `WebViewModel`'s navigation policy hook (existing `shouldOverrideUrlLoading`): when the destination has `useTor=true` and `TorService.status != Up`, rewrite to `webspace://tor-bootstrap?next=<encoded>`. Hook the existing custom-scheme dispatcher (same surface used by `default-app-for-links`).
-- [ ] 5.3 Unit test: feeding the navigation hook a `useTor` site with `Bootstrapping(50)` returns the interstitial URL; with `Up`, returns the original.
+- ~~5.2 Rewrite a pre-bootstrap navigation to `webspace://tor-bootstrap?next=<encoded>` from the navigation policy hook.~~ **Superseded.** That scheme exists nowhere in `lib/`. The shipped mechanism holds the load instead of redirecting it: `deferInitialLoadForProxy` ([lib/services/webview.dart](../../../lib/services/webview.dart)) plus the widget-level `TorBootstrapPlaceholder`, which TOR-008 specifies. A redirect would have put the site's own URL in a query string and taken the user through a navigation they did not make.
+- ~~5.3 Unit test for that rewrite.~~ **Superseded with 5.2.** What replaced it is 9.4.
 
 ## 6. UI surfaces
 
@@ -157,31 +192,31 @@ the nested-webview propagation chain. See PROXY-020 for the reasoning.
 
 ## 7. Background task integration
 
-- [ ] 7.1 In [ios/Runner/BackgroundTaskPlugin.swift](../../../ios/Runner/BackgroundTaskPlugin.swift): when starting the `beginBackgroundTask` window for notification sites, query `TorControllerPlugin` for the list of `useTor` refcount holders; if any of them are notification sites, suppress `TorService` idle-stop until the window expires.
-- [ ] 7.2 In the `BGAppRefreshTask` handler: before reloading a notification site, if `useTor=true` on that site, await `TorService.maybeStart` reaching `Up` (with the same 90s timeout) and only then trigger the reload.
+- [ ] 7.1 In [ios/Runner/BackgroundTaskPlugin.swift](../../../ios/Runner/BackgroundTaskPlugin.swift): when starting the `beginBackgroundTask` window for notification sites, query `TorControllerPlugin` for the refcount holders (sites whose `proxySettings.type == ProxyType.TOR`); if any of them are notification sites, suppress `TorService` idle-stop until the window expires.
+- [ ] 7.2 In the `BGAppRefreshTask` handler: before reloading a notification site, if its `proxySettings.type == ProxyType.TOR`, await `TorService.maybeStart` reaching `Up` (with the same 90s timeout) and only then trigger the reload.
 
 ## 8. Settings backup
 
-- [x] 8.1 No changes to `kExportedAppPrefs` registry expected — `useTor` rides through `WebViewModel.toJson`/`fromJson`; `ProxyType.TOR` in `globalOutboundProxy` round-trips automatically.
-- [ ] 8.2 Regression test in [test/settings_backup_test.dart](../../../test/settings_backup_test.dart): assert that exporting settings with `useTor=true` sites and `globalOutboundProxy.type == TOR` does NOT contain any of: Tor control-cookie bytes, the session SOCKS5 password from `TorService._sessionSecret`, or any other Tor-runtime in-memory state. Title: "Tor secrets never appear in exports (TOR-009)".
+- [x] 8.1 No changes to `kExportedAppPrefs` registry expected — a site's `proxySettings` rides through `WebViewModel.toJson`/`fromJson`, `ProxyType.TOR` included; `ProxyType.TOR` in `globalOutboundProxy` round-trips automatically.
+- [x] 8.2 Regression test: [test/tor_secrets_export_test.dart](../../../test/tor_secrets_export_test.dart), "Tor secrets never appear in exports (TOR-009)". Exports a site on `ProxyType.TOR` with a global `ProxyType.TOR` and asserts the file carries neither the session secret nor the per-site SOCKS credential derived from it, nor tor's loopback port. Both needles are proved live first, through `socksFor`, so the absence is a measurement rather than a spelling. Its own file rather than `settings_backup_test.dart`: it needs a fake `TorRuntime` up, which that file has no other use for.
 
 ## 9. Tests
 
-- [ ] 9.1 `test/tor_service_test.dart`: state machine (start → bootstrap → up → idle-stop debounce), 90s bootstrap timeout, refcount on/off correctness, session secret rotation across instances, `socksFor` username derivation (per-site vs app-global), "never reports 9050" hardcode check.
-- [x] 9.2 `test/outbound_http_tor_test.dart`: `ProxyType.TOR` routes through `TorService.socksFor`, fail-closed when `status != Up`, per-site `useTor` overrides manual address, DEFAULT with global TOR uses the `__webspace_app_global__` tag.
-- [ ] 9.3 `test/web_view_model_tor_propagation_test.dart`: `useTor` survives `toJson` → `fromJson` round-trip; nested-webview ctor receives `useTor` through the full propagation chain (mirrors the existing per-site-field propagation tests).
-- [ ] 9.4 `test/tor_bootstrap_interstitial_test.dart`: navigation hook rewrites pre-bootstrap; auto-resumes on `Up`.
+- [x] 9.1 Covered by [test/tor_engine_test.dart](../../../test/tor_engine_test.dart) (TOR-002 lifecycle: first holder starts, a second does not restart, one reason counts once, debounce cancel, `syncHolders`; TOR-013 bootstrap timeout; TOR-003 stream isolation) and [test/tor_developer_mode_gate_test.dart](../../../test/tor_developer_mode_gate_test.dart) (the gate, and `socksFor` failing closed behind it). Written against the engine, which is where the policy lives; `tor_service_test.dart` was never created.
+- [x] 9.2 `test/outbound_http_tor_test.dart`: `ProxyType.TOR` routes through `TorService.socksFor`, fail-closed when `status != Up`, a per-site `ProxyType.TOR` overrides a manual address, DEFAULT with global TOR uses the `__webspace_app_global__` tag.
+- [x] 9.3 Covered generically, which is stronger than a Tor-specific copy would be: [test/nested_webview_field_parity_test.dart](../../../test/nested_webview_field_parity_test.dart) reads `LaunchUrlFunc`'s own parameter list and requires every one to survive each step of the nested chain, and [test/js/nested_webview_posture_parity.test.js](../../../test/js/nested_webview_posture_parity.test.js) names `proxySettings` in the posture set. Tor rides `proxySettings`, so both cover it; the round-trip is `test/settings_backup_test.dart`'s.
+- [x] 9.4 Covered against the shipped design rather than 5.2's: [test/tor_bootstrap_placeholder_test.dart](../../../test/tor_bootstrap_placeholder_test.dart) (showing the placeholder starts the runtime and releases it on the way out) and [test/tor_ui_states_test.dart](../../../test/tor_ui_states_test.dart) (every rendered state, each failure kind with its remedy, and the two gates that cannot open).
 - [ ] 9.5 Manual iOS test matrix in [tasks.md → manual checklist](#10-manual-test-matrix-ios) below.
 
 ## 10. Manual test matrix (iOS)
 
-- [ ] 10.1 Two `useTor` sites loaded concurrently in container mode show distinct exit IPs at `check.torproject.org`; refresh both — each gets stable circuit until "Rebuild circuits" tapped.
-- [ ] 10.2 Toggle `useTor` off on one site mid-session — that site's next navigation routes direct (or through manual proxy if set); the other `useTor` site is unaffected.
-- [ ] 10.3 Force-quit and relaunch with a `useTor` site set — first navigation shows the bootstrap interstitial, auto-resumes when ready.
+- [ ] 10.1 Two `ProxyType.TOR` sites loaded concurrently in container mode show distinct exit IPs at `check.torproject.org`; refresh both — each gets stable circuit until "Rebuild circuits" tapped.
+- [ ] 10.2 Move one site off `ProxyType.TOR` mid-session — its next navigation routes direct (or through a manual proxy if set); the other Tor site is unaffected.
+- [ ] 10.3 Force-quit and relaunch with a `ProxyType.TOR` site set — the first navigation shows the bootstrap placeholder and resumes when the runtime is up.
 - [ ] 10.4 Toggle airplane mode mid-bootstrap — surfaces the `Errored("could not connect to any directory authority")` state with a working Retry button.
-- [ ] 10.5 Notification site + `useTor`: push notification arrives during a 30s grace window (test by minimising the app at a known message-firing site).
-- [ ] 10.6 Disable `useTor` on the last site; observe Tor stays up for 60s, then shuts down (check via `nettop`-on-Mac while the iOS device is tethered).
-- [ ] 10.7 Settings export → import on a fresh install: `useTor` flags and `globalOutboundProxy.type == TOR` survive; no Tor cookie / password material in the export JSON (`grep -i` on the file).
+- [ ] 10.5 Notification site on `ProxyType.TOR`: push notification arrives during a 30s grace window (test by minimising the app at a known message-firing site).
+- [ ] 10.6 Move the last site off `ProxyType.TOR`; observe Tor stays up for 60s, then shuts down (check via `nettop`-on-Mac while the iOS device is tethered).
+- [ ] 10.7 Settings export → import on a fresh install: per-site `ProxyType.TOR` and `globalOutboundProxy.type == TOR` survive. The secret half is no longer manual — 8.2 asserts it every run.
 
 ## 11. Release prep
 
@@ -193,4 +228,4 @@ the nested-webview propagation chain. See PROXY-020 for the reasoning.
 - [ ] 11.1c Audit UI strings and assets for trademark discipline before submission — descriptive use of "Tor" only, no onion logo, no "Tor" in app name/subtitle/bundle id, no implied Tor Project endorsement (TOR-012).
 - [ ] 11.2 Update fastlane iOS release notes in `fastlane/metadata/ios/en-US/release_notes.txt` (per Fastlane size limits) describing the new toggle. Run `scripts/validate_fastlane_metadata.sh` if any Android sibling notes also touched.
 - [ ] 11.3 Document the binary-size growth (~15 MB iOS IPA) in the PR description and the OpenSpec change archive note.
-- [ ] 11.4 Cross-link the new spec from CLAUDE.md's openspec slug table: add `tor-proxy | embedded Tor on iOS; per-site SOCKS5 isolation`.
+- [x] 11.4 [CLAUDE.md](../../../CLAUDE.md) carries the `tor-proxy *(change)*` row in the openspec slug table.

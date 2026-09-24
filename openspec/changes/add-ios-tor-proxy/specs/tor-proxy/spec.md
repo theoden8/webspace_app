@@ -1224,3 +1224,60 @@ TOR-008 permits on the wire.
 - **WHEN** the user opens it
 - **THEN** the interstitial names developer mode
 - **AND** it does not offer a Retry that cannot start anything
+
+---
+
+### Requirement: TOR-023 - Closing the gate SHALL state what it costs
+
+TOR-007 puts Tor behind developer mode, and TOR-008 keeps a site pinned to
+`TOR` blocked whenever the runtime is not up. Turning the flag off therefore
+blocks every such site from that moment, and the app used to do it in
+silence: the damage surfaced sessions later as a site sitting on the
+interstitial, which reads as a Tor that will not start rather than a setting
+that turned it off. That is how it was first reported.
+
+Turning developer mode off while at least one site is pinned to `TOR` SHALL
+require a confirmation that names how many sites will be blocked. It SHALL be
+a dialog rather than a transient message: the cost is paid later, so a
+notification the user can miss is the failure mode itself.
+
+- The count SHALL be read when the switch is flipped, not when the settings
+  screen was built. A site can be pinned to Tor from the drawer behind an
+  open settings screen, and a captured count would report zero and close the
+  gate silently.
+- With no site pinned, there SHALL be no confirmation: nothing is lost.
+- Declining SHALL leave developer mode on **and** the switch showing on. A
+  switch that reads off while the flag is on is the control contradicting
+  the state it names.
+- Turning the flag back **on** SHALL never be gated by this. The
+  confirmation belongs to losing Tor, not to regaining it.
+
+This changes what the user is told, never what TOR-008 permits on the wire:
+the sites are blocked either way.
+
+#### Scenario: Two sites are pinned and the user turns the flag off
+
+- **GIVEN** developer mode is on and two sites carry `ProxyType.TOR`
+- **WHEN** the user flips the developer-mode switch off
+- **THEN** a confirmation names that two sites will stay blocked
+- **AND** developer mode is still on until the confirmation is answered
+
+#### Scenario: The user declines
+
+- **WHEN** the user cancels that confirmation
+- **THEN** developer mode stays on
+- **AND** the switch still reads on
+- **AND** nothing is written to the stored flag
+
+#### Scenario: A site is pinned while the settings screen is open
+
+- **GIVEN** the settings screen was opened with no site pinned to Tor
+- **WHEN** a site is pinned to Tor from the drawer and the user then turns
+  developer mode off
+- **THEN** the confirmation appears and counts that site
+
+#### Scenario: Nothing is pinned
+
+- **GIVEN** no site carries `ProxyType.TOR`
+- **WHEN** the user turns developer mode off
+- **THEN** the flag turns off with no confirmation
