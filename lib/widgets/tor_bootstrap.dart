@@ -17,7 +17,7 @@ import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/tor_bridge_settings.dart';
-import 'package:webspace/services/developer_mode_service.dart';
+import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/tor_bridges.dart' show bridgesMayHelp;
 import 'package:webspace/services/tor_service.dart';
@@ -126,7 +126,8 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
     final gate = torGateFor(
       status: s,
       hasNativeTor: TorService.instance.hasNativeRuntime,
-      developerModeEnabled: DeveloperModeService.instance.enabled,
+      torEnabled:
+          ExperimentalFeaturesService.instance.isEnabled(ExperimentalFeature.tor),
     );
 
     Widget gated({required bool unsupported}) => centered([
@@ -270,7 +271,7 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
     // depending on whether anything can start (TOR-022).
     return switch (gate) {
       TorGate.unsupported => gated(unsupported: true),
-      TorGate.developerModeOff => gated(unsupported: false),
+      TorGate.switchedOff => gated(unsupported: false),
       // Sound by construction: torGateFor returns `errored` only for a
       // TorErrored status, and both read the same `s`.
       TorGate.errored => failure(s as TorErrored),

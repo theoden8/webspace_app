@@ -21,6 +21,32 @@ import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/main.dart' show AppThemeSettings;
 import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/services/developer_mode_service.dart';
+import 'package:webspace/services/experimental_features_service.dart';
+import 'package:webspace/services/tor_engine.dart';
+import 'package:webspace/services/tor_service.dart';
+
+/// A runtime that exists, so the Experimental group has Tor to offer. Never
+/// started by these tests.
+class _PresentRuntime implements TorRuntime {
+  @override
+  bool get isAvailable => true;
+  @override
+  Stream<TorStatus> get events => const Stream.empty();
+  @override
+  Future<void> start() async {}
+  @override
+  Future<void> stop() async {}
+  @override
+  Future<void> rebuildCircuits() async {}
+  @override
+  Future<void> applyExitCountry(String? exitNodes, {String? geoipFile}) async {}
+  @override
+  Future<int> startTransport(String transport) async => 0;
+  @override
+  Future<void> setTorrcOptions(List<(String, String)> options) async {}
+  @override
+  Future<void> setSocksIsolation({required bool isolateDestAddr}) async {}
+}
 
 void main() {
   /// Read by the screen through the callback, and mutable so a test can pin a
@@ -76,7 +102,22 @@ void main() {
     DeveloperModeService.instance.debugSet(true);
   });
 
-  tearDown(() => DeveloperModeService.instance.debugSet(false));
+  tearDown(() async {
+    DeveloperModeService.instance.debugSet(false);
+    ExperimentalFeaturesService.instance
+        .debugSet(ExperimentalFeature.tor, true);
+    await TorService.reset();
+  });
+
+  /// The Experimental group's Tor switch, scrolled into view.
+  Future<Finder> torSwitch(WidgetTester tester) async {
+    final title = find.text('Built-in Tor');
+    await tester.scrollUntilVisible(title, 400,
+        scrollable: find.byType(Scrollable).first);
+    await tester.pumpAndSettle();
+    return find.ancestor(of: title, matching: find.byType(SwitchListTile));
+  }
+
 
   /// The developer-mode switch, scrolled into view. Found through its title
   /// rather than by position: it is not the only `SwitchListTile` on the
@@ -179,5 +220,70 @@ void main() {
     expect(find.text('Developer mode'), findsNothing,
         reason: 'the switch is not rendered while the flag is off, so the '
             'only way back on is the version-row gesture');
+  });
+
+  group('Experimental group (DEVTOOLS-011)', () {
+    testWidgets('offers Built-in Tor only where the runtime exists',
+        (tester) async {
+      await tester.pumpWidget(host());
+      await tester.pumpAndSettle();
+      expect(find.text('Experimental'), findsNothing,
+          reason: 'no feature to offer on a platform without Tor');
+    });
+
+    testWidgets('switching Tor off with sites on Tor asks, and a cancel '
+        'keeps it on', (tester) async {
+      TorService.overrideEngine(
+          TorEngine(runtime: _PresentRuntime(), sessionSecret: 's'));
+      torSites = 2;
+      await tester.pumpWidget(host());
+      await tester.pumpAndSettle();
+
+      final tile = await torSwitch(tester);
+      expect(tester.widget<SwitchListTile>(tile).value, isTrue,
+          reason: 'on by default, so developer mode alone keeps Tor open');
+      await tester.tap(tile);
+      await tester.pumpAndSettle();
+      expect(find.text('Turn Built-in Tor off?'), findsOneWidget);
+      expect(find.textContaining('2 sites are set to use Tor'), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(
+          ExperimentalFeaturesService.instance
+              .switchOn(ExperimentalFeature.tor),
+          isTrue);
+      expect(tester.widget<SwitchListTile>(await torSwitch(tester)).value,
+          isTrue);
+
+      await tester.tap(await torSwitch(tester));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Turn off'));
+      await tester.pumpAndSettle();
+      expect(
+          ExperimentalFeaturesService.instance
+              .switchOn(ExperimentalFeature.tor),
+          isFalse);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getBool(kExperimentalTorKey), isFalse);
+      expect(TorService.instance.isAvailable, isFalse,
+          reason: 'the switch shuts the TOR-007 gate with developer mode on');
+    });
+
+    testWidgets('with Tor already off, developer mode turns off silently',
+        (tester) async {
+      ExperimentalFeaturesService.instance
+          .debugSet(ExperimentalFeature.tor, false);
+      torSites = 2;
+      await tester.pumpWidget(host());
+      await tester.pumpAndSettle();
+
+      await tester.tap(await developerModeSwitch(tester));
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsNothing,
+          reason: 'developer mode no longer holds Tor open, so nothing more '
+              'blocks');
+      expect(DeveloperModeService.instance.enabled, isFalse);
+    });
   });
 }

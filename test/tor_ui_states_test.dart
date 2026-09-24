@@ -25,6 +25,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/developer_mode_service.dart';
+import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/tor_service.dart';
@@ -465,12 +466,30 @@ void main() {
       await settle(t);
 
       expect(find.text('Tor is turned off'), findsOneWidget);
-      expect(find.textContaining('Turn Developer mode on'), findsOneWidget);
+      expect(find.textContaining('Developer mode and Built-in Tor'),
+          findsOneWidget,
+          reason: 'the screen names both switches that hold the gate');
       expect(find.text('Not running'), findsNothing,
           reason: 'the runtime status is true and useless here: what the '
               'user needs to know is that nothing will change it');
       expect(find.byType(LinearProgressIndicator), findsNothing,
           reason: 'a bar for a wait that never ends');
+    });
+
+    testWidgets('the Built-in Tor switch off shows the same gated screen',
+        (t) async {
+      installEngine();
+      DeveloperModeService.instance.debugSet(true);
+      ExperimentalFeaturesService.instance
+          .debugSet(ExperimentalFeature.tor, false);
+      addTearDown(() => ExperimentalFeaturesService.instance
+          .debugSet(ExperimentalFeature.tor, true));
+      await t.pumpWidget(
+          host(const TorBootstrapPlaceholder(), const Size(430, 430)));
+      await settle(t);
+
+      expect(find.text('Tor is turned off'), findsOneWidget);
+      expect(find.byType(LinearProgressIndicator), findsNothing);
     });
 
     testWidgets('no runtime on this platform points at the site proxy',
