@@ -2831,7 +2831,8 @@ class _WebSpacePageState extends State<WebSpacePage>
       url: url,
       decision: decision,
       routeOutboundLinks: source.routeOutboundLinks,
-      developerMode: DeveloperModeService.instance.enabled,
+      experimentEnabled: ExperimentalFeaturesService.instance
+          .isEnabled(ExperimentalFeature.linkRouting),
       kioskLocked: _kioskLocked,
       hadGesture: hadGesture,
       containersActive: _useContainers,

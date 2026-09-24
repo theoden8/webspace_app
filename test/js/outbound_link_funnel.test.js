@@ -80,7 +80,7 @@ test('routing hands every gate to the engine, with the live values', () => {
     'the gates live in the engine, where they are unit-tested');
   for (const [arg, why] of [
     [/routeOutboundLinks: source\.routeOutboundLinks/, 'the source opted in (LIR-013)'],
-    [/developerMode: DeveloperModeService\.instance\.enabled/, 'developer mode (DEVTOOLS-010)'],
+    [/experimentEnabled: ExperimentalFeaturesService\.instance\s*\.isEnabled\(ExperimentalFeature\.linkRouting\)/, 'the experimental switch (DEVTOOLS-011)'],
     [/kioskLocked: _kioskLocked/, 'a locked kiosk reaches no other site (KIOSK-002)'],
     [/hadGesture: hadGesture/, 'only a user gesture is routed'],
     [/containersActive: _useContainers/, 'the legacy engine does not route'],

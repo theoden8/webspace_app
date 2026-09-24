@@ -103,7 +103,7 @@ class SiteBehaviourScreen extends StatefulWidget {
   /// other than itself.
   final List<WebViewModel> routingTargets;
 
-  /// Outbound routing sits behind developer mode (DEVTOOLS-010); while it is
+  /// Outbound routing is an experimental feature (DEVTOOLS-011); while it is
   /// off its rows are hidden and the stored values are kept.
   final bool showOutboundRouting;
 

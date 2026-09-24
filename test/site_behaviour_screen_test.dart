@@ -171,7 +171,7 @@ void main() {
       );
     });
 
-    testWidgets('developer mode off hides both rows', (tester) async {
+    testWidgets('the experiment off hides both rows', (tester) async {
       await _pump(
         tester,
         values: _values(routeOutboundLinks: true, outboundPreferences: [pref]),

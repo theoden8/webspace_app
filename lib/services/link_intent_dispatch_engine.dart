@@ -234,15 +234,16 @@ class LinkIntentDispatchEngine {
 
   /// Whether routing takes a link [source]'s own webview is about to launch
   /// under [decision] (LIR-014). Null means it does not, and the webview's
-  /// own launch runs: routing is off for the source, developer mode is off
-  /// (DEVTOOLS-010), the kiosk shell is locked (KIOSK-002), the decision is
+  /// own launch runs: routing is off for the source, the experimental
+  /// feature is off (DEVTOOLS-011), the kiosk shell is locked (KIOSK-002),
+  /// the decision is
   /// not a nested or external launch, or [dispatchOutbound] names no
   /// destination. [candidates] is read only once the cheap gates pass.
   static DispatchAction? routeOutbound({
     required String url,
     required NavigationDecision decision,
     required bool routeOutboundLinks,
-    required bool developerMode,
+    required bool experimentEnabled,
     required bool kioskLocked,
     required bool hadGesture,
     required bool containersActive,
@@ -250,7 +251,7 @@ class LinkIntentDispatchEngine {
     required List<OutboundPreference> sourcePrefs,
     required List<DispatchableSite> Function() candidates,
   }) {
-    if (!routeOutboundLinks || !developerMode || kioskLocked) return null;
+    if (!routeOutboundLinks || !experimentEnabled || kioskLocked) return null;
     final fallback = switch (decision) {
       NavigationDecision.blockOpenNested => OutboundFallback.nested,
       NavigationDecision.blockOpenExternal => OutboundFallback.external,

@@ -139,7 +139,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(switchRow, findsOneWidget);
 
-    await tester.tap(find.byType(SwitchListTile).last);
+    await tester.tap(find.ancestor(
+        of: switchRow, matching: find.byType(SwitchListTile)));
     await tester.pumpAndSettle();
     expect(DeveloperModeService.instance.enabled, isFalse);
     final prefs = await SharedPreferences.getInstance();

@@ -1540,6 +1540,14 @@
   "@appSettingsExperimentalTorHint": {
     "description": "Explanation behind the hint button of the Built-in Tor switch in App settings > Developer > Experimental."
   },
+  "appSettingsExperimentalLinkRouting": "Link routing between sites",
+  "@appSettingsExperimentalLinkRouting": {
+    "description": "Switch in App settings > Developer > Experimental that allows the per-site setting 'Route links to my sites': a link tapped in one of the user's sites can open as another of the user's sites that claims that link."
+  },
+  "appSettingsExperimentalLinkRoutingHint": "Lets a site open a link you tap as another of your sites that claims it, signed in, with that site's own cookies and settings. Each site turns it on under Behaviour, Route links to my sites. Experimental: it has not yet been tried widely on devices. Turning this off keeps every site's routing setting and preferences, and stops routing until it is back on.",
+  "@appSettingsExperimentalLinkRoutingHint": {
+    "description": "Explanation behind the hint button of the Link routing between sites switch in App settings > Developer > Experimental. 'Behaviour' is the per-site settings screen and 'Route links to my sites' is the name of a switch on it."
+  },
   "appSettingsExperimentalTorOffTitle": "Turn Built-in Tor off?",
   "@appSettingsExperimentalTorOffTitle": {
     "description": "Title of the dialog shown when the user turns the Built-in Tor switch off while some sites are set to use Tor."

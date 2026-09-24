@@ -82,6 +82,9 @@ final Map<String, Object> kExportedAppPrefs = <String, Object>{
   // DEVTOOLS-011: the switch for Android's per-site proxy router, on by
   // default for the same reason.
   kExperimentalProxyRouterKey: true,
+  // DEVTOOLS-011: the Experimental group's switch for outbound link routing
+  // (LIR-014). Off by default.
+  kExperimentalLinkRoutingKey: false,
   'linkHandlingEnabled': true,
   // LIR-010 / discussion #439: when the user sends a shared link to an
   // existing site via the dispatch picker, also append exactHost +
