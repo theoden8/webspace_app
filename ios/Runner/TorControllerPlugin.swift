@@ -1302,6 +1302,27 @@ class TorControllerPlugin: NSObject {
       return failed
     }
     await closeExitCircuits(controller)
+    // A country with no exit takes the pin without complaint, and then tor
+    // builds no circuit at all: its path check finds 0% of exit bandwidth
+    // and it stops treating its directory as usable. Nothing on the control
+    // port says so until a stream times out, so count. The pin stays in
+    // force either way; the answer is what the user sees.
+    if let countries = Self.pinnedCountries(exitNodes) {
+      switch await Self.exitCount(in: countries, controller: controller) {
+      case .some(0):
+        let names = countries.sorted().map { $0.uppercased() }.joined(separator: ", ")
+        return FlutterError(
+          code: "exit_country_empty",
+          message: "tor's consensus lists no exit relay in \(names), so no circuit can be "
+            + "built under this exit-country pin. The pin stays in force: nothing leaves "
+            + "from another country instead.",
+          details: nil)
+      case .none:
+        note("Could not count the exits in the pinned country; the pin is in force.")
+      case .some:
+        break
+      }
+    }
     // tor also wants an IPv6 table once a country pin is in force, and warns
     // on every config change that it has none. Exit countries are decided by
     // a relay's IPv4 address alone (`node_set_country`), so the IPv4 table
@@ -1402,6 +1423,73 @@ class TorControllerPlugin: NSObject {
       }
       return words[0]
     }
+  }
+
+  /// The country codes an `ExitNodes` value names, lowercased. Nil when it
+  /// names anything but countries, since a count by country cannot speak
+  /// for a fingerprint or a nickname.
+  static func pinnedCountries(_ exitNodes: String) -> Set<String>? {
+    var out = Set<String>()
+    for item in exitNodes.split(separator: ",") {
+      let code = item.trimmingCharacters(in: .whitespaces)
+      guard code.count == 4, code.hasPrefix("{"), code.hasSuffix("}") else { return nil }
+      out.insert(code.dropFirst().dropLast().lowercased())
+    }
+    return out.isEmpty ? nil : out
+  }
+
+  /// IPv4 address of every relay a `GETINFO ns/all` value lists with the
+  /// Exit flag and without BadExit, which is what tor draws an exit from.
+  /// An `r` line ends `IP ORPort DirPort` in every flavour tor prints.
+  static func exitAddresses(fromNetworkStatus raw: String) -> [String] {
+    var out: [String] = []
+    var address: String?
+    for line in raw.components(separatedBy: .newlines) {
+      if line.hasPrefix("r ") {
+        let words = line.split(separator: " ")
+        let candidate = words.count >= 8 ? String(words[words.count - 3]) : ""
+        address = candidate.split(separator: ".").count == 4 ? candidate : nil
+      } else if line.hasPrefix("s "), let current = address {
+        let flags = Set(line.split(separator: " ").map(String.init))
+        if flags.contains("Exit") && !flags.contains("BadExit") {
+          out.append(current)
+        }
+        address = nil
+      }
+    }
+    return out
+  }
+
+  /// How many exits the consensus has in [countries], by tor's own GeoIP
+  /// table; at least 1 when there are some, as the count stops at the first.
+  /// Nil when tor did not answer well enough to count.
+  private static func exitCount(
+    in countries: Set<String>, controller: TorController
+  ) async -> Int? {
+    guard let raw = await readTwice(controller, ["ns/all"])?.first else { return nil }
+    let addresses = Array(Set(exitAddresses(fromNetworkStatus: raw)))
+    guard !addresses.isEmpty else { return nil }
+    for start in stride(from: 0, to: addresses.count, by: 256) {
+      let batch = Array(addresses[start..<min(start + 256, addresses.count)])
+      guard let codes = await readTwice(controller, batch.map { "ip-to-country/\($0)" }),
+            codes.count == batch.count
+      else { return nil }
+      let found = codes.filter { countries.contains($0.lowercased()) }.count
+      if found > 0 { return found }
+    }
+    return 0
+  }
+
+  /// [controlRead], asked again once when the answer came back empty, which
+  /// is Tor.framework handing the reply observer an unrelated event first.
+  /// A timeout is not asked again: the whole change has one deadline.
+  private static func readTwice(
+    _ controller: TorController, _ keys: [String]
+  ) async -> [String]? {
+    guard let first = await controlRead(controller, keys, within: kTorControlReplyTimeout)
+    else { return nil }
+    if !first.isEmpty { return first }
+    return await controlRead(controller, keys, within: kTorControlReplyTimeout)
   }
 
   /// Whether tor has an IPv4 GeoIP table loaded. Asked twice at most, for

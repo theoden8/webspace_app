@@ -109,6 +109,36 @@ class TorControlParsingTests: XCTestCase {
     XCTAssertEqual(TorControllerPlugin.exitCircuitIds(fromCircuitStatus: ""), [])
   }
 
+  func testExitAddressesFromNetworkStatus() {
+    // `GETINFO ns/all`: an `r` line per relay, then its flags. The control
+    // port prints the descriptor digest; a microdescriptor consensus has
+    // none, so the address is counted from the end of the line.
+    let status = [
+      "r ForPrivacyNET ADb6NqtDX9XQ9kBiZjaGfr+3LGg epP7Gxm+NYhwC3V7SPORQCPoVgc "
+        + "2022-11-18 00:01:48 185.220.101.33 10133 0",
+      "a [2a0b:f4c2:2::33]:10133",
+      "s Exit Fast Running V2Dir Valid",
+      "w Bandwidth=37000",
+      "r middle AAAA 2022-11-18 00:01:48 10.0.0.2 9001 0",
+      "s Fast Guard Running Stable Valid",
+      "r flagged BBBB CCCC 2022-11-18 00:01:48 10.0.0.3 9001 0",
+      "s BadExit Exit Fast Running Valid",
+      "r md DDDD 2022-11-18 00:01:48 10.0.0.4 443 0",
+      "s Exit Fast Running Valid",
+    ].joined(separator: "\r\n")
+    XCTAssertEqual(
+      TorControllerPlugin.exitAddresses(fromNetworkStatus: status),
+      ["185.220.101.33", "10.0.0.4"])
+  }
+
+  func testPinnedCountries() {
+    XCTAssertEqual(TorControllerPlugin.pinnedCountries("{br}"), ["br"])
+    XCTAssertEqual(TorControllerPlugin.pinnedCountries("{DE},{nl}"), ["de", "nl"])
+    // Anything but a country is not ours to count.
+    XCTAssertNil(TorControllerPlugin.pinnedCountries("{de},$ABCD"))
+    XCTAssertNil(TorControllerPlugin.pinnedCountries(""))
+  }
+
   func testExitPinTurnsConfluxOffAndClearingRestoresIt() {
     func settings(_ confs: [[AnyHashable: Any]]) -> [String: String] {
       var out: [String: String] = [:]
