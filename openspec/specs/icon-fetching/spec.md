@@ -195,9 +195,9 @@ Fetched icons SHALL be cached to avoid redundant network requests.
 
 On Android, the icon the site's own root webview reports through
 `WebChromeClient.onReceivedIcon` SHALL be preferred over every fetched
-candidate (ICON-002) while it is present, and no fetch SHALL run for the site
-while it is present. It is fetched by the webview itself, so it goes through
-the site's container and proxy and names no third party.
+candidate (ICON-002) while it is present, and no ICON-002 fetch SHALL run for
+the site while it is present. It is fetched by the webview itself, so it goes
+through the site's container and proxy and names no third party.
 
 The callback carries a bitmap and nothing else: no URL, no document. Chromium's
 WebView downloads every `rel=icon` candidate, so it fires once per candidate in
@@ -207,7 +207,8 @@ when all of these hold:
 
 - no main-frame load is in flight (Blink announces a document's icons only
   after its load event, so an icon arriving mid-load belongs to the document
-  being replaced);
+  being replaced); the load counts as finished at the top document's load
+  event or at `onLoadStop`, whichever reaches the app first (ICON-012);
 - the loaded document is http(s) and on the site's host, with a leading `www.`
   folded (sharing the registrable domain is not enough: a login bounce to
   `accounts.example.com` shows that host's icon, not the site's);
@@ -235,8 +236,9 @@ post-import and post-delete sweeps drop files for sites no longer kept on disk.
 
 WKWebView has no public API for a page's icon, and the SPI that has one
 (`_WKIconLoadingDelegate`) cannot ship through the App Store (guideline
-2.5.1), so iOS and macOS keep the ICON-002 sources. WPE WebKit has no favicon
-property either.
+2.5.1). WPE WebKit has no favicon property either. On iOS, macOS and Linux
+the app fetches the icon links the page declared instead (ICON-013), and the
+result is kept and preferred exactly as above.
 
 #### Scenario: Largest icon of the page wins
 
@@ -319,6 +321,118 @@ it on a later launch without the badge.
 
 ---
 
+### Requirement: ICON-012 - The Document's Load Event Ends the Load
+
+`onLoadStop` SHALL NOT be the only signal that a document has loaded. The
+icon-link watcher calls the frame-aware `wsIconDocumentLoaded` handler from
+inside the top document's load event, and `SiteIconEngine` treats it like
+`onLoadStop` for the document at the bridge's `requestUrl` (the page's
+arguments are not read). A subframe's call is ignored.
+
+Blink announces a document's icon candidates only once its load event has
+finished. On Android the bridge call is synchronous (`@JavascriptInterface`),
+so the signal is queued on the UI thread before the first icon download
+starts, while `onLoadStop` can reach the app after an icon that was served
+fast: before this, the emulator run dropped a 32px icon served without delay
+as belonging to the previous document. The ordering is pinned against Chrome's
+own favicon requests by `test/browser/icon_link_watcher_real.test.js`.
+
+#### Scenario: An icon served before onLoadStop counts
+
+**Given** a site page declares a 32px icon served at once and a 192px icon
+served 600ms later
+**When** the webview reports both
+**Then** the site's icon is the 32px one, then the 192px one
+
+#### Scenario: A subframe's load event opens nothing
+
+**Given** a main-frame load is in flight
+**When** a cross-origin iframe calls `wsIconDocumentLoaded`
+**Then** the engine still refuses icons until the top document has loaded
+
+---
+
+### Requirement: ICON-013 - Page Icon Where the Webview Reports None
+
+On iOS, macOS and Linux the app SHALL fetch the icon links the top document
+declared at load, and SHALL apply ICON-009's host, size and store rules and
+ICON-010's floor to them.
+
+- **What is fetched.** Right after the load event the watcher reports, through
+  the frame-aware `wsIconLinks` handler, the links Blink and WebKit take:
+  `rel=icon` links that are direct children of `<head>` (WebKit's
+  `LinkIconCollector` reads the same scope), `media` applied, `href`
+  resolved. With none, the document's icon is `/favicon.ico`.
+  `siteIconCandidates` keeps http(s) links and `data:image/` links up to 256
+  KiB, skips SVG (the ICON-002 path renders SVG with its colour checks) and
+  links whose declared `sizes` are all under the floor, upgrades an `http:`
+  link on an `https:` document to `https:`, puts declared sizes first,
+  largest first, and keeps at most 6.
+- **When.** `SiteIconEngine.claimIconLinks` allows one fetch per document, and
+  only when the document at the bridge's `requestUrl` is on the site's host
+  and not mid-load. A result that arrives after its document was replaced is
+  dropped. Links the page edits after load are never fetched (ICON-011); the
+  set it declared at load stays the site's icon even after the page badges
+  it.
+- **How.** Every request goes through the site's proxy and fails closed like
+  every other Dart-side fetch (LEAK-003). The page chooses the URL, so each
+  hop, the link and every redirect, must pass the site's DNS blocklist level
+  and content-blocker rules as an `image` request from the document, and the
+  private-range guard the user-script bridge uses (US-DR-007). The page's own
+  host is exempt from the range guard, so a site the user added on their LAN
+  gets its icon. A redirect may not drop from https to http; at most 3
+  redirects and 1 MiB are read.
+- **Decoding.** Flutter's codecs (PNG, ICO, JPEG, GIF, WebP, BMP). An image
+  over 1024px on an edge is not decoded; the largest usable one is scaled to
+  at most 192px, the limit Android WebView applies, and offered as PNG once
+  per document. Decoded results are cached per webview (24 entries) so the
+  pages of one site do not refetch the same icon; a failed request is tried
+  again by the next document.
+
+The request carries none of the site's cookies, so an icon served only to a
+signed-in user is not fetched. Fetching through
+`WKWebView.startDownload(using:)`, which uses the site's own data store, would
+close that and needs a fork change.
+
+#### Scenario: Largest declared icon, and nothing under the floor fetched
+
+**Given** a site page on macOS declares 16px, 32px and 192px icons with
+`sizes`
+**When** the page loads
+**Then** the site's icon is the 192px one
+**And** the app never requests the 16px link
+
+#### Scenario: A blocked icon host is not contacted
+
+**Given** a site whose DNS blocklist blocks `tracker.test`
+**And** its page declares `https://tracker.test/icon.png`
+**When** the page loads
+**Then** no request goes to `tracker.test`
+
+#### Scenario: A public page cannot point the app at the LAN
+
+**Given** a site on `https://example.com/`
+**And** its page declares `http://192.168.1.1/icon.png`, or a link that
+redirects there
+**When** the page loads
+**Then** no request goes to `192.168.1.1`
+
+#### Scenario: No icon links
+
+**Given** a site page that declares no icon
+**When** the page loads
+**Then** the app fetches the document's `/favicon.ico`
+**And** takes it when it is at least 32px
+
+#### Scenario: A badge after load starts no fetch
+
+**Given** a site page whose icon is `a.png`
+**When** a script swaps it for `badge.png` after load
+**Then** the site's icon stays `a.png`
+**And** `badge.png` is never requested by the app
+
+---
+
 ## Performance
 
 - **Before**: Users waited 10-15 seconds seeing a spinner
@@ -330,9 +444,10 @@ it on a later launch without the badge.
 
 ### Created
 - `lib/services/icon_service.dart` - Icon fetching service
-- `lib/services/site_icon_engine.dart` - Which webview-reported icon is the site's (ICON-009/010)
+- `lib/services/site_icon_engine.dart` - Which page icon is the site's, and which declared links to fetch (ICON-009/010/013)
 - `lib/services/site_icon_store.dart` - Memory + disk store for it
-- `lib/services/icon_link_watcher_shim.dart` - Reports icon-link edits after load (ICON-011)
+- `lib/services/icon_link_watcher_shim.dart` - Reports the load event, the announced icon links and later edits (ICON-011/012/013)
+- `lib/services/site_icon_fetcher.dart` - Fetches and decodes the declared links where the webview reports no icon (ICON-013)
 - `android/.../SiteIconPlugin.kt` - Turns on WebView favicon downloads
 
 ### Modified

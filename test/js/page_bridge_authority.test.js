@@ -203,6 +203,42 @@ test('ICON-011: only the top document can end its own icon round', () => {
     'a subframe must not be able to stop the site icon from updating');
 });
 
+test('ICON-012/013: only the top document reports its load and its icon links', () => {
+  const loaded = WEBVIEW.indexOf('handlerName: kIconDocumentLoadedHandler');
+  assert.notEqual(loaded, -1, 'the load handler registration is gone');
+  const loadedBody =
+    WEBVIEW.slice(loaded, WEBVIEW.indexOf('addJavaScriptHandler', loaded + 1));
+  assert.ok(loadedBody.includes('inapp.JavaScriptHandlerFunctionData call'),
+    'the load handler must use the frame-aware callback');
+  assert.ok(loadedBody.includes('if (call.isMainFrame) {'),
+    'a subframe load must not open the icon gate for the top document');
+  assert.ok(loadedBody.includes('iconEngine.onLoadFinished(call.requestUrl.toString())'),
+    'the document URL must come from the bridge, not from the page arguments');
+
+  const links = WEBVIEW.indexOf('handlerName: kIconLinksHandler');
+  assert.notEqual(links, -1, 'the icon-links handler registration is gone');
+  const linksBody =
+    WEBVIEW.slice(links, WEBVIEW.indexOf('addJavaScriptHandler', links + 1));
+  assert.ok(linksBody.includes('if (!call.isMainFrame) return null;'),
+    'a subframe must not choose what the app fetches as the site icon');
+  assert.ok(linksBody.includes('iconEngine.claimIconLinks(documentUrl)'),
+    'one fetch per document: a page reporting in a loop must not refetch');
+  assert.ok(linksBody.includes('final documentUrl = call.requestUrl.toString();'),
+    'the host check must use the bridge URL, which the page cannot forge');
+});
+
+test('ICON-013: page icon fetches go through the guarded fetch only', () => {
+  const at = WEBVIEW.indexOf('final iconFetcher = ');
+  assert.notEqual(at, -1, 'the icon fetcher is gone');
+  const body = WEBVIEW.slice(at, WEBVIEW.indexOf(';\n', WEBVIEW.indexOf('SiteIconFetcher(', at)));
+  assert.ok(body.includes('fetchPageIconBytes('),
+    'page icon links are page-chosen URLs: fetch them through the guarded path');
+  assert.ok(body.includes('proxy: config.proxySettings'),
+    "a page icon must go through the site's proxy");
+  assert.ok(body.includes('_pageIconRequestAllowed(config, target, documentUrl)'),
+    "the site's blockers must see every page icon request");
+});
+
 test('ICON-009: popups and the shared page scripts never report a site icon', () => {
   const build = WEBVIEW.indexOf('}) _buildPageScripts(WebViewConfig config) {');
   const buildBody = WEBVIEW.slice(build, WEBVIEW.indexOf('\n  }\n', build));

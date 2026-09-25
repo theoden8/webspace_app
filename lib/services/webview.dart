@@ -47,6 +47,7 @@ import 'package:webspace/services/user_agent_metadata_builder.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/icon_service.dart' show fetchPageIconBytes;
 import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/services/download_engine.dart';
@@ -59,6 +60,7 @@ import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/services/icon_link_watcher_shim.dart';
 import 'package:webspace/services/site_icon_engine.dart';
+import 'package:webspace/services/site_icon_fetcher.dart';
 import 'package:webspace/services/site_icon_native.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/location_spoof_service.dart';
@@ -440,6 +442,27 @@ HttpAuthSession _httpAuthSessionFor(WebViewConfig config) => HttpAuthSession(
       store: HttpAuthSecureStorage.instance,
       prompt: config.onHttpAuthRequest,
     );
+
+/// Whether the site's own blockers let a request for one of its page icons
+/// through: the DNS level and filter lists its webview applies to an image
+/// the page loads (ICON-013).
+bool _pageIconRequestAllowed(
+  WebViewConfig config,
+  Uri target,
+  String documentUrl,
+) {
+  final url = target.toString();
+  if (DnsBlockService.instance
+      .isBlockedAtLevel(url, config.effectiveDnsLevel)) {
+    return false;
+  }
+  return !(config.contentBlockEnabled &&
+      ContentBlockerService.instance.isBlocked(
+        url,
+        sourceUrl: documentUrl,
+        requestType: 'image',
+      ));
+}
 
 /// The identity a site presents to the proxy router (PROXY-013).
 ///
@@ -4055,6 +4078,19 @@ class WebViewFactory {
       ));
       unawaited(SiteIconNative.ensureEnabled());
     }
+    // Android's webview reports the page's icons itself (onReceivedIcon);
+    // elsewhere the app fetches the links the page declared (ICON-013).
+    final iconFetcher = iconEngine == null || hostIsAndroid
+        ? null
+        : SiteIconFetcher(
+            fetch: (url, documentUrl) => fetchPageIconBytes(
+              url,
+              documentHost: Uri.tryParse(documentUrl)?.host ?? '',
+              proxy: config.proxySettings,
+              allowed: (target) =>
+                  _pageIconRequestAllowed(config, target, documentUrl),
+            ),
+          );
     final zoomPlan = page.zoomPlan;
     final desktopMode = page.desktopMode;
     final userScriptService = page.userScriptService;
@@ -4438,15 +4474,48 @@ class WebViewFactory {
           sourceUrl: () => lastLoadStartUrl,
         );
         if (iconEngine != null) {
+          // Frame-aware, all three: Blink and WebKit take icons from the top
+          // document only, so a subframe has nothing to say about them.
+          controller.addJavaScriptHandler(
+            handlerName: kIconDocumentLoadedHandler,
+            callback: (inapp.JavaScriptHandlerFunctionData call) {
+              if (call.isMainFrame) {
+                iconEngine.onLoadFinished(call.requestUrl.toString());
+              }
+              return null;
+            },
+          );
           controller.addJavaScriptHandler(
             handlerName: kIconLinksChangedHandler,
-            // Frame-aware: Blink takes icons from the top document only, so a
-            // subframe has nothing to say about them.
             callback: (inapp.JavaScriptHandlerFunctionData call) {
               if (call.isMainFrame) iconEngine.onIconLinksChanged();
               return null;
             },
           );
+          if (iconFetcher != null) {
+            controller.addJavaScriptHandler(
+              handlerName: kIconLinksHandler,
+              callback: (inapp.JavaScriptHandlerFunctionData call) {
+                if (!call.isMainFrame) return null;
+                final documentUrl = call.requestUrl.toString();
+                final document = iconEngine.claimIconLinks(documentUrl);
+                if (document == null) return null;
+                final links = SiteIconLink.listFrom(
+                    call.args.isEmpty ? null : call.args.first);
+                final urls = siteIconCandidates(links, documentUrl);
+                unawaited(iconFetcher.best(urls, documentUrl).then((icon) {
+                  if (icon == null) return;
+                  final accepted = iconEngine.onLinkedIcon(document, icon.png);
+                  if (accepted != null) siteIcon!.onIcon(accepted);
+                }).catchError((Object e) {
+                  LogService.instance.log('Icon', 'Page icon fetch failed: $e',
+                      level: LogLevel.warning,
+                      sensitivity: LogSensitivity.sensitive);
+                }));
+                return null;
+              },
+            );
+          }
         }
         // Cached-HTML → live-URL swap is wired up in onLoadStop below.
         // Don't fire loadUrl here — `onWebViewCreated` runs while chromium

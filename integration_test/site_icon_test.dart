@@ -1,23 +1,27 @@
-// Site icon from the webview (ICON-009/010/011) against a real Android
-// System WebView.
+// Site icon from the webview (ICON-009 to ICON-013), end to end.
 //
-// `onReceivedIcon` exists only in Android WebView: Chromium's IconHelper
-// downloads every `rel=icon` candidate once `WebIconDatabase.open` has set
-// the process-wide flag, and hands each one over as a bare bitmap. That is
-// the path this pins, end to end: SiteIconPlugin.kt turns it on, the fork
+// Android: `onReceivedIcon` exists only in Android WebView. Chromium's
+// IconHelper downloads every `rel=icon` candidate once `WebIconDatabase.open`
+// has set the process-wide flag, and hands each one over as a bare bitmap.
+// That is the path this pins: SiteIconPlugin.kt turns it on, the fork
 // forwards the PNG, SiteIconEngine decides what the site's icon is, and the
-// icon-link watcher reports a page that swaps its icon after load. Which
-// requests Blink starts is also pinned against desktop Chrome by
+// icon-link watcher reports the document's load event (so an icon served
+// before `onLoadStop` still counts) and a page that swaps its icon after
+// load. Which requests Blink starts is also pinned against desktop Chrome by
 // test/browser/icon_link_watcher_real.test.js; which icon WebView delivers
 // can only be seen here.
+//
+// Elsewhere the webview reports no icon, and the app fetches the links the
+// watcher reports the page declared (ICON-013). The macOS integration job
+// runs this file for that path against WKWebView.
 //
 // Every icon is a solid colour, so the test reads back which one was taken
 // from its pixels rather than trusting its size alone. The fixture server
 // logs each request, which is how a negative case shows the icon was
 // downloaded (so the callback fired) and then refused.
 //
-// Android only; the desktop integration loops skip this file, and it runs
-// in the emulator job via scripts/run_android_site_icon_tests.sh.
+// The Linux loop skips this file for its step budget; the emulator job runs
+// it via scripts/run_android_site_icon_tests.sh.
 
 import 'dart:io';
 import 'dart:typed_data';
@@ -83,13 +87,19 @@ final Map<String, String> _pages = {
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
+  // The webview reports its own icons on Android only; elsewhere the app
+  // fetches the declared links.
+  final fetchPath = !Platform.isAndroid;
+  // A second host with no DNS involved. macOS configures only 127.0.0.1 on
+  // its loopback interface, so there the other name for it stands in.
+  final otherHost = Platform.isMacOS ? 'localhost' : '127.0.0.2';
+
   late HttpServer server;
   late int port;
   final requested = <String>[];
 
   setUpAll(() async {
-    // Any address, so the same server answers as 127.0.0.2: a second host
-    // with no DNS involved.
+    // Any address, so the same server answers as the other host.
     server = await HttpServer.bind(InternetAddress.anyIPv4, 0);
     port = server.port;
     listenFixture(server, (request) async {
@@ -108,7 +118,7 @@ void main() {
       } else if (path == '/redirect') {
         response
           ..statusCode = HttpStatus.found
-          ..headers.set('Location', 'http://127.0.0.2:$port/offsite');
+          ..headers.set('Location', 'http://$otherHost:$port/offsite');
       } else if (_pages[path] != null) {
         response
           ..headers.contentType = ContentType.html
@@ -200,6 +210,12 @@ void main() {
     requested.clear();
     final accepted = await mount(tester, '/multi',
         done: (a) => a.contains(expected('/multi/192.png')));
+    if (fetchPath) {
+      // Both usable links are fetched and only the best is offered; 16 is
+      // declared under the floor and never fetched.
+      expect(accepted, [expected('/multi/192.png')]);
+      return;
+    }
     expect(requested, contains('127.0.0.1/multi/16.png'),
         reason: 'WebView downloads every rel=icon candidate');
     // 32 lands first and is taken even when it beats onLoadStop: this is the
@@ -207,25 +223,33 @@ void main() {
     // replaces it; 16 lands last and is under the floor.
     expect(accepted,
         [expected('/multi/32.png'), expected('/multi/192.png')]);
-  }, skip: !Platform.isAndroid);
+  });
 
   testWidgets('ignores the badge a page swaps in after load', (tester) async {
     requested.clear();
     final accepted = await mount(tester, '/badge',
-        done: (a) => requested.contains('127.0.0.1/badge/b.png'));
-    expect(requested, contains('127.0.0.1/badge/b.png'),
-        reason: 'the swap never started a new icon round');
+        done: fetchPath
+            ? (a) => a.isNotEmpty
+            : (a) => requested.contains('127.0.0.1/badge/b.png'),
+        // The page swaps its icon 2.5s after load.
+        settle: const Duration(seconds: 5));
+    if (!fetchPath) {
+      expect(requested, contains('127.0.0.1/badge/b.png'),
+          reason: 'the swap never started a new icon round');
+    }
     expect(accepted, [expected('/badge/a.png')]);
-  }, skip: !Platform.isAndroid);
+  });
 
   testWidgets('takes nothing from a page on another host', (tester) async {
     requested.clear();
     final accepted = await mount(tester, '/redirect',
-        done: (_) => requested.contains('127.0.0.2/offsite.png'));
-    expect(requested, contains('127.0.0.2/offsite.png'),
-        reason: 'the other host never had its icon downloaded');
+        done: (_) => requested.contains(fetchPath
+            ? '$otherHost/offsite'
+            : '$otherHost/offsite.png'));
+    expect(requested, contains('$otherHost/offsite'),
+        reason: 'the redirect never reached the other host');
     expect(accepted, isEmpty);
-  }, skip: !Platform.isAndroid);
+  });
 
   testWidgets('takes /favicon.ico when the page declares no icon',
       (tester) async {
@@ -233,5 +257,5 @@ void main() {
     final accepted = await mount(tester, '/plain',
         done: (a) => a.isNotEmpty);
     expect(accepted, [expected('/favicon.ico')]);
-  }, skip: !Platform.isAndroid);
+  });
 }

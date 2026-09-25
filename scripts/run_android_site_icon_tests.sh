@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Android-emulator site-icon tier (ICON-009/010/011): which page icon a real
-# Android System WebView hands to `onReceivedIcon`, and which of those the
-# app takes, on the first connected device/emulator.
+# Android-emulator site-icon tier (ICON-009 to ICON-013): which page icon a
+# real Android System WebView hands to `onReceivedIcon`, and which of those
+# the app takes, on the first connected device/emulator.
 #
 # Only Android WebView has the callback, so no other tier reaches this path.
+# The macOS integration job runs the same file for the fetch path.
 #
 # Single entry point for the same reason as the white-screen tier:
 # reactivecircus/android-emulator-runner executes each script line as a
