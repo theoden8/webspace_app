@@ -1157,7 +1157,13 @@ jobs:
                 timeout -k 30s 12m fvm flutter test --no-pub "$t" -d linux || rc=$?
                 if [ $rc -ne 0 ]; then
                   status=$rc
-                  [ $rc -eq 124 ] && echo "::error::$t killed after 12m wall-clock cap (possible native deadlock)"
+                  if [ $rc -eq 124 ]; then
+                    echo "::error::$t killed after 12m wall-clock cap (possible native deadlock)"
+                  else
+                    # A run can report every test passed and still exit
+                    # nonzero, so name the file or the job fails anonymously.
+                    echo "::error::$t exited $rc"
+                  fi
                 fi
                 echo "::endgroup::"
               done
