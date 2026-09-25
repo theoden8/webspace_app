@@ -174,6 +174,9 @@ void main() {
         navigatorKey: navigator,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
+        // The Linux container has no LANG, so resolution would fall back to
+        // the first supported locale (af) and the English finders would miss.
+        locale: const Locale('en'),
         home: Scaffold(
           body: Center(
             child: SizedBox(
