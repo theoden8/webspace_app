@@ -565,6 +565,34 @@ void main() {
       await e.dispose();
     });
 
+    test('a pin to a country with no exit is the country\'s failure, and a '
+        'Retry counts again', () async {
+      // TOR-014. The pin is in force and tor builds no circuit under it; the
+      // card has to name the country as the problem, not the control port.
+      final e = build();
+      await e.acquire('a1');
+      runtime.bootstrapTo(9999);
+      await pumpEventQueue();
+
+      runtime.exitCountryError =
+          const TorExitCountryEmpty('tor lists no exit relay in BR');
+      await e.setExitCountry('{br}');
+      final status = e.status;
+      expect(status, isA<TorErrored>());
+      expect((status as TorErrored).kind, TorFailureKind.exitPolicy);
+      expect(status.message, 'tor lists no exit relay in BR',
+          reason: 'it applied, so it must not read as "could not apply"');
+      expect(e.socksFor('a1'), isNull,
+          reason: 'a site pinned where no exit is must not get a route');
+
+      runtime.exitCountryError = null;
+      await e.restart();
+      expect(runtime.appliedExitNodes, ['{br}'],
+          reason: 'a Retry re-applies the pin, which counts the exits again');
+      expect(e.status, isA<TorUp>());
+      await e.dispose();
+    });
+
     test('a restart re-applies the pin to the instance that comes back', () {
       // A restart cannot assume the pin survived: whatever tor answers, the
       // SETCONF that carried it belonged to the run that failed.
