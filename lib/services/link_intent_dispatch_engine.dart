@@ -7,6 +7,9 @@
 library;
 
 import 'package:webspace/services/link_routing_service.dart';
+import 'package:webspace/services/navigation_decision_engine.dart'
+    show NavigationDecision;
+import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/web_view_model.dart' show getBaseDomain, getNormalizedDomain;
 
 /// What the OS handed us. `webspace://open?url=...` URLs are unwrapped to
@@ -89,11 +92,38 @@ class DispatchOpenInMain extends DispatchAction {
 
 /// Open [url] in a nested in-app webview carrying the chosen site's
 /// privacy settings. Used for cross-domain shares (LIR-011) so a site's
-/// main session is not clobbered.
+/// main session is not clobbered, and for outbound routing (LIR-015).
 class DispatchOpenNested extends DispatchAction {
   final String siteId;
   final String url;
-  const DispatchOpenNested({required this.siteId, required this.url});
+
+  /// The screen opens over a site the user is browsing (outbound routing),
+  /// so the executor leaves the webspace alone rather than switching to one
+  /// that shows [siteId].
+  final bool sourceIsParent;
+
+  const DispatchOpenNested({
+    required this.siteId,
+    required this.url,
+    this.sourceIsParent = false,
+  });
+}
+
+/// What the navigation engine had decided for an outbound link before
+/// routing looked at it.
+enum OutboundFallback { nested, external }
+
+/// Outbound routing named no destination for a `blockOpenNested` decision:
+/// open the nested screen with the source's own posture, as without routing.
+class DispatchNestedFallback extends DispatchAction {
+  const DispatchNestedFallback();
+}
+
+/// Outbound routing named no destination for a `blockOpenExternal`
+/// decision: hand [url] to the system browser, as without routing.
+class DispatchOpenExternal extends DispatchAction {
+  final String url;
+  const DispatchOpenExternal(this.url);
 }
 
 /// Create a brand-new site rooted at [home] (the stripped path) with
@@ -130,10 +160,20 @@ class DispatchShowPicker extends DispatchAction {
   final List<String> winnerSiteIds;
   final bool offerBind;
   final bool offerCreate;
+
+  /// Set for an outbound picker (LIR-016): the site whose link is being
+  /// routed. It gets the remember checkbox and an "Open without routing" row.
+  final String? source;
+
+  /// What "Open without routing" does; set whenever [source] is.
+  final OutboundFallback? fallback;
+
   const DispatchShowPicker({
     required this.winnerSiteIds,
     required this.offerBind,
     required this.offerCreate,
+    this.source,
+    this.fallback,
   });
 }
 
@@ -190,6 +230,154 @@ class LinkIntentDispatchEngine {
       offerBind: sites.isNotEmpty,
       offerCreate: LinkRoutingService.strippedHomeUrl(target) != null,
     );
+  }
+
+  /// Whether routing takes a link [source]'s own webview is about to launch
+  /// under [decision] (LIR-014). Null means it does not, and the webview's
+  /// own launch runs: routing is off for the source, the experimental
+  /// feature is off (DEVTOOLS-011), the kiosk shell is locked (KIOSK-002),
+  /// the decision is
+  /// not a nested or external launch, or [dispatchOutbound] names no
+  /// destination. [candidates] is read only once the cheap gates pass.
+  static DispatchAction? routeOutbound({
+    required String url,
+    required NavigationDecision decision,
+    required bool routeOutboundLinks,
+    required bool experimentEnabled,
+    required bool kioskLocked,
+    required bool hadGesture,
+    required bool containersActive,
+    required DispatchableSite source,
+    required List<OutboundPreference> sourcePrefs,
+    required List<DispatchableSite> Function() candidates,
+  }) {
+    if (!routeOutboundLinks || !experimentEnabled || kioskLocked) return null;
+    final fallback = switch (decision) {
+      NavigationDecision.blockOpenNested => OutboundFallback.nested,
+      NavigationDecision.blockOpenExternal => OutboundFallback.external,
+      _ => null,
+    };
+    if (fallback == null) return null;
+    final target = Uri.tryParse(url);
+    if (target == null) return null;
+    final action = dispatchOutbound(
+      targetUrl: target,
+      source: source,
+      sourcePrefs: sourcePrefs,
+      candidates: candidates(),
+      fallback: fallback,
+      hadGesture: hadGesture,
+      containersActive: containersActive,
+    );
+    return switch (action) {
+      DispatchNestedFallback() || DispatchOpenExternal() => null,
+      _ => action,
+    };
+  }
+
+  /// A link the source site opens, which the navigation engine decided to
+  /// nest or send to the system browser (LIR-014, LIR-015). The caller has
+  /// already checked `routeOutboundLinks`. Routing needs a gesture and the
+  /// container engine; without either, or when nothing but the source claims
+  /// the link, the navigation engine's decision stands.
+  static DispatchAction dispatchOutbound({
+    required Uri targetUrl,
+    required DispatchableSite source,
+    required List<OutboundPreference> sourcePrefs,
+    required List<DispatchableSite> candidates,
+    required OutboundFallback fallback,
+    required bool hadGesture,
+    required bool containersActive,
+  }) {
+    final unrouted = unroutedOutbound(url: targetUrl, fallback: fallback);
+    if (!hadGesture || !containersActive) return unrouted;
+    final resolution = LinkRoutingService.resolveOutbound(
+      targetUrl,
+      source.siteId,
+      sourcePrefs,
+      candidates,
+    );
+    switch (resolution) {
+      case OutboundByPreference(:final site):
+      case OutboundByClaims(match: RoutingSingle(:final site)):
+        return openOutbound(url: targetUrl, site: site);
+      case OutboundByClaims(match: RoutingAmbiguous(:final sites)):
+        return DispatchShowPicker(
+          winnerSiteIds:
+              sites.map((s) => s.siteId).toList(growable: false),
+          offerBind: false,
+          offerCreate: false,
+          source: source.siteId,
+          fallback: fallback,
+        );
+      case OutboundByClaims(match: RoutingNone()):
+      case OutboundSelfMatch():
+        return unrouted;
+    }
+  }
+
+  /// What an outbound link does when routing names no destination, or the
+  /// user picks "Open without routing": the navigation engine's own decision.
+  static DispatchAction unroutedOutbound({
+    required Uri url,
+    required OutboundFallback fallback,
+  }) =>
+      switch (fallback) {
+        OutboundFallback.nested => const DispatchNestedFallback(),
+        OutboundFallback.external => DispatchOpenExternal(url.toString()),
+      };
+
+  /// A routed outbound link, or the user's pick from the outbound picker: a
+  /// nested screen with [site]'s posture over the source, never a webspace
+  /// switch and never the destination's main webview (LIR-015).
+  static DispatchOpenNested openOutbound({
+    required Uri url,
+    required RoutableSite site,
+  }) =>
+      DispatchOpenNested(
+        siteId: site.siteId,
+        url: url.toString(),
+        sourceIsParent: true,
+      );
+
+  /// The user picked [site] in the outbound picker (LIR-016): the routed
+  /// open, and with [remember] the source's preference list grown by
+  /// [preferencesToRemember]. `preferences` is null when the list does not
+  /// change, so the caller persists only on a change.
+  static ({List<OutboundPreference>? preferences, DispatchOpenNested action})
+      pickOutbound({
+    required Uri url,
+    required RoutableSite site,
+    required bool remember,
+    required List<OutboundPreference> existing,
+  }) {
+    final additions = remember
+        ? preferencesToRemember(
+            url: url,
+            targetSiteId: site.siteId,
+            existing: existing,
+          )
+        : const <OutboundPreference>[];
+    return (
+      preferences: additions.isEmpty ? null : [...existing, ...additions],
+      action: openOutbound(url: url, site: site),
+    );
+  }
+
+  /// The preferences a remembered outbound pick adds to the source
+  /// (LIR-016): one per claim of [url] the source does not hold yet, whatever
+  /// that claim's current target.
+  static List<OutboundPreference> preferencesToRemember({
+    required Uri url,
+    required String targetSiteId,
+    required List<OutboundPreference> existing,
+  }) {
+    final held = {for (final p in existing) p.claim};
+    return [
+      for (final claim in LinkRoutingService.claimsToAdoptUrl(url))
+        if (held.add(claim))
+          OutboundPreference(claim: claim, targetSiteId: targetSiteId),
+    ];
   }
 
   /// User picked an "Open in [site]" row from the picker.

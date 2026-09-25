@@ -99,6 +99,10 @@ import 'package:webspace/services/media_session_service.dart';
 import 'package:webspace/services/share_intent_service.dart';
 import 'package:webspace/services/link_routing_service.dart';
 import 'package:webspace/services/link_intent_dispatch_engine.dart';
+import 'package:webspace/services/navigation_decision_engine.dart' show NavigationDecision;
+import 'package:webspace/services/nested_open_engine.dart';
+import 'package:webspace/services/outbound_preference.dart';
+import 'package:webspace/widgets/dispatch_picker_sheet.dart';
 import 'package:webspace/screens/link_handling_settings.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
@@ -1436,6 +1440,9 @@ class _WebSpacePageState extends State<WebSpacePage>
             otherSites: _webViewModels
                 .where((m) => m.siteId != model.siteId)
                 .toList(growable: false),
+            routingTargets: _outboundCandidates(model)
+                .where((m) => m.siteId != model.siteId)
+                .toList(growable: false),
             useContainers: _useContainers,
             notificationsBlockedBySite: _notificationsBlockedBySite(model),
             globalUserScripts: _globalUserScripts,
@@ -2720,17 +2727,23 @@ class _WebSpacePageState extends State<WebSpacePage>
           if (clearInMemoryCookies) 'clearCookies',
         ].join(',');
         return 'OpenInMain(siteId=$siteId, url=$url${flags.isEmpty ? '' : ', $flags'})';
-      case DispatchOpenNested(:final siteId, :final url):
-        return 'OpenNested(siteId=$siteId, url=$url)';
+      case DispatchOpenNested(:final siteId, :final url, :final sourceIsParent):
+        return 'OpenNested(siteId=$siteId, url=$url'
+            '${sourceIsParent ? ', overSource' : ''})';
+      case DispatchNestedFallback():
+        return 'NestedFallback';
+      case DispatchOpenExternal():
+        return 'OpenExternal';
       case DispatchCreateSite(:final home, :final fullUrl):
         return 'CreateSite(home=$home, fullUrl=$fullUrl)';
       case DispatchCreateSiteFromHtml(:final suggestedTitle):
         return 'CreateSiteFromHtml(title=$suggestedTitle)';
       case DispatchBindAndOpen(:final chosenSiteId, :final claimAdditions):
         return 'BindAndOpen(siteId=$chosenSiteId, +${claimAdditions.length} claims)';
-      case DispatchShowPicker(:final winnerSiteIds, :final offerBind, :final offerCreate):
+      case DispatchShowPicker(:final winnerSiteIds, :final offerBind, :final offerCreate, :final source):
         return 'ShowPicker(winners=${winnerSiteIds.length}, '
-            'bind=$offerBind, create=$offerCreate)';
+            'bind=$offerBind, create=$offerCreate'
+            '${source != null ? ', outbound' : ''})';
     }
   }
 
@@ -2758,6 +2771,165 @@ class _WebSpacePageState extends State<WebSpacePage>
       case DispatchShowPicker():
         if (inboundUri == null) return;
         await _showDispatchPicker(action, inboundUri);
+      case DispatchNestedFallback():
+      case DispatchOpenExternal():
+        // Outbound only: `_executeOutboundDispatch` runs these with the source.
+        LogService.instance.log(
+          'LinkIntent',
+          'outbound-only action on the inbound path: '
+              '${_describeDispatchAction(action)}',
+          level: LogLevel.warning,
+        );
+    }
+  }
+
+  /// The sites a link from [source] may route to (LIR-014): its own side of
+  /// the archive boundary, which for an archive-tier source is the archive
+  /// it belongs to.
+  List<WebViewModel> _outboundCandidates(WebViewModel source) =>
+      OutboundBoundary.candidatesOf(
+        source,
+        _webViewModels,
+        isArchiveTier: (m) => m.isArchiveTier,
+        archiveOf: _archiveOf,
+      );
+
+  ArchiveHandle? _archiveOf(WebViewModel m) => _archiveSlices.entries
+      .where((e) => e.value.siteIds.contains(m.siteId))
+      .firstOrNull
+      ?.key;
+
+  /// LIR-017: drop every outbound preference whose target is no longer a
+  /// candidate of its source. True when any site's list changed; the caller
+  /// persists.
+  bool _pruneOutboundPreferences() =>
+      OutboundPreferenceGc.pruneAcrossBoundary<WebViewModel>(
+        _webViewModels,
+        siteIdOf: (m) => m.siteId,
+        isArchiveTier: (m) => m.isArchiveTier,
+        archiveOf: _archiveOf,
+        prefsOf: (m) => m.outboundPreferences,
+        setPrefs: (m, prefs) => m.outboundPreferences = prefs,
+      );
+
+  /// [source]'s hook into its own webview's navigation (LIR-014).
+  OutboundLinkHandler _outboundLinkHookFor(WebViewModel source) =>
+      (url, decision, hadGesture) =>
+          _routeOutboundLink(source, url, decision, hadGesture);
+
+  /// [source]'s webview is about to nest [url] or hand it to the system
+  /// browser. True when routing took the link over, so the webview must not
+  /// also launch it.
+  bool _routeOutboundLink(
+    WebViewModel source,
+    String url,
+    NavigationDecision decision,
+    bool hadGesture,
+  ) {
+    if (!mounted) return false;
+    final action = LinkIntentDispatchEngine.routeOutbound(
+      url: url,
+      decision: decision,
+      routeOutboundLinks: source.routeOutboundLinks,
+      experimentEnabled: ExperimentalFeaturesService.instance
+          .isEnabled(ExperimentalFeature.linkRouting),
+      kioskLocked: _kioskLocked,
+      hadGesture: hadGesture,
+      containersActive: _useContainers,
+      source: _SiteRouteAdapter(source),
+      sourcePrefs: source.outboundPreferences,
+      candidates: () => [
+        for (final m in _outboundCandidates(source)) _SiteRouteAdapter(m),
+      ],
+    );
+    if (action == null) return false;
+    LogService.instance.log(
+      'LinkIntent',
+      'outbound $url from ${source.siteId} -> ${_describeDispatchAction(action)}',
+      sensitivity: LogSensitivity.sensitive,
+    );
+    unawaited(_executeOutboundDispatch(source, action, Uri.parse(url)));
+    return true;
+  }
+
+  Future<void> _executeOutboundDispatch(
+    WebViewModel source,
+    DispatchAction action,
+    Uri url,
+  ) async {
+    switch (action) {
+      case DispatchOpenNested():
+        await _executeOpenNested(action, source: source);
+      case DispatchShowPicker():
+        await _showOutboundPicker(source, action, url);
+      case DispatchNestedFallback():
+        await _launchNestedForModel(source, url.toString());
+      case DispatchOpenExternal(:final url):
+        await launchUrlInSystemBrowser(url);
+      default:
+        LogService.instance.log(
+          'LinkIntent',
+          'inbound-only action on the outbound path: '
+              '${_describeDispatchAction(action)}',
+          level: LogLevel.warning,
+        );
+    }
+  }
+
+  /// LIR-016: the picker for a link [source] opens that several sites claim.
+  Future<void> _showOutboundPicker(
+    WebViewModel source,
+    DispatchShowPicker action,
+    Uri url,
+  ) async {
+    final winners = [
+      for (final m in _outboundCandidates(source))
+        if (action.winnerSiteIds.contains(m.siteId)) m,
+    ];
+    if (!mounted) return;
+    final choice = await showModalBottomSheet<DispatchChoice>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) => DispatchPickerSheet(
+        url: url,
+        winners: winners,
+        otherSites: const [],
+        canBind: false,
+        canCreate: false,
+        claimDomains: false,
+        outboundSourceName: source.getDisplayName(),
+      ),
+    );
+    if (!mounted || choice == null) return;
+    switch (choice) {
+      case DispatchChoiceOpen(:final site, :final remember):
+        final pick = LinkIntentDispatchEngine.pickOutbound(
+          url: url,
+          site: _SiteRouteAdapter(site),
+          remember: remember,
+          existing: source.outboundPreferences,
+        );
+        if (pick.preferences case final preferences?) {
+          source.outboundPreferences = preferences;
+          await _saveWebViewModels();
+          if (!mounted) return;
+        }
+        await _executeOpenNested(pick.action, source: source);
+      case DispatchChoiceFallback():
+        final fallback = action.fallback;
+        if (fallback == null) return;
+        await _executeOutboundDispatch(
+          source,
+          LinkIntentDispatchEngine.unroutedOutbound(
+            url: url,
+            fallback: fallback,
+          ),
+          url,
+        );
+      case DispatchChoiceBind():
+      case DispatchChoiceCreate():
+        return;
     }
   }
 
@@ -2774,14 +2946,15 @@ class _WebSpacePageState extends State<WebSpacePage>
         .where((m) => !action.winnerSiteIds.contains(m.siteId))
         .toList(growable: false);
     if (!mounted) return;
-    final choice = await showModalBottomSheet<_DispatchChoice>(
+    final choice = await showModalBottomSheet<DispatchChoice>(
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
-      builder: (ctx) => _DispatchPickerSheet(
+      builder: (ctx) => DispatchPickerSheet(
         url: inbound,
         winners: winners,
         otherSites: others,
+        canBind: action.offerBind,
         canCreate: action.offerCreate,
         claimDomains: _linkHandlingClaimDomains,
       ),
@@ -2789,20 +2962,22 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (!mounted || choice == null) return;
     final DispatchAction followUp;
     switch (choice) {
-      case _DispatchChoiceOpen(:final site):
+      case DispatchChoiceOpen(:final site):
         followUp = LinkIntentDispatchEngine.openInChosen(
           inbound: inbound,
           site: _SiteRouteAdapter(site),
         );
-      case _DispatchChoiceBind(:final site):
+      case DispatchChoiceBind(:final site):
         followUp = LinkIntentDispatchEngine.sendToSite(
           inbound: inbound,
           site: _SiteRouteAdapter(site),
           claimDomain: _linkHandlingClaimDomains,
         );
-      case _DispatchChoiceCreate():
+      case DispatchChoiceCreate():
         followUp =
             LinkIntentDispatchEngine.createNew(inbound: inbound);
+      case DispatchChoiceFallback():
+        return;
     }
     await _executeDispatchAction(followUp, inbound);
   }
@@ -2853,6 +3028,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       _containerCookieManager,
       _saveWebViewModels,
       globalUserScripts: _globalUserScripts,
+      onOutboundLink: _outboundLinkHookFor(model),
     );
     if (controller == null) {
       LogService.instance.log(
@@ -2873,62 +3049,21 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   /// LIR-011: open as a nested webview using the chosen site's settings.
-  Future<void> _executeOpenNested(DispatchOpenNested a) async {
+  /// LIR-015: a routed outbound link opens the same way over [source], the
+  /// site it came from. The ordering lives in [NestedOpenEngine].
+  Future<void> _executeOpenNested(
+    DispatchOpenNested a, {
+    WebViewModel? source,
+  }) async {
     final index =
         _webViewModels.indexWhere((m) => m.siteId == a.siteId);
     if (index < 0) return;
-    final model = _webViewModels[index];
-    await _maybeSwitchToAllForSite(model, index);
-    if (!mounted) return;
-    // Android/Linux: the proxy is a process-global override that only the
-    // activation path flips. The nested screen is for a site that is not
-    // being activated, so run the PROXY-008 sequence here or it would load
-    // through whatever the active site left behind, bound to this site's
-    // container (LEAK-003). Fail closed when the override cannot be applied.
-    //
-    // Under router mode there is nothing to flip: the rule points at the
-    // relay for every site and the nested screen presents this site's own
-    // credential, so `setProxySettings` no-ops and the eviction would only
-    // cold-start the siblings PROXY-013 exists to keep loaded. Same gating
-    // as the activation path, or a share intent quietly reserialises the app.
-    if (hostIsAndroid || hostIsLinux) {
-      final mismatch = SiteUnloadEngine.indicesToUnloadForProxyMismatch(
-        targetIndex: index,
-        models: _webViewModels,
-        loadedIndices: _loadedIndices,
-        proxyIsGlobal:
-            (hostIsAndroid && !ProxyRouterService.instance.isActive) ||
-                hostIsLinux,
-        sharesDefaultSession: ProxyRouterService.instance.isActive
-            ? (m) => !_ownsContainerProfile(m)
-            : null,
-      );
-      for (final i in mismatch) {
-        await _unloadSiteForOtherReason(i);
-        if (!mounted) return;
-      }
-      try {
-        await ProxyManager().setProxySettings(model.proxySettings);
-      } catch (e) {
-        LogService.instance.log(
-          'Proxy',
-          'Nested open refused: proxy apply failed: $e',
-          level: LogLevel.error,
-          sensitivity: LogSensitivity.sensitive,
-        );
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              AppLocalizations.of(context).siteSettingsProxyError('$e'),
-            ),
-          ),
-        );
-        return;
-      }
-      if (!mounted) return;
-    }
-    await _launchNestedForModel(model, a.url);
+    await NestedOpenEngine.run<WebViewModel>(
+      _NestedOpenHost(this),
+      target: _webViewModels[index],
+      url: a.url,
+      source: a.sourceIsParent ? source : null,
+    );
   }
 
   /// The one place a nested screen opens for an existing site from this
@@ -3008,6 +3143,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       _containerCookieManager,
       _saveWebViewModels,
       globalUserScripts: _globalUserScripts,
+      onOutboundLink: _outboundLinkHookFor(model),
     );
     if (controller != null && a.fullUrl != a.home) {
       await controller.loadUrl(a.fullUrl, language: model.language);
@@ -3673,11 +3809,13 @@ class _WebSpacePageState extends State<WebSpacePage>
     }
 
     // Track ownership for the close-archive flow.
+    _archiveSlices[target]!.siteIds.add(model.siteId);
+    _archiveSlices[target]!.containerIds.add(model.archiveContainerId!);
+    // Before the snapshot below, so the archived copy names no app-tier site.
+    _pruneOutboundPreferences();
     target.state.sites.add(model.toJson());
     target.state.cookies[model.siteId] =
         capturedCookies.map((c) => c.toJson()).toList();
-    _archiveSlices[target]!.siteIds.add(model.siteId);
-    _archiveSlices[target]!.containerIds.add(model.archiveContainerId!);
     // Remember which app-tier collections the site came from inside the
     // archive; the runtime lists keep it while the archive is open and
     // `_saveWebspaces` strips it from the persisted form (ARCH-001).
@@ -3742,6 +3880,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     model.isArchiveTier = false;
     model.archiveContainerId = null;
     model.cookies = capturedCookies;
+    _pruneOutboundPreferences();
 
     await _saveWebViewModels();
     await _saveWebspaces();
@@ -5009,6 +5148,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       setState(() {
         _webViewModels.addAll(loadedWebViewModels);
       });
+      _pruneOutboundPreferences();
 
       // NOTE: We don't restore cookies to CookieManager here anymore.
       // Cookies are restored per-site via _restoreCookiesForSite() when
@@ -6882,7 +7022,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     if(_currentIndex == null) {
       return null;
     }
-    return _webViewModels[_currentIndex!].getController(launchUrl, _cookieManager, _containerCookieManager, _saveWebViewModels, globalUserScripts: _globalUserScripts);
+    final model = _webViewModels[_currentIndex!];
+    return model.getController(launchUrl, _cookieManager, _containerCookieManager, _saveWebViewModels, globalUserScripts: _globalUserScripts, onOutboundLink: _outboundLinkHookFor(model));
   }
 
   void _openDrawerFromBackGesture(ScaffoldState? scaffoldState) {
@@ -7836,7 +7977,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                 await _launchNestedForModel(model, url);
                 return;
               }
-              final controller = model.getController(launchUrl, _cookieManager, _containerCookieManager, _saveWebViewModels, globalUserScripts: _globalUserScripts);
+              final controller = model.getController(launchUrl, _cookieManager, _containerCookieManager, _saveWebViewModels, globalUserScripts: _globalUserScripts, onOutboundLink: _outboundLinkHookFor(model));
               if (controller != null) {
                 await controller.loadUrl(url, language: model.language);
                 if (!mounted) return;
@@ -8751,6 +8892,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       }
       _resolveWebspaceIndices();
     });
+    _pruneOutboundPreferences();
     if (wasCurrentIndex) {
       await _setCurrentIndex(null);
       if (!mounted) return;
@@ -9406,6 +9548,8 @@ class _WebSpacePageState extends State<WebSpacePage>
                                   },
                                   onOpenProxySettings: () =>
                                       _openSiteSettingsById(webViewModel.siteId),
+                                  onOutboundLink:
+                                      _outboundLinkHookFor(webViewModel),
                                   language: webViewModel.language,
                                   globalUserScripts: _globalUserScripts,
                                   // file:// imports are user data (only copy on device), not
@@ -9866,6 +10010,87 @@ class _SiteRouteAdapter implements DispatchableSite {
   String get navigationDomain => getNormalizedDomain(model.initUrl);
 }
 
+/// Binds [NestedOpenEngine] to the page state.
+class _NestedOpenHost implements NestedOpenHost<WebViewModel> {
+  final _WebSpacePageState state;
+  const _NestedOpenHost(this.state);
+
+  @override
+  bool get mounted => state.mounted;
+
+  // Android/Linux: the proxy is a process-global override that only the
+  // activation path flips. The nested screen is for a site that is not
+  // being activated, so the PROXY-008 sequence runs for it here or it would
+  // load through whatever the active site left behind, bound to this site's
+  // container (LEAK-003).
+  //
+  // Under router mode the eviction set is computed router-aware below: the
+  // rule points at the relay for every site and the nested screen presents
+  // this site's own credential, so `setProxySettings` no-ops and evicting
+  // siblings would only cold-start what PROXY-013 keeps loaded.
+  @override
+  bool get proxyIsProcessGlobal => hostIsAndroid || hostIsLinux;
+
+  @override
+  int indexOf(WebViewModel site) => state._webViewModels.indexOf(site);
+
+  @override
+  int? get currentIndex => state._currentIndex;
+
+  @override
+  Future<void> switchWebspaceFor(WebViewModel target) async {
+    final index = state._webViewModels.indexOf(target);
+    if (index < 0) return;
+    await state._maybeSwitchToAllForSite(target, index);
+  }
+
+  @override
+  Set<int> mismatchedWith(WebViewModel target) =>
+      SiteUnloadEngine.indicesToUnloadForProxyMismatch(
+        targetIndex: state._webViewModels.indexOf(target),
+        models: state._webViewModels,
+        loadedIndices: state._loadedIndices,
+        proxyIsGlobal:
+            (hostIsAndroid && !ProxyRouterService.instance.isActive) ||
+                hostIsLinux,
+        sharesDefaultSession: ProxyRouterService.instance.isActive
+            ? (m) => !state._ownsContainerProfile(m)
+            : null,
+      );
+
+  @override
+  Future<void> unload(int index) => state._unloadSiteForOtherReason(index);
+
+  @override
+  Future<void> applyProxyOf(WebViewModel target) =>
+      ProxyManager().setProxySettings(target.proxySettings);
+
+  @override
+  void reportProxyFailure(Object error) {
+    LogService.instance.log(
+      'Proxy',
+      'Nested open refused: proxy apply failed: $error',
+      level: LogLevel.error,
+      sensitivity: LogSensitivity.sensitive,
+    );
+    if (!state.mounted) return;
+    ScaffoldMessenger.of(state.context).showSnackBar(
+      SnackBar(
+        content: Text(
+          AppLocalizations.of(state.context).siteSettingsProxyError('$error'),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Future<void> launchNested(WebViewModel target, String url) =>
+      state._launchNestedForModel(target, url);
+
+  @override
+  Future<void> activate(int index) => state._setCurrentIndex(index);
+}
+
 /// Binds [OrphanSweepEngine]'s targets to the concrete storage services.
 /// Kept out of `_WebSpacePageState` so the sweep's ordering and its
 /// container-mode carve-out stay unit-testable against fakes.
@@ -9904,198 +10129,4 @@ class _OrphanSweepTargets implements OrphanSweepTargets {
   @override
   Future<void> clearLegacyGlobalCookieJar() =>
       state._cookieManager.deleteAllCookies();
-}
-
-sealed class _DispatchChoice {
-  const _DispatchChoice();
-}
-
-class _DispatchChoiceOpen extends _DispatchChoice {
-  final WebViewModel site;
-  const _DispatchChoiceOpen(this.site);
-}
-
-class _DispatchChoiceBind extends _DispatchChoice {
-  final WebViewModel site;
-  const _DispatchChoiceBind(this.site);
-}
-
-class _DispatchChoiceCreate extends _DispatchChoice {
-  const _DispatchChoiceCreate();
-}
-
-/// LIR-010 dispatch picker: shown when the resolver does not deliver a
-/// unique winner. Lists each resolver winner ("router default" rows), an
-/// option to bind the URL's host to an existing site (mutates that site's
-/// `domainClaims` via `claimsToAdoptHost`), and an option to create a new
-/// site with the path stripped to `<scheme>://<host>[:port]/`.
-class _DispatchPickerSheet extends StatefulWidget {
-  final Uri url;
-  final List<WebViewModel> winners;
-  final List<WebViewModel> otherSites;
-  final bool canCreate;
-
-  /// Whether picking a site should claim the URL's domain for future routing
-  /// (LIR-010 option 2) or merely open the link there (discussion #439,
-  /// default). Drives only the row labels here; the actual claim/no-claim
-  /// decision is applied by the host via `LinkIntentDispatchEngine.sendToSite`.
-  final bool claimDomains;
-
-  const _DispatchPickerSheet({
-    required this.url,
-    required this.winners,
-    required this.otherSites,
-    required this.canCreate,
-    required this.claimDomains,
-  });
-
-  @override
-  State<_DispatchPickerSheet> createState() => _DispatchPickerSheetState();
-}
-
-class _DispatchPickerSheetState extends State<_DispatchPickerSheet> {
-  bool _bindMode = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final loc = AppLocalizations.of(context);
-    final host = widget.url.host;
-    final urlText = widget.url.toString();
-    final allSites = [...widget.winners, ...widget.otherSites];
-    final rows = _bindMode ? _buildBindRows(allSites) : _buildPrimaryRows();
-    return SafeArea(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.75,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Text(
-                  _bindMode && widget.claimDomains
-                      ? loc.homeDispatchSendToWhichSite(host)
-                      : loc.homeDispatchOpenHost(host),
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
-              Text(
-                urlText,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              const SizedBox(height: 12),
-              Flexible(
-                child: ListView(
-                  shrinkWrap: true,
-                  children: rows,
-                ),
-              ),
-              const SizedBox(height: 8),
-              if (_bindMode)
-                TextButton(
-                  onPressed: () => setState(() => _bindMode = false),
-                  child: Text(loc.homeBackAction),
-                )
-              else
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(loc.commonCancel),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _siteFavicon(WebViewModel site) => SizedBox(
-        width: 32,
-        height: 32,
-        child: UnifiedFaviconImage(
-          url: site.initUrl,
-          size: 32,
-          proxy: site.outboundProxySettings,
-          customIcon: site.customIconPng,
-          persist: !site.isArchiveTier,
-        ),
-      );
-
-  List<Widget> _buildPrimaryRows() {
-    final loc = AppLocalizations.of(context);
-    final rows = <Widget>[];
-    for (final site in widget.winners) {
-      final displayName = site.getDisplayName();
-      rows.add(ListTile(
-        leading: _siteFavicon(site),
-        title: Text(loc.homeDispatchOpenInSite(displayName)),
-        subtitle: Text(site.initUrl,
-            maxLines: 1, overflow: TextOverflow.ellipsis),
-        onTap: () =>
-            Navigator.of(context).pop(_DispatchChoiceOpen(site)),
-      ));
-    }
-    if (widget.winners.isNotEmpty || widget.otherSites.isNotEmpty) {
-      rows.add(ListTile(
-        leading: const SizedBox(
-            width: 32, height: 32, child: Icon(Icons.link)),
-        title: Text(widget.claimDomains
-            ? loc.homeDispatchSendToSite(widget.url.host)
-            : loc.homeDispatchOpenHostInSite(widget.url.host)),
-        subtitle:
-            widget.claimDomains ? Text(loc.homeDispatchPickExistingSite) : null,
-        onTap: () => setState(() => _bindMode = true),
-      ));
-    }
-    if (widget.canCreate) {
-      final strippedHome = LinkRoutingService.strippedHomeUrl(widget.url) ?? '';
-      rows.add(ListTile(
-        leading: SizedBox(
-          width: 32,
-          height: 32,
-          child: UnifiedFaviconImage(
-            url: LinkRoutingService.strippedHomeUrl(widget.url) ??
-                widget.url.toString(),
-            size: 32,
-          ),
-        ),
-        title: Text(loc.homeDispatchCreateNewSite(widget.url.host)),
-        subtitle: Text(
-          strippedHome,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        onTap: () =>
-            Navigator.of(context).pop(const _DispatchChoiceCreate()),
-      ));
-    }
-    return rows;
-  }
-
-  List<Widget> _buildBindRows(List<WebViewModel> sites) {
-    final loc = AppLocalizations.of(context);
-    if (sites.isEmpty) {
-      return [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Text(loc.homeDispatchNoExistingSites),
-        ),
-      ];
-    }
-    return sites
-        .map((s) => ListTile(
-              leading: _siteFavicon(s),
-              title: Text(s.getDisplayName()),
-              subtitle: Text(s.initUrl,
-                  maxLines: 1, overflow: TextOverflow.ellipsis),
-              onTap: () =>
-                  Navigator.of(context).pop(_DispatchChoiceBind(s)),
-            ))
-        .toList(growable: false);
-  }
 }

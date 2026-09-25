@@ -1540,6 +1540,14 @@
   "@appSettingsExperimentalTorHint": {
     "description": "Explanation behind the hint button of the Built-in Tor switch in App settings > Developer > Experimental."
   },
+  "appSettingsExperimentalLinkRouting": "Link routing between sites",
+  "@appSettingsExperimentalLinkRouting": {
+    "description": "Switch in App settings > Developer > Experimental that allows the per-site setting 'Route links to my sites': a link tapped in one of the user's sites can open as another of the user's sites that claims that link."
+  },
+  "appSettingsExperimentalLinkRoutingHint": "Lets a site open a link you tap as another of your sites that claims it, signed in, with that site's own cookies and settings. Each site turns it on under Behaviour, Route links to my sites. Experimental: it has not yet been tried widely on devices. Turning this off keeps every site's routing setting and preferences, and stops routing until it is back on.",
+  "@appSettingsExperimentalLinkRoutingHint": {
+    "description": "Explanation behind the hint button of the Link routing between sites switch in App settings > Developer > Experimental. 'Behaviour' is the per-site settings screen and 'Route links to my sites' is the name of a switch on it."
+  },
   "appSettingsExperimentalTorOffTitle": "Turn Built-in Tor off?",
   "@appSettingsExperimentalTorOffTitle": {
     "description": "Title of the dialog shown when the user turns the Built-in Tor switch off while some sites are set to use Tor."
@@ -2189,6 +2197,61 @@
   "siteSettingsBlockAutoRedirectsSubtitle": "Block script-initiated cross-domain navigations",
   "@siteSettingsBlockAutoRedirectsSubtitle": {
     "description": "Subtitle for the Block Auto-Redirects switch."
+  },
+  "siteSettingsRouteOutboundLinks": "Route links to my sites",
+  "@siteSettingsRouteOutboundLinks": {
+    "description": "Switch label for a per-site setting: a link tapped in this site that another of the user's sites claims opens as that other site (with its login, cookies and settings) instead of in a window of this site."
+  },
+  "siteSettingsRouteOutboundLinksHint": "When on, a link you tap here that another of your sites claims opens as that site, signed in, with its own cookies and settings. Back returns here. When several sites claim a link you are asked which one, and can have the choice remembered for this site. Links no site claims open as they do now. Needs per-site containers.",
+  "@siteSettingsRouteOutboundLinksHint": {
+    "description": "Explanation behind the hint button of the 'Route links to my sites' switch. 'Claims' refers to the domain claims each site has (the hostnames that belong to it). 'Per-site containers' is the storage isolation that gives each site its own cookies."
+  },
+  "siteSettingsRouteOutboundLinksNeedsContainers": "Needs per-site containers",
+  "@siteSettingsRouteOutboundLinksNeedsContainers": {
+    "description": "Subtitle under the disabled 'Route links to my sites' switch on devices whose web engine cannot give each site its own cookie storage (per-site containers)."
+  },
+  "outboundPreferencesTitle": "Routing preferences",
+  "@outboundPreferencesTitle": {
+    "description": "Title of the per-site row and screen listing which of the user's sites a link from this site opens as, per domain. Takes precedence over the domain claims of the other sites."
+  },
+  "outboundPreferencesCount": "{count, plural, one{{count} preference} other{{count} preferences}}",
+  "@outboundPreferencesCount": {
+    "description": "Subtitle of the 'Routing preferences' row: how many routing preferences this site has.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "outboundPreferencesGlobalOnly": "Global routing only",
+  "@outboundPreferencesGlobalOnly": {
+    "description": "Subtitle of the 'Routing preferences' row, and the empty state of its screen, when the site has no preferences of its own: links follow the domain claims of the user's sites."
+  },
+  "outboundPreferenceOpensAs": "Opens as {site}",
+  "@outboundPreferenceOpensAs": {
+    "description": "Subtitle of one routing preference: links to the domain in the title open as the user's site {site}.",
+    "placeholders": {
+      "site": {
+        "type": "String"
+      }
+    }
+  },
+  "outboundPreferenceAdd": "Add routing preference",
+  "@outboundPreferenceAdd": {
+    "description": "Tooltip of the button that adds a routing preference, and title of the dialog it opens."
+  },
+  "outboundPreferenceTargetLabel": "Open as",
+  "@outboundPreferenceTargetLabel": {
+    "description": "Label of the site picker in the 'Add routing preference' dialog: which of the user's sites a link to the entered domain opens as."
+  },
+  "outboundPreferenceClaimTaken": "Already routes to {site}",
+  "@outboundPreferenceClaimTaken": {
+    "description": "Error under the domain field of the 'Add routing preference' dialog when this site already has a preference for the same domain, naming the site it routes to.",
+    "placeholders": {
+      "site": {
+        "type": "String"
+      }
+    }
   },
   "siteSettingsExternalLinksInBrowser": "Open external links in browser",
   "@siteSettingsExternalLinksInBrowser": {
@@ -3526,6 +3589,19 @@
         "type": "String"
       }
     }
+  },
+  "homeDispatchRememberForSource": "Always use this when opening links from {site}",
+  "@homeDispatchRememberForSource": {
+    "description": "Checkbox in the picker shown when a link tapped inside one site is claimed by several other sites. Checked, the chosen site is remembered for this link's domain whenever it is opened from {site}, the site the link was tapped in.",
+    "placeholders": {
+      "site": {
+        "type": "String"
+      }
+    }
+  },
+  "homeDispatchOpenWithoutRouting": "Open without routing",
+  "@homeDispatchOpenWithoutRouting": {
+    "description": "Row in the picker shown when a link tapped inside one site is claimed by several other sites. Opens the link the way it would open if no site claimed it (in an in-app window of the current site, or in the system browser), without sending it to another site."
   },
   "homeDispatchOpenHostInSite": "Open {host} in a site",
   "@homeDispatchOpenHostInSite": {

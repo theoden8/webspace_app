@@ -13,6 +13,7 @@ import 'dart:convert';
 
 import 'package:webspace/services/dns_level_mask_engine.dart'
     show kDnsLevelOff, kDnsMaxLevel;
+import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/camera.dart';
@@ -106,6 +107,13 @@ SettingsImportPlan planSettingsImport(
         if (known.contains(id) && seen.add(id)) id,
     ];
   }
+  // LIR-017: a restored site routes only to a site the backup restores.
+  OutboundPreferenceGc.pruneAll<WebViewModel>(
+    sites,
+    prefsOf: (s) => s.outboundPreferences,
+    setPrefs: (s, prefs) => s.outboundPreferences = prefs,
+    isCandidate: (_, id) => known.contains(id),
+  );
 
   final selected = backup.selectedWebspaceId;
   final current = backup.currentIndex;

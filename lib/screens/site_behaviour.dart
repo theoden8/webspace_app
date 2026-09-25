@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/screens/link_handling_settings.dart';
+import 'package:webspace/services/outbound_preference.dart';
+import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/hint_button.dart';
 
 /// Everything the behaviour screen may change, in one value so the caller can
@@ -19,6 +22,8 @@ class SiteBehaviourValues {
     required this.htmlCachingEnabled,
     required this.blockAutoRedirects,
     required this.externalLinksInBrowser,
+    this.routeOutboundLinks = false,
+    this.outboundPreferences = const [],
   });
 
   final bool alwaysOpenHome;
@@ -27,6 +32,8 @@ class SiteBehaviourValues {
   final bool htmlCachingEnabled;
   final bool blockAutoRedirects;
   final bool externalLinksInBrowser;
+  final bool routeOutboundLinks;
+  final List<OutboundPreference> outboundPreferences;
 
   SiteBehaviourValues copyWith({
     bool? alwaysOpenHome,
@@ -35,6 +42,8 @@ class SiteBehaviourValues {
     bool? htmlCachingEnabled,
     bool? blockAutoRedirects,
     bool? externalLinksInBrowser,
+    bool? routeOutboundLinks,
+    List<OutboundPreference>? outboundPreferences,
   }) =>
       SiteBehaviourValues(
         alwaysOpenHome: alwaysOpenHome ?? this.alwaysOpenHome,
@@ -44,6 +53,8 @@ class SiteBehaviourValues {
         blockAutoRedirects: blockAutoRedirects ?? this.blockAutoRedirects,
         externalLinksInBrowser:
             externalLinksInBrowser ?? this.externalLinksInBrowser,
+        routeOutboundLinks: routeOutboundLinks ?? this.routeOutboundLinks,
+        outboundPreferences: outboundPreferences ?? this.outboundPreferences,
       );
 
   /// Incognito drops the stored URL on every restart, so the site opens at its
@@ -64,6 +75,9 @@ class SiteBehaviourScreen extends StatefulWidget {
     required this.values,
     required this.onChanged,
     this.domainClaims,
+    this.containersActive = true,
+    this.routingTargets = const [],
+    this.showOutboundRouting = false,
   });
 
   final String host;
@@ -80,6 +94,18 @@ class SiteBehaviourScreen extends StatefulWidget {
   /// that holds the model; it renders here because the link group is where a
   /// reader looks for it (the external-links hint points at it by name).
   final Widget? domainClaims;
+
+  /// Outbound routing runs only on the container engine (LIR-014); on the
+  /// legacy engine its switch is disabled.
+  final bool containersActive;
+
+  /// The sites a routing preference may name: this site's LIR-014 candidates
+  /// other than itself.
+  final List<WebViewModel> routingTargets;
+
+  /// Outbound routing is an experimental feature (DEVTOOLS-011); while it is
+  /// off its rows are hidden and the stored values are kept.
+  final bool showOutboundRouting;
 
   @override
   State<SiteBehaviourScreen> createState() => _SiteBehaviourScreenState();
@@ -177,6 +203,40 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
             _update(_values.copyWith(blockAutoRedirects: value)),
       );
 
+  Widget _routeOutboundLinks(AppLocalizations loc) => _tile(
+        title: loc.siteSettingsRouteOutboundLinks,
+        hint: loc.siteSettingsRouteOutboundLinksHint,
+        subtitle: widget.containersActive
+            ? null
+            : loc.siteSettingsRouteOutboundLinksNeedsContainers,
+        value: _values.routeOutboundLinks,
+        onChanged: widget.containersActive
+            ? (value) => _update(_values.copyWith(routeOutboundLinks: value))
+            : null,
+      );
+
+  Widget _outboundPreferences(AppLocalizations loc) {
+    final count = _values.outboundPreferences.length;
+    return ListTile(
+      title: Text(loc.outboundPreferencesTitle),
+      subtitle: Text(count == 0
+          ? loc.outboundPreferencesGlobalOnly
+          : loc.outboundPreferencesCount(count)),
+      trailing: const Icon(Icons.chevron_right, size: 18),
+      onTap: () => Navigator.push<void>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => OutboundPreferencesScreen(
+            preferences: _values.outboundPreferences,
+            targets: widget.routingTargets,
+            onChanged: (next) =>
+                _update(_values.copyWith(outboundPreferences: next)),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _externalLinks(AppLocalizations loc) => _tile(
         title: loc.siteSettingsExternalLinksInBrowser,
         hintTitle: loc.siteSettingsExternalLinksInBrowserHintTitle,
@@ -210,6 +270,10 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
           _htmlCaching(loc),
           _groupHeader(loc.linkHandlingScreenTitle),
           _blockAutoRedirects(loc),
+          if (widget.showOutboundRouting) ...[
+            _routeOutboundLinks(loc),
+            if (_values.routeOutboundLinks) _outboundPreferences(loc),
+          ],
           _externalLinks(loc),
           if (widget.domainClaims != null) widget.domainClaims!,
           const SizedBox(height: 24),

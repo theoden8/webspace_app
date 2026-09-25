@@ -204,6 +204,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
       ExperimentalFeaturesService.instance.switchOn(ExperimentalFeature.tor);
   bool _proxyRouterSwitch = ExperimentalFeaturesService.instance
       .switchOn(ExperimentalFeature.proxyRouter);
+  bool _linkRoutingSwitch = ExperimentalFeaturesService.instance
+      .switchOn(ExperimentalFeature.linkRouting);
 
   bool _isUpdatingFirefoxVersion = false;
   bool _firefoxAutoRefresh = false;
@@ -2238,9 +2240,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               value: _developerMode,
               onChanged: (value) => _setDeveloperMode(value),
             ),
-          if (_developerMode &&
-              (TorService.instance.hasNativeRuntime ||
-                  widget.proxyRouterRunsHere)) ...[
+          if (_developerMode) ...[
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
               child: Row(
@@ -2289,6 +2289,25 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                 value: _proxyRouterSwitch,
                 onChanged: (value) => _setProxyRouterSwitch(value),
               ),
+            SwitchListTile(
+              title: Row(
+                children: [
+                  Flexible(child: Text(loc.appSettingsExperimentalLinkRouting)),
+                  HintButton(
+                    title: loc.appSettingsExperimentalLinkRouting,
+                    description: loc.appSettingsExperimentalLinkRoutingHint,
+                  ),
+                ],
+              ),
+              secondary: const Icon(Icons.alt_route),
+              value: _linkRoutingSwitch,
+              onChanged: (value) async {
+                await ExperimentalFeaturesService.instance
+                    .setSwitch(ExperimentalFeature.linkRouting, value);
+                if (!mounted) return;
+                setState(() => _linkRoutingSwitch = value);
+              },
+            ),
           ],
           ListTile(
             leading: const Icon(Icons.article_outlined),
