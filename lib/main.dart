@@ -98,6 +98,7 @@ import 'package:webspace/services/link_routing_service.dart';
 import 'package:webspace/services/link_intent_dispatch_engine.dart';
 import 'package:webspace/screens/link_handling_settings.dart';
 import 'package:webspace/services/developer_mode_service.dart';
+import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/repaint_log_throttle.dart';
 import 'package:webspace/services/repaint_suppression.dart';
 import 'package:webspace/services/log_service.dart';
@@ -845,6 +846,7 @@ void main() async {
   // Gate for diagnostic-only affordances; read directly by the menus rather
   // than plumbed, so it must be hydrated before the first frame.
   await DeveloperModeService.instance.initialize();
+  await ExperimentalFeaturesService.instance.initialize();
   // Re-fetch favicons whose initial request died on
   // CERTIFICATE_VERIFY_FAILED once the user later approves the cert
   // via the webview trust prompt. Subscribes before any pin can fire,
@@ -6741,6 +6743,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     await writeExportedAppPrefs(prefsToWrite, prefs);
     // The registry write above set the raw key; the service caches it.
     await DeveloperModeService.instance.reload();
+    await ExperimentalFeaturesService.instance.reload();
     // Hydrate the in-memory GlobalOutboundProxy from the (password-less)
     // imported value so subsequent outbound calls pick up the new
     // address/username without an app restart.
@@ -7212,6 +7215,8 @@ class _WebSpacePageState extends State<WebSpacePage>
                     torPinnedSiteCount: () => _webViewModels
                         .where((m) => m.proxySettings.type == ProxyType.TOR)
                         .length,
+                    proxyRouterRunsHere: ProxyRouterService.canRunHere(
+                        useContainers: _useContainers),
                     siteNames: _siteNames(),
                     onSettingsChanged: (AppThemeSettings newSettings) async {
                       setState(() {

@@ -1,5 +1,6 @@
-// Tor is gated behind developer mode until its bootstrap surface exists
-// (TOR-007 platform gate AND DEVTOOLS-010 developer mode). The gate lives on
+// Tor is an experimental feature: reachable only on a platform with the
+// runtime (TOR-007), with developer mode on and the Experimental group's Tor
+// switch on (DEVTOOLS-011). The gate lives on
 // TorService, not on the runtime or the engine: those answer the narrower
 // "does this build have a tor to talk to", which the engine's own tests
 // exercise against a fake.
@@ -9,6 +10,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:webspace/services/developer_mode_service.dart';
+import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -71,6 +73,40 @@ void main() {
     await TorService.reset();
     await runtime.dispose();
     DeveloperModeService.instance.debugSet(false);
+    ExperimentalFeaturesService.instance
+        .debugSet(ExperimentalFeature.tor, true);
+  });
+
+  test('the Tor switch off shuts the gate with developer mode on', () {
+    DeveloperModeService.instance.debugSet(true);
+    ExperimentalFeaturesService.instance
+        .debugSet(ExperimentalFeature.tor, false);
+    expect(TorService.instance.isAvailable, isFalse);
+    ExperimentalFeaturesService.instance
+        .debugSet(ExperimentalFeature.tor, true);
+    expect(TorService.instance.isAvailable, isTrue,
+        reason: 'the switch is read per call, not cached at construction');
+  });
+
+  test('the Tor switch cannot open Tor without developer mode', () {
+    DeveloperModeService.instance.debugSet(false);
+    ExperimentalFeaturesService.instance
+        .debugSet(ExperimentalFeature.tor, true);
+    expect(TorService.instance.isAvailable, isFalse);
+  });
+
+  test('switching Tor off releases the holders already taken', () async {
+    DeveloperModeService.instance.debugSet(true);
+    await TorService.instance.syncHolders({'site-a'});
+    expect(runtime.startCalls, 1);
+
+    ExperimentalFeaturesService.instance
+        .debugSet(ExperimentalFeature.tor, false);
+    await TorService.instance.syncHolders({'site-a'});
+    expect(TorService.instance.socksFor(siteId: 'site-a'), isNull,
+        reason: 'a site still pinned to Tor fails closed');
+    await TorService.instance.maybeStart('site-a');
+    expect(runtime.startCalls, 1, reason: 'no restart behind the shut gate');
   });
 
   test('a platform with tor still reports unavailable while dev mode is off',
@@ -163,7 +199,7 @@ void main() {
           torGateFor(
               status: const TorStopped(),
               hasNativeTor: false,
-              developerModeEnabled: dev),
+              torEnabled: dev),
           TorGate.unsupported,
           reason: 'developer mode cannot conjure a runtime that is not in '
               'the build',
@@ -176,8 +212,8 @@ void main() {
         torGateFor(
             status: const TorStopped(),
             hasNativeTor: true,
-            developerModeEnabled: false),
-        TorGate.developerModeOff,
+            torEnabled: false),
+        TorGate.switchedOff,
       );
     });
 
@@ -189,14 +225,14 @@ void main() {
         torGateFor(
             status: TorErrored('bootstrap stalled'),
             hasNativeTor: true,
-            developerModeEnabled: false),
-        TorGate.developerModeOff,
+            torEnabled: false),
+        TorGate.switchedOff,
       );
       expect(
         torGateFor(
             status: TorErrored('bootstrap stalled'),
             hasNativeTor: true,
-            developerModeEnabled: true),
+            torEnabled: true),
         TorGate.errored,
       );
     });
@@ -210,7 +246,7 @@ void main() {
       ]) {
         expect(
           torGateFor(
-              status: s, hasNativeTor: true, developerModeEnabled: true),
+              status: s, hasNativeTor: true, torEnabled: true),
           TorGate.working,
         );
       }

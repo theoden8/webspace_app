@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/services/developer_mode_service.dart';
+import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/settings/pref_read.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 
@@ -74,6 +75,13 @@ final Map<String, Object> kExportedAppPrefs = <String, Object>{
   // affordances that only make sense while diagnosing the app (the Repaint
   // Screen menu entry), so an ordinary user never meets them.
   kDeveloperModeKey: false,
+  // DEVTOOLS-011: the Experimental group's switch for the embedded Tor
+  // client. On by default, so developer mode alone keeps opening Tor for a
+  // user who had it before the switch existed.
+  kExperimentalTorKey: true,
+  // DEVTOOLS-011: the switch for Android's per-site proxy router, on by
+  // default for the same reason.
+  kExperimentalProxyRouterKey: true,
   'linkHandlingEnabled': true,
   // LIR-010 / discussion #439: when the user sends a shared link to an
   // existing site via the dispatch picker, also append exactHost +

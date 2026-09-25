@@ -240,18 +240,22 @@ not forced to migrate.
 
 ### Requirement: TOR-007 - Platform and developer-mode gate
 
-`TorService` SHALL operate on iOS and macOS, **and only while
-developer mode is on**. `TorService.isAvailable` SHALL be the
-conjunction of the two, and SHALL be the single reader both the
+`TorService` SHALL operate on iOS and macOS, **and only while it is
+switched on as an experimental feature**: developer mode on and the
+Experimental group's Built-in Tor switch on (DEVTOOLS-011). The switch
+defaults on, so developer mode alone opens Tor unless the user turned it
+off. `TorService.isAvailable` SHALL be the conjunction of the platform
+and that gate, and SHALL be the single reader both the
 per-site and app-global proxy-type dropdowns consult; with it false the
 `TOR` option SHALL be absent from both. Existing per-site SOCKS5
 configuration (manual `host:port`, with or without credentials) SHALL
 remain available on every platform that supports proxies today, so
 Android users can still point at Orbot's SOCKS5 endpoint manually.
 
-**Why developer mode and not release.** Reusing DEVTOOLS-010 rather
-than adding a second flag keeps one answer to "is this feature
-reachable", and it is deliberately reachable on release builds: the
+**Why developer mode and not release.** The per-feature switch only
+narrows developer mode (DEVTOOLS-011), which keeps one answer to "is
+this feature reachable", and it is deliberately reachable on release
+builds: the
 users who can exercise an embedded tor on real hardware are the ones
 who would report on it, and a debug-build gate would exclude them.
 
@@ -274,8 +278,8 @@ which is the platform every instance of BUG-013 was first observed on.
 
 So the gate comes off when a tier returns an iOS device verdict and gap
 3 has an answer, not when the surface lands. Whoever takes it off
-removes `TorGate.developerModeOff` and its strings with it: with
-`isAvailable` no longer reading developer mode, that state is
+removes `TorGate.switchedOff`, its strings and the Built-in Tor switch
+with it: with `isAvailable` no longer reading the gate, that state is
 unreachable and the interstitial's exhaustive switch will say so.
 
 **Where the gate lives.** On `TorService`, not on
@@ -288,7 +292,7 @@ a caller having asked first, and `socksFor` SHALL return null with the
 gate shut — a site still carrying `ProxyType.TOR` from before the flag
 was turned off is blocked, never quietly sent out over the device IP.
 
-Turning developer mode off SHALL release the refcount holders already
+Turning developer mode or the Built-in Tor switch off SHALL release the refcount holders already
 taken rather than leave the runtime pinned up for a feature the user
 can no longer reach.
 
@@ -1292,7 +1296,7 @@ Apple device (settings backup, site QR) leaves an Android or Linux site
 pinned to a runtime that platform does not have.
 
 The interstitial SHALL distinguish the three, and the decision SHALL be a
-pure function of (status, platform capability, developer mode) rather
+pure function of (status, platform capability, the TOR-007 gate) rather
 than of the status alone:
 
 - **working** - Tor can come up here and is on its way. The progress bar
@@ -1300,8 +1304,8 @@ than of the status alone:
 - **errored** - tor failed. Retry, and bridges where they help.
 - **unsupported** - this build has no Tor. The screen SHALL say so and
   SHALL name the site's own proxy setting as the thing to change.
-- **developerModeOff** - Tor is here but behind the flag. The screen
-  SHALL name the flag.
+- **switchedOff** - Tor is here but developer mode or the Built-in Tor
+  switch is off. The screen SHALL name both.
 
 Availability SHALL be read before the status. An errored runtime behind a
 shut gate SHALL render as gated rather than as a failure, because
@@ -1332,15 +1336,18 @@ TOR-008 permits on the wire.
 
 ### Requirement: TOR-023 - Closing the gate SHALL state what it costs
 
-TOR-007 puts Tor behind developer mode, and TOR-008 keeps a site pinned to
+TOR-007 puts Tor behind developer mode and the Built-in Tor switch, and TOR-008 keeps a site pinned to
 `TOR` blocked whenever the runtime is not up. Turning the flag off therefore
 blocks every such site from that moment, and the app used to do it in
 silence: the damage surfaced sessions later as a site sitting on the
 interstitial, which reads as a Tor that will not start rather than a setting
 that turned it off. That is how it was first reported.
 
-Turning developer mode off while at least one site is pinned to `TOR` SHALL
-require a confirmation that names how many sites will be blocked. It SHALL be
+Turning developer mode off while the Built-in Tor switch is on, or turning
+that switch off, while at least one site is pinned to `TOR` SHALL require a
+confirmation that names how many sites will be blocked. With the switch
+already off, developer mode no longer holds Tor open, and turning it off
+SHALL NOT ask. It SHALL be
 a dialog rather than a transient message: the cost is paid later, so a
 notification the user can miss is the failure mode itself.
 
@@ -1378,6 +1385,13 @@ the sites are blocked either way.
 - **WHEN** a site is pinned to Tor from the drawer and the user then turns
   developer mode off
 - **THEN** the confirmation appears and counts that site
+
+#### Scenario: The Built-in Tor switch is turned off with a site pinned
+
+- **GIVEN** developer mode is on and one site carries `ProxyType.TOR`
+- **WHEN** the user turns Built-in Tor off under Experimental
+- **THEN** a confirmation names that one site will stay blocked
+- **AND** cancelling leaves the switch on and nothing written
 
 #### Scenario: Nothing is pinned
 

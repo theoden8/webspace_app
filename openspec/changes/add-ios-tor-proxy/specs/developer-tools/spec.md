@@ -11,11 +11,13 @@ whose bootstrap interstitial is not built leaves a site sitting on the
 fail-closed blank page with nothing explaining why: complete enough to
 exercise on hardware, not complete enough to hand an ordinary user. The
 alternatives were worse. Holding the code out of the branch loses the
-review and the CI coverage; adding a second "experimental features" flag
-gives two answers to "is this feature reachable" and invites a third. So
-the same flag carries both meanings, and the reason it can is the reason
+review and the CI coverage; a second, independent "experimental features"
+flag gives two answers to "is this feature reachable" and invites a third.
+So the same flag carries both meanings, and the reason it can is the reason
 it exists: it is reachable on release builds, which is where the people
-who can report on an unfinished feature actually are.
+who can report on an unfinished feature actually are. Each such feature
+also gets its own switch in the Experimental group (DEVTOOLS-011); a switch
+only narrows this flag, so the answer stays one.
 
 A feature gated this way SHALL name, in its own requirement, what has to
 land before the gate comes off, so the gate is a recorded step rather

@@ -19,6 +19,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/ubo_backup_import.dart';
 import 'package:webspace/services/developer_mode_service.dart';
+import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/developer_unlock_engine.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
@@ -65,6 +66,11 @@ class AppSettingsScreen extends StatefulWidget {
   /// A callback rather than the models themselves, so the settings screen
   /// does not gain a second copy of the site list to keep in step.
   final int Function()? torPinnedSiteCount;
+
+  /// Whether this device could run the per-site proxy router, so the
+  /// Experimental group lists its switch (DEVTOOLS-011). Passed in because
+  /// the answer needs the container engine the app resolved at startup.
+  final bool proxyRouterRunsHere;
   final Function(AppThemeSettings) onSettingsChanged;
   final VoidCallback onExportSettings;
   final VoidCallback onImportSettings;
@@ -134,6 +140,7 @@ class AppSettingsScreen extends StatefulWidget {
     super.key,
     required this.currentSettings,
     this.torPinnedSiteCount,
+    this.proxyRouterRunsHere = false,
     this.siteNames = const {},
     required this.onSettingsChanged,
     required this.onExportSettings,
@@ -193,6 +200,10 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   /// Running tap count on the version row; the developer-options gesture.
   int _versionTaps = 0;
   bool _developerMode = DeveloperModeService.instance.enabled;
+  bool _torSwitch =
+      ExperimentalFeaturesService.instance.switchOn(ExperimentalFeature.tor);
+  bool _proxyRouterSwitch = ExperimentalFeaturesService.instance
+      .switchOn(ExperimentalFeature.proxyRouter);
 
   bool _isUpdatingFirefoxVersion = false;
   bool _firefoxAutoRefresh = false;
@@ -890,15 +901,19 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   /// turned it off. Confirm rather than snackbar: by the time a one-second
   /// snackbar is missed, the next reminder is a blocked site with no
   /// obvious cause.
-  Future<bool> _confirmTorSitesWillBlock() async {
+  Future<bool> _confirmTorSitesWillBlock({required bool torSwitch}) async {
     final count = widget.torPinnedSiteCount?.call() ?? 0;
     if (count == 0) return true;
     final loc = AppLocalizations.of(context);
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(loc.appSettingsDeveloperModeTorWarningTitle),
-        content: Text(loc.appSettingsDeveloperModeTorWarningBody(count)),
+        title: Text(torSwitch
+            ? loc.appSettingsExperimentalTorOffTitle
+            : loc.appSettingsDeveloperModeTorWarningTitle),
+        content: Text(torSwitch
+            ? loc.appSettingsExperimentalTorOffBody(count)
+            : loc.appSettingsDeveloperModeTorWarningBody(count)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -915,7 +930,11 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   }
 
   Future<void> _setDeveloperMode(bool value) async {
-    if (!value && !await _confirmTorSitesWillBlock()) {
+    // With the Tor switch already off, developer mode no longer holds Tor
+    // open, so turning it off blocks nothing more.
+    if (!value &&
+        _torSwitch &&
+        !await _confirmTorSitesWillBlock(torSwitch: false)) {
       // Cancelled: leave the switch where it was rather than flipping it
       // back after a rebuild, which reads as the toggle fighting the user.
       if (mounted) setState(() {});
@@ -928,6 +947,28 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
       _developerMode = value;
       _versionTaps = 0;
     });
+  }
+
+  /// DEVTOOLS-011: the Experimental group's Tor switch. Switching it off
+  /// shuts the TOR-007 gate exactly as turning developer mode off does, so
+  /// it asks the same question first.
+  Future<void> _setTorSwitch(bool value) async {
+    if (!value && !await _confirmTorSitesWillBlock(torSwitch: true)) {
+      if (mounted) setState(() {});
+      return;
+    }
+    if (!mounted) return;
+    await ExperimentalFeaturesService.instance
+        .setSwitch(ExperimentalFeature.tor, value);
+    if (!mounted) return;
+    setState(() => _torSwitch = value);
+  }
+
+  Future<void> _setProxyRouterSwitch(bool value) async {
+    await ExperimentalFeaturesService.instance
+        .setSwitch(ExperimentalFeature.proxyRouter, value);
+    if (!mounted) return;
+    setState(() => _proxyRouterSwitch = value);
   }
 
   Future<void> _loadOsmTileUrl() async {
@@ -2197,6 +2238,58 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               value: _developerMode,
               onChanged: (value) => _setDeveloperMode(value),
             ),
+          if (_developerMode &&
+              (TorService.instance.hasNativeRuntime ||
+                  widget.proxyRouterRunsHere)) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      loc.appSettingsExperimental,
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  ),
+                  HintButton(
+                    title: loc.appSettingsExperimental,
+                    description: loc.appSettingsExperimentalHint,
+                  ),
+                ],
+              ),
+            ),
+            if (TorService.instance.hasNativeRuntime)
+              SwitchListTile(
+                title: Row(
+                  children: [
+                    Flexible(child: Text(loc.appSettingsExperimentalTor)),
+                    HintButton(
+                      title: loc.appSettingsExperimentalTor,
+                      description: loc.appSettingsExperimentalTorHint,
+                    ),
+                  ],
+                ),
+                secondary: const Icon(Icons.science_outlined),
+                value: _torSwitch,
+                onChanged: (value) => _setTorSwitch(value),
+              ),
+            if (widget.proxyRouterRunsHere)
+              SwitchListTile(
+                title: Row(
+                  children: [
+                    Flexible(
+                        child: Text(loc.appSettingsExperimentalProxyRouter)),
+                    HintButton(
+                      title: loc.appSettingsExperimentalProxyRouter,
+                      description: loc.appSettingsExperimentalProxyRouterHint,
+                    ),
+                  ],
+                ),
+                secondary: const Icon(Icons.hub_outlined),
+                value: _proxyRouterSwitch,
+                onChanged: (value) => _setProxyRouterSwitch(value),
+              ),
+          ],
           ListTile(
             leading: const Icon(Icons.article_outlined),
             title: Text(loc.appSettingsAppLogs),

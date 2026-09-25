@@ -131,8 +131,9 @@ enum TorGate {
   /// will start one; the site's proxy is what has to change.
   unsupported,
 
-  /// Tor exists here but developer mode is off (TOR-007).
-  developerModeOff,
+  /// Tor exists here but is switched off: developer mode or the
+  /// Experimental group's Tor switch (TOR-007, DEVTOOLS-011).
+  switchedOff,
 }
 
 /// Which [TorGate] a site is sitting behind.
@@ -143,10 +144,10 @@ enum TorGate {
 TorGate torGateFor({
   required TorStatus status,
   required bool hasNativeTor,
-  required bool developerModeEnabled,
+  required bool torEnabled,
 }) {
   if (!hasNativeTor) return TorGate.unsupported;
-  if (!developerModeEnabled) return TorGate.developerModeOff;
+  if (!torEnabled) return TorGate.switchedOff;
   if (status is TorErrored) return TorGate.errored;
   return TorGate.working;
 }

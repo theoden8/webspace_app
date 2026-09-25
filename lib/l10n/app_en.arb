@@ -1524,6 +1524,43 @@
       }
     }
   },
+  "appSettingsExperimental": "Experimental",
+  "@appSettingsExperimental": {
+    "description": "Heading of a group inside App settings > Developer, shown only while Developer mode is on. Lists features that ship before they are finished, each with its own on/off switch."
+  },
+  "appSettingsExperimentalHint": "Features that ship before they are finished. Each needs Developer mode and its own switch here. Turning Developer mode off turns them all off; their switches keep their positions for when it comes back on.",
+  "@appSettingsExperimentalHint": {
+    "description": "Explanation behind the hint button of the Experimental heading in App settings > Developer."
+  },
+  "appSettingsExperimentalTor": "Built-in Tor",
+  "@appSettingsExperimentalTor": {
+    "description": "Switch in App settings > Developer > Experimental that turns on the Tor client built into the app, which sites can use as their proxy. Tor is the name of the anonymity network and is not translated."
+  },
+  "appSettingsExperimentalTorHint": "Lets sites use the Tor client built into the app. Experimental because Tor runs at most once per launch: if it stops, the app has to be restarted to get it back. Turning this off blocks every site set to use Tor rather than loading it over your real IP address.",
+  "@appSettingsExperimentalTorHint": {
+    "description": "Explanation behind the hint button of the Built-in Tor switch in App settings > Developer > Experimental."
+  },
+  "appSettingsExperimentalTorOffTitle": "Turn Built-in Tor off?",
+  "@appSettingsExperimentalTorOffTitle": {
+    "description": "Title of the dialog shown when the user turns the Built-in Tor switch off while some sites are set to use Tor."
+  },
+  "appSettingsExperimentalTorOffBody": "{count, plural, one{One site is set to use Tor. It will stay blocked until you turn Built-in Tor back on, rather than loading over your real IP address.} other{{count} sites are set to use Tor. They will stay blocked until you turn Built-in Tor back on, rather than loading over your real IP address.}}",
+  "@appSettingsExperimentalTorOffBody": {
+    "description": "Body of the dialog warning that turning Built-in Tor off blocks every site set to use Tor. Explains the sites are blocked rather than sent out unproxied.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "appSettingsExperimentalProxyRouter": "Proxy router",
+  "@appSettingsExperimentalProxyRouter": {
+    "description": "Switch in App settings > Developer > Experimental, shown on Android only, that allows the per-site proxy router: sites set to different proxies can stay open at the same time."
+  },
+  "appSettingsExperimentalProxyRouterHint": "On Android one proxy setting covers the whole app, so opening a site with a different proxy closes the sites that use another one. The router keeps them all open: a relay inside the app sends each site's traffic to that site's own proxy. At every start it checks on this device that each site's traffic is told apart, and closes sites as before if the check fails. Experimental: it has been tried on few devices. Takes effect the next time the app starts.",
+  "@appSettingsExperimentalProxyRouterHint": {
+    "description": "Explanation behind the hint button of the Proxy router switch in App settings > Developer > Experimental. 'Closes the sites' means the app unloads those sites' pages."
+  },
   "appSettingsDeveloperModeTorWarningConfirm": "Turn off",
   "@appSettingsDeveloperModeTorWarningConfirm": {
     "description": "Button that confirms turning Developer mode off even though it will block sites set to use Tor."
@@ -4059,9 +4096,9 @@
   "@torDeveloperGateTitle": {
     "description": "Heading shown in place of a site that is set to use Tor while Developer mode, which Tor is behind, is off."
   },
-  "torDeveloperGateBody": "Tor runs only while Developer mode is on. This site is set to use Tor, so it stays blocked rather than loading over your real IP address. Turn Developer mode on in App settings, or change the site's proxy.",
+  "torDeveloperGateBody": "Tor runs only while Developer mode and Built-in Tor, under Experimental, are both on. This site is set to use Tor, so it stays blocked rather than loading over your real IP address. Turn them on in App settings, or change the site's proxy.",
   "@torDeveloperGateBody": {
-    "description": "Explains why a site set to use Tor shows nothing while Developer mode is off, and what the user can do about it."
+    "description": "Explains why a site set to use Tor shows nothing while Developer mode, or the Built-in Tor switch in App settings > Developer > Experimental, is off, and what the user can do about it."
   },
   "torFailOfflineTitle": "No network",
   "@torFailOfflineTitle": {

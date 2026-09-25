@@ -1,18 +1,20 @@
-// Router mode must stay behind developer mode while its premise is
-// proven on one WebView build only.
+// Router mode must stay behind its experimental switch (DEVTOOLS-011:
+// developer mode and the Proxy router switch) while its premise is proven
+// on one WebView build only.
 //
 // PROXY-013 points the process-wide proxy rule at a loopback relay and
 // tells sites apart by the credential each presents. That the credential
 // cannot bleed between sites is a property of Chromium's per-profile
 // `HttpNetworkSession`, checked at activation by the PROXY-015 probe and
 // never yet exercised on hardware that fails it. Until it is, the default
-// install serialises under PROXY-008 and only developer mode opts in.
+// install serialises under PROXY-008 and only the experiment opts in.
 //
 // The Dart suite asserts the decision (`isSupportedWhen`) but cannot
 // assert the wiring: it runs off Android, where `hostIsAndroid` answers
 // false first and every further assertion passes without meaning it. So
-// the wiring -- that the live gate feeds developer mode into that
-// decision at all -- is pinned here, structurally.
+// the wiring -- that the live gate feeds the experiment into that
+// decision at all -- is pinned here, structurally. That the experiment
+// needs developer mode is `experimentalFeatureEnabled`'s truth table.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -32,23 +34,26 @@ function declaration(source, name) {
   return source.slice(at, end + 1);
 }
 
-test('isSupported feeds developer mode into the decision', () => {
+const experimentRead =
+  /experimentEnabled:\s*ExperimentalFeaturesService\.instance\s*\.isEnabled\(ExperimentalFeature\.proxyRouter\)/;
+
+test('isSupported feeds the experiment into the decision', () => {
   const body = declaration(src, 'isSupported');
   assert.match(
     body,
-    /DeveloperModeService\.instance\.enabled/,
-    'the live gate must read developer mode; without it router mode '
-      + 'engages on every container-capable device by default',
+    experimentRead,
+    'the live gate must read the Proxy router experiment; without it router '
+      + 'mode engages on every container-capable device by default',
   );
 });
 
-test('the decision requires developer mode', () => {
+test('the decision requires the experiment', () => {
   const body = declaration(src, 'isSupportedWhen');
-  assert.match(body, /developerMode/, 'the decision must use developerMode');
+  assert.match(body, /experimentEnabled/, 'the decision must use experimentEnabled');
   assert.doesNotMatch(
     body,
-    /developerMode\s*\|\|/,
-    'developer mode must narrow the gate, never widen it',
+    /experimentEnabled\s*\|\|/,
+    'the experiment must narrow the gate, never widen it',
   );
 });
 
@@ -57,7 +62,34 @@ test('the guard is not vacuous', () => {
   const ungated = `
     static bool isSupported({required bool useContainers}) =>
         hostIsAndroid && useContainers;`;
-  assert.doesNotMatch(ungated, /DeveloperModeService\.instance\.enabled/);
+  assert.doesNotMatch(ungated, experimentRead);
+});
+
+test('only the settings row may ask with the experiment assumed on', () => {
+  // canRunHere answers "could this device run it", so the Experimental group
+  // lists the switch. Anything that activates the relay must go through
+  // isSupported instead.
+  assert.match(declaration(src, 'canRunHere'), /experimentEnabled: true/);
+  const libDir = path.join(repoRoot, 'lib');
+  const callers = [];
+  const walk = (dir) => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) walk(p);
+      else if (e.name.endsWith('.dart')
+        && fs.readFileSync(p, 'utf8').includes('ProxyRouterService.canRunHere(')) {
+        callers.push(path.relative(repoRoot, p));
+      }
+    }
+  };
+  walk(libDir);
+  assert.deepStrictEqual(callers, ['lib/main.dart']);
+  const main = fs.readFileSync(path.join(repoRoot, 'lib/main.dart'), 'utf8');
+  const uses = [...main.matchAll(/ProxyRouterService\.canRunHere\(/g)];
+  assert.strictEqual(uses.length, 1);
+  assert.match(main.slice(uses[0].index - 40, uses[0].index),
+    /proxyRouterRunsHere:\s*$/,
+    'canRunHere only decides whether App settings lists the switch');
 });
 
 test('the Apple relay branch is off unless a caller opts in', () => {

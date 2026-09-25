@@ -13,7 +13,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
-import 'package:webspace/services/developer_mode_service.dart';
+import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/tor_bridge_secure_storage.dart';
 import 'package:webspace/services/tor_engine.dart';
@@ -54,8 +54,8 @@ const String kTorDaemonLogTag = 'TorLog';
 /// The two Apple platforms ship it; nothing else does (TOR-007), and asking
 /// elsewhere must not touch a channel, or `receiveBroadcastStream().listen`
 /// throws MissingPluginException. This is capability, not permission:
-/// developer mode still decides whether anything may offer Tor, and that
-/// gate lives on [TorService].
+/// developer mode and the Experimental Tor switch still decide whether
+/// anything may offer Tor, and that gate lives on [TorService].
 bool get _hasNativeTor =>
     !kIsWeb &&
     (defaultTargetPlatform == TargetPlatform.iOS ||
@@ -340,7 +340,8 @@ class TorService {
   ///
   /// Two conditions, and both are gates rather than one being a detail of
   /// the other. The platform must actually have the runtime (TOR-007), and
-  /// developer mode must be on (DEVTOOLS-010).
+  /// the Experimental group's Tor switch must be on with developer mode
+  /// (DEVTOOLS-011).
   ///
   /// Developer mode used to be held by the interstitial not existing. It
   /// exists now, and the gate stays for a different reason: tor runs at most
@@ -355,7 +356,8 @@ class TorService {
   /// Every start path below re-checks it, so the answer does not depend on
   /// the caller having asked first.
   bool get isAvailable =>
-      _engine.isAvailable && DeveloperModeService.instance.enabled;
+      _engine.isAvailable &&
+      ExperimentalFeaturesService.instance.isEnabled(ExperimentalFeature.tor);
 
   /// The capability half of [isAvailable]: whether this build has a Tor to
   /// talk to at all. Split out because a screen in front of a Tor-bound site
