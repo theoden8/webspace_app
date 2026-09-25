@@ -24,6 +24,7 @@ import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/proxy_form_engine.dart';
 import 'package:webspace/services/proxy_test_service.dart';
+import 'package:webspace/services/screen_capture_guard.dart';
 import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/timezone_location_service.dart';
 import 'package:webspace/services/timezone_spoof_policy.dart';
@@ -147,6 +148,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late Set<String> _disabledFilterLists;
   late bool _trackingProtectionEnabled;
   late bool _letterboxEnabled;
+  late bool _blockScreenshots;
   late bool _localCdnEnabled;
   late bool _blockAutoRedirects;
   late bool _externalLinksInBrowser;
@@ -251,6 +253,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         'disabledFilterLists': (_disabledFilterLists.toList()..sort()).join(','),
         'trackingProtectionEnabled': _trackingProtectionEnabled,
         'letterboxEnabled': _letterboxEnabled,
+        'blockScreenshots': _blockScreenshots,
         'localCdnEnabled': _localCdnEnabled,
         'blockAutoRedirects': _blockAutoRedirects,
         'externalLinksInBrowser': _externalLinksInBrowser,
@@ -484,6 +487,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _disabledFilterLists = {...m.disabledFilterLists};
     _trackingProtectionEnabled = m.trackingProtectionEnabled;
     _letterboxEnabled = m.letterboxEnabled;
+    _blockScreenshots = m.blockScreenshots;
     _localCdnEnabled = m.localCdnEnabled;
     _blockAutoRedirects = m.blockAutoRedirects;
     _externalLinksInBrowser = m.externalLinksInBrowser;
@@ -655,6 +659,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.disabledFilterLists = {..._disabledFilterLists};
       widget.webViewModel.trackingProtectionEnabled = _trackingProtectionEnabled;
       widget.webViewModel.letterboxEnabled = _letterboxEnabled;
+      widget.webViewModel.blockScreenshots = _blockScreenshots;
       widget.webViewModel.localCdnEnabled = _localCdnEnabled;
       widget.webViewModel.blockAutoRedirects = _blockAutoRedirects;
       widget.webViewModel.externalLinksInBrowser = _externalLinksInBrowser;
@@ -1124,6 +1129,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         httpsUpgradeEnabled: _httpsUpgradeEnabled,
         letterboxEnabled: _letterboxEnabled,
         incognito: _incognito,
+        blockScreenshots: _blockScreenshots,
       );
 
   /// Counterpart of [_buildPermissionsRow] for everything that decides what a
@@ -1145,6 +1151,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         if (v.contentBlockEnabled) loc.siteSettingsContentBlocker,
         if (hostIsAndroid && v.localCdnEnabled) loc.siteSettingsLocalCdn,
         if (v.incognito) loc.siteSettingsIncognito,
+        if (ScreenCaptureGuard.isSupported && v.blockScreenshots)
+          loc.siteSettingsBlockScreenshots,
       ];
       if (on.isEmpty) {
         summary = loc.privacySummaryNothingOn;
@@ -1192,6 +1200,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _httpsUpgradeEnabled = values.httpsUpgradeEnabled;
               _letterboxEnabled = values.letterboxEnabled;
               _incognito = values.incognito;
+              _blockScreenshots = values.blockScreenshots;
             });
           },
         ),

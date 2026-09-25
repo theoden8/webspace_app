@@ -93,6 +93,7 @@ import 'package:webspace/services/timezone_location_service.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
+import 'package:webspace/services/screen_capture_guard.dart';
 import 'package:webspace/services/shortcut_service.dart';
 import 'package:webspace/services/background_task_service.dart';
 import 'package:webspace/services/media_session_service.dart';
@@ -1144,6 +1145,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   // for kill paths that never deliver `paused` (app-switcher
   // swipe-kill) and for background sites navigating while another site
   // is current.
+  final ScreenCaptureGuard _screenCaptureGuard = ScreenCaptureGuard();
   final NavStateCaptureDebouncer _navStateDebouncer =
       NavStateCaptureDebouncer();
 
@@ -4079,6 +4081,12 @@ class _WebSpacePageState extends State<WebSpacePage>
     );
   }
 
+  Future<void> _saveBlockScreenshots() async {
+    if (isDemoMode) return;
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(kBlockScreenshotsKey, ScreenCaptureGuard.appWideEnabled);
+  }
+
   Future<void> _saveTabBarButton() async {
     if (isDemoMode) return;
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -5220,6 +5228,8 @@ class _WebSpacePageState extends State<WebSpacePage>
           readPrefAs<bool>(prefs, kBackForwardCacheEnabledKey) ?? true;
       WebViewFactory.httpsUpgradeEnabled =
           readPrefAs<bool>(prefs, kHttpsUpgradeEnabledKey) ?? true;
+      ScreenCaptureGuard.appWideEnabled =
+          readPrefAs<bool>(prefs, kBlockScreenshotsKey) ?? false;
       _linkHandlingEnabled = readPrefAs<bool>(prefs, kLinkHandlingEnabledKey) ?? true;
       _linkHandlingClaimDomains =
           readPrefAs<bool>(prefs, kLinkHandlingClaimDomainsKey) ?? false;
@@ -6882,6 +6892,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           prefs[kBackForwardCacheEnabledKey] as bool;
       WebViewFactory.httpsUpgradeEnabled =
           prefs[kHttpsUpgradeEnabledKey] as bool;
+      ScreenCaptureGuard.appWideEnabled = prefs[kBlockScreenshotsKey] as bool;
 
       _selectedWebspaceId = plan.selectedWebspaceId;
     });
@@ -7476,6 +7487,13 @@ class _WebSpacePageState extends State<WebSpacePage>
                       });
                       final prefs = await SharedPreferences.getInstance();
                       await prefs.setBool(kHttpsUpgradeEnabledKey, value);
+                    },
+                    blockScreenshots: ScreenCaptureGuard.appWideEnabled,
+                    onBlockScreenshotsChanged: (value) {
+                      setState(() {
+                        ScreenCaptureGuard.appWideEnabled = value;
+                      });
+                      _saveBlockScreenshots();
                     },
                     localeOverride: _localeOverride,
                     onLocaleOverrideChanged: (tag) async {
@@ -9759,6 +9777,16 @@ class _WebSpacePageState extends State<WebSpacePage>
   @override
   Widget build(BuildContext context) {
     final bool webviewIsVisible = _currentIndex != null && _currentIndex! < _webViewModels.length;
+    // From build, not from the paths that change the site on screen: the site
+    // shown and the window flag then change in the same frame, and a new path
+    // that moves _currentIndex cannot skip it (SCREENBLOCK-002).
+    final shown = _currentIndex;
+    unawaited(_screenCaptureGuard.apply(screenCaptureBlocked(
+      appWide: ScreenCaptureGuard.appWideEnabled,
+      siteOnScreen: shown != null && shown >= 0 && shown < _webViewModels.length
+          ? _webViewModels[shown].blockScreenshots
+          : null,
+    )));
     final mainTree = _buildMainTree(context, webviewIsVisible);
     if (!_maskBackground) {
       return mainTree;

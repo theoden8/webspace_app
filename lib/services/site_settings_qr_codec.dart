@@ -52,6 +52,7 @@ class SiteSettingsQrCodec {
     'localCdnEnabled',
     'blockAutoRedirects',
     'fullscreenMode',
+    'blockScreenshots',
     'htmlCachingEnabled',
     'notificationsEnabled',
     'backgroundAudioEnabled',

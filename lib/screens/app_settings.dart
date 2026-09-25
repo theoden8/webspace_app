@@ -35,6 +35,7 @@ import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/proxy_form_engine.dart';
 import 'package:webspace/services/proxy_test_service.dart';
+import 'package:webspace/services/screen_capture_guard.dart';
 import 'package:webspace/widgets/proxy_auth_section.dart';
 import 'package:webspace/widgets/proxy_test_tile.dart';
 import 'package:webspace/settings/user_script.dart';
@@ -111,6 +112,9 @@ class AppSettingsScreen extends StatefulWidget {
   /// https. A site can override it; Tracking Protection forces it on.
   final bool httpsUpgradeEnabled;
   final ValueChanged<bool> onHttpsUpgradeEnabledChanged;
+  /// SCREENBLOCK-002: withhold the whole app from screen capture.
+  final bool blockScreenshots;
+  final ValueChanged<bool>? onBlockScreenshotsChanged;
   /// Current UI language override as a locale tag ('' = follow system).
   final String localeOverride;
   final ValueChanged<String> onLocaleOverrideChanged;
@@ -165,6 +169,8 @@ class AppSettingsScreen extends StatefulWidget {
     required this.onShowStatsBannerChanged,
     required this.httpsUpgradeEnabled,
     required this.onHttpsUpgradeEnabledChanged,
+    this.blockScreenshots = false,
+    this.onBlockScreenshotsChanged,
     required this.localeOverride,
     required this.onLocaleOverrideChanged,
     required this.linkHandlingEnabled,
@@ -187,6 +193,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   late bool _fullscreenOnShortcut;
   late bool _backOpensMenu;
   late bool _httpsUpgradeEnabled;
+  late bool _blockScreenshots;
   late bool _tabBarButton;
   late double _tabMaxWidth;
   late bool _showStatsBanner;
@@ -263,6 +270,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     _tabMaxWidth = widget.tabMaxWidth.toDouble();
     _showStatsBanner = widget.showStatsBanner;
     _httpsUpgradeEnabled = widget.httpsUpgradeEnabled;
+    _blockScreenshots = widget.blockScreenshots;
     _osmTileUrlController = TextEditingController();
     _loadAppVersion();
     _loadOsmTileUrl();
@@ -1837,6 +1845,26 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               ),
             ),
           ),
+          if (ScreenCaptureGuard.isSupported)
+            SwitchListTile(
+              secondary: const Icon(Icons.no_photography_outlined),
+              title: Row(
+                children: [
+                  Flexible(child: Text(loc.siteSettingsBlockScreenshots)),
+                  HintButton(
+                    title: loc.siteSettingsBlockScreenshots,
+                    description: loc.appSettingsBlockScreenshotsHint,
+                  ),
+                ],
+              ),
+              value: _blockScreenshots,
+              onChanged: (value) {
+                setState(() {
+                  _blockScreenshots = value;
+                });
+                widget.onBlockScreenshotsChanged?.call(value);
+              },
+            ),
           // Trusted certificates — only Android and Linux can create
           // pins via the in-app prompt. On iOS/macOS the prompt is
           // skipped entirely (TLS-009) because Apple's WKWebView

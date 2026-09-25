@@ -128,12 +128,17 @@ final Map<String, Object> kExportedAppPrefs = <String, Object>{
   // default. Off is for sites that check the client IP across their own hosts,
   // and for anyone who would rather read one address than two.
   kTorIsolateDestAddrKey: false,
+  // SCREENBLOCK-002: withhold the whole app from screenshots, recordings and
+  // the recent-apps preview. Android only; off by default.
+  kBlockScreenshotsKey: false,
 };
 
 const String kBackForwardCacheEnabledKey = 'backForwardCacheEnabled';
 
 const String kHttpsUpgradeEnabledKey = 'httpsUpgradeEnabled';
 const String kTorIsolateDestAddrKey = 'torIsolateDestAddr';
+
+const String kBlockScreenshotsKey = 'blockScreenshots';
 
 const String kBackOpensMenuKey = 'backOpensMenu';
 

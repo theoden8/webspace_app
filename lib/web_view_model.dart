@@ -553,6 +553,10 @@ class WebViewModel {
   /// still open in-app. Default false: the legacy nested-webview routing.
   bool externalLinksInBrowser;
   bool fullscreenMode; // Auto-enter fullscreen when this site is selected
+  /// While this site is on screen, the window is withheld from screenshots,
+  /// recordings and the recent-apps preview (SCREENBLOCK-002). Android only;
+  /// the value is kept elsewhere so a backup restored there still carries it.
+  bool blockScreenshots;
   /// Corner the floating tab-bar button rests in while this site is
   /// active. Set by dragging the button itself; null = never dragged,
   /// falls back to the app-wide default.
@@ -1013,6 +1017,7 @@ class WebViewModel {
     this.blockAutoRedirects = true,
     this.externalLinksInBrowser = false,
     this.fullscreenMode = false,
+    this.blockScreenshots = false,
     this.tabBarButtonCorner,
     this.htmlCachingEnabled = false,
     this.notificationsEnabled = false,
@@ -2517,6 +2522,7 @@ class WebViewModel {
         'blockAutoRedirects': blockAutoRedirects,
         if (externalLinksInBrowser) 'externalLinksInBrowser': true,
         'fullscreenMode': fullscreenMode,
+        if (blockScreenshots) 'blockScreenshots': true,
         if (tabBarButtonCorner != null)
           'tabBarButtonCorner': tabBarButtonCorner!.name,
         'htmlCachingEnabled': htmlCachingEnabled,
@@ -2656,6 +2662,7 @@ class WebViewModel {
       blockAutoRedirects: field<bool>('blockAutoRedirects') ?? true,
       externalLinksInBrowser: field<bool>('externalLinksInBrowser') ?? false,
       fullscreenMode: field<bool>('fullscreenMode') ?? false,
+      blockScreenshots: field<bool>('blockScreenshots') ?? false,
       // `tabBarButtonOnRight` is the short-lived bool predecessor of the
       // four-corner field; map it so early builds rehydrate cleanly.
       tabBarButtonCorner:
