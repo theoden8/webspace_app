@@ -131,6 +131,33 @@ class TorControlParsingTests: XCTestCase {
       ["185.220.101.33", "10.0.0.4"])
   }
 
+  func testExitCountFromConsensusAndTable() {
+    // Read from tor's files rather than the control port (a GETINFO ns/all
+    // there stalled every controller behind it). 10.0.0.4 is the only exit,
+    // and the table puts it in DE.
+    let consensus = [
+      "r middle AAAA 2022-11-18 00:01:48 10.0.0.2 9001 0",
+      "s Fast Guard Running Stable Valid",
+      "r md DDDD 2022-11-18 00:01:48 10.0.0.4 443 0",
+      "s Exit Fast Running Valid",
+    ].joined(separator: "\n")
+    let table = [
+      "# comment",
+      "167772160,167772163,NL",
+      "167772164,167772164,DE",
+    ].joined(separator: "\n")
+    XCTAssertEqual(
+      TorControllerPlugin.exitCount(in: ["de"], consensus: consensus, geoipTable: table), 1)
+    XCTAssertEqual(
+      TorControllerPlugin.exitCount(in: ["nl"], consensus: consensus, geoipTable: table), 0,
+      "the NL relay is a middle, not an exit")
+    XCTAssertEqual(
+      TorControllerPlugin.exitCount(in: ["br"], consensus: consensus, geoipTable: table), 0)
+    XCTAssertNil(
+      TorControllerPlugin.exitCount(in: ["de"], consensus: "", geoipTable: table),
+      "no exits read means the count says nothing")
+  }
+
   func testPinnedCountries() {
     XCTAssertEqual(TorControllerPlugin.pinnedCountries("{br}"), ["br"])
     XCTAssertEqual(TorControllerPlugin.pinnedCountries("{DE},{nl}"), ["de", "nl"])

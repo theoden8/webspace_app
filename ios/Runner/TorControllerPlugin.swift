@@ -537,8 +537,7 @@ class TorControllerPlugin: NSObject {
   private func launchLocked(generation: Int) {
     hasLaunched = true
     let config = TorConfiguration()
-    let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-      .appendingPathComponent("Tor", isDirectory: true)
+    let base = Self.torDataDirectory()
     try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
     config.dataDirectory = base
     config.cookieAuthentication = true
@@ -1308,7 +1307,7 @@ class TorControllerPlugin: NSObject {
     // port says so until a stream times out, so count. The pin stays in
     // force either way; the answer is what the user sees.
     if let countries = Self.pinnedCountries(exitNodes) {
-      switch await Self.exitCount(in: countries, controller: controller) {
+      switch Self.exitCount(in: countries, geoipFile: geoipFile) {
       case .some(0):
         let names = countries.sorted().map { $0.uppercased() }.joined(separator: ", ")
         return FlutterError(
@@ -1460,36 +1459,63 @@ class TorControllerPlugin: NSObject {
     return out
   }
 
-  /// How many exits the consensus has in [countries], by tor's own GeoIP
-  /// table; at least 1 when there are some, as the count stops at the first.
-  /// Nil when tor did not answer well enough to count.
-  private static func exitCount(
-    in countries: Set<String>, controller: TorController
-  ) async -> Int? {
-    guard let raw = await readTwice(controller, ["ns/all"])?.first else { return nil }
-    let addresses = Array(Set(exitAddresses(fromNetworkStatus: raw)))
-    guard !addresses.isEmpty else { return nil }
-    for start in stride(from: 0, to: addresses.count, by: 256) {
-      let batch = Array(addresses[start..<min(start + 256, addresses.count)])
-      guard let codes = await readTwice(controller, batch.map { "ip-to-country/\($0)" }),
-            codes.count == batch.count
-      else { return nil }
-      let found = codes.filter { countries.contains($0.lowercased()) }.count
-      if found > 0 { return found }
+  /// How many exits tor's consensus has in [countries], by the GeoIP table
+  /// the pin loaded; at least 1 when there are some, as the count stops at
+  /// the first. Nil when either file cannot be read.
+  ///
+  /// Read from the files tor reads, not over the control port: the consensus
+  /// is megabytes, and Tor.framework parses every controller's replies on
+  /// one queue, so a `GETINFO ns/all` stalled each command after it until
+  /// the channel read as dead.
+  private static func exitCount(in countries: Set<String>, geoipFile: String?) -> Int? {
+    let dir = torDataDirectory()
+    guard let geoipFile = geoipFile,
+          let table = try? String(contentsOfFile: geoipFile, encoding: .utf8),
+          let consensus = ["cached-microdesc-consensus", "cached-consensus"].lazy
+            .compactMap({ try? String(
+              contentsOf: dir.appendingPathComponent($0), encoding: .utf8) })
+            .first
+    else { return nil }
+    return exitCount(in: countries, consensus: consensus, geoipTable: table)
+  }
+
+  /// [exitCount] over the contents of a consensus and a GeoIP table
+  /// (`low,high,CC` per row, addresses as integers).
+  static func exitCount(
+    in countries: Set<String>, consensus: String, geoipTable: String
+  ) -> Int? {
+    let exits = exitAddresses(fromNetworkStatus: consensus)
+      .compactMap(ipv4Number).sorted()
+    guard !exits.isEmpty else { return nil }
+    for row in geoipTable.split(whereSeparator: \.isNewline) {
+      guard let comma = row.lastIndex(of: ","),
+            countries.contains(
+              row[row.index(after: comma)...].trimmingCharacters(in: .whitespaces)
+                .lowercased())
+      else { continue }
+      let bounds = row[..<comma].split(separator: ",")
+      guard bounds.count == 2, let low = UInt32(bounds[0]), let high = UInt32(bounds[1])
+      else { continue }
+      var lo = 0, hi = exits.count
+      while lo < hi {
+        let mid = (lo + hi) / 2
+        if exits[mid] < low { lo = mid + 1 } else { hi = mid }
+      }
+      if lo < exits.count && exits[lo] <= high { return 1 }
     }
     return 0
   }
 
-  /// [controlRead], asked again once when the answer came back empty, which
-  /// is Tor.framework handing the reply observer an unrelated event first.
-  /// A timeout is not asked again: the whole change has one deadline.
-  private static func readTwice(
-    _ controller: TorController, _ keys: [String]
-  ) async -> [String]? {
-    guard let first = await controlRead(controller, keys, within: kTorControlReplyTimeout)
-    else { return nil }
-    if !first.isEmpty { return first }
-    return await controlRead(controller, keys, within: kTorControlReplyTimeout)
+  private static func ipv4Number(_ address: String) -> UInt32? {
+    let octets = address.split(separator: ".").compactMap { UInt32($0) }
+    guard octets.count == 4, octets.allSatisfy({ $0 < 256 }) else { return nil }
+    return octets.reduce(0) { $0 << 8 | $1 }
+  }
+
+  /// tor's DataDirectory, where it caches the consensus.
+  static func torDataDirectory() -> URL {
+    FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+      .appendingPathComponent("Tor", isDirectory: true)
   }
 
   /// Whether tor has an IPv4 GeoIP table loaded. Asked twice at most, for

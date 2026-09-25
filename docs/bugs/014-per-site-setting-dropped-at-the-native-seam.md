@@ -172,6 +172,14 @@ silently. Only something that observes the *effect* can catch it.
    **Partial:** the count is taken when the pin is applied. A country whose
    last exit leaves the consensus later is not re-checked, and reads as
    before, a hang until a Retry.
+   Its first version read the consensus with `GETINFO ns/all` over the
+   control port. The reply is megabytes and Tor.framework parses every
+   controller's replies on one queue, so the count timed out and each
+   command after it stalled until the channel read as dead: on the macOS
+   tier the `{us}` pin after `{de}` failed as `control_unreachable`, and
+   every later scenario found Tor down. **Second fix 2026-09-25:** the count
+   reads tor's `cached-microdesc-consensus` and the GeoIP table the pin
+   loaded, from disk, with no control-port traffic.
 
 8. **A proxy change reached the live session and not the connections it
    already held (iOS, macOS).** Reported 2026-09-25: a site that loaded
