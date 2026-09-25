@@ -683,6 +683,35 @@ site is gone, must not linger and apply itself to whatever loads next.
 - **THEN** the request fails and the failure is surfaced to the user
 - **AND** the traffic does NOT leave from another country instead
 
+tor takes a pin to a country whose relays include no exit, then builds no
+circuit at all: its path check finds no exit bandwidth and it stops
+treating its directory as usable, for every stream, not only the pinned
+site's. Nothing on the control port reports this until a stream times out,
+so the runtime SHALL count the consensus relays carrying the Exit flag (and
+not BadExit) that tor's GeoIP table places in the pinned country when it
+applies the pin. None is a failure of kind `exitPolicy`, reported at once
+rather than after a page's own timeout, with the pin left in force.
+
+#### Scenario: A pin to a country with no exit is reported when it is applied
+
+- **GIVEN** Tor is `up` and tor's consensus has no exit in country X
+- **WHEN** a site pinned to X is activated
+- **THEN** the runtime answers the pin with an `exitPolicy` failure, not `up`
+- **AND** `ExitNodes` stays `{x}` with `StrictNodes 1`
+- **AND** no site is handed a SOCKS route until the pin changes or a Retry
+  finds an exit there
+
+#### Scenario: Saving a site's pin unloads a loaded site that disagrees
+
+- **GIVEN** site A is loaded with `torExitCountry = "dk"`
+- **AND** site B is the site on screen
+- **WHEN** the user saves site B with `torExitCountry = "ca"`
+- **THEN** site A is unloaded before `ExitNodes` flips to `{ca}`
+- **AND** site A is not rebuilt under `{ca}` when Tor comes back up
+
+Every path that moves the pin reconciles the loaded set first, the site on
+screen winning and then the most recently used, not only activation.
+
 **A pin is only in force once tor can resolve it** (BUG-014 instance 7).
 tor matches `{cc}`
 against its IPv4 GeoIP table, and with no table loaded the pin names no
