@@ -1124,6 +1124,8 @@ jobs:
                 # here it would skip after paying for an app build, and this
                 # loop sits near its 45m cap.
                 [ "$(basename "$t")" = "proxy_binding_test.dart" ] && continue
+                # Its arms drive the Apple per-store proxy too and skip here.
+                [ "$(basename "$t")" = "proxy_rebind_test.dart" ] && continue
                 # Same for the files that bisect that binding. They measure
                 # proxyConfigurations, which the Linux fork does not use, so
                 # every test in them skips here -- after paying for a full
