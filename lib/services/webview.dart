@@ -31,6 +31,7 @@ import 'package:webspace/services/target_blank_rewrite.dart';
 import 'package:webspace/services/webgl_kill_switch_shim.dart';
 import 'package:webspace/services/theme_color_scheme_shim.dart';
 import 'package:webspace/services/connectivity_service.dart';
+import 'package:webspace/services/container_session_routes.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/generic_cosmetic_shim.dart';
 import 'package:webspace/services/procedural_cosmetic_shim.dart';
@@ -2309,6 +2310,33 @@ class WebViewFactory {
     );
   }
 
+  /// Routes the containers' live network sessions were opened on. A
+  /// WebView whose container session carries another route waits for that
+  /// session to be dropped rather than ride its pooled connections.
+  static final sessionRoutes = ContainerSessionRoutes(reset: (containerId) async {
+    if (!inapp.ContainerController.isMethodSupported(
+        inapp.PlatformContainerControllerMethod.resetNetworkSession)) {
+      return true;
+    }
+    return inapp.ContainerController.instance()
+        .resetNetworkSession(containerId);
+  });
+
+  /// The reset [config]'s container needs before its WebView can be built,
+  /// or null when it can be built now.
+  static ({Future<bool> reset, Future<bool>? Function() admit})? _sessionGate(
+      WebViewConfig config) {
+    final binding = _bindingFor(config);
+    final containerId = binding.containerId;
+    if (containerId == null) return null;
+    final route = binding.proxyUnavailable
+        ? 'unavailable'
+        : jsonEncode(binding.proxy?.toMap());
+    Future<bool>? admit() => sessionRoutes.admit(containerId, route);
+    final reset = admit();
+    return reset == null ? null : (reset: reset, admit: admit);
+  }
+
   /// [WebViewConfig] of the webview that asked for a popup window, keyed by
   /// the `windowId` the host UI is handed. The host builds the popup widget
   /// from a `BuildContext` that knows nothing about the site, so the parent's
@@ -3945,6 +3973,15 @@ class WebViewFactory {
     required WebViewConfig config,
     required Function(WebViewController) onControllerCreated,
   }) {
+    final gate = _sessionGate(config);
+    if (gate != null) {
+      return _SessionResetGate(
+        first: gate.reset,
+        admit: gate.admit,
+        build: () => createWebView(
+            config: config, onControllerCreated: onControllerCreated),
+      );
+    }
     // Build initial URL request headers. DNT/Sec-GPC are always-on per
     // the privacy posture of this app — every outbound nav advertises
     // the user's no-tracking preference.
@@ -6012,4 +6049,58 @@ class WebViewFactory {
     if (v is String) return int.tryParse(v);
     return null;
   }
+}
+
+/// Holds a site's WebView back until its container's old network session is
+/// gone (see [ContainerSessionRoutes]). Nothing is built on the container
+/// meanwhile: a WebView bound to it would keep the old session alive, and
+/// one that loaded would ride it.
+class _SessionResetGate extends StatefulWidget {
+  const _SessionResetGate({
+    required this.first,
+    required this.admit,
+    required this.build,
+  });
+
+  final Future<bool> first;
+  final Future<bool>? Function() admit;
+  final Widget Function() build;
+
+  @override
+  State<_SessionResetGate> createState() => _SessionResetGateState();
+}
+
+class _SessionResetGateState extends State<_SessionResetGate> {
+  Widget? _child;
+
+  @override
+  void initState() {
+    super.initState();
+    _wait(widget.first);
+  }
+
+  Future<void> _wait(Future<bool> reset) async {
+    final ok = await reset;
+    if (!mounted) return;
+    if (!ok) {
+      LogService.instance.log(
+        'Proxy',
+        'A container session still held its old route after a proxy change; '
+            'retrying before the site loads.',
+        level: LogLevel.warning,
+      );
+      await Future<void>.delayed(const Duration(seconds: 1));
+      if (!mounted) return;
+    }
+    final next = widget.admit();
+    if (next != null) {
+      unawaited(_wait(next));
+      return;
+    }
+    setState(() => _child = widget.build());
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      _child ?? const Center(child: CircularProgressIndicator());
 }
