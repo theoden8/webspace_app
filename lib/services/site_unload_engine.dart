@@ -158,6 +158,23 @@ class SiteUnloadEngine {
     return null;
   }
 
+  /// The site whose exit constraint wins among [indices], in their order:
+  /// the first that routes through Tor. Null when none does.
+  ///
+  /// [torExitNodesFor] reads the pin off the same site, so evicting what
+  /// [indicesToUnloadForTorExitMismatch] names against it leaves every
+  /// loaded Tor site agreeing with the pin that goes into force.
+  static int? torExitAnchor({
+    required Iterable<int> indices,
+    required List<WebViewModel> models,
+  }) {
+    for (final i in indices) {
+      if (i < 0 || i >= models.length) continue;
+      if (_torExitPin(models[i]) != null) return i;
+    }
+    return null;
+  }
+
   /// Whether the Tor sites among [indices] are all archive-tier.
   ///
   /// Such a pin may use a GeoIP table already on the device but must not
