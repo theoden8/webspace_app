@@ -812,6 +812,48 @@ void main() {
       );
     });
 
+    test('a saved pin change unloads the loaded site it now disagrees with',
+        () {
+      // From a device: site 1 was moved to Canada in its settings while
+      // site 0, pinned to Denmark, was loaded. The pin went to {ca} and site
+      // 0 was rebuilt under it once Tor came back up. The site on screen is
+      // the anchor; everything loaded that disagrees with it goes first.
+      final models = [
+        _site('https://a.example.com', proxy: tor(country: 'dk')),
+        _site('https://b.example.com', proxy: tor(country: 'ca')),
+        _site('https://c.example.com',
+            proxy: UserProxySettings(type: ProxyType.SOCKS5, address: 'p:9')),
+      ];
+      final order = <int>{1, 0, 2};
+      final anchor =
+          SiteUnloadEngine.torExitAnchor(indices: order, models: models);
+      expect(anchor, 1);
+      expect(
+        SiteUnloadEngine.indicesToUnloadForTorExitMismatch(
+          targetIndex: anchor!,
+          models: models,
+          loadedIndices: {0, 1, 2},
+        ),
+        {0},
+      );
+      expect(SiteUnloadEngine.torExitNodesFor(indices: order, models: models),
+          '{ca}');
+    });
+
+    test('with a non-Tor site on screen, the first Tor site in order anchors',
+        () {
+      final models = [
+        _site('https://a.example.com',
+            proxy: UserProxySettings(type: ProxyType.SOCKS5, address: 'p:9')),
+        _site('https://b.example.com', proxy: tor(country: 'dk')),
+        _site('https://c.example.com', proxy: tor()),
+      ];
+      expect(
+          SiteUnloadEngine.torExitAnchor(indices: {0, 2, 1}, models: models), 2);
+      expect(SiteUnloadEngine.torExitAnchor(indices: {0}, models: models),
+          isNull);
+    });
+
     test('a non-Tor site does not mask the pin a loaded Tor site holds', () {
       // Activating a SOCKS5 site evicts nobody, so the pinned site is still
       // loaded and the pin must survive the reconciliation.
