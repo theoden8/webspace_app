@@ -139,6 +139,32 @@ build carries the app's and the extension's provisioning profiles
 
 ---
 
+### Requirement: PLATFORM-007 - Launch screen follows the system appearance
+
+The native launch screen on iOS and Android SHALL take its background from the
+system appearance, light in light mode and dark in dark mode, and SHALL NOT
+name a fixed colour. On iOS that is `LaunchScreen.storyboard`, whose view
+background is `systemBackgroundColor`. On Android it is the `LaunchTheme`
+window background, which has a `values-night` variant and draws
+`?android:colorBackground`; Android 12+ samples the same background for its
+system splash.
+
+`main()` runs the service inits (content blocker engine, DNS lists) before
+`runApp`, and the launch screen stays up until Flutter's first frame, so a
+fixed white one is a white screen for that whole time on every dark-mode cold
+start.
+
+The launch screen cannot follow the in-app theme override: the OS draws it
+before any app code runs.
+
+#### Scenario: Cold start in dark mode
+
+**Given** the system appearance is dark
+**When** the app is cold-started
+**Then** the launch screen is dark until Flutter's first frame replaces it
+
+---
+
 ## Platform Capabilities Matrix
 
 | Feature | iOS | Android | macOS | Linux |
