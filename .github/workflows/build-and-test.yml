@@ -583,6 +583,9 @@ jobs:
       #     against what a real System WebView holds. Android parses settings
       #     with an explicit switch, so a field nobody wired is dropped as
       #     silently as one Apple's reflective parser cannot see;
+      #   HTTPAUTH-007 HTTP authentication: a site's own 401 answered from
+      #     the sign-in prompt and from a saved sign-in, with the page's image
+      #     and fetch() behind the same htpasswd;
       #   INTEG-011/012 lifecycle + background refresh, adb-driven.
       - name: Run emulator integration scenarios
         uses: reactivecircus/android-emulator-runner@v2
@@ -618,6 +621,7 @@ jobs:
             bash scripts/run_android_site_icon_tests.sh
             bash scripts/run_android_proxy_router_tests.sh
             bash scripts/run_android_settings_seam_test.sh
+            bash scripts/run_android_http_auth_tests.sh
             WS_RUN_NATIVE_REPAINT_PROBE=1 WS_RUN_BLANK_CONTROL=${{ inputs.blank_control && '1' || '0' }} WS_LIFECYCLE_BUILD_MODE=${{ inputs.lifecycle_build_mode || 'debug' }} bash scripts/run_android_lifecycle_tests.sh
 
       # always(), not failure(): the tier now dumps the platform view's

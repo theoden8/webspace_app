@@ -901,5 +901,17 @@
   "proxyTestAuthRejected": "Proksi imekataa vitambulisho hivi",
   "proxyTestUnreachable": "Imeshindwa kuifikia proksi",
   "torIsolateDestAddrTitle": "Saketi tofauti kwa kila lengwa",
-  "torIsolateDestAddrHint": "Kila tovuti daima hupata saketi yake ya Tor. Chaguo hili likiwashwa, tovuti hupata pia saketi tofauti kwa kila seva inayopakia kutoka kwake, hivyo ukurasa mmoja unaweza kufika mtandaoni kutoka anwani mbili au zaidi za kutokea kwa wakati mmoja — utengano zaidi, lakini tovuti inayokagua anwani yako kati ya seva zake inaweza kukutoa kwenye akaunti. Likizimwa, tovuti hutumia anwani moja kwa kila kitu inachopakia. Mabadiliko haya yataanza kutumika wakati ujao utakapofungua programu."
+  "torIsolateDestAddrHint": "Kila tovuti daima hupata saketi yake ya Tor. Chaguo hili likiwashwa, tovuti hupata pia saketi tofauti kwa kila seva inayopakia kutoka kwake, hivyo ukurasa mmoja unaweza kufika mtandaoni kutoka anwani mbili au zaidi za kutokea kwa wakati mmoja — utengano zaidi, lakini tovuti inayokagua anwani yako kati ya seva zake inaweza kukutoa kwenye akaunti. Likizimwa, tovuti hutumia anwani moja kwa kila kitu inachopakia. Mabadiliko haya yataanza kutumika wakati ujao utakapofungua programu.",
+  "httpAuthTitle": "Ingia",
+  "httpAuthBody": "{host} inaomba jina la mtumiaji na nywila.",
+  "httpAuthRejected": "Jina hilo la mtumiaji na nywila havikukubaliwa.",
+  "httpAuthUsername": "Jina la mtumiaji",
+  "httpAuthPassword": "Nywila",
+  "httpAuthRemember": "Kumbuka kwa tovuti hii",
+  "httpAuthSignIn": "Ingia",
+  "siteSettingsSavedSignIns": "Taarifa za kuingia zilizohifadhiwa",
+  "siteSettingsSavedSignInsCount": "{count, plural, =1{1 imehifadhiwa} other{{count} zimehifadhiwa}}",
+  "siteSettingsSavedSignInsNone": "Hakuna",
+  "siteSettingsSavedSignInsHint": "Seva ya tovuti hii inapoomba jina la mtumiaji na nywila (uthibitishaji wa HTTP, kama folda iliyolindwa na faili la htpasswd), kidirisha cha kuingia hufunguka. Ukiweka alama kwenye \"Kumbuka kwa tovuti hii\", taarifa hizo za kuingia huhifadhiwa katika hifadhi salama ya kifaa hiki, ambapo tovuti hii pekee inaweza kuzitumia. Taarifa za kuingia zilizohifadhiwa hazijumuishwi kamwe katika nakala rudufu za mipangilio wala katika misimbo ya QR inayoshirikiwa. Kuzifuta hakukutoi kwenye ukurasa ambao tayari uko wazi.",
+  "siteSettingsSavedSignInsClearTitle": "Sahau taarifa za kuingia zilizohifadhiwa za tovuti hii?"
 }

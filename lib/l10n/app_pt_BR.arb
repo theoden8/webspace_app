@@ -901,5 +901,17 @@
   "proxyTestAuthRejected": "O proxy recusou estas credenciais",
   "proxyTestUnreachable": "Não foi possível alcançar o proxy",
   "torIsolateDestAddrTitle": "Circuito separado por destino",
-  "torIsolateDestAddrHint": "Cada site sempre tem o seu próprio circuito Tor. Com isto ativado, o site também ganha um circuito separado para cada host de onde carrega, então uma mesma página pode chegar à internet a partir de dois ou mais endereços de saída ao mesmo tempo — mais isolamento, mas um site que confere o seu endereço entre os próprios hosts pode encerrar a sua sessão. Desativado, o site usa um único endereço para tudo o que carrega. Esta alteração terá efeito na próxima vez que você abrir o aplicativo."
+  "torIsolateDestAddrHint": "Cada site sempre tem o seu próprio circuito Tor. Com isto ativado, o site também ganha um circuito separado para cada host de onde carrega, então uma mesma página pode chegar à internet a partir de dois ou mais endereços de saída ao mesmo tempo — mais isolamento, mas um site que confere o seu endereço entre os próprios hosts pode encerrar a sua sessão. Desativado, o site usa um único endereço para tudo o que carrega. Esta alteração terá efeito na próxima vez que você abrir o aplicativo.",
+  "httpAuthTitle": "Fazer login",
+  "httpAuthBody": "{host} está pedindo um nome de usuário e uma senha.",
+  "httpAuthRejected": "Esse nome de usuário e essa senha não foram aceitos.",
+  "httpAuthUsername": "Nome de usuário",
+  "httpAuthPassword": "Senha",
+  "httpAuthRemember": "Lembrar para este site",
+  "httpAuthSignIn": "Entrar",
+  "siteSettingsSavedSignIns": "Logins salvos",
+  "siteSettingsSavedSignInsCount": "{count, plural, =1{1 salvo} other{{count} salvos}}",
+  "siteSettingsSavedSignInsNone": "Nenhum",
+  "siteSettingsSavedSignInsHint": "Quando o servidor deste site pede um nome de usuário e uma senha (autenticação HTTP, como uma pasta protegida por um arquivo htpasswd), uma janela de login é aberta. Marcar \"Lembrar para este site\" guarda esse login no armazenamento seguro deste dispositivo, onde apenas este site pode usá-lo. Os logins salvos nunca são incluídos nos backups de configurações nem nos códigos QR compartilhados. Limpá-los não desconecta você de uma página que já está aberta.",
+  "siteSettingsSavedSignInsClearTitle": "Esquecer os logins salvos deste site?"
 }

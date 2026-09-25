@@ -16,6 +16,7 @@ import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/repaint_log_throttle.dart';
 import 'package:webspace/services/repaint_suppression.dart';
+import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/pull_to_refresh_gate.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
@@ -42,6 +43,7 @@ import 'package:webspace/widgets/external_url_prompt.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
 import 'package:webspace/widgets/tor_bootstrap.dart';
 import 'package:webspace/widgets/unproxied_block.dart';
+import 'package:webspace/widgets/http_auth_prompt.dart';
 import 'package:webspace/widgets/untrusted_cert_prompt.dart';
 import 'package:webspace/widgets/url_bar.dart';
 
@@ -173,6 +175,7 @@ class InAppWebViewScreen extends StatefulWidget {
   final ScreenShareMode screenShareMode;
   final VirtualScreenSource? virtualScreenSource;
   final bool? protectedContentAllowed;
+  final HttpAuthMemory httpAuthMemory;
 
   InAppWebViewScreen({
     required this.url,
@@ -228,6 +231,7 @@ class InAppWebViewScreen extends StatefulWidget {
     this.screenShareMode = ScreenShareMode.ask,
     this.virtualScreenSource,
     this.protectedContentAllowed,
+    this.httpAuthMemory = HttpAuthMemory.off,
   }) : proxySettings = proxySettings ??
             UserProxySettings(type: ProxyType.DEFAULT);
 
@@ -684,6 +688,11 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
             certificate: cert,
           );
         },
+        onHttpAuthRequest: (request) async {
+          if (!mounted) return null;
+          return promptHttpAuth(context, request);
+        },
+        httpAuthMemory: widget.httpAuthMemory,
         onExternalSchemeUrl: (url, info) async {
           if (!mounted) return;
           await confirmAndLaunchExternalUrl(

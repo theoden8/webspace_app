@@ -17,6 +17,7 @@ import 'package:webspace/settings/tor_exit_countries.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/user_agent_identity.dart';
+import 'package:webspace/services/http_auth_secure_storage.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/proxy_form_engine.dart';
@@ -194,6 +195,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _accuracyController = TextEditingController();
     _loadFromModel();
     _initialSnapshot = _currentSnapshot();
+    _loadSavedSignIns();
     _userAgentController.addListener(_onAnyFieldChanged);
     _proxyAddressController.addListener(_onAnyFieldChanged);
     _proxyUsernameController.addListener(_onAnyFieldChanged);
@@ -1226,6 +1228,66 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
+  /// Null until secure storage answers, and for archive-tier sites, which
+  /// never save a sign-in (HTTPAUTH-004).
+  int? _savedSignIns;
+
+  Future<void> _loadSavedSignIns() async {
+    if (widget.webViewModel.isArchiveTier) return;
+    final count = await HttpAuthSecureStorage.instance
+        .countForSite(widget.webViewModel.siteId);
+    if (mounted) setState(() => _savedSignIns = count);
+  }
+
+  Future<void> _forgetSavedSignIns() async {
+    final loc = AppLocalizations.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(loc.siteSettingsSavedSignInsClearTitle),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(loc.commonCancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(loc.siteSettingsClearConfirm),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await HttpAuthSecureStorage.instance
+        .removeSite(widget.webViewModel.siteId);
+    await _loadSavedSignIns();
+  }
+
+  Widget _buildSavedSignInsTile() {
+    final loc = AppLocalizations.of(context);
+    final count = _savedSignIns;
+    return ListTile(
+      title: Row(
+        children: [
+          Flexible(child: Text(loc.siteSettingsSavedSignIns)),
+          HintButton(
+            title: loc.siteSettingsSavedSignIns,
+            description: loc.siteSettingsSavedSignInsHint,
+          ),
+        ],
+      ),
+      subtitle: count == null
+          ? null
+          : Text(count == 0
+              ? loc.siteSettingsSavedSignInsNone
+              : loc.siteSettingsSavedSignInsCount(count)),
+      trailing: TextButton(
+        onPressed: (count ?? 0) > 0 ? _forgetSavedSignIns : null,
+        child: Text(loc.siteSettingsClearConfirm),
+      ),
+    );
+  }
+
   Widget _buildWebRtcTile() {
     final loc = AppLocalizations.of(context);
     return ListTile(
@@ -1548,6 +1610,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             if (_proxySettings.type != ProxyType.DEFAULT) _buildProxyTestTile(),
           ],
           _buildWebRtcTile(),
+          if (!widget.webViewModel.isArchiveTier) _buildSavedSignInsTile(),
           _sectionHeader(loc.siteSettingsSectionSite),
           _buildBehaviourRow(),
           _buildPrivacyRow(),

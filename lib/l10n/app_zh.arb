@@ -901,5 +901,17 @@
   "proxyTestAuthRejected": "代理伺服器拒絕了這組憑證",
   "proxyTestUnreachable": "無法連線到代理伺服器",
   "torIsolateDestAddrTitle": "每個目的地使用獨立線路",
-  "torIsolateDestAddrHint": "每個網站一律使用自己的 Tor 線路。開啟此選項後，網站對於載入的每一台主機也會取得獨立線路，因此同一個頁面可能同時從兩個以上的出口位址連上網際網路——隔離更徹底，但會在自家主機之間核對你位址的網站可能將你登出。關閉後，該網站載入的所有內容都使用同一個位址。此變更會在下次開啟應用程式時生效。"
+  "torIsolateDestAddrHint": "每個網站一律使用自己的 Tor 線路。開啟此選項後，網站對於載入的每一台主機也會取得獨立線路，因此同一個頁面可能同時從兩個以上的出口位址連上網際網路——隔離更徹底，但會在自家主機之間核對你位址的網站可能將你登出。關閉後，該網站載入的所有內容都使用同一個位址。此變更會在下次開啟應用程式時生效。",
+  "httpAuthTitle": "登入",
+  "httpAuthBody": "{host} 要求輸入使用者名稱和密碼。",
+  "httpAuthRejected": "這組使用者名稱和密碼未被接受。",
+  "httpAuthUsername": "使用者名稱",
+  "httpAuthPassword": "密碼",
+  "httpAuthRemember": "記住此網站的登入資訊",
+  "httpAuthSignIn": "登入",
+  "siteSettingsSavedSignIns": "已儲存的登入資訊",
+  "siteSettingsSavedSignInsCount": "{count, plural, =1{已儲存 1 組} other{已儲存 {count} 組}}",
+  "siteSettingsSavedSignInsNone": "無",
+  "siteSettingsSavedSignInsHint": "當此網站的伺服器要求輸入使用者名稱和密碼時（HTTP 驗證，例如受 htpasswd 檔案保護的資料夾），會開啟登入視窗。勾選「記住此網站的登入資訊」會將該登入資訊保存在此裝置的安全儲存空間中，只有此網站能使用。已儲存的登入資訊絕不會包含在設定備份或分享的 QR 圖碼中。清除這些資訊並不會登出已開啟的頁面。",
+  "siteSettingsSavedSignInsClearTitle": "要忘記此網站已儲存的登入資訊嗎？"
 }

@@ -901,5 +901,17 @@
   "proxyTestAuthRejected": "Proxy-ul a respins aceste date de autentificare",
   "proxyTestUnreachable": "Nu s-a putut contacta proxy-ul",
   "torIsolateDestAddrTitle": "Circuit separat pentru fiecare destinație",
-  "torIsolateDestAddrHint": "Fiecare site are întotdeauna propriul circuit Tor. Când această opțiune este activă, site-ul primește un circuit separat și pentru fiecare gazdă de la care încarcă, așa că o singură pagină poate ajunge pe internet de la două sau mai multe adrese de ieșire în același timp — mai multă izolare, dar un site care îți verifică adresa între propriile gazde te poate deconecta. Dezactivată, site-ul folosește o singură adresă pentru tot ce încarcă. Această modificare intră în vigoare la următoarea deschidere a aplicației."
+  "torIsolateDestAddrHint": "Fiecare site are întotdeauna propriul circuit Tor. Când această opțiune este activă, site-ul primește un circuit separat și pentru fiecare gazdă de la care încarcă, așa că o singură pagină poate ajunge pe internet de la două sau mai multe adrese de ieșire în același timp — mai multă izolare, dar un site care îți verifică adresa între propriile gazde te poate deconecta. Dezactivată, site-ul folosește o singură adresă pentru tot ce încarcă. Această modificare intră în vigoare la următoarea deschidere a aplicației.",
+  "httpAuthTitle": "Autentificare",
+  "httpAuthBody": "{host} solicită un nume de utilizator și o parolă.",
+  "httpAuthRejected": "Numele de utilizator și parola nu au fost acceptate.",
+  "httpAuthUsername": "Nume de utilizator",
+  "httpAuthPassword": "Parolă",
+  "httpAuthRemember": "Reține pentru acest site",
+  "httpAuthSignIn": "Autentifică-te",
+  "siteSettingsSavedSignIns": "Autentificări salvate",
+  "siteSettingsSavedSignInsCount": "{count, plural, =1{1 salvată} other{{count} salvate}}",
+  "siteSettingsSavedSignInsNone": "Niciuna",
+  "siteSettingsSavedSignInsHint": "Când serverul acestui site cere un nume de utilizator și o parolă (autentificare HTTP, de exemplu un dosar protejat de un fișier htpasswd), se deschide o fereastră de autentificare. Dacă bifezi \"Reține pentru acest site\", autentificarea este păstrată în spațiul de stocare securizat al acestui dispozitiv, unde doar acest site o poate folosi. Autentificările salvate nu sunt incluse niciodată în backup-urile setărilor sau în codurile QR distribuite. Ștergerea lor nu te deconectează de la o pagină deja deschisă.",
+  "siteSettingsSavedSignInsClearTitle": "Uiți autentificările salvate pentru acest site?"
 }

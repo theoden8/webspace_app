@@ -901,5 +901,17 @@
   "proxyTestAuthRejected": "Il proxy ha rifiutato queste credenziali",
   "proxyTestUnreachable": "Impossibile raggiungere il proxy",
   "torIsolateDestAddrTitle": "Circuito separato per destinazione",
-  "torIsolateDestAddrHint": "Ogni sito ha sempre il proprio circuito Tor. Con questa opzione attiva, un sito ottiene anche un circuito separato per ogni host da cui carica, quindi una singola pagina può raggiungere internet da due o più indirizzi di uscita contemporaneamente: più isolamento, ma un sito che verifica il tuo indirizzo tra i propri host può disconnetterti. Disattivata, il sito usa un solo indirizzo per tutto ciò che carica. Questa modifica avrà effetto al prossimo avvio dell’app."
+  "torIsolateDestAddrHint": "Ogni sito ha sempre il proprio circuito Tor. Con questa opzione attiva, un sito ottiene anche un circuito separato per ogni host da cui carica, quindi una singola pagina può raggiungere internet da due o più indirizzi di uscita contemporaneamente: più isolamento, ma un sito che verifica il tuo indirizzo tra i propri host può disconnetterti. Disattivata, il sito usa un solo indirizzo per tutto ciò che carica. Questa modifica avrà effetto al prossimo avvio dell’app.",
+  "httpAuthTitle": "Accedi",
+  "httpAuthBody": "{host} richiede un nome utente e una password.",
+  "httpAuthRejected": "Quel nome utente e quella password non sono stati accettati.",
+  "httpAuthUsername": "Nome utente",
+  "httpAuthPassword": "Password",
+  "httpAuthRemember": "Ricorda per questo sito",
+  "httpAuthSignIn": "Accedi",
+  "siteSettingsSavedSignIns": "Credenziali salvate",
+  "siteSettingsSavedSignInsCount": "{count, plural, =1{1 salvata} other{{count} salvate}}",
+  "siteSettingsSavedSignInsNone": "Nessuna",
+  "siteSettingsSavedSignInsHint": "Quando il server di questo sito chiede un nome utente e una password (autenticazione HTTP, ad esempio una cartella protetta da un file htpasswd), si apre una finestra di accesso. Selezionando \"Ricorda per questo sito\" le credenziali vengono conservate nella memoria sicura di questo dispositivo, dove solo questo sito può usarle. Le credenziali salvate non vengono mai incluse nei backup delle impostazioni né nei codici QR condivisi. Cancellarle non disconnette una pagina già aperta.",
+  "siteSettingsSavedSignInsClearTitle": "Dimenticare le credenziali salvate per questo sito?"
 }

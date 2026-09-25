@@ -31,6 +31,10 @@ class _FakeTargets implements OrphanSweepTargets {
       _record('proxyPasswords', live);
 
   @override
+  Future<void> removeOrphanedHttpAuthCredentials(Set<String> live) async =>
+      _record('httpAuthCredentials', live);
+
+  @override
   Future<void> removeOrphanedHtmlCaches(Set<String> live) async =>
       _record('htmlCaches', live);
 
@@ -82,6 +86,7 @@ void main() {
       expect(targets.ops, [
         'cookies',
         'proxyPasswords',
+        'httpAuthCredentials',
         'htmlCaches',
         'htmlImports',
         'webViewState',
@@ -101,7 +106,7 @@ void main() {
       );
 
       expect(targets.ops.last, 'globalCookieJar');
-      expect(targets.ops.length, 7);
+      expect(targets.ops.length, 8);
     });
 
     test('session-scoped storages measure against the non-incognito set',
@@ -126,8 +131,8 @@ void main() {
 
     test('config-scoped storages measure against the full active set',
         () async {
-      // Proxy passwords and imported HTML are configuration, not session
-      // residue — an incognito site keeps both across launches.
+      // Proxy passwords, saved sign-ins and imported HTML are configuration,
+      // not session residue: an incognito site keeps them across launches.
       final targets = _FakeTargets();
 
       await OrphanSweepEngine.sweep(
@@ -138,6 +143,7 @@ void main() {
       );
 
       expect(targets.liveSets['proxyPasswords'], active);
+      expect(targets.liveSets['httpAuthCredentials'], active);
       expect(targets.liveSets['htmlImports'], active);
     });
   });

@@ -13,6 +13,8 @@ import 'package:webspace/services/anti_fingerprinting_shim.dart';
 import 'package:webspace/services/blob_url_capture.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/do_not_track_shim.dart';
+import 'package:webspace/services/http_auth_engine.dart';
+import 'package:webspace/services/http_auth_secure_storage.dart';
 import 'package:webspace/services/https_upgrade_engine.dart';
 import 'package:webspace/services/language_shim.dart';
 import 'package:webspace/services/launch_nonce.dart';
@@ -359,15 +361,8 @@ enum WebViewTheme { light, dark, system }
 /// here too, and proceeding would hand the page a token that admits its
 /// bearer to every site's route.
 ///
-/// Attached on every platform, not just Android, and that is deliberate
-/// rather than an oversight: the fork's Linux plugin implements this
-/// callback too (pub.dev lists only Android/iOS/macOS). It stays inert
-/// there because WPE's `OnAuthenticate` already returns TRUE before Dart
-/// is consulted -- so WebKit's own dialog was never going to show -- and
-/// a null from here reaches the same `defaultBehaviour` that an
-/// unregistered handler does, which cancels. Registering the handler
-/// therefore changes nothing off Android. Anything that makes this
-/// function return non-null off Android would.
+/// Where router mode is not active, [ProxyRouterService.ownsChallenge] is
+/// false and this returns null.
 Future<inapp.HttpAuthResponse?> answerProxyRouterChallenge(
   String? identity,
   inapp.HttpAuthenticationChallenge challenge,
@@ -387,6 +382,64 @@ Future<inapp.HttpAuthResponse?> answerProxyRouterChallenge(
     permanentPersistence: false,
   );
 }
+
+/// Answer a webview's `onReceivedHttpAuthRequest`: the proxy router's
+/// challenge first, then the site's own (HTTPAUTH-001).
+///
+/// Order is the security property. Android cannot say whether a challenge
+/// came from a proxy, so the relay's `407` and a site's `401` arrive here
+/// alike; the router claims its own by bound loopback host and per-run realm
+/// nonce, and only what it does not claim reaches [session]. A router-owned
+/// challenge is never shown to the user and never answered from saved
+/// credentials, whatever [session] would say.
+Future<inapp.HttpAuthResponse?> answerHttpAuthChallenge({
+  required String? routerIdentity,
+  required HttpAuthSession? session,
+  required inapp.HttpAuthenticationChallenge challenge,
+}) async {
+  final space = challenge.protectionSpace;
+  if (ProxyRouterService.instance
+      .ownsChallenge(host: space.host, realm: space.realm)) {
+    return answerProxyRouterChallenge(routerIdentity, challenge);
+  }
+  if (session == null) return null;
+  final HttpAuthCredential? credential;
+  try {
+    credential = await session.answer(HttpAuthChallengeInfo(
+      host: space.host,
+      realm: space.realm,
+      isProxy: space.proxyType != null,
+      // Android's count is one static shared by every webview in the
+      // process, and it already reads 1 on a first challenge.
+      platformRetry: !hostIsAndroid && challenge.previousFailureCount > 0,
+    ));
+  } catch (e) {
+    LogService.instance.log(
+      'HttpAuth',
+      'Challenge from ${space.host} not answered: $e',
+      level: LogLevel.error,
+      sensitivity: LogSensitivity.sensitive,
+    );
+    return null;
+  }
+  if (credential == null) return null;
+  return inapp.HttpAuthResponse(
+    action: inapp.HttpAuthResponseAction.PROCEED,
+    username: credential.username,
+    password: credential.password,
+    // The platform's store is app-wide; saving is HttpAuthSecureStorage's
+    // job, per site (HTTPAUTH-004).
+    permanentPersistence: false,
+  );
+}
+
+HttpAuthSession _httpAuthSessionFor(WebViewConfig config) => HttpAuthSession(
+      siteId: config.siteId,
+      siteUrl: config.initialUrl,
+      memory: config.httpAuthMemory,
+      store: HttpAuthSecureStorage.instance,
+      prompt: config.onHttpAuthRequest,
+    );
 
 /// The identity a site presents to the proxy router (PROXY-013).
 ///
@@ -967,6 +1020,12 @@ class WebViewConfig {
     int port,
     inapp.SslCertificate? certificate,
   )? onUntrustedCertificate;
+  /// Asks the user to sign in when the site's server answers `401`
+  /// (HTTPAUTH-003). Null leaves every such challenge to the platform, which
+  /// cancels and shows the server's error body.
+  final HttpAuthPrompt? onHttpAuthRequest;
+  /// Whether saved sign-ins are read and offered to be saved (HTTPAUTH-004).
+  final HttpAuthMemory httpAuthMemory;
   /// Optional pull-to-refresh controller for enabling pull-to-refresh gesture.
   final inapp.PullToRefreshController? pullToRefreshController;
   /// Guards [pullToRefreshController] against two-finger gestures. Owns the
@@ -1141,6 +1200,8 @@ class WebViewConfig {
     this.onConfirmScriptFetch,
     this.onExternalSchemeUrl,
     this.onUntrustedCertificate,
+    this.onHttpAuthRequest,
+    this.httpAuthMemory = HttpAuthMemory.off,
     this.pullToRefreshController,
     this.pullToRefreshGate,
     this.onRendererGone,
@@ -2278,6 +2339,7 @@ class WebViewFactory {
     // the platform cannot honor must not become a direct connection.
     if (binding.proxyUnavailable) return const SizedBox.shrink();
     final page = _buildPageScripts(parent);
+    final httpAuth = _httpAuthSessionFor(parent);
     return inapp.InAppWebView(
       windowId: windowId,
       initialSettings: inapp.InAppWebViewSettings(
@@ -2359,9 +2421,13 @@ class WebViewFactory {
       onReceivedServerTrustAuthRequest: (controller, challenge) =>
           _handleServerTrust(controller, challenge, null),
       // A popup is the same site in a dialog, so it presents the same
-      // router credential (PROXY-013).
+      // router credential (PROXY-013) and the same saved sign-ins.
       onReceivedHttpAuthRequest: (controller, challenge) =>
-          answerProxyRouterChallenge(_routerIdentityForConfig(parent), challenge),
+          answerHttpAuthChallenge(
+            routerIdentity: _routerIdentityForConfig(parent),
+            session: httpAuth,
+            challenge: challenge,
+          ),
     );
   }
 
@@ -3955,6 +4021,7 @@ class WebViewFactory {
     var pendingLiveReload = usesCachedHtml && !isFileImport;
 
     final page = _buildPageScripts(config);
+    final httpAuth = _httpAuthSessionFor(config);
     final textZoom = page.textZoom;
     final userScripts = page.userScripts;
     // Added here rather than in _buildPageScripts so a popup, which shares
@@ -5296,7 +5363,11 @@ class WebViewFactory {
       onReceivedServerTrustAuthRequest: (controller, challenge) =>
           _handleServerTrust(controller, challenge, config.onUntrustedCertificate),
       onReceivedHttpAuthRequest: (controller, challenge) =>
-          answerProxyRouterChallenge(_routerIdentityForConfig(config), challenge),
+          answerHttpAuthChallenge(
+            routerIdentity: _routerIdentityForConfig(config),
+            session: httpAuth,
+            challenge: challenge,
+          ),
       // Android `WebView.onRenderProcessGone`: the OS can kill the renderer
       // process while the app is backgrounded to reclaim memory. Coming back
       // to a renderer-gone WebView shows a black surface because the view is

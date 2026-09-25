@@ -901,5 +901,17 @@
   "proxyTestAuthRejected": "Proxyen afviste disse oplysninger",
   "proxyTestUnreachable": "Kunne ikke nå proxyen",
   "torIsolateDestAddrTitle": "Separat kredsløb pr. destination",
-  "torIsolateDestAddrHint": "Hvert websted får altid sit eget Tor-kredsløb. Når dette er slået til, får et websted også et separat kredsløb for hver vært, det henter fra, så én side kan nå internettet fra to eller flere udgangsadresser samtidig — mere isolation, men et websted, der tjekker din adresse på tværs af sine egne værter, kan logge dig ud. Slået fra får webstedet én adresse til alt, det henter. Ændringen træder i kraft, næste gang du åbner appen."
+  "torIsolateDestAddrHint": "Hvert websted får altid sit eget Tor-kredsløb. Når dette er slået til, får et websted også et separat kredsløb for hver vært, det henter fra, så én side kan nå internettet fra to eller flere udgangsadresser samtidig — mere isolation, men et websted, der tjekker din adresse på tværs af sine egne værter, kan logge dig ud. Slået fra får webstedet én adresse til alt, det henter. Ændringen træder i kraft, næste gang du åbner appen.",
+  "httpAuthTitle": "Log ind",
+  "httpAuthBody": "{host} beder om et brugernavn og en adgangskode.",
+  "httpAuthRejected": "Det brugernavn og den adgangskode blev ikke accepteret.",
+  "httpAuthUsername": "Brugernavn",
+  "httpAuthPassword": "Adgangskode",
+  "httpAuthRemember": "Husk for denne side",
+  "httpAuthSignIn": "Log ind",
+  "siteSettingsSavedSignIns": "Gemte logins",
+  "siteSettingsSavedSignInsCount": "{count, plural, =1{1 gemt} other{{count} gemt}}",
+  "siteSettingsSavedSignInsNone": "Ingen",
+  "siteSettingsSavedSignInsHint": "Når denne sides server beder om et brugernavn og en adgangskode (HTTP-godkendelse, f.eks. en mappe beskyttet af en htpasswd-fil), åbnes en logindialog. Hvis du markerer \"Husk for denne side\", gemmes det login i denne enheds sikre lager, hvor kun denne side kan bruge det. Gemte logins kommer aldrig med i sikkerhedskopier af indstillinger eller i delte QR-koder. Når du rydder dem, bliver en side, der allerede er åben, ikke logget ud.",
+  "siteSettingsSavedSignInsClearTitle": "Glem gemte logins for denne side?"
 }

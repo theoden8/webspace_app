@@ -901,5 +901,17 @@
   "proxyTestAuthRejected": "El proxy rechazó estas credenciales",
   "proxyTestUnreachable": "No se pudo contactar con el proxy",
   "torIsolateDestAddrTitle": "Circuito independiente por destino",
-  "torIsolateDestAddrHint": "Cada sitio tiene siempre su propio circuito de Tor. Con esto activado, un sitio obtiene además un circuito separado para cada servidor del que carga, así que una misma página puede salir a internet desde dos o más direcciones de salida a la vez: más aislamiento, pero un sitio que comprueba tu dirección entre sus propios servidores puede cerrarte la sesión. Desactivado, el sitio usa una sola dirección para todo lo que carga. Este cambio se aplicará la próxima vez que abras la aplicación."
+  "torIsolateDestAddrHint": "Cada sitio tiene siempre su propio circuito de Tor. Con esto activado, un sitio obtiene además un circuito separado para cada servidor del que carga, así que una misma página puede salir a internet desde dos o más direcciones de salida a la vez: más aislamiento, pero un sitio que comprueba tu dirección entre sus propios servidores puede cerrarte la sesión. Desactivado, el sitio usa una sola dirección para todo lo que carga. Este cambio se aplicará la próxima vez que abras la aplicación.",
+  "httpAuthTitle": "Iniciar sesión",
+  "httpAuthBody": "{host} pide un nombre de usuario y una contraseña.",
+  "httpAuthRejected": "No se aceptaron ese nombre de usuario y esa contraseña.",
+  "httpAuthUsername": "Nombre de usuario",
+  "httpAuthPassword": "Contraseña",
+  "httpAuthRemember": "Recordar para este sitio",
+  "httpAuthSignIn": "Iniciar sesión",
+  "siteSettingsSavedSignIns": "Inicios de sesión guardados",
+  "siteSettingsSavedSignInsCount": "{count, plural, =1{1 guardado} other{{count} guardados}}",
+  "siteSettingsSavedSignInsNone": "Ninguno",
+  "siteSettingsSavedSignInsHint": "Cuando el servidor de este sitio pide un nombre de usuario y una contraseña (autenticación HTTP, como una carpeta protegida por un archivo htpasswd), se abre un diálogo de inicio de sesión. Si marcas \"Recordar para este sitio\", ese inicio de sesión se guarda en el almacenamiento seguro de este dispositivo, donde solo este sitio puede usarlo. Los inicios de sesión guardados nunca se incluyen en las copias de seguridad de los ajustes ni en los códigos QR compartidos. Borrarlos no cierra la sesión de una página que ya esté abierta.",
+  "siteSettingsSavedSignInsClearTitle": "¿Olvidar los inicios de sesión guardados de este sitio?"
 }

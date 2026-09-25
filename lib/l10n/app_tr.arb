@@ -901,5 +901,17 @@
   "proxyTestAuthRejected": "Vekil sunucu bu kimlik bilgilerini reddetti",
   "proxyTestUnreachable": "Vekil sunucuya ulaşılamadı",
   "torIsolateDestAddrTitle": "Her hedef için ayrı devre",
-  "torIsolateDestAddrHint": "Her site her zaman kendi Tor devresini alır. Bu açıkken site, yüklediği her ana bilgisayar için de ayrı bir devre alır; böylece tek bir sayfa aynı anda iki veya daha fazla çıkış adresinden internete ulaşır — daha fazla yalıtım, ancak adresinizi kendi ana bilgisayarları arasında denetleyen bir site oturumunuzu kapatabilir. Kapalıyken site, yüklediği her şey için tek bir adres kullanır. Bu değişiklik uygulamayı bir sonraki açışınızda geçerli olur."
+  "torIsolateDestAddrHint": "Her site her zaman kendi Tor devresini alır. Bu açıkken site, yüklediği her ana bilgisayar için de ayrı bir devre alır; böylece tek bir sayfa aynı anda iki veya daha fazla çıkış adresinden internete ulaşır — daha fazla yalıtım, ancak adresinizi kendi ana bilgisayarları arasında denetleyen bir site oturumunuzu kapatabilir. Kapalıyken site, yüklediği her şey için tek bir adres kullanır. Bu değişiklik uygulamayı bir sonraki açışınızda geçerli olur.",
+  "httpAuthTitle": "Oturum açın",
+  "httpAuthBody": "{host} bir kullanıcı adı ve parola istiyor.",
+  "httpAuthRejected": "Bu kullanıcı adı ve parola kabul edilmedi.",
+  "httpAuthUsername": "Kullanıcı adı",
+  "httpAuthPassword": "Parola",
+  "httpAuthRemember": "Bu site için hatırla",
+  "httpAuthSignIn": "Oturum aç",
+  "siteSettingsSavedSignIns": "Kayıtlı oturum açma bilgileri",
+  "siteSettingsSavedSignInsCount": "{count, plural, =1{1 kayıtlı} other{{count} kayıtlı}}",
+  "siteSettingsSavedSignInsNone": "Yok",
+  "siteSettingsSavedSignInsHint": "Bu sitenin sunucusu bir kullanıcı adı ve parola istediğinde (HTTP kimlik doğrulaması, örneğin bir htpasswd dosyasıyla korunan bir klasör) bir oturum açma penceresi açılır. \"Bu site için hatırla\" işaretlenirse bu oturum açma bilgileri bu cihazın güvenli depolama alanında saklanır ve yalnızca bu site tarafından kullanılabilir. Kayıtlı oturum açma bilgileri hiçbir zaman ayar yedeklerine veya paylaşılan QR kodlarına dahil edilmez. Bunları temizlemek, zaten açık olan bir sayfadaki oturumu kapatmaz.",
+  "siteSettingsSavedSignInsClearTitle": "Bu site için kayıtlı oturum açma bilgileri unutulsun mu?"
 }

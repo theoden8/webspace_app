@@ -901,5 +901,17 @@
   "proxyTestAuthRejected": "O proxy recusou estas credenciais",
   "proxyTestUnreachable": "Não foi possível contactar o proxy",
   "torIsolateDestAddrTitle": "Circuito separado por destino",
-  "torIsolateDestAddrHint": "Cada site tem sempre o seu próprio circuito Tor. Com isto ligado, o site obtém também um circuito separado para cada servidor de onde carrega, pelo que uma mesma página pode chegar à internet a partir de dois ou mais endereços de saída ao mesmo tempo — mais isolamento, mas um site que verifica o seu endereço entre os seus servidores pode terminar a sua sessão. Desligado, o site usa um único endereço para tudo o que carrega. Esta alteração produz efeito na próxima vez que abrir a aplicação."
+  "torIsolateDestAddrHint": "Cada site tem sempre o seu próprio circuito Tor. Com isto ligado, o site obtém também um circuito separado para cada servidor de onde carrega, pelo que uma mesma página pode chegar à internet a partir de dois ou mais endereços de saída ao mesmo tempo — mais isolamento, mas um site que verifica o seu endereço entre os seus servidores pode terminar a sua sessão. Desligado, o site usa um único endereço para tudo o que carrega. Esta alteração produz efeito na próxima vez que abrir a aplicação.",
+  "httpAuthTitle": "Iniciar sessão",
+  "httpAuthBody": "{host} está a pedir um nome de utilizador e uma palavra-passe.",
+  "httpAuthRejected": "Esse nome de utilizador e palavra-passe não foram aceites.",
+  "httpAuthUsername": "Nome de utilizador",
+  "httpAuthPassword": "Palavra-passe",
+  "httpAuthRemember": "Memorizar para este site",
+  "httpAuthSignIn": "Iniciar sessão",
+  "siteSettingsSavedSignIns": "Inícios de sessão guardados",
+  "siteSettingsSavedSignInsCount": "{count, plural, =1{1 guardado} other{{count} guardados}}",
+  "siteSettingsSavedSignInsNone": "Nenhum",
+  "siteSettingsSavedSignInsHint": "Quando o servidor deste site pede um nome de utilizador e uma palavra-passe (autenticação HTTP, como uma pasta protegida por um ficheiro htpasswd), abre-se uma janela de início de sessão. Marcar \"Memorizar para este site\" guarda esse início de sessão no armazenamento seguro deste dispositivo, onde só este site o pode usar. Os inícios de sessão guardados nunca são incluídos nas cópias de segurança das definições nem nos códigos QR partilhados. Limpá-los não termina a sessão de uma página que já esteja aberta.",
+  "siteSettingsSavedSignInsClearTitle": "Esquecer os inícios de sessão guardados deste site?"
 }

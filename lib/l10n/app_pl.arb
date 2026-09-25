@@ -901,5 +901,17 @@
   "proxyTestAuthRejected": "Serwer proxy odrzucił te dane logowania",
   "proxyTestUnreachable": "Nie udało się połączyć z serwerem proxy",
   "torIsolateDestAddrTitle": "Osobny obwód dla każdego celu",
-  "torIsolateDestAddrHint": "Każda witryna zawsze ma własny obwód Tora. Gdy ta opcja jest włączona, witryna otrzymuje osobny obwód także dla każdego hosta, z którego ładuje, więc jedna strona może wychodzić do internetu z dwóch lub więcej adresów wyjściowych naraz — większa izolacja, ale witryna sprawdzająca twój adres pomiędzy własnymi hostami może cię wylogować. Wyłączona daje witrynie jeden adres dla wszystkiego, co ładuje. Ta zmiana zacznie obowiązywać przy następnym uruchomieniu aplikacji."
+  "torIsolateDestAddrHint": "Każda witryna zawsze ma własny obwód Tora. Gdy ta opcja jest włączona, witryna otrzymuje osobny obwód także dla każdego hosta, z którego ładuje, więc jedna strona może wychodzić do internetu z dwóch lub więcej adresów wyjściowych naraz — większa izolacja, ale witryna sprawdzająca twój adres pomiędzy własnymi hostami może cię wylogować. Wyłączona daje witrynie jeden adres dla wszystkiego, co ładuje. Ta zmiana zacznie obowiązywać przy następnym uruchomieniu aplikacji.",
+  "httpAuthTitle": "Logowanie",
+  "httpAuthBody": "{host} prosi o nazwę użytkownika i hasło.",
+  "httpAuthRejected": "Ta nazwa użytkownika i hasło nie zostały zaakceptowane.",
+  "httpAuthUsername": "Nazwa użytkownika",
+  "httpAuthPassword": "Hasło",
+  "httpAuthRemember": "Zapamiętaj dla tej strony",
+  "httpAuthSignIn": "Zaloguj się",
+  "siteSettingsSavedSignIns": "Zapisane dane logowania",
+  "siteSettingsSavedSignInsCount": "{count, plural, =1{1 zapisany wpis} few{{count} zapisane wpisy} many{{count} zapisanych wpisów} other{{count} zapisanych wpisów}}",
+  "siteSettingsSavedSignInsNone": "Brak",
+  "siteSettingsSavedSignInsHint": "Gdy serwer tej strony prosi o nazwę użytkownika i hasło (uwierzytelnianie HTTP, np. folder chroniony plikiem htpasswd), otwiera się okno logowania. Zaznaczenie „Zapamiętaj dla tej strony” zachowuje te dane logowania w bezpiecznym magazynie tego urządzenia, gdzie może z nich korzystać tylko ta strona. Zapisane dane logowania nigdy nie trafiają do kopii zapasowych ustawień ani do udostępnianych kodów QR. Ich wyczyszczenie nie wylogowuje strony, która jest już otwarta.",
+  "siteSettingsSavedSignInsClearTitle": "Usunąć zapisane dane logowania dla tej strony?"
 }

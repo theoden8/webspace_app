@@ -901,5 +901,17 @@
   "proxyTestAuthRejected": "De proxy heeft deze gegevens geweigerd",
   "proxyTestUnreachable": "Kon de proxy niet bereiken",
   "torIsolateDestAddrTitle": "Apart circuit per bestemming",
-  "torIsolateDestAddrHint": "Elke site krijgt altijd zijn eigen Tor-circuit. Staat dit aan, dan krijgt een site ook een apart circuit voor elke host waarvan hij laadt, zodat één pagina tegelijk vanaf twee of meer uitgangsadressen op internet komt — meer isolatie, maar een site die je adres over zijn eigen hosts controleert, kan je uitloggen. Uit geeft de site één adres voor alles wat hij laadt. Deze wijziging gaat in de volgende keer dat je de app opent."
+  "torIsolateDestAddrHint": "Elke site krijgt altijd zijn eigen Tor-circuit. Staat dit aan, dan krijgt een site ook een apart circuit voor elke host waarvan hij laadt, zodat één pagina tegelijk vanaf twee of meer uitgangsadressen op internet komt — meer isolatie, maar een site die je adres over zijn eigen hosts controleert, kan je uitloggen. Uit geeft de site één adres voor alles wat hij laadt. Deze wijziging gaat in de volgende keer dat je de app opent.",
+  "httpAuthTitle": "Inloggen",
+  "httpAuthBody": "{host} vraagt om een gebruikersnaam en wachtwoord.",
+  "httpAuthRejected": "Die gebruikersnaam en dat wachtwoord zijn niet geaccepteerd.",
+  "httpAuthUsername": "Gebruikersnaam",
+  "httpAuthPassword": "Wachtwoord",
+  "httpAuthRemember": "Onthouden voor deze site",
+  "httpAuthSignIn": "Inloggen",
+  "siteSettingsSavedSignIns": "Opgeslagen inloggegevens",
+  "siteSettingsSavedSignInsCount": "{count, plural, =1{1 opgeslagen} other{{count} opgeslagen}}",
+  "siteSettingsSavedSignInsNone": "Geen",
+  "siteSettingsSavedSignInsHint": "Wanneer de server van deze site om een gebruikersnaam en wachtwoord vraagt (HTTP-verificatie, zoals een map die met een htpasswd-bestand is beveiligd), opent er een inlogvenster. Als je \"Onthouden voor deze site\" aanvinkt, worden die inloggegevens bewaard in de beveiligde opslag van dit apparaat, waar alleen deze site ze kan gebruiken. Opgeslagen inloggegevens worden nooit opgenomen in back-ups van instellingen of gedeelde QR-codes. Als je ze wist, wordt een pagina die al open is niet uitgelogd.",
+  "siteSettingsSavedSignInsClearTitle": "Opgeslagen inloggegevens voor deze site vergeten?"
 }

@@ -901,5 +901,17 @@
   "proxyTestAuthRejected": "Il-proxy ċaħad dawn il-kredenzjali",
   "proxyTestUnreachable": "Ma setax jintlaħaq il-proxy",
   "torIsolateDestAddrTitle": "Ċirkwit separat għal kull destinazzjoni",
-  "torIsolateDestAddrHint": "Kull sit dejjem jieħu ċ-ċirkwit Tor tiegħu. Meta dan ikun mixgħul, is-sit jieħu wkoll ċirkwit separat għal kull host li jgħabbi minnu, u għalhekk paġna waħda tista' tilħaq l-internet minn żewġ indirizzi ta' ħruġ jew aktar fl-istess ħin — aktar iżolament, imma sit li jiċċekkja l-indirizz tiegħek fost il-hosts tiegħu jista' joħroġok mis-sessjoni. Meta jkun mitfi, is-sit juża indirizz wieħed għal kulma jgħabbi. Din il-bidla tidħol fis-seħħ id-darba li jmiss li tiftaħ l-app."
+  "torIsolateDestAddrHint": "Kull sit dejjem jieħu ċ-ċirkwit Tor tiegħu. Meta dan ikun mixgħul, is-sit jieħu wkoll ċirkwit separat għal kull host li jgħabbi minnu, u għalhekk paġna waħda tista' tilħaq l-internet minn żewġ indirizzi ta' ħruġ jew aktar fl-istess ħin — aktar iżolament, imma sit li jiċċekkja l-indirizz tiegħek fost il-hosts tiegħu jista' joħroġok mis-sessjoni. Meta jkun mitfi, is-sit juża indirizz wieħed għal kulma jgħabbi. Din il-bidla tidħol fis-seħħ id-darba li jmiss li tiftaħ l-app.",
+  "httpAuthTitle": "Idħol",
+  "httpAuthBody": "{host} qed jitlob isem tal-utent u password.",
+  "httpAuthRejected": "Dak l-isem tal-utent u l-password ma ġewx aċċettati.",
+  "httpAuthUsername": "Isem tal-utent",
+  "httpAuthPassword": "Password",
+  "httpAuthRemember": "Ftakar għal dan is-sit",
+  "httpAuthSignIn": "Idħol",
+  "siteSettingsSavedSignIns": "Kredenzjali ssejvjati",
+  "siteSettingsSavedSignInsCount": "{count, plural, =1{1 issejvjat} other{{count} issejvjati}}",
+  "siteSettingsSavedSignInsNone": "Xejn",
+  "siteSettingsSavedSignInsHint": "Meta s-server ta' dan is-sit jitlob isem tal-utent u password (awtentikazzjoni HTTP, bħal folder protett b'fajl htpasswd), tinfetaħ tieqa għad-dħul. Jekk timmarka \"Ftakar għal dan is-sit\", dawk il-kredenzjali jinżammu fil-ħażna sigura ta' dan it-tagħmir, fejn dan is-sit biss jista' jużahom. Il-kredenzjali ssejvjati qatt ma jiġu inklużi fil-backups tas-settings jew fil-kodiċijiet QR ixxerjati. Jekk tneħħihom, paġna li diġà hija miftuħa ma toħroġx mis-sessjoni.",
+  "siteSettingsSavedSignInsClearTitle": "Tinsa l-kredenzjali ssejvjati ta' dan is-sit?"
 }

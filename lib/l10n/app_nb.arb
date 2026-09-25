@@ -901,5 +901,17 @@
   "proxyTestAuthRejected": "Proxyen avviste denne påloggingen",
   "proxyTestUnreachable": "Kunne ikke nå proxyen",
   "torIsolateDestAddrTitle": "Egen krets per destinasjon",
-  "torIsolateDestAddrHint": "Hvert nettsted får alltid sin egen Tor-krets. Når dette er på, får nettstedet også en egen krets for hver vert det laster fra, slik at én side kan nå internett fra to eller flere utgangsadresser samtidig — mer isolasjon, men et nettsted som sjekker adressen din på tvers av sine egne verter, kan logge deg ut. Slått av får nettstedet én adresse for alt det laster. Endringen trer i kraft neste gang du åpner appen."
+  "torIsolateDestAddrHint": "Hvert nettsted får alltid sin egen Tor-krets. Når dette er på, får nettstedet også en egen krets for hver vert det laster fra, slik at én side kan nå internett fra to eller flere utgangsadresser samtidig — mer isolasjon, men et nettsted som sjekker adressen din på tvers av sine egne verter, kan logge deg ut. Slått av får nettstedet én adresse for alt det laster. Endringen trer i kraft neste gang du åpner appen.",
+  "httpAuthTitle": "Logg på",
+  "httpAuthBody": "{host} ber om brukernavn og passord.",
+  "httpAuthRejected": "Det brukernavnet og passordet ble ikke godtatt.",
+  "httpAuthUsername": "Brukernavn",
+  "httpAuthPassword": "Passord",
+  "httpAuthRemember": "Husk for dette nettstedet",
+  "httpAuthSignIn": "Logg på",
+  "siteSettingsSavedSignIns": "Lagrede pålogginger",
+  "siteSettingsSavedSignInsCount": "{count, plural, =1{1 lagret} other{{count} lagret}}",
+  "siteSettingsSavedSignInsNone": "Ingen",
+  "siteSettingsSavedSignInsHint": "Når serveren til dette nettstedet ber om brukernavn og passord (HTTP-autentisering, for eksempel en mappe beskyttet av en htpasswd-fil), åpnes en påloggingsdialog. Hvis du krysser av for \"Husk for dette nettstedet\", lagres påloggingen i den sikre lagringen på denne enheten, der bare dette nettstedet kan bruke den. Lagrede pålogginger tas aldri med i sikkerhetskopier av innstillinger eller delte QR-koder. Å tømme dem logger ikke ut en side som allerede er åpen.",
+  "siteSettingsSavedSignInsClearTitle": "Glemme lagrede pålogginger for dette nettstedet?"
 }

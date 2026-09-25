@@ -901,5 +901,17 @@
   "proxyTestAuthRejected": "Proksi menolak kelayakan ini",
   "proxyTestUnreachable": "Tidak dapat menghubungi proksi",
   "torIsolateDestAddrTitle": "Litar berasingan bagi setiap destinasi",
-  "torIsolateDestAddrHint": "Setiap tapak sentiasa mendapat litar Tor sendiri. Apabila ini dihidupkan, tapak juga mendapat litar berasingan bagi setiap hos yang dimuatkannya, jadi satu halaman boleh mencapai internet daripada dua atau lebih alamat keluar serentak — lebih banyak pengasingan, tetapi tapak yang menyemak alamat anda merentas hosnya sendiri mungkin melog keluar anda. Apabila dimatikan, tapak menggunakan satu alamat untuk semua yang dimuatkannya. Perubahan ini berkuat kuasa apabila anda membuka aplikasi kali berikutnya."
+  "torIsolateDestAddrHint": "Setiap tapak sentiasa mendapat litar Tor sendiri. Apabila ini dihidupkan, tapak juga mendapat litar berasingan bagi setiap hos yang dimuatkannya, jadi satu halaman boleh mencapai internet daripada dua atau lebih alamat keluar serentak — lebih banyak pengasingan, tetapi tapak yang menyemak alamat anda merentas hosnya sendiri mungkin melog keluar anda. Apabila dimatikan, tapak menggunakan satu alamat untuk semua yang dimuatkannya. Perubahan ini berkuat kuasa apabila anda membuka aplikasi kali berikutnya.",
+  "httpAuthTitle": "Log masuk",
+  "httpAuthBody": "{host} meminta nama pengguna dan kata laluan.",
+  "httpAuthRejected": "Nama pengguna dan kata laluan itu tidak diterima.",
+  "httpAuthUsername": "Nama pengguna",
+  "httpAuthPassword": "Kata laluan",
+  "httpAuthRemember": "Ingat untuk tapak ini",
+  "httpAuthSignIn": "Log masuk",
+  "siteSettingsSavedSignIns": "Log masuk yang disimpan",
+  "siteSettingsSavedSignInsCount": "{count, plural, =1{1 disimpan} other{{count} disimpan}}",
+  "siteSettingsSavedSignInsNone": "Tiada",
+  "siteSettingsSavedSignInsHint": "Apabila pelayan tapak ini meminta nama pengguna dan kata laluan (pengesahan HTTP, contohnya folder yang dilindungi oleh fail htpasswd), tetingkap log masuk akan dibuka. Menandakan \"Ingat untuk tapak ini\" menyimpan log masuk itu dalam storan selamat peranti ini, dan hanya tapak ini boleh menggunakannya. Log masuk yang disimpan tidak pernah disertakan dalam sandaran tetapan atau kod QR yang dikongsi. Mengosongkannya tidak melog keluar halaman yang sudah dibuka.",
+  "siteSettingsSavedSignInsClearTitle": "Lupakan log masuk yang disimpan untuk tapak ini?"
 }

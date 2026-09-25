@@ -901,5 +901,17 @@
   "proxyTestAuthRejected": "A proxy elutasította ezeket az adatokat",
   "proxyTestUnreachable": "A proxy nem érhető el",
   "torIsolateDestAddrTitle": "Külön áramkör célonként",
-  "torIsolateDestAddrHint": "Minden webhely mindig saját Tor-áramkört kap. Ha ez be van kapcsolva, a webhely külön áramkört kap minden kiszolgálóhoz is, amelyről betölt, így egyetlen oldal egyszerre két vagy több kilépési címről érheti el az internetet — erősebb elkülönítés, de az a webhely, amely a saját kiszolgálói között ellenőrzi a címedet, kiléptethet. Kikapcsolva a webhely egyetlen címet használ mindenhez, amit betölt. A módosítás az alkalmazás következő megnyitásakor lép életbe."
+  "torIsolateDestAddrHint": "Minden webhely mindig saját Tor-áramkört kap. Ha ez be van kapcsolva, a webhely külön áramkört kap minden kiszolgálóhoz is, amelyről betölt, így egyetlen oldal egyszerre két vagy több kilépési címről érheti el az internetet — erősebb elkülönítés, de az a webhely, amely a saját kiszolgálói között ellenőrzi a címedet, kiléptethet. Kikapcsolva a webhely egyetlen címet használ mindenhez, amit betölt. A módosítás az alkalmazás következő megnyitásakor lép életbe.",
+  "httpAuthTitle": "Bejelentkezés",
+  "httpAuthBody": "A(z) {host} felhasználónevet és jelszót kér.",
+  "httpAuthRejected": "Ezt a felhasználónevet és jelszót nem fogadták el.",
+  "httpAuthUsername": "Felhasználónév",
+  "httpAuthPassword": "Jelszó",
+  "httpAuthRemember": "Adatok megjegyzése ehhez a webhelyhez",
+  "httpAuthSignIn": "Bejelentkezés",
+  "siteSettingsSavedSignIns": "Mentett bejelentkezések",
+  "siteSettingsSavedSignInsCount": "{count, plural, =1{1 mentve} other{{count} mentve}}",
+  "siteSettingsSavedSignInsNone": "Nincs",
+  "siteSettingsSavedSignInsHint": "Ha a webhely szervere felhasználónevet és jelszót kér (HTTP-hitelesítés, például egy htpasswd fájllal védett mappa), megnyílik egy bejelentkezési párbeszédablak. Ha bejelöli az „Adatok megjegyzése ehhez a webhelyhez” lehetőséget, a bejelentkezés az eszköz biztonságos tárolójába kerül, ahol csak ez a webhely használhatja. A mentett bejelentkezések soha nem kerülnek a beállítások biztonsági mentéseibe vagy a megosztott QR-kódokba. Törlésük nem jelentkezteti ki a már megnyitott oldalt.",
+  "siteSettingsSavedSignInsClearTitle": "Elfelejti a webhelyhez mentett bejelentkezéseket?"
 }

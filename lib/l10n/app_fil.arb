@@ -901,5 +901,17 @@
   "proxyTestAuthRejected": "Tinanggihan ng proxy ang mga kredensyal na ito",
   "proxyTestUnreachable": "Hindi maabot ang proxy",
   "torIsolateDestAddrTitle": "Hiwalay na circuit sa bawat destinasyon",
-  "torIsolateDestAddrHint": "Palaging may sariling Tor circuit ang bawat site. Kapag naka-on ito, nakakakuha rin ang site ng hiwalay na circuit para sa bawat host na pinagkukunan nito, kaya maaaring lumabas sa internet ang isang pahina mula sa dalawa o higit pang exit address nang sabay — mas mahigpit na paghihiwalay, pero maaari kang ma-log out ng site na sinusuri ang iyong address sa mga host nito. Kapag naka-off, iisang address ang gagamitin ng site para sa lahat ng nilo-load nito. Magkakabisa ang pagbabagong ito sa susunod na pagbukas mo ng app."
+  "torIsolateDestAddrHint": "Palaging may sariling Tor circuit ang bawat site. Kapag naka-on ito, nakakakuha rin ang site ng hiwalay na circuit para sa bawat host na pinagkukunan nito, kaya maaaring lumabas sa internet ang isang pahina mula sa dalawa o higit pang exit address nang sabay — mas mahigpit na paghihiwalay, pero maaari kang ma-log out ng site na sinusuri ang iyong address sa mga host nito. Kapag naka-off, iisang address ang gagamitin ng site para sa lahat ng nilo-load nito. Magkakabisa ang pagbabagong ito sa susunod na pagbukas mo ng app.",
+  "httpAuthTitle": "Mag-sign in",
+  "httpAuthBody": "Humihingi ang {host} ng username at password.",
+  "httpAuthRejected": "Hindi tinanggap ang username at password na iyon.",
+  "httpAuthUsername": "Username",
+  "httpAuthPassword": "Password",
+  "httpAuthRemember": "Tandaan para sa site na ito",
+  "httpAuthSignIn": "Mag-sign in",
+  "siteSettingsSavedSignIns": "Mga naka-save na sign-in",
+  "siteSettingsSavedSignInsCount": "{count, plural, =1{{count} naka-save} other{{count} naka-save}}",
+  "siteSettingsSavedSignInsNone": "Wala",
+  "siteSettingsSavedSignInsHint": "Kapag humingi ng username at password ang server ng site na ito (pagpapatotoo ng HTTP, gaya ng folder na pinoprotektahan ng htpasswd file), may lalabas na popup para mag-sign in. Kapag nilagyan mo ng tsek ang \"Tandaan para sa site na ito\", itatago ang sign-in na iyon sa ligtas na storage ng device na ito, kung saan ang site lang na ito ang makagagamit nito. Hindi kailanman isinasama ang mga naka-save na sign-in sa mga backup ng setting o sa mga ibinahaging QR code. Ang pag-clear sa mga ito ay hindi magsa-sign out sa pahinang nakabukas na.",
+  "siteSettingsSavedSignInsClearTitle": "Kalimutan ang mga naka-save na sign-in para sa site na ito?"
 }

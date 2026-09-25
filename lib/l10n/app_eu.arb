@@ -901,5 +901,17 @@
   "proxyTestAuthRejected": "Proxyak kredentzial hauek ukatu ditu",
   "proxyTestUnreachable": "Ezin izan da proxyra iritsi",
   "torIsolateDestAddrTitle": "Zirkuitu bereizia helmuga bakoitzeko",
-  "torIsolateDestAddrHint": "Gune bakoitzak beti du bere Tor zirkuitua. Hau piztuta dagoenean, guneak zirkuitu bereizia jasotzen du kargatzen duen ostalari bakoitzeko ere, beraz orri bakar bat bi irteera-helbide edo gehiagotatik irten daiteke aldi berean — isolamendu handiagoa, baina bere ostalarien artean zure helbidea egiaztatzen duen gune batek saioa itxi diezazuke. Itzalita, guneak helbide bakarra du kargatzen duen guztirako. Aldaketa hau aplikazioa hurrengoan irekitzean aplikatuko da."
+  "torIsolateDestAddrHint": "Gune bakoitzak beti du bere Tor zirkuitua. Hau piztuta dagoenean, guneak zirkuitu bereizia jasotzen du kargatzen duen ostalari bakoitzeko ere, beraz orri bakar bat bi irteera-helbide edo gehiagotatik irten daiteke aldi berean — isolamendu handiagoa, baina bere ostalarien artean zure helbidea egiaztatzen duen gune batek saioa itxi diezazuke. Itzalita, guneak helbide bakarra du kargatzen duen guztirako. Aldaketa hau aplikazioa hurrengoan irekitzean aplikatuko da.",
+  "httpAuthTitle": "Saio-hasiera",
+  "httpAuthBody": "{host} erabiltzaile-izena eta pasahitza eskatzen ari da.",
+  "httpAuthRejected": "Erabiltzaile-izen eta pasahitz hori ez dira onartu.",
+  "httpAuthUsername": "Erabiltzaile-izena",
+  "httpAuthPassword": "Pasahitza",
+  "httpAuthRemember": "Gogoratu gune honetarako",
+  "httpAuthSignIn": "Hasi saioa",
+  "siteSettingsSavedSignIns": "Gordetako saio-hasierak",
+  "siteSettingsSavedSignInsCount": "{count, plural, =1{1 gordeta} other{{count} gordeta}}",
+  "siteSettingsSavedSignInsNone": "Bat ere ez",
+  "siteSettingsSavedSignInsHint": "Gune honen zerbitzariak erabiltzaile-izena eta pasahitza eskatzen dituenean (HTTP autentifikazioa, adibidez htpasswd fitxategi batek babestutako karpeta bat), saioa hasteko elkarrizketa-koadro bat irekitzen da. \"Gogoratu gune honetarako\" markatzen baduzu, saio-hasiera hori gailu honen biltegiratze seguruan gordetzen da, eta gune honek soilik erabil dezake. Gordetako saio-hasierak ez dira inoiz ezarpenen babeskopietan edo partekatutako QR kodeetan sartzen. Horiek garbitzeak ez du dagoeneko irekita dagoen orri baten saioa ixten.",
+  "siteSettingsSavedSignInsClearTitle": "Gune honetako gordetako saio-hasierak ahaztu?"
 }

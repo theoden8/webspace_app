@@ -5,11 +5,12 @@
 /// of the contract: session residue (cookies, cached HTML, saved navigation
 /// state) measures against the non-incognito set, so an incognito site's
 /// remnants are reclaimed every launch (issue #298), while configuration
-/// (proxy passwords, imported HTML) measures against the full active set and
-/// survives for incognito sites like any other.
+/// (proxy passwords, saved sign-ins, imported HTML) measures against the full
+/// active set and survives for incognito sites like any other.
 abstract class OrphanSweepTargets {
   Future<void> removeOrphanedCookies(Set<String> nonIncognitoSiteIds);
   Future<void> removeOrphanedProxyPasswords(Set<String> activeSiteIds);
+  Future<void> removeOrphanedHttpAuthCredentials(Set<String> activeSiteIds);
   Future<void> removeOrphanedHtmlCaches(Set<String> nonIncognitoSiteIds);
   Future<void> removeOrphanedHtmlImports(Set<String> activeSiteIds);
   Future<void> removeOrphanedWebViewState(Set<String> nonIncognitoSiteIds);
@@ -53,6 +54,7 @@ class OrphanSweepEngine {
   }) async {
     await targets.removeOrphanedCookies(nonIncognitoSiteIds);
     await targets.removeOrphanedProxyPasswords(activeSiteIds);
+    await targets.removeOrphanedHttpAuthCredentials(activeSiteIds);
     await targets.removeOrphanedHtmlCaches(nonIncognitoSiteIds);
     await targets.removeOrphanedHtmlImports(activeSiteIds);
     await targets.removeOrphanedWebViewState(nonIncognitoSiteIds);
