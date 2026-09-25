@@ -191,6 +191,29 @@ test('NOTIF-010: a notification post from a cross-origin iframe is dropped', () 
     'the target site is never taken from the page');
 });
 
+// --- the site icon ---------------------------------------------------------
+
+test('ICON-011: only the top document can end its own icon round', () => {
+  const at = WEBVIEW.indexOf('handlerName: kIconLinksChangedHandler');
+  assert.notEqual(at, -1, 'the icon-link handler registration is gone');
+  const body = WEBVIEW.slice(at, WEBVIEW.indexOf('addJavaScriptHandler', at + 1));
+  assert.ok(body.includes('inapp.JavaScriptHandlerFunctionData call'),
+    'the icon-link handler must use the frame-aware callback');
+  assert.ok(body.includes('if (call.isMainFrame) iconEngine.onIconLinksChanged()'),
+    'a subframe must not be able to stop the site icon from updating');
+});
+
+test('ICON-009: popups and the shared page scripts never report a site icon', () => {
+  const build = WEBVIEW.indexOf('}) _buildPageScripts(WebViewConfig config) {');
+  const buildBody = WEBVIEW.slice(build, WEBVIEW.indexOf('\n  }\n', build));
+  assert.ok(!buildBody.includes('buildIconLinkWatcherShim'),
+    '_buildPageScripts is shared with the popup webview');
+  const popup = WEBVIEW.indexOf('static Widget createPopupWebView({');
+  const popupBody = WEBVIEW.slice(popup, WEBVIEW.indexOf('\n  }\n', popup));
+  assert.ok(!popupBody.includes('onReceivedIcon'),
+    'a popup shows another page and must not repaint the site icon');
+});
+
 // --- the verification popup -----------------------------------------------
 
 test('CAPTCHA-010: the popup webview runs the document checks and stays on the challenge', () => {

@@ -55,6 +55,9 @@ import 'package:webspace/services/ios_universal_link_bypass.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/web_intercept_native.dart';
+import 'package:webspace/services/icon_link_watcher_shim.dart';
+import 'package:webspace/services/site_icon_engine.dart';
+import 'package:webspace/services/site_icon_native.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/location_spoof_service.dart';
 import 'package:webspace/services/log_service.dart';
@@ -1085,6 +1088,11 @@ class WebViewConfig {
   /// captured.
   final Future<ScreenShareDecision> Function(String origin)?
       onScreenShareDecision;
+  /// Where the page's own icon goes (ICON-009). Set only for the site's root
+  /// webview: a nested screen or popup shows another page, often on another
+  /// host, and must not repaint the site's icon. Android is the only platform
+  /// that reports icons; elsewhere the watcher runs and nothing arrives.
+  final SiteIconTarget? siteIcon;
 
   WebViewConfig({
     this.key,
@@ -1154,6 +1162,7 @@ class WebViewConfig {
     this.onMicrophoneDecision,
     this.currentMicrophoneMode,
     this.onScreenShareDecision,
+    this.siteIcon,
   });
 }
 
@@ -3948,6 +3957,20 @@ class WebViewFactory {
     final page = _buildPageScripts(config);
     final textZoom = page.textZoom;
     final userScripts = page.userScripts;
+    // Added here rather than in _buildPageScripts so a popup, which shares
+    // that builder, never reports into the site's icon.
+    final siteIcon = config.siteIcon;
+    final iconEngine =
+        siteIcon == null ? null : SiteIconEngine(siteIcon.siteUrl);
+    if (iconEngine != null) {
+      userScripts.add(inapp.UserScript(
+        groupName: 'icon_link_watcher',
+        source: '${buildIconLinkWatcherShim()}\n;null;',
+        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+        forMainFrameOnly: true,
+      ));
+      unawaited(SiteIconNative.ensureEnabled());
+    }
     final zoomPlan = page.zoomPlan;
     final desktopMode = page.desktopMode;
     final userScriptService = page.userScriptService;
@@ -4330,6 +4353,17 @@ class WebViewFactory {
           userScriptService: userScriptService,
           sourceUrl: () => lastLoadStartUrl,
         );
+        if (iconEngine != null) {
+          controller.addJavaScriptHandler(
+            handlerName: kIconLinksChangedHandler,
+            // Frame-aware: Blink takes icons from the top document only, so a
+            // subframe has nothing to say about them.
+            callback: (inapp.JavaScriptHandlerFunctionData call) {
+              if (call.isMainFrame) iconEngine.onIconLinksChanged();
+              return null;
+            },
+          );
+        }
         // Cached-HTML → live-URL swap is wired up in onLoadStop below.
         // Don't fire loadUrl here — `onWebViewCreated` runs while chromium
         // is still parsing the initialData, and a synchronous loadUrl in
@@ -4791,6 +4825,7 @@ class WebViewFactory {
           'onLoadStart siteId=${config.siteId} url=$url',
           sensitivity: LogSensitivity.sensitive,
         );
+        iconEngine?.onLoadStarted(url?.toString());
         // Snapshot the navigation generation BEFORE any await — if a
         // later `shouldOverrideUrlLoading` advances the counter while
         // we're between IPCs, the previous frame is being torn down and
@@ -4870,6 +4905,15 @@ class WebViewFactory {
           await userScriptService.reinjectOnLoadStart(controller);
         }
       },
+      // The Android plugin dispatches only this callback; onFaviconChanged,
+      // its replacement, is wired for Windows alone in the pinned fork.
+      // ignore: deprecated_member_use
+      onReceivedIcon: iconEngine == null
+          ? null
+          : (controller, icon) {
+              final accepted = iconEngine.onIcon(icon);
+              if (accepted != null) siteIcon!.onIcon(accepted);
+            },
       onPageCommitVisible: (controller, url) {
         LogService.instance.log(
           'WebViewLifecycle',
@@ -4884,6 +4928,7 @@ class WebViewFactory {
           'onLoadStop siteId=${config.siteId} url=$url',
           sensitivity: LogSensitivity.sensitive,
         );
+        iconEngine?.onLoadFinished(url?.toString());
         // An upgrade that loaded is no longer in flight. Without this the
         // engine's map grows by one per upgraded navigation, and a later
         // unrelated failure on the same URL string reads as a fallback to an
