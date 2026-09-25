@@ -1067,6 +1067,49 @@ tears one down
 
 ---
 
+### Requirement: PROXY-028 - A proxy change is in force for everything after it
+
+On iOS and macOS, once a site's effective proxy changes, no request the site
+makes afterwards SHALL travel a connection opened on its previous route,
+including requests to a host it had already reached.
+
+A container's `WKWebsiteDataStore` keeps one network session for as long as
+the store lives, and WebKit applies a SOCKS proxy change to that live
+session in place: new connections take the new proxy, and connections
+already pooled keep the old route and carry the site's next requests to the
+same host (BUG-014 instance 8). The app SHALL therefore record the route
+each container's session was opened on, and SHALL NOT build a WebView on a
+container whose session carries a different route until that session has
+been dropped (`ContainerController.resetNetworkSession`). A store created
+afterwards for the same container starts a session bound to its first
+WebView's proxy before any connection opens; cookies and storage persist
+across the reset.
+
+While the old session cannot be dropped (something still holds the
+container's store), the site SHALL wait rather than load.
+
+#### Scenario: A site moved from direct to Tor leaves through Tor
+
+**Given** a site loaded a page directly
+**When** the user moves it to Tor and it loads the same host again
+**Then** the far side sees a Tor exit, not the device's address
+
+#### Scenario: The same host after a proxy change uses the new proxy
+
+**Given** a site loaded host H through proxy A over a kept-alive connection
+**When** its proxy becomes B and it requests H again
+**Then** the request reaches H through B
+**And** proxy A carries nothing for the site after the change
+
+#### Scenario: A reset that cannot finish holds the site back
+
+**Given** something still holds a container's store after its proxy changed
+**When** the site's WebView is rebuilt
+**Then** no WebView is built on the old session
+**And** the site waits until the reset succeeds
+
+---
+
 ## Data Model
 
 ### ProxyType Enum
