@@ -217,7 +217,9 @@ test('every control-port read happens on a quiet connection', () => {
     'observeLocked must still read the phase and the SOCKS listener');
 
   const bounded = /controlRead\(\s*controller/g;
-  const boundedQuiet = ['closeExitCircuits', 'geoipAvailable', 'liveController']
+  // readTwice serves exitCount, the exit-country path's count of exits in
+  // the pinned country.
+  const boundedQuiet = ['closeExitCircuits', 'geoipAvailable', 'liveController', 'readTwice']
     .reduce((n, name) => n + count(functionBody(swiftCode, name), bounded), 0);
   assert.equal(count(swiftCode, bounded), boundedQuiet,
     'a post-bootstrap read outside the exit-country path');
