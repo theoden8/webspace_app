@@ -36,8 +36,7 @@
 - [x] 4.1 `integration_test/http_auth_test.dart`, run on macOS by discovery
   and on the Android emulator by `scripts/run_android_http_auth_tests.sh`.
 - [x] 4.2 Fork: send `previousFailureCount` from the WPE plugin as an integer
-  (`isRetry ? 1 : 0`), bump the pinned ref, drop the Linux skip. Pinned to the
-  `privacy-v10-candidate` commit until `v6.2.0-beta.3-privacy-v10` is tagged.
+  (`isRetry ? 1 : 0`), pin `v6.2.0-beta.3-privacy-v10`, drop the Linux skip.
 
 ## 5. Localization
 

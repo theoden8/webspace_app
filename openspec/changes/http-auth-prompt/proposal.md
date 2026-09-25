@@ -62,8 +62,8 @@ is why HTTPAUTH-002 is host-scoped rather than flag-scoped.
 as null, which the shared Dart type declares `int`, so
 `HttpAuthenticationChallenge.fromMap` threw before the app's handler ran and
 the platform cancelled; it also had no Linux native values for
-`HttpAuthResponseAction`. Both are fixed in `privacy-v10-candidate` (sent from
-`isRetry`), which this change pins.
+`HttpAuthResponseAction`. Both are fixed in `v6.2.0-beta.3-privacy-v10` (sent
+from `isRetry`), which this change pins.
 
 ## Impact
 
