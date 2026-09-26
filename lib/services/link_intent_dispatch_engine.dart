@@ -109,21 +109,10 @@ class DispatchOpenNested extends DispatchAction {
   });
 }
 
-/// What the navigation engine had decided for an outbound link before
-/// routing looked at it.
-enum OutboundFallback { nested, external }
-
 /// Outbound routing named no destination for a `blockOpenNested` decision:
 /// open the nested screen with the source's own posture, as without routing.
 class DispatchNestedFallback extends DispatchAction {
   const DispatchNestedFallback();
-}
-
-/// Outbound routing named no destination for a `blockOpenExternal`
-/// decision: hand [url] to the system browser, as without routing.
-class DispatchOpenExternal extends DispatchAction {
-  final String url;
-  const DispatchOpenExternal(this.url);
 }
 
 /// Create a brand-new site rooted at [home] (the stripped path) with
@@ -162,18 +151,15 @@ class DispatchShowPicker extends DispatchAction {
   final bool offerCreate;
 
   /// Set for an outbound picker (LIR-016): the site whose link is being
-  /// routed. It gets the remember checkbox and an "Open without routing" row.
+  /// routed. It gets the remember checkbox and an "Open without routing" row,
+  /// which nests the link with the source's own posture.
   final String? source;
-
-  /// What "Open without routing" does; set whenever [source] is.
-  final OutboundFallback? fallback;
 
   const DispatchShowPicker({
     required this.winnerSiteIds,
     required this.offerBind,
     required this.offerCreate,
     this.source,
-    this.fallback,
   });
 }
 
@@ -234,10 +220,10 @@ class LinkIntentDispatchEngine {
 
   /// Whether routing takes a link [source]'s own webview is about to launch
   /// under [decision] (LIR-014). Null means it does not, and the webview's
-  /// own launch runs: routing is off for the source, the kiosk shell is
-  /// locked (KIOSK-002), the decision is not a nested or external launch, or
-  /// [dispatchOutbound] names no destination. [candidates] is read only once
-  /// the cheap gates pass.
+  /// own launch runs: routing is off for the source (it is an option of the
+  /// in-app external-link mode only), the kiosk shell is locked (KIOSK-002),
+  /// the decision is not a nested launch, or [dispatchOutbound] names no
+  /// destination. [candidates] is read only once the cheap gates pass.
   static DispatchAction? routeOutbound({
     required String url,
     required NavigationDecision decision,
@@ -250,12 +236,7 @@ class LinkIntentDispatchEngine {
     required List<DispatchableSite> Function() candidates,
   }) {
     if (!routeOutboundLinks || kioskLocked) return null;
-    final fallback = switch (decision) {
-      NavigationDecision.blockOpenNested => OutboundFallback.nested,
-      NavigationDecision.blockOpenExternal => OutboundFallback.external,
-      _ => null,
-    };
-    if (fallback == null) return null;
+    if (decision != NavigationDecision.blockOpenNested) return null;
     final target = Uri.tryParse(url);
     if (target == null) return null;
     final action = dispatchOutbound(
@@ -263,31 +244,26 @@ class LinkIntentDispatchEngine {
       source: source,
       sourcePrefs: sourcePrefs,
       candidates: candidates(),
-      fallback: fallback,
       hadGesture: hadGesture,
       containersActive: containersActive,
     );
-    return switch (action) {
-      DispatchNestedFallback() || DispatchOpenExternal() => null,
-      _ => action,
-    };
+    return action is DispatchNestedFallback ? null : action;
   }
 
   /// A link the source site opens, which the navigation engine decided to
-  /// nest or send to the system browser (LIR-014, LIR-015). The caller has
-  /// already checked `routeOutboundLinks`. Routing needs a gesture and the
-  /// container engine; without either, or when nothing but the source claims
-  /// the link, the navigation engine's decision stands.
+  /// nest (LIR-014, LIR-015). The caller has already checked
+  /// `routeOutboundLinks`. Routing needs a gesture and the container engine;
+  /// without either, or when nothing but the source claims the link, the
+  /// link nests with the source's own posture.
   static DispatchAction dispatchOutbound({
     required Uri targetUrl,
     required DispatchableSite source,
     required List<OutboundPreference> sourcePrefs,
     required List<DispatchableSite> candidates,
-    required OutboundFallback fallback,
     required bool hadGesture,
     required bool containersActive,
   }) {
-    final unrouted = unroutedOutbound(url: targetUrl, fallback: fallback);
+    const unrouted = DispatchNestedFallback();
     if (!hadGesture || !containersActive) return unrouted;
     final resolution = LinkRoutingService.resolveOutbound(
       targetUrl,
@@ -306,24 +282,12 @@ class LinkIntentDispatchEngine {
           offerBind: false,
           offerCreate: false,
           source: source.siteId,
-          fallback: fallback,
         );
       case OutboundByClaims(match: RoutingNone()):
       case OutboundSelfMatch():
         return unrouted;
     }
   }
-
-  /// What an outbound link does when routing names no destination, or the
-  /// user picks "Open without routing": the navigation engine's own decision.
-  static DispatchAction unroutedOutbound({
-    required Uri url,
-    required OutboundFallback fallback,
-  }) =>
-      switch (fallback) {
-        OutboundFallback.nested => const DispatchNestedFallback(),
-        OutboundFallback.external => DispatchOpenExternal(url.toString()),
-      };
 
   /// A routed outbound link, or the user's pick from the outbound picker: a
   /// nested screen with [site]'s posture over the source, never a webspace

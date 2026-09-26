@@ -56,7 +56,7 @@
       "trackingProtectionEnabled": false,
       "localCdnEnabled": false,
       "blockAutoRedirects": false,
-      "externalLinksInBrowser": true,
+      "externalLinkMode": "browser",
       "fullscreenMode": true,
       "blockScreenshots": true,
       "tabBarButtonCorner": "topLeft",

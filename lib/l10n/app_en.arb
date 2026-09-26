@@ -2279,15 +2279,41 @@
   },
   "siteSettingsExternalLinksInBrowser": "Open external links in browser",
   "@siteSettingsExternalLinksInBrowser": {
-    "description": "Switch label for a per-site setting that opens links pointing outside the site in the device's default web browser."
+    "description": "Entry in the one-line summary of a site's Behaviour settings row, shown when links from this site to other websites open in the device's default web browser."
   },
-  "siteSettingsExternalLinksInBrowserHintTitle": "Open External Links in Browser",
-  "@siteSettingsExternalLinksInBrowserHintTitle": {
-    "description": "Hint dialog title for the Open External Links in Browser feature."
+  "siteSettingsExternalLinksBlockedSummary": "Block external links",
+  "@siteSettingsExternalLinksBlockedSummary": {
+    "description": "Entry in the one-line summary of a site's Behaviour settings row, shown when links from this site to other websites are blocked (tapping them does nothing)."
   },
-  "siteSettingsExternalLinksInBrowserHint": "When on, a link that points outside this site's domains opens in your device's default browser instead of inside the app. Links to domains this site claims still open in the app. Add extra domains under Domain claims below to keep them in the app.",
-  "@siteSettingsExternalLinksInBrowserHint": {
-    "description": "Hint body explaining that off-site links open externally while claimed domains stay in the app."
+  "siteSettingsExternalLinks": "External links",
+  "@siteSettingsExternalLinks": {
+    "description": "Title of the per-site choice of what happens when a link in this site leads to another website: open it inside the app, open it in the device's browser, or block it."
+  },
+  "siteSettingsExternalLinksHint": "Where a link to another website goes when you tap it here. Open in the app shows it in a window over this site, with this site's settings and cookies. Open in browser hands it to your device's default browser. Block keeps you on this site: the link does nothing, while images and other content from other websites still load. Links to domains this site claims always open in the app; add domains under Domain claims below.",
+  "@siteSettingsExternalLinksHint": {
+    "description": "Explanation behind the hint button of the 'External links' choice. Names the three options ('Open in the app', 'Open in browser', 'Block') and 'Domain claims', the list of extra domains that belong to the site; keep those names as they are translated elsewhere."
+  },
+  "siteSettingsExternalLinksInApp": "Open in the app",
+  "@siteSettingsExternalLinksInApp": {
+    "description": "Option of the per-site 'External links' choice: a link to another website opens in a window inside this app, over the current site."
+  },
+  "siteSettingsExternalLinksBrowser": "Open in browser",
+  "@siteSettingsExternalLinksBrowser": {
+    "description": "Option of the per-site 'External links' choice: a link to another website opens in the device's default web browser, outside this app."
+  },
+  "siteSettingsExternalLinksBlock": "Block",
+  "@siteSettingsExternalLinksBlock": {
+    "description": "Option of the per-site 'External links' choice: tapping a link to another website does nothing, so the site can never take the user elsewhere. Verb, as in 'block these links'."
+  },
+  "externalLinkBlocked": "Link to {host} blocked",
+  "@externalLinkBlocked": {
+    "description": "Brief message at the bottom of the screen after the user taps a link to another website in a site whose external links are set to Block; nothing opens.",
+    "placeholders": {
+      "host": {
+        "type": "String",
+        "example": "example.com"
+      }
+    }
   },
   "siteSettingsFullscreen": "Full screen mode",
   "@siteSettingsFullscreen": {

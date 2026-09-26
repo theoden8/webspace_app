@@ -107,7 +107,10 @@ Object? _expectedImported(String key, Object? value) => switch (key) {
 /// value over; add the pair here when you rename a persisted key.
 const Map<String, String> _renamedKeys = {
   // Per-site `tabBarButtonOnRight` (never in a release) became
-  // `tabBarButtonCorner`; kept here as the worked example once one ships.
+  // `tabBarButtonCorner`.
+  // The per-site bool gained a third value (issue #629): `true` is the
+  // browser mode.
+  'externalLinksInBrowser': 'externalLinkMode',
 };
 
 /// A key a release wrote that HEAD deliberately stops reading, and why losing

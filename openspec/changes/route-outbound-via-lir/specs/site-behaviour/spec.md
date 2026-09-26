@@ -2,7 +2,7 @@
 
 ### Requirement: BEHAV-003 - Outbound routing rows in the Link handling group
 
-The Behaviour screen's "Link handling" group (BEHAV-001) SHALL hold, between Block auto-redirects and Open external links in browser, a "Route links to my sites" switch (`routeOutboundLinks`, link-intent-routing LIR-013) and, while that switch is on, a "Routing preferences" row that opens a screen listing the site's outbound preferences. The rows follow resolution order: a routed destination wins over the system browser (LIR-014), so routing reads before the external-links switch, and the domain-claim editor stays last, directly under the switch whose hint names it.
+The Behaviour screen's "External links" choice (BEHAV-004) SHALL hold, directly under its "Open in the app" option and indented to that option's label, a "Route links to my sites" switch (`routeOutboundLinks`, link-intent-routing LIR-013) and, while that switch is on, a "Routing preferences" row that opens a screen listing the site's outbound preferences. Routing is an option of opening links in the app (LIR-014), so both rows are shown only while "Open in the app" is the selected option; picking another option hides them and keeps their stored values. The domain-claim editor stays last in the group, under the choice whose hint names it.
 
 Both rows SHALL be shown whatever developer mode says: routing is not an experimental feature (DEVTOOLS-011), and the per-site switch, off by default, is its only gate.
 
@@ -10,7 +10,7 @@ The switch SHALL carry its explanation in a `HintButton` on its title row (HINT-
 
 `routeOutboundLinks` and `outboundPreferences` SHALL ride `SiteBehaviourValues`, so both are in the settings screen's dirty-snapshot diff and are saved with the rest of site settings (BUG-006, EDIT-009). The domain-claim editor remains the only control on the screen that writes straight to the model. The preferences screen's target choices SHALL be the site's LIR-014 candidates other than the site itself.
 
-The Behaviour row's summary (BEHAV-002) SHALL name the routing switch when it is on, like any other switch.
+The Behaviour row's summary (BEHAV-002) SHALL name the routing switch when it is on and the site is in the in-app mode, like any other switch.
 
 #### Scenario: The routing rows need no developer mode
 
@@ -20,11 +20,18 @@ The Behaviour row's summary (BEHAV-002) SHALL name the routing switch when it is
 - **THEN** the routing switch shows on and the Routing preferences row counts one preference
 - **AND** the Behaviour row's summary names the routing switch
 
-#### Scenario: Routing sits between the redirect and external-link switches
+#### Scenario: Routing is an option of opening links in the app
 
-- **GIVEN** the Behaviour screen is open
-- **THEN** the "Link handling" group reads, in order: Block auto-redirects, Route links to my sites, Open external links in browser, the domain-claim editor
+- **GIVEN** the Behaviour screen is open and the site is in the in-app mode
+- **THEN** the "Link handling" group reads, in order: Block auto-redirects, the External links choice with Route links to my sites under "Open in the app", then "Open in browser" and "Block", then the domain-claim editor
 - **AND** the Routing preferences row appears under the routing switch only while the switch is on
+
+#### Scenario: Another external-link mode hides the routing rows
+
+- **GIVEN** the site has `routeOutboundLinks` on
+- **WHEN** the user picks "Open in browser" or "Block"
+- **THEN** neither the routing switch nor the Routing preferences row is shown
+- **AND** `routeOutboundLinks` is still stored on, and picking "Open in the app" shows the switch on again
 
 #### Scenario: Explanation lives behind the hint
 

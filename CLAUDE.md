@@ -254,7 +254,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | lazy-webview-loading | on-demand creation, IndexedStack placeholders |
 | localcdn | cache CDN resources locally (Android) |
 | navigation | back gesture, drawer swipe, refresh, race guards; URL-bar site info sheet (site + container) |
-| nested-url-blocking | nested InAppBrowser, gesture auto-redirect block |
+| nested-url-blocking | nested InAppBrowser, gesture auto-redirect block; per-site external link mode (in app / browser / block), routing to other sites only in app |
 | page-zoom | per-site zoom; viewport meta on mobile (Android pins the layout width), CSS `zoom` on desktop |
 | per-site-cookie-isolation | legacy engine (fallback) |
 | per-site-containers | native containers (preferred when supported) |

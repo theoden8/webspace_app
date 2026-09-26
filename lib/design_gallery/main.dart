@@ -15,6 +15,7 @@ import 'package:http/http.dart' as http;
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/theme/design_tokens.dart';
+import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/widgets/hint_button.dart';
 import 'package:webspace/widgets/http_auth_prompt.dart';
@@ -32,7 +33,9 @@ import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/screens/block_stats.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/screens/location_picker.dart';
+import 'package:webspace/screens/link_handling_settings.dart';
 import 'package:webspace/screens/settings.dart';
+import 'package:webspace/screens/site_behaviour.dart';
 import 'package:webspace/screens/trusted_certificates.dart';
 import 'package:webspace/screens/user_scripts.dart';
 import 'package:webspace/screens/webspace_detail.dart';
@@ -82,6 +85,7 @@ final List<GalleryCard> galleryCards = [
   GalleryCard(id: 'webspace-detail', label: 'Webspace detail screen', fullBleed: true, builder: (c) => const _WebspaceDetailCard()),
   GalleryCard(id: 'site-settings', label: 'Site settings screen', fullBleed: true, builder: (c) => const _SiteSettingsCard()),
   GalleryCard(id: 'site-settings-signins', label: 'Site settings, saved sign-ins', fullBleed: true, builder: (c) => const _SiteSettingsSignInsCard()),
+  GalleryCard(id: 'site-behaviour', label: 'Site behaviour screen', fullBleed: true, builder: (c) => const _SiteBehaviourCard()),
   GalleryCard(id: 'app-settings', label: 'App settings screen', fullBleed: true, builder: (c) => const _AppSettingsCard()),
   GalleryCard(id: 'protection-report', label: 'Protection report screen', fullBleed: true, builder: (c) => const _ProtectionReportCard()),
   GalleryCard(id: 'protection-report-category', label: 'Protection report category', fullBleed: true, builder: (c) => const _ProtectionCategoryCard()),
@@ -674,6 +678,43 @@ class _SiteSettingsSignInsCardState extends State<_SiteSettingsSignInsCard> {
             ? SettingsScreen(webViewModel: model, useContainers: true)
             : const SizedBox.shrink(),
       );
+}
+
+/// The real per-site Behaviour screen, in the in-app mode with routing on, so
+/// the routing rows show under the option they belong to. The choice is live:
+/// picking another option hides them.
+class _SiteBehaviourCard extends StatelessWidget {
+  const _SiteBehaviourCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final model = WebViewModel(
+      initUrl: 'https://duckduckgo.com/',
+      name: 'DuckDuckGo',
+      routeOutboundLinks: true,
+    );
+    final github = WebViewModel(initUrl: 'https://github.com/', name: 'GitHub');
+    return SiteBehaviourScreen(
+      host: 'duckduckgo.com',
+      incognito: false,
+      values: const SiteBehaviourValues(
+        alwaysOpenHome: false,
+        kioskMode: false,
+        fullscreenMode: false,
+        htmlCachingEnabled: false,
+        blockAutoRedirects: true,
+        externalLinkMode: ExternalLinkMode.inApp,
+        routeOutboundLinks: true,
+      ),
+      onChanged: (_) {},
+      routingTargets: [github],
+      domainClaims: DomainClaimsEditor(
+        model: model,
+        otherSites: [github],
+        onChanged: (next) => model.domainClaims = next,
+      ),
+    );
+  }
 }
 
 /// The real AddSiteScreen: the URL entry and suggestion surface.

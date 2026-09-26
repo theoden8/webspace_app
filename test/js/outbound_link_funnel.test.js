@@ -1,8 +1,10 @@
 // Outbound routing funnel gate (LIR-014, LIR-015).
 //
-// A site with `routeOutboundLinks` on hands each cross-domain link it would
-// nest or send to the system browser to the host first, which may open it as
-// the site that claims it. The hook is one line in front of each launch in
+// A site with `routeOutboundLinks` on (an option of the in-app external-link
+// mode) hands each cross-domain link it would nest or send to the system
+// browser to the host first, which may open it as the site that claims it.
+// A link the site's external-link mode blocks goes to the same hook, so the
+// host can say it was blocked. The hook is one line in front of each launch in
 // `WebViewModel.getWebView`, and the host only sees it on the webviews it
 // passed it to. A launch added without the line, or a webview built without
 // the hook (`getController` builds one when the frame has not yet), silently
@@ -59,6 +61,19 @@ test('every launch in getWebView asks the outbound hook first', () => {
   }
 });
 
+test('every blocked outbound link reaches the hook, and nothing launches', () => {
+  const blocks = [...getWebView.matchAll(/case NavigationDecision\.blockOutbound:/g)];
+  assert.equal(blocks.length, 2,
+    'getWebView should block on both the tap and the redirect path');
+  for (const m of blocks) {
+    const branch = getWebView.slice(m.index, getWebView.indexOf('return', m.index));
+    assert.match(branch, /onOutboundLink\?\.call\(url, (result\.decision|NavigationDecision\.blockOutbound), (result|handled)\.hadGesture\)/,
+      'a blocked link must reach the host, which tells the user about a tap');
+    assert.doesNotMatch(branch, /launchUrlFunc|launchUrlInSystemBrowser/,
+      'a blocked link must not open anywhere');
+  }
+});
+
 test('getController forwards the hook to the webview it builds', () => {
   assert.match(getController, /getWebView\([^;]*onOutboundLink: onOutboundLink/s,
     'a webview built by getController would never route');
@@ -81,7 +96,7 @@ test('routing hands every gate to the engine, with the live values', () => {
   assert.match(route, /LinkIntentDispatchEngine\.routeOutbound\(/,
     'the gates live in the engine, where they are unit-tested');
   for (const [arg, why] of [
-    [/routeOutboundLinks: source\.routeOutboundLinks/, 'the source opted in (LIR-013)'],
+    [/routeOutboundLinks: source\.effectiveRouteOutboundLinks/, 'the source opted in, in the in-app mode (LIR-013)'],
     [/kioskLocked: _kioskLocked/, 'a locked kiosk reaches no other site (KIOSK-002)'],
     [/hadGesture: hadGesture/, 'only a user gesture is routed'],
     [/containersActive: _useContainers/, 'the legacy engine does not route'],

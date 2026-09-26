@@ -27,6 +27,7 @@ import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/settings/camera.dart';
+import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/microphone.dart';
 import 'package:webspace/settings/screen_share.dart';
 import 'package:webspace/settings/location.dart';
@@ -146,11 +147,12 @@ class InAppWebViewScreen extends StatefulWidget {
   final UserProxySettings proxySettings;
   final bool notificationsEnabled;
 
-  /// Inherited from the site that opened this nested webview. When true, a
-  /// user-tapped cross-domain link leaves WebSpace for the system browser
-  /// instead of navigating in-place (NESTED-009). Cross-domain is judged
-  /// against the page currently shown in this nested webview.
-  final bool externalLinksInBrowser;
+  /// Inherited from the site that opened this nested webview. In the
+  /// browser mode a cross-domain link leaves WebSpace for the system browser,
+  /// in the block mode it goes nowhere; in the in-app mode it navigates in
+  /// place (NESTED-009). Cross-domain is judged against the page currently
+  /// shown in this nested webview.
+  final ExternalLinkMode externalLinkMode;
 
   /// Inherited script-initiated-redirect block. Judged against the page
   /// currently shown here, not the opening site's home URL: a nested screen
@@ -226,7 +228,7 @@ class InAppWebViewScreen extends StatefulWidget {
     this.onShowUrlBarChanged,
     UserProxySettings? proxySettings,
     this.notificationsEnabled = false,
-    this.externalLinksInBrowser = false,
+    this.externalLinkMode = ExternalLinkMode.inApp,
     this.blockAutoRedirects = false,
     this.blockedCookies = const {},
     this.cookieManager,
@@ -645,12 +647,13 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
           }
         },
         // Same decision engine as the parent webview, judged against the
-        // page shown here (NESTED-009 for externalLinksInBrowser, NESTED-010
+        // page shown here (NESTED-009 for the external-link mode, NESTED-010
         // for blockAutoRedirects). A nested screen has nowhere further to
         // nest, so `blockOpenNested` navigates in place. Null when neither
         // setting is on, so default behaviour is byte-identical.
         shouldOverrideUrlLoading:
-            (widget.externalLinksInBrowser || widget.blockAutoRedirects)
+            (widget.externalLinkMode != ExternalLinkMode.inApp ||
+                    widget.blockAutoRedirects)
                 ? (url, hasGesture) {
                     final result = NavigationDecisionEngine
                         .decideShouldOverrideUrlLoading(
@@ -661,7 +664,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                       isSiteActive: mounted,
                       lastSameDomainGestureTime: _lastSameDomainGestureTime,
                       now: DateTime.now(),
-                      externalLinksInBrowser: widget.externalLinksInBrowser,
+                      externalLinkMode: widget.externalLinkMode,
                     );
                     switch (result.gestureUpdate) {
                       case GestureStateUpdate.record:
@@ -682,6 +685,9 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                         return false;
                       case NavigationDecision.blockOpenExternal:
                         launchUrlInSystemBrowser(url);
+                        return false;
+                      case NavigationDecision.blockOutbound:
+                        if (result.hadGesture) showExternalLinkBlocked(url);
                         return false;
                     }
                   }

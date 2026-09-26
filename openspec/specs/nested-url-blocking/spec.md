@@ -373,7 +373,9 @@ URL received
   ├─ Cross-domain:
   │   ├─ blockAutoRedirects + no gesture ── CANCEL (silent)
   │   ├─ background site ───────────────── CANCEL (suppressed)
-  │   ├─ externalLinksInBrowser + not a claim ── CANCEL + system browser (NESTED-009)
+  │   ├─ claimed by the site ─────────── open nested webview (every mode)
+  │   ├─ externalLinkMode browser ─────── CANCEL + system browser (NESTED-009)
+  │   ├─ externalLinkMode block ───────── CANCEL, nothing opens (NESTED-009)
   │   ├─ blockAutoRedirects OFF ────────── open nested webview
   │   └─ has gesture ──────────────────── open nested webview
   │
@@ -441,19 +443,20 @@ CLAUDE.md now forbids. Direct engine tests live in
 
 #### `lib/web_view_model.dart`
 - `blockAutoRedirects` field (default: `true`)
-- `externalLinksInBrowser` field (default: `false`) + `effectiveExternalLinksInBrowser` getter (forced off for archive tier, NESTED-009 / ARCH-006). Serialized only when true (`toJson` omits the default)
-- `shouldOverrideUrlLoading` callback: delegates to `NavigationDecisionEngine`, applies the returned `GestureStateUpdate` to `lastSameDomainGestureTime`, dispatches on the decision enum (log + `launchUrlFunc` for `blockOpenNested`, `launchUrlInSystemBrowser` for `blockOpenExternal`)
+- `externalLinkMode` field (`ExternalLinkMode`, `lib/settings/external_links.dart`, default `inApp`) + `effectiveExternalLinkMode` getter (archive-tier `browser` reads as `inApp`, NESTED-009 / ARCH-006). Serialized only outside the default; `fromJson` reads the legacy `externalLinksInBrowser` bool as `browser`
+- `shouldOverrideUrlLoading` callback: delegates to `NavigationDecisionEngine`, applies the returned `GestureStateUpdate` to `lastSameDomainGestureTime`, dispatches on the decision enum (log + `launchUrlFunc` for `blockOpenNested`, `launchUrlInSystemBrowser` for `blockOpenExternal`, the host hook alone for `blockOutbound`, which shows the blocked message for a tapped link)
 - `onUrlChanged` callback: same pattern; on `blockOpenNested` navigates back to `previousSameDomainUrl` before opening the nested webview
-- `matchesSiteClaim` closure passes `effectiveDomainClaims` to the engine via `LinkRoutingService.urlMatchesAnyClaim` so a claimed cross-domain link stays nested even with `externalLinksInBrowser` on
+- `matchesSiteClaim` closure passes `effectiveDomainClaims` to the engine via `LinkRoutingService.urlMatchesAnyClaim` so a claimed cross-domain link stays nested in every external link mode
 - Serialized in `toJson()` / `fromJson()` with `?? true` for backward compat
 
 #### `lib/services/navigation_decision_engine.dart`
 - `NavigationDecision.blockOpenExternal` — cancel + hand to system browser
-- `decideShouldOverrideUrlLoading` / `decideOnUrlChanged` take optional `externalLinksInBrowser` + `matchesSiteClaim`; when the decision would be `blockOpenNested` and the setting is on and the target is unclaimed, returns `blockOpenExternal`
+- `NavigationDecision.blockOutbound` — cancel, open nothing
+- `decideShouldOverrideUrlLoading` / `decideOnUrlChanged` take optional `externalLinkMode` + `matchesSiteClaim`; a cross-domain target that survives the gesture and background checks nests when claimed, and otherwise nests, goes to the browser, or is blocked, by mode
 - `OnUrlChangedHandled.launchExternalUrl` carries the URL for the caller to launch
 
 #### `lib/screens/inappbrowser.dart`
-- `externalLinksInBrowser` / `blockAutoRedirects` ctor fields; nested `WebViewConfig.shouldOverrideUrlLoading` (non-null when either is on) delegates to `NavigationDecisionEngine.decideShouldOverrideUrlLoading` against the page currently shown, and routes `blockOpenExternal` to `launchUrlInSystemBrowser`
+- `externalLinkMode` / `blockAutoRedirects` ctor fields; nested `WebViewConfig.shouldOverrideUrlLoading` (non-null when the mode is not `inApp` or `blockAutoRedirects` is on) delegates to `NavigationDecisionEngine.decideShouldOverrideUrlLoading` against the page currently shown, routes `blockOpenExternal` to `launchUrlInSystemBrowser`, and shows the blocked message for a tapped `blockOutbound`
 - `blockedCookies` + the forwarded cookie managers drive a post-load sweep; `cameraMode` / `virtualCameraSource` / `microphoneMode` / `virtualMicrophoneSource` / `protectedContentAllowed` seed the screen's in-memory decisions (NESTED-010)
 
 #### `lib/screens/settings.dart`

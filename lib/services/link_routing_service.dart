@@ -114,8 +114,8 @@ class LinkRoutingService {
   /// Whether [url] is covered by any of [claims]. Same scoring as
   /// [resolve], collapsed to a boolean: used by the outbound navigation
   /// path to decide whether a cross-domain link still belongs to the
-  /// site (a claimed domain stays in-app) or should leave for the system
-  /// browser when `externalLinksInBrowser` is on. Non-http(s) or
+  /// site (a claimed domain stays in-app) or goes where the site's external
+  /// link mode sends it (the system browser, or nowhere). Non-http(s) or
   /// hostless URLs never match.
   static bool urlMatchesAnyClaim(Uri url, List<DomainClaim> claims) {
     if (url.scheme != 'http' && url.scheme != 'https') return false;

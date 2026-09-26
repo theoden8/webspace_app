@@ -143,7 +143,6 @@ void main() {
     DispatchAction run({
       List<OutboundPreference> prefs = const [],
       List<DispatchableSite>? candidates,
-      OutboundFallback fallback = OutboundFallback.nested,
       bool hadGesture = true,
       bool containersActive = true,
       Uri? url,
@@ -153,7 +152,6 @@ void main() {
           source: ddg,
           sourcePrefs: prefs,
           candidates: candidates ?? [ddg, workGh],
-          fallback: fallback,
           hadGesture: hadGesture,
           containersActive: containersActive,
         );
@@ -176,33 +174,20 @@ void main() {
     test('ambiguity shows the outbound picker', () {
       final twin = _Site('twin-gh', 'https://github.com/?twin',
           [DomainClaim.exactHost('github.com')]);
-      final a = run(
-        candidates: [ddg, workGh, twin],
-        fallback: OutboundFallback.external,
-      ) as DispatchShowPicker;
+      final a = run(candidates: [ddg, workGh, twin]) as DispatchShowPicker;
       expect(a.winnerSiteIds, ['work-gh', 'twin-gh']);
       expect(a.offerBind, isFalse);
       expect(a.offerCreate, isFalse);
       expect(a.source, 'ddg');
-      expect(a.fallback, OutboundFallback.external);
     });
 
-    test('no match keeps the navigation engine decision', () {
+    test('no match nests with the source posture', () {
       final blog = Uri.parse('https://blog.example/post');
       expect(run(url: blog), isA<DispatchNestedFallback>());
-      final ext = run(url: blog, fallback: OutboundFallback.external);
-      expect((ext as DispatchOpenExternal).url, blog.toString());
-    });
-
-    test('a routed destination wins over the system browser', () {
-      expect(run(fallback: OutboundFallback.external),
-          isA<DispatchOpenNested>());
     });
 
     test('a gesture-less navigation is not routed', () {
       expect(run(hadGesture: false), isA<DispatchNestedFallback>());
-      expect(run(hadGesture: false, fallback: OutboundFallback.external),
-          isA<DispatchOpenExternal>());
     });
 
     test('the legacy engine does not route', () {
@@ -250,9 +235,6 @@ void main() {
       final a = route() as DispatchOpenNested;
       expect(a.siteId, 'work-gh');
       expect(a.sourceIsParent, isTrue);
-      final ext =
-          route(decision: NavigationDecision.blockOpenExternal)!;
-      expect(ext, isA<DispatchOpenNested>());
     });
 
     test('routing off or a locked kiosk hand it back', () {
@@ -262,11 +244,15 @@ void main() {
           reason: 'candidates are only built once the cheap gates pass');
     });
 
-    test('only a nested or external launch is routed', () {
+    test('only a nested launch is routed', () {
+      // Routing is an option of the in-app external-link mode: a link the
+      // site sends to the browser or blocks is not the in-app mode's.
       for (final d in [
         NavigationDecision.allow,
         NavigationDecision.blockSilent,
         NavigationDecision.blockSuppressed,
+        NavigationDecision.blockOpenExternal,
+        NavigationDecision.blockOutbound,
       ]) {
         expect(route(decision: d), isNull, reason: '$d');
       }
@@ -276,14 +262,6 @@ void main() {
       expect(route(hadGesture: false), isNull);
       expect(route(containersActive: false), isNull);
       expect(route(link: 'https://blog.example/post'), isNull);
-      expect(
-        route(
-          link: 'https://blog.example/post',
-          decision: NavigationDecision.blockOpenExternal,
-        ),
-        isNull,
-        reason: 'an unrouted external link goes to the browser as before',
-      );
     });
   });
 
