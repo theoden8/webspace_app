@@ -1593,6 +1593,14 @@
   "@appSettingsExperimentalProxyRouterHint": {
     "description": "Explanation behind the hint button of the Proxy router switch in App settings > Developer > Experimental. 'Closes the sites' means the app unloads those sites' pages."
   },
+  "appSettingsExperimentalTextureRendering": "Texture page rendering",
+  "@appSettingsExperimentalTextureRendering": {
+    "description": "Title of an Android-only switch in the Experimental group of App Settings, shown only while Developer mode is on. When on, WebSpace draws web pages into a texture instead of the default Android hybrid composition. Short label."
+  },
+  "appSettingsExperimentalTextureRenderingHint": "Draws each page into a texture that WebSpace composites itself, instead of as a separate Android view layered with the app. It may stop pages that stay blank white until you rotate the phone or switch apps. Typing, text selection and screen readers are less tested this way, and fast scrolling can stutter. Takes effect the next time the app starts.",
+  "@appSettingsExperimentalTextureRenderingHint": {
+    "description": "Explanation behind the hint button of the Android-only Texture page rendering switch in the Experimental group of App Settings: what the mode does, what problem it may fix, what is less tested, and that it applies after a restart."
+  },
   "appSettingsDeveloperModeTorWarningConfirm": "Turn off",
   "@appSettingsDeveloperModeTorWarningConfirm": {
     "description": "Button that confirms turning Developer mode off even though it will block sites set to use Tor."

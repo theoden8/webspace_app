@@ -325,6 +325,8 @@
   "appSettingsExperimentalTorOffBody": "{count, plural, one{Üks sait on seatud kasutama Tori. See jääb blokeerituks, kuni lülitate Sisseehitatud Tori uuesti sisse, selle asemel et laadida teie tegeliku IP-aadressiga.} other{{count} saiti on seatud kasutama Tori. Need jäävad blokeerituks, kuni lülitate Sisseehitatud Tori uuesti sisse, selle asemel et laadida teie tegeliku IP-aadressiga.}}",
   "appSettingsExperimentalProxyRouter": "Proksiruuter",
   "appSettingsExperimentalProxyRouterHint": "Androidis kehtib üks proksiseade kogu rakendusele, seega erineva proksiga saidi avamine sulgeb saidid, mis kasutavad mõnda muud proksit. Ruuter hoiab need kõik avatuna: rakendusesisene vahendaja saadab iga saidi liikluse selle saidi enda proksisse. Igal käivitusel kontrollib see selles seadmes, et saitide liiklust saab üksteisest eristada, ja kui kontroll ebaõnnestub, sulgeb saite nagu varem. Katseline: seda on proovitud vaid vähestes seadmetes. Jõustub rakenduse järgmisel käivitusel.",
+  "appSettingsExperimentalTextureRendering": "Lehtede renderdamine tekstuurina",
+  "appSettingsExperimentalTextureRenderingHint": "Joonistab iga lehe tekstuuri, mille WebSpace ise kokku paneb, mitte eraldi Androidi vaatena rakenduse peal. See võib ära hoida lehed, mis jäävad tühjaks ja valgeks, kuni telefoni pöörate või rakendust vahetate. Trükkimist, teksti valimist ja ekraanilugejaid on nii vähem katsetatud ning kiire kerimine võib hakitud olla. Jõustub rakenduse järgmisel käivitusel.",
   "appSettingsDeveloperModeTorWarningConfirm": "Lülita välja",
   "appSettingsDeveloperModeAlreadyOn": "Arendajarežiim on juba sees",
   "appSettingsDeveloperModeStepsAway": "Veel {count} puudutust arendajarežiimi sisselülitamiseks",

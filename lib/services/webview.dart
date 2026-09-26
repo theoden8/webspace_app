@@ -1612,6 +1612,7 @@ class _WebViewController implements WebViewController {
       javaScriptCanOpenWindowsAutomatically: true,
       // Enable DevTools inspection in debug mode
       isInspectable: kDebugMode,
+      useHybridComposition: WebViewFactory.hybridComposition,
     ),
   );
 
@@ -1639,7 +1640,10 @@ class _WebViewController implements WebViewController {
   Future<void> setTextZoom(int zoomPercent) async {
     if (hostIsAndroid) {
       await _c.setSettings(
-        settings: inapp.InAppWebViewSettings(textZoom: zoomPercent),
+        settings: inapp.InAppWebViewSettings(
+          textZoom: zoomPercent,
+          useHybridComposition: WebViewFactory.hybridComposition,
+        ),
       );
       return;
     }
@@ -1974,6 +1978,21 @@ class WebViewFactory {
   /// after settings import. Applied verbatim to every WebView's native
   /// WebSettings; no-ops on platforms/providers without the feature.
   static bool backForwardCacheEnabled = true;
+
+  /// How Android draws a webview (PAUSE-032). True, the default, is hybrid
+  /// composition: the WebView sits in the Android view hierarchy and Flutter
+  /// draws into image views around it, where a surface can reattach without a
+  /// paint and stay blank white (BUG-001). False is texture layer hybrid
+  /// composition, where the page renders into a texture Flutter composites in
+  /// its own frame; it is an experimental feature (DEVTOOLS-011).
+  ///
+  /// Set once at startup and never after, so every webview in a process runs
+  /// the same mode. The fork's `setSettings` replaces the native settings
+  /// wholesale and the Dart settings class defaults this field to true, so
+  /// every `InAppWebViewSettings` the app builds must carry it or a settings
+  /// update flips a texture webview's native input and selection code to
+  /// hybrid behaviour.
+  static bool hybridComposition = true;
 
   /// App-wide HTTPS upgrade default, mirrored from the `httpsUpgradeEnabled`
   /// app pref (kExportedAppPrefs) at startup and after settings import. A site
@@ -2380,6 +2399,7 @@ class WebViewFactory {
         // Enable DevTools inspection in debug mode (chrome://inspect on Android)
         isInspectable: kDebugMode,
         useShouldOverrideUrlLoading: true,
+        useHybridComposition: WebViewFactory.hybridComposition,
       ),
       initialUserScripts: UnmodifiableListView(page.userScripts),
       onWebViewCreated: (controller) {
@@ -4209,7 +4229,8 @@ class WebViewFactory {
           ? inapp.UserPreferredContentMode.DESKTOP
           : inapp.UserPreferredContentMode.RECOMMENDED
       // Enable DevTools inspection in debug mode (chrome://inspect on Android)
-      ..isInspectable = kDebugMode;
+      ..isInspectable = kDebugMode
+      ..useHybridComposition = WebViewFactory.hybridComposition;
 
     // Android honours the viewport meta's layout width (and thus the page
     // zoom) only when useWideViewPort is on: with it off, Chromium's

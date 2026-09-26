@@ -858,6 +858,10 @@ void main() async {
   // than plumbed, so it must be hydrated before the first frame.
   await DeveloperModeService.instance.initialize();
   await ExperimentalFeaturesService.instance.initialize();
+  // Before any webview exists, and only here: a process runs one composition
+  // mode, so the Experimental switch applies from the next launch (PAUSE-032).
+  WebViewFactory.hybridComposition = !ExperimentalFeaturesService.instance
+      .isEnabled(ExperimentalFeature.textureRendering);
   // Re-fetch favicons whose initial request died on
   // CERTIFICATE_VERIFY_FAILED once the user later approves the cert
   // via the webview trust prompt. Subscribes before any pin can fire,

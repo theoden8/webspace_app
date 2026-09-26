@@ -6,6 +6,7 @@ import 'package:webspace/settings/pref_read.dart';
 
 const String kExperimentalTorKey = 'experimentalTor';
 const String kExperimentalProxyRouterKey = 'experimentalProxyRouter';
+const String kExperimentalTextureRenderingKey = 'experimentalTextureRendering';
 
 /// A feature that ships before it is finished (DEVTOOLS-011): reachable only
 /// with developer mode on and its own switch on in App Settings'
@@ -18,7 +19,11 @@ enum ExperimentalFeature {
 
   /// Android's per-site proxy router (PROXY-013). On by default for the same
   /// reason as [tor]: developer mode alone ran it before this switch existed.
-  proxyRouter(kExperimentalProxyRouterKey, defaultOn: true);
+  proxyRouter(kExperimentalProxyRouterKey, defaultOn: true),
+
+  /// Android's texture-layer webview composition (PAUSE-032). Off by
+  /// default: every release before it drew pages with hybrid composition.
+  textureRendering(kExperimentalTextureRenderingKey, defaultOn: false);
 
   const ExperimentalFeature(this.prefKey, {required this.defaultOn});
 

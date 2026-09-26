@@ -325,6 +325,8 @@
   "appSettingsExperimentalTorOffBody": "{count, plural, other{{count} tapak ditetapkan untuk menggunakan Tor. Ia akan kekal disekat sehingga anda menghidupkan Tor terbina dalam semula, dan bukannya dimuatkan melalui alamat IP sebenar anda.}}",
   "appSettingsExperimentalProxyRouter": "Penghala proksi",
   "appSettingsExperimentalProxyRouterHint": "Pada Android, satu tetapan proksi meliputi seluruh aplikasi, jadi membuka tapak dengan proksi berbeza akan menutup tapak yang menggunakan proksi lain. Penghala mengekalkan kesemuanya terbuka: geganti di dalam aplikasi menghantar trafik setiap tapak ke proksi tapak itu sendiri. Setiap kali aplikasi dimulakan, ia menyemak pada peranti ini bahawa trafik setiap tapak dapat dibezakan antara satu sama lain, dan menutup tapak seperti sebelum ini jika semakan gagal. Bersifat percubaan: ia hanya dicuba pada sedikit peranti. Berkuat kuasa pada kali seterusnya aplikasi dimulakan.",
+  "appSettingsExperimentalTextureRendering": "Pemaparan halaman sebagai tekstur",
+  "appSettingsExperimentalTextureRenderingHint": "Melukis setiap halaman ke dalam tekstur yang digubah sendiri oleh WebSpace, bukannya sebagai paparan Android berasingan yang dilapiskan dengan aplikasi. Ini mungkin menghentikan halaman yang kekal putih kosong sehingga anda memutar telefon atau menukar aplikasi. Menaip, memilih teks dan pembaca skrin kurang diuji dengan cara ini, dan tatal pantas boleh tersekat-sekat. Berkuat kuasa pada kali seterusnya aplikasi dimulakan.",
   "appSettingsDeveloperModeTorWarningConfirm": "Matikan",
   "appSettingsDeveloperModeAlreadyOn": "Mod pembangun sudah dihidupkan",
   "appSettingsDeveloperModeStepsAway": "{count} ketikan lagi untuk menghidupkan mod pembangun",

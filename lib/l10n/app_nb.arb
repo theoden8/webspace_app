@@ -325,6 +325,8 @@
   "appSettingsExperimentalTorOffBody": "{count, plural, one{Ett nettsted er satt til å bruke Tor. Det forblir blokkert til du slår Innebygd Tor på igjen, i stedet for å lastes via din virkelige IP-adresse.} other{{count} nettsteder er satt til å bruke Tor. De forblir blokkert til du slår Innebygd Tor på igjen, i stedet for å lastes via din virkelige IP-adresse.}}",
   "appSettingsExperimentalProxyRouter": "Proxy-ruter",
   "appSettingsExperimentalProxyRouterHint": "På Android gjelder én proxy-innstilling for hele appen, så når du åpner et nettsted med en annen proxy, lukkes nettstedene som bruker en annen. Ruteren holder dem alle åpne: et relé inne i appen sender hvert nettsteds trafikk til nettstedets egen proxy. Ved hver oppstart sjekker den på denne enheten at hvert nettsteds trafikk kan skilles fra de andres, og lukker nettsteder som før hvis sjekken mislykkes. Den er eksperimentell: den er bare prøvd på få enheter. Trer i kraft neste gang appen starter.",
+  "appSettingsExperimentalTextureRendering": "Teksturgjengivelse av sider",
+  "appSettingsExperimentalTextureRenderingHint": "Tegner hver side i en tekstur som WebSpace setter sammen selv, i stedet for som en egen Android-visning lagt oppå appen. Det kan hindre sider som blir stående blanke og hvite til du snur telefonen eller bytter app. Skriving, tekstmarkering og skjermlesere er mindre testet på denne måten, og rask rulling kan hakke. Trer i kraft neste gang appen starter.",
   "appSettingsDeveloperModeTorWarningConfirm": "Slå av",
   "appSettingsDeveloperModeAlreadyOn": "Utviklermodus er allerede på",
   "appSettingsDeveloperModeStepsAway": "{count} trykk til for å slå på utviklermodus",
