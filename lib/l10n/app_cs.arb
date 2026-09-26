@@ -329,6 +329,8 @@
   "appSettingsExperimentalPageIconsHint": "Zobrazuje ikonu, kterou deklarují vlastní stránky webu, tu, kterou prohlížeč zobrazí na své kartě, místo ikony nalezené přes Google nebo DuckDuckGo. Aplikace ji sama stáhne po načtení každé stránky, přes proxy a blokátory webu a bez jeho cookies, takže ikona zobrazená jen přihlášeným uživatelům se nezachytí. Experimentální: vyzkoušeno jen na několika webech. Platí pro weby otevřené po zapnutí.",
   "appSettingsExperimentalTextureRendering": "Vykreslování stránek do textury",
   "appSettingsExperimentalTextureRenderingHint": "Kreslí každou stránku do textury, kterou WebSpace skládá sám, místo jako samostatné zobrazení Androidu vrstvené s aplikací. Může to zabránit stránkám, které zůstávají prázdné a bílé, dokud neotočíte telefon nebo nepřepnete aplikaci. Psaní, výběr textu a čtečky obrazovky jsou v tomto režimu méně vyzkoušené a rychlé posouvání se může zadrhávat. Projeví se při příštím spuštění aplikace.",
+  "appSettingsExperimentalSiteTabs": "Panely webu",
+  "appSettingsExperimentalSiteTabsHint": "Umožní webu mít otevřeno několik stránek najednou, podobně jako panely v prohlížeči: seznam panelů z počítadla panelů nahoře, položky „Nový panel“ a „Duplikovat panel“ v nabídce a „Otevřít v novém panelu“, když na odkazu podržíte prst. Všechny panely jednoho webu sdílejí přihlášení a nastavení daného webu. Když je vypnuto, každý web zobrazuje jednu stránku jako dosud; panely, které jste už otevřeli, zůstanou zachovány pro případ, že funkci znovu zapnete.",
   "appSettingsDeveloperModeTorWarningConfirm": "Vypnout",
   "appSettingsDeveloperModeAlreadyOn": "Režim pro vývojáře je již zapnutý",
   "appSettingsDeveloperModeStepsAway": "Ještě {count} klepnutí k zapnutí režimu pro vývojáře",

@@ -329,6 +329,8 @@
   "appSettingsExperimentalPageIconsHint": "Viser ikonet som nettstedets egne sider oppgir, det en nettleser viser på fanen sin, i stedet for et ikon funnet via Google eller DuckDuckGo. Appen henter det selv etter at hver side er lastet, gjennom nettstedets mellomtjener og blokkeringer og uten nettstedets informasjonskapsler, så et ikon som bare vises for innloggede brukere, går tapt. Eksperimentell: den er bare prøvd på få nettsteder. Gjelder nettsteder som åpnes etter at den er slått på.",
   "appSettingsExperimentalTextureRendering": "Teksturgjengivelse av sider",
   "appSettingsExperimentalTextureRenderingHint": "Tegner hver side i en tekstur som WebSpace setter sammen selv, i stedet for som en egen Android-visning lagt oppå appen. Det kan hindre sider som blir stående blanke og hvite til du snur telefonen eller bytter app. Skriving, tekstmarkering og skjermlesere er mindre testet på denne måten, og rask rulling kan hakke. Trer i kraft neste gang appen starter.",
+  "appSettingsExperimentalSiteTabs": "Nettstedsfaner",
+  "appSettingsExperimentalSiteTabsHint": "Lar et nettsted holde flere sider åpne samtidig, som faner i en nettleser: en faneliste fra fanetelleren øverst, «Ny fane» og «Dupliser fane» i menyen, og «Åpne i ny fane» når du trykker lenge på en lenke. Alle faner på et nettsted deler nettstedets pålogging og innstillinger. Når dette er av, viser hvert nettsted én side, som før; faner du allerede har åpnet, beholdes til du slår det på igjen.",
   "appSettingsDeveloperModeTorWarningConfirm": "Slå av",
   "appSettingsDeveloperModeAlreadyOn": "Utviklermodus er allerede på",
   "appSettingsDeveloperModeStepsAway": "{count} trykk til for å slå på utviklermodus",

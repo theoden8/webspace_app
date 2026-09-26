@@ -329,6 +329,8 @@
   "appSettingsExperimentalPageIconsHint": "Juri l-ikona li jiddikjaraw il-paġni tas-sit innifsu, dik li l-browser ipoġġi fuq it-tab tiegħu, minflok waħda misjuba permezz ta' Google jew DuckDuckGo. L-app iġġibha hi stess wara li titgħabba kull paġna, permezz tal-proxy u l-blokkaturi tas-sit u mingħajr il-cookies tas-sit, għalhekk ikona murija biss lill-utenti li jkunu dħlu tintilef. Sperimentali: ġiet ippruvata biss fuq ftit siti. Tapplika għas-siti miftuħa wara li tinxtegħel.",
   "appSettingsExperimentalTextureRendering": "Wiri tal-paġni bħala tessitura",
   "appSettingsExperimentalTextureRenderingHint": "Ipinġi kull paġna f'tessitura li WebSpace jgħaqqad hu stess, minflok bħala veduta separata ta' Android imqiegħda f'saffi mal-app. Jista' jwaqqaf il-paġni li jibqgħu vojta u bojod sakemm iddawwar it-telefon jew taqleb l-app. It-tajpjar, l-għażla tat-test u l-qarrejja tal-iskrin huma inqas ittestjati b'dan il-mod, u l-iscrolling mgħaġġel jista' jaqbeż. Jidħol fis-seħħ id-darba li jmiss li tinfetaħ l-app.",
+  "appSettingsExperimentalSiteTabs": "Tabs tas-sit",
+  "appSettingsExperimentalSiteTabsHint": "Tħalli sit iżomm diversi paġni miftuħa fl-istess ħin, bħat-tabs tal-browser: lista tat-tabs mill-għadd tat-tabs fin-naħa ta' fuq, “Tab ġdid” u “Idduplika t-tab” fil-menu, u “Iftaħ f'tab ġdid” meta żżomm link magħfus. It-tabs kollha ta' sit jaqsmu l-illoggjar u s-settings ta' dak is-sit. Meta jkun mitfi, kull sit juri paġna waħda, bħal qabel; it-tabs li diġà ftaħt jinżammu għal meta terġa' tixgħlu.",
   "appSettingsDeveloperModeTorWarningConfirm": "Itfi",
   "appSettingsDeveloperModeAlreadyOn": "Il-modalità tal-iżviluppatur diġà hija mixgħula",
   "appSettingsDeveloperModeStepsAway": "{count} tektik ieħor biex tixgħel il-modalità tal-iżviluppatur",

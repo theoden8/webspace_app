@@ -329,6 +329,8 @@
   "appSettingsExperimentalPageIconsHint": "Rāda ikonu, ko norāda pašas vietnes lapas, to, ko pārlūks rāda savā cilnē, nevis ikonu, kas atrasta, izmantojot Google vai DuckDuckGo. Lietotne to pati ielādē pēc katras lapas ielādes, caur vietnes starpniekserveri un bloķētājiem un bez vietnes sīkfailiem, tāpēc ikona, kas tiek rādīta tikai pieteikušamies lietotājiem, paliek neiegūta. Eksperimentāla: izmēģināta tikai dažās vietnēs. Attiecas uz vietnēm, kas atvērtas pēc tās ieslēgšanas.",
   "appSettingsExperimentalTextureRendering": "Lapu attēlošana tekstūrā",
   "appSettingsExperimentalTextureRenderingHint": "Zīmē katru lapu tekstūrā, ko WebSpace pati sastāda, nevis kā atsevišķu Android skatu, kas uzklāts lietotnei. Tas var novērst lapas, kas paliek tukšas un baltas, līdz pagriežat tālruni vai pārslēdzat lietotni. Rakstīšana, teksta atlase un ekrāna lasītāji šādā veidā ir mazāk pārbaudīti, un ātra ritināšana var raustīties. Stājas spēkā nākamajā lietotnes palaišanas reizē.",
+  "appSettingsExperimentalSiteTabs": "Vietnes cilnes",
+  "appSettingsExperimentalSiteTabsHint": "Ļauj vietnei vienlaikus turēt atvērtas vairākas lapas, kā pārlūka cilnes: ciļņu saraksts, ko atver, pieskaroties ciļņu skaitam augšā, “Jauna cilne” un “Dublēt cilni” izvēlnē, kā arī “Atvērt jaunā cilnē”, kad ilgi turat nospiestu saiti. Visas vietnes cilnes izmanto tās pašas vietnes pieteikšanos un iestatījumus. Kad izslēgts, katra vietne rāda vienu lapu, tāpat kā līdz šim; jau atvērtās cilnes tiek saglabātas, līdz to atkal ieslēgsiet.",
   "appSettingsDeveloperModeTorWarningConfirm": "Izslēgt",
   "appSettingsDeveloperModeAlreadyOn": "Izstrādātāja režīms jau ir ieslēgts",
   "appSettingsDeveloperModeStepsAway": "Vēl {count} pieskārieni līdz izstrādātāja režīma ieslēgšanai",

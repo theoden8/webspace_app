@@ -329,6 +329,8 @@
   "appSettingsExperimentalPageIconsHint": "Viser det ikon, som webstedets egne sider angiver, det en browser viser på sin fane, i stedet for et ikon fundet via Google eller DuckDuckGo. Appen henter det selv, efter hver side er indlæst, gennem webstedets proxy og blokeringer og uden webstedets cookies, så et ikon, der kun vises for loggede brugere, går tabt. Eksperimentel: den er kun afprøvet på få websteder. Gælder for websteder, der åbnes, efter den er slået til.",
   "appSettingsExperimentalTextureRendering": "Teksturgengivelse af sider",
   "appSettingsExperimentalTextureRenderingHint": "Tegner hver side i en tekstur, som WebSpace selv sammensætter, i stedet for som en separat Android-visning lagt oven på appen. Det kan forhindre sider, der forbliver tomme og hvide, indtil du drejer telefonen eller skifter app. Indtastning, tekstmarkering og skærmlæsere er mindre testet på denne måde, og hurtig rulning kan hakke. Træder i kraft næste gang appen starter.",
+  "appSettingsExperimentalSiteTabs": "Webstedsfaneblade",
+  "appSettingsExperimentalSiteTabsHint": "Lader et websted holde flere sider åbne på én gang, ligesom faneblade i en browser: en liste over faneblade fra fanebladstælleren øverst, \"Nyt faneblad\" og \"Dupliker faneblad\" i menuen samt \"Åbn i nyt faneblad\", når du holder fingeren på et link. Alle faneblade på samme websted deler webstedets login og indstillinger. Når det er slået fra, viser hvert websted én side som før; faneblade, du allerede har åbnet, gemmes til, når du slår det til igen.",
   "appSettingsDeveloperModeTorWarningConfirm": "Slå fra",
   "appSettingsDeveloperModeAlreadyOn": "Udviklertilstand er allerede slået til",
   "appSettingsDeveloperModeStepsAway": "{count} tryk mere for at slå udviklertilstand til",

@@ -329,6 +329,8 @@
   "appSettingsExperimentalPageIconsHint": "Google이나 DuckDuckGo를 통해 찾은 아이콘 대신, 사이트 자체 페이지가 선언한 아이콘, 즉 브라우저가 탭에 표시하는 아이콘을 보여 줍니다. 각 페이지가 로드된 후 앱이 직접 가져오며, 사이트의 프록시와 차단기를 거치고 사이트의 쿠키 없이 가져오므로 로그인한 사용자에게만 표시되는 아이콘은 가져오지 못합니다. 실험 기능: 아직 소수의 사이트에서만 시험했습니다. 켠 후에 연 사이트에 적용됩니다.",
   "appSettingsExperimentalTextureRendering": "텍스처 페이지 렌더링",
   "appSettingsExperimentalTextureRenderingHint": "각 페이지를 앱과 겹쳐진 별도의 Android 뷰가 아니라 WebSpace가 직접 합성하는 텍스처에 그립니다. 휴대전화를 회전하거나 앱을 전환할 때까지 하얗게 비어 있는 페이지를 막을 수 있습니다. 이 방식에서는 입력, 텍스트 선택, 화면 낭독기가 덜 검증되었고 빠른 스크롤이 끊길 수 있습니다. 다음에 앱을 시작할 때 적용됩니다.",
+  "appSettingsExperimentalSiteTabs": "사이트 탭",
+  "appSettingsExperimentalSiteTabsHint": "브라우저 탭처럼 한 사이트에서 여러 페이지를 동시에 열어 둘 수 있습니다. 상단의 탭 개수를 누르면 탭 목록이 열리고, 메뉴에는 '새 탭'과 '탭 복제'가, 링크를 길게 누르면 '새 탭에서 열기'가 표시됩니다. 한 사이트의 모든 탭은 그 사이트의 로그인 상태와 설정을 공유합니다. 끄면 각 사이트는 예전처럼 한 페이지만 표시하며, 이미 연 탭은 다시 켤 때를 위해 유지됩니다.",
   "appSettingsDeveloperModeTorWarningConfirm": "끄기",
   "appSettingsDeveloperModeAlreadyOn": "개발자 모드가 이미 켜져 있습니다",
   "appSettingsDeveloperModeStepsAway": "개발자 모드를 켜려면 {count}번 더 탭하세요",
