@@ -318,10 +318,11 @@ wait_for_logcat() { # $1 = slug, $2 = deadline secs, $3 = literal pattern
 # webview into its own frames, its frame loop redraws it and the gap cannot
 # occur here by construction, which would make every negative result this
 # tier produced a statement about the emulator rather than about the bug.
-# The mode itself is settled in Dart (the fork defaults useHybridComposition
-# to true, and `initExpensiveAndroidView` "always creates a Hybrid
-# Composition (HC) view"), so this dump is the runtime witness for it, not
-# the decision. Never fail on it: the layer list is the fact.
+# The mode itself is settled in Dart: hybrid composition by default
+# (`useHybridComposition: true`, routed to `initExpensiveAndroidView`), texture
+# layer only with the PAUSE-032 experiment on, which this tier never turns on.
+# So this dump is the runtime witness for it, not the decision. Never fail on
+# it: the layer list is the fact.
 dump_composition_mode() {
   local out="$artifacts/composition-mode.txt" layers
   layers="$(adb shell dumpsys SurfaceFlinger --list 2>/dev/null | tr -d '\r' || true)"

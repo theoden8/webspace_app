@@ -1,7 +1,7 @@
 # BUG-001: White/black screen after returning to or navigating a webview (Android)
 
-**Status:** open (recurring — each fix has closed one entry path; new paths keep surfacing)
-**Platform:** Android only (hybrid-composition `SurfaceView`)
+**Status:** open (recurring — each fix has closed one entry path; new paths keep surfacing). Attempt 13 offers texture mode as a developer-mode experiment; open until a device that went white confirms it.
+**Platform:** Android only (hybrid composition; texture mode behind the Texture page rendering experiment since Attempt 13)
 **Spec:** [openspec/specs/webview-pause-lifecycle/spec.md](../../openspec/specs/webview-pause-lifecycle/spec.md) — requirements `PAUSE-013`…`PAUSE-028`
 **Formal models:** [formal/kernel.tla](../../formal/kernel.tla), [formal/warmstart.tla](../../formal/warmstart.tla), [formal/reloadlatch.tla](../../formal/reloadlatch.tla) — `RepaintLiveness` ("every blank-surface attach is eventually repainted"). The `kernel_conflict.cfg` demonstrator is a back path that bypasses the chokepoint — i.e. this exact bug — and TLC rejects it with a counterexample.
 
@@ -362,6 +362,71 @@ Android-only by construction. And a page whose first commit-visible frame is
 itself blank (a shell that paints later) gets one nudge at the wrong moment and
 nothing after, because there is no second commit for a same-document update.
 
+### Attempt 13 — Offer texture composition as an experiment (`PAUSE-032`)
+
+**Date:** 2026-09-26
+
+**What it did.** Made texture layer hybrid composition (TLHC) available on
+Android as an experimental feature (DEVTOOLS-011): with developer mode on and
+the **Texture page rendering** switch on, every `InAppWebViewSettings` the
+app builds carries `useHybridComposition: false`; otherwise it carries true,
+as before. Hybrid composition stays the default until texture mode has run on
+devices. The mode is read once at launch. A structural gate
+(`test/js/composition_mode_parity.test.js`) holds every settings object to
+the field, because the fork's `setSettings` replaces native settings
+wholesale and the Dart class defaults the field to true.
+
+**Why.** Attempts 1 to 12 each added a trigger for the same remedy, a nudge,
+and gap #18 is a device on which the trace shows every trigger firing, the
+renderer alive with a 376 KB document, and the page white. Its two
+hypotheses are that the nudge is inert (H1) or that it ran too early (H2).
+Both are hypotheses about repainting a surface that hybrid composition owns.
+The correction in gap #16 names that surface: under HC, Flutter renders into
+`FlutterImageView`s around the WebView, and an image view presents the last
+image it acquired until something makes it acquire another. That is the
+object every attempt has been trying to poke. In texture mode it does not
+exist: the WebView draws into a texture, a new WebView frame makes Flutter
+schedule a frame, and Flutter composites the texture itself. So this is the
+first attempt that removes the mechanism instead of adding a path to the list
+of things that work around it, which is what gap #3 has asked for since
+Attempt 8. It is also what the official `webview_flutter` plugin uses on
+Android by default, and what `flutter_inappwebview` 5.x used before 6.0
+switched its own default to HC.
+
+What texture mode changes, read from the pinned fork: the
+`InputAwareWebView` input-connection proxy is gated on `!useHybridComposition`
+but also on a non-null container view, and the v2 embedding passes a null
+`FlutterView` (`InAppWebViewFlutterPlugin.onAttachedToEngine`), so the proxy
+stays inert and the WebView handles input natively; text selection uses the
+plugin's floating menu (`rebuildActionMode`) instead of the system toolbar;
+and the plugin injects a one-line keydown listener that hides that menu.
+Flutter's own documentation lists texture mode's costs as jank during fast
+scrolling and lost accessibility for `SurfaceView`s, which a WebView does not
+contain.
+
+**Why it may be partial.** Nobody has run it on a device that goes white,
+so like Attempts 9 to 12 its causal claim is unverified until one does, and
+as an experiment it reaches no one who has not turned on developer mode. What
+would falsify it is a white screen with the experiment on: if that happens,
+the stale surface was not hybrid composition's, and gap #18's H1 and H2 both
+need re-reading. Texture mode has its own resume-blank history
+(flutter/flutter#148662, fixed by flutter/engine#52980, long before the 3.38.6 we pin). The
+repaint nudges stay wired: they are harmless in texture mode, and the default
+mode still needs them. The adb tier runs the default mode, so it does not
+exercise texture mode. One CI run made while texture mode was briefly the
+default passed the in-process white-screen pixel test in it, which says as
+little about the bug as the HC runs do (gap #13).
+
+The in-process window sampler (`SurfaceDiagPlugin`) was itself a
+hybrid-composition instrument. `PixelCopy.request(Window, ...)` copies the
+window's own surface and never a `SurfaceView` layer; under HC Flutter draws
+into image views inside the window, so that was the whole picture, but in
+texture mode Flutter and the webview's texture are in `FlutterSurfaceView`
+and the window over them is a transparent hole. The first CI run read
+`0x00000000, uniform 1.0` over a page the adb tier had never been asked
+about. The sampler now fills transparent window pixels from the
+`SurfaceView` behind them, which reads the same as before under HC.
+
 ---
 
 ## Known open gaps (candidates for the next recurrence)
@@ -378,7 +443,11 @@ nothing after, because there is no second commit for a same-document update.
    whenever a new screen hosts a webview or a new lifecycle signal appears. That is gap #3
    from the process side: a native attach callback would make the audit unnecessary rather
    than merely up to date.
-3. **The class isn't closed.** Every fix is per-path. The durable fix is a **single
+3. **The class isn't closed.** (Attempt 13 takes the class-level route this
+   gap asks for from the other side: rather than a native attach callback for
+   hybrid composition, it offers a mode without it, as a developer-mode
+   experiment. Open until a device confirms it, and until texture mode is the
+   default.) Every fix is per-path. The durable fix is a **single
    chokepoint** that nudges on *every* surface (re)attach — ideally a native
    surface-changed/-redrawn callback from the fork driving the repaint — instead of
    enumerating Dart-side navigation paths forever. **Attempt 8 narrows this**: it keys the

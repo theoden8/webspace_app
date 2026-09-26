@@ -17,6 +17,7 @@ The features are:
 |---|---|---|---|
 | Embedded Tor client (`tor-proxy` TOR-007) | Built-in Tor | on | `TorService.isAvailable` |
 | Android's per-site proxy router (`proxy` PROXY-013) | Proxy router | on | `ProxyRouterService.isSupported`, read once at launch |
+| Android's texture page rendering (`webview-pause-lifecycle` PAUSE-032) | Texture page rendering | off | `WebViewFactory.hybridComposition`, read once at launch |
 
 Outbound link routing (`link-intent-routing` LIR-013 to LIR-017) was in the group with a switch that defaulted off; it graduated with the site info sheet (`site-info-sheet`, NAV-011), which shows the site and container a routed page runs as.
 
@@ -45,7 +46,7 @@ Outbound link routing (`link-intent-routing` LIR-013 to LIR-017) was in the grou
 
 - **GIVEN** an Android build whose WebView reports `MULTI_PROFILE`, with developer mode on
 - **WHEN** the user opens App settings
-- **THEN** the Experimental group lists Proxy router, on
+- **THEN** the Experimental group lists Proxy router, on, and Texture page rendering, off
 - **AND** it does not list Built-in Tor, which has no runtime on Android
 
 #### Scenario: A platform with neither Tor nor the router
