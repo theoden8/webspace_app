@@ -19,9 +19,10 @@
 set -euo pipefail
 
 # Hard wall-clock cap, like the sibling script: a webview mount can
-# deadlock below every polling deadline.
+# deadlock below every polling deadline. Scenario P spends a fixed
+# WS_PUSH_BACKGROUND_SECS in the background by design, so the cap carries it.
 if [ "${WS_LIFECYCLE_WRAPPED:-}" != "1" ]; then
-  exec env WS_LIFECYCLE_WRAPPED=1 timeout -k 30s 25m "$0" "$@"
+  exec env WS_LIFECYCLE_WRAPPED=1 timeout -k 30s 30m "$0" "$@"
 fi
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -136,10 +137,51 @@ cat > "$www/notif.html" <<'EOF'
 </script></body></html>
 EOF
 
+# A notification site the way real ones work: its unread count lives on the
+# server, the page shows it in its title, and the page posts a notification
+# only when the server sends something down the connection it holds open,
+# never on load. Scenario F's page notifies on every load, which no real site
+# does, so it could only ever prove that a reload happened.
+cat > "$www/push.html" <<'EOF'
+<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Push</title>
+<style>html,body{margin:0;height:100%;background:#1d3f8c;}</style></head><body><script>
+(function () {
+  try { fetch('/push-load?' + Date.now(), {cache: 'no-store'}); } catch (e) {}
+  if (typeof Notification !== 'undefined' && Notification.permission !== 'granted') {
+    try { Notification.requestPermission(); } catch (e) {}
+  }
+  var unread = 0;
+  function show(n) { unread = n; document.title = n > 0 ? '(' + n + ') Push' : 'Push'; }
+  fetch('/count', {cache: 'no-store'})
+    .then(function (r) { return r.text(); })
+    .then(function (t) { show(parseInt(t, 10) || 0); })
+    .catch(function () {});
+  var es = new EventSource('/events');
+  es.onmessage = function (e) {
+    show(unread + 1);
+    try { new Notification('ws-push', {body: e.data, tag: e.data}); } catch (err) {}
+  };
+})();
+</script></body></html>
+EOF
+
 python3 - "$www" > "$server_log" 2>&1 <<'EOF' &
-import http.server, os, sys, time
+import http.server, os, sys, threading, time
+from urllib.parse import parse_qs, urlparse
 
 os.chdir(sys.argv[1])
+
+# Server-sent events for push.html. `/push?m=<text>` (from the host) counts
+# one unread message and sends <text> to every open `/events` stream, and
+# answers with how many streams were open, so the harness can tell "the page
+# was listening and did nothing" from "nothing was listening". `/record?m=`
+# counts one without sending it anywhere: a message that arrived while the
+# page could not hear it. `/count` is what a page learns on load.
+events = []
+streams = [0]
+unread = [0]
+cond = threading.Condition()
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
@@ -152,7 +194,61 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         # in, and the one Attempts 9/10/11 are all about.
         if self.path.startswith('/slow'):
             time.sleep(5)
+        if self.path.startswith('/events'):
+            return self.stream_events()
+        if self.path.startswith('/push?'):
+            return self.push(send=True)
+        if self.path.startswith('/record?'):
+            return self.push(send=False)
+        if self.path.startswith('/count'):
+            with cond:
+                count = unread[0]
+            return self.reply(str(count))
         return super().do_GET()
+
+    def push(self, send):
+        text = parse_qs(urlparse(self.path).query).get('m', [''])[0]
+        with cond:
+            unread[0] += 1
+            if send:
+                events.append(text)
+                cond.notify_all()
+            open_streams = streams[0]
+        self.reply(str(open_streams if send else unread[0]))
+
+    def reply(self, text):
+        body = text.encode()
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/plain')
+        self.send_header('Cache-Control', 'no-store')
+        self.send_header('Content-Length', str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def stream_events(self):
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/event-stream')
+        self.send_header('Cache-Control', 'no-store')
+        self.end_headers()
+        with cond:
+            cursor = len(events)
+            streams[0] += 1
+        try:
+            self.wfile.write(b'retry: 1000\n\n')
+            self.wfile.flush()
+            while True:
+                with cond:
+                    cond.wait_for(lambda: len(events) > cursor, timeout=15)
+                    fresh = events[cursor:]
+                    cursor = len(events)
+                chunk = b''.join(b'data: ' + e.encode() + b'\n\n' for e in fresh)
+                self.wfile.write(chunk or b': keepalive\n\n')
+                self.wfile.flush()
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            pass
+        finally:
+            with cond:
+                streams[0] -= 1
 
 
 srv = http.server.ThreadingHTTPServer(('0.0.0.0', 0), Handler)
@@ -713,6 +809,135 @@ wait_for_pixels notif-foreground-tick-stays-painted 30 --expect-dominant "$dark"
 # the resume. Only an out-of-process driver produces that transition, so
 # the in-process suite (integration_test/shortcut_behavior_test.dart)
 # cannot cover these two.
+
+echo "== Scenario P: a message the server holds reaches the user from the background (NOTIF-011..014)"
+# What users mean by "notifications work": a site they are not looking at,
+# while WebSpace is not on screen, gets a message and the phone shows it. The
+# notification site sits behind a plain active site, which is the arrangement
+# NOTIF-011 is about (the JS pause is process-global). The app then stays in
+# the background past the cached-app freezer's debounce, and the server
+# records a message no open stream carries: what a frozen page, or one whose
+# connection was dropped, never hears. With no foreground service (NOTIF-005-A)
+# the background wake is what has to reach the user, so this drives it and
+# requires its post; the page never posts on load, so a reload alone passes
+# nothing.
+push_site_id="ws-$run_tag-push"
+push_loads() { grep -c 'GET /push-load' "$server_log" || true; }
+sse_connects() { grep -c 'GET /events' "$server_log" || true; }
+push_event() { curl -sf "http://127.0.0.1:$port/push?m=$1" || echo 0; }
+record_message() { curl -sf "http://127.0.0.1:$port/record?m=$1" || echo 0; }
+wake_posts() { adb logcat -d 2>/dev/null | grep -c 'background wake done: unread fallback posts=1' || true; }
+background_secs="${WS_PUSH_BACKGROUND_SECS:-75}"
+
+adb shell am force-stop "$pkg"
+connects_before="$(sse_connects)"
+push_seed="$(printf '{"sites":[%s,%s]}' \
+  "$(site_json dark.html "$dark_site_id")" \
+  "$(site_json push.html "$push_site_id" ',"notificationsEnabled":true')" \
+  | base64 | tr -d '\n')"
+capped_start -n "$component" --es ws_diag_seed "$push_seed" --es siteId "$dark_site_id"
+wait_for_pixels push-plain-site-on-screen 180 --expect-dominant "$dark"
+
+deadline=$(( $(date +%s) + 90 ))
+while [ "$(sse_connects)" -le "$connects_before" ]; do
+  if [ "$(date +%s)" -ge "$deadline" ]; then
+    echo "FAIL: the notification site never opened its event stream (was it auto-loaded?)" >&2
+    tail -15 "$server_log" | sed 's/^/    /' >&2 || true
+    dump_bg_diagnostics push-no-stream
+    exit 1
+  fi
+  sleep 2
+done
+echo "  event stream open (page loads so far: $(push_loads))"
+
+wait_for_new_notification() { # $1 = slug, $2 = deadline secs, $3 = baseline keys
+  local deadline fresh
+  deadline=$(( $(date +%s) + $2 ))
+  while :; do
+    fresh="$(comm -13 <(printf '%s\n' "$3") <(notif_keys))"
+    if [ -n "$fresh" ]; then
+      echo "  $1: posted $(printf '%s\n' "$fresh" | head -1)"
+      return 0
+    fi
+    [ "$(date +%s)" -ge "$deadline" ] && return 1
+    sleep 2
+  done
+}
+
+# Foreground, site offscreen: the live path, before any lifecycle step. It
+# also raises the page's title to "(1) Push", which is what the app records as
+# the user's baseline when it leaves the screen.
+keys="$(notif_keys)"
+open_streams="$(push_event "fg-$run_tag")"
+if ! wait_for_new_notification push-foreground 30 "$keys"; then
+  echo "FAIL: a message to the offscreen notification site posted nothing while the app was visible" >&2
+  echo "  open event streams when sent: $open_streams" >&2
+  dump_bg_diagnostics push-foreground
+  exit 1
+fi
+sleep 2
+
+adb shell input keyevent 3
+pid_before="$(app_pid)"
+echo "  backgrounded for ${background_secs}s (freezer debounce:" \
+  "$(adb shell device_config get activity_manager_native_boot freeze_debounce_timeout 2>/dev/null | tr -d '\r' || true))"
+sleep "$background_secs"
+adb logcat -d 2>/dev/null | grep -F "App background:" | tail -1 | sed 's/^/  /' || true
+
+unread_now="$(record_message "bg-$run_tag")"
+echo "  server recorded a message nothing carried (unread now: $unread_now)"
+keys="$(notif_keys)"
+loads_before="$(push_loads)"
+wake_posts_before="$(wake_posts)"
+triggers_before="$(bg_log_hits 'debug trigger: enqueueing')"
+adb shell am broadcast -n "$pkg/$ns.NotificationRefreshDebugReceiver" >/dev/null
+deadline=$(( $(date +%s) + 20 ))
+while [ "$(bg_log_hits 'debug trigger: enqueueing')" -le "$triggers_before" ]; do
+  if [ "$(date +%s)" -ge "$deadline" ]; then
+    echo "FAIL: the debug refresh receiver never fired for the backgrounded app" >&2
+    dump_bg_diagnostics push-no-debug-receiver
+    exit 1
+  fi
+  sleep 1
+done
+
+if ! wait_for_new_notification push-wake 90 "$keys"; then
+  now_pid="$(app_pid)"
+  echo "FAIL: the background wake did not tell the user about the recorded message within 90s" >&2
+  echo "  page loads: $loads_before -> $(push_loads)" >&2
+  if [ -z "$now_pid" ] || [ "$now_pid" != "$pid_before" ]; then
+    echo "  the app process is gone (pid ${pid_before:-none} -> ${now_pid:-none});" \
+         "NOTIF-005-A accepts that, but this tier needs the process" >&2
+  elif [ "$(push_loads)" -le "$loads_before" ]; then
+    echo "  the wake never reloaded the page (worker -> engine -> onBackgroundRefresh)" >&2
+  else
+    echo "  the page reloaded but nothing was posted: the wake returned before" \
+         "the load settled (NOTIF-013) or skipped the unread fallback (NOTIF-014)" >&2
+  fi
+  adb logcat -d 2>/dev/null | grep -E "App background:|background wake done|refresh —" \
+    | tail -10 | sed 's/^/    /' >&2 || true
+  bg_log | tail -10 | sed 's/^/    /' >&2
+  dump_bg_diagnostics push-wake
+  exit 1
+fi
+loads_after="$(push_loads)"
+if [ "$loads_after" -le "$loads_before" ]; then
+  echo "FAIL: a notification appeared but the wake never reloaded the page" \
+       "(page loads $loads_before -> $loads_after); it did not come from the wake" >&2
+  dump_bg_diagnostics push-no-reload
+  exit 1
+fi
+deadline=$(( $(date +%s) + 20 ))
+while [ "$(wake_posts)" -le "$wake_posts_before" ]; do
+  if [ "$(date +%s)" -ge "$deadline" ]; then
+    echo "FAIL: the wake did not log its unread fallback post (NOTIF-014)" >&2
+    adb logcat -d 2>/dev/null | grep -F "background wake done" | tail -3 | sed 's/^/    /' >&2 || true
+    dump_bg_diagnostics push-no-fallback-log
+    exit 1
+  fi
+  sleep 1
+done
+echo "  delivered by the background wake (page loads $loads_before -> $loads_after)"
 
 echo "== Scenario G: warm shortcut tap switches sites (HS-002)"
 adb shell am force-stop "$pkg"

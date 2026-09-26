@@ -71,7 +71,7 @@ The system SHALL inject a JavaScript polyfill at `DOCUMENT_START` (with `forMain
 **Given** a site delivers notifications from inside its Service Worker's `push` or `message` event handler (the standard Web Push pattern)
 **When** the push event fires
 **Then** WebSpace does NOT deliver the notification, because the handler runs in the worker global scope which a page-injected script cannot patch, and the app has no Web Push subscription endpoint
-**And** this is a known architectural limit: WebSpace approximates notifications by reloading the page so its page-context JS can fire `Notification` / page-context `showNotification`, not by receiving true server push
+**And** this is a known architectural limit: WebSpace delivers what the site's page-context JS posts while the page is running, plus what a background wake finds (NOTIF-014), not true server push
 
 ### Requirement: NOTIF-003 - Notification Tap Navigation
 
@@ -174,22 +174,23 @@ On iOS, the OS suspends apps within seconds of backgrounding. The system SHALL:
 **And** the app is in the background and has been suspended (~30s grace period elapsed)
 **When** iOS opportunistically fires the registered `BGAppRefreshTask`
 **Then** the app is woken with ~30 seconds of CPU time
-**And** Site A's webview is loaded (or reused if still alive in keepAlive)
+**And** Site A's webview is reloaded and the wake waits for the load to settle (NOTIF-013)
 **And** Site A's normal page JS runs and may fire notifications via the polyfill
-**And** the app calls `task.setTaskCompleted(success: true)` and reschedules the next refresh
+**And** if it posts nothing while its title's unread count rose, the app posts one for it (NOTIF-014)
+**And** only then does the app call `task.setTaskCompleted(success: true)`; the next refresh is rescheduled when the task arrives
 
 #### Scenario: User is informed of iOS background limitations
 
 **Given** the platform is iOS
 **And** the user enables `backgroundPoll` on a site for the first time
 **When** the toggle is enabled
-**Then** an informational dialog appears explaining: "iOS limits background execution. Notifications arrive while WebSpace is open, in the recent-tasks list, or during periodic background refreshes (typically every 15-30 minutes)."
+**Then** an informational dialog explains that iOS suspends WebSpace shortly after the user leaves it, that notifications arrive while it is open and for about 30 seconds after, and that iOS wakes it from time to time to reload these sites, notifying when a site's title shows a higher unread count
 **And** the dialog is shown only once (a "shown" flag is persisted)
 **And** the toggle is still allowed
 
 ### Requirement: NOTIF-005-A - Android Background Strategy
 
-On Android, the system SHALL mirror the iOS opportunistic-refresh strategy: schedule a `WorkManager` periodic refresh that wakes the app every 15 minutes (system minimum) to reload notification sites so their page JS can fire pending notifications. The system SHALL NOT use a foreground service — Play Store review of `FOREGROUND_SERVICE_SPECIAL_USE` is not tractable for a generic JS-event-loop case, and the predefined types (`dataSync`, `mediaPlayback`, `location`, ...) do not match.
+On Android, the system SHALL mirror the iOS opportunistic-refresh strategy: schedule a `WorkManager` periodic refresh that wakes the app every 15 minutes (system minimum) and runs the same wake as iOS (NOTIF-013, NOTIF-014). The system SHALL NOT use a foreground service to keep notification sites running (NOTIF-015). Apps that notify from the background are woken by a push channel (FCM, APNs) rather than staying resident, and a resident `specialUse` service also carries the Play review cost of `FOREGROUND_SERVICE_SPECIAL_USE`. So a site's page JS runs while the app is visible and in the short grace before Android freezes the process; after that, the wake is what reaches the user.
 
 The `ProxyController` is a process-wide singleton, so concurrent background-poll sites with different proxy configurations remain unsupported even under the refresh model — proxies thrash when reloads run back-to-back.
 
@@ -198,7 +199,7 @@ The request SHALL carry an initial delay of one interval. WorkManager treats the
 #### Scenario: At least one notification site loaded — refresh is scheduled
 
 **Given** the platform is Android
-**And** Site A has `backgroundPoll == true` and is loaded
+**And** Site A has notifications enabled and is loaded
 **When** the app enters the background
 **Then** a `WorkManager` `PeriodicWorkRequest` is enqueued under the unique name `webspace-notification-refresh` with a 15-minute interval, a 15-minute initial delay, and `NetworkType.CONNECTED` constraint
 **And** no foreground service is started
@@ -220,6 +221,7 @@ The request SHALL carry an initial delay of one interval. WorkManager treats the
 **When** the worker invokes `onBackgroundRefresh` over the method channel
 **Then** every loaded notification site is reloaded sequentially
 **And** the page JS runs and may fire notifications via the polyfill
+**And** the wake waits for the loads to settle (NOTIF-013) and posts for a silent site whose unread count rose (NOTIF-014)
 **And** the worker returns `Result.success()` and the next refresh remains scheduled
 
 #### Scenario: WorkManager fires after the process was killed — refresh is a no-op
@@ -262,7 +264,7 @@ The request SHALL carry an initial delay of one interval. WorkManager treats the
 **Given** the platform is Android
 **And** the user enables `notificationsEnabled` on a site for the first time
 **When** the toggle flips on
-**Then** an informational dialog explains: "Android limits background execution. Notifications arrive while WebSpace is open or in recent tasks; while backgrounded, the app reloads notification sites every ~15 minutes when the system permits. If Android kills the app, notifications stop until next launch."
+**Then** an informational dialog explains that Android can freeze WebSpace soon after the user leaves it, that notifications arrive while it is open, that Android wakes it no more than once every 15 minutes to reload these sites, notifying when a site's title shows a higher unread count, and that notifications stop if Android closes WebSpace
 **And** the dialog is shown only once (a persisted "shown" flag)
 **And** the toggle is still allowed
 
@@ -329,7 +331,7 @@ Because the wake-up chain (OS scheduler -> webview reload -> page JS -> `webNoti
 
 **Given** the developer-tools App Logs tab is open for a site
 **When** the developer taps "Simulate background refresh"
-**Then** the same reload pass the OS background task would run executes immediately
+**Then** the same wake the OS background task would run (NOTIF-013/014) executes immediately
 **And** the resulting trace is visible in the App Logs tab
 
 #### Scenario: Developer can verify OS notification delivery directly
@@ -384,3 +386,159 @@ webview's own, never the page's. The polyfill stays in frames so
 **When** the frame calls `new Notification('Security alert', {body: '...'})`, or the bridge directly
 **Then** no OS notification is shown
 **And** a post from Acme's own document, or a same-origin frame, is shown as before
+
+### Requirement: NOTIF-011 - A loaded notification site vetoes the app-background JS pause
+
+`AppLifecycleEngine.backgroundPlan` SHALL return `jsPauseIndex: null` when
+ANY loaded site has `effectiveNotificationsEnabled`, not only when the active
+site does, and `resumeJsIndex` SHALL mirror the decision. Android's
+`pauseTimers()` is process-global: pausing the site on screen freezes the
+page JS of every notification site behind it, and that JS is what posts the
+notification. Same shape as BGAUDIO-002, and one decision on both platforms
+(on iOS the pause is per-instance, so the only cost is the active site
+running until iOS suspends the app).
+
+The `App background:` decision line SHALL carry `notif=<count>`, the number
+of loaded notification sites, so a `jsPause=true` line can be told apart from
+a broken exemption.
+
+#### Scenario: Notification site behind a plain active site
+
+**Given** plain site A is on screen and notification site B is loaded behind it
+**When** the app goes to background
+**Then** no JS pause is issued and the decision line reads `jsPause=false ... notif=1 loaded`
+**And** state capture still runs for site A
+
+#### Scenario: Unloaded notification site does not veto
+
+**Given** plain site A is on screen and notification site B is not loaded
+**When** the app goes to background
+**Then** site A is paused as before (`jsPause=true`, `notif=0`)
+
+### Requirement: NOTIF-012 - The background-delivery test starts at the server
+
+The adb lifecycle tier SHALL test background delivery against a server that
+holds the state, the way real sites work. Scenario P in
+`scripts/run_android_lifecycle_tests.sh` serves a page that shows the
+server's unread count in its title (fetched on load, raised live over an
+`EventSource`) and posts a notification only from its message handler, never
+on load. It loads that page as a notification site *behind* a plain site on
+screen, then:
+
+1. has the server send one message while the app is visible, and requires a
+   notification from the page (the live path, with the site offscreen);
+2. leaves the app in the background past the cached-app freezer's debounce
+   (`WS_PUSH_BACKGROUND_SECS`, default 75), has the server record a second
+   message that no open stream carries (what a frozen page, or one whose
+   connection was dropped, never hears), and runs the background wake
+   through the debug receiver;
+3. passes only if a new OS notification appears, the wake reloaded the page,
+   and the wake logged one unread fallback post.
+
+Scenario F notifies on every page load and so can only show that a reload
+happened; it stays as the test of the refresh trigger, not of delivery.
+`test/js/notification_live_push_scenario.test.js` gates the scenario's shape:
+server-held count, no post on load, notification site offscreen, background
+wait before the message, the wake driven and its post asserted, not opt-in.
+
+#### Scenario: A reload that nobody reads fails Scenario P
+
+**Given** a build whose wake returns before the reload settles, or posts nothing for a silent site
+**When** Scenario P runs
+**Then** it fails, because the page never posts on load and no notification appears for the recorded message
+
+### Requirement: NOTIF-013 - A background wake lasts until its pages have loaded
+
+The handler for an OS background wake (iOS `BGAppRefreshTask`, Android
+`WorkManager`) SHALL NOT return until every notification site it
+reloaded has finished loading, or `BackgroundWakeEngine.settleDeadline` (20 s)
+has passed, plus `postGrace` (3 s) for the settled pages' JS to post.
+Returning is what completes the OS task, and iOS suspends the app once it is
+complete.
+
+The handler used to return as soon as the reloads were issued
+(`WKWebView.reload()` returns immediately), so the task completed before any
+page had loaded and a wake never ran page JS at all. A load counts as settled
+once it has been seen to start and stop, or when it never started within the
+first second; a webview that goes away mid-wake stops counting. The
+foreground branch (Android's worker firing while the app is visible) keeps
+`_refreshNotificationSites(excludeActive: true)`. Structural gate:
+`test/js/background_refresh_active_site.test.js`.
+
+#### Scenario: A wake does not end before the page has loaded
+
+**Given** a background wake reloads site A, whose load takes 3 seconds
+**When** the wake handler runs
+**Then** it returns after site A's load has stopped and the post grace has passed
+**And** only then is the OS task completed
+
+### Requirement: NOTIF-014 - A wake posts for a site whose unread count rose
+
+A reload shows what arrived while the page was not running, and a site
+need not post a notification for it. After a wake settles, for each site
+that posted nothing during the wake (`NotificationService.lastPostedAt`),
+the system SHALL read the unread count from the page title (the first
+parenthesised integer: `(3) WhatsApp`, `Inbox (12) - Gmail`, `(99+)`) and
+post one notification when it is higher than the baseline: the count
+recorded when the app last left the screen, or at the previous wake. The
+notification's title is the site's name and its body the page's own title,
+tagged so a later rise replaces it. No baseline (the first wake after a cold
+launch) posts nothing. A notification the site posts while the app is in the
+background re-records its baseline a second later (the page may update its
+title after posting), so a wake does not announce again what the site
+already did.
+
+Baselines live in memory only (`BackgroundWakeEngine`), so nothing about a
+site is persisted for it; archive-tier sites never reach the wake
+(`effectiveNotificationsEnabled`, ARCH-006). Engine tests:
+`test/background_wake_engine_test.dart`.
+
+#### Scenario: A silent site's unread count rose
+
+**Given** site A's title read `(2) Chat` when the app was left
+**When** a wake reloads site A, it posts nothing itself, and its title now reads `(5) Chat`
+**Then** one notification titled with site A's name and bodied `(5) Chat` is posted
+**And** the next wake posts nothing more unless the count rises again
+
+#### Scenario: The site posts for itself
+
+**Given** a wake during which site A posts its own notification
+**Then** no unread fallback is posted for site A
+
+### Requirement: NOTIF-015 - No foreground service for notifications
+
+The system SHALL NOT keep a notification site running in the background by
+keeping the app resident: no Android foreground service of any type, and no
+iOS background mode held open for it. A site's page runs while the app is
+visible and in the grace the OS gives on leaving it (NOTIF-005-I,
+NOTIF-011); after that, the background wake (NOTIF-005-A, NOTIF-013,
+NOTIF-014) is what reaches the user. Delivering in real time from the
+background takes a push channel that wakes the app, which is how other apps
+do it, not a process kept alive.
+
+- A `specialUse` keep-alive service was built for this and withdrawn. The
+  same holds for `dataSync`, `remoteMessaging`, `shortService` or any other
+  type that would stand in for it, and for iOS's `location` or `voip`
+  background modes.
+- The one foreground service the app runs is background audio's
+  `mediaPlayback` service (BGAUDIO-006), only while a site with that toggle
+  is playing; iOS's `audio` background mode likewise belongs to background
+  audio (BGAUDIO-003). Neither SHALL be started, extended or reused for a
+  notification site.
+- Structural gate: `test/js/notification_no_foreground_service.test.js`
+  fails if an Android manifest declares a foreground-service permission or
+  service other than media playback, if code outside `MediaPlaybackService`
+  enters the foreground, or if iOS's `UIBackgroundModes` gains a mode.
+
+#### Scenario: A notification site in the background
+
+**Given** Android and a loaded site with notifications on and background audio off
+**When** the app leaves the screen
+**Then** no foreground service starts and no ongoing notification is shown
+**And** the periodic wake is scheduled (NOTIF-005-A)
+
+#### Scenario: A keep-alive service is proposed again
+
+**Given** a change that declares a foreground service to keep notification sites running
+**When** the JS tier runs
+**Then** `notification_no_foreground_service.test.js` fails and names the manifest
