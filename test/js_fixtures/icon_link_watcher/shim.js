@@ -1,6 +1,14 @@
 (function() {
   try {
     if (window !== window.top) return;
+    var token = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    function report(phase) {
+      var iaw = window.flutter_inappwebview;
+      if (iaw && typeof iaw.callHandler === 'function') {
+        try { iaw.callHandler('wsIconDocument', phase, token); } catch (e) {}
+      }
+    }
+    report('started');
     function iconSet() {
       var head = document.head;
       if (!head) return '';
@@ -41,7 +49,10 @@
         attributeFilter: ['href', 'rel', 'sizes', 'media', 'type']
       });
     }
-    function afterLoad() { setTimeout(watch, 0); }
+    function afterLoad() {
+      report('loaded');
+      setTimeout(watch, 0);
+    }
     if (document.readyState === 'complete') {
       afterLoad();
     } else {

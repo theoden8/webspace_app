@@ -203,6 +203,18 @@ test('ICON-011: only the top document can end its own icon round', () => {
     'a subframe must not be able to stop the site icon from updating');
 });
 
+test('ICON-009: only the top document reports its start and load, at its own URL', () => {
+  const at = WEBVIEW.indexOf('handlerName: kIconDocumentHandler');
+  assert.notEqual(at, -1, 'the icon document handler registration is gone');
+  const body = WEBVIEW.slice(at, WEBVIEW.indexOf('addJavaScriptHandler', at + 1));
+  assert.ok(body.includes('inapp.JavaScriptHandlerFunctionData call'),
+    'the icon document handler must use the frame-aware callback');
+  assert.ok(body.includes('if (!call.isMainFrame'),
+    'a subframe must not be able to open or reset the top document');
+  assert.ok(body.includes('call.requestUrl'),
+    'the host is read from the bridge, not from an argument the page chose');
+});
+
 test('ICON-009: popups and the shared page scripts never report a site icon', () => {
   const build = WEBVIEW.indexOf('}) _buildPageScripts(WebViewConfig config) {');
   const buildBody = WEBVIEW.slice(build, WEBVIEW.indexOf('\n  }\n', build));

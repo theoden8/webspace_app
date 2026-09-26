@@ -54,6 +54,7 @@ const PAGES = {
       document.body.append(l);`)}</body>`,
   '/frame.html': `<head><link rel="icon" href="/frame/top.png"></head><body>
     <iframe src="/frame-child.html"></iframe></body>`,
+  '/order.html': `<head><link rel="icon" href="/order/a.png"></head><body></body>`,
   '/frame-child.html': `<head><link rel="icon" href="/frame/c1.png"></head><body>
     ${afterLoad(`document.querySelector('link[rel=icon]').href = '/frame/c2.png';`)}
     </body>`,
@@ -70,6 +71,12 @@ test.before(async () => {
     if (PAGES[path]) {
       res.writeHead(200, { 'Content-Type': 'text/html' });
       res.end(`<!doctype html><html>${PAGES[path]}</html>`);
+      return;
+    }
+    if (path.startsWith('/report/')) {
+      iconRequests.push(path);
+      res.writeHead(204);
+      res.end();
       return;
     }
     if (path.endsWith('.png') || path === '/favicon.ico') {
@@ -91,11 +98,22 @@ async function visit(t, path) {
   if (!requireBrowser(browser, t)) return null;
   const page = await browser.browser.newPage();
   try {
+    // The document reports go to the server synchronously, as the bridge
+    // reaches Java before callHandler returns, so the request log shows them
+    // in order against Chrome's own icon requests.
     await page.evaluateOnNewDocument(() => {
       window.__wsIconCalls = [];
       window.flutter_inappwebview = {
-        callHandler(name) {
-          window.__wsIconCalls.push(name);
+        callHandler(name, phase, token) {
+          if (name === 'wsIconDocument') {
+            if (window === window.top) {
+              const xhr = new XMLHttpRequest();
+              xhr.open('GET', `/report/${phase}?${token}`, false);
+              xhr.send();
+            }
+          } else {
+            window.__wsIconCalls.push(name);
+          }
           return Promise.resolve();
         },
       };
@@ -108,7 +126,13 @@ async function visit(t, path) {
     for (const frame of page.frames()) {
       frames.push(await frame.evaluate(() => window.__wsIconCalls.slice()));
     }
-    return { requested: iconRequests.slice(start), top: frames[0], frames };
+    const log = iconRequests.slice(start);
+    return {
+      log,
+      requested: log.filter((p) => !p.startsWith('/report/')),
+      top: frames[0],
+      frames,
+    };
   } finally {
     await page.close();
   }
@@ -163,4 +187,16 @@ test('subframe icons start no round and the subframe copy stays silent',
       `a subframe icon was requested: ${JSON.stringify(r.requested)}`);
     assert.equal(r.frames.length, 2);
     for (const calls of r.frames) assert.deepEqual(calls, []);
+  });
+
+test('the page reports its load event before Chrome asks for its icon',
+  async (t) => {
+    const r = await visit(t, '/order.html');
+    if (!r) return;
+    const loadedAt = r.log.indexOf('/report/loaded');
+    const iconAt = r.log.indexOf('/order/a.png');
+    assert.ok(iconAt >= 0, `no icon request: ${JSON.stringify(r.log)}`);
+    assert.equal(r.log.indexOf('/report/started'), 0, JSON.stringify(r.log));
+    assert.ok(loadedAt >= 0 && loadedAt < iconAt,
+      `the icon was requested before the load report: ${JSON.stringify(r.log)}`);
   });

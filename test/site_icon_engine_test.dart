@@ -128,6 +128,115 @@ void main() {
     });
   });
 
+  group('SiteIconEngine document reports (ICON-009)', () {
+    const site = 'https://example.com/';
+
+    test('an icon that lands between the load event and onLoadStop is taken',
+        () {
+      final engine = SiteIconEngine(site)
+        ..onLoadStarted(site)
+        ..onDocumentStarted(site, 't1');
+      expect(engine.onIcon(png(64)), isNull,
+          reason: 'before the load event the icon is the replaced document\'s');
+      engine.onDocumentLoaded(site, 't1');
+      expect(engine.onIcon(png(64))?.edge, 64);
+      engine.onLoadFinished(site);
+      expect(engine.onIcon(png(128))?.edge, 128);
+    });
+
+    test('reports that beat WebView\'s load start still count', () {
+      final both = SiteIconEngine(site)
+        ..onDocumentStarted(site, 't1')
+        ..onDocumentLoaded(site, 't1')
+        ..onLoadStarted(site);
+      expect(both.onIcon(png(64))?.edge, 64);
+
+      final startOnly = SiteIconEngine(site)
+        ..onDocumentStarted(site, 't1')
+        ..onLoadStarted(site);
+      expect(startOnly.onIcon(png(64)), isNull);
+      startOnly.onDocumentLoaded(site, 't1');
+      expect(startOnly.onIcon(png(64))?.edge, 64);
+    });
+
+    test('a replaced document reporting its load late is ignored', () {
+      final engine = SiteIconEngine(site)
+        ..onLoadStarted(site)
+        ..onDocumentStarted(site, 't1')
+        ..onLoadStarted('${site}next')
+        ..onDocumentStarted('${site}next', 't2')
+        ..onDocumentLoaded(site, 't1');
+      expect(engine.onIcon(png(64)), isNull);
+      engine.onDocumentLoaded('${site}next', 't2');
+      expect(engine.onIcon(png(64))?.edge, 64);
+    });
+
+    test('a new load drops the reported document even before it reports', () {
+      final engine = SiteIconEngine(site)
+        ..onLoadStarted(site)
+        ..onDocumentStarted(site, 't1')
+        ..onDocumentLoaded(site, 't1')
+        ..onLoadFinished(site)
+        ..onLoadStarted('${site}next');
+      expect(engine.onIcon(png(64)), isNull,
+          reason: 'a late icon from the previous document');
+      engine.onDocumentLoaded(site, 't1');
+      expect(engine.onIcon(png(64)), isNull);
+    });
+
+    test('the replaced document\'s onLoadStop does not open the next one', () {
+      final engine = SiteIconEngine(site)
+        ..onLoadStarted(site)
+        ..onDocumentStarted(site, 't1')
+        ..onDocumentStarted('${site}next', 't2')
+        ..onLoadFinished(site);
+      expect(engine.onIcon(png(64)), isNull);
+      engine
+        ..onLoadStarted('${site}next')
+        ..onDocumentLoaded('${site}next', 't2');
+      expect(engine.onIcon(png(64))?.edge, 64);
+    });
+
+    test('a document that never reports falls back to onLoadStop', () {
+      final engine = SiteIconEngine(site)
+        ..onLoadStarted(site)
+        ..onDocumentStarted(site, 't1')
+        ..onDocumentLoaded(site, 't1')
+        ..onLoadFinished(site)
+        ..onLoadStarted('${site}image.png');
+      expect(engine.onIcon(png(64)), isNull);
+      engine.onLoadFinished('${site}image.png');
+      expect(engine.onIcon(png(64))?.edge, 64);
+    });
+
+    test('the load report decides the host, and pushState does not unpair it',
+        () {
+      final away = SiteIconEngine(site)
+        ..onLoadStarted('https://accounts.example.com/login')
+        ..onDocumentStarted('https://accounts.example.com/login', 't1')
+        ..onDocumentLoaded('https://accounts.example.com/login', 't1');
+      expect(away.onIcon(png(64)), isNull);
+
+      final routed = SiteIconEngine(site)
+        ..onDocumentStarted(site, 't1')
+        ..onDocumentLoaded('${site}app/inbox', 't1')
+        ..onLoadStarted(site);
+      expect(routed.onIcon(png(64))?.edge, 64);
+    });
+
+    test('an icon-link edit still ends the document early', () {
+      final engine = SiteIconEngine(site)
+        ..onLoadStarted(site)
+        ..onDocumentStarted(site, 't1')
+        ..onDocumentLoaded(site, 't1');
+      expect(engine.onIcon(png(32))?.edge, 32);
+      engine.onIconLinksChanged();
+      expect(engine.onIcon(png(192)), isNull);
+      engine.onLoadFinished(site);
+      expect(engine.onIcon(png(192)), isNull);
+    });
+  });
+
   group('shouldReplaceSiteIcon', () {
     test('an empty slot takes any icon', () {
       expect(
