@@ -47,6 +47,7 @@ import 'package:webspace/services/user_agent_metadata_builder.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/icon_service.dart' show fetchPageIconBytes;
 import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
@@ -4080,7 +4081,10 @@ class WebViewFactory {
     }
     // Android's webview reports the page's icons itself (onReceivedIcon);
     // elsewhere the app fetches the links the page declared (ICON-013).
-    final iconFetcher = iconEngine == null || hostIsAndroid
+    final iconFetcher = iconEngine == null ||
+            !siteIconFetchRunsHere ||
+            !ExperimentalFeaturesService.instance
+                .isEnabled(ExperimentalFeature.pageIcons)
         ? null
         : SiteIconFetcher(
             fetch: (url, documentUrl) => fetchPageIconBytes(

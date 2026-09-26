@@ -12,8 +12,9 @@
 // can only be seen here.
 //
 // Elsewhere the webview reports no icon, and the app fetches the links the
-// watcher reports the page declared (ICON-013). The macOS integration job
-// runs this file for that path against WKWebView.
+// watcher reports the page declared (ICON-013), behind the Page icons
+// experiment. The macOS integration job runs this file for that path against
+// WKWebView.
 //
 // Every icon is a solid colour, so the test reads back which one was taken
 // from its pixels rather than trusting its size alone. The fixture server
@@ -30,6 +31,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:integration_test/integration_test.dart';
+import 'package:webspace/services/developer_mode_service.dart';
+import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/site_icon_engine.dart';
 import 'package:webspace/services/webview.dart';
 import 'fixture_server.dart';
@@ -99,6 +102,10 @@ void main() {
   final requested = <String>[];
 
   setUpAll(() async {
+    // The fetch path is an experiment (DEVTOOLS-011); Android ignores both.
+    DeveloperModeService.instance.debugSet(true);
+    ExperimentalFeaturesService.instance
+        .debugSet(ExperimentalFeature.pageIcons, true);
     // Any address, so the same server answers as the other host.
     server = await HttpServer.bind(InternetAddress.anyIPv4, 0);
     port = server.port;

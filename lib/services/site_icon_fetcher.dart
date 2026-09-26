@@ -4,7 +4,12 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/site_icon_engine.dart';
+
+/// Whether this platform's webview reports no page icon of its own, so the
+/// app would fetch the declared links instead (ICON-013). Android's does.
+bool get siteIconFetchRunsHere => hostIsIOS || hostIsMacOS || hostIsLinux;
 
 /// Largest source image edge decoded. Most formats decode at full size before
 /// scaling, so this bounds what one icon can cost in memory.

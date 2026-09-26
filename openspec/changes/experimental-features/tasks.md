@@ -26,3 +26,10 @@
 
 - [x] 5.1 DEVTOOLS-011 and the PROXY-013 delta here; DEVTOOLS-010, TOR-007, TOR-022 and TOR-023 edited in place in `add-ios-tor-proxy`.
 - [x] 5.2 `npx openspec validate --all` passes.
+
+## 6. Page icons
+
+- [x] 6.1 `ExperimentalFeature.pageIcons`, off by default, registered in `kExportedAppPrefs`; `WebViewFactory.createWebView` builds the ICON-013 fetcher only while it is enabled.
+- [x] 6.2 The Page icons switch where `siteIconFetchRunsHere` (iOS, macOS, Linux), with its hint.
+- [x] 6.3 Tests: the default and persistence in `test/experimental_features_service_test.dart`, the switch in `test/tor_developer_mode_confirm_test.dart`, the gate read in `test/js/page_bridge_authority.test.js`; `integration_test/site_icon_test.dart` turns it on for the macOS fetch-path run.
+- [x] 6.4 Strings: code plus `lib/l10n/app_en.arb` in one commit, the 66 translations in the next.

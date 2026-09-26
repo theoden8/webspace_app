@@ -53,13 +53,15 @@ void main() {
   /// site after the screen is built.
   var torSites = 0;
 
-  Widget host({bool routerRunsHere = false}) => MaterialApp(
+  Widget host({bool routerRunsHere = false, bool pageIconsRunHere = false}) =>
+      MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: AppSettingsScreen(
           currentSettings: AppThemeSettings(),
           torPinnedSiteCount: () => torSites,
           proxyRouterRunsHere: routerRunsHere,
+          pageIconsRunHere: pageIconsRunHere,
           onSettingsChanged: (_) {},
           onExportSettings: () {},
           onImportSettings: () {},
@@ -300,6 +302,31 @@ void main() {
           isFalse);
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getBool(kExperimentalProxyRouterKey), isFalse);
+    });
+
+    testWidgets('offers Page icons where the app fetches them, off by default',
+        (tester) async {
+      await tester.pumpWidget(host(pageIconsRunHere: true));
+      await tester.pumpAndSettle();
+      final title = find.text('Page icons');
+      await tester.scrollUntilVisible(title, 400,
+          scrollable: find.byType(Scrollable).first);
+      await tester.pumpAndSettle();
+      expect(find.text('Experimental'), findsOneWidget);
+      expect(find.text('Proxy router'), findsNothing);
+
+      final tile =
+          find.ancestor(of: title, matching: find.byType(SwitchListTile));
+      expect(tester.widget<SwitchListTile>(tile).value, isFalse,
+          reason: 'a new experiment starts off');
+      await tester.tap(tile);
+      await tester.pumpAndSettle();
+      expect(
+          ExperimentalFeaturesService.instance
+              .isEnabled(ExperimentalFeature.pageIcons),
+          isTrue);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getBool(kExperimentalPageIconsKey), isTrue);
     });
 
     testWidgets('with Tor already off, developer mode turns off silently',

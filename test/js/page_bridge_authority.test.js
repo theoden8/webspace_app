@@ -237,6 +237,8 @@ test('ICON-013: page icon fetches go through the guarded fetch only', () => {
     "a page icon must go through the site's proxy");
   assert.ok(body.includes('_pageIconRequestAllowed(config, target, documentUrl)'),
     "the site's blockers must see every page icon request");
+  assert.ok(body.includes('.isEnabled(ExperimentalFeature.pageIcons)'),
+    'the fetch path is experimental (DEVTOOLS-011): it must read its switch');
 });
 
 test('ICON-009: popups and the shared page scripts never report a site icon', () => {

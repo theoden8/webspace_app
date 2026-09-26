@@ -237,8 +237,9 @@ post-import and post-delete sweeps drop files for sites no longer kept on disk.
 WKWebView has no public API for a page's icon, and the SPI that has one
 (`_WKIconLoadingDelegate`) cannot ship through the App Store (guideline
 2.5.1). WPE WebKit has no favicon property either. On iOS, macOS and Linux
-the app fetches the icon links the page declared instead (ICON-013), and the
-result is kept and preferred exactly as above.
+the app can fetch the icon links the page declared instead (ICON-013, an
+experiment), and the result is kept and preferred exactly as above; with the
+experiment off those platforms keep the ICON-002 sources.
 
 #### Scenario: Largest icon of the page wins
 
@@ -354,9 +355,21 @@ served 600ms later
 
 ### Requirement: ICON-013 - Page Icon Where the Webview Reports None
 
-On iOS, macOS and Linux the app SHALL fetch the icon links the top document
-declared at load, and SHALL apply ICON-009's host, size and store rules and
-ICON-010's floor to them.
+While the Page icons experiment is on ([developer-tools](../developer-tools/spec.md)
+DEVTOOLS-011: developer mode and its own switch, off by default), on iOS,
+macOS and Linux the app SHALL fetch the icon links the top document declared
+at load, and SHALL apply ICON-009's host, size and store rules and ICON-010's
+floor to them. The switch is read when a site's webview is created, so it
+applies to sites opened after it changes.
+
+It is an experiment because it largely overlaps ICON-002, which already reads
+the home page's HTML through the site's proxy. What it adds: the links of the
+page actually shown, where a cookie-less fetch of the home URL meets a bot
+wall, a sign-in redirect or a script-set icon (6 of the 17 suggested sites
+that loaded in a 2026-09 probe), and the page's own icon winning over the
+public services. What is open: most sites declare only small icons (a
+`favicon.ico`, 32 to 48px), so at the ICON-010 floor a site's own icon can
+displace a larger and sharper public-service one.
 
 - **What is fetched.** Right after the load event the watcher reports, through
   the frame-aware `wsIconLinks` handler, the links Blink and WebKit take:
@@ -396,7 +409,8 @@ close that and needs a fork change.
 
 #### Scenario: Largest declared icon, and nothing under the floor fetched
 
-**Given** a site page on macOS declares 16px, 32px and 192px icons with
+**Given** the Page icons experiment is on
+**And** a site page on macOS declares 16px, 32px and 192px icons with
 `sizes`
 **When** the page loads
 **Then** the site's icon is the 192px one
