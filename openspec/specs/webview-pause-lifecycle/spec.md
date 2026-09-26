@@ -1185,6 +1185,61 @@ site; `_nudgeSurfaceRepaint` already returns early.
 **When** its renderer commits its first visible frame
 **Then** that screen nudges its own surface under the same trigger label
 
+### Requirement: PAUSE-032 — Android Can Draw Webviews Into A Texture
+
+Android webviews SHALL use hybrid composition (`useHybridComposition: true`)
+unless the Texture page rendering experiment is on (DEVTOOLS-011: developer
+mode and its own switch, `experimentalTextureRendering`, off by default). With
+it on, every webview the app creates SHALL use texture layer hybrid
+composition (`useHybridComposition: false`, which the fork routes to
+`PlatformViewsService.initSurfaceAndroidView`).
+
+PAUSE-013 through PAUSE-031 all repaint a surface that hybrid composition can
+leave unpainted: Flutter draws into `FlutterImageView`s layered around the
+WebView, and an image view presents the last image it acquired. Each of them
+added one more trigger for a nudge, and BUG-001 gap 18 recorded a device on
+which every trigger fired and the page stayed white. In texture mode the page
+renders into a texture Flutter composites in its own frame, so a new WebView
+frame schedules a Flutter frame and there is no image view to go stale. It
+stays an experiment until it has run on devices: input, text selection and
+accessibility take different code paths in the plugin in this mode. The
+nudges stay in both modes.
+
+- The running mode is `WebViewFactory.hybridComposition`, assigned once in
+  `main()` from the experiment's gate before any webview exists. Flipping the
+  switch, or developer mode, applies from the next launch, so every webview in
+  a process shares one mode.
+- Every `InAppWebViewSettings` the app builds SHALL carry
+  `useHybridComposition: WebViewFactory.hybridComposition`, including the
+  `setSettings` calls. The fork replaces native settings wholesale on
+  `setSettings` and the Dart class defaults the field to true, so an omitted
+  field tells a texture webview it is in hybrid composition, and the plugin's
+  input-connection and text-selection code branches on that flag.
+  Structural gate: `test/js/composition_mode_parity.test.js`.
+- The engine falls back to hybrid composition on its own where texture mode
+  is unsupported (below API 23, or a view that already contains a
+  `SurfaceView`); that fallback needs no app code.
+
+#### Scenario: Default install
+
+**Given** Android and a fresh install
+**When** any site webview is created
+**Then** it is created with `useHybridComposition: true`, as before this requirement
+
+#### Scenario: The experiment is turned on
+
+**Given** Android with developer mode on and the Texture page rendering switch off
+**When** the user turns the switch on
+**Then** the webviews already created keep hybrid composition
+**And** after the next launch every webview is created with `useHybridComposition: false`
+**And** a later text-zoom or settings update sends `useHybridComposition: false` again
+
+#### Scenario: Developer mode off closes the experiment
+
+**Given** the Texture page rendering switch is on
+**When** the user turns developer mode off and restarts the app
+**Then** every webview is created with `useHybridComposition: true`
+**And** the switch keeps its position for when developer mode comes back on
 
 ## Implementation
 

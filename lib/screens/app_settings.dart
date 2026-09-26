@@ -218,6 +218,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
       .switchOn(ExperimentalFeature.proxyRouter);
   bool _pageIconsSwitch = ExperimentalFeaturesService.instance
       .switchOn(ExperimentalFeature.pageIcons);
+  bool _textureRenderingSwitch = ExperimentalFeaturesService.instance
+      .switchOn(ExperimentalFeature.textureRendering);
 
   bool _isUpdatingFirefoxVersion = false;
   bool _firefoxAutoRefresh = false;
@@ -991,6 +993,13 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
         .setSwitch(ExperimentalFeature.pageIcons, value);
     if (!mounted) return;
     setState(() => _pageIconsSwitch = value);
+  }
+
+  Future<void> _setTextureRenderingSwitch(bool value) async {
+    await ExperimentalFeaturesService.instance
+        .setSwitch(ExperimentalFeature.textureRendering, value);
+    if (!mounted) return;
+    setState(() => _textureRenderingSwitch = value);
   }
 
   Future<void> _loadOsmTileUrl() async {
@@ -2283,7 +2292,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           if (_developerMode &&
               (TorService.instance.hasNativeRuntime ||
                   widget.proxyRouterRunsHere ||
-                  widget.pageIconsRunHere)) ...[
+                  widget.pageIconsRunHere ||
+                  hostIsAndroid)) ...[
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
               child: Row(
@@ -2346,6 +2356,24 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                 secondary: const Icon(Icons.image_outlined),
                 value: _pageIconsSwitch,
                 onChanged: (value) => _setPageIconsSwitch(value),
+              ),
+            if (hostIsAndroid)
+              SwitchListTile(
+                title: Row(
+                  children: [
+                    Flexible(
+                        child: Text(
+                            loc.appSettingsExperimentalTextureRendering)),
+                    HintButton(
+                      title: loc.appSettingsExperimentalTextureRendering,
+                      description:
+                          loc.appSettingsExperimentalTextureRenderingHint,
+                    ),
+                  ],
+                ),
+                secondary: const Icon(Icons.layers_outlined),
+                value: _textureRenderingSwitch,
+                onChanged: (value) => _setTextureRenderingSwitch(value),
               ),
           ],
           ListTile(

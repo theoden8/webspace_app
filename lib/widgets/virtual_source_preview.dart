@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 
+import 'package:webspace/services/webview.dart' show WebViewFactory;
 import 'package:webspace/settings/virtual_visual_source.dart';
 
 /// Builds the preview page for a video [VirtualVisualSource].
@@ -100,6 +101,7 @@ class _VideoPreviewState extends State<_VideoPreview> {
       // Purely local data render: no cookies, no network, nothing to leak.
       thirdPartyCookiesEnabled: false,
       incognito: true,
+      useHybridComposition: WebViewFactory.hybridComposition,
     ),
   );
 
