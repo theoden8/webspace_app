@@ -192,9 +192,6 @@ const PLUMBING = new Set([
   // site's own page icon. A nested screen shows another page, usually on
   // another host, and must not repaint the site's icon.
   'siteIcon',
-  // Deliberate root-only (UNREAD-002): the title feeds the site's unread
-  // badge, and a nested screen's page is not the site's.
-  'onTitleChanged',
 ]);
 
 // Posture-ish but not yet threaded to nested webviews. An archive-tier site

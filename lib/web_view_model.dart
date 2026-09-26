@@ -30,7 +30,6 @@ import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/site_icon_engine.dart';
 import 'package:webspace/services/site_icon_store.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
-import 'package:webspace/services/site_unread_service.dart';
 import 'package:webspace/services/tab_bar_corner.dart';
 import 'package:webspace/services/user_agent_preset.dart';
 import 'package:webspace/services/webview.dart';
@@ -1767,8 +1766,6 @@ class WebViewModel {
           initialHtml: initialHtml,
           onRendererGone: (didCrash) => handleRendererGone(didCrash: didCrash),
           onPageCommitVisible: () => onPageCommitVisible?.call(),
-          onTitleChanged: (title) =>
-              SiteUnreadService.instance.onTitleChanged(siteId, title),
           siteIcon: SiteIconTarget(
             siteUrl: iconSiteUrl,
             // Incognito and archive-tier icons stay in memory: an icon the
@@ -2229,7 +2226,6 @@ class WebViewModel {
     webview = null;
     controller = null;
     resumeReload.reset();
-    SiteUnreadService.instance.clearPageCount(siteId);
     // The player this site's media session was speaking for is gone with the
     // webview. Without this the OS transport controls outlive it and their
     // buttons reach nothing — a no-op unless this site owns them.

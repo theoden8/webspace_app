@@ -7323,12 +7323,9 @@ class _WebSpacePageState extends State<WebSpacePage>
     return '$modeName $colorName';
   }
 
-  /// Sites the menu button's dot speaks for: the ones the drawer lists, less
-  /// the one on screen, whose own page already shows what is unread.
   List<String> _unreadIndicatorSiteIds() => [
         for (final i in _getFilteredSiteIndices())
-          if (i != _currentIndex && i < _webViewModels.length)
-            _webViewModels[i].siteId,
+          if (i < _webViewModels.length) _webViewModels[i].siteId,
       ];
 
   AppBar _buildAppBar() {
