@@ -46,6 +46,16 @@ class NotificationService {
   int _sequence = DateTime.now().microsecondsSinceEpoch;
 
   final _plugin = FlutterLocalNotificationsPlugin();
+
+  final Map<String, DateTime> _lastPostedAt = {};
+
+  /// When [siteId] last had a notification posted, this process. A
+  /// background wake reads it to tell a site that notified on its own from
+  /// one that stayed silent (NOTIF-014).
+  DateTime? lastPostedAt(String siteId) => _lastPostedAt[siteId];
+
+  /// Called with the siteId after each notification is shown.
+  void Function(String siteId)? onPosted;
   bool _initialized = false;
   Future<void>? _initInFlight;
   void Function(String siteId)? onNotificationTapped;
@@ -207,6 +217,8 @@ class NotificationService {
     final payload = jsonEncode({'siteId': siteId});
 
     await _plugin.show(id: target.id, title: title, body: body.isNotEmpty ? body : null, notificationDetails: details, payload: payload);
+    _lastPostedAt[siteId] = DateTime.now();
+    onPosted?.call(siteId);
     LogService.instance.log(
       'Notification',
       'Showed notification: "$title" for siteId: $siteId',
