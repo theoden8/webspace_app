@@ -269,6 +269,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | site-behaviour | per-site Behaviour screen: how the app hosts the site (opening + display, link handling), reached from one row under "Site" |
 | site-editing | URL + custom name |
 | site-permission-badges | drawer badges for location/camera/mic/background-audio grants; real device access vs simulated |
+| site-unread-badges *(change)* | count pill per site on drawer tiles and tabs, dot on the menu button: the count the page states in its title (`(3) Chat`), else notifications it posted while off screen; memory only |
 | site-settings-qr | share a site's configuration as a QR / `webspace://qr/site/v1/` URL; never carries secrets, cookies, user scripts or imported HTML |
 | tls-trust-prompt | system + user CA trust by default; prompt only when the OS rejects a cert, then pin (host, port, sha256) so Dart-side clients match the webview |
 | tor-proxy *(change)* | embedded Tor on iOS + macOS (the macOS Runner compiles `ios/Runner/TorControllerPlugin.swift`), per-site SOCKS5 circuit isolation, developer-mode gated. The macOS build is the only tier that runs the real handshake, and its Tor pod is why the macOS floor is 11.0 |

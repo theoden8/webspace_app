@@ -67,6 +67,7 @@ import 'package:webspace/services/media_session_shim.dart';
 import 'package:webspace/services/media_session_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/notification_service.dart';
+import 'package:webspace/services/site_unread_service.dart';
 import 'package:webspace/services/user_script_service.dart';
 import 'package:webspace/settings/camera.dart';
 import 'package:webspace/settings/screen_share.dart';
@@ -1046,6 +1047,10 @@ class WebViewConfig {
   /// imply one, and BUG-001 gap #18 caught a load whose nudges had all drained
   /// twelve seconds before the renderer produced anything.
   final VoidCallback? onPageCommitVisible;
+  /// The main frame's `document.title`, on every change including those a
+  /// page makes without navigating. Set only for the site's own webview:
+  /// a nested webview's page is not the site's.
+  final void Function(String? title)? onTitleChanged;
   /// Per-site geolocation mode. [LocationMode.spoof] injects a shim that
   /// overrides `navigator.geolocation` with [spoofLatitude]/[spoofLongitude].
   final LocationMode locationMode;
@@ -1206,6 +1211,7 @@ class WebViewConfig {
     this.pullToRefreshGate,
     this.onRendererGone,
     this.onPageCommitVisible,
+    this.onTitleChanged,
     this.locationMode = LocationMode.off,
     this.spoofLatitude,
     this.spoofLongitude,
@@ -3772,6 +3778,7 @@ class WebViewFactory {
           // otherwise attribute a notification (and its tap-target site
           // switch) to another site the user never granted permission to.
           final siteId = config.siteId!;
+          SiteUnreadService.instance.recordNotification(siteId, tag: tag);
           await NotificationService.instance.show(
             siteId: siteId,
             title: title,
@@ -4981,6 +4988,9 @@ class WebViewFactory {
               final accepted = iconEngine.onIcon(icon);
               if (accepted != null) siteIcon!.onIcon(accepted);
             },
+      onTitleChanged: config.onTitleChanged == null
+          ? null
+          : (controller, title) => config.onTitleChanged!(title),
       onPageCommitVisible: (controller, url) {
         LogService.instance.log(
           'WebViewLifecycle',
