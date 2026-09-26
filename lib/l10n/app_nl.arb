@@ -325,6 +325,8 @@
   "appSettingsExperimentalTorOffBody": "{count, plural, one{Eén site is ingesteld om Tor te gebruiken. Die blijft geblokkeerd totdat je Ingebouwde Tor weer inschakelt, in plaats van te laden via je echte IP-adres.} other{{count} sites zijn ingesteld om Tor te gebruiken. Die blijven geblokkeerd totdat je Ingebouwde Tor weer inschakelt, in plaats van te laden via je echte IP-adres.}}",
   "appSettingsExperimentalProxyRouter": "Proxyrouter",
   "appSettingsExperimentalProxyRouterHint": "Op Android geldt één proxy-instelling voor de hele app, dus als je een site met een andere proxy opent, worden de sites gesloten die een andere gebruiken. De router houdt ze allemaal open: een relay in de app stuurt het verkeer van elke site naar de eigen proxy van die site. Bij elke start controleert hij op dit apparaat of het verkeer van elke site uit elkaar wordt gehouden, en sluit hij sites zoals voorheen als die controle mislukt. Dit is experimenteel: het is op weinig apparaten geprobeerd. Gaat in bij de volgende start van de app.",
+  "appSettingsExperimentalTextureRendering": "Pagina's weergeven als textuur",
+  "appSettingsExperimentalTextureRenderingHint": "Tekent elke pagina in een textuur die WebSpace zelf samenstelt, in plaats van als aparte Android-weergave die met de app wordt gestapeld. Dat kan pagina's voorkomen die leeg en wit blijven tot je de telefoon draait of van app wisselt. Typen, tekst selecteren en schermlezers zijn zo minder getest, en snel scrollen kan haperen. Gaat in bij de volgende start van de app.",
   "appSettingsDeveloperModeTorWarningConfirm": "Uitschakelen",
   "appSettingsDeveloperModeAlreadyOn": "Ontwikkelaarsmodus staat al aan",
   "appSettingsDeveloperModeStepsAway": "Nog {count} tikken om de ontwikkelaarsmodus aan te zetten",

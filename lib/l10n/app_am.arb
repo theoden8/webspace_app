@@ -325,6 +325,8 @@
   "appSettingsExperimentalTorOffBody": "{count, plural, one{አንድ ጣቢያ Tor እንዲጠቀም ተዋቅሯል። አብሮ የተሰራውን Tor እንደገና እስኪያበሩ ድረስ በእውነተኛ የIP አድራሻዎ ከመጫን ይልቅ ታግዶ ይቆያል።} other{{count} ጣቢያዎች Tor እንዲጠቀሙ ተዋቅረዋል። አብሮ የተሰራውን Tor እንደገና እስኪያበሩ ድረስ በእውነተኛ የIP አድራሻዎ ከመጫን ይልቅ ታግደው ይቆያሉ።}}",
   "appSettingsExperimentalProxyRouter": "የ Proxy ራውተር",
   "appSettingsExperimentalProxyRouterHint": "በAndroid ላይ አንድ የ proxy ቅንብር መላውን መተግበሪያ ይሸፍናል፤ ስለዚህ የተለየ proxy ያለው ጣቢያ መክፈት ሌላ proxy የሚጠቀሙትን ጣቢያዎች ይዘጋል። ራውተሩ ሁሉንም ክፍት አድርጎ ያቆያቸዋል፦ በመተግበሪያው ውስጥ ያለ ማስተላለፊያ የእያንዳንዱን ጣቢያ ትራፊክ ወደዚያው ጣቢያ የራሱ proxy ይልካል። በእያንዳንዱ ጅምር የእያንዳንዱ ጣቢያ ትራፊክ ተለይቶ መታወቅ እንደሚችል በዚህ መሣሪያ ላይ ያረጋግጣል፤ ማረጋገጫው ካልተሳካ እንደበፊቱ ጣቢያዎችን ይዘጋል። የሙከራ ባህሪ ነው፦ የተሞከረው በጥቂት መሣሪያዎች ላይ ብቻ ነው። መተግበሪያው በሚቀጥለው ጊዜ ሲጀምር ተግባራዊ ይሆናል።",
+  "appSettingsExperimentalTextureRendering": "የቴክስቸር ገጽ አተረጓጎም",
+  "appSettingsExperimentalTextureRenderingHint": "እያንዳንዱን ገጽ ከመተግበሪያው ጋር እንደተደራረበ የተለየ የAndroid እይታ ሳይሆን WebSpace ራሱ በሚያቀናብረው ቴክስቸር ውስጥ ይስለዋል። ስልኩን እስኪያዞሩ ወይም መተግበሪያ እስኪቀይሩ ድረስ ባዶ ነጭ ሆነው የሚቀሩ ገጾችን ሊያስቀር ይችላል። በዚህ መንገድ መተየብ፣ ጽሑፍ መምረጥና የስክሪን አንባቢዎች ብዙም አልተሞከሩም፤ ፈጣን ማሸብለልም ሊንገራገጭ ይችላል። መተግበሪያው በሚቀጥለው ጊዜ ሲጀምር ተግባራዊ ይሆናል።",
   "appSettingsDeveloperModeTorWarningConfirm": "አጥፋ",
   "appSettingsDeveloperModeAlreadyOn": "የገንቢ ሁነታ አስቀድሞ በርቷል",
   "appSettingsDeveloperModeStepsAway": "የገንቢ ሁነታን ለማብራት {count} ተጨማሪ ንኪዎች",

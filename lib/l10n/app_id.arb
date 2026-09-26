@@ -325,6 +325,8 @@
   "appSettingsExperimentalTorOffBody": "{count, plural, other{{count} situs disetel untuk memakai Tor. Situs tersebut akan tetap diblokir hingga Anda mengaktifkan kembali Tor bawaan, bukan dimuat melalui alamat IP Anda yang sebenarnya.}}",
   "appSettingsExperimentalProxyRouter": "Router proxy",
   "appSettingsExperimentalProxyRouterHint": "Di Android, satu pengaturan proxy berlaku untuk seluruh aplikasi, sehingga membuka situs dengan proxy berbeda akan menutup situs yang memakai proxy lain. Router menjaga semuanya tetap terbuka: sebuah relai di dalam aplikasi mengirim lalu lintas setiap situs ke proxy milik situs itu sendiri. Setiap kali aplikasi dimulai, router memeriksa di perangkat ini bahwa lalu lintas setiap situs dapat dibedakan satu sama lain, dan menutup situs seperti sebelumnya jika pemeriksaan gagal. Eksperimental: baru dicoba di sedikit perangkat. Berlaku saat aplikasi dimulai berikutnya.",
+  "appSettingsExperimentalTextureRendering": "Perenderan halaman sebagai tekstur",
+  "appSettingsExperimentalTextureRenderingHint": "Menggambar setiap halaman ke dalam tekstur yang disusun WebSpace sendiri, bukan sebagai tampilan Android terpisah yang ditumpuk dengan aplikasi. Ini dapat mencegah halaman yang tetap kosong putih sampai Anda memutar ponsel atau berganti aplikasi. Mengetik, memilih teks, dan pembaca layar kurang teruji dengan cara ini, dan gulir cepat bisa tersendat. Berlaku saat aplikasi dimulai berikutnya.",
   "appSettingsDeveloperModeTorWarningConfirm": "Nonaktifkan",
   "appSettingsDeveloperModeAlreadyOn": "Mode pengembang sudah aktif",
   "appSettingsDeveloperModeStepsAway": "{count} ketukan lagi untuk mengaktifkan mode pengembang",
