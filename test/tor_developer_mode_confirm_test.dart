@@ -229,10 +229,50 @@ void main() {
         (tester) async {
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
-      expect(find.text('Experimental'), findsNothing,
-          reason: 'no feature to offer on a platform without Tor; link '
-              'routing is no longer experimental');
-      expect(find.text('Link routing between sites'), findsNothing);
+      final title = find.text('Site tabs');
+      await tester.scrollUntilVisible(title, 400,
+          scrollable: find.byType(Scrollable).first);
+      await tester.pumpAndSettle();
+      expect(find.text('Experimental'), findsOneWidget,
+          reason: 'site tabs run on every platform, so the group always has '
+              'a row');
+      expect(find.text('Built-in Tor'), findsNothing);
+      expect(find.text('Link routing between sites'), findsNothing,
+          reason: 'link routing is no longer experimental');
+    });
+
+    testWidgets('offers Site tabs everywhere, off by default (TAB-012)',
+        (tester) async {
+      await tester.pumpWidget(host());
+      await tester.pumpAndSettle();
+      final title = find.text('Site tabs');
+      await tester.scrollUntilVisible(title, 400,
+          scrollable: find.byType(Scrollable).first);
+      await tester.pumpAndSettle();
+      final tile =
+          find.ancestor(of: title, matching: find.byType(SwitchListTile));
+      expect(tester.widget<SwitchListTile>(tile).value, isFalse,
+          reason: 'tabs are new, so developer mode alone does not open them');
+      expect(
+          ExperimentalFeaturesService.instance
+              .isEnabled(ExperimentalFeature.siteTabs),
+          isFalse);
+
+      await tester.tap(tile);
+      await tester.pumpAndSettle();
+      expect(
+          ExperimentalFeaturesService.instance
+              .isEnabled(ExperimentalFeature.siteTabs),
+          isTrue);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getBool(kExperimentalSiteTabsKey), isTrue);
+
+      DeveloperModeService.instance.debugSet(false);
+      expect(
+          ExperimentalFeaturesService.instance
+              .isEnabled(ExperimentalFeature.siteTabs),
+          isFalse,
+          reason: 'the switch narrows developer mode, never widens it');
     });
 
     testWidgets('switching Tor off with sites on Tor asks, and a cancel '

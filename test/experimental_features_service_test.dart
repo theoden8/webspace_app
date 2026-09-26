@@ -29,6 +29,21 @@ void main() {
     }
   });
 
+  test('Site tabs default off: they are new (TAB-012)', () async {
+    await ExperimentalFeaturesService.instance.initialize();
+    DeveloperModeService.instance.debugSet(true);
+    expect(
+        ExperimentalFeaturesService.instance
+            .isEnabled(ExperimentalFeature.siteTabs),
+        isFalse);
+    SharedPreferences.setMockInitialValues({kExperimentalSiteTabsKey: true});
+    await ExperimentalFeaturesService.instance.reload();
+    expect(
+        ExperimentalFeaturesService.instance
+            .isEnabled(ExperimentalFeature.siteTabs),
+        isTrue);
+  });
+
   test('Tor defaults on, so developer mode alone keeps opening it', () async {
     await ExperimentalFeaturesService.instance.initialize();
     expect(

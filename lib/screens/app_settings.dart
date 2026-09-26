@@ -211,6 +211,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
       ExperimentalFeaturesService.instance.switchOn(ExperimentalFeature.tor);
   bool _proxyRouterSwitch = ExperimentalFeaturesService.instance
       .switchOn(ExperimentalFeature.proxyRouter);
+  bool _siteTabsSwitch = ExperimentalFeaturesService.instance
+      .switchOn(ExperimentalFeature.siteTabs);
 
   bool _isUpdatingFirefoxVersion = false;
   bool _firefoxAutoRefresh = false;
@@ -977,6 +979,13 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
         .setSwitch(ExperimentalFeature.proxyRouter, value);
     if (!mounted) return;
     setState(() => _proxyRouterSwitch = value);
+  }
+
+  Future<void> _setSiteTabsSwitch(bool value) async {
+    await ExperimentalFeaturesService.instance
+        .setSwitch(ExperimentalFeature.siteTabs, value);
+    if (!mounted) return;
+    setState(() => _siteTabsSwitch = value);
   }
 
   Future<void> _loadOsmTileUrl() async {
@@ -2266,9 +2275,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               value: _developerMode,
               onChanged: (value) => _setDeveloperMode(value),
             ),
-          if (_developerMode &&
-              (TorService.instance.hasNativeRuntime ||
-                  widget.proxyRouterRunsHere)) ...[
+          // Site tabs run on every platform, so the group always has a row.
+          if (_developerMode) ...[
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
               child: Row(
@@ -2317,6 +2325,20 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                 value: _proxyRouterSwitch,
                 onChanged: (value) => _setProxyRouterSwitch(value),
               ),
+            SwitchListTile(
+              title: Row(
+                children: [
+                  Flexible(child: Text(loc.appSettingsExperimentalSiteTabs)),
+                  HintButton(
+                    title: loc.appSettingsExperimentalSiteTabs,
+                    description: loc.appSettingsExperimentalSiteTabsHint,
+                  ),
+                ],
+              ),
+              secondary: const Icon(Icons.tab_outlined),
+              value: _siteTabsSwitch,
+              onChanged: (value) => _setSiteTabsSwitch(value),
+            ),
           ],
           ListTile(
             leading: const Icon(Icons.article_outlined),
