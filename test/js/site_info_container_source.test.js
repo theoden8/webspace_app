@@ -66,10 +66,11 @@ test('the nested sheet reads the inputs of the nested webview config', () => {
   const config = callText(nested, nested.indexOf('config: WebViewConfig('));
   assert.match(config, /siteId: widget\.siteId,/);
   assert.match(config, /incognito: widget\.incognito,/);
+  assert.match(config, /archiveContainerId: widget\.archiveContainerId,/);
   const show = blockAfter(nested, '  void _showSiteInfo() {', null, 'inappbrowser.dart');
   const rule = callText(show, show.indexOf('containerIdFor('));
   assert.match(rule, /siteId: widget\.siteId/);
+  assert.match(rule, /archiveContainerId: widget\.archiveContainerId/,
+    'an archived site\'s nested screen binds its opaque container (ARCH-007)');
   assert.match(rule, /incognito: widget\.incognito/);
-  assert.equal(/archiveContainerId/.test(config), /archiveContainerId/.test(rule),
-    'the sheet and the nested config must agree on the archive container');
 });

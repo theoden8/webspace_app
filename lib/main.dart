@@ -3077,6 +3077,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         url,
         homeTitle: model.name,
         siteId: model.siteId,
+        archiveContainerId: model.archiveContainerId,
         incognito: model.effectiveIncognito,
         thirdPartyCookiesEnabled: model.effectiveThirdPartyCookiesEnabled,
         httpsUpgradeEnabled: model.effectiveHttpsUpgradeEnabled,
@@ -3649,6 +3650,21 @@ class _WebSpacePageState extends State<WebSpacePage>
     // underlying filesystems may retain freed blocks.
     for (final cid in slice.containerIds) {
       await _containerIsolation.containerNative.deleteContainer(cid);
+    }
+    // A `ws-<siteId>` for an archived site means some path bound one without
+    // the opaque id; it would otherwise name the site on disk until the next
+    // cold-start sweep. Skipped for an id an app-tier site also holds (a
+    // backup can bring one back), whose container is that site's own.
+    if (_useContainers) {
+      final appTier = {
+        for (final m in _webViewModels)
+          if (!m.isArchiveTier) m.siteId,
+      };
+      for (final sid in slice.siteIds) {
+        if (!appTier.contains(sid)) {
+          await _containerIsolation.onSiteDeleted(sid);
+        }
+      }
     }
     // Defensive back-erasure: wipe any per-`siteId` app-tier state
     // that could have leaked archive identity across the close (the
@@ -5933,6 +5949,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   Future<void> launchUrl(String url, {
     String? homeTitle,
     required String? siteId,
+    String? archiveContainerId,
     required bool incognito,
     required bool thirdPartyCookiesEnabled,
     required bool httpsUpgradeEnabled,
@@ -5982,6 +5999,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           url: url,
           homeTitle: homeTitle,
           siteId: siteId,
+          archiveContainerId: archiveContainerId,
           incognito: incognito,
           thirdPartyCookiesEnabled: thirdPartyCookiesEnabled,
           httpsUpgradeEnabled: httpsUpgradeEnabled,

@@ -57,6 +57,11 @@ class InAppWebViewScreen extends StatefulWidget {
   final String url;
   final String? homeTitle;
   final String? siteId;
+  /// The opaque container an archive-tier site binds instead of
+  /// `ws-<siteId>` (ARCH-007). Without it this screen would bind, on
+  /// Android, a persistent profile named after the archived site's cleartext
+  /// id, which the archive's close does not tear down.
+  final String? archiveContainerId;
   final bool incognito;
   final bool thirdPartyCookiesEnabled;
   final bool httpsUpgradeEnabled;
@@ -182,6 +187,7 @@ class InAppWebViewScreen extends StatefulWidget {
     required this.url,
     this.homeTitle,
     this.siteId,
+    this.archiveContainerId,
     required this.incognito,
     required this.thirdPartyCookiesEnabled,
     required this.httpsUpgradeEnabled,
@@ -410,6 +416,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     return WebViewFactory.createWebView(
       config: WebViewConfig(
         siteId: widget.siteId,
+        archiveContainerId: widget.archiveContainerId,
         initialUrl: widget.url,
         // BUG-002 gap #1: the OS can kill this nested webview's renderer
         // (memory reclaim while backgrounded, or a page-induced crash),
@@ -780,6 +787,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         pageUrl: _currentUrl,
         containerId: containerIdFor(
           siteId: widget.siteId,
+          archiveContainerId: widget.archiveContainerId,
           incognito: widget.incognito,
         ),
         incognito: widget.incognito,
