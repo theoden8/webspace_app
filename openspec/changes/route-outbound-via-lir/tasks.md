@@ -37,6 +37,7 @@
 - [x] 5.6 `test/js/outbound_link_funnel.test.js`: every `blockOpenNested` / `blockOpenExternal` branch in `lib/web_view_model.dart` consults `onOutboundLink` before launching. Add it to the runner `npm run test:js` picks up.
 
 - [x] 5.7 Experimental gate (LIR-014 gate 5, DEVTOOLS-011): `ExperimentalFeature.linkRouting` with its "Link routing between sites" switch in App settings > Developer > Experimental, off by default; `routeOutbound` takes `experimentEnabled` from `ExperimentalFeaturesService`; the Behaviour rows and the summary entry hide while it is off.
+- [x] 5.8 Graduate from the experiment (`site-info-sheet`): the switch, its pref and the `experimentEnabled` gate removed.
 - [x] 5.8 Engines for what was inline in `_WebSpacePageState`: the gates and the decision mapping in `LinkIntentDispatchEngine.routeOutbound`, applying a pick in `pickOutbound`, the nested-open ordering in `NestedOpenEngine` behind a `NestedOpenHost`. Tests in `test/outbound_routing_test.dart` and `test/nested_open_engine_test.dart`; the funnel test also holds every prune call site.
 
 ## 6. Picker outbound mode

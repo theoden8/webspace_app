@@ -9,10 +9,16 @@ class UrlBar extends StatefulWidget {
   final String currentUrl;
   final FutureOr<void> Function(String) onUrlSubmitted;
 
+  /// Opens the site info sheet: which site the page runs as and which
+  /// container holds its data. The button sits at the trailing end, which
+  /// the row's text direction puts on the left in a right-to-left locale.
+  final VoidCallback? onSiteInfo;
+
   const UrlBar({
     Key? key,
     required this.currentUrl,
     required this.onUrlSubmitted,
+    this.onSiteInfo,
   }) : super(key: key);
 
   @override
@@ -144,6 +150,14 @@ class _UrlBarState extends State<UrlBar> {
               padding: EdgeInsets.all(Spacing.xs),
               constraints: BoxConstraints(),
               tooltip: loc.urlBarGoTooltip,
+            )
+          else if (widget.onSiteInfo != null)
+            IconButton(
+              icon: Icon(Icons.info_outline, size: IconSizes.action),
+              onPressed: widget.onSiteInfo,
+              padding: EdgeInsets.all(Spacing.xs),
+              constraints: BoxConstraints(),
+              tooltip: loc.siteInfoTitle,
             ),
         ],
       ),

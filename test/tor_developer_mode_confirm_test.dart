@@ -229,34 +229,10 @@ void main() {
         (tester) async {
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
-      final routing = find.text('Link routing between sites');
-      await tester.scrollUntilVisible(routing, 400,
-          scrollable: find.byType(Scrollable).first);
-      await tester.pumpAndSettle();
-      expect(find.text('Experimental'), findsOneWidget,
-          reason: 'link routing runs on every platform');
-      expect(find.text('Built-in Tor'), findsNothing,
-          reason: 'no Tor runtime on this platform');
-    });
-
-    testWidgets('the link routing switch defaults off and persists',
-        (tester) async {
-      await tester.pumpWidget(host());
-      await tester.pumpAndSettle();
-      final title = find.text('Link routing between sites');
-      await tester.scrollUntilVisible(title, 400,
-          scrollable: find.byType(Scrollable).first);
-      await tester.pumpAndSettle();
-      final tile = find.ancestor(of: title, matching: find.byType(SwitchListTile));
-      expect(tester.widget<SwitchListTile>(tile).value, isFalse);
-      await tester.tap(tile);
-      await tester.pumpAndSettle();
-      expect(
-          ExperimentalFeaturesService.instance
-              .isEnabled(ExperimentalFeature.linkRouting),
-          isTrue);
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getBool(kExperimentalLinkRoutingKey), isTrue);
+      expect(find.text('Experimental'), findsNothing,
+          reason: 'no feature to offer on a platform without Tor; link '
+              'routing is no longer experimental');
+      expect(find.text('Link routing between sites'), findsNothing);
     });
 
     testWidgets('switching Tor off with sites on Tor asks, and a cancel '

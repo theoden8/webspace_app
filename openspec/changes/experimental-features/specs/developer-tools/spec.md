@@ -17,7 +17,8 @@ The features are:
 |---|---|---|---|
 | Embedded Tor client (`tor-proxy` TOR-007) | Built-in Tor | on | `TorService.isAvailable` |
 | Android's per-site proxy router (`proxy` PROXY-013) | Proxy router | on | `ProxyRouterService.isSupported`, read once at launch |
-| Outbound link routing (`link-intent-routing` LIR-013 to LIR-017) | Link routing between sites | off | `LinkIntentDispatchEngine.routeOutbound` |
+
+Outbound link routing (`link-intent-routing` LIR-013 to LIR-017) was in the group with a switch that defaulted off; it graduated with the site info sheet (`site-info-sheet`, NAV-011), which shows the site and container a routed page runs as.
 
 #### Scenario: A feature needs both
 
@@ -44,14 +45,14 @@ The features are:
 
 - **GIVEN** an Android build whose WebView reports `MULTI_PROFILE`, with developer mode on
 - **WHEN** the user opens App settings
-- **THEN** the Experimental group lists Proxy router, on, and Link routing between sites, off
+- **THEN** the Experimental group lists Proxy router, on
 - **AND** it does not list Built-in Tor, which has no runtime on Android
 
 #### Scenario: A platform with neither Tor nor the router
 
 - **GIVEN** a Linux build with developer mode on
 - **WHEN** the user opens App settings
-- **THEN** the Experimental group lists Link routing between sites alone
+- **THEN** there is no Experimental group
 
 #### Scenario: The proxy router switch applies at next launch
 

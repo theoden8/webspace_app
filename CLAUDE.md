@@ -253,7 +253,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | integration-tests | flutter `integration_test/` harness conventions + headless Linux CI setup |
 | lazy-webview-loading | on-demand creation, IndexedStack placeholders |
 | localcdn | cache CDN resources locally (Android) |
-| navigation | back gesture, drawer swipe, refresh, race guards |
+| navigation | back gesture, drawer swipe, refresh, race guards; URL-bar site info sheet (site + container) |
 | nested-url-blocking | nested InAppBrowser, gesture auto-redirect block |
 | page-zoom | per-site zoom; viewport meta on mobile (Android pins the layout width), CSS `zoom` on desktop |
 | per-site-cookie-isolation | legacy engine (fallback) |
