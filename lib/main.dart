@@ -37,6 +37,7 @@ import 'package:webspace/services/tab_bar_corner.dart';
 import 'package:webspace/widgets/stats_banner.dart';
 import 'package:webspace/widgets/tab_bar_corner_button.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
+import 'package:webspace/widgets/site_info_sheet.dart';
 import 'package:webspace/widgets/url_bar.dart';
 import 'package:webspace/demo_data.dart' show seedDemoData, isDemoMode;
 import 'package:webspace/services/image_cache_service.dart';
@@ -2833,8 +2834,6 @@ class _WebSpacePageState extends State<WebSpacePage>
       url: url,
       decision: decision,
       routeOutboundLinks: source.routeOutboundLinks,
-      experimentEnabled: ExperimentalFeaturesService.instance
-          .isEnabled(ExperimentalFeature.linkRouting),
       kioskLocked: _kioskLocked,
       hadGesture: hadGesture,
       containersActive: _useContainers,
@@ -7983,6 +7982,19 @@ class _WebSpacePageState extends State<WebSpacePage>
         if (hasUrlBar)
           UrlBar(
             currentUrl: model.currentUrl,
+            onSiteInfo: () => showSiteInfoSheet(
+              context,
+              SiteInfo(
+                siteName: model.getDisplayName(),
+                pageUrl: model.currentUrl,
+                containerId: containerIdFor(
+                  siteId: model.siteId,
+                  archiveContainerId: model.archiveContainerId,
+                  incognito: model.effectiveIncognito,
+                ),
+                incognito: model.effectiveIncognito,
+              ),
+            ),
             onUrlSubmitted: (url) async {
               // Cross-domain URL bar submissions route to a nested
               // InAppWebViewScreen rather than navigating in-place — the

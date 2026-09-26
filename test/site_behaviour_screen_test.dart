@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/site_behaviour.dart';
 import 'package:webspace/services/domain_claim.dart';
+import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/hint_button.dart';
@@ -36,7 +37,6 @@ Future<void> _pump(
   ValueChanged<SiteBehaviourValues>? onChanged,
   bool containersActive = true,
   List<WebViewModel> routingTargets = const [],
-  bool showOutboundRouting = true,
 }) async {
   // Tall surface so every row is laid out: the screen is one list and the
   // assertions below compare rows that sit at opposite ends of it.
@@ -55,7 +55,6 @@ Future<void> _pump(
       onChanged: onChanged ?? (_) {},
       containersActive: containersActive,
       routingTargets: routingTargets,
-      showOutboundRouting: showOutboundRouting,
     ),
   ));
   await tester.pumpAndSettle();
@@ -171,17 +170,15 @@ void main() {
       );
     });
 
-    testWidgets('the experiment off hides both rows', (tester) async {
+    testWidgets('the rows need no developer mode', (tester) async {
+      DeveloperModeService.instance.debugSet(false);
       await _pump(
         tester,
         values: _values(routeOutboundLinks: true, outboundPreferences: [pref]),
         routingTargets: [gh],
-        showOutboundRouting: false,
       );
-      expect(find.text('Route links to my sites'), findsNothing);
-      expect(find.text('Routing preferences'), findsNothing);
-      expect(_switchTitled(tester, 'Open external links in browser').onChanged,
-          isNotNull);
+      expect(_switchTitled(tester, 'Route links to my sites').value, isTrue);
+      expect(find.text('1 preference'), findsOneWidget);
     });
 
     testWidgets('the legacy engine disables it with the reason',

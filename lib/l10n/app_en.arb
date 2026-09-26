@@ -158,6 +158,38 @@
   "@urlBarGoTooltip": {
     "description": "Tooltip for the button that submits the typed URL and navigates to it."
   },
+  "siteInfoTitle": "Site info",
+  "@siteInfoTitle": {
+    "description": "Tooltip of the (i) button at the end of the address bar, and title of the sheet it opens, which says which of the user's sites the page on screen belongs to and which storage container holds its cookies and logins."
+  },
+  "siteInfoSite": "Site",
+  "@siteInfoSite": {
+    "description": "Label of a row in the Site info sheet; the value is the name of the user's site (one of the websites saved in the app) that the page on screen runs as."
+  },
+  "siteInfoPage": "Page",
+  "@siteInfoPage": {
+    "description": "Label of a row in the Site info sheet; the value is the web address of the page on screen."
+  },
+  "siteInfoContainer": "Container",
+  "@siteInfoContainer": {
+    "description": "Label of a row in the Site info sheet; the value says which storage container (the isolated store of cookies, logins and site data) the page uses. 'Container' is the same term the app uses for per-site storage isolation."
+  },
+  "siteInfoContainerOwn": "This site's own container",
+  "@siteInfoContainerOwn": {
+    "description": "Value of the Container row: the page uses the storage container that belongs to the site named in the Site row, separate from every other site."
+  },
+  "siteInfoContainerEphemeral": "Private, discarded when closed",
+  "@siteInfoContainerEphemeral": {
+    "description": "Value of the Container row for a private (incognito) site: the page uses a temporary store that is thrown away when it closes."
+  },
+  "siteInfoContainerShared": "Shared, cookies swapped per site",
+  "@siteInfoContainerShared": {
+    "description": "Value of the Container row on devices whose web engine cannot give each site its own storage: all sites share one store, and the app swaps each site's cookies in and out when switching."
+  },
+  "siteInfoContainerExplanation": "Logins, cookies and site data on this page are kept in this container.",
+  "@siteInfoContainerExplanation": {
+    "description": "Short note at the bottom of the Site info sheet explaining what the Container row means."
+  },
   "untrustedCertTitle": "Untrusted certificate",
   "@untrustedCertTitle": {
     "description": "Title of the dialog shown when a site's TLS certificate cannot be verified."
@@ -1539,14 +1571,6 @@
   "appSettingsExperimentalTorHint": "Lets sites use the Tor client built into the app. Experimental because Tor runs at most once per launch: if it stops, the app has to be restarted to get it back. Turning this off blocks every site set to use Tor rather than loading it over your real IP address.",
   "@appSettingsExperimentalTorHint": {
     "description": "Explanation behind the hint button of the Built-in Tor switch in App settings > Developer > Experimental."
-  },
-  "appSettingsExperimentalLinkRouting": "Link routing between sites",
-  "@appSettingsExperimentalLinkRouting": {
-    "description": "Switch in App settings > Developer > Experimental that allows the per-site setting 'Route links to my sites': a link tapped in one of the user's sites can open as another of the user's sites that claims that link."
-  },
-  "appSettingsExperimentalLinkRoutingHint": "Lets a site open a link you tap as another of your sites that claims it, signed in, with that site's own cookies and settings. Each site turns it on under Behaviour, Route links to my sites. Experimental: it has not yet been tried widely on devices. Turning this off keeps every site's routing setting and preferences, and stops routing until it is back on.",
-  "@appSettingsExperimentalLinkRoutingHint": {
-    "description": "Explanation behind the hint button of the Link routing between sites switch in App settings > Developer > Experimental. 'Behaviour' is the per-site settings screen and 'Route links to my sites' is the name of a switch on it."
   },
   "appSettingsExperimentalTorOffTitle": "Turn Built-in Tor off?",
   "@appSettingsExperimentalTorOffTitle": {

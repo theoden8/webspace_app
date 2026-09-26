@@ -41,6 +41,7 @@ import 'package:webspace/webspace_model.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/widgets/site_info_sheet.dart';
 import 'package:webspace/widgets/url_bar.dart';
 
 const Map<String, Color> galleryAccents = {
@@ -90,6 +91,7 @@ final List<GalleryCard> galleryCards = [
   GalleryCard(id: 'type-scale', label: 'Type scale', builder: (c) => const _TypeScaleCard()),
   GalleryCard(id: 'radius-scale', label: 'Corner radii', builder: (c) => const _RadiusScaleCard()),
   GalleryCard(id: 'url-bar', label: 'URL bar', builder: (c) => const _UrlBarCard()),
+  GalleryCard(id: 'site-info', label: 'Site info sheet', builder: (c) => const _SiteInfoCard()),
   GalleryCard(id: 'hint-button', label: 'Hint button', builder: (c) => const _HintButtonCard()),
   GalleryCard(id: 'proxy-auth', label: 'Proxy authentication + test', builder: (c) => const _ProxyAuthCard()),
   GalleryCard(id: 'http-auth', label: 'HTTP authentication sign-in', builder: (c) => const _HttpAuthCard()),
@@ -347,10 +349,42 @@ class _UrlBarCard extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        UrlBar(currentUrl: 'https://codeberg.org/theoden8/webspace', onUrlSubmitted: (_) {}),
+        UrlBar(currentUrl: 'https://codeberg.org/theoden8/webspace', onUrlSubmitted: (_) {}, onSiteInfo: () {}),
         const SizedBox(height: 16),
-        UrlBar(currentUrl: 'http://example.org', onUrlSubmitted: (_) {}),
+        UrlBar(currentUrl: 'http://example.org', onUrlSubmitted: (_) {}, onSiteInfo: () {}),
+        const SizedBox(height: 16),
+        Directionality(
+          textDirection: TextDirection.rtl,
+          child: UrlBar(currentUrl: 'https://codeberg.org/theoden8/webspace', onUrlSubmitted: (_) {}, onSiteInfo: () {}),
+        ),
       ],
+    );
+  }
+}
+
+/// The sheet the URL bar's info button opens, for a routed GitHub page. Drawn
+/// in a sheet-shaped surface rather than through showModalBottomSheet, so the
+/// card needs no tap to show it.
+class _SiteInfoCard extends StatelessWidget {
+  const _SiteInfoCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: theme.colorScheme.surfaceContainerLow,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      child: const Padding(
+        padding: EdgeInsets.only(top: 24),
+        child: SiteInfoSheet(
+          info: SiteInfo(
+            siteName: 'GitHub',
+            pageUrl: 'https://github.com/theoden8/webspace_app',
+            containerId: 'ws-3f9c2a7e',
+            incognito: false,
+          ),
+        ),
+      ),
     );
   }
 }

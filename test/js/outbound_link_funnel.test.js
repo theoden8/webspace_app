@@ -76,11 +76,12 @@ test('every site webview main.dart builds carries the hook', () => {
 
 test('routing hands every gate to the engine, with the live values', () => {
   const route = blockAfter(main, '  bool _routeOutboundLink(', ') {', mainRel);
+  assert.doesNotMatch(route, /ExperimentalFeature/,
+    'link routing shipped: no developer-mode or experimental gate');
   assert.match(route, /LinkIntentDispatchEngine\.routeOutbound\(/,
     'the gates live in the engine, where they are unit-tested');
   for (const [arg, why] of [
     [/routeOutboundLinks: source\.routeOutboundLinks/, 'the source opted in (LIR-013)'],
-    [/experimentEnabled: ExperimentalFeaturesService\.instance\s*\.isEnabled\(ExperimentalFeature\.linkRouting\)/, 'the experimental switch (DEVTOOLS-011)'],
     [/kioskLocked: _kioskLocked/, 'a locked kiosk reaches no other site (KIOSK-002)'],
     [/hadGesture: hadGesture/, 'only a user gesture is routed'],
     [/containersActive: _useContainers/, 'the legacy engine does not route'],

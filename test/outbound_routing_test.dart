@@ -224,7 +224,6 @@ void main() {
     DispatchAction? route({
       NavigationDecision decision = NavigationDecision.blockOpenNested,
       bool routeOutboundLinks = true,
-      bool experimentEnabled = true,
       bool kioskLocked = false,
       bool hadGesture = true,
       bool containersActive = true,
@@ -234,7 +233,6 @@ void main() {
           url: link,
           decision: decision,
           routeOutboundLinks: routeOutboundLinks,
-          experimentEnabled: experimentEnabled,
           kioskLocked: kioskLocked,
           hadGesture: hadGesture,
           containersActive: containersActive,
@@ -257,9 +255,8 @@ void main() {
       expect(ext, isA<DispatchOpenNested>());
     });
 
-    test('routing off, the experiment off or a locked kiosk hand it back', () {
+    test('routing off or a locked kiosk hand it back', () {
       expect(route(routeOutboundLinks: false), isNull);
-      expect(route(experimentEnabled: false), isNull);
       expect(route(kioskLocked: true), isNull);
       expect(candidateReads, 0,
           reason: 'candidates are only built once the cheap gates pass');

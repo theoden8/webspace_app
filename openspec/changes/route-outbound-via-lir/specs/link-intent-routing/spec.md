@@ -44,8 +44,7 @@ Outbound routing SHALL run for a navigation only when all of the following hold:
 2. The navigation came from the source's own webview through `shouldOverrideUrlLoading` or `onUrlChanged`, and `NavigationDecisionEngine` returned `blockOpenNested` or `blockOpenExternal`. `allow`, `blockSilent` and `blockSuppressed` are never routed. A nested `InAppWebViewScreen` does not route: it has nowhere further to nest and navigates in place (NESTED-010).
 3. The navigation carried an effective user gesture: the gesture flag of `shouldOverrideUrlLoading`, or the gesture propagation window (NESTED-007) that `NavigationDecisionEngine` already computes, which it SHALL return on its result. A gesture-less cross-domain navigation, reachable when `blockAutoRedirects` is off, SHALL NOT be routed, or a page could load a URL of its choosing inside another site's signed-in container without a click.
 4. The container engine is active. On the legacy engine a nested screen runs in the shared cookie jar (ISO-007), so a routed screen would carry neither the destination's cookies nor its isolation.
-5. The link-routing experiment is on: developer mode and the Experimental group's "Link routing between sites" switch, which defaults off (DEVTOOLS-011). Routing has run only in tests; until it has run on devices it stays an experimental feature. While the experiment is off, `routeOutboundLinks` and `outboundPreferences` keep their stored values and nothing is routed.
-6. The kiosk shell is not locked (KIOSK-001). A routed open is another site's signed-in identity, which a locked shell must not reach (KIOSK-002); links there take the navigation engine's path with the source's posture.
+5. The kiosk shell is not locked (KIOSK-001). A routed open is another site's signed-in identity, which a locked shell must not reach (KIOSK-002); links there take the navigation engine's path with the source's posture.
 
 The candidate sites SHALL be those on the source's side of the archive boundary: every app-tier site when the source is app-tier, and the sites of the same open archive when the source is archive-tier (ARCH-001, ARCH-006). A site on the other side SHALL never be a candidate, whether a preference or a claim names it.
 
@@ -117,14 +116,12 @@ A resolution that names a destination (a preference, a global single, or a picke
 - **THEN** the archive-tier site is not a candidate
 - **AND** the navigation takes today's path with DuckDuckGo's posture
 
-#### Scenario: The experiment off does not route
+#### Scenario: Routing needs no developer mode
 
-- **GIVEN** a DuckDuckGo site with `routeOutboundLinks` on, and a GitHub site that is the single global match for `github.com`
-- **AND** developer mode is off, or the "Link routing between sites" switch is
+- **GIVEN** developer mode is off
+- **AND** a DuckDuckGo site with `routeOutboundLinks` on, and a GitHub site that is the single global match for `github.com`
 - **WHEN** the user taps `https://github.com/x` in DuckDuckGo
-- **THEN** no outbound resolution runs
-- **AND** the navigation takes today's path with DuckDuckGo's posture
-- **AND** DuckDuckGo still has `routeOutboundLinks` on, so turning the experiment back on routes again
+- **THEN** the link opens nested with the GitHub site's posture
 
 #### Scenario: A locked kiosk shell does not route
 
