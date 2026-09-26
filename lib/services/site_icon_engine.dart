@@ -6,6 +6,17 @@ import 'dart:typed_data';
 /// drawer than the 128-256px public-service icons it would displace.
 const int kMinSiteIconEdge = 32;
 
+/// Largest icon edge (px) kept. Android WebView asks for favicons no larger
+/// than this, so icons fetched from the page's links are scaled to match.
+const int kMaxSiteIconEdge = 192;
+
+/// Most icon links fetched for one document. Pages declare a handful; a page
+/// listing hundreds would otherwise turn one load into hundreds of requests.
+const int kMaxSiteIconCandidates = 6;
+
+/// Longest `data:` icon link taken, in characters.
+const int kMaxDataIconLength = 256 * 1024;
+
 /// A PNG the webview reported for the site's own page.
 class SiteIcon {
   SiteIcon(this.png, this.width, this.height);
@@ -56,8 +67,118 @@ String? siteIconHost(String? url) {
   return host.startsWith('www.') ? host.substring(4) : host;
 }
 
-/// Decides which icons the webview reports are the site's true icon
-/// (ICON-009).
+/// An icon link the top document declared, as the watcher reports it.
+class SiteIconLink {
+  const SiteIconLink({required this.href, this.sizes = '', this.type = ''});
+
+  final String href;
+  final String sizes;
+  final String type;
+
+  /// The links in a watcher report, skipping any entry that is not an object
+  /// with a string `href`: the report comes from page JS.
+  static List<SiteIconLink> listFrom(Object? raw) {
+    if (raw is! List) return const [];
+    final out = <SiteIconLink>[];
+    for (final entry in raw) {
+      if (entry is! Map) continue;
+      final href = entry['href'];
+      if (href is! String || href.isEmpty) continue;
+      final sizes = entry['sizes'];
+      final type = entry['type'];
+      out.add(SiteIconLink(
+        href: href,
+        sizes: sizes is String ? sizes : '',
+        type: type is String ? type : '',
+      ));
+    }
+    return out;
+  }
+}
+
+final RegExp _sizeToken = RegExp(r'^(\d+)[xX](\d+)$');
+
+/// The URLs worth fetching for a document at [documentUrl] that declared
+/// [links] (ICON-013), best first.
+///
+/// With no links the document's icon is `/favicon.ico`, as in Blink and
+/// WebKit. SVG links are skipped (the fetched-favicon path renders SVG), as
+/// are links whose declared sizes are all under [kMinSiteIconEdge]. An
+/// `http:` link on an `https:` document is upgraded, as a browser upgrades
+/// mixed images, so the request never goes out in cleartext.
+List<String> siteIconCandidates(List<SiteIconLink> links, String documentUrl) {
+  final doc = Uri.tryParse(documentUrl);
+  if (doc == null ||
+      (doc.scheme != 'http' && doc.scheme != 'https') ||
+      doc.host.isEmpty) {
+    return const [];
+  }
+  if (links.isEmpty) {
+    return [
+      Uri(
+        scheme: doc.scheme,
+        host: doc.host,
+        port: doc.hasPort ? doc.port : null,
+        path: '/favicon.ico',
+      ).toString(),
+    ];
+  }
+  final ranked = <({String url, int edge, int index})>[];
+  final seen = <String>{};
+  for (final link in links) {
+    final type = link.type.toLowerCase();
+    if (type.contains('svg')) continue;
+    var uri = Uri.tryParse(link.href);
+    if (uri == null) continue;
+    if (uri.scheme == 'data') {
+      final lower = link.href.toLowerCase();
+      if (link.href.length > kMaxDataIconLength ||
+          !lower.startsWith('data:image/') ||
+          lower.startsWith('data:image/svg')) {
+        continue;
+      }
+    } else if (uri.scheme == 'http' || uri.scheme == 'https') {
+      if (uri.host.isEmpty || uri.path.toLowerCase().endsWith('.svg')) {
+        continue;
+      }
+      if (doc.scheme == 'https' && uri.scheme == 'http') {
+        uri = uri.replace(scheme: 'https');
+      }
+    } else {
+      continue;
+    }
+    var edge = 0;
+    var declared = false;
+    for (final token in link.sizes.trim().split(RegExp(r'\s+'))) {
+      if (token.toLowerCase() == 'any') {
+        declared = true;
+        edge = math.max(edge, kMaxSiteIconEdge);
+        continue;
+      }
+      final m = _sizeToken.firstMatch(token);
+      if (m == null) continue;
+      declared = true;
+      final w = int.tryParse(m.group(1)!) ?? 0;
+      final h = int.tryParse(m.group(2)!) ?? 0;
+      edge = math.max(edge, math.min(w, h));
+    }
+    if (declared && edge < kMinSiteIconEdge) continue;
+    final url = uri.toString();
+    if (!seen.add(url)) continue;
+    ranked.add((url: url, edge: edge, index: ranked.length));
+  }
+  // Declared sizes first, largest first. List.sort is not stable, so the
+  // index keeps ties in document order.
+  ranked.sort((a, b) {
+    final bySize = b.edge.compareTo(a.edge);
+    return bySize != 0 ? bySize : a.index.compareTo(b.index);
+  });
+  return [
+    for (final c in ranked.take(kMaxSiteIconCandidates)) c.url,
+  ];
+}
+
+/// Decides which icons are the site's true icon (ICON-009, ICON-013).
 ///
 /// Android's `onReceivedIcon` carries only a bitmap: no URL, no document. It
 /// fires once per `rel=icon` candidate in download-completion order, again
@@ -72,6 +193,10 @@ String? siteIconHost(String? url) {
 /// callback orders the two, so a mid-load icon is taken only when it is the
 /// site's whichever document it came from. `onLoadStart` is posted at commit
 /// with the committed URL, so the loading document's host is known by then.
+///
+/// Where the webview reports no icons (iOS, macOS, Linux), the app fetches
+/// the links the document declared at load instead; those carry a document
+/// token so a fetch that outlives its document is dropped.
 class SiteIconEngine {
   SiteIconEngine(String siteUrl) : _siteHost = siteIconHost(siteUrl);
 
@@ -82,6 +207,8 @@ class SiteIconEngine {
   int _documentBestEdge = 0;
   bool _documentIsWeb = false;
   bool _replacedIconsAreSites = true;
+  int _document = 0;
+  int? _linksClaimed;
 
   bool _matchesSite(String? url) {
     final host = siteIconHost(url);
@@ -94,6 +221,7 @@ class SiteIconEngine {
     if (_documentIsWeb) {
       _replacedIconsAreSites = _onSite && !_iconLinksChanged;
     }
+    _document++;
     _loading = true;
     _onSite = _matchesSite(url);
     _iconLinksChanged = false;
@@ -101,6 +229,9 @@ class SiteIconEngine {
     _documentIsWeb = siteIconHost(url) != null;
   }
 
+  /// The top document at [url] finished loading: `onLoadStop`, and where the
+  /// app fetches page icons (ICON-013) also the document's load event, which
+  /// the watcher reports and which can come first.
   void onLoadFinished(String? url) {
     _loading = false;
     _onSite = _matchesSite(url);
@@ -119,6 +250,28 @@ class SiteIconEngine {
   SiteIcon? onIcon(Uint8List png) {
     if (!_onSite || _iconLinksChanged) return null;
     if (_loading && !_replacedIconsAreSites) return null;
+    return _accept(png);
+  }
+
+  /// A token for fetching the icon links the top document at [url] declared,
+  /// or null when it is off the site, still loading, or already claimed its
+  /// links: one fetch per document, however often the page reports.
+  int? claimIconLinks(String? url) {
+    if (_loading || !_matchesSite(url) || _linksClaimed == _document) {
+      return null;
+    }
+    _linksClaimed = _document;
+    return _document;
+  }
+
+  /// [png] fetched from the links claimed as [document]. Links the page
+  /// edits later do not matter here: these are the ones it declared at load.
+  SiteIcon? onLinkedIcon(int document, Uint8List png) {
+    if (document != _document) return null;
+    return _accept(png);
+  }
+
+  SiteIcon? _accept(Uint8List png) {
     final size = pngDimensions(png);
     if (size == null) return null;
     final icon = SiteIcon(png, size.width, size.height);

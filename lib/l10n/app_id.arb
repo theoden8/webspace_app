@@ -325,6 +325,8 @@
   "appSettingsExperimentalTorOffBody": "{count, plural, other{{count} situs disetel untuk memakai Tor. Situs tersebut akan tetap diblokir hingga Anda mengaktifkan kembali Tor bawaan, bukan dimuat melalui alamat IP Anda yang sebenarnya.}}",
   "appSettingsExperimentalProxyRouter": "Router proxy",
   "appSettingsExperimentalProxyRouterHint": "Di Android, satu pengaturan proxy berlaku untuk seluruh aplikasi, sehingga membuka situs dengan proxy berbeda akan menutup situs yang memakai proxy lain. Router menjaga semuanya tetap terbuka: sebuah relai di dalam aplikasi mengirim lalu lintas setiap situs ke proxy milik situs itu sendiri. Setiap kali aplikasi dimulai, router memeriksa di perangkat ini bahwa lalu lintas setiap situs dapat dibedakan satu sama lain, dan menutup situs seperti sebelumnya jika pemeriksaan gagal. Eksperimental: baru dicoba di sedikit perangkat. Berlaku saat aplikasi dimulai berikutnya.",
+  "appSettingsExperimentalPageIcons": "Ikon halaman",
+  "appSettingsExperimentalPageIconsHint": "Menampilkan ikon yang dinyatakan halaman situs itu sendiri, yang dipasang browser di tabnya, alih-alih ikon yang ditemukan lewat Google atau DuckDuckGo. Aplikasi mengambilnya sendiri setelah setiap halaman dimuat, melalui proxy dan pemblokir situs dan tanpa cookie situs, sehingga ikon yang hanya ditampilkan kepada pengguna yang sudah masuk akan terlewat. Eksperimental: baru dicoba di sedikit situs. Berlaku untuk situs yang dibuka setelah fitur ini diaktifkan.",
   "appSettingsDeveloperModeTorWarningConfirm": "Nonaktifkan",
   "appSettingsDeveloperModeAlreadyOn": "Mode pengembang sudah aktif",
   "appSettingsDeveloperModeStepsAway": "{count} ketukan lagi untuk mengaktifkan mode pengembang",

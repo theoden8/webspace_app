@@ -66,6 +66,7 @@ import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/services/site_activation_engine.dart';
+import 'package:webspace/services/site_icon_fetcher.dart' show siteIconFetchRunsHere;
 import 'package:webspace/services/site_icon_store.dart';
 import 'package:webspace/services/site_teardown_engine.dart';
 import 'package:webspace/services/app_lifecycle_engine.dart';
@@ -7405,6 +7406,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                         .length,
                     proxyRouterRunsHere: ProxyRouterService.canRunHere(
                         useContainers: _useContainers),
+                    pageIconsRunHere: siteIconFetchRunsHere,
                     siteNames: _siteNames(),
                     onSettingsChanged: (AppThemeSettings newSettings) async {
                       setState(() {

@@ -578,7 +578,8 @@ jobs:
       #     quirk (the Linux/macOS jobs run the same file on WPE/WKWebView);
       #   ICON-009/010/011 site icon — which page icon onReceivedIcon hands
       #     over and which the app takes (largest, own host, no late badge);
-      #     no other engine has the callback;
+      #     no other engine has the callback, and the macOS job runs the same
+      #     file for the ICON-013 fetch path;
       #   BUG-014 settings seam — every per-site field Dart sends, compared
       #     against what a real System WebView holds. Android parses settings
       #     with an explicit switch, so a field nobody wired is dropped as
@@ -1097,8 +1098,9 @@ jobs:
                 # state and delete prompt are Platform.isAndroid-gated).
                 [ "$(basename "$t")" = "shortcut_behavior_test.dart" ] && continue
                 [ "$(basename "$t")" = "camera_test.dart" ] && continue
-                # ICON-009 page icons come from Android WebView onReceivedIcon
-                # only; the emulator job runs this file.
+                # ICON-013: the icon fetch path this would run here is the
+                # same Dart the macOS loop runs against WKWebView, and this
+                # loop is within minutes of its step cap.
                 [ "$(basename "$t")" = "site_icon_test.dart" ] && continue
                 # PROXY-013 router is Android-only: the attribution test
                 # skips immediately here and the router test only asserts
@@ -1680,8 +1682,6 @@ jobs:
             # Android-only WebView media-gate suite (CAM-010); runs in the
             # emulator job.
             [ "$(basename "$t")" = "camera_test.dart" ] && continue
-            # Android-only ICON-009 onReceivedIcon tier; emulator job.
-            [ "$(basename "$t")" = "site_icon_test.dart" ] && continue
             # Android-only BGAUDIO-006 media foreground service; emulator job.
             [ "$(basename "$t")" = "background_audio_media_notification_test.dart" ] && continue
             # Android-only BGAUDIO-009 media-stop tier; emulator job.

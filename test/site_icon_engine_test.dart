@@ -181,6 +181,160 @@ void main() {
     });
   });
 
+  group('SiteIconEngine link fetches (ICON-013)', () {
+    test('one claim per document', () {
+      final engine = loadedEngine('https://example.com/', 'https://example.com/');
+      final first = engine.claimIconLinks('https://example.com/');
+      expect(first, isNotNull);
+      expect(engine.claimIconLinks('https://example.com/'), isNull);
+      engine
+        ..onLoadStarted('https://example.com/b')
+        ..onLoadFinished('https://example.com/b');
+      final second = engine.claimIconLinks('https://example.com/b');
+      expect(second, isNotNull);
+      expect(second, isNot(first));
+    });
+
+    test('no claim while loading or off the site', () {
+      final engine = SiteIconEngine('https://example.com/')
+        ..onLoadStarted('https://example.com/');
+      expect(engine.claimIconLinks('https://example.com/'), isNull);
+      engine.onLoadFinished('https://example.com/');
+      expect(engine.claimIconLinks('https://other.test/'), isNull);
+      expect(engine.claimIconLinks('https://www.example.com/'), isNotNull);
+    });
+
+    test('drops a fetch that outlives its document', () {
+      final engine = loadedEngine('https://example.com/', 'https://example.com/');
+      final document = engine.claimIconLinks('https://example.com/')!;
+      engine.onLoadStarted('https://example.com/b');
+      expect(engine.onLinkedIcon(document, png(64)), isNull);
+      engine.onLoadFinished('https://example.com/b');
+      expect(engine.onLinkedIcon(document, png(64)), isNull);
+    });
+
+    test('keeps load-time links after the page edits them', () {
+      final engine = loadedEngine('https://example.com/', 'https://example.com/');
+      final document = engine.claimIconLinks('https://example.com/')!;
+      engine.onIconLinksChanged();
+      expect(engine.onLinkedIcon(document, png(64))?.edge, 64);
+    });
+
+    test('same floor and largest-per-document rule as reported icons', () {
+      final engine = loadedEngine('https://example.com/', 'https://example.com/');
+      final document = engine.claimIconLinks('https://example.com/')!;
+      expect(engine.onLinkedIcon(document, png(16)), isNull);
+      expect(engine.onLinkedIcon(document, png(64))?.edge, 64);
+      expect(engine.onLinkedIcon(document, png(48)), isNull);
+    });
+  });
+
+  group('SiteIconLink.listFrom', () {
+    test('keeps well-formed entries and skips the rest', () {
+      final links = SiteIconLink.listFrom([
+        {'href': 'https://example.com/a.png', 'sizes': '32x32', 'type': 1},
+        {'href': 7},
+        'https://example.com/b.png',
+        {'href': ''},
+        {'href': 'https://example.com/c.png'},
+      ]);
+      expect(links.map((l) => l.href),
+          ['https://example.com/a.png', 'https://example.com/c.png']);
+      expect(links.first.sizes, '32x32');
+      expect(links.first.type, '');
+      expect(SiteIconLink.listFrom('nope'), isEmpty);
+    });
+  });
+
+  group('siteIconCandidates (ICON-013)', () {
+    SiteIconLink link(String href, {String sizes = '', String type = ''}) =>
+        SiteIconLink(href: href, sizes: sizes, type: type);
+
+    test('/favicon.ico when the document declares no icon', () {
+      expect(siteIconCandidates(const [], 'https://example.com/a?b#c'),
+          ['https://example.com/favicon.ico']);
+      expect(siteIconCandidates(const [], 'http://127.0.0.1:8080/x'),
+          ['http://127.0.0.1:8080/favicon.ico']);
+    });
+
+    test('nothing for a non-web document', () {
+      expect(siteIconCandidates(const [], 'about:blank'), isEmpty);
+      expect(
+          siteIconCandidates(
+              [link('https://example.com/a.png')], 'file:///index.html'),
+          isEmpty);
+    });
+
+    test('declared sizes first, largest first, then undeclared in order', () {
+      final got = siteIconCandidates([
+        link('https://example.com/favicon.ico'),
+        link('https://example.com/32.png', sizes: '32x32'),
+        link('https://example.com/other.ico'),
+        link('https://example.com/192.png', sizes: '192x192'),
+        link('https://example.com/multi.ico', sizes: '16x16 48x48'),
+      ], 'https://example.com/');
+      expect(got, [
+        'https://example.com/192.png',
+        'https://example.com/multi.ico',
+        'https://example.com/32.png',
+        'https://example.com/favicon.ico',
+        'https://example.com/other.ico',
+      ]);
+    });
+
+    test('skips SVG by type, extension and data URL', () {
+      final got = siteIconCandidates([
+        link('https://example.com/a', type: 'image/svg+xml'),
+        link('https://example.com/b.SVG'),
+        link('data:image/svg+xml;base64,PHN2Zy8+'),
+        link('https://example.com/c.png'),
+      ], 'https://example.com/');
+      expect(got, ['https://example.com/c.png']);
+    });
+
+    test('skips links whose declared sizes are all under the floor', () {
+      final got = siteIconCandidates([
+        link('https://example.com/16.png', sizes: '16x16'),
+        link('https://example.com/wide.png', sizes: '64x16'),
+        link('https://example.com/any.png', sizes: 'any'),
+        link('https://example.com/bogus.png', sizes: 'large'),
+      ], 'https://example.com/');
+      expect(got,
+          ['https://example.com/any.png', 'https://example.com/bogus.png']);
+    });
+
+    test('upgrades http links on an https document only', () {
+      final links = [link('http://cdn.example.com/a.png')];
+      expect(siteIconCandidates(links, 'https://example.com/'),
+          ['https://cdn.example.com/a.png']);
+      expect(siteIconCandidates(links, 'http://example.com/'),
+          ['http://cdn.example.com/a.png']);
+    });
+
+    test('skips other schemes, oversized data URLs and duplicates', () {
+      final small = 'data:image/png;base64,${'A' * 16}';
+      final huge = 'data:image/png;base64,${'A' * kMaxDataIconLength}';
+      final got = siteIconCandidates([
+        link('blob:https://example.com/1'),
+        link('javascript:alert(1)'),
+        link('data:text/html,x'),
+        link(huge),
+        link(small),
+        link('https://example.com/a.png'),
+        link('https://example.com/a.png'),
+      ], 'https://example.com/');
+      expect(got, [small, 'https://example.com/a.png']);
+    });
+
+    test('caps the list', () {
+      final got = siteIconCandidates([
+        for (var i = 0; i < 20; i++) link('https://example.com/$i.png'),
+      ], 'https://example.com/');
+      expect(got, hasLength(kMaxSiteIconCandidates));
+      expect(got.first, 'https://example.com/0.png');
+    });
+  });
+
   group('shouldReplaceSiteIcon', () {
     test('an empty slot takes any icon', () {
       expect(

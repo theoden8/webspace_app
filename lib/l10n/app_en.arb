@@ -1593,6 +1593,14 @@
   "@appSettingsExperimentalProxyRouterHint": {
     "description": "Explanation behind the hint button of the Proxy router switch in App settings > Developer > Experimental. 'Closes the sites' means the app unloads those sites' pages."
   },
+  "appSettingsExperimentalPageIcons": "Page icons",
+  "@appSettingsExperimentalPageIcons": {
+    "description": "Switch in App settings > Developer > Experimental, shown on iOS, macOS and Linux only, that makes the app show each site's own icon, the one its pages declare, instead of an icon found through a public icon service."
+  },
+  "appSettingsExperimentalPageIconsHint": "Shows the icon a site's own pages declare, the one a browser puts on its tab, instead of one found through Google or DuckDuckGo. The app fetches it itself after each page loads, through the site's proxy and blockers, and without the site's cookies, so an icon shown only to signed-in users is missed. Experimental: it has been tried on few sites. Applies to sites opened after it is switched on.",
+  "@appSettingsExperimentalPageIconsHint": {
+    "description": "Explanation behind the hint button of the Page icons switch in App settings > Developer > Experimental. 'Blockers' are the site's DNS blocklist and content blocker. 'Opened' means loaded into the app's view after the switch changes."
+  },
   "appSettingsDeveloperModeTorWarningConfirm": "Turn off",
   "@appSettingsDeveloperModeTorWarningConfirm": {
     "description": "Button that confirms turning Developer mode off even though it will block sites set to use Tor."

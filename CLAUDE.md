@@ -248,7 +248,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | home-shortcut | Android pinned shortcuts; iOS/macOS expose an "Open Site" App Intent through Shortcuts instead (no pin API) |
 | http-auth-prompt *(change)* | |
 | https-upgrade *(change)* | plain-http main-frame navigations retried over https, silent per-host fallback; default-on knob, forced on by Tracking Protection |
-| icon-fetching | progressive favicon w/ fallbacks; on Android the icon the site's own webview reports (`onReceivedIcon`) wins when it is the page's own, >= 32px, and not a badge swapped in after load |
+| icon-fetching | progressive favicon w/ fallbacks; the page's own icon wins when it is on the site's host, >= 32px, and not a badge swapped in after load: on Android the one the webview reports (`onReceivedIcon`); elsewhere, behind the Page icons experiment, the links the page declared, fetched through the site's proxy and blockers |
 | incognito-mode | per-site: nothing the site stores survives an app restart (cookies, localStorage, IDB, SW, cache, last URL/title); typed configuration does |
 | ios-universal-link-bypass | cancel+reissue gesture http(s) navs to dodge AASA |
 | ip-leakage | proxy coverage contract; fail-closed on SOCKS5; WebRTC + DNS |

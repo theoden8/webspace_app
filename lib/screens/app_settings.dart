@@ -72,6 +72,10 @@ class AppSettingsScreen extends StatefulWidget {
   /// Experimental group lists its switch (DEVTOOLS-011). Passed in because
   /// the answer needs the container engine the app resolved at startup.
   final bool proxyRouterRunsHere;
+
+  /// Whether this platform fetches page icons itself, so the Experimental
+  /// group lists the Page icons switch (DEVTOOLS-011, ICON-013).
+  final bool pageIconsRunHere;
   final Function(AppThemeSettings) onSettingsChanged;
   final VoidCallback onExportSettings;
   final VoidCallback onImportSettings;
@@ -145,6 +149,7 @@ class AppSettingsScreen extends StatefulWidget {
     required this.currentSettings,
     this.torPinnedSiteCount,
     this.proxyRouterRunsHere = false,
+    this.pageIconsRunHere = false,
     this.siteNames = const {},
     required this.onSettingsChanged,
     required this.onExportSettings,
@@ -211,6 +216,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
       ExperimentalFeaturesService.instance.switchOn(ExperimentalFeature.tor);
   bool _proxyRouterSwitch = ExperimentalFeaturesService.instance
       .switchOn(ExperimentalFeature.proxyRouter);
+  bool _pageIconsSwitch = ExperimentalFeaturesService.instance
+      .switchOn(ExperimentalFeature.pageIcons);
 
   bool _isUpdatingFirefoxVersion = false;
   bool _firefoxAutoRefresh = false;
@@ -977,6 +984,13 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
         .setSwitch(ExperimentalFeature.proxyRouter, value);
     if (!mounted) return;
     setState(() => _proxyRouterSwitch = value);
+  }
+
+  Future<void> _setPageIconsSwitch(bool value) async {
+    await ExperimentalFeaturesService.instance
+        .setSwitch(ExperimentalFeature.pageIcons, value);
+    if (!mounted) return;
+    setState(() => _pageIconsSwitch = value);
   }
 
   Future<void> _loadOsmTileUrl() async {
@@ -2268,7 +2282,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             ),
           if (_developerMode &&
               (TorService.instance.hasNativeRuntime ||
-                  widget.proxyRouterRunsHere)) ...[
+                  widget.proxyRouterRunsHere ||
+                  widget.pageIconsRunHere)) ...[
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
               child: Row(
@@ -2316,6 +2331,21 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                 secondary: const Icon(Icons.hub_outlined),
                 value: _proxyRouterSwitch,
                 onChanged: (value) => _setProxyRouterSwitch(value),
+              ),
+            if (widget.pageIconsRunHere)
+              SwitchListTile(
+                title: Row(
+                  children: [
+                    Flexible(child: Text(loc.appSettingsExperimentalPageIcons)),
+                    HintButton(
+                      title: loc.appSettingsExperimentalPageIcons,
+                      description: loc.appSettingsExperimentalPageIconsHint,
+                    ),
+                  ],
+                ),
+                secondary: const Icon(Icons.image_outlined),
+                value: _pageIconsSwitch,
+                onChanged: (value) => _setPageIconsSwitch(value),
               ),
           ],
           ListTile(

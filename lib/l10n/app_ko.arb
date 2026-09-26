@@ -325,6 +325,8 @@
   "appSettingsExperimentalTorOffBody": "{count, plural, other{사이트 {count}개가 Tor를 사용하도록 설정되어 있습니다. 내장 Tor를 다시 켤 때까지 실제 IP 주소로 로드되는 대신 차단된 상태로 유지됩니다.}}",
   "appSettingsExperimentalProxyRouter": "프록시 라우터",
   "appSettingsExperimentalProxyRouterHint": "Android에서는 프록시 설정 하나가 앱 전체에 적용되므로, 프록시가 다른 사이트를 열면 그와 다른 프록시를 쓰는 사이트가 닫힙니다. 라우터는 이 사이트들을 모두 열린 상태로 유지합니다. 앱 안의 릴레이가 각 사이트의 트래픽을 그 사이트 자체의 프록시로 보냅니다. 앱을 시작할 때마다 이 기기에서 각 사이트의 트래픽이 서로 구분되는지 확인하고, 확인에 실패하면 이전처럼 사이트를 닫습니다. 실험 기능: 아직 소수의 기기에서만 시험했습니다. 다음에 앱을 시작할 때 적용됩니다.",
+  "appSettingsExperimentalPageIcons": "페이지 아이콘",
+  "appSettingsExperimentalPageIconsHint": "Google이나 DuckDuckGo를 통해 찾은 아이콘 대신, 사이트 자체 페이지가 선언한 아이콘, 즉 브라우저가 탭에 표시하는 아이콘을 보여 줍니다. 각 페이지가 로드된 후 앱이 직접 가져오며, 사이트의 프록시와 차단기를 거치고 사이트의 쿠키 없이 가져오므로 로그인한 사용자에게만 표시되는 아이콘은 가져오지 못합니다. 실험 기능: 아직 소수의 사이트에서만 시험했습니다. 켠 후에 연 사이트에 적용됩니다.",
   "appSettingsDeveloperModeTorWarningConfirm": "끄기",
   "appSettingsDeveloperModeAlreadyOn": "개발자 모드가 이미 켜져 있습니다",
   "appSettingsDeveloperModeStepsAway": "개발자 모드를 켜려면 {count}번 더 탭하세요",

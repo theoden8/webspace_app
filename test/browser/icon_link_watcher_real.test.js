@@ -2,9 +2,11 @@
 // dumped to test/js_fixtures/icon_link_watcher/shim.js) against Chrome's own
 // favicon requests.
 //
-// The watcher exists to tell the site-icon engine when Blink starts a new
-// round of icon candidates for a document it already announced (ICON-011):
-// the round Android WebView answers with fresh `onReceivedIcon` calls. The
+// The watcher tells the site-icon engine three things Blink decides:
+// that the top document's load event fired, ahead of any icon request, and
+// which icon links it announced (both for ICON-013), and when a new round
+// of candidates starts for a document already announced (ICON-011): the
+// round Android WebView answers with fresh `onReceivedIcon` calls. The
 // candidate list and its re-announcement are Blink (`Document::IconURLs`,
 // `LocalFrame::UpdateFaviconURL`), shared by desktop Chrome and Android
 // WebView, so desktop Chrome's favicon requests show when a round happened.
@@ -57,12 +59,18 @@ const PAGES = {
   '/frame-child.html': `<head><link rel="icon" href="/frame/c1.png"></head><body>
     ${afterLoad(`document.querySelector('link[rel=icon]').href = '/frame/c2.png';`)}
     </body>`,
+  '/plain.html': '<head></head><body>no icon</body>',
 };
+
+const CHANGED = 'wsIconLinksChanged';
+const LOADED = 'wsIconDocumentLoaded';
+const LINKS = 'wsIconLinks';
 
 const browser = setupBrowser();
 let server;
 let origin;
 const iconRequests = [];
+const iconRequestTimes = [];
 
 test.before(async () => {
   server = http.createServer((req, res) => {
@@ -74,6 +82,7 @@ test.before(async () => {
     }
     if (path.endsWith('.png') || path === '/favicon.ico') {
       iconRequests.push(path);
+      iconRequestTimes.push(Date.now());
       res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'no-store' });
       res.end(PNG);
       return;
@@ -94,8 +103,8 @@ async function visit(t, path) {
     await page.evaluateOnNewDocument(() => {
       window.__wsIconCalls = [];
       window.flutter_inappwebview = {
-        callHandler(name) {
-          window.__wsIconCalls.push(name);
+        callHandler(name, ...args) {
+          window.__wsIconCalls.push({ name, args, at: Date.now() });
           return Promise.resolve();
         },
       };
@@ -108,7 +117,18 @@ async function visit(t, path) {
     for (const frame of page.frames()) {
       frames.push(await frame.evaluate(() => window.__wsIconCalls.slice()));
     }
-    return { requested: iconRequests.slice(start), top: frames[0], frames };
+    const names = (calls) => calls.map((c) => c.name);
+    const only = (calls, name) => calls.filter((c) => c.name === name);
+    return {
+      requested: iconRequests.slice(start),
+      requestTimes: iconRequestTimes.slice(start),
+      top: names(frames[0]),
+      changes: names(only(frames[0], CHANGED)),
+      loadedAt: only(frames[0], LOADED).map((c) => c.at),
+      links: only(frames[0], LINKS).map((c) =>
+        c.args[0].map((l) => new URL(l.href).pathname)),
+      frames: frames.map(names),
+    };
   } finally {
     await page.close();
   }
@@ -123,7 +143,25 @@ test('a badge swap after load is a new Blink round, and the watcher reports it',
       `with a favicon driver (requests: ${JSON.stringify(r.requested)})`);
     assert.ok(r.requested.includes('/badge/b.png'),
       `the badge swap started no new round: ${JSON.stringify(r.requested)}`);
-    assert.deepEqual(r.top, ['wsIconLinksChanged']);
+    assert.deepEqual(r.top, [LOADED, LINKS, CHANGED]);
+    assert.deepEqual(r.links, [['/badge/a.png']]);
+  });
+
+test('the load report comes before Chrome requests the icon', async (t) => {
+  const r = await visit(t, '/badge.html');
+  if (!r) return;
+  assert.equal(r.loadedAt.length, 1);
+  assert.ok(r.requestTimes.length > 0, 'Chrome requested no icon');
+  assert.ok(r.loadedAt[0] <= r.requestTimes[0],
+    `icon requested ${r.loadedAt[0] - r.requestTimes[0]}ms before the load report`);
+});
+
+test('with no icon links the report is empty and Chrome asks for /favicon.ico',
+  async (t) => {
+    const r = await visit(t, '/plain.html');
+    if (!r) return;
+    assert.deepEqual(r.links, [[]]);
+    assert.deepEqual(r.requested, ['/favicon.ico']);
   });
 
 test('an edit before load is part of the first round, and is not reported',
@@ -133,7 +171,8 @@ test('an edit before load is part of the first round, and is not reported',
     assert.ok(r.requested.includes('/preload/b.png'), JSON.stringify(r.requested));
     assert.ok(!r.requested.includes('/preload/a.png'),
       'Blink announced icons before load');
-    assert.deepEqual(r.top, []);
+    assert.deepEqual(r.changes, []);
+    assert.deepEqual(r.links, [['/preload/b.png']]);
   });
 
 test('the first icon an SPA adds after load starts a round the watcher lets through',
@@ -141,7 +180,7 @@ test('the first icon an SPA adds after load starts a round the watcher lets thro
     const r = await visit(t, '/spa.html');
     if (!r) return;
     assert.ok(r.requested.includes('/spa/app.png'), JSON.stringify(r.requested));
-    assert.deepEqual(r.top, []);
+    assert.deepEqual(r.changes, []);
   });
 
 test('an icon link outside <head> starts no round and is not reported',
@@ -151,7 +190,7 @@ test('an icon link outside <head> starts no round and is not reported',
     assert.ok(r.requested.includes('/body/a.png'), JSON.stringify(r.requested));
     assert.ok(!r.requested.includes('/body/b.png'),
       'Blink took an icon from <body>');
-    assert.deepEqual(r.top, []);
+    assert.deepEqual(r.changes, []);
   });
 
 test('subframe icons start no round and the subframe copy stays silent',
@@ -162,5 +201,6 @@ test('subframe icons start no round and the subframe copy stays silent',
     assert.ok(!r.requested.some((p) => p.startsWith('/frame/c')),
       `a subframe icon was requested: ${JSON.stringify(r.requested)}`);
     assert.equal(r.frames.length, 2);
-    for (const calls of r.frames) assert.deepEqual(calls, []);
+    assert.deepEqual(r.frames[0], [LOADED, LINKS]);
+    assert.deepEqual(r.frames[1], [], 'the subframe copy reported');
   });
