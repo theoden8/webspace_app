@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
+import 'package:webspace/platform/build_flavor.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
@@ -44,7 +45,8 @@ http.Client? _proxiedClient(UserProxySettings proxy) {
 ///
 /// Features:
 /// - Progressive loading: icons update as better quality versions are found
-/// - Google & DuckDuckGo services for high-quality icons
+/// - Google & DuckDuckGo services for high-quality icons (not in the F-Droid
+///   build, ICON-012)
 /// - Falls back to favicon package for HTML parsing + favicon.ico
 /// - Domain substitution rules
 /// - Caching to avoid repeated requests
@@ -238,9 +240,22 @@ bool _isIpAddress(String host) {
   return false;
 }
 
+/// Test-only override for whether Google's and DuckDuckGo's icon services
+/// may be asked. When null, the build flavor decides.
+@visibleForTesting
+bool? debugPublicIconServicesOverride;
+
+// F-Droid lists third-party icon services as a NonFreeNet anti-feature, so
+// that build takes a site's icon only from the site: its own webview on
+// Android (ICON-009) and the page scrape.
+bool get _publicIconServicesAllowed =>
+    debugPublicIconServicesOverride ?? !isFdroidFlavor;
+
 // Check if we should use public icon services (Google, DuckDuckGo)
-// Returns false for http:// sites and IP addresses
+// Returns false in the F-Droid build, for http:// sites and IP addresses
 bool _shouldUsePublicIconServices(Uri uri) {
+  if (!_publicIconServicesAllowed) return false;
+
   // Skip for non-HTTPS sites
   if (uri.scheme != 'https') return false;
 

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/platform/build_flavor.dart';
 import 'package:webspace/screens/add_site.dart' show SiteSuggestion;
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/suggested_sites_service.dart';

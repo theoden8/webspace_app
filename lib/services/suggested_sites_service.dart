@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/platform/build_flavor.dart';
 import 'package:webspace/screens/add_site.dart' show SiteSuggestion;
 
 /// Default suggested sites for non-fdroid builds.
@@ -29,12 +30,6 @@ const List<SiteSuggestion> kDefaultSuggestions = [
 ];
 
 const String _prefsKey = 'suggested_sites';
-
-/// Whether the current build is the fdroid flavor.
-bool get isFdroidFlavor {
-  const flavor = String.fromEnvironment('FLUTTER_APP_FLAVOR');
-  return flavor == 'fdroid';
-}
 
 /// Returns the flavor-appropriate default suggestions.
 List<SiteSuggestion> get flavorDefaultSuggestions =>

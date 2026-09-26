@@ -40,6 +40,8 @@ The system SHALL fetch icons from multiple sources in parallel:
 3. HTML parsing (native icons from page)
 4. /favicon.ico fallback
 
+Sources 1 and 2 are absent from the F-Droid build (ICON-012).
+
 #### Scenario: Select best available icon
 
 **Given** DuckDuckGo returns a 64px icon
@@ -133,6 +135,7 @@ would otherwise do.
 ### Requirement: ICON-006 - Smart Public Service Filtering
 
 Google and DuckDuckGo icon services SHALL be skipped for:
+- every site in the F-Droid build (ICON-012)
 - http:// sites (non-HTTPS)
 - IPv4 addresses (e.g., 192.168.1.1)
 - IPv6 addresses (e.g., [::1])
@@ -319,6 +322,40 @@ it on a later launch without the badge.
 
 ---
 
+### Requirement: ICON-012 - No Third-Party Icon Services in the F-Droid Build
+
+The `fdroid` build SHALL NOT ask Google's or DuckDuckGo's icon services
+(ICON-002 sources 1 and 2) for any site, on any path that fetches an icon: the
+drawer, the add-site suggestions, the home shortcut export. F-Droid lists them
+as a NonFreeNet anti-feature. That build takes a site's icon from the site
+alone: the icon its own webview reported (ICON-009), otherwise the page scrape
+and `/favicon.ico`, which go to the site's host through the site's proxy.
+
+The build is detected from `FLUTTER_APP_FLAVOR`, which `flutter build --flavor
+fdroid` sets (`lib/platform/build_flavor.dart`, also read by SUGGEST-001 in
+[configurable-suggested-sites](../configurable-suggested-sites/spec.md)). A
+site the webview has not reported for (not opened since install, incognito,
+only icons below the ICON-010 floor) shows what the scrape finds, or the
+placeholder.
+
+#### Scenario: F-Droid build contacts only the site
+
+**Given** the app is built with the `fdroid` flavor
+**And** a site `https://example.com/` whose webview has not reported an icon
+**When** its icon is fetched
+**Then** every request goes to `example.com`
+**And** none goes to `www.google.com` or `icons.duckduckgo.com`
+
+#### Scenario: Other builds keep the public services
+
+**Given** the app is built with any other flavor
+**When** the icon of an https site is fetched
+**Then** Google and DuckDuckGo are asked as in ICON-002
+
+Test: `test/icon_public_services_test.dart`.
+
+---
+
 ## Performance
 
 - **Before**: Users waited 10-15 seconds seeing a spinner
@@ -333,6 +370,7 @@ it on a later launch without the badge.
 - `lib/services/site_icon_engine.dart` - Which webview-reported icon is the site's (ICON-009/010)
 - `lib/services/site_icon_store.dart` - Memory + disk store for it
 - `lib/services/icon_link_watcher_shim.dart` - Reports icon-link edits after load (ICON-011)
+- `lib/platform/build_flavor.dart` - F-Droid build detection (ICON-012)
 - `android/.../SiteIconPlugin.kt` - Turns on WebView favicon downloads
 
 ### Modified
