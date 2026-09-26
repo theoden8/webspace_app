@@ -3,8 +3,8 @@
 // favicon requests.
 //
 // The watcher tells the site-icon engine three things Blink decides:
-// that the top document's load event fired, ahead of any icon request
-// (ICON-012), which icon links it announced (ICON-013), and when a new round
+// that the top document's load event fired, ahead of any icon request, and
+// which icon links it announced (both for ICON-013), and when a new round
 // of candidates starts for a document already announced (ICON-011): the
 // round Android WebView answers with fresh `onReceivedIcon` calls. The
 // candidate list and its re-announcement are Blink (`Document::IconURLs`,

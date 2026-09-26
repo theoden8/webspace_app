@@ -576,10 +576,10 @@ jobs:
       #   BUG-008 page zoom — the per-site zoom contract against the real
       #     Android System WebView, the one engine with the wide-viewport
       #     quirk (the Linux/macOS jobs run the same file on WPE/WKWebView);
-      #   ICON-009..013 site icon — which page icon onReceivedIcon hands
-      #     over and which the app takes (largest, own host, no late badge,
-      #     one served before onLoadStop); no other engine has the callback,
-      #     and the macOS job runs the same file for the fetch path;
+      #   ICON-009/010/011 site icon — which page icon onReceivedIcon hands
+      #     over and which the app takes (largest, own host, no late badge);
+      #     no other engine has the callback, and the macOS job runs the same
+      #     file for the ICON-013 fetch path;
       #   BUG-014 settings seam — every per-site field Dart sends, compared
       #     against what a real System WebView holds. Android parses settings
       #     with an explicit switch, so a field nobody wired is dropped as

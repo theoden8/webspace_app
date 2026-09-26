@@ -2,7 +2,7 @@
 // (lib/services/icon_link_watcher_shim.dart#buildIconLinkWatcherShim).
 //
 // The watcher tells the site-icon engine when the top document's load event
-// fires (ICON-012), which icon links it announced (ICON-013), and when the
+// fires and which icon links it announced (ICON-013), and when the
 // page edits that set afterwards (ICON-011). It mirrors Blink's scope: only
 // `rel=icon` links that are direct children of <head>, only after the load
 // event, only in the main frame. Whether Chrome requests icons on the same

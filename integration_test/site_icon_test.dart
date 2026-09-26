@@ -1,13 +1,11 @@
-// Site icon from the webview (ICON-009 to ICON-013), end to end.
+// Site icon from the webview (ICON-009/010/011/013), end to end.
 //
 // Android: `onReceivedIcon` exists only in Android WebView. Chromium's
 // IconHelper downloads every `rel=icon` candidate once `WebIconDatabase.open`
 // has set the process-wide flag, and hands each one over as a bare bitmap.
 // That is the path this pins: SiteIconPlugin.kt turns it on, the fork
 // forwards the PNG, SiteIconEngine decides what the site's icon is, and the
-// icon-link watcher reports the document's load event (so an icon served
-// before `onLoadStop` still counts) and a page that swaps its icon after
-// load. Which requests Blink starts is also pinned against desktop Chrome by
+// icon-link watcher reports a page that swaps its icon after load. Which requests Blink starts is also pinned against desktop Chrome by
 // test/browser/icon_link_watcher_real.test.js; which icon WebView delivers
 // can only be seen here.
 //

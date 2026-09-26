@@ -203,7 +203,7 @@ test('ICON-011: only the top document can end its own icon round', () => {
     'a subframe must not be able to stop the site icon from updating');
 });
 
-test('ICON-012/013: only the top document reports its load and its icon links', () => {
+test('ICON-013: only the top document reports its load and its icon links', () => {
   const loaded = WEBVIEW.indexOf('handlerName: kIconDocumentLoadedHandler');
   assert.notEqual(loaded, -1, 'the load handler registration is gone');
   const loadedBody =
@@ -214,6 +214,11 @@ test('ICON-012/013: only the top document reports its load and its icon links', 
     'a subframe load must not open the icon gate for the top document');
   assert.ok(loadedBody.includes('iconEngine.onLoadFinished(call.requestUrl.toString())'),
     'the document URL must come from the bridge, not from the page arguments');
+  const fetcherBlock = WEBVIEW.lastIndexOf('if (iconFetcher != null) {', loaded);
+  assert.ok(fetcherBlock !== -1 &&
+      fetcherBlock > WEBVIEW.lastIndexOf('if (iconEngine != null) {', loaded),
+    'the load report gates only the fetch path: on Android onReceivedIcon can '
+    + 'overtake it, so it cannot open the gate for the webview\'s own icons');
 
   const links = WEBVIEW.indexOf('handlerName: kIconLinksHandler');
   assert.notEqual(links, -1, 'the icon-links handler registration is gone');

@@ -229,10 +229,9 @@ class SiteIconEngine {
     _documentIsWeb = siteIconHost(url) != null;
   }
 
-  /// The top document at [url] finished loading. Called from its load event
-  /// (the watcher reports it) and again from `onLoadStop`; the load event is
-  /// the earlier of the two, and on Android it reaches the app ahead of the
-  /// document's first icon, which `onLoadStop` does not (ICON-012).
+  /// The top document at [url] finished loading: `onLoadStop`, and where the
+  /// app fetches page icons (ICON-013) also the document's load event, which
+  /// the watcher reports and which can come first.
   void onLoadFinished(String? url) {
     _loading = false;
     _onSite = _matchesSite(url);

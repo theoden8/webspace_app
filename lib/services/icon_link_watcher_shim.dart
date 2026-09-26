@@ -11,11 +11,10 @@ const String kIconLinksChangedHandler = 'wsIconLinksChanged';
 ///
 /// Three reports, each at most once per document:
 ///
-/// - [kIconDocumentLoadedHandler], from inside the load event (ICON-012).
-///   Blink announces a document's icon candidates only once its load event
-///   has finished, and on Android the bridge call is synchronous, so this
-///   reaches the app ahead of the first icon `onReceivedIcon` delivers.
-///   `onLoadStop` does not: an icon served fast beats it.
+/// - [kIconDocumentLoadedHandler], from inside the load event, so the
+///   page-icon fetch (ICON-013) can start before `onLoadStop`. Android does
+///   not read it: the report reaches Dart through a posted Java message,
+///   which the icons it precedes in the page can overtake.
 /// - [kIconLinksHandler], right after the load event, with the links Blink
 ///   announced (`href` resolved, `sizes`, `type`; `media` applied), for the
 ///   platforms whose webview reports no icon and the app fetches them

@@ -4481,15 +4481,6 @@ class WebViewFactory {
           // Frame-aware, all three: Blink and WebKit take icons from the top
           // document only, so a subframe has nothing to say about them.
           controller.addJavaScriptHandler(
-            handlerName: kIconDocumentLoadedHandler,
-            callback: (inapp.JavaScriptHandlerFunctionData call) {
-              if (call.isMainFrame) {
-                iconEngine.onLoadFinished(call.requestUrl.toString());
-              }
-              return null;
-            },
-          );
-          controller.addJavaScriptHandler(
             handlerName: kIconLinksChangedHandler,
             callback: (inapp.JavaScriptHandlerFunctionData call) {
               if (call.isMainFrame) iconEngine.onIconLinksChanged();
@@ -4497,6 +4488,18 @@ class WebViewFactory {
             },
           );
           if (iconFetcher != null) {
+            // Not on Android: the report reaches Dart through a posted Java
+            // message, which onReceivedIcon can overtake, so it cannot tell
+            // which document an icon came from there.
+            controller.addJavaScriptHandler(
+              handlerName: kIconDocumentLoadedHandler,
+              callback: (inapp.JavaScriptHandlerFunctionData call) {
+                if (call.isMainFrame) {
+                  iconEngine.onLoadFinished(call.requestUrl.toString());
+                }
+                return null;
+              },
+            );
             controller.addJavaScriptHandler(
               handlerName: kIconLinksHandler,
               callback: (inapp.JavaScriptHandlerFunctionData call) {

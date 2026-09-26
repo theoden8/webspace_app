@@ -207,8 +207,7 @@ when all of these hold:
 
 - no main-frame load is in flight (Blink announces a document's icons only
   after its load event, so an icon arriving mid-load belongs to the document
-  being replaced); the load counts as finished at the top document's load
-  event or at `onLoadStop`, whichever reaches the app first (ICON-012);
+  being replaced);
 - the loaded document is http(s) and on the site's host, with a leading `www.`
   folded (sharing the registrable domain is not enough: a login bounce to
   `accounts.example.com` shows that host's icon, not the site's);
@@ -322,37 +321,6 @@ it on a later launch without the badge.
 
 ---
 
-### Requirement: ICON-012 - The Document's Load Event Ends the Load
-
-`onLoadStop` SHALL NOT be the only signal that a document has loaded. The
-icon-link watcher calls the frame-aware `wsIconDocumentLoaded` handler from
-inside the top document's load event, and `SiteIconEngine` treats it like
-`onLoadStop` for the document at the bridge's `requestUrl` (the page's
-arguments are not read). A subframe's call is ignored.
-
-Blink announces a document's icon candidates only once its load event has
-finished. On Android the bridge call is synchronous (`@JavascriptInterface`),
-so the signal is queued on the UI thread before the first icon download
-starts, while `onLoadStop` can reach the app after an icon that was served
-fast: before this, the emulator run dropped a 32px icon served without delay
-as belonging to the previous document. The ordering is pinned against Chrome's
-own favicon requests by `test/browser/icon_link_watcher_real.test.js`.
-
-#### Scenario: An icon served before onLoadStop counts
-
-**Given** a site page declares a 32px icon served at once and a 192px icon
-served 600ms later
-**When** the webview reports both
-**Then** the site's icon is the 32px one, then the 192px one
-
-#### Scenario: A subframe's load event opens nothing
-
-**Given** a main-frame load is in flight
-**When** a cross-origin iframe calls `wsIconDocumentLoaded`
-**Then** the engine still refuses icons until the top document has loaded
-
----
-
 ### Requirement: ICON-013 - Page Icon Where the Webview Reports None
 
 While the Page icons experiment is on ([developer-tools](../developer-tools/spec.md)
@@ -371,8 +339,9 @@ public services. What is open: most sites declare only small icons (a
 `favicon.ico`, 32 to 48px), so at the ICON-010 floor a site's own icon can
 displace a larger and sharper public-service one.
 
-- **What is fetched.** Right after the load event the watcher reports, through
-  the frame-aware `wsIconLinks` handler, the links Blink and WebKit take:
+- **What is fetched.** The watcher reports the document's load event through
+  the frame-aware `wsIconDocumentLoaded` handler, and right after it, through
+  `wsIconLinks`, the links Blink and WebKit take:
   `rel=icon` links that are direct children of `<head>` (WebKit's
   `LinkIconCollector` reads the same scope), `media` applied, `href`
   resolved. With none, the document's icon is `/favicon.ico`.
@@ -460,7 +429,7 @@ redirects there
 - `lib/services/icon_service.dart` - Icon fetching service
 - `lib/services/site_icon_engine.dart` - Which page icon is the site's, and which declared links to fetch (ICON-009/010/013)
 - `lib/services/site_icon_store.dart` - Memory + disk store for it
-- `lib/services/icon_link_watcher_shim.dart` - Reports the load event, the announced icon links and later edits (ICON-011/012/013)
+- `lib/services/icon_link_watcher_shim.dart` - Reports icon-link edits after load (ICON-011), and the load event and announced links (ICON-013)
 - `lib/services/site_icon_fetcher.dart` - Fetches and decodes the declared links where the webview reports no icon (ICON-013)
 - `android/.../SiteIconPlugin.kt` - Turns on WebView favicon downloads
 
