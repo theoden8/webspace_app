@@ -29,6 +29,12 @@ in the Xcode project. Spec: PLATFORM-006.
 
 - Never push to master. Branch first.
 - `git pull --rebase` always.
+- **A PR branch takes master by rebase, never by merge.** By default a PR lands
+  as: `git rebase origin/master`, push with `--force-with-lease`, squash-merge.
+  Never `git merge master` into the branch, not even to resolve a conflict. A
+  merge commit buries the PR's diff under master's and hands the squash a
+  history nobody reviewed. Resolve conflicts commit by commit so the
+  translation split below survives the replay.
 - Before pushing a branch, check it still exists on remote; if merged+deleted, branch fresh from master.
 - **Translations ride their own commit.** A change that adds or renames a user-facing
   string commits the code plus `lib/l10n/app_en.arb`; the other 66 `app_*.arb` files
