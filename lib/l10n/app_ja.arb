@@ -325,6 +325,8 @@
   "appSettingsExperimentalTorOffBody": "{count, plural, other{{count} 件のサイトが Tor を使う設定になっています。内蔵 Tor を再びオンにするまで、実際の IP アドレスで読み込まれる代わりにブロックされたままになります。}}",
   "appSettingsExperimentalProxyRouter": "プロキシルーター",
   "appSettingsExperimentalProxyRouterHint": "Android ではプロキシ設定がアプリ全体で 1 つしかないため、別のプロキシを使うサイトを開くと、それとは異なるプロキシを使っているサイトが閉じられます。ルーターはそれらをすべて開いたままにします。アプリ内のリレーが、各サイトの通信をそのサイト自身のプロキシへ送ります。起動するたびに、このデバイス上で各サイトの通信が区別されていることを確認し、確認に失敗した場合は従来どおりサイトを閉じます。試験運用: まだ少数のデバイスでしか試されていません。次回アプリを起動したときに有効になります。",
+  "appSettingsExperimentalSiteTabs": "サイト内タブ",
+  "appSettingsExperimentalSiteTabsHint": "ブラウザのタブのように、1つのサイトで複数のページを同時に開いておけるようにします。上部のタブ数からタブ一覧を開けるほか、メニューには「新しいタブ」と「タブを複製」が、リンクを長押しすると「新しいタブで開く」が表示されます。サイトのタブはすべて、そのサイトのログイン状態と設定を共有します。オフにすると、各サイトは以前と同じく1ページだけを表示します。すでに開いたタブは、再びオンにしたときのために保持されます。",
   "appSettingsDeveloperModeTorWarningConfirm": "オフにする",
   "appSettingsDeveloperModeAlreadyOn": "開発者モードはすでにオンです",
   "appSettingsDeveloperModeStepsAway": "開発者モードをオンにするまであと {count} 回タップ",

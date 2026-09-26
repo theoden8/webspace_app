@@ -325,6 +325,8 @@
   "appSettingsExperimentalTorOffBody": "{count, plural, other{有 {count} 個網站設定為使用 Tor。在你重新開啟內建 Tor 之前，上述網站會維持封鎖狀態，而不會以你的真實 IP 位址載入。}}",
   "appSettingsExperimentalProxyRouter": "代理路由器",
   "appSettingsExperimentalProxyRouterHint": "在 Android 上，一項代理設定會套用到整個應用程式，因此開啟使用不同代理的網站時，會關閉使用其他代理的網站。路由器能讓它們全部保持開啟：應用程式內的中繼會將每個網站的流量送往該網站自己的代理。每次啟動時，它會在這部裝置上檢查能否區分各網站的流量；若檢查失敗，則照舊關閉網站。此為實驗性功能：目前僅在少數裝置上試用過。下次啟動應用程式時生效。",
+  "appSettingsExperimentalSiteTabs": "網站分頁",
+  "appSettingsExperimentalSiteTabsHint": "讓一個網站像瀏覽器分頁一樣，同時開啟多個頁面：點選頂端的分頁數量可開啟分頁清單，選單中有「新分頁」和「複製分頁」，長按連結時則有「在新分頁中開啟」。同一網站的所有分頁共用該網站的登入狀態與設定。關閉時，每個網站會像以前一樣只顯示一個頁面；已開啟的分頁會保留，待您再次開啟此功能時沿用。",
   "appSettingsDeveloperModeTorWarningConfirm": "關閉",
   "appSettingsDeveloperModeAlreadyOn": "開發者模式已經開啟",
   "appSettingsDeveloperModeStepsAway": "再輕觸 {count} 次即可開啟開發者模式",
