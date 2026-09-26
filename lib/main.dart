@@ -97,6 +97,7 @@ import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/screen_capture_guard.dart';
 import 'package:webspace/services/shortcut_service.dart';
 import 'package:webspace/services/background_task_service.dart';
+import 'package:webspace/services/background_wake_engine.dart';
 import 'package:webspace/services/media_session_service.dart';
 import 'package:webspace/services/share_intent_service.dart';
 import 'package:webspace/services/link_routing_service.dart';
@@ -1803,20 +1804,21 @@ class _WebSpacePageState extends State<WebSpacePage>
       // Non-sensitive decision line (no site name/URL): lets a user report
       // — and the CI lifecycle test assert — whether the background froze
       // JS or a notification/background-audio exemption kept it running.
-      // `bgAudio` is the input to that decision (BGAUDIO-002): without it a
-      // jsPause=true line reads as a bug when it is really the site's
-      // Background audio toggle being off.
-      final loadedBgAudio = _loadedIndices
+      // `bgAudio` and `notif` are the inputs to that decision (BGAUDIO-002,
+      // NOTIF-011): without them a jsPause=true line reads as a bug when it is
+      // really no loaded site having the toggle on.
+      int loadedWith(bool Function(WebViewModel m) flag) => _loadedIndices
           .where((i) =>
-              i >= 0 &&
-              i < _webViewModels.length &&
-              _webViewModels[i].effectiveBackgroundAudioEnabled)
+              i >= 0 && i < _webViewModels.length && flag(_webViewModels[i]))
           .length;
+      final loadedBgAudio =
+          loadedWith((m) => m.effectiveBackgroundAudioEnabled);
+      final loadedNotif = loadedWith((m) => m.effectiveNotificationsEnabled);
       LogService.instance.log(
         'Lifecycle',
         'App background: jsPause=${pausePlan.jsPauseIndex != null} '
             'capture=${pausePlan.captureStateIndex != null} '
-            'bgAudio=$loadedBgAudio loaded',
+            'bgAudio=$loadedBgAudio notif=$loadedNotif loaded',
       );
       // BGAUDIO-012: a site that stops itself when the page reports hidden
       // (YouTube and every other player built for a tab) needs to be told the
@@ -1866,10 +1868,11 @@ class _WebSpacePageState extends State<WebSpacePage>
       // iOS: open a ~30s background-task window so notification webviews
       // can flush in-flight setTimeouts before iOS suspends the process.
       // Android has no equivalent without a foreground service; it relies
-      // on the OS's implicit grace and the notif early-return in
-      // WebViewModel.pauseWebView so the renderer keeps ticking briefly.
+      // on the OS's implicit grace and the NOTIF-011 pause veto so the
+      // renderer keeps ticking briefly.
       if (_anyNotificationSites()) {
         unawaited(BackgroundTaskService.instance.beginGracePeriod());
+        _noteWakeBaselines();
       }
       // Both iOS and Android: ensure the periodic refresh is scheduled
       // before the process gets backgrounded.
@@ -5494,7 +5497,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     // hits; doing it here keeps a large notif import from blocking the shortcut
     // target's first paint. (Legacy mode already loaded them pre-paint above.)
     if (_useContainers) {
-      unawaited(DeferredStartupEngine.autoLoadNotificationSites(this));
+      unawaited(DeferredStartupEngine.autoLoadNotificationSites(this)
+          .then((_) => _updateBackgroundRefreshSchedule()));
     }
 
     // Off the first-paint path: theme the remaining (not-yet-built) models,
@@ -5552,6 +5556,7 @@ class _WebSpacePageState extends State<WebSpacePage>
 
     await NotificationService.instance.init();
     NotificationService.instance.onNotificationTapped = _onNotificationTapped;
+    NotificationService.instance.onPosted = _noteWakeBaselineAfterPost;
 
     // Cold-start path for ACTION_SEND share intents: open AddSiteScreen
     // prefilled with the shared URL once startup is settled. The resumed
@@ -5563,16 +5568,13 @@ class _WebSpacePageState extends State<WebSpacePage>
     // included, so never reload the site the user is looking at in that
     // state; a true background refresh still reloads every notification site.
     BackgroundTaskService.instance.onBackgroundRefresh = () =>
-        _refreshNotificationSites(
-          excludeActive: WidgetsBinding.instance.lifecycleState ==
-              AppLifecycleState.resumed,
-        );
+        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed
+            ? _refreshNotificationSites(excludeActive: true)
+            : _backgroundWake();
     BackgroundTaskService.instance.initialize();
     // BGAUDIO-006: wire the Android media-notification transport channel.
     MediaSessionService.instance.initialize();
-    if (_anyNotificationSites()) {
-      unawaited(BackgroundTaskService.instance.scheduleNextRefresh());
-    }
+    unawaited(_updateBackgroundRefreshSchedule());
   }
 
   /// Decrypt the cached/imported HTML for one site into memory before its
@@ -5886,6 +5888,54 @@ class _WebSpacePageState extends State<WebSpacePage>
           'reloaded=$reloaded, skipped(unloaded)=$skippedUnloaded, '
           'skipped(no controller)=$skippedNoController',
     );
+  }
+
+  final BackgroundWakeEngine _wakeEngine = BackgroundWakeEngine();
+
+  /// NOTIF-013/014: what an OS background wake runs. Returns once the
+  /// reloaded pages have settled, which is what ends the OS task.
+  Future<void> _backgroundWake() async {
+    final posted = await _wakeEngine.wake(_WakeHost(this));
+    LogService.instance.log(
+      'BackgroundTask',
+      'background wake done: unread fallback posts=$posted',
+    );
+  }
+
+  /// Record each loaded notification site's unread count while the user can
+  /// still see it, so a later wake posts only for what arrived after
+  /// (NOTIF-014).
+  void _noteWakeBaselines() {
+    _wakeEngine.forget({for (final m in _webViewModels) m.siteId});
+    for (final i in _loadedIndices) {
+      if (i < 0 || i >= _webViewModels.length) continue;
+      final m = _webViewModels[i];
+      final c = m.controller;
+      if (!m.effectiveNotificationsEnabled || c == null) continue;
+      unawaited(c
+          .getTitle()
+          .then((t) => _wakeEngine.noteBaseline(m.siteId, t))
+          .catchError((_) {}));
+    }
+  }
+
+  /// A post from the background told the user about what the site's title
+  /// now counts, so the next wake measures from there instead of announcing
+  /// it again (NOTIF-014). Read a beat later: the page may update its title
+  /// after posting.
+  void _noteWakeBaselineAfterPost(String siteId) {
+    if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+      return;
+    }
+    Future<void>.delayed(const Duration(seconds: 1), () async {
+      for (final m in _webViewModels) {
+        if (m.siteId != siteId) continue;
+        try {
+          _wakeEngine.noteBaseline(siteId, await m.controller?.getTitle());
+        } catch (_) {}
+        return;
+      }
+    });
   }
 
   void _onNotificationTapped(String siteId) {
@@ -7711,7 +7761,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                           containerCookieManager: _containerCookieManager,
                           onSave: _saveWebViewModels,
                           globalUserScripts: _globalUserScripts,
-                          onSimulateBackgroundRefresh: _refreshNotificationSites,
+                          onSimulateBackgroundRefresh: _backgroundWake,
                         ),
                       ),
                     );
@@ -10175,4 +10225,78 @@ class _OrphanSweepTargets implements OrphanSweepTargets {
   @override
   Future<void> clearLegacyGlobalCookieJar() =>
       state._cookieManager.deleteAllCookies();
+}
+
+class _WakeHost implements BackgroundWakeHost {
+  _WakeHost(this._state);
+
+  final _WebSpacePageState _state;
+
+  WebViewModel? _model(String siteId) {
+    for (final m in _state._webViewModels) {
+      if (m.siteId == siteId) return m;
+    }
+    return null;
+  }
+
+  @override
+  List<WakeSite> wakeSites() => [
+        for (final i in _state._loadedIndices)
+          if (i >= 0 &&
+              i < _state._webViewModels.length &&
+              _state._webViewModels[i].effectiveNotificationsEnabled &&
+              _state._webViewModels[i].controller != null)
+            WakeSite(
+              siteId: _state._webViewModels[i].siteId,
+              name: _state._webViewModels[i].name,
+            ),
+      ];
+
+  @override
+  Future<void> reload(String siteId) async {
+    // Funnelled for the same reason as _refreshNotificationSites: a wake can
+    // land on the visible site, and a raw reload blanks it (PAUSE-021).
+    await _model(siteId)?.reloadAndRepaint();
+  }
+
+  @override
+  bool? isLoading(String siteId) {
+    final m = _model(siteId);
+    return m == null || m.controller == null ? null : m.isLoading;
+  }
+
+  @override
+  Future<String?> title(String siteId) async {
+    try {
+      return await _model(siteId)?.controller?.getTitle();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  bool postedSince(String siteId, DateTime since) {
+    final at = NotificationService.instance.lastPostedAt(siteId);
+    return at != null && !at.isBefore(since);
+  }
+
+  @override
+  Future<void> post({
+    required String siteId,
+    required String siteName,
+    required String body,
+  }) =>
+      NotificationService.instance.show(
+        siteId: siteId,
+        title: siteName,
+        body: body,
+        // One fallback per site at a time: a later rise replaces it.
+        tag: 'webspace-unread',
+      );
+
+  @override
+  DateTime now() => DateTime.now();
+
+  @override
+  Future<void> delay(Duration d) => Future<void>.delayed(d);
 }

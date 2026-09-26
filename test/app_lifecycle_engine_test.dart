@@ -430,4 +430,61 @@ void main() {
       );
     });
   });
+  group('NOTIF-011 notification pause exemption', () {
+    test('LOADED notification site vetoes the pause of a plain active site',
+        () {
+      // Android's pauseTimers() is process-global: pausing the site on screen
+      // would also freeze the notification site's page JS behind it, and that
+      // JS is what posts the notification.
+      final plan = AppLifecycleEngine.backgroundPlan(
+        currentIndex: 0,
+        siteCount: 3,
+        loadedIndices: {0, 2},
+        notificationsEnabled: (i) => i == 2,
+        backgroundAudioEnabled: (_) => false,
+        cookieFlushSupported: true,
+      );
+      expect(plan.jsPauseIndex, isNull);
+      expect(plan.captureStateIndex, 0);
+    });
+
+    test('unloaded notification site does not veto the pause', () {
+      final plan = AppLifecycleEngine.backgroundPlan(
+        currentIndex: 0,
+        siteCount: 3,
+        loadedIndices: {0},
+        notificationsEnabled: (i) => i == 2,
+        backgroundAudioEnabled: (_) => false,
+        cookieFlushSupported: true,
+      );
+      expect(plan.jsPauseIndex, 0);
+    });
+
+    test('resume mirrors the skipped pause (nothing to resume)', () {
+      expect(
+        AppLifecycleEngine.resumeJsIndex(
+          currentIndex: 0,
+          siteCount: 3,
+          loadedIndices: {0, 2},
+          notificationsEnabled: (i) => i == 2,
+          backgroundAudioEnabled: (_) => false,
+        ),
+        isNull,
+      );
+    });
+
+    test('out-of-bounds loaded index never reaches the flag callback', () {
+      expect(
+        AppLifecycleEngine.anyLoadedNotifications(
+          siteCount: 2,
+          loadedIndices: {0, 5},
+          notificationsEnabled: (i) {
+            expect(i, lessThan(2));
+            return false;
+          },
+        ),
+        isFalse,
+      );
+    });
+  });
 }

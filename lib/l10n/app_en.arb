@@ -2634,11 +2634,11 @@
   "@siteSettingsBgNotifTitleAndroid": {
     "description": "Title of the one-time Android background notification limits dialog."
   },
-  "siteSettingsBgNotifBodyIos": "iOS limits background execution. Notifications arrive while WebSpace is open or in the recent-tasks list. After WebSpace is fully suspended, iOS schedules background refreshes opportunistically — typically every 15-30 minutes — at which point your sites are reloaded and any pending notifications fire.",
+  "siteSettingsBgNotifBodyIos": "iOS suspends WebSpace shortly after you leave it, and a suspended site cannot receive messages. Notifications arrive while WebSpace is open and for about 30 seconds after you leave. iOS also wakes WebSpace from time to time, at intervals it chooses, to reload these sites. If a site shows an unread count in its title and the count went up, WebSpace notifies you.",
   "@siteSettingsBgNotifBodyIos": {
     "description": "Body of the iOS background notification limits dialog."
   },
-  "siteSettingsBgNotifBodyAndroid": "Android limits background execution. Notifications arrive while WebSpace is open or in recent tasks. While backgrounded, the app reloads notification sites every ~15 minutes when the system permits. If Android kills WebSpace under memory pressure, notifications stop until the next launch.",
+  "siteSettingsBgNotifBodyAndroid": "Android can freeze WebSpace soon after you leave it, and a frozen site cannot receive messages. Notifications arrive while WebSpace is open. Android also wakes WebSpace from time to time, no more than once every 15 minutes and less often while the phone is idle, to reload these sites. If a site shows an unread count in its title and the count went up, WebSpace notifies you. If Android closes WebSpace, notifications stop until you open it again.",
   "@siteSettingsBgNotifBodyAndroid": {
     "description": "Body of the Android background notification limits dialog."
   },
