@@ -58,6 +58,7 @@
       "blockAutoRedirects": false,
       "externalLinksInBrowser": true,
       "fullscreenMode": true,
+      "blockScreenshots": true,
       "tabBarButtonCorner": "topLeft",
       "htmlCachingEnabled": true,
       "notificationsEnabled": true,
@@ -219,6 +220,7 @@
     "backOpensMenu": true,
     "httpsUpgradeEnabled": false,
     "torIsolateDestAddr": true,
+    "blockScreenshots": true,
     "trustedHosts": ["evil.example|443|tls-pin-needle-c0de"]
   },
   "suggestedSites": [

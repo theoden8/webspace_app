@@ -26,6 +26,7 @@ void main() {
         localCdnEnabled: false,
         blockAutoRedirects: false,
         fullscreenMode: true,
+        blockScreenshots: true,
         htmlCachingEnabled: true,
         notificationsEnabled: true,
         locationMode: LocationMode.spoof,
@@ -71,6 +72,7 @@ void main() {
       expect(hydrated.localCdnEnabled, source.localCdnEnabled);
       expect(hydrated.blockAutoRedirects, source.blockAutoRedirects);
       expect(hydrated.fullscreenMode, source.fullscreenMode);
+      expect(hydrated.blockScreenshots, source.blockScreenshots);
       expect(hydrated.htmlCachingEnabled, source.htmlCachingEnabled);
       expect(hydrated.notificationsEnabled, source.notificationsEnabled);
       expect(hydrated.locationMode, source.locationMode);

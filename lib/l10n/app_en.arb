@@ -3958,6 +3958,26 @@
   "@siteSettingsForcedOffByTrackingProtection": {
     "description": "Subtitle on a setting that Tracking Protection turns off and locks while it is on. The inverse of the 'Forced on by Tracking Protection' subtitle."
   },
+  "privacyGroupScreenCapture": "Screen capture",
+  "@privacyGroupScreenCapture": {
+    "description": "Heading for the group in a site's privacy settings about screenshots, screen recording and the app's preview in the recent-apps list."
+  },
+  "siteSettingsBlockScreenshots": "Block screenshots",
+  "@siteSettingsBlockScreenshots": {
+    "description": "Title of the switch that makes screenshots and screen recordings of the app come out blank. Shown in a site's privacy settings, where it applies while that site is on screen, and in the app-wide privacy settings, where it applies everywhere."
+  },
+  "siteSettingsBlockScreenshotsHint": "While this site is on screen, screenshots, screen recordings and screen sharing show the app blank, and its preview in recent apps is hidden. Other sites and the rest of the app can still be captured.",
+  "@siteSettingsBlockScreenshotsHint": {
+    "description": "Explanatory popup for a site's Block screenshots switch: what is kept out of captures, and that it covers only this site while it is displayed."
+  },
+  "siteSettingsBlockScreenshotsAppWide": "On for the whole app in App Settings",
+  "@siteSettingsBlockScreenshotsAppWide": {
+    "description": "Subtitle on a site's Block screenshots switch when the app-wide switch in App Settings already covers every site, so the site's own switch is locked on."
+  },
+  "appSettingsBlockScreenshotsHint": "Screenshots, screen recordings and screen sharing show the app blank on every screen, the site list included, and its preview in recent apps is hidden. To cover only some sites, leave this off and turn it on in those sites' privacy settings.",
+  "@appSettingsBlockScreenshotsHint": {
+    "description": "Explanatory popup for the app-wide Block screenshots switch: what is kept out of captures, that it covers the whole app, and that sites can turn it on individually instead."
+  },
   "siteSettingsNeedsTrackingProtection": "Requires Tracking Protection",
   "@siteSettingsNeedsTrackingProtection": {
     "description": "Subtitle on a setting that can only be turned on while Tracking Protection is on."

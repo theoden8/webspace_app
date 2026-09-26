@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/site_privacy.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/screen_capture_guard.dart';
 import 'package:webspace/widgets/level_slider.dart';
 
 SitePrivacyValues _values({
@@ -15,6 +16,7 @@ SitePrivacyValues _values({
   bool thirdPartyCookies = false,
   bool letterbox = false,
   bool incognito = false,
+  bool blockScreenshots = false,
 }) =>
     SitePrivacyValues(
       trackingProtectionEnabled: trackingProtection,
@@ -26,6 +28,7 @@ SitePrivacyValues _values({
       thirdPartyCookiesEnabled: thirdPartyCookies,
       letterboxEnabled: letterbox,
       incognito: incognito,
+      blockScreenshots: blockScreenshots,
     );
 
 Future<void> _pump(
@@ -106,6 +109,42 @@ void main() {
             .effectiveThirdPartyCookies,
         isTrue,
       );
+    });
+  });
+
+  group('Block screenshots (SCREENBLOCK-003)', () {
+    tearDown(() {
+      ScreenCaptureGuard.debugSupportedOverride = null;
+      ScreenCaptureGuard.appWideEnabled = false;
+    });
+
+    testWidgets('absent where the platform cannot block capture',
+        (tester) async {
+      ScreenCaptureGuard.debugSupportedOverride = false;
+      await _pump(tester, values: _values(blockScreenshots: true));
+      expect(find.text('Block screenshots'), findsNothing);
+    });
+
+    testWidgets('switching it on reports the site value', (tester) async {
+      ScreenCaptureGuard.debugSupportedOverride = true;
+      SitePrivacyValues? reported;
+      await _pump(tester,
+          values: _values(), onChanged: (v) => reported = v);
+      final tile = _switchTitled(tester, 'Block screenshots');
+      expect(tile.value, isFalse);
+      tile.onChanged!(true);
+      expect(reported?.blockScreenshots, isTrue);
+    });
+
+    testWidgets('locked on while the app-wide switch covers every site',
+        (tester) async {
+      ScreenCaptureGuard.debugSupportedOverride = true;
+      ScreenCaptureGuard.appWideEnabled = true;
+      await _pump(tester, values: _values());
+      final tile = _switchTitled(tester, 'Block screenshots');
+      expect(tile.value, isTrue);
+      expect(tile.onChanged, isNull);
+      expect(find.text('On for the whole app in App Settings'), findsOneWidget);
     });
   });
 

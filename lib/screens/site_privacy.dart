@@ -7,6 +7,7 @@ import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/localcdn_service.dart';
+import 'package:webspace/services/screen_capture_guard.dart';
 import 'package:webspace/services/webview.dart' show WebViewFactory;
 import 'package:webspace/widgets/hint_button.dart';
 import 'package:webspace/widgets/level_slider.dart';
@@ -31,6 +32,7 @@ class SitePrivacyValues {
     this.httpsUpgradeEnabled,
     required this.letterboxEnabled,
     required this.incognito,
+    this.blockScreenshots = false,
   });
 
   final bool trackingProtectionEnabled;
@@ -50,6 +52,7 @@ class SitePrivacyValues {
   final bool? httpsUpgradeEnabled;
   final bool letterboxEnabled;
   final bool incognito;
+  final bool blockScreenshots;
 
   /// `dnsBlockLevel` is nullable *and* meaningful when null ("follow the app
   /// setting"), so it can't use the `?? this.` idiom — passing null has to
@@ -68,6 +71,7 @@ class SitePrivacyValues {
     bool? thirdPartyCookiesEnabled,
     bool? letterboxEnabled,
     bool? incognito,
+    bool? blockScreenshots,
   }) =>
       SitePrivacyValues(
         trackingProtectionEnabled:
@@ -87,6 +91,7 @@ class SitePrivacyValues {
             thirdPartyCookiesEnabled ?? this.thirdPartyCookiesEnabled,
         letterboxEnabled: letterboxEnabled ?? this.letterboxEnabled,
         incognito: incognito ?? this.incognito,
+        blockScreenshots: blockScreenshots ?? this.blockScreenshots,
       );
 
   /// What each subordinate is doing once the umbrella is applied. Mirrors the
@@ -109,6 +114,10 @@ class SitePrivacyValues {
   bool get effectiveHttpsUpgrade => trackingProtectionEnabled
       ? true
       : (httpsUpgradeEnabled ?? WebViewFactory.httpsUpgradeEnabled);
+
+  /// The app-wide switch covers every site (SCREENBLOCK-002).
+  bool get effectiveBlockScreenshots =>
+      blockScreenshots || ScreenCaptureGuard.appWideEnabled;
 }
 
 /// Per-site privacy screen: the tracking-protection umbrella, the settings it
@@ -563,6 +572,20 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
     );
   }
 
+  // --- Screen capture ------------------------------------------------------
+
+  Widget _blockScreenshots(AppLocalizations loc) => _tile(
+        title: loc.siteSettingsBlockScreenshots,
+        hint: loc.siteSettingsBlockScreenshotsHint,
+        subtitle: ScreenCaptureGuard.appWideEnabled
+            ? loc.siteSettingsBlockScreenshotsAppWide
+            : null,
+        value: _values.effectiveBlockScreenshots,
+        onChanged: ScreenCaptureGuard.appWideEnabled
+            ? null
+            : (value) => _update(_values.copyWith(blockScreenshots: value)),
+      );
+
   // --- DNS counters --------------------------------------------------------
 
   Widget _dnsStats() {
@@ -659,6 +682,10 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
                 ),
               ),
             ),
+          if (ScreenCaptureGuard.isSupported) ...[
+            _groupHeader(loc.privacyGroupScreenCapture),
+            _blockScreenshots(loc),
+          ],
           const SizedBox(height: 24),
         ],
       ),

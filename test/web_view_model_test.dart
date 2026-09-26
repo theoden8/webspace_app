@@ -657,6 +657,34 @@ void main() {
       expect(restored.fullscreenMode, isTrue);
     });
 
+    test('blockScreenshots is off and unwritten by default', () {
+      final model = WebViewModel(initUrl: 'https://example.com');
+      expect(model.blockScreenshots, isFalse);
+      expect(model.toJson().containsKey('blockScreenshots'), isFalse);
+    });
+
+    test('blockScreenshots true is preserved through serialization', () {
+      final model = WebViewModel(
+        initUrl: 'https://example.com',
+        blockScreenshots: true,
+      );
+
+      final json = model.toJson();
+      expect(json['blockScreenshots'], isTrue);
+
+      final restored = WebViewModel.fromJson(json, null);
+      expect(restored.blockScreenshots, isTrue);
+    });
+
+    test('a wrong-typed blockScreenshots reads as off', () {
+      final model = WebViewModel.fromJson({
+        'initUrl': 'https://example.com',
+        'cookies': [],
+        'blockScreenshots': 'yes',
+      }, null);
+      expect(model.blockScreenshots, isFalse);
+    });
+
     test('htmlCachingEnabled defaults to false when missing from JSON', () {
       final json = {
         'initUrl': 'https://example.com',
