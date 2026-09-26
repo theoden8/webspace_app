@@ -76,6 +76,7 @@ import 'package:webspace/services/site_retention_priority.dart';
 import 'package:webspace/services/orphan_sweep_engine.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/site_unload_engine.dart';
+import 'package:webspace/services/site_unread_service.dart';
 import 'package:webspace/services/nav_state_capture_debouncer.dart';
 import 'package:webspace/services/webview_state_secure_storage.dart';
 import 'package:webspace/services/webview_state_storage.dart';
@@ -140,6 +141,7 @@ import 'package:webspace/widgets/download_button.dart';
 import 'package:webspace/widgets/external_url_prompt.dart';
 import 'package:webspace/widgets/root_messenger.dart';
 import 'package:webspace/widgets/site_permission_badges.dart';
+import 'package:webspace/widgets/site_unread_badge.dart';
 import 'package:webspace/widgets/surface_nudge_scope.dart';
 import 'package:webspace/widgets/http_auth_prompt.dart';
 import 'package:webspace/widgets/untrusted_cert_prompt.dart';
@@ -1219,6 +1221,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     super.initState();
     debugWebViewModels = _webViewModels;
     WidgetsBinding.instance.addObserver(this);
+    SiteUnreadService.instance.isOnScreen = _isSiteOnScreen;
     _restoreAppState();
     _refreshPinnedSiteIds();
     _probeAppIntents();
@@ -1616,7 +1619,16 @@ class _WebSpacePageState extends State<WebSpacePage>
     _torStatusSub?.cancel();
     surfaceRouteObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
+    SiteUnreadService.instance.isOnScreen = null;
     super.dispose();
+  }
+
+  bool _isSiteOnScreen(String siteId) {
+    final i = _currentIndex;
+    return i != null &&
+        i < _webViewModels.length &&
+        _webViewModels[i].siteId == siteId &&
+        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
   }
 
   @override
@@ -1881,6 +1893,10 @@ class _WebSpacePageState extends State<WebSpacePage>
     } else if (state == AppLifecycleState.resumed) {
       if (_maskBackground) {
         setState(() => _maskBackground = false);
+      }
+      final current = _currentIndex;
+      if (current != null && current < _webViewModels.length) {
+        SiteUnreadService.instance.markSeen(_webViewModels[current].siteId);
       }
       // BGAUDIO-012: hand the page's own visibility back. On screen again, a
       // player that pauses when hidden should behave exactly as it always has.
@@ -3657,6 +3673,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     // entries written by builds that predate the override — and
     // entries that any future code path forgets to gate).
     for (final sid in slice.siteIds) {
+      SiteUnreadService.instance.forget(sid);
       await _stateStorage.removeState(sid);
       await _cookieSecureStorage.saveCookiesForSite(sid, const []);
       await HtmlCacheService.instance.deleteCache(sid);
@@ -4683,6 +4700,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (version != _setCurrentIndexVersion) return;
 
     _currentIndex = index;
+    SiteUnreadService.instance.markSeen(_webViewModels[index].siteId);
     // Bump to end of insertion order so iteration over _loadedIndices is
     // least-recently-used first (consumed by the LRU eviction above).
     _loadedIndices.remove(index);
@@ -6972,6 +6990,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     await HtmlImportStorage.instance.removeOrphanedImports(activeSiteIds);
     await BlockStatsService.instance.removeOrphanedSites(activeSiteIds);
     await SiteIconStore.instance.removeOrphans(_siteIconUrlsToKeep());
+    SiteUnreadService.instance.retainOnly(activeSiteIds);
 
     // Apply theme to all webviews
     final webViewTheme = _themeModeToWebViewTheme(_themeSettings.themeMode);
@@ -7304,6 +7323,11 @@ class _WebSpacePageState extends State<WebSpacePage>
     return '$modeName $colorName';
   }
 
+  List<String> _unreadIndicatorSiteIds() => [
+        for (final i in _getFilteredSiteIndices())
+          if (i < _webViewModels.length) _webViewModels[i].siteId,
+      ];
+
   AppBar _buildAppBar() {
     final loc = AppLocalizations.of(context);
     final currentModel =
@@ -7327,6 +7351,13 @@ class _WebSpacePageState extends State<WebSpacePage>
             ),
       // KIOSK-002: no leading menu button when locked.
       automaticallyImplyLeading: !_kioskLocked,
+      leading: _kioskLocked
+          ? null
+          : IconButton(
+              icon: UnreadMenuIcon(siteIds: _unreadIndicatorSiteIds()),
+              tooltip: MaterialLocalizations.of(context).openAppDrawerTooltip,
+              onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+            ),
       title: _currentIndex != null && _currentIndex! < _webViewModels.length
           ? GestureDetector(
               onDoubleTap: _toggleFullscreen,
@@ -7946,6 +7977,10 @@ class _WebSpacePageState extends State<WebSpacePage>
                     : theme.colorScheme.onSurface.withOpacity(0.8),
               ),
             ),
+          ),
+          SiteUnreadBadge(
+            siteId: siteModel.siteId,
+            padding: const EdgeInsetsDirectional.only(start: 6),
           ),
         ],
       ),
@@ -8928,6 +8963,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     await _stateStorage.removeOrphans(activeSiteIds);
     await BlockStatsService.instance.removeOrphanedSites(activeSiteIds);
     await SiteIconStore.instance.removeOrphans(_siteIconUrlsToKeep());
+    SiteUnreadService.instance.retainOnly(activeSiteIds);
 
     // Deletion may have just removed the last notification site; tear
     // down the background refresh schedule if so. No-op on other
@@ -9273,23 +9309,33 @@ class _WebSpacePageState extends State<WebSpacePage>
           child: isWide
               ? Row(
                   children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        color: theme.colorScheme.surfaceContainerHighest,
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: Center(
-                        child: UnifiedFaviconImage(
-                          url: _webViewModels[index].initUrl,
-                          size: 28,
-                          proxy: _webViewModels[index].outboundProxySettings,
-                          customIcon: _webViewModels[index].customIconPng,
-                          persist: !_webViewModels[index].isArchiveTier,
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            color: theme.colorScheme.surfaceContainerHighest,
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: Center(
+                            child: UnifiedFaviconImage(
+                              url: _webViewModels[index].initUrl,
+                              size: 28,
+                              proxy: _webViewModels[index].outboundProxySettings,
+                              customIcon: _webViewModels[index].customIconPng,
+                              persist: !_webViewModels[index].isArchiveTier,
+                            ),
+                          ),
                         ),
-                      ),
+                        PositionedDirectional(
+                          top: -4,
+                          start: -4,
+                          child: SiteUnreadBadge(siteId: _webViewModels[index].siteId),
+                        ),
+                      ],
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -9371,6 +9417,13 @@ class _WebSpacePageState extends State<WebSpacePage>
                               overlay: true,
                             ),
                           ),
+                        ),
+                        // Top-start, not the usual top-end: the reorderable
+                        // tile's overflow button sits over the top-end corner.
+                        PositionedDirectional(
+                          top: -4,
+                          start: -4,
+                          child: SiteUnreadBadge(siteId: _webViewModels[index].siteId),
                         ),
                       ],
                     ),

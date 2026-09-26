@@ -67,6 +67,7 @@ import 'package:webspace/services/media_session_shim.dart';
 import 'package:webspace/services/media_session_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/notification_service.dart';
+import 'package:webspace/services/site_unread_service.dart';
 import 'package:webspace/services/user_script_service.dart';
 import 'package:webspace/settings/camera.dart';
 import 'package:webspace/settings/screen_share.dart';
@@ -3772,6 +3773,7 @@ class WebViewFactory {
           // otherwise attribute a notification (and its tap-target site
           // switch) to another site the user never granted permission to.
           final siteId = config.siteId!;
+          SiteUnreadService.instance.recordNotification(siteId, tag: tag);
           await NotificationService.instance.show(
             siteId: siteId,
             title: title,

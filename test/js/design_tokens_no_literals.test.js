@@ -34,6 +34,8 @@ const MIGRATED = [
   'lib/widgets/unproxied_block.dart',
   'lib/widgets/proxy_auth_section.dart',
   'lib/widgets/proxy_test_tile.dart',
+  // Badge defaults only: nothing to tokenise.
+  'lib/widgets/site_unread_badge.dart',
 ];
 
 const PENDING = [

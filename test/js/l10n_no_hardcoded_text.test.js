@@ -51,6 +51,7 @@ const migrated = new Set([
   'lib/widgets/level_slider.dart',
   'lib/widgets/root_messenger.dart',
   'lib/widgets/site_permission_badges.dart',
+  'lib/widgets/site_unread_badge.dart',
   'lib/widgets/stats_banner.dart',
   // Ambient layout state for the repaint nudge: no user-facing strings.
   'lib/widgets/surface_nudge_scope.dart',
