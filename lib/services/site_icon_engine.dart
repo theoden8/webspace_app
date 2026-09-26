@@ -62,9 +62,16 @@ String? siteIconHost(String? url) {
 /// Android's `onReceivedIcon` carries only a bitmap: no URL, no document. It
 /// fires once per `rel=icon` candidate in download-completion order, again
 /// whenever the page edits its icon links, and for whatever document is
-/// loaded. Blink announces a document's icons only after its load event, so
-/// an icon arriving while a main-frame load is in flight belongs to the
-/// document being replaced.
+/// loaded.
+///
+/// While a main-frame load is in flight an icon can belong to either of two
+/// documents. The replaced one may still have downloads out. The loading one
+/// announces its icons after its load event, and WebView calls
+/// `onReceivedIcon` from native code while it posts `onPageFinished` from
+/// `didStopLoading`, so the loading document's own icon can come first. No
+/// callback orders the two, so a mid-load icon is taken only when it is the
+/// site's whichever document it came from. `onLoadStart` is posted at commit
+/// with the committed URL, so the loading document's host is known by then.
 class SiteIconEngine {
   SiteIconEngine(String siteUrl) : _siteHost = siteIconHost(siteUrl);
 
@@ -73,6 +80,8 @@ class SiteIconEngine {
   bool _onSite = false;
   bool _iconLinksChanged = false;
   int _documentBestEdge = 0;
+  bool _documentIsWeb = false;
+  bool _replacedIconsAreSites = true;
 
   bool _matchesSite(String? url) {
     final host = siteIconHost(url);
@@ -80,15 +89,22 @@ class SiteIconEngine {
   }
 
   void onLoadStarted(String? url) {
+    // A page that is not http(s) announces no icons of its own, so what may
+    // still be in flight is from the page before it.
+    if (_documentIsWeb) {
+      _replacedIconsAreSites = _onSite && !_iconLinksChanged;
+    }
     _loading = true;
     _onSite = _matchesSite(url);
     _iconLinksChanged = false;
     _documentBestEdge = 0;
+    _documentIsWeb = siteIconHost(url) != null;
   }
 
   void onLoadFinished(String? url) {
     _loading = false;
     _onSite = _matchesSite(url);
+    _documentIsWeb = siteIconHost(url) != null;
   }
 
   /// The top document edited its icon links after the set Blink announced
@@ -101,7 +117,8 @@ class SiteIconEngine {
   /// The icon to report for [png], or null when it is not this site's icon
   /// or does not beat one this document already produced.
   SiteIcon? onIcon(Uint8List png) {
-    if (_loading || !_onSite || _iconLinksChanged) return null;
+    if (!_onSite || _iconLinksChanged) return null;
+    if (_loading && !_replacedIconsAreSites) return null;
     final size = pngDimensions(png);
     if (size == null) return null;
     final icon = SiteIcon(png, size.width, size.height);
