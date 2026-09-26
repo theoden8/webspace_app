@@ -7,27 +7,12 @@
 // load event, only in the main frame. Whether Chrome re-requests icons on the
 // same edits is pinned against a real engine in
 // test/browser/icon_link_watcher_real.test.js.
-//
-// It also reports each top document's start and its load event under one
-// token, so the engine takes icons from the load event on rather than from
-// onLoadStop, which WebView can deliver after the icon (ICON-009).
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { makeDom, readFixture, runInDom } = require('./helpers/load_shim');
 
 const HANDLER = 'wsIconLinksChanged';
-const DOCUMENT = 'wsIconDocument';
-
-function stubBridge(window, calls, docs) {
-  window.flutter_inappwebview = {
-    callHandler(name, ...args) {
-      if (name === DOCUMENT) docs.push(args);
-      else calls.push(name);
-      return Promise.resolve();
-    },
-  };
-}
 
 function boot(headHtml = '') {
   const dom = makeDom({
@@ -35,10 +20,14 @@ function boot(headHtml = '') {
     html: `<!doctype html><html><head>${headHtml}</head><body></body></html>`,
   });
   const calls = [];
-  const docs = [];
-  stubBridge(dom.window, calls, docs);
+  dom.window.flutter_inappwebview = {
+    callHandler(name) {
+      calls.push(name);
+      return Promise.resolve();
+    },
+  };
   runInDom(dom, readFixture('icon_link_watcher/shim.js'));
-  return { dom, calls, docs };
+  return { dom, calls };
 }
 
 function loaded(dom) {
@@ -135,78 +124,3 @@ test('defines no globals', async () => {
     .filter((k) => !baseline.has(k) && k !== 'flutter_inappwebview');
   assert.deepEqual(added, []);
 });
-
-test('reports the document start at once and its load event, under one token',
-  async () => {
-    const { dom, docs } = boot('<link rel="icon" href="/a.png">');
-    assert.equal(docs.length, 1);
-    const [phase, token] = docs[0];
-    assert.equal(phase, 'started');
-    assert.equal(typeof token, 'string');
-    assert.ok(token.length >= 8, token);
-    await loaded(dom);
-    assert.deepEqual(docs, [['started', token], ['loaded', token]]);
-  });
-
-test('the load report is made inside the load event, ahead of later listeners',
-  async () => {
-    const { dom, docs } = boot('<link rel="icon" href="/a.png">');
-    let seenByPage;
-    dom.window.addEventListener('load', () => {
-      seenByPage = docs.map(([phase]) => phase);
-    });
-    await loaded(dom);
-    assert.deepEqual(seenByPage, ['started', 'loaded']);
-  });
-
-test('each document draws its own token', () => {
-  const first = boot().docs[0][1];
-  const second = boot().docs[0][1];
-  assert.notEqual(first, second);
-});
-
-test('a document already loaded reports its start and load together',
-  async () => {
-    const dom = makeDom();
-    await loaded(dom);
-    const calls = [];
-    const docs = [];
-    stubBridge(dom.window, calls, docs);
-    runInDom(dom, readFixture('icon_link_watcher/shim.js'));
-    assert.deepEqual(docs.map(([phase]) => phase), ['started', 'loaded']);
-    assert.equal(docs[0][1], docs[1][1]);
-  });
-
-test('a subframe reports nothing', async () => {
-  const dom = makeDom({
-    html: '<!doctype html><html><head></head><body><iframe></iframe></body></html>',
-  });
-  const frame = dom.window.document.querySelector('iframe').contentWindow;
-  const calls = [];
-  const docs = [];
-  stubBridge(frame, calls, docs);
-  frame.eval(readFixture('icon_link_watcher/shim.js'));
-  await loaded(dom);
-  assert.deepEqual(docs, []);
-  assert.deepEqual(calls, []);
-});
-
-test('a bridge that throws on the document report leaves the watcher running',
-  async () => {
-    const dom = makeDom({
-      html: '<!doctype html><html><head><link rel="icon" href="/a.png"></head><body></body></html>',
-    });
-    const calls = [];
-    dom.window.flutter_inappwebview = {
-      callHandler(name) {
-        if (name === DOCUMENT) throw new Error('bridge gone');
-        calls.push(name);
-        return Promise.resolve();
-      },
-    };
-    runInDom(dom, readFixture('icon_link_watcher/shim.js'));
-    await loaded(dom);
-    dom.window.document.querySelector('link').href = '/badge.png';
-    await tick();
-    assert.deepEqual(calls, [HANDLER]);
-  });

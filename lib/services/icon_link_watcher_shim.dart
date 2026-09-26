@@ -1,19 +1,8 @@
 /// JS handler the watcher calls when the top document edits its icon links.
 const String kIconLinksChangedHandler = 'wsIconLinksChanged';
 
-/// JS handler the watcher calls with `('started', token)` at document start
-/// and `('loaded', token)` from the document's `load` listener (ICON-009).
-const String kIconDocumentHandler = 'wsIconDocument';
-
 /// Reports, once per document, that the page changed its icon links after the
 /// set Blink announced (ICON-011).
-///
-/// Also reports when the document begins and when its load event runs, under
-/// a token drawn at document start. Blink announces icons only after every
-/// `load` listener has returned (`LocalFrame::UpdateFaviconURL` waits for
-/// `LoadEventFinished`), and the bridge call is synchronous up to Java, so the
-/// `loaded` report reaches the site-icon engine ahead of the document's first
-/// icon. `onLoadStop` does not: WebView can deliver the icon first.
 ///
 /// Blink sends a document's icon candidates only once its load event has
 /// finished, and again on every later edit to the `rel=icon` links that are
@@ -30,14 +19,6 @@ String buildIconLinkWatcherShim() => '''
 (function() {
   try {
     if (window !== window.top) return;
-    var token = Math.random().toString(36).slice(2) + Date.now().toString(36);
-    function report(phase) {
-      var iaw = window.flutter_inappwebview;
-      if (iaw && typeof iaw.callHandler === 'function') {
-        try { iaw.callHandler('$kIconDocumentHandler', phase, token); } catch (e) {}
-      }
-    }
-    report('started');
     function iconSet() {
       var head = document.head;
       if (!head) return '';
@@ -78,10 +59,7 @@ String buildIconLinkWatcherShim() => '''
         attributeFilter: ['href', 'rel', 'sizes', 'media', 'type']
       });
     }
-    function afterLoad() {
-      report('loaded');
-      setTimeout(watch, 0);
-    }
+    function afterLoad() { setTimeout(watch, 0); }
     if (document.readyState === 'complete') {
       afterLoad();
     } else {

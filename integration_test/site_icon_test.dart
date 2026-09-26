@@ -202,9 +202,9 @@ void main() {
         done: (a) => a.contains(expected('/multi/192.png')));
     expect(requested, contains('127.0.0.1/multi/16.png'),
         reason: 'WebView downloads every rel=icon candidate');
-    // 32 lands first and is taken even when it beats onLoadStop, since the
-    // page reported its load event before Blink announced it; 192 replaces
-    // it; 16 lands last and is under the floor.
+    // 32 lands first and is taken even when it beats onLoadStop: this is the
+    // webview's first page, so no other page's icon can be in flight. 192
+    // replaces it; 16 lands last and is under the floor.
     expect(accepted,
         [expected('/multi/32.png'), expected('/multi/192.png')]);
   }, skip: !Platform.isAndroid);

@@ -4447,23 +4447,6 @@ class WebViewFactory {
               return null;
             },
           );
-          controller.addJavaScriptHandler(
-            handlerName: kIconDocumentHandler,
-            callback: (inapp.JavaScriptHandlerFunctionData call) {
-              final args = call.args;
-              if (!call.isMainFrame || args.length < 2) return null;
-              final token = args[1];
-              if (token is! String) return null;
-              final url = call.requestUrl.toString();
-              switch (args[0]) {
-                case 'started':
-                  iconEngine.onDocumentStarted(url, token);
-                case 'loaded':
-                  iconEngine.onDocumentLoaded(url, token);
-              }
-              return null;
-            },
-          );
         }
         // Cached-HTML → live-URL swap is wired up in onLoadStop below.
         // Don't fire loadUrl here — `onWebViewCreated` runs while chromium

@@ -14,10 +14,10 @@ download-completion order, again whenever the page edits its icon links, and
 for whatever document is loaded. `SiteIconEngine` therefore takes an icon only
 when all of these hold:
 
-- the document on screen has run its load event (Blink announces a
-  document's icons only after its load event, so an icon arriving after a
-  main-frame load started and before that document's load event belongs to the
-  document being replaced);
+- while a main-frame load is in flight, both documents the icon can belong
+  to are the site's: the loading document and the one it replaced are each on
+  the site's host and neither has edited its icon links (a document that is
+  not http(s) announces no icons, so the one before it counts instead);
 - the loaded document is http(s) and on the site's host, with a leading `www.`
   folded (sharing the registrable domain is not enough: a login bounce to
   `accounts.example.com` shows that host's icon, not the site's);
@@ -25,21 +25,15 @@ when all of these hold:
 - it is at least the ICON-010 floor and larger than any icon this document
   already produced.
 
-The load event is the one the page reports, not `onLoadStop`. Blink
-announces icons only after every `load` listener has returned
-(`LocalFrame::UpdateFaviconURL` waits for `LoadEventFinished`) and reports the
-load finished after that, and WebView posts `onPageFinished` while the icon
-travels over IPC, so a page's own icon can reach the engine before
-`onLoadStop`. The icon-link watcher (ICON-011) therefore reports each top
-document twice under a token it draws at document start: `started` at document
-start and `loaded` from its `load` listener. The bridge call reaches Java before
-`callHandler` returns, so the `loaded` report is queued ahead of every icon
-Blink announces for that document. The engine pairs the reports with WebView's
-`onLoadStart` by origin, in either order, since `history.pushState` cannot
-change the origin; ignores a `loaded` report whose token is not the current
-document's; and falls back to `onLoadStop` for a document that reports nothing.
-`onLoadStop` of a replaced document does not open a document that has already
-reported its start.
+A mid-load icon cannot be told apart by timing. The replaced document may
+still have downloads out, and the loading document announces its icons after
+its load event, which WebView can report after the icon: `onReceivedIcon` is
+called from native code, while `onPageFinished` is posted from
+`didStopLoading`. `onLoadStart` is posted at commit with the committed URL (for
+every navigation of an app other than GMS), so the loading document's host is
+known by then. A first page, or a page after a page of the site, therefore
+keeps its own icon wherever it lands; a page after another host's page or after
+a badge swap waits for `onLoadStop`.
 
 Chromium downloads icons only while a process-wide flag is set, and the one
 public way to set it is `WebIconDatabase.getInstance().open(path)`
@@ -74,16 +68,18 @@ property either.
 
 #### Scenario: An icon that lands before onLoadStop is taken
 
-**Given** a site page whose only icon is a 48px `rel=icon`
-**And** the page reported its load event
+**Given** a site page whose only icon is 48px
+**And** it is the webview's first page, or the page before it was on the
+site's host and kept its icon links
 **When** the webview reports the icon before `onLoadStop`
 **Then** the site's icon is the 48px one
 
-#### Scenario: A replaced document's late icon is not taken
+#### Scenario: A mid-load icon after another host's page is not taken
 
-**Given** a site page that loaded and reported its load event
-**When** the webview starts loading the next page and reports an icon before
-that page's load event
+**Given** a site whose home is `https://mail.example.com/`
+**And** its webview showed `https://accounts.example.com/login`
+**When** it starts loading `https://mail.example.com/` and reports an icon
+before `onLoadStop`
 **Then** the site's icon does not change
 
 #### Scenario: Another host's icon is not the site's

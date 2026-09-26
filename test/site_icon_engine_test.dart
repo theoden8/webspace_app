@@ -68,15 +68,68 @@ void main() {
       expect(engine.onIcon(png(kMinSiteIconEdge))?.edge, kMinSiteIconEdge);
     });
 
-    test('drops icons while a main-frame load is in flight', () {
+    test('takes the first page\'s own icon before onLoadStop', () {
       final engine = SiteIconEngine('https://example.com/')
         ..onLoadStarted('https://example.com/');
-      expect(engine.onIcon(png(64)), isNull);
+      expect(engine.onIcon(png(64))?.edge, 64,
+          reason: 'WebView can report the icon before onPageFinished');
       engine.onLoadFinished('https://example.com/');
+      expect(engine.onIcon(png(128))?.edge, 128);
+    });
+
+    test('takes a mid-load icon after a page of the site', () {
+      final engine = loadedEngine('https://example.com/', 'https://example.com/')
+        ..onLoadStarted('https://example.com/next');
+      expect(engine.onIcon(png(64))?.edge, 64,
+          reason: 'either page it came from is the site\'s');
+    });
+
+    test('drops a mid-load icon after another host\'s page', () {
+      final engine = loadedEngine(
+          'https://mail.example.com/', 'https://accounts.example.com/login')
+        ..onLoadStarted('https://mail.example.com/');
+      expect(engine.onIcon(png(64)), isNull,
+          reason: 'it may be the login page\'s icon, still in flight');
+      engine.onLoadFinished('https://mail.example.com/');
       expect(engine.onIcon(png(64))?.edge, 64);
-      engine.onLoadStarted('https://example.com/next');
-      expect(engine.onIcon(png(128)), isNull,
-          reason: 'a late icon from the previous document');
+    });
+
+    test('drops a mid-load icon after the page swapped in a badge', () {
+      final engine = loadedEngine('https://example.com/', 'https://example.com/')
+        ..onIconLinksChanged()
+        ..onLoadStarted('https://example.com/next');
+      expect(engine.onIcon(png(64)), isNull);
+      engine.onLoadFinished('https://example.com/next');
+      expect(engine.onIcon(png(64))?.edge, 64);
+    });
+
+    test('a page left before it finished still counts as replaced', () {
+      final engine = SiteIconEngine('https://example.com/')
+        ..onLoadStarted('https://other.test/')
+        ..onLoadStarted('https://example.com/');
+      expect(engine.onIcon(png(64)), isNull);
+    });
+
+    test('a non-web page leaves the decision to the page before it', () {
+      final afterSite =
+          loadedEngine('https://example.com/', 'https://example.com/')
+            ..onLoadStarted('about:blank')
+            ..onLoadFinished('about:blank')
+            ..onLoadStarted('https://example.com/next');
+      expect(afterSite.onIcon(png(64))?.edge, 64);
+
+      final afterOther =
+          loadedEngine('https://example.com/', 'https://other.test/')
+            ..onLoadStarted('about:blank')
+            ..onLoadFinished('about:blank')
+            ..onLoadStarted('https://example.com/');
+      expect(afterOther.onIcon(png(64)), isNull);
+    });
+
+    test('a loading page on another host takes nothing', () {
+      final engine = loadedEngine('https://example.com/', 'https://example.com/')
+        ..onLoadStarted('https://other.test/');
+      expect(engine.onIcon(png(64)), isNull);
     });
 
     test('drops icons of a document on another host', () {
@@ -125,115 +178,6 @@ void main() {
         ..onLoadStarted('https://example.com/')
         ..onLoadFinished('https://example.com/');
       expect(engine.onIcon(png(64))?.edge, 64);
-    });
-  });
-
-  group('SiteIconEngine document reports (ICON-009)', () {
-    const site = 'https://example.com/';
-
-    test('an icon that lands between the load event and onLoadStop is taken',
-        () {
-      final engine = SiteIconEngine(site)
-        ..onLoadStarted(site)
-        ..onDocumentStarted(site, 't1');
-      expect(engine.onIcon(png(64)), isNull,
-          reason: 'before the load event the icon is the replaced document\'s');
-      engine.onDocumentLoaded(site, 't1');
-      expect(engine.onIcon(png(64))?.edge, 64);
-      engine.onLoadFinished(site);
-      expect(engine.onIcon(png(128))?.edge, 128);
-    });
-
-    test('reports that beat WebView\'s load start still count', () {
-      final both = SiteIconEngine(site)
-        ..onDocumentStarted(site, 't1')
-        ..onDocumentLoaded(site, 't1')
-        ..onLoadStarted(site);
-      expect(both.onIcon(png(64))?.edge, 64);
-
-      final startOnly = SiteIconEngine(site)
-        ..onDocumentStarted(site, 't1')
-        ..onLoadStarted(site);
-      expect(startOnly.onIcon(png(64)), isNull);
-      startOnly.onDocumentLoaded(site, 't1');
-      expect(startOnly.onIcon(png(64))?.edge, 64);
-    });
-
-    test('a replaced document reporting its load late is ignored', () {
-      final engine = SiteIconEngine(site)
-        ..onLoadStarted(site)
-        ..onDocumentStarted(site, 't1')
-        ..onLoadStarted('${site}next')
-        ..onDocumentStarted('${site}next', 't2')
-        ..onDocumentLoaded(site, 't1');
-      expect(engine.onIcon(png(64)), isNull);
-      engine.onDocumentLoaded('${site}next', 't2');
-      expect(engine.onIcon(png(64))?.edge, 64);
-    });
-
-    test('a new load drops the reported document even before it reports', () {
-      final engine = SiteIconEngine(site)
-        ..onLoadStarted(site)
-        ..onDocumentStarted(site, 't1')
-        ..onDocumentLoaded(site, 't1')
-        ..onLoadFinished(site)
-        ..onLoadStarted('${site}next');
-      expect(engine.onIcon(png(64)), isNull,
-          reason: 'a late icon from the previous document');
-      engine.onDocumentLoaded(site, 't1');
-      expect(engine.onIcon(png(64)), isNull);
-    });
-
-    test('the replaced document\'s onLoadStop does not open the next one', () {
-      final engine = SiteIconEngine(site)
-        ..onLoadStarted(site)
-        ..onDocumentStarted(site, 't1')
-        ..onDocumentStarted('${site}next', 't2')
-        ..onLoadFinished(site);
-      expect(engine.onIcon(png(64)), isNull);
-      engine
-        ..onLoadStarted('${site}next')
-        ..onDocumentLoaded('${site}next', 't2');
-      expect(engine.onIcon(png(64))?.edge, 64);
-    });
-
-    test('a document that never reports falls back to onLoadStop', () {
-      final engine = SiteIconEngine(site)
-        ..onLoadStarted(site)
-        ..onDocumentStarted(site, 't1')
-        ..onDocumentLoaded(site, 't1')
-        ..onLoadFinished(site)
-        ..onLoadStarted('${site}image.png');
-      expect(engine.onIcon(png(64)), isNull);
-      engine.onLoadFinished('${site}image.png');
-      expect(engine.onIcon(png(64))?.edge, 64);
-    });
-
-    test('the load report decides the host, and pushState does not unpair it',
-        () {
-      final away = SiteIconEngine(site)
-        ..onLoadStarted('https://accounts.example.com/login')
-        ..onDocumentStarted('https://accounts.example.com/login', 't1')
-        ..onDocumentLoaded('https://accounts.example.com/login', 't1');
-      expect(away.onIcon(png(64)), isNull);
-
-      final routed = SiteIconEngine(site)
-        ..onDocumentStarted(site, 't1')
-        ..onDocumentLoaded('${site}app/inbox', 't1')
-        ..onLoadStarted(site);
-      expect(routed.onIcon(png(64))?.edge, 64);
-    });
-
-    test('an icon-link edit still ends the document early', () {
-      final engine = SiteIconEngine(site)
-        ..onLoadStarted(site)
-        ..onDocumentStarted(site, 't1')
-        ..onDocumentLoaded(site, 't1');
-      expect(engine.onIcon(png(32))?.edge, 32);
-      engine.onIconLinksChanged();
-      expect(engine.onIcon(png(192)), isNull);
-      engine.onLoadFinished(site);
-      expect(engine.onIcon(png(192)), isNull);
     });
   });
 
