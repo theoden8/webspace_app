@@ -1609,6 +1609,14 @@
   "@appSettingsExperimentalTextureRenderingHint": {
     "description": "Explanation behind the hint button of the Android-only Texture page rendering switch in the Experimental group of App Settings: what the mode does, what problem it may fix, what is less tested, and that it applies after a restart."
   },
+  "appSettingsExperimentalSiteTabs": "Site tabs",
+  "@appSettingsExperimentalSiteTabs": {
+    "description": "Title of the switch in App settings > Developer > Experimental that turns on tabs inside a site: several pages of one site kept open at once, like browser tabs."
+  },
+  "appSettingsExperimentalSiteTabsHint": "Lets a site keep several pages at once, like browser tabs: a tab list from the tab count at the top, New tab and Duplicate tab in the menu, and Open in new tab when you hold a link. Every tab of a site shares that site's sign-in and settings. Off, each site shows one page, as before; tabs you already opened are kept for when you turn it back on.",
+  "@appSettingsExperimentalSiteTabsHint": {
+    "description": "Explanation behind the hint button of the Site tabs switch in App settings > Developer > Experimental. 'Hold a link' means a long press on a link in a page."
+  },
   "appSettingsDeveloperModeTorWarningConfirm": "Turn off",
   "@appSettingsDeveloperModeTorWarningConfirm": {
     "description": "Button that confirms turning Developer mode off even though it will block sites set to use Tor."

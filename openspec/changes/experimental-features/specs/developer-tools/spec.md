@@ -19,6 +19,7 @@ The features are:
 | Android's per-site proxy router (`proxy` PROXY-013) | Proxy router | on | `ProxyRouterService.isSupported`, read once at launch |
 | Page icons fetched from the links a site's page declares, on iOS, macOS and Linux (`icon-fetching` ICON-013) | Page icons | off | `WebViewFactory.createWebView`, read when a site's webview is created |
 | Android's texture page rendering (`webview-pause-lifecycle` PAUSE-032) | Texture page rendering | off | `WebViewFactory.hybridComposition`, read once at launch |
+| Tabs inside a site (`inactive-tabs` TAB-012) | Site tabs | off | `_tabsEnabled` in `main.dart`, read on every use |
 
 Outbound link routing (`link-intent-routing` LIR-013 to LIR-017) was in the group with a switch that defaulted off; it graduated with the site info sheet (`site-info-sheet`, NAV-011), which shows the site and container a routed page runs as.
 
