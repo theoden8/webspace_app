@@ -310,8 +310,17 @@ void main() {
         reason: 'the retry keeps the username that was typed');
 
     await tester.enterText(find.byType(TextField).at(1), _password);
+    // The retry dialog carries the refusal line and the keyboard is up for
+    // the password, so the remember row can sit below the dialog's scroll
+    // viewport, where a tap at its centre lands on the viewport instead.
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.ensureVisible(find.byType(Checkbox));
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.byType(Checkbox));
     await tester.pump();
+    expect(tester.widget<Checkbox>(find.byType(Checkbox)).value, isTrue,
+        reason: 'the remember box must be ticked before signing in');
     await tester.tap(find.widgetWithText(TextButton, 'Sign in'));
     // The probe runs in runAsync, which pumps no frames, so the dialog's exit
     // animation would still be in the tree when it returns.
