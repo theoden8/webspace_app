@@ -117,6 +117,8 @@ const Map<String, String> _renamedKeys = {
 /// it is intended. Anything else a release wrote must still be read.
 const Map<String, String> _retiredKeys = {
   'trustedHosts': 'BACKUP-010: a TLS pin never rides a backup',
+  'blockAutoRedirects': 'NESTED-004: every site blocks gesture-less '
+      'cross-domain navigations; there is no per-site switch to restore',
 };
 
 /// Keys checked by hand below rather than by the generic oracle.

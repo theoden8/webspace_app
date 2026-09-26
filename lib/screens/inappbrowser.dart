@@ -154,13 +154,6 @@ class InAppWebViewScreen extends StatefulWidget {
   /// shown in this nested webview.
   final ExternalLinkMode externalLinkMode;
 
-  /// Inherited script-initiated-redirect block. Judged against the page
-  /// currently shown here, not the opening site's home URL: a nested screen
-  /// is one hop deep already, and without this a single tap on an outbound
-  /// link buys unlimited gesture-less cross-origin hops inside the parent's
-  /// container.
-  final bool blockAutoRedirects;
-
   /// Cookies the opening site blocks. Deleted from the jar after every load
   /// here too — the nested webview shares the parent's container, so a
   /// blocked cookie re-set through an outbound link would come back.
@@ -229,7 +222,6 @@ class InAppWebViewScreen extends StatefulWidget {
     UserProxySettings? proxySettings,
     this.notificationsEnabled = false,
     this.externalLinkMode = ExternalLinkMode.inApp,
-    this.blockAutoRedirects = false,
     this.blockedCookies = const {},
     this.cookieManager,
     this.containerCookieManager,
@@ -647,51 +639,45 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
           }
         },
         // Same decision engine as the parent webview, judged against the
-        // page shown here (NESTED-009 for the external-link mode, NESTED-010
-        // for blockAutoRedirects). A nested screen has nowhere further to
-        // nest, so `blockOpenNested` navigates in place. Null when neither
-        // setting is on, so default behaviour is byte-identical.
-        shouldOverrideUrlLoading:
-            (widget.externalLinkMode != ExternalLinkMode.inApp ||
-                    widget.blockAutoRedirects)
-                ? (url, hasGesture) {
-                    final result = NavigationDecisionEngine
-                        .decideShouldOverrideUrlLoading(
-                      targetUrl: url,
-                      initUrl: _currentUrl,
-                      hasGesture: hasGesture,
-                      blockAutoRedirects: widget.blockAutoRedirects,
-                      isSiteActive: mounted,
-                      lastSameDomainGestureTime: _lastSameDomainGestureTime,
-                      now: DateTime.now(),
-                      externalLinkMode: widget.externalLinkMode,
-                    );
-                    switch (result.gestureUpdate) {
-                      case GestureStateUpdate.record:
-                        _lastSameDomainGestureTime = DateTime.now();
-                        break;
-                      case GestureStateUpdate.consume:
-                        _lastSameDomainGestureTime = null;
-                        break;
-                      case null:
-                        break;
-                    }
-                    switch (result.decision) {
-                      case NavigationDecision.allow:
-                      case NavigationDecision.blockOpenNested:
-                        return true;
-                      case NavigationDecision.blockSilent:
-                      case NavigationDecision.blockSuppressed:
-                        return false;
-                      case NavigationDecision.blockOpenExternal:
-                        launchUrlInSystemBrowser(url);
-                        return false;
-                      case NavigationDecision.blockOutbound:
-                        if (result.hadGesture) showExternalLinkBlocked(url);
-                        return false;
-                    }
-                  }
-                : null,
+        // page shown here (NESTED-009 for the external-link mode, NESTED-004
+        // for gesture-less hops). A nested screen has nowhere further to
+        // nest, so `blockOpenNested` navigates in place.
+        shouldOverrideUrlLoading: (url, hasGesture) {
+          final result = NavigationDecisionEngine
+              .decideShouldOverrideUrlLoading(
+            targetUrl: url,
+            initUrl: _currentUrl,
+            hasGesture: hasGesture,
+            isSiteActive: mounted,
+            lastSameDomainGestureTime: _lastSameDomainGestureTime,
+            now: DateTime.now(),
+            externalLinkMode: widget.externalLinkMode,
+          );
+          switch (result.gestureUpdate) {
+            case GestureStateUpdate.record:
+              _lastSameDomainGestureTime = DateTime.now();
+              break;
+            case GestureStateUpdate.consume:
+              _lastSameDomainGestureTime = null;
+              break;
+            case null:
+              break;
+          }
+          switch (result.decision) {
+            case NavigationDecision.allow:
+            case NavigationDecision.blockOpenNested:
+              return true;
+            case NavigationDecision.blockSilent:
+            case NavigationDecision.blockSuppressed:
+              return false;
+            case NavigationDecision.blockOpenExternal:
+              launchUrlInSystemBrowser(url);
+              return false;
+            case NavigationDecision.blockOutbound:
+              if (result.hadGesture) showExternalLinkBlocked(url);
+              return false;
+          }
+        },
         onWindowRequested: _showPopupWindow,
         onUntrustedCertificate: (host, port, cert) async {
           if (!mounted) return false;

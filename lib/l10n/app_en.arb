@@ -2206,22 +2206,6 @@
       }
     }
   },
-  "siteSettingsBlockAutoRedirects": "Block auto-redirects",
-  "@siteSettingsBlockAutoRedirects": {
-    "description": "Switch label for blocking script-initiated cross-domain redirects."
-  },
-  "siteSettingsBlockAutoRedirectsHintTitle": "Block Auto-Redirects",
-  "@siteSettingsBlockAutoRedirectsHintTitle": {
-    "description": "Hint title for the Block Auto-Redirects feature."
-  },
-  "siteSettingsBlockAutoRedirectsHint": "Prevents scripts from automatically navigating you to a different domain. This helps avoid being silently redirected to tracking or advertising pages.",
-  "@siteSettingsBlockAutoRedirectsHint": {
-    "description": "Hint body describing Block Auto-Redirects."
-  },
-  "siteSettingsBlockAutoRedirectsSubtitle": "Block script-initiated cross-domain navigations",
-  "@siteSettingsBlockAutoRedirectsSubtitle": {
-    "description": "Subtitle for the Block Auto-Redirects switch."
-  },
   "siteSettingsRouteOutboundLinks": "Route links to my sites",
   "@siteSettingsRouteOutboundLinks": {
     "description": "Switch label for a per-site setting: a link tapped in this site that another of the user's sites claims opens as that other site (with its login, cookies and settings) instead of in a window of this site."

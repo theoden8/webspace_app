@@ -450,7 +450,6 @@ typedef LaunchUrlFunc = void Function(
   UserProxySettings? proxySettings,
   bool notificationsEnabled,
   ExternalLinkMode externalLinkMode,
-  bool blockAutoRedirects,
   Set<BlockedCookie> blockedCookies,
   CameraAccessMode cameraMode,
   VirtualCameraSource? virtualCameraSource,
@@ -549,7 +548,6 @@ class WebViewModel {
   /// When false, the three sub-toggles act independently as before.
   bool trackingProtectionEnabled;
   bool localCdnEnabled; // Serve CDN resources from local cache for privacy
-  bool blockAutoRedirects; // Block script-initiated cross-domain navigations
   /// Where a cross-domain link that is not covered by this site's domain
   /// claims goes: a nested in-app webview (the default), the system browser
   /// (discussion #438) or nowhere (issue #629). Links to claimed domains
@@ -1023,7 +1021,6 @@ class WebViewModel {
     this.disabledFilterLists = const <String>{},
     this.trackingProtectionEnabled = true,
     this.localCdnEnabled = true,
-    this.blockAutoRedirects = true,
     this.externalLinkMode = ExternalLinkMode.inApp,
     this.fullscreenMode = false,
     this.blockScreenshots = false,
@@ -1503,7 +1500,6 @@ class WebViewModel {
               targetUrl: url,
               initUrl: initUrl,
               hasGesture: hasGesture,
-              blockAutoRedirects: blockAutoRedirects,
               isSiteActive: isActive?.call() ?? true,
               lastSameDomainGestureTime: lastSameDomainGestureTime,
               now: DateTime.now(),
@@ -1549,7 +1545,7 @@ class WebViewModel {
                   sensitivity: LogSensitivity.sensitive,
                 );
                 if (onOutboundLink?.call(url, result.decision, result.hadGesture) ?? false) return false;
-                launchUrlFunc(url, homeTitle: name, siteId: siteId, archiveContainerId: archiveContainerId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, httpsUpgradeEnabled: effectiveHttpsUpgradeEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, dnsBlockLevel: effectiveDnsBlockLevel, contentBlockEnabled: contentBlockEnabled, disabledFilterLists: effectiveDisabledFilterLists, localCdnEnabled: effectiveLocalCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: outboundProxySettings, notificationsEnabled: effectiveNotificationsEnabled, externalLinkMode: effectiveExternalLinkMode, blockAutoRedirects: blockAutoRedirects, blockedCookies: blockedCookies, cameraMode: effectiveCameraMode, virtualCameraSource: virtualCameraSource, microphoneMode: effectiveMicrophoneMode, virtualMicrophoneSource: virtualMicrophoneSource, screenShareMode: effectiveScreenShareMode, virtualScreenSource: virtualScreenSource, protectedContentAllowed: effectiveProtectedContentAllowed, httpAuthMemory: effectiveHttpAuthMemory);
+                launchUrlFunc(url, homeTitle: name, siteId: siteId, archiveContainerId: archiveContainerId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, httpsUpgradeEnabled: effectiveHttpsUpgradeEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, dnsBlockLevel: effectiveDnsBlockLevel, contentBlockEnabled: contentBlockEnabled, disabledFilterLists: effectiveDisabledFilterLists, localCdnEnabled: effectiveLocalCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: outboundProxySettings, notificationsEnabled: effectiveNotificationsEnabled, externalLinkMode: effectiveExternalLinkMode, blockedCookies: blockedCookies, cameraMode: effectiveCameraMode, virtualCameraSource: virtualCameraSource, microphoneMode: effectiveMicrophoneMode, virtualMicrophoneSource: virtualMicrophoneSource, screenShareMode: effectiveScreenShareMode, virtualScreenSource: virtualScreenSource, protectedContentAllowed: effectiveProtectedContentAllowed, httpAuthMemory: effectiveHttpAuthMemory);
                 return false;
               case NavigationDecision.blockOpenExternal:
                 LogService.instance.log(
@@ -1602,7 +1598,6 @@ class WebViewModel {
             final handled = NavigationDecisionEngine.handleOnUrlChanged(
               newUrl: url,
               initUrl: initUrl,
-              blockAutoRedirects: blockAutoRedirects,
               isSiteActive: isActive?.call() ?? true,
               lastSameDomainGestureTime: lastSameDomainGestureTime,
               now: DateTime.now(),
@@ -1667,7 +1662,7 @@ class WebViewModel {
                   );
                   if (handled.launchNestedUrl != null) {
                     if (onOutboundLink?.call(handled.launchNestedUrl!, NavigationDecision.blockOpenNested, handled.hadGesture) ?? false) return;
-                    launchUrlFunc(handled.launchNestedUrl!, homeTitle: name, siteId: siteId, archiveContainerId: archiveContainerId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, httpsUpgradeEnabled: effectiveHttpsUpgradeEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, dnsBlockLevel: effectiveDnsBlockLevel, contentBlockEnabled: contentBlockEnabled, disabledFilterLists: effectiveDisabledFilterLists, localCdnEnabled: effectiveLocalCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: outboundProxySettings, notificationsEnabled: effectiveNotificationsEnabled, externalLinkMode: effectiveExternalLinkMode, blockAutoRedirects: blockAutoRedirects, blockedCookies: blockedCookies, cameraMode: effectiveCameraMode, virtualCameraSource: virtualCameraSource, microphoneMode: effectiveMicrophoneMode, virtualMicrophoneSource: virtualMicrophoneSource, screenShareMode: effectiveScreenShareMode, virtualScreenSource: virtualScreenSource, protectedContentAllowed: effectiveProtectedContentAllowed, httpAuthMemory: effectiveHttpAuthMemory);
+                    launchUrlFunc(handled.launchNestedUrl!, homeTitle: name, siteId: siteId, archiveContainerId: archiveContainerId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, httpsUpgradeEnabled: effectiveHttpsUpgradeEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, dnsBlockLevel: effectiveDnsBlockLevel, contentBlockEnabled: contentBlockEnabled, disabledFilterLists: effectiveDisabledFilterLists, localCdnEnabled: effectiveLocalCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: outboundProxySettings, notificationsEnabled: effectiveNotificationsEnabled, externalLinkMode: effectiveExternalLinkMode, blockedCookies: blockedCookies, cameraMode: effectiveCameraMode, virtualCameraSource: virtualCameraSource, microphoneMode: effectiveMicrophoneMode, virtualMicrophoneSource: virtualMicrophoneSource, screenShareMode: effectiveScreenShareMode, virtualScreenSource: virtualScreenSource, protectedContentAllowed: effectiveProtectedContentAllowed, httpAuthMemory: effectiveHttpAuthMemory);
                   }
                   return;
                 case NavigationDecision.blockOpenExternal:
@@ -2544,7 +2539,6 @@ class WebViewModel {
         'contentBlockEnabled': contentBlockEnabled,
         'trackingProtectionEnabled': trackingProtectionEnabled,
         'localCdnEnabled': localCdnEnabled,
-        'blockAutoRedirects': blockAutoRedirects,
         if (externalLinkMode != ExternalLinkMode.inApp)
           'externalLinkMode': externalLinkMode.name,
         'fullscreenMode': fullscreenMode,
@@ -2685,7 +2679,6 @@ class WebViewModel {
       trackingProtectionEnabled:
           field<bool>('trackingProtectionEnabled') ?? true,
       localCdnEnabled: field<bool>('localCdnEnabled') ?? true,
-      blockAutoRedirects: field<bool>('blockAutoRedirects') ?? true,
       // `externalLinksInBrowser` is the bool this field replaced.
       externalLinkMode: externalLinkModeFromJson(
           json['externalLinkMode'], json['externalLinksInBrowser']),

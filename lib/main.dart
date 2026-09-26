@@ -3101,7 +3101,6 @@ class _WebSpacePageState extends State<WebSpacePage>
         proxySettings: model.outboundProxySettings,
         notificationsEnabled: model.effectiveNotificationsEnabled,
         externalLinkMode: model.effectiveExternalLinkMode,
-        blockAutoRedirects: model.blockAutoRedirects,
         blockedCookies: model.blockedCookies,
         cameraMode: model.effectiveCameraMode,
         virtualCameraSource: model.virtualCameraSource,
@@ -5973,7 +5972,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     UserProxySettings? proxySettings,
     bool notificationsEnabled = false,
     ExternalLinkMode externalLinkMode = ExternalLinkMode.inApp,
-    bool blockAutoRedirects = false,
     Set<BlockedCookie> blockedCookies = const {},
     CameraAccessMode cameraMode = CameraAccessMode.ask,
     VirtualCameraSource? virtualCameraSource,
@@ -6037,7 +6035,6 @@ class _WebSpacePageState extends State<WebSpacePage>
           proxySettings: proxySettings,
           notificationsEnabled: notificationsEnabled,
           externalLinkMode: externalLinkMode,
-          blockAutoRedirects: blockAutoRedirects,
           blockedCookies: blockedCookies,
           cookieManager: _cookieManager,
           containerCookieManager: _containerCookieManager,
@@ -8380,7 +8377,6 @@ class _WebSpacePageState extends State<WebSpacePage>
       if (turnsOff('dnsBlockEnabled')) loc.siteSettingsDnsBlocklist,
       if (turnsOff('contentBlockEnabled')) loc.siteSettingsContentBlocker,
       if (turnsOff('localCdnEnabled')) loc.siteSettingsLocalCdn,
-      if (turnsOff('blockAutoRedirects')) loc.siteSettingsBlockAutoRedirects,
       // A level below the app-wide one, or a filter list switched off, weakens
       // the blockers without turning either toggle off. Unnamed, a QR could
       // relax protection while the review reported nothing.

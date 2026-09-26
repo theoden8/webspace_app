@@ -55,7 +55,6 @@
       "contentBlockEnabled": false,
       "trackingProtectionEnabled": false,
       "localCdnEnabled": false,
-      "blockAutoRedirects": false,
       "externalLinkMode": "browser",
       "fullscreenMode": true,
       "blockScreenshots": true,

@@ -49,7 +49,7 @@ Outbound routing SHALL run for a navigation only when all of the following hold:
 
 1. The source site has `routeOutboundLinks == true` and its external-link mode is `inApp` (LIR-013).
 2. The navigation came from the source's own webview through `shouldOverrideUrlLoading` or `onUrlChanged`, and `NavigationDecisionEngine` returned `blockOpenNested`. `allow`, `blockSilent`, `blockSuppressed`, `blockOpenExternal` and `blockOutbound` are never routed. A nested `InAppWebViewScreen` does not route: it has nowhere further to nest and navigates in place (NESTED-010).
-3. The navigation carried an effective user gesture: the gesture flag of `shouldOverrideUrlLoading`, or the gesture propagation window (NESTED-007) that `NavigationDecisionEngine` already computes, which it SHALL return on its result. A gesture-less cross-domain navigation, reachable when `blockAutoRedirects` is off, SHALL NOT be routed, or a page could load a URL of its choosing inside another site's signed-in container without a click.
+3. The navigation carried an effective user gesture: the gesture flag of `shouldOverrideUrlLoading`, or the gesture propagation window (NESTED-007) that `NavigationDecisionEngine` already computes, which it SHALL return on its result. A gesture-less cross-domain navigation SHALL NOT be routed, or a page could load a URL of its choosing inside another site's signed-in container without a click. The navigation engine already blocks such a navigation on every site (NESTED-004), so this gate is a second line.
 4. The container engine is active. On the legacy engine a nested screen runs in the shared cookie jar (ISO-007), so a routed screen would carry neither the destination's cookies nor its isolation.
 5. The kiosk shell is not locked (KIOSK-001). A routed open is another site's signed-in identity, which a locked shell must not reach (KIOSK-002); links there take the navigation engine's path with the source's posture.
 
@@ -108,11 +108,11 @@ A resolution that names a destination (a preference, a global single, or a picke
 
 #### Scenario: A gesture-less navigation is not routed
 
-- **GIVEN** a DuckDuckGo site with `routeOutboundLinks` on and `blockAutoRedirects` off
+- **GIVEN** a DuckDuckGo site with `routeOutboundLinks` on
 - **AND** no same-domain gesture was recorded in the propagation window
 - **WHEN** a script navigates the page to `https://github.com/settings`
 - **THEN** no outbound resolution runs
-- **AND** the navigation takes today's path with DuckDuckGo's posture
+- **AND** the navigation is cancelled (NESTED-004)
 
 #### Scenario: A site behind the archive boundary is not a candidate
 

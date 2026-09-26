@@ -7,9 +7,8 @@ enum NavigationDecision {
   /// inline/about/captcha special cases that don't count as cross-domain).
   allow,
 
-  /// Cancel the navigation without any UI side-effect — the
-  /// `blockAutoRedirects` setting swallowed a script-initiated redirect
-  /// that had no user gesture.
+  /// Cancel the navigation without any UI side-effect: a cross-domain
+  /// navigation with no user gesture, which no site may make (NESTED-004).
   blockSilent,
 
   /// Cancel the navigation and don't open a nested webview because the
@@ -193,7 +192,7 @@ class NavigationDecisionEngine {
   ///     `hasGesture` is true so any cross-domain redirect within the
   ///     next 10 seconds can inherit it.
   ///   * cross-domain — consumes any pending gesture, then:
-  ///       * `blockAutoRedirects && !effectiveGesture` → [blockSilent]
+  ///       * `!effectiveGesture` → [blockSilent]
   ///       * `!isSiteActive` → [blockSuppressed]
   ///       * a target [matchesSiteClaim] covers → [blockOpenNested]
   ///       * otherwise by [externalLinkMode]: [blockOpenNested],
@@ -205,7 +204,6 @@ class NavigationDecisionEngine {
     required String targetUrl,
     required String initUrl,
     required bool hasGesture,
-    required bool blockAutoRedirects,
     required bool isSiteActive,
     required DateTime? lastSameDomainGestureTime,
     required DateTime now,
@@ -239,7 +237,7 @@ class NavigationDecisionEngine {
       gestureUpdate = GestureStateUpdate.consume;
     }
 
-    if (blockAutoRedirects && !effectiveGesture) {
+    if (!effectiveGesture) {
       return NavigationDecisionResult(
           NavigationDecision.blockSilent, gestureUpdate, effectiveGesture);
     }
@@ -259,8 +257,8 @@ class NavigationDecisionEngine {
   /// bypassed `shouldOverrideUrlLoading`. Caller interpretation:
   ///
   ///   * [allow] — no-op; URL is same-domain, an inline/about URI, or a
-  ///     recognized captcha challenge that already cleared the gesture and
-  ///     `blockAutoRedirects` checks; update `currentUrl` as normal.
+  ///     recognized captcha challenge that already cleared the gesture
+  ///     check; update `currentUrl` as normal.
   ///   * [blockSilent] — caller navigates the webview back to the last
   ///     same-domain URL and does nothing else.
   ///   * [blockSuppressed] — caller navigates back; the nested webview
@@ -274,14 +272,13 @@ class NavigationDecisionEngine {
   ///
   /// [isCaptchaChallenge] is injected so the engine doesn't duplicate
   /// the captcha domain list from `WebViewFactory`. It is consulted only
-  /// after the gesture / `blockAutoRedirects` verdict: a challenge flow that
+  /// after the gesture verdict: a challenge flow that
   /// the user reached must complete in the parent webview rather than a
   /// nested one, but a URL merely *shaped* like a challenge must not buy a
   /// gesture-less cross-origin navigation.
   static NavigationDecisionResult decideOnUrlChanged({
     required String newUrl,
     required String initUrl,
-    required bool blockAutoRedirects,
     required bool isSiteActive,
     required DateTime? lastSameDomainGestureTime,
     required DateTime now,
@@ -310,7 +307,7 @@ class NavigationDecisionEngine {
       gestureUpdate = GestureStateUpdate.consume;
     }
 
-    if (blockAutoRedirects && !hasRecentGesture) {
+    if (!hasRecentGesture) {
       return NavigationDecisionResult(
           NavigationDecision.blockSilent, gestureUpdate, hasRecentGesture);
     }
@@ -354,7 +351,6 @@ class NavigationDecisionEngine {
   static OnUrlChangedHandled handleOnUrlChanged({
     required String newUrl,
     required String initUrl,
-    required bool blockAutoRedirects,
     required bool isSiteActive,
     required DateTime? lastSameDomainGestureTime,
     required DateTime now,
@@ -370,7 +366,6 @@ class NavigationDecisionEngine {
       final result = decideOnUrlChanged(
         newUrl: newUrl,
         initUrl: initUrl,
-        blockAutoRedirects: blockAutoRedirects,
         isSiteActive: isSiteActive,
         lastSameDomainGestureTime: lastSameDomainGestureTime,
         now: now,

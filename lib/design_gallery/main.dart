@@ -702,7 +702,6 @@ class _SiteBehaviourCard extends StatelessWidget {
         kioskMode: false,
         fullscreenMode: false,
         htmlCachingEnabled: false,
-        blockAutoRedirects: true,
         externalLinkMode: ExternalLinkMode.inApp,
         routeOutboundLinks: true,
       ),

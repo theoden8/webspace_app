@@ -14,7 +14,6 @@ SiteBehaviourValues _values({
   bool kioskMode = false,
   bool fullscreenMode = false,
   bool htmlCaching = false,
-  bool blockAutoRedirects = true,
   ExternalLinkMode externalLinkMode = ExternalLinkMode.inApp,
   bool routeOutboundLinks = false,
   List<OutboundPreference> outboundPreferences = const [],
@@ -24,7 +23,6 @@ SiteBehaviourValues _values({
       kioskMode: kioskMode,
       fullscreenMode: fullscreenMode,
       htmlCachingEnabled: htmlCaching,
-      blockAutoRedirects: blockAutoRedirects,
       externalLinkMode: externalLinkMode,
       routeOutboundLinks: routeOutboundLinks,
       outboundPreferences: outboundPreferences,
@@ -70,19 +68,17 @@ SwitchListTile _switchTitled(WidgetTester tester, String title) {
   return tester.widget<SwitchListTile>(tile);
 }
 
-RadioListTile<ExternalLinkMode> _radioTitled(WidgetTester tester, String title) {
-  final tile = find.ancestor(
-    of: find.text(title),
-    matching: find.byType(RadioListTile<ExternalLinkMode>),
-  );
-  expect(tile, findsOneWidget, reason: 'no option titled "$title"');
-  return tester.widget<RadioListTile<ExternalLinkMode>>(tile);
-}
+Finder get _modeDropdown => find.byType(DropdownButton<ExternalLinkMode>);
 
-ExternalLinkMode? _selectedMode(WidgetTester tester) => tester
-    .widget<RadioGroup<ExternalLinkMode>>(
-        find.byType(RadioGroup<ExternalLinkMode>))
-    .groupValue;
+ExternalLinkMode? _selectedMode(WidgetTester tester) =>
+    tester.widget<DropdownButton<ExternalLinkMode>>(_modeDropdown).value;
+
+Future<void> _pickMode(WidgetTester tester, String label) async {
+  await tester.tap(_modeDropdown);
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(label).last);
+  await tester.pumpAndSettle();
+}
 
 void main() {
   group('SiteBehaviourValues', () {
@@ -116,7 +112,6 @@ void main() {
       'Kiosk mode',
       'Full screen mode',
       'HTML caching',
-      'Block auto-redirects',
       'Route links to my sites',
     ]) {
       expect(_switchTitled(tester, title).onChanged, isNotNull, reason: title);
@@ -125,16 +120,19 @@ void main() {
     expect(find.text('Link handling'), findsOneWidget);
     expect(find.text('Open external links in browser'), findsNothing,
         reason: 'the switch became the browser option of External links');
+    expect(find.text('Block auto-redirects'), findsNothing,
+        reason: 'every site blocks them; there is nothing to switch');
   });
 
   group('external links (BEHAV-004)', () {
-    testWidgets('one choice of three, explained behind its hint',
+    testWidgets('a dropdown of three, explained behind its hint',
         (tester) async {
       await _pump(tester, values: _values());
-      for (final option in const ['Open in the app', 'Open in browser', 'Block']) {
-        _radioTitled(tester, option);
-      }
+      final dropdown =
+          tester.widget<DropdownButton<ExternalLinkMode>>(_modeDropdown);
+      expect(dropdown.items!.map((i) => i.value), ExternalLinkMode.values);
       expect(_selectedMode(tester), ExternalLinkMode.inApp);
+      expect(find.text('Open in the app'), findsOneWidget);
       final header = find.ancestor(
         of: find.text('External links'),
         matching: find.byType(ListTile),
@@ -143,6 +141,30 @@ void main() {
           find.descendant(of: header, matching: find.byType(HintButton)));
       expect(hint.title, 'External links');
       expect(tester.widget<ListTile>(header).subtitle, isNull);
+    });
+
+    testWidgets('the longest locale fits a phone without overflow',
+        (tester) async {
+      // Greek has the longest option label (32 characters); the closed
+      // dropdown is capped and ellipsised, so the title keeps its room.
+      tester.view.physicalSize = const Size(360, 2000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(MaterialApp(
+        locale: const Locale('el'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: SiteBehaviourScreen(
+          host: 'example.com',
+          incognito: false,
+          values: _values(externalLinkMode: ExternalLinkMode.browser),
+          onChanged: (_) {},
+        ),
+      ));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(_selectedMode(tester), ExternalLinkMode.browser);
     });
 
     testWidgets('the stored mode is the one selected', (tester) async {
@@ -159,8 +181,7 @@ void main() {
         values: _values(kioskMode: true),
         onChanged: (v) => seen = v,
       );
-      await tester.tap(find.text('Block'));
-      await tester.pumpAndSettle();
+      await _pickMode(tester, 'Block');
       expect(seen!.externalLinkMode, ExternalLinkMode.block);
       expect(seen!.kioskMode, isTrue);
       expect(_selectedMode(tester), ExternalLinkMode.block);
@@ -189,7 +210,6 @@ void main() {
     expect(seen!.fullscreenMode, isTrue);
     // Unrelated fields ride along untouched: the caller applies one value.
     expect(seen!.kioskMode, isTrue);
-    expect(seen!.blockAutoRedirects, isTrue);
   });
 
   testWidgets('the domain-claim editor renders in the link group',
@@ -201,8 +221,8 @@ void main() {
     );
     // Below the external-links choice, whose hint points the reader at it.
     final claims = tester.getTopLeft(find.text('claims-slot')).dy;
-    final lastOption = tester.getTopLeft(find.text('Block')).dy;
-    expect(claims, greaterThan(lastOption));
+    final choice = tester.getTopLeft(find.text('External links')).dy;
+    expect(claims, greaterThan(choice));
   });
 
   group('outbound routing (BEHAV-003)', () {
@@ -221,12 +241,9 @@ void main() {
       await _pump(tester, values: _values());
       double y(String t) => tester.getTopLeft(find.text(t)).dy;
       double x(String t) => tester.getTopLeft(find.text(t)).dx;
-      expect(y('Route links to my sites'), greaterThan(y('Open in the app')));
-      expect(y('Route links to my sites'), lessThan(y('Open in browser')));
-      expect(x('Route links to my sites'), x('Open in the app'),
-          reason: 'indented under the option it belongs to');
-      expect(x('Route links to my sites'),
-          greaterThan(x('Block auto-redirects')));
+      expect(y('Route links to my sites'), greaterThan(y('External links')));
+      expect(x('Route links to my sites'), greaterThan(x('External links')),
+          reason: 'indented under the choice it belongs to');
       final tile = find.ancestor(
         of: find.text('Route links to my sites'),
         matching: find.byType(SwitchListTile),
@@ -273,12 +290,10 @@ void main() {
         values: _values(routeOutboundLinks: true),
         onChanged: (v) => seen = v,
       );
-      await tester.tap(find.text('Open in browser'));
-      await tester.pumpAndSettle();
+      await _pickMode(tester, 'Open in browser');
       expect(find.text('Route links to my sites'), findsNothing);
       expect(seen!.routeOutboundLinks, isTrue);
-      await tester.tap(find.text('Open in the app'));
-      await tester.pumpAndSettle();
+      await _pickMode(tester, 'Open in the app');
       expect(_switchTitled(tester, 'Route links to my sites').value, isTrue);
     });
 

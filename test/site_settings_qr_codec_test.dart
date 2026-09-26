@@ -24,7 +24,6 @@ void main() {
         contentBlockEnabled: false,
         trackingProtectionEnabled: false,
         localCdnEnabled: false,
-        blockAutoRedirects: false,
         fullscreenMode: true,
         blockScreenshots: true,
         htmlCachingEnabled: true,
@@ -70,7 +69,6 @@ void main() {
       expect(hydrated.trackingProtectionEnabled,
           source.trackingProtectionEnabled);
       expect(hydrated.localCdnEnabled, source.localCdnEnabled);
-      expect(hydrated.blockAutoRedirects, source.blockAutoRedirects);
       expect(hydrated.fullscreenMode, source.fullscreenMode);
       expect(hydrated.blockScreenshots, source.blockScreenshots);
       expect(hydrated.htmlCachingEnabled, source.htmlCachingEnabled);

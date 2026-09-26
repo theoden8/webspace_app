@@ -150,7 +150,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _letterboxEnabled;
   late bool _blockScreenshots;
   late bool _localCdnEnabled;
-  late bool _blockAutoRedirects;
   late ExternalLinkMode _externalLinkMode;
   late bool _routeOutboundLinks;
   late List<OutboundPreference> _outboundPreferences;
@@ -255,7 +254,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         'letterboxEnabled': _letterboxEnabled,
         'blockScreenshots': _blockScreenshots,
         'localCdnEnabled': _localCdnEnabled,
-        'blockAutoRedirects': _blockAutoRedirects,
         'externalLinkMode': _externalLinkMode,
         'routeOutboundLinks': _routeOutboundLinks,
         'outboundPreferences': _outboundPreferences.join(','),
@@ -489,7 +487,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _letterboxEnabled = m.letterboxEnabled;
     _blockScreenshots = m.blockScreenshots;
     _localCdnEnabled = m.localCdnEnabled;
-    _blockAutoRedirects = m.blockAutoRedirects;
     _externalLinkMode = m.externalLinkMode;
     _routeOutboundLinks = m.routeOutboundLinks;
     _outboundPreferences = [...m.outboundPreferences];
@@ -661,7 +658,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.letterboxEnabled = _letterboxEnabled;
       widget.webViewModel.blockScreenshots = _blockScreenshots;
       widget.webViewModel.localCdnEnabled = _localCdnEnabled;
-      widget.webViewModel.blockAutoRedirects = _blockAutoRedirects;
       widget.webViewModel.externalLinkMode = _externalLinkMode;
       widget.webViewModel.routeOutboundLinks = _routeOutboundLinks;
       widget.webViewModel.outboundPreferences = [..._outboundPreferences];
@@ -1028,7 +1024,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         kioskMode: _kioskMode,
         fullscreenMode: _fullscreenMode,
         htmlCachingEnabled: _htmlCachingEnabled,
-        blockAutoRedirects: _blockAutoRedirects,
         externalLinkMode: _externalLinkMode,
         routeOutboundLinks: _routeOutboundLinks,
         outboundPreferences: _outboundPreferences,
@@ -1045,7 +1040,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (v.kioskMode) loc.siteSettingsKioskMode,
       if (v.fullscreenMode) loc.siteSettingsFullscreen,
       if (v.htmlCachingEnabled) loc.siteSettingsHtmlCaching,
-      if (v.blockAutoRedirects) loc.siteSettingsBlockAutoRedirects,
       if (v.effectiveRouteOutboundLinks)
         loc.siteSettingsRouteOutboundLinks,
       if (v.externalLinkMode == ExternalLinkMode.browser)
@@ -1103,7 +1097,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _kioskMode = values.kioskMode;
               _fullscreenMode = values.fullscreenMode;
               _htmlCachingEnabled = values.htmlCachingEnabled;
-              _blockAutoRedirects = values.blockAutoRedirects;
               _externalLinkMode = values.externalLinkMode;
               _routeOutboundLinks = values.routeOutboundLinks;
               _outboundPreferences = values.outboundPreferences;

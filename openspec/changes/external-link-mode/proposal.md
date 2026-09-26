@@ -32,10 +32,20 @@ site a link opens *in the app* as, so it belongs to the in-app choice.
   is `routeOutboundLinks && externalLinkMode == inApp`; `routeOutbound` acts on
   `blockOpenNested` only. The browser fallback of routing
   (`OutboundFallback.external`, `DispatchOpenExternal`) is removed.
-- **UI**: the Behaviour screen's switch becomes an "External links" radio
-  choice (Open in the app / Open in browser / Block) with its explanation
-  behind a hint. The routing switch and its preferences row sit under "Open in
-  the app", indented to its label, and only while it is picked.
+- **UI**: the Behaviour screen's switch becomes an "External links" row with a
+  dropdown (Open in the app / Open in browser / Block), like the other
+  multiple-choice settings, with its explanation behind a hint. The routing
+  switch and its preferences row sit indented under it, and only while "Open
+  in the app" is picked.
+- **Auto-redirect blocking is no longer a setting.** Every site blocks
+  gesture-less cross-domain navigations (NESTED-004); the per-site
+  `blockAutoRedirects` switch, its field, its place in the nested chain and
+  its strings are removed (NESTED-006 withdrawn). A stored value is ignored
+  and retired from backups; a QR payload carrying it turns nothing off. The
+  cost: a sign-in button that navigates to the identity provider by script,
+  with no tap the platform reports, has no per-site workaround. On iOS and
+  macOS that is any script navigation. The white-screen integration suite
+  reaches its nested screen through the URL bar instead of a scripted hop.
 - **Nested chain**: `externalLinkMode` replaces `externalLinksInBrowser` in
   `LaunchUrlFunc`, `launchUrl`, `InAppWebViewScreen` and both call sites.
 
@@ -43,8 +53,12 @@ site a link opens *in the app* as, so it belongs to the in-app choice.
 
 ### Modified Capabilities
 
-- `nested-url-blocking`: NESTED-009 becomes the three-way external link mode.
+- `nested-url-blocking`: NESTED-009 becomes the three-way external link mode;
+  NESTED-004 holds on every site and NESTED-006 is withdrawn.
 - `site-behaviour`: BEHAV-001 and BEHAV-002 name the choice; BEHAV-004 adds it.
+- `captcha-support` CAPTCHA-008, `per-site-cookie-isolation` ISO-013,
+  `site-settings-qr` QR-008, `integration-tests` INTEG-010: stop naming the
+  switch.
 - `link-intent-routing` (in-flight change `route-outbound-via-lir`): LIR-013,
   LIR-014 and BEHAV-003 are edited in place so routing reads as an option of
   the in-app mode.

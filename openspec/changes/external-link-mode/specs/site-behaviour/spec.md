@@ -9,8 +9,9 @@ in site settings.
 
 The screen SHALL present, in order: an "Opening and display" group holding
 Always open Home, Kiosk mode, Full screen mode and HTML caching; then a "Link
-handling" group holding Block auto-redirects, the External links choice
-(BEHAV-004), and the site's domain-claim editor. The claims editor renders last
+handling" group holding the External links choice (BEHAV-004) and the site's
+domain-claim editor. There is no Block auto-redirects switch: every site
+blocks gesture-less cross-domain navigations (nested-url-blocking NESTED-004). The claims editor renders last
 in that group because the External links hint tells the reader to add domains
 there, and a reader following that sentence should not have to leave the
 screen.
@@ -33,8 +34,8 @@ stays with the screen that holds the model.
 #### Scenario: Every behaviour switch is on the screen
 
 **Given** the user opens the per-site Behaviour screen
-**Then** Always open Home, Kiosk mode, Full screen mode, HTML caching and Block
-auto-redirects are shown as switches, and External links as a choice
+**Then** Always open Home, Kiosk mode, Full screen mode and HTML caching are
+shown as switches, and External links as a choice
 **And** none of them remains on the settings screen it was reached from
 
 #### Scenario: The claims editor follows the switch that names it
@@ -78,18 +79,17 @@ browser mode, "Block external links" in the block mode.
 
 #### Scenario: The row names what is on
 
-**Given** a site with Block auto-redirects on and nothing else
-**Then** the Behaviour row in site settings reads "Block auto-redirects"
+**Given** a site with Kiosk mode on and nothing else
+**Then** the Behaviour row in site settings reads "Kiosk mode"
 
 #### Scenario: The row names a blocking site
 
-**Given** a site with Block auto-redirects off, nothing else on, and External
-links set to Block
+**Given** a site with nothing else on and External links set to Block
 **Then** the Behaviour row reads "Block external links"
 
 #### Scenario: More than two overflow
 
-**Given** a site with Kiosk mode, Full screen mode and Block auto-redirects on
+**Given** a site with Kiosk mode, Full screen mode and HTML caching on
 **Then** the row names two of them and then "1 more"
 
 #### Scenario: Nothing on
@@ -103,37 +103,38 @@ Open in the app
 ### Requirement: BEHAV-004 — External links choice
 
 The "Link handling" group SHALL present the site's `externalLinkMode`
-(nested-url-blocking NESTED-009) as one choice titled "External links", with
-three options in this order: "Open in the app" (`inApp`), "Open in browser"
-(`browser`) and "Block" (`block`). The stored mode SHALL be the selected
-option, and picking one SHALL report the whole value back through `onChanged`,
-so the edit joins the settings screen's dirty-snapshot diff (BUG-006).
+(nested-url-blocking NESTED-009) as one row titled "External links" whose
+trailing control is a dropdown, like the other multiple-choice settings
+(WebRTC policy, proxy type), offering in this order "Open in the app"
+(`inApp`), "Open in browser" (`browser`) and "Block" (`block`). The stored
+mode SHALL be the selected item, and picking one SHALL report the whole value
+back through `onChanged`, so the edit joins the settings screen's
+dirty-snapshot diff (BUG-006).
 
-The title row SHALL carry the explanation in a `HintButton` whose title is the
-row's own title (HINT-001), and neither the title row nor the options SHALL
-have a subtitle: the options are the state, and what each does lives in the
-hint.
+The row SHALL carry the explanation in a `HintButton` whose title is the row's
+own title (HINT-001), and SHALL have no subtitle: the dropdown shows the
+state, and what each option does lives in the hint.
 
-Outbound routing's rows (BEHAV-003) SHALL render directly under "Open in the
-app", indented to its label, and only while it is the selected option. Picking
-another option hides them and keeps their stored values.
+Outbound routing's rows (BEHAV-003) SHALL render directly under the row,
+indented, and only while "Open in the app" is selected. Picking another
+option hides them and keeps their stored values.
 
 #### Scenario: Three options, the stored one selected
 
 **Given** a site stored in the `block` mode
 **When** the Behaviour screen opens
-**Then** the External links choice shows Open in the app, Open in browser and
-Block, with Block selected
+**Then** the External links dropdown offers Open in the app, Open in browser
+and Block, with Block selected
 
 #### Scenario: Picking an option reports the whole value
 
 **Given** the Behaviour screen for a site with Kiosk mode on
-**When** the user picks Block
+**When** the user picks Block from the dropdown
 **Then** `onChanged` receives a value with `externalLinkMode == block` and
 Kiosk mode still on
 
 #### Scenario: Explanation lives behind the hint
 
 **Given** the Behaviour screen is open
-**Then** the External links title row has a `HintButton` titled "External links"
+**Then** the External links row has a `HintButton` titled "External links"
 **And** the row has no subtitle

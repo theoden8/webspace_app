@@ -18,7 +18,7 @@
 
 ## 4. UI
 
-- [x] 4.1 Behaviour screen: the External links radio choice with its hint; routing rows under "Open in the app".
+- [x] 4.1 Behaviour screen: the External links dropdown with its hint; routing rows indented under it while "Open in the app" is picked.
 - [x] 4.2 Behaviour row summary names the browser and block modes; routing only in the in-app mode.
 - [x] 4.3 Strings in `app_en.arb`, translations in their own commit.
 
@@ -28,3 +28,10 @@
 - [x] 5.2 Model: default omitted, round-trip, legacy bool, odd values, archive override, routing gate.
 - [x] 5.3 Behaviour screen: the choice, its hint, selection, routing rows by mode.
 - [x] 5.4 Routing engine: only nested decisions route; funnel gate covers the blocked branches.
+
+## 6. Auto-redirects always blocked
+
+- [x] 6.1 Drop `blockAutoRedirects` from the engine, the model, the nested chain, the Behaviour screen, settings and the QR review.
+- [x] 6.2 Retire the key: `_retiredKeys`, `superset.json`, QR `includedKeys`; drop its four strings.
+- [x] 6.3 White-screen scenario 9 enters the nested screen through the URL bar.
+- [x] 6.4 NESTED-004 on every site, NESTED-006 withdrawn; the specs that named the switch updated.

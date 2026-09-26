@@ -2,7 +2,7 @@
 
 ### Requirement: BEHAV-003 - Outbound routing rows in the Link handling group
 
-The Behaviour screen's "External links" choice (BEHAV-004) SHALL hold, directly under its "Open in the app" option and indented to that option's label, a "Route links to my sites" switch (`routeOutboundLinks`, link-intent-routing LIR-013) and, while that switch is on, a "Routing preferences" row that opens a screen listing the site's outbound preferences. Routing is an option of opening links in the app (LIR-014), so both rows are shown only while "Open in the app" is the selected option; picking another option hides them and keeps their stored values. The domain-claim editor stays last in the group, under the choice whose hint names it.
+The Behaviour screen's "External links" choice (BEHAV-004) SHALL hold, directly under its row and indented, while "Open in the app" is selected, a "Route links to my sites" switch (`routeOutboundLinks`, link-intent-routing LIR-013) and, while that switch is on, a "Routing preferences" row that opens a screen listing the site's outbound preferences. Routing is an option of opening links in the app (LIR-014), so both rows are shown only while "Open in the app" is the selected option; picking another option hides them and keeps their stored values. The domain-claim editor stays last in the group, under the choice whose hint names it.
 
 Both rows SHALL be shown whatever developer mode says: routing is not an experimental feature (DEVTOOLS-011), and the per-site switch, off by default, is its only gate.
 
@@ -23,7 +23,7 @@ The Behaviour row's summary (BEHAV-002) SHALL name the routing switch when it is
 #### Scenario: Routing is an option of opening links in the app
 
 - **GIVEN** the Behaviour screen is open and the site is in the in-app mode
-- **THEN** the "Link handling" group reads, in order: Block auto-redirects, the External links choice with Route links to my sites under "Open in the app", then "Open in browser" and "Block", then the domain-claim editor
+- **THEN** the "Link handling" group reads, in order: the External links dropdown, Route links to my sites indented under it, then the domain-claim editor
 - **AND** the Routing preferences row appears under the routing switch only while the switch is on
 
 #### Scenario: Another external-link mode hides the routing rows

@@ -63,6 +63,7 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/surface_diag_native.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
+import 'package:webspace/widgets/url_bar.dart';
 import 'fixture_server.dart';
 
 const int _kDarkColor = 0xFF123524;
@@ -85,6 +86,7 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   HttpServer? server;
+  late String altBase;
 
   setUpAll(() async {
     isDemoMode = true;
@@ -96,21 +98,16 @@ void main() {
     // literally. Both addresses are loopback, so nothing leaves the device.
     server = await HttpServer.bind(InternetAddress.anyIPv4, 0);
     final port = server!.port;
-    final altBase = 'http://127.0.0.2:$port';
+    altBase = 'http://127.0.0.2:$port';
     listenFixture(server!, (request) async {
       final page = switch (request.uri.path) {
         '/dark.html' => _solidPage('#123524'),
         '/white.html' => _solidPage('#ffffff'),
         '/magenta.html' => _solidPage('#8c1d5a'),
         '/slow-blue.html' => _solidPage('#1d3f8c'),
-        // Cross-domain hop into the nested screen, script-initiated so the
-        // test never depends on a synthetic touch reaching the platform view.
-        // The site that serves it has blockAutoRedirects off, so the
-        // navigation decision engine resolves it to blockOpenNested.
-        '/opener.html' => _solidPage('#123524',
-            body: '<script>setTimeout(function(){'
-                "location.href='$altBase/slow-blue.html';"
-                '},500);</script>'),
+        // The site scenario 9 opens its nested screen from, by submitting
+        // the 127.0.0.2 address in its URL bar.
+        '/opener.html' => _solidPage('#123524'),
         _ => '<!doctype html><html><body>404</body></html>',
       };
       // Withhold the first byte so the document commits well after every
@@ -149,10 +146,6 @@ void main() {
       siteId: 'ws-opener',
       initUrl: '$base/opener.html',
       name: 'Opener',
-      // The hop to 127.0.0.2 is script-initiated and therefore gestureless;
-      // the default (block) would classify it blockSilent and never open the
-      // nested screen.
-      blockAutoRedirects: false,
     );
     // The repaint trace is gated on developer mode so an ordinary session does
     // not spend its log ring on it. Turn it on for the suite: a pixel verdict
@@ -505,8 +498,33 @@ void main() {
       // PAUSE-017 + PAUSE-025 pair, neither of which the nested screen had
       // before, and which the main page's nudge cannot reach (that one
       // toggles an inset around an IndexedStack sitting under this route).
+      // A page cannot open it by script: a gesture-less cross-domain hop is
+      // blocked on every site (NESTED-004). A cross-domain address submitted
+      // in the URL bar opens it instead, and that is text input, so no
+      // synthetic touch has to reach the platform view.
       await openSiteDrawer(tester);
       await tapSite(tester, 'Opener');
+      await pollSlot(
+          tester,
+          find.byKey(const ValueKey('ws-opener')),
+          'scenario 9: the opener paints before the hop',
+          darkVisible,
+          timeout: const Duration(seconds: 45));
+      await openOverflowMenuAction(tester, Icons.visibility, 'scenario 9');
+      final urlField = find.descendant(
+          of: find.byType(UrlBar), matching: find.byType(TextField));
+      final barDeadline = DateTime.now().add(const Duration(seconds: 20));
+      while (urlField.evaluate().isEmpty &&
+          DateTime.now().isBefore(barDeadline)) {
+        await tester.pump(const Duration(milliseconds: 200));
+      }
+      expect(urlField, findsOneWidget,
+          reason: 'the URL bar should show after the menu toggle');
+      await tester.tap(urlField);
+      await tester.pump();
+      await tester.enterText(urlField, '$altBase/slow-blue.html');
+      await tester.testTextInput.receiveAction(TextInputAction.go);
+      await tester.pump();
       final nestedDeadline = DateTime.now().add(const Duration(seconds: 60));
       while (find.byType(InAppWebViewScreen).evaluate().isEmpty &&
           DateTime.now().isBefore(nestedDeadline)) {
@@ -516,7 +534,7 @@ void main() {
         dumpDiagnostics(tester, 'scenario 9: nested screen never opened');
       }
       expect(find.byType(InAppWebViewScreen), findsOneWidget,
-          reason: 'the cross-domain hop should open the nested webview screen');
+          reason: 'the cross-domain address should open the nested webview screen');
       await pollSlot(
           tester,
           find.byKey(const ValueKey(kNestedWebViewSlotKey)),

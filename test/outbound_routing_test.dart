@@ -355,7 +355,6 @@ void main() {
           targetUrl: 'https://github.com/x',
           initUrl: 'https://duckduckgo.com/',
           hasGesture: hasGesture,
-          blockAutoRedirects: false,
           isSiteActive: true,
           lastSameDomainGestureTime: lastGesture,
           now: now,
@@ -389,7 +388,6 @@ void main() {
           NavigationDecisionEngine.handleOnUrlChanged(
             newUrl: 'https://github.com/x',
             initUrl: 'https://duckduckgo.com/',
-            blockAutoRedirects: false,
             isSiteActive: true,
             lastSameDomainGestureTime: lastGesture,
             now: now,

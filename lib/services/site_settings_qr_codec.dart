@@ -50,7 +50,6 @@ class SiteSettingsQrCodec {
     'disabledFilterLists',
     'trackingProtectionEnabled',
     'localCdnEnabled',
-    'blockAutoRedirects',
     'fullscreenMode',
     'blockScreenshots',
     'htmlCachingEnabled',

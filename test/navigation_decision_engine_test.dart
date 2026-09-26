@@ -12,7 +12,6 @@ void main() {
     required String targetUrl,
     required String initUrl,
     bool hasGesture = false,
-    bool blockAutoRedirects = true,
     bool isSiteActive = true,
     DateTime? lastSameDomainGestureTime,
     DateTime? now,
@@ -21,7 +20,6 @@ void main() {
         targetUrl: targetUrl,
         initUrl: initUrl,
         hasGesture: hasGesture,
-        blockAutoRedirects: blockAutoRedirects,
         isSiteActive: isSiteActive,
         lastSameDomainGestureTime: lastSameDomainGestureTime,
         now: now ?? t0,
@@ -30,7 +28,6 @@ void main() {
   NavigationDecisionResult decideChanged({
     required String newUrl,
     required String initUrl,
-    bool blockAutoRedirects = true,
     bool isSiteActive = true,
     DateTime? lastSameDomainGestureTime,
     DateTime? now,
@@ -39,7 +36,6 @@ void main() {
       NavigationDecisionEngine.decideOnUrlChanged(
         newUrl: newUrl,
         initUrl: initUrl,
-        blockAutoRedirects: blockAutoRedirects,
         isSiteActive: isSiteActive,
         lastSameDomainGestureTime: lastSameDomainGestureTime,
         now: now ?? t0,
@@ -93,7 +89,7 @@ void main() {
       expect(r.gestureUpdate, GestureStateUpdate.record);
     });
 
-    test('blocks script-initiated cross-domain silently when blockAutoRedirects', () {
+    test('blocks script-initiated cross-domain silently', () {
       final r = decideShould(
         targetUrl: 'https://evil.tracker.com',
         initUrl: 'https://example.com',
@@ -149,22 +145,28 @@ void main() {
           reason: 'still consumed even when stale, to prevent a later in-window use');
     });
 
-    test('allows cross-domain when blockAutoRedirects is off', () {
-      final r = decideShould(
-        targetUrl: 'https://other.com',
-        initUrl: 'https://example.com',
-        hasGesture: false,
-        blockAutoRedirects: false,
-      );
-      expect(r.decision, NavigationDecision.blockOpenNested);
+    test('a gesture-less cross-domain hop is blocked on every site', () {
+      // There is no per-site switch to let one through (NESTED-004), in any
+      // external-link mode.
+      for (final mode in ExternalLinkMode.values) {
+        final r = NavigationDecisionEngine.decideShouldOverrideUrlLoading(
+          targetUrl: 'https://other.com',
+          initUrl: 'https://example.com',
+          hasGesture: false,
+          isSiteActive: true,
+          lastSameDomainGestureTime: null,
+          now: t0,
+          externalLinkMode: mode,
+        );
+        expect(r.decision, NavigationDecision.blockSilent, reason: mode.name);
+      }
     });
 
-    test('blockAutoRedirects=false still suppresses nested for background sites', () {
+    test('a background site suppresses the nested screen of a tapped link', () {
       final r = decideShould(
         targetUrl: 'https://other.com',
         initUrl: 'https://example.com',
-        hasGesture: false,
-        blockAutoRedirects: false,
+        hasGesture: true,
         isSiteActive: false,
       );
       expect(r.decision, NavigationDecision.blockSuppressed);
@@ -204,10 +206,9 @@ void main() {
     });
 
     test('a captcha the user reached renders in place instead of nesting', () {
-      // With the gesture (or with blockAutoRedirects off) the navigation is
-      // permitted anyway; the captcha check only keeps it out of a nested
-      // webview, where the challenge would be stranded away from the page
-      // that needs its cookie.
+      // With the gesture the navigation is permitted anyway; the captcha
+      // check only keeps it out of a nested webview, where the challenge
+      // would be stranded away from the page that needs its cookie.
       final withGesture = decideChanged(
         newUrl: 'https://challenges.cloudflare.com/foo',
         initUrl: 'https://example.com',
@@ -216,14 +217,6 @@ void main() {
       );
       expect(withGesture.decision, NavigationDecision.allow);
       expect(withGesture.gestureUpdate, GestureStateUpdate.consume);
-
-      final unguarded = decideChanged(
-        newUrl: 'https://challenges.cloudflare.com/foo',
-        initUrl: 'https://example.com',
-        isCaptcha: _alwaysCaptcha,
-        blockAutoRedirects: false,
-      );
-      expect(unguarded.decision, NavigationDecision.allow);
     });
 
     test('a same-origin Cloudflare interstitial is still allowed unguarded',
@@ -234,7 +227,6 @@ void main() {
         newUrl: 'https://example.com/cdn-cgi/challenge-platform/h/b/orchestrate',
         initUrl: 'https://example.com/',
         isCaptcha: _alwaysCaptcha,
-        blockAutoRedirects: true,
       );
       expect(r.decision, NavigationDecision.allow);
       expect(r.gestureUpdate, isNull);
@@ -268,15 +260,6 @@ void main() {
       );
       expect(r.decision, NavigationDecision.blockSuppressed);
     });
-
-    test('allows cross-domain redirect when blockAutoRedirects=false and no gesture', () {
-      final r = decideChanged(
-        newUrl: 'https://other.com',
-        initUrl: 'https://example.com',
-        blockAutoRedirects: false,
-      );
-      expect(r.decision, NavigationDecision.blockOpenNested);
-    });
   });
 
   group('gesture window boundary behaviour', () {
@@ -285,7 +268,6 @@ void main() {
         targetUrl: 'https://other.com',
         initUrl: 'https://example.com',
         hasGesture: false,
-        blockAutoRedirects: true,
         isSiteActive: true,
         lastSameDomainGestureTime: t0,
         now: t0.add(const Duration(seconds: 9)),
@@ -298,7 +280,6 @@ void main() {
         targetUrl: 'https://other.com',
         initUrl: 'https://example.com',
         hasGesture: false,
-        blockAutoRedirects: true,
         isSiteActive: true,
         lastSameDomainGestureTime: t0,
         now: t0.add(const Duration(seconds: 10)),
@@ -315,7 +296,6 @@ void main() {
         targetUrl: 'https://unclaimed.com',
         initUrl: 'https://example.com',
         hasGesture: true,
-        blockAutoRedirects: true,
         isSiteActive: true,
         lastSameDomainGestureTime: null,
         now: t0,
@@ -330,7 +310,6 @@ void main() {
         targetUrl: 'https://other.com/path',
         initUrl: 'https://example.com',
         hasGesture: true,
-        blockAutoRedirects: true,
         isSiteActive: true,
         lastSameDomainGestureTime: null,
         now: t0,
@@ -345,7 +324,6 @@ void main() {
         targetUrl: 'https://unclaimed.com',
         initUrl: 'https://example.com',
         hasGesture: true,
-        blockAutoRedirects: true,
         isSiteActive: true,
         lastSameDomainGestureTime: null,
         now: t0,
@@ -360,7 +338,6 @@ void main() {
         targetUrl: 'https://example.com/page2',
         initUrl: 'https://example.com',
         hasGesture: true,
-        blockAutoRedirects: true,
         isSiteActive: true,
         lastSameDomainGestureTime: null,
         now: t0,
@@ -375,7 +352,6 @@ void main() {
         targetUrl: 'https://other.com',
         initUrl: 'https://example.com',
         hasGesture: true,
-        blockAutoRedirects: true,
         isSiteActive: true,
         lastSameDomainGestureTime: null,
         now: t0,
@@ -389,7 +365,6 @@ void main() {
         targetUrl: 'https://unclaimed.com',
         initUrl: 'https://example.com',
         hasGesture: false,
-        blockAutoRedirects: true,
         isSiteActive: true,
         lastSameDomainGestureTime: null,
         now: t0,
@@ -405,7 +380,6 @@ void main() {
         targetUrl: 'https://unclaimed.com',
         initUrl: 'https://example.com',
         hasGesture: true,
-        blockAutoRedirects: true,
         isSiteActive: false,
         lastSameDomainGestureTime: null,
         now: t0,
@@ -419,7 +393,6 @@ void main() {
       final r = NavigationDecisionEngine.decideOnUrlChanged(
         newUrl: 'https://unclaimed.com',
         initUrl: 'https://duckduckgo.com',
-        blockAutoRedirects: true,
         isSiteActive: true,
         lastSameDomainGestureTime: t0.subtract(const Duration(seconds: 2)),
         now: t0,
@@ -434,7 +407,6 @@ void main() {
       final handled = NavigationDecisionEngine.handleOnUrlChanged(
         newUrl: 'https://unclaimed.com',
         initUrl: 'https://duckduckgo.com',
-        blockAutoRedirects: true,
         isSiteActive: true,
         lastSameDomainGestureTime: t0.subtract(const Duration(seconds: 2)),
         now: t0,
@@ -458,7 +430,6 @@ void main() {
           targetUrl: url,
           initUrl: 'https://example.com',
           hasGesture: gesture,
-          blockAutoRedirects: false,
           isSiteActive: true,
           lastSameDomainGestureTime: null,
           now: t0,
@@ -473,9 +444,9 @@ void main() {
           reason: 'the host tells the user only about a link they tapped');
     });
 
-    test('a script navigation is blocked too, and carries no gesture', () {
+    test('a script navigation is dropped silently, before the mode', () {
       final r = tap('https://unclaimed.com', gesture: false);
-      expect(r.decision, NavigationDecision.blockOutbound);
+      expect(r.decision, NavigationDecision.blockSilent);
       expect(r.hadGesture, isFalse);
     });
 
@@ -493,7 +464,6 @@ void main() {
       final handled = NavigationDecisionEngine.handleOnUrlChanged(
         newUrl: 'https://unclaimed.com',
         initUrl: 'https://duckduckgo.com',
-        blockAutoRedirects: false,
         isSiteActive: true,
         lastSameDomainGestureTime: t0.subtract(const Duration(seconds: 2)),
         now: t0,
@@ -511,14 +481,13 @@ void main() {
 
   group('private suffixes are cross-domain', () {
     test('a hop between two github.io sites is not same-site', () {
-      // The same-domain branch returns `allow` before the gesture and
-      // blockAutoRedirects checks ever run, so a shared base domain here
+      // The same-domain branch returns `allow` before the gesture check
+      // ever runs, so a shared base domain here
       // renders the attacker's page inside the victim's webview.
       final r = decideShould(
         targetUrl: 'https://attacker.github.io/steal',
         initUrl: 'https://victim.github.io/',
         hasGesture: false,
-        blockAutoRedirects: true,
       );
       expect(r.decision, NavigationDecision.blockSilent);
     });
@@ -528,7 +497,6 @@ void main() {
         targetUrl: 'https://victim.github.io/page',
         initUrl: 'https://victim.github.io/',
         hasGesture: false,
-        blockAutoRedirects: true,
       );
       expect(r.decision, NavigationDecision.allow);
     });

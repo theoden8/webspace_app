@@ -37,11 +37,10 @@ class NavigationTestHarness {
   /// drops it on the floor.
   final List<({int siteIndex, String url})> loadUrlCalls = [];
 
-  void addSite(String url, {String? name, bool blockAutoRedirects = true}) {
+  void addSite(String url, {String? name}) {
     sites.add(WebViewModel(
       initUrl: url,
       name: name ?? 'Site ${sites.length + 1}',
-      blockAutoRedirects: blockAutoRedirects,
     ));
   }
 
@@ -54,7 +53,6 @@ class NavigationTestHarness {
       targetUrl: targetUrl,
       initUrl: site.initUrl,
       hasGesture: hasGesture,
-      blockAutoRedirects: site.blockAutoRedirects,
       isSiteActive: true,
       lastSameDomainGestureTime: _lastSameDomainGestureTime[siteIndex],
       now: DateTime.now(),
@@ -82,7 +80,6 @@ class NavigationTestHarness {
     final result = NavigationDecisionEngine.decideOnUrlChanged(
       newUrl: newUrl,
       initUrl: site.initUrl,
-      blockAutoRedirects: site.blockAutoRedirects,
       isSiteActive: true,
       lastSameDomainGestureTime: _lastSameDomainGestureTime[siteIndex],
       now: DateTime.now(),
@@ -110,7 +107,6 @@ class NavigationTestHarness {
     final result = NavigationDecisionEngine.handleOnUrlChanged(
       newUrl: newUrl,
       initUrl: site.initUrl,
-      blockAutoRedirects: site.blockAutoRedirects,
       isSiteActive: true,
       lastSameDomainGestureTime: _lastSameDomainGestureTime[siteIndex],
       now: DateTime.now(),
@@ -565,20 +561,6 @@ void main() {
       expect(harness.launchUrlCalls.length, equals(1));
       expect(harness.launchUrlCalls.last.url, equals('https://www.amazon.de/'));
     });
-
-    test('blockAutoRedirects=false allows all cross-domain navigations', () {
-      harness.addSite('https://example.com', name: 'Example',
-        blockAutoRedirects: false);
-
-      // Cross-domain without gesture — should open nested (not blocked)
-      final result = harness.simulateNavigation(
-        0, 'https://other.com/',
-        hasGesture: false,
-      );
-      expect(result, isFalse);
-      expect(harness.launchUrlCalls.length, equals(1),
-        reason: 'With blockAutoRedirects=false, cross-domain should open nested');
-    });
   });
 
   group('Cross-Domain Redirect Detection in onUrlChanged', () {
@@ -588,7 +570,7 @@ void main() {
       harness = NavigationTestHarness();
     });
 
-    test('cross-domain redirect without gesture is silently blocked when blockAutoRedirects=true', () {
+    test('cross-domain redirect without gesture is silently blocked', () {
       harness.addSite('https://duckduckgo.com', name: 'DDG');
 
       // No prior gesture — should be silently blocked (no nested webview)
@@ -597,17 +579,7 @@ void main() {
       expect(harness.launchUrlCalls, isEmpty);
     });
 
-    test('cross-domain redirect without gesture opens nested when blockAutoRedirects=false', () {
-      harness.addSite('https://duckduckgo.com', name: 'DDG',
-        blockAutoRedirects: false);
-
-      final detected = harness.simulateUrlChanged(0, 'https://www.amazon.de/');
-      expect(detected, isTrue);
-      expect(harness.launchUrlCalls.length, equals(1));
-      expect(harness.launchUrlCalls.last.url, equals('https://www.amazon.de/'));
-    });
-
-    test('cross-domain redirect with recent gesture opens nested even with blockAutoRedirects=true', () {
+    test('cross-domain redirect with recent gesture opens nested', () {
       harness.addSite('https://duckduckgo.com', name: 'DDG');
 
       // User clicks a same-domain link first (records gesture)
@@ -967,9 +939,8 @@ void main() {
         reason: 'blob: URI should not open a nested webview');
     });
 
-    test('data: URI is allowed even with blockAutoRedirects enabled', () {
-      harness.addSite('https://duckduckgo.com', name: 'DDG',
-        blockAutoRedirects: true);
+    test('data: URI is allowed without a gesture', () {
+      harness.addSite('https://duckduckgo.com', name: 'DDG');
 
       final result = harness.simulateNavigation(
         0, 'data:text/html;charset=utf-8;base64,PCFET0NUWVBFIGh0bWw+',

@@ -4699,8 +4699,8 @@ class WebViewFactory {
         }
         // HTTPS upgrade, decided AFTER the routing decision above for the same
         // reason the captcha allow is (HTTPS-004): taken first, a scheme
-        // rewrite re-enters the pipeline with blockAutoRedirects, the gesture
-        // requirement and the cross-domain nested route already behind it.
+        // rewrite re-enters the pipeline with the gesture requirement and the
+        // cross-domain nested route already behind it.
         final upgrade = WebViewFactory.httpsUpgrade
             .onNavigation(url, enabled: config.httpsUpgradeEnabled);
         if (upgrade.armDeadlineFor != null) {
@@ -4736,8 +4736,8 @@ class WebViewFactory {
                 // A captcha challenge loads in place. Decided AFTER the routing
         // decision above, never before it: taken first, "is this a captcha
         // URL?" becomes a way to navigate the parent webview to any origin
-        // with blockAutoRedirects, the gesture requirement and the
-        // cross-domain nested route all skipped.
+        // with the gesture requirement and the cross-domain nested route
+        // skipped.
         if (isCaptchaChallenge(url, siteUrl: config.initialUrl)) {
           return inapp.NavigationActionPolicy.ALLOW;
         }

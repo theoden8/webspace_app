@@ -371,13 +371,12 @@ URL received
   ├─ Same domain? ──────────────────── ALLOW
   │
   ├─ Cross-domain:
-  │   ├─ blockAutoRedirects + no gesture ── CANCEL (silent)
+  │   ├─ no gesture ─────────────────────── CANCEL (silent, every site)
   │   ├─ background site ───────────────── CANCEL (suppressed)
   │   ├─ claimed by the site ─────────── open nested webview (every mode)
   │   ├─ externalLinkMode browser ─────── CANCEL + system browser (NESTED-009)
   │   ├─ externalLinkMode block ───────── CANCEL, nothing opens (NESTED-009)
-  │   ├─ blockAutoRedirects OFF ────────── open nested webview
-  │   └─ has gesture ──────────────────── open nested webview
+  │   └─ externalLinkMode inApp ──────── open nested webview
   │
   └─ ALLOW
 ```
@@ -410,9 +409,8 @@ static bool _hasUserGesture(NavigationAction action) {
   decision for the `shouldOverrideUrlLoading` callback; returns one of
   `allow` / `blockSilent` / `blockSuppressed` / `blockOpenNested` plus
   an optional `GestureStateUpdate` descriptor. Implements NESTED-004
-  (script-initiated cross-domain blocking), NESTED-006 (per-site
-  `blockAutoRedirects` toggle), and NESTED-007 (same-domain
-  propagation + 10s gesture window).
+  (script-initiated cross-domain blocking, on every site) and NESTED-007
+  (same-domain propagation + 10s gesture window).
 - `NavigationDecisionEngine.decideOnUrlChanged` — same decision
   shape for server-side 3xx redirects that bypass
   `shouldOverrideUrlLoading`. `isCaptchaChallenge` is injected as a
@@ -442,7 +440,6 @@ CLAUDE.md now forbids. Direct engine tests live in
   registration guarded by `test/target_blank_rewrite_test.dart`.
 
 #### `lib/web_view_model.dart`
-- `blockAutoRedirects` field (default: `true`)
 - `externalLinkMode` field (`ExternalLinkMode`, `lib/settings/external_links.dart`, default `inApp`) + `effectiveExternalLinkMode` getter (archive-tier `browser` reads as `inApp`, NESTED-009 / ARCH-006). Serialized only outside the default; `fromJson` reads the legacy `externalLinksInBrowser` bool as `browser`
 - `shouldOverrideUrlLoading` callback: delegates to `NavigationDecisionEngine`, applies the returned `GestureStateUpdate` to `lastSameDomainGestureTime`, dispatches on the decision enum (log + `launchUrlFunc` for `blockOpenNested`, `launchUrlInSystemBrowser` for `blockOpenExternal`, the host hook alone for `blockOutbound`, which shows the blocked message for a tapped link)
 - `onUrlChanged` callback: same pattern; on `blockOpenNested` navigates back to `previousSameDomainUrl` before opening the nested webview
@@ -456,11 +453,8 @@ CLAUDE.md now forbids. Direct engine tests live in
 - `OnUrlChangedHandled.launchExternalUrl` carries the URL for the caller to launch
 
 #### `lib/screens/inappbrowser.dart`
-- `externalLinkMode` / `blockAutoRedirects` ctor fields; nested `WebViewConfig.shouldOverrideUrlLoading` (non-null when the mode is not `inApp` or `blockAutoRedirects` is on) delegates to `NavigationDecisionEngine.decideShouldOverrideUrlLoading` against the page currently shown, routes `blockOpenExternal` to `launchUrlInSystemBrowser`, and shows the blocked message for a tapped `blockOutbound`
+- `externalLinkMode` ctor field; nested `WebViewConfig.shouldOverrideUrlLoading` (always set) delegates to `NavigationDecisionEngine.decideShouldOverrideUrlLoading` against the page currently shown, routes `blockOpenExternal` to `launchUrlInSystemBrowser`, and shows the blocked message for a tapped `blockOutbound`
 - `blockedCookies` + the forwarded cookie managers drive a post-load sweep; `cameraMode` / `virtualCameraSource` / `microphoneMode` / `virtualMicrophoneSource` / `protectedContentAllowed` seed the screen's in-memory decisions (NESTED-010)
-
-#### `lib/screens/settings.dart`
-- "Block auto-redirects" toggle per site
 
 ---
 
@@ -473,9 +467,3 @@ CLAUDE.md now forbids. Direct engine tests live in
 3. Verify no nested webview opens for accounts.google.com
 4. Verify the page functions normally
 
-### Manual Test: Per-Site Toggle
-
-1. Open site settings for any site
-2. Toggle "Block auto-redirects" off
-3. Reload the site
-4. Verify script-initiated cross-domain navigations now open nested webviews
