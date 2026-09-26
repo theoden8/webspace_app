@@ -160,7 +160,7 @@ When routing runs and names no destination, the engine SHALL emit `DispatchNeste
 - **GIVEN** source DuckDuckGo has `routeOutboundLinks = true` and the resolver picks site `work-gh` for `https://github.com/x`
 - **WHEN** the user taps the link inside DuckDuckGo
 - **THEN** the executor pushes an `InAppWebViewScreen` with `siteId == work-gh`
-- **AND** every `LaunchUrlFunc` field of the screen comes from `work-gh`: container, incognito, language, user scripts, proxy, location, WebRTC policy, ClearURLs, DNS and content blocking, camera and microphone modes, `blockAutoRedirects`, `externalLinkMode`
+- **AND** every `LaunchUrlFunc` field of the screen comes from `work-gh`: container, incognito, language, user scripts, proxy, location, WebRTC policy, ClearURLs, DNS and content blocking, camera and microphone modes, `externalLinkMode`
 - **AND** the current webspace is unchanged
 
 #### Scenario: Back gesture returns to source in the same webspace
