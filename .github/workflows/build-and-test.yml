@@ -447,6 +447,11 @@ jobs:
       - name: Run tests
         run: fvm flutter test
 
+      - name: Run tests as the F-Droid build
+        # isFdroidFlavor is a compile-time constant, so a test's F-Droid side
+        # runs only when compiled with the flavor, as the shipped build is.
+        run: fvm flutter test --flavor fdroid test/icon_public_services_test.dart
+
       - name: Generate launcher icons
         run: fvm dart run flutter_launcher_icons
 
@@ -478,6 +483,22 @@ jobs:
           fi
           for apk in "${apks[@]}"; do
             bash scripts/check_no_gms.sh "$apk"
+          done
+
+      - name: Verify APK asks no third-party icon service
+        # ICON-012: F-Droid lists Google's and DuckDuckGo's favicon services
+        # as NonFreeNet. The release compiler drops them from this build, so
+        # their hosts in libapp.so mean a path to them survived.
+        run: |
+          set -e
+          shopt -s nullglob
+          apks=( build/app/outputs/flutter-apk/*-fdroid-release.apk )
+          if [ ${#apks[@]} -eq 0 ]; then
+            echo "ERROR: no fdroid APK found to scan" >&2
+            exit 1
+          fi
+          for apk in "${apks[@]}"; do
+            bash scripts/check_no_icon_services.sh "$apk"
           done
 
       - name: Verify JNI bridge survived shrinking

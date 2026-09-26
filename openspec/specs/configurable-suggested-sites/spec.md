@@ -163,13 +163,14 @@ Tapping a suggested site SHALL open a confirmation dialog to add the site, same 
 
 ## Flavor Detection
 
-The build flavor is detected at runtime via:
+The build flavor is detected at compile time in `lib/platform/build_flavor.dart`:
 
 ```dart
-const flavor = String.fromEnvironment('FLUTTER_APP_FLAVOR');
+const bool isFdroidFlavor =
+    String.fromEnvironment('FLUTTER_APP_FLAVOR') == 'fdroid';
 ```
 
-Flutter automatically sets `FLUTTER_APP_FLAVOR` when building with `--flavor`. The fdroid flavor results in an empty default list; all other flavors use the curated list defined in `kDefaultSuggestions`.
+Flutter automatically sets `FLUTTER_APP_FLAVOR` when building with `--flavor`. The fdroid flavor results in an empty default list; all other flavors use the curated list defined in `kDefaultSuggestions`. The same constant keeps the fdroid build off third-party icon services (ICON-012 in [icon-fetching](../icon-fetching/spec.md)).
 
 ---
 
