@@ -4525,15 +4525,6 @@
   "@tabsMemoryNote": {
     "description": "Footer of the tab list. Each site keeps at most one tab loaded in memory (the one it is showing); every other tab is stored and its page loads again when the user opens it, so a long list costs little memory."
   },
-  "tabsCloseParked": "{count, plural, =1{Close 1 parked tab} other{Close {count} parked tabs}}",
-  "@tabsCloseParked": {
-    "description": "Button that closes every tab of the site except the one currently open.",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "tabsCloseTab": "Close tab",
   "@tabsCloseTab": {
     "description": "Tooltip on the button that closes one tab. Any tabs opened from it move up to its own parent."
@@ -4544,11 +4535,11 @@
   },
   "tabsLive": "open",
   "@tabsLive": {
-    "description": "Marker beside the one tab of the current site that is actually loaded and on screen. The others are stored."
+    "description": "Read by a screen reader for the one tab of the current site that is loaded and on screen; sighted users see it drawn at full strength and highlighted. The others are stored."
   },
   "tabsLoaded": "loaded",
   "@tabsLoaded": {
-    "description": "Short lowercase marker beside a tab whose page is loaded in memory but paused, because its site is not the one on screen. Sits where the marker for the tab on screen would be."
+    "description": "Read by a screen reader for a tab whose page is loaded in memory but paused, because its site is not the one on screen; sighted users see it drawn at full strength while stored tabs are faded."
   },
   "tabsExpand": "Show the tabs opened from this one",
   "@tabsExpand": {

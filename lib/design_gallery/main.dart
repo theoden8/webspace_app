@@ -938,7 +938,6 @@ class _TabsSheetCard extends StatelessWidget {
                 onNewTab: (_) {},
                 onCloseTab: (_, _) {},
                 onCloseSubtree: (_, _) {},
-                onCloseParked: (_) {},
               ),
             ),
           ),

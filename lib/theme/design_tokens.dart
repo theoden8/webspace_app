@@ -92,6 +92,13 @@ abstract final class FloatingButton {
   static const double dragScale = 1.2;
 }
 
+/// Rows of the tab list (TAB-011).
+abstract final class TabRows {
+  /// A tab that holds no webview is drawn at this strength, as a browser
+  /// fades an unloaded tab.
+  static const double unloadedOpacity = 0.5;
+}
+
 abstract final class TextSizes {
   /// The URL bar's editable text.
   static const double url = 14;

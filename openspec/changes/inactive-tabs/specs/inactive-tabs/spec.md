@@ -217,7 +217,7 @@ parent.
 
 The Tabs sheet SHALL be reachable from the app bar square showing the site's
 tab count and by tapping the active site's chip in the strip, SHALL offer "New
-tab" and "Close N parked", and SHALL list tabs as a tree in creation order,
+tab", and SHALL list tabs as a tree in creation order,
 indented by depth, with a collapse chevron on nodes that have children, each
 tab's load state shown per TAB-011, and close and close-subtree actions. Collapsing a
 tab SHALL hide its whole subtree and SHALL say how many tabs that is.
@@ -246,8 +246,8 @@ kiosk shell (KIOSK-002) SHALL hide all of these.
 #### Scenario: One loaded tab per loaded site
 
 - **GIVEN** two loaded sites, each with tabs, and the sheet in its "All sites" scope
-- **THEN** exactly one row per site is marked, its active tab
-- **AND** every other row reads as stored (TAB-011)
+- **THEN** exactly one row per site is drawn at full strength, its active tab
+- **AND** every other row is faded as stored (TAB-011)
 
 ---
 
@@ -319,17 +319,19 @@ Whether a tab is loaded SHALL be decided by the existing site load policy
 `SiteLifecyclePromotionEngine`, retention priorities), with the site as its
 unit per TAB-002: a tab is loaded exactly when it is the active tab of a site
 that holds a webview. No rule specific to tabs SHALL load or unload anything.
-The tab list SHALL show that state on every row: the loaded tab of the site on
-screen marked "open", the loaded tab of a backgrounded site marked "loaded"
-(its webview is resident but paused), and every other tab read muted, since
-opening it reloads its page. A tab switch on a loaded site SHALL return the
+The tab list SHALL show that state on every row by strength alone, as a browser
+fades an unloaded tab: a loaded tab at full strength, whether its site is on
+screen or backgrounded (its webview resident but paused), and every other tab
+faded, since opening it reloads its page. The tab on screen SHALL also carry the
+selected-row highlight. No text label SHALL be drawn for the state; a screen
+reader SHALL be told it in words instead. A tab switch on a loaded site SHALL return the
 site to the `resident` tier, because the rebuilt webview is fresh.
 
 #### Scenario: The policy unloads, the list shows it
 
-- **GIVEN** Mastodon is loaded in the background and its active tab is marked "loaded"
+- **GIVEN** Mastodon is loaded in the background and its active tab is drawn at full strength
 - **WHEN** memory pressure disposes Mastodon's webview
-- **THEN** the next time the tab list opens, every Mastodon tab reads muted
+- **THEN** the next time the tab list opens, every Mastodon tab is faded
 - **AND** no tab of any other site changes state
 
 #### Scenario: A switch resets the tier

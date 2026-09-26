@@ -417,9 +417,10 @@ A saved state is a transcript of one identity's browsing: the back-forward list,
 - **`currentUrl` as a getter** touches many call sites in `main.dart`. The
   compatibility getter keeps reads working; writes move to
   `activeTab.url = ...`, a mechanical change gated by the analyzer.
-- **Lists grow.** Mitigated by the backwards-closes rule, "Close N parked",
-  and the fact that opening a site never adds a tab. Sweeping is a later
-  round.
+- **Lists grow.** Mitigated by the backwards-closes rule, closing a subtree
+  from the list, and the fact that opening a site never adds a tab. There is
+  no bulk "close the rest": it reads as a nudge to throw tabs away. Sweeping
+  is a later round.
 - **Naming.** The bottom strip is the "site tab strip" and its chips are
   sites. The new objects are "tabs" of a site. Copy in the sheet always says
   whose tabs they are ("GitHub, 4 tabs").

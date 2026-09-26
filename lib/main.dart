@@ -7573,22 +7573,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     }
   }
 
-  Future<void> _closeParkedTabs(int index) async {
-    if (_isTabHandling) return;
-    _isTabHandling = true;
-    try {
-      if (index < 0 || index >= _webViewModels.length) return;
-      final model = _webViewModels[index];
-      await _applyTabClose(
-        index,
-        model,
-        TabLifecycleEngine.closeParked(model.tabs, model.activeTabId),
-      );
-    } finally {
-      _isTabHandling = false;
-    }
-  }
-
   /// A back gesture that ran out of page history. Returns true when it was
   /// spent closing a tab the user had opened from another one, which is what a
   /// browser does with a tab opened from a link (TAB-007). A root tab falls
@@ -7641,7 +7625,6 @@ class _WebSpacePageState extends State<WebSpacePage>
         onNewTab: (i) => unawaited(_newTab(i)),
         onCloseTab: (i, id) => unawaited(_closeTab(i, id)),
         onCloseSubtree: (i, id) => unawaited(_closeTab(i, id, subtree: true)),
-        onCloseParked: (i) => unawaited(_closeParkedTabs(i)),
       ),
     );
   }

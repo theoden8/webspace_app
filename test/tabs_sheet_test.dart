@@ -25,7 +25,6 @@ Future<void> pumpSheet(
   void Function(int)? onNewTab,
   void Function(int, String)? onCloseTab,
   void Function(int, String)? onCloseSubtree,
-  void Function(int)? onCloseParked,
 }) async {
   tester.view.physicalSize = const Size(400, 900);
   tester.view.devicePixelRatio = 1.0;
@@ -42,16 +41,30 @@ Future<void> pumpSheet(
         onNewTab: onNewTab ?? (_) {},
         onCloseTab: onCloseTab ?? (_, _) {},
         onCloseSubtree: onCloseSubtree ?? (_, _) {},
-        onCloseParked: onCloseParked ?? (_) {},
       ),
     ),
   ));
   await tester.pump();
 }
 
+/// How strongly the row showing [text] is drawn: 1 for a tab that holds a
+/// webview, faded for a stored one (TAB-011).
+double strengthOf(WidgetTester tester, String text) => tester
+    .widget<Opacity>(find
+        .ancestor(of: find.text(text).first, matching: find.byType(Opacity))
+        .first)
+    .opacity;
+
+/// Whether the row showing [text] carries the selected-row highlight that
+/// marks the tab on screen.
+bool isHighlighted(String text) => find
+    .ancestor(of: find.text(text).first, matching: find.byType(Ink))
+    .evaluate()
+    .isNotEmpty;
+
 void main() {
   group('TAB-008 — the tab list', () {
-    testWidgets('lists every tab of the site, with the open one marked',
+    testWidgets('lists every tab of the site, with the open one selected',
         (tester) async {
       final site = siteWithChain('GitHub', [
         'https://github.com/',
@@ -66,7 +79,16 @@ void main() {
       expect(find.text('GitHub · 3 tabs'), findsOneWidget);
       // Exactly one row is the loaded one: the active tab of the site on
       // screen. Every other tab is stored, not running.
-      expect(find.text('open'), findsOneWidget);
+      expect(strengthOf(tester, 'https://github.com/'), 1);
+      expect(isHighlighted('https://github.com/'), isTrue);
+      for (final stored in [
+        'https://github.com/pulls',
+        'https://github.com/pull/601',
+      ]) {
+        expect(strengthOf(tester, stored), lessThan(1));
+        expect(isHighlighted(stored), isFalse);
+      }
+      expect(find.text('open'), findsNothing);
     });
 
     testWidgets('a site on one tab says so in the singular', (tester) async {
@@ -146,25 +168,6 @@ void main() {
       expect(closed, site.tabs.first.id);
     });
 
-    testWidgets('closing the parked tabs is offered only when there are some',
-        (tester) async {
-      final one = siteWithChain('Solo', ['https://solo.test/']);
-      await pumpSheet(tester, [
-        TabsSheetSite(index: 0, model: one, isCurrent: true, isLoaded: true),
-      ]);
-      expect(find.textContaining('parked'), findsNothing);
-
-      final many = siteWithChain('GitHub', [
-        'https://github.com/',
-        'https://github.com/pulls',
-        'https://github.com/issues',
-      ]);
-      await pumpSheet(tester, [
-        TabsSheetSite(index: 0, model: many, isCurrent: true, isLoaded: true),
-      ]);
-      expect(find.text('Close 2 parked tabs'), findsOneWidget);
-    });
-
     testWidgets('the all-sites scope appears only with more than one site',
         (tester) async {
       final a = siteWithChain('GitHub', ['https://github.com/']);
@@ -188,7 +191,7 @@ void main() {
       expect(find.text('Mastodon · 1 tab'), findsOneWidget);
     });
 
-    testWidgets('TAB-011 — a tab is marked by what the load policy holds',
+    testWidgets('TAB-011 — a tab is faded unless the load policy holds it',
         (tester) async {
       final a = siteWithChain('GitHub', [
         'https://github.com/',
@@ -209,29 +212,38 @@ void main() {
       ]);
       await tester.tap(find.text('All sites'));
       await tester.pump();
-      // One tab per loaded site holds a webview, never more (TAB-002).
-      expect(find.text('open'), findsOneWidget);
-      expect(find.text('loaded'), findsOneWidget);
+      // One tab per loaded site holds a webview, never more (TAB-002), and
+      // only the one on screen is selected.
+      expect(strengthOf(tester, 'https://github.com/'), 1);
+      expect(isHighlighted('https://github.com/'), isTrue);
+      expect(strengthOf(tester, 'https://mastodon.social/'), 1);
+      expect(isHighlighted('https://mastodon.social/'), isFalse);
       // Each site's other tabs, and every tab of the unloaded site, are
-      // stored and read muted.
-      final muted = Theme.of(tester.element(find.byType(TabsSheet)))
-          .colorScheme
-          .onSurfaceVariant;
-      final parked = tester.widget<Text>(find.text('https://github.com/pulls'));
-      expect(parked.style?.color, muted);
-      final unloaded =
-          tester.widget<Text>(find.text('https://en.wikipedia.org/').first);
-      expect(unloaded.style?.color, muted);
+      // stored and faded.
+      expect(strengthOf(tester, 'https://github.com/pulls'), lessThan(1));
+      expect(strengthOf(tester, 'https://mastodon.social/@a'), lessThan(1));
+      expect(strengthOf(tester, 'https://en.wikipedia.org/'), lessThan(1));
+      // The fade has no words on screen; a screen reader gets them instead.
+      expect(find.text('open'), findsNothing);
+      expect(find.text('loaded'), findsNothing);
+      final handle = tester.ensureSemantics();
+      final node = tester.getSemantics(find
+          .ancestor(
+              of: find.text('https://mastodon.social/').first,
+              matching: find.byType(Semantics))
+          .first);
+      expect(node.value, 'loaded');
+      handle.dispose();
     });
 
-    testWidgets('the site on screen but not yet built marks nothing',
+    testWidgets('the site on screen but not yet built draws its tab faded',
         (tester) async {
       final a = siteWithChain('GitHub', ['https://github.com/']);
       await pumpSheet(tester, [
         TabsSheetSite(index: 0, model: a, isCurrent: true, isLoaded: false),
       ]);
-      expect(find.text('open'), findsNothing);
-      expect(find.text('loaded'), findsNothing);
+      expect(strengthOf(tester, 'https://github.com/'), lessThan(1));
+      expect(isHighlighted('https://github.com/'), isFalse);
     });
   });
 }
