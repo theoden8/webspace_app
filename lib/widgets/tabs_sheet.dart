@@ -4,7 +4,8 @@
 /// (TAB-008). Reached from the app bar's tab-count button and from a tap on
 /// the active site's chip in the strip. Rows render in tree order — a tab sits
 /// under the tab it was opened from — and say which tabs hold a webview: the
-/// active tab of a loaded site does, every other tab is stored (TAB-011).
+/// active tab of a loaded site does and draws at full strength, every other
+/// tab is stored and drawn faded (TAB-011).
 ///
 /// The widget owns no state beyond which subtrees are collapsed: the tab list
 /// lives on the `WebViewModel`s and every mutation goes back to the host
@@ -51,7 +52,6 @@ class TabsSheet extends StatefulWidget {
     required this.onNewTab,
     required this.onCloseTab,
     required this.onCloseSubtree,
-    required this.onCloseParked,
   });
 
   /// Every site the current webspace shows, in display order.
@@ -64,7 +64,6 @@ class TabsSheet extends StatefulWidget {
   final void Function(int siteIndex) onNewTab;
   final void Function(int siteIndex, String tabId) onCloseTab;
   final void Function(int siteIndex, String tabId) onCloseSubtree;
-  final void Function(int siteIndex) onCloseParked;
 
   @override
   State<TabsSheet> createState() => _TabsSheetState();
@@ -85,7 +84,6 @@ class _TabsSheetState extends State<TabsSheet> {
     final theme = Theme.of(context);
     final site = _site;
     if (site == null) return const SizedBox.shrink();
-    final parked = site.model.tabs.length - 1;
     return SafeArea(
       top: false,
       child: ConstrainedBox(
@@ -135,24 +133,10 @@ class _TabsSheetState extends State<TabsSheet> {
             const Divider(height: Chrome.hairlineWidth),
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                  Spacing.lg, Spacing.xs, Spacing.sm, Spacing.sm),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      loc.tabsMemoryNote,
-                      style: theme.textTheme.bodySmall,
-                    ),
-                  ),
-                  if (parked > 0)
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        widget.onCloseParked(site.index);
-                      },
-                      child: Text(loc.tabsCloseParked(parked)),
-                    ),
-                ],
+                  Spacing.lg, Spacing.sm, Spacing.lg, Spacing.sm),
+              child: Text(
+                loc.tabsMemoryNote,
+                style: theme.textTheme.bodySmall,
               ),
             ),
           ],
@@ -232,15 +216,13 @@ class _TabsSheetState extends State<TabsSheet> {
     final isLoaded = isActive && site.isLoaded;
     final isOnScreen = isLoaded && site.isCurrent;
     final collapsed = _collapsed.contains(tab.id);
-    final titleStyle = isActive
-        ? theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)
-        : theme.textTheme.bodyMedium;
-    return InkWell(
+    final shape = BorderRadius.circular(Radii.lg);
+    final rowBody = InkWell(
       onTap: () {
         Navigator.of(context).pop();
         widget.onOpenTab(site.index, tab.id);
       },
-      borderRadius: BorderRadius.circular(Radii.lg),
+      borderRadius: shape,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: Spacing.xs),
         child: Row(
@@ -265,59 +247,54 @@ class _TabsSheetState extends State<TabsSheet> {
                       }),
                     ),
             ),
-            UnifiedFaviconImage(
-              url: site.model.initUrl,
-              size: IconSizes.inline,
-              proxy: site.model.outboundProxySettings,
-              customIcon: site.model.customIconPng,
-              persist: !site.model.isArchiveTier,
-            ),
-            const SizedBox(width: Spacing.sm),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    tab.title?.isNotEmpty == true ? tab.title! : tab.url,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    // A stored tab reads muted, as a browser greys an unloaded
-                    // tab: opening it reloads the page.
-                    style: isLoaded
-                        ? titleStyle
-                        : titleStyle?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant),
-                  ),
-                  Text(
-                    // The whole subtree goes when a tab is collapsed, not just
-                    // its direct children, so that is what the count says.
-                    collapsed && row.childCount > 0
-                        ? loc.tabsHiddenChildren(
-                            TabLifecycleEngine.descendants(
-                                    site.model.tabs, tab.id)
-                                .length)
-                        : extractDomain(tab.url),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                  ),
-                ],
-              ),
-            ),
-            if (isLoaded)
-              Padding(
-                padding: const EdgeInsets.only(right: Spacing.xs),
-                child: Text(
-                  isOnScreen ? loc.tabsLive : loc.tabsLoaded,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: isOnScreen
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.onSurfaceVariant,
-                  ),
+              // A stored tab is faded, as a browser fades an unloaded tab:
+              // opening it reloads the page.
+              child: Opacity(
+                opacity: isLoaded ? 1 : TabRows.unloadedOpacity,
+                child: Row(
+                  children: [
+                    UnifiedFaviconImage(
+                      url: site.model.initUrl,
+                      size: IconSizes.inline,
+                      proxy: site.model.outboundProxySettings,
+                      customIcon: site.model.customIconPng,
+                      persist: !site.model.isArchiveTier,
+                    ),
+                    const SizedBox(width: Spacing.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            tab.title?.isNotEmpty == true ? tab.title! : tab.url,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                          Text(
+                            // The whole subtree goes when a tab is collapsed,
+                            // not just its direct children, so that is what
+                            // the count says.
+                            collapsed && row.childCount > 0
+                                ? loc.tabsHiddenChildren(
+                                    TabLifecycleEngine.descendants(
+                                            site.model.tabs, tab.id)
+                                        .length)
+                                : extractDomain(tab.url),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
+            ),
             if (row.childCount > 0)
               IconButton(
                 visualDensity: VisualDensity.compact,
@@ -342,6 +319,20 @@ class _TabsSheetState extends State<TabsSheet> {
           ],
         ),
       ),
+    );
+    // The fade is the only visual cue, so a screen reader is told in words.
+    return Semantics(
+      selected: isOnScreen,
+      value: isLoaded ? (isOnScreen ? loc.tabsLive : loc.tabsLoaded) : null,
+      child: isOnScreen
+          ? Ink(
+              decoration: BoxDecoration(
+                color: theme.colorScheme.secondaryContainer,
+                borderRadius: shape,
+              ),
+              child: rowBody,
+            )
+          : rowBody,
     );
   }
 }

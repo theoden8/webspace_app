@@ -213,17 +213,6 @@ void main() {
     });
   });
 
-  group('closeParked', () {
-    test('keeps the active tab and drops the rest', () {
-      final tabs = [tab('a'), tab('b', parent: 'a'), tab('c')];
-      final r = TabLifecycleEngine.closeParked(tabs, 'b');
-      expect(ids(r.tabs), ['b']);
-      expect(r.tabs.single.parentId, isNull);
-      expect(r.nextActiveId, 'b');
-      expect(r.activeChanged, isFalse);
-    });
-  });
-
   group('backAtHistoryStart (TAB-007)', () {
     test('a root tab keeps the NAV-001 no-op', () {
       expect(

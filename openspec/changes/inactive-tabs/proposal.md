@@ -61,7 +61,8 @@ LIR-018 to LIR-027 land after the tab model above (`tasks.md`). TAB-001, TAB-002
   tap still opens the ephemeral nested screen, or routes to the site that
   claims it (`route-outbound-via-lir`). A tab that is not hosted is always in
   its site's domain, so the container question has one answer.
-- Keep limits, pins, sweeping. "Close N parked" is the only hygiene.
+- Keep limits, pins, sweeping, and a bulk "close the rest". Closing a tab or
+  a subtree from the list is the only hygiene.
 - A warm second webview per site.
 
 ## Status

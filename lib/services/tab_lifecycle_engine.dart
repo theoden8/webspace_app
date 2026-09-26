@@ -219,15 +219,6 @@ class TabLifecycleEngine {
         reparent: false,
       );
 
-  /// Close every parked tab, keeping the active one.
-  static TabCloseResult closeParked(List<SiteTab> tabs, String activeTabId) =>
-      _close(
-        tabs,
-        activeTabId,
-        tabs.map((t) => t.id).where((id) => id != activeTabId).toSet(),
-        reparent: true,
-      );
-
   static TabCloseResult _close(
     List<SiteTab> tabs,
     String activeTabId,
