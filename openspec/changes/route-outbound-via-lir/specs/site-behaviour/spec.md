@@ -4,26 +4,25 @@
 
 The Behaviour screen's "Link handling" group (BEHAV-001) SHALL hold, between Block auto-redirects and Open external links in browser, a "Route links to my sites" switch (`routeOutboundLinks`, link-intent-routing LIR-013) and, while that switch is on, a "Routing preferences" row that opens a screen listing the site's outbound preferences. The rows follow resolution order: a routed destination wins over the system browser (LIR-014), so routing reads before the external-links switch, and the domain-claim editor stays last, directly under the switch whose hint names it.
 
-Both rows SHALL be shown only while the link-routing experiment is on (developer mode and its switch, DEVTOOLS-011), the same gate LIR-014 puts on routing itself. While it is off they are hidden, their stored values are kept, and the Behaviour row's summary SHALL NOT name the switch.
+Both rows SHALL be shown whatever developer mode says: routing is not an experimental feature (DEVTOOLS-011), and the per-site switch, off by default, is its only gate.
 
 The switch SHALL carry its explanation in a `HintButton` on its title row (HINT-001), not in a subtitle. Its subtitle SHALL name state only: while the legacy cookie engine is active the switch SHALL be disabled (`onChanged: null`) and subtitled "Needs per-site containers", since LIR-014 does not route there; otherwise it SHALL have no subtitle. The preferences row's subtitle SHALL be state-derived: the preference count, or "Global routing only" when the list is empty.
 
 `routeOutboundLinks` and `outboundPreferences` SHALL ride `SiteBehaviourValues`, so both are in the settings screen's dirty-snapshot diff and are saved with the rest of site settings (BUG-006, EDIT-009). The domain-claim editor remains the only control on the screen that writes straight to the model. The preferences screen's target choices SHALL be the site's LIR-014 candidates other than the site itself.
 
-The Behaviour row's summary (BEHAV-002) SHALL name the routing switch when it is on and the experiment is on, like any other switch.
+The Behaviour row's summary (BEHAV-002) SHALL name the routing switch when it is on, like any other switch.
 
-#### Scenario: The experiment off hides the routing rows
+#### Scenario: The routing rows need no developer mode
 
-- **GIVEN** developer mode is off, or the "Link routing between sites" switch is
+- **GIVEN** developer mode is off
 - **AND** the site has `routeOutboundLinks` on and one routing preference
 - **WHEN** the Behaviour screen opens
-- **THEN** neither the routing switch nor the Routing preferences row is shown
-- **AND** the Behaviour row's summary does not name the routing switch
-- **AND** the stored toggle and preference are unchanged
+- **THEN** the routing switch shows on and the Routing preferences row counts one preference
+- **AND** the Behaviour row's summary names the routing switch
 
 #### Scenario: Routing sits between the redirect and external-link switches
 
-- **GIVEN** the Behaviour screen is open and the link-routing experiment is on
+- **GIVEN** the Behaviour screen is open
 - **THEN** the "Link handling" group reads, in order: Block auto-redirects, Route links to my sites, Open external links in browser, the domain-claim editor
 - **AND** the Routing preferences row appears under the routing switch only while the switch is on
 

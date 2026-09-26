@@ -50,15 +50,6 @@ void main() {
         isTrue);
   });
 
-  test('link routing defaults off, even with developer mode on', () async {
-    await ExperimentalFeaturesService.instance.initialize();
-    DeveloperModeService.instance.debugSet(true);
-    expect(
-        ExperimentalFeaturesService.instance
-            .isEnabled(ExperimentalFeature.linkRouting),
-        isFalse);
-  });
-
   test('a switch persists and is read back', () async {
     await ExperimentalFeaturesService.instance
         .setSwitch(ExperimentalFeature.tor, false);

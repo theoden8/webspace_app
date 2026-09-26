@@ -45,6 +45,7 @@ import 'package:webspace/widgets/tor_bootstrap.dart';
 import 'package:webspace/widgets/unproxied_block.dart';
 import 'package:webspace/widgets/http_auth_prompt.dart';
 import 'package:webspace/widgets/untrusted_cert_prompt.dart';
+import 'package:webspace/widgets/site_info_sheet.dart';
 import 'package:webspace/widgets/url_bar.dart';
 
 /// Identifies the nested webview's slot, the counterpart of the main page's
@@ -768,6 +769,24 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     });
   }
 
+  /// This screen runs as the site that opened it, or as the one outbound
+  /// routing picked (LIR-015); the sheet says which, and which container it
+  /// binds, by the rule the factory bound it with.
+  void _showSiteInfo() {
+    showSiteInfoSheet(
+      context,
+      SiteInfo(
+        siteName: widget.homeTitle ?? extractDomain(widget.url),
+        pageUrl: _currentUrl,
+        containerId: containerIdFor(
+          siteId: widget.siteId,
+          incognito: widget.incognito,
+        ),
+        incognito: widget.incognito,
+      ),
+    );
+  }
+
   void _toggleFind() {
     setState(() {
       _isFindVisible = !_isFindVisible;
@@ -1180,6 +1199,16 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                   ),
                 ),
                 PopupMenuItem<String>(
+                  value: "siteInfo",
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline),
+                      SizedBox(width: 8),
+                      Text(loc.siteInfoTitle),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<String>(
                   value: "toggleUrlBar",
                   child: Row(
                     children: [
@@ -1242,6 +1271,9 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                   break;
                 case 'search':
                   _toggleFind();
+                  break;
+                case 'siteInfo':
+                  _showSiteInfo();
                   break;
                 case 'toggleUrlBar':
                   setState(() {
@@ -1318,6 +1350,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
               top: false,
               child: UrlBar(
                 currentUrl: _currentUrl,
+                onSiteInfo: _showSiteInfo,
                 onUrlSubmitted: (url) {
                   _controller?.loadUrl(url, language: widget.language);
                 },

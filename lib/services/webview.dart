@@ -493,6 +493,26 @@ bool siteOwnsContainerProfile({
     // session of its own and needs no name.
     (!incognito || hostIsAndroid);
 
+/// The native container a site's webview binds (`ws-<id>`), or null when it
+/// binds none: the legacy engine, or an incognito site off Android, which gets
+/// an ephemeral store. [archiveContainerId] stands in for [siteId] for an
+/// archive-tier site. The one rule [WebViewFactory.createWebView] binds by and
+/// the site info sheet reports.
+String? containerIdFor({
+  required String? siteId,
+  String? archiveContainerId,
+  required bool incognito,
+}) {
+  final containerSiteIdentifier = archiveContainerId ?? siteId;
+  return siteOwnsContainerProfile(
+    containersSupported: ContainerNative.instance.cachedSupported,
+    containerSiteIdentifier: containerSiteIdentifier,
+    incognito: incognito,
+  )
+      ? 'ws-$containerSiteIdentifier'
+      : null;
+}
+
 /// Proxy manager singleton.
 ///
 /// Two delivery paths coexist behind a single API:
@@ -2221,7 +2241,6 @@ class WebViewFactory {
     // siteId)`, so directory listings under the native container roots
     // expose neither the cleartext archive siteId nor a count delta
     // that correlates 1:1 with archive contents.
-    final containerSiteIdentifier = config.archiveContainerId ?? config.siteId;
     // iOS/macOS/Linux ignore containerId under incognito: the fork
     // short-circuits to an ephemeral store, so binding nothing is right
     // there. Android has no ephemeral profile at all; the fork's
@@ -2232,13 +2251,11 @@ class WebViewFactory {
     // archive closes (ARCH-006/ARCH-007). So Android always binds a named
     // profile and relies on the existing teardown: incognito ids are deleted
     // at startup and archive container ids at close.
-    final containerId = siteOwnsContainerProfile(
-      containersSupported: ContainerNative.instance.cachedSupported,
-      containerSiteIdentifier: containerSiteIdentifier,
+    final containerId = containerIdFor(
+      siteId: config.siteId,
+      archiveContainerId: config.archiveContainerId,
       incognito: config.incognito,
-    )
-        ? 'ws-$containerSiteIdentifier'
-        : null;
+    );
 
     // Per-site proxy delivery, on the platforms that bind it to the
     // WebView's own network store rather than process-wide:
