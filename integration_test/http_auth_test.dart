@@ -299,6 +299,13 @@ void main() {
           .isNotEmpty,
       description: 'the dialog to reopen after a refused password',
     );
+    // The refused dialog's exit animation can still be in the tree when the
+    // retry's dialog opens, and both hold the typed username until it ends.
+    await pumpUntil(
+      tester,
+      () => dialog.evaluate().length == 1,
+      description: 'the refused dialog to finish closing',
+    );
     expect(find.text(_user), findsOneWidget,
         reason: 'the retry keeps the username that was typed');
 
