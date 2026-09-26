@@ -935,7 +935,6 @@
   "tabsThisSite": "此網站",
   "tabsAllSites": "所有網站",
   "tabsMemoryNote": "每個網站只保留一個已載入的分頁，其他分頁開啟時會重新載入",
-  "tabsCloseParked": "{count, plural, =1{關閉 1 個閒置分頁} other{關閉 {count} 個閒置分頁}}",
   "tabsCloseTab": "關閉分頁",
   "tabsCloseSubtree": "關閉此分頁及從它開啟的分頁",
   "tabsLive": "開啟中",

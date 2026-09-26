@@ -935,7 +935,6 @@
   "tabsThisSite": "See sait",
   "tabsAllSites": "Kõik saidid",
   "tabsMemoryNote": "Igal saidil jääb laaditud vaid üks kaart; teised laaditakse avamisel uuesti",
-  "tabsCloseParked": "{count, plural, =1{Sulge 1 ootel kaart} other{Sulge {count} ootel kaarti}}",
   "tabsCloseTab": "Sulge kaart",
   "tabsCloseSubtree": "Sulge kaart ja sellelt avatud kaardid",
   "tabsLive": "avatud",

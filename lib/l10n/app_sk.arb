@@ -935,7 +935,6 @@
   "tabsThisSite": "Táto stránka",
   "tabsAllSites": "Všetky stránky",
   "tabsMemoryNote": "Každá stránka drží načítanú iba jednu kartu; ostatné sa pri otvorení načítajú znova",
-  "tabsCloseParked": "{count, plural, =1{Zavrieť 1 uspanú kartu} few{Zavrieť {count} uspané karty} other{Zavrieť {count} uspaných kariet}}",
   "tabsCloseTab": "Zavrieť kartu",
   "tabsCloseSubtree": "Zavrieť kartu a karty otvorené z nej",
   "tabsLive": "otvorená",

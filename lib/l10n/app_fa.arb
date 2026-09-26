@@ -935,7 +935,6 @@
   "tabsThisSite": "این سایت",
   "tabsAllSites": "همهٔ سایت‌ها",
   "tabsMemoryNote": "از هر سایت فقط یک زبانه بارشده می‌ماند؛ بقیه هنگام باز شدن دوباره بار می‌شوند",
-  "tabsCloseParked": "{count, plural, =1{بستن ۱ زبانهٔ ذخیره‌شده} other{بستن {count} زبانهٔ ذخیره‌شده}}",
   "tabsCloseTab": "بستن زبانه",
   "tabsCloseSubtree": "بستن زبانه و زبانه‌های بازشده از آن",
   "tabsLive": "باز",

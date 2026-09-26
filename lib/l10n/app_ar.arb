@@ -935,7 +935,6 @@
   "tabsThisSite": "هذا الموقع",
   "tabsAllSites": "كل المواقع",
   "tabsMemoryNote": "يبقى لسان واحد لكل موقع محمّلًا، وتُعاد تحميل الألسنة الأخرى عند فتحها",
-  "tabsCloseParked": "{count, plural, =1{أغلق لسانًا مركونًا} zero{أغلق الألسنة المركونة} two{أغلق لسانين مركونين} few{أغلق {count} ألسنة مركونة} many{أغلق {count} لسانًا مركونًا} other{أغلق {count} لسان مركون}}",
   "tabsCloseTab": "أغلق اللسان",
   "tabsCloseSubtree": "أغلق اللسان والألسنة المفتوحة منه",
   "tabsLive": "مفتوح",

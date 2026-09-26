@@ -935,7 +935,6 @@
   "tabsThisSite": "Dette websted",
   "tabsAllSites": "Alle websteder",
   "tabsMemoryNote": "Hvert websted holder kun ét faneblad indlæst; de andre genindlæses, når de åbnes",
-  "tabsCloseParked": "{count, plural, =1{Luk 1 parkeret faneblad} other{Luk {count} parkerede faneblade}}",
   "tabsCloseTab": "Luk faneblad",
   "tabsCloseSubtree": "Luk fanebladet og de faneblade, der er åbnet fra det",
   "tabsLive": "åbent",

@@ -935,7 +935,6 @@
   "tabsThisSite": "Hierdie webwerf",
   "tabsAllSites": "Alle webwerwe",
   "tabsMemoryNote": "Een oortjie per werf bly gelaai; die ander herlaai wanneer jy dit oopmaak",
-  "tabsCloseParked": "{count, plural, =1{Sluit 1 geparkeerde oortjie} other{Sluit {count} geparkeerde oortjies}}",
   "tabsCloseTab": "Sluit oortjie",
   "tabsCloseSubtree": "Sluit oortjie en die oortjies wat daaruit oopgemaak is",
   "tabsLive": "oop",

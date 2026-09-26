@@ -935,7 +935,6 @@
   "tabsThisSite": "Este site",
   "tabsAllSites": "Todos os sites",
   "tabsMemoryNote": "Cada site mantém só um separador carregado; os outros voltam a carregar ao abrir",
-  "tabsCloseParked": "{count, plural, =1{Fechar 1 separador em espera} other{Fechar {count} separadores em espera}}",
   "tabsCloseTab": "Fechar separador",
   "tabsCloseSubtree": "Fechar o separador e os separadores abertos a partir dele",
   "tabsLive": "aberto",

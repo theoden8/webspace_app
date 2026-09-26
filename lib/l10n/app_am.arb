@@ -935,7 +935,6 @@
   "tabsThisSite": "ይህ ጣቢያ",
   "tabsAllSites": "ሁሉም ጣቢያዎች",
   "tabsMemoryNote": "ከእያንዳንዱ ጣቢያ አንድ ትር ብቻ ተጭኖ ይቆያል፤ ሌሎቹ ሲከፈቱ እንደገና ይጫናሉ",
-  "tabsCloseParked": "{count, plural, =1{1 የቆመ ትር ዝጋ} other{{count} የቆሙ ትሮችን ዝጋ}}",
   "tabsCloseTab": "ትር ዝጋ",
   "tabsCloseSubtree": "ትሩንና ከእሱ የተከፈቱትን ትሮች ዝጋ",
   "tabsLive": "ክፍት",

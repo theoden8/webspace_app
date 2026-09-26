@@ -935,7 +935,6 @@
   "tabsThisSite": "Kjo faqe",
   "tabsAllSites": "Të gjitha faqet",
   "tabsMemoryNote": "Çdo sajt mban të ngarkuar vetëm një skedë; të tjerat ringarkohen kur hapen",
-  "tabsCloseParked": "{count, plural, =1{Mbyll 1 skedë joaktive} other{Mbyll {count} skeda joaktive}}",
   "tabsCloseTab": "Mbyll skedën",
   "tabsCloseSubtree": "Mbyll skedën dhe skedat e hapura prej saj",
   "tabsLive": "hapur",

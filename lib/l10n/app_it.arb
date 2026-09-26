@@ -935,7 +935,6 @@
   "tabsThisSite": "Questo sito",
   "tabsAllSites": "Tutti i siti",
   "tabsMemoryNote": "Ogni sito tiene caricata una sola scheda; le altre si ricaricano all'apertura",
-  "tabsCloseParked": "{count, plural, =1{Chiudi 1 scheda inattiva} other{Chiudi {count} schede inattive}}",
   "tabsCloseTab": "Chiudi scheda",
   "tabsCloseSubtree": "Chiudi la scheda e le schede aperte da essa",
   "tabsLive": "aperta",

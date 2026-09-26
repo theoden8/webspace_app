@@ -935,7 +935,6 @@
   "tabsThisSite": "Hic situs",
   "tabsAllSites": "Omnes situs",
   "tabsMemoryNote": "Singulae paginae unam tantum schedam oneratam servant; ceterae aperiendo iterum onerantur",
-  "tabsCloseParked": "{count, plural, =1{Claudere 1 schedam repositam} other{Claudere {count} schedas repositas}}",
   "tabsCloseTab": "Schedam claudere",
   "tabsCloseSubtree": "Schedam et schedas ex ea apertas claudere",
   "tabsLive": "aperta",

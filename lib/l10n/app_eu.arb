@@ -935,7 +935,6 @@
   "tabsThisSite": "Gune hau",
   "tabsAllSites": "Gune guztiak",
   "tabsMemoryNote": "Gune bakoitzak fitxa bakarra mantentzen du kargatuta; besteak berriro kargatzen dira irekitzean",
-  "tabsCloseParked": "{count, plural, =1{Itxi gordetako fitxa 1} other{Itxi gordetako {count} fitxa}}",
   "tabsCloseTab": "Itxi fitxa",
   "tabsCloseSubtree": "Itxi fitxa eta hartatik irekitako fitxak",
   "tabsLive": "irekita",

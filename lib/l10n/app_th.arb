@@ -935,7 +935,6 @@
   "tabsThisSite": "เว็บไซต์นี้",
   "tabsAllSites": "ทุกเว็บไซต์",
   "tabsMemoryNote": "แต่ละไซต์เก็บแท็บที่โหลดไว้เพียงแท็บเดียว แท็บอื่นจะโหลดใหม่เมื่อเปิด",
-  "tabsCloseParked": "{count, plural, =1{ปิดแท็บที่พักไว้ 1 แท็บ} other{ปิดแท็บที่พักไว้ {count} แท็บ}}",
   "tabsCloseTab": "ปิดแท็บ",
   "tabsCloseSubtree": "ปิดแท็บนี้และแท็บที่เปิดจากแท็บนี้",
   "tabsLive": "เปิดอยู่",

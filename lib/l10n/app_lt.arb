@@ -935,7 +935,6 @@
   "tabsThisSite": "Ši svetainė",
   "tabsAllSites": "Visos svetainės",
   "tabsMemoryNote": "Kiekvienoje svetainėje įkelta lieka tik viena kortelė; kitos atvėrus įkeliamos iš naujo",
-  "tabsCloseParked": "{count, plural, one{Užverti {count} neaktyvią kortelę} few{Užverti {count} neaktyvias korteles} other{Užverti {count} neaktyvių kortelių}}",
   "tabsCloseTab": "Užverti kortelę",
   "tabsCloseSubtree": "Užverti kortelę ir iš jos atvertas korteles",
   "tabsLive": "atverta",

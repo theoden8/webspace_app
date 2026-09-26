@@ -935,7 +935,6 @@
   "tabsThisSite": "Deze site",
   "tabsAllSites": "Alle sites",
   "tabsMemoryNote": "Per site blijft één tabblad geladen; de andere laden opnieuw als je ze opent",
-  "tabsCloseParked": "{count, plural, =1{1 geparkeerd tabblad sluiten} other{{count} geparkeerde tabbladen sluiten}}",
   "tabsCloseTab": "Tabblad sluiten",
   "tabsCloseSubtree": "Tabblad en de daaruit geopende tabbladen sluiten",
   "tabsLive": "actief",

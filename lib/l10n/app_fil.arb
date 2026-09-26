@@ -935,7 +935,6 @@
   "tabsThisSite": "Ang site na ito",
   "tabsAllSites": "Lahat ng site",
   "tabsMemoryNote": "Isang tab lang bawat site ang nananatiling naka-load; muling naglo-load ang iba kapag binuksan",
-  "tabsCloseParked": "{count, plural, =1{Isara ang 1 nakaimbak na tab} other{Isara ang {count} nakaimbak na tab}}",
   "tabsCloseTab": "Isara ang tab",
   "tabsCloseSubtree": "Isara ang tab at ang mga tab na binuksan mula rito",
   "tabsLive": "bukás",

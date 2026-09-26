@@ -935,7 +935,6 @@
   "tabsThisSite": "Þetta vefsvæði",
   "tabsAllSites": "Öll vefsvæði",
   "tabsMemoryNote": "Einn flipi á hvert vefsvæði helst hlaðinn; hinir hlaðast aftur þegar þeir eru opnaðir",
-  "tabsCloseParked": "{count, plural, one{Loka {count} óvirkum flipa} other{Loka {count} óvirkum flipum}}",
   "tabsCloseTab": "Loka flipa",
   "tabsCloseSubtree": "Loka flipanum og flipum sem opnaðir voru úr honum",
   "tabsLive": "opinn",

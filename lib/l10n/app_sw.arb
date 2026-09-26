@@ -935,7 +935,6 @@
   "tabsThisSite": "Tovuti hii",
   "tabsAllSites": "Tovuti zote",
   "tabsMemoryNote": "Kila tovuti huweka kichupo kimoja tu kikiwa kimepakiwa; vingine hupakiwa upya vinapofunguliwa",
-  "tabsCloseParked": "{count, plural, =1{Funga kichupo 1 kisichotumika} other{Funga vichupo {count} visivyotumika}}",
   "tabsCloseTab": "Funga kichupo",
   "tabsCloseSubtree": "Funga kichupo na vichupo vilivyofunguliwa kutoka kwake",
   "tabsLive": "wazi",

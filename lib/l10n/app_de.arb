@@ -935,7 +935,6 @@
   "tabsThisSite": "Diese Website",
   "tabsAllSites": "Alle Websites",
   "tabsMemoryNote": "Pro Website bleibt ein Tab geladen; die anderen laden beim Öffnen neu",
-  "tabsCloseParked": "{count, plural, =1{1 geparkten Tab schließen} other{{count} geparkte Tabs schließen}}",
   "tabsCloseTab": "Tab schließen",
   "tabsCloseSubtree": "Tab und die daraus geöffneten Tabs schließen",
   "tabsLive": "offen",

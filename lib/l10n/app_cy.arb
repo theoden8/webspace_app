@@ -935,7 +935,6 @@
   "tabsThisSite": "Y wefan hon",
   "tabsAllSites": "Pob gwefan",
   "tabsMemoryNote": "Mae un tab i bob gwefan yn aros wedi'i lwytho; mae'r lleill yn ail-lwytho pan fyddwch yn eu hagor",
-  "tabsCloseParked": "{count, plural, zero{Cau {count} tab segur} one{Cau {count} tab segur} two{Cau {count} dab segur} few{Cau {count} tab segur} many{Cau {count} thab segur} other{Cau {count} tab segur}}",
   "tabsCloseTab": "Cau'r tab",
   "tabsCloseSubtree": "Cau'r tab a'r tabiau a agorwyd ohono",
   "tabsLive": "agored",

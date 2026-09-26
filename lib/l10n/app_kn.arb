@@ -935,7 +935,6 @@
   "tabsThisSite": "ಈ ಸೈಟ್",
   "tabsAllSites": "ಎಲ್ಲಾ ಸೈಟ್‌ಗಳು",
   "tabsMemoryNote": "ಪ್ರತಿ ಸೈಟ್‌ನ ಒಂದೇ ಟ್ಯಾಬ್ ಲೋಡ್ ಆಗಿರುತ್ತದೆ; ಉಳಿದವು ತೆರೆದಾಗ ಮತ್ತೆ ಲೋಡ್ ಆಗುತ್ತವೆ",
-  "tabsCloseParked": "{count, plural, one{{count} ನಿಷ್ಕ್ರಿಯ ಟ್ಯಾಬ್ ಮುಚ್ಚಿ} other{{count} ನಿಷ್ಕ್ರಿಯ ಟ್ಯಾಬ್‌ಗಳನ್ನು ಮುಚ್ಚಿ}}",
   "tabsCloseTab": "ಟ್ಯಾಬ್ ಮುಚ್ಚಿ",
   "tabsCloseSubtree": "ಟ್ಯಾಬ್ ಮತ್ತು ಅದರಿಂದ ತೆರೆದ ಟ್ಯಾಬ್‌ಗಳನ್ನು ಮುಚ್ಚಿ",
   "tabsLive": "ತೆರೆದಿದೆ",

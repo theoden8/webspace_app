@@ -935,7 +935,6 @@
   "tabsThisSite": "Ta strona",
   "tabsAllSites": "Wszystkie strony",
   "tabsMemoryNote": "Każda witryna trzyma wczytaną tylko jedną kartę; pozostałe wczytują się ponownie po otwarciu",
-  "tabsCloseParked": "{count, plural, =1{Zamknij 1 uśpioną kartę} few{Zamknij {count} uśpione karty} many{Zamknij {count} uśpionych kart} other{Zamknij {count} uśpionych kart}}",
   "tabsCloseTab": "Zamknij kartę",
   "tabsCloseSubtree": "Zamknij kartę i karty otwarte z niej",
   "tabsLive": "otwarta",

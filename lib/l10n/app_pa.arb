@@ -935,7 +935,6 @@
   "tabsThisSite": "ਇਹ ਸਾਈਟ",
   "tabsAllSites": "ਸਾਰੀਆਂ ਸਾਈਟਾਂ",
   "tabsMemoryNote": "ਹਰ ਸਾਈਟ ਦੀ ਇੱਕੋ ਟੈਬ ਲੋਡ ਰਹਿੰਦੀ ਹੈ; ਬਾਕੀ ਖੋਲ੍ਹਣ 'ਤੇ ਮੁੜ ਲੋਡ ਹੁੰਦੀਆਂ ਹਨ",
-  "tabsCloseParked": "{count, plural, =1{1 ਨਿਸ਼ਕਿਰਿਆ ਟੈਬ ਬੰਦ ਕਰੋ} other{{count} ਨਿਸ਼ਕਿਰਿਆ ਟੈਬਾਂ ਬੰਦ ਕਰੋ}}",
   "tabsCloseTab": "ਟੈਬ ਬੰਦ ਕਰੋ",
   "tabsCloseSubtree": "ਟੈਬ ਅਤੇ ਇਸ ਤੋਂ ਖੋਲ੍ਹੀਆਂ ਟੈਬਾਂ ਬੰਦ ਕਰੋ",
   "tabsLive": "ਖੁੱਲ੍ਹੀ",

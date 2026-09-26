@@ -935,7 +935,6 @@
   "tabsThisSite": "Այս կայքը",
   "tabsAllSites": "Բոլոր կայքերը",
   "tabsMemoryNote": "Յուրաքանչյուր կայքից միայն մեկ ներդիր է մնում բեռնված, մյուսները վերաբեռնվում են բացելիս",
-  "tabsCloseParked": "{count, plural, =1{Փակել 1 ոչ ակտիվ ներդիր} other{Փակել {count} ոչ ակտիվ ներդիր}}",
   "tabsCloseTab": "Փակել ներդիրը",
   "tabsCloseSubtree": "Փակել ներդիրը և դրանից բացված ներդիրները",
   "tabsLive": "բաց",

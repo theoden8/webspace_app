@@ -935,7 +935,6 @@
   "tabsThisSite": "Denna webbplats",
   "tabsAllSites": "Alla webbplatser",
   "tabsMemoryNote": "Varje webbplats håller bara en flik inläst; de andra läses in igen när de öppnas",
-  "tabsCloseParked": "{count, plural, =1{Stäng 1 vilande flik} other{Stäng {count} vilande flikar}}",
   "tabsCloseTab": "Stäng fliken",
   "tabsCloseSubtree": "Stäng fliken och flikarna som öppnats från den",
   "tabsLive": "öppen",

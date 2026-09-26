@@ -935,7 +935,6 @@
   "tabsThisSite": "An suíomh seo",
   "tabsAllSites": "Gach suíomh",
   "tabsMemoryNote": "Fanann cluaisín amháin in aghaidh an tsuímh lódáilte; athlódáiltear na cinn eile nuair a osclaítear iad",
-  "tabsCloseParked": "{count, plural, =1{Dún 1 cluaisín atá ar sos} two{Dún {count} chluaisín atá ar sos} few{Dún {count} chluaisín atá ar sos} many{Dún {count} gcluaisín atá ar sos} other{Dún {count} cluaisín atá ar sos}}",
   "tabsCloseTab": "Dún an cluaisín",
   "tabsCloseSubtree": "Dún an cluaisín agus na cluaisíní a osclaíodh uaidh",
   "tabsLive": "oscailte",

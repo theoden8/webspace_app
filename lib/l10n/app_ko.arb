@@ -935,7 +935,6 @@
   "tabsThisSite": "이 사이트",
   "tabsAllSites": "모든 사이트",
   "tabsMemoryNote": "사이트마다 탭 하나만 로드된 상태로 유지되고, 나머지는 열 때 다시 로드됩니다",
-  "tabsCloseParked": "{count, plural, =1{비활성 탭 1개 닫기} other{비활성 탭 {count}개 닫기}}",
   "tabsCloseTab": "탭 닫기",
   "tabsCloseSubtree": "이 탭과 여기서 연 탭 닫기",
   "tabsLive": "열림",

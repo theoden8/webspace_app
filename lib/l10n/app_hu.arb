@@ -935,7 +935,6 @@
   "tabsThisSite": "Ez a webhely",
   "tabsAllSites": "Minden webhely",
   "tabsMemoryNote": "Webhelyenként egy lap marad betöltve; a többi megnyitáskor újratöltődik",
-  "tabsCloseParked": "{count, plural, =1{1 inaktív lap bezárása} other{{count} inaktív lap bezárása}}",
   "tabsCloseTab": "Lap bezárása",
   "tabsCloseSubtree": "A lap és a belőle nyitott lapok bezárása",
   "tabsLive": "nyitva",

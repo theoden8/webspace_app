@@ -935,7 +935,6 @@
   "tabsThisSite": "Ce site",
   "tabsAllSites": "Tous les sites",
   "tabsMemoryNote": "Un seul onglet par site reste chargé ; les autres se rechargent à l'ouverture",
-  "tabsCloseParked": "{count, plural, =1{Fermer 1 onglet en réserve} other{Fermer {count} onglets en réserve}}",
   "tabsCloseTab": "Fermer l'onglet",
   "tabsCloseSubtree": "Fermer l'onglet et ceux qui en sont issus",
   "tabsLive": "ouvert",

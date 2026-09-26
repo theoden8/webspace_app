@@ -935,7 +935,6 @@
   "tabsThisSite": "Acest site",
   "tabsAllSites": "Toate site-urile",
   "tabsMemoryNote": "Fiecare site păstrează încărcată o singură filă; celelalte se reîncarcă la deschidere",
-  "tabsCloseParked": "{count, plural, =1{Închide 1 filă inactivă} few{Închide {count} file inactive} other{Închide {count} de file inactive}}",
   "tabsCloseTab": "Închide fila",
   "tabsCloseSubtree": "Închide fila și filele deschise din ea",
   "tabsLive": "deschisă",

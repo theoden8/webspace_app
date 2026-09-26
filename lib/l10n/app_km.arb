@@ -935,7 +935,6 @@
   "tabsThisSite": "គេហទំព័រនេះ",
   "tabsAllSites": "គេហទំព័រទាំងអស់",
   "tabsMemoryNote": "គេហទំព័រនីមួយៗរក្សាផ្ទាំងតែមួយឱ្យនៅផ្ទុក ផ្ទាំងផ្សេងទៀតផ្ទុកឡើងវិញពេលបើក",
-  "tabsCloseParked": "{count, plural, =1{បិទផ្ទាំងអសកម្ម 1} other{បិទផ្ទាំងអសកម្ម {count}}}",
   "tabsCloseTab": "បិទផ្ទាំង",
   "tabsCloseSubtree": "បិទផ្ទាំង និងផ្ទាំងដែលបើកចេញពីវា",
   "tabsLive": "បើក",

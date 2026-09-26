@@ -935,7 +935,6 @@
   "tabsThisSite": "Aquest lloc",
   "tabsAllSites": "Tots els llocs",
   "tabsMemoryNote": "Cada lloc manté una sola pestanya carregada; les altres es tornen a carregar en obrir-les",
-  "tabsCloseParked": "{count, plural, =1{Tanca 1 pestanya aparcada} other{Tanca {count} pestanyes aparcades}}",
   "tabsCloseTab": "Tanca la pestanya",
   "tabsCloseSubtree": "Tanca la pestanya i les que s'hi han obert",
   "tabsLive": "oberta",

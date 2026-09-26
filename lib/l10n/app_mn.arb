@@ -935,7 +935,6 @@
   "tabsThisSite": "Энэ сайт",
   "tabsAllSites": "Бүх сайт",
   "tabsMemoryNote": "Сайт бүрт зөвхөн нэг таб ачаалагдсан хэвээр үлдэнэ; бусад нь нээхэд дахин ачаална",
-  "tabsCloseParked": "{count, plural, one{{count} идэвхгүй табыг хаах} other{{count} идэвхгүй табыг хаах}}",
   "tabsCloseTab": "Табыг хаах",
   "tabsCloseSubtree": "Таб болон түүнээс нээсэн табуудыг хаах",
   "tabsLive": "нээлттэй",

@@ -935,7 +935,6 @@
   "tabsThisSite": "Dette nettstedet",
   "tabsAllSites": "Alle nettsteder",
   "tabsMemoryNote": "Hvert nettsted holder bare én fane lastet inn; de andre lastes inn på nytt når de åpnes",
-  "tabsCloseParked": "{count, plural, =1{Lukk 1 parkert fane} other{Lukk {count} parkerte faner}}",
   "tabsCloseTab": "Lukk fane",
   "tabsCloseSubtree": "Lukk fanen og fanene som er åpnet fra den",
   "tabsLive": "åpen",

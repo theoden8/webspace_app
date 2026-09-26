@@ -935,7 +935,6 @@
   "tabsThisSite": "Ovaj sajt",
   "tabsAllSites": "Svi sajtovi",
   "tabsMemoryNote": "Po jedna kartica svake stranice ostaje učitana; ostale se ponovo učitavaju kad ih otvorite",
-  "tabsCloseParked": "{count, plural, one{Zatvori {count} neaktivnu karticu} few{Zatvori {count} neaktivne kartice} other{Zatvori {count} neaktivnih kartica}}",
   "tabsCloseTab": "Zatvori karticu",
   "tabsCloseSubtree": "Zatvori karticu i kartice otvorene iz nje",
   "tabsLive": "otvorena",

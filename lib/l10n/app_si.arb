@@ -935,7 +935,6 @@
   "tabsThisSite": "මෙම අඩවිය",
   "tabsAllSites": "සියලු අඩවි",
   "tabsMemoryNote": "එක් අඩවියකට එක් ටැබයක් පමණක් පූරණය වී පවතී; අනෙක්වා විවෘත කළ විට යළි පූරණය වේ",
-  "tabsCloseParked": "{count, plural, =1{අක්‍රිය ටැබ් 1ක් වසන්න} other{අක්‍රිය ටැබ් {count}ක් වසන්න}}",
   "tabsCloseTab": "ටැබ් වසන්න",
   "tabsCloseSubtree": "ටැබ් එකත් එයින් විවෘත කළ ටැබ් ද වසන්න",
   "tabsLive": "විවෘතයි",

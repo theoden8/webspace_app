@@ -935,7 +935,6 @@
   "tabsThisSite": "このサイト",
   "tabsAllSites": "すべてのサイト",
   "tabsMemoryNote": "各サイトで読み込まれたままになるタブは1つだけで、ほかのタブは開くと再読み込みされます",
-  "tabsCloseParked": "{count, plural, =1{待機中のタブ 1 個を閉じる} other{待機中のタブ {count} 個を閉じる}}",
   "tabsCloseTab": "タブを閉じる",
   "tabsCloseSubtree": "タブと、そこから開いたタブを閉じる",
   "tabsLive": "表示中",

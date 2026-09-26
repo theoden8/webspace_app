@@ -935,7 +935,6 @@
   "tabsThisSite": "Este sitio",
   "tabsAllSites": "Todos los sitios",
   "tabsMemoryNote": "Cada sitio mantiene cargada una sola pestaña; las demás se recargan al abrirlas",
-  "tabsCloseParked": "{count, plural, =1{Cerrar 1 pestaña inactiva} other{Cerrar {count} pestañas inactivas}}",
   "tabsCloseTab": "Cerrar pestaña",
   "tabsCloseSubtree": "Cerrar la pestaña y las abiertas desde ella",
   "tabsLive": "abierta",

@@ -935,7 +935,6 @@
   "tabsThisSite": "Este site",
   "tabsAllSites": "Todos os sites",
   "tabsMemoryNote": "Cada site mantém só uma aba carregada; as outras recarregam ao abrir",
-  "tabsCloseParked": "{count, plural, =1{Fechar 1 aba em espera} other{Fechar {count} abas em espera}}",
   "tabsCloseTab": "Fechar aba",
   "tabsCloseSubtree": "Fechar a aba e as abas abertas a partir dela",
   "tabsLive": "aberta",

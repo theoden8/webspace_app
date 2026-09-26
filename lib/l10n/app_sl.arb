@@ -935,7 +935,6 @@
   "tabsThisSite": "Ta stran",
   "tabsAllSites": "Vse strani",
   "tabsMemoryNote": "Vsako spletno mesto ohrani naložen le en zavihek; drugi se ob odprtju znova naložijo",
-  "tabsCloseParked": "{count, plural, =1{Zapri 1 mirujoči zavihek} two{Zapri {count} mirujoča zavihka} few{Zapri {count} mirujoče zavihke} other{Zapri {count} mirujočih zavihkov}}",
   "tabsCloseTab": "Zapri zavihek",
   "tabsCloseSubtree": "Zapri zavihek in zavihke, odprte iz njega",
   "tabsLive": "odprt",

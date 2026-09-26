@@ -935,7 +935,6 @@
   "tabsThisSite": "এই সাইট",
   "tabsAllSites": "সব সাইট",
   "tabsMemoryNote": "প্রতি সাইটে একটি ট্যাবই লোড থাকে; বাকিগুলো খুললে আবার লোড হয়",
-  "tabsCloseParked": "{count, plural, =1{১টি জমা রাখা ট্যাব বন্ধ করুন} other{{count}টি জমা রাখা ট্যাব বন্ধ করুন}}",
   "tabsCloseTab": "ট্যাব বন্ধ করুন",
   "tabsCloseSubtree": "ট্যাব ও এটি থেকে খোলা ট্যাবগুলি বন্ধ করুন",
   "tabsLive": "খোলা",

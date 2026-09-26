@@ -935,7 +935,6 @@
   "tabsThisSite": "Situs ini",
   "tabsAllSites": "Semua situs",
   "tabsMemoryNote": "Hanya satu tab per situs yang tetap dimuat; yang lain dimuat ulang saat dibuka",
-  "tabsCloseParked": "{count, plural, =1{Tutup 1 tab tidak aktif} other{Tutup {count} tab tidak aktif}}",
   "tabsCloseTab": "Tutup tab",
   "tabsCloseSubtree": "Tutup tab beserta tab yang dibuka darinya",
   "tabsLive": "terbuka",

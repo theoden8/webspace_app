@@ -935,7 +935,6 @@
   "tabsThisSite": "Este sitio",
   "tabsAllSites": "Todos os sitios",
   "tabsMemoryNote": "Cada sitio mantén cargada unha soa lapela; as demais volven cargar ao abrilas",
-  "tabsCloseParked": "{count, plural, =1{Pechar 1 lapela inactiva} other{Pechar {count} lapelas inactivas}}",
   "tabsCloseTab": "Pechar a lapela",
   "tabsCloseSubtree": "Pechar a lapela e as abertas desde ela",
   "tabsLive": "aberta",
